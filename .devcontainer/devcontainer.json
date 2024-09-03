@@ -1,0 +1,35 @@
+{
+	// Name for the dev container
+	"name": "arkad",
+
+	// Point to a Docker Compose file
+	"dockerComposeFile": "./docker-compose.yaml",
+
+	// Required when using Docker Compose. The name of the service to connect to once running
+	// "service": "rust_environment",
+	"service": "rust_zig_aarch64",
+	//"service": "rust_zig_x86_64",
+	
+	
+	// The optional 'workspaceFolder' property is the path VS Code should open by default when
+	// connected. This is typically a file mount in .devcontainer/docker-compose.yml
+	"workspaceFolder": "/app",
+
+
+	// File mounts
+	"mounts": [
+		"source=~/Projects/gold/arkad,target=/app,type=bind,consistency=cached"
+	],
+
+	// Prevent the container from shutting down
+	"overrideCommand": true,
+	
+	// Add some customization here, e.g., VS Code exentions you also want inside the dev-container.
+	"customizations": {
+		// Configure properties specific to VS Code.
+		"vscode": {
+		  // Add the IDs of extensions you want installed when the container is created.
+		  "extensions": ["rust-lang.rust-analyzer"]
+		}
+	}
+}
