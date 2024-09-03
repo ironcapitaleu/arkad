@@ -9,7 +9,7 @@ categories = ["algorithms", "rust-patterns"]
 keywords = ["state-machine", "design-pattern"]
 
 [dependencies]
-
+state_maschine = { path = "../state_machine" }
 
 [lints.rust]
 unsafe_code = "forbid"
