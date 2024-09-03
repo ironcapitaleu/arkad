@@ -3,3 +3,10 @@ resolver = "2"
 members = [
     "state_machine",
 ]
+
+[profile.release]
+opt-level = 3 # default for release profiles
+codegen-units = 1
+lto = "fat"
+strip = true
+panic = "abort"
