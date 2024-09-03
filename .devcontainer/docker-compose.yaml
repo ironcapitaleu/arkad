@@ -1,0 +1,17 @@
+version: '3'
+services:
+  # default rust alpine image for development
+  rust_environment:
+    image: rust:1.77-alpine3.19
+  
+  # custom rust alpine image with zig installed, for development, for aarch64 (ARM-based)
+  rust_zig_aarch64:
+    build:
+      context: ./environments/alpine/rust_zig_dev_aarch64
+      dockerfile: Dockerfile
+
+  # custom rust alpine image with zig installed, for development, for x86_64
+  rust_zig_x86_64:
+    build:
+      context: ./environments/alpine/rust_zig_dev_x86_64
+      dockerfile: Dockerfile
