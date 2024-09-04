@@ -18,7 +18,7 @@
 
 	// File mounts
 	"mounts": [
-		"source=~/Projects/gold/arkad,target=/app,type=bind,consistency=cached"
+		"source=${localWorkspaceFolder},target=/app,type=bind,consistency=cached"
 	],
 
 	// Prevent the container from shutting down
