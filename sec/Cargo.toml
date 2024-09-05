@@ -9,6 +9,7 @@ categories = ["algorithms", "rust-patterns"]
 keywords = ["state-machine", "design-pattern"]
 
 [dependencies]
+reqwest = "0.12.7"
 state_maschine = { path = "../state_machine" }
 
 [lints.rust]
