@@ -1,3 +1,4 @@
+pub mod prelude;
 /// # State Machine Library
 ///
 /// This crate provides a modular and flexible framework for implementing state machines in Rust.
@@ -46,7 +47,6 @@
 ///
 /// This library is licensed under the MIT License. See the LICENSE file for details.
 pub mod state_machine;
-pub mod prelude;
 
 #[cfg(test)]
 mod tests;
