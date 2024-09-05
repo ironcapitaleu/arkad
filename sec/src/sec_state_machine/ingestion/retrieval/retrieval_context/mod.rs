@@ -1,7 +1,8 @@
 use state_maschine::prelude::*;
 pub mod config;
 
-pub use config::{get_sec_user_agent, DEFAULT_CIK};
+pub use config::get_sec_user_client;
+use config::{get_sec_user_agent, DEFAULT_CIK};
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 pub struct RetrievalContext {
@@ -15,6 +16,13 @@ impl RetrievalContext {
             user_agent: user_agent.to_string(),
             cik: cik.to_string(),
         }
+    }
+    pub fn cik(&self) -> &String {
+        &self.cik
+    }
+
+    pub fn user_agent(&self) -> &String {
+        &self.user_agent
     }
 }
 
