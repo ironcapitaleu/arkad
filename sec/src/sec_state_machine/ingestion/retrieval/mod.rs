@@ -30,7 +30,6 @@ impl State for Retrieval {
 
     fn compute_output_data(&mut self) {
         self.output = Some(RetievalData::default());
-        
     }
 
     fn get_output_data(&self) -> Option<&RetievalData> {
