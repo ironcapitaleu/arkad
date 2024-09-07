@@ -93,7 +93,9 @@ impl Default for RetrievalContextUpdaterBuilder {
 
 #[cfg(test)]
 mod tests {
-    use crate::sec_state_machine::ingestion::retrieval::retrieval_context::config::{get_sec_user_agent, DEFAULT_CIK};
+    use crate::sec_state_machine::ingestion::retrieval::retrieval_context::config::{
+        get_sec_user_agent, DEFAULT_CIK,
+    };
 
     use super::{RetrievalContext, RetrievalContextUpdaterBuilder};
     use state_maschine::prelude::*;
