@@ -93,7 +93,7 @@ impl Default for RetrievalContextUpdaterBuilder {
 
 #[cfg(test)]
 mod tests {
-    use crate::sec_state_machine::ingestion::retrieval::retrieval_context::config::get_sec_user_agent;
+    use crate::sec_state_machine::ingestion::retrieval::retrieval_context::config::{get_sec_user_agent, DEFAULT_CIK};
 
     use super::{RetrievalContext, RetrievalContextUpdaterBuilder};
     use state_maschine::prelude::*;
@@ -152,6 +152,19 @@ mod tests {
         let result = context.get_context();
 
         assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_not_leave_context_cik_data_the_default_when_update_contains_a_different_string() {
+        let mut context = RetrievalContext::default();
+        let update = RetrievalContextUpdaterBuilder::new()
+            .cik(String::from("Updated CIK!"))
+            .build();
+
+        context.update_context(update);
+        let result = context.get_context().cik();
+
+        assert_ne!(result, DEFAULT_CIK);
     }
 
     #[test]
