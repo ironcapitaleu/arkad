@@ -170,6 +170,21 @@ mod tests {
     }
 
     #[test]
+    fn should_change_user_agent_when_update_contains_new_user_agent() {
+        let mut context = RetrievalContext::default();
+        let user_agent_update = RetrievalContextUpdaterBuilder::new()
+            .user_agent("updated_user_agent@example.com")
+            .build();
+
+        let default_retrieval_context = &RetrievalContext::default();
+
+        context.update_context(user_agent_update);
+        let result = context.get_context();
+
+        assert_ne!(result, default_retrieval_context);
+    }
+
+    #[test]
     fn should_leave_context_unchanged_when_empty_update() {
         let mut context = RetrievalContext::default();
         let empty_update = RetrievalContextUpdaterBuilder::default().build();
