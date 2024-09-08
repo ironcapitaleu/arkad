@@ -11,6 +11,10 @@ impl RetrievalData {
             state_data: state_data.to_string(),
         }
     }
+
+    pub fn state_data(&self) -> &String {
+        &self.state_data
+    }
 }
 
 impl Default for RetrievalData {
@@ -133,6 +137,19 @@ mod tests {
 
         state_data.update_state(empty_update);
         let result = state_data.get_state();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_initialized_as_string_when_retrieval_data_initialized_with_default() {
+        let retrieval_state_data = &RetrievalData::default();
+
+        let expected_result = "Initialized";
+
+        let result = retrieval_state_data
+        .get_state()
+        .state_data();
 
         assert_eq!(result, expected_result);
     }
