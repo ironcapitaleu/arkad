@@ -3,7 +3,6 @@ use reqwest::{self, Client, Error};
 const USER_AGENT: &str = "Demir Catovic d.catovic9@gmail.com";
 pub const DEFAULT_CIK: &str = "0001067983"; // BRK
 
-
 /// Creates a new SEC user client with a custom user agent.
 ///
 /// # Errors
