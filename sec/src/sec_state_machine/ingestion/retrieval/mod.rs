@@ -84,10 +84,7 @@ impl fmt::Display for Retrieval {
              Output Data:\n\t{}",
             self.context,
             self.input,
-            match &self.output {
-                Some(output_data) => format!("{output_data}"),
-                None => "None".to_string(),
-            }
+            self.output.as_ref().map_or_else(|| "None".to_string(), |output_data| format!("{output_data}"))
         )
     }
 }
