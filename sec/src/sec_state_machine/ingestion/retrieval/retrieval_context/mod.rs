@@ -78,7 +78,7 @@ impl RetrievalContextUpdaterBuilder {
     }
 
     #[must_use]
-    pub fn cik(mut self, cik: &impl ToString) -> Self {
+    pub fn cik(mut self, cik: &(impl ToString + ?Sized)) -> Self {
         self.cik = Some(cik.to_string());
         self
     }
@@ -135,7 +135,7 @@ mod tests {
         let default_user_agent = get_sec_user_agent();
         let mut context = RetrievalContext::default();
         let update = RetrievalContextUpdaterBuilder::new()
-            .cik(&String::from("Updated CIK!"))
+            .cik("Updated CIK!")
             .build();
 
         let expected_result = &RetrievalContext::new(&default_user_agent, "Updated CIK!");
