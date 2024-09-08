@@ -78,20 +78,15 @@ impl fmt::Display for Retrieval {
         write!(
             f,
             "Retrieval State Summary\n\
-            ———————————————————————\n\
-             Context:\n\
-            \tUser Agent: {}\n\
-            \tCIK: {}\n\
-             Input Data:\n\
-             \tStatus: {}\n\
-             Output Data:\n\
-             \t{}",
-            self.context.user_agent(),
-            self.context.cik(),
-            self.input.status(),
+             ———————————————————————\n\
+             Context:\n{}\n\
+             Input Data:\n{}\n\
+             Output Data:\n\t{}",
+            self.context,
+            self.input,
             match &self.output {
                 Some(output_data) => format!("{output_data}"),
-                None => format!("None"),
+                None => "None".to_string(),
             }
         )
     }
