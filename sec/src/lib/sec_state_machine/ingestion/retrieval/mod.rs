@@ -101,7 +101,7 @@ mod tests {
     fn should_return_name_of_retrieval_state_when_in_retrieval_state() {
         let retrieval_state = Retrieval::default();
 
-        let expected_result = String::from("retrieval");
+        let expected_result = String::from("Retrieval");
 
         let result = retrieval_state.get_state_name().to_string();
 
@@ -310,7 +310,7 @@ mod tests {
     fn should_return_name_of_retrieval_state_when_calling_reference_to_retrieval_state() {
         let ref_to_retrieval_state = &Retrieval::default();
 
-        let expected_result = String::from("retrieval");
+        let expected_result = String::from("Retrieval");
 
         let result = ref_to_retrieval_state.get_state_name().to_string();
 
