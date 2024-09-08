@@ -1,3 +1,4 @@
+pub mod prelude;
 /// # State Machine Library
 ///
 /// This crate provides a modular and flexible framework for implementing state machines in Rust.

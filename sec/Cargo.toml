@@ -9,6 +9,7 @@ categories = ["algorithms", "rust-patterns"]
 keywords = ["state-machine", "design-pattern"]
 
 [dependencies]
+reqwest = "0.12.7"
 state_maschine = { path = "../state_machine" }
 
 [lints.rust]
@@ -25,4 +26,4 @@ nursery = { level = "deny", priority = -1 }
 
 # Individual lints that are treated differently, e.g., override to 'allow' because lint too strict / doesn't apply 
 module_name_repetitions = { level = "allow", priority = 1 }
-
+multiple_crate_versions = { level = "allow", priority = 1 }
