@@ -13,6 +13,15 @@ keywords = ["state-machine", "design-pattern"]
 [dependencies]
 reqwest = "0.12.7"
 state_maschine = { path = "../state_machine" }
+tokio = { version = "1.40.0", features = ["full"] }
+
+[lib]
+name = "sec"
+path = "src/lib/lib.rs"
+
+[[bin]]
+name = "ingestion"
+path = "src/bin/ingestion/main.rs"
 
 [lints.rust]
 unsafe_code = "forbid"

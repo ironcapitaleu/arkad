@@ -1,6 +1,8 @@
 use reqwest::Error;
 use retrieval_context::get_sec_user_client;
 use state_maschine::prelude::*;
+use std::fmt;
+
 pub mod retrieval_context;
 pub mod retrieval_data;
 
@@ -71,7 +73,24 @@ impl Retrieval {
         Ok(())
     }
 }
-
+impl fmt::Display for Retrieval {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "Retrieval State Summary\n\
+             ———————————————————————\n\
+             Context:\n{}\n\
+             Input Data:\n{}\n\
+             Output Data:\n\t{}",
+            self.context,
+            self.input,
+            self.output.as_ref().map_or_else(
+                || "None".to_string(),
+                |output_data| format!("{output_data}")
+            )
+        )
+    }
+}
 #[cfg(test)]
 mod tests {
     use super::*;
