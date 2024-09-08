@@ -20,7 +20,7 @@ path = "src/lib/lib.rs"
 
 [[bin]]
 name = "ingestion"
-path = "src/bin/ingestion.rs"
+path = "src/bin/ingestion/main.rs"
 
 [lints.rust]
 unsafe_code = "forbid"
