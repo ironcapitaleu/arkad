@@ -30,7 +30,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     // Call the async function and await the result
     retrieval_state.compute_output_new().await?;
- 
+
     println!("\nRetrieval state after quering SEC API with CIK:");
     println!("{retrieval_state}");
 
