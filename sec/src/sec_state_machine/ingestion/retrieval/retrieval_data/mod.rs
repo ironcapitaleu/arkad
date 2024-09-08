@@ -51,7 +51,7 @@ impl RetrievalDataUpdaterBuilder {
     }
 
     #[must_use]
-    pub fn state_data(mut self, state_data: &impl ToString) -> Self {
+    pub fn state_data(mut self, state_data: &(impl ToString + ?Sized)) -> Self {
         self.state_data = Some(state_data.to_string());
         self
     }
@@ -101,7 +101,7 @@ mod tests {
     fn should_update_state_data_to_specified_string_when_update_contains_specified_string() {
         let mut state_data = RetrievalData::default();
         let update = RetrievalDataUpdaterBuilder::default()
-            .state_data(&String::from("Updated State!"))
+            .state_data("Updated State!")
             .build();
 
         let expected_result = &RetrievalData::new(&String::from("Updated State!"));
