@@ -11,24 +11,27 @@ pub struct RetrievalContext {
 }
 
 impl RetrievalContext {
-    pub fn new(user_agent: impl ToString, cik: impl ToString) -> Self {
+    pub fn new(user_agent: &(impl ToString + ?Sized), cik: &(impl ToString + ?Sized)) -> Self {
         Self {
             user_agent: user_agent.to_string(),
             cik: cik.to_string(),
         }
     }
-    pub fn cik(&self) -> &String {
+
+    #[must_use]
+    pub const fn cik(&self) -> &String {
         &self.cik
     }
 
-    pub fn user_agent(&self) -> &String {
+    #[must_use]
+    pub const fn user_agent(&self) -> &String {
         &self.user_agent
     }
 }
 
 impl Default for RetrievalContext {
     fn default() -> Self {
-        Self::new(get_sec_user_agent().to_string(), DEFAULT_CIK)
+        Self::new(&get_sec_user_agent(), DEFAULT_CIK)
     }
 }
 
@@ -60,23 +63,27 @@ pub struct RetrievalContextUpdaterBuilder {
 }
 
 impl RetrievalContextUpdaterBuilder {
-    pub fn new() -> Self {
+    #[must_use]
+    pub const fn new() -> Self {
         Self {
             user_agent: None,
             cik: None,
         }
     }
 
-    pub fn user_agent(mut self, user_agent: impl ToString) -> Self {
+    #[must_use]
+    pub fn user_agent(mut self, user_agent: &(impl ToString + ?Sized)) -> Self {
         self.user_agent = Some(user_agent.to_string());
         self
     }
 
-    pub fn cik(mut self, cik: impl ToString) -> Self {
+    #[must_use]
+    pub fn cik(mut self, cik: &impl ToString) -> Self {
         self.cik = Some(cik.to_string());
         self
     }
 
+    #[must_use]
     pub fn build(self) -> RetrievalContextUpdater {
         RetrievalContextUpdater {
             user_agent: self.user_agent,
@@ -128,10 +135,10 @@ mod tests {
         let default_user_agent = get_sec_user_agent();
         let mut context = RetrievalContext::default();
         let update = RetrievalContextUpdaterBuilder::new()
-            .cik(String::from("Updated CIK!"))
+            .cik(&String::from("Updated CIK!"))
             .build();
 
-        let expected_result = &RetrievalContext::new(default_user_agent, "Updated CIK!");
+        let expected_result = &RetrievalContext::new(&default_user_agent, "Updated CIK!");
 
         context.update_context(update);
         let result = context.get_context();
@@ -144,11 +151,11 @@ mod tests {
         let default_user_agent = get_sec_user_agent();
         let mut context = RetrievalContext::default();
         let update = RetrievalContextUpdaterBuilder::new()
-            .cik(String::from("First CIK Update!"))
-            .cik(String::from("Latest CIK Update!"))
+            .cik(&String::from("First CIK Update!"))
+            .cik(&String::from("Latest CIK Update!"))
             .build();
 
-        let expected_result = &RetrievalContext::new(default_user_agent, "Latest CIK Update!");
+        let expected_result = &RetrievalContext::new(&default_user_agent, "Latest CIK Update!");
 
         context.update_context(update);
         let result = context.get_context();
@@ -160,7 +167,7 @@ mod tests {
     fn should_not_leave_context_cik_data_the_default_when_update_contains_a_different_string() {
         let mut context = RetrievalContext::default();
         let update = RetrievalContextUpdaterBuilder::new()
-            .cik(String::from("Updated CIK!"))
+            .cik(&String::from("Updated CIK!"))
             .build();
 
         context.update_context(update);

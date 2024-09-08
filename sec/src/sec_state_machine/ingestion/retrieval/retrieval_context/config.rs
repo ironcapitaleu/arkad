@@ -3,6 +3,16 @@ use reqwest::{self, Client, Error};
 const USER_AGENT: &str = "Demir Catovic d.catovic9@gmail.com";
 pub const DEFAULT_CIK: &str = "0001067983"; // BRK
 
+
+/// Creates a new SEC user client with a custom user agent.
+///
+/// # Errors
+///
+/// This function will return an error if the client cannot be built,
+/// which can happen if there's an issue with the underlying configuration
+/// of the `reqwest::Client` (e.g., invalid user agent).
+///
+/// The `reqwest::Error` is returned when the builder fails.
 pub fn get_sec_user_client() -> Result<Client, Error> {
     let client = reqwest::Client::builder()
         .user_agent(get_sec_user_agent().to_string())
@@ -10,8 +20,9 @@ pub fn get_sec_user_client() -> Result<Client, Error> {
     Ok(client)
 }
 
+#[must_use]
 pub fn get_sec_user_agent() -> impl ToString {
-    USER_AGENT.to_string()
+    USER_AGENT
 }
 
 #[cfg(test)]
