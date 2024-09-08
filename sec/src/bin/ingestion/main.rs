@@ -6,7 +6,7 @@ use std::error::Error;
 
 //     let _state_data = retrieval_state.get_input_data();
 //     let context = retrieval_state.get_context_data();
-    
+
 //     println!("{retrieval_state}");
 
 //     println!("CIK to retrieve: {}", context.cik());
@@ -15,7 +15,6 @@ use std::error::Error;
 
 // }
 
-
 // Make the main function async using the #[tokio::main] macro
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -23,16 +22,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let _state_data = retrieval_state.get_input_data();
     let context = retrieval_state.get_context_data();
-    
+
     println!("{retrieval_state}");
 
     println!("CIK to retrieve: {}", context.cik());
 
     // Call the async function and await the result
-    let retrieval_result = retrieval_state.compute_output_new().await?;
-
-    // You can handle the result here
-    println!("Retrieval result: {:?}", retrieval_result);
+    retrieval_state.compute_output_new().await?;
 
     Ok(())
 }
