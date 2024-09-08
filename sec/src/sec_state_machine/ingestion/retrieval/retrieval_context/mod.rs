@@ -151,8 +151,8 @@ mod tests {
         let default_user_agent = get_sec_user_agent();
         let mut context = RetrievalContext::default();
         let update = RetrievalContextUpdaterBuilder::new()
-            .cik(&String::from("First CIK Update!"))
-            .cik(&String::from("Latest CIK Update!"))
+            .cik("First CIK Update!")
+            .cik("Latest CIK Update!")
             .build();
 
         let expected_result = &RetrievalContext::new(&default_user_agent, "Latest CIK Update!");
@@ -167,7 +167,7 @@ mod tests {
     fn should_not_leave_context_cik_data_the_default_when_update_contains_a_different_string() {
         let mut context = RetrievalContext::default();
         let update = RetrievalContextUpdaterBuilder::new()
-            .cik(&String::from("Updated CIK!"))
+            .cik("Updated CIK!")
             .build();
 
         context.update_context(update);
