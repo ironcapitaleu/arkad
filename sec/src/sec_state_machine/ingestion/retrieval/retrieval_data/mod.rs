@@ -12,7 +12,8 @@ impl RetrievalData {
         }
     }
 
-    pub fn state_data(&self) -> &String {
+    #[must_use]
+    pub const fn state_data(&self) -> &String {
         &self.state_data
     }
 }
