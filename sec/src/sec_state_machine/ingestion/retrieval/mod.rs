@@ -77,8 +77,22 @@ impl fmt::Display for Retrieval {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "Retrieval State\nContext:\n{}\nInput Data:\n{}\nOutput Data:\n{:?}",
-            self.context, self.input, self.output,
+            "Retrieval State Summary\n\
+            ———————————————————————\n\
+             Context:\n\
+            \tUser Agent: {}\n\
+            \tCIK: {}\n\
+             Input Data:\n\
+             \tStatus: {}\n\
+             Output Data:\n\
+             \t{}",
+            self.context.user_agent(),
+            self.context.cik(),
+            self.input.status(),
+            match &self.output {
+                Some(output_data) => format!("{output_data}"),
+                None => format!("None"),
+            }
         )
     }
 }
