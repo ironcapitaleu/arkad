@@ -14,7 +14,7 @@ impl RetrievalData {
     }
 
     #[must_use]
-    pub const fn state_data(&self) -> &String {
+    pub const fn status(&self) -> &String {
         &self.status
     }
 }
@@ -27,11 +27,7 @@ impl Default for RetrievalData {
 
 impl fmt::Display for RetrievalData {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "Retrieval State Data:\n\tStatus: {}",
-            self.state_data(),
-        )
+        write!(f, "\tStatus: {}", self.status(),)
     }
 }
 
@@ -159,7 +155,7 @@ mod tests {
 
         let expected_result = "Initialized";
 
-        let result = retrieval_state_data.get_state().state_data();
+        let result = retrieval_state_data.get_state().status();
 
         assert_eq!(result, expected_result);
     }

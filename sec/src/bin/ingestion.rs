@@ -9,4 +9,5 @@ fn main() {
 
     println!("{context}");
     println!("{state_name}");
+    println!("{retrieval_state}");
 }

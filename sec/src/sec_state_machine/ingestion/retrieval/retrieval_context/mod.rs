@@ -39,11 +39,7 @@ impl Default for RetrievalContext {
 
 impl fmt::Display for RetrievalContext {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "Retrieval Context:\n\tUser Agent: {}\n\tCIK: {}",
-            self.user_agent, self.cik
-        )
+        write!(f, "\tUser Agent: {}\n\tCIK: {}", self.user_agent, self.cik)
     }
 }
 
