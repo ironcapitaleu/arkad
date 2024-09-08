@@ -15,7 +15,8 @@ reqwest = "0.12.7"
 state_maschine = { path = "../state_machine" }
 
 [lib]
-
+name = "sec"
+path = "src/lib/lib.rs"
 
 [[bin]]
 name = "ingestion"
