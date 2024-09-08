@@ -72,8 +72,6 @@ impl Retrieval {
     }
 }
 
-
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -312,8 +310,8 @@ mod tests {
     }
 
     #[test]
-    fn should_return_default_state_data_as_input_data_when_reference_retrieval_state_in_initial_state()
-    {
+    fn should_return_default_state_data_as_input_data_when_reference_retrieval_state_in_initial_state(
+    ) {
         let ref_to_retrieval_state = &Retrieval::default();
 
         let expected_result = &RetrievalData::default();

@@ -147,9 +147,7 @@ mod tests {
 
         let expected_result = "Initialized";
 
-        let result = retrieval_state_data
-        .get_state()
-        .state_data();
+        let result = retrieval_state_data.get_state().state_data();
 
         assert_eq!(result, expected_result);
     }
