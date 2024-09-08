@@ -13,6 +13,7 @@ keywords = ["state-machine", "design-pattern"]
 [dependencies]
 reqwest = "0.12.7"
 state_maschine = { path = "../state_machine" }
+tokio = { version = "1.40.0", features = ["full"] }
 
 [lib]
 name = "sec"
