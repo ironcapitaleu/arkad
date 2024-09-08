@@ -14,8 +14,11 @@ keywords = ["state-machine", "design-pattern"]
 reqwest = "0.12.7"
 state_maschine = { path = "../state_machine" }
 
+[lib]
+
+
 [[bin]]
-name = "inestion"
+name = "ingestion"
 path = "src/bin/ingestion.rs"
 
 [lints.rust]
