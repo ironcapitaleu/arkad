@@ -88,7 +88,7 @@ mod tests {
 
     #[test]
     fn should_create_different_state_data_with_custom_data_when_using_new_as_constructor() {
-        let retrieval_state_data = &RetrievalData::new(&String::from("Demir ist der Boss."));
+        let retrieval_state_data = &RetrievalData::new("Demir ist der Boss.");
 
         let default_retrieval_state_data = &RetrievalData::default();
 
@@ -104,7 +104,7 @@ mod tests {
             .state_data("Updated State!")
             .build();
 
-        let expected_result = &RetrievalData::new(&String::from("Updated State!"));
+        let expected_result = &RetrievalData::new("Updated State!");
 
         state_data.update_state(update);
         let result = state_data.get_state();
@@ -116,11 +116,11 @@ mod tests {
     fn should_update_state_data_to_latest_specified_string_when_multiple_updates_in_builder() {
         let mut state_data = RetrievalData::default();
         let update = RetrievalDataUpdaterBuilder::default()
-            .state_data(&String::from("First Update!"))
-            .state_data(&String::from("Latest Update!"))
+            .state_data("First Update!")
+            .state_data("Latest Update!")
             .build();
 
-        let expected_result = &RetrievalData::new(&String::from("Latest Update!"));
+        let expected_result = &RetrievalData::new("Latest Update!");
 
         state_data.update_state(update);
         let result = state_data.get_state();
