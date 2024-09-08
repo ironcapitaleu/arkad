@@ -78,7 +78,7 @@ impl fmt::Display for Retrieval {
         write!(
             f,
             "`{}` State Summary\n\
-             ———————————————-————————--\n\
+             ---------------------------\n\
              Context:\n{}\n\
              Input Data:\n{}\n\
              Output Data:\n\t{}",
