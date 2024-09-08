@@ -1,4 +1,6 @@
 use state_maschine::prelude::*;
+use std::fmt;
+
 pub mod config;
 
 pub use config::get_sec_user_client;
@@ -32,6 +34,16 @@ impl RetrievalContext {
 impl Default for RetrievalContext {
     fn default() -> Self {
         Self::new(&get_sec_user_agent(), DEFAULT_CIK)
+    }
+}
+
+impl fmt::Display for RetrievalContext {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "Retrieval Context:\n\tUser Agent: {}\n\tCIK: {}",
+            self.user_agent, self.cik
+        )
     }
 }
 

@@ -1,26 +1,37 @@
 use state_maschine::prelude::*;
+use std::fmt;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 pub struct RetrievalData {
-    state_data: String,
+    status: String,
 }
 
 impl RetrievalData {
-    pub fn new(state_data: &(impl ToString + ?Sized)) -> Self {
+    pub fn new(status: &(impl ToString + ?Sized)) -> Self {
         Self {
-            state_data: state_data.to_string(),
+            status: status.to_string(),
         }
     }
 
     #[must_use]
     pub const fn state_data(&self) -> &String {
-        &self.state_data
+        &self.status
     }
 }
 
 impl Default for RetrievalData {
     fn default() -> Self {
         Self::new("Initialized")
+    }
+}
+
+impl fmt::Display for RetrievalData {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "Retrieval State Data:\n\tStatus: {}",
+            self.state_data(),
+        )
     }
 }
 
@@ -31,36 +42,36 @@ impl StateData for RetrievalData {
     }
 
     fn update_state(&mut self, updates: Self::UpdateType) {
-        if let Some(value) = updates.state_data {
-            self.state_data = value;
+        if let Some(value) = updates.status {
+            self.status = value;
         }
     }
 }
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 pub struct RetrievalDataUpdater {
-    pub state_data: Option<String>,
+    pub status: Option<String>,
 }
 
 pub struct RetrievalDataUpdaterBuilder {
-    state_data: Option<String>,
+    status: Option<String>,
 }
 impl RetrievalDataUpdaterBuilder {
     #[must_use]
     pub const fn new() -> Self {
-        Self { state_data: None }
+        Self { status: None }
     }
 
     #[must_use]
-    pub fn state_data(mut self, state_data: &(impl ToString + ?Sized)) -> Self {
-        self.state_data = Some(state_data.to_string());
+    pub fn state_data(mut self, status: &(impl ToString + ?Sized)) -> Self {
+        self.status = Some(status.to_string());
         self
     }
 
     #[must_use]
     pub fn build(self) -> RetrievalDataUpdater {
         RetrievalDataUpdater {
-            state_data: self.state_data,
+            status: self.status,
         }
     }
 }
