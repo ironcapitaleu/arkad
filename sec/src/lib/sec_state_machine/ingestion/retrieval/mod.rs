@@ -22,7 +22,7 @@ impl State for Retrieval {
     type Context = RetrievalContext;
 
     fn get_state_name(&self) -> impl ToString {
-        "retrieval"
+        "Retrieval"
     }
 
     fn get_input_data(&self) -> &RetrievalData {
@@ -77,11 +77,12 @@ impl fmt::Display for Retrieval {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "Retrieval State Summary\n\
-             ———————————————————————\n\
+            "`{}` State Summary\n\
+             ———————————————-————————--\n\
              Context:\n{}\n\
              Input Data:\n{}\n\
              Output Data:\n\t{}",
+            self.get_state_name().to_string(),
             self.context,
             self.input,
             self.output.as_ref().map_or_else(
