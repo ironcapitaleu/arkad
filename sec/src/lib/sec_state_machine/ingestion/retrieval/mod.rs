@@ -31,7 +31,6 @@ impl State for Retrieval {
     }
 
     fn compute_output_data(&mut self) {
-
         let cik = self.get_context_data().cik();
         let url = format!("https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json");
 
@@ -47,12 +46,12 @@ impl State for Retrieval {
                             Ok(body) => {
                                 let response_string = body;
                                 let output_updater = RetrievalDataUpdaterBuilder::new()
-                                .state_data(&response_string)
-                                .build();
+                                    .state_data(&response_string)
+                                    .build();
 
-                                self.output.get_or_insert_with(|| {
-                                    RetrievalData::default()
-                                }).update_state(output_updater);
+                                self.output
+                                    .get_or_insert_with(|| RetrievalData::default())
+                                    .update_state(output_updater);
                             }
                             Err(err) => {
                                 eprintln!("Failed to convert response body of query for CIK '{}' to string: {}", self.context.cik(), err);
@@ -75,8 +74,6 @@ impl State for Retrieval {
                 return;
             }
         }
-
-
     }
 
     fn get_output_data(&self) -> Option<&RetrievalData> {
