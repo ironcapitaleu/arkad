@@ -57,13 +57,13 @@ impl Retrieval {
     /// - If the body of the HTTP response cannot be retrieved or parsed.
     ///
     /// The errors are wrapped in a [`reqwest::Error`] or any custom `Error` type if applicable.
-    pub async fn compute_output_new(&self) -> Result<(), Error> {
+    pub fn compute_output_new(&self) -> Result<(), Error> {
         let cik = self.get_context_data().cik();
         let url = format!("https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json");
 
         let client = get_sec_user_client()?;
 
-        let body = client.get(&url).send().await?.text().await?;
+        let body = client.get(&url).send()?.text()?;
 
         println!(
             "Did the retrieval process for this cik: {cik} with this body: {}...",
