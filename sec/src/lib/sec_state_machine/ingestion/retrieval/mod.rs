@@ -1,5 +1,6 @@
-use reqwest::Error;
+use reqwest::{blocking::Client, Error, Response};
 use retrieval_context::get_sec_user_client;
+use retrieval_data::{RetrievalDataUpdater, RetrievalDataUpdaterBuilder};
 use state_maschine::prelude::*;
 use std::fmt;
 
@@ -30,7 +31,52 @@ impl State for Retrieval {
     }
 
     fn compute_output_data(&mut self) {
-        self.output = Some(RetrievalData::default());
+
+        let cik = self.get_context_data().cik();
+        let url = format!("https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json");
+
+        let client_result = get_sec_user_client();
+        match client_result {
+            Ok(client) => {
+                let response_result = client.get(&url).send();
+                match response_result {
+                    Ok(response) => {
+                        let response_body_result = response.text();
+
+                        match response_body_result {
+                            Ok(body) => {
+                                let response_string = body;
+                                let output_updater = RetrievalDataUpdaterBuilder::new()
+                                .state_data(&response_string)
+                                .build();
+
+                                self.output.get_or_insert_with(|| {
+                                    RetrievalData::default()
+                                }).update_state(output_updater);
+                            }
+                            Err(err) => {
+                                eprintln!("Failed to convert response body of query for CIK '{}' to string: {}", self.context.cik(), err);
+                                return;
+                            }
+                        }
+                    }
+                    Err(err) => {
+                        eprintln!(
+                            "Bad response code for request for CIK '{}'. Got response: {}",
+                            self.context.cik(),
+                            err
+                        );
+                        return;
+                    }
+                }
+            }
+            Err(err) => {
+                eprintln!("Failed to create SEC user client: {}", err);
+                return;
+            }
+        }
+
+
     }
 
     fn get_output_data(&self) -> Option<&RetrievalData> {
@@ -42,37 +88,6 @@ impl State for Retrieval {
     }
 }
 
-impl Retrieval {
-    /// Computes the output by retrieving data from the SEC API.
-    ///
-    /// This function sends an HTTP GET request to the SEC's API using the CIK (Central Index Key)
-    /// to retrieve company facts in JSON format. The result is printed out for the first 100
-    /// characters.
-    ///
-    /// # Errors
-    ///
-    /// This function will return an error in the following situations:
-    /// - If the HTTP client cannot be built (see [`get_sec_user_client`] for details).
-    /// - If the request to the SEC API fails (e.g., network errors, invalid response).
-    /// - If the body of the HTTP response cannot be retrieved or parsed.
-    ///
-    /// The errors are wrapped in a [`reqwest::Error`] or any custom `Error` type if applicable.
-    pub fn compute_output_new(&self) -> Result<(), Error> {
-        let cik = self.get_context_data().cik();
-        let url = format!("https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json");
-
-        let client = get_sec_user_client()?;
-
-        let body = client.get(&url).send()?.text()?;
-
-        println!(
-            "Did the retrieval process for this cik: {cik} with this body: {}...",
-            &body[..100]
-        );
-
-        Ok(())
-    }
-}
 impl fmt::Display for Retrieval {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
