@@ -1,8 +1,7 @@
 use sec::sec_state_machine::ingestion::retrieval::Retrieval;
 use state_maschine::prelude::*;
-use std::error::Error;
 
-fn main() -> Result<(), Box<dyn Error>> {
+fn main() {
     let mut retrieval_state = Retrieval::default();
 
     println!("Initial Retrieval state:");
@@ -13,6 +12,4 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     println!("\nRetrieval state after quering SEC API with CIK:");
     println!("{retrieval_state}");
-
-    Ok(())
 }

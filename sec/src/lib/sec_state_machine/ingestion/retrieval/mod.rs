@@ -1,6 +1,5 @@
-use reqwest::{blocking::Client, Error, Response};
 use retrieval_context::get_sec_user_client;
-use retrieval_data::{RetrievalDataUpdater, RetrievalDataUpdaterBuilder};
+use retrieval_data::RetrievalDataUpdaterBuilder;
 use state_maschine::prelude::*;
 use std::fmt;
 
@@ -30,6 +29,7 @@ impl State for Retrieval {
         &self.input
     }
 
+    #[allow(clippy::redundant_closure)]
     fn compute_output_data(&mut self) {
         let cik = self.get_context_data().cik();
         let url = format!("https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json");
@@ -54,24 +54,20 @@ impl State for Retrieval {
                                     .update_state(output_updater);
                             }
                             Err(err) => {
-                                eprintln!("Failed to convert response body of query for CIK '{}' to string: {}", self.context.cik(), err);
-                                return;
+                                eprintln!("Failed to convert response body of query for CIK '{}' to string: {err}", self.context.cik());
                             }
                         }
                     }
                     Err(err) => {
                         eprintln!(
-                            "Bad response code for request for CIK '{}'. Got response: {}",
+                            "Bad response code for request for CIK '{}'. Got response: {err}",
                             self.context.cik(),
-                            err
                         );
-                        return;
                     }
                 }
             }
             Err(err) => {
-                eprintln!("Failed to create SEC user client: {}", err);
-                return;
+                eprintln!("Failed to create SEC user client: {err}");
             }
         }
     }
