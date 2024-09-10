@@ -2,7 +2,7 @@ use reqwest::{self, blocking::Client, Error};
 
 const USER_AGENT: &str = "Demir Catovic d.catovic9@gmail.com";
 pub const DEFAULT_CIK: &str = "0001067983"; // BRK
-//pub const DEFAULT_CIK: &str = "00001067983"; // invalid CIK (used for testing purposes)
+                                            //pub const DEFAULT_CIK: &str = "00001067983"; // invalid CIK (used for testing purposes)
 
 /// Creates a new synchronous(!) SEC user client with a custom user agent.
 ///
@@ -32,7 +32,7 @@ mod tests {
     #[test]
     fn should_return_default_email_when_calling_get_sec_user_agent() {
         let expected_user_agent = "Demir Catovic d.catovic9@gmail.com";
-        
+
         let result = get_sec_user_agent().to_string();
 
         assert_eq!(result, expected_user_agent);
