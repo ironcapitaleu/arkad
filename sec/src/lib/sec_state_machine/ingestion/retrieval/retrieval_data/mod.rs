@@ -27,7 +27,7 @@ impl Default for RetrievalData {
 
 impl fmt::Display for RetrievalData {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "\tStatus: {}", self.status())
+        write!(f, "Status: {}", self.status())
     }
 }
 
