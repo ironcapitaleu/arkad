@@ -1,7 +1,8 @@
 use reqwest::{self, blocking::Client, Error};
 
 const USER_AGENT: &str = "Demir Catovic d.catovic9@gmail.com";
-pub const DEFAULT_CIK: &str = "0001067983"; // BRK
+//pub const DEFAULT_CIK: &str = "0001067983"; // BRK
+pub const DEFAULT_CIK: &str = "00001067983"; // BRK
 
 /// Creates a new synchronous(!) SEC user client with a custom user agent.
 ///
