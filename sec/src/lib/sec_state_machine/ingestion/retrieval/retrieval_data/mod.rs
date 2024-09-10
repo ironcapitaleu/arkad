@@ -3,31 +3,55 @@ use std::fmt;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 pub struct RetrievalData {
-    status: String,
+    status: Status,
+}
+
+#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
+pub enum Status {
+    PreRetrieval,
+    PostRetrieval,
+}
+
+impl Status {
+    #[must_use]
+    pub const fn next(&self) -> Self {
+        match self {
+            Self::PreRetrieval | Self::PostRetrieval => Self::PostRetrieval,
+        }
+    }
+}
+
+impl fmt::Display for Status {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let status_str = match self {
+            Self::PreRetrieval => "Pre-Retrieval",
+            Self::PostRetrieval => "Post-Retrieval",
+        };
+        write!(f, "{status_str}")
+    }
 }
 
 impl RetrievalData {
-    pub fn new(status: &(impl ToString + ?Sized)) -> Self {
-        Self {
-            status: status.to_string(),
-        }
+    #[must_use]
+    pub const fn new(status: Status) -> Self {
+        Self { status }
     }
 
     #[must_use]
-    pub const fn status(&self) -> &String {
+    pub const fn status(&self) -> &Status {
         &self.status
     }
 }
 
 impl Default for RetrievalData {
     fn default() -> Self {
-        Self::new("Initialized")
+        Self::new(Status::PreRetrieval)
     }
 }
 
 impl fmt::Display for RetrievalData {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Status: {}", self.status())
+        write!(f, "\tStatus: {}", self.status())
     }
 }
 
@@ -46,11 +70,11 @@ impl StateData for RetrievalData {
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 pub struct RetrievalDataUpdater {
-    pub status: Option<String>,
+    pub status: Option<Status>,
 }
 
 pub struct RetrievalDataUpdaterBuilder {
-    status: Option<String>,
+    status: Option<Status>,
 }
 impl RetrievalDataUpdaterBuilder {
     #[must_use]
@@ -59,13 +83,13 @@ impl RetrievalDataUpdaterBuilder {
     }
 
     #[must_use]
-    pub fn state_data(mut self, status: &(impl ToString + ?Sized)) -> Self {
-        self.status = Some(status.to_string());
+    pub const fn state_data(mut self, status: Status) -> Self {
+        self.status = Some(status);
         self
     }
 
     #[must_use]
-    pub fn build(self) -> RetrievalDataUpdater {
+    pub const fn build(self) -> RetrievalDataUpdater {
         RetrievalDataUpdater {
             status: self.status,
         }
@@ -80,7 +104,7 @@ impl Default for RetrievalDataUpdaterBuilder {
 
 #[cfg(test)]
 mod tests {
-    use super::{RetrievalData, RetrievalDataUpdaterBuilder};
+    use super::{RetrievalData, RetrievalDataUpdaterBuilder, Status};
     use state_maschine::prelude::*;
 
     #[test]
@@ -96,7 +120,7 @@ mod tests {
 
     #[test]
     fn should_create_different_state_data_with_custom_data_when_using_new_as_constructor() {
-        let retrieval_state_data = &RetrievalData::new("Demir ist der Boss.");
+        let retrieval_state_data = &RetrievalData::new(Status::PostRetrieval);
 
         let default_retrieval_state_data = &RetrievalData::default();
 
@@ -106,13 +130,13 @@ mod tests {
     }
 
     #[test]
-    fn should_update_state_data_to_specified_string_when_update_contains_specified_string() {
+    fn should_update_state_data_to_specified_status_when_update_contains_specified_status() {
         let mut state_data = RetrievalData::default();
         let update = RetrievalDataUpdaterBuilder::default()
-            .state_data("Updated State!")
+            .state_data(Status::PostRetrieval)
             .build();
 
-        let expected_result = &RetrievalData::new("Updated State!");
+        let expected_result = &RetrievalData::new(Status::PostRetrieval);
 
         state_data.update_state(update);
         let result = state_data.get_state();
@@ -121,14 +145,14 @@ mod tests {
     }
 
     #[test]
-    fn should_update_state_data_to_latest_specified_string_when_multiple_updates_in_builder() {
+    fn should_update_state_data_to_latest_specified_status_when_multiple_updates_in_builder() {
         let mut state_data = RetrievalData::default();
         let update = RetrievalDataUpdaterBuilder::default()
-            .state_data("First Update!")
-            .state_data("Latest Update!")
+            .state_data(Status::PreRetrieval)
+            .state_data(Status::PostRetrieval)
             .build();
 
-        let expected_result = &RetrievalData::new("Latest Update!");
+        let expected_result = &RetrievalData::new(Status::PostRetrieval);
 
         state_data.update_state(update);
         let result = state_data.get_state();
@@ -153,9 +177,9 @@ mod tests {
     fn should_return_initialized_as_string_when_retrieval_data_initialized_with_default() {
         let retrieval_state_data = &RetrievalData::default();
 
-        let expected_result = "Initialized";
+        let expected_result = "Pre-Retrieval";
 
-        let result = retrieval_state_data.get_state().status();
+        let result = retrieval_state_data.get_state().status().to_string();
 
         assert_eq!(result, expected_result);
     }
