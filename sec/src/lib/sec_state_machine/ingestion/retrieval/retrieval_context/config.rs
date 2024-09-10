@@ -32,6 +32,7 @@ mod tests {
     #[test]
     fn should_return_default_email_when_calling_get_sec_user_agent() {
         let expected_user_agent = "Demir Catovic d.catovic9@gmail.com";
+        
         let result = get_sec_user_agent().to_string();
 
         assert_eq!(result, expected_user_agent);
