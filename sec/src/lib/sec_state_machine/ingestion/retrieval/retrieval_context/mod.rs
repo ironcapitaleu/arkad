@@ -11,9 +11,7 @@ pub struct RetrievalContext {
     status: Status,
     user_agent: String,
     cik: String,
-
 }
-
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 pub enum Status {
@@ -40,9 +38,12 @@ impl fmt::Display for Status {
     }
 }
 
-
 impl RetrievalContext {
-    pub fn new(status: Status, user_agent: &(impl ToString + ?Sized), cik: &(impl ToString + ?Sized)) -> Self {
+    pub fn new(
+        status: Status,
+        user_agent: &(impl ToString + ?Sized),
+        cik: &(impl ToString + ?Sized),
+    ) -> Self {
         Self {
             status,
             user_agent: user_agent.to_string(),
@@ -74,7 +75,11 @@ impl Default for RetrievalContext {
 
 impl fmt::Display for RetrievalContext {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "\tState: {}\n\tUser Agent: {}\n\tCIK: {}", self.status, self.user_agent ,self.cik)
+        write!(
+            f,
+            "\tState: {}\n\tUser Agent: {}\n\tCIK: {}",
+            self.status, self.user_agent, self.cik
+        )
     }
 }
 
@@ -176,8 +181,11 @@ mod tests {
 
     #[test]
     fn should_create_different_context_with_custom_data_when_using_new_as_constructor() {
-        let retrieval_context =
-            &RetrievalContext::new(Status::PostRetrieval,"custom_user_agent@example.com", "Demir ist der Boss.");
+        let retrieval_context = &RetrievalContext::new(
+            Status::PostRetrieval,
+            "custom_user_agent@example.com",
+            "Demir ist der Boss.",
+        );
 
         let default_retrieval_context = &RetrievalContext::default();
 
@@ -194,7 +202,8 @@ mod tests {
             .cik("Updated CIK!")
             .build();
 
-        let expected_result = &RetrievalContext::new(Status::PreRetrieval,&default_user_agent, "Updated CIK!");
+        let expected_result =
+            &RetrievalContext::new(Status::PreRetrieval, &default_user_agent, "Updated CIK!");
 
         context.update_context(update);
         let result = context.get_context();
@@ -211,7 +220,11 @@ mod tests {
             .cik("Latest CIK Update!")
             .build();
 
-        let expected_result = &RetrievalContext::new(Status::PreRetrieval,&default_user_agent, "Latest CIK Update!");
+        let expected_result = &RetrievalContext::new(
+            Status::PreRetrieval,
+            &default_user_agent,
+            "Latest CIK Update!",
+        );
 
         context.update_context(update);
         let result = context.get_context();
