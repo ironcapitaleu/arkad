@@ -51,7 +51,6 @@ impl State for Retrieval {
                                     .state_data(&response_string)
                                     .build();
 
-
                                 self.output
                                     .get_or_insert_with(|| RetrievalData::default())
                                     .update_state(output_updater);

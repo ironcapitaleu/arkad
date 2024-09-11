@@ -1,6 +1,9 @@
 use state_maschine::prelude::*;
 use std::fmt;
 
+pub mod retrieval_input_data;
+pub mod retrieval_output_data;
+
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 pub struct RetrievalData {
     status: String,
