@@ -8,16 +8,52 @@ use config::{get_sec_user_agent, DEFAULT_CIK};
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 pub struct RetrievalContext {
+    status: Status,
     user_agent: String,
     cik: String,
 }
 
+#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
+pub enum Status {
+    PreRetrieval,
+    PostRetrieval,
+}
+
+impl Status {
+    #[must_use]
+    pub const fn next(&self) -> Self {
+        match self {
+            Self::PreRetrieval | Self::PostRetrieval => Self::PostRetrieval,
+        }
+    }
+}
+
+impl fmt::Display for Status {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let status_str = match self {
+            Self::PreRetrieval => "Retrieval (Pre-Retrieval)",
+            Self::PostRetrieval => "Retrieval (Post-Retrieval)",
+        };
+        write!(f, "{status_str}")
+    }
+}
+
 impl RetrievalContext {
-    pub fn new(user_agent: &(impl ToString + ?Sized), cik: &(impl ToString + ?Sized)) -> Self {
+    pub fn new(
+        status: Status,
+        user_agent: &(impl ToString + ?Sized),
+        cik: &(impl ToString + ?Sized),
+    ) -> Self {
         Self {
+            status,
             user_agent: user_agent.to_string(),
             cik: cik.to_string(),
         }
+    }
+
+    #[must_use]
+    pub const fn status(&self) -> &Status {
+        &self.status
     }
 
     #[must_use]
@@ -33,13 +69,17 @@ impl RetrievalContext {
 
 impl Default for RetrievalContext {
     fn default() -> Self {
-        Self::new(&get_sec_user_agent(), DEFAULT_CIK)
+        Self::new(Status::PreRetrieval, &get_sec_user_agent(), DEFAULT_CIK)
     }
 }
 
 impl fmt::Display for RetrievalContext {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "\tUser Agent: {}\n\tCIK: {}", self.user_agent, self.cik)
+        write!(
+            f,
+            "\tState: {}\n\tUser Agent: {}\n\tCIK: {}",
+            self.status, self.user_agent, self.cik
+        )
     }
 }
 
@@ -50,6 +90,9 @@ impl ContextData for RetrievalContext {
     }
 
     fn update_context(&mut self, updates: Self::UpdateType) {
+        if let Some(value) = updates.status {
+            self.status = value;
+        }
         if let Some(value) = updates.user_agent {
             self.user_agent = value;
         }
@@ -61,11 +104,13 @@ impl ContextData for RetrievalContext {
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 pub struct RetrievalContextUpdater {
+    pub status: Option<Status>,
     pub user_agent: Option<String>,
     pub cik: Option<String>,
 }
 
 pub struct RetrievalContextUpdaterBuilder {
+    status: Option<Status>,
     user_agent: Option<String>,
     cik: Option<String>,
 }
@@ -74,9 +119,16 @@ impl RetrievalContextUpdaterBuilder {
     #[must_use]
     pub const fn new() -> Self {
         Self {
+            status: None,
             user_agent: None,
             cik: None,
         }
+    }
+
+    #[must_use]
+    pub const fn status(mut self, status: Status) -> Self {
+        self.status = Some(status);
+        self
     }
 
     #[must_use]
@@ -94,6 +146,7 @@ impl RetrievalContextUpdaterBuilder {
     #[must_use]
     pub fn build(self) -> RetrievalContextUpdater {
         RetrievalContextUpdater {
+            status: self.status,
             user_agent: self.user_agent,
             cik: self.cik,
         }
@@ -112,7 +165,7 @@ mod tests {
         get_sec_user_agent, DEFAULT_CIK,
     };
 
-    use super::{RetrievalContext, RetrievalContextUpdaterBuilder};
+    use super::{RetrievalContext, RetrievalContextUpdaterBuilder, Status};
     use state_maschine::prelude::*;
 
     #[test]
@@ -128,8 +181,11 @@ mod tests {
 
     #[test]
     fn should_create_different_context_with_custom_data_when_using_new_as_constructor() {
-        let retrieval_context =
-            &RetrievalContext::new("custom_user_agent@example.com", "Demir ist der Boss.");
+        let retrieval_context = &RetrievalContext::new(
+            Status::PostRetrieval,
+            "custom_user_agent@example.com",
+            "Demir ist der Boss.",
+        );
 
         let default_retrieval_context = &RetrievalContext::default();
 
@@ -146,7 +202,8 @@ mod tests {
             .cik("Updated CIK!")
             .build();
 
-        let expected_result = &RetrievalContext::new(&default_user_agent, "Updated CIK!");
+        let expected_result =
+            &RetrievalContext::new(Status::PreRetrieval, &default_user_agent, "Updated CIK!");
 
         context.update_context(update);
         let result = context.get_context();
@@ -163,7 +220,11 @@ mod tests {
             .cik("Latest CIK Update!")
             .build();
 
-        let expected_result = &RetrievalContext::new(&default_user_agent, "Latest CIK Update!");
+        let expected_result = &RetrievalContext::new(
+            Status::PreRetrieval,
+            &default_user_agent,
+            "Latest CIK Update!",
+        );
 
         context.update_context(update);
         let result = context.get_context();

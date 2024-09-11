@@ -1,5 +1,5 @@
-use reqwest::Error;
-use retrieval_context::get_sec_user_client;
+use retrieval_context::{get_sec_user_client, RetrievalContextUpdaterBuilder};
+use retrieval_data::retrieval_output_data::RetrievalOutputDataUpdaterBuilder;
 use state_maschine::prelude::*;
 use std::fmt;
 
@@ -7,33 +7,79 @@ pub mod retrieval_context;
 pub mod retrieval_data;
 
 pub use retrieval_context::RetrievalContext;
-pub use retrieval_data::RetrievalData;
+pub use retrieval_data::{RetrievalInputData, RetrievalOutputData};
 
 #[derive(Debug, Clone, Default, PartialEq, PartialOrd, Hash, Eq, Ord)]
 pub struct Retrieval {
-    input: RetrievalData,
-    output: Option<RetrievalData>,
+    input: RetrievalInputData,
+    output: Option<RetrievalOutputData>,
     context: RetrievalContext,
 }
 
 impl State for Retrieval {
-    type InputData = RetrievalData;
-    type OutputData = RetrievalData;
+    type InputData = RetrievalInputData;
+    type OutputData = RetrievalOutputData;
     type Context = RetrievalContext;
 
     fn get_state_name(&self) -> impl ToString {
-        "retrieval"
+        "Retrieval"
     }
 
-    fn get_input_data(&self) -> &RetrievalData {
+    fn get_input_data(&self) -> &RetrievalInputData {
         &self.input
     }
 
+    #[allow(clippy::redundant_closure)]
     fn compute_output_data(&mut self) {
-        self.output = Some(RetrievalData::default());
+        let cik = self.get_context_data().cik();
+        let url = format!("https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json");
+
+        let client_result = get_sec_user_client();
+        match client_result {
+            Ok(client) => {
+                let response_result = client.get(&url).send();
+                match response_result {
+                    Ok(response) => {
+                        let response_body_result = response.text();
+
+                        match response_body_result {
+                            Ok(body) => {
+                                let response_string = body;
+
+                                let context_updater = RetrievalContextUpdaterBuilder::new()
+                                    .status(retrieval_context::Status::PostRetrieval)
+                                    .build();
+
+                                self.context.update_context(context_updater);
+
+                                let output_updater = RetrievalOutputDataUpdaterBuilder::new()
+                                    .response(&response_string)
+                                    .build();
+
+                                self.output
+                                    .get_or_insert_with(|| RetrievalOutputData::default())
+                                    .update_state(output_updater);
+                            }
+                            Err(err) => {
+                                eprintln!("Failed to convert response body of query for CIK '{}' to string: {err}", self.context.cik());
+                            }
+                        }
+                    }
+                    Err(err) => {
+                        eprintln!(
+                            "Bad response code for request for CIK '{}'. Got response: {err}",
+                            self.context.cik(),
+                        );
+                    }
+                }
+            }
+            Err(err) => {
+                eprintln!("Failed to create SEC user client: {err}");
+            }
+        }
     }
 
-    fn get_output_data(&self) -> Option<&RetrievalData> {
+    fn get_output_data(&self) -> Option<&RetrievalOutputData> {
         self.output.as_ref()
     }
 
@@ -42,50 +88,20 @@ impl State for Retrieval {
     }
 }
 
-impl Retrieval {
-    /// Computes the output by retrieving data from the SEC API.
-    ///
-    /// This function sends an HTTP GET request to the SEC's API using the CIK (Central Index Key)
-    /// to retrieve company facts in JSON format. The result is printed out for the first 100
-    /// characters.
-    ///
-    /// # Errors
-    ///
-    /// This function will return an error in the following situations:
-    /// - If the HTTP client cannot be built (see [`get_sec_user_client`] for details).
-    /// - If the request to the SEC API fails (e.g., network errors, invalid response).
-    /// - If the body of the HTTP response cannot be retrieved or parsed.
-    ///
-    /// The errors are wrapped in a [`reqwest::Error`] or any custom `Error` type if applicable.
-    pub async fn compute_output_new(&self) -> Result<(), Error> {
-        let cik = self.get_context_data().cik();
-        let url = format!("https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json");
-
-        let client = get_sec_user_client()?;
-
-        let body = client.get(&url).send().await?.text().await?;
-
-        println!(
-            "Did the retrieval process for this cik: {cik} with this body: {}...",
-            &body[..100]
-        );
-
-        Ok(())
-    }
-}
 impl fmt::Display for Retrieval {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "Retrieval State Summary\n\
-             ———————————————————————\n\
+            "`{}` State Summary\n\
+             ---------------------------\n\
              Context:\n{}\n\
              Input Data:\n{}\n\
-             Output Data:\n\t{}",
+             Output Data:\n{}",
+            self.get_state_name().to_string(),
             self.context,
             self.input,
             self.output.as_ref().map_or_else(
-                || "None".to_string(),
+                || "\tNone".to_string(),
                 |output_data| format!("{output_data}")
             )
         )
@@ -100,21 +116,9 @@ mod tests {
     fn should_return_name_of_retrieval_state_when_in_retrieval_state() {
         let retrieval_state = Retrieval::default();
 
-        let expected_result = String::from("retrieval");
+        let expected_result = String::from("Retrieval");
 
         let result = retrieval_state.get_state_name().to_string();
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
-    fn should_return_default_retrieval_data_struct_as_input_data_when_output_data_has_not_been_computed_in_state(
-    ) {
-        let retrieval_state = Retrieval::default();
-
-        let expected_result = &RetrievalData::default();
-
-        let result = retrieval_state.get_input_data();
 
         assert_eq!(result, expected_result);
     }
@@ -123,7 +127,7 @@ mod tests {
     fn should_return_default_retrieval_data_struct_as_input_data_when_in_initial_retrieval_state() {
         let retrieval_state = Retrieval::default();
 
-        let expected_result = &RetrievalData::default();
+        let expected_result = &RetrievalInputData::default();
 
         let result = retrieval_state.get_input_data();
 
@@ -309,21 +313,9 @@ mod tests {
     fn should_return_name_of_retrieval_state_when_calling_reference_to_retrieval_state() {
         let ref_to_retrieval_state = &Retrieval::default();
 
-        let expected_result = String::from("retrieval");
+        let expected_result = String::from("Retrieval");
 
         let result = ref_to_retrieval_state.get_state_name().to_string();
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
-    fn should_return_default_state_data_as_input_data_when_output_data_has_not_been_computed_in_reference_state(
-    ) {
-        let ref_to_retrieval_state = &Retrieval::default();
-
-        let expected_result = &RetrievalData::default();
-
-        let result = ref_to_retrieval_state.get_input_data();
 
         assert_eq!(result, expected_result);
     }
@@ -333,7 +325,7 @@ mod tests {
     ) {
         let ref_to_retrieval_state = &Retrieval::default();
 
-        let expected_result = &RetrievalData::default();
+        let expected_result = &RetrievalInputData::default();
 
         let result = ref_to_retrieval_state.get_input_data();
 

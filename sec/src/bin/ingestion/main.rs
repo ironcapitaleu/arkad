@@ -1,24 +1,16 @@
 use sec::sec_state_machine::ingestion::retrieval::Retrieval;
 use state_maschine::prelude::*;
-use std::error::Error;
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn Error>> {
-    let retrieval_state = Retrieval::default();
+fn main() {
+    let mut retrieval_state = Retrieval::default();
 
-    let _state_data = retrieval_state.get_input_data();
-    let context = retrieval_state.get_context_data();
-
+    println!("\n=======================================================");
     println!("Initial Retrieval state:");
-    println!("{retrieval_state}");
+    println!("{:.500}", retrieval_state.to_string().as_str());
 
-    println!("CIK to retrieve: {}", context.cik());
+    retrieval_state.compute_output_data();
 
-    // Call the async function and await the result
-    retrieval_state.compute_output_new().await?;
-
-    println!("\nRetrieval state after quering SEC API with CIK:");
-    println!("{retrieval_state}");
-
-    Ok(())
+    println!("\n=======================================================");
+    println!("Retrieval state after querying SEC API with CIK:");
+    println!("{:.500}...", retrieval_state.to_string().as_str());
 }
