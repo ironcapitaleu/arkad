@@ -7,7 +7,7 @@ pub mod retrieval_context;
 pub mod retrieval_data;
 
 pub use retrieval_context::RetrievalContext;
-pub use retrieval_data::{RetrievalData, Status};
+pub use retrieval_data::RetrievalData;
 
 #[derive(Debug, Clone, Default, PartialEq, PartialOrd, Hash, Eq, Ord)]
 pub struct Retrieval {
@@ -47,12 +47,10 @@ impl State for Retrieval {
                                 // TODO: use response string to put into state output
                                 let response_string = body;
 
-                                // let output_updater = RetrievalDataUpdaterBuilder::new()
-                                //     .state_data(&response_string)
-                                //     .build();
                                 let output_updater = RetrievalDataUpdaterBuilder::new()
-                                    .state_data(self.get_input_data().status().next())
+                                    .state_data(&response_string)
                                     .build();
+
 
                                 self.output
                                     .get_or_insert_with(|| RetrievalData::default())
