@@ -96,12 +96,12 @@ impl fmt::Display for Retrieval {
              ---------------------------\n\
              Context:\n{}\n\
              Input Data:\n{}\n\
-             Output Data:\n\t{}",
+             Output Data:\n{}",
             self.get_state_name().to_string(),
             self.context,
             self.input,
             self.output.as_ref().map_or_else(
-                || "None".to_string(),
+                || "\tNone".to_string(),
                 |output_data| format!("{output_data}")
             )
         )
