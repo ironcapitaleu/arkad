@@ -149,7 +149,7 @@ mod tests {
     }
 
     #[test]
-    fn should_return_initialized_as_string_when_retrieval_data_initialized_with_default() {
+    fn should_return_default_cik_when_retrieval_input_data_initialized_with_default() {
         let retrieval_state_data = &RetrievalInputData::default();
 
         let expected_result = DEFAULT_CIK;
