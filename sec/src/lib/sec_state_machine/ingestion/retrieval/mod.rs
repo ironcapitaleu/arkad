@@ -1,5 +1,5 @@
-use retrieval_context::get_sec_user_client;
-use retrieval_data::RetrievalDataUpdaterBuilder;
+use retrieval_context::{get_sec_user_client, RetrievalContextUpdaterBuilder};
+use retrieval_data::retrieval_output_data::RetrievalOutputDataUpdaterBuilder;
 use state_maschine::prelude::*;
 use std::fmt;
 
@@ -7,25 +7,25 @@ pub mod retrieval_context;
 pub mod retrieval_data;
 
 pub use retrieval_context::RetrievalContext;
-pub use retrieval_data::RetrievalData;
+pub use retrieval_data::{RetrievalInputData, RetrievalOutputData};
 
 #[derive(Debug, Clone, Default, PartialEq, PartialOrd, Hash, Eq, Ord)]
 pub struct Retrieval {
-    input: RetrievalData,
-    output: Option<RetrievalData>,
+    input: RetrievalInputData,
+    output: Option<RetrievalOutputData>,
     context: RetrievalContext,
 }
 
 impl State for Retrieval {
-    type InputData = RetrievalData;
-    type OutputData = RetrievalData;
+    type InputData = RetrievalInputData;
+    type OutputData = RetrievalOutputData;
     type Context = RetrievalContext;
 
     fn get_state_name(&self) -> impl ToString {
         "Retrieval"
     }
 
-    fn get_input_data(&self) -> &RetrievalData {
+    fn get_input_data(&self) -> &RetrievalInputData {
         &self.input
     }
 
@@ -44,15 +44,20 @@ impl State for Retrieval {
 
                         match response_body_result {
                             Ok(body) => {
-                                // TODO: use response string to put into state output
                                 let response_string = body;
 
-                                let output_updater = RetrievalDataUpdaterBuilder::new()
-                                    .state_data(&response_string)
+                                let context_updater = RetrievalContextUpdaterBuilder::new()
+                                    .status(retrieval_context::Status::PostRetrieval)
+                                    .build();
+
+                                self.context.update_context(context_updater);
+
+                                let output_updater = RetrievalOutputDataUpdaterBuilder::new()
+                                    .response(&response_string)
                                     .build();
 
                                 self.output
-                                    .get_or_insert_with(|| RetrievalData::default())
+                                    .get_or_insert_with(|| RetrievalOutputData::default())
                                     .update_state(output_updater);
                             }
                             Err(err) => {
@@ -74,7 +79,7 @@ impl State for Retrieval {
         }
     }
 
-    fn get_output_data(&self) -> Option<&RetrievalData> {
+    fn get_output_data(&self) -> Option<&RetrievalOutputData> {
         self.output.as_ref()
     }
 
@@ -119,22 +124,10 @@ mod tests {
     }
 
     #[test]
-    fn should_return_default_retrieval_data_struct_as_input_data_when_output_data_has_not_been_computed_in_state(
-    ) {
-        let retrieval_state = Retrieval::default();
-
-        let expected_result = &RetrievalData::default();
-
-        let result = retrieval_state.get_input_data();
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
     fn should_return_default_retrieval_data_struct_as_input_data_when_in_initial_retrieval_state() {
         let retrieval_state = Retrieval::default();
 
-        let expected_result = &RetrievalData::default();
+        let expected_result = &RetrievalInputData::default();
 
         let result = retrieval_state.get_input_data();
 
@@ -328,23 +321,11 @@ mod tests {
     }
 
     #[test]
-    fn should_return_default_state_data_as_input_data_when_output_data_has_not_been_computed_in_reference_state(
-    ) {
-        let ref_to_retrieval_state = &Retrieval::default();
-
-        let expected_result = &RetrievalData::default();
-
-        let result = ref_to_retrieval_state.get_input_data();
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
     fn should_return_default_state_data_as_input_data_when_reference_retrieval_state_in_initial_state(
     ) {
         let ref_to_retrieval_state = &Retrieval::default();
 
-        let expected_result = &RetrievalData::default();
+        let expected_result = &RetrievalInputData::default();
 
         let result = ref_to_retrieval_state.get_input_data();
 
