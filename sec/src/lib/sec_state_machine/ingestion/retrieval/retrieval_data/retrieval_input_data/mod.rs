@@ -2,6 +2,9 @@ use crate::sec_state_machine::ingestion::retrieval::retrieval_context::config::D
 use state_maschine::prelude::*;
 use std::fmt;
 
+pub mod cik;
+pub use cik::CIK;
+
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 pub struct RetrievalInputData {
     cik: String,
