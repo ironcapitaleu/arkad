@@ -87,7 +87,19 @@ mod tests {
     #[test]
     #[should_panic(expected = "Invalid CIK")]
     fn should_panic_when_given_cik_str_that_contains_non_numeric_chars() {
-        CIK::new("12345abcd!");
+        let _result = CIK::new("12345abcd!");
+    }
+
+    #[test]
+    #[should_panic(expected = "Invalid CIK")]
+    fn should_panic_when_given_cik_str_that_is_longer_than_ten_chars_after_trimming() {
+        let _result = CIK::new("12345678901");
+    }
+
+    #[test]
+    #[should_panic(expected = "Invalid CIK")]
+    fn should_panic_when_given_cik_str_that_is_longer_than_ten_chars_and_contains_a_alpha_char() {
+        let _result = CIK::new("1234567890a");
     }
 
     #[test]
