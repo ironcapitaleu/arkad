@@ -80,7 +80,7 @@ impl Default for RetrievalInputDataUpdaterBuilder {
 
 #[cfg(test)]
 mod tests {
-    use super::{RetrievalInputData, RetrievalInputDataUpdaterBuilder, DEFAULT_CIK};
+    use super::{RetrievalInputData, RetrievalInputDataUpdaterBuilder, CIK, DEFAULT_CIK};
     use state_maschine::prelude::*;
 
     #[test]
@@ -153,7 +153,7 @@ mod tests {
     fn should_return_default_cik_when_retrieval_input_data_initialized_with_default() {
         let retrieval_state_data = &RetrievalInputData::default();
 
-        let expected_result = DEFAULT_CIK;
+        let expected_result = &CIK::new(DEFAULT_CIK).to_string();
 
         let result = retrieval_state_data.get_state().cik();
 
