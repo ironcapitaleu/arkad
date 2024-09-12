@@ -14,7 +14,7 @@ impl CIK {
         let mut cik_str = cik.to_string().trim().to_string(); // Trim leading and trailing whitespace
 
         // Check if it contains only digits
-        if !cik_str.chars().all(|c| c.is_digit(10)) {
+        if !cik_str.chars().all(|c| c.is_ascii_digit()) {
             panic!(
                 "Invalid CIK: CIK must contain only numeric characters. Got: {}",
                 cik.to_string()
@@ -23,10 +23,10 @@ impl CIK {
 
         // Prepend zeros if less than 10 digits
         if cik_str.len() < CIK_LENGTH {
-            cik_str = format!("{:0>width$}", cik_str, width = CIK_LENGTH); // Pads with leading zeros to a length of `CIK_LENGTH`
+            cik_str = format!("{cik_str:0>CIK_LENGTH$}"); // Pads with leading zeros to a length of `CIK_LENGTH`
         }
 
-        // Ensure the length does not exceed 10 digits
+        // Ensure the length does not exceed `CIK_LENGTH`` digits
         if cik_str.len() > CIK_LENGTH {
             panic!("Invalid CIK: Final CIK cannot exceed the fixed CIK length of {CIK_LENGTH} digits. Final CIK is '{}' and is {}>{CIK_LENGTH} digits long.", cik_str.len(), cik.to_string());
         }
@@ -35,13 +35,15 @@ impl CIK {
     }
 
     /// Returns the underlying CIK string.
-    pub fn value(&self) -> &String {
+    #[must_use]
+    pub const fn value(&self) -> &String {
         &self.value
     }
 
     /// Validates if the CIK contains exactly 10 digits.
+    #[must_use]
     pub fn is_valid(cik: &str) -> bool {
-        cik.len() == CIK_LENGTH && cik.chars().all(|c| c.is_digit(10))
+        cik.len() == CIK_LENGTH && cik.chars().all(|c| c.is_ascii_digit())
     }
 }
 

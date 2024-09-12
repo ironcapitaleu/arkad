@@ -17,7 +17,7 @@ impl RetrievalInputData {
 
     #[must_use]
     pub fn cik(&self) -> &String {
-        &self.cik.value()
+        self.cik.value()
     }
 }
 
