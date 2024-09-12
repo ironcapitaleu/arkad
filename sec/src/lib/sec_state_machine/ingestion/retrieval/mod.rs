@@ -31,7 +31,7 @@ impl State for Retrieval {
 
     #[allow(clippy::redundant_closure)]
     fn compute_output_data(&mut self) {
-        let cik = self.get_context_data().cik();
+        let cik = self.get_input_data().cik();
         let url = format!("https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json");
 
         let client_result = get_sec_user_client();
