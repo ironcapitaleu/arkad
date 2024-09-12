@@ -1,3 +1,4 @@
+#![allow(clippy::missing_const_for_fn)]
 use std::fmt;
 
 const CIK_LENGTH: usize = 10;
@@ -9,17 +10,30 @@ pub struct CIK {
 
 impl CIK {
     /// Creates a new `CIK` from a string, trimming whitespace and padding with zeros if less than 10 digits.
-    /// Panics if the string contains non-numeric characters or if it's longer than 10 digits.
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if the input string contains non-numeric characters or if it's longer than 10 digits.
+    ///
+    /// # Examples
+    /// 
+    /// ```
+    /// use sec::sec_state_machine::ingestion::retrieval::retrieval_data::retrieval_input_data::CIK;
+    /// 
+    /// let cik = CIK::new("123456789");
+    /// assert_eq!(cik.value(), "0123456789");
+    /// ```
+
+
     pub fn new(cik: &(impl ToString + ?Sized)) -> Self {
         let mut cik_str = cik.to_string().trim().to_string(); // Trim leading and trailing whitespace
 
         // Check if it contains only digits
-        if !cik_str.chars().all(|c| c.is_ascii_digit()) {
-            panic!(
-                "Invalid CIK: CIK must contain only numeric characters. Got: {}",
-                cik.to_string()
-            );
-        }
+        assert!(
+            cik_str.chars().all(|c| c.is_ascii_digit()), 
+            "Invalid CIK: CIK must contain only numeric characters. Got: {}",
+            cik.to_string()
+        );
 
         // Prepend zeros if less than 10 digits
         if cik_str.len() < CIK_LENGTH {
@@ -27,9 +41,12 @@ impl CIK {
         }
 
         // Ensure the length does not exceed `CIK_LENGTH`` digits
-        if cik_str.len() > CIK_LENGTH {
-            panic!("Invalid CIK: Final CIK cannot exceed the fixed CIK length of {CIK_LENGTH} digits. Final CIK is '{}' and is {}>{CIK_LENGTH} digits long.", cik_str.len(), cik.to_string());
-        }
+        assert!(
+            (cik_str.len() <= CIK_LENGTH),
+            "Invalid CIK: Final CIK cannot exceed the fixed CIK length of {CIK_LENGTH} digits. Final CIK is '{}' and is {}>{CIK_LENGTH} digits long.",
+            cik_str.len(),
+            cik.to_string()
+        );
 
         Self { value: cik_str }
     }
@@ -90,6 +107,39 @@ mod tests {
         let cik_str = "";
 
         let expected_result = "0000000000";
+
+        let result = CIK::new(cik_str);
+
+        assert_eq!(result.value(), expected_result);
+    }
+
+    #[test]
+    fn should_trim_whitespace_from_cik_input_str_when_passed_string_with_leading_whitespace() {
+        let cik_str = "     0123456789";
+
+        let expected_result = "0123456789";
+
+        let result = CIK::new(cik_str);
+
+        assert_eq!(result.value(), expected_result);
+    }
+
+    #[test]
+    fn should_trim_whitespace_from_cik_input_str_when_passed_string_with_trailing_whitespace() {
+        let cik_str = "0123456789     ";
+
+        let expected_result = "0123456789";
+
+        let result = CIK::new(cik_str);
+
+        assert_eq!(result.value(), expected_result);
+    }
+
+    #[test]
+    fn should_trim_whitespace_from_cik_input_str_when_passed_string_with_leading_or_trailing_whitespace() {
+        let cik_str = "     0123456789     ";
+
+        let expected_result = "0123456789";
 
         let result = CIK::new(cik_str);
 

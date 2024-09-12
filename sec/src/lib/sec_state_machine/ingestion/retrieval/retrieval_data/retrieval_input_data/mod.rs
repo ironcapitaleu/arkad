@@ -16,6 +16,7 @@ impl RetrievalInputData {
     }
 
     #[must_use]
+    #[allow(clippy::missing_const_for_fn)]
     pub fn cik(&self) -> &String {
         self.cik.value()
     }
@@ -61,6 +62,7 @@ impl RetrievalInputDataUpdaterBuilder {
     }
 
     #[must_use]
+    #[allow(clippy::missing_const_for_fn)]
     pub fn cik(mut self, cik: &(impl ToString + ?Sized)) -> Self {
         self.cik = Some(CIK::new(cik));
         self
