@@ -7,19 +7,17 @@ pub use cik::CIK;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 pub struct RetrievalInputData {
-    cik: String,
+    cik: CIK,
 }
 
 impl RetrievalInputData {
     pub fn new(cik: &(impl ToString + ?Sized)) -> Self {
-        Self {
-            cik: cik.to_string(),
-        }
+        Self { cik: CIK::new(cik) }
     }
 
     #[must_use]
-    pub const fn cik(&self) -> &String {
-        &self.cik
+    pub fn cik(&self) -> &String {
+        &self.cik.value()
     }
 }
 
@@ -43,18 +41,18 @@ impl StateData for RetrievalInputData {
 
     fn update_state(&mut self, updates: Self::UpdateType) {
         if let Some(value) = updates.cik {
-            self.cik = value;
+            self.cik = CIK::new(&value);
         }
     }
 }
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 pub struct RetrievalInputDataUpdater {
-    pub cik: Option<String>,
+    pub cik: Option<CIK>,
 }
 
 pub struct RetrievalInputDataUpdaterBuilder {
-    cik: Option<String>,
+    cik: Option<CIK>,
 }
 impl RetrievalInputDataUpdaterBuilder {
     #[must_use]
@@ -63,8 +61,8 @@ impl RetrievalInputDataUpdaterBuilder {
     }
 
     #[must_use]
-    pub fn state_data(mut self, cik: &(impl ToString + ?Sized)) -> Self {
-        self.cik = Some(cik.to_string());
+    pub fn cik(mut self, cik: &(impl ToString + ?Sized)) -> Self {
+        self.cik = Some(CIK::new(cik));
         self
     }
 
@@ -98,7 +96,7 @@ mod tests {
 
     #[test]
     fn should_create_different_state_data_with_custom_data_when_using_new_as_constructor() {
-        let retrieval_state_data = &RetrievalInputData::new("Demir ist der Boss.");
+        let retrieval_state_data = &RetrievalInputData::new("0000000000");
 
         let default_retrieval_state_data = &RetrievalInputData::default();
 
@@ -111,10 +109,10 @@ mod tests {
     fn should_update_state_data_to_specified_string_when_update_contains_specified_string() {
         let mut state_data = RetrievalInputData::default();
         let update = RetrievalInputDataUpdaterBuilder::default()
-            .state_data("Updated State!")
+            .cik("12345")
             .build();
 
-        let expected_result = &RetrievalInputData::new("Updated State!");
+        let expected_result = &RetrievalInputData::new("0000012345");
 
         state_data.update_state(update);
         let result = state_data.get_state();
@@ -126,11 +124,11 @@ mod tests {
     fn should_update_state_data_to_latest_specified_string_when_multiple_updates_in_builder() {
         let mut state_data = RetrievalInputData::default();
         let update = RetrievalInputDataUpdaterBuilder::default()
-            .state_data("First Update!")
-            .state_data("Latest Update!")
+            .cik("1234567890")
+            .cik("0000000000")
             .build();
 
-        let expected_result = &RetrievalInputData::new("Latest Update!");
+        let expected_result = &RetrievalInputData::new("0000000000");
 
         state_data.update_state(update);
         let result = state_data.get_state();
