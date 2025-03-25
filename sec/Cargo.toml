@@ -1,5 +1,3 @@
-cargo-features = ["edition2024"] # TODO: DELETE after this is moved to stable Rust
-
 [package]
 name = "sec"
 version = "0.1.0"
