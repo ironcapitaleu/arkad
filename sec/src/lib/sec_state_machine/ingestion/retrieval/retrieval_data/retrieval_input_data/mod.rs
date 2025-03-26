@@ -82,7 +82,7 @@ impl Default for RetrievalInputDataUpdaterBuilder {
 
 #[cfg(test)]
 mod tests {
-    use super::{RetrievalInputData, RetrievalInputDataUpdaterBuilder, CIK, DEFAULT_CIK};
+    use super::{CIK, DEFAULT_CIK, RetrievalInputData, RetrievalInputDataUpdaterBuilder};
     use state_maschine::prelude::*;
 
     #[test]

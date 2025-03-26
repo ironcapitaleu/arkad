@@ -146,8 +146,8 @@ mod tests {
     }
 
     #[test]
-    fn should_trim_whitespace_from_cik_input_str_when_passed_string_with_leading_or_trailing_whitespace(
-    ) {
+    fn should_trim_whitespace_from_cik_input_str_when_passed_string_with_leading_or_trailing_whitespace()
+     {
         let cik_str = "     0123456789     ";
 
         let expected_result = "0123456789";

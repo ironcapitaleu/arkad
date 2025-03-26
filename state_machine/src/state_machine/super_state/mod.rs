@@ -1,4 +1,4 @@
-use super::{state::State, StateMachine};
+use super::{StateMachine, state::State};
 
 /// The `SuperState` trait represents a state that can encapsulate and manage other states within a state machine.
 ///
