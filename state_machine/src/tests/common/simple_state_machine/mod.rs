@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use crate::state_machine::{state::State, StateMachine};
+use crate::state_machine::{StateMachine, state::State};
 use crate::tests::common::SampleState;
 
 #[derive(Debug, Clone, Default, PartialEq, PartialOrd, Hash, Eq, Ord)]

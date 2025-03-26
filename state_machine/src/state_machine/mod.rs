@@ -62,8 +62,8 @@ mod tests {
 
     #[test]
     #[should_panic(expected = "output should not be empty")]
-    fn should_panic_when_trying_to_access_output_data_before_state_has_been_advanced_and_computed_the_output(
-    ) {
+    fn should_panic_when_trying_to_access_output_data_before_state_has_been_advanced_and_computed_the_output()
+     {
         let sample_state_machine = SimpleStateMachine::default();
 
         let _result = sample_state_machine
@@ -103,8 +103,8 @@ mod tests {
     }
 
     #[test]
-    fn should_return_true_when_state_has_advanced_multiple_times_without_transition_and_computed_the_output(
-    ) {
+    fn should_return_true_when_state_has_advanced_multiple_times_without_transition_and_computed_the_output()
+     {
         let mut sample_state_machine = SimpleStateMachine::default();
 
         let expected_result = true;
@@ -144,8 +144,8 @@ mod tests {
     }
 
     #[test]
-    fn should_return_default_state_data_struct_as_input_data_when_output_data_has_not_been_computed_in_state(
-    ) {
+    fn should_return_default_state_data_struct_as_input_data_when_output_data_has_not_been_computed_in_state()
+     {
         let sample_state_machine = SimpleStateMachine::default();
 
         let expected_result = &SampleStateData::default();

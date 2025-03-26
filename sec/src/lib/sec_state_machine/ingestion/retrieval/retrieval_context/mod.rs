@@ -4,7 +4,7 @@ use std::fmt;
 pub mod config;
 
 pub use config::get_sec_user_client;
-use config::{get_sec_user_agent, DEFAULT_CIK};
+use config::{DEFAULT_CIK, get_sec_user_agent};
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 pub struct RetrievalContext {
@@ -162,7 +162,7 @@ impl Default for RetrievalContextUpdaterBuilder {
 #[cfg(test)]
 mod tests {
     use crate::sec_state_machine::ingestion::retrieval::retrieval_context::config::{
-        get_sec_user_agent, DEFAULT_CIK,
+        DEFAULT_CIK, get_sec_user_agent,
     };
 
     use super::{RetrievalContext, RetrievalContextUpdaterBuilder, Status};

@@ -1,4 +1,4 @@
-use crate::state_machine::{state::State, StateMachine};
+use crate::state_machine::{StateMachine, state::State};
 
 /// A trait that defines the ability of a state machine to transition from one state to another.
 ///

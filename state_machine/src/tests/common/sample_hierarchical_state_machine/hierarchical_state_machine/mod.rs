@@ -1,4 +1,4 @@
-use crate::state_machine::{state::State, transition::Transition, StateMachine};
+use crate::state_machine::{StateMachine, state::State, transition::Transition};
 
 use super::{FirstInnerState, SampleState, SampleSuperState, SecondInnerState};
 

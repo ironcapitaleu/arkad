@@ -1,5 +1,5 @@
 use crate::state_machine::{
-    state::State, super_state::SuperState, transition::Transition, StateMachine,
+    StateMachine, state::State, super_state::SuperState, transition::Transition,
 };
 pub mod first_inner_state;
 pub mod sample_super_state_context;

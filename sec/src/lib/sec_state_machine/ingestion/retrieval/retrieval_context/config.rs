@@ -1,8 +1,8 @@
-use reqwest::{self, blocking::Client, Error};
+use reqwest::{self, Error, blocking::Client};
 
 const USER_AGENT: &str = "Demir Catovic d.catovic9@gmail.com";
 pub const DEFAULT_CIK: &str = "1067983"; // BRK
-                                         //pub const DEFAULT_CIK: &str = "00001067983"; // invalid CIK (used for testing purposes)
+//pub const DEFAULT_CIK: &str = "00001067983"; // invalid CIK (used for testing purposes)
 
 /// Creates a new synchronous(!) SEC user client with a custom user agent.
 ///

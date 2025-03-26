@@ -1,4 +1,4 @@
-use retrieval_context::{get_sec_user_client, RetrievalContextUpdaterBuilder};
+use retrieval_context::{RetrievalContextUpdaterBuilder, get_sec_user_client};
 use retrieval_data::retrieval_output_data::RetrievalOutputDataUpdaterBuilder;
 use state_maschine::prelude::*;
 use std::fmt;
@@ -61,7 +61,10 @@ impl State for Retrieval {
                                     .update_state(output_updater);
                             }
                             Err(err) => {
-                                eprintln!("Failed to convert response body of query for CIK '{}' to string: {err}", self.context.cik());
+                                eprintln!(
+                                    "Failed to convert response body of query for CIK '{}' to string: {err}",
+                                    self.context.cik()
+                                );
                             }
                         }
                     }
@@ -300,8 +303,8 @@ mod tests {
 
     #[test]
     #[should_panic(expected = "output should not be empty")]
-    fn should_panic_when_trying_to_access_output_data_before_it_has_been_computed_in_reference_state(
-    ) {
+    fn should_panic_when_trying_to_access_output_data_before_it_has_been_computed_in_reference_state()
+     {
         let ref_to_retrieval_state = &Retrieval::default();
 
         let _result = ref_to_retrieval_state
@@ -321,8 +324,8 @@ mod tests {
     }
 
     #[test]
-    fn should_return_default_state_data_as_input_data_when_reference_retrieval_state_in_initial_state(
-    ) {
+    fn should_return_default_state_data_as_input_data_when_reference_retrieval_state_in_initial_state()
+     {
         let ref_to_retrieval_state = &Retrieval::default();
 
         let expected_result = &RetrievalInputData::default();
