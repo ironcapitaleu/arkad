@@ -23,7 +23,6 @@ impl CIK {
     /// let cik = CIK::new("123456789");
     /// assert_eq!(cik.value(), "0123456789");
     /// ```
-
     pub fn new(cik: &(impl ToString + ?Sized)) -> Self {
         let mut cik_str = cik.to_string().trim().to_string(); // Trim leading and trailing whitespace
 
