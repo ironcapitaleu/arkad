@@ -1,3 +1,0 @@
-# DELETE this file once this edition2024 is available in stable Rust
-[toolchain]
-channel = "nightly"
