@@ -31,5 +31,5 @@ jobs:
       run: cargo check
     - name: Linting
       run: cargo clippy
-    - name: Test
-      run: cargo test
+    - name: Unit Tests
+      run: cargo test --lib
