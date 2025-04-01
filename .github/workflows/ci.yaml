@@ -33,3 +33,5 @@ jobs:
       run: cargo clippy
     - name: Unit Tests
       run: cargo test --lib
+    - name: Integration Tests
+      run: cargo test --test '*'
