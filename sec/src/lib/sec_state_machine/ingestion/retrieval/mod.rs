@@ -114,6 +114,7 @@ impl fmt::Display for Retrieval {
 mod tests {
     use super::*;
     use std::{fmt::Debug, hash::Hash};
+    use pretty_assertions::assert_eq;
 
     #[test]
     fn should_return_name_of_retrieval_state_when_in_retrieval_state() {

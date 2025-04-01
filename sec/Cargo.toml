@@ -12,6 +12,9 @@ keywords = ["state-machine", "design-pattern"]
 reqwest = { version = "0.12.7", features = ["blocking"] }
 state_maschine = { path = "../state_machine" }
 
+[dev-dependencies]
+pretty_assertions = "1"
+
 [lib]
 name = "sec"
 path = "src/lib/lib.rs"

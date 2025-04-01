@@ -71,6 +71,7 @@ impl fmt::Display for CIK {
 #[cfg(test)]
 mod tests {
     use super::CIK;
+    use pretty_assertions::assert_eq;
 
     #[test]
     fn should_create_valid_cik_struct_if_numeric_string_with_ten_digits_is_passed() {

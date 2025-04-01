@@ -84,6 +84,7 @@ impl Default for RetrievalInputDataUpdaterBuilder {
 mod tests {
     use super::{CIK, DEFAULT_CIK, RetrievalInputData, RetrievalInputDataUpdaterBuilder};
     use state_maschine::prelude::*;
+    use pretty_assertions::{assert_eq, assert_ne};
 
     #[test]
     fn should_return_reference_to_default_retrieval_state_data_when_initialized_with_default() {

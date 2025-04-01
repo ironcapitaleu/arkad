@@ -167,6 +167,7 @@ mod tests {
 
     use super::{RetrievalContext, RetrievalContextUpdaterBuilder, Status};
     use state_maschine::prelude::*;
+    use pretty_assertions::{assert_eq, assert_ne};
 
     #[test]
     fn should_return_reference_to_default_retrieval_context_when_initialized_with_default() {

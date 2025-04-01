@@ -59,6 +59,7 @@ mod tests {
         SampleState, SampleStateContext, SampleStateData, SimpleStateMachine,
     };
     use std::{fmt::Debug, hash::Hash};
+    use pretty_assertions::assert_eq;
 
     #[test]
     #[should_panic(expected = "output should not be empty")]

@@ -52,6 +52,7 @@ mod tests {
     use super::*;
     use crate::state_machine::transition::Transition;
     use crate::tests::common::{ComplexStateMachine, FirstState, SecondState};
+    use pretty_assertions::assert_eq;
 
     #[test]
     fn should_transition_to_second_state_when_in_first_state() {

@@ -107,6 +107,7 @@ pub trait State:
 mod tests {
     use super::*;
     use crate::tests::common::{SampleState, SampleStateContext, SampleStateData};
+    use pretty_assertions::assert_eq;
 
     #[test]
     fn should_return_name_of_sample_state_when_in_sample_state() {

@@ -62,6 +62,7 @@ pub trait StateData:
 mod tests {
     use super::*;
     use crate::tests::common::{SampleStateData, SampleStateDataUpdaterBuilder};
+    use pretty_assertions::{assert_eq, assert_ne};
 
     #[test]
     fn should_return_reference_to_default_sample_state_data_when_initialized_with_default() {
