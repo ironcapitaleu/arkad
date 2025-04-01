@@ -1,5 +1,5 @@
-use sec::sec_state_machine::ingestion::retrieval::Retrieval;
 use sec::sec_state_machine::State;
+use sec::sec_state_machine::ingestion::retrieval::Retrieval;
 
 #[test]
 fn should_return_true_when_state_has_computed_the_output() {
