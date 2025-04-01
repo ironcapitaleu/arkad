@@ -102,8 +102,8 @@ mod tests {
     fn should_update_context_to_latest_specified_string_when_multiple_updates_in_builder() {
         let mut context = SampleStateContext::default();
         let update = SampleStateContextUpdaterBuilder::default()
-            .context_data(String::from("First Update!"))
-            .context_data(String::from("Latest Update!"))
+            .context_data("First Update!")
+            .context_data("Latest Update!")
             .build();
 
         let expected_result = &SampleStateContext::new(String::from("Latest Update!"));
