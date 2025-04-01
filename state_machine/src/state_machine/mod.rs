@@ -58,8 +58,8 @@ mod tests {
     use crate::tests::common::{
         SampleState, SampleStateContext, SampleStateData, SimpleStateMachine,
     };
-    use std::{fmt::Debug, hash::Hash};
     use pretty_assertions::assert_eq;
+    use std::{fmt::Debug, hash::Hash};
 
     #[test]
     #[should_panic(expected = "output should not be empty")]
