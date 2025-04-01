@@ -58,6 +58,7 @@ mod tests {
     use crate::tests::common::{
         SampleState, SampleStateContext, SampleStateData, SimpleStateMachine,
     };
+    use pretty_assertions::assert_eq;
     use std::{fmt::Debug, hash::Hash};
 
     #[test]

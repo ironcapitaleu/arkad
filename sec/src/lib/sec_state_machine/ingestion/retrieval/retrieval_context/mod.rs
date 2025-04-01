@@ -166,6 +166,7 @@ mod tests {
     };
 
     use super::{RetrievalContext, RetrievalContextUpdaterBuilder, Status};
+    use pretty_assertions::{assert_eq, assert_ne};
     use state_maschine::prelude::*;
 
     #[test]

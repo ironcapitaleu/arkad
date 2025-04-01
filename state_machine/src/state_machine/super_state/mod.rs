@@ -32,6 +32,7 @@ mod tests {
     use super::*;
     use crate::state_machine::transition::Transition;
     use crate::tests::common::HierarchicalStateMachine;
+    use pretty_assertions::assert_eq;
 
     #[test]
     fn should_transition_to_second_inner_state_when_in_first_inner_state_of_sample_super_state() {

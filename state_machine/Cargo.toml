@@ -10,6 +10,8 @@ keywords = ["state-machine", "design-pattern"]
 
 [dependencies]
 
+[dev-dependencies]
+pretty_assertions = "1"
 
 [lints.rust]
 unsafe_code = "forbid"

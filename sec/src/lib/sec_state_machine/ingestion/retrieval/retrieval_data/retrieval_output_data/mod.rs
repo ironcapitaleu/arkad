@@ -81,6 +81,7 @@ impl Default for RetrievalOutputDataUpdaterBuilder {
 #[cfg(test)]
 mod tests {
     use super::{RetrievalOutputData, RetrievalOutputDataUpdaterBuilder};
+    use pretty_assertions::{assert_eq, assert_ne};
     use state_maschine::prelude::*;
 
     #[test]

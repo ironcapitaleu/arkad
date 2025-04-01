@@ -83,6 +83,7 @@ impl Default for RetrievalInputDataUpdaterBuilder {
 #[cfg(test)]
 mod tests {
     use super::{CIK, DEFAULT_CIK, RetrievalInputData, RetrievalInputDataUpdaterBuilder};
+    use pretty_assertions::{assert_eq, assert_ne};
     use state_maschine::prelude::*;
 
     #[test]

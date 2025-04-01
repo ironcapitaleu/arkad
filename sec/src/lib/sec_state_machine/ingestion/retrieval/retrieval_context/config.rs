@@ -28,6 +28,7 @@ pub fn get_sec_user_agent() -> impl ToString {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use pretty_assertions::assert_eq;
 
     #[test]
     fn should_return_default_email_when_calling_get_sec_user_agent() {
