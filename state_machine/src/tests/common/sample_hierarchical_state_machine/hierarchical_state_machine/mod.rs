@@ -15,50 +15,6 @@ impl HierarchicalStateMachine<SampleSuperState<FirstInnerState>> {
     }
 }
 
-// impl StateMachine<SampleSuperState<FirstInnerState>> for HierarchicalStateMachine<SampleSuperState<FirstInnerState>> {
-//     fn get_current_state(&self) -> &SampleSuperState<FirstInnerState> {
-//         &self.current_state
-//     }
-
-//     fn get_current_state_mut(&mut self) -> &mut SampleSuperState<FirstInnerState> {
-//         &mut self.current_state
-//     }
-
-//     fn run(&mut self) {
-//         println!(
-//             "Running state: {}",
-//             self.get_current_state().get_state_name().to_string()
-//         );
-//     }
-
-//     fn advance_state(&mut self) {
-//         println!("Advancing state");
-//         self.get_current_state_mut().compute_output_data();
-//     }
-// }
-
-// impl StateMachine<SampleSuperState<SecondInnerState>> for HierarchicalStateMachine<SampleSuperState<SecondInnerState>> {
-//     fn get_current_state(&self) -> &SampleSuperState<SecondInnerState> {
-//         &self.current_state
-//     }
-
-//     fn get_current_state_mut(&mut self) -> &mut SampleSuperState<SecondInnerState> {
-//         &mut self.current_state
-//     }
-
-//     fn run(&mut self) {
-//         println!(
-//             "Running state: {}",
-//             self.get_current_state().get_state_name().to_string()
-//         );
-//     }
-
-//     fn advance_state(&mut self) {
-//         println!("Advancing state");
-//         self.get_current_state_mut().compute_output_data();
-//     }
-// }
-
 impl<S: State> StateMachine<S> for HierarchicalStateMachine<S> {
     fn get_current_state(&self) -> &S {
         &self.current_state
