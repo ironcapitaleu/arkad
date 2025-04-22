@@ -9,7 +9,7 @@ pub struct Cik {
 }
 
 impl Cik {
-    /// Creates a new `CIK` from a string, trimming whitespace and padding with zeros if less than 10 digits.
+    /// Creates a new `Cik` from a string, trimming whitespace and padding with zeros if less than 10 digits.
     ///
     /// # Panics
     ///
@@ -20,7 +20,7 @@ impl Cik {
     /// ```
     /// use sec::sec_state_machine::ingestion::retrieval::retrieval_data::retrieval_input_data::CIK;
     ///
-    /// let cik = CIK::new("123456789");
+    /// let cik = Cik::new("123456789");
     /// assert_eq!(cik.value(), "0123456789");
     /// ```
     pub fn new(cik: &(impl ToString + ?Sized)) -> Self {
