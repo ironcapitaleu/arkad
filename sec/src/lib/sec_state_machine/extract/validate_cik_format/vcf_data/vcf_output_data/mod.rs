@@ -6,17 +6,22 @@ pub mod cik;
 pub use cik::Cik;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
+/// Output data containing a validated CIK.
 pub struct ValidateCikFormatOutputData {
+    /// The validated CIK.
     pub validated_cik: Cik,
 }
 
 impl ValidateCikFormatOutputData {
+    /// Creates a new instance of the output data for the CIK validation state.
+    /// The output must follow the correct formatting.
     pub fn new(cik: &(impl ToString + ?Sized)) -> Self {
         Self {
             validated_cik: Cik::new(cik),
         }
     }
 
+    // Returns the validated CIK.
     #[must_use]
     pub const fn cik(&self) -> &String {
         self.validated_cik.value()
@@ -52,10 +57,12 @@ impl fmt::Display for ValidateCikFormatOutputData {
 }
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
+/// Updater for the validation output.
 pub struct ValidateCikFormatOutputDataUpdater {
     pub cik: Option<Cik>,
 }
 
+/// Updater builder for the validation output.
 pub struct ValidateCikFormatOutputDataUpdaterBuilder {
     cik: Option<Cik>,
 }

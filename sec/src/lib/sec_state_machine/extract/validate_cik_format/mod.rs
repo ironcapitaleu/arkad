@@ -10,6 +10,32 @@ pub use vcf_data::ValidateCikFormatInputData;
 pub use vcf_data::ValidateCikFormatOutputData;
 
 #[derive(Debug, Clone, Default, PartialEq, PartialOrd, Hash, Eq, Ord)]
+/// State that validates and normalizes a raw CIK format.
+///
+/// The state takes an unvalidated CIK string as input, checks for format correctness,
+/// and ensures the CIK is correctly zero-padded to 10 digits. It does **not** verify
+/// the existence of the CIK in the SEC database.
+///
+/// # Behavior
+/// - Trims leading and trailing whitespace.
+/// - Ensures the CIK contains only digits.
+/// - Prepends leading zeros if necessary.
+/// - Produces a validated 'Cik' object containing the normalized CIK.
+///
+/// # Limitations
+/// - This validation is **syntactic only**. It does **not** check whether the CIK actually exists in the SEC records.
+///
+/// # Output
+/// The validated CIK is stored internally after calling `compute_output_data()`.
+///
+/// # Example
+/// ```
+/// use sec::sec_state_machine::extract::validate_cik_format::*;
+///
+/// let input = ValidateCikFormatInputData { raw_cik: "1234".into() };
+/// let context = ValidateCikFormatContext::default();
+/// let mut validation_state = ValidateCikFormat::new(input, context);
+/// ```
 pub struct ValidateCikFormat {
     input: ValidateCikFormatInputData,
     context: ValidateCikFormatContext,
@@ -36,6 +62,7 @@ impl State for ValidateCikFormat {
         "CIK Format Validation"
     }
 
+    /// Validates if the given CIK has the correct format.
     fn compute_output_data(&mut self) {
         // Validate the CIK format
         let cik = Cik::new(&self.input.raw_cik);

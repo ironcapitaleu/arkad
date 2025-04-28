@@ -3,11 +3,14 @@ use std::fmt;
 use state_maschine::prelude::*;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
+/// State context for the CIK format validation state.
 pub struct ValidateCikFormatContext {
+    /// The unvalidated CIK string provided for validation.
     pub raw_cik: String,
 }
 
 impl ValidateCikFormatContext {
+    /// Creates a new instance of the state context for the CIK format validation.
     pub fn new(cik: &(impl ToString + ?Sized)) -> Self {
         Self {
             raw_cik: cik.to_string(),
@@ -46,10 +49,12 @@ impl fmt::Display for ValidateCikFormatContext {
 }
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
+/// Updater for the state context.
 pub struct ValidateCikFormatContextUpdater {
     pub raw_cik: Option<String>,
 }
 
+/// Updater builder for the state context.
 pub struct ValidateCikFormatContextUpdaterBuilder {
     raw_cik: Option<String>,
 }

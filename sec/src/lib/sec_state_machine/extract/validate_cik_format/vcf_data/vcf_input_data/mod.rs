@@ -2,17 +2,29 @@ use state_maschine::prelude::*;
 use std::fmt;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
+/// Input data for validating the format of a CIK.
 pub struct ValidateCikFormatInputData {
+    /// The unvalidated CIK string provided for validation.
     pub raw_cik: String,
 }
 
 impl ValidateCikFormatInputData {
+    /// Creates a new instance of the input data for the CIK format validation.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use sec::sec_state_machine::extract::validate_cik_format::vcf_data::vcf_input_data::ValidateCikFormatInputData;
+    ///
+    /// let validation_input_data = ValidateCikFormatInputData::new("1067983");
+    /// ```
     pub fn new(cik: &(impl ToString + ?Sized)) -> Self {
         Self {
             raw_cik: cik.to_string(),
         }
     }
 
+    /// Returns the CIK.
     #[must_use]
     pub const fn cik(&self) -> &String {
         &self.raw_cik
@@ -48,10 +60,12 @@ impl fmt::Display for ValidateCikFormatInputData {
 }
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
+/// Updater for the validation input.
 pub struct ValidateCikFormatInputDataUpdater {
     pub raw_cik: Option<String>,
 }
 
+/// Updater builder for the validation input.
 pub struct ValidateCikFormatInputDataUpdaterBuilder {
     raw_cik: Option<String>,
 }
