@@ -13,10 +13,14 @@ impl ValidateCikFormatContext {
             raw_cik: cik.to_string(),
         }
     }
+
+    pub fn cik(&self) -> &String {
+        &self.raw_cik
+    }
 }
 
 impl ContextData for ValidateCikFormatContext {
-    type UpdateType = ValidateCikFormatContextDataUpdater;
+    type UpdateType = ValidateCikFormatContextUpdater;
     fn get_context(&self) -> &Self {
         &self
     }
@@ -41,14 +45,14 @@ impl fmt::Display for ValidateCikFormatContext {
 }
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
-pub struct ValidateCikFormatContextDataUpdater {
+pub struct ValidateCikFormatContextUpdater {
     pub raw_cik: Option<String>,
 }
 
-pub struct ValidateCikFormatContextDataUpdaterBuilder {
+pub struct ValidateCikFormatContextUpdaterBuilder {
     raw_cik: Option<String>,
 }
-impl ValidateCikFormatContextDataUpdaterBuilder {
+impl ValidateCikFormatContextUpdaterBuilder {
     #[must_use]
     pub const fn new() -> Self {
         Self { raw_cik: None }
@@ -62,15 +66,102 @@ impl ValidateCikFormatContextDataUpdaterBuilder {
     }
 
     #[must_use]
-    pub fn build(self) -> ValidateCikFormatContextDataUpdater {
-        ValidateCikFormatContextDataUpdater {
+    pub fn build(self) -> ValidateCikFormatContextUpdater {
+        ValidateCikFormatContextUpdater {
             raw_cik: self.raw_cik,
         }
     }
 }
 
-impl Default for ValidateCikFormatContextDataUpdaterBuilder {
+impl Default for ValidateCikFormatContextUpdaterBuilder {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    use super::{ValidateCikFormatContext, ValidateCikFormatContextUpdaterBuilder};
+    use pretty_assertions::{assert_eq, assert_ne};
+    use state_maschine::prelude::*;
+
+    #[test]
+    fn should_return_reference_to_default_validation_context_when_initialized_with_default() {
+        let validation_context = &ValidateCikFormatContext::default();
+
+        let expected_result = &ValidateCikFormatContext::default();
+
+        let result = validation_context.get_context();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_create_different_context_with_custom_data_when_using_new_as_constructor() {
+        let validation_context = &ValidateCikFormatContext::new("0000000000");
+
+        let default_validation_context = &ValidateCikFormatContext::default();
+
+        let result = validation_context.get_context();
+
+        assert_ne!(result, default_validation_context);
+    }
+
+    #[test]
+    fn should_update_context_cik_data_to_specified_string_when_update_contains_specified_string() {
+        let mut context = ValidateCikFormatContext::default();
+        let update = ValidateCikFormatContextUpdaterBuilder::new()
+            .cik("Updated CIK!".to_string())
+            .build();
+
+        let expected_result = &ValidateCikFormatContext::new("Updated CIK!");
+
+        context.update_context(update);
+        let result = context.get_context();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_update_cik_to_latest_specified_string_when_multiple_updates_in_builder() {
+        let mut context = ValidateCikFormatContext::default();
+        let update = ValidateCikFormatContextUpdaterBuilder::new()
+            .cik("First CIK Update!".to_string())
+            .cik("Latest CIK Update!".to_string())
+            .build();
+
+        let expected_result = &ValidateCikFormatContext::new("Latest CIK Update!");
+
+        context.update_context(update);
+        let result = context.get_context();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_not_leave_context_cik_data_the_default_when_update_contains_a_different_string() {
+        let mut context = ValidateCikFormatContext::default();
+        let update = ValidateCikFormatContextUpdaterBuilder::new()
+            .cik("Updated CIK!".to_string())
+            .build();
+
+        context.update_context(update);
+        let result = context.get_context().cik();
+
+        assert_ne!(result, "1067983");
+    }
+
+    #[test]
+    fn should_leave_context_unchanged_when_empty_update() {
+        let mut context = ValidateCikFormatContext::default();
+        let empty_update = ValidateCikFormatContextUpdaterBuilder::default().build();
+
+        let expected_result = &ValidateCikFormatContext::default();
+
+        context.update_context(empty_update);
+        let result = context.get_context();
+
+        assert_eq!(result, expected_result);
     }
 }

@@ -16,13 +16,23 @@ pub struct ValidateCikFormat {
     output: Option<ValidateCikFormatOutputData>,
 }
 
+impl ValidateCikFormat {
+    pub fn new(input: ValidateCikFormatInputData, context: ValidateCikFormatContext) -> Self {
+        Self {
+            input,
+            context,
+            output: None,
+        }
+    }
+}
+
 impl State for ValidateCikFormat {
     type InputData = ValidateCikFormatInputData;
     type OutputData = ValidateCikFormatOutputData;
     type Context = ValidateCikFormatContext;
 
     fn get_state_name(&self) -> impl ToString {
-        "CIK Validation"
+        "CIK Format Validation"
     }
 
     fn compute_output_data(&mut self) {
@@ -66,5 +76,233 @@ impl fmt::Display for ValidateCikFormat {
                 |output_data| format!("{output_data}")
             )
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use pretty_assertions::assert_eq;
+    use std::{fmt::Debug, hash::Hash};
+
+    #[test]
+    fn should_return_name_of_validation_state_when_in_validation_state() {
+        let validation_state = ValidateCikFormat::default();
+
+        let expected_result = String::from("CIK Format Validation");
+
+        let result = validation_state.get_state_name().to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_default_validation_data_struct_as_input_data_when_in_initial_validation_state()
+    {
+        let validation_state = ValidateCikFormat::default();
+
+        let expected_result = &ValidateCikFormatInputData::default();
+
+        let result = validation_state.get_input_data();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    #[should_panic(expected = "output should not be empty")]
+    fn should_panic_when_trying_to_access_output_data_before_it_has_been_computed_in_state() {
+        let validation_state = ValidateCikFormat::default();
+
+        let _result = validation_state
+            .get_output_data()
+            .expect("The output should not be empty.");
+    }
+
+    #[test]
+    fn should_return_false_when_state_has_not_computed_the_output() {
+        let validation_state = ValidateCikFormat::default();
+
+        let expected_result = false;
+
+        let result = validation_state.has_output_data_been_computed();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_default_context_data_when_in_initial_state() {
+        let validation_state = ValidateCikFormat::default();
+
+        let expected_result = &ValidateCikFormatContext::default();
+
+        let result = validation_state.get_context_data();
+
+        assert_eq!(result, expected_result);
+    }
+
+    fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
+    #[test]
+    fn should_still_implement_auto_traits_traits_when_implementing_state_trait() {
+        implements_auto_traits::<ValidateCikFormat>();
+    }
+
+    fn implements_send<T: Send>() {}
+    fn implements_sync<T: Sync>() {}
+
+    #[test]
+    fn should_implement_send_when_implementing_state_trait() {
+        implements_send::<ValidateCikFormat>();
+    }
+
+    #[test]
+    fn should_implement_sync_when_implementing_state_trait() {
+        implements_sync::<ValidateCikFormat>();
+    }
+
+    #[test]
+    fn should_be_thread_safe_when_implementing_state_trait() {
+        implements_send::<ValidateCikFormat>();
+        implements_sync::<ValidateCikFormat>();
+    }
+
+    fn implements_sized<T: Sized>() {}
+    #[test]
+    fn should_be_sized_when_implementing_state_trait() {
+        implements_sized::<ValidateCikFormat>();
+    }
+
+    fn implements_hash<T: Hash>() {}
+    #[test]
+    fn should_implement_hash_when_implementing_state_trait() {
+        implements_hash::<ValidateCikFormat>();
+    }
+
+    fn implements_partial_eq<T: PartialEq>() {}
+    #[test]
+    fn should_implement_partial_eq_when_implementing_state_trait() {
+        implements_partial_eq::<ValidateCikFormat>();
+    }
+
+    fn implements_eq<T: Eq>() {}
+    #[test]
+    fn should_implement_eq_when_implementing_state_trait() {
+        implements_eq::<ValidateCikFormat>();
+    }
+
+    fn implements_partial_ord<T: PartialOrd>() {}
+    #[test]
+    fn should_implement_partial_ord_when_implementing_state_trait() {
+        implements_partial_ord::<ValidateCikFormat>();
+    }
+
+    fn implements_ord<T: Ord>() {}
+    #[test]
+    fn should_implement_ord_when_implementing_state_trait() {
+        implements_ord::<ValidateCikFormat>();
+    }
+
+    fn implements_default<T: Default>() {}
+    #[test]
+    fn should_implement_default_when_implementing_state_trait() {
+        implements_default::<ValidateCikFormat>()
+    }
+
+    fn implements_debug<T: Debug>() {}
+    #[test]
+    fn should_implement_debug_when_implementing_state_trait() {
+        implements_debug::<ValidateCikFormat>();
+    }
+
+    fn implements_clone<T: Clone>() {}
+    #[test]
+    fn should_implement_clone_when_implementing_state_trait() {
+        implements_clone::<ValidateCikFormat>();
+    }
+
+    fn implements_unpin<T: Unpin>() {}
+    #[test]
+    fn should_implement_unpin_when_implementing_state_trait() {
+        implements_unpin::<ValidateCikFormat>();
+    }
+
+    #[test]
+    fn should_return_default_context_data_when_called_with_state_reference() {
+        let validation_state = &ValidateCikFormat::default();
+        let ref_to_validation_state = &ValidateCikFormat::default();
+
+        let expected_result = validation_state.get_context_data();
+
+        let result = ref_to_validation_state.get_context_data();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_false_when_reference_state_has_not_computed_the_output() {
+        let ref_to_validation_state = &mut ValidateCikFormat::default();
+
+        let expected_result = false;
+
+        let result = ref_to_validation_state.has_output_data_been_computed();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    #[should_panic(expected = "output should not be empty")]
+    fn should_panic_when_trying_to_access_output_data_before_it_has_been_computed_in_reference_state()
+     {
+        let ref_to_validation_state = &ValidateCikFormat::default();
+
+        let _result = ref_to_validation_state
+            .get_output_data()
+            .expect("The output should not be empty.");
+    }
+
+    #[test]
+    fn should_return_name_of_validation_state_when_calling_reference_to_validation_state() {
+        let ref_to_validation_state = &ValidateCikFormat::default();
+
+        let expected_result = String::from("CIK Format Validation");
+
+        let result = ref_to_validation_state.get_state_name().to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_default_state_data_as_input_data_when_reference_validation_state_in_initial_state()
+     {
+        let ref_to_validation_state = &ValidateCikFormat::default();
+
+        let expected_result = &ValidateCikFormatInputData::default();
+
+        let result = ref_to_validation_state.get_input_data();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_not_change_input_data_when_computing_output_data() {
+        let mut validation_state = ValidateCikFormat::default();
+
+        let expected_result = &validation_state.get_input_data().clone();
+
+        validation_state.compute_output_data();
+        let result = validation_state.get_input_data();
+
+        assert_eq!(result, expected_result)
+    }
+
+    #[test]
+    fn should_return_correct_output_data_when_computing_output_data() {
+        let mut validation_state = ValidateCikFormat::default();
+
+        let expected_result = &ValidateCikFormatOutputData::default();
+
+        validation_state.compute_output_data();
+        let result = validation_state.get_output_data().unwrap();
+
+        assert_eq!(result, expected_result);
     }
 }
