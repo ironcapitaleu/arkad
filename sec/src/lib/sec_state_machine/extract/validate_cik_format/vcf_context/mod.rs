@@ -4,20 +4,13 @@ use state_maschine::prelude::*;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 pub struct ValidateCikFormatContext {
-    // status: Status,
-    pub given_cik: String,
+    pub raw_cik: String,
 }
-
-// #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
-// enum Status {
-//     PreValidation,
-//     PostValidation,
-// }
 
 impl ValidateCikFormatContext {
     pub fn new(cik: &(impl ToString + ?Sized)) -> Self {
         Self {
-            given_cik: cik.to_string(),
+            raw_cik: cik.to_string(),
         }
     }
 }
@@ -29,7 +22,7 @@ impl ContextData for ValidateCikFormatContext {
     }
 
     fn update_context(&mut self, updates: Self::UpdateType) {
-        self.given_cik = updates;
+        self.raw_cik = updates;
     }
 }
 
@@ -41,6 +34,6 @@ impl Default for ValidateCikFormatContext {
 
 impl fmt::Display for ValidateCikFormatContext {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "CIK: {}", self.given_cik)
+        write!(f, "CIK: {}", self.raw_cik)
     }
 }

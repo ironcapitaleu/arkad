@@ -2,7 +2,7 @@ use std::fmt;
 
 use state_maschine::prelude::*;
 
-mod cik;
+pub mod cik;
 pub use cik::Cik;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]

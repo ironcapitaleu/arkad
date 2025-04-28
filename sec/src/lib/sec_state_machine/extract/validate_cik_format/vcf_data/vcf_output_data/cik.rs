@@ -18,7 +18,7 @@ impl Cik {
     /// # Examples
     ///
     /// ```
-    /// use sec::sec_state_machine::ingestion::retrieval::retrieval_data::retrieval_input_data::CIK;
+    /// use sec::sec_state_machine::extract::validate_cik_format::vcf_data::vcf_output_data::cik::Cik;
     ///
     /// let cik = Cik::new("123456789");
     /// assert_eq!(cik.value(), "0123456789");
