@@ -57,7 +57,9 @@ impl ValidateCikFormatInputDataUpdaterBuilder {
 
     #[must_use]
     pub fn build(self) -> ValidateCikFormatInputDataUpdater {
-        ValidateCikFormatInputDataUpdater { raw_cik: self.raw_cik }
+        ValidateCikFormatInputDataUpdater {
+            raw_cik: self.raw_cik,
+        }
     }
 }
 

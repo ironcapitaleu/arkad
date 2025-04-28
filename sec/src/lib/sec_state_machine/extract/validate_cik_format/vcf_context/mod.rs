@@ -63,7 +63,9 @@ impl ValidateCikFormatContextDataUpdaterBuilder {
 
     #[must_use]
     pub fn build(self) -> ValidateCikFormatContextDataUpdater {
-        ValidateCikFormatContextDataUpdater { raw_cik: self.raw_cik }
+        ValidateCikFormatContextDataUpdater {
+            raw_cik: self.raw_cik,
+        }
     }
 }
 
