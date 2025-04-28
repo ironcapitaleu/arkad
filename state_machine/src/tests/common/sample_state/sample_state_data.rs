@@ -6,7 +6,7 @@ pub struct SampleStateData {
 }
 
 impl SampleStateData {
-    pub fn new(state_data: String) -> Self {
+    pub const fn new(state_data: String) -> Self {
         Self { state_data }
     }
 }
@@ -34,7 +34,7 @@ pub struct SampleStateDataUpdaterBuilder {
 }
 
 impl SampleStateDataUpdaterBuilder {
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self { state_data: None }
     }
 

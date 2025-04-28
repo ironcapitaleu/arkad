@@ -14,7 +14,8 @@ impl ValidateCikFormatContext {
         }
     }
 
-    pub fn cik(&self) -> &String {
+    #[must_use]
+    pub const fn cik(&self) -> &String {
         &self.raw_cik
     }
 }
@@ -22,7 +23,7 @@ impl ValidateCikFormatContext {
 impl ContextData for ValidateCikFormatContext {
     type UpdateType = ValidateCikFormatContextUpdater;
     fn get_context(&self) -> &Self {
-        &self
+        self
     }
 
     fn update_context(&mut self, updates: Self::UpdateType) {

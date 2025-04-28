@@ -17,7 +17,8 @@ pub struct ValidateCikFormat {
 }
 
 impl ValidateCikFormat {
-    pub fn new(input: ValidateCikFormatInputData, context: ValidateCikFormatContext) -> Self {
+    #[must_use]
+    pub const fn new(input: ValidateCikFormatInputData, context: ValidateCikFormatContext) -> Self {
         Self {
             input,
             context,
@@ -140,88 +141,88 @@ mod tests {
         assert_eq!(result, expected_result);
     }
 
-    fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
+    const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
     #[test]
-    fn should_still_implement_auto_traits_traits_when_implementing_state_trait() {
+    const fn should_still_implement_auto_traits_traits_when_implementing_state_trait() {
         implements_auto_traits::<ValidateCikFormat>();
     }
 
-    fn implements_send<T: Send>() {}
-    fn implements_sync<T: Sync>() {}
+    const fn implements_send<T: Send>() {}
+    const fn implements_sync<T: Sync>() {}
 
     #[test]
-    fn should_implement_send_when_implementing_state_trait() {
+    const fn should_implement_send_when_implementing_state_trait() {
         implements_send::<ValidateCikFormat>();
     }
 
     #[test]
-    fn should_implement_sync_when_implementing_state_trait() {
+    const fn should_implement_sync_when_implementing_state_trait() {
         implements_sync::<ValidateCikFormat>();
     }
 
     #[test]
-    fn should_be_thread_safe_when_implementing_state_trait() {
+    const fn should_be_thread_safe_when_implementing_state_trait() {
         implements_send::<ValidateCikFormat>();
         implements_sync::<ValidateCikFormat>();
     }
 
-    fn implements_sized<T: Sized>() {}
+    const fn implements_sized<T: Sized>() {}
     #[test]
-    fn should_be_sized_when_implementing_state_trait() {
+    const fn should_be_sized_when_implementing_state_trait() {
         implements_sized::<ValidateCikFormat>();
     }
 
-    fn implements_hash<T: Hash>() {}
+    const fn implements_hash<T: Hash>() {}
     #[test]
-    fn should_implement_hash_when_implementing_state_trait() {
+    const fn should_implement_hash_when_implementing_state_trait() {
         implements_hash::<ValidateCikFormat>();
     }
 
-    fn implements_partial_eq<T: PartialEq>() {}
+    const fn implements_partial_eq<T: PartialEq>() {}
     #[test]
-    fn should_implement_partial_eq_when_implementing_state_trait() {
+    const fn should_implement_partial_eq_when_implementing_state_trait() {
         implements_partial_eq::<ValidateCikFormat>();
     }
 
-    fn implements_eq<T: Eq>() {}
+    const fn implements_eq<T: Eq>() {}
     #[test]
-    fn should_implement_eq_when_implementing_state_trait() {
+    const fn should_implement_eq_when_implementing_state_trait() {
         implements_eq::<ValidateCikFormat>();
     }
 
-    fn implements_partial_ord<T: PartialOrd>() {}
+    const fn implements_partial_ord<T: PartialOrd>() {}
     #[test]
-    fn should_implement_partial_ord_when_implementing_state_trait() {
+    const fn should_implement_partial_ord_when_implementing_state_trait() {
         implements_partial_ord::<ValidateCikFormat>();
     }
 
-    fn implements_ord<T: Ord>() {}
+    const fn implements_ord<T: Ord>() {}
     #[test]
-    fn should_implement_ord_when_implementing_state_trait() {
+    const fn should_implement_ord_when_implementing_state_trait() {
         implements_ord::<ValidateCikFormat>();
     }
 
-    fn implements_default<T: Default>() {}
+    const fn implements_default<T: Default>() {}
     #[test]
-    fn should_implement_default_when_implementing_state_trait() {
-        implements_default::<ValidateCikFormat>()
+    const fn should_implement_default_when_implementing_state_trait() {
+        implements_default::<ValidateCikFormat>();
     }
 
-    fn implements_debug<T: Debug>() {}
+    const fn implements_debug<T: Debug>() {}
     #[test]
-    fn should_implement_debug_when_implementing_state_trait() {
+    const fn should_implement_debug_when_implementing_state_trait() {
         implements_debug::<ValidateCikFormat>();
     }
 
-    fn implements_clone<T: Clone>() {}
+    const fn implements_clone<T: Clone>() {}
     #[test]
-    fn should_implement_clone_when_implementing_state_trait() {
+    const fn should_implement_clone_when_implementing_state_trait() {
         implements_clone::<ValidateCikFormat>();
     }
 
-    fn implements_unpin<T: Unpin>() {}
+    const fn implements_unpin<T: Unpin>() {}
     #[test]
-    fn should_implement_unpin_when_implementing_state_trait() {
+    const fn should_implement_unpin_when_implementing_state_trait() {
         implements_unpin::<ValidateCikFormat>();
     }
 
@@ -291,7 +292,7 @@ mod tests {
         validation_state.compute_output_data();
         let result = validation_state.get_input_data();
 
-        assert_eq!(result, expected_result)
+        assert_eq!(result, expected_result);
     }
 
     #[test]

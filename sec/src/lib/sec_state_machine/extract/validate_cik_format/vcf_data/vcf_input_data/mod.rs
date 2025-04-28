@@ -13,7 +13,8 @@ impl ValidateCikFormatInputData {
         }
     }
 
-    pub fn cik(&self) -> &String {
+    #[must_use]
+    pub const fn cik(&self) -> &String {
         &self.raw_cik
     }
 }
@@ -22,7 +23,7 @@ impl StateData for ValidateCikFormatInputData {
     type UpdateType = ValidateCikFormatInputDataUpdater;
 
     fn get_state(&self) -> &Self {
-        &self
+        self
     }
 
     fn update_state(&mut self, updates: Self::UpdateType) {

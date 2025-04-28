@@ -17,8 +17,9 @@ impl ValidateCikFormatOutputData {
         }
     }
 
-    pub fn cik(&self) -> &String {
-        &self.validated_cik.value()
+    #[must_use]
+    pub const fn cik(&self) -> &String {
+        self.validated_cik.value()
     }
 }
 
@@ -26,7 +27,7 @@ impl StateData for ValidateCikFormatOutputData {
     type UpdateType = ValidateCikFormatOutputDataUpdater;
 
     fn get_state(&self) -> &Self {
-        &self
+        self
     }
 
     fn update_state(&mut self, updates: Self::UpdateType) {

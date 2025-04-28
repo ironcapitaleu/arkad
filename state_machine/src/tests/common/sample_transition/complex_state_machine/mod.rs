@@ -61,10 +61,10 @@ impl StateMachine<SecondState> for ComplexStateMachine<SecondState> {
 }
 
 impl Transition<FirstState, FirstState> for ComplexStateMachine<FirstState> {
-    type NewStateMachine = ComplexStateMachine<FirstState>;
+    type NewStateMachine = Self;
 
     fn transition_to_next_state(self) -> Result<Self::NewStateMachine, &'static str> {
-        Ok(ComplexStateMachine {
+        Ok(Self {
             current_state: FirstState::default(),
         })
     }

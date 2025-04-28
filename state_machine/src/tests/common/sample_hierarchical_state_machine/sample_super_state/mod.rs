@@ -21,7 +21,7 @@ pub struct SampleSuperState<S: State> {
 
 impl SampleSuperState<FirstInnerState> {
     pub fn new() -> Self {
-        SampleSuperState {
+        Self {
             current_state: FirstInnerState::default(),
             input: SampleSuperStateData::default(),
             output: None,
