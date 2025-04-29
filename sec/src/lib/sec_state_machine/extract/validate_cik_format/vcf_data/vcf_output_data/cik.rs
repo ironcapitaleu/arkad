@@ -33,12 +33,12 @@ impl Cik {
             cik.to_string()
         );
 
-        // Prepend zeros if less than 10 digits
+        // Prepend zeros if shorter than `CIK_LENGTH` digits
         if cik_str.len() < CIK_LENGTH {
             cik_str = format!("{cik_str:0>CIK_LENGTH$}"); // Pads with leading zeros to a length of `CIK_LENGTH`
         }
 
-        // Ensure the length does not exceed `CIK_LENGTH`` digits
+        // Ensure the length does not exceed `CIK_LENGTH` digits
         assert!(
             (cik_str.len() <= CIK_LENGTH),
             "Invalid CIK: Final CIK cannot exceed the fixed CIK length of {CIK_LENGTH} digits. Final CIK is '{}' and is {}>{CIK_LENGTH} digits long.",
@@ -55,7 +55,7 @@ impl Cik {
         &self.value
     }
 
-    /// Validates if the CIK contains exactly 10 digits.
+    /// Validates if the CIK contains exactly `CIK_LENGTH` digits.
     #[must_use]
     pub fn is_valid(cik: &str) -> bool {
         cik.len() == CIK_LENGTH && cik.chars().all(|c| c.is_ascii_digit())
