@@ -130,7 +130,7 @@ mod tests {
             .cik("12345")
             .build();
 
-        let expected_result = &ValidateCikFormatOutputData::new("12345");
+        let expected_result = &ValidateCikFormatOutputData::new("0000012345");
 
         state_data.update_state(update);
         let result = state_data.get_state();
@@ -143,10 +143,10 @@ mod tests {
         let mut state_data = ValidateCikFormatOutputData::default();
         let update = ValidateCikFormatOutputDataUpdaterBuilder::default()
             .cik("12345")
-            .cik("67890")
+            .cik("067890")
             .build();
 
-        let expected_result = &ValidateCikFormatOutputData::new("67890");
+        let expected_result = &ValidateCikFormatOutputData::new("0067890");
 
         state_data.update_state(update);
         let result = state_data.get_state();
@@ -168,7 +168,7 @@ mod tests {
     }
 
     #[test]
-    fn should_return_formatted_default_cik_string_when_validation_output_data_initialized_with_default() {
+    fn should_return_formatted_and_validated_default_cik_string_when_validation_output_data_initialized_with_default() {
         let validation_state_data = &ValidateCikFormatOutputData::default();
         let formatted_and_validated_berkshire_cik = Cik::new(BERKSHIRE_HATHAWAY_CIK);
 
@@ -178,6 +178,18 @@ mod tests {
  
         assert_eq!(result, expected_result);
     }
+
+    #[test]
+    #[should_panic]
+    fn should_panic_when_comparing_valid_but_unformatted_default_cik_with_fromatted_and_validated_default_output() {
+        let validation_state_data = &ValidateCikFormatOutputData::default();
+        let valid_but_unformatted_default_cik = BERKSHIRE_HATHAWAY_CIK;
+
+        let result = validation_state_data.get_state().cik();
+ 
+        assert_eq!(result, valid_but_unformatted_default_cik);
+    }
+
     #[test]
     #[should_panic]
     fn should_panic_when_given_invalid_cik_string() {
