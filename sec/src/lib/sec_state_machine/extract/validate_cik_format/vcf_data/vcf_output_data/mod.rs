@@ -41,11 +41,13 @@ impl StateData for ValidateCikFormatOutputData {
         }
     }
 }
+const BERKSHIRE_HATHAWAY_CIK: &str = "1067983";
 
 impl Default for ValidateCikFormatOutputData {
+    /// Returns a default output using the CIK for Berkshire Hathaway (CIK: 1067983).
     fn default() -> Self {
         Self {
-            validated_cik: Cik::new("1067983"),
+            validated_cik: Cik::new(BERKSHIRE_HATHAWAY_CIK),
         }
     }
 }

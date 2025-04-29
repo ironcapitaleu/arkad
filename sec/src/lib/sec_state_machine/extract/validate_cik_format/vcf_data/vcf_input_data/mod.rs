@@ -48,7 +48,7 @@ impl StateData for ValidateCikFormatInputData {
 const BERKSHIRE_HATHAWAY_CIK: &str = "1067983";
 
 impl Default for ValidateCikFormatInputData {
-    /// Returns a default context using the CIK for Berkshire Hathaway (CIK: 1067983).
+    /// Returns a default input using the CIK for Berkshire Hathaway (CIK: 1067983).
     fn default() -> Self {
         Self {
             raw_cik: BERKSHIRE_HATHAWAY_CIK.to_string(),
