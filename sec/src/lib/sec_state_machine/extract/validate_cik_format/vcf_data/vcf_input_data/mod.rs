@@ -80,8 +80,8 @@ impl ValidateCikFormatInputDataUpdaterBuilder {
 
     #[must_use]
     #[allow(clippy::missing_const_for_fn)]
-    pub fn cik(mut self, cik: String) -> Self {
-        self.raw_cik = Some(cik);
+    pub fn cik(mut self, cik: &(impl ToString + ?Sized)) -> Self {
+        self.raw_cik = Some(cik.to_string());
         self
     }
 
@@ -101,6 +101,8 @@ impl Default for ValidateCikFormatInputDataUpdaterBuilder {
 
 #[cfg(test)]
 mod tests {
+
+    use crate::sec_state_machine::extract::validate_cik_format::vcf_data::vcf_input_data::BERKSHIRE_HATHAWAY_CIK;
 
     use super::{ValidateCikFormatInputData, ValidateCikFormatInputDataUpdaterBuilder};
     use pretty_assertions::{assert_eq, assert_ne};
@@ -132,7 +134,7 @@ mod tests {
     fn should_update_state_data_to_specified_string_when_update_contains_specified_string() {
         let mut state_data = ValidateCikFormatInputData::default();
         let update = ValidateCikFormatInputDataUpdaterBuilder::default()
-            .cik("12345".to_string())
+            .cik("12345")
             .build();
 
         let expected_result = &ValidateCikFormatInputData::new("12345");
@@ -147,8 +149,8 @@ mod tests {
     fn should_update_state_data_to_latest_specified_string_when_multiple_updates_in_builder() {
         let mut state_data = ValidateCikFormatInputData::default();
         let update = ValidateCikFormatInputDataUpdaterBuilder::default()
-            .cik("1234567890".to_string())
-            .cik("0000000000".to_string())
+            .cik("1234567890")
+            .cik("0000000000")
             .build();
 
         let expected_result = &ValidateCikFormatInputData::new("0000000000");
@@ -176,7 +178,7 @@ mod tests {
     fn should_return_default_cik_when_validation_input_data_initialized_with_default() {
         let validation_state_data = &ValidateCikFormatInputData::default();
 
-        let expected_result = &"1067983".to_string();
+        let expected_result = &BERKSHIRE_HATHAWAY_CIK.to_string();
 
         let result = validation_state_data.get_state().cik();
 
