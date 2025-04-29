@@ -6,7 +6,7 @@ pub struct SampleStateContext {
 }
 
 impl SampleStateContext {
-    pub fn new(context_data: String) -> Self {
+    pub const fn new(context_data: String) -> Self {
         Self { context_data }
     }
 }
@@ -34,7 +34,7 @@ pub struct SampleStateContextUpdaterBuilder {
 }
 
 impl SampleStateContextUpdaterBuilder {
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self { context_data: None }
     }
 
