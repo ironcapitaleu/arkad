@@ -4,12 +4,12 @@ use std::fmt;
 const CIK_LENGTH: usize = 10;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
-pub struct CIK {
+pub struct Cik {
     value: String,
 }
 
-impl CIK {
-    /// Creates a new `CIK` from a string, trimming whitespace and padding with zeros if less than 10 digits.
+impl Cik {
+    /// Creates a new `Cik` from a string, trimming whitespace and padding with zeros if less than 10 digits.
     ///
     /// # Panics
     ///
@@ -18,9 +18,9 @@ impl CIK {
     /// # Examples
     ///
     /// ```
-    /// use sec::sec_state_machine::ingestion::retrieval::retrieval_data::retrieval_input_data::CIK;
+    /// use sec::sec_state_machine::extract::validate_cik_format::vcf_data::vcf_output_data::cik::Cik;
     ///
-    /// let cik = CIK::new("123456789");
+    /// let cik = Cik::new("123456789");
     /// assert_eq!(cik.value(), "0123456789");
     /// ```
     pub fn new(cik: &(impl ToString + ?Sized)) -> Self {
@@ -62,7 +62,7 @@ impl CIK {
     }
 }
 
-impl fmt::Display for CIK {
+impl fmt::Display for Cik {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.value)
     }
@@ -70,7 +70,7 @@ impl fmt::Display for CIK {
 
 #[cfg(test)]
 mod tests {
-    use super::CIK;
+    use super::Cik;
     use pretty_assertions::assert_eq;
 
     #[test]
@@ -79,7 +79,7 @@ mod tests {
 
         let expected_result = "1234567890";
 
-        let result = CIK::new(cik_str);
+        let result = Cik::new(cik_str);
 
         assert_eq!(result.value(), expected_result);
     }
@@ -87,19 +87,19 @@ mod tests {
     #[test]
     #[should_panic(expected = "Invalid CIK")]
     fn should_panic_when_given_cik_str_that_contains_non_numeric_chars() {
-        let _result = CIK::new("12345abcd!");
+        let _result = Cik::new("12345abcd!");
     }
 
     #[test]
     #[should_panic(expected = "Invalid CIK")]
     fn should_panic_when_given_cik_str_that_is_longer_than_ten_chars_after_trimming() {
-        let _result = CIK::new("12345678901");
+        let _result = Cik::new("12345678901");
     }
 
     #[test]
     #[should_panic(expected = "Invalid CIK")]
     fn should_panic_when_given_cik_str_that_is_longer_than_ten_chars_and_contains_a_alpha_char() {
-        let _result = CIK::new("1234567890a");
+        let _result = Cik::new("1234567890a");
     }
 
     #[test]
@@ -108,7 +108,7 @@ mod tests {
 
         let expected_result = "0123456789";
 
-        let result = CIK::new(cik_str);
+        let result = Cik::new(cik_str);
 
         assert_eq!(result.value(), expected_result);
     }
@@ -119,7 +119,7 @@ mod tests {
 
         let expected_result = "0000000000";
 
-        let result = CIK::new(cik_str);
+        let result = Cik::new(cik_str);
 
         assert_eq!(result.value(), expected_result);
     }
@@ -130,7 +130,7 @@ mod tests {
 
         let expected_result = "0123456789";
 
-        let result = CIK::new(cik_str);
+        let result = Cik::new(cik_str);
 
         assert_eq!(result.value(), expected_result);
     }
@@ -141,7 +141,7 @@ mod tests {
 
         let expected_result = "0123456789";
 
-        let result = CIK::new(cik_str);
+        let result = Cik::new(cik_str);
 
         assert_eq!(result.value(), expected_result);
     }
@@ -153,7 +153,7 @@ mod tests {
 
         let expected_result = "0123456789";
 
-        let result = CIK::new(cik_str);
+        let result = Cik::new(cik_str);
 
         assert_eq!(result.value(), expected_result);
     }
