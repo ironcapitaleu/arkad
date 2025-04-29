@@ -97,7 +97,7 @@ impl Default for ValidateCikFormatOutputDataUpdaterBuilder {
 mod tests {
     use crate::sec_state_machine::extract::validate_cik_format::vcf_data::vcf_output_data::BERKSHIRE_HATHAWAY_CIK;
 
-    use super::{ValidateCikFormatOutputData, ValidateCikFormatOutputDataUpdaterBuilder, Cik};
+    use super::{Cik, ValidateCikFormatOutputData, ValidateCikFormatOutputDataUpdaterBuilder};
     use pretty_assertions::{assert_eq, assert_ne};
     use state_maschine::prelude::*;
 
@@ -168,25 +168,27 @@ mod tests {
     }
 
     #[test]
-    fn should_return_formatted_and_validated_default_cik_string_when_validation_output_data_initialized_with_default() {
+    fn should_return_formatted_and_validated_default_cik_string_when_validation_output_data_initialized_with_default()
+     {
         let validation_state_data = &ValidateCikFormatOutputData::default();
         let formatted_and_validated_berkshire_cik = Cik::new(BERKSHIRE_HATHAWAY_CIK);
 
         let expected_result = formatted_and_validated_berkshire_cik.value();
 
         let result = validation_state_data.get_state().cik();
- 
+
         assert_eq!(result, expected_result);
     }
 
     #[test]
     #[should_panic]
-    fn should_panic_when_comparing_valid_but_unformatted_default_cik_with_fromatted_and_validated_default_output() {
+    fn should_panic_when_comparing_valid_but_unformatted_default_cik_with_fromatted_and_validated_default_output()
+     {
         let validation_state_data = &ValidateCikFormatOutputData::default();
         let valid_but_unformatted_default_cik = BERKSHIRE_HATHAWAY_CIK;
 
         let result = validation_state_data.get_state().cik();
- 
+
         assert_eq!(result, valid_but_unformatted_default_cik);
     }
 
