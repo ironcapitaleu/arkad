@@ -71,8 +71,8 @@ impl ValidateCikFormatContextUpdaterBuilder {
 
     #[must_use]
     #[allow(clippy::missing_const_for_fn)]
-    pub fn cik(mut self, cik: String) -> Self {
-        self.raw_cik = Some(cik);
+    pub fn cik(mut self, cik: &(impl ToString + ?Sized)) -> Self {
+        self.raw_cik = Some(cik.to_string());
         self
     }
 
@@ -92,6 +92,8 @@ impl Default for ValidateCikFormatContextUpdaterBuilder {
 
 #[cfg(test)]
 mod tests {
+
+    use crate::sec_state_machine::extract::validate_cik_format::vcf_context::BERKSHIRE_HATHAWAY_CIK;
 
     use super::{ValidateCikFormatContext, ValidateCikFormatContextUpdaterBuilder};
     use pretty_assertions::{assert_eq, assert_ne};
@@ -123,7 +125,7 @@ mod tests {
     fn should_update_context_cik_data_to_specified_string_when_update_contains_specified_string() {
         let mut context = ValidateCikFormatContext::default();
         let update = ValidateCikFormatContextUpdaterBuilder::new()
-            .cik("Updated CIK!".to_string())
+            .cik("Updated CIK!")
             .build();
 
         let expected_result = &ValidateCikFormatContext::new("Updated CIK!");
@@ -138,8 +140,8 @@ mod tests {
     fn should_update_cik_to_latest_specified_string_when_multiple_updates_in_builder() {
         let mut context = ValidateCikFormatContext::default();
         let update = ValidateCikFormatContextUpdaterBuilder::new()
-            .cik("First CIK Update!".to_string())
-            .cik("Latest CIK Update!".to_string())
+            .cik("First CIK Update!")
+            .cik("Latest CIK Update!")
             .build();
 
         let expected_result = &ValidateCikFormatContext::new("Latest CIK Update!");
@@ -154,13 +156,13 @@ mod tests {
     fn should_not_leave_context_cik_data_the_default_when_update_contains_a_different_string() {
         let mut context = ValidateCikFormatContext::default();
         let update = ValidateCikFormatContextUpdaterBuilder::new()
-            .cik("Updated CIK!".to_string())
+            .cik("Updated CIK!")
             .build();
 
         context.update_context(update);
         let result = context.get_context().cik();
 
-        assert_ne!(result, "1067983");
+        assert_ne!(result, BERKSHIRE_HATHAWAY_CIK);
     }
 
     #[test]
