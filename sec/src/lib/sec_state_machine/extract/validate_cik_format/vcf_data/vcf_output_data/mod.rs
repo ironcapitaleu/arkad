@@ -95,6 +95,8 @@ impl Default for ValidateCikFormatOutputDataUpdaterBuilder {
 
 #[cfg(test)]
 mod tests {
+    use crate::sec_state_machine::extract::validate_cik_format::vcf_data::vcf_output_data::BERKSHIRE_HATHAWAY_CIK;
+
     use super::{ValidateCikFormatOutputData, ValidateCikFormatOutputDataUpdaterBuilder};
     use pretty_assertions::{assert_eq, assert_ne};
     use state_maschine::prelude::*;
@@ -169,7 +171,7 @@ mod tests {
     fn should_return_default_cik_string_when_validation_output_data_initialized_with_default() {
         let validation_state_data = &ValidateCikFormatOutputData::default();
 
-        let expected_result = "0001067983";
+        let expected_result = BERKSHIRE_HATHAWAY_CIK;
 
         let result = validation_state_data.get_state().cik();
 
