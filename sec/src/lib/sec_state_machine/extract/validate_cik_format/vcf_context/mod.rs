@@ -4,6 +4,8 @@ use state_maschine::prelude::*;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 /// State context for the CIK format validation state.
+///
+/// The default instance uses the CIK for Berkshire Hathaway (CIK: 1067983).
 pub struct ValidateCikFormatContext {
     /// The unvalidated CIK string provided for validation.
     pub raw_cik: String,
@@ -36,9 +38,12 @@ impl ContextData for ValidateCikFormatContext {
     }
 }
 
+const BERKSHIRE_HATHAWAY_CIK: &str = "1067983";
+
 impl Default for ValidateCikFormatContext {
+    /// Returns a default context using the CIK for Berkshire Hathaway (CIK: 1067983).
     fn default() -> Self {
-        Self::new("1067983")
+        Self::new(BERKSHIRE_HATHAWAY_CIK)
     }
 }
 
