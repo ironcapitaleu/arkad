@@ -99,7 +99,7 @@ mod tests {
 
     #[test]
     fn should_return_reference_to_default_validation_state_data_when_initialized_with_default() {
-        let validation_state_data = &ValidateCikFormatOutputData::default();
+        let validation_state_data = ValidateCikFormatOutputData::default();
 
         let expected_result = &ValidateCikFormatOutputData::default();
 
