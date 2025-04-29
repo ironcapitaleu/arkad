@@ -49,7 +49,7 @@ impl Default for ValidateCikFormatContext {
 
 impl fmt::Display for ValidateCikFormatContext {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Raw CIK: {}", self.raw_cik)
+        write!(f, "Unvalidated CIK: {}", self.raw_cik)
     }
 }
 
