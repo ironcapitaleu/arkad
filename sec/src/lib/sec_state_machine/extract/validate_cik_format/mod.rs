@@ -1,5 +1,7 @@
 use state_maschine::prelude::*;
 use std::fmt;
+use crate::sec_state_machine::sec_state::SecState;
+use crate::sec_state_machine::sec_error::SecError;
 
 pub mod vcf_context;
 pub mod vcf_data;
@@ -53,6 +55,26 @@ impl ValidateCikFormat {
     }
 }
 
+impl SecState for ValidateCikFormat {
+    fn try_compute_output_data(&mut self) -> Result<(), SecError> {
+        // Validate the CIK format
+        let cik = Cik::new(&self.input.raw_cik);
+
+        match cik {
+            Ok(cik) => {
+                // If the CIK is valid, set the output data
+                self.output = Some(ValidateCikFormatOutputData { validated_cik: cik });
+            }
+            Err(e) => {
+                // If the CIK is invalid, return an error
+                return Err(e);
+            }
+        }
+
+        Ok(())
+    }
+}
+
 impl State for ValidateCikFormat {
     type InputData = ValidateCikFormatInputData;
     type OutputData = ValidateCikFormatOutputData;
@@ -63,15 +85,10 @@ impl State for ValidateCikFormat {
     }
 
     /// Validates if the given CIK has the correct format.
+    /// Does nothing here, as the output data is computed in `try_compute_output_data()`.
     fn compute_output_data(&mut self) {
-        // Validate the CIK format
-        let cik = Cik::new(&self.input.raw_cik);
-
-        // Create the output data
-        let output_data = ValidateCikFormatOutputData { validated_cik: cik };
-
-        // Set the output data
-        self.output = Some(output_data);
+        // No action needed here, as the output data is computed in `try_compute_output_data()`
+        // This function is just a placeholder to satisfy the State trait.
     }
 
     fn get_context_data(&self) -> &Self::Context {
@@ -328,7 +345,9 @@ mod tests {
 
         let expected_result = &ValidateCikFormatOutputData::default();
 
-        validation_state.compute_output_data();
+        let initial_result = validation_state.try_compute_output_data();
+
+        assert!(initial_result.is_ok(), "Output data should be computed successfully");
         let result = validation_state.get_output_data().unwrap();
 
         assert_eq!(result, expected_result);

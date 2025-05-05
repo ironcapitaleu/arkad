@@ -16,8 +16,9 @@ impl ValidateCikFormatOutputData {
     /// Creates a new instance of the output data for the CIK validation state.
     /// The output must follow the correct formatting.
     pub fn new(cik: &(impl ToString + ?Sized)) -> Self {
+
         Self {
-            validated_cik: Cik::new(cik),
+            validated_cik: Cik::new(cik).expect("CIK must be valid and formatted correctly"),
         }
     }
 
@@ -37,7 +38,7 @@ impl StateData for ValidateCikFormatOutputData {
 
     fn update_state(&mut self, updates: Self::UpdateType) {
         if let Some(cik) = updates.cik {
-            self.validated_cik = Cik::new(&cik);
+            self.validated_cik = Cik::new(&cik).expect("CIK must be valid and formatted correctly");
         }
     }
 }
@@ -47,7 +48,7 @@ impl Default for ValidateCikFormatOutputData {
     /// Returns a default output using the CIK for Berkshire Hathaway (CIK: 1067983).
     fn default() -> Self {
         Self {
-            validated_cik: Cik::new(BERKSHIRE_HATHAWAY_CIK),
+            validated_cik: Cik::new(BERKSHIRE_HATHAWAY_CIK).expect("CIK must be valid and formatted correctly"),
         }
     }
 }
@@ -77,7 +78,7 @@ impl ValidateCikFormatOutputDataUpdaterBuilder {
     #[must_use]
     #[allow(clippy::missing_const_for_fn)]
     pub fn cik(mut self, cik: &(impl ToString + ?Sized)) -> Self {
-        self.cik = Some(Cik::new(cik));
+        self.cik = Some(Cik::new(cik).expect("CIK must be valid and formatted correctly"));
         self
     }
 
@@ -171,7 +172,7 @@ mod tests {
     fn should_return_formatted_and_validated_default_cik_string_when_validation_output_data_initialized_with_default()
      {
         let validation_state_data = &ValidateCikFormatOutputData::default();
-        let formatted_and_validated_berkshire_cik = Cik::new(BERKSHIRE_HATHAWAY_CIK);
+        let formatted_and_validated_berkshire_cik = Cik::new(BERKSHIRE_HATHAWAY_CIK).expect("CIK must be valid and formatted correctly");
 
         let expected_result = formatted_and_validated_berkshire_cik.value();
 
