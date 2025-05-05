@@ -1,7 +1,7 @@
+use crate::sec_state_machine::sec_error::SecError;
+use crate::sec_state_machine::sec_state::SecState;
 use state_maschine::prelude::*;
 use std::fmt;
-use crate::sec_state_machine::sec_state::SecState;
-use crate::sec_state_machine::sec_error::SecError;
 
 pub mod vcf_context;
 pub mod vcf_data;
@@ -347,7 +347,10 @@ mod tests {
 
         let initial_result = validation_state.try_compute_output_data();
 
-        assert!(initial_result.is_ok(), "Output data should be computed successfully");
+        assert!(
+            initial_result.is_ok(),
+            "Output data should be computed successfully"
+        );
         let result = validation_state.get_output_data().unwrap();
 
         assert_eq!(result, expected_result);

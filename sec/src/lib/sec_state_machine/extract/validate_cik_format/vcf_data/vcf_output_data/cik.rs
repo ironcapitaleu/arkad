@@ -1,6 +1,6 @@
 #![allow(clippy::missing_const_for_fn)]
-use std::fmt;
 use crate::sec_state_machine::sec_error::SecError;
+use std::fmt;
 
 const CIK_LENGTH: usize = 10;
 
