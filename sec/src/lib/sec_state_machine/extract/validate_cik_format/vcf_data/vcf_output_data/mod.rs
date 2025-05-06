@@ -14,10 +14,16 @@ pub struct ValidateCikFormatOutputData {
 
 impl ValidateCikFormatOutputData {
     /// Creates a new instance of the output data for the CIK validation state.
-    /// The output must follow the correct formatting.
+    /// The output must follow the correct formatting. Othwerwise, it will default to the CIK for Berkshire Hathaway (CIK: 1067983).
     pub fn new(cik: &(impl ToString + ?Sized)) -> Self {
-        Self {
-            validated_cik: Cik::new(cik),
+        match Cik::new(cik) {
+            Ok(valid_cik) => Self {
+                validated_cik: valid_cik,
+            },
+            Err(_) => Self {
+                validated_cik: Cik::new(BERKSHIRE_HATHAWAY_CIK)
+                    .expect("Hardcoded CIK should always be valid."),
+            },
         }
     }
 
@@ -37,7 +43,13 @@ impl StateData for ValidateCikFormatOutputData {
 
     fn update_state(&mut self, updates: Self::UpdateType) {
         if let Some(cik) = updates.cik {
-            self.validated_cik = Cik::new(&cik);
+            match Cik::new(&cik) {
+                Ok(valid_cik) => self.validated_cik = valid_cik,
+                Err(_) => {
+                    self.validated_cik = Cik::new(BERKSHIRE_HATHAWAY_CIK)
+                        .expect("Hardcoded CIK should always be valid.")
+                }
+            }
         }
     }
 }
@@ -47,7 +59,8 @@ impl Default for ValidateCikFormatOutputData {
     /// Returns a default output using the CIK for Berkshire Hathaway (CIK: 1067983).
     fn default() -> Self {
         Self {
-            validated_cik: Cik::new(BERKSHIRE_HATHAWAY_CIK),
+            validated_cik: Cik::new(BERKSHIRE_HATHAWAY_CIK)
+                .expect("Default CIK should be formatted correctly."),
         }
     }
 }
@@ -77,7 +90,7 @@ impl ValidateCikFormatOutputDataUpdaterBuilder {
     #[must_use]
     #[allow(clippy::missing_const_for_fn)]
     pub fn cik(mut self, cik: &(impl ToString + ?Sized)) -> Self {
-        self.cik = Some(Cik::new(cik));
+        self.cik = Some(Cik::new(cik).expect("CIK must be valid and formatted correctly"));
         self
     }
 
@@ -171,7 +184,8 @@ mod tests {
     fn should_return_formatted_and_validated_default_cik_string_when_validation_output_data_initialized_with_default()
      {
         let validation_state_data = &ValidateCikFormatOutputData::default();
-        let formatted_and_validated_berkshire_cik = Cik::new(BERKSHIRE_HATHAWAY_CIK);
+        let formatted_and_validated_berkshire_cik =
+            Cik::new(BERKSHIRE_HATHAWAY_CIK).expect("CIK must be valid and formatted correctly");
 
         let expected_result = formatted_and_validated_berkshire_cik.value();
 
@@ -182,7 +196,7 @@ mod tests {
 
     #[test]
     #[should_panic]
-    fn should_panic_when_comparing_valid_but_unformatted_default_cik_with_fromatted_and_validated_default_output()
+    fn should_panic_when_comparing_valid_but_unformatted_default_cik_with_formatted_and_validated_default_output()
      {
         let validation_state_data = &ValidateCikFormatOutputData::default();
         let valid_but_unformatted_default_cik = BERKSHIRE_HATHAWAY_CIK;
@@ -193,8 +207,10 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
-    fn should_panic_when_given_invalid_cik_string() {
-        let _result = ValidateCikFormatOutputData::new("1234567890a");
+    fn should_default_to_berkshire_cik_when_given_invalid_cik_string() {
+        let result = ValidateCikFormatOutputData::new("1234567890a");
+        let expected_result =
+            Cik::new(BERKSHIRE_HATHAWAY_CIK).expect("Hardcoded CIK should always be valid.");
+        assert_eq!(result.validated_cik, expected_result);
     }
 }
