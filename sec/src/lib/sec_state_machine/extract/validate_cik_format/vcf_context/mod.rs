@@ -10,8 +10,7 @@ use state_maschine::prelude::*;
 pub struct ValidateCikFormatContext {
     /// The unvalidated CIK string provided for validation.
     pub raw_cik: String,
-    pub max_retries: u32,
-    pub retry_count: u32,
+    pub retries: u32,
 }
 
 impl ValidateCikFormatContext {
@@ -19,8 +18,7 @@ impl ValidateCikFormatContext {
     pub fn new(cik: &(impl ToString + ?Sized)) -> Self {
         Self {
             raw_cik: cik.to_string(),
-            max_retries: 0,
-            retry_count: 0,
+            retries: 0,
         }
     }
 
@@ -31,26 +29,8 @@ impl ValidateCikFormatContext {
 }
 
 impl SecContextData for ValidateCikFormatContext {
-    fn can_retry(&self) -> bool {
-        if self.max_retries > 0 {
-            return true;
-        }
-        false
-    }
-
-    fn get_max_retries(&self) -> u32 {
-        self.max_retries
-    }
-
-    fn get_current_retry(&self) -> u32 {
-        self.retry_count
-    }
-
-    fn has_retries_left(&self) -> bool {
-        if self.retry_count < self.max_retries {
-            return true;
-        }
-        false
+    fn get_retries(&self) -> u32 {
+        self.retries
     }
 }
 
