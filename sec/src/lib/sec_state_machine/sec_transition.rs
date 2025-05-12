@@ -1,8 +1,10 @@
-use state_machine::prelude::*;
+use state_maschine::prelude::*;
+use crate::sec_state_machine::sec_state::SecState;
 
-pub trait SecTransition<S>: Transition<S>
+pub trait SecTransition<T, U>: Transition<T, U>
 where
-    S: SecState,
+    T: SecState,
+    U: SecState,
 {
 
 }
