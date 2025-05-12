@@ -1,6 +1,6 @@
 ```mermaid
 ---
-title: SEC Data Processing Pipeline: State Machine Overview
+title: "SEC Data Processing Pipeline: State Machine Overview"
 ---
 stateDiagram-v2
     %% Align all the SuperStates from left-to-right
