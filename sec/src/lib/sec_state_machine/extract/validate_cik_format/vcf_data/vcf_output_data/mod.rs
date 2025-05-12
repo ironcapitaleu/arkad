@@ -62,8 +62,8 @@ impl StateData for ValidateCikFormatOutputData {
     /// Provided by SecStateData trait.
     fn update_state(&mut self, _updates: Self::UpdateType) {
         // This method is not used in this context.
-        }
     }
+}
 const BERKSHIRE_HATHAWAY_CIK: &str = "1067983";
 
 impl Default for ValidateCikFormatOutputData {
