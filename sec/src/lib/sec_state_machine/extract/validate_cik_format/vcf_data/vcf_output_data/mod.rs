@@ -62,13 +62,8 @@ impl StateData for ValidateCikFormatOutputData {
 
     fn update_state(&mut self, updates: Self::UpdateType) {
         if let Some(cik) = updates.cik {
-            match Cik::new(&cik) {
-                Ok(valid_cik) => self.validated_cik = valid_cik,
-                Err(_) => {
-                    self.validated_cik = Cik::new(BERKSHIRE_HATHAWAY_CIK)
-                        .expect("Hardcoded CIK should always be valid.")
-                }
-            }
+            let validated_cik = Cik::new(&cik).expect("CIK must be valid and formatted correctly.");
+            self.validated_cik = validated_cik;
         }
     }
 }
@@ -79,7 +74,7 @@ impl Default for ValidateCikFormatOutputData {
     fn default() -> Self {
         Self {
             validated_cik: Cik::new(BERKSHIRE_HATHAWAY_CIK)
-                .expect("Default CIK should be formatted correctly."),
+                .expect("Hardcoded CIK should always be valid."),
         }
     }
 }
