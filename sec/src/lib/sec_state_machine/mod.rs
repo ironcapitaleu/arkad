@@ -6,8 +6,8 @@ pub mod sec_context_data;
 pub mod sec_error;
 pub mod sec_state;
 pub mod sec_state_data;
-pub mod sec_transition;
 pub mod sec_super_state;
+pub mod sec_transition;
 
 pub trait SecStateMachine<S>: StateMachine<S>
 where

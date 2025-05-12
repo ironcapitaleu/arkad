@@ -1,6 +1,7 @@
 use std::fmt;
 
 use crate::sec_state_machine::sec_error::SecError;
+use crate::sec_state_machine::sec_state_data::SecStateData;
 use state_maschine::prelude::*;
 
 pub mod cik;
@@ -34,7 +35,24 @@ impl ValidateCikFormatOutputData {
         self.validated_cik.value()
     }
 }
-
+impl SecStateData for ValidateCikFormatOutputData {
+    fn try_update_state(&mut self, updates: Self::UpdateType) -> Result<(), SecError> {
+        if let Some(cik) = updates.cik {
+            match Cik::new(&cik) {
+                Ok(valid_cik) => {
+                    self.validated_cik = valid_cik;
+                    Ok(())
+                }
+                Err(_) => Err(SecError::InvalidCikFormat(format!(
+                    "CIK {} is not formatted correctly.",
+                    cik.value()
+                ))),
+            }
+        } else {
+            Ok(())
+        }
+    }
+}
 impl StateData for ValidateCikFormatOutputData {
     type UpdateType = ValidateCikFormatOutputDataUpdater;
 
@@ -111,6 +129,7 @@ impl Default for ValidateCikFormatOutputDataUpdaterBuilder {
 mod tests {
     use crate::sec_state_machine::extract::validate_cik_format::vcf_data::vcf_output_data::BERKSHIRE_HATHAWAY_CIK;
     use crate::sec_state_machine::sec_error::SecError;
+    use crate::sec_state_machine::sec_state_data::SecStateData;
 
     use super::{Cik, ValidateCikFormatOutputData, ValidateCikFormatOutputDataUpdaterBuilder};
     use pretty_assertions::{assert_eq, assert_ne};
@@ -149,7 +168,9 @@ mod tests {
         let expected_result =
             &ValidateCikFormatOutputData::new("0000012345").expect("CIK must be valid");
 
-        state_data.update_state(update);
+        state_data
+            .try_update_state(update)
+            .expect("Update should succeed");
         let result = state_data.get_state();
 
         assert_eq!(result, expected_result);
@@ -166,7 +187,9 @@ mod tests {
         let expected_result =
             &ValidateCikFormatOutputData::new("0067890").expect("CIK must be valid");
 
-        state_data.update_state(update);
+        state_data
+            .try_update_state(update)
+            .expect("Update should succeed");
         let result = state_data.get_state();
 
         assert_eq!(result, expected_result);
@@ -179,7 +202,9 @@ mod tests {
 
         let expected_result = &ValidateCikFormatOutputData::default();
 
-        state_data.update_state(empty_update);
+        state_data
+            .try_update_state(empty_update)
+            .expect("Update should succeed");
         let result = state_data.get_state();
 
         assert_eq!(result, expected_result);
