@@ -1,8 +1,12 @@
 ```mermaid
 ---
-title: Sec State Machine Implementation for Extracting, Processing, and Storing US Company Data
+title: SEC Data Processing Pipeline: State Machine Overview
 ---
 stateDiagram-v2
+    %% Align all the SuperStates from left-to-right
+    direction LR
+
+    %% `Extract` SuperState
     [*] --> Extract
     state Extract {
         ValidateCikFormat --> PrepareSecRequest
@@ -10,11 +14,15 @@ stateDiagram-v2
     }
 
     Extract --> Transform
+
+    %% `Transform` SuperState
     state Transform {
         ProcessSecData --> PrepareDataForStorage
     }
     
     Transform --> Load
+
+    %% `Load` SuperState
     state Load {
         StoreData
     }
