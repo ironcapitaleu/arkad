@@ -17,7 +17,7 @@ stateDiagram-v2
 
     %% `Transform` SuperState
     state Transform {
-        ProcessSecData --> PrepareDataForStorage
+        ProcessSecData
     }
     
     Transform --> Load
