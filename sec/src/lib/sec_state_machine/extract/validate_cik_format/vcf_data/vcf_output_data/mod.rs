@@ -36,7 +36,7 @@ impl ValidateCikFormatOutputData {
     }
 }
 impl SecStateData for ValidateCikFormatOutputData {
-    fn try_update_state(&mut self, updates: Self::UpdateType) -> Result<(), SecError> {
+    fn update_state(&mut self, updates: Self::UpdateType) -> Result<(), SecError> {
         if let Some(cik) = updates.cik {
             match Cik::new(&cik) {
                 Ok(valid_cik) => {
@@ -59,12 +59,9 @@ impl StateData for ValidateCikFormatOutputData {
     fn get_state(&self) -> &Self {
         self
     }
-
-    fn update_state(&mut self, updates: Self::UpdateType) {
-        if let Some(cik) = updates.cik {
-            let validated_cik = Cik::new(&cik).expect("CIK must be valid and formatted correctly.");
-            self.validated_cik = validated_cik;
-        }
+    /// Provided by SecStateData trait.
+    fn update_state(&mut self, _updates: Self::UpdateType) {
+        // This method is not used in this context.
     }
 }
 const BERKSHIRE_HATHAWAY_CIK: &str = "1067983";
@@ -163,9 +160,7 @@ mod tests {
         let expected_result =
             &ValidateCikFormatOutputData::new("0000012345").expect("CIK must be valid");
 
-        state_data
-            .try_update_state(update)
-            .expect("Update should succeed");
+        SecStateData::update_state(&mut state_data, update).expect("Update should succeed");
         let result = state_data.get_state();
 
         assert_eq!(result, expected_result);
@@ -182,9 +177,7 @@ mod tests {
         let expected_result =
             &ValidateCikFormatOutputData::new("0067890").expect("CIK must be valid");
 
-        state_data
-            .try_update_state(update)
-            .expect("Update should succeed");
+        SecStateData::update_state(&mut state_data, update).expect("Update should succeed");
         let result = state_data.get_state();
 
         assert_eq!(result, expected_result);
@@ -197,9 +190,7 @@ mod tests {
 
         let expected_result = &ValidateCikFormatOutputData::default();
 
-        state_data
-            .try_update_state(empty_update)
-            .expect("Update should succeed");
+        SecStateData::update_state(&mut state_data, empty_update).expect("Update should succeed");
         let result = state_data.get_state();
 
         assert_eq!(result, expected_result);
