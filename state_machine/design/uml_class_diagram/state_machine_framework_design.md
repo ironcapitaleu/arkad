@@ -1,15 +1,15 @@
 ```mermaid
 ---
-title: state_maschine
+title: "`state_maschine` Framework Design"
 ---
 classDiagram
-    class StateMachine~S~{
+    class StateMachine~S: State~{
         <<trait>>
         %% This is a trait that represents a `StateMachine`.
 
         %% These are the trait methods that must be implemented by any `StateMachine`.
-        +get_current_state(&self) S
-        +get_current_state_mut(&mut self)
+        +get_current_state(&self) &S
+        +get_current_state_mut(&mut self) &mut S
         +advance_state(&mut self)
         +run(&mut self)
     }
@@ -33,7 +33,7 @@ classDiagram
     }
 
 
-    class SuperState~S~ {
+    class SuperState~S: State~ {
         <<trait>>
         %% This is a trait that represents a `SuperState` in a hierarchical state machine.
         %% A `SuperState` must implement both `State` and `StateMachine<S>` traits.
@@ -66,11 +66,14 @@ classDiagram
     }
 
     %% Relationships
-    SuperState --> StateMachine : "implements"
-    SuperState --> State : "implements"
-    
+    %% `SuperState`is a `State` that is also a `StateMachine`
+    SuperState --> StateMachine : "is a"
+    SuperState --> State : "is a"
+
+    %% A `StateMachine`is always in a specific `State`
     StateMachine --> State : "is in a"
 
+    %% A `State` stores internal `StateData`and has access to `ContextData`
     State --> ContextData : "has"
     State --> StateData : "has"
 ```
