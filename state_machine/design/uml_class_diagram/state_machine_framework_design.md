@@ -5,6 +5,9 @@ title: state_maschine
 classDiagram
     class StateMachine~S~{
         <<trait>>
+        %% This is a trait that represents a `StateMachine`.
+
+        %% These are the trait methods that must be implemented by any `StateMachine`.
         +get_current_state(&self) S
         +get_current_state_mut(&mut self)
         +advance_state(&mut self)
@@ -13,7 +16,6 @@ classDiagram
 
     class State {
         <<trait>>
-
         %% This is a trait that represents a `State` in the `StateMachine`.
 
         %% These are the associated types that represent the data associated with a `State`inside a `StateMachine' represents the data associated with a `State`.
