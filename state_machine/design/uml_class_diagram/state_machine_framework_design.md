@@ -43,18 +43,34 @@ classDiagram
 
     class ContextData {
         <<trait>>
-        %% This is a trait that defines the behavior and characteristics of context data in a state machine.
+        %% This is a trait that defines the behavior and characteristics of context data that is available to a `State` in a `StateMachine`.
 
         %% Associated type for updates to the context data.
         +type UpdateType
 
-        %% Methods defined by the ContextData trait.
+        %% Methods defined by the `ContextData` trait.
         +get_context(&self) &Self
         +update_context(&mut self, updates: Self::UpdateType)
     }    
 
+    class StateData {
+        <<trait>>
+        %% This is a trait that defines the behavior and characteristics of internal state data of a `State` in a `StateMachine`.
+
+        %% Associated type for updates to the internal state data.
+        +type UpdateType
+
+        %% Methods defined by the `StateData` trait.
+        +get_state(&self) &Self
+        +update_state(&mut self, updates: Self::UpdateType)
+    }
+
     %% Relationships
     SuperState --> StateMachine : "implements"
     SuperState --> State : "implements"
+    
     StateMachine --> State : "is in a"
+
+    State --> ContextData : "has"
+    State --> StateData : "has"
 ```
