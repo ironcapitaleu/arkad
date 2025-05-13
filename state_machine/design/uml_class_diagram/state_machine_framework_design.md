@@ -32,5 +32,6 @@ classDiagram
         +get_context_data(&self) &Self::Context
     }
 
-    StateMachine --> State : "uses"
+    %% A `StateMachine` is defined to always be in one out of many `State`s.
+    StateMachine --> State : "is in a"
 ```
