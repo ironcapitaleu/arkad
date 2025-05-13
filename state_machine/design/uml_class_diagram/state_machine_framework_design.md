@@ -32,6 +32,18 @@ classDiagram
         +get_context_data(&self) &Self::Context
     }
 
-    %% A `StateMachine` is defined to always be in one out of many `State`s.
+
+    class SuperState~S~ {
+        <<trait>>
+        %% This is a trait that represents a `SuperState` in a hierarchical state machine.
+        %% A `SuperState` must implement both `State` and `StateMachine<S>` traits.
+
+        %% Associated types and methods are inherited from `State` and `StateMachine<S>`.
+    }
+    
+
+    %% Relationships
+    SuperState --> StateMachine : "implements"
+    SuperState --> State : "implements"
     StateMachine --> State : "is in a"
 ```
