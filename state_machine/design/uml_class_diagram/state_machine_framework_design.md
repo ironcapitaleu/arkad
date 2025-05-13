@@ -40,7 +40,18 @@ classDiagram
 
         %% Associated types and methods are inherited from `State` and `StateMachine<S>`.
     }
-    
+
+    class ContextData {
+        <<trait>>
+        %% This is a trait that defines the behavior and characteristics of context data in a state machine.
+
+        %% Associated type for updates to the context data.
+        +type UpdateType
+
+        %% Methods defined by the ContextData trait.
+        +get_context(&self) &Self
+        +update_context(&mut self, updates: Self::UpdateType)
+    }    
 
     %% Relationships
     SuperState --> StateMachine : "implements"
