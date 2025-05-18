@@ -56,7 +56,7 @@ impl ValidateCikFormat {
 }
 
 impl SecState for ValidateCikFormat {
-    fn try_compute_output_data(&mut self) -> Result<(), SecError> {
+    fn compute_output_data(&mut self) -> Result<(), SecError> {
         // Validate the CIK format
         let cik = Cik::new(&self.input.raw_cik);
 
@@ -85,9 +85,9 @@ impl State for ValidateCikFormat {
     }
 
     /// Validates if the given CIK has the correct format.
-    /// Does nothing here, as the output data is computed in `try_compute_output_data()`.
+    /// Does nothing here, as the output data is computed in `compute_output_data() of the 'SecState'-implementation`.
     fn compute_output_data(&mut self) {
-        // No action needed here, as the output data is computed in `try_compute_output_data()`
+        // No action needed here, as the output data is computed in `compute_output_data() of the 'SecState'-implementation`
         // This function is just a placeholder to satisfy the State trait.
     }
 
@@ -333,7 +333,7 @@ mod tests {
 
         let expected_result = &validation_state.get_input_data().clone();
 
-        validation_state.compute_output_data();
+        SecState::compute_output_data(&mut validation_state).expect("Default state should always compute output data.");
         let result = validation_state.get_input_data();
 
         assert_eq!(result, expected_result);
@@ -345,12 +345,8 @@ mod tests {
 
         let expected_result = &ValidateCikFormatOutputData::default();
 
-        let initial_result = validation_state.try_compute_output_data();
+        SecState::compute_output_data(&mut validation_state).expect("Default state should always compute output data.");
 
-        assert!(
-            initial_result.is_ok(),
-            "Output data should be computed successfully"
-        );
         let result = validation_state.get_output_data().unwrap();
 
         assert_eq!(result, expected_result);
