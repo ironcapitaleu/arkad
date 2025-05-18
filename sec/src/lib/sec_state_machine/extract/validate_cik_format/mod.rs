@@ -333,7 +333,8 @@ mod tests {
 
         let expected_result = &validation_state.get_input_data().clone();
 
-        SecState::compute_output_data(&mut validation_state).expect("Default state should always compute output data.");
+        SecState::compute_output_data(&mut validation_state)
+            .expect("Default state should always compute output data.");
         let result = validation_state.get_input_data();
 
         assert_eq!(result, expected_result);
@@ -345,7 +346,8 @@ mod tests {
 
         let expected_result = &ValidateCikFormatOutputData::default();
 
-        SecState::compute_output_data(&mut validation_state).expect("Default state should always compute output data.");
+        SecState::compute_output_data(&mut validation_state)
+            .expect("Default state should always compute output data.");
 
         let result = validation_state.get_output_data().unwrap();
 
