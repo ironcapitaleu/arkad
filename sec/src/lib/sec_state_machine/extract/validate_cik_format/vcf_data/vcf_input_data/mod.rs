@@ -152,7 +152,8 @@ mod tests {
 
         let expected_result = &ValidateCikFormatInputData::new("12345");
 
-        SecStateData::update_state(&mut state_data, update).expect("Update should succeed.");
+        SecStateData::update_state(&mut state_data, update)
+            .expect("Update with valid 'update' value should always succeed.");
 
         let result = state_data.get_state();
 
@@ -169,7 +170,8 @@ mod tests {
 
         let expected_result = &ValidateCikFormatInputData::new("0000000000");
 
-        SecStateData::update_state(&mut state_data, update).expect("Update should succeed.");
+        SecStateData::update_state(&mut state_data, update)
+            .expect("Update with valid 'update' value should always succeed.");
         let result = state_data.get_state();
 
         assert_eq!(result, expected_result);
@@ -182,7 +184,8 @@ mod tests {
 
         let expected_result = &ValidateCikFormatInputData::default();
 
-        SecStateData::update_state(&mut state_data, empty_update).expect("Update should succeed.");
+        SecStateData::update_state(&mut state_data, empty_update)
+            .expect("Update with valid 'update' value should always succeed.");
         let result = state_data.get_state();
 
         assert_eq!(result, expected_result);
