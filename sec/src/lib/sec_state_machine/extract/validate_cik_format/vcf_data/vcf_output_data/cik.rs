@@ -32,8 +32,7 @@ impl Cik {
 
         if !cik_str.chars().all(|c| c.is_ascii_digit()) {
             return Err(SecError::InvalidCikFormat(format!(
-                "CIK must contain only numeric characters. Got: '{}'",
-                original_input // Show original input in error
+                "CIK must contain only numeric characters. Got: '{original_input}'" // Show original input in error
             )));
         }
 
@@ -45,8 +44,7 @@ impl Cik {
         // Ensure the length does not exceed `CIK_LENGTH` digits
         if cik_str.len() > CIK_LENGTH {
             return Err(SecError::InvalidCikFormat(format!(
-                "Final CIK cannot exceed {CIK_LENGTH} digits. Got: '{}'",
-                original_input
+                "Final CIK cannot exceed {CIK_LENGTH} digits. Got: '{original_input}'"
             )));
         }
 

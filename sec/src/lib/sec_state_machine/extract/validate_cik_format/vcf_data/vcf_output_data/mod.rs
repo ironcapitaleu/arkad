@@ -59,7 +59,7 @@ impl StateData for ValidateCikFormatOutputData {
     fn get_state(&self) -> &Self {
         self
     }
-    /// Provided by 'SecStateData' trait.
+    /// Provided by `SecStateData` trait.
     fn update_state(&mut self, _updates: Self::UpdateType) {
         // This method is not used in this context.
     }
