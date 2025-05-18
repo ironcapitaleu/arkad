@@ -17,16 +17,24 @@ pub struct ValidateCikFormatOutputData {
 impl ValidateCikFormatOutputData {
     /// Creates a new instance of the output data for the CIK validation state.
     /// The output must follow the correct formatting.
+    ///
+    /// # Errors
+    ///
+    /// Returns a `SecError::InvalidCikFormat` if the CIK is not formatted correctly.
     pub fn new(cik: &(impl ToString + ?Sized)) -> Result<Self, SecError> {
-        match Cik::new(cik) {
-            Ok(valid_cik) => Ok(Self {
-                validated_cik: valid_cik,
-            }),
-            Err(_) => Err(SecError::InvalidCikFormat(format!(
-                "CIK {} is not formatted correctly.",
-                cik.to_string()
-            ))),
-        }
+        Cik::new(cik).map_or_else(
+            |_| {
+                Err(SecError::InvalidCikFormat(format!(
+                    "CIK {} is not formatted correctly.",
+                    cik.to_string()
+                )))
+            },
+            |valid_cik| {
+                Ok(Self {
+                    validated_cik: valid_cik,
+                })
+            },
+        )
     }
 
     // Returns the validated CIK.
@@ -100,8 +108,13 @@ impl ValidateCikFormatOutputDataUpdaterBuilder {
 
     #[must_use]
     #[allow(clippy::missing_const_for_fn)]
+    /// Sets the CIK for the updater.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the CIK is not valid.
     pub fn cik(mut self, cik: &(impl ToString + ?Sized)) -> Self {
-        self.cik = Some(Cik::new(cik).expect("CIK must be valid and formatted correctly"));
+        self.cik = Some(Cik::new(cik).expect("CIK must be valid."));
         self
     }
 

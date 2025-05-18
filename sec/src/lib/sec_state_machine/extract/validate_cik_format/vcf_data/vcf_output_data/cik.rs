@@ -12,9 +12,9 @@ pub struct Cik {
 impl Cik {
     /// Creates a new `Cik` from a string, trimming whitespace and padding with zeros if less than 10 digits.
     ///
-    /// # Panics
+    /// # Errors
     ///
-    /// This function will panic if the input string contains non-numeric characters or if it's longer than 10 digits.
+    /// Returns a `SecError::InvalidCikFormat` if the CIK is not formatted correctly.
     ///
     /// # Examples
     ///
