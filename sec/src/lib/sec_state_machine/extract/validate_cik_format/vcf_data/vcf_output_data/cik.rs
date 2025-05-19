@@ -1,4 +1,5 @@
 #![allow(clippy::missing_const_for_fn)]
+use crate::sec_state_machine::sec_error::SecError;
 use std::fmt;
 
 const CIK_LENGTH: usize = 10;
@@ -11,27 +12,29 @@ pub struct Cik {
 impl Cik {
     /// Creates a new `Cik` from a string, trimming whitespace and padding with zeros if less than 10 digits.
     ///
-    /// # Panics
+    /// # Errors
     ///
-    /// This function will panic if the input string contains non-numeric characters or if it's longer than 10 digits.
+    /// Returns a `SecError::InvalidCikFormat` if the CIK is not formatted correctly.
     ///
     /// # Examples
     ///
     /// ```
     /// use sec::sec_state_machine::extract::validate_cik_format::vcf_data::vcf_output_data::cik::Cik;
     ///
-    /// let cik = Cik::new("123456789");
+    /// let cik = Cik::new("123456789").expect("CIK creation with the hardcoded value should always succeed.");
     /// assert_eq!(cik.value(), "0123456789");
     /// ```
-    pub fn new(cik: &(impl ToString + ?Sized)) -> Self {
+    pub fn new(cik: &(impl ToString + ?Sized)) -> Result<Self, SecError> {
+        let original_input = cik.to_string(); // Keep original input for error messages
         let mut cik_str = cik.to_string().trim().to_string(); // Trim leading and trailing whitespace
 
         // Check if it contains only digits
-        assert!(
-            cik_str.chars().all(|c| c.is_ascii_digit()),
-            "Invalid CIK: CIK must contain only numeric characters. Got: {}",
-            cik.to_string()
-        );
+
+        if !cik_str.chars().all(|c| c.is_ascii_digit()) {
+            return Err(SecError::InvalidCikFormat(format!(
+                "CIK must contain only numeric characters. Got: '{original_input}'" // Show original input in error
+            )));
+        }
 
         // Prepend zeros if shorter than `CIK_LENGTH` digits
         if cik_str.len() < CIK_LENGTH {
@@ -39,14 +42,13 @@ impl Cik {
         }
 
         // Ensure the length does not exceed `CIK_LENGTH` digits
-        assert!(
-            (cik_str.len() <= CIK_LENGTH),
-            "Invalid CIK: Final CIK cannot exceed the fixed CIK length of {CIK_LENGTH} digits. Final CIK is '{}' and is {}>{CIK_LENGTH} digits long.",
-            cik_str.len(),
-            cik.to_string()
-        );
+        if cik_str.len() > CIK_LENGTH {
+            return Err(SecError::InvalidCikFormat(format!(
+                "Final CIK cannot exceed {CIK_LENGTH} digits. Got: '{original_input}'"
+            )));
+        }
 
-        Self { value: cik_str }
+        Ok(Self { value: cik_str })
     }
 
     /// Returns the underlying CIK string.
@@ -79,27 +81,36 @@ mod tests {
 
         let expected_result = "1234567890";
 
-        let result = Cik::new(cik_str);
+        let result = Cik::new(cik_str).expect("CIK creation should succeed");
 
         assert_eq!(result.value(), expected_result);
     }
 
     #[test]
-    #[should_panic(expected = "Invalid CIK")]
-    fn should_panic_when_given_cik_str_that_contains_non_numeric_chars() {
-        let _result = Cik::new("12345abcd!");
+    fn should_fail_when_given_cik_str_that_contains_non_numeric_chars() {
+        let result = Cik::new("12345abcd!");
+        assert!(
+            result.is_err(),
+            "CIK creation with non-numeric chars in hardcoded value should fail."
+        );
     }
 
     #[test]
-    #[should_panic(expected = "Invalid CIK")]
-    fn should_panic_when_given_cik_str_that_is_longer_than_ten_chars_after_trimming() {
-        let _result = Cik::new("12345678901");
+    fn should_fail_when_given_cik_str_that_is_longer_than_ten_chars_after_trimming() {
+        let result = Cik::new("12345678901");
+        assert!(
+            result.is_err(),
+            "CIK creation with more than 10 chars after trimming in hardcoded value should fail."
+        );
     }
 
     #[test]
-    #[should_panic(expected = "Invalid CIK")]
-    fn should_panic_when_given_cik_str_that_is_longer_than_ten_chars_and_contains_a_alpha_char() {
-        let _result = Cik::new("1234567890a");
+    fn should_fail_when_given_cik_str_that_is_longer_than_ten_chars_and_contains_a_alpha_char() {
+        let result = Cik::new("1234567890a");
+        assert!(
+            result.is_err(),
+            "CIK creation with more than 10 chars and containing a letter in hardcoded value should fail."
+        );
     }
 
     #[test]
@@ -108,7 +119,7 @@ mod tests {
 
         let expected_result = "0123456789";
 
-        let result = Cik::new(cik_str);
+        let result = Cik::new(cik_str).expect("Hardcoded CIK creation should succeed.");
 
         assert_eq!(result.value(), expected_result);
     }
@@ -119,7 +130,8 @@ mod tests {
 
         let expected_result = "0000000000";
 
-        let result = Cik::new(cik_str);
+        let result =
+            Cik::new(cik_str).expect("Hardcoded CIK creation from empty string should succeed.");
 
         assert_eq!(result.value(), expected_result);
     }
@@ -130,7 +142,8 @@ mod tests {
 
         let expected_result = "0123456789";
 
-        let result = Cik::new(cik_str);
+        let result =
+            Cik::new(cik_str).expect("Hardcoded CIK creation with whitespace should succeed.");
 
         assert_eq!(result.value(), expected_result);
     }
@@ -141,7 +154,8 @@ mod tests {
 
         let expected_result = "0123456789";
 
-        let result = Cik::new(cik_str);
+        let result =
+            Cik::new(cik_str).expect("Hardcoded CIK creation with whitespace should succeed.");
 
         assert_eq!(result.value(), expected_result);
     }
@@ -153,7 +167,8 @@ mod tests {
 
         let expected_result = "0123456789";
 
-        let result = Cik::new(cik_str);
+        let result =
+            Cik::new(cik_str).expect("Hardcoded CIK creation with whitespace should succeed.");
 
         assert_eq!(result.value(), expected_result);
     }

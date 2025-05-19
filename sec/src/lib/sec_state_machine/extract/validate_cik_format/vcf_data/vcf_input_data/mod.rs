@@ -1,6 +1,8 @@
 use state_maschine::prelude::*;
 use std::fmt;
 
+use crate::sec_state_machine::{sec_error::SecError, sec_state_data::SecStateData};
+
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 /// Input data for validating the format of a CIK.
 pub struct ValidateCikFormatInputData {
@@ -31,6 +33,15 @@ impl ValidateCikFormatInputData {
     }
 }
 
+impl SecStateData for ValidateCikFormatInputData {
+    fn update_state(&mut self, updates: Self::UpdateType) -> Result<(), SecError> {
+        if let Some(cik) = updates.raw_cik {
+            self.raw_cik = cik;
+        }
+        Ok(())
+    }
+}
+
 impl StateData for ValidateCikFormatInputData {
     type UpdateType = ValidateCikFormatInputDataUpdater;
 
@@ -38,10 +49,9 @@ impl StateData for ValidateCikFormatInputData {
         self
     }
 
-    fn update_state(&mut self, updates: Self::UpdateType) {
-        if let Some(cik) = updates.raw_cik {
-            self.raw_cik = cik;
-        }
+    /// Provided by `SecStateData` trait.
+    fn update_state(&mut self, _updates: Self::UpdateType) {
+        // This method is not used in this context.
     }
 }
 
@@ -102,7 +112,10 @@ impl Default for ValidateCikFormatInputDataUpdaterBuilder {
 #[cfg(test)]
 mod tests {
 
-    use crate::sec_state_machine::extract::validate_cik_format::vcf_data::vcf_input_data::BERKSHIRE_HATHAWAY_CIK;
+    use crate::sec_state_machine::{
+        extract::validate_cik_format::vcf_data::vcf_input_data::BERKSHIRE_HATHAWAY_CIK,
+        sec_state_data::SecStateData,
+    };
 
     use super::{ValidateCikFormatInputData, ValidateCikFormatInputDataUpdaterBuilder};
     use pretty_assertions::{assert_eq, assert_ne};
@@ -139,7 +152,9 @@ mod tests {
 
         let expected_result = &ValidateCikFormatInputData::new("12345");
 
-        state_data.update_state(update);
+        SecStateData::update_state(&mut state_data, update)
+            .expect("Update with valid 'update' value should always succeed.");
+
         let result = state_data.get_state();
 
         assert_eq!(result, expected_result);
@@ -155,7 +170,8 @@ mod tests {
 
         let expected_result = &ValidateCikFormatInputData::new("0000000000");
 
-        state_data.update_state(update);
+        SecStateData::update_state(&mut state_data, update)
+            .expect("Update with valid 'update' value should always succeed.");
         let result = state_data.get_state();
 
         assert_eq!(result, expected_result);
@@ -168,7 +184,8 @@ mod tests {
 
         let expected_result = &ValidateCikFormatInputData::default();
 
-        state_data.update_state(empty_update);
+        SecStateData::update_state(&mut state_data, empty_update)
+            .expect("Update with valid 'update' value should always succeed.");
         let result = state_data.get_state();
 
         assert_eq!(result, expected_result);
