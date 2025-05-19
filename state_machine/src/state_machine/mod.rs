@@ -209,7 +209,7 @@ mod tests {
 
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
     #[test]
-    fn should_still_implement_auto_traits_traits_when_implementing_state_machine_trait() {
+    const fn should_still_implement_auto_traits_traits_when_implementing_state_machine_trait() {
         implements_auto_traits::<SampleState>();
     }
 
@@ -217,78 +217,78 @@ mod tests {
     const fn implements_sync<T: Sync>() {}
 
     #[test]
-    fn should_implement_send_when_implementing_state_machine_trait() {
+    const fn should_implement_send_when_implementing_state_machine_trait() {
         implements_send::<SampleState>();
     }
 
     #[test]
-    fn should_implement_sync_when_implementing_state_machine_trait() {
+    const fn should_implement_sync_when_implementing_state_machine_trait() {
         implements_sync::<SampleState>();
     }
 
     #[test]
-    fn should_be_thread_safe_when_implementing_state_machine_trait() {
+    const fn should_be_thread_safe_when_implementing_state_machine_trait() {
         implements_send::<SampleState>();
         implements_sync::<SampleState>();
     }
 
     const fn implements_sized<T: Sized>() {}
     #[test]
-    fn should_be_sized_when_implementing_state_machine_trait() {
+    const fn should_be_sized_when_implementing_state_machine_trait() {
         implements_sized::<SampleState>();
     }
 
     const fn implements_hash<T: Hash>() {}
     #[test]
-    fn should_implement_hash_when_implementing_state_machine_trait() {
+    const fn should_implement_hash_when_implementing_state_machine_trait() {
         implements_hash::<SampleState>();
     }
 
     const fn implements_partial_eq<T: PartialEq>() {}
     #[test]
-    fn should_implement_partial_eq_when_implementing_state_machine_trait() {
+    const fn should_implement_partial_eq_when_implementing_state_machine_trait() {
         implements_partial_eq::<SampleState>();
     }
 
     const fn implements_eq<T: Eq>() {}
     #[test]
-    fn should_implement_eq_when_implementing_state_machine_trait() {
+    const fn should_implement_eq_when_implementing_state_machine_trait() {
         implements_eq::<SampleState>();
     }
 
     const fn implements_partial_ord<T: PartialOrd>() {}
     #[test]
-    fn should_implement_partial_ord_when_implementing_state_machine_trait() {
+    const fn should_implement_partial_ord_when_implementing_state_machine_trait() {
         implements_partial_ord::<SampleState>();
     }
 
     const fn implements_ord<T: Ord>() {}
     #[test]
-    fn should_implement_ord_when_implementing_state_machine_trait() {
+    const fn should_implement_ord_when_implementing_state_machine_trait() {
         implements_ord::<SampleState>();
     }
 
     const fn implements_default<T: Default>() {}
     #[test]
-    fn should_implement_default_when_implementing_state_machine_trait() {
+    const fn should_implement_default_when_implementing_state_machine_trait() {
         implements_default::<SampleState>();
     }
 
     const fn implements_debug<T: Debug>() {}
     #[test]
-    fn should_implement_debug_when_implementing_state_machine_trait() {
+    const fn should_implement_debug_when_implementing_state_machine_trait() {
         implements_debug::<SampleState>();
     }
 
     const fn implements_clone<T: Clone>() {}
     #[test]
-    fn should_implement_clone_when_implementing_state_machine_trait() {
+    const fn should_implement_clone_when_implementing_state_machine_trait() {
         implements_clone::<SampleState>();
     }
 
     const fn implements_unpin<T: Unpin>() {}
     #[test]
-    fn should_implement_unpin_when_implementing_state_machine_trait() {
+    const fn should_implement_unpin_when_implementing_state_machine_trait() {
         implements_unpin::<SampleState>();
     }
 }

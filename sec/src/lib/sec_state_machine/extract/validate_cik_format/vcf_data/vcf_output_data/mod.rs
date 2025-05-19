@@ -17,16 +17,24 @@ pub struct ValidateCikFormatOutputData {
 impl ValidateCikFormatOutputData {
     /// Creates a new instance of the output data for the CIK validation state.
     /// The output must follow the correct formatting.
+    ///
+    /// # Errors
+    ///
+    /// Returns a `SecError::InvalidCikFormat` if the CIK is not formatted correctly.
     pub fn new(cik: &(impl ToString + ?Sized)) -> Result<Self, SecError> {
-        match Cik::new(cik) {
-            Ok(valid_cik) => Ok(Self {
-                validated_cik: valid_cik,
-            }),
-            Err(_) => Err(SecError::InvalidCikFormat(format!(
-                "CIK {} is not formatted correctly.",
-                cik.to_string()
-            ))),
-        }
+        Cik::new(cik).map_or_else(
+            |_| {
+                Err(SecError::InvalidCikFormat(format!(
+                    "CIK {} is not formatted correctly.",
+                    cik.to_string()
+                )))
+            },
+            |valid_cik| {
+                Ok(Self {
+                    validated_cik: valid_cik,
+                })
+            },
+        )
     }
 
     // Returns the validated CIK.
@@ -59,7 +67,7 @@ impl StateData for ValidateCikFormatOutputData {
     fn get_state(&self) -> &Self {
         self
     }
-    /// Provided by SecStateData trait.
+    /// Provided by `SecStateData` trait.
     fn update_state(&mut self, _updates: Self::UpdateType) {
         // This method is not used in this context.
     }
@@ -100,8 +108,13 @@ impl ValidateCikFormatOutputDataUpdaterBuilder {
 
     #[must_use]
     #[allow(clippy::missing_const_for_fn)]
+    /// Sets the CIK for the updater.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the CIK is not valid.
     pub fn cik(mut self, cik: &(impl ToString + ?Sized)) -> Self {
-        self.cik = Some(Cik::new(cik).expect("CIK must be valid and formatted correctly"));
+        self.cik = Some(Cik::new(cik).expect("CIK must be valid."));
         self
     }
 
@@ -140,8 +153,8 @@ mod tests {
 
     #[test]
     fn should_create_different_state_data_with_custom_data_when_using_new_as_constructor() {
-        let validation_state_data =
-            &ValidateCikFormatOutputData::new("12345").expect("CIK must be valid");
+        let validation_state_data = &ValidateCikFormatOutputData::new("12345")
+            .expect("Provided hardcoded CIK should always be valid");
 
         let default_validation_state_data = &ValidateCikFormatOutputData::default();
 
@@ -157,10 +170,11 @@ mod tests {
             .cik("12345")
             .build();
 
-        let expected_result =
-            &ValidateCikFormatOutputData::new("0000012345").expect("CIK must be valid");
+        let expected_result = &ValidateCikFormatOutputData::new("0000012345")
+            .expect("Provided hardcoded CIK should always be valid");
 
-        SecStateData::update_state(&mut state_data, update).expect("Update should succeed");
+        SecStateData::update_state(&mut state_data, update)
+            .expect("Provided hardcoded update should succeed.");
         let result = state_data.get_state();
 
         assert_eq!(result, expected_result);
@@ -174,10 +188,11 @@ mod tests {
             .cik("067890")
             .build();
 
-        let expected_result =
-            &ValidateCikFormatOutputData::new("0067890").expect("CIK must be valid");
+        let expected_result = &ValidateCikFormatOutputData::new("0067890")
+            .expect("Provided hardcoded CIK should always be valid.");
 
-        SecStateData::update_state(&mut state_data, update).expect("Update should succeed");
+        SecStateData::update_state(&mut state_data, update)
+            .expect("Provided hardcoded update should succeed.");
         let result = state_data.get_state();
 
         assert_eq!(result, expected_result);
@@ -190,7 +205,8 @@ mod tests {
 
         let expected_result = &ValidateCikFormatOutputData::default();
 
-        SecStateData::update_state(&mut state_data, empty_update).expect("Update should succeed");
+        SecStateData::update_state(&mut state_data, empty_update)
+            .expect("Provided hardcoded update should succeed.");
         let result = state_data.get_state();
 
         assert_eq!(result, expected_result);
@@ -200,8 +216,8 @@ mod tests {
     fn should_return_formatted_and_validated_default_cik_string_when_validation_output_data_initialized_with_default()
      {
         let validation_state_data = &ValidateCikFormatOutputData::default();
-        let formatted_and_validated_berkshire_cik =
-            Cik::new(BERKSHIRE_HATHAWAY_CIK).expect("CIK must be valid and formatted correctly");
+        let formatted_and_validated_berkshire_cik = Cik::new(BERKSHIRE_HATHAWAY_CIK)
+            .expect("Provided hardcoded CIK should always be valid.");
 
         let expected_result = formatted_and_validated_berkshire_cik.value();
 
@@ -224,10 +240,10 @@ mod tests {
 
     #[test]
     fn should_fail_when_given_invalid_cik_string() {
-        let result = ValidateCikFormatOutputData::new("1234567890a");
         let expected_result = Err(SecError::InvalidCikFormat(
             "CIK 1234567890a is not formatted correctly.".to_string(),
         ));
+        let result = ValidateCikFormatOutputData::new("1234567890a");
         assert_eq!(result, expected_result);
     }
 }
