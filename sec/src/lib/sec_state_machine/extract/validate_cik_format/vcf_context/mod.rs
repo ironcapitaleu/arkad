@@ -1,5 +1,6 @@
 use std::fmt;
 
+use crate::sec_state_machine::sec_context_data::SecContextData;
 use state_maschine::prelude::*;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
@@ -9,6 +10,7 @@ use state_maschine::prelude::*;
 pub struct ValidateCikFormatContext {
     /// The unvalidated CIK string provided for validation.
     pub raw_cik: String,
+    pub max_retries: u32,
 }
 
 impl ValidateCikFormatContext {
@@ -16,12 +18,19 @@ impl ValidateCikFormatContext {
     pub fn new(cik: &(impl ToString + ?Sized)) -> Self {
         Self {
             raw_cik: cik.to_string(),
+            max_retries: 0,
         }
     }
 
     #[must_use]
     pub const fn cik(&self) -> &String {
         &self.raw_cik
+    }
+}
+
+impl SecContextData for ValidateCikFormatContext {
+    fn get_max_retries(&self) -> u32 {
+        self.max_retries
     }
 }
 

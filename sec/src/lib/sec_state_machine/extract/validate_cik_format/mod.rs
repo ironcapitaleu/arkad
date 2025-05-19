@@ -1,3 +1,5 @@
+use crate::sec_state_machine::sec_error::SecError;
+use crate::sec_state_machine::sec_state::SecState;
 use state_maschine::prelude::*;
 use std::fmt;
 
@@ -53,6 +55,26 @@ impl ValidateCikFormat {
     }
 }
 
+impl SecState for ValidateCikFormat {
+    fn compute_output_data(&mut self) -> Result<(), SecError> {
+        // Validate the CIK format
+        let cik = Cik::new(&self.input.raw_cik);
+
+        match cik {
+            Ok(cik) => {
+                // If the CIK is valid, set the output data
+                self.output = Some(ValidateCikFormatOutputData { validated_cik: cik });
+            }
+            Err(e) => {
+                // If the CIK is invalid, return an error
+                return Err(e);
+            }
+        }
+
+        Ok(())
+    }
+}
+
 impl State for ValidateCikFormat {
     type InputData = ValidateCikFormatInputData;
     type OutputData = ValidateCikFormatOutputData;
@@ -63,15 +85,10 @@ impl State for ValidateCikFormat {
     }
 
     /// Validates if the given CIK has the correct format.
+    /// Does nothing here, as the output data is computed in `compute_output_data() of the 'SecState'-implementation`.
     fn compute_output_data(&mut self) {
-        // Validate the CIK format
-        let cik = Cik::new(&self.input.raw_cik);
-
-        // Create the output data
-        let output_data = ValidateCikFormatOutputData { validated_cik: cik };
-
-        // Set the output data
-        self.output = Some(output_data);
+        // No action needed here, as the output data is computed in `compute_output_data() of the 'SecState'-implementation`
+        // This function is just a placeholder to satisfy the State trait.
     }
 
     fn get_context_data(&self) -> &Self::Context {
@@ -316,7 +333,8 @@ mod tests {
 
         let expected_result = &validation_state.get_input_data().clone();
 
-        validation_state.compute_output_data();
+        SecState::compute_output_data(&mut validation_state)
+            .expect("Default state should always compute output data.");
         let result = validation_state.get_input_data();
 
         assert_eq!(result, expected_result);
@@ -328,7 +346,9 @@ mod tests {
 
         let expected_result = &ValidateCikFormatOutputData::default();
 
-        validation_state.compute_output_data();
+        SecState::compute_output_data(&mut validation_state)
+            .expect("Default state should always compute output data.");
+
         let result = validation_state.get_output_data().unwrap();
 
         assert_eq!(result, expected_result);
