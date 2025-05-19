@@ -8,7 +8,9 @@ fn main() {
     println!("Initial Validation state:");
     println!("{:.500}", validate_cik_state.to_string().as_str());
 
-    validate_cik_state.compute_output_data().expect("Hardcoded default CIK should alaways have a valid format.");
+    validate_cik_state
+        .compute_output_data()
+        .expect("Hardcoded default CIK should alaways have a valid format.");
 
     println!("\n=======================================================");
     println!("Validation state after verifying CIK:");
