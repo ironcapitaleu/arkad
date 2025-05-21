@@ -31,7 +31,18 @@
 - If applicable, write **integration tests**.
 - Include **doctests** where useful.
 - Use **pretty assertions** (e.g., via `pretty_assertions` crate) for improved readability.
-
+- Unit tests should follow a modified version of the  **"Arrange, Act, Assert"** pattern, that we call the **"Arrange, Define, Act, Assert"** pattern:
+  - **Arrange**: Set up the test environment (create any necessary objects, mimic dependencies, etc.)
+  - **Define**: Define the expected result (usually in a variable called `expected_result`)
+  - **Act**: Execute the code under test and capture the result (usually in a variable called `result`)
+    - **Note**: Use `Result<T, E>` for error handling
+  - **Assert**: Verify the results (i.e., that the `result` matches the `expected_result`)
+    - **Note**: Use `assert_eq!` for equality checks, `assert_ne!` for inequality checks, and `assert!(condition)` for boolean checks.
+- Unit tests should be placed in the same file as the code they test, using a `#[cfg(test)]` module.
+- Unit tests should follow the `should_..._when` naming convention for the test function names, where `...` is a description of the expected behavior.
+  - **Note**: Test function names should be in `snake_case` and start with `should_`. Test names can be verbose, explicit but clear naming is favored over brevity.
+- Integration tests should be placed in the `tests` directory, with each test in its own file.
+  
 ---
 
 ## 🖥️ Application Code
