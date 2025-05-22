@@ -1,6 +1,6 @@
 use std::fmt;
 
-use crate::state_machine::sec_state::SecContextData;
+use crate::state_machine::state::SecContextData;
 use state_maschine::prelude::*;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]

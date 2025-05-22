@@ -1,7 +1,7 @@
 use std::fmt;
 
 use crate::state_machine::sec_error::SecError;
-use crate::state_machine::sec_state::SecStateData;
+use crate::state_machine::state::SecStateData;
 use state_maschine::prelude::*;
 
 pub mod cik;
@@ -134,7 +134,7 @@ impl Default for ValidateCikFormatOutputDataUpdaterBuilder {
 mod tests {
     use crate::state_machine::extract::validate_cik_format::vcf_data::vcf_output_data::BERKSHIRE_HATHAWAY_CIK;
     use crate::state_machine::sec_error::SecError;
-    use crate::state_machine::sec_state::SecStateData;
+    use crate::state_machine::state::SecStateData;
 
     use super::{Cik, ValidateCikFormatOutputData, ValidateCikFormatOutputDataUpdaterBuilder};
     use pretty_assertions::{assert_eq, assert_ne};
