@@ -12,7 +12,7 @@ pub enum StateMachine {
     /// State-internal error.
     State,
 
-    /// Transtion-related error.
+    /// Transtion related error.
     Transition,
 }
 
