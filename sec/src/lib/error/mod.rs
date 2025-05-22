@@ -1,5 +1,7 @@
 pub mod state_machine;
 pub use state_machine::StateMachine;
+pub use state_machine::state::State;
+pub use state_machine::transition::Transition;
 
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Eq)]
