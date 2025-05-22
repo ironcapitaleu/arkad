@@ -1,4 +1,4 @@
-use sec::sec_state_machine::extract::validate_cik_format::ValidateCikFormat;
+use sec::state_machine::extract::validate_cik_format::ValidateCikFormat;
 use sec::prelude::*;
 
 fn main() {

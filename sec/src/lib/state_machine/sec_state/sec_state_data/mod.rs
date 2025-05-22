@@ -1,4 +1,4 @@
-use crate::sec_state_machine::sec_error::SecError;
+use crate::state_machine::sec_error::SecError;
 use state_maschine::prelude::*;
 
 pub trait SecStateData: StateData {

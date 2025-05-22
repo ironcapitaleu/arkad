@@ -1,3 +1,3 @@
 pub mod prelude;
 
-pub mod sec_state_machine;
+pub mod state_machine;

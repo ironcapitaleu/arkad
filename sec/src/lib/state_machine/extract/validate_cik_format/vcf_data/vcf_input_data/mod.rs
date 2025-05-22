@@ -1,7 +1,7 @@
 use state_maschine::prelude::*;
 use std::fmt;
 
-use crate::sec_state_machine::{sec_error::SecError, sec_state::SecStateData};
+use crate::state_machine::{sec_error::SecError, sec_state::SecStateData};
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 /// Input data for validating the format of a CIK.
@@ -16,7 +16,7 @@ impl ValidateCikFormatInputData {
     /// # Examples
     ///
     /// ```
-    /// use sec::sec_state_machine::extract::validate_cik_format::vcf_data::vcf_input_data::ValidateCikFormatInputData;
+    /// use sec::state_machine::extract::validate_cik_format::vcf_data::vcf_input_data::ValidateCikFormatInputData;
     ///
     /// let validation_input_data = ValidateCikFormatInputData::new("1067983");
     /// ```
@@ -112,7 +112,7 @@ impl Default for ValidateCikFormatInputDataUpdaterBuilder {
 #[cfg(test)]
 mod tests {
 
-    use crate::sec_state_machine::{
+    use crate::state_machine::{
         extract::validate_cik_format::vcf_data::vcf_input_data::BERKSHIRE_HATHAWAY_CIK,
         sec_state::SecStateData,
     };

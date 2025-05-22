@@ -1,5 +1,5 @@
 #![allow(clippy::missing_const_for_fn)]
-use crate::sec_state_machine::sec_error::SecError;
+use crate::state_machine::sec_error::SecError;
 use std::fmt;
 
 const CIK_LENGTH: usize = 10;
@@ -19,7 +19,7 @@ impl Cik {
     /// # Examples
     ///
     /// ```
-    /// use sec::sec_state_machine::extract::validate_cik_format::vcf_data::vcf_output_data::cik::Cik;
+    /// use sec::state_machine::extract::validate_cik_format::vcf_data::vcf_output_data::cik::Cik;
     ///
     /// let cik = Cik::new("123456789").expect("CIK creation with the hardcoded value should always succeed.");
     /// assert_eq!(cik.value(), "0123456789");

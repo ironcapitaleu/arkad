@@ -1,6 +1,6 @@
 use std::fmt;
 
-use crate::sec_state_machine::sec_state::SecContextData;
+use crate::state_machine::sec_state::SecContextData;
 use state_maschine::prelude::*;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
@@ -102,7 +102,7 @@ impl Default for ValidateCikFormatContextUpdaterBuilder {
 #[cfg(test)]
 mod tests {
 
-    use crate::sec_state_machine::extract::validate_cik_format::vcf_context::BERKSHIRE_HATHAWAY_CIK;
+    use crate::state_machine::extract::validate_cik_format::vcf_context::BERKSHIRE_HATHAWAY_CIK;
 
     use super::{ValidateCikFormatContext, ValidateCikFormatContextUpdaterBuilder};
     use pretty_assertions::{assert_eq, assert_ne};

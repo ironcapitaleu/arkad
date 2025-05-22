@@ -1,5 +1,5 @@
-use crate::sec_state_machine::sec_error::SecError;
-use crate::sec_state_machine::sec_state::SecState;
+use crate::state_machine::sec_error::SecError;
+use crate::state_machine::sec_state::SecState;
 use state_maschine::prelude::*;
 use std::fmt;
 
@@ -32,7 +32,7 @@ pub use vcf_data::ValidateCikFormatOutputData;
 ///
 /// # Example
 /// ```
-/// use sec::sec_state_machine::extract::validate_cik_format::*;
+/// use sec::state_machine::extract::validate_cik_format::*;
 ///
 /// let input = ValidateCikFormatInputData { raw_cik: "1234".into() };
 /// let context = ValidateCikFormatContext::default();
