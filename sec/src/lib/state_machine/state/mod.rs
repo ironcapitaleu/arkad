@@ -13,6 +13,6 @@ pub trait State: SMState {
     ///
     /// # Errors
     ///
-    /// Returns a `SecError` if the output data cannot be computed.
+    /// Returns an `SecError` if the output data cannot be computed.
     fn compute_output_data(&mut self) -> Result<(), SecError>;
 }
