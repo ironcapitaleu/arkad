@@ -1,8 +1,9 @@
 use std::fmt;
 
+use state_maschine::prelude::StateData as SMStateData;
+
 use crate::state_machine::sec_error::SecError;
 use crate::state_machine::state::StateData;
-use state_maschine::prelude::StateData as SMStateData;
 
 pub mod cik;
 pub use cik::Cik;
