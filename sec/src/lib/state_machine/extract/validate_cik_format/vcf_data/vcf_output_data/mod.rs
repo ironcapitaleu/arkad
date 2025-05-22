@@ -1,8 +1,8 @@
 use std::fmt;
 
 use crate::state_machine::sec_error::SecError;
-use crate::state_machine::state::SecStateData;
-use state_maschine::prelude::*;
+use crate::state_machine::state::StateData;
+use state_maschine::prelude::StateData as SMStateData;
 
 pub mod cik;
 pub use cik::Cik;
@@ -43,7 +43,7 @@ impl ValidateCikFormatOutputData {
         self.validated_cik.value()
     }
 }
-impl SecStateData for ValidateCikFormatOutputData {
+impl StateData for ValidateCikFormatOutputData {
     fn update_state(&mut self, updates: Self::UpdateType) -> Result<(), SecError> {
         if let Some(cik) = updates.cik {
             match Cik::new(&cik) {
@@ -61,7 +61,7 @@ impl SecStateData for ValidateCikFormatOutputData {
         }
     }
 }
-impl StateData for ValidateCikFormatOutputData {
+impl SMStateData for ValidateCikFormatOutputData {
     type UpdateType = ValidateCikFormatOutputDataUpdater;
 
     fn get_state(&self) -> &Self {
@@ -134,11 +134,11 @@ impl Default for ValidateCikFormatOutputDataUpdaterBuilder {
 mod tests {
     use crate::state_machine::extract::validate_cik_format::vcf_data::vcf_output_data::BERKSHIRE_HATHAWAY_CIK;
     use crate::state_machine::sec_error::SecError;
-    use crate::state_machine::state::SecStateData;
+    use crate::state_machine::state::StateData;
 
     use super::{Cik, ValidateCikFormatOutputData, ValidateCikFormatOutputDataUpdaterBuilder};
     use pretty_assertions::{assert_eq, assert_ne};
-    use state_maschine::prelude::*;
+    use state_maschine::prelude::StateData as SMStateData;
 
     #[test]
     fn should_return_reference_to_default_validation_state_data_when_initialized_with_default() {
@@ -173,7 +173,7 @@ mod tests {
         let expected_result = &ValidateCikFormatOutputData::new("0000012345")
             .expect("Provided hardcoded CIK should always be valid");
 
-        SecStateData::update_state(&mut state_data, update)
+        StateData::update_state(&mut state_data, update)
             .expect("Provided hardcoded update should succeed.");
         let result = state_data.get_state();
 
@@ -191,7 +191,7 @@ mod tests {
         let expected_result = &ValidateCikFormatOutputData::new("0067890")
             .expect("Provided hardcoded CIK should always be valid.");
 
-        SecStateData::update_state(&mut state_data, update)
+        StateData::update_state(&mut state_data, update)
             .expect("Provided hardcoded update should succeed.");
         let result = state_data.get_state();
 
@@ -205,7 +205,7 @@ mod tests {
 
         let expected_result = &ValidateCikFormatOutputData::default();
 
-        SecStateData::update_state(&mut state_data, empty_update)
+        StateData::update_state(&mut state_data, empty_update)
             .expect("Provided hardcoded update should succeed.");
         let result = state_data.get_state();
 

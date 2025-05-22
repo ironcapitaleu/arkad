@@ -1,7 +1,8 @@
-use state_maschine::prelude::*;
 use std::fmt;
 
-use crate::state_machine::{sec_error::SecError, state::SecStateData};
+use state_maschine::prelude::StateData as SMStateData;
+
+use crate::state_machine::{sec_error::SecError, state::StateData};
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 /// Input data for validating the format of a CIK.
@@ -33,7 +34,7 @@ impl ValidateCikFormatInputData {
     }
 }
 
-impl SecStateData for ValidateCikFormatInputData {
+impl StateData for ValidateCikFormatInputData {
     fn update_state(&mut self, updates: Self::UpdateType) -> Result<(), SecError> {
         if let Some(cik) = updates.raw_cik {
             self.raw_cik = cik;
@@ -42,7 +43,7 @@ impl SecStateData for ValidateCikFormatInputData {
     }
 }
 
-impl StateData for ValidateCikFormatInputData {
+impl SMStateData for ValidateCikFormatInputData {
     type UpdateType = ValidateCikFormatInputDataUpdater;
 
     fn get_state(&self) -> &Self {
@@ -114,12 +115,12 @@ mod tests {
 
     use crate::state_machine::{
         extract::validate_cik_format::vcf_data::vcf_input_data::BERKSHIRE_HATHAWAY_CIK,
-        state::SecStateData,
+        state::StateData,
     };
 
     use super::{ValidateCikFormatInputData, ValidateCikFormatInputDataUpdaterBuilder};
     use pretty_assertions::{assert_eq, assert_ne};
-    use state_maschine::prelude::*;
+    use state_maschine::prelude::StateData as SMStateData;
 
     #[test]
     fn should_return_reference_to_default_validation_state_data_when_initialized_with_default() {
@@ -152,7 +153,7 @@ mod tests {
 
         let expected_result = &ValidateCikFormatInputData::new("12345");
 
-        SecStateData::update_state(&mut state_data, update)
+        StateData::update_state(&mut state_data, update)
             .expect("Update with valid 'update' value should always succeed.");
 
         let result = state_data.get_state();
@@ -170,7 +171,7 @@ mod tests {
 
         let expected_result = &ValidateCikFormatInputData::new("0000000000");
 
-        SecStateData::update_state(&mut state_data, update)
+        StateData::update_state(&mut state_data, update)
             .expect("Update with valid 'update' value should always succeed.");
         let result = state_data.get_state();
 
@@ -184,7 +185,7 @@ mod tests {
 
         let expected_result = &ValidateCikFormatInputData::default();
 
-        SecStateData::update_state(&mut state_data, empty_update)
+        StateData::update_state(&mut state_data, empty_update)
             .expect("Update with valid 'update' value should always succeed.");
         let result = state_data.get_state();
 

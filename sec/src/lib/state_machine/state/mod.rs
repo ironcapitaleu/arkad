@@ -6,7 +6,7 @@ pub mod context_data;
 pub mod state_data;
 
 pub use context_data::ContextData;
-pub use state_data::SecStateData;
+pub use state_data::StateData;
 
 pub trait State: SMState {
     /// Computes the output data for the SEC state.

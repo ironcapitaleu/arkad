@@ -1,7 +1,7 @@
 use crate::state_machine::sec_error::SecError;
-use state_maschine::prelude::*;
+use state_maschine::prelude::StateData as SMStateData;
 
-pub trait SecStateData: StateData {
+pub trait StateData: SMStateData {
     /// Updates the state with new data given in the `updates` parameter.
     ///
     /// # Errors
