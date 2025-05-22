@@ -1,6 +1,6 @@
-use state_maschine::prelude::*;
+use state_maschine::prelude::ContextData as SMContextData;
 
-pub trait SecContextData: ContextData {
+pub trait ContextData: SMContextData {
     fn can_retry(&self) -> bool {
         self.get_max_retries() > 0
     }

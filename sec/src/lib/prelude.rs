@@ -6,6 +6,6 @@
 pub use crate::state_machine::SecStateMachine;
 pub use crate::state_machine::sec_super_state::SecSuperState;
 pub use crate::state_machine::sec_transition::SecTransition;
-pub use crate::state_machine::state::SecContextData;
+pub use crate::state_machine::state::ContextData;
 pub use crate::state_machine::state::SecStateData;
 pub use crate::state_machine::state::State;

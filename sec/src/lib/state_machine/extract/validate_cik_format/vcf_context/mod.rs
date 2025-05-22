@@ -1,7 +1,8 @@
 use std::fmt;
 
-use crate::state_machine::state::SecContextData;
-use state_maschine::prelude::*;
+use state_maschine::prelude::ContextData as SMContextData;
+
+use crate::state_machine::state::ContextData;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 /// State context for the CIK format validation state.
@@ -28,13 +29,13 @@ impl ValidateCikFormatContext {
     }
 }
 
-impl SecContextData for ValidateCikFormatContext {
+impl ContextData for ValidateCikFormatContext {
     fn get_max_retries(&self) -> u32 {
         self.max_retries
     }
 }
 
-impl ContextData for ValidateCikFormatContext {
+impl SMContextData for ValidateCikFormatContext {
     type UpdateType = ValidateCikFormatContextUpdater;
     fn get_context(&self) -> &Self {
         self

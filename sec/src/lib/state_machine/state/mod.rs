@@ -5,7 +5,7 @@ use super::sec_error::SecError;
 pub mod context_data;
 pub mod sec_state_data;
 
-pub use context_data::SecContextData;
+pub use context_data::ContextData;
 pub use sec_state_data::SecStateData;
 
 pub trait State: SMState {
