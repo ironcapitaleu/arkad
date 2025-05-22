@@ -1,4 +1,4 @@
-use state_maschine;
+use state_maschine::prelude::State as SMState;
 
 use super::sec_error::SecError;
 
@@ -8,7 +8,7 @@ pub mod sec_state_data;
 pub use sec_context_data::SecContextData;
 pub use sec_state_data::SecStateData;
 
-pub trait State: state_maschine::prelude::State {
+pub trait State: SMState {
     /// Computes the output data for the SEC state.
     ///
     /// # Errors
