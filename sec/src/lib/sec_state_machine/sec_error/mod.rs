@@ -67,16 +67,12 @@ mod tests {
     /// Arrange, Define, Act, Assert pattern is used as per project guidelines.
     #[test]
     fn should_display_invalid_cik_format_when_invalid_cik_is_provided() {
-        // Arrange
         let invalid_cik = "some_invalid_cik".to_string();
 
-        // Define
         let expected_result = "Invalid CIK format: some_invalid_cik".to_string();
 
-        // Act
         let result = format!("{}", SecError::InvalidCikFormat(invalid_cik));
 
-        // Assert
         assert_eq!(result, expected_result);
     }
 
@@ -93,8 +89,8 @@ mod tests {
         let result = format!(
             "{}",
             SecError::InvalidInputData {
-                state: state.clone(),
-                reason: reason.clone(),
+                state: state,
+                reason: reason,
             }
         );
 
@@ -116,9 +112,9 @@ mod tests {
         let result = format!(
             "{}",
             SecError::StateTransitionError {
-                from: from.clone(),
-                to: to.clone(),
-                reason: reason.clone(),
+                from: from,
+                to: to,
+                reason: reason,
             }
         );
 
