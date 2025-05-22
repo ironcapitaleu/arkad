@@ -15,4 +15,3 @@ pub enum StateMachine {
     /// Transtion related error.
     Transition,
 }
-
