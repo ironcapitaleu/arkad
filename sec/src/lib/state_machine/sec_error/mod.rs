@@ -30,19 +30,19 @@ pub enum SecError {
 impl std::fmt::Display for SecError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            SecError::InvalidCikFormat(invalid_cik_string) => {
+            Self::InvalidCikFormat(invalid_cik_string) => {
                 write!(f, "Invalid CIK format: {invalid_cik_string}")
             }
-            SecError::InvalidInputData { state, reason } => {
+            Self::InvalidInputData { state, reason } => {
                 write!(f, "Invalid input data in state '{state}': {reason}")
             }
-            SecError::StateTransitionError { from, to, reason } => {
+            Self::StateTransitionError { from, to, reason } => {
                 write!(f, "Failed to transition from '{from}' to '{to}': {reason}")
             }
-            SecError::OutputComputationError { state, reason } => {
+            Self::OutputComputationError { state, reason } => {
                 write!(f, "Output computation error in state '{state}': {reason}")
             }
-            SecError::Other { state, source } => {
+            Self::Other { state, source } => {
                 if let Some(state) = state {
                     write!(f, "Other error in state '{state}': {source}")
                 } else {
