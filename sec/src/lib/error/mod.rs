@@ -5,14 +5,14 @@ pub use state_machine::StateMachine;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ErrorKind {
     /// State machine related error.
-    StateMachine,
+    StateMachine(StateMachine),
 }
 
 impl std::fmt::Display for ErrorKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::StateMachine => {
-                write!(f, "Problem with the state machine.")
+            Self::StateMachine(state_machine) => {
+                write!(f, "Problem occured during state machine execution: '{state_machine}'")
             }
         }
     }

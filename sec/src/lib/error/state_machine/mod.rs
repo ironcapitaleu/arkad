@@ -11,20 +11,20 @@ pub enum StateMachine {
     InvalidConfiguration,
 
     /// State-internal error.
-    State,
+    State(State),
 
     /// Transtion related error.
-    Transition,
+    Transition(Transition),
 }
 
 impl std::fmt::Display for StateMachine {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::State => {
-                write!(f, "Problem occured during internal state operations.")
+            Self::State(state) => {
+                write!(f, "Problem occured during internal state operations: '{state}'")
             },
-            Self::Transition => {
-                write!(f, "Problem occured during state transition.")
+            Self::Transition(transition) => {
+                write!(f, "Problem occured during state transition: '{transition}'")
             },
             Self::InvalidConfiguration => {
                 write!(f, "Invalid configuration of the state machine.")
