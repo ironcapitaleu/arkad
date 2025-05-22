@@ -1,5 +1,5 @@
 use sec::sec_state_machine::extract::validate_cik_format::ValidateCikFormat;
-use sec::sec_state_machine::sec_state::SecState;
+use sec::prelude::*;
 
 fn main() {
     let mut validate_cik_state = ValidateCikFormat::default();
