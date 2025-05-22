@@ -1,13 +1,22 @@
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum State {
-    /// Invalid Cik.
+    /// Invalid Cik format.
     InvalidCikFormat,
 
-    /// This is the failure updating the internal `StateData` of the `State`.
+    /// Indicates that input data of a `State` is invalid and cannot be used to compute the output data.
+    InvalidInputData,
+
+    /// Indicates that context data of a `State` is invalid and cannot be used to compute the output data.
+    InvalidContextData,
+
+    /// Indicates that the output computation of a `State` has failed.
+    FailedOutputComputation,
+
+    /// Indicates a failure during the update of the internal `StateData` of the `State`.
     StateDataUpdateFailed,
 
-    ///  This is the failure updating the `ContextData` of the `State`.
+    /// Indicates a failure during the update of the `ContextData` of the `State`.
     ContextDataUpdateFailed,
 }
 
