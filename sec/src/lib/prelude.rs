@@ -4,7 +4,7 @@
 //! have easy access to the various traits and methods you will need.
 
 pub use crate::state_machine::SecStateMachine;
-pub use crate::state_machine::sec_super_state::SecSuperState;
+pub use crate::state_machine::super_state::SecSuperState;
 pub use crate::state_machine::transition::Transition;
 pub use crate::state_machine::state::ContextData;
 pub use crate::state_machine::state::State;

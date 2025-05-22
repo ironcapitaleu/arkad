@@ -2,7 +2,7 @@ use state_maschine::prelude::*;
 
 pub mod extract;
 pub mod sec_error;
-pub mod sec_super_state;
+pub mod super_state;
 pub mod transition;
 pub mod state;
 
