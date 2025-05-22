@@ -1,9 +1,9 @@
-use crate::state_machine::state::SecState;
+use crate::state_machine::state::State;
 use state_maschine::prelude::*;
 
 pub trait SecTransition<T, U>: Transition<T, U>
 where
-    T: SecState,
-    U: SecState,
+    T: State,
+    U: State,
 {
 }

@@ -1,15 +1,18 @@
-use crate::state_machine::sec_error::SecError;
-use crate::state_machine::state::SecState;
-use state_maschine::prelude::*;
 use std::fmt;
+
+use state_maschine::prelude::State as SMState;
+
+use crate::state_machine::sec_error::SecError;
+use crate::state_machine::state::State;
 
 pub mod vcf_context;
 pub mod vcf_data;
 
 pub use vcf_context::ValidateCikFormatContext;
-use vcf_data::Cik;
 pub use vcf_data::ValidateCikFormatInputData;
 pub use vcf_data::ValidateCikFormatOutputData;
+
+use vcf_data::Cik;
 
 #[derive(Debug, Clone, Default, PartialEq, PartialOrd, Hash, Eq, Ord)]
 /// State that validates and normalizes a raw CIK format.
@@ -55,7 +58,7 @@ impl ValidateCikFormat {
     }
 }
 
-impl SecState for ValidateCikFormat {
+impl State for ValidateCikFormat {
     fn compute_output_data(&mut self) -> Result<(), SecError> {
         // Validate the CIK format
         let cik = Cik::new(&self.input.raw_cik);
@@ -75,7 +78,7 @@ impl SecState for ValidateCikFormat {
     }
 }
 
-impl State for ValidateCikFormat {
+impl SMState for ValidateCikFormat {
     type InputData = ValidateCikFormatInputData;
     type OutputData = ValidateCikFormatOutputData;
     type Context = ValidateCikFormatContext;
@@ -333,7 +336,7 @@ mod tests {
 
         let expected_result = &validation_state.get_input_data().clone();
 
-        SecState::compute_output_data(&mut validation_state)
+        State::compute_output_data(&mut validation_state)
             .expect("Default state should always compute output data.");
         let result = validation_state.get_input_data();
 
@@ -346,7 +349,7 @@ mod tests {
 
         let expected_result = &ValidateCikFormatOutputData::default();
 
-        SecState::compute_output_data(&mut validation_state)
+        State::compute_output_data(&mut validation_state)
             .expect("Default state should always compute output data.");
 
         let result = validation_state.get_output_data().unwrap();

@@ -8,10 +8,7 @@ pub enum SecError {
     InvalidCikFormat(String),
 
     /// Error for invalid input data in a state.
-    InvalidInputData {
-        state: String,
-        reason: String,
-    },
+    InvalidInputData { state: String, reason: String },
 
     /// Error for failed state transition.
     StateTransitionError {
@@ -21,10 +18,7 @@ pub enum SecError {
     },
 
     /// Error for output data computation failure.
-    OutputComputationError {
-        state: String,
-        reason: String,
-    },
+    OutputComputationError { state: String, reason: String },
 
     /// Wrapper for other error types (for extensibility).
     Other {
@@ -36,7 +30,9 @@ pub enum SecError {
 impl std::fmt::Display for SecError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            SecError::InvalidCikFormat(invalid_cik_string) => write!(f, "Invalid CIK format: {invalid_cik_string}"),
+            SecError::InvalidCikFormat(invalid_cik_string) => {
+                write!(f, "Invalid CIK format: {invalid_cik_string}")
+            }
             SecError::InvalidInputData { state, reason } => {
                 write!(f, "Invalid input data in state '{state}': {reason}")
             }
@@ -106,7 +102,8 @@ mod tests {
         let reason = "Not allowed".to_string();
 
         // Define
-        let expected_result = "Failed to transition from 'StateA' to 'StateB': Not allowed".to_string();
+        let expected_result =
+            "Failed to transition from 'StateA' to 'StateB': Not allowed".to_string();
 
         // Act
         let result = format!(
@@ -129,7 +126,8 @@ mod tests {
         let reason = "Overflow".to_string();
 
         // Define
-        let expected_result = "Output computation error in state 'ComputeState': Overflow".to_string();
+        let expected_result =
+            "Output computation error in state 'ComputeState': Overflow".to_string();
 
         // Act
         let result = format!(
