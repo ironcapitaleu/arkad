@@ -7,7 +7,7 @@ pub use transition::Transition;
 use super::ErrorKind::{self, DowncastNotPossible};
 
 #[non_exhaustive]
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 pub enum StateMachine {
     /// Invalid configuration of the state machine.
     InvalidConfiguration,

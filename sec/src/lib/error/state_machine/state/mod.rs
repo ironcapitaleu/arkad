@@ -1,5 +1,5 @@
 #[non_exhaustive]
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 pub enum State {
     /// Invalid Cik format.
     InvalidCikFormat,

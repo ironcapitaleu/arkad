@@ -1,7 +1,15 @@
 use sec::prelude::*;
 use sec::state_machine::extract::validate_cik_format::ValidateCikFormat;
 
+use sec::error::{ErrorKind, StateMachine};
+
 fn main() {
+    let err = ErrorKind::StateMachine(StateMachine::InvalidConfiguration);
+    println!("Printing error:");
+    println!("=======================================================");
+    println!("{err}");
+    println!("=======================================================");
+
     let mut validate_cik_state = ValidateCikFormat::default();
 
     println!("\n=======================================================");

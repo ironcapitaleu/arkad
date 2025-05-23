@@ -1,5 +1,5 @@
 #[non_exhaustive]
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 pub enum Transition {
     /// Failed to convert output of the source state into the input of the destination state.
     FailedOutputConversion,
