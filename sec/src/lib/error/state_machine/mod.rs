@@ -4,7 +4,7 @@ pub mod transition;
 pub use state::State;
 pub use transition::Transition;
 
-use super::ErrorKind::{self, DowncastError};
+use super::ErrorKind::{self, DowncastNotPossible};
 
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -57,11 +57,11 @@ impl From<Transition> for StateMachine {
 impl TryInto<State> for StateMachine {
     type Error = ErrorKind;
 
-    /// Tries to convert a `StateMachine` into a `State` error, if possible. Returns a `DowncastError` otherwise.
+    /// Tries to convert a `StateMachine` into a `State` error, if possible. Returns a `DowncastNotPossible` error otherwise.
     fn try_into(self) -> Result<State, Self::Error> {
         match self {
             Self::State(state) => Ok(state),
-            _ => Err(DowncastError),
+            _ => Err(DowncastNotPossible),
         }
     }
 }
@@ -69,11 +69,11 @@ impl TryInto<State> for StateMachine {
 impl TryInto<Transition> for StateMachine {
     type Error = ErrorKind;
 
-    /// Tries to convert a `StateMachine` into a `Transition` error, if possible. Returns a `DowncastError` otherwise.
+    /// Tries to convert a `StateMachine` into a `Transition` error, if possible. Returns a `DowncastNotPossible` error otherwise.
     fn try_into(self) -> Result<Transition, Self::Error> {
         match self {
             Self::Transition(transition) => Ok(transition),
-            _ => Err(DowncastError),
+            _ => Err(DowncastNotPossible),
         }
     }
 }

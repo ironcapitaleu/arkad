@@ -10,7 +10,7 @@ pub use state_machine::transition::Transition;
 pub enum ErrorKind {
     /// State machine related error.
     StateMachine(StateMachine),
-    DowncastError,
+    DowncastNotPossible,
 }
 
 impl std::fmt::Display for ErrorKind {
@@ -22,7 +22,7 @@ impl std::fmt::Display for ErrorKind {
                     "Problem occured during state machine execution: '{state_machine}'"
                 )
             }
-            Self::DowncastError => {
+            Self::DowncastNotPossible => {
                 write!(
                     f,
                     "Failed to downcast error of type `ErrorKind` into more specific error."
@@ -44,11 +44,11 @@ impl From<StateMachine> for ErrorKind {
 impl TryInto<StateMachine> for ErrorKind {
     type Error = Self;
 
-    /// Tries to convert an `ErrorKind` into a `StateMachine` error, if possible. Returns a `DowncastError` otherwise.
+    /// Tries to convert an `ErrorKind` into a `StateMachine` error, if possible. Returns a `DowncastNotPossible` otherwise.
     fn try_into(self) -> Result<StateMachine, Self::Error> {
         match self {
             Self::StateMachine(state_machine) => Ok(state_machine),
-            Self::DowncastError => Err(self),
+            Self::DowncastNotPossible => Err(self),
         }
     }
 }
@@ -56,16 +56,16 @@ impl TryInto<StateMachine> for ErrorKind {
 impl TryInto<State> for ErrorKind {
     type Error = Self;
 
-    /// Tries to convert an `ErrorKind` into a `State` error, if possible. Returns a `DowncastError` otherwise.
+    /// Tries to convert an `ErrorKind` into a `State` error, if possible. Returns a `DowncastNotPossible` error otherwise.
     fn try_into(self) -> Result<State, Self::Error> {
         match self {
             Self::StateMachine(sm) => match sm {
                 StateMachine::State(state) => Ok(state),
                 StateMachine::Transition(_) | StateMachine::InvalidConfiguration => {
-                    Err(Self::DowncastError)
+                    Err(Self::DowncastNotPossible)
                 }
             },
-            Self::DowncastError => Err(Self::DowncastError),
+            Self::DowncastNotPossible => Err(Self::DowncastNotPossible),
         }
     }
 }
@@ -73,16 +73,16 @@ impl TryInto<State> for ErrorKind {
 impl TryInto<Transition> for ErrorKind {
     type Error = Self;
 
-    /// Tries to convert an `ErrorKind` into a `Transition` error, if possible. Returns a `DowncastError` otherwise.
+    /// Tries to convert an `ErrorKind` into a `Transition` error, if possible. Returns a `DowncastNotPossible` error otherwise.
     fn try_into(self) -> Result<Transition, Self::Error> {
         match self {
             Self::StateMachine(sm) => match sm {
                 StateMachine::Transition(transition) => Ok(transition),
                 StateMachine::State(_) | StateMachine::InvalidConfiguration => {
-                    Err(Self::DowncastError)
+                    Err(Self::DowncastNotPossible)
                 }
             },
-            Self::DowncastError => Err(Self::DowncastError),
+            Self::DowncastNotPossible => Err(Self::DowncastNotPossible),
         }
     }
 }

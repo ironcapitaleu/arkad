@@ -7,6 +7,7 @@ classDiagram
         <<enum>>
         %% This is an enum that represents all kinds of errors that are expected in the `sec`package.
         +StateMachine
+        +DowncastError
     }
 
     class State {
