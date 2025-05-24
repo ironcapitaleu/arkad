@@ -1,6 +1,6 @@
 use state_maschine::prelude::State as SMState;
 
-use super::sec_error::SecError;
+use crate::error::State as StateError;
 
 pub mod context_data;
 pub mod state_data;
@@ -13,6 +13,6 @@ pub trait State: SMState {
     ///
     /// # Errors
     ///
-    /// Returns an `SecError` if the output data cannot be computed.
-    fn compute_output_data(&mut self) -> Result<(), SecError>;
+    /// Returns an error convertible into a `StateError` if the output data computation fails.
+    fn compute_output_data(&mut self) -> Result<(), impl Into<StateError>>;
 }
