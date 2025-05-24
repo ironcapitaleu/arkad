@@ -90,8 +90,8 @@ impl TryInto<Transition> for ErrorKind {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::{fmt::Debug, hash::Hash};
     use pretty_assertions::assert_eq;
+    use std::{fmt::Debug, hash::Hash};
 
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
     #[test]
@@ -171,8 +171,6 @@ mod tests {
     const fn should_be_able_to_rely_on_unpin_implementation_when_using_errorkind() {
         implements_unpin::<ErrorKind>();
     }
-
-
 
     #[test]
     fn should_be_able_to_create_state_machine_error_when_casting_from_specific_error_kind() {

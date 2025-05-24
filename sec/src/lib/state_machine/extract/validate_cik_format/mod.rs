@@ -2,7 +2,7 @@ use std::fmt;
 
 use state_maschine::prelude::State as SMState;
 
-use crate::state_machine::sec_error::SecError;
+use crate::error::State as StateError;
 use crate::state_machine::state::State;
 
 pub mod vcf_context;
@@ -59,7 +59,7 @@ impl ValidateCikFormat {
 }
 
 impl State for ValidateCikFormat {
-    fn compute_output_data(&mut self) -> Result<(), SecError> {
+    fn compute_output_data(&mut self) -> Result<(), SomeError> {
         // Validate the CIK format
         let cik = Cik::new(&self.input.raw_cik);
 
