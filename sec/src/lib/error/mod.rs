@@ -50,7 +50,7 @@ impl TryInto<StateMachine> for ErrorKind {
     fn try_into(self) -> Result<StateMachine, Self::Error> {
         match self {
             Self::StateMachine(state_machine) => Ok(state_machine),
-            Self::DowncastNotPossible => Err(self),
+            Self::DowncastNotPossible => Err(Self::DowncastNotPossible),
         }
     }
 }
