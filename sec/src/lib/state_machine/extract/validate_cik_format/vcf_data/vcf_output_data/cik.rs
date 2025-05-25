@@ -81,7 +81,7 @@ mod tests {
 
         let expected_result = "1234567890";
 
-        let result = Cik::new(cik_str).expect("CIK creation should succeed");
+        let result = Cik::new(cik_str).expect("CIK creation should always succeed with hardcoded ten digit value.");
 
         assert_eq!(result.value(), expected_result);
     }
