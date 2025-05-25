@@ -83,6 +83,88 @@ mod tests {
     use super::*;
     use pretty_assertions::assert_eq;
 
+    use std::{fmt::Debug, hash::Hash};
+
+    const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
+    #[test]
+    const fn should_be_able_to_rely_auto_trait_implementation_when_using_statemachine() {
+        implements_auto_traits::<StateMachine>();
+    }
+
+    const fn implements_send<T: Send>() {}
+    const fn implements_sync<T: Sync>() {}
+
+    #[test]
+    const fn should_have_implementend_send_when_using_statemachine() {
+        implements_send::<StateMachine>();
+    }
+
+    #[test]
+    const fn should_implement_sync_when_using_statemachine() {
+        implements_sync::<StateMachine>();
+    }
+
+    #[test]
+    const fn should_be_thread_safe_when_using_statemachine() {
+        implements_send::<StateMachine>();
+        implements_sync::<StateMachine>();
+    }
+
+    const fn implements_sized<T: Sized>() {}
+    #[test]
+    const fn should_be_able_to_rely_on_error_being_sized_when_using_statemachine() {
+        implements_sized::<StateMachine>();
+    }
+
+    const fn implements_hash<T: Hash>() {}
+    #[test]
+    const fn should_be_able_to_rely_on_hash_implementation_when_using_statemachine() {
+        implements_hash::<StateMachine>();
+    }
+
+    const fn implements_partial_eq<T: PartialEq>() {}
+    #[test]
+    const fn should_be_able_to_rely_on_partial_eq_implementation_when_using_statemachine() {
+        implements_partial_eq::<StateMachine>();
+    }
+
+    const fn implements_eq<T: Eq>() {}
+    #[test]
+    const fn should_be_able_to_rely_on_eq_implementation_when_using_statemachine() {
+        implements_eq::<StateMachine>();
+    }
+
+    const fn implements_partial_ord<T: PartialOrd>() {}
+    #[test]
+    const fn should_be_able_to_rely_on_partial_ord_implementation_when_using_statemachine() {
+        implements_partial_ord::<StateMachine>();
+    }
+
+    const fn implements_ord<T: Ord>() {}
+    #[test]
+    const fn should_be_able_to_rely_on_ord_implementation_when_using_statemachine() {
+        implements_ord::<StateMachine>();
+    }
+
+    const fn implements_debug<T: Debug>() {}
+    #[test]
+    const fn should_be_able_to_rely_on_debug_implementation_when_using_statemachine() {
+        implements_debug::<StateMachine>();
+    }
+
+    const fn implements_clone<T: Clone>() {}
+    #[test]
+    const fn should_be_able_to_rely_on_clone_implementation_when_using_statemachine() {
+        implements_clone::<StateMachine>();
+    }
+
+    const fn implements_unpin<T: Unpin>() {}
+    #[test]
+    const fn should_be_able_to_rely_on_unpin_implementation_when_using_statemachine() {
+        implements_unpin::<StateMachine>();
+    }
+
+
     #[test]
     fn should_be_able_to_create_state_error_when_casting_from_specific_state_machine() {
         let _result: State = StateMachine::State(State::InvalidInputData)

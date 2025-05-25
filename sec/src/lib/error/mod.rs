@@ -110,7 +110,7 @@ mod tests {
     }
 
     #[test]
-    const fn should_implement_sync_when_using_error_kind() {
+    const fn should_implement_sync_when_using_errorkind() {
         implements_sync::<ErrorKind>();
     }
 
