@@ -14,7 +14,7 @@ impl Cik {
     ///
     /// # Errors
     ///
-    /// Returns a `StateError::InvalidCikFormat` if the CIK is not formatted correctly.
+    /// Returns a `error::State::InvalidCikFormat` if the CIK is not formatted correctly.
     ///
     /// # Examples
     ///
