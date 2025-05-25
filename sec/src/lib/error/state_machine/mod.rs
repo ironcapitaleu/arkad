@@ -81,9 +81,8 @@ impl TryInto<Transition> for StateMachine {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::{fmt::Debug, hash::Hash};
     use pretty_assertions::assert_eq;
-    
+    use std::{fmt::Debug, hash::Hash};
 
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
     #[test]
