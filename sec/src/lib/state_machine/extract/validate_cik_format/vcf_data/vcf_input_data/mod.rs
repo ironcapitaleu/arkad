@@ -2,7 +2,8 @@ use std::fmt;
 
 use state_maschine::prelude::StateData as SMStateData;
 
-use crate::state_machine::{sec_error::SecError, state::StateData};
+use crate::error::State as StateError;
+use crate::state_machine::state::StateData;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 /// Input data for validating the format of a CIK.
@@ -35,7 +36,7 @@ impl ValidateCikFormatInputData {
 }
 
 impl StateData for ValidateCikFormatInputData {
-    fn update_state(&mut self, updates: Self::UpdateType) -> Result<(), SecError> {
+    fn update_state(&mut self, updates: Self::UpdateType) -> Result<(), StateError> {
         if let Some(cik) = updates.raw_cik {
             self.raw_cik = cik;
         }

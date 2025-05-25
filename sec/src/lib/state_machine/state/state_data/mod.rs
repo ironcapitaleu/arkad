@@ -1,4 +1,4 @@
-use crate::state_machine::sec_error::SecError;
+use crate::error::State as StateError;
 use state_maschine::prelude::StateData as SMStateData;
 
 pub trait StateData: SMStateData {
@@ -6,6 +6,6 @@ pub trait StateData: SMStateData {
     ///
     /// # Errors
     ///
-    /// Returns a `SecError` if the update fails.
-    fn update_state(&mut self, updates: Self::UpdateType) -> Result<(), SecError>;
+    /// Returns a `crate::error::State` if the update fails.
+    fn update_state(&mut self, updates: Self::UpdateType) -> Result<(), StateError>;
 }

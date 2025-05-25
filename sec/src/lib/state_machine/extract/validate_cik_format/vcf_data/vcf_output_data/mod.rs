@@ -3,7 +3,6 @@ use std::fmt;
 use state_maschine::prelude::StateData as SMStateData;
 
 use crate::error::State as StateError;
-use crate::state_machine::sec_error::SecError;
 use crate::state_machine::state::StateData;
 
 pub mod cik;
@@ -46,14 +45,14 @@ impl ValidateCikFormatOutputData {
     }
 }
 impl StateData for ValidateCikFormatOutputData {
-    fn update_state(&mut self, updates: Self::UpdateType) -> Result<(), SecError> {
+    fn update_state(&mut self, updates: Self::UpdateType) -> Result<(), StateError> {
         if let Some(cik) = updates.cik {
             match Cik::new(&cik) {
                 Ok(valid_cik) => {
                     self.validated_cik = valid_cik;
                     Ok(())
                 }
-                Err(_) => Err(SecError::InvalidCikFormat(format!(
+                Err(_) => Err(StateError::InvalidCikFormat(format!(
                     "CIK {} is not formatted correctly.",
                     cik.value()
                 ))),
