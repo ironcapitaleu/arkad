@@ -2,6 +2,7 @@ use std::fmt;
 
 use state_maschine::prelude::StateData as SMStateData;
 
+use crate::error::State as StateError;
 use crate::state_machine::sec_error::SecError;
 use crate::state_machine::state::StateData;
 
@@ -21,11 +22,11 @@ impl ValidateCikFormatOutputData {
     ///
     /// # Errors
     ///
-    /// Returns a `SecError::InvalidCikFormat` if the CIK is not formatted correctly.
-    pub fn new(cik: &(impl ToString + ?Sized)) -> Result<Self, SecError> {
+    /// Returns a `error::State::InvalidCikFormat` if the CIK is not formatted correctly.
+    pub fn new(cik: &(impl ToString + ?Sized)) -> Result<Self, StateError> {
         Cik::new(cik).map_or_else(
             |_| {
-                Err(SecError::InvalidCikFormat(format!(
+                Err(StateError::InvalidCikFormat(format!(
                     "CIK {} is not formatted correctly.",
                     cik.to_string()
                 )))
@@ -133,8 +134,8 @@ impl Default for ValidateCikFormatOutputDataUpdaterBuilder {
 
 #[cfg(test)]
 mod tests {
+    use crate::error::State as StateError;
     use crate::state_machine::extract::validate_cik_format::vcf_data::vcf_output_data::BERKSHIRE_HATHAWAY_CIK;
-    use crate::state_machine::sec_error::SecError;
     use crate::state_machine::state::StateData;
 
     use super::{Cik, ValidateCikFormatOutputData, ValidateCikFormatOutputDataUpdaterBuilder};
@@ -241,7 +242,7 @@ mod tests {
 
     #[test]
     fn should_fail_when_given_invalid_cik_string() {
-        let expected_result = Err(SecError::InvalidCikFormat(
+        let expected_result = Err(StateError::InvalidCikFormat(
             "CIK 1234567890a is not formatted correctly.".to_string(),
         ));
         let result = ValidateCikFormatOutputData::new("1234567890a");
