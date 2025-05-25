@@ -1,6 +1,6 @@
 pub mod prelude;
 
-pub mod state_machine;
+pub mod traits;
 
 pub mod error;
 
