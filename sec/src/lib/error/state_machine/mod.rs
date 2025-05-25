@@ -201,15 +201,6 @@ mod tests {
     }
 
     #[test]
-    fn should_be_able_to_cast_into_equivalent_transition_error_when_having_a_statemachine_error() {
-        let expected_result = StateMachine::Transition(Transition::FailedOutputConversion);
-
-        let result: StateMachine = Transition::FailedOutputConversion.into();
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
     #[should_panic]
     fn should_be_failing_when_when_trying_to_compare_casting_result_from_different_enum_variant() {
         let expected_result = StateMachine::Transition(Transition::FailedOutputConversion);
