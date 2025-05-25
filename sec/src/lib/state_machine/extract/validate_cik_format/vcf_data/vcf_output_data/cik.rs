@@ -1,6 +1,7 @@
 #![allow(clippy::missing_const_for_fn)]
-use crate::error::State as StateError;
 use std::fmt;
+
+use crate::error::State as StateError;
 
 const CIK_LENGTH: usize = 10;
 

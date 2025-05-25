@@ -1,5 +1,6 @@
-use crate::error::State as StateError;
 use state_maschine::prelude::StateData as SMStateData;
+
+use crate::error::State as StateError;
 
 pub trait StateData: SMStateData {
     /// Updates the state with new data given in the `updates` parameter.
