@@ -1,5 +1,5 @@
 #![allow(clippy::missing_const_for_fn)]
-use crate::state_machine::sec_error::SecError;
+use crate::error::State as StateError;
 use std::fmt;
 
 const CIK_LENGTH: usize = 10;
@@ -14,7 +14,7 @@ impl Cik {
     ///
     /// # Errors
     ///
-    /// Returns a `SecError::InvalidCikFormat` if the CIK is not formatted correctly.
+    /// Returns a `StateError::InvalidCikFormat` if the CIK is not formatted correctly.
     ///
     /// # Examples
     ///
@@ -24,14 +24,14 @@ impl Cik {
     /// let cik = Cik::new("123456789").expect("CIK creation with the hardcoded value should always succeed.");
     /// assert_eq!(cik.value(), "0123456789");
     /// ```
-    pub fn new(cik: &(impl ToString + ?Sized)) -> Result<Self, SecError> {
+    pub fn new(cik: &(impl ToString + ?Sized)) -> Result<Self, StateError> {
         let original_input = cik.to_string(); // Keep original input for error messages
         let mut cik_str = cik.to_string().trim().to_string(); // Trim leading and trailing whitespace
 
         // Check if it contains only digits
 
         if !cik_str.chars().all(|c| c.is_ascii_digit()) {
-            return Err(SecError::InvalidCikFormat(format!(
+            return Err(StateError::InvalidCikFormat(format!(
                 "CIK must contain only numeric characters. Got: '{original_input}'" // Show original input in error
             )));
         }
@@ -43,7 +43,7 @@ impl Cik {
 
         // Ensure the length does not exceed `CIK_LENGTH` digits
         if cik_str.len() > CIK_LENGTH {
-            return Err(SecError::InvalidCikFormat(format!(
+            return Err(StateError::InvalidCikFormat(format!(
                 "Final CIK cannot exceed {CIK_LENGTH} digits. Got: '{original_input}'"
             )));
         }

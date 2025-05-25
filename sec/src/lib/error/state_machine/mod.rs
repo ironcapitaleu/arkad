@@ -85,7 +85,7 @@ mod tests {
 
     #[test]
     fn should_be_able_to_create_state_error_when_casting_from_specific_state_machine() {
-        let _result: State = StateMachine::State(State::InvalidCikFormat)
+        let _result: State = StateMachine::State(State::InvalidInputData)
             .try_into()
             .expect("Should always be able to cast provided harcdcoded `StateMachine` error into `State` error.");
     }
@@ -104,9 +104,9 @@ mod tests {
 
     #[test]
     fn should_be_able_to_cast_into_equivalent_statemachine_error_when_having_a_state_error() {
-        let expected_result = StateMachine::State(State::InvalidCikFormat);
+        let expected_result = StateMachine::State(State::InvalidInputData);
 
-        let result: StateMachine = State::InvalidCikFormat.into();
+        let result: StateMachine = State::InvalidInputData.into();
 
         assert_eq!(result, expected_result);
     }

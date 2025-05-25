@@ -10,6 +10,8 @@ pub use state_machine::transition::Transition;
 pub enum ErrorKind {
     /// State machine related error.
     StateMachine(StateMachine),
+
+    /// Error indicating that casting from `ErrorKind` to a more specific error type is not possible.
     DowncastNotPossible,
 }
 
@@ -184,7 +186,7 @@ mod tests {
     #[test]
     fn should_be_able_to_create_state_error_when_casting_from_specific_error_kind_that_is_a_state()
     {
-        let _result: State = ErrorKind::StateMachine(StateMachine::State(State::InvalidCikFormat))
+        let _result: State = ErrorKind::StateMachine(StateMachine::State(State::InvalidInputData))
             .try_into()
             .expect(
                 "Should always be able to cast provided harcdcoded `ErrorKind` into `State` error.",
