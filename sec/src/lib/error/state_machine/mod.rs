@@ -164,7 +164,6 @@ mod tests {
         implements_unpin::<StateMachine>();
     }
 
-
     #[test]
     fn should_be_able_to_create_state_error_when_casting_from_specific_state_machine() {
         let _result: State = StateMachine::State(State::InvalidInputData)
