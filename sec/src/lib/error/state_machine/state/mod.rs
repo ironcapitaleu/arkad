@@ -118,7 +118,7 @@ mod tests {
 
     #[test]
     #[should_panic]
-    fn should_be_able_to_create_state_invalidcikformat_error_when_using_enum_directly() {
+    fn should_not_be_able_to_create_state_invalidcikformat_error_when_passing_valid_cik_string() {
         // TODO: "InvalidCikFormat error should only be able to be created passing an invalid CIK format, it should not be able to be created by passing a valid CIK format.");
         let _result: State = State::InvalidCikFormat("123456789".to_string());
     }
