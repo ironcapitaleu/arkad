@@ -1,5 +1,5 @@
+use sec::implementations::states::extract::validate_cik_format::ValidateCikFormat;
 use sec::prelude::*;
-use sec::traits::state_machine::extract::validate_cik_format::ValidateCikFormat;
 
 use sec::error::{ErrorKind, StateMachine};
 

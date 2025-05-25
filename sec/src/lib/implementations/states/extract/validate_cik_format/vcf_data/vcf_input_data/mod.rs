@@ -18,7 +18,7 @@ impl ValidateCikFormatInputData {
     /// # Examples
     ///
     /// ```
-    /// use sec::traits::state_machine::extract::validate_cik_format::vcf_data::vcf_input_data::ValidateCikFormatInputData;
+    /// use sec::implementations::states::extract::validate_cik_format::vcf_data::vcf_input_data::ValidateCikFormatInputData;
     ///
     /// let validation_input_data = ValidateCikFormatInputData::new("1067983");
     /// ```
@@ -114,10 +114,8 @@ impl Default for ValidateCikFormatInputDataUpdaterBuilder {
 #[cfg(test)]
 mod tests {
 
-    use crate::traits::state_machine::{
-        extract::validate_cik_format::vcf_data::vcf_input_data::BERKSHIRE_HATHAWAY_CIK,
-        state::StateData,
-    };
+    use crate::implementations::states::extract::validate_cik_format::vcf_data::vcf_input_data::BERKSHIRE_HATHAWAY_CIK;
+    use crate::traits::state_machine::state::StateData;
 
     use super::{ValidateCikFormatInputData, ValidateCikFormatInputDataUpdaterBuilder};
     use pretty_assertions::{assert_eq, assert_ne};

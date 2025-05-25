@@ -134,7 +134,7 @@ impl Default for ValidateCikFormatOutputDataUpdaterBuilder {
 #[cfg(test)]
 mod tests {
     use crate::error::State as StateError;
-    use crate::traits::state_machine::extract::validate_cik_format::vcf_data::vcf_output_data::BERKSHIRE_HATHAWAY_CIK;
+    use crate::implementations::states::extract::validate_cik_format::vcf_data::vcf_output_data::BERKSHIRE_HATHAWAY_CIK;
     use crate::traits::state_machine::state::StateData;
 
     use super::{Cik, ValidateCikFormatOutputData, ValidateCikFormatOutputDataUpdaterBuilder};

@@ -20,7 +20,7 @@ impl Cik {
     /// # Examples
     ///
     /// ```
-    /// use sec::traits::state_machine::extract::validate_cik_format::vcf_data::vcf_output_data::cik::Cik;
+    /// use sec::implementations::states::extract::validate_cik_format::vcf_data::vcf_output_data::cik::Cik;
     ///
     /// let cik = Cik::new("123456789").expect("CIK creation with the hardcoded value should always succeed.");
     /// assert_eq!(cik.value(), "0123456789");

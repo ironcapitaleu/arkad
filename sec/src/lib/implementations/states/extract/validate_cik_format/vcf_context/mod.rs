@@ -103,7 +103,7 @@ impl Default for ValidateCikFormatContextUpdaterBuilder {
 #[cfg(test)]
 mod tests {
 
-    use crate::traits::state_machine::extract::validate_cik_format::vcf_context::BERKSHIRE_HATHAWAY_CIK;
+    use crate::implementations::states::extract::validate_cik_format::vcf_context::BERKSHIRE_HATHAWAY_CIK;
 
     use super::{ValidateCikFormatContext, ValidateCikFormatContextUpdaterBuilder};
     use pretty_assertions::{assert_eq, assert_ne};

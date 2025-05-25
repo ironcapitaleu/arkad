@@ -1,6 +1,5 @@
 use state_maschine::prelude::*;
 
-pub mod extract;
 pub mod state;
 pub mod super_state;
 pub mod transition;

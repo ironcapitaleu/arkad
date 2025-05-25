@@ -35,7 +35,7 @@ use vcf_data::Cik;
 ///
 /// # Example
 /// ```
-/// use sec::traits::state_machine::extract::validate_cik_format::*;
+/// use sec::implementations::states::extract::validate_cik_format::*;
 ///
 /// let input = ValidateCikFormatInputData { raw_cik: "1234".into() };
 /// let context = ValidateCikFormatContext::default();
