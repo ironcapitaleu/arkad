@@ -71,8 +71,7 @@ impl State for ValidateCikFormat {
             }
             Err(e) => {
                 // If the CIK is invalid, return an error
-                let tmp: StateError = e.into();
-                return Err(tmp);
+                return Err(e);
             }
         }
 
