@@ -122,5 +122,4 @@ mod tests {
         // TODO: "InvalidCikFormat error should only be able to be created passing an invalid CIK format, it should not be able to be created by passing a valid CIK format.");
         let _result: State = State::InvalidCikFormat("123456789".to_string());
     }
-
 }
