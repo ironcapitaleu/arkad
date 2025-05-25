@@ -59,6 +59,7 @@ impl ValidateCikFormat {
 }
 
 impl State for ValidateCikFormat {
+    #[allow(refining_impl_trait)]
     fn compute_output_data(&mut self) -> Result<(), StateError> {
         // Validate the CIK format
         let cik = Cik::new(&self.input.raw_cik);
