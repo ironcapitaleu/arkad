@@ -5,6 +5,7 @@ use state_maschine::prelude::StateData as SMStateData;
 use crate::error::State as StateError;
 use crate::error::state_machine::state::InvalidCikFormat;
 
+use crate::traits::error::FromDomainError;
 use crate::traits::state_machine::state::StateData;
 
 use crate::shared::cik::Cik;
@@ -25,12 +26,10 @@ impl ValidateCikFormatOutputData {
     /// Returns a `InvalidCikFormat` if the CIK is not formatted correctly.
     pub fn new(cik: &(impl ToString + ?Sized)) -> Result<Self, StateError> {
         Cik::new(cik).map_or_else(
-            |_| {
-                Err(StateError::InvalidCikFormat(InvalidCikFormat {
-                    reason: format!("CIK '{}' is not formatted correctly.", cik.to_string()),
-                    invalid_cik: cik.to_string(),
-                    state_name: "ValidateCikFormatOutputData".to_string(),
-                }))
+            |e| {
+                Err(
+                    InvalidCikFormat::from_domain_error(e, Self::default().get_state()).into(), 
+                )
             },
             |valid_cik| {
                 Ok(Self {
@@ -54,11 +53,8 @@ impl StateData for ValidateCikFormatOutputData {
                     self.validated_cik = valid_cik;
                     Ok(())
                 }
-                Err(_) => Err(StateError::InvalidCikFormat(InvalidCikFormat {
-                    reason: format!("CIK '{cik}' is not formatted correctly."),
-                    invalid_cik: cik.to_string(),
-                    state_name: self.get_state().to_string(),
-                })),
+                Err(e) => Err(InvalidCikFormat::from_domain_error(e,self.get_state()).into()),
+
             }
         } else {
             Ok(())

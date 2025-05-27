@@ -5,7 +5,7 @@
 //! the [`StateError`] enum.
 
 use super::State as StateError;
-use crate::shared::cik::CikError;
+use crate::shared::cik::{CikError, InvalidCikReason};
 use crate::traits::error::FromDomainError;
 
 /// Error representing an invalid CIK format at the state level.
@@ -17,7 +17,7 @@ pub struct InvalidCikFormat {
     /// The name of the state where the error occurred.
     pub state_name: String,
     /// The reason why the CIK is considered invalid.
-    pub reason: String,
+    pub reason: InvalidCikReason,
     /// The invalid CIK string that was provided.
     pub invalid_cik: String,
 }
@@ -27,21 +27,23 @@ impl std::fmt::Display for InvalidCikFormat {
     ///
     /// # Example
     /// ```
+    /// use sec::shared::cik::InvalidCikReason;
+
     /// use sec::error::state_machine::state::invalid_cik_format::InvalidCikFormat;
     /// let err = InvalidCikFormat {
     ///     state_name: "SomeState".to_string(),
-    ///     reason: "Too short".to_string(),
-    ///     invalid_cik: "123".to_string(),
+    ///     reason: InvalidCikReason::ContainsNonNumericCharacters,
+    ///     invalid_cik: "abc".to_string(),
     /// };
     /// assert_eq!(
     ///     format!("{}", err),
-    ///     "Invalid CIK: Too short. Input: '123'"
+    ///     format!("Invalid CIK: Reason: '{}'. Input: 'abc'.", InvalidCikReason::ContainsNonNumericCharacters)
     /// );
     /// ```
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "Invalid CIK: {}. Input: '{}'",
+            "Invalid CIK: Reason: '{}'. Input: '{}'.",
             self.reason, self.invalid_cik
         )
     }
@@ -62,12 +64,12 @@ impl InvalidCikFormat {
     #[must_use]
     pub fn new(
         state_name: &(impl ToString + ?Sized),
-        reason: &(impl ToString + ?Sized),
+        reason: InvalidCikReason,
         invalid_cik: &(impl ToString + ?Sized),
     ) -> Self {
         Self {
             state_name: state_name.to_string(),
-            reason: reason.to_string(),
+            reason,
             invalid_cik: invalid_cik.to_string(),
         }
     }
@@ -102,7 +104,7 @@ impl FromDomainError for InvalidCikFormat {
     /// # Returns
     /// An [`InvalidCikFormat`] error containing the provided context.
     fn from_domain_error(err: Self::DomainErr, state_name: &(impl ToString + ?Sized)) -> Self {
-        Self::new(state_name, &err.reason, &err.invalid_cik)
+        Self::new(state_name, err.reason, &err.invalid_cik)
     }
 }
 
@@ -116,12 +118,12 @@ mod tests {
     #[test]
     fn should_create_invalid_cik_format_when_new_is_called() {
         let state_name = "TestState";
-        let reason = "Invalid length";
+        let reason = InvalidCikReason::ContainsNonNumericCharacters;
         let invalid_cik = "12345";
 
         let expected_result = InvalidCikFormat {
             state_name: state_name.to_string(),
-            reason: reason.to_string(),
+            reason: reason.clone(),
             invalid_cik: invalid_cik.to_string(),
         };
 
@@ -131,32 +133,17 @@ mod tests {
     }
 
     #[test]
-    fn should_format_display_as_expected_when_fmt_is_called() {
-        let err = InvalidCikFormat {
-            state_name: "SomeState".to_string(),
-            reason: "Too short".to_string(),
-            invalid_cik: "123".to_string(),
-        };
-
-        let expected_result = "Invalid CIK: Too short. Input: '123'".to_string();
-
-        let result = format!("{}", err);
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
     fn should_convert_from_domain_error_when_from_domain_error_is_called() {
         // Arrange
         let cik_error = CikError {
-            reason: InvalidCikReason::NonNumeric,
+            reason: InvalidCikReason::ContainsNonNumericCharacters,
             invalid_cik: "abc".to_string(),
         };
         let state_name = "ParsingState";
 
         let expected_result = InvalidCikFormat {
             state_name: state_name.to_string(),
-            reason: "Non-numeric".to_string(),
+            reason: InvalidCikReason::ContainsNonNumericCharacters,
             invalid_cik: "abc".to_string(),
         };
 
@@ -166,11 +153,11 @@ mod tests {
     }
 
     #[test]
-    fn should_convert_to_state_error_when_from_is_called() {
+    fn should_convert_to_state_error_when_into_is_called() {
         let invalid_cik_format = InvalidCikFormat {
             state_name: "TestState".to_string(),
-            reason: "Invalid".to_string(),
-            invalid_cik: "000".to_string(),
+            reason: InvalidCikReason::ContainsNonNumericCharacters,
+            invalid_cik: "abc".to_string(),
         };
 
         let expected_result = StateError::InvalidCikFormat(invalid_cik_format.clone());

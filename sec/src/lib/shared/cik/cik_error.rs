@@ -32,27 +32,27 @@ impl CikError {
     }
 }
 
-/// Reason for an invalid CIK format.
+/// Enum representing the reason for an invalid CIK format.
 ///
 /// This enum is marked as non-exhaustive to allow for future extension.
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum InvalidCikReason {
     /// The CIK is too long.
-    TooLong { cik_length: usize },
+    MaxLengthExceeded { cik_length: usize },
     /// The CIK contains non-numeric characters.
-    NonNumeric,
+    ContainsNonNumericCharacters,
 }
 
 impl std::fmt::Display for InvalidCikReason {
     /// Formats the reason for display.
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            InvalidCikReason::TooLong { cik_length } => write!(
+            InvalidCikReason::MaxLengthExceeded { cik_length } => write!(
                 f,
                 "CIK cannot exceed {CIK_LENGTH} digits. Got: '{cik_length}'"
             ),
-            InvalidCikReason::NonNumeric => write!(f, "Non-numeric"),
+            InvalidCikReason::ContainsNonNumericCharacters => write!(f, "CIK contains non-numeric chracters."),
         }
     }
 }
@@ -65,7 +65,7 @@ mod tests {
     #[test]
     fn should_format_display_as_expected_when_reason_is_too_long() {
         let invalid_cik = "123456789012345";
-        let reason = InvalidCikReason::TooLong {
+        let reason = InvalidCikReason::MaxLengthExceeded {
             cik_length: invalid_cik.len(),
         };
         let cik_error = CikError::new(reason.clone(), invalid_cik);
@@ -82,7 +82,7 @@ mod tests {
 
     #[test]
     fn should_format_display_as_expected_when_reason_is_non_numeric() {
-        let reason = InvalidCikReason::NonNumeric;
+        let reason = InvalidCikReason::ContainsNonNumericCharacters;
         let invalid_cik = "12A4567890";
         let cik_error = CikError::new(reason.clone(), invalid_cik);
 

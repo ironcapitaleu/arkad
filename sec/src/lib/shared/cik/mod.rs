@@ -37,7 +37,7 @@ impl Cik {
                 // reason: format!(
                 //     "CIK must contain only numeric characters. Got: '{original_input}'"
                 // ),
-                reason: InvalidCikReason::NonNumeric,
+                reason: InvalidCikReason::ContainsNonNumericCharacters,
             });
         }
 
@@ -53,7 +53,7 @@ impl Cik {
                 // reason: format!(
                 //     "Final CIK cannot exceed {CIK_LENGTH} digits. Got: '{}'", cik_str.len()
                 // ),
-                reason: InvalidCikReason::TooLong {
+                reason: InvalidCikReason::MaxLengthExceeded {
                     cik_length: cik_str.len(),
                 },
             });
@@ -193,7 +193,7 @@ mod tests {
 
         let expected_result = Err(CikError {
             invalid_cik: cik.to_string(),
-            reason: InvalidCikReason::NonNumeric,
+            reason: InvalidCikReason::ContainsNonNumericCharacters,
         });
 
         let result = Cik::new(cik);
@@ -207,7 +207,7 @@ mod tests {
 
         let expected_result = Err(CikError {
             invalid_cik: cik.to_string(),
-            reason: InvalidCikReason::NonNumeric,
+            reason: InvalidCikReason::ContainsNonNumericCharacters,
         });
 
         let result = Cik::new(cik);
@@ -221,7 +221,7 @@ mod tests {
 
         let expected_result = Err(CikError {
             invalid_cik: cik.to_string(),
-            reason: InvalidCikReason::TooLong {
+            reason: InvalidCikReason::MaxLengthExceeded {
                 cik_length: cik.len(),
             },
         });
@@ -238,7 +238,7 @@ mod tests {
 
         let expected_result = Err(CikError {
             invalid_cik: cik.to_string(),
-            reason: InvalidCikReason::TooLong {
+            reason: InvalidCikReason::MaxLengthExceeded {
                 cik_length: cik.len(),
             },
         });
