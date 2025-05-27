@@ -5,7 +5,7 @@ use super::constants::CIK_LENGTH;
 ///
 /// This struct provides both the reason for the failure and the offending CIK string.
 #[derive(Debug, Error, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[error("Invalid CIK: Reason: '{reason}'. Input: '{invalid_cik}'.")]
+#[error("[CikError] Invalid CIK: Reason: '{reason}'. Input: '{invalid_cik}'.")]
 pub struct CikError {
     /// The reason why the CIK is considered invalid.
     pub reason: InvalidCikReason,
@@ -64,7 +64,7 @@ mod tests {
         let cik_error = CikError::new(reason.clone(), invalid_cik);
 
         let expected_result = format!(
-            "Invalid CIK: Reason: '{}'. Input: '{}'.",
+            "[CikError] Invalid CIK: Reason: '{}'. Input: '{}'.",
             reason, invalid_cik
         );
 
@@ -80,7 +80,7 @@ mod tests {
         let cik_error = CikError::new(reason.clone(), invalid_cik);
 
         let expected_result = format!(
-            "Invalid CIK: Reason: '{}'. Input: '{}'.",
+            "[CikError] Invalid CIK: Reason: '{}'. Input: '{}'.",
             reason, invalid_cik
         );
 

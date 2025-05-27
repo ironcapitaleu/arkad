@@ -14,7 +14,7 @@ use crate::traits::error::FromDomainError;
 /// This error type is used to wrap domain-level [`CikError`]s with additional information about
 /// the state in which the error occurred, making it suitable for use in state machine error handling.
 #[derive(Error, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[error("Failure in State: `{state_name}`. Invalid CIK: Reason: '{}'. Input: '{}'.", cik_error.reason, cik_error.invalid_cik)]
+#[error("[InvalidCikFormat] Failure in State: `{state_name}`. Invalid CIK: Reason: '{}'. Input: '{}'.", cik_error.reason, cik_error.invalid_cik)]
 pub struct InvalidCikFormat {
     /// The name of the state where the error occurred.
     pub state_name: String,
