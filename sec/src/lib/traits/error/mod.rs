@@ -6,7 +6,7 @@ use std::error::Error;
 ///
 /// # Type Parameters
 /// - `DomainErr`: The domain-level error type to wrap.
-pub trait FromDomainError: Error + Into<StateError> + Sized {
+pub trait FromDomainError<DomainErr>: Error + Into<StateError> + Sized {
     /// The domain-level error type to wrap.
     type DomainErr: Error + 'static;
 

@@ -26,7 +26,6 @@ impl std::fmt::Display for InvalidCikFormat {
     /// # Example
     /// ```
     /// use sec::shared::cik::{CikError, InvalidCikReason};
-
     /// use sec::error::state_machine::state::invalid_cik_format::InvalidCikFormat;
     /// let cik_error = CikError {
     ///     reason: InvalidCikReason::ContainsNonNumericCharacters,
@@ -86,7 +85,7 @@ impl From<InvalidCikFormat> for StateError {
 /// Implements conversion from a domain-level [`CikError`] to a state-level [`InvalidCikFormat`] error.
 ///
 /// This allows enriching a [`CikError`] with state context for use in state machine error handling.
-impl FromDomainError for InvalidCikFormat {
+impl FromDomainError<CikError> for InvalidCikFormat {
     type DomainErr = CikError;
 
     /// Converts a domain-level [`CikError`] into a state-level [`InvalidCikFormat`] error.

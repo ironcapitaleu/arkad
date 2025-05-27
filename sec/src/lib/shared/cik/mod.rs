@@ -33,7 +33,7 @@ impl Cik {
         // Check if it contains only digits
         if !cik_str.chars().all(|c| c.is_ascii_digit()) {
             return Err(CikError {
-                invalid_cik: original_input.clone(),
+                invalid_cik: original_input,
                 // reason: format!(
                 //     "CIK must contain only numeric characters. Got: '{original_input}'"
                 // ),
@@ -49,7 +49,7 @@ impl Cik {
         // Ensure the length does not exceed `CIK_LENGTH` digits
         if cik_str.len() > CIK_LENGTH {
             return Err(CikError {
-                invalid_cik: original_input.clone(),
+                invalid_cik: original_input,
                 // reason: format!(
                 //     "Final CIK cannot exceed {CIK_LENGTH} digits. Got: '{}'", cik_str.len()
                 // ),

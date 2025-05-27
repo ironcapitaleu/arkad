@@ -26,7 +26,7 @@ impl CikError {
     /// Creates a new `CikError`.
     pub fn new(reason: InvalidCikReason, invalid_cik: impl Into<String>) -> Self {
         Self {
-            reason: reason,
+            reason,
             invalid_cik: invalid_cik.into(),
         }
     }
@@ -48,11 +48,11 @@ impl std::fmt::Display for InvalidCikReason {
     /// Formats the reason for display.
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            InvalidCikReason::MaxLengthExceeded { cik_length } => write!(
+            Self::MaxLengthExceeded { cik_length } => write!(
                 f,
                 "CIK cannot exceed {CIK_LENGTH} digits. Got: '{cik_length}'"
             ),
-            InvalidCikReason::ContainsNonNumericCharacters => {
+            Self::ContainsNonNumericCharacters => {
                 write!(f, "CIK contains non-numeric chracters.")
             }
         }
