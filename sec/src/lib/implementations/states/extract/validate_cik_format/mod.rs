@@ -4,6 +4,7 @@ use state_maschine::prelude::State as SMState;
 
 use crate::error::State as StateError;
 use crate::error::state_machine::state::InvalidCikFormat;
+use crate::traits::error::FromDomainError;
 use crate::traits::state_machine::state::State;
 
 pub mod vcf_context;
@@ -71,8 +72,9 @@ impl State for ValidateCikFormat {
                 self.output = Some(ValidateCikFormatOutputData { validated_cik: cik });
             }
             Err(e) => {
-                let e: InvalidCikFormat = (e, self.get_state_name().to_string()).into();
-                let e: StateError = e.into();
+                let e: StateError =
+                    InvalidCikFormat::from_domain_error(e, &self.get_state_name().to_string())
+                        .into();
                 // If the CIK is invalid, return an error
                 return Err(e);
             }

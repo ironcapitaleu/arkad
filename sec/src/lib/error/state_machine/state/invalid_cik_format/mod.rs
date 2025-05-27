@@ -44,24 +44,14 @@ impl InvalidCikFormat {
     /// * `invalid_cik` - The offending CIK string.
     #[must_use]
     pub fn new(
-        state_name: impl Into<String>,
-        reason: impl Into<String>,
-        invalid_cik: impl Into<String>,
+        state_name: &(impl ToString + ?Sized),
+        reason: &(impl ToString + ?Sized),
+        invalid_cik: &(impl ToString + ?Sized),
     ) -> Self {
         Self {
-            state_name: state_name.into(),
-            reason: reason.into(),
-            invalid_cik: invalid_cik.into(),
-        }
-    }
-}
-
-impl From<(CikError, String)> for InvalidCikFormat {
-    fn from((domain_error, state_name): (CikError, String)) -> Self {
-        Self {
-            reason: domain_error.reason,
-            invalid_cik: domain_error.invalid_cik,
-            state_name,
+            state_name: state_name.to_string(),
+            reason: reason.to_string(),
+            invalid_cik: invalid_cik.to_string(),
         }
     }
 }
@@ -79,6 +69,6 @@ impl FromDomainError for InvalidCikFormat {
 
     /// Converts a domain-level `CikError` into a state-level `InvalidCikFormat` error.
     fn from_domain_error(err: Self::DomainErr, state_name: &(impl ToString + ?Sized)) -> Self {
-        Self::from((err, state_name.to_string()))
+        Self::new(state_name, &err.reason, &err.invalid_cik)
     }
 }
