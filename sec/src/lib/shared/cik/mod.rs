@@ -1,9 +1,10 @@
 pub mod cik_error;
+pub mod constants;
+
 pub use cik_error::{CikError, InvalidCikReason};
+pub use constants::CIK_LENGTH;
 
 use std::fmt;
-
-const CIK_LENGTH: usize = 10;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 pub struct Cik {
