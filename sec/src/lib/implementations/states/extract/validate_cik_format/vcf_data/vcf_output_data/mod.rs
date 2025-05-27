@@ -7,8 +7,7 @@ use crate::error::state_machine::state::InvalidCikFormat;
 
 use crate::traits::state_machine::state::StateData;
 
-pub mod cik;
-pub use cik::Cik;
+use crate::shared::cik::Cik;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 /// Output data containing a validated CIK.

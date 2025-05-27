@@ -13,7 +13,7 @@ pub use vcf_context::ValidateCikFormatContext;
 pub use vcf_data::ValidateCikFormatInputData;
 pub use vcf_data::ValidateCikFormatOutputData;
 
-use vcf_data::Cik;
+use crate::shared::cik::Cik;
 
 #[derive(Debug, Clone, Default, PartialEq, PartialOrd, Hash, Eq, Ord)]
 /// State that validates and normalizes a raw CIK format.
