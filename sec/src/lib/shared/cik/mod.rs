@@ -51,9 +51,11 @@ impl Cik {
             return Err(CikError {
                 invalid_cik: original_input.clone(),
                 // reason: format!(
-                //     "Final CIK cannot exceed {CIK_LENGTH} digits. Got: '{original_input}'"
+                //     "Final CIK cannot exceed {CIK_LENGTH} digits. Got: '{}'", cik_str.len()
                 // ),
-                reason: InvalidCikReason::TooLong,
+                reason: InvalidCikReason::TooLong {
+                    cik_length: cik_str.len(),
+                },
             });
         }
 
@@ -219,7 +221,9 @@ mod tests {
 
         let expected_result = Err(CikError {
             invalid_cik: cik.to_string(),
-            reason: InvalidCikReason::TooLong,
+            reason: InvalidCikReason::TooLong {
+                cik_length: cik.len(),
+            },
         });
 
         let result = Cik::new(cik);
@@ -234,7 +238,9 @@ mod tests {
 
         let expected_result = Err(CikError {
             invalid_cik: cik.to_string(),
-            reason: InvalidCikReason::TooLong,
+            reason: InvalidCikReason::TooLong {
+                cik_length: cik.len(),
+            },
         });
 
         let result = Cik::new(cik);
