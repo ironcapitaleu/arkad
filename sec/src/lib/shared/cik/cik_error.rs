@@ -55,3 +55,56 @@ impl std::fmt::Display for InvalidCikReason {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use pretty_assertions::assert_eq;
+
+    #[test]
+    fn should_format_display_as_expected_when_reason_is_too_long() {
+        let reason = InvalidCikReason::TooLong;
+        let invalid_cik = "123456789012345";
+        let cik_error = CikError::new(reason, invalid_cik);
+
+        let expected_result = "Invalid CIK: Too long. Input: '123456789012345'".to_string();
+
+        let result = format!("{}", cik_error);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_format_display_as_expected_when_reason_is_non_numeric() {
+        // Arrange
+        let reason = InvalidCikReason::NonNumeric;
+        let invalid_cik = "12A4567890";
+        let cik_error = CikError::new(reason, invalid_cik);
+
+        // Define
+        let expected_result = "Invalid CIK: Non-numeric. Input: '12A4567890'".to_string();
+
+        // Act
+        let result = format!("{}", cik_error);
+
+        // Assert
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_format_display_as_expected_when_reason_is_empty() {
+        // Arrange
+        let reason = InvalidCikReason::Empty;
+        let invalid_cik = "";
+        let cik_error = CikError::new(reason, invalid_cik);
+
+        // Define
+        let expected_result = "Invalid CIK: Empty. Input: ''".to_string();
+
+        // Act
+        let result = format!("{}", cik_error);
+
+        // Assert
+        assert_eq!(result, expected_result);
+    }
+}

@@ -82,7 +82,8 @@ impl fmt::Display for Cik {
 #[cfg(test)]
 mod tests {
     use super::Cik;
-    use pretty_assertions::assert_eq;
+    use super::{CikError, InvalidCikReason};
+    use pretty_assertions::{assert_eq, assert_ne};
 
     #[test]
     fn should_create_valid_cik_struct_if_numeric_string_with_ten_digits_is_passed() {
@@ -182,4 +183,62 @@ mod tests {
 
         assert_eq!(result.value(), expected_result);
     }
+
+
+    #[test]
+    fn should_return_error_with_reason_non_numeric_when_input_contains_letters_but_has_adequate_length() {
+        let cik = "12345abcde";
+        
+        let expected_result = Err(CikError {
+            invalid_cik: cik.to_string(),
+            reason: InvalidCikReason::NonNumeric,
+        });
+
+        let result = Cik::new(cik);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_error_with_reason_non_numeric_when_input_contains_letters_and_is_too_long() {
+        let cik = "12345abcde12345";
+        
+        let expected_result = Err(CikError {
+            invalid_cik: cik.to_string(),
+            reason: InvalidCikReason::NonNumeric,
+        });
+
+        let result = Cik::new(cik);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_not_return_error_with_reason_too_long_when_input_contains_letters_and_is_too_long() {
+        let cik = "12345abcde12345";
+        
+        let expected_result = Err(CikError {
+            invalid_cik: cik.to_string(),
+            reason: InvalidCikReason::TooLong,
+        });
+
+        let result = Cik::new(cik);
+
+        assert_ne!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_error_with_reason_too_long_when_input_does_not_contain_letters_but_is_too_long() {
+        let cik = "123456789012345";
+        
+        let expected_result = Err(CikError {
+            invalid_cik: cik.to_string(),
+            reason: InvalidCikReason::TooLong,
+        });
+
+        let result = Cik::new(cik);
+
+        assert_eq!(result, expected_result);
+    }
+
 }
