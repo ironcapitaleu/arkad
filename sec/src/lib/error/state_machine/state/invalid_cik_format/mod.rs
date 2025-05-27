@@ -135,4 +135,59 @@ mod tests {
 
         assert_eq!(result, expected_result);
     }
+
+    #[test]
+    fn should_chain_cik_error_as_source_of_invalid_cik_format() {
+        let state_name = "SomeState";
+        let cik_reason = InvalidCikReason::ContainsNonNumericCharacters;
+        let invalid_cik = "12A45";
+        let cik_error = CikError {
+            reason: cik_reason,
+            invalid_cik: invalid_cik.to_string(),
+        };
+        let invalid_cik_format = InvalidCikFormat::new(state_name, cik_error.clone());
+
+        // Act
+        let source = std::error::Error::source(&invalid_cik_format);
+
+        // Assert
+        // The source should be Some(&CikError)
+        assert!(source.is_some(), "Expected source error to be present");
+        let source = source.unwrap();
+
+        let cik_error_from_source = source.downcast_ref::<CikError>();
+        assert!(
+            cik_error_from_source.is_some(),
+            "Source should be CikError type"
+        );
+        assert_eq!(cik_error_from_source.unwrap(), &cik_error);
+    }
+
+    #[test]
+    fn should_print_error_and_source_for_logging_demo() {
+        // Arrange
+        let state_name = "SomeState";
+        let cik_reason = InvalidCikReason::ContainsNonNumericCharacters;
+        let invalid_cik = "12A45";
+        let cik_error = CikError {
+            reason: cik_reason,
+            invalid_cik: invalid_cik.to_string(),
+        };
+        let invalid_cik_format = InvalidCikFormat::new(state_name, cik_error.clone());
+
+        // Act
+        let error_string = format!("{}", invalid_cik_format);
+        let source_string = match std::error::Error::source(&invalid_cik_format) {
+            Some(source) => format!("{}", source),
+            None => "No source error".to_string(),
+        };
+
+        // Print for demonstration (would be structured log in production)
+        println!("Top-level error: {error_string}");
+        println!("Caused by: {source_string}");
+
+        // Assert (optional, for completeness)
+        assert!(error_string.contains("Failure in State"));
+        assert!(source_string.contains("Invalid CIK"));
+    }
 }
