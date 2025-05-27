@@ -1,8 +1,12 @@
+pub mod invalid_cik_format;
+pub use invalid_cik_format::InvalidCikFormatError;
+
+
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 pub enum State {
     /// Invalid Cik format.
-    InvalidCikFormat(String),
+    InvalidCikFormat(InvalidCikFormatError),
 
     /// Indicates that input data of a `State` is invalid and cannot be used to compute the output data.
     InvalidInputData,
