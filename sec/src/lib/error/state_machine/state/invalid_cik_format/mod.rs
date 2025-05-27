@@ -57,9 +57,9 @@ impl InvalidCikFormat {
 }
 
 /// Converts a state-level `InvalidCikFormat` error into the state error enum variant.
-impl Into<StateError> for InvalidCikFormat {
-    fn into(self) -> StateError {
-        StateError::InvalidCikFormat(self)
+impl From<InvalidCikFormat> for StateError {
+    fn from(val: InvalidCikFormat) -> Self {
+        StateError::InvalidCikFormat(val)
     }
 }
 
