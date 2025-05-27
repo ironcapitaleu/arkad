@@ -23,7 +23,6 @@ pub struct InvalidCikFormat {
     pub cik_error: CikError,
 }
 
-
 impl InvalidCikFormat {
     /// Creates a new state-level [`InvalidCikFormat`] error.
     ///

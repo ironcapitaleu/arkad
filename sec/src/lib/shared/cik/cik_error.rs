@@ -1,26 +1,17 @@
+use thiserror::Error;
+
 use super::constants::CIK_LENGTH;
 /// Error details for an invalid CIK format.
 ///
 /// This struct provides both the reason for the failure and the offending CIK string.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Error, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[error("Invalid CIK: Reason: '{reason}'. Input: '{invalid_cik}'.")]
 pub struct CikError {
     /// The reason why the CIK is considered invalid.
     pub reason: InvalidCikReason,
     /// The invalid CIK string that was provided.
     pub invalid_cik: String,
 }
-
-impl std::fmt::Display for CikError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "Invalid CIK: Reason: '{}'. Input: '{}'.",
-            self.reason, self.invalid_cik
-        )
-    }
-}
-
-impl std::error::Error for CikError {}
 
 impl CikError {
     /// Creates a new `CikError`.
