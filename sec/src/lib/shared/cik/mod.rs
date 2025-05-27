@@ -184,11 +184,11 @@ mod tests {
         assert_eq!(result.value(), expected_result);
     }
 
-
     #[test]
-    fn should_return_error_with_reason_non_numeric_when_input_contains_letters_but_has_adequate_length() {
+    fn should_return_error_with_reason_non_numeric_when_input_contains_letters_but_has_adequate_length()
+     {
         let cik = "12345abcde";
-        
+
         let expected_result = Err(CikError {
             invalid_cik: cik.to_string(),
             reason: InvalidCikReason::NonNumeric,
@@ -202,7 +202,7 @@ mod tests {
     #[test]
     fn should_return_error_with_reason_non_numeric_when_input_contains_letters_and_is_too_long() {
         let cik = "12345abcde12345";
-        
+
         let expected_result = Err(CikError {
             invalid_cik: cik.to_string(),
             reason: InvalidCikReason::NonNumeric,
@@ -216,7 +216,7 @@ mod tests {
     #[test]
     fn should_not_return_error_with_reason_too_long_when_input_contains_letters_and_is_too_long() {
         let cik = "12345abcde12345";
-        
+
         let expected_result = Err(CikError {
             invalid_cik: cik.to_string(),
             reason: InvalidCikReason::TooLong,
@@ -228,9 +228,10 @@ mod tests {
     }
 
     #[test]
-    fn should_return_error_with_reason_too_long_when_input_does_not_contain_letters_but_is_too_long() {
+    fn should_return_error_with_reason_too_long_when_input_does_not_contain_letters_but_is_too_long()
+     {
         let cik = "123456789012345";
-        
+
         let expected_result = Err(CikError {
             invalid_cik: cik.to_string(),
             reason: InvalidCikReason::TooLong,
@@ -240,5 +241,4 @@ mod tests {
 
         assert_eq!(result, expected_result);
     }
-
 }
