@@ -1,7 +1,7 @@
 #![allow(clippy::missing_const_for_fn)]
 use std::fmt;
 
-use crate::error::State as StateError;
+use super::super::super::error::CikError;
 
 const CIK_LENGTH: usize = 10;
 
@@ -15,7 +15,7 @@ impl Cik {
     ///
     /// # Errors
     ///
-    /// Returns a `error::State::InvalidCikFormat` if the CIK is not formatted correctly.
+    /// Returns a `InvalidCikFormat` if the CIK is not formatted correctly.
     ///
     /// # Examples
     ///
@@ -25,16 +25,18 @@ impl Cik {
     /// let cik = Cik::new("123456789").expect("CIK creation with the hardcoded value should always succeed.");
     /// assert_eq!(cik.value(), "0123456789");
     /// ```
-    pub fn new(cik: &(impl ToString + ?Sized)) -> Result<Self, StateError> {
+    pub fn new(cik: &(impl ToString + ?Sized)) -> Result<Self, CikError> {
         let original_input = cik.to_string(); // Keep original input for error messages
         let mut cik_str = cik.to_string().trim().to_string(); // Trim leading and trailing whitespace
 
         // Check if it contains only digits
-
         if !cik_str.chars().all(|c| c.is_ascii_digit()) {
-            return Err(StateError::InvalidCikFormat(format!(
-                "CIK must contain only numeric characters. Got: '{original_input}'" // Show original input in error
-            )));
+            return Err(CikError {
+                invalid_cik: original_input.clone(),
+                reason: format!(
+                    "CIK must contain only numeric characters. Got: '{original_input}'"
+                ),
+            });
         }
 
         // Prepend zeros if shorter than `CIK_LENGTH` digits
@@ -44,9 +46,12 @@ impl Cik {
 
         // Ensure the length does not exceed `CIK_LENGTH` digits
         if cik_str.len() > CIK_LENGTH {
-            return Err(StateError::InvalidCikFormat(format!(
-                "Final CIK cannot exceed {CIK_LENGTH} digits. Got: '{original_input}'"
-            )));
+            return Err(CikError {
+                invalid_cik: original_input.clone(),
+                reason: format!(
+                    "Final CIK cannot exceed {CIK_LENGTH} digits. Got: '{original_input}'"
+                ),
+            });
         }
 
         Ok(Self { value: cik_str })
