@@ -52,7 +52,9 @@ impl std::fmt::Display for InvalidCikReason {
                 f,
                 "CIK cannot exceed {CIK_LENGTH} digits. Got: '{cik_length}'"
             ),
-            InvalidCikReason::ContainsNonNumericCharacters => write!(f, "CIK contains non-numeric chracters."),
+            InvalidCikReason::ContainsNonNumericCharacters => {
+                write!(f, "CIK contains non-numeric chracters.")
+            }
         }
     }
 }
