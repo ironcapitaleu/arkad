@@ -2,10 +2,11 @@
 //!
 //! This module defines [`InvalidCikFormat`], which enriches domain-level CIK errors with state context
 //! for use in state machine error handling. It also provides conversions from domain errors and into
-//! the state error enum.
+//! the `super::State` error enum.
 
 use super::State as StateError;
 use crate::shared::cik::CikError;
+use crate::traits::error::FromDomainError;
 
 /// Error details for an invalid CIK format at the state level.
 ///
@@ -55,7 +56,6 @@ impl InvalidCikFormat {
     }
 }
 
-/// Converts a domain-level `CikError` and a state name into a state-level `InvalidCikFormat` error.
 impl From<(CikError, String)> for InvalidCikFormat {
     fn from((domain_error, state_name): (CikError, String)) -> Self {
         Self {
@@ -70,5 +70,15 @@ impl From<(CikError, String)> for InvalidCikFormat {
 impl Into<StateError> for InvalidCikFormat {
     fn into(self) -> StateError {
         StateError::InvalidCikFormat(self)
+    }
+}
+
+/// Converts a domain-level `CikError` and a state name into a state-level `InvalidCikFormat` error.
+impl FromDomainError for InvalidCikFormat {
+    type DomainErr = CikError;
+
+    /// Converts a domain-level `CikError` into a state-level `InvalidCikFormat` error.
+    fn from_domain_error(err: Self::DomainErr, state_name: &(impl ToString + ?Sized)) -> Self {
+        Self::from((err, state_name.to_string()))
     }
 }
