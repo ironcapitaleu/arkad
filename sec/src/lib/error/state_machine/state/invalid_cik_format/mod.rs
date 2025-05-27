@@ -3,6 +3,7 @@
 //! This module defines [`InvalidCikFormat`], which enriches domain-level CIK errors with state context
 //! for use in state machine error handling. It also provides conversions from domain errors and into
 //! the [`StateError`] enum.
+use thiserror::Error;
 
 use super::State as StateError;
 use crate::shared::cik::CikError;
@@ -12,7 +13,8 @@ use crate::traits::error::FromDomainError;
 ///
 /// This error type is used to wrap domain-level [`CikError`]s with additional information about
 /// the state in which the error occurred, making it suitable for use in state machine error handling.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Error, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[error("Invalid CIK: Reason: '{}'. Input: '{}'. State: '{state_name}'", cik_error.reason, cik_error.invalid_cik)]
 pub struct InvalidCikFormat {
     /// The name of the state where the error occurred.
     pub state_name: String,
@@ -20,36 +22,6 @@ pub struct InvalidCikFormat {
     pub cik_error: CikError,
 }
 
-impl std::fmt::Display for InvalidCikFormat {
-    /// Formats the error for display, including the state name, reason, and offending CIK.
-    ///
-    /// # Example
-    /// ```
-    /// use sec::shared::cik::{CikError, InvalidCikReason};
-    /// use sec::error::state_machine::state::invalid_cik_format::InvalidCikFormat;
-    /// let cik_error = CikError {
-    ///     reason: InvalidCikReason::ContainsNonNumericCharacters,
-    ///     invalid_cik: "abc".to_string(),
-    /// };
-    /// let err = InvalidCikFormat {
-    ///     state_name: "SomeState".to_string(),
-    ///     cik_error,
-    /// };
-    /// assert_eq!(
-    ///     format!("{}", err),
-    ///     format!("Invalid CIK: Reason: '{}'. Input: 'abc'.", InvalidCikReason::ContainsNonNumericCharacters)
-    /// );
-    /// ```
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "Invalid CIK: Reason: '{}'. Input: '{}'.",
-            self.cik_error.reason, self.cik_error.invalid_cik
-        )
-    }
-}
-
-impl std::error::Error for InvalidCikFormat {}
 
 impl InvalidCikFormat {
     /// Creates a new state-level [`InvalidCikFormat`] error.
