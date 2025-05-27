@@ -15,9 +15,6 @@ pub use vcf_data::ValidateCikFormatOutputData;
 
 use vcf_data::Cik;
 
-pub mod error;
-pub use error::CikError;
-
 #[derive(Debug, Clone, Default, PartialEq, PartialOrd, Hash, Eq, Ord)]
 /// State that validates and normalizes a raw CIK format.
 ///

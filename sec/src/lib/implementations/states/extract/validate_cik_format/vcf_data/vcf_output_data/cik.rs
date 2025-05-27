@@ -1,8 +1,7 @@
 #![allow(clippy::missing_const_for_fn)]
 use std::fmt;
 
-use super::super::super::error::CikError;
-
+use crate::shared::cik::CikError;
 const CIK_LENGTH: usize = 10;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]

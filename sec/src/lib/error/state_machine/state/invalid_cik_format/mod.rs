@@ -5,7 +5,7 @@
 //! the state error enum.
 
 use super::State as StateError;
-use crate::implementations::states::extract::validate_cik_format::error::CikError;
+use crate::shared::cik::CikError;
 
 /// Error details for an invalid CIK format at the state level.
 ///
