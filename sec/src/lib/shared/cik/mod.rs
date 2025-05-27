@@ -1,5 +1,5 @@
 pub mod cik_error;
-pub use cik_error::CikError;
+pub use cik_error::{CikError, InvalidCikReason};
 
 use std::fmt;
 
@@ -33,9 +33,10 @@ impl Cik {
         if !cik_str.chars().all(|c| c.is_ascii_digit()) {
             return Err(CikError {
                 invalid_cik: original_input.clone(),
-                reason: format!(
-                    "CIK must contain only numeric characters. Got: '{original_input}'"
-                ),
+                // reason: format!(
+                //     "CIK must contain only numeric characters. Got: '{original_input}'"
+                // ),
+                reason: InvalidCikReason::NonNumeric,
             });
         }
 
@@ -48,9 +49,10 @@ impl Cik {
         if cik_str.len() > CIK_LENGTH {
             return Err(CikError {
                 invalid_cik: original_input.clone(),
-                reason: format!(
-                    "Final CIK cannot exceed {CIK_LENGTH} digits. Got: '{original_input}'"
-                ),
+                // reason: format!(
+                //     "Final CIK cannot exceed {CIK_LENGTH} digits. Got: '{original_input}'"
+                // ),
+                reason: InvalidCikReason::TooLong,
             });
         }
 

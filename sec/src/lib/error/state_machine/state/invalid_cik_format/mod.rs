@@ -108,6 +108,8 @@ impl FromDomainError for InvalidCikFormat {
 
 #[cfg(test)]
 mod tests {
+    use crate::shared::cik::InvalidCikReason;
+
     use super::*;
     use pretty_assertions::assert_eq;
 
@@ -147,7 +149,7 @@ mod tests {
     fn should_convert_from_domain_error_when_from_domain_error_is_called() {
         // Arrange
         let cik_error = CikError {
-            reason: "Non-numeric".to_string(),
+            reason: InvalidCikReason::NonNumeric,
             invalid_cik: "abc".to_string(),
         };
         let state_name = "ParsingState";
