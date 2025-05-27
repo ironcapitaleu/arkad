@@ -57,7 +57,7 @@ impl StateData for ValidateCikFormatOutputData {
                 Err(_) => Err(StateError::InvalidCikFormat(InvalidCikFormat {
                     reason: format!("CIK '{cik}' is not formatted correctly."),
                     invalid_cik: cik.to_string(),
-                    state_name:  self.get_state().to_string(),
+                    state_name: self.get_state().to_string(),
                 })),
             }
         } else {
