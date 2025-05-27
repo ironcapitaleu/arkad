@@ -105,3 +105,76 @@ impl FromDomainError for InvalidCikFormat {
         Self::new(state_name, &err.reason, &err.invalid_cik)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use pretty_assertions::assert_eq;
+
+    #[test]
+    fn should_create_invalid_cik_format_when_new_is_called() {
+        let state_name = "TestState";
+        let reason = "Invalid length";
+        let invalid_cik = "12345";
+
+        let expected_result = InvalidCikFormat {
+            state_name: state_name.to_string(),
+            reason: reason.to_string(),
+            invalid_cik: invalid_cik.to_string(),
+        };
+
+        let result = InvalidCikFormat::new(state_name, reason, invalid_cik);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_format_display_as_expected_when_fmt_is_called() {
+        let err = InvalidCikFormat {
+            state_name: "SomeState".to_string(),
+            reason: "Too short".to_string(),
+            invalid_cik: "123".to_string(),
+        };
+
+        let expected_result = "Invalid CIK: Too short. Input: '123'".to_string();
+
+        let result = format!("{}", err);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_convert_from_domain_error_when_from_domain_error_is_called() {
+        // Arrange
+        let cik_error = CikError {
+            reason: "Non-numeric".to_string(),
+            invalid_cik: "abc".to_string(),
+        };
+        let state_name = "ParsingState";
+
+        let expected_result = InvalidCikFormat {
+            state_name: state_name.to_string(),
+            reason: "Non-numeric".to_string(),
+            invalid_cik: "abc".to_string(),
+        };
+
+        let result = InvalidCikFormat::from_domain_error(cik_error, state_name);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_convert_to_state_error_when_from_is_called() {
+        let invalid_cik_format = InvalidCikFormat {
+            state_name: "TestState".to_string(),
+            reason: "Invalid".to_string(),
+            invalid_cik: "000".to_string(),
+        };
+
+        let expected_result = StateError::InvalidCikFormat(invalid_cik_format.clone());
+
+        let result: StateError = invalid_cik_format.into();
+
+        assert_eq!(result, expected_result);
+    }
+}
