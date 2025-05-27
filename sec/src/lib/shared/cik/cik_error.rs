@@ -70,7 +70,10 @@ mod tests {
         };
         let cik_error = CikError::new(reason.clone(), invalid_cik);
 
-        let expected_result = format!("Invalid CIK: Reason: '{}'. Input: '{}'.", reason, invalid_cik);
+        let expected_result = format!(
+            "Invalid CIK: Reason: '{}'. Input: '{}'.",
+            reason, invalid_cik
+        );
 
         let result = format!("{}", cik_error);
 
@@ -83,7 +86,10 @@ mod tests {
         let invalid_cik = "12A4567890";
         let cik_error = CikError::new(reason.clone(), invalid_cik);
 
-        let expected_result = format!("Invalid CIK: Reason: '{}'. Input: '{}'.", reason, invalid_cik);
+        let expected_result = format!(
+            "Invalid CIK: Reason: '{}'. Input: '{}'.",
+            reason, invalid_cik
+        );
 
         let result = format!("{}", cik_error);
 
