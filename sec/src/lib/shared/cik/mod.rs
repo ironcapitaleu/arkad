@@ -1,3 +1,27 @@
+//! # Central Index Key (CIK) Utilities
+//!
+//! This module provides the [`Cik`] type and related utilities for parsing and validating the format of
+//! SEC Central Index Keys (CIKs). It is used throughout the SEC state machine library to ensure that
+//! CIKs are handled in a consistent and robust manner.
+//!
+//! ## Modules
+//! - [`cik_error`]: Error types and reasons for invalid CIKs.
+//! - [`constants`]: Constants related to CIK formatting, such as `CIK_LENGTH`.
+//!
+//! ## Types
+//! - [`Cik`]: Strongly-typed wrapper for a validated CIK string, with constructors and validation logic.
+//! - [`CikError`], [`InvalidCikReason`]: Error types for reporting CIK validation failures.
+//!
+//! ## Usage
+//! The [`Cik`] type is used by state input/output data structures (such as in the `validate_cik_format` state)
+//! to ensure that only valid CIKs are accepted and processed. The module provides methods for constructing
+//! and validating CIKs, as well as error types for detailed error reporting in state transitions and validation routines.
+//!
+//! ## See Also
+//! - [`crate::shared`]: Shared domain types and utilities used across the SEC state machine library.
+//! - [`crate::implementations::states::extract::validate_cik_format::vcf_data`]: Modules that use [`Cik`] for input/output validation.
+//! - [`crate::error`]: Error types that may reference [`CikError`] and [`InvalidCikReason`] for detailed diagnostics.
+
 pub mod cik_error;
 pub mod constants;
 
@@ -7,16 +31,31 @@ pub use constants::CIK_LENGTH;
 use std::fmt;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
+/// Strongly-typed wrapper for a validated SEC Central Index Key (CIK).
+///
+/// The `Cik` type ensures that only valid, 10-digit, zero-padded numeric CIKs are constructed and used
+/// throughout the SEC state machine library. Use [`Cik::new`] to construct and validate a CIK value.
 pub struct Cik {
     value: String,
 }
 
 impl Cik {
-    /// Creates a new `Cik` from a string, trimming whitespace and padding with zeros if less than 10 digits.
+    /// Creates a new [`Cik`] from any value implementing [`ToString`].
+    ///
+    /// Accepts string slices, `String`, or any type that can be converted to a string.
+    /// Trims leading and trailing whitespace and pads with zeros if the input is less than 10 digits.
+    ///
+    /// # Arguments
+    ///
+    /// * `cik` - Any type that implements [`ToString`] (e.g., `&str`, `String`, numeric types).
+    ///
+    /// # Returns
+    ///
+    /// Returns `Ok(Cik)` if the input is a valid CIK, or a [`CikError`] if the input is invalid.
     ///
     /// # Errors
     ///
-    /// Returns a `CikError` if the CIK is not formatted correctly.
+    /// Returns a `CikError` if the CIK is not formatted correctly (i.e., if the input contains non-numeric characters or exceeds the maximum allowed length).
     ///
     /// # Examples
     ///
@@ -68,7 +107,7 @@ impl Cik {
         &self.value
     }
 
-    /// Validates if the CIK contains exactly `CIK_LENGTH` digits.
+    /// Validates if a passed CIK contains exactly `CIK_LENGTH` digits.
     #[must_use]
     pub fn is_valid(cik: &str) -> bool {
         cik.len() == CIK_LENGTH && cik.chars().all(|c| c.is_ascii_digit())

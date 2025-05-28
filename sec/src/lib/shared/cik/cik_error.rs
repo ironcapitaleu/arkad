@@ -1,3 +1,23 @@
+//! # CIK Error Types
+//!
+//! This module defines error types and reasons for invalid SEC Central Index Keys (CIKs).
+//! It is used throughout the [`crate::shared::cik`] module and by state machine implementations
+//! that require robust error reporting for CIK parsing and validation failures.
+//!
+//! ## Types
+//! - [`CikError`]: Error struct containing the [`InvalidCikReason`] and the offending CIK string. This allows precise diagnostics about why a CIK is invalid.
+//! - [`InvalidCikReason`]: Enum describing specific reasons for CIK validation failure, such as exceeding the maximum length or containing non-numeric characters.
+//!
+//! ## Usage
+//! These error types are returned by CIK parsing and validation routines, and are used in state data modules such as
+//! [`crate::implementations::states::extract::validate_cik_format::vcf_data`] to provide detailed diagnostics and error handling.
+//! They are also used as domain errors for the general state machine error logic in [`crate::error`] and are wrapped by state-level errors like [`crate::error::state_machine::state::InvalidCikFormat`].
+//!
+//! ## See Also
+//! - [`crate::shared::cik`]: Main CIK utilities module.
+//! - [`crate::error`]: Error types that may reference CIK errors for reporting.
+//! - [`crate::error::state_machine::state::InvalidCikFormat`]: State-level error that wraps `CikError` for error propagation in state machines.
+
 use thiserror::Error;
 
 use super::constants::CIK_LENGTH;
