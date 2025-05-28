@@ -16,3 +16,9 @@
 /// This constant defines the exact number of digits a CIK must have to be considered valid
 /// according to SEC requirements.
 pub const CIK_LENGTH: usize = 10;
+
+/// The CIK (Central Index Key) assigned to Berkshire Hathaway Inc. by the SEC.
+///
+/// This constant can be used in tests, examples, or as a reference value when working with CIK-related
+/// validation and parsing logic throughout the codebase.
+pub const BERKSHIRE_HATHAWAY_CIK: &str = "1067983";

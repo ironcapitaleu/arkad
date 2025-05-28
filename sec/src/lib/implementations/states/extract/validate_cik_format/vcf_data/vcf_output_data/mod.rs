@@ -31,11 +31,9 @@ use state_maschine::prelude::StateData as SMStateData;
 
 use crate::error::State as StateError;
 use crate::error::state_machine::state::InvalidCikFormat;
-
+use crate::shared::cik::{Cik, constants::BERKSHIRE_HATHAWAY_CIK};
 use crate::traits::error::FromDomainError;
 use crate::traits::state_machine::state::StateData;
-
-use crate::shared::cik::Cik;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 /// Output data containing a validated CIK.
@@ -103,7 +101,6 @@ impl SMStateData for ValidateCikFormatOutputData {
         // This method is not used in this context.
     }
 }
-const BERKSHIRE_HATHAWAY_CIK: &str = "1067983";
 
 impl Default for ValidateCikFormatOutputData {
     /// Returns a default output using the CIK for Berkshire Hathaway (CIK: 1067983).
@@ -176,12 +173,14 @@ impl Default for ValidateCikFormatOutputDataUpdaterBuilder {
 
 #[cfg(test)]
 mod tests {
-    use crate::implementations::states::extract::validate_cik_format::vcf_data::vcf_output_data::BERKSHIRE_HATHAWAY_CIK;
-    use crate::traits::state_machine::state::StateData;
-
-    use super::{Cik, ValidateCikFormatOutputData, ValidateCikFormatOutputDataUpdaterBuilder};
     use pretty_assertions::{assert_eq, assert_ne};
     use state_maschine::prelude::StateData as SMStateData;
+
+    use super::{
+        BERKSHIRE_HATHAWAY_CIK, Cik, ValidateCikFormatOutputData,
+        ValidateCikFormatOutputDataUpdaterBuilder,
+    };
+    use crate::traits::state_machine::state::StateData;
 
     #[test]
     fn should_return_reference_to_default_validation_state_data_when_initialized_with_default() {

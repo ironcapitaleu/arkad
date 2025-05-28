@@ -33,6 +33,7 @@ use std::fmt;
 
 use state_maschine::prelude::ContextData as SMContextData;
 
+use crate::shared::cik::constants::BERKSHIRE_HATHAWAY_CIK;
 use crate::traits::state_machine::state::ContextData;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
@@ -91,8 +92,6 @@ impl SMContextData for ValidateCikFormatContext {
         }
     }
 }
-
-const BERKSHIRE_HATHAWAY_CIK: &str = "1067983";
 
 impl Default for ValidateCikFormatContext {
     /// Returns a default context using the CIK for Berkshire Hathaway (CIK: 1067983).
@@ -157,12 +156,12 @@ impl Default for ValidateCikFormatContextUpdaterBuilder {
 
 #[cfg(test)]
 mod tests {
-
-    use crate::implementations::states::extract::validate_cik_format::vcf_context::BERKSHIRE_HATHAWAY_CIK;
-
-    use super::{ValidateCikFormatContext, ValidateCikFormatContextUpdaterBuilder};
     use pretty_assertions::{assert_eq, assert_ne};
     use state_maschine::prelude::*;
+
+    use super::{
+        BERKSHIRE_HATHAWAY_CIK, ValidateCikFormatContext, ValidateCikFormatContextUpdaterBuilder,
+    };
 
     #[test]
     fn should_return_reference_to_default_validation_context_when_initialized_with_default() {

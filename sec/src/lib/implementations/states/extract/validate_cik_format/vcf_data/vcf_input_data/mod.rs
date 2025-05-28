@@ -30,6 +30,7 @@ use std::fmt;
 use state_maschine::prelude::StateData as SMStateData;
 
 use crate::error::State as StateError;
+use crate::shared::cik::constants::BERKSHIRE_HATHAWAY_CIK;
 use crate::traits::state_machine::state::StateData;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
@@ -92,8 +93,6 @@ impl SMStateData for ValidateCikFormatInputData {
         // This method is not used in this context.
     }
 }
-
-const BERKSHIRE_HATHAWAY_CIK: &str = "1067983";
 
 impl Default for ValidateCikFormatInputData {
     /// Returns a default input using the CIK for Berkshire Hathaway (CIK: 1067983).
@@ -165,13 +164,14 @@ impl Default for ValidateCikFormatInputDataUpdaterBuilder {
 
 #[cfg(test)]
 mod tests {
-
-    use crate::implementations::states::extract::validate_cik_format::vcf_data::vcf_input_data::BERKSHIRE_HATHAWAY_CIK;
-    use crate::traits::state_machine::state::StateData;
-
-    use super::{ValidateCikFormatInputData, ValidateCikFormatInputDataUpdaterBuilder};
     use pretty_assertions::{assert_eq, assert_ne};
     use state_maschine::prelude::StateData as SMStateData;
+
+    use super::{
+        BERKSHIRE_HATHAWAY_CIK, ValidateCikFormatInputData,
+        ValidateCikFormatInputDataUpdaterBuilder,
+    };
+    use crate::traits::state_machine::state::StateData;
 
     #[test]
     fn should_return_reference_to_default_validation_state_data_when_initialized_with_default() {
