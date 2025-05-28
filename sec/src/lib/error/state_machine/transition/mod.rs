@@ -7,8 +7,8 @@
 //! ## Overview
 //!
 //! The [`Transition`] enum covers two main failure scenarios:
-//! - [`FailedOutputConversion`]: Occurs when the output data of the source state cannot be converted into the input data of the destination state.
-//! - [`FailedContextConversion`]: Occurs when the context data of the source state cannot be converted into the context data of the destination state.
+//! - [`FailedOutputConversion`](Transition::FailedOutputConversion): Occurs when the output data of the source state cannot be converted into the input data of the destination state.
+//! - [`FailedContextConversion`](Transition::FailedContextConversion): Occurs when the context data of the source state cannot be converted into the context data of the destination state.
 //!
 //! These errors are intended to be used by implementers of the [`Transition`](crate::traits::state_machine::transition::Transition) trait
 //! and are surfaced by the state machine error handling system (see [`crate::error`] and [`crate::error::state_machine`]).

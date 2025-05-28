@@ -5,7 +5,7 @@
 //!
 //! ## Types
 //! - [`State`]: Enum representing all error variants that can arise from state operations, including invalid CIK format, invalid input/context data, failed output computation, and update failures.
-//! - [`InvalidCikFormat`](invalid_cik_format::InvalidCikFormat): Error type for invalid CIK format, used as a variant in [`State`].
+//! - [`InvalidCikFormat`](invalid_cik_format): Error type for invalid CIK format, used as a variant in [`State`].
 //!
 //! ## Usage
 //! Use [`State`] for error propagation and pattern matching when handling errors that originate from state logic. This enables granular error handling for state-specific failures within the broader state machine error hierarchy.

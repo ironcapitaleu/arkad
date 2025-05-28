@@ -1,15 +1,16 @@
 //! # SEC State Machine Traits
 //!
-//! This module defines the core traits for building SEC-specific state machines, states, super states, and transitions.
+//! This module defines the core traits for SEC-specific state types, as well as their associated context and state data.
+//! For transition and super state traits, see the [`crate::traits::state_machine::transition`] and [`crate::traits::state_machine::super_state`] modules.
 //! It extends the generic [`state_maschine`] framework with domain-specific abstractions for robust, type-safe, and testable workflows
 //! in SEC data processing pipelines.
 //!
 //! ## Modules
-//! - [`state`]: Traits for defining states, context data, and state data used within SEC state machines.
-//! - [`super_state`]: Traits for hierarchical (composite) states, supporting advanced state machine patterns.
+//! - [`context_data`]: Traits for defining context data used within SEC state machines.
+//! - [`state_data`]: Traits for defining state data used within SEC state machines.
 //!
 //! ## Usage
-//! Implement the [`SecStateMachine`] trait for your SEC-specific state machine types to leverage the extensible framework
+//! Implement the [`StateMachine`](super::StateMachine) trait for your SEC-specific state machine types to leverage the extensible framework
 //! and integrate with concrete state, context, and data implementations found in [`crate::implementations`].
 //!
 //! See the documentation for each submodule for details on trait requirements and usage patterns.

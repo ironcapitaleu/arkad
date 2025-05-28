@@ -5,12 +5,12 @@
 //! composing, and interacting with SEC state machines, states, context, and transitions.
 //!
 //! ## Re-exports
-//! - [`SecStateMachine`](crate::traits::state_machine::SecStateMachine): Trait for SEC-specific state machines.
-//! - [`State`](crate::traits::state_machine::state::State): Trait for defining individual states.
-//! - [`StateData`](crate::traits::state_machine::state::StateData): Trait for state data management.
-//! - [`ContextData`](crate::traits::state_machine::state::ContextData): Trait for context data management.
-//! - [`SuperState`](crate::traits::state_machine::super_state::SuperState): Trait for hierarchical state machines.
-//! - [`Transition`](crate::traits::state_machine::transition::Transition): Trait for defining state transitions.
+//! - [`SecStateMachine`]: Trait for SEC-specific state machines.
+//! - [`State`]: Trait for defining individual states.
+//! - [`StateData`]: Trait for state data management.
+//! - [`ContextData`]: Trait for context data management.
+//! - [`SuperState`]: Trait for hierarchical state machines.
+//! - [`Transition`]: Trait for defining state transitions.
 //!
 //! ## Usage
 //!

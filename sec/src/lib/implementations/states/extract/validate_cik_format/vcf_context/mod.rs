@@ -2,7 +2,7 @@
 //!
 //! This module defines the context data structures and updaters for the [`ValidateCikFormat`](../mod.rs) state in the SEC filings extraction workflow.
 //!
-//! The context provides stateful information required during CIK format validation, such as the raw CIK string and retry configuration. It is designed to be used with the [`ContextData`](crate::traits::state_machine::state::ContextData) trait, enabling ergonomic context management and updates within state machines.
+//! The context provides stateful information required during CIK format validation, such as the raw CIK string and retry configuration. It is designed to be used with the [`ContextData`] trait, enabling ergonomic context management and updates within state machines.
 //!
 //! ## Components
 //! - [`ValidateCikFormatContext`]: Holds the current context for CIK validation, including the raw CIK and retry count.
