@@ -37,6 +37,8 @@ To ensure readability and consistency, all Rust imports in this project must be 
 
 Within each group, order imports alphabetically by path. Separate each group with a single blank line for clarity.
 
+After the final line of imports, new module declarations (e.g., `mod foo;`) can be made. Imports, and public re-exports (e.g., `pub use foo::Bar;`) should be placed after the module declarations in this case.
+
 **Example:**
 ```rust
 use std::collections::HashMap;
