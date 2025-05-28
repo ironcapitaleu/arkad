@@ -1,3 +1,34 @@
+//! # Validate CIK Format Context Module
+//!
+//! This module defines the context data structures and updaters for the [`ValidateCikFormat`](../mod.rs) state in the SEC filings extraction workflow.
+//!
+//! The context provides stateful information required during CIK format validation, such as the raw CIK string and retry configuration. It is designed to be used with the [`ContextData`](crate::traits::state_machine::state::ContextData) trait, enabling ergonomic context management and updates within state machines.
+//!
+//! ## Components
+//! - [`ValidateCikFormatContext`]: Holds the current context for CIK validation, including the raw CIK and retry count.
+//! - [`ValidateCikFormatContextUpdater`]: Updater type for modifying context fields in a controlled way.
+//! - [`ValidateCikFormatContextUpdaterBuilder`]: Builder for constructing context updaters with a fluent API.
+//!
+//! ## Usage
+//! The context is used by the [`ValidateCikFormat`](../mod.rs) state to track the CIK being validated and manage retry logic. It supports updates via the builder pattern, making it easy to compose context changes in state machine workflows.
+//!
+//! ## Example
+//! ```rust
+//! use sec::implementations::states::extract::validate_cik_format::vcf_context::*;
+//! use state_maschine::prelude::*;
+//!
+//! let mut context = ValidateCikFormatContext::default();
+//! let update = ValidateCikFormatContextUpdaterBuilder::new()
+//!     .cik("0000000001")
+//!     .build();
+//! context.update_context(update);
+//! assert_eq!(context.cik(), "0000000001");
+//! ```
+//!
+//! ## See Also
+//! - [`crate::traits::state_machine::state::ContextData`]: Trait for context data management in states.
+//! - [`crate::implementations::states::extract::validate_cik_format`]: Parent module for CIK validation state and data types.
+
 use std::fmt;
 
 use state_maschine::prelude::ContextData as SMContextData;
@@ -16,6 +47,12 @@ pub struct ValidateCikFormatContext {
 
 impl ValidateCikFormatContext {
     /// Creates a new instance of the state context for the CIK format validation.
+    ///
+    /// # Arguments
+    /// * `raw_cik` - A value that can be converted to a string, representing the raw CIK to validate.
+    ///
+    /// # Returns
+    /// A new `ValidateCikFormatContext` with the provided CIK and default retry count.
     pub fn new(cik: &(impl ToString + ?Sized)) -> Self {
         Self {
             raw_cik: cik.to_string(),
@@ -23,6 +60,7 @@ impl ValidateCikFormatContext {
         }
     }
 
+    /// Returns a reference to the current raw CIK string in the context.
     #[must_use]
     pub const fn cik(&self) -> &String {
         &self.raw_cik
@@ -30,6 +68,7 @@ impl ValidateCikFormatContext {
 }
 
 impl ContextData for ValidateCikFormatContext {
+    /// Returns the maximum number of retries allowed for CIK validation.
     fn get_max_retries(&self) -> u32 {
         self.max_retries
     }
@@ -37,10 +76,15 @@ impl ContextData for ValidateCikFormatContext {
 
 impl SMContextData for ValidateCikFormatContext {
     type UpdateType = ValidateCikFormatContextUpdater;
+
+    /// Returns a reference to the current context.
     fn get_context(&self) -> &Self {
         self
     }
 
+    /// Updates the context fields using the provided updater.
+    ///
+    /// Only fields set in the updater will be changed.
     fn update_context(&mut self, updates: Self::UpdateType) {
         if let Some(cik) = updates.raw_cik {
             self.raw_cik = cik;
@@ -65,20 +109,29 @@ impl fmt::Display for ValidateCikFormatContext {
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 /// Updater for the state context.
+///
+/// Using this struct allows to update fields of `ValidateCikFormatContext` in a controlled way.
 pub struct ValidateCikFormatContextUpdater {
     pub raw_cik: Option<String>,
 }
 
-/// Updater builder for the state context.
+/// Builder for `ValidateCikFormatContextUpdater`.
+///
+/// Use this builder to fluently construct an updater for the context.
 pub struct ValidateCikFormatContextUpdaterBuilder {
     raw_cik: Option<String>,
 }
 impl ValidateCikFormatContextUpdaterBuilder {
+    /// Creates a new updater builder with no fields set.
     #[must_use]
     pub const fn new() -> Self {
         Self { raw_cik: None }
     }
 
+    /// Sets the raw CIK value inside the context to the provided update value.
+    ///
+    /// # Arguments
+    /// * `cik` - A value that can be converted to a string, representing the new raw CIK.    
     #[must_use]
     #[allow(clippy::missing_const_for_fn)]
     pub fn cik(mut self, cik: &(impl ToString + ?Sized)) -> Self {
@@ -86,6 +139,7 @@ impl ValidateCikFormatContextUpdaterBuilder {
         self
     }
 
+    /// Builds the updater with the specified fields.
     #[must_use]
     pub fn build(self) -> ValidateCikFormatContextUpdater {
         ValidateCikFormatContextUpdater {
@@ -95,6 +149,7 @@ impl ValidateCikFormatContextUpdaterBuilder {
 }
 
 impl Default for ValidateCikFormatContextUpdaterBuilder {
+    /// Returns a new context update builder with no fields set.
     fn default() -> Self {
         Self::new()
     }

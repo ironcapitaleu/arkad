@@ -1,3 +1,30 @@
+//! # `ValidateCikFormatInputData` Module
+//!
+//! This module defines the input data structure and updater patterns for the `ValidateCikFormat` state
+//! within the SEC extraction state machine. It provides types and builders for representing and updating
+//! the raw Central Index Key (CIK) input, which is validated as part of the SEC document extraction workflow.
+//!
+//! ## Types
+//! - [`ValidateCikFormatInputData`]: Holds the unvalidated CIK string to be processed by the validation state.
+//! - [`ValidateCikFormatInputDataUpdater`]: Updater type for modifying the input data in a controlled manner.
+//! - [`ValidateCikFormatInputDataUpdaterBuilder`]: Builder for constructing updater instances with optional fields.
+//!
+//! ## Integration
+//! - Implements [`StateData`](state_maschine::state_machine::state::StateData) for compatibility with the state machine framework.
+//! - Used by [`ValidateCikFormat`](crate::implementations::states::extract::validate_cik_format) to receive and update CIK input.
+//!
+//! ## Usage
+//! This module is intended for use in the input phase of CIK validation. It supports builder-based updates and
+//! integrates with the state machine's updater and state data traits for robust, testable workflows.
+//!
+//! ## See Also
+//! - [`vcf_output_data`](super::vcf_output_data): Output data structure for validated CIKs.
+//! - [`crate::shared::cik`]: Utilities for CIK parsing and validation.
+//! - [`state_maschine::prelude::StateData`]: Trait for state data integration.
+//!
+//! ## Examples
+//! See the unit tests in this module for usage patterns and updater logic.
+
 use std::fmt;
 
 use state_maschine::prelude::StateData as SMStateData;
@@ -7,6 +34,11 @@ use crate::traits::state_machine::state::StateData;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 /// Input data for validating the format of a CIK.
+///
+/// This struct holds the raw, unvalidated Central Index Key (CIK) string
+/// that will be processed by the `ValidateCikFormat` state. It is designed
+/// to be used as part of the SEC document extraction workflow, and supports
+/// builder-based updates and integration with the state machine framework.
 pub struct ValidateCikFormatInputData {
     /// The unvalidated CIK string provided for validation.
     pub raw_cik: String,
@@ -28,7 +60,7 @@ impl ValidateCikFormatInputData {
         }
     }
 
-    /// Returns the CIK.
+    /// Returns a reference to the raw CIK string.
     #[must_use]
     pub const fn cik(&self) -> &String {
         &self.raw_cik
@@ -36,6 +68,9 @@ impl ValidateCikFormatInputData {
 }
 
 impl StateData for ValidateCikFormatInputData {
+    /// Updates the state data using the provided updater.
+    ///
+    /// If `raw_cik` is `Some`, updates the CIK string; otherwise, leaves it unchanged.
     fn update_state(&mut self, updates: Self::UpdateType) -> Result<(), StateError> {
         if let Some(cik) = updates.raw_cik {
             self.raw_cik = cik;
@@ -47,11 +82,12 @@ impl StateData for ValidateCikFormatInputData {
 impl SMStateData for ValidateCikFormatInputData {
     type UpdateType = ValidateCikFormatInputDataUpdater;
 
+    /// Returns a reference to the current state data, which represents the input data of this state.
     fn get_state(&self) -> &Self {
         self
     }
 
-    /// Provided by `SecStateData` trait.
+    /// Provided by `SecStateData` trait. Not used in this context.
     fn update_state(&mut self, _updates: Self::UpdateType) {
         // This method is not used in this context.
     }
@@ -75,21 +111,35 @@ impl fmt::Display for ValidateCikFormatInputData {
 }
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
-/// Updater for the validation input.
+/// Updater for [`ValidateCikFormatInputData`].
+///
+/// This struct is used to specify updates to the input data in a controlled, partial manner.
+/// Fields set to `None` will not be updated. Used in conjunction with the state machine's
+/// update mechanism to ensure safe and explicit state transitions.
 pub struct ValidateCikFormatInputDataUpdater {
+    /// Optional new value for the raw CIK string.
     pub raw_cik: Option<String>,
 }
 
-/// Updater builder for the validation input.
+/// Builder for [`ValidateCikFormatInputDataUpdater`].
+///
+/// This builder allows for ergonomic and explicit construction of updater instances,
+/// supporting method chaining and optional fields. Use `.build()` to produce the updater.
 pub struct ValidateCikFormatInputDataUpdaterBuilder {
     raw_cik: Option<String>,
 }
 impl ValidateCikFormatInputDataUpdaterBuilder {
+    /// Creates a new updater builder with no fields set.
     #[must_use]
     pub const fn new() -> Self {
         Self { raw_cik: None }
     }
 
+    /// Sets the raw CIK value to the one to be updated to.
+    ///
+    /// # Arguments
+    ///
+    /// * `cik` - The new raw CIK value as any type implementing `ToString`.
     #[must_use]
     #[allow(clippy::missing_const_for_fn)]
     pub fn cik(mut self, cik: &(impl ToString + ?Sized)) -> Self {
@@ -97,6 +147,7 @@ impl ValidateCikFormatInputDataUpdaterBuilder {
         self
     }
 
+    /// Builds the updater instance from the builder.
     #[must_use]
     pub fn build(self) -> ValidateCikFormatInputDataUpdater {
         ValidateCikFormatInputDataUpdater {
@@ -106,6 +157,7 @@ impl ValidateCikFormatInputDataUpdaterBuilder {
 }
 
 impl Default for ValidateCikFormatInputDataUpdaterBuilder {
+    /// Returns a new updater builder with no fields set.
     fn default() -> Self {
         Self::new()
     }

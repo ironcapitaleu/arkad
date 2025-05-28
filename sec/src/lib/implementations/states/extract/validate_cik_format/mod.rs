@@ -1,3 +1,41 @@
+//! # CIK Format Validation State
+//!
+//! This module provides the [`ValidateCikFormat`] state and related types for validating and normalizing raw CIK (Central Index Key) strings as part of the SEC filings extraction workflow.
+//!
+//! ## Overview
+//! The [`ValidateCikFormat`] state is responsible for syntactic validation and normalization of CIKs extracted from SEC filings. It ensures that the CIK is a 10-digit, zero-padded string containing only numeric characters. This state does **not** check for the existence of the CIK in the SEC database; it only validates the format.
+//!
+//! ## Components
+//! - [`vcf_context`]: Defines the context data and updater types for the validation process, allowing stateful tracking of CIK-related context.
+//! - [`vcf_data`]: Contains input and output data structures for the validation state, including updaters and builders for ergonomic data manipulation.
+//! - [`ValidateCikFormatContext`]: Context data type for the state.
+//! - [`ValidateCikFormatInputData`]: Input data type holding the raw CIK string.
+//! - [`ValidateCikFormatOutputData`]: Output data type containing the validated and normalized CIK.
+//!
+//! ## Usage
+//! This state is typically used as the first step in the extract phase of the SEC state machine ETL pipeline, prior to any transformation or loading steps. It is designed to be composed with other states for robust and testable SEC filings processing workflows.
+//!
+//! ## Example
+//! ```rust
+//! use sec::prelude::*; // allows us to use call the `State`and other trait methods directly`
+//! use state_maschine::prelude::State as SMState;
+//!
+//! use sec::implementations::states::extract::validate_cik_format::*;
+//! let input = ValidateCikFormatInputData { raw_cik: "1234".into() };
+//! let context = ValidateCikFormatContext::default();
+//! let mut validation_state = ValidateCikFormat::new(input, context);
+//! sec::prelude::State::compute_output_data(&mut validation_state).unwrap();
+//! let validated_output = validation_state.get_output_data().unwrap();
+//! assert_eq!(validated_output.validated_cik.value(), "0000001234");
+//! ```
+//!
+//! ## See Also
+//! - [`crate::implementations::states::extract`]: Parent module for extraction-related states.
+//! - [`crate::shared::cik::Cik`]: Core CIK type used for format validation and normalization.
+//! - [`crate::traits::state_machine::state::State`]: State trait implemented by [`ValidateCikFormat`].
+//!
+//! ## Testing
+//! This module includes comprehensive unit tests covering state behavior, trait compliance, and error handling.
 use std::fmt;
 
 use state_maschine::prelude::State as SMState;
