@@ -50,7 +50,6 @@ pub enum Transition {
     /// be transformed or mapped into the input data required by the destination state during a transition.
     FailedOutputConversion,
 
-
     /// Failed to convert context of the source state into the context of the destination state.
     ///
     /// This error variant indicates that the context data associated with the source state could not
