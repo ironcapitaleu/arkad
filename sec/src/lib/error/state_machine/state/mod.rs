@@ -10,6 +10,19 @@
 //! ## Usage
 //! Use [`State`] for error propagation and pattern matching when handling errors that originate from state logic. This enables granular error handling for state-specific failures within the broader state machine error hierarchy.
 //!
+//! ## Related Modules
+//!
+//! - [`crate::error`]: Top-level error types for the SEC state machine library, providing unified error handling across all components.
+//! - [`crate::error::state_machine`]: Error types specific to state machine operations, such as transition failures and invalid state transitions.
+//! - [`crate::error::state_machine::state::invalid_cik_format`]: Defines the [`InvalidCikFormat`] error type for handling invalid CIK format errors within state logic.
+//! - [`crate::traits::state_machine::state`]: Core trait definitions for state behavior, including state lifecycle, data management, and error propagation.
+//! - [`crate::traits::state_machine::state::state_data`]: Traits and types for managing and updating state data, including error handling for state data operations.
+//! - [`crate::traits::state_machine::state::context_data`]: Traits and types for managing and updating context data, including error handling for context data operations.
+//! - [`crate::traits::state_machine::transition`]: Traits for defining and handling state transitions, which may produce or propagate state errors.
+//! - [`crate::traits::state_machine::super_state`]: Traits for hierarchical and composite states, which may aggregate or propagate errors from sub-states.
+//! - [`crate::implementations::states`]: Concrete state implementations that use these error types for robust error handling in real-world scenarios.
+//! - [`crate::implementations::states::extract::validate_cik_format`]: Example implementation that demonstrates how state errors, especially [`InvalidCikFormat`], are used in practice.
+//!  
 //! ## Example
 //! ```rust
 //! use sec::error::state_machine::state::{State, InvalidCikFormat};

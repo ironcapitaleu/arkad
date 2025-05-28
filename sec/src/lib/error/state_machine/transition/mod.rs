@@ -1,10 +1,60 @@
+//! # Transition Error Types
+//!
+//! This module defines the [`Transition`] error enum, representing errors that can occur during state transitions
+//! within a state machine. These errors are used throughout the SEC state machine framework to provide
+//! strongly-typed, descriptive error handling for transition operations.
+//!
+//! ## Overview
+//!
+//! The [`Transition`] enum covers two main failure scenarios:
+//! - [`FailedOutputConversion`]: Occurs when the output data of the source state cannot be converted into the input data of the destination state.
+//! - [`FailedContextConversion`]: Occurs when the context data of the source state cannot be converted into the context data of the destination state.
+//!
+//! These errors are intended to be used by implementers of the [`Transition`](crate::traits::state_machine::transition::Transition) trait
+//! and are surfaced by the state machine error handling system (see [`crate::error`] and [`crate::error::state_machine`]).
+//!
+//! ## Usage
+//!
+//! These error types are typically returned by transition logic in the state machine implementation, and can be
+//! matched against to provide detailed diagnostics or recovery strategies.
+//!
+//! ## Related Modules
+//! - [`crate::error`]: Top-level error types for the SEC state machine library.
+//! - [`crate::error::state_machine`]: Error types specific to state machine operations.
+//! - [`crate::traits::state_machine::transition`]: The trait defining transition behavior in the state machine framework.
+//!
+//! ## Example
+//!
+//! ```rust
+//! use sec::error::state_machine::transition::Transition;
+//!
+//! fn perform_transition() -> Result<(), Transition> {
+//!     // ... transition logic ...
+//!     Err(Transition::FailedOutputConversion)
+//! }
+//! ```
+
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
+/// Represents errors that can occur during state transitions within the state machine framework.
+///
+/// This enum is used to signal failure scenarios when, for example, converting state output or context data
+/// between states. It is intended for use by implementers of the [`Transition`](crate::traits::state_machine::transition::Transition) trait,
+/// and is surfaced by the state machine error handling system.
+///
+/// See the module-level documentation for more details and usage examples.
 pub enum Transition {
     /// Failed to convert output of the source state into the input of the destination state.
+    ///
+    /// This error variant indicates that the output data produced by the source state could not
+    /// be transformed or mapped into the input data required by the destination state during a transition.
     FailedOutputConversion,
 
+
     /// Failed to convert context of the source state into the context of the destination state.
+    ///
+    /// This error variant indicates that the context data associated with the source state could not
+    /// be transformed or mapped into the context required by the destination state during a transition.
     FailedContextConversion,
 }
 
