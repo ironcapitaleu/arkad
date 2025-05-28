@@ -1,3 +1,30 @@
+//! # State Error Types
+//!
+//! This module defines error types that can occur within the internal logic of a state in the SEC state machine framework.
+//! These errors represent failures related to input data, context data, output computation, and state/context updates.
+//!
+//! ## Types
+//! - [`State`]: Enum representing all error variants that can arise from state operations, including invalid CIK format, invalid input/context data, failed output computation, and update failures.
+//! - [`InvalidCikFormat`](invalid_cik_format::InvalidCikFormat): Error type for invalid CIK format, used as a variant in [`State`].
+//!
+//! ## Usage
+//! Use [`State`] for error propagation and pattern matching when handling errors that originate from state logic. This enables granular error handling for state-specific failures within the broader state machine error hierarchy.
+//!
+//! ## Example
+//! ```rust
+//! use sec::error::state_machine::state::{State, InvalidCikFormat};
+//! let err = State::InvalidInputData;
+//! match err {
+//!     State::InvalidCikFormat(invalid) => println!("Invalid CIK: {invalid}"),
+//!     State::InvalidInputData => println!("Input data is invalid"),
+//!     State::InvalidContextData => println!("Context data is invalid"),
+//!     State::FailedOutputComputation => println!("Failed to compute output"),
+//!     State::StateDataUpdateFailed => println!("Failed to update state data"),
+//!     State::ContextDataUpdateFailed => println!("Failed to update context data"),
+//!      _ => println!("Other state error"),
+//! }
+//! ```
+
 pub mod invalid_cik_format;
 pub use invalid_cik_format::InvalidCikFormat;
 

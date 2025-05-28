@@ -109,7 +109,6 @@ impl TryInto<State> for StateMachine {
 impl TryInto<Transition> for StateMachine {
     type Error = ErrorKind;
 
-
     /// Attempts to convert a [`StateMachine`] error into a [`Transition`] error.
     ///
     /// Returns `Ok(Transition)` if the variant matches, or `Err(ErrorKind::DowncastNotPossible)` otherwise.

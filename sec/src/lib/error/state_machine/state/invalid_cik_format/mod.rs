@@ -1,8 +1,27 @@
-//! State-level error type for invalid CIK format errors.
+//! # Invalid CIK Format State Error
 //!
-//! This module defines [`InvalidCikFormat`], which enriches domain-level CIK errors with state context
-//! for use in state machine error handling. It also provides conversions from domain errors and into
-//! the [`StateError`] enum.
+//! This module defines the [`InvalidCikFormat`] error type, which represents CIK (Central Index Key) format errors
+//! at the state level within the SEC state machine framework. It wraps domain-level [`CikError`]s with additional
+//! state context, enabling precise error reporting and handling in state machine workflows.
+//!
+//! ## Purpose
+//! - Enriches domain CIK validation errors with state information for robust error propagation.
+//! - Supports conversion from domain errors and integration into the [`State`](super::State) error enum.
+//!
+//! ## Types
+//! - [`InvalidCikFormat`]: Struct representing a CIK format error with state context.
+//!
+//! ## Usage
+//! Use [`InvalidCikFormat`] to wrap [`CikError`]s when a CIK validation failure occurs within a state. This allows
+//! downstream error handlers to access both the state context and the underlying domain error.
+//!
+//! ## Example
+//! ```rust
+//! use sec::error::state_machine::state::invalid_cik_format::InvalidCikFormat;
+//! use sec::shared::cik::{CikError, InvalidCikReason};
+//! let cik_error = CikError { reason: InvalidCikReason::ContainsNonNumericCharacters, invalid_cik: "bad".to_string() };
+//! let state_error = InvalidCikFormat::new("ValidateCikFormat", cik_error);
+//! ```
 use thiserror::Error;
 
 use super::State as StateError;
@@ -40,6 +59,7 @@ impl InvalidCikFormat {
         }
     }
 }
+
 /// Converts a state-level `InvalidCikFormat` error into the state error enum variant.
 impl From<InvalidCikFormat> for StateError {
     /// Converts an [`InvalidCikFormat`] into a [`StateError::InvalidCikFormat`] variant.
