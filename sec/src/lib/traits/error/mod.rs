@@ -1,3 +1,19 @@
+//! # Error Handling Traits
+//!
+//! This module defines traits for error handling and domain error conversions within the SEC state machine library.
+//! These traits enable consistent and extensible error propagation from domain-specific errors to state-level and state machine-level errors.
+//!
+//! ## Traits
+//! - [`FromDomainError`]: Trait for converting domain-level errors into state-level errors, enriching them with state context.
+//!
+//! ## Usage
+//! Implement these traits for your custom error types to enable seamless error conversion and propagation in state and state machine implementations.
+//! This ensures that errors originating from domain logic (such as CIK validation) can be wrapped with additional context and handled uniformly by the state machine framework.
+//!
+//! ## See Also
+//! - [`crate::error`]: Strongly-typed error definitions for states, transitions, and state machines.
+//! - [`crate::traits::state_machine`]: Core traits for state machine extensibility and integration.
+
 use crate::error::State as StateError;
 use std::error::Error;
 
