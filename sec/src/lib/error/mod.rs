@@ -43,7 +43,7 @@ pub enum ErrorKind {
     /// State machine related error.
     StateMachine(StateMachine),
 
-    /// Error indicating that casting from `ErrorKind` to a more specific error type is not possible.
+    /// Error indicating that casting from [`ErrorKind`] to a more specific error type is not possible.
     DowncastNotPossible,
 }
 

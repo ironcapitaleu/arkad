@@ -1,3 +1,33 @@
+//! # State Machine Error Types
+//!
+//! This module defines error types specific to the operation of SEC state machines, including errors
+//! originating from states, transitions, and invalid state machine configurations. These error types
+//! enable robust and granular error handling throughout the SEC state machine framework.
+//!
+//! ## Modules
+//! - [`state`](state/mod.rs): Contains error types for state-internal failures (e.g., invalid input, context, or output computation).
+//! - [`transition`](transition/mod.rs): Contains error types for failures during state transitions (e.g., failed output or context conversion).
+//!
+//! ## Types
+//! - [`StateMachine`]: Enum representing all errors that can occur at the state machine level, including state and transition errors.
+//! - [`State`] (state/mod.rs): Enum for errors that occur within a state.
+//! - [`Transition`] (transition/mod.rs): Enum for errors that occur during state transitions.
+//!
+//! ## Usage
+//! Use [`StateMachine`] as the primary error type for state machine operations. Errors can be downcast to [`State`] or [`Transition`] for more specific handling.
+//!
+//! ## Example
+//! ```rust
+//! use sec::error::state_machine::{StateMachine, State, Transition};
+//! let err = StateMachine::State(State::InvalidInputData);
+//! match err {
+//!     StateMachine::State(state_err) => println!("State error: {state_err}"),
+//!     StateMachine::Transition(trans_err) => println!("Transition error: {trans_err}"),
+//!     StateMachine::InvalidConfiguration => println!("Invalid state machine configuration"),
+//!     _ => println!("Other state machine error"),
+//! }
+//! ```
+
 pub mod state;
 pub mod transition;
 
@@ -8,6 +38,10 @@ use super::ErrorKind::{self, DowncastNotPossible};
 
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
+/// Represents all error kinds that can occur at the state machine level.
+///
+/// This enum encapsulates errors from invalid configurations, state-internal failures, and transition failures.
+/// It supports conversions from [`State`] and [`Transition`] errors, and provides downcasting for granular error handling.
 pub enum StateMachine {
     /// Invalid configuration of the state machine.
     InvalidConfiguration,
@@ -41,14 +75,18 @@ impl std::fmt::Display for StateMachine {
 impl std::error::Error for StateMachine {}
 
 impl From<State> for StateMachine {
-    /// Converts a `State` error into a more generic `StateMachine` error.
+    /// Converts a [`State`] error into a more general [`StateMachine`] error.
+    ///
+    /// This enables seamless propagation of state errors as state machine errors.
     fn from(error: State) -> Self {
         Self::State(error)
     }
 }
 
 impl From<Transition> for StateMachine {
-    /// Converts a `Transition` error into a more generic `StateMachine` error.
+    /// Converts a [`Transition`] error into a more general [`StateMachine`] error.
+    ///
+    /// This enables seamless propagation of transition errors as state machine errors.
     fn from(error: Transition) -> Self {
         Self::Transition(error)
     }
@@ -57,7 +95,9 @@ impl From<Transition> for StateMachine {
 impl TryInto<State> for StateMachine {
     type Error = ErrorKind;
 
-    /// Tries to convert a `StateMachine` into a `State` error, if possible. Returns a `DowncastNotPossible` error otherwise.
+    /// Attempts to convert a [`StateMachine`] error into a [`State`] error.
+    ///
+    /// Returns `Ok(State)` if the variant matches, or `Err(ErrorKind::DowncastNotPossible)` otherwise.
     fn try_into(self) -> Result<State, Self::Error> {
         match self {
             Self::State(state) => Ok(state),
@@ -69,7 +109,10 @@ impl TryInto<State> for StateMachine {
 impl TryInto<Transition> for StateMachine {
     type Error = ErrorKind;
 
-    /// Tries to convert a `StateMachine` into a `Transition` error, if possible. Returns a `DowncastNotPossible` error otherwise.
+
+    /// Attempts to convert a [`StateMachine`] error into a [`Transition`] error.
+    ///
+    /// Returns `Ok(Transition)` if the variant matches, or `Err(ErrorKind::DowncastNotPossible)` otherwise.
     fn try_into(self) -> Result<Transition, Self::Error> {
         match self {
             Self::Transition(transition) => Ok(transition),
