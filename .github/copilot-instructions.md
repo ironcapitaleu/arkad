@@ -22,6 +22,31 @@
   - Design documents (if applicable, e.g., mermaid diagrams)
 - **Documentation must be version controlled**.
 
+## 📥 Import Order Conventions
+
+To ensure readability and consistency, all Rust imports in this project must be grouped and ordered as follows:
+
+1. **Standard Library Imports**  
+   All imports from the Rust standard library (e.g., `std::collections::HashMap`, `std::fmt`) should appear first.
+
+2. **External Crate Imports**  
+   Imports from third-party crates (e.g., `serde`, `tracing`, `pretty_assertions`) should follow, grouped together.
+
+3. **Internal Crate Imports**  
+   Imports from within this workspace or crate (e.g., `crate::module::Type`, `super::submodule`) should come last.
+
+Within each group, order imports alphabetically by path. Separate each group with a single blank line for clarity.
+
+**Example:**
+```rust
+use std::collections::HashMap;
+use std::fmt;
+
+use pretty_assertions::assert_eq;
+use serde::Deserialize;
+
+use crate::traits::state_machine::State;
+use super::context_data::ContextData;
 ---
 
 ## 📦 Library Code
@@ -68,6 +93,8 @@
 - Use `tracing` crate as the **implementation backend**
 
 ---
+
+
 
 ## 💡 Copilot Guidance
 
