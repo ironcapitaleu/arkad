@@ -77,7 +77,7 @@ use crate::shared::cik::Cik;
 /// - Trims leading and trailing whitespace.
 /// - Ensures the CIK contains only digits.
 /// - Prepends leading zeros if necessary.
-/// - Produces a validated 'Cik' object containing the normalized CIK.
+/// - Produces a validated [`Cik`] object containing the normalized CIK.
 ///
 /// # Limitations
 /// - This validation is **syntactic only**. It does **not** check whether the CIK actually exists in the SEC records.
