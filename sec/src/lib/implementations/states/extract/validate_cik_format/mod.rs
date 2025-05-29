@@ -394,7 +394,8 @@ mod tests {
 
         let expected_result = &validation_state.get_input_data().clone();
 
-        validation_state.compute_output_data_async()
+        validation_state
+            .compute_output_data_async()
             .await
             .expect("Default state should always compute output data.");
         let result = validation_state.get_input_data();
@@ -408,7 +409,8 @@ mod tests {
 
         let expected_result = &ValidateCikFormatOutputData::default();
 
-        validation_state.compute_output_data_async()
+        validation_state
+            .compute_output_data_async()
             .await
             .expect("Default state should always compute output data.");
 
