@@ -19,20 +19,20 @@
 //! ```rust
 //! use tokio;
 //!
-//! use sec::prelude::*; // allows us to use call the `State`and other trait methods directly`
-//! use state_maschine::prelude::State as SMState;
-//!
 //! use sec::implementations::states::extract::validate_cik_format::*;
 //!
 //! #[tokio::main]
 //! async fn main() {
+//!     use sec::prelude::State; // allows us to use call the `State`and other trait methods directly`
+//!     use state_maschine::prelude::State as SMState;
+//!
 //!     let input = ValidateCikFormatInputData { raw_cik: "1234".into() };
 //!     let context = ValidateCikFormatContext::default();
 //!
 //!     let expected_result = "0000001234";
 //!
 //!     let mut validation_state = ValidateCikFormat::new(input, context);
-//!     sec::prelude::State::compute_output_data(&mut validation_state).await.unwrap();
+//!     validation_state.compute_output_data_async().await.unwrap();
 //!     let validated_output = validation_state.get_output_data().unwrap();
 //!     let result = validated_output.validated_cik.value();
 //!
@@ -112,7 +112,6 @@ impl ValidateCikFormat {
 
 #[async_trait]
 impl State for ValidateCikFormat {
-    #[allow(refining_impl_trait)]
     async fn compute_output_data_async(&mut self) -> Result<(), StateError> {
         // Validate the CIK format
         let cik = Cik::new(&self.input.raw_cik);

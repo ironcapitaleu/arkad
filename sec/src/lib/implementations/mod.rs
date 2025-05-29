@@ -17,10 +17,28 @@
 //!
 //! ## Example
 //! ```rust
-//! use sec::implementations::states::extract::validate_cik_format::ValidateCikFormat;
-//! use sec::traits::state_machine::state::State;
-//! let mut state = ValidateCikFormat::default();
-//! state.compute_output_data();
+//! use tokio;
+//!
+//!
+//! #[tokio::main]
+//! async fn main() {
+//!     use state_maschine::prelude::State as SMState;
+//!
+//!     use sec::implementations::states::extract::validate_cik_format::{ValidateCikFormatInputData, ValidateCikFormatContext};
+//!     use sec::implementations::states::extract::validate_cik_format::ValidateCikFormat;
+//!     use sec::prelude::State;
+//!
+//!     let input = ValidateCikFormatInputData { raw_cik: "1234".into() };
+//!     let context = ValidateCikFormatContext::default();
+//!
+//!     let expected_result = "0000001234";
+//!
+//!     let mut state = ValidateCikFormat::new(input, context);
+//!     state.compute_output_data_async().await.unwrap();
+//!     let result = state.get_output_data().expect("Output data should always be present in default `ValidateCikFormat` state.").validated_cik.value();
+//!
+//!     assert_eq!(result, expected_result);
+//! }
 //! ```
 //!
 //! See the [`states`] module for details on each concrete state implementation.
