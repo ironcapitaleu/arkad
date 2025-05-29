@@ -10,12 +10,12 @@
 //! - [`transition`]: Traits for modeling transitions between states, including error handling for transition failures.
 //!
 //! ## Usage
-//! Implement the [`SecStateMachine`] trait for your SEC-specific state machine types to leverage the extensible framework
+//! Implement the [`StateMachine`] trait for your SEC-specific state machine types to leverage the extensible framework
 //! and integrate with concrete state, context, and data implementations found in [`crate::implementations`].
 //!
 //! See the documentation for each submodule for details on trait requirements and usage patterns.
 
-use state_maschine::prelude::*;
+use state_maschine::prelude::StateMachine as SMStateMachine;
 
 pub mod state;
 pub mod super_state;
@@ -23,12 +23,12 @@ pub mod transition;
 
 use state::State;
 
-/// The `SecStateMachine` trait is a marker trait for SEC-specific state machines,
+/// The `StateMachine` trait is a marker trait for SEC-specific state machines,
 /// extending the generic [`StateMachine`] trait with additional constraints for SEC domain states.
 ///
 /// # Type Parameters
 /// - `S`: The state type, which must implement the SEC [`State`] trait.
-pub trait SecStateMachine<S>: StateMachine<S>
+pub trait StateMachine<S>: SMStateMachine<S>
 where
     S: State,
 {

@@ -29,14 +29,14 @@
 //!     let input = ValidateCikFormatInputData { raw_cik: "1234".into() };
 //!     let context = ValidateCikFormatContext::default();
 //!     
-//!     // For testing purposes: Define the expected result after validation 
+//!     // For testing purposes: Define the expected result after validation
 //!     let expected_result = "0000001234";
 //!     
 //!     // Create the `ValidateCikFormat` state with the newly created `input` and `context` and compute the output data asynchronously
 //!     let mut state = ValidateCikFormat::new(input, context);
 //!     state.compute_output_data_async().await;
-//! 
-//!     // Retrieve the validated CIK from the output data of the state 
+//!
+//!     // Retrieve the validated CIK from the output data of the state
 //!     let result = state.get_output_data().expect("Output data should always be present in provided `ValidateCikFormat` state.").validated_cik.value();
 //!
 //!     assert_eq!(result, expected_result);

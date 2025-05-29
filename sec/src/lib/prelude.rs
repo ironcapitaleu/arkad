@@ -5,7 +5,7 @@
 //! composing, and interacting with SEC state machines, states, context, and transitions.
 //!
 //! ## Re-exports
-//! - [`SecStateMachine`]: Trait for SEC-specific state machines.
+//! - [`StateMachine`]: Trait for SEC-specific state machines.
 //! - [`State`]: Trait for defining individual states.
 //! - [`StateData`]: Trait for state data management.
 //! - [`ContextData`]: Trait for context data management.
@@ -19,9 +19,16 @@
 //! // Now you can use State, StateData, ContextData, etc. directly.
 //! ```
 
-pub use crate::traits::state_machine::SecStateMachine;
+pub use crate::traits::state_machine::StateMachine;
 pub use crate::traits::state_machine::state::ContextData;
 pub use crate::traits::state_machine::state::State;
 pub use crate::traits::state_machine::state::StateData;
 pub use crate::traits::state_machine::super_state::SuperState;
 pub use crate::traits::state_machine::transition::Transition;
+
+pub use state_maschine::prelude::ContextData as SMContextData;
+pub use state_maschine::prelude::State as SMState;
+pub use state_maschine::prelude::StateData as SMStateData;
+pub use state_maschine::prelude::StateMachine as SMStateMachine;
+pub use state_maschine::prelude::SuperState as SMSSuperState;
+pub use state_maschine::prelude::Transition as SMTransition;
