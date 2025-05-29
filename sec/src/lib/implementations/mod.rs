@@ -18,7 +18,6 @@
 //! ## Example
 //! ```rust
 //! use tokio;
-//! use state_maschine::prelude::State as SMState;
 //!
 //! use sec::implementations::states::extract::validate_cik_format::{ValidateCikFormat, ValidateCikFormatInputData, ValidateCikFormatContext};
 //! use sec::prelude::*;
