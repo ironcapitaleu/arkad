@@ -15,6 +15,8 @@
 //!
 //! See the documentation for each submodule for details on trait requirements and usage patterns.
 
+use async_trait::async_trait;
+
 use state_maschine::prelude::State as SMState;
 
 use crate::error::State as StateError;
@@ -32,11 +34,12 @@ pub use state_data::StateData;
 /// # Errors
 ///
 /// Returns an error convertible into a [`StateError`] if output data computation fails.
+#[async_trait]
 pub trait State: SMState {
     /// Computes the output data for the SEC state.
     ///
     /// # Errors
     ///
     /// Returns an error convertible into a `StateError` if the output data computation fails.
-    fn compute_output_data(&mut self) -> Result<(), impl Into<StateError>>;
+    async fn compute_output_data(&mut self) -> Result<(), impl Into<StateError>>;
 }

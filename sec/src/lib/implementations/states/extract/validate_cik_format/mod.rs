@@ -17,16 +17,27 @@
 //!
 //! ## Example
 //! ```rust
+//! use tokio;
+//!
 //! use sec::prelude::*; // allows us to use call the `State`and other trait methods directly`
 //! use state_maschine::prelude::State as SMState;
 //!
 //! use sec::implementations::states::extract::validate_cik_format::*;
-//! let input = ValidateCikFormatInputData { raw_cik: "1234".into() };
-//! let context = ValidateCikFormatContext::default();
-//! let mut validation_state = ValidateCikFormat::new(input, context);
-//! sec::prelude::State::compute_output_data(&mut validation_state).unwrap();
-//! let validated_output = validation_state.get_output_data().unwrap();
-//! assert_eq!(validated_output.validated_cik.value(), "0000001234");
+//!
+//! #[tokio::main]
+//! async fn main() {
+//!     let input = ValidateCikFormatInputData { raw_cik: "1234".into() };
+//!     let context = ValidateCikFormatContext::default();
+//!
+//!     let expected_result = "0000001234";
+//!
+//!     let mut validation_state = ValidateCikFormat::new(input, context);
+//!     sec::prelude::State::compute_output_data(&mut validation_state).await.unwrap();
+//!     let validated_output = validation_state.get_output_data().unwrap();
+//!     let result = validated_output.validated_cik.value();
+//!
+//!     assert_eq!(result, expected_result);
+//! }
 //! ```
 //!
 //! ## See Also
@@ -98,9 +109,11 @@ impl ValidateCikFormat {
     }
 }
 
+use async_trait::async_trait;
+#[async_trait]
 impl State for ValidateCikFormat {
     #[allow(refining_impl_trait)]
-    fn compute_output_data(&mut self) -> Result<(), StateError> {
+    async fn compute_output_data(&mut self) -> Result<(), StateError> {
         // Validate the CIK format
         let cik = Cik::new(&self.input.raw_cik);
 
@@ -176,6 +189,7 @@ mod tests {
     use super::*;
     use pretty_assertions::assert_eq;
     use std::{fmt::Debug, hash::Hash};
+    use tokio;
 
     #[test]
     fn should_return_name_of_validation_state_when_in_validation_state() {
@@ -374,26 +388,28 @@ mod tests {
         assert_eq!(result, expected_result);
     }
 
-    #[test]
-    fn should_not_change_input_data_when_computing_output_data() {
+    #[tokio::test]
+    async fn should_not_change_input_data_when_computing_output_data() {
         let mut validation_state = ValidateCikFormat::default();
 
         let expected_result = &validation_state.get_input_data().clone();
 
         State::compute_output_data(&mut validation_state)
+            .await
             .expect("Default state should always compute output data.");
         let result = validation_state.get_input_data();
 
         assert_eq!(result, expected_result);
     }
 
-    #[test]
-    fn should_return_correct_output_data_when_computing_output_data() {
+    #[tokio::test]
+    async fn should_return_correct_output_data_when_computing_output_data() {
         let mut validation_state = ValidateCikFormat::default();
 
         let expected_result = &ValidateCikFormatOutputData::default();
 
         State::compute_output_data(&mut validation_state)
+            .await
             .expect("Default state should always compute output data.");
 
         let result = validation_state.get_output_data().unwrap();

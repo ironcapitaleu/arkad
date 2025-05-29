@@ -3,7 +3,8 @@ use sec::prelude::*;
 
 use sec::error::{ErrorKind, StateMachine};
 
-fn main() {
+#[tokio::main]
+async fn main() {
     let err = ErrorKind::StateMachine(StateMachine::InvalidConfiguration);
     println!("Printing error:");
     println!("=======================================================");
@@ -18,6 +19,7 @@ fn main() {
 
     validate_cik_state
         .compute_output_data()
+        .await
         .expect("Hardcoded default CIK should alaways have a valid format.");
 
     println!("\n=======================================================");
