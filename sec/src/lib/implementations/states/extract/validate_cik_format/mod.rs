@@ -113,7 +113,7 @@ impl ValidateCikFormat {
 #[async_trait]
 impl State for ValidateCikFormat {
     #[allow(refining_impl_trait)]
-    async fn a_compute_output_data(&mut self) -> Result<(), StateError> {
+    async fn compute_output_data_async(&mut self) -> Result<(), StateError> {
         // Validate the CIK format
         let cik = Cik::new(&self.input.raw_cik);
 
@@ -145,9 +145,9 @@ impl SMState for ValidateCikFormat {
     }
 
     /// Validates if the given CIK has the correct format.
-    /// Does nothing here, as the output data is computed in `compute_output_data() of the 'SecState'-implementation`.
+    /// Does nothing here, as the output data is computed in `compute_output_data_async() of the `sec`'s `State`-implementation`.
     fn compute_output_data(&mut self) {
-        // No action needed here, as the output data is computed in `compute_output_data() of the 'SecState'-implementation`
+        // No action needed here, as the output data is computed in `compute_output_data_async()` of the `sec`'s 'State'-implementation`
         // This function is just a placeholder to satisfy the State trait.
     }
 
@@ -394,7 +394,7 @@ mod tests {
 
         let expected_result = &validation_state.get_input_data().clone();
 
-        validation_state.a_compute_output_data()
+        validation_state.compute_output_data_async()
             .await
             .expect("Default state should always compute output data.");
         let result = validation_state.get_input_data();
@@ -408,7 +408,7 @@ mod tests {
 
         let expected_result = &ValidateCikFormatOutputData::default();
 
-        State::a_compute_output_data(&mut validation_state)
+        validation_state.compute_output_data_async()
             .await
             .expect("Default state should always compute output data.");
 

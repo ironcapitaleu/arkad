@@ -18,7 +18,7 @@ async fn main() {
     println!("{:.500}", validate_cik_state.to_string().as_str());
 
     validate_cik_state
-        .a_compute_output_data()
+        .compute_output_data_async()
         .await
         .expect("Hardcoded default CIK should alaways have a valid format.");
 
