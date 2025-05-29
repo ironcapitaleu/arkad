@@ -6,7 +6,7 @@
 //!
 //! ## Modules
 //! - [`cik_error`]: Error types and reasons for invalid CIKs.
-//! - [`constants`]: Constants related to CIK formatting, such as `CIK_LENGTH`.
+//! - [`constants`]: Constants related to CIK formatting, such as [`CIK_LENGTH`](crate::shared::cik::constants::CIK_LENGTH).
 //!
 //! ## Types
 //! - [`Cik`]: Strongly-typed wrapper for a validated CIK string, with constructors and validation logic.
