@@ -12,7 +12,6 @@ keywords = ["state-machine", "design-pattern"]
 thiserror = "2"
 tokio = { version = "1.45.1", features = ["full"] }
 async-trait = "0.1.88"
-reqwest = { version = "0.12.7", features = ["blocking"] }
 state_maschine = { path = "../state_machine" }
 
 [dev-dependencies]
