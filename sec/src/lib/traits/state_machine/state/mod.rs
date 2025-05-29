@@ -29,7 +29,7 @@ pub use state_data::StateData;
 
 /// Trait for SEC-specific states, extending the generic state machine state with domain error handling and asynchronous output data computation.
 ///
-/// Implement this trait for SEC state types to provide custom output computation logic with error propagation.
+/// Implement this trait for SEC state types to provide custom asynchronous output computation logic with error propagation.
 ///
 /// # Errors
 ///
