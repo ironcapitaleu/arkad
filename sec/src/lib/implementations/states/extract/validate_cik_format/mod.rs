@@ -83,7 +83,7 @@ use crate::shared::cik::Cik;
 /// - This validation is **syntactic only**. It does **not** check whether the CIK actually exists in the SEC records.
 ///
 /// # Output
-/// The validated CIK is stored internally after calling [`State::compute_output_data_async`](crate::traits::state_machine::state::State::compute_output_data_async).
+/// The validated CIK is stored internally after calling [`State::compute_output_data_async`].
 ///
 /// # Example
 /// ```

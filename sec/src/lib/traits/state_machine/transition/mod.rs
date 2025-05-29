@@ -12,7 +12,7 @@
 //! ## See Also
 //! - [`crate::traits::state_machine::state::State`]: The trait for SEC state types.
 //! - [`state_maschine::state_machine::transition::Transition`]: The generic transition trait from the underlying state machine framework.
-//! - [`crate::traits::state_machine::SecStateMachine`]: The main trait for SEC state machines.
+//! - [`crate::traits::state_machine::StateMachine`]: The main trait for SEC state machines.
 //!
 
 use state_maschine::prelude::Transition as SMTransition;

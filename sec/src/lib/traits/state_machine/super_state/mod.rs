@@ -15,7 +15,7 @@
 //!
 //! ## See Also
 //! - [`crate::traits::state_machine::state::State`]: Trait for defining individual states.
-//! - [`crate::traits::state_machine::SecStateMachine`]: Trait for SEC-specific state machines.
+//! - [`crate::traits::state_machine::StateMachine`]: Trait for SEC-specific state machines.
 //! - [`state_maschine::state_machine::super_state::SuperState`]: Underlying framework trait for super states.
 //!
 
