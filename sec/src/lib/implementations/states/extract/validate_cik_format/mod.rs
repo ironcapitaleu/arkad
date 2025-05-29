@@ -20,11 +20,10 @@
 //! use tokio;
 //!
 //! use sec::implementations::states::extract::validate_cik_format::*;
+//! use sec::prelude::*; // allows us to use call the `State`and other trait methods directly`
 //!
 //! #[tokio::main]
 //! async fn main() {
-//!     use sec::prelude::State; // allows us to use call the `State`and other trait methods directly`
-//!     use state_maschine::prelude::State as SMState;
 //!
 //!     let input = ValidateCikFormatInputData { raw_cik: "1234".into() };
 //!     let context = ValidateCikFormatContext::default();
