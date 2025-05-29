@@ -3,7 +3,7 @@
 //! This module defines the core traits for SEC-specific state types, as well as their associated context and state data.
 //! For transition and super state traits, see the [`crate::traits::state_machine::transition`] and [`crate::traits::state_machine::super_state`] modules.
 //! It extends the generic [`state_maschine`] framework with domain-specific abstractions for robust, type-safe, and testable workflows
-//! in SEC data processing pipelines.
+//! in SEC data processing pipelines. Notably, it provides error handling capabilities and the ability to compute output data asynchronously.
 //!
 //! ## Modules
 //! - [`context_data`]: Traits for defining context data used within SEC state machines.
@@ -27,7 +27,7 @@ pub mod state_data;
 pub use context_data::ContextData;
 pub use state_data::StateData;
 
-/// Trait for SEC-specific states, extending the generic state machine state with domain error handling.
+/// Trait for SEC-specific states, extending the generic state machine state with domain error handling and asynchronous output data computation.
 ///
 /// Implement this trait for SEC state types to provide custom output computation logic with error propagation.
 ///
