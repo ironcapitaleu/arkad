@@ -21,8 +21,8 @@ name = "sec"
 path = "src/lib/lib.rs"
 
 [[bin]]
-name = "ingestion"
-path = "src/bin/ingestion/main.rs"
+name = "extraction"
+path = "src/bin/extraction/main.rs"
 
 [lints.rust]
 unsafe_code = "forbid"
