@@ -41,5 +41,5 @@ pub trait State: SMState {
     /// # Errors
     ///
     /// Returns an error convertible into a `StateError` if the output data computation fails.
-    async fn compute_output_data(&mut self) -> Result<(), impl Into<StateError>>;
+    async fn a_compute_output_data(&mut self) -> Result<(), impl Into<StateError>>;
 }

@@ -49,6 +49,7 @@
 //! This module includes comprehensive unit tests covering state behavior, trait compliance, and error handling.
 use std::fmt;
 
+use async_trait::async_trait;
 use state_maschine::prelude::State as SMState;
 
 use crate::error::State as StateError;
@@ -109,11 +110,10 @@ impl ValidateCikFormat {
     }
 }
 
-use async_trait::async_trait;
 #[async_trait]
 impl State for ValidateCikFormat {
     #[allow(refining_impl_trait)]
-    async fn compute_output_data(&mut self) -> Result<(), StateError> {
+    async fn a_compute_output_data(&mut self) -> Result<(), StateError> {
         // Validate the CIK format
         let cik = Cik::new(&self.input.raw_cik);
 
@@ -394,7 +394,7 @@ mod tests {
 
         let expected_result = &validation_state.get_input_data().clone();
 
-        State::compute_output_data(&mut validation_state)
+        validation_state.a_compute_output_data()
             .await
             .expect("Default state should always compute output data.");
         let result = validation_state.get_input_data();
@@ -408,7 +408,7 @@ mod tests {
 
         let expected_result = &ValidateCikFormatOutputData::default();
 
-        State::compute_output_data(&mut validation_state)
+        State::a_compute_output_data(&mut validation_state)
             .await
             .expect("Default state should always compute output data.");
 
