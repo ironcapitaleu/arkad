@@ -34,7 +34,7 @@ pub mod transition;
 pub use state::State;
 pub use transition::Transition;
 
-use super::ErrorKind::{self, DowncastNotPossible};
+use super::ErrorKind;
 
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
