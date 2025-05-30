@@ -92,16 +92,16 @@ impl From<Transition> for StateMachine {
     }
 }
 
-impl TryInto<State> for StateMachine {
+impl TryFrom<StateMachine> for State {
     type Error = ErrorKind;
 
-    /// Attempts to convert a [`StateMachine`] error into a [`State`] error.
+    /// Attempts to convert a [`StateMachine`] into a [`State`] error.
     ///
     /// Returns `Ok(State)` if the variant matches, or `Err(ErrorKind::DowncastNotPossible)` otherwise.
-    fn try_into(self) -> Result<State, Self::Error> {
-        match self {
-            Self::State(state) => Ok(state),
-            _ => Err(DowncastNotPossible),
+    fn try_from(value: StateMachine) -> Result<Self, Self::Error> {
+        match value {
+            StateMachine::State(state) => Ok(state),
+            _ => Err(ErrorKind::DowncastNotPossible),
         }
     }
 }
