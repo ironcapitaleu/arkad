@@ -91,21 +91,21 @@ impl TryFrom<ErrorKind> for StateMachine {
     }
 }
 
-impl TryInto<State> for ErrorKind {
-    type Error = Self;
+impl TryFrom<ErrorKind> for State {
+    type Error = ErrorKind;
 
     /// Attempts to convert an [`ErrorKind`] into a [`State`] error.
     ///
     /// Returns `Ok(State)` if the variant matches, or `Err(ErrorKind::DowncastNotPossible)` otherwise.
-    fn try_into(self) -> Result<State, Self::Error> {
-        match self {
-            Self::StateMachine(sm) => match sm {
+    fn try_from(value: ErrorKind) -> Result<Self, Self::Error> {
+        match value {
+            ErrorKind::StateMachine(sm) => match sm {
                 StateMachine::State(state) => Ok(state),
                 StateMachine::Transition(_) | StateMachine::InvalidConfiguration => {
-                    Err(Self::DowncastNotPossible)
+                    Err(ErrorKind::DowncastNotPossible)
                 }
             },
-            Self::DowncastNotPossible => Err(Self::DowncastNotPossible),
+            _ => Err(ErrorKind::DowncastNotPossible),
         }
     }
 }
