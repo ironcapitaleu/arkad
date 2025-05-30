@@ -77,16 +77,16 @@ impl From<StateMachine> for ErrorKind {
     }
 }
 
-impl TryInto<StateMachine> for ErrorKind {
-    type Error = Self;
+impl TryFrom<ErrorKind> for StateMachine {
+    type Error = ErrorKind;
 
     /// Attempts to convert an [`ErrorKind`] into a [`StateMachine`] error.
     ///
     /// Returns `Ok(StateMachine)` if the variant matches, or `Err(ErrorKind::DowncastNotPossible)` otherwise.
-    fn try_into(self) -> Result<StateMachine, Self::Error> {
-        match self {
-            Self::StateMachine(state_machine) => Ok(state_machine),
-            Self::DowncastNotPossible => Err(Self::DowncastNotPossible),
+    fn try_from(value: ErrorKind) -> Result<Self, Self::Error> {
+        match value {
+            ErrorKind::StateMachine(state_machine) => Ok(state_machine),
+            _ => Err(ErrorKind::DowncastNotPossible),
         }
     }
 }
