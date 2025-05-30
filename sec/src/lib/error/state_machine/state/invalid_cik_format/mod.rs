@@ -69,8 +69,8 @@ impl From<InvalidCikFormat> for StateError {
     ///
     /// # Returns
     /// A [`StateError`] containing the provided [`InvalidCikFormat`] error.
-    fn from(val: InvalidCikFormat) -> Self {
-        Self::InvalidCikFormat(val)
+    fn from(domain_error: InvalidCikFormat) -> Self {
+        Self::InvalidCikFormat(domain_error)
     }
 }
 
