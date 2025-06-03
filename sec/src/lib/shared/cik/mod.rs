@@ -86,9 +86,6 @@ impl Cik {
         if cik_str.len() > CIK_LENGTH {
             return Err(CikError {
                 invalid_cik: original_input,
-                // reason: format!(
-                //     "Final CIK cannot exceed {CIK_LENGTH} digits. Got: '{}'", cik_str.len()
-                // ),
                 reason: InvalidCikReason::MaxLengthExceeded {
                     cik_length: cik_str.len(),
                 },
