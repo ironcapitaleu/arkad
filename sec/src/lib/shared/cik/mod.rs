@@ -73,9 +73,6 @@ impl Cik {
         if !cik_str.chars().all(|c| c.is_ascii_digit()) {
             return Err(CikError {
                 invalid_cik: original_input,
-                // reason: format!(
-                //     "CIK must contain only numeric characters. Got: '{original_input}'"
-                // ),
                 reason: InvalidCikReason::ContainsNonNumericCharacters,
             });
         }
