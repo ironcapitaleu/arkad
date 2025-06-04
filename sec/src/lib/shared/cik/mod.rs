@@ -6,7 +6,7 @@
 //!
 //! ## Modules
 //! - [`cik_error`]: Error types and reasons for invalid CIKs.
-//! - [`constants`]: Constants related to CIK formatting, such as `CIK_LENGTH`.
+//! - [`constants`]: Constants related to CIK formatting, such as [`CIK_LENGTH`].
 //!
 //! ## Types
 //! - [`Cik`]: Strongly-typed wrapper for a validated CIK string, with constructors and validation logic.
@@ -51,11 +51,11 @@ impl Cik {
     ///
     /// # Returns
     ///
-    /// Returns `Ok(Cik)` if the input is a valid CIK, or a [`CikError`] if the input is invalid.
+    /// Returns `Ok(Cik)` if the input is a valid [`Cik`], or a [`CikError`] if the input is invalid.
     ///
     /// # Errors
     ///
-    /// Returns a `CikError` if the CIK is not formatted correctly (i.e., if the input contains non-numeric characters or exceeds the maximum allowed length).
+    /// Returns a [`CikError`] if the CIK is not formatted correctly (i.e., if the input contains non-numeric characters or exceeds the maximum allowed length).
     ///
     /// # Examples
     ///
