@@ -3,12 +3,12 @@
 title: "Sample `SEC` State: `SampleSecState`"
 ---
 classDiagram
-    class SecStateMachine~S: SecState~{
+    class StateMachine~S: State~{
         <<trait>>
         %% SEC-specific SecStateMachine trait
     }
 
-    class StateMachine~S: State~{
+    class SMStateMachine~S: SMState~{
         <<trait>>
         %% Base StateMachine trait from `state_maschine`
 
@@ -17,36 +17,36 @@ classDiagram
         +advance_state(&mut self)
         +run(&mut self)
     }
-    class SecSuperState~S: SecState~ {
+    class SuperState~S: State~ {
         <<trait>>
         %% SEC-specific SuperState trait
     }   
 
-    class SuperState~S: State~ {
+    class SMSuperState~S: SMState~ {
         <<trait>>
         %% Base SuperState trait from `state_maschine`
     }   
 
-    class State {
+    class SMState {
         <<trait>>
         %% Base State trait from `state_maschine`
-        +type InputData: StateData
-        +type OutputData: StateData
-        +type Context: ContextData
-        +get_state_name(&self) impl ToString
+        +type InputData: SMStateData
+        +type OutputData: SMStateData
+        +type Context: SMContextData
+        +get_state_name(&self) impl ToStStateDataring
         +get_input_data(&self) &Self::InputData
         +compute_output_data(&mut self)
         +get_output_data(&self) Option<&Self::OutputData>
         +get_context_data(&self) &Self::Context
     }
 
-    class SecState {
+    class State {
         <<trait>>
         %% SEC-specific State trait
-        +compute_output_data(&mut self, Result<(), SecError>)
+        +compute_output_data(&mut self, Result<(), ErrorKind>)
     }
 
-    class StateData {
+    class SMStateData {
         <<trait>>
         %% Base StateData trait from `state_maschine`
         +type UpdateType
@@ -54,13 +54,13 @@ classDiagram
         +update_state(&mut self, updates: Self::UpdateType)
     }
 
-    class SecStateData {
+    class StateData {
         <<trait>>
         %% SEC-specific StateData trait
-        +update_state(&mut self, updates: Self::UpdateType) Result<(), SecError>
+        +update_state(&mut self, updates: Self::UpdateType) Result<(), ErrorKind>
     }
 
-    class ContextData {
+    class SMContextData {
         <<trait>>
         %% Base ContextData trait from `state_maschine`
         +type UpdateType
@@ -68,20 +68,21 @@ classDiagram
         +update_context(&mut self, updates: Self::UpdateType)
     }
 
-    class SecContextData {
+    class ContextData {
         <<trait>>
         %% SEC-specific ContextData trait
         +can_retry(&self) bool
         +get_max_retries(&self) u32
     }
 
-    class SecError {
+    class ErrorKind {
         <<enum>>
-        %% SEC-specific errors
-        InvalidCikFormat(String)
+        %% SEC-specific errors. See 'sec_error_handling.md' for specific errors
+        -StateMachine
+        -DowncastNotPossible
     }
 
-    class SampleSecState {
+    class SampleState {
         <<struct>>
         %% A sample SecState implementation, represents any 'SecState'
         -input: SampleSecStateInputData
@@ -90,60 +91,51 @@ classDiagram
         +new(input, context) Self
     }
 
-    class SampleSecStateInputData {
+    class SampleStateInputData {
         <<struct>>
         %% Input data for SampleSecState
-        +raw_cik: String
+        +input_data: String
     }
 
-    class SampleSecStateOutputData {
+    class SampleStateOutputData {
         <<struct>>
         %% Output data for SampleSecState
-        +validated_cik: Cik
+        +output_data: String
     }
 
-    class Cik {
-        <<struct>>
-        %% A validated CIK structure
-        -value: String
-        +new(cik) Result<Self, SecError>
-    }
-
-    class SampleSecStateContext {
+    class SampleStateContext {
         <<struct>>
         %% Context for SampleSecState
-        +raw_cik: String
+        +context_data: String
         +max_retries: u32
     }
 
     %% is-relationships
-    SecStateMachine --> SecState : "is in a"
-    SecSuperState --> SecStateMachine : "is a"
-    SecSuperState --> SecState :  "is a"
+    StateMachine --> State : "is in a"
+    SuperState --> StateMachine : "is a"
+    SuperState --> State :  "is a"
 
 
     %% SEC-specific trait inheritance
-    SecStateMachine --> StateMachine : "extends"
-    SecSuperState --> SuperState : "extends"
-    SecState --> State : "extends"
-    SecStateData --> StateData : "extends"
-    SecContextData --> ContextData : "extends"
+    StateMachine --> SMStateMachine : "extends"
+    SuperState --> SMSuperState : "extends"
+    State --> SMState : "extends"
+    StateData --> SMStateData : "extends"
+    ContextData --> SMContextData : "extends"
 
     %% Trait implementations
     
-    SampleSecState --> SecState : "implements"
-    SampleSecStateInputData --> SecStateData : "implements"
-    SampleSecStateOutputData --> SecStateData : "implements"
-    SampleSecStateContext --> SecContextData : "implements"
+    SampleState --> State : "implements"
+    SampleStateInputData --> StateData : "implements"
+    SampleStateOutputData --> StateData : "implements"
+    SampleStateContext --> ContextData : "implements"
 
     %% Struct relationships
-    SampleSecState --> SampleSecStateInputData : "has"
-    SampleSecState --> SampleSecStateOutputData : "has"
-    SampleSecState --> SampleSecStateContext : "has"
-    SampleSecStateOutputData --> Cik : "has"
+    SampleState --> SampleStateInputData : "has"
+    SampleState --> SampleStateOutputData : "has"
+    SampleState --> SampleStateContext : "has"
 
     %% Error relationships
-    SecState --> SecError : "can return"
-    SecStateData --> SecError : "can return"
-    Cik --> SecError : "can return"     
+    State --> ErrorKind : "can return"
+    StateData --> ErrorKind : "can return" 
     ```
