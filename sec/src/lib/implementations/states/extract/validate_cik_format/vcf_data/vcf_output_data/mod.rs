@@ -198,11 +198,11 @@ mod tests {
         let validation_state_data = &ValidateCikFormatOutputData::new("12345")
             .expect("Provided hardcoded CIK should always be valid");
 
-        let default_validation_state_data = &ValidateCikFormatOutputData::default();
+        let expected_result = &ValidateCikFormatOutputData::default();
 
         let result = validation_state_data.get_state();
 
-        assert_ne!(result, default_validation_state_data);
+        assert_ne!(result, expected_result);
     }
 
     #[test]
@@ -273,11 +273,11 @@ mod tests {
     fn should_panic_when_comparing_valid_but_unformatted_default_cik_with_formatted_and_validated_default_output()
      {
         let validation_state_data = &ValidateCikFormatOutputData::default();
-        let valid_but_unformatted_default_cik = BERKSHIRE_HATHAWAY_CIK;
+        let expected_result = BERKSHIRE_HATHAWAY_CIK;
 
         let result = validation_state_data.get_state().cik();
 
-        assert_eq!(result, valid_but_unformatted_default_cik);
+        assert_eq!(result, expected_result);
     }
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
     #[test]

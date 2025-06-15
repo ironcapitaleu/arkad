@@ -178,11 +178,11 @@ mod tests {
     fn should_create_different_context_with_custom_data_when_using_new_as_constructor() {
         let validation_context = &ValidateCikFormatContext::new("0000000000");
 
-        let default_validation_context = &ValidateCikFormatContext::default();
+        let expected_result = &ValidateCikFormatContext::default();
 
         let result = validation_context.get_context();
 
-        assert_ne!(result, default_validation_context);
+        assert_ne!(result, expected_result);
     }
 
     #[test]
@@ -223,10 +223,12 @@ mod tests {
             .cik("Updated CIK!")
             .build();
 
+        let expected_result = BERKSHIRE_HATHAWAY_CIK;
+
         context.update_context(update);
         let result = context.get_context().cik();
 
-        assert_ne!(result, BERKSHIRE_HATHAWAY_CIK);
+        assert_ne!(result, expected_result);
     }
 
     #[test]
