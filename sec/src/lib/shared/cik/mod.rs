@@ -116,8 +116,6 @@ impl fmt::Display for Cik {
 
 #[cfg(test)]
 mod tests {
-    use crate::shared::cik;
-
     use super::Cik;
     use super::{CikError, InvalidCikReason};
     use pretty_assertions::{assert_eq, assert_ne};
@@ -137,7 +135,7 @@ mod tests {
     #[test]
     fn should_fail_when_given_cik_str_that_contains_non_numeric_chars() {
         let cik_str = "12345abcde";
-        
+
         let result = Cik::new(cik_str);
 
         assert!(
