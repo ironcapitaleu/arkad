@@ -1,3 +1,20 @@
+//! # Sample SEC State Input Data
+//!
+//! This module defines the input data structure and updater patterns for the [`SampleSecState`](../../mod.rs) fixture.
+//! It provides a simple `String`-based input to demonstrate the basic requirements for state input data.
+//!
+//! ## Types
+//! - [`SampleSecStateInputData`]: Holds the unvalidated input string to be processed by the sample state.
+//! - [`SampleSecStateInputDataUpdater`]: Updater type for modifying the input data.
+//! - [`SampleSecStateInputDataUpdaterBuilder`]: Builder for constructing updater instances.
+//!
+//! ## Integration
+//! - Implements [`StateData`](crate::traits::state_machine::state::StateData) for compatibility with the state machine framework.
+//! - Used by [`SampleSecState`](../../mod.rs) to receive input data.
+//!
+//! ## See Also
+//! - [`sec_output_data`](super::sec_output_data): The corresponding output data structure.
+//! - [`crate::traits::state_machine::state::StateData`]: Trait for state data integration.
 use std::fmt;
 
 use state_maschine::prelude::StateData as SMStateData;
@@ -6,17 +23,20 @@ use crate::error::State as StateError;
 use crate::traits::state_machine::state::StateData;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
+/// Input data for the `SampleSecState` fixture.
 pub struct SampleSecStateInputData {
     pub input_data: String,
 }
 
 impl SampleSecStateInputData {
+    /// Creates a new instance of the input data for the sample state.
     pub fn new(input_data: &(impl ToString + ?Sized)) -> Self {
         Self {
             input_data: input_data.to_string(),
         }
     }
 
+    /// Returns a reference to the raw input string.
     #[must_use]
     pub const fn input_data(&self) -> &String {
         &self.input_data
@@ -57,10 +77,12 @@ impl fmt::Display for SampleSecStateInputData {
 }
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
+/// Updater for [`SampleSecStateInputData`].
 pub struct SampleSecStateInputDataUpdater {
     pub input_data: Option<String>,
 }
 
+/// Builder for [`SampleSecStateInputDataUpdater`].
 pub struct SampleSecStateInputDataUpdaterBuilder {
     input_data: Option<String>,
 }

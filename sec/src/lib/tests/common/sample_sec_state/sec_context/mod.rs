@@ -1,3 +1,22 @@
+//! # Sample SEC State Context
+//!
+//! This module defines the context data structures and updaters for the [`SampleSecState`](../mod.rs) fixture.
+//!
+//! The context provides information to demonstrate how context is handled
+//! within a state. It is designed for use with the [`ContextData`] trait for testing and demonstration.
+//!
+//! ## Components
+//! - [`SampleSecStateContext`]: Holds the current context for the sample state.
+//! - [`SampleSecStateContextUpdater`]: Updater type for modifying context fields in a controlled way.
+//! - [`SampleSecStateContextUpdaterBuilder`]: Builder for constructing context updaters.
+//!
+//! ## Usage
+//! The context is used by the [`SampleSecState`](../mod.rs) fixture to show how a state can access
+//! environmental or shared data. It supports updates via the builder pattern.
+//!
+//! ## See Also
+//! - [`crate::traits::state_machine::state::ContextData`]: Trait for context data management in states.
+//! - [`crate::tests::common::sample_sec_state`]: Parent module for the sample state fixture.
 use std::fmt;
 
 use state_maschine::prelude::ContextData as SMContextData;
@@ -5,12 +24,14 @@ use state_maschine::prelude::ContextData as SMContextData;
 use crate::traits::state_machine::state::ContextData;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
+/// State context for the `SampleSecState` fixture.
 pub struct SampleSecStateContext {
     pub data: String,
     pub max_retries: u32,
 }
 
 impl SampleSecStateContext {
+    /// Creates a new instance of the sample state context.
     pub fn new(data: &(impl ToString + ?Sized)) -> Self {
         Self {
             data: data.to_string(),
@@ -18,6 +39,7 @@ impl SampleSecStateContext {
         }
     }
 
+    /// Returns a reference to the context's inner data string.
     #[must_use]
     pub const fn data(&self) -> &String {
         &self.data
@@ -57,10 +79,12 @@ impl fmt::Display for SampleSecStateContext {
 }
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
+/// Updater for the state context.
 pub struct SampleSecStateContextUpdater {
     pub data: Option<String>,
 }
 
+/// Builder for `SampleSecStateContextUpdater`.
 pub struct SampleSecStateContextUpdaterBuilder {
     data: Option<String>,
 }

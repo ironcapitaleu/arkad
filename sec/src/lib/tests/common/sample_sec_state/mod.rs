@@ -1,3 +1,50 @@
+//! # Sample SEC State Fixture
+//!
+//! This module provides the [`SampleSecState`] and related types, which serve as a test fixture and template
+//! for creating new states within the `sec` state machine framework.
+//!
+//! ## Overview
+//! The [`SampleSecState`] is a generic state implementation designed for testing and demonstration purposes.
+//! It showcases the required structure for a type implementing the [`State`] trait, including its data and context,
+//! but with minimal, "hello world" logic. It is not intended for production use but rather as a blueprint.
+//!
+//! ## Components
+//! - [`sec_context`]: Defines the sample context data (`SampleSecStateContext`) and updater types.
+//! - [`sec_data`]: Contains sample input (`SampleSecStateInputData`) and output (`SampleSecStateOutputData`) data structures.
+//!
+//! ## Usage
+//! This state is intended to be used within the test suite to create simple state machines or to verify
+//! the behavior of transitions and other framework components. It can also be copied and modified to
+//! bootstrap the creation of a new, concrete state.
+//!
+//! ## Example
+//! ```rust
+//! use tokio;
+//!
+//! use sec::tests::common::sample_sec_state::*;
+//! use sec::prelude::*;
+//!
+//! #[tokio::main]
+//! async fn main() {
+//!
+//!     let input = SampleSecStateInputData::default();
+//!     let context = SampleSecStateContext::default();
+//!
+//!     let expected_result = "Hello World!";
+//!
+//!     let mut sample_state = SampleSecState::new(input, context);
+//!     sample_state.compute_output_data_async().await.unwrap();
+//!     let sample_output = sample_state.get_output_data().unwrap();
+//!     let result = &sample_output.output_data;
+//!
+//!     assert_eq!(result, expected_result);
+//! }
+//! ```
+//!
+//! ## See Also
+//! - [`crate::traits::state_machine::state::State`]: The core trait implemented by [`SampleSecState`].
+//! - [`crate::implementations::states::extract::validate_cik_format::ValidateCikFormat`]: A concrete, production-level state implementation that `SampleSecState` is modeled after.
+
 use std::fmt;
 
 use async_trait::async_trait;
