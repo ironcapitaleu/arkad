@@ -156,12 +156,12 @@ impl Default for ValidateCikFormatContextUpdaterBuilder {
 
 #[cfg(test)]
 mod tests {
-    use pretty_assertions::{assert_eq, assert_ne};
-    use state_maschine::prelude::*;
-
     use super::{
         BERKSHIRE_HATHAWAY_CIK, ValidateCikFormatContext, ValidateCikFormatContextUpdaterBuilder,
     };
+    use pretty_assertions::{assert_eq, assert_ne};
+    use state_maschine::prelude::*;
+    use std::{fmt::Debug, hash::Hash};
 
     #[test]
     fn should_return_reference_to_default_validation_context_when_initialized_with_default() {
@@ -240,5 +240,90 @@ mod tests {
         let result = context.get_context();
 
         assert_eq!(result, expected_result);
+    }
+
+    const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
+    #[test]
+    const fn should_still_implement_auto_traits_when_implementing_state_trait() {
+        implements_auto_traits::<ValidateCikFormatContext>();
+    }
+
+    const fn implements_send<T: Send>() {}
+    const fn implements_sync<T: Sync>() {}
+
+    #[test]
+    const fn should_implement_send_when_implementing_state_trait() {
+        implements_send::<ValidateCikFormatContext>();
+    }
+
+    #[test]
+    const fn should_implement_sync_when_implementing_state_trait() {
+        implements_sync::<ValidateCikFormatContext>();
+    }
+
+    #[test]
+    const fn should_be_thread_safe_when_implementing_state_trait() {
+        implements_send::<ValidateCikFormatContext>();
+        implements_sync::<ValidateCikFormatContext>();
+    }
+
+    const fn implements_sized<T: Sized>() {}
+    #[test]
+    const fn should_be_sized_when_implementing_state_trait() {
+        implements_sized::<ValidateCikFormatContext>();
+    }
+
+    const fn implements_hash<T: Hash>() {}
+    #[test]
+    const fn should_implement_hash_when_implementing_state_trait() {
+        implements_hash::<ValidateCikFormatContext>();
+    }
+
+    const fn implements_partial_eq<T: PartialEq>() {}
+    #[test]
+    const fn should_implement_partial_eq_when_implementing_state_trait() {
+        implements_partial_eq::<ValidateCikFormatContext>();
+    }
+
+    const fn implements_eq<T: Eq>() {}
+    #[test]
+    const fn should_implement_eq_when_implementing_state_trait() {
+        implements_eq::<ValidateCikFormatContext>();
+    }
+
+    const fn implements_partial_ord<T: PartialOrd>() {}
+    #[test]
+    const fn should_implement_partial_ord_when_implementing_state_trait() {
+        implements_partial_ord::<ValidateCikFormatContext>();
+    }
+
+    const fn implements_ord<T: Ord>() {}
+    #[test]
+    const fn should_implement_ord_when_implementing_state_trait() {
+        implements_ord::<ValidateCikFormatContext>();
+    }
+
+    const fn implements_default<T: Default>() {}
+    #[test]
+    const fn should_implement_default_when_implementing_state_trait() {
+        implements_default::<ValidateCikFormatContext>();
+    }
+
+    const fn implements_debug<T: Debug>() {}
+    #[test]
+    const fn should_implement_debug_when_implementing_state_trait() {
+        implements_debug::<ValidateCikFormatContext>();
+    }
+
+    const fn implements_clone<T: Clone>() {}
+    #[test]
+    const fn should_implement_clone_when_implementing_state_trait() {
+        implements_clone::<ValidateCikFormatContext>();
+    }
+
+    const fn implements_unpin<T: Unpin>() {}
+    #[test]
+    const fn should_implement_unpin_when_implementing_state_trait() {
+        implements_unpin::<ValidateCikFormatContext>();
     }
 }
