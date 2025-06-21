@@ -30,3 +30,93 @@ pub trait ContextData: SMContextData {
     /// Returns the maximum number of retries allowed for the state.
     fn get_max_retries(&self) -> u32;
 }
+
+#[cfg(test)]
+mod tests {
+    use pretty_assertions::{assert_eq, assert_ne};
+    use state_maschine::prelude::*;
+
+    use crate::tests::common::sample_sec_state::sec_context::{
+        SampleSecStateContext, SampleSecStateContextUpdaterBuilder,
+    };
+
+    #[test]
+    fn should_return_reference_to_default_validation_context_when_initialized_with_default() {
+        let validation_context = SampleSecStateContext::default();
+
+        let expected_result = &SampleSecStateContext::default();
+
+        let result = validation_context.get_context();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_create_different_context_with_custom_data_when_using_new_as_constructor() {
+        let validation_context = &SampleSecStateContext::new("0000000000");
+
+        let default_validation_context = &SampleSecStateContext::default();
+
+        let result = validation_context.get_context();
+
+        assert_ne!(result, default_validation_context);
+    }
+
+    #[test]
+    fn should_update_context_data_to_specified_string_when_update_contains_specified_string() {
+        let mut context = SampleSecStateContext::default();
+        let update = SampleSecStateContextUpdaterBuilder::new()
+            .data("Updated Data!")
+            .build();
+
+        let expected_result = &SampleSecStateContext::new("Updated Data!");
+
+        context.update_context(update);
+        let result = context.get_context();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_update_data_to_latest_specified_string_when_multiple_updates_in_builder() {
+        let mut context = SampleSecStateContext::default();
+        let update = SampleSecStateContextUpdaterBuilder::new()
+            .data("First Data Update!")
+            .data("Latest Data Update!")
+            .build();
+
+        let expected_result = &SampleSecStateContext::new("Latest Data Update!");
+
+        context.update_context(update);
+        let result = context.get_context();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_not_leave_context_data_the_default_when_update_contains_a_different_string() {
+        let mut context = SampleSecStateContext::default();
+        let update = SampleSecStateContextUpdaterBuilder::new()
+            .data("Updated Data!")
+            .build();
+
+        context.update_context(update);
+        let result = context.get_context().data();
+
+        assert_ne!(result, "Default Data");
+    }
+
+    #[test]
+    fn should_leave_context_unchanged_when_empty_update() {
+        let mut context = SampleSecStateContext::default();
+        let empty_update = SampleSecStateContextUpdaterBuilder::default().build();
+
+        let expected_result = &SampleSecStateContext::default();
+
+        context.update_context(empty_update);
+        let result = context.get_context();
+
+        assert_eq!(result, expected_result);
+    }
+}
+
