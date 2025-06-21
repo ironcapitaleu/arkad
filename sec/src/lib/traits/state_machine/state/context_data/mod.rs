@@ -41,25 +41,25 @@ mod tests {
     };
 
     #[test]
-    fn should_return_reference_to_default_validation_context_when_initialized_with_default() {
-        let validation_context = SampleSecStateContext::default();
+    fn should_return_reference_to_default_sample_context_when_initialized_with_default() {
+        let sample_context = SampleSecStateContext::default();
 
         let expected_result = &SampleSecStateContext::default();
 
-        let result = validation_context.get_context();
+        let result = sample_context.get_context();
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_create_different_context_with_custom_data_when_using_new_as_constructor() {
-        let validation_context = &SampleSecStateContext::new("0000000000");
+        let sample_context = &SampleSecStateContext::new("0000000000");
 
-        let default_validation_context = &SampleSecStateContext::default();
+        let default_sample_context = &SampleSecStateContext::default();
 
-        let result = validation_context.get_context();
+        let result = sample_context.get_context();
 
-        assert_ne!(result, default_validation_context);
+        assert_ne!(result, default_sample_context);
     }
 
     #[test]
