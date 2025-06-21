@@ -50,25 +50,25 @@ mod tests {
     use crate::traits::state_machine::state::StateData;
 
     #[test]
-    fn should_return_reference_to_default_validation_state_data_when_initialized_with_default() {
-        let default_validation_state_data = SampleSecStateInputData::default();
+    fn should_return_reference_to_default_sample_state_data_when_initialized_with_default() {
+        let default_sample_state_data = SampleSecStateInputData::default();
 
         let expected_result = &SampleSecStateInputData::default();
 
-        let result = default_validation_state_data.get_state();
+        let result = default_sample_state_data.get_state();
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_create_different_state_data_with_custom_data_when_using_new_as_constructor() {
-        let validation_state_data = &SampleSecStateInputData::new("0000000000");
+        let sample_state_data = &SampleSecStateInputData::new("0000000000");
 
-        let default_validation_state_data = &SampleSecStateInputData::default();
+        let default_sample_state_data = &SampleSecStateInputData::default();
 
-        let result = validation_state_data.get_state();
+        let result = sample_state_data.get_state();
 
-        assert_ne!(result, default_validation_state_data);
+        assert_ne!(result, default_sample_state_data);
     }
 
     #[test]
@@ -120,12 +120,12 @@ mod tests {
     }
 
     #[test]
-    fn should_return_default_data_when_validation_input_data_initialized_with_default() {
-        let validation_state_data = &SampleSecStateInputData::default();
+    fn should_return_default_data_when_sample_input_data_initialized_with_default() {
+        let sample_state_data = &SampleSecStateInputData::default();
 
         let expected_result = &"Hello".to_string();
 
-        let result = validation_state_data.get_state().input_data();
+        let result = sample_state_data.get_state().input_data();
 
         assert_eq!(result, expected_result);
     }
