@@ -47,13 +47,13 @@ pub trait State: SMState {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::tests::common::sample_sec_state::{
+        SampleSecState, SampleSecStateOutputData, sec_context::SampleSecStateContext,
+        sec_data::SampleSecStateInputData,
+    };
     use pretty_assertions::assert_eq;
     use std::{fmt::Debug, hash::Hash};
     use tokio;
-    use crate::tests::common::sample_sec_state::{
-        sec_context::SampleSecStateContext, sec_data::SampleSecStateInputData,
-        SampleSecState, SampleSecStateOutputData,
-    };
 
     #[test]
     fn should_return_name_of_validation_state_when_in_validation_state() {

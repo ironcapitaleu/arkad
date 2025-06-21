@@ -131,4 +131,3 @@ impl fmt::Display for SampleSecState {
         )
     }
 }
-

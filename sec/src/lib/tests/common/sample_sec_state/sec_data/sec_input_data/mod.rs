@@ -112,4 +112,3 @@ impl Default for SampleSecStateInputDataUpdaterBuilder {
         Self::new()
     }
 }
-
