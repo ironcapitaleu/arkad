@@ -67,8 +67,7 @@ mod tests {
     }
 
     #[test]
-    fn should_return_default_state_data_struct_as_input_data_when_in_initial_sample_state()
-    {
+    fn should_return_default_state_data_struct_as_input_data_when_in_initial_sample_state() {
         let sample_state = SampleSecState::default();
 
         let expected_result = &SampleSecStateInputData::default();
@@ -242,7 +241,7 @@ mod tests {
 
     #[test]
     fn should_return_default_state_data_as_input_data_when_reference_sample_state_in_initial_state()
-     {
+    {
         let ref_to_sample_state = &SampleSecState::default();
 
         let expected_result = &SampleSecStateInputData::default();
