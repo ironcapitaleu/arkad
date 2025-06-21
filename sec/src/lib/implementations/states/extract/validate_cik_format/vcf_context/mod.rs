@@ -156,12 +156,14 @@ impl Default for ValidateCikFormatContextUpdaterBuilder {
 
 #[cfg(test)]
 mod tests {
+    use std::{fmt::Debug, hash::Hash};
+
+    use pretty_assertions::{assert_eq, assert_ne};
+    use state_maschine::prelude::*;
+
     use super::{
         BERKSHIRE_HATHAWAY_CIK, ValidateCikFormatContext, ValidateCikFormatContextUpdaterBuilder,
     };
-    use pretty_assertions::{assert_eq, assert_ne};
-    use state_maschine::prelude::*;
-    use std::{fmt::Debug, hash::Hash};
 
     #[test]
     fn should_return_reference_to_default_validation_context_when_initialized_with_default() {
