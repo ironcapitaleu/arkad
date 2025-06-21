@@ -56,24 +56,24 @@ mod tests {
     use tokio;
 
     #[test]
-    fn should_return_name_of_validation_state_when_in_validation_state() {
-        let validation_state = SampleSecState::default();
+    fn should_return_name_of_sample_state_when_in_sample_state() {
+        let sample_state = SampleSecState::default();
 
         let expected_result = String::from("Sample SEC State");
 
-        let result = validation_state.get_state_name().to_string();
+        let result = sample_state.get_state_name().to_string();
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
-    fn should_return_default_validation_data_struct_as_input_data_when_in_initial_validation_state()
+    fn should_return_default_state_data_struct_as_input_data_when_in_initial_sample_state()
     {
-        let validation_state = SampleSecState::default();
+        let sample_state = SampleSecState::default();
 
         let expected_result = &SampleSecStateInputData::default();
 
-        let result = validation_state.get_input_data();
+        let result = sample_state.get_input_data();
 
         assert_eq!(result, expected_result);
     }
@@ -81,31 +81,31 @@ mod tests {
     #[test]
     #[should_panic(expected = "output should not be empty")]
     fn should_panic_when_trying_to_access_output_data_before_it_has_been_computed_in_state() {
-        let validation_state = SampleSecState::default();
+        let sample_state = SampleSecState::default();
 
-        let _result = validation_state
+        let _result = sample_state
             .get_output_data()
             .expect("The output should not be empty.");
     }
 
     #[test]
     fn should_return_false_when_state_has_not_computed_the_output() {
-        let validation_state = SampleSecState::default();
+        let sample_state = SampleSecState::default();
 
         let expected_result = false;
 
-        let result = validation_state.has_output_data_been_computed();
+        let result = sample_state.has_output_data_been_computed();
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_return_default_context_data_when_in_initial_state() {
-        let validation_state = SampleSecState::default();
+        let sample_state = SampleSecState::default();
 
         let expected_result = &SampleSecStateContext::default();
 
-        let result = validation_state.get_context_data();
+        let result = sample_state.get_context_data();
 
         assert_eq!(result, expected_result);
     }
@@ -197,23 +197,23 @@ mod tests {
 
     #[test]
     fn should_return_default_context_data_when_called_with_state_reference() {
-        let validation_state = &SampleSecState::default();
-        let ref_to_validation_state = &SampleSecState::default();
+        let sample_state = &SampleSecState::default();
+        let ref_to_sample_state = &SampleSecState::default();
 
-        let expected_result = validation_state.get_context_data();
+        let expected_result = sample_state.get_context_data();
 
-        let result = ref_to_validation_state.get_context_data();
+        let result = ref_to_sample_state.get_context_data();
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_return_false_when_reference_state_has_not_computed_the_output() {
-        let ref_to_validation_state = &mut SampleSecState::default();
+        let ref_to_sample_state = &mut SampleSecState::default();
 
         let expected_result = false;
 
-        let result = ref_to_validation_state.has_output_data_been_computed();
+        let result = ref_to_sample_state.has_output_data_been_computed();
 
         assert_eq!(result, expected_result);
     }
@@ -222,63 +222,63 @@ mod tests {
     #[should_panic(expected = "output should not be empty")]
     fn should_panic_when_trying_to_access_output_data_before_it_has_been_computed_in_reference_state()
      {
-        let ref_to_validation_state = &SampleSecState::default();
+        let ref_to_sample_state = &SampleSecState::default();
 
-        let _result = ref_to_validation_state
+        let _result = ref_to_sample_state
             .get_output_data()
             .expect("The output should not be empty.");
     }
 
     #[test]
-    fn should_return_name_of_validation_state_when_calling_reference_to_validation_state() {
-        let ref_to_validation_state = &SampleSecState::default();
+    fn should_return_name_of_sample_state_when_calling_reference_to_sample_state() {
+        let ref_to_sample_state = &SampleSecState::default();
 
         let expected_result = String::from("Sample SEC State");
 
-        let result = ref_to_validation_state.get_state_name().to_string();
+        let result = ref_to_sample_state.get_state_name().to_string();
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
-    fn should_return_default_state_data_as_input_data_when_reference_validation_state_in_initial_state()
+    fn should_return_default_state_data_as_input_data_when_reference_sample_state_in_initial_state()
      {
-        let ref_to_validation_state = &SampleSecState::default();
+        let ref_to_sample_state = &SampleSecState::default();
 
         let expected_result = &SampleSecStateInputData::default();
 
-        let result = ref_to_validation_state.get_input_data();
+        let result = ref_to_sample_state.get_input_data();
 
         assert_eq!(result, expected_result);
     }
 
     #[tokio::test]
     async fn should_not_change_input_data_when_computing_output_data() {
-        let mut validation_state = SampleSecState::default();
+        let mut sample_state = SampleSecState::default();
 
-        let expected_result = &validation_state.get_input_data().clone();
+        let expected_result = &sample_state.get_input_data().clone();
 
-        validation_state
+        sample_state
             .compute_output_data_async()
             .await
             .expect("Default state should always compute output data.");
-        let result = validation_state.get_input_data();
+        let result = sample_state.get_input_data();
 
         assert_eq!(result, expected_result);
     }
 
     #[tokio::test]
     async fn should_return_correct_output_data_when_computing_output_data() {
-        let mut validation_state = SampleSecState::default();
+        let mut sample_state = SampleSecState::default();
 
         let expected_result = &SampleSecStateOutputData::default();
 
-        validation_state
+        sample_state
             .compute_output_data_async()
             .await
             .expect("Default state should always compute output data.");
 
-        let result = validation_state.get_output_data().unwrap();
+        let result = sample_state.get_output_data().unwrap();
 
         assert_eq!(result, expected_result);
     }
