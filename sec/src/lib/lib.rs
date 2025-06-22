@@ -25,3 +25,6 @@ pub mod implementations;
 pub mod shared;
 
 pub mod error;
+
+#[cfg(test)]
+pub mod tests;

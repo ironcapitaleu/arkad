@@ -134,7 +134,10 @@ mod tests {
 
     #[test]
     fn should_fail_when_given_cik_str_that_contains_non_numeric_chars() {
-        let result = Cik::new("12345abcd!");
+        let cik_str = "12345abcde";
+
+        let result = Cik::new(cik_str);
+
         assert!(
             result.is_err(),
             "CIK creation with non-numeric chars in hardcoded value should fail."
@@ -143,7 +146,9 @@ mod tests {
 
     #[test]
     fn should_fail_when_given_cik_str_that_is_longer_than_ten_chars_after_trimming() {
-        let result = Cik::new("12345678901");
+        let cik_str = "12345678901";
+
+        let result = Cik::new(cik_str);
         assert!(
             result.is_err(),
             "CIK creation with more than 10 chars after trimming in hardcoded value should fail."
@@ -152,7 +157,9 @@ mod tests {
 
     #[test]
     fn should_fail_when_given_cik_str_that_is_longer_than_ten_chars_and_contains_a_alpha_char() {
-        let result = Cik::new("1234567890a");
+        let cik_str = "1234567890a";
+
+        let result = Cik::new(cik_str);
         assert!(
             result.is_err(),
             "CIK creation with more than 10 chars and containing a letter in hardcoded value should fail."
