@@ -9,7 +9,9 @@ categories = ["algorithms", "rust-patterns"]
 keywords = ["state-machine", "design-pattern"]
 
 [dependencies]
-reqwest = { version = "0.12.7", features = ["blocking"] }
+thiserror = "2"
+tokio = { version = "1.45.1", features = ["rt-multi-thread", "macros"] }
+async-trait = "0.1.88"
 state_maschine = { path = "../state_machine" }
 
 [dev-dependencies]
@@ -20,8 +22,8 @@ name = "sec"
 path = "src/lib/lib.rs"
 
 [[bin]]
-name = "ingestion"
-path = "src/bin/ingestion/main.rs"
+name = "extraction"
+path = "src/bin/extraction/main.rs"
 
 [lints.rust]
 unsafe_code = "forbid"
