@@ -46,14 +46,15 @@ pub trait State: SMState {
 
 #[cfg(test)]
 mod tests {
+    use std::{fmt::Debug, hash::Hash};
+
+    use pretty_assertions::assert_eq;
+    use tokio;
+
     use super::*;
     use crate::tests::common::sample_sec_state::{
-        SampleSecState, SampleSecStateOutputData, sec_context::SampleSecStateContext,
-        sec_data::SampleSecStateInputData,
+        SampleSecState, SampleSecStateContext, SampleSecStateInputData, SampleSecStateOutputData,
     };
-    use pretty_assertions::assert_eq;
-    use std::{fmt::Debug, hash::Hash};
-    use tokio;
 
     #[test]
     fn should_return_name_of_sample_state_when_in_sample_state() {
