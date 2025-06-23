@@ -106,7 +106,7 @@ mod tests {
         let reason = InvalidCikReason::ContainsNonNumericCharacters;
         let invalid_cik = "12345";
         let cik_error = CikError {
-            reason: reason,
+            reason,
             invalid_cik: invalid_cik.to_string(),
         };
 
@@ -146,7 +146,7 @@ mod tests {
         };
         let invalid_cik_format = InvalidCikFormat {
             state_name: "TestState".to_string(),
-            cik_error: cik_error.clone(),
+            cik_error: cik_error,
         };
 
         let expected_result = StateError::InvalidCikFormat(invalid_cik_format.clone());
@@ -193,12 +193,12 @@ mod tests {
             reason: cik_reason,
             invalid_cik: invalid_cik.to_string(),
         };
-        let invalid_cik_format = InvalidCikFormat::new(state_name, cik_error.clone());
+        let invalid_cik_format = InvalidCikFormat::new(state_name, cik_error);
 
         // Act
-        let error_string = format!("{}", invalid_cik_format);
+        let error_string = format!("{invalid_cik_format}");
         let source_string = match std::error::Error::source(&invalid_cik_format) {
-            Some(source) => format!("{}", source),
+            Some(source) => format!("{source}"),
             None => "No source error".to_string(),
         };
 
