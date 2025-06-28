@@ -146,7 +146,7 @@ mod tests {
         };
         let invalid_cik_format = InvalidCikFormat {
             state_name: "TestState".to_string(),
-            cik_error: cik_error,
+            cik_error,
         };
 
         let expected_result = StateError::InvalidCikFormat(invalid_cik_format.clone());

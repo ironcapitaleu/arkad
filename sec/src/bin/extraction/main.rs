@@ -1,7 +1,5 @@
 use sec::implementations::states::extract::ExtractSuperState;
-use sec::implementations::states::extract::validate_cik_format::{
-    ValidateCikFormat, ValidateCikFormatContext, ValidateCikFormatInputData,
-};
+use sec::implementations::states::extract::validate_cik_format::ValidateCikFormat;
 use sec::prelude::*;
 
 #[tokio::main]
