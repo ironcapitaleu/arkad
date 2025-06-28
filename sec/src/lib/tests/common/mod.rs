@@ -9,3 +9,4 @@
 //!   for testing purposes.
 //!
 pub mod sample_sec_state;
+pub mod sample_sec_super_state;
