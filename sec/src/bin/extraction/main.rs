@@ -4,16 +4,8 @@ use sec::implementations::states::extract::validate_cik_format::{
 };
 use sec::prelude::*;
 
-use sec::error::{ErrorKind, StateMachine};
-
 #[tokio::main]
 async fn main() {
-    let err = ErrorKind::StateMachine(StateMachine::InvalidConfiguration);
-    println!("Printing error:");
-    println!("=======================================================");
-    println!("{err}");
-    println!("=======================================================");
-
     let mut validate_cik_state = ValidateCikFormat::default();
 
     println!("\n=======================================================");
