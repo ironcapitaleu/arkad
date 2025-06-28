@@ -7,7 +7,7 @@
 //! ## Modules
 //! - [`sample_sec_state`]: Provides a generic "Hello World"! implementation of a `State`
 //!   for testing and reimplementation purposes.
-//! - [`sample_sec_super_state`]: Provides a simple super state implementation that makes use 
+//! - [`sample_sec_super_state`]: Provides a simple super state implementation that makes use
 //! of [`sample_sec_state`] for testing and reimplementation purposes.
 //!
 pub mod sample_sec_state;
