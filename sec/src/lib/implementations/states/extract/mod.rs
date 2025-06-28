@@ -13,6 +13,7 @@
 pub mod validate_cik_format;
 
 use crate::error::State as StateError;
+use crate::implementations::states::extract::validate_cik_format::{ValidateCikFormatContext, ValidateCikFormatInputData};
 use crate::prelude::*;
 use async_trait::async_trait;
 use validate_cik_format::ValidateCikFormat;
@@ -115,12 +116,15 @@ impl<S: State> SuperState<S> for ExtractSuperState<S> {}
 
 impl ExtractSuperState<ValidateCikFormat> {
     #[must_use]
-    pub const fn new(
-        input: validate_cik_format::ValidateCikFormatInputData,
-        context: validate_cik_format::ValidateCikFormatContext,
+    pub fn new(
+        input: impl ToString,
     ) -> Self {
+
+        let vcf_input = ValidateCikFormatInputData::new(&input);
+        let vcf_context = ValidateCikFormatContext::new(&input);
+
         Self {
-            current_state: ValidateCikFormat::new(input, context),
+            current_state: ValidateCikFormat::new(vcf_input, vcf_context),
             input: ExtractSuperStateData,
             output: None,
             context: ExtractSuperStateContext,

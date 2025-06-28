@@ -24,10 +24,7 @@ async fn main() {
     println!("\n=======================================================");
     println!("Initial Extract SuperState:");
 
-    let mut super_state = ExtractSuperState::new(
-        ValidateCikFormatInputData::new("1067983"),
-        ValidateCikFormatContext::default(),
-    );
+    let mut super_state = ExtractSuperState::new("1067983");
 
     super_state
         .compute_output_data_async()
