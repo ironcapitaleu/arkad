@@ -30,5 +30,5 @@ pub use state_maschine::prelude::ContextData as SMContextData;
 pub use state_maschine::prelude::State as SMState;
 pub use state_maschine::prelude::StateData as SMStateData;
 pub use state_maschine::prelude::StateMachine as SMStateMachine;
-pub use state_maschine::prelude::SuperState as SMSSuperState;
+pub use state_maschine::prelude::SuperState as SMSuperState;
 pub use state_maschine::prelude::Transition as SMTransition;

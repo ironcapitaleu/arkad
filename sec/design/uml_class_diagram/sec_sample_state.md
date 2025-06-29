@@ -33,7 +33,7 @@ classDiagram
         +type InputData: SMStateData
         +type OutputData: SMStateData
         +type Context: SMContextData
-        +get_state_name(&self) impl ToStStateDataring
+        +get_state_name(&self) impl ToString
         +get_input_data(&self) &Self::InputData
         +compute_output_data(&mut self)
         +get_output_data(&self) Option<&Self::OutputData>

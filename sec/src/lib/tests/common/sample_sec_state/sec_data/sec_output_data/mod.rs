@@ -93,7 +93,7 @@ impl SampleSecStateOutputDataUpdaterBuilder {
     #[must_use]
     #[allow(clippy::missing_const_for_fn)]
     pub fn output_data(mut self, output_data: &(impl ToString + ?Sized)) -> Self {
-        self.output_data = Some(String::from(output_data.to_string()));
+        self.output_data = Some(output_data.to_string());
         self
     }
 
