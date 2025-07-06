@@ -4,29 +4,39 @@ use state_maschine::prelude::StateData as SMStateData;
 
 use crate::error::State as StateError;
 use crate::traits::state_machine::state::StateData;
+use crate::shared::cik::Cik;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 pub struct PrepareSecRequestInputData {
-    pub input_data: String,
+    pub validated_cik: Cik,
+    pub user_agent: String,
 }
 
 impl PrepareSecRequestInputData {
-    pub fn new(input_data: &(impl ToString + ?Sized)) -> Self {
+    pub fn new(validated_cik: Cik, user_agent: String) -> Self {
         Self {
-            input_data: input_data.to_string(),
+            validated_cik,
+            user_agent,
         }
     }
 
     #[must_use]
-    pub const fn input_data(&self) -> &String {
-        &self.input_data
+    pub const fn validated_cik(&self) -> &Cik {
+        &self.validated_cik
+    }
+    #[must_use]
+    pub const fn user_agent(&self) -> &String {
+        &self.user_agent
     }
 }
 
 impl StateData for PrepareSecRequestInputData {
     fn update_state(&mut self, updates: Self::UpdateType) -> Result<(), StateError> {
-        if let Some(input_data) = updates.input_data {
-            self.input_data = input_data;
+        if let Some(validated_cik) = updates.validated_cik {
+            self.validated_cik = validated_cik;
+        }
+        if let Some(user_agent) = updates.user_agent {
+            self.user_agent = user_agent;
         }
         Ok(())
     }
@@ -45,42 +55,47 @@ impl SMStateData for PrepareSecRequestInputData {
 impl Default for PrepareSecRequestInputData {
     fn default() -> Self {
         Self {
-            input_data: "Hello".to_string(),
+            validated_cik: Cik::new("0001067983").expect("Hardcoded CIK should always be valid."),
+            user_agent: String::new(),
         }
     }
 }
 
 impl fmt::Display for PrepareSecRequestInputData {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "\tInput Data: {}", self.input_data,)
+        write!(f, "\tValidated CIK: {}\nUser Agent: {}", self.validated_cik.to_string(), self.user_agent)
     }
 }
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 pub struct PrepareSecRequestInputDataUpdater {
-    pub input_data: Option<String>,
+    pub validated_cik: Option<Cik>,
+    pub user_agent: Option<String>,
 }
 
 pub struct PrepareSecRequestInputDataUpdaterBuilder {
-    input_data: Option<String>,
+    pub validated_cik: Option<Cik>,
+    pub user_agent: Option<String>,
 }
 impl PrepareSecRequestInputDataUpdaterBuilder {
     #[must_use]
     pub const fn new() -> Self {
-        Self { input_data: None }
+        Self {validated_cik: None, user_agent: None}
     }
 
     #[must_use]
     #[allow(clippy::missing_const_for_fn)]
-    pub fn input_data(mut self, input_data: &(impl ToString + ?Sized)) -> Self {
-        self.input_data = Some(input_data.to_string());
+    pub fn validated_cik(mut self, validated_cik: Cik, user_agent: String) -> Self {
+        self.validated_cik = Some(validated_cik);
+        self.user_agent = Some(user_agent);
         self
     }
 
     #[must_use]
     pub fn build(self) -> PrepareSecRequestInputDataUpdater {
         PrepareSecRequestInputDataUpdater {
-            input_data: self.input_data,
+            validated_cik: self.validated_cik,
+            user_agent: self.user_agent,
         }
     }
 }
