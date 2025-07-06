@@ -44,7 +44,7 @@ impl State for PrepareSecRequest {
 impl SMState for PrepareSecRequest {
     type InputData = PrepareSecRequestInputData;
     type OutputData = PrepareSecRequestOutputData;
-    type Context =PrepareSecRequestContext;
+    type Context = PrepareSecRequestContext;
 
     fn get_state_name(&self) -> impl ToString {
         "PrepareSecRequest State    "

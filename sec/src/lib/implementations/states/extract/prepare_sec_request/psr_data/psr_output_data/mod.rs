@@ -11,6 +11,10 @@ pub struct PrepareSecRequestOutputData {
 }
 
 impl PrepareSecRequestOutputData {
+    /// Creates a new instance of `PrepareSecRequestOutputData` with the provided data.
+    ///
+    /// # Errors
+    /// Returns a `StateError` if the output data cannot be created from the provided data.
     pub fn new(data: &(impl ToString + ?Sized)) -> Result<Self, StateError> {
         Ok(Self {
             output_data: data.to_string(),

@@ -3,8 +3,8 @@ use std::fmt;
 use state_maschine::prelude::StateData as SMStateData;
 
 use crate::error::State as StateError;
-use crate::traits::state_machine::state::StateData;
 use crate::shared::cik::Cik;
+use crate::traits::state_machine::state::StateData;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 pub struct PrepareSecRequestInputData {
@@ -13,7 +13,8 @@ pub struct PrepareSecRequestInputData {
 }
 
 impl PrepareSecRequestInputData {
-    #[must_use] pub const fn new(validated_cik: Cik, user_agent: String) -> Self {
+    #[must_use]
+    pub const fn new(validated_cik: Cik, user_agent: String) -> Self {
         Self {
             validated_cik,
             user_agent,
@@ -63,7 +64,11 @@ impl Default for PrepareSecRequestInputData {
 
 impl fmt::Display for PrepareSecRequestInputData {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "\tValidated CIK: {}\nUser Agent: {}", self.validated_cik, self.user_agent)
+        write!(
+            f,
+            "\tValidated CIK: {}\nUser Agent: {}",
+            self.validated_cik, self.user_agent
+        )
     }
 }
 
@@ -80,7 +85,10 @@ pub struct PrepareSecRequestInputDataUpdaterBuilder {
 impl PrepareSecRequestInputDataUpdaterBuilder {
     #[must_use]
     pub const fn new() -> Self {
-        Self {validated_cik: None, user_agent: None}
+        Self {
+            validated_cik: None,
+            user_agent: None,
+        }
     }
 
     #[must_use]
