@@ -13,7 +13,7 @@ pub struct PrepareSecRequestInputData {
 }
 
 impl PrepareSecRequestInputData {
-    pub fn new(validated_cik: Cik, user_agent: String) -> Self {
+    #[must_use] pub const fn new(validated_cik: Cik, user_agent: String) -> Self {
         Self {
             validated_cik,
             user_agent,
@@ -63,7 +63,7 @@ impl Default for PrepareSecRequestInputData {
 
 impl fmt::Display for PrepareSecRequestInputData {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "\tValidated CIK: {}\nUser Agent: {}", self.validated_cik.to_string(), self.user_agent)
+        write!(f, "\tValidated CIK: {}\nUser Agent: {}", self.validated_cik, self.user_agent)
     }
 }
 
