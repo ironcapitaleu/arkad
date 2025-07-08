@@ -1,4 +1,7 @@
 use sec::implementations::states::extract::ExtractSuperState;
+use sec::implementations::states::extract::prepare_sec_request::{
+    PrepareSecRequest, PrepareSecRequestContext, PrepareSecRequestInputData,
+};
 use sec::implementations::states::extract::validate_cik_format::ValidateCikFormat;
 use sec::prelude::*;
 
@@ -18,6 +21,28 @@ async fn main() {
     println!("\n=======================================================");
     println!("Validation state after verifying CIK:");
     println!("{:.500}", validate_cik_state.to_string().as_str());
+
+    println!("\n=======================================================");
+    println!("Initial PrepareSecRequest state:");
+    let mut prepare_sec_request = PrepareSecRequest::new(
+        PrepareSecRequestInputData::new(
+            validate_cik_state
+                .get_output_data()
+                .expect("Should be valid")
+                .validated_cik
+                .clone(),
+            "TestUserAgent".to_string(),
+        ),
+        PrepareSecRequestContext::new("Test"),
+    );
+    println!("{:.500}", prepare_sec_request.to_string().as_str());
+    prepare_sec_request
+        .compute_output_data_async()
+        .await
+        .expect("PrepareSecRequest should always succeed with a valid CIK.");
+    println!("\n=======================================================");
+    println!("After PrepareSecRequest output:");
+    println!("{:.500}", prepare_sec_request.to_string().as_str());
 
     println!("\n=======================================================");
     println!("Initial Extract SuperState:");

@@ -92,7 +92,7 @@ impl fmt::Display for PrepareSecRequest {
         write!(
             f,
             "`{}` State Summary\n\
-             ------------------------   ---\n\
+             ---------------------------\n\
              Context:\n{}\n\
              Input Data:\n{}\n\
              Output Data:\n{}",
