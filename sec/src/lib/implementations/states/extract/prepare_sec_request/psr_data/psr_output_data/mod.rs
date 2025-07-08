@@ -5,7 +5,7 @@ use state_maschine::prelude::StateData as SMStateData;
 use crate::error::State as StateError;
 use crate::traits::state_machine::state::StateData;
 
-use reqwest::{Client, Method, Url, Request};
+use reqwest::{Client, Method, Request, Url};
 
 #[derive(Debug)]
 pub struct PrepareSecRequestOutputData {
@@ -17,14 +17,17 @@ impl Clone for PrepareSecRequestOutputData {
     fn clone(&self) -> Self {
         Self {
             client: self.client.clone(),
-            request: self.request.try_clone().expect("Failed to clone RequestBuilder"),
+            request: self
+                .request
+                .try_clone()
+                .expect("Failed to clone RequestBuilder"),
         }
     }
 }
 
 impl PartialEq for PrepareSecRequestOutputData {
     fn eq(&self, other: &Self) -> bool {
-        self.request.url() == other.request.url()    
+        self.request.url() == other.request.url()
     }
 }
 
@@ -53,11 +56,8 @@ impl PrepareSecRequestOutputData {
     ///
     /// # Errors
     /// Returns a `StateError` if the output data cannot be created from the provided data.
-    pub fn new(client: Client, request: Request) -> Result<Self, StateError> {
-        Ok(Self {
-            client,
-            request
-        })
+    pub const fn new(client: Client, request: Request) -> Result<Self, StateError> {
+        Ok(Self { client, request })
     }
 
     /// Returns a reference to the client.
@@ -97,7 +97,11 @@ impl Default for PrepareSecRequestOutputData {
     fn default() -> Self {
         Self {
             client: Client::new(),
-            request: Request::new(Method::GET, Url::parse("https://httpbin.org/get").expect("Hardcoded URL should always be valid.")),
+            request: Request::new(
+                Method::GET,
+                Url::parse("https://httpbin.org/get")
+                    .expect("Hardcoded URL should always be valid."),
+            ),
         }
     }
 }
@@ -122,7 +126,10 @@ pub struct PrepareSecRequestOutputDataUpdaterBuilder {
 impl PrepareSecRequestOutputDataUpdaterBuilder {
     #[must_use]
     pub const fn new() -> Self {
-        Self { client: None, request: None }
+        Self {
+            client: None,
+            request: None,
+        }
     }
 
     #[must_use]

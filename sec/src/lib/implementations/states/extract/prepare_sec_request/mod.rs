@@ -1,7 +1,7 @@
 use std::fmt;
 
 use async_trait::async_trait;
-use reqwest::{Request, ClientBuilder, Url, Method};
+use reqwest::{ClientBuilder, Method, Request, Url};
 use state_maschine::prelude::State as SMState;
 
 use crate::error::State as StateError;
@@ -38,25 +38,26 @@ impl State for PrepareSecRequest {
         let client = ClientBuilder::new()
             .user_agent(&self.input.user_agent)
             .build();
-        let client = match client {
-            Ok(client) => client,
-            Err(_) => {
-                return Err(StateError::ClientCreationError(
-                    "Failed to create client".to_string(),
-                ));
-            }
+        let Ok(client) = client else {
+            return Err(StateError::ClientCreationError(
+                "Failed to create client".to_string(),
+            ));
         };
 
-        let url_string = format!("https://data.sec.gov/submissions/CIK{}.json", self.input.validated_cik.value());
+        let url_string = format!(
+            "https://data.sec.gov/submissions/CIK{}.json",
+            self.input.validated_cik.value()
+        );
 
         let request = Request::new(
             Method::GET,
-            Url::parse(&url_string).map_err(|_| {
-                StateError::InvalidInputData
-            })?,
+            Url::parse(&url_string).map_err(|_| StateError::InvalidInputData)?,
         );
 
-        self.output = Some(PrepareSecRequestOutputData::new(client, request).expect("Should always work since validation is done beforehand"));
+        self.output = Some(
+            PrepareSecRequestOutputData::new(client, request)
+                .expect("Should always work since validation is done beforehand"),
+        );
 
         Ok(())
     }
