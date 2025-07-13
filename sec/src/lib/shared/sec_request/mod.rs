@@ -8,9 +8,13 @@ pub struct SecRequest {
 }
 
 impl SecRequest {
+    #[must_use]
+    /// Creates a new `SecRequest` for a given CIK.
+    ///
+    /// # Panics
+    /// Panics if the URL cannot be parsed, which should not happen with hardcoded URLs.
     pub fn new(cik: &Cik) -> Self {
-
-        let url = format!("https://data.sec.gov/submissions/CIK{}.json", cik);
+        let url = format!("https://data.sec.gov/submissions/CIK{cik}.json");
         Self {
             inner: Request::new(
                 reqwest::Method::GET,
@@ -19,7 +23,7 @@ impl SecRequest {
         }
     }
 
-    pub fn request(&self) -> &Request {
+    pub const fn request(&self) -> &Request {
         &self.inner
     }
 }
@@ -27,10 +31,7 @@ impl SecRequest {
 impl Clone for SecRequest {
     fn clone(&self) -> Self {
         Self {
-            inner: self
-                .inner
-                .try_clone()
-                .expect("Failed to clone Request"),
+            inner: self.inner.try_clone().expect("Failed to clone Request"),
         }
     }
 }
@@ -64,7 +65,11 @@ impl std::hash::Hash for SecRequest {
 impl Default for SecRequest {
     fn default() -> Self {
         Self {
-            inner: Request::new(reqwest::Method::GET, reqwest::Url::parse("https://httpbin.org/get").expect("Hardcoded URL should always be valid.")),
+            inner: Request::new(
+                reqwest::Method::GET,
+                reqwest::Url::parse("https://httpbin.org/get")
+                    .expect("Hardcoded URL should always be valid."),
+            ),
         }
     }
 }

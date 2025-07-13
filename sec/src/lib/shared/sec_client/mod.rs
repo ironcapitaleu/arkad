@@ -10,11 +10,13 @@ pub struct SecClient {
 }
 
 impl SecClient {
+    /// Creates a new `SecClient` with a unique ID and a user agent.
+    ///
+    /// # Errors
+    /// Returns an error if the client cannot be created.
     pub fn new(user_agent: &String) -> Result<Self, StateError> {
-        let client = ClientBuilder::new()
-            .user_agent(user_agent)
-            .build();
-        
+        let client = ClientBuilder::new().user_agent(user_agent).build();
+
         let Ok(client) = client else {
             return Err(StateError::ClientCreationFailed(
                 "Failed to create SecClient".to_string(),
@@ -27,11 +29,13 @@ impl SecClient {
         })
     }
 
+    #[must_use]
     pub fn id(&self) -> &str {
         &self.id
     }
 
-    pub fn client(&self) -> &Client {
+    #[must_use]
+    pub const fn client(&self) -> &Client {
         &self.inner
     }
 }

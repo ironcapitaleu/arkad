@@ -2,9 +2,9 @@ use std::{fmt, hash::Hash};
 
 use state_maschine::prelude::StateData as SMStateData;
 
+use crate::error::State as StateError;
 use crate::shared::sec_client::SecClient;
 use crate::shared::sec_request::SecRequest;
-use crate::error::State as StateError;
 use crate::traits::state_machine::state::StateData;
 
 #[derive(Debug, Clone, Default, PartialEq, PartialOrd, Hash, Eq, Ord)]
@@ -12,7 +12,6 @@ pub struct PrepareSecRequestOutputData {
     pub client: SecClient,
     pub request: SecRequest,
 }
-
 
 impl PrepareSecRequestOutputData {
     /// Creates a new instance of `PrepareSecRequestOutputData` with the provided client and request.
