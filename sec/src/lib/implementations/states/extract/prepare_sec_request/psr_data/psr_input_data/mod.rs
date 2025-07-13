@@ -56,7 +56,7 @@ impl SMStateData for PrepareSecRequestInputData {
 impl Default for PrepareSecRequestInputData {
     fn default() -> Self {
         Self {
-            validated_cik: Cik::new("0001067983").expect("Hardcoded CIK should always be valid."),
+            validated_cik: Cik::default(),
             user_agent: String::new(),
         }
     }
