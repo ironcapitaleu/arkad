@@ -48,7 +48,7 @@ pub enum State {
     InvalidCikFormat(InvalidCikFormat),
 
     /// Indicates that the client creation has failed, which is typically due to an invalid configuration.
-    ClientCreationError(String),
+    ClientCreationFailed(String),
 
     /// Indicates that input data of a `State` is invalid and cannot be used to compute the output data.
     InvalidInputData,

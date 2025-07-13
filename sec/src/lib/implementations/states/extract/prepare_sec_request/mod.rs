@@ -39,7 +39,7 @@ impl State for PrepareSecRequest {
             .user_agent(&self.input.user_agent)
             .build();
         let Ok(client) = client else {
-            return Err(StateError::ClientCreationError(
+            return Err(StateError::ClientCreationFailed(
                 "Failed to create client".to_string(),
             ));
         };
