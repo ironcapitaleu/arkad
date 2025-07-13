@@ -1,14 +1,14 @@
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
-}
+/// Utilities for interacting with third-party backing services.
+///
+/// This crate provides reusable functions and types for connecting to and interacting with
+/// external systems such as message queues (e.g., RabbitMQ).
+/// These utilities are designed to support the "backing services"
+/// principle of [The Twelve-Factor App](https://12factor.net/backing-services), enabling
+/// applications to treat such resources as attached services.
+///
+/// # Features
+/// - Queue connectivity and messaging primitives
+/// Features are extensible for additional third-party services
+///
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
-}
+pub mod queues;
