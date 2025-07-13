@@ -1,10 +1,11 @@
 use std::fmt;
 
 use async_trait::async_trait;
-use reqwest::{ClientBuilder, Method, Request, Url};
 use state_maschine::prelude::State as SMState;
 
 use crate::error::State as StateError;
+use crate::shared::sec_client::SecClient;
+use crate::shared::sec_request::SecRequest;
 use crate::traits::state_machine::state::State;
 
 pub mod psr_context;
@@ -35,27 +36,18 @@ impl PrepareSecRequest {
 #[async_trait]
 impl State for PrepareSecRequest {
     async fn compute_output_data_async(&mut self) -> Result<(), StateError> {
-        let client = ClientBuilder::new()
-            .user_agent(&self.input.user_agent)
-            .build();
-        let Ok(client) = client else {
+        let sec_client = SecClient::new(&self.input.user_agent);
+
+        let Ok(sec_client) = sec_client else {
             return Err(StateError::ClientCreationFailed(
-                "Failed to create client".to_string(),
+                "Failed to create SecClient".to_string(),
             ));
         };
 
-        let url_string = format!(
-            "https://data.sec.gov/submissions/CIK{}.json",
-            self.input.validated_cik.value()
-        );
-
-        let request = Request::new(
-            Method::GET,
-            Url::parse(&url_string).map_err(|_| StateError::InvalidInputData)?,
-        );
+        let sec_request = SecRequest::new(&self.input.validated_cik);
 
         self.output = Some(
-            PrepareSecRequestOutputData::new(client, request)
+            PrepareSecRequestOutputData::new(sec_client, sec_request)
                 .expect("Should always work since validation is done beforehand"),
         );
 
