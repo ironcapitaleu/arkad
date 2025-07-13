@@ -6,7 +6,7 @@ use crate::error::State as StateError;
 use crate::shared::cik::Cik;
 use crate::traits::state_machine::state::StateData;
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
+#[derive(Debug, Default, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 pub struct PrepareSecRequestInputData {
     pub validated_cik: Cik,
     pub user_agent: String,
@@ -51,15 +51,6 @@ impl SMStateData for PrepareSecRequestInputData {
     }
 
     fn update_state(&mut self, _updates: Self::UpdateType) {}
-}
-
-impl Default for PrepareSecRequestInputData {
-    fn default() -> Self {
-        Self {
-            validated_cik: Cik::default(),
-            user_agent: String::new(),
-        }
-    }
 }
 
 impl fmt::Display for PrepareSecRequestInputData {
