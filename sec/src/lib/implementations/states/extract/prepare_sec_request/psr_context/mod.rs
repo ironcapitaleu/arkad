@@ -127,3 +127,179 @@ impl Default for PrepareSecRequestContextUpdaterBuilder {
         Self::new()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::{fmt::Debug, hash::Hash};
+
+    use pretty_assertions::{assert_eq, assert_ne};
+    use state_maschine::prelude::*;
+
+    use super::{PrepareSecRequestContext, PrepareSecRequestContextUpdaterBuilder};
+
+    #[test]
+    fn should_return_reference_to_default_request_context_when_initialized_with_default() {
+        let request_context = PrepareSecRequestContext::default();
+
+        let expected_result = &PrepareSecRequestContext::default();
+
+        let result = request_context.get_context();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_create_different_context_with_custom_data_when_using_new_as_constructor() {
+        let request_context = &PrepareSecRequestContext::new();
+
+        let expected_result = &PrepareSecRequestContext { max_retries: 5 };
+
+        let result = request_context.get_context();
+
+        assert_ne!(result, expected_result);
+    }
+
+    #[test]
+    fn should_update_context_max_retries_to_specified_value_when_update_contains_specified_value() {
+        let mut context = PrepareSecRequestContext::default();
+        let update = PrepareSecRequestContextUpdaterBuilder::new()
+            .max_retries(5)
+            .build();
+
+        let expected_result = &PrepareSecRequestContext { max_retries: 5 };
+
+        context.update_context(update);
+        let result = context.get_context();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_update_max_retries_to_latest_specified_value_when_multiple_updates_in_builder() {
+        let mut context = PrepareSecRequestContext::default();
+        let update = PrepareSecRequestContextUpdaterBuilder::new()
+            .max_retries(5)
+            .max_retries(10)
+            .build();
+
+        let expected_result = &PrepareSecRequestContext { max_retries: 10 };
+
+        context.update_context(update);
+        let result = context.get_context();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_not_leave_context_max_retries_the_default_when_update_contains_a_different_value() {
+        let mut context = PrepareSecRequestContext::default();
+        let update = PrepareSecRequestContextUpdaterBuilder::new()
+            .max_retries(5)
+            .build();
+
+        let expected_result = 0;
+
+        context.update_context(update);
+        let result = context.get_context().max_retries;
+
+        assert_ne!(result, expected_result);
+    }
+
+    #[test]
+    fn should_leave_context_unchanged_when_empty_update() {
+        let mut context = PrepareSecRequestContext::default();
+        let empty_update = PrepareSecRequestContextUpdaterBuilder::default().build();
+
+        let expected_result = &PrepareSecRequestContext::default();
+
+        context.update_context(empty_update);
+        let result = context.get_context();
+
+        assert_eq!(result, expected_result);
+    }
+
+    const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
+    #[test]
+    const fn should_still_implement_auto_traits_when_implementing_context_data_trait() {
+        implements_auto_traits::<PrepareSecRequestContext>();
+    }
+
+    const fn implements_send<T: Send>() {}
+    const fn implements_sync<T: Sync>() {}
+
+    #[test]
+    const fn should_implement_send_when_implementing_context_data_trait() {
+        implements_send::<PrepareSecRequestContext>();
+    }
+
+    #[test]
+    const fn should_implement_sync_when_implementing_context_data_trait() {
+        implements_sync::<PrepareSecRequestContext>();
+    }
+
+    #[test]
+    const fn should_be_thread_safe_when_implementing_context_data_trait() {
+        implements_send::<PrepareSecRequestContext>();
+        implements_sync::<PrepareSecRequestContext>();
+    }
+
+    const fn implements_sized<T: Sized>() {}
+    #[test]
+    const fn should_be_sized_when_implementing_context_data_trait() {
+        implements_sized::<PrepareSecRequestContext>();
+    }
+
+    const fn implements_hash<T: Hash>() {}
+    #[test]
+    const fn should_implement_hash_when_implementing_context_data_trait() {
+        implements_hash::<PrepareSecRequestContext>();
+    }
+
+    const fn implements_partial_eq<T: PartialEq>() {}
+    #[test]
+    const fn should_implement_partial_eq_when_implementing_context_data_trait() {
+        implements_partial_eq::<PrepareSecRequestContext>();
+    }
+
+    const fn implements_eq<T: Eq>() {}
+    #[test]
+    const fn should_implement_eq_when_implementing_context_data_trait() {
+        implements_eq::<PrepareSecRequestContext>();
+    }
+
+    const fn implements_partial_ord<T: PartialOrd>() {}
+    #[test]
+    const fn should_implement_partial_ord_when_implementing_context_data_trait() {
+        implements_partial_ord::<PrepareSecRequestContext>();
+    }
+
+    const fn implements_ord<T: Ord>() {}
+    #[test]
+    const fn should_implement_ord_when_implementing_context_data_trait() {
+        implements_ord::<PrepareSecRequestContext>();
+    }
+
+    const fn implements_default<T: Default>() {}
+    #[test]
+    const fn should_implement_default_when_implementing_context_data_trait() {
+        implements_default::<PrepareSecRequestContext>();
+    }
+
+    const fn implements_debug<T: Debug>() {}
+    #[test]
+    const fn should_implement_debug_when_implementing_context_data_trait() {
+        implements_debug::<PrepareSecRequestContext>();
+    }
+
+    const fn implements_clone<T: Clone>() {}
+    #[test]
+    const fn should_implement_clone_when_implementing_context_data_trait() {
+        implements_clone::<PrepareSecRequestContext>();
+    }
+
+    const fn implements_unpin<T: Unpin>() {}
+    #[test]
+    const fn should_implement_unpin_when_implementing_context_data_trait() {
+        implements_unpin::<PrepareSecRequestContext>();
+    }
+}
