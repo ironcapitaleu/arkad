@@ -1,2 +1,2 @@
 include:
-  - ./backing_services/queues/etl/batch_processing.yaml
+  - ./backing_services/queues/etl/batch_processing/infrastructure.yaml
