@@ -1,7 +1,7 @@
 services:
   rabbitmq:
     image: rabbitmq:4.1.2-management-alpine
-    env_file: ../../../../../config/.env
+    env_file: ../../../../../.env
     ports:
       - "5672:5672"    # AMQP
       - "15672:15672"  # Management UI
