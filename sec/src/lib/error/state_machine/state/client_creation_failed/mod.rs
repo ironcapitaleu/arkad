@@ -91,3 +91,94 @@ impl FromDomainError<SecClientError> for ClientCreationFailed {
         Self::new(state_name, err)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::shared::sec_client::SecClientErrorReason;
+    use pretty_assertions::assert_eq;
+
+    #[test]
+    fn should_create_client_creation_failed_when_new_is_called() {
+        let state_name = "TestState";
+        let reason = SecClientErrorReason::ReqwestClientCreationFailed;
+        let user_agent = "test_agent";
+        let sec_client_error = SecClientError {
+            reason,
+            user_agent: user_agent.to_string(),
+        };
+
+        let expected_result = ClientCreationFailed {
+            state_name: state_name.to_string(),
+            sec_client_error: sec_client_error.clone(),
+        };
+
+        let result = ClientCreationFailed::new(state_name, sec_client_error);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_convert_from_domain_error_when_from_domain_error_is_called() {
+        let sec_client_error = SecClientError {
+            reason: SecClientErrorReason::ReqwestClientCreationFailed,
+            user_agent: "test_agent".to_string(),
+        };
+        let state_name = "ClientCreationState";
+
+        let expected_result = ClientCreationFailed {
+            state_name: state_name.to_string(),
+            sec_client_error: sec_client_error.clone(),
+        };
+
+        let result = ClientCreationFailed::from_domain_error(state_name, sec_client_error);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_convert_to_state_error_when_into_is_called() {
+        let sec_client_error = SecClientError {
+            reason: SecClientErrorReason::ReqwestClientCreationFailed,
+            user_agent: "test_agent".to_string(),
+        };
+        let client_creation_failed = ClientCreationFailed {
+            state_name: "TestState".to_string(),
+            sec_client_error,
+        };
+
+        let expected_result = StateError::ClientCreationFailed(client_creation_failed.clone());
+
+        let result: StateError = client_creation_failed.into();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_chain_sec_client_error_as_source_of_client_creation_failed() {
+        let state_name = "SomeState";
+        let reason = SecClientErrorReason::ReqwestClientCreationFailed;
+        let user_agent = "test_agent";
+        let sec_client_error = SecClientError {
+            reason,
+            user_agent: user_agent.to_string(),
+        };
+        let client_creation_failed =
+            ClientCreationFailed::new(state_name, sec_client_error.clone());
+
+        // Act
+        let source = std::error::Error::source(&client_creation_failed);
+
+        // Assert
+        // The source should be Some(&SecC2lientError)
+        assert!(source.is_some(), "Expected source error to be present");
+        let source = source.unwrap();
+
+        let sec_client_error_from_source = source.downcast_ref::<SecClientError>();
+        assert!(
+            sec_client_error_from_source.is_some(),
+            "Source should be SecClientError type"
+        );
+        assert_eq!(sec_client_error_from_source.unwrap(), &sec_client_error);
+    }
+}
