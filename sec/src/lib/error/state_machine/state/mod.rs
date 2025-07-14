@@ -40,6 +40,8 @@
 
 pub mod invalid_cik_format;
 pub use invalid_cik_format::InvalidCikFormat;
+pub mod client_creation_failed;
+pub use client_creation_failed::ClientCreationFailed;
 
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
@@ -48,7 +50,7 @@ pub enum State {
     InvalidCikFormat(InvalidCikFormat),
 
     /// Indicates that the client creation has failed, which is typically due to an invalid configuration.
-    ClientCreationFailed(String),
+    ClientCreationFailed(ClientCreationFailed),
 
     /// Indicates that input data of a `State` is invalid and cannot be used to compute the output data.
     InvalidInputData,

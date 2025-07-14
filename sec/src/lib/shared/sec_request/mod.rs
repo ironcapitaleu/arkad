@@ -18,7 +18,7 @@ impl SecRequest {
     /// # Panics
     /// Panics if the URL cannot be parsed, which should not happen with hardcoded URLs.
     pub fn new(cik: &Cik) -> Self {
-        let url = format!("{SEC_CIK_BASE_URL}{}.json", cik);
+        let url = format!("{SEC_CIK_BASE_URL}{cik}.json");
         Self {
             inner: Request::new(
                 reqwest::Method::GET,

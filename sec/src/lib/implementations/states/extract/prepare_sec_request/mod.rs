@@ -4,6 +4,7 @@ use async_trait::async_trait;
 use state_maschine::prelude::State as SMState;
 
 use crate::error::State as StateError;
+use crate::error::state_machine::state::client_creation_failed::ClientCreationFailed;
 use crate::shared::sec_client::SecClient;
 use crate::shared::sec_request::SecRequest;
 use crate::traits::state_machine::state::State;
@@ -37,21 +38,18 @@ impl PrepareSecRequest {
 impl State for PrepareSecRequest {
     async fn compute_output_data_async(&mut self) -> Result<(), StateError> {
         let sec_client = SecClient::new(&self.input.user_agent);
-
-        let Ok(sec_client) = sec_client else {
-            return Err(StateError::ClientCreationFailed(
-                "Failed to create SecClient".to_string(),
-            ));
-        };
-
         let sec_request = SecRequest::new(&self.input.validated_cik);
 
-        self.output = Some(
-            PrepareSecRequestOutputData::new(sec_client, sec_request)
-                .expect("Should always work since validation is done beforehand"),
-        );
-
-        Ok(())
+        match sec_client {
+            Ok(client) => {
+                self.output = Some(PrepareSecRequestOutputData::new(client, sec_request)?);
+                Ok(())
+            }
+            Err(e) => {
+                let e: StateError = ClientCreationFailed::new("PrepareSecRequest", e).into();
+                return Err(e);
+            }
+        }
     }
 }
 

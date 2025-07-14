@@ -1,7 +1,8 @@
+pub mod sec_client_error;
+pub use sec_client_error::{SecClientError, SecClientErrorReason};
+
 use reqwest::{Client, ClientBuilder};
 use uuid::Uuid;
-
-use crate::error::State as StateError;
 
 #[derive(Debug, Clone)]
 pub struct SecClient {
@@ -14,13 +15,14 @@ impl SecClient {
     ///
     /// # Errors
     /// Returns an error if the client cannot be created.
-    pub fn new(user_agent: &String) -> Result<Self, StateError> {
+    pub fn new(user_agent: &str) -> Result<Self, SecClientError> {
         let client = ClientBuilder::new().user_agent(user_agent).build();
 
         let Ok(client) = client else {
-            return Err(StateError::ClientCreationFailed(
-                "Failed to create SecClient".to_string(),
-            ));
+            return Err(SecClientError {
+                reason: SecClientErrorReason::ReqwestClientCreationFailed,
+                user_agent: user_agent.to_string(),
+            });
         };
 
         Ok(Self {
