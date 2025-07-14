@@ -65,8 +65,6 @@ pub async fn check_queue(channel: &Channel, queue_name: &str) {
     }
 }
 
-
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -94,8 +92,13 @@ mod tests {
         let queue_name = "extraction.results";
 
         // Act
-        let conn = establish_connection(addr).await.expect("Connection should succeed");
-        let channel = conn.create_channel().await.expect("Channel creation should succeed");
+        let conn = establish_connection(addr)
+            .await
+            .expect("Connection should succeed");
+        let channel = conn
+            .create_channel()
+            .await
+            .expect("Channel creation should succeed");
 
         // This test only checks that the function runs without panicking.
         // Output is printed to stdout.

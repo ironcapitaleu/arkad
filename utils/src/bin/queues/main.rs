@@ -16,7 +16,7 @@ use utils::queues::establish_connection;
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Load environment variables from .env file
     dotenv().ok();
-    
+
     println!("Starting RabbitMQ queue connectivity test...");
 
     // Arrange: Read connection parameters from environment
@@ -37,15 +37,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         if vhost == "/" { "%2f" } else { &vhost }
     );
 
-
     // Act: Establish connection and create queue
-    let conn = establish_connection(&addr).await.expect(format!("Failed to connect to RabbitMQ at: {addr}").as_str());
+    let conn = establish_connection(&addr)
+        .await
+        .expect(format!("Failed to connect to RabbitMQ at: {addr}").as_str());
     let channel: Channel = conn.create_channel().await?;
 
     // Publish a simple message to batch.extraction.results
     let payload = b"Hello, batch!";
-    use lapin::options::BasicPublishOptions;
     use lapin::BasicProperties;
+    use lapin::options::BasicPublishOptions;
 
     channel
         .basic_publish(

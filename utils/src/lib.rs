@@ -10,5 +10,4 @@
 /// - Queue connectivity and messaging primitives
 /// Features are extensible for additional third-party services
 ///
-
 pub mod queues;
