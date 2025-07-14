@@ -1,6 +1,6 @@
 pub mod constants;
 
-use constants::SEC_CIK_BASE_URL;
+use constants::{SEC_CIK_BASE_URL, SEC_CIK_BERKSHIRE_HATHAWAY_URL};
 
 use reqwest::Request;
 
@@ -71,7 +71,7 @@ impl Default for SecRequest {
         Self {
             inner: Request::new(
                 reqwest::Method::GET,
-                reqwest::Url::parse("https://httpbin.org/get")
+                reqwest::Url::parse(SEC_CIK_BERKSHIRE_HATHAWAY_URL)
                     .expect("Hardcoded URL should always be valid."),
             ),
         }
