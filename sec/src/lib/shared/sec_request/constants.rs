@@ -1,0 +1,1 @@
+pub const SEC_CIK_BASE_URL: &str = "https://data.sec.gov/submissions/CIK";

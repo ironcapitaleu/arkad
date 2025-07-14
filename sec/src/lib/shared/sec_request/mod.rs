@@ -1,3 +1,7 @@
+pub mod constants;
+
+use constants::SEC_CIK_BASE_URL;
+
 use reqwest::Request;
 
 use crate::shared::cik::Cik;
@@ -14,7 +18,7 @@ impl SecRequest {
     /// # Panics
     /// Panics if the URL cannot be parsed, which should not happen with hardcoded URLs.
     pub fn new(cik: &Cik) -> Self {
-        let url = format!("https://data.sec.gov/submissions/CIK{cik}.json");
+        let url = format!("{SEC_CIK_BASE_URL}{}.json", cik);
         Self {
             inner: Request::new(
                 reqwest::Method::GET,
