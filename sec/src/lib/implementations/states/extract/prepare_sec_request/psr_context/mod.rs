@@ -4,24 +4,15 @@ use state_maschine::prelude::ContextData as SMContextData;
 
 use crate::traits::state_machine::state::ContextData;
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
+#[derive(Debug, Default, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 pub struct PrepareSecRequestContext {
-    pub data: String,
     pub max_retries: u32,
 }
 
 impl PrepareSecRequestContext {
-    pub fn new(data: &(impl ToString + ?Sized)) -> Self {
-        Self {
-            data: data.to_string(),
-            max_retries: 0,
-        }
-    }
-
-    /// Returns a reference to the context's inner data string.
     #[must_use]
-    pub const fn data(&self) -> &String {
-        &self.data
+    pub const fn new() -> Self {
+        Self { max_retries: 0 }
     }
 }
 
@@ -39,49 +30,45 @@ impl SMContextData for PrepareSecRequestContext {
     }
 
     fn update_context(&mut self, updates: Self::UpdateType) {
-        if let Some(data) = updates.data {
-            self.data = data;
+        if let Some(max_retries) = updates.max_retries {
+            self.max_retries = max_retries;
         }
-    }
-}
-
-impl Default for PrepareSecRequestContext {
-    fn default() -> Self {
-        Self::new("Default Data")
     }
 }
 
 impl fmt::Display for PrepareSecRequestContext {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Context Data: {}", self.data)
+        write!(f, "Context Data:\nMax retries: {}", self.max_retries)
     }
 }
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 /// Updater for the state context.
 pub struct PrepareSecRequestContextUpdater {
-    pub data: Option<String>,
+    pub max_retries: Option<u32>,
 }
 
 pub struct PrepareSecRequestContextUpdaterBuilder {
-    data: Option<String>,
+    max_retries: Option<u32>,
 }
 impl PrepareSecRequestContextUpdaterBuilder {
     #[must_use]
     pub const fn new() -> Self {
-        Self { data: None }
+        Self { max_retries: None }
     }
 
     #[must_use]
     #[allow(clippy::missing_const_for_fn)]
-    pub fn data(mut self, data: &(impl ToString + ?Sized)) -> Self {
-        self.data = Some(data.to_string());
+    pub fn data(mut self, max_retries: u32) -> Self {
+        self.max_retries = Some(max_retries);
         self
     }
 
     #[must_use]
-    pub fn build(self) -> PrepareSecRequestContextUpdater {
-        PrepareSecRequestContextUpdater { data: self.data }
+    pub const fn build(self) -> PrepareSecRequestContextUpdater {
+        PrepareSecRequestContextUpdater {
+            max_retries: self.max_retries,
+        }
     }
 }
 
