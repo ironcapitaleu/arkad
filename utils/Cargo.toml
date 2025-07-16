@@ -14,7 +14,7 @@ dotenvy = "0.15.7"
 
 [dev-dependencies]
 pretty_assertions = "1"
-
+serial_test = "3.2.0" # For running tests in serial to avoid problems with shared resources, such as environment variables affecting other tests
 
 [lints.rust]
 unsafe_code = "forbid"

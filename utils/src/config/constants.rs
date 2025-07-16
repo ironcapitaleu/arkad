@@ -32,11 +32,11 @@ pub fn validate_env_vars() -> Result<(), Vec<String>> {
 
 #[cfg(test)]
 mod tests {
-    use std::env;
     use std::path::Path;
 
     use dotenvy;
     use pretty_assertions::{assert_eq, assert_ne};
+    use serial_test::serial;
 
     use super::*;
 
@@ -59,8 +59,16 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn should_return_ok_when_all_required_env_vars_are_set() {
-        let path_to_dotenv = Path::new("src/tests/common/.env.valid");
+        // 'cwd' should be the cwd based on the sub-project's root directory, i.e., where the Cargo.toml of this package is located.
+        let cwd = env::current_dir().expect("Should alwazs be able to get currrent working directory.");
+        let relative_path = Path::new("src/tests/common/config/.env.valid");
+        
+        let path_to_dotenv = cwd.join(relative_path);
+        println!("Current working directory: {:?}", cwd);
+        println!("Relative path to .env file: {:?}", relative_path);
+        println!("Using dotenv file at: {:?}", path_to_dotenv);
         // Load the (valid) .env file from the hardcoded path
         dotenvy::from_path(path_to_dotenv)
             .expect("Hardcoded path to .env fixture should always exist.");
