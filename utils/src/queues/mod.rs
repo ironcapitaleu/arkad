@@ -60,8 +60,8 @@ pub async fn check_queue(channel: &Channel, queue_name: &str) {
         .await;
 
     match result {
-        Ok(_) => println!("Successfully connected to queue '{}'", queue_name),
-        Err(e) => println!("Failed to connect to queue '{}': {}", queue_name, e),
+        Ok(_) => println!("Successfully connected to queue '{queue_name}'"),
+        Err(e) => println!("Failed to connect to queue '{queue_name}': '{e}'"),
     }
 }
 

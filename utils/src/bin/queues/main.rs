@@ -1,6 +1,6 @@
 use std::env;
 
-use lapin::Channel;
+use lapin::{BasicProperties, Channel, options::BasicPublishOptions};
 
 use utils::config::setup_environment;
 use utils::queues::establish_connection;
@@ -40,13 +40,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Act: Establish connection and create queue
     let conn = establish_connection(&addr)
         .await
-        .expect(format!("Failed to connect to RabbitMQ at: {addr}").as_str());
+        .unwrap_or_else(|_| panic!("Failed to connect to RabbitMQ at: {addr}"));
+
     let channel: Channel = conn.create_channel().await?;
 
     // Publish a simple message to batch.extraction.results
     let payload = b"Hello, batch!";
-    use lapin::BasicProperties;
-    use lapin::options::BasicPublishOptions;
 
     channel
         .basic_publish(

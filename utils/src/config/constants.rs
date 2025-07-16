@@ -5,18 +5,32 @@ use std::env;
 /// Update this slice when adding or removing required variables.
 pub const REQUIRED_ENV_VARS: &[&str] = &["API_KEY", "DATABASE_URL"];
 
-/// Returns the value of DATABASE_URL, or panics if it's not set.
+/// Returns the value of `DATABASE_URL`, or panics if it's not set.
+///
+/// # Panics
+///
+/// This function will panic if the `DATABASE_URL` environment variable is not set.
+#[must_use]
 pub fn database_url() -> String {
     env::var("DATABASE_URL").expect("Required environment variable `DATABASE_URL` must be set.")
 }
 
-/// Returns the value of API_KEY, or panics if it's not set.
+/// Returns the value of `API_KEY`, or panics if it's not set.
+///
+/// # Panics
+///
+/// This function will panic if the `API_KEY` environment variable is not set.
+#[must_use]
 pub fn api_key() -> String {
     env::var("API_KEY").expect("Required environment variable `API_KEY` must be set.")
 }
 
 /// Validates that all required environment variables are present.
-/// Returns Ok(()) if none are missing, or Err(Vec<String>) listing missing ones.
+///
+/// Returns `Ok(())` if none are missing, or `Err(Vec<String>)` listing missing ones.
+///
+/// # Errors
+/// Returns an `Err(Vec<String>)` containing the names of missing environment variables if any required variables are not set.
 pub fn validate_env_vars() -> Result<(), Vec<String>> {
     let missing: Vec<String> = REQUIRED_ENV_VARS
         .iter()
@@ -62,9 +76,10 @@ mod tests {
     #[serial]
     fn should_return_ok_when_all_required_env_vars_are_set() {
         // 'cwd' should be the cwd based on the sub-project's root directory, i.e., where the Cargo.toml of this package is located.
-        let cwd = env::current_dir().expect("Should alwazs be able to get currrent working directory.");
+        let cwd =
+            env::current_dir().expect("Should alwazs be able to get currrent working directory.");
         let relative_path = Path::new("src/tests/common/config/.env.valid");
-        
+
         let path_to_dotenv = cwd.join(relative_path);
         println!("Current working directory: {:?}", cwd);
         println!("Relative path to .env file: {:?}", relative_path);

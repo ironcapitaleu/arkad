@@ -2,6 +2,11 @@
 name = "utils"
 version = "0.1.0"
 edition = "2024"
+repository = "https://github.com/DeCa09/arkad"
+license = "MIT OR Apache-2.0"
+description = "A collection of utility functions for the SEC package."
+categories = ["utilities", "utils"]
+keywords = ["backing-services", "queues", "config", "dotenv"]
 
 [[bin]]
 name = "test_queue_connection"
