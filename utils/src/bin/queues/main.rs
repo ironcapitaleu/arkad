@@ -1,8 +1,8 @@
 use std::env;
 
-use dotenvy::dotenv;
 use lapin::Channel;
 
+use utils::config::setup_environment;
 use utils::queues::establish_connection;
 
 /// Main entry point for testing RabbitMQ queue connectivity using environment variables.
@@ -15,7 +15,7 @@ use utils::queues::establish_connection;
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Load environment variables from .env file
-    dotenv().ok();
+    setup_environment();
 
     println!("Starting RabbitMQ queue connectivity test...");
 

@@ -1,4 +1,4 @@
-/// Utilities for interacting with third-party backing services.
+/// Utilities for common adjacent tasks, interacting with backing services, or reading the config.
 ///
 /// This crate provides reusable functions and types for connecting to and interacting with
 /// external systems such as message queues (e.g., RabbitMQ).
@@ -11,3 +11,8 @@
 /// Features are extensible for additional third-party services
 ///
 pub mod queues;
+
+pub mod config;
+
+#[cfg(test)]
+pub mod tests;
