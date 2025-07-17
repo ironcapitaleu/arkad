@@ -2,14 +2,24 @@
 //!
 //! This module defines traits for configuration-specific management and validation.
 
-use std::env;
+use std::{env, fmt::Debug, hash::Hash};
 use crate::config::error::ConfigError;
 
 /// Trait for configuration types that can be loaded from environment variables.
 /// 
 /// This trait should be implemented by configuration structs to define how they
 /// load and validate their required environment variables.
-pub trait ServiceConfig: Sized {
+///
+/// # Required Traits
+///
+/// Implementations of the `ServiceConfig` trait must also implement several Rust standard traits
+/// to ensure consistent behavior, debugging capabilities, and compatibility with collections:
+/// - `Debug`: Allows the configuration to be formatted using the `{:?}` formatter for debugging.
+/// - `Send`, `Sync`: Ensure that the configuration can be safely transferred and accessed across threads.
+/// - `Clone`: Support cloning for cases where configurations need to be duplicated.
+/// - `PartialEq`, `Eq`: Enable comparison of configurations for equality.
+/// - `Hash`: Support hashing for use in collections like `HashMap` or `HashSet`.
+pub trait ServiceConfig: Debug + Send + Sync + Clone + PartialEq + Eq + Hash + Sized {
     /// Returns the list of required environment variables for this configuration.
     fn required_env_vars() -> &'static [&'static str];
 
@@ -44,9 +54,7 @@ pub trait ServiceConfig: Sized {
     ///
     /// # Errors
     /// Returns a `ConfigError` if environment variables cannot be parsed.
-    fn parse_from_env() -> Result<Self, ConfigError>
-    where
-        Self: Sized;
+    fn parse_from_env() -> Result<Self, ConfigError>;
 
     /// Validates the loaded configuration.
     ///
@@ -58,7 +66,7 @@ pub trait ServiceConfig: Sized {
 /// Example configuration demonstrating the ServiceConfig trait usage.
 /// 
 /// This serves as a template for implementing configuration structs in the project.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub struct MyServiceConfig {
     /// API key for external service authentication
     pub api_key: String,
@@ -190,6 +198,54 @@ mod tests {
         if let Err(ConfigError::ValidationFailed { message }) = result {
             assert!(message.contains("Port must be greater than 0"));
         }
+    }
+
+    const fn implements_auto_traits<T: Sized + Send + Sync + Clone + PartialEq + Eq + Hash>() {}
+    #[test]
+    const fn should_still_implement_auto_traits_when_implementing_service_config_trait() {
+        implements_auto_traits::<MyServiceConfig>();
+    }
+
+    const fn implements_send<T: Send>() {}
+    #[test]
+    const fn should_implement_send_when_implementing_service_config_trait() {
+        implements_send::<MyServiceConfig>();
+    }
+
+    const fn implements_sync<T: Sync>() {}
+    #[test]
+    const fn should_implement_sync_when_implementing_service_config_trait() {
+        implements_sync::<MyServiceConfig>();
+    }
+
+    const fn implements_clone<T: Clone>() {}
+    #[test]
+    const fn should_implement_clone_when_implementing_service_config_trait() {
+        implements_clone::<MyServiceConfig>();
+    }
+
+    const fn implements_debug<T: Debug>() {}
+    #[test]
+    const fn should_implement_debug_when_implementing_service_config_trait() {
+        implements_debug::<MyServiceConfig>();
+    }
+
+    const fn implements_partial_eq<T: PartialEq>() {}
+    #[test]
+    const fn should_implement_partial_eq_when_implementing_service_config_trait() {
+        implements_partial_eq::<MyServiceConfig>();
+    }
+
+    const fn implements_eq<T: Eq>() {}
+    #[test]
+    const fn should_implement_eq_when_implementing_service_config_trait() {
+        implements_eq::<MyServiceConfig>();
+    }
+
+    const fn implements_hash<T: Hash>() {}
+    #[test]
+    const fn should_implement_hash_when_implementing_service_config_trait() {
+        implements_hash::<MyServiceConfig>();
     }
 }
 

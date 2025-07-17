@@ -11,7 +11,7 @@ use crate::config::{service::ServiceConfig, error::ConfigError};
 /// 
 /// This struct shows how to organize service-specific settings and provides
 /// a template for implementing other service configurations.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct SampleServiceConfig {
     /// API key for external service authentication
     pub api_key: String,
