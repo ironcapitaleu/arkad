@@ -13,7 +13,6 @@ use utils::queues::establish_connection;
 /// Returns an error if connection or queue creation fails.
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-
     println!("Starting RabbitMQ queue connectivity test...");
 
     // Arrange: Read connection parameters from environment
