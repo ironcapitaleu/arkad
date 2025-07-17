@@ -1,0 +1,17 @@
+services:
+  rabbitmq:
+    image: rabbitmq:4.1.2-management-alpine
+    ports:
+      - "5672:5672"    # AMQP
+      - "15672:15672"  # Management UI
+    volumes:
+      - ./config/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
+      - ./config/definitions.json:/etc/rabbitmq/definitions.json:ro
+    container_name: arkad-rabbitmq-batch
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_running"]
+      interval: 5s      # Check every 5 seconds
+      timeout: 3s       # Timeout after 3 seconds
+      retries: 2        # 2 retries (faster to 'unhealthy')
+      start_period: 10s # Wait 10s before starting checks

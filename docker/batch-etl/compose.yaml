@@ -1,0 +1,2 @@
+include:
+  - ./services/queues/rabbitmq.yaml
