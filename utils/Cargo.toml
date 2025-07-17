@@ -6,20 +6,24 @@ repository = "https://github.com/DeCa09/arkad"
 license = "MIT OR Apache-2.0"
 description = "A collection of utility functions for the SEC package."
 categories = ["utilities", "utils"]
-keywords = ["backing-services", "queues", "config", "dotenv"]
+keywords = ["backing-services", "queues", "config"]
 
 [[bin]]
 name = "test_queue_connection"
 path = "src/bin/queues/main.rs"
 
 [dependencies]
+# Messaging dependencies
 tokio = { version = "1.45.1", features = ["rt-multi-thread", "macros"] }
 lapin = "3.0.0"
+
+# Error handling
+thiserror = "2.0.4"
 
 [dev-dependencies]
 pretty_assertions = "1"
 serial_test = "3.2.0" # For running tests in serial to avoid problems with shared resources, such as environment variables affecting other tests
-dotenvy = "0.15.7"
+dotenvy = "0.15.7" # For unit tests that need .env file support
 
 [lints.rust]
 unsafe_code = "forbid"
