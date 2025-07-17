@@ -2,7 +2,6 @@ use std::env;
 
 use lapin::{BasicProperties, Channel, options::BasicPublishOptions};
 
-use utils::config::setup_environment;
 use utils::queues::establish_connection;
 
 /// Main entry point for testing RabbitMQ queue connectivity using environment variables.
@@ -14,8 +13,6 @@ use utils::queues::establish_connection;
 /// Returns an error if connection or queue creation fails.
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Load environment variables from .env file
-    setup_environment();
 
     println!("Starting RabbitMQ queue connectivity test...");
 
