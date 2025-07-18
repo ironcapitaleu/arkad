@@ -2,7 +2,7 @@ use std::env;
 
 use lapin::{BasicProperties, Channel, options::BasicPublishOptions};
 
-use utils::queues::establish_connection;
+use utils::queue::establish_connection;
 
 /// Main entry point for testing RabbitMQ queue connectivity using environment variables.
 ///

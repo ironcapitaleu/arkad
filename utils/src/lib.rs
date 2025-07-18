@@ -11,7 +11,7 @@
 ///
 /// Features are extensible for additional third-party services
 ///
-pub mod queues;
+pub mod queue;
 
 pub mod config;
 

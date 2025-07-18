@@ -20,7 +20,7 @@
 use dotenvy;
 use pretty_assertions::assert_eq;
 
-use utils::queues::{check_queue, create_queue, establish_connection};
+use utils::queue::{check_queue, create_queue, establish_connection};
 
 /// Tests establishing a connection to RabbitMQ running on localhost.
 /// 
