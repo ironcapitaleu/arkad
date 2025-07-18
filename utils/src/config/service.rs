@@ -10,15 +10,6 @@ use crate::config::error::ConfigError;
 /// This trait should be implemented by configuration structs to define how they
 /// load and validate their required environment variables.
 ///
-/// # Required Traits
-///
-/// Implementations of the `ServiceConfig` trait must also implement several Rust standard traits
-/// to ensure consistent behavior, debugging capabilities, and compatibility with collections:
-/// - `Debug`: Allows the configuration to be formatted using the `{:?}` formatter for debugging.
-/// - `Send`, `Sync`: Ensure that the configuration can be safely transferred and accessed across threads.
-/// - `Clone`: Support cloning for cases where configurations need to be duplicated.
-/// - `PartialEq`, `Eq`: Enable comparison of configurations for equality.
-/// - `Hash`: Support hashing for use in collections like `HashMap` or `HashSet`.
 pub trait ServiceConfig: Debug + Send + Sync + Clone + PartialEq + Eq + Hash + Sized {
     /// Returns the list of required environment variables for this configuration.
     fn required_env_vars() -> &'static [&'static str];
