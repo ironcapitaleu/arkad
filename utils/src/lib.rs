@@ -13,6 +13,8 @@
 ///
 pub mod queue;
 
+pub mod simplequeue;
+
 pub mod config;
 
 #[cfg(test)]

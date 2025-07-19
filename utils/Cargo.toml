@@ -12,6 +12,10 @@ keywords = ["backing-services", "queues", "config"]
 name = "test_queue_connection"
 path = "src/bin/queues/main.rs"
 
+[[bin]]
+name = "simplified_queue_example"
+path = "src/bin/simplified_queue_example.rs"
+
 [dependencies]
 # Messaging dependencies
 tokio = { version = "1.45.1", features = ["rt-multi-thread", "macros"] }
@@ -19,6 +23,7 @@ lapin = "3.0.0"
 
 # Error handling
 thiserror = "2.0.4"
+urlencoding = "2.1.3"
 
 [dev-dependencies]
 pretty_assertions = "1"

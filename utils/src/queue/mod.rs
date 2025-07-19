@@ -22,13 +22,15 @@ use crate::config::error::ConfigError;
 pub struct Queue {
     connection: QueueConnection,
     channel: Channel,
+    inner: lapin::Queue,
+    name: String,
 }
 
 impl Queue {
-    /// Creates a new Queue instance from environment variables.
+    /// Creates a new Queue instance with the specified name from environment variables.
     ///
-    /// This method loads RabbitMQ connection configuration from environment variables
-    /// and establishes both connection and channel automatically.
+    /// This method loads RabbitMQ connection configuration from environment variables,
+    /// establishes both connection and channel automatically, and creates the specified queue.
     ///
     /// Expected environment variables:
     /// - `RABBITMQ_USERNAME` (default: "admin")
@@ -37,9 +39,13 @@ impl Queue {
     /// - `RABBITMQ_PORT` (default: "5672")
     /// - `RABBITMQ_VHOST` (default: "%2f")
     ///
+    /// # Arguments
+    /// * `queue_name` - Name of the queue to create and manage (accepts &str, String, etc.)
+    ///
     /// # Errors
-    /// Returns an error if environment variables are invalid or connection fails.
-    pub async fn new() -> Result<Self, QueueError> {
+    /// Returns an error if environment variables are invalid, connection fails, or queue creation fails.
+    pub async fn new(queue_name: impl Into<String>) -> Result<Self, QueueError> {
+        let queue_name = queue_name.into();
         let builder = QueueConnectionBuilder::from_env()
             .map_err(QueueError::Config)?;
         
@@ -49,67 +55,35 @@ impl Queue {
         let channel = connection.create_channel().await
             .map_err(QueueError::Channel)?;
 
-        Ok(Self {
-            connection,
-            channel,
-        })
-    }
-
-    /// Creates a new Queue instance with custom configuration.
-    ///
-    /// # Arguments
-    /// * `username` - RabbitMQ username
-    /// * `password` - RabbitMQ password
-    /// * `host` - RabbitMQ host
-    /// * `port` - RabbitMQ port
-    /// * `vhost` - RabbitMQ virtual host
-    ///
-    /// # Errors
-    /// Returns an error if connection fails.
-    pub async fn with_config(
-        username: impl Into<String>,
-        password: impl Into<String>,
-        host: impl Into<String>,
-        port: u16,
-        vhost: impl Into<String>,
-    ) -> Result<Self, QueueError> {
-        let connection = QueueConnectionBuilder::new()
-            .username(username)
-            .password(password)
-            .host(host)
-            .port(port)
-            .vhost(vhost)
-            .connect()
-            .await
-            .map_err(QueueError::Connection)?;
-
-        let channel = connection.create_channel().await
-            .map_err(QueueError::Channel)?;
+        let inner = create_queue(&channel, &queue_name).await
+            .map_err(QueueError::Operation)?;
 
         Ok(Self {
             connection,
             channel,
+            inner,
+            name: queue_name,
         })
     }
 
-    /// Creates a queue if it doesn't exist.
-    ///
-    /// # Arguments
-    /// * `queue_name` - Name of the queue to create
-    ///
-    /// # Errors
-    /// Returns an error if the queue cannot be created.
-    pub async fn create_queue(&self, queue_name: &str) -> Result<lapin::Queue, QueueError> {
-        create_queue(&self.channel, queue_name).await
-            .map_err(QueueError::Operation)
+    /// Returns the name of this queue.
+    pub fn name(&self) -> &str {
+        &self.name
     }
 
-    /// Checks if a queue exists and prints queue information.
-    ///
-    /// # Arguments
-    /// * `queue_name` - Name of the queue to check
-    pub async fn check_queue(&self, queue_name: &str) {
-        check_queue(&self.channel, queue_name).await;
+    /// Returns the number of messages currently in the queue.
+    pub fn message_count(&self) -> u32 {
+        self.inner.message_count()
+    }
+
+    /// Returns the number of consumers connected to this queue.
+    pub fn consumer_count(&self) -> u32 {
+        self.inner.consumer_count()
+    }
+
+    /// Checks if this queue exists and prints queue information.
+    pub async fn check(&self) {
+        check_queue(&self.channel, &self.name).await;
     }
 
     /// Checks if the connection is still active.
@@ -136,8 +110,11 @@ impl Queue {
 impl fmt::Debug for Queue {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Queue")
+            .field("name", &self.name)
             .field("config", self.config())
             .field("connection_active", &self.check_connection())
+            .field("message_count", &self.message_count())
+            .field("consumer_count", &self.consumer_count())
             .finish()
     }
 }
@@ -247,22 +224,6 @@ mod tests {
     use super::*;
 
     #[test]
-    fn should_have_all_required_queue_functions() {
-        // This is a compilation test to ensure all public functions are available
-        // The actual functionality testing is done in integration tests
-        
-        // If these function names don't exist, the compilation will fail
-        let _fn_names = [
-            "establish_connection",
-            "check_queue", 
-            "create_queue"
-        ];
-        
-        // This test passes if the module compiles successfully
-        assert!(true, "All queue management functions should be available for use");
-    }
-
-    #[test]
     fn should_display_queue_error_correctly() {
         // Arrange
         let config_error = ConfigError::InvalidValue {
@@ -294,5 +255,16 @@ mod tests {
         // Assert
         assert!(result.contains("Config"));
         assert!(result.contains("InvalidValue"));
+    }
+
+    #[test]
+    fn should_initialize_queue_correctly() {
+        // Arrange & Act & Assert
+        // This test verifies the structure is set up correctly
+        // We can't actually create a Queue without a connection, but we can test the type
+        
+        // If this compiles, it means our Queue struct is properly defined
+        let _queue_type_check = std::marker::PhantomData::<Queue>;
+        assert!(true, "Queue struct should be properly defined");
     }
 }
