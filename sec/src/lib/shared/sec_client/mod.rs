@@ -1,6 +1,8 @@
 pub mod sec_client_error;
 pub use sec_client_error::{SecClientError, SecClientErrorReason};
 
+use super::user_agent::UserAgent;
+
 use reqwest::{Client, ClientBuilder};
 use uuid::Uuid;
 
@@ -14,14 +16,26 @@ impl SecClient {
     /// Creates a new `SecClient` with a unique ID and a user agent.
     ///
     /// # Errors
-    /// Returns an error if the client cannot be created.
+    /// Returns an `SecClientError` if the user agent string is invalid or the client cannot be created.
     pub fn new(user_agent: &str) -> Result<Self, SecClientError> {
-        let client = ClientBuilder::new().user_agent(user_agent).build();
+        let user_agent = UserAgent::new(user_agent);
+        let user_agent = match user_agent {
+            Ok(user_agent) => user_agent.inner().to_owned(),
+            Err(e) => {
+                return Err(SecClientError::new(
+                    SecClientErrorReason::InvalidUserAgent,
+                    e.user_agent,
+                ));
+            }
+        };
+
+        let user_agent_str = user_agent.clone();
+        let client = ClientBuilder::new().user_agent(user_agent_str).build();
 
         let Ok(client) = client else {
             return Err(SecClientError {
                 reason: SecClientErrorReason::ReqwestClientCreationFailed,
-                user_agent: user_agent.to_string(),
+                user_agent: user_agent,
             });
         };
 

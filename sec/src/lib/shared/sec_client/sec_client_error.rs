@@ -27,6 +27,8 @@ impl SecClientError {
 pub enum SecClientErrorReason {
     /// The reqwest client could not be created.
     ReqwestClientCreationFailed,
+    /// The user agent string is invalid.
+    InvalidUserAgent,
 }
 
 impl std::fmt::Display for SecClientErrorReason {
@@ -37,6 +39,7 @@ impl std::fmt::Display for SecClientErrorReason {
                 f,
                 "Reqwest client could not be created due to an invalid configuration."
             ),
+            Self::InvalidUserAgent => write!(f, "The user agent string is invalid."),
         }
     }
 }
@@ -47,7 +50,7 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     #[test]
-    fn should_format_display_as_expected_when_reason_is_reqwest_failure() {
+    fn should_format_display_as_expected_when_reason_is_present() {
         let user_agent = "TestUserAgent".to_string();
         let reason = SecClientErrorReason::ReqwestClientCreationFailed;
         let client_error = SecClientError::new(reason.clone(), &user_agent);
