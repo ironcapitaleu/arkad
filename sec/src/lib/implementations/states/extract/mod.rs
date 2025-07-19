@@ -121,8 +121,8 @@ impl<S: State> SuperState<S> for ExtractSuperState<S> {}
 impl ExtractSuperState<ValidateCikFormat> {
     #[must_use]
     pub fn new(input: &str) -> Self {
-        let vcf_input = ValidateCikFormatInputData::new(&input);
-        let vcf_context = ValidateCikFormatContext::new(&input);
+        let vcf_input = ValidateCikFormatInputData::new(input);
+        let vcf_context = ValidateCikFormatContext::new(input);
 
         Self {
             current_state: ValidateCikFormat::new(vcf_input, vcf_context),

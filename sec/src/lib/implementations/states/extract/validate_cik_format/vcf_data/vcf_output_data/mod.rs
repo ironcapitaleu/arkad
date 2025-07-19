@@ -53,8 +53,8 @@ impl ValidateCikFormatOutputData {
     /// # Errors
     ///
     /// Returns a [`StateError::InvalidCikFormat`] if the CIK is not formatted correctly.
-    pub fn new(cik: &(impl ToString + ?Sized)) -> Result<Self, StateError> {
-        Cik::new(cik).map_or_else(
+    pub fn new(cik: impl Into<String>) -> Result<Self, StateError> {
+        Cik::new(&cik.into()).map_or_else(
             |e| Err(InvalidCikFormat::from_domain_error(Self::default().get_state(), e).into()),
             |valid_cik| {
                 Ok(Self {
@@ -152,8 +152,9 @@ impl ValidateCikFormatOutputDataUpdaterBuilder {
     /// # Panics
     ///
     /// Panics if the CIK is not valid.
-    pub fn cik(mut self, cik: &(impl ToString + ?Sized)) -> Self {
-        self.cik = Some(Cik::new(cik).expect("CIK must be valid."));
+    pub fn cik(mut self, cik: impl Into<String>) -> Self {
+        let cik_str = cik.into();
+        self.cik = Some(Cik::new(&cik_str).expect("CIK must be valid."));
         self
     }
 
