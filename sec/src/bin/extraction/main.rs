@@ -31,7 +31,7 @@ async fn main() {
                 .expect("Should be valid")
                 .validated_cik
                 .clone(),
-            "TestUserAgent".to_string(),
+            "Test User Agent test@example.com".to_string(),
         ),
         PrepareSecRequestContext::new(),
     );
@@ -39,7 +39,7 @@ async fn main() {
     prepare_sec_request
         .compute_output_data_async()
         .await
-        .expect("PrepareSecRequest should always succeed with a valid CIK.");
+        .expect("PrepareSecRequest should always succeed with a valid CIK and user agent.");
     println!("\n=======================================================");
     println!("After PrepareSecRequest output:");
     println!("{:.500}", prepare_sec_request.to_string().as_str());
