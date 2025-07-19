@@ -35,7 +35,7 @@ impl SecClient {
         let Ok(client) = client else {
             return Err(SecClientError {
                 reason: SecClientErrorReason::ReqwestClientCreationFailed,
-                user_agent: user_agent,
+                user_agent,
             });
         };
 
