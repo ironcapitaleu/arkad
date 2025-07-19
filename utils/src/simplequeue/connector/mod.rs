@@ -1,5 +1,7 @@
 use urlencoding::encode;
 
+use super::connection::Connection;
+
 pub mod builder;
 
 /// Connector struct that is used to establish a connection to RabbitMQ via AMQP protocol.
@@ -78,7 +80,7 @@ impl Connector {
         )
     }
 
-    pub fn create_connection() -> super::connection::Connection{
-        super::connection::Connection
+    pub fn create_connection() -> Connection{
+        Connection
     }
 }
