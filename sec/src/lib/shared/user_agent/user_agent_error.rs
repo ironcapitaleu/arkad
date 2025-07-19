@@ -1,5 +1,27 @@
+//! # User Agent Error Types
+//!
+//! This module defines error types and reasons for user agent validation failures.
+//! It is used throughout the [`crate::shared::user_agent`] module and by state machine implementations
+//! that require robust error reporting for user agent string validation failures.
+//!
+//! ## Types
+//! - [`UserAgentError`]: Error struct containing the [`UserAgentErrorReason`] and the user agent string that caused the failure. This allows precise diagnostics about why a user agent string is invalid.
+//! - [`UserAgentErrorReason`]: Enum describing specific reasons for user agent validation failure, such as not following the required SEC format.
+//!
+//! ## Usage
+//! These error types are returned by user agent validation routines and are used in state data modules
+//! to provide detailed diagnostics and error handling for SEC-compliant user agent string validation.
+//! They are also used as domain errors for the general state machine error logic in [`crate::error`] and may be wrapped by state-level errors.
+//!
+//! ## See Also
+//! - [`crate::shared::user_agent`]: Main user agent utilities module.
+//! - [`crate::error`]: Error types that may reference user agent errors for reporting.
+
 use thiserror::Error;
 
+/// Error details for user agent validation failures.
+///
+/// This struct provides both the reason for the failure and the user agent string that was provided.
 #[derive(Debug, Error, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[error("[UserAgentError] User agent creation failed: Reason: '{reason}'. Input: '{user_agent}'.")]
 pub struct UserAgentError {

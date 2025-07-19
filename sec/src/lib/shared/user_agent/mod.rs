@@ -1,8 +1,36 @@
+//! # User Agent Utilities
+//!
+//! This module provides the [`UserAgent`] type and related utilities for creating and validating
+//! SEC-compliant user agent strings. It is used throughout the SEC state machine library to ensure that
+//! HTTP requests to SEC API endpoints include properly formatted user agent headers.
+//!
+//! ## Modules
+//! - [`user_agent_error`]: Error types and reasons for invalid user agent strings.
+//!
+//! ## Types
+//! - [`UserAgent`]: Strongly-typed wrapper for a validated user agent string that complies with SEC format requirements.
+//! - [`UserAgentError`], [`UserAgentErrorReason`]: Error types for reporting user agent validation failures.
+//!
+//! ## Usage
+//! The [`UserAgent`] type is used by HTTP client implementations and state machine logic to ensure that
+//! all requests to SEC API endpoints include properly formatted user agent strings. The SEC requires
+//! user agent strings to follow the format "Company Name email@domain.com".
+//!
+//! ## See Also
+//! - [`crate::shared`]: Shared domain types and utilities used across the SEC state machine library.
+//! - [`crate::shared::sec_client`]: SEC client utilities that use user agent strings for HTTP requests.
+//! - [`crate::error`]: Error types that may reference [`UserAgentError`] and [`UserAgentErrorReason`] for detailed diagnostics.
+
 use regex::Regex;
 
 pub mod user_agent_error;
 pub use user_agent_error::{UserAgentError, UserAgentErrorReason};
 
+/// Strongly-typed wrapper for a validated SEC-compliant user agent string.
+///
+/// The `UserAgent` type ensures that only valid, SEC-compliant user agent strings are constructed and used
+/// throughout the SEC state machine library. The SEC requires user agent strings to follow the format
+/// "Company Name email@domain.com". Use [`UserAgent::new`] to construct and validate a user agent value.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct UserAgent {
     pub inner: String,
