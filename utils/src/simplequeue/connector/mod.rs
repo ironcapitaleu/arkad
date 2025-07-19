@@ -50,6 +50,8 @@ impl Connector {
     /// Does not encode the port and host, as it is typically not necessary because these values are expected to contain only URL-safe characters (no spaces or special characters).
     /// # Example
     /// ```
+    /// use utils::simplequeue::connector::Connector;
+    /// 
     /// let connector = Connector {
     ///     user: "admin".into(),
     ///     password: "secret password".into(),
