@@ -1,0 +1,1 @@
+cargo check --manifest-path utils/Cargo.toml

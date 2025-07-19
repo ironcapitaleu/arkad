@@ -1,0 +1,1 @@
+cd /Users/demircatovic/Projects/gold/arkad && cargo check --bin simplified_queue_example -p utils

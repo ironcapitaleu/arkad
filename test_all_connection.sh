@@ -1,0 +1,1 @@
+cd /Users/demircatovic/Projects/gold/arkad && cargo test --lib -p utils queue::connection::tests
