@@ -101,10 +101,10 @@ impl PrepareSecRequestContextUpdaterBuilder {
         Self { max_retries: None }
     }
 
-    /// Sets the max_retries value inside the context to the provided update value.
+    /// Sets the `max_retries` value inside the context to the provided update value.
     ///
     /// # Arguments
-    /// * `max_retries` - The new value for max_retries.
+    /// * `max_retries` - The new value for `max_retries`.
     #[must_use]
     #[allow(clippy::missing_const_for_fn)]
     pub fn max_retries(mut self, max_retries: u32) -> Self {

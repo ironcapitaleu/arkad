@@ -1,6 +1,6 @@
 pub mod constants;
 
-use constants::{SEC_CIK_BASE_URL, SEC_CIK_BERKSHIRE_HATHAWAY_URL};
+use constants::{SEC_REQUEST_URL_PREFIX, SEC_REQUEST_URL_SUFFIX, SEC_CIK_BERKSHIRE_HATHAWAY_URL};
 
 use reqwest::Request;
 
@@ -18,7 +18,7 @@ impl SecRequest {
     /// # Panics
     /// Panics if the URL cannot be parsed, which should not happen with hardcoded URLs.
     pub fn new(cik: &Cik) -> Self {
-        let url = format!("{SEC_CIK_BASE_URL}{cik}.json");
+        let url = format!("{SEC_REQUEST_URL_PREFIX}{cik}{SEC_REQUEST_URL_SUFFIX}");
         Self {
             inner: Request::new(
                 reqwest::Method::GET,
