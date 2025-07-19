@@ -1,5 +1,27 @@
+//! # SEC Client Error Types
+//!
+//! This module defines error types and reasons for SEC client creation failures.
+//! It is used throughout the [`crate::shared::sec_client`] module and by state machine implementations
+//! that require robust error reporting for client initialization failures.
+//!
+//! ## Types
+//! - [`SecClientError`]: Error struct containing the [`SecClientErrorReason`] and the user agent string that caused the failure. This allows precise diagnostics about why a client couldn't be created.
+//! - [`SecClientErrorReason`]: Enum describing specific reasons for client creation failure, such as reqwest client creation issues or invalid user agent strings.
+//!
+//! ## Usage
+//! These error types are returned by SEC client creation routines and are used in state data modules
+//! to provide detailed diagnostics and error handling for HTTP client initialization.
+//! They are also used as domain errors for the general state machine error logic in [`crate::error`] and may be wrapped by state-level errors.
+//!
+//! ## See Also
+//! - [`crate::shared::sec_client`]: Main SEC client utilities module.
+//! - [`crate::error`]: Error types that may reference SEC client errors for reporting.
+
 use thiserror::Error;
 
+/// Error details for SEC client creation failures.
+///
+/// This struct provides both the reason for the failure and the user agent string that was provided.
 #[derive(Debug, Error, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[error("[SecClientError] Client creation failed: Reason: '{reason}'. Input: '{user_agent}'.")]
 pub struct SecClientError {
