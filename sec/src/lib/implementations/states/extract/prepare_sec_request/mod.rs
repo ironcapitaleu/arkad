@@ -46,7 +46,7 @@ impl State for PrepareSecRequest {
                 Ok(())
             }
             Err(e) => {
-                let e: StateError = ClientCreationFailed::new("PrepareSecRequest", e).into();
+                let e: StateError = ClientCreationFailed::new(&self.get_state_name(), e).into();
                 return Err(e);
             }
         }
@@ -59,7 +59,7 @@ impl SMState for PrepareSecRequest {
     type Context = PrepareSecRequestContext;
 
     fn get_state_name(&self) -> impl ToString {
-        "PrepareSecRequest State"
+        "Prepare SEC Request"
     }
 
     fn compute_output_data(&mut self) {}
