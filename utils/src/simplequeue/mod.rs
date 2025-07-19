@@ -6,5 +6,5 @@ pub mod connection;
 
 pub mod connector;
 
-pub use self::connector::{Connector, ConnectorBuilder};
 pub use self::connection::Connection;
+pub use self::connector::{Connector, ConnectorBuilder};

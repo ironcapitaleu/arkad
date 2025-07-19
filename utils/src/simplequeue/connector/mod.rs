@@ -52,7 +52,7 @@ impl Connector {
     /// # Example
     /// ```
     /// use utils::simplequeue::connector::Connector;
-    /// 
+    ///
     /// let connector = Connector {
     ///     user: "admin".into(),
     ///     password: "secret password".into(),
