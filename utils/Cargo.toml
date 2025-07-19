@@ -27,6 +27,7 @@ urlencoding = "2.1.3"
 
 [dev-dependencies]
 pretty_assertions = "1"
+colored = "3" # For colored CLI output in tests
 serial_test = "3.2.0" # For running tests in serial to avoid problems with shared resources, such as environment variables affecting other tests
 dotenvy = "0.15.7" # For unit tests that need .env file support
 

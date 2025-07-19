@@ -1,6 +1,8 @@
+use lapin;
 use urlencoding::encode;
 
 use super::connection::Connection;
+use super::error::connection_failed::ConnectionFailed;
 
 pub mod builder;
 pub use builder::ConnectorBuilder;
@@ -82,7 +84,16 @@ impl Connector {
         )
     }
 
-    pub fn create_connection() -> Connection {
-        Connection
+    pub async fn create_connection(&self) -> Result<Connection, ConnectionFailed> {
+        let connection_result =
+            lapin::Connection::connect(&self.uri(), lapin::ConnectionProperties::default()).await;
+
+        match connection_result {
+            Ok(lapin_connection) => Ok(Connection::new(lapin_connection)),
+            Err(e) => {
+                let connection_failed = ConnectionFailed::from((self.uri().as_str(), e));
+                Err(connection_failed)
+            }
+        }
     }
 }

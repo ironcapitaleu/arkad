@@ -1,5 +1,12 @@
-pub mod connector;
+use lapin::Connection as LapinConnection;
 
-pub use connector::ConnectorBuilder;
+#[derive(Debug)]
+pub struct Connection {
+    pub inner: LapinConnection,
+}
 
-pub struct Connection;
+impl Connection {
+    pub fn new(inner: LapinConnection) -> Self {
+        Connection { inner }
+    }
+}
