@@ -65,7 +65,6 @@ impl Connector {
     /// ```
     #[must_use]
     pub fn uri(&self) -> String {
-        
         format!(
             "amqp://{}:{}@{}:{}/{}",
             encode(&self.user),
@@ -76,7 +75,7 @@ impl Connector {
         )
     }
 
-    pub fn create_connection() -> super::Connection{
+    pub fn create_connection() -> super::Connection {
         super::Connection
     }
 }
@@ -213,8 +212,8 @@ impl Default for ConnectorBuilder<NoUser, NoPassword, NoHost, NoPort, NoVhost> {
 
 #[cfg(test)]
 mod tests {
-    use pretty_assertions::assert_eq;
     use super::*;
+    use pretty_assertions::assert_eq;
 
     #[test]
     fn should_build_connector_when_all_fields_are_set() {
@@ -225,7 +224,7 @@ mod tests {
             port: 5672,
             vhost: "/".to_string(),
         };
-        
+
         let result = ConnectorBuilder::new()
             .user("admin")
             .password("secret")
@@ -246,7 +245,7 @@ mod tests {
             port: 5672,
             vhost: "/".to_string(),
         };
-        
+
         let result = ConnectorBuilder::new()
             .port(5672u16)
             .vhost("/")
@@ -258,7 +257,6 @@ mod tests {
         assert_eq!(result, expected_result);
     }
 
-
     #[test]
     fn should_generate_correct_uri_when_building_connector() {
         let connector = ConnectorBuilder::new()
@@ -268,7 +266,7 @@ mod tests {
             .port(5672u16)
             .vhost("/")
             .build();
-        
+
         let expected_result = "amqp://admin:secret@localhost:5672/%2F";
 
         let result = connector.uri();
@@ -285,7 +283,7 @@ mod tests {
             .port(5672u16)
             .vhost("/")
             .build();
-        
+
         let expected_result = "amqp://admin%20user:secret@localhost:5672/%2F";
 
         let result = connector.uri();
@@ -293,7 +291,7 @@ mod tests {
         assert_eq!(result, expected_result);
     }
 
-#[test]
+    #[test]
     fn should_generate_correct_uri_when_having_whitespace_in_password() {
         let connector = ConnectorBuilder::new()
             .user("admin")

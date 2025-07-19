@@ -46,16 +46,17 @@ impl Queue {
     /// Returns an error if environment variables are invalid, connection fails, or queue creation fails.
     pub async fn new(queue_name: impl Into<String>) -> Result<Self, QueueError> {
         let queue_name = queue_name.into();
-        let builder = QueueConnectionBuilder::from_env()
-            .map_err(QueueError::Config)?;
-        
-        let connection = builder.connect().await
-            .map_err(QueueError::Connection)?;
-        
-        let channel = connection.create_channel().await
+        let builder = QueueConnectionBuilder::from_env().map_err(QueueError::Config)?;
+
+        let connection = builder.connect().await.map_err(QueueError::Connection)?;
+
+        let channel = connection
+            .create_channel()
+            .await
             .map_err(QueueError::Channel)?;
 
-        let inner = create_queue(&channel, &queue_name).await
+        let inner = create_queue(&channel, &queue_name)
+            .await
             .map_err(QueueError::Operation)?;
 
         Ok(Self {
@@ -262,7 +263,7 @@ mod tests {
         // Arrange & Act & Assert
         // This test verifies the structure is set up correctly
         // We can't actually create a Queue without a connection, but we can test the type
-        
+
         // If this compiles, it means our Queue struct is properly defined
         let _queue_type_check = std::marker::PhantomData::<Queue>;
         assert!(true, "Queue struct should be properly defined");

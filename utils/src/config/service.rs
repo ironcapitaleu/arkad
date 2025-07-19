@@ -2,11 +2,11 @@
 //!
 //! This module defines traits for configuration-specific management and validation.
 
-use std::{env, fmt::Debug, hash::Hash};
 use crate::config::error::ConfigError;
+use std::{env, fmt::Debug, hash::Hash};
 
 /// Trait for configuration types that can be loaded from environment variables.
-/// 
+///
 /// This trait should be implemented by configuration structs to define how they
 /// load and validate their required environment variables.
 ///
@@ -21,8 +21,7 @@ pub trait ServiceConfig: Debug + Send + Sync + Clone + PartialEq + Eq + Hash + S
     ///
     /// # Errors
     /// Returns a `ConfigError` if required environment variables are missing or invalid.
-    fn load_from_env() -> Result<Self, ConfigError>
-    {
+    fn load_from_env() -> Result<Self, ConfigError> {
         // Check for missing variables first
         let missing: Vec<String> = Self::required_env_vars()
             .iter()
@@ -39,7 +38,7 @@ pub trait ServiceConfig: Debug + Send + Sync + Clone + PartialEq + Eq + Hash + S
     }
 
     /// Parses configuration from environment variables.
-    /// 
+    ///
     /// This method should be implemented by each configuration struct to handle
     /// the specific parsing logic for their fields.
     ///
@@ -55,7 +54,7 @@ pub trait ServiceConfig: Debug + Send + Sync + Clone + PartialEq + Eq + Hash + S
 }
 
 /// Example configuration demonstrating the ServiceConfig trait usage.
-/// 
+///
 /// This serves as a template for implementing configuration structs in the project.
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub struct MyServiceConfig {
@@ -71,15 +70,19 @@ pub struct MyServiceConfig {
 
 impl ServiceConfig for MyServiceConfig {
     fn required_env_vars() -> &'static [&'static str] {
-        &["API_KEY", "DATABASE_URL", "MY_SERVICE_PORT", "MY_SERVICE_DEBUG"]
+        &[
+            "API_KEY",
+            "DATABASE_URL",
+            "MY_SERVICE_PORT",
+            "MY_SERVICE_DEBUG",
+        ]
     }
 
     fn parse_from_env() -> Result<Self, ConfigError> {
-        let api_key = env::var("API_KEY")
-            .expect("API_KEY should be validated by load_from_env");
+        let api_key = env::var("API_KEY").expect("API_KEY should be validated by load_from_env");
 
-        let database_url = env::var("DATABASE_URL")
-            .expect("DATABASE_URL should be validated by load_from_env");
+        let database_url =
+            env::var("DATABASE_URL").expect("DATABASE_URL should be validated by load_from_env");
 
         let port = env::var("MY_SERVICE_PORT")
             .expect("MY_SERVICE_PORT should be validated by load_from_env")
@@ -171,7 +174,7 @@ mod tests {
         }
     }
 
-    #[test]  
+    #[test]
     fn should_return_error_when_port_is_zero() {
         // Arrange
         let config = MyServiceConfig {
@@ -239,5 +242,3 @@ mod tests {
         implements_hash::<MyServiceConfig>();
     }
 }
-
-

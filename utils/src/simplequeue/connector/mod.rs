@@ -69,7 +69,6 @@ impl Connector {
     /// ```
     #[must_use]
     pub fn uri(&self) -> String {
-        
         format!(
             "amqp://{}:{}@{}:{}/{}",
             encode(&self.user),
@@ -80,7 +79,7 @@ impl Connector {
         )
     }
 
-    pub fn create_connection() -> Connection{
+    pub fn create_connection() -> Connection {
         Connection
     }
 }

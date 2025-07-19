@@ -95,14 +95,12 @@ impl QueueConnectionBuilder {
     /// # Errors
     /// Returns a `ConfigError` if any required environment variable is invalid.
     pub fn from_env() -> Result<Self, ConfigError> {
-        let username = std::env::var("RABBITMQ_USERNAME")
-            .unwrap_or_else(|_| "admin".to_string());
+        let username = std::env::var("RABBITMQ_USERNAME").unwrap_or_else(|_| "admin".to_string());
 
-        let password = std::env::var("RABBITMQ_PASSWORD")
-            .unwrap_or_else(|_| "admin123".to_string());
+        let password =
+            std::env::var("RABBITMQ_PASSWORD").unwrap_or_else(|_| "admin123".to_string());
 
-        let host = std::env::var("RABBITMQ_HOST")
-            .unwrap_or_else(|_| "localhost".to_string());
+        let host = std::env::var("RABBITMQ_HOST").unwrap_or_else(|_| "localhost".to_string());
 
         let port = std::env::var("RABBITMQ_PORT")
             .unwrap_or_else(|_| "5672".to_string())
@@ -112,8 +110,7 @@ impl QueueConnectionBuilder {
                 message: "must be a valid port number (0-65535)".to_string(),
             })?;
 
-        let vhost = std::env::var("RABBITMQ_VHOST")
-            .unwrap_or_else(|_| "%2f".to_string());
+        let vhost = std::env::var("RABBITMQ_VHOST").unwrap_or_else(|_| "%2f".to_string());
 
         Ok(Self {
             config: QueueConnectionConfig::new(username, password, host, port, vhost),
@@ -157,7 +154,7 @@ impl QueueConnectionBuilder {
     pub async fn connect(self) -> Result<QueueConnection, lapin::Error> {
         let uri = self.config.build_uri();
         let connection = Connection::connect(&uri, ConnectionProperties::default()).await?;
-        
+
         Ok(QueueConnection {
             connection,
             config: self.config,
@@ -239,13 +236,8 @@ mod tests {
     #[test]
     fn should_build_uri_from_config() {
         // Arrange
-        let config = QueueConnectionConfig::new(
-            "test_user",
-            "test_pass",
-            "test_host", 
-            5673,
-            "test_vhost"
-        );
+        let config =
+            QueueConnectionConfig::new("test_user", "test_pass", "test_host", 5673, "test_vhost");
 
         // Define
         let expected_result = "amqp://test_user:test_pass@test_host:5673/test_vhost";

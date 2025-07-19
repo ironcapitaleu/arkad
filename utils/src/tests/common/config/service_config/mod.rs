@@ -5,10 +5,10 @@
 
 use std::env;
 
-use crate::config::{service::ServiceConfig, error::ConfigError};
+use crate::config::{error::ConfigError, service::ServiceConfig};
 
 /// Configuration for a sample service demonstrating the configuration pattern.
-/// 
+///
 /// This struct shows how to organize service-specific settings and provides
 /// a template for implementing other service configurations.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -50,11 +50,10 @@ impl SampleServiceConfig {
 }
 
 impl ServiceConfig for SampleServiceConfig {
-
     fn required_env_vars() -> &'static [&'static str] {
         &[
             "API_KEY",
-            "DATABASE_URL", 
+            "DATABASE_URL",
             "SAMPLE_SERVICE_HOST",
             "SAMPLE_SERVICE_PORT",
             "SAMPLE_SERVICE_DEBUG",
@@ -65,9 +64,10 @@ impl ServiceConfig for SampleServiceConfig {
 
     fn parse_from_env() -> Result<Self, ConfigError> {
         // Parse port number
-        let port_str = env::var("SAMPLE_SERVICE_PORT")
-            .expect("SAMPLE_SERVICE_PORT should be validated above");
-        let port = port_str.parse::<u16>()
+        let port_str =
+            env::var("SAMPLE_SERVICE_PORT").expect("SAMPLE_SERVICE_PORT should be validated above");
+        let port = port_str
+            .parse::<u16>()
             .map_err(|_| ConfigError::InvalidValue {
                 key: "SAMPLE_SERVICE_PORT".to_string(),
                 message: "must be a valid port number (0-65535)".to_string(),
@@ -76,7 +76,8 @@ impl ServiceConfig for SampleServiceConfig {
         // Parse debug mode
         let debug_str = env::var("SAMPLE_SERVICE_DEBUG")
             .expect("SAMPLE_SERVICE_DEBUG should be validated above");
-        let debug_mode = debug_str.parse::<bool>()
+        let debug_mode = debug_str
+            .parse::<bool>()
             .map_err(|_| ConfigError::InvalidValue {
                 key: "SAMPLE_SERVICE_DEBUG".to_string(),
                 message: "must be 'true' or 'false'".to_string(),
@@ -85,20 +86,24 @@ impl ServiceConfig for SampleServiceConfig {
         // Parse max retries
         let max_retries_str = env::var("SAMPLE_SERVICE_MAX_RETRIES")
             .expect("SAMPLE_SERVICE_MAX_RETRIES should be validated above");
-        let max_retries = max_retries_str.parse::<u32>()
-            .map_err(|_| ConfigError::InvalidValue {
-                key: "SAMPLE_SERVICE_MAX_RETRIES".to_string(),
-                message: "must be a valid positive number".to_string(),
-            })?;
+        let max_retries =
+            max_retries_str
+                .parse::<u32>()
+                .map_err(|_| ConfigError::InvalidValue {
+                    key: "SAMPLE_SERVICE_MAX_RETRIES".to_string(),
+                    message: "must be a valid positive number".to_string(),
+                })?;
 
         // Parse timeout seconds
         let timeout_str = env::var("SAMPLE_SERVICE_TIMEOUT_SECONDS")
             .expect("SAMPLE_SERVICE_TIMEOUT_SECONDS should be validated above");
-        let timeout_seconds = timeout_str.parse::<u64>()
-            .map_err(|_| ConfigError::InvalidValue {
-                key: "SAMPLE_SERVICE_TIMEOUT_SECONDS".to_string(),
-                message: "must be a valid positive number".to_string(),
-            })?;
+        let timeout_seconds =
+            timeout_str
+                .parse::<u64>()
+                .map_err(|_| ConfigError::InvalidValue {
+                    key: "SAMPLE_SERVICE_TIMEOUT_SECONDS".to_string(),
+                    message: "must be a valid positive number".to_string(),
+                })?;
 
         Ok(SampleServiceConfig {
             api_key: env::var("API_KEY").expect("Should be validated"),
@@ -120,9 +125,7 @@ impl ServiceConfig for SampleServiceConfig {
         }
 
         // Validate required fields are not empty
-        if config.api_key.is_empty() 
-            || config.database_url.is_empty() 
-            || config.host.is_empty() {
+        if config.api_key.is_empty() || config.database_url.is_empty() || config.host.is_empty() {
             return Err(ConfigError::ValidationFailed {
                 message: "One or more configuration values are empty".to_string(),
             });

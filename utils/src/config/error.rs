@@ -8,11 +8,11 @@ pub enum ConfigError {
     /// Required environment variables are missing
     #[error("Missing required environment variables: {missing:?}")]
     MissingVariables { missing: Vec<String> },
-    
+
     /// Invalid configuration value format
     #[error("Invalid configuration value for '{key}': {message}")]
     InvalidValue { key: String, message: String },
-    
+
     /// Configuration validation failed
     #[error("Configuration validation failed: {message}")]
     ValidationFailed { message: String },
@@ -28,13 +28,15 @@ mod tests {
     fn should_create_missing_variables_error_when_variables_missing() {
         // Arrange & Define
         let missing_vars = vec!["API_KEY".to_string(), "DATABASE_URL".to_string()];
-        
-        let expected_error = ConfigError::MissingVariables { 
-            missing: missing_vars.clone() 
+
+        let expected_error = ConfigError::MissingVariables {
+            missing: missing_vars.clone(),
         };
 
         // Act
-        let result = ConfigError::MissingVariables { missing: missing_vars };
+        let result = ConfigError::MissingVariables {
+            missing: missing_vars,
+        };
 
         // Assert
         assert_eq!(result, expected_error);
