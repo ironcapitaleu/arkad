@@ -166,16 +166,11 @@ mod tests {
         let client_creation_failed =
             ClientCreationFailed::new(state_name, sec_client_error.clone());
 
-        let source = std::error::Error::source(&client_creation_failed);
+        let expected_result = Some(&sec_client_error);
 
-        assert!(source.is_some(), "Expected source error to be present");
-        let source = source.unwrap();
+        let result = std::error::Error::source(&client_creation_failed)
+            .and_then(|source| source.downcast_ref::<SecClientError>());
 
-        let sec_client_error_from_source = source.downcast_ref::<SecClientError>();
-        assert!(
-            sec_client_error_from_source.is_some(),
-            "Source should be SecClientError type"
-        );
-        assert_eq!(sec_client_error_from_source.unwrap(), &sec_client_error);
+        assert_eq!(result, expected_result);
     }
 }
