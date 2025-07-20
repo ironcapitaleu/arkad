@@ -166,11 +166,8 @@ mod tests {
         let client_creation_failed =
             ClientCreationFailed::new(state_name, sec_client_error.clone());
 
-        // Act
         let source = std::error::Error::source(&client_creation_failed);
 
-        // Assert
-        // The source should be Some(&SecC2lientError)
         assert!(source.is_some(), "Expected source error to be present");
         let source = source.unwrap();
 
