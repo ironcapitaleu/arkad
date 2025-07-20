@@ -88,8 +88,8 @@ impl FromDomainError<CikError> for InvalidCikFormat {
     ///
     /// # Returns
     /// An [`InvalidCikFormat`] error containing the provided context.
-    fn from_domain_error(state_name: &(impl ToString + ?Sized), err: Self::DomainErr) -> Self {
-        Self::new(state_name, err)
+    fn from_domain_error(state_name: impl Into<String>, err: Self::DomainErr) -> Self {
+        Self::new(&state_name.into(), err)
     }
 }
 
