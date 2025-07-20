@@ -60,7 +60,7 @@ impl UserAgent {
     fn validate_sec_format(user_agent: &str) -> Result<(), UserAgentError> {
         // Split the user agent into parts (company name and email)
         let parts: Vec<&str> = user_agent.rsplitn(2, ' ').collect();
-        
+
         if parts.len() != 2 {
             return Err(UserAgentError::new(
                 UserAgentErrorReason::InvalidSecFormat,
@@ -81,7 +81,10 @@ impl UserAgent {
     ///
     /// # Errors
     /// Returns an error if the company name is empty or invalid.
-    fn validate_company_name(company_name: &str, original_user_agent: &str) -> Result<(), UserAgentError> {
+    fn validate_company_name(
+        company_name: &str,
+        original_user_agent: &str,
+    ) -> Result<(), UserAgentError> {
         if company_name.trim().is_empty() {
             return Err(UserAgentError::new(
                 UserAgentErrorReason::InvalidSecFormat,
@@ -115,7 +118,6 @@ impl UserAgent {
         &self.inner
     }
 }
-
 
 #[cfg(test)]
 mod tests {
