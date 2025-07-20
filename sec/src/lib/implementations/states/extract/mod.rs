@@ -4,8 +4,8 @@
 //! It provides the entry point for the Extract phase in the SEC state machine ETL workflow.
 //!
 //! ## Submodules
-//! - [`validate_cik_format`]: Implements states for validating and extracting CIK (Central Index Key) information from SEC filings, including format checks and normalization routines.
-//! - [`prepare_sec_request`]: Contains states for preparing SEC requests, including constructing the necessary parameters and handling client creation errors.
+//! - [`validate_cik_format`]: Implements a state for validating and extracting CIK (Central Index Key) information from SEC filings, including format checks and normalization routines.
+//! - [`prepare_sec_request`]: Contains a state for preparing SEC requests, including constructing the necessary parameters and handling client creation errors.
 //!
 //! The extract states are designed to be composed within state machines, enabling robust, testable, and extensible data ingestion pipelines for SEC filings processing.
 //!
