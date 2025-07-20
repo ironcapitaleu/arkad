@@ -58,18 +58,52 @@ impl UserAgent {
     /// - Single space separator
     /// - Valid email address
     fn validate_sec_format(user_agent: &str) -> Result<(), UserAgentError> {
-        // Regex pattern for SEC user agent format:
-        // ^(.+?)\s+([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})$
-        // - (.+?) - Company name (non-greedy match for any characters)
-        // - \s+ - One or more spaces
-        // - ([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}) - Email address
-        let regex = Regex::new(r"^(.+?)\s+([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})$")
-            .expect("Invalid regex pattern");
-
-        if !regex.is_match(user_agent) {
+        // Split the user agent into parts (company name and email)
+        let parts: Vec<&str> = user_agent.rsplitn(2, ' ').collect();
+        
+        if parts.len() != 2 {
             return Err(UserAgentError::new(
                 UserAgentErrorReason::InvalidSecFormat,
                 user_agent,
+            ));
+        }
+
+        let email = parts[0];
+        let company_name = parts[1];
+
+        Self::validate_company_name(company_name, user_agent)?;
+        Self::validate_email(email, user_agent)?;
+
+        Ok(())
+    }
+
+    /// Validates that the company name part is not empty and contains valid characters.
+    ///
+    /// # Errors
+    /// Returns an error if the company name is empty or invalid.
+    fn validate_company_name(company_name: &str, original_user_agent: &str) -> Result<(), UserAgentError> {
+        if company_name.trim().is_empty() {
+            return Err(UserAgentError::new(
+                UserAgentErrorReason::InvalidSecFormat,
+                original_user_agent,
+            ));
+        }
+
+        Ok(())
+    }
+
+    /// Validates that the email part follows a valid email format.
+    ///
+    /// # Errors
+    /// Returns an error if the email format is invalid.
+    fn validate_email(email: &str, original_user_agent: &str) -> Result<(), UserAgentError> {
+        let email_regex = Regex::new(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$")
+            .expect("Invalid email regex pattern");
+
+        if !email_regex.is_match(email) {
+            return Err(UserAgentError::new(
+                UserAgentErrorReason::InvalidSecFormat,
+                original_user_agent,
             ));
         }
 
