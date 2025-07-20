@@ -67,20 +67,16 @@ mod tests {
 
     #[test]
     fn should_format_display_as_expected_when_reason_is_invalid_sec_format() {
-        // Arrange
         let user_agent = "TestUserAgent".to_string();
         let reason = UserAgentErrorReason::InvalidSecFormat;
         let user_agent_error = UserAgentError::new(reason.clone(), &user_agent);
 
-        // Define
         let expected_result = format!(
             "[UserAgentError] User agent creation failed: Reason: '{reason}'. Input: '{user_agent}'."
         );
 
-        // Act
         let result = format!("{user_agent_error}");
 
-        // Assert
         assert_eq!(result, expected_result);
     }
 }

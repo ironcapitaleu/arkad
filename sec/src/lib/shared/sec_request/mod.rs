@@ -111,47 +111,28 @@ mod tests {
 
     #[test]
     fn should_create_sec_request_when_valid_cik_is_provided() {
-        // Arrange
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should be valid");
-
-        // Define
         let expected_url = "https://data.sec.gov/submissions/CIK1234567890.json";
-
-        // Act
         let result = SecRequest::new(&cik);
 
-        // Assert
         assert_eq!(result.inner.url().as_str(), expected_url);
         assert_eq!(result.inner.method(), &reqwest::Method::GET);
     }
 
     #[test]
     fn should_create_sec_request_with_zero_padded_cik_when_short_cik_is_provided() {
-        // Arrange
         let cik = Cik::new("123456789").expect("Hardcoded CIK should be valid");
-
-        // Define
         let expected_url = "https://data.sec.gov/submissions/CIK0123456789.json";
-
-        // Act
         let result = SecRequest::new(&cik);
 
-        // Assert
         assert_eq!(result.inner.url().as_str(), expected_url);
     }
 
     #[test]
     fn should_create_default_sec_request_when_default_is_called() {
-        // Arrange
-        // (No setup needed)
-
-        // Define
         let expected_url = SEC_CIK_BERKSHIRE_HATHAWAY_URL;
-
-        // Act
         let result = SecRequest::default();
 
-        // Assert
         assert_eq!(result.inner.url().as_str(), expected_url);
         assert_eq!(result.inner.method(), &reqwest::Method::GET);
     }

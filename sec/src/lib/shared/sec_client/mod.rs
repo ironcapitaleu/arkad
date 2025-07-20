@@ -203,16 +203,10 @@ mod tests {
 
     #[test]
     fn should_create_sec_client_when_valid_user_agent_is_provided() {
-        // Arrange
         let user_agent = "Sample Corp contact@sample.com";
 
-        // Define
-        // We can't predict the exact UUID, but we can verify it's a valid UUID format
-
-        // Act
         let result = SecClient::new(user_agent);
 
-        // Assert
         assert!(result.is_ok());
         let client = result.unwrap();
         assert!(!client.id().is_empty());
@@ -221,16 +215,11 @@ mod tests {
 
     #[test]
     fn should_return_error_when_invalid_user_agent_is_provided() {
-        // Arrange
         let user_agent = "Invalid User Agent"; // Missing email
-
-        // Define
         let expected_error_reason = SecClientErrorReason::InvalidUserAgent;
 
-        // Act
         let result = SecClient::new(user_agent);
 
-        // Assert
         assert!(result.is_err());
         let error = result.unwrap_err();
         assert_eq!(error.reason, expected_error_reason);
@@ -238,49 +227,32 @@ mod tests {
 
     #[test]
     fn should_generate_unique_ids_when_multiple_clients_are_created() {
-        // Arrange
         let user_agent = "Test Company test@company.com";
 
-        // Define
-        // Each client should have a unique ID
-
-        // Act
         let client1 = SecClient::new(user_agent).unwrap();
         let client2 = SecClient::new(user_agent).unwrap();
 
-        // Assert
         assert_ne!(client1.id(), client2.id());
     }
 
     #[test]
     fn should_return_client_id_when_id_method_is_called() {
-        // Arrange
         let user_agent = "Test Company test@company.com";
         let client = SecClient::new(user_agent).unwrap();
-
-        // Define
         let expected_result = client.id.clone();
 
-        // Act
         let result = client.id();
 
-        // Assert
         assert_eq!(result, &expected_result);
     }
 
     #[test]
     fn should_return_inner_client_when_client_method_is_called() {
-        // Arrange
         let user_agent = "Test Company test@company.com";
         let sec_client = SecClient::new(user_agent).unwrap();
 
-        // Define
-        // The returned client should be the same as the inner client
-
-        // Act
         let result = sec_client.client();
 
-        // Assert
         // We can't directly compare reqwest::Client instances, but we can verify
         // that we got a client back
         assert!(std::ptr::eq(result, &sec_client.inner));
@@ -288,31 +260,20 @@ mod tests {
 
     #[test]
     fn should_create_default_client_when_default_is_called() {
-        // Arrange
-        // (No setup needed)
-
-        // Define
         let expected_id = "default";
 
-        // Act
         let result = SecClient::default();
 
-        // Assert
         assert_eq!(result.id(), expected_id);
     }
 
     #[test]
     fn should_return_error_when_user_agent_has_invalid_email_format() {
-        // Arrange
         let user_agent = "Test Company invalid-email";
-
-        // Define
         let expected_error_reason = SecClientErrorReason::InvalidUserAgent;
 
-        // Act
         let result = SecClient::new(user_agent);
 
-        // Assert
         assert!(result.is_err());
         let error = result.unwrap_err();
         assert_eq!(error.reason, expected_error_reason);
@@ -320,16 +281,11 @@ mod tests {
 
     #[test]
     fn should_return_error_when_user_agent_is_empty() {
-        // Arrange
         let user_agent = "";
-
-        // Define
         let expected_error_reason = SecClientErrorReason::InvalidUserAgent;
 
-        // Act
         let result = SecClient::new(user_agent);
 
-        // Assert
         assert!(result.is_err());
         let error = result.unwrap_err();
         assert_eq!(error.reason, expected_error_reason);
@@ -337,16 +293,10 @@ mod tests {
 
     #[test]
     fn should_create_client_when_email_has_plus_sign() {
-        // Arrange
         let user_agent = "Test Company admin+sec@company.com";
 
-        // Define
-        // Should successfully create client with email containing plus sign
-
-        // Act
         let result = SecClient::new(user_agent);
 
-        // Assert
         assert!(result.is_ok());
         let client = result.unwrap();
         assert!(!client.id().is_empty());
@@ -354,16 +304,10 @@ mod tests {
 
     #[test]
     fn should_create_client_when_email_has_subdomain() {
-        // Arrange
         let user_agent = "Research Team research@api.university.edu";
 
-        // Define
-        // Should successfully create client with subdomain email
-
-        // Act
         let result = SecClient::new(user_agent);
 
-        // Assert
         assert!(result.is_ok());
         let client = result.unwrap();
         assert!(!client.id().is_empty());

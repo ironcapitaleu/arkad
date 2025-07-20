@@ -97,182 +97,136 @@ mod tests {
 
     #[test]
     fn should_create_user_agent_when_format_is_valid() {
-        // Arrange
         let user_agent_str = "Sample Name AdminContact@samplecompany.com";
 
-        // Define
         let expected_result = UserAgent {
             inner: user_agent_str.to_string(),
         };
 
-        // Act
         let result = UserAgent::new(user_agent_str);
 
-        // Assert
         assert_eq!(result.unwrap(), expected_result);
     }
 
     #[test]
     fn should_return_error_when_email_is_missing() {
-        // Arrange
         let user_agent_str = "Sample Name";
 
-        // Define
         let expected_result =
             UserAgentError::new(UserAgentErrorReason::InvalidSecFormat, user_agent_str);
 
-        // Act
         let result = UserAgent::new(user_agent_str);
 
-        // Assert
         assert_eq!(result.unwrap_err(), expected_result);
     }
 
     #[test]
     fn should_return_error_when_company_name_is_missing() {
-        // Arrange
         let user_agent_str = "AdminContact@samplecompany.com";
 
-        // Define
         let expected_result =
             UserAgentError::new(UserAgentErrorReason::InvalidSecFormat, user_agent_str);
 
-        // Act
         let result = UserAgent::new(user_agent_str);
 
-        // Assert
         assert_eq!(result.unwrap_err(), expected_result);
     }
 
     #[test]
     fn should_return_error_when_email_format_is_invalid() {
-        // Arrange
         let user_agent_str = "Sample Name invalid-email";
 
-        // Define
         let expected_result =
             UserAgentError::new(UserAgentErrorReason::InvalidSecFormat, user_agent_str);
 
-        // Act
         let result = UserAgent::new(user_agent_str);
 
-        // Assert
         assert_eq!(result.unwrap_err(), expected_result);
     }
 
     #[test]
     fn should_create_user_agent_when_company_name_has_multiple_words() {
-        // Arrange
         let user_agent_str = "Big Tech Corporation Inc. contact@bigtech.com";
 
-        // Define
         let expected_result = UserAgent {
             inner: user_agent_str.to_string(),
         };
 
-        // Act
         let result = UserAgent::new(user_agent_str);
 
-        // Assert
         assert_eq!(result.unwrap(), expected_result);
     }
 
     #[test]
     fn should_create_user_agent_when_company_name_has_special_characters() {
-        // Arrange
         let user_agent_str = "Company & Associates, LLC. contact@smithlaw.com";
 
-        // Define
         let expected_result = UserAgent {
             inner: user_agent_str.to_string(),
         };
 
-        // Act
         let result = UserAgent::new(user_agent_str);
 
-        // Assert
         assert_eq!(result.unwrap(), expected_result);
     }
 
     #[test]
     fn should_create_user_agent_when_email_has_plus_sign() {
-        // Arrange
         let user_agent_str = "Sample Company admin+sec@company.com";
 
-        // Define
         let expected_result = UserAgent {
             inner: user_agent_str.to_string(),
         };
 
-        // Act
         let result = UserAgent::new(user_agent_str);
 
-        // Assert
         assert_eq!(result.unwrap(), expected_result);
     }
 
     #[test]
     fn should_return_error_when_string_is_empty() {
-        // Arrange
         let user_agent_str = "";
 
-        // Define
         let expected_result =
             UserAgentError::new(UserAgentErrorReason::InvalidSecFormat, user_agent_str);
 
-        // Act
         let result = UserAgent::new(user_agent_str);
 
-        // Assert
         assert_eq!(result.unwrap_err(), expected_result);
     }
 
     #[test]
     fn should_return_error_when_email_domain_is_incomplete() {
-        // Arrange
         let user_agent_str = "Sample Company admin@company";
 
-        // Define
         let expected_result =
             UserAgentError::new(UserAgentErrorReason::InvalidSecFormat, user_agent_str);
 
-        // Act
         let result = UserAgent::new(user_agent_str);
 
-        // Assert
         assert_eq!(result.unwrap_err(), expected_result);
     }
 
     #[test]
     fn should_get_inner_string_when_called() {
-        // Arrange
         let user_agent_str = "Test Company contact@test.com";
         let user_agent = UserAgent::new(user_agent_str).unwrap();
 
-        // Define
         let expected_result = user_agent_str;
 
-        // Act
         let result = user_agent.inner();
 
-        // Assert
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_create_default_user_agent_when_default_is_called() {
-        // Arrange
-        // (No setup needed)
-
-        // Define
         let expected_result = UserAgent {
             inner: "Default Company contact@example.com".to_string(),
         };
 
-        // Act
         let result = UserAgent::default();
 
-        // Assert
         assert_eq!(result, expected_result);
     }
 }

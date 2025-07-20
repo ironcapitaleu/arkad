@@ -221,39 +221,30 @@ mod tests {
 
     #[test]
     fn should_return_reference_to_default_prepare_state_data_when_initialized_with_default() {
-        // Arrange
         let default_prepare_state_data = PrepareSecRequestInputData::default();
 
-        // Define
         let expected_result = &PrepareSecRequestInputData::default();
 
-        // Act
         let result = default_prepare_state_data.get_state();
 
-        // Assert
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_create_different_state_data_with_custom_data_when_using_new_as_constructor() {
-        // Arrange
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid.");
         let user_agent = "Custom Company contact@custom.com".to_string();
         let prepare_state_data = PrepareSecRequestInputData::new(cik, user_agent);
 
-        // Define
         let default_prepare_state_data = &PrepareSecRequestInputData::default();
 
-        // Act
         let result = prepare_state_data.get_state();
 
-        // Assert
         assert_ne!(result, default_prepare_state_data);
     }
 
     #[test]
     fn should_update_state_data_to_specified_values_when_update_contains_specified_values() {
-        // Arrange
         let mut state_data = PrepareSecRequestInputData::default();
         let new_cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid.");
         let new_user_agent = "Updated Company contact@updated.com".to_string();
@@ -261,21 +252,17 @@ mod tests {
             .validated_cik(new_cik.clone(), new_user_agent.clone())
             .build();
 
-        // Define
         let expected_result = &PrepareSecRequestInputData::new(new_cik, new_user_agent);
 
-        // Act
         StateData::update_state(&mut state_data, update)
             .expect("Update with valid 'update' value should always succeed.");
         let result = state_data.get_state();
 
-        // Assert
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_update_only_user_agent_when_update_contains_only_user_agent() {
-        // Arrange
         let mut state_data = PrepareSecRequestInputData::default();
         let original_cik = state_data.validated_cik.clone();
         let new_user_agent = "New User Agent contact@new.com".to_string();
@@ -283,21 +270,17 @@ mod tests {
             .user_agent(new_user_agent.clone())
             .build();
 
-        // Define
         let expected_result = &PrepareSecRequestInputData::new(original_cik, new_user_agent);
 
-        // Act
         StateData::update_state(&mut state_data, update)
             .expect("Update with valid 'update' value should always succeed.");
         let result = state_data.get_state();
 
-        // Assert
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_update_only_cik_when_update_contains_only_cik() {
-        // Arrange
         let mut state_data = PrepareSecRequestInputData::default();
         let original_user_agent = state_data.user_agent.clone();
         let new_cik = Cik::new("9876543210").expect("Hardcoded CIK should always be valid.");
@@ -305,21 +288,17 @@ mod tests {
             .cik(new_cik.clone())
             .build();
 
-        // Define
         let expected_result = &PrepareSecRequestInputData::new(new_cik, original_user_agent);
 
-        // Act
         StateData::update_state(&mut state_data, update)
             .expect("Update with valid 'update' value should always succeed.");
         let result = state_data.get_state();
 
-        // Assert
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_update_state_data_to_latest_specified_values_when_multiple_updates_in_builder() {
-        // Arrange
         let mut state_data = PrepareSecRequestInputData::default();
         let first_cik = Cik::new("1111111111").expect("Hardcoded CIK should always be valid.");
         let first_user_agent = "First Company contact@first.com".to_string();
@@ -331,67 +310,52 @@ mod tests {
             .validated_cik(final_cik.clone(), final_user_agent.clone())
             .build();
 
-        // Define
         let expected_result = &PrepareSecRequestInputData::new(final_cik, final_user_agent);
 
-        // Act
         StateData::update_state(&mut state_data, update)
             .expect("Update with valid 'update' value should always succeed.");
         let result = state_data.get_state();
 
-        // Assert
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_leave_state_data_unchanged_when_empty_update() {
-        // Arrange
         let mut state_data = PrepareSecRequestInputData::default();
         let empty_update = PrepareSecRequestInputDataUpdaterBuilder::default().build();
 
-        // Define
         let expected_result = &PrepareSecRequestInputData::default();
 
-        // Act
         StateData::update_state(&mut state_data, empty_update)
             .expect("Update with valid 'update' value should always succeed.");
         let result = state_data.get_state();
 
-        // Assert
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_return_validated_cik_when_accessor_method_is_called() {
-        // Arrange
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid.");
         let user_agent = "Test Company contact@test.com".to_string();
         let prepare_state_data = PrepareSecRequestInputData::new(cik.clone(), user_agent);
 
-        // Define
         let expected_result = &cik;
 
-        // Act
         let result = prepare_state_data.validated_cik();
 
-        // Assert
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_return_user_agent_when_accessor_method_is_called() {
-        // Arrange
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid.");
         let user_agent = "Test Company contact@test.com".to_string();
         let prepare_state_data = PrepareSecRequestInputData::new(cik, user_agent.clone());
 
-        // Define
         let expected_result = &user_agent;
 
-        // Act
         let result = prepare_state_data.user_agent();
 
-        // Assert
         assert_eq!(result, expected_result);
     }
 
