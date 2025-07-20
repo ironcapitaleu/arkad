@@ -31,7 +31,7 @@ pub use user_agent_error::{UserAgentError, UserAgentErrorReason};
 /// The `UserAgent` type ensures that only valid, SEC-compliant user agent strings are constructed and used
 /// throughout the SEC state machine library. The SEC requires user agent strings to follow the format
 /// "Company Name email@domain.com". Use [`UserAgent::new`] to construct and validate a user agent value.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 pub struct UserAgent {
     pub inner: String,
 }
@@ -82,13 +82,6 @@ impl UserAgent {
     }
 }
 
-impl Default for UserAgent {
-    fn default() -> Self {
-        Self {
-            inner: "Default Company contact@example.com".to_string(),
-        }
-    }
-}
 
 #[cfg(test)]
 mod tests {
