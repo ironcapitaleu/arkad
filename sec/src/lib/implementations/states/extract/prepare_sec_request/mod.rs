@@ -148,7 +148,8 @@ impl State for PrepareSecRequest {
                 Ok(())
             }
             Err(e) => {
-                let e: StateError = ClientCreationFailed::new(&self.get_state_name(), e).into();
+                let e: StateError =
+                    ClientCreationFailed::new(self.get_state_name().to_string(), e).into();
                 return Err(e);
             }
         }
