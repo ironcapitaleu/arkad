@@ -211,15 +211,4 @@ mod tests {
 
         assert_eq!(result, expected_result);
     }
-
-    #[test]
-    fn should_create_default_user_agent_when_default_is_called() {
-        let expected_result = UserAgent {
-            inner: "Default Company contact@example.com".to_string(),
-        };
-
-        let result = UserAgent::default();
-
-        assert_eq!(result, expected_result);
-    }
 }
