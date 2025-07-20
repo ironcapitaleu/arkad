@@ -61,6 +61,8 @@ impl From<(&str, LapinError)> for ConnectionFailed {
 
 #[cfg(test)]
 mod tests {
+    use std::io;
+
     use lapin::Error as LapinError;
     use pretty_assertions::assert_eq;
 
@@ -69,8 +71,7 @@ mod tests {
     #[test]
     fn should_create_connection_failed_when_new_is_called() {
         let uri = "amqp://localhost:5672";
-        let io_error =
-            std::io::Error::new(std::io::ErrorKind::ConnectionRefused, "connection refused");
+        let io_error = io::Error::new(io::ErrorKind::ConnectionRefused, "connection refused");
         let source_error = LapinError::from(io_error);
 
         let expected_result = ConnectionFailed {
@@ -102,7 +103,7 @@ mod tests {
     #[test]
     fn should_create_connection_failed_with_empty_strings_when_provided() {
         let uri = "";
-        let io_error = std::io::Error::new(std::io::ErrorKind::Other, "empty test");
+        let io_error = io::Error::new(io::ErrorKind::Other, "empty test");
         let source_error = LapinError::from(io_error);
 
         let expected_result = ConnectionFailed {
@@ -119,8 +120,7 @@ mod tests {
     #[test]
     fn should_create_connection_failed_from_lapin_error_tuple() {
         let uri = "amqp://localhost:5672";
-        let io_error =
-            std::io::Error::new(std::io::ErrorKind::ConnectionRefused, "connection refused");
+        let io_error = io::Error::new(io::ErrorKind::ConnectionRefused, "connection refused");
         let source_error = LapinError::from(io_error);
 
         let expected_uri = uri;
@@ -130,5 +130,31 @@ mod tests {
 
         assert_eq!(result.uri, expected_uri);
         assert_eq!(result.reason, expected_reason);
+    }
+
+    #[test]
+    fn should_return_correct_uri_when_uri_accessor_is_called() {
+        let uri = "amqp://test:5672";
+        let reason = "Test error";
+        let connection_failed = ConnectionFailed::new(uri, reason);
+
+        let expected_result = uri;
+
+        let result = connection_failed.uri();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_correct_reason_when_reason_accessor_is_called() {
+        let uri = "amqp://test:5672";
+        let reason = "Test error";
+        let connection_failed = ConnectionFailed::new(uri, reason);
+
+        let expected_result = reason;
+
+        let result = connection_failed.reason();
+
+        assert_eq!(result, expected_result);
     }
 }
