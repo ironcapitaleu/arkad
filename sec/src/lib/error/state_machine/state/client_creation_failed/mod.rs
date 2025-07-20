@@ -33,7 +33,7 @@ use crate::traits::error::FromDomainError;
 /// This error type is used to wrap domain-level [`SecClientError`]s with additional information about
 /// the state in which the error occurred, making it suitable for use in state machine error handling.
 #[derive(Error, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[error("[ClientCreationFailed] Failure in State: `{state_name}`. Error: `{sec_client_error}`")]
+#[error("[ClientCreationFailed] Failure in State: '{state_name}'. Error: '{sec_client_error}'")]
 pub struct ClientCreationFailed {
     /// The name of the state where the error occurred.
     pub state_name: String,
@@ -51,9 +51,9 @@ impl ClientCreationFailed {
     /// # Returns
     /// A new [`ClientCreationFailed`] error instance.
     #[must_use]
-    pub fn new(state_name: &(impl ToString + ?Sized), sec_client_error: SecClientError) -> Self {
+    pub fn new(state_name: impl Into<String>, sec_client_error: SecClientError) -> Self {
         Self {
-            state_name: state_name.to_string(),
+            state_name: state_name.into(),
             sec_client_error,
         }
     }
