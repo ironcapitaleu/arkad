@@ -282,13 +282,10 @@ mod tests {
             .vhost("/")
             .build();
 
-        // Define
         let expected_result = "amqp://admin:secret%20password@localhost:5672/%2F";
 
-        // Act
         let result = connector.uri();
 
-        // Assert
         assert_eq!(result, expected_result);
     }
 
