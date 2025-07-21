@@ -14,7 +14,7 @@ pub use connection::{QueueConnection, QueueConnectionBuilder, QueueConnectionCon
 
 use crate::config::error::ConfigError;
 
-/// High-level Queue abstraction that manages RabbitMQ connections and operations.
+/// High-level Queue abstraction that manages `RabbitMQ` connections and operations.
 ///
 /// This struct provides a simplified interface for common queue operations,
 /// automatically handling connection management and providing ergonomic methods
@@ -29,7 +29,7 @@ pub struct Queue {
 impl Queue {
     /// Creates a new Queue instance with the specified name from environment variables.
     ///
-    /// This method loads RabbitMQ connection configuration from environment variables,
+    /// This method loads `RabbitMQ` connection configuration from environment variables,
     /// establishes both connection and channel automatically, and creates the specified queue.
     ///
     /// Expected environment variables:
@@ -68,16 +68,19 @@ impl Queue {
     }
 
     /// Returns the name of this queue.
+    #[must_use]
     pub fn name(&self) -> &str {
         &self.name
     }
 
     /// Returns the number of messages currently in the queue.
+    #[must_use]
     pub fn message_count(&self) -> u32 {
         self.inner.message_count()
     }
 
     /// Returns the number of consumers connected to this queue.
+    #[must_use]
     pub fn consumer_count(&self) -> u32 {
         self.inner.consumer_count()
     }
@@ -88,22 +91,26 @@ impl Queue {
     }
 
     /// Checks if the connection is still active.
+    #[must_use]
     pub fn check_connection(&self) -> bool {
         self.connection.check_connection()
     }
 
     /// Gets a reference to the connection configuration.
-    pub fn config(&self) -> &QueueConnectionConfig {
+    #[must_use]
+    pub const fn config(&self) -> &QueueConnectionConfig {
         self.connection.config()
     }
 
     /// Gets a reference to the underlying channel for advanced operations.
-    pub fn channel(&self) -> &Channel {
+    #[must_use]
+    pub const fn channel(&self) -> &Channel {
         &self.channel
     }
 
     /// Gets a reference to the underlying connection for advanced operations.
-    pub fn connection(&self) -> &QueueConnection {
+    #[must_use]
+    pub const fn connection(&self) -> &QueueConnection {
         &self.connection
     }
 }
@@ -136,10 +143,10 @@ pub enum QueueError {
 impl fmt::Display for QueueError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            QueueError::Config(e) => write!(f, "Configuration error: {}", e),
-            QueueError::Connection(e) => write!(f, "Connection error: {}", e),
-            QueueError::Channel(e) => write!(f, "Channel error: {}", e),
-            QueueError::Operation(e) => write!(f, "Queue operation error: {}", e),
+            Self::Config(e) => write!(f, "Configuration error: {e}"),
+            Self::Connection(e) => write!(f, "Connection error: {e}"),
+            Self::Channel(e) => write!(f, "Channel error: {e}"),
+            Self::Operation(e) => write!(f, "Queue operation error: {e}"),
         }
     }
 }
@@ -147,15 +154,15 @@ impl fmt::Display for QueueError {
 impl std::error::Error for QueueError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            QueueError::Config(e) => Some(e),
-            QueueError::Connection(e) => Some(e),
-            QueueError::Channel(e) => Some(e),
-            QueueError::Operation(e) => Some(e),
+            Self::Config(e) => Some(e),
+            Self::Connection(e) => Some(e),
+            Self::Channel(e) => Some(e),
+            Self::Operation(e) => Some(e),
         }
     }
 }
 
-/// Establishes a connection to RabbitMQ using the provided AMQP URI.
+/// Establishes a connection to `RabbitMQ` using the provided AMQP URI.
 ///
 /// # Arguments
 /// * `addr` - The AMQP connection string (e.g., "amqp://user:pass@host:port/vhost")
@@ -169,7 +176,7 @@ pub async fn establish_connection(addr: &str) -> Result<Connection, lapin::Error
 /// Checks if a queue exists and prints queue information.
 ///
 /// # Arguments
-/// * `channel` - The RabbitMQ channel to use
+/// * `channel` - The `RabbitMQ` channel to use
 /// * `queue_name` - Name of the queue to check
 pub async fn check_queue(channel: &Channel, queue_name: &str) {
     match channel
@@ -191,7 +198,7 @@ pub async fn check_queue(channel: &Channel, queue_name: &str) {
             );
         }
         Err(e) => {
-            println!("✗ Queue '{}' check failed: {}", queue_name, e);
+            println!("✗ Queue '{queue_name}' check failed: {e}");
         }
     }
 }
@@ -199,7 +206,7 @@ pub async fn check_queue(channel: &Channel, queue_name: &str) {
 /// Creates a queue if it doesn't exist.
 ///
 /// # Arguments
-/// * `channel` - The RabbitMQ channel to use
+/// * `channel` - The `RabbitMQ` channel to use
 /// * `queue_name` - Name of the queue to create
 ///
 /// # Errors

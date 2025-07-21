@@ -3,7 +3,7 @@
 //! This module defines error types for configuration management operations.
 
 /// Configuration errors that can occur during environment setup and validation.
-#[derive(Debug, thiserror::Error, PartialEq)]
+#[derive(Debug, thiserror::Error, PartialEq, Eq)]
 pub enum ConfigError {
     /// Required environment variables are missing
     #[error("Missing required environment variables: {missing:?}")]

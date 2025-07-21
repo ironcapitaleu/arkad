@@ -50,7 +50,7 @@ impl ConnectorBuilder<NoUser, NoPassword, NoHost, NoPort, NoVhost> {
     /// # Returns
     /// A new `ConnectorBuilder` instance with all fields unset.
     #[must_use]
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
             user: NoUser,
             password: NoPassword,

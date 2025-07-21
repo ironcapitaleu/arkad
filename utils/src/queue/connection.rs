@@ -1,6 +1,6 @@
 //! # Queue Connection Module
 //!
-//! This module provides a builder pattern for creating RabbitMQ connections
+//! This module provides a builder pattern for creating `RabbitMQ` connections
 //! with ergonomic configuration support.
 
 use std::fmt;
@@ -9,19 +9,19 @@ use lapin::{Channel, Connection, ConnectionProperties};
 
 use crate::config::error::ConfigError;
 
-/// Configuration for a RabbitMQ queue connection.
+/// Configuration for a `RabbitMQ` queue connection.
 ///
 /// This struct holds all the necessary parameters to establish a connection
-/// to a RabbitMQ instance with sensible defaults (admin:admin123@localhost:5672/%2f).
+/// to a `RabbitMQ` instance with sensible defaults (admin:admin123@localhost:5672/%2f).
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct QueueConnectionConfig {
     /// The username for authentication
     pub username: String,
     /// The password for authentication
     pub password: String,
-    /// The hostname or IP address of the RabbitMQ server
+    /// The hostname or IP address of the `RabbitMQ` server
     pub host: String,
-    /// The port number for the RabbitMQ server
+    /// The port number for the `RabbitMQ` server
     pub port: u16,
     /// The virtual host to connect to
     pub vhost: String,
@@ -46,6 +46,7 @@ impl QueueConnectionConfig {
     }
 
     /// Builds the AMQP URI from the configuration.
+    #[must_use]
     pub fn build_uri(&self) -> String {
         format!(
             "amqp://{}:{}@{}:{}/{}",
@@ -68,7 +69,7 @@ impl Default for QueueConnectionConfig {
 
 /// Builder for creating queue connections with ergonomic configuration.
 ///
-/// This builder allows for fluent configuration of RabbitMQ connection parameters
+/// This builder allows for fluent configuration of `RabbitMQ` connection parameters
 /// and provides methods to establish connections and create channels.
 #[derive(Debug, Clone)]
 pub struct QueueConnectionBuilder {
@@ -77,6 +78,7 @@ pub struct QueueConnectionBuilder {
 
 impl QueueConnectionBuilder {
     /// Creates a new queue connection builder with default configuration.
+    #[must_use]
     pub fn new() -> Self {
         Self {
             config: QueueConnectionConfig::default(),
@@ -136,7 +138,8 @@ impl QueueConnectionBuilder {
     }
 
     /// Sets the port number.
-    pub fn port(mut self, port: u16) -> Self {
+    #[must_use]
+    pub const fn port(mut self, port: u16) -> Self {
         self.config.port = port;
         self
     }
@@ -162,7 +165,8 @@ impl QueueConnectionBuilder {
     }
 
     /// Gets a reference to the current configuration.
-    pub fn config(&self) -> &QueueConnectionConfig {
+    #[must_use]
+    pub const fn config(&self) -> &QueueConnectionConfig {
         &self.config
     }
 }
@@ -173,7 +177,7 @@ impl Default for QueueConnectionBuilder {
     }
 }
 
-/// A RabbitMQ connection wrapper with additional functionality.
+/// A `RabbitMQ` connection wrapper with additional functionality.
 ///
 /// This struct provides methods for managing the connection, creating channels,
 /// and accessing configuration information.
@@ -192,17 +196,20 @@ impl QueueConnection {
     }
 
     /// Checks if the connection is still active.
+    #[must_use]
     pub fn check_connection(&self) -> bool {
         self.connection.status().connected()
     }
 
     /// Gets a reference to the connection configuration.
-    pub fn config(&self) -> &QueueConnectionConfig {
+    #[must_use]
+    pub const fn config(&self) -> &QueueConnectionConfig {
         &self.config
     }
 
     /// Gets the underlying lapin connection.
-    pub fn inner(&self) -> &Connection {
+    #[must_use]
+    pub const fn inner(&self) -> &Connection {
         &self.connection
     }
 }

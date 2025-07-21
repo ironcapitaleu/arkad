@@ -6,7 +6,8 @@ pub struct Connection {
 }
 
 impl Connection {
-    pub fn new(inner: LapinConnection) -> Self {
-        Connection { inner }
+    #[must_use]
+    pub const fn new(inner: LapinConnection) -> Self {
+        Self { inner }
     }
 }

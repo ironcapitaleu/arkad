@@ -53,7 +53,7 @@ pub trait ServiceConfig: Debug + Send + Sync + Clone + PartialEq + Eq + Hash + S
     fn validate(config: &Self) -> Result<(), ConfigError>;
 }
 
-/// Example configuration demonstrating the ServiceConfig trait usage.
+/// Example configuration demonstrating the `ServiceConfig` trait usage.
 ///
 /// This serves as a template for implementing configuration structs in the project.
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
@@ -100,7 +100,7 @@ impl ServiceConfig for MyServiceConfig {
                 message: "must be 'true' or 'false'".to_string(),
             })?;
 
-        Ok(MyServiceConfig {
+        Ok(Self {
             api_key,
             database_url,
             port,

@@ -6,16 +6,16 @@
 /// # Required Environment Variables
 ///
 /// The following environment variables must be set:
-/// - RABBITMQ_USERNAME
-/// - RABBITMQ_PASSWORD  
-/// - RABBITMQ_HOST
-/// - RABBITMQ_PORT
-/// - RABBITMQ_VHOST
+/// - `RABBITMQ_USERNAME`
+/// - `RABBITMQ_PASSWORD`  
+/// - `RABBITMQ_HOST`
+/// - `RABBITMQ_PORT`
+/// - `RABBITMQ_VHOST`
 ///
 /// # Expected Output
 ///
 /// Queue created successfully with name: test.simplified.queue
-/// Queue configuration: QueueConnectionConfig { ... }
+/// Queue configuration: `QueueConnectionConfig` { ... }
 /// Connection is active: true
 /// Messages in queue: 0
 /// Consumers: 0
@@ -44,7 +44,7 @@ async fn main() {
             println!("✓ Queue abstraction working perfectly!");
         }
         Err(e) => {
-            eprintln!("✗ Failed to create queue with &str: {}", e);
+            eprintln!("✗ Failed to create queue with &str: {e}");
             eprintln!("  (This is expected if RabbitMQ is not running)");
         }
     }
@@ -59,7 +59,7 @@ async fn main() {
             );
         }
         Err(e) => {
-            eprintln!("✗ Failed to create queue with String: {}", e);
+            eprintln!("✗ Failed to create queue with String: {e}");
             eprintln!("  (This is expected if RabbitMQ is not running)");
         }
     }
@@ -74,7 +74,7 @@ async fn main() {
             );
         }
         Err(e) => {
-            eprintln!("✗ Failed to create queue with string literal: {}", e);
+            eprintln!("✗ Failed to create queue with string literal: {e}");
             eprintln!("  (This is expected if RabbitMQ is not running)");
         }
     }

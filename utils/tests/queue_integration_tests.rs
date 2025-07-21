@@ -1,10 +1,10 @@
 //! # Queue Integration Tests
 //!
-//! These tests verify queue functionality when RabbitMQ is running on localhost.
+//! These tests verify queue functionality when `RabbitMQ` is running on localhost.
 //!
 //! ## Prerequisites
 //! Before running these tests, ensure that:
-//! 1. RabbitMQ is running on localhost:5672
+//! 1. `RabbitMQ` is running on localhost:5672
 //! 2. The admin user (admin:admin123) is configured
 //! 3. Docker services are running: `docker compose up -d`
 //!
@@ -17,7 +17,6 @@
 //! cargo test --test queue_integration_tests
 //! ```
 
-use dotenvy;
 use pretty_assertions::assert_eq;
 
 use utils::queue::{check_queue, create_queue, establish_connection};

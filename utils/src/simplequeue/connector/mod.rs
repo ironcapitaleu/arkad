@@ -7,7 +7,7 @@ use super::error::connection_failed::ConnectionFailed;
 pub mod builder;
 pub use builder::ConnectorBuilder;
 
-/// Connector struct that is used to establish a connection to RabbitMQ via AMQP protocol.
+/// Connector struct that is used to establish a connection to `RabbitMQ` via AMQP protocol.
 ///
 /// This struct encapsulates all the necessary connection parameters and provides methods
 /// to generate connection URIs and establish connections to the message broker.
@@ -53,7 +53,7 @@ impl Connector {
     /// # Returns
     /// The port number for the message broker connection.
     #[must_use]
-    pub fn port(&self) -> u16 {
+    pub const fn port(&self) -> u16 {
         self.port
     }
 
