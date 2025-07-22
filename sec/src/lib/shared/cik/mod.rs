@@ -30,6 +30,8 @@ pub use constants::CIK_LENGTH;
 
 use std::fmt;
 
+use crate::shared::cik::constants::BERKSHIRE_HATHAWAY_CIK;
+
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 /// Strongly-typed wrapper for a validated SEC Central Index Key (CIK).
 ///
@@ -111,6 +113,14 @@ impl Cik {
 impl fmt::Display for Cik {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.value)
+    }
+}
+
+impl Default for Cik {
+    fn default() -> Self {
+        Self {
+            value: BERKSHIRE_HATHAWAY_CIK.to_string(),
+        }
     }
 }
 

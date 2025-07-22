@@ -4,12 +4,14 @@
 //! It provides the entry point for the Extract phase in the SEC state machine ETL workflow.
 //!
 //! ## Submodules
-//! - [`validate_cik_format`]: Implements states for validating and extracting CIK (Central Index Key) information from SEC filings, including format checks and normalization routines.
+//! - [`validate_cik_format`]: Implements a state for validating and extracting CIK (Central Index Key) information from SEC filings, including format checks and normalization routines.
+//! - [`prepare_sec_request`]: Contains a state for preparing SEC requests, including constructing the necessary parameters and handling client creation errors.
 //!
 //! The extract states are designed to be composed within state machines, enabling robust, testable, and extensible data ingestion pipelines for SEC filings processing.
 //!
 //! See the documentation for each submodule for details on their specific responsibilities and usage.
 
+pub mod prepare_sec_request;
 pub mod validate_cik_format;
 
 use crate::error::State as StateError;
@@ -119,8 +121,8 @@ impl<S: State> SuperState<S> for ExtractSuperState<S> {}
 impl ExtractSuperState<ValidateCikFormat> {
     #[must_use]
     pub fn new(input: &str) -> Self {
-        let vcf_input = ValidateCikFormatInputData::new(&input);
-        let vcf_context = ValidateCikFormatContext::new(&input);
+        let vcf_input = ValidateCikFormatInputData::new(input);
+        let vcf_context = ValidateCikFormatContext::new(input);
 
         Self {
             current_state: ValidateCikFormat::new(vcf_input, vcf_context),

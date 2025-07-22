@@ -122,7 +122,7 @@ impl State for ValidateCikFormat {
             }
             Err(e) => {
                 let e: StateError =
-                    InvalidCikFormat::from_domain_error(&self.get_state_name().to_string(), e)
+                    InvalidCikFormat::from_domain_error(self.get_state_name().to_string(), e)
                         .into();
                 // If the CIK is invalid, return an error
                 return Err(e);
