@@ -31,5 +31,5 @@ pub trait FromDomainError<DomainErr>: Error + Into<StateError> + Sized {
     /// # Arguments
     /// * `state_name` - The name of the state where the error occurred.
     /// * `err` - The domain-level error to wrap.
-    fn from_domain_error(state_name: &(impl ToString + ?Sized), err: Self::DomainErr) -> Self;
+    fn from_domain_error(state_name: impl Into<String>, err: Self::DomainErr) -> Self;
 }

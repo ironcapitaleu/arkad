@@ -53,15 +53,20 @@ impl ValidateCikFormatOutputData {
     /// # Errors
     ///
     /// Returns a [`StateError::InvalidCikFormat`] if the CIK is not formatted correctly.
-    pub fn new(cik: &(impl ToString + ?Sized)) -> Result<Self, StateError> {
-        Cik::new(cik).map_or_else(
-            |e| Err(InvalidCikFormat::from_domain_error(Self::default().get_state(), e).into()),
-            |valid_cik| {
-                Ok(Self {
-                    validated_cik: valid_cik,
-                })
-            },
-        )
+    pub fn new(cik: impl Into<String>) -> Result<Self, StateError> {
+        let validated_cik = Self::validate_cik_format(cik.into().as_str())?;
+        Ok(Self { validated_cik })
+    }
+
+    /// Validates the CIK format and returns a validated [`Cik`] instance.
+    ///
+    /// # Errors
+    ///
+    /// Returns a [`StateError::InvalidCikFormat`] if the CIK is not formatted correctly.
+    fn validate_cik_format(cik: &str) -> Result<Cik, StateError> {
+        Cik::new(&cik).map_err(|e| {
+            InvalidCikFormat::from_domain_error(Self::default().get_state().to_string(), e).into()
+        })
     }
 
     /// Returns a reference to the validated CIK string.
@@ -82,7 +87,9 @@ impl StateData for ValidateCikFormatOutputData {
                     self.validated_cik = valid_cik;
                     Ok(())
                 }
-                Err(e) => Err(InvalidCikFormat::from_domain_error(self.get_state(), e).into()),
+                Err(e) => {
+                    Err(InvalidCikFormat::from_domain_error(self.get_state().to_string(), e).into())
+                }
             }
         } else {
             Ok(())
@@ -152,8 +159,8 @@ impl ValidateCikFormatOutputDataUpdaterBuilder {
     /// # Panics
     ///
     /// Panics if the CIK is not valid.
-    pub fn cik(mut self, cik: &(impl ToString + ?Sized)) -> Self {
-        self.cik = Some(Cik::new(cik).expect("CIK must be valid."));
+    pub fn cik(mut self, cik: impl Into<String>) -> Self {
+        self.cik = Some(Cik::new(&cik.into()).expect("CIK must be valid."));
         self
     }
 
