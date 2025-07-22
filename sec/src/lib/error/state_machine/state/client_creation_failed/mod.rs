@@ -46,7 +46,7 @@ impl ClientCreationFailed {
     /// Creates a new state-level [`ClientCreationFailed`] error.
     ///
     /// # Arguments
-    /// * `state_name` - The name of the state where the error occurred.
+    /// * `state_name` - The name of the [`State`] where the error occurred.
     ///
     /// # Returns
     /// A new [`ClientCreationFailed`] error instance.
@@ -59,7 +59,7 @@ impl ClientCreationFailed {
     }
 }
 
-/// Converts a state-level `ClientCreationFailed` error into the state error enum variant.
+/// Converts a state-level [`ClientCreationFailed`] error into the [`StateError`] enum variant.
 impl From<ClientCreationFailed> for StateError {
     /// Converts an [`ClientCreationFailed`] into a [`StateError::ClientCreationFailed`] variant.
     ///

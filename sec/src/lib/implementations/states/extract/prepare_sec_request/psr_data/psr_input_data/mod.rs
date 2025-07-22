@@ -179,7 +179,7 @@ impl PrepareSecRequestInputDataUpdaterBuilder {
         self
     }
 
-    /// Sets only the validated CIK value to be updated.
+    /// Sets only the validated [`Cik`] value to be updated.
     ///
     /// # Arguments
     ///
@@ -191,7 +191,7 @@ impl PrepareSecRequestInputDataUpdaterBuilder {
         self
     }
 
-    /// Builds the updater instance from the builder.
+    /// Builds the [`PrepareSecRequestInputDataUpdater`] instance from the builder.
     #[must_use]
     pub fn build(self) -> PrepareSecRequestInputDataUpdater {
         PrepareSecRequestInputDataUpdater {
@@ -202,7 +202,7 @@ impl PrepareSecRequestInputDataUpdaterBuilder {
 }
 
 impl Default for PrepareSecRequestInputDataUpdaterBuilder {
-    /// Returns a new updater builder with no fields set.
+    /// Returns a new [`PrepareSecRequestInputDataUpdaterBuilder`] with no fields set.
     fn default() -> Self {
         Self::new()
     }

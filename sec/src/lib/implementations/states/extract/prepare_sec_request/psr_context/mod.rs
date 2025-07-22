@@ -83,19 +83,19 @@ impl fmt::Display for PrepareSecRequestContext {
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 /// Updater for the state context.
 ///
-/// Using this struct allows you to update fields of `PrepareSecRequestContext` in a controlled way.
+/// Using this struct allows you to update fields of [`PrepareSecRequestContext`] in a controlled way.
 pub struct PrepareSecRequestContextUpdater {
     pub max_retries: Option<u32>,
 }
 
-/// Builder for `PrepareSecRequestContextUpdater`.
+/// Builder for [`PrepareSecRequestContextUpdater`].
 ///
 /// Use this builder to fluently construct an updater for the context.
 pub struct PrepareSecRequestContextUpdaterBuilder {
     max_retries: Option<u32>,
 }
 impl PrepareSecRequestContextUpdaterBuilder {
-    /// Creates a new updater builder with no fields set.
+    /// Creates a new [`PrepareSecRequestContextUpdaterBuilder`] with no fields set.
     #[must_use]
     pub const fn new() -> Self {
         Self { max_retries: None }
@@ -112,7 +112,7 @@ impl PrepareSecRequestContextUpdaterBuilder {
         self
     }
 
-    /// Builds the updater with the specified fields.
+    /// Builds the [`PrepareSecRequestContextUpdater`] with the specified fields.
     #[must_use]
     pub const fn build(self) -> PrepareSecRequestContextUpdater {
         PrepareSecRequestContextUpdater {
@@ -122,7 +122,7 @@ impl PrepareSecRequestContextUpdaterBuilder {
 }
 
 impl Default for PrepareSecRequestContextUpdaterBuilder {
-    /// Returns a new context update builder with no fields set.
+    /// Returns a new [`PrepareSecRequestContextUpdaterBuilder`] with no fields set.
     fn default() -> Self {
         Self::new()
     }

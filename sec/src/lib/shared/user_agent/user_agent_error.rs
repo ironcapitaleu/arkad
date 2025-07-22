@@ -32,7 +32,7 @@ pub struct UserAgentError {
 }
 
 impl UserAgentError {
-    /// Creates a new `UserAgentError`.
+    /// Creates a new [`UserAgentError`].
     pub fn new(reason: UserAgentErrorReason, user_agent: impl Into<String>) -> Self {
         Self {
             reason,

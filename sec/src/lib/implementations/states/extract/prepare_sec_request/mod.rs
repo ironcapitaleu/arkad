@@ -101,16 +101,16 @@ pub struct PrepareSecRequest {
 }
 
 impl PrepareSecRequest {
-    /// Creates a new `PrepareSecRequest` state with the provided input and context data.
+    /// Creates a new [`PrepareSecRequest`] state with the provided input and context data.
     ///
     /// # Arguments
     ///
-    /// * `input` - The input data containing the validated CIK and user agent string.
-    /// * `context` - The context data for the preparation process.
+    /// * `input` - The [`PrepareSecRequestInputData`] containing the validated [`Cik`] and user agent string.
+    /// * `context` - The [`PrepareSecRequestContext`] for the preparation process.
     ///
     /// # Returns
     ///
-    /// Returns a new `PrepareSecRequest` state ready for computation.
+    /// Returns a new [`PrepareSecRequest`] state ready for computation.
     #[must_use]
     pub const fn new(input: PrepareSecRequestInputData, context: PrepareSecRequestContext) -> Self {
         Self {

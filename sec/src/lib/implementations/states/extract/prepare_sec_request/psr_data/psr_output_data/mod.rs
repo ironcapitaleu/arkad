@@ -37,7 +37,7 @@ use crate::traits::state_machine::state::StateData;
 
 /// Output data containing a prepared SEC client and request.
 ///
-/// This struct holds a prepared [`SecClient`] and [`SecRequest`] value, produced by the `PrepareSecRequest` state
+/// This struct holds a prepared [`SecClient`] and [`SecRequest`] value, produced by the [`PrepareSecRequest`] state
 /// after successful preparation. It is used as output in the SEC extraction state machine,
 /// and supports builder-based updates and integration with the state machine framework.
 #[derive(Debug, Clone, Default, PartialEq, PartialOrd, Hash, Eq, Ord)]
@@ -68,7 +68,7 @@ impl PrepareSecRequestOutputData {
     /// ```
     ///
     /// # Errors
-    /// Returns a `StateError` if the output data cannot be created from the provided data.
+    /// Returns a [`StateError`] if the output data cannot be created from the provided data.
     pub const fn new(client: SecClient, request: SecRequest) -> Result<Self, StateError> {
         Ok(Self { client, request })
     }
@@ -144,7 +144,7 @@ pub struct PrepareSecRequestOutputDataUpdaterBuilder {
 }
 
 impl PrepareSecRequestOutputDataUpdaterBuilder {
-    /// Creates a new updater builder with no fields set.
+    /// Creates a new [`PrepareSecRequestOutputDataUpdaterBuilder`] with no fields set.
     #[must_use]
     pub const fn new() -> Self {
         Self {
@@ -157,7 +157,7 @@ impl PrepareSecRequestOutputDataUpdaterBuilder {
     ///
     /// # Arguments
     ///
-    /// * `client` - The new SEC client value.
+    /// * `client` - The new [`SecClient`] value.
     #[must_use]
     #[allow(clippy::missing_const_for_fn)]
     pub fn client(mut self, client: SecClient) -> Self {
@@ -169,7 +169,7 @@ impl PrepareSecRequestOutputDataUpdaterBuilder {
     ///
     /// # Arguments
     ///
-    /// * `request` - The new SEC request value.
+    /// * `request` - The new [`SecRequest`] value.
     #[must_use]
     #[allow(clippy::missing_const_for_fn)]
     pub fn request(mut self, request: SecRequest) -> Self {
@@ -177,7 +177,7 @@ impl PrepareSecRequestOutputDataUpdaterBuilder {
         self
     }
 
-    /// Builds the updater instance from the builder.
+    /// Builds the [`PrepareSecRequestOutputDataUpdater`] instance from the builder.
     #[must_use]
     pub fn build(self) -> PrepareSecRequestOutputDataUpdater {
         PrepareSecRequestOutputDataUpdater {
@@ -188,7 +188,7 @@ impl PrepareSecRequestOutputDataUpdaterBuilder {
 }
 
 impl Default for PrepareSecRequestOutputDataUpdaterBuilder {
-    /// Returns a new updater builder with no fields set.
+    /// Returns a new [`PrepareSecRequestOutputDataUpdaterBuilder`] with no fields set.
     fn default() -> Self {
         Self::new()
     }

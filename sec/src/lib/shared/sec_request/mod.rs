@@ -30,8 +30,8 @@ use crate::shared::cik::Cik;
 
 /// Strongly-typed wrapper for HTTP requests to SEC API endpoints.
 ///
-/// The `SecRequest` type ensures that HTTP requests to SEC API endpoints are properly formatted
-/// and follow the correct URL structure. Use [`SecRequest::new`] to construct a request for a specific CIK.
+/// The [`SecRequest`] type ensures that HTTP requests to SEC API endpoints are properly formatted
+/// and follow the correct URL structure. Use [`SecRequest::new`] to construct a request for a specific [`Cik`].
 #[derive(Debug)]
 pub struct SecRequest {
     pub inner: reqwest::Request,
@@ -39,7 +39,7 @@ pub struct SecRequest {
 
 impl SecRequest {
     #[must_use]
-    /// Creates a new `SecRequest` for a given CIK.
+    /// Creates a new [`SecRequest`] for a given [`Cik`].
     ///
     /// # Panics
     /// Panics if the URL cannot be parsed, which should not happen with hardcoded URLs.
@@ -112,7 +112,9 @@ mod tests {
     #[test]
     fn should_create_sec_request_when_valid_cik_is_provided() {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should be valid");
+
         let expected_url = "https://data.sec.gov/submissions/CIK1234567890.json";
+
         let result = SecRequest::new(&cik);
 
         assert_eq!(result.inner.url().as_str(), expected_url);
@@ -122,7 +124,9 @@ mod tests {
     #[test]
     fn should_create_sec_request_with_zero_padded_cik_when_short_cik_is_provided() {
         let cik = Cik::new("123456789").expect("Hardcoded CIK should be valid");
+
         let expected_url = "https://data.sec.gov/submissions/CIK0123456789.json";
+
         let result = SecRequest::new(&cik);
 
         assert_eq!(result.inner.url().as_str(), expected_url);
@@ -131,6 +135,7 @@ mod tests {
     #[test]
     fn should_create_default_sec_request_when_default_is_called() {
         let expected_url = SEC_CIK_BERKSHIRE_HATHAWAY_URL;
+
         let result = SecRequest::default();
 
         assert_eq!(result.inner.url().as_str(), expected_url);
