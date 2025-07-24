@@ -55,9 +55,9 @@ impl ValidateCikFormatInputData {
     ///
     /// let validation_input_data = ValidateCikFormatInputData::new("1067983");
     /// ```
-    pub fn new(cik: &(impl ToString + ?Sized)) -> Self {
+    pub fn new(cik: impl Into<String>) -> Self {
         Self {
-            raw_cik: cik.to_string(),
+            raw_cik: cik.into(),
         }
     }
 
@@ -138,11 +138,11 @@ impl ValidateCikFormatInputDataUpdaterBuilder {
     ///
     /// # Arguments
     ///
-    /// * `cik` - The new raw CIK value as any type implementing `ToString`.
+    /// * `cik` - The new raw CIK value as any type implementing `Into<String>`.
     #[must_use]
     #[allow(clippy::missing_const_for_fn)]
-    pub fn cik(mut self, cik: &(impl ToString + ?Sized)) -> Self {
-        self.raw_cik = Some(cik.to_string());
+    pub fn cik(mut self, cik: impl Into<String>) -> Self {
+        self.raw_cik = Some(cik.into());
         self
     }
 

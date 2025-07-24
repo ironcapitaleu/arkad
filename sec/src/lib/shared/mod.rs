@@ -5,6 +5,9 @@
 //!
 //! ## Modules
 //! - [`cik`]: Provides parsing, validation, and formatting utilities for SEC Central Index Keys (CIKs).
+//! - [`sec_client`]: Provides utilities for creating and managing SEC API clients, including user agent handling.
+//! - [`sec_request`]: Provides utilities for constructing SEC API requests, ensuring proper URL formatting.
+//! - [`user_agent`]: Provides utilities for creating and validating SEC-compliant user agent strings.
 //!
 //! ## Usage
 //! The types and functions in this module are intended to be used by state implementations, error handling, and data validation routines across the library.
@@ -15,3 +18,6 @@
 //! - [`crate::error`]: Error types that may reference shared domain types for detailed error reporting.
 
 pub mod cik;
+pub mod sec_client;
+pub mod sec_request;
+pub mod user_agent;
