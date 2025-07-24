@@ -67,6 +67,8 @@ use super::context_data::ContextData;
     - **Note**: Use `Result<T, E>` for error handling
   - **Assert**: Verify the results (i.e., that the `result` matches the `expected_result`)
     - **Note**: Use `assert_eq!` for equality checks, `assert_ne!` for inequality checks, and `assert!(condition)` for boolean checks.
+    - **Note**: Use `unexpected_result`for unexpected results (e.g., inside inequality checks with `assert_ne!`), and `expected_error` for expected errors.
+    - **Note**: Do not use comments inside the unit tests to explain the different sections of the test, as the code should be self-explanatory. NO NEED to use comments like `// Arrange`, `// Act`, or `// Assert` in the code.
 - Unit tests should be placed in the same file as the code they test, using a `#[cfg(test)]` module.
 - Unit tests should follow the `should_..._when` naming convention for the test function names, where `...` is a description of the expected behavior.
   - **Note**: Test function names should be in `snake_case` and start with `should_`. Test names can be verbose, explicit but clear naming is favored over brevity.
