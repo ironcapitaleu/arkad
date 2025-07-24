@@ -1,1 +1,0 @@
-cd /Users/demircatovic/Projects/gold/arkad && cargo test --lib -p utils queue::connection::tests::should_require_all_environment_variables_when_using_from_env
