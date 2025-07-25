@@ -9,13 +9,12 @@ pub enum ConnectionKind {
     /// Connection used for batch loading processes.
     BatchLoader,
 }
-
-impl Into<String> for ConnectionKind {
-    fn into(self) -> String {
-        match self {
-            Self::BatchExtractor => "batch-extractor".to_string(),
-            Self::BatchTransformer => "batch-transformer".to_string(),
-            Self::BatchLoader => "batch-loader".to_string(),
+impl From<ConnectionKind> for String {
+    fn from(val: ConnectionKind) -> Self {
+        match val {
+            ConnectionKind::BatchExtractor => "batch-extractor".to_string(),
+            ConnectionKind::BatchTransformer => "batch-transformer".to_string(),
+            ConnectionKind::BatchLoader => "batch-loader".to_string(),
         }
     }
 }
