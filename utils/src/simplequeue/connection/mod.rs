@@ -1,5 +1,8 @@
 use lapin::Connection as LapinConnection;
 
+pub mod connection_kind;
+pub use connection_kind::ConnectionKind;
+
 #[derive(Debug)]
 pub struct Connection {
     pub inner: LapinConnection,
