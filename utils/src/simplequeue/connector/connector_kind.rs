@@ -1,5 +1,7 @@
 use std::fmt;
 
+use crate::simplequeue::constants::{BATCH_EXTRACTOR, BATCH_LOADER, BATCH_TRANSFORMER};
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ConnectorKind {
     /// Used to create a connection for batch extraction processes.
@@ -13,16 +15,21 @@ pub enum ConnectorKind {
 impl From<ConnectorKind> for String {
     fn from(val: ConnectorKind) -> Self {
         match val {
-            ConnectorKind::BatchExtractor => "batch-extractor".to_string(),
-            ConnectorKind::BatchTransformer => "batch-transformer".to_string(),
-            ConnectorKind::BatchLoader => "batch-loader".to_string(),
+            ConnectorKind::BatchExtractor => BATCH_EXTRACTOR.to_string(),
+            ConnectorKind::BatchTransformer => BATCH_TRANSFORMER.to_string(),
+            ConnectorKind::BatchLoader => BATCH_LOADER.to_string(),
         }
     }
 }
 
 impl fmt::Display for ConnectorKind {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", <Self as Into<String>>::into(*self))
+        let s = match self {
+            ConnectorKind::BatchExtractor => BATCH_EXTRACTOR,
+            ConnectorKind::BatchTransformer => BATCH_TRANSFORMER,
+            ConnectorKind::BatchLoader => BATCH_LOADER,
+        };
+        write!(f, "{}", s)
     }
 }
 
