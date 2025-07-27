@@ -5,7 +5,10 @@ use super::connection::Connection;
 use super::error::connection_failed::ConnectionFailed;
 
 pub mod builder;
+pub mod connector_kind;
+
 pub use builder::ConnectorBuilder;
+pub use connector_kind::ConnectorKind;
 
 /// Connector struct that is used to establish a connection to `RabbitMQ` via AMQP protocol.
 ///
@@ -148,7 +151,7 @@ impl Connector {
             lapin::Connection::connect(&uri, lapin::ConnectionProperties::default()).await;
 
         match connection_result {
-            Ok(lapin_connection) => Ok(Connection::new(lapin_connection)),
+            Ok(lapin_connection) => Ok(Connection::new(lapin_connection, self.clone())), // TODO: Consider using `self` and make this `create_connection()` method consume its `Connector`.
             Err(lapin_error) => Err(ConnectionFailed::from((uri.as_str(), lapin_error))),
         }
     }
