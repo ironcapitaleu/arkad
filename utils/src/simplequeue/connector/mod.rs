@@ -5,9 +5,8 @@ use super::connection::Connection;
 use super::error::connection_failed::ConnectionFailed;
 
 pub mod builder;
-pub mod connector_kind;
-
 pub use builder::ConnectorBuilder;
+pub mod connector_kind;
 pub use connector_kind::ConnectorKind;
 
 /// Connector struct that is used to establish a connection to `RabbitMQ` via AMQP protocol.
