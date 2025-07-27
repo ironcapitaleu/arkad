@@ -1,6 +1,6 @@
 use std::fmt;
 
-use crate::simplequeue::constants::{BATCH_EXTRACTOR, BATCH_LOADER, BATCH_TRANSFORMER};
+use crate::simplequeue::constants::connector_kind::{BATCH_EXTRACTOR, BATCH_LOADER, BATCH_TRANSFORMER};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ConnectorKind {
