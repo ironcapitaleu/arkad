@@ -1,4 +1,4 @@
-use super::Connector;
+use super::{Connector, ConnectorKind};
 
 /// Marker types for tracking which fields have been set
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -15,6 +15,9 @@ pub struct NoPort;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NoVhost;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NoConnectorKind;
 
 /// Builder for [`Connector`].
 ///
@@ -36,15 +39,16 @@ pub struct NoVhost;
 ///     .build();
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ConnectorBuilder<U, PW, H, PO, V> {
+pub struct ConnectorBuilder<U, PW, H, PO, V, CK> {
     user: U,
     password: PW,
     host: H,
     port: PO,
     vhost: V,
+    connector_kind: CK,
 }
 
-impl ConnectorBuilder<NoUser, NoPassword, NoHost, NoPort, NoVhost> {
+impl ConnectorBuilder<NoUser, NoPassword, NoHost, NoPort, NoVhost, NoConnectorKind> {
     /// Creates a new connection builder with no fields set.
     ///
     /// # Returns
@@ -57,11 +61,12 @@ impl ConnectorBuilder<NoUser, NoPassword, NoHost, NoPort, NoVhost> {
             host: NoHost,
             port: NoPort,
             vhost: NoVhost,
+            connector_kind: NoConnectorKind,
         }
     }
 }
 
-impl<U, PW, H, PO, V> ConnectorBuilder<U, PW, H, PO, V> {
+impl<U, PW, H, PO, V, CK> ConnectorBuilder<U, PW, H, PO, V, CK> {
     /// Sets the user for the connection.
     ///
     /// # Arguments
@@ -70,13 +75,14 @@ impl<U, PW, H, PO, V> ConnectorBuilder<U, PW, H, PO, V> {
     /// # Returns
     /// A new builder instance with the user field set.
     #[must_use]
-    pub fn user(self, user: impl Into<String>) -> ConnectorBuilder<String, PW, H, PO, V> {
+    pub fn user(self, user: impl Into<String>) -> ConnectorBuilder<String, PW, H, PO, V, CK> {
         ConnectorBuilder {
             user: user.into(),
             password: self.password,
             host: self.host,
             port: self.port,
             vhost: self.vhost,
+            connector_kind: self.connector_kind,
         }
     }
 
@@ -88,13 +94,17 @@ impl<U, PW, H, PO, V> ConnectorBuilder<U, PW, H, PO, V> {
     /// # Returns
     /// A new builder instance with the password field set.
     #[must_use]
-    pub fn password(self, password: impl Into<String>) -> ConnectorBuilder<U, String, H, PO, V> {
+    pub fn password(
+        self,
+        password: impl Into<String>,
+    ) -> ConnectorBuilder<U, String, H, PO, V, CK> {
         ConnectorBuilder {
             user: self.user,
             password: password.into(),
             host: self.host,
             port: self.port,
             vhost: self.vhost,
+            connector_kind: self.connector_kind,
         }
     }
 
@@ -106,13 +116,14 @@ impl<U, PW, H, PO, V> ConnectorBuilder<U, PW, H, PO, V> {
     /// # Returns
     /// A new builder instance with the host field set.
     #[must_use]
-    pub fn host(self, host: impl Into<String>) -> ConnectorBuilder<U, PW, String, PO, V> {
+    pub fn host(self, host: impl Into<String>) -> ConnectorBuilder<U, PW, String, PO, V, CK> {
         ConnectorBuilder {
             user: self.user,
             password: self.password,
             host: host.into(),
             port: self.port,
             vhost: self.vhost,
+            connector_kind: self.connector_kind,
         }
     }
 
@@ -124,13 +135,14 @@ impl<U, PW, H, PO, V> ConnectorBuilder<U, PW, H, PO, V> {
     /// # Returns
     /// A new builder instance with the port field set.
     #[must_use]
-    pub fn port(self, port: impl Into<u16>) -> ConnectorBuilder<U, PW, H, u16, V> {
+    pub fn port(self, port: impl Into<u16>) -> ConnectorBuilder<U, PW, H, u16, V, CK> {
         ConnectorBuilder {
             user: self.user,
             password: self.password,
             host: self.host,
             port: port.into(),
             vhost: self.vhost,
+            connector_kind: self.connector_kind,
         }
     }
 
@@ -142,18 +154,41 @@ impl<U, PW, H, PO, V> ConnectorBuilder<U, PW, H, PO, V> {
     /// # Returns
     /// A new builder instance with the vhost field set.
     #[must_use]
-    pub fn vhost(self, vhost: impl Into<String>) -> ConnectorBuilder<U, PW, H, PO, String> {
+    pub fn vhost(self, vhost: impl Into<String>) -> ConnectorBuilder<U, PW, H, PO, String, CK> {
         ConnectorBuilder {
             user: self.user,
             password: self.password,
             host: self.host,
             port: self.port,
             vhost: vhost.into(),
+            connector_kind: self.connector_kind,
+        }
+    }
+
+    /// Sets the connector kind for the connection.
+    ///
+    /// # Arguments
+    /// * `kind` - The kind of the connector.
+    ///
+    /// # Returns
+    /// A new builder instance with the kind field set.
+    #[must_use]
+    pub fn connector_kind(
+        self,
+        connector_kind: ConnectorKind,
+    ) -> ConnectorBuilder<U, PW, H, PO, V, super::ConnectorKind> {
+        ConnectorBuilder {
+            user: self.user,
+            password: self.password,
+            host: self.host,
+            port: self.port,
+            vhost: self.vhost,
+            connector_kind,
         }
     }
 }
 
-impl ConnectorBuilder<String, String, String, u16, String> {
+impl ConnectorBuilder<String, String, String, u16, String, ConnectorKind> {
     /// Builds the connection instance from the builder.
     ///
     /// This method is only available when all required fields have been set.
@@ -180,11 +215,12 @@ impl ConnectorBuilder<String, String, String, u16, String> {
             host: self.host,
             port: self.port,
             vhost: self.vhost,
+            kind: self.connector_kind,
         }
     }
 }
 
-impl Default for ConnectorBuilder<NoUser, NoPassword, NoHost, NoPort, NoVhost> {
+impl Default for ConnectorBuilder<NoUser, NoPassword, NoHost, NoPort, NoVhost, NoConnectorKind> {
     fn default() -> Self {
         Self::new()
     }
@@ -204,6 +240,7 @@ mod tests {
             host: "localhost".to_string(),
             port: 5672,
             vhost: "/".to_string(),
+            kind: ConnectorKind::BatchExtractor,
         };
 
         let result = ConnectorBuilder::new()
@@ -212,6 +249,7 @@ mod tests {
             .host("localhost")
             .port(5672u16)
             .vhost("/")
+            .connector_kind(ConnectorKind::BatchExtractor)
             .build();
 
         assert_eq!(result, expected_result);
@@ -225,6 +263,7 @@ mod tests {
             host: "localhost".to_string(),
             port: 5672,
             vhost: "/".to_string(),
+            kind: ConnectorKind::BatchExtractor,
         };
 
         let result = ConnectorBuilder::new()
@@ -233,6 +272,7 @@ mod tests {
             .user("admin")
             .host("localhost")
             .password("secret")
+            .connector_kind(ConnectorKind::BatchExtractor)
             .build();
 
         assert_eq!(result, expected_result);
@@ -246,6 +286,7 @@ mod tests {
             .host("localhost")
             .port(5672u16)
             .vhost("/")
+            .connector_kind(ConnectorKind::BatchExtractor)
             .build();
 
         let expected_result = "amqp://admin:secret@localhost:5672/%2F";
@@ -263,6 +304,7 @@ mod tests {
             .host("localhost")
             .port(5672u16)
             .vhost("/")
+            .connector_kind(ConnectorKind::BatchExtractor)
             .build();
 
         let expected_result = "amqp://admin%20user:secret@localhost:5672/%2F";
@@ -280,6 +322,7 @@ mod tests {
             .host("localhost")
             .port(5672u16)
             .vhost("/")
+            .connector_kind(ConnectorKind::BatchExtractor)
             .build();
 
         let expected_result = "amqp://admin:secret%20password@localhost:5672/%2F";
@@ -290,10 +333,10 @@ mod tests {
     }
 
     #[test]
-    fn should_create_new_builder_when_default_is_used() {
-        let expected_result = ConnectorBuilder::new();
+    fn should_create_default_builder_when_new_is_used_with_no_fields_set() {
+        let expected_result = ConnectorBuilder::default();
 
-        let result = ConnectorBuilder::default();
+        let result = ConnectorBuilder::new();
 
         assert_eq!(result, expected_result);
     }

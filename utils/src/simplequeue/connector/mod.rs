@@ -21,6 +21,7 @@ pub struct Connector {
     pub host: String,
     pub port: u16,
     pub vhost: String,
+    pub kind: ConnectorKind,
 }
 
 impl Connector {
@@ -67,6 +68,15 @@ impl Connector {
     #[must_use]
     pub fn vhost(&self) -> &str {
         &self.vhost
+    }
+
+    /// Gets the type of the [`Connector`].
+    ///
+    /// # Returns
+    /// A reference to the [`ConnectorKind`] enum value representing the kind of [`Connector`] that is used to create the [`Connection`].
+    #[must_use]
+    pub fn kind(&self) -> &ConnectorKind {
+        &self.kind
     }
 
     /// Constructs the AMQP connection URI based on the connector's fields.
@@ -171,6 +181,7 @@ mod tests {
             host: "localhost".to_string(),
             port: 5672,
             vhost: "/".to_string(),
+            kind: ConnectorKind::BatchExtractor,
         };
 
         let expected_result = "admin";
@@ -188,6 +199,7 @@ mod tests {
             host: "localhost".to_string(),
             port: 5672,
             vhost: "/".to_string(),
+            kind: ConnectorKind::BatchExtractor,
         };
 
         let expected_result = "secret";
@@ -205,6 +217,7 @@ mod tests {
             host: "localhost".to_string(),
             port: 5672,
             vhost: "/".to_string(),
+            kind: ConnectorKind::BatchExtractor,
         };
 
         let expected_result = "localhost";
@@ -222,6 +235,7 @@ mod tests {
             host: "localhost".to_string(),
             port: 5672,
             vhost: "/".to_string(),
+            kind: ConnectorKind::BatchExtractor,
         };
 
         let expected_result = 5672;
@@ -239,6 +253,7 @@ mod tests {
             host: "localhost".to_string(),
             port: 5672,
             vhost: "/".to_string(),
+            kind: ConnectorKind::BatchExtractor,
         };
 
         let expected_result = "/";
@@ -256,6 +271,7 @@ mod tests {
             host: "localhost".to_string(),
             port: 5672,
             vhost: "/".to_string(),
+            kind: ConnectorKind::BatchExtractor,
         };
 
         let expected_result = "amqp://admin:secret@localhost:5672/%2F";
@@ -273,6 +289,7 @@ mod tests {
             host: "localhost".to_string(),
             port: 5672,
             vhost: "/my vhost".to_string(),
+            kind: ConnectorKind::BatchExtractor,
         };
 
         let expected_result = "amqp://admin%20user:secret%20password@localhost:5672/%2Fmy%20vhost";
@@ -290,6 +307,7 @@ mod tests {
             host: "rabbitmq.example.com".to_string(),
             port: 15672,
             vhost: "/production".to_string(),
+            kind: ConnectorKind::BatchExtractor,
         };
 
         let expected_result = "amqp://admin:secret@rabbitmq.example.com:15672/%2Fproduction";
@@ -307,6 +325,7 @@ mod tests {
             host: "localhost".to_string(),
             port: 5672,
             vhost: "".to_string(),
+            kind: ConnectorKind::BatchExtractor,
         };
 
         let expected_result = "amqp://admin:secret@localhost:5672/";
