@@ -77,8 +77,6 @@ classDiagram
     Connector <|-- Connection : created_with
     Connection o-- ProducerChannel : creates
     Connection o-- ConsumerChannel : creates
-    ProducerChannel --> ConnectionKind : logs_with
-    ConsumerChannel --> ConnectionKind : logs_with
     ErrorKind o-- ConnectionFailed : contains
     ErrorKind o-- ChannelError : contains
     ErrorKind o-- PublishError : contains
