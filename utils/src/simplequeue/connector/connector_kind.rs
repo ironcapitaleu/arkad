@@ -2,11 +2,11 @@ use std::fmt;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ConnectorKind {
-    /// Connection used for batch extraction processes.
+    /// Used to create a connection for batch extraction processes.
     BatchExtractor,
-    /// Connection used for batch transformation processes.
+    /// Used to create a connection for batch transformation processes.
     BatchTransformer,
-    /// Connection used for batch loading processes.
+    /// Used to create a connection for batch loading processes.
     BatchLoader,
 }
 
