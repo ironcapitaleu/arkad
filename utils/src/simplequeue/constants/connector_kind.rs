@@ -1,4 +1,3 @@
-
 /// String constant for batch extractor connector kind.
 pub const BATCH_EXTRACTOR: &str = "batch-extractor";
 
