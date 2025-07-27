@@ -9,6 +9,7 @@ pub enum ConnectorKind {
     /// Connection used for batch loading processes.
     BatchLoader,
 }
+
 impl From<ConnectorKind> for String {
     fn from(val: ConnectorKind) -> Self {
         match val {
