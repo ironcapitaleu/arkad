@@ -29,6 +29,17 @@ classDiagram
         +create_connection() Result~Connection, ConnectionFailed~
     }
 
+    %% ConnectorBuilder builds Connector
+    class ConnectorBuilder {
+        <<struct>>
+        +user: String
+        +password: String
+        +host: String
+        +port: u16
+        +vhost: String
+        +build() Connector
+    }
+
     %% Connection struct holds the lapin connection and connector info
     class Connection {
         <<struct>>
@@ -75,6 +86,7 @@ classDiagram
     %% Relationships
     ConnectionKind <|-- Connector : has
     Connector <|-- Connection : created_with
+    ConnectorBuilder --> Connector : "builds"
     Connection o-- ProducerChannel : creates
     Connection o-- ConsumerChannel : creates
     ErrorKind o-- ConnectionFailed : contains
