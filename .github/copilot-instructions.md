@@ -73,6 +73,7 @@ use super::context_data::ContextData;
 - Unit tests should follow the `should_..._when` naming convention for the test function names, where `...` is a description of the expected behavior.
   - **Note**: Test function names should be in `snake_case` and start with `should_`. Test names can be verbose, explicit but clear naming is favored over brevity.
 - Integration tests should be placed in the `tests` directory, with each test in its own file.
+- Generally, there should be **one assert per test function**. If a function has multiple behaviors, try splitting it into smaller functions or writing multiple tests.
   
 ---
 
