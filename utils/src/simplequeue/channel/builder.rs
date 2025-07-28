@@ -1,5 +1,4 @@
 use super::{ConsumerChannel, ProducerChannel, QueueIdentifier};
-use crate::simplequeue::channel::Channel;
 
 /// Marker types for tracking which fields have been set
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -170,7 +169,7 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;
-    use super::{Channel, super::ChannelType, QueueIdentifier};
+    use crate::simplequeue::channel::{ChannelBuilder, Channel, ChannelType, QueueIdentifier};
 
     #[test]
     fn should_build_producer_channel_when_producer_type_is_specified() {
