@@ -46,7 +46,7 @@ impl ClientCreationFailed {
     /// Creates a new state-level [`ClientCreationFailed`] error.
     ///
     /// # Arguments
-    /// * `state_name` - The name of the [`State`] where the error occurred.
+    /// * `state_name` - The name of the [`State`](crate::traits::state_machine::state::State) where the error occurred.
     ///
     /// # Returns
     /// A new [`ClientCreationFailed`] error instance.
