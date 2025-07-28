@@ -21,14 +21,14 @@
 //! let producer = ChannelBuilder::new()
 //!     .producer() // Automatically sets the marker for channel type to `Producer`
 //!     .queue_identifier(QueueIdentifier::BatchExtractor)
-//!     .inner("connection_string".to_string())
+//!     .inner("connection_string")
 //!     .build(); // Automatically returns a `ProducerChannel`
 //!
 //! // Consumer channel  
 //! let consumer = ChannelBuilder::new()
 //!     .consumer() // Automatically sets the marker for channel type to `Consumer`
 //!     .queue_identifier(QueueIdentifier::BatchExtractor)
-//!     .inner("connection_string".to_string())
+//!     .inner("connection_string")
 //!     .build(); // Automatically returns a `ConsumerChannel`
 //! ```
 use super::{ConsumerChannel, ProducerChannel, QueueIdentifier};
@@ -84,14 +84,14 @@ pub struct ConsumerChannelMarker;
 /// let producer = ChannelBuilder::new()
 ///     .producer()
 ///     .queue_identifier(QueueIdentifier::BatchExtractor)
-///     .inner("connection_string".to_string())
+///     .inner("connection_string")
 ///     .build();
 ///
 /// // Consumer channel - automatically returns a `ConsumerChannel` instance
 /// let consumer = ChannelBuilder::new()
 ///     .consumer()
 ///     .queue_identifier(QueueIdentifier::BatchExtractor)
-///     .inner("connection_string".to_string())
+///     .inner("connection_string")
 ///     .build();
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -133,7 +133,7 @@ impl<QI, I> ChannelBuilder<NoChannelType, QI, I> {
     /// let builder = ChannelBuilder::new()
     ///     .producer()
     ///     .queue_identifier(QueueIdentifier::BatchExtractor)
-    ///     .inner("connection_string".to_string());
+    ///     .inner("connection_string");
     ///
     /// let channel = builder.build(); // Returns a `ProducerChannel`
     /// ```
@@ -162,7 +162,7 @@ impl<QI, I> ChannelBuilder<NoChannelType, QI, I> {
     /// let builder = ChannelBuilder::new()
     ///     .consumer()
     ///     .queue_identifier(QueueIdentifier::BatchExtractor)
-    ///     .inner("connection_string".to_string());
+    ///     .inner("connection_string");
     ///
     /// let channel = builder.build(); // Returns a `ConsumerChannel`
     /// ```
@@ -235,7 +235,7 @@ impl ChannelBuilder<ProducerChannelMarker, QueueIdentifier, String> {
     /// let producer = ChannelBuilder::new()
     ///     .producer()
     ///     .queue_identifier(QueueIdentifier::BatchExtractor)
-    ///     .inner("connection_string".to_string())
+    ///     .inner("connection_string")
     ///     .build(); // This method is now available
     /// ```
     #[must_use]
@@ -264,7 +264,7 @@ impl ChannelBuilder<ConsumerChannelMarker, QueueIdentifier, String> {
     /// let consumer = ChannelBuilder::new()
     ///     .consumer()
     ///     .queue_identifier(QueueIdentifier::BatchExtractor)
-    ///     .inner("connection_string".to_string())
+    ///     .inner("connection_string")
     ///     .build();
     /// ```
     #[must_use]
