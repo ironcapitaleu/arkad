@@ -5,7 +5,7 @@ Arkad is a state machine library specifically designed for processing SEC filing
 Arkad consists of two Rust crates:
 
 ### State Maschine
-`state_maschine` is a library for the general implementation of state machines, meant to be extended for more specific use-cases.
+`state_maschine` is a library for the general implementation of hierarchical finite state machines, meant to be extended for more specific use-cases.
 
 ### SEC
 `sec` is a library that extends `state_maschine` for the specific purpose of processing SEC filings, from the acquisiton of the data, transforming the data into a suitable format for saving and saving the data itself onto storage. It is designed to be flexible and extendable.
