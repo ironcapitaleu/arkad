@@ -190,12 +190,12 @@ impl<U, PW, H, PO, V, CK> ConnectorBuilder<U, PW, H, PO, V, CK> {
 }
 
 impl ConnectorBuilder<String, String, String, u16, String, ConnectorKind> {
-    /// Builds the connection instance from the builder.
+    /// Builds the [`Connector`] instance from the [`ConnectorBuilder`].
     ///
     /// This method is only available when all required fields have been set.
     ///
     /// # Returns
-    /// A fully configured `Connector` instance.
+    /// A fully configured [`Connector`] instance.
     ///
     /// # Compile-time Safety
     ///
