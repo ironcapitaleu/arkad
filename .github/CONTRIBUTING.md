@@ -15,16 +15,16 @@ Thank you very much for wanting to add to this project's codebase. By submitting
 Make sure to change the **placeholders** in the commands.
 1. **Fork** the repository and **clone** it locally:
    ```bash
-   $ git clone https://github.com/your-username/your-project.git
-   $ cd your-project
+   git clone https://github.com/your-username/your-project.git
+   cd your-project
    ```
 2. Check if everything works by running the project:
    ```bash
-   $ cargo run
+   cargo run
    ```
 3. Create a new branch for your changes:
    ```bash
-   $ git checkout -b your-feature-name
+   git checkout -b your-feature-name
    ```
 ### Code guidelines
 Make sure the code guidelines outlined [here](https://docs.google.com/document/d/15cCsiH9SULp1dKRUhxhNc5mDCajH6r4uaeoqiJyRVcQ/) are followed at all times. This saves us a lot of time.
@@ -32,17 +32,17 @@ Make sure the code guidelines outlined [here](https://docs.google.com/document/d
 ### Submitting a Pull Request
 1. Make sure your branch is up to date:
    ```bash
-   $ git pull origin main
+   git pull origin main
    ```
 2. Check if all tests, formatting checks and linting checks pass:
    ```bash
-   $ cargo test
-   $ cargo clippy
-   $ cargo fmt --check
+   cargo test
+   cargo clippy
+   cargo fmt --check
    ```
 3. If everything passes, push your changes to your own branch:
    ```bash
-   $ git push origin your-feature-name
+   git push origin your-feature-name
    ```
 4. Open a Pull Request with a clear title and description
 

@@ -15,18 +15,18 @@ Arkad is still in a Work in Progress state and is not fully usable. However, it 
 To start, first make sure Rust is installed (this includes `cargo`):
 
 ```bash
-$ cargo --version
+cargo --version
 ```
 If you get a `command not found` error, either use the offical rustup [install script](https://rustup.rs/) or your distro's package manager to install the Rust toolchain.
 
 Once you're sure `cargo` is up and running, clone this repository:
 
 ```bash
-$ git clone https://github.com/DeCa09/arkad.git
-$ cd arkad
+git clone https://github.com/DeCa09/arkad.git
+cd arkad
 ```
 
 A few simple examples to test the SEC state machines are already present in `sec/bin/main.rs`. Run them using:
 ```bash
-$ cargo run
+cargo run
 ```
