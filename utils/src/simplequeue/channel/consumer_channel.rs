@@ -22,7 +22,8 @@ impl Channel for ConsumerChannel {
 }
 
 impl ConsumerChannel {
-    #[must_use] pub const fn new(inner: String, queue_identifier: QueueIdentifier) -> Self {
+    #[must_use]
+    pub const fn new(inner: String, queue_identifier: QueueIdentifier) -> Self {
         Self {
             inner,
             queue_identifier,

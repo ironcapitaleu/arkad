@@ -106,9 +106,6 @@ async fn should_check_extraction_results_queue_when_configured() {
     // This test checks that the function runs without panicking
     // The actual output is printed to stdout
     check_queue(&channel, &extraction_results_queue).await;
-
-    // If we reach this point, the function didn't panic
-    assert!(true, "check_queue should complete without panicking");
 }
 
 /// Tests the complete workflow: connect, create queue, and verify.
@@ -150,9 +147,6 @@ async fn should_complete_full_queue_workflow_when_services_running() {
 
     // 5. Check queue exists
     check_queue(&channel, test_queue_name).await;
-
-    // Assert: If we reach this point, the full workflow completed successfully
-    assert!(true, "Full queue workflow should complete successfully");
 }
 
 /// Tests connection failure when using invalid credentials.

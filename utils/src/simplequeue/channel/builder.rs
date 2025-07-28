@@ -169,7 +169,7 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;
-    use crate::simplequeue::channel::{ChannelBuilder, Channel, ChannelType, QueueIdentifier};
+    use crate::simplequeue::channel::{Channel, ChannelBuilder, ChannelType, QueueIdentifier};
 
     #[test]
     fn should_build_producer_channel_when_producer_type_is_specified() {
