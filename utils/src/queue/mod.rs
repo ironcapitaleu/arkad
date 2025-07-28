@@ -115,6 +115,7 @@ impl Queue {
     }
 }
 
+#[allow(clippy::missing_fields_in_debug)]
 impl fmt::Debug for Queue {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Queue")
@@ -155,9 +156,7 @@ impl std::error::Error for QueueError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Config(e) => Some(e),
-            Self::Connection(e) => Some(e),
-            Self::Channel(e) => Some(e),
-            Self::Operation(e) => Some(e),
+            Self::Connection(e) | Self::Channel(e) | Self::Operation(e) => Some(e),
         }
     }
 }

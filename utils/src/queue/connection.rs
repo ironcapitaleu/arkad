@@ -120,18 +120,21 @@ impl QueueConnectionBuilder {
     }
 
     /// Sets the username for authentication.
+    #[must_use]
     pub fn username(mut self, username: impl Into<String>) -> Self {
         self.config.username = username.into();
         self
     }
 
     /// Sets the password for authentication.
+    #[must_use]
     pub fn password(mut self, password: impl Into<String>) -> Self {
         self.config.password = password.into();
         self
     }
 
     /// Sets the hostname or IP address.
+    #[must_use]
     pub fn host(mut self, host: impl Into<String>) -> Self {
         self.config.host = host.into();
         self
@@ -145,6 +148,7 @@ impl QueueConnectionBuilder {
     }
 
     /// Sets the virtual host.
+    #[must_use]
     pub fn vhost(mut self, vhost: impl Into<String>) -> Self {
         self.config.vhost = vhost.into();
         self
