@@ -87,7 +87,7 @@ impl Connector {
     ///
     /// # Example
     /// ```
-    /// use utils::simplequeue::connector::Connector;
+    /// use utils::simplequeue::connector::{Connector, ConnectorKind};
     ///
     /// let connector = Connector {
     ///     user: "admin".into(),
@@ -95,6 +95,7 @@ impl Connector {
     ///     host: "localhost".into(),
     ///     port: 5672,
     ///     vhost: "/".into(),
+    ///     kind: ConnectorKind::BatchExtractor,
     /// };
     /// let uri = connector.uri();
     /// assert_eq!(uri, "amqp://admin:secret%20password@localhost:5672/%2F"); // encodes spaces in password and vhost
@@ -136,7 +137,7 @@ impl Connector {
     ///
     /// # Example
     /// ```no_run
-    /// use utils::simplequeue::connector::ConnectorBuilder;
+    /// use utils::simplequeue::connector::{ConnectorBuilder, ConnectorKind};
     ///
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -144,8 +145,9 @@ impl Connector {
     ///     .user("admin")
     ///     .password("secret")
     ///     .host("localhost")
-    ///     .port(5672)
+    ///     .port(5672u16)
     ///     .vhost("/")
+    ///     .connector_kind(ConnectorKind::BatchExtractor)
     ///     .build();
     ///
     /// match connector.create_connection().await {

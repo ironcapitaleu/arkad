@@ -24,6 +24,9 @@ pub use connection_failed::ConnectionFailed;
 /// match error {
 ///     ErrorKind::ConnectionFailed(ref err) => {
 ///         eprintln!("Connection failed to {}: {}", err.uri(), err.reason());
+///     },
+///     _ => {
+///         eprintln!("An unknown error occurred");
 ///     }
 /// }
 /// ```

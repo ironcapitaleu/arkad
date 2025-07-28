@@ -28,14 +28,15 @@ pub struct NoConnectorKind;
 /// # Examples
 ///
 /// ```
-/// use utils::simplequeue::connector::ConnectorBuilder;
+/// use utils::simplequeue::connector::{ConnectorBuilder, ConnectorKind};
 ///
 /// let connector = ConnectorBuilder::new()
 ///     .user("admin")
 ///     .password("secret")
 ///     .host("localhost")
-///     .port(5672)
+///     .port(5672u16)
 ///     .vhost("/")
+///     .connector_kind(ConnectorKind::BatchExtractor)
 ///     .build();
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -49,10 +50,10 @@ pub struct ConnectorBuilder<U, PW, H, PO, V, CK> {
 }
 
 impl ConnectorBuilder<NoUser, NoPassword, NoHost, NoPort, NoVhost, NoConnectorKind> {
-    /// Creates a new connection builder with no fields set.
+    /// Creates a new [`ConnectorBuilder`] with no fields set.
     ///
     /// # Returns
-    /// A new `ConnectorBuilder` instance with all fields unset.
+    /// A new [`ConnectorBuilder`] instance with all fields unset.
     #[must_use]
     pub const fn new() -> Self {
         Self {
