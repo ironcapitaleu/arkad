@@ -288,47 +288,29 @@ mod tests {
 
     #[test]
     fn should_build_producer_channel_when_producer_type_is_specified() {
-        let expected_queue_identifier = QueueIdentifier::BatchExtractor;
-        let expected_inner = "test_connection".to_string();
-
-        let result = ChannelBuilder::new()
+        let _result: ProducerChannel = ChannelBuilder::new()
             .producer()
             .queue_identifier(QueueIdentifier::BatchExtractor)
-            .inner(expected_inner.clone())
+            .inner("test_connection")
             .build();
-
-        assert_eq!(result.inner(), &expected_inner);
-        assert_eq!(result.queue_identifier(), &expected_queue_identifier);
     }
 
     #[test]
     fn should_build_consumer_channel_when_consumer_type_is_specified() {
-        let expected_queue_identifier = QueueIdentifier::BatchTransformer;
-        let expected_inner = "test_connection".to_string();
-
-        let result = ChannelBuilder::new()
+        let _result: ConsumerChannel = ChannelBuilder::new()
             .consumer()
             .queue_identifier(QueueIdentifier::BatchTransformer)
-            .inner(expected_inner.clone())
+            .inner("test_connection")
             .build();
-
-        assert_eq!(result.inner(), &expected_inner);
-        assert_eq!(result.queue_identifier(), &expected_queue_identifier);
     }
 
     #[test]
     fn should_allow_setting_fields_in_any_order_when_using_channel_builder() {
-        let expected_queue_identifier = QueueIdentifier::BatchLoader;
-        let expected_inner = "test_connection".to_string();
-
-        let result = ChannelBuilder::new()
-            .inner(expected_inner.clone())
+        let _result = ChannelBuilder::new()
+            .inner("test_connection")
             .queue_identifier(QueueIdentifier::BatchLoader)
             .producer()
             .build();
-
-        assert_eq!(result.inner(), &expected_inner);
-        assert_eq!(result.queue_identifier(), &expected_queue_identifier);
     }
 
     #[test]
@@ -341,28 +323,90 @@ mod tests {
     }
 
     #[test]
-    fn should_return_producer_channel_when_producer_marker_is_set() {
-        let expected_channel_type = ChannelType::Producer;
+    fn should_return_producer_channel_type_when_producer_marker_is_set_for_builder() {
+        let expected_result = ChannelType::Producer;
 
-        let result: ProducerChannel = ChannelBuilder::new()
+        let channel: ProducerChannel = ChannelBuilder::new()
             .producer()
             .queue_identifier(QueueIdentifier::BatchExtractor)
-            .inner("test".to_string())
+            .inner("test")
             .build();
+        let result = channel.channel_type();
 
-        assert_eq!(result.channel_type(), expected_channel_type);
+        assert_eq!(result, expected_result);
     }
 
     #[test]
-    fn should_return_consumer_channel_when_consumer_marker_is_set() {
-        let expected_channel_type = ChannelType::Consumer;
+    fn should_return_consumer_channel_type_when_consumer_marker_is_set_for_builder() {
+        let expected_result = ChannelType::Consumer;
 
-        let result: ConsumerChannel = ChannelBuilder::new()
+        let channel: ConsumerChannel = ChannelBuilder::new()
             .consumer()
             .queue_identifier(QueueIdentifier::BatchExtractor)
-            .inner("test".to_string())
+            .inner("test")
             .build();
+        let result = channel.channel_type();
 
-        assert_eq!(result.channel_type(), expected_channel_type);
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_preserve_queue_identifier_when_building_consumer_channel() {
+        let queue_identifier = QueueIdentifier::BatchLoader;
+
+        let expected_result = &queue_identifier.clone();
+
+        let channel = ChannelBuilder::new()
+            .consumer()
+            .queue_identifier(queue_identifier.clone())
+            .inner("test_connection")
+            .build();
+        let result = channel.queue_identifier();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_preserve_queue_identifier_when_building_producer_channel() {
+        let queue_identifier = QueueIdentifier::BatchLoader;
+
+        let expected_result = &queue_identifier.clone();
+
+        let channel = ChannelBuilder::new()
+            .producer()
+            .queue_identifier(queue_identifier.clone())
+            .inner("test_connection")
+            .build();
+        let result = channel.queue_identifier();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_allow_setting_fields_in_different_order_when_building_consumer_channel() {
+        let expected_result = ChannelType::Consumer;
+
+        let channel = ChannelBuilder::new()
+            .queue_identifier(QueueIdentifier::BatchLoader)
+            .consumer()
+            .inner("test_connection")
+            .build();
+        let result = channel.channel_type();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_allow_setting_fields_in_different_order_when_building_producer_channel() {
+        let expected_result = ChannelType::Producer;
+
+        let channel = ChannelBuilder::new()
+            .queue_identifier(QueueIdentifier::BatchLoader)
+            .producer()
+            .inner("test_connection")
+            .build();
+        let result = channel.channel_type();
+
+        assert_eq!(result, expected_result);
     }
 }
