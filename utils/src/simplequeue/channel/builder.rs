@@ -1,4 +1,4 @@
-use super::{ChannelType, ConsumerChannel, ProducerChannel, QueueIdentifier};
+use super::{ConsumerChannel, ProducerChannel, QueueIdentifier};
 use crate::simplequeue::channel::Channel;
 
 /// Marker types for tracking which fields have been set
@@ -68,7 +68,7 @@ impl<QI, I> ChannelBuilder<NoChannelType, QI, I> {
     /// Sets the channel type to Producer.
     ///
     /// # Returns
-    /// A new builder instance configured for building a ProducerChannel.
+    /// A new builder instance configured for building a `ProducerChannel`.
     #[must_use]
     pub fn producer(self) -> ChannelBuilder<ProducerChannelMarker, QI, I> {
         ChannelBuilder {
@@ -81,7 +81,7 @@ impl<QI, I> ChannelBuilder<NoChannelType, QI, I> {
     /// Sets the channel type to Consumer.
     ///
     /// # Returns
-    /// A new builder instance configured for building a ConsumerChannel.
+    /// A new builder instance configured for building a `ConsumerChannel`.
     #[must_use]
     pub fn consumer(self) -> ChannelBuilder<ConsumerChannelMarker, QI, I> {
         ChannelBuilder {
@@ -99,7 +99,7 @@ impl<CT, I> ChannelBuilder<CT, NoQueueIdentifier, I> {
     /// * `queue_identifier` - The queue identifier for the channel
     ///
     /// # Returns
-    /// A new builder instance with the queue_identifier field set.
+    /// A new builder instance with the `queue_identifier` field set.
     #[must_use]
     pub fn queue_identifier(
         self,
@@ -132,7 +132,7 @@ impl<CT, QI> ChannelBuilder<CT, QI, NoInner> {
 }
 
 impl ChannelBuilder<ProducerChannelMarker, QueueIdentifier, String> {
-    /// Builds a ProducerChannel.
+    /// Builds a `ProducerChannel`.
     ///
     /// This method is only available when all required fields have been set
     /// and the channel type is configured as Producer.
@@ -146,7 +146,7 @@ impl ChannelBuilder<ProducerChannelMarker, QueueIdentifier, String> {
 }
 
 impl ChannelBuilder<ConsumerChannelMarker, QueueIdentifier, String> {
-    /// Builds a ConsumerChannel.
+    /// Builds a `ConsumerChannel`.
     ///
     /// This method is only available when all required fields have been set
     /// and the channel type is configured as Consumer.
@@ -170,6 +170,7 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;
+    use super::{Channel, super::ChannelType, QueueIdentifier};
 
     #[test]
     fn should_build_producer_channel_when_producer_type_is_specified() {

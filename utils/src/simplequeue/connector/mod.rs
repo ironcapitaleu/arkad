@@ -75,7 +75,7 @@ impl Connector {
     /// # Returns
     /// A reference to the [`ConnectorKind`] enum value representing the kind of [`Connector`] that is used to create the [`Connection`].
     #[must_use]
-    pub fn kind(&self) -> &ConnectorKind {
+    pub const fn kind(&self) -> &ConnectorKind {
         &self.kind
     }
 

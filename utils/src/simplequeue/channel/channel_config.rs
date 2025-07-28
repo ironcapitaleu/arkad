@@ -25,11 +25,11 @@ pub enum QueueIdentifier {
 
 impl QueueIdentifier {
     /// Returns the queue name which is a string representation associated with the [`QueueIdentifier`].
-    pub fn queue_name(&self) -> &'static str {
+    #[must_use] pub const fn queue_name(&self) -> &'static str {
         match self {
-            QueueIdentifier::BatchExtractor => BATCH_EXTRACTOR_QUEUE_NAME,
-            QueueIdentifier::BatchTransformer => BATCH_TRANSFORMER_QUEUE_NAME,
-            QueueIdentifier::BatchLoader => BATCH_LOADER_QUEUE_NAME,
+            Self::BatchExtractor => BATCH_EXTRACTOR_QUEUE_NAME,
+            Self::BatchTransformer => BATCH_TRANSFORMER_QUEUE_NAME,
+            Self::BatchLoader => BATCH_LOADER_QUEUE_NAME,
         }
     }
 }

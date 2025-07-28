@@ -27,11 +27,11 @@ impl From<ConnectorKind> for String {
 impl fmt::Display for ConnectorKind {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let s = match self {
-            ConnectorKind::BatchExtractor => BATCH_EXTRACTOR,
-            ConnectorKind::BatchTransformer => BATCH_TRANSFORMER,
-            ConnectorKind::BatchLoader => BATCH_LOADER,
+            Self::BatchExtractor => BATCH_EXTRACTOR,
+            Self::BatchTransformer => BATCH_TRANSFORMER,
+            Self::BatchLoader => BATCH_LOADER,
         };
-        write!(f, "{}", s)
+        write!(f, "{s}")
     }
 }
 
