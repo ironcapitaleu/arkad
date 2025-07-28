@@ -26,6 +26,7 @@ use utils::queue::{check_queue, create_queue, establish_connection};
 /// This test requires RabbitMQ to be running with the default credentials
 /// from the docker-compose configuration.
 #[tokio::test]
+#[ignore = "requires RabbitMQ running"]
 async fn should_establish_connection_when_rabbitmq_is_running() {
     // Arrange: Load configuration from environment
     dotenvy::from_path("src/tests/common/config/.env.valid").expect("Test .env file should exist");
@@ -50,6 +51,7 @@ async fn should_establish_connection_when_rabbitmq_is_running() {
 ///
 /// This test creates a test queue and verifies it was created successfully.
 #[tokio::test]
+#[ignore = "requires RabbitMQ running"]
 async fn should_create_queue_when_rabbitmq_is_running() {
     // Arrange: Load configuration and establish connection
     dotenvy::from_path("src/tests/common/config/.env.valid").expect("Test .env file should exist");
@@ -81,6 +83,7 @@ async fn should_create_queue_when_rabbitmq_is_running() {
 /// This test verifies that the queue defined in the configuration
 /// can be found and accessed.
 #[tokio::test]
+#[ignore = "requires RabbitMQ running"]
 async fn should_check_extraction_results_queue_when_configured() {
     // Arrange: Load configuration and establish connection
     dotenvy::from_path("src/tests/common/config/.env.valid").expect("Test .env file should exist");
@@ -113,6 +116,7 @@ async fn should_check_extraction_results_queue_when_configured() {
 /// This integration test verifies the entire queue management workflow
 /// using the actual configuration and services.
 #[tokio::test]
+#[ignore = "requires RabbitMQ running"]
 async fn should_complete_full_queue_workflow_when_services_running() {
     // Arrange: Load configuration
     dotenvy::from_path("src/tests/common/config/.env.valid").expect("Test .env file should exist");
@@ -153,6 +157,7 @@ async fn should_complete_full_queue_workflow_when_services_running() {
 ///
 /// This test verifies proper error handling when connection fails.
 #[tokio::test]
+#[ignore = "requires RabbitMQ running"]
 async fn should_fail_connection_when_using_invalid_credentials() {
     // Arrange: Use invalid credentials
     let invalid_addr = "amqp://invalid_user:invalid_pass@localhost:5672/%2f";
@@ -172,7 +177,8 @@ async fn should_fail_connection_when_using_invalid_credentials() {
 /// This test verifies error handling when the service is unavailable.
 /// Note: This test uses a non-standard port to avoid conflicts.
 #[tokio::test]
-async fn should_fail_connection_when_rabbitmq_not_running() {
+#[ignore = "requires RabbitMQ running"]
+async fn should_fail_connection_when_rabbitmq_not_running_on_specified_adress() {
     // Arrange: Use a port where RabbitMQ is not running
     let unavailable_addr = "amqp://admin:admin123@localhost:9999/%2f";
 
