@@ -10,31 +10,40 @@ pub struct NoQueueIdentifier;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NoInner;
 
-/// Marker types for specific channel types when set
+/// Marker type that enables building a [`ProducerChannel`].
+///
+/// When this marker (along with the other required fields of the builder!) is set via [`ChannelBuilder::producer()`](ChannelBuilder::producer()),
+/// the [`ChannelBuilder`] 's `fn build(self) -> ProducerChannel` method becomes available and returns a [`ProducerChannel`].
+/// This corresponds to [`ChannelType::Producer`](super::ChannelType::Producer) semantically.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ProducerChannelMarker;
 
+/// Marker type that enables building a [`ConsumerChannel`].
+///
+/// When this marker (along with the other required fields of the builder!) is set via [`ChannelBuilder::consumer()`](ChannelBuilder::consumer()),
+/// the [`ChannelBuilder`] 's `fn build(self) -> ConsumerChannel` method becomes available and returns a [`ConsumerChannel`].
+/// This corresponds to [`ChannelType::Consumer`](super::ChannelType::Consumer) semantically.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ConsumerChannelMarker;
 
-/// Builder for creating channels with compile-time type safety.
+/// Builder for creating [`Channel`](super::Channel) instances with compile-time type safety.
 ///
 /// This builder uses a type-safe consuming builder pattern to ensure all required fields
-/// are set before building and automatically determines the correct channel type at compile time.
+/// are set before building and automatically determines the correct [`ChannelType`](super::ChannelType) at compile time.
 ///
 /// # Examples
 ///
 /// ```
 /// use utils::simplequeue::channel::{ChannelBuilder, QueueIdentifier};
 ///
-/// // Producer channel - automatically returns ProducerChannel
+/// // Producer channel - automatically returns a `ProducerChannel` instance
 /// let producer = ChannelBuilder::new()
 ///     .producer()
 ///     .queue_identifier(QueueIdentifier::BatchExtractor)
 ///     .inner("connection_string".to_string())
 ///     .build();
 ///
-/// // Consumer channel - automatically returns ConsumerChannel  
+/// // Consumer channel - automatically returns a `ConsumerChannel` instance
 /// let consumer = ChannelBuilder::new()
 ///     .consumer()
 ///     .queue_identifier(QueueIdentifier::BatchExtractor)
@@ -67,7 +76,7 @@ impl<QI, I> ChannelBuilder<NoChannelType, QI, I> {
     /// Sets the channel type to Producer.
     ///
     /// # Returns
-    /// A new builder instance configured for building a `ProducerChannel`.
+    /// A new [`ChannelBuilder`] instance configured for building a [`ProducerChannel`].
     #[must_use]
     pub fn producer(self) -> ChannelBuilder<ProducerChannelMarker, QI, I> {
         ChannelBuilder {
@@ -77,10 +86,10 @@ impl<QI, I> ChannelBuilder<NoChannelType, QI, I> {
         }
     }
 
-    /// Sets the channel type to Consumer.
+    /// Sets the marker [`ConsumerChannelMarker`] for [`ChannelType`](super::ChannelType) as [`ChannelType::Consumer`](super::ChannelType::Consumer).
     ///
     /// # Returns
-    /// A new builder instance configured for building a `ConsumerChannel`.
+    /// A new [`ChannelBuilder`] instance configured for building a [`ConsumerChannel`].
     #[must_use]
     pub fn consumer(self) -> ChannelBuilder<ConsumerChannelMarker, QI, I> {
         ChannelBuilder {
@@ -92,13 +101,13 @@ impl<QI, I> ChannelBuilder<NoChannelType, QI, I> {
 }
 
 impl<CT, I> ChannelBuilder<CT, NoQueueIdentifier, I> {
-    /// Sets the queue identifier for the channel.
+    /// Sets the `queue_identifier` for the channel.
     ///
     /// # Arguments
     /// * `queue_identifier` - The queue identifier for the channel
     ///
     /// # Returns
-    /// A new builder instance with the `queue_identifier` field set.
+    /// A new [`ChannelBuilder`] instance with the `queue_identifier` field set.
     #[must_use]
     pub fn queue_identifier(
         self,
@@ -113,13 +122,13 @@ impl<CT, I> ChannelBuilder<CT, NoQueueIdentifier, I> {
 }
 
 impl<CT, QI> ChannelBuilder<CT, QI, NoInner> {
-    /// Sets the inner connection for the channel.
+    /// Sets the wrapped `inner` connection for the [`Channel`](super::Channel).
     ///
     /// # Arguments
     /// * `inner` - The inner connection string or object
     ///
     /// # Returns
-    /// A new builder instance with the inner field set.
+    /// A new [`ChannelBuilder`] instance with the `inner` field set.
     #[must_use]
     pub fn inner(self, inner: impl Into<String>) -> ChannelBuilder<CT, QI, String> {
         ChannelBuilder {
@@ -131,13 +140,13 @@ impl<CT, QI> ChannelBuilder<CT, QI, NoInner> {
 }
 
 impl ChannelBuilder<ProducerChannelMarker, QueueIdentifier, String> {
-    /// Builds a `ProducerChannel`.
+    /// Builds a [`ProducerChannel`].
     ///
     /// This method is only available when all required fields have been set
-    /// and the channel type is configured as Producer.
+    /// and the marker for [`ChannelType`](super::ChannelType) is set to [`ChannelType::Producer`](super::ChannelType::Producer).
     ///
     /// # Returns
-    /// A fully configured `ProducerChannel` instance.
+    /// A fully configured [`ProducerChannel`] instance.
     #[must_use]
     pub fn build(self) -> ProducerChannel {
         ProducerChannel::new(self.inner, self.queue_identifier)
@@ -145,13 +154,13 @@ impl ChannelBuilder<ProducerChannelMarker, QueueIdentifier, String> {
 }
 
 impl ChannelBuilder<ConsumerChannelMarker, QueueIdentifier, String> {
-    /// Builds a `ConsumerChannel`.
+    /// Builds a [`ConsumerChannel`].
     ///
     /// This method is only available when all required fields have been set
-    /// and the channel type is configured as Consumer.
+    /// and the marker for [`ChannelType`](super::ChannelType) is set to [`ChannelType::Consumer`](super::ChannelType::Consumer).
     ///
     /// # Returns
-    /// A fully configured `ConsumerChannel` instance.
+    /// A fully configured [`ConsumerChannel`] instance.
     #[must_use]
     pub fn build(self) -> ConsumerChannel {
         ConsumerChannel::new(self.inner, self.queue_identifier)
