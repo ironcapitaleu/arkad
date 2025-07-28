@@ -13,10 +13,15 @@
 //! # Start RabbitMQ services first
 //! docker compose -f docker/batch-etl/services/queues/rabbitmq.yaml up -d
 //!
-//! # Run integration tests
-//! cargo test --test queue_integration_tests
+//! # Run integration tests (includes ignored tests that require RabbitMQ)
+//! cargo test --test queue_integration_tests -- --ignored
+//!
+//! # Run all tests (both normal and ignored)
+//! cargo test --test queue_integration_tests -- --include-ignored
+//!
+//! # Run a specific ignored test
+//! cargo test --test queue_integration_tests should_establish_connection_when_rabbitmq_is_running -- --ignored
 //! ```
-
 use pretty_assertions::assert_eq;
 
 use utils::queue::{check_queue, create_queue, establish_connection};
