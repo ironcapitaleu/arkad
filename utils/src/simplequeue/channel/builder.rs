@@ -287,7 +287,8 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;
-    use crate::simplequeue::channel::{Channel, ChannelBuilder, ChannelType, QueueIdentifier};
+    use crate::simplequeue::channel::{ChannelBuilder, ChannelType, QueueIdentifier};
+    use crate::simplequeue::traits::Channel;
 
     fn mock_lapin_channel() -> LapinChannel {
         // Mock or create a dummy LapinChannel instance for testing purposes
