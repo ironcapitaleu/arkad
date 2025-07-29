@@ -1,6 +1,7 @@
 use lapin::Channel as LapinChannel;
 
-use super::{Channel, ChannelType, QueueIdentifier};
+use super::{ChannelType, QueueIdentifier};
+use crate::simplequeue::traits::Channel;
 
 pub struct ProducerChannel {
     inner: LapinChannel,
