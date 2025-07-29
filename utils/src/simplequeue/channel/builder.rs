@@ -33,6 +33,8 @@
 //! ```
 use lapin::Channel as LapinChannel;
 
+use crate::simplequeue::traits::InnerChannel;
+
 use super::{ConsumerChannel, ProducerChannel, QueueIdentifier};
 
 /// Marker type for tracking when no channel type has been set in the builder.
@@ -208,7 +210,7 @@ impl<CT, QI> ChannelBuilder<CT, QI, NoInner> {
     /// # Returns
     /// A new [`ChannelBuilder`] instance with the `inner` field set.
     #[must_use]
-    pub fn inner(self, inner: LapinChannel) -> ChannelBuilder<CT, QI, LapinChannel> {
+    pub fn inner<I: InnerChannel>(self, inner: I) -> ChannelBuilder<CT, QI, I> {
         ChannelBuilder {
             channel_type: self.channel_type,
             queue_identifier: self.queue_identifier,
@@ -217,7 +219,7 @@ impl<CT, QI> ChannelBuilder<CT, QI, NoInner> {
     }
 }
 
-impl ChannelBuilder<ProducerChannelMarker, QueueIdentifier, LapinChannel> {
+impl<I: InnerChannel> ChannelBuilder<ProducerChannelMarker, QueueIdentifier, I> {
     /// Builds a [`ProducerChannel`] from the fully configured [`ChannelBuilder`] state.
     ///
     /// This method consumes the [`ChannelBuilder`] and creates a new [`ProducerChannel`] instance
@@ -241,12 +243,12 @@ impl ChannelBuilder<ProducerChannelMarker, QueueIdentifier, LapinChannel> {
     ///     .build(); // This method is now available
     /// ```
     #[must_use]
-    pub fn build(self) -> ProducerChannel {
+    pub fn build(self) -> ProducerChannel<I> {
         ProducerChannel::new(self.inner, self.queue_identifier)
     }
 }
 
-impl ChannelBuilder<ConsumerChannelMarker, QueueIdentifier, LapinChannel> {
+impl<I: InnerChannel> ChannelBuilder<ConsumerChannelMarker, QueueIdentifier, I> {
     /// Builds a [`ConsumerChannel`] from the fully configured [`ChannelBuilder`] state.
     ///
     /// This method consumes the builder and creates a new [`ConsumerChannel`] instance
@@ -270,7 +272,7 @@ impl ChannelBuilder<ConsumerChannelMarker, QueueIdentifier, LapinChannel> {
     ///     .build();
     /// ```
     #[must_use]
-    pub fn build(self) -> ConsumerChannel {
+    pub fn build(self) -> ConsumerChannel<I> {
         ConsumerChannel::new(self.inner, self.queue_identifier)
     }
 }

@@ -1,15 +1,15 @@
 use lapin::Channel as LapinChannel;
 
 use super::{ChannelType, QueueIdentifier};
-use crate::simplequeue::traits::Channel;
+use crate::simplequeue::traits::{Channel, InnerChannel};
 
-pub struct ProducerChannel {
-    inner: LapinChannel,
+pub struct ProducerChannel<I: InnerChannel> {
+    inner: I,
     queue_identifier: QueueIdentifier,
 }
 
-impl Channel for ProducerChannel {
-    type Inner = LapinChannel;
+impl<I: InnerChannel> Channel for ProducerChannel<I> {
+    type Inner = I;
 
     fn inner(&self) -> &Self::Inner {
         &self.inner
@@ -24,9 +24,9 @@ impl Channel for ProducerChannel {
     }
 }
 
-impl ProducerChannel {
+impl<I: InnerChannel> ProducerChannel<I> {
     #[must_use]
-    pub const fn new(inner: LapinChannel, queue_identifier: QueueIdentifier) -> Self {
+    pub const fn new(inner: I, queue_identifier: QueueIdentifier) -> Self {
         Self {
             inner,
             queue_identifier,
