@@ -31,6 +31,8 @@
 //!     .inner("connection_string")
 //!     .build(); // Automatically returns a `ConsumerChannel`
 //! ```
+use lapin::Channel as LapinChannel;
+
 use super::{ConsumerChannel, ProducerChannel, QueueIdentifier};
 
 /// Marker type for tracking when no channel type has been set in the builder.
@@ -201,21 +203,21 @@ impl<CT, QI> ChannelBuilder<CT, QI, NoInner> {
     /// Sets the wrapped `inner` connection for the [`Channel`](super::Channel).
     ///
     /// # Arguments
-    /// * `inner` - The inner connection string or object
+    /// * `inner` - The inner Lapin channel object
     ///
     /// # Returns
     /// A new [`ChannelBuilder`] instance with the `inner` field set.
     #[must_use]
-    pub fn inner(self, inner: impl Into<String>) -> ChannelBuilder<CT, QI, String> {
+    pub fn inner(self, inner: LapinChannel) -> ChannelBuilder<CT, QI, LapinChannel> {
         ChannelBuilder {
             channel_type: self.channel_type,
             queue_identifier: self.queue_identifier,
-            inner: inner.into(),
+            inner,
         }
     }
 }
 
-impl ChannelBuilder<ProducerChannelMarker, QueueIdentifier, String> {
+impl ChannelBuilder<ProducerChannelMarker, QueueIdentifier, LapinChannel> {
     /// Builds a [`ProducerChannel`] from the fully configured [`ChannelBuilder`] state.
     ///
     /// This method consumes the [`ChannelBuilder`] and creates a new [`ProducerChannel`] instance
@@ -244,7 +246,7 @@ impl ChannelBuilder<ProducerChannelMarker, QueueIdentifier, String> {
     }
 }
 
-impl ChannelBuilder<ConsumerChannelMarker, QueueIdentifier, String> {
+impl ChannelBuilder<ConsumerChannelMarker, QueueIdentifier, LapinChannel> {
     /// Builds a [`ConsumerChannel`] from the fully configured [`ChannelBuilder`] state.
     ///
     /// This method consumes the builder and creates a new [`ConsumerChannel`] instance

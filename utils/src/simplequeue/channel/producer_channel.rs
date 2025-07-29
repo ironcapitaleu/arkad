@@ -1,12 +1,14 @@
+use lapin::Channel as LapinChannel;
+
 use super::{Channel, ChannelType, QueueIdentifier};
 
 pub struct ProducerChannel {
-    inner: String, // Placeholder for actual inner structure
+    inner: LapinChannel,
     queue_identifier: QueueIdentifier,
 }
 
 impl Channel for ProducerChannel {
-    type Inner = String; // Placeholder for actual inner type
+    type Inner = LapinChannel;
 
     fn inner(&self) -> &Self::Inner {
         &self.inner
@@ -23,7 +25,7 @@ impl Channel for ProducerChannel {
 
 impl ProducerChannel {
     #[must_use]
-    pub const fn new(inner: String, queue_identifier: QueueIdentifier) -> Self {
+    pub const fn new(inner: LapinChannel, queue_identifier: QueueIdentifier) -> Self {
         Self {
             inner,
             queue_identifier,
