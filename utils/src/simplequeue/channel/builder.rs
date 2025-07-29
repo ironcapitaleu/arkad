@@ -283,33 +283,45 @@ impl Default for ChannelBuilder<NoChannelType, NoQueueIdentifier, NoInner> {
 
 #[cfg(test)]
 mod tests {
+    use lapin::Channel as LapinChannel;
     use pretty_assertions::assert_eq;
 
     use super::*;
     use crate::simplequeue::channel::{Channel, ChannelBuilder, ChannelType, QueueIdentifier};
 
+    fn mock_lapin_channel() -> LapinChannel {
+        // Mock or create a dummy LapinChannel instance for testing purposes
+        unimplemented!("Provide a mock implementation for LapinChannel");
+    }
+
     #[test]
     fn should_build_producer_channel_when_producer_type_is_specified() {
+        let lapin_channel = mock_lapin_channel();
+
         let _result: ProducerChannel = ChannelBuilder::new()
             .producer()
             .queue_identifier(QueueIdentifier::BatchExtractor)
-            .inner("test_connection")
+            .inner(lapin_channel)
             .build();
     }
 
     #[test]
     fn should_build_consumer_channel_when_consumer_type_is_specified() {
+        let lapin_channel = mock_lapin_channel();
+
         let _result: ConsumerChannel = ChannelBuilder::new()
             .consumer()
             .queue_identifier(QueueIdentifier::BatchTransformer)
-            .inner("test_connection")
+            .inner(lapin_channel)
             .build();
     }
 
     #[test]
     fn should_allow_setting_fields_in_any_order_when_using_channel_builder() {
+        let lapin_channel = mock_lapin_channel();
+
         let _result = ChannelBuilder::new()
-            .inner("test_connection")
+            .inner(lapin_channel)
             .queue_identifier(QueueIdentifier::BatchLoader)
             .producer()
             .build();
@@ -326,12 +338,14 @@ mod tests {
 
     #[test]
     fn should_return_producer_channel_type_when_producer_marker_is_set_for_builder() {
+        let lapin_channel = mock_lapin_channel();
+
         let expected_result = ChannelType::Producer;
 
         let channel: ProducerChannel = ChannelBuilder::new()
             .producer()
             .queue_identifier(QueueIdentifier::BatchExtractor)
-            .inner("test")
+            .inner(lapin_channel)
             .build();
         let result = channel.channel_type();
 
@@ -340,12 +354,14 @@ mod tests {
 
     #[test]
     fn should_return_consumer_channel_type_when_consumer_marker_is_set_for_builder() {
+        let lapin_channel = mock_lapin_channel();
+
         let expected_result = ChannelType::Consumer;
 
         let channel: ConsumerChannel = ChannelBuilder::new()
             .consumer()
             .queue_identifier(QueueIdentifier::BatchExtractor)
-            .inner("test")
+            .inner(lapin_channel)
             .build();
         let result = channel.channel_type();
 
@@ -354,6 +370,8 @@ mod tests {
 
     #[test]
     fn should_preserve_queue_identifier_when_building_consumer_channel() {
+        let lapin_channel = mock_lapin_channel();
+
         let queue_identifier = QueueIdentifier::BatchLoader;
 
         let expected_result = &queue_identifier.clone();
@@ -361,7 +379,7 @@ mod tests {
         let channel = ChannelBuilder::new()
             .consumer()
             .queue_identifier(queue_identifier.clone())
-            .inner("test_connection")
+            .inner(lapin_channel)
             .build();
         let result = channel.queue_identifier();
 
@@ -370,6 +388,8 @@ mod tests {
 
     #[test]
     fn should_preserve_queue_identifier_when_building_producer_channel() {
+        let lapin_channel = mock_lapin_channel();
+
         let queue_identifier = QueueIdentifier::BatchLoader;
 
         let expected_result = &queue_identifier.clone();
@@ -377,7 +397,7 @@ mod tests {
         let channel = ChannelBuilder::new()
             .producer()
             .queue_identifier(queue_identifier.clone())
-            .inner("test_connection")
+            .inner(lapin_channel)
             .build();
         let result = channel.queue_identifier();
 
@@ -386,12 +406,14 @@ mod tests {
 
     #[test]
     fn should_allow_setting_fields_in_different_order_when_building_consumer_channel() {
+        let lapin_channel = mock_lapin_channel();
+
         let expected_result = ChannelType::Consumer;
 
         let channel = ChannelBuilder::new()
             .queue_identifier(QueueIdentifier::BatchLoader)
             .consumer()
-            .inner("test_connection")
+            .inner(lapin_channel)
             .build();
         let result = channel.channel_type();
 
@@ -400,12 +422,14 @@ mod tests {
 
     #[test]
     fn should_allow_setting_fields_in_different_order_when_building_producer_channel() {
+        let lapin_channel = mock_lapin_channel();
+
         let expected_result = ChannelType::Producer;
 
         let channel = ChannelBuilder::new()
             .queue_identifier(QueueIdentifier::BatchLoader)
             .producer()
-            .inner("test_connection")
+            .inner(lapin_channel)
             .build();
         let result = channel.channel_type();
 
