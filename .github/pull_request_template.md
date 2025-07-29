@@ -11,5 +11,6 @@ Please include a summary of the changes you made.
 
 # Checklist:
 
-- [ ] The Software Development Guidelines outlined [here](https://docs.google.com/document/d/15cCsiH9SULp1dKRUhxhNc5mDCajH6r4uaeoqiJyRVcQ/) are followed
+- [ ] The Software Development Guidelines outlined [here](
+https://www.notion.so/Arkad-Software-Development-Guidelines-214cfe3cc9fb809082a0d15d3e6036cc) are followed
 

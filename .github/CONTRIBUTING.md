@@ -27,7 +27,8 @@ Make sure to change the **placeholders** in the commands.
    git checkout -b your-feature-name
    ```
 ### Code guidelines
-Make sure the code guidelines outlined [here](https://docs.google.com/document/d/15cCsiH9SULp1dKRUhxhNc5mDCajH6r4uaeoqiJyRVcQ/) are followed at all times. This saves us a lot of time.
+Make sure the code guidelines outlined [here](
+https://www.notion.so/Arkad-Software-Development-Guidelines-214cfe3cc9fb809082a0d15d3e6036cc) are followed at all times. This saves us a lot of time.
 
 ### Submitting a Pull Request
 1. Make sure your branch is up to date:
