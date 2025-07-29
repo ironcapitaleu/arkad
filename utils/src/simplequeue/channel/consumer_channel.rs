@@ -1,5 +1,3 @@
-use lapin::Channel as LapinChannel;
-
 use super::{ChannelType, QueueIdentifier};
 use crate::simplequeue::traits::{Channel, InnerChannel};
 

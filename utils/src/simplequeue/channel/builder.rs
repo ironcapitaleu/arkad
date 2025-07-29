@@ -31,7 +31,6 @@
 //!     .inner("connection_string")
 //!     .build(); // Automatically returns a `ConsumerChannel`
 //! ```
-use lapin::Channel as LapinChannel;
 
 use crate::simplequeue::traits::InnerChannel;
 
@@ -301,7 +300,7 @@ mod tests {
     fn should_build_producer_channel_when_producer_type_is_specified() {
         let lapin_channel = mock_lapin_channel();
 
-        let _result: ProducerChannel = ChannelBuilder::new()
+        let _result: ProducerChannel<LapinChannel> = ChannelBuilder::new()
             .producer()
             .queue_identifier(QueueIdentifier::BatchExtractor)
             .inner(lapin_channel)
@@ -312,7 +311,7 @@ mod tests {
     fn should_build_consumer_channel_when_consumer_type_is_specified() {
         let lapin_channel = mock_lapin_channel();
 
-        let _result: ConsumerChannel = ChannelBuilder::new()
+        let _result: ConsumerChannel<LapinChannel> = ChannelBuilder::new()
             .consumer()
             .queue_identifier(QueueIdentifier::BatchTransformer)
             .inner(lapin_channel)
@@ -345,7 +344,7 @@ mod tests {
 
         let expected_result = ChannelType::Producer;
 
-        let channel: ProducerChannel = ChannelBuilder::new()
+        let channel: ProducerChannel<LapinChannel> = ChannelBuilder::new()
             .producer()
             .queue_identifier(QueueIdentifier::BatchExtractor)
             .inner(lapin_channel)
@@ -361,7 +360,7 @@ mod tests {
 
         let expected_result = ChannelType::Consumer;
 
-        let channel: ConsumerChannel = ChannelBuilder::new()
+        let channel: ConsumerChannel<LapinChannel> = ChannelBuilder::new()
             .consumer()
             .queue_identifier(QueueIdentifier::BatchExtractor)
             .inner(lapin_channel)
