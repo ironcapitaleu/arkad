@@ -1,1 +1,1 @@
-pub mod channel;
+pub mod sample_channel;

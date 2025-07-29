@@ -12,15 +12,6 @@ impl InnerChannel for RealService {
     }
 }
 
-// Example implementation for a mock service
-pub struct MockService;
-
-impl InnerChannel for MockService {
-    fn serve(&self) {
-        println!("Mock service for testing.");
-    }
-}
-
 // TODO: remove this later and put it in the right place
 use lapin::Channel as LapinChannel;
 // Implementation of InnerChannel for LapinChannel
