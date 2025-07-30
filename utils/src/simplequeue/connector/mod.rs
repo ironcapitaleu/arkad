@@ -157,13 +157,15 @@ impl Connector {
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn create_connection(&self) -> Result<Connection, ConnectionFailed> {
+    pub async fn create_connection(
+        &self,
+    ) -> Result<Connection<lapin::Connection>, ConnectionFailed> {
         let uri = self.uri();
         let connection_result =
             lapin::Connection::connect(&uri, lapin::ConnectionProperties::default()).await;
 
         match connection_result {
-            Ok(lapin_connection) => Ok(Connection::new(lapin_connection, self.clone())), // TODO: Consider using `self` and make this `create_connection()` method consume its `Connector`.
+            Ok(lapin_connection) => Ok(Connection::new(lapin_connection, self.clone())),
             Err(lapin_error) => Err(ConnectionFailed::from((uri.as_str(), lapin_error))),
         }
     }

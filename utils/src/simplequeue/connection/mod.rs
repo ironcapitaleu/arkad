@@ -1,16 +1,16 @@
-use lapin::Connection as LapinConnection;
+use crate::simplequeue::traits::InnerConnection;
 
 pub use super::connector::Connector;
 
 #[derive(Debug)]
-pub struct Connection {
-    pub inner: LapinConnection,
+pub struct Connection<I: InnerConnection> {
+    pub inner: I,
     pub connector: Connector,
 }
 
-impl Connection {
+impl<I: InnerConnection> Connection<I> {
     #[must_use]
-    pub const fn new(inner: LapinConnection, connector: Connector) -> Self {
+    pub const fn new(inner: I, connector: Connector) -> Self {
         Self { inner, connector }
     }
 }
