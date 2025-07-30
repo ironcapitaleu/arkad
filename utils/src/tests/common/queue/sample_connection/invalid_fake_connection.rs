@@ -6,7 +6,9 @@ pub struct InvalidFakeConnection;
 
 impl InnerConnection for InvalidFakeConnection {
     async fn connect(&self, uri: &str) -> Result<Self, ConnectionFailed> {
-        println!("Fake connection established with URI: '{uri}'");
-        Ok(InvalidFakeConnection)
+        Err(ConnectionFailed::new(
+            uri,
+            format!("Failed to connect to URI: '{uri}'"),
+        ))
     }
 }

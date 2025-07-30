@@ -183,7 +183,9 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;
-    use crate::tests::common::queue::sample_connection::FakeConnection;
+    use crate::tests::common::queue::sample_connection::{
+        InvalidFakeConnection, ValidFakeConnection,
+    };
 
     #[test]
     fn should_return_correct_user_when_user_is_called() {
@@ -348,8 +350,8 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_create_connection_with_valid_inner_connection() {
-        let fake_connection = FakeConnection;
+    async fn should_successfully_create_connection_when_provided_valid_inner_connection() {
+        let valid_fake_connection = ValidFakeConnection;
         let connector = Connector {
             user: "admin".to_string(),
             password: "secret".to_string(),
@@ -359,8 +361,25 @@ mod tests {
             kind: ConnectorKind::BatchExtractor,
         };
 
-        let result = connector.create_connection(fake_connection).await;
+        let result = connector.create_connection(valid_fake_connection).await;
 
         assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn should_return_error_when_tried_to_create_connection_with_invalid_inner_connection() {
+        let invalid_fake_connection = InvalidFakeConnection;
+        let connector = Connector {
+            user: "admin".to_string(),
+            password: "secret".to_string(),
+            host: "localhost".to_string(),
+            port: 5672,
+            vhost: "/".to_string(),
+            kind: ConnectorKind::BatchExtractor,
+        };
+
+        let result = connector.create_connection(invalid_fake_connection).await;
+
+        assert!(result.is_err());
     }
 }
