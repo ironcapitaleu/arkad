@@ -18,14 +18,14 @@ pub struct ConnectionFailed {
 }
 
 impl ConnectionFailed {
-    /// Creates a new `ConnectionFailed` error.
+    /// Creates a new [`ConnectionFailed`] error.
     ///
     /// # Arguments
     /// * `uri` - The URI of the message broker.
     /// * `reason` - The reason for the connection failure.
     ///
     /// # Returns
-    /// A new `ConnectionFailed` error instance.
+    /// A new [`ConnectionFailed`] error instance.
     #[must_use]
     pub fn new(uri: impl Into<String>, reason: impl Into<String>) -> Self {
         Self {
