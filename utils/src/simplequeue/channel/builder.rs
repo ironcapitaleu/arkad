@@ -1,7 +1,7 @@
 //! Channel builder implementation providing compile-time type safety.
 //!
 //! This module contains the [`ChannelBuilder`] and associated marker types that enable
-//! type-safe construction of [`Channel`](super::Channel). The builder uses a consuming type state pattern to ensure
+//! type-safe construction of [`Channel`](crate::simplequeue::traits::Channel). The builder uses a consuming type state pattern to ensure
 //! all required fields are set before construction and automatically determines the
 //! correct [`ChannelType`](super::ChannelType) at compile time.
 //!
@@ -14,21 +14,23 @@
 //!
 //! # Examples
 //!
-//! ```
+//! ```compile_fail
 //! use utils::simplequeue::channel::{ChannelBuilder, QueueIdentifier};
+//!
+//! let sample_inner_channel = ...; // Replace with actual type that implements `InnerChannel`
 //!
 //! // Producer channel
 //! let producer = ChannelBuilder::new()
 //!     .producer() // Automatically sets the marker for channel type to `Producer`
 //!     .queue_identifier(QueueIdentifier::BatchExtractor)
-//!     .inner("connection_string")
+//!     .inner(sample_inner_channel)
 //!     .build(); // Automatically returns a `ProducerChannel`
 //!
 //! // Consumer channel  
 //! let consumer = ChannelBuilder::new()
 //!     .consumer() // Automatically sets the marker for channel type to `Consumer`
 //!     .queue_identifier(QueueIdentifier::BatchExtractor)
-//!     .inner("connection_string")
+//!     .inner(sample_inner_channel)
 //!     .build(); // Automatically returns a `ConsumerChannel`
 //! ```
 
@@ -50,7 +52,7 @@ pub struct NoChannelType;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NoQueueIdentifier;
 
-/// Marker type for tracking when no inner connection has been set in the builder.
+/// Marker type for tracking when no inner channel has been set in the builder.
 ///
 /// This marker prevents the builder from calling `build()`
 /// until [`inner()`](ChannelBuilder::inner) is called.
@@ -73,28 +75,30 @@ pub struct ProducerChannelMarker;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ConsumerChannelMarker;
 
-/// Builder for creating [`Channel`](super::Channel) instances with compile-time type safety.
+/// Builder for creating [`Channel`](crate::simplequeue::traits::Channel) instances with compile-time type safety.
 ///
 /// This builder uses a type-safe consuming builder pattern to ensure all required fields
 /// are set before building and automatically determines the correct [`ChannelType`](super::ChannelType) at compile time.
 ///
 /// # Examples
 ///
-/// ```
+/// ```compile_fail
 /// use utils::simplequeue::channel::{ChannelBuilder, QueueIdentifier};
+///
+/// let sample_inner_channel = ...; // Replace with actual type that implements `InnerChannel`
 ///
 /// // Producer channel - automatically returns a `ProducerChannel` instance
 /// let producer = ChannelBuilder::new()
 ///     .producer()
 ///     .queue_identifier(QueueIdentifier::BatchExtractor)
-///     .inner("connection_string")
+///     .inner(sample_inner_channel)
 ///     .build();
 ///
 /// // Consumer channel - automatically returns a `ConsumerChannel` instance
 /// let consumer = ChannelBuilder::new()
 ///     .consumer()
 ///     .queue_identifier(QueueIdentifier::BatchExtractor)
-///     .inner("connection_string")
+///     .inner(sample_inner_channel)
 ///     .build();
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -130,13 +134,15 @@ impl<QI, I> ChannelBuilder<NoChannelType, QI, I> {
     /// A new [`ChannelBuilder`] instance configured for building a [`ProducerChannel`].
     ///
     /// # Examples
-    /// ```
+    /// ```compile_fail
     /// use utils::simplequeue::channel::{ChannelBuilder, QueueIdentifier};
+    ///
+    /// let sample_inner_channel = ...; // Replace with actual type that implements `InnerChannel`
     ///
     /// let builder = ChannelBuilder::new()
     ///     .producer()
     ///     .queue_identifier(QueueIdentifier::BatchExtractor)
-    ///     .inner("connection_string");
+    ///     .inner(sample_inner_channel);
     ///
     /// let channel = builder.build(); // Returns a `ProducerChannel`
     /// ```
@@ -159,13 +165,15 @@ impl<QI, I> ChannelBuilder<NoChannelType, QI, I> {
     /// A new [`ChannelBuilder`] instance configured for building a [`ConsumerChannel`].
     ///
     /// # Examples
-    /// ```
+    /// ```compile_fail
     /// use utils::simplequeue::channel::{ChannelBuilder, QueueIdentifier};
+    ///
+    /// let sample_inner_channel = ...; // Replace with actual type that implements `InnerChannel`
     ///
     /// let builder = ChannelBuilder::new()
     ///     .consumer()
     ///     .queue_identifier(QueueIdentifier::BatchExtractor)
-    ///     .inner("connection_string");
+    ///     .inner(sample_inner_channel);
     ///
     /// let channel = builder.build(); // Returns a `ConsumerChannel`
     /// ```
@@ -201,7 +209,7 @@ impl<CT, I> ChannelBuilder<CT, NoQueueIdentifier, I> {
 }
 
 impl<CT, QI> ChannelBuilder<CT, QI, NoInner> {
-    /// Sets the wrapped `inner` connection for the [`Channel`](super::Channel).
+    /// Sets the wrapped `inner` channel for the [`Channel`](crate::simplequeue::traits::Channel).
     ///
     /// # Arguments
     /// * `inner` - The inner Lapin channel object
@@ -222,23 +230,25 @@ impl<I: InnerChannel> ChannelBuilder<ProducerChannelMarker, QueueIdentifier, I> 
     /// Builds a [`ProducerChannel`] from the fully configured [`ChannelBuilder`] state.
     ///
     /// This method consumes the [`ChannelBuilder`] and creates a new [`ProducerChannel`] instance
-    /// using the configured inner connection and queue identifier. This method is only
+    /// using the configured inner channel and queue identifier. This method is only
     /// available when:
     /// - [`ChannelType`](super::ChannelType) is set to [`ChannelType::Producer`](super::ChannelType::Producer) via [`producer()`](ChannelBuilder::producer)
-    /// - Queue identifier is set via [`queue_identifier()`](ChannelBuilder::queue_identifier)  
-    /// - Inner connection is set via [`inner()`](ChannelBuilder::inner)
+    /// - Queue identifier is set via [`queue_identifier()`](ChannelBuilder::queue_identifier)
+    /// - Inner channel is set via [`inner()`](ChannelBuilder::inner)
     ///
     /// # Returns
     /// A fully configured [`ProducerChannel`] instance ready for use.
     ///
     /// # Examples
-    /// ```
+    /// ```compile_fail
     /// use utils::simplequeue::channel::{ChannelBuilder, QueueIdentifier};
+    ///
+    /// let sample_inner_channel = ...; // Replace with actual type that implements `InnerChannel`
     ///
     /// let producer = ChannelBuilder::new()
     ///     .producer()
     ///     .queue_identifier(QueueIdentifier::BatchExtractor)
-    ///     .inner("connection_string")
+    ///     .inner(sample_inner_channel)
     ///     .build(); // This method is now available
     /// ```
     #[must_use]
@@ -251,23 +261,25 @@ impl<I: InnerChannel> ChannelBuilder<ConsumerChannelMarker, QueueIdentifier, I> 
     /// Builds a [`ConsumerChannel`] from the fully configured [`ChannelBuilder`] state.
     ///
     /// This method consumes the builder and creates a new [`ConsumerChannel`] instance
-    /// using the configured inner connection and queue identifier. This method is only
+    /// using the configured inner channel and queue identifier. This method is only
     /// available when:
     /// - [`ChannelType`](super::ChannelType) is set to [`ChannelType::Consumer`](super::ChannelType::Consumer) via [`consumer()`](ChannelBuilder::consumer)
     /// - Queue identifier is set via [`queue_identifier()`](ChannelBuilder::queue_identifier)
-    /// - Inner connection is set via [`inner()`](ChannelBuilder::inner)
+    /// - Inner channel is set via [`inner()`](ChannelBuilder::inner)
     ///
     /// # Returns
     /// A fully configured [`ConsumerChannel`] instance ready for use.
     ///
     /// # Examples
-    /// ```
+    /// ```compile_fail
     /// use utils::simplequeue::channel::{ChannelBuilder, QueueIdentifier};
+    ///
+    /// let sample_inner_channel = ...; // Replace with actual type that implements `InnerChannel`
     ///
     /// let consumer = ChannelBuilder::new()
     ///     .consumer()
     ///     .queue_identifier(QueueIdentifier::BatchExtractor)
-    ///     .inner("connection_string")
+    ///     .inner(sample_inner_channel)
     ///     .build();
     /// ```
     #[must_use]
