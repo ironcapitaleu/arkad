@@ -183,6 +183,7 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;
+    use crate::tests::common::queue::sample_connection::FakeConnection;
 
     #[test]
     fn should_return_correct_user_when_user_is_called() {
@@ -344,5 +345,22 @@ mod tests {
         let result = connector.uri();
 
         assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_create_connection_with_valid_inner_connection() {
+        let fake_connection = FakeConnection;
+        let connector = Connector {
+            user: "admin".to_string(),
+            password: "secret".to_string(),
+            host: "localhost".to_string(),
+            port: 5672,
+            vhost: "/".to_string(),
+            kind: ConnectorKind::BatchExtractor,
+        };
+
+        let result = connector.create_connection(fake_connection).await;
+
+        assert!(result.is_ok());
     }
 }

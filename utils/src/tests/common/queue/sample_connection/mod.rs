@@ -1,12 +1,5 @@
-use crate::simplequeue::traits::InnerConnection;
-use crate::simplequeue::error::ConnectionFailed;
+pub mod invalid_fake_connection;
+pub mod valid_fake_connection;
 
-#[derive(Debug)]
-pub struct FakeConnection;
-
-impl InnerConnection for FakeConnection {
-    async fn connect(&self, uri: &str) -> Result<Self, ConnectionFailed> {
-        println!("Fake connection established with URI: '{uri}'");
-        Ok(FakeConnection)
-    }
-}
+pub use invalid_fake_connection::InvalidFakeConnection;
+pub use valid_fake_connection::ValidFakeConnection;
