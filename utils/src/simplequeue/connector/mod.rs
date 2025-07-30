@@ -1,5 +1,6 @@
-use lapin;
 use urlencoding::encode;
+
+use crate::simplequeue::traits::InnerConnection;
 
 use super::connection::Connection;
 use super::error::connection_failed::ConnectionFailed;
@@ -136,11 +137,13 @@ impl Connector {
     /// - Invalid connection parameters
     ///
     /// # Example
-    /// ```no_run
+    /// ```compile_fail
     /// use utils::simplequeue::connector::{ConnectorBuilder, ConnectorKind};
     ///
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    ///
+    ///
     /// let connector = ConnectorBuilder::new()
     ///     .user("admin")
     ///     .password("secret")
@@ -150,24 +153,28 @@ impl Connector {
     ///     .connector_kind(ConnectorKind::BatchExtractor)
     ///     .build();
     ///
-    /// match connector.create_connection().await {
+    /// let inner_connection = ...; // Replace with your inner connection type that implements `InnerConnection`
+    /// match connector.create_connection(inner_connection).await {
     ///     Ok(connection) => println!("Successfully connected to message broker"),
     ///     Err(error) => eprintln!("Failed to connect: {}", error),
     /// }
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn create_connection(
+    pub async fn create_connection<I: InnerConnection>(
         &self,
-    ) -> Result<Connection<lapin::Connection>, ConnectionFailed> {
+        connection: I,
+    ) -> Result<Connection<I>, ConnectionFailed> {
         let uri = self.uri();
-        let connection_result =
-            lapin::Connection::connect(&uri, lapin::ConnectionProperties::default()).await;
 
-        match connection_result {
-            Ok(lapin_connection) => Ok(Connection::new(lapin_connection, self.clone())),
-            Err(lapin_error) => Err(ConnectionFailed::from((uri.as_str(), lapin_error))),
-        }
+        let inner_connection_result = connection.connect(&uri).await;
+
+        let connection_result = match inner_connection_result {
+            Ok(inner) => Ok(Connection::new(inner, self.clone())),
+            Err(e) => Err(e),
+        };
+
+        connection_result
     }
 }
 
