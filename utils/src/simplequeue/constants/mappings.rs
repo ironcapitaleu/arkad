@@ -4,7 +4,7 @@ use std::sync::LazyLock;
 use crate::simplequeue::channel::{ChannelConfig, ChannelType, QueueIdentifier};
 use crate::simplequeue::connector::ConnectorKind;
 
-/// Maps each `ConnectorKind` to a vector of `ChannelConfig`.
+/// Maps each [`ConnectorKind`] to a vector of [`ChannelConfig`].
 pub static CONNECTOR_CONFIG_MAP: LazyLock<HashMap<ConnectorKind, Vec<ChannelConfig>>> =
     LazyLock::new(|| {
         let mut m = HashMap::new();
@@ -37,6 +37,7 @@ pub static CONNECTOR_CONFIG_MAP: LazyLock<HashMap<ConnectorKind, Vec<ChannelConf
         );
         m
     });
+
 #[cfg(test)]
 mod tests {
     use super::*;
