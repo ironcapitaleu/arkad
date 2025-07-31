@@ -10,5 +10,7 @@ pub mod constants;
 
 pub mod traits;
 
+pub mod implementations;
+
 pub use self::connection::Connection;
 pub use self::connector::{Connector, ConnectorBuilder};
