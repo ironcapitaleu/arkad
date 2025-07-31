@@ -36,8 +36,8 @@
 
 use crate::simplequeue::traits::InnerChannel;
 
-use super::{ConsumerChannel, QueueIdentifier};
-use crate::simplequeue::implementations::channel::ProducerChannel;
+use super::QueueIdentifier;
+use crate::simplequeue::implementations::channel::{ConsumerChannel, ProducerChannel};
 
 /// Marker type for tracking when no channel type has been set in the builder.
 ///
@@ -287,7 +287,10 @@ impl<I: InnerChannel> ChannelBuilder<ConsumerChannelMarker, QueueIdentifier, I> 
     ///     .build();
     /// ```
     #[must_use]
-    pub fn build(self) -> ConsumerChannel<I> {
+    pub fn build<T>(self) -> ConsumerChannel<I, T>
+    where
+        T: From<Vec<u8>> + Send + Sync + 'static,
+    {
         ConsumerChannel::new(self.inner, self.queue_identifier)
     }
 }
@@ -322,7 +325,7 @@ mod tests {
     fn should_build_consumer_channel_when_consumer_type_is_specified() {
         let fake_channel = FakeChannel;
 
-        let _result: ConsumerChannel<FakeChannel> = ChannelBuilder::new()
+        let _result: ConsumerChannel<FakeChannel, Vec<u8>> = ChannelBuilder::new()
             .consumer()
             .queue_identifier(QueueIdentifier::BatchTransformer)
             .inner(fake_channel)
@@ -371,7 +374,7 @@ mod tests {
 
         let expected_result = ChannelType::Consumer;
 
-        let channel: ConsumerChannel<FakeChannel> = ChannelBuilder::new()
+        let channel: ConsumerChannel<FakeChannel, Vec<u8>> = ChannelBuilder::new()
             .consumer()
             .queue_identifier(QueueIdentifier::BatchExtractor)
             .inner(fake_channel)
@@ -389,7 +392,7 @@ mod tests {
 
         let expected_result = &queue_identifier.clone();
 
-        let channel = ChannelBuilder::new()
+        let channel: ConsumerChannel<FakeChannel, Vec<u8>> = ChannelBuilder::new()
             .consumer()
             .queue_identifier(queue_identifier.clone())
             .inner(fake_channel)
@@ -423,7 +426,7 @@ mod tests {
 
         let expected_result = ChannelType::Consumer;
 
-        let channel = ChannelBuilder::new()
+        let channel: ConsumerChannel<FakeChannel, Vec<u8>> = ChannelBuilder::new()
             .queue_identifier(QueueIdentifier::BatchLoader)
             .consumer()
             .inner(fake_channel)
