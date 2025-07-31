@@ -169,12 +169,10 @@ impl Connector {
 
         let inner_connection_result = connection.connect(&uri).await;
 
-        let connection_result = match inner_connection_result {
+        match inner_connection_result {
             Ok(inner) => Ok(Connection::new(inner, self.clone())),
             Err(e) => Err(e),
-        };
-
-        connection_result
+        }
     }
 }
 
