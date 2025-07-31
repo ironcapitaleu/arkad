@@ -36,7 +36,8 @@
 
 use crate::simplequeue::traits::InnerChannel;
 
-use super::{ConsumerChannel, ProducerChannel, QueueIdentifier};
+use super::{ConsumerChannel, QueueIdentifier};
+use crate::simplequeue::implementations::channel::ProducerChannel;
 
 /// Marker type for tracking when no channel type has been set in the builder.
 ///
@@ -252,7 +253,10 @@ impl<I: InnerChannel> ChannelBuilder<ProducerChannelMarker, QueueIdentifier, I> 
     ///     .build(); // This method is now available
     /// ```
     #[must_use]
-    pub fn build(self) -> ProducerChannel<I> {
+    pub fn build<T>(self) -> ProducerChannel<I, T>
+    where
+        T: Into<Vec<u8>> + Send + Sync + 'static,
+    {
         ProducerChannel::new(self.inner, self.queue_identifier)
     }
 }
@@ -307,7 +311,7 @@ mod tests {
     fn should_build_producer_channel_when_producer_type_is_specified() {
         let fake_channel = FakeChannel;
 
-        let _result: ProducerChannel<FakeChannel> = ChannelBuilder::new()
+        let _result: ProducerChannel<FakeChannel, String> = ChannelBuilder::new()
             .producer()
             .queue_identifier(QueueIdentifier::BatchExtractor)
             .inner(fake_channel)
@@ -329,7 +333,7 @@ mod tests {
     fn should_allow_setting_fields_in_any_order_when_using_channel_builder() {
         let fake_channel = FakeChannel;
 
-        let _result = ChannelBuilder::new()
+        let _result: ProducerChannel<FakeChannel, Vec<u8>> = ChannelBuilder::new()
             .inner(fake_channel)
             .queue_identifier(QueueIdentifier::BatchLoader)
             .producer()
@@ -351,7 +355,7 @@ mod tests {
 
         let expected_result = ChannelType::Producer;
 
-        let channel: ProducerChannel<FakeChannel> = ChannelBuilder::new()
+        let channel: ProducerChannel<FakeChannel, String> = ChannelBuilder::new()
             .producer()
             .queue_identifier(QueueIdentifier::BatchExtractor)
             .inner(fake_channel)
@@ -403,7 +407,7 @@ mod tests {
 
         let expected_result = &queue_identifier.clone();
 
-        let channel = ChannelBuilder::new()
+        let channel: ProducerChannel<FakeChannel, Vec<u8>> = ChannelBuilder::new()
             .producer()
             .queue_identifier(queue_identifier.clone())
             .inner(fake_channel)
@@ -435,7 +439,7 @@ mod tests {
 
         let expected_result = ChannelType::Producer;
 
-        let channel = ChannelBuilder::new()
+        let channel: ProducerChannel<FakeChannel, String> = ChannelBuilder::new()
             .queue_identifier(QueueIdentifier::BatchLoader)
             .producer()
             .inner(fake_channel)

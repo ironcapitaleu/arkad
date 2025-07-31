@@ -4,9 +4,12 @@ use super::Channel;
 ///
 /// Implementors of this trait are responsible for providing the logic to produce
 /// items of type [`Self::Item`] to the underlying queue or channel.
+/// Only the produce operation is exposed, even if the inner channel supports more.
 pub trait ProducerChannel: Channel {
-    /// The item type that can be produced by this channel.
-    type Item: Send + Sync + 'static;
+    /// The type of item that can be produced by this channel.
+    ///
+    /// Must be convertible into a `Vec<u8>` (for serialization or transmission).
+    type Item: Into<Vec<u8>> + Send + Sync + 'static;
 
     /// Produces (sends) an item to the channel.
     ///
@@ -14,5 +17,5 @@ pub trait ProducerChannel: Channel {
     ///
     /// Returns an `Err(String)` if the item could not be produced, for example due to
     /// serialization errors, connection issues, or queue-specific constraints.
-    fn produce(&self, item: Self::Item) -> Result<(), String>; // TODO: Define a more specific error type
+    fn produce(&self, item: Self::Item) -> Result<(), String>;
 }
