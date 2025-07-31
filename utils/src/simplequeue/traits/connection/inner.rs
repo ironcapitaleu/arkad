@@ -1,8 +1,11 @@
 use std::fmt;
 
+use async_trait::async_trait;
+
 use crate::simplequeue::error::connection_failed::ConnectionFailed;
 
 /// Trait for inner connection types that can establish connections.
+#[async_trait]
 pub trait InnerConnection: Send + Sync + fmt::Debug {
     /// Establishes a connection using the provided URI.
     ///

@@ -1,9 +1,12 @@
 use crate::simplequeue::error::ConnectionFailed;
 use crate::simplequeue::traits::InnerConnection;
 
+use async_trait::async_trait;
+
 #[derive(Debug)]
 pub struct InvalidFakeConnection;
 
+#[async_trait]
 impl InnerConnection for InvalidFakeConnection {
     async fn connect(&self, uri: &str) -> Result<Self, ConnectionFailed> {
         Err(ConnectionFailed::new(

@@ -1,11 +1,14 @@
 use lapin::Connection as LapinConnection;
 
+use async_trait::async_trait;
+
 use crate::simplequeue::error::connection_failed::ConnectionFailed;
 use crate::simplequeue::traits::InnerConnection;
 
 pub mod channel;
 pub mod connection;
 
+#[async_trait]
 impl InnerConnection for LapinConnection {
     async fn connect(&self, uri: &str) -> Result<Self, ConnectionFailed> {
         let lapin_connection_result =
