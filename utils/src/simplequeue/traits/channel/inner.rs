@@ -1,15 +1,8 @@
+use std::fmt::Debug;
+
 /// A trait representing the behavior of an inner channel.
-pub trait InnerChannel {
+pub trait InnerChannel: Send + Sync + 'static + Debug {
     fn serve(&self);
-}
-
-// Example implementation for a real service
-pub struct RealService;
-
-impl InnerChannel for RealService {
-    fn serve(&self) {
-        println!("Real service is working.");
-    }
 }
 
 // TODO: remove this later and put it in the right place

@@ -1,12 +1,21 @@
+use std::fmt::Debug;
+
 use super::{ChannelType, QueueIdentifier};
 use crate::simplequeue::traits::{Channel, InnerChannel};
 
-pub struct ConsumerChannel<I: InnerChannel> {
+#[derive(Debug, Clone)]
+pub struct ConsumerChannel<I>
+where
+    I: InnerChannel + Debug + Send + Sync + 'static,
+{
     inner: I,
     queue_identifier: QueueIdentifier,
 }
 
-impl<I: InnerChannel> Channel for ConsumerChannel<I> {
+impl<I> Channel for ConsumerChannel<I>
+where
+    I: InnerChannel + Debug + Send + Sync + 'static,
+{
     type Inner = I;
 
     fn inner(&self) -> &Self::Inner {
@@ -22,7 +31,10 @@ impl<I: InnerChannel> Channel for ConsumerChannel<I> {
     }
 }
 
-impl<I: InnerChannel> ConsumerChannel<I> {
+impl<I> ConsumerChannel<I>
+where
+    I: InnerChannel + Debug + Send + Sync + 'static,
+{
     #[must_use]
     pub const fn new(inner: I, queue_identifier: QueueIdentifier) -> Self {
         Self {

@@ -1,5 +1,6 @@
 use crate::simplequeue::traits::InnerChannel;
 
+#[derive(Debug, Clone)]
 pub struct FakeChannel;
 
 impl InnerChannel for FakeChannel {
