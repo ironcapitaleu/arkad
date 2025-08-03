@@ -9,7 +9,7 @@ pub trait ConsumerChannel: Channel {
     /// The type of item that can be consumed from this channel.
     ///
     /// Must be constructible from a `Vec<u8>` (for deserialization from queue data).
-    type Item: ConsumerItem;
+    type Item: Item;
 
     /// Consumes (receives) an item from the channel.
     ///
@@ -19,7 +19,3 @@ pub trait ConsumerChannel: Channel {
     /// deserialization errors, connection issues, or queue-specific constraints.
     fn consume(&self) -> Result<Self::Item, String>;
 }
-
-/// This trait is used to enforce that items consumed can be received through the a ConsumerChannel channel
-/// can be constructed from a Vec<u8> for deserialization from queue data.
-pub trait ConsumerItem: Item + From<Vec<u8>> {}

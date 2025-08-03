@@ -8,10 +8,8 @@ pub mod inner;
 pub mod producer_channel;
 
 pub use consumer_channel::ConsumerChannel;
-pub use consumer_channel::ConsumerItem;
 pub use inner::InnerChannel;
 pub use producer_channel::ProducerChannel;
-pub use producer_channel::ProducerItem;
 pub trait Channel: Send + Sync + 'static + Debug {
     type Inner: InnerChannel;
 
@@ -23,6 +21,17 @@ pub trait Channel: Send + Sync + 'static + Debug {
 /// Supertrait for items that are sent or received through channels.
 /// This trait is used to enforce that items are thread-safe, so that they can be sent and received across threads.
 pub trait Item:
-    Send + Sync + 'static + Debug + Clone + Hash + Eq + PartialEq + Ord + PartialOrd
+    Send
+    + Sync
+    + 'static
+    + Debug
+    + Clone
+    + Hash
+    + Eq
+    + PartialEq
+    + Ord
+    + PartialOrd
+    + serde::Serialize
+    + serde::de::DeserializeOwned
 {
 }

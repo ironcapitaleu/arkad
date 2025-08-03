@@ -9,7 +9,7 @@ pub trait ProducerChannel: Channel {
     /// The type of item that can be produced by this channel.
     ///
     /// Must be convertible into a `Vec<u8>` (for serialization or transmission).
-    type Item: ProducerItem;
+    type Item: Item;
 
     /// Produces (sends) an item to the channel.
     ///
@@ -19,8 +19,3 @@ pub trait ProducerChannel: Channel {
     /// serialization errors, connection issues, or queue-specific constraints.
     fn produce(&self, item: Self::Item) -> Result<(), String>;
 }
-
-/// This trait is used to enforce that items produced can be sent through the a ProducerChannel channel
-/// can be converted into a Vec<u8> for serialization and transmission.
-
-pub trait ProducerItem: Item + Into<Vec<u8>> {}

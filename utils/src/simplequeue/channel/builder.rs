@@ -40,7 +40,7 @@
 //!     .build(); // Automatically returns a `ConsumerChannel<I, Vec<u8>>`
 //! ```
 
-use crate::simplequeue::traits::InnerChannel;
+use crate::simplequeue::traits::{InnerChannel, Item};
 
 use super::QueueIdentifier;
 use crate::simplequeue::implementations::channel::{ConsumerChannel, ProducerChannel};
@@ -234,7 +234,7 @@ impl<QI, I> ChannelBuilder<ProducerChannelMarker, QI, I, NoItemType> {
     #[must_use]
     pub fn item_type<T>(self) -> ChannelBuilder<ProducerChannelMarker, QI, I, T>
     where
-        T: Into<Vec<u8>> + Send + Sync + 'static,
+        T: Item,
     {
         ChannelBuilder {
             channel_type: self.channel_type,
@@ -270,7 +270,7 @@ impl<QI, I> ChannelBuilder<ConsumerChannelMarker, QI, I, NoItemType> {
     #[must_use]
     pub fn item_type<T>(self) -> ChannelBuilder<ConsumerChannelMarker, QI, I, T>
     where
-        T: From<Vec<u8>> + Send + Sync + 'static,
+        T: Item,
     {
         ChannelBuilder {
             channel_type: self.channel_type,
@@ -324,7 +324,7 @@ impl<CT, QI, T> ChannelBuilder<CT, QI, NoInner, T> {
 
 impl<I: InnerChannel, T> ChannelBuilder<ProducerChannelMarker, QueueIdentifier, I, T>
 where
-    T: Into<Vec<u8>> + Send + Sync + 'static,
+    T: Item,
 {
     /// Builds a [`ProducerChannel`] from the fully configured [`ChannelBuilder`] state.
     ///
@@ -360,7 +360,7 @@ where
 
 impl<I: InnerChannel, T> ChannelBuilder<ConsumerChannelMarker, QueueIdentifier, I, T>
 where
-    T: From<Vec<u8>> + Send + Sync + 'static,
+    T: Item,
 {
     /// Builds a [`ConsumerChannel`] from the fully configured [`ChannelBuilder`] state.
     ///
@@ -407,15 +407,15 @@ mod tests {
     use super::*;
     use crate::simplequeue::channel::{ChannelBuilder, ChannelType, QueueIdentifier};
     use crate::simplequeue::traits::Channel;
-    use crate::tests::common::queue::sample_channel::FakeChannel;
+    use crate::tests::common::queue::{sample_channel::FakeChannel, sample_item::FakeItem};
 
     #[test]
     fn should_build_producer_channel_when_producer_type_is_specified() {
         let fake_channel = FakeChannel;
 
-        let _result: ProducerChannel<FakeChannel, String> = ChannelBuilder::new()
+        let _result: ProducerChannel<FakeChannel, FakeItem> = ChannelBuilder::new()
             .producer()
-            .item_type::<String>()
+            .item_type::<FakeItem>()
             .queue_identifier(QueueIdentifier::BatchExtractor)
             .inner(fake_channel)
             .build();
@@ -425,9 +425,9 @@ mod tests {
     fn should_build_consumer_channel_when_consumer_type_is_specified() {
         let fake_channel = FakeChannel;
 
-        let _result: ConsumerChannel<FakeChannel, Vec<u8>> = ChannelBuilder::new()
+        let _result: ConsumerChannel<FakeChannel, FakeItem> = ChannelBuilder::new()
             .consumer()
-            .item_type::<Vec<u8>>()
+            .item_type::<FakeItem>()
             .queue_identifier(QueueIdentifier::BatchTransformer)
             .inner(fake_channel)
             .build();
@@ -437,9 +437,9 @@ mod tests {
     fn should_allow_setting_fields_in_any_order_when_using_channel_builder() {
         let fake_channel = FakeChannel;
 
-        let _result: ProducerChannel<FakeChannel, Vec<u8>> = ChannelBuilder::new()
+        let _result: ProducerChannel<FakeChannel, FakeItem> = ChannelBuilder::new()
             .producer()
-            .item_type::<Vec<u8>>()
+            .item_type::<FakeItem>()
             .inner(fake_channel)
             .queue_identifier(QueueIdentifier::BatchLoader)
             .build();
@@ -460,9 +460,9 @@ mod tests {
 
         let expected_result = ChannelType::Producer;
 
-        let channel: ProducerChannel<FakeChannel, String> = ChannelBuilder::new()
+        let channel: ProducerChannel<FakeChannel, FakeItem> = ChannelBuilder::new()
             .producer()
-            .item_type::<String>()
+            .item_type::<FakeItem>()
             .queue_identifier(QueueIdentifier::BatchExtractor)
             .inner(fake_channel)
             .build();
@@ -477,9 +477,9 @@ mod tests {
 
         let expected_result = ChannelType::Consumer;
 
-        let channel: ConsumerChannel<FakeChannel, Vec<u8>> = ChannelBuilder::new()
+        let channel: ConsumerChannel<FakeChannel, FakeItem> = ChannelBuilder::new()
             .consumer()
-            .item_type::<Vec<u8>>()
+            .item_type::<FakeItem>()
             .queue_identifier(QueueIdentifier::BatchExtractor)
             .inner(fake_channel)
             .build();
@@ -496,9 +496,9 @@ mod tests {
 
         let expected_result = &queue_identifier.clone();
 
-        let channel: ConsumerChannel<FakeChannel, Vec<u8>> = ChannelBuilder::new()
+        let channel: ConsumerChannel<FakeChannel, FakeItem> = ChannelBuilder::new()
             .consumer()
-            .item_type::<Vec<u8>>()
+            .item_type::<FakeItem>()
             .queue_identifier(queue_identifier.clone())
             .inner(fake_channel)
             .build();
@@ -515,9 +515,9 @@ mod tests {
 
         let expected_result = &queue_identifier.clone();
 
-        let channel: ProducerChannel<FakeChannel, Vec<u8>> = ChannelBuilder::new()
+        let channel: ProducerChannel<FakeChannel, FakeItem> = ChannelBuilder::new()
             .producer()
-            .item_type::<Vec<u8>>()
+            .item_type::<FakeItem>()
             .queue_identifier(queue_identifier.clone())
             .inner(fake_channel)
             .build();
@@ -532,10 +532,10 @@ mod tests {
 
         let expected_result = ChannelType::Consumer;
 
-        let channel: ConsumerChannel<FakeChannel, Vec<u8>> = ChannelBuilder::new()
+        let channel: ConsumerChannel<FakeChannel, FakeItem> = ChannelBuilder::new()
             .queue_identifier(QueueIdentifier::BatchLoader)
             .consumer()
-            .item_type::<Vec<u8>>()
+            .item_type::<FakeItem>()
             .inner(fake_channel)
             .build();
         let result = channel.channel_type();
@@ -552,7 +552,7 @@ mod tests {
         let channel = ChannelBuilder::new()
             .queue_identifier(QueueIdentifier::BatchLoader)
             .producer()
-            .item_type::<String>()
+            .item_type::<FakeItem>()
             .inner(fake_channel)
             .build();
         let result = channel.channel_type();

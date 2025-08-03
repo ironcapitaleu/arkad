@@ -2,14 +2,14 @@ use std::fmt::Debug;
 
 use crate::simplequeue::channel::{ChannelType, QueueIdentifier};
 use crate::simplequeue::traits::{
-    Channel, InnerChannel, ProducerChannel as ProducerChannelTrait, ProducerItem,
+    Channel, InnerChannel, Item, ProducerChannel as ProducerChannelTrait,
 };
 
 #[derive(Debug, Clone)]
 pub struct ProducerChannel<I, T>
 where
     I: InnerChannel,
-    T: ProducerItem,
+    T: Item,
 {
     inner: I,
     queue_identifier: QueueIdentifier,
@@ -19,7 +19,7 @@ where
 impl<I, T> Channel for ProducerChannel<I, T>
 where
     I: InnerChannel,
-    T: ProducerItem,
+    T: Item,
 {
     type Inner = I;
 
@@ -39,7 +39,7 @@ where
 impl<I, T> ProducerChannelTrait for ProducerChannel<I, T>
 where
     I: InnerChannel,
-    T: ProducerItem,
+    T: Item,
 {
     type Item = T;
 
@@ -51,7 +51,7 @@ where
 impl<I, T> ProducerChannel<I, T>
 where
     I: InnerChannel,
-    T: ProducerItem,
+    T: Item,
 {
     #[must_use]
     pub const fn new(inner: I, queue_identifier: QueueIdentifier) -> Self {
