@@ -1,13 +1,15 @@
 use std::fmt::Debug;
 
 use crate::simplequeue::channel::{ChannelType, QueueIdentifier};
-use crate::simplequeue::traits::{Channel, InnerChannel, ProducerChannel as ProducerChannelTrait};
+use crate::simplequeue::traits::{
+    Channel, InnerChannel, ProducerChannel as ProducerChannelTrait, ProducerItem,
+};
 
 #[derive(Debug, Clone)]
 pub struct ProducerChannel<I, T>
 where
-    I: InnerChannel + Debug + Send + Sync + 'static,
-    T: Into<Vec<u8>> + Send + Sync + 'static,
+    I: InnerChannel,
+    T: ProducerItem,
 {
     inner: I,
     queue_identifier: QueueIdentifier,
@@ -16,8 +18,8 @@ where
 
 impl<I, T> Channel for ProducerChannel<I, T>
 where
-    I: InnerChannel + Debug + Send + Sync + 'static,
-    T: Into<Vec<u8>> + Debug + Send + Sync + 'static,
+    I: InnerChannel,
+    T: ProducerItem,
 {
     type Inner = I;
 
@@ -36,8 +38,8 @@ where
 
 impl<I, T> ProducerChannelTrait for ProducerChannel<I, T>
 where
-    I: InnerChannel + Debug + Send + Sync + 'static,
-    T: Into<Vec<u8>> + Debug + Send + Sync + 'static,
+    I: InnerChannel,
+    T: ProducerItem,
 {
     type Item = T;
 
@@ -48,8 +50,8 @@ where
 }
 impl<I, T> ProducerChannel<I, T>
 where
-    I: InnerChannel + Debug + Send + Sync + 'static,
-    T: Into<Vec<u8>> + Send + Sync + 'static,
+    I: InnerChannel,
+    T: ProducerItem,
 {
     #[must_use]
     pub const fn new(inner: I, queue_identifier: QueueIdentifier) -> Self {
