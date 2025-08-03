@@ -11,9 +11,8 @@
 //! - Cannot call `build()` without setting all required fields
 //! - Cannot set the same field twice
 //! - Cannot set item type before specifying channel type (producer/consumer)
-//! - Enforces appropriate trait bounds based on channel type:
-//!   - Producer channels require items that implement `Item`
-//!   - Consumer channels require items that implement `Item`
+//! - Enforces appropriate trait bounds for both channel types:
+//!   - Producer channels, as well as Consumer channels require items that implement the [`Item`] trait
 //! - Automatically returns the correct [`ChannelType`](super::ChannelType) based on marker
 //!
 //! # Examples
@@ -22,11 +21,12 @@
 //! use utils::simplequeue::channel::{ChannelBuilder, QueueIdentifier};
 //!
 //! let sample_inner_channel = ...; // Replace with actual type that implements `InnerChannel`
+//! let example_item = ...; // Replace with actual type that implements `Item`
 //!
 //! // Producer channel - must specify producer type first, then item type
 //! let producer = ChannelBuilder::new()
 //!     .producer() // Must come before item_type()
-//!     .item_type::<String>() // String implements Item
+//!     .item_type::<example_item>() // `example_item` implements the `Item` trait
 //!     .queue_identifier(QueueIdentifier::BatchExtractor)
 //!     .inner(sample_inner_channel)
 //!     .build(); // Automatically returns a `ProducerChannel<I, String>`
@@ -34,7 +34,7 @@
 //! // Consumer channel - must specify consumer type first, then item type
 //! let consumer = ChannelBuilder::new()
 //!     .consumer() // Must come before item_type()
-//!     .item_type::<Vec<u8>>() // Vec<u8> implements Item
+//!     .item_type::<example_item>() // `example_item` implements the `Item` trait
 //!     .queue_identifier(QueueIdentifier::BatchExtractor)
 //!     .inner(sample_inner_channel)
 //!     .build(); // Automatically returns a `ConsumerChannel<I, Vec<u8>>`
@@ -102,11 +102,12 @@ pub struct ConsumerChannelMarker;
 /// use utils::simplequeue::channel::{ChannelBuilder, QueueIdentifier};
 ///
 /// let sample_inner_channel = ...; // Replace with actual type that implements `InnerChannel`
+/// let example_item = ...; // Replace with actual type that implements the `Item` trait
 ///
 /// // Producer channel - automatically returns a `ProducerChannel` instance
 /// let producer = ChannelBuilder::new()
 ///     .producer()                // Must be called before item_type()
-///     .item_type::<String>()     // String implements Into<Vec<u8>>
+///     .item_type::<example_item>()     // `example_item` implements the `Item` trait
 ///     .queue_identifier(QueueIdentifier::BatchExtractor)
 ///     .inner(sample_inner_channel)
 ///     .build();
@@ -114,7 +115,7 @@ pub struct ConsumerChannelMarker;
 /// // Consumer channel - automatically returns a `ConsumerChannel` instance
 /// let consumer = ChannelBuilder::new()
 ///     .consumer()                // Must be called before item_type()
-///     .item_type::<Vec<u8>>()    // Vec<u8> implements From<Vec<u8>>
+///     .item_type::<example_item>()    // `example_item` implements the `Item` trait
 ///     .queue_identifier(QueueIdentifier::BatchExtractor)
 ///     .inner(sample_inner_channel)
 ///     .build();
@@ -209,66 +210,28 @@ impl<QI, I, T> ChannelBuilder<NoChannelType, QI, I, T> {
     }
 }
 
-impl<QI, I> ChannelBuilder<ProducerChannelMarker, QI, I, NoItemType> {
-    /// Sets the item type that will be produced by this producer channel.
-    ///
-    /// This method is only available after the channel type has been set to producer via
-    /// [`producer()`](ChannelBuilder::producer). The item type must implement `Into<Vec<u8>>`
-    /// to ensure it can be serialized for transmission.
+impl<CT, QI, I> ChannelBuilder<CT, QI, I, NoItemType> {
+    /// Sets the item type that will be written by / consumed by this channel.
     ///
     /// # Type Parameters
-    /// * `T` - The item type that implements `Into<Vec<u8>> + Send + Sync + 'static`
+    /// * `T` - The item type that implements the [`Item`] trait.
     ///
     /// # Returns
-    /// A new [`ChannelBuilder`] instance with the producer item type configured.
+    /// A new [`ChannelBuilder`] instance with the item type configured.
     ///
     /// # Examples
     /// ```compile_fail
-    /// let producer = ChannelBuilder::new()
-    ///     .producer()
-    ///     .item_type::<String>()  // String implements Into<Vec<u8>>
-    ///     .queue_identifier(QueueIdentifier::BatchExtractor)
-    ///     .inner(sample_inner_channel)
-    ///     .build();
-    /// ```
-    #[must_use]
-    pub fn item_type<T>(self) -> ChannelBuilder<ProducerChannelMarker, QI, I, T>
-    where
-        T: Item,
-    {
-        ChannelBuilder {
-            channel_type: self.channel_type,
-            queue_identifier: self.queue_identifier,
-            inner: self.inner,
-            _item_type: std::marker::PhantomData::<T>,
-        }
-    }
-}
-
-impl<QI, I> ChannelBuilder<ConsumerChannelMarker, QI, I, NoItemType> {
-    /// Sets the item type that will be consumed by this consumer channel.
+    /// let example_item = ...; // Replace with actual type that implements the `Item` trait
     ///
-    /// This method is only available after the channel type has been set to consumer via
-    /// [`consumer()`](ChannelBuilder::consumer). The item type must implement `From<Vec<u8>>`
-    /// to ensure it can be deserialized from received data.
-    ///
-    /// # Type Parameters
-    /// * `T` - The item type that implements `From<Vec<u8>> + Send + Sync + 'static`
-    ///
-    /// # Returns
-    /// A new [`ChannelBuilder`] instance with the consumer item type configured.
-    ///
-    /// # Examples
-    /// ```compile_fail
     /// let consumer = ChannelBuilder::new()
     ///     .consumer()
-    ///     .item_type::<Vec<u8>>()  // Vec<u8> implements From<Vec<u8>>
+    ///     .item_type::<example_item>()  // `example_item` implements the `Item` trait
     ///     .queue_identifier(QueueIdentifier::BatchExtractor)
     ///     .inner(sample_inner_channel)
     ///     .build();
     /// ```
     #[must_use]
-    pub fn item_type<T>(self) -> ChannelBuilder<ConsumerChannelMarker, QI, I, T>
+    pub fn item_type<T>(self) -> ChannelBuilder<CT, QI, I, T>
     where
         T: Item,
     {

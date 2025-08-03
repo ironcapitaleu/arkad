@@ -19,7 +19,7 @@ pub trait Channel: Send + Sync + 'static + Debug {
 }
 
 /// Supertrait for items that are sent or received through channels.
-/// This trait is used to enforce that items are thread-safe, so that they can be sent and received across threads.
+/// This trait is used to enforce that items are thread-safe, and (de-)serializable.
 pub trait Item:
     Send
     + Sync
