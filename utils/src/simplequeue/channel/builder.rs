@@ -12,8 +12,8 @@
 //! - Cannot set the same field twice
 //! - Cannot set item type before specifying channel type (producer/consumer)
 //! - Enforces appropriate trait bounds based on channel type:
-//!   - Producer channels require `Into<Vec<u8>>` for serialization
-//!   - Consumer channels require `From<Vec<u8>>` for deserialization
+//!   - Producer channels require items that implement `Item`
+//!   - Consumer channels require items that implement `Item`
 //! - Automatically returns the correct [`ChannelType`](super::ChannelType) based on marker
 //!
 //! # Examples
@@ -26,7 +26,7 @@
 //! // Producer channel - must specify producer type first, then item type
 //! let producer = ChannelBuilder::new()
 //!     .producer() // Must come before item_type()
-//!     .item_type::<String>() // String implements Into<Vec<u8>>
+//!     .item_type::<String>() // String implements Item
 //!     .queue_identifier(QueueIdentifier::BatchExtractor)
 //!     .inner(sample_inner_channel)
 //!     .build(); // Automatically returns a `ProducerChannel<I, String>`
@@ -34,7 +34,7 @@
 //! // Consumer channel - must specify consumer type first, then item type
 //! let consumer = ChannelBuilder::new()
 //!     .consumer() // Must come before item_type()
-//!     .item_type::<Vec<u8>>() // Vec<u8> implements From<Vec<u8>>
+//!     .item_type::<Vec<u8>>() // Vec<u8> implements Item
 //!     .queue_identifier(QueueIdentifier::BatchExtractor)
 //!     .inner(sample_inner_channel)
 //!     .build(); // Automatically returns a `ConsumerChannel<I, Vec<u8>>`
