@@ -1,4 +1,4 @@
-use crate::simplequeue::traits::InnerConnection;
+use crate::simplequeue::traits::{Connection as ConnectionTrait, InnerConnection};
 
 pub use super::connector::Connector;
 
@@ -8,9 +8,17 @@ pub struct Connection<I: InnerConnection> {
     pub connector: Connector,
 }
 
-impl<I: InnerConnection> Connection<I> {
-    #[must_use]
-    pub const fn new(inner: I, connector: Connector) -> Self {
+impl<I: InnerConnection> ConnectionTrait for Connection<I> {
+    type Inner = I;
+    fn new(inner: I, connector: Connector) -> Self {
         Self { inner, connector }
+    }
+
+    fn inner(&self) -> &I {
+        &self.inner
+    }
+
+    fn connector(&self) -> &Connector {
+        &self.connector
     }
 }

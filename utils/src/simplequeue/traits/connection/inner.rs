@@ -10,7 +10,7 @@ use crate::simplequeue::traits::{InnerChannel, Item};
 
 /// Trait for inner connection types that can establish connections.
 #[async_trait]
-pub trait InnerConnection: Send + Sync + fmt::Debug + Sized {
+pub trait InnerConnection: Send + Sync + 'static + fmt::Debug + Sized {
     /// Establishes a connection using the provided URI.
     ///
     /// # Arguments

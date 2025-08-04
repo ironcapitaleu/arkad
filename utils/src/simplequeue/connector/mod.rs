@@ -1,6 +1,6 @@
 use urlencoding::encode;
 
-use crate::simplequeue::traits::InnerConnection;
+use crate::simplequeue::traits::{Connection as ConnectionTrait, InnerConnection};
 
 use super::connection::Connection;
 use super::error::connection_failed::ConnectionFailed;

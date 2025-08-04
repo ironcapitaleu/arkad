@@ -13,10 +13,10 @@ pub mod inner;
 pub use inner::InnerConnection;
 
 #[async_trait]
-pub trait Connection: Send + Sync + 'static + Debug + Clone {
+pub trait Connection: Send + Sync + 'static + Debug {
     type Inner: InnerConnection;
 
-    fn new<I: InnerConnection>(inner: I, connector: Connector) -> Self;
+    fn new(inner: Self::Inner, connector: Connector) -> Self;
 
     fn inner(&self) -> &Self::Inner;
     fn connector(&self) -> &Connector;
