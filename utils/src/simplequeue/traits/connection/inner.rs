@@ -16,4 +16,14 @@ pub trait InnerConnection: Send + Sync + fmt::Debug + Sized {
     /// `Ok(Self)` if the connection is successful.
     /// `Err(ConnectionFailed)` if the connection fails.
     async fn connect(&self, uri: &str) -> Result<Self, ConnectionFailed>;
+
+    async fn create_producer_channel<T: Item>(
+        &self,
+        queue_identifier: QueueIdentifier,
+    ) -> Result<ProducerChannel<Self, T>, String>;
+
+    async fn create_consumer_channel<T: Item>(
+        &self,
+        queue_identifier: QueueIdentifier,
+    ) -> Result<ConsumerChannel<Self, T>, String>;
 }

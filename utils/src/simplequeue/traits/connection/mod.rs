@@ -1,5 +1,7 @@
 use std::fmt::Debug;
 
+use async_trait::async_trait;
+
 use crate::simplequeue::connector::Connector;
 use crate::simplequeue::traits::Item;
 
@@ -10,6 +12,7 @@ pub mod inner;
 
 pub use inner::InnerConnection;
 
+#[async_trait]
 pub trait Connection: Send + Sync + 'static + Debug + Clone {
     type Inner: InnerConnection;
 
@@ -18,12 +21,12 @@ pub trait Connection: Send + Sync + 'static + Debug + Clone {
     fn inner(&self) -> &Self::Inner;
     fn connector(&self) -> &Connector;
 
-    fn create_producer_channel<T: Item>(
+    async fn create_producer_channel<T: Item>(
         &self,
         queue_identifier: QueueIdentifier,
     ) -> Result<ProducerChannel<Self::Inner, T>, String>;
 
-    fn create_consumer_channel<T: Item>(
+    async fn create_consumer_channel<T: Item>(
         &self,
         queue_identifier: QueueIdentifier,
     ) -> Result<ConsumerChannel<Self::Inner, T>, String>;
