@@ -2,15 +2,15 @@ use lapin::Connection as LapinConnection;
 use tracing::{error, info, warn};
 use tracing_test::traced_test;
 
-use utils::simplequeue::connector::{ConnectorKind};
-use utils::simplequeue::traits::Connection as ConnectionTrait;
 use utils::simplequeue::ConnectorBuilder;
+use utils::simplequeue::connector::ConnectorKind;
+use utils::simplequeue::traits::Connection as ConnectionTrait;
 
 /// Integration test for Connector's create_connection method using real LapinConnection.
-/// 
+///
 /// This test verifies that the connector properly establishes connections
 /// and logs the connection results with actual RabbitMQ connection.
-/// 
+///
 /// Note: This test requires a running RabbitMQ instance for successful connection.
 #[tokio::test]
 #[traced_test]
@@ -19,18 +19,19 @@ async fn should_successfully_create_connection_and_log_result_when_using_lapin_c
     // Arrange
     // Try to establish a basic connection using the same credentials as the connector
     let basic_uri = "amqp://admin:admin123@localhost:5672/%2F";
-    let lapin_connection = match LapinConnection::connect(basic_uri, lapin::ConnectionProperties::default()).await {
-        Ok(conn) => conn,
-        Err(e) => {
-            warn!(
-                severity = "WARN", 
-                message = "Could not establish basic connection for test",
-                error = %e,
-                uri = basic_uri
-            );
-            return; // Skip test if connection fails
-        }
-    };
+    let lapin_connection =
+        match LapinConnection::connect(basic_uri, lapin::ConnectionProperties::default()).await {
+            Ok(conn) => conn,
+            Err(e) => {
+                warn!(
+                    severity = "WARN",
+                    message = "Could not establish basic connection for test",
+                    error = %e,
+                    uri = basic_uri
+                );
+                return; // Skip test if connection fails
+            }
+        };
     let connector = ConnectorBuilder::new()
         .user("admin")
         .password("admin123")
