@@ -16,19 +16,19 @@ pub mod validate_cik_format;
 
 use crate::error::State as StateError;
 use crate::error::state_machine::transition::Transition as TransitionError;
-use crate::implementations::states::extract::validate_cik_format::{
-    ValidateCikFormatContext, ValidateCikFormatInputData,
-};
 use crate::implementations::states::extract::prepare_sec_request::{
     PrepareSecRequestContext, PrepareSecRequestInputData,
+};
+use crate::implementations::states::extract::validate_cik_format::{
+    ValidateCikFormatContext, ValidateCikFormatInputData,
 };
 
 use async_trait::async_trait;
 
 use crate::prelude::*;
-use state_maschine::prelude::{Transition as SMTransition, StateMachine as SMStateMachine};
-use validate_cik_format::ValidateCikFormat;
 use prepare_sec_request::PrepareSecRequest;
+use state_maschine::prelude::{StateMachine as SMStateMachine, Transition as SMTransition};
+use validate_cik_format::ValidateCikFormat;
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ExtractSuperStateData;
@@ -143,7 +143,7 @@ impl ExtractSuperState<ValidateCikFormat> {
 
 impl ExtractSuperState<PrepareSecRequest> {
     #[must_use]
-    pub fn new(validated_cik: crate::shared::cik::Cik, user_agent: String) -> Self {
+    pub const fn new(validated_cik: crate::shared::cik::Cik, user_agent: String) -> Self {
         let psr_input = PrepareSecRequestInputData::new(validated_cik, user_agent);
         let psr_context = PrepareSecRequestContext::new();
 
@@ -158,18 +158,20 @@ impl ExtractSuperState<PrepareSecRequest> {
 
 impl Transition<ValidateCikFormat, PrepareSecRequest> for ExtractSuperState<ValidateCikFormat> {
     fn transition_to_next_state_sec(self) -> Result<Self::NewStateMachine, TransitionError> {
-        
         let output_data = self
             .current_state
             .get_output_data()
             .ok_or(TransitionError::FailedOutputConversion)?;
-        
+
         let validated_cik = output_data.validated_cik.clone();
-        
+
         // Use default user agent for now
         let user_agent = "SEC Extraction Agent contact@example.com".to_string();
-        
-        Ok(ExtractSuperState::<PrepareSecRequest>::new(validated_cik, user_agent))
+
+        Ok(ExtractSuperState::<PrepareSecRequest>::new(
+            validated_cik,
+            user_agent,
+        ))
     }
 }
 
@@ -178,6 +180,8 @@ impl SMTransition<ValidateCikFormat, PrepareSecRequest> for ExtractSuperState<Va
 
     fn transition_to_next_state(self) -> Result<Self::NewStateMachine, &'static str> {
         // Placeholder implementation - use transition_to_next_state_sec() for actual functionality
-        Err("Use transition_to_next_state_sec() for SEC-specific transitions with rich error handling")
+        Err(
+            "Use transition_to_next_state_sec() for SEC-specific transitions with rich error handling",
+        )
     }
 }
