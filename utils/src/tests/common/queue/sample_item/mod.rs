@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::simplequeue::traits::Item;
+use crate::queue::traits::Item;
 
 #[derive(Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize)]
 

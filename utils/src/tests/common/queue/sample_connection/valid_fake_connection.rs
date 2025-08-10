@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 
-use crate::simplequeue::error::ConnectionFailed;
-use crate::simplequeue::traits::InnerConnection;
+use crate::queue::error::ConnectionFailed;
+use crate::queue::traits::InnerConnection;
 
 #[derive(Debug)]
 pub struct ValidFakeConnection;

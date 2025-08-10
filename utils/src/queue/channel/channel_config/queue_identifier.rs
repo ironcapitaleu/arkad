@@ -1,4 +1,4 @@
-use crate::simplequeue::constants::queue_identifiers::{
+use crate::queue::constants::queue_identifiers::{
     BATCH_EXTRACTOR_QUEUE_NAME, BATCH_LOADER_QUEUE_NAME, BATCH_TRANSFORMER_QUEUE_NAME,
 };
 

@@ -1,4 +1,4 @@
-use crate::simplequeue::traits::InnerChannel;
+use crate::queue::traits::InnerChannel;
 
 #[derive(Debug, Clone)]
 pub struct FakeChannel;

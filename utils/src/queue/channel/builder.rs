@@ -40,10 +40,10 @@
 //!     .build(); // Automatically returns a `ConsumerChannel<I, Vec<u8>>`
 //! ```
 
-use crate::simplequeue::traits::{InnerChannel, Item};
+use crate::queue::traits::{InnerChannel, Item};
 
 use super::QueueIdentifier;
-use crate::simplequeue::implementations::channel::{ConsumerChannel, ProducerChannel};
+use crate::queue::implementations::channel::{ConsumerChannel, ProducerChannel};
 
 /// Marker type for tracking when no channel type has been set in the builder.
 ///
@@ -368,8 +368,8 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;
-    use crate::simplequeue::channel::{ChannelBuilder, ChannelType, QueueIdentifier};
-    use crate::simplequeue::traits::Channel;
+    use crate::queue::channel::{ChannelBuilder, ChannelType, QueueIdentifier};
+    use crate::queue::traits::Channel;
     use crate::tests::common::queue::{sample_channel::FakeChannel, sample_item::FakeItem};
 
     #[test]

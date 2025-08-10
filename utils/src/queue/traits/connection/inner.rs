@@ -2,11 +2,11 @@ use std::fmt;
 
 use async_trait::async_trait;
 
-use crate::simplequeue::channel::{
+use crate::queue::channel::{
     ChannelBuilder, ConsumerChannel, ProducerChannel, QueueIdentifier,
 };
-use crate::simplequeue::error::connection_failed::ConnectionFailed;
-use crate::simplequeue::traits::{InnerChannel, Item};
+use crate::queue::error::connection_failed::ConnectionFailed;
+use crate::queue::traits::{InnerChannel, Item};
 
 /// Trait for inner connection types that can establish connections.
 #[async_trait]

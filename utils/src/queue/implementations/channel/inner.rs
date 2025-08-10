@@ -8,7 +8,7 @@
 //! transparently with the builder API, promoting extensibility and maintainability.
 use lapin::Channel as LapinChannel;
 
-use crate::simplequeue::traits::InnerChannel;
+use crate::queue::traits::InnerChannel;
 
 impl InnerChannel for LapinChannel {
     fn serve(&self) {

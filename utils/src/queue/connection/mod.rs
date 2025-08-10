@@ -1,4 +1,4 @@
-use crate::simplequeue::traits::{Connection as ConnectionTrait, InnerConnection};
+use crate::queue::traits::{Connection as ConnectionTrait, InnerConnection};
 
 pub use super::connector::Connector;
 

@@ -2,11 +2,11 @@ use std::fmt::Debug;
 
 use async_trait::async_trait;
 
-use crate::simplequeue::connector::Connector;
-use crate::simplequeue::traits::{InnerChannel, Item};
+use crate::queue::connector::Connector;
+use crate::queue::traits::{InnerChannel, Item};
 
-use crate::simplequeue::channel::QueueIdentifier;
-use crate::simplequeue::channel::{ConsumerChannel, ProducerChannel};
+use crate::queue::channel::QueueIdentifier;
+use crate::queue::channel::{ConsumerChannel, ProducerChannel};
 
 pub mod inner;
 

@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 
-use crate::simplequeue::channel::{ChannelType, QueueIdentifier};
-use crate::simplequeue::traits::{
+use crate::queue::channel::{ChannelType, QueueIdentifier};
+use crate::queue::traits::{
     Channel, InnerChannel, Item, ProducerChannel as ProducerChannelTrait,
 };
 

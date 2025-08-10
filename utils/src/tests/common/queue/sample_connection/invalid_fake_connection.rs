@@ -1,5 +1,5 @@
-use crate::simplequeue::error::ConnectionFailed;
-use crate::simplequeue::traits::InnerConnection;
+use crate::queue::error::ConnectionFailed;
+use crate::queue::traits::InnerConnection;
 
 use async_trait::async_trait;
 

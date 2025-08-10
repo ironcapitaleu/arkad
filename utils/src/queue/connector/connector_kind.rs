@@ -1,6 +1,6 @@
 use std::fmt;
 
-use crate::simplequeue::constants::connector_kinds::{
+use crate::queue::constants::connector_kinds::{
     BATCH_EXTRACTOR, BATCH_LOADER, BATCH_TRANSFORMER,
 };
 
