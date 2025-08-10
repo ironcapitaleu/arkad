@@ -28,7 +28,7 @@ pub struct NoConnectorKind;
 /// # Examples
 ///
 /// ```
-/// use utils::simplequeue::connector::{ConnectorBuilder, ConnectorKind};
+/// use utils::queue::connector::{ConnectorBuilder, ConnectorKind};
 ///
 /// let connector = ConnectorBuilder::new()
 ///     .user("admin")
@@ -202,7 +202,7 @@ impl ConnectorBuilder<String, String, String, u16, String, ConnectorKind> {
     /// The following code will not compile because not all fields are set:
     ///
     /// ```compile_fail
-    /// # use utils::simplequeue::connector::ConnectorBuilder;
+    /// # use utils::queue::connector::ConnectorBuilder;
     /// let result = ConnectorBuilder::new()
     ///     .user("some_user")
     ///     .password("some_password")

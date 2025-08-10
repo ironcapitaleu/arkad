@@ -16,7 +16,7 @@ pub use connection_failed::ConnectionFailed;
 /// # Examples
 ///
 /// ```
-/// use utils::simplequeue::error::{ErrorKind, ConnectionFailed};
+/// use utils::queue::error::{ErrorKind, ConnectionFailed};
 ///
 /// let connection_error = ConnectionFailed::new("amqp://localhost:5672", "Connection refused");
 /// let error = ErrorKind::ConnectionFailed(connection_error);

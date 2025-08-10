@@ -88,7 +88,7 @@ impl Connector {
     ///
     /// # Example
     /// ```
-    /// use utils::simplequeue::connector::{Connector, ConnectorKind};
+    /// use utils::queue::connector::{Connector, ConnectorKind};
     ///
     /// let connector = Connector {
     ///     user: "admin".into(),
@@ -138,7 +138,7 @@ impl Connector {
     ///
     /// # Example
     /// ```compile_fail
-    /// use utils::simplequeue::connector::{ConnectorBuilder, ConnectorKind};
+    /// use utils::queue::connector::{ConnectorBuilder, ConnectorKind};
     ///
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {

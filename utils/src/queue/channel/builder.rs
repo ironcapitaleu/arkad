@@ -1,7 +1,7 @@
 //! Channel builder implementation providing compile-time type safety.
 //!
 //! This module contains the [`ChannelBuilder`] and associated marker types that enable
-//! type-safe construction of [`Channel`](crate::simplequeue::traits::Channel). The builder uses a consuming type state pattern to ensure
+//! type-safe construction of [`Channel`](crate::queue::traits::Channel). The builder uses a consuming type state pattern to ensure
 //! all required fields are set before construction and automatically determines the
 //! correct [`ChannelType`](super::ChannelType) at compile time.
 //!
@@ -18,7 +18,7 @@
 //! # Examples
 //!
 //! ```compile_fail
-//! use utils::simplequeue::channel::{ChannelBuilder, QueueIdentifier};
+//! use utils::queue::channel::{ChannelBuilder, QueueIdentifier};
 //!
 //! let sample_inner_channel = ...; // Replace with actual type that implements `InnerChannel`
 //! let example_item = ...; // Replace with actual type that implements `Item`
@@ -89,7 +89,7 @@ pub struct ProducerChannelMarker;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ConsumerChannelMarker;
 
-/// Builder for creating [`Channel`](crate::simplequeue::traits::Channel) instances with compile-time type safety.
+/// Builder for creating [`Channel`](crate::queue::traits::Channel) instances with compile-time type safety.
 ///
 /// This builder uses a type-safe consuming builder pattern to ensure all required fields
 /// are set before building and automatically determines the correct [`ChannelType`](super::ChannelType) at compile time.
@@ -99,7 +99,7 @@ pub struct ConsumerChannelMarker;
 /// # Examples
 ///
 /// ```compile_fail
-/// use utils::simplequeue::channel::{ChannelBuilder, QueueIdentifier};
+/// use utils::queue::channel::{ChannelBuilder, QueueIdentifier};
 ///
 /// let sample_inner_channel = ...; // Replace with actual type that implements `InnerChannel`
 /// let example_item = ...; // Replace with actual type that implements the `Item` trait
@@ -156,7 +156,7 @@ impl<QI, I, T> ChannelBuilder<NoChannelType, QI, I, T> {
     ///
     /// # Examples
     /// ```compile_fail
-    /// use utils::simplequeue::channel::{ChannelBuilder, QueueIdentifier};
+    /// use utils::queue::channel::{ChannelBuilder, QueueIdentifier};
     ///
     /// let sample_inner_channel = ...; // Replace with actual type that implements `InnerChannel`
     ///
@@ -188,7 +188,7 @@ impl<QI, I, T> ChannelBuilder<NoChannelType, QI, I, T> {
     ///
     /// # Examples
     /// ```compile_fail
-    /// use utils::simplequeue::channel::{ChannelBuilder, QueueIdentifier};
+    /// use utils::queue::channel::{ChannelBuilder, QueueIdentifier};
     ///
     /// let sample_inner_channel = ...; // Replace with actual type that implements `InnerChannel`
     ///
@@ -267,7 +267,7 @@ impl<CT, I, T> ChannelBuilder<CT, NoQueueIdentifier, I, T> {
 }
 
 impl<CT, QI, T> ChannelBuilder<CT, QI, NoInner, T> {
-    /// Sets the wrapped `inner` channel for the [`Channel`](crate::simplequeue::traits::Channel).
+    /// Sets the wrapped `inner` channel for the [`Channel`](crate::queue::traits::Channel).
     ///
     /// # Arguments
     /// * `inner` - The inner Lapin channel object
@@ -304,7 +304,7 @@ where
     ///
     /// # Examples
     /// ```compile_fail
-    /// use utils::simplequeue::channel::{ChannelBuilder, QueueIdentifier};
+    /// use utils::queue::channel::{ChannelBuilder, QueueIdentifier};
     ///
     /// let sample_inner_channel = ...; // Replace with actual type that implements `InnerChannel`
     ///
@@ -340,7 +340,7 @@ where
     ///
     /// # Examples
     /// ```compile_fail
-    /// use utils::simplequeue::channel::{ChannelBuilder, QueueIdentifier};
+    /// use utils::queue::channel::{ChannelBuilder, QueueIdentifier};
     ///
     /// let sample_inner_channel = ...; // Replace with actual type that implements `InnerChannel`
     ///
