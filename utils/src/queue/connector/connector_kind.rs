@@ -1,8 +1,6 @@
 use std::fmt;
 
-use crate::queue::constants::connector_kinds::{
-    BATCH_EXTRACTOR, BATCH_LOADER, BATCH_TRANSFORMER,
-};
+use crate::queue::constants::connector_kinds::{BATCH_EXTRACTOR, BATCH_LOADER, BATCH_TRANSFORMER};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ConnectorKind {

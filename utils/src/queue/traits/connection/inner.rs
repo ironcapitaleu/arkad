@@ -2,9 +2,7 @@ use std::fmt;
 
 use async_trait::async_trait;
 
-use crate::queue::channel::{
-    ChannelBuilder, ConsumerChannel, ProducerChannel, QueueIdentifier,
-};
+use crate::queue::channel::{ChannelBuilder, ConsumerChannel, ProducerChannel, QueueIdentifier};
 use crate::queue::error::connection_failed::ConnectionFailed;
 use crate::queue::traits::{InnerChannel, Item};
 

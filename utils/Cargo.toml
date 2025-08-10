@@ -8,9 +8,6 @@ description = "A collection of utility functions for the SEC package."
 categories = ["utilities", "utils"]
 keywords = ["backing-services", "queues", "config"]
 
-[[bin]]
-name = "test_queue_connection"
-path = "src/bin/queues/main.rs"
 
 [[bin]]
 name = "simplified_queue_example"

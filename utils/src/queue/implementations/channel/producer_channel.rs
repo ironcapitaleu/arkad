@@ -1,9 +1,7 @@
 use std::fmt::Debug;
 
 use crate::queue::channel::{ChannelType, QueueIdentifier};
-use crate::queue::traits::{
-    Channel, InnerChannel, Item, ProducerChannel as ProducerChannelTrait,
-};
+use crate::queue::traits::{Channel, InnerChannel, Item, ProducerChannel as ProducerChannelTrait};
 
 #[derive(Debug, Clone)]
 pub struct ProducerChannel<I, T>
