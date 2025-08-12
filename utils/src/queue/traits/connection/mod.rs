@@ -6,7 +6,7 @@ use crate::queue::implementations::connector::Connector;
 use crate::queue::traits::{InnerChannel, Item};
 
 use crate::queue::implementations::channel::{ConsumerChannel, ProducerChannel};
-use crate::queue::shared::queue_identifiers::QueueIdentifier;
+use crate::queue::shared::queue_identifier::QueueIdentifier;
 
 pub mod inner;
 

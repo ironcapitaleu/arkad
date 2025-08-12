@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 
 use crate::queue::implementations::channel::ChannelType;
-use crate::queue::shared::queue_identifiers::QueueIdentifier;
+use crate::queue::shared::queue_identifier::QueueIdentifier;
 use crate::queue::traits::{Channel, ConsumerChannel as ConsumerChannelTrait, InnerChannel, Item};
 
 #[derive(Debug, Clone)]

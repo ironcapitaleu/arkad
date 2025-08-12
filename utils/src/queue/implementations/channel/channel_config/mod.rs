@@ -1,4 +1,4 @@
-use crate::queue::shared::queue_identifiers::QueueIdentifier;
+use crate::queue::shared::queue_identifier::QueueIdentifier;
 
 pub mod channel_type;
 pub mod queue_identifier;

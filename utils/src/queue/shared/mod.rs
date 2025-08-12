@@ -1,7 +1,7 @@
-pub mod connector_kinds;
+pub mod connector_type;
 pub mod mappings;
-pub mod queue_identifiers;
+pub mod queue_identifier;
 
-pub use connector_kinds::ConnectorType;
+pub use connector_type::ConnectorType;
 pub use mappings::CONNECTOR_CONFIG_MAP;
-pub use queue_identifiers::QueueIdentifier;
+pub use queue_identifier::QueueIdentifier;
