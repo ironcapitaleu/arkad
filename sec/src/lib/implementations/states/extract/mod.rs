@@ -20,7 +20,7 @@ use crate::implementations::states::extract::prepare_sec_request::{
     PrepareSecRequestContext, PrepareSecRequestInputData,
 };
 use crate::implementations::states::extract::validate_cik_format::{
-    ValidateCikFormatContext, ValidateCikFormatInputData,
+    ValidateCikFormatContext, ValidateCikFormatInputData,ValidateCikFormatOutputData
 };
 
 use async_trait::async_trait;
@@ -126,6 +126,33 @@ impl<S: State> SMSuperState<S> for ExtractSuperState<S> {}
 
 impl<S: State> SuperState<S> for ExtractSuperState<S> {}
 
+impl From<ValidateCikFormatContext> for PrepareSecRequestContext {
+    fn from(_: ValidateCikFormatContext) -> Self {
+        Self::new()
+    }
+}
+
+impl From<ValidateCikFormatOutputData> for PrepareSecRequestInputData {
+    fn from(output_data: ValidateCikFormatOutputData) -> Self {
+        Self::new(output_data.validated_cik, "SEC Extraction Agent contact@example.com".to_string())
+    }
+}
+
+
+impl TryFrom<ValidateCikFormat> for PrepareSecRequest {
+    type Error = TransitionError;
+
+    fn try_from(state: ValidateCikFormat) -> Result<Self, Self::Error> {
+        let new_context: PrepareSecRequestContext = state.get_context_data().clone().into();
+        if state.get_output_data().is_none() {
+            return Err(TransitionError::FailedOutputConversion);
+        }
+        let new_input: PrepareSecRequestInputData = state.get_output_data().expect("Output data of `ValidateCikFormat` should always be existing when triggering a transition to next state.").clone().into();
+
+        Ok(Self::new(new_input, new_context))
+    }
+}
+
 impl ExtractSuperState<ValidateCikFormat> {
     #[must_use]
     pub fn new(input: &str) -> Self {
@@ -156,22 +183,17 @@ impl ExtractSuperState<PrepareSecRequest> {
     }
 }
 
+
 impl Transition<ValidateCikFormat, PrepareSecRequest> for ExtractSuperState<ValidateCikFormat> {
     fn transition_to_next_state_sec(self) -> Result<Self::NewStateMachine, TransitionError> {
-        let output_data = self
-            .current_state
-            .get_output_data()
-            .ok_or(TransitionError::FailedOutputConversion)?;
+        let next_state = PrepareSecRequest::try_from(self.current_state)?;
 
-        let validated_cik = output_data.validated_cik.clone();
-
-        // Use default user agent for now
-        let user_agent = "SEC Extraction Agent contact@example.com".to_string();
-
-        Ok(ExtractSuperState::<PrepareSecRequest>::new(
-            validated_cik,
-            user_agent,
-        ))
+        Ok(ExtractSuperState::<PrepareSecRequest> {
+            current_state: next_state,
+            input: ExtractSuperStateData,
+            output: None,
+            context: ExtractSuperStateContext,
+        })
     }
 }
 
