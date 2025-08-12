@@ -20,7 +20,7 @@ use crate::implementations::states::extract::prepare_sec_request::{
     PrepareSecRequestContext, PrepareSecRequestInputData,
 };
 use crate::implementations::states::extract::validate_cik_format::{
-    ValidateCikFormatContext, ValidateCikFormatInputData,ValidateCikFormatOutputData
+    ValidateCikFormatContext, ValidateCikFormatInputData, ValidateCikFormatOutputData,
 };
 
 use async_trait::async_trait;
@@ -134,10 +134,12 @@ impl From<ValidateCikFormatContext> for PrepareSecRequestContext {
 
 impl From<ValidateCikFormatOutputData> for PrepareSecRequestInputData {
     fn from(output_data: ValidateCikFormatOutputData) -> Self {
-        Self::new(output_data.validated_cik, "SEC Extraction Agent contact@example.com".to_string())
+        Self::new(
+            output_data.validated_cik,
+            "SEC Extraction Agent contact@example.com".to_string(),
+        )
     }
 }
-
 
 impl TryFrom<ValidateCikFormat> for PrepareSecRequest {
     type Error = TransitionError;
@@ -182,7 +184,6 @@ impl ExtractSuperState<PrepareSecRequest> {
         }
     }
 }
-
 
 impl Transition<ValidateCikFormat, PrepareSecRequest> for ExtractSuperState<ValidateCikFormat> {
     fn transition_to_next_state_sec(self) -> Result<Self::NewStateMachine, TransitionError> {
