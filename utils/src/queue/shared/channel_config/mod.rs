@@ -1,8 +1,5 @@
+use crate::queue::shared::channel_type::ChannelType;
 use crate::queue::shared::queue_identifier::QueueIdentifier;
-
-pub mod channel_type;
-
-pub use channel_type::ChannelType;
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ChannelConfig {

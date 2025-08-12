@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 use std::sync::LazyLock;
 
-use crate::queue::implementations::channel::{ChannelConfig, ChannelType};
 use crate::queue::shared::ConnectorType;
 use crate::queue::shared::queue_identifier::QueueIdentifier;
+use crate::queue::shared::{ChannelConfig, ChannelType};
 
 /// Maps each [`ConnectorType`] to a vector of [`ChannelConfig`].
 pub static CONNECTOR_CONFIG_MAP: LazyLock<HashMap<ConnectorType, Vec<ChannelConfig>>> =

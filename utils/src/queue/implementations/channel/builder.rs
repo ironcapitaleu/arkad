@@ -3,7 +3,7 @@
 //! This module contains the [`ChannelBuilder`] and associated marker types that enable
 //! type-safe construction of [`Channel`](crate::queue::traits::Channel). The builder uses a consuming type state pattern to ensure
 //! all required fields are set before construction and automatically determines the
-//! correct [`ChannelType`](super::ChannelType) at compile time.
+//! correct [`ChannelType`](crate::queue::shared::ChannelType) at compile time.
 //!
 //! # Type Safety
 //!
@@ -13,7 +13,7 @@
 //! - Cannot set item type before specifying channel type (producer/consumer)
 //! - Enforces appropriate trait bounds for both channel types:
 //!   - Producer channels, as well as Consumer channels require items that implement the [`Item`] trait
-//! - Automatically returns the correct [`ChannelType`](super::ChannelType) based on marker
+//! - Automatically returns the correct [`ChannelType`](crate::queue::shared::ChannelType) based on marker
 //!
 //! # Examples
 //!
@@ -77,7 +77,7 @@ pub struct NoItemType;
 ///
 /// When this marker (along with the other required fields of the builder!) is set via [`ChannelBuilder::producer()`](ChannelBuilder::producer()),
 /// the [`ChannelBuilder`] 's `fn build(self) -> ProducerChannel` method becomes available and returns a [`ProducerChannel`].
-/// This corresponds to [`ChannelType::Producer`](super::ChannelType::Producer) semantically.
+/// This corresponds to [`ChannelType::Producer`](crate::queue::shared::ChannelType::Producer) semantically.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ProducerChannelMarker;
 
@@ -85,14 +85,14 @@ pub struct ProducerChannelMarker;
 ///
 /// When this marker (along with the other required fields of the builder!) is set via [`ChannelBuilder::consumer()`](ChannelBuilder::consumer()),
 /// the [`ChannelBuilder`] 's `fn build(self) -> ConsumerChannel` method becomes available and returns a [`ConsumerChannel`].
-/// This corresponds to [`ChannelType::Consumer`](super::ChannelType::Consumer) semantically.
+/// This corresponds to [`ChannelType::Consumer`](crate::queue::shared::ChannelType::Consumer) semantically.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ConsumerChannelMarker;
 
 /// Builder for creating [`Channel`](crate::queue::traits::Channel) instances with compile-time type safety.
 ///
 /// This builder uses a type-safe consuming builder pattern to ensure all required fields
-/// are set before building and automatically determines the correct [`ChannelType`](super::ChannelType) at compile time.
+/// are set before building and automatically determines the correct [`ChannelType`](crate::queue::shared::ChannelType) at compile time.
 /// The item type can only be specified after the channel type (producer/consumer) has been set,
 /// ensuring appropriate trait bounds are enforced.
 ///
@@ -294,7 +294,7 @@ where
     /// This method consumes the [`ChannelBuilder`] and creates a new [`ProducerChannel`] instance
     /// using the configured inner channel and queue identifier. This method is only
     /// available when:
-    /// - [`ChannelType`](super::ChannelType) is set to [`ChannelType::Producer`](super::ChannelType::Producer) via [`producer()`](ChannelBuilder::producer)
+    /// - [`ChannelType`](crate::queue::shared::ChannelType) is set to [`ChannelType::Producer`](crate::queue::shared::ChannelType::Producer) via [`producer()`](ChannelBuilder::producer)
     /// - Queue identifier is set via [`queue_identifier()`](ChannelBuilder::queue_identifier)
     /// - Inner channel is set via [`inner()`](ChannelBuilder::inner)
     /// - Item type is set via [`item_type()`](ChannelBuilder::item_type)
@@ -330,7 +330,7 @@ where
     /// This method consumes the builder and creates a new [`ConsumerChannel`] instance
     /// using the configured inner channel and queue identifier. This method is only
     /// available when:
-    /// - [`ChannelType`](super::ChannelType) is set to [`ChannelType::Consumer`](super::ChannelType::Consumer) via [`consumer()`](ChannelBuilder::consumer)
+    /// - [`ChannelType`](crate::queue::shared::ChannelType) is set to [`ChannelType::Consumer`](crate::queue::shared::ChannelType::Consumer) via [`consumer()`](ChannelBuilder::consumer)
     /// - Queue identifier is set via [`queue_identifier()`](ChannelBuilder::queue_identifier)
     /// - Inner channel is set via [`inner()`](ChannelBuilder::inner)
     /// - Item type is set via [`item_type()`](ChannelBuilder::item_type)
@@ -368,8 +368,8 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;
-    use crate::queue::implementations::channel::{ChannelBuilder, ChannelType};
-    use crate::queue::shared::queue_identifier::QueueIdentifier;
+    use crate::queue::implementations::channel::ChannelBuilder;
+    use crate::queue::shared::{ChannelType, QueueIdentifier};
     use crate::queue::traits::Channel;
     use crate::tests::common::queue::{sample_channel::FakeChannel, sample_item::FakeItem};
 
