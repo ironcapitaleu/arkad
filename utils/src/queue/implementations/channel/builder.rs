@@ -21,12 +21,12 @@
 //! use utils::queue::channel::{ChannelBuilder, QueueIdentifier};
 //!
 //! let sample_inner_channel = ...; // Replace with actual type that implements `InnerChannel`
-//! let example_item = ...; // Replace with actual type that implements `Item`
+//! let example_item: ExampleItemType = ...; // Replace with actual type that implements `Item`
 //!
 //! // Producer channel - must specify producer type first, then item type
 //! let producer = ChannelBuilder::new()
-//!     .producer() // Must come before item_type()
-//!     .item_type::<example_item>() // `example_item` implements the `Item` trait
+//!     .producer() // Must come before item_type() //TODO: why????
+//!     .item_type::<ExampleItemType>() // `ExampleItemType` implements the `Item` trait
 //!     .queue_identifier(QueueIdentifier::BatchExtractor)
 //!     .inner(sample_inner_channel)
 //!     .build(); // Automatically returns a `ProducerChannel<I, String>`
@@ -34,7 +34,7 @@
 //! // Consumer channel - must specify consumer type first, then item type
 //! let consumer = ChannelBuilder::new()
 //!     .consumer() // Must come before item_type()
-//!     .item_type::<example_item>() // `example_item` implements the `Item` trait
+//!     .item_type::<ExampleItemType>() // `ExampleItemType` implements the `Item` trait
 //!     .queue_identifier(QueueIdentifier::BatchExtractor)
 //!     .inner(sample_inner_channel)
 //!     .build(); // Automatically returns a `ConsumerChannel<I, Vec<u8>>`
@@ -106,8 +106,8 @@ pub struct ConsumerChannelMarker;
 ///
 /// // Producer channel - automatically returns a `ProducerChannel` instance
 /// let producer = ChannelBuilder::new()
-///     .producer()                // Must be called before item_type()
-///     .item_type::<example_item>()     // `example_item` implements the `Item` trait
+///     .producer() // Must be called before item_type()
+///     .item_type::<ExampleItemType>() // `ExampleItemType` implements the `Item` trait
 ///     .queue_identifier(QueueIdentifier::BatchExtractor)
 ///     .inner(sample_inner_channel)
 ///     .build();
@@ -115,7 +115,7 @@ pub struct ConsumerChannelMarker;
 /// // Consumer channel - automatically returns a `ConsumerChannel` instance
 /// let consumer = ChannelBuilder::new()
 ///     .consumer()                // Must be called before item_type()
-///     .item_type::<example_item>()    // `example_item` implements the `Item` trait
+///     .item_type::<ExampleItemType>()    // `ExampleItemType` implements the `Item` trait
 ///     .queue_identifier(QueueIdentifier::BatchExtractor)
 ///     .inner(sample_inner_channel)
 ///     .build();
@@ -221,11 +221,11 @@ impl<CT, QI, I> ChannelBuilder<CT, QI, I, NoItemType> {
     ///
     /// # Examples
     /// ```compile_fail
-    /// let example_item = ...; // Replace with actual type that implements the `Item` trait
+    /// let example_item: ExampleItemType = ...; // Replace with actual type that implements the `Item` trait
     ///
     /// let consumer = ChannelBuilder::new()
     ///     .consumer()
-    ///     .item_type::<example_item>()  // `example_item` implements the `Item` trait
+    ///     .item_type::<ExampleItemType>()  // `ExampleItemType` implements the `Item` trait
     ///     .queue_identifier(QueueIdentifier::BatchExtractor)
     ///     .inner(sample_inner_channel)
     ///     .build();
@@ -307,10 +307,11 @@ where
     /// use utils::queue::channel::{ChannelBuilder, QueueIdentifier};
     ///
     /// let sample_inner_channel = ...; // Replace with actual type that implements `InnerChannel`
+    /// let example_item: ExampleItemType = ...; // Replace with actual type that implements `Item`
     ///
     /// let producer = ChannelBuilder::new()
     ///     .producer()
-    ///     .item_type::<String>()
+    ///     .item_type::<ExampleItemType>()
     ///     .queue_identifier(QueueIdentifier::BatchExtractor)
     ///     .inner(sample_inner_channel)
     ///     .build(); // This method is now available
@@ -343,10 +344,11 @@ where
     /// use utils::queue::channel::{ChannelBuilder, QueueIdentifier};
     ///
     /// let sample_inner_channel = ...; // Replace with actual type that implements `InnerChannel`
+    /// let example_item: ExampleItemType = ...; // Replace with actual type that implements `Item`
     ///
     /// let consumer = ChannelBuilder::new()
     ///     .consumer()
-    ///     .item_type::<String>()
+    ///     .item_type::<ExampleItemType>()
     ///     .queue_identifier(QueueIdentifier::BatchExtractor)
     ///     .inner(sample_inner_channel)
     ///     .build();
@@ -518,6 +520,23 @@ mod tests {
             .producer()
             .item_type::<FakeItem>()
             .inner(fake_channel)
+            .build();
+        let result = channel.channel_type();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_allow_setting_item_type_when_channel_type_is_not_set_yet() {
+        let fake_channel = FakeChannel;
+
+        let expected_result = ChannelType::Producer;
+
+        let channel = ChannelBuilder::new()
+            .item_type::<FakeItem>()
+            .producer()
+            .inner(fake_channel)
+            .queue_identifier(QueueIdentifier::BatchLoader)
             .build();
         let result = channel.channel_type();
 
