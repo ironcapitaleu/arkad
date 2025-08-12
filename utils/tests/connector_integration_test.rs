@@ -4,7 +4,7 @@ use tracing::{error, info, warn};
 use tracing_test::traced_test;
 
 use utils::queue::ConnectorBuilder;
-use utils::queue::implementations::connector::ConnectorKind;
+use utils::queue::shared::ConnectorType;
 use utils::queue::traits::Connection as ConnectionTrait;
 
 /// Integration test for Connector's create_connection method using real LapinConnection.
@@ -25,7 +25,7 @@ async fn should_successfully_create_connection_and_log_result_when_using_lapin_c
         .host("localhost")
         .port(5672u16)
         .vhost("/")
-        .connector_kind(ConnectorKind::BatchExtractor)
+        .connector_type(ConnectorType::BatchExtractor)
         .build();
 
     // Test the connector's URI
@@ -56,7 +56,7 @@ async fn should_successfully_create_connection_and_log_result_when_using_lapin_c
     info!(
         severity = "INFO",
         message = "Starting connection test with valid inner connection",
-        connector_kind = ?connector.kind(),
+        connector_type = ?connector.connector_type(),
         host = connector.host(),
         port = connector.port(),
         user = connector.user(),

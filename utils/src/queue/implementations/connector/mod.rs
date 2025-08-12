@@ -6,10 +6,9 @@ use super::connection::Connection;
 use crate::queue::error::connection_failed::ConnectionFailed;
 
 pub mod builder;
-pub mod connector_kind;
 
+pub use crate::queue::shared::ConnectorType;
 pub use builder::ConnectorBuilder;
-pub use connector_kind::ConnectorKind;
 
 /// Connector struct that is used to establish a connection to `RabbitMQ` via AMQP protocol.
 ///
@@ -22,7 +21,7 @@ pub struct Connector {
     pub host: String,
     pub port: u16,
     pub vhost: String,
-    pub kind: ConnectorKind,
+    pub connector_type: ConnectorType,
 }
 
 impl Connector {
@@ -74,10 +73,10 @@ impl Connector {
     /// Gets the type of the [`Connector`].
     ///
     /// # Returns
-    /// A reference to the [`ConnectorKind`] enum value representing the kind of [`Connector`] that is used to create the [`Connection`].
+    /// A reference to the [`ConnectorType`] enum value representing the type of [`Connector`] that is used to create the [`Connection`].
     #[must_use]
-    pub const fn kind(&self) -> &ConnectorKind {
-        &self.kind
+    pub const fn connector_type(&self) -> &ConnectorType {
+        &self.connector_type
     }
 
     /// Constructs the AMQP connection URI based on the connector's fields.
@@ -88,7 +87,8 @@ impl Connector {
     ///
     /// # Example
     /// ```
-    /// use utils::queue::implementations::connector::{Connector, ConnectorKind};
+    /// use utils::queue::implementations::connector::Connector;
+    /// use utils::queue::shared::ConnectorType;
     ///
     /// let connector = Connector {
     ///     user: "admin".into(),
@@ -96,7 +96,7 @@ impl Connector {
     ///     host: "localhost".into(),
     ///     port: 5672,
     ///     vhost: "/".into(),
-    ///     kind: ConnectorKind::BatchExtractor,
+    ///     connector_type: ConnectorType::BatchExtractor,
     /// };
     /// let uri = connector.uri();
     /// assert_eq!(uri, "amqp://admin:secret%20password@localhost:5672/%2F"); // encodes spaces in password and vhost
@@ -138,7 +138,8 @@ impl Connector {
     ///
     /// # Example
     /// ```compile_fail
-    /// use utils::queue::connector::{ConnectorBuilder, ConnectorKind};
+    /// use utils::queue::connector::ConnectorBuilder;
+    /// use utils::queue::shared::ConnectorType;
     ///
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -150,7 +151,7 @@ impl Connector {
     ///     .host("localhost")
     ///     .port(5672u16)
     ///     .vhost("/")
-    ///     .connector_kind(ConnectorKind::BatchExtractor)
+    ///     .connector_type(ConnectorType::BatchExtractor)
     ///     .build();
     ///
     /// let inner_connection = ...; // Replace with your inner connection type that implements `InnerConnection`
@@ -193,7 +194,7 @@ mod tests {
             host: "localhost".to_string(),
             port: 5672,
             vhost: "/".to_string(),
-            kind: ConnectorKind::BatchExtractor,
+            connector_type: ConnectorType::BatchExtractor,
         };
 
         let expected_result = "admin";
@@ -211,7 +212,7 @@ mod tests {
             host: "localhost".to_string(),
             port: 5672,
             vhost: "/".to_string(),
-            kind: ConnectorKind::BatchExtractor,
+            connector_type: ConnectorType::BatchExtractor,
         };
 
         let expected_result = "secret";
@@ -229,7 +230,7 @@ mod tests {
             host: "localhost".to_string(),
             port: 5672,
             vhost: "/".to_string(),
-            kind: ConnectorKind::BatchExtractor,
+            connector_type: ConnectorType::BatchExtractor,
         };
 
         let expected_result = "localhost";
@@ -247,7 +248,7 @@ mod tests {
             host: "localhost".to_string(),
             port: 5672,
             vhost: "/".to_string(),
-            kind: ConnectorKind::BatchExtractor,
+            connector_type: ConnectorType::BatchExtractor,
         };
 
         let expected_result = 5672;
@@ -265,7 +266,7 @@ mod tests {
             host: "localhost".to_string(),
             port: 5672,
             vhost: "/".to_string(),
-            kind: ConnectorKind::BatchExtractor,
+            connector_type: ConnectorType::BatchExtractor,
         };
 
         let expected_result = "/";
@@ -283,7 +284,7 @@ mod tests {
             host: "localhost".to_string(),
             port: 5672,
             vhost: "/".to_string(),
-            kind: ConnectorKind::BatchExtractor,
+            connector_type: ConnectorType::BatchExtractor,
         };
 
         let expected_result = "amqp://admin:secret@localhost:5672/%2F";
@@ -301,7 +302,7 @@ mod tests {
             host: "localhost".to_string(),
             port: 5672,
             vhost: "/my vhost".to_string(),
-            kind: ConnectorKind::BatchExtractor,
+            connector_type: ConnectorType::BatchExtractor,
         };
 
         let expected_result = "amqp://admin%20user:secret%20password@localhost:5672/%2Fmy%20vhost";
@@ -319,7 +320,7 @@ mod tests {
             host: "rabbitmq.example.com".to_string(),
             port: 15672,
             vhost: "/production".to_string(),
-            kind: ConnectorKind::BatchExtractor,
+            connector_type: ConnectorType::BatchExtractor,
         };
 
         let expected_result = "amqp://admin:secret@rabbitmq.example.com:15672/%2Fproduction";
@@ -337,7 +338,7 @@ mod tests {
             host: "localhost".to_string(),
             port: 5672,
             vhost: "".to_string(),
-            kind: ConnectorKind::BatchExtractor,
+            connector_type: ConnectorType::BatchExtractor,
         };
 
         let expected_result = "amqp://admin:secret@localhost:5672/";
@@ -356,7 +357,7 @@ mod tests {
             host: "localhost".to_string(),
             port: 5672,
             vhost: "/".to_string(),
-            kind: ConnectorKind::BatchExtractor,
+            connector_type: ConnectorType::BatchExtractor,
         };
 
         let result = connector.create_connection(valid_fake_connection).await;
@@ -373,7 +374,7 @@ mod tests {
             host: "localhost".to_string(),
             port: 5672,
             vhost: "/".to_string(),
-            kind: ConnectorKind::BatchExtractor,
+            connector_type: ConnectorType::BatchExtractor,
         };
 
         let result = connector.create_connection(invalid_fake_connection).await;

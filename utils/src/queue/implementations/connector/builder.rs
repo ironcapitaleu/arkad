@@ -1,4 +1,5 @@
-use super::{Connector, ConnectorKind};
+use super::Connector;
+use crate::queue::shared::ConnectorType;
 
 /// Marker types for tracking which fields have been set
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -17,7 +18,7 @@ pub struct NoPort;
 pub struct NoVhost;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct NoConnectorKind;
+pub struct NoConnectorType;
 
 /// Builder for [`Connector`].
 ///
@@ -28,7 +29,8 @@ pub struct NoConnectorKind;
 /// # Examples
 ///
 /// ```
-/// use utils::queue::implementations::connector::{ConnectorBuilder, ConnectorKind};
+/// use utils::queue::implementations::connector::ConnectorBuilder;
+/// use utils::queue::shared::ConnectorType;
 ///
 /// let connector = ConnectorBuilder::new()
 ///     .user("admin")
@@ -36,20 +38,20 @@ pub struct NoConnectorKind;
 ///     .host("localhost")
 ///     .port(5672u16)
 ///     .vhost("/")
-///     .connector_kind(ConnectorKind::BatchExtractor)
+///     .connector_type(ConnectorType::BatchExtractor)
 ///     .build();
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ConnectorBuilder<U, PW, H, PO, V, CK> {
+pub struct ConnectorBuilder<U, PW, H, PO, V, CT> {
     user: U,
     password: PW,
     host: H,
     port: PO,
     vhost: V,
-    connector_kind: CK,
+    connector_type: CT,
 }
 
-impl ConnectorBuilder<NoUser, NoPassword, NoHost, NoPort, NoVhost, NoConnectorKind> {
+impl ConnectorBuilder<NoUser, NoPassword, NoHost, NoPort, NoVhost, NoConnectorType> {
     /// Creates a new [`ConnectorBuilder`] with no fields set.
     ///
     /// # Returns
@@ -62,12 +64,12 @@ impl ConnectorBuilder<NoUser, NoPassword, NoHost, NoPort, NoVhost, NoConnectorKi
             host: NoHost,
             port: NoPort,
             vhost: NoVhost,
-            connector_kind: NoConnectorKind,
+            connector_type: NoConnectorType,
         }
     }
 }
 
-impl<U, PW, H, PO, V, CK> ConnectorBuilder<U, PW, H, PO, V, CK> {
+impl<U, PW, H, PO, V, CT> ConnectorBuilder<U, PW, H, PO, V, CT> {
     /// Sets the user for the connection.
     ///
     /// # Arguments
@@ -76,14 +78,14 @@ impl<U, PW, H, PO, V, CK> ConnectorBuilder<U, PW, H, PO, V, CK> {
     /// # Returns
     /// A new builder instance with the user field set.
     #[must_use]
-    pub fn user(self, user: impl Into<String>) -> ConnectorBuilder<String, PW, H, PO, V, CK> {
+    pub fn user(self, user: impl Into<String>) -> ConnectorBuilder<String, PW, H, PO, V, CT> {
         ConnectorBuilder {
             user: user.into(),
             password: self.password,
             host: self.host,
             port: self.port,
             vhost: self.vhost,
-            connector_kind: self.connector_kind,
+            connector_type: self.connector_type,
         }
     }
 
@@ -98,14 +100,14 @@ impl<U, PW, H, PO, V, CK> ConnectorBuilder<U, PW, H, PO, V, CK> {
     pub fn password(
         self,
         password: impl Into<String>,
-    ) -> ConnectorBuilder<U, String, H, PO, V, CK> {
+    ) -> ConnectorBuilder<U, String, H, PO, V, CT> {
         ConnectorBuilder {
             user: self.user,
             password: password.into(),
             host: self.host,
             port: self.port,
             vhost: self.vhost,
-            connector_kind: self.connector_kind,
+            connector_type: self.connector_type,
         }
     }
 
@@ -117,14 +119,14 @@ impl<U, PW, H, PO, V, CK> ConnectorBuilder<U, PW, H, PO, V, CK> {
     /// # Returns
     /// A new builder instance with the host field set.
     #[must_use]
-    pub fn host(self, host: impl Into<String>) -> ConnectorBuilder<U, PW, String, PO, V, CK> {
+    pub fn host(self, host: impl Into<String>) -> ConnectorBuilder<U, PW, String, PO, V, CT> {
         ConnectorBuilder {
             user: self.user,
             password: self.password,
             host: host.into(),
             port: self.port,
             vhost: self.vhost,
-            connector_kind: self.connector_kind,
+            connector_type: self.connector_type,
         }
     }
 
@@ -136,14 +138,14 @@ impl<U, PW, H, PO, V, CK> ConnectorBuilder<U, PW, H, PO, V, CK> {
     /// # Returns
     /// A new builder instance with the port field set.
     #[must_use]
-    pub fn port(self, port: impl Into<u16>) -> ConnectorBuilder<U, PW, H, u16, V, CK> {
+    pub fn port(self, port: impl Into<u16>) -> ConnectorBuilder<U, PW, H, u16, V, CT> {
         ConnectorBuilder {
             user: self.user,
             password: self.password,
             host: self.host,
             port: port.into(),
             vhost: self.vhost,
-            connector_kind: self.connector_kind,
+            connector_type: self.connector_type,
         }
     }
 
@@ -155,41 +157,41 @@ impl<U, PW, H, PO, V, CK> ConnectorBuilder<U, PW, H, PO, V, CK> {
     /// # Returns
     /// A new builder instance with the vhost field set.
     #[must_use]
-    pub fn vhost(self, vhost: impl Into<String>) -> ConnectorBuilder<U, PW, H, PO, String, CK> {
+    pub fn vhost(self, vhost: impl Into<String>) -> ConnectorBuilder<U, PW, H, PO, String, CT> {
         ConnectorBuilder {
             user: self.user,
             password: self.password,
             host: self.host,
             port: self.port,
             vhost: vhost.into(),
-            connector_kind: self.connector_kind,
+            connector_type: self.connector_type,
         }
     }
 
-    /// Sets the connector kind for the connection.
+    /// Sets the connector type for the connection.
     ///
     /// # Arguments
-    /// * `kind` - The kind of the connector.
+    /// * `connector_type` - The type of the connector.
     ///
     /// # Returns
-    /// A new builder instance with the kind field set.
+    /// A new builder instance with the `connector_type` field set.
     #[must_use]
-    pub fn connector_kind(
+    pub fn connector_type(
         self,
-        connector_kind: ConnectorKind,
-    ) -> ConnectorBuilder<U, PW, H, PO, V, super::ConnectorKind> {
+        connector_type: ConnectorType,
+    ) -> ConnectorBuilder<U, PW, H, PO, V, ConnectorType> {
         ConnectorBuilder {
             user: self.user,
             password: self.password,
             host: self.host,
             port: self.port,
             vhost: self.vhost,
-            connector_kind,
+            connector_type,
         }
     }
 }
 
-impl ConnectorBuilder<String, String, String, u16, String, ConnectorKind> {
+impl ConnectorBuilder<String, String, String, u16, String, ConnectorType> {
     /// Builds the [`Connector`] instance from the [`ConnectorBuilder`].
     ///
     /// This method is only available when all required fields have been set.
@@ -216,12 +218,12 @@ impl ConnectorBuilder<String, String, String, u16, String, ConnectorKind> {
             host: self.host,
             port: self.port,
             vhost: self.vhost,
-            kind: self.connector_kind,
+            connector_type: self.connector_type,
         }
     }
 }
 
-impl Default for ConnectorBuilder<NoUser, NoPassword, NoHost, NoPort, NoVhost, NoConnectorKind> {
+impl Default for ConnectorBuilder<NoUser, NoPassword, NoHost, NoPort, NoVhost, NoConnectorType> {
     fn default() -> Self {
         Self::new()
     }
@@ -241,7 +243,7 @@ mod tests {
             host: "localhost".to_string(),
             port: 5672,
             vhost: "/".to_string(),
-            kind: ConnectorKind::BatchExtractor,
+            connector_type: ConnectorType::BatchExtractor,
         };
 
         let result = ConnectorBuilder::new()
@@ -250,7 +252,7 @@ mod tests {
             .host("localhost")
             .port(5672u16)
             .vhost("/")
-            .connector_kind(ConnectorKind::BatchExtractor)
+            .connector_type(ConnectorType::BatchExtractor)
             .build();
 
         assert_eq!(result, expected_result);
@@ -264,7 +266,7 @@ mod tests {
             host: "localhost".to_string(),
             port: 5672,
             vhost: "/".to_string(),
-            kind: ConnectorKind::BatchExtractor,
+            connector_type: ConnectorType::BatchExtractor,
         };
 
         let result = ConnectorBuilder::new()
@@ -273,7 +275,7 @@ mod tests {
             .user("admin")
             .host("localhost")
             .password("secret")
-            .connector_kind(ConnectorKind::BatchExtractor)
+            .connector_type(ConnectorType::BatchExtractor)
             .build();
 
         assert_eq!(result, expected_result);
@@ -287,7 +289,7 @@ mod tests {
             .host("localhost")
             .port(5672u16)
             .vhost("/")
-            .connector_kind(ConnectorKind::BatchExtractor)
+            .connector_type(ConnectorType::BatchExtractor)
             .build();
 
         let expected_result = "amqp://admin:secret@localhost:5672/%2F";
@@ -305,7 +307,7 @@ mod tests {
             .host("localhost")
             .port(5672u16)
             .vhost("/")
-            .connector_kind(ConnectorKind::BatchExtractor)
+            .connector_type(ConnectorType::BatchExtractor)
             .build();
 
         let expected_result = "amqp://admin%20user:secret@localhost:5672/%2F";
@@ -323,7 +325,7 @@ mod tests {
             .host("localhost")
             .port(5672u16)
             .vhost("/")
-            .connector_kind(ConnectorKind::BatchExtractor)
+            .connector_type(ConnectorType::BatchExtractor)
             .build();
 
         let expected_result = "amqp://admin:secret%20password@localhost:5672/%2F";

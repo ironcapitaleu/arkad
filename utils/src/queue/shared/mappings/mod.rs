@@ -2,22 +2,22 @@ use std::collections::HashMap;
 use std::sync::LazyLock;
 
 use crate::queue::implementations::channel::{ChannelConfig, ChannelType};
-use crate::queue::implementations::connector::ConnectorKind;
+use crate::queue::shared::ConnectorType;
 use crate::queue::shared::queue_identifier::QueueIdentifier;
 
-/// Maps each [`ConnectorKind`] to a vector of [`ChannelConfig`].
-pub static CONNECTOR_CONFIG_MAP: LazyLock<HashMap<ConnectorKind, Vec<ChannelConfig>>> =
+/// Maps each [`ConnectorType`] to a vector of [`ChannelConfig`].
+pub static CONNECTOR_CONFIG_MAP: LazyLock<HashMap<ConnectorType, Vec<ChannelConfig>>> =
     LazyLock::new(|| {
         let mut m = HashMap::new();
         m.insert(
-            ConnectorKind::BatchExtractor,
+            ConnectorType::BatchExtractor,
             vec![ChannelConfig {
                 channel_type: ChannelType::Producer,
                 queue_identifier: QueueIdentifier::BatchExtractor,
             }],
         );
         m.insert(
-            ConnectorKind::BatchTransformer,
+            ConnectorType::BatchTransformer,
             vec![
                 ChannelConfig {
                     channel_type: ChannelType::Consumer,
@@ -30,7 +30,7 @@ pub static CONNECTOR_CONFIG_MAP: LazyLock<HashMap<ConnectorKind, Vec<ChannelConf
             ],
         );
         m.insert(
-            ConnectorKind::BatchLoader,
+            ConnectorType::BatchLoader,
             vec![ChannelConfig {
                 channel_type: ChannelType::Consumer,
                 queue_identifier: QueueIdentifier::BatchTransformer,
@@ -47,8 +47,8 @@ mod tests {
     #[test]
     fn should_map_batch_extractor_connector_to_producer_access_for_batch_extractor_queue() {
         let configs = CONNECTOR_CONFIG_MAP
-            .get(&ConnectorKind::BatchExtractor)
-            .expect("`ConnectorKind::BatchExtractor` should always have a config.");
+            .get(&ConnectorType::BatchExtractor)
+            .expect("`ConnectorType::BatchExtractor` should always have a config.");
 
         let expected_result = 1;
         let result = configs.len();
@@ -64,8 +64,8 @@ mod tests {
     #[test]
     fn should_map_batch_transformer_connector_to_consumer_and_producer_access() {
         let configs = CONNECTOR_CONFIG_MAP
-            .get(&ConnectorKind::BatchTransformer)
-            .expect("`ConnectorKind::BatchTransformer` should always have a config.");
+            .get(&ConnectorType::BatchTransformer)
+            .expect("`ConnectorType::BatchTransformer` should always have a config.");
 
         let expected_result = 2;
         let result = configs.len();
@@ -87,8 +87,8 @@ mod tests {
     #[test]
     fn should_map_batch_loader_connector_to_consumer_access_for_batch_transformer_queue() {
         let configs = CONNECTOR_CONFIG_MAP
-            .get(&ConnectorKind::BatchLoader)
-            .expect("`ConnectorKind::BatchLoader` should always have a config.");
+            .get(&ConnectorType::BatchLoader)
+            .expect("`ConnectorType::BatchLoader` should always have a config.");
 
         let expected_result = 1;
         let result = configs.len();
