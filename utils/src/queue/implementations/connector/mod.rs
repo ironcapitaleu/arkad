@@ -3,7 +3,7 @@ use urlencoding::encode;
 use crate::queue::traits::{Connection as ConnectionTrait, InnerConnection};
 
 use super::connection::Connection;
-use super::error::connection_failed::ConnectionFailed;
+use crate::queue::error::connection_failed::ConnectionFailed;
 
 pub mod builder;
 pub mod connector_kind;
@@ -88,7 +88,7 @@ impl Connector {
     ///
     /// # Example
     /// ```
-    /// use utils::queue::connector::{Connector, ConnectorKind};
+    /// use utils::queue::implementations::connector::{Connector, ConnectorKind};
     ///
     /// let connector = Connector {
     ///     user: "admin".into(),

@@ -7,6 +7,7 @@ use crate::queue::traits::InnerConnection;
 
 pub mod channel;
 pub mod connection;
+pub mod connector;
 
 #[async_trait]
 impl InnerConnection for LapinConnection {

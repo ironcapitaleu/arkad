@@ -4,7 +4,7 @@ use tracing::{error, info, warn};
 use tracing_test::traced_test;
 
 use utils::queue::ConnectorBuilder;
-use utils::queue::connector::ConnectorKind;
+use utils::queue::implementations::connector::ConnectorKind;
 use utils::queue::traits::Connection as ConnectionTrait;
 
 /// Integration test for Connector's create_connection method using real LapinConnection.

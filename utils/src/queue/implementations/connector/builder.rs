@@ -28,7 +28,7 @@ pub struct NoConnectorKind;
 /// # Examples
 ///
 /// ```
-/// use utils::queue::connector::{ConnectorBuilder, ConnectorKind};
+/// use utils::queue::implementations::connector::{ConnectorBuilder, ConnectorKind};
 ///
 /// let connector = ConnectorBuilder::new()
 ///     .user("admin")

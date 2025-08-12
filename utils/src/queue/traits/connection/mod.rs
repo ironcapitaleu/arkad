@@ -2,7 +2,7 @@ use std::fmt::Debug;
 
 use async_trait::async_trait;
 
-use crate::queue::connector::Connector;
+use crate::queue::implementations::connector::Connector;
 use crate::queue::traits::{InnerChannel, Item};
 
 use crate::queue::implementations::channel::{ConsumerChannel, ProducerChannel, QueueIdentifier};

@@ -1,14 +1,10 @@
 pub mod error;
 
-pub mod connection;
-
-pub mod connector;
-
 pub mod constants;
 
 pub mod traits;
 
 pub mod implementations;
 
-pub use self::connection::Connection;
-pub use self::connector::{Connector, ConnectorBuilder};
+pub use crate::queue::implementations::connection::Connection;
+pub use crate::queue::implementations::connector::{Connector, ConnectorBuilder};
