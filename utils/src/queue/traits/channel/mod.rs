@@ -1,7 +1,8 @@
 use std::fmt::Debug;
 use std::hash::Hash;
 
-use crate::queue::implementations::channel::{ChannelType, QueueIdentifier};
+use crate::queue::implementations::channel::ChannelType;
+use crate::queue::shared::queue_identifiers::QueueIdentifier;
 
 pub mod consumer_channel;
 pub mod inner;

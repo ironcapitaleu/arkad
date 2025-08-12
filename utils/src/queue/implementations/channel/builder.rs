@@ -42,8 +42,8 @@
 
 use crate::queue::traits::{InnerChannel, Item};
 
-use super::QueueIdentifier;
 use crate::queue::implementations::channel::{ConsumerChannel, ProducerChannel};
+use crate::queue::shared::queue_identifiers::QueueIdentifier;
 
 /// Marker type for tracking when no channel type has been set in the builder.
 ///
@@ -368,7 +368,8 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;
-    use crate::queue::implementations::channel::{ChannelBuilder, ChannelType, QueueIdentifier};
+    use crate::queue::implementations::channel::{ChannelBuilder, ChannelType};
+    use crate::queue::shared::queue_identifiers::QueueIdentifier;
     use crate::queue::traits::Channel;
     use crate::tests::common::queue::{sample_channel::FakeChannel, sample_item::FakeItem};
 

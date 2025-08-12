@@ -3,9 +3,8 @@ use std::fmt;
 use async_trait::async_trait;
 
 use crate::queue::error::connection_failed::ConnectionFailed;
-use crate::queue::implementations::channel::{
-    ChannelBuilder, ConsumerChannel, ProducerChannel, QueueIdentifier,
-};
+use crate::queue::implementations::channel::{ChannelBuilder, ConsumerChannel, ProducerChannel};
+use crate::queue::shared::queue_identifiers::QueueIdentifier;
 use crate::queue::traits::{InnerChannel, Item};
 
 /// Trait for inner connection types that can establish connections.

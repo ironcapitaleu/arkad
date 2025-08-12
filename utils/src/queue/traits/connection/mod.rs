@@ -5,7 +5,8 @@ use async_trait::async_trait;
 use crate::queue::implementations::connector::Connector;
 use crate::queue::traits::{InnerChannel, Item};
 
-use crate::queue::implementations::channel::{ConsumerChannel, ProducerChannel, QueueIdentifier};
+use crate::queue::implementations::channel::{ConsumerChannel, ProducerChannel};
+use crate::queue::shared::queue_identifiers::QueueIdentifier;
 
 pub mod inner;
 
