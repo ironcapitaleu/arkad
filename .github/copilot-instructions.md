@@ -9,6 +9,7 @@
 ### 🧹 Code Quality
 - The code is **properly formatted** (`rustfmt`).
 - Dependencies must be **free of known security vulnerabilities** (`cargo audit`).
+- The documentation does not emit any warnings (`cargo doc --open`)
 - Code **compiles without errors** and passes:
   - Linting (`clippy`)
   - Unit tests
