@@ -1,12 +1,11 @@
-pub mod constants;
+/// String constant for batch extractor connector kind.
+pub const BATCH_EXTRACTOR: &str = "batch-extractor";
 
-pub use constants::{BATCH_EXTRACTOR, BATCH_LOADER, BATCH_TRANSFORMER};
+/// String constant for batch transformer connector kind.
+pub const BATCH_TRANSFORMER: &str = "batch-transformer";
 
-pub enum ConnectorType {
-    BatchExtractor,
-    BatchTransformer,
-    BatchLoader,
-}
+/// String constant for batch loader connector kind.
+pub const BATCH_LOADER: &str = "batch-loader";
 
 #[cfg(test)]
 mod tests {
