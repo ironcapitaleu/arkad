@@ -43,61 +43,61 @@ mod tests {
 
     #[test]
     fn should_return_correct_string_when_batch_extractor_into_string_is_called() {
-        let connection_kind = ConnectorType::BatchExtractor;
+        let connector_type = ConnectorType::BatchExtractor;
 
         let expected_result = "batch-extractor";
 
-        let result: String = connection_kind.into();
+        let result: String = connector_type.into();
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_return_correct_string_when_batch_transformer_into_string_is_called() {
-        let connection_kind = ConnectorType::BatchTransformer;
+        let connector_type = ConnectorType::BatchTransformer;
 
         let expected_result = "batch-transformer";
 
-        let result: String = connection_kind.into();
+        let result: String = connector_type.into();
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_return_correct_string_when_batch_loader_into_string_is_called() {
-        let connection_kind = ConnectorType::BatchLoader;
+        let connector_type = ConnectorType::BatchLoader;
 
         let expected_result = "batch-loader";
 
-        let result: String = connection_kind.into();
+        let result: String = connector_type.into();
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_format_correctly_when_display_is_used() {
-        let connection_kind = ConnectorType::BatchExtractor;
+        let connector_type = ConnectorType::BatchExtractor;
 
         let expected_result = "batch-extractor";
 
-        let result = format!("{connection_kind}");
+        let result = format!("{connector_type}");
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
-    fn should_be_equal_when_same_connection_kinds_are_compared() {
-        let kind1 = ConnectorType::BatchExtractor;
-        let kind2 = ConnectorType::BatchExtractor;
+    fn should_be_equal_when_same_connection_types_are_compared() {
+        let connector_type1 = ConnectorType::BatchExtractor;
+        let connector_type2 = ConnectorType::BatchExtractor;
 
-        assert_eq!(kind1, kind2);
+        assert_eq!(connector_type1, connector_type2);
     }
 
     #[test]
-    fn should_not_be_equal_when_different_connection_kinds_are_compared() {
-        let kind1 = ConnectorType::BatchExtractor;
-        let kind2 = ConnectorType::BatchTransformer;
+    fn should_not_be_equal_when_different_connection_types_are_compared() {
+        let connector_type1 = ConnectorType::BatchExtractor;
+        let connector_type2 = ConnectorType::BatchTransformer;
 
-        assert_ne!(kind1, kind2);
+        assert_ne!(connector_type1, connector_type2);
     }
 }
