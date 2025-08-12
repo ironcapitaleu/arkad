@@ -368,7 +368,7 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;
-    use crate::queue::channel::{ChannelBuilder, ChannelType, QueueIdentifier};
+    use crate::queue::implementations::channel::{ChannelBuilder, ChannelType, QueueIdentifier};
     use crate::queue::traits::Channel;
     use crate::tests::common::queue::{sample_channel::FakeChannel, sample_item::FakeItem};
 
