@@ -1,103 +1,223 @@
-use std::collections::HashMap;
-use std::sync::LazyLock;
+pub mod constants;
 
-use crate::queue::shared::ConnectorType;
-use crate::queue::shared::queue_identifier::QueueIdentifier;
-use crate::queue::shared::{ChannelConfig, ChannelType};
+pub use constants::CONNECTOR_CONFIG_MAP;
 
-/// Maps each [`ConnectorType`] to a vector of [`ChannelConfig`].
-pub static CONNECTOR_CONFIG_MAP: LazyLock<HashMap<ConnectorType, Vec<ChannelConfig>>> =
-    LazyLock::new(|| {
-        let mut m = HashMap::new();
-        m.insert(
-            ConnectorType::BatchExtractor,
-            vec![ChannelConfig {
-                channel_type: ChannelType::Producer,
-                queue_identifier: QueueIdentifier::BatchExtractor,
-            }],
-        );
-        m.insert(
-            ConnectorType::BatchTransformer,
-            vec![
-                ChannelConfig {
-                    channel_type: ChannelType::Consumer,
-                    queue_identifier: QueueIdentifier::BatchExtractor,
-                },
-                ChannelConfig {
-                    channel_type: ChannelType::Producer,
-                    queue_identifier: QueueIdentifier::BatchTransformer,
-                },
-            ],
-        );
-        m.insert(
-            ConnectorType::BatchLoader,
-            vec![ChannelConfig {
-                channel_type: ChannelType::Consumer,
-                queue_identifier: QueueIdentifier::BatchTransformer,
-            }],
-        );
-        m
-    });
+use crate::queue::shared::{ChannelType, ConnectorType, QueueIdentifier};
+
+pub struct Mapper;
+
+impl Mapper {
+    pub fn retrieve_accessible_queues_for_connector(
+        connector: &ConnectorType,
+    ) -> Vec<QueueIdentifier> {
+        CONNECTOR_CONFIG_MAP
+            .get(connector)
+            .map(|configs| {
+                configs
+                    .iter()
+                    .map(|config| config.queue_identifier)
+                    .collect::<std::collections::HashSet<_>>()
+                    .into_iter()
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+
+    pub fn list_connector_permissions_on_queue(
+        connector: &ConnectorType,
+        queue_id: &QueueIdentifier,
+    ) -> Vec<ChannelType> {
+        CONNECTOR_CONFIG_MAP
+            .get(connector)
+            .map(|configs| {
+                configs
+                    .iter()
+                    .filter(|config| config.queue_identifier == *queue_id)
+                    .map(|config| config.channel_type)
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+}
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use std::collections::HashSet;
+
     use pretty_assertions::assert_eq;
 
+    use super::*;
+    use crate::queue::shared::{ChannelType, ConnectorType, QueueIdentifier};
+
     #[test]
-    fn should_map_batch_extractor_connector_to_producer_access_for_batch_extractor_queue() {
-        let configs = CONNECTOR_CONFIG_MAP
-            .get(&ConnectorType::BatchExtractor)
-            .expect("`ConnectorType::BatchExtractor` should always have a config.");
+    fn should_retrieve_correct_list_of_queue_ids_when_passing_batch_extractor_connector_type() {
+        let connector_type = ConnectorType::BatchExtractor;
 
-        let expected_result = 1;
-        let result = configs.len();
+        let expected_result = vec![QueueIdentifier::BatchExtractor];
+
+        let result = Mapper::retrieve_accessible_queues_for_connector(&connector_type);
+
         assert_eq!(result, expected_result);
-
-        let has_producer_access_to_batch_extractor = configs.iter().any(|config| {
-            matches!(config.channel_type, ChannelType::Producer)
-                && matches!(config.queue_identifier, QueueIdentifier::BatchExtractor)
-        });
-        assert!(has_producer_access_to_batch_extractor);
     }
 
     #[test]
-    fn should_map_batch_transformer_connector_to_consumer_and_producer_access() {
-        let configs = CONNECTOR_CONFIG_MAP
-            .get(&ConnectorType::BatchTransformer)
-            .expect("`ConnectorType::BatchTransformer` should always have a config.");
+    fn should_retrieve_correct_list_of_queue_ids_when_passing_batch_transformer_connector_type() {
+        let connector_type = ConnectorType::BatchTransformer;
 
-        let expected_result = 2;
-        let result = configs.len();
+        let expected_result: HashSet<QueueIdentifier> = vec![
+            QueueIdentifier::BatchExtractor,
+            QueueIdentifier::BatchTransformer,
+        ]
+        .into_iter()
+        .collect();
+
+        let result: HashSet<QueueIdentifier> =
+            Mapper::retrieve_accessible_queues_for_connector(&connector_type)
+                .into_iter()
+                .collect();
+
         assert_eq!(result, expected_result);
-
-        let has_consumer_access_to_batch_extractor = configs.iter().any(|config| {
-            matches!(config.channel_type, ChannelType::Consumer)
-                && matches!(config.queue_identifier, QueueIdentifier::BatchExtractor)
-        });
-        assert!(has_consumer_access_to_batch_extractor);
-
-        let has_producer_access_to_batch_transformer = configs.iter().any(|config| {
-            matches!(config.channel_type, ChannelType::Producer)
-                && matches!(config.queue_identifier, QueueIdentifier::BatchTransformer)
-        });
-        assert!(has_producer_access_to_batch_transformer);
     }
 
     #[test]
-    fn should_map_batch_loader_connector_to_consumer_access_for_batch_transformer_queue() {
-        let configs = CONNECTOR_CONFIG_MAP
-            .get(&ConnectorType::BatchLoader)
-            .expect("`ConnectorType::BatchLoader` should always have a config.");
+    fn should_retrieve_correct_list_of_queue_ids_when_passing_batch_loader_connector_type() {
+        let connector_type = ConnectorType::BatchLoader;
 
-        let expected_result = 1;
-        let result = configs.len();
+        let expected_result: HashSet<QueueIdentifier> = vec![QueueIdentifier::BatchTransformer]
+            .into_iter()
+            .collect();
+
+        let result: HashSet<QueueIdentifier> =
+            Mapper::retrieve_accessible_queues_for_connector(&connector_type)
+                .into_iter()
+                .collect();
+
         assert_eq!(result, expected_result);
+    }
 
-        let has_consumer_access_to_batch_transformer = configs.iter().any(|config| {
-            matches!(config.channel_type, ChannelType::Consumer)
-                && matches!(config.queue_identifier, QueueIdentifier::BatchTransformer)
-        });
-        assert!(has_consumer_access_to_batch_transformer);
+    #[test]
+    fn should_retrieve_correct_permissions_when_passing_batch_extractor_connector_type_and_batch_extractor_queue_id()
+     {
+        let connector_type = ConnectorType::BatchExtractor;
+        let queue_identifier = QueueIdentifier::BatchExtractor;
+
+        let expected_result = vec![ChannelType::Producer];
+
+        let result =
+            Mapper::list_connector_permissions_on_queue(&connector_type, &queue_identifier);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_retrieve_correct_permissions_when_passing_batch_extractor_connector_type_and_batch_transformer_queue_id()
+     {
+        let connector_type = ConnectorType::BatchExtractor;
+        let queue_identifier = QueueIdentifier::BatchTransformer;
+
+        let expected_result = vec![];
+
+        let result =
+            Mapper::list_connector_permissions_on_queue(&connector_type, &queue_identifier);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_retrieve_correct_permissions_when_passing_batch_extractor_connector_type_and_batch_loader_queue_id()
+     {
+        let connector_type = ConnectorType::BatchExtractor;
+        let queue_identifier = QueueIdentifier::BatchLoader;
+
+        let expected_result = vec![];
+
+        let result =
+            Mapper::list_connector_permissions_on_queue(&connector_type, &queue_identifier);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_retrieve_correct_permissions_when_passing_batch_transformer_connector_type_and_batch_extractor_queue_id()
+     {
+        let connector_type = ConnectorType::BatchTransformer;
+        let queue_identifier = QueueIdentifier::BatchExtractor;
+
+        let expected_result = vec![ChannelType::Consumer];
+
+        let result =
+            Mapper::list_connector_permissions_on_queue(&connector_type, &queue_identifier);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_retrieve_correct_permissions_when_passing_batch_transformer_connector_type_and_batch_transformer_queue_id()
+     {
+        let connector_type = ConnectorType::BatchTransformer;
+        let queue_identifier = QueueIdentifier::BatchTransformer;
+
+        let expected_result = vec![ChannelType::Producer];
+
+        let result =
+            Mapper::list_connector_permissions_on_queue(&connector_type, &queue_identifier);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_retrieve_correct_permissions_when_passing_batch_transformer_connector_type_and_batch_loader_queue_id()
+     {
+        let connector_type = ConnectorType::BatchTransformer;
+        let queue_identifier = QueueIdentifier::BatchLoader;
+
+        let expected_result = vec![];
+
+        let result =
+            Mapper::list_connector_permissions_on_queue(&connector_type, &queue_identifier);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_retrieve_correct_permissions_when_passing_batch_loader_connector_type_and_batch_extractor_queue_id()
+     {
+        let connector_type = ConnectorType::BatchLoader;
+        let queue_identifier = QueueIdentifier::BatchExtractor;
+
+        let expected_result = vec![];
+
+        let result =
+            Mapper::list_connector_permissions_on_queue(&connector_type, &queue_identifier);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_retrieve_correct_permissions_when_passing_batch_loader_connector_type_and_batch_transformer_queue_id()
+     {
+        let connector_type = ConnectorType::BatchLoader;
+        let queue_identifier = QueueIdentifier::BatchTransformer;
+
+        let expected_result = vec![ChannelType::Consumer];
+
+        let result =
+            Mapper::list_connector_permissions_on_queue(&connector_type, &queue_identifier);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_retrieve_correct_permissions_when_passing_batch_loader_connector_type_and_batch_loader_queue_id()
+     {
+        let connector_type = ConnectorType::BatchLoader;
+        let queue_identifier = QueueIdentifier::BatchLoader;
+
+        let expected_result = vec![];
+
+        let result =
+            Mapper::list_connector_permissions_on_queue(&connector_type, &queue_identifier);
+
+        assert_eq!(result, expected_result);
     }
 }

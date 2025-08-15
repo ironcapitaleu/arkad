@@ -4,7 +4,7 @@ pub mod constants;
 
 pub use constants::{BATCH_EXTRACTOR, BATCH_LOADER, BATCH_TRANSFORMER};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ConnectorType {
     /// Used to create a connection for batch extraction processes.
     BatchExtractor,
