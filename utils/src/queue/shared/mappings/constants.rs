@@ -5,6 +5,14 @@ use crate::queue::shared::ConnectorType;
 use crate::queue::shared::queue_identifier::QueueIdentifier;
 use crate::queue::shared::{ChannelConfig, ChannelType};
 
+/// A globally shared, immutable empty vector of `ChannelConfig`.
+///
+/// This is used as a fallback when a connector has no associated
+/// configuration in `CONNECTOR_CONFIG_MAP`. Returning a reference
+/// to this static avoids allocating a new empty `Vec` each time,
+/// and ensures the returned reference always has a valid lifetime.
+pub static EMPTY_VEC: Vec<ChannelConfig> = Vec::new();
+
 /// Maps each [`ConnectorType`] to a vector of [`ChannelConfig`].
 ///
 /// Essentially, this is used to define what queues a specific process can access if this process can read or write to that queue.
