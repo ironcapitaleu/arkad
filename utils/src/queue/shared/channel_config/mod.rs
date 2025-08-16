@@ -9,24 +9,6 @@ pub struct ChannelConfig {
     pub queue_identifier: QueueIdentifier,
 }
 
-impl fmt::Display for ChannelConfig {
-    /// Formats the [`ChannelConfig`] as: "<[`channel_type`](crate::queue::shared::ChannelType)>@<[`queue_identifier`](crate::queue::shared::QueueIdentifier)>"
-    ///
-    /// # Example
-    /// ```
-    /// use utils::queue::shared::{ChannelConfig, ChannelType, QueueIdentifier};
-    ///
-    /// let config = ChannelConfig {
-    ///     channel_type: ChannelType::Producer,
-    ///     queue_identifier: QueueIdentifier::BatchExtractor,
-    /// };
-    /// assert_eq!(format!("{config}"), "Producer@batch_extractor_queue");
-    /// ```
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}@{}", self.channel_type, self.queue_identifier)
-    }
-}
-
 impl ChannelConfig {
     /// Returns the [`ChannelType`] for this configuration.
     ///
@@ -60,5 +42,23 @@ impl ChannelConfig {
     #[must_use]
     pub const fn get_queue_identifier(&self) -> QueueIdentifier {
         self.queue_identifier
+    }
+}
+
+impl fmt::Display for ChannelConfig {
+    /// Formats the [`ChannelConfig`] as: "<[`channel_type`](crate::queue::shared::ChannelType)>@<[`queue_identifier`](crate::queue::shared::QueueIdentifier)>"
+    ///
+    /// # Example
+    /// ```
+    /// use utils::queue::shared::{ChannelConfig, ChannelType, QueueIdentifier};
+    ///
+    /// let config = ChannelConfig {
+    ///     channel_type: ChannelType::Producer,
+    ///     queue_identifier: QueueIdentifier::BatchExtractor,
+    /// };
+    /// assert_eq!(format!("{config}"), "Producer@batch_extractor_queue");
+    /// ```
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}@{}", self.channel_type, self.queue_identifier)
     }
 }
