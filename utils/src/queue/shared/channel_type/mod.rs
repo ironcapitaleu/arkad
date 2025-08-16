@@ -12,8 +12,8 @@ pub enum ChannelType {
 impl fmt::Display for ChannelType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            ChannelType::Producer => write!(f, "Producer"),
-            ChannelType::Consumer => write!(f, "Consumer"),
+            Self::Producer => write!(f, "Producer"),
+            Self::Consumer => write!(f, "Consumer"),
         }
     }
 }
