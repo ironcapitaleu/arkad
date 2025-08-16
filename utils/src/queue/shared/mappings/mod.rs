@@ -228,6 +228,26 @@ mod tests {
     }
 
     #[test]
+    fn should_return_correct_channel_configs_when_passing_batch_extractor_connector() {
+        let connector_type = ConnectorType::BatchExtractor;
+
+        let expected_result: HashSet<ChannelConfig> = vec![ChannelConfig {
+            channel_type: ChannelType::Producer,
+            queue_identifier: QueueIdentifier::BatchExtractor,
+        }]
+        .into_iter()
+        .collect();
+
+        let result: HashSet<ChannelConfig> =
+            Mapper::retrieve_channel_configs_for_connector(&connector_type)
+                .iter()
+                .copied()
+                .collect();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
     fn should_return_correct_channel_configs_when_passing_batch_transformer_connector() {
         let connector_type = ConnectorType::BatchTransformer;
 
