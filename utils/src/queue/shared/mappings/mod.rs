@@ -109,8 +109,10 @@ mod tests {
 
         let expected_result = vec![ChannelType::Producer];
 
-        let result =
-            QueueAccessManager::list_connector_permissions_on_queue(&connector_type, &queue_identifier);
+        let result = QueueAccessManager::list_connector_permissions_on_queue(
+            &connector_type,
+            &queue_identifier,
+        );
 
         assert_eq!(result, expected_result);
     }
@@ -123,8 +125,10 @@ mod tests {
 
         let expected_result = vec![];
 
-        let result =
-            QueueAccessManager::list_connector_permissions_on_queue(&connector_type, &queue_identifier);
+        let result = QueueAccessManager::list_connector_permissions_on_queue(
+            &connector_type,
+            &queue_identifier,
+        );
 
         assert_eq!(result, expected_result);
     }
@@ -137,8 +141,10 @@ mod tests {
 
         let expected_result = vec![];
 
-        let result =
-            QueueAccessManager::list_connector_permissions_on_queue(&connector_type, &queue_identifier);
+        let result = QueueAccessManager::list_connector_permissions_on_queue(
+            &connector_type,
+            &queue_identifier,
+        );
 
         assert_eq!(result, expected_result);
     }
@@ -151,8 +157,10 @@ mod tests {
 
         let expected_result = vec![ChannelType::Consumer];
 
-        let result =
-            QueueAccessManager::list_connector_permissions_on_queue(&connector_type, &queue_identifier);
+        let result = QueueAccessManager::list_connector_permissions_on_queue(
+            &connector_type,
+            &queue_identifier,
+        );
 
         assert_eq!(result, expected_result);
     }
@@ -165,8 +173,10 @@ mod tests {
 
         let expected_result = vec![ChannelType::Producer];
 
-        let result =
-            QueueAccessManager::list_connector_permissions_on_queue(&connector_type, &queue_identifier);
+        let result = QueueAccessManager::list_connector_permissions_on_queue(
+            &connector_type,
+            &queue_identifier,
+        );
 
         assert_eq!(result, expected_result);
     }
@@ -179,8 +189,10 @@ mod tests {
 
         let expected_result = vec![];
 
-        let result =
-            QueueAccessManager::list_connector_permissions_on_queue(&connector_type, &queue_identifier);
+        let result = QueueAccessManager::list_connector_permissions_on_queue(
+            &connector_type,
+            &queue_identifier,
+        );
 
         assert_eq!(result, expected_result);
     }
@@ -193,8 +205,10 @@ mod tests {
 
         let expected_result = vec![];
 
-        let result =
-            QueueAccessManager::list_connector_permissions_on_queue(&connector_type, &queue_identifier);
+        let result = QueueAccessManager::list_connector_permissions_on_queue(
+            &connector_type,
+            &queue_identifier,
+        );
 
         assert_eq!(result, expected_result);
     }
@@ -207,8 +221,10 @@ mod tests {
 
         let expected_result = vec![ChannelType::Consumer];
 
-        let result =
-            QueueAccessManager::list_connector_permissions_on_queue(&connector_type, &queue_identifier);
+        let result = QueueAccessManager::list_connector_permissions_on_queue(
+            &connector_type,
+            &queue_identifier,
+        );
 
         assert_eq!(result, expected_result);
     }
@@ -221,8 +237,10 @@ mod tests {
 
         let expected_result = vec![];
 
-        let result =
-            QueueAccessManager::list_connector_permissions_on_queue(&connector_type, &queue_identifier);
+        let result = QueueAccessManager::list_connector_permissions_on_queue(
+            &connector_type,
+            &queue_identifier,
+        );
 
         assert_eq!(result, expected_result);
     }
