@@ -4,9 +4,9 @@ pub use constants::{CONNECTOR_CONFIG_MAP, EMPTY_VEC};
 
 use crate::queue::shared::{ChannelConfig, ChannelType, ConnectorType, QueueIdentifier};
 
-pub struct Mapper;
+pub struct QueueAccessManager;
 
-impl Mapper {
+impl QueueAccessManager {
     pub fn retrieve_channel_configs_for_connector(
         connector: &ConnectorType,
     ) -> &'static Vec<ChannelConfig> {
@@ -61,7 +61,7 @@ mod tests {
 
         let expected_result = vec![QueueIdentifier::BatchExtractor];
 
-        let result = Mapper::retrieve_accessible_queues_for_connector(&connector_type);
+        let result = QueueAccessManager::retrieve_accessible_queues_for_connector(&connector_type);
 
         assert_eq!(result, expected_result);
     }
@@ -78,7 +78,7 @@ mod tests {
         .collect();
 
         let result: HashSet<QueueIdentifier> =
-            Mapper::retrieve_accessible_queues_for_connector(&connector_type)
+            QueueAccessManager::retrieve_accessible_queues_for_connector(&connector_type)
                 .into_iter()
                 .collect();
 
@@ -94,7 +94,7 @@ mod tests {
             .collect();
 
         let result: HashSet<QueueIdentifier> =
-            Mapper::retrieve_accessible_queues_for_connector(&connector_type)
+            QueueAccessManager::retrieve_accessible_queues_for_connector(&connector_type)
                 .into_iter()
                 .collect();
 
@@ -110,7 +110,7 @@ mod tests {
         let expected_result = vec![ChannelType::Producer];
 
         let result =
-            Mapper::list_connector_permissions_on_queue(&connector_type, &queue_identifier);
+            QueueAccessManager::list_connector_permissions_on_queue(&connector_type, &queue_identifier);
 
         assert_eq!(result, expected_result);
     }
@@ -124,7 +124,7 @@ mod tests {
         let expected_result = vec![];
 
         let result =
-            Mapper::list_connector_permissions_on_queue(&connector_type, &queue_identifier);
+            QueueAccessManager::list_connector_permissions_on_queue(&connector_type, &queue_identifier);
 
         assert_eq!(result, expected_result);
     }
@@ -138,7 +138,7 @@ mod tests {
         let expected_result = vec![];
 
         let result =
-            Mapper::list_connector_permissions_on_queue(&connector_type, &queue_identifier);
+            QueueAccessManager::list_connector_permissions_on_queue(&connector_type, &queue_identifier);
 
         assert_eq!(result, expected_result);
     }
@@ -152,7 +152,7 @@ mod tests {
         let expected_result = vec![ChannelType::Consumer];
 
         let result =
-            Mapper::list_connector_permissions_on_queue(&connector_type, &queue_identifier);
+            QueueAccessManager::list_connector_permissions_on_queue(&connector_type, &queue_identifier);
 
         assert_eq!(result, expected_result);
     }
@@ -166,7 +166,7 @@ mod tests {
         let expected_result = vec![ChannelType::Producer];
 
         let result =
-            Mapper::list_connector_permissions_on_queue(&connector_type, &queue_identifier);
+            QueueAccessManager::list_connector_permissions_on_queue(&connector_type, &queue_identifier);
 
         assert_eq!(result, expected_result);
     }
@@ -180,7 +180,7 @@ mod tests {
         let expected_result = vec![];
 
         let result =
-            Mapper::list_connector_permissions_on_queue(&connector_type, &queue_identifier);
+            QueueAccessManager::list_connector_permissions_on_queue(&connector_type, &queue_identifier);
 
         assert_eq!(result, expected_result);
     }
@@ -194,7 +194,7 @@ mod tests {
         let expected_result = vec![];
 
         let result =
-            Mapper::list_connector_permissions_on_queue(&connector_type, &queue_identifier);
+            QueueAccessManager::list_connector_permissions_on_queue(&connector_type, &queue_identifier);
 
         assert_eq!(result, expected_result);
     }
@@ -208,7 +208,7 @@ mod tests {
         let expected_result = vec![ChannelType::Consumer];
 
         let result =
-            Mapper::list_connector_permissions_on_queue(&connector_type, &queue_identifier);
+            QueueAccessManager::list_connector_permissions_on_queue(&connector_type, &queue_identifier);
 
         assert_eq!(result, expected_result);
     }
@@ -222,7 +222,7 @@ mod tests {
         let expected_result = vec![];
 
         let result =
-            Mapper::list_connector_permissions_on_queue(&connector_type, &queue_identifier);
+            QueueAccessManager::list_connector_permissions_on_queue(&connector_type, &queue_identifier);
 
         assert_eq!(result, expected_result);
     }
@@ -239,7 +239,7 @@ mod tests {
         .collect();
 
         let result: HashSet<ChannelConfig> =
-            Mapper::retrieve_channel_configs_for_connector(&connector_type)
+            QueueAccessManager::retrieve_channel_configs_for_connector(&connector_type)
                 .iter()
                 .copied()
                 .collect();
@@ -265,7 +265,7 @@ mod tests {
         .collect();
 
         let result: HashSet<ChannelConfig> =
-            Mapper::retrieve_channel_configs_for_connector(&connector_type)
+            QueueAccessManager::retrieve_channel_configs_for_connector(&connector_type)
                 .iter()
                 .copied()
                 .collect();
@@ -285,7 +285,7 @@ mod tests {
         .collect();
 
         let result: HashSet<ChannelConfig> =
-            Mapper::retrieve_channel_configs_for_connector(&connector_type)
+            QueueAccessManager::retrieve_channel_configs_for_connector(&connector_type)
                 .iter()
                 .copied()
                 .collect();
