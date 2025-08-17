@@ -5,7 +5,7 @@
 
 use std::env;
 
-use crate::config::{error::ConfigError, service::ServiceConfig};
+use crate::config::{error::ConfigError, traits::service::ServiceConfig};
 
 /// Configuration for a sample service demonstrating the configuration pattern.
 ///
