@@ -1,3 +1,3 @@
-pub mod mappings;
+pub mod queue_access_manager;
 
-pub use mappings::QueueAccessManager;
+pub use queue_access_manager::QueueAccessManager;
