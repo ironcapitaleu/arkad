@@ -126,9 +126,9 @@ impl<S: State> SMSuperState<S> for ExtractSuperState<S> {}
 
 impl<S: State> SuperState<S> for ExtractSuperState<S> {}
 
-impl From<ValidateCikFormatContext> for PrepareSecRequestContext {
-    fn from(_: ValidateCikFormatContext) -> Self {
-        Self::new()
+impl From<ValidateCikFormatOutputData> for PrepareSecRequestContext {
+    fn from(output_data: ValidateCikFormatOutputData) -> Self {
+        Self::new(output_data.validated_cik)
     }
 }
 
@@ -145,11 +145,13 @@ impl TryFrom<ValidateCikFormat> for PrepareSecRequest {
     type Error = TransitionError;
 
     fn try_from(state: ValidateCikFormat) -> Result<Self, Self::Error> {
-        let new_context: PrepareSecRequestContext = state.get_context_data().clone().into();
         if state.get_output_data().is_none() {
             return Err(TransitionError::FailedOutputConversion);
         }
-        let new_input: PrepareSecRequestInputData = state.get_output_data().expect("Output data of `ValidateCikFormat` should always be existing when triggering a transition to next state.").clone().into();
+        let output_data = state.get_output_data().expect("Output data of `ValidateCikFormat` should always be existing when triggering a transition to next state.").clone();
+        
+        let new_context: PrepareSecRequestContext = output_data.clone().into();
+        let new_input: PrepareSecRequestInputData = output_data.into();
 
         Ok(Self::new(new_input, new_context))
     }
@@ -172,9 +174,9 @@ impl ExtractSuperState<ValidateCikFormat> {
 
 impl ExtractSuperState<PrepareSecRequest> {
     #[must_use]
-    pub const fn new(validated_cik: crate::shared::cik::Cik, user_agent: String) -> Self {
-        let psr_input = PrepareSecRequestInputData::new(validated_cik, user_agent);
-        let psr_context = PrepareSecRequestContext::new();
+    pub fn new(validated_cik: crate::shared::cik::Cik, user_agent: String) -> Self {
+        let psr_input = PrepareSecRequestInputData::new(validated_cik.clone(), user_agent);
+        let psr_context = PrepareSecRequestContext::new(validated_cik);
 
         Self {
             current_state: PrepareSecRequest::new(psr_input, psr_context),
