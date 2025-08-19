@@ -85,7 +85,11 @@ impl SMContextData for PrepareSecRequestContext {
 
 impl fmt::Display for PrepareSecRequestContext {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Context Data:\nCIK (validated): {}\nMax retries: {}",self.cik, self.max_retries)
+        write!(
+            f,
+            "Context Data:\nCIK (validated): {}\nMax retries: {}",
+            self.cik, self.max_retries
+        )
     }
 }
 
@@ -126,7 +130,8 @@ impl PrepareSecRequestContextUpdaterBuilder {
         self
     }
 
-    #[must_use] pub fn cik(mut self, cik: Cik) -> Self {
+    #[must_use]
+    pub fn cik(mut self, cik: Cik) -> Self {
         self.cik = Some(cik);
         self
     }

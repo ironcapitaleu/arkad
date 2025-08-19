@@ -17,18 +17,18 @@ pub mod validate_cik_format;
 use crate::error::State as StateError;
 use crate::error::state_machine::transition::Transition as TransitionError;
 use crate::implementations::states::extract::prepare_sec_request::{
-    PrepareSecRequestContext, PrepareSecRequestInputData,
+    PrepareSecRequest, PrepareSecRequestContext, PrepareSecRequestInputData,
 };
 use crate::implementations::states::extract::validate_cik_format::{
-    ValidateCikFormatContext, ValidateCikFormatInputData, ValidateCikFormatOutputData,
+    ValidateCikFormat, ValidateCikFormatContext, ValidateCikFormatInputData,
+    ValidateCikFormatOutputData,
 };
+use crate::shared::user_agent::constants::DEFAULT_SEC_USER_AGENT;
 
 use async_trait::async_trait;
 
 use crate::prelude::*;
-use prepare_sec_request::PrepareSecRequest;
 use state_maschine::prelude::{StateMachine as SMStateMachine, Transition as SMTransition};
-use validate_cik_format::ValidateCikFormat;
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ExtractSuperStateData;
@@ -136,7 +136,7 @@ impl From<ValidateCikFormatOutputData> for PrepareSecRequestInputData {
     fn from(output_data: ValidateCikFormatOutputData) -> Self {
         Self::new(
             output_data.validated_cik,
-            "SEC Extraction Agent contact@example.com".to_string(),
+            DEFAULT_SEC_USER_AGENT.to_string(),
         )
     }
 }
