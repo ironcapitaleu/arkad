@@ -33,7 +33,7 @@ async fn main() {
                 .clone(),
             "Test User Agent test@example.com".to_string(),
         ),
-        PrepareSecRequestContext::new(),
+        PrepareSecRequestContext::default(),
     );
     println!("{:.500}", prepare_sec_request.to_string().as_str());
     prepare_sec_request
