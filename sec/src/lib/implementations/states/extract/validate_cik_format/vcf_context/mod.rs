@@ -33,7 +33,7 @@ use std::fmt;
 
 use state_maschine::prelude::ContextData as SMContextData;
 
-use crate::shared::cik::constants::BERKSHIRE_HATHAWAY_CIK;
+use crate::shared::cik::constants::BERKSHIRE_HATHAWAY_CIK_RAW;
 use crate::traits::state_machine::state::ContextData;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
@@ -96,7 +96,7 @@ impl SMContextData for ValidateCikFormatContext {
 impl Default for ValidateCikFormatContext {
     /// Returns a default context using the CIK for Berkshire Hathaway (CIK: 1067983).
     fn default() -> Self {
-        Self::new(BERKSHIRE_HATHAWAY_CIK)
+        Self::new(BERKSHIRE_HATHAWAY_CIK_RAW)
     }
 }
 
@@ -162,7 +162,7 @@ mod tests {
     use state_maschine::prelude::*;
 
     use super::{
-        BERKSHIRE_HATHAWAY_CIK, ValidateCikFormatContext, ValidateCikFormatContextUpdaterBuilder,
+        BERKSHIRE_HATHAWAY_CIK_RAW, ValidateCikFormatContext, ValidateCikFormatContextUpdaterBuilder,
     };
 
     #[test]
@@ -225,7 +225,7 @@ mod tests {
             .cik("Updated CIK!")
             .build();
 
-        let expected_result = BERKSHIRE_HATHAWAY_CIK;
+        let expected_result = BERKSHIRE_HATHAWAY_CIK_RAW;
 
         context.update_context(update);
         let result = context.get_context().cik();
