@@ -275,7 +275,6 @@ mod tests {
         assert_eq!(result, expected_result);
     }
 
-
     #[test]
     fn should_access_current_validate_cik_format_state_from_super_state() {
         let input_cik = "1234567890";
@@ -311,7 +310,11 @@ mod tests {
         let result = super_state.compute_output_data_async().await;
 
         assert_eq!(result, expected_result);
-        assert!(super_state.get_current_state().has_output_data_been_computed());
+        assert!(
+            super_state
+                .get_current_state()
+                .has_output_data_been_computed()
+        );
     }
 
     #[tokio::test]
@@ -319,7 +322,10 @@ mod tests {
         let input_cik = "1234567890";
         let mut super_state = ExtractSuperState::<ValidateCikFormat>::new(input_cik);
 
-        super_state.compute_output_data_async().await.expect("Should compute output data");
+        super_state
+            .compute_output_data_async()
+            .await
+            .expect("Should compute output data");
 
         let expected_result_type = "Extract SuperState (Current: Prepare SEC Request)";
 
