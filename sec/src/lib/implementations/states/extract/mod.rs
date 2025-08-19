@@ -149,7 +149,7 @@ impl TryFrom<ValidateCikFormat> for PrepareSecRequest {
             return Err(TransitionError::FailedOutputConversion);
         }
         let output_data = state.get_output_data().expect("Output data of `ValidateCikFormat` should always be existing when triggering a transition to next state.").clone();
-        
+
         let new_context: PrepareSecRequestContext = output_data.clone().into();
         let new_input: PrepareSecRequestInputData = output_data.into();
 

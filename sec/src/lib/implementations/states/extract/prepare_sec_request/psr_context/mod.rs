@@ -48,7 +48,7 @@ impl PrepareSecRequestContext {
     /// Creates a new instance of the state context for SEC request preparation.
     pub const fn new(cik: Cik) -> Self {
         Self {
-            cik: cik,
+            cik,
             max_retries: 0,
         }
     }
@@ -85,7 +85,7 @@ impl SMContextData for PrepareSecRequestContext {
 
 impl fmt::Display for PrepareSecRequestContext {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Context Data:\nMax retries: {}", self.max_retries)
+        write!(f, "Context Data:\nCIK (validated): {}\nMax retries: {}",self.cik, self.max_retries)
     }
 }
 
@@ -109,7 +109,10 @@ impl PrepareSecRequestContextUpdaterBuilder {
     /// Creates a new [`PrepareSecRequestContextUpdaterBuilder`] with no fields set.
     #[must_use]
     pub const fn new() -> Self {
-        Self {cik: None, max_retries: None }
+        Self {
+            cik: None,
+            max_retries: None,
+        }
     }
 
     /// Sets the `max_retries` value inside the context to the provided update value.
@@ -123,7 +126,7 @@ impl PrepareSecRequestContextUpdaterBuilder {
         self
     }
 
-    pub fn cik(mut self, cik: Cik) -> Self {
+    #[must_use] pub fn cik(mut self, cik: Cik) -> Self {
         self.cik = Some(cik);
         self
     }
@@ -149,10 +152,10 @@ impl Default for PrepareSecRequestContextUpdaterBuilder {
 mod tests {
     use std::{fmt::Debug, hash::Hash};
 
-    use pretty_assertions::{assert_eq, assert_ne};
-    use state_maschine::prelude::*;
     use crate::shared::cik::Cik;
     use crate::shared::cik::constants::BERKSHIRE_HATHAWAY_CIK_RAW;
+    use pretty_assertions::{assert_eq, assert_ne};
+    use state_maschine::prelude::*;
 
     use super::{PrepareSecRequestContext, PrepareSecRequestContextUpdaterBuilder};
 
@@ -170,9 +173,13 @@ mod tests {
     #[test]
     fn should_create_different_context_with_custom_data_when_using_default_as_constructor() {
         let request_context = &PrepareSecRequestContext::default();
-        let cik = Cik::new(BERKSHIRE_HATHAWAY_CIK_RAW).expect("Hardcoded CIK should always be valid.");
+        let cik =
+            Cik::new(BERKSHIRE_HATHAWAY_CIK_RAW).expect("Hardcoded CIK should always be valid.");
 
-        let expected_result = &PrepareSecRequestContext {cik, max_retries: 5 };
+        let expected_result = &PrepareSecRequestContext {
+            cik,
+            max_retries: 5,
+        };
 
         let result = request_context.get_context();
 
@@ -185,9 +192,13 @@ mod tests {
         let update = PrepareSecRequestContextUpdaterBuilder::new()
             .max_retries(5)
             .build();
-        let cik = Cik::new(BERKSHIRE_HATHAWAY_CIK_RAW).expect("Hardcoded CIK should always be valid.");
+        let cik =
+            Cik::new(BERKSHIRE_HATHAWAY_CIK_RAW).expect("Hardcoded CIK should always be valid.");
 
-        let expected_result = &PrepareSecRequestContext {cik, max_retries: 5 };
+        let expected_result = &PrepareSecRequestContext {
+            cik,
+            max_retries: 5,
+        };
 
         context.update_context(update);
         let result = context.get_context();
@@ -202,9 +213,13 @@ mod tests {
             .max_retries(5)
             .max_retries(10)
             .build();
-        let cik = Cik::new(BERKSHIRE_HATHAWAY_CIK_RAW).expect("Hardcoded CIK should always be valid.");
+        let cik =
+            Cik::new(BERKSHIRE_HATHAWAY_CIK_RAW).expect("Hardcoded CIK should always be valid.");
 
-        let expected_result = &PrepareSecRequestContext {cik, max_retries: 10 };
+        let expected_result = &PrepareSecRequestContext {
+            cik,
+            max_retries: 10,
+        };
 
         context.update_context(update);
         let result = context.get_context();

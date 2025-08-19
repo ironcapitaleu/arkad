@@ -28,4 +28,3 @@ pub const BERKSHIRE_HATHAWAY_CIK_RAW: &str = "1067983";
 /// This constant can be used in tests, examples, or as a reference value when working with CIK-related
 /// validation and parsing logic throughout the codebase.
 pub const BERKSHIRE_HATHAWAY_CIK: &str = "0001067983";
-
