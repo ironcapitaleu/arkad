@@ -30,6 +30,7 @@ pub mod prepare_sec_request;
 pub mod validate_cik_format;
 
 use crate::error::State as StateError;
+use crate::error::state_machine::transition;
 use crate::error::state_machine::transition::Transition as TransitionError;
 use crate::implementations::states::extract::prepare_sec_request::{
     PrepareSecRequest, PrepareSecRequestContext, PrepareSecRequestInputData,
@@ -174,11 +175,16 @@ impl From<ValidateCikFormatOutputData> for PrepareSecRequestInputData {
 impl TryFrom<ValidateCikFormat> for PrepareSecRequest {
     type Error = TransitionError;
 
-    fn try_from(state: ValidateCikFormat) -> Result<Self, Self::Error> {
-        if state.get_output_data().is_none() {
-            return Err(TransitionError::FailedOutputConversion);
-        }
-        let output_data = state.get_output_data().expect("Output data of `ValidateCikFormat` should always be existing when triggering a transition to next state.").clone();
+    fn try_from(state: ValidateCikFormat) -> Result<Self, TransitionError> {
+        let output_data = match state.get_output_data() {
+            Some(data) => data.clone(),
+            None => {
+                return Err(transition::NoOutputData::new(
+                    &"Extract SuperState",
+                    &state.get_state_name(),
+                ).into());
+            }
+        };
 
         let new_context: PrepareSecRequestContext = output_data.clone().into();
         let new_input: PrepareSecRequestInputData = output_data.into();
