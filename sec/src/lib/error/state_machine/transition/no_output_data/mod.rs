@@ -19,7 +19,7 @@
 //! ## Example
 //! ```rust
 //! use sec::error::state_machine::transition::no_output_data::NoOutputData;
-//! 
+//!
 //! let error = NoOutputData::new("MainState", "InternalState");
 //! ```
 
@@ -32,7 +32,9 @@ use super::Transition as TransitionError;
 /// from an internal state is not available, providing context about both the failing state
 /// and the specific internal state that is missing output data.
 #[derive(Error, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[error("[NoOutputData] Failure in State: `{state_name}` during transition. The output data for `{internal_state_name}` is missing.")]
+#[error(
+    "[NoOutputData] Failure in State: `{state_name}` during transition. The output data for `{internal_state_name}` is missing."
+)]
 pub struct NoOutputData {
     /// The name of the state where the error occurred.
     pub state_name: String,
@@ -50,7 +52,10 @@ impl NoOutputData {
     /// # Returns
     /// A new [`NoOutputData`] error instance.
     #[must_use]
-    pub fn new(state_name: &(impl ToString + ?Sized), internal_state_name: &(impl ToString + ?Sized)) -> Self {
+    pub fn new(
+        state_name: &(impl ToString + ?Sized),
+        internal_state_name: &(impl ToString + ?Sized),
+    ) -> Self {
         Self {
             state_name: state_name.to_string(),
             internal_state_name: internal_state_name.to_string(),
@@ -158,4 +163,3 @@ mod tests {
         assert_ne!(error1, error2);
     }
 }
-

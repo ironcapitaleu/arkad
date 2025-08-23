@@ -182,7 +182,8 @@ impl TryFrom<ValidateCikFormat> for PrepareSecRequest {
                 return Err(transition::NoOutputData::new(
                     &"Extract SuperState",
                     &state.get_state_name(),
-                ).into());
+                )
+                .into());
             }
         };
 
