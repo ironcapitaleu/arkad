@@ -69,5 +69,5 @@ async fn main() {
         .transition_to_next_state_sec()
         .expect("Transition should succeed");
 
-    println!("{}", super_state.get_state_name().to_string());
+    println!("{super_state}");
 }

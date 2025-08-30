@@ -29,6 +29,8 @@
 pub mod prepare_sec_request;
 pub mod validate_cik_format;
 
+use std::fmt::Display;
+
 use crate::error::State as StateError;
 use crate::error::state_machine::transition;
 use crate::error::state_machine::transition::Transition as TransitionError;
@@ -102,6 +104,16 @@ pub struct ExtractSuperState<S: State> {
     input: ExtractSuperStateData,
     output: Option<ExtractSuperStateData>,
     context: ExtractSuperStateContext,
+}
+
+impl<S: State> Display for ExtractSuperState<S> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Extract SuperState (Current: {})",
+            self.current_state.get_state_name().to_string()
+        )
+    }
 }
 
 impl<S: State> SMState for ExtractSuperState<S> {

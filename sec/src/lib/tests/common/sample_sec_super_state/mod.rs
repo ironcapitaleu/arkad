@@ -3,6 +3,8 @@
 //! This module provides the [`SampleSecSuperState`] and related types, which serve as a test fixture
 //! for creating super states within the `sec` state machine framework.
 
+use std::fmt;
+
 use async_trait::async_trait;
 use state_maschine::prelude::{
     State as SMState, StateMachine as SMStateMachine, SuperState as SMSuperState,
@@ -35,6 +37,16 @@ impl SampleSecSuperState<SampleSecState> {
             output: None,
             context: SampleSecSuperStateContext::default(),
         }
+    }
+}
+
+impl<S: State> fmt::Display for SampleSecSuperState<S> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "SampleSecSuperState({})",
+            self.get_state_name().to_string()
+        )
     }
 }
 

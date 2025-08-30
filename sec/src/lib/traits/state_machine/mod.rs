@@ -15,6 +15,8 @@
 //!
 //! See the documentation for each submodule for details on trait requirements and usage patterns.
 
+use std::fmt::Display;
+
 use state_maschine::prelude::StateMachine as SMStateMachine;
 
 pub mod state;
@@ -28,7 +30,7 @@ use state::State;
 ///
 /// # Type Parameters
 /// - `S`: The state type, which must implement the SEC [`State`] trait.
-pub trait StateMachine<S>: SMStateMachine<S>
+pub trait StateMachine<S>: SMStateMachine<S> + Display
 where
     S: State,
 {
