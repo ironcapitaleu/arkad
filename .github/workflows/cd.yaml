@@ -34,6 +34,18 @@ jobs:
 
     steps:
     - uses: actions/checkout@v5
+
+    - name: Log Environment Information
+      run: |
+        echo "=== Environment Information ==="
+        echo "Environment: ${{ startsWith(github.ref, 'refs/tags/v') && 'production' || 'development' }}"
+        echo "GitHub Ref: ${{ github.ref }}"
+        echo "GitHub Event: ${{ github.event_name }}"
+        echo "AWS Region: ${{ env.AWS_REGION }}"
+        echo "AWS Account ID: ${{ env.AWS_ACCOUNT_ID }}"
+        echo "Deployment Role: ${{ env.DEPLOYMENT_ROLE }}"
+        echo "=============================="
+
     - name: Configure AWS Credentials
       uses: aws-actions/configure-aws-credentials@v5.0.0
       with:
@@ -44,4 +56,3 @@ jobs:
       run: aws sts get-caller-identity
     - name: List S3 Bucket contents
       run: aws s3 ls s3://demir-tic-tac-toe
-
