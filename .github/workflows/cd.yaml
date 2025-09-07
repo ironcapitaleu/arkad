@@ -17,6 +17,8 @@ permissions:
 
 env:
   AWS_REGION: eu-central-1
+  AWS_ACCOUNT_ID: 259130455157
+  DEPLOYMENT_ROLE: github-actions-role
 
 jobs:
   cd:
@@ -31,7 +33,7 @@ jobs:
       uses: aws-actions/configure-aws-credentials@v5.0.0
       with:
         aws-region: ${{ env.AWS_REGION }}
-        role-to-assume: arn:aws:iam::259130455157:role/github-actions-role
+        role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/${{ env.DEPLOYMENT_ROLE }}
         role-session-name: DeploymentSession
     - name: Test AWS Credentials
       run: aws sts get-caller-identity
