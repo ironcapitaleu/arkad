@@ -25,6 +25,7 @@ use reqwest::{Client, ClientBuilder};
 use uuid::Uuid;
 
 use super::user_agent::UserAgent;
+//use super::sec_request::SecRequest;
 
 /// A wrapper around [`reqwest::Client`] configured for SEC-compliant HTTP requests.
 ///
@@ -131,6 +132,12 @@ impl SecClient {
             inner: client,
         })
     }
+
+    /// Future method to execute SEC requests using the internal client.
+    // pub async fn execute_request(&self, request: SecRequest) -> Response {
+    //     let resp = self.inner.execute(request.inner).await.unwrap();
+    //     resp
+    // }
 
     /// Returns the unique identifier for this client instance.
     #[must_use]
