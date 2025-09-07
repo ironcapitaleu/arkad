@@ -1,0 +1,30 @@
+name: CD
+
+on:
+  pull_request:
+    branches:
+      - main
+      - master
+  
+  # For testing only. TODO: remove before merging to main/master
+  push:
+    branches:
+      - cicd/create-cd-workflow
+
+jobs:
+  cd:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-22.04]
+
+    steps:
+    - uses: actions/checkout@v5
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v5.0.0
+      with:
+        aws-region: us-east-2
+        role-to-assume: arn:aws:iam::259130455157:role/github-actions-role
+        role-session-name: DeploymentSession
+    - name: Test AWS Credentials
+      run: aws sts get-caller-identity
