@@ -44,3 +44,4 @@ jobs:
       run: aws sts get-caller-identity
     - name: List S3 Bucket contents
       run: aws s3 ls s3://demir-tic-tac-toe
+
