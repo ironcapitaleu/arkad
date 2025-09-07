@@ -39,6 +39,7 @@ jobs:
       run: |
         echo "=== Environment Information ==="
         echo "Environment: ${{ startsWith(github.ref, 'refs/tags/v') && 'production' || 'development' }}"
+        echo "Deploying to environment: ${{ job.environment }}"
         echo "GitHub Ref: ${{ github.ref }}"
         echo "GitHub Event: ${{ github.event_name }}"
         echo "AWS Region: ${{ env.AWS_REGION }}"
