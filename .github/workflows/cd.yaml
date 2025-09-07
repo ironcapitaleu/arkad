@@ -17,8 +17,8 @@ permissions:
 
 env:
   AWS_REGION: eu-central-1
-  AWS_ACCOUNT_ID: 259130455157
-  DEPLOYMENT_ROLE: github-actions-role
+  AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
+  DEPLOYMENT_ROLE: ${{ vars.DEPLOYMENT_ROLE_NAME }}
 
 jobs:
   cd:
