@@ -42,8 +42,7 @@ jobs:
         echo "GitHub Ref: ${{ github.ref }}"
         echo "GitHub Event: ${{ github.event_name }}"
         echo "AWS Region: ${{ env.AWS_REGION }}"
-        echo "AWS Account ID: $(echo "${{ env.AWS_ACCOUNT_ID }}" | sed -E 's/.*([0-9]{4})$/********\1/')"
-        echo "AWS Account ID2: ********${{ env.AWS_ACCOUNT_ID }}" | sed -E 's/.*([0-9]{4})$/AWS Account ID: ********\1/'
+        echo "AWS Account ID: ********${{ env.AWS_ACCOUNT_ID }}" | sed -E 's/.*([0-9]{4})$/AWS Account ID: ********\1/'
 
         echo "Deployment Role: ${{ env.DEPLOYMENT_ROLE }}"
         echo "=============================="
