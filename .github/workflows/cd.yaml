@@ -11,6 +11,8 @@ on:
     branches:
       - cicd/create-cd-workflow
 
+environment: development
+
 permissions:
   id-token: write
   contents: read
