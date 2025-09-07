@@ -11,6 +11,9 @@ on:
     branches:
       - cicd/create-cd-workflow
 
+permissions:
+  id-token: write
+
 jobs:
   cd:
     runs-on: ${{ matrix.os }}
