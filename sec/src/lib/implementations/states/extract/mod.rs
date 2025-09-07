@@ -354,7 +354,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn shoud_fail_transition_when_output_data_not_yet_computed() {
+    async fn should_fail_transition_when_output_data_not_yet_computed() {
         let input_cik = "1234567890";
         let super_state = ExtractSuperState::<ValidateCikFormat>::new(input_cik);
 
