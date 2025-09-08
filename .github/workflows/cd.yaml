@@ -49,19 +49,6 @@ jobs:
         echo "Deployment Role: ${{ env.DEPLOYMENT_ROLE }}"
         echo "::endgroup::"
 
-
-    echo "::group::Deployment Context"
-    echo "Deploying to environment: development"
-    echo "GitHub Ref: $GITHUB_REF"
-    echo "GitHub Event: $GITHUB_EVENT_NAME"
-    echo "AWS Region: $AWS_REGION"
-    echo -n "AWS Account ID: "
-    sed -E 's/.*([0-9]{4})$/********\1/' <<< "$AWS_ACCOUNT_ID"
-    echo "Deployment Role: $DEPLOYMENT_ROLE"
-    echo "::endgroup::"
-
-
-
     - name: Configure AWS Credentials
       uses: aws-actions/configure-aws-credentials@v5.0.0
       with:
