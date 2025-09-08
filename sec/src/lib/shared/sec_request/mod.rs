@@ -74,7 +74,7 @@ impl PartialEq for SecRequest {
 
 impl PartialOrd for SecRequest {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.inner.url().cmp(other.inner.url()))
+        Some(self.cmp(other))
     }
 }
 

@@ -23,6 +23,7 @@
 
 use regex::Regex;
 
+pub mod constants;
 pub mod user_agent_error;
 pub use user_agent_error::{UserAgentError, UserAgentErrorReason};
 
