@@ -52,6 +52,7 @@ jobs:
         # Mask the token for security
         # echo "::add-mask::$CLOUDFLARE_API_TOKEN"
         
+        
         # Test token by fetching zones
         echo "Testing Cloudflare API token by fetching zones..."
         response=$(curl -s -w "%{http_code}" \
