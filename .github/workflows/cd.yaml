@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - master
+      - cicd/create-cd-workflow
   
   push:
     # Trigger on version tags for production deployments
