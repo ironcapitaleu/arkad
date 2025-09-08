@@ -46,6 +46,8 @@ pub struct PrepareSecRequestContext {
 impl PrepareSecRequestContext {
     #[must_use]
     /// Creates a new instance of the state context for SEC request preparation.
+    /// # Arguments
+    /// * `cik` - The Central Index Key (CIK) associated with the SEC request.
     pub const fn new(cik: Cik) -> Self {
         Self {
             cik,
@@ -129,7 +131,11 @@ impl PrepareSecRequestContextUpdaterBuilder {
         self.max_retries = Some(max_retries);
         self
     }
-
+    
+    /// Sets the `cik` value inside the context to the provided update value.
+    ///
+    /// # Arguments
+    /// * `cik` - The new value for `cik`.
     #[must_use]
     pub fn cik(mut self, cik: Cik) -> Self {
         self.cik = Some(cik);
