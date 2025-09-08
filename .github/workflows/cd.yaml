@@ -48,8 +48,8 @@ jobs:
       run: |
         echo "::group::Cloudflare API Token Validation"
         
-        # Mask the token for security
-        # echo "::add-mask::$CLOUDFLARE_API_TOKEN"
+        # Mask the token (again) for security
+        echo "::add-mask::$CLOUDFLARE_API_TOKEN"
         
         
         # Test token by fetching zones
