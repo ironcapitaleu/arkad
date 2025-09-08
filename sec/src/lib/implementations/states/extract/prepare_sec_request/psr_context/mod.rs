@@ -131,7 +131,7 @@ impl PrepareSecRequestContextUpdaterBuilder {
         self.max_retries = Some(max_retries);
         self
     }
-    
+
     /// Sets the `cik` value inside the context to the provided update value.
     ///
     /// # Arguments
