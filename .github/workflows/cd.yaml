@@ -1,12 +1,10 @@
 name: CD
 
 on:
-  pull_request:
+  push:
     branches:
       - main
       - master
-  
-  push:
     # Trigger on version tags for production deployments
     tags:
       - 'v*.*.*'  # Matches tags like v1.0.0, v2.1.3, etc.
