@@ -20,4 +20,5 @@
 pub mod cik;
 pub mod sec_client;
 pub mod sec_request;
+pub mod sec_response;
 pub mod user_agent;
