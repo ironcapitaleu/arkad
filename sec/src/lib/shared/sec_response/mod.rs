@@ -8,11 +8,11 @@ pub struct SecResponse {
 impl SecResponse {
     #[must_use]
     /// Creates a new [`SecResponse`] which wraps a [`Response`].
-    pub fn new(inner: Response) -> Self {
+    pub const fn new(inner: Response) -> Self {
         Self { inner }
     }
 
-    pub const fn response(&self) -> &Response {
+    #[must_use] pub const fn response(&self) -> &Response {
         &self.inner
     }
 }

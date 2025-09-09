@@ -3,12 +3,13 @@ use std::fmt;
 use state_maschine::prelude::StateData as SMStateData;
 
 use crate::error::State as StateError;
-use crate::traits::state_machine::state::StateData;
 use crate::shared::sec_client::SecClient;
 use crate::shared::sec_request::SecRequest;
+use crate::traits::state_machine::state::StateData;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 /// Input data for the `ExecuteSecRequest` fixture.
+#[derive(Default)]
 pub struct ExecuteSecRequestInputData {
     pub sec_client: SecClient,
     pub sec_request: SecRequest,
@@ -16,7 +17,7 @@ pub struct ExecuteSecRequestInputData {
 
 impl ExecuteSecRequestInputData {
     /// Creates a new instance of the input data for the execute SEC request.
-    pub fn new(sec_client: SecClient, sec_request: SecRequest) -> Self {
+    pub const fn new(sec_client: SecClient, sec_request: SecRequest) -> Self {
         Self {
             sec_client,
             sec_request,
@@ -58,18 +59,15 @@ impl SMStateData for ExecuteSecRequestInputData {
     fn update_state(&mut self, _updates: Self::UpdateType) {}
 }
 
-impl Default for ExecuteSecRequestInputData {
-    fn default() -> Self {
-        Self {
-            sec_client: SecClient::default(),
-            sec_request: SecRequest::default(),
-        }
-    }
-}
 
 impl fmt::Display for ExecuteSecRequestInputData {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "SEC Client ID: {}\nSEC Request URL: {}", self.sec_client.id(), self.sec_request.inner.url())
+        write!(
+            f,
+            "SEC Client ID: {}\nSEC Request URL: {}",
+            self.sec_client.id(),
+            self.sec_request.inner.url()
+        )
     }
 }
 
@@ -88,7 +86,10 @@ pub struct ExecuteSecRequestInputDataUpdaterBuilder {
 impl ExecuteSecRequestInputDataUpdaterBuilder {
     #[must_use]
     pub const fn new() -> Self {
-        Self { sec_client: None, sec_request: None }
+        Self {
+            sec_client: None,
+            sec_request: None,
+        }
     }
 
     #[must_use]
