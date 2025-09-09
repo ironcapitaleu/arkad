@@ -87,5 +87,5 @@ jobs:
     # These following two steps are just tests. TODO: Remove after introducing IaC
     - name: Test AWS Credentials
       run: aws sts get-caller-identity
-    - name: List S3 Bucket contents
-      run: aws s3 ls s3://demir-tic-tac-toe
+    - name: List S3 Buckets in Account
+      run: aws s3 ls
