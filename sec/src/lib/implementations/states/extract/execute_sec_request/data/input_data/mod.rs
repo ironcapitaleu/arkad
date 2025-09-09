@@ -8,14 +8,14 @@ use crate::shared::sec_client::SecClient;
 use crate::shared::sec_request::SecRequest;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
-/// Input data for the `ProcessSecRequest` fixture.
-pub struct ProcessSecRequestInputData {
+/// Input data for the `ExecuteSecRequest` fixture.
+pub struct ExecuteSecRequestInputData {
     pub sec_client: SecClient,
     pub sec_request: SecRequest,
 }
 
-impl ProcessSecRequestInputData {
-    /// Creates a new instance of the input data for the process SEC request.
+impl ExecuteSecRequestInputData {
+    /// Creates a new instance of the input data for the execute SEC request.
     pub fn new(sec_client: SecClient, sec_request: SecRequest) -> Self {
         Self {
             sec_client,
@@ -36,7 +36,7 @@ impl ProcessSecRequestInputData {
     }
 }
 
-impl StateData for ProcessSecRequestInputData {
+impl StateData for ExecuteSecRequestInputData {
     fn update_state(&mut self, updates: Self::UpdateType) -> Result<(), StateError> {
         if let Some(sec_client) = updates.sec_client {
             self.sec_client = sec_client;
@@ -48,8 +48,8 @@ impl StateData for ProcessSecRequestInputData {
     }
 }
 
-impl SMStateData for ProcessSecRequestInputData {
-    type UpdateType = ProcessSecRequestInputDataUpdater;
+impl SMStateData for ExecuteSecRequestInputData {
+    type UpdateType = ExecuteSecRequestInputDataUpdater;
 
     fn get_state(&self) -> &Self {
         self
@@ -58,7 +58,7 @@ impl SMStateData for ProcessSecRequestInputData {
     fn update_state(&mut self, _updates: Self::UpdateType) {}
 }
 
-impl Default for ProcessSecRequestInputData {
+impl Default for ExecuteSecRequestInputData {
     fn default() -> Self {
         Self {
             sec_client: SecClient::default(),
@@ -67,25 +67,25 @@ impl Default for ProcessSecRequestInputData {
     }
 }
 
-impl fmt::Display for ProcessSecRequestInputData {
+impl fmt::Display for ExecuteSecRequestInputData {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "SEC Client ID: {}\nSEC Request URL: {}", self.sec_client.id(), self.sec_request.inner.url())
     }
 }
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
-/// Updater for [`ProcessSecRequestInputData`].
-pub struct ProcessSecRequestInputDataUpdater {
+/// Updater for [`ExecuteSecRequestInputData`].
+pub struct ExecuteSecRequestInputDataUpdater {
     pub sec_client: Option<SecClient>,
     pub sec_request: Option<SecRequest>,
 }
 
-/// Builder for [`ProcessSecRequestInputDataUpdater`].
-pub struct ProcessSecRequestInputDataUpdaterBuilder {
+/// Builder for [`ExecuteSecRequestInputDataUpdater`].
+pub struct ExecuteSecRequestInputDataUpdaterBuilder {
     sec_client: Option<SecClient>,
     sec_request: Option<SecRequest>,
 }
-impl ProcessSecRequestInputDataUpdaterBuilder {
+impl ExecuteSecRequestInputDataUpdaterBuilder {
     #[must_use]
     pub const fn new() -> Self {
         Self { sec_client: None, sec_request: None }
@@ -106,15 +106,15 @@ impl ProcessSecRequestInputDataUpdaterBuilder {
     }
 
     #[must_use]
-    pub fn build(self) -> ProcessSecRequestInputDataUpdater {
-        ProcessSecRequestInputDataUpdater {
+    pub fn build(self) -> ExecuteSecRequestInputDataUpdater {
+        ExecuteSecRequestInputDataUpdater {
             sec_client: self.sec_client,
             sec_request: self.sec_request,
         }
     }
 }
 
-impl Default for ProcessSecRequestInputDataUpdaterBuilder {
+impl Default for ExecuteSecRequestInputDataUpdaterBuilder {
     fn default() -> Self {
         Self::new()
     }

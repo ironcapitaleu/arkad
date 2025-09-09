@@ -6,23 +6,23 @@ use state_maschine::prelude::State as SMState;
 use crate::error::State as StateError;
 use crate::traits::state_machine::state::State;
 
-pub mod process_sec_request_context;
-pub mod process_sec_request_data;
+pub mod context;
+pub mod data;
 
-pub use process_sec_request_context::ProcessSecRequestContext;
-pub use process_sec_request_data::ProcessSecRequestInputData;
-pub use process_sec_request_data::ProcessSecRequestOutputData;
+pub use context::ExecuteSecRequestContext;
+pub use data::ExecuteSecRequestInputData;
+pub use data::ExecuteSecRequestOutputData;
 
 #[derive(Debug, Clone, Default, PartialEq, PartialOrd, Hash, Eq, Ord)]
-pub struct ProcessSecRequest {
-    input: ProcessSecRequestInputData,
-    context: ProcessSecRequestContext,
-    output: Option<ProcessSecRequestOutputData>,
+pub struct ExecuteSecRequest {
+    input: ExecuteSecRequestInputData,
+    context: ExecuteSecRequestContext,
+    output: Option<ExecuteSecRequestOutputData>,
 }
 
-impl ProcessSecRequest {
+impl ExecuteSecRequest {
     #[must_use]
-    pub const fn new(input: ProcessSecRequestInputData, context: ProcessSecRequestContext) -> Self {
+    pub const fn new(input: ExecuteSecRequestInputData, context: ExecuteSecRequestContext) -> Self {
         Self {
             input,
             context,
@@ -32,22 +32,22 @@ impl ProcessSecRequest {
 }
 
 #[async_trait]
-impl State for ProcessSecRequest {
+impl State for ExecuteSecRequest {
     async fn compute_output_data_async(&mut self) -> Result<(), StateError> {
-        self.output = Some(ProcessSecRequestOutputData {
+        self.output = Some(ExecuteSecRequestOutputData {
             output_data: "Hello World!".to_string(),
         });
         Ok(())
     }
 }
 
-impl SMState for ProcessSecRequest {
-    type InputData = ProcessSecRequestInputData;
-    type OutputData = ProcessSecRequestOutputData;
-    type Context = ProcessSecRequestContext;
+impl SMState for ExecuteSecRequest {
+    type InputData = ExecuteSecRequestInputData;
+    type OutputData = ExecuteSecRequestOutputData;
+    type Context = ExecuteSecRequestContext;
 
     fn get_state_name(&self) -> impl ToString {
-        "Process SEC Request State"
+        "Execute SEC Request State"
     }
 
     fn compute_output_data(&mut self) {}
@@ -65,7 +65,7 @@ impl SMState for ProcessSecRequest {
     }
 }
 
-impl fmt::Display for ProcessSecRequest {
+impl fmt::Display for ExecuteSecRequest {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,

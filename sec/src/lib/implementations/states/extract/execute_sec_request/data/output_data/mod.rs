@@ -6,13 +6,13 @@ use crate::error::State as StateError;
 use crate::traits::state_machine::state::StateData;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
-/// Output data for the `ProcessSecRequest` fixture.
-pub struct ProcessSecRequestOutputData {
+/// Output data for the `ExecuteSecRequest` fixture.
+pub struct ExecuteSecRequestOutputData {
     pub output_data: String,
 }
 
-impl ProcessSecRequestOutputData {
-    /// Creates a new instance of the output data for the process SEC request.
+impl ExecuteSecRequestOutputData {
+    /// Creates a new instance of the output data for the execute SEC request.
     pub fn new(data: &(impl ToString + ?Sized)) -> Result<Self, StateError> {
         Ok(Self {
             output_data: data.to_string(),
@@ -25,7 +25,7 @@ impl ProcessSecRequestOutputData {
         &self.output_data
     }
 }
-impl StateData for ProcessSecRequestOutputData {
+impl StateData for ExecuteSecRequestOutputData {
     fn update_state(&mut self, updates: Self::UpdateType) -> Result<(), StateError> {
         if let Some(input_data) = updates.output_data {
             self.output_data = input_data;
@@ -33,8 +33,8 @@ impl StateData for ProcessSecRequestOutputData {
         Ok(())
     }
 }
-impl SMStateData for ProcessSecRequestOutputData {
-    type UpdateType = ProcessSecRequestOutputDataUpdater;
+impl SMStateData for ExecuteSecRequestOutputData {
+    type UpdateType = ExecuteSecRequestOutputDataUpdater;
 
     fn get_state(&self) -> &Self {
         self
@@ -42,7 +42,7 @@ impl SMStateData for ProcessSecRequestOutputData {
     fn update_state(&mut self, _updates: Self::UpdateType) {}
 }
 
-impl Default for ProcessSecRequestOutputData {
+impl Default for ExecuteSecRequestOutputData {
     fn default() -> Self {
         Self {
             output_data: String::from("Hello World!"),
@@ -50,24 +50,24 @@ impl Default for ProcessSecRequestOutputData {
     }
 }
 
-impl fmt::Display for ProcessSecRequestOutputData {
+impl fmt::Display for ExecuteSecRequestOutputData {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "\tOutput Data: {}", self.output_data,)
     }
 }
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
-/// Updater for [`ProcessSecRequestOutputData`].
-pub struct ProcessSecRequestOutputDataUpdater {
+/// Updater for [`ExecuteSecRequestOutputData`].
+pub struct ExecuteSecRequestOutputDataUpdater {
     pub output_data: Option<String>,
 }
 
-/// Builder for [`ProcessSecRequestOutputDataUpdater`].
-pub struct ProcessSecRequestOutputDataUpdaterBuilder {
+/// Builder for [`ExecuteSecRequestOutputDataUpdater`].
+pub struct ExecuteSecRequestOutputDataUpdaterBuilder {
     output_data: Option<String>,
 }
 
-impl ProcessSecRequestOutputDataUpdaterBuilder {
+impl ExecuteSecRequestOutputDataUpdaterBuilder {
     #[must_use]
     pub const fn new() -> Self {
         Self { output_data: None }
@@ -81,14 +81,14 @@ impl ProcessSecRequestOutputDataUpdaterBuilder {
     }
 
     #[must_use]
-    pub fn build(self) -> ProcessSecRequestOutputDataUpdater {
-        ProcessSecRequestOutputDataUpdater {
+    pub fn build(self) -> ExecuteSecRequestOutputDataUpdater {
+        ExecuteSecRequestOutputDataUpdater {
             output_data: self.output_data,
         }
     }
 }
 
-impl Default for ProcessSecRequestOutputDataUpdaterBuilder {
+impl Default for ExecuteSecRequestOutputDataUpdaterBuilder {
     fn default() -> Self {
         Self::new()
     }

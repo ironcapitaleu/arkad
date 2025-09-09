@@ -1,5 +1,0 @@
-pub mod process_sec_request_input;
-pub mod process_sec_request_output;
-
-pub use process_sec_request_input::ProcessSecRequestInputData;
-pub use process_sec_request_output::ProcessSecRequestOutputData;
