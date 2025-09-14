@@ -2,13 +2,6 @@
   "vhosts": [
     { "name": "/" }
   ],
-  "users": [
-    {
-      "name": "admin",
-      "password": "admin123",
-      "tags": "administrator"
-    }
-  ],
   "permissions": [
     {
       "user": "admin",
