@@ -21,6 +21,21 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
+      - name: Prepare Environment Variables
+        run: |
+          # Downcase the repository name and set it as an environment variable
+          echo "repository_name=${GITHUB_REPOSITORY@L}" >> "${GITHUB_ENV}"
+
+      - name: Display Execution Context
+        run: |
+          echo "::group::Execution Context"
+          echo "GitHub Ref: ${{ github.ref }}"
+          echo "GitHub Event: ${{ github.event_name }}"
+          echo "Username for Container Registry login : ${{ github.repository_owner }}"
+          echo "Repository Name (raw): ${{ github.repository }}"
+          echo "Repository Name (lowercased): ${{ env.repository_name }}"
+          echo "::endgroup::"
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -38,5 +53,5 @@ jobs:
           file: ./infra/services/queues/batch-etl/Dockerfile
           push: true
           tags: |
-            ghcr.io/deca09/arkad/arkad-rabbitmq-batch:latest
-            ghcr.io/deca09/arkad/arkad-rabbitmq-batch:${{ github.sha }}
+            ghcr.io/${{ env.repository_name }}/arkad-rabbitmq-batch:latest
+            ghcr.io/${{ env.repository_name }}/arkad-rabbitmq-batch:${{ github.sha }}
