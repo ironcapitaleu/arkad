@@ -12,6 +12,6 @@ HEALTHCHECK --interval=5s --timeout=3s --retries=2 --start-period=10s \
   CMD rabbitmq-diagnostics check_running
 
 # Set container name via label
-LABEL container.name="arkad-rabbitmq-batch-1"
+LABEL container.name="arkad-rabbitmq-batch"
 
 # The base image already has the correct CMD, so we don't need to override it
