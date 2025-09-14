@@ -37,4 +37,6 @@ jobs:
           context: .
           file: ./infra/services/queues/batch-etl/Dockerfile
           push: true
-          tags: ghcr.io/user/app:latest
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/arkad-rabbitmq-batch:latest
+            ghcr.io/${{ github.repository_owner }}/arkad-rabbitmq-batch:${{ github.sha }}
