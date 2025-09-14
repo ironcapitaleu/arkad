@@ -2,6 +2,13 @@
   "vhosts": [
     { "name": "/" }
   ],
+  "users": [
+    {
+      "name": "admin",
+      "password": "admin123",
+      "tags": "administrator"
+    }
+  ],
   "permissions": [
     {
       "user": "admin",
@@ -20,7 +27,7 @@
       "arguments": {}
     },
     {
-      "name": "batch.transformation.resultsssss",
+      "name": "batch.transformation.results",
       "vhost": "/",
       "durable": true,
       "auto_delete": false,
