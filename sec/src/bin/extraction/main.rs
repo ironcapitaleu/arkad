@@ -1,8 +1,12 @@
 use sec::implementations::states::extract::ExtractSuperState;
+use sec::implementations::states::extract::execute_sec_request::{
+    ExecuteSecRequest, ExecuteSecRequestContext, ExecuteSecRequestInputData,
+};
 use sec::implementations::states::extract::prepare_sec_request::{
     PrepareSecRequest, PrepareSecRequestContext, PrepareSecRequestInputData,
 };
 use sec::implementations::states::extract::validate_cik_format::ValidateCikFormat;
+
 use sec::prelude::*;
 
 #[tokio::main]
@@ -43,6 +47,29 @@ async fn main() {
     println!("\n=======================================================");
     println!("After PrepareSecRequest output:");
     println!("{:.500}", prepare_sec_request.to_string().as_str());
+
+    println!("\n=======================================================");
+    println!("Initial ExecuteSecRequest state:");
+    let prepare_output = prepare_sec_request
+        .get_output_data()
+        .expect("PrepareSecRequest should have output data")
+        .clone();
+
+    let mut execute_sec_request = ExecuteSecRequest::new(
+        ExecuteSecRequestInputData::new(
+            prepare_output.client().clone(),
+            prepare_output.request().clone(),
+        ),
+        ExecuteSecRequestContext::new("Execute SEC request test context"),
+    );
+    println!("{:.500}", execute_sec_request.to_string().as_str());
+    execute_sec_request
+        .compute_output_data_async()
+        .await
+        .expect("ExecuteSecRequest should succeed with valid client and request.");
+    println!("\n=======================================================");
+    println!("After ExecuteSecRequest output:");
+    println!("{:.500}", execute_sec_request.to_string().as_str());
 
     println!("\n=======================================================");
     println!("Initial Extract SuperState:");

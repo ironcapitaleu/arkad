@@ -59,7 +59,6 @@ impl SMStateData for ExecuteSecRequestInputData {
     fn update_state(&mut self, _updates: Self::UpdateType) {}
 }
 
-
 impl fmt::Display for ExecuteSecRequestInputData {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(

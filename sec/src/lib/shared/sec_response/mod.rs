@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::fmt;
 
 use reqwest::{Response, StatusCode, Url};
 
@@ -7,14 +8,14 @@ pub struct SecResponse {
     pub url: Url,
     pub status: StatusCode,
     pub headers: HashMap<String, String>,
-    pub body: String
+    pub body: String,
 }
 
 impl SecResponse {
     /// Creates a new [`SecResponse`] from a [`Response`] by consuming its body.
-    /// 
+    ///
     /// # Errors
-    /// 
+    ///
     /// Returns an error if reading the response body fails.
     pub async fn from_response(response: Response) -> Result<Self, reqwest::Error> {
         let url = response.url().clone();
@@ -32,7 +33,7 @@ impl SecResponse {
             .collect();
 
         let body = response.text().await?;
-        
+
         Ok(Self {
             url,
             status,
@@ -55,7 +56,7 @@ impl SecResponse {
 
     /// Returns the headers of the response as a map.
     #[must_use]
-    pub fn headers(&self) -> &HashMap<String, String> {
+    pub const fn headers(&self) -> &HashMap<String, String> {
         &self.headers
     }
 
@@ -68,7 +69,7 @@ impl SecResponse {
     /// Returns the content type of the response, if available.
     #[must_use]
     pub fn content_type(&self) -> Option<&str> {
-        self.headers.get("content-type").map(|s| s.as_str())
+        self.headers.get("content-type").map(String::as_str)
     }
 }
 
@@ -95,5 +96,34 @@ impl Eq for SecResponse {}
 impl std::hash::Hash for SecResponse {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.url.hash(state);
+    }
+}
+
+impl Default for SecResponse {
+    fn default() -> Self {
+        Self {
+            url: Url::parse("https://data.sec.gov/api/xbrl/companyfacts/CIK0001067983.json")
+                .unwrap(),
+            status: StatusCode::OK,
+            headers: HashMap::new(),
+            body: String::from("Default response body"),
+        }
+    }
+}
+
+impl fmt::Display for SecResponse {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "SEC Response:\n\
+             \t\tStatus: {}\n\
+             \t\tURL: {}\n\
+             \t\tContent-Type: {}\n\
+             \t\tBody Length: {} bytes",
+            self.status,
+            self.url,
+            self.content_type().unwrap_or("unknown"),
+            self.body.len()
+        )
     }
 }

@@ -34,9 +34,12 @@ impl ExecuteSecRequest {
 #[async_trait]
 impl State for ExecuteSecRequest {
     async fn compute_output_data_async(&mut self) -> Result<(), StateError> {
-        self.output = Some(ExecuteSecRequestOutputData {
-            output_data: "Hello World!".to_string(),
-        });
+        let client = &self.input.sec_client;
+        let request = &self.input.sec_request;
+
+        let response = client.execute_request(request.clone()).await;
+
+        self.output = Some(ExecuteSecRequestOutputData { response });
         Ok(())
     }
 }
