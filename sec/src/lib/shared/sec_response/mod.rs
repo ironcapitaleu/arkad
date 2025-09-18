@@ -1,25 +1,80 @@
-use reqwest::Response;
+use std::collections::HashMap;
 
-#[derive(Debug)]
+use reqwest::{Response, StatusCode, Url};
+
+#[derive(Debug, Clone)]
 pub struct SecResponse {
-    pub inner: Response,
+    pub url: Url,
+    pub status: StatusCode,
+    pub headers: HashMap<String, String>,
+    pub body: String
 }
 
 impl SecResponse {
-    #[must_use]
-    /// Creates a new [`SecResponse`] which wraps a [`Response`].
-    pub const fn new(inner: Response) -> Self {
-        Self { inner }
+    /// Creates a new [`SecResponse`] from a [`Response`] by consuming its body.
+    /// 
+    /// # Errors
+    /// 
+    /// Returns an error if reading the response body fails.
+    pub async fn from_response(response: Response) -> Result<Self, reqwest::Error> {
+        let url = response.url().clone();
+        let status = response.status();
+
+        let headers = response
+            .headers()
+            .iter()
+            .map(|(name, value)| {
+                (
+                    name.to_string(),
+                    value.to_str().unwrap_or_default().to_string(),
+                )
+            })
+            .collect();
+
+        let body = response.text().await?;
+        
+        Ok(Self {
+            url,
+            status,
+            headers,
+            body,
+        })
     }
 
-    #[must_use] pub const fn response(&self) -> &Response {
-        &self.inner
+    /// Returns the URL of the response.
+    #[must_use]
+    pub const fn url(&self) -> &Url {
+        &self.url
+    }
+
+    /// Returns the status code of the response.
+    #[must_use]
+    pub const fn status(&self) -> StatusCode {
+        self.status
+    }
+
+    /// Returns the headers of the response as a map.
+    #[must_use]
+    pub fn headers(&self) -> &HashMap<String, String> {
+        &self.headers
+    }
+
+    /// Returns the response body as a string.
+    #[must_use]
+    pub fn body(&self) -> &str {
+        &self.body
+    }
+
+    /// Returns the content type of the response, if available.
+    #[must_use]
+    pub fn content_type(&self) -> Option<&str> {
+        self.headers.get("content-type").map(|s| s.as_str())
     }
 }
 
 impl PartialEq for SecResponse {
     fn eq(&self, other: &Self) -> bool {
-        self.inner.url() == other.inner.url()
+        self.url == other.url
     }
 }
 
@@ -31,7 +86,7 @@ impl PartialOrd for SecResponse {
 
 impl Ord for SecResponse {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.inner.url().cmp(other.inner.url())
+        self.url.cmp(&other.url)
     }
 }
 
@@ -39,6 +94,6 @@ impl Eq for SecResponse {}
 
 impl std::hash::Hash for SecResponse {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.inner.url().hash(state);
+        self.url.hash(state);
     }
 }

@@ -137,7 +137,7 @@ impl SecClient {
     /// Future method to execute SEC requests using the internal client.
     pub async fn execute_request(&self, request: SecRequest) -> SecResponse {
         let resp = self.inner.execute(request.inner).await.unwrap();
-        SecResponse::new(resp)
+        SecResponse::from_response(resp).await.unwrap()
     }
 
     /// Returns the unique identifier for this client instance.
