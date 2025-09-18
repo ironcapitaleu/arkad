@@ -134,8 +134,18 @@ impl SecClient {
         })
     }
 
-    /// Future method to execute SEC requests using the internal client.
+    /// Executes the given `SecRequest` using the underlying HTTP client and returns a `SecResponse`.
+    /// 
+    /// # Arguments
+    /// * `request` - The `SecRequest` to be executed.
+    ///
+    /// # Panics
+    /// This method will panic if the request execution fails or if the response body cannot be read
+    /// 
+    /// # Returns
+    /// Returns a `SecResponse` containing the response data from the executed request.
     pub async fn execute_request(&self, request: SecRequest) -> SecResponse {
+        // TODO: Handle errors properly instead of unwrapping
         let resp = self.inner.execute(request.inner).await.unwrap();
         SecResponse::from_response(resp).await.unwrap()
     }

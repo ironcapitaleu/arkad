@@ -15,6 +15,9 @@ pub struct ExecuteSecRequestOutputData {
 
 impl ExecuteSecRequestOutputData {
     /// Creates a new instance of the output data for the execute SEC request.
+    /// 
+    /// # Errors
+    /// Returns `StateError` if the provided `SecResponse` is invalid.
     pub const fn new(response: SecResponse) -> Result<Self, StateError> {
         Ok(Self { response })
     }
