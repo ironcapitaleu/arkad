@@ -135,13 +135,13 @@ impl SecClient {
     }
 
     /// Executes the given `SecRequest` using the underlying HTTP client and returns a `SecResponse`.
-    /// 
+    ///
     /// # Arguments
     /// * `request` - The `SecRequest` to be executed.
     ///
     /// # Panics
     /// This method will panic if the request execution fails or if the response body cannot be read
-    /// 
+    ///
     /// # Returns
     /// Returns a `SecResponse` containing the response data from the executed request.
     pub async fn execute_request(&self, request: SecRequest) -> SecResponse {

@@ -15,7 +15,7 @@ pub struct ExecuteSecRequestOutputData {
 
 impl ExecuteSecRequestOutputData {
     /// Creates a new instance of the output data for the execute SEC request.
-    /// 
+    ///
     /// # Errors
     /// Returns `StateError` if the provided `SecResponse` is invalid.
     pub const fn new(response: SecResponse) -> Result<Self, StateError> {
@@ -44,7 +44,6 @@ impl SMStateData for ExecuteSecRequestOutputData {
     }
     fn update_state(&mut self, _updates: Self::UpdateType) {}
 }
-
 
 impl fmt::Display for ExecuteSecRequestOutputData {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
