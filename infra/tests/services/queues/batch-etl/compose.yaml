@@ -1,0 +1,11 @@
+services:
+  rabbitmq:
+    build:
+      context: ../../../../..
+      dockerfile: infra/services/queues/batch-etl/Dockerfile
+    container_name: arkad-rabbitmq-batch
+    restart: unless-stopped
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    # Removed healthcheck - using the one from Dockerfile instead
