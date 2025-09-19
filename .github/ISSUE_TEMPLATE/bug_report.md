@@ -12,6 +12,7 @@ A clear and concise description of what the bug is.
 
 **To Reproduce**
 Steps to reproduce the behavior:
+
 1. Go to '...'
 2. Click on '....'
 3. Scroll down to '....'
@@ -27,8 +28,9 @@ A clear and concise description of what actually happens.
 If applicable, add screenshots or logs to help explain your problem.
 
 **Desktop (please complete the following information):**
- - OS: [e.g. Windows, macOS, Linux]
- - arkad version[e.g. 0.1.0]
+
+- OS: [e.g. Windows, macOS, Linux]
+- arkad version: [e.g. 0.1.0]
 
 **Additional context**
 Add any other context about the problem here.
