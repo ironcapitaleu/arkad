@@ -155,7 +155,7 @@ impl PartialEq for SecClient {
 /// Provides partial ordering for `SecClient` instances based on their unique IDs.
 impl PartialOrd for SecClient {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.id.cmp(&other.id))
+        Some(self.cmp(other))
     }
 }
 
