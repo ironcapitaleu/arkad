@@ -2,7 +2,7 @@ FROM rabbitmq:4.1.2-management-alpine
 
 
 # Copy configuration files from the correct directory structure
-COPY infra/services/queues/batch-etl/config/ /etc/rabbitmq/
+COPY tmp/config/ /etc/rabbitmq/
 
 # Expose ports
 EXPOSE 5672 15672
