@@ -45,12 +45,12 @@ jobs:
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and Push Docker Image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: ./infra/services/queues/batch-etl/Dockerfile
-          push: true
-          tags: |
-            ghcr.io/${{ env.repository_name }}/queues/batch-etl:latest
-            ghcr.io/${{ env.repository_name }}/queues/batch-etl:${{ github.sha }}
+#      - name: Build and Push Docker Image
+#        uses: docker/build-push-action@v6
+#        with:
+#          context: .
+#          file: ./infra/services/queues/batch-etl/Dockerfile
+#          push: true
+#          tags: |
+#            ghcr.io/${{ env.repository_name }}/queues/batch-etl:latest
+#            ghcr.io/${{ env.repository_name }}/queues/batch-etl:${{ github.sha }}
