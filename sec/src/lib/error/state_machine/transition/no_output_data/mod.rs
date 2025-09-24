@@ -52,13 +52,10 @@ impl MissingOutputData {
     /// # Returns
     /// A new [`MissingOutputData`] error instance.
     #[must_use]
-    pub fn new(
-        state_name: &(impl ToString + ?Sized),
-        source_state_name: &(impl ToString + ?Sized),
-    ) -> Self {
+    pub fn new(state_name: impl Into<String>, source_state_name: impl Into<String>) -> Self {
         Self {
-            state_name: state_name.to_string(),
-            source_state_name: source_state_name.to_string(),
+            state_name: state_name.into(),
+            source_state_name: source_state_name.into(),
         }
     }
 }

@@ -192,8 +192,8 @@ impl TryFrom<ValidateCikFormat> for PrepareSecRequest {
             Some(data) => data.clone(),
             None => {
                 return Err(transition::MissingOutputData::new(
-                    &"Extract SuperState",
-                    &state.get_state_name(),
+                    "Extract SuperState",
+                    state.get_state_name().to_string(),
                 )
                 .into());
             }
