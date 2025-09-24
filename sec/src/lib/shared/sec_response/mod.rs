@@ -8,7 +8,58 @@ pub struct SecResponse {
     pub url: Url,
     pub status: StatusCode,
     pub headers: HashMap<String, String>,
+    pub content_type: ContentType,
     pub body: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum ContentType {
+    Json,
+    Xml,
+    Html,
+    Text,
+    Other(String),
+}
+
+impl ContentType {
+    /// Determines the content type from response headers.
+    #[must_use]
+    pub fn from_headers(headers: &HashMap<String, String>) -> Self {
+        if let Some(content_type) = headers.get("content-type") {
+            Self::from_str(content_type)
+        } else {
+            Self::Other("unknown".to_string())
+        }
+    }
+    /// Determines the content type from a string.
+    #[must_use]
+    pub fn from_str(content_type_str: &str) -> Self {
+        let content_type_lower = content_type_str.to_lowercase();
+        
+        if content_type_lower.contains("application/json") || content_type_lower.contains("json") {
+            Self::Json
+        } else if content_type_lower.contains("application/xml") || content_type_lower.contains("text/xml") || content_type_lower.contains("xml") {
+            Self::Xml
+        } else if content_type_lower.contains("text/html") || content_type_lower.contains("html") {
+            Self::Html
+        } else if content_type_lower.contains("text/plain") || content_type_lower.contains("text/") {
+            Self::Text
+        } else {
+            Self::Other(content_type_str.to_string())
+        }
+    }
+}
+
+impl fmt::Display for ContentType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Self::Json => write!(f, "application/json"),
+            Self::Xml => write!(f, "application/xml"),
+            Self::Html => write!(f, "text/html"),
+            Self::Text => write!(f, "text/plain"),
+            Self::Other(content_type) => write!(f, "{content_type}"),
+        }
+    }
 }
 
 impl SecResponse {
@@ -20,7 +71,6 @@ impl SecResponse {
     pub async fn from_response(response: Response) -> Result<Self, reqwest::Error> {
         let url = response.url().clone();
         let status = response.status();
-
         let headers = response
             .headers()
             .iter()
@@ -32,12 +82,15 @@ impl SecResponse {
             })
             .collect();
 
+
+        let content_type = ContentType::from_headers(&headers);
         let body = response.text().await?;
 
         Ok(Self {
             url,
             status,
             headers,
+            content_type,
             body,
         })
     }
@@ -66,10 +119,10 @@ impl SecResponse {
         &self.body
     }
 
-    /// Returns the content type of the response, if available.
+    /// Returns the content type of the response as a `ContentType` enum.
     #[must_use]
-    pub fn content_type(&self) -> Option<&str> {
-        self.headers.get("content-type").map(String::as_str)
+    pub const fn content_type(&self) -> &ContentType {
+        &self.content_type
     }
 }
 
@@ -106,6 +159,7 @@ impl Default for SecResponse {
                 .unwrap(),
             status: StatusCode::OK,
             headers: HashMap::new(),
+            content_type: ContentType::Json,
             body: String::from("Default response body"),
         }
     }
@@ -122,7 +176,7 @@ impl fmt::Display for SecResponse {
              \t\tBody Length: {} bytes",
             self.status,
             self.url,
-            self.content_type().unwrap_or("unknown"),
+            self.content_type,
             self.body.len()
         )
     }
