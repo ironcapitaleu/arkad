@@ -35,14 +35,18 @@ impl ContentType {
     #[must_use]
     pub fn from_str(content_type_str: &str) -> Self {
         let content_type_lower = content_type_str.to_lowercase();
-        
+
         if content_type_lower.contains("application/json") || content_type_lower.contains("json") {
             Self::Json
-        } else if content_type_lower.contains("application/xml") || content_type_lower.contains("text/xml") || content_type_lower.contains("xml") {
+        } else if content_type_lower.contains("application/xml")
+            || content_type_lower.contains("text/xml")
+            || content_type_lower.contains("xml")
+        {
             Self::Xml
         } else if content_type_lower.contains("text/html") || content_type_lower.contains("html") {
             Self::Html
-        } else if content_type_lower.contains("text/plain") || content_type_lower.contains("text/") {
+        } else if content_type_lower.contains("text/plain") || content_type_lower.contains("text/")
+        {
             Self::Text
         } else {
             Self::Other(content_type_str.to_string())
@@ -81,7 +85,6 @@ impl SecResponse {
                 )
             })
             .collect();
-
 
         let content_type = ContentType::from_headers(&headers);
         let body = response.text().await?;
