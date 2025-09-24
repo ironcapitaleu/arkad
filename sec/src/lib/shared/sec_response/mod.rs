@@ -25,15 +25,14 @@ impl ContentType {
     /// Determines the content type from response headers.
     #[must_use]
     pub fn from_headers(headers: &HashMap<String, String>) -> Self {
-        if let Some(content_type) = headers.get("content-type") {
-            Self::from_str(content_type)
-        } else {
-            Self::Other("unknown".to_string())
-        }
+        headers.get("content-type").map_or_else(
+            || Self::Other("unknown".to_string()),
+            |content_type| Self::from_content_type_str(content_type),
+        )
     }
     /// Determines the content type from a string.
     #[must_use]
-    pub fn from_str(content_type_str: &str) -> Self {
+    pub fn from_content_type_str(content_type_str: &str) -> Self {
         let content_type_lower = content_type_str.to_lowercase();
 
         if content_type_lower.contains("application/json") || content_type_lower.contains("json") {
