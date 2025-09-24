@@ -65,12 +65,12 @@ impl From<MissingOutputData> for TransitionError {
     /// Converts a [`MissingOutputData`] into a [`TransitionError::NoOutputData`] variant.
     ///
     /// # Arguments
-    /// * `domain_error` - The [`MissingOutputData`] error to convert.
+    /// * `error` - The [`MissingOutputData`] error to convert.
     ///
     /// # Returns
     /// A [`TransitionError`] containing the provided [`MissingOutputData`] error.
-    fn from(domain_error: MissingOutputData) -> Self {
-        Self::NoOutputData(domain_error)
+    fn from(error: MissingOutputData) -> Self {
+        Self::NoOutputData(error)
     }
 }
 
