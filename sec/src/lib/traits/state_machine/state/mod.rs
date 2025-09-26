@@ -15,6 +15,8 @@
 //!
 //! See the documentation for each submodule for details on trait requirements and usage patterns.
 
+use std::fmt::Display;
+
 use async_trait::async_trait;
 
 use state_maschine::prelude::State as SMState;
@@ -35,7 +37,7 @@ pub use state_data::StateData;
 ///
 /// Returns an error convertible into a [`StateError`] if output data computation fails.
 #[async_trait]
-pub trait State: SMState {
+pub trait State: SMState + Display {
     /// Computes the output data for the SEC state.
     ///
     /// # Errors

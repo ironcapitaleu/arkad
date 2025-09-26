@@ -30,7 +30,7 @@ use std::fmt;
 use state_maschine::prelude::StateData as SMStateData;
 
 use crate::error::State as StateError;
-use crate::shared::cik::constants::BERKSHIRE_HATHAWAY_CIK;
+use crate::shared::cik::constants::BERKSHIRE_HATHAWAY_CIK_RAW;
 use crate::traits::state_machine::state::StateData;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
@@ -98,7 +98,7 @@ impl Default for ValidateCikFormatInputData {
     /// Returns a default input using the CIK for Berkshire Hathaway (CIK: 1067983).
     fn default() -> Self {
         Self {
-            raw_cik: BERKSHIRE_HATHAWAY_CIK.to_string(),
+            raw_cik: BERKSHIRE_HATHAWAY_CIK_RAW.to_string(),
         }
     }
 }
@@ -169,7 +169,7 @@ mod tests {
     use pretty_assertions::{assert_eq, assert_ne};
 
     use super::{
-        BERKSHIRE_HATHAWAY_CIK, ValidateCikFormatInputData,
+        BERKSHIRE_HATHAWAY_CIK_RAW, ValidateCikFormatInputData,
         ValidateCikFormatInputDataUpdaterBuilder,
     };
     use crate::traits::state_machine::state::StateData;
@@ -249,7 +249,7 @@ mod tests {
     fn should_return_default_cik_when_validation_input_data_initialized_with_default() {
         let validation_state_data = &ValidateCikFormatInputData::default();
 
-        let expected_result = &BERKSHIRE_HATHAWAY_CIK.to_string();
+        let expected_result = &BERKSHIRE_HATHAWAY_CIK_RAW.to_string();
 
         let result = validation_state_data.get_state().cik();
 
