@@ -34,8 +34,8 @@
 //! }
 //! ```
 
-pub mod no_output_data;
-pub use no_output_data::MissingOutputData;
+pub mod missing_output_data;
+pub use missing_output_data::MissingOutputData;
 
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
@@ -51,7 +51,7 @@ pub enum Transition {
     ///
     /// This error variant indicates that the output data produced by the source state is missing
     /// or could not be accessed during the transition.
-    NoOutputData(MissingOutputData),
+    MissingOutputData(MissingOutputData),
     /// Failed to convert output of the source state into the input of the destination state.
     ///
     /// This error variant indicates that the output data produced by the source state could not

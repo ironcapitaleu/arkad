@@ -18,7 +18,7 @@
 //!
 //! ## Example
 //! ```rust
-//! use sec::error::state_machine::transition::no_output_data::MissingOutputData;
+//! use sec::error::state_machine::transition::missing_output_data::MissingOutputData;
 //!
 //! let error = MissingOutputData::new("MainState", "SourceState");
 //! ```
@@ -70,7 +70,7 @@ impl From<MissingOutputData> for TransitionError {
     /// # Returns
     /// A [`TransitionError`] containing the provided [`MissingOutputData`] error.
     fn from(error: MissingOutputData) -> Self {
-        Self::NoOutputData(error)
+        Self::MissingOutputData(error)
     }
 }
 
@@ -116,7 +116,7 @@ mod tests {
             source_state_name: "MissingDataState".to_string(),
         };
 
-        let expected_result = TransitionError::NoOutputData(missing_output_data.clone());
+        let expected_result = TransitionError::MissingOutputData(missing_output_data.clone());
 
         let result: TransitionError = missing_output_data.into();
 
