@@ -62,7 +62,7 @@ impl MissingOutputData {
 
 /// Converts a transition-level [`MissingOutputData`] error into the [`TransitionError`] enum variant.
 impl From<MissingOutputData> for TransitionError {
-    /// Converts a [`MissingOutputData`] into a [`TransitionError::NoOutputData`] variant.
+    /// Converts a [`MissingOutputData`] into a [`TransitionError::MissingOutputData`] variant.
     ///
     /// # Arguments
     /// * `error` - The [`MissingOutputData`] error to convert.

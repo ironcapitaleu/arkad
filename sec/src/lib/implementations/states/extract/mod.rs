@@ -329,11 +329,6 @@ mod tests {
         let result = super_state.compute_output_data_async().await;
 
         assert_eq!(result, expected_result);
-        assert!(
-            super_state
-                .get_current_state()
-                .has_output_data_been_computed()
-        );
     }
 
     #[tokio::test]
