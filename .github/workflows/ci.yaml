@@ -30,10 +30,10 @@ jobs:
       run: cargo fmt --check
     - name: Security Check
       run: cargo audit
-    - name: Documentation Check
-      run: cargo doc --no-deps --document-private-items --workspace
     - name: Code Compilation Check
       run: cargo check
+    - name: Documentation Check
+      run: cargo doc --no-deps --document-private-items --workspace
     - name: Linting
       run: cargo clippy
     - name: Unit Tests
