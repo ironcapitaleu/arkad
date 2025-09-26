@@ -1,2 +1,2 @@
-#[build]
-#rustdocflags = ["-D", "warnings"]
+[build]
+rustdocflags = ["-D", "warnings"]
