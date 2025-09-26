@@ -6,6 +6,8 @@ on:
       - main
       - master
 
+permissions:
+  contents: read
 
 env:
   CARGO_TERM_COLOR: 'always'
@@ -16,17 +18,22 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-22.04]
-        rust: [stable]
+        rust: [1.90.0]
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - uses: dtolnay/rust-toolchain@master
       with:
         toolchain: ${{ matrix.rust }}
+        components: rustfmt, clippy
     - name: Code Formatting Check
       run: cargo fmt --check
     - name: Security Check
       run: cargo audit
+    - name: Documentation Check
+      env:
+        RUSTDOCFLAGS: -D warnings # Makes warnings in creation of docs act as errors (fails CI if there are any)
+      run: cargo doc --no-deps --document-private-items
     - name: Code Compilation Check
       run: cargo check
     - name: Linting

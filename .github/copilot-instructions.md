@@ -98,8 +98,6 @@ use super::context_data::ContextData;
 
 ---
 
-
-
 ## 💡 Copilot Guidance
 
 When Copilot generates code, it should:
@@ -109,6 +107,52 @@ When Copilot generates code, it should:
 - Add structured logging in application code
 - Avoid logging or exposing sensitive data
 - Prefer `Result<T, E>` for error handling with meaningful error types
+
+---
+
+## PR Review Guidelines
+
+### ✅ Code Quality
+- Readability and maintainability  
+- Flag duplicated code  
+- Ensure functions are focused and not overly long
+- Make sure structs and functions follow the single responsibility principle
+- Avoid side effects in functions
+- Naming of variables, structs, and functions must follow **Ottinger’s Naming Rules** ([what they are](https://objectmentor.com/resources/articles/naming.htm)) (names should reveal intent, be pronounceable, avoid encodings, not be too cute, etc.)  
+- Code within files and modules must follow the **Step-Down Rule** ([see explanation](https://dzone.com/articles/the-stepdown-rule)) (functions stay on one layer of abstraction, inside a module order functions by higher-level concepts first, details later)
+
+
+### ⚡ Performance
+- Flag inefficiencies  
+- Avoid premature optimization  
+
+### 🛡️ Correctness & Safety
+- Spot potential bugs and edge cases  
+- Verify sufficient error handling  
+
+### 🔒 Security
+- Identify insecure practices (e.g., hardcoded secrets)  
+- Flag outdated or vulnerable libraries  
+
+### 📘 Style & Documentation
+- Ensure style conventions are followed  
+- Check for meaningful comments and docstrings  
+- Suggest clearer names and documentation where needed  
+
+### 🧾 Documentation Consistency
+- Cross-check code changes against `README.md`, API docs, usage guides, and inline examples  
+- Flag when function names, parameters, or behaviors change but docs are not updated  
+- Highlight outdated instructions or examples caused by code changes  
+- Ensure new features or breaking changes are properly documented  
+
+### 🧪 Testing
+- Confirm sufficient test coverage  
+- Suggest missing edge cases or error condition tests  
+
+### 🛑 What NOT to Do
+- Avoid nitpicks on trivial formatting  
+- Do not suggest unnecessary rewrites if code is clear and correct  
+- Do not enforce rules not listed in these guidelines  
 
 ---
 

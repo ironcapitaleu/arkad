@@ -9,8 +9,7 @@ Please include a summary of the changes you made.
 - [ ] Breaking change (fix or feature that would cause existing functionality to not work as expected)
 - [ ] This change requires a documentation update
 
-# Checklist:
+## Checklist
 
-- [ ] The Software Development Guidelines outlined [here](
+- [ ] The [Software Development Guidelines](
 https://www.notion.so/Arkad-Software-Development-Guidelines-214cfe3cc9fb809082a0d15d3e6036cc) are followed
-
