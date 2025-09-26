@@ -32,7 +32,7 @@ jobs:
       run: cargo audit
     - name: Documentation Check
       env:
-        RUSTDOCFLAGS: -D warnings # # Makes warnings in creation of docs act as errors (fails CI if there are any)
+        RUSTDOCFLAGS: -D warnings # Makes warnings in creation of docs act as errors (fails CI if there are any)
       run: cargo doc --no-deps --document-private-items
     - name: Code Compilation Check
       run: cargo check
