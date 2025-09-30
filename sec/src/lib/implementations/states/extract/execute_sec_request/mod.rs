@@ -5,6 +5,7 @@ use state_maschine::prelude::State as SMState;
 
 use crate::error::State as StateError;
 use crate::traits::state_machine::state::State;
+use crate::error::state_machine::state::request_execution_failed::RequestExecutionFailed;
 
 pub mod context;
 pub mod data;
@@ -37,10 +38,19 @@ impl State for ExecuteSecRequest {
         let client = &self.input.sec_client;
         let request = &self.input.sec_request;
 
-        let response = client.execute_request(request.clone()).await;
+        let result = client.execute_request(request.clone()).await;
 
-        self.output = Some(ExecuteSecRequestOutputData { response });
-        Ok(())
+        match result {
+            Ok(response) => {
+                self.output = Some(ExecuteSecRequestOutputData::new(response)?);
+                Ok(())
+            }
+            Err(e) => {
+
+                let e: StateError = RequestExecutionFailed::new(self.get_state_name().to_string(), e).into();
+                return Err(e);
+            }
+        }
     }
 }
 
