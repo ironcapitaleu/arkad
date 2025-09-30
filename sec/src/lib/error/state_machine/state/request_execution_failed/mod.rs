@@ -52,10 +52,7 @@ impl RequestExecutionFailed {
     /// # Returns
     /// A new [`RequestExecutionFailed`] instance with the provided state and domain error context.
     #[must_use]
-    pub fn new(
-        state_name: impl Into<String>,
-        sec_request_error: SecRequestError,
-    ) -> Self {
+    pub fn new(state_name: impl Into<String>, sec_request_error: SecRequestError) -> Self {
         Self {
             state_name: state_name.into(),
             sec_request_error,
@@ -148,7 +145,8 @@ mod tests {
     fn should_return_sec_request_error_when_sec_request_error_method_is_called() {
         let state_name = "ExecuteSecRequest";
         let sec_request_error = SecRequestError::new(SecRequestErrorReason::NetworkError);
-        let request_execution_failed = RequestExecutionFailed::new(state_name, sec_request_error.clone());
+        let request_execution_failed =
+            RequestExecutionFailed::new(state_name, sec_request_error.clone());
 
         let expected_result = &sec_request_error;
 

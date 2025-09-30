@@ -4,8 +4,8 @@ use async_trait::async_trait;
 use state_maschine::prelude::State as SMState;
 
 use crate::error::State as StateError;
-use crate::traits::state_machine::state::State;
 use crate::error::state_machine::state::request_execution_failed::RequestExecutionFailed;
+use crate::traits::state_machine::state::State;
 
 pub mod context;
 pub mod data;
@@ -46,8 +46,8 @@ impl State for ExecuteSecRequest {
                 Ok(())
             }
             Err(e) => {
-
-                let e: StateError = RequestExecutionFailed::new(self.get_state_name().to_string(), e).into();
+                let e: StateError =
+                    RequestExecutionFailed::new(self.get_state_name().to_string(), e).into();
                 return Err(e);
             }
         }

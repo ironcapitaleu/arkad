@@ -148,7 +148,10 @@ impl SecClient {
     /// - The HTTP request fails (network issues, timeouts, etc.)
     /// - The response body cannot be read or parsed
     /// - Any other reqwest-related error occurs during execution
-    pub async fn execute_request(&self, request: SecRequest) -> Result<SecResponse, SecRequestError> {
+    pub async fn execute_request(
+        &self,
+        request: SecRequest,
+    ) -> Result<SecResponse, SecRequestError> {
         let resp = self.inner.execute(request.inner).await;
 
         match resp {
@@ -156,15 +159,13 @@ impl SecClient {
                 let sec_error: SecRequestError = e.into();
                 Err(sec_error)
             }
-            Ok(resp) => {
-                match SecResponse::from_response(resp).await {
-                    Ok(sec_response) => Ok(sec_response),
-                    Err(e) => {
-                        let sec_error: SecRequestError = e.into();
-                        Err(sec_error)
-                    }
+            Ok(resp) => match SecResponse::from_response(resp).await {
+                Ok(sec_response) => Ok(sec_response),
+                Err(e) => {
+                    let sec_error: SecRequestError = e.into();
+                    Err(sec_error)
                 }
-            }
+            },
         }
     }
 
