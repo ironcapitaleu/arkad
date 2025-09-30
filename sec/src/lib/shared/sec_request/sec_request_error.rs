@@ -32,18 +32,18 @@ pub enum SecRequestErrorReason {
 }
 
 impl From<ReqwestError> for SecRequestError {
-    fn from(val: ReqwestError) -> Self {
-        if val.is_timeout() {
+    fn from(e: ReqwestError) -> Self {
+        if e.is_timeout() {
             Self::new(SecRequestErrorReason::TimeoutError)
-        } else if val.is_connect() {
+        } else if e.is_connect() {
             Self::new(SecRequestErrorReason::NetworkError)
-        } else if val.is_status() {
-            val.status().map_or_else(
-                || Self::new(SecRequestErrorReason::Other(val.to_string())),
+        } else if e.is_status() {
+            e.status().map_or_else(
+                || Self::new(SecRequestErrorReason::Other(e.to_string())),
                 |status| Self::new(SecRequestErrorReason::HttpError(status.to_string())),
             )
         } else {
-            Self::new(SecRequestErrorReason::Other(val.to_string()))
+            Self::new(SecRequestErrorReason::Other(e.to_string()))
         }
     }
 }
