@@ -13,7 +13,8 @@ pub struct SecRequestError {
 
 impl SecRequestError {
     /// Creates a new `SecRequestError`.
-    pub fn new(reason: SecRequestErrorReason) -> Self {
+    #[must_use]
+    pub const fn new(reason: SecRequestErrorReason) -> Self {
         Self { reason }
     }
 }
@@ -30,20 +31,19 @@ pub enum SecRequestErrorReason {
     Other(String),
 }
 
-impl Into<SecRequestError> for ReqwestError {
-    fn into(self) -> SecRequestError {
-        if self.is_timeout() {
-            SecRequestError::new(SecRequestErrorReason::TimeoutError)
-        } else if self.is_connect() {
-            SecRequestError::new(SecRequestErrorReason::NetworkError)
-        } else if self.is_status() {
-            if let Some(status) = self.status() {
-                SecRequestError::new(SecRequestErrorReason::HttpError(status.to_string()))
-            } else {
-                SecRequestError::new(SecRequestErrorReason::Other(self.to_string()))
-            }
+impl From<ReqwestError> for SecRequestError {
+    fn from(val: ReqwestError) -> Self {
+        if val.is_timeout() {
+            Self::new(SecRequestErrorReason::TimeoutError)
+        } else if val.is_connect() {
+            Self::new(SecRequestErrorReason::NetworkError)
+        } else if val.is_status() {
+            val.status().map_or_else(
+                || Self::new(SecRequestErrorReason::Other(val.to_string())),
+                |status| Self::new(SecRequestErrorReason::HttpError(status.to_string())),
+            )
         } else {
-            SecRequestError::new(SecRequestErrorReason::Other(self.to_string()))
+            Self::new(SecRequestErrorReason::Other(val.to_string()))
         }
     }
 }
