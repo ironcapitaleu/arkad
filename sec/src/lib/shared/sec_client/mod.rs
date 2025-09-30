@@ -25,6 +25,7 @@ use reqwest::{Client, ClientBuilder};
 use uuid::Uuid;
 
 use super::sec_request::SecRequest;
+use super::sec_request::sec_request_error::SecRequestError;
 use super::sec_response::SecResponse;
 use super::user_agent::UserAgent;
 
@@ -139,15 +140,32 @@ impl SecClient {
     /// # Arguments
     /// * `request` - The `SecRequest` to be executed.
     ///
-    /// # Panics
-    /// This method will panic if the request execution fails or if the response body cannot be read
-    ///
     /// # Returns
     /// Returns a `SecResponse` containing the response data from the executed request.
-    pub async fn execute_request(&self, request: SecRequest) -> SecResponse {
-        // TODO: Handle errors properly instead of unwrapping
-        let resp = self.inner.execute(request.inner).await.unwrap();
-        SecResponse::from_response(resp).await.unwrap()
+    ///
+    /// # Errors
+    /// This method will return a `SecRequestError` if:
+    /// - The HTTP request fails (network issues, timeouts, etc.)
+    /// - The response body cannot be read or parsed
+    /// - Any other reqwest-related error occurs during execution
+    pub async fn execute_request(&self, request: SecRequest) -> Result<SecResponse, SecRequestError> {
+        let resp = self.inner.execute(request.inner).await;
+
+        match resp {
+            Err(e) => {
+                let sec_error: SecRequestError = e.into();
+                Err(sec_error)
+            }
+            Ok(resp) => {
+                match SecResponse::from_response(resp).await {
+                    Ok(sec_response) => Ok(sec_response),
+                    Err(e) => {
+                        let sec_error: SecRequestError = e.into();
+                        Err(sec_error)
+                    }
+                }
+            }
+        }
     }
 
     /// Returns the unique identifier for this client instance.
