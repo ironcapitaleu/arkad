@@ -52,9 +52,9 @@ impl InvalidCikFormat {
     /// # Returns
     /// A new [`InvalidCikFormat`] error instance.
     #[must_use]
-    pub fn new(state_name: &(impl ToString + ?Sized), cik_error: CikError) -> Self {
+    pub fn new(state_name: impl Into<String>, cik_error: CikError) -> Self {
         Self {
-            state_name: state_name.to_string(),
+            state_name: state_name.into(),
             cik_error,
         }
     }
@@ -89,7 +89,7 @@ impl FromDomainError<CikError> for InvalidCikFormat {
     /// # Returns
     /// An [`InvalidCikFormat`] error containing the provided context.
     fn from_domain_error(state_name: impl Into<String>, err: Self::DomainErr) -> Self {
-        Self::new(&state_name.into(), err)
+        Self::new(state_name.into(), err)
     }
 }
 

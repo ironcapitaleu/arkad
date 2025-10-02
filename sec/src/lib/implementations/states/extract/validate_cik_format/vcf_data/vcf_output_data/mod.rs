@@ -31,7 +31,7 @@ use state_maschine::prelude::StateData as SMStateData;
 
 use crate::error::State as StateError;
 use crate::error::state_machine::state::InvalidCikFormat;
-use crate::shared::cik::{Cik, constants::BERKSHIRE_HATHAWAY_CIK};
+use crate::shared::cik::{Cik, constants::BERKSHIRE_HATHAWAY_CIK_RAW};
 use crate::traits::error::FromDomainError;
 use crate::traits::state_machine::state::StateData;
 
@@ -113,7 +113,7 @@ impl Default for ValidateCikFormatOutputData {
     /// Returns a default output using the CIK for Berkshire Hathaway (CIK: 1067983).
     fn default() -> Self {
         Self {
-            validated_cik: Cik::new(BERKSHIRE_HATHAWAY_CIK)
+            validated_cik: Cik::new(BERKSHIRE_HATHAWAY_CIK_RAW)
                 .expect("Hardcoded CIK should always be valid."),
         }
     }
@@ -185,7 +185,7 @@ mod tests {
     use pretty_assertions::{assert_eq, assert_ne};
 
     use super::{
-        BERKSHIRE_HATHAWAY_CIK, Cik, ValidateCikFormatOutputData,
+        BERKSHIRE_HATHAWAY_CIK_RAW, Cik, ValidateCikFormatOutputData,
         ValidateCikFormatOutputDataUpdaterBuilder,
     };
     use crate::traits::state_machine::state::StateData;
@@ -267,7 +267,7 @@ mod tests {
     fn should_return_formatted_and_validated_default_cik_string_when_validation_output_data_initialized_with_default()
      {
         let validation_state_data = &ValidateCikFormatOutputData::default();
-        let formatted_and_validated_berkshire_cik = Cik::new(BERKSHIRE_HATHAWAY_CIK)
+        let formatted_and_validated_berkshire_cik = Cik::new(BERKSHIRE_HATHAWAY_CIK_RAW)
             .expect("Provided hardcoded CIK should always be valid.");
 
         let expected_result = formatted_and_validated_berkshire_cik.value();
@@ -282,7 +282,7 @@ mod tests {
     fn should_panic_when_comparing_valid_but_unformatted_default_cik_with_formatted_and_validated_default_output()
      {
         let validation_state_data = &ValidateCikFormatOutputData::default();
-        let expected_result = BERKSHIRE_HATHAWAY_CIK;
+        let expected_result = BERKSHIRE_HATHAWAY_CIK_RAW;
 
         let result = validation_state_data.get_state().cik();
 

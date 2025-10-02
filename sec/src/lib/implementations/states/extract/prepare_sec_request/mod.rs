@@ -105,7 +105,7 @@ impl PrepareSecRequest {
     ///
     /// # Arguments
     ///
-    /// * `input` - The [`PrepareSecRequestInputData`] containing the validated [`Cik`] and user agent string.
+    /// * `input` - The [`PrepareSecRequestInputData`] containing the validated [`Cik`](crate::shared::cik::Cik) and user agent string.
     /// * `context` - The [`PrepareSecRequestContext`] for the preparation process.
     ///
     /// # Returns
