@@ -6,7 +6,7 @@ updates:
     schedule:
       interval: "daily"
     commit-message:
-      prefix: "build(deps)"
+      prefix: "cicd(deps)"
 
   # Rust (Cargo)
   - package-ecosystem: "cargo"
