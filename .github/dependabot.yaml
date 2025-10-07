@@ -6,7 +6,7 @@ updates:
     schedule:
       interval: "daily"
     commit-message:
-      prefix: "chore:"
+      prefix: "build(deps)"
 
   # Rust (Cargo)
   - package-ecosystem: "cargo"
@@ -14,4 +14,4 @@ updates:
     schedule:
       interval: "weekly"
     commit-message:
-      prefix: "chore"
+      prefix: "build(deps)"
