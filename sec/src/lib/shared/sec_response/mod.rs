@@ -1,8 +1,58 @@
+//! # SEC Response Module
+//!
+//! This module provides the [`SecResponse`] type and related utilities for handling
+//! HTTP responses from SEC (Securities and Exchange Commission) endpoints. It wraps
+//! response data with convenient accessors and content type detection to simplify
+//! working with SEC API responses.
+//!
+//! ## Overview
+//! The [`SecResponse`] is a wrapper around HTTP response data that preserves key
+//! response information including URL, status code, headers, and body content.
+//! It automatically detects and categorizes content types for easier response processing.
+//!
+//! ## Types
+//! - [`SecResponse`]: Main response wrapper containing URL, status, headers, and body.
+//! - [`ContentType`]: Enumeration of supported content types with automatic detection.
+//!
+//! ## See Also
+//! - [`reqwest::Response`]: Underlying HTTP response implementation.
+//! - [`super::sec_client`]: HTTP client for making SEC-compliant requests.
+
 use std::collections::HashMap;
 use std::fmt;
 
 use reqwest::{Response, StatusCode, Url};
 
+/// A wrapper around HTTP response data from SEC endpoints.
+///
+/// `SecResponse` preserves key information from HTTP responses including the request URL,
+/// status code, headers, and response body. It automatically detects content types and
+/// provides convenient accessor methods for working with SEC API responses.
+///
+/// # Examples
+///
+/// ```rust
+/// use reqwest::{Response, StatusCode};
+/// use sec::shared::sec_response::{SecResponse, ContentType};
+///
+/// // Create a SecResponse from a reqwest Response (async)
+/// // let response: Response = /* ... make HTTP request ... */;
+/// // let sec_response = SecResponse::from_response(response).await?;
+///
+/// // Access response data
+/// // println!("Status: {}", sec_response.status());
+/// // println!("URL: {}", sec_response.url());
+/// // println!("Body length: {}", sec_response.body().len());
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// ```
+///
+/// # Content Type Detection
+/// The response automatically detects content types from response headers:
+/// - JSON: `application/json` or any header containing "json"
+/// - XML: `application/xml`, `text/xml`, or any header containing "xml"
+/// - HTML: `text/html` or any header containing "html"
+/// - Text: `text/plain` or any header starting with "text/"
+/// - Other: Any unrecognized content type is preserved as-is
 #[derive(Debug, Clone)]
 pub struct SecResponse {
     pub url: Url,
@@ -12,6 +62,25 @@ pub struct SecResponse {
     pub body: String,
 }
 
+/// Content type enumeration with automatic detection from HTTP headers.
+///
+/// `ContentType` represents the main content types expected from SEC API responses.
+/// It provides methods to detect content type from response headers and format
+/// content type strings for use in HTTP headers.
+///
+/// # Examples
+///
+/// ```rust
+/// use std::collections::HashMap;
+/// use sec::shared::sec_response::ContentType;
+///
+/// let mut headers = HashMap::new();
+/// headers.insert("content-type".to_string(), "application/json".to_string());
+///
+/// let content_type = ContentType::from_headers(&headers);
+/// assert_eq!(content_type, ContentType::Json);
+/// assert_eq!(content_type.to_string(), "application/json");
+/// ```
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum ContentType {
     Json,
@@ -181,5 +250,50 @@ impl fmt::Display for SecResponse {
             self.content_type,
             self.body.len()
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use pretty_assertions::assert_eq;
+
+    #[test]
+    fn should_detect_json_content_type_when_application_json_header_is_present() {
+        let mut headers = HashMap::new();
+        headers.insert("content-type".to_string(), "application/json".to_string());
+
+        let result = ContentType::from_headers(&headers);
+
+        assert_eq!(result, ContentType::Json);
+    }
+
+    #[test]
+    fn should_return_unknown_content_type_when_no_content_type_header_is_present() {
+        let headers = HashMap::new();
+        let expected_result = ContentType::Other("unknown".to_string());
+
+        let result = ContentType::from_headers(&headers);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_detect_content_type_case_insensitively_when_header_has_mixed_case() {
+        let content_type_str = "APPLICATION/JSON; charset=UTF-8";
+
+        let result = ContentType::from_content_type_str(content_type_str);
+
+        assert_eq!(result, ContentType::Json);
+    }
+
+    #[test]
+    fn should_create_default_response_when_default_is_called() {
+        let response = SecResponse::default();
+
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(response.content_type(), &ContentType::Json);
+        assert_eq!(response.body(), "Default response body");
+        assert!(response.url().as_str().contains("sec.gov"));
     }
 }
