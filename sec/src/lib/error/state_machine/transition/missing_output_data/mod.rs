@@ -33,13 +33,13 @@ use super::Transition as TransitionError;
 /// and the specific source state that is missing output data.
 #[derive(Error, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[error(
-    "[MissingOutputData] Failure in State: `{state_name}` during transition. The output data for `{source_state_name}` is missing."
+    "[MissingOutputData] Failure in State: `{super_state_name}` during transition. The output data for `{target_state_name}` is missing."
 )]
 pub struct MissingOutputData {
-    /// The name of the state where the error occurred.
-    pub state_name: String,
-    /// The name of the source state that is missing output data.
-    pub source_state_name: String,
+    /// The name of the super state where the error occurred.
+    pub super_state_name: String,
+    /// The name of the target state that is missing output data.
+    pub target_state_name: String,
 }
 
 impl MissingOutputData {
@@ -52,10 +52,10 @@ impl MissingOutputData {
     /// # Returns
     /// A new [`MissingOutputData`] error instance.
     #[must_use]
-    pub fn new(state_name: impl Into<String>, source_state_name: impl Into<String>) -> Self {
+    pub fn new(super_state_name: impl Into<String>, target_state_name: impl Into<String>) -> Self {
         Self {
-            state_name: state_name.into(),
-            source_state_name: source_state_name.into(),
+            super_state_name: super_state_name.into(),
+            target_state_name: target_state_name.into(),
         }
     }
 }
@@ -81,30 +81,30 @@ mod tests {
 
     #[test]
     fn should_create_missing_output_data_when_new_is_called() {
-        let state_name = "TestState";
-        let source_state_name = "SourceState";
+        let super_state_name = "TestState";
+        let target_state_name = "TargetState";
 
         let expected_result = MissingOutputData {
-            state_name: state_name.to_string(),
-            source_state_name: source_state_name.to_string(),
+            super_state_name: super_state_name.to_string(),
+            target_state_name: target_state_name.to_string(),
         };
 
-        let result = MissingOutputData::new(state_name, source_state_name);
+        let result = MissingOutputData::new(super_state_name, target_state_name);
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_create_missing_output_data_with_string_refs_when_new_is_called() {
-        let state_name = &"MainState".to_string();
-        let source_state_name = &"SubState".to_string();
+        let super_state_name = &"MainState".to_string();
+        let target_state_name = &"SubState".to_string();
 
         let expected_result = MissingOutputData {
-            state_name: "MainState".to_string(),
-            source_state_name: "SubState".to_string(),
+            super_state_name: "MainState".to_string(),
+            target_state_name: "SubState".to_string(),
         };
 
-        let result = MissingOutputData::new(state_name, source_state_name);
+        let result = MissingOutputData::new(super_state_name, target_state_name);
 
         assert_eq!(result, expected_result);
     }
@@ -112,8 +112,8 @@ mod tests {
     #[test]
     fn should_convert_to_transition_error_when_into_is_called() {
         let missing_output_data = MissingOutputData {
-            state_name: "FailingState".to_string(),
-            source_state_name: "MissingDataState".to_string(),
+            super_state_name: "FailingState".to_string(),
+            target_state_name: "MissingDataState".to_string(),
         };
 
         let expected_result = TransitionError::MissingOutputData(missing_output_data.clone());
@@ -125,11 +125,11 @@ mod tests {
 
     #[test]
     fn should_display_proper_error_message_when_formatted() {
-        let state_name = "TestState";
-        let source_state_name = "SourceState";
-        let error = MissingOutputData::new(state_name, source_state_name);
+        let super_state_name = "TestState";
+        let target_state_name = "TargetState";
+        let error = MissingOutputData::new(super_state_name, target_state_name);
 
-        let expected_result = "[MissingOutputData] Failure in State: `TestState` during transition. The output data for `SourceState` is missing.";
+        let expected_result = "[MissingOutputData] Failure in State: `TestState` during transition. The output data for `TargetState` is missing.";
 
         let result = format!("{}", error);
 
