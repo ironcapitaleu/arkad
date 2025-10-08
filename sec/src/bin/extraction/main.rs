@@ -8,6 +8,7 @@ use sec::implementations::states::extract::prepare_sec_request::{
 use sec::implementations::states::extract::validate_cik_format::ValidateCikFormat;
 
 use sec::prelude::*;
+use sec::shared::cik::Cik;
 
 #[tokio::main]
 async fn main() {
@@ -60,7 +61,7 @@ async fn main() {
             prepare_output.client().clone(),
             prepare_output.request().clone(),
         ),
-        ExecuteSecRequestContext::new("Execute SEC request test context"),
+        ExecuteSecRequestContext::new(Cik::default()),
     );
     println!("{:.500}", execute_sec_request.to_string().as_str());
     execute_sec_request
