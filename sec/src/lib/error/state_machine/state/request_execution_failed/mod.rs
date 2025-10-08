@@ -19,7 +19,7 @@
 //! ```rust
 //! use sec::error::state_machine::state::request_execution_failed::RequestExecutionFailed;
 //! use sec::shared::sec_request::sec_request_error::{SecRequestError, SecRequestErrorReason};
-//! let sec_request_error = SecRequestError::new(SecRequestErrorReason::NetworkError);
+//! let sec_request_error = SecRequestError::new(SecRequestErrorReason::NetworkError(String::from("Network unreachable")));
 //! let state_error = RequestExecutionFailed::new("ExecuteSecRequest", sec_request_error);
 //! ```
 use thiserror::Error;
@@ -114,7 +114,9 @@ mod tests {
     #[test]
     fn should_create_request_execution_failed_when_new_is_called() {
         let state_name = "ExecuteSecRequest";
-        let sec_request_error = SecRequestError::new(SecRequestErrorReason::NetworkError);
+        let sec_request_error = SecRequestError::new(SecRequestErrorReason::NetworkError(
+            String::from("Network unreachable"),
+        ));
         let expected_state_name = state_name;
         let expected_sec_request_error = sec_request_error.clone();
 
@@ -131,7 +133,9 @@ mod tests {
     #[test]
     fn should_return_state_name_when_state_name_method_is_called() {
         let state_name = "ExecuteSecRequest";
-        let sec_request_error = SecRequestError::new(SecRequestErrorReason::NetworkError);
+        let sec_request_error = SecRequestError::new(SecRequestErrorReason::NetworkError(
+            String::from("Network unreachable"),
+        ));
         let request_execution_failed = RequestExecutionFailed::new(state_name, sec_request_error);
 
         let expected_result = state_name;
@@ -144,7 +148,9 @@ mod tests {
     #[test]
     fn should_return_sec_request_error_when_sec_request_error_method_is_called() {
         let state_name = "ExecuteSecRequest";
-        let sec_request_error = SecRequestError::new(SecRequestErrorReason::NetworkError);
+        let sec_request_error = SecRequestError::new(SecRequestErrorReason::NetworkError(
+            String::from("Network unreachable"),
+        ));
         let request_execution_failed =
             RequestExecutionFailed::new(state_name, sec_request_error.clone());
 
@@ -158,7 +164,9 @@ mod tests {
     #[test]
     fn should_convert_to_state_error_when_from_is_called() {
         let state_name = "ExecuteSecRequest";
-        let sec_request_error = SecRequestError::new(SecRequestErrorReason::NetworkError);
+        let sec_request_error = SecRequestError::new(SecRequestErrorReason::NetworkError(
+            String::from("Network unreachable"),
+        ));
         let request_execution_failed = RequestExecutionFailed::new(state_name, sec_request_error);
 
         let expected_result = StateError::RequestExecutionFailed(request_execution_failed.clone());
@@ -171,7 +179,9 @@ mod tests {
     #[test]
     fn should_create_from_domain_error_when_from_domain_error_is_called() {
         let state_name = "ExecuteSecRequest";
-        let sec_request_error = SecRequestError::new(SecRequestErrorReason::TimeoutError);
+        let sec_request_error = SecRequestError::new(SecRequestErrorReason::TimeoutError(
+            String::from("Request timed out"),
+        ));
 
         let expected_result = RequestExecutionFailed::new(state_name, sec_request_error.clone());
 
@@ -183,10 +193,12 @@ mod tests {
     #[test]
     fn should_display_error_message_when_display_is_called() {
         let state_name = "ExecuteSecRequest";
-        let sec_request_error = SecRequestError::new(SecRequestErrorReason::NetworkError);
+        let sec_request_error = SecRequestError::new(SecRequestErrorReason::NetworkError(
+            String::from("Network unreachable"),
+        ));
         let request_execution_failed = RequestExecutionFailed::new(state_name, sec_request_error);
 
-        let expected_result = "[RequestExecutionFailed] Failure in State: 'ExecuteSecRequest'. Error: '[SecRequestError] Request failed: Reason: 'The HTTP request failed due to a network error.'.'";
+        let expected_result = "[RequestExecutionFailed] Failure in State: 'ExecuteSecRequest'. Error: '[SecRequestError] Request failed: Reason: 'The HTTP request failed due to a network error: Network unreachable.'.'";
 
         let result = request_execution_failed.to_string();
 

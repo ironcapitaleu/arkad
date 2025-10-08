@@ -5,7 +5,7 @@ use thiserror::Error;
 ///
 /// This struct provides both the reason for the failure and the user agent string that was provided.
 #[derive(Debug, Error, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[error("[SecRequestError] Request failed: Reason: `{reason}`.")]
+#[error("[SecRequestError] Request failed: Reason: '{reason}'.")]
 pub struct SecRequestError {
     /// The reason why the request couldn't be processed.
     pub reason: SecRequestErrorReason,
@@ -49,7 +49,10 @@ impl std::fmt::Display for SecRequestErrorReason {
     /// Formats the reason for display.
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::NetworkError(message) => write!(f, "The HTTP request failed due to a network error: {message}."),
+            Self::NetworkError(message) => write!(
+                f,
+                "The HTTP request failed due to a network error: {message}."
+            ),
             Self::HttpError(status_code) => write!(
                 f,
                 "The HTTP request failed due to an HTTP error: {status_code}."
