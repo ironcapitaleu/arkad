@@ -17,6 +17,7 @@
 
 use state_maschine::prelude::Transition as SMTransition;
 
+use crate::error::state_machine::transition::Transition as TransitionError;
 use crate::traits::state_machine::state::State;
 
 /// The `Transition` trait defines a transition between two SEC state types within a state machine.
@@ -33,4 +34,21 @@ where
     T: State,
     U: State,
 {
+    /// Transitions the state machine to the next state using SEC-specific error handling.
+    ///
+    /// This method provides the same functionality as the generic `transition_to_next_state` method,
+    /// but returns SEC-specific [`TransitionError`] types instead of static strings, enabling
+    /// richer error handling and diagnostics.
+    ///
+    /// # Returns
+    ///
+    /// - `Ok(NewStateMachine)`: The updated state machine in the new state.
+    /// - `Err(TransitionError)`: A SEC-specific error describing the failure reason.
+    ///
+    /// # Errors
+    ///
+    /// Returns a [`TransitionError`] if the transition fails, such as:
+    /// - [`TransitionError::FailedOutputConversion`]: When the source state's output cannot be converted to the target state's input.
+    /// - [`TransitionError::FailedContextConversion`]: When the source state's context cannot be converted to the target state's context.
+    fn transition_to_next_state_sec(self) -> Result<Self::NewStateMachine, TransitionError>;
 }

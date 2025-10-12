@@ -33,7 +33,7 @@ async fn main() {
                 .clone(),
             "Test User Agent test@example.com".to_string(),
         ),
-        PrepareSecRequestContext::new(),
+        PrepareSecRequestContext::default(),
     );
     println!("{:.500}", prepare_sec_request.to_string().as_str());
     prepare_sec_request
@@ -47,7 +47,7 @@ async fn main() {
     println!("\n=======================================================");
     println!("Initial Extract SuperState:");
 
-    let mut super_state = ExtractSuperState::new("1067983");
+    let mut super_state = ExtractSuperState::<ValidateCikFormat>::new("1067983");
 
     super_state
         .compute_output_data_async()
@@ -61,4 +61,13 @@ async fn main() {
         .validated_cik
         .value();
     println!("State 1 Output: Validated CIK is {validated_cik}");
+
+    println!("\n=======================================================");
+    println!("Transition Extract from ValidateCikFormat to PrepareSecRequest:");
+
+    let super_state = super_state
+        .transition_to_next_state_sec()
+        .expect("Transition should succeed");
+
+    println!("{super_state}");
 }

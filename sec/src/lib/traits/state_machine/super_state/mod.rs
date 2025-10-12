@@ -19,9 +19,7 @@
 //! - [`state_maschine::state_machine::super_state::SuperState`]: Underlying framework trait for super states.
 //!
 
-use state_maschine::prelude::SuperState as SMSuperState;
-
-use crate::traits::state_machine::state::State;
+use crate::prelude::{State, StateMachine};
 
 /// The `SuperState` trait is used for hierarchical (composite) states in the SEC state machine framework.
 ///
@@ -31,7 +29,7 @@ use crate::traits::state_machine::state::State;
 ///
 /// # Type Parameters
 /// - `S`: The state type, which must implement [`State`].
-pub trait SuperState<S>: SMSuperState<S>
+pub trait SuperState<S>: State + StateMachine<S>
 where
     S: State,
 {
