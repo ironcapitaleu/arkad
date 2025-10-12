@@ -10,13 +10,15 @@
 ## Reporting a Vulnerability
 
 If you have found any kind of security vulnerability, do **NOT**:
+
 - Open an issue
 - Open a pull request
 - Disclose it publicly
 
-Instead, please send an email to d.catovic9@gmail.com to report this issue privately.
+Instead, please send an email to <d.catovic9@gmail.com> to report this issue privately.
 
 We will acknowledge your report as soon as possible and keep you informed of our progress. If needed, we may ask for:
+
 - Steps to reproduce the vulnerability
 - Additional technical details
 

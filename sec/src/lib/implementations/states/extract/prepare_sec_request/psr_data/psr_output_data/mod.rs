@@ -37,7 +37,7 @@ use crate::traits::state_machine::state::StateData;
 
 /// Output data containing a prepared SEC client and request.
 ///
-/// This struct holds a prepared [`SecClient`] and [`SecRequest`] value, produced by the [`PrepareSecRequest`] state
+/// This struct holds a prepared [`SecClient`] and [`SecRequest`] value, produced by the [`PrepareSecRequest`](crate::implementations::states::extract::prepare_sec_request) state
 /// after successful preparation. It is used as output in the SEC extraction state machine,
 /// and supports builder-based updates and integration with the state machine framework.
 #[derive(Debug, Clone, Default, PartialEq, PartialOrd, Hash, Eq, Ord)]

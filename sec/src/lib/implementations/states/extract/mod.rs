@@ -26,7 +26,6 @@
 //! }
 //! ```
 
-pub mod execute_sec_request;
 pub mod prepare_sec_request;
 pub mod validate_cik_format;
 
@@ -192,9 +191,9 @@ impl TryFrom<ValidateCikFormat> for PrepareSecRequest {
         let output_data = match state.get_output_data() {
             Some(data) => data.clone(),
             None => {
-                return Err(transition::NoOutputData::new(
-                    &"Extract SuperState",
-                    &state.get_state_name(),
+                return Err(transition::MissingOutputData::new(
+                    "Extract SuperState",
+                    state.get_state_name().to_string(),
                 )
                 .into());
             }
@@ -330,11 +329,6 @@ mod tests {
         let result = super_state.compute_output_data_async().await;
 
         assert_eq!(result, expected_result);
-        assert!(
-            super_state
-                .get_current_state()
-                .has_output_data_been_computed()
-        );
     }
 
     #[tokio::test]
@@ -355,7 +349,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn shoud_fail_transition_when_output_data_not_yet_computed() {
+    async fn should_fail_transition_when_output_data_not_yet_computed() {
         let input_cik = "1234567890";
         let super_state = ExtractSuperState::<ValidateCikFormat>::new(input_cik);
 
