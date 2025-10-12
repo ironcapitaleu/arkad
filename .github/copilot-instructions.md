@@ -186,6 +186,80 @@ When Copilot generates code, it should:
 
 ---
 
+## 📝 Commit Guidelines
+
+All commits must follow the following format:
+
+```
+<type>[<scope>]: <short summary>
+
+[<commit body>]
+[<footer>]
+```
+
+### 🏷️ Commit Types
+
+- **`feat`**: Adds new functionality to code by adding functions or features
+- **`fix`**: Restores intended functionality by fixing bugs (including linting errors) - does not intentionally add new functionality
+- **`refactor`**: Improves existing code without adding functionality by, for example:
+  - Simplifying code structure
+  - Improving readability
+  - Improving performance (time/space)
+  - Reducing dependencies
+  - etc.
+- **`style`**: A specific type of refactoring. Formatting, indentation, or code style changes (no logic changes)
+- **`perf`**: A specific type of refactoring. Performance-focused refactoring without changing external behavior
+- **`test`**: Adds or modifies automated tests (specifications for expected behavior)
+- **`docs`**: Changes only to software documentation. Usually in the form of docstrings or markdown files (design docs, README, etc.)
+- **`ci`**: **Direct** changes to Continuous Integration pipeline configuration
+- **`cd`**: **Direct** changes to Continuous Deployment pipeline configuration
+- **`build`**: Changes affecting build system or dependencies. Changes to resuliting build output, i.e., the binary. (e.g., updating/ adding a new library dependency, changing compiler flags). Usually in `Cargo.toml`, `Cargo.lock` or `.cargo/config.toml`.
+- **`revert`**: Reverts a previous commit
+- **`chore`**: Catchall commit type. For routine maintenance tasks not affecting app logic, CI/CD, or build output. (e.g., updating files such as `.gitignore`, LICENSE files, generic project management templates, or updating automation scripts like `Makefile` files or similar.)
+
+### 🎯 Scope (Optional)
+
+Add scope for area-specific changes when it helps understanding:
+- Package names
+- Service or module names
+- Component areas
+
+**Examples:**
+- `feat(auth): add user login validation`
+- `fix(database): handle connection timeout errors`
+
+### ✍️ Short Summary
+
+- Use **imperative mood** ("add", not "added" or "adds")
+- Keep under **72 characters**
+- Be descriptive but concise
+
+### 📄 Commit Body (Optional)
+
+- Explain **why** the change was made, not what it does
+- Use when additional context is needed
+- Separate from summary with blank line
+
+### 📄 Footer (Optional)
+- Reference issues or breaking changes
+- Use when relevant for context
+
+**Example Commit:**
+```
+fix: prevent racing of requests
+
+Introduce a request id and a reference to latest request. Dismiss
+incoming responses other than from latest request.
+
+Remove timeouts which were used to mitigate the racing issue but are
+obsolete now.
+
+Reviewed-by: Z
+Refs: #123
+```
+
+---
+
 ## ⚠️ Deviations
 If you must deviate from any guideline, **include a code comment** explaining why. Consistency, safety, and clarity are the priorities in this project.
 
