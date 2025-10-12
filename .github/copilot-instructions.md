@@ -194,6 +194,7 @@ All commits must follow the following format:
 <type>[<scope>]: <short summary>
 
 [<commit body>]
+
 [<footer>]
 ```
 
