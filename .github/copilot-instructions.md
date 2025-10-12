@@ -80,17 +80,47 @@ use super::context_data::ContextData;
 - Use **structured logging** in application code only (not in libraries).
 - Logs must:
   - Be formatted as **JSON**
-  - Include consistent fields like:
-    - `"severity"`
-    - `"message"`
-    - `"timestamp"` (ISO 8601 format)
+  - Include **specific fields** (see format below)
   - **Avoid sensitive data**
   - Use the correct **log level**:
-    - `INFO`: Regular application state (e.g., "Server started")
-    - `DEBUG`: Development-level details (e.g., variable values)
-    - `WARN`: Unexpected but non-breaking situations (e.g., deprecated usage)
-    - `ERROR`: Critical issues (e.g., failure to connect to a database)
-    - `TRACE`: Extremely detailed trace logs (e.g., function calls, loop iterations)
+    - `info`: Regular application state (e.g., "Server started")
+    - `debug`: Development-level details (e.g., variable values)
+    - `warn`: Unexpected but non-breaking situations (e.g., deprecated usage)
+    - `error`: Critical issues (e.g., failure to connect to a database)
+
+## 📝 Structured Logging Format
+
+All structured logs must be formatted as **JSON documents** with exactly **five required fields**:
+
+- **`level`**: Log severity level
+  - Valid values: `info`, `debug`, `warn`, `error`
+- **`timestamp`**: When the event occurred
+  - Format: **ISO 8601 UTC** (e.g., `2024-10-12T14:30:00Z`)
+- **`event`**: The specific event that triggered log creation
+  - Brief, descriptive identifier for the event type
+  - Use singular nouns (e.g., "user_login" instead of "user_logins")
+  - A set of predefined event names should be maintained and used consistently - likely maintained as a non-exhaustive enum with a catch_all variant for unknown events (that can be extended in the future)
+- **`message`**: High-level information about the `event`
+  - Human-readable summary of what happened
+  - free text string explaining the `event`
+- **`context`**: Detailed contextual information
+  - Additional state information needed to understand the event
+  - Include relevant variables, IDs, or environmental details
+
+**Example:**
+```json
+{
+  "level": "info",
+  "timestamp": "2024-10-12T14:30:00Z",
+  "event": "user_authentication_success",
+  "message": "User successfully authenticated",
+  "context": {
+    "user_id": "12345",
+    "session_id": "abc-xyz-789",
+    "ip_address": "192.168.1.100"
+  }
+}
+```
 
 ### ⚙️ Logging Infrastructure
 - Use `log` crate as a **facade**
