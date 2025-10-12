@@ -104,6 +104,7 @@ All structured logs must be formatted as **JSON documents** with exactly **five 
   - Human-readable summary of what happened
   - free text string explaining the `event`
 - **`context`**: Detailed contextual information
+  - Nested field that can contain arbitrary key-value pairs
   - Additional state information needed to understand the event
   - Include relevant variables, IDs, or environmental details
 
