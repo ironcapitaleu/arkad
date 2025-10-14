@@ -35,6 +35,7 @@ use std::fmt;
 
 use crate::shared::cik::Cik;
 use crate::traits::state_machine::state::ContextData;
+
 use state_maschine::prelude::ContextData as SMContextData;
 
 /// State context for the SEC request execution state.

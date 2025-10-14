@@ -54,21 +54,21 @@
 //! ## Testing
 //! This module includes comprehensive unit tests covering state behavior, trait compliance, and error handling.
 
-use std::fmt;
-
-use async_trait::async_trait;
-use state_maschine::prelude::State as SMState;
-
-use crate::error::State as StateError;
-use crate::error::state_machine::state::request_execution_failed::RequestExecutionFailed;
-use crate::traits::state_machine::state::State;
-
 pub mod context;
 pub mod data;
 
 pub use context::ExecuteSecRequestContext;
 pub use data::ExecuteSecRequestInputData;
 pub use data::ExecuteSecRequestOutputData;
+
+use crate::error::State as StateError;
+use crate::error::state_machine::state::request_execution_failed::RequestExecutionFailed;
+use crate::traits::state_machine::state::State;
+
+use std::fmt;
+
+use async_trait::async_trait;
+use state_maschine::prelude::State as SMState;
 
 /// State that executes HTTP requests to SEC API endpoints.
 ///

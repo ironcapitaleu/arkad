@@ -21,13 +21,13 @@
 pub mod sec_client_error;
 pub use sec_client_error::{SecClientError, SecClientErrorReason};
 
-use reqwest::{Client, ClientBuilder};
-use uuid::Uuid;
-
 use super::sec_request::SecRequest;
 use super::sec_request::sec_request_error::SecRequestError;
 use super::sec_response::SecResponse;
 use super::user_agent::UserAgent;
+
+use reqwest::{Client, ClientBuilder};
+use uuid::Uuid;
 
 /// A wrapper around [`reqwest::Client`] configured for SEC-compliant HTTP requests.
 ///

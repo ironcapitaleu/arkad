@@ -27,12 +27,12 @@
 
 use std::fmt;
 
-use state_maschine::prelude::StateData as SMStateData;
-
 use crate::error::State as StateError;
 use crate::shared::sec_client::SecClient;
 use crate::shared::sec_request::SecRequest;
 use crate::traits::state_machine::state::StateData;
+
+use state_maschine::prelude::StateData as SMStateData;
 
 /// Input data for executing SEC API requests.
 ///
