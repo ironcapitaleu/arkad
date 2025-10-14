@@ -80,17 +80,48 @@ use super::context_data::ContextData;
 - Use **structured logging** in application code only (not in libraries).
 - Logs must:
   - Be formatted as **JSON**
-  - Include consistent fields like:
-    - `"severity"`
-    - `"message"`
-    - `"timestamp"` (ISO 8601 format)
+  - Include **specific fields** (see format below)
   - **Avoid sensitive data**
   - Use the correct **log level**:
-    - `INFO`: Regular application state (e.g., "Server started")
-    - `DEBUG`: Development-level details (e.g., variable values)
-    - `WARN`: Unexpected but non-breaking situations (e.g., deprecated usage)
-    - `ERROR`: Critical issues (e.g., failure to connect to a database)
-    - `TRACE`: Extremely detailed trace logs (e.g., function calls, loop iterations)
+    - `info`: Regular application state (e.g., "Server started")
+    - `debug`: Development-level details (e.g., variable values)
+    - `warn`: Unexpected but non-breaking situations (e.g., deprecated usage)
+    - `error`: Critical issues (e.g., failure to connect to a database)
+
+## 📝 Structured Logging Format
+
+All structured logs must be formatted as **JSON documents** with exactly **five required fields**:
+
+- **`level`**: Log severity level
+  - Valid values: `info`, `debug`, `warn`, `error`
+- **`timestamp`**: When the event occurred
+  - Format: **ISO 8601 UTC** (e.g., `2024-10-12T14:30:00Z`)
+- **`event`**: The specific event that triggered log creation
+  - Brief, descriptive identifier for the event type
+  - Use singular nouns (e.g., "user_login" instead of "user_logins")
+  - A set of predefined event names should be maintained and used consistently - likely maintained as a non-exhaustive enum with a catch_all variant for unknown events (that can be extended in the future)
+- **`message`**: High-level information about the `event`
+  - Human-readable summary of what happened
+  - free text string explaining the `event`
+- **`context`**: Detailed contextual information
+  - Nested field that can contain arbitrary key-value pairs
+  - Additional state information needed to understand the event
+  - Include relevant variables, IDs, or environmental details
+
+**Example:**
+```json
+{
+  "level": "info",
+  "timestamp": "2024-10-12T14:30:00Z",
+  "event": "user_authentication_success",
+  "message": "User successfully authenticated",
+  "context": {
+    "user_id": "12345",
+    "session_id": "abc-xyz-789",
+    "ip_address": "192.168.1.100"
+  }
+}
+```
 
 ### ⚙️ Logging Infrastructure
 - Use `log` crate as a **facade**
@@ -153,6 +184,81 @@ When Copilot generates code, it should:
 - Avoid nitpicks on trivial formatting  
 - Do not suggest unnecessary rewrites if code is clear and correct  
 - Do not enforce rules not listed in these guidelines  
+
+---
+
+## 📝 Commit Guidelines
+
+All commits must follow the following format:
+
+```
+<type>[<scope>]: <short summary>
+
+[<commit body>]
+
+[<footer>]
+```
+
+### 🏷️ Commit Types
+
+- **`feat`**: Adds new functionality to code by adding functions or features
+- **`fix`**: Restores intended functionality by fixing bugs (including linting errors) - does not intentionally add new functionality
+- **`refactor`**: Improves existing code without adding functionality by, for example:
+  - Simplifying code structure
+  - Improving readability
+  - Improving performance (time/space)
+  - Reducing dependencies
+  - etc.
+- **`style`**: A specific type of refactoring. Formatting, indentation, or code style changes (no logic changes)
+- **`perf`**: A specific type of refactoring. Performance-focused refactoring without changing external behavior
+- **`test`**: Adds or modifies automated tests (specifications for expected behavior)
+- **`docs`**: Changes only to software documentation. Usually in the form of docstrings or markdown files (design docs, README, etc.)
+- **`ci`**: **Direct** changes to Continuous Integration pipeline configuration
+- **`cd`**: **Direct** changes to Continuous Deployment pipeline configuration
+- **`build`**: Changes affecting build system or dependencies. Changes to resulting build output, i.e., the binary. (e.g., updating/ adding a new library dependency, changing compiler flags). Usually in `Cargo.toml`, `Cargo.lock` or `.cargo/config.toml`.
+- **`revert`**: Reverts a previous commit
+- **`chore`**: Catchall commit type. For routine maintenance tasks not affecting app logic, CI/CD, or build output. (e.g., updating files such as `.gitignore`, LICENSE files, generic project management templates, or updating automation scripts like `Makefile` files or similar.)
+
+### 🎯 Scope (Optional)
+
+Add scope for area-specific changes when it helps understanding:
+- Package names
+- Service or module names
+- Component areas
+
+**Examples:**
+- `feat(auth): add user login validation`
+- `fix(database): handle connection timeout errors`
+
+### ✍️ Short Summary
+
+- Use **imperative mood** ("add", not "added" or "adds")
+- Keep under **72 characters**
+- Be descriptive but concise
+
+### 📄 Commit Body (Optional)
+
+- Explain **why** the change was made, not what it does
+- Use when additional context is needed
+- Separate from summary with blank line
+
+### 📄 Footer (Optional)
+- Reference issues or breaking changes
+- Use when relevant for context
+
+**Example Commit:**
+```
+fix: prevent racing of requests
+
+Introduce a request id and a reference to latest request. Dismiss
+incoming responses other than from latest request.
+
+Remove timeouts which were used to mitigate the racing issue but are
+obsolete now.
+
+Reviewed-by: Z
+Refs: #123
+```
 
 ---
 
