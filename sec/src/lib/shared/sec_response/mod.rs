@@ -268,9 +268,11 @@ mod tests {
         let mut headers = HashMap::new();
         headers.insert("content-type".to_string(), "application/json".to_string());
 
+        let expected_result = ContentType::Json;
+
         let result = ContentType::from_headers(&headers);
 
-        assert_eq!(result, ContentType::Json);
+        assert_eq!(result, expected_result);
     }
 
     #[test]
@@ -287,18 +289,24 @@ mod tests {
     fn should_detect_content_type_case_insensitively_when_header_has_mixed_case() {
         let content_type_str = "APPLICATION/JSON; charset=UTF-8";
 
+        let expected_result = ContentType::Json;
         let result = ContentType::from_content_type(content_type_str);
 
-        assert_eq!(result, ContentType::Json);
+        assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_create_default_response_when_default_is_called() {
-        let response = SecResponse::default();
+        let result = SecResponse::default();
+        let expected_result = SecResponse {
+            url: Url::parse("https://data.sec.gov/api/xbrl/companyfacts/CIK0001067983.json")
+                .expect("Default SEC URL should always be valid"),
+            status: StatusCode::OK,
+            headers: HashMap::new(),
+            content_type: ContentType::Json,
+            body: String::from("Default response body"),
+        };
 
-        assert_eq!(response.status(), StatusCode::OK);
-        assert_eq!(response.content_type(), &ContentType::Json);
-        assert_eq!(response.body(), "Default response body");
-        assert!(response.url().as_str().contains("sec.gov"));
+        assert_eq!(result, expected_result);
     }
 }

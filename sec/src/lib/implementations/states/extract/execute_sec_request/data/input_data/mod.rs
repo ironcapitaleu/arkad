@@ -209,10 +209,13 @@ impl Default for ExecuteSecRequestInputDataUpdaterBuilder {
 
 #[cfg(test)]
 mod tests {
+    use std::{fmt::Debug, hash::Hash};
+
     use super::*;
     use crate::shared::cik::Cik;
+
     use pretty_assertions::assert_eq;
-    use std::{fmt::Debug, hash::Hash};
+    
 
     #[test]
     fn should_create_new_input_data_with_provided_client_and_request() {
@@ -221,13 +224,14 @@ mod tests {
             .expect("Hardcoded user agent should always be valid.");
         let request = SecRequest::new(&cik);
 
-        let expected_client = client.clone();
-        let expected_request = request.clone();
+        let expected_result = ExecuteSecRequestInputData {
+            sec_client: client.clone(),
+            sec_request: request.clone(),
+        };
 
         let result = ExecuteSecRequestInputData::new(client, request);
 
-        assert_eq!(result.sec_client(), &expected_client);
-        assert_eq!(result.sec_request(), &expected_request);
+        assert_eq!(result, expected_result);
     }
 
     #[test]
@@ -239,6 +243,7 @@ mod tests {
         let input_data = ExecuteSecRequestInputData::new(client.clone(), request);
 
         let expected_result = &client;
+
         let result = input_data.sec_client();
 
         assert_eq!(result, expected_result);
@@ -253,7 +258,25 @@ mod tests {
         let input_data = ExecuteSecRequestInputData::new(client, request.clone());
 
         let expected_result = &request;
+
         let result = input_data.sec_request();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_ok_when_updating_with_updater() {
+        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid.");
+        let client = SecClient::new("Test Company contact@test.com")
+            .expect("Hardcoded user agent should always be valid.");
+        let request = SecRequest::new(&cik);
+        let mut input_data = ExecuteSecRequestInputData::new(client, request);
+
+        let updater = ExecuteSecRequestInputDataUpdaterBuilder::new().build();
+
+        let expected_result = Ok(());
+
+        let result = StateData::update_state(&mut input_data, updater);
 
         assert_eq!(result, expected_result);
     }
@@ -272,11 +295,13 @@ mod tests {
             .sec_client(new_client.clone())
             .build();
 
-        let expected_result = Ok(());
-        let result = StateData::update_state(&mut input_data, updater);
+        let _ = StateData::update_state(&mut input_data, updater);
+
+        let expected_result = &new_client;
+        
+        let result = input_data.sec_client();
 
         assert_eq!(result, expected_result);
-        assert_eq!(input_data.sec_client(), &new_client);
     }
 
     #[test]
@@ -293,15 +318,17 @@ mod tests {
             .sec_request(new_request.clone())
             .build();
 
-        let expected_result = Ok(());
-        let result = StateData::update_state(&mut input_data, updater);
+        let _ = StateData::update_state(&mut input_data, updater);
+
+        let expected_result = &new_request;
+
+        let result = input_data.sec_request();
 
         assert_eq!(result, expected_result);
-        assert_eq!(input_data.sec_request(), &new_request);
     }
 
     #[test]
-    fn should_update_both_fields_when_updater_contains_both() {
+    fn should_update_sec_client_when_updater_contains_both_fields() {
         let original_cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid.");
         let new_cik = Cik::new("0987654321").expect("Hardcoded CIK should always be valid.");
         let original_client = SecClient::new("Original Company contact@original.com")
@@ -317,12 +344,39 @@ mod tests {
             .sec_request(new_request.clone())
             .build();
 
-        let expected_result = Ok(());
-        let result = StateData::update_state(&mut input_data, updater);
+        let _ = StateData::update_state(&mut input_data, updater);
+
+        let expected_result = &new_client;
+
+        let result = input_data.sec_client();
 
         assert_eq!(result, expected_result);
-        assert_eq!(input_data.sec_client(), &new_client);
-        assert_eq!(input_data.sec_request(), &new_request);
+    }
+
+    #[test]
+    fn should_update_sec_request_when_updater_contains_both_fields() {
+        let original_cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid.");
+        let new_cik = Cik::new("0987654321").expect("Hardcoded CIK should always be valid.");
+        let original_client = SecClient::new("Original Company contact@original.com")
+            .expect("Hardcoded user agent should always be valid.");
+        let new_client = SecClient::new("New Company contact@new.com")
+            .expect("Hardcoded user agent should always be valid.");
+        let original_request = SecRequest::new(&original_cik);
+        let new_request = SecRequest::new(&new_cik);
+        let mut input_data = ExecuteSecRequestInputData::new(original_client, original_request);
+
+        let updater = ExecuteSecRequestInputDataUpdaterBuilder::new()
+            .sec_client(new_client.clone())
+            .sec_request(new_request.clone())
+            .build();
+
+        let _ = StateData::update_state(&mut input_data, updater);
+
+        let expected_result = &new_request;
+
+        let result = input_data.sec_request();
+
+        assert_eq!(result, expected_result);
     }
 
     #[test]
@@ -336,11 +390,13 @@ mod tests {
 
         let updater = ExecuteSecRequestInputDataUpdaterBuilder::new().build();
 
-        let expected_result = Ok(());
-        let result = StateData::update_state(&mut input_data, updater);
+        let _ = StateData::update_state(&mut input_data, updater);
+
+        let expected_result = original_input_data;
+        
+        let result = input_data;
 
         assert_eq!(result, expected_result);
-        assert_eq!(input_data, original_input_data);
     }
 
     // Trait implementation tests

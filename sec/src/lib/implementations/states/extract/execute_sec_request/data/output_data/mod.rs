@@ -135,7 +135,6 @@ impl ExecuteSecRequestOutputDataUpdaterBuilder {
     ///
     /// The builder instance with the response field set for update.
     #[must_use]
-    #[allow(clippy::missing_const_for_fn)]
     pub fn response(mut self, response: SecResponse) -> Self {
         self.response = Some(response);
         self

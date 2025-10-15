@@ -247,13 +247,14 @@ mod tests {
 
     #[test]
     fn should_create_default_context_when_default_is_called() {
-        let expected_cik = Cik::default();
-        let expected_max_retries = 0;
+        let expected_result = ExecuteSecRequestContext {
+            cik: Cik::default(),
+            max_retries: 0,
+        };
 
         let result = ExecuteSecRequestContext::default();
 
-        assert_eq!(result.cik(), &expected_cik);
-        assert_eq!(result.max_retries, expected_max_retries);
+        assert_eq!(result, expected_result);
     }
 
     #[test]
@@ -272,10 +273,10 @@ mod tests {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid.");
         let context = ExecuteSecRequestContext::new(cik);
 
+        let expected_result = "Context Data: 1234567890";
         let result = format!("{context}");
 
-        assert!(result.contains("Context Data"));
-        assert!(result.contains("1234567890"));
+        assert_eq!(result, expected_result);
     }
 
     // Trait implementation tests
