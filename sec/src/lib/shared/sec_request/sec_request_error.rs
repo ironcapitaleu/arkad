@@ -27,14 +27,14 @@ impl SecRequestError {
 pub enum SecRequestErrorReason {
     NetworkError(String),
     HttpError(String),
-    TimeoutError(String),
+    Timeout(String),
     Other(String),
 }
 
 impl From<ReqwestError> for SecRequestError {
     fn from(e: ReqwestError) -> Self {
         match () {
-            () if e.is_timeout() => Self::new(SecRequestErrorReason::TimeoutError(e.to_string())),
+            () if e.is_timeout() => Self::new(SecRequestErrorReason::Timeout(e.to_string())),
             () if e.is_connect() => Self::new(SecRequestErrorReason::NetworkError(e.to_string())),
             () if e.is_status() => e.status().map_or_else(
                 || Self::new(SecRequestErrorReason::Other(e.to_string())),
@@ -57,7 +57,7 @@ impl std::fmt::Display for SecRequestErrorReason {
                 f,
                 "The HTTP request failed due to an HTTP error: {status_code}."
             ),
-            Self::TimeoutError(message) => write!(f, "The HTTP request timed out: {message}."),
+            Self::Timeout(message) => write!(f, "The HTTP request timed out: {message}."),
             Self::Other(message) => write!(
                 f,
                 "The HTTP request failed for an unknown reason: {message}."

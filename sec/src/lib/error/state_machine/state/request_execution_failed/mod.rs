@@ -181,7 +181,7 @@ mod tests {
     #[test]
     fn should_create_from_domain_error_when_from_domain_error_is_called() {
         let state_name = "ExecuteSecRequest";
-        let sec_request_error = SecRequestError::new(SecRequestErrorReason::TimeoutError(
+        let sec_request_error = SecRequestError::new(SecRequestErrorReason::Timeout(
             "Request timed out".to_string(),
         ));
 
