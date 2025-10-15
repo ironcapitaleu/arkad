@@ -231,7 +231,8 @@ impl std::hash::Hash for SecResponse {
 impl Default for SecResponse {
     fn default() -> Self {
         Self {
-            url: Url::parse("https://data.sec.gov/api/xbrl/companyfacts/CIK0001067983.json").expect("Default SEC URL should always be valid"),
+            url: Url::parse("https://data.sec.gov/api/xbrl/companyfacts/CIK0001067983.json")
+                .expect("Default SEC URL should always be valid"),
             status: StatusCode::OK,
             headers: HashMap::new(),
             content_type: ContentType::Json,
