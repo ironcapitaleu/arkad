@@ -147,7 +147,6 @@ impl SecResponse {
             .headers()
             .iter()
             .map(|(name, value)| {
-
                 let value_str = match value.to_str() {
                     Ok(v) => v.to_string(),
                     Err(_) => {
@@ -155,11 +154,8 @@ impl SecResponse {
                         "invalid-utf8".to_string()
                     }
                 };
-                
-                (
-                    name.to_string(),
-                    value_str,
-                )
+
+                (name.to_string(), value_str)
             })
             .collect();
 
@@ -235,8 +231,7 @@ impl std::hash::Hash for SecResponse {
 impl Default for SecResponse {
     fn default() -> Self {
         Self {
-            url: Url::parse("https://data.sec.gov/api/xbrl/companyfacts/CIK0001067983.json")
-                .unwrap(),
+            url: Url::parse("https://data.sec.gov/api/xbrl/companyfacts/CIK0001067983.json").expect("Default SEC URL should always be valid"),
             status: StatusCode::OK,
             headers: HashMap::new(),
             content_type: ContentType::Json,
