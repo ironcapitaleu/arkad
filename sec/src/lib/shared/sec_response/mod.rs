@@ -147,9 +147,18 @@ impl SecResponse {
             .headers()
             .iter()
             .map(|(name, value)| {
+
+                let value_str = match value.to_str() {
+                    Ok(v) => v.to_string(),
+                    Err(_) => {
+                        eprintln!("WARNING: Header value for '{}' is not valid UTF-8", name);
+                        "invalid-utf8".to_string()
+                    }
+                };
+                
                 (
                     name.to_string(),
-                    value.to_str().unwrap_or_default().to_string(),
+                    value_str,
                 )
             })
             .collect();
