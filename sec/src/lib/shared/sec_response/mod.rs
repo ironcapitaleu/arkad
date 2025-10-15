@@ -147,13 +147,13 @@ impl SecResponse {
             .headers()
             .iter()
             .map(|(name, value)| {
-                let value_str = match value.to_str() {
-                    Ok(v) => v.to_string(),
-                    Err(_) => {
-                        eprintln!("WARNING: Header value for '{}' is not valid UTF-8", name);
+                let value_str = value.to_str().map_or_else(
+                    |_| {
+                        eprintln!("WARNING: Header value for '{name}' is not valid UTF-8");
                         "invalid-utf8".to_string()
-                    }
-                };
+                    },
+                    std::string::ToString::to_string,
+                );
 
                 (name.to_string(), value_str)
             })
