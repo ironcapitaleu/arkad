@@ -96,12 +96,12 @@ impl ContentType {
     pub fn from_headers(headers: &HashMap<String, String>) -> Self {
         headers.get("content-type").map_or_else(
             || Self::Other("unknown".to_string()),
-            |content_type| Self::from_content_type_str(content_type),
+            |content_type| Self::from_content_type(content_type),
         )
     }
     /// Determines the content type from a string.
     #[must_use]
-    pub fn from_content_type_str(content_type_str: &str) -> Self {
+    pub fn from_content_type(content_type_str: &str) -> Self {
         let content_type_lower = content_type_str.to_lowercase();
 
         if content_type_lower.contains("application/json") || content_type_lower.contains("json") {
@@ -287,7 +287,7 @@ mod tests {
     fn should_detect_content_type_case_insensitively_when_header_has_mixed_case() {
         let content_type_str = "APPLICATION/JSON; charset=UTF-8";
 
-        let result = ContentType::from_content_type_str(content_type_str);
+        let result = ContentType::from_content_type(content_type_str);
 
         assert_eq!(result, ContentType::Json);
     }
