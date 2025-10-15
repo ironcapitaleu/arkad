@@ -215,7 +215,6 @@ mod tests {
     use crate::shared::cik::Cik;
 
     use pretty_assertions::assert_eq;
-    
 
     #[test]
     fn should_create_new_input_data_with_provided_client_and_request() {
@@ -298,7 +297,7 @@ mod tests {
         let _ = StateData::update_state(&mut input_data, updater);
 
         let expected_result = &new_client;
-        
+
         let result = input_data.sec_client();
 
         assert_eq!(result, expected_result);
@@ -393,7 +392,7 @@ mod tests {
         let _ = StateData::update_state(&mut input_data, updater);
 
         let expected_result = original_input_data;
-        
+
         let result = input_data;
 
         assert_eq!(result, expected_result);
