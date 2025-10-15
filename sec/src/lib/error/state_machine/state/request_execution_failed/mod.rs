@@ -43,7 +43,7 @@ pub struct RequestExecutionFailed {
 }
 
 impl RequestExecutionFailed {
-    /// Creates a new `RequestExecutionFailed` error.
+    /// Creates a new [`RequestExecutionFailed`] error.
     ///
     /// # Arguments
     /// * `state_name` - The name of the state where the error occurred.
@@ -115,7 +115,7 @@ mod tests {
     fn should_create_request_execution_failed_when_new_is_called() {
         let state_name = "ExecuteSecRequest";
         let sec_request_error = SecRequestError::new(SecRequestErrorReason::NetworkError(
-            String::from("Network unreachable"),
+            "Network unreachable".to_string(),
         ));
         let expected_state_name = state_name;
         let expected_sec_request_error = sec_request_error.clone();
@@ -134,8 +134,9 @@ mod tests {
     fn should_return_state_name_when_state_name_method_is_called() {
         let state_name = "ExecuteSecRequest";
         let sec_request_error = SecRequestError::new(SecRequestErrorReason::NetworkError(
-            String::from("Network unreachable"),
+            "Network unreachable".to_string(),
         ));
+
         let request_execution_failed = RequestExecutionFailed::new(state_name, sec_request_error);
 
         let expected_result = state_name;
@@ -149,8 +150,9 @@ mod tests {
     fn should_return_sec_request_error_when_sec_request_error_method_is_called() {
         let state_name = "ExecuteSecRequest";
         let sec_request_error = SecRequestError::new(SecRequestErrorReason::NetworkError(
-            String::from("Network unreachable"),
+            "Network unreachable".to_string(),
         ));
+
         let request_execution_failed =
             RequestExecutionFailed::new(state_name, sec_request_error.clone());
 
@@ -165,7 +167,7 @@ mod tests {
     fn should_convert_to_state_error_when_from_is_called() {
         let state_name = "ExecuteSecRequest";
         let sec_request_error = SecRequestError::new(SecRequestErrorReason::NetworkError(
-            String::from("Network unreachable"),
+            "Network unreachable".to_string(),
         ));
         let request_execution_failed = RequestExecutionFailed::new(state_name, sec_request_error);
 
@@ -180,7 +182,7 @@ mod tests {
     fn should_create_from_domain_error_when_from_domain_error_is_called() {
         let state_name = "ExecuteSecRequest";
         let sec_request_error = SecRequestError::new(SecRequestErrorReason::TimeoutError(
-            String::from("Request timed out"),
+            "Request timed out".to_string(),
         ));
 
         let expected_result = RequestExecutionFailed::new(state_name, sec_request_error.clone());
@@ -194,7 +196,7 @@ mod tests {
     fn should_display_error_message_when_display_is_called() {
         let state_name = "ExecuteSecRequest";
         let sec_request_error = SecRequestError::new(SecRequestErrorReason::NetworkError(
-            String::from("Network unreachable"),
+            "Network unreachable".to_string(),
         ));
         let request_execution_failed = RequestExecutionFailed::new(state_name, sec_request_error);
 
