@@ -33,14 +33,17 @@ pub enum SecRequestErrorReason {
 
 impl From<ReqwestError> for SecRequestError {
     fn from(e: ReqwestError) -> Self {
-        match () {
-            () if e.is_timeout() => Self::new(SecRequestErrorReason::Timeout(e.to_string())),
-            () if e.is_connect() => Self::new(SecRequestErrorReason::NetworkError(e.to_string())),
-            () if e.is_status() => e.status().map_or_else(
+        if e.is_timeout() {
+            Self::new(SecRequestErrorReason::Timeout(e.to_string()))
+        } else if e.is_connect() {
+            Self::new(SecRequestErrorReason::NetworkError(e.to_string()))
+        } else if e.is_status() {
+            e.status().map_or_else(
                 || Self::new(SecRequestErrorReason::Other(e.to_string())),
                 |status| Self::new(SecRequestErrorReason::HttpError(status.to_string())),
-            ),
-            () => Self::new(SecRequestErrorReason::Other(e.to_string())),
+            )
+        } else {
+            Self::new(SecRequestErrorReason::Other(e.to_string()))
         }
     }
 }
