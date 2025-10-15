@@ -79,7 +79,7 @@ use state_maschine::prelude::State as SMState;
 /// # Behavior
 /// - Executes HTTP requests using the provided SEC client and request configuration.
 /// - Handles network errors and converts them to appropriate state errors.
-/// - Produces a [`SecResponse`] object containing the SEC API response data.
+/// - Produces a [`SecResponse`](crate::shared::sec_response::SecResponse) object containing the SEC API response data.
 /// - Supports retry logic through the context configuration.
 ///
 /// # Output
