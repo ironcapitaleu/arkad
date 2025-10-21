@@ -13,6 +13,7 @@
 //! ## Types
 //! - [`SecResponse`]: Main response wrapper containing URL, status, headers, and body.
 //! - [`ContentType`]: Enumeration of supported content types with automatic detection.
+//! - [`SecResponseError`]: Error type for response processing failures.
 //!
 //! ## See Also
 //! - [`reqwest::Response`]: Underlying HTTP response implementation.
@@ -23,17 +24,21 @@ use std::fmt;
 
 use reqwest::{Response, StatusCode, Url};
 
+pub use sec_response_error::{SecResponseError, SecResponseErrorReason};
+
+mod sec_response_error;
+
 /// A wrapper around HTTP response data from SEC endpoints.
 ///
 /// `SecResponse` preserves key information from HTTP responses including the request URL,
 /// status code, headers, and response body. It automatically detects content types and
 /// provides convenient accessor methods for working with SEC API responses.
 ///
-/// # Examples
-///
+ /// # Examples
+/// 
 /// ```rust
 /// use reqwest::{Response, StatusCode};
-/// use sec::shared::sec_response::{SecResponse, ContentType};
+/// use sec::shared::sec_response::{SecResponse, ContentType, SecResponseError};
 ///
 /// // Create a SecResponse from a reqwest Response (async)
 /// // let response: Response = /* ... make HTTP request ... */;
@@ -43,7 +48,7 @@ use reqwest::{Response, StatusCode, Url};
 /// // println!("Status: {}", sec_response.status());
 /// // println!("URL: {}", sec_response.url());
 /// // println!("Body length: {}", sec_response.body().len());
-/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// # Ok::<(), SecResponseError>(())
 /// ```
 ///
 /// # Content Type Detection
@@ -139,28 +144,27 @@ impl SecResponse {
     ///
     /// # Errors
     ///
-    /// Returns an error if reading the response body fails.
-    pub async fn from_response(response: Response) -> Result<Self, reqwest::Error> {
+    /// Returns an error if:
+    /// - Reading the response body fails
+    /// - Response headers contain invalid UTF-8 data
+    pub async fn from_response(response: Response) -> Result<Self, SecResponseError> {
         let url = response.url().clone();
         let status = response.status();
-        let headers = response
-            .headers()
-            .iter()
-            .map(|(name, value)| {
-                let value_str = value.to_str().map_or_else(
-                    |_| {
-                        eprintln!("WARNING: Header value for '{name}' is not valid UTF-8");
-                        "invalid-utf8".to_string()
-                    },
-                    std::string::ToString::to_string,
-                );
-
-                (name.to_string(), value_str)
-            })
-            .collect();
+        
+        let mut headers = HashMap::new();
+        for (name, value) in response.headers() {
+            let value_str = value.to_str().map_err(|_| {
+                SecResponseError::new(SecResponseErrorReason::InvalidUtf8InHeader(name.to_string()))
+            })?;
+            headers.insert(name.to_string(), value_str.to_string());
+        }
 
         let content_type = ContentType::from_headers(&headers);
-        let body = response.text().await?;
+        let body = response.text().await.map_err(|e| {
+            SecResponseError::new(
+                SecResponseErrorReason::NetworkError(format!("Failed to read response body: {e}"))
+            )
+        })?;
 
         Ok(Self {
             url,
