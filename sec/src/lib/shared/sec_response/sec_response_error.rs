@@ -59,8 +59,14 @@ impl std::fmt::Display for SecResponseErrorReason {
                 f,
                 "Response header '{header}' contains invalid UTF-8 data and cannot be processed."
             ),
-            Self::NetworkError(message) => write!(f, "Network error occurred while processing response: {message}"),
-            Self::Other(message) => write!(f, "An unspecified error occurred during response processing: {message}"),
+            Self::NetworkError(message) => write!(
+                f,
+                "Network error occurred while processing response: {message}"
+            ),
+            Self::Other(message) => write!(
+                f,
+                "An unspecified error occurred during response processing: {message}"
+            ),
         }
     }
 }
@@ -76,9 +82,7 @@ mod tests {
         let reason = SecResponseErrorReason::InvalidUtf8InHeader(header_name.to_string());
         let response_error = SecResponseError::new(reason.clone());
 
-        let expected_result = format!(
-            "[SecResponseError] Response processing failed: {reason}"
-        );
+        let expected_result = format!("[SecResponseError] Response processing failed: {reason}");
 
         let result = format!("{response_error}");
 
@@ -104,7 +108,8 @@ mod tests {
         let header_name = "content-type";
         let reason = SecResponseErrorReason::InvalidUtf8InHeader(header_name.to_string());
 
-        let expected_result = "Response header 'content-type' contains invalid UTF-8 data and cannot be processed.";
+        let expected_result =
+            "Response header 'content-type' contains invalid UTF-8 data and cannot be processed.";
 
         let result = format!("{reason}");
 

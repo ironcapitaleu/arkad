@@ -54,7 +54,9 @@ impl From<SecResponseError> for SecRequestError {
     fn from(e: SecResponseError) -> Self {
         match e.reason {
             SecResponseErrorReason::InvalidUtf8InHeader(header) => {
-                Self::new(SecRequestErrorReason::Other(format!("Response processing failed: Header '{header}' contains invalid UTF-8 data")))
+                Self::new(SecRequestErrorReason::Other(format!(
+                    "Response processing failed: Header '{header}' contains invalid UTF-8 data"
+                )))
             }
             SecResponseErrorReason::NetworkError(message) => {
                 Self::new(SecRequestErrorReason::NetworkError(message))

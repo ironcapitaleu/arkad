@@ -34,8 +34,8 @@ mod sec_response_error;
 /// status code, headers, and response body. It automatically detects content types and
 /// provides convenient accessor methods for working with SEC API responses.
 ///
- /// # Examples
-/// 
+/// # Examples
+///
 /// ```rust
 /// use reqwest::{Response, StatusCode};
 /// use sec::shared::sec_response::{SecResponse, ContentType, SecResponseError};
@@ -150,20 +150,22 @@ impl SecResponse {
     pub async fn from_response(response: Response) -> Result<Self, SecResponseError> {
         let url = response.url().clone();
         let status = response.status();
-        
+
         let mut headers = HashMap::new();
         for (name, value) in response.headers() {
             let value_str = value.to_str().map_err(|_| {
-                SecResponseError::new(SecResponseErrorReason::InvalidUtf8InHeader(name.to_string()))
+                SecResponseError::new(SecResponseErrorReason::InvalidUtf8InHeader(
+                    name.to_string(),
+                ))
             })?;
             headers.insert(name.to_string(), value_str.to_string());
         }
 
         let content_type = ContentType::from_headers(&headers);
         let body = response.text().await.map_err(|e| {
-            SecResponseError::new(
-                SecResponseErrorReason::NetworkError(format!("Failed to read response body: {e}"))
-            )
+            SecResponseError::new(SecResponseErrorReason::NetworkError(format!(
+                "Failed to read response body: {e}"
+            )))
         })?;
 
         Ok(Self {
