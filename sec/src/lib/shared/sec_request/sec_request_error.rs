@@ -1,6 +1,8 @@
 use reqwest::Error as ReqwestError;
 use thiserror::Error;
 
+use crate::shared::sec_response::{SecResponseError, SecResponseErrorReason};
+
 /// Error details for SEC request failures.
 ///
 /// This struct provides both the reason for the failure and the user agent string that was provided.
@@ -44,6 +46,22 @@ impl From<ReqwestError> for SecRequestError {
             )
         } else {
             Self::new(SecRequestErrorReason::Other(e.to_string()))
+        }
+    }
+}
+
+impl From<SecResponseError> for SecRequestError {
+    fn from(e: SecResponseError) -> Self {
+        match e.reason {
+            SecResponseErrorReason::InvalidUtf8InHeader(header) => {
+                Self::new(SecRequestErrorReason::Other(format!("Response processing failed: Header '{header}' contains invalid UTF-8 data")))
+            }
+            SecResponseErrorReason::NetworkError(message) => {
+                Self::new(SecRequestErrorReason::NetworkError(message))
+            }
+            SecResponseErrorReason::Other(message) => {
+                Self::new(SecRequestErrorReason::Other(message))
+            }
         }
     }
 }
