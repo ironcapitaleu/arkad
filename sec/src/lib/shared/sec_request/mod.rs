@@ -21,6 +21,7 @@
 //! - [`crate::shared::sec_client`]: SEC client utilities for executing these requests.
 
 pub mod constants;
+pub mod sec_request_error;
 
 use constants::{SEC_CIK_BERKSHIRE_HATHAWAY_URL, SEC_REQUEST_URL_PREFIX, SEC_REQUEST_URL_SUFFIX};
 
