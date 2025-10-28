@@ -6,10 +6,11 @@
 //! ## Components
 //! - [`validate_cik_format`]: Validates and normalizes CIK (Central Index Key) strings to proper 10-digit format.
 //! - [`prepare_sec_request`]: Creates HTTP clients and prepares request objects for SEC API calls.
+//! - [`execute_sec_request`]: Executes prepared SEC API requests and handles responses.
 //! - [`ExtractSuperState`]: Super-state that orchestrates the extraction workflow and state transitions.
 //!
 //! ## State Flow
-//! The extraction follows this progression: [`ValidateCikFormat`] → [`PrepareSecRequest`]
+//! The extraction follows this progression: [`ValidateCikFormat`] → [`PrepareSecRequest`] → [`ExecuteSecRequest`]
 //!
 //! ## Example
 //! ```rust
@@ -36,12 +37,15 @@ use crate::error::State as StateError;
 use crate::error::state_machine::transition;
 use crate::error::state_machine::transition::Transition as TransitionError;
 use crate::implementations::states::extract::prepare_sec_request::{
-    PrepareSecRequest, PrepareSecRequestContext, PrepareSecRequestInputData,
+    PrepareSecRequest, PrepareSecRequestContext, PrepareSecRequestInputData, PrepareSecRequestOutputData,
 };
 use crate::implementations::states::extract::validate_cik_format::{
     ValidateCikFormat, ValidateCikFormatContext, ValidateCikFormatInputData,
     ValidateCikFormatOutputData,
 };
+use crate::implementations::states::extract::execute_sec_request::{ExecuteSecRequest, ExecuteSecRequestContext, ExecuteSecRequestInputData};
+
+
 use crate::shared::user_agent::constants::DEFAULT_SEC_USER_AGENT;
 
 use async_trait::async_trait;
@@ -207,6 +211,41 @@ impl TryFrom<ValidateCikFormat> for PrepareSecRequest {
     }
 }
 
+impl From<PrepareSecRequestContext> for ExecuteSecRequestContext {
+    fn from(context: PrepareSecRequestContext) -> Self {
+        Self::new(context.cik)
+    }
+}
+
+impl From<PrepareSecRequestOutputData> for ExecuteSecRequestInputData {
+    fn from(output_data: PrepareSecRequestOutputData) -> Self {
+        Self::new(output_data.client, output_data.request)
+    }
+}
+
+impl TryFrom<PrepareSecRequest> for ExecuteSecRequest {
+    type Error = TransitionError;
+
+    fn try_from(state: PrepareSecRequest) -> Result<Self, TransitionError> {
+        let output_data = match state.get_output_data() {
+            Some(data) => data.clone(),
+            None => {
+                return Err(transition::MissingOutputData::new(
+                    "Extract SuperState",
+                    state.get_state_name().to_string(),
+                )
+                .into());
+            }
+        };
+
+        let state_context = state.get_context_data().clone();
+        let new_context: ExecuteSecRequestContext = state_context.into();
+        let new_input: ExecuteSecRequestInputData = output_data.into();
+
+        Ok(Self::new(new_input, new_context))
+    }
+}
+
 impl ExtractSuperState<ValidateCikFormat> {
     #[must_use]
     pub fn new(input: &str) -> Self {
@@ -247,6 +286,30 @@ impl Transition<ValidateCikFormat, PrepareSecRequest> for ExtractSuperState<Vali
             output: None,
             context: ExtractSuperStateContext,
         })
+    }
+}
+
+impl Transition<PrepareSecRequest, ExecuteSecRequest> for ExtractSuperState<PrepareSecRequest> {
+    fn transition_to_next_state_sec(self) -> Result<Self::NewStateMachine, TransitionError> {
+        let next_state = ExecuteSecRequest::try_from(self.current_state)?;
+
+        Ok(ExtractSuperState::<ExecuteSecRequest> {
+            current_state: next_state,
+            input: ExtractSuperStateData,
+            output: None,
+            context: ExtractSuperStateContext,
+        })
+    }
+}
+
+impl SMTransition<PrepareSecRequest, ExecuteSecRequest> for ExtractSuperState<PrepareSecRequest> {
+    type NewStateMachine = ExtractSuperState<ExecuteSecRequest>;
+
+    fn transition_to_next_state(self) -> Result<Self::NewStateMachine, &'static str> {
+        // Placeholder implementation - use transition_to_next_state_sec() for actual functionality
+        Err(
+            "Use transition_to_next_state_sec() for SEC-specific transitions with rich error handling",
+        )
     }
 }
 
