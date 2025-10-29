@@ -36,15 +36,17 @@ use std::fmt::Display;
 use crate::error::State as StateError;
 use crate::error::state_machine::transition;
 use crate::error::state_machine::transition::Transition as TransitionError;
+use crate::implementations::states::extract::execute_sec_request::{
+    ExecuteSecRequest, ExecuteSecRequestContext, ExecuteSecRequestInputData,
+};
 use crate::implementations::states::extract::prepare_sec_request::{
-    PrepareSecRequest, PrepareSecRequestContext, PrepareSecRequestInputData, PrepareSecRequestOutputData,
+    PrepareSecRequest, PrepareSecRequestContext, PrepareSecRequestInputData,
+    PrepareSecRequestOutputData,
 };
 use crate::implementations::states::extract::validate_cik_format::{
     ValidateCikFormat, ValidateCikFormatContext, ValidateCikFormatInputData,
     ValidateCikFormatOutputData,
 };
-use crate::implementations::states::extract::execute_sec_request::{ExecuteSecRequest, ExecuteSecRequestContext, ExecuteSecRequestInputData};
-
 
 use crate::shared::user_agent::constants::DEFAULT_SEC_USER_AGENT;
 
@@ -404,7 +406,9 @@ mod tests {
 
         let expected_result = "Extract SuperState (Current: Execute SEC Request)";
 
-        let state = super_state.transition_to_next_state_sec().expect("Should transition to ExecuteSecRequest");
+        let state = super_state
+            .transition_to_next_state_sec()
+            .expect("Should transition to ExecuteSecRequest");
 
         let result = state.get_state_name().to_string();
 
