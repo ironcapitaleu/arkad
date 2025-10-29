@@ -11,6 +11,8 @@ use sec::prelude::*;
 use sec::shared::cik::Cik;
 
 #[tokio::main]
+// Let this be here for testing purposes. Will be removed later.
+#[allow(clippy::too_many_lines)]
 async fn main() {
     let mut validate_cik_state = ValidateCikFormat::default();
 
@@ -97,12 +99,10 @@ async fn main() {
         .transition_to_next_state_sec()
         .expect("Transition should succeed");
 
-
     println!("\n=======================================================");
     println!("Current State Print:");
 
     println!("{super_state}");
-
 
     println!("\n=======================================================");
     println!("State 2 Output:");
@@ -122,7 +122,9 @@ async fn main() {
     println!("\n=======================================================");
     println!("Transition from PrepareSECRequest to ExecuteSECRequest");
 
-    let mut super_state = super_state.transition_to_next_state_sec().expect("Transition should succeed.");
+    let mut super_state = super_state
+        .transition_to_next_state_sec()
+        .expect("Transition should succeed.");
     println!("{super_state}");
 
     println!("\n=======================================================");
@@ -139,5 +141,4 @@ async fn main() {
         .expect("ExecuteSecRequest should have output data");
 
     println!("{prepare_output}");
-
 }
