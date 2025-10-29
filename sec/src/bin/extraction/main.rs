@@ -11,6 +11,8 @@ use sec::prelude::*;
 use sec::shared::cik::Cik;
 
 #[tokio::main]
+// Let this be here for testing purposes. Will be removed later.
+#[allow(clippy::too_many_lines)]
 async fn main() {
     let mut validate_cik_state = ValidateCikFormat::default();
 
@@ -93,9 +95,50 @@ async fn main() {
     println!("\n=======================================================");
     println!("Transition Extract from ValidateCikFormat to PrepareSecRequest:");
 
-    let super_state = super_state
+    let mut super_state = super_state
         .transition_to_next_state_sec()
         .expect("Transition should succeed");
 
+    println!("\n=======================================================");
+    println!("Current State Print:");
+
     println!("{super_state}");
+
+    println!("\n=======================================================");
+    println!("State 2 Output:");
+
+    super_state
+        .compute_output_data_async()
+        .await
+        .expect("PrepareSecRequest should succeed with valid CIK and user agent.");
+
+    let output = super_state
+        .get_current_state()
+        .get_output_data()
+        .expect("PrepareSecRequest should have output data");
+
+    println!("{output}");
+
+    println!("\n=======================================================");
+    println!("Transition from PrepareSECRequest to ExecuteSECRequest");
+
+    let mut super_state = super_state
+        .transition_to_next_state_sec()
+        .expect("Transition should succeed.");
+    println!("{super_state}");
+
+    println!("\n=======================================================");
+    println!("State 3 Output:");
+
+    super_state
+        .compute_output_data_async()
+        .await
+        .expect("ExecuteSecRequest should succeed with valid CIK and user agent.");
+
+    let prepare_output = super_state
+        .get_current_state()
+        .get_output_data()
+        .expect("ExecuteSecRequest should have output data");
+
+    println!("{prepare_output}");
 }
