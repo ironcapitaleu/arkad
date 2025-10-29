@@ -384,6 +384,45 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn should_transition_from_prepare_sec_request_to_execute_sec_request_state() {
+        let input_cik = "1234567890";
+        let mut super_state = ExtractSuperState::<ValidateCikFormat>::new(input_cik);
+
+        super_state
+            .compute_output_data_async()
+            .await
+            .expect("Should compute output data");
+
+        let mut super_state = super_state
+            .transition_to_next_state_sec()
+            .expect("Should transition to PrepareSecRequest");
+
+        super_state
+            .compute_output_data_async()
+            .await
+            .expect("Should compute output data");
+
+        let expected_result = "Extract SuperState (Current: Execute SEC Request)";
+
+        let state = super_state.transition_to_next_state_sec().expect("Should transition to ExecuteSecRequest");
+
+        let result = state.get_state_name().to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_fail_transition_from_prepare_sec_request_when_output_data_not_yet_computed() {
+        let cik = Cik::new("1234567890").expect("Hardcoded CIK should be valid");
+        let user_agent = DEFAULT_SEC_USER_AGENT.to_string();
+        let super_state = ExtractSuperState::<PrepareSecRequest>::new(cik, user_agent);
+
+        let result = super_state.transition_to_next_state_sec();
+
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
     async fn should_delegate_computation_to_current_state_when_computing_output_data() {
         let input_cik = "1234567890";
         let mut super_state = ExtractSuperState::<ValidateCikFormat>::new(input_cik);
@@ -433,6 +472,11 @@ mod tests {
         implements_auto_traits::<ExtractSuperState<PrepareSecRequest>>();
     }
 
+    #[test]
+    const fn should_implement_auto_traits_for_execute_sec_request_super_state() {
+        implements_auto_traits::<ExtractSuperState<ExecuteSecRequest>>();
+    }
+
     const fn implements_send<T: Send>() {}
     const fn implements_sync<T: Sync>() {}
 
@@ -448,6 +492,12 @@ mod tests {
         implements_sync::<ExtractSuperState<PrepareSecRequest>>();
     }
 
+    #[test]
+    const fn should_be_thread_safe_for_execute_sec_request_super_state() {
+        implements_send::<ExtractSuperState<ExecuteSecRequest>>();
+        implements_sync::<ExtractSuperState<ExecuteSecRequest>>();
+    }
+
     const fn implements_debug<T: Debug>() {}
     #[test]
     const fn should_implement_debug_for_validate_cik_format_super_state() {
@@ -457,6 +507,11 @@ mod tests {
     #[test]
     const fn should_implement_debug_for_prepare_sec_request_super_state() {
         implements_debug::<ExtractSuperState<PrepareSecRequest>>();
+    }
+
+    #[test]
+    const fn should_implement_debug_for_execute_sec_request_super_state() {
+        implements_debug::<ExtractSuperState<ExecuteSecRequest>>();
     }
 
     const fn implements_clone<T: Clone>() {}
@@ -470,6 +525,11 @@ mod tests {
         implements_clone::<ExtractSuperState<PrepareSecRequest>>();
     }
 
+    #[test]
+    const fn should_implement_clone_for_execute_sec_request_super_state() {
+        implements_clone::<ExtractSuperState<ExecuteSecRequest>>();
+    }
+
     const fn implements_partial_eq<T: PartialEq>() {}
     #[test]
     const fn should_implement_partial_eq_for_validate_cik_format_super_state() {
@@ -481,6 +541,11 @@ mod tests {
         implements_partial_eq::<ExtractSuperState<PrepareSecRequest>>();
     }
 
+    #[test]
+    const fn should_implement_partial_eq_for_execute_sec_request_super_state() {
+        implements_partial_eq::<ExtractSuperState<ExecuteSecRequest>>();
+    }
+
     const fn implements_hash<T: Hash>() {}
     #[test]
     const fn should_implement_hash_for_validate_cik_format_super_state() {
@@ -490,5 +555,10 @@ mod tests {
     #[test]
     const fn should_implement_hash_for_prepare_sec_request_super_state() {
         implements_hash::<ExtractSuperState<PrepareSecRequest>>();
+    }
+
+    #[test]
+    const fn should_implement_hash_for_execute_sec_request_super_state() {
+        implements_hash::<ExtractSuperState<ExecuteSecRequest>>();
     }
 }
