@@ -22,7 +22,10 @@ pub struct ValidateSecResponse {
 
 impl ValidateSecResponse {
     #[must_use]
-    pub const fn new(input: ValidateSecResponseInputData, context: ValidateSecResponseContext) -> Self {
+    pub const fn new(
+        input: ValidateSecResponseInputData,
+        context: ValidateSecResponseContext,
+    ) -> Self {
         Self {
             input,
             context,

@@ -3,8 +3,8 @@ use std::fmt;
 use state_maschine::prelude::StateData as SMStateData;
 
 use crate::error::State as StateError;
-use crate::traits::state_machine::state::StateData;
 use crate::shared::sec_response::SecResponse;
+use crate::traits::state_machine::state::StateData;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 /// Input data for the `ValidateSecResponse` fixture.
