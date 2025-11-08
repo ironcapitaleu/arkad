@@ -1,5 +1,5 @@
 pub mod input;
 pub mod output;
 
-pub use input::SampleSecStateInputData;
-pub use output::SampleSecStateOutputData;
+pub use input::ValidateSecResponseInputData;
+pub use output::ValidateSecResponseOutputData;

@@ -1,22 +1,3 @@
-//! # Sample SEC State Context
-//!
-//! This module defines the context data structures and updaters for the [`SampleSecState`](../mod.rs) fixture.
-//!
-//! The context provides information to demonstrate how context is handled
-//! within a state. It is designed for use with the [`ContextData`] trait for testing and demonstration.
-//!
-//! ## Components
-//! - [`SampleSecStateContext`]: Holds the current context for the sample state.
-//! - [`SampleSecStateContextUpdater`]: Updater type for modifying context fields in a controlled way.
-//! - [`SampleSecStateContextUpdaterBuilder`]: Builder for constructing context updaters.
-//!
-//! ## Usage
-//! The context is used by the [`SampleSecState`](../mod.rs) fixture to show how a state can access
-//! environmental or shared data. It supports updates via the builder pattern.
-//!
-//! ## See Also
-//! - [`crate::traits::state_machine::state::ContextData`]: Trait for context data management in states.
-//! - [`crate::tests::common::sample_sec_state`]: Parent module for the sample state fixture.
 use std::fmt;
 
 use state_maschine::prelude::ContextData as SMContextData;
@@ -24,14 +5,14 @@ use state_maschine::prelude::ContextData as SMContextData;
 use crate::traits::state_machine::state::ContextData;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
-/// State context for the `SampleSecState` fixture.
-pub struct SampleSecStateContext {
+/// State context for the `ValidateSecResponse` fixture.
+pub struct ValidateSecResponseContext {
     pub data: String,
     pub max_retries: u32,
 }
 
-impl SampleSecStateContext {
-    /// Creates a new instance of the sample state context.
+impl ValidateSecResponseContext {
+    /// Creates a new instance of the validate SEC response context.
     pub fn new(data: &(impl ToString + ?Sized)) -> Self {
         Self {
             data: data.to_string(),
@@ -46,14 +27,14 @@ impl SampleSecStateContext {
     }
 }
 
-impl ContextData for SampleSecStateContext {
+impl ContextData for ValidateSecResponseContext {
     fn get_max_retries(&self) -> u32 {
         self.max_retries
     }
 }
 
-impl SMContextData for SampleSecStateContext {
-    type UpdateType = SampleSecStateContextUpdater;
+impl SMContextData for ValidateSecResponseContext {
+    type UpdateType = ValidateSecResponseContextUpdater;
 
     fn get_context(&self) -> &Self {
         self
@@ -66,13 +47,13 @@ impl SMContextData for SampleSecStateContext {
     }
 }
 
-impl Default for SampleSecStateContext {
+impl Default for ValidateSecResponseContext {
     fn default() -> Self {
         Self::new("Default Data")
     }
 }
 
-impl fmt::Display for SampleSecStateContext {
+impl fmt::Display for ValidateSecResponseContext {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "Context Data: {}", self.data)
     }
@@ -80,15 +61,15 @@ impl fmt::Display for SampleSecStateContext {
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 /// Updater for the state context.
-pub struct SampleSecStateContextUpdater {
+pub struct ValidateSecResponseContextUpdater {
     pub data: Option<String>,
 }
 
-/// Builder for `SampleSecStateContextUpdater`.
-pub struct SampleSecStateContextUpdaterBuilder {
+/// Builder for `ValidateSecResponseContextUpdater`.
+pub struct ValidateSecResponseContextUpdaterBuilder {
     data: Option<String>,
 }
-impl SampleSecStateContextUpdaterBuilder {
+impl ValidateSecResponseContextUpdaterBuilder {
     #[must_use]
     pub const fn new() -> Self {
         Self { data: None }
@@ -102,12 +83,12 @@ impl SampleSecStateContextUpdaterBuilder {
     }
 
     #[must_use]
-    pub fn build(self) -> SampleSecStateContextUpdater {
-        SampleSecStateContextUpdater { data: self.data }
+    pub fn build(self) -> ValidateSecResponseContextUpdater {
+        ValidateSecResponseContextUpdater { data: self.data }
     }
 }
 
-impl Default for SampleSecStateContextUpdaterBuilder {
+impl Default for ValidateSecResponseContextUpdaterBuilder {
     fn default() -> Self {
         Self::new()
     }

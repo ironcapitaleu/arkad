@@ -1,59 +1,41 @@
-//! # Sample SEC State Input Data
-//!
-//! This module defines the input data structure and updater patterns for the [`SampleSecState`](../../mod.rs) fixture.
-//! It provides a simple `String`-based input to demonstrate the basic requirements for state input data.
-//!
-//! ## Types
-//! - [`SampleSecStateInputData`]: Holds the unvalidated input string to be processed by the sample state.
-//! - [`SampleSecStateInputDataUpdater`]: Updater type for modifying the input data.
-//! - [`SampleSecStateInputDataUpdaterBuilder`]: Builder for constructing updater instances.
-//!
-//! ## Integration
-//! - Implements [`StateData`](crate::traits::state_machine::state::StateData) for compatibility with the state machine framework.
-//! - Used by [`SampleSecState`](../../mod.rs) to receive input data.
-//!
-//! ## See Also
-//! - [`sec_output_data`](super::sec_output_data): The corresponding output data structure.
-//! - [`crate::traits::state_machine::state::StateData`]: Trait for state data integration.
 use std::fmt;
 
 use state_maschine::prelude::StateData as SMStateData;
 
 use crate::error::State as StateError;
 use crate::traits::state_machine::state::StateData;
+use crate::shared::sec_response::SecResponse;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
-/// Input data for the `SampleSecState` fixture.
-pub struct SampleSecStateInputData {
-    pub input_data: String,
+/// Input data for the `ValidateSecResponse` fixture.
+pub struct ValidateSecResponseInputData {
+    pub sec_response: SecResponse,
 }
 
-impl SampleSecStateInputData {
-    /// Creates a new instance of the input data for the sample state.
-    pub fn new(input_data: &(impl ToString + ?Sized)) -> Self {
-        Self {
-            input_data: input_data.to_string(),
-        }
+impl ValidateSecResponseInputData {
+    /// Creates a new instance of the input data for the validate SEC response state.
+    pub fn new(sec_response: SecResponse) -> Self {
+        Self { sec_response }
     }
 
     /// Returns a reference to the raw input string.
     #[must_use]
-    pub const fn input_data(&self) -> &String {
-        &self.input_data
+    pub const fn sec_response(&self) -> &SecResponse {
+        &self.sec_response
     }
 }
 
-impl StateData for SampleSecStateInputData {
+impl StateData for ValidateSecResponseInputData {
     fn update_state(&mut self, updates: Self::UpdateType) -> Result<(), StateError> {
-        if let Some(input_data) = updates.input_data {
-            self.input_data = input_data;
+        if let Some(sec_response) = updates.sec_response {
+            self.sec_response = sec_response;
         }
         Ok(())
     }
 }
 
-impl SMStateData for SampleSecStateInputData {
-    type UpdateType = SampleSecStateInputDataUpdater;
+impl SMStateData for ValidateSecResponseInputData {
+    type UpdateType = ValidateSecResponseInputDataUpdater;
 
     fn get_state(&self) -> &Self {
         self
@@ -62,52 +44,52 @@ impl SMStateData for SampleSecStateInputData {
     fn update_state(&mut self, _updates: Self::UpdateType) {}
 }
 
-impl Default for SampleSecStateInputData {
+impl Default for ValidateSecResponseInputData {
     fn default() -> Self {
         Self {
-            input_data: "Hello".to_string(),
+            sec_response: SecResponse::default(),
         }
     }
 }
 
-impl fmt::Display for SampleSecStateInputData {
+impl fmt::Display for ValidateSecResponseInputData {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "\tInput Data: {}", self.input_data,)
+        write!(f, "\tInput Data: {}", self.sec_response())
     }
 }
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
-/// Updater for [`SampleSecStateInputData`].
-pub struct SampleSecStateInputDataUpdater {
-    pub input_data: Option<String>,
+/// Updater for [`ValidateSecResponseInputData`].
+pub struct ValidateSecResponseInputDataUpdater {
+    pub sec_response: Option<SecResponse>,
 }
 
-/// Builder for [`SampleSecStateInputDataUpdater`].
-pub struct SampleSecStateInputDataUpdaterBuilder {
-    input_data: Option<String>,
+/// Builder for [`ValidateSecResponseInputDataUpdater`].
+pub struct ValidateSecResponseInputDataUpdaterBuilder {
+    sec_response: Option<SecResponse>,
 }
-impl SampleSecStateInputDataUpdaterBuilder {
+impl ValidateSecResponseInputDataUpdaterBuilder {
     #[must_use]
     pub const fn new() -> Self {
-        Self { input_data: None }
+        Self { sec_response: None }
     }
 
     #[must_use]
     #[allow(clippy::missing_const_for_fn)]
-    pub fn input_data(mut self, input_data: &(impl ToString + ?Sized)) -> Self {
-        self.input_data = Some(input_data.to_string());
+    pub fn sec_response(mut self, sec_response: &SecResponse) -> Self {
+        self.sec_response = Some(sec_response.clone());
         self
     }
 
     #[must_use]
-    pub fn build(self) -> SampleSecStateInputDataUpdater {
-        SampleSecStateInputDataUpdater {
-            input_data: self.input_data,
+    pub fn build(self) -> ValidateSecResponseInputDataUpdater {
+        ValidateSecResponseInputDataUpdater {
+            sec_response: self.sec_response,
         }
     }
 }
 
-impl Default for SampleSecStateInputDataUpdaterBuilder {
+impl Default for ValidateSecResponseInputDataUpdaterBuilder {
     fn default() -> Self {
         Self::new()
     }
