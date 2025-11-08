@@ -8,13 +8,14 @@ use crate::traits::state_machine::state::StateData;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 /// Input data for the `ValidateSecResponse` fixture.
+#[derive(Default)]
 pub struct ValidateSecResponseInputData {
     pub sec_response: SecResponse,
 }
 
 impl ValidateSecResponseInputData {
     /// Creates a new instance of the input data for the validate SEC response state.
-    pub fn new(sec_response: SecResponse) -> Self {
+    #[must_use] pub const fn new(sec_response: SecResponse) -> Self {
         Self { sec_response }
     }
 
@@ -44,13 +45,6 @@ impl SMStateData for ValidateSecResponseInputData {
     fn update_state(&mut self, _updates: Self::UpdateType) {}
 }
 
-impl Default for ValidateSecResponseInputData {
-    fn default() -> Self {
-        Self {
-            sec_response: SecResponse::default(),
-        }
-    }
-}
 
 impl fmt::Display for ValidateSecResponseInputData {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

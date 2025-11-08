@@ -13,6 +13,9 @@ pub struct ValidateSecResponseOutputData {
 
 impl ValidateSecResponseOutputData {
     /// Creates a new instance of the output data for the validate SEC response state.
+    /// 
+    /// # Errors
+    /// Returns a `StateError` if the provided data is invalid.
     pub fn new(data: &(impl ToString + ?Sized)) -> Result<Self, StateError> {
         Ok(Self {
             output_data: data.to_string(),
