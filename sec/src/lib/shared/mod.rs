@@ -7,6 +7,8 @@
 //! - [`cik`]: Provides parsing, validation, and formatting utilities for SEC Central Index Keys (CIKs).
 //! - [`sec_client`]: Provides utilities for creating and managing SEC API clients, including user agent handling.
 //! - [`sec_request`]: Provides utilities for constructing SEC API requests, ensuring proper URL formatting.
+//! - [`sec_response`]: Provides utilities for handling HTTP responses from SEC endpoints.
+//! - [`validated_sec_response`]: Provides validated wrappers around SEC responses to ensure data integrity.
 //! - [`user_agent`]: Provides utilities for creating and validating SEC-compliant user agent strings.
 //!
 //! ## Usage
@@ -22,3 +24,4 @@ pub mod sec_client;
 pub mod sec_request;
 pub mod sec_response;
 pub mod user_agent;
+pub mod validated_sec_response;
