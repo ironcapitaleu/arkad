@@ -4,7 +4,10 @@ use async_trait::async_trait;
 use state_maschine::prelude::State as SMState;
 
 use crate::error::State as StateError;
+use crate::error::state_machine::state::InvalidSecResponse;
+use crate::traits::error::FromDomainError;
 use crate::traits::state_machine::state::State;
+use crate::shared::validated_sec_response::ValidatedSecResponse;
 
 pub mod context;
 pub mod data;
@@ -37,9 +40,23 @@ impl ValidateSecResponse {
 #[async_trait]
 impl State for ValidateSecResponse {
     async fn compute_output_data_async(&mut self) -> Result<(), StateError> {
-        self.output = Some(ValidateSecResponseOutputData {
-            output_data: "Hello World!".to_string(),
-        });
+        let validated_sec_response =
+            ValidatedSecResponse::from_sec_response(self.input.sec_response().clone());
+
+        match validated_sec_response {
+            Ok(validated_response) => {
+                self.output = Some(ValidateSecResponseOutputData {
+                    validated_sec_response: validated_response,
+                });
+            }
+            Err(e) => {
+                let e: StateError =
+                    InvalidSecResponse::from_domain_error(self.get_state_name().to_string(), e)
+                        .into();
+                return Err(e);
+            }
+        }
+
         Ok(())
     }
 }
