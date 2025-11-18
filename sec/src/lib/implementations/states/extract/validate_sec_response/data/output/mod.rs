@@ -2,13 +2,14 @@ use std::fmt;
 
 use state_maschine::prelude::StateData as SMStateData;
 
+use crate::shared::validated_sec_response::ValidatedSecResponse;
 use crate::error::State as StateError;
 use crate::traits::state_machine::state::StateData;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 /// Output data for `ValidateSecResponse`.
 pub struct ValidateSecResponseOutputData {
-    pub output_data: String,
+    pub validated_sec_response: ValidatedSecResponse,
 }
 
 impl ValidateSecResponseOutputData {
@@ -16,22 +17,22 @@ impl ValidateSecResponseOutputData {
     /// 
     /// # Errors
     /// Returns a `StateError` if the provided data is invalid.
-    pub fn new(data: &(impl ToString + ?Sized)) -> Result<Self, StateError> {
+    pub fn new(validated_sec_response: ValidatedSecResponse) -> Result<Self, StateError> {
         Ok(Self {
-            output_data: data.to_string(),
+            validated_sec_response,
         })
     }
 
     /// Returns a reference to the output data string.
     #[must_use]
-    pub const fn output_data(&self) -> &String {
-        &self.output_data
+    pub const fn validated_sec_response(&self) -> &ValidatedSecResponse {
+        &self.validated_sec_response
     }
 }
 impl StateData for ValidateSecResponseOutputData {
     fn update_state(&mut self, updates: Self::UpdateType) -> Result<(), StateError> {
-        if let Some(input_data) = updates.output_data {
-            self.output_data = input_data;
+        if let Some(validated_sec_response) = updates.validated_sec_response {
+            self.validated_sec_response = validated_sec_response;
         }
         Ok(())
     }
@@ -48,45 +49,45 @@ impl SMStateData for ValidateSecResponseOutputData {
 impl Default for ValidateSecResponseOutputData {
     fn default() -> Self {
         Self {
-            output_data: String::from("Hello World!"),
+            validated_sec_response: ValidatedSecResponse::default(),
         }
     }
 }
 
 impl fmt::Display for ValidateSecResponseOutputData {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "\tOutput Data: {}", self.output_data,)
+        write!(f, "\tOutput Data: {}", self.validated_sec_response,)
     }
 }
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 /// Updater for [`ValidateSecResponseOutputData`].
 pub struct ValidateSecResponseOutputDataUpdater {
-    pub output_data: Option<String>,
+    pub validated_sec_response: Option<ValidatedSecResponse>,
 }
 
 /// Builder for [`ValidateSecResponseOutputDataUpdater`].
 pub struct ValidateSecResponseOutputDataUpdaterBuilder {
-    output_data: Option<String>,
+    validated_sec_response: Option<ValidatedSecResponse>,
 }
 
 impl ValidateSecResponseOutputDataUpdaterBuilder {
     #[must_use]
     pub const fn new() -> Self {
-        Self { output_data: None }
+        Self { validated_sec_response: None }
     }
 
     #[must_use]
     #[allow(clippy::missing_const_for_fn)]
-    pub fn output_data(mut self, output_data: &(impl ToString + ?Sized)) -> Self {
-        self.output_data = Some(output_data.to_string());
+    pub fn validated_sec_response(mut self, validated_sec_response: ValidatedSecResponse) -> Self {
+        self.validated_sec_response = Some(validated_sec_response);
         self
     }
 
     #[must_use]
     pub fn build(self) -> ValidateSecResponseOutputDataUpdater {
         ValidateSecResponseOutputDataUpdater {
-            output_data: self.output_data,
+            validated_sec_response: self.validated_sec_response,
         }
     }
 }
