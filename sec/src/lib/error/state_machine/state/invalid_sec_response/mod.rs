@@ -19,7 +19,7 @@
 //! ```rust
 //! use sec::error::state_machine::state::invalid_sec_response::InvalidSecResponse;
 //! use sec::shared::validated_sec_response::{ValidatedSecResponseError, ValidatedSecResponseErrorReason};
-//! 
+//!
 //! let validation_error = ValidatedSecResponseError::new(ValidatedSecResponseErrorReason::EmptyResponseBody);
 //! let state_error = InvalidSecResponse::new("ValidateSecResponse", validation_error);
 //! ```
@@ -34,7 +34,9 @@ use crate::traits::error::FromDomainError;
 /// This error type is used to wrap domain-level [`ValidatedSecResponseError`]s with additional information about
 /// the state in which the error occurred, making it suitable for use in state machine error handling.
 #[derive(Error, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[error("[InvalidSecResponse] Failure in State: `{state_name}`. Invalid SEC Response: {validation_error}")]
+#[error(
+    "[InvalidSecResponse] Failure in State: `{state_name}`. Invalid SEC Response: {validation_error}"
+)]
 pub struct InvalidSecResponse {
     /// The name of the state where the error occurred.
     pub state_name: String,

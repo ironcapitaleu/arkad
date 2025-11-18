@@ -15,7 +15,8 @@ pub struct ValidateSecResponseInputData {
 
 impl ValidateSecResponseInputData {
     /// Creates a new instance of the input data for the validate SEC response state.
-    #[must_use] pub const fn new(sec_response: SecResponse) -> Self {
+    #[must_use]
+    pub const fn new(sec_response: SecResponse) -> Self {
         Self { sec_response }
     }
 
@@ -44,7 +45,6 @@ impl SMStateData for ValidateSecResponseInputData {
 
     fn update_state(&mut self, _updates: Self::UpdateType) {}
 }
-
 
 impl fmt::Display for ValidateSecResponseInputData {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

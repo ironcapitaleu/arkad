@@ -20,8 +20,8 @@
 
 use std::fmt;
 
-use super::sec_response::SecResponse;
 use super::sec_response::ContentType;
+use super::sec_response::SecResponse;
 
 pub use validated_sec_response_error::{
     ValidatedSecResponseError, ValidatedSecResponseErrorReason,
@@ -56,8 +56,7 @@ mod validated_sec_response_error;
 /// - Content type matches expected format
 /// - Response body is not empty (when applicable)
 /// - Response structure is well-formed
-#[derive(Debug, Clone)]
-#[derive(Default)]
+#[derive(Debug, Clone, Default)]
 pub struct ValidatedSecResponse {
     response: SecResponse,
 }
@@ -87,7 +86,7 @@ impl ValidatedSecResponse {
             ));
         }
 
-        if response.content_type() != & ContentType::Json {
+        if response.content_type() != &ContentType::Json {
             return Err(ValidatedSecResponseError::new(
                 ValidatedSecResponseErrorReason::InvalidContentType(
                     response.content_type().to_string(),
@@ -137,7 +136,6 @@ impl std::hash::Hash for ValidatedSecResponse {
     }
 }
 
-
 impl fmt::Display for ValidatedSecResponse {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
@@ -180,7 +178,8 @@ mod tests {
             response: sec_response.clone(),
         };
 
-        let result = ValidatedSecResponse::from_sec_response(sec_response).expect("Response should be valid.");
+        let result = ValidatedSecResponse::from_sec_response(sec_response)
+            .expect("Response should be valid.");
 
         assert_eq!(result, expected_result);
     }
@@ -235,8 +234,9 @@ mod tests {
             body: String::from("{}"),
         };
 
-        let expected_result =
-            ValidatedSecResponseError::new(ValidatedSecResponseErrorReason::InvalidContentType("text/html".to_string()));
+        let expected_result = ValidatedSecResponseError::new(
+            ValidatedSecResponseErrorReason::InvalidContentType("text/html".to_string()),
+        );
         let result = ValidatedSecResponse::from_sec_response(sec_response);
 
         assert_eq!(result.unwrap_err(), expected_result);
@@ -252,8 +252,8 @@ mod tests {
             content_type: ContentType::Json,
             body: String::from("{}"),
         };
-        let validated = ValidatedSecResponse::from_sec_response(sec_response.clone())
-            .expect("Should be valid");
+        let validated =
+            ValidatedSecResponse::from_sec_response(sec_response.clone()).expect("Should be valid");
 
         let expected_result = &sec_response;
 
@@ -272,8 +272,8 @@ mod tests {
             content_type: ContentType::Json,
             body: String::from("{}"),
         };
-        let validated = ValidatedSecResponse::from_sec_response(sec_response.clone())
-            .expect("Should be valid");
+        let validated =
+            ValidatedSecResponse::from_sec_response(sec_response.clone()).expect("Should be valid");
 
         let expected_result = sec_response;
 

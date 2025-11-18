@@ -63,18 +63,15 @@ impl std::fmt::Display for ValidatedSecResponseErrorReason {
                 f,
                 "Response status code {status} indicates failure (expected 2xx)."
             ),
-            Self::EmptyResponseBody => write!(
-                f,
-                "Response body is empty when content is expected."
-            ),
-            Self::InvalidContentType(content_type) => write!(
-                f,
-                "Invalid or unexpected content type: {content_type}"
-            ),
-            Self::Other(message) => write!(
-                f,
-                "An unspecified validation error occurred: {message}"
-            ),
+            Self::EmptyResponseBody => {
+                write!(f, "Response body is empty when content is expected.")
+            }
+            Self::InvalidContentType(content_type) => {
+                write!(f, "Invalid or unexpected content type: {content_type}")
+            }
+            Self::Other(message) => {
+                write!(f, "An unspecified validation error occurred: {message}")
+            }
         }
     }
 }
@@ -116,7 +113,8 @@ mod tests {
         let status = StatusCode::NOT_FOUND;
         let reason = ValidatedSecResponseErrorReason::InvalidStatusCode(status);
 
-        let expected_result = "Response status code 404 Not Found indicates failure (expected 2xx).";
+        let expected_result =
+            "Response status code 404 Not Found indicates failure (expected 2xx).";
 
         let result = format!("{reason}");
 

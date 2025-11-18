@@ -2,8 +2,8 @@ use std::fmt;
 
 use state_maschine::prelude::StateData as SMStateData;
 
-use crate::shared::validated_sec_response::ValidatedSecResponse;
 use crate::error::State as StateError;
+use crate::shared::validated_sec_response::ValidatedSecResponse;
 use crate::traits::state_machine::state::StateData;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
@@ -15,7 +15,7 @@ pub struct ValidateSecResponseOutputData {
 
 impl ValidateSecResponseOutputData {
     /// Creates a new instance of the output data for the validate SEC response state.
-    /// 
+    ///
     /// # Errors
     /// Returns a `StateError` if the provided data is invalid.
     pub const fn new(validated_sec_response: ValidatedSecResponse) -> Result<Self, StateError> {
@@ -47,7 +47,6 @@ impl SMStateData for ValidateSecResponseOutputData {
     fn update_state(&mut self, _updates: Self::UpdateType) {}
 }
 
-
 impl fmt::Display for ValidateSecResponseOutputData {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "\tOutput Data: {}", self.validated_sec_response,)
@@ -68,7 +67,9 @@ pub struct ValidateSecResponseOutputDataUpdaterBuilder {
 impl ValidateSecResponseOutputDataUpdaterBuilder {
     #[must_use]
     pub const fn new() -> Self {
-        Self { validated_sec_response: None }
+        Self {
+            validated_sec_response: None,
+        }
     }
 
     #[must_use]
