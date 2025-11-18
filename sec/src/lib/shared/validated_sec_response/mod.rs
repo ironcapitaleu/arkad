@@ -57,6 +57,7 @@ mod validated_sec_response_error;
 /// - Response body is not empty (when applicable)
 /// - Response structure is well-formed
 #[derive(Debug, Clone)]
+#[derive(Default)]
 pub struct ValidatedSecResponse {
     response: SecResponse,
 }
@@ -136,13 +137,6 @@ impl std::hash::Hash for ValidatedSecResponse {
     }
 }
 
-impl Default for ValidatedSecResponse {
-    fn default() -> Self {
-        Self {
-            response: SecResponse::default(),
-        }
-    }
-}
 
 impl fmt::Display for ValidatedSecResponse {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

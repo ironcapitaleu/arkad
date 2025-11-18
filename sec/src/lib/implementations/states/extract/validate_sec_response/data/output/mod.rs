@@ -8,6 +8,7 @@ use crate::traits::state_machine::state::StateData;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 /// Output data for `ValidateSecResponse`.
+#[derive(Default)]
 pub struct ValidateSecResponseOutputData {
     pub validated_sec_response: ValidatedSecResponse,
 }
@@ -17,7 +18,7 @@ impl ValidateSecResponseOutputData {
     /// 
     /// # Errors
     /// Returns a `StateError` if the provided data is invalid.
-    pub fn new(validated_sec_response: ValidatedSecResponse) -> Result<Self, StateError> {
+    pub const fn new(validated_sec_response: ValidatedSecResponse) -> Result<Self, StateError> {
         Ok(Self {
             validated_sec_response,
         })
@@ -46,13 +47,6 @@ impl SMStateData for ValidateSecResponseOutputData {
     fn update_state(&mut self, _updates: Self::UpdateType) {}
 }
 
-impl Default for ValidateSecResponseOutputData {
-    fn default() -> Self {
-        Self {
-            validated_sec_response: ValidatedSecResponse::default(),
-        }
-    }
-}
 
 impl fmt::Display for ValidateSecResponseOutputData {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
