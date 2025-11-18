@@ -136,6 +136,14 @@ impl std::hash::Hash for ValidatedSecResponse {
     }
 }
 
+impl Default for ValidatedSecResponse {
+    fn default() -> Self {
+        Self {
+            response: SecResponse::default(),
+        }
+    }
+}
+
 impl fmt::Display for ValidatedSecResponse {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
