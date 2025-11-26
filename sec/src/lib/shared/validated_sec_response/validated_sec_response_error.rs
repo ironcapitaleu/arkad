@@ -51,6 +51,8 @@ pub enum ValidatedSecResponseErrorReason {
     EmptyResponseBody,
     /// Invalid or unexpected content type.
     InvalidContentType(String),
+    /// Response body contains invalid JSON structure.
+    InvalidJsonStructure(String),
     /// Other unspecified validation error.
     Other(String),
 }
@@ -68,6 +70,9 @@ impl std::fmt::Display for ValidatedSecResponseErrorReason {
             }
             Self::InvalidContentType(content_type) => {
                 write!(f, "Invalid or unexpected content type: {content_type}")
+            }
+            Self::InvalidJsonStructure(message) => {
+                write!(f, "Response body contains invalid JSON structure: {message}")
             }
             Self::Other(message) => {
                 write!(f, "An unspecified validation error occurred: {message}")
@@ -138,6 +143,18 @@ mod tests {
         let reason = ValidatedSecResponseErrorReason::InvalidContentType(content_type.to_string());
 
         let expected_result = "Invalid or unexpected content type: application/pdf";
+
+        let result = format!("{reason}");
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_display_reason_correctly_when_invalid_json_structure() {
+        let error_message = "ERROR: Not allowed!";
+        let reason = ValidatedSecResponseErrorReason::InvalidJsonStructure(error_message.to_string());
+
+        let expected_result = "Response body contains invalid JSON structure: ERROR: Not allowed!";
 
         let result = format!("{reason}");
 
