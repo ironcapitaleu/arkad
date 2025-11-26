@@ -1,17 +1,18 @@
 //! # Validated SEC Response Module
 //!
 //! This module provides the [`ValidatedSecResponse`] type and related utilities for handling
-//! validated HTTP responses from SEC (Securities and Exchange Commission) endpoints. It wraps
-//! [`SecResponse`] data after validation to ensure the response meets specific criteria before
-//! further processing.
+//! validated HTTP responses from SEC (Securities and Exchange Commission) endpoints. It extracts
+//! and validates JSON data from [`SecResponse`] to ensure the response meets specific criteria
+//! before further processing.
 //!
 //! ## Overview
-//! The [`ValidatedSecResponse`] is a wrapper around [`SecResponse`] that guarantees the response
-//! has been validated according to SEC API requirements. This includes checking status codes,
-//! content types, and response structure to ensure data integrity before consumption.
+//! The [`ValidatedSecResponse`] contains validated JSON data extracted from a [`SecResponse`].
+//! It guarantees the response has been validated according to SEC API requirements, including
+//! checking status codes, content types, and JSON structure to ensure data integrity before
+//! consumption.
 //!
 //! ## Types
-//! - [`ValidatedSecResponse`]: Validated response wrapper containing a [`SecResponse`].
+//! - [`ValidatedSecResponse`]: Validated response containing parsed JSON body.
 //! - [`ValidatedSecResponseError`]: Error type for validation failures.
 //!
 //! ## See Also
@@ -19,6 +20,8 @@
 //! - [`super::sec_client`]: HTTP client for making SEC-compliant requests.
 
 use std::fmt;
+
+use serde_json;
 
 use super::sec_response::ContentType;
 use super::sec_response::SecResponse;
@@ -29,11 +32,12 @@ pub use validated_sec_response_error::{
 
 mod validated_sec_response_error;
 
-/// A validated wrapper around SEC HTTP response data.
+/// A validated SEC HTTP response containing parsed JSON data.
 ///
-/// `ValidatedSecResponse` wraps a [`SecResponse`] after validation, ensuring the response
-/// meets expected criteria such as successful status codes, valid content types, and proper
-/// response structure. This provides a guarantee that the response data is safe to process.
+/// `ValidatedSecResponse` contains validated and parsed JSON data extracted from a
+/// [`SecResponse`]. It guarantees the response meets expected criteria such as successful
+/// status codes, valid JSON content type, non-empty body, and valid JSON structure.
+/// This provides a guarantee that the JSON data is safe to process.
 ///
 /// # Examples
 ///
@@ -45,20 +49,20 @@ mod validated_sec_response_error;
 /// // let sec_response: SecResponse = /* ... */;
 /// // let validated = ValidatedSecResponse::from_sec_response(sec_response)?;
 ///
-/// // Access the underlying response
-/// // let response = validated.response();
+/// // Access the validated JSON body
+/// // let json_body = validated.body();
 /// # Ok::<(), ValidatedSecResponseError>(())
 /// ```
 ///
 /// # Validation Criteria
 /// The validation process checks:
 /// - Status code is successful (2xx range)
-/// - Content type matches expected format
-/// - Response body is not empty (when applicable)
-/// - Response structure is well-formed
+/// - Content type is JSON (`application/json`)
+/// - Response body is not empty
+/// - Response body contains valid JSON structure
 #[derive(Debug, Clone, Default)]
 pub struct ValidatedSecResponse {
-    response: SecResponse,
+    body: serde_json::Value,
 }
 
 impl ValidatedSecResponse {
@@ -86,6 +90,7 @@ impl ValidatedSecResponse {
             ));
         }
 
+        // Validate that the returned content is JSON
         if response.content_type() != &ContentType::Json {
             return Err(ValidatedSecResponseError::new(
                 ValidatedSecResponseErrorReason::InvalidContentType(
@@ -94,25 +99,31 @@ impl ValidatedSecResponse {
             ));
         }
 
-        Ok(Self { response })
+        let body = serde_json::from_str(response.body()).map_err(|e| {
+            ValidatedSecResponseError::new(
+                ValidatedSecResponseErrorReason::InvalidJsonStructure(e.to_string()),
+            )
+        })?;
+
+        Ok(Self { body })
     }
 
-    /// Returns a reference to the underlying validated [`SecResponse`].
+    /// Returns a reference to the validated JSON body.
     #[must_use]
-    pub const fn response(&self) -> &SecResponse {
-        &self.response
+    pub const fn body(&self) -> &serde_json::Value {
+        &self.body
     }
 
-    /// Consumes self and returns the underlying [`SecResponse`].
+    /// Consumes self and returns the validated JSON body.
     #[must_use]
-    pub fn into_response(self) -> SecResponse {
-        self.response
+    pub fn into_body(self) -> serde_json::Value {
+        self.body
     }
 }
 
 impl PartialEq for ValidatedSecResponse {
     fn eq(&self, other: &Self) -> bool {
-        self.response == other.response
+        self.body == other.body
     }
 }
 
@@ -124,7 +135,8 @@ impl PartialOrd for ValidatedSecResponse {
 
 impl Ord for ValidatedSecResponse {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.response.cmp(&other.response)
+        // Compare JSON values by their string representation
+        self.body.to_string().cmp(&other.body.to_string())
     }
 }
 
@@ -132,7 +144,7 @@ impl Eq for ValidatedSecResponse {}
 
 impl std::hash::Hash for ValidatedSecResponse {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.response.hash(state);
+        self.body.to_string().hash(state);
     }
 }
 
@@ -140,15 +152,8 @@ impl fmt::Display for ValidatedSecResponse {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "Validated SEC Response:\n\
-             \t\tStatus: {}\n\
-             \t\tURL: {}\n\
-             \t\tContent-Type: {}\n\
-             \t\tBody Length: {} bytes",
-            self.response.status(),
-            self.response.url(),
-            self.response.content_type(),
-            self.response.body().len()
+            "Validated SEC Response:\n\t\tBody: {}",
+            self.body
         )
     }
 }
@@ -171,11 +176,11 @@ mod tests {
             status: StatusCode::OK,
             headers: HashMap::new(),
             content_type: ContentType::Json,
-            body: String::from("{}"),
+            body: String::from("{\"key\": \"value\"}"),
         };
 
         let expected_result = ValidatedSecResponse {
-            response: sec_response.clone(),
+            body: serde_json::json!({"key": "value"}),
         };
 
         let result = ValidatedSecResponse::from_sec_response(sec_response)
@@ -243,41 +248,61 @@ mod tests {
     }
 
     #[test]
-    fn should_return_underlying_response_when_response_is_called() {
+    fn should_return_error_when_json_structure_is_invalid() {
         let sec_response = SecResponse {
             url: Url::parse("https://data.sec.gov/api/xbrl/companyfacts/CIK0001067983.json")
                 .expect("Valid URL"),
             status: StatusCode::OK,
             headers: HashMap::new(),
             content_type: ContentType::Json,
-            body: String::from("{}"),
+            body: String::from("{invalid json}"),
+        };
+
+        let result = ValidatedSecResponse::from_sec_response(sec_response);
+
+        assert!(result.is_err());
+        match result.unwrap_err().reason {
+            ValidatedSecResponseErrorReason::InvalidJsonStructure(_) => {},
+            other => panic!("Expected InvalidJsonStructure, got: {:?}", other),
+        }
+    }
+
+    #[test]
+    fn should_return_underlying_body_when_body_is_called() {
+        let sec_response = SecResponse {
+            url: Url::parse("https://data.sec.gov/api/xbrl/companyfacts/CIK0001067983.json")
+                .expect("Valid URL"),
+            status: StatusCode::OK,
+            headers: HashMap::new(),
+            content_type: ContentType::Json,
+            body: String::from("{\"test\": true}"),
         };
         let validated =
-            ValidatedSecResponse::from_sec_response(sec_response.clone()).expect("Should be valid");
+            ValidatedSecResponse::from_sec_response(sec_response).expect("Should be valid");
 
-        let expected_result = &sec_response;
+        let expected_result = &serde_json::json!({"test": true});
 
-        let result = validated.response();
+        let result = validated.body();
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
-    fn should_consume_and_return_response_when_into_response_is_called() {
+    fn should_consume_and_return_body_when_into_body_is_called() {
         let sec_response = SecResponse {
             url: Url::parse("https://data.sec.gov/api/xbrl/companyfacts/CIK0001067983.json")
                 .expect("Valid URL"),
             status: StatusCode::OK,
             headers: HashMap::new(),
             content_type: ContentType::Json,
-            body: String::from("{}"),
+            body: String::from("{\"data\": [1, 2, 3]}"),
         };
         let validated =
-            ValidatedSecResponse::from_sec_response(sec_response.clone()).expect("Should be valid");
+            ValidatedSecResponse::from_sec_response(sec_response).expect("Should be valid");
 
-        let expected_result = sec_response;
+        let expected_result = serde_json::json!({"data": [1, 2, 3]});
 
-        let result = validated.into_response();
+        let result = validated.into_body();
 
         assert_eq!(result, expected_result);
     }
