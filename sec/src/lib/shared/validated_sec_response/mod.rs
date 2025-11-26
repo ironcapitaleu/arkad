@@ -100,9 +100,9 @@ impl ValidatedSecResponse {
         }
 
         let body = serde_json::from_str(response.body()).map_err(|e| {
-            ValidatedSecResponseError::new(
-                ValidatedSecResponseErrorReason::InvalidJsonStructure(e.to_string()),
-            )
+            ValidatedSecResponseError::new(ValidatedSecResponseErrorReason::InvalidJsonStructure(
+                e.to_string(),
+            ))
         })?;
 
         Ok(Self { body })
@@ -150,11 +150,7 @@ impl std::hash::Hash for ValidatedSecResponse {
 
 impl fmt::Display for ValidatedSecResponse {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "Validated SEC Response:\n\t\tBody: {}",
-            self.body
-        )
+        write!(f, "Validated SEC Response:\n\t\tBody: {}", self.body)
     }
 }
 
@@ -262,7 +258,7 @@ mod tests {
 
         assert!(result.is_err());
         match result.unwrap_err().reason {
-            ValidatedSecResponseErrorReason::InvalidJsonStructure(_) => {},
+            ValidatedSecResponseErrorReason::InvalidJsonStructure(_) => {}
             other => panic!("Expected InvalidJsonStructure, got: {:?}", other),
         }
     }

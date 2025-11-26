@@ -72,7 +72,10 @@ impl std::fmt::Display for ValidatedSecResponseErrorReason {
                 write!(f, "Invalid or unexpected content type: {content_type}")
             }
             Self::InvalidJsonStructure(message) => {
-                write!(f, "Response body contains invalid JSON structure: {message}")
+                write!(
+                    f,
+                    "Response body contains invalid JSON structure: {message}"
+                )
             }
             Self::Other(message) => {
                 write!(f, "An unspecified validation error occurred: {message}")
@@ -152,7 +155,8 @@ mod tests {
     #[test]
     fn should_display_reason_correctly_when_invalid_json_structure() {
         let error_message = "ERROR: Not allowed!";
-        let reason = ValidatedSecResponseErrorReason::InvalidJsonStructure(error_message.to_string());
+        let reason =
+            ValidatedSecResponseErrorReason::InvalidJsonStructure(error_message.to_string());
 
         let expected_result = "Response body contains invalid JSON structure: ERROR: Not allowed!";
 
