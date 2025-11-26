@@ -863,6 +863,8 @@ dependencies = [
  "pretty_assertions",
  "regex",
  "reqwest",
+ "serde",
+ "serde_json",
  "state_maschine",
  "thiserror",
  "tokio",
