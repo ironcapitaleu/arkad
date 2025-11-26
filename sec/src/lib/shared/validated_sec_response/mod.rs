@@ -75,7 +75,7 @@ impl ValidatedSecResponse {
     /// - The content type is invalid or unexpected
     /// - The response body is empty when content is expected
     /// - The response structure is malformed
-    pub fn from_sec_response(response: SecResponse) -> Result<Self, ValidatedSecResponseError> {
+    pub fn from_sec_response(response: &SecResponse) -> Result<Self, ValidatedSecResponseError> {
         // Validate status code
         if !response.status().is_success() {
             return Err(ValidatedSecResponseError::new(
@@ -183,7 +183,7 @@ mod tests {
             body: serde_json::json!({"key": "value"}),
         };
 
-        let result = ValidatedSecResponse::from_sec_response(sec_response)
+        let result = ValidatedSecResponse::from_sec_response(&sec_response)
             .expect("Response should be valid.");
 
         assert_eq!(result, expected_result);
@@ -204,7 +204,7 @@ mod tests {
             ValidatedSecResponseErrorReason::InvalidStatusCode(StatusCode::BAD_REQUEST),
         );
 
-        let result = ValidatedSecResponse::from_sec_response(sec_response);
+        let result = ValidatedSecResponse::from_sec_response(&sec_response);
 
         assert_eq!(result.unwrap_err(), expected_result);
     }
@@ -223,7 +223,7 @@ mod tests {
         let expected_result =
             ValidatedSecResponseError::new(ValidatedSecResponseErrorReason::EmptyResponseBody);
 
-        let result = ValidatedSecResponse::from_sec_response(sec_response);
+        let result = ValidatedSecResponse::from_sec_response(&sec_response);
 
         assert_eq!(result.unwrap_err(), expected_result);
     }
@@ -242,7 +242,7 @@ mod tests {
         let expected_result = ValidatedSecResponseError::new(
             ValidatedSecResponseErrorReason::InvalidContentType("text/html".to_string()),
         );
-        let result = ValidatedSecResponse::from_sec_response(sec_response);
+        let result = ValidatedSecResponse::from_sec_response(&sec_response);
 
         assert_eq!(result.unwrap_err(), expected_result);
     }
@@ -258,7 +258,7 @@ mod tests {
             body: String::from("{invalid json}"),
         };
 
-        let result = ValidatedSecResponse::from_sec_response(sec_response);
+        let result = ValidatedSecResponse::from_sec_response(&sec_response);
 
         assert!(result.is_err());
         match result.unwrap_err().reason {
@@ -278,7 +278,7 @@ mod tests {
             body: String::from("{\"test\": true}"),
         };
         let validated =
-            ValidatedSecResponse::from_sec_response(sec_response).expect("Should be valid");
+            ValidatedSecResponse::from_sec_response(&sec_response).expect("Should be valid");
 
         let expected_result = &serde_json::json!({"test": true});
 
@@ -298,7 +298,7 @@ mod tests {
             body: String::from("{\"data\": [1, 2, 3]}"),
         };
         let validated =
-            ValidatedSecResponse::from_sec_response(sec_response).expect("Should be valid");
+            ValidatedSecResponse::from_sec_response(&sec_response).expect("Should be valid");
 
         let expected_result = serde_json::json!({"data": [1, 2, 3]});
 

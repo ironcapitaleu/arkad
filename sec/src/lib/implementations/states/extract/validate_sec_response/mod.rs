@@ -41,7 +41,7 @@ impl ValidateSecResponse {
 impl State for ValidateSecResponse {
     async fn compute_output_data_async(&mut self) -> Result<(), StateError> {
         let validated_sec_response =
-            ValidatedSecResponse::from_sec_response(self.input.sec_response().clone());
+            ValidatedSecResponse::from_sec_response(self.input.sec_response());
 
         match validated_sec_response {
             Ok(validated_response) => {
