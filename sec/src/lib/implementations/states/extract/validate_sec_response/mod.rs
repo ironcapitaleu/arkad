@@ -80,7 +80,7 @@ pub use data::ValidateSecResponseOutputData;
 /// - Verifies content type is JSON (`application/json`).
 /// - Checks that the response body is not empty.
 /// - Parses and validates JSON structure.
-/// - Produces a [`JsonResponse`](crate::shared::json_response::JsonResponse) object containing validated JSON data.
+/// - Produces a [`JsonResponse`] object containing validated JSON data.
 ///
 /// # Output
 /// The validated JSON response is stored internally after calling [`State::compute_output_data_async`].
