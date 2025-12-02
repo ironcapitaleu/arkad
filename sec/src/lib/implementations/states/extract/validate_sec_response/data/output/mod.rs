@@ -180,8 +180,10 @@ mod tests {
     #[test]
     fn should_create_new_output_data_with_provided_response() {
         let sec_response = SecResponse {
-            url: reqwest::Url::parse("https://data.sec.gov/api/xbrl/companyfacts/CIK1234567890.json")
-                .expect("Valid URL"),
+            url: reqwest::Url::parse(
+                "https://data.sec.gov/api/xbrl/companyfacts/CIK1234567890.json",
+            )
+            .expect("Valid URL"),
             status: StatusCode::OK,
             headers: HashMap::new(),
             content_type: ContentType::Json,
@@ -191,8 +193,8 @@ mod tests {
             .expect("Should create valid JSON response");
         let expected_response = json_response.clone();
 
-        let result = ValidateSecResponseOutputData::new(json_response)
-            .expect("Should create output data");
+        let result =
+            ValidateSecResponseOutputData::new(json_response).expect("Should create output data");
 
         assert_eq!(result.validated_sec_response(), &expected_response);
     }
@@ -200,8 +202,10 @@ mod tests {
     #[test]
     fn should_return_json_response_reference_when_accessing_validated_sec_response() {
         let sec_response = SecResponse {
-            url: reqwest::Url::parse("https://data.sec.gov/api/xbrl/companyfacts/CIK1234567890.json")
-                .expect("Valid URL"),
+            url: reqwest::Url::parse(
+                "https://data.sec.gov/api/xbrl/companyfacts/CIK1234567890.json",
+            )
+            .expect("Valid URL"),
             status: StatusCode::OK,
             headers: HashMap::new(),
             content_type: ContentType::Json,
@@ -222,8 +226,10 @@ mod tests {
     fn should_update_validated_sec_response_when_updater_contains_validated_sec_response() {
         let original_response = JsonResponse::default();
         let sec_response = SecResponse {
-            url: reqwest::Url::parse("https://data.sec.gov/api/xbrl/companyfacts/CIK9999999999.json")
-                .expect("Valid URL"),
+            url: reqwest::Url::parse(
+                "https://data.sec.gov/api/xbrl/companyfacts/CIK9999999999.json",
+            )
+            .expect("Valid URL"),
             status: StatusCode::OK,
             headers: HashMap::new(),
             content_type: ContentType::Json,
@@ -238,8 +244,7 @@ mod tests {
             .validated_sec_response(new_response.clone())
             .build();
 
-        StateData::update_state(&mut output_data, updater)
-            .expect("Update should succeed");
+        StateData::update_state(&mut output_data, updater).expect("Update should succeed");
 
         assert_eq!(output_data.validated_sec_response(), &new_response);
     }
@@ -253,8 +258,7 @@ mod tests {
 
         let updater = ValidateSecResponseOutputDataUpdaterBuilder::new().build();
 
-        StateData::update_state(&mut output_data, updater)
-            .expect("Update should succeed");
+        StateData::update_state(&mut output_data, updater).expect("Update should succeed");
 
         assert_eq!(output_data, original_output_data);
     }
@@ -273,8 +277,8 @@ mod tests {
     #[test]
     fn should_return_output_data_reference_when_accessing_state() {
         let json_response = JsonResponse::default();
-        let output_data = ValidateSecResponseOutputData::new(json_response)
-            .expect("Should create output data");
+        let output_data =
+            ValidateSecResponseOutputData::new(json_response).expect("Should create output data");
 
         let expected_result = &output_data;
         let result = output_data.get_state();
@@ -284,11 +288,13 @@ mod tests {
 
     #[test]
     fn should_update_validated_sec_response_to_latest_specified_value_when_multiple_updates_in_builder()
-    {
+     {
         let original_response = JsonResponse::default();
         let sec_response1 = SecResponse {
-            url: reqwest::Url::parse("https://data.sec.gov/api/xbrl/companyfacts/CIK5555555555.json")
-                .expect("Valid URL"),
+            url: reqwest::Url::parse(
+                "https://data.sec.gov/api/xbrl/companyfacts/CIK5555555555.json",
+            )
+            .expect("Valid URL"),
             status: StatusCode::OK,
             headers: HashMap::new(),
             content_type: ContentType::Json,
@@ -297,8 +303,10 @@ mod tests {
         let intermediate_response = JsonResponse::from_sec_response(&sec_response1)
             .expect("Should create valid JSON response");
         let sec_response2 = SecResponse {
-            url: reqwest::Url::parse("https://data.sec.gov/api/xbrl/companyfacts/CIK9999999999.json")
-                .expect("Valid URL"),
+            url: reqwest::Url::parse(
+                "https://data.sec.gov/api/xbrl/companyfacts/CIK9999999999.json",
+            )
+            .expect("Valid URL"),
             status: StatusCode::OK,
             headers: HashMap::new(),
             content_type: ContentType::Json,
@@ -314,8 +322,7 @@ mod tests {
             .validated_sec_response(final_response.clone())
             .build();
 
-        StateData::update_state(&mut output_data, updater)
-            .expect("Update should succeed");
+        StateData::update_state(&mut output_data, updater).expect("Update should succeed");
 
         assert_eq!(output_data.validated_sec_response(), &final_response);
     }

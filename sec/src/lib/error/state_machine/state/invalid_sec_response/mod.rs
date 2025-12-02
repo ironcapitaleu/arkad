@@ -123,8 +123,7 @@ mod tests {
 
     #[test]
     fn should_convert_from_domain_error_when_from_domain_error_is_called() {
-        let validation_error =
-            JsonResponseError::new(JsonResponseErrorReason::EmptyResponseBody);
+        let validation_error = JsonResponseError::new(JsonResponseErrorReason::EmptyResponseBody);
         let state_name = "ValidateSecResponse";
 
         let expected_result = InvalidSecResponse {
@@ -139,9 +138,9 @@ mod tests {
 
     #[test]
     fn should_convert_to_state_error_when_into_is_called() {
-        let validation_error = JsonResponseError::new(
-            JsonResponseErrorReason::InvalidStatusCode(StatusCode::BAD_REQUEST),
-        );
+        let validation_error = JsonResponseError::new(JsonResponseErrorReason::InvalidStatusCode(
+            StatusCode::BAD_REQUEST,
+        ));
         let invalid_sec_response = InvalidSecResponse {
             state_name: "TestState".to_string(),
             validation_error,

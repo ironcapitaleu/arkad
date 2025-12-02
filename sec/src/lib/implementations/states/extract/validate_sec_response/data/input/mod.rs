@@ -121,9 +121,7 @@ impl ValidateSecResponseInputDataUpdaterBuilder {
     /// A new [`ValidateSecResponseInputDataUpdaterBuilder`] with all fields set to `None`.
     #[must_use]
     pub const fn new() -> Self {
-        Self {
-            sec_response: None,
-        }
+        Self { sec_response: None }
     }
 
     /// Sets the SEC response to be updated.
@@ -173,8 +171,10 @@ mod tests {
     #[test]
     fn should_create_new_input_data_with_provided_response() {
         let sec_response = SecResponse {
-            url: reqwest::Url::parse("https://data.sec.gov/api/xbrl/companyfacts/CIK1234567890.json")
-                .expect("Valid URL"),
+            url: reqwest::Url::parse(
+                "https://data.sec.gov/api/xbrl/companyfacts/CIK1234567890.json",
+            )
+            .expect("Valid URL"),
             status: StatusCode::OK,
             headers: HashMap::new(),
             content_type: ContentType::Json,
@@ -202,8 +202,10 @@ mod tests {
     fn should_update_sec_response_when_updater_contains_sec_response() {
         let original_response = SecResponse::default();
         let new_response = SecResponse {
-            url: reqwest::Url::parse("https://data.sec.gov/api/xbrl/companyfacts/CIK9999999999.json")
-                .expect("Valid URL"),
+            url: reqwest::Url::parse(
+                "https://data.sec.gov/api/xbrl/companyfacts/CIK9999999999.json",
+            )
+            .expect("Valid URL"),
             status: StatusCode::OK,
             headers: HashMap::new(),
             content_type: ContentType::Json,
@@ -215,8 +217,7 @@ mod tests {
             .sec_response(new_response.clone())
             .build();
 
-        StateData::update_state(&mut input_data, updater)
-            .expect("Update should succeed");
+        StateData::update_state(&mut input_data, updater).expect("Update should succeed");
 
         assert_eq!(input_data.sec_response(), &new_response);
     }
@@ -229,8 +230,7 @@ mod tests {
 
         let updater = ValidateSecResponseInputDataUpdaterBuilder::new().build();
 
-        StateData::update_state(&mut input_data, updater)
-            .expect("Update should succeed");
+        StateData::update_state(&mut input_data, updater).expect("Update should succeed");
 
         assert_eq!(input_data, original_input_data);
     }
@@ -261,16 +261,20 @@ mod tests {
     fn should_update_sec_response_to_latest_specified_value_when_multiple_updates_in_builder() {
         let original_response = SecResponse::default();
         let intermediate_response = SecResponse {
-            url: reqwest::Url::parse("https://data.sec.gov/api/xbrl/companyfacts/CIK5555555555.json")
-                .expect("Valid URL"),
+            url: reqwest::Url::parse(
+                "https://data.sec.gov/api/xbrl/companyfacts/CIK5555555555.json",
+            )
+            .expect("Valid URL"),
             status: StatusCode::OK,
             headers: HashMap::new(),
             content_type: ContentType::Json,
             body: String::from("{\"intermediate\": true}"),
         };
         let final_response = SecResponse {
-            url: reqwest::Url::parse("https://data.sec.gov/api/xbrl/companyfacts/CIK9999999999.json")
-                .expect("Valid URL"),
+            url: reqwest::Url::parse(
+                "https://data.sec.gov/api/xbrl/companyfacts/CIK9999999999.json",
+            )
+            .expect("Valid URL"),
             status: StatusCode::OK,
             headers: HashMap::new(),
             content_type: ContentType::Json,
@@ -283,8 +287,7 @@ mod tests {
             .sec_response(final_response.clone())
             .build();
 
-        StateData::update_state(&mut input_data, updater)
-            .expect("Update should succeed");
+        StateData::update_state(&mut input_data, updater).expect("Update should succeed");
 
         assert_eq!(input_data.sec_response(), &final_response);
     }

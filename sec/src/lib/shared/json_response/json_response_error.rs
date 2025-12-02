@@ -95,8 +95,7 @@ mod tests {
         let reason = JsonResponseErrorReason::InvalidStatusCode(status);
         let validation_error = JsonResponseError::new(reason.clone());
 
-        let expected_result =
-            format!("[JsonResponseError] Response validation failed: {reason}");
+        let expected_result = format!("[JsonResponseError] Response validation failed: {reason}");
 
         let result = format!("{validation_error}");
 
@@ -155,8 +154,7 @@ mod tests {
     #[test]
     fn should_display_reason_correctly_when_invalid_json_structure() {
         let error_message = "ERROR: Not allowed!";
-        let reason =
-            JsonResponseErrorReason::InvalidJsonStructure(error_message.to_string());
+        let reason = JsonResponseErrorReason::InvalidJsonStructure(error_message.to_string());
 
         let expected_result = "Response body contains invalid JSON structure: ERROR: Not allowed!";
 

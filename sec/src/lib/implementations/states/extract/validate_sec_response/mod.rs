@@ -149,8 +149,7 @@ impl State for ValidateSecResponse {
     /// Returns `Ok(())` if the response is successfully validated and stored,
     /// or `Err(StateError)` if validation fails.
     async fn compute_output_data_async(&mut self) -> Result<(), StateError> {
-        let validated_sec_response =
-            JsonResponse::from_sec_response(self.input.sec_response());
+        let validated_sec_response = JsonResponse::from_sec_response(self.input.sec_response());
 
         match validated_sec_response {
             Ok(validated_response) => {
@@ -217,10 +216,10 @@ impl fmt::Display for ValidateSecResponse {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::implementations::states::extract::validate_sec_response::data::ValidateSecResponseOutputData as ValiddateSecResponseOutputData;
     use crate::shared::cik::Cik;
     use crate::shared::sec_response::{ContentType, SecResponse};
     use crate::traits::state_machine::state::State;
-    use crate::implementations::states::extract::validate_sec_response::data::ValidateSecResponseOutputData as ValiddateSecResponseOutputData;
     use pretty_assertions::assert_eq;
     use reqwest::StatusCode;
     use std::collections::HashMap;
@@ -301,8 +300,10 @@ mod tests {
     async fn should_return_correct_output_data_when_computing_output_data() {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid.");
         let sec_response = SecResponse {
-            url: reqwest::Url::parse("https://data.sec.gov/api/xbrl/companyfacts/CIK1234567890.json")
-                .expect("Valid URL"),
+            url: reqwest::Url::parse(
+                "https://data.sec.gov/api/xbrl/companyfacts/CIK1234567890.json",
+            )
+            .expect("Valid URL"),
             status: StatusCode::OK,
             headers: HashMap::new(),
             content_type: ContentType::Json,
@@ -312,7 +313,10 @@ mod tests {
         let context = ValidateSecResponseContext::new(cik);
 
         let mut validate_state = ValidateSecResponse::new(input, context);
-        validate_state.compute_output_data_async().await.expect("Should succeed");
+        validate_state
+            .compute_output_data_async()
+            .await
+            .expect("Should succeed");
 
         let expected_result = ValiddateSecResponseOutputData {
             validated_sec_response: JsonResponse::from_sec_response(
@@ -321,7 +325,9 @@ mod tests {
             .expect("Input response is valid JSON"),
         };
 
-        let result = validate_state.get_output_data().expect("Output should exist");
+        let result = validate_state
+            .get_output_data()
+            .expect("Output should exist");
 
         assert_eq!(
             result.validated_sec_response().body(),
@@ -333,8 +339,10 @@ mod tests {
     async fn should_return_true_when_output_data_has_been_computed() {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid.");
         let sec_response = SecResponse {
-            url: reqwest::Url::parse("https://data.sec.gov/api/xbrl/companyfacts/CIK1234567890.json")
-                .expect("Valid URL"),
+            url: reqwest::Url::parse(
+                "https://data.sec.gov/api/xbrl/companyfacts/CIK1234567890.json",
+            )
+            .expect("Valid URL"),
             status: StatusCode::OK,
             headers: HashMap::new(),
             content_type: ContentType::Json,
@@ -359,8 +367,10 @@ mod tests {
     async fn should_fail_when_response_status_code_is_not_success() {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid.");
         let sec_response = SecResponse {
-            url: reqwest::Url::parse("https://data.sec.gov/api/xbrl/companyfacts/CIK1234567890.json")
-                .expect("Valid URL"),
+            url: reqwest::Url::parse(
+                "https://data.sec.gov/api/xbrl/companyfacts/CIK1234567890.json",
+            )
+            .expect("Valid URL"),
             status: StatusCode::BAD_REQUEST,
             headers: HashMap::new(),
             content_type: ContentType::Json,
@@ -380,8 +390,10 @@ mod tests {
     async fn should_not_change_input_data_when_computing_output_data() {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid.");
         let sec_response = SecResponse {
-            url: reqwest::Url::parse("https://data.sec.gov/api/xbrl/companyfacts/CIK1234567890.json")
-                .expect("Valid URL"),
+            url: reqwest::Url::parse(
+                "https://data.sec.gov/api/xbrl/companyfacts/CIK1234567890.json",
+            )
+            .expect("Valid URL"),
             status: StatusCode::OK,
             headers: HashMap::new(),
             content_type: ContentType::Json,
@@ -396,7 +408,6 @@ mod tests {
         let expected_result = ValidateSecResponseInputData::new(sec_response);
 
         let result = validate_state.get_input_data();
-
 
         assert_eq!(result, &expected_result);
     }
@@ -509,7 +520,7 @@ mod tests {
     #[test]
     #[should_panic(expected = "output should not be empty")]
     fn should_panic_when_trying_to_access_output_data_before_it_has_been_computed_in_reference_state()
-    {
+     {
         let ref_to_validate_state = &ValidateSecResponse::default();
         let _result = ref_to_validate_state
             .get_output_data()
@@ -517,8 +528,8 @@ mod tests {
     }
 
     #[test]
-    fn should_return_default_state_data_as_input_data_when_reference_validate_state_in_initial_state(
-    ) {
+    fn should_return_default_state_data_as_input_data_when_reference_validate_state_in_initial_state()
+     {
         let ref_to_validate_state = &ValidateSecResponse::default();
         let expected_result = &ValidateSecResponseInputData::default();
         let result = ref_to_validate_state.get_input_data();

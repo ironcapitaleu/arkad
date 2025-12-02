@@ -26,9 +26,7 @@ use serde_json;
 use super::sec_response::ContentType;
 use super::sec_response::SecResponse;
 
-pub use json_response_error::{
-    JsonResponseError, JsonResponseErrorReason,
-};
+pub use json_response_error::{JsonResponseError, JsonResponseErrorReason};
 
 mod json_response_error;
 
@@ -93,16 +91,12 @@ impl JsonResponse {
         // Validate that the returned content is JSON
         if response.content_type() != &ContentType::Json {
             return Err(JsonResponseError::new(
-                JsonResponseErrorReason::InvalidContentType(
-                    response.content_type().to_string(),
-                ),
+                JsonResponseErrorReason::InvalidContentType(response.content_type().to_string()),
             ));
         }
 
         let body = serde_json::from_str(response.body()).map_err(|e| {
-            JsonResponseError::new(JsonResponseErrorReason::InvalidJsonStructure(
-                e.to_string(),
-            ))
+            JsonResponseError::new(JsonResponseErrorReason::InvalidJsonStructure(e.to_string()))
         })?;
 
         Ok(Self { body })
@@ -179,8 +173,8 @@ mod tests {
             body: serde_json::json!({"key": "value"}),
         };
 
-        let result = JsonResponse::from_sec_response(&sec_response)
-            .expect("Response should be valid.");
+        let result =
+            JsonResponse::from_sec_response(&sec_response).expect("Response should be valid.");
 
         assert_eq!(result, expected_result);
     }
@@ -196,9 +190,9 @@ mod tests {
             body: String::from("{}"),
         };
 
-        let expected_result = JsonResponseError::new(
-            JsonResponseErrorReason::InvalidStatusCode(StatusCode::BAD_REQUEST),
-        );
+        let expected_result = JsonResponseError::new(JsonResponseErrorReason::InvalidStatusCode(
+            StatusCode::BAD_REQUEST,
+        ));
 
         let result = JsonResponse::from_sec_response(&sec_response);
 
@@ -216,8 +210,7 @@ mod tests {
             body: String::new(),
         };
 
-        let expected_result =
-            JsonResponseError::new(JsonResponseErrorReason::EmptyResponseBody);
+        let expected_result = JsonResponseError::new(JsonResponseErrorReason::EmptyResponseBody);
 
         let result = JsonResponse::from_sec_response(&sec_response);
 
@@ -235,9 +228,9 @@ mod tests {
             body: String::from("{}"),
         };
 
-        let expected_result = JsonResponseError::new(
-            JsonResponseErrorReason::InvalidContentType("text/html".to_string()),
-        );
+        let expected_result = JsonResponseError::new(JsonResponseErrorReason::InvalidContentType(
+            "text/html".to_string(),
+        ));
         let result = JsonResponse::from_sec_response(&sec_response);
 
         assert_eq!(result.unwrap_err(), expected_result);
@@ -273,8 +266,7 @@ mod tests {
             content_type: ContentType::Json,
             body: String::from("{\"test\": true}"),
         };
-        let validated =
-            JsonResponse::from_sec_response(&sec_response).expect("Should be valid");
+        let validated = JsonResponse::from_sec_response(&sec_response).expect("Should be valid");
 
         let expected_result = &serde_json::json!({"test": true});
 
@@ -293,8 +285,7 @@ mod tests {
             content_type: ContentType::Json,
             body: String::from("{\"data\": [1, 2, 3]}"),
         };
-        let validated =
-            JsonResponse::from_sec_response(&sec_response).expect("Should be valid");
+        let validated = JsonResponse::from_sec_response(&sec_response).expect("Should be valid");
 
         let expected_result = serde_json::json!({"data": [1, 2, 3]});
 
