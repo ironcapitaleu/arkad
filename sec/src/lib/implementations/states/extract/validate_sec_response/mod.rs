@@ -5,7 +5,7 @@ use state_maschine::prelude::State as SMState;
 
 use crate::error::State as StateError;
 use crate::error::state_machine::state::InvalidSecResponse;
-use crate::shared::validated_sec_response::ValidatedSecResponse;
+use crate::shared::json_response::JsonResponse;
 use crate::traits::error::FromDomainError;
 use crate::traits::state_machine::state::State;
 
@@ -41,7 +41,7 @@ impl ValidateSecResponse {
 impl State for ValidateSecResponse {
     async fn compute_output_data_async(&mut self) -> Result<(), StateError> {
         let validated_sec_response =
-            ValidatedSecResponse::from_sec_response(self.input.sec_response());
+            JsonResponse::from_sec_response(self.input.sec_response());
 
         match validated_sec_response {
             Ok(validated_response) => {

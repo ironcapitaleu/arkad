@@ -1,40 +1,40 @@
-//! # Validated SEC Response Error Types
+//! # JSON Response Error Types
 //!
-//! This module defines error types and reasons for SEC response validation failures.
-//! It is used throughout the [`crate::shared::validated_sec_response`] module and by state machine
+//! This module defines error types and reasons for JSON response validation failures.
+//! It is used throughout the [`crate::shared::json_response`] module and by state machine
 //! implementations that require robust error reporting for response validation failures.
 //!
 //! ## Types
-//! - [`ValidatedSecResponseError`]: Error struct containing the [`ValidatedSecResponseErrorReason`] that caused the failure. This allows precise diagnostics about why a response couldn't be validated.
-//! - [`ValidatedSecResponseErrorReason`]: Enum describing specific reasons for validation failure, with contextual information embedded in the variants (such as the invalid status code or content type).
+//! - [`JsonResponseError`]: Error struct containing the [`JsonResponseErrorReason`] that caused the failure. This allows precise diagnostics about why a response couldn't be validated.
+//! - [`JsonResponseErrorReason`]: Enum describing specific reasons for validation failure, with contextual information embedded in the variants (such as the invalid status code or content type).
 //!
 //! ## Usage
-//! These error types are returned by SEC response validation routines and are used in state data modules
+//! These error types are returned by JSON response validation routines and are used in state data modules
 //! to provide detailed diagnostics and error handling for HTTP response validation.
 //! They are also used as domain errors for the general state machine error logic in [`crate::error`] and may be wrapped by state-level errors.
 //!
 //! ## See Also
-//! - [`crate::shared::validated_sec_response`]: Main validated SEC response utilities module.
+//! - [`crate::shared::json_response`]: Main JSON response utilities module.
 //! - [`crate::shared::sec_response`]: Underlying SEC response type.
-//! - [`crate::error`]: Error types that may reference validated SEC response errors for reporting.
+//! - [`crate::error`]: Error types that may reference JSON response errors for reporting.
 
 use reqwest::StatusCode;
 use thiserror::Error;
 
-/// Error details for SEC response validation failures.
+/// Error details for JSON response validation failures.
 ///
 /// This struct provides the reason for the validation failure with embedded contextual information.
 #[derive(Debug, Error, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[error("[ValidatedSecResponseError] Response validation failed: {reason}")]
-pub struct ValidatedSecResponseError {
+#[error("[JsonResponseError] Response validation failed: {reason}")]
+pub struct JsonResponseError {
     /// The reason why the response validation failed.
-    pub reason: ValidatedSecResponseErrorReason,
+    pub reason: JsonResponseErrorReason,
 }
 
-impl ValidatedSecResponseError {
-    /// Creates a new `ValidatedSecResponseError`.
+impl JsonResponseError {
+    /// Creates a new `JsonResponseError`.
     #[must_use]
-    pub const fn new(reason: ValidatedSecResponseErrorReason) -> Self {
+    pub const fn new(reason: JsonResponseErrorReason) -> Self {
         Self { reason }
     }
 }
@@ -44,7 +44,7 @@ impl ValidatedSecResponseError {
 /// This enum is marked as non-exhaustive to allow for future extension.
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum ValidatedSecResponseErrorReason {
+pub enum JsonResponseErrorReason {
     /// Response status code indicates failure (not in 2xx range).
     InvalidStatusCode(StatusCode),
     /// Response body is empty when content is expected.
@@ -57,7 +57,7 @@ pub enum ValidatedSecResponseErrorReason {
     Other(String),
 }
 
-impl std::fmt::Display for ValidatedSecResponseErrorReason {
+impl std::fmt::Display for JsonResponseErrorReason {
     /// Formats the reason for display.
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -92,11 +92,11 @@ mod tests {
     #[test]
     fn should_format_display_as_expected_when_reason_is_present() {
         let status = StatusCode::BAD_REQUEST;
-        let reason = ValidatedSecResponseErrorReason::InvalidStatusCode(status);
-        let validation_error = ValidatedSecResponseError::new(reason.clone());
+        let reason = JsonResponseErrorReason::InvalidStatusCode(status);
+        let validation_error = JsonResponseError::new(reason.clone());
 
         let expected_result =
-            format!("[ValidatedSecResponseError] Response validation failed: {reason}");
+            format!("[JsonResponseError] Response validation failed: {reason}");
 
         let result = format!("{validation_error}");
 
@@ -105,13 +105,13 @@ mod tests {
 
     #[test]
     fn should_create_new_error_when_new_is_called() {
-        let reason = ValidatedSecResponseErrorReason::EmptyResponseBody;
+        let reason = JsonResponseErrorReason::EmptyResponseBody;
 
-        let expected_result = ValidatedSecResponseError {
+        let expected_result = JsonResponseError {
             reason: reason.clone(),
         };
 
-        let result = ValidatedSecResponseError::new(reason);
+        let result = JsonResponseError::new(reason);
 
         assert_eq!(result, expected_result);
     }
@@ -119,7 +119,7 @@ mod tests {
     #[test]
     fn should_display_reason_correctly_when_invalid_status_code() {
         let status = StatusCode::NOT_FOUND;
-        let reason = ValidatedSecResponseErrorReason::InvalidStatusCode(status);
+        let reason = JsonResponseErrorReason::InvalidStatusCode(status);
 
         let expected_result =
             "Response status code 404 Not Found indicates failure (expected 2xx).";
@@ -131,7 +131,7 @@ mod tests {
 
     #[test]
     fn should_display_reason_correctly_when_empty_response_body() {
-        let reason = ValidatedSecResponseErrorReason::EmptyResponseBody;
+        let reason = JsonResponseErrorReason::EmptyResponseBody;
 
         let expected_result = "Response body is empty when content is expected.";
 
@@ -143,7 +143,7 @@ mod tests {
     #[test]
     fn should_display_reason_correctly_when_invalid_content_type() {
         let content_type = "application/pdf";
-        let reason = ValidatedSecResponseErrorReason::InvalidContentType(content_type.to_string());
+        let reason = JsonResponseErrorReason::InvalidContentType(content_type.to_string());
 
         let expected_result = "Invalid or unexpected content type: application/pdf";
 
@@ -156,7 +156,7 @@ mod tests {
     fn should_display_reason_correctly_when_invalid_json_structure() {
         let error_message = "ERROR: Not allowed!";
         let reason =
-            ValidatedSecResponseErrorReason::InvalidJsonStructure(error_message.to_string());
+            JsonResponseErrorReason::InvalidJsonStructure(error_message.to_string());
 
         let expected_result = "Response body contains invalid JSON structure: ERROR: Not allowed!";
 

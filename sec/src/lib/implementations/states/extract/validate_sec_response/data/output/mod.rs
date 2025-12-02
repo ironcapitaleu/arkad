@@ -3,14 +3,14 @@ use std::fmt;
 use state_maschine::prelude::StateData as SMStateData;
 
 use crate::error::State as StateError;
-use crate::shared::validated_sec_response::ValidatedSecResponse;
+use crate::shared::json_response::JsonResponse;
 use crate::traits::state_machine::state::StateData;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 /// Output data for `ValidateSecResponse`.
 #[derive(Default)]
 pub struct ValidateSecResponseOutputData {
-    pub validated_sec_response: ValidatedSecResponse,
+    pub validated_sec_response: JsonResponse,
 }
 
 impl ValidateSecResponseOutputData {
@@ -18,7 +18,7 @@ impl ValidateSecResponseOutputData {
     ///
     /// # Errors
     /// Returns a `StateError` if the provided data is invalid.
-    pub const fn new(validated_sec_response: ValidatedSecResponse) -> Result<Self, StateError> {
+    pub const fn new(validated_sec_response: JsonResponse) -> Result<Self, StateError> {
         Ok(Self {
             validated_sec_response,
         })
@@ -26,7 +26,7 @@ impl ValidateSecResponseOutputData {
 
     /// Returns a reference to the output data string.
     #[must_use]
-    pub const fn validated_sec_response(&self) -> &ValidatedSecResponse {
+    pub const fn validated_sec_response(&self) -> &JsonResponse {
         &self.validated_sec_response
     }
 }
@@ -56,12 +56,12 @@ impl fmt::Display for ValidateSecResponseOutputData {
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 /// Updater for [`ValidateSecResponseOutputData`].
 pub struct ValidateSecResponseOutputDataUpdater {
-    pub validated_sec_response: Option<ValidatedSecResponse>,
+    pub validated_sec_response: Option<JsonResponse>,
 }
 
 /// Builder for [`ValidateSecResponseOutputDataUpdater`].
 pub struct ValidateSecResponseOutputDataUpdaterBuilder {
-    validated_sec_response: Option<ValidatedSecResponse>,
+    validated_sec_response: Option<JsonResponse>,
 }
 
 impl ValidateSecResponseOutputDataUpdaterBuilder {
@@ -74,7 +74,7 @@ impl ValidateSecResponseOutputDataUpdaterBuilder {
 
     #[must_use]
     #[allow(clippy::missing_const_for_fn)]
-    pub fn validated_sec_response(mut self, validated_sec_response: ValidatedSecResponse) -> Self {
+    pub fn validated_sec_response(mut self, validated_sec_response: JsonResponse) -> Self {
         self.validated_sec_response = Some(validated_sec_response);
         self
     }

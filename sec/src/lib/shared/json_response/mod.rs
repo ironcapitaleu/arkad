@@ -1,19 +1,19 @@
-//! # Validated SEC Response Module
+//! # JSON Response Module
 //!
-//! This module provides the [`ValidatedSecResponse`] type and related utilities for handling
+//! This module provides the [`JsonResponse`] type and related utilities for handling
 //! validated HTTP responses from SEC (Securities and Exchange Commission) endpoints. It extracts
 //! and validates JSON data from [`SecResponse`] to ensure the response meets specific criteria
 //! before further processing.
 //!
 //! ## Overview
-//! The [`ValidatedSecResponse`] contains validated JSON data extracted from a [`SecResponse`].
-//! It guarantees the response has been validated according to SEC API requirements, including
+//! The [`JsonResponse`] contains validated JSON data extracted from a [`SecResponse`].
+//! It guarantees the response has been validated to contain valid JSON, including
 //! checking status codes, content types, and JSON structure to ensure data integrity before
 //! consumption.
 //!
 //! ## Types
-//! - [`ValidatedSecResponse`]: Validated response containing parsed JSON body.
-//! - [`ValidatedSecResponseError`]: Error type for validation failures.
+//! - [`JsonResponse`]: Response containing parsed and validated JSON body.
+//! - [`JsonResponseError`]: Error type for validation failures.
 //!
 //! ## See Also
 //! - [`super::sec_response::SecResponse`]: Underlying SEC response type.
@@ -26,15 +26,15 @@ use serde_json;
 use super::sec_response::ContentType;
 use super::sec_response::SecResponse;
 
-pub use validated_sec_response_error::{
-    ValidatedSecResponseError, ValidatedSecResponseErrorReason,
+pub use json_response_error::{
+    JsonResponseError, JsonResponseErrorReason,
 };
 
-mod validated_sec_response_error;
+mod json_response_error;
 
 /// A validated SEC HTTP response containing parsed JSON data.
 ///
-/// `ValidatedSecResponse` contains validated and parsed JSON data extracted from a
+/// `JsonResponse` contains validated and parsed JSON data extracted from a
 /// [`SecResponse`]. It guarantees the response meets expected criteria such as successful
 /// status codes, valid JSON content type, non-empty body, and valid JSON structure.
 /// This provides a guarantee that the JSON data is safe to process.
@@ -43,15 +43,15 @@ mod validated_sec_response_error;
 ///
 /// ```rust
 /// use sec::shared::sec_response::SecResponse;
-/// use sec::shared::validated_sec_response::{ValidatedSecResponse, ValidatedSecResponseError};
+/// use sec::shared::json_response::{JsonResponse, JsonResponseError};
 ///
-/// // Create a ValidatedSecResponse from a SecResponse
+/// // Create a JsonResponse from a SecResponse
 /// // let sec_response: SecResponse = /* ... */;
-/// // let validated = ValidatedSecResponse::from_sec_response(sec_response)?;
+/// // let validated = JsonResponse::from_sec_response(sec_response)?;
 ///
 /// // Access the validated JSON body
 /// // let json_body = validated.body();
-/// # Ok::<(), ValidatedSecResponseError>(())
+/// # Ok::<(), JsonResponseError>(())
 /// ```
 ///
 /// # Validation Criteria
@@ -61,12 +61,12 @@ mod validated_sec_response_error;
 /// - Response body is not empty
 /// - Response body contains valid JSON structure
 #[derive(Debug, Clone, Default)]
-pub struct ValidatedSecResponse {
+pub struct JsonResponse {
     body: serde_json::Value,
 }
 
-impl ValidatedSecResponse {
-    /// Creates a new [`ValidatedSecResponse`] by validating a [`SecResponse`].
+impl JsonResponse {
+    /// Creates a new [`JsonResponse`] by validating a [`SecResponse`].
     ///
     /// # Errors
     ///
@@ -75,32 +75,32 @@ impl ValidatedSecResponse {
     /// - The content type is invalid or unexpected
     /// - The response body is empty when content is expected
     /// - The response structure is malformed
-    pub fn from_sec_response(response: &SecResponse) -> Result<Self, ValidatedSecResponseError> {
+    pub fn from_sec_response(response: &SecResponse) -> Result<Self, JsonResponseError> {
         // Validate status code
         if !response.status().is_success() {
-            return Err(ValidatedSecResponseError::new(
-                ValidatedSecResponseErrorReason::InvalidStatusCode(response.status()),
+            return Err(JsonResponseError::new(
+                JsonResponseErrorReason::InvalidStatusCode(response.status()),
             ));
         }
 
         // Validate body is not empty
         if response.body().is_empty() {
-            return Err(ValidatedSecResponseError::new(
-                ValidatedSecResponseErrorReason::EmptyResponseBody,
+            return Err(JsonResponseError::new(
+                JsonResponseErrorReason::EmptyResponseBody,
             ));
         }
 
         // Validate that the returned content is JSON
         if response.content_type() != &ContentType::Json {
-            return Err(ValidatedSecResponseError::new(
-                ValidatedSecResponseErrorReason::InvalidContentType(
+            return Err(JsonResponseError::new(
+                JsonResponseErrorReason::InvalidContentType(
                     response.content_type().to_string(),
                 ),
             ));
         }
 
         let body = serde_json::from_str(response.body()).map_err(|e| {
-            ValidatedSecResponseError::new(ValidatedSecResponseErrorReason::InvalidJsonStructure(
+            JsonResponseError::new(JsonResponseErrorReason::InvalidJsonStructure(
                 e.to_string(),
             ))
         })?;
@@ -121,36 +121,36 @@ impl ValidatedSecResponse {
     }
 }
 
-impl PartialEq for ValidatedSecResponse {
+impl PartialEq for JsonResponse {
     fn eq(&self, other: &Self) -> bool {
         self.body == other.body
     }
 }
 
-impl PartialOrd for ValidatedSecResponse {
+impl PartialOrd for JsonResponse {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl Ord for ValidatedSecResponse {
+impl Ord for JsonResponse {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         // Compare JSON values by their string representation
         self.body.to_string().cmp(&other.body.to_string())
     }
 }
 
-impl Eq for ValidatedSecResponse {}
+impl Eq for JsonResponse {}
 
-impl std::hash::Hash for ValidatedSecResponse {
+impl std::hash::Hash for JsonResponse {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.body.to_string().hash(state);
     }
 }
 
-impl fmt::Display for ValidatedSecResponse {
+impl fmt::Display for JsonResponse {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Validated SEC Response:\n\t\tBody: {}", self.body)
+        write!(f, "JSON Response:\n\t\tBody: {}", self.body)
     }
 }
 
@@ -175,11 +175,11 @@ mod tests {
             body: String::from("{\"key\": \"value\"}"),
         };
 
-        let expected_result = ValidatedSecResponse {
+        let expected_result = JsonResponse {
             body: serde_json::json!({"key": "value"}),
         };
 
-        let result = ValidatedSecResponse::from_sec_response(&sec_response)
+        let result = JsonResponse::from_sec_response(&sec_response)
             .expect("Response should be valid.");
 
         assert_eq!(result, expected_result);
@@ -196,11 +196,11 @@ mod tests {
             body: String::from("{}"),
         };
 
-        let expected_result = ValidatedSecResponseError::new(
-            ValidatedSecResponseErrorReason::InvalidStatusCode(StatusCode::BAD_REQUEST),
+        let expected_result = JsonResponseError::new(
+            JsonResponseErrorReason::InvalidStatusCode(StatusCode::BAD_REQUEST),
         );
 
-        let result = ValidatedSecResponse::from_sec_response(&sec_response);
+        let result = JsonResponse::from_sec_response(&sec_response);
 
         assert_eq!(result.unwrap_err(), expected_result);
     }
@@ -217,9 +217,9 @@ mod tests {
         };
 
         let expected_result =
-            ValidatedSecResponseError::new(ValidatedSecResponseErrorReason::EmptyResponseBody);
+            JsonResponseError::new(JsonResponseErrorReason::EmptyResponseBody);
 
-        let result = ValidatedSecResponse::from_sec_response(&sec_response);
+        let result = JsonResponse::from_sec_response(&sec_response);
 
         assert_eq!(result.unwrap_err(), expected_result);
     }
@@ -235,10 +235,10 @@ mod tests {
             body: String::from("{}"),
         };
 
-        let expected_result = ValidatedSecResponseError::new(
-            ValidatedSecResponseErrorReason::InvalidContentType("text/html".to_string()),
+        let expected_result = JsonResponseError::new(
+            JsonResponseErrorReason::InvalidContentType("text/html".to_string()),
         );
-        let result = ValidatedSecResponse::from_sec_response(&sec_response);
+        let result = JsonResponse::from_sec_response(&sec_response);
 
         assert_eq!(result.unwrap_err(), expected_result);
     }
@@ -254,11 +254,11 @@ mod tests {
             body: String::from("{invalid json}"),
         };
 
-        let result = ValidatedSecResponse::from_sec_response(&sec_response);
+        let result = JsonResponse::from_sec_response(&sec_response);
 
         assert!(result.is_err());
         match result.unwrap_err().reason {
-            ValidatedSecResponseErrorReason::InvalidJsonStructure(_) => {}
+            JsonResponseErrorReason::InvalidJsonStructure(_) => {}
             other => panic!("Expected InvalidJsonStructure, got: {:?}", other),
         }
     }
@@ -274,7 +274,7 @@ mod tests {
             body: String::from("{\"test\": true}"),
         };
         let validated =
-            ValidatedSecResponse::from_sec_response(&sec_response).expect("Should be valid");
+            JsonResponse::from_sec_response(&sec_response).expect("Should be valid");
 
         let expected_result = &serde_json::json!({"test": true});
 
@@ -294,7 +294,7 @@ mod tests {
             body: String::from("{\"data\": [1, 2, 3]}"),
         };
         let validated =
-            ValidatedSecResponse::from_sec_response(&sec_response).expect("Should be valid");
+            JsonResponse::from_sec_response(&sec_response).expect("Should be valid");
 
         let expected_result = serde_json::json!({"data": [1, 2, 3]});
 
