@@ -324,11 +324,7 @@ impl ExtractSuperState<PrepareSecRequest> {
 
 impl ExtractSuperState<ExecuteSecRequest> {
     #[must_use]
-    pub const fn new(
-        client: SecClient,
-        request: SecRequest,
-        cik: Cik,
-    ) -> Self {
+    pub const fn new(client: SecClient, request: SecRequest, cik: Cik) -> Self {
         let esr_input = ExecuteSecRequestInputData::new(client, request);
         let esr_context = ExecuteSecRequestContext::new(cik);
 
@@ -544,8 +540,7 @@ mod tests {
     #[tokio::test]
     async fn should_fail_transition_from_execute_sec_request_when_output_data_not_yet_computed() {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should be valid");
-        let client = SecClient::new("Test Company contact@test.com")
-            .expect("Valid user agent");
+        let client = SecClient::new("Test Company contact@test.com").expect("Valid user agent");
         let request = SecRequest::new(&cik);
         let super_state = ExtractSuperState::<ExecuteSecRequest>::new(client, request, cik);
 
