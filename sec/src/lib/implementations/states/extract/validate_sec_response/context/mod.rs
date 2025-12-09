@@ -243,7 +243,7 @@ mod tests {
         let mut context = original_context.clone();
         let updater = ValidateSecResponseContextUpdaterBuilder::new().build();
 
-        let expected_result = &ValidateSecResponseContext::default();
+        let expected_result = &original_context;
 
         context.update_context(updater);
         let result = context.get_context();

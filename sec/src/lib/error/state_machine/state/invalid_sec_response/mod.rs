@@ -190,6 +190,6 @@ mod tests {
         println!("Caused by: {source_string}");
 
         assert!(error_string.contains("Failure in State"));
-        assert!(source_string.contains("Response validation failed"));
+        assert!(source_string.contains("Response parsing failed"));
     }
 }
