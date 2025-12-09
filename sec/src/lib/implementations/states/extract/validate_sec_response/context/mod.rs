@@ -38,7 +38,6 @@ use state_maschine::prelude::ContextData as SMContextData;
 use crate::shared::cik::Cik;
 use crate::traits::state_machine::state::ContextData;
 
-
 /// State context for the SEC response validation state.
 ///
 /// This context holds configuration and tracking information required during the
@@ -182,7 +181,7 @@ mod tests {
 
     use pretty_assertions::assert_eq;
     use state_maschine::prelude::ContextData as SMContextData;
-        
+
     use super::*;
     use crate::shared::cik::Cik;
 

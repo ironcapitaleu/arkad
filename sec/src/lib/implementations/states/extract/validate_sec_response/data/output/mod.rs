@@ -248,8 +248,8 @@ mod tests {
             .validated_sec_response(new_response.clone())
             .build();
 
-        let expected_result = &ValidateSecResponseOutputData::new(new_response)
-            .expect("Should create output data");
+        let expected_result =
+            &ValidateSecResponseOutputData::new(new_response).expect("Should create output data");
 
         StateData::update_state(&mut output_data, updater)
             .expect("Update with valid value should succeed");
@@ -333,8 +333,8 @@ mod tests {
             .validated_sec_response(final_response.clone())
             .build();
 
-        let expected_result = &ValidateSecResponseOutputData::new(final_response)
-            .expect("Should create output data");
+        let expected_result =
+            &ValidateSecResponseOutputData::new(final_response).expect("Should create output data");
 
         StateData::update_state(&mut output_data, updater)
             .expect("Update with valid value should succeed");

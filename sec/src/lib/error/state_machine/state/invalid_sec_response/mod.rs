@@ -100,8 +100,8 @@ impl FromDomainError<JsonParsingError> for InvalidSecResponse {
 mod tests {
     use crate::shared::json_response::JsonParsingErrorReason;
 
-    use reqwest::StatusCode;
     use pretty_assertions::assert_eq;
+    use reqwest::StatusCode;
 
     use super::*;
 

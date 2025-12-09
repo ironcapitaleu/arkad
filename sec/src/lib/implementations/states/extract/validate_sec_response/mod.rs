@@ -395,7 +395,10 @@ mod tests {
 
         let expected_result = ValidateSecResponseInputData::new(sec_response);
 
-        validate_state.compute_output_data_async().await.expect("Should succeed");
+        validate_state
+            .compute_output_data_async()
+            .await
+            .expect("Should succeed");
         let result = validate_state.get_input_data();
 
         assert_eq!(result, &expected_result);

@@ -152,12 +152,11 @@ impl fmt::Display for JsonResponse {
 mod tests {
     use std::collections::HashMap;
 
-    use reqwest::{StatusCode, Url};
     use pretty_assertions::assert_eq;
+    use reqwest::{StatusCode, Url};
 
     use super::*;
     use crate::shared::sec_response::ContentType;
-   
 
     #[test]
     fn should_create_validated_response_when_response_is_valid() {
