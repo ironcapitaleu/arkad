@@ -1,50 +1,50 @@
-//! # JSON Response Error Types
+//! # JSON Parsing Error Types
 //!
-//! This module defines error types and reasons for JSON response validation failures.
+//! This module defines error types and reasons for JSON response parsing failures.
 //! It is used throughout the [`crate::shared::json_response`] module and by state machine
-//! implementations that require robust error reporting for response validation failures.
+//! implementations that require robust error reporting for response parsing failures.
 //!
 //! ## Types
-//! - [`JsonResponseError`]: Error struct containing the [`JsonResponseErrorReason`] that caused the failure. This allows precise diagnostics about why a response couldn't be validated.
-//! - [`JsonResponseErrorReason`]: Enum describing specific reasons for validation failure, with contextual information embedded in the variants (such as the invalid status code or content type).
+//! - [`JsonParsingError`]: Error struct containing the [`JsonParsingErrorReason`] that caused the failure. This allows precise diagnostics about why a response couldn't be parsed.
+//! - [`JsonParsingErrorReason`]: Enum describing specific reasons for parsing failure, with contextual information embedded in the variants (such as the invalid status code or content type).
 //!
 //! ## Usage
-//! These error types are returned by JSON response validation routines and are used in state data modules
-//! to provide detailed diagnostics and error handling for HTTP response validation.
+//! These error types are returned by JSON response parsing routines and are used in state data modules
+//! to provide detailed diagnostics and error handling for HTTP response parsing.
 //! They are also used as domain errors for the general state machine error logic in [`crate::error`] and may be wrapped by state-level errors.
 //!
 //! ## See Also
 //! - [`crate::shared::json_response`]: Main JSON response utilities module.
 //! - [`crate::shared::sec_response`]: Underlying SEC response type.
-//! - [`crate::error`]: Error types that may reference JSON response errors for reporting.
+//! - [`crate::error`]: Error types that may reference JSON parsing errors for reporting.
 
 use reqwest::StatusCode;
 use thiserror::Error;
 
-/// Error details for JSON response validation failures.
+/// Error details for JSON response parsing failures.
 ///
-/// This struct provides the reason for the validation failure with embedded contextual information.
+/// This struct provides the reason for the parsing failure with embedded contextual information.
 #[derive(Debug, Error, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[error("[JsonResponseError] Response validation failed: {reason}")]
-pub struct JsonResponseError {
-    /// The reason why the response validation failed.
-    pub reason: JsonResponseErrorReason,
+#[error("[JsonParsingError] Response parsing failed: {reason}")]
+pub struct JsonParsingError {
+    /// The reason why the response parsing failed.
+    pub reason: JsonParsingErrorReason,
 }
 
-impl JsonResponseError {
-    /// Creates a new `JsonResponseError`.
+impl JsonParsingError {
+    /// Creates a new `JsonParsingError`.
     #[must_use]
-    pub const fn new(reason: JsonResponseErrorReason) -> Self {
+    pub const fn new(reason: JsonParsingErrorReason) -> Self {
         Self { reason }
     }
 }
 
-/// Enum representing the reason for a response validation failure.
+/// Enum representing the reason for a response parsing failure.
 ///
 /// This enum is marked as non-exhaustive to allow for future extension.
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum JsonResponseErrorReason {
+pub enum JsonParsingErrorReason {
     /// Response status code indicates failure (not in 2xx range).
     InvalidStatusCode(StatusCode),
     /// Response body is empty when content is expected.
@@ -53,11 +53,11 @@ pub enum JsonResponseErrorReason {
     InvalidContentType(String),
     /// Response body contains invalid JSON structure.
     InvalidJsonStructure(String),
-    /// Other unspecified validation error.
+    /// Other unspecified parsing error.
     Other(String),
 }
 
-impl std::fmt::Display for JsonResponseErrorReason {
+impl std::fmt::Display for JsonParsingErrorReason {
     /// Formats the reason for display.
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -78,7 +78,7 @@ impl std::fmt::Display for JsonResponseErrorReason {
                 )
             }
             Self::Other(message) => {
-                write!(f, "An unspecified validation error occurred: {message}")
+                write!(f, "An unspecified parsing error occurred: {message}")
             }
         }
     }
@@ -86,31 +86,32 @@ impl std::fmt::Display for JsonResponseErrorReason {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use pretty_assertions::assert_eq;
+
+    use super::*;
 
     #[test]
     fn should_format_display_as_expected_when_reason_is_present() {
         let status = StatusCode::BAD_REQUEST;
-        let reason = JsonResponseErrorReason::InvalidStatusCode(status);
-        let validation_error = JsonResponseError::new(reason.clone());
+        let reason = JsonParsingErrorReason::InvalidStatusCode(status);
+        let parsing_error = JsonParsingError::new(reason.clone());
 
-        let expected_result = format!("[JsonResponseError] Response validation failed: {reason}");
+        let expected_result = format!("[JsonParsingError] Response parsing failed: {reason}");
 
-        let result = format!("{validation_error}");
+        let result = format!("{parsing_error}");
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_create_new_error_when_new_is_called() {
-        let reason = JsonResponseErrorReason::EmptyResponseBody;
+        let reason = JsonParsingErrorReason::EmptyResponseBody;
 
-        let expected_result = JsonResponseError {
+        let expected_result = JsonParsingError {
             reason: reason.clone(),
         };
 
-        let result = JsonResponseError::new(reason);
+        let result = JsonParsingError::new(reason);
 
         assert_eq!(result, expected_result);
     }
@@ -118,7 +119,7 @@ mod tests {
     #[test]
     fn should_display_reason_correctly_when_invalid_status_code() {
         let status = StatusCode::NOT_FOUND;
-        let reason = JsonResponseErrorReason::InvalidStatusCode(status);
+        let reason = JsonParsingErrorReason::InvalidStatusCode(status);
 
         let expected_result =
             "Response status code 404 Not Found indicates failure (expected 2xx).";
@@ -130,7 +131,7 @@ mod tests {
 
     #[test]
     fn should_display_reason_correctly_when_empty_response_body() {
-        let reason = JsonResponseErrorReason::EmptyResponseBody;
+        let reason = JsonParsingErrorReason::EmptyResponseBody;
 
         let expected_result = "Response body is empty when content is expected.";
 
@@ -142,7 +143,7 @@ mod tests {
     #[test]
     fn should_display_reason_correctly_when_invalid_content_type() {
         let content_type = "application/pdf";
-        let reason = JsonResponseErrorReason::InvalidContentType(content_type.to_string());
+        let reason = JsonParsingErrorReason::InvalidContentType(content_type.to_string());
 
         let expected_result = "Invalid or unexpected content type: application/pdf";
 
@@ -154,7 +155,7 @@ mod tests {
     #[test]
     fn should_display_reason_correctly_when_invalid_json_structure() {
         let error_message = "ERROR: Not allowed!";
-        let reason = JsonResponseErrorReason::InvalidJsonStructure(error_message.to_string());
+        let reason = JsonParsingErrorReason::InvalidJsonStructure(error_message.to_string());
 
         let expected_result = "Response body contains invalid JSON structure: ERROR: Not allowed!";
 

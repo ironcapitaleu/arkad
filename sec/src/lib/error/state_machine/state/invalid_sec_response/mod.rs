@@ -1,7 +1,7 @@
 //! # Invalid SEC Response State Error
 //!
 //! This module defines the [`InvalidSecResponse`] error type, which represents JSON response validation errors
-//! at the state level within the SEC state machine framework. It wraps domain-level [`JsonResponseError`]s with additional
+//! at the state level within the SEC state machine framework. It wraps domain-level [`JsonParsingError`]s with additional
 //! state context, enabling precise error reporting and handling in state machine workflows.
 //!
 //! ## Purpose
@@ -12,26 +12,26 @@
 //! - [`InvalidSecResponse`]: Struct representing a JSON response validation error with state context.
 //!
 //! ## Usage
-//! Use [`InvalidSecResponse`] to wrap [`JsonResponseError`]s when a JSON response validation failure occurs within a state. This allows
+//! Use [`InvalidSecResponse`] to wrap [`JsonParsingError`]s when a JSON response validation failure occurs within a state. This allows
 //! downstream error handlers to access both the state context and the underlying domain error.
 //!
 //! ## Example
 //! ```rust
 //! use sec::error::state_machine::state::invalid_sec_response::InvalidSecResponse;
-//! use sec::shared::json_response::{JsonResponseError, JsonResponseErrorReason};
+//! use sec::shared::json_response::{JsonParsingError, JsonParsingErrorReason};
 //!
-//! let validation_error = JsonResponseError::new(JsonResponseErrorReason::EmptyResponseBody);
+//! let validation_error = JsonParsingError::new(JsonParsingErrorReason::EmptyResponseBody);
 //! let state_error = InvalidSecResponse::new("ValidateSecResponse", validation_error);
 //! ```
 use thiserror::Error;
 
 use super::State as StateError;
-use crate::shared::json_response::JsonResponseError;
+use crate::shared::json_response::JsonParsingError;
 use crate::traits::error::FromDomainError;
 
 /// Error representing an invalid SEC response at the state level.
 ///
-/// This error type is used to wrap domain-level [`JsonResponseError`]s with additional information about
+/// This error type is used to wrap domain-level [`JsonParsingError`]s with additional information about
 /// the state in which the error occurred, making it suitable for use in state machine error handling.
 #[derive(Error, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[error(
@@ -42,7 +42,7 @@ pub struct InvalidSecResponse {
     pub state_name: String,
     /// The underlying domain-level JSON response validation error.
     #[source]
-    pub validation_error: JsonResponseError,
+    pub validation_error: JsonParsingError,
 }
 
 impl InvalidSecResponse {
@@ -55,7 +55,7 @@ impl InvalidSecResponse {
     /// # Returns
     /// A new [`InvalidSecResponse`] error instance.
     #[must_use]
-    pub fn new(state_name: impl Into<String>, validation_error: JsonResponseError) -> Self {
+    pub fn new(state_name: impl Into<String>, validation_error: JsonParsingError) -> Self {
         Self {
             state_name: state_name.into(),
             validation_error,
@@ -77,17 +77,17 @@ impl From<InvalidSecResponse> for StateError {
     }
 }
 
-/// Implements conversion from a domain-level [`JsonResponseError`] to a state-level [`InvalidSecResponse`] error.
+/// Implements conversion from a domain-level [`JsonParsingError`] to a state-level [`InvalidSecResponse`] error.
 ///
-/// This allows enriching a [`JsonResponseError`] with state context for use in state machine error handling.
-impl FromDomainError<JsonResponseError> for InvalidSecResponse {
-    type DomainErr = JsonResponseError;
+/// This allows enriching a [`JsonParsingError`] with state context for use in state machine error handling.
+impl FromDomainError<JsonParsingError> for InvalidSecResponse {
+    type DomainErr = JsonParsingError;
 
-    /// Converts a domain-level [`JsonResponseError`] into a state-level [`InvalidSecResponse`] error.
+    /// Converts a domain-level [`JsonParsingError`] into a state-level [`InvalidSecResponse`] error.
     ///
     /// # Arguments
     /// * `state_name` - The name of the state where the error occurred.
-    /// * `err` - The domain-level [`JsonResponseError`] to wrap.
+    /// * `err` - The domain-level [`JsonParsingError`] to wrap.
     ///
     /// # Returns
     /// An [`InvalidSecResponse`] error containing the provided context.
@@ -98,18 +98,18 @@ impl FromDomainError<JsonResponseError> for InvalidSecResponse {
 
 #[cfg(test)]
 mod tests {
-    use reqwest::StatusCode;
+    use crate::shared::json_response::JsonParsingErrorReason;
 
-    use crate::shared::json_response::JsonResponseErrorReason;
+    use reqwest::StatusCode;
+    use pretty_assertions::assert_eq;
 
     use super::*;
-    use pretty_assertions::assert_eq;
 
     #[test]
     fn should_create_invalid_sec_response_when_new_is_called() {
         let state_name = "TestState";
-        let reason = JsonResponseErrorReason::EmptyResponseBody;
-        let validation_error = JsonResponseError::new(reason);
+        let reason = JsonParsingErrorReason::EmptyResponseBody;
+        let validation_error = JsonParsingError::new(reason);
 
         let expected_result = InvalidSecResponse {
             state_name: state_name.to_string(),
@@ -123,7 +123,7 @@ mod tests {
 
     #[test]
     fn should_convert_from_domain_error_when_from_domain_error_is_called() {
-        let validation_error = JsonResponseError::new(JsonResponseErrorReason::EmptyResponseBody);
+        let validation_error = JsonParsingError::new(JsonParsingErrorReason::EmptyResponseBody);
         let state_name = "ValidateSecResponse";
 
         let expected_result = InvalidSecResponse {
@@ -138,7 +138,7 @@ mod tests {
 
     #[test]
     fn should_convert_to_state_error_when_into_is_called() {
-        let validation_error = JsonResponseError::new(JsonResponseErrorReason::InvalidStatusCode(
+        let validation_error = JsonParsingError::new(JsonParsingErrorReason::InvalidStatusCode(
             StatusCode::BAD_REQUEST,
         ));
         let invalid_sec_response = InvalidSecResponse {
@@ -156,8 +156,8 @@ mod tests {
     #[test]
     fn should_chain_validation_error_as_source_of_invalid_sec_response() {
         let state_name = "ValidateSecResponse";
-        let reason = JsonResponseErrorReason::EmptyResponseBody;
-        let validation_error = JsonResponseError::new(reason);
+        let reason = JsonParsingErrorReason::EmptyResponseBody;
+        let validation_error = JsonParsingError::new(reason);
         let invalid_sec_response = InvalidSecResponse::new(state_name, validation_error.clone());
 
         let source = std::error::Error::source(&invalid_sec_response);
@@ -165,10 +165,10 @@ mod tests {
         assert!(source.is_some(), "Expected source error to be present");
         let source = source.unwrap();
 
-        let validation_error_from_source = source.downcast_ref::<JsonResponseError>();
+        let validation_error_from_source = source.downcast_ref::<JsonParsingError>();
         assert!(
             validation_error_from_source.is_some(),
-            "Source should be JsonResponseError type"
+            "Source should be JsonParsingError type"
         );
         assert_eq!(validation_error_from_source.unwrap(), &validation_error);
     }
@@ -176,8 +176,8 @@ mod tests {
     #[test]
     fn should_print_error_and_source_for_logging_demo() {
         let state_name = "ValidateSecResponse";
-        let reason = JsonResponseErrorReason::InvalidStatusCode(StatusCode::NOT_FOUND);
-        let validation_error = JsonResponseError::new(reason);
+        let reason = JsonParsingErrorReason::InvalidStatusCode(StatusCode::NOT_FOUND);
+        let validation_error = JsonParsingError::new(reason);
         let invalid_sec_response = InvalidSecResponse::new(state_name, validation_error);
 
         let error_string = format!("{invalid_sec_response}");

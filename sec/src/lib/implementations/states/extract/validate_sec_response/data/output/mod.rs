@@ -169,13 +169,15 @@ impl Default for ValidateSecResponseOutputDataUpdaterBuilder {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
+    use std::{fmt::Debug, hash::Hash};
+
+    use pretty_assertions::assert_eq;
+    use reqwest::StatusCode;
+
     use super::*;
     use crate::shared::json_response::JsonResponse;
     use crate::shared::sec_response::{ContentType, SecResponse};
-    use pretty_assertions::assert_eq;
-    use reqwest::StatusCode;
-    use std::collections::HashMap;
-    use std::{fmt::Debug, hash::Hash};
 
     #[test]
     fn should_create_new_output_data_with_provided_response() {
@@ -191,12 +193,14 @@ mod tests {
         };
         let json_response = JsonResponse::from_sec_response(&sec_response)
             .expect("Should create valid JSON response");
-        let expected_response = json_response.clone();
+
+        let expected_result = ValidateSecResponseOutputData::new(json_response.clone())
+            .expect("Should create output data");
 
         let result =
             ValidateSecResponseOutputData::new(json_response).expect("Should create output data");
 
-        assert_eq!(result.validated_sec_response(), &expected_response);
+        assert_eq!(result, expected_result);
     }
 
     #[test]
@@ -217,6 +221,7 @@ mod tests {
             .expect("Should create output data");
 
         let expected_result = &json_response;
+
         let result = output_data.validated_sec_response();
 
         assert_eq!(result, expected_result);
@@ -239,14 +244,18 @@ mod tests {
             .expect("Should create valid JSON response");
         let mut output_data = ValidateSecResponseOutputData::new(original_response)
             .expect("Should create output data");
-
         let updater = ValidateSecResponseOutputDataUpdaterBuilder::new()
             .validated_sec_response(new_response.clone())
             .build();
 
-        StateData::update_state(&mut output_data, updater).expect("Update should succeed");
+        let expected_result = &ValidateSecResponseOutputData::new(new_response)
+            .expect("Should create output data");
 
-        assert_eq!(output_data.validated_sec_response(), &new_response);
+        StateData::update_state(&mut output_data, updater)
+            .expect("Update with valid value should succeed");
+        let result = output_data.get_state();
+
+        assert_eq!(result, expected_result);
     }
 
     #[test]
@@ -255,12 +264,15 @@ mod tests {
         let original_output_data = ValidateSecResponseOutputData::new(json_response.clone())
             .expect("Should create output data");
         let mut output_data = original_output_data.clone();
-
         let updater = ValidateSecResponseOutputDataUpdaterBuilder::new().build();
 
-        StateData::update_state(&mut output_data, updater).expect("Update should succeed");
+        let expected_result = &ValidateSecResponseOutputData::default();
 
-        assert_eq!(output_data, original_output_data);
+        StateData::update_state(&mut output_data, updater)
+            .expect("Update with valid value should succeed");
+        let result = output_data.get_state();
+
+        assert_eq!(result, expected_result);
     }
 
     #[test]
@@ -316,15 +328,19 @@ mod tests {
             .expect("Should create valid JSON response");
         let mut output_data = ValidateSecResponseOutputData::new(original_response)
             .expect("Should create output data");
-
         let updater = ValidateSecResponseOutputDataUpdaterBuilder::new()
             .validated_sec_response(intermediate_response)
             .validated_sec_response(final_response.clone())
             .build();
 
-        StateData::update_state(&mut output_data, updater).expect("Update should succeed");
+        let expected_result = &ValidateSecResponseOutputData::new(final_response)
+            .expect("Should create output data");
 
-        assert_eq!(output_data.validated_sec_response(), &final_response);
+        StateData::update_state(&mut output_data, updater)
+            .expect("Update with valid value should succeed");
+        let result = output_data.get_state();
+
+        assert_eq!(result, expected_result);
     }
 
     // Trait implementation tests

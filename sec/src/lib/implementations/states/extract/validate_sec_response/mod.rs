@@ -215,16 +215,18 @@ impl fmt::Display for ValidateSecResponse {
 
 #[cfg(test)]
 mod tests {
+
+    use std::collections::HashMap;
+    use std::{fmt::Debug, hash::Hash};
+
+    use pretty_assertions::assert_eq;
+    use reqwest::StatusCode;
+    use tokio;
+
     use super::*;
-    use crate::implementations::states::extract::validate_sec_response::data::ValidateSecResponseOutputData as ValiddateSecResponseOutputData;
     use crate::shared::cik::Cik;
     use crate::shared::sec_response::{ContentType, SecResponse};
     use crate::traits::state_machine::state::State;
-    use pretty_assertions::assert_eq;
-    use reqwest::StatusCode;
-    use std::collections::HashMap;
-    use std::{fmt::Debug, hash::Hash};
-    use tokio;
 
     #[test]
     fn should_return_name_of_validate_state_when_in_validate_state() {
@@ -284,16 +286,18 @@ mod tests {
     fn should_create_new_validate_state_with_provided_input_and_context() {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid.");
         let sec_response = SecResponse::default();
-        let input = ValidateSecResponseInputData::new(sec_response);
-        let context = ValidateSecResponseContext::new(cik);
+        let input = ValidateSecResponseInputData::new(sec_response.clone());
+        let context = ValidateSecResponseContext::new(cik.clone());
 
-        let expected_input = input.clone();
-        let expected_context = context.clone();
+        let expected_result = ValidateSecResponse {
+            input: ValidateSecResponseInputData::new(sec_response),
+            context: ValidateSecResponseContext::new(cik),
+            output: None,
+        };
 
         let result = ValidateSecResponse::new(input, context);
 
-        assert_eq!(result.get_input_data(), &expected_input);
-        assert_eq!(result.get_context_data(), &expected_context);
+        assert_eq!(result, expected_result);
     }
 
     #[tokio::test]
@@ -311,28 +315,17 @@ mod tests {
         };
         let input = ValidateSecResponseInputData::new(sec_response);
         let context = ValidateSecResponseContext::new(cik);
-
         let mut validate_state = ValidateSecResponse::new(input, context);
+
+        let expected_result = true;
+
         validate_state
             .compute_output_data_async()
             .await
             .expect("Should succeed");
+        let result = validate_state.has_output_data_been_computed();
 
-        let expected_result = ValiddateSecResponseOutputData {
-            validated_sec_response: JsonResponse::from_sec_response(
-                &validate_state.get_input_data().sec_response(),
-            )
-            .expect("Input response is valid JSON"),
-        };
-
-        let result = validate_state
-            .get_output_data()
-            .expect("Output should exist");
-
-        assert_eq!(
-            result.validated_sec_response().body(),
-            expected_result.validated_sec_response().body(),
-        );
+        assert_eq!(result, expected_result);
     }
 
     #[tokio::test]
@@ -350,17 +343,15 @@ mod tests {
         };
         let input = ValidateSecResponseInputData::new(sec_response);
         let context = ValidateSecResponseContext::new(cik);
-
         let mut validate_state = ValidateSecResponse::new(input, context);
+
         validate_state
             .compute_output_data_async()
             .await
             .expect("Computation should succeed");
-
-        let expected_result = true;
         let result = validate_state.has_output_data_been_computed();
 
-        assert_eq!(result, expected_result);
+        assert!(result);
     }
 
     #[tokio::test]
@@ -378,7 +369,6 @@ mod tests {
         };
         let input = ValidateSecResponseInputData::new(sec_response);
         let context = ValidateSecResponseContext::new(cik);
-
         let mut validate_state = ValidateSecResponse::new(input, context);
 
         let result = validate_state.compute_output_data_async().await;
@@ -401,12 +391,11 @@ mod tests {
         };
         let input = ValidateSecResponseInputData::new(sec_response.clone());
         let context = ValidateSecResponseContext::new(cik);
-
         let mut validate_state = ValidateSecResponse::new(input, context);
-        let _ = validate_state.compute_output_data_async().await;
 
         let expected_result = ValidateSecResponseInputData::new(sec_response);
 
+        validate_state.compute_output_data_async().await.expect("Should succeed");
         let result = validate_state.get_input_data();
 
         assert_eq!(result, &expected_result);
@@ -504,6 +493,7 @@ mod tests {
         let ref_to_validate_state = &ValidateSecResponse::default();
 
         let expected_result = validate_state.get_context_data();
+
         let result = ref_to_validate_state.get_context_data();
 
         assert_eq!(result, expected_result);
@@ -512,8 +502,11 @@ mod tests {
     #[test]
     fn should_return_false_when_reference_state_has_not_computed_the_output() {
         let ref_to_validate_state = &mut ValidateSecResponse::default();
+
         let expected_result = false;
+
         let result = ref_to_validate_state.has_output_data_been_computed();
+
         assert_eq!(result, expected_result);
     }
 
@@ -531,8 +524,11 @@ mod tests {
     fn should_return_default_state_data_as_input_data_when_reference_validate_state_in_initial_state()
      {
         let ref_to_validate_state = &ValidateSecResponse::default();
+
         let expected_result = &ValidateSecResponseInputData::default();
+
         let result = ref_to_validate_state.get_input_data();
+
         assert_eq!(result, expected_result);
     }
 }

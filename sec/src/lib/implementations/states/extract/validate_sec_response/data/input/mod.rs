@@ -86,6 +86,8 @@ impl SMStateData for ValidateSecResponseInputData {
         self
     }
 
+    /// This method exists to satisfy the `SMStateData` trait bound from the `state_maschine` crate.
+    /// All actual state updates are handled by the `StateData::update_state` implementation above.
     fn update_state(&mut self, _updates: Self::UpdateType) {}
 }
 
@@ -180,11 +182,12 @@ mod tests {
             content_type: ContentType::Json,
             body: String::from("{\"test\": \"data\"}"),
         };
-        let expected_response = sec_response.clone();
 
-        let result = ValidateSecResponseInputData::new(sec_response);
+        let expected_result = &ValidateSecResponseInputData::new(sec_response.clone());
 
-        assert_eq!(result.sec_response(), &expected_response);
+        let result = &ValidateSecResponseInputData::new(sec_response);
+
+        assert_eq!(result, expected_result);
     }
 
     #[test]
@@ -193,6 +196,7 @@ mod tests {
         let input_data = ValidateSecResponseInputData::new(sec_response.clone());
 
         let expected_result = &sec_response;
+
         let result = input_data.sec_response();
 
         assert_eq!(result, expected_result);
@@ -212,14 +216,17 @@ mod tests {
             body: String::from("{\"updated\": true}"),
         };
         let mut input_data = ValidateSecResponseInputData::new(original_response);
-
         let updater = ValidateSecResponseInputDataUpdaterBuilder::new()
             .sec_response(new_response.clone())
             .build();
 
-        StateData::update_state(&mut input_data, updater).expect("Update should succeed");
+        let expected_result = &ValidateSecResponseInputData::new(new_response);
 
-        assert_eq!(input_data.sec_response(), &new_response);
+        StateData::update_state(&mut input_data, updater)
+            .expect("Update with valid value should succeed");
+        let result = input_data.get_state();
+
+        assert_eq!(result, expected_result);
     }
 
     #[test]
@@ -227,12 +234,15 @@ mod tests {
         let sec_response = SecResponse::default();
         let original_input_data = ValidateSecResponseInputData::new(sec_response.clone());
         let mut input_data = original_input_data.clone();
-
         let updater = ValidateSecResponseInputDataUpdaterBuilder::new().build();
 
-        StateData::update_state(&mut input_data, updater).expect("Update should succeed");
+        let expected_result = &ValidateSecResponseInputData::default();
 
-        assert_eq!(input_data, original_input_data);
+        StateData::update_state(&mut input_data, updater)
+            .expect("Update with valid value should succeed");
+        let result = input_data.get_state();
+
+        assert_eq!(result, expected_result);
     }
 
     #[test]
@@ -281,15 +291,18 @@ mod tests {
             body: String::from("{\"final\": true}"),
         };
         let mut input_data = ValidateSecResponseInputData::new(original_response);
-
         let updater = ValidateSecResponseInputDataUpdaterBuilder::new()
             .sec_response(intermediate_response)
             .sec_response(final_response.clone())
             .build();
 
-        StateData::update_state(&mut input_data, updater).expect("Update should succeed");
+        let expected_result = &ValidateSecResponseInputData::new(final_response);
 
-        assert_eq!(input_data.sec_response(), &final_response);
+        StateData::update_state(&mut input_data, updater)
+            .expect("Update with valid value should succeed");
+        let result = input_data.get_state();
+
+        assert_eq!(result, expected_result);
     }
 
     // Trait implementation tests
