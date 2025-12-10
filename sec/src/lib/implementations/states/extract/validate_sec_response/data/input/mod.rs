@@ -176,7 +176,7 @@ mod tests {
             url: reqwest::Url::parse(
                 "https://data.sec.gov/api/xbrl/companyfacts/CIK1234567890.json",
             )
-            .expect("Valid URL"),
+            .expect("Should be valid URL."),
             status: StatusCode::OK,
             headers: HashMap::new(),
             content_type: ContentType::Json,
@@ -209,7 +209,7 @@ mod tests {
             url: reqwest::Url::parse(
                 "https://data.sec.gov/api/xbrl/companyfacts/CIK9999999999.json",
             )
-            .expect("Valid URL"),
+            .expect("Should be valid URL."),
             status: StatusCode::OK,
             headers: HashMap::new(),
             content_type: ContentType::Json,
@@ -274,7 +274,7 @@ mod tests {
             url: reqwest::Url::parse(
                 "https://data.sec.gov/api/xbrl/companyfacts/CIK5555555555.json",
             )
-            .expect("Valid URL"),
+            .expect("Should be valid URL."),
             status: StatusCode::OK,
             headers: HashMap::new(),
             content_type: ContentType::Json,
@@ -284,7 +284,7 @@ mod tests {
             url: reqwest::Url::parse(
                 "https://data.sec.gov/api/xbrl/companyfacts/CIK9999999999.json",
             )
-            .expect("Valid URL"),
+            .expect("Should be valid URL."),
             status: StatusCode::OK,
             headers: HashMap::new(),
             content_type: ContentType::Json,
