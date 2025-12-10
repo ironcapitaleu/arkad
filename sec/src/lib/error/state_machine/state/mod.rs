@@ -40,6 +40,8 @@
 
 pub mod invalid_cik_format;
 pub use invalid_cik_format::InvalidCikFormat;
+pub mod invalid_sec_response;
+pub use invalid_sec_response::InvalidSecResponse;
 pub mod client_creation_failed;
 pub use client_creation_failed::ClientCreationFailed;
 pub mod request_execution_failed;
@@ -50,6 +52,9 @@ pub use request_execution_failed::RequestExecutionFailed;
 pub enum State {
     /// Invalid Cik format.
     InvalidCikFormat(InvalidCikFormat),
+
+    /// Invalid SEC response.
+    InvalidSecResponse(InvalidSecResponse),
 
     /// Indicates that the client creation has failed, which is typically due to an invalid configuration.
     ClientCreationFailed(ClientCreationFailed),

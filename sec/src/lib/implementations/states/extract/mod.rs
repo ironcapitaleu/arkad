@@ -30,6 +30,7 @@
 pub mod execute_sec_request;
 pub mod prepare_sec_request;
 pub mod validate_cik_format;
+pub mod validate_sec_response;
 
 use std::fmt::Display;
 
