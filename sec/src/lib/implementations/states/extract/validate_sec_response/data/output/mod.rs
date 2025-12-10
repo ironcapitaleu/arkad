@@ -185,7 +185,7 @@ mod tests {
             url: reqwest::Url::parse(
                 "https://data.sec.gov/api/xbrl/companyfacts/CIK1234567890.json",
             )
-            .expect("Should be valid URL."),
+            .expect("Hardcoded URL should always be valid."),
             status: StatusCode::OK,
             headers: HashMap::new(),
             content_type: ContentType::Json,
@@ -209,7 +209,7 @@ mod tests {
             url: reqwest::Url::parse(
                 "https://data.sec.gov/api/xbrl/companyfacts/CIK1234567890.json",
             )
-            .expect("Should be valid URL."),
+            .expect("Hardcoded URL should always be valid."),
             status: StatusCode::OK,
             headers: HashMap::new(),
             content_type: ContentType::Json,
@@ -243,7 +243,7 @@ mod tests {
         let new_response = JsonResponse::from_sec_response(&sec_response)
             .expect("Should create valid JSON response");
         let mut output_data = ValidateSecResponseOutputData::new(original_response)
-            .expect("Should create output data");
+            .expect("Should create output data with valid JSON response");
         let updater = ValidateSecResponseOutputDataUpdaterBuilder::new()
             .validated_sec_response(new_response.clone())
             .build();
@@ -262,7 +262,7 @@ mod tests {
     fn should_not_update_fields_when_updater_is_empty() {
         let json_response = JsonResponse::default();
         let original_output_data = ValidateSecResponseOutputData::new(json_response.clone())
-            .expect("Should create output data");
+            .expect("Should create output data with valid JSON response");
         let mut output_data = original_output_data.clone();
         let updater = ValidateSecResponseOutputDataUpdaterBuilder::new().build();
 
@@ -306,7 +306,7 @@ mod tests {
             url: reqwest::Url::parse(
                 "https://data.sec.gov/api/xbrl/companyfacts/CIK5555555555.json",
             )
-            .expect("Should be valid URL."),
+            .expect("Hardcoded URL should always be valid."),
             status: StatusCode::OK,
             headers: HashMap::new(),
             content_type: ContentType::Json,
@@ -318,7 +318,7 @@ mod tests {
             url: reqwest::Url::parse(
                 "https://data.sec.gov/api/xbrl/companyfacts/CIK9999999999.json",
             )
-            .expect("Should be valid URL."),
+            .expect("Hardcoded URL should always be valid."),
             status: StatusCode::OK,
             headers: HashMap::new(),
             content_type: ContentType::Json,
