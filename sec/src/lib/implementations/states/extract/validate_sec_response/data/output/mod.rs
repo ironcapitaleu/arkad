@@ -185,7 +185,7 @@ mod tests {
             url: reqwest::Url::parse(
                 "https://data.sec.gov/api/xbrl/companyfacts/CIK1234567890.json",
             )
-            .expect("Valid URL"),
+            .expect("Should be valid URL."),
             status: StatusCode::OK,
             headers: HashMap::new(),
             content_type: ContentType::Json,
@@ -209,16 +209,16 @@ mod tests {
             url: reqwest::Url::parse(
                 "https://data.sec.gov/api/xbrl/companyfacts/CIK1234567890.json",
             )
-            .expect("Valid URL"),
+            .expect("Should be valid URL."),
             status: StatusCode::OK,
             headers: HashMap::new(),
             content_type: ContentType::Json,
             body: String::from("{\"data\": [1,2,3]}"),
         };
         let json_response = JsonResponse::from_sec_response(&sec_response)
-            .expect("Should create valid JSON response");
+            .expect("Should create valid JSON response if SEC response is valid.");
         let output_data = ValidateSecResponseOutputData::new(json_response.clone())
-            .expect("Should create output data");
+            .expect("Should create output data when valid JSON response is provided.");
 
         let expected_result = &json_response;
 
@@ -234,7 +234,7 @@ mod tests {
             url: reqwest::Url::parse(
                 "https://data.sec.gov/api/xbrl/companyfacts/CIK9999999999.json",
             )
-            .expect("Valid URL"),
+            .expect("URL should be valid."),
             status: StatusCode::OK,
             headers: HashMap::new(),
             content_type: ContentType::Json,
@@ -306,7 +306,7 @@ mod tests {
             url: reqwest::Url::parse(
                 "https://data.sec.gov/api/xbrl/companyfacts/CIK5555555555.json",
             )
-            .expect("Valid URL"),
+            .expect("Should be valid URL."),
             status: StatusCode::OK,
             headers: HashMap::new(),
             content_type: ContentType::Json,
@@ -318,7 +318,7 @@ mod tests {
             url: reqwest::Url::parse(
                 "https://data.sec.gov/api/xbrl/companyfacts/CIK9999999999.json",
             )
-            .expect("Valid URL"),
+            .expect("Should be valid URL."),
             status: StatusCode::OK,
             headers: HashMap::new(),
             content_type: ContentType::Json,

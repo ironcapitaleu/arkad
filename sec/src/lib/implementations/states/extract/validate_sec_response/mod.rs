@@ -307,7 +307,7 @@ mod tests {
             url: reqwest::Url::parse(
                 "https://data.sec.gov/api/xbrl/companyfacts/CIK1234567890.json",
             )
-            .expect("Valid URL"),
+            .expect("Should be valid URL."),
             status: StatusCode::OK,
             headers: HashMap::new(),
             content_type: ContentType::Json,
@@ -322,7 +322,7 @@ mod tests {
         validate_state
             .compute_output_data_async()
             .await
-            .expect("Should succeed");
+            .expect("Should succeed with valid response.");
         let result = validate_state.has_output_data_been_computed();
 
         assert_eq!(result, expected_result);
@@ -335,7 +335,7 @@ mod tests {
             url: reqwest::Url::parse(
                 "https://data.sec.gov/api/xbrl/companyfacts/CIK1234567890.json",
             )
-            .expect("Valid URL"),
+            .expect("Should be valid URL."),
             status: StatusCode::OK,
             headers: HashMap::new(),
             content_type: ContentType::Json,
@@ -361,7 +361,7 @@ mod tests {
             url: reqwest::Url::parse(
                 "https://data.sec.gov/api/xbrl/companyfacts/CIK1234567890.json",
             )
-            .expect("Valid URL"),
+            .expect("Should be valid URL."),
             status: StatusCode::BAD_REQUEST,
             headers: HashMap::new(),
             content_type: ContentType::Json,
@@ -383,7 +383,7 @@ mod tests {
             url: reqwest::Url::parse(
                 "https://data.sec.gov/api/xbrl/companyfacts/CIK1234567890.json",
             )
-            .expect("Valid URL"),
+            .expect("Should be valid URL."),
             status: StatusCode::OK,
             headers: HashMap::new(),
             content_type: ContentType::Json,
