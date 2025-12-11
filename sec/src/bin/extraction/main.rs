@@ -135,10 +135,33 @@ async fn main() {
         .await
         .expect("ExecuteSecRequest should succeed with valid CIK and user agent.");
 
-    let prepare_output = super_state
+    let execute_output = super_state
         .get_current_state()
         .get_output_data()
         .expect("ExecuteSecRequest should have output data");
 
-    println!("{prepare_output}");
+    println!("{execute_output}");
+
+    println!("\n=======================================================");
+    println!("Transition from ExecuteSECRequest to ValidateSecResponse");
+
+    let mut super_state = super_state
+        .transition_to_next_state_sec()
+        .expect("Transition should succeed.");
+    println!("{super_state}");
+
+    println!("\n=======================================================");
+    println!("State 4 Output:");
+
+    super_state
+        .compute_output_data_async()
+        .await
+        .expect("ValidateSecResponse should succeed with valid response.");
+
+    let validate_output = super_state
+        .get_current_state()
+        .get_output_data()
+        .expect("ValidateSecResponse should have output data");
+
+    println!("{validate_output}");
 }
