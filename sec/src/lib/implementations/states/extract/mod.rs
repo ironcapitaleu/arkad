@@ -46,8 +46,8 @@ use crate::implementations::states::extract::prepare_sec_request::{
     PrepareSecRequestOutputData,
 };
 use crate::implementations::states::extract::validate_cik_format::{
-    ValidateCikFormat, ValidateCikFormatContext, ValidateCikFormatInputData,
-    ValidateCikFormatOutputData,
+    ValidateCikFormat, ValidateCikFormatContext, ValidateCikFormatInput,
+    ValidateCikFormatOutput,
 };
 
 use crate::implementations::states::extract::validate_sec_response::{
@@ -185,14 +185,14 @@ impl<S: State> SMSuperState<S> for ExtractSuperState<S> {}
 
 impl<S: State> SuperState<S> for ExtractSuperState<S> {}
 
-impl From<ValidateCikFormatOutputData> for PrepareSecRequestContext {
-    fn from(output_data: ValidateCikFormatOutputData) -> Self {
+impl From<ValidateCikFormatOutput> for PrepareSecRequestContext {
+    fn from(output_data: ValidateCikFormatOutput) -> Self {
         Self::new(output_data.validated_cik)
     }
 }
 
-impl From<ValidateCikFormatOutputData> for PrepareSecRequestInputData {
-    fn from(output_data: ValidateCikFormatOutputData) -> Self {
+impl From<ValidateCikFormatOutput> for PrepareSecRequestInputData {
+    fn from(output_data: ValidateCikFormatOutput) -> Self {
         Self::new(
             output_data.validated_cik,
             DEFAULT_SEC_USER_AGENT.to_string(),
@@ -295,11 +295,11 @@ impl TryFrom<ExecuteSecRequest> for ValidateSecResponse {
 impl ExtractSuperState<ValidateCikFormat> {
     #[must_use]
     pub fn new(input: &str) -> Self {
-        let vcf_input = ValidateCikFormatInputData::new(input);
-        let vcf_context = ValidateCikFormatContext::new(input);
+        let input_data = ValidateCikFormatInput::new(input);
+        let context = ValidateCikFormatContext::new(input);
 
         Self {
-            current_state: ValidateCikFormat::new(vcf_input, vcf_context),
+            current_state: ValidateCikFormat::new(input_data, context),
             input: ExtractSuperStateData,
             output: None,
             context: ExtractSuperStateContext,

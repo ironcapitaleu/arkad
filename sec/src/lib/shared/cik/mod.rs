@@ -19,7 +19,7 @@
 //!
 //! ## See Also
 //! - [`crate::shared`]: Shared domain types and utilities used across the SEC state machine library.
-//! - [`crate::implementations::states::extract::validate_cik_format::vcf_data`]: Modules that use [`Cik`] for input/output validation.
+//! - [`crate::implementations::states::extract::validate_cik_format::data`]: Modules that use [`Cik`] for input/output validation.
 //! - [`crate::error`]: Error types that may reference [`CikError`] and [`InvalidCikReason`] for detailed diagnostics.
 
 pub mod cik_error;

@@ -14,7 +14,7 @@
 //!
 //! ## Example
 //! ```rust
-//! use sec::implementations::states::extract::validate_cik_format::vcf_context::*;
+//! use sec::implementations::states::extract::validate_cik_format::context::*;
 //! use state_maschine::prelude::*;
 //!
 //! let mut context = ValidateCikFormatContext::default();

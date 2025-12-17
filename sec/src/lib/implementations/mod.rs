@@ -19,13 +19,13 @@
 //! ```rust
 //! use tokio;
 //!
-//! use sec::implementations::states::extract::validate_cik_format::{ValidateCikFormat, ValidateCikFormatInputData, ValidateCikFormatContext};
+//! use sec::implementations::states::extract::validate_cik_format::{ValidateCikFormat, ValidateCikFormatInput, ValidateCikFormatContext};
 //! use sec::prelude::*;
 //!
 //! #[tokio::main]
 //! async fn main() {
 //!     // Initialze input and context data for the `ValidateCikFormat` state
-//!     let input = ValidateCikFormatInputData { raw_cik: "1234".into() };
+//!     let input = ValidateCikFormatInput { raw_cik: "1234".into() };
 //!     let context = ValidateCikFormatContext::default();
 //!     
 //!     // For testing purposes: Define the expected result after validation

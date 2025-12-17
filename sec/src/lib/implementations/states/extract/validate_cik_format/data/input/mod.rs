@@ -1,13 +1,13 @@
-//! # `ValidateCikFormatInputData` Module
+//! # `ValidateCikFormatInput` Module
 //!
 //! This module defines the input data structure and updater patterns for the `ValidateCikFormat` state
 //! within the SEC extraction state machine. It provides types and builders for representing and updating
 //! the raw Central Index Key (CIK) input, which is validated as part of the SEC document extraction workflow.
 //!
 //! ## Types
-//! - [`ValidateCikFormatInputData`]: Holds the unvalidated CIK string to be processed by the validation state.
-//! - [`ValidateCikFormatInputDataUpdater`]: Updater type for modifying the input data in a controlled manner.
-//! - [`ValidateCikFormatInputDataUpdaterBuilder`]: Builder for constructing updater instances with optional fields.
+//! - [`ValidateCikFormatInput`]: Holds the unvalidated CIK string to be processed by the validation state.
+//! - [`ValidateCikFormatInputUpdater`]: Updater type for modifying the input data in a controlled manner.
+//! - [`ValidateCikFormatInputUpdaterBuilder`]: Builder for constructing updater instances with optional fields.
 //!
 //! ## Integration
 //! - Implements [`StateData`](state_maschine::state_machine::state::StateData) for compatibility with the state machine framework.
@@ -18,7 +18,7 @@
 //! integrates with the state machine's updater and state data traits for robust, testable workflows.
 //!
 //! ## See Also
-//! - [`vcf_output_data`](super::vcf_output_data): Output data structure for validated CIKs.
+//! - [`output`](super::output): Output data structure for validated CIKs.
 //! - [`crate::shared::cik`]: Utilities for CIK parsing and validation.
 //! - [`state_maschine::prelude::StateData`]: Trait for state data integration.
 //!
@@ -40,20 +40,20 @@ use crate::traits::state_machine::state::StateData;
 /// that will be processed by the `ValidateCikFormat` state. It is designed
 /// to be used as part of the SEC document extraction workflow, and supports
 /// builder-based updates and integration with the state machine framework.
-pub struct ValidateCikFormatInputData {
+pub struct ValidateCikFormatInput {
     /// The unvalidated CIK string provided for validation.
     pub raw_cik: String,
 }
 
-impl ValidateCikFormatInputData {
+impl ValidateCikFormatInput {
     /// Creates a new instance of the input data for the CIK format validation.
     ///
     /// # Examples
     ///
     /// ```
-    /// use sec::implementations::states::extract::validate_cik_format::vcf_data::vcf_input_data::ValidateCikFormatInputData;
+    /// use sec::implementations::states::extract::validate_cik_format::data::input::ValidateCikFormatInput;
     ///
-    /// let validation_input_data = ValidateCikFormatInputData::new("1067983");
+    /// let validation_input_data = ValidateCikFormatInput::new("1067983");
     /// ```
     pub fn new(cik: impl Into<String>) -> Self {
         Self {
@@ -68,7 +68,7 @@ impl ValidateCikFormatInputData {
     }
 }
 
-impl StateData for ValidateCikFormatInputData {
+impl StateData for ValidateCikFormatInput {
     /// Updates the state data using the provided updater.
     ///
     /// If `raw_cik` is `Some`, updates the CIK string; otherwise, leaves it unchanged.
@@ -80,8 +80,8 @@ impl StateData for ValidateCikFormatInputData {
     }
 }
 
-impl SMStateData for ValidateCikFormatInputData {
-    type UpdateType = ValidateCikFormatInputDataUpdater;
+impl SMStateData for ValidateCikFormatInput {
+    type UpdateType = ValidateCikFormatInputUpdater;
 
     /// Returns a reference to the current state data, which represents the input data of this state.
     fn get_state(&self) -> &Self {
@@ -94,7 +94,7 @@ impl SMStateData for ValidateCikFormatInputData {
     }
 }
 
-impl Default for ValidateCikFormatInputData {
+impl Default for ValidateCikFormatInput {
     /// Returns a default input using the CIK for Berkshire Hathaway (CIK: 1067983).
     fn default() -> Self {
         Self {
@@ -103,31 +103,31 @@ impl Default for ValidateCikFormatInputData {
     }
 }
 
-impl fmt::Display for ValidateCikFormatInputData {
+impl fmt::Display for ValidateCikFormatInput {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "\tCIK: {}", self.raw_cik,)
     }
 }
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
-/// Updater for [`ValidateCikFormatInputData`].
+/// Updater for [`ValidateCikFormatInput`].
 ///
 /// This struct is used to specify updates to the input data in a controlled, partial manner.
 /// Fields set to `None` will not be updated. Used in conjunction with the state machine's
 /// update mechanism to ensure safe and explicit state transitions.
-pub struct ValidateCikFormatInputDataUpdater {
+pub struct ValidateCikFormatInputUpdater {
     /// Optional new value for the raw CIK string.
     pub raw_cik: Option<String>,
 }
 
-/// Builder for [`ValidateCikFormatInputDataUpdater`].
+/// Builder for [`ValidateCikFormatInputUpdater`].
 ///
 /// This builder allows for ergonomic and explicit construction of updater instances,
 /// supporting method chaining and optional fields. Use `.build()` to produce the updater.
-pub struct ValidateCikFormatInputDataUpdaterBuilder {
+pub struct ValidateCikFormatInputUpdaterBuilder {
     raw_cik: Option<String>,
 }
-impl ValidateCikFormatInputDataUpdaterBuilder {
+impl ValidateCikFormatInputUpdaterBuilder {
     /// Creates a new updater builder with no fields set.
     #[must_use]
     pub const fn new() -> Self {
@@ -148,14 +148,14 @@ impl ValidateCikFormatInputDataUpdaterBuilder {
 
     /// Builds the updater instance from the builder.
     #[must_use]
-    pub fn build(self) -> ValidateCikFormatInputDataUpdater {
-        ValidateCikFormatInputDataUpdater {
+    pub fn build(self) -> ValidateCikFormatInputUpdater {
+        ValidateCikFormatInputUpdater {
             raw_cik: self.raw_cik,
         }
     }
 }
 
-impl Default for ValidateCikFormatInputDataUpdaterBuilder {
+impl Default for ValidateCikFormatInputUpdaterBuilder {
     /// Returns a new updater builder with no fields set.
     fn default() -> Self {
         Self::new()
@@ -169,17 +169,17 @@ mod tests {
     use pretty_assertions::{assert_eq, assert_ne};
 
     use super::{
-        BERKSHIRE_HATHAWAY_CIK_RAW, ValidateCikFormatInputData,
-        ValidateCikFormatInputDataUpdaterBuilder,
+        BERKSHIRE_HATHAWAY_CIK_RAW, ValidateCikFormatInput,
+        ValidateCikFormatInputUpdaterBuilder,
     };
     use crate::traits::state_machine::state::StateData;
     use state_maschine::prelude::StateData as SMStateData;
 
     #[test]
     fn should_return_reference_to_default_validation_state_data_when_initialized_with_default() {
-        let default_validation_state_data = ValidateCikFormatInputData::default();
+        let default_validation_state_data = ValidateCikFormatInput::default();
 
-        let expected_result = &ValidateCikFormatInputData::default();
+        let expected_result = &ValidateCikFormatInput::default();
 
         let result = default_validation_state_data.get_state();
 
@@ -188,9 +188,9 @@ mod tests {
 
     #[test]
     fn should_create_different_state_data_with_custom_data_when_using_new_as_constructor() {
-        let validation_state_data = &ValidateCikFormatInputData::new("0000000000");
+        let validation_state_data = &ValidateCikFormatInput::new("0000000000");
 
-        let default_validation_state_data = &ValidateCikFormatInputData::default();
+        let default_validation_state_data = &ValidateCikFormatInput::default();
 
         let result = validation_state_data.get_state();
 
@@ -199,12 +199,12 @@ mod tests {
 
     #[test]
     fn should_update_state_data_to_specified_string_when_update_contains_specified_string() {
-        let mut state_data = ValidateCikFormatInputData::default();
-        let update = ValidateCikFormatInputDataUpdaterBuilder::default()
+        let mut state_data = ValidateCikFormatInput::default();
+        let update = ValidateCikFormatInputUpdaterBuilder::default()
             .cik("12345")
             .build();
 
-        let expected_result = &ValidateCikFormatInputData::new("12345");
+        let expected_result = &ValidateCikFormatInput::new("12345");
 
         StateData::update_state(&mut state_data, update)
             .expect("Update with valid 'update' value should always succeed.");
@@ -216,13 +216,13 @@ mod tests {
 
     #[test]
     fn should_update_state_data_to_latest_specified_string_when_multiple_updates_in_builder() {
-        let mut state_data = ValidateCikFormatInputData::default();
-        let update = ValidateCikFormatInputDataUpdaterBuilder::default()
+        let mut state_data = ValidateCikFormatInput::default();
+        let update = ValidateCikFormatInputUpdaterBuilder::default()
             .cik("1234567890")
             .cik("0000000000")
             .build();
 
-        let expected_result = &ValidateCikFormatInputData::new("0000000000");
+        let expected_result = &ValidateCikFormatInput::new("0000000000");
 
         StateData::update_state(&mut state_data, update)
             .expect("Update with valid 'update' value should always succeed.");
@@ -233,10 +233,10 @@ mod tests {
 
     #[test]
     fn should_leave_state_data_unchanged_when_empty_update() {
-        let mut state_data = ValidateCikFormatInputData::default();
-        let empty_update = ValidateCikFormatInputDataUpdaterBuilder::default().build();
+        let mut state_data = ValidateCikFormatInput::default();
+        let empty_update = ValidateCikFormatInputUpdaterBuilder::default().build();
 
-        let expected_result = &ValidateCikFormatInputData::default();
+        let expected_result = &ValidateCikFormatInput::default();
 
         StateData::update_state(&mut state_data, empty_update)
             .expect("Update with valid 'update' value should always succeed.");
@@ -247,7 +247,7 @@ mod tests {
 
     #[test]
     fn should_return_default_cik_when_validation_input_data_initialized_with_default() {
-        let validation_state_data = &ValidateCikFormatInputData::default();
+        let validation_state_data = &ValidateCikFormatInput::default();
 
         let expected_result = &BERKSHIRE_HATHAWAY_CIK_RAW.to_string();
 
@@ -259,7 +259,7 @@ mod tests {
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
     #[test]
     const fn should_still_implement_auto_traits_when_implementing_input_data_trait() {
-        implements_auto_traits::<ValidateCikFormatInputData>();
+        implements_auto_traits::<ValidateCikFormatInput>();
     }
 
     const fn implements_send<T: Send>() {}
@@ -267,77 +267,77 @@ mod tests {
 
     #[test]
     const fn should_implement_send_when_implementing_input_data_trait() {
-        implements_send::<ValidateCikFormatInputData>();
+        implements_send::<ValidateCikFormatInput>();
     }
 
     #[test]
     const fn should_implement_sync_when_implementing_input_data_trait() {
-        implements_sync::<ValidateCikFormatInputData>();
+        implements_sync::<ValidateCikFormatInput>();
     }
 
     #[test]
     const fn should_be_thread_safe_when_implementing_input_data_trait() {
-        implements_send::<ValidateCikFormatInputData>();
-        implements_sync::<ValidateCikFormatInputData>();
+        implements_send::<ValidateCikFormatInput>();
+        implements_sync::<ValidateCikFormatInput>();
     }
 
     const fn implements_sized<T: Sized>() {}
     #[test]
     const fn should_be_sized_when_implementing_input_data_trait() {
-        implements_sized::<ValidateCikFormatInputData>();
+        implements_sized::<ValidateCikFormatInput>();
     }
 
     const fn implements_hash<T: Hash>() {}
     #[test]
     const fn should_implement_hash_when_implementing_input_data_trait() {
-        implements_hash::<ValidateCikFormatInputData>();
+        implements_hash::<ValidateCikFormatInput>();
     }
 
     const fn implements_partial_eq<T: PartialEq>() {}
     #[test]
     const fn should_implement_partial_eq_when_implementing_input_data_trait() {
-        implements_partial_eq::<ValidateCikFormatInputData>();
+        implements_partial_eq::<ValidateCikFormatInput>();
     }
 
     const fn implements_eq<T: Eq>() {}
     #[test]
     const fn should_implement_eq_when_implementing_input_data_trait() {
-        implements_eq::<ValidateCikFormatInputData>();
+        implements_eq::<ValidateCikFormatInput>();
     }
 
     const fn implements_partial_ord<T: PartialOrd>() {}
     #[test]
     const fn should_implement_partial_ord_when_implementing_input_data_trait() {
-        implements_partial_ord::<ValidateCikFormatInputData>();
+        implements_partial_ord::<ValidateCikFormatInput>();
     }
 
     const fn implements_ord<T: Ord>() {}
     #[test]
     const fn should_implement_ord_when_implementing_input_data_trait() {
-        implements_ord::<ValidateCikFormatInputData>();
+        implements_ord::<ValidateCikFormatInput>();
     }
 
     const fn implements_default<T: Default>() {}
     #[test]
     const fn should_implement_default_when_implementing_input_data_trait() {
-        implements_default::<ValidateCikFormatInputData>();
+        implements_default::<ValidateCikFormatInput>();
     }
 
     const fn implements_debug<T: Debug>() {}
     #[test]
     const fn should_implement_debug_when_implementing_input_data_trait() {
-        implements_debug::<ValidateCikFormatInputData>();
+        implements_debug::<ValidateCikFormatInput>();
     }
 
     const fn implements_clone<T: Clone>() {}
     #[test]
     const fn should_implement_clone_when_implementing_input_data_trait() {
-        implements_clone::<ValidateCikFormatInputData>();
+        implements_clone::<ValidateCikFormatInput>();
     }
 
     const fn implements_unpin<T: Unpin>() {}
     #[test]
     const fn should_implement_unpin_when_implementing_input_data_trait() {
-        implements_unpin::<ValidateCikFormatInputData>();
+        implements_unpin::<ValidateCikFormatInput>();
     }
 }

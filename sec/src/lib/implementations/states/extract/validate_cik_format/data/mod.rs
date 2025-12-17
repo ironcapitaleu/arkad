@@ -5,8 +5,8 @@
 //! Central Index Key (CIK) validation process, encapsulating both the raw input and the validated output.
 //!
 //! ## Modules
-//! - [`vcf_input_data`]: Contains [`ValidateCikFormatInputData`] and related types for representing and updating the CIK input data.
-//! - [`vcf_output_data`]: Contains [`ValidateCikFormatOutputData`] and related types for representing and updating the validated CIK output data.
+//! - [`input`]: Contains [`ValidateCikFormatInput`] and related types for representing and updating the CIK input data.
+//! - [`output`]: Contains [`ValidateCikFormatOutput`] and related types for representing and updating the validated CIK output data.
 //!
 //! ## Usage
 //! These types are used by the `ValidateCikFormat` state to receive, validate, and output CIK data
@@ -20,8 +20,8 @@
 //! ## Examples
 //! See the documentation and tests in the submodules for usage patterns.
 
-pub mod vcf_input_data;
-pub mod vcf_output_data;
+pub mod input;
+pub mod output;
 
-pub use vcf_input_data::ValidateCikFormatInputData;
-pub use vcf_output_data::ValidateCikFormatOutputData;
+pub use input::ValidateCikFormatInput;
+pub use output::ValidateCikFormatOutput;
