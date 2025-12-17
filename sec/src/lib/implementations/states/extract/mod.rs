@@ -38,8 +38,8 @@ use crate::error::State as StateError;
 use crate::error::state_machine::transition;
 use crate::error::state_machine::transition::Transition as TransitionError;
 use crate::implementations::states::extract::execute_sec_request::{
-    ExecuteSecRequest, ExecuteSecRequestContext, ExecuteSecRequestInputData,
-    ExecuteSecRequestOutputData,
+    ExecuteSecRequest, ExecuteSecRequestContext, ExecuteSecRequestInput,
+    ExecuteSecRequestOutput,
 };
 use crate::implementations::states::extract::prepare_sec_request::{
     PrepareSecRequest, PrepareSecRequestContext, PrepareSecRequestInput,
@@ -234,14 +234,14 @@ impl From<ExecuteSecRequestContext> for ValidateSecResponseContext {
     }
 }
 
-impl From<PrepareSecRequestOutput> for ExecuteSecRequestInputData {
+impl From<PrepareSecRequestOutput> for ExecuteSecRequestInput {
     fn from(output_data: PrepareSecRequestOutput) -> Self {
         Self::new(output_data.client, output_data.request)
     }
 }
 
-impl From<ExecuteSecRequestOutputData> for ValidateSecResponseInputData {
-    fn from(output_data: ExecuteSecRequestOutputData) -> Self {
+impl From<ExecuteSecRequestOutput> for ValidateSecResponseInputData {
+    fn from(output_data: ExecuteSecRequestOutput) -> Self {
         Self::new(output_data.response)
     }
 }
@@ -263,7 +263,7 @@ impl TryFrom<PrepareSecRequest> for ExecuteSecRequest {
 
         let state_context = state.get_context_data().clone();
         let new_context: ExecuteSecRequestContext = state_context.into();
-        let new_input: ExecuteSecRequestInputData = output_data.into();
+        let new_input: ExecuteSecRequestInput = output_data.into();
 
         Ok(Self::new(new_input, new_context))
     }
@@ -325,7 +325,7 @@ impl ExtractSuperState<PrepareSecRequest> {
 impl ExtractSuperState<ExecuteSecRequest> {
     #[must_use]
     pub const fn new(client: SecClient, request: SecRequest, cik: Cik) -> Self {
-        let esr_input = ExecuteSecRequestInputData::new(client, request);
+        let esr_input = ExecuteSecRequestInput::new(client, request);
         let esr_context = ExecuteSecRequestContext::new(cik);
 
         Self {

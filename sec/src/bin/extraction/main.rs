@@ -1,6 +1,6 @@
 use sec::implementations::states::extract::ExtractSuperState;
 use sec::implementations::states::extract::execute_sec_request::{
-    ExecuteSecRequest, ExecuteSecRequestContext, ExecuteSecRequestInputData,
+    ExecuteSecRequest, ExecuteSecRequestContext, ExecuteSecRequestInput,
 };
 use sec::implementations::states::extract::prepare_sec_request::{
     PrepareSecRequest, PrepareSecRequestContext, PrepareSecRequestInput,
@@ -59,7 +59,7 @@ async fn main() {
         .clone();
 
     let mut execute_sec_request = ExecuteSecRequest::new(
-        ExecuteSecRequestInputData::new(
+        ExecuteSecRequestInput::new(
             prepare_output.client().clone(),
             prepare_output.request().clone(),
         ),
