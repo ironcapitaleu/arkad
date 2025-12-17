@@ -20,7 +20,7 @@
 //!
 //! let cik = Cik::new("1234567890").expect("Valid CIK");
 //! let mut context = ExecuteSecRequestContext::new(cik);
-//! let update = ExecuteSecRequestContextUpdaterBuilder::new()
+//! let update = ExecuteSecRequestContextUpdater::builder()
 //!     .cik(Cik::new("0987654321").expect("Valid CIK"))
 //!     .build();
 //! context.update_context(update);
@@ -123,6 +123,14 @@ pub struct ExecuteSecRequestContextUpdater {
     pub cik: Option<Cik>,
 }
 
+impl ExecuteSecRequestContextUpdater {
+    /// Creates a new builder for constructing [`ExecuteSecRequestContextUpdater`] instances.
+    #[must_use]
+    pub const fn builder() -> ExecuteSecRequestContextUpdaterBuilder {
+        ExecuteSecRequestContextUpdaterBuilder::new()
+    }
+}
+
 /// Builder for constructing [`ExecuteSecRequestContextUpdater`] instances.
 ///
 /// This builder provides a fluent API for constructing updaters with only
@@ -223,7 +231,7 @@ mod tests {
         let new_cik = Cik::new("0987654321").expect("Hardcoded CIK should always be valid.");
         let mut context = ExecuteSecRequestContext::new(original_cik);
 
-        let updater = ExecuteSecRequestContextUpdaterBuilder::new()
+        let updater = ExecuteSecRequestContextUpdater::builder()
             .cik(new_cik.clone())
             .build();
 
@@ -238,7 +246,7 @@ mod tests {
         let original_context = ExecuteSecRequestContext::new(cik.clone());
         let mut context = original_context.clone();
 
-        let updater = ExecuteSecRequestContextUpdaterBuilder::new().build();
+        let updater = ExecuteSecRequestContextUpdater::builder().build();
 
         context.update_context(updater);
 

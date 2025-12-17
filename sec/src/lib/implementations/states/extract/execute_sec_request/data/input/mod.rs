@@ -132,6 +132,14 @@ pub struct ExecuteSecRequestInputUpdater {
     pub sec_request: Option<SecRequest>,
 }
 
+impl ExecuteSecRequestInputUpdater {
+    /// Creates a new builder for constructing [`ExecuteSecRequestInputUpdater`] instances.
+    #[must_use]
+    pub const fn builder() -> ExecuteSecRequestInputUpdaterBuilder {
+        ExecuteSecRequestInputUpdaterBuilder::new()
+    }
+}
+
 /// Builder for constructing [`ExecuteSecRequestInputUpdater`] instances.
 ///
 /// This builder provides a fluent API for constructing updaters with only
@@ -271,7 +279,7 @@ mod tests {
         let request = SecRequest::new(&cik);
         let mut input_data = ExecuteSecRequestInput::new(client, request);
 
-        let updater = ExecuteSecRequestInputUpdaterBuilder::new().build();
+        let updater = ExecuteSecRequestInputUpdater::builder().build();
 
         let expected_result = Ok(());
 
@@ -290,7 +298,7 @@ mod tests {
         let request = SecRequest::new(&cik);
         let mut input_data = ExecuteSecRequestInput::new(original_client, request);
 
-        let updater = ExecuteSecRequestInputUpdaterBuilder::new()
+        let updater = ExecuteSecRequestInputUpdater::builder()
             .sec_client(new_client.clone())
             .build();
 
@@ -313,7 +321,7 @@ mod tests {
         let new_request = SecRequest::new(&new_cik);
         let mut input_data = ExecuteSecRequestInput::new(client, original_request);
 
-        let updater = ExecuteSecRequestInputUpdaterBuilder::new()
+        let updater = ExecuteSecRequestInputUpdater::builder()
             .sec_request(new_request.clone())
             .build();
 
@@ -338,7 +346,7 @@ mod tests {
         let new_request = SecRequest::new(&new_cik);
         let mut input_data = ExecuteSecRequestInput::new(original_client, original_request);
 
-        let updater = ExecuteSecRequestInputUpdaterBuilder::new()
+        let updater = ExecuteSecRequestInputUpdater::builder()
             .sec_client(new_client.clone())
             .sec_request(new_request.clone())
             .build();
@@ -364,7 +372,7 @@ mod tests {
         let new_request = SecRequest::new(&new_cik);
         let mut input_data = ExecuteSecRequestInput::new(original_client, original_request);
 
-        let updater = ExecuteSecRequestInputUpdaterBuilder::new()
+        let updater = ExecuteSecRequestInputUpdater::builder()
             .sec_client(new_client.clone())
             .sec_request(new_request.clone())
             .build();
@@ -387,7 +395,7 @@ mod tests {
         let original_input_data = ExecuteSecRequestInput::new(client, request);
         let mut input_data = original_input_data.clone();
 
-        let updater = ExecuteSecRequestInputUpdaterBuilder::new().build();
+        let updater = ExecuteSecRequestInputUpdater::builder().build();
 
         let _ = StateData::update_state(&mut input_data, updater);
 

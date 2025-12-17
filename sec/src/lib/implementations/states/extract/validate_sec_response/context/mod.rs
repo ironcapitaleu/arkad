@@ -20,7 +20,7 @@
 //!
 //! let cik = Cik::new("1234567890").expect("Valid CIK");
 //! let mut context = ValidateSecResponseContext::new(cik);
-//! let update = ValidateSecResponseContextUpdaterBuilder::new()
+//! let update = ValidateSecResponseContextUpdater::builder()
 //!     .cik(Cik::new("0987654321").expect("Valid CIK"))
 //!     .build();
 //! context.update_context(update);
@@ -123,6 +123,14 @@ pub struct ValidateSecResponseContextUpdater {
     pub cik: Option<Cik>,
 }
 
+impl ValidateSecResponseContextUpdater {
+    /// Creates a new builder for constructing [`ValidateSecResponseContextUpdater`] instances.
+    #[must_use]
+    pub const fn builder() -> ValidateSecResponseContextUpdaterBuilder {
+        ValidateSecResponseContextUpdaterBuilder::new()
+    }
+}
+
 /// Builder for constructing [`ValidateSecResponseContextUpdater`] instances.
 ///
 /// This builder provides a fluent API for constructing updaters with only
@@ -223,7 +231,7 @@ mod tests {
         let original_cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid.");
         let new_cik = Cik::new("0987654321").expect("Hardcoded CIK should always be valid.");
         let mut context = ValidateSecResponseContext::new(original_cik);
-        let updater = ValidateSecResponseContextUpdaterBuilder::new()
+        let updater = ValidateSecResponseContextUpdater::builder()
             .cik(new_cik.clone())
             .build();
 
@@ -240,7 +248,7 @@ mod tests {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid.");
         let original_context = ValidateSecResponseContext::new(cik.clone());
         let mut context = original_context.clone();
-        let updater = ValidateSecResponseContextUpdaterBuilder::new().build();
+        let updater = ValidateSecResponseContextUpdater::builder().build();
 
         let expected_result = &original_context;
 
@@ -291,7 +299,7 @@ mod tests {
             Cik::new("5555555555").expect("Hardcoded CIK should always be valid.");
         let final_cik = Cik::new("0987654321").expect("Hardcoded CIK should always be valid.");
         let mut context = ValidateSecResponseContext::new(original_cik);
-        let updater = ValidateSecResponseContextUpdaterBuilder::new()
+        let updater = ValidateSecResponseContextUpdater::builder()
             .cik(intermediate_cik)
             .cik(final_cik.clone())
             .build();

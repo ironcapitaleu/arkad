@@ -134,6 +134,14 @@ pub struct PrepareSecRequestOutputUpdater {
     pub request: Option<SecRequest>,
 }
 
+impl PrepareSecRequestOutputUpdater {
+    /// Creates a new builder for constructing [`PrepareSecRequestOutputUpdater`] instances.
+    #[must_use]
+    pub const fn builder() -> PrepareSecRequestOutputUpdaterBuilder {
+        PrepareSecRequestOutputUpdaterBuilder::new()
+    }
+}
+
 /// Builder for [`PrepareSecRequestOutputUpdater`].
 ///
 /// This builder allows for ergonomic and explicit construction of updater instances,

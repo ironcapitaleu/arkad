@@ -134,6 +134,14 @@ pub struct PrepareSecRequestInputUpdater {
     pub user_agent: Option<String>,
 }
 
+impl PrepareSecRequestInputUpdater {
+    /// Creates a new builder for constructing [`PrepareSecRequestInputUpdater`] instances.
+    #[must_use]
+    pub const fn builder() -> PrepareSecRequestInputUpdaterBuilder {
+        PrepareSecRequestInputUpdaterBuilder::new()
+    }
+}
+
 /// Builder for [`PrepareSecRequestInputUpdater`].
 ///
 /// This builder allows for ergonomic and explicit construction of updater instances,

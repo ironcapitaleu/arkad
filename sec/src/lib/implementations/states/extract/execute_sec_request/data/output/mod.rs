@@ -106,6 +106,14 @@ pub struct ExecuteSecRequestOutputUpdater {
     pub response: Option<SecResponse>,
 }
 
+impl ExecuteSecRequestOutputUpdater {
+    /// Creates a new builder for constructing [`ExecuteSecRequestOutputUpdater`] instances.
+    #[must_use]
+    pub const fn builder() -> ExecuteSecRequestOutputUpdaterBuilder {
+        ExecuteSecRequestOutputUpdaterBuilder::new()
+    }
+}
+
 /// Builder for constructing [`ExecuteSecRequestOutputUpdater`] instances.
 ///
 /// This builder provides a fluent API for constructing updaters with only
@@ -198,7 +206,7 @@ mod tests {
         let mut output_data =
             ExecuteSecRequestOutput::new(original_response).expect("Should create output data");
 
-        let updater = ExecuteSecRequestOutputUpdaterBuilder::new()
+        let updater = ExecuteSecRequestOutputUpdater::builder()
             .response(new_response.clone())
             .build();
 
@@ -216,7 +224,7 @@ mod tests {
             ExecuteSecRequestOutput::new(response).expect("Should create output data");
         let mut output_data = original_output_data.clone();
 
-        let updater = ExecuteSecRequestOutputUpdaterBuilder::new().build();
+        let updater = ExecuteSecRequestOutputUpdater::builder().build();
 
         let expected_result = Ok(());
         let result = StateData::update_state(&mut output_data, updater);

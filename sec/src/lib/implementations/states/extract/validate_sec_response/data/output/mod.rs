@@ -111,6 +111,14 @@ pub struct ValidateSecResponseOutputUpdater {
     pub validated_sec_response: Option<JsonResponse>,
 }
 
+impl ValidateSecResponseOutputUpdater {
+    /// Creates a new builder for constructing [`ValidateSecResponseOutputUpdater`] instances.
+    #[must_use]
+    pub const fn builder() -> ValidateSecResponseOutputUpdaterBuilder {
+        ValidateSecResponseOutputUpdaterBuilder::new()
+    }
+}
+
 /// Builder for constructing [`ValidateSecResponseOutputUpdater`] instances.
 ///
 /// This builder provides a fluent API for constructing updaters with only
@@ -244,7 +252,7 @@ mod tests {
             .expect("Should create valid JSON response");
         let mut output_data = ValidateSecResponseOutput::new(original_response)
             .expect("Should create output data with valid JSON response");
-        let updater = ValidateSecResponseOutputUpdaterBuilder::new()
+        let updater = ValidateSecResponseOutputUpdater::builder()
             .validated_sec_response(new_response.clone())
             .build();
 
@@ -264,7 +272,7 @@ mod tests {
         let original_output_data = ValidateSecResponseOutput::new(json_response.clone())
             .expect("Should create output data with valid JSON response");
         let mut output_data = original_output_data.clone();
-        let updater = ValidateSecResponseOutputUpdaterBuilder::new().build();
+        let updater = ValidateSecResponseOutputUpdater::builder().build();
 
         let expected_result = &ValidateSecResponseOutput::default();
 
@@ -328,7 +336,7 @@ mod tests {
             .expect("Should create valid JSON response");
         let mut output_data = ValidateSecResponseOutput::new(original_response)
             .expect("Should create output data");
-        let updater = ValidateSecResponseOutputUpdaterBuilder::new()
+        let updater = ValidateSecResponseOutputUpdater::builder()
             .validated_sec_response(intermediate_response)
             .validated_sec_response(final_response.clone())
             .build();

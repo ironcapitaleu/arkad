@@ -136,6 +136,14 @@ pub struct ValidateCikFormatOutputUpdater {
     pub cik: Option<Cik>,
 }
 
+impl ValidateCikFormatOutputUpdater {
+    /// Creates a new builder for constructing [`ValidateCikFormatOutputUpdater`] instances.
+    #[must_use]
+    pub const fn builder() -> ValidateCikFormatOutputUpdaterBuilder {
+        ValidateCikFormatOutputUpdaterBuilder::new()
+    }
+}
+
 /// Updater builder for the validation output.
 pub struct ValidateCikFormatOutputUpdaterBuilder {
     cik: Option<Cik>,

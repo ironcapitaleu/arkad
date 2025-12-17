@@ -120,6 +120,14 @@ pub struct ValidateCikFormatInputUpdater {
     pub raw_cik: Option<String>,
 }
 
+impl ValidateCikFormatInputUpdater {
+    /// Creates a new builder for constructing [`ValidateCikFormatInputUpdater`] instances.
+    #[must_use]
+    pub const fn builder() -> ValidateCikFormatInputUpdaterBuilder {
+        ValidateCikFormatInputUpdaterBuilder::new()
+    }
+}
+
 /// Builder for [`ValidateCikFormatInputUpdater`].
 ///
 /// This builder allows for ergonomic and explicit construction of updater instances,

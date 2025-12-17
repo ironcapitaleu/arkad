@@ -18,7 +18,7 @@
 //! use state_maschine::prelude::*;
 //!
 //! let mut context = ValidateCikFormatContext::default();
-//! let update = ValidateCikFormatContextUpdaterBuilder::new()
+//! let update = ValidateCikFormatContextUpdater::builder()
 //!     .cik("0000000001")
 //!     .build();
 //! context.update_context(update);
@@ -114,6 +114,14 @@ pub struct ValidateCikFormatContextUpdater {
     pub raw_cik: Option<String>,
 }
 
+impl ValidateCikFormatContextUpdater {
+    /// Creates a new builder for constructing [`ValidateCikFormatContextUpdater`] instances.
+    #[must_use]
+    pub const fn builder() -> ValidateCikFormatContextUpdaterBuilder {
+        ValidateCikFormatContextUpdaterBuilder::new()
+    }
+}
+
 /// Builder for `ValidateCikFormatContextUpdater`.
 ///
 /// Use this builder to fluently construct an updater for the context.
@@ -163,7 +171,7 @@ mod tests {
 
     use super::{
         BERKSHIRE_HATHAWAY_CIK_RAW, ValidateCikFormatContext,
-        ValidateCikFormatContextUpdaterBuilder,
+        ValidateCikFormatContextUpdater, ValidateCikFormatContextUpdaterBuilder,
     };
 
     #[test]
@@ -191,7 +199,7 @@ mod tests {
     #[test]
     fn should_update_context_cik_data_to_specified_string_when_update_contains_specified_string() {
         let mut context = ValidateCikFormatContext::default();
-        let update = ValidateCikFormatContextUpdaterBuilder::new()
+        let update = ValidateCikFormatContextUpdater::builder()
             .cik("Updated CIK!")
             .build();
 
@@ -206,7 +214,7 @@ mod tests {
     #[test]
     fn should_update_cik_to_latest_specified_string_when_multiple_updates_in_builder() {
         let mut context = ValidateCikFormatContext::default();
-        let update = ValidateCikFormatContextUpdaterBuilder::new()
+        let update = ValidateCikFormatContextUpdater::builder()
             .cik("First CIK Update!")
             .cik("Latest CIK Update!")
             .build();
@@ -222,7 +230,7 @@ mod tests {
     #[test]
     fn should_not_leave_context_cik_data_the_default_when_update_contains_a_different_string() {
         let mut context = ValidateCikFormatContext::default();
-        let update = ValidateCikFormatContextUpdaterBuilder::new()
+        let update = ValidateCikFormatContextUpdater::builder()
             .cik("Updated CIK!")
             .build();
 

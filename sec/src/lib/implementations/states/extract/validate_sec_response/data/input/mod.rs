@@ -107,6 +107,14 @@ pub struct ValidateSecResponseInputUpdater {
     pub sec_response: Option<SecResponse>,
 }
 
+impl ValidateSecResponseInputUpdater {
+    /// Creates a new builder for constructing [`ValidateSecResponseInputUpdater`] instances.
+    #[must_use]
+    pub const fn builder() -> ValidateSecResponseInputUpdaterBuilder {
+        ValidateSecResponseInputUpdaterBuilder::new()
+    }
+}
+
 /// Builder for constructing [`ValidateSecResponseInputUpdater`] instances.
 ///
 /// This builder provides a fluent API for constructing updaters with only
@@ -216,7 +224,7 @@ mod tests {
             body: String::from("{\"updated\": true}"),
         };
         let mut input_data = ValidateSecResponseInput::new(original_response);
-        let updater = ValidateSecResponseInputUpdaterBuilder::new()
+        let updater = ValidateSecResponseInputUpdater::builder()
             .sec_response(new_response.clone())
             .build();
 
@@ -234,7 +242,7 @@ mod tests {
         let sec_response = SecResponse::default();
         let original_input_data = ValidateSecResponseInput::new(sec_response.clone());
         let mut input_data = original_input_data.clone();
-        let updater = ValidateSecResponseInputUpdaterBuilder::new().build();
+        let updater = ValidateSecResponseInputUpdater::builder().build();
 
         let expected_result = &ValidateSecResponseInput::default();
 
@@ -291,7 +299,7 @@ mod tests {
             body: String::from("{\"final\": true}"),
         };
         let mut input_data = ValidateSecResponseInput::new(original_response);
-        let updater = ValidateSecResponseInputUpdaterBuilder::new()
+        let updater = ValidateSecResponseInputUpdater::builder()
             .sec_response(intermediate_response)
             .sec_response(final_response.clone())
             .build();

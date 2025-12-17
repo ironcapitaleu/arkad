@@ -18,7 +18,7 @@
 //! use state_maschine::prelude::*;
 //!
 //! let mut context = PrepareSecRequestContext::default();
-//! let update = PrepareSecRequestContextUpdaterBuilder::new()
+//! let update = PrepareSecRequestContextUpdater::builder()
 //!     .max_retries(5)
 //!     .build();
 //! context.update_context(update);
@@ -104,6 +104,14 @@ pub struct PrepareSecRequestContextUpdater {
     pub max_retries: Option<u32>,
 }
 
+impl PrepareSecRequestContextUpdater {
+    /// Creates a new builder for constructing [`PrepareSecRequestContextUpdater`] instances.
+    #[must_use]
+    pub const fn builder() -> PrepareSecRequestContextUpdaterBuilder {
+        PrepareSecRequestContextUpdaterBuilder::new()
+    }
+}
+
 /// Builder for [`PrepareSecRequestContextUpdater`].
 ///
 /// Use this builder to fluently construct an updater for the context.
@@ -168,7 +176,7 @@ mod tests {
     use pretty_assertions::{assert_eq, assert_ne};
     use state_maschine::prelude::*;
 
-    use super::{PrepareSecRequestContext, PrepareSecRequestContextUpdaterBuilder};
+    use super::{PrepareSecRequestContext, PrepareSecRequestContextUpdater, PrepareSecRequestContextUpdaterBuilder};
 
     #[test]
     fn should_return_reference_to_default_request_context_when_initialized_with_default() {
@@ -200,7 +208,7 @@ mod tests {
     #[test]
     fn should_update_context_max_retries_to_specified_value_when_update_contains_specified_value() {
         let mut context = PrepareSecRequestContext::default();
-        let update = PrepareSecRequestContextUpdaterBuilder::new()
+        let update = PrepareSecRequestContextUpdater::builder()
             .max_retries(5)
             .build();
         let cik =
@@ -220,7 +228,7 @@ mod tests {
     #[test]
     fn should_update_max_retries_to_latest_specified_value_when_multiple_updates_in_builder() {
         let mut context = PrepareSecRequestContext::default();
-        let update = PrepareSecRequestContextUpdaterBuilder::new()
+        let update = PrepareSecRequestContextUpdater::builder()
             .max_retries(5)
             .max_retries(10)
             .build();
@@ -241,7 +249,7 @@ mod tests {
     #[test]
     fn should_not_leave_context_max_retries_the_default_when_update_contains_a_different_value() {
         let mut context = PrepareSecRequestContext::default();
-        let update = PrepareSecRequestContextUpdaterBuilder::new()
+        let update = PrepareSecRequestContextUpdater::builder()
             .max_retries(5)
             .build();
 
