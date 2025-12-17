@@ -176,7 +176,10 @@ mod tests {
     use pretty_assertions::{assert_eq, assert_ne};
     use state_maschine::prelude::*;
 
-    use super::{PrepareSecRequestContext, PrepareSecRequestContextUpdater, PrepareSecRequestContextUpdaterBuilder};
+    use super::{
+        PrepareSecRequestContext, PrepareSecRequestContextUpdater,
+        PrepareSecRequestContextUpdaterBuilder,
+    };
 
     #[test]
     fn should_return_reference_to_default_request_context_when_initialized_with_default() {

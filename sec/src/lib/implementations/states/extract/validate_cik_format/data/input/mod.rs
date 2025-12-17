@@ -177,8 +177,7 @@ mod tests {
     use pretty_assertions::{assert_eq, assert_ne};
 
     use super::{
-        BERKSHIRE_HATHAWAY_CIK_RAW, ValidateCikFormatInput,
-        ValidateCikFormatInputUpdaterBuilder,
+        BERKSHIRE_HATHAWAY_CIK_RAW, ValidateCikFormatInput, ValidateCikFormatInputUpdaterBuilder,
     };
     use crate::traits::state_machine::state::StateData;
     use state_maschine::prelude::StateData as SMStateData;

@@ -278,8 +278,8 @@ mod tests {
             .client(new_client.clone())
             .build();
 
-        let expected_result = &PrepareSecRequestOutput::new(new_client, original_request)
-            .expect("Valid output data");
+        let expected_result =
+            &PrepareSecRequestOutput::new(new_client, original_request).expect("Valid output data");
 
         StateData::update_state(&mut state_data, update)
             .expect("Update with valid 'update' value should always succeed.");
@@ -298,8 +298,8 @@ mod tests {
             .request(new_request.clone())
             .build();
 
-        let expected_result = &PrepareSecRequestOutput::new(original_client, new_request)
-            .expect("Valid output data");
+        let expected_result =
+            &PrepareSecRequestOutput::new(original_client, new_request).expect("Valid output data");
 
         StateData::update_state(&mut state_data, update)
             .expect("Update with valid 'update' value should always succeed.");
@@ -331,8 +331,8 @@ mod tests {
             .request(final_request.clone())
             .build();
 
-        let expected_result = &PrepareSecRequestOutput::new(final_client, final_request)
-            .expect("Valid output data");
+        let expected_result =
+            &PrepareSecRequestOutput::new(final_client, final_request).expect("Valid output data");
 
         StateData::update_state(&mut state_data, update)
             .expect("Update with valid 'update' value should always succeed.");

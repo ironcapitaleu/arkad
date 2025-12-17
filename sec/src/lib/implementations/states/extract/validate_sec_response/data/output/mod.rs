@@ -334,8 +334,8 @@ mod tests {
         };
         let final_response = JsonResponse::from_sec_response(&sec_response2)
             .expect("Should create valid JSON response");
-        let mut output_data = ValidateSecResponseOutput::new(original_response)
-            .expect("Should create output data");
+        let mut output_data =
+            ValidateSecResponseOutput::new(original_response).expect("Should create output data");
         let updater = ValidateSecResponseOutputUpdater::builder()
             .validated_sec_response(intermediate_response)
             .validated_sec_response(final_response.clone())

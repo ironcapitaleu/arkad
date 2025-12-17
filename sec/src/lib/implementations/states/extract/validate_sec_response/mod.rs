@@ -116,10 +116,7 @@ impl ValidateSecResponse {
     ///
     /// Returns a new [`ValidateSecResponse`] state ready for computation.
     #[must_use]
-    pub const fn new(
-        input: ValidateSecResponseInput,
-        context: ValidateSecResponseContext,
-    ) -> Self {
+    pub const fn new(input: ValidateSecResponseInput, context: ValidateSecResponseContext) -> Self {
         Self {
             input,
             context,

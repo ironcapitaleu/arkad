@@ -170,8 +170,8 @@ mod tests {
     use state_maschine::prelude::*;
 
     use super::{
-        BERKSHIRE_HATHAWAY_CIK_RAW, ValidateCikFormatContext,
-        ValidateCikFormatContextUpdater, ValidateCikFormatContextUpdaterBuilder,
+        BERKSHIRE_HATHAWAY_CIK_RAW, ValidateCikFormatContext, ValidateCikFormatContextUpdater,
+        ValidateCikFormatContextUpdaterBuilder,
     };
 
     #[test]

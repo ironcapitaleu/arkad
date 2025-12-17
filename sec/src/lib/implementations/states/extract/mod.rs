@@ -38,16 +38,13 @@ use crate::error::State as StateError;
 use crate::error::state_machine::transition;
 use crate::error::state_machine::transition::Transition as TransitionError;
 use crate::implementations::states::extract::execute_sec_request::{
-    ExecuteSecRequest, ExecuteSecRequestContext, ExecuteSecRequestInput,
-    ExecuteSecRequestOutput,
+    ExecuteSecRequest, ExecuteSecRequestContext, ExecuteSecRequestInput, ExecuteSecRequestOutput,
 };
 use crate::implementations::states::extract::prepare_sec_request::{
-    PrepareSecRequest, PrepareSecRequestContext, PrepareSecRequestInput,
-    PrepareSecRequestOutput,
+    PrepareSecRequest, PrepareSecRequestContext, PrepareSecRequestInput, PrepareSecRequestOutput,
 };
 use crate::implementations::states::extract::validate_cik_format::{
-    ValidateCikFormat, ValidateCikFormatContext, ValidateCikFormatInput,
-    ValidateCikFormatOutput,
+    ValidateCikFormat, ValidateCikFormatContext, ValidateCikFormatInput, ValidateCikFormatOutput,
 };
 
 use crate::implementations::states::extract::validate_sec_response::{
