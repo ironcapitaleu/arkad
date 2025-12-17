@@ -51,7 +51,7 @@ use crate::implementations::states::extract::validate_cik_format::{
 };
 
 use crate::implementations::states::extract::validate_sec_response::{
-    ValidateSecResponse, ValidateSecResponseContext, ValidateSecResponseInputData,
+    ValidateSecResponse, ValidateSecResponseContext, ValidateSecResponseInput,
 };
 
 use crate::shared::cik::Cik;
@@ -240,7 +240,7 @@ impl From<PrepareSecRequestOutput> for ExecuteSecRequestInput {
     }
 }
 
-impl From<ExecuteSecRequestOutput> for ValidateSecResponseInputData {
+impl From<ExecuteSecRequestOutput> for ValidateSecResponseInput {
     fn from(output_data: ExecuteSecRequestOutput) -> Self {
         Self::new(output_data.response)
     }
@@ -286,7 +286,7 @@ impl TryFrom<ExecuteSecRequest> for ValidateSecResponse {
 
         let state_context = state.get_context_data().clone();
         let new_context: ValidateSecResponseContext = state_context.into();
-        let new_input: ValidateSecResponseInputData = output_data.into();
+        let new_input: ValidateSecResponseInput = output_data.into();
 
         Ok(Self::new(new_input, new_context))
     }

@@ -9,8 +9,8 @@
 //! - [`context`]: Defines the context data and updater types for the response validation process, allowing stateful tracking of validation-related context.
 //! - [`data`]: Contains input and output data structures for the validation state, including updaters and builders for ergonomic data manipulation.
 //! - [`ValidateSecResponseContext`]: Context data type for the state.
-//! - [`ValidateSecResponseInputData`]: Input data type holding the raw SEC response.
-//! - [`ValidateSecResponseOutputData`]: Output data type containing the validated JSON response.
+//! - [`ValidateSecResponseInput`]: Input data type holding the raw SEC response.
+//! - [`ValidateSecResponseOutput`]: Output data type containing the validated JSON response.
 //!
 //! ## Usage
 //! This state is typically used in the extract phase of the SEC state machine ETL pipeline, after request execution and before data extraction. It is designed to be composed with other states for robust and testable SEC filings processing workflows.
@@ -30,7 +30,7 @@
 //!     let sec_response = SecResponse::default();
 //!     
 //!     let cik = Cik::new("1067983").expect("Valid CIK");
-//!     let input = ValidateSecResponseInputData::new(sec_response);
+//!     let input = ValidateSecResponseInput::new(sec_response);
 //!     let context = ValidateSecResponseContext::new(cik);
 //!
 //!     let mut validate_state = ValidateSecResponse::new(input, context);
@@ -66,8 +66,8 @@ pub mod context;
 pub mod data;
 
 pub use context::ValidateSecResponseContext;
-pub use data::ValidateSecResponseInputData;
-pub use data::ValidateSecResponseOutputData;
+pub use data::ValidateSecResponseInput;
+pub use data::ValidateSecResponseOutput;
 
 /// State that validates HTTP responses from SEC API endpoints.
 ///
@@ -93,15 +93,15 @@ pub use data::ValidateSecResponseOutputData;
 ///
 /// let sec_response = SecResponse::default();
 /// let cik = Cik::new("1067983").expect("Valid CIK");
-/// let input = ValidateSecResponseInputData::new(sec_response);
+/// let input = ValidateSecResponseInput::new(sec_response);
 /// let context = ValidateSecResponseContext::new(cik);
 /// let mut validate_state = ValidateSecResponse::new(input, context);
 /// ```
 #[derive(Debug, Clone, Default, PartialEq, PartialOrd, Hash, Eq, Ord)]
 pub struct ValidateSecResponse {
-    input: ValidateSecResponseInputData,
+    input: ValidateSecResponseInput,
     context: ValidateSecResponseContext,
-    output: Option<ValidateSecResponseOutputData>,
+    output: Option<ValidateSecResponseOutput>,
 }
 
 impl ValidateSecResponse {
@@ -109,7 +109,7 @@ impl ValidateSecResponse {
     ///
     /// # Arguments
     ///
-    /// * `input` - The [`ValidateSecResponseInputData`] containing the raw SEC response.
+    /// * `input` - The [`ValidateSecResponseInput`] containing the raw SEC response.
     /// * `context` - The [`ValidateSecResponseContext`] for the validation process.
     ///
     /// # Returns
@@ -117,7 +117,7 @@ impl ValidateSecResponse {
     /// Returns a new [`ValidateSecResponse`] state ready for computation.
     #[must_use]
     pub const fn new(
-        input: ValidateSecResponseInputData,
+        input: ValidateSecResponseInput,
         context: ValidateSecResponseContext,
     ) -> Self {
         Self {
@@ -153,7 +153,7 @@ impl State for ValidateSecResponse {
 
         match validated_sec_response {
             Ok(validated_response) => {
-                self.output = Some(ValidateSecResponseOutputData {
+                self.output = Some(ValidateSecResponseOutput {
                     validated_sec_response: validated_response,
                 });
             }
@@ -170,8 +170,8 @@ impl State for ValidateSecResponse {
 }
 
 impl SMState for ValidateSecResponse {
-    type InputData = ValidateSecResponseInputData;
-    type OutputData = ValidateSecResponseOutputData;
+    type InputData = ValidateSecResponseInput;
+    type OutputData = ValidateSecResponseOutput;
     type Context = ValidateSecResponseContext;
 
     fn get_state_name(&self) -> impl ToString {
@@ -243,7 +243,7 @@ mod tests {
     fn should_return_default_validate_data_struct_as_input_data_when_in_initial_validate_state() {
         let validate_state = ValidateSecResponse::default();
 
-        let expected_result = &ValidateSecResponseInputData::default();
+        let expected_result = &ValidateSecResponseInput::default();
 
         let result = validate_state.get_input_data();
 
@@ -286,11 +286,11 @@ mod tests {
     fn should_create_new_validate_state_with_provided_input_and_context() {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid.");
         let sec_response = SecResponse::default();
-        let input = ValidateSecResponseInputData::new(sec_response.clone());
+        let input = ValidateSecResponseInput::new(sec_response.clone());
         let context = ValidateSecResponseContext::new(cik.clone());
 
         let expected_result = ValidateSecResponse {
-            input: ValidateSecResponseInputData::new(sec_response),
+            input: ValidateSecResponseInput::new(sec_response),
             context: ValidateSecResponseContext::new(cik),
             output: None,
         };
@@ -313,7 +313,7 @@ mod tests {
             content_type: ContentType::Json,
             body: String::from("{\"test\": \"data\"}"),
         };
-        let input = ValidateSecResponseInputData::new(sec_response);
+        let input = ValidateSecResponseInput::new(sec_response);
         let context = ValidateSecResponseContext::new(cik);
         let mut validate_state = ValidateSecResponse::new(input, context);
 
@@ -341,7 +341,7 @@ mod tests {
             content_type: ContentType::Json,
             body: String::from("{\"valid\": true}"),
         };
-        let input = ValidateSecResponseInputData::new(sec_response);
+        let input = ValidateSecResponseInput::new(sec_response);
         let context = ValidateSecResponseContext::new(cik);
         let mut validate_state = ValidateSecResponse::new(input, context);
 
@@ -367,7 +367,7 @@ mod tests {
             content_type: ContentType::Json,
             body: String::from("{\"error\": \"invalid\"}"),
         };
-        let input = ValidateSecResponseInputData::new(sec_response);
+        let input = ValidateSecResponseInput::new(sec_response);
         let context = ValidateSecResponseContext::new(cik);
         let mut validate_state = ValidateSecResponse::new(input, context);
 
@@ -389,11 +389,11 @@ mod tests {
             content_type: ContentType::Json,
             body: String::from("{\"data\": [1,2,3]}"),
         };
-        let input = ValidateSecResponseInputData::new(sec_response.clone());
+        let input = ValidateSecResponseInput::new(sec_response.clone());
         let context = ValidateSecResponseContext::new(cik);
         let mut validate_state = ValidateSecResponse::new(input, context);
 
-        let expected_result = ValidateSecResponseInputData::new(sec_response);
+        let expected_result = ValidateSecResponseInput::new(sec_response);
 
         validate_state
             .compute_output_data_async()
@@ -528,7 +528,7 @@ mod tests {
      {
         let ref_to_validate_state = &ValidateSecResponse::default();
 
-        let expected_result = &ValidateSecResponseInputData::default();
+        let expected_result = &ValidateSecResponseInput::default();
 
         let result = ref_to_validate_state.get_input_data();
 
