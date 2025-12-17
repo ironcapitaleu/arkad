@@ -42,8 +42,8 @@ use crate::implementations::states::extract::execute_sec_request::{
     ExecuteSecRequestOutputData,
 };
 use crate::implementations::states::extract::prepare_sec_request::{
-    PrepareSecRequest, PrepareSecRequestContext, PrepareSecRequestInputData,
-    PrepareSecRequestOutputData,
+    PrepareSecRequest, PrepareSecRequestContext, PrepareSecRequestInput,
+    PrepareSecRequestOutput,
 };
 use crate::implementations::states::extract::validate_cik_format::{
     ValidateCikFormat, ValidateCikFormatContext, ValidateCikFormatInput,
@@ -191,7 +191,7 @@ impl From<ValidateCikFormatOutput> for PrepareSecRequestContext {
     }
 }
 
-impl From<ValidateCikFormatOutput> for PrepareSecRequestInputData {
+impl From<ValidateCikFormatOutput> for PrepareSecRequestInput {
     fn from(output_data: ValidateCikFormatOutput) -> Self {
         Self::new(
             output_data.validated_cik,
@@ -216,7 +216,7 @@ impl TryFrom<ValidateCikFormat> for PrepareSecRequest {
         };
 
         let new_context: PrepareSecRequestContext = output_data.clone().into();
-        let new_input: PrepareSecRequestInputData = output_data.into();
+        let new_input: PrepareSecRequestInput = output_data.into();
 
         Ok(Self::new(new_input, new_context))
     }
@@ -234,8 +234,8 @@ impl From<ExecuteSecRequestContext> for ValidateSecResponseContext {
     }
 }
 
-impl From<PrepareSecRequestOutputData> for ExecuteSecRequestInputData {
-    fn from(output_data: PrepareSecRequestOutputData) -> Self {
+impl From<PrepareSecRequestOutput> for ExecuteSecRequestInputData {
+    fn from(output_data: PrepareSecRequestOutput) -> Self {
         Self::new(output_data.client, output_data.request)
     }
 }
@@ -310,11 +310,11 @@ impl ExtractSuperState<ValidateCikFormat> {
 impl ExtractSuperState<PrepareSecRequest> {
     #[must_use]
     pub fn new(validated_cik: Cik, user_agent: String) -> Self {
-        let psr_input = PrepareSecRequestInputData::new(validated_cik.clone(), user_agent);
-        let psr_context = PrepareSecRequestContext::new(validated_cik);
+        let input_data = PrepareSecRequestInput::new(validated_cik.clone(), user_agent);
+        let context = PrepareSecRequestContext::new(validated_cik);
 
         Self {
-            current_state: PrepareSecRequest::new(psr_input, psr_context),
+            current_state: PrepareSecRequest::new(input_data, context),
             input: ExtractSuperStateData,
             output: None,
             context: ExtractSuperStateContext,

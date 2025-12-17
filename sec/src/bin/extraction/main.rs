@@ -3,7 +3,7 @@ use sec::implementations::states::extract::execute_sec_request::{
     ExecuteSecRequest, ExecuteSecRequestContext, ExecuteSecRequestInputData,
 };
 use sec::implementations::states::extract::prepare_sec_request::{
-    PrepareSecRequest, PrepareSecRequestContext, PrepareSecRequestInputData,
+    PrepareSecRequest, PrepareSecRequestContext, PrepareSecRequestInput,
 };
 use sec::implementations::states::extract::validate_cik_format::ValidateCikFormat;
 
@@ -32,7 +32,7 @@ async fn main() {
     println!("\n=======================================================");
     println!("Initial PrepareSecRequest state:");
     let mut prepare_sec_request = PrepareSecRequest::new(
-        PrepareSecRequestInputData::new(
+        PrepareSecRequestInput::new(
             validate_cik_state
                 .get_output_data()
                 .expect("Should be valid")

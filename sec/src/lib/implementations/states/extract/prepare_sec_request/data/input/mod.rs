@@ -1,13 +1,13 @@
-//! # `PrepareSecRequestInputData` Module
+//! # `PrepareSecRequestInput` Module
 //!
 //! This module defines the input data structure and updater patterns for the `PrepareSecRequest` state
 //! within the SEC extraction state machine. It provides types and builders for representing and updating
 //! the validated Central Index Key (CIK) and user agent information required for preparing SEC API requests.
 //!
 //! ## Types
-//! - [`PrepareSecRequestInputData`]: Holds the validated CIK and user agent string to be processed by the prepare request state.
-//! - [`PrepareSecRequestInputDataUpdater`]: Updater type for modifying the input data in a controlled manner.
-//! - [`PrepareSecRequestInputDataUpdaterBuilder`]: Builder for constructing updater instances with optional fields.
+//! - [`PrepareSecRequestInput`]: Holds the validated CIK and user agent string to be processed by the prepare request state.
+//! - [`PrepareSecRequestInputUpdater`]: Updater type for modifying the input data in a controlled manner.
+//! - [`PrepareSecRequestInputUpdaterBuilder`]: Builder for constructing updater instances with optional fields.
 //!
 //! ## Integration
 //! - Implements [`StateData`](state_maschine::state_machine::state::StateData) for compatibility with the state machine framework.
@@ -40,25 +40,25 @@ use crate::traits::state_machine::state::StateData;
 /// to be used as part of the SEC document extraction workflow, and supports
 /// builder-based updates and integration with the state machine framework.
 #[derive(Debug, Default, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
-pub struct PrepareSecRequestInputData {
+pub struct PrepareSecRequestInput {
     /// The validated CIK that will be used for the SEC API request.
     pub validated_cik: Cik,
     /// The user agent string that will be included in the HTTP request headers.
     pub user_agent: String,
 }
 
-impl PrepareSecRequestInputData {
+impl PrepareSecRequestInput {
     /// Creates a new instance of the input data for preparing SEC requests.
     ///
     /// # Examples
     ///
     /// ```
-    /// use sec::implementations::states::extract::prepare_sec_request::psr_data::psr_input_data::PrepareSecRequestInputData;
+    /// use sec::implementations::states::extract::prepare_sec_request::data::input::PrepareSecRequestInput;
     /// use sec::shared::cik::Cik;
     ///
     /// let cik = Cik::new("1067983").expect("Valid CIK");
     /// let user_agent = "Test Company contact@test.com".to_string();
-    /// let input_data = PrepareSecRequestInputData::new(cik, user_agent);
+    /// let input_data = PrepareSecRequestInput::new(cik, user_agent);
     /// ```
     #[must_use]
     pub const fn new(validated_cik: Cik, user_agent: String) -> Self {
@@ -81,7 +81,7 @@ impl PrepareSecRequestInputData {
     }
 }
 
-impl StateData for PrepareSecRequestInputData {
+impl StateData for PrepareSecRequestInput {
     /// Updates the state data using the provided updater.
     ///
     /// If `validated_cik` is `Some`, updates the CIK; if `user_agent` is `Some`, updates the user agent;
@@ -97,8 +97,8 @@ impl StateData for PrepareSecRequestInputData {
     }
 }
 
-impl SMStateData for PrepareSecRequestInputData {
-    type UpdateType = PrepareSecRequestInputDataUpdater;
+impl SMStateData for PrepareSecRequestInput {
+    type UpdateType = PrepareSecRequestInputUpdater;
 
     /// Returns a reference to the current state data, which represents the input data of this state.
     fn get_state(&self) -> &Self {
@@ -111,7 +111,7 @@ impl SMStateData for PrepareSecRequestInputData {
     }
 }
 
-impl fmt::Display for PrepareSecRequestInputData {
+impl fmt::Display for PrepareSecRequestInput {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
@@ -121,29 +121,29 @@ impl fmt::Display for PrepareSecRequestInputData {
     }
 }
 
-/// Updater for [`PrepareSecRequestInputData`].
+/// Updater for [`PrepareSecRequestInput`].
 ///
 /// This struct is used to specify updates to the input data in a controlled, partial manner.
 /// Fields set to `None` will not be updated. Used in conjunction with the state machine's
 /// update mechanism to ensure safe and explicit state transitions.
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
-pub struct PrepareSecRequestInputDataUpdater {
+pub struct PrepareSecRequestInputUpdater {
     /// Optional new value for the validated CIK.
     pub validated_cik: Option<Cik>,
     /// Optional new value for the user agent string.
     pub user_agent: Option<String>,
 }
 
-/// Builder for [`PrepareSecRequestInputDataUpdater`].
+/// Builder for [`PrepareSecRequestInputUpdater`].
 ///
 /// This builder allows for ergonomic and explicit construction of updater instances,
 /// supporting method chaining and optional fields. Use `.build()` to produce the updater.
-pub struct PrepareSecRequestInputDataUpdaterBuilder {
+pub struct PrepareSecRequestInputUpdaterBuilder {
     pub validated_cik: Option<Cik>,
     pub user_agent: Option<String>,
 }
 
-impl PrepareSecRequestInputDataUpdaterBuilder {
+impl PrepareSecRequestInputUpdaterBuilder {
     /// Creates a new updater builder with no fields set.
     #[must_use]
     pub const fn new() -> Self {
@@ -191,18 +191,18 @@ impl PrepareSecRequestInputDataUpdaterBuilder {
         self
     }
 
-    /// Builds the [`PrepareSecRequestInputDataUpdater`] instance from the builder.
+    /// Builds the [`PrepareSecRequestInputUpdater`] instance from the builder.
     #[must_use]
-    pub fn build(self) -> PrepareSecRequestInputDataUpdater {
-        PrepareSecRequestInputDataUpdater {
+    pub fn build(self) -> PrepareSecRequestInputUpdater {
+        PrepareSecRequestInputUpdater {
             validated_cik: self.validated_cik,
             user_agent: self.user_agent,
         }
     }
 }
 
-impl Default for PrepareSecRequestInputDataUpdaterBuilder {
-    /// Returns a new [`PrepareSecRequestInputDataUpdaterBuilder`] with no fields set.
+impl Default for PrepareSecRequestInputUpdaterBuilder {
+    /// Returns a new [`PrepareSecRequestInputUpdaterBuilder`] with no fields set.
     fn default() -> Self {
         Self::new()
     }
@@ -214,16 +214,16 @@ mod tests {
 
     use pretty_assertions::{assert_eq, assert_ne};
 
-    use super::{PrepareSecRequestInputData, PrepareSecRequestInputDataUpdaterBuilder};
+    use super::{PrepareSecRequestInput, PrepareSecRequestInputUpdaterBuilder};
     use crate::shared::cik::Cik;
     use crate::traits::state_machine::state::StateData;
     use state_maschine::prelude::StateData as SMStateData;
 
     #[test]
     fn should_return_reference_to_default_prepare_state_data_when_initialized_with_default() {
-        let default_prepare_state_data = PrepareSecRequestInputData::default();
+        let default_prepare_state_data = PrepareSecRequestInput::default();
 
-        let expected_result = &PrepareSecRequestInputData::default();
+        let expected_result = &PrepareSecRequestInput::default();
 
         let result = default_prepare_state_data.get_state();
 
@@ -234,9 +234,9 @@ mod tests {
     fn should_create_different_state_data_with_custom_data_when_using_new_as_constructor() {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid.");
         let user_agent = "Custom Company contact@custom.com".to_string();
-        let prepare_state_data = PrepareSecRequestInputData::new(cik, user_agent);
+        let prepare_state_data = PrepareSecRequestInput::new(cik, user_agent);
 
-        let default_prepare_state_data = &PrepareSecRequestInputData::default();
+        let default_prepare_state_data = &PrepareSecRequestInput::default();
 
         let result = prepare_state_data.get_state();
 
@@ -245,14 +245,14 @@ mod tests {
 
     #[test]
     fn should_update_state_data_to_specified_values_when_update_contains_specified_values() {
-        let mut state_data = PrepareSecRequestInputData::default();
+        let mut state_data = PrepareSecRequestInput::default();
         let new_cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid.");
         let new_user_agent = "Updated Company contact@updated.com".to_string();
-        let update = PrepareSecRequestInputDataUpdaterBuilder::default()
+        let update = PrepareSecRequestInputUpdaterBuilder::default()
             .validated_cik(new_cik.clone(), new_user_agent.clone())
             .build();
 
-        let expected_result = &PrepareSecRequestInputData::new(new_cik, new_user_agent);
+        let expected_result = &PrepareSecRequestInput::new(new_cik, new_user_agent);
 
         StateData::update_state(&mut state_data, update)
             .expect("Update with valid 'update' value should always succeed.");
@@ -263,14 +263,14 @@ mod tests {
 
     #[test]
     fn should_update_only_user_agent_when_update_contains_only_user_agent() {
-        let mut state_data = PrepareSecRequestInputData::default();
+        let mut state_data = PrepareSecRequestInput::default();
         let original_cik = state_data.validated_cik.clone();
         let new_user_agent = "New User Agent contact@new.com".to_string();
-        let update = PrepareSecRequestInputDataUpdaterBuilder::default()
+        let update = PrepareSecRequestInputUpdaterBuilder::default()
             .user_agent(new_user_agent.clone())
             .build();
 
-        let expected_result = &PrepareSecRequestInputData::new(original_cik, new_user_agent);
+        let expected_result = &PrepareSecRequestInput::new(original_cik, new_user_agent);
 
         StateData::update_state(&mut state_data, update)
             .expect("Update with valid 'update' value should always succeed.");
@@ -281,14 +281,14 @@ mod tests {
 
     #[test]
     fn should_update_only_cik_when_update_contains_only_cik() {
-        let mut state_data = PrepareSecRequestInputData::default();
+        let mut state_data = PrepareSecRequestInput::default();
         let original_user_agent = state_data.user_agent.clone();
         let new_cik = Cik::new("9876543210").expect("Hardcoded CIK should always be valid.");
-        let update = PrepareSecRequestInputDataUpdaterBuilder::default()
+        let update = PrepareSecRequestInputUpdaterBuilder::default()
             .cik(new_cik.clone())
             .build();
 
-        let expected_result = &PrepareSecRequestInputData::new(new_cik, original_user_agent);
+        let expected_result = &PrepareSecRequestInput::new(new_cik, original_user_agent);
 
         StateData::update_state(&mut state_data, update)
             .expect("Update with valid 'update' value should always succeed.");
@@ -299,18 +299,18 @@ mod tests {
 
     #[test]
     fn should_update_state_data_to_latest_specified_values_when_multiple_updates_in_builder() {
-        let mut state_data = PrepareSecRequestInputData::default();
+        let mut state_data = PrepareSecRequestInput::default();
         let first_cik = Cik::new("1111111111").expect("Hardcoded CIK should always be valid.");
         let first_user_agent = "First Company contact@first.com".to_string();
         let final_cik = Cik::new("2222222222").expect("Hardcoded CIK should always be valid.");
         let final_user_agent = "Final Company contact@final.com".to_string();
 
-        let update = PrepareSecRequestInputDataUpdaterBuilder::default()
+        let update = PrepareSecRequestInputUpdaterBuilder::default()
             .validated_cik(first_cik, first_user_agent)
             .validated_cik(final_cik.clone(), final_user_agent.clone())
             .build();
 
-        let expected_result = &PrepareSecRequestInputData::new(final_cik, final_user_agent);
+        let expected_result = &PrepareSecRequestInput::new(final_cik, final_user_agent);
 
         StateData::update_state(&mut state_data, update)
             .expect("Update with valid 'update' value should always succeed.");
@@ -321,10 +321,10 @@ mod tests {
 
     #[test]
     fn should_leave_state_data_unchanged_when_empty_update() {
-        let mut state_data = PrepareSecRequestInputData::default();
-        let empty_update = PrepareSecRequestInputDataUpdaterBuilder::default().build();
+        let mut state_data = PrepareSecRequestInput::default();
+        let empty_update = PrepareSecRequestInputUpdaterBuilder::default().build();
 
-        let expected_result = &PrepareSecRequestInputData::default();
+        let expected_result = &PrepareSecRequestInput::default();
 
         StateData::update_state(&mut state_data, empty_update)
             .expect("Update with valid 'update' value should always succeed.");
@@ -337,7 +337,7 @@ mod tests {
     fn should_return_validated_cik_when_accessor_method_is_called() {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid.");
         let user_agent = "Test Company contact@test.com".to_string();
-        let prepare_state_data = PrepareSecRequestInputData::new(cik.clone(), user_agent);
+        let prepare_state_data = PrepareSecRequestInput::new(cik.clone(), user_agent);
 
         let expected_result = &cik;
 
@@ -350,7 +350,7 @@ mod tests {
     fn should_return_user_agent_when_accessor_method_is_called() {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid.");
         let user_agent = "Test Company contact@test.com".to_string();
-        let prepare_state_data = PrepareSecRequestInputData::new(cik, user_agent.clone());
+        let prepare_state_data = PrepareSecRequestInput::new(cik, user_agent.clone());
 
         let expected_result = &user_agent;
 
@@ -363,7 +363,7 @@ mod tests {
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
     #[test]
     const fn should_still_implement_auto_traits_when_implementing_input_data_trait() {
-        implements_auto_traits::<PrepareSecRequestInputData>();
+        implements_auto_traits::<PrepareSecRequestInput>();
     }
 
     const fn implements_send<T: Send>() {}
@@ -371,77 +371,77 @@ mod tests {
 
     #[test]
     const fn should_implement_send_when_implementing_input_data_trait() {
-        implements_send::<PrepareSecRequestInputData>();
+        implements_send::<PrepareSecRequestInput>();
     }
 
     #[test]
     const fn should_implement_sync_when_implementing_input_data_trait() {
-        implements_sync::<PrepareSecRequestInputData>();
+        implements_sync::<PrepareSecRequestInput>();
     }
 
     #[test]
     const fn should_be_thread_safe_when_implementing_input_data_trait() {
-        implements_send::<PrepareSecRequestInputData>();
-        implements_sync::<PrepareSecRequestInputData>();
+        implements_send::<PrepareSecRequestInput>();
+        implements_sync::<PrepareSecRequestInput>();
     }
 
     const fn implements_sized<T: Sized>() {}
     #[test]
     const fn should_be_sized_when_implementing_input_data_trait() {
-        implements_sized::<PrepareSecRequestInputData>();
+        implements_sized::<PrepareSecRequestInput>();
     }
 
     const fn implements_hash<T: Hash>() {}
     #[test]
     const fn should_implement_hash_when_implementing_input_data_trait() {
-        implements_hash::<PrepareSecRequestInputData>();
+        implements_hash::<PrepareSecRequestInput>();
     }
 
     const fn implements_partial_eq<T: PartialEq>() {}
     #[test]
     const fn should_implement_partial_eq_when_implementing_input_data_trait() {
-        implements_partial_eq::<PrepareSecRequestInputData>();
+        implements_partial_eq::<PrepareSecRequestInput>();
     }
 
     const fn implements_eq<T: Eq>() {}
     #[test]
     const fn should_implement_eq_when_implementing_input_data_trait() {
-        implements_eq::<PrepareSecRequestInputData>();
+        implements_eq::<PrepareSecRequestInput>();
     }
 
     const fn implements_partial_ord<T: PartialOrd>() {}
     #[test]
     const fn should_implement_partial_ord_when_implementing_input_data_trait() {
-        implements_partial_ord::<PrepareSecRequestInputData>();
+        implements_partial_ord::<PrepareSecRequestInput>();
     }
 
     const fn implements_ord<T: Ord>() {}
     #[test]
     const fn should_implement_ord_when_implementing_input_data_trait() {
-        implements_ord::<PrepareSecRequestInputData>();
+        implements_ord::<PrepareSecRequestInput>();
     }
 
     const fn implements_default<T: Default>() {}
     #[test]
     const fn should_implement_default_when_implementing_input_data_trait() {
-        implements_default::<PrepareSecRequestInputData>();
+        implements_default::<PrepareSecRequestInput>();
     }
 
     const fn implements_debug<T: Debug>() {}
     #[test]
     const fn should_implement_debug_when_implementing_input_data_trait() {
-        implements_debug::<PrepareSecRequestInputData>();
+        implements_debug::<PrepareSecRequestInput>();
     }
 
     const fn implements_clone<T: Clone>() {}
     #[test]
     const fn should_implement_clone_when_implementing_input_data_trait() {
-        implements_clone::<PrepareSecRequestInputData>();
+        implements_clone::<PrepareSecRequestInput>();
     }
 
     const fn implements_unpin<T: Unpin>() {}
     #[test]
     const fn should_implement_unpin_when_implementing_input_data_trait() {
-        implements_unpin::<PrepareSecRequestInputData>();
+        implements_unpin::<PrepareSecRequestInput>();
     }
 }

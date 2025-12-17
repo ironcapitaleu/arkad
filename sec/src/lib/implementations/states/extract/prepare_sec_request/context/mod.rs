@@ -14,7 +14,7 @@
 //!
 //! ## Example
 //! ```rust
-//! use sec::implementations::states::extract::prepare_sec_request::psr_context::*;
+//! use sec::implementations::states::extract::prepare_sec_request::context::*;
 //! use state_maschine::prelude::*;
 //!
 //! let mut context = PrepareSecRequestContext::default();

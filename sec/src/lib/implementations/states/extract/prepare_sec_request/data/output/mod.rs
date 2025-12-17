@@ -1,13 +1,13 @@
-//! # `PrepareSecRequestOutputData` Module
+//! # `PrepareSecRequestOutput` Module
 //!
 //! This module defines the output data structure and updater patterns for the `PrepareSecRequest` state
 //! within the SEC extraction state machine. It encapsulates the prepared SEC client and request objects
 //! and provides builders and updaters for controlled mutation of output data.
 //!
 //! ## Types
-//! - [`PrepareSecRequestOutputData`]: Holds the prepared SEC client and HTTP request after successful preparation.
-//! - [`PrepareSecRequestOutputDataUpdater`]: Updater type for modifying the output data in a controlled manner.
-//! - [`PrepareSecRequestOutputDataUpdaterBuilder`]: Builder for constructing updater instances with optional fields.
+//! - [`PrepareSecRequestOutput`]: Holds the prepared SEC client and HTTP request after successful preparation.
+//! - [`PrepareSecRequestOutputUpdater`]: Updater type for modifying the output data in a controlled manner.
+//! - [`PrepareSecRequestOutputUpdaterBuilder`]: Builder for constructing updater instances with optional fields.
 //!
 //! ## Integration
 //! - Implements [`StateData`](state_maschine::state_machine::state::StateData) for compatibility with the state machine framework.
@@ -18,7 +18,7 @@
 //! integrates with the state machine's updater and state data traits for robust, testable workflows.
 //!
 //! ## See Also
-//! - [`psr_input_data`](super::psr_input_data): Input data structure for request preparation parameters.
+//! - [`input`](super::input): Input data structure for request preparation parameters.
 //! - [`crate::shared::sec_client`]: Utilities for SEC client creation.
 //! - [`crate::shared::sec_request`]: Utilities for SEC request construction.
 //! - [`state_maschine::prelude::StateData`]: Trait for state data integration.
@@ -41,20 +41,20 @@ use crate::traits::state_machine::state::StateData;
 /// after successful preparation. It is used as output in the SEC extraction state machine,
 /// and supports builder-based updates and integration with the state machine framework.
 #[derive(Debug, Clone, Default, PartialEq, PartialOrd, Hash, Eq, Ord)]
-pub struct PrepareSecRequestOutputData {
+pub struct PrepareSecRequestOutput {
     /// The prepared SEC client for making HTTP requests.
     pub client: SecClient,
     /// The prepared SEC request targeting a specific CIK.
     pub request: SecRequest,
 }
 
-impl PrepareSecRequestOutputData {
+impl PrepareSecRequestOutput {
     /// Creates a new instance of the output data for the prepare SEC request state.
     ///
     /// # Examples
     ///
     /// ```
-    /// use sec::implementations::states::extract::prepare_sec_request::psr_data::psr_output_data::PrepareSecRequestOutputData;
+    /// use sec::implementations::states::extract::prepare_sec_request::data::output::PrepareSecRequestOutput;
     /// use sec::shared::sec_client::SecClient;
     /// use sec::shared::sec_request::SecRequest;
     /// use sec::shared::cik::Cik;
@@ -64,7 +64,7 @@ impl PrepareSecRequestOutputData {
     /// let client = SecClient::new(&user_agent).expect("Valid client");
     /// let cik = Cik::new("1067983").expect("Valid CIK");
     /// let request = SecRequest::new(&cik);
-    /// let output_data = PrepareSecRequestOutputData::new(client, request).expect("Valid output data");
+    /// let output_data = PrepareSecRequestOutput::new(client, request).expect("Valid output data");
     /// ```
     ///
     /// # Errors
@@ -86,7 +86,7 @@ impl PrepareSecRequestOutputData {
     }
 }
 
-impl StateData for PrepareSecRequestOutputData {
+impl StateData for PrepareSecRequestOutput {
     /// Updates the state data using the provided updater.
     ///
     /// If `client` is `Some`, updates the SEC client; if `request` is `Some`, updates the SEC request;
@@ -101,8 +101,8 @@ impl StateData for PrepareSecRequestOutputData {
         Ok(())
     }
 }
-impl SMStateData for PrepareSecRequestOutputData {
-    type UpdateType = PrepareSecRequestOutputDataUpdater;
+impl SMStateData for PrepareSecRequestOutput {
+    type UpdateType = PrepareSecRequestOutputUpdater;
 
     /// Returns a reference to the current state data, which represents the output data of this state.
     fn get_state(&self) -> &Self {
@@ -115,36 +115,36 @@ impl SMStateData for PrepareSecRequestOutputData {
     }
 }
 
-impl fmt::Display for PrepareSecRequestOutputData {
+impl fmt::Display for PrepareSecRequestOutput {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "\tURL: {}", self.request.inner.url())
     }
 }
 
-/// Updater for [`PrepareSecRequestOutputData`].
+/// Updater for [`PrepareSecRequestOutput`].
 ///
 /// This struct is used to specify updates to the output data in a controlled, partial manner.
 /// Fields set to `None` will not be updated. Used in conjunction with the state machine's
 /// update mechanism to ensure safe and explicit state transitions.
 #[derive(Debug)]
-pub struct PrepareSecRequestOutputDataUpdater {
+pub struct PrepareSecRequestOutputUpdater {
     /// Optional new value for the SEC client.
     pub client: Option<SecClient>,
     /// Optional new value for the SEC request.
     pub request: Option<SecRequest>,
 }
 
-/// Builder for [`PrepareSecRequestOutputDataUpdater`].
+/// Builder for [`PrepareSecRequestOutputUpdater`].
 ///
 /// This builder allows for ergonomic and explicit construction of updater instances,
 /// supporting method chaining and optional fields. Use `.build()` to produce the updater.
-pub struct PrepareSecRequestOutputDataUpdaterBuilder {
+pub struct PrepareSecRequestOutputUpdaterBuilder {
     client: Option<SecClient>,
     request: Option<SecRequest>,
 }
 
-impl PrepareSecRequestOutputDataUpdaterBuilder {
-    /// Creates a new [`PrepareSecRequestOutputDataUpdaterBuilder`] with no fields set.
+impl PrepareSecRequestOutputUpdaterBuilder {
+    /// Creates a new [`PrepareSecRequestOutputUpdaterBuilder`] with no fields set.
     #[must_use]
     pub const fn new() -> Self {
         Self {
@@ -177,18 +177,18 @@ impl PrepareSecRequestOutputDataUpdaterBuilder {
         self
     }
 
-    /// Builds the [`PrepareSecRequestOutputDataUpdater`] instance from the builder.
+    /// Builds the [`PrepareSecRequestOutputUpdater`] instance from the builder.
     #[must_use]
-    pub fn build(self) -> PrepareSecRequestOutputDataUpdater {
-        PrepareSecRequestOutputDataUpdater {
+    pub fn build(self) -> PrepareSecRequestOutputUpdater {
+        PrepareSecRequestOutputUpdater {
             client: self.client,
             request: self.request,
         }
     }
 }
 
-impl Default for PrepareSecRequestOutputDataUpdaterBuilder {
-    /// Returns a new [`PrepareSecRequestOutputDataUpdaterBuilder`] with no fields set.
+impl Default for PrepareSecRequestOutputUpdaterBuilder {
+    /// Returns a new [`PrepareSecRequestOutputUpdaterBuilder`] with no fields set.
     fn default() -> Self {
         Self::new()
     }
@@ -200,7 +200,7 @@ mod tests {
 
     use pretty_assertions::{assert_eq, assert_ne};
 
-    use super::{PrepareSecRequestOutputData, PrepareSecRequestOutputDataUpdaterBuilder};
+    use super::{PrepareSecRequestOutput, PrepareSecRequestOutputUpdaterBuilder};
     use crate::shared::cik::Cik;
     use crate::shared::sec_client::SecClient;
     use crate::shared::sec_request::SecRequest;
@@ -211,9 +211,9 @@ mod tests {
     #[test]
     fn should_return_reference_to_default_prepare_output_state_data_when_initialized_with_default()
     {
-        let default_prepare_output_state_data = PrepareSecRequestOutputData::default();
+        let default_prepare_output_state_data = PrepareSecRequestOutput::default();
 
-        let expected_result = &PrepareSecRequestOutputData::default();
+        let expected_result = &PrepareSecRequestOutput::default();
 
         let result = default_prepare_output_state_data.get_state();
 
@@ -227,9 +227,9 @@ mod tests {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid.");
         let request = SecRequest::new(&cik);
         let prepare_output_state_data =
-            PrepareSecRequestOutputData::new(client, request).expect("Valid output data");
+            PrepareSecRequestOutput::new(client, request).expect("Valid output data");
 
-        let default_prepare_output_state_data = &PrepareSecRequestOutputData::default();
+        let default_prepare_output_state_data = &PrepareSecRequestOutput::default();
 
         let result = prepare_output_state_data.get_state();
 
@@ -238,19 +238,19 @@ mod tests {
 
     #[test]
     fn should_update_state_data_to_specified_values_when_update_contains_specified_values() {
-        let mut state_data = PrepareSecRequestOutputData::default();
+        let mut state_data = PrepareSecRequestOutput::default();
         let user_agent =
             UserAgent::new("Updated Company contact@updated.com").expect("Valid user agent");
         let new_client = SecClient::new(user_agent.inner()).expect("Valid client");
         let new_cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid.");
         let new_request = SecRequest::new(&new_cik);
-        let update = PrepareSecRequestOutputDataUpdaterBuilder::default()
+        let update = PrepareSecRequestOutputUpdaterBuilder::default()
             .client(new_client.clone())
             .request(new_request.clone())
             .build();
 
         let expected_result =
-            &PrepareSecRequestOutputData::new(new_client, new_request).expect("Valid output data");
+            &PrepareSecRequestOutput::new(new_client, new_request).expect("Valid output data");
 
         StateData::update_state(&mut state_data, update)
             .expect("Update with valid 'update' value should always succeed.");
@@ -261,16 +261,16 @@ mod tests {
 
     #[test]
     fn should_update_only_client_when_update_contains_only_client() {
-        let mut state_data = PrepareSecRequestOutputData::default();
+        let mut state_data = PrepareSecRequestOutput::default();
         let original_request = state_data.request.clone();
         let user_agent =
             UserAgent::new("New Client Company contact@newclient.com").expect("Valid user agent");
         let new_client = SecClient::new(user_agent.inner()).expect("Valid client");
-        let update = PrepareSecRequestOutputDataUpdaterBuilder::default()
+        let update = PrepareSecRequestOutputUpdaterBuilder::default()
             .client(new_client.clone())
             .build();
 
-        let expected_result = &PrepareSecRequestOutputData::new(new_client, original_request)
+        let expected_result = &PrepareSecRequestOutput::new(new_client, original_request)
             .expect("Valid output data");
 
         StateData::update_state(&mut state_data, update)
@@ -282,15 +282,15 @@ mod tests {
 
     #[test]
     fn should_update_only_request_when_update_contains_only_request() {
-        let mut state_data = PrepareSecRequestOutputData::default();
+        let mut state_data = PrepareSecRequestOutput::default();
         let original_client = state_data.client.clone();
         let new_cik = Cik::new("9876543210").expect("Hardcoded CIK should always be valid.");
         let new_request = SecRequest::new(&new_cik);
-        let update = PrepareSecRequestOutputDataUpdaterBuilder::default()
+        let update = PrepareSecRequestOutputUpdaterBuilder::default()
             .request(new_request.clone())
             .build();
 
-        let expected_result = &PrepareSecRequestOutputData::new(original_client, new_request)
+        let expected_result = &PrepareSecRequestOutput::new(original_client, new_request)
             .expect("Valid output data");
 
         StateData::update_state(&mut state_data, update)
@@ -302,7 +302,7 @@ mod tests {
 
     #[test]
     fn should_update_state_data_to_latest_specified_values_when_multiple_updates_in_builder() {
-        let mut state_data = PrepareSecRequestOutputData::default();
+        let mut state_data = PrepareSecRequestOutput::default();
 
         let first_user_agent =
             UserAgent::new("First Company contact@first.com").expect("Valid user agent");
@@ -316,14 +316,14 @@ mod tests {
         let final_cik = Cik::new("2222222222").expect("Hardcoded CIK should always be valid.");
         let final_request = SecRequest::new(&final_cik);
 
-        let update = PrepareSecRequestOutputDataUpdaterBuilder::default()
+        let update = PrepareSecRequestOutputUpdaterBuilder::default()
             .client(first_client)
             .request(first_request)
             .client(final_client.clone())
             .request(final_request.clone())
             .build();
 
-        let expected_result = &PrepareSecRequestOutputData::new(final_client, final_request)
+        let expected_result = &PrepareSecRequestOutput::new(final_client, final_request)
             .expect("Valid output data");
 
         StateData::update_state(&mut state_data, update)
@@ -335,10 +335,10 @@ mod tests {
 
     #[test]
     fn should_leave_state_data_unchanged_when_empty_update() {
-        let mut state_data = PrepareSecRequestOutputData::default();
-        let empty_update = PrepareSecRequestOutputDataUpdaterBuilder::default().build();
+        let mut state_data = PrepareSecRequestOutput::default();
+        let empty_update = PrepareSecRequestOutputUpdaterBuilder::default().build();
 
-        let expected_result = &PrepareSecRequestOutputData::default();
+        let expected_result = &PrepareSecRequestOutput::default();
 
         StateData::update_state(&mut state_data, empty_update)
             .expect("Update with valid 'update' value should always succeed.");
@@ -354,7 +354,7 @@ mod tests {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid.");
         let request = SecRequest::new(&cik);
         let prepare_output_state_data =
-            PrepareSecRequestOutputData::new(client.clone(), request).expect("Valid output data");
+            PrepareSecRequestOutput::new(client.clone(), request).expect("Valid output data");
 
         let expected_result = &client;
 
@@ -370,7 +370,7 @@ mod tests {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid.");
         let request = SecRequest::new(&cik);
         let prepare_output_state_data =
-            PrepareSecRequestOutputData::new(client, request.clone()).expect("Valid output data");
+            PrepareSecRequestOutput::new(client, request.clone()).expect("Valid output data");
 
         let expected_result = &request;
 
@@ -386,12 +386,12 @@ mod tests {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid.");
         let request = SecRequest::new(&cik);
 
-        let expected_result = PrepareSecRequestOutputData {
+        let expected_result = PrepareSecRequestOutput {
             client: client.clone(),
             request: request.clone(),
         };
 
-        let result = PrepareSecRequestOutputData::new(client, request)
+        let result = PrepareSecRequestOutput::new(client, request)
             .expect("Valid output data creation should succeed");
 
         assert_eq!(result, expected_result);
@@ -401,7 +401,7 @@ mod tests {
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
     #[test]
     const fn should_still_implement_auto_traits_when_implementing_output_data_trait() {
-        implements_auto_traits::<PrepareSecRequestOutputData>();
+        implements_auto_traits::<PrepareSecRequestOutput>();
     }
 
     const fn implements_send<T: Send>() {}
@@ -409,77 +409,77 @@ mod tests {
 
     #[test]
     const fn should_implement_send_when_implementing_output_data_trait() {
-        implements_send::<PrepareSecRequestOutputData>();
+        implements_send::<PrepareSecRequestOutput>();
     }
 
     #[test]
     const fn should_implement_sync_when_implementing_output_data_trait() {
-        implements_sync::<PrepareSecRequestOutputData>();
+        implements_sync::<PrepareSecRequestOutput>();
     }
 
     #[test]
     const fn should_be_thread_safe_when_implementing_output_data_trait() {
-        implements_send::<PrepareSecRequestOutputData>();
-        implements_sync::<PrepareSecRequestOutputData>();
+        implements_send::<PrepareSecRequestOutput>();
+        implements_sync::<PrepareSecRequestOutput>();
     }
 
     const fn implements_sized<T: Sized>() {}
     #[test]
     const fn should_be_sized_when_implementing_output_data_trait() {
-        implements_sized::<PrepareSecRequestOutputData>();
+        implements_sized::<PrepareSecRequestOutput>();
     }
 
     const fn implements_hash<T: Hash>() {}
     #[test]
     const fn should_implement_hash_when_implementing_output_data_trait() {
-        implements_hash::<PrepareSecRequestOutputData>();
+        implements_hash::<PrepareSecRequestOutput>();
     }
 
     const fn implements_partial_eq<T: PartialEq>() {}
     #[test]
     const fn should_implement_partial_eq_when_implementing_output_data_trait() {
-        implements_partial_eq::<PrepareSecRequestOutputData>();
+        implements_partial_eq::<PrepareSecRequestOutput>();
     }
 
     const fn implements_eq<T: Eq>() {}
     #[test]
     const fn should_implement_eq_when_implementing_output_data_trait() {
-        implements_eq::<PrepareSecRequestOutputData>();
+        implements_eq::<PrepareSecRequestOutput>();
     }
 
     const fn implements_partial_ord<T: PartialOrd>() {}
     #[test]
     const fn should_implement_partial_ord_when_implementing_output_data_trait() {
-        implements_partial_ord::<PrepareSecRequestOutputData>();
+        implements_partial_ord::<PrepareSecRequestOutput>();
     }
 
     const fn implements_ord<T: Ord>() {}
     #[test]
     const fn should_implement_ord_when_implementing_output_data_trait() {
-        implements_ord::<PrepareSecRequestOutputData>();
+        implements_ord::<PrepareSecRequestOutput>();
     }
 
     const fn implements_default<T: Default>() {}
     #[test]
     const fn should_implement_default_when_implementing_output_data_trait() {
-        implements_default::<PrepareSecRequestOutputData>();
+        implements_default::<PrepareSecRequestOutput>();
     }
 
     const fn implements_debug<T: Debug>() {}
     #[test]
     const fn should_implement_debug_when_implementing_output_data_trait() {
-        implements_debug::<PrepareSecRequestOutputData>();
+        implements_debug::<PrepareSecRequestOutput>();
     }
 
     const fn implements_clone<T: Clone>() {}
     #[test]
     const fn should_implement_clone_when_implementing_output_data_trait() {
-        implements_clone::<PrepareSecRequestOutputData>();
+        implements_clone::<PrepareSecRequestOutput>();
     }
 
     const fn implements_unpin<T: Unpin>() {}
     #[test]
     const fn should_implement_unpin_when_implementing_output_data_trait() {
-        implements_unpin::<PrepareSecRequestOutputData>();
+        implements_unpin::<PrepareSecRequestOutput>();
     }
 }
