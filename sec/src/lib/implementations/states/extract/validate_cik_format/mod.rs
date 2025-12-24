@@ -6,11 +6,11 @@
 //! The [`ValidateCikFormat`] state is responsible for syntactic validation and normalization of CIKs extracted from SEC filings. It ensures that the CIK is a 10-digit, zero-padded string containing only numeric characters. This state does **not** check for the existence of the CIK in the SEC database; it only validates the format.
 //!
 //! ## Components
-//! - [`vcf_context`]: Defines the context data and updater types for the validation process, allowing stateful tracking of CIK-related context.
-//! - [`vcf_data`]: Contains input and output data structures for the validation state, including updaters and builders for ergonomic data manipulation.
+//! - [`context`]: Defines the context data and updater types for the validation process, allowing stateful tracking of CIK-related context.
+//! - [`data`]: Contains input and output data structures for the validation state, including updaters and builders for ergonomic data manipulation.
 //! - [`ValidateCikFormatContext`]: Context data type for the state.
-//! - [`ValidateCikFormatInputData`]: Input data type holding the raw CIK string.
-//! - [`ValidateCikFormatOutputData`]: Output data type containing the validated and normalized CIK.
+//! - [`ValidateCikFormatInput`]: Input data type holding the raw CIK string.
+//! - [`ValidateCikFormatOutput`]: Output data type containing the validated and normalized CIK.
 //!
 //! ## Usage
 //! This state is typically used as the first step in the extract phase of the SEC state machine ETL pipeline, prior to any transformation or loading steps. It is designed to be composed with other states for robust and testable SEC filings processing workflows.
@@ -25,7 +25,7 @@
 //! #[tokio::main]
 //! async fn main() {
 //!
-//!     let input = ValidateCikFormatInputData { raw_cik: "1234".into() };
+//!     let input = ValidateCikFormatInput { raw_cik: "1234".into() };
 //!     let context = ValidateCikFormatContext::default();
 //!
 //!     let expected_result = "0000001234";
@@ -56,12 +56,12 @@ use crate::error::state_machine::state::InvalidCikFormat;
 use crate::traits::error::FromDomainError;
 use crate::traits::state_machine::state::State;
 
-pub mod vcf_context;
-pub mod vcf_data;
+pub mod context;
+pub mod data;
 
-pub use vcf_context::ValidateCikFormatContext;
-pub use vcf_data::ValidateCikFormatInputData;
-pub use vcf_data::ValidateCikFormatOutputData;
+pub use context::ValidateCikFormatContext;
+pub use data::ValidateCikFormatInput;
+pub use data::ValidateCikFormatOutput;
 
 use crate::shared::cik::Cik;
 
@@ -88,19 +88,19 @@ use crate::shared::cik::Cik;
 /// ```
 /// use sec::implementations::states::extract::validate_cik_format::*;
 ///
-/// let input = ValidateCikFormatInputData { raw_cik: "1234".into() };
+/// let input = ValidateCikFormatInput { raw_cik: "1234".into() };
 /// let context = ValidateCikFormatContext::default();
 /// let mut validation_state = ValidateCikFormat::new(input, context);
 /// ```
 pub struct ValidateCikFormat {
-    input: ValidateCikFormatInputData,
+    input: ValidateCikFormatInput,
     context: ValidateCikFormatContext,
-    output: Option<ValidateCikFormatOutputData>,
+    output: Option<ValidateCikFormatOutput>,
 }
 
 impl ValidateCikFormat {
     #[must_use]
-    pub const fn new(input: ValidateCikFormatInputData, context: ValidateCikFormatContext) -> Self {
+    pub const fn new(input: ValidateCikFormatInput, context: ValidateCikFormatContext) -> Self {
         Self {
             input,
             context,
@@ -118,7 +118,7 @@ impl State for ValidateCikFormat {
         match cik {
             Ok(cik) => {
                 // If the CIK is valid, set the output data
-                self.output = Some(ValidateCikFormatOutputData { validated_cik: cik });
+                self.output = Some(ValidateCikFormatOutput { validated_cik: cik });
             }
             Err(e) => {
                 let e: StateError =
@@ -134,8 +134,8 @@ impl State for ValidateCikFormat {
 }
 
 impl SMState for ValidateCikFormat {
-    type InputData = ValidateCikFormatInputData;
-    type OutputData = ValidateCikFormatOutputData;
+    type InputData = ValidateCikFormatInput;
+    type OutputData = ValidateCikFormatOutput;
     type Context = ValidateCikFormatContext;
 
     fn get_state_name(&self) -> impl ToString {
@@ -205,7 +205,7 @@ mod tests {
     {
         let validation_state = ValidateCikFormat::default();
 
-        let expected_result = &ValidateCikFormatInputData::default();
+        let expected_result = &ValidateCikFormatInput::default();
 
         let result = validation_state.get_input_data();
 
@@ -379,7 +379,7 @@ mod tests {
      {
         let ref_to_validation_state = &ValidateCikFormat::default();
 
-        let expected_result = &ValidateCikFormatInputData::default();
+        let expected_result = &ValidateCikFormatInput::default();
 
         let result = ref_to_validation_state.get_input_data();
 
@@ -405,7 +405,7 @@ mod tests {
     async fn should_return_correct_output_data_when_computing_output_data() {
         let mut validation_state = ValidateCikFormat::default();
 
-        let expected_result = &ValidateCikFormatOutputData::default();
+        let expected_result = &ValidateCikFormatOutput::default();
 
         validation_state
             .compute_output_data_async()

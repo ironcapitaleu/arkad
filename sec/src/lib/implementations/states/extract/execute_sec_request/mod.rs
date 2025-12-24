@@ -9,8 +9,8 @@
 //! - [`context`]: Defines the context data and updater types for the request execution process, allowing stateful tracking of execution-related context.
 //! - [`data`]: Contains input and output data structures for the execution state, including updaters and builders for ergonomic data manipulation.
 //! - [`ExecuteSecRequestContext`]: Context data type for the state.
-//! - [`ExecuteSecRequestInputData`]: Input data type holding the prepared SEC client and request.
-//! - [`ExecuteSecRequestOutputData`]: Output data type containing the SEC response.
+//! - [`ExecuteSecRequestInput`]: Input data type holding the prepared SEC client and request.
+//! - [`ExecuteSecRequestOutput`]: Output data type containing the SEC response.
 //!
 //! ## Usage
 //! This state is typically used in the extract phase of the SEC state machine ETL pipeline, after request preparation and before response processing. It is designed to be composed with other states for robust and testable SEC filings processing workflows.
@@ -32,7 +32,7 @@
 //!     let cik = Cik::new("1067983").expect("Valid CIK");
 //!     let request = SecRequest::new(&cik);
 //!     
-//!     let input = ExecuteSecRequestInputData::new(client, request);
+//!     let input = ExecuteSecRequestInput::new(client, request);
 //!     let context = ExecuteSecRequestContext::default();
 //!
 //!     let mut execute_state = ExecuteSecRequest::new(input, context);
@@ -58,8 +58,8 @@ pub mod context;
 pub mod data;
 
 pub use context::ExecuteSecRequestContext;
-pub use data::ExecuteSecRequestInputData;
-pub use data::ExecuteSecRequestOutputData;
+pub use data::ExecuteSecRequestInput;
+pub use data::ExecuteSecRequestOutput;
 
 use crate::error::State as StateError;
 use crate::error::state_machine::state::request_execution_failed::RequestExecutionFailed;
@@ -95,15 +95,15 @@ use state_maschine::prelude::State as SMState;
 /// let client = SecClient::new("Sample Corp contact@sample.com").expect("Valid user agent");
 /// let cik = Cik::new("1067983").expect("Valid CIK");
 /// let request = SecRequest::new(&cik);
-/// let input = ExecuteSecRequestInputData::new(client, request);
+/// let input = ExecuteSecRequestInput::new(client, request);
 /// let context = ExecuteSecRequestContext::default();
 /// let mut execute_state = ExecuteSecRequest::new(input, context);
 /// ```
 #[derive(Debug, Clone, Default, PartialEq, PartialOrd, Hash, Eq, Ord)]
 pub struct ExecuteSecRequest {
-    input: ExecuteSecRequestInputData,
+    input: ExecuteSecRequestInput,
     context: ExecuteSecRequestContext,
-    output: Option<ExecuteSecRequestOutputData>,
+    output: Option<ExecuteSecRequestOutput>,
 }
 
 impl ExecuteSecRequest {
@@ -111,14 +111,14 @@ impl ExecuteSecRequest {
     ///
     /// # Arguments
     ///
-    /// * `input` - The [`ExecuteSecRequestInputData`] containing the prepared SEC client and request.
+    /// * `input` - The [`ExecuteSecRequestInput`] containing the prepared SEC client and request.
     /// * `context` - The [`ExecuteSecRequestContext`] for the execution process.
     ///
     /// # Returns
     ///
     /// Returns a new [`ExecuteSecRequest`] state ready for computation.
     #[must_use]
-    pub const fn new(input: ExecuteSecRequestInputData, context: ExecuteSecRequestContext) -> Self {
+    pub const fn new(input: ExecuteSecRequestInput, context: ExecuteSecRequestContext) -> Self {
         Self {
             input,
             context,
@@ -153,7 +153,7 @@ impl State for ExecuteSecRequest {
 
         match result {
             Ok(response) => {
-                self.output = Some(ExecuteSecRequestOutputData::new(response)?);
+                self.output = Some(ExecuteSecRequestOutput::new(response)?);
                 Ok(())
             }
             Err(e) => {
@@ -166,8 +166,8 @@ impl State for ExecuteSecRequest {
 }
 
 impl SMState for ExecuteSecRequest {
-    type InputData = ExecuteSecRequestInputData;
-    type OutputData = ExecuteSecRequestOutputData;
+    type InputData = ExecuteSecRequestInput;
+    type OutputData = ExecuteSecRequestOutput;
     type Context = ExecuteSecRequestContext;
 
     /// Returns the human-readable name of this state.
@@ -237,7 +237,7 @@ mod tests {
     #[test]
     fn should_return_default_execute_data_struct_as_input_data_when_in_initial_execute_state() {
         let execute_state = ExecuteSecRequest::default();
-        let expected_result = &ExecuteSecRequestInputData::default();
+        let expected_result = &ExecuteSecRequestInput::default();
         let result = execute_state.get_input_data();
         assert_eq!(result, expected_result);
     }
@@ -273,7 +273,7 @@ mod tests {
         let client = SecClient::new("Test Company contact@test.com")
             .expect("Hardcoded user agent should always be valid.");
         let request = SecRequest::new(&cik);
-        let input = ExecuteSecRequestInputData::new(client, request);
+        let input = ExecuteSecRequestInput::new(client, request);
         let context = ExecuteSecRequestContext::default();
 
         let expected_input = input.clone();
@@ -413,7 +413,7 @@ mod tests {
     fn should_return_default_state_data_as_input_data_when_reference_execute_state_in_initial_state()
      {
         let ref_to_execute_state = &ExecuteSecRequest::default();
-        let expected_result = &ExecuteSecRequestInputData::default();
+        let expected_result = &ExecuteSecRequestInput::default();
         let result = ref_to_execute_state.get_input_data();
         assert_eq!(result, expected_result);
     }
@@ -424,7 +424,7 @@ mod tests {
         let client = SecClient::new("Test Company contact@test.com")
             .expect("Hardcoded user agent should always be valid.");
         let request = SecRequest::new(&cik);
-        let input = ExecuteSecRequestInputData::new(client, request);
+        let input = ExecuteSecRequestInput::new(client, request);
         let context = ExecuteSecRequestContext::default();
         let mut execute_state = ExecuteSecRequest::new(input, context);
 
@@ -445,7 +445,7 @@ mod tests {
         let client = SecClient::new("Test Company contact@test.com")
             .expect("Hardcoded user agent should always be valid.");
         let request = SecRequest::new(&cik);
-        let input = ExecuteSecRequestInputData::new(client, request);
+        let input = ExecuteSecRequestInput::new(client, request);
         let context = ExecuteSecRequestContext::default();
         let mut execute_state = ExecuteSecRequest::new(input, context);
 
@@ -466,7 +466,7 @@ mod tests {
         let client = SecClient::new("Test Company contact@test.com")
             .expect("Hardcoded user agent should always be valid.");
         let request = SecRequest::new(&cik);
-        let input = ExecuteSecRequestInputData::new(client, request);
+        let input = ExecuteSecRequestInput::new(client, request);
         let context = ExecuteSecRequestContext::default();
         let mut execute_state = ExecuteSecRequest::new(input, context);
 
@@ -487,7 +487,7 @@ mod tests {
         let client = SecClient::new("Test Company contact@test.com")
             .expect("Hardcoded user agent should always be valid.");
         let request = SecRequest::new(&cik);
-        let input = ExecuteSecRequestInputData::new(client, request);
+        let input = ExecuteSecRequestInput::new(client, request);
         let context = ExecuteSecRequestContext::default();
         let mut execute_state = ExecuteSecRequest::new(input, context);
 
