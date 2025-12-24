@@ -73,8 +73,7 @@ mod tests {
         let cik_string = "0001234567";
         let output = ValidateCikFormatOutput::new(cik_string)
             .expect("CIK with valid format should never fail");
-        let expected_cik =
-            Cik::new(cik_string).expect("CIK with valid format should never fail");
+        let expected_cik = Cik::new(cik_string).expect("CIK with valid format should never fail");
 
         let expected_result = PrepareSecRequestContext::new(expected_cik);
 
@@ -88,8 +87,7 @@ mod tests {
         let cik_string = "0001234567";
         let output = ValidateCikFormatOutput::new(cik_string)
             .expect("CIK with valid format should never fail");
-        let expected_cik =
-            Cik::new(cik_string).expect("CIK with valid format should never fail");
+        let expected_cik = Cik::new(cik_string).expect("CIK with valid format should never fail");
 
         let expected_result =
             PrepareSecRequestInput::new(expected_cik, DEFAULT_SEC_USER_AGENT.to_string());
