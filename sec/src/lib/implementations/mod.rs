@@ -5,6 +5,7 @@
 //!
 //! ## Structure
 //! - [`states`]: Contains implementations for the Extract, Transform, and Load (ETL) states used in SEC data processing pipelines. Each submodule provides concrete state logic, input/output/context data, and validation routines.
+//! - [`transitions`]: Contains implementations of state transitions organized by source state, enabling type-safe state machine transitions.
 //!
 //! ## Usage
 //! These implementations are intended to be used as building blocks for constructing SEC-specific state machines. They demonstrate how to apply the framework's extensible traits and error handling in practice.
@@ -45,3 +46,4 @@
 //! See the [`states`] module for details on each concrete state implementation.
 
 pub mod states;
+pub mod transitions;
