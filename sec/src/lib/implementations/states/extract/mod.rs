@@ -35,26 +35,22 @@ pub mod validate_sec_response;
 use std::fmt::Display;
 
 use crate::error::State as StateError;
-use crate::error::state_machine::transition;
 use crate::error::state_machine::transition::Transition as TransitionError;
 use crate::implementations::states::extract::execute_sec_request::{
-    ExecuteSecRequest, ExecuteSecRequestContext, ExecuteSecRequestInput, ExecuteSecRequestOutput,
+    ExecuteSecRequest, ExecuteSecRequestContext, ExecuteSecRequestInput,
 };
 use crate::implementations::states::extract::prepare_sec_request::{
-    PrepareSecRequest, PrepareSecRequestContext, PrepareSecRequestInput, PrepareSecRequestOutput,
+    PrepareSecRequest, PrepareSecRequestContext, PrepareSecRequestInput,
 };
 use crate::implementations::states::extract::validate_cik_format::{
-    ValidateCikFormat, ValidateCikFormatContext, ValidateCikFormatInput, ValidateCikFormatOutput,
+    ValidateCikFormat, ValidateCikFormatContext, ValidateCikFormatInput,
 };
 
-use crate::implementations::states::extract::validate_sec_response::{
-    ValidateSecResponse, ValidateSecResponseContext, ValidateSecResponseInput,
-};
+use crate::implementations::states::extract::validate_sec_response::ValidateSecResponse;
 
 use crate::shared::cik::Cik;
 use crate::shared::sec_client::SecClient;
 use crate::shared::sec_request::SecRequest;
-use crate::shared::user_agent::constants::DEFAULT_SEC_USER_AGENT;
 
 use async_trait::async_trait;
 
@@ -181,113 +177,6 @@ impl<S: State> StateMachine<S> for ExtractSuperState<S> {}
 impl<S: State> SMSuperState<S> for ExtractSuperState<S> {}
 
 impl<S: State> SuperState<S> for ExtractSuperState<S> {}
-
-impl From<ValidateCikFormatOutput> for PrepareSecRequestContext {
-    fn from(output_data: ValidateCikFormatOutput) -> Self {
-        Self::new(output_data.validated_cik)
-    }
-}
-
-impl From<ValidateCikFormatOutput> for PrepareSecRequestInput {
-    fn from(output_data: ValidateCikFormatOutput) -> Self {
-        Self::new(
-            output_data.validated_cik,
-            DEFAULT_SEC_USER_AGENT.to_string(),
-        )
-    }
-}
-
-impl TryFrom<ValidateCikFormat> for PrepareSecRequest {
-    type Error = TransitionError;
-
-    fn try_from(state: ValidateCikFormat) -> Result<Self, TransitionError> {
-        let output_data = match state.get_output_data() {
-            Some(data) => data.clone(),
-            None => {
-                return Err(transition::MissingOutputData::new(
-                    "Extract SuperState",
-                    state.get_state_name().to_string(),
-                )
-                .into());
-            }
-        };
-
-        let new_context: PrepareSecRequestContext = output_data.clone().into();
-        let new_input: PrepareSecRequestInput = output_data.into();
-
-        Ok(Self::new(new_input, new_context))
-    }
-}
-
-impl From<PrepareSecRequestContext> for ExecuteSecRequestContext {
-    fn from(context: PrepareSecRequestContext) -> Self {
-        Self::new(context.cik)
-    }
-}
-
-impl From<ExecuteSecRequestContext> for ValidateSecResponseContext {
-    fn from(context: ExecuteSecRequestContext) -> Self {
-        Self::new(context.cik)
-    }
-}
-
-impl From<PrepareSecRequestOutput> for ExecuteSecRequestInput {
-    fn from(output_data: PrepareSecRequestOutput) -> Self {
-        Self::new(output_data.client, output_data.request)
-    }
-}
-
-impl From<ExecuteSecRequestOutput> for ValidateSecResponseInput {
-    fn from(output_data: ExecuteSecRequestOutput) -> Self {
-        Self::new(output_data.response)
-    }
-}
-
-impl TryFrom<PrepareSecRequest> for ExecuteSecRequest {
-    type Error = TransitionError;
-
-    fn try_from(state: PrepareSecRequest) -> Result<Self, TransitionError> {
-        let output_data = match state.get_output_data() {
-            Some(data) => data.clone(),
-            None => {
-                return Err(transition::MissingOutputData::new(
-                    "Extract SuperState",
-                    state.get_state_name().to_string(),
-                )
-                .into());
-            }
-        };
-
-        let state_context = state.get_context_data().clone();
-        let new_context: ExecuteSecRequestContext = state_context.into();
-        let new_input: ExecuteSecRequestInput = output_data.into();
-
-        Ok(Self::new(new_input, new_context))
-    }
-}
-
-impl TryFrom<ExecuteSecRequest> for ValidateSecResponse {
-    type Error = TransitionError;
-
-    fn try_from(state: ExecuteSecRequest) -> Result<Self, TransitionError> {
-        let output_data = match state.get_output_data() {
-            Some(data) => data.clone(),
-            None => {
-                return Err(transition::MissingOutputData::new(
-                    "Extract SuperState",
-                    state.get_state_name().to_string(),
-                )
-                .into());
-            }
-        };
-
-        let state_context = state.get_context_data().clone();
-        let new_context: ValidateSecResponseContext = state_context.into();
-        let new_input: ValidateSecResponseInput = output_data.into();
-
-        Ok(Self::new(new_input, new_context))
-    }
-}
 
 impl ExtractSuperState<ValidateCikFormat> {
     #[must_use]
