@@ -58,7 +58,7 @@ impl PrepareSecRequestContext {
 
 impl Context for PrepareSecRequestContext {
     /// Returns the maximum number of retries allowed for the SEC request.
-    fn get_max_retries(&self) -> u32 {
+    fn max_retries(&self) -> u32 {
         self.max_retries
     }
 }

@@ -24,11 +24,11 @@ use state_maschine::prelude::ContextData as SMContextData;
 pub trait Context: SMContextData {
     /// Returns `true` if the state can be retried, based on the maximum allowed retries.
     fn can_retry(&self) -> bool {
-        self.get_max_retries() > 0
+        self.max_retries() > 0
     }
 
     /// Returns the maximum number of retries allowed for the state.
-    fn get_max_retries(&self) -> u32;
+    fn max_retries(&self) -> u32;
 }
 
 #[cfg(test)]

@@ -92,7 +92,7 @@ impl SMContextData for ExtractSuperStateContext {
 }
 
 impl Context for ExtractSuperStateContext {
-    fn get_max_retries(&self) -> u32 {
+    fn max_retries(&self) -> u32 {
         0
     }
 }

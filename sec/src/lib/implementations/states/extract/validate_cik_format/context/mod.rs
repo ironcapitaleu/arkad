@@ -70,7 +70,7 @@ impl ValidateCikFormatContext {
 
 impl Context for ValidateCikFormatContext {
     /// Returns the maximum number of retries allowed for CIK validation.
-    fn get_max_retries(&self) -> u32 {
+    fn max_retries(&self) -> u32 {
         self.max_retries
     }
 }

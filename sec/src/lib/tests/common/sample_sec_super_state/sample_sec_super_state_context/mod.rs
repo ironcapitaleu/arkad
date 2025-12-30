@@ -5,7 +5,7 @@ use state_maschine::prelude::ContextData as SMContextData;
 pub struct SampleSecSuperStateContext;
 
 impl Context for SampleSecSuperStateContext {
-    fn get_max_retries(&self) -> u32 {
+    fn max_retries(&self) -> u32 {
         0
     }
 }

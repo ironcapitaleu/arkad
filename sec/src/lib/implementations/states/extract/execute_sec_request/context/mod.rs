@@ -82,7 +82,7 @@ impl ExecuteSecRequestContext {
 }
 
 impl Context for ExecuteSecRequestContext {
-    fn get_max_retries(&self) -> u32 {
+    fn max_retries(&self) -> u32 {
         self.max_retries
     }
 }
@@ -220,7 +220,7 @@ mod tests {
         let context = ExecuteSecRequestContext::new(cik);
 
         let expected_result = 0;
-        let result = context.get_max_retries();
+        let result = context.max_retries();
 
         assert_eq!(result, expected_result);
     }

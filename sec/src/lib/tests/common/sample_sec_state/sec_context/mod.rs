@@ -47,7 +47,7 @@ impl SampleSecStateContext {
 }
 
 impl Context for SampleSecStateContext {
-    fn get_max_retries(&self) -> u32 {
+    fn max_retries(&self) -> u32 {
         self.max_retries
     }
 }
