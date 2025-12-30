@@ -205,8 +205,8 @@ mod tests {
         let expected_result = ValidateSecResponseOutput::new(json_response.clone())
             .expect("Valid JSON response should create output successfully");
 
-        let result =
-            ValidateSecResponseOutput::new(json_response).expect("Valid JSON response should create output successfully");
+        let result = ValidateSecResponseOutput::new(json_response)
+            .expect("Valid JSON response should create output successfully");
 
         assert_eq!(result, expected_result);
     }
@@ -256,8 +256,8 @@ mod tests {
             .validated_sec_response(new_response.clone())
             .build();
 
-        let expected_result =
-            &ValidateSecResponseOutput::new(new_response).expect("Valid JSON response should create output successfully");
+        let expected_result = &ValidateSecResponseOutput::new(new_response)
+            .expect("Valid JSON response should create output successfully");
 
         StateData::update_state(&mut output_data, updater)
             .expect("Valid update should always succeed with valid input");
@@ -297,8 +297,8 @@ mod tests {
     #[test]
     fn should_return_output_data_reference_when_accessing_state() {
         let json_response = JsonResponse::default();
-        let output_data =
-            ValidateSecResponseOutput::new(json_response).expect("Valid JSON response should create output successfully");
+        let output_data = ValidateSecResponseOutput::new(json_response)
+            .expect("Valid JSON response should create output successfully");
 
         let expected_result = &output_data;
         let result = output_data.state();
@@ -334,15 +334,15 @@ mod tests {
         };
         let final_response = JsonResponse::from_sec_response(&sec_response2)
             .expect("Valid SEC response string should parse to JSON successfully");
-        let mut output_data =
-            ValidateSecResponseOutput::new(original_response).expect("Valid JSON response should create output successfully");
+        let mut output_data = ValidateSecResponseOutput::new(original_response)
+            .expect("Valid JSON response should create output successfully");
         let updater = ValidateSecResponseOutputUpdater::builder()
             .validated_sec_response(intermediate_response)
             .validated_sec_response(final_response.clone())
             .build();
 
-        let expected_result =
-            &ValidateSecResponseOutput::new(final_response).expect("Valid JSON response should create output successfully");
+        let expected_result = &ValidateSecResponseOutput::new(final_response)
+            .expect("Valid JSON response should create output successfully");
 
         StateData::update_state(&mut output_data, updater)
             .expect("Valid update should always succeed with valid input");

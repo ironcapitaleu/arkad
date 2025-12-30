@@ -243,7 +243,9 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "State with valid input should always produce output after computation")]
+    #[should_panic(
+        expected = "State with valid input should always produce output after computation"
+    )]
     fn should_panic_when_trying_to_access_output_data_before_it_has_been_computed_in_state() {
         let execute_state = ExecuteSecRequest::default();
         let _result = execute_state
@@ -392,7 +394,9 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "State with valid input should always produce output after computation")]
+    #[should_panic(
+        expected = "State with valid input should always produce output after computation"
+    )]
     fn should_panic_when_trying_to_access_output_data_before_it_has_been_computed_in_reference_state()
      {
         let ref_to_execute_state = &ExecuteSecRequest::default();

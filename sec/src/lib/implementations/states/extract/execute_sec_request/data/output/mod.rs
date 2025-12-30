@@ -180,7 +180,8 @@ mod tests {
         let response = SecResponse::default();
         let expected_response = response.clone();
 
-        let result = ExecuteSecRequestOutput::new(response).expect("Valid HTTP response should create output data successfully");
+        let result = ExecuteSecRequestOutput::new(response)
+            .expect("Valid HTTP response should create output data successfully");
 
         assert_eq!(result.response(), &expected_response);
     }
@@ -188,8 +189,8 @@ mod tests {
     #[test]
     fn should_return_response_reference_when_accessing_response() {
         let response = SecResponse::default();
-        let output_data =
-            ExecuteSecRequestOutput::new(response.clone()).expect("Valid HTTP response should create output data successfully");
+        let output_data = ExecuteSecRequestOutput::new(response.clone())
+            .expect("Valid HTTP response should create output data successfully");
 
         let expected_result = &response;
         let result = output_data.response();
@@ -203,8 +204,8 @@ mod tests {
         let new_response = SecResponse::default();
         // Make the new response different by modifying the status (though both will be OK in default)
         // Since SecResponse doesn't have setters, we'll just use default for testing
-        let mut output_data =
-            ExecuteSecRequestOutput::new(original_response).expect("Valid HTTP response should create output data successfully");
+        let mut output_data = ExecuteSecRequestOutput::new(original_response)
+            .expect("Valid HTTP response should create output data successfully");
 
         let updater = ExecuteSecRequestOutputUpdater::builder()
             .response(new_response.clone())
@@ -220,8 +221,8 @@ mod tests {
     #[test]
     fn should_not_update_fields_when_updater_is_empty() {
         let response = SecResponse::default();
-        let original_output_data =
-            ExecuteSecRequestOutput::new(response).expect("Valid HTTP response should create output data successfully");
+        let original_output_data = ExecuteSecRequestOutput::new(response)
+            .expect("Valid HTTP response should create output data successfully");
         let mut output_data = original_output_data.clone();
 
         let updater = ExecuteSecRequestOutputUpdater::builder().build();
@@ -236,8 +237,8 @@ mod tests {
     #[test]
     fn should_display_response_information_when_formatted() {
         let response = SecResponse::default();
-        let output_data =
-            ExecuteSecRequestOutput::new(response).expect("Valid HTTP response should create output data successfully");
+        let output_data = ExecuteSecRequestOutput::new(response)
+            .expect("Valid HTTP response should create output data successfully");
 
         let result = format!("{output_data}");
 

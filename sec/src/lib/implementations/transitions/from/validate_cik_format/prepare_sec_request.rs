@@ -73,7 +73,8 @@ mod tests {
         let cik_string = "0001234567";
         let output = ValidateCikFormatOutput::new(cik_string)
             .expect("Hardcoded valid CIK string should always parse successfully");
-        let expected_cik = Cik::new(cik_string).expect("Hardcoded valid CIK string should always parse successfully");
+        let expected_cik = Cik::new(cik_string)
+            .expect("Hardcoded valid CIK string should always parse successfully");
 
         let expected_result = PrepareSecRequestContext::new(expected_cik);
 
@@ -87,7 +88,8 @@ mod tests {
         let cik_string = "0001234567";
         let output = ValidateCikFormatOutput::new(cik_string)
             .expect("Hardcoded valid CIK string should always parse successfully");
-        let expected_cik = Cik::new(cik_string).expect("Hardcoded valid CIK string should always parse successfully");
+        let expected_cik = Cik::new(cik_string)
+            .expect("Hardcoded valid CIK string should always parse successfully");
 
         let expected_result =
             PrepareSecRequestInput::new(expected_cik, DEFAULT_SEC_USER_AGENT.to_string());

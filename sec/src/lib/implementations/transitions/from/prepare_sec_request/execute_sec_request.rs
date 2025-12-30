@@ -70,7 +70,8 @@ mod tests {
 
     #[test]
     fn should_convert_context_when_valid_context() {
-        let cik = Cik::new("0001234567").expect("Hardcoded valid CIK string should always parse successfully");
+        let cik = Cik::new("0001234567")
+            .expect("Hardcoded valid CIK string should always parse successfully");
         let context = PrepareSecRequestContext::new(cik.clone());
 
         let expected_result = ExecuteSecRequestContext::new(cik);
