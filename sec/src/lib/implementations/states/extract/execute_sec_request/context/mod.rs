@@ -21,7 +21,7 @@
 //! let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
 //! let mut context = ExecuteSecRequestContext::new(cik);
 //! let update = ExecuteSecRequestContextUpdater::builder()
-//!     .cik(Cik::new("0987654321").expect("Hardcoded CIK should always be valid")
+//!     .cik(Cik::new("0987654321").expect("Hardcoded CIK should always be valid"))
 //!     .build();
 //! context.update_context(update);
 //! assert_eq!(context.cik().to_string(), "0987654321");
