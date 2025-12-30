@@ -61,10 +61,10 @@ impl PrepareSecRequestOutput {
     /// use sec::shared::user_agent::UserAgent;
     ///
     /// let user_agent = "Test Company contact@test.com";
-    /// let client = SecClient::new(&user_agent).expect("Valid client");
-    /// let cik = Cik::new("1067983").expect("Valid CIK");
+    /// let client = SecClient::new(&user_agent).expect("Valid user agent should create client successfully");
+    /// let cik = Cik::new("1067983").expect("Hardcoded CIK string should be valid format");
     /// let request = SecRequest::new(&cik);
-    /// let output_data = PrepareSecRequestOutput::new(client, request).expect("Valid output data");
+    /// let output_data = PrepareSecRequestOutput::new(client, request).expect("Valid client and request should create output successfully");
     /// ```
     ///
     /// # Errors
@@ -230,12 +230,12 @@ mod tests {
 
     #[test]
     fn should_create_different_state_data_with_custom_data_when_using_new_as_constructor() {
-        let user_agent = UserAgent::new("Test Company contact@test.com").expect("Valid user agent");
-        let client = SecClient::new(user_agent.inner()).expect("Valid client");
-        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid.");
+        let user_agent = UserAgent::new("Test Company contact@test.com").expect("Hardcoded user agent string should be valid format");
+        let client = SecClient::new(user_agent.inner()).expect("Valid user agent should create client successfully");
+        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
         let request = SecRequest::new(&cik);
         let prepare_output_state_data =
-            PrepareSecRequestOutput::new(client, request).expect("Valid output data");
+            PrepareSecRequestOutput::new(client, request).expect("Valid client and request should create output successfully");
 
         let default_prepare_output_state_data = &PrepareSecRequestOutput::default();
 
@@ -248,9 +248,9 @@ mod tests {
     fn should_update_state_data_to_specified_values_when_update_contains_specified_values() {
         let mut state_data = PrepareSecRequestOutput::default();
         let user_agent =
-            UserAgent::new("Updated Company contact@updated.com").expect("Valid user agent");
-        let new_client = SecClient::new(user_agent.inner()).expect("Valid client");
-        let new_cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid.");
+            UserAgent::new("Updated Company contact@updated.com").expect("Hardcoded user agent string should be valid format");
+        let new_client = SecClient::new(user_agent.inner()).expect("Valid user agent should create client successfully");
+        let new_cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
         let new_request = SecRequest::new(&new_cik);
         let update = PrepareSecRequestOutputUpdaterBuilder::default()
             .client(new_client.clone())
@@ -258,10 +258,10 @@ mod tests {
             .build();
 
         let expected_result =
-            &PrepareSecRequestOutput::new(new_client, new_request).expect("Valid output data");
+            &PrepareSecRequestOutput::new(new_client, new_request).expect("Valid client and request should create output successfully");
 
         StateData::update_state(&mut state_data, update)
-            .expect("Update with valid 'update' value should always succeed.");
+            .expect("Update with valid 'update' value should always succeed");
         let result = state_data.state();
 
         assert_eq!(result, expected_result);
@@ -272,17 +272,17 @@ mod tests {
         let mut state_data = PrepareSecRequestOutput::default();
         let original_request = state_data.request.clone();
         let user_agent =
-            UserAgent::new("New Client Company contact@newclient.com").expect("Valid user agent");
-        let new_client = SecClient::new(user_agent.inner()).expect("Valid client");
+            UserAgent::new("New Client Company contact@newclient.com").expect("Hardcoded user agent string should be valid format");
+        let new_client = SecClient::new(user_agent.inner()).expect("Valid user agent should create client successfully");
         let update = PrepareSecRequestOutputUpdaterBuilder::default()
             .client(new_client.clone())
             .build();
 
         let expected_result =
-            &PrepareSecRequestOutput::new(new_client, original_request).expect("Valid output data");
+            &PrepareSecRequestOutput::new(new_client, original_request).expect("Valid client and request should create output successfully");
 
         StateData::update_state(&mut state_data, update)
-            .expect("Update with valid 'update' value should always succeed.");
+            .expect("Update with valid 'update' value should always succeed");
         let result = state_data.state();
 
         assert_eq!(result, expected_result);
@@ -292,17 +292,17 @@ mod tests {
     fn should_update_only_request_when_update_contains_only_request() {
         let mut state_data = PrepareSecRequestOutput::default();
         let original_client = state_data.client.clone();
-        let new_cik = Cik::new("9876543210").expect("Hardcoded CIK should always be valid.");
+        let new_cik = Cik::new("9876543210").expect("Hardcoded CIK should always be valid");
         let new_request = SecRequest::new(&new_cik);
         let update = PrepareSecRequestOutputUpdaterBuilder::default()
             .request(new_request.clone())
             .build();
 
         let expected_result =
-            &PrepareSecRequestOutput::new(original_client, new_request).expect("Valid output data");
+            &PrepareSecRequestOutput::new(original_client, new_request).expect("Valid client and request should create output successfully");
 
         StateData::update_state(&mut state_data, update)
-            .expect("Update with valid 'update' value should always succeed.");
+            .expect("Update with valid 'update' value should always succeed");
         let result = state_data.state();
 
         assert_eq!(result, expected_result);
@@ -313,15 +313,15 @@ mod tests {
         let mut state_data = PrepareSecRequestOutput::default();
 
         let first_user_agent =
-            UserAgent::new("First Company contact@first.com").expect("Valid user agent");
-        let first_client = SecClient::new(first_user_agent.inner()).expect("Valid client");
-        let first_cik = Cik::new("1111111111").expect("Hardcoded CIK should always be valid.");
+            UserAgent::new("First Company contact@first.com").expect("Hardcoded user agent string should be valid format");
+        let first_client = SecClient::new(first_user_agent.inner()).expect("Valid user agent should create client successfully");
+        let first_cik = Cik::new("1111111111").expect("Hardcoded CIK should always be valid");
         let first_request = SecRequest::new(&first_cik);
 
         let final_user_agent =
-            UserAgent::new("Final Company contact@final.com").expect("Valid user agent");
-        let final_client = SecClient::new(final_user_agent.inner()).expect("Valid client");
-        let final_cik = Cik::new("2222222222").expect("Hardcoded CIK should always be valid.");
+            UserAgent::new("Final Company contact@final.com").expect("Hardcoded user agent string should be valid format");
+        let final_client = SecClient::new(final_user_agent.inner()).expect("Valid user agent should create client successfully");
+        let final_cik = Cik::new("2222222222").expect("Hardcoded CIK should always be valid");
         let final_request = SecRequest::new(&final_cik);
 
         let update = PrepareSecRequestOutputUpdaterBuilder::default()
@@ -332,10 +332,10 @@ mod tests {
             .build();
 
         let expected_result =
-            &PrepareSecRequestOutput::new(final_client, final_request).expect("Valid output data");
+            &PrepareSecRequestOutput::new(final_client, final_request).expect("Valid client and request should create output successfully");
 
         StateData::update_state(&mut state_data, update)
-            .expect("Update with valid 'update' value should always succeed.");
+            .expect("Update with valid 'update' value should always succeed");
         let result = state_data.state();
 
         assert_eq!(result, expected_result);
@@ -349,7 +349,7 @@ mod tests {
         let expected_result = &PrepareSecRequestOutput::default();
 
         StateData::update_state(&mut state_data, empty_update)
-            .expect("Update with valid 'update' value should always succeed.");
+            .expect("Update with valid 'update' value should always succeed");
         let result = state_data.state();
 
         assert_eq!(result, expected_result);
@@ -357,12 +357,12 @@ mod tests {
 
     #[test]
     fn should_return_client_when_accessor_method_is_called() {
-        let user_agent = UserAgent::new("Test Company contact@test.com").expect("Valid user agent");
-        let client = SecClient::new(user_agent.inner()).expect("Valid client");
-        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid.");
+        let user_agent = UserAgent::new("Test Company contact@test.com").expect("Hardcoded user agent string should be valid format");
+        let client = SecClient::new(user_agent.inner()).expect("Valid user agent should create client successfully");
+        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
         let request = SecRequest::new(&cik);
         let prepare_output_state_data =
-            PrepareSecRequestOutput::new(client.clone(), request).expect("Valid output data");
+            PrepareSecRequestOutput::new(client.clone(), request).expect("Valid client and request should create output successfully");
 
         let expected_result = &client;
 
@@ -373,12 +373,12 @@ mod tests {
 
     #[test]
     fn should_return_request_when_accessor_method_is_called() {
-        let user_agent = UserAgent::new("Test Company contact@test.com").expect("Valid user agent");
-        let client = SecClient::new(user_agent.inner()).expect("Valid client");
-        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid.");
+        let user_agent = UserAgent::new("Test Company contact@test.com").expect("Hardcoded user agent string should be valid format");
+        let client = SecClient::new(user_agent.inner()).expect("Valid user agent should create client successfully");
+        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
         let request = SecRequest::new(&cik);
         let prepare_output_state_data =
-            PrepareSecRequestOutput::new(client, request.clone()).expect("Valid output data");
+            PrepareSecRequestOutput::new(client, request.clone()).expect("Valid client and request should create output successfully");
 
         let expected_result = &request;
 
@@ -389,9 +389,9 @@ mod tests {
 
     #[test]
     fn should_create_output_data_successfully_when_valid_client_and_request_provided() {
-        let user_agent = UserAgent::new("Test Company contact@test.com").expect("Valid user agent");
-        let client = SecClient::new(user_agent.inner()).expect("Valid client");
-        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid.");
+        let user_agent = UserAgent::new("Test Company contact@test.com").expect("Hardcoded user agent string should be valid format");
+        let client = SecClient::new(user_agent.inner()).expect("Valid user agent should create client successfully");
+        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
         let request = SecRequest::new(&cik);
 
         let expected_result = PrepareSecRequestOutput {

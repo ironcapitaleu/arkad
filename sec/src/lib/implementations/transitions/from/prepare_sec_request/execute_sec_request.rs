@@ -70,7 +70,7 @@ mod tests {
 
     #[test]
     fn should_convert_context_when_valid_context() {
-        let cik = Cik::new("0001234567").expect("CIK with valid format should never fail");
+        let cik = Cik::new("0001234567").expect("Hardcoded valid CIK string should always parse successfully");
         let context = PrepareSecRequestContext::new(cik.clone());
 
         let expected_result = ExecuteSecRequestContext::new(cik);
@@ -85,7 +85,7 @@ mod tests {
         let client = SecClient::default();
         let request = SecRequest::default();
         let output = PrepareSecRequestOutput::new(client.clone(), request.clone())
-            .expect("Valid client and request should never fail");
+            .expect("Valid client and request should always create output successfully");
 
         let expected_result = ExecuteSecRequestInput::new(client, request);
 

@@ -196,7 +196,7 @@ mod tests {
     fn should_create_different_context_with_custom_data_when_using_default_as_constructor() {
         let request_context = &PrepareSecRequestContext::default();
         let cik =
-            Cik::new(BERKSHIRE_HATHAWAY_CIK_RAW).expect("Hardcoded CIK should always be valid.");
+            Cik::new(BERKSHIRE_HATHAWAY_CIK_RAW).expect("Hardcoded CIK should always be valid");
 
         let expected_result = &PrepareSecRequestContext {
             cik,
@@ -215,7 +215,7 @@ mod tests {
             .max_retries(5)
             .build();
         let cik =
-            Cik::new(BERKSHIRE_HATHAWAY_CIK_RAW).expect("Hardcoded CIK should always be valid.");
+            Cik::new(BERKSHIRE_HATHAWAY_CIK_RAW).expect("Hardcoded CIK should always be valid");
 
         let expected_result = &PrepareSecRequestContext {
             cik,
@@ -236,7 +236,7 @@ mod tests {
             .max_retries(10)
             .build();
         let cik =
-            Cik::new(BERKSHIRE_HATHAWAY_CIK_RAW).expect("Hardcoded CIK should always be valid.");
+            Cik::new(BERKSHIRE_HATHAWAY_CIK_RAW).expect("Hardcoded CIK should always be valid");
 
         let expected_result = &PrepareSecRequestContext {
             cik,

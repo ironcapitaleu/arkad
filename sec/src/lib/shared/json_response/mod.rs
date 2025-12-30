@@ -174,7 +174,7 @@ mod tests {
         };
 
         let result =
-            JsonResponse::from_sec_response(&sec_response).expect("Response should be valid.");
+            JsonResponse::from_sec_response(&sec_response).expect("Response should be valid");
 
         assert_eq!(result, expected_result);
     }

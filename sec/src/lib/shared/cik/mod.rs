@@ -64,7 +64,7 @@ impl Cik {
     /// ```
     /// use sec::shared::cik::Cik;
     ///
-    /// let cik = Cik::new("123456789").expect("CIK creation with the hardcoded value should always succeed.");
+    /// let cik = Cik::new("123456789").expect("CIK creation with the hardcoded value should always succeed");
     /// assert_eq!(cik.value(), "0123456789");
     /// ```
     pub fn new(cik: &(impl ToString + ?Sized)) -> Result<Self, CikError> {
@@ -137,7 +137,7 @@ mod tests {
         let expected_result = "1234567890";
 
         let result = Cik::new(cik_str)
-            .expect("CIK creation should always succeed with hardcoded ten digit value.");
+            .expect("CIK creation should always succeed with hardcoded ten digit value");
 
         assert_eq!(result.value(), expected_result);
     }
@@ -182,7 +182,7 @@ mod tests {
 
         let expected_result = "0123456789";
 
-        let result = Cik::new(cik_str).expect("Hardcoded CIK creation should succeed.");
+        let result = Cik::new(cik_str).expect("Hardcoded CIK creation should succeed");
 
         assert_eq!(result.value(), expected_result);
     }
@@ -194,7 +194,7 @@ mod tests {
         let expected_result = "0000000000";
 
         let result =
-            Cik::new(cik_str).expect("Hardcoded CIK creation from empty string should succeed.");
+            Cik::new(cik_str).expect("Hardcoded CIK creation from empty string should succeed");
 
         assert_eq!(result.value(), expected_result);
     }
@@ -206,7 +206,7 @@ mod tests {
         let expected_result = "0123456789";
 
         let result =
-            Cik::new(cik_str).expect("Hardcoded CIK creation with whitespace should succeed.");
+            Cik::new(cik_str).expect("Hardcoded CIK creation with whitespace should succeed");
 
         assert_eq!(result.value(), expected_result);
     }
@@ -218,7 +218,7 @@ mod tests {
         let expected_result = "0123456789";
 
         let result =
-            Cik::new(cik_str).expect("Hardcoded CIK creation with whitespace should succeed.");
+            Cik::new(cik_str).expect("Hardcoded CIK creation with whitespace should succeed");
 
         assert_eq!(result.value(), expected_result);
     }
@@ -231,7 +231,7 @@ mod tests {
         let expected_result = "0123456789";
 
         let result =
-            Cik::new(cik_str).expect("Hardcoded CIK creation with whitespace should succeed.");
+            Cik::new(cik_str).expect("Hardcoded CIK creation with whitespace should succeed");
 
         assert_eq!(result.value(), expected_result);
     }

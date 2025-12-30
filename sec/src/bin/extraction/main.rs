@@ -23,7 +23,7 @@ async fn main() {
     validate_cik_state
         .compute_output_data_async()
         .await
-        .expect("Hardcoded default CIK should alaways have a valid format.");
+        .expect("Hardcoded default CIK should alaways have a valid format");
 
     println!("\n=======================================================");
     println!("Validation state after verifying CIK:");
@@ -46,7 +46,7 @@ async fn main() {
     prepare_sec_request
         .compute_output_data_async()
         .await
-        .expect("PrepareSecRequest should always succeed with a valid CIK and user agent.");
+        .expect("PrepareSecRequest should always succeed with a valid CIK and user agent");
     println!("\n=======================================================");
     println!("After PrepareSecRequest output:");
     println!("{:.500}", prepare_sec_request.to_string().as_str());
@@ -69,7 +69,7 @@ async fn main() {
     execute_sec_request
         .compute_output_data_async()
         .await
-        .expect("ExecuteSecRequest should succeed with valid client and request.");
+        .expect("ExecuteSecRequest should succeed with valid client and request");
     println!("\n=======================================================");
     println!("After ExecuteSecRequest output:");
     println!("{:.500}", execute_sec_request.to_string().as_str());
@@ -82,7 +82,7 @@ async fn main() {
     super_state
         .compute_output_data_async()
         .await
-        .expect("Hardcoded default CIK should alaways have a valid format.");
+        .expect("Hardcoded default CIK should alaways have a valid format");
 
     let validated_cik = super_state
         .current_state()
@@ -110,7 +110,7 @@ async fn main() {
     super_state
         .compute_output_data_async()
         .await
-        .expect("PrepareSecRequest should succeed with valid CIK and user agent.");
+        .expect("PrepareSecRequest should succeed with valid CIK and user agent");
 
     let output = super_state
         .current_state()
@@ -124,7 +124,7 @@ async fn main() {
 
     let mut super_state = super_state
         .transition_to_next_state_sec()
-        .expect("Transition should succeed.");
+        .expect("Transition should succeed");
     println!("{super_state}");
 
     println!("\n=======================================================");
@@ -133,7 +133,7 @@ async fn main() {
     super_state
         .compute_output_data_async()
         .await
-        .expect("ExecuteSecRequest should succeed with valid CIK and user agent.");
+        .expect("ExecuteSecRequest should succeed with valid CIK and user agent");
 
     let execute_output = super_state
         .current_state()
@@ -147,7 +147,7 @@ async fn main() {
 
     let mut super_state = super_state
         .transition_to_next_state_sec()
-        .expect("Transition should succeed.");
+        .expect("Transition should succeed");
     println!("{super_state}");
 
     println!("\n=======================================================");
@@ -156,7 +156,7 @@ async fn main() {
     super_state
         .compute_output_data_async()
         .await
-        .expect("ValidateSecResponse should succeed with valid response.");
+        .expect("ValidateSecResponse should succeed with valid response");
 
     let validate_output = super_state
         .current_state()

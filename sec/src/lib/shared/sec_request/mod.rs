@@ -49,7 +49,7 @@ impl SecRequest {
         Self {
             inner: Request::new(
                 reqwest::Method::GET,
-                reqwest::Url::parse(&url).expect("Hardcoded URL should always be valid."),
+                reqwest::Url::parse(&url).expect("Hardcoded URL should always be valid"),
             ),
         }
     }
@@ -99,7 +99,7 @@ impl Default for SecRequest {
             inner: Request::new(
                 reqwest::Method::GET,
                 reqwest::Url::parse(SEC_CIK_BERKSHIRE_HATHAWAY_URL)
-                    .expect("Hardcoded URL should always be valid."),
+                    .expect("Hardcoded URL should always be valid"),
             ),
         }
     }

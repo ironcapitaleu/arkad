@@ -426,7 +426,7 @@ mod tests {
     #[tokio::test]
     async fn should_fail_transition_from_execute_sec_request_when_output_data_not_yet_computed() {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should be valid");
-        let client = SecClient::new("Test Company contact@test.com").expect("Valid user agent");
+        let client = SecClient::new("Test Company contact@test.com").expect("Hardcoded user agent string should be valid format");
         let request = SecRequest::new(&cik);
         let super_state = ExtractSuperState::<ExecuteSecRequest>::new(client, request, cik);
 

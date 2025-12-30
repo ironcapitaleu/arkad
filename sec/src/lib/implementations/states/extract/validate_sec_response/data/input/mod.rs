@@ -184,7 +184,7 @@ mod tests {
             url: reqwest::Url::parse(
                 "https://data.sec.gov/api/xbrl/companyfacts/CIK1234567890.json",
             )
-            .expect("Hardcoded URL should always be valid."),
+            .expect("Hardcoded URL should always be valid"),
             status: StatusCode::OK,
             headers: HashMap::new(),
             content_type: ContentType::Json,
@@ -217,7 +217,7 @@ mod tests {
             url: reqwest::Url::parse(
                 "https://data.sec.gov/api/xbrl/companyfacts/CIK9999999999.json",
             )
-            .expect("Hardcoded URL should always be valid."),
+            .expect("Hardcoded URL should always be valid"),
             status: StatusCode::OK,
             headers: HashMap::new(),
             content_type: ContentType::Json,
@@ -231,7 +231,7 @@ mod tests {
         let expected_result = &ValidateSecResponseInput::new(new_response);
 
         StateData::update_state(&mut input_data, updater)
-            .expect("Update with valid value should succeed");
+            .expect("Valid update should always succeed with valid input");
         let result = input_data.state();
 
         assert_eq!(result, expected_result);
@@ -247,7 +247,7 @@ mod tests {
         let expected_result = &ValidateSecResponseInput::default();
 
         StateData::update_state(&mut input_data, updater)
-            .expect("Update with valid value should succeed");
+            .expect("Valid update should always succeed with valid input");
         let result = input_data.state();
 
         assert_eq!(result, expected_result);
@@ -282,7 +282,7 @@ mod tests {
             url: reqwest::Url::parse(
                 "https://data.sec.gov/api/xbrl/companyfacts/CIK5555555555.json",
             )
-            .expect("Hardcoded URL should always be valid."),
+            .expect("Hardcoded URL should always be valid"),
             status: StatusCode::OK,
             headers: HashMap::new(),
             content_type: ContentType::Json,
@@ -292,7 +292,7 @@ mod tests {
             url: reqwest::Url::parse(
                 "https://data.sec.gov/api/xbrl/companyfacts/CIK9999999999.json",
             )
-            .expect("Hardcoded URL should always be valid."),
+            .expect("Hardcoded URL should always be valid"),
             status: StatusCode::OK,
             headers: HashMap::new(),
             content_type: ContentType::Json,
@@ -307,7 +307,7 @@ mod tests {
         let expected_result = &ValidateSecResponseInput::new(final_response);
 
         StateData::update_state(&mut input_data, updater)
-            .expect("Update with valid value should succeed");
+            .expect("Valid update should always succeed with valid input");
         let result = input_data.state();
 
         assert_eq!(result, expected_result);

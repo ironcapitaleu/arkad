@@ -29,7 +29,7 @@
 //!     // Prepare response (typically from ExecuteSecRequest state)
 //!     let sec_response = SecResponse::default();
 //!     
-//!     let cik = Cik::new("1067983").expect("Valid CIK");
+//!     let cik = Cik::new("1067983").expect("Hardcoded CIK string should be valid format");
 //!     let input = ValidateSecResponseInput::new(sec_response);
 //!     let context = ValidateSecResponseContext::new(cik);
 //!
@@ -92,7 +92,7 @@ pub use data::ValidateSecResponseOutput;
 /// use sec::shared::cik::Cik;
 ///
 /// let sec_response = SecResponse::default();
-/// let cik = Cik::new("1067983").expect("Valid CIK");
+/// let cik = Cik::new("1067983").expect("Hardcoded CIK string should be valid format");
 /// let input = ValidateSecResponseInput::new(sec_response);
 /// let context = ValidateSecResponseContext::new(cik);
 /// let mut validate_state = ValidateSecResponse::new(input, context);
@@ -247,13 +247,13 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "output should not be empty")]
+    #[should_panic(expected = "State with valid input should always produce output after computation")]
     fn should_panic_when_trying_to_access_output_data_before_it_has_been_computed_in_state() {
         let validate_state = ValidateSecResponse::default();
 
         let _result = validate_state
             .output_data()
-            .expect("The output should not be empty.");
+            .expect("State with valid input should always produce output after computation");
     }
 
     #[test]
@@ -280,7 +280,7 @@ mod tests {
 
     #[test]
     fn should_create_new_validate_state_with_provided_input_and_context() {
-        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid.");
+        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
         let sec_response = SecResponse::default();
         let input = ValidateSecResponseInput::new(sec_response.clone());
         let context = ValidateSecResponseContext::new(cik.clone());
@@ -298,12 +298,12 @@ mod tests {
 
     #[tokio::test]
     async fn should_return_correct_output_data_when_computing_output_data() {
-        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid.");
+        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
         let sec_response = SecResponse {
             url: reqwest::Url::parse(
                 "https://data.sec.gov/api/xbrl/companyfacts/CIK1234567890.json",
             )
-            .expect("Hardcoded URL should always be valid."),
+            .expect("Hardcoded URL should always be valid"),
             status: StatusCode::OK,
             headers: HashMap::new(),
             content_type: ContentType::Json,
@@ -318,7 +318,7 @@ mod tests {
         validate_state
             .compute_output_data_async()
             .await
-            .expect("Should succeed with valid response.");
+            .expect("Should succeed with valid response");
         let result = validate_state.has_output_data_been_computed();
 
         assert_eq!(result, expected_result);
@@ -326,12 +326,12 @@ mod tests {
 
     #[tokio::test]
     async fn should_return_true_when_output_data_has_been_computed() {
-        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid.");
+        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
         let sec_response = SecResponse {
             url: reqwest::Url::parse(
                 "https://data.sec.gov/api/xbrl/companyfacts/CIK1234567890.json",
             )
-            .expect("Hardcoded URL should always be valid."),
+            .expect("Hardcoded URL should always be valid"),
             status: StatusCode::OK,
             headers: HashMap::new(),
             content_type: ContentType::Json,
@@ -344,7 +344,7 @@ mod tests {
         validate_state
             .compute_output_data_async()
             .await
-            .expect("Computation should succeed");
+            .expect("Valid test state should compute output successfully");
         let result = validate_state.has_output_data_been_computed();
 
         assert!(result);
@@ -352,12 +352,12 @@ mod tests {
 
     #[tokio::test]
     async fn should_fail_when_response_status_code_is_not_success() {
-        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid.");
+        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
         let sec_response = SecResponse {
             url: reqwest::Url::parse(
                 "https://data.sec.gov/api/xbrl/companyfacts/CIK1234567890.json",
             )
-            .expect("Hardcoded URL should always be valid."),
+            .expect("Hardcoded URL should always be valid"),
             status: StatusCode::BAD_REQUEST,
             headers: HashMap::new(),
             content_type: ContentType::Json,
@@ -374,12 +374,12 @@ mod tests {
 
     #[tokio::test]
     async fn should_not_change_input_data_when_computing_output_data() {
-        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid.");
+        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
         let sec_response = SecResponse {
             url: reqwest::Url::parse(
                 "https://data.sec.gov/api/xbrl/companyfacts/CIK1234567890.json",
             )
-            .expect("Hardcoded URL should always be valid."),
+            .expect("Hardcoded URL should always be valid"),
             status: StatusCode::OK,
             headers: HashMap::new(),
             content_type: ContentType::Json,
@@ -394,7 +394,7 @@ mod tests {
         validate_state
             .compute_output_data_async()
             .await
-            .expect("Should succeed");
+            .expect("Valid state should compute output successfully");
         let result = validate_state.input_data();
 
         assert_eq!(result, &expected_result);
@@ -510,13 +510,13 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "output should not be empty")]
+    #[should_panic(expected = "State with valid input should always produce output after computation")]
     fn should_panic_when_trying_to_access_output_data_before_it_has_been_computed_in_reference_state()
      {
         let ref_to_validate_state = &ValidateSecResponse::default();
         let _result = ref_to_validate_state
             .output_data()
-            .expect("The output should not be empty.");
+            .expect("State with valid input should always produce output after computation");
     }
 
     #[test]

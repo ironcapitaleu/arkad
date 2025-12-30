@@ -28,8 +28,8 @@
 //! #[tokio::main]
 //! async fn main() {
 //!     // Prepare client and request (typically from PrepareSecRequest state)
-//!     let client = SecClient::new("Test Company contact@test.com").expect("Valid user agent");
-//!     let cik = Cik::new("1067983").expect("Valid CIK");
+//!     let client = SecClient::new("Test Company contact@test.com").expect("Hardcoded user agent string should be valid format");
+//!     let cik = Cik::new("1067983").expect("Hardcoded CIK string should be valid format");
 //!     let request = SecRequest::new(&cik);
 //!     
 //!     let input = ExecuteSecRequestInput::new(client, request);
@@ -92,8 +92,8 @@ use state_maschine::prelude::State as SMState;
 /// use sec::shared::sec_request::SecRequest;
 /// use sec::shared::cik::Cik;
 ///
-/// let client = SecClient::new("Sample Corp contact@sample.com").expect("Valid user agent");
-/// let cik = Cik::new("1067983").expect("Valid CIK");
+/// let client = SecClient::new("Sample Corp contact@sample.com").expect("Hardcoded user agent string should be valid format");
+/// let cik = Cik::new("1067983").expect("Hardcoded CIK string should be valid format");
 /// let request = SecRequest::new(&cik);
 /// let input = ExecuteSecRequestInput::new(client, request);
 /// let context = ExecuteSecRequestContext::default();
@@ -243,12 +243,12 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "output should not be empty")]
+    #[should_panic(expected = "State with valid input should always produce output after computation")]
     fn should_panic_when_trying_to_access_output_data_before_it_has_been_computed_in_state() {
         let execute_state = ExecuteSecRequest::default();
         let _result = execute_state
             .output_data()
-            .expect("The output should not be empty.");
+            .expect("State with valid input should always produce output after computation");
     }
 
     #[test]
@@ -269,9 +269,9 @@ mod tests {
 
     #[test]
     fn should_create_new_execute_state_with_provided_input_and_context() {
-        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid.");
+        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
         let client = SecClient::new("Test Company contact@test.com")
-            .expect("Hardcoded user agent should always be valid.");
+            .expect("Hardcoded user agent should always be valid");
         let request = SecRequest::new(&cik);
         let input = ExecuteSecRequestInput::new(client, request);
         let context = ExecuteSecRequestContext::default();
@@ -392,13 +392,13 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "output should not be empty")]
+    #[should_panic(expected = "State with valid input should always produce output after computation")]
     fn should_panic_when_trying_to_access_output_data_before_it_has_been_computed_in_reference_state()
      {
         let ref_to_execute_state = &ExecuteSecRequest::default();
         let _result = ref_to_execute_state
             .output_data()
-            .expect("The output should not be empty.");
+            .expect("State with valid input should always produce output after computation");
     }
 
     #[test]
@@ -420,9 +420,9 @@ mod tests {
 
     #[tokio::test]
     async fn should_not_change_input_data_when_computing_output_data() {
-        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid.");
+        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
         let client = SecClient::new("Test Company contact@test.com")
-            .expect("Hardcoded user agent should always be valid.");
+            .expect("Hardcoded user agent should always be valid");
         let request = SecRequest::new(&cik);
         let input = ExecuteSecRequestInput::new(client, request);
         let context = ExecuteSecRequestContext::default();
@@ -433,7 +433,7 @@ mod tests {
         execute_state
             .compute_output_data_async()
             .await
-            .expect("Valid state should always compute output data.");
+            .expect("Valid state should always compute output data");
         let result = execute_state.input_data();
 
         assert_eq!(result, expected_result);
@@ -441,9 +441,9 @@ mod tests {
 
     #[tokio::test]
     async fn should_return_correct_output_data_when_computing_output_data() {
-        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid.");
+        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
         let client = SecClient::new("Test Company contact@test.com")
-            .expect("Hardcoded user agent should always be valid.");
+            .expect("Hardcoded user agent should always be valid");
         let request = SecRequest::new(&cik);
         let input = ExecuteSecRequestInput::new(client, request);
         let context = ExecuteSecRequestContext::default();
@@ -452,7 +452,7 @@ mod tests {
         execute_state
             .compute_output_data_async()
             .await
-            .expect("Valid state should always compute output data.");
+            .expect("Valid state should always compute output data");
         let result = execute_state.output_data().unwrap();
 
         // Verify that we got a response (the exact content depends on network availability)
@@ -462,9 +462,9 @@ mod tests {
 
     #[tokio::test]
     async fn should_return_true_when_output_data_has_been_computed() {
-        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid.");
+        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
         let client = SecClient::new("Test Company contact@test.com")
-            .expect("Hardcoded user agent should always be valid.");
+            .expect("Hardcoded user agent should always be valid");
         let request = SecRequest::new(&cik);
         let input = ExecuteSecRequestInput::new(client, request);
         let context = ExecuteSecRequestContext::default();
@@ -475,7 +475,7 @@ mod tests {
         execute_state
             .compute_output_data_async()
             .await
-            .expect("Valid state should always compute output data.");
+            .expect("Valid state should always compute output data");
         let result = execute_state.has_output_data_been_computed();
 
         assert_eq!(result, expected_result);
@@ -483,9 +483,9 @@ mod tests {
 
     #[tokio::test]
     async fn should_succeed_when_valid_input_is_provided() {
-        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid.");
+        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
         let client = SecClient::new("Test Company contact@test.com")
-            .expect("Hardcoded user agent should always be valid.");
+            .expect("Hardcoded user agent should always be valid");
         let request = SecRequest::new(&cik);
         let input = ExecuteSecRequestInput::new(client, request);
         let context = ExecuteSecRequestContext::default();

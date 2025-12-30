@@ -25,7 +25,7 @@
 //!
 //! #[tokio::main]
 //! async fn main() {
-//!     let cik = Cik::new("1067983").expect("Valid CIK");
+//!     let cik = Cik::new("1067983").expect("Hardcoded CIK string should be valid format");
 //!     let user_agent = "Test Company contact@test.com".to_string();
 //!     let input = PrepareSecRequestInput::new(cik, user_agent);
 //!     let context = PrepareSecRequestContext::default();
@@ -87,7 +87,7 @@ pub use data::PrepareSecRequestOutput;
 /// use sec::implementations::states::extract::prepare_sec_request::*;
 /// use sec::shared::cik::Cik;
 ///
-/// let cik = Cik::new("1067983").expect("Valid CIK");
+/// let cik = Cik::new("1067983").expect("Hardcoded CIK string should be valid format");
 /// let user_agent = "Sample Corp contact@sample.com".to_string();
 /// let input = PrepareSecRequestInput::new(cik, user_agent);
 /// let context = PrepareSecRequestContext::default();
@@ -232,12 +232,12 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "output should not be empty")]
+    #[should_panic(expected = "State with valid input should always produce output after computation")]
     fn should_panic_when_trying_to_access_output_data_before_it_has_been_computed_in_state() {
         let prepare_state = PrepareSecRequest::default();
         let _result = prepare_state
             .output_data()
-            .expect("The output should not be empty.");
+            .expect("State with valid input should always produce output after computation");
     }
 
     #[test]
@@ -258,7 +258,7 @@ mod tests {
 
     #[test]
     fn should_create_new_prepare_state_with_provided_input_and_context() {
-        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid.");
+        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
         let user_agent = "Test Company contact@test.com".to_string();
         let input = PrepareSecRequestInput::new(cik.clone(), user_agent.clone());
         let context = PrepareSecRequestContext::default();
@@ -379,13 +379,13 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "output should not be empty")]
+    #[should_panic(expected = "State with valid input should always produce output after computation")]
     fn should_panic_when_trying_to_access_output_data_before_it_has_been_computed_in_reference_state()
      {
         let ref_to_prepare_state = &PrepareSecRequest::default();
         let _result = ref_to_prepare_state
             .output_data()
-            .expect("The output should not be empty.");
+            .expect("State with valid input should always produce output after computation");
     }
 
     #[test]
@@ -407,7 +407,7 @@ mod tests {
 
     #[tokio::test]
     async fn should_not_change_input_data_when_computing_output_data() {
-        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid.");
+        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
         let user_agent = "Test Company contact@test.com".to_string();
         let input = PrepareSecRequestInput::new(cik, user_agent);
         let context = PrepareSecRequestContext::default();
@@ -418,7 +418,7 @@ mod tests {
         prepare_state
             .compute_output_data_async()
             .await
-            .expect("Valid state should always compute output data.");
+            .expect("Valid state should always compute output data");
         let result = prepare_state.input_data();
 
         assert_eq!(result, expected_result);
@@ -426,7 +426,7 @@ mod tests {
 
     #[tokio::test]
     async fn should_return_correct_output_data_when_computing_output_data() {
-        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid.");
+        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
         let user_agent = "Test Company contact@test.com".to_string();
         let input = PrepareSecRequestInput::new(cik, user_agent);
         let context = PrepareSecRequestContext::default();
@@ -435,7 +435,7 @@ mod tests {
         prepare_state
             .compute_output_data_async()
             .await
-            .expect("Valid state should always compute output data.");
+            .expect("Valid state should always compute output data");
         let result = prepare_state.output_data().unwrap();
 
         assert!(!result.client().id().is_empty());
@@ -451,7 +451,7 @@ mod tests {
 
     #[tokio::test]
     async fn should_return_true_when_output_data_has_been_computed() {
-        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid.");
+        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
         let user_agent = "Test Company contact@test.com".to_string();
         let input = PrepareSecRequestInput::new(cik, user_agent);
         let context = PrepareSecRequestContext::default();
@@ -462,7 +462,7 @@ mod tests {
         prepare_state
             .compute_output_data_async()
             .await
-            .expect("Valid state should always compute output data.");
+            .expect("Valid state should always compute output data");
         let result = prepare_state.has_output_data_been_computed();
 
         assert_eq!(result, expected_result);
@@ -470,7 +470,7 @@ mod tests {
 
     #[tokio::test]
     async fn should_fail_when_user_agent_is_invalid() {
-        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid.");
+        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
         let invalid_user_agent = "Invalid User Agent".to_string(); // Missing email
         let input = PrepareSecRequestInput::new(cik, invalid_user_agent);
         let context = PrepareSecRequestContext::default();
@@ -483,7 +483,7 @@ mod tests {
 
     #[tokio::test]
     async fn should_succeed_when_valid_input_is_provided() {
-        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid.");
+        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
         let user_agent = "Test Company contact@test.com".to_string();
         let input = PrepareSecRequestInput::new(cik, user_agent);
         let context = PrepareSecRequestContext::default();

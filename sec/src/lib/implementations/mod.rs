@@ -37,7 +37,7 @@
 //!     state.compute_output_data_async().await;
 //!
 //!     // Retrieve the validated CIK from the output data of the state
-//!     let result = state.output_data().expect("Output data should always be present in provided `ValidateCikFormat` state.").validated_cik.value();
+//!     let result = state.output_data().expect("Output data should always be present in provided `ValidateCikFormat` state").validated_cik.value();
 //!
 //!     assert_eq!(result, expected_result);
 //! }

@@ -226,9 +226,9 @@ mod tests {
 
     #[test]
     fn should_create_new_input_data_with_provided_client_and_request() {
-        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid.");
+        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
         let client = SecClient::new("Test Company contact@test.com")
-            .expect("Hardcoded user agent should always be valid.");
+            .expect("Hardcoded user agent should always be valid");
         let request = SecRequest::new(&cik);
 
         let expected_result = ExecuteSecRequestInput {
@@ -243,9 +243,9 @@ mod tests {
 
     #[test]
     fn should_return_client_reference_when_accessing_sec_client() {
-        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid.");
+        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
         let client = SecClient::new("Test Company contact@test.com")
-            .expect("Hardcoded user agent should always be valid.");
+            .expect("Hardcoded user agent should always be valid");
         let request = SecRequest::new(&cik);
         let input_data = ExecuteSecRequestInput::new(client.clone(), request);
 
@@ -258,9 +258,9 @@ mod tests {
 
     #[test]
     fn should_return_request_reference_when_accessing_sec_request() {
-        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid.");
+        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
         let client = SecClient::new("Test Company contact@test.com")
-            .expect("Hardcoded user agent should always be valid.");
+            .expect("Hardcoded user agent should always be valid");
         let request = SecRequest::new(&cik);
         let input_data = ExecuteSecRequestInput::new(client, request.clone());
 
@@ -273,9 +273,9 @@ mod tests {
 
     #[test]
     fn should_return_ok_when_updating_with_updater() {
-        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid.");
+        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
         let client = SecClient::new("Test Company contact@test.com")
-            .expect("Hardcoded user agent should always be valid.");
+            .expect("Hardcoded user agent should always be valid");
         let request = SecRequest::new(&cik);
         let mut input_data = ExecuteSecRequestInput::new(client, request);
 
@@ -290,11 +290,11 @@ mod tests {
 
     #[test]
     fn should_update_sec_client_when_updater_contains_client() {
-        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid.");
+        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
         let original_client = SecClient::new("Original Company contact@original.com")
-            .expect("Hardcoded user agent should always be valid.");
+            .expect("Hardcoded user agent should always be valid");
         let new_client = SecClient::new("New Company contact@new.com")
-            .expect("Hardcoded user agent should always be valid.");
+            .expect("Hardcoded user agent should always be valid");
         let request = SecRequest::new(&cik);
         let mut input_data = ExecuteSecRequestInput::new(original_client, request);
 
@@ -313,10 +313,10 @@ mod tests {
 
     #[test]
     fn should_update_sec_request_when_updater_contains_request() {
-        let original_cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid.");
-        let new_cik = Cik::new("0987654321").expect("Hardcoded CIK should always be valid.");
+        let original_cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
+        let new_cik = Cik::new("0987654321").expect("Hardcoded CIK should always be valid");
         let client = SecClient::new("Test Company contact@test.com")
-            .expect("Hardcoded user agent should always be valid.");
+            .expect("Hardcoded user agent should always be valid");
         let original_request = SecRequest::new(&original_cik);
         let new_request = SecRequest::new(&new_cik);
         let mut input_data = ExecuteSecRequestInput::new(client, original_request);
@@ -336,12 +336,12 @@ mod tests {
 
     #[test]
     fn should_update_sec_client_when_updater_contains_both_fields() {
-        let original_cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid.");
-        let new_cik = Cik::new("0987654321").expect("Hardcoded CIK should always be valid.");
+        let original_cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
+        let new_cik = Cik::new("0987654321").expect("Hardcoded CIK should always be valid");
         let original_client = SecClient::new("Original Company contact@original.com")
-            .expect("Hardcoded user agent should always be valid.");
+            .expect("Hardcoded user agent should always be valid");
         let new_client = SecClient::new("New Company contact@new.com")
-            .expect("Hardcoded user agent should always be valid.");
+            .expect("Hardcoded user agent should always be valid");
         let original_request = SecRequest::new(&original_cik);
         let new_request = SecRequest::new(&new_cik);
         let mut input_data = ExecuteSecRequestInput::new(original_client, original_request);
@@ -362,12 +362,12 @@ mod tests {
 
     #[test]
     fn should_update_sec_request_when_updater_contains_both_fields() {
-        let original_cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid.");
-        let new_cik = Cik::new("0987654321").expect("Hardcoded CIK should always be valid.");
+        let original_cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
+        let new_cik = Cik::new("0987654321").expect("Hardcoded CIK should always be valid");
         let original_client = SecClient::new("Original Company contact@original.com")
-            .expect("Hardcoded user agent should always be valid.");
+            .expect("Hardcoded user agent should always be valid");
         let new_client = SecClient::new("New Company contact@new.com")
-            .expect("Hardcoded user agent should always be valid.");
+            .expect("Hardcoded user agent should always be valid");
         let original_request = SecRequest::new(&original_cik);
         let new_request = SecRequest::new(&new_cik);
         let mut input_data = ExecuteSecRequestInput::new(original_client, original_request);
@@ -388,9 +388,9 @@ mod tests {
 
     #[test]
     fn should_not_update_fields_when_updater_is_empty() {
-        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid.");
+        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
         let client = SecClient::new("Test Company contact@test.com")
-            .expect("Hardcoded user agent should always be valid.");
+            .expect("Hardcoded user agent should always be valid");
         let request = SecRequest::new(&cik);
         let original_input_data = ExecuteSecRequestInput::new(client, request);
         let mut input_data = original_input_data.clone();

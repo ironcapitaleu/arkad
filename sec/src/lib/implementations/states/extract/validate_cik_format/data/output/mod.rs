@@ -114,7 +114,7 @@ impl Default for ValidateCikFormatOutput {
     fn default() -> Self {
         Self {
             validated_cik: Cik::new(BERKSHIRE_HATHAWAY_CIK_RAW)
-                .expect("Hardcoded CIK should always be valid."),
+                .expect("Hardcoded CIK should always be valid"),
         }
     }
 }
@@ -168,7 +168,7 @@ impl ValidateCikFormatOutputUpdaterBuilder {
     ///
     /// Panics if the CIK is not valid.
     pub fn cik(mut self, cik: impl Into<String>) -> Self {
-        self.cik = Some(Cik::new(&cik.into()).expect("CIK must be valid."));
+        self.cik = Some(Cik::new(&cik.into()).expect("Provided CIK string must be valid format"));
         self
     }
 
@@ -233,7 +233,7 @@ mod tests {
             .expect("Provided hardcoded CIK should always be valid");
 
         StateData::update_state(&mut state_data, update)
-            .expect("Provided hardcoded update should succeed.");
+            .expect("Provided hardcoded update should succeed");
         let result = state_data.state();
 
         assert_eq!(result, expected_result);
@@ -248,10 +248,10 @@ mod tests {
             .build();
 
         let expected_result = &ValidateCikFormatOutput::new("0067890")
-            .expect("Provided hardcoded CIK should always be valid.");
+            .expect("Provided hardcoded CIK should always be valid");
 
         StateData::update_state(&mut state_data, update)
-            .expect("Provided hardcoded update should succeed.");
+            .expect("Provided hardcoded update should succeed");
         let result = state_data.state();
 
         assert_eq!(result, expected_result);
@@ -265,7 +265,7 @@ mod tests {
         let expected_result = &ValidateCikFormatOutput::default();
 
         StateData::update_state(&mut state_data, empty_update)
-            .expect("Provided hardcoded update should succeed.");
+            .expect("Provided hardcoded update should succeed");
         let result = state_data.state();
 
         assert_eq!(result, expected_result);
@@ -276,7 +276,7 @@ mod tests {
      {
         let validation_state_data = &ValidateCikFormatOutput::default();
         let formatted_and_validated_berkshire_cik = Cik::new(BERKSHIRE_HATHAWAY_CIK_RAW)
-            .expect("Provided hardcoded CIK should always be valid.");
+            .expect("Provided hardcoded CIK should always be valid");
 
         let expected_result = formatted_and_validated_berkshire_cik.value();
 

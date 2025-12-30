@@ -209,14 +209,14 @@ mod tests {
     fn should_be_able_to_create_state_error_when_casting_from_specific_state_machine() {
         let _result: State = StateMachine::State(State::InvalidInput)
             .try_into()
-            .expect("Should always be able to cast provided harcdcoded `StateMachine` error into `State` error.");
+            .expect("Should always be able to cast provided hardcoded `StateMachine` error into `State` error");
     }
 
     #[test]
     fn should_be_able_to_create_transition_error_when_casting_from_specific_state_machine() {
         let _result: Transition = StateMachine::Transition(Transition::FailedContextConversion)
             .try_into()
-            .expect("Should always be able to cast provided harcdcoded `StateMachine` error into `Transition` error.");
+            .expect("Should always be able to cast provided hardcoded `StateMachine` error into `Transition` error");
     }
 
     #[test]

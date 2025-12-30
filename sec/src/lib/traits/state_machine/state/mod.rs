@@ -81,13 +81,13 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "output should not be empty")]
+    #[should_panic(expected = "State with valid input should always produce output after computation")]
     fn should_panic_when_trying_to_access_output_data_before_it_has_been_computed_in_state() {
         let sample_state = SampleSecState::default();
 
         let _result = sample_state
             .output_data()
-            .expect("The output should not be empty.");
+            .expect("State with valid input should always produce output after computation");
     }
 
     #[test]
@@ -221,14 +221,14 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "output should not be empty")]
+    #[should_panic(expected = "State with valid input should always produce output after computation")]
     fn should_panic_when_trying_to_access_output_data_before_it_has_been_computed_in_reference_state()
      {
         let ref_to_sample_state = &SampleSecState::default();
 
         let _result = ref_to_sample_state
             .output_data()
-            .expect("The output should not be empty.");
+            .expect("State with valid input should always produce output after computation");
     }
 
     #[test]
@@ -263,7 +263,7 @@ mod tests {
         sample_state
             .compute_output_data_async()
             .await
-            .expect("Default state should always compute output data.");
+            .expect("Default test state should always compute output successfully");
         let result = sample_state.input_data();
 
         assert_eq!(result, expected_result);
@@ -278,7 +278,7 @@ mod tests {
         sample_state
             .compute_output_data_async()
             .await
-            .expect("Default state should always compute output data.");
+            .expect("Default test state should always compute output successfully");
 
         let result = sample_state.output_data().unwrap();
 

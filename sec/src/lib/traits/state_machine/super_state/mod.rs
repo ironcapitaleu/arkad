@@ -85,7 +85,7 @@ mod tests {
         super_state
             .compute_output_data_async()
             .await
-            .expect("Computation should succeed");
+            .expect("Valid test state should compute output successfully");
 
         assert!(super_state.output_data().is_none()); // Super state output is still None
         assert!(super_state.current_state().output_data().is_some()); // Inner state has output

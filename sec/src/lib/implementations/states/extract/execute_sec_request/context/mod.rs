@@ -18,15 +18,14 @@
 //! use sec::shared::cik::Cik;
 //! use state_maschine::prelude::*;
 //!
-//! let cik = Cik::new("1234567890").expect("Valid CIK");
+//! let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
 //! let mut context = ExecuteSecRequestContext::new(cik);
 //! let update = ExecuteSecRequestContextUpdater::builder()
-//!     .cik(Cik::new("0987654321").expect("Valid CIK"))
+//!     .cik(Cik::new("0987654321").expect("Hardcoded CIK should always be valid")
 //!     .build();
 //! context.update_context(update);
 //! assert_eq!(context.cik().to_string(), "0987654321");
 //! ```
-//!
 //! ## See Also
 //! - [`crate::traits::state_machine::state::Context`]: Trait for context management in states.
 //! - [`crate::implementations::states::extract::execute_sec_request`]: Parent module for the SEC request execution state and data types.
@@ -193,7 +192,7 @@ mod tests {
 
     #[test]
     fn should_create_new_context_with_provided_cik() {
-        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid.");
+        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
         let expected_cik = cik.clone();
         let expected_max_retries = 0;
 
@@ -205,7 +204,7 @@ mod tests {
 
     #[test]
     fn should_return_cik_reference_when_accessing_cik() {
-        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid.");
+        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
         let context = ExecuteSecRequestContext::new(cik.clone());
 
         let expected_result = &cik;
@@ -216,7 +215,7 @@ mod tests {
 
     #[test]
     fn should_return_max_retries_when_accessing_max_retries() {
-        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid.");
+        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
         let context = ExecuteSecRequestContext::new(cik);
 
         let expected_result = 0;
@@ -227,8 +226,8 @@ mod tests {
 
     #[test]
     fn should_update_cik_when_updater_contains_cik() {
-        let original_cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid.");
-        let new_cik = Cik::new("0987654321").expect("Hardcoded CIK should always be valid.");
+        let original_cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
+        let new_cik = Cik::new("0987654321").expect("Hardcoded CIK should always be valid");
         let mut context = ExecuteSecRequestContext::new(original_cik);
 
         let updater = ExecuteSecRequestContextUpdater::builder()
@@ -242,7 +241,7 @@ mod tests {
 
     #[test]
     fn should_not_update_fields_when_updater_is_empty() {
-        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid.");
+        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
         let original_context = ExecuteSecRequestContext::new(cik.clone());
         let mut context = original_context.clone();
 
@@ -267,7 +266,7 @@ mod tests {
 
     #[test]
     fn should_return_context_reference_when_accessing_context() {
-        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid.");
+        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
         let context = ExecuteSecRequestContext::new(cik);
 
         let expected_result = &context;
@@ -278,7 +277,7 @@ mod tests {
 
     #[test]
     fn should_display_context_information_when_formatted() {
-        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid.");
+        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
         let context = ExecuteSecRequestContext::new(cik);
 
         let expected_result = "Context Data: 1234567890";

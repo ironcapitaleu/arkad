@@ -56,7 +56,7 @@ impl PrepareSecRequestInput {
     /// use sec::implementations::states::extract::prepare_sec_request::data::input::PrepareSecRequestInput;
     /// use sec::shared::cik::Cik;
     ///
-    /// let cik = Cik::new("1067983").expect("Valid CIK");
+    /// let cik = Cik::new("1067983").expect("Hardcoded CIK string should be valid format");
     /// let user_agent = "Test Company contact@test.com".to_string();
     /// let input_data = PrepareSecRequestInput::new(cik, user_agent);
     /// ```
@@ -240,7 +240,7 @@ mod tests {
 
     #[test]
     fn should_create_different_state_data_with_custom_data_when_using_new_as_constructor() {
-        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid.");
+        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
         let user_agent = "Custom Company contact@custom.com".to_string();
         let prepare_state_data = PrepareSecRequestInput::new(cik, user_agent);
 
@@ -254,7 +254,7 @@ mod tests {
     #[test]
     fn should_update_state_data_to_specified_values_when_update_contains_specified_values() {
         let mut state_data = PrepareSecRequestInput::default();
-        let new_cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid.");
+        let new_cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
         let new_user_agent = "Updated Company contact@updated.com".to_string();
         let update = PrepareSecRequestInputUpdaterBuilder::default()
             .validated_cik(new_cik.clone(), new_user_agent.clone())
@@ -263,7 +263,7 @@ mod tests {
         let expected_result = &PrepareSecRequestInput::new(new_cik, new_user_agent);
 
         StateData::update_state(&mut state_data, update)
-            .expect("Update with valid 'update' value should always succeed.");
+            .expect("Update with valid 'update' value should always succeed");
         let result = state_data.state();
 
         assert_eq!(result, expected_result);
@@ -281,7 +281,7 @@ mod tests {
         let expected_result = &PrepareSecRequestInput::new(original_cik, new_user_agent);
 
         StateData::update_state(&mut state_data, update)
-            .expect("Update with valid 'update' value should always succeed.");
+            .expect("Update with valid 'update' value should always succeed");
         let result = state_data.state();
 
         assert_eq!(result, expected_result);
@@ -291,7 +291,7 @@ mod tests {
     fn should_update_only_cik_when_update_contains_only_cik() {
         let mut state_data = PrepareSecRequestInput::default();
         let original_user_agent = state_data.user_agent.clone();
-        let new_cik = Cik::new("9876543210").expect("Hardcoded CIK should always be valid.");
+        let new_cik = Cik::new("9876543210").expect("Hardcoded CIK should always be valid");
         let update = PrepareSecRequestInputUpdaterBuilder::default()
             .cik(new_cik.clone())
             .build();
@@ -299,7 +299,7 @@ mod tests {
         let expected_result = &PrepareSecRequestInput::new(new_cik, original_user_agent);
 
         StateData::update_state(&mut state_data, update)
-            .expect("Update with valid 'update' value should always succeed.");
+            .expect("Update with valid 'update' value should always succeed");
         let result = state_data.state();
 
         assert_eq!(result, expected_result);
@@ -308,9 +308,9 @@ mod tests {
     #[test]
     fn should_update_state_data_to_latest_specified_values_when_multiple_updates_in_builder() {
         let mut state_data = PrepareSecRequestInput::default();
-        let first_cik = Cik::new("1111111111").expect("Hardcoded CIK should always be valid.");
+        let first_cik = Cik::new("1111111111").expect("Hardcoded CIK should always be valid");
         let first_user_agent = "First Company contact@first.com".to_string();
-        let final_cik = Cik::new("2222222222").expect("Hardcoded CIK should always be valid.");
+        let final_cik = Cik::new("2222222222").expect("Hardcoded CIK should always be valid");
         let final_user_agent = "Final Company contact@final.com".to_string();
 
         let update = PrepareSecRequestInputUpdaterBuilder::default()
@@ -321,7 +321,7 @@ mod tests {
         let expected_result = &PrepareSecRequestInput::new(final_cik, final_user_agent);
 
         StateData::update_state(&mut state_data, update)
-            .expect("Update with valid 'update' value should always succeed.");
+            .expect("Update with valid 'update' value should always succeed");
         let result = state_data.state();
 
         assert_eq!(result, expected_result);
@@ -335,7 +335,7 @@ mod tests {
         let expected_result = &PrepareSecRequestInput::default();
 
         StateData::update_state(&mut state_data, empty_update)
-            .expect("Update with valid 'update' value should always succeed.");
+            .expect("Update with valid 'update' value should always succeed");
         let result = state_data.state();
 
         assert_eq!(result, expected_result);
@@ -343,7 +343,7 @@ mod tests {
 
     #[test]
     fn should_return_validated_cik_when_accessor_method_is_called() {
-        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid.");
+        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
         let user_agent = "Test Company contact@test.com".to_string();
         let prepare_state_data = PrepareSecRequestInput::new(cik.clone(), user_agent);
 
@@ -356,7 +356,7 @@ mod tests {
 
     #[test]
     fn should_return_user_agent_when_accessor_method_is_called() {
-        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid.");
+        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
         let user_agent = "Test Company contact@test.com".to_string();
         let prepare_state_data = PrepareSecRequestInput::new(cik, user_agent.clone());
 
