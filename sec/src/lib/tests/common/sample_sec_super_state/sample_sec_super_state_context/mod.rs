@@ -13,7 +13,7 @@ impl Context for SampleSecSuperStateContext {
 impl SMContext for SampleSecSuperStateContext {
     type UpdateType = ();
 
-    fn get_context(&self) -> &Self {
+    fn context(&self) -> &Self {
         self
     }
 

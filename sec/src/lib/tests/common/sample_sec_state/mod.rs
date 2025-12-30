@@ -34,7 +34,7 @@
 //!
 //!     let mut sample_state = SampleSecState::new(input, context);
 //!     sample_state.compute_output_data_async().await.unwrap();
-//!     let sample_output = sample_state.get_output_data().unwrap();
+//!     let sample_output = sample_state.output_data().unwrap();
 //!     let result = &sample_output.output_data;
 //!
 //!     assert_eq!(result, expected_result);
@@ -93,21 +93,21 @@ impl SMState for SampleSecState {
     type OutputData = SampleSecStateOutput;
     type Context = SampleSecStateContext;
 
-    fn get_state_name(&self) -> impl ToString {
+    fn state_name(&self) -> impl ToString {
         "Sample SEC State"
     }
 
     fn compute_output_data(&mut self) {}
 
-    fn get_context_data(&self) -> &Self::Context {
+    fn context_data(&self) -> &Self::Context {
         &self.context
     }
 
-    fn get_input_data(&self) -> &Self::InputData {
+    fn input_data(&self) -> &Self::InputData {
         &self.input
     }
 
-    fn get_output_data(&self) -> Option<&Self::OutputData> {
+    fn output_data(&self) -> Option<&Self::OutputData> {
         self.output.as_ref()
     }
 }
@@ -121,7 +121,7 @@ impl fmt::Display for SampleSecState {
              Context:\n{}\n\
              Input Data:\n{}\n\
              Output Data:\n{}",
-            self.get_state_name().to_string(),
+            self.state_name().to_string(),
             self.context,
             self.input,
             self.output.as_ref().map_or_else(

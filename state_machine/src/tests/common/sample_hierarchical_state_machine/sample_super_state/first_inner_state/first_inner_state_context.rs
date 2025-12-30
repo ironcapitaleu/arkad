@@ -7,7 +7,7 @@ pub struct FirstInnerStateContext {
 
 impl Context for FirstInnerStateContext {
     type UpdateType = FirstInnerStateContextUpdater;
-    fn get_context(&self) -> &Self {
+    fn context(&self) -> &Self {
         self
     }
 

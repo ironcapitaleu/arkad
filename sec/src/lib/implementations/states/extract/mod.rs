@@ -65,7 +65,7 @@ pub struct ExtractSuperStateData;
 
 impl SMStateData for ExtractSuperStateData {
     type UpdateType = ();
-    fn get_state(&self) -> &Self {
+    fn state(&self) -> &Self {
         self
     }
     fn update_state(&mut self, (): Self::UpdateType) {}
@@ -85,7 +85,7 @@ pub struct ExtractSuperStateContext;
 
 impl SMContext for ExtractSuperStateContext {
     type UpdateType = ();
-    fn get_context(&self) -> &Self {
+    fn context(&self) -> &Self {
         self
     }
     fn update_context(&mut self, (): Self::UpdateType) {}
@@ -120,7 +120,7 @@ impl<S: State> Display for ExtractSuperState<S> {
         write!(
             f,
             "Extract SuperState (Current: {})",
-            self.current_state.get_state_name().to_string()
+            self.current_state.state_name().to_string()
         )
     }
 }
@@ -130,21 +130,21 @@ impl<S: State> SMState for ExtractSuperState<S> {
     type OutputData = ExtractSuperStateData;
     type Context = ExtractSuperStateContext;
 
-    fn get_state_name(&self) -> impl ToString {
+    fn state_name(&self) -> impl ToString {
         format!(
             "Extract SuperState (Current: {})",
-            self.current_state.get_state_name().to_string()
+            self.current_state.state_name().to_string()
         )
     }
-    fn get_input_data(&self) -> &Self::InputData {
+    fn input_data(&self) -> &Self::InputData {
         &self.input
     }
     fn compute_output_data(&mut self) { /* handled by async version */
     }
-    fn get_output_data(&self) -> Option<&Self::OutputData> {
+    fn output_data(&self) -> Option<&Self::OutputData> {
         self.output.as_ref()
     }
-    fn get_context_data(&self) -> &Self::Context {
+    fn context_data(&self) -> &Self::Context {
         &self.context
     }
 }
@@ -160,10 +160,10 @@ impl<S: State> State for ExtractSuperState<S> {
 }
 
 impl<S: State> SMStateMachine<S> for ExtractSuperState<S> {
-    fn get_current_state(&self) -> &S {
+    fn current_state(&self) -> &S {
         &self.current_state
     }
-    fn get_current_state_mut(&mut self) -> &mut S {
+    fn current_state_mut(&mut self) -> &mut S {
         &mut self.current_state
     }
     fn run(&mut self) { /* Placeholder */
@@ -311,7 +311,7 @@ mod tests {
 
         let expected_result = "Extract SuperState (Current: CIK Format Validation)";
 
-        let result = super_state.get_state_name().to_string();
+        let result = super_state.state_name().to_string();
 
         assert_eq!(result, expected_result);
     }
@@ -324,7 +324,7 @@ mod tests {
 
         let expected_result = "Extract SuperState (Current: Prepare SEC Request)";
 
-        let result = super_state.get_state_name().to_string();
+        let result = super_state.state_name().to_string();
 
         assert_eq!(result, expected_result);
     }
@@ -336,7 +336,7 @@ mod tests {
 
         let expected_state_name = "CIK Format Validation";
 
-        let result = super_state.get_current_state().get_state_name().to_string();
+        let result = super_state.current_state().state_name().to_string();
 
         assert_eq!(result, expected_state_name);
     }
@@ -349,7 +349,7 @@ mod tests {
 
         let expected_state_name = "Prepare SEC Request";
 
-        let result = super_state.get_current_state().get_state_name().to_string();
+        let result = super_state.current_state().state_name().to_string();
 
         assert_eq!(result, expected_state_name);
     }
@@ -379,7 +379,7 @@ mod tests {
             .transition_to_next_state_sec()
             .expect("Should transition to ExecuteSecRequest");
 
-        let result = state.get_state_name().to_string();
+        let result = state.state_name().to_string();
 
         assert_eq!(result, expected_result);
     }
@@ -418,7 +418,7 @@ mod tests {
             .transition_to_next_state_sec()
             .expect("Should transition to ValidateSecResponse");
 
-        let result = state.get_state_name().to_string();
+        let result = state.state_name().to_string();
 
         assert_eq!(result, expected_result);
     }
@@ -472,7 +472,7 @@ mod tests {
 
         let result = super_state.transition_to_next_state_sec().unwrap();
 
-        assert_eq!(result.get_state_name().to_string(), expected_result_type);
+        assert_eq!(result.state_name().to_string(), expected_result_type);
     }
 
     #[tokio::test]

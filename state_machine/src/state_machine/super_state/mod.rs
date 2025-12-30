@@ -43,9 +43,9 @@ mod tests {
         let result = hierarchical_state_machine
             .transition_to_next_state()
             .expect("Should not fail inner super state transition to 'SecondInnerState'")
-            .get_current_state()
-            .get_current_state()
-            .get_state_name()
+            .current_state()
+            .current_state()
+            .state_name()
             .to_string();
 
         assert_eq!(result, expected_result);
@@ -62,22 +62,22 @@ mod tests {
             .expect("Should not fail inner super state transition to 'SecondInnerState");
         let result = hierarchical_state_machine.transition_to_next_state()
         .expect("Should not fail transition from inner state 'SecondInnerState' to outer state 'SampleState'")
-        .get_current_state()
-        .get_state_name()
+        .current_state()
+        .state_name()
         .to_string();
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
-    fn should_return_super_state_name_when_calling_get_state_name_from_super_state() {
+    fn should_return_super_state_name_when_calling_state_name_from_super_state() {
         let hierarchical_state_machine = HierarchicalStateMachine::new();
 
         let expected_result = String::from("Super State");
 
         let result = hierarchical_state_machine
-            .get_current_state()
-            .get_state_name()
+            .current_state()
+            .state_name()
             .to_string();
 
         assert_eq!(result, expected_result);

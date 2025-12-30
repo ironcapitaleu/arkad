@@ -90,7 +90,7 @@ impl Context for ExecuteSecRequestContext {
 impl SMContext for ExecuteSecRequestContext {
     type UpdateType = ExecuteSecRequestContextUpdater;
 
-    fn get_context(&self) -> &Self {
+    fn context(&self) -> &Self {
         self
     }
 
@@ -271,7 +271,7 @@ mod tests {
         let context = ExecuteSecRequestContext::new(cik);
 
         let expected_result = &context;
-        let result = context.get_context();
+        let result = context.context();
 
         assert_eq!(result, expected_result);
     }

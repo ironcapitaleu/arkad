@@ -65,7 +65,7 @@ impl ValidateCikFormatOutput {
     /// Returns a [`StateError::InvalidCikFormat`] if the CIK is not formatted correctly.
     fn validate_cik_format(cik: &str) -> Result<Cik, StateError> {
         Cik::new(&cik).map_err(|e| {
-            InvalidCikFormat::from_domain_error(Self::default().get_state().to_string(), e).into()
+            InvalidCikFormat::from_domain_error(Self::default().state().to_string(), e).into()
         })
     }
 
@@ -88,7 +88,7 @@ impl StateData for ValidateCikFormatOutput {
                     Ok(())
                 }
                 Err(e) => {
-                    Err(InvalidCikFormat::from_domain_error(self.get_state().to_string(), e).into())
+                    Err(InvalidCikFormat::from_domain_error(self.state().to_string(), e).into())
                 }
             }
         } else {
@@ -100,7 +100,7 @@ impl SMStateData for ValidateCikFormatOutput {
     type UpdateType = ValidateCikFormatOutputUpdater;
 
     /// Returns a reference to the current state data, , which represents the output data of this state.
-    fn get_state(&self) -> &Self {
+    fn state(&self) -> &Self {
         self
     }
     /// Provided by `SecStateData` trait. Not used in this context.
@@ -205,7 +205,7 @@ mod tests {
 
         let expected_result = &ValidateCikFormatOutput::default();
 
-        let result = validation_state_data.get_state();
+        let result = validation_state_data.state();
 
         assert_eq!(result, expected_result);
     }
@@ -217,7 +217,7 @@ mod tests {
 
         let expected_result = &ValidateCikFormatOutput::default();
 
-        let result = validation_state_data.get_state();
+        let result = validation_state_data.state();
 
         assert_ne!(result, expected_result);
     }
@@ -234,7 +234,7 @@ mod tests {
 
         StateData::update_state(&mut state_data, update)
             .expect("Provided hardcoded update should succeed.");
-        let result = state_data.get_state();
+        let result = state_data.state();
 
         assert_eq!(result, expected_result);
     }
@@ -252,7 +252,7 @@ mod tests {
 
         StateData::update_state(&mut state_data, update)
             .expect("Provided hardcoded update should succeed.");
-        let result = state_data.get_state();
+        let result = state_data.state();
 
         assert_eq!(result, expected_result);
     }
@@ -266,7 +266,7 @@ mod tests {
 
         StateData::update_state(&mut state_data, empty_update)
             .expect("Provided hardcoded update should succeed.");
-        let result = state_data.get_state();
+        let result = state_data.state();
 
         assert_eq!(result, expected_result);
     }
@@ -280,7 +280,7 @@ mod tests {
 
         let expected_result = formatted_and_validated_berkshire_cik.value();
 
-        let result = validation_state_data.get_state().cik();
+        let result = validation_state_data.state().cik();
 
         assert_eq!(result, expected_result);
     }
@@ -292,7 +292,7 @@ mod tests {
         let validation_state_data = &ValidateCikFormatOutput::default();
         let expected_result = BERKSHIRE_HATHAWAY_CIK_RAW;
 
-        let result = validation_state_data.get_state().cik();
+        let result = validation_state_data.state().cik();
 
         assert_eq!(result, expected_result);
     }

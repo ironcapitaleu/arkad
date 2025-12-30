@@ -46,7 +46,7 @@ mod tests {
 
         let expected_result = &SampleSecStateContext::default();
 
-        let result = sample_context.get_context();
+        let result = sample_context.context();
 
         assert_eq!(result, expected_result);
     }
@@ -57,7 +57,7 @@ mod tests {
 
         let default_sample_context = &SampleSecStateContext::default();
 
-        let result = sample_context.get_context();
+        let result = sample_context.context();
 
         assert_ne!(result, default_sample_context);
     }
@@ -72,7 +72,7 @@ mod tests {
         let expected_result = &SampleSecStateContext::new("Updated Data!");
 
         context.update_context(update);
-        let result = context.get_context();
+        let result = context.context();
 
         assert_eq!(result, expected_result);
     }
@@ -88,7 +88,7 @@ mod tests {
         let expected_result = &SampleSecStateContext::new("Latest Data Update!");
 
         context.update_context(update);
-        let result = context.get_context();
+        let result = context.context();
 
         assert_eq!(result, expected_result);
     }
@@ -101,7 +101,7 @@ mod tests {
             .build();
 
         context.update_context(update);
-        let result = context.get_context().data();
+        let result = context.context().data();
 
         assert_ne!(result, "Default Data");
     }
@@ -114,7 +114,7 @@ mod tests {
         let expected_result = &SampleSecStateContext::default();
 
         context.update_context(empty_update);
-        let result = context.get_context();
+        let result = context.context();
 
         assert_eq!(result, expected_result);
     }

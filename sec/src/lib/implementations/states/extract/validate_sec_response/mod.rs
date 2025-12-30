@@ -35,7 +35,7 @@
 //!
 //!     let mut validate_state = ValidateSecResponse::new(input, context);
 //!     // validate_state.compute_output_data_async().await.unwrap();
-//!     // let json_output = validate_state.get_output_data().unwrap();
+//!     // let json_output = validate_state.output_data().unwrap();
 //!
 //!     // Now you have validated JSON data
 //!     // let json_body = json_output.validated_sec_response();
@@ -156,7 +156,7 @@ impl State for ValidateSecResponse {
             }
             Err(e) => {
                 let e: StateError =
-                    InvalidSecResponse::from_domain_error(self.get_state_name().to_string(), e)
+                    InvalidSecResponse::from_domain_error(self.state_name().to_string(), e)
                         .into();
                 return Err(e);
             }
@@ -171,21 +171,21 @@ impl SMState for ValidateSecResponse {
     type OutputData = ValidateSecResponseOutput;
     type Context = ValidateSecResponseContext;
 
-    fn get_state_name(&self) -> impl ToString {
+    fn state_name(&self) -> impl ToString {
         "Validate SEC Response"
     }
 
     fn compute_output_data(&mut self) {}
 
-    fn get_context_data(&self) -> &Self::Context {
+    fn context_data(&self) -> &Self::Context {
         &self.context
     }
 
-    fn get_input_data(&self) -> &Self::InputData {
+    fn input_data(&self) -> &Self::InputData {
         &self.input
     }
 
-    fn get_output_data(&self) -> Option<&Self::OutputData> {
+    fn output_data(&self) -> Option<&Self::OutputData> {
         self.output.as_ref()
     }
 }
@@ -199,7 +199,7 @@ impl fmt::Display for ValidateSecResponse {
              Context:\n{}\n\
              Input Data:\n{}\n\
              Output Data:\n{}",
-            self.get_state_name().to_string(),
+            self.state_name().to_string(),
             self.context,
             self.input,
             self.output.as_ref().map_or_else(
@@ -231,7 +231,7 @@ mod tests {
 
         let expected_result = String::from("Validate SEC Response");
 
-        let result = validate_state.get_state_name().to_string();
+        let result = validate_state.state_name().to_string();
 
         assert_eq!(result, expected_result);
     }
@@ -242,7 +242,7 @@ mod tests {
 
         let expected_result = &ValidateSecResponseInput::default();
 
-        let result = validate_state.get_input_data();
+        let result = validate_state.input_data();
 
         assert_eq!(result, expected_result);
     }
@@ -253,7 +253,7 @@ mod tests {
         let validate_state = ValidateSecResponse::default();
 
         let _result = validate_state
-            .get_output_data()
+            .output_data()
             .expect("The output should not be empty.");
     }
 
@@ -274,7 +274,7 @@ mod tests {
 
         let expected_result = &ValidateSecResponseContext::default();
 
-        let result = validate_state.get_context_data();
+        let result = validate_state.context_data();
 
         assert_eq!(result, expected_result);
     }
@@ -396,7 +396,7 @@ mod tests {
             .compute_output_data_async()
             .await
             .expect("Should succeed");
-        let result = validate_state.get_input_data();
+        let result = validate_state.input_data();
 
         assert_eq!(result, &expected_result);
     }
@@ -492,9 +492,9 @@ mod tests {
         let validate_state = &ValidateSecResponse::default();
         let ref_to_validate_state = &ValidateSecResponse::default();
 
-        let expected_result = validate_state.get_context_data();
+        let expected_result = validate_state.context_data();
 
-        let result = ref_to_validate_state.get_context_data();
+        let result = ref_to_validate_state.context_data();
 
         assert_eq!(result, expected_result);
     }
@@ -516,7 +516,7 @@ mod tests {
      {
         let ref_to_validate_state = &ValidateSecResponse::default();
         let _result = ref_to_validate_state
-            .get_output_data()
+            .output_data()
             .expect("The output should not be empty.");
     }
 
@@ -527,7 +527,7 @@ mod tests {
 
         let expected_result = &ValidateSecResponseInput::default();
 
-        let result = ref_to_validate_state.get_input_data();
+        let result = ref_to_validate_state.input_data();
 
         assert_eq!(result, expected_result);
     }

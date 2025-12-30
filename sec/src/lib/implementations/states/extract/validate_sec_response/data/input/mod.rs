@@ -82,7 +82,7 @@ impl StateData for ValidateSecResponseInput {
 impl SMStateData for ValidateSecResponseInput {
     type UpdateType = ValidateSecResponseInputUpdater;
 
-    fn get_state(&self) -> &Self {
+    fn state(&self) -> &Self {
         self
     }
 
@@ -232,7 +232,7 @@ mod tests {
 
         StateData::update_state(&mut input_data, updater)
             .expect("Update with valid value should succeed");
-        let result = input_data.get_state();
+        let result = input_data.state();
 
         assert_eq!(result, expected_result);
     }
@@ -248,7 +248,7 @@ mod tests {
 
         StateData::update_state(&mut input_data, updater)
             .expect("Update with valid value should succeed");
-        let result = input_data.get_state();
+        let result = input_data.state();
 
         assert_eq!(result, expected_result);
     }
@@ -270,7 +270,7 @@ mod tests {
         let input_data = ValidateSecResponseInput::new(sec_response);
 
         let expected_result = &input_data;
-        let result = input_data.get_state();
+        let result = input_data.state();
 
         assert_eq!(result, expected_result);
     }
@@ -308,7 +308,7 @@ mod tests {
 
         StateData::update_state(&mut input_data, updater)
             .expect("Update with valid value should succeed");
-        let result = input_data.get_state();
+        let result = input_data.state();
 
         assert_eq!(result, expected_result);
     }

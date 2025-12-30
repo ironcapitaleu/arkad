@@ -26,7 +26,7 @@ use std::{fmt::Debug, hash::Hash};
 ///
 /// The `StateData` trait defines two key methods:
 ///
-/// - `get_state`: Returns a reference to the state data. This method provides access to the current state data,
+/// - `state`: Returns a reference to the state data. This method provides access to the current state data,
 ///   allowing the state machine to inspect or read the data.
 /// - `update_state`: Updates the state data based on the provided updates. This method allows modifications to the state data,
 ///   applying the changes specified by the `UpdateType`.
@@ -44,7 +44,7 @@ pub trait StateData:
     /// # Returns
     ///
     /// A reference to the state data of the implementing type.
-    fn get_state(&self) -> &Self;
+    fn state(&self) -> &Self;
 
     /// Updates the internal state data based on the provided updates.
     ///
@@ -70,7 +70,7 @@ mod tests {
 
         let expected_result = &SampleStateData::default();
 
-        let result = sample_state_data.get_state();
+        let result = sample_state_data.state();
 
         assert_eq!(result, expected_result);
     }
@@ -81,7 +81,7 @@ mod tests {
 
         let default_sample_state_data = &SampleStateData::default();
 
-        let result = sample_state_data.get_state();
+        let result = sample_state_data.state();
 
         assert_ne!(result, default_sample_state_data);
     }
@@ -96,7 +96,7 @@ mod tests {
         let expected_result = &SampleStateData::new(String::from("Updated State!"));
 
         state_data.update_state(update);
-        let result = state_data.get_state();
+        let result = state_data.state();
 
         assert_eq!(result, expected_result);
     }
@@ -112,7 +112,7 @@ mod tests {
         let expected_result = &SampleStateData::new(String::from("Latest Update!"));
 
         state_data.update_state(update);
-        let result = state_data.get_state();
+        let result = state_data.state();
 
         assert_eq!(result, expected_result);
     }
@@ -125,7 +125,7 @@ mod tests {
         let expected_result = &SampleStateData::default();
 
         state_data.update_state(empty_update);
-        let result = state_data.get_state();
+        let result = state_data.state();
 
         assert_eq!(result, expected_result);
     }

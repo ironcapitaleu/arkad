@@ -32,7 +32,7 @@
 //!
 //!     let mut validation_state = ValidateCikFormat::new(input, context);
 //!     validation_state.compute_output_data_async().await.unwrap();
-//!     let validated_output = validation_state.get_output_data().unwrap();
+//!     let validated_output = validation_state.output_data().unwrap();
 //!     let result = validated_output.validated_cik.value();
 //!
 //!     assert_eq!(result, expected_result);
@@ -122,7 +122,7 @@ impl State for ValidateCikFormat {
             }
             Err(e) => {
                 let e: StateError =
-                    InvalidCikFormat::from_domain_error(self.get_state_name().to_string(), e)
+                    InvalidCikFormat::from_domain_error(self.state_name().to_string(), e)
                         .into();
                 // If the CIK is invalid, return an error
                 return Err(e);
@@ -138,7 +138,7 @@ impl SMState for ValidateCikFormat {
     type OutputData = ValidateCikFormatOutput;
     type Context = ValidateCikFormatContext;
 
-    fn get_state_name(&self) -> impl ToString {
+    fn state_name(&self) -> impl ToString {
         "CIK Format Validation"
     }
 
@@ -149,15 +149,15 @@ impl SMState for ValidateCikFormat {
         // This function is just a placeholder to satisfy the State trait.
     }
 
-    fn get_context_data(&self) -> &Self::Context {
+    fn context_data(&self) -> &Self::Context {
         &self.context
     }
 
-    fn get_input_data(&self) -> &Self::InputData {
+    fn input_data(&self) -> &Self::InputData {
         &self.input
     }
 
-    fn get_output_data(&self) -> Option<&Self::OutputData> {
+    fn output_data(&self) -> Option<&Self::OutputData> {
         self.output.as_ref()
     }
 }
@@ -171,7 +171,7 @@ impl fmt::Display for ValidateCikFormat {
              Context:\n{}\n\
              Input Data:\n{}\n\
              Output Data:\n{}",
-            self.get_state_name().to_string(),
+            self.state_name().to_string(),
             self.context,
             self.input,
             self.output.as_ref().map_or_else(
@@ -195,7 +195,7 @@ mod tests {
 
         let expected_result = String::from("CIK Format Validation");
 
-        let result = validation_state.get_state_name().to_string();
+        let result = validation_state.state_name().to_string();
 
         assert_eq!(result, expected_result);
     }
@@ -207,7 +207,7 @@ mod tests {
 
         let expected_result = &ValidateCikFormatInput::default();
 
-        let result = validation_state.get_input_data();
+        let result = validation_state.input_data();
 
         assert_eq!(result, expected_result);
     }
@@ -218,7 +218,7 @@ mod tests {
         let validation_state = ValidateCikFormat::default();
 
         let _result = validation_state
-            .get_output_data()
+            .output_data()
             .expect("The output should not be empty.");
     }
 
@@ -239,7 +239,7 @@ mod tests {
 
         let expected_result = &ValidateCikFormatContext::default();
 
-        let result = validation_state.get_context_data();
+        let result = validation_state.context_data();
 
         assert_eq!(result, expected_result);
     }
@@ -334,9 +334,9 @@ mod tests {
         let validation_state = &ValidateCikFormat::default();
         let ref_to_validation_state = &ValidateCikFormat::default();
 
-        let expected_result = validation_state.get_context_data();
+        let expected_result = validation_state.context_data();
 
-        let result = ref_to_validation_state.get_context_data();
+        let result = ref_to_validation_state.context_data();
 
         assert_eq!(result, expected_result);
     }
@@ -359,7 +359,7 @@ mod tests {
         let ref_to_validation_state = &ValidateCikFormat::default();
 
         let _result = ref_to_validation_state
-            .get_output_data()
+            .output_data()
             .expect("The output should not be empty.");
     }
 
@@ -369,7 +369,7 @@ mod tests {
 
         let expected_result = String::from("CIK Format Validation");
 
-        let result = ref_to_validation_state.get_state_name().to_string();
+        let result = ref_to_validation_state.state_name().to_string();
 
         assert_eq!(result, expected_result);
     }
@@ -381,7 +381,7 @@ mod tests {
 
         let expected_result = &ValidateCikFormatInput::default();
 
-        let result = ref_to_validation_state.get_input_data();
+        let result = ref_to_validation_state.input_data();
 
         assert_eq!(result, expected_result);
     }
@@ -390,13 +390,13 @@ mod tests {
     async fn should_not_change_input_data_when_computing_output_data() {
         let mut validation_state = ValidateCikFormat::default();
 
-        let expected_result = &validation_state.get_input_data().clone();
+        let expected_result = &validation_state.input_data().clone();
 
         validation_state
             .compute_output_data_async()
             .await
             .expect("Default state should always compute output data.");
-        let result = validation_state.get_input_data();
+        let result = validation_state.input_data();
 
         assert_eq!(result, expected_result);
     }
@@ -412,7 +412,7 @@ mod tests {
             .await
             .expect("Default state should always compute output data.");
 
-        let result = validation_state.get_output_data().unwrap();
+        let result = validation_state.output_data().unwrap();
 
         assert_eq!(result, expected_result);
     }

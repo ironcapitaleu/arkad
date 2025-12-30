@@ -17,8 +17,8 @@ use crate::state_machine::state::State;
 ///
 /// # Methods
 ///
-/// - `get_current_state`: Returns a reference to the current state of the state machine.
-/// - `get_current_state_mut`: Returns a mutable reference to the current state of the state machine, allowing
+/// - `current_state`: Returns a reference to the current state of the state machine.
+/// - `current_state_mut`: Returns a mutable reference to the current state of the state machine, allowing
 ///   modification of the state.
 /// - `run`: Executes the logic of the state machine. This method is expected to handle state transitions
 ///   and perform any necessary computations.
@@ -30,14 +30,14 @@ pub trait StateMachine<S: State> {
     /// # Returns
     ///
     /// A reference to the current state of type `S`.
-    fn get_current_state(&self) -> &S;
+    fn current_state(&self) -> &S;
 
     /// Returns a mutable reference to the current state of the state machine.
     ///
     /// # Returns
     ///
     /// A mutable reference to the current state of type `S`.
-    fn get_current_state_mut(&mut self) -> &mut S;
+    fn current_state_mut(&mut self) -> &mut S;
 
     /// Runs the state machine, executing its logic.
     ///
@@ -68,8 +68,8 @@ mod tests {
         let sample_state_machine = SimpleStateMachine::default();
 
         let _result = sample_state_machine
-            .get_current_state()
-            .get_output_data()
+            .current_state()
+            .output_data()
             .expect("The output should not be empty.");
     }
 
@@ -82,7 +82,7 @@ mod tests {
         sample_state_machine.advance_state();
 
         let result = sample_state_machine
-            .get_current_state()
+            .current_state()
             .has_output_data_been_computed();
 
         assert_eq!(result, expected_result);
@@ -96,9 +96,9 @@ mod tests {
         sm2.advance_state();
         sm2.advance_state();
 
-        let expected_result = sm1.get_current_state().get_output_data();
+        let expected_result = sm1.current_state().output_data();
 
-        let result = sm2.get_current_state().get_output_data();
+        let result = sm2.current_state().output_data();
 
         assert_eq!(result, expected_result);
     }
@@ -113,7 +113,7 @@ mod tests {
         sample_state_machine.advance_state();
         sample_state_machine.advance_state();
         let result = sample_state_machine
-            .get_current_state()
+            .current_state()
             .has_output_data_been_computed();
 
         assert_eq!(result, expected_result);
@@ -125,7 +125,7 @@ mod tests {
 
         let expected_result = &SampleState::default();
 
-        let result = sample_state_machine.get_current_state();
+        let result = sample_state_machine.current_state();
 
         assert_eq!(result, expected_result);
     }
@@ -137,8 +137,8 @@ mod tests {
         let expected_result = String::from("Sample State");
 
         let result = sample_state_machine
-            .get_current_state()
-            .get_state_name()
+            .current_state()
+            .state_name()
             .to_string();
 
         assert_eq!(result, expected_result);
@@ -151,7 +151,7 @@ mod tests {
 
         let expected_result = &SampleStateData::default();
 
-        let result = sample_state_machine.get_current_state().get_input_data();
+        let result = sample_state_machine.current_state().input_data();
 
         assert_eq!(result, expected_result);
     }
@@ -162,8 +162,8 @@ mod tests {
         let sample_state_machine = SimpleStateMachine::default();
 
         let _result = sample_state_machine
-            .get_current_state()
-            .get_output_data()
+            .current_state()
+            .output_data()
             .expect("The output should not be empty.");
     }
 
@@ -174,7 +174,7 @@ mod tests {
         let expected_result = false;
 
         let result = sample_state_machine
-            .get_current_state()
+            .current_state()
             .has_output_data_been_computed();
 
         assert_eq!(result, expected_result);
@@ -187,10 +187,10 @@ mod tests {
         let expected_result = true;
 
         sample_state_machine
-            .get_current_state_mut()
+            .current_state_mut()
             .compute_output_data();
         let result = sample_state_machine
-            .get_current_state()
+            .current_state()
             .has_output_data_been_computed();
 
         assert_eq!(result, expected_result);
@@ -202,7 +202,7 @@ mod tests {
 
         let expected_result = &SampleStateContext::default();
 
-        let result = sample_state_machine.get_current_state().get_context_data();
+        let result = sample_state_machine.current_state().context_data();
 
         assert_eq!(result, expected_result);
     }

@@ -53,7 +53,7 @@ impl StateData for SampleSecStateOutput {
 impl SMStateData for SampleSecStateOutput {
     type UpdateType = SampleSecStateOutputUpdater;
 
-    fn get_state(&self) -> &Self {
+    fn state(&self) -> &Self {
         self
     }
     fn update_state(&mut self, _updates: Self::UpdateType) {}

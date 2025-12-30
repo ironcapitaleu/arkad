@@ -7,7 +7,7 @@ pub struct SampleSuperStateContext {
 
 impl Context for SampleSuperStateContext {
     type UpdateType = SampleSuperStateContextUpdater;
-    fn get_context(&self) -> &Self {
+    fn context(&self) -> &Self {
         self
     }
 

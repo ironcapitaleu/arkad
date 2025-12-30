@@ -40,18 +40,18 @@ impl TryFrom<PrepareSecRequest> for ExecuteSecRequest {
     type Error = TransitionError;
 
     fn try_from(state: PrepareSecRequest) -> Result<Self, TransitionError> {
-        let output_data = match state.get_output_data() {
+        let output_data = match state.output_data() {
             Some(data) => data.clone(),
             None => {
                 return Err(transition::MissingOutput::new(
                     "Extract SuperState",
-                    state.get_state_name().to_string(),
+                    state.state_name().to_string(),
                 )
                 .into());
             }
         };
 
-        let state_context = state.get_context_data().clone();
+        let state_context = state.context_data().clone();
         let new_context: ExecuteSecRequestContext = state_context.into();
         let new_input: ExecuteSecRequestInput = output_data.into();
 

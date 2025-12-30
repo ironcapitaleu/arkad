@@ -34,7 +34,7 @@ async fn main() {
     let mut prepare_sec_request = PrepareSecRequest::new(
         PrepareSecRequestInput::new(
             validate_cik_state
-                .get_output_data()
+                .output_data()
                 .expect("Should be valid")
                 .validated_cik
                 .clone(),
@@ -54,7 +54,7 @@ async fn main() {
     println!("\n=======================================================");
     println!("Initial ExecuteSecRequest state:");
     let prepare_output = prepare_sec_request
-        .get_output_data()
+        .output_data()
         .expect("PrepareSecRequest should have output data")
         .clone();
 
@@ -85,8 +85,8 @@ async fn main() {
         .expect("Hardcoded default CIK should alaways have a valid format.");
 
     let validated_cik = super_state
-        .get_current_state()
-        .get_output_data()
+        .current_state()
+        .output_data()
         .unwrap()
         .validated_cik
         .value();
@@ -113,8 +113,8 @@ async fn main() {
         .expect("PrepareSecRequest should succeed with valid CIK and user agent.");
 
     let output = super_state
-        .get_current_state()
-        .get_output_data()
+        .current_state()
+        .output_data()
         .expect("PrepareSecRequest should have output data");
 
     println!("{output}");
@@ -136,8 +136,8 @@ async fn main() {
         .expect("ExecuteSecRequest should succeed with valid CIK and user agent.");
 
     let execute_output = super_state
-        .get_current_state()
-        .get_output_data()
+        .current_state()
+        .output_data()
         .expect("ExecuteSecRequest should have output data");
 
     println!("{execute_output}");
@@ -159,8 +159,8 @@ async fn main() {
         .expect("ValidateSecResponse should succeed with valid response.");
 
     let validate_output = super_state
-        .get_current_state()
-        .get_output_data()
+        .current_state()
+        .output_data()
         .expect("ValidateSecResponse should have output data");
 
     println!("{validate_output}");

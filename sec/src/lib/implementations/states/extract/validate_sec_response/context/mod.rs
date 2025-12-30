@@ -90,7 +90,7 @@ impl Context for ValidateSecResponseContext {
 impl SMContext for ValidateSecResponseContext {
     type UpdateType = ValidateSecResponseContextUpdater;
 
-    fn get_context(&self) -> &Self {
+    fn context(&self) -> &Self {
         self
     }
 
@@ -238,7 +238,7 @@ mod tests {
         let expected_result = &ValidateSecResponseContext::new(new_cik);
 
         context.update_context(updater);
-        let result = context.get_context();
+        let result = context.context();
 
         assert_eq!(result, expected_result);
     }
@@ -253,7 +253,7 @@ mod tests {
         let expected_result = &original_context;
 
         context.update_context(updater);
-        let result = context.get_context();
+        let result = context.context();
 
         assert_eq!(result, expected_result);
     }
@@ -276,7 +276,7 @@ mod tests {
         let context = ValidateSecResponseContext::new(cik);
 
         let expected_result = &context;
-        let result = context.get_context();
+        let result = context.context();
 
         assert_eq!(result, expected_result);
     }
@@ -307,7 +307,7 @@ mod tests {
         let expected_result = &ValidateSecResponseContext::new(final_cik);
 
         context.update_context(updater);
-        let result = context.get_context();
+        let result = context.context();
 
         assert_eq!(result, expected_result);
     }

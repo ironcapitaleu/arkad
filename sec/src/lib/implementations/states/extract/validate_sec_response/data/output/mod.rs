@@ -88,7 +88,7 @@ impl StateData for ValidateSecResponseOutput {
 impl SMStateData for ValidateSecResponseOutput {
     type UpdateType = ValidateSecResponseOutputUpdater;
 
-    fn get_state(&self) -> &Self {
+    fn state(&self) -> &Self {
         self
     }
 
@@ -261,7 +261,7 @@ mod tests {
 
         StateData::update_state(&mut output_data, updater)
             .expect("Update with valid value should succeed");
-        let result = output_data.get_state();
+        let result = output_data.state();
 
         assert_eq!(result, expected_result);
     }
@@ -278,7 +278,7 @@ mod tests {
 
         StateData::update_state(&mut output_data, updater)
             .expect("Update with valid value should succeed");
-        let result = output_data.get_state();
+        let result = output_data.state();
 
         assert_eq!(result, expected_result);
     }
@@ -301,7 +301,7 @@ mod tests {
             ValidateSecResponseOutput::new(json_response).expect("Should create output data");
 
         let expected_result = &output_data;
-        let result = output_data.get_state();
+        let result = output_data.state();
 
         assert_eq!(result, expected_result);
     }
@@ -346,7 +346,7 @@ mod tests {
 
         StateData::update_state(&mut output_data, updater)
             .expect("Update with valid value should succeed");
-        let result = output_data.get_state();
+        let result = output_data.state();
 
         assert_eq!(result, expected_result);
     }

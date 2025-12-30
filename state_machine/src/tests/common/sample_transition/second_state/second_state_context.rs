@@ -7,7 +7,7 @@ pub struct SecondStateContext {
 
 impl Context for SecondStateContext {
     type UpdateType = SecondStateContextUpdater;
-    fn get_context(&self) -> &Self {
+    fn context(&self) -> &Self {
         self
     }
 

@@ -64,7 +64,7 @@ mod tests {
 
         let expected_result = String::from("Sample SEC State");
 
-        let result = sample_state.get_state_name().to_string();
+        let result = sample_state.state_name().to_string();
 
         assert_eq!(result, expected_result);
     }
@@ -75,7 +75,7 @@ mod tests {
 
         let expected_result = &SampleSecStateInput::default();
 
-        let result = sample_state.get_input_data();
+        let result = sample_state.input_data();
 
         assert_eq!(result, expected_result);
     }
@@ -86,7 +86,7 @@ mod tests {
         let sample_state = SampleSecState::default();
 
         let _result = sample_state
-            .get_output_data()
+            .output_data()
             .expect("The output should not be empty.");
     }
 
@@ -107,7 +107,7 @@ mod tests {
 
         let expected_result = &SampleSecStateContext::default();
 
-        let result = sample_state.get_context_data();
+        let result = sample_state.context_data();
 
         assert_eq!(result, expected_result);
     }
@@ -202,9 +202,9 @@ mod tests {
         let sample_state = &SampleSecState::default();
         let ref_to_sample_state = &SampleSecState::default();
 
-        let expected_result = sample_state.get_context_data();
+        let expected_result = sample_state.context_data();
 
-        let result = ref_to_sample_state.get_context_data();
+        let result = ref_to_sample_state.context_data();
 
         assert_eq!(result, expected_result);
     }
@@ -227,7 +227,7 @@ mod tests {
         let ref_to_sample_state = &SampleSecState::default();
 
         let _result = ref_to_sample_state
-            .get_output_data()
+            .output_data()
             .expect("The output should not be empty.");
     }
 
@@ -237,7 +237,7 @@ mod tests {
 
         let expected_result = String::from("Sample SEC State");
 
-        let result = ref_to_sample_state.get_state_name().to_string();
+        let result = ref_to_sample_state.state_name().to_string();
 
         assert_eq!(result, expected_result);
     }
@@ -249,7 +249,7 @@ mod tests {
 
         let expected_result = &SampleSecStateInput::default();
 
-        let result = ref_to_sample_state.get_input_data();
+        let result = ref_to_sample_state.input_data();
 
         assert_eq!(result, expected_result);
     }
@@ -258,13 +258,13 @@ mod tests {
     async fn should_not_change_input_data_when_computing_output_data() {
         let mut sample_state = SampleSecState::default();
 
-        let expected_result = &sample_state.get_input_data().clone();
+        let expected_result = &sample_state.input_data().clone();
 
         sample_state
             .compute_output_data_async()
             .await
             .expect("Default state should always compute output data.");
-        let result = sample_state.get_input_data();
+        let result = sample_state.input_data();
 
         assert_eq!(result, expected_result);
     }
@@ -280,7 +280,7 @@ mod tests {
             .await
             .expect("Default state should always compute output data.");
 
-        let result = sample_state.get_output_data().unwrap();
+        let result = sample_state.output_data().unwrap();
 
         assert_eq!(result, expected_result);
     }

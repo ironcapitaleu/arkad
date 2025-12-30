@@ -102,7 +102,7 @@ impl StateData for ExecuteSecRequestInput {
 impl SMStateData for ExecuteSecRequestInput {
     type UpdateType = ExecuteSecRequestInputUpdater;
 
-    fn get_state(&self) -> &Self {
+    fn state(&self) -> &Self {
         self
     }
 

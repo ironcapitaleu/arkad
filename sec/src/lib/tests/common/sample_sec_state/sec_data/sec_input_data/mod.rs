@@ -55,7 +55,7 @@ impl StateData for SampleSecStateInput {
 impl SMStateData for SampleSecStateInput {
     type UpdateType = SampleSecStateInputUpdater;
 
-    fn get_state(&self) -> &Self {
+    fn state(&self) -> &Self {
         self
     }
 

@@ -32,7 +32,7 @@
 //!
 //!     let mut prepare_state = PrepareSecRequest::new(input, context);
 //!     prepare_state.compute_output_data_async().await.unwrap();
-//!     let prepared_output = prepare_state.get_output_data().unwrap();
+//!     let prepared_output = prepare_state.output_data().unwrap();
 //!
 //!     // Now you have a client and request ready for SEC API calls
 //!     let client = prepared_output.client();
@@ -149,7 +149,7 @@ impl State for PrepareSecRequest {
             }
             Err(e) => {
                 let e: StateError =
-                    ClientCreationFailed::new(self.get_state_name().to_string(), e).into();
+                    ClientCreationFailed::new(self.state_name().to_string(), e).into();
                 return Err(e);
             }
         }
@@ -162,7 +162,7 @@ impl SMState for PrepareSecRequest {
     type Context = PrepareSecRequestContext;
 
     /// Returns the human-readable name of this state.
-    fn get_state_name(&self) -> impl ToString {
+    fn state_name(&self) -> impl ToString {
         "Prepare SEC Request"
     }
 
@@ -173,15 +173,15 @@ impl SMState for PrepareSecRequest {
         // This function is just a placeholder to satisfy the State trait.
     }
 
-    fn get_context_data(&self) -> &Self::Context {
+    fn context_data(&self) -> &Self::Context {
         &self.context
     }
 
-    fn get_input_data(&self) -> &Self::InputData {
+    fn input_data(&self) -> &Self::InputData {
         &self.input
     }
 
-    fn get_output_data(&self) -> Option<&Self::OutputData> {
+    fn output_data(&self) -> Option<&Self::OutputData> {
         self.output.as_ref()
     }
 }
@@ -195,7 +195,7 @@ impl fmt::Display for PrepareSecRequest {
              Context:\n{}\n\
              Input Data:\n{}\n\
              Output Data:\n{}",
-            self.get_state_name().to_string(),
+            self.state_name().to_string(),
             self.context,
             self.input,
             self.output.as_ref().map_or_else(
@@ -219,7 +219,7 @@ mod tests {
     fn should_return_name_of_prepare_state_when_in_prepare_state() {
         let prepare_state = PrepareSecRequest::default();
         let expected_result = String::from("Prepare SEC Request");
-        let result = prepare_state.get_state_name().to_string();
+        let result = prepare_state.state_name().to_string();
         assert_eq!(result, expected_result);
     }
 
@@ -227,7 +227,7 @@ mod tests {
     fn should_return_default_prepare_data_struct_as_input_data_when_in_initial_prepare_state() {
         let prepare_state = PrepareSecRequest::default();
         let expected_result = &PrepareSecRequestInput::default();
-        let result = prepare_state.get_input_data();
+        let result = prepare_state.input_data();
         assert_eq!(result, expected_result);
     }
 
@@ -236,7 +236,7 @@ mod tests {
     fn should_panic_when_trying_to_access_output_data_before_it_has_been_computed_in_state() {
         let prepare_state = PrepareSecRequest::default();
         let _result = prepare_state
-            .get_output_data()
+            .output_data()
             .expect("The output should not be empty.");
     }
 
@@ -252,7 +252,7 @@ mod tests {
     fn should_return_default_context_data_when_in_initial_state() {
         let prepare_state = PrepareSecRequest::default();
         let expected_result = &PrepareSecRequestContext::default();
-        let result = prepare_state.get_context_data();
+        let result = prepare_state.context_data();
         assert_eq!(result, expected_result);
     }
 
@@ -268,9 +268,9 @@ mod tests {
 
         let result = PrepareSecRequest::new(input, context);
 
-        assert_eq!(result.get_input_data(), &expected_input);
-        assert_eq!(result.get_context_data(), &expected_context);
-        assert!(result.get_output_data().is_none());
+        assert_eq!(result.input_data(), &expected_input);
+        assert_eq!(result.context_data(), &expected_context);
+        assert!(result.output_data().is_none());
     }
 
     // Trait implementation tests
@@ -364,8 +364,8 @@ mod tests {
         let prepare_state = &PrepareSecRequest::default();
         let ref_to_prepare_state = &PrepareSecRequest::default();
 
-        let expected_result = prepare_state.get_context_data();
-        let result = ref_to_prepare_state.get_context_data();
+        let expected_result = prepare_state.context_data();
+        let result = ref_to_prepare_state.context_data();
 
         assert_eq!(result, expected_result);
     }
@@ -384,7 +384,7 @@ mod tests {
      {
         let ref_to_prepare_state = &PrepareSecRequest::default();
         let _result = ref_to_prepare_state
-            .get_output_data()
+            .output_data()
             .expect("The output should not be empty.");
     }
 
@@ -392,7 +392,7 @@ mod tests {
     fn should_return_name_of_prepare_state_when_calling_reference_to_prepare_state() {
         let ref_to_prepare_state = &PrepareSecRequest::default();
         let expected_result = String::from("Prepare SEC Request");
-        let result = ref_to_prepare_state.get_state_name().to_string();
+        let result = ref_to_prepare_state.state_name().to_string();
         assert_eq!(result, expected_result);
     }
 
@@ -401,7 +401,7 @@ mod tests {
      {
         let ref_to_prepare_state = &PrepareSecRequest::default();
         let expected_result = &PrepareSecRequestInput::default();
-        let result = ref_to_prepare_state.get_input_data();
+        let result = ref_to_prepare_state.input_data();
         assert_eq!(result, expected_result);
     }
 
@@ -413,13 +413,13 @@ mod tests {
         let context = PrepareSecRequestContext::default();
         let mut prepare_state = PrepareSecRequest::new(input, context);
 
-        let expected_result = &prepare_state.get_input_data().clone();
+        let expected_result = &prepare_state.input_data().clone();
 
         prepare_state
             .compute_output_data_async()
             .await
             .expect("Valid state should always compute output data.");
-        let result = prepare_state.get_input_data();
+        let result = prepare_state.input_data();
 
         assert_eq!(result, expected_result);
     }
@@ -436,7 +436,7 @@ mod tests {
             .compute_output_data_async()
             .await
             .expect("Valid state should always compute output data.");
-        let result = prepare_state.get_output_data().unwrap();
+        let result = prepare_state.output_data().unwrap();
 
         assert!(!result.client().id().is_empty());
         assert!(
@@ -493,7 +493,7 @@ mod tests {
 
         assert!(result.is_ok());
         assert!(prepare_state.has_output_data_been_computed());
-        let output = prepare_state.get_output_data().unwrap();
+        let output = prepare_state.output_data().unwrap();
         assert!(!output.client().id().is_empty());
         assert!(output.request().inner.url().as_str().contains("1234567890"));
     }

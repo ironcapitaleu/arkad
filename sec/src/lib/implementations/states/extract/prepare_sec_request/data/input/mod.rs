@@ -101,7 +101,7 @@ impl SMStateData for PrepareSecRequestInput {
     type UpdateType = PrepareSecRequestInputUpdater;
 
     /// Returns a reference to the current state data, which represents the input data of this state.
-    fn get_state(&self) -> &Self {
+    fn state(&self) -> &Self {
         self
     }
 
@@ -233,7 +233,7 @@ mod tests {
 
         let expected_result = &PrepareSecRequestInput::default();
 
-        let result = default_prepare_state_data.get_state();
+        let result = default_prepare_state_data.state();
 
         assert_eq!(result, expected_result);
     }
@@ -246,7 +246,7 @@ mod tests {
 
         let default_prepare_state_data = &PrepareSecRequestInput::default();
 
-        let result = prepare_state_data.get_state();
+        let result = prepare_state_data.state();
 
         assert_ne!(result, default_prepare_state_data);
     }
@@ -264,7 +264,7 @@ mod tests {
 
         StateData::update_state(&mut state_data, update)
             .expect("Update with valid 'update' value should always succeed.");
-        let result = state_data.get_state();
+        let result = state_data.state();
 
         assert_eq!(result, expected_result);
     }
@@ -282,7 +282,7 @@ mod tests {
 
         StateData::update_state(&mut state_data, update)
             .expect("Update with valid 'update' value should always succeed.");
-        let result = state_data.get_state();
+        let result = state_data.state();
 
         assert_eq!(result, expected_result);
     }
@@ -300,7 +300,7 @@ mod tests {
 
         StateData::update_state(&mut state_data, update)
             .expect("Update with valid 'update' value should always succeed.");
-        let result = state_data.get_state();
+        let result = state_data.state();
 
         assert_eq!(result, expected_result);
     }
@@ -322,7 +322,7 @@ mod tests {
 
         StateData::update_state(&mut state_data, update)
             .expect("Update with valid 'update' value should always succeed.");
-        let result = state_data.get_state();
+        let result = state_data.state();
 
         assert_eq!(result, expected_result);
     }
@@ -336,7 +336,7 @@ mod tests {
 
         StateData::update_state(&mut state_data, empty_update)
             .expect("Update with valid 'update' value should always succeed.");
-        let result = state_data.get_state();
+        let result = state_data.state();
 
         assert_eq!(result, expected_result);
     }

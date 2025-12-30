@@ -55,7 +55,7 @@ mod tests {
 
         let expected_result = &SampleSecStateInput::default();
 
-        let result = default_sample_state_data.get_state();
+        let result = default_sample_state_data.state();
 
         assert_eq!(result, expected_result);
     }
@@ -66,7 +66,7 @@ mod tests {
 
         let default_sample_state_data = &SampleSecStateInput::default();
 
-        let result = sample_state_data.get_state();
+        let result = sample_state_data.state();
 
         assert_ne!(result, default_sample_state_data);
     }
@@ -83,7 +83,7 @@ mod tests {
         StateData::update_state(&mut state_data, update)
             .expect("Update with valid 'update' value should always succeed.");
 
-        let result = state_data.get_state();
+        let result = state_data.state();
 
         assert_eq!(result, expected_result);
     }
@@ -100,7 +100,7 @@ mod tests {
 
         StateData::update_state(&mut state_data, update)
             .expect("Update with valid 'update' value should always succeed.");
-        let result = state_data.get_state();
+        let result = state_data.state();
 
         assert_eq!(result, expected_result);
     }
@@ -114,7 +114,7 @@ mod tests {
 
         StateData::update_state(&mut state_data, empty_update)
             .expect("Update with valid 'update' value should always succeed.");
-        let result = state_data.get_state();
+        let result = state_data.state();
 
         assert_eq!(result, expected_result);
     }
@@ -125,7 +125,7 @@ mod tests {
 
         let expected_result = &"Hello".to_string();
 
-        let result = sample_state_data.get_state().input_data();
+        let result = sample_state_data.state().input_data();
 
         assert_eq!(result, expected_result);
     }

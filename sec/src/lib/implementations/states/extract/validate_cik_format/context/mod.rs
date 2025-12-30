@@ -79,7 +79,7 @@ impl SMContext for ValidateCikFormatContext {
     type UpdateType = ValidateCikFormatContextUpdater;
 
     /// Returns a reference to the current context.
-    fn get_context(&self) -> &Self {
+    fn context(&self) -> &Self {
         self
     }
 
@@ -180,7 +180,7 @@ mod tests {
 
         let expected_result = &ValidateCikFormatContext::default();
 
-        let result = validation_context.get_context();
+        let result = validation_context.context();
 
         assert_eq!(result, expected_result);
     }
@@ -191,7 +191,7 @@ mod tests {
 
         let expected_result = &ValidateCikFormatContext::default();
 
-        let result = validation_context.get_context();
+        let result = validation_context.context();
 
         assert_ne!(result, expected_result);
     }
@@ -206,7 +206,7 @@ mod tests {
         let expected_result = &ValidateCikFormatContext::new("Updated CIK!");
 
         context.update_context(update);
-        let result = context.get_context();
+        let result = context.context();
 
         assert_eq!(result, expected_result);
     }
@@ -222,7 +222,7 @@ mod tests {
         let expected_result = &ValidateCikFormatContext::new("Latest CIK Update!");
 
         context.update_context(update);
-        let result = context.get_context();
+        let result = context.context();
 
         assert_eq!(result, expected_result);
     }
@@ -237,7 +237,7 @@ mod tests {
         let expected_result = BERKSHIRE_HATHAWAY_CIK_RAW;
 
         context.update_context(update);
-        let result = context.get_context().cik();
+        let result = context.context().cik();
 
         assert_ne!(result, expected_result);
     }
@@ -250,7 +250,7 @@ mod tests {
         let expected_result = &ValidateCikFormatContext::default();
 
         context.update_context(empty_update);
-        let result = context.get_context();
+        let result = context.context();
 
         assert_eq!(result, expected_result);
     }

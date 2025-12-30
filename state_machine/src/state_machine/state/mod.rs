@@ -32,12 +32,12 @@ pub use state_data::StateData;
 ///
 /// The `State` trait defines several methods that must be implemented:
 ///
-/// - `get_state_name`: Returns the name of the state as a string representation. Useful for identifying the current state.
-/// - `get_input_data`: Returns a reference to the input data associated with the state. This data is used for processing within the state.
+/// - `state_name`: Returns the name of the state as a string representation. Useful for identifying the current state.
+/// - `input_data`: Returns a reference to the input data associated with the state. This data is used for processing within the state.
 /// - `compute_output_data`: Performs computations to generate the output data from the input data. This method modifies the state to store the output data.
-/// - `get_output_data`: Returns an optional reference to the output data. If the output data has been computed, it will return `Some(&OutputData)`, otherwise `None`.
-/// - `has_output_data_been_computed`: Returns a boolean indicating whether the output data has been computed. The default implementation checks if `get_output_data` returns `Some`.
-/// - `get_context_data`: Returns a reference to the context data associated with the state. This data provides additional information or settings relevant to the state.
+/// - `output_data`: Returns an optional reference to the output data. If the output data has been computed, it will return `Some(&OutputData)`, otherwise `None`.
+/// - `has_output_data_been_computed`: Returns a boolean indicating whether the output data has been computed. The default implementation checks if `output_data` returns `Some`.
+/// - `context_data`: Returns a reference to the context data associated with the state. This data provides additional information or settings relevant to the state.
 pub trait State:
     Debug + Send + Sync + Unpin + Clone + PartialEq + PartialOrd + Hash + Eq + Ord
 {
@@ -53,7 +53,7 @@ pub trait State:
     /// # Returns
     ///
     /// A type that can be converted into a string, representing the name of the state.
-    fn get_state_name(&self) -> impl ToString;
+    fn state_name(&self) -> impl ToString;
 
     /// Returns a reference to the input data associated with the state.
     ///
@@ -63,7 +63,7 @@ pub trait State:
     /// # Returns
     ///
     /// A reference to the input data of type `InputData`.
-    fn get_input_data(&self) -> &Self::InputData;
+    fn input_data(&self) -> &Self::InputData;
 
     /// Computes the output data from the input data.
     ///
@@ -79,17 +79,17 @@ pub trait State:
     /// # Returns
     ///
     /// An `Option` containing a reference to the output data of type `OutputData` if available, otherwise `None`.
-    fn get_output_data(&self) -> Option<&Self::OutputData>;
+    fn output_data(&self) -> Option<&Self::OutputData>;
 
     /// Checks if the output data has been computed.
     ///
-    /// By default, this method checks if `get_output_data` returns `Some`. It can be overridden for more complex checks.
+    /// By default, this method checks if `output_data` returns `Some`. It can be overridden for more complex checks.
     ///
     /// # Returns
     ///
     /// `true` if the output data has been computed, otherwise `false`.
     fn has_output_data_been_computed(&self) -> bool {
-        self.get_output_data().is_some()
+        self.output_data().is_some()
     }
 
     /// Returns a reference to the context data associated with the state.
@@ -100,7 +100,7 @@ pub trait State:
     /// # Returns
     ///
     /// A reference to the context data of type `Context`.
-    fn get_context_data(&self) -> &Self::Context;
+    fn context_data(&self) -> &Self::Context;
 }
 
 #[cfg(test)]
@@ -115,7 +115,7 @@ mod tests {
 
         let expected_result = String::from("Sample State");
 
-        let result = sample_state.get_state_name().to_string();
+        let result = sample_state.state_name().to_string();
 
         assert_eq!(result, expected_result);
     }
@@ -127,7 +127,7 @@ mod tests {
 
         let expected_result = &SampleStateData::default();
 
-        let result = sample_state.get_input_data();
+        let result = sample_state.input_data();
 
         assert_eq!(result, expected_result);
     }
@@ -138,7 +138,7 @@ mod tests {
 
         let expected_result = &SampleStateData::default();
 
-        let result = sample_state.get_input_data();
+        let result = sample_state.input_data();
 
         assert_eq!(result, expected_result);
     }
@@ -149,7 +149,7 @@ mod tests {
         let sample_state = SampleState::default();
 
         let _result = sample_state
-            .get_output_data()
+            .output_data()
             .expect("The output should not be empty.");
     }
 
@@ -182,7 +182,7 @@ mod tests {
 
         let expected_result = &SampleStateContext::default();
 
-        let result = sample_state.get_context_data();
+        let result = sample_state.context_data();
 
         assert_eq!(result, expected_result);
     }
@@ -277,9 +277,9 @@ mod tests {
         let sample_state = &SampleState::default();
         let ref_to_sample_state = &SampleState::default();
 
-        let expected_result = sample_state.get_context_data();
+        let expected_result = sample_state.context_data();
 
-        let result = ref_to_sample_state.get_context_data();
+        let result = ref_to_sample_state.context_data();
 
         assert_eq!(result, expected_result);
     }
@@ -314,7 +314,7 @@ mod tests {
         let ref_to_sample_state = &SampleState::default();
 
         let _result = ref_to_sample_state
-            .get_output_data()
+            .output_data()
             .expect("The output should not be empty.");
     }
 
@@ -324,7 +324,7 @@ mod tests {
 
         let expected_result = String::from("Sample State");
 
-        let result = ref_to_sample_state.get_state_name().to_string();
+        let result = ref_to_sample_state.state_name().to_string();
 
         assert_eq!(result, expected_result);
     }
@@ -336,7 +336,7 @@ mod tests {
 
         let expected_result = &SampleStateData::default();
 
-        let result = ref_to_sample_state.get_input_data();
+        let result = ref_to_sample_state.input_data();
 
         assert_eq!(result, expected_result);
     }
@@ -348,7 +348,7 @@ mod tests {
 
         let expected_result = &SampleStateData::default();
 
-        let result = ref_to_sample_state.get_input_data();
+        let result = ref_to_sample_state.input_data();
 
         assert_eq!(result, expected_result);
     }
@@ -357,10 +357,10 @@ mod tests {
     fn should_not_change_input_data_when_computing_output_data() {
         let mut sample_state = SampleState::default();
 
-        let expected_result = &sample_state.get_input_data().clone();
+        let expected_result = &sample_state.input_data().clone();
 
         sample_state.compute_output_data();
-        let result = sample_state.get_input_data();
+        let result = sample_state.input_data();
 
         assert_eq!(result, expected_result);
     }

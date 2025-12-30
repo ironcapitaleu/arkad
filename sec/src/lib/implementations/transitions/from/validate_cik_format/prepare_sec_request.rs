@@ -43,12 +43,12 @@ impl TryFrom<ValidateCikFormat> for PrepareSecRequest {
     type Error = TransitionError;
 
     fn try_from(state: ValidateCikFormat) -> Result<Self, TransitionError> {
-        let output_data = match state.get_output_data() {
+        let output_data = match state.output_data() {
             Some(data) => data.clone(),
             None => {
                 return Err(transition::MissingOutput::new(
                     "Extract SuperState",
-                    state.get_state_name().to_string(),
+                    state.state_name().to_string(),
                 )
                 .into());
             }

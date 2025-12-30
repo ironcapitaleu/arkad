@@ -17,46 +17,46 @@ impl ComplexStateMachine<FirstState> {
 }
 
 impl StateMachine<FirstState> for ComplexStateMachine<FirstState> {
-    fn get_current_state(&self) -> &FirstState {
+    fn current_state(&self) -> &FirstState {
         &self.current_state
     }
 
-    fn get_current_state_mut(&mut self) -> &mut FirstState {
+    fn current_state_mut(&mut self) -> &mut FirstState {
         &mut self.current_state
     }
 
     fn run(&mut self) {
         println!(
             "Running state: {}",
-            self.get_current_state().get_state_name().to_string()
+            self.current_state().state_name().to_string()
         );
     }
 
     fn advance_state(&mut self) {
         println!("Advancing state");
-        self.get_current_state_mut().compute_output_data();
+        self.current_state_mut().compute_output_data();
     }
 }
 
 impl StateMachine<SecondState> for ComplexStateMachine<SecondState> {
-    fn get_current_state(&self) -> &SecondState {
+    fn current_state(&self) -> &SecondState {
         &self.current_state
     }
 
-    fn get_current_state_mut(&mut self) -> &mut SecondState {
+    fn current_state_mut(&mut self) -> &mut SecondState {
         &mut self.current_state
     }
 
     fn run(&mut self) {
         println!(
             "Running state: {}",
-            self.get_current_state().get_state_name().to_string()
+            self.current_state().state_name().to_string()
         );
     }
 
     fn advance_state(&mut self) {
         println!("Advancing state");
-        self.get_current_state_mut().compute_output_data();
+        self.current_state_mut().compute_output_data();
     }
 }
 

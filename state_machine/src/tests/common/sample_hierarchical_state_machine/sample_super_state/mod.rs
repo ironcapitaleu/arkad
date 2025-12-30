@@ -37,11 +37,11 @@ impl<S: State> State for SampleSuperState<S> {
     type OutputData = SampleSuperStateData;
     type Context = SampleSuperStateContext;
 
-    fn get_state_name(&self) -> impl ToString {
+    fn state_name(&self) -> impl ToString {
         "Super State"
     }
 
-    fn get_input_data(&self) -> &SampleSuperStateData {
+    fn input_data(&self) -> &SampleSuperStateData {
         &self.input
     }
 
@@ -49,34 +49,34 @@ impl<S: State> State for SampleSuperState<S> {
         self.output = Some(SampleSuperStateData::default());
     }
 
-    fn get_output_data(&self) -> Option<&SampleSuperStateData> {
+    fn output_data(&self) -> Option<&SampleSuperStateData> {
         self.output.as_ref()
     }
 
-    fn get_context_data(&self) -> &SampleSuperStateContext {
+    fn context_data(&self) -> &SampleSuperStateContext {
         &self.context_data
     }
 }
 
 impl<S: State> StateMachine<S> for SampleSuperState<S> {
-    fn get_current_state(&self) -> &S {
+    fn current_state(&self) -> &S {
         &self.current_state
     }
 
-    fn get_current_state_mut(&mut self) -> &mut S {
+    fn current_state_mut(&mut self) -> &mut S {
         &mut self.current_state
     }
 
     fn run(&mut self) {
         println!(
             "Running state: {}",
-            self.get_current_state().get_state_name().to_string()
+            self.current_state().state_name().to_string()
         );
     }
 
     fn advance_state(&mut self) {
         println!("Advancing state");
-        self.get_current_state_mut().compute_output_data();
+        self.current_state_mut().compute_output_data();
     }
 }
 

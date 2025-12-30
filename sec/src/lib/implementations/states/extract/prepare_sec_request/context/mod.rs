@@ -67,7 +67,7 @@ impl SMContext for PrepareSecRequestContext {
     type UpdateType = PrepareSecRequestContextUpdater;
 
     /// Returns a reference to the current context.
-    fn get_context(&self) -> &Self {
+    fn context(&self) -> &Self {
         self
     }
 
@@ -187,7 +187,7 @@ mod tests {
 
         let expected_result = &PrepareSecRequestContext::default();
 
-        let result = request_context.get_context();
+        let result = request_context.context();
 
         assert_eq!(result, expected_result);
     }
@@ -203,7 +203,7 @@ mod tests {
             max_retries: 5,
         };
 
-        let result = request_context.get_context();
+        let result = request_context.context();
 
         assert_ne!(result, expected_result);
     }
@@ -223,7 +223,7 @@ mod tests {
         };
 
         context.update_context(update);
-        let result = context.get_context();
+        let result = context.context();
 
         assert_eq!(result, expected_result);
     }
@@ -244,7 +244,7 @@ mod tests {
         };
 
         context.update_context(update);
-        let result = context.get_context();
+        let result = context.context();
 
         assert_eq!(result, expected_result);
     }
@@ -259,7 +259,7 @@ mod tests {
         let expected_result = 0;
 
         context.update_context(update);
-        let result = context.get_context().max_retries;
+        let result = context.context().max_retries;
 
         assert_ne!(result, expected_result);
     }
@@ -272,7 +272,7 @@ mod tests {
         let expected_result = &PrepareSecRequestContext::default();
 
         context.update_context(empty_update);
-        let result = context.get_context();
+        let result = context.context();
 
         assert_eq!(result, expected_result);
     }

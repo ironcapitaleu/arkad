@@ -55,7 +55,7 @@ impl Context for SampleSecStateContext {
 impl SMContext for SampleSecStateContext {
     type UpdateType = SampleSecStateContextUpdater;
 
-    fn get_context(&self) -> &Self {
+    fn context(&self) -> &Self {
         self
     }
 

@@ -24,7 +24,7 @@ use std::{fmt::Debug, hash::Hash};
 ///
 /// The `Context` trait defines two key methods:
 ///
-/// - `get_context`: Returns a reference to the context data. This method provides access to the current state of the context data.
+/// - `context`: Returns a reference to the context data. This method provides access to the current state of the context data.
 /// - `update_context`: Updates the context data based on the provided updates. This method allows modifications to the context data,
 ///   applying the changes specified by the `UpdateType`.
 pub trait Context:
@@ -41,7 +41,7 @@ pub trait Context:
     /// # Returns
     ///
     /// A reference to the context data of the implementing type.
-    fn get_context(&self) -> &Self;
+    fn context(&self) -> &Self;
 
     /// Updates the context data based on the provided updates.
     ///
@@ -67,7 +67,7 @@ mod tests {
 
         let expected_result = &SampleStateContext::default();
 
-        let result = sample_context.get_context();
+        let result = sample_context.context();
 
         assert_eq!(result, expected_result);
     }
@@ -78,7 +78,7 @@ mod tests {
 
         let default_sample_context = &SampleStateContext::default();
 
-        let result = sample_context.get_context();
+        let result = sample_context.context();
 
         assert_ne!(result, default_sample_context);
     }
@@ -93,7 +93,7 @@ mod tests {
         let expected_result = &SampleStateContext::new(String::from("Updated Context!"));
 
         context.update_context(update);
-        let result = context.get_context();
+        let result = context.context();
 
         assert_eq!(result, expected_result);
     }
@@ -109,7 +109,7 @@ mod tests {
         let expected_result = &SampleStateContext::new(String::from("Latest Update!"));
 
         context.update_context(update);
-        let result = context.get_context();
+        let result = context.context();
 
         assert_eq!(result, expected_result);
     }
@@ -122,7 +122,7 @@ mod tests {
         let expected_result = &SampleStateContext::default();
 
         context.update_context(empty_update);
-        let result = context.get_context();
+        let result = context.context();
 
         assert_eq!(result, expected_result);
     }
