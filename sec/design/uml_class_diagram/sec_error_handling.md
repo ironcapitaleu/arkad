@@ -14,11 +14,11 @@ classDiagram
         <<enum>>
         %% This is an enum that represents an error in the `sec` package that is caused by a computation that has been done internally inside a `State` in the `StateMachine`.
         +InvalidCikFormat
-        +InvalidInputData
-        +InvalidContextData
+        +InvalidInput
+        +InvalidContext
         +FailedOutputComputation
         +StateDataUpdateFailed
-        +ContextDataUpdateFailed
+        +ContextUpdateFailed
     }
 
 

@@ -32,7 +32,7 @@ classDiagram
         %% Base State trait from `state_maschine`
         +type InputData: SMStateData
         +type OutputData: SMStateData
-        +type Context: SMContextData
+        +type Context: SMContext
         +get_state_name(&self) impl ToString
         +get_input_data(&self) &Self::InputData
         +compute_output_data(&mut self)
@@ -60,17 +60,17 @@ classDiagram
         +update_state(&mut self, updates: Self::UpdateType) Result<(), StateError>
     }
 
-    class SMContextData {
+    class SMContext {
         <<trait>>
-        %% Base ContextData trait from `state_maschine`
+        %% Base Context trait from `state_maschine`
         +type UpdateType
         +get_context(&self) &Self
         +update_context(&mut self, updates: Self::UpdateType)
     }
 
-    class ContextData {
+    class Context {
         <<trait>>
-        %% SEC-specific ContextData trait
+        %% SEC-specific Context trait
         +can_retry(&self) bool
         +get_max_retries(&self) u32
     }
@@ -79,19 +79,19 @@ classDiagram
         <<enum>>
         %% SEC-specific errors.
         -InvalidCikFormat
-        -InvalidInputData
-        -InvalidContextData
+        -InvalidInput
+        -InvalidContext
         -FailedOutputComputation
         -StateDataUpdateFailed
-        -ContextDataUpdateFailed
+        -ContextUpdateFailed
     }
 
     class SampleState {
         <<struct>>
         %% A sample SecState implementation, represents any 'SecState'
-        -input: SampleSecStateInputData
+        -input: SampleSecStateInput
         -context: SampleSecStateContext
-        -output: Option~SampleSecStateOutputData~
+        -output: Option~SampleSecStateOutput~
         +new(input, context) Self
     }
 
@@ -125,14 +125,14 @@ classDiagram
     SuperState --> SMSuperState : "extends"
     State --> SMState : "extends"
     StateData --> SMStateData : "extends"
-    ContextData --> SMContextData : "extends"
+    Context --> SMContext : "extends"
 
     %% Trait implementations
     
     SampleState --> State : "implements"
     SampleStateInputData --> StateData : "implements"
     SampleStateOutputData --> StateData : "implements"
-    SampleStateContext --> ContextData : "implements"
+    SampleStateContext --> Context : "implements"
 
     %% Struct relationships
     SampleState --> SampleStateInputData : "has"

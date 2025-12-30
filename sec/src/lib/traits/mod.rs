@@ -5,7 +5,7 @@
 //! type-safe, and testable state machine workflows for SEC data processing.
 //!
 //! ## Modules
-//! - [`state_machine`]: Core traits for state machines, states, context data, and state data.
+//! - [`state_machine`]: Core traits for state machines, states, context, and state data.
 //! - [`error`]: Traits for error handling and domain error conversions.
 //!
 //! ## Usage

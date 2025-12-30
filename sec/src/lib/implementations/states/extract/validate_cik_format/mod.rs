@@ -6,7 +6,7 @@
 //! The [`ValidateCikFormat`] state is responsible for syntactic validation and normalization of CIKs extracted from SEC filings. It ensures that the CIK is a 10-digit, zero-padded string containing only numeric characters. This state does **not** check for the existence of the CIK in the SEC database; it only validates the format.
 //!
 //! ## Components
-//! - [`context`]: Defines the context data and updater types for the validation process, allowing stateful tracking of CIK-related context.
+//! - [`context`]: Defines the context and updater types for the validation process, allowing stateful tracking of CIK-related context.
 //! - [`data`]: Contains input and output data structures for the validation state, including updaters and builders for ergonomic data manipulation.
 //! - [`ValidateCikFormatContext`]: Context data type for the state.
 //! - [`ValidateCikFormatInput`]: Input data type holding the raw CIK string.

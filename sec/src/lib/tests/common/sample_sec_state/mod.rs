@@ -9,8 +9,8 @@
 //! but with minimal, "hello world" logic. It is not intended for production use but rather as a blueprint.
 //!
 //! ## Components
-//! - [`sec_context`]: Defines the sample context data (`SampleSecStateContext`) and updater types.
-//! - [`sec_data`]: Contains sample input (`SampleSecStateInputData`) and output (`SampleSecStateOutputData`) data structures.
+//! - [`sec_context`]: Defines the sample context (`SampleSecStateContext`) and updater types.
+//! - [`sec_data`]: Contains sample input (`SampleSecStateInput`) and output (`SampleSecStateOutput`) data structures.
 //!
 //! ## Usage
 //! This state is intended to be used within the test suite to create simple state machines or to verify
@@ -27,7 +27,7 @@
 //! #[tokio::main]
 //! async fn main() {
 //!
-//!     let input = SampleSecStateInputData::default();
+//!     let input = SampleSecStateInput::default();
 //!     let context = SampleSecStateContext::default();
 //!
 //!     let expected_result = "Hello World!";
@@ -57,19 +57,19 @@ pub mod sec_context;
 pub mod sec_data;
 
 pub use sec_context::SampleSecStateContext;
-pub use sec_data::SampleSecStateInputData;
-pub use sec_data::SampleSecStateOutputData;
+pub use sec_data::SampleSecStateInput;
+pub use sec_data::SampleSecStateOutput;
 
 #[derive(Debug, Clone, Default, PartialEq, PartialOrd, Hash, Eq, Ord)]
 pub struct SampleSecState {
-    input: SampleSecStateInputData,
+    input: SampleSecStateInput,
     context: SampleSecStateContext,
-    output: Option<SampleSecStateOutputData>,
+    output: Option<SampleSecStateOutput>,
 }
 
 impl SampleSecState {
     #[must_use]
-    pub const fn new(input: SampleSecStateInputData, context: SampleSecStateContext) -> Self {
+    pub const fn new(input: SampleSecStateInput, context: SampleSecStateContext) -> Self {
         Self {
             input,
             context,
@@ -81,7 +81,7 @@ impl SampleSecState {
 #[async_trait]
 impl State for SampleSecState {
     async fn compute_output_data_async(&mut self) -> Result<(), StateError> {
-        self.output = Some(SampleSecStateOutputData {
+        self.output = Some(SampleSecStateOutput {
             output_data: "Hello World!".to_string(),
         });
         Ok(())
@@ -89,8 +89,8 @@ impl State for SampleSecState {
 }
 
 impl SMState for SampleSecState {
-    type InputData = SampleSecStateInputData;
-    type OutputData = SampleSecStateOutputData;
+    type InputData = SampleSecStateInput;
+    type OutputData = SampleSecStateOutput;
     type Context = SampleSecStateContext;
 
     fn get_state_name(&self) -> impl ToString {

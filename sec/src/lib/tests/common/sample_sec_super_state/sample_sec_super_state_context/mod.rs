@@ -1,10 +1,10 @@
-use crate::traits::state_machine::state::ContextData;
+use crate::traits::state_machine::state::Context;
 use state_maschine::prelude::ContextData as SMContextData;
 
 #[derive(Debug, Clone, Default, PartialEq, PartialOrd, Hash, Eq, Ord)]
 pub struct SampleSecSuperStateContext;
 
-impl ContextData for SampleSecSuperStateContext {
+impl Context for SampleSecSuperStateContext {
     fn get_max_retries(&self) -> u32 {
         0
     }

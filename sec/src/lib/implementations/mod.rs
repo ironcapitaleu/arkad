@@ -4,7 +4,7 @@
 //! It provides real-world state, context, and data types that leverage the core traits and error types defined in the [`crate::traits`] and [`crate::error`] modules.
 //!
 //! ## Structure
-//! - [`states`]: Contains implementations for the Extract, Transform, and Load (ETL) states used in SEC data processing pipelines. Each submodule provides concrete state logic, input/output/context data, and validation routines.
+//! - [`states`]: Contains implementations for the Extract, Transform, and Load (ETL) states used in SEC data processing pipelines. Each submodule provides concrete state logic, input/output/context, and validation routines.
 //! - [`transitions`]: Contains implementations of state transitions organized by source state, enabling type-safe state machine transitions.
 //!
 //! ## Usage
@@ -25,7 +25,7 @@
 //!
 //! #[tokio::main]
 //! async fn main() {
-//!     // Initialze input and context data for the `ValidateCikFormat` state
+//!     // Initialze input and context for the `ValidateCikFormat` state
 //!     let input = ValidateCikFormatInput { raw_cik: "1234".into() };
 //!     let context = ValidateCikFormatContext::default();
 //!     

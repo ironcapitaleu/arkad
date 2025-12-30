@@ -8,7 +8,7 @@
 //! - [`StateMachine`]: Trait for SEC-specific state machines.
 //! - [`State`]: Trait for defining individual states.
 //! - [`StateData`]: Trait for state data management.
-//! - [`ContextData`]: Trait for context data management.
+//! - [`Context`]: Trait for context management.
 //! - [`SuperState`]: Trait for hierarchical state machines.
 //! - [`Transition`]: Trait for defining state transitions.
 //!
@@ -16,11 +16,11 @@
 //!
 //! ```rust
 //! use sec::prelude::*;
-//! // Now you can use State, StateData, ContextData, etc. directly.
+//! // Now you can use State, StateData, Context, etc. directly.
 //! ```
 
 pub use crate::traits::state_machine::StateMachine;
-pub use crate::traits::state_machine::state::ContextData;
+pub use crate::traits::state_machine::state::Context;
 pub use crate::traits::state_machine::state::State;
 pub use crate::traits::state_machine::state::StateData;
 pub use crate::traits::state_machine::super_state::SuperState;

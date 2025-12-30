@@ -1,9 +1,9 @@
 //! # Sample SEC State Context
 //!
-//! This module defines the context data structures and updaters for the [`SampleSecState`](../mod.rs) fixture.
+//! This module defines the context structures and updaters for the [`SampleSecState`](../mod.rs) fixture.
 //!
 //! The context provides information to demonstrate how context is handled
-//! within a state. It is designed for use with the [`ContextData`] trait for testing and demonstration.
+//! within a state. It is designed for use with the [`Context`] trait for testing and demonstration.
 //!
 //! ## Components
 //! - [`SampleSecStateContext`]: Holds the current context for the sample state.
@@ -15,13 +15,13 @@
 //! environmental or shared data. It supports updates via the builder pattern.
 //!
 //! ## See Also
-//! - [`crate::traits::state_machine::state::ContextData`]: Trait for context data management in states.
+//! - [`crate::traits::state_machine::state::Context`]: Trait for context management in states.
 //! - [`crate::tests::common::sample_sec_state`]: Parent module for the sample state fixture.
 use std::fmt;
 
 use state_maschine::prelude::ContextData as SMContextData;
 
-use crate::traits::state_machine::state::ContextData;
+use crate::traits::state_machine::state::Context;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 /// State context for the `SampleSecState` fixture.
@@ -46,7 +46,7 @@ impl SampleSecStateContext {
     }
 }
 
-impl ContextData for SampleSecStateContext {
+impl Context for SampleSecStateContext {
     fn get_max_retries(&self) -> u32 {
         self.max_retries
     }

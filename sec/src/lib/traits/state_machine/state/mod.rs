@@ -6,7 +6,7 @@
 //! in SEC data processing pipelines. Notably, it provides error handling capabilities and the ability to compute output data asynchronously.
 //!
 //! ## Modules
-//! - [`context_data`]: Traits for defining context data used within SEC state machines.
+//! - [`context_data`]: Traits for defining context used within SEC state machines.
 //! - [`state_data`]: Traits for defining state data used within SEC state machines.
 //!
 //! ## Usage
@@ -26,7 +26,7 @@ use crate::error::State as StateError;
 pub mod context_data;
 pub mod state_data;
 
-pub use context_data::ContextData;
+pub use context_data::Context;
 pub use state_data::StateData;
 
 /// Trait for SEC-specific states, extending the generic state machine state with domain error handling and asynchronous output data computation.
@@ -55,7 +55,7 @@ mod tests {
 
     use super::*;
     use crate::tests::common::sample_sec_state::{
-        SampleSecState, SampleSecStateContext, SampleSecStateInputData, SampleSecStateOutputData,
+        SampleSecState, SampleSecStateContext, SampleSecStateInput, SampleSecStateOutput,
     };
 
     #[test]
@@ -73,7 +73,7 @@ mod tests {
     fn should_return_default_state_data_struct_as_input_data_when_in_initial_sample_state() {
         let sample_state = SampleSecState::default();
 
-        let expected_result = &SampleSecStateInputData::default();
+        let expected_result = &SampleSecStateInput::default();
 
         let result = sample_state.get_input_data();
 
@@ -247,7 +247,7 @@ mod tests {
     {
         let ref_to_sample_state = &SampleSecState::default();
 
-        let expected_result = &SampleSecStateInputData::default();
+        let expected_result = &SampleSecStateInput::default();
 
         let result = ref_to_sample_state.get_input_data();
 
@@ -273,7 +273,7 @@ mod tests {
     async fn should_return_correct_output_data_when_computing_output_data() {
         let mut sample_state = SampleSecState::default();
 
-        let expected_result = &SampleSecStateOutputData::default();
+        let expected_result = &SampleSecStateOutput::default();
 
         sample_state
             .compute_output_data_async()

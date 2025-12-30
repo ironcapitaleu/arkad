@@ -46,7 +46,7 @@ impl TryFrom<ValidateCikFormat> for PrepareSecRequest {
         let output_data = match state.get_output_data() {
             Some(data) => data.clone(),
             None => {
-                return Err(transition::MissingOutputData::new(
+                return Err(transition::MissingOutput::new(
                     "Extract SuperState",
                     state.get_state_name().to_string(),
                 )

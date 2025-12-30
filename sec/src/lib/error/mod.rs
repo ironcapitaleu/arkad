@@ -226,7 +226,7 @@ mod tests {
     #[test]
     fn should_be_able_to_create_state_error_when_casting_from_specific_error_kind_that_is_a_state()
     {
-        let _result: State = ErrorKind::StateMachine(StateMachine::State(State::InvalidInputData))
+        let _result: State = ErrorKind::StateMachine(StateMachine::State(State::InvalidInput))
             .try_into()
             .expect(
                 "Should always be able to cast provided harcdcoded `ErrorKind` into `State` error.",

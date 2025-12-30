@@ -1,8 +1,8 @@
 //! # Prepare SEC Request Context Module
 //!
-//! This module defines the context data structures and updaters for the [`PrepareSecRequest`](../mod.rs) state in the SEC filings extraction workflow.
+//! This module defines the context structures and updaters for the [`PrepareSecRequest`](../mod.rs) state in the SEC filings extraction workflow.
 //!
-//! The context provides stateful information required during the preparation of an SEC request, such as retry configurations. It is designed to be used with the [`ContextData`] trait, enabling ergonomic context management and updates within state machines.
+//! The context provides stateful information required during the preparation of an SEC request, such as retry configurations. It is designed to be used with the [`Context`] trait, enabling ergonomic context management and updates within state machines.
 //!
 //! ## Components
 //! - [`PrepareSecRequestContext`]: Holds the current context for preparing an SEC request.
@@ -26,7 +26,7 @@
 //! ```
 //!
 //! ## See Also
-//! - [`crate::traits::state_machine::state::ContextData`]: Trait for context data management in states.
+//! - [`crate::traits::state_machine::state::Context`]: Trait for context management in states.
 //! - [`crate::implementations::states::extract::prepare_sec_request`]: Parent module for the SEC request preparation state and data types.
 
 use std::fmt;
@@ -34,7 +34,7 @@ use std::fmt;
 use state_maschine::prelude::ContextData as SMContextData;
 
 use crate::shared::cik::Cik;
-use crate::traits::state_machine::state::ContextData;
+use crate::traits::state_machine::state::Context;
 
 #[derive(Debug, Default, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 /// State context for the SEC request preparation state.
@@ -56,7 +56,7 @@ impl PrepareSecRequestContext {
     }
 }
 
-impl ContextData for PrepareSecRequestContext {
+impl Context for PrepareSecRequestContext {
     /// Returns the maximum number of retries allowed for the SEC request.
     fn get_max_retries(&self) -> u32 {
         self.max_retries

@@ -6,7 +6,7 @@
 //! The [`PrepareSecRequest`] state is responsible for creating and configuring the necessary HTTP infrastructure to interact with SEC API endpoints. It takes a validated CIK and user agent string as input and produces a configured HTTP client and request object ready for SEC API calls.
 //!
 //! ## Components
-//! - [`context`]: Defines the context data and updater types for the request preparation process, allowing stateful tracking of preparation-related context.
+//! - [`context`]: Defines the context and updater types for the request preparation process, allowing stateful tracking of preparation-related context.
 //! - [`data`]: Contains input and output data structures for the preparation state, including updaters and builders for ergonomic data manipulation.
 //! - [`PrepareSecRequestContext`]: Context data type for the state.
 //! - [`PrepareSecRequestInput`]: Input data type holding the validated CIK and user agent string.
@@ -101,7 +101,7 @@ pub struct PrepareSecRequest {
 }
 
 impl PrepareSecRequest {
-    /// Creates a new [`PrepareSecRequest`] state with the provided input and context data.
+    /// Creates a new [`PrepareSecRequest`] state with the provided input and context.
     ///
     /// # Arguments
     ///

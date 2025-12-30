@@ -6,7 +6,7 @@
 //! The [`ExecuteSecRequest`] state is responsible for executing HTTP requests using a prepared SEC client and request object. It takes the configured client and request as input and produces a response containing the SEC data.
 //!
 //! ## Components
-//! - [`context`]: Defines the context data and updater types for the request execution process, allowing stateful tracking of execution-related context.
+//! - [`context`]: Defines the context and updater types for the request execution process, allowing stateful tracking of execution-related context.
 //! - [`data`]: Contains input and output data structures for the execution state, including updaters and builders for ergonomic data manipulation.
 //! - [`ExecuteSecRequestContext`]: Context data type for the state.
 //! - [`ExecuteSecRequestInput`]: Input data type holding the prepared SEC client and request.
@@ -107,7 +107,7 @@ pub struct ExecuteSecRequest {
 }
 
 impl ExecuteSecRequest {
-    /// Creates a new [`ExecuteSecRequest`] state with the provided input and context data.
+    /// Creates a new [`ExecuteSecRequest`] state with the provided input and context.
     ///
     /// # Arguments
     ///

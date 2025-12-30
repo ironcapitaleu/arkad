@@ -1,8 +1,8 @@
 //! # Validate CIK Format Context Module
 //!
-//! This module defines the context data structures and updaters for the [`ValidateCikFormat`](../mod.rs) state in the SEC filings extraction workflow.
+//! This module defines the context structures and updaters for the [`ValidateCikFormat`](../mod.rs) state in the SEC filings extraction workflow.
 //!
-//! The context provides stateful information required during CIK format validation, such as the raw CIK string and retry configuration. It is designed to be used with the [`ContextData`] trait, enabling ergonomic context management and updates within state machines.
+//! The context provides stateful information required during CIK format validation, such as the raw CIK string and retry configuration. It is designed to be used with the [`Context`] trait, enabling ergonomic context management and updates within state machines.
 //!
 //! ## Components
 //! - [`ValidateCikFormatContext`]: Holds the current context for CIK validation, including the raw CIK and retry count.
@@ -26,7 +26,7 @@
 //! ```
 //!
 //! ## See Also
-//! - [`crate::traits::state_machine::state::ContextData`]: Trait for context data management in states.
+//! - [`crate::traits::state_machine::state::Context`]: Trait for context management in states.
 //! - [`crate::implementations::states::extract::validate_cik_format`]: Parent module for CIK validation state and data types.
 
 use std::fmt;
@@ -34,7 +34,7 @@ use std::fmt;
 use state_maschine::prelude::ContextData as SMContextData;
 
 use crate::shared::cik::constants::BERKSHIRE_HATHAWAY_CIK_RAW;
-use crate::traits::state_machine::state::ContextData;
+use crate::traits::state_machine::state::Context;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 /// State context for the CIK format validation state.
@@ -68,7 +68,7 @@ impl ValidateCikFormatContext {
     }
 }
 
-impl ContextData for ValidateCikFormatContext {
+impl Context for ValidateCikFormatContext {
     /// Returns the maximum number of retries allowed for CIK validation.
     fn get_max_retries(&self) -> u32 {
         self.max_retries

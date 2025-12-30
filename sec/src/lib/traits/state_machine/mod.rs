@@ -5,7 +5,7 @@
 //! in SEC data processing pipelines.
 //!
 //! ## Modules
-//! - [`state`]: Traits for defining states, context data, and state data used within SEC state machines.
+//! - [`state`]: Traits for defining states, context, and state data used within SEC state machines.
 //! - [`super_state`]: Traits for hierarchical (composite) states, supporting advanced state machine patterns.
 //! - [`transition`]: Traits for modeling transitions between states, including error handling for transition failures.
 //!

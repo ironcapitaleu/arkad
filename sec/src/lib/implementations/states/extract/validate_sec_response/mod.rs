@@ -6,7 +6,7 @@
 //! The [`ValidateSecResponse`] state is responsible for validating SEC HTTP responses and extracting valid JSON data. It takes a raw SEC response as input and produces a validated JSON response after checking status codes, content types, and JSON structure.
 //!
 //! ## Components
-//! - [`context`]: Defines the context data and updater types for the response validation process, allowing stateful tracking of validation-related context.
+//! - [`context`]: Defines the context and updater types for the response validation process, allowing stateful tracking of validation-related context.
 //! - [`data`]: Contains input and output data structures for the validation state, including updaters and builders for ergonomic data manipulation.
 //! - [`ValidateSecResponseContext`]: Context data type for the state.
 //! - [`ValidateSecResponseInput`]: Input data type holding the raw SEC response.
@@ -105,7 +105,7 @@ pub struct ValidateSecResponse {
 }
 
 impl ValidateSecResponse {
-    /// Creates a new [`ValidateSecResponse`] state with the provided input and context data.
+    /// Creates a new [`ValidateSecResponse`] state with the provided input and context.
     ///
     /// # Arguments
     ///

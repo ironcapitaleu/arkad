@@ -91,7 +91,7 @@ impl SMContextData for ExtractSuperStateContext {
     fn update_context(&mut self, (): Self::UpdateType) {}
 }
 
-impl ContextData for ExtractSuperStateContext {
+impl Context for ExtractSuperStateContext {
     fn get_max_retries(&self) -> u32 {
         0
     }

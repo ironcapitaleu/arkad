@@ -1,8 +1,8 @@
 //! # Execute SEC Request Context Module
 //!
-//! This module defines the context data structures and updaters for the [`ExecuteSecRequest`](../mod.rs) state in the SEC filings extraction workflow.
+//! This module defines the context structures and updaters for the [`ExecuteSecRequest`](../mod.rs) state in the SEC filings extraction workflow.
 //!
-//! The context provides stateful information required during the execution of an SEC request, such as retry configurations and CIK tracking. It is designed to be used with the [`ContextData`] trait, enabling ergonomic context management and updates within state machines.
+//! The context provides stateful information required during the execution of an SEC request, such as retry configurations and CIK tracking. It is designed to be used with the [`Context`] trait, enabling ergonomic context management and updates within state machines.
 //!
 //! ## Components
 //! - [`ExecuteSecRequestContext`]: Holds the current context for executing an SEC request.
@@ -28,13 +28,13 @@
 //! ```
 //!
 //! ## See Also
-//! - [`crate::traits::state_machine::state::ContextData`]: Trait for context data management in states.
+//! - [`crate::traits::state_machine::state::Context`]: Trait for context management in states.
 //! - [`crate::implementations::states::extract::execute_sec_request`]: Parent module for the SEC request execution state and data types.
 
 use std::fmt;
 
 use crate::shared::cik::Cik;
-use crate::traits::state_machine::state::ContextData;
+use crate::traits::state_machine::state::Context;
 
 use state_maschine::prelude::ContextData as SMContextData;
 
@@ -81,7 +81,7 @@ impl ExecuteSecRequestContext {
     }
 }
 
-impl ContextData for ExecuteSecRequestContext {
+impl Context for ExecuteSecRequestContext {
     fn get_max_retries(&self) -> u32 {
         self.max_retries
     }

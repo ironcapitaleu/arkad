@@ -1,8 +1,8 @@
 //! # Validate SEC Response Context Module
 //!
-//! This module defines the context data structures and updaters for the [`ValidateSecResponse`](../mod.rs) state in the SEC filings extraction workflow.
+//! This module defines the context structures and updaters for the [`ValidateSecResponse`](../mod.rs) state in the SEC filings extraction workflow.
 //!
-//! The context provides stateful information required during the validation of an SEC response, such as retry configurations and CIK tracking. It is designed to be used with the [`ContextData`] trait, enabling ergonomic context management and updates within state machines.
+//! The context provides stateful information required during the validation of an SEC response, such as retry configurations and CIK tracking. It is designed to be used with the [`Context`] trait, enabling ergonomic context management and updates within state machines.
 //!
 //! ## Components
 //! - [`ValidateSecResponseContext`]: Holds the current context for validating an SEC response.
@@ -28,7 +28,7 @@
 //! ```
 //!
 //! ## See Also
-//! - [`crate::traits::state_machine::state::ContextData`]: Trait for context data management in states.
+//! - [`crate::traits::state_machine::state::Context`]: Trait for context management in states.
 //! - [`crate::implementations::states::extract::validate_sec_response`]: Parent module for the SEC response validation state and data types.
 
 use std::fmt;
@@ -36,7 +36,7 @@ use std::fmt;
 use state_maschine::prelude::ContextData as SMContextData;
 
 use crate::shared::cik::Cik;
-use crate::traits::state_machine::state::ContextData;
+use crate::traits::state_machine::state::Context;
 
 /// State context for the SEC response validation state.
 ///
@@ -81,7 +81,7 @@ impl ValidateSecResponseContext {
     }
 }
 
-impl ContextData for ValidateSecResponseContext {
+impl Context for ValidateSecResponseContext {
     fn get_max_retries(&self) -> u32 {
         self.max_retries
     }
