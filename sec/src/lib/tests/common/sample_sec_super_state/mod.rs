@@ -42,11 +42,7 @@ impl SampleSecSuperState<SampleSecState> {
 
 impl<S: State> fmt::Display for SampleSecSuperState<S> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "SampleSecSuperState({})",
-            self.state_name().to_string()
-        )
+        write!(f, "SampleSecSuperState({})", self.state_name().to_string())
     }
 }
 

@@ -156,8 +156,7 @@ impl State for ValidateSecResponse {
             }
             Err(e) => {
                 let e: StateError =
-                    InvalidSecResponse::from_domain_error(self.state_name().to_string(), e)
-                        .into();
+                    InvalidSecResponse::from_domain_error(self.state_name().to_string(), e).into();
                 return Err(e);
             }
         }
