@@ -31,7 +31,7 @@
 
 use std::fmt;
 
-use state_maschine::prelude::ContextData as SMContextData;
+use state_maschine::prelude::Context as SMContext;
 
 use crate::shared::cik::Cik;
 use crate::traits::state_machine::state::Context;
@@ -63,7 +63,7 @@ impl Context for PrepareSecRequestContext {
     }
 }
 
-impl SMContextData for PrepareSecRequestContext {
+impl SMContext for PrepareSecRequestContext {
     type UpdateType = PrepareSecRequestContextUpdater;
 
     /// Returns a reference to the current context.

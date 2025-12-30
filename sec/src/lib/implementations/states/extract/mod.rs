@@ -83,7 +83,7 @@ impl StateData for ExtractSuperStateData {
 #[derive(Debug, Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ExtractSuperStateContext;
 
-impl SMContextData for ExtractSuperStateContext {
+impl SMContext for ExtractSuperStateContext {
     type UpdateType = ();
     fn get_context(&self) -> &Self {
         self

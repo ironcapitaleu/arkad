@@ -1,5 +1,5 @@
 use crate::traits::state_machine::state::Context;
-use state_maschine::prelude::ContextData as SMContextData;
+use state_maschine::prelude::Context as SMContext;
 
 #[derive(Debug, Clone, Default, PartialEq, PartialOrd, Hash, Eq, Ord)]
 pub struct SampleSecSuperStateContext;
@@ -10,7 +10,7 @@ impl Context for SampleSecSuperStateContext {
     }
 }
 
-impl SMContextData for SampleSecSuperStateContext {
+impl SMContext for SampleSecSuperStateContext {
     type UpdateType = ();
 
     fn get_context(&self) -> &Self {

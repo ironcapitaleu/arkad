@@ -1,7 +1,7 @@
 //! # SEC Context Trait
 //!
 //! This module defines the [`Context`] trait for SEC-specific state machines, extending the generic
-//! [`state_maschine::state_machine::state::ContextData`] trait with domain-specific retry logic.
+//! [`state_maschine::state_machine::state::Context`] trait with domain-specific retry logic.
 //!
 //! Context represents external or environmental information that may influence internal state computations
 //! in the SEC state machine framework, but is usally not directly tied to or mutated by state transitions themselves.
@@ -16,12 +16,12 @@
 //! - [`crate::implementations`]: For concrete context implementations used in SEC ETL pipelines.
 //! - [`crate::error`]: For error types used in context-aware operations.
 
-use state_maschine::prelude::ContextData as SMContextData;
+use state_maschine::prelude::Context as SMContext;
 
 /// Trait for SEC-specific context, extending the generic state machine context trait with retry logic.
 ///
 /// Implement this trait for SEC context types to provide custom retry policies and metadata.
-pub trait Context: SMContextData {
+pub trait Context: SMContext {
     /// Returns `true` if the state can be retried, based on the maximum allowed retries.
     fn can_retry(&self) -> bool {
         self.max_retries() > 0

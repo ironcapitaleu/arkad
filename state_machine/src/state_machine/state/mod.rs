@@ -1,9 +1,9 @@
 use std::{fmt::Debug, hash::Hash};
 
-pub mod context_data;
+pub mod context;
 pub mod state_data;
 
-pub use context_data::ContextData;
+pub use context::Context;
 pub use state_data::StateData;
 
 /// The `State` trait defines the behavior and characteristics of a state within a state machine.
@@ -17,7 +17,7 @@ pub use state_data::StateData;
 ///
 /// - `InputData`: Represents the type of data input that the state processes. Must implement the `StateData` trait.
 /// - `OutputData`: Represents the type of data output that the state produces. Must implement the `StateData` trait.
-/// - `Context`: Represents the context or environment data associated with the state. Must implement the `ContextData` trait.
+/// - `Context`: Represents the context or environment data associated with the state. Must implement the `Context` trait.
 ///
 /// # Required Traits
 ///
@@ -43,7 +43,7 @@ pub trait State:
 {
     type InputData: StateData;
     type OutputData: StateData;
-    type Context: ContextData;
+    type Context: Context;
 
     /// Returns the name of the state.
     ///

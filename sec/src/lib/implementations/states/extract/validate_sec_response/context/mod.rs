@@ -33,7 +33,7 @@
 
 use std::fmt;
 
-use state_maschine::prelude::ContextData as SMContextData;
+use state_maschine::prelude::Context as SMContext;
 
 use crate::shared::cik::Cik;
 use crate::traits::state_machine::state::Context;
@@ -87,7 +87,7 @@ impl Context for ValidateSecResponseContext {
     }
 }
 
-impl SMContextData for ValidateSecResponseContext {
+impl SMContext for ValidateSecResponseContext {
     type UpdateType = ValidateSecResponseContextUpdater;
 
     fn get_context(&self) -> &Self {
@@ -188,7 +188,7 @@ mod tests {
     use std::{fmt::Debug, hash::Hash};
 
     use pretty_assertions::assert_eq;
-    use state_maschine::prelude::ContextData as SMContextData;
+    use state_maschine::prelude::Context as SMContext;
 
     use super::*;
     use crate::shared::cik::Cik;

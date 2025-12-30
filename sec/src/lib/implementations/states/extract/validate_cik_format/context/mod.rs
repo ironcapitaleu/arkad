@@ -31,7 +31,7 @@
 
 use std::fmt;
 
-use state_maschine::prelude::ContextData as SMContextData;
+use state_maschine::prelude::Context as SMContext;
 
 use crate::shared::cik::constants::BERKSHIRE_HATHAWAY_CIK_RAW;
 use crate::traits::state_machine::state::Context;
@@ -75,7 +75,7 @@ impl Context for ValidateCikFormatContext {
     }
 }
 
-impl SMContextData for ValidateCikFormatContext {
+impl SMContext for ValidateCikFormatContext {
     type UpdateType = ValidateCikFormatContextUpdater;
 
     /// Returns a reference to the current context.

@@ -1,11 +1,11 @@
-use crate::state_machine::state::ContextData;
+use crate::state_machine::state::Context;
 
 #[derive(Debug, Clone, Default, PartialEq, PartialOrd, Hash, Eq, Ord)]
 pub struct SampleSuperStateContext {
     context_data: String,
 }
 
-impl ContextData for SampleSuperStateContext {
+impl Context for SampleSuperStateContext {
     type UpdateType = SampleSuperStateContextUpdater;
     fn get_context(&self) -> &Self {
         self

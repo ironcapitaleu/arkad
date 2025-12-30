@@ -19,7 +19,7 @@
 //! - [`crate::tests::common::sample_sec_state`]: Parent module for the sample state fixture.
 use std::fmt;
 
-use state_maschine::prelude::ContextData as SMContextData;
+use state_maschine::prelude::Context as SMContext;
 
 use crate::traits::state_machine::state::Context;
 
@@ -52,7 +52,7 @@ impl Context for SampleSecStateContext {
     }
 }
 
-impl SMContextData for SampleSecStateContext {
+impl SMContext for SampleSecStateContext {
     type UpdateType = SampleSecStateContextUpdater;
 
     fn get_context(&self) -> &Self {

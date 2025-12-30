@@ -26,7 +26,7 @@ pub use crate::traits::state_machine::state::StateData;
 pub use crate::traits::state_machine::super_state::SuperState;
 pub use crate::traits::state_machine::transition::Transition;
 
-pub use state_maschine::prelude::ContextData as SMContextData;
+pub use state_maschine::prelude::Context as SMContext;
 pub use state_maschine::prelude::State as SMState;
 pub use state_maschine::prelude::StateData as SMStateData;
 pub use state_maschine::prelude::StateMachine as SMStateMachine;

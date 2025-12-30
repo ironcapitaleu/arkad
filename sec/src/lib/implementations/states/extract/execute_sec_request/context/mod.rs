@@ -36,7 +36,7 @@ use std::fmt;
 use crate::shared::cik::Cik;
 use crate::traits::state_machine::state::Context;
 
-use state_maschine::prelude::ContextData as SMContextData;
+use state_maschine::prelude::Context as SMContext;
 
 /// State context for the SEC request execution state.
 ///
@@ -87,7 +87,7 @@ impl Context for ExecuteSecRequestContext {
     }
 }
 
-impl SMContextData for ExecuteSecRequestContext {
+impl SMContext for ExecuteSecRequestContext {
     type UpdateType = ExecuteSecRequestContextUpdater;
 
     fn get_context(&self) -> &Self {
@@ -188,7 +188,7 @@ mod tests {
     use super::*;
     use crate::shared::cik::Cik;
     use pretty_assertions::assert_eq;
-    use state_maschine::prelude::ContextData as SMContextData;
+    use state_maschine::prelude::Context as SMContext;
     use std::{fmt::Debug, hash::Hash};
 
     #[test]
