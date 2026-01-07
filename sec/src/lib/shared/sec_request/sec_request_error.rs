@@ -1,3 +1,24 @@
+//! # SEC Request Error Types
+//!
+//! This module defines error types and reasons for SEC request execution failures.
+//! It is used throughout the [`crate::shared::sec_request`] module and by state machine implementations
+//! that require robust error reporting for HTTP request execution failures.
+//!
+//! ## Types
+//! - [`SecRequestError`]: Error struct containing the [`SecRequestErrorReason`] that caused the failure. This allows precise diagnostics about why a request couldn't be executed.
+//! - [`SecRequestErrorReason`]: Enum describing specific reasons for request failure, with contextual information embedded in the variants (such as network errors, HTTP errors, timeouts, or other issues).
+//!
+//! ## Usage
+//! These error types are returned by SEC request execution routines and are used in state data modules
+//! to provide detailed diagnostics and error handling for HTTP request execution.
+//! They are also used as domain errors for the general state machine error logic in [`crate::error`] and may be wrapped by state-level errors like [`crate::error::state_machine::state::RequestExecutionFailed`].
+//!
+//! ## See Also
+//! - [`crate::shared::sec_request`]: Main SEC request utilities module.
+//! - [`crate::shared::sec_response`]: Related SEC response error types.
+//! - [`crate::error`]: Error types that may reference SEC request errors for reporting.
+//! - [`crate::error::state_machine::state::RequestExecutionFailed`]: State-level error that wraps `SecRequestError` for error propagation in state machines.
+
 use reqwest::Error as ReqwestError;
 use thiserror::Error;
 
@@ -5,7 +26,7 @@ use crate::shared::sec_response::{SecResponseError, SecResponseErrorReason};
 
 /// Error details for SEC request failures.
 ///
-/// This struct provides both the reason for the failure and the user agent string that was provided.
+/// This struct provides the reason for the failure with embedded contextual information.
 #[derive(Debug, Error, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[error("[SecRequestError] Request failed: Reason: '{reason}'.")]
 pub struct SecRequestError {
