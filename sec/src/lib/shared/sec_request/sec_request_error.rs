@@ -147,8 +147,7 @@ mod tests {
         let message = "Connection refused";
         let reason = SecRequestErrorReason::NetworkError(message.to_string());
 
-        let expected_result =
-            "The HTTP request failed due to a network error: Connection refused.";
+        let expected_result = "The HTTP request failed due to a network error: Connection refused.";
 
         let result = format!("{reason}");
 
@@ -195,10 +194,9 @@ mod tests {
     #[test]
     fn should_convert_from_sec_response_error_when_invalid_utf8() {
         let header_name = "content-type";
-        let sec_response_error =
-            SecResponseError::new(SecResponseErrorReason::InvalidUtf8InHeader(
-                header_name.to_string(),
-            ));
+        let sec_response_error = SecResponseError::new(
+            SecResponseErrorReason::InvalidUtf8InHeader(header_name.to_string()),
+        );
 
         let expected_result = SecRequestError::new(SecRequestErrorReason::Other(
             "Response processing failed: Header 'content-type' contains invalid UTF-8 data"
