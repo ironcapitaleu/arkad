@@ -71,6 +71,11 @@ use super::context_data::ContextData;
 - Unit tests should follow the `should_..._when` naming convention for the test function names, where `...` is a description of the expected behavior.
   - **Note**: Test function names should be in `snake_case` and start with `should_`. Test names can be verbose, explicit but clear naming is favored over brevity.
 - Integration tests should be placed in the `tests` directory, with each test in its own file.
+- When using `.expect()` in tests, provide **clear, specific messages** that explain **why the operation should not fail** given the test context:
+  - Bad example: `.expect("should work")`, `.expect("should create it")`
+  - Good example: `.expect("given a valid hardcoded CIK, the creation of a CIK object should always succeed")`
+  - Good example: `.expect("parsing a well-formed JSON response with status 200 should never fail")`
+  - The message should reference the specific test setup and why failure is unexpected in that scenario.
   
 ---
 
