@@ -14,7 +14,7 @@ impl StateData for SampleSecSuperStateData {
 impl SMStateData for SampleSecSuperStateData {
     type UpdateType = ();
 
-    fn get_state(&self) -> &Self {
+    fn state(&self) -> &Self {
         self
     }
 

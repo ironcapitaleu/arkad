@@ -6,8 +6,8 @@
 //! and the prepared client/request output.
 //!
 //! ## Modules
-//! - [`psr_input_data`]: Contains [`PrepareSecRequestInputData`] and related types for representing and updating the CIK and user agent input data.
-//! - [`psr_output_data`]: Contains [`PrepareSecRequestOutputData`] and related types for representing and updating the prepared SEC client and request output data.
+//! - [`input`]: Contains [`PrepareSecRequestInput`] and related types for representing and updating the CIK and user agent input data.
+//! - [`output`]: Contains [`PrepareSecRequestOutput`] and related types for representing and updating the prepared SEC client and request output data.
 //!
 //! ## Usage
 //! These types are used by the `PrepareSecRequest` state to receive configuration data,
@@ -22,8 +22,8 @@
 //! ## Examples
 //! See the documentation and tests in the submodules for usage patterns.
 
-pub mod psr_input_data;
-pub mod psr_output_data;
+pub mod input;
+pub mod output;
 
-pub use psr_input_data::PrepareSecRequestInputData;
-pub use psr_output_data::PrepareSecRequestOutputData;
+pub use input::PrepareSecRequestInput;
+pub use output::PrepareSecRequestOutput;

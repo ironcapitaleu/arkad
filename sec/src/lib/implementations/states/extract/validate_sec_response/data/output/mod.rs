@@ -1,13 +1,13 @@
-//! # `ValidateSecResponseOutputData` Module
+//! # `ValidateSecResponseOutput` Module
 //!
 //! This module defines the output data structure and updater patterns for the `ValidateSecResponse` state
 //! within the SEC extraction state machine. It provides types and builders for representing and updating
 //! the validated JSON response produced by the validation process.
 //!
 //! ## Types
-//! - [`ValidateSecResponseOutputData`]: Holds the validated JSON response produced by the validation state.
-//! - [`ValidateSecResponseOutputDataUpdater`]: Updater type for modifying the output data in a controlled manner.
-//! - [`ValidateSecResponseOutputDataUpdaterBuilder`]: Builder for constructing updater instances with optional fields.
+//! - [`ValidateSecResponseOutput`]: Holds the validated JSON response produced by the validation state.
+//! - [`ValidateSecResponseOutputUpdater`]: Updater type for modifying the output data in a controlled manner.
+//! - [`ValidateSecResponseOutputUpdaterBuilder`]: Builder for constructing updater instances with optional fields.
 //!
 //! ## Integration
 //! - Implements [`StateData`](state_maschine::state_machine::state::StateData) for compatibility with the state machine framework.
@@ -39,12 +39,12 @@ use state_maschine::prelude::StateData as SMStateData;
 /// designed to be used as part of the SEC document extraction workflow, and supports
 /// builder-based updates and integration with the state machine framework.
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Default)]
-pub struct ValidateSecResponseOutputData {
+pub struct ValidateSecResponseOutput {
     /// The validated JSON response containing parsed SEC data.
     pub validated_sec_response: JsonResponse,
 }
 
-impl ValidateSecResponseOutputData {
+impl ValidateSecResponseOutput {
     /// Creates a new instance of the output data for validated SEC responses.
     ///
     /// # Arguments
@@ -53,7 +53,7 @@ impl ValidateSecResponseOutputData {
     ///
     /// # Returns
     ///
-    /// Returns a [`Result`] containing the new [`ValidateSecResponseOutputData`] instance,
+    /// Returns a [`Result`] containing the new [`ValidateSecResponseOutput`] instance,
     /// or a [`StateError`] if the data is invalid.
     ///
     /// # Errors
@@ -76,7 +76,7 @@ impl ValidateSecResponseOutputData {
     }
 }
 
-impl StateData for ValidateSecResponseOutputData {
+impl StateData for ValidateSecResponseOutput {
     fn update_state(&mut self, updates: Self::UpdateType) -> Result<(), StateError> {
         if let Some(validated_sec_response) = updates.validated_sec_response {
             self.validated_sec_response = validated_sec_response;
@@ -85,46 +85,54 @@ impl StateData for ValidateSecResponseOutputData {
     }
 }
 
-impl SMStateData for ValidateSecResponseOutputData {
-    type UpdateType = ValidateSecResponseOutputDataUpdater;
+impl SMStateData for ValidateSecResponseOutput {
+    type UpdateType = ValidateSecResponseOutputUpdater;
 
-    fn get_state(&self) -> &Self {
+    fn state(&self) -> &Self {
         self
     }
 
     fn update_state(&mut self, _updates: Self::UpdateType) {}
 }
 
-impl fmt::Display for ValidateSecResponseOutputData {
+impl fmt::Display for ValidateSecResponseOutput {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "\tOutput Data: {}", self.validated_sec_response)
     }
 }
 
-/// Updater for modifying [`ValidateSecResponseOutputData`] in a controlled manner.
+/// Updater for modifying [`ValidateSecResponseOutput`] in a controlled manner.
 ///
 /// This struct allows for partial updates to output data fields while maintaining
 /// type safety and avoiding unnecessary allocations for unchanged fields.
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
-pub struct ValidateSecResponseOutputDataUpdater {
+pub struct ValidateSecResponseOutputUpdater {
     /// Optional new validated response to replace the current one.
     pub validated_sec_response: Option<JsonResponse>,
 }
 
-/// Builder for constructing [`ValidateSecResponseOutputDataUpdater`] instances.
+impl ValidateSecResponseOutputUpdater {
+    /// Creates a new builder for constructing [`ValidateSecResponseOutputUpdater`] instances.
+    #[must_use]
+    pub const fn builder() -> ValidateSecResponseOutputUpdaterBuilder {
+        ValidateSecResponseOutputUpdaterBuilder::new()
+    }
+}
+
+/// Builder for constructing [`ValidateSecResponseOutputUpdater`] instances.
 ///
 /// This builder provides a fluent API for constructing updaters with only
 /// the fields that need to be changed, following the builder pattern.
-pub struct ValidateSecResponseOutputDataUpdaterBuilder {
+pub struct ValidateSecResponseOutputUpdaterBuilder {
     validated_sec_response: Option<JsonResponse>,
 }
 
-impl ValidateSecResponseOutputDataUpdaterBuilder {
+impl ValidateSecResponseOutputUpdaterBuilder {
     /// Creates a new builder with no fields set to be updated.
     ///
     /// # Returns
     ///
-    /// A new [`ValidateSecResponseOutputDataUpdaterBuilder`] with all fields set to `None`.
+    /// A new [`ValidateSecResponseOutputUpdaterBuilder`] with all fields set to `None`.
     #[must_use]
     pub const fn new() -> Self {
         Self {
@@ -152,16 +160,16 @@ impl ValidateSecResponseOutputDataUpdaterBuilder {
     ///
     /// # Returns
     ///
-    /// A new [`ValidateSecResponseOutputDataUpdater`] with the fields set by this builder.
+    /// A new [`ValidateSecResponseOutputUpdater`] with the fields set by this builder.
     #[must_use]
-    pub fn build(self) -> ValidateSecResponseOutputDataUpdater {
-        ValidateSecResponseOutputDataUpdater {
+    pub fn build(self) -> ValidateSecResponseOutputUpdater {
+        ValidateSecResponseOutputUpdater {
             validated_sec_response: self.validated_sec_response,
         }
     }
 }
 
-impl Default for ValidateSecResponseOutputDataUpdaterBuilder {
+impl Default for ValidateSecResponseOutputUpdaterBuilder {
     fn default() -> Self {
         Self::new()
     }
@@ -185,20 +193,20 @@ mod tests {
             url: reqwest::Url::parse(
                 "https://data.sec.gov/api/xbrl/companyfacts/CIK1234567890.json",
             )
-            .expect("Hardcoded URL should always be valid."),
+            .expect("Hardcoded URL should always be valid"),
             status: StatusCode::OK,
             headers: HashMap::new(),
             content_type: ContentType::Json,
             body: String::from("{\"test\": \"data\"}"),
         };
         let json_response = JsonResponse::from_sec_response(&sec_response)
-            .expect("Should create valid JSON response");
+            .expect("Valid SEC response string should parse to JSON successfully");
 
-        let expected_result = ValidateSecResponseOutputData::new(json_response.clone())
-            .expect("Should create output data");
+        let expected_result = ValidateSecResponseOutput::new(json_response.clone())
+            .expect("Valid JSON response should create output successfully");
 
-        let result =
-            ValidateSecResponseOutputData::new(json_response).expect("Should create output data");
+        let result = ValidateSecResponseOutput::new(json_response)
+            .expect("Valid JSON response should create output successfully");
 
         assert_eq!(result, expected_result);
     }
@@ -209,16 +217,16 @@ mod tests {
             url: reqwest::Url::parse(
                 "https://data.sec.gov/api/xbrl/companyfacts/CIK1234567890.json",
             )
-            .expect("Hardcoded URL should always be valid."),
+            .expect("Hardcoded URL should always be valid"),
             status: StatusCode::OK,
             headers: HashMap::new(),
             content_type: ContentType::Json,
             body: String::from("{\"data\": [1,2,3]}"),
         };
         let json_response = JsonResponse::from_sec_response(&sec_response)
-            .expect("Should create valid JSON response if SEC response is valid.");
-        let output_data = ValidateSecResponseOutputData::new(json_response.clone())
-            .expect("Should create output data when valid JSON response is provided.");
+            .expect("Should create valid JSON response if SEC response is valid");
+        let output_data = ValidateSecResponseOutput::new(json_response.clone())
+            .expect("Should create output data when valid JSON response is provided");
 
         let expected_result = &json_response;
 
@@ -234,26 +242,26 @@ mod tests {
             url: reqwest::Url::parse(
                 "https://data.sec.gov/api/xbrl/companyfacts/CIK9999999999.json",
             )
-            .expect("URL should be valid."),
+            .expect("URL should be valid"),
             status: StatusCode::OK,
             headers: HashMap::new(),
             content_type: ContentType::Json,
             body: String::from("{\"updated\": true}"),
         };
         let new_response = JsonResponse::from_sec_response(&sec_response)
-            .expect("Should create valid JSON response");
-        let mut output_data = ValidateSecResponseOutputData::new(original_response)
-            .expect("Should create output data with valid JSON response");
-        let updater = ValidateSecResponseOutputDataUpdaterBuilder::new()
+            .expect("Valid SEC response string should parse to JSON successfully");
+        let mut output_data = ValidateSecResponseOutput::new(original_response)
+            .expect("Valid JSON response should create output successfully");
+        let updater = ValidateSecResponseOutputUpdater::builder()
             .validated_sec_response(new_response.clone())
             .build();
 
-        let expected_result =
-            &ValidateSecResponseOutputData::new(new_response).expect("Should create output data");
+        let expected_result = &ValidateSecResponseOutput::new(new_response)
+            .expect("Valid JSON response should create output successfully");
 
         StateData::update_state(&mut output_data, updater)
-            .expect("Update with valid value should succeed");
-        let result = output_data.get_state();
+            .expect("Valid update should always succeed with valid input");
+        let result = output_data.state();
 
         assert_eq!(result, expected_result);
     }
@@ -261,27 +269,27 @@ mod tests {
     #[test]
     fn should_not_update_fields_when_updater_is_empty() {
         let json_response = JsonResponse::default();
-        let original_output_data = ValidateSecResponseOutputData::new(json_response.clone())
-            .expect("Should create output data with valid JSON response");
+        let original_output_data = ValidateSecResponseOutput::new(json_response.clone())
+            .expect("Valid JSON response should create output successfully");
         let mut output_data = original_output_data.clone();
-        let updater = ValidateSecResponseOutputDataUpdaterBuilder::new().build();
+        let updater = ValidateSecResponseOutputUpdater::builder().build();
 
-        let expected_result = &ValidateSecResponseOutputData::default();
+        let expected_result = &ValidateSecResponseOutput::default();
 
         StateData::update_state(&mut output_data, updater)
-            .expect("Update with valid value should succeed");
-        let result = output_data.get_state();
+            .expect("Valid update should always succeed with valid input");
+        let result = output_data.state();
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_create_default_output_data_when_default_is_called() {
-        let expected_result = ValidateSecResponseOutputData {
+        let expected_result = ValidateSecResponseOutput {
             validated_sec_response: JsonResponse::default(),
         };
 
-        let result = ValidateSecResponseOutputData::default();
+        let result = ValidateSecResponseOutput::default();
 
         assert_eq!(result, expected_result);
     }
@@ -289,11 +297,11 @@ mod tests {
     #[test]
     fn should_return_output_data_reference_when_accessing_state() {
         let json_response = JsonResponse::default();
-        let output_data =
-            ValidateSecResponseOutputData::new(json_response).expect("Should create output data");
+        let output_data = ValidateSecResponseOutput::new(json_response)
+            .expect("Valid JSON response should create output successfully");
 
         let expected_result = &output_data;
-        let result = output_data.get_state();
+        let result = output_data.state();
 
         assert_eq!(result, expected_result);
     }
@@ -306,39 +314,39 @@ mod tests {
             url: reqwest::Url::parse(
                 "https://data.sec.gov/api/xbrl/companyfacts/CIK5555555555.json",
             )
-            .expect("Hardcoded URL should always be valid."),
+            .expect("Hardcoded URL should always be valid"),
             status: StatusCode::OK,
             headers: HashMap::new(),
             content_type: ContentType::Json,
             body: String::from("{\"intermediate\": true}"),
         };
         let intermediate_response = JsonResponse::from_sec_response(&sec_response1)
-            .expect("Should create valid JSON response");
+            .expect("Valid SEC response string should parse to JSON successfully");
         let sec_response2 = SecResponse {
             url: reqwest::Url::parse(
                 "https://data.sec.gov/api/xbrl/companyfacts/CIK9999999999.json",
             )
-            .expect("Hardcoded URL should always be valid."),
+            .expect("Hardcoded URL should always be valid"),
             status: StatusCode::OK,
             headers: HashMap::new(),
             content_type: ContentType::Json,
             body: String::from("{\"final\": true}"),
         };
         let final_response = JsonResponse::from_sec_response(&sec_response2)
-            .expect("Should create valid JSON response");
-        let mut output_data = ValidateSecResponseOutputData::new(original_response)
-            .expect("Should create output data");
-        let updater = ValidateSecResponseOutputDataUpdaterBuilder::new()
+            .expect("Valid SEC response string should parse to JSON successfully");
+        let mut output_data = ValidateSecResponseOutput::new(original_response)
+            .expect("Valid JSON response should create output successfully");
+        let updater = ValidateSecResponseOutputUpdater::builder()
             .validated_sec_response(intermediate_response)
             .validated_sec_response(final_response.clone())
             .build();
 
-        let expected_result =
-            &ValidateSecResponseOutputData::new(final_response).expect("Should create output data");
+        let expected_result = &ValidateSecResponseOutput::new(final_response)
+            .expect("Valid JSON response should create output successfully");
 
         StateData::update_state(&mut output_data, updater)
-            .expect("Update with valid value should succeed");
-        let result = output_data.get_state();
+            .expect("Valid update should always succeed with valid input");
+        let result = output_data.state();
 
         assert_eq!(result, expected_result);
     }
@@ -347,7 +355,7 @@ mod tests {
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
     #[test]
     const fn should_still_implement_auto_traits_when_implementing_output_data_trait() {
-        implements_auto_traits::<ValidateSecResponseOutputData>();
+        implements_auto_traits::<ValidateSecResponseOutput>();
     }
 
     const fn implements_send<T: Send>() {}
@@ -355,77 +363,77 @@ mod tests {
 
     #[test]
     const fn should_implement_send_when_implementing_output_data_trait() {
-        implements_send::<ValidateSecResponseOutputData>();
+        implements_send::<ValidateSecResponseOutput>();
     }
 
     #[test]
     const fn should_implement_sync_when_implementing_output_data_trait() {
-        implements_sync::<ValidateSecResponseOutputData>();
+        implements_sync::<ValidateSecResponseOutput>();
     }
 
     #[test]
     const fn should_be_thread_safe_when_implementing_output_data_trait() {
-        implements_send::<ValidateSecResponseOutputData>();
-        implements_sync::<ValidateSecResponseOutputData>();
+        implements_send::<ValidateSecResponseOutput>();
+        implements_sync::<ValidateSecResponseOutput>();
     }
 
     const fn implements_sized<T: Sized>() {}
     #[test]
     const fn should_be_sized_when_implementing_output_data_trait() {
-        implements_sized::<ValidateSecResponseOutputData>();
+        implements_sized::<ValidateSecResponseOutput>();
     }
 
     const fn implements_hash<T: Hash>() {}
     #[test]
     const fn should_implement_hash_when_implementing_output_data_trait() {
-        implements_hash::<ValidateSecResponseOutputData>();
+        implements_hash::<ValidateSecResponseOutput>();
     }
 
     const fn implements_partial_eq<T: PartialEq>() {}
     #[test]
     const fn should_implement_partial_eq_when_implementing_output_data_trait() {
-        implements_partial_eq::<ValidateSecResponseOutputData>();
+        implements_partial_eq::<ValidateSecResponseOutput>();
     }
 
     const fn implements_eq<T: Eq>() {}
     #[test]
     const fn should_implement_eq_when_implementing_output_data_trait() {
-        implements_eq::<ValidateSecResponseOutputData>();
+        implements_eq::<ValidateSecResponseOutput>();
     }
 
     const fn implements_partial_ord<T: PartialOrd>() {}
     #[test]
     const fn should_implement_partial_ord_when_implementing_output_data_trait() {
-        implements_partial_ord::<ValidateSecResponseOutputData>();
+        implements_partial_ord::<ValidateSecResponseOutput>();
     }
 
     const fn implements_ord<T: Ord>() {}
     #[test]
     const fn should_implement_ord_when_implementing_output_data_trait() {
-        implements_ord::<ValidateSecResponseOutputData>();
+        implements_ord::<ValidateSecResponseOutput>();
     }
 
     const fn implements_default<T: Default>() {}
     #[test]
     const fn should_implement_default_when_implementing_output_data_trait() {
-        implements_default::<ValidateSecResponseOutputData>();
+        implements_default::<ValidateSecResponseOutput>();
     }
 
     #[test]
     const fn should_implement_debug_when_implementing_output_data_trait() {
         const fn implements_debug<T: Debug>() {}
-        implements_debug::<ValidateSecResponseOutputData>();
+        implements_debug::<ValidateSecResponseOutput>();
     }
 
     #[test]
     const fn should_implement_clone_when_implementing_output_data_trait() {
         const fn implements_clone<T: Clone>() {}
-        implements_clone::<ValidateSecResponseOutputData>();
+        implements_clone::<ValidateSecResponseOutput>();
     }
 
     #[test]
     const fn should_implement_unpin_when_implementing_output_data_trait() {
         const fn implements_unpin<T: Unpin>() {}
-        implements_unpin::<ValidateSecResponseOutputData>();
+        implements_unpin::<ValidateSecResponseOutput>();
     }
 }

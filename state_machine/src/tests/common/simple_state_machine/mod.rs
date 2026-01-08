@@ -9,11 +9,11 @@ pub struct SimpleStateMachine {
 }
 
 impl StateMachine<SampleState> for SimpleStateMachine {
-    fn get_current_state(&self) -> &SampleState {
+    fn current_state(&self) -> &SampleState {
         &self.current_state
     }
 
-    fn get_current_state_mut(&mut self) -> &mut SampleState {
+    fn current_state_mut(&mut self) -> &mut SampleState {
         &mut self.current_state
     }
 
@@ -22,7 +22,7 @@ impl StateMachine<SampleState> for SimpleStateMachine {
         // In a real scenario, this would contain logic to perform operations based on the current state
         println!(
             "Running state: {}",
-            self.get_current_state().get_state_name().to_string()
+            self.current_state().state_name().to_string()
         );
     }
 
@@ -31,6 +31,6 @@ impl StateMachine<SampleState> for SimpleStateMachine {
         // Here we could implement logic to transition to another state
         println!("Advancing state");
         // Example: Simulate state change by computing output data
-        self.get_current_state_mut().compute_output_data();
+        self.current_state_mut().compute_output_data();
     }
 }

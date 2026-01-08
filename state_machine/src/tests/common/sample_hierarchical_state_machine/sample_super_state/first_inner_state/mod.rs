@@ -18,11 +18,11 @@ impl State for FirstInnerState {
     type OutputData = FirstInnerStateData;
     type Context = FirstInnerStateContext;
 
-    fn get_state_name(&self) -> impl ToString {
+    fn state_name(&self) -> impl ToString {
         "First Inner State"
     }
 
-    fn get_input_data(&self) -> &FirstInnerStateData {
+    fn input_data(&self) -> &FirstInnerStateData {
         &self.input
     }
 
@@ -30,11 +30,11 @@ impl State for FirstInnerState {
         self.output = Some(FirstInnerStateData::default());
     }
 
-    fn get_output_data(&self) -> Option<&FirstInnerStateData> {
+    fn output_data(&self) -> Option<&FirstInnerStateData> {
         self.output.as_ref()
     }
 
-    fn get_context_data(&self) -> &FirstInnerStateContext {
+    fn context_data(&self) -> &FirstInnerStateContext {
         &self.context_data
     }
 }

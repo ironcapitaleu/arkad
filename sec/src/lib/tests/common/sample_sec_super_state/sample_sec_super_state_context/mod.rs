@@ -1,19 +1,19 @@
-use crate::traits::state_machine::state::ContextData;
-use state_maschine::prelude::ContextData as SMContextData;
+use crate::traits::state_machine::state::Context;
+use state_maschine::prelude::Context as SMContext;
 
 #[derive(Debug, Clone, Default, PartialEq, PartialOrd, Hash, Eq, Ord)]
 pub struct SampleSecSuperStateContext;
 
-impl ContextData for SampleSecSuperStateContext {
-    fn get_max_retries(&self) -> u32 {
+impl Context for SampleSecSuperStateContext {
+    fn max_retries(&self) -> u32 {
         0
     }
 }
 
-impl SMContextData for SampleSecSuperStateContext {
+impl SMContext for SampleSecSuperStateContext {
     type UpdateType = ();
 
-    fn get_context(&self) -> &Self {
+    fn context(&self) -> &Self {
         self
     }
 

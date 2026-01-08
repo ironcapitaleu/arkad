@@ -1,13 +1,13 @@
-use crate::state_machine::state::ContextData;
+use crate::state_machine::state::Context;
 
 #[derive(Debug, Clone, Default, PartialEq, PartialOrd, Hash, Eq, Ord)]
 pub struct SampleStateContext {
     context_data: String,
 }
 
-impl ContextData for SampleStateContext {
+impl Context for SampleStateContext {
     type UpdateType = SampleStateContextUpdater;
-    fn get_context(&self) -> &Self {
+    fn context(&self) -> &Self {
         self
     }
 

@@ -58,7 +58,7 @@ mod tests {
 
         let expected_result = "Sample SEC SuperState (Current: Sample SEC State)";
 
-        let result = super_state.get_state_name().to_string();
+        let result = super_state.state_name().to_string();
 
         assert_eq!(result, expected_result);
     }
@@ -69,7 +69,7 @@ mod tests {
 
         let expected_result = "Sample SEC State";
 
-        let result = super_state.get_current_state().get_state_name().to_string();
+        let result = super_state.current_state().state_name().to_string();
 
         assert_eq!(result, expected_result);
     }
@@ -79,23 +79,23 @@ mod tests {
         let mut super_state = SampleSecSuperState::<SampleSecState>::new();
 
         // The super state's output is not computed, but the inner state's is.
-        assert!(super_state.get_output_data().is_none());
-        assert!(super_state.get_current_state().get_output_data().is_none());
+        assert!(super_state.output_data().is_none());
+        assert!(super_state.current_state().output_data().is_none());
 
         super_state
             .compute_output_data_async()
             .await
-            .expect("Computation should succeed");
+            .expect("Valid test state should compute output successfully");
 
-        assert!(super_state.get_output_data().is_none()); // Super state output is still None
-        assert!(super_state.get_current_state().get_output_data().is_some()); // Inner state has output
+        assert!(super_state.output_data().is_none()); // Super state output is still None
+        assert!(super_state.current_state().output_data().is_some()); // Inner state has output
     }
 
     #[test]
     fn should_return_default_context_data_when_in_initial_super_state() {
         let super_state = SampleSecSuperState::<SampleSecState>::new();
         let expected_result = &SampleSecSuperStateContext::default();
-        let result = super_state.get_context_data();
+        let result = super_state.context_data();
         assert_eq!(result, expected_result);
     }
 
@@ -103,7 +103,7 @@ mod tests {
     fn should_return_default_input_data_when_in_initial_super_state() {
         let super_state = SampleSecSuperState::<SampleSecState>::new();
         let expected_result = &SampleSecSuperStateData::default();
-        let result = super_state.get_input_data();
+        let result = super_state.input_data();
         assert_eq!(result, expected_result);
     }
 

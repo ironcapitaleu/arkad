@@ -63,8 +63,8 @@ mod tests {
         let result =
             Transition::<FirstState, SecondState>::transition_to_next_state(complex_state_machine)
                 .expect("Should not fail the transitions to 'SecondState'.")
-                .get_current_state()
-                .get_state_name()
+                .current_state()
+                .state_name()
                 .to_string();
 
         assert_eq!(result, expected_result);
@@ -79,8 +79,8 @@ mod tests {
         let result =
             Transition::<FirstState, FirstState>::transition_to_next_state(complex_state_machine)
                 .expect("Should not fail the transitions to 'FirstState'.")
-                .get_current_state()
-                .get_state_name()
+                .current_state()
+                .state_name()
                 .to_string();
 
         assert_eq!(result, expected_result);
@@ -99,8 +99,8 @@ mod tests {
             first_transition_result,
         )
         .expect("Should not fail the transitions to 'SecondState'.")
-        .get_current_state()
-        .get_state_name()
+        .current_state()
+        .state_name()
         .to_string();
 
         assert_eq!(result, expected_result);

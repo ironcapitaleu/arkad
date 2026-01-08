@@ -1,8 +1,8 @@
 //! # Validate SEC Response Context Module
 //!
-//! This module defines the context data structures and updaters for the [`ValidateSecResponse`](../mod.rs) state in the SEC filings extraction workflow.
+//! This module defines the context structures and updaters for the [`ValidateSecResponse`](../mod.rs) state in the SEC filings extraction workflow.
 //!
-//! The context provides stateful information required during the validation of an SEC response, such as retry configurations and CIK tracking. It is designed to be used with the [`ContextData`] trait, enabling ergonomic context management and updates within state machines.
+//! The context provides stateful information required during the validation of an SEC response, such as retry configurations and CIK tracking. It is designed to be used with the [`Context`] trait, enabling ergonomic context management and updates within state machines.
 //!
 //! ## Components
 //! - [`ValidateSecResponseContext`]: Holds the current context for validating an SEC response.
@@ -18,25 +18,25 @@
 //! use sec::shared::cik::Cik;
 //! use state_maschine::prelude::*;
 //!
-//! let cik = Cik::new("1234567890").expect("Valid CIK");
+//! let cik = Cik::new("1234567890").expect("Hardcoded CIK string should be valid format");
 //! let mut context = ValidateSecResponseContext::new(cik);
-//! let update = ValidateSecResponseContextUpdaterBuilder::new()
-//!     .cik(Cik::new("0987654321").expect("Valid CIK"))
+//! let update = ValidateSecResponseContextUpdater::builder()
+//!     .cik(Cik::new("0987654321").expect("Hardcoded CIK string should be valid format"))
 //!     .build();
 //! context.update_context(update);
 //! assert_eq!(context.cik().to_string(), "0987654321");
 //! ```
 //!
 //! ## See Also
-//! - [`crate::traits::state_machine::state::ContextData`]: Trait for context data management in states.
+//! - [`crate::traits::state_machine::state::Context`]: Trait for context management in states.
 //! - [`crate::implementations::states::extract::validate_sec_response`]: Parent module for the SEC response validation state and data types.
 
 use std::fmt;
 
-use state_maschine::prelude::ContextData as SMContextData;
+use state_maschine::prelude::Context as SMContext;
 
 use crate::shared::cik::Cik;
-use crate::traits::state_machine::state::ContextData;
+use crate::traits::state_machine::state::Context;
 
 /// State context for the SEC response validation state.
 ///
@@ -81,16 +81,16 @@ impl ValidateSecResponseContext {
     }
 }
 
-impl ContextData for ValidateSecResponseContext {
-    fn get_max_retries(&self) -> u32 {
+impl Context for ValidateSecResponseContext {
+    fn max_retries(&self) -> u32 {
         self.max_retries
     }
 }
 
-impl SMContextData for ValidateSecResponseContext {
+impl SMContext for ValidateSecResponseContext {
     type UpdateType = ValidateSecResponseContextUpdater;
 
-    fn get_context(&self) -> &Self {
+    fn context(&self) -> &Self {
         self
     }
 
@@ -121,6 +121,14 @@ impl fmt::Display for ValidateSecResponseContext {
 pub struct ValidateSecResponseContextUpdater {
     /// Optional new CIK to replace the current one.
     pub cik: Option<Cik>,
+}
+
+impl ValidateSecResponseContextUpdater {
+    /// Creates a new builder for constructing [`ValidateSecResponseContextUpdater`] instances.
+    #[must_use]
+    pub const fn builder() -> ValidateSecResponseContextUpdaterBuilder {
+        ValidateSecResponseContextUpdaterBuilder::new()
+    }
 }
 
 /// Builder for constructing [`ValidateSecResponseContextUpdater`] instances.
@@ -180,14 +188,14 @@ mod tests {
     use std::{fmt::Debug, hash::Hash};
 
     use pretty_assertions::assert_eq;
-    use state_maschine::prelude::ContextData as SMContextData;
+    use state_maschine::prelude::Context as SMContext;
 
     use super::*;
     use crate::shared::cik::Cik;
 
     #[test]
     fn should_create_new_context_with_provided_cik() {
-        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid.");
+        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
 
         let expected_result = (cik.clone(), 0);
 
@@ -198,7 +206,7 @@ mod tests {
 
     #[test]
     fn should_return_cik_reference_when_accessing_cik() {
-        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid.");
+        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
         let context = ValidateSecResponseContext::new(cik.clone());
 
         let expected_result = &cik;
@@ -209,43 +217,43 @@ mod tests {
 
     #[test]
     fn should_return_max_retries_when_accessing_max_retries() {
-        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid.");
+        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
         let context = ValidateSecResponseContext::new(cik);
 
         let expected_result = 0;
-        let result = context.get_max_retries();
+        let result = context.max_retries();
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_update_cik_when_updater_contains_cik() {
-        let original_cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid.");
-        let new_cik = Cik::new("0987654321").expect("Hardcoded CIK should always be valid.");
+        let original_cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
+        let new_cik = Cik::new("0987654321").expect("Hardcoded CIK should always be valid");
         let mut context = ValidateSecResponseContext::new(original_cik);
-        let updater = ValidateSecResponseContextUpdaterBuilder::new()
+        let updater = ValidateSecResponseContextUpdater::builder()
             .cik(new_cik.clone())
             .build();
 
         let expected_result = &ValidateSecResponseContext::new(new_cik);
 
         context.update_context(updater);
-        let result = context.get_context();
+        let result = context.context();
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_not_update_fields_when_updater_is_empty() {
-        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid.");
+        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
         let original_context = ValidateSecResponseContext::new(cik.clone());
         let mut context = original_context.clone();
-        let updater = ValidateSecResponseContextUpdaterBuilder::new().build();
+        let updater = ValidateSecResponseContextUpdater::builder().build();
 
         let expected_result = &original_context;
 
         context.update_context(updater);
-        let result = context.get_context();
+        let result = context.context();
 
         assert_eq!(result, expected_result);
     }
@@ -264,18 +272,18 @@ mod tests {
 
     #[test]
     fn should_return_context_reference_when_accessing_context() {
-        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid.");
+        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
         let context = ValidateSecResponseContext::new(cik);
 
         let expected_result = &context;
-        let result = context.get_context();
+        let result = context.context();
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_display_context_information_when_formatted() {
-        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid.");
+        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
         let context = ValidateSecResponseContext::new(cik);
 
         let expected_result = "\tContext Data: 1234567890";
@@ -286,12 +294,12 @@ mod tests {
 
     #[test]
     fn should_update_cik_to_latest_specified_value_when_multiple_updates_in_builder() {
-        let original_cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid.");
+        let original_cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
         let intermediate_cik =
-            Cik::new("5555555555").expect("Hardcoded CIK should always be valid.");
-        let final_cik = Cik::new("0987654321").expect("Hardcoded CIK should always be valid.");
+            Cik::new("5555555555").expect("Hardcoded CIK should always be valid");
+        let final_cik = Cik::new("0987654321").expect("Hardcoded CIK should always be valid");
         let mut context = ValidateSecResponseContext::new(original_cik);
-        let updater = ValidateSecResponseContextUpdaterBuilder::new()
+        let updater = ValidateSecResponseContextUpdater::builder()
             .cik(intermediate_cik)
             .cik(final_cik.clone())
             .build();
@@ -299,7 +307,7 @@ mod tests {
         let expected_result = &ValidateSecResponseContext::new(final_cik);
 
         context.update_context(updater);
-        let result = context.get_context();
+        let result = context.context();
 
         assert_eq!(result, expected_result);
     }

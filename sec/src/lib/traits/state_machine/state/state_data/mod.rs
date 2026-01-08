@@ -13,7 +13,7 @@
 //! error on failure, ensuring consistent error handling across the state machine.
 //!
 //! See also:
-//! - [`crate::traits::state_machine::state::ContextData`]: For context data management.
+//! - [`crate::traits::state_machine::state::Context`]: For context management.
 //! - [`crate::implementations`]: For concrete state data implementations used in SEC ETL pipelines.
 //! - [`crate::error`]: For error types used in update operations.
 
@@ -42,90 +42,90 @@ mod tests {
     use pretty_assertions::{assert_eq, assert_ne};
     use state_maschine::prelude::StateData as SMStateData;
 
-    // For this case, using the `SampleSecStateInputData` as a concrete implementation of `StateData`.
+    // For this case, using the `SampleSecStateInput` as a concrete implementation of `StateData`.
     use crate::tests::common::sample_sec_state::sec_data::sec_input_data::{
-        SampleSecStateInputData, SampleSecStateInputDataUpdaterBuilder,
+        SampleSecStateInput, SampleSecStateInputUpdaterBuilder,
     };
 
     use crate::traits::state_machine::state::StateData;
 
     #[test]
     fn should_return_reference_to_default_sample_state_data_when_initialized_with_default() {
-        let default_sample_state_data = SampleSecStateInputData::default();
+        let default_sample_state_data = SampleSecStateInput::default();
 
-        let expected_result = &SampleSecStateInputData::default();
+        let expected_result = &SampleSecStateInput::default();
 
-        let result = default_sample_state_data.get_state();
+        let result = default_sample_state_data.state();
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_create_different_state_data_with_custom_data_when_using_new_as_constructor() {
-        let sample_state_data = &SampleSecStateInputData::new("0000000000");
+        let sample_state_data = &SampleSecStateInput::new("0000000000");
 
-        let default_sample_state_data = &SampleSecStateInputData::default();
+        let default_sample_state_data = &SampleSecStateInput::default();
 
-        let result = sample_state_data.get_state();
+        let result = sample_state_data.state();
 
         assert_ne!(result, default_sample_state_data);
     }
 
     #[test]
     fn should_update_state_data_to_specified_string_when_update_contains_specified_string() {
-        let mut state_data = SampleSecStateInputData::default();
-        let update = SampleSecStateInputDataUpdaterBuilder::default()
+        let mut state_data = SampleSecStateInput::default();
+        let update = SampleSecStateInputUpdaterBuilder::default()
             .input_data("12345")
             .build();
 
-        let expected_result = &SampleSecStateInputData::new("12345");
+        let expected_result = &SampleSecStateInput::new("12345");
 
         StateData::update_state(&mut state_data, update)
-            .expect("Update with valid 'update' value should always succeed.");
+            .expect("Update with valid 'update' value should always succeed");
 
-        let result = state_data.get_state();
+        let result = state_data.state();
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_update_state_data_to_latest_specified_string_when_multiple_updates_in_builder() {
-        let mut state_data = SampleSecStateInputData::default();
-        let update = SampleSecStateInputDataUpdaterBuilder::default()
+        let mut state_data = SampleSecStateInput::default();
+        let update = SampleSecStateInputUpdaterBuilder::default()
             .input_data("1234567890")
             .input_data("0000000000")
             .build();
 
-        let expected_result = &SampleSecStateInputData::new("0000000000");
+        let expected_result = &SampleSecStateInput::new("0000000000");
 
         StateData::update_state(&mut state_data, update)
-            .expect("Update with valid 'update' value should always succeed.");
-        let result = state_data.get_state();
+            .expect("Update with valid 'update' value should always succeed");
+        let result = state_data.state();
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_leave_state_data_unchanged_when_empty_update() {
-        let mut state_data = SampleSecStateInputData::default();
-        let empty_update = SampleSecStateInputDataUpdaterBuilder::default().build();
+        let mut state_data = SampleSecStateInput::default();
+        let empty_update = SampleSecStateInputUpdaterBuilder::default().build();
 
-        let expected_result = &SampleSecStateInputData::default();
+        let expected_result = &SampleSecStateInput::default();
 
         StateData::update_state(&mut state_data, empty_update)
-            .expect("Update with valid 'update' value should always succeed.");
-        let result = state_data.get_state();
+            .expect("Update with valid 'update' value should always succeed");
+        let result = state_data.state();
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_return_default_data_when_sample_input_data_initialized_with_default() {
-        let sample_state_data = &SampleSecStateInputData::default();
+        let sample_state_data = &SampleSecStateInput::default();
 
         let expected_result = &"Hello".to_string();
 
-        let result = sample_state_data.get_state().input_data();
+        let result = sample_state_data.state().input_data();
 
         assert_eq!(result, expected_result);
     }

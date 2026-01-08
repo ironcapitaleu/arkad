@@ -1,34 +1,34 @@
-//! # SEC Context Data Trait
+//! # SEC Context Trait
 //!
-//! This module defines the [`ContextData`] trait for SEC-specific state machines, extending the generic
-//! [`state_maschine::state_machine::state::ContextData`] trait with domain-specific retry logic.
+//! This module defines the [`Context`] trait for SEC-specific state machines, extending the generic
+//! [`state_maschine::state_machine::state::Context`] trait with domain-specific retry logic.
 //!
-//! Context data represents external or environmental information that may influence internal state computations
+//! Context represents external or environmental information that may influence internal state computations
 //! in the SEC state machine framework, but is usally not directly tied to or mutated by state transitions themselves.
 //! Typical examples include retry policies, configuration parameters, or metadata required for workflows (e.g., time, ...).
 //!
 //! ## Usage
-//! Implement [`ContextData`] for your SEC context data types to enable retry logic and context management
+//! Implement [`Context`] for your SEC context types to enable retry logic and context management
 //! during state transitions. The trait enforces a consistent interface for querying retry capabilities and limits.
 //!
 //! See also:
 //! - [`crate::traits::state_machine::state::StateData`]: For state data management.
-//! - [`crate::implementations`]: For concrete context data implementations used in SEC ETL pipelines.
+//! - [`crate::implementations`]: For concrete context implementations used in SEC ETL pipelines.
 //! - [`crate::error`]: For error types used in context-aware operations.
 
-use state_maschine::prelude::ContextData as SMContextData;
+use state_maschine::prelude::Context as SMContext;
 
-/// Trait for SEC-specific context data, extending the generic state machine context data trait with retry logic.
+/// Trait for SEC-specific context, extending the generic state machine context trait with retry logic.
 ///
-/// Implement this trait for SEC context data types to provide custom retry policies and metadata.
-pub trait ContextData: SMContextData {
+/// Implement this trait for SEC context types to provide custom retry policies and metadata.
+pub trait Context: SMContext {
     /// Returns `true` if the state can be retried, based on the maximum allowed retries.
     fn can_retry(&self) -> bool {
-        self.get_max_retries() > 0
+        self.max_retries() > 0
     }
 
     /// Returns the maximum number of retries allowed for the state.
-    fn get_max_retries(&self) -> u32;
+    fn max_retries(&self) -> u32;
 }
 
 #[cfg(test)]
@@ -46,7 +46,7 @@ mod tests {
 
         let expected_result = &SampleSecStateContext::default();
 
-        let result = sample_context.get_context();
+        let result = sample_context.context();
 
         assert_eq!(result, expected_result);
     }
@@ -57,7 +57,7 @@ mod tests {
 
         let default_sample_context = &SampleSecStateContext::default();
 
-        let result = sample_context.get_context();
+        let result = sample_context.context();
 
         assert_ne!(result, default_sample_context);
     }
@@ -72,7 +72,7 @@ mod tests {
         let expected_result = &SampleSecStateContext::new("Updated Data!");
 
         context.update_context(update);
-        let result = context.get_context();
+        let result = context.context();
 
         assert_eq!(result, expected_result);
     }
@@ -88,7 +88,7 @@ mod tests {
         let expected_result = &SampleSecStateContext::new("Latest Data Update!");
 
         context.update_context(update);
-        let result = context.get_context();
+        let result = context.context();
 
         assert_eq!(result, expected_result);
     }
@@ -101,7 +101,7 @@ mod tests {
             .build();
 
         context.update_context(update);
-        let result = context.get_context().data();
+        let result = context.context().data();
 
         assert_ne!(result, "Default Data");
     }
@@ -114,7 +114,7 @@ mod tests {
         let expected_result = &SampleSecStateContext::default();
 
         context.update_context(empty_update);
-        let result = context.get_context();
+        let result = context.context();
 
         assert_eq!(result, expected_result);
     }

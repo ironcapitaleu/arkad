@@ -1,8 +1,8 @@
 //! # Prepare SEC Request Context Module
 //!
-//! This module defines the context data structures and updaters for the [`PrepareSecRequest`](../mod.rs) state in the SEC filings extraction workflow.
+//! This module defines the context structures and updaters for the [`PrepareSecRequest`](../mod.rs) state in the SEC filings extraction workflow.
 //!
-//! The context provides stateful information required during the preparation of an SEC request, such as retry configurations. It is designed to be used with the [`ContextData`] trait, enabling ergonomic context management and updates within state machines.
+//! The context provides stateful information required during the preparation of an SEC request, such as retry configurations. It is designed to be used with the [`Context`] trait, enabling ergonomic context management and updates within state machines.
 //!
 //! ## Components
 //! - [`PrepareSecRequestContext`]: Holds the current context for preparing an SEC request.
@@ -14,11 +14,11 @@
 //!
 //! ## Example
 //! ```rust
-//! use sec::implementations::states::extract::prepare_sec_request::psr_context::*;
+//! use sec::implementations::states::extract::prepare_sec_request::context::*;
 //! use state_maschine::prelude::*;
 //!
 //! let mut context = PrepareSecRequestContext::default();
-//! let update = PrepareSecRequestContextUpdaterBuilder::new()
+//! let update = PrepareSecRequestContextUpdater::builder()
 //!     .max_retries(5)
 //!     .build();
 //! context.update_context(update);
@@ -26,15 +26,15 @@
 //! ```
 //!
 //! ## See Also
-//! - [`crate::traits::state_machine::state::ContextData`]: Trait for context data management in states.
+//! - [`crate::traits::state_machine::state::Context`]: Trait for context management in states.
 //! - [`crate::implementations::states::extract::prepare_sec_request`]: Parent module for the SEC request preparation state and data types.
 
 use std::fmt;
 
-use state_maschine::prelude::ContextData as SMContextData;
+use state_maschine::prelude::Context as SMContext;
 
 use crate::shared::cik::Cik;
-use crate::traits::state_machine::state::ContextData;
+use crate::traits::state_machine::state::Context;
 
 #[derive(Debug, Default, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 /// State context for the SEC request preparation state.
@@ -56,18 +56,18 @@ impl PrepareSecRequestContext {
     }
 }
 
-impl ContextData for PrepareSecRequestContext {
+impl Context for PrepareSecRequestContext {
     /// Returns the maximum number of retries allowed for the SEC request.
-    fn get_max_retries(&self) -> u32 {
+    fn max_retries(&self) -> u32 {
         self.max_retries
     }
 }
 
-impl SMContextData for PrepareSecRequestContext {
+impl SMContext for PrepareSecRequestContext {
     type UpdateType = PrepareSecRequestContextUpdater;
 
     /// Returns a reference to the current context.
-    fn get_context(&self) -> &Self {
+    fn context(&self) -> &Self {
         self
     }
 
@@ -102,6 +102,14 @@ impl fmt::Display for PrepareSecRequestContext {
 pub struct PrepareSecRequestContextUpdater {
     pub cik: Option<Cik>,
     pub max_retries: Option<u32>,
+}
+
+impl PrepareSecRequestContextUpdater {
+    /// Creates a new builder for constructing [`PrepareSecRequestContextUpdater`] instances.
+    #[must_use]
+    pub const fn builder() -> PrepareSecRequestContextUpdaterBuilder {
+        PrepareSecRequestContextUpdaterBuilder::new()
+    }
 }
 
 /// Builder for [`PrepareSecRequestContextUpdater`].
@@ -168,7 +176,10 @@ mod tests {
     use pretty_assertions::{assert_eq, assert_ne};
     use state_maschine::prelude::*;
 
-    use super::{PrepareSecRequestContext, PrepareSecRequestContextUpdaterBuilder};
+    use super::{
+        PrepareSecRequestContext, PrepareSecRequestContextUpdater,
+        PrepareSecRequestContextUpdaterBuilder,
+    };
 
     #[test]
     fn should_return_reference_to_default_request_context_when_initialized_with_default() {
@@ -176,7 +187,7 @@ mod tests {
 
         let expected_result = &PrepareSecRequestContext::default();
 
-        let result = request_context.get_context();
+        let result = request_context.context();
 
         assert_eq!(result, expected_result);
     }
@@ -185,14 +196,14 @@ mod tests {
     fn should_create_different_context_with_custom_data_when_using_default_as_constructor() {
         let request_context = &PrepareSecRequestContext::default();
         let cik =
-            Cik::new(BERKSHIRE_HATHAWAY_CIK_RAW).expect("Hardcoded CIK should always be valid.");
+            Cik::new(BERKSHIRE_HATHAWAY_CIK_RAW).expect("Hardcoded CIK should always be valid");
 
         let expected_result = &PrepareSecRequestContext {
             cik,
             max_retries: 5,
         };
 
-        let result = request_context.get_context();
+        let result = request_context.context();
 
         assert_ne!(result, expected_result);
     }
@@ -200,11 +211,11 @@ mod tests {
     #[test]
     fn should_update_context_max_retries_to_specified_value_when_update_contains_specified_value() {
         let mut context = PrepareSecRequestContext::default();
-        let update = PrepareSecRequestContextUpdaterBuilder::new()
+        let update = PrepareSecRequestContextUpdater::builder()
             .max_retries(5)
             .build();
         let cik =
-            Cik::new(BERKSHIRE_HATHAWAY_CIK_RAW).expect("Hardcoded CIK should always be valid.");
+            Cik::new(BERKSHIRE_HATHAWAY_CIK_RAW).expect("Hardcoded CIK should always be valid");
 
         let expected_result = &PrepareSecRequestContext {
             cik,
@@ -212,7 +223,7 @@ mod tests {
         };
 
         context.update_context(update);
-        let result = context.get_context();
+        let result = context.context();
 
         assert_eq!(result, expected_result);
     }
@@ -220,12 +231,12 @@ mod tests {
     #[test]
     fn should_update_max_retries_to_latest_specified_value_when_multiple_updates_in_builder() {
         let mut context = PrepareSecRequestContext::default();
-        let update = PrepareSecRequestContextUpdaterBuilder::new()
+        let update = PrepareSecRequestContextUpdater::builder()
             .max_retries(5)
             .max_retries(10)
             .build();
         let cik =
-            Cik::new(BERKSHIRE_HATHAWAY_CIK_RAW).expect("Hardcoded CIK should always be valid.");
+            Cik::new(BERKSHIRE_HATHAWAY_CIK_RAW).expect("Hardcoded CIK should always be valid");
 
         let expected_result = &PrepareSecRequestContext {
             cik,
@@ -233,7 +244,7 @@ mod tests {
         };
 
         context.update_context(update);
-        let result = context.get_context();
+        let result = context.context();
 
         assert_eq!(result, expected_result);
     }
@@ -241,14 +252,14 @@ mod tests {
     #[test]
     fn should_not_leave_context_max_retries_the_default_when_update_contains_a_different_value() {
         let mut context = PrepareSecRequestContext::default();
-        let update = PrepareSecRequestContextUpdaterBuilder::new()
+        let update = PrepareSecRequestContextUpdater::builder()
             .max_retries(5)
             .build();
 
         let expected_result = 0;
 
         context.update_context(update);
-        let result = context.get_context().max_retries;
+        let result = context.context().max_retries;
 
         assert_ne!(result, expected_result);
     }
@@ -261,7 +272,7 @@ mod tests {
         let expected_result = &PrepareSecRequestContext::default();
 
         context.update_context(empty_update);
-        let result = context.get_context();
+        let result = context.context();
 
         assert_eq!(result, expected_result);
     }

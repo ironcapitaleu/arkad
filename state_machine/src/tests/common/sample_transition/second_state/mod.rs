@@ -18,11 +18,11 @@ impl State for SecondState {
     type OutputData = SecondStateData;
     type Context = SecondStateContext;
 
-    fn get_state_name(&self) -> impl ToString {
+    fn state_name(&self) -> impl ToString {
         "Second State"
     }
 
-    fn get_input_data(&self) -> &SecondStateData {
+    fn input_data(&self) -> &SecondStateData {
         &self.input
     }
 
@@ -30,11 +30,11 @@ impl State for SecondState {
         self.output = Some(SecondStateData::default());
     }
 
-    fn get_output_data(&self) -> Option<&SecondStateData> {
+    fn output_data(&self) -> Option<&SecondStateData> {
         self.output.as_ref()
     }
 
-    fn get_context_data(&self) -> &SecondStateContext {
+    fn context_data(&self) -> &SecondStateContext {
         &self.context_data
     }
 }

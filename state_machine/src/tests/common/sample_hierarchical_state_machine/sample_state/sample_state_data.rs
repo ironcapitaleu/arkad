@@ -7,7 +7,7 @@ pub struct SampleStateData {
 
 impl StateData for SampleStateData {
     type UpdateType = SampleStateDataUpdater;
-    fn get_state(&self) -> &Self {
+    fn state(&self) -> &Self {
         self
     }
 

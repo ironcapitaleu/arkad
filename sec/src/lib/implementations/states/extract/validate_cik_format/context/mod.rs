@@ -1,8 +1,8 @@
 //! # Validate CIK Format Context Module
 //!
-//! This module defines the context data structures and updaters for the [`ValidateCikFormat`](../mod.rs) state in the SEC filings extraction workflow.
+//! This module defines the context structures and updaters for the [`ValidateCikFormat`](../mod.rs) state in the SEC filings extraction workflow.
 //!
-//! The context provides stateful information required during CIK format validation, such as the raw CIK string and retry configuration. It is designed to be used with the [`ContextData`] trait, enabling ergonomic context management and updates within state machines.
+//! The context provides stateful information required during CIK format validation, such as the raw CIK string and retry configuration. It is designed to be used with the [`Context`] trait, enabling ergonomic context management and updates within state machines.
 //!
 //! ## Components
 //! - [`ValidateCikFormatContext`]: Holds the current context for CIK validation, including the raw CIK and retry count.
@@ -14,11 +14,11 @@
 //!
 //! ## Example
 //! ```rust
-//! use sec::implementations::states::extract::validate_cik_format::vcf_context::*;
+//! use sec::implementations::states::extract::validate_cik_format::context::*;
 //! use state_maschine::prelude::*;
 //!
 //! let mut context = ValidateCikFormatContext::default();
-//! let update = ValidateCikFormatContextUpdaterBuilder::new()
+//! let update = ValidateCikFormatContextUpdater::builder()
 //!     .cik("0000000001")
 //!     .build();
 //! context.update_context(update);
@@ -26,15 +26,15 @@
 //! ```
 //!
 //! ## See Also
-//! - [`crate::traits::state_machine::state::ContextData`]: Trait for context data management in states.
+//! - [`crate::traits::state_machine::state::Context`]: Trait for context management in states.
 //! - [`crate::implementations::states::extract::validate_cik_format`]: Parent module for CIK validation state and data types.
 
 use std::fmt;
 
-use state_maschine::prelude::ContextData as SMContextData;
+use state_maschine::prelude::Context as SMContext;
 
 use crate::shared::cik::constants::BERKSHIRE_HATHAWAY_CIK_RAW;
-use crate::traits::state_machine::state::ContextData;
+use crate::traits::state_machine::state::Context;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 /// State context for the CIK format validation state.
@@ -68,18 +68,18 @@ impl ValidateCikFormatContext {
     }
 }
 
-impl ContextData for ValidateCikFormatContext {
+impl Context for ValidateCikFormatContext {
     /// Returns the maximum number of retries allowed for CIK validation.
-    fn get_max_retries(&self) -> u32 {
+    fn max_retries(&self) -> u32 {
         self.max_retries
     }
 }
 
-impl SMContextData for ValidateCikFormatContext {
+impl SMContext for ValidateCikFormatContext {
     type UpdateType = ValidateCikFormatContextUpdater;
 
     /// Returns a reference to the current context.
-    fn get_context(&self) -> &Self {
+    fn context(&self) -> &Self {
         self
     }
 
@@ -112,6 +112,14 @@ impl fmt::Display for ValidateCikFormatContext {
 /// Using this struct allows to update fields of `ValidateCikFormatContext` in a controlled way.
 pub struct ValidateCikFormatContextUpdater {
     pub raw_cik: Option<String>,
+}
+
+impl ValidateCikFormatContextUpdater {
+    /// Creates a new builder for constructing [`ValidateCikFormatContextUpdater`] instances.
+    #[must_use]
+    pub const fn builder() -> ValidateCikFormatContextUpdaterBuilder {
+        ValidateCikFormatContextUpdaterBuilder::new()
+    }
 }
 
 /// Builder for `ValidateCikFormatContextUpdater`.
@@ -162,7 +170,7 @@ mod tests {
     use state_maschine::prelude::*;
 
     use super::{
-        BERKSHIRE_HATHAWAY_CIK_RAW, ValidateCikFormatContext,
+        BERKSHIRE_HATHAWAY_CIK_RAW, ValidateCikFormatContext, ValidateCikFormatContextUpdater,
         ValidateCikFormatContextUpdaterBuilder,
     };
 
@@ -172,7 +180,7 @@ mod tests {
 
         let expected_result = &ValidateCikFormatContext::default();
 
-        let result = validation_context.get_context();
+        let result = validation_context.context();
 
         assert_eq!(result, expected_result);
     }
@@ -183,7 +191,7 @@ mod tests {
 
         let expected_result = &ValidateCikFormatContext::default();
 
-        let result = validation_context.get_context();
+        let result = validation_context.context();
 
         assert_ne!(result, expected_result);
     }
@@ -191,14 +199,14 @@ mod tests {
     #[test]
     fn should_update_context_cik_data_to_specified_string_when_update_contains_specified_string() {
         let mut context = ValidateCikFormatContext::default();
-        let update = ValidateCikFormatContextUpdaterBuilder::new()
+        let update = ValidateCikFormatContextUpdater::builder()
             .cik("Updated CIK!")
             .build();
 
         let expected_result = &ValidateCikFormatContext::new("Updated CIK!");
 
         context.update_context(update);
-        let result = context.get_context();
+        let result = context.context();
 
         assert_eq!(result, expected_result);
     }
@@ -206,7 +214,7 @@ mod tests {
     #[test]
     fn should_update_cik_to_latest_specified_string_when_multiple_updates_in_builder() {
         let mut context = ValidateCikFormatContext::default();
-        let update = ValidateCikFormatContextUpdaterBuilder::new()
+        let update = ValidateCikFormatContextUpdater::builder()
             .cik("First CIK Update!")
             .cik("Latest CIK Update!")
             .build();
@@ -214,7 +222,7 @@ mod tests {
         let expected_result = &ValidateCikFormatContext::new("Latest CIK Update!");
 
         context.update_context(update);
-        let result = context.get_context();
+        let result = context.context();
 
         assert_eq!(result, expected_result);
     }
@@ -222,14 +230,14 @@ mod tests {
     #[test]
     fn should_not_leave_context_cik_data_the_default_when_update_contains_a_different_string() {
         let mut context = ValidateCikFormatContext::default();
-        let update = ValidateCikFormatContextUpdaterBuilder::new()
+        let update = ValidateCikFormatContextUpdater::builder()
             .cik("Updated CIK!")
             .build();
 
         let expected_result = BERKSHIRE_HATHAWAY_CIK_RAW;
 
         context.update_context(update);
-        let result = context.get_context().cik();
+        let result = context.context().cik();
 
         assert_ne!(result, expected_result);
     }
@@ -242,7 +250,7 @@ mod tests {
         let expected_result = &ValidateCikFormatContext::default();
 
         context.update_context(empty_update);
-        let result = context.get_context();
+        let result = context.context();
 
         assert_eq!(result, expected_result);
     }

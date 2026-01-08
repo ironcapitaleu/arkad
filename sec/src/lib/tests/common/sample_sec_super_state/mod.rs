@@ -42,11 +42,7 @@ impl SampleSecSuperState<SampleSecState> {
 
 impl<S: State> fmt::Display for SampleSecSuperState<S> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "SampleSecSuperState({})",
-            self.get_state_name().to_string()
-        )
+        write!(f, "SampleSecSuperState({})", self.state_name().to_string())
     }
 }
 
@@ -65,10 +61,10 @@ impl<S: State> SMState for SampleSecSuperState<S> {
     type OutputData = SampleSecSuperStateData;
     type Context = SampleSecSuperStateContext;
 
-    fn get_state_name(&self) -> impl ToString {
+    fn state_name(&self) -> impl ToString {
         format!(
             "Sample SEC SuperState (Current: {})",
-            self.current_state.get_state_name().to_string()
+            self.current_state.state_name().to_string()
         )
     }
 
@@ -76,25 +72,25 @@ impl<S: State> SMState for SampleSecSuperState<S> {
         // handled by async version
     }
 
-    fn get_context_data(&self) -> &Self::Context {
+    fn context_data(&self) -> &Self::Context {
         &self.context
     }
 
-    fn get_input_data(&self) -> &Self::InputData {
+    fn input_data(&self) -> &Self::InputData {
         &self.input
     }
 
-    fn get_output_data(&self) -> Option<&Self::OutputData> {
+    fn output_data(&self) -> Option<&Self::OutputData> {
         self.output.as_ref()
     }
 }
 
 impl<S: State> SMStateMachine<S> for SampleSecSuperState<S> {
-    fn get_current_state(&self) -> &S {
+    fn current_state(&self) -> &S {
         &self.current_state
     }
 
-    fn get_current_state_mut(&mut self) -> &mut S {
+    fn current_state_mut(&mut self) -> &mut S {
         &mut self.current_state
     }
 

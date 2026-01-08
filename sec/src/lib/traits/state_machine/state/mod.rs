@@ -6,7 +6,7 @@
 //! in SEC data processing pipelines. Notably, it provides error handling capabilities and the ability to compute output data asynchronously.
 //!
 //! ## Modules
-//! - [`context_data`]: Traits for defining context data used within SEC state machines.
+//! - [`context_data`]: Traits for defining context used within SEC state machines.
 //! - [`state_data`]: Traits for defining state data used within SEC state machines.
 //!
 //! ## Usage
@@ -26,7 +26,7 @@ use crate::error::State as StateError;
 pub mod context_data;
 pub mod state_data;
 
-pub use context_data::ContextData;
+pub use context_data::Context;
 pub use state_data::StateData;
 
 /// Trait for SEC-specific states, extending the generic state machine state with domain error handling and asynchronous output data computation.
@@ -55,7 +55,7 @@ mod tests {
 
     use super::*;
     use crate::tests::common::sample_sec_state::{
-        SampleSecState, SampleSecStateContext, SampleSecStateInputData, SampleSecStateOutputData,
+        SampleSecState, SampleSecStateContext, SampleSecStateInput, SampleSecStateOutput,
     };
 
     #[test]
@@ -64,7 +64,7 @@ mod tests {
 
         let expected_result = String::from("Sample SEC State");
 
-        let result = sample_state.get_state_name().to_string();
+        let result = sample_state.state_name().to_string();
 
         assert_eq!(result, expected_result);
     }
@@ -73,21 +73,23 @@ mod tests {
     fn should_return_default_state_data_struct_as_input_data_when_in_initial_sample_state() {
         let sample_state = SampleSecState::default();
 
-        let expected_result = &SampleSecStateInputData::default();
+        let expected_result = &SampleSecStateInput::default();
 
-        let result = sample_state.get_input_data();
+        let result = sample_state.input_data();
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
-    #[should_panic(expected = "output should not be empty")]
+    #[should_panic(
+        expected = "State with valid input should always produce output after computation"
+    )]
     fn should_panic_when_trying_to_access_output_data_before_it_has_been_computed_in_state() {
         let sample_state = SampleSecState::default();
 
         let _result = sample_state
-            .get_output_data()
-            .expect("The output should not be empty.");
+            .output_data()
+            .expect("State with valid input should always produce output after computation");
     }
 
     #[test]
@@ -107,7 +109,7 @@ mod tests {
 
         let expected_result = &SampleSecStateContext::default();
 
-        let result = sample_state.get_context_data();
+        let result = sample_state.context_data();
 
         assert_eq!(result, expected_result);
     }
@@ -202,9 +204,9 @@ mod tests {
         let sample_state = &SampleSecState::default();
         let ref_to_sample_state = &SampleSecState::default();
 
-        let expected_result = sample_state.get_context_data();
+        let expected_result = sample_state.context_data();
 
-        let result = ref_to_sample_state.get_context_data();
+        let result = ref_to_sample_state.context_data();
 
         assert_eq!(result, expected_result);
     }
@@ -221,14 +223,16 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "output should not be empty")]
+    #[should_panic(
+        expected = "State with valid input should always produce output after computation"
+    )]
     fn should_panic_when_trying_to_access_output_data_before_it_has_been_computed_in_reference_state()
      {
         let ref_to_sample_state = &SampleSecState::default();
 
         let _result = ref_to_sample_state
-            .get_output_data()
-            .expect("The output should not be empty.");
+            .output_data()
+            .expect("State with valid input should always produce output after computation");
     }
 
     #[test]
@@ -237,7 +241,7 @@ mod tests {
 
         let expected_result = String::from("Sample SEC State");
 
-        let result = ref_to_sample_state.get_state_name().to_string();
+        let result = ref_to_sample_state.state_name().to_string();
 
         assert_eq!(result, expected_result);
     }
@@ -247,9 +251,9 @@ mod tests {
     {
         let ref_to_sample_state = &SampleSecState::default();
 
-        let expected_result = &SampleSecStateInputData::default();
+        let expected_result = &SampleSecStateInput::default();
 
-        let result = ref_to_sample_state.get_input_data();
+        let result = ref_to_sample_state.input_data();
 
         assert_eq!(result, expected_result);
     }
@@ -258,13 +262,13 @@ mod tests {
     async fn should_not_change_input_data_when_computing_output_data() {
         let mut sample_state = SampleSecState::default();
 
-        let expected_result = &sample_state.get_input_data().clone();
+        let expected_result = &sample_state.input_data().clone();
 
         sample_state
             .compute_output_data_async()
             .await
-            .expect("Default state should always compute output data.");
-        let result = sample_state.get_input_data();
+            .expect("Default test state should always compute output successfully");
+        let result = sample_state.input_data();
 
         assert_eq!(result, expected_result);
     }
@@ -273,14 +277,14 @@ mod tests {
     async fn should_return_correct_output_data_when_computing_output_data() {
         let mut sample_state = SampleSecState::default();
 
-        let expected_result = &SampleSecStateOutputData::default();
+        let expected_result = &SampleSecStateOutput::default();
 
         sample_state
             .compute_output_data_async()
             .await
-            .expect("Default state should always compute output data.");
+            .expect("Default test state should always compute output successfully");
 
-        let result = sample_state.get_output_data().unwrap();
+        let result = sample_state.output_data().unwrap();
 
         assert_eq!(result, expected_result);
     }

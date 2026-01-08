@@ -1,13 +1,13 @@
-use crate::state_machine::state::ContextData;
+use crate::state_machine::state::Context;
 
 #[derive(Debug, Clone, Default, PartialEq, PartialOrd, Hash, Eq, Ord)]
 pub struct SecondInnerStateContext {
     context_data: String,
 }
 
-impl ContextData for SecondInnerStateContext {
+impl Context for SecondInnerStateContext {
     type UpdateType = SecondInnerStateContextUpdater;
-    fn get_context(&self) -> &Self {
+    fn context(&self) -> &Self {
         self
     }
 
