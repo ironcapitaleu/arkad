@@ -173,5 +173,4 @@ mod tests {
     fn should_be_able_to_create_state_invalidinputdata_error_when_using_enum_directly() {
         let _result = State::InvalidInput;
     }
-
 }
