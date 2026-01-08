@@ -73,9 +73,9 @@ use super::context_data::ContextData;
 - Integration tests should be placed in the `tests` directory, with each test in its own file.
 - When using `.expect()` in tests, provide **clear, specific messages** that explain **why the operation should not fail** given the test context:
   - Bad example: `.expect("should work")`, `.expect("should create it")`
-  - Good example: `.expect("given a valid hardcoded CIK, the creation of a CIK object should always succeed")`
-  - Good example: `.expect("parsing a well-formed JSON response with status 200 should never fail")`
-  - The message should reference the specific test setup and why failure is unexpected in that scenario.
+  - Good example: `.expect("Given a valid hardcoded CIK, the creation of a CIK object should always succeed")`
+  - Good example: `.expect("Parsing a well-formed JSON response with status 200 should never fail")`
+  - The message should reference the specific test setup and why failure is unexpected in that scenario. Use capitalized first words. Do **NOT** end with a period.
   
 ---
 
