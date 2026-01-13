@@ -11,13 +11,13 @@
 //! ## Usage
 //! These error types are returned by SEC request execution routines and are used in state data modules
 //! to provide detailed diagnostics and error handling for HTTP request execution.
-//! They are also used as domain errors for the general state machine error logic in [`crate::error`] and may be wrapped by state-level errors like [`crate::error::state_machine::state::RequestExecutionFailed`].
+//! They are also used as domain errors for the general state machine error logic in [`crate::error`] and may be wrapped by state-level errors like [`crate::error::state_machine::state::FailedRequestExecution`].
 //!
 //! ## See Also
 //! - [`crate::shared::sec_request`]: Main SEC request utilities module.
 //! - [`crate::shared::sec_response`]: Related SEC response error types.
 //! - [`crate::error`]: Error types that may reference SEC request errors for reporting.
-//! - [`crate::error::state_machine::state::RequestExecutionFailed`]: State-level error that wraps `SecRequestError` for error propagation in state machines.
+//! - [`crate::error::state_machine::state::FailedRequestExecution`]: State-level error that wraps `SecRequestError` for error propagation in state machines.
 
 use reqwest::Error as ReqwestError;
 use thiserror::Error;
