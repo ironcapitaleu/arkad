@@ -53,6 +53,30 @@ use super::context_data::ContextData;
 
 ---
 
+## Naming Conventions
+
+### Error Types
+Error types must follow consistent naming patterns based on the kind of error they represent:
+
+**Adjective-First Pattern** (for describing the *state* of something):
+- Use when the error represents an invalid or unexpected *quality* of data or state
+- Format: `Invalid[Noun]`, `Missing[Noun]`, `Unexpected[Noun]`
+- Examples: `InvalidCikFormat`, `InvalidSecResponse`, `InvalidInput`, `MissingOutput`
+
+**Failed-First Pattern** (for describing *failed actions*):
+- Use when the error represents a specific action or operation that failed
+- Format: `Failed[Action/Noun]`
+- Examples: `FailedClientCreation`, `FailedRequestExecution`, `FailedOutputComputation`
+- Avoid: `[Action]Failed`
+
+**General Guidelines:**
+- Keep error names concise but descriptive
+- The error type name should clearly indicate what went wrong
+- Be consistent within the same error domain or module
+- Prefer specific names over generic ones (e.g., `FailedClientCreation` over `CreationError`)
+
+---
+
 ## 📦 Library Code
 
 ### 🧪 Testing
