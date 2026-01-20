@@ -122,4 +122,3 @@ mod tests {
         assert!(result.client().get("https://example.com").build().is_ok());
     }
 }
-
