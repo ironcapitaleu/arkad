@@ -91,6 +91,7 @@ Error types must follow consistent naming patterns based on the kind of error th
     - **Note**: Use `Result<T, E>` for error handling
   - **Assert**: Verify the results (i.e., that the `result` matches the `expected_result`)
     - **Note**: Use `assert_eq!` for equality checks, `assert_ne!` for inequality checks, and `assert!(condition)` for boolean checks.
+    - **IMPORTANT**: Key rule: write **EXACTLY ONE** `assert!(...)` per test function to ensure clarity on what is being tested.
 - Unit tests should be placed in the same file as the code they test, using a `#[cfg(test)]` module.
 - Unit tests should follow the `should_..._when` naming convention for the test function names, where `...` is a description of the expected behavior.
   - **Note**: Test function names should be in `snake_case` and start with `should_`. Test names can be verbose, explicit but clear naming is favored over brevity.
@@ -127,7 +128,7 @@ All structured logs must be formatted as **JSON documents** with exactly **five 
   - Format: **ISO 8601 UTC** (e.g., `2024-10-12T14:30:00Z`)
 - **`event`**: The specific event that triggered log creation
   - Brief, descriptive identifier for the event type
-  - Use singular nouns (e.g., "user_login" instead of "user_logins")
+  - Use `snake_case` singular nouns (e.g., `user_login` instead of `user_logins`)
   - A set of predefined event names should be maintained and used consistently - likely maintained as a non-exhaustive enum with a catch_all variant for unknown events (that can be extended in the future)
 - **`message`**: High-level information about the `event`
   - Human-readable summary of what happened
@@ -208,6 +209,9 @@ When Copilot generates code, it should:
 ### Testing
 - Confirm sufficient test coverage  
 - Suggest missing edge cases or error condition tests  
+- Verify tests follow the **"Arrange, Define, Act, Assert"** pattern
+- Verify each test contains **EXACTLY ONE** `assert!(...)` statement and no more
+- Ensure tests are placed in the correct locations (unit tests in same file, integration tests in `tests` directory)
 
 ### What NOT to Do
 - Avoid nitpicks on trivial formatting  
