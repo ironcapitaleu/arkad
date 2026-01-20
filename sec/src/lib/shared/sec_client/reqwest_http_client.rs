@@ -2,7 +2,7 @@
 //!
 //! This module provides a concrete implementation of the [`HttpClient`] trait using
 //! the `reqwest` library. This is the default HTTP client implementation used by
-//! [`SecClient`] for making HTTP requests to SEC endpoints.
+//! [`super::SecClient`] for making HTTP requests to SEC endpoints.
 //!
 //! ## Types
 //! - [`ReqwestHttpClient`]: Wrapper around `reqwest::Client` that implements [`HttpClient`].
@@ -22,7 +22,7 @@ use crate::shared::sec_response::SecResponse;
 /// Implementation of [`HttpClient`] using the `reqwest` library.
 ///
 /// `ReqwestHttpClient` wraps a `reqwest::Client` and implements the [`HttpClient`]
-/// trait, enabling it to be used with [`SecClient`] for dependency injection.
+/// trait, enabling it to be used with [`super::SecClient`] for dependency injection.
 ///
 /// # Examples
 ///

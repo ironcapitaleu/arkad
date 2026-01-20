@@ -19,7 +19,7 @@ use crate::shared::sec_response::SecResponse;
 /// Trait defining the interface for HTTP client operations.
 ///
 /// This trait abstracts HTTP client functionality to enable dependency injection
-/// and testing. Any HTTP client implementation can be used with [`SecClient`] as
+/// and testing. Any HTTP client implementation can be used with [`super::SecClient`] as
 /// long as it implements this trait.
 #[async_trait]
 pub trait HttpClient: Send + Sync {
@@ -39,7 +39,7 @@ pub trait HttpClient: Send + Sync {
     /// Creates a boxed clone of this HTTP client.
     ///
     /// This method enables cloning of trait objects, which is necessary for
-    /// [`SecClient`] to implement the [`Clone`] trait.
+    /// [`super::SecClient`] to implement the [`Clone`] trait.
     ///
     /// # Returns
     /// Returns a new boxed instance of the HTTP client.
