@@ -53,7 +53,7 @@ use super::context_data::ContextData;
 
 ---
 
-## Naming Conventions
+## Error Naming Conventions
 
 ### Error Types
 Error types must follow consistent naming patterns based on the kind of error they represent:
@@ -105,7 +105,7 @@ Error types must follow consistent naming patterns based on the kind of error th
 
 ## Application Code
 
-### 📈 Logging
+### Logging
 - Use **structured logging** in application code only (not in libraries).
 - Logs must:
   - Be formatted as **JSON**
