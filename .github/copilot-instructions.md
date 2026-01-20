@@ -109,15 +109,15 @@ Error types must follow consistent naming patterns based on the kind of error th
 - Use **structured logging** in application code only (not in libraries).
 - Logs must:
   - Be formatted as **JSON**
+  - **Avoid sensitive data** (e.g., passwords, API keys, Personally Identifiable Information (PII))
   - Include **specific fields** (see format below)
-  - **Avoid sensitive data**
   - Use the correct **log level**:
-    - `info`: Regular application state (e.g., "Server started")
-    - `debug`: Development-level details (e.g., variable values)
-    - `warn`: Unexpected but non-breaking situations (e.g., deprecated usage)
-    - `error`: Critical issues (e.g., failure to connect to a database)
+    - `info`: Regular application state (e.g., "Server started", "User logged in")
+    - `debug`: Development-level details (e.g., variable values, request/response payloads)
+    - `warn`: Unexpected but non-breaking situations (e.g., deprecated API usage, retries)
+    - `error`: Critical issues (e.g., failure to connect to a database, unhandled exceptions)
 
-## Structured Logging Format
+### Structured Logging Format
 
 All structured logs must be formatted as **JSON documents** with exactly **five required fields**:
 
