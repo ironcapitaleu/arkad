@@ -1,12 +1,12 @@
-# 🛠️ Copilot Instructions – Development Guidelines for Rust Projects
+# Copilot Instructions – Development Guidelines for Rust Projects
 
 > Use this file to guide GitHub Copilot and developers to follow consistent, high-quality practices when writing or updating code in this project.
 
 ---
 
-## ✅ General Rules (For All Code)
+## General Rules (For All Code)
 
-### 🧹 Code Quality
+### Code Quality
 - The code is **properly formatted** (`rustfmt`).
 - Dependencies must be **free of known security vulnerabilities** (`cargo audit`).
 - Code **compiles without errors** and passes:
@@ -15,14 +15,14 @@
   - Integration tests
   - Doctests
 
-### 📚 Documentation
+### Documentation
 - Public items in libraries **must include docstrings** (`///`).
 - All implementation changes must be **reflected in documentation**, including:
   - Docstrings
   - Design documents (if applicable, e.g., mermaid diagrams)
 - **Documentation must be version controlled**.
 
-## 📥 Import Order Conventions
+## Import Order Conventions
 
 To ensure readability and consistency, all Rust imports in this project must be grouped and ordered as follows:
 
@@ -53,9 +53,9 @@ use super::context_data::ContextData;
 
 ---
 
-## 📦 Library Code
+## Library Code
 
-### 🧪 Testing
+### Testing
 - Write a **comprehensive unit test suite** for the implemented code.
 - If applicable, write **integration tests**.
 - Include **doctests** where useful.
@@ -79,7 +79,7 @@ use super::context_data::ContextData;
   
 ---
 
-## 🖥️ Application Code
+## Application Code
 
 ### 📈 Logging
 - Use **structured logging** in application code only (not in libraries).
@@ -93,7 +93,7 @@ use super::context_data::ContextData;
     - `warn`: Unexpected but non-breaking situations (e.g., deprecated usage)
     - `error`: Critical issues (e.g., failure to connect to a database)
 
-## 📝 Structured Logging Format
+## Structured Logging Format
 
 All structured logs must be formatted as **JSON documents** with exactly **five required fields**:
 
@@ -128,13 +128,13 @@ All structured logs must be formatted as **JSON documents** with exactly **five 
 }
 ```
 
-### ⚙️ Logging Infrastructure
+### Logging Infrastructure
 - Use `log` crate as a **facade**
 - Use `tracing` crate as the **implementation backend**
 
 ---
 
-## 💡 Copilot Guidance
+## Copilot Guidance
 
 When Copilot generates code, it should:
 - Follow existing conventions and module structure
@@ -148,7 +148,7 @@ When Copilot generates code, it should:
 
 ## PR Review Guidelines
 
-### ✅ Code Quality
+### Code Quality
 - Readability and maintainability  
 - Flag duplicated code  
 - Ensure functions are focused and not overly long
@@ -158,41 +158,41 @@ When Copilot generates code, it should:
 - Code within files and modules must follow the **Step-Down Rule** ([see explanation](https://dzone.com/articles/the-stepdown-rule)) (functions stay on one layer of abstraction, inside a module order functions by higher-level concepts first, details later)
 
 
-### ⚡ Performance
+### Performance
 - Flag inefficiencies  
 - Avoid premature optimization  
 
-### 🛡️ Correctness & Safety
+### Correctness & Safety
 - Spot potential bugs and edge cases  
 - Verify sufficient error handling  
 
-### 🔒 Security
+### Security
 - Identify insecure practices (e.g., hardcoded secrets)  
 - Flag outdated or vulnerable libraries  
 
-### 📘 Style & Documentation
+### Style & Documentation
 - Ensure style conventions are followed  
 - Check for meaningful comments and docstrings  
 - Suggest clearer names and documentation where needed  
 
-### 🧾 Documentation Consistency
+### Documentation Consistency
 - Cross-check code changes against `README.md`, API docs, usage guides, and inline examples  
 - Flag when function names, parameters, or behaviors change but docs are not updated  
 - Highlight outdated instructions or examples caused by code changes  
 - Ensure new features or breaking changes are properly documented  
 
-### 🧪 Testing
+### Testing
 - Confirm sufficient test coverage  
 - Suggest missing edge cases or error condition tests  
 
-### 🛑 What NOT to Do
+### What NOT to Do
 - Avoid nitpicks on trivial formatting  
 - Do not suggest unnecessary rewrites if code is clear and correct  
 - Do not enforce rules not listed in these guidelines  
 
 ---
 
-## 📝 Commit Guidelines
+## Commit Guidelines
 
 All commits must follow the following format:
 
@@ -204,7 +204,7 @@ All commits must follow the following format:
 [<footer>]
 ```
 
-### 🏷️ Commit Types
+### Commit Types
 
 - **`feat`**: Adds new functionality to code by adding functions or features
 - **`fix`**: Restores intended functionality by fixing bugs (including linting errors) - does not intentionally add new functionality
@@ -224,7 +224,7 @@ All commits must follow the following format:
 - **`revert`**: Reverts a previous commit
 - **`chore`**: Catchall commit type. For routine maintenance tasks not affecting app logic, CI/CD, or build output. (e.g., updating files such as `.gitignore`, LICENSE files, generic project management templates, or updating automation scripts like `Makefile` files or similar.)
 
-### 🎯 Scope (Optional)
+### Scope (Optional)
 
 Add scope for area-specific changes when it helps understanding:
 - Package names
@@ -235,19 +235,19 @@ Add scope for area-specific changes when it helps understanding:
 - `feat(auth): add user login validation`
 - `fix(database): handle connection timeout errors`
 
-### ✍️ Short Summary
+### Short Summary
 
 - Use **imperative mood** ("add", not "added" or "adds")
 - Keep under **72 characters**
 - Be descriptive but concise
 
-### 📄 Commit Body (Optional)
+### Commit Body (Optional)
 
 - Explain **why** the change was made, not what it does
 - Use when additional context is needed
 - Separate from summary with blank line
 
-### 📄 Footer (Optional)
+### Footer (Optional)
 - Reference issues or breaking changes
 - Use when relevant for context
 
@@ -267,7 +267,7 @@ Refs: #123
 
 ---
 
-## ⚠️ Deviations
+## Deviations
 If you must deviate from any guideline, **include a code comment** explaining why. Consistency, safety, and clarity are the priorities in this project.
 
 ---
