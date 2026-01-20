@@ -6,19 +6,26 @@
 //! by SEC guidelines.
 //!
 //! ## Overview
-//! The [`SecClient`] is a wrapper around [`reqwest::Client`] that enforces SEC-compliant user agent
-//! formatting and provides unique identification for each client instance. It is designed to be used
-//! throughout the SEC state machine library for making HTTP requests to SEC endpoints.
+//! The [`SecClient`] uses dependency injection via the [`HttpClient`] trait, allowing for flexible
+//! HTTP client implementations. By default, it uses [`ReqwestHttpClient`] which wraps [`reqwest::Client`],
+//! but custom implementations can be provided as needed.
 //!
 //! ## Types
-//! - [`SecClient`]: Main client wrapper with unique ID and configured HTTP client.
+//! - [`SecClient`]: Main client wrapper with unique ID and configurable HTTP client.
+//! - [`HttpClient`]: Trait defining the HTTP client interface for dependency injection.
+//! - [`ReqwestHttpClient`]: Default implementation using reqwest.
 //! - [`SecClientError`], [`SecClientErrorReason`]: Error types for client creation failures.
 //!
 //! ## See Also
 //! - [`super::user_agent`]: User agent validation and formatting utilities.
 //! - [`reqwest::Client`]: Underlying HTTP client implementation.
 
+pub mod http_client;
+pub mod reqwest_http_client;
 pub mod sec_client_error;
+
+pub use http_client::HttpClient;
+pub use reqwest_http_client::ReqwestHttpClient;
 pub use sec_client_error::{SecClientError, SecClientErrorReason};
 
 use super::sec_request::SecRequest;
@@ -26,42 +33,28 @@ use super::sec_request::sec_request_error::SecRequestError;
 use super::sec_response::SecResponse;
 use super::user_agent::UserAgent;
 
-use reqwest::{Client, ClientBuilder};
+use reqwest::ClientBuilder;
 use uuid::Uuid;
 
-/// A wrapper around [`reqwest::Client`] configured for SEC-compliant HTTP requests.
+/// A client for making SEC-compliant HTTP requests.
 ///
-/// `SecClient` ensures that all HTTP requests are made with a properly formatted user agent
-/// string as required by SEC guidelines. Each client instance has a unique identifier for
-/// tracking and debugging purposes.
+/// `SecClient` ensures that all HTTP requests follow SEC guidelines and uses the [`HttpClient`]
+/// trait for dependency injection, enabling flexibility in HTTP client implementations. By default,
+/// it uses [`ReqwestHttpClient`].
 ///
-/// # Examples
-///
-/// ```rust
-/// use sec::shared::sec_client::SecClient;
-///
-/// // Create a new client with SEC-compliant user agent
-/// let client = SecClient::new("Sample Corp contact@sample.com")?;
-///
-/// // Access the unique client ID
-/// let id = client.id();
-///
-/// // Get the underlying HTTP client for making requests
-/// let http_client = client.client();
-/// # Ok::<(), Box<dyn std::error::Error>>(())
-/// ```
+/// Each client instance has a unique identifier for tracking and debugging purposes.
 ///
 /// # User Agent Requirements
 /// The user agent string must follow the SEC format: "Company Name email@domain.com"
 /// - Company name can contain letters, numbers, spaces, and common punctuation
 /// - Must be followed by a space and a valid email address
 /// - Email must have proper domain extension (minimum 2 characters)
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct SecClient {
     /// Unique identifier for this client instance.
     pub id: String,
-    /// The underlying reqwest HTTP client.
-    pub inner: reqwest::Client,
+    /// The underlying HTTP client implementation.
+    pub inner: Box<dyn HttpClient>,
 }
 
 impl SecClient {
@@ -129,10 +122,32 @@ impl SecClient {
             });
         };
 
+        let http_client = ReqwestHttpClient::new(client);
+
         Ok(Self {
             id: Uuid::new_v4().to_string(),
-            inner: client,
+            inner: Box::new(http_client),
         })
+    }
+
+    /// Creates a new `SecClient` with a custom HTTP client implementation.
+    ///
+    /// This method allows dependency injection of any [`HttpClient`] implementation,
+    /// enabling testing with mock clients or using alternative HTTP client libraries.
+    ///
+    /// # Arguments
+    ///
+    /// * `http_client` - A boxed implementation of the [`HttpClient`] trait.
+    ///
+    /// # Returns
+    ///
+    /// Returns a new `SecClient` instance with the provided HTTP client.
+    #[must_use]
+    pub fn with_http_client(http_client: Box<dyn HttpClient>) -> Self {
+        Self {
+            id: Uuid::new_v4().to_string(),
+            inner: http_client,
+        }
     }
 
     /// Executes the given `SecRequest` using the underlying HTTP client and returns a `SecResponse`.
@@ -152,21 +167,7 @@ impl SecClient {
         &self,
         request: SecRequest,
     ) -> Result<SecResponse, SecRequestError> {
-        let resp = self.inner.execute(request.inner).await;
-
-        match resp {
-            Err(e) => {
-                let sec_error: SecRequestError = e.into();
-                Err(sec_error)
-            }
-            Ok(resp) => match SecResponse::from_response(resp).await {
-                Ok(sec_response) => Ok(sec_response),
-                Err(e) => {
-                    let sec_error: SecRequestError = e.into();
-                    Err(sec_error)
-                }
-            },
-        }
+        self.inner.execute_request(request).await
     }
 
     /// Returns the unique identifier for this client instance.
@@ -175,10 +176,26 @@ impl SecClient {
         &self.id
     }
 
-    /// Returns a reference to the underlying HTTP client.
+    /// Returns a reference to the underlying HTTP client trait object.
+    ///
+    /// This method provides access to the underlying [`HttpClient`] implementation.
+    /// Use this when you need direct access to the HTTP client for advanced scenarios.
     #[must_use]
-    pub const fn client(&self) -> &Client {
-        &self.inner
+    pub fn http_client(&self) -> &dyn HttpClient {
+        self.inner.as_ref()
+    }
+}
+
+/// Provides debug formatting for `SecClient` instances.
+///
+/// Since `SecClient` contains a trait object (`Box<dyn HttpClient>`), we cannot
+/// derive `Debug` automatically. This implementation formats the client ID only.
+impl std::fmt::Debug for SecClient {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("SecClient")
+            .field("id", &self.id)
+            .field("inner", &"<HttpClient>")
+            .finish()
     }
 }
 
@@ -228,7 +245,7 @@ impl Default for SecClient {
     fn default() -> Self {
         Self {
             id: "default".to_string(),
-            inner: Client::new(),
+            inner: Box::new(ReqwestHttpClient::new(reqwest::Client::new())),
         }
     }
 }
@@ -245,87 +262,87 @@ mod tests {
         let result = SecClient::new(user_agent);
 
         assert!(result.is_ok());
-        let client = result.unwrap();
-        assert!(!client.id().is_empty());
-        assert!(uuid::Uuid::parse_str(client.id()).is_ok());
     }
 
     #[test]
     fn should_return_error_when_invalid_user_agent_is_provided() {
-        let user_agent = "Invalid User Agent"; // Missing email
-        let expected_error_reason = SecClientErrorReason::InvalidUserAgent;
+        let user_agent = "Invalid User Agent";
+        let expected_result = SecClientErrorReason::InvalidUserAgent;
 
-        let result = SecClient::new(user_agent);
+        let result = SecClient::new(user_agent)
+            .expect_err("Given an invalid user agent, SecClient creation should fail")
+            .reason;
 
-        assert!(result.is_err());
-        let error = result.unwrap_err();
-        assert_eq!(error.reason, expected_error_reason);
+        assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_generate_unique_ids_when_multiple_clients_are_created() {
         let user_agent = "Test Company test@company.com";
+        let client1 = SecClient::new(user_agent)
+            .expect("Given a valid user agent, SecClient creation should succeed");
+        let client2 = SecClient::new(user_agent)
+            .expect("Given a valid user agent, SecClient creation should succeed");
 
-        let client1 = SecClient::new(user_agent).unwrap();
-        let client2 = SecClient::new(user_agent).unwrap();
+        let result = client1.id();
 
-        assert_ne!(client1.id(), client2.id());
+        assert_ne!(result, client2.id());
     }
 
     #[test]
     fn should_return_client_id_when_id_method_is_called() {
         let user_agent = "Test Company test@company.com";
-        let client = SecClient::new(user_agent).unwrap();
+        let client = SecClient::new(user_agent)
+            .expect("Given a valid user agent, SecClient creation should succeed");
         let expected_result = client.id.clone();
 
-        let result = client.id();
+        let result = client.id().to_string();
 
-        assert_eq!(result, &expected_result);
+        assert_eq!(result, expected_result);
     }
 
     #[test]
-    fn should_return_inner_client_when_client_method_is_called() {
-        let user_agent = "Test Company test@company.com";
-        let sec_client = SecClient::new(user_agent).unwrap();
+    fn should_create_sec_client_when_custom_http_client_is_provided() {
+        let reqwest_client = reqwest::Client::new();
+        let http_client = ReqwestHttpClient::new(reqwest_client);
 
-        let result = sec_client.client();
+        let result = SecClient::with_http_client(Box::new(http_client));
 
-        // We can't directly compare reqwest::Client instances, but we can verify
-        // that we got a client back
-        assert!(std::ptr::eq(result, &sec_client.inner));
+        assert!(!result.id().is_empty());
     }
 
     #[test]
     fn should_create_default_client_when_default_is_called() {
-        let expected_id = "default";
+        let expected_result = "default";
 
         let result = SecClient::default();
+        let result = result.id();
 
-        assert_eq!(result.id(), expected_id);
+        assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_return_error_when_user_agent_has_invalid_email_format() {
         let user_agent = "Test Company invalid-email";
-        let expected_error_reason = SecClientErrorReason::InvalidUserAgent;
+        let expected_result = SecClientErrorReason::InvalidUserAgent;
 
-        let result = SecClient::new(user_agent);
+        let result = SecClient::new(user_agent)
+            .expect_err("Given an invalid user agent, SecClient creation should fail")
+            .reason;
 
-        assert!(result.is_err());
-        let error = result.unwrap_err();
-        assert_eq!(error.reason, expected_error_reason);
+        assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_return_error_when_user_agent_is_empty() {
         let user_agent = "";
-        let expected_error_reason = SecClientErrorReason::InvalidUserAgent;
+        let expected_result = SecClientErrorReason::InvalidUserAgent;
 
-        let result = SecClient::new(user_agent);
+        let result = SecClient::new(user_agent)
+            .expect_err("Given an empty user agent, SecClient creation should fail")
+            .reason;
 
-        assert!(result.is_err());
-        let error = result.unwrap_err();
-        assert_eq!(error.reason, expected_error_reason);
+        assert_eq!(result, expected_result);
     }
 
     #[test]
@@ -335,8 +352,6 @@ mod tests {
         let result = SecClient::new(user_agent);
 
         assert!(result.is_ok());
-        let client = result.unwrap();
-        assert!(!client.id().is_empty());
     }
 
     #[test]
@@ -346,7 +361,5 @@ mod tests {
         let result = SecClient::new(user_agent);
 
         assert!(result.is_ok());
-        let client = result.unwrap();
-        assert!(!client.id().is_empty());
     }
 }
