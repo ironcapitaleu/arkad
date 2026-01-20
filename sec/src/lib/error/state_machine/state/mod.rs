@@ -42,10 +42,10 @@ pub mod invalid_cik_format;
 pub use invalid_cik_format::InvalidCikFormat;
 pub mod invalid_sec_response;
 pub use invalid_sec_response::InvalidSecResponse;
-pub mod client_creation_failed;
-pub use client_creation_failed::ClientCreationFailed;
-pub mod request_execution_failed;
-pub use request_execution_failed::RequestExecutionFailed;
+pub mod failed_client_creation;
+pub use failed_client_creation::FailedClientCreation;
+pub mod failed_request_execution;
+pub use failed_request_execution::FailedRequestExecution;
 
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
@@ -57,10 +57,10 @@ pub enum State {
     InvalidSecResponse(InvalidSecResponse),
 
     /// Indicates that the client creation has failed, which is typically due to an invalid configuration.
-    ClientCreationFailed(ClientCreationFailed),
+    FailedClientCreation(FailedClientCreation),
 
     /// Indicates that a SEC request execution has failed.
-    RequestExecutionFailed(RequestExecutionFailed),
+    FailedRequestExecution(FailedRequestExecution),
 
     /// Indicates that input data of a `State` is invalid and cannot be used to compute the output data.
     InvalidInput,

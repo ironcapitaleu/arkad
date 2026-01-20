@@ -23,8 +23,8 @@ classDiagram
         %% Errors from internal state operations
         +InvalidCikFormat(InvalidCikFormat)
         +InvalidSecResponse(InvalidSecResponse)
-        +ClientCreationFailed(ClientCreationFailed)
-        +RequestExecutionFailed(RequestExecutionFailed)
+        +FailedClientCreation(FailedClientCreation)
+        +FailedRequestExecution(FailedRequestExecution)
         +InvalidInput
         +InvalidContext
         +FailedOutputComputation
@@ -54,14 +54,14 @@ classDiagram
         +SecResponseError domain_error
     }
 
-    class ClientCreationFailed{
+    class FailedClientCreation{
         <<struct>>
         %% State-level wrapper for client creation errors
         +String state_name
         +SecClientError domain_error
     }
 
-    class RequestExecutionFailed{
+    class FailedRequestExecution{
         <<struct>>
         %% State-level wrapper for request execution errors
         +String state_name
@@ -109,8 +109,8 @@ classDiagram
     %% State error wraps domain errors
     State <|-- InvalidCikFormat
     State <|-- InvalidSecResponse
-    State <|-- ClientCreationFailed
-    State <|-- RequestExecutionFailed
+    State <|-- FailedClientCreation
+    State <|-- FailedRequestExecution
     
     %% Transition error wraps specific errors
     Transition <|-- MissingOutput
@@ -118,6 +118,6 @@ classDiagram
     %% State wrappers contain domain errors
     InvalidCikFormat --> CikError
     InvalidSecResponse --> SecResponseError
-    ClientCreationFailed --> SecClientError
-    RequestExecutionFailed --> SecRequestError
+    FailedClientCreation --> SecClientError
+    FailedRequestExecution --> SecRequestError
 ```

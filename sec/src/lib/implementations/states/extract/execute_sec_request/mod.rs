@@ -62,7 +62,7 @@ pub use data::ExecuteSecRequestInput;
 pub use data::ExecuteSecRequestOutput;
 
 use crate::error::State as StateError;
-use crate::error::state_machine::state::request_execution_failed::RequestExecutionFailed;
+use crate::error::state_machine::state::failed_request_execution::FailedRequestExecution;
 use crate::traits::state_machine::state::State;
 
 use std::fmt;
@@ -158,7 +158,7 @@ impl State for ExecuteSecRequest {
             }
             Err(e) => {
                 let e: StateError =
-                    RequestExecutionFailed::new(self.state_name().to_string(), e).into();
+                    FailedRequestExecution::new(self.state_name().to_string(), e).into();
                 return Err(e);
             }
         }

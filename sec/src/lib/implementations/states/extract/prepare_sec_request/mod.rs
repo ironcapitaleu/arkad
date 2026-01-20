@@ -55,7 +55,7 @@ use async_trait::async_trait;
 use state_maschine::prelude::State as SMState;
 
 use crate::error::State as StateError;
-use crate::error::state_machine::state::client_creation_failed::ClientCreationFailed;
+use crate::error::state_machine::state::failed_client_creation::FailedClientCreation;
 use crate::shared::sec_client::SecClient;
 use crate::shared::sec_request::SecRequest;
 use crate::traits::state_machine::state::State;
@@ -149,7 +149,7 @@ impl State for PrepareSecRequest {
             }
             Err(e) => {
                 let e: StateError =
-                    ClientCreationFailed::new(self.state_name().to_string(), e).into();
+                    FailedClientCreation::new(self.state_name().to_string(), e).into();
                 return Err(e);
             }
         }
