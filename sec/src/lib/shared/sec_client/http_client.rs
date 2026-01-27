@@ -22,7 +22,7 @@ use crate::shared::sec_response::SecResponse;
 /// and testing. Any HTTP client implementation can be used with [`super::SecClient`] as
 /// long as it implements this trait.
 #[async_trait]
-pub trait HttpClient: Send + Sync {
+pub trait HttpClient: Send + Sync + Clone {
     /// Executes an HTTP request and returns the response.
     ///
     /// # Arguments
@@ -35,20 +35,4 @@ pub trait HttpClient: Send + Sync {
     /// Returns a [`SecRequestError`] if the request fails for any reason,
     /// including network errors, timeouts, or response parsing failures.
     async fn execute_request(&self, request: SecRequest) -> Result<SecResponse, SecRequestError>;
-
-    /// Creates a boxed clone of this HTTP client.
-    ///
-    /// This method enables cloning of trait objects, which is necessary for
-    /// [`super::SecClient`] to implement the [`Clone`] trait.
-    ///
-    /// # Returns
-    /// Returns a new boxed instance of the HTTP client.
-    fn clone_box(&self) -> Box<dyn HttpClient>;
-}
-
-/// Enables cloning of boxed [`HttpClient`] trait objects.
-impl Clone for Box<dyn HttpClient> {
-    fn clone(&self) -> Self {
-        self.clone_box()
-    }
 }
