@@ -28,7 +28,7 @@
 use std::fmt;
 
 use crate::error::State as StateError;
-use crate::shared::sec_client::SecClient;
+use crate::shared::sec_client::{ReqwestHttpClient, SecClient};
 use crate::shared::sec_request::SecRequest;
 use crate::traits::state_machine::state::StateData;
 
@@ -43,7 +43,7 @@ use state_maschine::prelude::StateData as SMStateData;
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Default)]
 pub struct ExecuteSecRequestInput {
     /// The prepared SEC client that will execute the HTTP request.
-    pub sec_client: SecClient,
+    pub sec_client: SecClient<ReqwestHttpClient>,
     /// The prepared SEC request targeting a specific CIK.
     pub sec_request: SecRequest,
 }
@@ -59,7 +59,7 @@ impl ExecuteSecRequestInput {
     /// # Returns
     ///
     /// Returns a new [`ExecuteSecRequestInput`] instance ready for state processing.
-    pub const fn new(sec_client: SecClient, sec_request: SecRequest) -> Self {
+    pub const fn new(sec_client: SecClient<ReqwestHttpClient>, sec_request: SecRequest) -> Self {
         Self {
             sec_client,
             sec_request,
@@ -72,7 +72,7 @@ impl ExecuteSecRequestInput {
     ///
     /// A reference to the [`SecClient`] that will be used for HTTP requests.
     #[must_use]
-    pub const fn sec_client(&self) -> &SecClient {
+    pub const fn sec_client(&self) -> &SecClient<ReqwestHttpClient> {
         &self.sec_client
     }
 
@@ -127,7 +127,7 @@ impl fmt::Display for ExecuteSecRequestInput {
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 pub struct ExecuteSecRequestInputUpdater {
     /// Optional new SEC client to replace the current one.
-    pub sec_client: Option<SecClient>,
+    pub sec_client: Option<SecClient<ReqwestHttpClient>>,
     /// Optional new SEC request to replace the current one.
     pub sec_request: Option<SecRequest>,
 }
@@ -145,7 +145,7 @@ impl ExecuteSecRequestInputUpdater {
 /// This builder provides a fluent API for constructing updaters with only
 /// the fields that need to be changed, following the builder pattern.
 pub struct ExecuteSecRequestInputUpdaterBuilder {
-    sec_client: Option<SecClient>,
+    sec_client: Option<SecClient<ReqwestHttpClient>>,
     sec_request: Option<SecRequest>,
 }
 
@@ -174,7 +174,7 @@ impl ExecuteSecRequestInputUpdaterBuilder {
     /// The builder instance with the SEC client field set for update.
     #[must_use]
     #[allow(clippy::missing_const_for_fn)]
-    pub fn sec_client(mut self, sec_client: SecClient) -> Self {
+    pub fn sec_client(mut self, sec_client: SecClient<ReqwestHttpClient>) -> Self {
         self.sec_client = Some(sec_client);
         self
     }
