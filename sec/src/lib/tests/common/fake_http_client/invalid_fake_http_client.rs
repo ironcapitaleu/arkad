@@ -13,11 +13,8 @@ pub struct InvalidFakeHttpClient;
 #[async_trait]
 impl HttpClient for InvalidFakeHttpClient {
     async fn execute_request(&self, request: SecRequest) -> Result<SecResponse, SecRequestError> {
-        Err(SecRequestError::new(
-            SecRequestErrorReason::NetworkError(format!(
-                "Failed to execute request to: {}",
-                request.inner.url()
-            )),
-        ))
+        Err(SecRequestError::new(SecRequestErrorReason::NetworkError(
+            format!("Failed to execute request to: {}", request.inner.url()),
+        )))
     }
 }
