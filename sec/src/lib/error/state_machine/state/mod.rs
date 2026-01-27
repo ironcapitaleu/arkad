@@ -1,10 +1,10 @@
 //! # State Error Types
 //!
 //! This module defines error types that can occur within the internal logic of a state in the SEC state machine framework.
-//! These errors represent failures related to input data, context data, output computation, and state/context updates.
+//! These errors represent failures related to input data, context, output computation, and state/context updates.
 //!
 //! ## Types
-//! - [`State`]: Enum representing all error variants that can arise from state operations, including invalid CIK format, invalid input/context data, failed output computation, and update failures.
+//! - [`State`]: Enum representing all error variants that can arise from state operations, including invalid CIK format, invalid input/context, failed output computation, and update failures.
 //! - [`InvalidCikFormat`](invalid_cik_format): Error type for invalid CIK format, used as a variant in [`State`].
 //!
 //! ## Usage
@@ -17,7 +17,7 @@
 //! - [`crate::error::state_machine::state::invalid_cik_format`]: Defines the [`InvalidCikFormat`] error type for handling invalid CIK format errors within state logic.
 //! - [`crate::traits::state_machine::state`]: Core trait definitions for state behavior, including state lifecycle, data management, and error propagation.
 //! - [`crate::traits::state_machine::state::state_data`]: Traits and types for managing and updating state data, including error handling for state data operations.
-//! - [`crate::traits::state_machine::state::context_data`]: Traits and types for managing and updating context data, including error handling for context data operations.
+//! - [`crate::traits::state_machine::state::context_data`]: Traits and types for managing and updating context, including error handling for context operations.
 //! - [`crate::traits::state_machine::transition`]: Traits for defining and handling state transitions, which may produce or propagate state errors.
 //! - [`crate::traits::state_machine::super_state`]: Traits for hierarchical and composite states, which may aggregate or propagate errors from sub-states.
 //! - [`crate::implementations::states`]: Concrete state implementations that use these error types for robust error handling in real-world scenarios.
@@ -26,14 +26,14 @@
 //! ## Example
 //! ```rust
 //! use sec::error::state_machine::state::{State, InvalidCikFormat};
-//! let err = State::InvalidInputData;
+//! let err = State::InvalidInput;
 //! match err {
 //!     State::InvalidCikFormat(invalid) => println!("Invalid CIK: {invalid}"),
-//!     State::InvalidInputData => println!("Input data is invalid"),
-//!     State::InvalidContextData => println!("Context data is invalid"),
+//!     State::InvalidInput => println!("Input data is invalid"),
+//!     State::InvalidContext => println!("Context data is invalid"),
 //!     State::FailedOutputComputation => println!("Failed to compute output"),
 //!     State::StateDataUpdateFailed => println!("Failed to update state data"),
-//!     State::ContextDataUpdateFailed => println!("Failed to update context data"),
+//!     State::ContextUpdateFailed => println!("Failed to update context"),
 //!      _ => println!("Other state error"),
 //! }
 //! ```
@@ -42,10 +42,10 @@ pub mod invalid_cik_format;
 pub use invalid_cik_format::InvalidCikFormat;
 pub mod invalid_sec_response;
 pub use invalid_sec_response::InvalidSecResponse;
-pub mod client_creation_failed;
-pub use client_creation_failed::ClientCreationFailed;
-pub mod request_execution_failed;
-pub use request_execution_failed::RequestExecutionFailed;
+pub mod failed_client_creation;
+pub use failed_client_creation::FailedClientCreation;
+pub mod failed_request_execution;
+pub use failed_request_execution::FailedRequestExecution;
 
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
@@ -57,16 +57,16 @@ pub enum State {
     InvalidSecResponse(InvalidSecResponse),
 
     /// Indicates that the client creation has failed, which is typically due to an invalid configuration.
-    ClientCreationFailed(ClientCreationFailed),
+    FailedClientCreation(FailedClientCreation),
 
     /// Indicates that a SEC request execution has failed.
-    RequestExecutionFailed(RequestExecutionFailed),
+    FailedRequestExecution(FailedRequestExecution),
 
     /// Indicates that input data of a `State` is invalid and cannot be used to compute the output data.
-    InvalidInputData,
+    InvalidInput,
 
-    /// Indicates that context data of a `State` is invalid and cannot be used to compute the output data.
-    InvalidContextData,
+    /// Indicates that context of a `State` is invalid and cannot be used to compute the output data.
+    InvalidContext,
 
     /// Indicates that the output computation of a `State` has failed.
     FailedOutputComputation,
@@ -75,7 +75,7 @@ pub enum State {
     StateDataUpdateFailed,
 
     /// Indicates a failure during the update of the `ContextData` of the `State`.
-    ContextDataUpdateFailed,
+    ContextUpdateFailed,
 }
 
 impl std::fmt::Display for State {
@@ -171,13 +171,6 @@ mod tests {
 
     #[test]
     fn should_be_able_to_create_state_invalidinputdata_error_when_using_enum_directly() {
-        let _result = State::InvalidInputData;
+        let _result = State::InvalidInput;
     }
-
-    // #[test]
-    // #[should_panic]
-    // fn should_not_be_able_to_create_state_invalidcikformat_error_when_passing_valid_cik_string() {
-    //     // TODO: "InvalidCikFormat error should only be able to be created passing an invalid CIK format, it should not be able to be created by passing a valid CIK format.");
-    //     let _result = State::InvalidCikFormat("123456789".to_string());
-    // }
 }

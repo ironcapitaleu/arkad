@@ -1,12 +1,12 @@
-//! # Sample SEC State Input Data
+//! # Sample SEC State Input
 //!
-//! This module defines the input data structure and updater patterns for the [`SampleSecState`](../../mod.rs) fixture.
-//! It provides a simple `String`-based input to demonstrate the basic requirements for state input data.
+//! This module defines the input structure and updater patterns for the [`SampleSecState`](../../mod.rs) fixture.
+//! It provides a simple `String`-based input to demonstrate the basic requirements for state input.
 //!
 //! ## Types
-//! - [`SampleSecStateInputData`]: Holds the unvalidated input string to be processed by the sample state.
-//! - [`SampleSecStateInputDataUpdater`]: Updater type for modifying the input data.
-//! - [`SampleSecStateInputDataUpdaterBuilder`]: Builder for constructing updater instances.
+//! - [`SampleSecStateInput`]: Holds the unvalidated input string to be processed by the sample state.
+//! - [`SampleSecStateInputUpdater`]: Updater type for modifying the input.
+//! - [`SampleSecStateInputUpdaterBuilder`]: Builder for constructing updater instances.
 //!
 //! ## Integration
 //! - Implements [`StateData`](crate::traits::state_machine::state::StateData) for compatibility with the state machine framework.
@@ -24,11 +24,11 @@ use crate::traits::state_machine::state::StateData;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 /// Input data for the `SampleSecState` fixture.
-pub struct SampleSecStateInputData {
+pub struct SampleSecStateInput {
     pub input_data: String,
 }
 
-impl SampleSecStateInputData {
+impl SampleSecStateInput {
     /// Creates a new instance of the input data for the sample state.
     pub fn new(input_data: &(impl ToString + ?Sized)) -> Self {
         Self {
@@ -43,7 +43,7 @@ impl SampleSecStateInputData {
     }
 }
 
-impl StateData for SampleSecStateInputData {
+impl StateData for SampleSecStateInput {
     fn update_state(&mut self, updates: Self::UpdateType) -> Result<(), StateError> {
         if let Some(input_data) = updates.input_data {
             self.input_data = input_data;
@@ -52,17 +52,17 @@ impl StateData for SampleSecStateInputData {
     }
 }
 
-impl SMStateData for SampleSecStateInputData {
-    type UpdateType = SampleSecStateInputDataUpdater;
+impl SMStateData for SampleSecStateInput {
+    type UpdateType = SampleSecStateInputUpdater;
 
-    fn get_state(&self) -> &Self {
+    fn state(&self) -> &Self {
         self
     }
 
     fn update_state(&mut self, _updates: Self::UpdateType) {}
 }
 
-impl Default for SampleSecStateInputData {
+impl Default for SampleSecStateInput {
     fn default() -> Self {
         Self {
             input_data: "Hello".to_string(),
@@ -70,23 +70,23 @@ impl Default for SampleSecStateInputData {
     }
 }
 
-impl fmt::Display for SampleSecStateInputData {
+impl fmt::Display for SampleSecStateInput {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "\tInput Data: {}", self.input_data,)
     }
 }
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
-/// Updater for [`SampleSecStateInputData`].
-pub struct SampleSecStateInputDataUpdater {
+/// Updater for [`SampleSecStateInput`].
+pub struct SampleSecStateInputUpdater {
     pub input_data: Option<String>,
 }
 
-/// Builder for [`SampleSecStateInputDataUpdater`].
-pub struct SampleSecStateInputDataUpdaterBuilder {
+/// Builder for [`SampleSecStateInputUpdater`].
+pub struct SampleSecStateInputUpdaterBuilder {
     input_data: Option<String>,
 }
-impl SampleSecStateInputDataUpdaterBuilder {
+impl SampleSecStateInputUpdaterBuilder {
     #[must_use]
     pub const fn new() -> Self {
         Self { input_data: None }
@@ -100,14 +100,14 @@ impl SampleSecStateInputDataUpdaterBuilder {
     }
 
     #[must_use]
-    pub fn build(self) -> SampleSecStateInputDataUpdater {
-        SampleSecStateInputDataUpdater {
+    pub fn build(self) -> SampleSecStateInputUpdater {
+        SampleSecStateInputUpdater {
             input_data: self.input_data,
         }
     }
 }
 
-impl Default for SampleSecStateInputDataUpdaterBuilder {
+impl Default for SampleSecStateInputUpdaterBuilder {
     fn default() -> Self {
         Self::new()
     }

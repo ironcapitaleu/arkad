@@ -160,36 +160,11 @@ mod tests {
         let validation_error = JsonParsingError::new(reason);
         let invalid_sec_response = InvalidSecResponse::new(state_name, validation_error.clone());
 
-        let source = std::error::Error::source(&invalid_sec_response);
+        let expected_result = Some(&validation_error);
 
-        assert!(source.is_some(), "Expected source error to be present");
-        let source = source.unwrap();
+        let result = std::error::Error::source(&invalid_sec_response)
+            .and_then(|source| source.downcast_ref::<JsonParsingError>());
 
-        let validation_error_from_source = source.downcast_ref::<JsonParsingError>();
-        assert!(
-            validation_error_from_source.is_some(),
-            "Source should be JsonParsingError type"
-        );
-        assert_eq!(validation_error_from_source.unwrap(), &validation_error);
-    }
-
-    #[test]
-    fn should_print_error_and_source_for_logging_demo() {
-        let state_name = "ValidateSecResponse";
-        let reason = JsonParsingErrorReason::InvalidStatusCode(StatusCode::NOT_FOUND);
-        let validation_error = JsonParsingError::new(reason);
-        let invalid_sec_response = InvalidSecResponse::new(state_name, validation_error);
-
-        let error_string = format!("{invalid_sec_response}");
-        let source_string = match std::error::Error::source(&invalid_sec_response) {
-            Some(source) => format!("{source}"),
-            None => "No source error".to_string(),
-        };
-
-        println!("Top-level error: {error_string}");
-        println!("Caused by: {source_string}");
-
-        assert!(error_string.contains("Failure in State"));
-        assert!(source_string.contains("Response parsing failed"));
+        assert_eq!(result, expected_result);
     }
 }

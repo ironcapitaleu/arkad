@@ -219,29 +219,30 @@ mod tests {
         let _result: StateMachine = ErrorKind::StateMachine(StateMachine::InvalidConfiguration)
             .try_into()
             .expect(
-                "Should always be able to cast harcdcoded `ErrorKind` into `StateMachine` error.",
+                "Should always be able to cast hardcoded `ErrorKind` into `StateMachine` error.",
             );
     }
 
     #[test]
     fn should_be_able_to_create_state_error_when_casting_from_specific_error_kind_that_is_a_state()
     {
-        let _result: State = ErrorKind::StateMachine(StateMachine::State(State::InvalidInputData))
+        let _result: State = ErrorKind::StateMachine(StateMachine::State(State::InvalidInput))
             .try_into()
             .expect(
-                "Should always be able to cast provided harcdcoded `ErrorKind` into `State` error.",
+                "Should always be able to cast provided hardcoded `ErrorKind` into `State` error.",
             );
     }
 
     #[test]
     fn should_be_able_to_create_transition_error_when_casting_from_specific_error_kind_that_is_a_transition()
      {
-        let _result: Transition =
-            ErrorKind::StateMachine(StateMachine::Transition(Transition::FailedOutputConversion))
-                .try_into()
-                .expect(
-                    "Should always be able to cast provided harcdcoded `ErrorKind` into `Transition` error.",
-                );
+        let _result: Transition = ErrorKind::StateMachine(StateMachine::Transition(
+            Transition::FailedOutputConversion,
+        ))
+        .try_into()
+        .expect(
+            "Should always be able to cast provided hardcoded `ErrorKind` into `Transition` error.",
+        );
     }
 
     #[test]

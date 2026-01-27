@@ -1,12 +1,12 @@
-//! # Sample SEC State Output Data
+//! # Sample SEC State Output
 //!
-//! This module defines the output data structure and updater patterns for the [`SampleSecState`](../../mod.rs) fixture.
-//! It encapsulates a simple `String`-based output to demonstrate the basic requirements for state output data.
+//! This module defines the output structure and updater patterns for the [`SampleSecState`](../../mod.rs) fixture.
+//! It encapsulates a simple `String`-based output to demonstrate the basic requirements for state output.
 //!
 //! ## Types
-//! - [`SampleSecStateOutputData`]: Holds the output string produced by the sample state.
-//! - [`SampleSecStateOutputDataUpdater`]: Updater type for modifying the output data.
-//! - [`SampleSecStateOutputDataUpdaterBuilder`]: Builder for constructing updater instances.
+//! - [`SampleSecStateOutput`]: Holds the output string produced by the sample state.
+//! - [`SampleSecStateOutputUpdater`]: Updater type for modifying the output.
+//! - [`SampleSecStateOutputUpdaterBuilder`]: Builder for constructing updater instances.
 //!
 //! ## Integration
 //! - Implements [`StateData`](crate::traits::state_machine::state::StateData) for compatibility with the state machine framework.
@@ -24,11 +24,11 @@ use crate::traits::state_machine::state::StateData;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 /// Output data for the `SampleSecState` fixture.
-pub struct SampleSecStateOutputData {
+pub struct SampleSecStateOutput {
     pub output_data: String,
 }
 
-impl SampleSecStateOutputData {
+impl SampleSecStateOutput {
     /// Creates a new instance of the output data for the sample state.
     pub fn new(data: &(impl ToString + ?Sized)) -> Result<Self, StateError> {
         Ok(Self {
@@ -42,7 +42,7 @@ impl SampleSecStateOutputData {
         &self.output_data
     }
 }
-impl StateData for SampleSecStateOutputData {
+impl StateData for SampleSecStateOutput {
     fn update_state(&mut self, updates: Self::UpdateType) -> Result<(), StateError> {
         if let Some(input_data) = updates.output_data {
             self.output_data = input_data;
@@ -50,16 +50,16 @@ impl StateData for SampleSecStateOutputData {
         Ok(())
     }
 }
-impl SMStateData for SampleSecStateOutputData {
-    type UpdateType = SampleSecStateOutputDataUpdater;
+impl SMStateData for SampleSecStateOutput {
+    type UpdateType = SampleSecStateOutputUpdater;
 
-    fn get_state(&self) -> &Self {
+    fn state(&self) -> &Self {
         self
     }
     fn update_state(&mut self, _updates: Self::UpdateType) {}
 }
 
-impl Default for SampleSecStateOutputData {
+impl Default for SampleSecStateOutput {
     fn default() -> Self {
         Self {
             output_data: String::from("Hello World!"),
@@ -67,24 +67,24 @@ impl Default for SampleSecStateOutputData {
     }
 }
 
-impl fmt::Display for SampleSecStateOutputData {
+impl fmt::Display for SampleSecStateOutput {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "\tOutput Data: {}", self.output_data,)
     }
 }
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
-/// Updater for [`SampleSecStateOutputData`].
-pub struct SampleSecStateOutputDataUpdater {
+/// Updater for [`SampleSecStateOutput`].
+pub struct SampleSecStateOutputUpdater {
     pub output_data: Option<String>,
 }
 
-/// Builder for [`SampleSecStateOutputDataUpdater`].
-pub struct SampleSecStateOutputDataUpdaterBuilder {
+/// Builder for [`SampleSecStateOutputUpdater`].
+pub struct SampleSecStateOutputUpdaterBuilder {
     output_data: Option<String>,
 }
 
-impl SampleSecStateOutputDataUpdaterBuilder {
+impl SampleSecStateOutputUpdaterBuilder {
     #[must_use]
     pub const fn new() -> Self {
         Self { output_data: None }
@@ -98,14 +98,14 @@ impl SampleSecStateOutputDataUpdaterBuilder {
     }
 
     #[must_use]
-    pub fn build(self) -> SampleSecStateOutputDataUpdater {
-        SampleSecStateOutputDataUpdater {
+    pub fn build(self) -> SampleSecStateOutputUpdater {
+        SampleSecStateOutputUpdater {
             output_data: self.output_data,
         }
     }
 }
 
-impl Default for SampleSecStateOutputDataUpdaterBuilder {
+impl Default for SampleSecStateOutputUpdaterBuilder {
     fn default() -> Self {
         Self::new()
     }

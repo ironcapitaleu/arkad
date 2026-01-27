@@ -6,11 +6,11 @@
 //! The [`ExecuteSecRequest`] state is responsible for executing HTTP requests using a prepared SEC client and request object. It takes the configured client and request as input and produces a response containing the SEC data.
 //!
 //! ## Components
-//! - [`context`]: Defines the context data and updater types for the request execution process, allowing stateful tracking of execution-related context.
+//! - [`context`]: Defines the context and updater types for the request execution process, allowing stateful tracking of execution-related context.
 //! - [`data`]: Contains input and output data structures for the execution state, including updaters and builders for ergonomic data manipulation.
 //! - [`ExecuteSecRequestContext`]: Context data type for the state.
-//! - [`ExecuteSecRequestInputData`]: Input data type holding the prepared SEC client and request.
-//! - [`ExecuteSecRequestOutputData`]: Output data type containing the SEC response.
+//! - [`ExecuteSecRequestInput`]: Input data type holding the prepared SEC client and request.
+//! - [`ExecuteSecRequestOutput`]: Output data type containing the SEC response.
 //!
 //! ## Usage
 //! This state is typically used in the extract phase of the SEC state machine ETL pipeline, after request preparation and before response processing. It is designed to be composed with other states for robust and testable SEC filings processing workflows.
@@ -28,16 +28,16 @@
 //! #[tokio::main]
 //! async fn main() {
 //!     // Prepare client and request (typically from PrepareSecRequest state)
-//!     let client = SecClient::new("Test Company contact@test.com").expect("Valid user agent");
-//!     let cik = Cik::new("1067983").expect("Valid CIK");
+//!     let client = SecClient::new("Test Company contact@test.com").expect("Hardcoded user agent string should be valid format");
+//!     let cik = Cik::new("1067983").expect("Hardcoded CIK string should be valid format");
 //!     let request = SecRequest::new(&cik);
 //!     
-//!     let input = ExecuteSecRequestInputData::new(client, request);
+//!     let input = ExecuteSecRequestInput::new(client, request);
 //!     let context = ExecuteSecRequestContext::default();
 //!
 //!     let mut execute_state = ExecuteSecRequest::new(input, context);
 //!     execute_state.compute_output_data_async().await.unwrap();
-//!     let response_output = execute_state.get_output_data().unwrap();
+//!     let response_output = execute_state.output_data().unwrap();
 //!
 //!     // Now you have the SEC response data
 //!     let response = response_output.response();
@@ -58,11 +58,11 @@ pub mod context;
 pub mod data;
 
 pub use context::ExecuteSecRequestContext;
-pub use data::ExecuteSecRequestInputData;
-pub use data::ExecuteSecRequestOutputData;
+pub use data::ExecuteSecRequestInput;
+pub use data::ExecuteSecRequestOutput;
 
 use crate::error::State as StateError;
-use crate::error::state_machine::state::request_execution_failed::RequestExecutionFailed;
+use crate::error::state_machine::state::failed_request_execution::FailedRequestExecution;
 use crate::traits::state_machine::state::State;
 
 use std::fmt;
@@ -92,33 +92,33 @@ use state_maschine::prelude::State as SMState;
 /// use sec::shared::sec_request::SecRequest;
 /// use sec::shared::cik::Cik;
 ///
-/// let client = SecClient::new("Sample Corp contact@sample.com").expect("Valid user agent");
-/// let cik = Cik::new("1067983").expect("Valid CIK");
+/// let client = SecClient::new("Sample Corp contact@sample.com").expect("Hardcoded user agent string should be valid format");
+/// let cik = Cik::new("1067983").expect("Hardcoded CIK string should be valid format");
 /// let request = SecRequest::new(&cik);
-/// let input = ExecuteSecRequestInputData::new(client, request);
+/// let input = ExecuteSecRequestInput::new(client, request);
 /// let context = ExecuteSecRequestContext::default();
 /// let mut execute_state = ExecuteSecRequest::new(input, context);
 /// ```
 #[derive(Debug, Clone, Default, PartialEq, PartialOrd, Hash, Eq, Ord)]
 pub struct ExecuteSecRequest {
-    input: ExecuteSecRequestInputData,
+    input: ExecuteSecRequestInput,
     context: ExecuteSecRequestContext,
-    output: Option<ExecuteSecRequestOutputData>,
+    output: Option<ExecuteSecRequestOutput>,
 }
 
 impl ExecuteSecRequest {
-    /// Creates a new [`ExecuteSecRequest`] state with the provided input and context data.
+    /// Creates a new [`ExecuteSecRequest`] state with the provided input and context.
     ///
     /// # Arguments
     ///
-    /// * `input` - The [`ExecuteSecRequestInputData`] containing the prepared SEC client and request.
+    /// * `input` - The [`ExecuteSecRequestInput`] containing the prepared SEC client and request.
     /// * `context` - The [`ExecuteSecRequestContext`] for the execution process.
     ///
     /// # Returns
     ///
     /// Returns a new [`ExecuteSecRequest`] state ready for computation.
     #[must_use]
-    pub const fn new(input: ExecuteSecRequestInputData, context: ExecuteSecRequestContext) -> Self {
+    pub const fn new(input: ExecuteSecRequestInput, context: ExecuteSecRequestContext) -> Self {
         Self {
             input,
             context,
@@ -153,12 +153,12 @@ impl State for ExecuteSecRequest {
 
         match result {
             Ok(response) => {
-                self.output = Some(ExecuteSecRequestOutputData::new(response)?);
+                self.output = Some(ExecuteSecRequestOutput::new(response)?);
                 Ok(())
             }
             Err(e) => {
                 let e: StateError =
-                    RequestExecutionFailed::new(self.get_state_name().to_string(), e).into();
+                    FailedRequestExecution::new(self.state_name().to_string(), e).into();
                 return Err(e);
             }
         }
@@ -166,12 +166,12 @@ impl State for ExecuteSecRequest {
 }
 
 impl SMState for ExecuteSecRequest {
-    type InputData = ExecuteSecRequestInputData;
-    type OutputData = ExecuteSecRequestOutputData;
+    type InputData = ExecuteSecRequestInput;
+    type OutputData = ExecuteSecRequestOutput;
     type Context = ExecuteSecRequestContext;
 
     /// Returns the human-readable name of this state.
-    fn get_state_name(&self) -> impl ToString {
+    fn state_name(&self) -> impl ToString {
         "Execute SEC Request"
     }
 
@@ -182,15 +182,15 @@ impl SMState for ExecuteSecRequest {
         // This function is just a placeholder to satisfy the State trait.
     }
 
-    fn get_context_data(&self) -> &Self::Context {
+    fn context_data(&self) -> &Self::Context {
         &self.context
     }
 
-    fn get_input_data(&self) -> &Self::InputData {
+    fn input_data(&self) -> &Self::InputData {
         &self.input
     }
 
-    fn get_output_data(&self) -> Option<&Self::OutputData> {
+    fn output_data(&self) -> Option<&Self::OutputData> {
         self.output.as_ref()
     }
 }
@@ -204,7 +204,7 @@ impl fmt::Display for ExecuteSecRequest {
              Context:\n{}\n\
              Input Data:\n{}\n\
              Output Data:\n{}",
-            self.get_state_name().to_string(),
+            self.state_name().to_string(),
             self.context,
             self.input,
             self.output.as_ref().map_or_else(
@@ -230,25 +230,27 @@ mod tests {
     fn should_return_name_of_execute_state_when_in_execute_state() {
         let execute_state = ExecuteSecRequest::default();
         let expected_result = String::from("Execute SEC Request");
-        let result = execute_state.get_state_name().to_string();
+        let result = execute_state.state_name().to_string();
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_return_default_execute_data_struct_as_input_data_when_in_initial_execute_state() {
         let execute_state = ExecuteSecRequest::default();
-        let expected_result = &ExecuteSecRequestInputData::default();
-        let result = execute_state.get_input_data();
+        let expected_result = &ExecuteSecRequestInput::default();
+        let result = execute_state.input_data();
         assert_eq!(result, expected_result);
     }
 
     #[test]
-    #[should_panic(expected = "output should not be empty")]
+    #[should_panic(
+        expected = "State with valid input should always produce output after computation"
+    )]
     fn should_panic_when_trying_to_access_output_data_before_it_has_been_computed_in_state() {
         let execute_state = ExecuteSecRequest::default();
         let _result = execute_state
-            .get_output_data()
-            .expect("The output should not be empty.");
+            .output_data()
+            .expect("State with valid input should always produce output after computation");
     }
 
     #[test]
@@ -263,17 +265,17 @@ mod tests {
     fn should_return_default_context_data_when_in_initial_state() {
         let execute_state = ExecuteSecRequest::default();
         let expected_result = &ExecuteSecRequestContext::default();
-        let result = execute_state.get_context_data();
+        let result = execute_state.context_data();
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_create_new_execute_state_with_provided_input_and_context() {
-        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid.");
+        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
         let client = SecClient::new("Test Company contact@test.com")
-            .expect("Hardcoded user agent should always be valid.");
+            .expect("Hardcoded user agent should always be valid");
         let request = SecRequest::new(&cik);
-        let input = ExecuteSecRequestInputData::new(client, request);
+        let input = ExecuteSecRequestInput::new(client, request);
         let context = ExecuteSecRequestContext::default();
 
         let expected_input = input.clone();
@@ -281,9 +283,9 @@ mod tests {
 
         let result = ExecuteSecRequest::new(input, context);
 
-        assert_eq!(result.get_input_data(), &expected_input);
-        assert_eq!(result.get_context_data(), &expected_context);
-        assert!(result.get_output_data().is_none());
+        assert_eq!(result.input_data(), &expected_input);
+        assert_eq!(result.context_data(), &expected_context);
+        assert!(result.output_data().is_none());
     }
 
     // Trait implementation tests
@@ -377,8 +379,8 @@ mod tests {
         let execute_state = &ExecuteSecRequest::default();
         let ref_to_execute_state = &ExecuteSecRequest::default();
 
-        let expected_result = execute_state.get_context_data();
-        let result = ref_to_execute_state.get_context_data();
+        let expected_result = execute_state.context_data();
+        let result = ref_to_execute_state.context_data();
 
         assert_eq!(result, expected_result);
     }
@@ -392,20 +394,22 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "output should not be empty")]
+    #[should_panic(
+        expected = "State with valid input should always produce output after computation"
+    )]
     fn should_panic_when_trying_to_access_output_data_before_it_has_been_computed_in_reference_state()
      {
         let ref_to_execute_state = &ExecuteSecRequest::default();
         let _result = ref_to_execute_state
-            .get_output_data()
-            .expect("The output should not be empty.");
+            .output_data()
+            .expect("State with valid input should always produce output after computation");
     }
 
     #[test]
     fn should_return_name_of_execute_state_when_calling_reference_to_execute_state() {
         let ref_to_execute_state = &ExecuteSecRequest::default();
         let expected_result = String::from("Execute SEC Request");
-        let result = ref_to_execute_state.get_state_name().to_string();
+        let result = ref_to_execute_state.state_name().to_string();
         assert_eq!(result, expected_result);
     }
 
@@ -413,47 +417,47 @@ mod tests {
     fn should_return_default_state_data_as_input_data_when_reference_execute_state_in_initial_state()
      {
         let ref_to_execute_state = &ExecuteSecRequest::default();
-        let expected_result = &ExecuteSecRequestInputData::default();
-        let result = ref_to_execute_state.get_input_data();
+        let expected_result = &ExecuteSecRequestInput::default();
+        let result = ref_to_execute_state.input_data();
         assert_eq!(result, expected_result);
     }
 
     #[tokio::test]
     async fn should_not_change_input_data_when_computing_output_data() {
-        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid.");
+        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
         let client = SecClient::new("Test Company contact@test.com")
-            .expect("Hardcoded user agent should always be valid.");
+            .expect("Hardcoded user agent should always be valid");
         let request = SecRequest::new(&cik);
-        let input = ExecuteSecRequestInputData::new(client, request);
+        let input = ExecuteSecRequestInput::new(client, request);
         let context = ExecuteSecRequestContext::default();
         let mut execute_state = ExecuteSecRequest::new(input, context);
 
-        let expected_result = &execute_state.get_input_data().clone();
+        let expected_result = &execute_state.input_data().clone();
 
         execute_state
             .compute_output_data_async()
             .await
-            .expect("Valid state should always compute output data.");
-        let result = execute_state.get_input_data();
+            .expect("Valid state should always compute output data");
+        let result = execute_state.input_data();
 
         assert_eq!(result, expected_result);
     }
 
     #[tokio::test]
     async fn should_return_correct_output_data_when_computing_output_data() {
-        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid.");
+        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
         let client = SecClient::new("Test Company contact@test.com")
-            .expect("Hardcoded user agent should always be valid.");
+            .expect("Hardcoded user agent should always be valid");
         let request = SecRequest::new(&cik);
-        let input = ExecuteSecRequestInputData::new(client, request);
+        let input = ExecuteSecRequestInput::new(client, request);
         let context = ExecuteSecRequestContext::default();
         let mut execute_state = ExecuteSecRequest::new(input, context);
 
         execute_state
             .compute_output_data_async()
             .await
-            .expect("Valid state should always compute output data.");
-        let result = execute_state.get_output_data().unwrap();
+            .expect("Valid state should always compute output data");
+        let result = execute_state.output_data().unwrap();
 
         // Verify that we got a response (the exact content depends on network availability)
         // Just check that we have a valid response object with a body method
@@ -462,11 +466,11 @@ mod tests {
 
     #[tokio::test]
     async fn should_return_true_when_output_data_has_been_computed() {
-        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid.");
+        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
         let client = SecClient::new("Test Company contact@test.com")
-            .expect("Hardcoded user agent should always be valid.");
+            .expect("Hardcoded user agent should always be valid");
         let request = SecRequest::new(&cik);
-        let input = ExecuteSecRequestInputData::new(client, request);
+        let input = ExecuteSecRequestInput::new(client, request);
         let context = ExecuteSecRequestContext::default();
         let mut execute_state = ExecuteSecRequest::new(input, context);
 
@@ -475,7 +479,7 @@ mod tests {
         execute_state
             .compute_output_data_async()
             .await
-            .expect("Valid state should always compute output data.");
+            .expect("Valid state should always compute output data");
         let result = execute_state.has_output_data_been_computed();
 
         assert_eq!(result, expected_result);
@@ -483,11 +487,11 @@ mod tests {
 
     #[tokio::test]
     async fn should_succeed_when_valid_input_is_provided() {
-        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid.");
+        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
         let client = SecClient::new("Test Company contact@test.com")
-            .expect("Hardcoded user agent should always be valid.");
+            .expect("Hardcoded user agent should always be valid");
         let request = SecRequest::new(&cik);
-        let input = ExecuteSecRequestInputData::new(client, request);
+        let input = ExecuteSecRequestInput::new(client, request);
         let context = ExecuteSecRequestContext::default();
         let mut execute_state = ExecuteSecRequest::new(input, context);
 
@@ -495,7 +499,7 @@ mod tests {
 
         assert!(result.is_ok());
         assert!(execute_state.has_output_data_been_computed());
-        let output = execute_state.get_output_data().unwrap();
+        let output = execute_state.output_data().unwrap();
         // We can verify that we get some response data, but actual content verification would depend on SEC API availability
         // Just check that we have a valid response object with a body method
         let _body_length = output.response().body().len();

@@ -21,7 +21,7 @@ classDiagram
         %% These are the associated types that represent the data associated with a `State`inside a `StateMachine' represents the data associated with a `State`.
         +type InputData: StateData
         +type OutputData: StateData
-        +type Context: ContextData
+        +type Context: Context
 
         %% These are the trait methods that must be implemented by any `State` in the `StateMachine`.
         +get_state_name(&self) impl ToString
@@ -41,14 +41,14 @@ classDiagram
         %% Associated types and methods are inherited from `State` and `StateMachine<S>`.
     }
 
-    class ContextData {
+    class Context {
         <<trait>>
         %% This is a trait that defines the behavior and characteristics of context data that is available to a `State` in a `StateMachine`.
 
         %% Associated type for updates to the context data.
         +type UpdateType
 
-        %% Methods defined by the `ContextData` trait.
+        %% Methods defined by the `Context` trait.
         +get_context(&self) &Self
         +update_context(&mut self, updates: Self::UpdateType)
     }    
@@ -73,7 +73,7 @@ classDiagram
     %% A `StateMachine`is always in a specific `State`
     StateMachine --> State : "is in a"
 
-    %% A `State` stores internal `StateData`and has access to `ContextData`
-    State --> ContextData : "has"
+    %% A `State` stores internal `StateData`and has access to `Context`
+    State --> Context : "has"
     State --> StateData : "has"
 ```

@@ -20,11 +20,11 @@ impl State for SampleState {
     type OutputData = SampleStateData;
     type Context = SampleStateContext;
 
-    fn get_state_name(&self) -> impl ToString {
+    fn state_name(&self) -> impl ToString {
         "Sample State"
     }
 
-    fn get_input_data(&self) -> &SampleStateData {
+    fn input_data(&self) -> &SampleStateData {
         &self.input
     }
 
@@ -32,11 +32,11 @@ impl State for SampleState {
         self.output = Some(SampleStateData::default());
     }
 
-    fn get_output_data(&self) -> Option<&SampleStateData> {
+    fn output_data(&self) -> Option<&SampleStateData> {
         self.output.as_ref()
     }
 
-    fn get_context_data(&self) -> &SampleStateContext {
+    fn context_data(&self) -> &SampleStateContext {
         &self.context_data
     }
 }

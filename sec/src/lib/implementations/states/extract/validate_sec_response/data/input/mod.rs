@@ -1,13 +1,13 @@
-//! # `ValidateSecResponseInputData` Module
+//! # `ValidateSecResponseInput` Module
 //!
 //! This module defines the input data structure and updater patterns for the `ValidateSecResponse` state
 //! within the SEC extraction state machine. It provides types and builders for representing and updating
 //! the SEC response objects required for validating HTTP responses from SEC API endpoints.
 //!
 //! ## Types
-//! - [`ValidateSecResponseInputData`]: Holds the raw SEC response to be validated by the validation state.
-//! - [`ValidateSecResponseInputDataUpdater`]: Updater type for modifying the input data in a controlled manner.
-//! - [`ValidateSecResponseInputDataUpdaterBuilder`]: Builder for constructing updater instances with optional fields.
+//! - [`ValidateSecResponseInput`]: Holds the raw SEC response to be validated by the validation state.
+//! - [`ValidateSecResponseInputUpdater`]: Updater type for modifying the input data in a controlled manner.
+//! - [`ValidateSecResponseInputUpdaterBuilder`]: Builder for constructing updater instances with optional fields.
 //!
 //! ## Integration
 //! - Implements [`StateData`](state_maschine::state_machine::state::StateData) for compatibility with the state machine framework.
@@ -39,12 +39,12 @@ use state_maschine::prelude::StateData as SMStateData;
 /// of the SEC document extraction workflow, and supports builder-based updates and
 /// integration with the state machine framework.
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Default)]
-pub struct ValidateSecResponseInputData {
+pub struct ValidateSecResponseInput {
     /// The SEC response that will be validated.
     pub sec_response: SecResponse,
 }
 
-impl ValidateSecResponseInputData {
+impl ValidateSecResponseInput {
     /// Creates a new instance of the input data for validating SEC responses.
     ///
     /// # Arguments
@@ -53,7 +53,7 @@ impl ValidateSecResponseInputData {
     ///
     /// # Returns
     ///
-    /// Returns a new [`ValidateSecResponseInputData`] instance ready for state processing.
+    /// Returns a new [`ValidateSecResponseInput`] instance ready for state processing.
     #[must_use]
     pub const fn new(sec_response: SecResponse) -> Self {
         Self { sec_response }
@@ -70,7 +70,7 @@ impl ValidateSecResponseInputData {
     }
 }
 
-impl StateData for ValidateSecResponseInputData {
+impl StateData for ValidateSecResponseInput {
     fn update_state(&mut self, updates: Self::UpdateType) -> Result<(), StateError> {
         if let Some(sec_response) = updates.sec_response {
             self.sec_response = sec_response;
@@ -79,10 +79,10 @@ impl StateData for ValidateSecResponseInputData {
     }
 }
 
-impl SMStateData for ValidateSecResponseInputData {
-    type UpdateType = ValidateSecResponseInputDataUpdater;
+impl SMStateData for ValidateSecResponseInput {
+    type UpdateType = ValidateSecResponseInputUpdater;
 
-    fn get_state(&self) -> &Self {
+    fn state(&self) -> &Self {
         self
     }
 
@@ -91,36 +91,44 @@ impl SMStateData for ValidateSecResponseInputData {
     fn update_state(&mut self, _updates: Self::UpdateType) {}
 }
 
-impl fmt::Display for ValidateSecResponseInputData {
+impl fmt::Display for ValidateSecResponseInput {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "\tInput Data: {}", self.sec_response)
     }
 }
 
-/// Updater for modifying [`ValidateSecResponseInputData`] in a controlled manner.
+/// Updater for modifying [`ValidateSecResponseInput`] in a controlled manner.
 ///
 /// This struct allows for partial updates to input data fields while maintaining
 /// type safety and avoiding unnecessary allocations for unchanged fields.
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
-pub struct ValidateSecResponseInputDataUpdater {
+pub struct ValidateSecResponseInputUpdater {
     /// Optional new SEC response to replace the current one.
     pub sec_response: Option<SecResponse>,
 }
 
-/// Builder for constructing [`ValidateSecResponseInputDataUpdater`] instances.
+impl ValidateSecResponseInputUpdater {
+    /// Creates a new builder for constructing [`ValidateSecResponseInputUpdater`] instances.
+    #[must_use]
+    pub const fn builder() -> ValidateSecResponseInputUpdaterBuilder {
+        ValidateSecResponseInputUpdaterBuilder::new()
+    }
+}
+
+/// Builder for constructing [`ValidateSecResponseInputUpdater`] instances.
 ///
 /// This builder provides a fluent API for constructing updaters with only
 /// the fields that need to be changed, following the builder pattern.
-pub struct ValidateSecResponseInputDataUpdaterBuilder {
+pub struct ValidateSecResponseInputUpdaterBuilder {
     sec_response: Option<SecResponse>,
 }
 
-impl ValidateSecResponseInputDataUpdaterBuilder {
+impl ValidateSecResponseInputUpdaterBuilder {
     /// Creates a new builder with no fields set to be updated.
     ///
     /// # Returns
     ///
-    /// A new [`ValidateSecResponseInputDataUpdaterBuilder`] with all fields set to `None`.
+    /// A new [`ValidateSecResponseInputUpdaterBuilder`] with all fields set to `None`.
     #[must_use]
     pub const fn new() -> Self {
         Self { sec_response: None }
@@ -146,16 +154,16 @@ impl ValidateSecResponseInputDataUpdaterBuilder {
     ///
     /// # Returns
     ///
-    /// A new [`ValidateSecResponseInputDataUpdater`] with the fields set by this builder.
+    /// A new [`ValidateSecResponseInputUpdater`] with the fields set by this builder.
     #[must_use]
-    pub fn build(self) -> ValidateSecResponseInputDataUpdater {
-        ValidateSecResponseInputDataUpdater {
+    pub fn build(self) -> ValidateSecResponseInputUpdater {
+        ValidateSecResponseInputUpdater {
             sec_response: self.sec_response,
         }
     }
 }
 
-impl Default for ValidateSecResponseInputDataUpdaterBuilder {
+impl Default for ValidateSecResponseInputUpdaterBuilder {
     fn default() -> Self {
         Self::new()
     }
@@ -176,16 +184,16 @@ mod tests {
             url: reqwest::Url::parse(
                 "https://data.sec.gov/api/xbrl/companyfacts/CIK1234567890.json",
             )
-            .expect("Hardcoded URL should always be valid."),
+            .expect("Hardcoded URL should always be valid"),
             status: StatusCode::OK,
             headers: HashMap::new(),
             content_type: ContentType::Json,
             body: String::from("{\"test\": \"data\"}"),
         };
 
-        let expected_result = &ValidateSecResponseInputData::new(sec_response.clone());
+        let expected_result = &ValidateSecResponseInput::new(sec_response.clone());
 
-        let result = &ValidateSecResponseInputData::new(sec_response);
+        let result = &ValidateSecResponseInput::new(sec_response);
 
         assert_eq!(result, expected_result);
     }
@@ -193,7 +201,7 @@ mod tests {
     #[test]
     fn should_return_sec_response_reference_when_accessing_sec_response() {
         let sec_response = SecResponse::default();
-        let input_data = ValidateSecResponseInputData::new(sec_response.clone());
+        let input_data = ValidateSecResponseInput::new(sec_response.clone());
 
         let expected_result = &sec_response;
 
@@ -209,22 +217,22 @@ mod tests {
             url: reqwest::Url::parse(
                 "https://data.sec.gov/api/xbrl/companyfacts/CIK9999999999.json",
             )
-            .expect("Hardcoded URL should always be valid."),
+            .expect("Hardcoded URL should always be valid"),
             status: StatusCode::OK,
             headers: HashMap::new(),
             content_type: ContentType::Json,
             body: String::from("{\"updated\": true}"),
         };
-        let mut input_data = ValidateSecResponseInputData::new(original_response);
-        let updater = ValidateSecResponseInputDataUpdaterBuilder::new()
+        let mut input_data = ValidateSecResponseInput::new(original_response);
+        let updater = ValidateSecResponseInputUpdater::builder()
             .sec_response(new_response.clone())
             .build();
 
-        let expected_result = &ValidateSecResponseInputData::new(new_response);
+        let expected_result = &ValidateSecResponseInput::new(new_response);
 
         StateData::update_state(&mut input_data, updater)
-            .expect("Update with valid value should succeed");
-        let result = input_data.get_state();
+            .expect("Valid update should always succeed with valid input");
+        let result = input_data.state();
 
         assert_eq!(result, expected_result);
     }
@@ -232,26 +240,26 @@ mod tests {
     #[test]
     fn should_not_update_fields_when_updater_is_empty() {
         let sec_response = SecResponse::default();
-        let original_input_data = ValidateSecResponseInputData::new(sec_response.clone());
+        let original_input_data = ValidateSecResponseInput::new(sec_response.clone());
         let mut input_data = original_input_data.clone();
-        let updater = ValidateSecResponseInputDataUpdaterBuilder::new().build();
+        let updater = ValidateSecResponseInputUpdater::builder().build();
 
-        let expected_result = &ValidateSecResponseInputData::default();
+        let expected_result = &ValidateSecResponseInput::default();
 
         StateData::update_state(&mut input_data, updater)
-            .expect("Update with valid value should succeed");
-        let result = input_data.get_state();
+            .expect("Valid update should always succeed with valid input");
+        let result = input_data.state();
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_create_default_input_data_when_default_is_called() {
-        let expected_result = ValidateSecResponseInputData {
+        let expected_result = ValidateSecResponseInput {
             sec_response: SecResponse::default(),
         };
 
-        let result = ValidateSecResponseInputData::default();
+        let result = ValidateSecResponseInput::default();
 
         assert_eq!(result, expected_result);
     }
@@ -259,10 +267,10 @@ mod tests {
     #[test]
     fn should_return_input_data_reference_when_accessing_state() {
         let sec_response = SecResponse::default();
-        let input_data = ValidateSecResponseInputData::new(sec_response);
+        let input_data = ValidateSecResponseInput::new(sec_response);
 
         let expected_result = &input_data;
-        let result = input_data.get_state();
+        let result = input_data.state();
 
         assert_eq!(result, expected_result);
     }
@@ -274,7 +282,7 @@ mod tests {
             url: reqwest::Url::parse(
                 "https://data.sec.gov/api/xbrl/companyfacts/CIK5555555555.json",
             )
-            .expect("Hardcoded URL should always be valid."),
+            .expect("Hardcoded URL should always be valid"),
             status: StatusCode::OK,
             headers: HashMap::new(),
             content_type: ContentType::Json,
@@ -284,23 +292,23 @@ mod tests {
             url: reqwest::Url::parse(
                 "https://data.sec.gov/api/xbrl/companyfacts/CIK9999999999.json",
             )
-            .expect("Hardcoded URL should always be valid."),
+            .expect("Hardcoded URL should always be valid"),
             status: StatusCode::OK,
             headers: HashMap::new(),
             content_type: ContentType::Json,
             body: String::from("{\"final\": true}"),
         };
-        let mut input_data = ValidateSecResponseInputData::new(original_response);
-        let updater = ValidateSecResponseInputDataUpdaterBuilder::new()
+        let mut input_data = ValidateSecResponseInput::new(original_response);
+        let updater = ValidateSecResponseInputUpdater::builder()
             .sec_response(intermediate_response)
             .sec_response(final_response.clone())
             .build();
 
-        let expected_result = &ValidateSecResponseInputData::new(final_response);
+        let expected_result = &ValidateSecResponseInput::new(final_response);
 
         StateData::update_state(&mut input_data, updater)
-            .expect("Update with valid value should succeed");
-        let result = input_data.get_state();
+            .expect("Valid update should always succeed with valid input");
+        let result = input_data.state();
 
         assert_eq!(result, expected_result);
     }
@@ -309,7 +317,7 @@ mod tests {
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
     #[test]
     const fn should_still_implement_auto_traits_when_implementing_input_data_trait() {
-        implements_auto_traits::<ValidateSecResponseInputData>();
+        implements_auto_traits::<ValidateSecResponseInput>();
     }
 
     const fn implements_send<T: Send>() {}
@@ -317,77 +325,77 @@ mod tests {
 
     #[test]
     const fn should_implement_send_when_implementing_input_data_trait() {
-        implements_send::<ValidateSecResponseInputData>();
+        implements_send::<ValidateSecResponseInput>();
     }
 
     #[test]
     const fn should_implement_sync_when_implementing_input_data_trait() {
-        implements_sync::<ValidateSecResponseInputData>();
+        implements_sync::<ValidateSecResponseInput>();
     }
 
     #[test]
     const fn should_be_thread_safe_when_implementing_input_data_trait() {
-        implements_send::<ValidateSecResponseInputData>();
-        implements_sync::<ValidateSecResponseInputData>();
+        implements_send::<ValidateSecResponseInput>();
+        implements_sync::<ValidateSecResponseInput>();
     }
 
     const fn implements_sized<T: Sized>() {}
     #[test]
     const fn should_be_sized_when_implementing_input_data_trait() {
-        implements_sized::<ValidateSecResponseInputData>();
+        implements_sized::<ValidateSecResponseInput>();
     }
 
     const fn implements_hash<T: Hash>() {}
     #[test]
     const fn should_implement_hash_when_implementing_input_data_trait() {
-        implements_hash::<ValidateSecResponseInputData>();
+        implements_hash::<ValidateSecResponseInput>();
     }
 
     const fn implements_partial_eq<T: PartialEq>() {}
     #[test]
     const fn should_implement_partial_eq_when_implementing_input_data_trait() {
-        implements_partial_eq::<ValidateSecResponseInputData>();
+        implements_partial_eq::<ValidateSecResponseInput>();
     }
 
     const fn implements_eq<T: Eq>() {}
     #[test]
     const fn should_implement_eq_when_implementing_input_data_trait() {
-        implements_eq::<ValidateSecResponseInputData>();
+        implements_eq::<ValidateSecResponseInput>();
     }
 
     const fn implements_partial_ord<T: PartialOrd>() {}
     #[test]
     const fn should_implement_partial_ord_when_implementing_input_data_trait() {
-        implements_partial_ord::<ValidateSecResponseInputData>();
+        implements_partial_ord::<ValidateSecResponseInput>();
     }
 
     const fn implements_ord<T: Ord>() {}
     #[test]
     const fn should_implement_ord_when_implementing_input_data_trait() {
-        implements_ord::<ValidateSecResponseInputData>();
+        implements_ord::<ValidateSecResponseInput>();
     }
 
     const fn implements_default<T: Default>() {}
     #[test]
     const fn should_implement_default_when_implementing_input_data_trait() {
-        implements_default::<ValidateSecResponseInputData>();
+        implements_default::<ValidateSecResponseInput>();
     }
 
     #[test]
     const fn should_implement_debug_when_implementing_input_data_trait() {
         const fn implements_debug<T: Debug>() {}
-        implements_debug::<ValidateSecResponseInputData>();
+        implements_debug::<ValidateSecResponseInput>();
     }
 
     #[test]
     const fn should_implement_clone_when_implementing_input_data_trait() {
         const fn implements_clone<T: Clone>() {}
-        implements_clone::<ValidateSecResponseInputData>();
+        implements_clone::<ValidateSecResponseInput>();
     }
 
     #[test]
     const fn should_implement_unpin_when_implementing_input_data_trait() {
         const fn implements_unpin<T: Unpin>() {}
-        implements_unpin::<ValidateSecResponseInputData>();
+        implements_unpin::<ValidateSecResponseInput>();
     }
 }

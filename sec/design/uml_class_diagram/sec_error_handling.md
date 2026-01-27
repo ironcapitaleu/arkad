@@ -5,41 +5,119 @@ title: "`sec` Error Type Hierarchy"
 classDiagram
     class ErrorKind{
         <<enum>>
-        %% This is an enum that represents all kinds of errors that are expected in the `sec`package.
-        +StateMachine
+        %% Top-level error enum for all SEC state machine errors
+        +StateMachine(StateMachine)
         +DowncastNotPossible
-    }
-
-    class State {
-        <<enum>>
-        %% This is an enum that represents an error in the `sec` package that is caused by a computation that has been done internally inside a `State` in the `StateMachine`.
-        +InvalidCikFormat
-        +InvalidInputData
-        +InvalidContextData
-        +FailedOutputComputation
-        +StateDataUpdateFailed
-        +ContextDataUpdateFailed
-    }
-
-
-    class Transition {
-        <<enum>>
-        %% This is an enum that represents an error which occured during the transition from one `State` in the `StateMachine`to another `State`.
-        +FailedOutputConversion
-        +FailedContextConversion
     }
 
     class StateMachine{
         <<enum>>
-        %% This is an enum that represents an error which occured during the execution of a `StateMachine`. It can either be attributed to a specific `State` computation, a `Transition` between States or a general misconfiguration of the `StateMachine`.
-        +State
-        +Transition
-        +InvalidStateMachineConfiguration
+        %% Errors during state machine execution
+        +State(State)
+        +Transition(Transition)
+        +InvalidConfiguration
     }
 
-    %% Relationships
+    class State {
+        <<enum>>
+        %% Errors from internal state operations
+        +InvalidCikFormat(InvalidCikFormat)
+        +InvalidSecResponse(InvalidSecResponse)
+        +FailedClientCreation(FailedClientCreation)
+        +FailedRequestExecution(FailedRequestExecution)
+        +InvalidInput
+        +InvalidContext
+        +FailedOutputComputation
+        +StateDataUpdateFailed
+        +ContextUpdateFailed
+    }
+
+    class Transition {
+        <<enum>>
+        %% Errors during state transitions
+        +MissingOutput(MissingOutput)
+        +FailedOutputConversion
+        +FailedContextConversion
+    }
+
+    class InvalidCikFormat{
+        <<struct>>
+        %% State-level wrapper for CIK validation errors
+        +String state_name
+        +CikError domain_error
+    }
+
+    class InvalidSecResponse{
+        <<struct>>
+        %% State-level wrapper for SEC response errors
+        +String state_name
+        +SecResponseError domain_error
+    }
+
+    class FailedClientCreation{
+        <<struct>>
+        %% State-level wrapper for client creation errors
+        +String state_name
+        +SecClientError domain_error
+    }
+
+    class FailedRequestExecution{
+        <<struct>>
+        %% State-level wrapper for request execution errors
+        +String state_name
+        +SecRequestError domain_error
+    }
+
+    class MissingOutput{
+        <<struct>>
+        %% Transition-level error for missing output data
+        +String super_state_name
+        +String target_state_name
+    }
+
+    class CikError{
+        <<struct>>
+        %% Domain error for invalid CIK format
+        +InvalidCikReason reason
+        +String invalid_cik
+    }
+
+    class SecResponseError{
+        <<struct>>
+        %% Domain error for SEC response processing
+        +SecResponseErrorReason reason
+    }
+
+    class SecClientError{
+        <<struct>>
+        %% Domain error for SEC client creation
+        +SecClientErrorReason reason
+        +String user_agent
+    }
+
+    class SecRequestError{
+        <<struct>>
+        %% Domain error for SEC request execution
+        +SecRequestErrorReason reason
+    }
+
+    %% Error hierarchy relationships
     ErrorKind <|-- StateMachine
     StateMachine <|-- State
     StateMachine <|-- Transition
     
+    %% State error wraps domain errors
+    State <|-- InvalidCikFormat
+    State <|-- InvalidSecResponse
+    State <|-- FailedClientCreation
+    State <|-- FailedRequestExecution
+    
+    %% Transition error wraps specific errors
+    Transition <|-- MissingOutput
+    
+    %% State wrappers contain domain errors
+    InvalidCikFormat --> CikError
+    InvalidSecResponse --> SecResponseError
+    FailedClientCreation --> SecClientError
+    FailedRequestExecution --> SecRequestError
 ```

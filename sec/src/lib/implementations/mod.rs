@@ -4,7 +4,8 @@
 //! It provides real-world state, context, and data types that leverage the core traits and error types defined in the [`crate::traits`] and [`crate::error`] modules.
 //!
 //! ## Structure
-//! - [`states`]: Contains implementations for the Extract, Transform, and Load (ETL) states used in SEC data processing pipelines. Each submodule provides concrete state logic, input/output/context data, and validation routines.
+//! - [`states`]: Contains implementations for the Extract, Transform, and Load (ETL) states used in SEC data processing pipelines. Each submodule provides concrete state logic, input/output/context, and validation routines.
+//! - [`transitions`]: Contains implementations of state transitions organized by source state, enabling type-safe state machine transitions.
 //!
 //! ## Usage
 //! These implementations are intended to be used as building blocks for constructing SEC-specific state machines. They demonstrate how to apply the framework's extensible traits and error handling in practice.
@@ -19,13 +20,13 @@
 //! ```rust
 //! use tokio;
 //!
-//! use sec::implementations::states::extract::validate_cik_format::{ValidateCikFormat, ValidateCikFormatInputData, ValidateCikFormatContext};
+//! use sec::implementations::states::extract::validate_cik_format::{ValidateCikFormat, ValidateCikFormatInput, ValidateCikFormatContext};
 //! use sec::prelude::*;
 //!
 //! #[tokio::main]
 //! async fn main() {
-//!     // Initialze input and context data for the `ValidateCikFormat` state
-//!     let input = ValidateCikFormatInputData { raw_cik: "1234".into() };
+//!     // Initialze input and context for the `ValidateCikFormat` state
+//!     let input = ValidateCikFormatInput { raw_cik: "1234".into() };
 //!     let context = ValidateCikFormatContext::default();
 //!     
 //!     // For testing purposes: Define the expected result after validation
@@ -36,7 +37,7 @@
 //!     state.compute_output_data_async().await;
 //!
 //!     // Retrieve the validated CIK from the output data of the state
-//!     let result = state.get_output_data().expect("Output data should always be present in provided `ValidateCikFormat` state.").validated_cik.value();
+//!     let result = state.output_data().expect("Output data should always be present in provided `ValidateCikFormat` state").validated_cik.value();
 //!
 //!     assert_eq!(result, expected_result);
 //! }
@@ -45,3 +46,4 @@
 //! See the [`states`] module for details on each concrete state implementation.
 
 pub mod states;
+pub mod transitions;
