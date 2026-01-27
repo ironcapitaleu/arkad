@@ -83,10 +83,6 @@ impl HttpClient for ReqwestHttpClient {
             },
         }
     }
-
-    fn clone_box(&self) -> Box<dyn HttpClient> {
-        Box::new(self.clone())
-    }
 }
 
 #[cfg(test)]
