@@ -49,15 +49,15 @@ use uuid::Uuid;
 /// - Company name can contain letters, numbers, spaces, and common punctuation
 /// - Must be followed by a space and a valid email address
 /// - Email must have proper domain extension (minimum 2 characters)
-#[derive(Clone)]
-pub struct SecClient {
+#[derive(Debug, Clone)]
+pub struct SecClient<C: HttpClient> {
     /// Unique identifier for this client instance.
     pub id: String,
     /// The underlying HTTP client implementation.
-    pub inner: Box<dyn HttpClient>,
+    pub inner: C,
 }
 
-impl SecClient {
+impl SecClient<ReqwestHttpClient> {
     /// Creates a new `SecClient` with a unique ID and SEC-compliant user agent.
     ///
     /// This method validates the provided user agent string to ensure it meets SEC requirements,
@@ -126,24 +126,23 @@ impl SecClient {
 
         Ok(Self {
             id: Uuid::new_v4().to_string(),
-            inner: Box::new(http_client),
+            inner: http_client,
         })
     }
+}
 
+impl<C: HttpClient> SecClient<C> {
     /// Creates a new `SecClient` with a custom HTTP client implementation.
-    ///
-    /// This method allows dependency injection of any [`HttpClient`] implementation,
-    /// enabling testing with mock clients or using alternative HTTP client libraries.
     ///
     /// # Arguments
     ///
-    /// * `http_client` - A boxed implementation of the [`HttpClient`] trait.
+    /// * `http_client` - An implementation of the [`HttpClient`] trait.
     ///
     /// # Returns
     ///
     /// Returns a new `SecClient` instance with the provided HTTP client.
     #[must_use]
-    pub fn with_http_client(http_client: Box<dyn HttpClient>) -> Self {
+    pub fn with_http_client(http_client: C) -> Self {
         Self {
             id: Uuid::new_v4().to_string(),
             inner: http_client,
@@ -176,55 +175,42 @@ impl SecClient {
         &self.id
     }
 
-    /// Returns a reference to the underlying HTTP client trait object.
+    /// Returns a reference to the underlying HTTP client implementation.
     ///
     /// This method provides access to the underlying [`HttpClient`] implementation.
     /// Use this when you need direct access to the HTTP client for advanced scenarios.
     #[must_use]
-    pub fn http_client(&self) -> &dyn HttpClient {
-        self.inner.as_ref()
-    }
-}
-
-/// Provides debug formatting for `SecClient` instances.
-///
-/// Since `SecClient` contains a trait object (`Box<dyn HttpClient>`), we cannot
-/// derive `Debug` automatically. This implementation formats the client ID only.
-impl std::fmt::Debug for SecClient {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("SecClient")
-            .field("id", &self.id)
-            .field("inner", &"<HttpClient>")
-            .finish()
+    pub const fn http_client(&self) -> &C {
+        &self.inner
     }
 }
 
 /// Provides equality for `SecClient` instances based on their unique IDs.
-impl PartialEq for SecClient {
+impl<C: HttpClient> PartialEq for SecClient<C> {
     fn eq(&self, other: &Self) -> bool {
         self.id == other.id
     }
 }
 
 /// Provides partial ordering for `SecClient` instances based on their unique IDs.
-impl PartialOrd for SecClient {
+impl<C: HttpClient> PartialOrd for SecClient<C> {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         Some(self.cmp(other))
     }
 }
 
 /// Provides total ordering for `SecClient` instances based on their unique IDs.
-impl Ord for SecClient {
+impl<C: HttpClient> Ord for SecClient<C> {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         self.id.cmp(&other.id)
     }
 }
 
 /// Marks `SecClient` as having full equality semantics.
-impl Eq for SecClient {}
+impl<C: HttpClient> Eq for SecClient<C> {}
 
 /// Provides hashing for `SecClient` instances based on their unique ID.
-impl std::hash::Hash for SecClient {
+impl<C: HttpClient> std::hash::Hash for SecClient<C> {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.id.hash(state);
     }
@@ -241,11 +227,11 @@ impl std::hash::Hash for SecClient {
 /// The default implementation creates a client with ID "default" and a basic
 /// reqwest client without user agent validation. For production use, always
 /// create clients using [`SecClient::new`] with proper user agent strings.
-impl Default for SecClient {
+impl Default for SecClient<ReqwestHttpClient> {
     fn default() -> Self {
         Self {
             id: "default".to_string(),
-            inner: Box::new(ReqwestHttpClient::new(reqwest::Client::new())),
+            inner: ReqwestHttpClient::new(reqwest::Client::new()),
         }
     }
 }
@@ -306,7 +292,7 @@ mod tests {
         let reqwest_client = reqwest::Client::new();
         let http_client = ReqwestHttpClient::new(reqwest_client);
 
-        let result = SecClient::with_http_client(Box::new(http_client));
+        let result = SecClient::with_http_client(http_client);
 
         assert!(!result.id().is_empty());
     }
