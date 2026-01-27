@@ -16,17 +16,21 @@
 //! - [`ReqwestHttpClient`]: Default implementation using reqwest.
 //! - [`SecClientError`], [`SecClientErrorReason`]: Error types for client creation failures.
 //!
+//! ## Modules
+//! - [`traits`]: HTTP client trait definitions.
+//! - [`implementations`]: Concrete HTTP client implementations.
+//!
 //! ## See Also
 //! - [`super::user_agent`]: User agent validation and formatting utilities.
 //! - [`reqwest::Client`]: Underlying HTTP client implementation.
 
-pub mod http_client;
-pub mod reqwest_http_client;
+pub mod implementations;
 pub mod sec_client_error;
+pub mod traits;
 
-pub use http_client::HttpClient;
-pub use reqwest_http_client::ReqwestHttpClient;
+pub use implementations::ReqwestHttpClient;
 pub use sec_client_error::{SecClientError, SecClientErrorReason};
+pub use traits::HttpClient;
 
 use super::sec_request::SecRequest;
 use super::sec_request::sec_request_error::SecRequestError;

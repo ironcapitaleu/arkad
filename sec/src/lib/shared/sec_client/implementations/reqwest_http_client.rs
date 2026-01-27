@@ -2,19 +2,19 @@
 //!
 //! This module provides a concrete implementation of the [`HttpClient`] trait using
 //! the `reqwest` library. This is the default HTTP client implementation used by
-//! [`super::SecClient`] for making HTTP requests to SEC endpoints.
+//! [`super::super::SecClient`] for making HTTP requests to SEC endpoints.
 //!
 //! ## Types
 //! - [`ReqwestHttpClient`]: Wrapper around `reqwest::Client` that implements [`HttpClient`].
 //!
 //! ## See Also
-//! - [`super::http_client::HttpClient`]: The trait this implementation fulfills.
+//! - [`super::super::traits::http_client::HttpClient`]: The trait this implementation fulfills.
 //! - [`reqwest::Client`]: The underlying HTTP client.
 
 use async_trait::async_trait;
 use reqwest::Client;
 
-use super::http_client::HttpClient;
+use super::super::traits::http_client::HttpClient;
 use crate::shared::sec_request::SecRequest;
 use crate::shared::sec_request::sec_request_error::SecRequestError;
 use crate::shared::sec_response::SecResponse;
@@ -22,13 +22,13 @@ use crate::shared::sec_response::SecResponse;
 /// Implementation of [`HttpClient`] using the `reqwest` library.
 ///
 /// `ReqwestHttpClient` wraps a `reqwest::Client` and implements the [`HttpClient`]
-/// trait, enabling it to be used with [`super::SecClient`] for dependency injection.
+/// trait, enabling it to be used with [`super::super::SecClient`] for dependency injection.
 ///
 /// # Examples
 ///
 /// ```rust
 /// use reqwest::ClientBuilder;
-/// use sec::shared::sec_client::reqwest_http_client::ReqwestHttpClient;
+/// use sec::shared::sec_client::ReqwestHttpClient;
 ///
 /// // Create a reqwest client with custom configuration
 /// let reqwest_client = ClientBuilder::new()

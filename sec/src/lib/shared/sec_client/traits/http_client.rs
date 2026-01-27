@@ -7,8 +7,8 @@
 //! - [`HttpClient`]: Trait defining the interface for HTTP client operations.
 //!
 //! ## See Also
-//! - [`super::SecClient`]: Uses this trait for HTTP client abstraction.
-//! - [`super::reqwest_http_client`]: Concrete implementation using reqwest.
+//! - [`super::super::SecClient`]: Uses this trait for HTTP client abstraction.
+//! - [`super::super::implementations::reqwest_http_client`]: Concrete implementation using reqwest.
 
 use async_trait::async_trait;
 
@@ -19,7 +19,7 @@ use crate::shared::sec_response::SecResponse;
 /// Trait defining the interface for HTTP client operations.
 ///
 /// This trait abstracts HTTP client functionality to enable dependency injection
-/// and testing. Any HTTP client implementation can be used with [`super::SecClient`] as
+/// and testing. Any HTTP client implementation can be used with [`super::super::SecClient`] as
 /// long as it implements this trait.
 #[async_trait]
 pub trait HttpClient: Send + Sync + Clone {
