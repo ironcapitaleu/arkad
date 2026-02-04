@@ -210,6 +210,7 @@ impl fmt::Display for PrepareSecRequest {
 mod tests {
     use super::*;
     use crate::shared::cik::Cik;
+    use crate::shared::sec_request::traits::inner_request::InnerRequest;
     use crate::traits::state_machine::state::State;
     use pretty_assertions::assert_eq;
     use std::{fmt::Debug, hash::Hash};
