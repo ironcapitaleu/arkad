@@ -32,8 +32,8 @@ pub use implementations::ReqwestHttpClient;
 pub use sec_client_error::{SecClientError, SecClientErrorReason};
 pub use traits::HttpClient;
 
-use super::sec_request::implementations::reqwest_request::ReqwestRequest;
 use super::sec_request::SecRequest;
+use super::sec_request::implementations::reqwest_request::ReqwestRequest;
 use super::sec_request::sec_request_error::SecRequestError;
 use super::sec_response::SecResponse;
 use super::user_agent::UserAgent;

@@ -4,10 +4,10 @@ use async_trait::async_trait;
 use reqwest::StatusCode;
 
 use crate::shared::sec_client::traits::http_client::HttpClient;
-use crate::shared::sec_request::implementations::reqwest_request::ReqwestRequest;
-use crate::shared::sec_request::traits::inner_request::InnerRequest;
 use crate::shared::sec_request::SecRequest;
+use crate::shared::sec_request::implementations::reqwest_request::ReqwestRequest;
 use crate::shared::sec_request::sec_request_error::SecRequestError;
+use crate::shared::sec_request::traits::inner_request::InnerRequest;
 use crate::shared::sec_response::{ContentType, SecResponse};
 
 /// A fake HTTP client implementation that always returns successful responses.
