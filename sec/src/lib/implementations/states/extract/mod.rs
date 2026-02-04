@@ -50,6 +50,7 @@ use crate::implementations::states::extract::validate_sec_response::ValidateSecR
 
 use crate::shared::cik::Cik;
 use crate::shared::sec_client::{ReqwestHttpClient, SecClient};
+use crate::shared::sec_request::implementations::reqwest_request::ReqwestRequest;
 use crate::shared::sec_request::SecRequest;
 
 use async_trait::async_trait;
@@ -210,7 +211,7 @@ impl ExtractSuperState<PrepareSecRequest> {
 
 impl ExtractSuperState<ExecuteSecRequest> {
     #[must_use]
-    pub const fn new(client: SecClient<ReqwestHttpClient>, request: SecRequest, cik: Cik) -> Self {
+    pub const fn new(client: SecClient<ReqwestHttpClient>, request: SecRequest<ReqwestRequest>, cik: Cik) -> Self {
         let esr_input = ExecuteSecRequestInput::new(client, request);
         let esr_context = ExecuteSecRequestContext::new(cik);
 

@@ -1,8 +1,7 @@
 //! # Reqwest Request Implementation
 //!
 //! This module provides a concrete implementation of the [`InnerRequest`] trait using
-//! the `reqwest` library. This is the default request implementation used by
-//! [`super::super::SecRequest`] for making HTTP requests to SEC endpoints.
+//! the `reqwest` library.
 //!
 //! ## Types
 //! - [`ReqwestRequest`]: Wrapper around `reqwest::Request` that implements [`InnerRequest`].

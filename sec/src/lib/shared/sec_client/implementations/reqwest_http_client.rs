@@ -15,6 +15,7 @@ use async_trait::async_trait;
 use reqwest::Client;
 
 use super::super::traits::http_client::HttpClient;
+use crate::shared::sec_request::implementations::reqwest_request::ReqwestRequest;
 use crate::shared::sec_request::SecRequest;
 use crate::shared::sec_request::sec_request_error::SecRequestError;
 use crate::shared::sec_response::SecResponse;
@@ -66,8 +67,11 @@ impl ReqwestHttpClient {
 
 #[async_trait]
 impl HttpClient for ReqwestHttpClient {
-    async fn execute_request(&self, request: SecRequest) -> Result<SecResponse, SecRequestError> {
-        let resp = self.inner.execute(request.inner).await;
+    async fn execute_request(
+        &self,
+        request: SecRequest<ReqwestRequest>,
+    ) -> Result<SecResponse, SecRequestError> {
+        let resp = self.inner.execute(request.inner.into_inner()).await;
 
         match resp {
             Err(e) => {

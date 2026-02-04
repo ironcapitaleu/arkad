@@ -12,6 +12,7 @@
 
 use async_trait::async_trait;
 
+use crate::shared::sec_request::implementations::reqwest_request::ReqwestRequest;
 use crate::shared::sec_request::SecRequest;
 use crate::shared::sec_request::sec_request_error::SecRequestError;
 use crate::shared::sec_response::SecResponse;
@@ -34,5 +35,8 @@ pub trait HttpClient: Send + Sync + Clone {
     /// # Errors
     /// Returns a [`SecRequestError`] if the request fails for any reason,
     /// including network errors, timeouts, or response parsing failures.
-    async fn execute_request(&self, request: SecRequest) -> Result<SecResponse, SecRequestError>;
+    async fn execute_request(
+        &self,
+        request: SecRequest<ReqwestRequest>,
+    ) -> Result<SecResponse, SecRequestError>;
 }

@@ -6,6 +6,8 @@
 //!
 //! ## Modules
 //! - [`constants`]: Constants related to SEC API endpoints, such as URL prefixes and suffixes.
+//! - [`traits`]: Inner request trait definitions.
+//! - [`implementations`]: Concrete inner request implementations.
 //!
 //! ## Types
 //! - [`SecRequest`]: Strongly-typed wrapper for HTTP requests to SEC API endpoints, with methods for creating requests for specific CIKs.
@@ -21,11 +23,14 @@
 //! - [`crate::shared::sec_client`]: SEC client utilities for executing these requests.
 
 pub mod constants;
+pub mod implementations;
 pub mod sec_request_error;
+pub mod traits;
+
+pub use implementations::ReqwestRequest;
+pub use traits::InnerRequest;
 
 use constants::{SEC_CIK_BERKSHIRE_HATHAWAY_URL, SEC_REQUEST_URL_PREFIX, SEC_REQUEST_URL_SUFFIX};
-
-use reqwest::Request;
 
 use crate::shared::cik::Cik;
 
@@ -34,11 +39,11 @@ use crate::shared::cik::Cik;
 /// The [`SecRequest`] type ensures that HTTP requests to SEC API endpoints are properly formatted
 /// and follow the correct URL structure. Use [`SecRequest::new`] to construct a request for a specific [`Cik`].
 #[derive(Debug)]
-pub struct SecRequest {
-    pub inner: reqwest::Request,
+pub struct SecRequest<R: InnerRequest> {
+    pub inner: R,
 }
 
-impl SecRequest {
+impl SecRequest<ReqwestRequest> {
     #[must_use]
     /// Creates a new [`SecRequest`] for a given [`Cik`].
     ///
@@ -46,58 +51,76 @@ impl SecRequest {
     /// Panics if the URL cannot be parsed, which should not happen with hardcoded URLs.
     pub fn new(cik: &Cik) -> Self {
         let url = format!("{SEC_REQUEST_URL_PREFIX}{cik}{SEC_REQUEST_URL_SUFFIX}");
+        let request = ReqwestRequest::get(
+            reqwest::Url::parse(&url).expect("Hardcoded URL should always be valid"),
+        );
+        Self { inner: request }
+    }
+}
+
+impl<R: InnerRequest> SecRequest<R> {
+    /// Creates a new [`SecRequest`] with a custom inner request implementation.
+    ///
+    /// # Arguments
+    ///
+    /// * `inner_request` - An implementation of the [`InnerRequest`] trait.
+    ///
+    /// # Returns
+    ///
+    /// Returns a new `SecRequest` instance with the provided inner request.
+    #[must_use]
+    pub const fn with_inner_request(inner_request: R) -> Self {
         Self {
-            inner: Request::new(
-                reqwest::Method::GET,
-                reqwest::Url::parse(&url).expect("Hardcoded URL should always be valid"),
-            ),
+            inner: inner_request,
         }
     }
 
-    pub const fn request(&self) -> &Request {
+    pub const fn request(&self) -> &R {
         &self.inner
     }
 }
 
-impl Clone for SecRequest {
+impl<R: InnerRequest> Clone for SecRequest<R> {
     fn clone(&self) -> Self {
         Self {
-            inner: self.inner.try_clone().expect("Failed to clone Request"),
+            inner: self
+                .inner
+                .try_clone()
+                .expect("InnerRequest should always be cloneable"),
         }
     }
 }
 
-impl PartialEq for SecRequest {
+impl<R: InnerRequest> PartialEq for SecRequest<R> {
     fn eq(&self, other: &Self) -> bool {
         self.inner.url() == other.inner.url()
     }
 }
 
-impl PartialOrd for SecRequest {
+impl<R: InnerRequest> PartialOrd for SecRequest<R> {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl Ord for SecRequest {
+impl<R: InnerRequest> Ord for SecRequest<R> {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         self.inner.url().cmp(other.inner.url())
     }
 }
 
-impl Eq for SecRequest {}
+impl<R: InnerRequest> Eq for SecRequest<R> {}
 
-impl std::hash::Hash for SecRequest {
+impl<R: InnerRequest> std::hash::Hash for SecRequest<R> {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.inner.url().hash(state);
     }
 }
 
-impl Default for SecRequest {
+impl Default for SecRequest<ReqwestRequest> {
     fn default() -> Self {
         Self {
-            inner: Request::new(
-                reqwest::Method::GET,
+            inner: ReqwestRequest::get(
                 reqwest::Url::parse(SEC_CIK_BERKSHIRE_HATHAWAY_URL)
                     .expect("Hardcoded URL should always be valid"),
             ),
@@ -119,7 +142,6 @@ mod tests {
         let result = SecRequest::new(&cik);
 
         assert_eq!(result.inner.url().as_str(), expected_url);
-        assert_eq!(result.inner.method(), &reqwest::Method::GET);
     }
 
     #[test]
@@ -140,6 +162,5 @@ mod tests {
         let result = SecRequest::default();
 
         assert_eq!(result.inner.url().as_str(), expected_url);
-        assert_eq!(result.inner.method(), &reqwest::Method::GET);
     }
 }
