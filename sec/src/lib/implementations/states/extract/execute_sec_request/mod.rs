@@ -63,6 +63,7 @@ pub use data::ExecuteSecRequestOutput;
 
 use crate::error::State as StateError;
 use crate::error::state_machine::state::failed_request_execution::FailedRequestExecution;
+use crate::shared::sec_client::traits::SecClient as SecClientTrait;
 use crate::traits::state_machine::state::State;
 
 use std::fmt;

@@ -31,7 +31,7 @@ use std::{fmt, hash::Hash};
 use state_maschine::prelude::StateData as SMStateData;
 
 use crate::error::State as StateError;
-use crate::shared::sec_client::{ReqwestHttpClient, SecClient};
+use crate::shared::sec_client::{SecClient};
 use crate::shared::sec_request::SecRequest;
 use crate::shared::sec_request::implementations::reqwest_request::ReqwestRequest;
 use crate::shared::sec_request::traits::inner_request::InnerRequest;
@@ -45,7 +45,7 @@ use crate::traits::state_machine::state::StateData;
 #[derive(Debug, Clone, Default, PartialEq, PartialOrd, Hash, Eq, Ord)]
 pub struct PrepareSecRequestOutput {
     /// The prepared SEC client for making HTTP requests.
-    pub client: SecClient<ReqwestHttpClient>,
+    pub client: SecClient,
     /// The prepared SEC request targeting a specific CIK.
     pub request: SecRequest<ReqwestRequest>,
 }
@@ -72,7 +72,7 @@ impl PrepareSecRequestOutput {
     /// # Errors
     /// Returns a [`StateError`] if the output data cannot be created from the provided data.
     pub const fn new(
-        client: SecClient<ReqwestHttpClient>,
+        client: SecClient,
         request: SecRequest<ReqwestRequest>,
     ) -> Result<Self, StateError> {
         Ok(Self { client, request })
@@ -80,7 +80,7 @@ impl PrepareSecRequestOutput {
 
     /// Returns a reference to the prepared SEC client.
     #[must_use]
-    pub const fn client(&self) -> &SecClient<ReqwestHttpClient> {
+    pub const fn client(&self) -> &SecClient {
         &self.client
     }
 
@@ -134,7 +134,7 @@ impl fmt::Display for PrepareSecRequestOutput {
 #[derive(Debug)]
 pub struct PrepareSecRequestOutputUpdater {
     /// Optional new value for the SEC client.
-    pub client: Option<SecClient<ReqwestHttpClient>>,
+    pub client: Option<SecClient>,
     /// Optional new value for the SEC request.
     pub request: Option<SecRequest<ReqwestRequest>>,
 }
@@ -152,7 +152,7 @@ impl PrepareSecRequestOutputUpdater {
 /// This builder allows for ergonomic and explicit construction of updater instances,
 /// supporting method chaining and optional fields. Use `.build()` to produce the updater.
 pub struct PrepareSecRequestOutputUpdaterBuilder {
-    client: Option<SecClient<ReqwestHttpClient>>,
+    client: Option<SecClient>,
     request: Option<SecRequest<ReqwestRequest>>,
 }
 
@@ -173,7 +173,7 @@ impl PrepareSecRequestOutputUpdaterBuilder {
     /// * `client` - The new [`SecClient`] value.
     #[must_use]
     #[allow(clippy::missing_const_for_fn)]
-    pub fn client(mut self, client: SecClient<ReqwestHttpClient>) -> Self {
+    pub fn client(mut self, client: SecClient) -> Self {
         self.client = Some(client);
         self
     }
