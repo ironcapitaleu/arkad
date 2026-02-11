@@ -49,7 +49,7 @@ use crate::implementations::states::extract::validate_cik_format::{
 use crate::implementations::states::extract::validate_sec_response::ValidateSecResponse;
 
 use crate::shared::cik::Cik;
-use crate::shared::sec_client::{SecClient};
+use crate::shared::sec_client::SecClient;
 use crate::shared::sec_request::SecRequest;
 use crate::shared::sec_request::implementations::reqwest_request::ReqwestRequest;
 
@@ -211,11 +211,7 @@ impl ExtractSuperState<PrepareSecRequest> {
 
 impl ExtractSuperState<ExecuteSecRequest> {
     #[must_use]
-    pub const fn new(
-        client: SecClient,
-        request: SecRequest<ReqwestRequest>,
-        cik: Cik,
-    ) -> Self {
+    pub const fn new(client: SecClient, request: SecRequest<ReqwestRequest>, cik: Cik) -> Self {
         let esr_input = ExecuteSecRequestInput::new(client, request);
         let esr_context = ExecuteSecRequestContext::new(cik);
 

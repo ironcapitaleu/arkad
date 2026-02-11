@@ -28,8 +28,8 @@
 use std::fmt;
 
 use crate::error::State as StateError;
-use crate::shared::sec_client::traits::sec_client::SecClient as SecClientTrait;
 use crate::shared::sec_client::SecClient;
+use crate::shared::sec_client::traits::sec_client::SecClient as SecClientTrait;
 use crate::shared::sec_request::SecRequest;
 use crate::shared::sec_request::implementations::reqwest_request::ReqwestRequest;
 use crate::shared::sec_request::traits::inner_request::InnerRequest;
@@ -62,10 +62,7 @@ impl ExecuteSecRequestInput {
     /// # Returns
     ///
     /// Returns a new [`ExecuteSecRequestInput`] instance ready for state processing.
-    pub const fn new(
-        sec_client: SecClient,
-        sec_request: SecRequest<ReqwestRequest>,
-    ) -> Self {
+    pub const fn new(sec_client: SecClient, sec_request: SecRequest<ReqwestRequest>) -> Self {
         Self {
             sec_client,
             sec_request,

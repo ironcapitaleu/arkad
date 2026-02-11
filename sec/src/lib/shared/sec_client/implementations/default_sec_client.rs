@@ -18,9 +18,9 @@ use uuid::Uuid;
 use super::super::sec_client_error::{SecClientError, SecClientErrorReason};
 use super::super::traits::{HttpClient, SecClient};
 use super::reqwest_http_client::ReqwestHttpClient;
+use crate::shared::sec_request::SecRequest;
 use crate::shared::sec_request::implementations::reqwest_request::ReqwestRequest;
 use crate::shared::sec_request::sec_request_error::SecRequestError;
-use crate::shared::sec_request::SecRequest;
 use crate::shared::sec_response::SecResponse;
 use crate::shared::user_agent::UserAgent;
 

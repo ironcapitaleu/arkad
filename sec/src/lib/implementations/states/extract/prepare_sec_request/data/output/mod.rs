@@ -31,7 +31,7 @@ use std::{fmt, hash::Hash};
 use state_maschine::prelude::StateData as SMStateData;
 
 use crate::error::State as StateError;
-use crate::shared::sec_client::{SecClient};
+use crate::shared::sec_client::SecClient;
 use crate::shared::sec_request::SecRequest;
 use crate::shared::sec_request::implementations::reqwest_request::ReqwestRequest;
 use crate::shared::sec_request::traits::inner_request::InnerRequest;
