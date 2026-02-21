@@ -17,7 +17,7 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use crate::shared::http_client::traits::InnerClient;
-    use crate::tests::common::sample_http_client::sample_inner_client::always_failing::AlwaysFailingHttpClient;
+    use crate::tests::fixtures::sample_http_client::sample_inner_client::always_failing::AlwaysFailingHttpClient;
 
     #[tokio::test]
     async fn should_return_error_for_always_failing_http_client() {

@@ -12,7 +12,7 @@ use state_maschine::prelude::{
 
 use crate::error::State as StateError;
 use crate::prelude::*;
-use crate::tests::common::sample_sec_state::SampleSecState;
+use crate::tests::fixtures::sample_sec_state::SampleSecState;
 
 pub mod sample_sec_super_state_context;
 pub mod sample_sec_super_state_data;
