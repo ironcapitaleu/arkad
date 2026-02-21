@@ -7,6 +7,6 @@ use async_trait::async_trait;
 pub trait InnerClient: Send + Sync + Debug + Clone {
     type Success;
     type Error;
-    
+
     async fn execute_request(&self) -> Result<Self::Success, Self::Error>;
 }
