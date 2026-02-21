@@ -11,6 +11,6 @@
 //! - [`sample_sec_super_state`]: Provides a simple super state implementation that makes use
 //! of [`sample_sec_state`] for testing and reimplementation purposes.
 //!
-pub mod fake_http_client;
+pub mod sample_http_client;
 pub mod sample_sec_state;
 pub mod sample_sec_super_state;
