@@ -12,7 +12,8 @@ pub trait HttpClient: Send + Sync + Debug {
     type Inner: InnerClient;
     type Success;
     type Error;
+    type Request;
 
     fn inner(&self) -> &Self::Inner;
-    async fn execute_request(&self) -> Result<Self::Success, Self::Error>;
+    async fn execute_request(&self, request: Self::Request) -> Result<Self::Success, Self::Error>;
 }
