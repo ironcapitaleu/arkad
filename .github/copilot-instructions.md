@@ -245,7 +245,7 @@ All commits must follow the following format:
 - **`style`**: A specific type of refactoring. Formatting, indentation, or code style changes (no logic changes)
 - **`perf`**: A specific type of refactoring. Performance-focused refactoring without changing external behavior
 - **`test`**: Adds or modifies automated tests (specifications for expected behavior)
-- **`docs`**: Changes only to software documentation. Usually in the form of docstrings or markdown files (design docs, README, etc.)
+- **`doc`**: Changes only to software documentation. Usually in the form of docstrings or markdown files (design docs, README, etc.)
 - **`ci`**: **Direct** changes to Continuous Integration pipeline configuration
 - **`cd`**: **Direct** changes to Continuous Deployment pipeline configuration
 - **`build`**: Changes affecting build system or dependencies. Changes to resulting build output, i.e., the binary. (e.g., updating/ adding a new library dependency, changing compiler flags). Usually in `Cargo.toml`, `Cargo.lock` or `.cargo/config.toml`.
