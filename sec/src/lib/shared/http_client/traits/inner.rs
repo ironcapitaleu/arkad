@@ -5,8 +5,11 @@ use async_trait::async_trait;
 /// A trait defining the methods an inner http client is expected to implement. This is used to enforce a consistent interface for any (third party) HTTP client that might be used.
 #[async_trait]
 pub trait InnerClient: Send + Sync + Debug + Clone {
+    /// This type represents the input request that the client is going to execute.
     type Request;
+    /// This type represents the output response that the client is going to return in case of a successful request.
     type Response;
+    /// This type represents the error that the client is going to return in case of a failed request.
     type Error;
 
     /// Executes a given HTTP request asynchronously.
