@@ -61,7 +61,7 @@ pub trait StateData:
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::tests::common::{SampleStateData, SampleStateDataUpdaterBuilder};
+    use crate::tests::fixtures::{SampleStateData, SampleStateDataUpdaterBuilder};
     use pretty_assertions::{assert_eq, assert_ne};
 
     #[test]

@@ -106,7 +106,7 @@ pub trait State:
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::tests::common::{SampleState, SampleStateContext, SampleStateData};
+    use crate::tests::fixtures::{SampleState, SampleStateContext, SampleStateData};
     use pretty_assertions::assert_eq;
 
     #[test]

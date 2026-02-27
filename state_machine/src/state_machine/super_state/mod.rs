@@ -31,7 +31,7 @@ pub trait SuperState<S: State>: StateMachine<S> + State {}
 mod tests {
     use super::*;
     use crate::state_machine::transition::Transition;
-    use crate::tests::common::HierarchicalStateMachine;
+    use crate::tests::fixtures::HierarchicalStateMachine;
     use pretty_assertions::assert_eq;
 
     #[test]

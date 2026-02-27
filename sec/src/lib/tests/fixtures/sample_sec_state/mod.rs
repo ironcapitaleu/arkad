@@ -21,7 +21,7 @@
 //! ```rust
 //! use tokio;
 //!
-//! use sec::tests::common::sample_sec_state::*;
+//! use sec::tests::fixtures::sample_sec_state::*;
 //! use sec::prelude::*;
 //!
 //! #[tokio::main]

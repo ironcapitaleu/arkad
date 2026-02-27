@@ -58,7 +58,7 @@ pub trait Context:
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::tests::common::{SampleStateContext, SampleStateContextUpdaterBuilder};
+    use crate::tests::fixtures::{SampleStateContext, SampleStateContextUpdaterBuilder};
     use pretty_assertions::{assert_eq, assert_ne};
 
     #[test]

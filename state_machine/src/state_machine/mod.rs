@@ -55,7 +55,7 @@ pub trait StateMachine<S: State> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::tests::common::{
+    use crate::tests::fixtures::{
         SampleState, SampleStateContext, SampleStateData, SimpleStateMachine,
     };
     use pretty_assertions::assert_eq;
