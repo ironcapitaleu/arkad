@@ -34,6 +34,8 @@ jobs:
       run: cargo check
     - name: Documentation Check
       run: cargo doc --no-deps --document-private-items --workspace
+    - name: Documentation Tests
+      run: cargo test --doc
     - name: Linting
       run: cargo clippy
     - name: Unit Tests
