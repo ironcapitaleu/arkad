@@ -13,13 +13,10 @@ impl InnerClient for AlwaysFailingHttpClient {
     type Response = String;
     type Error = String;
 
-    async fn execute_request(
-        &self,
-        _request: Self::Request,
-    ) -> Result<Self::Response, Self::Error> {
+    async fn execute_request(&self, request: Self::Request) -> Result<Self::Response, Self::Error> {
         Err(format!(
             "Simulated network error for request: {:?}",
-            _request
+            request
         ))
     }
 }

@@ -17,16 +17,32 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use crate::shared::http_client::traits::InnerClient;
-    use crate::tests::fixtures::sample_http_client::sample_inner_client::always_failing::AlwaysFailingHttpClient;
+    use crate::tests::fixtures::sample_http_client::sample_inner_client::{
+        always_failing::AlwaysFailingHttpClient, always_succeeding::AlwaysSucceedingHttpClient,
+    };
 
     #[tokio::test]
-    async fn should_return_error_for_always_failing_http_client() {
+    async fn should_return_expected_error_for_always_failing_http_client() {
         let client = AlwaysFailingHttpClient;
+        let request = ();
         let expected_error_message = String::from("Simulated network error for request: ()");
 
         let expected_result = Err(expected_error_message);
 
-        let result = client.execute_request(()).await;
+        let result = client.execute_request(request).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_return_expected_response_for_always_succeeding_http_client() {
+        let client = AlwaysSucceedingHttpClient;
+        let request = ();
+        let expected_success_message = String::from("Simulated success response for request: ()");
+
+        let expected_result = Ok(expected_success_message);
+
+        let result = client.execute_request(request).await;
 
         assert_eq!(result, expected_result);
     }
