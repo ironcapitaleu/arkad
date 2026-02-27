@@ -42,27 +42,3 @@ impl InnerClient for ReqwestClient {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use pretty_assertions::assert_eq;
-
-    use super::*;
-
-    #[tokio::test]
-    #[ignore = "Reason: This test requires an internet connection."]
-    async fn should_return_successful_response_for_valid_request() {
-        let client = ReqwestClient::default();
-        let url = "https://httpbin.org/get";
-        let request = Request::new(reqwest::Method::GET, reqwest::Url::parse(url).unwrap());
-
-        let expected_result = reqwest::StatusCode::OK;
-
-        let result = client
-            .execute_request(request)
-            .await
-            .expect(&format!("The URL `{url}` should always succeed"))
-            .status();
-
-        assert_eq!(result, expected_result);
-    }
-}
