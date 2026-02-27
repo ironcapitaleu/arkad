@@ -41,4 +41,3 @@ impl InnerClient for ReqwestClient {
         resp
     }
 }
-
