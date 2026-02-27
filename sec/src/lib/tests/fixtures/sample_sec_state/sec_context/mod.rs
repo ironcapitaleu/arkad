@@ -16,7 +16,7 @@
 //!
 //! ## See Also
 //! - [`crate::traits::state_machine::state::Context`]: Trait for context management in states.
-//! - [`crate::tests::common::sample_sec_state`]: Parent module for the sample state fixture.
+//! - [`crate::tests::fixtures::sample_sec_state`]: Parent module for the sample state fixture.
 use std::fmt;
 
 use state_maschine::prelude::Context as SMContext;
