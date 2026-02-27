@@ -9,6 +9,9 @@ pub trait InnerClient: Send + Sync + Debug + Clone {
     type Response;
     type Error;
 
+    /// Executes a given HTTP request asynchronously.
+    /// Returns a [Self::Response] on success or a [Self::Error] on failure.
+    /// The type for the input [Self::Request],  and output [Self::Response] / [Self::Error] is predefined and fixed for each [InnerClient] implementation.
     async fn execute_request(&self, request: Self::Request) -> Result<Self::Response, Self::Error>;
 }
 
