@@ -5,7 +5,8 @@ on:
     branches:
       - main
       - master
-  schedule: [cron: "0 0 * * 0"] # Weekly on Sundays at midnight
+  schedule:
+    - cron: "0 0 * * 0" # Weekly on Sundays at midnight
 
 permissions:
   contents: read
@@ -35,11 +36,11 @@ jobs:
       run: cargo check
     - name: Documentation Check
       run: cargo doc --no-deps --document-private-items --workspace
-    - name: Documentation Tests
-      run: cargo test --doc
     - name: Linting
       run: cargo clippy
     - name: Unit Tests
       run: cargo test --lib
+    - name: Documentation Tests
+      run: cargo test --doc
     - name: Integration Tests
       run: cargo test --test '*'
