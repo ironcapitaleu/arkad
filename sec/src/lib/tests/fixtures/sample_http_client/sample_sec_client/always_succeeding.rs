@@ -3,7 +3,7 @@ use async_trait::async_trait;
 use crate::shared::http_client::SecClient;
 use crate::tests::fixtures::sample_http_client::sample_inner_client::AlwaysSucceedingHttpClient;
 
-/// Fake SecClient that always returns a fixed SecResponse fixture.
+/// Fake SecClient that always returns a successful fixed string response.
 #[derive(Debug)]
 pub struct FakeSecClient {
     pub inner: AlwaysSucceedingHttpClient,

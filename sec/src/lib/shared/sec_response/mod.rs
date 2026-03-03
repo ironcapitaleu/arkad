@@ -17,7 +17,7 @@
 //!
 //! ## See Also
 //! - [`reqwest::Response`]: Underlying HTTP response implementation.
-//! - [`super::sec_client`]: HTTP client for making SEC-compliant requests.
+//! - [`super::old_sec_client`]: HTTP client for making SEC-compliant requests.
 
 use std::collections::HashMap;
 use std::fmt;
