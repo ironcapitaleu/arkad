@@ -29,7 +29,7 @@ use crate::shared::sec_response::SecResponse;
 ///
 /// ```rust
 /// use reqwest::ClientBuilder;
-/// use sec::shared::sec_client::ReqwestHttpClient;
+/// use sec::shared::old_sec_client::ReqwestHttpClient;
 ///
 /// // Create a reqwest client with custom configuration
 /// let reqwest_client = ClientBuilder::new()

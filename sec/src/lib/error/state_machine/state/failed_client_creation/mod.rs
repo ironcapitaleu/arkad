@@ -18,7 +18,7 @@
 //! ## Example
 //! ```rust
 //! use sec::error::state_machine::state::failed_client_creation::FailedClientCreation;
-//! use sec::shared::sec_client::{SecClientError, SecClientErrorReason};
+//! use sec::shared::old_sec_client::{SecClientError, SecClientErrorReason};
 //! let sec_client_error = SecClientError { reason: SecClientErrorReason::ReqwestClientCreationFailed, user_agent: "bad_agent".to_string() };
 //! let state_error = FailedClientCreation::new("PrepareSecRequest", sec_client_error);
 //! ```

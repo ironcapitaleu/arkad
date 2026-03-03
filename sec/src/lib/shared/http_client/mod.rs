@@ -1,4 +1,4 @@
 pub mod implementations;
 pub mod traits;
 
-pub use traits::{HttpClient, InnerClient};
+pub use traits::{InnerClient, SecClient};

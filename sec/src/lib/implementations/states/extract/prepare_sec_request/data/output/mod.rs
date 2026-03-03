@@ -57,7 +57,7 @@ impl PrepareSecRequestOutput {
     ///
     /// ```
     /// use sec::implementations::states::extract::prepare_sec_request::data::output::PrepareSecRequestOutput;
-    /// use sec::shared::sec_client::SecClient;
+    /// use sec::shared::old_sec_client::SecClient;
     /// use sec::shared::sec_request::SecRequest;
     /// use sec::shared::cik::Cik;
     /// use sec::shared::user_agent::UserAgent;

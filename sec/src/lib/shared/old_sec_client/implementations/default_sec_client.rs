@@ -36,8 +36,8 @@ use crate::shared::user_agent::UserAgent;
 /// # Examples
 ///
 /// ```rust
-/// use sec::shared::sec_client::DefaultSecClient;
-/// use sec::shared::sec_client::traits::SecClient;
+/// use sec::shared::old_sec_client::DefaultSecClient;
+/// use sec::shared::old_sec_client::traits::SecClient;
 ///
 /// // Create a default client with reqwest
 /// let client = DefaultSecClient::new("Sample Corp contact@sample.com")?;
@@ -79,8 +79,8 @@ impl DefaultSecClient<ReqwestHttpClient> {
     /// # Examples
     ///
     /// ```rust
-    /// use sec::shared::sec_client::DefaultSecClient;
-    /// use sec::shared::sec_client::traits::SecClient;
+    /// use sec::shared::old_sec_client::DefaultSecClient;
+    /// use sec::shared::old_sec_client::traits::SecClient;
     ///
     /// // Valid user agent
     /// let client = DefaultSecClient::new("Sample Corp contact@sample.com")?;

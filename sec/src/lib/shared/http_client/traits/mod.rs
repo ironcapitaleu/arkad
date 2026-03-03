@@ -1,19 +1,5 @@
-use std::fmt::Debug;
-
-use async_trait::async_trait;
-
 pub mod inner;
+pub mod sec_client;
 
 pub use inner::InnerClient;
-
-/// A trait defining the behavior an HTTP client is expected to implement. This is used to abstract away the specifics of any (third party) HTTP client that might be used.
-#[async_trait]
-pub trait HttpClient: Send + Sync + Debug {
-    type Inner: InnerClient;
-    type Success;
-    type Error;
-    type Request;
-
-    fn inner(&self) -> &Self::Inner;
-    async fn execute_request(&self, request: Self::Request) -> Result<Self::Success, Self::Error>;
-}
+pub use sec_client::SecClient;

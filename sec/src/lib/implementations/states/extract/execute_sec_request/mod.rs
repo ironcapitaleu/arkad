@@ -20,7 +20,7 @@
 //! use tokio;
 //!
 //! use sec::implementations::states::extract::execute_sec_request::*;
-//! use sec::shared::sec_client::SecClient;
+//! use sec::shared::old_sec_client::SecClient;
 //! use sec::shared::sec_request::SecRequest;
 //! use sec::shared::cik::Cik;
 //! use sec::prelude::*; // allows us to use call the `State` and other trait methods directly
@@ -46,7 +46,7 @@
 //!
 //! ## See Also
 //! - [`crate::implementations::states::extract`]: Parent module for extraction-related states.
-//! - [`crate::shared::sec_client::SecClient`]: Core SEC client type used for HTTP requests.
+//! - [`crate::shared::old_sec_client::SecClient`]: Core SEC client type used for HTTP requests.
 //! - [`crate::shared::sec_request::SecRequest`]: Core SEC request type for API calls.
 //! - [`crate::shared::sec_response::SecResponse`]: Core SEC response type for API responses.
 //! - [`crate::traits::state_machine::state::State`]: State trait implemented by [`ExecuteSecRequest`].
@@ -89,7 +89,7 @@ use state_maschine::prelude::State as SMState;
 /// # Example
 /// ```
 /// use sec::implementations::states::extract::execute_sec_request::*;
-/// use sec::shared::sec_client::SecClient;
+/// use sec::shared::old_sec_client::SecClient;
 /// use sec::shared::sec_request::SecRequest;
 /// use sec::shared::cik::Cik;
 ///
