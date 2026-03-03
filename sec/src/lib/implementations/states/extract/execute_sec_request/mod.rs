@@ -63,7 +63,7 @@ pub use data::ExecuteSecRequestOutput;
 
 use crate::error::State as StateError;
 use crate::error::state_machine::state::failed_request_execution::FailedRequestExecution;
-use crate::shared::sec_client::traits::SecClient as SecClientTrait;
+use crate::shared::old_sec_client::traits::SecClient as SecClientTrait;
 use crate::traits::state_machine::state::State;
 
 use std::fmt;
@@ -220,7 +220,7 @@ impl fmt::Display for ExecuteSecRequest {
 mod tests {
     use super::*;
     use crate::shared::cik::Cik;
-    use crate::shared::sec_client::SecClient;
+    use crate::shared::old_sec_client::SecClient;
     use crate::shared::sec_request::SecRequest;
     use crate::traits::state_machine::state::State;
     use pretty_assertions::assert_eq;

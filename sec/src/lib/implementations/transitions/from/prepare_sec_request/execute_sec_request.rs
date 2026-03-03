@@ -65,7 +65,7 @@ mod tests {
 
     use super::*;
     use crate::shared::cik::Cik;
-    use crate::shared::sec_client::SecClient;
+    use crate::shared::old_sec_client::SecClient;
     use crate::shared::sec_request::SecRequest;
 
     #[test]

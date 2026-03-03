@@ -25,7 +25,7 @@
 use thiserror::Error;
 
 use super::State as StateError;
-use crate::shared::sec_client::SecClientError;
+use crate::shared::old_sec_client::SecClientError;
 use crate::traits::error::FromDomainError;
 
 /// Error representing a client creation failure at the state level.
@@ -95,7 +95,7 @@ impl FromDomainError<SecClientError> for FailedClientCreation {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::shared::sec_client::SecClientErrorReason;
+    use crate::shared::old_sec_client::SecClientErrorReason;
     use pretty_assertions::assert_eq;
 
     #[test]

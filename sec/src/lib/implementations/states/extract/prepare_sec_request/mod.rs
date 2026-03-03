@@ -56,7 +56,7 @@ use state_maschine::prelude::State as SMState;
 
 use crate::error::State as StateError;
 use crate::error::state_machine::state::failed_client_creation::FailedClientCreation;
-use crate::shared::sec_client::SecClient;
+use crate::shared::old_sec_client::SecClient;
 use crate::shared::sec_request::SecRequest;
 use crate::traits::state_machine::state::State;
 
@@ -210,7 +210,7 @@ impl fmt::Display for PrepareSecRequest {
 mod tests {
     use super::*;
     use crate::shared::cik::Cik;
-    use crate::shared::sec_client::traits::sec_client::SecClient;
+    use crate::shared::old_sec_client::traits::sec_client::SecClient;
     use crate::shared::sec_request::traits::inner_request::InnerRequest;
     use crate::traits::state_machine::state::State;
     use pretty_assertions::assert_eq;
