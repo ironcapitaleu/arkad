@@ -4,7 +4,7 @@ use crate::shared::http_client::traits::InnerClient;
 
 /// A fake HTTP client implementation that always returns a fixed success response.
 /// This client is used for testing the success response handling in the [`HttpClient`] trait implementation by simulating a predefined success scenario.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct AlwaysSucceedingHttpClient;
 
 #[async_trait]
