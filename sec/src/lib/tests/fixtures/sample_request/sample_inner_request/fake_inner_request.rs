@@ -21,4 +21,12 @@ impl InnerRequest for FakeInnerRequest {
     fn new(method: Self::Method, url: Self::Url) -> Self {
         Self { method, url }
     }
+
+    fn method(&self) -> &Self::Method {
+        &self.method
+    }
+
+    fn url(&self) -> &Self::Url {
+        &self.url
+    }
 }

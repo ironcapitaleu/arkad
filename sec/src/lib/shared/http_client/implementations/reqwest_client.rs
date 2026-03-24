@@ -11,7 +11,7 @@ pub struct ReqwestClient {
 }
 
 impl ReqwestClient {
-    #[must_use] 
+    #[must_use]
     pub const fn new(client: Client) -> Self {
         Self { client }
     }
@@ -38,7 +38,6 @@ impl InnerClient for ReqwestClient {
     /// Takes a [Request] as input.
     /// Returns a [Response] on success or an [`ReqwestError`] on failure.
     async fn execute_request(&self, request: Self::Request) -> Result<Self::Response, Self::Error> {
-        
         self.client.execute(request).await
     }
 }

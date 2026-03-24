@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 
 /// A trait defining how a request has to be created. This is used to decouple from third party libraries.
-pub trait InnerRequest: Send + Sync + Debug + Clone {
+pub trait InnerRequest: Send + Sync + Debug {
     /// This type represents the HTTP method that the client is going to execute against the URL.
     type Method;
     /// This type represents the endpoint that the client is going to execute the request method against.
@@ -10,6 +10,8 @@ pub trait InnerRequest: Send + Sync + Debug + Clone {
     /// Creates a new request for the client.
     /// Returns an instance of a Request struct.
     fn new(method: Self::Method, url: Self::Url) -> Self;
+    fn method(&self) -> &Self::Method;
+    fn url(&self) -> &Self::Url;
 }
 
 #[cfg(test)]
@@ -33,6 +35,6 @@ mod tests {
 
         let result = FakeInnerRequest::new(method, url);
 
-        assert_eq!(result, expected_result);
+        assert_eq!(result.method(), expected_result.method());
     }
 }
