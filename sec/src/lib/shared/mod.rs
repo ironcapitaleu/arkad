@@ -23,6 +23,7 @@ pub mod cik;
 pub mod http_client;
 pub mod json_response;
 pub mod old_sec_client; // TODO: DELETE AFTER new sec_client definition is implemented
+pub mod request; // TODO: DELETE AFTER new request definition is implemented
 pub mod sec_request;
 pub mod sec_response;
 pub mod user_agent;

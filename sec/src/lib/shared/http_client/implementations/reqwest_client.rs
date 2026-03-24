@@ -11,7 +11,8 @@ pub struct ReqwestClient {
 }
 
 impl ReqwestClient {
-    pub fn new(client: Client) -> Self {
+    #[must_use] 
+    pub const fn new(client: Client) -> Self {
         Self { client }
     }
 }
@@ -26,18 +27,18 @@ impl Default for ReqwestClient {
 
 #[async_trait]
 impl InnerClient for ReqwestClient {
-    /// This is the [reqwest::Request] type from the [reqwest] library.
+    /// This is the [`reqwest::Request`] type from the [reqwest] library.
     type Request = Request;
-    /// This is the [reqwest::Response] type from the [reqwest] library.
+    /// This is the [`reqwest::Response`] type from the [reqwest] library.
     type Response = Response;
-    /// This is the [reqwest::Error] type from the [reqwest] library.
+    /// This is the [`reqwest::Error`] type from the [reqwest] library.
     type Error = ReqwestError;
 
     /// Executes a given HTTP request asynchronously.
     /// Takes a [Request] as input.
-    /// Returns a [Response] on success or an [ReqwestError] on failure.
+    /// Returns a [Response] on success or an [`ReqwestError`] on failure.
     async fn execute_request(&self, request: Self::Request) -> Result<Self::Response, Self::Error> {
-        let resp = self.client.execute(request).await;
-        resp
+        
+        self.client.execute(request).await
     }
 }
