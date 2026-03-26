@@ -11,6 +11,14 @@ pub trait SecRequest: Send + Sync + Debug {
 
     fn inner(&self) -> &Self::Inner;
 
+    fn method(&self) -> &<Self::Inner as InnerRequest>::Method {
+        self.inner().method()
+    }
+
+    fn url(&self) -> &<Self::Inner as InnerRequest>::Url {
+        self.inner().url()
+    }
+
     fn new(request_type: SecRequestType) -> Self;
 }
 
@@ -32,7 +40,7 @@ mod tests {
 
     use crate::shared::cik::Cik;
     use crate::shared::request::SecRequestType;
-    use crate::shared::request::traits::{InnerRequest, SecRequest};
+    use crate::shared::request::traits::SecRequest;
 
     use crate::tests::fixtures::sample_request::sample_inner_request::fake_inner_request::FakeMethod;
     use crate::tests::fixtures::sample_request::sample_sec_request::FakeSecRequest;
@@ -45,7 +53,6 @@ mod tests {
             String::from("https://example.com/fetch_all_company_facts/0000000000");
 
         let result = FakeSecRequest::new(SecRequestType::FetchAllCompanyFacts { cik })
-            .inner()
             .url()
             .clone();
 
@@ -59,7 +66,6 @@ mod tests {
         let expected_result = FakeMethod::GET;
 
         let result = FakeSecRequest::new(SecRequestType::FetchAllCompanyFacts { cik })
-            .inner()
             .method()
             .clone();
 
