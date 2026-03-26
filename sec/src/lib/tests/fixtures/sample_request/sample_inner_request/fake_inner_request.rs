@@ -1,4 +1,4 @@
-use crate::shared::request::traits::inner::InnerRequest;
+use crate::shared::request::InnerRequest;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct FakeInnerRequest {
