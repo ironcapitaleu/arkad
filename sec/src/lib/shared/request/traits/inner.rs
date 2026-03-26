@@ -31,10 +31,12 @@ mod tests {
         let expected_result = FakeInnerRequest {
             method: FakeMethod::GET,
             url: String::from("https://example.com"),
-        };
+        }
+        .method()
+        .clone();
 
-        let result = FakeInnerRequest::new(method, url);
+        let result = FakeInnerRequest::new(method, url).method().clone();
 
-        assert_eq!(result.method(), expected_result.method());
+        assert_eq!(result, expected_result);
     }
 }
