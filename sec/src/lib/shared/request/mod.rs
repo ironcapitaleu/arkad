@@ -1,4 +1,4 @@
 pub mod implementations;
 pub mod traits;
 
-pub use traits::{InnerRequest, SecRequest}; // TODO: this is not a trait, move somehwere else
+pub use traits::{InnerRequest, SecRequest};

@@ -13,6 +13,8 @@
 //!
 pub mod sample_http_client;
 pub mod sample_request;
+pub mod sample_response;
+
 pub mod sample_sec_state;
 pub mod sample_sec_super_state;
 
