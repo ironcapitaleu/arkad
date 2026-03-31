@@ -42,7 +42,7 @@ pub enum SecRequestType {
 }
 
 impl SecRequestType {
-    #[must_use] 
+    #[must_use]
     pub const fn new_fetch_all_company_facts(cik: Cik) -> Self {
         Self::FetchAllCompanyFacts { cik }
     }
