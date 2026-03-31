@@ -1,2 +1,2 @@
-pub mod reqwest_request;
+pub mod reqwest;
 pub mod sec;
