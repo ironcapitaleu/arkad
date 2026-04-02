@@ -1,8 +1,8 @@
 use reqwest::{Method, Response, Url};
 
-use super::super::traits::InnerResponse;
+use super::super::traits::SecResponse;
 
-impl InnerResponse for Response {
+impl SecResponse for Response {
     type Method = Method;
     type Url = Url;
     type Body = String;

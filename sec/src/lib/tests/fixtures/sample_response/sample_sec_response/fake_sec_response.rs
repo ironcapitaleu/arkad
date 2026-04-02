@@ -1,7 +1,7 @@
-use crate::shared::response::InnerResponse;
+use crate::shared::response::SecResponse;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct FakeInnerResponse {
+pub struct FakeSecResponse {
     pub method: FakeMethod,
     pub url: String,
     pub body: String,
@@ -18,7 +18,7 @@ pub enum FakeMethod {
     DELETE,
 }
 
-impl FakeInnerResponse {
+impl FakeSecResponse {
     pub fn new(
         method: FakeMethod,
         url: String,
@@ -38,7 +38,7 @@ impl FakeInnerResponse {
     }
 }
 
-impl InnerResponse for FakeInnerResponse {
+impl SecResponse for FakeSecResponse {
     type Method = FakeMethod;
     type Url = String;
     type Body = String;

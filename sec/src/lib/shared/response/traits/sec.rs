@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 
 /// A trait defining the interface of an HTTP response. This is used to decouple from third party libraries.
-pub trait InnerResponse: Send + Sync + Debug {
+pub trait SecResponse: Send + Sync + Debug {
     /// This type represents the HTTP method that the client used to execute the corresponding HTTP request.
     type Method;
 
@@ -40,9 +40,9 @@ pub trait InnerResponse: Send + Sync + Debug {
 mod tests {
     use pretty_assertions::assert_eq;
 
-    use crate::shared::response::InnerResponse;
-    use crate::tests::fixtures::sample_response::sample_inner_response::{
-        FakeInnerResponse, FakeMethod,
+    use crate::shared::response::SecResponse;
+    use crate::tests::fixtures::sample_response::sample_sec_response::{
+        FakeSecResponse, FakeMethod,
     };
 
     #[test]
@@ -54,7 +54,7 @@ mod tests {
         let status_code = 200;
         let content_type = String::from("application/json");
 
-        let expected_result = FakeInnerResponse {
+        let expected_result = FakeSecResponse {
             method: FakeMethod::GET,
             url: String::from("https://example.com"),
             body: String::from("This is a fake response body."),
@@ -65,7 +65,7 @@ mod tests {
         .method()
         .clone();
 
-        let result = FakeInnerResponse::new(method, url, body, header, status_code, content_type)
+        let result = FakeSecResponse::new(method, url, body, header, status_code, content_type)
             .method()
             .clone();
 
@@ -81,7 +81,7 @@ mod tests {
         let status_code = 200;
         let content_type = String::from("application/json");
 
-        let expected_result = FakeInnerResponse {
+        let expected_result = FakeSecResponse {
             method: FakeMethod::GET,
             url: String::from("https://example.com"),
             body: String::from("This is a fake response body."),
@@ -92,7 +92,7 @@ mod tests {
         .url()
         .clone();
 
-        let result = FakeInnerResponse::new(method, url, body, header, status_code, content_type)
+        let result = FakeSecResponse::new(method, url, body, header, status_code, content_type)
             .url()
             .clone();
 
@@ -108,7 +108,7 @@ mod tests {
         let status_code = 200;
         let content_type = String::from("application/json");
 
-        let expected_result = FakeInnerResponse {
+        let expected_result = FakeSecResponse {
             method: FakeMethod::GET,
             url: String::from("https://example.com"),
             body: String::from("This is a fake response body."),
@@ -119,7 +119,7 @@ mod tests {
         .body()
         .clone();
 
-        let result = FakeInnerResponse::new(method, url, body, header, status_code, content_type)
+        let result = FakeSecResponse::new(method, url, body, header, status_code, content_type)
             .body()
             .clone();
 
@@ -135,7 +135,7 @@ mod tests {
         let status_code = 200;
         let content_type = String::from("application/json");
 
-        let expected_result = FakeInnerResponse {
+        let expected_result = FakeSecResponse {
             method: FakeMethod::GET,
             url: String::from("https://example.com"),
             body: String::from("This is a fake response body."),
@@ -146,7 +146,7 @@ mod tests {
         .status_code()
         .clone();
 
-        let result = FakeInnerResponse::new(method, url, body, header, status_code, content_type)
+        let result = FakeSecResponse::new(method, url, body, header, status_code, content_type)
             .status_code()
             .clone();
 
@@ -162,7 +162,7 @@ mod tests {
         let status_code = 200;
         let content_type = String::from("application/json");
 
-        let expected_result = FakeInnerResponse {
+        let expected_result = FakeSecResponse {
             method: FakeMethod::GET,
             url: String::from("https://example.com"),
             body: String::from("This is a fake response body."),
@@ -173,7 +173,7 @@ mod tests {
         .content_type()
         .clone();
 
-        let result = FakeInnerResponse::new(method, url, body, header, status_code, content_type)
+        let result = FakeSecResponse::new(method, url, body, header, status_code, content_type)
             .content_type()
             .clone();
 
