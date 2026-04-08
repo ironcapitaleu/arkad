@@ -1,46 +1,86 @@
-use super::super::traits::SecResponse as SecResponseTrait;
-use super::content_type::ContentType;
+use std::collections::HashMap;
 
+use async_trait::async_trait;
+use reqwest::StatusCode; // TOOD: Should be removed once `StatusCode` is its own type.
+
+use crate::shared::response::{InnerResponse, implementations::content_type::ContentType};
+
+use super::super::traits::SecResponse as SecResponseTrait;
+
+#[derive(Debug)]
 pub struct SecResponse {
-    inner: reqwest::Response,
+    url: String, // TODO: Change it later to own type that can be used across different response implementations.
+    headers: HashMap<String, String>, // TODO: Change it later to own type that can be used across different response implementations.
+    content_type: ContentType,
+    status_code: StatusCode, // TODO: Change it later to own type that can be used across different response implementations.
+    body: serde_json::Value,
 }
 
 #[async_trait]
 impl SecResponseTrait for SecResponse {
-    type Url = Url;
-    type Headers = HeaderMap;
-    type Body = String;
+    type Inner = reqwest::Response;
+    type Url = String;
+    type Headers = HashMap<String, String>;
     type StatusCode = StatusCode;
     type ContentType = ContentType;
-    type Error = reqwest::Error; // TODO: Placeholder for now. The `Transform` `SuperState` might be adding different error types when semantically checking the response contents.
+    type Error = SecResponeError; // TODO: Placeholder for now. The `Transform` `SuperState` might be adding different error types when semantically checking the response contents.
 
-    /// Returns the URL endpoint of the HTTP request.
+    async fn new(inner: Self::Inner) -> Result<Self, Self::Error> {
+        let url = inner.url().to_string();
+        let status_code = inner.status();
+        let content_type = inner.content_type();
+        let headers: HashMap<String, String> = inner
+            .headers()
+            .iter()
+            .map(|(k, v)| (k.to_string(), v.to_str().unwrap_or("").to_string()))
+            .collect();
+        let body_text = inner
+            .text()
+            .await
+            .map_err(SecResponeError::FailedBodyRead)?;
+        let body = serde_json::from_str(&body_text).map_err(SecResponeError::JsonParseError)?;
+
+        Ok(Self {
+            url,
+            headers,
+            content_type,
+            status_code,
+            body,
+        })
+    }
+
     fn url(&self) -> &Self::Url {
-        self.url()
+        &self.url
     }
 
-    /// Returns the headers of the HTTP response.
     fn headers(&self) -> &Self::Headers {
-        self.headers()
+        &self.headers
     }
 
-    /// Returns the HTTP status code of the response.
     fn status_code(&self) -> Self::StatusCode {
-        self.status()
+        self.status_code
     }
 
-    /// Returns the content type of the HTTP response.
-    ///
-    /// Returns an empty string if the `Content-Type` header is absent or contains invalid UTF-8.
     fn content_type(&self) -> Self::ContentType {
-        self.headers()
-            .get("content-type")
-            .and_then(|v| v.to_str().ok())
-            .map_or_else(|| ContentType::Unknown, ContentType::from_content_type)
+        self.content_type.clone()
     }
 
-    /// Consumes the response and returns the body as a UTF-8 string.
-    async fn body(self) -> Result<Self::Body, Self::Error> {
-        self.text().await
+    fn body(&self) -> &serde_json::Value {
+        &self.body
     }
+}
+
+/// TODO: Placeholder for now. The `Transform` `SuperState` might be adding different error types when semantically checking the response contents.
+/// TODO: Use Field-based Enum Variants instead of Tuple-based Variants.
+#[derive(Debug, thiserror::Error)]
+#[non_exhaustive]
+pub enum SecResponeError {
+    #[error("Failed to read response body: {0}")]
+    FailedBodyRead(reqwest::Error),
+    #[error("Failed to parse response body as JSON: {0}")]
+    JsonParseError(#[from] serde_json::Error),
+    #[error("Wrong Response Status Code: {0}")]
+    WrongStatusCode(u16),
+    #[error("Unexpected Content-Type: {0}")]
+    UnexpectedContentType(String),
 }

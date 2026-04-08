@@ -12,6 +12,10 @@ pub struct FakeSecResponse {
 #[async_trait]
 impl SecResponse for FakeSecResponse {
     type Inner = FakeInnerResponse;
+    type Url = String;
+    type Headers = String;
+    type StatusCode = u16;
+    type ContentType = String;
     type Error = String;
 
     async fn new(inner: Self::Inner) -> Result<Self, Self::Error> {
@@ -19,8 +23,20 @@ impl SecResponse for FakeSecResponse {
         Ok(Self { inner, body })
     }
 
-    fn inner(&self) -> &Self::Inner {
-        &self.inner
+    fn url(&self) -> &Self::Url {
+        &self.inner.url
+    }
+
+    fn headers(&self) -> &Self::Headers {
+        &self.inner.headers
+    }
+
+    fn status_code(&self) -> Self::StatusCode {
+        self.inner.status_code
+    }
+
+    fn content_type(&self) -> Self::ContentType {
+        self.inner.content_type.clone()
     }
 
     fn body(&self) -> &serde_json::Value {

@@ -7,8 +7,20 @@ use super::InnerResponse;
 /// A trait defining the interface of an HTTP response. This is used to decouple from third party libraries.
 #[async_trait]
 pub trait SecResponse: Send + Sync + Debug + Sized {
-    /// This type represents the inner response type of the HTTP client library that we use to make requests to the SEC endpoints.
+    /// The HTTP response type used to construct this `SecResponse`.
     type Inner: InnerResponse;
+
+    /// The type representing the URL of the response.
+    type Url;
+
+    /// The type representing the headers of the response.
+    type Headers;
+
+    /// The type representing the HTTP status code of the response.
+    type StatusCode;
+
+    /// The type representing the content type of the response.
+    type ContentType;
 
     /// This type represents the syntactical and semantic errors that can occur when processing a response to an SEC API request.
     type Error;
@@ -18,27 +30,20 @@ pub trait SecResponse: Send + Sync + Debug + Sized {
     /// This method is asynchronous because it will read the inner response body which might involve an asynchronous operation.
     async fn new(inner: Self::Inner) -> Result<Self, Self::Error>;
 
-    /// Returns a reference to the inner response.
-    fn inner(&self) -> &Self::Inner;
+    /// Returns the URL of the response.
+    fn url(&self) -> &Self::Url;
 
-    /// Returns a reference to the body as a valid JSON value.
+    /// Returns the headers of the response.
+    fn headers(&self) -> &Self::Headers;
+
+    /// Returns the HTTP status code of the response.
+    fn status_code(&self) -> Self::StatusCode;
+
+    /// Returns the content type of the response.
+    fn content_type(&self) -> Self::ContentType;
+
+    /// Returns a reference to the response body as a valid JSON value.
     fn body(&self) -> &serde_json::Value;
-
-    fn url(&self) -> &<Self::Inner as InnerResponse>::Url {
-        self.inner().url()
-    }
-
-    fn headers(&self) -> &<Self::Inner as InnerResponse>::Headers {
-        self.inner().headers()
-    }
-
-    fn status_code(&self) -> <Self::Inner as InnerResponse>::StatusCode {
-        self.inner().status_code()
-    }
-
-    fn content_type(&self) -> <Self::Inner as InnerResponse>::ContentType {
-        self.inner().content_type()
-    }
 }
 
 #[cfg(test)]
