@@ -28,7 +28,7 @@ pub trait SecResponse: Send + Sync + Debug + Sized {
     /// Consumes the inner response and constructs a new `SecResponse` instance.
     ///
     /// This method is asynchronous because it will read the inner response body which might involve an asynchronous operation.
-    async fn new(inner: Self::Inner) -> Result<Self, Self::Error>;
+    async fn from_inner(inner: Self::Inner) -> Result<Self, Self::Error>;
 
     /// Returns the URL of the response.
     fn url(&self) -> &Self::Url;
@@ -69,7 +69,7 @@ mod tests {
 
         let expected_result = String::from("{}");
 
-        let result = FakeSecResponse::new(fake_inner_response)
+        let result = FakeSecResponse::from_inner(fake_inner_response)
             .await
             .expect("Failed to create FakeSecResponse")
             .body()
@@ -91,7 +91,7 @@ mod tests {
 
         let expected_result = String::from("{\"key\":\"value\"}");
 
-        let result = FakeSecResponse::new(fake_inner_response)
+        let result = FakeSecResponse::from_inner(fake_inner_response)
             .await
             .expect("Failed to create FakeSecResponse")
             .body()
@@ -111,7 +111,7 @@ mod tests {
             content_type: String::from("application/json"),
         };
 
-        let _result = FakeSecResponse::new(fake_inner_response)
+        let _result = FakeSecResponse::from_inner(fake_inner_response)
             .await
             .expect("Should fail creating FakeSecResponse with empty string as body");
     }
@@ -129,7 +129,7 @@ mod tests {
             content_type: String::from("application/json"),
         };
 
-        let _result = FakeSecResponse::new(fake_inner_response)
+        let _result = FakeSecResponse::from_inner(fake_inner_response)
             .await
             .expect("Should fail creating FakeSecResponse with invalid json string as body");
     }

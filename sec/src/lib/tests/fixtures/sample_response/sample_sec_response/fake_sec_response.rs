@@ -18,7 +18,7 @@ impl SecResponse for FakeSecResponse {
     type ContentType = String;
     type Error = String;
 
-    async fn new(inner: Self::Inner) -> Result<Self, Self::Error> {
+    async fn from_inner(inner: Self::Inner) -> Result<Self, Self::Error> {
         let body = serde_json::from_str(&inner.body).map_err(|e| e.to_string())?;
         Ok(Self { inner, body })
     }

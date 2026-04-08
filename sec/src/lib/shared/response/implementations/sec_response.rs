@@ -25,7 +25,7 @@ impl SecResponseTrait for SecResponse {
     type ContentType = ContentType;
     type Error = SecResponeError; // TODO: Placeholder for now. The `Transform` `SuperState` might be adding different error types when semantically checking the response contents.
 
-    async fn new(inner: Self::Inner) -> Result<Self, Self::Error> {
+    async fn from_inner(inner: Self::Inner) -> Result<Self, Self::Error> {
         let url = inner.url().to_string();
         let status_code = inner.status();
         let content_type = inner.content_type();
