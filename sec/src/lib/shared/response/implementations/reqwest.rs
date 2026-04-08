@@ -3,6 +3,7 @@ use reqwest::header::HeaderMap;
 use reqwest::{Response, StatusCode, Url};
 
 use super::super::traits::InnerResponse;
+use super::content_type::ContentType;
 
 #[async_trait]
 impl InnerResponse for Response {
@@ -10,7 +11,7 @@ impl InnerResponse for Response {
     type Headers = HeaderMap;
     type Body = String;
     type StatusCode = StatusCode;
-    type ContentType = String;
+    type ContentType = ContentType;
     type Error = reqwest::Error;
 
     /// Returns the URL endpoint of the HTTP request.
@@ -33,10 +34,9 @@ impl InnerResponse for Response {
     /// Returns an empty string if the `Content-Type` header is absent or contains invalid UTF-8.
     fn content_type(&self) -> Self::ContentType {
         self.headers()
-            .get(reqwest::header::CONTENT_TYPE)
+            .get("content-type")
             .and_then(|v| v.to_str().ok())
-            .unwrap_or("")
-            .to_string()
+            .map_or_else(|| ContentType::Unknown, ContentType::from_content_type)
     }
 
     /// Consumes the response and returns the body as a UTF-8 string.

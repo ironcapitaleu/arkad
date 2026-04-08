@@ -26,7 +26,8 @@ pub enum ContentType {
     Xml,
     Html,
     Text,
-    Other(String),
+    Other(String), // `Content-Type` header is present but does not match the types we expect.
+    Unknown,       // `Content-Type` header is absent or invalid.
 }
 
 impl ContentType {
@@ -34,7 +35,7 @@ impl ContentType {
     #[must_use]
     pub fn from_headers(headers: &HashMap<String, String>) -> Self {
         headers.get("content-type").map_or_else(
-            || Self::Other("unknown".to_string()),
+            || Self::Unknown,
             |content_type| Self::from_content_type(content_type),
         )
     }
@@ -70,6 +71,7 @@ impl fmt::Display for ContentType {
             Self::Html => write!(f, "text/html"),
             Self::Text => write!(f, "text/plain"),
             Self::Other(content_type) => write!(f, "{content_type}"),
+            Self::Unknown => write!(f, "unknown"),
         }
     }
 }
@@ -101,6 +103,32 @@ mod tests {
         let expected_result = ContentType::Json;
 
         let result = ContentType::from_content_type(content_type_str);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_other_when_headers_contain_unexpected_content_type() {
+        let mut headers = HashMap::new();
+        headers.insert(
+            "content-type".to_string(),
+            "unexpected/content-type".to_string(),
+        );
+
+        let expected_result = ContentType::Other("unexpected/content-type".to_string());
+
+        let result = ContentType::from_headers(&headers);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_unknown_when_headers_map_is_empty() {
+        let headers = HashMap::new();
+
+        let expected_result = ContentType::Unknown;
+
+        let result = ContentType::from_headers(&headers);
 
         assert_eq!(result, expected_result);
     }
