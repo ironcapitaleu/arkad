@@ -9,6 +9,15 @@ use crate::shared::url::Url;
 
 use super::super::traits::SecResponse as SecResponseTrait;
 
+use self::error::{ErrorReason, InvalidSecResponse};
+
+pub mod error;
+
+/// A validated SEC API response.
+///
+/// `SecResponse` is only constructed when the HTTP response meets all
+/// validity requirements: a success status code (2xx), a JSON content type,
+/// and a syntactically valid JSON body.
 #[derive(Debug)]
 pub struct SecResponse {
     url: Url,
@@ -25,7 +34,7 @@ impl SecResponseTrait for SecResponse {
     type Headers = Headers;
     type StatusCode = StatusCode;
     type ContentType = ContentType;
-    type Error = SecResponeError; // TODO: Placeholder for now. The `Transform` `SuperState` might be adding different error types when semantically checking the response contents.
+    type Error = InvalidSecResponse;
 
     async fn from_inner(inner: Self::Inner) -> Result<Self, Self::Error> {
         let url = Url::from(inner.url().clone());
@@ -37,11 +46,30 @@ impl SecResponseTrait for SecResponse {
             .collect();
         let headers = Headers::new(raw_headers);
         let content_type = headers.content_type().clone();
-        let body_text = inner
-            .text()
-            .await
-            .map_err(SecResponeError::FailedBodyRead)?;
-        let body = serde_json::from_str(&body_text).map_err(SecResponeError::JsonParseError)?;
+
+        if !status_code.is_success() {
+            return Err(InvalidSecResponse::new(
+                ErrorReason::InvalidStatusCode { status_code },
+            ));
+        }
+
+        if content_type != ContentType::Json {
+            return Err(InvalidSecResponse::new(
+                ErrorReason::InvalidContentType { content_type },
+            ));
+        }
+
+        let body_text = inner.text().await.map_err(|e| {
+            InvalidSecResponse::new(ErrorReason::FailedBodyRead {
+                details: e.to_string(),
+            })
+        })?;
+
+        let body = serde_json::from_str(&body_text).map_err(|e| {
+            InvalidSecResponse::new(ErrorReason::InvalidBody {
+                details: e.to_string(),
+            })
+        })?;
 
         Ok(Self {
             url,
@@ -71,22 +99,4 @@ impl SecResponseTrait for SecResponse {
     fn body(&self) -> &serde_json::Value {
         &self.body
     }
-}
-
-/// TODO: Placeholder for now.
-///
-/// The `Transform` `SuperState` might be adding different error types when
-/// semantically checking the response contents.
-/// TODO: Use Field-based Enum Variants instead of Tuple-based Variants.
-#[derive(Debug, thiserror::Error)]
-#[non_exhaustive]
-pub enum SecResponeError {
-    #[error("Failed to read response body: {0}")]
-    FailedBodyRead(reqwest::Error),
-    #[error("Failed to parse response body as JSON: {0}")]
-    JsonParseError(#[from] serde_json::Error),
-    #[error("Wrong Response Status Code: {0}")]
-    WrongStatusCode(u16),
-    #[error("Unexpected Content-Type: {0}")]
-    UnexpectedContentType(String),
 }
