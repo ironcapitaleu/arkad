@@ -8,7 +8,7 @@ use crate::shared::response::implementations::sec_response::error::InvalidSecRes
 ///
 /// This struct provides the reason why the SEC request could not be
 /// executed successfully.
-#[derive(Debug, Error, Clone, PartialEq, Eq)]
+#[derive(Debug, Error, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[error("[FailedSecRequest] SEC request failed: Reason: '{reason}'.")]
 pub struct FailedSecRequest {
     /// The reason why the SEC request failed.
@@ -27,7 +27,7 @@ impl FailedSecRequest {
 ///
 /// This enum is marked as non-exhaustive to allow for future extension.
 #[non_exhaustive]
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ErrorReason {
     /// The HTTP request failed at the transport level (network error, timeout, etc.).
     FailedRequestExecution { details: String },

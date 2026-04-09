@@ -485,7 +485,7 @@ mod tests {
     #[tokio::test]
     async fn should_not_change_input_data_when_computing_output_data() {
         let client = SecClient::default();
-        let request = create_request("1234567890");
+        let request = create_request("0001067983");
         let input = ExecuteSecRequestInput::new(client, request);
         let context = ExecuteSecRequestContext::default();
         let mut execute_state = ExecuteSecRequest::new(input, context);
@@ -504,25 +504,25 @@ mod tests {
     #[tokio::test]
     async fn should_return_correct_output_data_when_computing_output_data() {
         let client = SecClient::default();
-        let request = create_request("1234567890");
+        let request = create_request("0001067983");
         let input = ExecuteSecRequestInput::new(client, request);
         let context = ExecuteSecRequestContext::default();
         let mut execute_state = ExecuteSecRequest::new(input, context);
 
-        let expected_result = true;
         execute_state
             .compute_output_data_async()
             .await
             .expect("Valid state should always compute output data");
-        let result = execute_state.output_data().is_some();
 
-        assert_eq!(result, expected_result);
+        let result = execute_state.output_data();
+
+        assert!(result.is_some());
     }
 
     #[tokio::test]
     async fn should_return_true_when_output_data_has_been_computed() {
         let client = SecClient::default();
-        let request = create_request("1234567890");
+        let request = create_request("0001067983");
         let input = ExecuteSecRequestInput::new(client, request);
         let context = ExecuteSecRequestContext::default();
         let mut execute_state = ExecuteSecRequest::new(input, context);
@@ -541,15 +541,13 @@ mod tests {
     #[tokio::test]
     async fn should_succeed_when_valid_input_is_provided() {
         let client = SecClient::default();
-        let request = create_request("1234567890");
+        let request = create_request("0001067983");
         let input = ExecuteSecRequestInput::new(client, request);
         let context = ExecuteSecRequestContext::default();
         let mut execute_state = ExecuteSecRequest::new(input, context);
 
-        let expected_result = true;
+        let result = execute_state.compute_output_data_async().await;
 
-        let result = execute_state.compute_output_data_async().await.is_ok();
-
-        assert_eq!(result, expected_result);
+        assert!(result.is_ok());
     }
 }

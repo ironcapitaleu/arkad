@@ -30,7 +30,7 @@ use std::fmt;
 use crate::error::State as StateError;
 use crate::shared::http_client::implementations::sec_client::SecClient;
 use crate::shared::request::SecRequest as SecRequestTrait;
-use crate::shared::request::implementations::sec_request::{SecRequest, SecRequestType};
+use crate::shared::request::implementations::sec_request::SecRequest;
 use crate::traits::state_machine::state::StateData;
 
 use state_maschine::prelude::StateData as SMStateData;
@@ -217,6 +217,7 @@ mod tests {
 
     use super::*;
     use crate::shared::cik::Cik;
+    use crate::shared::request::implementations::sec_request::{SecRequest, SecRequestType};
 
     use pretty_assertions::assert_eq;
 

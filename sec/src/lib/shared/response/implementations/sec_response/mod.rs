@@ -70,7 +70,7 @@ impl SecResponse {
     /// perform HTTP validation. The caller is responsible for ensuring the provided
     /// parts represent a valid SEC response.
     #[must_use]
-    pub fn from_parts(
+    pub const fn from_parts(
         url: Url,
         headers: Headers,
         content_type: ContentType,

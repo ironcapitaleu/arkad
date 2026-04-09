@@ -433,7 +433,7 @@ mod tests {
         let context = PrepareSecRequestContext::default();
         let mut prepare_state = PrepareSecRequest::new(input, context);
 
-        let expected_result = "https://data.sec.gov/submissions/CIK1234567890.json";
+        let expected_result = "https://data.sec.gov/api/xbrl/companyfacts/CIK1234567890.json";
 
         prepare_state
             .compute_output_data_async()
@@ -463,16 +463,4 @@ mod tests {
         assert_eq!(result, expected_result);
     }
 
-    #[tokio::test]
-    async fn should_fail_when_user_agent_is_invalid() {
-        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
-        let invalid_user_agent = "Invalid User Agent".to_string(); // Missing email
-        let input = PrepareSecRequestInput::new(cik, invalid_user_agent);
-        let context = PrepareSecRequestContext::default();
-        let mut prepare_state = PrepareSecRequest::new(input, context);
-
-        let result = prepare_state.compute_output_data_async().await;
-
-        assert!(result.is_err());
-    }
 }

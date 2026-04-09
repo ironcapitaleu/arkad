@@ -402,13 +402,12 @@ mod tests {
     }
 
     #[tokio::test]
+    #[should_panic]
     async fn should_fail_transition_when_output_data_not_yet_computed() {
         let input_cik = "1234567890";
         let super_state = ExtractSuperState::<ValidateCikFormat>::new(input_cik);
 
-        let result = super_state.transition_to_next_state_sec();
-
-        assert!(result.is_err());
+        let _result = super_state.transition_to_next_state_sec().expect("Transition should fail when output data is not yet computed");
     }
 
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}

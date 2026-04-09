@@ -9,7 +9,7 @@ use crate::shared::status_code::StatusCode;
 ///
 /// This struct provides the reason why the response could not be
 /// constructed as a valid `SecResponse`.
-#[derive(Debug, Error, Clone, PartialEq, Eq)]
+#[derive(Debug, Error, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[error("[InvalidSecResponse] Invalid SEC Response: Reason: '{reason}'.")]
 pub struct InvalidSecResponse {
     /// The reason why the SEC response is considered invalid.
@@ -28,7 +28,7 @@ impl InvalidSecResponse {
 ///
 /// This enum is marked as non-exhaustive to allow for future extension.
 #[non_exhaustive]
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ErrorReason {
     /// The HTTP status code is not in the success range (200–299).
     InvalidStatusCode { status_code: StatusCode },

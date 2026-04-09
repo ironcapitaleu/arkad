@@ -59,6 +59,7 @@ impl ExecuteSecRequestOutput {
     ///
     /// Returns `StateError` if the provided `SecResponse` is invalid (currently this never fails,
     /// but the Result type is maintained for future validation capabilities).
+    #[must_use]
     pub const fn new(response: SecResponse) -> Self {
         Self { response }
     }
