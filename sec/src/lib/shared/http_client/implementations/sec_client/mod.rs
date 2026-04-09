@@ -29,6 +29,9 @@ impl SecClient {
     }
 }
 
+/// Creates a default `SecClient`.
+///
+/// Wraps around `reqwest::Client` and sets the required User-Agent header for SEC API requests.
 impl Default for SecClient {
     /// Creates a default `SecClient` configured with the default SEC user agent.
     fn default() -> Self {
