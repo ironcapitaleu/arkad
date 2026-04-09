@@ -2,6 +2,11 @@ use reqwest::{Method, Request, Url};
 
 use crate::shared::{cik::Cik, request::SecRequest as SecRequestTrait};
 
+/// A validated SEC API request.
+///
+/// `SecRequest` wraps a `reqwest::Request` that has been constructed from a
+/// high-level [`SecRequestType`], ensuring the correct URL endpoint and HTTP
+/// method are used.
 #[derive(Debug)]
 pub struct SecRequest {
     inner: Request,

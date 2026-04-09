@@ -7,7 +7,7 @@ use sec::shared::http_client::implementations::reqwest_client::ReqwestClient;
 use sec::shared::http_client::implementations::sec_client::SecClient;
 use sec::shared::http_client::implementations::sec_client::error::ErrorReason;
 use sec::shared::request::SecRequest as SecRequestTrait;
-use sec::shared::request::implementations::sec::{SecRequest, SecRequestType};
+use sec::shared::request::implementations::sec_request::{SecRequest, SecRequestType};
 use sec::shared::response::SecResponse as SecResponseTrait;
 use sec::shared::response::implementations::sec_response::error::{
     ErrorReason as SecResponseErrorReason, InvalidSecResponse,
