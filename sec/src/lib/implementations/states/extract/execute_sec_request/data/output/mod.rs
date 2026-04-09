@@ -59,8 +59,8 @@ impl ExecuteSecRequestOutput {
     ///
     /// Returns `StateError` if the provided `SecResponse` is invalid (currently this never fails,
     /// but the Result type is maintained for future validation capabilities).
-    pub const fn new(response: SecResponse) -> Result<Self, StateError> {
-        Ok(Self { response })
+    pub const fn new(response: SecResponse) -> Self {
+        Self { response }
     }
 
     /// Returns a reference to the SEC response.
@@ -170,7 +170,7 @@ impl Default for ExecuteSecRequestOutputUpdaterBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::shared::sec_response::SecResponse;
+    use crate::shared::response::implementations::sec_response::SecResponse;
     use pretty_assertions::assert_eq;
 
     use std::{fmt::Debug, hash::Hash};
