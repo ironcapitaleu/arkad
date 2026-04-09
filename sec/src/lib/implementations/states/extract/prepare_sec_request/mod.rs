@@ -204,9 +204,6 @@ impl fmt::Display for PrepareSecRequest {
 mod tests {
     use super::*;
     use crate::shared::cik::Cik;
-    use crate::shared::http_client::implementations::sec_client::SecClient;
-    use crate::shared::request::SecRequest as SecRequestTrait;
-    use crate::shared::request::implementations::sec_request::{SecRequest, SecRequestType};
     use crate::traits::state_machine::state::State;
     use pretty_assertions::assert_eq;
     use std::{fmt::Debug, hash::Hash};

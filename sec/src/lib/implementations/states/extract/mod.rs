@@ -276,8 +276,6 @@ mod tests {
 
     use super::*;
     use crate::shared::cik::Cik;
-    use crate::shared::request::SecRequest as SecRequestTrait;
-    use crate::shared::request::implementations::sec_request::SecRequestType;
     use crate::shared::user_agent::constants::DEFAULT_SEC_USER_AGENT;
 
     #[test]
