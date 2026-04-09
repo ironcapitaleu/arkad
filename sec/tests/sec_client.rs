@@ -1,4 +1,5 @@
 use pretty_assertions::assert_eq;
+use serde_json::Value;
 
 use sec::shared::cik::Cik;
 use sec::shared::content_type::ContentType;
@@ -12,6 +13,9 @@ use sec::shared::response::implementations::sec_response::error::{
     ErrorReason as SecResponseErrorReason, InvalidSecResponse,
 };
 use sec::shared::status_code::StatusCode;
+
+const BERKSHIRE_FIXTURE: &str =
+    include_str!("../src/lib/tests/fixtures/data/raw_input/CIK0001067983.json");
 
 /// Creates an `SecClient` with a proper User-Agent header required by the SEC API.
 fn sec_client() -> SecClient {
@@ -88,6 +92,107 @@ async fn should_fail_with_invalid_response_when_cik_does_not_exist() {
         .await
         .expect_err("A request for a non-existent CIK should always fail")
         .reason;
+
+    assert_eq!(result, expected_result);
+}
+
+#[tokio::test]
+async fn should_return_expected_cik_when_retrieving_berkshire_company_facts() {
+    let client = sec_client();
+    let cik = Cik::new("1067983").expect("A hardcoded CIK should always be valid");
+    let request = SecRequest::new(SecRequestType::new_fetch_all_company_facts(cik));
+    let fixture: Value = serde_json::from_str(BERKSHIRE_FIXTURE)
+        .expect("The Berkshire Hathaway fixture should always be valid JSON");
+
+    let expected_result = fixture["cik"].clone();
+
+    let result = client
+        .execute_sec_request(request)
+        .await
+        .expect("A valid SEC request should return a valid SecResponse")
+        .body()["cik"]
+        .clone();
+
+    assert_eq!(result, expected_result);
+}
+
+#[tokio::test]
+async fn should_return_expected_entity_name_when_retrieving_berkshire_company_facts() {
+    let client = sec_client();
+    let cik = Cik::new("1067983").expect("A hardcoded CIK should always be valid");
+    let request = SecRequest::new(SecRequestType::new_fetch_all_company_facts(cik));
+    let fixture: Value = serde_json::from_str(BERKSHIRE_FIXTURE)
+        .expect("The Berkshire Hathaway fixture should always be valid JSON");
+
+    let expected_result = fixture["entityName"].clone();
+
+    let result = client
+        .execute_sec_request(request)
+        .await
+        .expect("A valid SEC request should return a valid SecResponse")
+        .body()["entityName"]
+        .clone();
+
+    assert_eq!(result, expected_result);
+}
+
+#[tokio::test]
+async fn should_return_expected_top_level_keys_when_retrieving_berkshire_company_facts() {
+    let client = sec_client();
+    let cik = Cik::new("1067983").expect("A hardcoded CIK should always be valid");
+    let request = SecRequest::new(SecRequestType::new_fetch_all_company_facts(cik));
+    let fixture: Value = serde_json::from_str(BERKSHIRE_FIXTURE)
+        .expect("The Berkshire Hathaway fixture should always be valid JSON");
+    let fixture_keys: Vec<&str> = fixture
+        .as_object()
+        .expect("The fixture should be a JSON object")
+        .keys()
+        .map(String::as_str)
+        .collect();
+
+    let expected_result = fixture_keys;
+
+    let body = client
+        .execute_sec_request(request)
+        .await
+        .expect("A valid SEC request should return a valid SecResponse");
+    let result: Vec<&str> = body
+        .body()
+        .as_object()
+        .expect("The response body should be a JSON object")
+        .keys()
+        .map(String::as_str)
+        .collect();
+
+    assert_eq!(result, expected_result);
+}
+
+#[tokio::test]
+async fn should_return_expected_facts_keys_when_retrieving_berkshire_company_facts() {
+    let client = sec_client();
+    let cik = Cik::new("1067983").expect("A hardcoded CIK should always be valid");
+    let request = SecRequest::new(SecRequestType::new_fetch_all_company_facts(cik));
+    let fixture: Value = serde_json::from_str(BERKSHIRE_FIXTURE)
+        .expect("The Berkshire Hathaway fixture should always be valid JSON");
+    let fixture_keys: Vec<&str> = fixture["facts"]
+        .as_object()
+        .expect("The fixture 'facts' field should be a JSON object")
+        .keys()
+        .map(String::as_str)
+        .collect();
+
+    let expected_result = fixture_keys;
+
+    let body = client
+        .execute_sec_request(request)
+        .await
+        .expect("A valid SEC request should return a valid SecResponse");
+    let result: Vec<&str> = body.body()["facts"]
+        .as_object()
+        .expect("The response 'facts' field should be a JSON object")
+        .keys()
+        .map(String::as_str)
+        .collect();
 
     assert_eq!(result, expected_result);
 }
