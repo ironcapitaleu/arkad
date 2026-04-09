@@ -1,4 +1,5 @@
 use std::fmt;
+use std::str::FromStr;
 
 use self::url_error::{InvalidUrlReason, UrlError};
 
@@ -16,7 +17,8 @@ pub mod url_error;
 /// ```rust
 /// use sec::shared::url::Url;
 ///
-/// let url = Url::from_str("https://data.sec.gov/submissions/CIK0001067983.json")
+/// let url: Url = "https://data.sec.gov/submissions/CIK0001067983.json"
+///     .parse()
 ///     .expect("A hardcoded valid URL string should parse successfully");
 /// assert_eq!(url.as_str(), "https://data.sec.gov/submissions/CIK0001067983.json");
 /// assert_eq!(url.to_string(), "https://data.sec.gov/submissions/CIK0001067983.json");
@@ -26,7 +28,9 @@ pub struct Url {
     value: String,
 }
 
-impl Url {
+impl FromStr for Url {
+    type Err = UrlError;
+
     /// Creates a new `Url` from a string slice.
     ///
     /// Validates that the input is a parseable URL. Returns a `UrlError`
@@ -36,7 +40,7 @@ impl Url {
     ///
     /// Returns a [`UrlError`] with reason [`InvalidUrlReason::FailedToParse`]
     /// if the input is not a valid URL.
-    pub fn from_str(url: &str) -> Result<Self, UrlError> {
+    fn from_str(url: &str) -> Result<Self, Self::Err> {
         url::Url::parse(url).map_or_else(
             |_| Err(UrlError::new(InvalidUrlReason::FailedToParse, url)),
             |parsed| {
@@ -46,7 +50,9 @@ impl Url {
             },
         )
     }
+}
 
+impl Url {
     /// Creates a new `Url` from an owned `String`.
     ///
     /// Validates that the input is a parseable URL. Unlike [`from_str`](Self::from_str),

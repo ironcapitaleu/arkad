@@ -73,7 +73,10 @@ impl SecResponseTrait for SecResponse {
     }
 }
 
-/// TODO: Placeholder for now. The `Transform` `SuperState` might be adding different error types when semantically checking the response contents.
+/// TODO: Placeholder for now.
+///
+/// The `Transform` `SuperState` might be adding different error types when
+/// semantically checking the response contents.
 /// TODO: Use Field-based Enum Variants instead of Tuple-based Variants.
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]

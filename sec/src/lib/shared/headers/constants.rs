@@ -1,7 +1,7 @@
 /// The HTTP header name for the Content-Type field.
 pub const CONTENT_TYPE_HEADER: &str = "content-type";
 
-/// The HTTP header name for the ETag identifier.
+/// The HTTP header name for the `ETag` identifier.
 pub const ETAG_HEADER: &str = "etag";
 
 /// The HTTP header name for the Date field.

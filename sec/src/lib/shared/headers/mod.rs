@@ -36,7 +36,7 @@ pub use headers_error::{HeadersError, InvalidHeadersReason};
 pub struct Headers {
     /// The content type parsed from the `Content-Type` header.
     content_type: ContentType,
-    /// The ETag header value, if present.
+    /// The `ETag` header value, if present.
     etag: Option<String>,
     /// The Date header value, if present.
     date: Option<String>,
@@ -77,7 +77,7 @@ impl Headers {
         &self.content_type
     }
 
-    /// Returns the ETag header value, if present.
+    /// Returns the `ETag` header value, if present.
     #[must_use]
     pub fn etag(&self) -> Option<&str> {
         self.etag.as_deref()
