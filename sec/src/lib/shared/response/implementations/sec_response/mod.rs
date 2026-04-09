@@ -48,15 +48,15 @@ impl SecResponseTrait for SecResponse {
         let content_type = headers.content_type().clone();
 
         if !status_code.is_success() {
-            return Err(InvalidSecResponse::new(
-                ErrorReason::InvalidStatusCode { status_code },
-            ));
+            return Err(InvalidSecResponse::new(ErrorReason::InvalidStatusCode {
+                status_code,
+            }));
         }
 
         if content_type != ContentType::Json {
-            return Err(InvalidSecResponse::new(
-                ErrorReason::InvalidContentType { content_type },
-            ));
+            return Err(InvalidSecResponse::new(ErrorReason::InvalidContentType {
+                content_type,
+            }));
         }
 
         let body_text = inner.text().await.map_err(|e| {

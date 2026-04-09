@@ -45,7 +45,10 @@ impl fmt::Display for ErrorReason {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::InvalidStatusCode { status_code } => {
-                write!(f, "Expected a success status code (2xx), got '{status_code}' status code instead")
+                write!(
+                    f,
+                    "Expected a success status code (2xx), got '{status_code}' status code instead"
+                )
             }
             Self::InvalidContentType { content_type } => {
                 write!(
