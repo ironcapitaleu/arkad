@@ -43,6 +43,34 @@ impl Default for SecClient {
     }
 }
 
+// Deviation: `reqwest::Client` does not expose any comparable or hashable state,
+// so all `SecClient` instances are considered equal. This satisfies trait bounds
+// that require `Eq + Ord + Hash` (e.g. for use in collections or state machines).
+
+impl PartialEq for SecClient {
+    fn eq(&self, _other: &Self) -> bool {
+        true
+    }
+}
+
+impl Eq for SecClient {}
+
+impl std::hash::Hash for SecClient {
+    fn hash<H: std::hash::Hasher>(&self, _state: &mut H) {}
+}
+
+impl PartialOrd for SecClient {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for SecClient {
+    fn cmp(&self, _other: &Self) -> std::cmp::Ordering {
+        std::cmp::Ordering::Equal
+    }
+}
+
 #[async_trait]
 impl SecClientTrait for SecClient {
     type Inner = reqwest::Client;
