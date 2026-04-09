@@ -5,12 +5,13 @@ use async_trait::async_trait;
 use crate::shared::content_type::ContentType;
 use crate::shared::headers::Headers;
 use crate::shared::status_code::StatusCode;
+use crate::shared::url::Url;
 
 use super::super::traits::SecResponse as SecResponseTrait;
 
 #[derive(Debug)]
 pub struct SecResponse {
-    url: String, // TODO: Change it later to own type that can be used across different response implementations.
+    url: Url,
     headers: Headers,
     content_type: ContentType,
     status_code: StatusCode,
@@ -20,14 +21,14 @@ pub struct SecResponse {
 #[async_trait]
 impl SecResponseTrait for SecResponse {
     type Inner = reqwest::Response;
-    type Url = String;
+    type Url = Url;
     type Headers = Headers;
     type StatusCode = StatusCode;
     type ContentType = ContentType;
     type Error = SecResponeError; // TODO: Placeholder for now. The `Transform` `SuperState` might be adding different error types when semantically checking the response contents.
 
     async fn from_inner(inner: Self::Inner) -> Result<Self, Self::Error> {
-        let url = inner.url().to_string();
+        let url = Url::from(inner.url().clone());
         let status_code = StatusCode::from(inner.status());
         let raw_headers: HashMap<String, String> = inner
             .headers()

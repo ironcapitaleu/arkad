@@ -2,9 +2,7 @@ use std::collections::HashMap;
 
 use crate::shared::content_type::ContentType;
 
-use self::constants::{
-    ACCEPT_ENCODING_HEADER, CONTENT_TYPE_HEADER, DATE_HEADER, ETAG_HEADER,
-};
+use self::constants::{ACCEPT_ENCODING_HEADER, CONTENT_TYPE_HEADER, DATE_HEADER, ETAG_HEADER};
 
 pub mod constants;
 pub mod headers_error;

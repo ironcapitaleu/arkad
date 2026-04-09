@@ -46,10 +46,7 @@ impl fmt::Display for InvalidHeadersReason {
                 write!(f, "Required header '{header_name}' is missing")
             }
             Self::InvalidHeader { header_name, value } => {
-                write!(
-                    f,
-                    "Header '{header_name}' has an invalid value: '{value}'"
-                )
+                write!(f, "Header '{header_name}' has an invalid value: '{value}'")
             }
         }
     }
