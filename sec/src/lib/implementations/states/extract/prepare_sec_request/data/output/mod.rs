@@ -69,8 +69,8 @@ impl PrepareSecRequestOutput {
     ///
     /// # Errors
     /// Returns a [`StateError`] if the output data cannot be created from the provided data.
-    pub const fn new(client: SecClient, request: SecRequest) -> Result<Self, StateError> {
-        Ok(Self { client, request })
+    pub const fn new(client: SecClient, request: SecRequest) -> Self {
+        Self { client, request }
     }
 
     /// Returns a reference to the prepared SEC client.
@@ -222,7 +222,6 @@ mod tests {
         let client = SecClient::default();
         let request = create_request("0001067983");
         PrepareSecRequestOutput::new(client, request)
-            .expect("Valid client and request should create output successfully")
     }
 
     /// Creates a `SecRequest` of type `FetchAllCompanyFacts` for a given CIK string.
@@ -236,8 +235,7 @@ mod tests {
     fn should_create_different_state_data_with_custom_data_when_using_new_as_constructor() {
         let client = SecClient::default();
         let request = create_request("1234567890");
-        let prepare_output_state_data = PrepareSecRequestOutput::new(client, request)
-            .expect("Valid client and request should create output successfully");
+        let prepare_output_state_data = PrepareSecRequestOutput::new(client, request);
 
         let expected_result = &create_baseline_output();
 
@@ -256,8 +254,7 @@ mod tests {
             .request(new_request.clone())
             .build();
 
-        let expected_result = &PrepareSecRequestOutput::new(new_client, new_request)
-            .expect("Valid client and request should create output successfully");
+        let expected_result = &PrepareSecRequestOutput::new(new_client, new_request);
 
         StateData::update_state(&mut state_data, update)
             .expect("Update with valid 'update' value should always succeed");
@@ -275,8 +272,7 @@ mod tests {
             .request(new_request.clone())
             .build();
 
-        let expected_result = &PrepareSecRequestOutput::new(original_client, new_request)
-            .expect("Valid client and request should create output successfully");
+        let expected_result = &PrepareSecRequestOutput::new(original_client, new_request);
 
         StateData::update_state(&mut state_data, update)
             .expect("Update with valid 'update' value should always succeed");
@@ -294,8 +290,7 @@ mod tests {
             .client(new_client.clone())
             .build();
 
-        let expected_result = &PrepareSecRequestOutput::new(new_client, original_request)
-            .expect("Valid client and request should create output successfully");
+        let expected_result = &PrepareSecRequestOutput::new(new_client, original_request);
 
         StateData::update_state(&mut state_data, update)
             .expect("Update with valid 'update' value should always succeed");
@@ -322,8 +317,7 @@ mod tests {
     fn should_return_client_when_accessor_method_is_called() {
         let client = SecClient::default();
         let request = create_request("1234567890");
-        let prepare_output_state_data = PrepareSecRequestOutput::new(client.clone(), request)
-            .expect("Valid client and request should create output successfully");
+        let prepare_output_state_data = PrepareSecRequestOutput::new(client.clone(), request);
 
         let expected_result = &client;
 
@@ -336,8 +330,7 @@ mod tests {
     fn should_return_request_when_accessor_method_is_called() {
         let client = SecClient::default();
         let request = create_request("1234567890");
-        let prepare_output_state_data = PrepareSecRequestOutput::new(client, request.clone())
-            .expect("Valid client and request should create output successfully");
+        let prepare_output_state_data = PrepareSecRequestOutput::new(client, request.clone());
 
         let expected_result = &request;
 
@@ -356,9 +349,8 @@ mod tests {
             request: request.clone(),
         };
 
-        let result = PrepareSecRequestOutput::new(client, request)
-            .expect("Valid output data creation should succeed");
-
+        let result = PrepareSecRequestOutput::new(client, request);
+        
         assert_eq!(result, expected_result);
     }
 

@@ -63,7 +63,8 @@ pub use data::ExecuteSecRequestOutput;
 
 use crate::error::State as StateError;
 use crate::error::state_machine::state::failed_request_execution::FailedRequestExecution;
-use crate::shared::old_sec_client::traits::SecClient as SecClientTrait;
+use crate::shared::http_client::SecClient as SecClientTrait;
+use crate::shared::response::implementations::sec_response::SecResponse;
 use crate::traits::state_machine::state::State;
 
 use std::fmt;
@@ -100,7 +101,7 @@ use state_maschine::prelude::State as SMState;
 /// let context = ExecuteSecRequestContext::default();
 /// let mut execute_state = ExecuteSecRequest::new(input, context);
 /// ```
-#[derive(Debug, Clone, Default, PartialEq, PartialOrd, Hash, Eq, Ord)]
+#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 pub struct ExecuteSecRequest {
     input: ExecuteSecRequestInput,
     context: ExecuteSecRequestContext,
@@ -150,7 +151,7 @@ impl State for ExecuteSecRequest {
         let client = &self.input.sec_client;
         let request = &self.input.sec_request;
 
-        let result = client.execute_request(request.clone()).await;
+        let result = client.execute_sec_request(request.clone()).await;
 
         match result {
             Ok(response) => {

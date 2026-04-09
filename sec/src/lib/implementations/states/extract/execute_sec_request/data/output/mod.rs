@@ -28,7 +28,7 @@
 use std::fmt;
 
 use crate::error::State as StateError;
-use crate::shared::sec_response::SecResponse;
+use crate::shared::response::implementations::sec_response::SecResponse;
 use crate::traits::state_machine::state::StateData;
 
 use state_maschine::prelude::StateData as SMStateData;
