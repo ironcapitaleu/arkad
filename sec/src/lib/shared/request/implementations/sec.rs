@@ -3,7 +3,7 @@ use reqwest::{Method, Request, Url};
 use crate::shared::{cik::Cik, request::SecRequest as SecRequestTrait};
 
 #[derive(Debug)]
-struct SecRequest {
+pub struct SecRequest {
     inner: Request,
 }
 
