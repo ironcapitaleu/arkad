@@ -2,7 +2,10 @@ use reqwest::{Method, Request, Url};
 
 use crate::shared::{cik::Cik, request::SecRequest as SecRequestTrait};
 
+pub mod builder;
 pub mod constants;
+
+pub use builder::SecRequestBuilder;
 
 use constants::{SEC_COMPANY_FACTS_URL_PREFIX, SEC_COMPANY_FACTS_URL_SUFFIX};
 
@@ -17,10 +20,44 @@ pub struct SecRequest {
 }
 
 impl SecRequest {
+    /// Creates a new [`SecRequestBuilder`] for constructing a [`SecRequest`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use sec::shared::cik::Cik;
+    /// use sec::shared::request::implementations::sec_request::SecRequest;
+    ///
+    /// let cik = Cik::new("1067983").expect("Hardcoded CIK should be valid");
+    /// let request = SecRequest::builder()
+    ///     .all_company_facts()
+    ///     .cik(cik)
+    ///     .build();
+    /// ```
+    #[must_use]
+    pub const fn builder() -> SecRequestBuilder<builder::NoRequestType, builder::NoCik> {
+        SecRequestBuilder::new()
+    }
+
     /// Consumes the `SecRequest` and returns the inner `reqwest::Request`.
     #[must_use]
     pub fn into_inner(self) -> Request {
         self.inner
+    }
+
+    /// Creates a [`SecRequest`] from a fully-formed [`SecRequestType`].
+    pub(crate) fn from_request_type(request_type: SecRequestType) -> Self {
+        match request_type {
+            SecRequestType::FetchAllCompanyFacts { cik } => {
+                let url =
+                    format!("{SEC_COMPANY_FACTS_URL_PREFIX}{cik}{SEC_COMPANY_FACTS_URL_SUFFIX}");
+                let request = Request::new(
+                    Method::GET,
+                    Url::parse(&url).expect("Hardcoded URL should always be valid"),
+                );
+                Self { inner: request }
+            }
+        }
     }
 }
 
@@ -33,17 +70,7 @@ impl SecRequestTrait for SecRequest {
     }
 
     fn new(request_input: Self::RequestInput) -> Self {
-        match request_input {
-            SecRequestType::FetchAllCompanyFacts { cik } => {
-                let url =
-                    format!("{SEC_COMPANY_FACTS_URL_PREFIX}{cik}{SEC_COMPANY_FACTS_URL_SUFFIX}");
-                let request = Request::new(
-                    Method::GET,
-                    Url::parse(&url).expect("Hardcoded URL should always be valid"),
-                );
-                Self { inner: request }
-            }
-        }
+        Self::from_request_type(request_input)
     }
 }
 
@@ -96,29 +123,27 @@ pub enum SecRequestType {
     FetchAllCompanyFacts { cik: Cik },
 }
 
-impl SecRequestType {
-    #[must_use]
-    pub const fn new_fetch_all_company_facts(cik: Cik) -> Self {
-        Self::FetchAllCompanyFacts { cik }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use pretty_assertions::assert_eq;
     use reqwest::{Method, Url};
 
-    use super::{SecRequest, SecRequestType};
+    use super::SecRequest;
     use crate::shared::{cik::Cik, request::SecRequest as SecRequestTrait};
 
     #[test]
     fn should_automatically_create_inner_request_method_when_specifying_sec_request_type() {
         let cik = Cik::new("0001234567").expect("Hardcoded CIK should be valid");
-        let sec_request_type = SecRequestType::new_fetch_all_company_facts(cik);
 
         let expected_result = Method::GET;
 
-        let result = SecRequest::new(sec_request_type).inner().method().clone();
+        let result = SecRequest::builder()
+            .all_company_facts()
+            .cik(cik)
+            .build()
+            .inner()
+            .method()
+            .clone();
 
         assert_eq!(result, expected_result);
     }
@@ -126,13 +151,18 @@ mod tests {
     #[test]
     fn should_automatically_create_inner_request_url_when_specifying_sec_request_type() {
         let cik = Cik::new("0001234567").expect("Hardcoded CIK should be valid");
-        let sec_request_type = SecRequestType::new_fetch_all_company_facts(cik);
 
         let expected_result =
             Url::parse("https://data.sec.gov/api/xbrl/companyfacts/CIK0001234567.json")
                 .expect("Hardcoded URL should always be valid");
 
-        let result = SecRequest::new(sec_request_type).inner().url().clone();
+        let result = SecRequest::builder()
+            .all_company_facts()
+            .cik(cik)
+            .build()
+            .inner()
+            .url()
+            .clone();
 
         assert_eq!(result, expected_result);
     }

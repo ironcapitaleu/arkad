@@ -19,7 +19,7 @@
 //!
 //! ## See Also
 //! - [`super::input`]: Input data structure for request execution parameters.
-//! - [`crate::shared::sec_response`]: Utilities for SEC response handling.
+//! - [`crate::shared::response`]: Utilities for SEC response handling.
 //! - [`state_maschine::prelude::StateData`]: Trait for state data integration.
 //!
 //! ## Examples

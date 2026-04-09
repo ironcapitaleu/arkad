@@ -18,8 +18,8 @@
 //! integrates with the state machine's updater and state data traits for robust, testable workflows.
 //!
 //! ## See Also
-//! - [`crate::shared::sec_client`]: Utilities for SEC client creation and management.
-//! - [`crate::shared::sec_request`]: Utilities for SEC request construction.
+//! - [`crate::shared::http_client`]: Utilities for SEC client creation and management.
+//! - [`crate::shared::request`]: Utilities for SEC request construction.
 //! - [`state_maschine::prelude::StateData`]: Trait for state data integration.
 //!
 //! ## Examples
@@ -217,14 +217,13 @@ mod tests {
 
     use super::*;
     use crate::shared::cik::Cik;
-    use crate::shared::request::implementations::sec_request::{SecRequest, SecRequestType};
+    use crate::shared::request::implementations::sec_request::SecRequest;
 
     use pretty_assertions::assert_eq;
 
-    /// Creates a `SecRequest` of type `FetchAllCompanyFacts` for a given CIK string.
+    /// Creates a `SecRequest` of type `FetchAllCompanyFacts` for a given CIK.
     fn create_request(cik: Cik) -> SecRequest {
-        let sec_request_type = SecRequestType::new_fetch_all_company_facts(cik);
-        SecRequest::new(sec_request_type)
+        SecRequest::builder().all_company_facts().cik(cik).build()
     }
 
     #[test]

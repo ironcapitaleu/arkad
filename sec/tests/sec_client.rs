@@ -6,8 +6,7 @@ use sec::shared::content_type::ContentType;
 use sec::shared::http_client::SecClient as SecClientTrait;
 use sec::shared::http_client::implementations::sec_client::SecClient;
 use sec::shared::http_client::implementations::sec_client::error::ErrorReason;
-use sec::shared::request::SecRequest as SecRequestTrait;
-use sec::shared::request::implementations::sec_request::{SecRequest, SecRequestType};
+use sec::shared::request::implementations::sec_request::SecRequest;
 use sec::shared::response::SecResponse as SecResponseTrait;
 use sec::shared::response::implementations::sec_response::error::{
     ErrorReason as SecResponseErrorReason, InvalidSecResponse,
@@ -30,7 +29,7 @@ fn sec_client() -> SecClient {
 async fn should_return_sec_response_when_executing_valid_sec_request() {
     let client = sec_client();
     let cik = Cik::new("1067983").expect("A hardcoded CIK should always be valid");
-    let request = SecRequest::new(SecRequestType::new_fetch_all_company_facts(cik));
+    let request = SecRequest::builder().all_company_facts().cik(cik).build();
 
     let expected_result = true;
 
@@ -43,7 +42,7 @@ async fn should_return_sec_response_when_executing_valid_sec_request() {
 async fn should_return_json_content_type_when_sec_request_succeeds() {
     let client = sec_client();
     let cik = Cik::new("1067983").expect("A hardcoded CIK should always be valid");
-    let request = SecRequest::new(SecRequestType::new_fetch_all_company_facts(cik));
+    let request = SecRequest::builder().all_company_facts().cik(cik).build();
 
     let expected_result = ContentType::Json;
 
@@ -60,7 +59,7 @@ async fn should_return_json_content_type_when_sec_request_succeeds() {
 async fn should_return_non_empty_json_body_when_sec_request_succeeds() {
     let client = sec_client();
     let cik = Cik::new("1067983").expect("A hardcoded CIK should always be valid");
-    let request = SecRequest::new(SecRequestType::new_fetch_all_company_facts(cik));
+    let request = SecRequest::builder().all_company_facts().cik(cik).build();
 
     let expected_result = true;
 
@@ -78,7 +77,7 @@ async fn should_return_non_empty_json_body_when_sec_request_succeeds() {
 async fn should_fail_with_invalid_response_when_cik_does_not_exist() {
     let client = sec_client();
     let cik = Cik::new("0000000000").expect("A hardcoded CIK should always be valid");
-    let request = SecRequest::new(SecRequestType::new_fetch_all_company_facts(cik));
+    let request = SecRequest::builder().all_company_facts().cik(cik).build();
     let response_error = InvalidSecResponse::new(SecResponseErrorReason::InvalidStatusCode {
         status_code: StatusCode::NotFound,
     });
@@ -100,7 +99,7 @@ async fn should_fail_with_invalid_response_when_cik_does_not_exist() {
 async fn should_return_expected_cik_when_retrieving_berkshire_company_facts() {
     let client = sec_client();
     let cik = Cik::new("1067983").expect("A hardcoded CIK should always be valid");
-    let request = SecRequest::new(SecRequestType::new_fetch_all_company_facts(cik));
+    let request = SecRequest::builder().all_company_facts().cik(cik).build();
     let fixture: Value = serde_json::from_str(BERKSHIRE_FIXTURE)
         .expect("The Berkshire Hathaway fixture should always be valid JSON");
 
@@ -120,7 +119,7 @@ async fn should_return_expected_cik_when_retrieving_berkshire_company_facts() {
 async fn should_return_expected_entity_name_when_retrieving_berkshire_company_facts() {
     let client = sec_client();
     let cik = Cik::new("1067983").expect("A hardcoded CIK should always be valid");
-    let request = SecRequest::new(SecRequestType::new_fetch_all_company_facts(cik));
+    let request = SecRequest::builder().all_company_facts().cik(cik).build();
     let fixture: Value = serde_json::from_str(BERKSHIRE_FIXTURE)
         .expect("The Berkshire Hathaway fixture should always be valid JSON");
 
@@ -140,7 +139,7 @@ async fn should_return_expected_entity_name_when_retrieving_berkshire_company_fa
 async fn should_return_expected_top_level_keys_when_retrieving_berkshire_company_facts() {
     let client = sec_client();
     let cik = Cik::new("1067983").expect("A hardcoded CIK should always be valid");
-    let request = SecRequest::new(SecRequestType::new_fetch_all_company_facts(cik));
+    let request = SecRequest::builder().all_company_facts().cik(cik).build();
     let fixture: Value = serde_json::from_str(BERKSHIRE_FIXTURE)
         .expect("The Berkshire Hathaway fixture should always be valid JSON");
     let fixture_keys: Vec<&str> = fixture
@@ -171,7 +170,7 @@ async fn should_return_expected_top_level_keys_when_retrieving_berkshire_company
 async fn should_return_expected_facts_keys_when_retrieving_berkshire_company_facts() {
     let client = sec_client();
     let cik = Cik::new("1067983").expect("A hardcoded CIK should always be valid");
-    let request = SecRequest::new(SecRequestType::new_fetch_all_company_facts(cik));
+    let request = SecRequest::builder().all_company_facts().cik(cik).build();
     let fixture: Value = serde_json::from_str(BERKSHIRE_FIXTURE)
         .expect("The Berkshire Hathaway fixture should always be valid JSON");
     let fixture_keys: Vec<&str> = fixture["facts"]

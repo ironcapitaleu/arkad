@@ -42,8 +42,8 @@
 //!
 //! ## See Also
 //! - [`crate::implementations::states::extract`]: Parent module for extraction-related states.
-//! - [`crate::shared::sec_client::SecClient`]: Core SEC client type used for HTTP requests.
-//! - [`crate::shared::sec_request::SecRequest`]: Core SEC request type for API calls.
+//! - [`crate::shared::http_client::implementations::sec_client::SecClient`]: Core SEC client type used for HTTP requests.
+//! - [`crate::shared::request::implementations::sec_request::SecRequest`]: Core SEC request type for API calls.
 //! - [`crate::traits::state_machine::state::State`]: State trait implemented by [`PrepareSecRequest`].
 //!
 //! ## Testing
@@ -56,8 +56,7 @@ use state_maschine::prelude::State as SMState;
 
 use crate::error::State as StateError;
 use crate::shared::http_client::implementations::sec_client::SecClient;
-use crate::shared::request::SecRequest as SecRequestTrait;
-use crate::shared::request::implementations::sec_request::{SecRequest, SecRequestType};
+use crate::shared::request::implementations::sec_request::SecRequest;
 use crate::traits::state_machine::state::State;
 
 pub mod context;
@@ -140,9 +139,10 @@ impl State for PrepareSecRequest {
     /// or `Err(StateError)` if preparation fails.
     async fn compute_output_data_async(&mut self) -> Result<(), StateError> {
         let sec_client = SecClient::default();
-        let sec_request_type =
-            SecRequestType::new_fetch_all_company_facts(self.input.validated_cik.clone());
-        let sec_request = SecRequest::new(sec_request_type);
+        let sec_request = SecRequest::builder()
+            .all_company_facts()
+            .cik(self.input.validated_cik.clone())
+            .build();
 
         self.output = Some(PrepareSecRequestOutput::new(sec_client, sec_request));
 
@@ -436,7 +436,13 @@ mod tests {
             .compute_output_data_async()
             .await
             .expect("Valid state should always compute output data");
-        let result = prepare_state.output_data().unwrap().request.url().as_str();
+        let result = prepare_state
+            .output_data()
+            .unwrap()
+            .request
+            .inner
+            .url()
+            .as_str();
 
         assert_eq!(result, expected_result);
     }
@@ -459,5 +465,4 @@ mod tests {
 
         assert_eq!(result, expected_result);
     }
-
 }

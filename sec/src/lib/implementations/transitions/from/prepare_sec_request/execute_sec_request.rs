@@ -66,14 +66,12 @@ mod tests {
     use super::*;
     use crate::shared::cik::Cik;
     use crate::shared::http_client::implementations::sec_client::SecClient;
-    use crate::shared::request::SecRequest as SecRequestTrait;
-    use crate::shared::request::implementations::sec_request::{SecRequest, SecRequestType};
+    use crate::shared::request::implementations::sec_request::SecRequest;
 
     /// Creates a `SecRequest` for a given CIK string.
     fn create_request(cik_str: &str) -> SecRequest {
         let cik = Cik::new(cik_str).expect("Hardcoded CIK should always be valid");
-        let sec_request_type = SecRequestType::new_fetch_all_company_facts(cik);
-        SecRequest::new(sec_request_type)
+        SecRequest::builder().all_company_facts().cik(cik).build()
     }
 
     #[test]

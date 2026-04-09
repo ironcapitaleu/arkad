@@ -21,8 +21,7 @@
 //!
 //! use sec::implementations::states::extract::execute_sec_request::*;
 //! use sec::shared::http_client::implementations::sec_client::SecClient;
-//! use sec::shared::request::SecRequest as SecRequestTrait;
-//! use sec::shared::request::implementations::sec_request::{SecRequest, SecRequestType};
+//! use sec::shared::request::implementations::sec_request::SecRequest;
 //! use sec::shared::cik::Cik;
 //! use sec::prelude::*;
 //!
@@ -30,8 +29,10 @@
 //! async fn main() {
 //!     let client = SecClient::default();
 //!     let cik = Cik::new("1067983").expect("Hardcoded CIK string should be valid format");
-//!     let sec_request_type = SecRequestType::new_fetch_all_company_facts(cik);
-//!     let request = SecRequest::new(sec_request_type);
+//!     let request = SecRequest::builder()
+//!         .all_company_facts()
+//!         .cik(cik)
+//!         .build();
 //!
 //!     let input = ExecuteSecRequestInput::new(client, request);
 //!     let context = ExecuteSecRequestContext::default();
@@ -79,7 +80,7 @@ use state_maschine::prelude::State as SMState;
 /// # Behavior
 /// - Executes HTTP requests using the provided SEC client and request configuration.
 /// - Handles network errors and converts them to appropriate state errors.
-/// - Produces a [`SecResponse`](crate::shared::sec_response::SecResponse) object containing the SEC API response data.
+/// - Produces a [`SecResponse`](crate::shared::response::implementations::sec_response::SecResponse) object containing the SEC API response data.
 /// - Supports retry logic through the context configuration.
 ///
 /// # Output
@@ -89,14 +90,15 @@ use state_maschine::prelude::State as SMState;
 /// ```
 /// use sec::implementations::states::extract::execute_sec_request::*;
 /// use sec::shared::http_client::implementations::sec_client::SecClient;
-/// use sec::shared::request::SecRequest as SecRequestTrait;
-/// use sec::shared::request::implementations::sec_request::{SecRequest, SecRequestType};
+/// use sec::shared::request::implementations::sec_request::SecRequest;
 /// use sec::shared::cik::Cik;
 ///
 /// let client = SecClient::default();
 /// let cik = Cik::new("1067983").expect("Hardcoded CIK string should be valid format");
-/// let sec_request_type = SecRequestType::new_fetch_all_company_facts(cik);
-/// let request = SecRequest::new(sec_request_type);
+/// let request = SecRequest::builder()
+///     .all_company_facts()
+///     .cik(cik)
+///     .build();
 /// let input = ExecuteSecRequestInput::new(client, request);
 /// let context = ExecuteSecRequestContext::default();
 /// let mut execute_state = ExecuteSecRequest::new(input, context);
@@ -226,15 +228,13 @@ mod tests {
     use super::*;
     use crate::shared::cik::Cik;
     use crate::shared::http_client::implementations::sec_client::SecClient;
-    use crate::shared::request::SecRequest as SecRequestTrait;
-    use crate::shared::request::implementations::sec_request::{SecRequest, SecRequestType};
+    use crate::shared::request::implementations::sec_request::SecRequest;
     use crate::traits::state_machine::state::State;
 
     /// Creates a `SecRequest` for a given CIK string.
     fn create_request(cik_str: &str) -> SecRequest {
         let cik = Cik::new(cik_str).expect("Hardcoded CIK should always be valid");
-        let sec_request_type = SecRequestType::new_fetch_all_company_facts(cik);
-        SecRequest::new(sec_request_type)
+        SecRequest::builder().all_company_facts().cik(cik).build()
     }
 
     /// Creates a baseline `ExecuteSecRequest` state for use in tests.

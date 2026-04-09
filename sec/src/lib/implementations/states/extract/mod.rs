@@ -405,7 +405,9 @@ mod tests {
         let input_cik = "1234567890";
         let super_state = ExtractSuperState::<ValidateCikFormat>::new(input_cik);
 
-        let _result = super_state.transition_to_next_state_sec().expect("Transition should fail when output data is not yet computed");
+        let _result = super_state
+            .transition_to_next_state_sec()
+            .expect("Transition should fail when output data is not yet computed");
     }
 
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}

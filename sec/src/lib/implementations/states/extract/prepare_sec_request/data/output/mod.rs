@@ -19,8 +19,8 @@
 //!
 //! ## See Also
 //! - [`input`](super::input): Input data structure for request preparation parameters.
-//! - [`crate::shared::sec_client`]: Utilities for SEC client creation.
-//! - [`crate::shared::sec_request`]: Utilities for SEC request construction.
+//! - [`crate::shared::http_client`]: Utilities for SEC client creation.
+//! - [`crate::shared::request`]: Utilities for SEC request construction.
 //! - [`state_maschine::prelude::StateData`]: Trait for state data integration.
 //!
 //! ## Examples
@@ -56,14 +56,15 @@ impl PrepareSecRequestOutput {
     /// ```
     /// use sec::implementations::states::extract::prepare_sec_request::data::output::PrepareSecRequestOutput;
     /// use sec::shared::http_client::implementations::sec_client::SecClient;
-    /// use sec::shared::request::SecRequest as SecRequestTrait;
-    /// use sec::shared::request::implementations::sec_request::{SecRequest, SecRequestType};
+    /// use sec::shared::request::implementations::sec_request::SecRequest;
     /// use sec::shared::cik::Cik;
     ///
     /// let client = SecClient::default();
     /// let cik = Cik::new("1067983").expect("Hardcoded CIK string should be valid format");
-    /// let sec_request_type = SecRequestType::new_fetch_all_company_facts(cik);
-    /// let request = SecRequest::new(sec_request_type);
+    /// let request = SecRequest::builder()
+    ///     .all_company_facts()
+    ///     .cik(cik)
+    ///     .build();
     /// let output_data = PrepareSecRequestOutput::new(client, request);
     /// ```
     ///
@@ -211,8 +212,7 @@ mod tests {
     use super::{PrepareSecRequestOutput, PrepareSecRequestOutputUpdaterBuilder};
     use crate::shared::cik::Cik;
     use crate::shared::http_client::implementations::sec_client::SecClient;
-    use crate::shared::request::SecRequest as SecRequestTrait;
-    use crate::shared::request::implementations::sec_request::{SecRequest, SecRequestType};
+    use crate::shared::request::implementations::sec_request::SecRequest;
     use crate::traits::state_machine::state::StateData;
 
     use state_maschine::prelude::StateData as SMStateData;
@@ -227,8 +227,7 @@ mod tests {
     /// Creates a `SecRequest` of type `FetchAllCompanyFacts` for a given CIK string.
     fn create_request(cik_str: &str) -> SecRequest {
         let cik = Cik::new(cik_str).expect("Hardcoded CIK should always be valid");
-        let sec_request_type = SecRequestType::new_fetch_all_company_facts(cik);
-        SecRequest::new(sec_request_type)
+        SecRequest::builder().all_company_facts().cik(cik).build()
     }
 
     #[test]
