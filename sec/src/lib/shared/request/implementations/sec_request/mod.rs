@@ -35,7 +35,7 @@ impl SecRequest {
     ///     .build();
     /// ```
     #[must_use]
-    pub const fn builder() -> SecRequestBuilder<builder::NoRequestType, builder::NoCik> {
+    pub const fn builder() -> SecRequestBuilder {
         SecRequestBuilder::new()
     }
 

@@ -1,9 +1,9 @@
 //! Typestate builder for constructing [`SecRequest`] instances with compile-time safety.
 //!
-//! This module provides [`SecRequestBuilder`] and associated marker types that enable
-//! type-safe construction of [`SecRequest`]. The builder uses a consuming
-//! typestate pattern to ensure all required fields are set before construction, and that the
-//! correct fields are available based on the selected request type.
+//! This module provides [`SecRequestBuilder`] as the entry point and variant-specific
+//! builders (e.g., [`AllCompanyFactsBuilder`]) that enable type-safe construction of
+//! [`SecRequest`]. Each request type variant gets its own builder struct carrying only
+//! the fields that variant requires.
 //!
 //! # Type Safety
 //!
@@ -25,45 +25,77 @@
 //!     .build();
 //! ```
 
-use std::marker::PhantomData;
-
 use crate::shared::cik::Cik;
 use crate::shared::request::implementations::sec_request::{SecRequest, SecRequestType};
 
-/// Marker type indicating no request type has been selected yet.
-///
-/// When this marker is set, only request type selectors (e.g.,
-/// [`all_company_facts()`](SecRequestBuilder::all_company_facts)) are available on the builder.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct NoRequestType;
-
-/// Marker type indicating the [`FetchAllCompanyFacts`](SecRequestType::FetchAllCompanyFacts)
-/// request type has been selected.
-///
-/// When this marker is set via [`all_company_facts()`](SecRequestBuilder::all_company_facts),
-/// the builder enables field setters specific to this request type, such as
-/// [`cik()`](SecRequestBuilder::cik).
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct AllCompanyFacts;
-
 /// Marker type indicating no CIK has been provided yet.
 ///
-/// This marker prevents the builder from calling [`build()`](SecRequestBuilder::build)
-/// until [`cik()`](SecRequestBuilder::cik) is called.
+/// This marker prevents [`AllCompanyFactsBuilder`] from calling
+/// [`build()`](AllCompanyFactsBuilder::build) until
+/// [`cik()`](AllCompanyFactsBuilder::cik) is called.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NoCik;
 
-/// Typestate builder for constructing [`SecRequest`] instances with compile-time safety.
+/// Entry-point builder for constructing a [`SecRequest`].
 ///
-/// This builder uses a consuming typestate pattern where generic parameters track which
-/// fields have been set. Methods are only available when the builder is in the correct
-/// state, enforced at compile time through impl block constraints.
+/// This builder serves as a dispatcher — call a request type selector method
+/// (e.g., [`all_company_facts()`](Self::all_company_facts)) to transition into
+/// a variant-specific builder that carries only the fields that variant requires.
+///
+/// # Examples
+///
+/// ```
+/// use sec::shared::cik::Cik;
+/// use sec::shared::request::implementations::sec_request::SecRequest;
+///
+/// let cik = Cik::new("1067983").expect("Hardcoded CIK should be valid");
+/// let request = SecRequest::builder()
+///     .all_company_facts()
+///     .cik(cik)
+///     .build();
+/// ```
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SecRequestBuilder;
+
+impl SecRequestBuilder {
+    /// Creates a new [`SecRequestBuilder`].
+    ///
+    /// # Returns
+    ///
+    /// A new [`SecRequestBuilder`] instance ready for request type selection.
+    #[must_use]
+    pub const fn new() -> Self {
+        Self
+    }
+
+    /// Selects the [`FetchAllCompanyFacts`](SecRequestType::FetchAllCompanyFacts) request type.
+    ///
+    /// Consumes the builder and returns an [`AllCompanyFactsBuilder`] awaiting a CIK.
+    ///
+    /// # Returns
+    ///
+    /// A new [`AllCompanyFactsBuilder`] instance with no fields set.
+    #[must_use]
+    pub const fn all_company_facts(self) -> AllCompanyFactsBuilder<NoCik> {
+        AllCompanyFactsBuilder { cik: NoCik }
+    }
+}
+
+impl Default for SecRequestBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// Typestate builder for the [`FetchAllCompanyFacts`](SecRequestType::FetchAllCompanyFacts)
+/// request variant.
+///
+/// This builder is returned by [`SecRequestBuilder::all_company_facts()`] and uses a
+/// consuming typestate pattern to ensure the required CIK is provided before building.
 ///
 /// # Type Parameters
 ///
-/// * `RT` — The request type marker. Starts as [`NoRequestType`] and transitions to a
-///   request-type-specific marker (e.g., [`AllCompanyFacts`]) when a request type is selected.
-/// * `C` — The CIK field marker. Starts as [`NoCik`] and transitions to [`Cik`] when
+/// * `C` — The CIK field state. Starts as [`NoCik`] and transitions to [`Cik`] when
 ///   [`cik()`](Self::cik) is called.
 ///
 /// # Examples
@@ -79,47 +111,12 @@ pub struct NoCik;
 ///     .build();
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct SecRequestBuilder<RT, C> {
-    _request_type: PhantomData<RT>,
+pub struct AllCompanyFactsBuilder<C> {
     cik: C,
 }
 
-impl SecRequestBuilder<NoRequestType, NoCik> {
-    /// Creates a new [`SecRequestBuilder`] with no fields set.
-    ///
-    /// # Returns
-    ///
-    /// A new [`SecRequestBuilder`] instance in its initial state.
-    #[must_use]
-    pub const fn new() -> Self {
-        Self {
-            _request_type: PhantomData,
-            cik: NoCik,
-        }
-    }
-
-    /// Selects the [`FetchAllCompanyFacts`](SecRequestType::FetchAllCompanyFacts) request type.
-    ///
-    /// Consumes the builder and returns a new builder configured for the
-    /// `FetchAllCompanyFacts` request type, enabling the [`cik()`](SecRequestBuilder::cik) method.
-    ///
-    /// # Returns
-    ///
-    /// A new [`SecRequestBuilder`] instance with the [`AllCompanyFacts`] marker set.
-    #[must_use]
-    pub const fn all_company_facts(self) -> SecRequestBuilder<AllCompanyFacts, NoCik> {
-        SecRequestBuilder {
-            _request_type: PhantomData,
-            cik: NoCik,
-        }
-    }
-}
-
-impl SecRequestBuilder<AllCompanyFacts, NoCik> {
+impl AllCompanyFactsBuilder<NoCik> {
     /// Sets the CIK for the request.
-    ///
-    /// This method is only available when the [`AllCompanyFacts`] request type has been
-    /// selected and no CIK has been provided yet.
     ///
     /// # Arguments
     ///
@@ -127,24 +124,19 @@ impl SecRequestBuilder<AllCompanyFacts, NoCik> {
     ///
     /// # Returns
     ///
-    /// A new [`SecRequestBuilder`] instance with the CIK field set, enabling
-    /// [`build()`](SecRequestBuilder::build).
+    /// A new [`AllCompanyFactsBuilder`] instance with the CIK field set, enabling
+    /// [`build()`](AllCompanyFactsBuilder::build).
     #[must_use]
-    pub const fn cik(self, cik: Cik) -> SecRequestBuilder<AllCompanyFacts, Cik> {
-        SecRequestBuilder {
-            _request_type: PhantomData,
-            cik,
-        }
+    pub const fn cik(self, cik: Cik) -> AllCompanyFactsBuilder<Cik> {
+        AllCompanyFactsBuilder { cik }
     }
 }
 
-impl SecRequestBuilder<AllCompanyFacts, Cik> {
+impl AllCompanyFactsBuilder<Cik> {
     /// Builds the [`SecRequest`] from the fully configured builder state.
     ///
-    /// This method is only available when:
-    /// - The request type has been set to [`AllCompanyFacts`] via
-    ///   [`all_company_facts()`](SecRequestBuilder::all_company_facts)
-    /// - The CIK has been provided via [`cik()`](SecRequestBuilder::cik)
+    /// This method is only available when the CIK has been provided via
+    /// [`cik()`](AllCompanyFactsBuilder::cik).
     ///
     /// # Returns
     ///
@@ -166,12 +158,6 @@ impl SecRequestBuilder<AllCompanyFacts, Cik> {
     pub fn build(self) -> SecRequest {
         let request_type = SecRequestType::FetchAllCompanyFacts { cik: self.cik };
         SecRequest::from_request_type(request_type)
-    }
-}
-
-impl Default for SecRequestBuilder<NoRequestType, NoCik> {
-    fn default() -> Self {
-        Self::new()
     }
 }
 
@@ -234,31 +220,31 @@ mod tests {
 
     #[test]
     fn should_be_send_when_in_initial_state() {
-        assert_send::<super::SecRequestBuilder<super::NoRequestType, super::NoCik>>();
+        assert_send::<super::SecRequestBuilder>();
     }
 
     #[test]
     fn should_be_sync_when_in_initial_state() {
-        assert_sync::<super::SecRequestBuilder<super::NoRequestType, super::NoCik>>();
+        assert_sync::<super::SecRequestBuilder>();
     }
 
     #[test]
-    fn should_be_send_when_in_all_company_facts_state() {
-        assert_send::<super::SecRequestBuilder<super::AllCompanyFacts, super::NoCik>>();
+    fn should_be_send_when_in_all_company_facts_state_without_cik() {
+        assert_send::<super::AllCompanyFactsBuilder<super::NoCik>>();
     }
 
     #[test]
-    fn should_be_sync_when_in_all_company_facts_state() {
-        assert_sync::<super::SecRequestBuilder<super::AllCompanyFacts, super::NoCik>>();
+    fn should_be_sync_when_in_all_company_facts_state_without_cik() {
+        assert_sync::<super::AllCompanyFactsBuilder<super::NoCik>>();
     }
 
     #[test]
-    fn should_be_send_when_fully_configured() {
-        assert_send::<super::SecRequestBuilder<super::AllCompanyFacts, Cik>>();
+    fn should_be_send_when_in_all_company_facts_state_with_cik() {
+        assert_send::<super::AllCompanyFactsBuilder<Cik>>();
     }
 
     #[test]
-    fn should_be_sync_when_fully_configured() {
-        assert_sync::<super::SecRequestBuilder<super::AllCompanyFacts, Cik>>();
+    fn should_be_sync_when_in_all_company_facts_state_with_cik() {
+        assert_sync::<super::AllCompanyFactsBuilder<Cik>>();
     }
 }
