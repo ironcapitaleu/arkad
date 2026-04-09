@@ -3,7 +3,6 @@ use reqwest::{Method, Request};
 
 use sec::shared::content_type::ContentType;
 use sec::shared::http_client::InnerClient;
-use sec::shared::http_client::implementations::reqwest_client::ReqwestClient;
 use sec::shared::response::SecResponse as SecResponseTrait;
 use sec::shared::response::implementations::sec_response::SecResponse;
 use sec::shared::response::implementations::sec_response::error::ErrorReason;
@@ -11,7 +10,7 @@ use sec::shared::status_code::StatusCode;
 
 #[tokio::test]
 async fn should_create_sec_response_when_response_is_valid_json_with_success_status() {
-    let client = ReqwestClient::default();
+    let client = reqwest::Client::new();
     let url = "https://httpbin.org/get"; // Returns 200 OK with application/json content type and valid JSON body
     let request_url = reqwest::Url::parse(url).expect("The hardcoded URL should always be valid");
     let request = Request::new(Method::GET, request_url);
@@ -29,7 +28,7 @@ async fn should_create_sec_response_when_response_is_valid_json_with_success_sta
 
 #[tokio::test]
 async fn should_return_json_content_type_when_sec_response_is_created_successfully() {
-    let client = ReqwestClient::default();
+    let client = reqwest::Client::new();
     let url = "https://httpbin.org/get";
     let request_url = reqwest::Url::parse(url).expect("The hardcoded URL should always be valid");
     let request = Request::new(Method::GET, request_url);
@@ -51,7 +50,7 @@ async fn should_return_json_content_type_when_sec_response_is_created_successful
 
 #[tokio::test]
 async fn should_return_ok_status_code_when_sec_response_is_created_successfully() {
-    let client = ReqwestClient::default();
+    let client = reqwest::Client::new();
     let url = "https://httpbin.org/get";
     let request_url = reqwest::Url::parse(url).expect("The hardcoded URL should always be valid");
     let request = Request::new(Method::GET, request_url);
@@ -73,7 +72,7 @@ async fn should_return_ok_status_code_when_sec_response_is_created_successfully(
 
 #[tokio::test]
 async fn should_fail_with_invalid_status_code_when_response_is_not_success() {
-    let client = ReqwestClient::default();
+    let client = reqwest::Client::new();
     let url = "https://httpbin.org/status/404"; // Returns 404 Not Found
     let request_url = reqwest::Url::parse(url).expect("The hardcoded URL should always be valid");
     let request = Request::new(Method::GET, request_url);
@@ -97,7 +96,7 @@ async fn should_fail_with_invalid_status_code_when_response_is_not_success() {
 
 #[tokio::test]
 async fn should_fail_with_invalid_content_type_when_response_is_not_json() {
-    let client = ReqwestClient::default();
+    let client = reqwest::Client::new();
     let url = "https://httpbin.org/html"; // Returns 200 OK with text/html content type
     let request_url = reqwest::Url::parse(url).expect("The hardcoded URL should always be valid");
     let request = Request::new(Method::GET, request_url);

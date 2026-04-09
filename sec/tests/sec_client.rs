@@ -3,7 +3,6 @@ use pretty_assertions::assert_eq;
 use sec::shared::cik::Cik;
 use sec::shared::content_type::ContentType;
 use sec::shared::http_client::SecClient as SecClientTrait;
-use sec::shared::http_client::implementations::reqwest_client::ReqwestClient;
 use sec::shared::http_client::implementations::sec_client::SecClient;
 use sec::shared::http_client::implementations::sec_client::error::ErrorReason;
 use sec::shared::request::SecRequest as SecRequestTrait;
@@ -20,7 +19,7 @@ fn sec_client() -> SecClient {
         .user_agent("ArkadTest admin@example.com")
         .build()
         .expect("A hardcoded user agent should always produce a valid HTTP client");
-    SecClient::new(ReqwestClient::new(http_client))
+    SecClient::new(http_client)
 }
 
 #[tokio::test]

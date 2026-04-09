@@ -2,7 +2,6 @@ use async_trait::async_trait;
 
 use crate::shared::http_client::InnerClient;
 use crate::shared::http_client::SecClient as SecClientTrait;
-use crate::shared::http_client::implementations::reqwest_client::ReqwestClient;
 use crate::shared::request::implementations::sec_request::SecRequest;
 use crate::shared::response::SecResponse as SecResponseTrait;
 use crate::shared::response::implementations::sec_response::SecResponse;
@@ -19,13 +18,13 @@ pub mod error;
 /// returns a validated `SecResponse`.
 #[derive(Debug, Clone)]
 pub struct SecClient {
-    inner: ReqwestClient,
+    inner: reqwest::Client,
 }
 
 impl SecClient {
-    /// Creates a new `SecClient` with the given `ReqwestClient`.
+    /// Creates a new `SecClient` with the given `reqwest::Client`.
     #[must_use]
-    pub const fn new(inner: ReqwestClient) -> Self {
+    pub const fn new(inner: reqwest::Client) -> Self {
         Self { inner }
     }
 }
@@ -37,13 +36,13 @@ impl Default for SecClient {
             .user_agent(DEFAULT_SEC_USER_AGENT)
             .build()
             .expect("The default SEC user agent should always produce a valid HTTP client");
-        Self::new(ReqwestClient::new(http_client))
+        Self::new(http_client)
     }
 }
 
 #[async_trait]
 impl SecClientTrait for SecClient {
-    type Inner = ReqwestClient;
+    type Inner = reqwest::Client;
     type Request = SecRequest;
     type Response = SecResponse;
     type Error = FailedSecRequest;
