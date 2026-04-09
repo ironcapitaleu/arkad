@@ -29,8 +29,8 @@ use std::fmt;
 
 use crate::error::State as StateError;
 use crate::shared::http_client::implementations::sec_client::SecClient;
-use crate::shared::request::implementations::sec_request::{SecRequest, SecRequestType};
 use crate::shared::request::SecRequest as SecRequestTrait;
+use crate::shared::request::implementations::sec_request::{SecRequest, SecRequestType};
 use crate::traits::state_machine::state::StateData;
 
 use state_maschine::prelude::StateData as SMStateData;
@@ -112,11 +112,7 @@ impl SMStateData for ExecuteSecRequestInput {
 
 impl fmt::Display for ExecuteSecRequestInput {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "SEC Request URL: {}",
-            self.sec_request.url()
-        )
+        write!(f, "SEC Request URL: {}", self.sec_request.url())
     }
 }
 

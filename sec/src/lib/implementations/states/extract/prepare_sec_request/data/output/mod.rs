@@ -350,7 +350,7 @@ mod tests {
         };
 
         let result = PrepareSecRequestOutput::new(client, request);
-        
+
         assert_eq!(result, expected_result);
     }
 

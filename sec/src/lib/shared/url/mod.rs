@@ -23,7 +23,7 @@ pub mod url_error;
 /// assert_eq!(url.as_str(), "https://data.sec.gov/submissions/CIK0001067983.json");
 /// assert_eq!(url.to_string(), "https://data.sec.gov/submissions/CIK0001067983.json");
 /// ```
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Url {
     value: String,
 }

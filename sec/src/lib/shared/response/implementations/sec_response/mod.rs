@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::fmt;
 
 use async_trait::async_trait;
 
@@ -18,13 +19,54 @@ pub mod error;
 /// `SecResponse` is only constructed when the HTTP response meets all
 /// validity requirements: a success status code (2xx), a JSON content type,
 /// and a syntactically valid JSON body.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct SecResponse {
     url: Url,
     headers: Headers,
     content_type: ContentType,
     status_code: StatusCode,
     body: serde_json::Value,
+}
+
+impl PartialEq for SecResponse {
+    fn eq(&self, other: &Self) -> bool {
+        self.url == other.url
+            && self.headers == other.headers
+            && self.status_code == other.status_code
+            && self.body == other.body
+    }
+}
+
+impl Eq for SecResponse {}
+
+impl std::hash::Hash for SecResponse {
+    // Deviation: `Headers` and `serde_json::Value` do not implement `Hash`,
+    // so only `url`, `content_type`, and `status_code` are hashed.
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.url.hash(state);
+        self.content_type.hash(state);
+        self.status_code.hash(state);
+    }
+}
+
+impl PartialOrd for SecResponse {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for SecResponse {
+    // Deviation: `Headers`, `StatusCode`, and `serde_json::Value` do not implement
+    // `Ord`, so ordering is based on URL only.
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.url.cmp(&other.url)
+    }
+}
+
+impl fmt::Display for SecResponse {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{} {}", self.status_code, self.url)
+    }
 }
 
 #[async_trait]

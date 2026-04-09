@@ -38,7 +38,7 @@ use state_maschine::prelude::StateData as SMStateData;
 /// This struct holds a [`SecResponse`] value, produced by the [`ExecuteSecRequest`](crate::implementations::states::extract::execute_sec_request) state
 /// after successful HTTP request execution. It is used as output in the SEC extraction state machine,
 /// and supports builder-based updates and integration with the state machine framework.
-#[derive(Debug, Clone, Default, PartialEq, PartialOrd, Hash, Eq, Ord)]
+#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 pub struct ExecuteSecRequestOutput {
     /// The SEC response received from the API endpoint.
     pub response: SecResponse,

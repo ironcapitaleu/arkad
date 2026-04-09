@@ -56,8 +56,8 @@ use state_maschine::prelude::State as SMState;
 
 use crate::error::State as StateError;
 use crate::shared::http_client::implementations::sec_client::SecClient;
-use crate::shared::request::implementations::sec_request::{SecRequest, SecRequestType};
 use crate::shared::request::SecRequest as SecRequestTrait;
+use crate::shared::request::implementations::sec_request::{SecRequest, SecRequestType};
 use crate::traits::state_machine::state::State;
 
 pub mod context;
@@ -140,7 +140,8 @@ impl State for PrepareSecRequest {
     /// or `Err(StateError)` if preparation fails.
     async fn compute_output_data_async(&mut self) -> Result<(), StateError> {
         let sec_client = SecClient::default();
-        let sec_request_type = SecRequestType::new_fetch_all_company_facts(self.input.validated_cik.clone());
+        let sec_request_type =
+            SecRequestType::new_fetch_all_company_facts(self.input.validated_cik.clone());
         let sec_request = SecRequest::new(sec_request_type);
 
         self.output = Some(PrepareSecRequestOutput::new(sec_client, sec_request));
@@ -204,8 +205,8 @@ mod tests {
     use super::*;
     use crate::shared::cik::Cik;
     use crate::shared::http_client::implementations::sec_client::SecClient;
-    use crate::shared::request::implementations::sec_request::{SecRequest, SecRequestType};
     use crate::shared::request::SecRequest as SecRequestTrait;
+    use crate::shared::request::implementations::sec_request::{SecRequest, SecRequestType};
     use crate::traits::state_machine::state::State;
     use pretty_assertions::assert_eq;
     use std::{fmt::Debug, hash::Hash};
