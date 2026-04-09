@@ -63,6 +63,30 @@ impl Ord for SecResponse {
     }
 }
 
+impl SecResponse {
+    /// Creates a `SecResponse` directly from its components.
+    ///
+    /// Unlike [`from_inner`](SecResponseTrait::from_inner), this constructor does not
+    /// perform HTTP validation. The caller is responsible for ensuring the provided
+    /// parts represent a valid SEC response.
+    #[must_use]
+    pub fn from_parts(
+        url: Url,
+        headers: Headers,
+        content_type: ContentType,
+        status_code: StatusCode,
+        body: serde_json::Value,
+    ) -> Self {
+        Self {
+            url,
+            headers,
+            content_type,
+            status_code,
+            body,
+        }
+    }
+}
+
 impl fmt::Display for SecResponse {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{} {}", self.status_code, self.url)

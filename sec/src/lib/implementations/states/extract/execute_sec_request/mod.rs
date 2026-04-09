@@ -155,7 +155,7 @@ impl State for ExecuteSecRequest {
 
         match result {
             Ok(response) => {
-                self.output = Some(ExecuteSecRequestOutput::new(response)?);
+                self.output = Some(ExecuteSecRequestOutput::new(response));
                 Ok(())
             }
             Err(e) => {
