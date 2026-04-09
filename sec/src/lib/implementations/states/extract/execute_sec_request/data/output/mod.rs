@@ -186,11 +186,11 @@ mod tests {
         let url: Url = "https://data.sec.gov/api/xbrl/companyfacts/CIK0001067983.json"
             .parse()
             .expect("Hardcoded URL should always parse successfully");
-        
+
         let mut raw_headers = HashMap::new();
         raw_headers.insert("content-type".to_string(), "application/json".to_string());
         let headers = Headers::new(raw_headers);
-        
+
         SecResponse::from_parts(
             url,
             headers,
