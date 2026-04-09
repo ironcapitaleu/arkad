@@ -136,4 +136,23 @@ mod tests {
 
         assert_eq!(result, expected_result);
     }
+
+    fn assert_send<T: Send>() {}
+    fn assert_sync<T: Sync>() {}
+    fn assert_unpin<T: Unpin>() {}
+
+    #[test]
+    fn should_be_send() {
+        assert_send::<SecRequest>();
+    }
+
+    #[test]
+    fn should_be_sync() {
+        assert_sync::<SecRequest>();
+    }
+
+    #[test]
+    fn should_be_unpin() {
+        assert_unpin::<SecRequest>();
+    }
 }

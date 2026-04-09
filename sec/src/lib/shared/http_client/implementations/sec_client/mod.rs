@@ -64,3 +64,27 @@ impl SecClientTrait for SecClient {
         Ok(sec_response)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::SecClient;
+
+    fn assert_send<T: Send>() {}
+    fn assert_sync<T: Sync>() {}
+    fn assert_unpin<T: Unpin>() {}
+
+    #[test]
+    fn should_be_send() {
+        assert_send::<SecClient>();
+    }
+
+    #[test]
+    fn should_be_sync() {
+        assert_sync::<SecClient>();
+    }
+
+    #[test]
+    fn should_be_unpin() {
+        assert_unpin::<SecClient>();
+    }
+}
