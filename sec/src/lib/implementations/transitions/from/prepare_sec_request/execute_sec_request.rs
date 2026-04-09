@@ -65,8 +65,16 @@ mod tests {
 
     use super::*;
     use crate::shared::cik::Cik;
-    use crate::shared::old_sec_client::SecClient;
-    use crate::shared::sec_request::SecRequest;
+    use crate::shared::http_client::implementations::sec_client::SecClient;
+    use crate::shared::request::SecRequest as SecRequestTrait;
+    use crate::shared::request::implementations::sec_request::{SecRequest, SecRequestType};
+
+    /// Creates a `SecRequest` for a given CIK string.
+    fn create_request(cik_str: &str) -> SecRequest {
+        let cik = Cik::new(cik_str).expect("Hardcoded CIK should always be valid");
+        let sec_request_type = SecRequestType::new_fetch_all_company_facts(cik);
+        SecRequest::new(sec_request_type)
+    }
 
     #[test]
     fn should_convert_context_when_valid_context() {
@@ -84,9 +92,8 @@ mod tests {
     #[test]
     fn should_convert_output_to_input_when_valid_output() {
         let client = SecClient::default();
-        let request = SecRequest::default();
-        let output = PrepareSecRequestOutput::new(client.clone(), request.clone())
-            .expect("Valid client and request should always create output successfully");
+        let request = create_request("0001234567");
+        let output = PrepareSecRequestOutput::new(client.clone(), request.clone());
 
         let expected_result = ExecuteSecRequestInput::new(client, request);
 
