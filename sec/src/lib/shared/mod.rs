@@ -21,6 +21,7 @@
 
 pub mod cik;
 pub mod content_type;
+pub mod headers;
 pub mod http_client;
 pub mod json_response;
 pub mod old_sec_client; // TODO: DELETE AFTER new sec_client definition is implemented

@@ -3,8 +3,7 @@ use std::collections::HashMap;
 use async_trait::async_trait;
 
 use crate::shared::content_type::ContentType;
-use crate::shared::response::InnerResponse;
-
+use crate::shared::headers::Headers;
 use crate::shared::status_code::StatusCode;
 
 use super::super::traits::SecResponse as SecResponseTrait;
@@ -12,7 +11,7 @@ use super::super::traits::SecResponse as SecResponseTrait;
 #[derive(Debug)]
 pub struct SecResponse {
     url: String, // TODO: Change it later to own type that can be used across different response implementations.
-    headers: HashMap<String, String>, // TODO: Change it later to own type that can be used across different response implementations.
+    headers: Headers,
     content_type: ContentType,
     status_code: StatusCode,
     body: serde_json::Value,
@@ -22,7 +21,7 @@ pub struct SecResponse {
 impl SecResponseTrait for SecResponse {
     type Inner = reqwest::Response;
     type Url = String;
-    type Headers = HashMap<String, String>;
+    type Headers = Headers;
     type StatusCode = StatusCode;
     type ContentType = ContentType;
     type Error = SecResponeError; // TODO: Placeholder for now. The `Transform` `SuperState` might be adding different error types when semantically checking the response contents.
@@ -30,12 +29,13 @@ impl SecResponseTrait for SecResponse {
     async fn from_inner(inner: Self::Inner) -> Result<Self, Self::Error> {
         let url = inner.url().to_string();
         let status_code = StatusCode::from(inner.status());
-        let content_type = inner.content_type();
-        let headers: HashMap<String, String> = inner
+        let raw_headers: HashMap<String, String> = inner
             .headers()
             .iter()
             .map(|(k, v)| (k.to_string(), v.to_str().unwrap_or("").to_string()))
             .collect();
+        let headers = Headers::new(raw_headers);
+        let content_type = headers.content_type().clone();
         let body_text = inner
             .text()
             .await
