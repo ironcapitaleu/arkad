@@ -7,6 +7,14 @@ pub struct SecRequest {
     inner: Request,
 }
 
+impl SecRequest {
+    /// Consumes the `SecRequest` and returns the inner `reqwest::Request`.
+    #[must_use]
+    pub fn into_inner(self) -> Request {
+        self.inner
+    }
+}
+
 impl SecRequestTrait for SecRequest {
     type Inner = Request;
     type RequestInput = SecRequestType;
@@ -18,7 +26,7 @@ impl SecRequestTrait for SecRequest {
     fn new(request_input: Self::RequestInput) -> Self {
         match request_input {
             SecRequestType::FetchAllCompanyFacts { cik } => {
-                let url = format!("https://data.sec.gov/api/xbrl/companyfacts/{cik}.json");
+                let url = format!("https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json");
                 let request = Request::new(
                     Method::GET,
                     Url::parse(&url).expect("Hardcoded URL should always be valid"),
@@ -74,7 +82,7 @@ mod tests {
         let sec_request_type = SecRequestType::new_fetch_all_company_facts(cik);
 
         let expected_result =
-            Url::parse("https://data.sec.gov/api/xbrl/companyfacts/0001234567.json")
+            Url::parse("https://data.sec.gov/api/xbrl/companyfacts/CIK0001234567.json")
                 .expect("Hardcoded URL should always be valid");
 
         let result = SecRequest::new(sec_request_type).inner().url().clone();
