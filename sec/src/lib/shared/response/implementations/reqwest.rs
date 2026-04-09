@@ -2,8 +2,9 @@ use async_trait::async_trait;
 use reqwest::header::HeaderMap;
 use reqwest::{Response, StatusCode, Url};
 
+use crate::shared::content_type::ContentType;
+
 use super::super::traits::InnerResponse;
-use super::content_type::ContentType;
 
 #[async_trait]
 impl InnerResponse for Response {

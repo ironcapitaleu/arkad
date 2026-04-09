@@ -20,6 +20,7 @@
 //! - [`crate::error`]: Error types that may reference shared domain types for detailed error reporting.
 
 pub mod cik;
+pub mod content_type;
 pub mod http_client;
 pub mod json_response;
 pub mod old_sec_client; // TODO: DELETE AFTER new sec_client definition is implemented

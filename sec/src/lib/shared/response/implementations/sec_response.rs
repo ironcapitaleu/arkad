@@ -2,7 +2,8 @@ use std::collections::HashMap;
 
 use async_trait::async_trait;
 
-use crate::shared::response::{InnerResponse, implementations::content_type::ContentType};
+use crate::shared::content_type::ContentType;
+use crate::shared::response::InnerResponse;
 
 use crate::shared::status_code::StatusCode;
 

@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::fmt;
 
-/// Content type enumeration with automatic detection from HTTP headers.
+/// Content type enum with automatic detection from HTTP headers.
 ///
 /// `ContentType` represents the main content types expected from SEC API responses.
 /// It provides methods to detect content type from response headers and format
@@ -11,7 +11,7 @@ use std::fmt;
 ///
 /// ```rust
 /// use std::collections::HashMap;
-/// use sec::shared::sec_response::ContentType;
+/// use sec::shared::content_type::ContentType;
 ///
 /// let mut headers = HashMap::new();
 /// headers.insert("content-type".to_string(), "application/json".to_string());
@@ -22,12 +22,18 @@ use std::fmt;
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum ContentType {
+    /// Content type is JSON (e.g., `application/json`).
     Json,
+    /// Content type is XML (e.g., `application/xml` or `text/xml`).
     Xml,
+    /// Content type is HTML (e.g., `text/html`).
     Html,
+    /// Content type is plain text (e.g., `text/plain`).
     Text,
-    Other(String), // `Content-Type` header is present but does not match the types we expect.
-    Unknown,       // `Content-Type` header is absent or invalid.
+    /// Content type is present but does not match the types we expect.
+    Other(String),
+    /// Content type is unknown (e.g., `Content-Type` header is absent or invalid).
+    Unknown,
 }
 
 impl ContentType {
@@ -41,24 +47,23 @@ impl ContentType {
     }
 
     /// Determines the content type from a string.
+    ///
+    /// Strips any parameters (e.g., `; charset=utf-8`) before matching the MIME type.
     #[must_use]
     pub fn from_content_type(content_type_str: &str) -> Self {
-        let content_type_lower = content_type_str.to_lowercase();
+        let mime_type = content_type_str
+            .split(';')
+            .next()
+            .unwrap_or(content_type_str)
+            .trim()
+            .to_lowercase();
 
-        if content_type_lower.contains("application/json") || content_type_lower.contains("json") {
-            Self::Json
-        } else if content_type_lower.contains("application/xml")
-            || content_type_lower.contains("text/xml")
-            || content_type_lower.contains("xml")
-        {
-            Self::Xml
-        } else if content_type_lower.contains("text/html") || content_type_lower.contains("html") {
-            Self::Html
-        } else if content_type_lower.contains("text/plain") || content_type_lower.contains("text/")
-        {
-            Self::Text
-        } else {
-            Self::Other(content_type_str.to_string())
+        match mime_type.as_str() {
+            "application/json" => Self::Json,
+            "application/xml" | "text/xml" => Self::Xml,
+            "text/html" => Self::Html,
+            "text/plain" => Self::Text,
+            _ => Self::Other(content_type_str.to_string()),
         }
     }
 }
@@ -129,6 +134,61 @@ mod tests {
         let expected_result = ContentType::Unknown;
 
         let result = ContentType::from_headers(&headers);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_json_when_content_type_includes_charset_parameter() {
+        let content_type_str = "application/json; charset=utf-8";
+
+        let expected_result = ContentType::Json;
+
+        let result = ContentType::from_content_type(content_type_str);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_xml_when_content_type_is_application_xml() {
+        let content_type_str = "application/xml";
+
+        let expected_result = ContentType::Xml;
+
+        let result = ContentType::from_content_type(content_type_str);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_xml_when_content_type_is_text_xml() {
+        let content_type_str = "text/xml";
+
+        let expected_result = ContentType::Xml;
+
+        let result = ContentType::from_content_type(content_type_str);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_html_when_content_type_is_text_html() {
+        let content_type_str = "text/html; charset=ISO-8859-1";
+
+        let expected_result = ContentType::Html;
+
+        let result = ContentType::from_content_type(content_type_str);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_text_when_content_type_is_text_plain() {
+        let content_type_str = "text/plain";
+
+        let expected_result = ContentType::Text;
+
+        let result = ContentType::from_content_type(content_type_str);
 
         assert_eq!(result, expected_result);
     }
