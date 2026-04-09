@@ -27,4 +27,5 @@ pub mod request;
 pub mod response;
 pub mod sec_request; // TODO: DELETE AFTER new request definition is implemented
 pub mod sec_response; // TODO: DELETE AFTER new response definition is implemented
+pub mod status_code;
 pub mod user_agent;

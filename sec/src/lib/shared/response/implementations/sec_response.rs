@@ -1,9 +1,10 @@
 use std::collections::HashMap;
 
 use async_trait::async_trait;
-use reqwest::StatusCode; // TOOD: Should be removed once `StatusCode` is its own type.
 
 use crate::shared::response::{InnerResponse, implementations::content_type::ContentType};
+
+use crate::shared::status_code::StatusCode;
 
 use super::super::traits::SecResponse as SecResponseTrait;
 
@@ -12,7 +13,7 @@ pub struct SecResponse {
     url: String, // TODO: Change it later to own type that can be used across different response implementations.
     headers: HashMap<String, String>, // TODO: Change it later to own type that can be used across different response implementations.
     content_type: ContentType,
-    status_code: StatusCode, // TODO: Change it later to own type that can be used across different response implementations.
+    status_code: StatusCode,
     body: serde_json::Value,
 }
 
@@ -27,7 +28,7 @@ impl SecResponseTrait for SecResponse {
 
     async fn from_inner(inner: Self::Inner) -> Result<Self, Self::Error> {
         let url = inner.url().to_string();
-        let status_code = inner.status();
+        let status_code = StatusCode::from(inner.status());
         let content_type = inner.content_type();
         let headers: HashMap<String, String> = inner
             .headers()
