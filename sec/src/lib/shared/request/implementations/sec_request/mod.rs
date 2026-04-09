@@ -2,6 +2,10 @@ use reqwest::{Method, Request, Url};
 
 use crate::shared::{cik::Cik, request::SecRequest as SecRequestTrait};
 
+pub mod constants;
+
+use constants::{SEC_COMPANY_FACTS_URL_PREFIX, SEC_COMPANY_FACTS_URL_SUFFIX};
+
 /// A validated SEC API request.
 ///
 /// `SecRequest` wraps a `reqwest::Request` that has been constructed from a
@@ -31,7 +35,8 @@ impl SecRequestTrait for SecRequest {
     fn new(request_input: Self::RequestInput) -> Self {
         match request_input {
             SecRequestType::FetchAllCompanyFacts { cik } => {
-                let url = format!("https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json");
+                let url =
+                    format!("{SEC_COMPANY_FACTS_URL_PREFIX}{cik}{SEC_COMPANY_FACTS_URL_SUFFIX}");
                 let request = Request::new(
                     Method::GET,
                     Url::parse(&url).expect("Hardcoded URL should always be valid"),
