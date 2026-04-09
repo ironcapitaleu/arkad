@@ -47,6 +47,43 @@ impl SecRequestTrait for SecRequest {
     }
 }
 
+impl Clone for SecRequest {
+    fn clone(&self) -> Self {
+        Self {
+            inner: self
+                .inner
+                .try_clone()
+                .expect("SEC requests have no streaming body, so cloning should always succeed"),
+        }
+    }
+}
+
+impl PartialEq for SecRequest {
+    fn eq(&self, other: &Self) -> bool {
+        self.inner.url() == other.inner.url()
+    }
+}
+
+impl Eq for SecRequest {}
+
+impl std::hash::Hash for SecRequest {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.inner.url().hash(state);
+    }
+}
+
+impl PartialOrd for SecRequest {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for SecRequest {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.inner.url().cmp(other.inner.url())
+    }
+}
+
 /// Enum representing the different types of high-level SEC requests that are supported.
 ///
 /// Each variant encodes the input parameters that are required to make the request.
