@@ -67,7 +67,7 @@ pub struct SecResponse {
     pub body: String,
 }
 
-/// Content type enumeration with automatic detection from HTTP headers.
+/// Content type enum with automatic detection from HTTP headers.
 ///
 /// `ContentType` represents the main content types expected from SEC API responses.
 /// It provides methods to detect content type from response headers and format

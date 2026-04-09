@@ -83,13 +83,13 @@ impl Headers {
         self.etag.as_deref()
     }
 
-    /// Returns the Date header value, if present.
+    /// Returns the `Date` header value, if present.
     #[must_use]
     pub fn date(&self) -> Option<&str> {
         self.date.as_deref()
     }
 
-    /// Returns the Accept-Encoding header value, if present.
+    /// Returns the `Accept-Encoding` header value, if present.
     #[must_use]
     pub fn accept_encoding(&self) -> Option<&str> {
         self.accept_encoding.as_deref()
