@@ -55,16 +55,16 @@ impl PrepareSecRequestOutput {
     ///
     /// ```
     /// use sec::implementations::states::extract::prepare_sec_request::data::output::PrepareSecRequestOutput;
-    /// use sec::shared::old_sec_client::SecClient;
-    /// use sec::shared::sec_request::SecRequest;
+    /// use sec::shared::http_client::implementations::sec_client::SecClient;
+    /// use sec::shared::request::SecRequest as SecRequestTrait;
+    /// use sec::shared::request::implementations::sec_request::{SecRequest, SecRequestType};
     /// use sec::shared::cik::Cik;
-    /// use sec::shared::user_agent::UserAgent;
     ///
-    /// let user_agent = "Test Company contact@test.com";
-    /// let client = SecClient::new(&user_agent).expect("Valid user agent should create client successfully");
+    /// let client = SecClient::default();
     /// let cik = Cik::new("1067983").expect("Hardcoded CIK string should be valid format");
-    /// let request = SecRequest::new(&cik);
-    /// let output_data = PrepareSecRequestOutput::new(client, request).expect("Valid client and request should create output successfully");
+    /// let sec_request_type = SecRequestType::new_fetch_all_company_facts(cik);
+    /// let request = SecRequest::new(sec_request_type);
+    /// let output_data = PrepareSecRequestOutput::new(client, request);
     /// ```
     ///
     /// # Errors
