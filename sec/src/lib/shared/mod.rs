@@ -24,10 +24,8 @@ pub mod content_type;
 pub mod headers;
 pub mod http_client;
 pub mod json_response;
-pub mod old_sec_client; // TODO: DELETE AFTER new sec_client definition is implemented
 pub mod request;
 pub mod response;
-pub mod sec_request; // TODO: DELETE AFTER new request definition is implemented
 pub mod sec_response; // TODO: DELETE AFTER new response definition is implemented
 pub mod status_code;
 pub mod url;

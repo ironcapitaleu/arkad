@@ -31,10 +31,8 @@ use std::{fmt, hash::Hash};
 use state_maschine::prelude::StateData as SMStateData;
 
 use crate::error::State as StateError;
-use crate::shared::old_sec_client::SecClient;
-use crate::shared::sec_request::SecRequest;
-use crate::shared::sec_request::implementations::reqwest_request::ReqwestRequest;
-use crate::shared::sec_request::traits::inner_request::InnerRequest;
+use crate::shared::http_client::implementations::sec_client::SecClient;
+use crate::shared::request::implementations::sec_request::SecRequest;
 use crate::traits::state_machine::state::StateData;
 
 /// Output data containing a prepared SEC client and request.
@@ -42,12 +40,12 @@ use crate::traits::state_machine::state::StateData;
 /// This struct holds a prepared [`SecClient`] and [`SecRequest`] value, produced by the [`PrepareSecRequest`](crate::implementations::states::extract::prepare_sec_request) state
 /// after successful preparation. It is used as output in the SEC extraction state machine,
 /// and supports builder-based updates and integration with the state machine framework.
-#[derive(Debug, Clone, Default, PartialEq, PartialOrd, Hash, Eq, Ord)]
+#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 pub struct PrepareSecRequestOutput {
     /// The prepared SEC client for making HTTP requests.
     pub client: SecClient,
     /// The prepared SEC request targeting a specific CIK.
-    pub request: SecRequest<ReqwestRequest>,
+    pub request: SecRequest,
 }
 
 impl PrepareSecRequestOutput {
@@ -73,7 +71,7 @@ impl PrepareSecRequestOutput {
     /// Returns a [`StateError`] if the output data cannot be created from the provided data.
     pub const fn new(
         client: SecClient,
-        request: SecRequest<ReqwestRequest>,
+        request: SecRequest,
     ) -> Result<Self, StateError> {
         Ok(Self { client, request })
     }
@@ -86,7 +84,7 @@ impl PrepareSecRequestOutput {
 
     /// Returns a reference to the prepared SEC request.
     #[must_use]
-    pub const fn request(&self) -> &SecRequest<ReqwestRequest> {
+    pub const fn request(&self) -> &SecRequest {
         &self.request
     }
 }
@@ -136,7 +134,7 @@ pub struct PrepareSecRequestOutputUpdater {
     /// Optional new value for the SEC client.
     pub client: Option<SecClient>,
     /// Optional new value for the SEC request.
-    pub request: Option<SecRequest<ReqwestRequest>>,
+    pub request: Option<SecRequest>,
 }
 
 impl PrepareSecRequestOutputUpdater {
@@ -153,7 +151,7 @@ impl PrepareSecRequestOutputUpdater {
 /// supporting method chaining and optional fields. Use `.build()` to produce the updater.
 pub struct PrepareSecRequestOutputUpdaterBuilder {
     client: Option<SecClient>,
-    request: Option<SecRequest<ReqwestRequest>>,
+    request: Option<SecRequest>,
 }
 
 impl PrepareSecRequestOutputUpdaterBuilder {
@@ -185,7 +183,7 @@ impl PrepareSecRequestOutputUpdaterBuilder {
     /// * `request` - The new [`SecRequest`] value.
     #[must_use]
     #[allow(clippy::missing_const_for_fn)]
-    pub fn request(mut self, request: SecRequest<ReqwestRequest>) -> Self {
+    pub fn request(mut self, request: SecRequest) -> Self {
         self.request = Some(request);
         self
     }
@@ -215,32 +213,24 @@ mod tests {
 
     use super::{PrepareSecRequestOutput, PrepareSecRequestOutputUpdaterBuilder};
     use crate::shared::cik::Cik;
-    use crate::shared::old_sec_client::SecClient;
-    use crate::shared::sec_request::SecRequest;
+    use crate::shared::http_client::implementations::sec_client::SecClient;
+    use crate::shared::request::implementations::sec_request::{SecRequest, SecRequestType};
+        use crate::shared::request::SecRequest as SecRequestTrait;
     use crate::shared::user_agent::UserAgent;
     use crate::traits::state_machine::state::StateData;
+
     use state_maschine::prelude::StateData as SMStateData;
 
     #[test]
-    fn should_return_reference_to_default_prepare_output_state_data_when_initialized_with_default()
-    {
-        let default_prepare_output_state_data = PrepareSecRequestOutput::default();
-
-        let expected_result = &PrepareSecRequestOutput::default();
-
-        let result = default_prepare_output_state_data.state();
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
     fn should_create_different_state_data_with_custom_data_when_using_new_as_constructor() {
-        let user_agent = UserAgent::new("Test Company contact@test.com")
-            .expect("Hardcoded user agent string should be valid format");
-        let client = SecClient::new(user_agent.inner())
-            .expect("Valid user agent should create client successfully");
+        let inner_client = reqwest::Client::builder().build().expect("Reqwest client built with no options should always succeed");
+
+        let client = SecClient::new(inner_client);
+
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
-        let request = SecRequest::new(&cik);
+        let sec_request_type = SecRequestType::new_fetch_all_company_facts(cik);
+
+        let request = SecRequest::new(sec_request_type);
         let prepare_output_state_data = PrepareSecRequestOutput::new(client, request)
             .expect("Valid client and request should create output successfully");
 

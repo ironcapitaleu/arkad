@@ -13,7 +13,7 @@ use constants::{SEC_COMPANY_FACTS_URL_PREFIX, SEC_COMPANY_FACTS_URL_SUFFIX};
 /// method are used.
 #[derive(Debug)]
 pub struct SecRequest {
-    inner: Request,
+    pub inner: Request,
 }
 
 impl SecRequest {
