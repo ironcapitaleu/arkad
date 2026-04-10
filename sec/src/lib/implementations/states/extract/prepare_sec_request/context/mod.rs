@@ -15,9 +15,11 @@
 //! ## Example
 //! ```rust
 //! use sec::implementations::states::extract::prepare_sec_request::context::*;
+//! use sec::shared::cik::Cik;
 //! use state_maschine::prelude::*;
 //!
-//! let mut context = PrepareSecRequestContext::default();
+//! let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
+//! let mut context = PrepareSecRequestContext::new(cik);
 //! let update = PrepareSecRequestContextUpdater::builder()
 //!     .max_retries(5)
 //!     .build();
@@ -36,7 +38,7 @@ use state_maschine::prelude::Context as SMContext;
 use crate::shared::cik::Cik;
 use crate::traits::state_machine::state::Context;
 
-#[derive(Debug, Default, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
+#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 /// State context for the SEC request preparation state.
 pub struct PrepareSecRequestContext {
     pub cik: Cik,
@@ -181,36 +183,15 @@ mod tests {
         PrepareSecRequestContextUpdaterBuilder,
     };
 
-    #[test]
-    fn should_return_reference_to_default_request_context_when_initialized_with_default() {
-        let request_context = PrepareSecRequestContext::default();
-
-        let expected_result = &PrepareSecRequestContext::default();
-
-        let result = request_context.context();
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
-    fn should_create_different_context_with_custom_data_when_using_default_as_constructor() {
-        let request_context = &PrepareSecRequestContext::default();
+    fn create_test_context() -> PrepareSecRequestContext {
         let cik =
             Cik::new(BERKSHIRE_HATHAWAY_CIK_RAW).expect("Hardcoded CIK should always be valid");
-
-        let expected_result = &PrepareSecRequestContext {
-            cik,
-            max_retries: 5,
-        };
-
-        let result = request_context.context();
-
-        assert_ne!(result, expected_result);
+        PrepareSecRequestContext::new(cik)
     }
 
     #[test]
     fn should_update_context_max_retries_to_specified_value_when_update_contains_specified_value() {
-        let mut context = PrepareSecRequestContext::default();
+        let mut context = create_test_context();
         let update = PrepareSecRequestContextUpdater::builder()
             .max_retries(5)
             .build();
@@ -230,7 +211,7 @@ mod tests {
 
     #[test]
     fn should_update_max_retries_to_latest_specified_value_when_multiple_updates_in_builder() {
-        let mut context = PrepareSecRequestContext::default();
+        let mut context = create_test_context();
         let update = PrepareSecRequestContextUpdater::builder()
             .max_retries(5)
             .max_retries(10)
@@ -251,7 +232,7 @@ mod tests {
 
     #[test]
     fn should_not_leave_context_max_retries_the_default_when_update_contains_a_different_value() {
-        let mut context = PrepareSecRequestContext::default();
+        let mut context = create_test_context();
         let update = PrepareSecRequestContextUpdater::builder()
             .max_retries(5)
             .build();
@@ -266,10 +247,10 @@ mod tests {
 
     #[test]
     fn should_leave_context_unchanged_when_empty_update() {
-        let mut context = PrepareSecRequestContext::default();
+        let mut context = create_test_context();
         let empty_update = PrepareSecRequestContextUpdaterBuilder::default().build();
 
-        let expected_result = &PrepareSecRequestContext::default();
+        let expected_result = &create_test_context();
 
         context.update_context(empty_update);
         let result = context.context();
@@ -336,12 +317,6 @@ mod tests {
     #[test]
     const fn should_implement_ord_when_implementing_context_data_trait() {
         implements_ord::<PrepareSecRequestContext>();
-    }
-
-    const fn implements_default<T: Default>() {}
-    #[test]
-    const fn should_implement_default_when_implementing_context_data_trait() {
-        implements_default::<PrepareSecRequestContext>();
     }
 
     const fn implements_debug<T: Debug>() {}

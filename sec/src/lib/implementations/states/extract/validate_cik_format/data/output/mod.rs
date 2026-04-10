@@ -31,7 +31,8 @@ use state_maschine::prelude::StateData as SMStateData;
 
 use crate::error::State as StateError;
 use crate::error::state_machine::state::InvalidCikFormat;
-use crate::shared::cik::{Cik, constants::BERKSHIRE_HATHAWAY_CIK_RAW};
+use crate::implementations::states::extract::validate_cik_format::constants::STATE_NAME;
+use crate::shared::cik::Cik;
 use crate::traits::error::FromDomainError;
 use crate::traits::state_machine::state::StateData;
 
@@ -54,19 +55,10 @@ impl ValidateCikFormatOutput {
     ///
     /// Returns a [`StateError::InvalidCikFormat`] if the CIK is not formatted correctly.
     pub fn new(cik: impl Into<String>) -> Result<Self, StateError> {
-        let validated_cik = Self::validate_cik_format(cik.into().as_str())?;
+        let cik_str = cik.into();
+        let validated_cik = Cik::new(cik_str.as_str())
+            .map_err(|e| StateError::from(InvalidCikFormat::from_domain_error(STATE_NAME, e)))?;
         Ok(Self { validated_cik })
-    }
-
-    /// Validates the CIK format and returns a validated [`Cik`] instance.
-    ///
-    /// # Errors
-    ///
-    /// Returns a [`StateError::InvalidCikFormat`] if the CIK is not formatted correctly.
-    fn validate_cik_format(cik: &str) -> Result<Cik, StateError> {
-        Cik::new(&cik).map_err(|e| {
-            InvalidCikFormat::from_domain_error(Self::default().state().to_string(), e).into()
-        })
     }
 
     /// Returns a reference to the validated CIK string.
@@ -87,9 +79,7 @@ impl StateData for ValidateCikFormatOutput {
                     self.validated_cik = valid_cik;
                     Ok(())
                 }
-                Err(e) => {
-                    Err(InvalidCikFormat::from_domain_error(self.state().to_string(), e).into())
-                }
+                Err(e) => Err(InvalidCikFormat::from_domain_error(STATE_NAME, e).into()),
             }
         } else {
             Ok(())
@@ -106,16 +96,6 @@ impl SMStateData for ValidateCikFormatOutput {
     /// Provided by `SecStateData` trait. Not used in this context.
     fn update_state(&mut self, _updates: Self::UpdateType) {
         // This method is not used in this context.
-    }
-}
-
-impl Default for ValidateCikFormatOutput {
-    /// Returns a default output using the CIK for Berkshire Hathaway (CIK: 1067983).
-    fn default() -> Self {
-        Self {
-            validated_cik: Cik::new(BERKSHIRE_HATHAWAY_CIK_RAW)
-                .expect("Hardcoded CIK should always be valid"),
-        }
     }
 }
 
@@ -192,18 +172,22 @@ mod tests {
 
     use pretty_assertions::{assert_eq, assert_ne};
 
-    use super::{
-        BERKSHIRE_HATHAWAY_CIK_RAW, Cik, ValidateCikFormatOutput,
-        ValidateCikFormatOutputUpdaterBuilder,
-    };
+    use super::{ValidateCikFormatOutput, ValidateCikFormatOutputUpdaterBuilder};
+    use crate::shared::cik::Cik;
+    use crate::shared::cik::constants::BERKSHIRE_HATHAWAY_CIK_RAW;
     use crate::traits::state_machine::state::StateData;
     use state_maschine::prelude::StateData as SMStateData;
 
+    fn create_test_output() -> ValidateCikFormatOutput {
+        ValidateCikFormatOutput::new(BERKSHIRE_HATHAWAY_CIK_RAW)
+            .expect("Hardcoded CIK should always be valid")
+    }
+
     #[test]
     fn should_return_reference_to_default_validation_state_data_when_initialized_with_default() {
-        let validation_state_data = ValidateCikFormatOutput::default();
+        let validation_state_data = create_test_output();
 
-        let expected_result = &ValidateCikFormatOutput::default();
+        let expected_result = &create_test_output();
 
         let result = validation_state_data.state();
 
@@ -215,7 +199,7 @@ mod tests {
         let validation_state_data = &ValidateCikFormatOutput::new("12345")
             .expect("Provided hardcoded CIK should always be valid");
 
-        let expected_result = &ValidateCikFormatOutput::default();
+        let expected_result = &create_test_output();
 
         let result = validation_state_data.state();
 
@@ -224,7 +208,7 @@ mod tests {
 
     #[test]
     fn should_update_state_data_to_specified_string_when_update_contains_specified_string() {
-        let mut state_data = ValidateCikFormatOutput::default();
+        let mut state_data = create_test_output();
         let update = ValidateCikFormatOutputUpdaterBuilder::default()
             .cik("12345")
             .build();
@@ -241,7 +225,7 @@ mod tests {
 
     #[test]
     fn should_update_state_data_to_latest_specified_string_when_multiple_updates_in_builder() {
-        let mut state_data = ValidateCikFormatOutput::default();
+        let mut state_data = create_test_output();
         let update = ValidateCikFormatOutputUpdaterBuilder::default()
             .cik("12345")
             .cik("067890")
@@ -259,10 +243,10 @@ mod tests {
 
     #[test]
     fn should_leave_state_data_unchanged_when_empty_update() {
-        let mut state_data = ValidateCikFormatOutput::default();
+        let mut state_data = create_test_output();
         let empty_update = ValidateCikFormatOutputUpdaterBuilder::default().build();
 
-        let expected_result = &ValidateCikFormatOutput::default();
+        let expected_result = &create_test_output();
 
         StateData::update_state(&mut state_data, empty_update)
             .expect("Provided hardcoded update should succeed");
@@ -274,7 +258,7 @@ mod tests {
     #[test]
     fn should_return_formatted_and_validated_default_cik_string_when_validation_output_data_initialized_with_default()
      {
-        let validation_state_data = &ValidateCikFormatOutput::default();
+        let validation_state_data = &create_test_output();
         let formatted_and_validated_berkshire_cik = Cik::new(BERKSHIRE_HATHAWAY_CIK_RAW)
             .expect("Provided hardcoded CIK should always be valid");
 
@@ -289,7 +273,7 @@ mod tests {
     #[should_panic]
     fn should_panic_when_comparing_valid_but_unformatted_default_cik_with_formatted_and_validated_default_output()
      {
-        let validation_state_data = &ValidateCikFormatOutput::default();
+        let validation_state_data = &create_test_output();
         let expected_result = BERKSHIRE_HATHAWAY_CIK_RAW;
 
         let result = validation_state_data.state().cik();
@@ -355,12 +339,6 @@ mod tests {
     #[test]
     const fn should_implement_ord_when_implementing_output_data_trait() {
         implements_ord::<ValidateCikFormatOutput>();
-    }
-
-    const fn implements_default<T: Default>() {}
-    #[test]
-    const fn should_implement_default_when_implementing_output_data_trait() {
-        implements_default::<ValidateCikFormatOutput>();
     }
 
     const fn implements_debug<T: Debug>() {}

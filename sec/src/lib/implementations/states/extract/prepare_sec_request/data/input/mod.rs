@@ -39,7 +39,7 @@ use crate::traits::state_machine::state::StateData;
 /// that will be used to prepare HTTP requests to SEC API endpoints. It is designed
 /// to be used as part of the SEC document extraction workflow, and supports
 /// builder-based updates and integration with the state machine framework.
-#[derive(Debug, Default, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
+#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 pub struct PrepareSecRequestInput {
     /// The validated CIK that will be used for the SEC API request.
     pub validated_cik: Cik,
@@ -224,14 +224,21 @@ mod tests {
 
     use super::{PrepareSecRequestInput, PrepareSecRequestInputUpdaterBuilder};
     use crate::shared::cik::Cik;
+    use crate::shared::cik::constants::BERKSHIRE_HATHAWAY_CIK_RAW;
     use crate::traits::state_machine::state::StateData;
+
+    fn create_test_input() -> PrepareSecRequestInput {
+        let cik =
+            Cik::new(BERKSHIRE_HATHAWAY_CIK_RAW).expect("Hardcoded CIK should always be valid");
+        PrepareSecRequestInput::new(cik, String::new())
+    }
     use state_maschine::prelude::StateData as SMStateData;
 
     #[test]
     fn should_return_reference_to_default_prepare_state_data_when_initialized_with_default() {
-        let default_prepare_state_data = PrepareSecRequestInput::default();
+        let default_prepare_state_data = create_test_input();
 
-        let expected_result = &PrepareSecRequestInput::default();
+        let expected_result = &create_test_input();
 
         let result = default_prepare_state_data.state();
 
@@ -244,7 +251,7 @@ mod tests {
         let user_agent = "Custom Company contact@custom.com".to_string();
         let prepare_state_data = PrepareSecRequestInput::new(cik, user_agent);
 
-        let default_prepare_state_data = &PrepareSecRequestInput::default();
+        let default_prepare_state_data = &create_test_input();
 
         let result = prepare_state_data.state();
 
@@ -253,7 +260,7 @@ mod tests {
 
     #[test]
     fn should_update_state_data_to_specified_values_when_update_contains_specified_values() {
-        let mut state_data = PrepareSecRequestInput::default();
+        let mut state_data = create_test_input();
         let new_cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
         let new_user_agent = "Updated Company contact@updated.com".to_string();
         let update = PrepareSecRequestInputUpdaterBuilder::default()
@@ -271,7 +278,7 @@ mod tests {
 
     #[test]
     fn should_update_only_user_agent_when_update_contains_only_user_agent() {
-        let mut state_data = PrepareSecRequestInput::default();
+        let mut state_data = create_test_input();
         let original_cik = state_data.validated_cik.clone();
         let new_user_agent = "New User Agent contact@new.com".to_string();
         let update = PrepareSecRequestInputUpdaterBuilder::default()
@@ -289,7 +296,7 @@ mod tests {
 
     #[test]
     fn should_update_only_cik_when_update_contains_only_cik() {
-        let mut state_data = PrepareSecRequestInput::default();
+        let mut state_data = create_test_input();
         let original_user_agent = state_data.user_agent.clone();
         let new_cik = Cik::new("9876543210").expect("Hardcoded CIK should always be valid");
         let update = PrepareSecRequestInputUpdaterBuilder::default()
@@ -307,7 +314,7 @@ mod tests {
 
     #[test]
     fn should_update_state_data_to_latest_specified_values_when_multiple_updates_in_builder() {
-        let mut state_data = PrepareSecRequestInput::default();
+        let mut state_data = create_test_input();
         let first_cik = Cik::new("1111111111").expect("Hardcoded CIK should always be valid");
         let first_user_agent = "First Company contact@first.com".to_string();
         let final_cik = Cik::new("2222222222").expect("Hardcoded CIK should always be valid");
@@ -329,10 +336,10 @@ mod tests {
 
     #[test]
     fn should_leave_state_data_unchanged_when_empty_update() {
-        let mut state_data = PrepareSecRequestInput::default();
+        let mut state_data = create_test_input();
         let empty_update = PrepareSecRequestInputUpdaterBuilder::default().build();
 
-        let expected_result = &PrepareSecRequestInput::default();
+        let expected_result = &create_test_input();
 
         StateData::update_state(&mut state_data, empty_update)
             .expect("Update with valid 'update' value should always succeed");
@@ -427,12 +434,6 @@ mod tests {
     #[test]
     const fn should_implement_ord_when_implementing_input_data_trait() {
         implements_ord::<PrepareSecRequestInput>();
-    }
-
-    const fn implements_default<T: Default>() {}
-    #[test]
-    const fn should_implement_default_when_implementing_input_data_trait() {
-        implements_default::<PrepareSecRequestInput>();
     }
 
     const fn implements_debug<T: Debug>() {}

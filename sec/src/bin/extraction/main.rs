@@ -8,13 +8,20 @@ use sec::implementations::states::extract::prepare_sec_request::{
 use sec::implementations::states::extract::validate_cik_format::ValidateCikFormat;
 
 use sec::prelude::*;
-use sec::shared::cik::Cik;
 
 #[tokio::main]
 // Let this be here for testing purposes. Will be removed later.
 #[allow(clippy::too_many_lines)]
 async fn main() {
-    let mut validate_cik_state = ValidateCikFormat::default();
+    let input =
+        sec::implementations::states::extract::validate_cik_format::ValidateCikFormatInput::new(
+            "1067983",
+        );
+    let context =
+        sec::implementations::states::extract::validate_cik_format::ValidateCikFormatContext::new(
+            "1067983",
+        );
+    let mut validate_cik_state = ValidateCikFormat::new(input, context);
 
     println!("\n=======================================================");
     println!("Initial Validation state:");
@@ -40,7 +47,13 @@ async fn main() {
                 .clone(),
             "Test User Agent test@example.com".to_string(),
         ),
-        PrepareSecRequestContext::default(),
+        PrepareSecRequestContext::new(
+            validate_cik_state
+                .output_data()
+                .expect("Should be valid")
+                .validated_cik
+                .clone(),
+        ),
     );
     println!("{:.500}", prepare_sec_request.to_string().as_str());
     prepare_sec_request
@@ -63,7 +76,13 @@ async fn main() {
             prepare_output.client().clone(),
             prepare_output.request().clone(),
         ),
-        ExecuteSecRequestContext::new(Cik::default()),
+        ExecuteSecRequestContext::new(
+            validate_cik_state
+                .output_data()
+                .expect("Should be valid")
+                .validated_cik
+                .clone(),
+        ),
     );
     println!("{:.500}", execute_sec_request.to_string().as_str());
     execute_sec_request

@@ -177,8 +177,9 @@ impl<S: State> SuperState<S> for ExtractSuperState<S> {}
 
 impl ExtractSuperState<ValidateCikFormat> {
     #[must_use]
-    pub fn new(input: &str) -> Self {
-        let input_data = ValidateCikFormatInput::new(input);
+    pub fn new(input: impl Into<String>) -> Self {
+        let input: String = input.into();
+        let input_data = ValidateCikFormatInput::new(input.clone());
         let context = ValidateCikFormatContext::new(input);
 
         Self {
@@ -192,8 +193,8 @@ impl ExtractSuperState<ValidateCikFormat> {
 
 impl ExtractSuperState<PrepareSecRequest> {
     #[must_use]
-    pub fn new(validated_cik: Cik, user_agent: String) -> Self {
-        let input_data = PrepareSecRequestInput::new(validated_cik.clone(), user_agent);
+    pub fn new(validated_cik: Cik, user_agent: impl Into<String>) -> Self {
+        let input_data = PrepareSecRequestInput::new(validated_cik.clone(), user_agent.into());
         let context = PrepareSecRequestContext::new(validated_cik);
 
         Self {
@@ -283,7 +284,7 @@ mod tests {
         let input_cik = "1234567890";
         let super_state = ExtractSuperState::<ValidateCikFormat>::new(input_cik);
 
-        let expected_result = "Extract SuperState (Current: CIK Format Validation)";
+        let expected_result = "Extract SuperState (Current: Validate CIK Format)";
 
         let result = super_state.state_name().to_string();
 
@@ -308,11 +309,11 @@ mod tests {
         let input_cik = "1234567890";
         let super_state = ExtractSuperState::<ValidateCikFormat>::new(input_cik);
 
-        let expected_state_name = "CIK Format Validation";
+        let expected_result = "Validate CIK Format";
 
         let result = super_state.current_state().state_name().to_string();
 
-        assert_eq!(result, expected_state_name);
+        assert_eq!(result, expected_result);
     }
 
     #[test]
@@ -321,11 +322,11 @@ mod tests {
         let user_agent = DEFAULT_SEC_USER_AGENT.to_string();
         let super_state = ExtractSuperState::<PrepareSecRequest>::new(cik, user_agent);
 
-        let expected_state_name = "Prepare SEC Request";
+        let expected_result = "Prepare SEC Request";
 
         let result = super_state.current_state().state_name().to_string();
 
-        assert_eq!(result, expected_state_name);
+        assert_eq!(result, expected_result);
     }
 
     #[tokio::test]
@@ -392,11 +393,15 @@ mod tests {
             .await
             .expect("Should compute output data");
 
-        let expected_result_type = "Extract SuperState (Current: Prepare SEC Request)";
+        let expected_result = "Extract SuperState (Current: Prepare SEC Request)";
 
-        let result = super_state.transition_to_next_state_sec().unwrap();
+        let result = super_state
+            .transition_to_next_state_sec()
+            .unwrap()
+            .state_name()
+            .to_string();
 
-        assert_eq!(result.state_name().to_string(), expected_result_type);
+        assert_eq!(result, expected_result);
     }
 
     #[tokio::test]

@@ -30,8 +30,6 @@ pub use constants::CIK_LENGTH;
 
 use std::fmt;
 
-use crate::shared::cik::constants::BERKSHIRE_HATHAWAY_CIK;
-
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 /// Strongly-typed wrapper for a validated SEC Central Index Key (CIK).
 ///
@@ -116,11 +114,33 @@ impl fmt::Display for Cik {
     }
 }
 
-impl Default for Cik {
-    fn default() -> Self {
-        Self {
-            value: BERKSHIRE_HATHAWAY_CIK.to_string(),
-        }
+impl TryFrom<&str> for Cik {
+    type Error = CikError;
+
+    /// Attempts to create a [`Cik`] from a string slice.
+    ///
+    /// Delegates to [`Cik::new`] for validation and formatting.
+    ///
+    /// # Errors
+    ///
+    /// Returns a [`CikError`] if the input is not a valid CIK format.
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        Self::new(value)
+    }
+}
+
+impl TryFrom<String> for Cik {
+    type Error = CikError;
+
+    /// Attempts to create a [`Cik`] from a [`String`].
+    ///
+    /// Delegates to [`Cik::new`] for validation and formatting.
+    ///
+    /// # Errors
+    ///
+    /// Returns a [`CikError`] if the input is not a valid CIK format.
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        Self::new(&value)
     }
 }
 

@@ -1,4 +1,4 @@
-//! # CIK Format Validation State
+//! # Validate CIK Format State
 //!
 //! This module provides the [`ValidateCikFormat`] state and related types for validating and normalizing raw CIK (Central Index Key) strings as part of the SEC filings extraction workflow.
 //!
@@ -56,9 +56,11 @@ use crate::error::state_machine::state::InvalidCikFormat;
 use crate::traits::error::FromDomainError;
 use crate::traits::state_machine::state::State;
 
+pub mod constants;
 pub mod context;
 pub mod data;
 
+pub use constants::STATE_NAME;
 pub use context::ValidateCikFormatContext;
 pub use data::ValidateCikFormatInput;
 pub use data::ValidateCikFormatOutput;
@@ -138,7 +140,7 @@ impl SMState for ValidateCikFormat {
     type Context = ValidateCikFormatContext;
 
     fn state_name(&self) -> impl ToString {
-        "CIK Format Validation"
+        STATE_NAME
     }
 
     /// Validates if the given CIK has the correct format.
@@ -183,6 +185,8 @@ impl fmt::Display for ValidateCikFormat {
 
 #[cfg(test)]
 mod tests {
+    use crate::shared::cik::constants::BERKSHIRE_HATHAWAY_CIK_RAW;
+
     use super::*;
     use pretty_assertions::assert_eq;
     use std::{fmt::Debug, hash::Hash};
@@ -192,7 +196,7 @@ mod tests {
     fn should_return_name_of_validation_state_when_in_validation_state() {
         let validation_state = ValidateCikFormat::default();
 
-        let expected_result = String::from("CIK Format Validation");
+        let expected_result = String::from("Validate CIK Format");
 
         let result = validation_state.state_name().to_string();
 
@@ -370,7 +374,7 @@ mod tests {
     fn should_return_name_of_validation_state_when_calling_reference_to_validation_state() {
         let ref_to_validation_state = &ValidateCikFormat::default();
 
-        let expected_result = String::from("CIK Format Validation");
+        let expected_result = String::from("Validate CIK Format");
 
         let result = ref_to_validation_state.state_name().to_string();
 
@@ -407,14 +411,14 @@ mod tests {
     #[tokio::test]
     async fn should_return_correct_output_data_when_computing_output_data() {
         let mut validation_state = ValidateCikFormat::default();
+        let output_data = ValidateCikFormatOutput::new(BERKSHIRE_HATHAWAY_CIK_RAW);
 
-        let expected_result = &ValidateCikFormatOutput::default();
+        let expected_result = &output_data.expect("Output data has been created above");
 
         validation_state
             .compute_output_data_async()
             .await
             .expect("Default test state should always compute output successfully");
-
         let result = validation_state.output_data().unwrap();
 
         assert_eq!(result, expected_result);

@@ -37,7 +37,7 @@ use crate::shared::cik::constants::BERKSHIRE_HATHAWAY_CIK_RAW;
 use crate::traits::state_machine::state::Context;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
-/// State context for the CIK format validation state.
+/// State context for the Validate CIK Format state.
 ///
 /// The default instance uses the CIK for Berkshire Hathaway (CIK: 1067983).
 pub struct ValidateCikFormatContext {
@@ -47,7 +47,7 @@ pub struct ValidateCikFormatContext {
 }
 
 impl ValidateCikFormatContext {
-    /// Creates a new instance of the state context for the CIK format validation.
+    /// Creates a new instance of the state context for the Validate CIK Format state.
     ///
     /// # Arguments
     /// * `raw_cik` - A value that can be converted to a string, representing the raw CIK to validate.

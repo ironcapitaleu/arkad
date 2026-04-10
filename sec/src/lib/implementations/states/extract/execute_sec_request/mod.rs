@@ -31,11 +31,11 @@
 //!     let cik = Cik::new("1067983").expect("Hardcoded CIK string should be valid format");
 //!     let request = SecRequest::builder()
 //!         .all_company_facts()
-//!         .cik(cik)
+//!         .cik(cik.clone())
 //!         .build();
 //!
 //!     let input = ExecuteSecRequestInput::new(client, request);
-//!     let context = ExecuteSecRequestContext::default();
+//!     let context = ExecuteSecRequestContext::new(cik);
 //!
 //!     let mut execute_state = ExecuteSecRequest::new(input, context);
 //!     execute_state.compute_output_data_async().await.unwrap();
@@ -54,9 +54,11 @@
 //! ## Testing
 //! This module includes comprehensive unit tests covering state behavior, trait compliance, and error handling.
 
+pub mod constants;
 pub mod context;
 pub mod data;
 
+pub use constants::STATE_NAME;
 pub use context::ExecuteSecRequestContext;
 pub use data::ExecuteSecRequestInput;
 pub use data::ExecuteSecRequestOutput;
@@ -97,10 +99,10 @@ use state_maschine::prelude::State as SMState;
 /// let cik = Cik::new("1067983").expect("Hardcoded CIK string should be valid format");
 /// let request = SecRequest::builder()
 ///     .all_company_facts()
-///     .cik(cik)
+///     .cik(cik.clone())
 ///     .build();
 /// let input = ExecuteSecRequestInput::new(client, request);
-/// let context = ExecuteSecRequestContext::default();
+/// let context = ExecuteSecRequestContext::new(cik);
 /// let mut execute_state = ExecuteSecRequest::new(input, context);
 /// ```
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
@@ -176,7 +178,7 @@ impl SMState for ExecuteSecRequest {
 
     /// Returns the human-readable name of this state.
     fn state_name(&self) -> impl ToString {
-        "Execute SEC Request"
+        STATE_NAME
     }
 
     /// Executes the SEC HTTP request and processes the response.
@@ -231,13 +233,22 @@ mod tests {
     use crate::shared::request::implementations::sec_request::SecRequest;
     use crate::traits::state_machine::state::State;
 
+    const TEST_CIK: &str = "0001067983";
+
+    fn create_test_cik() -> Cik {
+        Cik::new(TEST_CIK).expect("Hardcoded CIK should be valid")
+    }
+
     /// Creates a baseline `ExecuteSecRequest` state for use in tests.
     fn create_baseline_state() -> ExecuteSecRequest {
-        let cik = Cik::new("0001067983").expect("Hardcoded CIK should be valid");
+        let cik = create_test_cik();
         let client = SecClient::default();
-        let request = SecRequest::builder().all_company_facts().cik(cik).build();
+        let request = SecRequest::builder()
+            .all_company_facts()
+            .cik(cik.clone())
+            .build();
         let input = ExecuteSecRequestInput::new(client, request);
-        let context = ExecuteSecRequestContext::default();
+        let context = ExecuteSecRequestContext::new(cik);
         ExecuteSecRequest::new(input, context)
     }
 
@@ -285,39 +296,12 @@ mod tests {
     }
 
     #[test]
-    fn should_return_default_context_data_when_in_initial_state() {
-        let execute_state = create_baseline_state();
-
-        let expected_result = &ExecuteSecRequestContext::default();
-
-        let result = execute_state.context_data();
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
-    fn should_store_provided_input_when_creating_new_execute_state() {
-        let client = SecClient::default();
-        let cik = Cik::new("1234567890").expect("Hardcoded CIK should be valid");
-        let request = SecRequest::builder().all_company_facts().cik(cik).build();
-        let input = ExecuteSecRequestInput::new(client, request);
-        let context = ExecuteSecRequestContext::default();
-
-        let expected_result = &input.clone();
-
-        let state = ExecuteSecRequest::new(input, context);
-        let result = state.input_data();
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
     fn should_store_provided_context_when_creating_new_execute_state() {
         let client = SecClient::default();
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should be valid");
         let request = SecRequest::builder().all_company_facts().cik(cik).build();
         let input = ExecuteSecRequestInput::new(client, request);
-        let context = ExecuteSecRequestContext::default();
+        let context = ExecuteSecRequestContext::new(create_test_cik());
 
         let expected_result = &context.clone();
 
@@ -333,7 +317,7 @@ mod tests {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should be valid");
         let request = SecRequest::builder().all_company_facts().cik(cik).build();
         let input = ExecuteSecRequestInput::new(client, request);
-        let context = ExecuteSecRequestContext::default();
+        let context = ExecuteSecRequestContext::new(create_test_cik());
 
         let expected_result = true;
 
@@ -487,7 +471,7 @@ mod tests {
         let cik = Cik::new("0001067983").expect("Hardcoded CIK should be valid");
         let request = SecRequest::builder().all_company_facts().cik(cik).build();
         let input = ExecuteSecRequestInput::new(client, request);
-        let context = ExecuteSecRequestContext::default();
+        let context = ExecuteSecRequestContext::new(create_test_cik());
         let mut execute_state = ExecuteSecRequest::new(input, context);
 
         let expected_result = &execute_state.input_data().clone();
@@ -507,7 +491,7 @@ mod tests {
         let cik = Cik::new("0001067983").expect("Hardcoded CIK should be valid");
         let request = SecRequest::builder().all_company_facts().cik(cik).build();
         let input = ExecuteSecRequestInput::new(client, request);
-        let context = ExecuteSecRequestContext::default();
+        let context = ExecuteSecRequestContext::new(create_test_cik());
         let mut execute_state = ExecuteSecRequest::new(input, context);
 
         execute_state
@@ -526,7 +510,7 @@ mod tests {
         let cik = Cik::new("0001067983").expect("Hardcoded CIK should be valid");
         let request = SecRequest::builder().all_company_facts().cik(cik).build();
         let input = ExecuteSecRequestInput::new(client, request);
-        let context = ExecuteSecRequestContext::default();
+        let context = ExecuteSecRequestContext::new(create_test_cik());
         let mut execute_state = ExecuteSecRequest::new(input, context);
 
         let expected_result = true;
@@ -546,7 +530,7 @@ mod tests {
         let cik = Cik::new("0001067983").expect("Hardcoded CIK should be valid");
         let request = SecRequest::builder().all_company_facts().cik(cik).build();
         let input = ExecuteSecRequestInput::new(client, request);
-        let context = ExecuteSecRequestContext::default();
+        let context = ExecuteSecRequestContext::new(create_test_cik());
         let mut execute_state = ExecuteSecRequest::new(input, context);
 
         let expected_result = true;

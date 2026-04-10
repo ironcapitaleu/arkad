@@ -100,12 +100,6 @@ impl SMContext for ExecuteSecRequestContext {
     }
 }
 
-impl Default for ExecuteSecRequestContext {
-    fn default() -> Self {
-        Self::new(Cik::default())
-    }
-}
-
 impl fmt::Display for ExecuteSecRequestContext {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "Context Data: {}", self.cik)
@@ -253,18 +247,6 @@ mod tests {
     }
 
     #[test]
-    fn should_create_default_context_when_default_is_called() {
-        let expected_result = ExecuteSecRequestContext {
-            cik: Cik::default(),
-            max_retries: 0,
-        };
-
-        let result = ExecuteSecRequestContext::default();
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
     fn should_return_context_reference_when_accessing_context() {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
         let context = ExecuteSecRequestContext::new(cik);
@@ -346,12 +328,6 @@ mod tests {
     #[test]
     const fn should_implement_ord_when_implementing_context_data_trait() {
         implements_ord::<ExecuteSecRequestContext>();
-    }
-
-    const fn implements_default<T: Default>() {}
-    #[test]
-    const fn should_implement_default_when_implementing_context_data_trait() {
-        implements_default::<ExecuteSecRequestContext>();
     }
 
     const fn implements_debug<T: Debug>() {}

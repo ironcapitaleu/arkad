@@ -27,8 +27,8 @@
 //! async fn main() {
 //!     let cik = Cik::new("1067983").expect("Hardcoded CIK string should be valid format");
 //!     let user_agent = "Test Company contact@test.com".to_string();
-//!     let input = PrepareSecRequestInput::new(cik, user_agent);
-//!     let context = PrepareSecRequestContext::default();
+//!     let input = PrepareSecRequestInput::new(cik.clone(), user_agent);
+//!     let context = PrepareSecRequestContext::new(cik);
 //!
 //!     let mut prepare_state = PrepareSecRequest::new(input, context);
 //!     prepare_state.compute_output_data_async().await.unwrap();
@@ -59,9 +59,11 @@ use crate::shared::http_client::implementations::sec_client::SecClient;
 use crate::shared::request::implementations::sec_request::SecRequest;
 use crate::traits::state_machine::state::State;
 
+pub mod constants;
 pub mod context;
 pub mod data;
 
+pub use constants::STATE_NAME;
 pub use context::PrepareSecRequestContext;
 pub use data::PrepareSecRequestInput;
 pub use data::PrepareSecRequestOutput;
@@ -88,11 +90,11 @@ pub use data::PrepareSecRequestOutput;
 ///
 /// let cik = Cik::new("1067983").expect("Hardcoded CIK string should be valid format");
 /// let user_agent = "Sample Corp contact@sample.com".to_string();
-/// let input = PrepareSecRequestInput::new(cik, user_agent);
-/// let context = PrepareSecRequestContext::default();
+/// let input = PrepareSecRequestInput::new(cik.clone(), user_agent);
+/// let context = PrepareSecRequestContext::new(cik);
 /// let mut prepare_state = PrepareSecRequest::new(input, context);
 /// ```
-#[derive(Debug, Clone, Default, PartialEq, PartialOrd, Hash, Eq, Ord)]
+#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 pub struct PrepareSecRequest {
     input: PrepareSecRequestInput,
     context: PrepareSecRequestContext,
@@ -157,7 +159,7 @@ impl SMState for PrepareSecRequest {
 
     /// Returns the human-readable name of this state.
     fn state_name(&self) -> impl ToString {
-        "Prepare SEC Request"
+        STATE_NAME
     }
 
     /// Prepares SEC client and request objects for API interactions.
@@ -204,14 +206,31 @@ impl fmt::Display for PrepareSecRequest {
 mod tests {
     use super::*;
     use crate::shared::cik::Cik;
+    use crate::shared::cik::constants::BERKSHIRE_HATHAWAY_CIK_RAW;
     use crate::traits::state_machine::state::State;
     use pretty_assertions::assert_eq;
     use std::{fmt::Debug, hash::Hash};
     use tokio;
 
+    fn create_test_cik() -> Cik {
+        Cik::new(BERKSHIRE_HATHAWAY_CIK_RAW).expect("Hardcoded CIK should always be valid")
+    }
+
+    fn create_test_input() -> PrepareSecRequestInput {
+        PrepareSecRequestInput::new(create_test_cik(), String::new())
+    }
+
+    fn create_test_context() -> PrepareSecRequestContext {
+        PrepareSecRequestContext::new(create_test_cik())
+    }
+
+    fn create_test_state() -> PrepareSecRequest {
+        PrepareSecRequest::new(create_test_input(), create_test_context())
+    }
+
     #[test]
     fn should_return_name_of_prepare_state_when_in_prepare_state() {
-        let prepare_state = PrepareSecRequest::default();
+        let prepare_state = create_test_state();
         let expected_result = String::from("Prepare SEC Request");
         let result = prepare_state.state_name().to_string();
         assert_eq!(result, expected_result);
@@ -219,8 +238,8 @@ mod tests {
 
     #[test]
     fn should_return_default_prepare_data_struct_as_input_data_when_in_initial_prepare_state() {
-        let prepare_state = PrepareSecRequest::default();
-        let expected_result = &PrepareSecRequestInput::default();
+        let prepare_state = create_test_state();
+        let expected_result = &create_test_input();
         let result = prepare_state.input_data();
         assert_eq!(result, expected_result);
     }
@@ -230,7 +249,7 @@ mod tests {
         expected = "State with valid input should always produce output after computation"
     )]
     fn should_panic_when_trying_to_access_output_data_before_it_has_been_computed_in_state() {
-        let prepare_state = PrepareSecRequest::default();
+        let prepare_state = create_test_state();
         let _result = prepare_state
             .output_data()
             .expect("State with valid input should always produce output after computation");
@@ -238,7 +257,7 @@ mod tests {
 
     #[test]
     fn should_return_false_when_state_has_not_computed_the_output() {
-        let prepare_state = PrepareSecRequest::default();
+        let prepare_state = create_test_state();
         let expected_result = false;
         let result = prepare_state.has_output_data_been_computed();
         assert_eq!(result, expected_result);
@@ -246,8 +265,8 @@ mod tests {
 
     #[test]
     fn should_return_default_context_data_when_in_initial_state() {
-        let prepare_state = PrepareSecRequest::default();
-        let expected_result = &PrepareSecRequestContext::default();
+        let prepare_state = create_test_state();
+        let expected_result = &create_test_context();
         let result = prepare_state.context_data();
         assert_eq!(result, expected_result);
     }
@@ -257,7 +276,7 @@ mod tests {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
         let user_agent = "Test Company contact@test.com".to_string();
         let input = PrepareSecRequestInput::new(cik.clone(), user_agent.clone());
-        let context = PrepareSecRequestContext::default();
+        let context = create_test_context();
 
         let expected_input = input.clone();
         let expected_context = context.clone();
@@ -331,12 +350,6 @@ mod tests {
         implements_ord::<PrepareSecRequest>();
     }
 
-    const fn implements_default<T: Default>() {}
-    #[test]
-    const fn should_implement_default_when_implementing_state_trait() {
-        implements_default::<PrepareSecRequest>();
-    }
-
     const fn implements_debug<T: Debug>() {}
     #[test]
     const fn should_implement_debug_when_implementing_state_trait() {
@@ -357,8 +370,8 @@ mod tests {
 
     #[test]
     fn should_return_default_context_data_when_called_with_state_reference() {
-        let prepare_state = &PrepareSecRequest::default();
-        let ref_to_prepare_state = &PrepareSecRequest::default();
+        let prepare_state = &create_test_state();
+        let ref_to_prepare_state = &create_test_state();
 
         let expected_result = prepare_state.context_data();
         let result = ref_to_prepare_state.context_data();
@@ -368,7 +381,7 @@ mod tests {
 
     #[test]
     fn should_return_false_when_reference_state_has_not_computed_the_output() {
-        let ref_to_prepare_state = &mut PrepareSecRequest::default();
+        let ref_to_prepare_state = &mut create_test_state();
         let expected_result = false;
         let result = ref_to_prepare_state.has_output_data_been_computed();
         assert_eq!(result, expected_result);
@@ -380,7 +393,7 @@ mod tests {
     )]
     fn should_panic_when_trying_to_access_output_data_before_it_has_been_computed_in_reference_state()
      {
-        let ref_to_prepare_state = &PrepareSecRequest::default();
+        let ref_to_prepare_state = &create_test_state();
         let _result = ref_to_prepare_state
             .output_data()
             .expect("State with valid input should always produce output after computation");
@@ -388,7 +401,7 @@ mod tests {
 
     #[test]
     fn should_return_name_of_prepare_state_when_calling_reference_to_prepare_state() {
-        let ref_to_prepare_state = &PrepareSecRequest::default();
+        let ref_to_prepare_state = &create_test_state();
         let expected_result = String::from("Prepare SEC Request");
         let result = ref_to_prepare_state.state_name().to_string();
         assert_eq!(result, expected_result);
@@ -397,8 +410,8 @@ mod tests {
     #[test]
     fn should_return_default_state_data_as_input_data_when_reference_prepare_state_in_initial_state()
      {
-        let ref_to_prepare_state = &PrepareSecRequest::default();
-        let expected_result = &PrepareSecRequestInput::default();
+        let ref_to_prepare_state = &create_test_state();
+        let expected_result = &create_test_input();
         let result = ref_to_prepare_state.input_data();
         assert_eq!(result, expected_result);
     }
@@ -408,7 +421,7 @@ mod tests {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
         let user_agent = "Test Company contact@test.com".to_string();
         let input = PrepareSecRequestInput::new(cik, user_agent);
-        let context = PrepareSecRequestContext::default();
+        let context = create_test_context();
         let mut prepare_state = PrepareSecRequest::new(input, context);
 
         let expected_result = &prepare_state.input_data().clone();
@@ -427,7 +440,7 @@ mod tests {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
         let user_agent = "Test Company contact@test.com".to_string();
         let input = PrepareSecRequestInput::new(cik, user_agent);
-        let context = PrepareSecRequestContext::default();
+        let context = create_test_context();
         let mut prepare_state = PrepareSecRequest::new(input, context);
 
         let expected_result = "https://data.sec.gov/api/xbrl/companyfacts/CIK1234567890.json";
@@ -452,7 +465,7 @@ mod tests {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
         let user_agent = "Test Company contact@test.com".to_string();
         let input = PrepareSecRequestInput::new(cik, user_agent);
-        let context = PrepareSecRequestContext::default();
+        let context = create_test_context();
         let mut prepare_state = PrepareSecRequest::new(input, context);
 
         let expected_result = true;
