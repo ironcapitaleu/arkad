@@ -33,7 +33,7 @@ use super::Transition as TransitionError;
 /// and the specific source state that is missing output data.
 #[derive(Error, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[error(
-    "[MissingOutput] Failure in State: `{super_state_name}` during transition. The output data for `{target_state_name}` is missing."
+    "[MissingOutput] Failure in State: '{super_state_name}' during transition, Reason: Output data for '{target_state_name}' is missing"
 )]
 pub struct MissingOutput {
     /// The name of the super state where the error occurred.
@@ -129,7 +129,7 @@ mod tests {
         let target_state_name = "TargetState";
         let error = MissingOutput::new(super_state_name, target_state_name);
 
-        let expected_result = "[MissingOutput] Failure in State: `TestState` during transition. The output data for `TargetState` is missing.";
+        let expected_result = "[MissingOutput] Failure in State: 'TestState' during transition, Reason: Output data for 'TargetState' is missing";
 
         let result = format!("{}", error);
 

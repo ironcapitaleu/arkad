@@ -10,7 +10,7 @@ use crate::shared::status_code::StatusCode;
 /// This struct provides the reason why the response could not be
 /// constructed as a valid `SecResponse`.
 #[derive(Debug, Error, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[error("[InvalidSecResponse] Invalid SEC Response: Reason: '{reason}'.")]
+#[error("[InvalidSecResponse] Invalid SEC Response, Reason: '{reason}'")]
 pub struct InvalidSecResponse {
     /// The reason why the SEC response is considered invalid.
     pub reason: ErrorReason,
@@ -80,7 +80,7 @@ mod tests {
         let error = InvalidSecResponse::new(reason.clone());
 
         let expected_result =
-            format!("[InvalidSecResponse] Invalid SEC Response: Reason: '{reason}'.");
+            format!("[InvalidSecResponse] Invalid SEC Response, Reason: '{reason}'");
 
         let result = format!("{error}");
 
@@ -95,7 +95,7 @@ mod tests {
         let error = InvalidSecResponse::new(reason.clone());
 
         let expected_result =
-            format!("[InvalidSecResponse] Invalid SEC Response: Reason: '{reason}'.");
+            format!("[InvalidSecResponse] Invalid SEC Response, Reason: '{reason}'");
 
         let result = format!("{error}");
 
@@ -110,7 +110,7 @@ mod tests {
         let error = InvalidSecResponse::new(reason.clone());
 
         let expected_result =
-            format!("[InvalidSecResponse] Invalid SEC Response: Reason: '{reason}'.");
+            format!("[InvalidSecResponse] Invalid SEC Response, Reason: '{reason}'");
 
         let result = format!("{error}");
 
@@ -125,7 +125,7 @@ mod tests {
         let error = InvalidSecResponse::new(reason.clone());
 
         let expected_result =
-            format!("[InvalidSecResponse] Invalid SEC Response: Reason: '{reason}'.");
+            format!("[InvalidSecResponse] Invalid SEC Response, Reason: '{reason}'");
 
         let result = format!("{error}");
 

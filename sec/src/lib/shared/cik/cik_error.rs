@@ -25,7 +25,7 @@ use super::constants::CIK_LENGTH;
 ///
 /// This struct provides both the reason for the failure and the offending CIK string.
 #[derive(Debug, Error, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[error("[CikError] Invalid CIK: Reason: '{reason}'. Input: '{invalid_cik}'.")]
+#[error("[CikError] Invalid CIK, Reason: '{reason}', Input: '{invalid_cik}'")]
 pub struct CikError {
     /// The reason why the CIK is considered invalid.
     pub reason: InvalidCikReason,
@@ -64,7 +64,7 @@ impl std::fmt::Display for InvalidCikReason {
                 "CIK cannot exceed {CIK_LENGTH} digits. Got: '{cik_length}'"
             ),
             Self::ContainsNonNumericCharacters => {
-                write!(f, "CIK contains non-numeric chracters.")
+                write!(f, "CIK contains non-numeric characters")
             }
         }
     }
@@ -84,7 +84,7 @@ mod tests {
         let cik_error = CikError::new(reason.clone(), invalid_cik);
 
         let expected_result =
-            format!("[CikError] Invalid CIK: Reason: '{reason}'. Input: '{invalid_cik}'.");
+            format!("[CikError] Invalid CIK, Reason: '{reason}', Input: '{invalid_cik}'");
 
         let result = format!("{cik_error}");
 
@@ -98,7 +98,7 @@ mod tests {
         let cik_error = CikError::new(reason.clone(), invalid_cik);
 
         let expected_result =
-            format!("[CikError] Invalid CIK: Reason: '{reason}'. Input: '{invalid_cik}'.");
+            format!("[CikError] Invalid CIK, Reason: '{reason}', Input: '{invalid_cik}'");
 
         let result = format!("{cik_error}");
 

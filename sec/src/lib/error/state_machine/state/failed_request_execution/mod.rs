@@ -27,7 +27,7 @@ use crate::traits::error::FromDomainError;
 /// This error type is used to wrap domain-level [`FailedSecRequest`] errors with additional information about
 /// the state in which the error occurred, making it suitable for use in state machine error handling.
 #[derive(Error, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[error("[FailedRequestExecution] Failure in State: '{state_name}'. Error: '{domain_error}'")]
+#[error("[FailedRequestExecution] Failure in State: '{state_name}', Caused by: {domain_error}")]
 pub struct FailedRequestExecution {
     /// The name of the state where the error occurred.
     pub state_name: String,

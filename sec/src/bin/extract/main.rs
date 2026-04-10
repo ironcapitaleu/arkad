@@ -3,7 +3,8 @@ mod extraction;
 use extraction::Extraction;
 use futures_util::StreamExt;
 
-const CIKS: [&str; 61] = [
+const CIKS: [&str; 62] = [
+    "ABC",        // Invalid CIK - non-n
     "9999999999", // Nonsense CIK
     "1067983",    // Berkshire Hathaway
     "320193",     // Apple

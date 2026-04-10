@@ -44,37 +44,40 @@ pub mod failed_request_execution;
 pub use failed_request_execution::FailedRequestExecution;
 
 #[non_exhaustive]
-#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
+#[derive(Debug, thiserror::Error, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 pub enum State {
     /// Invalid Cik format.
-    InvalidCikFormat(InvalidCikFormat),
+    #[error("[StateError] A state level error occurred, Caused by: {0}")]
+    InvalidCikFormat(#[source] InvalidCikFormat),
 
     /// Indicates that a SEC request execution has failed.
-    FailedRequestExecution(FailedRequestExecution),
+    #[error("[StateError] A state level error occurred, Caused by: {0}")]
+    FailedRequestExecution(#[source] FailedRequestExecution),
 
     /// Indicates that input data of a `State` is invalid and cannot be used to compute the output data.
+    #[error(
+        "[StateError] A state level error occurred, Reason: Invalid input data provided to state"
+    )]
     InvalidInput,
 
     /// Indicates that context of a `State` is invalid and cannot be used to compute the output data.
+    #[error(
+        "[StateError] A state level error occurred, Reason: Invalid context data provided to state"
+    )]
     InvalidContext,
 
     /// Indicates that the output computation of a `State` has failed.
+    #[error("[StateError] A state level error occurred, Reason: Failed to compute output data")]
     FailedOutputComputation,
 
     /// Indicates a failure during the update of the internal `StateData` of the `State`.
+    #[error("[StateError] A state level error occurred, Reason: Failed to update state data")]
     StateDataUpdateFailed,
 
     /// Indicates a failure during the update of the `ContextData` of the `State`.
+    #[error("[StateError] A state level error occurred, Reason: Failed to update context data")]
     ContextUpdateFailed,
 }
-
-impl std::fmt::Display for State {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Problem occured during internal state operations.")
-    }
-}
-
-impl std::error::Error for State {}
 
 #[cfg(test)]
 mod tests {
