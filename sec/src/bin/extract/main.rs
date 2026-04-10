@@ -112,7 +112,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     let results: Vec<_> = futures_util::stream::iter(CIKS)
         .map(|cik| Extraction::builder().cik(cik).build().run())
-        .buffer_unordered(100)
+        .buffer_unordered(10)
         .collect()
         .await;
 
