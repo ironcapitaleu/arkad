@@ -231,16 +231,11 @@ mod tests {
     use crate::shared::request::implementations::sec_request::SecRequest;
     use crate::traits::state_machine::state::State;
 
-    /// Creates a `SecRequest` for a given CIK string.
-    fn create_request(cik_str: &str) -> SecRequest {
-        let cik = Cik::new(cik_str).expect("Hardcoded CIK should always be valid");
-        SecRequest::builder().all_company_facts().cik(cik).build()
-    }
-
     /// Creates a baseline `ExecuteSecRequest` state for use in tests.
     fn create_baseline_state() -> ExecuteSecRequest {
+        let cik = Cik::new("0001067983").expect("Hardcoded CIK should be valid");
         let client = SecClient::default();
-        let request = create_request("0001067983");
+        let request = SecRequest::builder().all_company_facts().cik(cik).build();
         let input = ExecuteSecRequestInput::new(client, request);
         let context = ExecuteSecRequestContext::default();
         ExecuteSecRequest::new(input, context)
@@ -303,7 +298,8 @@ mod tests {
     #[test]
     fn should_store_provided_input_when_creating_new_execute_state() {
         let client = SecClient::default();
-        let request = create_request("1234567890");
+        let cik = Cik::new("1234567890").expect("Hardcoded CIK should be valid");
+        let request = SecRequest::builder().all_company_facts().cik(cik).build();
         let input = ExecuteSecRequestInput::new(client, request);
         let context = ExecuteSecRequestContext::default();
 
@@ -318,7 +314,8 @@ mod tests {
     #[test]
     fn should_store_provided_context_when_creating_new_execute_state() {
         let client = SecClient::default();
-        let request = create_request("1234567890");
+        let cik = Cik::new("1234567890").expect("Hardcoded CIK should be valid");
+        let request = SecRequest::builder().all_company_facts().cik(cik).build();
         let input = ExecuteSecRequestInput::new(client, request);
         let context = ExecuteSecRequestContext::default();
 
@@ -333,7 +330,8 @@ mod tests {
     #[test]
     fn should_have_no_output_data_when_creating_new_execute_state() {
         let client = SecClient::default();
-        let request = create_request("1234567890");
+        let cik = Cik::new("1234567890").expect("Hardcoded CIK should be valid");
+        let request = SecRequest::builder().all_company_facts().cik(cik).build();
         let input = ExecuteSecRequestInput::new(client, request);
         let context = ExecuteSecRequestContext::default();
 
@@ -486,7 +484,8 @@ mod tests {
     #[tokio::test]
     async fn should_not_change_input_data_when_computing_output_data() {
         let client = SecClient::default();
-        let request = create_request("0001067983");
+        let cik = Cik::new("0001067983").expect("Hardcoded CIK should be valid");
+        let request = SecRequest::builder().all_company_facts().cik(cik).build();
         let input = ExecuteSecRequestInput::new(client, request);
         let context = ExecuteSecRequestContext::default();
         let mut execute_state = ExecuteSecRequest::new(input, context);
@@ -505,7 +504,8 @@ mod tests {
     #[tokio::test]
     async fn should_return_correct_output_data_when_computing_output_data() {
         let client = SecClient::default();
-        let request = create_request("0001067983");
+        let cik = Cik::new("0001067983").expect("Hardcoded CIK should be valid");
+        let request = SecRequest::builder().all_company_facts().cik(cik).build();
         let input = ExecuteSecRequestInput::new(client, request);
         let context = ExecuteSecRequestContext::default();
         let mut execute_state = ExecuteSecRequest::new(input, context);
@@ -523,7 +523,8 @@ mod tests {
     #[tokio::test]
     async fn should_return_true_when_output_data_has_been_computed() {
         let client = SecClient::default();
-        let request = create_request("0001067983");
+        let cik = Cik::new("0001067983").expect("Hardcoded CIK should be valid");
+        let request = SecRequest::builder().all_company_facts().cik(cik).build();
         let input = ExecuteSecRequestInput::new(client, request);
         let context = ExecuteSecRequestContext::default();
         let mut execute_state = ExecuteSecRequest::new(input, context);
@@ -542,13 +543,15 @@ mod tests {
     #[tokio::test]
     async fn should_succeed_when_valid_input_is_provided() {
         let client = SecClient::default();
-        let request = create_request("0001067983");
+        let cik = Cik::new("0001067983").expect("Hardcoded CIK should be valid");
+        let request = SecRequest::builder().all_company_facts().cik(cik).build();
         let input = ExecuteSecRequestInput::new(client, request);
         let context = ExecuteSecRequestContext::default();
         let mut execute_state = ExecuteSecRequest::new(input, context);
 
-        let result = execute_state.compute_output_data_async().await;
+        let expected_result = true;
+        let result = execute_state.compute_output_data_async().await.is_ok();
 
-        assert!(result.is_ok());
+        assert_eq!(result, expected_result);
     }
 }

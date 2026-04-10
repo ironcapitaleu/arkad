@@ -221,16 +221,11 @@ mod tests {
 
     use pretty_assertions::assert_eq;
 
-    /// Creates a `SecRequest` of type `FetchAllCompanyFacts` for a given CIK.
-    fn create_request(cik: Cik) -> SecRequest {
-        SecRequest::builder().all_company_facts().cik(cik).build()
-    }
-
     #[test]
     fn should_create_new_input_data_with_provided_client_and_request() {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
         let client = SecClient::default();
-        let request = create_request(cik);
+        let request = SecRequest::builder().all_company_facts().cik(cik).build();
 
         let expected_result = ExecuteSecRequestInput {
             sec_client: client.clone(),
@@ -246,7 +241,7 @@ mod tests {
     fn should_return_client_reference_when_accessing_sec_client() {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
         let client = SecClient::default();
-        let request = create_request(cik);
+        let request = SecRequest::builder().all_company_facts().cik(cik).build();
         let input_data = ExecuteSecRequestInput::new(client.clone(), request);
 
         let expected_result = &client;
@@ -260,7 +255,7 @@ mod tests {
     fn should_return_request_reference_when_accessing_sec_request() {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
         let client = SecClient::default();
-        let request = create_request(cik);
+        let request = SecRequest::builder().all_company_facts().cik(cik).build();
         let input_data = ExecuteSecRequestInput::new(client, request.clone());
 
         let expected_result = &request;
@@ -274,7 +269,7 @@ mod tests {
     fn should_return_ok_when_updating_with_updater() {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
         let client = SecClient::default();
-        let request = create_request(cik);
+        let request = SecRequest::builder().all_company_facts().cik(cik).build();
         let mut input_data = ExecuteSecRequestInput::new(client, request);
 
         let updater = ExecuteSecRequestInputUpdater::builder().build();
@@ -291,13 +286,12 @@ mod tests {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
         let original_client = SecClient::default();
         let new_client = SecClient::default();
-        let request = create_request(cik);
+        let request = SecRequest::builder().all_company_facts().cik(cik).build();
         let mut input_data = ExecuteSecRequestInput::new(original_client, request);
 
         let updater = ExecuteSecRequestInputUpdater::builder()
             .sec_client(new_client.clone())
             .build();
-
         let _ = StateData::update_state(&mut input_data, updater);
 
         let expected_result = &new_client;
@@ -312,8 +306,14 @@ mod tests {
         let original_cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
         let new_cik = Cik::new("0987654321").expect("Hardcoded CIK should always be valid");
         let client = SecClient::default();
-        let original_request = create_request(original_cik);
-        let new_request = create_request(new_cik);
+        let original_request = SecRequest::builder()
+            .all_company_facts()
+            .cik(original_cik)
+            .build();
+        let new_request = SecRequest::builder()
+            .all_company_facts()
+            .cik(new_cik)
+            .build();
         let mut input_data = ExecuteSecRequestInput::new(client, original_request);
 
         let updater = ExecuteSecRequestInputUpdater::builder()
@@ -335,8 +335,14 @@ mod tests {
         let new_cik = Cik::new("0987654321").expect("Hardcoded CIK should always be valid");
         let original_client = SecClient::default();
         let new_client = SecClient::default();
-        let original_request = create_request(original_cik);
-        let new_request = create_request(new_cik);
+        let original_request = SecRequest::builder()
+            .all_company_facts()
+            .cik(original_cik)
+            .build();
+        let new_request = SecRequest::builder()
+            .all_company_facts()
+            .cik(new_cik)
+            .build();
         let mut input_data = ExecuteSecRequestInput::new(original_client, original_request);
 
         let updater = ExecuteSecRequestInputUpdater::builder()
@@ -359,8 +365,14 @@ mod tests {
         let new_cik = Cik::new("0987654321").expect("Hardcoded CIK should always be valid");
         let original_client = SecClient::default();
         let new_client = SecClient::default();
-        let original_request = create_request(original_cik);
-        let new_request = create_request(new_cik);
+        let original_request = SecRequest::builder()
+            .all_company_facts()
+            .cik(original_cik)
+            .build();
+        let new_request = SecRequest::builder()
+            .all_company_facts()
+            .cik(new_cik)
+            .build();
         let mut input_data = ExecuteSecRequestInput::new(original_client, original_request);
 
         let updater = ExecuteSecRequestInputUpdater::builder()
@@ -381,7 +393,7 @@ mod tests {
     fn should_not_update_fields_when_updater_is_empty() {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
         let client = SecClient::default();
-        let request = create_request(cik);
+        let request = SecRequest::builder().all_company_facts().cik(cik).build();
         let original_input_data = ExecuteSecRequestInput::new(client, request);
         let mut input_data = original_input_data.clone();
 

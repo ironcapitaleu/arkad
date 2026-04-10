@@ -68,12 +68,6 @@ mod tests {
     use crate::shared::http_client::implementations::sec_client::SecClient;
     use crate::shared::request::implementations::sec_request::SecRequest;
 
-    /// Creates a `SecRequest` for a given CIK string.
-    fn create_request(cik_str: &str) -> SecRequest {
-        let cik = Cik::new(cik_str).expect("Hardcoded CIK should always be valid");
-        SecRequest::builder().all_company_facts().cik(cik).build()
-    }
-
     #[test]
     fn should_convert_context_when_valid_context() {
         let cik = Cik::new("0001234567")
@@ -90,7 +84,12 @@ mod tests {
     #[test]
     fn should_convert_output_to_input_when_valid_output() {
         let client = SecClient::default();
-        let request = create_request("0001234567");
+        let cik = Cik::new("0001234567")
+            .expect("Hardcoded valid CIK string should always parse successfully");
+        let request = SecRequest::builder()
+            .all_company_facts()
+            .cik(cik.clone())
+            .build();
         let output = PrepareSecRequestOutput::new(client.clone(), request.clone());
 
         let expected_result = ExecuteSecRequestInput::new(client, request);

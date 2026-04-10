@@ -220,20 +220,16 @@ mod tests {
     /// Creates a known-good baseline `PrepareSecRequestOutput` for use in tests.
     fn create_baseline_output() -> PrepareSecRequestOutput {
         let client = SecClient::default();
-        let request = create_request("0001067983");
+        let cik = Cik::new("0001067983").expect("Hardcoded CIK string should be valid format");
+        let request = SecRequest::builder().all_company_facts().cik(cik).build();
         PrepareSecRequestOutput::new(client, request)
-    }
-
-    /// Creates a `SecRequest` of type `FetchAllCompanyFacts` for a given CIK string.
-    fn create_request(cik_str: &str) -> SecRequest {
-        let cik = Cik::new(cik_str).expect("Hardcoded CIK should always be valid");
-        SecRequest::builder().all_company_facts().cik(cik).build()
     }
 
     #[test]
     fn should_create_different_state_data_with_custom_data_when_using_new_as_constructor() {
         let client = SecClient::default();
-        let request = create_request("1234567890");
+        let cik = Cik::new("1234567890").expect("Hardcoded CIK string should be valid format");
+        let request = SecRequest::builder().all_company_facts().cik(cik).build();
         let prepare_output_state_data = PrepareSecRequestOutput::new(client, request);
 
         let expected_result = &create_baseline_output();
@@ -247,7 +243,8 @@ mod tests {
     fn should_update_state_data_to_specified_values_when_update_contains_specified_values() {
         let mut state_data = create_baseline_output();
         let new_client = SecClient::default();
-        let new_request = create_request("1234567890");
+        let cik = Cik::new("1234567890").expect("Hardcoded CIK string should be valid format");
+        let new_request = SecRequest::builder().all_company_facts().cik(cik).build();
         let update = PrepareSecRequestOutputUpdaterBuilder::default()
             .client(new_client.clone())
             .request(new_request.clone())
@@ -266,7 +263,8 @@ mod tests {
     fn should_update_only_request_when_update_contains_only_request() {
         let mut state_data = create_baseline_output();
         let original_client = state_data.client.clone();
-        let new_request = create_request("9876543210");
+        let cik = Cik::new("9876543210").expect("Hardcoded CIK string should be valid format");
+        let new_request = SecRequest::builder().all_company_facts().cik(cik).build();
         let update = PrepareSecRequestOutputUpdaterBuilder::default()
             .request(new_request.clone())
             .build();
@@ -315,7 +313,8 @@ mod tests {
     #[test]
     fn should_return_client_when_accessor_method_is_called() {
         let client = SecClient::default();
-        let request = create_request("1234567890");
+        let cik = Cik::new("1234567890").expect("Hardcoded CIK string should be valid format");
+        let request = SecRequest::builder().all_company_facts().cik(cik).build();
         let prepare_output_state_data = PrepareSecRequestOutput::new(client.clone(), request);
 
         let expected_result = &client;
@@ -328,7 +327,8 @@ mod tests {
     #[test]
     fn should_return_request_when_accessor_method_is_called() {
         let client = SecClient::default();
-        let request = create_request("1234567890");
+        let cik = Cik::new("1234567890").expect("Hardcoded CIK string should be valid format");
+        let request = SecRequest::builder().all_company_facts().cik(cik).build();
         let prepare_output_state_data = PrepareSecRequestOutput::new(client, request.clone());
 
         let expected_result = &request;
@@ -341,7 +341,8 @@ mod tests {
     #[test]
     fn should_create_output_data_successfully_when_valid_client_and_request_provided() {
         let client = SecClient::default();
-        let request = create_request("1234567890");
+        let cik = Cik::new("1234567890").expect("Hardcoded CIK string should be valid format");
+        let request = SecRequest::builder().all_company_facts().cik(cik).build();
 
         let expected_result = PrepareSecRequestOutput {
             client: client.clone(),
