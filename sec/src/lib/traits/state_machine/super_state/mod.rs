@@ -44,7 +44,7 @@ mod tests {
 
     use crate::{
         prelude::*,
-        tests::common::{
+        tests::fixtures::{
             sample_sec_state::SampleSecState,
             sample_sec_super_state::{
                 SampleSecSuperState, SampleSecSuperStateContext, SampleSecSuperStateData,

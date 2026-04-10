@@ -54,7 +54,7 @@ mod tests {
     use tokio;
 
     use super::*;
-    use crate::tests::common::sample_sec_state::{
+    use crate::tests::fixtures::sample_sec_state::{
         SampleSecState, SampleSecStateContext, SampleSecStateInput, SampleSecStateOutput,
     };
 

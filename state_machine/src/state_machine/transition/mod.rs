@@ -51,7 +51,7 @@ pub trait Transition<T: State, U: State>: StateMachine<T> {
 mod tests {
     use super::*;
     use crate::state_machine::transition::Transition;
-    use crate::tests::common::{ComplexStateMachine, FirstState, SecondState};
+    use crate::tests::fixtures::{ComplexStateMachine, FirstState, SecondState};
     use pretty_assertions::assert_eq;
 
     #[test]

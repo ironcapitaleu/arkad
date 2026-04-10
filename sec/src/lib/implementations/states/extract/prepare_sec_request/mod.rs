@@ -42,8 +42,8 @@
 //!
 //! ## See Also
 //! - [`crate::implementations::states::extract`]: Parent module for extraction-related states.
-//! - [`crate::shared::sec_client::SecClient`]: Core SEC client type used for HTTP requests.
-//! - [`crate::shared::sec_request::SecRequest`]: Core SEC request type for API calls.
+//! - [`crate::shared::http_client::implementations::sec_client::SecClient`]: Core SEC client type used for HTTP requests.
+//! - [`crate::shared::request::implementations::sec_request::SecRequest`]: Core SEC request type for API calls.
 //! - [`crate::traits::state_machine::state::State`]: State trait implemented by [`PrepareSecRequest`].
 //!
 //! ## Testing
@@ -55,9 +55,8 @@ use async_trait::async_trait;
 use state_maschine::prelude::State as SMState;
 
 use crate::error::State as StateError;
-use crate::error::state_machine::state::failed_client_creation::FailedClientCreation;
-use crate::shared::sec_client::SecClient;
-use crate::shared::sec_request::SecRequest;
+use crate::shared::http_client::implementations::sec_client::SecClient;
+use crate::shared::request::implementations::sec_request::SecRequest;
 use crate::traits::state_machine::state::State;
 
 pub mod context;
@@ -139,20 +138,15 @@ impl State for PrepareSecRequest {
     /// Returns `Ok(())` if the client and request are successfully created and stored,
     /// or `Err(StateError)` if preparation fails.
     async fn compute_output_data_async(&mut self) -> Result<(), StateError> {
-        let sec_client = SecClient::new(&self.input.user_agent);
-        let sec_request = SecRequest::new(&self.input.validated_cik);
+        let sec_client = SecClient::default();
+        let sec_request = SecRequest::builder()
+            .all_company_facts()
+            .cik(self.input.validated_cik.clone())
+            .build();
 
-        match sec_client {
-            Ok(client) => {
-                self.output = Some(PrepareSecRequestOutput::new(client, sec_request)?);
-                Ok(())
-            }
-            Err(e) => {
-                let e: StateError =
-                    FailedClientCreation::new(self.state_name().to_string(), e).into();
-                return Err(e);
-            }
-        }
+        self.output = Some(PrepareSecRequestOutput::new(sec_client, sec_request));
+
+        Ok(())
     }
 }
 
@@ -210,8 +204,6 @@ impl fmt::Display for PrepareSecRequest {
 mod tests {
     use super::*;
     use crate::shared::cik::Cik;
-    use crate::shared::sec_client::traits::sec_client::SecClient;
-    use crate::shared::sec_request::traits::inner_request::InnerRequest;
     use crate::traits::state_machine::state::State;
     use pretty_assertions::assert_eq;
     use std::{fmt::Debug, hash::Hash};
@@ -438,21 +430,21 @@ mod tests {
         let context = PrepareSecRequestContext::default();
         let mut prepare_state = PrepareSecRequest::new(input, context);
 
+        let expected_result = "https://data.sec.gov/api/xbrl/companyfacts/CIK1234567890.json";
+
         prepare_state
             .compute_output_data_async()
             .await
             .expect("Valid state should always compute output data");
-        let result = prepare_state.output_data().unwrap();
+        let result = prepare_state
+            .output_data()
+            .unwrap()
+            .request
+            .inner
+            .url()
+            .as_str();
 
-        assert!(!result.client().id().is_empty());
-        assert!(
-            result
-                .request()
-                .inner
-                .url()
-                .as_str()
-                .contains("data.sec.gov")
-        );
+        assert_eq!(result, expected_result);
     }
 
     #[tokio::test]
@@ -472,35 +464,5 @@ mod tests {
         let result = prepare_state.has_output_data_been_computed();
 
         assert_eq!(result, expected_result);
-    }
-
-    #[tokio::test]
-    async fn should_fail_when_user_agent_is_invalid() {
-        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
-        let invalid_user_agent = "Invalid User Agent".to_string(); // Missing email
-        let input = PrepareSecRequestInput::new(cik, invalid_user_agent);
-        let context = PrepareSecRequestContext::default();
-        let mut prepare_state = PrepareSecRequest::new(input, context);
-
-        let result = prepare_state.compute_output_data_async().await;
-
-        assert!(result.is_err());
-    }
-
-    #[tokio::test]
-    async fn should_succeed_when_valid_input_is_provided() {
-        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
-        let user_agent = "Test Company contact@test.com".to_string();
-        let input = PrepareSecRequestInput::new(cik, user_agent);
-        let context = PrepareSecRequestContext::default();
-        let mut prepare_state = PrepareSecRequest::new(input, context);
-
-        let result = prepare_state.compute_output_data_async().await;
-
-        assert!(result.is_ok());
-        assert!(prepare_state.has_output_data_been_computed());
-        let output = prepare_state.output_data().unwrap();
-        assert!(!output.client().id().is_empty());
-        assert!(output.request().inner.url().as_str().contains("1234567890"));
     }
 }

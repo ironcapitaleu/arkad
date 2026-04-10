@@ -18,8 +18,8 @@
 //! integrates with the state machine's updater and state data traits for robust, testable workflows.
 //!
 //! ## See Also
-//! - [`crate::shared::sec_client`]: Utilities for SEC client creation and management.
-//! - [`crate::shared::sec_request`]: Utilities for SEC request construction.
+//! - [`crate::shared::http_client`]: Utilities for SEC client creation and management.
+//! - [`crate::shared::request`]: Utilities for SEC request construction.
 //! - [`state_maschine::prelude::StateData`]: Trait for state data integration.
 //!
 //! ## Examples
@@ -28,11 +28,9 @@
 use std::fmt;
 
 use crate::error::State as StateError;
-use crate::shared::sec_client::SecClient;
-use crate::shared::sec_client::traits::sec_client::SecClient as SecClientTrait;
-use crate::shared::sec_request::SecRequest;
-use crate::shared::sec_request::implementations::reqwest_request::ReqwestRequest;
-use crate::shared::sec_request::traits::inner_request::InnerRequest;
+use crate::shared::http_client::implementations::sec_client::SecClient;
+use crate::shared::request::SecRequest as SecRequestTrait;
+use crate::shared::request::implementations::sec_request::SecRequest;
 use crate::traits::state_machine::state::StateData;
 
 use state_maschine::prelude::StateData as SMStateData;
@@ -43,12 +41,12 @@ use state_maschine::prelude::StateData as SMStateData;
 /// to execute HTTP requests to SEC API endpoints. It is designed to be used as part
 /// of the SEC document extraction workflow, and supports builder-based updates and
 /// integration with the state machine framework.
-#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Default)]
+#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 pub struct ExecuteSecRequestInput {
     /// The prepared SEC client that will execute the HTTP request.
     pub sec_client: SecClient,
     /// The prepared SEC request targeting a specific CIK.
-    pub sec_request: SecRequest<ReqwestRequest>,
+    pub sec_request: SecRequest,
 }
 
 impl ExecuteSecRequestInput {
@@ -62,7 +60,7 @@ impl ExecuteSecRequestInput {
     /// # Returns
     ///
     /// Returns a new [`ExecuteSecRequestInput`] instance ready for state processing.
-    pub const fn new(sec_client: SecClient, sec_request: SecRequest<ReqwestRequest>) -> Self {
+    pub const fn new(sec_client: SecClient, sec_request: SecRequest) -> Self {
         Self {
             sec_client,
             sec_request,
@@ -85,7 +83,7 @@ impl ExecuteSecRequestInput {
     ///
     /// A reference to the [`SecRequest`] that will be executed.
     #[must_use]
-    pub const fn sec_request(&self) -> &SecRequest<ReqwestRequest> {
+    pub const fn sec_request(&self) -> &SecRequest {
         &self.sec_request
     }
 }
@@ -114,12 +112,7 @@ impl SMStateData for ExecuteSecRequestInput {
 
 impl fmt::Display for ExecuteSecRequestInput {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "SEC Client ID: {}\nSEC Request URL: {}",
-            self.sec_client.id(),
-            self.sec_request.inner.url()
-        )
+        write!(f, "SEC Request URL: {}", self.sec_request.url())
     }
 }
 
@@ -132,7 +125,7 @@ pub struct ExecuteSecRequestInputUpdater {
     /// Optional new SEC client to replace the current one.
     pub sec_client: Option<SecClient>,
     /// Optional new SEC request to replace the current one.
-    pub sec_request: Option<SecRequest<ReqwestRequest>>,
+    pub sec_request: Option<SecRequest>,
 }
 
 impl ExecuteSecRequestInputUpdater {
@@ -149,7 +142,7 @@ impl ExecuteSecRequestInputUpdater {
 /// the fields that need to be changed, following the builder pattern.
 pub struct ExecuteSecRequestInputUpdaterBuilder {
     sec_client: Option<SecClient>,
-    sec_request: Option<SecRequest<ReqwestRequest>>,
+    sec_request: Option<SecRequest>,
 }
 
 impl ExecuteSecRequestInputUpdaterBuilder {
@@ -193,7 +186,7 @@ impl ExecuteSecRequestInputUpdaterBuilder {
     /// The builder instance with the SEC request field set for update.
     #[must_use]
     #[allow(clippy::missing_const_for_fn)]
-    pub fn sec_request(mut self, sec_request: SecRequest<ReqwestRequest>) -> Self {
+    pub fn sec_request(mut self, sec_request: SecRequest) -> Self {
         self.sec_request = Some(sec_request);
         self
     }
@@ -224,15 +217,15 @@ mod tests {
 
     use super::*;
     use crate::shared::cik::Cik;
+    use crate::shared::request::implementations::sec_request::SecRequest;
 
     use pretty_assertions::assert_eq;
 
     #[test]
     fn should_create_new_input_data_with_provided_client_and_request() {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
-        let client = SecClient::new("Test Company contact@test.com")
-            .expect("Hardcoded user agent should always be valid");
-        let request = SecRequest::new(&cik);
+        let client = SecClient::default();
+        let request = SecRequest::builder().all_company_facts().cik(cik).build();
 
         let expected_result = ExecuteSecRequestInput {
             sec_client: client.clone(),
@@ -247,9 +240,8 @@ mod tests {
     #[test]
     fn should_return_client_reference_when_accessing_sec_client() {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
-        let client = SecClient::new("Test Company contact@test.com")
-            .expect("Hardcoded user agent should always be valid");
-        let request = SecRequest::new(&cik);
+        let client = SecClient::default();
+        let request = SecRequest::builder().all_company_facts().cik(cik).build();
         let input_data = ExecuteSecRequestInput::new(client.clone(), request);
 
         let expected_result = &client;
@@ -262,9 +254,8 @@ mod tests {
     #[test]
     fn should_return_request_reference_when_accessing_sec_request() {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
-        let client = SecClient::new("Test Company contact@test.com")
-            .expect("Hardcoded user agent should always be valid");
-        let request = SecRequest::new(&cik);
+        let client = SecClient::default();
+        let request = SecRequest::builder().all_company_facts().cik(cik).build();
         let input_data = ExecuteSecRequestInput::new(client, request.clone());
 
         let expected_result = &request;
@@ -277,9 +268,8 @@ mod tests {
     #[test]
     fn should_return_ok_when_updating_with_updater() {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
-        let client = SecClient::new("Test Company contact@test.com")
-            .expect("Hardcoded user agent should always be valid");
-        let request = SecRequest::new(&cik);
+        let client = SecClient::default();
+        let request = SecRequest::builder().all_company_facts().cik(cik).build();
         let mut input_data = ExecuteSecRequestInput::new(client, request);
 
         let updater = ExecuteSecRequestInputUpdater::builder().build();
@@ -294,17 +284,14 @@ mod tests {
     #[test]
     fn should_update_sec_client_when_updater_contains_client() {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
-        let original_client = SecClient::new("Original Company contact@original.com")
-            .expect("Hardcoded user agent should always be valid");
-        let new_client = SecClient::new("New Company contact@new.com")
-            .expect("Hardcoded user agent should always be valid");
-        let request = SecRequest::new(&cik);
+        let original_client = SecClient::default();
+        let new_client = SecClient::default();
+        let request = SecRequest::builder().all_company_facts().cik(cik).build();
         let mut input_data = ExecuteSecRequestInput::new(original_client, request);
 
         let updater = ExecuteSecRequestInputUpdater::builder()
             .sec_client(new_client.clone())
             .build();
-
         let _ = StateData::update_state(&mut input_data, updater);
 
         let expected_result = &new_client;
@@ -318,10 +305,15 @@ mod tests {
     fn should_update_sec_request_when_updater_contains_request() {
         let original_cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
         let new_cik = Cik::new("0987654321").expect("Hardcoded CIK should always be valid");
-        let client = SecClient::new("Test Company contact@test.com")
-            .expect("Hardcoded user agent should always be valid");
-        let original_request = SecRequest::new(&original_cik);
-        let new_request = SecRequest::new(&new_cik);
+        let client = SecClient::default();
+        let original_request = SecRequest::builder()
+            .all_company_facts()
+            .cik(original_cik)
+            .build();
+        let new_request = SecRequest::builder()
+            .all_company_facts()
+            .cik(new_cik)
+            .build();
         let mut input_data = ExecuteSecRequestInput::new(client, original_request);
 
         let updater = ExecuteSecRequestInputUpdater::builder()
@@ -341,12 +333,16 @@ mod tests {
     fn should_update_sec_client_when_updater_contains_both_fields() {
         let original_cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
         let new_cik = Cik::new("0987654321").expect("Hardcoded CIK should always be valid");
-        let original_client = SecClient::new("Original Company contact@original.com")
-            .expect("Hardcoded user agent should always be valid");
-        let new_client = SecClient::new("New Company contact@new.com")
-            .expect("Hardcoded user agent should always be valid");
-        let original_request = SecRequest::new(&original_cik);
-        let new_request = SecRequest::new(&new_cik);
+        let original_client = SecClient::default();
+        let new_client = SecClient::default();
+        let original_request = SecRequest::builder()
+            .all_company_facts()
+            .cik(original_cik)
+            .build();
+        let new_request = SecRequest::builder()
+            .all_company_facts()
+            .cik(new_cik)
+            .build();
         let mut input_data = ExecuteSecRequestInput::new(original_client, original_request);
 
         let updater = ExecuteSecRequestInputUpdater::builder()
@@ -367,12 +363,16 @@ mod tests {
     fn should_update_sec_request_when_updater_contains_both_fields() {
         let original_cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
         let new_cik = Cik::new("0987654321").expect("Hardcoded CIK should always be valid");
-        let original_client = SecClient::new("Original Company contact@original.com")
-            .expect("Hardcoded user agent should always be valid");
-        let new_client = SecClient::new("New Company contact@new.com")
-            .expect("Hardcoded user agent should always be valid");
-        let original_request = SecRequest::new(&original_cik);
-        let new_request = SecRequest::new(&new_cik);
+        let original_client = SecClient::default();
+        let new_client = SecClient::default();
+        let original_request = SecRequest::builder()
+            .all_company_facts()
+            .cik(original_cik)
+            .build();
+        let new_request = SecRequest::builder()
+            .all_company_facts()
+            .cik(new_cik)
+            .build();
         let mut input_data = ExecuteSecRequestInput::new(original_client, original_request);
 
         let updater = ExecuteSecRequestInputUpdater::builder()
@@ -392,9 +392,8 @@ mod tests {
     #[test]
     fn should_not_update_fields_when_updater_is_empty() {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
-        let client = SecClient::new("Test Company contact@test.com")
-            .expect("Hardcoded user agent should always be valid");
-        let request = SecRequest::new(&cik);
+        let client = SecClient::default();
+        let request = SecRequest::builder().all_company_facts().cik(cik).build();
         let original_input_data = ExecuteSecRequestInput::new(client, request);
         let mut input_data = original_input_data.clone();
 
@@ -469,12 +468,6 @@ mod tests {
     #[test]
     const fn should_implement_ord_when_implementing_state_data_trait() {
         implements_ord::<ExecuteSecRequestInput>();
-    }
-
-    const fn implements_default<T: Default>() {}
-    #[test]
-    const fn should_implement_default_when_implementing_state_data_trait() {
-        implements_default::<ExecuteSecRequestInput>();
     }
 
     const fn implements_debug<T: Debug>() {}
