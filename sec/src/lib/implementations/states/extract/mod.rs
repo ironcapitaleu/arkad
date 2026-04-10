@@ -28,6 +28,7 @@
 //! ```
 
 pub mod execute_sec_request;
+pub mod phase_stream;
 pub mod prepare_sec_request;
 pub mod validate_cik_format;
 
@@ -189,6 +190,26 @@ impl ExtractSuperState<ValidateCikFormat> {
             context: ExtractSuperStateContext,
         }
     }
+
+    /// Consumes this super-state and returns a [`PhaseStream`] that drives the
+    /// entire extraction pipeline (validate → prepare → execute) to completion.
+    #[must_use]
+    pub fn into_stream(self) -> phase_stream::PhaseStream {
+        Box::pin(async_stream::stream! {
+            let mut state = self;
+            state.compute_output_data_async().await
+                .map_err(|e| -> Box<dyn std::error::Error + Send + Sync> { e.to_string().into() })?;
+            yield Ok(format!("{state}"));
+
+            let next = state.transition_to_next_state_sec()
+                .map_err(|e| -> Box<dyn std::error::Error + Send + Sync> { e.to_string().into() })?;
+
+            let mut rest = std::pin::pin!(next.into_stream());
+            while let Some(item) = futures_util::StreamExt::next(&mut rest).await {
+                yield item;
+            }
+        })
+    }
 }
 
 impl ExtractSuperState<PrepareSecRequest> {
@@ -204,6 +225,26 @@ impl ExtractSuperState<PrepareSecRequest> {
             context: ExtractSuperStateContext,
         }
     }
+
+    /// Consumes this super-state and returns a [`PhaseStream`] that drives the
+    /// remaining extraction pipeline (prepare → execute) to completion.
+    #[must_use]
+    pub fn into_stream(self) -> phase_stream::PhaseStream {
+        Box::pin(async_stream::stream! {
+            let mut state = self;
+            state.compute_output_data_async().await
+                .map_err(|e| -> Box<dyn std::error::Error + Send + Sync> { e.to_string().into() })?;
+            yield Ok(format!("{state}"));
+
+            let next = state.transition_to_next_state_sec()
+                .map_err(|e| -> Box<dyn std::error::Error + Send + Sync> { e.to_string().into() })?;
+
+            let mut rest = std::pin::pin!(next.into_stream());
+            while let Some(item) = futures_util::StreamExt::next(&mut rest).await {
+                yield item;
+            }
+        })
+    }
 }
 
 impl ExtractSuperState<ExecuteSecRequest> {
@@ -218,6 +259,18 @@ impl ExtractSuperState<ExecuteSecRequest> {
             output: None,
             context: ExtractSuperStateContext,
         }
+    }
+
+    /// Consumes this super-state and returns a [`PhaseStream`] that executes
+    /// the final phase of the extraction pipeline.
+    #[must_use]
+    pub fn into_stream(self) -> phase_stream::PhaseStream {
+        Box::pin(async_stream::stream! {
+            let mut state = self;
+            state.compute_output_data_async().await
+                .map_err(|e| -> Box<dyn std::error::Error + Send + Sync> { e.to_string().into() })?;
+            yield Ok(format!("{state}"));
+        })
     }
 }
 
