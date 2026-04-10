@@ -3,107 +3,68 @@ mod extraction;
 use extraction::Extraction;
 use futures_util::StreamExt;
 
-const CIKS: [&str; 100] = [
-    "1067983", // Berkshire Hathaway
-    "320193",  // Apple
-    "789019",  // Microsoft
-    "1018724", // Amazon
-    "1652044", // Alphabet (Google)
-    "1326801", // Meta (Facebook)
-    "1318605", // Tesla
-    "1730168", // Nvidia
-    "78003",   // Pfizer
-    "200406",  // Johnson & Johnson
-    "21344",   // Coca-Cola
-    "12927",   // Chevron
-    "34088",   // Exxon Mobil
-    "93410",   // Caterpillar
-    "51143",   // IBM
-    "732717",  // Wells Fargo
-    "70858",   // Bank of America
-    "19617",   // JPMorgan Chase
-    "831001",  // Citigroup
-    "886982",  // Goldman Sachs
-    "895421",  // Morgan Stanley
-    "18230",   // Charles Schwab
-    "927628",  // T-Mobile
-    "1283699", // Costco
-    "354950",  // Home Depot
-    "60667",   // Lockheed Martin
-    "40545",   // General Electric
-    "310158",  // Merck
-    "14272",   // Bristol-Myers Squibb
-    "4962",    // AbbVie
-    "1551152", // Salesforce
-    "1045810", // Netflix
-    "1403161", // Visa
-    "1141391", // Mastercard
-    "2488",    // AMD
-    "1413329", // PayPal
-    "97476",   // Texas Instruments
-    "804328",  // Qualcomm
-    "1090727", // UnitedHealth
-    "1800",    // Abbott Labs
-    "80424",   // PepsiCo
-    "77476",   // Procter & Gamble
-    "1373715", // Uber
-    "1364742", // Booking Holdings
-    "24741",   // ConocoPhillips
-    "50863",   // Intel
-    "66740",   // 3M
-    "731766",  // United Parcel Service
-    "1166126", // Starbucks
-    "1555280", // Airbnb
-    "1564708", // ServiceNow
-    "896159",  // Lowe's
-    "858877",  // Cisco
-    "27419",   // Deere & Co
-    "37996",   // Ford Motor
-    "1467858", // Block (Square)
-    "1679788", // CrowdStrike
-    "1386278", // Palo Alto Networks
-    "718877",  // Raytheon (RTX)
-    "1324404", // Palantir
-    "789019",  // Microsoft (dup for volume)
-    "320193",  // Apple (dup)
-    "1018724", // Amazon (dup)
-    "1067983", // Berkshire (dup)
-    "1652044", // Alphabet (dup)
-    "1326801", // Meta (dup)
-    "1318605", // Tesla (dup)
-    "1730168", // Nvidia (dup)
-    "78003",   // Pfizer (dup)
-    "200406",  // J&J (dup)
-    "21344",   // Coca-Cola (dup)
-    "12927",   // Chevron (dup)
-    "34088",   // Exxon (dup)
-    "93410",   // Caterpillar (dup)
-    "51143",   // IBM (dup)
-    "732717",  // Wells Fargo (dup)
-    "70858",   // BofA (dup)
-    "19617",   // JPMorgan (dup)
-    "831001",  // Citi (dup)
-    "886982",  // Goldman (dup)
-    "895421",  // Morgan Stanley (dup)
-    "18230",   // Schwab (dup)
-    "927628",  // T-Mobile (dup)
-    "1283699", // Costco (dup)
-    "354950",  // Home Depot (dup)
-    "60667",   // Lockheed (dup)
-    "40545",   // GE (dup)
-    "310158",  // Merck (dup)
-    "14272",   // BMS (dup)
-    "4962",    // AbbVie (dup)
-    "1551152", // Salesforce (dup)
-    "1045810", // Netflix (dup)
-    "1403161", // Visa (dup)
-    "1141391", // Mastercard (dup)
-    "2488",    // AMD (dup)
-    "1413329", // PayPal (dup)
-    "97476",   // TI (dup)
-    "804328",  // Qualcomm (dup)
-    "1090727", // UNH (dup)
-    "1800",    // Abbott (dup)
+const CIKS: [&str; 61] = [
+    "9999999999", // Nonsense CIK
+    "1067983",    // Berkshire Hathaway
+    "320193",     // Apple
+    "789019",     // Microsoft
+    "1018724",    // Amazon
+    "1652044",    // Alphabet (Google)
+    "1326801",    // Meta (Facebook)
+    "1318605",    // Tesla
+    "1730168",    // Nvidia
+    "78003",      // Pfizer
+    "200406",     // Johnson & Johnson
+    "21344",      // Coca-Cola
+    "12927",      // Chevron
+    "34088",      // Exxon Mobil
+    "93410",      // Caterpillar
+    "51143",      // IBM
+    "732717",     // Wells Fargo
+    "70858",      // Bank of America
+    "19617",      // JPMorgan Chase
+    "831001",     // Citigroup
+    "886982",     // Goldman Sachs
+    "895421",     // Morgan Stanley
+    "18230",      // Charles Schwab
+    "927628",     // T-Mobile
+    "1283699",    // Costco
+    "354950",     // Home Depot
+    "60667",      // Lockheed Martin
+    "40545",      // General Electric
+    "310158",     // Merck
+    "14272",      // Bristol-Myers Squibb
+    "4962",       // AbbVie
+    "1551152",    // Salesforce
+    "1045810",    // Netflix
+    "1403161",    // Visa
+    "1141391",    // Mastercard
+    "2488",       // AMD
+    "1413329",    // PayPal
+    "97476",      // Texas Instruments
+    "804328",     // Qualcomm
+    "1090727",    // UnitedHealth
+    "1800",       // Abbott Labs
+    "80424",      // PepsiCo
+    "77476",      // Procter & Gamble
+    "1373715",    // Uber
+    "1364742",    // Booking Holdings
+    "24741",      // ConocoPhillips
+    "50863",      // Intel
+    "66740",      // 3M
+    "731766",     // United Parcel Service
+    "1166126",    // Starbucks
+    "1555280",    // Airbnb
+    "1564708",    // ServiceNow
+    "896159",     // Lowe's
+    "858877",     // Cisco
+    "27419",      // Deere & Co
+    "37996",      // Ford Motor
+    "1467858",    // Block (Square)
+    "1679788",    // CrowdStrike
+    "1386278",    // Palo Alto Networks
+    "718877",     // Raytheon (RTX)
+    "1324404",    // Palantir
 ];
 
 #[tokio::main]

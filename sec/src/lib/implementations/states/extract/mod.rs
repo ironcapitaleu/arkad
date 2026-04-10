@@ -28,8 +28,8 @@
 //! ```
 
 pub mod execute_sec_request;
-pub mod phase_stream;
 pub mod prepare_sec_request;
+pub mod sm_stream;
 pub mod validate_cik_format;
 
 use std::fmt::Display;
@@ -191,15 +191,15 @@ impl ExtractSuperState<ValidateCikFormat> {
         }
     }
 
-    /// Consumes this super-state and returns a [`PhaseStream`] that drives the
+    /// Consumes this super-state and returns a [`StateMachineStream`] that drives the
     /// entire extraction pipeline (validate → prepare → execute) to completion.
     #[must_use]
-    pub fn into_stream(self) -> phase_stream::PhaseStream {
+    pub fn into_stream(self) -> sm_stream::StateMachineStream {
         Box::pin(async_stream::stream! {
             let mut state = self;
             state.compute_output_data_async().await
                 .map_err(|e| -> Box<dyn std::error::Error + Send + Sync> { e.to_string().into() })?;
-            yield Ok(format!("{state}"));
+            yield Ok(format!("{state}\n{}", state.current_state().context_data()));
 
             let next = state.transition_to_next_state_sec()
                 .map_err(|e| -> Box<dyn std::error::Error + Send + Sync> { e.to_string().into() })?;
@@ -229,12 +229,12 @@ impl ExtractSuperState<PrepareSecRequest> {
     /// Consumes this super-state and returns a [`PhaseStream`] that drives the
     /// remaining extraction pipeline (prepare → execute) to completion.
     #[must_use]
-    pub fn into_stream(self) -> phase_stream::PhaseStream {
+    pub fn into_stream(self) -> sm_stream::StateMachineStream {
         Box::pin(async_stream::stream! {
             let mut state = self;
             state.compute_output_data_async().await
                 .map_err(|e| -> Box<dyn std::error::Error + Send + Sync> { e.to_string().into() })?;
-            yield Ok(format!("{state}"));
+            yield Ok(format!("{state}\n{}", state.current_state().context_data()));
 
             let next = state.transition_to_next_state_sec()
                 .map_err(|e| -> Box<dyn std::error::Error + Send + Sync> { e.to_string().into() })?;
@@ -261,15 +261,15 @@ impl ExtractSuperState<ExecuteSecRequest> {
         }
     }
 
-    /// Consumes this super-state and returns a [`PhaseStream`] that executes
+    /// Consumes this super-state and returns a [`StateMachineStream`] that executes
     /// the final phase of the extraction pipeline.
     #[must_use]
-    pub fn into_stream(self) -> phase_stream::PhaseStream {
+    pub fn into_stream(self) -> sm_stream::StateMachineStream {
         Box::pin(async_stream::stream! {
             let mut state = self;
             state.compute_output_data_async().await
                 .map_err(|e| -> Box<dyn std::error::Error + Send + Sync> { e.to_string().into() })?;
-            yield Ok(format!("{state}"));
+            yield Ok(format!("{state}\n{}", state.current_state().context_data()));
         })
     }
 }
