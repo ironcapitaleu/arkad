@@ -20,6 +20,7 @@ use std::fmt::Display;
 use state_maschine::prelude::StateMachine as SMStateMachine;
 
 pub mod state;
+pub mod stream;
 pub mod super_state;
 pub mod transition;
 

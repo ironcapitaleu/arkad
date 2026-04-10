@@ -1,0 +1,1 @@
+- [Transition graph visualization](project_transition_graph.md) — future plan to add TransitionGraph trait for visualization/mermaid diagrams

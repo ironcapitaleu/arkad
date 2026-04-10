@@ -2,8 +2,8 @@ mod builder;
 
 use futures_util::StreamExt;
 use sec::implementations::states::extract::ExtractSuperState;
-use sec::implementations::states::extract::sm_stream::StateMachineStream;
 use sec::implementations::states::extract::validate_cik_format::ValidateCikFormat;
+use sec::prelude::*;
 
 use builder::{ExtractionBuilder, NoCik};
 

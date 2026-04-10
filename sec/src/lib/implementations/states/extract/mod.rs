@@ -29,7 +29,6 @@
 
 pub mod execute_sec_request;
 pub mod prepare_sec_request;
-pub mod sm_stream;
 pub mod validate_cik_format;
 
 use std::fmt::Display;
@@ -190,26 +189,6 @@ impl ExtractSuperState<ValidateCikFormat> {
             context: ExtractSuperStateContext,
         }
     }
-
-    /// Consumes this super-state and returns a [`StateMachineStream`] that drives the
-    /// entire extraction pipeline (validate → prepare → execute) to completion.
-    #[must_use]
-    pub fn into_stream(self) -> sm_stream::StateMachineStream {
-        Box::pin(async_stream::stream! {
-            let mut state = self;
-            state.compute_output_data_async().await
-                .map_err(|e| -> Box<dyn std::error::Error + Send + Sync> { e.to_string().into() })?;
-            yield Ok(format!("{state}\n{}", state.current_state().context_data()));
-
-            let next = state.transition_to_next_state_sec()
-                .map_err(|e| -> Box<dyn std::error::Error + Send + Sync> { e.to_string().into() })?;
-
-            let mut rest = std::pin::pin!(next.into_stream());
-            while let Some(item) = futures_util::StreamExt::next(&mut rest).await {
-                yield item;
-            }
-        })
-    }
 }
 
 impl ExtractSuperState<PrepareSecRequest> {
@@ -224,26 +203,6 @@ impl ExtractSuperState<PrepareSecRequest> {
             output: None,
             context: ExtractSuperStateContext,
         }
-    }
-
-    /// Consumes this super-state and returns a [`PhaseStream`] that drives the
-    /// remaining extraction pipeline (prepare → execute) to completion.
-    #[must_use]
-    pub fn into_stream(self) -> sm_stream::StateMachineStream {
-        Box::pin(async_stream::stream! {
-            let mut state = self;
-            state.compute_output_data_async().await
-                .map_err(|e| -> Box<dyn std::error::Error + Send + Sync> { e.to_string().into() })?;
-            yield Ok(format!("{state}\n{}", state.current_state().context_data()));
-
-            let next = state.transition_to_next_state_sec()
-                .map_err(|e| -> Box<dyn std::error::Error + Send + Sync> { e.to_string().into() })?;
-
-            let mut rest = std::pin::pin!(next.into_stream());
-            while let Some(item) = futures_util::StreamExt::next(&mut rest).await {
-                yield item;
-            }
-        })
     }
 }
 
@@ -260,16 +219,31 @@ impl ExtractSuperState<ExecuteSecRequest> {
             context: ExtractSuperStateContext,
         }
     }
+}
 
-    /// Consumes this super-state and returns a [`StateMachineStream`] that executes
-    /// the final phase of the extraction pipeline.
-    #[must_use]
-    pub fn into_stream(self) -> sm_stream::StateMachineStream {
+// --- Transition graph for streaming ---
+
+impl NonTerminal for ExtractSuperState<ValidateCikFormat> {
+    type Current = ValidateCikFormat;
+    type Next = PrepareSecRequest;
+}
+
+impl NonTerminal for ExtractSuperState<PrepareSecRequest> {
+    type Current = PrepareSecRequest;
+    type Next = ExecuteSecRequest;
+}
+
+/// Terminal state — no [`NonTerminal`] impl, manual [`IntoStateMachineStream`].
+#[allow(clippy::useless_conversion)] // needed: trait returns `impl Into<StateError>`, not `StateError`
+impl IntoStateMachineStream for ExtractSuperState<ExecuteSecRequest> {
+    fn into_stream(self) -> StateMachineStream {
         Box::pin(async_stream::stream! {
-            let mut state = self;
-            state.compute_output_data_async().await
-                .map_err(|e| -> Box<dyn std::error::Error + Send + Sync> { e.to_string().into() })?;
-            yield Ok(format!("{state}\n{}", state.current_state().context_data()));
+            let mut sm = self;
+            sm.current_state_mut().compute_output_data_async().await.map_err(|e| {
+                let err: crate::error::State = e.into();
+                Box::new(err) as Box<dyn std::error::Error + Send + Sync>
+            })?;
+            yield Ok(format!("{}", sm.current_state()));
         })
     }
 }
