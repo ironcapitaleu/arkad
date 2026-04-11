@@ -14,6 +14,7 @@
 
 use crate::error::state_machine::transition;
 use crate::error::state_machine::transition::Transition as TransitionError;
+use crate::implementations::states::extract::prepare_sec_request::constants::STATE_NAME as PREPARE_SEC_REQUEST;
 use crate::implementations::states::extract::prepare_sec_request::{
     PrepareSecRequest, PrepareSecRequestContext, PrepareSecRequestInput,
 };
@@ -47,8 +48,8 @@ impl TryFrom<ValidateCikFormat> for PrepareSecRequest {
             Some(data) => data.clone(),
             None => {
                 return Err(transition::MissingOutput::new(
-                    "Extract SuperState",
                     state.state_name().to_string(),
+                    PREPARE_SEC_REQUEST,
                 )
                 .into());
             }
