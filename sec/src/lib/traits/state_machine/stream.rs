@@ -86,7 +86,7 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use crate::tests::fixtures::sample_streaming_super_state::{
-        SampleStateA, SampleStreamingSuperState,
+        SampleStateA, SampleStateC, SampleStreamingSuperState,
     };
 
     use super::IntoStateMachineStream;
@@ -144,10 +144,53 @@ mod tests {
         assert_eq!(result, expected_result);
     }
 
-    fn assert_send<T: Send>() {}
+    const fn assert_send<T: Send>() {}
+    const fn assert_sync<T: Sync>() {}
+    const fn assert_unpin<T: Unpin>() {}
+    const fn assert_sized<T: Sized>() {}
 
     #[test]
-    fn should_produce_send_stream_when_into_stream_is_called() {
+    const fn should_produce_send_stream_when_into_stream_is_called() {
         assert_send::<super::StateMachineStream>();
+    }
+
+    #[test]
+    const fn should_implement_send_for_non_terminal_streaming_super_state() {
+        assert_send::<SampleStreamingSuperState<SampleStateA>>();
+    }
+
+    #[test]
+    const fn should_implement_sync_for_non_terminal_streaming_super_state() {
+        assert_sync::<SampleStreamingSuperState<SampleStateA>>();
+    }
+
+    #[test]
+    const fn should_implement_unpin_for_non_terminal_streaming_super_state() {
+        assert_unpin::<SampleStreamingSuperState<SampleStateA>>();
+    }
+
+    #[test]
+    const fn should_implement_sized_for_non_terminal_streaming_super_state() {
+        assert_sized::<SampleStreamingSuperState<SampleStateA>>();
+    }
+
+    #[test]
+    const fn should_implement_send_for_terminal_streaming_super_state() {
+        assert_send::<SampleStreamingSuperState<SampleStateC>>();
+    }
+
+    #[test]
+    const fn should_implement_sync_for_terminal_streaming_super_state() {
+        assert_sync::<SampleStreamingSuperState<SampleStateC>>();
+    }
+
+    #[test]
+    const fn should_implement_unpin_for_terminal_streaming_super_state() {
+        assert_unpin::<SampleStreamingSuperState<SampleStateC>>();
+    }
+
+    #[test]
+    const fn should_implement_sized_for_terminal_streaming_super_state() {
+        assert_sized::<SampleStreamingSuperState<SampleStateC>>();
     }
 }
