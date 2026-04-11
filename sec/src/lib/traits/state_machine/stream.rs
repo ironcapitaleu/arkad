@@ -79,3 +79,75 @@ where
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use futures_util::StreamExt;
+    use pretty_assertions::assert_eq;
+
+    use crate::tests::fixtures::sample_streaming_super_state::{
+        SampleStateA, SampleStreamingSuperState,
+    };
+
+    use super::IntoStateMachineStream;
+
+    #[tokio::test]
+    async fn should_yield_three_items_when_streaming_three_state_pipeline() {
+        let sm = SampleStreamingSuperState::<SampleStateA>::new();
+        let mut stream = std::pin::pin!(sm.into_stream());
+
+        let expected_result = 3;
+
+        let mut count = 0;
+        while let Some(result) = stream.next().await {
+            result.expect("Each state in the streaming state machine fixture should succeed");
+            count += 1;
+        }
+        let result = count;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_yield_items_in_state_order_when_streaming() {
+        // Arrange
+        let sm = SampleStreamingSuperState::<SampleStateA>::new();
+        let mut stream = std::pin::pin!(sm.into_stream());
+
+        let expected_result = vec!["SampleStateA", "SampleStateB", "SampleStateC"];
+
+        let mut result = Vec::new();
+        while let Some(item) = stream.next().await {
+            result.push(
+                item.expect("Each state in the streaming state machine fixture should succeed"),
+            );
+        }
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_complete_stream_when_all_phases_succeed() {
+        let sm = SampleStreamingSuperState::<SampleStateA>::new();
+        let mut stream = std::pin::pin!(sm.into_stream());
+
+        let expected_result = true;
+
+        let mut all_ok = true;
+        while let Some(result) = stream.next().await {
+            if result.is_err() {
+                all_ok = false;
+            }
+        }
+        let result = all_ok;
+
+        assert_eq!(result, expected_result);
+    }
+
+    fn assert_send<T: Send>() {}
+
+    #[test]
+    fn should_produce_send_stream_when_into_stream_is_called() {
+        assert_send::<super::StateMachineStream>();
+    }
+}
