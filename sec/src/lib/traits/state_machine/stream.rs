@@ -82,14 +82,91 @@ where
 
 #[cfg(test)]
 mod tests {
+    use std::{fmt::Debug, hash::Hash};
+
     use futures_util::StreamExt;
     use pretty_assertions::assert_eq;
 
+    use crate::prelude::*;
     use crate::tests::fixtures::sample_streaming_super_state::{
-        SampleStateA, SampleStateC, SampleStreamingSuperState,
+        SampleStateA, SampleStateC, SampleStreamingContext, SampleStreamingData,
+        SampleStreamingSuperState,
     };
 
     use super::IntoStateMachineStream;
+
+    // --- Functional tests ---
+
+    #[test]
+    fn should_return_super_state_name_when_in_initial_streaming_state() {
+        let sm = SampleStreamingSuperState::<SampleStateA>::new();
+
+        let expected_result = "Sample Streaming SuperState (Current: Sample State A)";
+
+        let result = sm.state_name().to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_inner_state_name_when_accessing_current_state() {
+        let sm = SampleStreamingSuperState::<SampleStateA>::new();
+
+        let expected_result = "Sample State A";
+
+        let result = sm.current_state().state_name().to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_have_no_output_for_inner_state_before_compute_on_super_state() {
+        let sm = SampleStreamingSuperState::<SampleStateA>::new();
+
+        let expected_result = true;
+
+        let result = sm.current_state().output_data().is_none();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_have_output_for_inner_state_after_compute_on_super_state() {
+        let mut sm = SampleStreamingSuperState::<SampleStateA>::new();
+        sm.compute_output_data_async()
+            .await
+            .expect("Hardcoded fixture state should always compute output successfully");
+
+        let expected_result = true;
+
+        let result = sm.current_state().output_data().is_some();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_default_context_data_when_in_initial_streaming_state() {
+        let sm = SampleStreamingSuperState::<SampleStateA>::new();
+
+        let expected_result = &SampleStreamingContext;
+
+        let result = sm.context_data();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_default_input_data_when_in_initial_streaming_state() {
+        let sm = SampleStreamingSuperState::<SampleStateA>::new();
+
+        let expected_result = &SampleStreamingData;
+
+        let result = sm.input_data();
+
+        assert_eq!(result, expected_result);
+    }
+
+    // --- Streaming tests ---
 
     #[tokio::test]
     async fn should_yield_three_items_when_streaming_three_state_pipeline() {
@@ -110,7 +187,6 @@ mod tests {
 
     #[tokio::test]
     async fn should_yield_items_in_state_order_when_streaming() {
-        // Arrange
         let sm = SampleStreamingSuperState::<SampleStateA>::new();
         let mut stream = std::pin::pin!(sm.into_stream());
 
@@ -144,15 +220,29 @@ mod tests {
         assert_eq!(result, expected_result);
     }
 
+    // --- Trait compliance: StateMachineStream ---
+    // Note: StateMachineStream is Send but NOT Sync — async streams hold mutable
+    // state across await points. You move a stream to a consumer, not share it.
+
     const fn assert_send<T: Send>() {}
-    const fn assert_sync<T: Sync>() {}
-    const fn assert_unpin<T: Unpin>() {}
-    const fn assert_sized<T: Sized>() {}
 
     #[test]
     const fn should_produce_send_stream_when_into_stream_is_called() {
         assert_send::<super::StateMachineStream>();
     }
+
+    // --- Trait compliance: non-terminal SampleStreamingSuperState<SampleStateA> ---
+
+    const fn assert_sync<T: Sync>() {}
+    const fn assert_unpin<T: Unpin>() {}
+    const fn assert_sized<T: Sized>() {}
+    const fn assert_debug<T: Debug>() {}
+    const fn assert_clone<T: Clone>() {}
+    const fn assert_hash<T: Hash>() {}
+    const fn assert_partial_eq<T: PartialEq>() {}
+    const fn assert_eq<T: Eq>() {}
+    const fn assert_partial_ord<T: PartialOrd>() {}
+    const fn assert_ord<T: Ord>() {}
 
     #[test]
     const fn should_implement_send_for_non_terminal_streaming_super_state() {
@@ -175,6 +265,43 @@ mod tests {
     }
 
     #[test]
+    const fn should_implement_debug_for_non_terminal_streaming_super_state() {
+        assert_debug::<SampleStreamingSuperState<SampleStateA>>();
+    }
+
+    #[test]
+    const fn should_implement_clone_for_non_terminal_streaming_super_state() {
+        assert_clone::<SampleStreamingSuperState<SampleStateA>>();
+    }
+
+    #[test]
+    const fn should_implement_hash_for_non_terminal_streaming_super_state() {
+        assert_hash::<SampleStreamingSuperState<SampleStateA>>();
+    }
+
+    #[test]
+    const fn should_implement_partial_eq_for_non_terminal_streaming_super_state() {
+        assert_partial_eq::<SampleStreamingSuperState<SampleStateA>>();
+    }
+
+    #[test]
+    const fn should_implement_eq_for_non_terminal_streaming_super_state() {
+        assert_eq::<SampleStreamingSuperState<SampleStateA>>();
+    }
+
+    #[test]
+    const fn should_implement_partial_ord_for_non_terminal_streaming_super_state() {
+        assert_partial_ord::<SampleStreamingSuperState<SampleStateA>>();
+    }
+
+    #[test]
+    const fn should_implement_ord_for_non_terminal_streaming_super_state() {
+        assert_ord::<SampleStreamingSuperState<SampleStateA>>();
+    }
+
+    // --- Trait compliance: terminal SampleStreamingSuperState<SampleStateC> ---
+
+    #[test]
     const fn should_implement_send_for_terminal_streaming_super_state() {
         assert_send::<SampleStreamingSuperState<SampleStateC>>();
     }
@@ -192,5 +319,40 @@ mod tests {
     #[test]
     const fn should_implement_sized_for_terminal_streaming_super_state() {
         assert_sized::<SampleStreamingSuperState<SampleStateC>>();
+    }
+
+    #[test]
+    const fn should_implement_debug_for_terminal_streaming_super_state() {
+        assert_debug::<SampleStreamingSuperState<SampleStateC>>();
+    }
+
+    #[test]
+    const fn should_implement_clone_for_terminal_streaming_super_state() {
+        assert_clone::<SampleStreamingSuperState<SampleStateC>>();
+    }
+
+    #[test]
+    const fn should_implement_hash_for_terminal_streaming_super_state() {
+        assert_hash::<SampleStreamingSuperState<SampleStateC>>();
+    }
+
+    #[test]
+    const fn should_implement_partial_eq_for_terminal_streaming_super_state() {
+        assert_partial_eq::<SampleStreamingSuperState<SampleStateC>>();
+    }
+
+    #[test]
+    const fn should_implement_eq_for_terminal_streaming_super_state() {
+        assert_eq::<SampleStreamingSuperState<SampleStateC>>();
+    }
+
+    #[test]
+    const fn should_implement_partial_ord_for_terminal_streaming_super_state() {
+        assert_partial_ord::<SampleStreamingSuperState<SampleStateC>>();
+    }
+
+    #[test]
+    const fn should_implement_ord_for_terminal_streaming_super_state() {
+        assert_ord::<SampleStreamingSuperState<SampleStateC>>();
     }
 }
