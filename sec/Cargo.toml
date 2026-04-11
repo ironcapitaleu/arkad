@@ -35,8 +35,8 @@ name = "extraction"
 path = "src/bin/extraction/main.rs"
 
 [[bin]]
-name = "extract"
-path = "src/bin/extract/main.rs"
+name = "stream_extract"
+path = "src/bin/stream_extract/main.rs"
 
 [lints.rust]
 unsafe_code = "forbid"

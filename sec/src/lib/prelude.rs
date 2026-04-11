@@ -23,10 +23,10 @@ pub use crate::traits::state_machine::StateMachine;
 pub use crate::traits::state_machine::state::Context;
 pub use crate::traits::state_machine::state::State;
 pub use crate::traits::state_machine::state::StateData;
-pub use crate::traits::state_machine::super_state::SuperState;
 pub use crate::traits::state_machine::stream::IntoStateMachineStream;
 pub use crate::traits::state_machine::stream::NonTerminal;
 pub use crate::traits::state_machine::stream::StateMachineStream;
+pub use crate::traits::state_machine::super_state::SuperState;
 pub use crate::traits::state_machine::transition::Transition;
 
 pub use state_maschine::prelude::Context as SMContext;

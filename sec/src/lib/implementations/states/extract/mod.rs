@@ -221,7 +221,7 @@ impl ExtractSuperState<ExecuteSecRequest> {
     }
 }
 
-// --- Transition graph for streaming ---
+// --- Streaming ---
 
 impl NonTerminal for ExtractSuperState<ValidateCikFormat> {
     type Current = ValidateCikFormat;
