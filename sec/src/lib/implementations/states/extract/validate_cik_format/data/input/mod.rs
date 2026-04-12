@@ -33,7 +33,7 @@ use crate::error::State as StateError;
 use crate::shared::cik::constants::BERKSHIRE_HATHAWAY_CIK_RAW;
 use crate::traits::state_machine::state::StateData;
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
+#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, serde::Serialize)]
 /// Input data for validating the format of a CIK.
 ///
 /// This struct holds the raw, unvalidated Central Index Key (CIK) string

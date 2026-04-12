@@ -57,7 +57,7 @@ use state_maschine::prelude::{StateMachine as SMStateMachine, Transition as SMTr
 /// Data structure for the Extract super-state.
 ///
 /// Currently serves as a placeholder type with unit update semantics for the [`ExtractSuperState`].
-#[derive(Debug, Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize)]
 pub struct ExtractSuperStateData;
 
 impl SMStateData for ExtractSuperStateData {
@@ -77,7 +77,7 @@ impl StateData for ExtractSuperStateData {
 /// Context data structure for the Extract super-state.
 ///
 /// Provides configuration and runtime context for the [`ExtractSuperState`], including retry policies.
-#[derive(Debug, Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize)]
 pub struct ExtractSuperStateContext;
 
 impl SMContext for ExtractSuperStateContext {
@@ -104,7 +104,7 @@ impl Context for ExtractSuperStateContext {
 ///
 /// # State Transitions
 /// Supports transitions: `ValidateCikFormat` → `PrepareSecRequest`
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize)]
 pub struct ExtractSuperState<S: State> {
     current_state: S,
     input: ExtractSuperStateData,
@@ -234,16 +234,43 @@ impl NonTerminal for ExtractSuperState<PrepareSecRequest> {
 }
 
 /// Terminal state — no [`NonTerminal`] impl, manual [`IntoStateMachineStream`].
-#[allow(clippy::useless_conversion)] // needed: trait returns `impl Into<StateError>`, not `StateError`
 impl IntoStateMachineStream for ExtractSuperState<ExecuteSecRequest> {
-    fn into_stream(self) -> StateMachineStream {
+    fn into_stream(self, execution_id: uuid::Uuid) -> StateMachineStream {
         Box::pin(async_stream::stream! {
+            use crate::traits::state_machine::stream::{StreamEvent, StreamItem, StreamError};
+
             let mut sm = self;
-            sm.current_state_mut().compute_output_data_async().await.map_err(|e| {
-                let err: crate::error::State = e.into();
-                Box::new(err) as Box<dyn std::error::Error + Send + Sync>
-            })?;
-            yield Ok(format!("{}", sm.current_state()));
+            let state_name = sm.current_state().state_name().to_string();
+
+            // StateStarted
+            yield Ok(StreamItem {
+                event: StreamEvent::StateStarted,
+                state_name: state_name.clone(),
+                data: serde_json::to_value(sm.current_state()).unwrap_or_default(),
+            });
+
+            // Compute
+            match sm.current_state_mut().compute_output_data_async().await {
+                Ok(()) => {
+                    yield Ok(StreamItem {
+                        event: StreamEvent::StateCompleted,
+                        state_name,
+                        data: serde_json::to_value(sm.current_state()).unwrap_or_default(),
+                    });
+                }
+                Err(e) => {
+                    #[allow(clippy::useless_conversion)]
+                    let state_err: crate::error::State = e.into();
+                    let sm_error: crate::error::StateMachine = state_err.into();
+                    yield Err(StreamError {
+                        event: StreamEvent::StateFailed,
+                        execution_id,
+                        state_name,
+                        data: serde_json::to_value(sm.current_state()).unwrap_or_default(),
+                        source: sm_error,
+                    });
+                }
+            }
         })
     }
 }

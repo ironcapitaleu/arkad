@@ -41,7 +41,7 @@ use state_maschine::prelude::StateData as SMStateData;
 /// to execute HTTP requests to SEC API endpoints. It is designed to be used as part
 /// of the SEC document extraction workflow, and supports builder-based updates and
 /// integration with the state machine framework.
-#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
+#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, serde::Serialize)]
 pub struct ExecuteSecRequestInput {
     /// The prepared SEC client that will execute the HTTP request.
     pub sec_client: SecClient,

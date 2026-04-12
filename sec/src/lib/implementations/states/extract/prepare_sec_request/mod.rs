@@ -94,7 +94,7 @@ pub use data::PrepareSecRequestOutput;
 /// let context = PrepareSecRequestContext::new(cik);
 /// let mut prepare_state = PrepareSecRequest::new(input, context);
 /// ```
-#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
+#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, serde::Serialize)]
 pub struct PrepareSecRequest {
     input: PrepareSecRequestInput,
     context: PrepareSecRequestContext,

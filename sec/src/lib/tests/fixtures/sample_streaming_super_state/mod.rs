@@ -27,7 +27,7 @@ pub use state_c::SampleStateC;
 // --- Shared data/context unit types ---
 
 /// Unit struct for super state data — no actual data needed for streaming tests.
-#[derive(Debug, Clone, Default, PartialEq, PartialOrd, Hash, Eq, Ord)]
+#[derive(Debug, Clone, Default, PartialEq, PartialOrd, Hash, Eq, Ord, serde::Serialize)]
 pub struct SampleStreamingData;
 
 impl StateData for SampleStreamingData {
@@ -47,7 +47,7 @@ impl SMStateData for SampleStreamingData {
 }
 
 /// Unit struct for super state context — no actual context needed for streaming tests.
-#[derive(Debug, Clone, Default, PartialEq, PartialOrd, Hash, Eq, Ord)]
+#[derive(Debug, Clone, Default, PartialEq, PartialOrd, Hash, Eq, Ord, serde::Serialize)]
 pub struct SampleStreamingContext;
 
 impl Context for SampleStreamingContext {
@@ -69,7 +69,7 @@ impl SMContext for SampleStreamingContext {
 // --- Super state ---
 
 /// A minimal super state for testing streaming. Generic over the current inner state.
-#[derive(Debug, Clone, Default, PartialEq, PartialOrd, Hash, Eq, Ord)]
+#[derive(Debug, Clone, Default, PartialEq, PartialOrd, Hash, Eq, Ord, serde::Serialize)]
 pub struct SampleStreamingSuperState<S: State> {
     current_state: S,
     input: SampleStreamingData,
@@ -210,16 +210,41 @@ impl NonTerminal for SampleStreamingSuperState<SampleStateB> {
 }
 
 /// Terminal state — manual [`IntoStateMachineStream`] impl.
-#[allow(clippy::useless_conversion)]
 impl IntoStateMachineStream for SampleStreamingSuperState<SampleStateC> {
-    fn into_stream(self) -> StateMachineStream {
+    fn into_stream(self, execution_id: uuid::Uuid) -> StateMachineStream {
         Box::pin(async_stream::stream! {
+            use crate::traits::state_machine::stream::{StreamEvent, StreamItem, StreamError};
+
             let mut sm = self;
-            sm.current_state_mut().compute_output_data_async().await.map_err(|e| {
-                let err: crate::error::State = e.into();
-                Box::new(err) as Box<dyn std::error::Error + Send + Sync>
-            })?;
-            yield Ok(format!("{}", sm.current_state()));
+            let state_name = sm.current_state().state_name().to_string();
+
+            yield Ok(StreamItem {
+                event: StreamEvent::StateStarted,
+                state_name: state_name.clone(),
+                data: serde_json::to_value(sm.current_state()).unwrap_or_default(),
+            });
+
+            match sm.current_state_mut().compute_output_data_async().await {
+                Ok(()) => {
+                    yield Ok(StreamItem {
+                        event: StreamEvent::StateCompleted,
+                        state_name,
+                        data: serde_json::to_value(sm.current_state()).unwrap_or_default(),
+                    });
+                }
+                Err(e) => {
+                    #[allow(clippy::useless_conversion)]
+                    let state_err: crate::error::State = e.into();
+                    let sm_error: crate::error::StateMachine = state_err.into();
+                    yield Err(StreamError {
+                        event: StreamEvent::StateFailed,
+                        execution_id,
+                        state_name,
+                        data: serde_json::to_value(sm.current_state()).unwrap_or_default(),
+                        source: sm_error,
+                    });
+                }
+            }
         })
     }
 }
