@@ -241,12 +241,14 @@ impl IntoStateMachineStream for ExtractSuperState<ExecuteSecRequest> {
 
             let mut sm = self;
             let state_name = sm.current_state().state_name().to_string();
+            let state_start = std::time::Instant::now();
 
             // StateStarted
             yield Ok(StreamItem {
                 event: StreamEvent::StateStarted,
                 state_name: state_name.clone(),
                 data: serde_json::to_value(sm.current_state()).unwrap_or_default(),
+                event_duration: std::time::Duration::ZERO,
             });
 
             // Compute
@@ -256,6 +258,7 @@ impl IntoStateMachineStream for ExtractSuperState<ExecuteSecRequest> {
                         event: StreamEvent::StateCompleted,
                         state_name,
                         data: serde_json::to_value(sm.current_state()).unwrap_or_default(),
+                        event_duration: state_start.elapsed(),
                     });
                 }
                 Err(e) => {

@@ -1,10 +1,25 @@
 mod extraction;
 
+use std::fmt;
+
 use extraction::Extraction;
 use futures_util::StreamExt;
 use tracing_subscriber::fmt::format::FmtSpan;
 
 use extraction::constants::CIKS;
+
+/// Top-level batch events.
+enum BatchEvent {
+    Complete,
+}
+
+impl fmt::Display for BatchEvent {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Complete => write!(f, "batch_complete"),
+        }
+    }
+}
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
@@ -39,7 +54,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     }
 
     tracing::info!(
-        event = "extraction_complete",
+        event = %BatchEvent::Complete,
         message = %format!("{successes} succeeded, {failures} failed in {elapsed:.2?}"),
     );
 

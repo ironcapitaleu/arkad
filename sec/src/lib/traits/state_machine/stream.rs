@@ -55,7 +55,8 @@ impl fmt::Display for StreamEvent {
 
 /// A structured item yielded by the state machine stream on success.
 ///
-/// Carries the event type, state name, and serialized state data for structured logging.
+/// Carries the event type, state name, serialized state data, and duration
+/// for structured logging.
 #[derive(Debug, Clone)]
 pub struct StreamItem {
     /// What happened in the state machine lifecycle.
@@ -64,6 +65,9 @@ pub struct StreamItem {
     pub state_name: String,
     /// Serialized state data at the time of the event.
     pub data: serde_json::Value,
+    /// How long since the start of this state. Measured from the beginning of the state's
+    /// lifecycle in the stream — includes compute time but not consumer wait time.
+    pub event_duration: std::time::Duration,
 }
 
 /// An error yielded by the state machine stream on failure.
@@ -129,15 +133,17 @@ where
         Box::pin(async_stream::stream! {
             let mut sm = self;
             let state_name = sm.current_state().state_name().to_string();
+            let state_start = std::time::Instant::now();
 
             // StateStarted
             yield Ok(StreamItem {
                 event: StreamEvent::StateStarted,
                 state_name: state_name.clone(),
                 data: serde_json::to_value(sm.current_state()).unwrap_or_default(),
+                event_duration: std::time::Duration::ZERO,
             });
 
-            // Compute — convert error immediately to release the mutable borrow on sm
+            // Compute — time it, convert error immediately to release the mutable borrow on sm
             let compute_err: Option<crate::error::StateMachine> = {
                 let result = sm.current_state_mut().compute_output_data_async().await;
                 match result {
@@ -164,10 +170,12 @@ where
                 event: StreamEvent::StateCompleted,
                 state_name: state_name.clone(),
                 data: serde_json::to_value(sm.current_state()).unwrap_or_default(),
+                event_duration: state_start.elapsed(),
             });
 
             // Transition
             let from_name = state_name;
+            let transition_start = std::time::Instant::now();
             match sm.transition_to_next_state_sec() {
                 Ok(next) => {
                     let to_name = next.current_state().state_name().to_string();
@@ -175,6 +183,7 @@ where
                         event: StreamEvent::TransitionCompleted,
                         state_name: from_name,
                         data: serde_json::json!({ "to": to_name }),
+                        event_duration: transition_start.elapsed(),
                     });
 
                     // Chain — forward same execution_id
