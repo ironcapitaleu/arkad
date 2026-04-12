@@ -75,7 +75,7 @@ pub struct StreamItem {
 /// Wraps the existing [`StateMachine`](crate::error::StateMachine) error with stream context
 /// (execution ID, state name, event type, serialized state data).
 #[derive(Debug, thiserror::Error)]
-#[error("{source}")]
+#[error("[StreamError][{execution_id}] '{event}' in '{state_name}', Caused by: {source}")]
 pub struct StreamError {
     /// What was happening when the error occurred.
     pub event: StreamEvent,
