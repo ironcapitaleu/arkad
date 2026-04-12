@@ -16,7 +16,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         .with_target(false)
         .with_current_span(false)
         .flatten_event(true)
-        .with_writer(non_blocking) // Use the non-blocking writer. Comment out if you want to use blocking logging.
+        .with_writer(non_blocking)
         .init();
 
     let start = std::time::Instant::now();
