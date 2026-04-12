@@ -8,13 +8,15 @@ use extraction::constants::CIKS;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    // Initialize JSON structured logging
+    // Initialize non-blocking JSON structured logging
+    let (non_blocking, _guard) = tracing_appender::non_blocking(std::io::stdout());
     tracing_subscriber::fmt()
         .json()
         .with_span_events(FmtSpan::NONE)
         .with_target(false)
         .with_current_span(false)
         .flatten_event(true)
+        .with_writer(non_blocking) // Use the non-blocking writer. Comment out if you want to use blocking logging.
         .init();
 
     let start = std::time::Instant::now();
