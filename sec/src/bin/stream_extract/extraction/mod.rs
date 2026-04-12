@@ -32,15 +32,27 @@ impl Extraction {
         while let Some(result) = stream.next().await {
             match result {
                 Ok(item) => {
-                    println!(
-                        "[{execution_id}] [{cik}] {}: '{}' | data: {}",
-                        item.event, item.state_name, item.data
+                    tracing::info!(
+                        event = %item.event,
+                        message = %format!("{}: '{}'", item.event, item.state_name),
+                        context = %serde_json::json!({
+                            "execution_id": execution_id.to_string(),
+                            "cik": cik,
+                            "state": item.state_name,
+                            "data": item.data,
+                        }),
                     );
                 }
                 Err(e) => {
-                    eprintln!(
-                        "[{execution_id}] [{cik}] {}: '{}' | error: {}",
-                        e.event, e.state_name, e.source
+                    tracing::error!(
+                        event = %e.event,
+                        message = %e.source,
+                        context = %serde_json::json!({
+                            "execution_id": e.execution_id.to_string(),
+                            "cik": cik,
+                            "state": e.state_name,
+                            "data": e.data,
+                        }),
                     );
                     return Err(Box::new(e));
                 }

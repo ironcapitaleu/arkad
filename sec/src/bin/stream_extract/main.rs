@@ -2,11 +2,21 @@ mod extraction;
 
 use extraction::Extraction;
 use futures_util::StreamExt;
+use tracing_subscriber::fmt::format::FmtSpan;
 
 use extraction::constants::CIKS;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    // Initialize JSON structured logging
+    tracing_subscriber::fmt()
+        .json()
+        .with_span_events(FmtSpan::NONE)
+        .with_target(false)
+        .with_current_span(false)
+        .flatten_event(true)
+        .init();
+
     let start = std::time::Instant::now();
 
     let results: Vec<_> = futures_util::stream::iter(CIKS)
@@ -22,14 +32,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     for result in &results {
         match result {
             Ok(()) => successes += 1,
-            Err(e) => {
-                failures += 1;
-                eprintln!("Error: {e}");
-            }
+            Err(_) => failures += 1,
         }
     }
 
-    println!("\n{successes} succeeded, {failures} failed in {elapsed:.2?}");
+    tracing::info!(
+        event = "extraction_complete",
+        message = %format!("{successes} succeeded, {failures} failed in {elapsed:.2?}"),
+    );
 
     Ok(())
 }
