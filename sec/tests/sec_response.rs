@@ -23,6 +23,7 @@ async fn should_create_sec_response_when_response_is_valid_json_with_success_sta
         .expect("A request to httpbin.org should always succeed");
     let result = SecResponse::from_inner(response).await.is_ok();
 
+    drop(client);
     assert_eq!(result, expected_result);
 }
 
@@ -45,6 +46,7 @@ async fn should_return_json_content_type_when_sec_response_is_created_successful
         .expect("A valid JSON response with 200 status should create a SecResponse")
         .content_type();
 
+    drop(client);
     assert_eq!(result, expected_result);
 }
 
@@ -67,6 +69,7 @@ async fn should_return_ok_status_code_when_sec_response_is_created_successfully(
         .expect("A valid JSON response with 200 status should create a SecResponse")
         .status_code();
 
+    drop(client);
     assert_eq!(result, expected_result);
 }
 
@@ -91,6 +94,7 @@ async fn should_fail_with_invalid_status_code_when_response_is_not_success() {
         .expect_err("A 404 response should fail to create a SecResponse")
         .reason;
 
+    drop(client);
     assert_eq!(result, expected_result);
 }
 
@@ -115,5 +119,6 @@ async fn should_fail_with_invalid_content_type_when_response_is_not_json() {
         .expect_err("An HTML response should fail to create a SecResponse")
         .reason;
 
+    drop(client);
     assert_eq!(result, expected_result);
 }
