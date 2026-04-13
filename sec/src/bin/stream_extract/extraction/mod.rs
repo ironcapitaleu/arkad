@@ -41,7 +41,7 @@ impl Extraction {
         state.into_stream(execution_id)
     }
 
-    pub async fn run(self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    pub async fn run(self) -> Result<(), StreamError> {
         let cik = self.raw_cik.clone();
         let execution_id = Uuid::new_v4();
         let pipeline_start = std::time::Instant::now();
@@ -92,7 +92,7 @@ impl Extraction {
                     "duration_ms": pipeline_duration.as_millis(),
                 }),
             );
-            return Err(Box::new(e));
+            return Err(e);
         }
 
         tracing::info!(
