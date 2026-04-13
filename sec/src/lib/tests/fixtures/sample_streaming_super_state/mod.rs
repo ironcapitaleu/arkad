@@ -223,7 +223,9 @@ impl IntoStateMachineStream for SampleStreamingSuperState<SampleStateC> {
             yield Ok(StreamItem {
                 event: StreamEvent::StateStarted,
                 state_name: state_name.clone(),
-                data: serde_json::to_value(sm.current_state()).unwrap_or_default(),
+                data: serde_json::to_value(sm.current_state()).unwrap_or_else(|e| {
+                    serde_json::json!({ "serialization_error": e.to_string() })
+                }),
                 event_duration: std::time::Duration::ZERO,
             });
 
@@ -232,7 +234,9 @@ impl IntoStateMachineStream for SampleStreamingSuperState<SampleStateC> {
                     yield Ok(StreamItem {
                         event: StreamEvent::StateCompleted,
                         state_name,
-                        data: serde_json::to_value(sm.current_state()).unwrap_or_default(),
+                        data: serde_json::to_value(sm.current_state()).unwrap_or_else(|e| {
+                            serde_json::json!({ "serialization_error": e.to_string() })
+                        }),
                         event_duration: state_start.elapsed(),
                     });
                 }
@@ -243,8 +247,10 @@ impl IntoStateMachineStream for SampleStreamingSuperState<SampleStateC> {
                     yield Err(StreamError {
                         event: StreamEvent::StateFailed,
                         execution_id,
-                        state_name,
-                        data: serde_json::to_value(sm.current_state()).unwrap_or_default(),
+                        state_name: state_name.clone(),
+                        data: serde_json::to_value(sm.current_state()).unwrap_or_else(|e| {
+                            serde_json::json!({ "serialization_error": e.to_string() })
+                        }),
                         source: sm_error,
                     });
                 }

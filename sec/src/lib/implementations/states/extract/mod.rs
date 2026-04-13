@@ -247,17 +247,22 @@ impl IntoStateMachineStream for ExtractSuperState<ExecuteSecRequest> {
             yield Ok(StreamItem {
                 event: StreamEvent::StateStarted,
                 state_name: state_name.clone(),
-                data: serde_json::to_value(sm.current_state()).unwrap_or_default(),
+                data: serde_json::to_value(sm.current_state()).unwrap_or_else(|e| {
+                    serde_json::json!({ "serialization_error": e.to_string() })
+                }),
                 event_duration: std::time::Duration::ZERO,
             });
 
             // Compute
             match sm.current_state_mut().compute_output_data_async().await {
                 Ok(()) => {
+                    let data = serde_json::to_value(sm.current_state()).unwrap_or_else(|e| {
+                        serde_json::json!({ "serialization_error": e.to_string() })
+                    });
                     yield Ok(StreamItem {
                         event: StreamEvent::StateCompleted,
                         state_name,
-                        data: serde_json::to_value(sm.current_state()).unwrap_or_default(),
+                        data,
                         event_duration: state_start.elapsed(),
                     });
                 }
@@ -265,11 +270,14 @@ impl IntoStateMachineStream for ExtractSuperState<ExecuteSecRequest> {
                     #[allow(clippy::useless_conversion)]
                     let state_err: crate::error::State = e.into();
                     let sm_error: crate::error::StateMachine = state_err.into();
+                    let data = serde_json::to_value(sm.current_state()).unwrap_or_else(|e| {
+                        serde_json::json!({ "serialization_error": e.to_string() })
+                    });
                     yield Err(StreamError {
                         event: StreamEvent::StateFailed,
                         execution_id,
                         state_name,
-                        data: serde_json::to_value(sm.current_state()).unwrap_or_default(),
+                        data,
                         source: sm_error,
                     });
                 }
