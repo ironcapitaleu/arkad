@@ -38,10 +38,12 @@
 //! }
 //! ```
 
-pub mod invalid_cik_format;
-pub use invalid_cik_format::InvalidCikFormat;
 pub mod failed_request_execution;
 pub use failed_request_execution::FailedRequestExecution;
+pub mod incomplete_company_facts;
+pub use incomplete_company_facts::IncompleteCompanyFacts;
+pub mod invalid_cik_format;
+pub use invalid_cik_format::InvalidCikFormat;
 
 #[non_exhaustive]
 #[derive(Debug, thiserror::Error, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
@@ -53,6 +55,10 @@ pub enum State {
     /// Indicates that a SEC request execution has failed.
     #[error("[StateError] A state level error occurred, Caused by: {0}")]
     FailedRequestExecution(#[source] FailedRequestExecution),
+
+    /// Indicates that the SEC Company Facts response is missing expected data fields.
+    #[error("[StateError] A state level error occurred, Caused by: {0}")]
+    IncompleteCompanyFacts(#[source] IncompleteCompanyFacts),
 
     /// Indicates that input data of a `State` is invalid and cannot be used to compute the output data.
     #[error(

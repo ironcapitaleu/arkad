@@ -14,6 +14,7 @@ tokio = { version = "1.49.0", features = ["rt-multi-thread", "macros"] }
 tracing = { version = "0.1", optional = true }
 tracing-appender = { version = "0.2", optional = true }
 tracing-subscriber = { version = "0.3", features = ["json"], optional = true }
+chrono = { version = "0.4", features = ["serde"] }
 async-stream = "0.3"
 async-trait = "0.1.88"
 futures-core = "0.3"
@@ -43,6 +44,11 @@ path = "src/bin/extraction/main.rs"
 [[bin]]
 name = "stream_extract"
 path = "src/bin/stream_extract/main.rs"
+required-features = ["tracing-logging"]
+
+[[bin]]
+name = "stream_etl"
+path = "src/bin/stream_etl/main.rs"
 required-features = ["tracing-logging"]
 
 [lints.rust]
