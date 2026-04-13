@@ -5,7 +5,7 @@
 //! for SEC XBRL concepts, filing metadata, and financial observations.
 //!
 //! ## Modules
-//! - [`unit`]: Measurement units for financial data (USD, shares, etc.).
+//! - [`mod@unit`]: Measurement units for financial data (USD, shares, etc.).
 //! - [`period`]: Time period representations (instant snapshots, duration ranges).
 //! - [`quarter`]: Calendar quarter representation.
 //! - [`form`]: SEC filing form types (10-K, 10-Q, etc.).

@@ -5,7 +5,7 @@
 //!
 //! ## Overview
 //! The [`ParseCompanyFacts`] state is responsible for taking raw SEC Company Facts JSON
-//! and resolving XBRL concepts into typed [`CompanyData`](crate::shared::financial::company_data::CompanyData).
+//! and resolving XBRL concepts into typed [`CompanyData`].
 //! It validates that all required concepts are present and produces structured financial data
 //! suitable for downstream processing.
 //!

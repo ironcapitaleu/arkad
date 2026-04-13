@@ -5,7 +5,7 @@
 //!
 //! ## Components
 //! - [`create_financial_statements`]: Creates structured financial statements from parsed company data.
-//! - [`parse_company_facts`]: Parses SEC Company Facts JSON into structured [`CompanyData`](crate::shared::financial::company_data::CompanyData).
+//! - [`parse_company_facts`]: Parses SEC Company Facts JSON into structured [`CompanyData`].
 //! - [`TransformSuperState`]: Super-state that orchestrates the transform workflow and state transitions.
 //!
 //! ## State Flow
