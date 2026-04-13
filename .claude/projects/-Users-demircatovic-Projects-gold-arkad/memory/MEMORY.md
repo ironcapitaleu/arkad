@@ -1,4 +1,0 @@
-- [StateMachineGraph trait (removed)](project_transition_graph.md) — full code preserved for reuse: const graph, adjacency list, mermaid generation
-- [Step Functions-style dashboard](project_step_functions_ui.md) — future plan for real-time web UI showing SM execution progress per CIK (like AWS Step Functions)
-- [Useful commands](reference_useful_commands.md) — jq colored logs, pipeline profiling, execution tracing
-- [Shared HTTP client](project_shared_http_client.md) — future optimization: share reqwest::Client across pipelines for connection pooling
