@@ -33,7 +33,7 @@ stateDiagram-v2
     }
     Extract --> Transform
     state Transform {
-        ProcessSecData
+        ParseCompanyFacts --> CreateFinancialStatements
     }
     Transform --> Load
     state Load {
@@ -166,6 +166,7 @@ classDiagram
         +InvalidSecResponse(InvalidSecResponse)
         +FailedClientCreation(FailedClientCreation)
         +FailedRequestExecution(FailedRequestExecution)
+        +IncompleteCompanyFacts(IncompleteCompanyFacts)
         +InvalidInput
         +InvalidContext
         +FailedOutputComputation
@@ -198,6 +199,11 @@ classDiagram
         +String state_name
         +SecRequestError domain_error
     }
+    class IncompleteCompanyFacts{
+        <<struct>>
+        +String state_name
+        +Vec~String~ missing_fields
+    }
     class MissingOutput{
         <<struct>>
         +String super_state_name
@@ -228,6 +234,7 @@ classDiagram
     State <|-- InvalidSecResponse
     State <|-- FailedClientCreation
     State <|-- FailedRequestExecution
+    State <|-- IncompleteCompanyFacts
     Transition <|-- MissingOutput
     InvalidCikFormat --> CikError
     InvalidSecResponse --> SecResponseError
@@ -237,7 +244,7 @@ classDiagram
 
 ## Quality & Reliability
 
-- **800+ unit tests** covering state transitions, input validation, error paths, and edge cases
+- **900+ unit tests** covering state transitions, input validation, error paths, and edge cases
 - **Invariant-based validation** at every state boundary to prevent downstream data corruption
 - **Async and parallel execution** via Tokio, preserving pipeline correctness and reproducibility
 - **First-class CI** via GitHub Actions with automated testing, linting, and formatting checks
@@ -260,13 +267,18 @@ git clone https://github.com/ironcapitaleu/arkad.git
 cd arkad
 ```
 
-Run the example SEC pipeline:
+Run the full ETL pipeline with structured JSON logging:
 
 ```bash
-cargo run
-```
+# Default: Berkshire Hathaway
+cargo run --features tracing-logging --bin stream_etl
 
-Example entry points are in `sec/bin/main.rs`.
+# Specific company (Apple Inc.)
+cargo run --features tracing-logging --bin stream_etl -- 320193
+
+# Batch: all S&P 500 CIKs (3 concurrent)
+cargo run --features tracing-logging --bin stream_extract
+```
 
 ## Contributing
 
