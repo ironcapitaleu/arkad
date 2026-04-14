@@ -98,10 +98,14 @@ impl PartialOrd for CompanyFact {
     }
 }
 
-// Deviation: ordering is based on `matched_xbrl_key` only.
+// Ordering is based on the same fields as equality to preserve the `Ord` contract.
+// `Vec<Observation>` implements `Ord` since `Observation` derives it.
 impl Ord for CompanyFact {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.matched_xbrl_key.cmp(&other.matched_xbrl_key)
+        self.matched_xbrl_key
+            .cmp(&other.matched_xbrl_key)
+            .then_with(|| self.company_label.cmp(&other.company_label))
+            .then_with(|| self.observations.cmp(&other.observations))
     }
 }
 

@@ -102,10 +102,12 @@ impl PartialOrd for CompanyData {
     }
 }
 
-// Deviation: ordering is based on `cik` only.
+// Ordering is based on the same fields as equality to preserve the `Ord` contract.
 impl Ord for CompanyData {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.cik.cmp(&other.cik)
+        self.cik
+            .cmp(&other.cik)
+            .then_with(|| self.entity_name.cmp(&other.entity_name))
     }
 }
 
