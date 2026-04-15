@@ -88,12 +88,14 @@ impl SMStateData for ValidateCikFormatInput {
         self
     }
 
-    /// Panics unconditionally — SEC state data uses fallible updates.
-    fn update_state(&mut self, _updates: Self::UpdateType) {
-        unimplemented!(
-            "SEC state data uses fallible updates. \
-             Call sec::StateData::update_state instead"
-        )
+    /// Delegates to the SEC [`StateData::update_state`] implementation.
+    ///
+    /// # Panics
+    /// Panics if the fallible SEC update returns an error.
+    fn update_state(&mut self, updates: Self::UpdateType) {
+        if let Err(e) = <Self as StateData>::update_state(self, updates) {
+            panic!("StateData::update_state failed: {e}")
+        }
     }
 }
 
