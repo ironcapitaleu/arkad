@@ -27,14 +27,20 @@
 //! ## Example
 //!
 //! ```rust
-//! use sec::error::state_machine::transition::Transition;
+//! use sec::error::state_machine::transition::{Transition, FailedOutputConversion};
 //!
 //! fn perform_transition() -> Result<(), Transition> {
 //!     // ... transition logic ...
-//!     Err(Transition::FailedOutputConversion)
+//!     Err(Transition::FailedOutputConversion(
+//!         FailedOutputConversion::new("SourceState", "TargetState"),
+//!     ))
 //! }
 //! ```
 
+pub mod failed_context_conversion;
+pub use failed_context_conversion::FailedContextConversion;
+pub mod failed_output_conversion;
+pub use failed_output_conversion::FailedOutputConversion;
 pub mod missing_output;
 pub use missing_output::MissingOutput;
 
@@ -56,20 +62,12 @@ pub enum Transition {
     MissingOutput(#[source] MissingOutput),
 
     /// Failed to convert output of the source state into the input of the destination state.
-    ///
-    /// This error variant indicates that the output data produced by the source state could not
-    /// be transformed or mapped into the input data required by the destination state during a transition.
-    #[error("[TransitionError] A transition error occurred, Reason: Failed to convert output data")]
-    FailedOutputConversion,
+    #[error("[TransitionError] A transition error occurred, Caused by: {0}")]
+    FailedOutputConversion(#[source] FailedOutputConversion),
 
     /// Failed to convert context of the source state into the context of the destination state.
-    ///
-    /// This error variant indicates that the context associated with the source state could not
-    /// be transformed or mapped into the context required by the destination state during a transition.
-    #[error(
-        "[TransitionError] A transition error occurred, Reason: Failed to convert context data"
-    )]
-    FailedContextConversion,
+    #[error("[TransitionError] A transition error occurred, Caused by: {0}")]
+    FailedContextConversion(#[source] FailedContextConversion),
 }
 
 #[cfg(test)]
@@ -159,6 +157,7 @@ mod tests {
     #[test]
     fn should_be_able_to_create_transition_failedcontextconversion_error_when_using_enum_directly()
     {
-        let _result = Transition::FailedContextConversion;
+        let _result =
+            Transition::FailedContextConversion(FailedContextConversion::new("StateA", "StateB"));
     }
 }

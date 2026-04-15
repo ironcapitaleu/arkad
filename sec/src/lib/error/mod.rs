@@ -237,7 +237,9 @@ mod tests {
     fn should_be_able_to_create_transition_error_when_casting_from_specific_error_kind_that_is_a_transition()
      {
         let _result: Transition = ErrorKind::StateMachine(StateMachine::Transition(
-            Transition::FailedOutputConversion,
+            Transition::FailedOutputConversion(
+                crate::error::state_machine::transition::FailedOutputConversion::new("A", "B"),
+            ),
         ))
         .try_into()
         .expect(
