@@ -18,38 +18,25 @@ use crate::implementations::states::extract::prepare_sec_request::constants::STA
 use crate::implementations::states::extract::prepare_sec_request::{
     PrepareSecRequest, PrepareSecRequestContext, PrepareSecRequestInput,
 };
-use crate::implementations::states::extract::validate_cik_format::{
-    ValidateCikFormat, ValidateCikFormatOutput,
-};
+use crate::implementations::states::extract::validate_cik_format::ValidateCikFormat;
+use crate::implementations::states::extract::validate_cik_format::constants::STATE_NAME as VALIDATE_CIK_FORMAT;
 use crate::shared::user_agent::constants::DEFAULT_SEC_USER_AGENT;
-
-use state_maschine::prelude::State;
-
-impl From<&ValidateCikFormatOutput> for PrepareSecRequestContext {
-    fn from(output_data: &ValidateCikFormatOutput) -> Self {
-        Self::new(output_data.validated_cik.clone())
-    }
-}
-
-impl From<ValidateCikFormatOutput> for PrepareSecRequestInput {
-    fn from(output_data: ValidateCikFormatOutput) -> Self {
-        Self::new(
-            output_data.validated_cik,
-            DEFAULT_SEC_USER_AGENT.to_string(),
-        )
-    }
-}
 
 impl TryFrom<ValidateCikFormat> for PrepareSecRequest {
     type Error = TransitionError;
 
     fn try_from(state: ValidateCikFormat) -> Result<Self, TransitionError> {
-        let output_data = state.output_data().cloned().ok_or_else(|| {
-            transition::MissingOutput::new(state.state_name().to_string(), PREPARE_SEC_REQUEST)
+        let (_input, output, _context) = state.into_parts();
+        let output_data = output.ok_or_else(|| {
+            transition::MissingOutput::new(VALIDATE_CIK_FORMAT, PREPARE_SEC_REQUEST)
         })?;
 
-        let new_context = PrepareSecRequestContext::from(&output_data);
-        let new_input = PrepareSecRequestInput::from(output_data);
+        // Both context and input need the CIK -- clone it once
+        let new_context = PrepareSecRequestContext::new(output_data.validated_cik.clone());
+        let new_input = PrepareSecRequestInput::new(
+            output_data.validated_cik,
+            DEFAULT_SEC_USER_AGENT.to_string(),
+        );
 
         Ok(Self::new(new_input, new_context))
     }
@@ -58,37 +45,48 @@ impl TryFrom<ValidateCikFormat> for PrepareSecRequest {
 #[cfg(test)]
 mod tests {
     use pretty_assertions::assert_eq;
+    use tokio;
 
     use super::*;
+    use crate::implementations::states::extract::validate_cik_format::{
+        ValidateCikFormat, ValidateCikFormatContext, ValidateCikFormatInput,
+    };
     use crate::shared::cik::Cik;
+    use crate::traits::state_machine::state::State;
 
-    #[test]
-    fn should_convert_output_to_context_when_valid_output() {
+    #[tokio::test]
+    async fn should_transition_to_prepare_sec_request_when_validate_cik_format_has_output() {
         let cik_string = "0001234567";
-        let output = ValidateCikFormatOutput::new(cik_string)
-            .expect("Hardcoded valid CIK string should always parse successfully");
+        let input = ValidateCikFormatInput {
+            raw_cik: cik_string.into(),
+        };
+        let context = ValidateCikFormatContext::default();
+        let mut state = ValidateCikFormat::new(input, context);
+        state
+            .compute_output_data_async()
+            .await
+            .expect("Hardcoded valid CIK should always compute successfully");
+
         let expected_cik = Cik::new(cik_string)
             .expect("Hardcoded valid CIK string should always parse successfully");
+        let expected_context = PrepareSecRequestContext::new(expected_cik.clone());
+        let expected_input =
+            PrepareSecRequestInput::new(expected_cik, DEFAULT_SEC_USER_AGENT.to_string());
+        let expected_result = PrepareSecRequest::new(expected_input, expected_context);
 
-        let expected_result = PrepareSecRequestContext::new(expected_cik);
-
-        let result = PrepareSecRequestContext::from(&output);
+        let result = PrepareSecRequest::try_from(state)
+            .expect("State with computed output should always transition successfully");
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
-    fn should_convert_output_to_input_when_valid_output() {
-        let cik_string = "0001234567";
-        let output = ValidateCikFormatOutput::new(cik_string)
-            .expect("Hardcoded valid CIK string should always parse successfully");
-        let expected_cik = Cik::new(cik_string)
-            .expect("Hardcoded valid CIK string should always parse successfully");
+    fn should_return_error_when_validate_cik_format_has_no_output() {
+        let state = ValidateCikFormat::default();
 
-        let expected_result =
-            PrepareSecRequestInput::new(expected_cik, DEFAULT_SEC_USER_AGENT.to_string());
+        let expected_result = true;
 
-        let result: PrepareSecRequestInput = output.into();
+        let result = PrepareSecRequest::try_from(state).is_err();
 
         assert_eq!(result, expected_result);
     }

@@ -129,6 +129,18 @@ impl CreateFinancialStatements {
             output: None,
         }
     }
+
+    /// Consumes the state and returns its components. Used for state transitions.
+    #[must_use]
+    pub fn into_parts(
+        self,
+    ) -> (
+        CreateFinancialStatementsInput,
+        Option<CreateFinancialStatementsOutput>,
+        CreateFinancialStatementsContext,
+    ) {
+        (self.input, self.output, self.context)
+    }
 }
 
 #[async_trait]

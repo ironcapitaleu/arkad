@@ -19,15 +19,14 @@ use crate::implementations::states::transform::create_financial_statements::cons
 use crate::implementations::states::transform::create_financial_statements::{
     CreateFinancialStatements, CreateFinancialStatementsContext, CreateFinancialStatementsInput,
 };
+use crate::implementations::states::transform::parse_company_facts::constants::STATE_NAME as PARSE_COMPANY_FACTS;
 use crate::implementations::states::transform::parse_company_facts::{
     ParseCompanyFacts, ParseCompanyFactsContext, ParseCompanyFactsOutput,
 };
 
-use state_maschine::prelude::State;
-
 impl From<ParseCompanyFactsOutput> for CreateFinancialStatementsInput {
     fn from(output_data: ParseCompanyFactsOutput) -> Self {
-        Self::new(output_data.company_data().clone())
+        Self::new(output_data.company_data)
     }
 }
 
@@ -41,20 +40,13 @@ impl TryFrom<ParseCompanyFacts> for CreateFinancialStatements {
     type Error = TransitionError;
 
     fn try_from(state: ParseCompanyFacts) -> Result<Self, TransitionError> {
-        let output_data = match state.output_data() {
-            Some(data) => data.clone(),
-            None => {
-                return Err(transition::MissingOutput::new(
-                    state.state_name().to_string(),
-                    CREATE_FINANCIAL_STATEMENTS,
-                )
-                .into());
-            }
-        };
+        let (_input, output, context) = state.into_parts();
+        let output_data = output.ok_or_else(|| {
+            transition::MissingOutput::new(PARSE_COMPANY_FACTS, CREATE_FINANCIAL_STATEMENTS)
+        })?;
 
-        let state_context = state.context_data().clone();
-        let new_context: CreateFinancialStatementsContext = state_context.into();
         let new_input: CreateFinancialStatementsInput = output_data.into();
+        let new_context: CreateFinancialStatementsContext = context.into();
 
         Ok(Self::new(new_input, new_context))
     }
@@ -86,7 +78,7 @@ mod tests {
 
         let expected_result = CreateFinancialStatementsContext::new(cik);
 
-        let result: CreateFinancialStatementsContext = context.into();
+        let result = CreateFinancialStatementsContext::from(context);
 
         assert_eq!(result, expected_result);
     }
@@ -98,7 +90,18 @@ mod tests {
 
         let expected_result = CreateFinancialStatementsInput::new(company_data);
 
-        let result: CreateFinancialStatementsInput = output.into();
+        let result = CreateFinancialStatementsInput::from(output);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_error_when_parse_company_facts_has_no_output() {
+        let state = ParseCompanyFacts::default();
+
+        let expected_result = true;
+
+        let result = CreateFinancialStatements::try_from(state).is_err();
 
         assert_eq!(result, expected_result);
     }

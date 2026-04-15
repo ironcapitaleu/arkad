@@ -131,6 +131,18 @@ impl ExecuteSecRequest {
             output: None,
         }
     }
+
+    /// Consumes the state and returns its components. Used for state transitions.
+    #[must_use]
+    pub fn into_parts(
+        self,
+    ) -> (
+        ExecuteSecRequestInput,
+        Option<ExecuteSecRequestOutput>,
+        ExecuteSecRequestContext,
+    ) {
+        (self.input, self.output, self.context)
+    }
 }
 
 #[async_trait]

@@ -39,7 +39,7 @@ use crate::traits::state_machine::state::StateData;
 #[derive(Debug, Clone)]
 pub struct ParseCompanyFactsOutput {
     /// The parsed company financial data.
-    company_data: CompanyData,
+    pub company_data: CompanyData,
 }
 
 impl ParseCompanyFactsOutput {

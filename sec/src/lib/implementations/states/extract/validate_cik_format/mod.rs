@@ -109,6 +109,18 @@ impl ValidateCikFormat {
             output: None,
         }
     }
+
+    /// Consumes the state and returns its components. Used for state transitions.
+    #[must_use]
+    pub fn into_parts(
+        self,
+    ) -> (
+        ValidateCikFormatInput,
+        Option<ValidateCikFormatOutput>,
+        ValidateCikFormatContext,
+    ) {
+        (self.input, self.output, self.context)
+    }
 }
 
 #[async_trait]

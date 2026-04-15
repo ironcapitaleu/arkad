@@ -109,6 +109,18 @@ impl ParseCompanyFacts {
             output: None,
         }
     }
+
+    /// Consumes the state and returns its components. Used for state transitions.
+    #[must_use]
+    pub fn into_parts(
+        self,
+    ) -> (
+        ParseCompanyFactsInput,
+        Option<ParseCompanyFactsOutput>,
+        ParseCompanyFactsContext,
+    ) {
+        (self.input, self.output, self.context)
+    }
 }
 
 impl Default for ParseCompanyFacts {

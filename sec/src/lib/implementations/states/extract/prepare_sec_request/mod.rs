@@ -120,6 +120,18 @@ impl PrepareSecRequest {
             output: None,
         }
     }
+
+    /// Consumes the state and returns its components. Used for state transitions.
+    #[must_use]
+    pub fn into_parts(
+        self,
+    ) -> (
+        PrepareSecRequestInput,
+        Option<PrepareSecRequestOutput>,
+        PrepareSecRequestContext,
+    ) {
+        (self.input, self.output, self.context)
+    }
 }
 
 #[async_trait]
