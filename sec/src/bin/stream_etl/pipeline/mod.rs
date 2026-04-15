@@ -256,7 +256,8 @@ async fn run_state<S: State>(
     tracing::info!(
         event = %PipelineEvent::StateCompleted,
         message = %format!("[{phase}] State '{state_name}' completed"),
-        event_duration_ms = start.elapsed().as_millis(),
+        // u32 holds up to ~49 days in milliseconds; no single state will run that long - if it does, we deseve the bug
+        event_duration_ms = u32::try_from(start.elapsed().as_millis()).unwrap_or(u32::MAX),
         context = %serde_json::json!({
             "execution_id": execution_id.to_string(),
             "cik": cik,
