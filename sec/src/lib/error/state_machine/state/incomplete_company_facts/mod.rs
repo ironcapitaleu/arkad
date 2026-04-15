@@ -111,11 +111,11 @@ mod tests {
         let missing = vec!["Revenue".to_string(), "Total Assets".to_string()];
         let error = IncompleteCompanyFacts::new("TestState", missing.clone());
 
-        let expected_result = &missing;
+        let expected_result = missing.as_slice();
 
         let result = error.missing_fields();
 
-        assert_eq!(result, expected_result.as_slice());
+        assert_eq!(result, expected_result);
     }
 
     #[test]
