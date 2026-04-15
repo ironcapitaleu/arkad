@@ -118,7 +118,7 @@ pub struct ExtractSuperState<S: State> {
 }
 
 impl<S: State> Display for ExtractSuperState<S> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(
             f,
             "Extract SuperState (Current: {})",

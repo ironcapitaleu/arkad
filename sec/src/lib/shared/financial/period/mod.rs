@@ -47,7 +47,7 @@ pub enum Period {
 }
 
 impl fmt::Display for Period {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Self::Instant { date } => write!(f, "Instant({date})"),
             Self::Duration { start, end } => write!(f, "Duration({start} to {end})"),

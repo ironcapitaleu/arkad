@@ -95,7 +95,7 @@ impl Frame {
 }
 
 impl fmt::Display for Frame {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "CY{}", self.year)?;
         if let Some(q) = self.quarter {
             write!(f, "{q}")?;

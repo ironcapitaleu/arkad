@@ -28,7 +28,7 @@ pub enum Form {
 }
 
 impl fmt::Display for Form {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Self::TenK => write!(f, "10-K"),
             Self::TenQ => write!(f, "10-Q"),

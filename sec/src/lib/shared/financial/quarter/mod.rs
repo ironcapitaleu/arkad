@@ -32,7 +32,7 @@ pub enum Quarter {
 }
 
 impl fmt::Display for Quarter {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Self::Q1 => write!(f, "Q1"),
             Self::Q2 => write!(f, "Q2"),

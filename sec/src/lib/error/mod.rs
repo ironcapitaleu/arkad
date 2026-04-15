@@ -48,7 +48,7 @@ pub enum ErrorKind {
 }
 
 impl std::fmt::Display for ErrorKind {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
             Self::StateMachine(state_machine) => {
                 write!(

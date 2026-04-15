@@ -67,7 +67,7 @@ impl TryFrom<u64> for FiscalYear {
 }
 
 impl fmt::Display for FiscalYear {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.0)
     }
 }

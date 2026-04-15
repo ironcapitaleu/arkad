@@ -42,7 +42,7 @@ pub enum StreamEvent {
 }
 
 impl fmt::Display for StreamEvent {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Self::StateStarted => write!(f, "state_started"),
             Self::StateCompleted => write!(f, "state_completed"),

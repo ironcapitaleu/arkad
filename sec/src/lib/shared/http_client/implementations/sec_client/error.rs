@@ -37,7 +37,7 @@ pub enum ErrorReason {
 
 impl fmt::Display for ErrorReason {
     /// Formats the reason for display.
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Self::FailedRequestExecution { details } => {
                 write!(

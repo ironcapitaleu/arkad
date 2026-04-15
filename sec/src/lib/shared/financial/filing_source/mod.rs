@@ -105,7 +105,7 @@ impl FilingSource {
 }
 
 impl fmt::Display for FilingSource {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
             "{} {} {} {} (filed {})",

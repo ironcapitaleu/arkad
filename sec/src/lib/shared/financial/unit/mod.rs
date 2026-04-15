@@ -32,7 +32,7 @@ pub enum Unit {
 }
 
 impl fmt::Display for Unit {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Self::Usd => write!(f, "USD"),
             Self::Shares => write!(f, "shares"),

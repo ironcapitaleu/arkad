@@ -22,9 +22,8 @@ classDiagram
         <<enum>>
         %% Errors from internal state operations
         +InvalidCikFormat(InvalidCikFormat)
-        +InvalidSecResponse(InvalidSecResponse)
-        +FailedClientCreation(FailedClientCreation)
         +FailedRequestExecution(FailedRequestExecution)
+        +IncompleteCompanyFacts(IncompleteCompanyFacts)
         +InvalidInput
         +InvalidContext
         +FailedOutputComputation
@@ -36,8 +35,8 @@ classDiagram
         <<enum>>
         %% Errors during state transitions
         +MissingOutput(MissingOutput)
-        +FailedOutputConversion
-        +FailedContextConversion
+        +FailedOutputConversion(FailedOutputConversion)
+        +FailedContextConversion(FailedContextConversion)
     }
 
     class InvalidCikFormat{
@@ -47,20 +46,6 @@ classDiagram
         +CikError domain_error
     }
 
-    class InvalidSecResponse{
-        <<struct>>
-        %% State-level wrapper for SEC response errors
-        +String state_name
-        +SecResponseError domain_error
-    }
-
-    class FailedClientCreation{
-        <<struct>>
-        %% State-level wrapper for client creation errors
-        +String state_name
-        +SecClientError domain_error
-    }
-
     class FailedRequestExecution{
         <<struct>>
         %% State-level wrapper for request execution errors
@@ -68,10 +53,31 @@ classDiagram
         +SecRequestError domain_error
     }
 
+    class IncompleteCompanyFacts{
+        <<struct>>
+        %% State-level error for missing XBRL concepts
+        +String state_name
+        +Vec~String~ missing_fields
+    }
+
     class MissingOutput{
         <<struct>>
         %% Transition-level error for missing output data
-        +String super_state_name
+        +String source_state_name
+        +String target_state_name
+    }
+
+    class FailedOutputConversion{
+        <<struct>>
+        %% Transition-level error for output-to-input conversion failure
+        +String source_state_name
+        +String target_state_name
+    }
+
+    class FailedContextConversion{
+        <<struct>>
+        %% Transition-level error for context conversion failure
+        +String source_state_name
         +String target_state_name
     }
 
@@ -80,19 +86,6 @@ classDiagram
         %% Domain error for invalid CIK format
         +InvalidCikReason reason
         +String invalid_cik
-    }
-
-    class SecResponseError{
-        <<struct>>
-        %% Domain error for SEC response processing
-        +SecResponseErrorReason reason
-    }
-
-    class SecClientError{
-        <<struct>>
-        %% Domain error for SEC client creation
-        +SecClientErrorReason reason
-        +String user_agent
     }
 
     class SecRequestError{
@@ -105,19 +98,18 @@ classDiagram
     ErrorKind <|-- StateMachine
     StateMachine <|-- State
     StateMachine <|-- Transition
-    
+
     %% State error wraps domain errors
     State <|-- InvalidCikFormat
-    State <|-- InvalidSecResponse
-    State <|-- FailedClientCreation
     State <|-- FailedRequestExecution
-    
+    State <|-- IncompleteCompanyFacts
+
     %% Transition error wraps specific errors
     Transition <|-- MissingOutput
-    
+    Transition <|-- FailedOutputConversion
+    Transition <|-- FailedContextConversion
+
     %% State wrappers contain domain errors
     InvalidCikFormat --> CikError
-    InvalidSecResponse --> SecResponseError
-    FailedClientCreation --> SecClientError
     FailedRequestExecution --> SecRequestError
 ```

@@ -34,7 +34,7 @@ pub enum FiscalPeriod {
 }
 
 impl fmt::Display for FiscalPeriod {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Self::Fy => write!(f, "FY"),
             Self::Q1 => write!(f, "Q1"),
