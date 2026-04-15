@@ -56,7 +56,7 @@ impl ParseCompanyFactsInput {
     /// use sec::shared::response::implementations::sec_response::body_digest::BodyDigest;
     ///
     /// let json = serde_json::json!({"cik": 320193, "entityName": "Apple Inc.", "facts": {}});
-    /// let digest = BodyDigest::from_json_value(&json);
+    /// let digest = BodyDigest::from_body_text(&json.to_string());
     /// let input = ParseCompanyFactsInput::new(json, digest);
     /// ```
     #[must_use]
@@ -154,18 +154,6 @@ impl SMStateData for ParseCompanyFactsInput {
     }
 }
 
-impl Default for ParseCompanyFactsInput {
-    /// Returns a default input with an empty JSON object.
-    fn default() -> Self {
-        let response = serde_json::json!({});
-        let body_digest = BodyDigest::from_json_value(&response);
-        Self {
-            response,
-            body_digest,
-        }
-    }
-}
-
 impl fmt::Display for ParseCompanyFactsInput {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
@@ -251,11 +239,17 @@ mod tests {
     use crate::traits::state_machine::state::StateData;
     use state_maschine::prelude::StateData as SMStateData;
 
-    #[test]
-    fn should_return_reference_to_default_input_data_when_initialized_with_default() {
-        let input_data = ParseCompanyFactsInput::default();
+    fn test_input() -> ParseCompanyFactsInput {
+        let json = serde_json::json!({});
+        let digest = BodyDigest::from_body_text(&json.to_string());
+        ParseCompanyFactsInput::new(json, digest)
+    }
 
-        let expected_result = &ParseCompanyFactsInput::default();
+    #[test]
+    fn should_return_reference_to_input_data_when_initialized_with_test_input() {
+        let input_data = test_input();
+
+        let expected_result = &test_input();
 
         let result = input_data.state();
 
@@ -265,10 +259,10 @@ mod tests {
     #[test]
     fn should_create_different_input_data_with_custom_json_when_using_new_as_constructor() {
         let json = serde_json::json!({"cik": 320_193});
-        let digest = BodyDigest::from_json_value(&json);
+        let digest = BodyDigest::from_body_text(&json.to_string());
         let input_data = &ParseCompanyFactsInput::new(json, digest);
 
-        let default_input_data = &ParseCompanyFactsInput::default();
+        let default_input_data = &test_input();
 
         let result = input_data.state();
 
@@ -277,13 +271,13 @@ mod tests {
 
     #[test]
     fn should_update_state_data_when_update_contains_new_response() {
-        let mut state_data = ParseCompanyFactsInput::default();
+        let mut state_data = test_input();
         let new_json = serde_json::json!({"cik": 12345});
         let update = ParseCompanyFactsInputUpdaterBuilder::default()
             .response(new_json.clone())
             .build();
 
-        let digest = BodyDigest::from_json_value(&new_json);
+        let digest = BodyDigest::from_body_text(&new_json.to_string());
         let expected_result = &ParseCompanyFactsInput::new(new_json, digest);
 
         StateData::update_state(&mut state_data, update)
@@ -295,10 +289,10 @@ mod tests {
 
     #[test]
     fn should_leave_state_data_unchanged_when_empty_update() {
-        let mut state_data = ParseCompanyFactsInput::default();
+        let mut state_data = test_input();
         let empty_update = ParseCompanyFactsInputUpdaterBuilder::default().build();
 
-        let expected_result = &ParseCompanyFactsInput::default();
+        let expected_result = &test_input();
 
         StateData::update_state(&mut state_data, empty_update)
             .expect("Update with valid 'update' value should always succeed");
@@ -366,12 +360,6 @@ mod tests {
     #[test]
     const fn should_implement_ord_when_implementing_input_data_trait() {
         implements_ord::<ParseCompanyFactsInput>();
-    }
-
-    const fn implements_default<T: Default>() {}
-    #[test]
-    const fn should_implement_default_when_implementing_input_data_trait() {
-        implements_default::<ParseCompanyFactsInput>();
     }
 
     const fn implements_debug<T: Debug>() {}

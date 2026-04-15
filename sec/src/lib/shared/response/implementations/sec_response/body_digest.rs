@@ -9,15 +9,14 @@ use std::hash::{DefaultHasher, Hash, Hasher};
 
 /// A precomputed `u64` digest of a response body.
 ///
-/// Computed from the raw body text using [`DefaultHasher`] at construction time.
+/// Computed from body text using [`DefaultHasher`] at construction time.
 /// Used by [`SecResponse`](super::SecResponse) and downstream types to implement
 /// `Hash` and `Ord` efficiently without re-serializing the JSON body.
 ///
-/// # Important
-/// [`from_body_text`](Self::from_body_text) and [`from_json_value`](Self::from_json_value)
-/// may produce **different digests** for the same logical content. The raw text preserves
-/// original formatting and key order, while `from_json_value` serializes through
-/// `serde_json`'s canonical output. Do not compare digests across construction methods.
+/// Only one construction path exists ([`from_body_text`](Self::from_body_text)) to ensure
+/// digest consistency. The idea is that the digest is computed on the raw body text,
+/// before the body is parsed as JSON. This way, the digest reflects the exact content of the body,
+/// and the digest computation is more efficient since it does not need to convert the JSON value back to text for hashing.
 ///
 /// # Example
 /// ```
@@ -36,15 +35,6 @@ impl BodyDigest {
         let mut hasher = DefaultHasher::new();
         body_text.hash(&mut hasher);
         Self(hasher.finish())
-    }
-
-    /// Computes a digest from a [`serde_json::Value`] by serializing it first.
-    ///
-    /// Prefer [`from_body_text`](Self::from_body_text) when the raw body text is available,
-    /// as it avoids the serialization overhead.
-    #[must_use]
-    pub fn from_json_value(value: &serde_json::Value) -> Self {
-        Self::from_body_text(&value.to_string())
     }
 
     /// Returns the raw `u64` digest value.
@@ -83,17 +73,6 @@ mod tests {
         let expected_result = false;
 
         let result = a == b;
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
-    fn should_produce_same_digest_from_json_value_as_from_its_string_representation() {
-        let value = serde_json::json!({"key": "value"});
-
-        let expected_result = BodyDigest::from_body_text(&value.to_string());
-
-        let result = BodyDigest::from_json_value(&value);
 
         assert_eq!(result, expected_result);
     }

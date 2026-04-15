@@ -83,7 +83,7 @@ impl SecResponse {
         status_code: StatusCode,
         body: serde_json::Value,
     ) -> Self {
-        let body_digest = BodyDigest::from_json_value(&body);
+        let body_digest = BodyDigest::from_body_text(&body.to_string());
         Self {
             url,
             headers,

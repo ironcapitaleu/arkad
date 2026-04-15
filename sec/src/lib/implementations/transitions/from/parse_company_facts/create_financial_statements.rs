@@ -59,9 +59,21 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;
+    use crate::implementations::states::transform::parse_company_facts::ParseCompanyFactsInput;
     use crate::shared::cik::Cik;
     use crate::shared::financial::company_data::CompanyData;
     use crate::shared::financial::entity_name::EntityName;
+    use crate::shared::response::implementations::sec_response::body_digest::BodyDigest;
+
+    fn get_baseline_parse_state_without_output() -> ParseCompanyFacts {
+        let json: serde_json::Value = serde_json::json!({});
+        let digest = BodyDigest::from_body_text(&json.to_string());
+        let input = ParseCompanyFactsInput::new(json, digest);
+        let cik =
+            Cik::new("0001067983").expect("Hardcoded CIK should always be valid");
+        let context = ParseCompanyFactsContext::new(cik);
+        ParseCompanyFacts::new(input, context)
+    }
 
     fn test_cik() -> Cik {
         Cik::new("0001234567").expect("Hardcoded valid CIK string should always parse successfully")
@@ -97,7 +109,7 @@ mod tests {
 
     #[test]
     fn should_return_error_when_parse_company_facts_has_no_output() {
-        let state = ParseCompanyFacts::default();
+        let state = get_baseline_parse_state_without_output();
 
         let expected_result = true;
 

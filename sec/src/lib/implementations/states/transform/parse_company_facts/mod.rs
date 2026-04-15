@@ -88,8 +88,11 @@ pub use data::ParseCompanyFactsOutput;
 /// # Example
 /// ```rust
 /// use sec::implementations::states::transform::parse_company_facts::*;
+/// use sec::shared::response::implementations::sec_response::body_digest::BodyDigest;
 ///
-/// let input = ParseCompanyFactsInput::default();
+/// let json = serde_json::json!({});
+/// let digest = BodyDigest::from_body_text(&json.to_string());
+/// let input = ParseCompanyFactsInput::new(json, digest);
 /// let context = ParseCompanyFactsContext::default();
 /// let state = ParseCompanyFacts::new(input, context);
 /// ```
@@ -120,15 +123,6 @@ impl ParseCompanyFacts {
         ParseCompanyFactsContext,
     ) {
         (self.input, self.output, self.context)
-    }
-}
-
-impl Default for ParseCompanyFacts {
-    fn default() -> Self {
-        Self::new(
-            ParseCompanyFactsInput::default(),
-            ParseCompanyFactsContext::default(),
-        )
     }
 }
 
@@ -343,14 +337,29 @@ impl fmt::Display for ParseCompanyFacts {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::shared::cik::Cik;
     use crate::shared::response::implementations::sec_response::body_digest::BodyDigest;
     use pretty_assertions::assert_eq;
     use std::{fmt::Debug, hash::Hash};
     use tokio;
 
+    fn test_input() -> ParseCompanyFactsInput {
+        let json = serde_json::json!({});
+        let digest = BodyDigest::from_body_text(&json.to_string());
+        ParseCompanyFactsInput::new(json, digest)
+    }
+
+    fn get_baseline_parse_state() -> ParseCompanyFacts {
+        let input = test_input();
+        let cik =
+            Cik::new("0001067983").expect("Hardcoded CIK should always be valid");
+        let context = ParseCompanyFactsContext::new(cik);
+        ParseCompanyFacts::new(input, context)
+    }
+
     /// Creates a minimal valid SEC Company Facts JSON for testing.
     #[allow(clippy::too_many_lines)]
-    fn create_test_company_facts_json() -> serde_json::Value {
+    fn get_baseline_company_facts_json() -> serde_json::Value {
         serde_json::json!({
             "cik": 320_193,
             "entityName": "Apple Inc.",
@@ -569,7 +578,7 @@ mod tests {
 
     #[test]
     fn should_return_name_of_parse_state_when_in_parse_state() {
-        let parse_state = ParseCompanyFacts::default();
+        let parse_state = get_baseline_parse_state();
 
         let expected_result = String::from("Parse Company Facts");
 
@@ -579,10 +588,10 @@ mod tests {
     }
 
     #[test]
-    fn should_return_default_input_data_when_in_initial_state() {
-        let parse_state = ParseCompanyFacts::default();
+    fn should_return_input_data_when_in_initial_state() {
+        let parse_state = get_baseline_parse_state();
 
-        let expected_result = &ParseCompanyFactsInput::default();
+        let expected_result = &test_input();
 
         let result = parse_state.input_data();
 
@@ -594,7 +603,7 @@ mod tests {
         expected = "State with valid input should always produce output after computation"
     )]
     fn should_panic_when_trying_to_access_output_data_before_it_has_been_computed_in_state() {
-        let parse_state = ParseCompanyFacts::default();
+        let parse_state = get_baseline_parse_state();
 
         let _result = parse_state
             .output_data()
@@ -603,7 +612,7 @@ mod tests {
 
     #[test]
     fn should_return_false_when_state_has_not_computed_the_output() {
-        let parse_state = ParseCompanyFacts::default();
+        let parse_state = get_baseline_parse_state();
 
         let expected_result = false;
 
@@ -613,8 +622,8 @@ mod tests {
     }
 
     #[test]
-    fn should_return_default_context_data_when_in_initial_state() {
-        let parse_state = ParseCompanyFacts::default();
+    fn should_return_context_data_when_in_initial_state() {
+        let parse_state = get_baseline_parse_state();
 
         let expected_result = &ParseCompanyFactsContext::default();
 
@@ -625,8 +634,8 @@ mod tests {
 
     #[tokio::test]
     async fn should_produce_output_with_correct_entity_name_when_computing_valid_json() {
-        let json = create_test_company_facts_json();
-        let digest = BodyDigest::from_json_value(&json);
+        let json = get_baseline_company_facts_json();
+        let digest = BodyDigest::from_body_text(&json.to_string());
         let input = ParseCompanyFactsInput::new(json, digest);
         let context = ParseCompanyFactsContext::default();
         let mut parse_state = ParseCompanyFacts::new(input, context);
@@ -649,8 +658,8 @@ mod tests {
 
     #[tokio::test]
     async fn should_resolve_all_required_concepts_when_computing_valid_json() {
-        let json = create_test_company_facts_json();
-        let digest = BodyDigest::from_json_value(&json);
+        let json = get_baseline_company_facts_json();
+        let digest = BodyDigest::from_body_text(&json.to_string());
         let input = ParseCompanyFactsInput::new(json, digest);
         let context = ParseCompanyFactsContext::default();
         let mut parse_state = ParseCompanyFacts::new(input, context);
@@ -681,7 +690,7 @@ mod tests {
                 "dei": {}
             }
         });
-        let digest = BodyDigest::from_json_value(&json);
+        let digest = BodyDigest::from_body_text(&json.to_string());
         let input = ParseCompanyFactsInput::new(json, digest);
         let context = ParseCompanyFactsContext::default();
         let mut parse_state = ParseCompanyFacts::new(input, context);
@@ -695,8 +704,8 @@ mod tests {
 
     #[tokio::test]
     async fn should_not_change_input_data_when_computing_output_data() {
-        let json = create_test_company_facts_json();
-        let digest = BodyDigest::from_json_value(&json);
+        let json = get_baseline_company_facts_json();
+        let digest = BodyDigest::from_body_text(&json.to_string());
         let input = ParseCompanyFactsInput::new(json, digest);
         let context = ParseCompanyFactsContext::default();
         let mut parse_state = ParseCompanyFacts::new(input, context);
@@ -715,7 +724,7 @@ mod tests {
     #[tokio::test]
     async fn should_return_error_when_response_is_not_an_object() {
         let json = serde_json::json!("not an object");
-        let digest = BodyDigest::from_json_value(&json);
+        let digest = BodyDigest::from_body_text(&json.to_string());
         let input = ParseCompanyFactsInput::new(json, digest);
         let context = ParseCompanyFactsContext::default();
         let mut parse_state = ParseCompanyFacts::new(input, context);
@@ -788,12 +797,6 @@ mod tests {
         implements_ord::<ParseCompanyFacts>();
     }
 
-    const fn implements_default<T: Default>() {}
-    #[test]
-    const fn should_implement_default_when_implementing_state_trait() {
-        implements_default::<ParseCompanyFacts>();
-    }
-
     const fn implements_debug<T: Debug>() {}
     #[test]
     const fn should_implement_debug_when_implementing_state_trait() {
@@ -813,9 +816,9 @@ mod tests {
     }
 
     #[test]
-    fn should_return_default_context_data_when_called_with_state_reference() {
-        let parse_state = &ParseCompanyFacts::default();
-        let ref_to_parse_state = &ParseCompanyFacts::default();
+    fn should_return_context_data_when_called_with_state_reference() {
+        let parse_state = &get_baseline_parse_state();
+        let ref_to_parse_state = &get_baseline_parse_state();
 
         let expected_result = parse_state.context_data();
 
@@ -826,7 +829,7 @@ mod tests {
 
     #[test]
     fn should_return_false_when_reference_state_has_not_computed_the_output() {
-        let ref_to_parse_state = &mut ParseCompanyFacts::default();
+        let ref_to_parse_state = &mut get_baseline_parse_state();
 
         let expected_result = false;
 
@@ -841,7 +844,7 @@ mod tests {
     )]
     fn should_panic_when_trying_to_access_output_data_before_it_has_been_computed_in_reference_state()
      {
-        let ref_to_parse_state = &ParseCompanyFacts::default();
+        let ref_to_parse_state = &get_baseline_parse_state();
 
         let _result = ref_to_parse_state
             .output_data()
@@ -850,7 +853,7 @@ mod tests {
 
     #[test]
     fn should_return_name_of_parse_state_when_calling_reference_to_parse_state() {
-        let ref_to_parse_state = &ParseCompanyFacts::default();
+        let ref_to_parse_state = &get_baseline_parse_state();
 
         let expected_result = String::from("Parse Company Facts");
 
@@ -860,11 +863,10 @@ mod tests {
     }
 
     #[test]
-    fn should_return_default_state_data_as_input_data_when_reference_parse_state_in_initial_state()
-    {
-        let ref_to_parse_state = &ParseCompanyFacts::default();
+    fn should_return_input_data_when_reference_parse_state_in_initial_state() {
+        let ref_to_parse_state = &get_baseline_parse_state();
 
-        let expected_result = &ParseCompanyFactsInput::default();
+        let expected_result = &test_input();
 
         let result = ref_to_parse_state.input_data();
 
