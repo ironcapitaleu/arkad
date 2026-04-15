@@ -151,7 +151,7 @@ impl PartialOrd for CreateFinancialStatementsInput {
     }
 }
 
-// Deviation: delegates to `CompanyData`'s manual `Ord` implementation.
+// Delegates to `CompanyData`'s manual `Ord` implementation (orders by `cik`, then `entity_name`).
 impl Ord for CreateFinancialStatementsInput {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         self.company_data.cmp(&other.company_data)

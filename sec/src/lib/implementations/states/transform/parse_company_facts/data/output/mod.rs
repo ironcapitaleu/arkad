@@ -78,7 +78,7 @@ impl PartialOrd for ParseCompanyFactsOutput {
     }
 }
 
-// Deviation: `CompanyData` has a manual `Ord` implementation based on `cik` only.
+// Delegates to `CompanyData`'s manual `Ord` implementation (orders by `cik`, then `entity_name`).
 impl Ord for ParseCompanyFactsOutput {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         self.company_data.cmp(&other.company_data)
