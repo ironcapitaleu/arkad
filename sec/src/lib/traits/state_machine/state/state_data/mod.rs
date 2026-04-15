@@ -43,7 +43,7 @@ mod tests {
     use state_maschine::prelude::StateData as SMStateData;
 
     // For this case, using the `SampleSecStateInput` as a concrete implementation of `StateData`.
-    use crate::tests::fixtures::sample_sec_state::sec_data::sec_input_data::{
+    use crate::tests::fixtures::sample_sec_state::data::input::{
         SampleSecStateInput, SampleSecStateInputUpdaterBuilder,
     };
 

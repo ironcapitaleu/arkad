@@ -9,8 +9,8 @@
 //! but with minimal, "hello world" logic. It is not intended for production use but rather as a blueprint.
 //!
 //! ## Components
-//! - [`sec_context`]: Defines the sample context (`SampleSecStateContext`) and updater types.
-//! - [`sec_data`]: Contains sample input (`SampleSecStateInput`) and output (`SampleSecStateOutput`) data structures.
+//! - [`context`]: Defines the sample context (`SampleSecStateContext`) and updater types.
+//! - [`data`]: Contains sample input (`SampleSecStateInput`) and output (`SampleSecStateOutput`) data structures.
 //!
 //! ## Usage
 //! This state is intended to be used within the test suite to create simple state machines or to verify
@@ -53,12 +53,12 @@ use state_maschine::prelude::State as SMState;
 use crate::error::State as StateError;
 use crate::traits::state_machine::state::State;
 
-pub mod sec_context;
-pub mod sec_data;
+pub mod context;
+pub mod data;
 
-pub use sec_context::SampleSecStateContext;
-pub use sec_data::SampleSecStateInput;
-pub use sec_data::SampleSecStateOutput;
+pub use context::SampleSecStateContext;
+pub use data::SampleSecStateInput;
+pub use data::SampleSecStateOutput;
 
 #[derive(Debug, Clone, Default, PartialEq, PartialOrd, Hash, Eq, Ord)]
 pub struct SampleSecState {
