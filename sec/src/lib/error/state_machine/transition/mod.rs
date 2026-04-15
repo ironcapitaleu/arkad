@@ -6,7 +6,8 @@
 //!
 //! ## Overview
 //!
-//! The [`Transition`] enum covers two main failure scenarios:
+//! The [`Transition`] enum covers three main failure scenarios:
+//! - [`MissingOutput`](Transition::MissingOutput): Occurs when the output data of the source state is missing or cannot be accessed during the transition.
 //! - [`FailedOutputConversion`](Transition::FailedOutputConversion): Occurs when the output data of the source state cannot be converted into the input data of the destination state.
 //! - [`FailedContextConversion`](Transition::FailedContextConversion): Occurs when the context of the source state cannot be converted into the context of the destination state.
 //!
