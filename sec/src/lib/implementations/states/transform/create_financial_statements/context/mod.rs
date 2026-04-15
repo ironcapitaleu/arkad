@@ -95,6 +95,9 @@ impl SMContext for CreateFinancialStatementsContext {
         if let Some(cik) = updates.cik {
             self.cik = cik;
         }
+        if let Some(max_retries) = updates.max_retries {
+            self.max_retries = max_retries;
+        }
     }
 }
 
@@ -120,6 +123,8 @@ impl fmt::Display for CreateFinancialStatementsContext {
 pub struct CreateFinancialStatementsContextUpdater {
     /// Optional new value for the CIK.
     pub cik: Option<Cik>,
+    /// Optional new maximum retries value.
+    pub max_retries: Option<u32>,
 }
 
 impl CreateFinancialStatementsContextUpdater {
@@ -135,13 +140,17 @@ impl CreateFinancialStatementsContextUpdater {
 /// Use this builder to fluently construct an updater for the context.
 pub struct CreateFinancialStatementsContextUpdaterBuilder {
     cik: Option<Cik>,
+    max_retries: Option<u32>,
 }
 
 impl CreateFinancialStatementsContextUpdaterBuilder {
     /// Creates a new updater builder with no fields set.
     #[must_use]
     pub const fn new() -> Self {
-        Self { cik: None }
+        Self {
+            cik: None,
+            max_retries: None,
+        }
     }
 
     /// Sets the CIK value inside the context to the provided update value.
@@ -155,10 +164,23 @@ impl CreateFinancialStatementsContextUpdaterBuilder {
         self
     }
 
+    /// Sets the `max_retries` value inside the context to the provided update value.
+    ///
+    /// # Arguments
+    /// * `max_retries` - The new value for `max_retries`.
+    #[must_use]
+    pub const fn max_retries(mut self, max_retries: u32) -> Self {
+        self.max_retries = Some(max_retries);
+        self
+    }
+
     /// Builds the updater with the specified fields.
     #[must_use]
     pub fn build(self) -> CreateFinancialStatementsContextUpdater {
-        CreateFinancialStatementsContextUpdater { cik: self.cik }
+        CreateFinancialStatementsContextUpdater {
+            cik: self.cik,
+            max_retries: self.max_retries,
+        }
     }
 }
 
@@ -256,6 +278,21 @@ mod tests {
 
         context.update_context(empty_update);
         let result = context.context();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_update_max_retries_when_updater_contains_max_retries() {
+        let mut context = CreateFinancialStatementsContext::default();
+        let update = CreateFinancialStatementsContextUpdater::builder()
+            .max_retries(5)
+            .build();
+
+        let expected_result = 5;
+
+        context.update_context(update);
+        let result = context.max_retries;
 
         assert_eq!(result, expected_result);
     }

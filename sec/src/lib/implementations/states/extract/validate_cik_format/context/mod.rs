@@ -90,6 +90,9 @@ impl SMContext for ValidateCikFormatContext {
         if let Some(cik) = updates.raw_cik {
             self.raw_cik = cik;
         }
+        if let Some(max_retries) = updates.max_retries {
+            self.max_retries = max_retries;
+        }
     }
 }
 
@@ -111,7 +114,10 @@ impl fmt::Display for ValidateCikFormatContext {
 ///
 /// Using this struct allows to update fields of `ValidateCikFormatContext` in a controlled way.
 pub struct ValidateCikFormatContextUpdater {
+    /// Optional new raw CIK string value.
     pub raw_cik: Option<String>,
+    /// Optional new maximum retries value.
+    pub max_retries: Option<u32>,
 }
 
 impl ValidateCikFormatContextUpdater {
@@ -127,12 +133,16 @@ impl ValidateCikFormatContextUpdater {
 /// Use this builder to fluently construct an updater for the context.
 pub struct ValidateCikFormatContextUpdaterBuilder {
     raw_cik: Option<String>,
+    max_retries: Option<u32>,
 }
 impl ValidateCikFormatContextUpdaterBuilder {
     /// Creates a new updater builder with no fields set.
     #[must_use]
     pub const fn new() -> Self {
-        Self { raw_cik: None }
+        Self {
+            raw_cik: None,
+            max_retries: None,
+        }
     }
 
     /// Sets the raw CIK value inside the context to the provided update value.
@@ -146,11 +156,22 @@ impl ValidateCikFormatContextUpdaterBuilder {
         self
     }
 
+    /// Sets the `max_retries` value inside the context to the provided update value.
+    ///
+    /// # Arguments
+    /// * `max_retries` - The new value for `max_retries`.
+    #[must_use]
+    pub const fn max_retries(mut self, max_retries: u32) -> Self {
+        self.max_retries = Some(max_retries);
+        self
+    }
+
     /// Builds the updater with the specified fields.
     #[must_use]
     pub fn build(self) -> ValidateCikFormatContextUpdater {
         ValidateCikFormatContextUpdater {
             raw_cik: self.raw_cik,
+            max_retries: self.max_retries,
         }
     }
 }
@@ -251,6 +272,21 @@ mod tests {
 
         context.update_context(empty_update);
         let result = context.context();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_update_max_retries_when_updater_contains_max_retries() {
+        let mut context = ValidateCikFormatContext::default();
+        let update = ValidateCikFormatContextUpdater::builder()
+            .max_retries(5)
+            .build();
+
+        let expected_result = 5;
+
+        context.update_context(update);
+        let result = context.max_retries;
 
         assert_eq!(result, expected_result);
     }

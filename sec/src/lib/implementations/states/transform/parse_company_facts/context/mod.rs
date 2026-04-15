@@ -275,6 +275,21 @@ mod tests {
         assert_eq!(result, expected_result);
     }
 
+    #[test]
+    fn should_update_max_retries_when_updater_contains_max_retries() {
+        let mut context = ParseCompanyFactsContext::default();
+        let update = ParseCompanyFactsContextUpdater::builder()
+            .max_retries(5)
+            .build();
+
+        let expected_result = 5;
+
+        context.update_context(update);
+        let result = context.max_retries;
+
+        assert_eq!(result, expected_result);
+    }
+
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
     #[test]
     const fn should_still_implement_auto_traits_when_implementing_context_data_trait() {
