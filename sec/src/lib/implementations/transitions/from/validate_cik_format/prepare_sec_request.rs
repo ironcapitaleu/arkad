@@ -25,9 +25,9 @@ use crate::shared::user_agent::constants::DEFAULT_SEC_USER_AGENT;
 
 use state_maschine::prelude::State;
 
-impl From<ValidateCikFormatOutput> for PrepareSecRequestContext {
-    fn from(output_data: ValidateCikFormatOutput) -> Self {
-        Self::new(output_data.validated_cik)
+impl From<&ValidateCikFormatOutput> for PrepareSecRequestContext {
+    fn from(output_data: &ValidateCikFormatOutput) -> Self {
+        Self::new(output_data.validated_cik.clone())
     }
 }
 
@@ -44,19 +44,12 @@ impl TryFrom<ValidateCikFormat> for PrepareSecRequest {
     type Error = TransitionError;
 
     fn try_from(state: ValidateCikFormat) -> Result<Self, TransitionError> {
-        let output_data = match state.output_data() {
-            Some(data) => data.clone(),
-            None => {
-                return Err(transition::MissingOutput::new(
-                    state.state_name().to_string(),
-                    PREPARE_SEC_REQUEST,
-                )
-                .into());
-            }
-        };
+        let output_data = state.output_data().cloned().ok_or_else(|| {
+            transition::MissingOutput::new(state.state_name().to_string(), PREPARE_SEC_REQUEST)
+        })?;
 
-        let new_context: PrepareSecRequestContext = output_data.clone().into();
-        let new_input: PrepareSecRequestInput = output_data.into();
+        let new_context = PrepareSecRequestContext::from(&output_data);
+        let new_input = PrepareSecRequestInput::from(output_data);
 
         Ok(Self::new(new_input, new_context))
     }
@@ -79,7 +72,7 @@ mod tests {
 
         let expected_result = PrepareSecRequestContext::new(expected_cik);
 
-        let result: PrepareSecRequestContext = output.into();
+        let result = PrepareSecRequestContext::from(&output);
 
         assert_eq!(result, expected_result);
     }
