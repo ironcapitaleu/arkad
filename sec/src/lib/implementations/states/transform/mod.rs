@@ -17,15 +17,27 @@
 //! use sec::implementations::states::transform::*;
 //! use sec::implementations::states::transform::parse_company_facts::ParseCompanyFacts;
 //! use sec::shared::cik::Cik;
+//! use sec::shared::content_type::ContentType;
 //! use sec::shared::financial::company_data::CompanyData;
 //! use sec::shared::financial::entity_name::EntityName;
+//! use sec::shared::headers::Headers;
+//! use sec::shared::response::implementations::sec_response::SecResponse;
+//! use sec::shared::status_code::StatusCode;
+//! use sec::shared::url::Url;
 //! use sec::prelude::*;
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
-//!     let response = serde_json::json!({});
+//!     let body = serde_json::json!({});
+//!     let response = SecResponse::from_parts(
+//!         Url::from(reqwest::Url::parse("https://example.com")?),
+//!         Headers::new(HashMap::new()),
+//!         ContentType::Json,
+//!         StatusCode::Ok,
+//!         body,
+//!     );
 //!     let cik = Cik::new("0000320193")?;
-//!     let mut transform_state = TransformSuperState::<ParseCompanyFacts>::new(response, cik);
+//!     let transform_state = TransformSuperState::<ParseCompanyFacts>::new(&response, cik);
 //!     Ok(())
 //! }
 //! ```
@@ -48,6 +60,8 @@ use crate::implementations::states::transform::parse_company_facts::{
 use crate::prelude::*;
 use crate::shared::cik::Cik;
 use crate::shared::financial::company_data::CompanyData;
+use crate::shared::response::implementations::sec_response::SecResponse;
+use crate::shared::response::traits::sec::SecResponse as SecResponseTrait;
 use state_maschine::prelude::{StateMachine as SMStateMachine, Transition as SMTransition};
 
 /// Data structure for the Transform super-state.
@@ -186,12 +200,16 @@ impl<S: State> SuperState<S> for TransformSuperState<S> {}
 impl TransformSuperState<ParseCompanyFacts> {
     /// Creates a new [`TransformSuperState`] starting at the [`ParseCompanyFacts`] state.
     ///
+    /// Extracts the body and its precomputed digest from the [`SecResponse`].
+    ///
     /// # Arguments
-    /// * `response` - The raw SEC Company Facts JSON response to parse.
+    /// * `response` - The validated SEC response containing the Company Facts JSON.
     /// * `cik` - The validated CIK for the company being processed.
     #[must_use]
-    pub const fn new(response: serde_json::Value, cik: Cik) -> Self {
-        let input_data = ParseCompanyFactsInput::new(response);
+    pub fn new(response: &SecResponse, cik: Cik) -> Self {
+        let body = response.body().clone();
+        let body_digest = response.body_digest();
+        let input_data = ParseCompanyFactsInput::new(body, body_digest);
         let context = ParseCompanyFactsContext::new(cik);
 
         Self {
@@ -320,8 +338,13 @@ mod tests {
 
     use super::*;
     use crate::shared::cik::Cik;
+    use crate::shared::content_type::ContentType;
     use crate::shared::financial::company_data::CompanyData;
     use crate::shared::financial::entity_name::EntityName;
+    use crate::shared::headers::Headers;
+    use crate::shared::response::implementations::sec_response::SecResponse;
+    use crate::shared::status_code::StatusCode;
+    use crate::shared::url::Url;
 
     fn test_cik() -> Cik {
         Cik::new("0000320193").expect("Hardcoded CIK should always be valid")
@@ -331,10 +354,25 @@ mod tests {
         CompanyData::new(test_cik(), EntityName::new("Apple Inc."), HashMap::new())
     }
 
+    fn test_sec_response(body: serde_json::Value) -> SecResponse {
+        SecResponse::from_parts(
+            Url::from(
+                reqwest::Url::parse(
+                    "https://data.sec.gov/api/xbrl/companyfacts/CIK0000320193.json",
+                )
+                .expect("Hardcoded URL should always be valid"),
+            ),
+            Headers::new(HashMap::new()),
+            ContentType::Json,
+            StatusCode::Ok,
+            body,
+        )
+    }
+
     #[test]
     fn should_return_super_state_name_with_current_state_when_in_parse_company_facts_state() {
-        let response = serde_json::json!({});
-        let super_state = TransformSuperState::<ParseCompanyFacts>::new(response, test_cik());
+        let response = test_sec_response(serde_json::json!({}));
+        let super_state = TransformSuperState::<ParseCompanyFacts>::new(&response, test_cik());
 
         let expected_result = "Transform SuperState (Current: Parse Company Facts)";
 
@@ -358,8 +396,8 @@ mod tests {
 
     #[test]
     fn should_access_current_parse_company_facts_state_from_super_state() {
-        let response = serde_json::json!({});
-        let super_state = TransformSuperState::<ParseCompanyFacts>::new(response, test_cik());
+        let response = test_sec_response(serde_json::json!({}));
+        let super_state = TransformSuperState::<ParseCompanyFacts>::new(&response, test_cik());
 
         let expected_result = "Parse Company Facts";
 
@@ -395,8 +433,8 @@ mod tests {
 
     #[tokio::test]
     async fn should_fail_transition_from_parse_company_facts_when_output_data_not_yet_computed() {
-        let response = serde_json::json!({});
-        let super_state = TransformSuperState::<ParseCompanyFacts>::new(response, test_cik());
+        let response = test_sec_response(serde_json::json!({}));
+        let super_state = TransformSuperState::<ParseCompanyFacts>::new(&response, test_cik());
 
         let expected_result = true;
         let result = super_state.transition_to_next_state_sec().is_err();
@@ -407,8 +445,8 @@ mod tests {
     #[tokio::test]
     #[should_panic(expected = "Transition should fail when output data is not yet computed")]
     async fn should_fail_transition_when_output_data_not_yet_computed() {
-        let response = serde_json::json!({});
-        let super_state = TransformSuperState::<ParseCompanyFacts>::new(response, test_cik());
+        let response = test_sec_response(serde_json::json!({}));
+        let super_state = TransformSuperState::<ParseCompanyFacts>::new(&response, test_cik());
 
         let _result = super_state
             .transition_to_next_state_sec()

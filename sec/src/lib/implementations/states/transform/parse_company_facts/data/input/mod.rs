@@ -29,6 +29,7 @@ use std::fmt;
 use state_maschine::prelude::StateData as SMStateData;
 
 use crate::error::State as StateError;
+use crate::shared::response::implementations::sec_response::body_digest::BodyDigest;
 use crate::traits::state_machine::state::StateData;
 
 /// Input data for parsing SEC Company Facts JSON.
@@ -41,6 +42,8 @@ use crate::traits::state_machine::state::StateData;
 pub struct ParseCompanyFactsInput {
     /// The raw SEC Company Facts JSON response to be parsed.
     pub response: serde_json::Value,
+    /// Precomputed digest of the response body for efficient hashing and ordering.
+    body_digest: BodyDigest,
 }
 
 impl ParseCompanyFactsInput {
@@ -50,19 +53,30 @@ impl ParseCompanyFactsInput {
     ///
     /// ```
     /// use sec::implementations::states::transform::parse_company_facts::data::input::ParseCompanyFactsInput;
+    /// use sec::shared::response::implementations::sec_response::body_digest::BodyDigest;
     ///
     /// let json = serde_json::json!({"cik": 320193, "entityName": "Apple Inc.", "facts": {}});
-    /// let input = ParseCompanyFactsInput::new(json);
+    /// let digest = BodyDigest::from_json_value(&json);
+    /// let input = ParseCompanyFactsInput::new(json, digest);
     /// ```
     #[must_use]
-    pub const fn new(response: serde_json::Value) -> Self {
-        Self { response }
+    pub const fn new(response: serde_json::Value, body_digest: BodyDigest) -> Self {
+        Self {
+            response,
+            body_digest,
+        }
     }
 
     /// Returns a reference to the raw JSON response.
     #[must_use]
     pub const fn response(&self) -> &serde_json::Value {
         &self.response
+    }
+
+    /// Returns the precomputed body digest.
+    #[must_use]
+    pub const fn body_digest(&self) -> BodyDigest {
+        self.body_digest
     }
 }
 
@@ -74,11 +88,11 @@ impl PartialEq for ParseCompanyFactsInput {
 
 impl Eq for ParseCompanyFactsInput {}
 
-// Deviation: `serde_json::Value` does not implement `Hash`,
-// so we hash the serialized string representation instead.
+// `serde_json::Value` does not implement `Hash`.
+// Uses the precomputed `BodyDigest` instead of re-serializing.
 impl std::hash::Hash for ParseCompanyFactsInput {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.response.to_string().hash(state);
+        self.body_digest.hash(state);
     }
 }
 
@@ -88,11 +102,11 @@ impl PartialOrd for ParseCompanyFactsInput {
     }
 }
 
-// Deviation: `serde_json::Value` does not implement `Ord`,
-// so ordering is based on the serialized string representation.
+// `serde_json::Value` does not implement `Ord`.
+// Uses the precomputed `BodyDigest` instead of re-serializing.
 impl Ord for ParseCompanyFactsInput {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.response.to_string().cmp(&other.response.to_string())
+        self.body_digest.cmp(&other.body_digest)
     }
 }
 
@@ -143,8 +157,11 @@ impl SMStateData for ParseCompanyFactsInput {
 impl Default for ParseCompanyFactsInput {
     /// Returns a default input with an empty JSON object.
     fn default() -> Self {
+        let response = serde_json::json!({});
+        let body_digest = BodyDigest::from_json_value(&response);
         Self {
-            response: serde_json::json!({}),
+            response,
+            body_digest,
         }
     }
 }
@@ -230,6 +247,7 @@ mod tests {
     use pretty_assertions::{assert_eq, assert_ne};
 
     use super::{ParseCompanyFactsInput, ParseCompanyFactsInputUpdaterBuilder};
+    use crate::shared::response::implementations::sec_response::body_digest::BodyDigest;
     use crate::traits::state_machine::state::StateData;
     use state_maschine::prelude::StateData as SMStateData;
 
@@ -247,7 +265,8 @@ mod tests {
     #[test]
     fn should_create_different_input_data_with_custom_json_when_using_new_as_constructor() {
         let json = serde_json::json!({"cik": 320_193});
-        let input_data = &ParseCompanyFactsInput::new(json);
+        let digest = BodyDigest::from_json_value(&json);
+        let input_data = &ParseCompanyFactsInput::new(json, digest);
 
         let default_input_data = &ParseCompanyFactsInput::default();
 
@@ -264,7 +283,8 @@ mod tests {
             .response(new_json.clone())
             .build();
 
-        let expected_result = &ParseCompanyFactsInput::new(new_json);
+        let digest = BodyDigest::from_json_value(&new_json);
+        let expected_result = &ParseCompanyFactsInput::new(new_json, digest);
 
         StateData::update_state(&mut state_data, update)
             .expect("Update with valid 'update' value should always succeed");

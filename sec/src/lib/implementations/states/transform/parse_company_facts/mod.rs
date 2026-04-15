@@ -343,6 +343,7 @@ impl fmt::Display for ParseCompanyFacts {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::shared::response::implementations::sec_response::body_digest::BodyDigest;
     use pretty_assertions::assert_eq;
     use std::{fmt::Debug, hash::Hash};
     use tokio;
@@ -625,7 +626,8 @@ mod tests {
     #[tokio::test]
     async fn should_produce_output_with_correct_entity_name_when_computing_valid_json() {
         let json = create_test_company_facts_json();
-        let input = ParseCompanyFactsInput::new(json);
+        let digest = BodyDigest::from_json_value(&json);
+        let input = ParseCompanyFactsInput::new(json, digest);
         let context = ParseCompanyFactsContext::default();
         let mut parse_state = ParseCompanyFacts::new(input, context);
 
@@ -648,7 +650,8 @@ mod tests {
     #[tokio::test]
     async fn should_resolve_all_required_concepts_when_computing_valid_json() {
         let json = create_test_company_facts_json();
-        let input = ParseCompanyFactsInput::new(json);
+        let digest = BodyDigest::from_json_value(&json);
+        let input = ParseCompanyFactsInput::new(json, digest);
         let context = ParseCompanyFactsContext::default();
         let mut parse_state = ParseCompanyFacts::new(input, context);
 
@@ -678,7 +681,8 @@ mod tests {
                 "dei": {}
             }
         });
-        let input = ParseCompanyFactsInput::new(json);
+        let digest = BodyDigest::from_json_value(&json);
+        let input = ParseCompanyFactsInput::new(json, digest);
         let context = ParseCompanyFactsContext::default();
         let mut parse_state = ParseCompanyFacts::new(input, context);
 
@@ -692,7 +696,8 @@ mod tests {
     #[tokio::test]
     async fn should_not_change_input_data_when_computing_output_data() {
         let json = create_test_company_facts_json();
-        let input = ParseCompanyFactsInput::new(json);
+        let digest = BodyDigest::from_json_value(&json);
+        let input = ParseCompanyFactsInput::new(json, digest);
         let context = ParseCompanyFactsContext::default();
         let mut parse_state = ParseCompanyFacts::new(input, context);
 
@@ -710,7 +715,8 @@ mod tests {
     #[tokio::test]
     async fn should_return_error_when_response_is_not_an_object() {
         let json = serde_json::json!("not an object");
-        let input = ParseCompanyFactsInput::new(json);
+        let digest = BodyDigest::from_json_value(&json);
+        let input = ParseCompanyFactsInput::new(json, digest);
         let context = ParseCompanyFactsContext::default();
         let mut parse_state = ParseCompanyFacts::new(input, context);
 

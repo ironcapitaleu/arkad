@@ -10,6 +10,7 @@ use sec::implementations::states::transform::parse_company_facts::ParseCompanyFa
 use sec::prelude::*;
 use sec::shared::cik::Cik;
 use sec::shared::response::SecResponse as SecResponseTrait;
+use sec::shared::response::implementations::sec_response::SecResponse;
 use uuid::Uuid;
 
 use builder::{NoCik, PipelineBuilder};
@@ -61,10 +62,10 @@ impl Pipeline {
             context = %serde_json::json!({ "execution_id": execution_id.to_string(), "cik": cik }),
         );
 
-        let (response_body, validated_cik, extract_duration) =
+        let (response, validated_cik, extract_duration) =
             run_extract_phase(&cik, execution_id).await?;
         let transform_duration =
-            run_transform_phase(&cik, execution_id, response_body, validated_cik).await?;
+            run_transform_phase(&cik, execution_id, &response, validated_cik).await?;
 
         let pipeline_duration = pipeline_start.elapsed();
         tracing::info!(
@@ -87,7 +88,7 @@ impl Pipeline {
 async fn run_extract_phase(
     cik: &str,
     execution_id: Uuid,
-) -> PipelineResult<(serde_json::Value, Cik, std::time::Duration)> {
+) -> PipelineResult<(SecResponse, Cik, std::time::Duration)> {
     let phase_start = std::time::Instant::now();
     log_phase_started(cik, execution_id, "extract");
 
@@ -135,44 +136,46 @@ async fn run_extract_phase(
     // ExecuteSecRequest
     run_state(&mut sm, cik, execution_id, "extract", "Execute SEC Request").await?;
 
-    // Capture typed output
-    let response = sm
+    // Clone the SecResponse to pass it to the Transform phase.
+    // The SuperState doesn't expose a consuming accessor for the inner state,
+    // so we clone the output here. The BodyDigest inside is Copy (u64).
+    let sec_response = sm
         .current_state()
         .output_data()
         .expect("ExecuteSecRequest should have output after successful computation")
-        .response();
+        .response()
+        .clone();
 
     tracing::info!(
         event = "bridge",
-        message = %format!("[Bridge] Extract → Transform for CIK '{cik}' ({response})"),
+        message = %format!("[Bridge] Extract → Transform for CIK '{cik}' ({sec_response})"),
         context = %serde_json::json!({
             "execution_id": execution_id.to_string(),
             "cik": cik,
-            "response_url": response.url().to_string(),
-            "response_status": response.status_code().to_string(),
+            "response_url": sec_response.url().to_string(),
+            "response_status": sec_response.status_code().to_string(),
         }),
     );
 
-    let response_body = response.body().clone();
     let validated_cik = Cik::new(cik)?;
     let phase_duration = phase_start.elapsed();
     log_phase_completed(cik, execution_id, "extract", phase_duration);
 
-    Ok((response_body, validated_cik, phase_duration))
+    Ok((sec_response, validated_cik, phase_duration))
 }
 
 /// Runs the Transform phase with the response data from Extract.
 async fn run_transform_phase(
     cik: &str,
     execution_id: Uuid,
-    response_body: serde_json::Value,
+    response: &SecResponse,
     validated_cik: Cik,
 ) -> PipelineResult<std::time::Duration> {
     let phase_start = std::time::Instant::now();
     log_phase_started(cik, execution_id, "transform");
 
     // ParseCompanyFacts
-    let mut sm = TransformSuperState::<ParseCompanyFacts>::new(response_body, validated_cik);
+    let mut sm = TransformSuperState::<ParseCompanyFacts>::new(response, validated_cik);
     run_state(
         &mut sm,
         cik,

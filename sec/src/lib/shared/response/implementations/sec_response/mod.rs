@@ -10,8 +10,10 @@ use crate::shared::url::Url;
 
 use super::super::traits::SecResponse as SecResponseTrait;
 
+use self::body_digest::BodyDigest;
 use self::error::{ErrorReason, InvalidSecResponse};
 
+pub mod body_digest;
 pub mod error;
 
 /// A validated SEC API response.
@@ -26,6 +28,7 @@ pub struct SecResponse {
     content_type: ContentType,
     status_code: StatusCode,
     body: serde_json::Value,
+    body_digest: BodyDigest,
 }
 
 impl PartialEq for SecResponse {
@@ -40,12 +43,13 @@ impl PartialEq for SecResponse {
 impl Eq for SecResponse {}
 
 impl std::hash::Hash for SecResponse {
-    // Deviation: `Headers` and `serde_json::Value` do not implement `Hash`,
-    // so only `url`, `content_type`, and `status_code` are hashed.
+    // `Headers` and `serde_json::Value` do not implement `Hash`.
+    // The body is represented by its precomputed `BodyDigest`.
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.url.hash(state);
         self.content_type.hash(state);
         self.status_code.hash(state);
+        self.body_digest.hash(state);
     }
 }
 
@@ -56,10 +60,12 @@ impl PartialOrd for SecResponse {
 }
 
 impl Ord for SecResponse {
-    // Deviation: `Headers`, `StatusCode`, and `serde_json::Value` do not implement
-    // `Ord`, so ordering is based on URL only.
+    // `Headers`, `StatusCode`, and `serde_json::Value` do not implement `Ord`.
+    // The body is represented by its precomputed `BodyDigest`.
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.url.cmp(&other.url)
+        self.url
+            .cmp(&other.url)
+            .then_with(|| self.body_digest.cmp(&other.body_digest))
     }
 }
 
@@ -70,20 +76,28 @@ impl SecResponse {
     /// perform HTTP validation. The caller is responsible for ensuring the provided
     /// parts represent a valid SEC response.
     #[must_use]
-    pub const fn from_parts(
+    pub fn from_parts(
         url: Url,
         headers: Headers,
         content_type: ContentType,
         status_code: StatusCode,
         body: serde_json::Value,
     ) -> Self {
+        let body_digest = BodyDigest::from_json_value(&body);
         Self {
             url,
             headers,
             content_type,
             status_code,
             body,
+            body_digest,
         }
+    }
+
+    /// Returns the precomputed body digest.
+    #[must_use]
+    pub const fn body_digest(&self) -> BodyDigest {
+        self.body_digest
     }
 }
 
@@ -143,6 +157,8 @@ impl SecResponseTrait for SecResponse {
             })
         })?;
 
+        let body_digest = BodyDigest::from_body_text(&body_text);
+
         let body = serde_json::from_str(&body_text).map_err(|e| {
             InvalidSecResponse::new(ErrorReason::InvalidBody {
                 details: e.to_string(),
@@ -155,6 +171,7 @@ impl SecResponseTrait for SecResponse {
             content_type,
             status_code,
             body,
+            body_digest,
         })
     }
 
