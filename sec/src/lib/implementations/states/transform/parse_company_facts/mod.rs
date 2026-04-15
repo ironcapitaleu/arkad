@@ -50,6 +50,7 @@ use crate::shared::financial::concept_definition::constants::{
 use crate::shared::financial::entity_name::EntityName;
 use crate::shared::financial::filing_source::FilingSource;
 use crate::shared::financial::fiscal_period::FiscalPeriod;
+use crate::shared::financial::fiscal_year::FiscalYear;
 use crate::shared::financial::form::Form;
 use crate::shared::financial::frame::Frame;
 use crate::shared::financial::observation::Observation;
@@ -142,7 +143,7 @@ fn build_period(entry: &serde_json::Value) -> Option<Period> {
 fn build_filing_source(entry: &serde_json::Value) -> Option<FilingSource> {
     let accn = AccessionNumber::new(entry.get("accn")?.as_str()?);
     let form = Form::from_sec_str(entry.get("form")?.as_str()?)?;
-    let fy = u16::try_from(entry.get("fy")?.as_u64()?).ok()?;
+    let fy = FiscalYear::try_from(entry.get("fy")?.as_u64()?).ok()?;
     let fp = FiscalPeriod::from_sec_str(entry.get("fp")?.as_str()?)?;
     let filed = parse_date(entry.get("filed")?.as_str()?)?;
     let end = parse_date(entry.get("end")?.as_str()?)?;

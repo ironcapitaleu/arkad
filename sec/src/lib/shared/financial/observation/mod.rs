@@ -123,6 +123,7 @@ mod tests {
     use super::*;
     use crate::shared::financial::accession_number::AccessionNumber;
     use crate::shared::financial::fiscal_period::FiscalPeriod;
+    use crate::shared::financial::fiscal_year::FiscalYear;
     use crate::shared::financial::form::Form;
 
     fn create_test_observation() -> Observation {
@@ -139,7 +140,7 @@ mod tests {
             FilingSource::new(
                 AccessionNumber::new("0000320193-23-000106"),
                 Form::TenK,
-                2023,
+                FiscalYear::from(2023_u16),
                 FiscalPeriod::Fy,
                 NaiveDate::from_ymd_opt(2023, 11, 3)
                     .expect("Hardcoded date should always be valid"),

@@ -10,6 +10,7 @@ use chrono::NaiveDate;
 
 use crate::shared::financial::accession_number::AccessionNumber;
 use crate::shared::financial::fiscal_period::FiscalPeriod;
+use crate::shared::financial::fiscal_year::FiscalYear;
 use crate::shared::financial::form::Form;
 
 /// Provenance metadata for a financial data point.
@@ -38,7 +39,7 @@ use crate::shared::financial::form::Form;
 pub struct FilingSource {
     accession_number: AccessionNumber,
     form: Form,
-    fiscal_year: u16,
+    fiscal_year: FiscalYear,
     fiscal_period: FiscalPeriod,
     filed_date: NaiveDate,
     period_end: NaiveDate,
@@ -50,7 +51,7 @@ impl FilingSource {
     pub const fn new(
         accession_number: AccessionNumber,
         form: Form,
-        fiscal_year: u16,
+        fiscal_year: FiscalYear,
         fiscal_period: FiscalPeriod,
         filed_date: NaiveDate,
         period_end: NaiveDate,
@@ -79,7 +80,7 @@ impl FilingSource {
 
     /// Returns the fiscal year.
     #[must_use]
-    pub const fn fiscal_year(&self) -> u16 {
+    pub const fn fiscal_year(&self) -> FiscalYear {
         self.fiscal_year
     }
 
@@ -122,7 +123,7 @@ mod tests {
         FilingSource::new(
             AccessionNumber::new("0000320193-23-000106"),
             Form::TenK,
-            2023,
+            FiscalYear::from(2023_u16),
             FiscalPeriod::Fy,
             NaiveDate::from_ymd_opt(2023, 11, 3).expect("Hardcoded date should always be valid"),
             NaiveDate::from_ymd_opt(2023, 9, 30).expect("Hardcoded date should always be valid"),
@@ -155,7 +156,7 @@ mod tests {
     fn should_return_fiscal_year_when_accessed() {
         let source = create_test_filing_source();
 
-        let expected_result = 2023;
+        let expected_result = FiscalYear::from(2023_u16);
 
         let result = source.fiscal_year();
 

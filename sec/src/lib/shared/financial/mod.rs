@@ -10,6 +10,7 @@
 //! - [`quarter`]: Calendar quarter representation.
 //! - [`form`]: SEC filing form types (10-K, 10-Q, etc.).
 //! - [`fiscal_period`]: Fiscal period identifiers (FY, Q1-Q4).
+//! - [`fiscal_year`]: Fiscal year newtype.
 //! - [`frame`]: SEC XBRL frame identifiers for time-based data points.
 //! - [`accession_number`]: SEC filing accession number newtype.
 //! - [`entity_name`]: Company/entity name newtype.
@@ -26,6 +27,7 @@ pub mod concept_definition;
 pub mod entity_name;
 pub mod filing_source;
 pub mod fiscal_period;
+pub mod fiscal_year;
 pub mod form;
 pub mod frame;
 pub mod observation;
