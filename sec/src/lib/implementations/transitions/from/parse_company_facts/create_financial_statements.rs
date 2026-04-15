@@ -69,8 +69,7 @@ mod tests {
         let json: serde_json::Value = serde_json::json!({});
         let digest = BodyDigest::from_body_text(&json.to_string());
         let input = ParseCompanyFactsInput::new(json, digest);
-        let cik =
-            Cik::new("0001067983").expect("Hardcoded CIK should always be valid");
+        let cik = Cik::new("0001067983").expect("Hardcoded CIK should always be valid");
         let context = ParseCompanyFactsContext::new(cik);
         ParseCompanyFacts::new(input, context)
     }

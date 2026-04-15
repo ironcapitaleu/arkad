@@ -34,7 +34,9 @@ pub mod validate_cik_format;
 use std::fmt::Display;
 
 use crate::error::State as StateError;
+use crate::error::state_machine::transition;
 use crate::error::state_machine::transition::Transition as TransitionError;
+use crate::implementations::states::extract::execute_sec_request::constants::STATE_NAME as EXECUTE_SEC_REQUEST;
 use crate::implementations::states::extract::execute_sec_request::{
     ExecuteSecRequest, ExecuteSecRequestContext, ExecuteSecRequestInput,
 };
@@ -44,6 +46,9 @@ use crate::implementations::states::extract::prepare_sec_request::{
 use crate::implementations::states::extract::validate_cik_format::{
     ValidateCikFormat, ValidateCikFormatContext, ValidateCikFormatInput,
 };
+use crate::implementations::states::transform::TransformSuperState;
+use crate::implementations::states::transform::parse_company_facts::ParseCompanyFacts;
+use crate::implementations::states::transform::parse_company_facts::constants::STATE_NAME as PARSE_COMPANY_FACTS;
 
 use crate::shared::cik::Cik;
 use crate::shared::http_client::implementations::sec_client::SecClient;
@@ -233,6 +238,14 @@ impl ExtractSuperState<ExecuteSecRequest> {
     }
 }
 
+impl<S: State> ExtractSuperState<S> {
+    /// Consumes the `SuperState` and returns the inner state.
+    #[must_use]
+    pub fn into_current_state(self) -> S {
+        self.current_state
+    }
+}
+
 // --- Streaming ---
 
 impl NonTerminal for ExtractSuperState<ValidateCikFormat> {
@@ -245,57 +258,10 @@ impl NonTerminal for ExtractSuperState<PrepareSecRequest> {
     type Next = ExecuteSecRequest;
 }
 
-/// Terminal state — no [`NonTerminal`] impl, manual [`IntoStateMachineStream`].
-impl IntoStateMachineStream for ExtractSuperState<ExecuteSecRequest> {
-    fn into_stream(self, execution_id: uuid::Uuid) -> StateMachineStream {
-        Box::pin(async_stream::stream! {
-            use crate::traits::state_machine::stream::{StreamEvent, StreamItem, StreamError};
-
-            let mut sm = self;
-            let state_name = sm.current_state().state_name().to_string();
-            let state_start = std::time::Instant::now();
-
-            // StateStarted
-            yield Ok(StreamItem {
-                event: StreamEvent::StateStarted,
-                state_name: state_name.clone(),
-                data: serde_json::to_value(sm.current_state()).unwrap_or_else(|e| {
-                    serde_json::json!({ "serialization_error": e.to_string() })
-                }),
-                event_duration: std::time::Duration::ZERO,
-            });
-
-            // Compute
-            match sm.current_state_mut().compute_output_data_async().await {
-                Ok(()) => {
-                    let data = serde_json::to_value(sm.current_state()).unwrap_or_else(|e| {
-                        serde_json::json!({ "serialization_error": e.to_string() })
-                    });
-                    yield Ok(StreamItem {
-                        event: StreamEvent::StateCompleted,
-                        state_name,
-                        data,
-                        event_duration: state_start.elapsed(),
-                    });
-                }
-                Err(e) => {
-                    #[allow(clippy::useless_conversion)]
-                    let state_err: crate::error::State = e.into();
-                    let sm_error: crate::error::StateMachine = state_err.into();
-                    let data = serde_json::to_value(sm.current_state()).unwrap_or_else(|e| {
-                        serde_json::json!({ "serialization_error": e.to_string() })
-                    });
-                    yield Err(StreamError {
-                        event: StreamEvent::StateFailed,
-                        execution_id,
-                        state_name,
-                        data,
-                        source: sm_error,
-                    });
-                }
-            }
-        })
-    }
+/// `ExecuteSecRequest` is no longer terminal -- it transitions into the Transform `SuperState`.
+impl NonTerminal for ExtractSuperState<ExecuteSecRequest> {
+    type Current = ExecuteSecRequest;
+    type Next = ParseCompanyFacts;
 }
 
 impl Transition<ValidateCikFormat, PrepareSecRequest> for ExtractSuperState<ValidateCikFormat> {
@@ -340,6 +306,37 @@ impl SMTransition<ValidateCikFormat, PrepareSecRequest> for ExtractSuperState<Va
 
     fn transition_to_next_state(self) -> Result<Self::NewStateMachine, &'static str> {
         // Placeholder implementation - use transition_to_next_state_sec() for actual functionality
+        Err(
+            "Use transition_to_next_state_sec() for SEC-specific transitions with rich error handling",
+        )
+    }
+}
+
+// --- Cross-SuperState transition: Extract → Transform ---
+
+impl Transition<ExecuteSecRequest, ParseCompanyFacts> for ExtractSuperState<ExecuteSecRequest> {
+    fn transition_to_next_state_sec(self) -> Result<Self::NewStateMachine, TransitionError> {
+        let inner_state = self.into_current_state();
+        let (_input, output, context) = inner_state.into_parts();
+
+        let output_data = output.ok_or_else(|| {
+            transition::MissingOutput::new(EXECUTE_SEC_REQUEST, PARSE_COMPANY_FACTS)
+        })?;
+
+        let sec_response = output_data.response;
+        let cik = context.cik;
+
+        Ok(TransformSuperState::<ParseCompanyFacts>::new(
+            &sec_response,
+            cik,
+        ))
+    }
+}
+
+impl SMTransition<ExecuteSecRequest, ParseCompanyFacts> for ExtractSuperState<ExecuteSecRequest> {
+    type NewStateMachine = TransformSuperState<ParseCompanyFacts>;
+
+    fn transition_to_next_state(self) -> Result<Self::NewStateMachine, &'static str> {
         Err(
             "Use transition_to_next_state_sec() for SEC-specific transitions with rich error handling",
         )

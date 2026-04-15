@@ -351,8 +351,7 @@ mod tests {
 
     fn get_baseline_parse_state() -> ParseCompanyFacts {
         let input = test_input();
-        let cik =
-            Cik::new("0001067983").expect("Hardcoded CIK should always be valid");
+        let cik = Cik::new("0001067983").expect("Hardcoded CIK should always be valid");
         let context = ParseCompanyFactsContext::new(cik);
         ParseCompanyFacts::new(input, context)
     }
