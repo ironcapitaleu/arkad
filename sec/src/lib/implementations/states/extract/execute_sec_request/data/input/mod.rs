@@ -107,7 +107,12 @@ impl SMStateData for ExecuteSecRequestInput {
         self
     }
 
-    fn update_state(&mut self, _updates: Self::UpdateType) {}
+    fn update_state(&mut self, _updates: Self::UpdateType) {
+        unimplemented!(
+            "SEC state data uses fallible updates. \
+             Call sec::StateData::update_state instead"
+        )
+    }
 }
 
 impl fmt::Display for ExecuteSecRequestInput {

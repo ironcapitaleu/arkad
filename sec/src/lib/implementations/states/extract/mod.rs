@@ -136,7 +136,11 @@ impl<S: State> SMState for ExtractSuperState<S> {
     fn input_data(&self) -> &Self::InputData {
         &self.input
     }
-    fn compute_output_data(&mut self) { /* handled by async version */
+    fn compute_output_data(&mut self) {
+        unimplemented!(
+            "SEC states are async-only. \
+             Call compute_output_data_async instead"
+        )
     }
     fn output_data(&self) -> Option<&Self::OutputData> {
         self.output.as_ref()
@@ -163,9 +167,17 @@ impl<S: State> SMStateMachine<S> for ExtractSuperState<S> {
     fn current_state_mut(&mut self) -> &mut S {
         &mut self.current_state
     }
-    fn run(&mut self) { /* Placeholder */
+    fn run(&mut self) {
+        unimplemented!(
+            "SEC state machines are async-only. \
+             Use into_stream or drive states manually"
+        )
     }
-    fn advance_state(&mut self) { /* Placeholder */
+    fn advance_state(&mut self) {
+        unimplemented!(
+            "SEC state machines are async-only. \
+             Use into_stream or drive states manually"
+        )
     }
 }
 

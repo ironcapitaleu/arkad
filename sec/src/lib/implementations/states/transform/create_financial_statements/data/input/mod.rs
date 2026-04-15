@@ -105,9 +105,12 @@ impl SMStateData for CreateFinancialStatementsInput {
         self
     }
 
-    /// Provided by `SecStateData` trait. Not used in this context.
+    /// Panics unconditionally — SEC state data uses fallible updates.
     fn update_state(&mut self, _updates: Self::UpdateType) {
-        // This method is not used in this context.
+        unimplemented!(
+            "SEC state data uses fallible updates. \
+             Call sec::StateData::update_state instead"
+        )
     }
 }
 

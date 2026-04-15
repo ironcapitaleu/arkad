@@ -194,10 +194,12 @@ impl SMState for ExecuteSecRequest {
     }
 
     /// Executes the SEC HTTP request and processes the response.
-    /// Does nothing here, as the output data is computed in `compute_output_data_async()` of the `sec`'s `State`-implementation.
+    /// Panics unconditionally — SEC states are async-only.
     fn compute_output_data(&mut self) {
-        // No action needed here, as the output data is computed in `compute_output_data_async()` of the `sec`'s 'State'-implementation
-        // This function is just a placeholder to satisfy the State trait.
+        unimplemented!(
+            "SEC states are async-only. \
+             Call compute_output_data_async instead"
+        )
     }
 
     fn context_data(&self) -> &Self::Context {
