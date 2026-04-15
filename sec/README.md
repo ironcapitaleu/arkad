@@ -34,12 +34,9 @@ Validates, resolves, and structures the raw JSON response into typed financial d
 # Basic extraction demo
 cargo run --bin extraction
 
-# Full ETL pipeline with structured JSON logging (default: Berkshire Hathaway)
+# Full ETL pipeline (Extract + Transform) for all S&P 500 CIKs, 3 concurrent
 cargo run --features tracing-logging --bin stream_etl
 
-# ETL pipeline for a specific CIK (Apple Inc.)
-cargo run --features tracing-logging --bin stream_etl -- 320193
-
-# Batch extraction for all S&P 500 CIKs
+# Extraction + Transform for all S&P 500 CIKs (same pipeline, legacy binary name)
 cargo run --features tracing-logging --bin stream_extract
 ```

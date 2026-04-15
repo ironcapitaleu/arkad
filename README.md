@@ -267,17 +267,11 @@ git clone https://github.com/ironcapitaleu/arkad.git
 cd arkad
 ```
 
-Run the full ETL pipeline with structured JSON logging:
+Run the full ETL pipeline (Extract + Transform) with structured JSON logging:
 
 ```bash
-# Default: Berkshire Hathaway
+# All S&P 500 CIKs (3 concurrent)
 cargo run --features tracing-logging --bin stream_etl
-
-# Specific company (Apple Inc.)
-cargo run --features tracing-logging --bin stream_etl -- 320193
-
-# Batch: all S&P 500 CIKs (3 concurrent)
-cargo run --features tracing-logging --bin stream_extract
 ```
 
 ## Contributing
