@@ -108,7 +108,7 @@ impl fmt::Display for FilingSource {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "{} {} FY{} {} (filed {})",
+            "{} {} {} {} (filed {})",
             self.accession_number, self.form, self.fiscal_year, self.fiscal_period, self.filed_date
         )
     }
@@ -168,7 +168,7 @@ mod tests {
     fn should_display_filing_source_when_formatted() {
         let source = create_test_filing_source();
 
-        let expected_result = "0000320193-23-000106 10-K FY2023 FY (filed 2023-11-03)";
+        let expected_result = "0000320193-23-000106 10-K 2023 FY (filed 2023-11-03)";
 
         let result = source.to_string();
 
