@@ -22,6 +22,7 @@ use crate::shared::financial::unit::Unit;
 /// use sec::shared::financial::accession_number::AccessionNumber;
 /// use sec::shared::financial::filing_source::FilingSource;
 /// use sec::shared::financial::fiscal_period::FiscalPeriod;
+/// use sec::shared::financial::fiscal_year::FiscalYear;
 /// use sec::shared::financial::form::Form;
 /// use sec::shared::financial::frame::Frame;
 /// use sec::shared::financial::observation::Observation;
@@ -39,7 +40,7 @@ use crate::shared::financial::unit::Unit;
 ///     FilingSource::new(
 ///         AccessionNumber::new("0000320193-23-000106"),
 ///         Form::TenK,
-///         2023,
+///         FiscalYear::from(2023_u16),
 ///         FiscalPeriod::Fy,
 ///         NaiveDate::from_ymd_opt(2023, 11, 3).unwrap(),
 ///         NaiveDate::from_ymd_opt(2023, 9, 30).unwrap(),
