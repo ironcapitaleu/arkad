@@ -83,8 +83,9 @@ impl PartialEq for CompanyFact {
 
 impl Eq for CompanyFact {}
 
-// Deviation: `Vec<Observation>` does not implement `Hash`, so only
-// `company_label` and `matched_xbrl_key` are hashed.
+// Observations are excluded from hashing for performance -- the time series
+// can be large, and hashing it on every call would be expensive.
+// `company_label` and `matched_xbrl_key` are sufficient to identify a fact.
 impl std::hash::Hash for CompanyFact {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.company_label.hash(state);
