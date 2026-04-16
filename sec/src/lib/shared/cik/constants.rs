@@ -9,7 +9,7 @@
 //!
 //! ## Usage
 //! Use these constants when implementing or testing CIK validation logic in state data modules such as
-//! [`crate::implementations::states::extract::validate_cik_format::vcf_data`] and in shared utilities.
+//! [`crate::implementations::states::extract::validate_cik_format::data`] and in shared utilities.
 
 /// The required length for a valid CIK (Central Index Key).
 ///
