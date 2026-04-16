@@ -99,6 +99,7 @@ No periods between segments — commas separate the description from `Caused by:
 
 Use `thiserror` with `#[error("...")]` and `#[source]` for deriving `Display` and `Error` on error types.
 
+
 ---
 
 ## Library Code
