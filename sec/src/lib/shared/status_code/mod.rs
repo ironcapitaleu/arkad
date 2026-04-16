@@ -16,7 +16,7 @@ use std::fmt;
 /// assert_eq!(status.as_u16(), 200);
 /// assert_eq!(status.to_string(), "200");
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize)]
 #[non_exhaustive]
 pub enum StatusCode {
     /// 100 Continue.

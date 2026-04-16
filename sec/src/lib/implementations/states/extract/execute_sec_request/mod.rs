@@ -105,7 +105,7 @@ use state_maschine::prelude::State as SMState;
 /// let context = ExecuteSecRequestContext::new(cik);
 /// let mut execute_state = ExecuteSecRequest::new(input, context);
 /// ```
-#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
+#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, serde::Serialize)]
 pub struct ExecuteSecRequest {
     input: ExecuteSecRequestInput,
     context: ExecuteSecRequestContext,

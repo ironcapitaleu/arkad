@@ -11,6 +11,9 @@ keywords = ["state-machine", "design-pattern"]
 [dependencies]
 thiserror = "2"
 tokio = { version = "1.49.0", features = ["rt-multi-thread", "macros"] }
+tracing = { version = "0.1", optional = true }
+tracing-appender = { version = "0.2", optional = true }
+tracing-subscriber = { version = "0.3", features = ["json"], optional = true }
 async-stream = "0.3"
 async-trait = "0.1.88"
 futures-core = "0.3"
@@ -22,6 +25,9 @@ regex = "1"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 url = "2"
+
+[features]
+tracing-logging = ["tracing", "tracing-appender", "tracing-subscriber"]
 
 [dev-dependencies]
 pretty_assertions = "1"
@@ -37,6 +43,7 @@ path = "src/bin/extraction/main.rs"
 [[bin]]
 name = "stream_extract"
 path = "src/bin/stream_extract/main.rs"
+required-features = ["tracing-logging"]
 
 [lints.rust]
 unsafe_code = "forbid"

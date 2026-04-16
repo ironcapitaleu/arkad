@@ -9,7 +9,7 @@ use crate::traits::state_machine::state::State;
 use super::{SampleStreamingContext, SampleStreamingData};
 
 /// Third and terminal state in the sample streaming pipeline.
-#[derive(Debug, Clone, Default, PartialEq, PartialOrd, Hash, Eq, Ord)]
+#[derive(Debug, Clone, Default, PartialEq, PartialOrd, Hash, Eq, Ord, serde::Serialize)]
 pub struct SampleStateC {
     input: SampleStreamingData,
     context: SampleStreamingContext,

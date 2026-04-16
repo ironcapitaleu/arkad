@@ -32,7 +32,7 @@ pub use headers_error::{HeadersError, InvalidHeadersReason};
 /// assert_eq!(headers.etag(), Some("\"abc123\""));
 /// assert_eq!(headers.get("x-custom"), Some("value"));
 /// ```
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct Headers {
     /// The content type parsed from the `Content-Type` header.
     content_type: ContentType,

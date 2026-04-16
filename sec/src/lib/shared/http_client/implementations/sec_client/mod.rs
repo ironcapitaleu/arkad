@@ -21,6 +21,14 @@ pub struct SecClient {
     inner: reqwest::Client,
 }
 
+impl serde::Serialize for SecClient {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        use serde::ser::SerializeStruct;
+        let state = serializer.serialize_struct("SecClient", 0)?;
+        state.end()
+    }
+}
+
 impl SecClient {
     /// Creates a new `SecClient` with the given `reqwest::Client`.
     #[must_use]
@@ -95,7 +103,20 @@ impl SecClientTrait for SecClient {
 
 #[cfg(test)]
 mod tests {
+    use pretty_assertions::assert_eq;
+
     use super::SecClient;
+
+    #[test]
+    fn should_serialize_to_empty_struct_when_serialized_to_json() {
+        let client = SecClient::default();
+
+        let expected_result = serde_json::json!({});
+
+        let result = serde_json::to_value(&client).expect("SecClient should serialize to JSON");
+
+        assert_eq!(result, expected_result);
+    }
 
     fn assert_send<T: Send>() {}
     fn assert_sync<T: Sync>() {}
