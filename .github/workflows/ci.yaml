@@ -5,6 +5,8 @@ on:
     branches:
       - main
       - master
+  schedule:
+    - cron: "0 0 * * 0" # Weekly on Sundays at midnight
 
 permissions:
   contents: read
@@ -38,5 +40,7 @@ jobs:
       run: cargo clippy
     - name: Unit Tests
       run: cargo test --lib
+    - name: Documentation Tests
+      run: cargo test --doc
     - name: Integration Tests
       run: cargo test --test '*'

@@ -18,7 +18,7 @@
 //!
 //! ## See Also
 //! - [`crate::shared`]: Shared domain types and utilities used across the SEC state machine library.
-//! - [`crate::shared::sec_client`]: SEC client utilities that use user agent strings for HTTP requests.
+//! - [`crate::shared::http_client`]: SEC client utilities that use user agent strings for HTTP requests.
 //! - [`crate::error`]: Error types that may reference [`UserAgentError`] and [`UserAgentErrorReason`] for detailed diagnostics.
 
 use regex::Regex;
