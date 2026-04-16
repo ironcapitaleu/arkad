@@ -11,6 +11,6 @@
 //! and documentation tests.
 //!
 //! ## Modules
-//! - [`common`]: Contains common test fixtures, such as sample state implementations.
+//! - [`fixtures`]: Contains common test fixtures, such as sample state implementations.
 
-pub mod common;
+pub mod fixtures;

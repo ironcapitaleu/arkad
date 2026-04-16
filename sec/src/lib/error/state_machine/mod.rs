@@ -19,7 +19,7 @@
 //! ## Example
 //! ```rust
 //! use sec::error::state_machine::{StateMachine, State, Transition};
-//! let err = StateMachine::State(State::InvalidInputData);
+//! let err = StateMachine::State(State::InvalidInput);
 //! match err {
 //!     StateMachine::State(state_err) => println!("State error: {state_err}"),
 //!     StateMachine::Transition(trans_err) => println!("Transition error: {trans_err}"),
@@ -207,16 +207,16 @@ mod tests {
 
     #[test]
     fn should_be_able_to_create_state_error_when_casting_from_specific_state_machine() {
-        let _result: State = StateMachine::State(State::InvalidInputData)
+        let _result: State = StateMachine::State(State::InvalidInput)
             .try_into()
-            .expect("Should always be able to cast provided harcdcoded `StateMachine` error into `State` error.");
+            .expect("Should always be able to cast provided hardcoded `StateMachine` error into `State` error");
     }
 
     #[test]
     fn should_be_able_to_create_transition_error_when_casting_from_specific_state_machine() {
         let _result: Transition = StateMachine::Transition(Transition::FailedContextConversion)
             .try_into()
-            .expect("Should always be able to cast provided harcdcoded `StateMachine` error into `Transition` error.");
+            .expect("Should always be able to cast provided hardcoded `StateMachine` error into `Transition` error");
     }
 
     #[test]
@@ -226,9 +226,9 @@ mod tests {
 
     #[test]
     fn should_be_able_to_cast_into_equivalent_statemachine_error_when_having_a_state_error() {
-        let expected_result = StateMachine::State(State::InvalidInputData);
+        let expected_result = StateMachine::State(State::InvalidInput);
 
-        let result: StateMachine = State::InvalidInputData.into();
+        let result: StateMachine = State::InvalidInput.into();
 
         assert_eq!(result, expected_result);
     }
