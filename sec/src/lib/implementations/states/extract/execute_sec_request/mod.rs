@@ -54,6 +54,16 @@
 //! ## Testing
 //! This module includes comprehensive unit tests covering state behavior, trait compliance, and error handling.
 
+use std::fmt;
+
+use async_trait::async_trait;
+use state_maschine::prelude::State as SMState;
+
+use crate::error::State as StateError;
+use crate::error::state_machine::state::failed_request_execution::FailedRequestExecution;
+use crate::shared::http_client::SecClient as SecClientTrait;
+use crate::traits::state_machine::state::State;
+
 pub mod constants;
 pub mod context;
 pub mod data;
@@ -62,16 +72,6 @@ pub use constants::STATE_NAME;
 pub use context::ExecuteSecRequestContext;
 pub use data::ExecuteSecRequestInput;
 pub use data::ExecuteSecRequestOutput;
-
-use crate::error::State as StateError;
-use crate::error::state_machine::state::failed_request_execution::FailedRequestExecution;
-use crate::shared::http_client::SecClient as SecClientTrait;
-use crate::traits::state_machine::state::State;
-
-use std::fmt;
-
-use async_trait::async_trait;
-use state_maschine::prelude::State as SMState;
 
 /// State that executes HTTP requests to SEC API endpoints.
 ///
@@ -245,7 +245,6 @@ mod tests {
     use crate::shared::cik::Cik;
     use crate::shared::http_client::implementations::sec_client::SecClient;
     use crate::shared::request::implementations::sec_request::SecRequest;
-    use crate::traits::state_machine::state::State;
 
     const TEST_CIK: &str = "0001067983";
 

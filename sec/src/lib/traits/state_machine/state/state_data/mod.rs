@@ -46,7 +46,6 @@ mod tests {
     use crate::tests::fixtures::sample_sec_state::data::input::{
         SampleSecStateInput, SampleSecStateInputUpdaterBuilder,
     };
-
     use crate::traits::state_machine::state::StateData;
 
     #[test]

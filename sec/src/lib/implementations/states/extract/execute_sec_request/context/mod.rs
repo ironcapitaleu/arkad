@@ -32,10 +32,10 @@
 
 use std::fmt;
 
+use state_maschine::prelude::Context as SMContext;
+
 use crate::shared::cik::Cik;
 use crate::traits::state_machine::state::Context;
-
-use state_maschine::prelude::Context as SMContext;
 
 /// State context for the SEC request execution state.
 ///
@@ -202,11 +202,13 @@ impl Default for ExecuteSecRequestContextUpdaterBuilder {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::shared::cik::Cik;
+    use std::{fmt::Debug, hash::Hash};
+
     use pretty_assertions::assert_eq;
     use state_maschine::prelude::Context as SMContext;
-    use std::{fmt::Debug, hash::Hash};
+
+    use super::*;
+    use crate::shared::cik::Cik;
 
     #[test]
     fn should_create_new_context_with_provided_cik() {

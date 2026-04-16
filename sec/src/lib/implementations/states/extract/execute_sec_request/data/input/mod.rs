@@ -27,13 +27,13 @@
 
 use std::fmt;
 
+use state_maschine::prelude::StateData as SMStateData;
+
 use crate::error::State as StateError;
 use crate::shared::http_client::implementations::sec_client::SecClient;
 use crate::shared::request::SecRequest as SecRequestTrait;
 use crate::shared::request::implementations::sec_request::SecRequest;
 use crate::traits::state_machine::state::StateData;
-
-use state_maschine::prelude::StateData as SMStateData;
 
 /// Input data for executing SEC API requests.
 ///
@@ -223,11 +223,11 @@ impl Default for ExecuteSecRequestInputUpdaterBuilder {
 mod tests {
     use std::{fmt::Debug, hash::Hash};
 
+    use pretty_assertions::assert_eq;
+
     use super::*;
     use crate::shared::cik::Cik;
     use crate::shared::request::implementations::sec_request::SecRequest;
-
-    use pretty_assertions::assert_eq;
 
     #[test]
     fn should_create_new_input_data_with_provided_client_and_request() {

@@ -198,13 +198,13 @@ mod tests {
     use std::{fmt::Debug, hash::Hash};
 
     use pretty_assertions::{assert_eq, assert_ne};
+    use state_maschine::prelude::StateData as SMStateData;
 
     use super::{ParseCompanyFactsOutput, ParseCompanyFactsOutputUpdaterBuilder};
     use crate::shared::cik::Cik;
     use crate::shared::financial::company_data::CompanyData;
     use crate::shared::financial::entity_name::EntityName;
     use crate::traits::state_machine::state::StateData;
-    use state_maschine::prelude::StateData as SMStateData;
 
     fn create_test_output(entity_name: &str) -> ParseCompanyFactsOutput {
         let cik = Cik::new("0000320193").expect("Hardcoded CIK should always be valid");

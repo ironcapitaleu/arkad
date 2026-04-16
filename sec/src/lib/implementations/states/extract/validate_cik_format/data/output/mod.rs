@@ -176,12 +176,12 @@ mod tests {
     use std::{fmt::Debug, hash::Hash};
 
     use pretty_assertions::{assert_eq, assert_ne};
+    use state_maschine::prelude::StateData as SMStateData;
 
     use super::{ValidateCikFormatOutput, ValidateCikFormatOutputUpdaterBuilder};
     use crate::shared::cik::Cik;
     use crate::shared::cik::constants::BERKSHIRE_HATHAWAY_CIK_RAW;
     use crate::traits::state_machine::state::StateData;
-    use state_maschine::prelude::StateData as SMStateData;
 
     fn create_test_output() -> ValidateCikFormatOutput {
         ValidateCikFormatOutput::new(BERKSHIRE_HATHAWAY_CIK_RAW)

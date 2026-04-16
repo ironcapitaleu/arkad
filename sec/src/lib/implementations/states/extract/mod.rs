@@ -33,6 +33,9 @@ pub mod validate_cik_format;
 
 use std::fmt::Display;
 
+use async_trait::async_trait;
+use state_maschine::prelude::{StateMachine as SMStateMachine, Transition as SMTransition};
+
 use crate::error::State as StateError;
 use crate::error::state_machine::transition;
 use crate::error::state_machine::transition::Transition as TransitionError;
@@ -49,15 +52,10 @@ use crate::implementations::states::extract::validate_cik_format::{
 use crate::implementations::states::transform::TransformSuperState;
 use crate::implementations::states::transform::parse_company_facts::ParseCompanyFacts;
 use crate::implementations::states::transform::parse_company_facts::constants::STATE_NAME as PARSE_COMPANY_FACTS;
-
+use crate::prelude::*;
 use crate::shared::cik::Cik;
 use crate::shared::http_client::implementations::sec_client::SecClient;
 use crate::shared::request::implementations::sec_request::SecRequest;
-
-use async_trait::async_trait;
-
-use crate::prelude::*;
-use state_maschine::prelude::{StateMachine as SMStateMachine, Transition as SMTransition};
 
 /// Data structure for the Extract super-state.
 ///

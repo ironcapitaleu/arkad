@@ -235,11 +235,11 @@ mod tests {
     use std::{fmt::Debug, hash::Hash};
 
     use pretty_assertions::{assert_eq, assert_ne};
+    use state_maschine::prelude::StateData as SMStateData;
 
     use super::{ParseCompanyFactsInput, ParseCompanyFactsInputUpdaterBuilder};
     use crate::shared::response::implementations::sec_response::body_digest::BodyDigest;
     use crate::traits::state_machine::state::StateData;
-    use state_maschine::prelude::StateData as SMStateData;
 
     fn test_input() -> ParseCompanyFactsInput {
         let json = serde_json::json!({});

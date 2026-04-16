@@ -226,6 +226,7 @@ mod tests {
     use std::{fmt::Debug, hash::Hash};
 
     use pretty_assertions::{assert_eq, assert_ne};
+    use state_maschine::prelude::StateData as SMStateData;
 
     use super::{PrepareSecRequestInput, PrepareSecRequestInputUpdaterBuilder};
     use crate::shared::cik::Cik;
@@ -237,7 +238,6 @@ mod tests {
             Cik::new(BERKSHIRE_HATHAWAY_CIK_RAW).expect("Hardcoded CIK should always be valid");
         PrepareSecRequestInput::new(cik, String::new())
     }
-    use state_maschine::prelude::StateData as SMStateData;
 
     #[test]
     fn should_return_reference_to_default_prepare_state_data_when_initialized_with_default() {

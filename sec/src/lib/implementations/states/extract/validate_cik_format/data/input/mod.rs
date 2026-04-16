@@ -180,12 +180,11 @@ mod tests {
     use std::{fmt::Debug, hash::Hash};
 
     use pretty_assertions::{assert_eq, assert_ne};
-
-    use super::{
-        BERKSHIRE_HATHAWAY_CIK_RAW, ValidateCikFormatInput, ValidateCikFormatInputUpdaterBuilder,
-    };
-    use crate::traits::state_machine::state::StateData;
     use state_maschine::prelude::StateData as SMStateData;
+
+    use super::{ValidateCikFormatInput, ValidateCikFormatInputUpdaterBuilder};
+    use crate::shared::cik::constants::BERKSHIRE_HATHAWAY_CIK_RAW;
+    use crate::traits::state_machine::state::StateData;
 
     #[test]
     fn should_return_reference_to_default_validation_state_data_when_initialized_with_default() {

@@ -191,9 +191,10 @@ mod tests {
     use state_maschine::prelude::*;
 
     use super::{
-        BERKSHIRE_HATHAWAY_CIK_RAW, ValidateCikFormatContext, ValidateCikFormatContextUpdater,
+        ValidateCikFormatContext, ValidateCikFormatContextUpdater,
         ValidateCikFormatContextUpdaterBuilder,
     };
+    use crate::shared::cik::constants::BERKSHIRE_HATHAWAY_CIK_RAW;
 
     #[test]
     fn should_return_reference_to_default_validation_context_when_initialized_with_default() {

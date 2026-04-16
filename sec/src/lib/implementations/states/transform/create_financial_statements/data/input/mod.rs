@@ -235,13 +235,13 @@ mod tests {
     use std::hash::Hash;
 
     use pretty_assertions::{assert_eq, assert_ne};
+    use state_maschine::prelude::StateData as SMStateData;
 
     use super::{CreateFinancialStatementsInput, CreateFinancialStatementsInputUpdaterBuilder};
     use crate::shared::cik::Cik;
     use crate::shared::financial::company_data::CompanyData;
     use crate::shared::financial::entity_name::EntityName;
     use crate::traits::state_machine::state::StateData;
-    use state_maschine::prelude::StateData as SMStateData;
 
     fn create_custom_company_data() -> CompanyData {
         let cik = Cik::new("0000320193").expect(

@@ -213,14 +213,13 @@ mod tests {
     use std::{fmt::Debug, hash::Hash};
 
     use pretty_assertions::{assert_eq, assert_ne};
+    use state_maschine::prelude::StateData as SMStateData;
 
     use super::{PrepareSecRequestOutput, PrepareSecRequestOutputUpdaterBuilder};
     use crate::shared::cik::Cik;
     use crate::shared::http_client::implementations::sec_client::SecClient;
     use crate::shared::request::implementations::sec_request::SecRequest;
     use crate::traits::state_machine::state::StateData;
-
-    use state_maschine::prelude::StateData as SMStateData;
 
     /// Creates a known-good baseline `PrepareSecRequestOutput` for use in tests.
     fn create_baseline_output() -> PrepareSecRequestOutput {

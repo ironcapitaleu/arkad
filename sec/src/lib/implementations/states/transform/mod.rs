@@ -48,6 +48,7 @@ pub mod parse_company_facts;
 use std::fmt::Display;
 
 use async_trait::async_trait;
+use state_maschine::prelude::{StateMachine as SMStateMachine, Transition as SMTransition};
 
 use crate::error::State as StateError;
 use crate::error::state_machine::transition::Transition as TransitionError;
@@ -62,7 +63,6 @@ use crate::shared::cik::Cik;
 use crate::shared::financial::company_data::CompanyData;
 use crate::shared::response::implementations::sec_response::SecResponse;
 use crate::shared::response::traits::sec::SecResponse as SecResponseTrait;
-use state_maschine::prelude::{StateMachine as SMStateMachine, Transition as SMTransition};
 
 /// Data structure for the Transform super-state.
 ///
