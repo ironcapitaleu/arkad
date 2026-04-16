@@ -219,7 +219,7 @@ classDiagram
 
 ## Quality & Reliability
 
-- **900+ unit tests** covering state transitions, input validation, error paths, and edge cases
+- **1,000+ unit tests** covering state transitions, input validation, error paths, and edge cases
 - **Invariant-based validation** at every state boundary to prevent downstream data corruption
 - **Async and parallel execution** via Tokio, preserving pipeline correctness and reproducibility
 - **First-class CI** via GitHub Actions with automated testing, linting, and formatting checks
