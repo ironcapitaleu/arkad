@@ -196,16 +196,6 @@ impl SMState for CreateFinancialStatements {
     }
 }
 
-impl Default for CreateFinancialStatements {
-    /// Returns a default state with default input and context.
-    fn default() -> Self {
-        Self::new(
-            CreateFinancialStatementsInput::default(),
-            CreateFinancialStatementsContext::default(),
-        )
-    }
-}
-
 impl PartialEq for CreateFinancialStatements {
     fn eq(&self, other: &Self) -> bool {
         self.input == other.input && self.context == other.context && self.output == other.output
@@ -265,9 +255,16 @@ mod tests {
     use std::{fmt::Debug, hash::Hash};
     use tokio;
 
+    fn create_baseline_state() -> CreateFinancialStatements {
+        CreateFinancialStatements::new(
+            CreateFinancialStatementsInput::default(),
+            CreateFinancialStatementsContext::default(),
+        )
+    }
+
     #[test]
     fn should_return_name_of_state_when_in_create_financial_statements_state() {
-        let state = CreateFinancialStatements::default();
+        let state = create_baseline_state();
 
         let expected_result = String::from("Create Financial Statements");
 
@@ -278,7 +275,7 @@ mod tests {
 
     #[test]
     fn should_return_default_input_data_when_in_initial_state() {
-        let state = CreateFinancialStatements::default();
+        let state = create_baseline_state();
 
         let expected_result = &CreateFinancialStatementsInput::default();
 
@@ -292,7 +289,7 @@ mod tests {
         expected = "State with valid input should always produce output after computation"
     )]
     fn should_panic_when_trying_to_access_output_data_before_it_has_been_computed_in_state() {
-        let state = CreateFinancialStatements::default();
+        let state = create_baseline_state();
 
         let _result = state
             .output_data()
@@ -301,7 +298,7 @@ mod tests {
 
     #[test]
     fn should_return_false_when_state_has_not_computed_the_output() {
-        let state = CreateFinancialStatements::default();
+        let state = create_baseline_state();
 
         let expected_result = false;
 
@@ -312,7 +309,7 @@ mod tests {
 
     #[test]
     fn should_return_default_context_data_when_in_initial_state() {
-        let state = CreateFinancialStatements::default();
+        let state = create_baseline_state();
 
         let expected_result = &CreateFinancialStatementsContext::default();
 
@@ -382,12 +379,6 @@ mod tests {
         implements_ord::<CreateFinancialStatements>();
     }
 
-    const fn implements_default<T: Default>() {}
-    #[test]
-    const fn should_implement_default_when_implementing_state_trait() {
-        implements_default::<CreateFinancialStatements>();
-    }
-
     const fn implements_debug<T: Debug>() {}
     #[test]
     const fn should_implement_debug_when_implementing_state_trait() {
@@ -407,20 +398,8 @@ mod tests {
     }
 
     #[test]
-    fn should_return_default_context_data_when_called_with_state_reference() {
-        let state = &CreateFinancialStatements::default();
-        let ref_to_state = &CreateFinancialStatements::default();
-
-        let expected_result = state.context_data();
-
-        let result = ref_to_state.context_data();
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
     fn should_return_false_when_reference_state_has_not_computed_the_output() {
-        let ref_to_state = &mut CreateFinancialStatements::default();
+        let ref_to_state = &mut create_baseline_state();
 
         let expected_result = false;
 
@@ -435,7 +414,7 @@ mod tests {
     )]
     fn should_panic_when_trying_to_access_output_data_before_it_has_been_computed_in_reference_state()
      {
-        let ref_to_state = &CreateFinancialStatements::default();
+        let ref_to_state = &create_baseline_state();
 
         let _result = ref_to_state
             .output_data()
@@ -444,7 +423,7 @@ mod tests {
 
     #[test]
     fn should_return_name_of_state_when_calling_reference_to_state() {
-        let ref_to_state = &CreateFinancialStatements::default();
+        let ref_to_state = &create_baseline_state();
 
         let expected_result = String::from("Create Financial Statements");
 
@@ -455,7 +434,7 @@ mod tests {
 
     #[test]
     fn should_return_default_input_data_when_reference_state_in_initial_state() {
-        let ref_to_state = &CreateFinancialStatements::default();
+        let ref_to_state = &create_baseline_state();
 
         let expected_result = &CreateFinancialStatementsInput::default();
 
@@ -466,7 +445,7 @@ mod tests {
 
     #[tokio::test]
     async fn should_not_change_input_data_when_computing_output_data() {
-        let mut state = CreateFinancialStatements::default();
+        let mut state = create_baseline_state();
 
         let expected_result = &state.input_data().clone();
 
@@ -481,7 +460,7 @@ mod tests {
 
     #[tokio::test]
     async fn should_return_placeholder_output_when_computing_output_data() {
-        let mut state = CreateFinancialStatements::default();
+        let mut state = create_baseline_state();
 
         let expected_result = &CreateFinancialStatementsOutput;
 
@@ -490,6 +469,30 @@ mod tests {
             .await
             .expect("Default test state should always compute output successfully");
         let result = state.output_data().unwrap();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_produce_output_when_calling_sync_compute_outside_tokio_runtime() {
+        let mut state = create_baseline_state();
+
+        let expected_result = true;
+
+        state.compute_output_data();
+        let result = state.has_output_data_been_computed();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn should_produce_output_when_calling_sync_compute_inside_tokio_runtime() {
+        let mut state = create_baseline_state();
+
+        let expected_result = true;
+
+        state.compute_output_data();
+        let result = state.has_output_data_been_computed();
 
         assert_eq!(result, expected_result);
     }

@@ -884,4 +884,44 @@ mod tests {
 
         assert_eq!(result, expected_result);
     }
+
+    #[test]
+    fn should_produce_output_when_calling_sync_compute_outside_tokio_runtime() {
+        let json = get_baseline_company_facts_json();
+        let digest = BodyDigest::from_body_text(&json.to_string());
+        let input = ParseCompanyFactsInput::new(json, digest);
+        let context = ParseCompanyFactsContext::default();
+        let mut state = ParseCompanyFacts::new(input, context);
+
+        let expected_result = true;
+
+        state.compute_output_data();
+        let result = state.has_output_data_been_computed();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn should_produce_output_when_calling_sync_compute_inside_tokio_runtime() {
+        let json = get_baseline_company_facts_json();
+        let digest = BodyDigest::from_body_text(&json.to_string());
+        let input = ParseCompanyFactsInput::new(json, digest);
+        let context = ParseCompanyFactsContext::default();
+        let mut state = ParseCompanyFacts::new(input, context);
+
+        let expected_result = true;
+
+        state.compute_output_data();
+        let result = state.has_output_data_been_computed();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    #[should_panic(expected = "compute_output_data failed")]
+    fn should_panic_when_calling_sync_compute_with_invalid_input() {
+        let mut state = get_baseline_parse_state();
+
+        state.compute_output_data();
+    }
 }
