@@ -1,20 +1,27 @@
 use sec::implementations::states::extract::ExtractSuperState;
 use sec::implementations::states::extract::execute_sec_request::{
-    ExecuteSecRequest, ExecuteSecRequestContext, ExecuteSecRequestInputData,
+    ExecuteSecRequest, ExecuteSecRequestContext, ExecuteSecRequestInput,
 };
 use sec::implementations::states::extract::prepare_sec_request::{
-    PrepareSecRequest, PrepareSecRequestContext, PrepareSecRequestInputData,
+    PrepareSecRequest, PrepareSecRequestContext, PrepareSecRequestInput,
 };
 use sec::implementations::states::extract::validate_cik_format::ValidateCikFormat;
 
 use sec::prelude::*;
-use sec::shared::cik::Cik;
 
 #[tokio::main]
 // Let this be here for testing purposes. Will be removed later.
 #[allow(clippy::too_many_lines)]
 async fn main() {
-    let mut validate_cik_state = ValidateCikFormat::default();
+    let input =
+        sec::implementations::states::extract::validate_cik_format::ValidateCikFormatInput::new(
+            "1067983",
+        );
+    let context =
+        sec::implementations::states::extract::validate_cik_format::ValidateCikFormatContext::new(
+            "1067983",
+        );
+    let mut validate_cik_state = ValidateCikFormat::new(input, context);
 
     println!("\n=======================================================");
     println!("Initial Validation state:");
@@ -23,7 +30,7 @@ async fn main() {
     validate_cik_state
         .compute_output_data_async()
         .await
-        .expect("Hardcoded default CIK should alaways have a valid format.");
+        .expect("Hardcoded default CIK should alaways have a valid format");
 
     println!("\n=======================================================");
     println!("Validation state after verifying CIK:");
@@ -32,21 +39,27 @@ async fn main() {
     println!("\n=======================================================");
     println!("Initial PrepareSecRequest state:");
     let mut prepare_sec_request = PrepareSecRequest::new(
-        PrepareSecRequestInputData::new(
+        PrepareSecRequestInput::new(
             validate_cik_state
-                .get_output_data()
+                .output_data()
                 .expect("Should be valid")
                 .validated_cik
                 .clone(),
             "Test User Agent test@example.com".to_string(),
         ),
-        PrepareSecRequestContext::default(),
+        PrepareSecRequestContext::new(
+            validate_cik_state
+                .output_data()
+                .expect("Should be valid")
+                .validated_cik
+                .clone(),
+        ),
     );
     println!("{:.500}", prepare_sec_request.to_string().as_str());
     prepare_sec_request
         .compute_output_data_async()
         .await
-        .expect("PrepareSecRequest should always succeed with a valid CIK and user agent.");
+        .expect("PrepareSecRequest should always succeed with a valid CIK and user agent");
     println!("\n=======================================================");
     println!("After PrepareSecRequest output:");
     println!("{:.500}", prepare_sec_request.to_string().as_str());
@@ -54,22 +67,28 @@ async fn main() {
     println!("\n=======================================================");
     println!("Initial ExecuteSecRequest state:");
     let prepare_output = prepare_sec_request
-        .get_output_data()
+        .output_data()
         .expect("PrepareSecRequest should have output data")
         .clone();
 
     let mut execute_sec_request = ExecuteSecRequest::new(
-        ExecuteSecRequestInputData::new(
+        ExecuteSecRequestInput::new(
             prepare_output.client().clone(),
             prepare_output.request().clone(),
         ),
-        ExecuteSecRequestContext::new(Cik::default()),
+        ExecuteSecRequestContext::new(
+            validate_cik_state
+                .output_data()
+                .expect("Should be valid")
+                .validated_cik
+                .clone(),
+        ),
     );
     println!("{:.500}", execute_sec_request.to_string().as_str());
     execute_sec_request
         .compute_output_data_async()
         .await
-        .expect("ExecuteSecRequest should succeed with valid client and request.");
+        .expect("ExecuteSecRequest should succeed with valid client and request");
     println!("\n=======================================================");
     println!("After ExecuteSecRequest output:");
     println!("{:.500}", execute_sec_request.to_string().as_str());
@@ -82,11 +101,11 @@ async fn main() {
     super_state
         .compute_output_data_async()
         .await
-        .expect("Hardcoded default CIK should alaways have a valid format.");
+        .expect("Hardcoded default CIK should alaways have a valid format");
 
     let validated_cik = super_state
-        .get_current_state()
-        .get_output_data()
+        .current_state()
+        .output_data()
         .unwrap()
         .validated_cik
         .value();
@@ -110,11 +129,11 @@ async fn main() {
     super_state
         .compute_output_data_async()
         .await
-        .expect("PrepareSecRequest should succeed with valid CIK and user agent.");
+        .expect("PrepareSecRequest should succeed with valid CIK and user agent");
 
     let output = super_state
-        .get_current_state()
-        .get_output_data()
+        .current_state()
+        .output_data()
         .expect("PrepareSecRequest should have output data");
 
     println!("{output}");
@@ -124,7 +143,7 @@ async fn main() {
 
     let mut super_state = super_state
         .transition_to_next_state_sec()
-        .expect("Transition should succeed.");
+        .expect("Transition should succeed");
     println!("{super_state}");
 
     println!("\n=======================================================");
@@ -133,35 +152,12 @@ async fn main() {
     super_state
         .compute_output_data_async()
         .await
-        .expect("ExecuteSecRequest should succeed with valid CIK and user agent.");
+        .expect("ExecuteSecRequest should succeed with valid CIK and user agent");
 
     let execute_output = super_state
-        .get_current_state()
-        .get_output_data()
+        .current_state()
+        .output_data()
         .expect("ExecuteSecRequest should have output data");
 
     println!("{execute_output}");
-
-    println!("\n=======================================================");
-    println!("Transition from ExecuteSECRequest to ValidateSecResponse");
-
-    let mut super_state = super_state
-        .transition_to_next_state_sec()
-        .expect("Transition should succeed.");
-    println!("{super_state}");
-
-    println!("\n=======================================================");
-    println!("State 4 Output:");
-
-    super_state
-        .compute_output_data_async()
-        .await
-        .expect("ValidateSecResponse should succeed with valid response.");
-
-    let validate_output = super_state
-        .get_current_state()
-        .get_output_data()
-        .expect("ValidateSecResponse should have output data");
-
-    println!("{validate_output}");
 }
