@@ -42,12 +42,12 @@ jobs:
         username: ${{ github.repository_owner }}
         password: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Build and Push Docker Image
-      uses: docker/build-push-action@v6
-      with:
-        context: .
-        file: ./tmp/Dockerfile
-        push: true
-        tags: |
-          ghcr.io/${{ github.repository_owner }}/test:latest
-          ghcr.io/${{ github.repository_owner }}/test:${{ github.sha }}
+    # - name: Build and Push Docker Image
+    #   uses: docker/build-push-action@v6
+    #   with:
+    #     context: .
+    #     file: ./tmp/Dockerfile
+    #     push: true
+    #     tags: |
+    #       ghcr.io/${{ github.repository_owner }}/test:latest
+    #       ghcr.io/${{ github.repository_owner }}/test:${{ github.sha }}
