@@ -146,11 +146,29 @@ impl<S: State> SMState for TransformSuperState<S> {
     fn input_data(&self) -> &Self::InputData {
         &self.input
     }
+    /// Blocking wrapper around [`compute_output_data_async`](crate::traits::state_machine::state::State::compute_output_data_async).
+    ///
+    /// Detects whether a tokio runtime is available and runs the async computation
+    /// synchronously. This allows SEC states to be used as regular `SMState` implementations.
+    ///
+    /// # Panics
+    /// Panics if the async computation returns an error.
     fn compute_output_data(&mut self) {
-        unimplemented!(
-            "SEC states are async-only. \
-             Call compute_output_data_async instead"
-        )
+        let result = if let Ok(handle) = tokio::runtime::Handle::try_current() {
+            tokio::task::block_in_place(|| {
+                handle.block_on(self.current_state.compute_output_data_async())
+            })
+        } else {
+            tokio::runtime::Runtime::new()
+                .expect("Failed to create tokio runtime for blocking compute")
+                .block_on(self.current_state.compute_output_data_async())
+        };
+
+        if let Err(e) = result {
+            #[allow(clippy::useless_conversion)]
+            let state_err: crate::error::State = e.into();
+            panic!("compute_output_data failed: {state_err}")
+        }
     }
     fn output_data(&self) -> Option<&Self::OutputData> {
         self.output.as_ref()
@@ -283,7 +301,8 @@ impl IntoStateMachineStream for TransformSuperState<CreateFinancialStatements> {
                 }
                 Err(e) => {
                     #[allow(clippy::useless_conversion)]
-                    let state_err: crate::error::State = e.into();
+                    #[allow(clippy::useless_conversion)]
+            let state_err: crate::error::State = e.into();
                     let sm_error: crate::error::StateMachine = state_err.into();
                     let data = serde_json::to_value(sm.current_state()).unwrap_or_else(|e| {
                         serde_json::json!({ "serialization_error": e.to_string() })

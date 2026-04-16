@@ -292,13 +292,26 @@ impl SMState for ParseCompanyFacts {
         STATE_NAME
     }
 
-    /// Parses SEC Company Facts JSON into structured financial data.
-    /// Panics unconditionally — SEC states are async-only.
+    /// Blocking wrapper around [`compute_output_data_async`](crate::traits::state_machine::state::State::compute_output_data_async).
+    ///
+    /// Detects whether a tokio runtime is available and runs the async computation
+    /// synchronously. This allows SEC states to be used as regular `SMState` implementations.
+    ///
+    /// # Panics
+    /// Panics if the async computation returns an error.
     fn compute_output_data(&mut self) {
-        unimplemented!(
-            "SEC states are async-only. \
-             Call compute_output_data_async instead"
-        )
+        let result = if let Ok(handle) = tokio::runtime::Handle::try_current() {
+            tokio::task::block_in_place(|| handle.block_on(self.compute_output_data_async()))
+        } else {
+            tokio::runtime::Runtime::new()
+                .expect("Failed to create tokio runtime for blocking compute")
+                .block_on(self.compute_output_data_async())
+        };
+
+        if let Err(e) = result {
+            let state_err: crate::error::State = e;
+            panic!("compute_output_data failed: {state_err}")
+        }
     }
 
     fn context_data(&self) -> &Self::Context {
