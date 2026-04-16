@@ -8,7 +8,7 @@
 //!
 //! The [`Transition`] enum covers two main failure scenarios:
 //! - [`FailedOutputConversion`](Transition::FailedOutputConversion): Occurs when the output data of the source state cannot be converted into the input data of the destination state.
-//! - [`FailedContextConversion`](Transition::FailedContextConversion): Occurs when the context data of the source state cannot be converted into the context data of the destination state.
+//! - [`FailedContextConversion`](Transition::FailedContextConversion): Occurs when the context of the source state cannot be converted into the context of the destination state.
 //!
 //! These errors are intended to be used by implementers of the [`Transition`](crate::traits::state_machine::transition::Transition) trait
 //! and are surfaced by the state machine error handling system (see [`crate::error`] and [`crate::error::state_machine`]).
@@ -34,14 +34,14 @@
 //! }
 //! ```
 
-pub mod missing_output_data;
-pub use missing_output_data::MissingOutputData;
+pub mod missing_output;
+pub use missing_output::MissingOutput;
 
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 /// Represents errors that can occur during state transitions within the state machine framework.
 ///
-/// This enum is used to signal failure scenarios when, for example, converting state output or context data
+/// This enum is used to signal failure scenarios when, for example, converting state output or context
 /// between states. It is intended for use by implementers of the [`Transition`](crate::traits::state_machine::transition::Transition) trait,
 /// and is surfaced by the state machine error handling system.
 ///
@@ -51,7 +51,7 @@ pub enum Transition {
     ///
     /// This error variant indicates that the output data produced by the source state is missing
     /// or could not be accessed during the transition.
-    MissingOutputData(MissingOutputData),
+    MissingOutput(MissingOutput),
     /// Failed to convert output of the source state into the input of the destination state.
     ///
     /// This error variant indicates that the output data produced by the source state could not
@@ -60,7 +60,7 @@ pub enum Transition {
 
     /// Failed to convert context of the source state into the context of the destination state.
     ///
-    /// This error variant indicates that the context data associated with the source state could not
+    /// This error variant indicates that the context associated with the source state could not
     /// be transformed or mapped into the context required by the destination state during a transition.
     FailedContextConversion,
 }

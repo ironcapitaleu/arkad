@@ -4,7 +4,7 @@
 //! Each submodule represents a logical phase or operation in the state machine's workflow for SEC filings processing.
 //!
 //! ## Submodules
-//! - [`extract`]: Contains states responsible for extracting and validating data from raw SEC filings (e.g., CIK format validation).
+//! - [`extract`]: Contains states responsible for extracting and validating data from raw SEC filings (e.g., Validate CIK Format).
 //! - [`transform`]: Contains states that transform extracted data into normalized or enriched forms for downstream processing.
 //! - [`load`]: Contains states that handle loading or persisting processed data into target systems or storage.
 //!

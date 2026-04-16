@@ -1,0 +1,118 @@
+use async_trait::async_trait;
+
+use crate::shared::http_client::InnerClient;
+use crate::shared::http_client::SecClient as SecClientTrait;
+use crate::shared::request::implementations::sec_request::SecRequest;
+use crate::shared::response::SecResponse as SecResponseTrait;
+use crate::shared::response::implementations::sec_response::SecResponse;
+use crate::shared::user_agent::constants::DEFAULT_SEC_USER_AGENT;
+
+use self::error::FailedSecRequest;
+
+pub mod error;
+
+/// An SEC API client that connects `SecRequest` and `SecResponse`.
+///
+/// `SecClient` orchestrates the full request-response cycle: it takes a
+/// validated `SecRequest`, executes it via the underlying HTTP client, and
+/// returns a validated `SecResponse`.
+#[derive(Debug, Clone)]
+pub struct SecClient {
+    inner: reqwest::Client,
+}
+
+impl SecClient {
+    /// Creates a new `SecClient` with the given `reqwest::Client`.
+    #[must_use]
+    pub const fn new(inner: reqwest::Client) -> Self {
+        Self { inner }
+    }
+}
+
+/// Creates a default `SecClient`.
+///
+/// Wraps around `reqwest::Client` and sets the required User-Agent header for SEC API requests.
+impl Default for SecClient {
+    /// Creates a default `SecClient` configured with the default SEC user agent.
+    fn default() -> Self {
+        let http_client = reqwest::Client::builder()
+            .user_agent(DEFAULT_SEC_USER_AGENT)
+            .build()
+            .expect("The default SEC user agent should always produce a valid HTTP client");
+        Self::new(http_client)
+    }
+}
+
+// Deviation: `reqwest::Client` does not expose any comparable or hashable state,
+// so all `SecClient` instances are considered equal. This satisfies trait bounds
+// that require `Eq + Ord + Hash` (e.g. for use in collections or state machines).
+
+impl PartialEq for SecClient {
+    fn eq(&self, _other: &Self) -> bool {
+        true
+    }
+}
+
+impl Eq for SecClient {}
+
+impl std::hash::Hash for SecClient {
+    fn hash<H: std::hash::Hasher>(&self, _state: &mut H) {}
+}
+
+impl PartialOrd for SecClient {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for SecClient {
+    fn cmp(&self, _other: &Self) -> std::cmp::Ordering {
+        std::cmp::Ordering::Equal
+    }
+}
+
+#[async_trait]
+impl SecClientTrait for SecClient {
+    type Inner = reqwest::Client;
+    type Request = SecRequest;
+    type Response = SecResponse;
+    type Error = FailedSecRequest;
+
+    fn inner(&self) -> &Self::Inner {
+        &self.inner
+    }
+
+    async fn execute_sec_request(
+        &self,
+        request: Self::Request,
+    ) -> Result<Self::Response, Self::Error> {
+        let inner_request = request.into_inner();
+        let inner_response = self.inner.execute_request(inner_request).await?;
+        let sec_response = SecResponse::from_inner(inner_response).await?;
+        Ok(sec_response)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::SecClient;
+
+    fn assert_send<T: Send>() {}
+    fn assert_sync<T: Sync>() {}
+    fn assert_unpin<T: Unpin>() {}
+
+    #[test]
+    fn should_be_send() {
+        assert_send::<SecClient>();
+    }
+
+    #[test]
+    fn should_be_sync() {
+        assert_sync::<SecClient>();
+    }
+
+    #[test]
+    fn should_be_unpin() {
+        assert_unpin::<SecClient>();
+    }
+}
