@@ -17,11 +17,13 @@
 //! ## Example
 //! ```rust
 //! use sec::implementations::states::transform::create_financial_statements::context::*;
+//! use sec::shared::cik::Cik;
 //! use state_maschine::prelude::*;
 //!
-//! let mut context = CreateFinancialStatementsContext::default();
+//! let cik = Cik::new("0001067983").expect("Hardcoded CIK should always be valid");
+//! let mut context = CreateFinancialStatementsContext::new(cik);
 //! let update = CreateFinancialStatementsContextUpdater::builder()
-//!     .cik(sec::shared::cik::Cik::new("0000000001").unwrap())
+//!     .cik(Cik::new("0000000001").expect("Hardcoded CIK should always be valid"))
 //!     .build();
 //! context.update_context(update);
 //! assert_eq!(context.cik().value(), "0000000001");
@@ -36,13 +38,10 @@ use std::fmt;
 use state_maschine::prelude::Context as SMContext;
 
 use crate::shared::cik::Cik;
-use crate::shared::cik::constants::BERKSHIRE_HATHAWAY_CIK_RAW;
 use crate::traits::state_machine::state::Context;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, serde::Serialize)]
 /// State context for the Create Financial Statements state.
-///
-/// The default instance uses the CIK for Berkshire Hathaway (CIK: 1067983).
 pub struct CreateFinancialStatementsContext {
     /// The CIK identifying the company whose financial statements are being created.
     pub cik: Cik,
@@ -98,15 +97,6 @@ impl SMContext for CreateFinancialStatementsContext {
         if let Some(max_retries) = updates.max_retries {
             self.max_retries = max_retries;
         }
-    }
-}
-
-impl Default for CreateFinancialStatementsContext {
-    /// Returns a default context using the CIK for Berkshire Hathaway (CIK: 1067983).
-    fn default() -> Self {
-        Self::new(Cik::new(BERKSHIRE_HATHAWAY_CIK_RAW).expect(
-            "Given a valid hardcoded CIK, the creation of a CIK object should always succeed",
-        ))
     }
 }
 
@@ -203,12 +193,19 @@ mod tests {
         CreateFinancialStatementsContextUpdaterBuilder,
     };
     use crate::shared::cik::Cik;
+    use crate::shared::cik::constants::BERKSHIRE_HATHAWAY_CIK_RAW;
+
+    fn test_context() -> CreateFinancialStatementsContext {
+        CreateFinancialStatementsContext::new(Cik::new(BERKSHIRE_HATHAWAY_CIK_RAW).expect(
+            "Given a valid hardcoded CIK, the creation of a CIK object should always succeed",
+        ))
+    }
 
     #[test]
     fn should_return_reference_to_default_context_when_initialized_with_default() {
-        let context = CreateFinancialStatementsContext::default();
+        let context = test_context();
 
-        let expected_result = &CreateFinancialStatementsContext::default();
+        let expected_result = &test_context();
 
         let result = context.context();
 
@@ -222,7 +219,7 @@ mod tests {
         );
         let context = &CreateFinancialStatementsContext::new(custom_cik);
 
-        let expected_result = &CreateFinancialStatementsContext::default();
+        let expected_result = &test_context();
 
         let result = context.context();
 
@@ -231,7 +228,7 @@ mod tests {
 
     #[test]
     fn should_update_context_cik_when_update_contains_new_cik() {
-        let mut context = CreateFinancialStatementsContext::default();
+        let mut context = test_context();
         let new_cik = Cik::new("0000000001").expect(
             "Given a valid hardcoded CIK, the creation of a CIK object should always succeed",
         );
@@ -249,7 +246,7 @@ mod tests {
 
     #[test]
     fn should_update_cik_to_latest_specified_value_when_multiple_updates_in_builder() {
-        let mut context = CreateFinancialStatementsContext::default();
+        let mut context = test_context();
         let first_cik = Cik::new("0000000001").expect(
             "Given a valid hardcoded CIK, the creation of a CIK object should always succeed",
         );
@@ -271,10 +268,10 @@ mod tests {
 
     #[test]
     fn should_leave_context_unchanged_when_empty_update() {
-        let mut context = CreateFinancialStatementsContext::default();
+        let mut context = test_context();
         let empty_update = CreateFinancialStatementsContextUpdaterBuilder::default().build();
 
-        let expected_result = &CreateFinancialStatementsContext::default();
+        let expected_result = &test_context();
 
         context.update_context(empty_update);
         let result = context.context();
@@ -284,7 +281,7 @@ mod tests {
 
     #[test]
     fn should_update_max_retries_when_updater_contains_max_retries() {
-        let mut context = CreateFinancialStatementsContext::default();
+        let mut context = test_context();
         let update = CreateFinancialStatementsContextUpdater::builder()
             .max_retries(5)
             .build();
@@ -356,12 +353,6 @@ mod tests {
     #[test]
     const fn should_implement_ord_when_implementing_context_data_trait() {
         implements_ord::<CreateFinancialStatementsContext>();
-    }
-
-    const fn implements_default<T: Default>() {}
-    #[test]
-    const fn should_implement_default_when_implementing_context_data_trait() {
-        implements_default::<CreateFinancialStatementsContext>();
     }
 
     const fn implements_debug<T: Debug>() {}

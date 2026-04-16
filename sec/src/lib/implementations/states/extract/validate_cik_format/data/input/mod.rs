@@ -30,7 +30,6 @@ use std::fmt;
 use state_maschine::prelude::StateData as SMStateData;
 
 use crate::error::State as StateError;
-use crate::shared::cik::constants::BERKSHIRE_HATHAWAY_CIK_RAW;
 use crate::traits::state_machine::state::StateData;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, serde::Serialize)]
@@ -95,15 +94,6 @@ impl SMStateData for ValidateCikFormatInput {
     fn update_state(&mut self, updates: Self::UpdateType) {
         if let Err(e) = <Self as StateData>::update_state(self, updates) {
             panic!("StateData::update_state failed: {e}")
-        }
-    }
-}
-
-impl Default for ValidateCikFormatInput {
-    /// Returns a default input using the CIK for Berkshire Hathaway (CIK: 1067983).
-    fn default() -> Self {
-        Self {
-            raw_cik: BERKSHIRE_HATHAWAY_CIK_RAW.to_string(),
         }
     }
 }
@@ -186,11 +176,15 @@ mod tests {
     use crate::shared::cik::constants::BERKSHIRE_HATHAWAY_CIK_RAW;
     use crate::traits::state_machine::state::StateData;
 
+    fn test_input() -> ValidateCikFormatInput {
+        ValidateCikFormatInput::new(BERKSHIRE_HATHAWAY_CIK_RAW)
+    }
+
     #[test]
     fn should_return_reference_to_default_validation_state_data_when_initialized_with_default() {
-        let default_validation_state_data = ValidateCikFormatInput::default();
+        let default_validation_state_data = test_input();
 
-        let expected_result = &ValidateCikFormatInput::default();
+        let expected_result = &test_input();
 
         let result = default_validation_state_data.state();
 
@@ -201,7 +195,7 @@ mod tests {
     fn should_create_different_state_data_with_custom_data_when_using_new_as_constructor() {
         let validation_state_data = &ValidateCikFormatInput::new("0000000000");
 
-        let default_validation_state_data = &ValidateCikFormatInput::default();
+        let default_validation_state_data = &test_input();
 
         let result = validation_state_data.state();
 
@@ -210,7 +204,7 @@ mod tests {
 
     #[test]
     fn should_update_state_data_to_specified_string_when_update_contains_specified_string() {
-        let mut state_data = ValidateCikFormatInput::default();
+        let mut state_data = test_input();
         let update = ValidateCikFormatInputUpdaterBuilder::default()
             .cik("12345")
             .build();
@@ -227,7 +221,7 @@ mod tests {
 
     #[test]
     fn should_update_state_data_to_latest_specified_string_when_multiple_updates_in_builder() {
-        let mut state_data = ValidateCikFormatInput::default();
+        let mut state_data = test_input();
         let update = ValidateCikFormatInputUpdaterBuilder::default()
             .cik("1234567890")
             .cik("0000000000")
@@ -244,10 +238,10 @@ mod tests {
 
     #[test]
     fn should_leave_state_data_unchanged_when_empty_update() {
-        let mut state_data = ValidateCikFormatInput::default();
+        let mut state_data = test_input();
         let empty_update = ValidateCikFormatInputUpdaterBuilder::default().build();
 
-        let expected_result = &ValidateCikFormatInput::default();
+        let expected_result = &test_input();
 
         StateData::update_state(&mut state_data, empty_update)
             .expect("Update with valid 'update' value should always succeed");
@@ -257,8 +251,8 @@ mod tests {
     }
 
     #[test]
-    fn should_return_default_cik_when_validation_input_data_initialized_with_default() {
-        let validation_state_data = &ValidateCikFormatInput::default();
+    fn should_return_default_cik_when_validation_input_data_initialized_with_test_input() {
+        let validation_state_data = &test_input();
 
         let expected_result = &BERKSHIRE_HATHAWAY_CIK_RAW.to_string();
 
@@ -326,12 +320,6 @@ mod tests {
     #[test]
     const fn should_implement_ord_when_implementing_input_data_trait() {
         implements_ord::<ValidateCikFormatInput>();
-    }
-
-    const fn implements_default<T: Default>() {}
-    #[test]
-    const fn should_implement_default_when_implementing_input_data_trait() {
-        implements_default::<ValidateCikFormatInput>();
     }
 
     const fn implements_debug<T: Debug>() {}

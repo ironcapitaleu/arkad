@@ -34,12 +34,14 @@
 //! #[tokio::main]
 //! async fn main() {
 //!     let company_data = CompanyData::new(
-//!         Cik::new("0000320193").unwrap(),
+//!         Cik::new("0000320193").expect("Hardcoded CIK should always be valid"),
 //!         EntityName::new("Apple Inc."),
 //!         HashMap::new(),
 //!     );
 //!     let input = CreateFinancialStatementsInput::new(company_data);
-//!     let context = CreateFinancialStatementsContext::default();
+//!     let context = CreateFinancialStatementsContext::new(
+//!         Cik::new("0000320193").expect("Hardcoded CIK should always be valid"),
+//!     );
 //!
 //!     let mut state = CreateFinancialStatements::new(input, context);
 //!     state.compute_output_data_async().await.unwrap();
@@ -102,12 +104,14 @@ pub use data::CreateFinancialStatementsOutput;
 /// use sec::shared::financial::entity_name::EntityName;
 ///
 /// let company_data = CompanyData::new(
-///     Cik::new("0000320193").unwrap(),
+///     Cik::new("0000320193").expect("Hardcoded CIK should always be valid"),
 ///     EntityName::new("Apple Inc."),
 ///     HashMap::new(),
 /// );
 /// let input = CreateFinancialStatementsInput::new(company_data);
-/// let context = CreateFinancialStatementsContext::default();
+/// let context = CreateFinancialStatementsContext::new(
+///     Cik::new("0000320193").expect("Hardcoded CIK should always be valid"),
+/// );
 /// let state = CreateFinancialStatements::new(input, context);
 /// ```
 pub struct CreateFinancialStatements {
@@ -250,16 +254,37 @@ impl fmt::Display for CreateFinancialStatements {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use pretty_assertions::assert_eq;
+    use std::collections::HashMap;
     use std::{fmt::Debug, hash::Hash};
+
+    use pretty_assertions::assert_eq;
     use tokio;
 
+    use super::*;
+    use crate::shared::cik::Cik;
+    use crate::shared::cik::constants::BERKSHIRE_HATHAWAY_CIK_RAW;
+    use crate::shared::financial::company_data::CompanyData;
+    use crate::shared::financial::entity_name::EntityName;
+
+    fn test_context() -> CreateFinancialStatementsContext {
+        CreateFinancialStatementsContext::new(Cik::new(BERKSHIRE_HATHAWAY_CIK_RAW).expect(
+            "Given a valid hardcoded CIK, the creation of a CIK object should always succeed",
+        ))
+    }
+
+    fn test_input() -> CreateFinancialStatementsInput {
+        let cik = Cik::new(BERKSHIRE_HATHAWAY_CIK_RAW).expect(
+            "Given a valid hardcoded CIK, the creation of a CIK object should always succeed",
+        );
+        CreateFinancialStatementsInput::new(CompanyData::new(
+            cik,
+            EntityName::new("BERKSHIRE HATHAWAY INC"),
+            HashMap::new(),
+        ))
+    }
+
     fn create_baseline_state() -> CreateFinancialStatements {
-        CreateFinancialStatements::new(
-            CreateFinancialStatementsInput::default(),
-            CreateFinancialStatementsContext::default(),
-        )
+        CreateFinancialStatements::new(test_input(), test_context())
     }
 
     #[test]
@@ -277,7 +302,7 @@ mod tests {
     fn should_return_default_input_data_when_in_initial_state() {
         let state = create_baseline_state();
 
-        let expected_result = &CreateFinancialStatementsInput::default();
+        let expected_result = &test_input();
 
         let result = state.input_data();
 
@@ -311,7 +336,7 @@ mod tests {
     fn should_return_default_context_data_when_in_initial_state() {
         let state = create_baseline_state();
 
-        let expected_result = &CreateFinancialStatementsContext::default();
+        let expected_result = &test_context();
 
         let result = state.context_data();
 
@@ -436,7 +461,7 @@ mod tests {
     fn should_return_default_input_data_when_reference_state_in_initial_state() {
         let ref_to_state = &create_baseline_state();
 
-        let expected_result = &CreateFinancialStatementsInput::default();
+        let expected_result = &test_input();
 
         let result = ref_to_state.input_data();
 

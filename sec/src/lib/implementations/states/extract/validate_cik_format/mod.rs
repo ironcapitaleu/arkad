@@ -25,8 +25,8 @@
 //! #[tokio::main]
 //! async fn main() {
 //!
-//!     let input = ValidateCikFormatInput { raw_cik: "1234".into() };
-//!     let context = ValidateCikFormatContext::default();
+//!     let input = ValidateCikFormatInput::new("1234");
+//!     let context = ValidateCikFormatContext::new("1234");
 //!
 //!     let expected_result = "0000001234";
 //!
@@ -67,7 +67,7 @@ pub use data::ValidateCikFormatOutput;
 
 use crate::shared::cik::Cik;
 
-#[derive(Debug, Clone, Default, PartialEq, PartialOrd, Hash, Eq, Ord, serde::Serialize)]
+#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, serde::Serialize)]
 /// State that validates and normalizes a raw CIK format.
 ///
 /// The state takes an unvalidated CIK string as input, checks for format correctness,
@@ -90,8 +90,8 @@ use crate::shared::cik::Cik;
 /// ```
 /// use sec::implementations::states::extract::validate_cik_format::*;
 ///
-/// let input = ValidateCikFormatInput { raw_cik: "1234".into() };
-/// let context = ValidateCikFormatContext::default();
+/// let input = ValidateCikFormatInput::new("1234");
+/// let context = ValidateCikFormatContext::new("1234");
 /// let mut validation_state = ValidateCikFormat::new(input, context);
 /// ```
 pub struct ValidateCikFormat {
@@ -219,9 +219,21 @@ mod tests {
     use std::{fmt::Debug, hash::Hash};
     use tokio;
 
+    fn test_context() -> ValidateCikFormatContext {
+        ValidateCikFormatContext::new(BERKSHIRE_HATHAWAY_CIK_RAW)
+    }
+
+    fn test_input() -> ValidateCikFormatInput {
+        ValidateCikFormatInput::new(BERKSHIRE_HATHAWAY_CIK_RAW)
+    }
+
+    fn test_state() -> ValidateCikFormat {
+        ValidateCikFormat::new(test_input(), test_context())
+    }
+
     #[test]
     fn should_return_name_of_validation_state_when_in_validation_state() {
-        let validation_state = ValidateCikFormat::default();
+        let validation_state = test_state();
 
         let expected_result = String::from("Validate CIK Format");
 
@@ -233,9 +245,9 @@ mod tests {
     #[test]
     fn should_return_default_validation_data_struct_as_input_data_when_in_initial_validation_state()
     {
-        let validation_state = ValidateCikFormat::default();
+        let validation_state = test_state();
 
-        let expected_result = &ValidateCikFormatInput::default();
+        let expected_result = &test_input();
 
         let result = validation_state.input_data();
 
@@ -247,7 +259,7 @@ mod tests {
         expected = "State with valid input should always produce output after computation"
     )]
     fn should_panic_when_trying_to_access_output_data_before_it_has_been_computed_in_state() {
-        let validation_state = ValidateCikFormat::default();
+        let validation_state = test_state();
 
         let _result = validation_state
             .output_data()
@@ -256,7 +268,7 @@ mod tests {
 
     #[test]
     fn should_return_false_when_state_has_not_computed_the_output() {
-        let validation_state = ValidateCikFormat::default();
+        let validation_state = test_state();
 
         let expected_result = false;
 
@@ -267,9 +279,9 @@ mod tests {
 
     #[test]
     fn should_return_default_context_data_when_in_initial_state() {
-        let validation_state = ValidateCikFormat::default();
+        let validation_state = test_state();
 
-        let expected_result = &ValidateCikFormatContext::default();
+        let expected_result = &test_context();
 
         let result = validation_state.context_data();
 
@@ -337,12 +349,6 @@ mod tests {
         implements_ord::<ValidateCikFormat>();
     }
 
-    const fn implements_default<T: Default>() {}
-    #[test]
-    const fn should_implement_default_when_implementing_state_trait() {
-        implements_default::<ValidateCikFormat>();
-    }
-
     const fn implements_debug<T: Debug>() {}
     #[test]
     const fn should_implement_debug_when_implementing_state_trait() {
@@ -363,8 +369,8 @@ mod tests {
 
     #[test]
     fn should_return_default_context_data_when_called_with_state_reference() {
-        let validation_state = &ValidateCikFormat::default();
-        let ref_to_validation_state = &ValidateCikFormat::default();
+        let validation_state = &test_state();
+        let ref_to_validation_state = &test_state();
 
         let expected_result = validation_state.context_data();
 
@@ -375,7 +381,7 @@ mod tests {
 
     #[test]
     fn should_return_false_when_reference_state_has_not_computed_the_output() {
-        let ref_to_validation_state = &mut ValidateCikFormat::default();
+        let ref_to_validation_state = &mut test_state();
 
         let expected_result = false;
 
@@ -390,7 +396,7 @@ mod tests {
     )]
     fn should_panic_when_trying_to_access_output_data_before_it_has_been_computed_in_reference_state()
      {
-        let ref_to_validation_state = &ValidateCikFormat::default();
+        let ref_to_validation_state = &test_state();
 
         let _result = ref_to_validation_state
             .output_data()
@@ -399,7 +405,7 @@ mod tests {
 
     #[test]
     fn should_return_name_of_validation_state_when_calling_reference_to_validation_state() {
-        let ref_to_validation_state = &ValidateCikFormat::default();
+        let ref_to_validation_state = &test_state();
 
         let expected_result = String::from("Validate CIK Format");
 
@@ -411,9 +417,9 @@ mod tests {
     #[test]
     fn should_return_default_state_data_as_input_data_when_reference_validation_state_in_initial_state()
      {
-        let ref_to_validation_state = &ValidateCikFormat::default();
+        let ref_to_validation_state = &test_state();
 
-        let expected_result = &ValidateCikFormatInput::default();
+        let expected_result = &test_input();
 
         let result = ref_to_validation_state.input_data();
 
@@ -422,7 +428,7 @@ mod tests {
 
     #[tokio::test]
     async fn should_not_change_input_data_when_computing_output_data() {
-        let mut validation_state = ValidateCikFormat::default();
+        let mut validation_state = test_state();
 
         let expected_result = &validation_state.input_data().clone();
 
@@ -437,7 +443,7 @@ mod tests {
 
     #[tokio::test]
     async fn should_return_correct_output_data_when_computing_output_data() {
-        let mut validation_state = ValidateCikFormat::default();
+        let mut validation_state = test_state();
         let output_data = ValidateCikFormatOutput::new(BERKSHIRE_HATHAWAY_CIK_RAW);
 
         let expected_result = &output_data.expect("Output data has been created above");
@@ -453,7 +459,7 @@ mod tests {
 
     #[test]
     fn should_produce_output_when_calling_sync_compute_outside_tokio_runtime() {
-        let mut state = ValidateCikFormat::default();
+        let mut state = test_state();
 
         let expected_result = true;
 
@@ -465,7 +471,7 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread")]
     async fn should_produce_output_when_calling_sync_compute_inside_tokio_runtime() {
-        let mut state = ValidateCikFormat::default();
+        let mut state = test_state();
 
         let expected_result = true;
 
@@ -481,7 +487,7 @@ mod tests {
         let input = ValidateCikFormatInput {
             raw_cik: "INVALID".to_string(),
         };
-        let context = ValidateCikFormatContext::default();
+        let context = test_context();
         let mut state = ValidateCikFormat::new(input, context);
 
         state.compute_output_data();

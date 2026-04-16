@@ -52,6 +52,7 @@ mod tests {
         ValidateCikFormat, ValidateCikFormatContext, ValidateCikFormatInput,
     };
     use crate::shared::cik::Cik;
+    use crate::shared::cik::constants::BERKSHIRE_HATHAWAY_CIK_RAW;
     use crate::traits::state_machine::state::State;
 
     #[tokio::test]
@@ -60,7 +61,7 @@ mod tests {
         let input = ValidateCikFormatInput {
             raw_cik: cik_string.into(),
         };
-        let context = ValidateCikFormatContext::default();
+        let context = ValidateCikFormatContext::new(cik_string);
         let mut state = ValidateCikFormat::new(input, context);
         state
             .compute_output_data_async()
@@ -82,7 +83,9 @@ mod tests {
 
     #[test]
     fn should_return_error_when_validate_cik_format_has_no_output() {
-        let state = ValidateCikFormat::default();
+        let input = ValidateCikFormatInput::new(BERKSHIRE_HATHAWAY_CIK_RAW);
+        let context = ValidateCikFormatContext::new(BERKSHIRE_HATHAWAY_CIK_RAW);
+        let state = ValidateCikFormat::new(input, context);
 
         let expected_result = true;
 

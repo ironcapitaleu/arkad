@@ -19,9 +19,11 @@
 //! ## Example
 //! ```rust
 //! use sec::implementations::states::transform::parse_company_facts::context::*;
+//! use sec::shared::cik::Cik;
 //! use sec::prelude::*;
 //!
-//! let mut context = ParseCompanyFactsContext::default();
+//! let cik = Cik::new("0001067983").expect("Hardcoded CIK should always be valid");
+//! let mut context = ParseCompanyFactsContext::new(cik);
 //! let update = ParseCompanyFactsContextUpdater::builder()
 //!     .max_retries(3)
 //!     .build();
@@ -38,14 +40,12 @@ use std::fmt;
 use state_maschine::prelude::Context as SMContext;
 
 use crate::shared::cik::Cik;
-use crate::shared::cik::constants::BERKSHIRE_HATHAWAY_CIK_RAW;
 use crate::traits::state_machine::state::Context;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, serde::Serialize)]
 /// State context for the Parse Company Facts state.
 ///
 /// Contains the validated CIK of the company being parsed and the maximum retry count.
-/// The default instance uses the CIK for Berkshire Hathaway (CIK: 1067983).
 pub struct ParseCompanyFactsContext {
     /// The validated CIK for the company whose facts are being parsed.
     pub cik: Cik,
@@ -101,16 +101,6 @@ impl SMContext for ParseCompanyFactsContext {
         if let Some(max_retries) = updates.max_retries {
             self.max_retries = max_retries;
         }
-    }
-}
-
-impl Default for ParseCompanyFactsContext {
-    /// Returns a default context using the CIK for Berkshire Hathaway (CIK: 1067983).
-    fn default() -> Self {
-        Self::new(
-            Cik::new(BERKSHIRE_HATHAWAY_CIK_RAW)
-                .expect("Hardcoded Berkshire Hathaway CIK should always be valid"),
-        )
     }
 }
 
@@ -207,12 +197,20 @@ mod tests {
         ParseCompanyFactsContextUpdaterBuilder,
     };
     use crate::shared::cik::Cik;
+    use crate::shared::cik::constants::BERKSHIRE_HATHAWAY_CIK_RAW;
+
+    fn test_context() -> ParseCompanyFactsContext {
+        ParseCompanyFactsContext::new(
+            Cik::new(BERKSHIRE_HATHAWAY_CIK_RAW)
+                .expect("Hardcoded Berkshire Hathaway CIK should always be valid"),
+        )
+    }
 
     #[test]
     fn should_return_reference_to_default_context_when_initialized_with_default() {
-        let context = ParseCompanyFactsContext::default();
+        let context = test_context();
 
-        let expected_result = &ParseCompanyFactsContext::default();
+        let expected_result = &test_context();
 
         let result = context.context();
 
@@ -224,7 +222,7 @@ mod tests {
         let cik = Cik::new("0000000001").expect("Hardcoded CIK should always be valid");
         let context = &ParseCompanyFactsContext::new(cik);
 
-        let expected_result = &ParseCompanyFactsContext::default();
+        let expected_result = &test_context();
 
         let result = context.context();
 
@@ -233,7 +231,7 @@ mod tests {
 
     #[test]
     fn should_update_context_max_retries_when_update_contains_specified_value() {
-        let mut context = ParseCompanyFactsContext::default();
+        let mut context = test_context();
         let update = ParseCompanyFactsContextUpdater::builder()
             .max_retries(5)
             .build();
@@ -249,7 +247,7 @@ mod tests {
     #[test]
     fn should_update_context_cik_when_update_contains_specified_cik() {
         let new_cik = Cik::new("0000000001").expect("Hardcoded CIK should always be valid");
-        let mut context = ParseCompanyFactsContext::default();
+        let mut context = test_context();
         let update = ParseCompanyFactsContextUpdater::builder()
             .cik(new_cik.clone())
             .build();
@@ -264,10 +262,10 @@ mod tests {
 
     #[test]
     fn should_leave_context_unchanged_when_empty_update() {
-        let mut context = ParseCompanyFactsContext::default();
+        let mut context = test_context();
         let empty_update = ParseCompanyFactsContextUpdaterBuilder::default().build();
 
-        let expected_result = &ParseCompanyFactsContext::default();
+        let expected_result = &test_context();
 
         context.update_context(empty_update);
         let result = context.context();
@@ -277,7 +275,7 @@ mod tests {
 
     #[test]
     fn should_update_max_retries_when_updater_contains_max_retries() {
-        let mut context = ParseCompanyFactsContext::default();
+        let mut context = test_context();
         let update = ParseCompanyFactsContextUpdater::builder()
             .max_retries(5)
             .build();
@@ -349,12 +347,6 @@ mod tests {
     #[test]
     const fn should_implement_ord_when_implementing_context_data_trait() {
         implements_ord::<ParseCompanyFactsContext>();
-    }
-
-    const fn implements_default<T: Default>() {}
-    #[test]
-    const fn should_implement_default_when_implementing_context_data_trait() {
-        implements_default::<ParseCompanyFactsContext>();
     }
 
     const fn implements_debug<T: Debug>() {}

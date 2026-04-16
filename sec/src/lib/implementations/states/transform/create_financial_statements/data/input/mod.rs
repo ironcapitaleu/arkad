@@ -25,17 +25,13 @@
 //! ## Examples
 //! See the unit tests in this module for usage patterns and updater logic.
 
-use std::collections::HashMap;
 use std::fmt;
 use std::hash::{Hash, Hasher};
 
 use state_maschine::prelude::StateData as SMStateData;
 
 use crate::error::State as StateError;
-use crate::shared::cik::Cik;
-use crate::shared::cik::constants::BERKSHIRE_HATHAWAY_CIK_RAW;
 use crate::shared::financial::company_data::CompanyData;
-use crate::shared::financial::entity_name::EntityName;
 use crate::traits::state_machine::state::StateData;
 
 // Deviation: `CompanyData` uses manual `Hash`, `PartialEq`, `Eq`, `PartialOrd`, `Ord`
@@ -67,7 +63,7 @@ impl CreateFinancialStatementsInput {
     /// use sec::implementations::states::transform::create_financial_statements::data::input::CreateFinancialStatementsInput;
     ///
     /// let company_data = CompanyData::new(
-    ///     Cik::new("0000320193").unwrap(),
+    ///     Cik::new("0000320193").expect("Hardcoded CIK should always be valid"),
     ///     EntityName::new("Apple Inc."),
     ///     HashMap::new(),
     /// );
@@ -112,22 +108,6 @@ impl SMStateData for CreateFinancialStatementsInput {
     fn update_state(&mut self, updates: Self::UpdateType) {
         if let Err(e) = <Self as StateData>::update_state(self, updates) {
             panic!("StateData::update_state failed: {e}")
-        }
-    }
-}
-
-impl Default for CreateFinancialStatementsInput {
-    /// Returns a default input using a `CompanyData` for Berkshire Hathaway with no facts.
-    fn default() -> Self {
-        let cik = Cik::new(BERKSHIRE_HATHAWAY_CIK_RAW).expect(
-            "Given a valid hardcoded CIK, the creation of a CIK object should always succeed",
-        );
-        Self {
-            company_data: CompanyData::new(
-                cik,
-                EntityName::new("BERKSHIRE HATHAWAY INC"),
-                HashMap::new(),
-            ),
         }
     }
 }
@@ -239,9 +219,21 @@ mod tests {
 
     use super::{CreateFinancialStatementsInput, CreateFinancialStatementsInputUpdaterBuilder};
     use crate::shared::cik::Cik;
+    use crate::shared::cik::constants::BERKSHIRE_HATHAWAY_CIK_RAW;
     use crate::shared::financial::company_data::CompanyData;
     use crate::shared::financial::entity_name::EntityName;
     use crate::traits::state_machine::state::StateData;
+
+    fn test_input() -> CreateFinancialStatementsInput {
+        let cik = Cik::new(BERKSHIRE_HATHAWAY_CIK_RAW).expect(
+            "Given a valid hardcoded CIK, the creation of a CIK object should always succeed",
+        );
+        CreateFinancialStatementsInput::new(CompanyData::new(
+            cik,
+            EntityName::new("BERKSHIRE HATHAWAY INC"),
+            HashMap::new(),
+        ))
+    }
 
     fn create_custom_company_data() -> CompanyData {
         let cik = Cik::new("0000320193").expect(
@@ -252,9 +244,9 @@ mod tests {
 
     #[test]
     fn should_return_reference_to_default_input_data_when_initialized_with_default() {
-        let default_input = CreateFinancialStatementsInput::default();
+        let default_input = test_input();
 
-        let expected_result = &CreateFinancialStatementsInput::default();
+        let expected_result = &test_input();
 
         let result = default_input.state();
 
@@ -265,7 +257,7 @@ mod tests {
     fn should_create_different_input_with_custom_data_when_using_new_as_constructor() {
         let custom_input = &CreateFinancialStatementsInput::new(create_custom_company_data());
 
-        let default_input = &CreateFinancialStatementsInput::default();
+        let default_input = &test_input();
 
         let result = custom_input.state();
 
@@ -274,7 +266,7 @@ mod tests {
 
     #[test]
     fn should_update_state_data_when_update_contains_new_company_data() {
-        let mut state_data = CreateFinancialStatementsInput::default();
+        let mut state_data = test_input();
         let new_company_data = create_custom_company_data();
         let update = CreateFinancialStatementsInputUpdaterBuilder::default()
             .company_data(new_company_data.clone())
@@ -291,10 +283,10 @@ mod tests {
 
     #[test]
     fn should_leave_state_data_unchanged_when_empty_update() {
-        let mut state_data = CreateFinancialStatementsInput::default();
+        let mut state_data = test_input();
         let empty_update = CreateFinancialStatementsInputUpdaterBuilder::default().build();
 
-        let expected_result = &CreateFinancialStatementsInput::default();
+        let expected_result = &test_input();
 
         StateData::update_state(&mut state_data, empty_update)
             .expect("Update with valid 'update' value should always succeed");
@@ -362,12 +354,6 @@ mod tests {
     #[test]
     const fn should_implement_ord_when_implementing_input_data_trait() {
         implements_ord::<CreateFinancialStatementsInput>();
-    }
-
-    const fn implements_default<T: Default>() {}
-    #[test]
-    const fn should_implement_default_when_implementing_input_data_trait() {
-        implements_default::<CreateFinancialStatementsInput>();
     }
 
     const fn implements_debug<T: Debug>() {}

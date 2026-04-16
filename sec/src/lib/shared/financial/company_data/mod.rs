@@ -26,7 +26,7 @@ use crate::shared::financial::entity_name::EntityName;
 /// use sec::shared::financial::entity_name::EntityName;
 ///
 /// let company_data = CompanyData::new(
-///     Cik::new("0000320193").unwrap(),
+///     Cik::new("0000320193").expect("Hardcoded CIK should always be valid"),
 ///     EntityName::new("Apple Inc."),
 ///     HashMap::new(),
 /// );

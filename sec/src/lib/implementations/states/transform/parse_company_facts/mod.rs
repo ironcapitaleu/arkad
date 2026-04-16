@@ -92,8 +92,9 @@ pub use data::ParseCompanyFactsOutput;
 ///
 /// let json = serde_json::json!({});
 /// let digest = BodyDigest::from_body_text(&json.to_string());
+/// let cik = sec::shared::cik::Cik::new("0001067983").expect("Hardcoded CIK should always be valid");
+/// let context = ParseCompanyFactsContext::new(cik);
 /// let input = ParseCompanyFactsInput::new(json, digest);
-/// let context = ParseCompanyFactsContext::default();
 /// let state = ParseCompanyFacts::new(input, context);
 /// ```
 pub struct ParseCompanyFacts {
@@ -351,6 +352,7 @@ impl fmt::Display for ParseCompanyFacts {
 mod tests {
     use super::*;
     use crate::shared::cik::Cik;
+    use crate::shared::cik::constants::BERKSHIRE_HATHAWAY_CIK_RAW;
     use crate::shared::response::implementations::sec_response::body_digest::BodyDigest;
     use pretty_assertions::assert_eq;
     use std::{fmt::Debug, hash::Hash};
@@ -362,10 +364,15 @@ mod tests {
         ParseCompanyFactsInput::new(json, digest)
     }
 
+    fn test_context() -> ParseCompanyFactsContext {
+        let cik = Cik::new(BERKSHIRE_HATHAWAY_CIK_RAW)
+            .expect("Hardcoded Berkshire Hathaway CIK should always be valid");
+        ParseCompanyFactsContext::new(cik)
+    }
+
     fn get_baseline_parse_state() -> ParseCompanyFacts {
         let input = test_input();
-        let cik = Cik::new("0001067983").expect("Hardcoded CIK should always be valid");
-        let context = ParseCompanyFactsContext::new(cik);
+        let context = test_context();
         ParseCompanyFacts::new(input, context)
     }
 
@@ -637,7 +644,7 @@ mod tests {
     fn should_return_context_data_when_in_initial_state() {
         let parse_state = get_baseline_parse_state();
 
-        let expected_result = &ParseCompanyFactsContext::default();
+        let expected_result = &test_context();
 
         let result = parse_state.context_data();
 
@@ -649,7 +656,7 @@ mod tests {
         let json = get_baseline_company_facts_json();
         let digest = BodyDigest::from_body_text(&json.to_string());
         let input = ParseCompanyFactsInput::new(json, digest);
-        let context = ParseCompanyFactsContext::default();
+        let context = test_context();
         let mut parse_state = ParseCompanyFacts::new(input, context);
 
         let expected_result = "Apple Inc.";
@@ -673,7 +680,7 @@ mod tests {
         let json = get_baseline_company_facts_json();
         let digest = BodyDigest::from_body_text(&json.to_string());
         let input = ParseCompanyFactsInput::new(json, digest);
-        let context = ParseCompanyFactsContext::default();
+        let context = test_context();
         let mut parse_state = ParseCompanyFacts::new(input, context);
 
         let expected_result = REQUIRED_CONCEPTS.len();
@@ -704,7 +711,7 @@ mod tests {
         });
         let digest = BodyDigest::from_body_text(&json.to_string());
         let input = ParseCompanyFactsInput::new(json, digest);
-        let context = ParseCompanyFactsContext::default();
+        let context = test_context();
         let mut parse_state = ParseCompanyFacts::new(input, context);
 
         let expected_result = true;
@@ -719,7 +726,7 @@ mod tests {
         let json = get_baseline_company_facts_json();
         let digest = BodyDigest::from_body_text(&json.to_string());
         let input = ParseCompanyFactsInput::new(json, digest);
-        let context = ParseCompanyFactsContext::default();
+        let context = test_context();
         let mut parse_state = ParseCompanyFacts::new(input, context);
 
         let expected_result = &parse_state.input_data().clone();
@@ -738,7 +745,7 @@ mod tests {
         let json = serde_json::json!("not an object");
         let digest = BodyDigest::from_body_text(&json.to_string());
         let input = ParseCompanyFactsInput::new(json, digest);
-        let context = ParseCompanyFactsContext::default();
+        let context = test_context();
         let mut parse_state = ParseCompanyFacts::new(input, context);
 
         let expected_result = true;
@@ -890,7 +897,7 @@ mod tests {
         let json = get_baseline_company_facts_json();
         let digest = BodyDigest::from_body_text(&json.to_string());
         let input = ParseCompanyFactsInput::new(json, digest);
-        let context = ParseCompanyFactsContext::default();
+        let context = test_context();
         let mut state = ParseCompanyFacts::new(input, context);
 
         let expected_result = true;
@@ -906,7 +913,7 @@ mod tests {
         let json = get_baseline_company_facts_json();
         let digest = BodyDigest::from_body_text(&json.to_string());
         let input = ParseCompanyFactsInput::new(json, digest);
-        let context = ParseCompanyFactsContext::default();
+        let context = test_context();
         let mut state = ParseCompanyFacts::new(input, context);
 
         let expected_result = true;
