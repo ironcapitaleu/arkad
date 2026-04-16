@@ -10,7 +10,7 @@
 //!
 //! ## Usage
 //! These error types are returned by CIK parsing and validation routines, and are used in state data modules such as
-//! [`crate::implementations::states::extract::validate_cik_format::vcf_data`] to provide detailed diagnostics and error handling.
+//! [`crate::implementations::states::extract::validate_cik_format::data`] to provide detailed diagnostics and error handling.
 //! They are also used as domain errors for the general state machine error logic in [`crate::error`] and are wrapped by state-level errors like [`crate::error::state_machine::state::InvalidCikFormat`].
 //!
 //! ## See Also
