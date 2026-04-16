@@ -20,7 +20,7 @@ use std::fmt;
 /// assert_eq!(content_type, ContentType::Json);
 /// assert_eq!(content_type.to_string(), "application/json");
 /// ```
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize)]
 pub enum ContentType {
     /// Content type is JSON (e.g., `application/json`).
     Json,

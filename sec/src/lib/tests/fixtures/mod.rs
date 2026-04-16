@@ -17,5 +17,6 @@ pub mod sample_response;
 
 pub mod sample_sec_state;
 pub mod sample_sec_super_state;
+pub mod sample_streaming_super_state;
 
 pub mod data;

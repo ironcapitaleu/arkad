@@ -38,7 +38,7 @@ pub mod missing_output;
 pub use missing_output::MissingOutput;
 
 #[non_exhaustive]
-#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
+#[derive(Debug, thiserror::Error, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 /// Represents errors that can occur during state transitions within the state machine framework.
 ///
 /// This enum is used to signal failure scenarios when, for example, converting state output or context
@@ -51,27 +51,25 @@ pub enum Transition {
     ///
     /// This error variant indicates that the output data produced by the source state is missing
     /// or could not be accessed during the transition.
-    MissingOutput(MissingOutput),
+    #[error("[TransitionError] A transition error occurred, Caused by: {0}")]
+    MissingOutput(#[source] MissingOutput),
+
     /// Failed to convert output of the source state into the input of the destination state.
     ///
     /// This error variant indicates that the output data produced by the source state could not
     /// be transformed or mapped into the input data required by the destination state during a transition.
+    #[error("[TransitionError] A transition error occurred, Reason: Failed to convert output data")]
     FailedOutputConversion,
 
     /// Failed to convert context of the source state into the context of the destination state.
     ///
     /// This error variant indicates that the context associated with the source state could not
     /// be transformed or mapped into the context required by the destination state during a transition.
+    #[error(
+        "[TransitionError] A transition error occurred, Reason: Failed to convert context data"
+    )]
     FailedContextConversion,
 }
-
-impl std::fmt::Display for Transition {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Problem occured during transition operations.")
-    }
-}
-
-impl std::error::Error for Transition {}
 
 #[cfg(test)]
 mod tests {

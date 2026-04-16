@@ -36,7 +36,7 @@ use crate::shared::cik::Cik;
 use crate::traits::error::FromDomainError;
 use crate::traits::state_machine::state::StateData;
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
+#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, serde::Serialize)]
 /// Output data containing a validated CIK.
 ///
 /// This struct holds a validated [`Cik`] value, produced by the `ValidateCikFormat` state

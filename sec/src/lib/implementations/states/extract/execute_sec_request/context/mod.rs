@@ -43,7 +43,7 @@ use state_maschine::prelude::Context as SMContext;
 /// execution of SEC HTTP requests, including the target CIK and retry settings.
 /// It supports updates through the builder pattern and integrates with the
 /// state machine framework's context management system.
-#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
+#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, serde::Serialize)]
 pub struct ExecuteSecRequestContext {
     /// The Central Index Key (CIK) being processed in this execution context.
     pub cik: Cik,

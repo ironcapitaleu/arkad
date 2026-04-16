@@ -1,0 +1,66 @@
+use std::fmt;
+
+use async_trait::async_trait;
+use state_maschine::prelude::State as SMState;
+
+use crate::error::State as StateError;
+use crate::traits::state_machine::state::State;
+
+use super::{SampleStreamingContext, SampleStreamingData};
+
+/// Second state in the sample streaming pipeline.
+#[derive(Debug, Clone, Default, PartialEq, PartialOrd, Hash, Eq, Ord, serde::Serialize)]
+pub struct SampleStateB {
+    input: SampleStreamingData,
+    context: SampleStreamingContext,
+    output: Option<SampleStreamingData>,
+}
+
+impl SampleStateB {
+    #[must_use]
+    pub const fn new() -> Self {
+        Self {
+            input: SampleStreamingData,
+            context: SampleStreamingContext,
+            output: None,
+        }
+    }
+}
+
+#[async_trait]
+impl State for SampleStateB {
+    async fn compute_output_data_async(&mut self) -> Result<(), StateError> {
+        self.output = Some(SampleStreamingData);
+        Ok(())
+    }
+}
+
+impl SMState for SampleStateB {
+    type InputData = SampleStreamingData;
+    type OutputData = SampleStreamingData;
+    type Context = SampleStreamingContext;
+
+    fn state_name(&self) -> impl ToString {
+        "Sample State B"
+    }
+
+    fn compute_output_data(&mut self) {}
+
+    fn context_data(&self) -> &Self::Context {
+        &self.context
+    }
+
+    fn input_data(&self) -> &Self::InputData {
+        &self.input
+    }
+
+    fn output_data(&self) -> Option<&Self::OutputData> {
+        self.output.as_ref()
+    }
+}
+
+impl fmt::Display for SampleStateB {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "SampleStateB")
+    }
+}

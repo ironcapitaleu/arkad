@@ -8,7 +8,7 @@ use thiserror::Error;
 /// This struct provides the reason for the failure and the raw headers
 /// that were provided, preserved for diagnostics.
 #[derive(Debug, Error, Clone, PartialEq, Eq)]
-#[error("[HeadersError] Header validation failed: Reason: '{reason}'.")]
+#[error("[HeadersError] Header validation failed, Reason: '{reason}'")]
 pub struct HeadersError {
     /// The reason why header validation failed.
     pub reason: InvalidHeadersReason,
@@ -70,7 +70,7 @@ mod tests {
         let error = HeadersError::new(reason.clone(), raw_headers);
 
         let expected_result =
-            format!("[HeadersError] Header validation failed: Reason: '{reason}'.");
+            format!("[HeadersError] Header validation failed, Reason: '{reason}'");
 
         let result = format!("{error}");
 
@@ -87,7 +87,7 @@ mod tests {
         let error = HeadersError::new(reason.clone(), raw_headers);
 
         let expected_result =
-            format!("[HeadersError] Header validation failed: Reason: '{reason}'.");
+            format!("[HeadersError] Header validation failed, Reason: '{reason}'");
 
         let result = format!("{error}");
 
