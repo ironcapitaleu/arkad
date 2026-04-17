@@ -76,7 +76,12 @@ pub const REQUIRED_CONCEPTS: &[ConceptDefinition] = &[
         Unit::Usd,
         true,
     ),
-    ConceptDefinition::new(OPERATING_INCOME, &["OperatingIncomeLoss"], Unit::Usd, true),
+    ConceptDefinition::new(
+        OPERATING_INCOME,
+        &["OperatingIncomeLoss", "IncomeLossFromOperations"],
+        Unit::Usd,
+        true,
+    ),
     ConceptDefinition::new(INCOME_TAX, &["IncomeTaxExpenseBenefit"], Unit::Usd, true),
     ConceptDefinition::new(NET_INCOME, &["NetIncomeLoss"], Unit::Usd, true),
     // Balance Sheet backbone
@@ -113,7 +118,11 @@ pub const REQUIRED_CONCEPTS: &[ConceptDefinition] = &[
     // Company Info (dei namespace)
     ConceptDefinition::new(
         SHARES_OUTSTANDING,
-        &["EntityCommonStockSharesOutstanding"],
+        &[
+            "EntityCommonStockSharesOutstanding",
+            "CommonStockSharesOutstanding",
+            "WeightedAverageNumberOfSharesOutstandingBasic",
+        ],
         Unit::Shares,
         true,
     ),

@@ -173,48 +173,56 @@ fn parse_observation(entry: &serde_json::Value, unit: Unit) -> Option<Observatio
 
 /// Determines the JSON namespace key for a given concept definition.
 ///
-/// The `SHARES_OUTSTANDING` concept uses the `dei` namespace; all others use `us-gaap`.
-fn namespace_for_concept(concept: &ConceptDefinition) -> &'static str {
+/// Returns the namespaces to search for a concept, in priority order.
+///
+/// Most concepts live in `us-gaap`. The `SHARES_OUTSTANDING` concept is searched
+/// in `dei` first (where `EntityCommonStockSharesOutstanding` lives), then falls
+/// back to `us-gaap` (where `CommonStockSharesOutstanding` lives for some companies).
+fn namespaces_for_concept(concept: &ConceptDefinition) -> &'static [&'static str] {
     if concept.canonical_name() == SHARES_OUTSTANDING {
-        COMPANY_INFO_NAMESPACE
+        &[COMPANY_INFO_NAMESPACE, REQUIRED_FACTS_NAMESPACE]
     } else {
-        REQUIRED_FACTS_NAMESPACE
+        &[REQUIRED_FACTS_NAMESPACE]
     }
 }
 
 /// Attempts to resolve a [`ConceptDefinition`] from the SEC facts JSON.
 ///
-/// Returns `Some((CompanyFact, &'static ConceptDefinition))` if the concept was found,
-/// or `None` if none of the XBRL key aliases matched.
+/// Searches across all applicable namespaces and XBRL key aliases.
+/// Returns `Some(CompanyFact)` if the concept was found,
+/// or `None` if none of the aliases matched in any namespace.
 fn resolve_concept(
     facts: &serde_json::Value,
     concept: &'static ConceptDefinition,
 ) -> Option<CompanyFact> {
-    let namespace = namespace_for_concept(concept);
-    let namespace_data = facts.get(namespace)?;
+    for namespace in namespaces_for_concept(concept) {
+        let Some(namespace_data) = facts.get(namespace) else {
+            continue;
+        };
 
-    for &xbrl_key in concept.xbrl_keys() {
-        if let Some(concept_data) = namespace_data.get(xbrl_key) {
-            let company_label = concept_data
-                .get("label")
-                .and_then(serde_json::Value::as_str)
-                .unwrap_or_else(|| concept.canonical_name())
-                .to_string();
+        for &xbrl_key in concept.xbrl_keys() {
+            if let Some(concept_data) = namespace_data.get(xbrl_key) {
+                let company_label = concept_data
+                    .get("label")
+                    .and_then(serde_json::Value::as_str)
+                    .unwrap_or_else(|| concept.canonical_name())
+                    .to_string();
 
-            let unit_key = concept.expected_unit().to_string();
-            let units_data = concept_data.get("units")?;
-            let unit_array = units_data.get(&unit_key)?.as_array()?;
+                let unit_key = concept.expected_unit().to_string();
+                let units_data = concept_data.get("units")?;
+                let unit_array = units_data.get(&unit_key)?.as_array()?;
 
-            let observations: Vec<Observation> = unit_array
-                .iter()
-                .filter_map(|entry| parse_observation(entry, concept.expected_unit()))
-                .collect();
+                let observations: Vec<Observation> = unit_array
+                    .iter()
+                    .filter_map(|entry| parse_observation(entry, concept.expected_unit()))
+                    .collect();
 
-            return Some(CompanyFact::new(
-                company_label,
-                xbrl_key.to_string(),
-                observations,
-            ));
+                return Some(CompanyFact::new(
+                    company_label,
+                    xbrl_key.to_string(),
+                    observations,
+                ));
+            }
         }
     }
 
