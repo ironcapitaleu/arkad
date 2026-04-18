@@ -27,18 +27,18 @@
 
 use std::fmt;
 
+use state_maschine::prelude::StateData as SMStateData;
+
 use crate::error::State as StateError;
 use crate::shared::response::implementations::sec_response::SecResponse;
 use crate::traits::state_machine::state::StateData;
-
-use state_maschine::prelude::StateData as SMStateData;
 
 /// Output data containing a SEC response from executed requests.
 ///
 /// This struct holds a [`SecResponse`] value, produced by the [`ExecuteSecRequest`](crate::implementations::states::extract::execute_sec_request) state
 /// after successful HTTP request execution. It is used as output in the SEC extraction state machine,
 /// and supports builder-based updates and integration with the state machine framework.
-#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
+#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, serde::Serialize)]
 pub struct ExecuteSecRequestOutput {
     /// The SEC response received from the API endpoint.
     pub response: SecResponse,
@@ -88,7 +88,15 @@ impl SMStateData for ExecuteSecRequestOutput {
     fn state(&self) -> &Self {
         self
     }
-    fn update_state(&mut self, _updates: Self::UpdateType) {}
+    /// Delegates to the SEC [`StateData::update_state`] implementation.
+    ///
+    /// # Panics
+    /// Panics if the fallible SEC update returns an error.
+    fn update_state(&mut self, updates: Self::UpdateType) {
+        if let Err(e) = <Self as StateData>::update_state(self, updates) {
+            panic!("StateData::update_state failed: {e}")
+        }
+    }
 }
 
 impl fmt::Display for ExecuteSecRequestOutput {

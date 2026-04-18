@@ -26,8 +26,8 @@
 //! #[tokio::main]
 //! async fn main() {
 //!     // Initialze input and context for the `ValidateCikFormat` state
-//!     let input = ValidateCikFormatInput { raw_cik: "1234".into() };
-//!     let context = ValidateCikFormatContext::default();
+//!     let input = ValidateCikFormatInput::new("1234");
+//!     let context = ValidateCikFormatContext::new("1234");
 //!     
 //!     // For testing purposes: Define the expected result after validation
 //!     let expected_result = "0000001234";

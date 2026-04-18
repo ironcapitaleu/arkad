@@ -15,3 +15,6 @@ target/
 
 # Ignore macOS system files
 .DS_Store
+
+# Claude Code local tooling state
+.claude/

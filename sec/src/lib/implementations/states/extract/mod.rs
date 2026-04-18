@@ -33,8 +33,13 @@ pub mod validate_cik_format;
 
 use std::fmt::Display;
 
+use async_trait::async_trait;
+use state_maschine::prelude::{StateMachine as SMStateMachine, Transition as SMTransition};
+
 use crate::error::State as StateError;
+use crate::error::state_machine::transition;
 use crate::error::state_machine::transition::Transition as TransitionError;
+use crate::implementations::states::extract::execute_sec_request::constants::STATE_NAME as EXECUTE_SEC_REQUEST;
 use crate::implementations::states::extract::execute_sec_request::{
     ExecuteSecRequest, ExecuteSecRequestContext, ExecuteSecRequestInput,
 };
@@ -44,20 +49,18 @@ use crate::implementations::states::extract::prepare_sec_request::{
 use crate::implementations::states::extract::validate_cik_format::{
     ValidateCikFormat, ValidateCikFormatContext, ValidateCikFormatInput,
 };
-
+use crate::implementations::states::transform::TransformSuperState;
+use crate::implementations::states::transform::parse_company_facts::ParseCompanyFacts;
+use crate::implementations::states::transform::parse_company_facts::constants::STATE_NAME as PARSE_COMPANY_FACTS;
+use crate::prelude::*;
 use crate::shared::cik::Cik;
 use crate::shared::http_client::implementations::sec_client::SecClient;
 use crate::shared::request::implementations::sec_request::SecRequest;
 
-use async_trait::async_trait;
-
-use crate::prelude::*;
-use state_maschine::prelude::{StateMachine as SMStateMachine, Transition as SMTransition};
-
 /// Data structure for the Extract super-state.
 ///
 /// Currently serves as a placeholder type with unit update semantics for the [`ExtractSuperState`].
-#[derive(Debug, Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize)]
 pub struct ExtractSuperStateData;
 
 impl SMStateData for ExtractSuperStateData {
@@ -77,7 +80,7 @@ impl StateData for ExtractSuperStateData {
 /// Context data structure for the Extract super-state.
 ///
 /// Provides configuration and runtime context for the [`ExtractSuperState`], including retry policies.
-#[derive(Debug, Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize)]
 pub struct ExtractSuperStateContext;
 
 impl SMContext for ExtractSuperStateContext {
@@ -104,7 +107,7 @@ impl Context for ExtractSuperStateContext {
 ///
 /// # State Transitions
 /// Supports transitions: `ValidateCikFormat` → `PrepareSecRequest`
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize)]
 pub struct ExtractSuperState<S: State> {
     current_state: S,
     input: ExtractSuperStateData,
@@ -113,7 +116,7 @@ pub struct ExtractSuperState<S: State> {
 }
 
 impl<S: State> Display for ExtractSuperState<S> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(
             f,
             "Extract SuperState (Current: {})",
@@ -136,7 +139,29 @@ impl<S: State> SMState for ExtractSuperState<S> {
     fn input_data(&self) -> &Self::InputData {
         &self.input
     }
-    fn compute_output_data(&mut self) { /* handled by async version */
+    /// Blocking wrapper around [`compute_output_data_async`](crate::traits::state_machine::state::State::compute_output_data_async).
+    ///
+    /// Detects whether a tokio runtime is available and runs the async computation
+    /// synchronously. This allows SEC states to be used as regular `SMState` implementations.
+    ///
+    /// # Panics
+    /// Panics if the async computation returns an error.
+    fn compute_output_data(&mut self) {
+        let result = if let Ok(handle) = tokio::runtime::Handle::try_current() {
+            tokio::task::block_in_place(|| {
+                handle.block_on(self.current_state.compute_output_data_async())
+            })
+        } else {
+            tokio::runtime::Runtime::new()
+                .expect("Failed to create tokio runtime for blocking compute")
+                .block_on(self.current_state.compute_output_data_async())
+        };
+
+        if let Err(e) = result {
+            #[allow(clippy::useless_conversion)]
+            let state_err: crate::error::State = e.into();
+            panic!("compute_output_data failed: {state_err}")
+        }
     }
     fn output_data(&self) -> Option<&Self::OutputData> {
         self.output.as_ref()
@@ -163,9 +188,17 @@ impl<S: State> SMStateMachine<S> for ExtractSuperState<S> {
     fn current_state_mut(&mut self) -> &mut S {
         &mut self.current_state
     }
-    fn run(&mut self) { /* Placeholder */
+    fn run(&mut self) {
+        unimplemented!(
+            "SEC state machines are async-only. \
+             Use into_stream or drive states manually"
+        )
     }
-    fn advance_state(&mut self) { /* Placeholder */
+    fn advance_state(&mut self) {
+        unimplemented!(
+            "SEC state machines are async-only. \
+             Use into_stream or drive states manually"
+        )
     }
 }
 
@@ -221,6 +254,32 @@ impl ExtractSuperState<ExecuteSecRequest> {
     }
 }
 
+impl<S: State> ExtractSuperState<S> {
+    /// Consumes the `SuperState` and returns the inner state.
+    #[must_use]
+    pub fn into_current_state(self) -> S {
+        self.current_state
+    }
+}
+
+// --- Streaming ---
+
+impl NonTerminal for ExtractSuperState<ValidateCikFormat> {
+    type Current = ValidateCikFormat;
+    type Next = PrepareSecRequest;
+}
+
+impl NonTerminal for ExtractSuperState<PrepareSecRequest> {
+    type Current = PrepareSecRequest;
+    type Next = ExecuteSecRequest;
+}
+
+/// `ExecuteSecRequest` is no longer terminal -- it transitions into the Transform `SuperState`.
+impl NonTerminal for ExtractSuperState<ExecuteSecRequest> {
+    type Current = ExecuteSecRequest;
+    type Next = ParseCompanyFacts;
+}
+
 impl Transition<ValidateCikFormat, PrepareSecRequest> for ExtractSuperState<ValidateCikFormat> {
     fn transition_to_next_state_sec(self) -> Result<Self::NewStateMachine, TransitionError> {
         let next_state = PrepareSecRequest::try_from(self.current_state)?;
@@ -263,6 +322,37 @@ impl SMTransition<ValidateCikFormat, PrepareSecRequest> for ExtractSuperState<Va
 
     fn transition_to_next_state(self) -> Result<Self::NewStateMachine, &'static str> {
         // Placeholder implementation - use transition_to_next_state_sec() for actual functionality
+        Err(
+            "Use transition_to_next_state_sec() for SEC-specific transitions with rich error handling",
+        )
+    }
+}
+
+// --- Cross-SuperState transition: Extract → Transform ---
+
+impl Transition<ExecuteSecRequest, ParseCompanyFacts> for ExtractSuperState<ExecuteSecRequest> {
+    fn transition_to_next_state_sec(self) -> Result<Self::NewStateMachine, TransitionError> {
+        let inner_state = self.into_current_state();
+        let (_input, output, context) = inner_state.into_parts();
+
+        let output_data = output.ok_or_else(|| {
+            transition::MissingOutput::new(EXECUTE_SEC_REQUEST, PARSE_COMPANY_FACTS)
+        })?;
+
+        let sec_response = output_data.response;
+        let cik = context.cik;
+
+        Ok(TransformSuperState::<ParseCompanyFacts>::new(
+            &sec_response,
+            cik,
+        ))
+    }
+}
+
+impl SMTransition<ExecuteSecRequest, ParseCompanyFacts> for ExtractSuperState<ExecuteSecRequest> {
+    type NewStateMachine = TransformSuperState<ParseCompanyFacts>;
+
+    fn transition_to_next_state(self) -> Result<Self::NewStateMachine, &'static str> {
         Err(
             "Use transition_to_next_state_sec() for SEC-specific transitions with rich error handling",
         )

@@ -40,7 +40,7 @@ use crate::traits::state_machine::state::StateData;
 /// This struct holds a prepared [`SecClient`] and [`SecRequest`] value, produced by the [`PrepareSecRequest`](crate::implementations::states::extract::prepare_sec_request) state
 /// after successful preparation. It is used as output in the SEC extraction state machine,
 /// and supports builder-based updates and integration with the state machine framework.
-#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
+#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, serde::Serialize)]
 pub struct PrepareSecRequestOutput {
     /// The prepared SEC client for making HTTP requests.
     pub client: SecClient,
@@ -110,9 +110,14 @@ impl SMStateData for PrepareSecRequestOutput {
         self
     }
 
-    /// Provided by `SecStateData` trait. Not used in this context.
-    fn update_state(&mut self, _updates: Self::UpdateType) {
-        // This method is not used in this context.
+    /// Delegates to the SEC [`StateData::update_state`] implementation.
+    ///
+    /// # Panics
+    /// Panics if the fallible SEC update returns an error.
+    fn update_state(&mut self, updates: Self::UpdateType) {
+        if let Err(e) = <Self as StateData>::update_state(self, updates) {
+            panic!("StateData::update_state failed: {e}")
+        }
     }
 }
 
@@ -208,14 +213,13 @@ mod tests {
     use std::{fmt::Debug, hash::Hash};
 
     use pretty_assertions::{assert_eq, assert_ne};
+    use state_maschine::prelude::StateData as SMStateData;
 
     use super::{PrepareSecRequestOutput, PrepareSecRequestOutputUpdaterBuilder};
     use crate::shared::cik::Cik;
     use crate::shared::http_client::implementations::sec_client::SecClient;
     use crate::shared::request::implementations::sec_request::SecRequest;
     use crate::traits::state_machine::state::StateData;
-
-    use state_maschine::prelude::StateData as SMStateData;
 
     /// Creates a known-good baseline `PrepareSecRequestOutput` for use in tests.
     fn create_baseline_output() -> PrepareSecRequestOutput {

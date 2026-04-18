@@ -9,7 +9,7 @@ use crate::shared::response::implementations::sec_response::error::InvalidSecRes
 /// This struct provides the reason why the SEC request could not be
 /// executed successfully.
 #[derive(Debug, Error, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[error("[FailedSecRequest] SEC request failed: Reason: '{reason}'.")]
+#[error("[FailedSecRequest] SEC request failed, Caused by: {reason}")]
 pub struct FailedSecRequest {
     /// The reason why the SEC request failed.
     pub reason: ErrorReason,
@@ -37,13 +37,19 @@ pub enum ErrorReason {
 
 impl fmt::Display for ErrorReason {
     /// Formats the reason for display.
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Self::FailedRequestExecution { details } => {
-                write!(f, "HTTP request execution failed: '{details}'")
+                write!(
+                    f,
+                    "[FailedRequestExecution] HTTP request execution failed, Reason: '{details}'"
+                )
             }
             Self::InvalidResponse { source } => {
-                write!(f, "Response validation failed: '{source}'")
+                write!(
+                    f,
+                    "[InvalidResponse] Response validation failed, Caused by: {source}"
+                )
             }
         }
     }
@@ -81,7 +87,7 @@ mod tests {
         };
         let error = FailedSecRequest::new(reason.clone());
 
-        let expected_result = format!("[FailedSecRequest] SEC request failed: Reason: '{reason}'.");
+        let expected_result = format!("[FailedSecRequest] SEC request failed, Caused by: {reason}");
 
         let result = format!("{error}");
 
@@ -99,7 +105,7 @@ mod tests {
         };
         let error = FailedSecRequest::new(reason.clone());
 
-        let expected_result = format!("[FailedSecRequest] SEC request failed: Reason: '{reason}'.");
+        let expected_result = format!("[FailedSecRequest] SEC request failed, Caused by: {reason}");
 
         let result = format!("{error}");
 

@@ -17,7 +17,7 @@
 //! use sec::implementations::states::extract::validate_cik_format::context::*;
 //! use state_maschine::prelude::*;
 //!
-//! let mut context = ValidateCikFormatContext::default();
+//! let mut context = ValidateCikFormatContext::new("1067983");
 //! let update = ValidateCikFormatContextUpdater::builder()
 //!     .cik("0000000001")
 //!     .build();
@@ -33,13 +33,10 @@ use std::fmt;
 
 use state_maschine::prelude::Context as SMContext;
 
-use crate::shared::cik::constants::BERKSHIRE_HATHAWAY_CIK_RAW;
 use crate::traits::state_machine::state::Context;
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
+#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, serde::Serialize)]
 /// State context for the Validate CIK Format state.
-///
-/// The default instance uses the CIK for Berkshire Hathaway (CIK: 1067983).
 pub struct ValidateCikFormatContext {
     /// The unvalidated CIK string provided for validation.
     pub raw_cik: String,
@@ -90,13 +87,9 @@ impl SMContext for ValidateCikFormatContext {
         if let Some(cik) = updates.raw_cik {
             self.raw_cik = cik;
         }
-    }
-}
-
-impl Default for ValidateCikFormatContext {
-    /// Returns a default context using the CIK for Berkshire Hathaway (CIK: 1067983).
-    fn default() -> Self {
-        Self::new(BERKSHIRE_HATHAWAY_CIK_RAW)
+        if let Some(max_retries) = updates.max_retries {
+            self.max_retries = max_retries;
+        }
     }
 }
 
@@ -111,7 +104,10 @@ impl fmt::Display for ValidateCikFormatContext {
 ///
 /// Using this struct allows to update fields of `ValidateCikFormatContext` in a controlled way.
 pub struct ValidateCikFormatContextUpdater {
+    /// Optional new raw CIK string value.
     pub raw_cik: Option<String>,
+    /// Optional new maximum retries value.
+    pub max_retries: Option<u32>,
 }
 
 impl ValidateCikFormatContextUpdater {
@@ -127,12 +123,16 @@ impl ValidateCikFormatContextUpdater {
 /// Use this builder to fluently construct an updater for the context.
 pub struct ValidateCikFormatContextUpdaterBuilder {
     raw_cik: Option<String>,
+    max_retries: Option<u32>,
 }
 impl ValidateCikFormatContextUpdaterBuilder {
     /// Creates a new updater builder with no fields set.
     #[must_use]
     pub const fn new() -> Self {
-        Self { raw_cik: None }
+        Self {
+            raw_cik: None,
+            max_retries: None,
+        }
     }
 
     /// Sets the raw CIK value inside the context to the provided update value.
@@ -146,11 +146,22 @@ impl ValidateCikFormatContextUpdaterBuilder {
         self
     }
 
+    /// Sets the `max_retries` value inside the context to the provided update value.
+    ///
+    /// # Arguments
+    /// * `max_retries` - The new value for `max_retries`.
+    #[must_use]
+    pub const fn max_retries(mut self, max_retries: u32) -> Self {
+        self.max_retries = Some(max_retries);
+        self
+    }
+
     /// Builds the updater with the specified fields.
     #[must_use]
     pub fn build(self) -> ValidateCikFormatContextUpdater {
         ValidateCikFormatContextUpdater {
             raw_cik: self.raw_cik,
+            max_retries: self.max_retries,
         }
     }
 }
@@ -170,15 +181,20 @@ mod tests {
     use state_maschine::prelude::*;
 
     use super::{
-        BERKSHIRE_HATHAWAY_CIK_RAW, ValidateCikFormatContext, ValidateCikFormatContextUpdater,
+        ValidateCikFormatContext, ValidateCikFormatContextUpdater,
         ValidateCikFormatContextUpdaterBuilder,
     };
+    use crate::shared::cik::constants::BERKSHIRE_HATHAWAY_CIK_RAW;
+
+    fn test_context() -> ValidateCikFormatContext {
+        ValidateCikFormatContext::new(BERKSHIRE_HATHAWAY_CIK_RAW)
+    }
 
     #[test]
     fn should_return_reference_to_default_validation_context_when_initialized_with_default() {
-        let validation_context = ValidateCikFormatContext::default();
+        let validation_context = test_context();
 
-        let expected_result = &ValidateCikFormatContext::default();
+        let expected_result = &test_context();
 
         let result = validation_context.context();
 
@@ -189,7 +205,7 @@ mod tests {
     fn should_create_different_context_with_custom_data_when_using_new_as_constructor() {
         let validation_context = &ValidateCikFormatContext::new("0000000000");
 
-        let expected_result = &ValidateCikFormatContext::default();
+        let expected_result = &test_context();
 
         let result = validation_context.context();
 
@@ -198,7 +214,7 @@ mod tests {
 
     #[test]
     fn should_update_context_cik_data_to_specified_string_when_update_contains_specified_string() {
-        let mut context = ValidateCikFormatContext::default();
+        let mut context = test_context();
         let update = ValidateCikFormatContextUpdater::builder()
             .cik("Updated CIK!")
             .build();
@@ -213,7 +229,7 @@ mod tests {
 
     #[test]
     fn should_update_cik_to_latest_specified_string_when_multiple_updates_in_builder() {
-        let mut context = ValidateCikFormatContext::default();
+        let mut context = test_context();
         let update = ValidateCikFormatContextUpdater::builder()
             .cik("First CIK Update!")
             .cik("Latest CIK Update!")
@@ -229,7 +245,7 @@ mod tests {
 
     #[test]
     fn should_not_leave_context_cik_data_the_default_when_update_contains_a_different_string() {
-        let mut context = ValidateCikFormatContext::default();
+        let mut context = test_context();
         let update = ValidateCikFormatContextUpdater::builder()
             .cik("Updated CIK!")
             .build();
@@ -244,13 +260,28 @@ mod tests {
 
     #[test]
     fn should_leave_context_unchanged_when_empty_update() {
-        let mut context = ValidateCikFormatContext::default();
+        let mut context = test_context();
         let empty_update = ValidateCikFormatContextUpdaterBuilder::default().build();
 
-        let expected_result = &ValidateCikFormatContext::default();
+        let expected_result = &test_context();
 
         context.update_context(empty_update);
         let result = context.context();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_update_max_retries_when_updater_contains_max_retries() {
+        let mut context = test_context();
+        let update = ValidateCikFormatContextUpdater::builder()
+            .max_retries(5)
+            .build();
+
+        let expected_result = 5;
+
+        context.update_context(update);
+        let result = context.max_retries;
 
         assert_eq!(result, expected_result);
     }
@@ -314,12 +345,6 @@ mod tests {
     #[test]
     const fn should_implement_ord_when_implementing_context_data_trait() {
         implements_ord::<ValidateCikFormatContext>();
-    }
-
-    const fn implements_default<T: Default>() {}
-    #[test]
-    const fn should_implement_default_when_implementing_context_data_trait() {
-        implements_default::<ValidateCikFormatContext>();
     }
 
     const fn implements_debug<T: Debug>() {}

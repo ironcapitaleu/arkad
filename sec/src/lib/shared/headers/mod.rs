@@ -32,7 +32,7 @@ pub use headers_error::{HeadersError, InvalidHeadersReason};
 /// assert_eq!(headers.etag(), Some("\"abc123\""));
 /// assert_eq!(headers.get("x-custom"), Some("value"));
 /// ```
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct Headers {
     /// The content type parsed from the `Content-Type` header.
     content_type: ContentType,
@@ -53,7 +53,14 @@ impl Headers {
     /// header is parsed into a `ContentType` value. Remaining headers
     /// are stored in the overflow map.
     #[must_use]
-    pub fn new(mut raw_headers: HashMap<String, String>) -> Self {
+    pub fn new(raw_headers: HashMap<String, String>) -> Self {
+        // HTTP header names are case-insensitive (RFC 7230 §3.2).
+        // Normalize all keys to lowercase so lookups match our lowercase constants.
+        let mut raw_headers: HashMap<String, String> = raw_headers
+            .into_iter()
+            .map(|(k, v)| (k.to_lowercase(), v))
+            .collect();
+
         let content_type = raw_headers
             .remove(CONTENT_TYPE_HEADER)
             .map_or(ContentType::Unknown, |v| ContentType::from_content_type(&v));
@@ -157,10 +164,13 @@ mod tests {
     #[test]
     fn should_return_none_for_etag_when_etag_header_is_absent() {
         let raw = HashMap::new();
+        let headers = Headers::new(raw);
 
-        let result = Headers::new(raw);
+        let expected_result = None;
 
-        assert_eq!(result.etag(), None);
+        let result = headers.etag();
+
+        assert_eq!(result, expected_result);
     }
 
     #[test]
@@ -170,83 +180,101 @@ mod tests {
             "date".to_string(),
             "Thu, 01 Jan 2026 00:00:00 GMT".to_string(),
         );
+        let headers = Headers::new(raw);
 
         let expected_result = Some("Thu, 01 Jan 2026 00:00:00 GMT");
 
-        let result = Headers::new(raw);
+        let result = headers.date();
 
-        assert_eq!(result.date(), expected_result);
+        assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_return_none_for_date_when_date_header_is_absent() {
         let raw = HashMap::new();
+        let headers = Headers::new(raw);
 
-        let result = Headers::new(raw);
+        let expected_result = None;
 
-        assert_eq!(result.date(), None);
+        let result = headers.date();
+
+        assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_extract_accept_encoding_when_header_is_present() {
         let mut raw = HashMap::new();
         raw.insert("accept-encoding".to_string(), "gzip, deflate".to_string());
+        let headers = Headers::new(raw);
 
         let expected_result = Some("gzip, deflate");
 
-        let result = Headers::new(raw);
+        let result = headers.accept_encoding();
 
-        assert_eq!(result.accept_encoding(), expected_result);
+        assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_return_none_for_accept_encoding_when_header_is_absent() {
         let raw = HashMap::new();
+        let headers = Headers::new(raw);
 
-        let result = Headers::new(raw);
+        let expected_result = None;
 
-        assert_eq!(result.accept_encoding(), None);
+        let result = headers.accept_encoding();
+
+        assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_store_unknown_headers_in_other_when_extra_headers_present() {
         let mut raw = HashMap::new();
         raw.insert("x-custom".to_string(), "value".to_string());
+        let headers = Headers::new(raw);
 
         let expected_result = Some("value");
 
-        let result = Headers::new(raw);
+        let result = headers.get("x-custom");
 
-        assert_eq!(result.get("x-custom"), expected_result);
+        assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_return_none_from_get_when_key_is_not_present() {
         let raw = HashMap::new();
+        let headers = Headers::new(raw);
 
-        let result = Headers::new(raw);
+        let expected_result = None;
 
-        assert_eq!(result.get("nonexistent"), None);
+        let result = headers.get("nonexistent");
+
+        assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_not_include_etag_in_other_when_etag_is_present() {
         let mut raw = HashMap::new();
         raw.insert("etag".to_string(), "\"abc123\"".to_string());
+        let headers = Headers::new(raw);
 
-        let result = Headers::new(raw);
+        let expected_result = true;
 
-        assert!(result.other().is_empty());
+        let result = headers.other().is_empty();
+
+        assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_not_include_content_type_in_other_when_content_type_is_present() {
         let mut raw = HashMap::new();
         raw.insert("content-type".to_string(), "application/json".to_string());
+        let headers = Headers::new(raw);
 
-        let result = Headers::new(raw);
+        let expected_result = true;
 
-        assert!(result.other().is_empty());
+        let result = headers.other().is_empty();
+
+        assert_eq!(result, expected_result);
     }
 
     #[test]
@@ -256,9 +284,54 @@ mod tests {
         raw.insert("etag".to_string(), "\"abc\"".to_string());
         raw.insert("date".to_string(), "Thu, 01 Jan 2026".to_string());
         raw.insert("accept-encoding".to_string(), "gzip".to_string());
+        let headers = Headers::new(raw);
 
-        let result = Headers::new(raw);
+        let expected_result = true;
 
-        assert!(result.other().is_empty());
+        let result = headers.other().is_empty();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_parse_content_type_when_header_name_is_mixed_case() {
+        let mut raw = HashMap::new();
+        raw.insert("Content-Type".to_string(), "application/json".to_string());
+        let headers = Headers::new(raw);
+
+        let expected_result = ContentType::Json;
+
+        let result = headers.content_type();
+
+        assert_eq!(*result, expected_result);
+    }
+
+    #[test]
+    fn should_extract_etag_when_header_name_is_uppercase() {
+        let mut raw = HashMap::new();
+        raw.insert("ETAG".to_string(), "\"abc123\"".to_string());
+        let headers = Headers::new(raw);
+
+        let expected_result = Some("\"abc123\"");
+
+        let result = headers.etag();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_extract_all_known_headers_when_names_are_mixed_case() {
+        let mut raw = HashMap::new();
+        raw.insert("Content-Type".to_string(), "application/json".to_string());
+        raw.insert("ETag".to_string(), "\"abc\"".to_string());
+        raw.insert("Date".to_string(), "Thu, 01 Jan 2026".to_string());
+        raw.insert("Accept-Encoding".to_string(), "gzip".to_string());
+        let headers = Headers::new(raw);
+
+        let expected_result = true;
+
+        let result = headers.other().is_empty();
+
+        assert_eq!(result, expected_result);
     }
 }

@@ -9,8 +9,10 @@
 ### Code Quality
 - The code is **properly formatted** (`rustfmt`).
 - Dependencies must be **free of known security vulnerabilities** (`cargo audit`).
+- Documentation must **build without warnings** (`cargo doc --no-deps --document-private-items --workspace`).
 - Code **compiles without errors** and passes:
   - Linting (`clippy`)
+  - Doc linting (`rustdoc` broken/redundant link warnings are errors)
   - Unit tests
   - Integration tests
   - Doctests
@@ -74,6 +76,29 @@ Error types must follow consistent naming patterns based on the kind of error th
 - The error type name should clearly indicate what went wrong
 - Be consistent within the same error domain or module
 - Prefer specific names over generic ones (e.g., `FailedClientCreation` over `CreationError`)
+
+### Error Display Format
+
+Error messages follow a consistent chaining convention:
+
+- **Chaining errors** (wrapping an inner error): Use `Caused by:` to link to the next error in the chain. Do **not** wrap the inner error in quotes — it formats itself.
+- **Leaf errors** (the root cause, no inner error): Use `Reason:` followed by a human-readable description. Primitive values may be quoted.
+
+**Format pattern:**
+
+- `[ErrorName] High-level description, Caused by: {inner_error}` — for errors that wrap another error
+- `[ErrorName] High-level description, Reason: '{detail}'` — for leaf errors describing the root cause
+
+No periods between segments — commas separate the description from `Caused by:` or `Reason:`. Every error segment must have a `[BracketedName]` prefix.
+
+**Example chain:**
+
+```text
+[StateError] A state level error occurred, Caused by: [FailedRequestExecution] Failure in State: 'Execute SEC Request', Caused by: [FailedSecRequest] SEC request failed, Caused by: [InvalidResponse] Response validation failed, Caused by: [InvalidSecResponse] Invalid SEC Response, Reason: 'Expected a success status code (2xx), got '404' status code instead'
+```
+
+Use `thiserror` with `#[error("...")]` and `#[source]` for deriving `Display` and `Error` on error types.
+
 
 ---
 

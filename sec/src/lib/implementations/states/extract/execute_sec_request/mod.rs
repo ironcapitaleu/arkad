@@ -54,6 +54,16 @@
 //! ## Testing
 //! This module includes comprehensive unit tests covering state behavior, trait compliance, and error handling.
 
+use std::fmt;
+
+use async_trait::async_trait;
+use state_maschine::prelude::State as SMState;
+
+use crate::error::State as StateError;
+use crate::error::state_machine::state::failed_request_execution::FailedRequestExecution;
+use crate::shared::http_client::SecClient as SecClientTrait;
+use crate::traits::state_machine::state::State;
+
 pub mod constants;
 pub mod context;
 pub mod data;
@@ -62,16 +72,6 @@ pub use constants::STATE_NAME;
 pub use context::ExecuteSecRequestContext;
 pub use data::ExecuteSecRequestInput;
 pub use data::ExecuteSecRequestOutput;
-
-use crate::error::State as StateError;
-use crate::error::state_machine::state::failed_request_execution::FailedRequestExecution;
-use crate::shared::http_client::SecClient as SecClientTrait;
-use crate::traits::state_machine::state::State;
-
-use std::fmt;
-
-use async_trait::async_trait;
-use state_maschine::prelude::State as SMState;
 
 /// State that executes HTTP requests to SEC API endpoints.
 ///
@@ -105,7 +105,7 @@ use state_maschine::prelude::State as SMState;
 /// let context = ExecuteSecRequestContext::new(cik);
 /// let mut execute_state = ExecuteSecRequest::new(input, context);
 /// ```
-#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
+#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, serde::Serialize)]
 pub struct ExecuteSecRequest {
     input: ExecuteSecRequestInput,
     context: ExecuteSecRequestContext,
@@ -130,6 +130,18 @@ impl ExecuteSecRequest {
             context,
             output: None,
         }
+    }
+
+    /// Consumes the state and returns its components. Used for state transitions.
+    #[must_use]
+    pub fn into_parts(
+        self,
+    ) -> (
+        ExecuteSecRequestInput,
+        Option<ExecuteSecRequestOutput>,
+        ExecuteSecRequestContext,
+    ) {
+        (self.input, self.output, self.context)
     }
 }
 
@@ -181,11 +193,26 @@ impl SMState for ExecuteSecRequest {
         STATE_NAME
     }
 
-    /// Executes the SEC HTTP request and processes the response.
-    /// Does nothing here, as the output data is computed in `compute_output_data_async()` of the `sec`'s `State`-implementation.
+    /// Blocking wrapper around [`compute_output_data_async`](crate::traits::state_machine::state::State::compute_output_data_async).
+    ///
+    /// Detects whether a tokio runtime is available and runs the async computation
+    /// synchronously. This allows SEC states to be used as regular `SMState` implementations.
+    ///
+    /// # Panics
+    /// Panics if the async computation returns an error.
     fn compute_output_data(&mut self) {
-        // No action needed here, as the output data is computed in `compute_output_data_async()` of the `sec`'s 'State'-implementation
-        // This function is just a placeholder to satisfy the State trait.
+        let result = if let Ok(handle) = tokio::runtime::Handle::try_current() {
+            tokio::task::block_in_place(|| handle.block_on(self.compute_output_data_async()))
+        } else {
+            tokio::runtime::Runtime::new()
+                .expect("Failed to create tokio runtime for blocking compute")
+                .block_on(self.compute_output_data_async())
+        };
+
+        if let Err(e) = result {
+            let state_err: crate::error::State = e;
+            panic!("compute_output_data failed: {state_err}")
+        }
     }
 
     fn context_data(&self) -> &Self::Context {
@@ -231,7 +258,6 @@ mod tests {
     use crate::shared::cik::Cik;
     use crate::shared::http_client::implementations::sec_client::SecClient;
     use crate::shared::request::implementations::sec_request::SecRequest;
-    use crate::traits::state_machine::state::State;
 
     const TEST_CIK: &str = "0001067983";
 

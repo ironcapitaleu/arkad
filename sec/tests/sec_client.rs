@@ -16,10 +16,12 @@ use sec::shared::status_code::StatusCode;
 const BERKSHIRE_FIXTURE: &str =
     include_str!("../src/lib/tests/fixtures/data/raw_input/CIK0001067983.json");
 
-/// Creates an `SecClient` with a proper User-Agent header required by the SEC API.
+/// Creates an `SecClient` for testing. Connection pooling is disabled
+/// since tests do not benefit from connection reuse.
 fn sec_client() -> SecClient {
     let http_client = reqwest::Client::builder()
         .user_agent("ArkadTest admin@example.com")
+        .pool_max_idle_per_host(0)
         .build()
         .expect("A hardcoded user agent should always produce a valid HTTP client");
     SecClient::new(http_client)

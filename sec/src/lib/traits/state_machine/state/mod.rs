@@ -42,7 +42,7 @@ pub trait State: SMState + Display {
     ///
     /// # Errors
     ///
-    /// Returns an error convertible into a `StateError` if the output data computation fails.
+    /// Returns an error convertible into a [`StateError`] if the output data computation fails.
     async fn compute_output_data_async(&mut self) -> Result<(), impl Into<StateError>>;
 }
 

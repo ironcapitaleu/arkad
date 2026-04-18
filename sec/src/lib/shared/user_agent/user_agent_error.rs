@@ -23,7 +23,7 @@ use thiserror::Error;
 ///
 /// This struct provides both the reason for the failure and the user agent string that was provided.
 #[derive(Debug, Error, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[error("[UserAgentError] User agent creation failed: Reason: '{reason}'. Input: '{user_agent}'.")]
+#[error("[UserAgentError] User agent creation failed, Reason: '{reason}', Input: '{user_agent}'")]
 pub struct UserAgentError {
     /// The reason why the user agent couldn't be created.
     pub reason: UserAgentErrorReason,
@@ -53,7 +53,7 @@ pub enum UserAgentErrorReason {
 
 impl std::fmt::Display for UserAgentErrorReason {
     /// Formats the reason for display.
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
             Self::InvalidSecFormat => write!(f, "The format required for the SEC api is invalid."),
         }
@@ -72,7 +72,7 @@ mod tests {
         let user_agent_error = UserAgentError::new(reason.clone(), &user_agent);
 
         let expected_result = format!(
-            "[UserAgentError] User agent creation failed: Reason: '{reason}'. Input: '{user_agent}'."
+            "[UserAgentError] User agent creation failed, Reason: '{reason}', Input: '{user_agent}'"
         );
 
         let result = format!("{user_agent_error}");

@@ -36,7 +36,7 @@ use crate::shared::cik::Cik;
 use crate::traits::error::FromDomainError;
 use crate::traits::state_machine::state::StateData;
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
+#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, serde::Serialize)]
 /// Output data containing a validated CIK.
 ///
 /// This struct holds a validated [`Cik`] value, produced by the `ValidateCikFormat` state
@@ -93,9 +93,14 @@ impl SMStateData for ValidateCikFormatOutput {
     fn state(&self) -> &Self {
         self
     }
-    /// Provided by `SecStateData` trait. Not used in this context.
-    fn update_state(&mut self, _updates: Self::UpdateType) {
-        // This method is not used in this context.
+    /// Delegates to the SEC [`StateData::update_state`] implementation.
+    ///
+    /// # Panics
+    /// Panics if the fallible SEC update returns an error.
+    fn update_state(&mut self, updates: Self::UpdateType) {
+        if let Err(e) = <Self as StateData>::update_state(self, updates) {
+            panic!("StateData::update_state failed: {e}")
+        }
     }
 }
 
@@ -171,12 +176,12 @@ mod tests {
     use std::{fmt::Debug, hash::Hash};
 
     use pretty_assertions::{assert_eq, assert_ne};
+    use state_maschine::prelude::StateData as SMStateData;
 
     use super::{ValidateCikFormatOutput, ValidateCikFormatOutputUpdaterBuilder};
     use crate::shared::cik::Cik;
     use crate::shared::cik::constants::BERKSHIRE_HATHAWAY_CIK_RAW;
     use crate::traits::state_machine::state::StateData;
-    use state_maschine::prelude::StateData as SMStateData;
 
     fn create_test_output() -> ValidateCikFormatOutput {
         ValidateCikFormatOutput::new(BERKSHIRE_HATHAWAY_CIK_RAW)

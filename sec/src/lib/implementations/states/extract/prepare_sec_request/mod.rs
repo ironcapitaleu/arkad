@@ -94,7 +94,7 @@ pub use data::PrepareSecRequestOutput;
 /// let context = PrepareSecRequestContext::new(cik);
 /// let mut prepare_state = PrepareSecRequest::new(input, context);
 /// ```
-#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
+#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, serde::Serialize)]
 pub struct PrepareSecRequest {
     input: PrepareSecRequestInput,
     context: PrepareSecRequestContext,
@@ -119,6 +119,18 @@ impl PrepareSecRequest {
             context,
             output: None,
         }
+    }
+
+    /// Consumes the state and returns its components. Used for state transitions.
+    #[must_use]
+    pub fn into_parts(
+        self,
+    ) -> (
+        PrepareSecRequestInput,
+        Option<PrepareSecRequestOutput>,
+        PrepareSecRequestContext,
+    ) {
+        (self.input, self.output, self.context)
     }
 }
 
@@ -162,11 +174,26 @@ impl SMState for PrepareSecRequest {
         STATE_NAME
     }
 
-    /// Prepares SEC client and request objects for API interactions.
-    /// Does nothing here, as the output data is computed in `compute_output_data_async()` of the `sec`'s `State`-implementation.
+    /// Blocking wrapper around [`compute_output_data_async`](crate::traits::state_machine::state::State::compute_output_data_async).
+    ///
+    /// Detects whether a tokio runtime is available and runs the async computation
+    /// synchronously. This allows SEC states to be used as regular `SMState` implementations.
+    ///
+    /// # Panics
+    /// Panics if the async computation returns an error.
     fn compute_output_data(&mut self) {
-        // No action needed here, as the output data is computed in `compute_output_data_async()` of the `sec`'s 'State'-implementation
-        // This function is just a placeholder to satisfy the State trait.
+        let result = if let Ok(handle) = tokio::runtime::Handle::try_current() {
+            tokio::task::block_in_place(|| handle.block_on(self.compute_output_data_async()))
+        } else {
+            tokio::runtime::Runtime::new()
+                .expect("Failed to create tokio runtime for blocking compute")
+                .block_on(self.compute_output_data_async())
+        };
+
+        if let Err(e) = result {
+            let state_err: crate::error::State = e;
+            panic!("compute_output_data failed: {state_err}")
+        }
     }
 
     fn context_data(&self) -> &Self::Context {
@@ -475,6 +502,30 @@ mod tests {
             .await
             .expect("Valid state should always compute output data");
         let result = prepare_state.has_output_data_been_computed();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_produce_output_when_calling_sync_compute_outside_tokio_runtime() {
+        let mut state = create_test_state();
+
+        let expected_result = true;
+
+        state.compute_output_data();
+        let result = state.has_output_data_been_computed();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn should_produce_output_when_calling_sync_compute_inside_tokio_runtime() {
+        let mut state = create_test_state();
+
+        let expected_result = true;
+
+        state.compute_output_data();
+        let result = state.has_output_data_been_computed();
 
         assert_eq!(result, expected_result);
     }

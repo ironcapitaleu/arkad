@@ -27,13 +27,13 @@
 
 use std::fmt;
 
+use state_maschine::prelude::StateData as SMStateData;
+
 use crate::error::State as StateError;
 use crate::shared::http_client::implementations::sec_client::SecClient;
 use crate::shared::request::SecRequest as SecRequestTrait;
 use crate::shared::request::implementations::sec_request::SecRequest;
 use crate::traits::state_machine::state::StateData;
-
-use state_maschine::prelude::StateData as SMStateData;
 
 /// Input data for executing SEC API requests.
 ///
@@ -41,7 +41,7 @@ use state_maschine::prelude::StateData as SMStateData;
 /// to execute HTTP requests to SEC API endpoints. It is designed to be used as part
 /// of the SEC document extraction workflow, and supports builder-based updates and
 /// integration with the state machine framework.
-#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
+#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, serde::Serialize)]
 pub struct ExecuteSecRequestInput {
     /// The prepared SEC client that will execute the HTTP request.
     pub sec_client: SecClient,
@@ -107,7 +107,15 @@ impl SMStateData for ExecuteSecRequestInput {
         self
     }
 
-    fn update_state(&mut self, _updates: Self::UpdateType) {}
+    /// Delegates to the SEC [`StateData::update_state`] implementation.
+    ///
+    /// # Panics
+    /// Panics if the fallible SEC update returns an error.
+    fn update_state(&mut self, updates: Self::UpdateType) {
+        if let Err(e) = <Self as StateData>::update_state(self, updates) {
+            panic!("StateData::update_state failed: {e}")
+        }
+    }
 }
 
 impl fmt::Display for ExecuteSecRequestInput {
@@ -215,11 +223,11 @@ impl Default for ExecuteSecRequestInputUpdaterBuilder {
 mod tests {
     use std::{fmt::Debug, hash::Hash};
 
+    use pretty_assertions::assert_eq;
+
     use super::*;
     use crate::shared::cik::Cik;
     use crate::shared::request::implementations::sec_request::SecRequest;
-
-    use pretty_assertions::assert_eq;
 
     #[test]
     fn should_create_new_input_data_with_provided_client_and_request() {

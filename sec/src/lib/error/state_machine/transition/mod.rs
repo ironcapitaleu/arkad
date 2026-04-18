@@ -6,7 +6,8 @@
 //!
 //! ## Overview
 //!
-//! The [`Transition`] enum covers two main failure scenarios:
+//! The [`Transition`] enum covers three main failure scenarios:
+//! - [`MissingOutput`](Transition::MissingOutput): Occurs when the output data of the source state is missing or cannot be accessed during the transition.
 //! - [`FailedOutputConversion`](Transition::FailedOutputConversion): Occurs when the output data of the source state cannot be converted into the input data of the destination state.
 //! - [`FailedContextConversion`](Transition::FailedContextConversion): Occurs when the context of the source state cannot be converted into the context of the destination state.
 //!
@@ -26,19 +27,25 @@
 //! ## Example
 //!
 //! ```rust
-//! use sec::error::state_machine::transition::Transition;
+//! use sec::error::state_machine::transition::{Transition, FailedOutputConversion};
 //!
 //! fn perform_transition() -> Result<(), Transition> {
 //!     // ... transition logic ...
-//!     Err(Transition::FailedOutputConversion)
+//!     Err(Transition::FailedOutputConversion(
+//!         FailedOutputConversion::new("SourceState", "TargetState"),
+//!     ))
 //! }
 //! ```
 
+pub mod failed_context_conversion;
+pub use failed_context_conversion::FailedContextConversion;
+pub mod failed_output_conversion;
+pub use failed_output_conversion::FailedOutputConversion;
 pub mod missing_output;
 pub use missing_output::MissingOutput;
 
 #[non_exhaustive]
-#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
+#[derive(Debug, thiserror::Error, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 /// Represents errors that can occur during state transitions within the state machine framework.
 ///
 /// This enum is used to signal failure scenarios when, for example, converting state output or context
@@ -51,27 +58,17 @@ pub enum Transition {
     ///
     /// This error variant indicates that the output data produced by the source state is missing
     /// or could not be accessed during the transition.
-    MissingOutput(MissingOutput),
+    #[error("[TransitionError] A transition error occurred, Caused by: {0}")]
+    MissingOutput(#[source] MissingOutput),
+
     /// Failed to convert output of the source state into the input of the destination state.
-    ///
-    /// This error variant indicates that the output data produced by the source state could not
-    /// be transformed or mapped into the input data required by the destination state during a transition.
-    FailedOutputConversion,
+    #[error("[TransitionError] A transition error occurred, Caused by: {0}")]
+    FailedOutputConversion(#[source] FailedOutputConversion),
 
     /// Failed to convert context of the source state into the context of the destination state.
-    ///
-    /// This error variant indicates that the context associated with the source state could not
-    /// be transformed or mapped into the context required by the destination state during a transition.
-    FailedContextConversion,
+    #[error("[TransitionError] A transition error occurred, Caused by: {0}")]
+    FailedContextConversion(#[source] FailedContextConversion),
 }
-
-impl std::fmt::Display for Transition {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Problem occured during transition operations.")
-    }
-}
-
-impl std::error::Error for Transition {}
 
 #[cfg(test)]
 mod tests {
@@ -160,6 +157,7 @@ mod tests {
     #[test]
     fn should_be_able_to_create_transition_failedcontextconversion_error_when_using_enum_directly()
     {
-        let _result = Transition::FailedContextConversion;
+        let _result =
+            Transition::FailedContextConversion(FailedContextConversion::new("StateA", "StateB"));
     }
 }

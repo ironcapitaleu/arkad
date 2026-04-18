@@ -15,14 +15,14 @@
 
 use crate::error::state_machine::transition;
 use crate::error::state_machine::transition::Transition as TransitionError;
+use crate::implementations::states::extract::execute_sec_request::constants::STATE_NAME as EXECUTE_SEC_REQUEST;
 use crate::implementations::states::extract::execute_sec_request::{
     ExecuteSecRequest, ExecuteSecRequestContext, ExecuteSecRequestInput,
 };
+use crate::implementations::states::extract::prepare_sec_request::constants::STATE_NAME as PREPARE_SEC_REQUEST;
 use crate::implementations::states::extract::prepare_sec_request::{
     PrepareSecRequest, PrepareSecRequestContext, PrepareSecRequestOutput,
 };
-
-use state_maschine::prelude::State;
 
 impl From<PrepareSecRequestContext> for ExecuteSecRequestContext {
     fn from(context: PrepareSecRequestContext) -> Self {
@@ -40,19 +40,12 @@ impl TryFrom<PrepareSecRequest> for ExecuteSecRequest {
     type Error = TransitionError;
 
     fn try_from(state: PrepareSecRequest) -> Result<Self, TransitionError> {
-        let output_data = match state.output_data() {
-            Some(data) => data.clone(),
-            None => {
-                return Err(transition::MissingOutput::new(
-                    "Extract SuperState",
-                    state.state_name().to_string(),
-                )
-                .into());
-            }
-        };
+        let (_input, output, context) = state.into_parts();
+        let output_data = output.ok_or_else(|| {
+            transition::MissingOutput::new(PREPARE_SEC_REQUEST, EXECUTE_SEC_REQUEST)
+        })?;
 
-        let state_context = state.context_data().clone();
-        let new_context: ExecuteSecRequestContext = state_context.into();
+        let new_context: ExecuteSecRequestContext = context.into();
         let new_input: ExecuteSecRequestInput = output_data.into();
 
         Ok(Self::new(new_input, new_context))
@@ -62,11 +55,14 @@ impl TryFrom<PrepareSecRequest> for ExecuteSecRequest {
 #[cfg(test)]
 mod tests {
     use pretty_assertions::assert_eq;
+    use tokio;
 
     use super::*;
+    use crate::implementations::states::extract::prepare_sec_request::PrepareSecRequestInput;
     use crate::shared::cik::Cik;
     use crate::shared::http_client::implementations::sec_client::SecClient;
     use crate::shared::request::implementations::sec_request::SecRequest;
+    use crate::traits::state_machine::state::State;
 
     #[test]
     fn should_convert_context_when_valid_context() {
@@ -76,7 +72,7 @@ mod tests {
 
         let expected_result = ExecuteSecRequestContext::new(cik);
 
-        let result: ExecuteSecRequestContext = context.into();
+        let result = ExecuteSecRequestContext::from(context);
 
         assert_eq!(result, expected_result);
     }
@@ -94,7 +90,41 @@ mod tests {
 
         let expected_result = ExecuteSecRequestInput::new(client, request);
 
-        let result: ExecuteSecRequestInput = output.into();
+        let result = ExecuteSecRequestInput::from(output);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_transition_to_execute_sec_request_when_prepare_sec_request_has_output() {
+        let cik = Cik::new("0001234567")
+            .expect("Hardcoded valid CIK string should always parse successfully");
+        let input = PrepareSecRequestInput::new(cik.clone(), String::new());
+        let context = PrepareSecRequestContext::new(cik.clone());
+        let mut state = PrepareSecRequest::new(input, context);
+        state
+            .compute_output_data_async()
+            .await
+            .expect("Valid state should always compute output data");
+
+        let expected_result = true;
+
+        let result = ExecuteSecRequest::try_from(state).is_ok();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_error_when_prepare_sec_request_has_no_output() {
+        let cik = Cik::new("0001234567")
+            .expect("Hardcoded valid CIK string should always parse successfully");
+        let input = PrepareSecRequestInput::new(cik.clone(), String::new());
+        let context = PrepareSecRequestContext::new(cik);
+        let state = PrepareSecRequest::new(input, context);
+
+        let expected_result = true;
+
+        let result = ExecuteSecRequest::try_from(state).is_err();
 
         assert_eq!(result, expected_result);
     }

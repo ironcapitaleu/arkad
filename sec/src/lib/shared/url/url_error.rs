@@ -6,7 +6,7 @@ use thiserror::Error;
 ///
 /// This struct provides both the reason for the failure and the offending URL string.
 #[derive(Debug, Error, Clone, PartialEq, Eq, Hash)]
-#[error("[UrlError] Invalid URL: Reason: '{reason}'. Input: '{invalid_url}'.")]
+#[error("[UrlError] Invalid URL, Reason: '{reason}', Input: '{invalid_url}'")]
 pub struct UrlError {
     /// The reason why the URL is considered invalid.
     pub reason: InvalidUrlReason,
@@ -36,7 +36,7 @@ pub enum InvalidUrlReason {
 
 impl fmt::Display for InvalidUrlReason {
     /// Formats the reason for display.
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Self::FailedToParse => write!(f, "Input could not be parsed as a valid URL"),
         }
@@ -56,7 +56,7 @@ mod tests {
         let error = UrlError::new(reason.clone(), invalid_url);
 
         let expected_result =
-            format!("[UrlError] Invalid URL: Reason: '{reason}'. Input: '{invalid_url}'.");
+            format!("[UrlError] Invalid URL, Reason: '{reason}', Input: '{invalid_url}'");
 
         let result = format!("{error}");
 

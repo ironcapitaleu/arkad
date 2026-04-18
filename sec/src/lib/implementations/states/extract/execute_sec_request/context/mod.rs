@@ -32,10 +32,10 @@
 
 use std::fmt;
 
+use state_maschine::prelude::Context as SMContext;
+
 use crate::shared::cik::Cik;
 use crate::traits::state_machine::state::Context;
-
-use state_maschine::prelude::Context as SMContext;
 
 /// State context for the SEC request execution state.
 ///
@@ -43,7 +43,7 @@ use state_maschine::prelude::Context as SMContext;
 /// execution of SEC HTTP requests, including the target CIK and retry settings.
 /// It supports updates through the builder pattern and integrates with the
 /// state machine framework's context management system.
-#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
+#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, serde::Serialize)]
 pub struct ExecuteSecRequestContext {
     /// The Central Index Key (CIK) being processed in this execution context.
     pub cik: Cik,
@@ -97,6 +97,9 @@ impl SMContext for ExecuteSecRequestContext {
         if let Some(cik) = updates.cik {
             self.cik = cik;
         }
+        if let Some(max_retries) = updates.max_retries {
+            self.max_retries = max_retries;
+        }
     }
 }
 
@@ -114,6 +117,8 @@ impl fmt::Display for ExecuteSecRequestContext {
 pub struct ExecuteSecRequestContextUpdater {
     /// Optional new CIK to replace the current one.
     pub cik: Option<Cik>,
+    /// Optional new maximum retries value.
+    pub max_retries: Option<u32>,
 }
 
 impl ExecuteSecRequestContextUpdater {
@@ -130,6 +135,7 @@ impl ExecuteSecRequestContextUpdater {
 /// the fields that need to be changed, following the builder pattern.
 pub struct ExecuteSecRequestContextUpdaterBuilder {
     cik: Option<Cik>,
+    max_retries: Option<u32>,
 }
 
 impl ExecuteSecRequestContextUpdaterBuilder {
@@ -140,7 +146,10 @@ impl ExecuteSecRequestContextUpdaterBuilder {
     /// A new [`ExecuteSecRequestContextUpdaterBuilder`] with all fields set to `None`.
     #[must_use]
     pub const fn new() -> Self {
-        Self { cik: None }
+        Self {
+            cik: None,
+            max_retries: None,
+        }
     }
 
     /// Sets the CIK to be updated.
@@ -159,6 +168,18 @@ impl ExecuteSecRequestContextUpdaterBuilder {
         self
     }
 
+    /// Sets the `max_retries` value inside the context to the provided update value.
+    ///
+    /// # Arguments
+    ///
+    /// * `max_retries` - The new value for `max_retries`.
+    #[must_use]
+    #[allow(clippy::missing_const_for_fn)]
+    pub fn max_retries(mut self, max_retries: u32) -> Self {
+        self.max_retries = Some(max_retries);
+        self
+    }
+
     /// Builds the updater with the configured fields.
     ///
     /// # Returns
@@ -166,7 +187,10 @@ impl ExecuteSecRequestContextUpdaterBuilder {
     /// A new [`ExecuteSecRequestContextUpdater`] with the fields set by this builder.
     #[must_use]
     pub fn build(self) -> ExecuteSecRequestContextUpdater {
-        ExecuteSecRequestContextUpdater { cik: self.cik }
+        ExecuteSecRequestContextUpdater {
+            cik: self.cik,
+            max_retries: self.max_retries,
+        }
     }
 }
 
@@ -178,11 +202,13 @@ impl Default for ExecuteSecRequestContextUpdaterBuilder {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::shared::cik::Cik;
+    use std::{fmt::Debug, hash::Hash};
+
     use pretty_assertions::assert_eq;
     use state_maschine::prelude::Context as SMContext;
-    use std::{fmt::Debug, hash::Hash};
+
+    use super::*;
+    use crate::shared::cik::Cik;
 
     #[test]
     fn should_create_new_context_with_provided_cik() {
@@ -244,6 +270,23 @@ mod tests {
         context.update_context(updater);
 
         assert_eq!(context, original_context);
+    }
+
+    #[test]
+    fn should_update_max_retries_when_updater_contains_max_retries() {
+        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
+        let mut context = ExecuteSecRequestContext::new(cik);
+
+        let updater = ExecuteSecRequestContextUpdater::builder()
+            .max_retries(5)
+            .build();
+
+        let expected_result = 5;
+
+        context.update_context(updater);
+        let result = context.max_retries;
+
+        assert_eq!(result, expected_result);
     }
 
     #[test]
