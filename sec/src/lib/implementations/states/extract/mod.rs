@@ -57,7 +57,7 @@ use state_maschine::prelude::{StateMachine as SMStateMachine, Transition as SMTr
 /// Data structure for the Extract super-state.
 ///
 /// Currently serves as a placeholder type with unit update semantics for the [`ExtractSuperState`].
-#[derive(Debug, Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize)]
 pub struct ExtractSuperStateData;
 
 impl SMStateData for ExtractSuperStateData {
@@ -77,7 +77,7 @@ impl StateData for ExtractSuperStateData {
 /// Context data structure for the Extract super-state.
 ///
 /// Provides configuration and runtime context for the [`ExtractSuperState`], including retry policies.
-#[derive(Debug, Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize)]
 pub struct ExtractSuperStateContext;
 
 impl SMContext for ExtractSuperStateContext {
@@ -104,7 +104,7 @@ impl Context for ExtractSuperStateContext {
 ///
 /// # State Transitions
 /// Supports transitions: `ValidateCikFormat` → `PrepareSecRequest`
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize)]
 pub struct ExtractSuperState<S: State> {
     current_state: S,
     input: ExtractSuperStateData,
@@ -218,6 +218,71 @@ impl ExtractSuperState<ExecuteSecRequest> {
             output: None,
             context: ExtractSuperStateContext,
         }
+    }
+}
+
+// --- Streaming ---
+
+impl NonTerminal for ExtractSuperState<ValidateCikFormat> {
+    type Current = ValidateCikFormat;
+    type Next = PrepareSecRequest;
+}
+
+impl NonTerminal for ExtractSuperState<PrepareSecRequest> {
+    type Current = PrepareSecRequest;
+    type Next = ExecuteSecRequest;
+}
+
+/// Terminal state — no [`NonTerminal`] impl, manual [`IntoStateMachineStream`].
+impl IntoStateMachineStream for ExtractSuperState<ExecuteSecRequest> {
+    fn into_stream(self, execution_id: uuid::Uuid) -> StateMachineStream {
+        Box::pin(async_stream::stream! {
+            use crate::traits::state_machine::stream::{StreamEvent, StreamItem, StreamError};
+
+            let mut sm = self;
+            let state_name = sm.current_state().state_name().to_string();
+            let state_start = std::time::Instant::now();
+
+            // StateStarted
+            yield Ok(StreamItem {
+                event: StreamEvent::StateStarted,
+                state_name: state_name.clone(),
+                data: serde_json::to_value(sm.current_state()).unwrap_or_else(|e| {
+                    serde_json::json!({ "serialization_error": e.to_string() })
+                }),
+                event_duration: std::time::Duration::ZERO,
+            });
+
+            // Compute
+            match sm.current_state_mut().compute_output_data_async().await {
+                Ok(()) => {
+                    let data = serde_json::to_value(sm.current_state()).unwrap_or_else(|e| {
+                        serde_json::json!({ "serialization_error": e.to_string() })
+                    });
+                    yield Ok(StreamItem {
+                        event: StreamEvent::StateCompleted,
+                        state_name,
+                        data,
+                        event_duration: state_start.elapsed(),
+                    });
+                }
+                Err(e) => {
+                    #[allow(clippy::useless_conversion)]
+                    let state_err: crate::error::State = e.into();
+                    let sm_error: crate::error::StateMachine = state_err.into();
+                    let data = serde_json::to_value(sm.current_state()).unwrap_or_else(|e| {
+                        serde_json::json!({ "serialization_error": e.to_string() })
+                    });
+                    yield Err(StreamError {
+                        event: StreamEvent::StateFailed,
+                        execution_id,
+                        state_name,
+                        data,
+                        source: sm_error,
+                    });
+                }
+            }
+        })
     }
 }
 

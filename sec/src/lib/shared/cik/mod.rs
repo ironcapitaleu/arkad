@@ -30,7 +30,7 @@ pub use constants::CIK_LENGTH;
 
 use std::fmt;
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
+#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, serde::Serialize)]
 /// Strongly-typed wrapper for a validated SEC Central Index Key (CIK).
 ///
 /// The `Cik` type ensures that only valid, 10-digit, zero-padded numeric CIKs are constructed and used

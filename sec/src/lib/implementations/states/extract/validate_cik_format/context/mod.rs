@@ -36,7 +36,7 @@ use state_maschine::prelude::Context as SMContext;
 use crate::shared::cik::constants::BERKSHIRE_HATHAWAY_CIK_RAW;
 use crate::traits::state_machine::state::Context;
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
+#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, serde::Serialize)]
 /// State context for the Validate CIK Format state.
 ///
 /// The default instance uses the CIK for Berkshire Hathaway (CIK: 1067983).

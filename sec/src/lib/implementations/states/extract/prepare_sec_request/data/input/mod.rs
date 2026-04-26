@@ -39,7 +39,7 @@ use crate::traits::state_machine::state::StateData;
 /// that will be used to prepare HTTP requests to SEC API endpoints. It is designed
 /// to be used as part of the SEC document extraction workflow, and supports
 /// builder-based updates and integration with the state machine framework.
-#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
+#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, serde::Serialize)]
 pub struct PrepareSecRequestInput {
     /// The validated CIK that will be used for the SEC API request.
     pub validated_cik: Cik,

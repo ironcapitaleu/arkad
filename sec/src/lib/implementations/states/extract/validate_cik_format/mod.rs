@@ -67,7 +67,7 @@ pub use data::ValidateCikFormatOutput;
 
 use crate::shared::cik::Cik;
 
-#[derive(Debug, Clone, Default, PartialEq, PartialOrd, Hash, Eq, Ord)]
+#[derive(Debug, Clone, Default, PartialEq, PartialOrd, Hash, Eq, Ord, serde::Serialize)]
 /// State that validates and normalizes a raw CIK format.
 ///
 /// The state takes an unvalidated CIK string as input, checks for format correctness,

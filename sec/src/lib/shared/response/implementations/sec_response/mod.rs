@@ -87,6 +87,18 @@ impl SecResponse {
     }
 }
 
+impl serde::Serialize for SecResponse {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        use serde::ser::SerializeStruct;
+        let mut state = serializer.serialize_struct("SecResponse", 4)?;
+        state.serialize_field("url", &self.url.to_string())?;
+        state.serialize_field("status_code", &self.status_code.to_string())?;
+        state.serialize_field("content_type", &self.content_type.to_string())?;
+        state.serialize_field("headers", &self.headers)?;
+        state.end()
+    }
+}
+
 impl fmt::Display for SecResponse {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{} {}", self.status_code, self.url)

@@ -15,6 +15,7 @@
 
 use crate::error::state_machine::transition;
 use crate::error::state_machine::transition::Transition as TransitionError;
+use crate::implementations::states::extract::execute_sec_request::constants::STATE_NAME as EXECUTE_SEC_REQUEST;
 use crate::implementations::states::extract::execute_sec_request::{
     ExecuteSecRequest, ExecuteSecRequestContext, ExecuteSecRequestInput,
 };
@@ -44,8 +45,8 @@ impl TryFrom<PrepareSecRequest> for ExecuteSecRequest {
             Some(data) => data.clone(),
             None => {
                 return Err(transition::MissingOutput::new(
-                    "Extract SuperState",
                     state.state_name().to_string(),
+                    EXECUTE_SEC_REQUEST,
                 )
                 .into());
             }
