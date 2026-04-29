@@ -4,7 +4,9 @@
 //! Wraps the company name string reported in SEC filings
 //! (e.g., `"Apple Inc."`, `"BERKSHIRE HATHAWAY INC"`).
 
-use std::fmt;
+use std::fmt::{self, Display, Formatter};
+
+use serde::Serialize;
 
 /// An SEC entity (company) name.
 ///
@@ -18,7 +20,7 @@ use std::fmt;
 /// let name = EntityName::new("Apple Inc.");
 /// assert_eq!(name.value(), "Apple Inc.");
 /// ```
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub struct EntityName(String);
 
 impl EntityName {
@@ -35,8 +37,8 @@ impl EntityName {
     }
 }
 
-impl fmt::Display for EntityName {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+impl Display for EntityName {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         write!(f, "{}", self.0)
     }
 }

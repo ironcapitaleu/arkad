@@ -45,9 +45,10 @@
 pub mod create_financial_statements;
 pub mod parse_company_facts;
 
-use std::fmt::Display;
+use std::fmt::{self, Display, Formatter};
 
 use async_trait::async_trait;
+use serde::Serialize;
 use state_maschine::prelude::{StateMachine as SMStateMachine, Transition as SMTransition};
 
 use crate::error::State as StateError;
@@ -67,7 +68,7 @@ use crate::shared::response::traits::sec::SecResponse as SecResponseTrait;
 /// Data structure for the Transform super-state.
 ///
 /// Currently serves as a placeholder type with unit update semantics for the [`TransformSuperState`].
-#[derive(Debug, Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub struct TransformSuperStateData;
 
 impl SMStateData for TransformSuperStateData {
@@ -87,7 +88,7 @@ impl StateData for TransformSuperStateData {
 /// Context data structure for the Transform super-state.
 ///
 /// Provides configuration and runtime context for the [`TransformSuperState`], including retry policies.
-#[derive(Debug, Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub struct TransformSuperStateContext;
 
 impl SMContext for TransformSuperStateContext {
@@ -114,7 +115,7 @@ impl Context for TransformSuperStateContext {
 ///
 /// # State Transitions
 /// Supports transitions: `ParseCompanyFacts` → `CreateFinancialStatements`
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub struct TransformSuperState<S: State> {
     current_state: S,
     input: TransformSuperStateData,
@@ -123,7 +124,7 @@ pub struct TransformSuperState<S: State> {
 }
 
 impl<S: State> Display for TransformSuperState<S> {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         write!(
             f,
             "Transform SuperState (Current: {})",

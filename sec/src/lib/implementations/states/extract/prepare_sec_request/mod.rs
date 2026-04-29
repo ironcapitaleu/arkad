@@ -52,6 +52,7 @@
 use std::fmt;
 
 use async_trait::async_trait;
+use serde::Serialize;
 use state_maschine::prelude::State as SMState;
 
 use crate::error::State as StateError;
@@ -94,7 +95,7 @@ pub use data::PrepareSecRequestOutput;
 /// let context = PrepareSecRequestContext::new(cik);
 /// let mut prepare_state = PrepareSecRequest::new(input, context);
 /// ```
-#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, serde::Serialize)]
+#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
 pub struct PrepareSecRequest {
     input: PrepareSecRequestInput,
     context: PrepareSecRequestContext,
@@ -191,7 +192,7 @@ impl SMState for PrepareSecRequest {
         };
 
         if let Err(e) = result {
-            let state_err: crate::error::State = e;
+            let state_err: StateError = e;
             panic!("compute_output_data failed: {state_err}")
         }
     }

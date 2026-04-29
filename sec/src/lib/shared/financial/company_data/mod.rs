@@ -5,7 +5,10 @@
 //! canonical querying (e.g., look up "Revenue" regardless of the company's XBRL key).
 
 use std::collections::HashMap;
-use std::fmt;
+use std::fmt::{self, Display, Formatter};
+
+use serde::ser::SerializeStruct;
+use serde::{Serialize, Serializer};
 
 use crate::shared::cik::Cik;
 use crate::shared::financial::company_fact::CompanyFact;
@@ -111,9 +114,8 @@ impl Ord for CompanyData {
     }
 }
 
-impl serde::Serialize for CompanyData {
-    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        use serde::ser::SerializeStruct;
+impl Serialize for CompanyData {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         let mut state = serializer.serialize_struct("CompanyData", 3)?;
         state.serialize_field("cik", &self.cik)?;
         state.serialize_field("entity_name", &self.entity_name)?;
@@ -122,8 +124,8 @@ impl serde::Serialize for CompanyData {
     }
 }
 
-impl fmt::Display for CompanyData {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+impl Display for CompanyData {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         write!(
             f,
             "{} (CIK: {}, {} facts)",

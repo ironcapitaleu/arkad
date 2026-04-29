@@ -49,6 +49,7 @@
 use std::fmt;
 
 use async_trait::async_trait;
+use serde::Serialize;
 use state_maschine::prelude::State as SMState;
 
 use crate::error::State as StateError;
@@ -67,7 +68,7 @@ pub use data::ValidateCikFormatOutput;
 
 use crate::shared::cik::Cik;
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, serde::Serialize)]
+#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
 /// State that validates and normalizes a raw CIK format.
 ///
 /// The state takes an unvalidated CIK string as input, checks for format correctness,
@@ -172,7 +173,7 @@ impl SMState for ValidateCikFormat {
         };
 
         if let Err(e) = result {
-            let state_err: crate::error::State = e;
+            let state_err: StateError = e;
             panic!("compute_output_data failed: {state_err}")
         }
     }

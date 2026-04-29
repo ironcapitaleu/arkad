@@ -27,12 +27,13 @@
 
 use std::fmt;
 
+use serde::Serialize;
 use state_maschine::prelude::StateData as SMStateData;
 
 use crate::error::State as StateError;
 use crate::traits::state_machine::state::StateData;
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, serde::Serialize)]
+#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
 /// Input data for validating the format of a CIK.
 ///
 /// This struct holds the raw, unvalidated Central Index Key (CIK) string

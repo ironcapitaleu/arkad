@@ -4,7 +4,9 @@
 //! Unlike calendar quarters, fiscal periods are relative to a company's fiscal year
 //! (e.g., Apple's FY ends in September, so their fiscal Q4 is calendar Q3).
 
-use std::fmt;
+use std::fmt::{self, Display, Formatter};
+
+use serde::Serialize;
 
 /// Fiscal reporting period.
 ///
@@ -19,7 +21,7 @@ use std::fmt;
 /// assert_eq!(period.to_string(), "FY");
 /// ```
 #[non_exhaustive]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub enum FiscalPeriod {
     /// Full fiscal year.
     Fy,
@@ -33,8 +35,8 @@ pub enum FiscalPeriod {
     Q4,
 }
 
-impl fmt::Display for FiscalPeriod {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+impl Display for FiscalPeriod {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match self {
             Self::Fy => write!(f, "FY"),
             Self::Q1 => write!(f, "Q1"),

@@ -31,9 +31,10 @@ pub mod execute_sec_request;
 pub mod prepare_sec_request;
 pub mod validate_cik_format;
 
-use std::fmt::Display;
+use std::fmt::{self, Display, Formatter};
 
 use async_trait::async_trait;
+use serde::Serialize;
 use state_maschine::prelude::{StateMachine as SMStateMachine, Transition as SMTransition};
 
 use crate::error::State as StateError;
@@ -60,7 +61,7 @@ use crate::shared::request::implementations::sec_request::SecRequest;
 /// Data structure for the Extract super-state.
 ///
 /// Currently serves as a placeholder type with unit update semantics for the [`ExtractSuperState`].
-#[derive(Debug, Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub struct ExtractSuperStateData;
 
 impl SMStateData for ExtractSuperStateData {
@@ -80,7 +81,7 @@ impl StateData for ExtractSuperStateData {
 /// Context data structure for the Extract super-state.
 ///
 /// Provides configuration and runtime context for the [`ExtractSuperState`], including retry policies.
-#[derive(Debug, Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub struct ExtractSuperStateContext;
 
 impl SMContext for ExtractSuperStateContext {
@@ -107,7 +108,7 @@ impl Context for ExtractSuperStateContext {
 ///
 /// # State Transitions
 /// Supports transitions: `ValidateCikFormat` → `PrepareSecRequest`
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub struct ExtractSuperState<S: State> {
     current_state: S,
     input: ExtractSuperStateData,
@@ -116,7 +117,7 @@ pub struct ExtractSuperState<S: State> {
 }
 
 impl<S: State> Display for ExtractSuperState<S> {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         write!(
             f,
             "Extract SuperState (Current: {})",

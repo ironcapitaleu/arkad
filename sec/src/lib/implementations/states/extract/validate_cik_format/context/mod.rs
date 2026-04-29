@@ -31,11 +31,12 @@
 
 use std::fmt;
 
+use serde::Serialize;
 use state_maschine::prelude::Context as SMContext;
 
 use crate::traits::state_machine::state::Context;
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, serde::Serialize)]
+#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
 /// State context for the Validate CIK Format state.
 pub struct ValidateCikFormatContext {
     /// The unvalidated CIK string provided for validation.

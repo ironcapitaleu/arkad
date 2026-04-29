@@ -1,6 +1,9 @@
 mod extraction;
 
-use std::fmt;
+use std::error::Error;
+use std::fmt::{self, Display, Formatter};
+use std::io::stdout;
+use std::time::Instant;
 
 use extraction::Extraction;
 use futures_util::StreamExt;
@@ -13,8 +16,8 @@ enum BatchEvent {
     Complete,
 }
 
-impl fmt::Display for BatchEvent {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl Display for BatchEvent {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             Self::Complete => write!(f, "batch_complete"),
         }
@@ -22,9 +25,9 @@ impl fmt::Display for BatchEvent {
 }
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     // Initialize non-blocking JSON structured logging
-    let (non_blocking, _guard) = tracing_appender::non_blocking(std::io::stdout());
+    let (non_blocking, _guard) = tracing_appender::non_blocking(stdout());
     tracing_subscriber::fmt()
         .json()
         .with_span_events(FmtSpan::NONE)
@@ -34,7 +37,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         .with_writer(non_blocking)
         .init();
 
-    let start = std::time::Instant::now();
+    let start = Instant::now();
 
     let results: Vec<_> = futures_util::stream::iter(CIKS)
         .map(|cik| Extraction::builder().cik(cik).build().run())

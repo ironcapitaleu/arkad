@@ -76,11 +76,13 @@ pub use context::CreateFinancialStatementsContext;
 pub use data::CreateFinancialStatementsInput;
 pub use data::CreateFinancialStatementsOutput;
 
+use serde::Serialize;
+
 // Deviation: `CreateFinancialStatementsInput` wraps `CompanyData` which uses
 // manual `Hash`, `PartialEq`, `Eq`, `PartialOrd`, `Ord` implementations due to
 // containing a `HashMap`. This struct therefore also uses manual implementations
 // for these traits.
-#[derive(Debug, Clone, serde::Serialize)]
+#[derive(Debug, Clone, Serialize)]
 /// State that creates financial statements from parsed company data.
 ///
 /// This state takes [`CompanyData`](crate::shared::financial::company_data::CompanyData) as input and produces
@@ -182,7 +184,7 @@ impl SMState for CreateFinancialStatements {
         };
 
         if let Err(e) = result {
-            let state_err: crate::error::State = e;
+            let state_err: StateError = e;
             panic!("compute_output_data failed: {state_err}")
         }
     }

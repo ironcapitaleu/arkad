@@ -37,6 +37,8 @@
 //! }
 //! ```
 
+use thiserror::Error;
+
 pub mod failed_context_conversion;
 pub use failed_context_conversion::FailedContextConversion;
 pub mod failed_output_conversion;
@@ -45,7 +47,7 @@ pub mod missing_output;
 pub use missing_output::MissingOutput;
 
 #[non_exhaustive]
-#[derive(Debug, thiserror::Error, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
+#[derive(Debug, Error, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 /// Represents errors that can occur during state transitions within the state machine framework.
 ///
 /// This enum is used to signal failure scenarios when, for example, converting state output or context

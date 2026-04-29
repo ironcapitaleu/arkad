@@ -35,6 +35,8 @@ pub use state::State;
 pub use transition::Transition;
 
 use super::ErrorKind;
+use std::error::Error;
+use std::fmt::{self, Display, Formatter};
 
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
@@ -53,8 +55,8 @@ pub enum StateMachine {
     Transition(Transition),
 }
 
-impl std::fmt::Display for StateMachine {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+impl Display for StateMachine {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match self {
             Self::State(state) => {
                 write!(
@@ -72,7 +74,7 @@ impl std::fmt::Display for StateMachine {
     }
 }
 
-impl std::error::Error for StateMachine {}
+impl Error for StateMachine {}
 
 impl From<State> for StateMachine {
     /// Converts a [`State`] error into a more general [`StateMachine`] error.

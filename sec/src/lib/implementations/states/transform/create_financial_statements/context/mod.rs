@@ -35,12 +35,13 @@
 
 use std::fmt;
 
+use serde::Serialize;
 use state_maschine::prelude::Context as SMContext;
 
 use crate::shared::cik::Cik;
 use crate::traits::state_machine::state::Context;
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, serde::Serialize)]
+#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
 /// State context for the Create Financial Statements state.
 pub struct CreateFinancialStatementsContext {
     /// The CIK identifying the company whose financial statements are being created.

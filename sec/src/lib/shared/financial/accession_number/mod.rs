@@ -4,7 +4,9 @@
 //! An accession number uniquely identifies a filing in the SEC EDGAR system
 //! (e.g., `"0000320193-23-000106"`).
 
-use std::fmt;
+use std::fmt::{self, Display, Formatter};
+
+use serde::Serialize;
 
 /// An SEC filing accession number.
 ///
@@ -18,7 +20,7 @@ use std::fmt;
 /// let accn = AccessionNumber::new("0000320193-23-000106");
 /// assert_eq!(accn.value(), "0000320193-23-000106");
 /// ```
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub struct AccessionNumber(String);
 
 impl AccessionNumber {
@@ -35,8 +37,8 @@ impl AccessionNumber {
     }
 }
 
-impl fmt::Display for AccessionNumber {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+impl Display for AccessionNumber {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         write!(f, "{}", self.0)
     }
 }

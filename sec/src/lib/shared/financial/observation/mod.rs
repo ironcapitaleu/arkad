@@ -4,7 +4,9 @@
 //! with full typing and lineage. Each observation carries its value, unit, time period,
 //! optional SEC frame identifier, and the filing it originated from.
 
-use std::fmt;
+use std::fmt::{self, Display, Formatter};
+
+use serde::Serialize;
 
 use crate::shared::financial::filing_source::FilingSource;
 use crate::shared::financial::frame::Frame;
@@ -47,7 +49,7 @@ use crate::shared::financial::unit::Unit;
 ///     ),
 /// );
 /// ```
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub struct Observation {
     value: i64,
     unit: Unit,
@@ -106,8 +108,8 @@ impl Observation {
     }
 }
 
-impl fmt::Display for Observation {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+impl Display for Observation {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         write!(
             f,
             "{} {} [{}] from {}",

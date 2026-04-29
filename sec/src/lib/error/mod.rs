@@ -29,6 +29,9 @@
 /// Error module for state machine operations.
 pub mod state_machine;
 
+use std::error::Error;
+use std::fmt::{self, Display, Formatter};
+
 pub use state_machine::StateMachine;
 pub use state_machine::state::State;
 pub use state_machine::transition::Transition;
@@ -47,8 +50,8 @@ pub enum ErrorKind {
     DowncastNotPossible,
 }
 
-impl std::fmt::Display for ErrorKind {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+impl Display for ErrorKind {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match self {
             Self::StateMachine(state_machine) => {
                 write!(
@@ -66,7 +69,7 @@ impl std::fmt::Display for ErrorKind {
     }
 }
 
-impl std::error::Error for ErrorKind {}
+impl Error for ErrorKind {}
 
 impl From<StateMachine> for ErrorKind {
     /// Converts a [`StateMachine`] error into an [`ErrorKind`].

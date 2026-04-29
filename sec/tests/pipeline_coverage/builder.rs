@@ -1,3 +1,5 @@
+use std::pin::pin;
+
 use futures_util::StreamExt;
 use sec::implementations::states::extract::ExtractSuperState;
 use sec::implementations::states::extract::validate_cik_format::ValidateCikFormat;
@@ -41,7 +43,7 @@ impl Pipeline {
     pub async fn run(self) -> Result<(), StreamError> {
         let execution_id = Uuid::new_v4();
         let state = ExtractSuperState::<ValidateCikFormat>::new(self.raw_cik);
-        let mut stream = std::pin::pin!(state.into_stream(execution_id));
+        let mut stream = pin!(state.into_stream(execution_id));
 
         while let Some(result) = stream.next().await {
             if let Err(e) = result {

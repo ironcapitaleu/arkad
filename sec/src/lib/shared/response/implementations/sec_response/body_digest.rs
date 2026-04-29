@@ -4,8 +4,10 @@
 //! Computed once at construction time and reused for `Hash` and `Ord` implementations,
 //! avoiding expensive re-serialization of large JSON payloads.
 
-use std::fmt;
+use std::fmt::{self, Display, Formatter};
 use std::hash::{DefaultHasher, Hash, Hasher};
+
+use serde::Serialize;
 
 /// A precomputed `u64` digest of a response body.
 ///
@@ -25,7 +27,7 @@ use std::hash::{DefaultHasher, Hash, Hasher};
 /// let digest = BodyDigest::from_body_text("some body text");
 /// assert_eq!(digest, BodyDigest::from_body_text("some body text"));
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub struct BodyDigest(u64);
 
 impl BodyDigest {
@@ -44,8 +46,8 @@ impl BodyDigest {
     }
 }
 
-impl fmt::Display for BodyDigest {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+impl Display for BodyDigest {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         write!(f, "{:016x}", self.0)
     }
 }

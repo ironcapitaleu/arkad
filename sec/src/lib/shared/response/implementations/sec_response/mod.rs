@@ -1,7 +1,9 @@
 use std::collections::HashMap;
-use std::fmt;
+use std::fmt::{self, Display, Formatter};
 
 use async_trait::async_trait;
+use serde::ser::SerializeStruct;
+use serde::{Serialize, Serializer};
 
 use crate::shared::content_type::ContentType;
 use crate::shared::headers::Headers;
@@ -101,9 +103,8 @@ impl SecResponse {
     }
 }
 
-impl serde::Serialize for SecResponse {
-    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        use serde::ser::SerializeStruct;
+impl Serialize for SecResponse {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         let mut state = serializer.serialize_struct("SecResponse", 4)?;
         state.serialize_field("url", &self.url.to_string())?;
         state.serialize_field("status_code", &self.status_code.to_string())?;
@@ -113,8 +114,8 @@ impl serde::Serialize for SecResponse {
     }
 }
 
-impl fmt::Display for SecResponse {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+impl Display for SecResponse {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         write!(f, "{} {}", self.status_code, self.url)
     }
 }

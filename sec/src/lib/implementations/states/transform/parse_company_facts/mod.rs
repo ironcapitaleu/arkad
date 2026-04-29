@@ -34,6 +34,7 @@ use std::fmt;
 
 use async_trait::async_trait;
 use chrono::NaiveDate;
+use serde::Serialize;
 use state_maschine::prelude::State as SMState;
 
 use crate::error::State as StateError;
@@ -67,7 +68,7 @@ pub use context::ParseCompanyFactsContext;
 pub use data::ParseCompanyFactsInput;
 pub use data::ParseCompanyFactsOutput;
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 /// State that parses SEC Company Facts JSON into structured financial data.
 ///
 /// The state takes a raw SEC Company Facts JSON response as input, validates
@@ -318,7 +319,7 @@ impl SMState for ParseCompanyFacts {
         };
 
         if let Err(e) = result {
-            let state_err: crate::error::State = e;
+            let state_err: StateError = e;
             panic!("compute_output_data failed: {state_err}")
         }
     }

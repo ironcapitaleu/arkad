@@ -15,6 +15,11 @@
 
 pub mod constants;
 
+use std::fmt::{self, Display, Formatter};
+
+use serde::ser::SerializeStruct;
+use serde::{Serialize, Serializer};
+
 use crate::shared::financial::unit::Unit;
 
 /// Specification for an XBRL financial concept to extract from SEC data.
@@ -95,8 +100,8 @@ impl ConceptDefinition {
     }
 }
 
-impl std::fmt::Display for ConceptDefinition {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+impl Display for ConceptDefinition {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         write!(
             f,
             "{} ({}{})",
@@ -107,9 +112,8 @@ impl std::fmt::Display for ConceptDefinition {
     }
 }
 
-impl serde::Serialize for ConceptDefinition {
-    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        use serde::ser::SerializeStruct;
+impl Serialize for ConceptDefinition {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         let mut state = serializer.serialize_struct("ConceptDefinition", 4)?;
         state.serialize_field("canonical_name", &self.canonical_name)?;
         state.serialize_field("xbrl_keys", &self.xbrl_keys)?;

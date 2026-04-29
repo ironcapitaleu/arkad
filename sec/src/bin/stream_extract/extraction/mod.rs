@@ -1,7 +1,9 @@
 mod builder;
 pub mod constants;
 
-use std::fmt;
+use std::fmt::{self, Display, Formatter};
+use std::pin::pin;
+use std::time::Instant;
 
 use futures_util::StreamExt;
 use sec::implementations::states::extract::ExtractSuperState;
@@ -17,8 +19,8 @@ enum PipelineEvent {
     Failed,
 }
 
-impl fmt::Display for PipelineEvent {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl Display for PipelineEvent {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             Self::Complete => write!(f, "pipeline_complete"),
             Self::Failed => write!(f, "pipeline_failed"),
@@ -44,10 +46,10 @@ impl Extraction {
     pub async fn run(self) -> Result<(), StreamError> {
         let cik = self.raw_cik.clone();
         let execution_id = Uuid::new_v4();
-        let pipeline_start = std::time::Instant::now();
-        let mut stream = std::pin::pin!(self.into_stream(execution_id));
+        let pipeline_start = Instant::now();
+        let mut stream = pin!(self.into_stream(execution_id));
 
-        let mut stream_error: Option<sec::prelude::StreamError> = None;
+        let mut stream_error: Option<StreamError> = None;
         while let Some(result) = stream.next().await {
             match result {
                 Ok(item) => {

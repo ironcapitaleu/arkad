@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use serde::Serialize;
+
 use crate::shared::content_type::ContentType;
 
 use self::constants::{ACCEPT_ENCODING_HEADER, CONTENT_TYPE_HEADER, DATE_HEADER, ETAG_HEADER};
@@ -32,7 +34,7 @@ pub use headers_error::{HeadersError, InvalidHeadersReason};
 /// assert_eq!(headers.etag(), Some("\"abc123\""));
 /// assert_eq!(headers.get("x-custom"), Some("value"));
 /// ```
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct Headers {
     /// The content type parsed from the `Content-Type` header.
     content_type: ContentType,

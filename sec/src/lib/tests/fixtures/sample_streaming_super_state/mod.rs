@@ -3,9 +3,10 @@
 //! A minimal 3-state linear pipeline (`StateA → StateB → StateC`) for testing the
 //! [`IntoStateMachineStream`] blanket impl and [`NonTerminal`] trait.
 
-use std::fmt;
+use std::fmt::{self, Display, Formatter};
 
 use async_trait::async_trait;
+use serde::Serialize;
 use state_maschine::prelude::{
     State as SMState, StateMachine as SMStateMachine, SuperState as SMSuperState,
     Transition as SMTransition,
@@ -27,7 +28,7 @@ pub use state_c::SampleStateC;
 // --- Shared data/context unit types ---
 
 /// Unit struct for super state data — no actual data needed for streaming tests.
-#[derive(Debug, Clone, Default, PartialEq, PartialOrd, Hash, Eq, Ord, serde::Serialize)]
+#[derive(Debug, Clone, Default, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
 pub struct SampleStreamingData;
 
 impl StateData for SampleStreamingData {
@@ -47,7 +48,7 @@ impl SMStateData for SampleStreamingData {
 }
 
 /// Unit struct for super state context — no actual context needed for streaming tests.
-#[derive(Debug, Clone, Default, PartialEq, PartialOrd, Hash, Eq, Ord, serde::Serialize)]
+#[derive(Debug, Clone, Default, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
 pub struct SampleStreamingContext;
 
 impl Context for SampleStreamingContext {
@@ -69,7 +70,7 @@ impl SMContext for SampleStreamingContext {
 // --- Super state ---
 
 /// A minimal super state for testing streaming. Generic over the current inner state.
-#[derive(Debug, Clone, Default, PartialEq, PartialOrd, Hash, Eq, Ord, serde::Serialize)]
+#[derive(Debug, Clone, Default, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
 pub struct SampleStreamingSuperState<S: State> {
     current_state: S,
     input: SampleStreamingData,
@@ -90,8 +91,8 @@ impl SampleStreamingSuperState<SampleStateA> {
     }
 }
 
-impl<S: State> fmt::Display for SampleStreamingSuperState<S> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl<S: State> Display for SampleStreamingSuperState<S> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(
             f,
             "SampleStreamingSuperState({})",

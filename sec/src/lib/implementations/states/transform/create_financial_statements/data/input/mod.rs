@@ -28,6 +28,7 @@
 use std::fmt;
 use std::hash::{Hash, Hasher};
 
+use serde::Serialize;
 use state_maschine::prelude::StateData as SMStateData;
 
 use crate::error::State as StateError;
@@ -37,7 +38,7 @@ use crate::traits::state_machine::state::StateData;
 // Deviation: `CompanyData` uses manual `Hash`, `PartialEq`, `Eq`, `PartialOrd`, `Ord`
 // implementations because it contains a `HashMap`. This struct delegates to those
 // manual implementations rather than deriving them.
-#[derive(Debug, Clone, serde::Serialize)]
+#[derive(Debug, Clone, Serialize)]
 /// Input data for creating financial statements from company data.
 ///
 /// This struct holds the [`CompanyData`] produced by a preceding parse state,

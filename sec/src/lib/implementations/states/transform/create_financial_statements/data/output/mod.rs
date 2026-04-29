@@ -25,12 +25,13 @@
 
 use std::fmt;
 
+use serde::Serialize;
 use state_maschine::prelude::StateData as SMStateData;
 
 use crate::error::State as StateError;
 use crate::traits::state_machine::state::StateData;
 
-#[derive(Debug, Clone, Default, PartialEq, PartialOrd, Hash, Eq, Ord, serde::Serialize)]
+#[derive(Debug, Clone, Default, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
 /// Placeholder output data for the Create Financial Statements state.
 ///
 /// This unit struct serves as a scaffold for the financial statement creation output.

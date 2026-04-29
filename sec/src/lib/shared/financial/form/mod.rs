@@ -4,7 +4,9 @@
 //! Each SEC filing is associated with a form type that determines the nature
 //! and scope of the reported financial data.
 
-use std::fmt;
+use std::fmt::{self, Display, Formatter};
+
+use serde::Serialize;
 
 /// SEC filing form type.
 ///
@@ -19,7 +21,7 @@ use std::fmt;
 /// assert_eq!(form.to_string(), "10-K");
 /// ```
 #[non_exhaustive]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub enum Form {
     /// Annual report (10-K).
     TenK,
@@ -27,8 +29,8 @@ pub enum Form {
     TenQ,
 }
 
-impl fmt::Display for Form {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+impl Display for Form {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match self {
             Self::TenK => write!(f, "10-K"),
             Self::TenQ => write!(f, "10-Q"),

@@ -4,7 +4,9 @@
 //! Every financial observation carries a `FilingSource` to maintain a complete audit trail
 //! of where each data point originated.
 
-use std::fmt;
+use std::fmt::{self, Display, Formatter};
+
+use serde::Serialize;
 
 use chrono::NaiveDate;
 
@@ -36,7 +38,7 @@ use crate::shared::financial::form::Form;
 ///     NaiveDate::from_ymd_opt(2023, 9, 30).unwrap(),
 /// );
 /// ```
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub struct FilingSource {
     accession_number: AccessionNumber,
     form: Form,
@@ -104,8 +106,8 @@ impl FilingSource {
     }
 }
 
-impl fmt::Display for FilingSource {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+impl Display for FilingSource {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         write!(
             f,
             "{} {} {} {} (filed {})",

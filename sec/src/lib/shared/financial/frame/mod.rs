@@ -4,7 +4,9 @@
 //! Frames like `CY2023`, `CY2023Q1`, or `CY2023Q3I` tag data points with their
 //! calendar year, optional quarter, and whether the measurement is an instant or duration.
 
-use std::fmt;
+use std::fmt::{self, Display, Formatter};
+
+use serde::Serialize;
 
 use crate::shared::financial::quarter::Quarter;
 
@@ -25,7 +27,7 @@ use crate::shared::financial::quarter::Quarter;
 /// assert_eq!(frame.year(), 2023);
 /// assert!(frame.instant());
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub struct Frame {
     year: u16,
     quarter: Option<Quarter>,
@@ -94,8 +96,8 @@ impl Frame {
     }
 }
 
-impl fmt::Display for Frame {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+impl Display for Frame {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         write!(f, "CY{}", self.year)?;
         if let Some(q) = self.quarter {
             write!(f, "{q}")?;

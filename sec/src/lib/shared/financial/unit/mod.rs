@@ -4,7 +4,9 @@
 //! Each XBRL concept has an expected unit type (e.g., monetary values in USD,
 //! share counts in shares).
 
-use std::fmt;
+use std::fmt::{self, Display, Formatter};
+
+use serde::Serialize;
 
 /// Measurement unit for a financial data point.
 ///
@@ -19,7 +21,7 @@ use std::fmt;
 /// assert_eq!(unit.to_string(), "USD");
 /// ```
 #[non_exhaustive]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub enum Unit {
     /// United States Dollars.
     Usd,
@@ -31,8 +33,8 @@ pub enum Unit {
     Pure,
 }
 
-impl fmt::Display for Unit {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+impl Display for Unit {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match self {
             Self::Usd => write!(f, "USD"),
             Self::Shares => write!(f, "shares"),

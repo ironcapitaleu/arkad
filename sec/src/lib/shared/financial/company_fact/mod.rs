@@ -5,7 +5,9 @@
 //! a [`ConceptDefinition`](crate::shared::financial::concept_definition::ConceptDefinition)
 //! against a specific company's SEC data.
 
-use std::fmt;
+use std::fmt::{self, Display, Formatter};
+
+use serde::Serialize;
 
 use crate::shared::financial::observation::Observation;
 
@@ -26,7 +28,7 @@ use crate::shared::financial::observation::Observation;
 /// );
 /// assert_eq!(fact.company_label(), "Net Sales");
 /// ```
-#[derive(Debug, Clone, serde::Serialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct CompanyFact {
     company_label: String,
     matched_xbrl_key: String,
@@ -110,8 +112,8 @@ impl Ord for CompanyFact {
     }
 }
 
-impl fmt::Display for CompanyFact {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+impl Display for CompanyFact {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         write!(
             f,
             "{} ({}, {} observations)",

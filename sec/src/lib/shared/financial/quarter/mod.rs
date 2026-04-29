@@ -4,7 +4,9 @@
 //! Used in [`Frame`](crate::shared::financial::frame::Frame) to identify
 //! which calendar quarter a data point belongs to.
 
-use std::fmt;
+use std::fmt::{self, Display, Formatter};
+
+use serde::Serialize;
 
 /// A calendar quarter (Q1 through Q4).
 ///
@@ -19,7 +21,7 @@ use std::fmt;
 /// assert_eq!(q.to_string(), "Q1");
 /// ```
 #[non_exhaustive]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub enum Quarter {
     /// First quarter (January - March).
     Q1,
@@ -31,8 +33,8 @@ pub enum Quarter {
     Q4,
 }
 
-impl fmt::Display for Quarter {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+impl Display for Quarter {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match self {
             Self::Q1 => write!(f, "Q1"),
             Self::Q2 => write!(f, "Q2"),

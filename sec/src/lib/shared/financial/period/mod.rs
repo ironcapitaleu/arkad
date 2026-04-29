@@ -4,7 +4,9 @@
 //! SEC XBRL data distinguishes between instant measurements (Balance Sheet items at a point in time)
 //! and duration measurements (Income Statement/Cash Flow items over a range).
 
-use std::fmt;
+use std::fmt::{self, Display, Formatter};
+
+use serde::Serialize;
 
 use chrono::NaiveDate;
 
@@ -30,7 +32,7 @@ use chrono::NaiveDate;
 /// };
 /// ```
 #[non_exhaustive]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub enum Period {
     /// A point-in-time snapshot (e.g., Balance Sheet items).
     Instant {
@@ -46,8 +48,8 @@ pub enum Period {
     },
 }
 
-impl fmt::Display for Period {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+impl Display for Period {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match self {
             Self::Instant { date } => write!(f, "Instant({date})"),
             Self::Duration { start, end } => write!(f, "Duration({start} to {end})"),

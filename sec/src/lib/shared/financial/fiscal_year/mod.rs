@@ -3,7 +3,9 @@
 //! Provides the [`FiscalYear`] newtype wrapping a fiscal year number.
 //! Prevents bare `u16` values from being confused with other numeric fields.
 
-use std::fmt;
+use std::fmt::{self, Display, Formatter};
+
+use serde::Serialize;
 
 /// A fiscal year identifier (e.g., 2023, 2024).
 ///
@@ -17,7 +19,7 @@ use std::fmt;
 /// assert_eq!(fy.value(), 2023);
 /// assert_eq!(fy.to_string(), "2023");
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub struct FiscalYear(u16);
 
 impl FiscalYear {
@@ -66,8 +68,8 @@ impl TryFrom<u64> for FiscalYear {
     }
 }
 
-impl fmt::Display for FiscalYear {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+impl Display for FiscalYear {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         write!(f, "{}", self.0)
     }
 }

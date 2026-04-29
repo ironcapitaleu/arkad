@@ -1,4 +1,6 @@
 use reqwest::{Method, Request, Url};
+use serde::ser::SerializeStruct;
+use serde::{Serialize, Serializer};
 
 use crate::shared::{cik::Cik, request::SecRequest as SecRequestTrait};
 
@@ -19,9 +21,8 @@ pub struct SecRequest {
     pub inner: Request,
 }
 
-impl serde::Serialize for SecRequest {
-    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        use serde::ser::SerializeStruct;
+impl Serialize for SecRequest {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         let mut state = serializer.serialize_struct("SecRequest", 2)?;
         state.serialize_field("url", self.inner.url().as_str())?;
         state.serialize_field("method", self.inner.method().as_str())?;
@@ -126,7 +127,7 @@ impl Ord for SecRequest {
 /// Each variant encodes the input parameters that are required to make the request.
 /// Every variant automatically encodes the logic to create a properly formatted request
 /// based on the input parameters, that includes setting up the correct URL endpoint and HTTP method for the request.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize)]
 #[non_exhaustive]
 pub enum SecRequestType {
     /// Fetches all the facts for a given company based on its CIK. This includes all the financial statement data that the company has submitted to the SEC over the years, such as balance sheets, income statements, cash flow statements, and other relevant financial information.

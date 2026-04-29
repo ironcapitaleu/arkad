@@ -1,5 +1,8 @@
 use async_trait::async_trait;
 
+use serde::ser::SerializeStruct;
+use serde::{Serialize, Serializer};
+
 use crate::shared::http_client::InnerClient;
 use crate::shared::http_client::SecClient as SecClientTrait;
 use crate::shared::request::implementations::sec_request::SecRequest;
@@ -21,9 +24,8 @@ pub struct SecClient {
     inner: reqwest::Client,
 }
 
-impl serde::Serialize for SecClient {
-    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        use serde::ser::SerializeStruct;
+impl Serialize for SecClient {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         let state = serializer.serialize_struct("SecClient", 0)?;
         state.end()
     }
