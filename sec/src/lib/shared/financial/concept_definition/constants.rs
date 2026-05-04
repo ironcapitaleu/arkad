@@ -45,7 +45,7 @@ pub const TOTAL_ASSETS: &str = "Total Assets";
 pub const TOTAL_LIABILITIES: &str = "Total Liabilities";
 
 /// Canonical name for stockholders' equity.
-pub const STOCKHOLDERS_EQUITY: &str = "Stockholders Equity";
+pub const STOCKHOLDERS_EQUITY: &str = "Stockholders' Equity";
 
 /// Canonical name for net cash from operating activities.
 pub const CASH_FROM_OPERATIONS: &str = "Cash from Operations";
