@@ -101,7 +101,7 @@ impl SMStateData for ValidateCikFormatInput {
 
 impl fmt::Display for ValidateCikFormatInput {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "\tCIK: {}", self.raw_cik,)
+        write!(f, "\tCIK: {}", self.raw_cik)
     }
 }
 

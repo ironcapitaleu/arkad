@@ -381,7 +381,10 @@ mod tests {
             true,
         );
 
-        let _ = stream.next().await.expect("A valid state stream should always start with StateStarted");
+        let _ = stream
+            .next()
+            .await
+            .expect("A valid state stream should always start with StateStarted");
         let err = stream
             .next()
             .await
@@ -409,8 +412,14 @@ mod tests {
             true,
         );
 
-        let _ = stream.next().await.expect("A valid state stream should always start with StateStarted");
-        let _ = stream.next().await.expect("A valid state stream with succeeding compute should yield StateCompleted");
+        let _ = stream
+            .next()
+            .await
+            .expect("A valid state stream should always start with StateStarted");
+        let _ = stream
+            .next()
+            .await
+            .expect("A valid state stream with succeeding compute should yield StateCompleted");
         let err = stream
             .next()
             .await

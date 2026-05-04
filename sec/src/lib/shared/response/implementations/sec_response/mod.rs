@@ -62,7 +62,6 @@ impl PartialOrd for SecResponse {
 }
 
 impl Ord for SecResponse {
-    // Ordering follows the same stable fields used by equality and hashing.
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         self.url
             .cmp(&other.url)
