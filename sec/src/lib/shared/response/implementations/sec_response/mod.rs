@@ -36,9 +36,9 @@ pub struct SecResponse {
 impl PartialEq for SecResponse {
     fn eq(&self, other: &Self) -> bool {
         self.url == other.url
-            && self.headers == other.headers
+            && self.content_type == other.content_type
             && self.status_code == other.status_code
-            && self.body == other.body
+            && self.body_digest == other.body_digest
     }
 }
 
@@ -62,11 +62,12 @@ impl PartialOrd for SecResponse {
 }
 
 impl Ord for SecResponse {
-    // `Headers`, `StatusCode`, and `serde_json::Value` do not implement `Ord`.
-    // The body is represented by its precomputed `BodyDigest`.
+    // Ordering follows the same stable fields used by equality and hashing.
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         self.url
             .cmp(&other.url)
+            .then_with(|| self.content_type.cmp(&other.content_type))
+            .then_with(|| self.status_code.cmp(&other.status_code))
             .then_with(|| self.body_digest.cmp(&other.body_digest))
     }
 }
