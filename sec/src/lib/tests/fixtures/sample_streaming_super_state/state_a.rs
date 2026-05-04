@@ -15,6 +15,7 @@ pub struct SampleStateA {
     input: SampleStreamingData,
     context: SampleStreamingContext,
     output: Option<SampleStreamingData>,
+    pub force_compute_error: bool,
 }
 
 impl SampleStateA {
@@ -24,6 +25,7 @@ impl SampleStateA {
             input: SampleStreamingData,
             context: SampleStreamingContext,
             output: None,
+            force_compute_error: false,
         }
     }
 }
@@ -31,6 +33,9 @@ impl SampleStateA {
 #[async_trait]
 impl State for SampleStateA {
     async fn compute_output_data_async(&mut self) -> Result<(), StateError> {
+        if self.force_compute_error {
+            return Err(StateError::InvalidInput);
+        }
         self.output = Some(SampleStreamingData);
         Ok(())
     }

@@ -76,6 +76,8 @@ pub struct SampleStreamingSuperState<S: State> {
     input: SampleStreamingData,
     output: Option<SampleStreamingData>,
     context: SampleStreamingContext,
+    pub force_compute_error: bool,
+    pub force_transition_error: bool,
 }
 
 impl SampleStreamingSuperState<SampleStateA> {
@@ -87,6 +89,8 @@ impl SampleStreamingSuperState<SampleStateA> {
             input: SampleStreamingData,
             output: None,
             context: SampleStreamingContext,
+            force_compute_error: false,
+            force_transition_error: false,
         }
     }
 }
@@ -104,6 +108,9 @@ impl<S: State> Display for SampleStreamingSuperState<S> {
 #[async_trait]
 impl<S: State> State for SampleStreamingSuperState<S> {
     async fn compute_output_data_async(&mut self) -> Result<(), StateError> {
+        if self.force_compute_error {
+            return Err(StateError::InvalidInput);
+        }
         self.current_state
             .compute_output_data_async()
             .await
@@ -170,11 +177,21 @@ impl SMTransition<SampleStateA, SampleStateB> for SampleStreamingSuperState<Samp
 
 impl Transition<SampleStateA, SampleStateB> for SampleStreamingSuperState<SampleStateA> {
     fn transition_to_next_state_sec(self) -> Result<Self::NewStateMachine, TransitionError> {
+        if self.force_transition_error {
+            return Err(TransitionError::FailedContextConversion(
+                crate::error::state_machine::transition::FailedContextConversion::new(
+                    "SampleStateA",
+                    "SampleStateB",
+                ),
+            ));
+        }
         Ok(SampleStreamingSuperState {
             current_state: SampleStateB::new(),
             input: SampleStreamingData,
             output: None,
             context: SampleStreamingContext,
+            force_compute_error: false,
+            force_transition_error: false,
         })
     }
 }
@@ -189,11 +206,21 @@ impl SMTransition<SampleStateB, SampleStateC> for SampleStreamingSuperState<Samp
 
 impl Transition<SampleStateB, SampleStateC> for SampleStreamingSuperState<SampleStateB> {
     fn transition_to_next_state_sec(self) -> Result<Self::NewStateMachine, TransitionError> {
+        if self.force_transition_error {
+            return Err(TransitionError::FailedContextConversion(
+                crate::error::state_machine::transition::FailedContextConversion::new(
+                    "SampleStateB",
+                    "SampleStateC",
+                ),
+            ));
+        }
         Ok(SampleStreamingSuperState {
             current_state: SampleStateC::new(),
             input: SampleStreamingData,
             output: None,
             context: SampleStreamingContext,
+            force_compute_error: false,
+            force_transition_error: false,
         })
     }
 }
