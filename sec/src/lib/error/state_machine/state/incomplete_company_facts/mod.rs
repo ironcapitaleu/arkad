@@ -11,21 +11,70 @@
 //!
 //! ## Types
 //! - [`IncompleteCompanyFacts`]: Struct containing the state name and list of missing fields.
+//! - [`MissingFields`]: Newtype for displaying a list of field names in a stable format.
 //!
 //! ## Example
 //! ```rust
-//! use sec::error::state_machine::state::incomplete_company_facts::IncompleteCompanyFacts;
+//! use sec::error::state_machine::state::incomplete_company_facts::{
+//!     IncompleteCompanyFacts, MissingFields,
+//! };
 //!
 //! let error = IncompleteCompanyFacts::new(
 //!     "Parse Company Facts",
-//!     vec!["Revenue".to_string(), "Total Assets".to_string()],
+//!     MissingFields::new(vec!["Revenue".to_string(), "Total Assets".to_string()]),
 //! );
-//! assert_eq!(error.missing_fields().len(), 2);
+//! assert_eq!(error.missing_fields().as_slice().len(), 2);
 //! ```
+
+use std::fmt;
 
 use thiserror::Error;
 
 use super::State as StateError;
+
+/// A list of missing field names.
+///
+/// Formats as: `["Revenue", "Total Assets"]` — brackets around list, quotes around items, comma-separated.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct MissingFields(Vec<String>);
+
+impl MissingFields {
+    /// Creates a new [`MissingFields`] from a list of canonical field names.
+    #[must_use]
+    pub const fn new(fields: Vec<String>) -> Self {
+        Self(fields)
+    }
+
+    /// Returns the underlying field names as a slice.
+    #[must_use]
+    pub fn as_slice(&self) -> &[String] {
+        &self.0
+    }
+
+    /// Returns the number of missing fields.
+    #[must_use]
+    pub const fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    /// Returns `true` if there are no missing fields.
+    #[must_use]
+    pub const fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+}
+
+impl fmt::Display for MissingFields {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let formatted = self
+            .0
+            .iter()
+            .map(|s| format!("\"{s}\""))
+            .collect::<Vec<_>>()
+            .join(", ");
+        write!(f, "[{formatted}]")
+    }
+}
 
 /// Error indicating that an SEC Company Facts response is missing expected data fields.
 ///
@@ -34,11 +83,11 @@ use super::State as StateError;
 /// were not found in the response.
 #[derive(Error, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[error(
-    "[IncompleteCompanyFacts] SEC response is missing expected data fields in State: '{state_name}', Reason: 'Missing fields: {missing_fields:?}'"
+    "[IncompleteCompanyFacts] SEC response is missing expected data fields in State: '{state_name}', Reason: 'Missing fields: {missing_fields}'"
 )]
 pub struct IncompleteCompanyFacts {
     state_name: String,
-    missing_fields: Vec<String>,
+    missing_fields: MissingFields,
 }
 
 impl IncompleteCompanyFacts {
@@ -48,7 +97,7 @@ impl IncompleteCompanyFacts {
     /// * `state_name` - The name of the state where validation failed.
     /// * `missing_fields` - The canonical names of the concepts that were not found.
     #[must_use]
-    pub fn new(state_name: impl Into<String>, missing_fields: Vec<String>) -> Self {
+    pub fn new(state_name: impl Into<String>, missing_fields: MissingFields) -> Self {
         Self {
             state_name: state_name.into(),
             missing_fields,
@@ -63,7 +112,7 @@ impl IncompleteCompanyFacts {
 
     /// Returns the list of missing field canonical names.
     #[must_use]
-    pub fn missing_fields(&self) -> &[String] {
+    pub const fn missing_fields(&self) -> &MissingFields {
         &self.missing_fields
     }
 }
@@ -83,7 +132,7 @@ mod tests {
     #[test]
     fn should_create_error_with_state_name_and_missing_fields_when_new_is_called() {
         let state_name = "Parse Company Facts";
-        let missing = vec!["Revenue".to_string(), "Total Assets".to_string()];
+        let missing = MissingFields::new(vec!["Revenue".to_string(), "Total Assets".to_string()]);
 
         let expected_result = IncompleteCompanyFacts {
             state_name: state_name.to_string(),
@@ -97,7 +146,10 @@ mod tests {
 
     #[test]
     fn should_return_state_name_when_accessed() {
-        let error = IncompleteCompanyFacts::new("Parse Company Facts", vec!["Revenue".to_string()]);
+        let error = IncompleteCompanyFacts::new(
+            "Parse Company Facts",
+            MissingFields::new(vec!["Revenue".to_string()]),
+        );
 
         let expected_result = "Parse Company Facts";
 
@@ -108,10 +160,10 @@ mod tests {
 
     #[test]
     fn should_return_missing_fields_when_accessed() {
-        let missing = vec!["Revenue".to_string(), "Total Assets".to_string()];
+        let missing = MissingFields::new(vec!["Revenue".to_string(), "Total Assets".to_string()]);
         let error = IncompleteCompanyFacts::new("TestState", missing.clone());
 
-        let expected_result = missing.as_slice();
+        let expected_result = &missing;
 
         let result = error.missing_fields();
 
@@ -120,7 +172,10 @@ mod tests {
 
     #[test]
     fn should_convert_to_state_error_when_into_is_called() {
-        let error = IncompleteCompanyFacts::new("TestState", vec!["Revenue".to_string()]);
+        let error = IncompleteCompanyFacts::new(
+            "TestState",
+            MissingFields::new(vec!["Revenue".to_string()]),
+        );
 
         let expected_result = StateError::IncompleteCompanyFacts(error.clone());
 

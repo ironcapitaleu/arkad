@@ -38,7 +38,9 @@ use serde::Serialize;
 use state_maschine::prelude::State as SMState;
 
 use crate::error::State as StateError;
-use crate::error::state_machine::state::IncompleteCompanyFacts;
+use crate::error::state_machine::state::incomplete_company_facts::{
+    IncompleteCompanyFacts, MissingFields,
+};
 use crate::shared::cik::Cik;
 use crate::shared::financial::accession_number::AccessionNumber;
 use crate::shared::financial::company_data::CompanyData;
@@ -276,7 +278,10 @@ impl State for ParseCompanyFacts {
         }
 
         if !missing_fields.is_empty() {
-            let error = IncompleteCompanyFacts::new(self.state_name().to_string(), missing_fields);
+            let error = IncompleteCompanyFacts::new(
+                self.state_name().to_string(),
+                MissingFields::new(missing_fields),
+            );
             return Err(error.into());
         }
 
