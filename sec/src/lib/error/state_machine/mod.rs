@@ -35,6 +35,8 @@ pub use state::State;
 pub use transition::Transition;
 
 use super::ErrorKind;
+use std::error::Error;
+use std::fmt::{self, Display, Formatter};
 
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
@@ -53,26 +55,26 @@ pub enum StateMachine {
     Transition(Transition),
 }
 
-impl std::fmt::Display for StateMachine {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl Display for StateMachine {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match self {
             Self::State(state) => {
                 write!(
                     f,
-                    "Problem occured during internal state operations: '{state}'"
+                    "Problem occurred during internal state operations: '{state}'"
                 )
             }
             Self::Transition(transition) => {
-                write!(f, "Problem occured during state transition: '{transition}'")
+                write!(f, "Problem occurred during state transition: '{transition}'")
             }
             Self::InvalidConfiguration => {
-                write!(f, "Invalid configuration of the state machine.")
+                write!(f, "Invalid configuration of the state machine")
             }
         }
     }
 }
 
-impl std::error::Error for StateMachine {}
+impl Error for StateMachine {}
 
 impl From<State> for StateMachine {
     /// Converts a [`State`] error into a more general [`StateMachine`] error.
@@ -214,9 +216,11 @@ mod tests {
 
     #[test]
     fn should_be_able_to_create_transition_error_when_casting_from_specific_state_machine() {
-        let _result: Transition = StateMachine::Transition(Transition::FailedContextConversion)
-            .try_into()
-            .expect("Should always be able to cast provided hardcoded `StateMachine` error into `Transition` error");
+        let _result: Transition = StateMachine::Transition(Transition::FailedContextConversion(
+            transition::FailedContextConversion::new("StateA", "StateB"),
+        ))
+        .try_into()
+        .expect("Should always be able to cast provided hardcoded `StateMachine` error into `Transition` error");
     }
 
     #[test]
@@ -235,9 +239,13 @@ mod tests {
 
     #[test]
     fn should_be_able_to_cast_into_equivalent_statemachine_error_when_having_a_transition_error() {
-        let expected_result = StateMachine::Transition(Transition::FailedOutputConversion);
+        let error = Transition::FailedOutputConversion(transition::FailedOutputConversion::new(
+            "StateA", "StateB",
+        ));
 
-        let result: StateMachine = Transition::FailedOutputConversion.into();
+        let expected_result = StateMachine::Transition(error.clone());
+
+        let result: StateMachine = error.into();
 
         assert_eq!(result, expected_result);
     }
@@ -245,9 +253,14 @@ mod tests {
     #[test]
     #[should_panic]
     fn should_be_failing_when_when_trying_to_compare_casting_result_from_different_enum_variant() {
-        let expected_result = StateMachine::Transition(Transition::FailedOutputConversion);
+        let expected_result = StateMachine::Transition(Transition::FailedOutputConversion(
+            transition::FailedOutputConversion::new("StateA", "StateB"),
+        ));
 
-        let result: StateMachine = Transition::FailedContextConversion.into();
+        let result: StateMachine = Transition::FailedContextConversion(
+            transition::FailedContextConversion::new("StateX", "StateY"),
+        )
+        .into();
 
         assert_eq!(result, expected_result);
     }

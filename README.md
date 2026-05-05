@@ -33,7 +33,7 @@ stateDiagram-v2
     }
     Extract --> Transform
     state Transform {
-        ProcessSecData
+        ParseCompanyFacts --> CreateFinancialStatements
     }
     Transform --> Load
     state Load {
@@ -105,16 +105,16 @@ classDiagram
     }
     class SampleState {
         <<struct>>
-        -input: SampleSecStateInput
-        -context: SampleSecStateContext
-        -output: Option~SampleSecStateOutput~
+        -input: SampleStateInput
+        -context: SampleStateContext
+        -output: Option~SampleStateOutput~
         +new(input, context) Self
     }
-    class SampleStateInputData {
+    class SampleStateInput {
         <<struct>>
         +input_data: String
     }
-    class SampleStateOutputData {
+    class SampleStateOutput {
         <<struct>>
         +output_data: String
     }
@@ -132,11 +132,11 @@ classDiagram
     StateData --> SMStateData : "extends"
     Context --> SMContext : "extends"
     SampleState --> State : "implements"
-    SampleStateInputData --> StateData : "implements"
-    SampleStateOutputData --> StateData : "implements"
+    SampleStateInput --> StateData : "implements"
+    SampleStateOutput --> StateData : "implements"
     SampleStateContext --> Context : "implements"
-    SampleState --> SampleStateInputData : "has"
-    SampleState --> SampleStateOutputData : "has"
+    SampleState --> SampleStateInput : "has"
+    SampleState --> SampleStateOutput : "has"
     SampleState --> SampleStateContext : "has"
 ```
 
@@ -163,9 +163,8 @@ classDiagram
     class State {
         <<enum>>
         +InvalidCikFormat(InvalidCikFormat)
-        +InvalidSecResponse(InvalidSecResponse)
-        +FailedClientCreation(FailedClientCreation)
         +FailedRequestExecution(FailedRequestExecution)
+        +IncompleteCompanyFacts(IncompleteCompanyFacts)
         +InvalidInput
         +InvalidContext
         +FailedOutputComputation
@@ -183,20 +182,15 @@ classDiagram
         +String state_name
         +CikError domain_error
     }
-    class InvalidSecResponse{
-        <<struct>>
-        +String state_name
-        +SecResponseError domain_error
-    }
-    class FailedClientCreation{
-        <<struct>>
-        +String state_name
-        +SecClientError domain_error
-    }
     class FailedRequestExecution{
         <<struct>>
         +String state_name
         +SecRequestError domain_error
+    }
+    class IncompleteCompanyFacts{
+        <<struct>>
+        +String state_name
+        +Vec~String~ missing_fields
     }
     class MissingOutput{
         <<struct>>
@@ -208,15 +202,6 @@ classDiagram
         +InvalidCikReason reason
         +String invalid_cik
     }
-    class SecResponseError{
-        <<struct>>
-        +SecResponseErrorReason reason
-    }
-    class SecClientError{
-        <<struct>>
-        +SecClientErrorReason reason
-        +String user_agent
-    }
     class SecRequestError{
         <<struct>>
         +SecRequestErrorReason reason
@@ -225,19 +210,16 @@ classDiagram
     StateMachine <|-- State
     StateMachine <|-- Transition
     State <|-- InvalidCikFormat
-    State <|-- InvalidSecResponse
-    State <|-- FailedClientCreation
     State <|-- FailedRequestExecution
+    State <|-- IncompleteCompanyFacts
     Transition <|-- MissingOutput
     InvalidCikFormat --> CikError
-    InvalidSecResponse --> SecResponseError
-    FailedClientCreation --> SecClientError
     FailedRequestExecution --> SecRequestError
 ```
 
 ## Quality & Reliability
 
-- **800+ unit tests** covering state transitions, input validation, error paths, and edge cases
+- **1,000+ unit tests** covering state transitions, input validation, error paths, and edge cases
 - **Invariant-based validation** at every state boundary to prevent downstream data corruption
 - **Async and parallel execution** via Tokio, preserving pipeline correctness and reproducibility
 - **First-class CI** via GitHub Actions with automated testing, linting, and formatting checks
@@ -260,13 +242,12 @@ git clone https://github.com/ironcapitaleu/arkad.git
 cd arkad
 ```
 
-Run the example SEC pipeline:
+Run the full ETL pipeline (Extract + Transform) with structured JSON logging:
 
 ```bash
-cargo run
+# All S&P 500 CIKs (3 concurrent)
+cargo run --features tracing-logging --bin stream_etl
 ```
-
-Example entry points are in `sec/bin/main.rs`.
 
 ## Contributing
 

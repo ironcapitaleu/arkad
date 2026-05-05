@@ -1,6 +1,7 @@
-use std::fmt;
+use std::fmt::{self, Display, Formatter};
 
 use async_trait::async_trait;
+use serde::Serialize;
 use state_maschine::prelude::State as SMState;
 
 use crate::error::State as StateError;
@@ -9,11 +10,12 @@ use crate::traits::state_machine::state::State;
 use super::{SampleStreamingContext, SampleStreamingData};
 
 /// First state in the sample streaming pipeline.
-#[derive(Debug, Clone, Default, PartialEq, PartialOrd, Hash, Eq, Ord, serde::Serialize)]
+#[derive(Debug, Clone, Default, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
 pub struct SampleStateA {
     input: SampleStreamingData,
     context: SampleStreamingContext,
     output: Option<SampleStreamingData>,
+    pub force_compute_error: bool,
 }
 
 impl SampleStateA {
@@ -23,6 +25,7 @@ impl SampleStateA {
             input: SampleStreamingData,
             context: SampleStreamingContext,
             output: None,
+            force_compute_error: false,
         }
     }
 }
@@ -30,6 +33,9 @@ impl SampleStateA {
 #[async_trait]
 impl State for SampleStateA {
     async fn compute_output_data_async(&mut self) -> Result<(), StateError> {
+        if self.force_compute_error {
+            return Err(StateError::InvalidInput);
+        }
         self.output = Some(SampleStreamingData);
         Ok(())
     }
@@ -59,8 +65,8 @@ impl SMState for SampleStateA {
     }
 }
 
-impl fmt::Display for SampleStateA {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+impl Display for SampleStateA {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         write!(f, "SampleStateA")
     }
 }

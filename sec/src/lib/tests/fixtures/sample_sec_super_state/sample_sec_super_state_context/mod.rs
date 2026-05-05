@@ -1,5 +1,6 @@
-use crate::traits::state_machine::state::Context;
 use state_maschine::prelude::Context as SMContext;
+
+use crate::traits::state_machine::state::Context;
 
 #[derive(Debug, Clone, Default, PartialEq, PartialOrd, Hash, Eq, Ord)]
 pub struct SampleSecSuperStateContext;

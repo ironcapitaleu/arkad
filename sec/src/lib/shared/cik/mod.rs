@@ -28,9 +28,11 @@ pub mod constants;
 pub use cik_error::{CikError, InvalidCikReason};
 pub use constants::CIK_LENGTH;
 
-use std::fmt;
+use std::fmt::{self, Display, Formatter};
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, serde::Serialize)]
+use serde::Serialize;
+
+#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
 /// Strongly-typed wrapper for a validated SEC Central Index Key (CIK).
 ///
 /// The `Cik` type ensures that only valid, 10-digit, zero-padded numeric CIKs are constructed and used
@@ -108,8 +110,8 @@ impl Cik {
     }
 }
 
-impl fmt::Display for Cik {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+impl Display for Cik {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         write!(f, "{}", self.value)
     }
 }

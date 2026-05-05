@@ -33,12 +33,13 @@
 
 use std::fmt;
 
+use serde::Serialize;
 use state_maschine::prelude::Context as SMContext;
 
 use crate::shared::cik::Cik;
 use crate::traits::state_machine::state::Context;
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, serde::Serialize)]
+#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
 /// State context for the SEC request preparation state.
 pub struct PrepareSecRequestContext {
     pub cik: Cik,
@@ -173,8 +174,6 @@ impl Default for PrepareSecRequestContextUpdaterBuilder {
 mod tests {
     use std::{fmt::Debug, hash::Hash};
 
-    use crate::shared::cik::Cik;
-    use crate::shared::cik::constants::BERKSHIRE_HATHAWAY_CIK_RAW;
     use pretty_assertions::{assert_eq, assert_ne};
     use state_maschine::prelude::*;
 
@@ -182,6 +181,8 @@ mod tests {
         PrepareSecRequestContext, PrepareSecRequestContextUpdater,
         PrepareSecRequestContextUpdaterBuilder,
     };
+    use crate::shared::cik::Cik;
+    use crate::shared::cik::constants::BERKSHIRE_HATHAWAY_CIK_RAW;
 
     fn create_test_context() -> PrepareSecRequestContext {
         let cik =

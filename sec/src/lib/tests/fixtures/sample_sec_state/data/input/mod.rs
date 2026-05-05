@@ -13,7 +13,7 @@
 //! - Used by [`SampleSecState`](../../mod.rs) to receive input data.
 //!
 //! ## See Also
-//! - [`sec_output_data`](super::sec_output_data): The corresponding output data structure.
+//! - [`output`](super::output): The corresponding output data structure.
 //! - [`crate::traits::state_machine::state::StateData`]: Trait for state data integration.
 use std::fmt;
 

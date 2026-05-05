@@ -3,9 +3,10 @@
 //! A minimal 3-state linear pipeline (`StateA → StateB → StateC`) for testing the
 //! [`IntoStateMachineStream`] blanket impl and [`NonTerminal`] trait.
 
-use std::fmt;
+use std::fmt::{self, Display, Formatter};
 
 use async_trait::async_trait;
+use serde::Serialize;
 use state_maschine::prelude::{
     State as SMState, StateMachine as SMStateMachine, SuperState as SMSuperState,
     Transition as SMTransition,
@@ -27,7 +28,7 @@ pub use state_c::SampleStateC;
 // --- Shared data/context unit types ---
 
 /// Unit struct for super state data — no actual data needed for streaming tests.
-#[derive(Debug, Clone, Default, PartialEq, PartialOrd, Hash, Eq, Ord, serde::Serialize)]
+#[derive(Debug, Clone, Default, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
 pub struct SampleStreamingData;
 
 impl StateData for SampleStreamingData {
@@ -47,7 +48,7 @@ impl SMStateData for SampleStreamingData {
 }
 
 /// Unit struct for super state context — no actual context needed for streaming tests.
-#[derive(Debug, Clone, Default, PartialEq, PartialOrd, Hash, Eq, Ord, serde::Serialize)]
+#[derive(Debug, Clone, Default, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
 pub struct SampleStreamingContext;
 
 impl Context for SampleStreamingContext {
@@ -69,12 +70,14 @@ impl SMContext for SampleStreamingContext {
 // --- Super state ---
 
 /// A minimal super state for testing streaming. Generic over the current inner state.
-#[derive(Debug, Clone, Default, PartialEq, PartialOrd, Hash, Eq, Ord, serde::Serialize)]
+#[derive(Debug, Clone, Default, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
 pub struct SampleStreamingSuperState<S: State> {
     current_state: S,
     input: SampleStreamingData,
     output: Option<SampleStreamingData>,
     context: SampleStreamingContext,
+    pub force_compute_error: bool,
+    pub force_transition_error: bool,
 }
 
 impl SampleStreamingSuperState<SampleStateA> {
@@ -86,12 +89,14 @@ impl SampleStreamingSuperState<SampleStateA> {
             input: SampleStreamingData,
             output: None,
             context: SampleStreamingContext,
+            force_compute_error: false,
+            force_transition_error: false,
         }
     }
 }
 
-impl<S: State> fmt::Display for SampleStreamingSuperState<S> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl<S: State> Display for SampleStreamingSuperState<S> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(
             f,
             "SampleStreamingSuperState({})",
@@ -103,6 +108,9 @@ impl<S: State> fmt::Display for SampleStreamingSuperState<S> {
 #[async_trait]
 impl<S: State> State for SampleStreamingSuperState<S> {
     async fn compute_output_data_async(&mut self) -> Result<(), StateError> {
+        if self.force_compute_error {
+            return Err(StateError::InvalidInput);
+        }
         self.current_state
             .compute_output_data_async()
             .await
@@ -169,11 +177,21 @@ impl SMTransition<SampleStateA, SampleStateB> for SampleStreamingSuperState<Samp
 
 impl Transition<SampleStateA, SampleStateB> for SampleStreamingSuperState<SampleStateA> {
     fn transition_to_next_state_sec(self) -> Result<Self::NewStateMachine, TransitionError> {
+        if self.force_transition_error {
+            return Err(TransitionError::FailedContextConversion(
+                crate::error::state_machine::transition::FailedContextConversion::new(
+                    "SampleStateA",
+                    "SampleStateB",
+                ),
+            ));
+        }
         Ok(SampleStreamingSuperState {
             current_state: SampleStateB::new(),
             input: SampleStreamingData,
             output: None,
             context: SampleStreamingContext,
+            force_compute_error: false,
+            force_transition_error: false,
         })
     }
 }
@@ -188,11 +206,21 @@ impl SMTransition<SampleStateB, SampleStateC> for SampleStreamingSuperState<Samp
 
 impl Transition<SampleStateB, SampleStateC> for SampleStreamingSuperState<SampleStateB> {
     fn transition_to_next_state_sec(self) -> Result<Self::NewStateMachine, TransitionError> {
+        if self.force_transition_error {
+            return Err(TransitionError::FailedContextConversion(
+                crate::error::state_machine::transition::FailedContextConversion::new(
+                    "SampleStateB",
+                    "SampleStateC",
+                ),
+            ));
+        }
         Ok(SampleStreamingSuperState {
             current_state: SampleStateC::new(),
             input: SampleStreamingData,
             output: None,
             context: SampleStreamingContext,
+            force_compute_error: false,
+            force_transition_error: false,
         })
     }
 }

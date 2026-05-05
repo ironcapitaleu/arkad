@@ -1,5 +1,7 @@
 use std::collections::HashMap;
-use std::fmt;
+use std::fmt::{self, Display, Formatter};
+
+use serde::Serialize;
 
 /// Content type enum with automatic detection from HTTP headers.
 ///
@@ -20,7 +22,7 @@ use std::fmt;
 /// assert_eq!(content_type, ContentType::Json);
 /// assert_eq!(content_type.to_string(), "application/json");
 /// ```
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub enum ContentType {
     /// Content type is JSON (e.g., `application/json`).
     Json,
@@ -68,8 +70,8 @@ impl ContentType {
     }
 }
 
-impl fmt::Display for ContentType {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+impl Display for ContentType {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match self {
             Self::Json => write!(f, "application/json"),
             Self::Xml => write!(f, "application/xml"),

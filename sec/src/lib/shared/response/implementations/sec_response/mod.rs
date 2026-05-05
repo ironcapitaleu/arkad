@@ -1,7 +1,9 @@
 use std::collections::HashMap;
-use std::fmt;
+use std::fmt::{self, Display, Formatter};
 
 use async_trait::async_trait;
+use serde::ser::SerializeStruct;
+use serde::{Serialize, Serializer};
 
 use crate::shared::content_type::ContentType;
 use crate::shared::headers::Headers;
@@ -10,8 +12,10 @@ use crate::shared::url::Url;
 
 use super::super::traits::SecResponse as SecResponseTrait;
 
+use self::body_digest::BodyDigest;
 use self::error::{ErrorReason, InvalidSecResponse};
 
+pub mod body_digest;
 pub mod error;
 
 /// A validated SEC API response.
@@ -26,26 +30,28 @@ pub struct SecResponse {
     content_type: ContentType,
     status_code: StatusCode,
     body: serde_json::Value,
+    body_digest: BodyDigest,
 }
 
 impl PartialEq for SecResponse {
     fn eq(&self, other: &Self) -> bool {
         self.url == other.url
-            && self.headers == other.headers
+            && self.content_type == other.content_type
             && self.status_code == other.status_code
-            && self.body == other.body
+            && self.body_digest == other.body_digest
     }
 }
 
 impl Eq for SecResponse {}
 
 impl std::hash::Hash for SecResponse {
-    // Deviation: `Headers` and `serde_json::Value` do not implement `Hash`,
-    // so only `url`, `content_type`, and `status_code` are hashed.
+    // `Headers` and `serde_json::Value` do not implement `Hash`.
+    // The body is represented by its precomputed `BodyDigest`.
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.url.hash(state);
         self.content_type.hash(state);
         self.status_code.hash(state);
+        self.body_digest.hash(state);
     }
 }
 
@@ -56,10 +62,12 @@ impl PartialOrd for SecResponse {
 }
 
 impl Ord for SecResponse {
-    // Deviation: `Headers`, `StatusCode`, and `serde_json::Value` do not implement
-    // `Ord`, so ordering is based on URL only.
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.url.cmp(&other.url)
+        self.url
+            .cmp(&other.url)
+            .then_with(|| self.content_type.cmp(&other.content_type))
+            .then_with(|| self.status_code.cmp(&other.status_code))
+            .then_with(|| self.body_digest.cmp(&other.body_digest))
     }
 }
 
@@ -69,27 +77,39 @@ impl SecResponse {
     /// Unlike [`from_inner`](SecResponseTrait::from_inner), this constructor does not
     /// perform HTTP validation. The caller is responsible for ensuring the provided
     /// parts represent a valid SEC response.
+    ///
+    /// Note: the body digest is computed from `body.to_string()` (re-serialized JSON),
+    /// which may differ from the raw HTTP body text used by `from_inner` due to
+    /// whitespace or key-ordering differences. This is acceptable because the two
+    /// construction paths are never used on the same data in practice.
     #[must_use]
-    pub const fn from_parts(
+    pub fn from_parts(
         url: Url,
         headers: Headers,
         content_type: ContentType,
         status_code: StatusCode,
         body: serde_json::Value,
     ) -> Self {
+        let body_digest = BodyDigest::from_body_text(&body.to_string());
         Self {
             url,
             headers,
             content_type,
             status_code,
             body,
+            body_digest,
         }
+    }
+
+    /// Returns the precomputed body digest.
+    #[must_use]
+    pub const fn body_digest(&self) -> BodyDigest {
+        self.body_digest
     }
 }
 
-impl serde::Serialize for SecResponse {
-    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        use serde::ser::SerializeStruct;
+impl Serialize for SecResponse {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         let mut state = serializer.serialize_struct("SecResponse", 4)?;
         state.serialize_field("url", &self.url.to_string())?;
         state.serialize_field("status_code", &self.status_code.to_string())?;
@@ -99,8 +119,8 @@ impl serde::Serialize for SecResponse {
     }
 }
 
-impl fmt::Display for SecResponse {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+impl Display for SecResponse {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         write!(f, "{} {}", self.status_code, self.url)
     }
 }
@@ -143,6 +163,8 @@ impl SecResponseTrait for SecResponse {
             })
         })?;
 
+        let body_digest = BodyDigest::from_body_text(&body_text);
+
         let body = serde_json::from_str(&body_text).map_err(|e| {
             InvalidSecResponse::new(ErrorReason::InvalidBody {
                 details: e.to_string(),
@@ -155,6 +177,7 @@ impl SecResponseTrait for SecResponse {
             content_type,
             status_code,
             body,
+            body_digest,
         })
     }
 

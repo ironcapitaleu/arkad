@@ -1,4 +1,6 @@
-use std::fmt;
+use std::fmt::{self, Display, Formatter};
+
+use serde::Serialize;
 
 /// HTTP status code classification for SEC API responses.
 ///
@@ -16,7 +18,7 @@ use std::fmt;
 /// assert_eq!(status.as_u16(), 200);
 /// assert_eq!(status.to_string(), "200");
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 #[non_exhaustive]
 pub enum StatusCode {
     /// 100 Continue.
@@ -122,8 +124,8 @@ impl From<reqwest::StatusCode> for StatusCode {
     }
 }
 
-impl fmt::Display for StatusCode {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+impl Display for StatusCode {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         write!(f, "{}", self.as_u16())
     }
 }

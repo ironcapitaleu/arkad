@@ -36,7 +36,7 @@ mod tests {
     use pretty_assertions::{assert_eq, assert_ne};
     use state_maschine::prelude::*;
 
-    use crate::tests::fixtures::sample_sec_state::sec_context::{
+    use crate::tests::fixtures::sample_sec_state::context::{
         SampleSecStateContext, SampleSecStateContextUpdaterBuilder,
     };
 

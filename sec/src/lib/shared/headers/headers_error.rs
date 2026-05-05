@@ -41,7 +41,7 @@ pub enum InvalidHeadersReason {
 
 impl fmt::Display for InvalidHeadersReason {
     /// Formats the reason for display.
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Self::MissingHeader { header_name } => {
                 write!(f, "Required header '{header_name}' is missing")

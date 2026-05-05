@@ -36,7 +36,7 @@ pub enum InvalidUrlReason {
 
 impl fmt::Display for InvalidUrlReason {
     /// Formats the reason for display.
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Self::FailedToParse => write!(f, "Input could not be parsed as a valid URL"),
         }

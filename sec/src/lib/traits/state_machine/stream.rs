@@ -42,7 +42,7 @@ pub enum StreamEvent {
 }
 
 impl fmt::Display for StreamEvent {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Self::StateStarted => write!(f, "state_started"),
             Self::StateCompleted => write!(f, "state_completed"),
@@ -362,6 +362,72 @@ mod tests {
             }
         }
         let result = all_ok;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_yield_state_failed_error_and_terminate_when_compute_fails() {
+        let mut sm = SampleStreamingSuperState::<SampleStateA>::new();
+        sm.current_state_mut().force_compute_error = true;
+        let execution_id = uuid::Uuid::new_v4();
+        let expected_state_name = sm.current_state().state_name().to_string();
+        let mut stream = std::pin::pin!(sm.into_stream(execution_id));
+
+        let expected_result = (
+            super::StreamEvent::StateFailed,
+            execution_id,
+            expected_state_name,
+            true,
+        );
+
+        let _ = stream
+            .next()
+            .await
+            .expect("A valid state stream should always start with StateStarted");
+        let err = stream
+            .next()
+            .await
+            .expect("A stream that fails in compute should yield a second event")
+            .unwrap_err();
+        let terminated = stream.next().await.is_none();
+
+        let result = (err.event, err.execution_id, err.state_name, terminated);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_yield_transition_failed_error_and_terminate_when_transition_fails() {
+        let mut sm = SampleStreamingSuperState::<SampleStateA>::new();
+        sm.force_transition_error = true;
+        let execution_id = uuid::Uuid::new_v4();
+        let expected_state_name = sm.current_state().state_name().to_string();
+        let mut stream = std::pin::pin!(sm.into_stream(execution_id));
+
+        let expected_result = (
+            super::StreamEvent::TransitionFailed,
+            execution_id,
+            expected_state_name,
+            true,
+        );
+
+        let _ = stream
+            .next()
+            .await
+            .expect("A valid state stream should always start with StateStarted");
+        let _ = stream
+            .next()
+            .await
+            .expect("A valid state stream with succeeding compute should yield StateCompleted");
+        let err = stream
+            .next()
+            .await
+            .expect("A stream that fails in transition should yield a third event")
+            .unwrap_err();
+        let terminated = stream.next().await.is_none();
+
+        let result = (err.event, err.execution_id, err.state_name, terminated);
 
         assert_eq!(result, expected_result);
     }

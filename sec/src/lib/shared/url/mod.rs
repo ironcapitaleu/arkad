@@ -1,5 +1,7 @@
-use std::fmt;
+use std::fmt::{self, Display, Formatter};
 use std::str::FromStr;
+
+use serde::Serialize;
 
 use self::url_error::{InvalidUrlReason, UrlError};
 
@@ -23,7 +25,7 @@ pub mod url_error;
 /// assert_eq!(url.as_str(), "https://data.sec.gov/submissions/CIK0001067983.json");
 /// assert_eq!(url.to_string(), "https://data.sec.gov/submissions/CIK0001067983.json");
 /// ```
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub struct Url {
     value: String,
 }
@@ -80,8 +82,8 @@ impl Url {
     }
 }
 
-impl fmt::Display for Url {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+impl Display for Url {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         write!(f, "{}", self.value)
     }
 }
