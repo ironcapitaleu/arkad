@@ -55,7 +55,7 @@ impl Unit {
         match s {
             "USD" => Some(Self::Usd),
             "shares" => Some(Self::Shares),
-            "USD/shares" => Some(Self::UsdPerShare),
+            "USD/shares" | "USD/share" => Some(Self::UsdPerShare),
             "pure" => Some(Self::Pure),
             _ => None,
         }
