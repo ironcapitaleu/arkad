@@ -59,6 +59,9 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     tracing::info!(
         event = %BatchEvent::Complete,
         message = %format!("{successes} succeeded, {failures} failed in {elapsed:.2?}"),
+        successes = successes,
+        failures = failures,
+        duration_ms = elapsed.as_millis(),
     );
 
     Ok(())

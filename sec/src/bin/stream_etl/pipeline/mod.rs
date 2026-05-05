@@ -61,14 +61,11 @@ impl Pipeline {
                     tracing::info!(
                         event = %item.event,
                         message = %format!("{}: '{}'", item.event, item.state_name),
-                        // u32 holds up to ~49 days in milliseconds; no single state will run that long.
                         event_duration_ms = u32::try_from(item.event_duration.as_millis()).unwrap_or(u32::MAX),
-                        context = %serde_json::json!({
-                            "execution_id": execution_id.to_string(),
-                            "cik": cik,
-                            "state": item.state_name,
-                            "data": item.data,
-                        }),
+                        execution_id = %execution_id,
+                        cik = %cik,
+                        state = %item.state_name,
+                        data = %item.data,
                     );
                 }
                 Err(e) => {
@@ -76,12 +73,10 @@ impl Pipeline {
                         event = %e.event,
                         message = %e.source.to_string(),
                         duration_ms = pipeline_start.elapsed().as_millis(),
-                        context = %serde_json::json!({
-                            "execution_id": e.execution_id.to_string(),
-                            "cik": cik,
-                            "state": e.state_name,
-                            "data": e.data,
-                        }),
+                        execution_id = %e.execution_id,
+                        cik = %cik,
+                        state = %e.state_name,
+                        data = %e.data,
                     );
                     stream_error = Some(e);
                     break;
@@ -94,11 +89,9 @@ impl Pipeline {
             tracing::warn!(
                 event = %PipelineEvent::Failed,
                 message = %format!("Pipeline for CIK '{cik}' failed after {pipeline_duration:.2?}"),
-                context = %serde_json::json!({
-                    "execution_id": execution_id.to_string(),
-                    "cik": cik,
-                    "duration_ms": pipeline_duration.as_millis(),
-                }),
+                execution_id = %execution_id,
+                cik = %cik,
+                duration_ms = pipeline_duration.as_millis(),
             );
             return Err(e);
         }
@@ -106,11 +99,9 @@ impl Pipeline {
         tracing::info!(
             event = %PipelineEvent::Complete,
             message = %format!("Pipeline for CIK '{cik}' completed in {pipeline_duration:.2?}"),
-            context = %serde_json::json!({
-                "execution_id": execution_id.to_string(),
-                "cik": cik,
-                "duration_ms": pipeline_duration.as_millis(),
-            }),
+            execution_id = %execution_id,
+            cik = %cik,
+            duration_ms = pipeline_duration.as_millis(),
         );
 
         Ok(())
