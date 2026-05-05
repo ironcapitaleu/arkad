@@ -106,11 +106,15 @@ impl Headers {
 
     /// Returns the value of a header by name from the overflow map.
     ///
+    /// Lookup is case-insensitive (lowercases the key before searching).
+    /// This allocates a short-lived `String` per call, which is acceptable
+    /// since header lookups are infrequent.
+    ///
     /// This does not search typed fields. Use the typed accessors for
     /// known headers.
     #[must_use]
     pub fn get(&self, name: &str) -> Option<&str> {
-        self.other.get(name).map(String::as_str)
+        self.other.get(&name.to_lowercase()).map(String::as_str)
     }
 
     /// Returns a reference to the overflow map of remaining headers.
