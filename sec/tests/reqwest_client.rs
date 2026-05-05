@@ -17,7 +17,7 @@ async fn should_return_ok_status_code_when_request_is_valid() {
     let client = test_client();
     let url = "https://httpbin.org/get"; // Returns canned response with 200 OK status code
     let request_url = reqwest::Url::parse(url)
-        .expect(&format!("The harcoded URL `{url}` should always be valid"));
+        .expect(&format!("The hardcoded URL `{url}` should always be valid"));
     let request_method = reqwest::Method::GET;
     let request = Request::new(request_method, request_url);
 
@@ -39,7 +39,7 @@ async fn should_return_created_status_code_when_resource_is_created() {
     let client = test_client();
     let url = "https://httpbin.org/status/201"; // Returns canned response with 201 Created status code
     let request_url = reqwest::Url::parse(url)
-        .expect(&format!("The harcoded URL `{url}` should always be valid"));
+        .expect(&format!("The hardcoded URL `{url}` should always be valid"));
     let request_method = reqwest::Method::POST;
     let request = Request::new(request_method, request_url);
 
@@ -61,7 +61,7 @@ async fn should_return_bad_request_status_code_when_request_is_invalid() {
     let client = test_client();
     let url = "https://httpbin.org/status/400"; // Returns canned response with 400 Bad Request status code
     let request_url = reqwest::Url::parse(url)
-        .expect(&format!("The harcoded URL `{url}` should always be valid"));
+        .expect(&format!("The hardcoded URL `{url}` should always be valid"));
     let request_method = reqwest::Method::GET;
     let request = Request::new(request_method, request_url);
 
@@ -83,7 +83,7 @@ async fn should_return_unauthorized_status_code_when_not_authorized() {
     let client = test_client();
     let url = "https://httpbin.org/status/401"; // Returns canned response with 401 Unauthorized status code
     let request_url = reqwest::Url::parse(url)
-        .expect(&format!("The harcoded URL `{url}` should always be valid"));
+        .expect(&format!("The hardcoded URL `{url}` should always be valid"));
     let request_method = reqwest::Method::GET;
     let request = Request::new(request_method, request_url);
 
@@ -105,7 +105,7 @@ async fn should_return_forbidden_status_code_when_resource_is_forbidden() {
     let client = test_client();
     let url = "https://httpbin.org/status/403"; // Returns canned response with 403 Forbidden status code
     let request_url = reqwest::Url::parse(url)
-        .expect(&format!("The harcoded URL `{url}` should always be valid"));
+        .expect(&format!("The hardcoded URL `{url}` should always be valid"));
     let request_method = reqwest::Method::GET;
     let request = Request::new(request_method, request_url);
 
@@ -127,7 +127,7 @@ async fn should_return_not_found_status_code_when_resource_is_not_found() {
     let client = test_client();
     let url = "https://httpbin.org/status/404"; // Returns canned response with 404 Not Found status code
     let request_url = reqwest::Url::parse(url)
-        .expect(&format!("The harcoded URL `{url}` should always be valid"));
+        .expect(&format!("The hardcoded URL `{url}` should always be valid"));
     let request_method = reqwest::Method::GET;
     let request = Request::new(request_method, request_url);
 
@@ -149,7 +149,7 @@ async fn should_return_too_many_requests_status_code_when_rate_limited() {
     let client = test_client();
     let url = "https://httpbin.org/status/429"; // Returns canned response with 429 Too Many Requests status code
     let request_url = reqwest::Url::parse(url)
-        .expect(&format!("The harcoded URL `{url}` should always be valid"));
+        .expect(&format!("The hardcoded URL `{url}` should always be valid"));
     let request_method = reqwest::Method::GET;
     let request = Request::new(request_method, request_url);
 
@@ -171,7 +171,7 @@ async fn should_return_internal_server_error_status_code_when_server_error_occur
     let client = test_client();
     let url = "https://httpbin.org/status/500"; // Returns canned response with 500 Internal Server Error status code
     let request_url = reqwest::Url::parse(url)
-        .expect(&format!("The harcoded URL `{url}` should always be valid"));
+        .expect(&format!("The hardcoded URL `{url}` should always be valid"));
     let request_method = reqwest::Method::GET;
     let request = Request::new(request_method, request_url);
 
@@ -193,7 +193,7 @@ async fn should_return_service_unavailable_status_code_when_service_is_unavailab
     let client = test_client();
     let url = "https://httpbin.org/status/503"; // Returns canned response with 503 Service Unavailable status code
     let request_url = reqwest::Url::parse(url)
-        .expect(&format!("The harcoded URL `{url}` should always be valid"));
+        .expect(&format!("The hardcoded URL `{url}` should always be valid"));
     let request_method = reqwest::Method::GET;
     let request = Request::new(request_method, request_url);
 
