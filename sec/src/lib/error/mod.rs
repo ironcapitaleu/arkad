@@ -56,7 +56,7 @@ impl Display for ErrorKind {
             Self::StateMachine(state_machine) => {
                 write!(
                     f,
-                    "Problem occured during state machine execution: '{state_machine}'"
+                    "Problem occurred during state machine execution: '{state_machine}'"
                 )
             }
             Self::DowncastNotPossible => {

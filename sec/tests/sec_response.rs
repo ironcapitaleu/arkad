@@ -3,6 +3,10 @@ use reqwest::{Method, Request};
 
 use sec::shared::content_type::ContentType;
 use sec::shared::http_client::InnerClient;
+use sec::shared::response::SecResponse as SecResponseTrait;
+use sec::shared::response::implementations::sec_response::SecResponse;
+use sec::shared::response::implementations::sec_response::error::ErrorReason;
+use sec::shared::status_code::StatusCode;
 
 /// Creates a reqwest client for testing. Connection pooling is disabled
 /// since tests do not benefit from connection reuse.
@@ -12,10 +16,6 @@ fn test_client() -> reqwest::Client {
         .build()
         .expect("Building a reqwest Client with default settings should always succeed")
 }
-use sec::shared::response::SecResponse as SecResponseTrait;
-use sec::shared::response::implementations::sec_response::SecResponse;
-use sec::shared::response::implementations::sec_response::error::ErrorReason;
-use sec::shared::status_code::StatusCode;
 
 #[tokio::test]
 async fn should_create_sec_response_when_response_is_valid_json_with_success_status() {
