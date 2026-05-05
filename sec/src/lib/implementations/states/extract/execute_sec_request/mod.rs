@@ -200,7 +200,10 @@ impl SMState for ExecuteSecRequest {
     /// synchronously. This allows SEC states to be used as regular `SMState` implementations.
     ///
     /// # Panics
-    /// Panics if the async computation returns an error.
+    /// - Panics if the async computation returns an error.
+    /// - Panics if called inside a `current_thread` runtime (`block_in_place`
+    ///   requires a multi-thread runtime). All binaries and tests in this project
+    ///   use `flavor = "multi_thread"`.
     fn compute_output_data(&mut self) {
         let result = if let Ok(handle) = tokio::runtime::Handle::try_current() {
             tokio::task::block_in_place(|| handle.block_on(self.compute_output_data_async()))
