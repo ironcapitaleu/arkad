@@ -1,6 +1,7 @@
-use std::fmt;
+use std::fmt::{self, Display, Formatter};
 
 use async_trait::async_trait;
+use serde::Serialize;
 use state_maschine::prelude::State as SMState;
 
 use crate::error::State as StateError;
@@ -9,7 +10,7 @@ use crate::traits::state_machine::state::State;
 use super::{SampleStreamingContext, SampleStreamingData};
 
 /// Second state in the sample streaming pipeline.
-#[derive(Debug, Clone, Default, PartialEq, PartialOrd, Hash, Eq, Ord, serde::Serialize)]
+#[derive(Debug, Clone, Default, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
 pub struct SampleStateB {
     input: SampleStreamingData,
     context: SampleStreamingContext,
@@ -59,8 +60,8 @@ impl SMState for SampleStateB {
     }
 }
 
-impl fmt::Display for SampleStateB {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+impl Display for SampleStateB {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         write!(f, "SampleStateB")
     }
 }

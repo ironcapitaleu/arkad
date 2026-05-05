@@ -1,6 +1,7 @@
+use state_maschine::prelude::StateData as SMStateData;
+
 use crate::error::State as StateError;
 use crate::traits::state_machine::state::StateData;
-use state_maschine::prelude::StateData as SMStateData;
 
 #[derive(Debug, Clone, Default, PartialEq, PartialOrd, Hash, Eq, Ord)]
 pub struct SampleSecSuperStateData;

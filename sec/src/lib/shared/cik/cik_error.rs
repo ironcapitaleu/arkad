@@ -57,7 +57,7 @@ pub enum InvalidCikReason {
 
 impl std::fmt::Display for InvalidCikReason {
     /// Formats the reason for display.
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
             Self::MaxLengthExceeded { cik_length } => write!(
                 f,

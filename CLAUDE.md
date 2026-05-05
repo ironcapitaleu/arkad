@@ -8,8 +8,10 @@
 
 - Code must be **properly formatted** (`rustfmt`).
 - Dependencies must be **free of known security vulnerabilities** (`cargo audit`).
+- Documentation must **build without warnings** (`cargo doc --no-deps --document-private-items --workspace`).
 - Code must **compile without errors** and pass:
   - Linting (`clippy`)
+  - Doc linting (`rustdoc` broken/redundant link warnings are errors)
   - Unit tests
   - Integration tests
   - Doctests
@@ -93,6 +95,8 @@ No periods between segments — commas separate the description from `Caused by:
 ```
 
 Use `thiserror` with `#[error("...")]` and `#[source]` for deriving `Display` and `Error` on error types.
+
+**Never use `Debug` formatting (`{:?}`) in error `Display` implementations.** Debug output is Rust-internal, unstable across versions, and produces format-dependent strings (e.g., `["foo", "bar"]` from `Vec::fmt`) that downstream code cannot reliably parse. Instead, implement `Display` on wrapper types to produce a stable, human-readable format. If a field is a collection, create a newtype with an explicit `Display` impl that formats it deterministically.
 
 ---
 

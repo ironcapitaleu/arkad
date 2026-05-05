@@ -89,27 +89,27 @@ classDiagram
     class SampleState {
         <<struct>>
         %% A sample SecState implementation, represents any 'SecState'
-        -input: SampleSecStateInput
-        -context: SampleSecStateContext
-        -output: Option~SampleSecStateOutput~
+        -input: SampleStateInput
+        -context: SampleStateContext
+        -output: Option~SampleStateOutput~
         +new(input, context) Self
     }
 
-    class SampleStateInputData {
+    class SampleStateInput {
         <<struct>>
-        %% Input data for SampleSecState
+        %% Input for SampleState
         +input_data: String
     }
 
-    class SampleStateOutputData {
+    class SampleStateOutput {
         <<struct>>
-        %% Output data for SampleSecState
+        %% Output for SampleState
         +output_data: String
     }
 
     class SampleStateContext {
         <<struct>>
-        %% Context for SampleSecState
+        %% Context for SampleState
         +context_data: String
         +max_retries: u32
     }
@@ -130,13 +130,13 @@ classDiagram
     %% Trait implementations
     
     SampleState --> State : "implements"
-    SampleStateInputData --> StateData : "implements"
-    SampleStateOutputData --> StateData : "implements"
+    SampleStateInput --> StateData : "implements"
+    SampleStateOutput --> StateData : "implements"
     SampleStateContext --> Context : "implements"
 
     %% Struct relationships
-    SampleState --> SampleStateInputData : "has"
-    SampleState --> SampleStateOutputData : "has"
+    SampleState --> SampleStateInput : "has"
+    SampleState --> SampleStateOutput : "has"
     SampleState --> SampleStateContext : "has"
 
     %% Error relationships

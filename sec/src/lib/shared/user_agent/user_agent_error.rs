@@ -17,6 +17,8 @@
 //! - [`crate::shared::user_agent`]: Main user agent utilities module.
 //! - [`crate::error`]: Error types that may reference user agent errors for reporting.
 
+use std::fmt::{self, Display, Formatter};
+
 use thiserror::Error;
 
 /// Error details for user agent validation failures.
@@ -47,15 +49,16 @@ impl UserAgentError {
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum UserAgentErrorReason {
-    /// The format required for the SEC api is invalid.
+    /// The format required for the SEC API is invalid.
     InvalidSecFormat,
 }
 
-impl std::fmt::Display for UserAgentErrorReason {
-    /// Formats the reason for display.
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl Display for UserAgentErrorReason {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match self {
-            Self::InvalidSecFormat => write!(f, "The format required for the SEC api is invalid."),
+            Self::InvalidSecFormat => {
+                write!(f, "The format required for the SEC API is invalid")
+            }
         }
     }
 }

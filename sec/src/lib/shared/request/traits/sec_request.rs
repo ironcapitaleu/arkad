@@ -37,7 +37,7 @@ mod tests {
 
     #[test]
     fn should_create_fake_sec_request_with_expected_url_when_using_constructor() {
-        let cik = Cik::new("0000000000").unwrap();
+        let cik = Cik::new("0000000000").expect("Hardcoded CIK should always be valid");
         let request_input = FakeRequestInput {
             cik: cik.to_string(),
         };
@@ -52,7 +52,7 @@ mod tests {
 
     #[test]
     fn should_create_fake_sec_request_with_expected_method_when_using_constructor() {
-        let cik = Cik::new("0000000000").unwrap();
+        let cik = Cik::new("0000000000").expect("Hardcoded CIK should always be valid");
         let request_input = FakeRequestInput {
             cik: cik.to_string(),
         };

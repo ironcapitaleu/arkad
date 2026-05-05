@@ -29,6 +29,9 @@
 /// Error module for state machine operations.
 pub mod state_machine;
 
+use std::error::Error;
+use std::fmt::{self, Display, Formatter};
+
 pub use state_machine::StateMachine;
 pub use state_machine::state::State;
 pub use state_machine::transition::Transition;
@@ -47,13 +50,13 @@ pub enum ErrorKind {
     DowncastNotPossible,
 }
 
-impl std::fmt::Display for ErrorKind {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl Display for ErrorKind {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match self {
             Self::StateMachine(state_machine) => {
                 write!(
                     f,
-                    "Problem occured during state machine execution: '{state_machine}'"
+                    "Problem occurred during state machine execution: '{state_machine}'"
                 )
             }
             Self::DowncastNotPossible => {
@@ -66,7 +69,7 @@ impl std::fmt::Display for ErrorKind {
     }
 }
 
-impl std::error::Error for ErrorKind {}
+impl Error for ErrorKind {}
 
 impl From<StateMachine> for ErrorKind {
     /// Converts a [`StateMachine`] error into an [`ErrorKind`].
@@ -219,7 +222,7 @@ mod tests {
         let _result: StateMachine = ErrorKind::StateMachine(StateMachine::InvalidConfiguration)
             .try_into()
             .expect(
-                "Should always be able to cast hardcoded `ErrorKind` into `StateMachine` error.",
+                "Should always be able to cast hardcoded `ErrorKind` into `StateMachine` error",
             );
     }
 
@@ -229,7 +232,7 @@ mod tests {
         let _result: State = ErrorKind::StateMachine(StateMachine::State(State::InvalidInput))
             .try_into()
             .expect(
-                "Should always be able to cast provided hardcoded `ErrorKind` into `State` error.",
+                "Should always be able to cast provided hardcoded `ErrorKind` into `State` error",
             );
     }
 
@@ -237,11 +240,13 @@ mod tests {
     fn should_be_able_to_create_transition_error_when_casting_from_specific_error_kind_that_is_a_transition()
      {
         let _result: Transition = ErrorKind::StateMachine(StateMachine::Transition(
-            Transition::FailedOutputConversion,
+            Transition::FailedOutputConversion(
+                crate::error::state_machine::transition::FailedOutputConversion::new("A", "B"),
+            ),
         ))
         .try_into()
         .expect(
-            "Should always be able to cast provided hardcoded `ErrorKind` into `Transition` error.",
+            "Should always be able to cast provided hardcoded `ErrorKind` into `Transition` error",
         );
     }
 

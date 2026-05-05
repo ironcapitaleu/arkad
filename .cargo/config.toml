@@ -1,2 +1,5 @@
 [build]
 rustdocflags = ["-D", "warnings"]
+
+[alias]
+test-pipeline-coverage = "test --test pipeline_coverage -- --ignored --nocapture --test-threads=1"
