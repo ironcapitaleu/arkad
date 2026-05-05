@@ -49,7 +49,7 @@ const MINIMUM_SUCCESS_THRESHOLD: usize = 270;
 async fn should_succeed_for_must_pass_companies() {
     let ciks: Vec<&str> = MUST_PASS_CIKS.iter().map(|(cik, _)| *cik).collect();
     let stream_results: Vec<_> = futures_util::stream::iter(ciks.iter())
-        .map(|cik| Pipeline::builder().cik(*cik).build().run())
+        .map(|cik| async move { (*cik, Pipeline::builder().cik(*cik).build().run().await) })
         .buffer_unordered(10)
         .collect()
         .await;
@@ -58,11 +58,10 @@ async fn should_succeed_for_must_pass_companies() {
 
     let result: Vec<String> = stream_results
         .iter()
-        .enumerate()
-        .filter_map(|(i, r)| {
+        .filter_map(|(cik, r)| {
             r.as_ref().err().map(|e| {
-                let name = lookup_must_pass_name(ciks[i]);
-                format!("{name} (CIK {}): {e}", ciks[i])
+                let name = lookup_must_pass_name(cik);
+                format!("{name} (CIK {cik}): {e}")
             })
         })
         .collect();
