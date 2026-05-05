@@ -77,6 +77,11 @@ impl SecResponse {
     /// Unlike [`from_inner`](SecResponseTrait::from_inner), this constructor does not
     /// perform HTTP validation. The caller is responsible for ensuring the provided
     /// parts represent a valid SEC response.
+    ///
+    /// Note: the body digest is computed from `body.to_string()` (re-serialized JSON),
+    /// which may differ from the raw HTTP body text used by `from_inner` due to
+    /// whitespace or key-ordering differences. This is acceptable because the two
+    /// construction paths are never used on the same data in practice.
     #[must_use]
     pub fn from_parts(
         url: Url,
