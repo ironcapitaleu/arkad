@@ -49,15 +49,16 @@ impl UserAgentError {
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum UserAgentErrorReason {
-    /// The format required for the SEC api is invalid.
+    /// The format required for the SEC API is invalid.
     InvalidSecFormat,
 }
 
 impl Display for UserAgentErrorReason {
-    /// Formats the reason for display.
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match self {
-            Self::InvalidSecFormat => write!(f, "The format required for the SEC api is invalid."),
+            Self::InvalidSecFormat => {
+                write!(f, "The format required for the SEC API is invalid")
+            }
         }
     }
 }

@@ -68,7 +68,7 @@ impl Display for StateMachine {
                 write!(f, "Problem occured during state transition: '{transition}'")
             }
             Self::InvalidConfiguration => {
-                write!(f, "Invalid configuration of the state machine.")
+                write!(f, "Invalid configuration of the state machine")
             }
         }
     }
