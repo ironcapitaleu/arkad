@@ -114,6 +114,10 @@ impl Ord for CompanyData {
     }
 }
 
+/// Serializes a summary representation for stream logging.
+/// Only emits `facts_count` instead of the full facts map to avoid
+/// flooding state machine transition logs with large payloads.
+/// Full fact access is via [`CompanyData::facts()`].
 impl Serialize for CompanyData {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         let mut state = serializer.serialize_struct("CompanyData", 3)?;
