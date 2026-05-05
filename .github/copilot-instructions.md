@@ -99,6 +99,7 @@ No periods between segments — commas separate the description from `Caused by:
 
 Use `thiserror` with `#[error("...")]` and `#[source]` for deriving `Display` and `Error` on error types.
 
+**Never use `Debug` formatting (`{:?}`) in error `Display` implementations.** Debug output is Rust-internal, unstable across versions, and produces format-dependent strings (e.g., `["foo", "bar"]` from `Vec::fmt`) that downstream code cannot reliably parse. Instead, implement `Display` on wrapper types to produce a stable, human-readable format. If a field is a collection, create a newtype with an explicit `Display` impl that formats it deterministically.
 
 ---
 
