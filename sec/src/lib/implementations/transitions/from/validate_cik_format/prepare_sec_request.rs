@@ -45,7 +45,6 @@ impl TryFrom<ValidateCikFormat> for PrepareSecRequest {
 #[cfg(test)]
 mod tests {
     use pretty_assertions::assert_eq;
-    use tokio;
 
     use super::*;
     use crate::implementations::states::extract::validate_cik_format::{

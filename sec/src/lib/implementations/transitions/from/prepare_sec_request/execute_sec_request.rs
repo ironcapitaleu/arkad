@@ -55,7 +55,6 @@ impl TryFrom<PrepareSecRequest> for ExecuteSecRequest {
 #[cfg(test)]
 mod tests {
     use pretty_assertions::assert_eq;
-    use tokio;
 
     use super::*;
     use crate::implementations::states::extract::prepare_sec_request::PrepareSecRequestInput;

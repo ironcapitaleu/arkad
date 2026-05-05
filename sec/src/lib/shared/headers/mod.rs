@@ -56,11 +56,11 @@ impl Headers {
     /// are stored in the overflow map.
     #[must_use]
     pub fn new(raw_headers: HashMap<String, String>) -> Self {
-        // HTTP header names are case-insensitive (RFC 7230 §3.2).
-        // Normalize all keys to lowercase so lookups match our lowercase constants.
+        // HTTP header names are case-insensitive ASCII tokens (RFC 7230 §3.2).
+        // Normalize all keys to ASCII lowercase so lookups match our lowercase constants.
         let mut raw_headers: HashMap<String, String> = raw_headers
             .into_iter()
-            .map(|(k, v)| (k.to_lowercase(), v))
+            .map(|(k, v)| (k.to_ascii_lowercase(), v))
             .collect();
 
         let content_type = raw_headers
@@ -106,7 +106,7 @@ impl Headers {
 
     /// Returns the value of a header by name from the overflow map.
     ///
-    /// Lookup is case-insensitive (lowercases the key before searching).
+    /// Lookup is case-insensitive (ASCII-lowercases the key before searching).
     /// This allocates a short-lived `String` per call, which is acceptable
     /// since header lookups are infrequent.
     ///
@@ -114,7 +114,7 @@ impl Headers {
     /// known headers.
     #[must_use]
     pub fn get(&self, name: &str) -> Option<&str> {
-        self.other.get(&name.to_lowercase()).map(String::as_str)
+        self.other.get(&name.to_ascii_lowercase()).map(String::as_str)
     }
 
     /// Returns a reference to the overflow map of remaining headers.
