@@ -546,6 +546,41 @@ These four decisions shape the core API surface. Everything else can be resolved
 
 ---
 
+## Follow-Up: Migrate `sec` Crate to Consume `xbrl` Types
+
+The `sec` crate currently has its own financial domain types (`CompanyData`, `CompanyFact`,
+`Observation`, `FilingSource`, `ConceptDefinition`) that duplicate what `xbrl` now provides.
+
+This requires two follow-up tickets:
+
+### Ticket 1: Design the integration pathway (SPIKE)
+
+Research and decide:
+- How `Cik` (sec-specific) interacts with `EntityName` (xbrl) in `CompanyData`
+- Whether `CompanyData.facts` key becomes `CanonicalElement` or stays as a definition reference
+- Whether `sec` types become re-exports of `xbrl` types or thin wrappers with `From` impls
+- How to handle the `&'static ConceptDefinition` reference pattern (sec's constants vs xbrl's)
+- Migration strategy that keeps the `sec` crate compiling at every step
+- Impact on downstream consumers (`CreateFinancialStatements`, pipeline tests, binaries)
+
+Output: a design doc section or ADR with the recommended approach.
+
+### Ticket 2: Implement the migration
+
+Based on the design from Ticket 1:
+1. Replace `sec::shared::financial::Observation` / `FilingSource` with `xbrl` equivalents
+2. Replace `sec::shared::financial::ConceptDefinition` with `xbrl::us_gaap::mappings::ConceptDefinition`
+3. Update `CompanyData` to use xbrl types for its key and value types
+4. Update `ParseCompanyFacts::compute_output_data_async()` to delegate to `xbrl::sec_api::company_facts::parse()`
+5. Remove the inline `resolve_concept`, `parse_observation`, `build_period`, `build_filing_source` from `sec`
+6. Remove duplicated type definitions from `sec::shared::financial/`
+
+**Blocker for Ticket 2**: `CompanyData` uses `Cik` (sec-specific) and `&'static ConceptDefinition` as
+HashMap keys (pointing to sec's constants). Both need to change before the delegation works.
+This touches the `sec` crate's public API and downstream consumers.
+
+---
+
 ## Key Findings From Investigation
 
 - All three SEC JSON APIs serve data points with identical 9-key schema
