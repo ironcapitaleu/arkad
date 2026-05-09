@@ -20,14 +20,14 @@ pub enum ParseErrorKind {
     },
 
     /// A required top-level key is missing from the response.
-    #[error("[MissingTopLevelKey] Expected key '{key}' in response")]
+    #[error("[MissingTopLevelKey] Required key '{key}' not found in response")]
     MissingTopLevelKey {
         /// The name of the missing key.
         key: String,
     },
 
     /// A required taxonomy namespace is missing from the response.
-    #[error("[MissingNamespace] Expected namespace '{namespace}' under 'facts'")]
+    #[error("[MissingNamespace] Required namespace '{namespace}' not found under 'facts'")]
     MissingNamespace {
         /// The name of the missing namespace.
         namespace: String,
