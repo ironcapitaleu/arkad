@@ -84,3 +84,73 @@ impl fmt::Display for Frame {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use pretty_assertions::assert_eq;
+
+    use super::*;
+
+    #[test]
+    fn should_parse_annual_frame_when_input_is_cy2024() {
+        let expected_result = Some(Frame {
+            year: 2024,
+            quarter: None,
+            instant: false,
+        });
+
+        let result = Frame::parse("CY2024");
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_parse_quarterly_frame_when_input_has_quarter() {
+        let expected_result = Some(Frame {
+            year: 2024,
+            quarter: Some(Quarter::Q1),
+            instant: false,
+        });
+
+        let result = Frame::parse("CY2024Q1");
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_parse_instant_frame_when_input_ends_with_i() {
+        let expected_result = Some(Frame {
+            year: 2024,
+            quarter: Some(Quarter::Q2),
+            instant: true,
+        });
+
+        let result = Frame::parse("CY2024Q2I");
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_none_when_input_has_no_cy_prefix() {
+        let expected_result = None;
+
+        let result = Frame::parse("2024Q1");
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_roundtrip_display_when_frame_is_formatted_and_reparsed() {
+        let frame = Frame {
+            year: 2023,
+            quarter: Some(Quarter::Q3),
+            instant: true,
+        };
+
+        let expected_result = Some(frame);
+
+        let result = Frame::parse(&frame.to_string());
+
+        assert_eq!(result, expected_result);
+    }
+}

@@ -1,7 +1,7 @@
 //! # Company Facts Parser
 //!
 //! Deserializes the SEC `/api/xbrl/companyfacts/` JSON endpoint
-//! into a collection of [`RawObservation`](crate::core::observation::RawObservation)s.
+//! into a collection of `RawObservation`s.
 //!
 //! ## JSON Structure
 //!
@@ -141,6 +141,156 @@ fn validate_top_level_structure(json: &serde_json::Value) -> Result<(), ErrorKin
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use pretty_assertions::assert_eq;
+    use serde_json::json;
+
+    use super::*;
+
+    fn sample_company_facts_json() -> serde_json::Value {
+        json!({
+            "cik": 320193,
+            "entityName": "Apple Inc.",
+            "facts": {
+                "us-gaap": {
+                    "Assets": {
+                        "label": "Assets",
+                        "description": "Total assets",
+                        "units": {
+                            "USD": [
+                                {
+                                    "end": "2024-09-28",
+                                    "val": 364980000000_i64,
+                                    "accn": "0000320193-24-000123",
+                                    "fy": 2024,
+                                    "fp": "FY",
+                                    "form": "10-K",
+                                    "filed": "2024-11-01",
+                                    "frame": "CY2024Q4I"
+                                }
+                            ]
+                        }
+                    },
+                    "Revenues": {
+                        "label": "Net Sales",
+                        "description": "Revenue",
+                        "units": {
+                            "USD": [
+                                {
+                                    "start": "2023-10-01",
+                                    "end": "2024-09-28",
+                                    "val": 391035000000_i64,
+                                    "accn": "0000320193-24-000123",
+                                    "fy": 2024,
+                                    "fp": "FY",
+                                    "form": "10-K",
+                                    "filed": "2024-11-01",
+                                    "frame": "CY2024"
+                                }
+                            ]
+                        }
+                    }
+                },
+                "dei": {
+                    "EntityCommonStockSharesOutstanding": {
+                        "label": "Entity Common Stock, Shares Outstanding",
+                        "description": "Shares outstanding",
+                        "units": {
+                            "shares": [
+                                {
+                                    "end": "2024-10-18",
+                                    "val": 15115823000_i64,
+                                    "accn": "0000320193-24-000123",
+                                    "fy": 2024,
+                                    "fp": "FY",
+                                    "form": "10-K",
+                                    "filed": "2024-11-01"
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        })
+    }
+
+    #[test]
+    fn should_parse_observations_when_valid_company_facts_json_is_provided() {
+        let json = sample_company_facts_json();
+
+        let expected_result = 3;
+
+        let result = parse(&json).expect("Valid JSON should parse successfully");
+
+        assert_eq!(result.len(), expected_result);
+    }
+
+    #[test]
+    fn should_parse_instant_period_when_data_point_has_no_start() {
+        let json = sample_company_facts_json();
+
+        let observations = parse(&json).expect("Valid JSON should parse successfully");
+        let assets_obs = observations
+            .iter()
+            .find(|o| o.concept_name() == "Assets")
+            .expect("Assets observation should exist");
+
+        let expected_result = Period::Instant {
+            date: NaiveDate::from_ymd_opt(2024, 9, 28)
+                .expect("Hardcoded date should always be valid"),
+        };
+
+        let result = assets_obs.period();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_parse_duration_period_when_data_point_has_start_and_end() {
+        let json = sample_company_facts_json();
+
+        let observations = parse(&json).expect("Valid JSON should parse successfully");
+        let revenue_obs = observations
+            .iter()
+            .find(|o| o.concept_name() == "Revenues")
+            .expect("Revenues observation should exist");
+
+        let expected_result = Period::Duration {
+            start: NaiveDate::from_ymd_opt(2023, 10, 1)
+                .expect("Hardcoded date should always be valid"),
+            end: NaiveDate::from_ymd_opt(2024, 9, 28)
+                .expect("Hardcoded date should always be valid"),
+        };
+
+        let result = revenue_obs.period();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_error_when_top_level_key_is_missing() {
+        let json = json!({"cik": 123, "entityName": "Test"});
+
+        let expected_result = true;
+
+        let result = parse(&json).is_err();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_extract_entity_name_when_valid_json_is_provided() {
+        let json = sample_company_facts_json();
+
+        let expected_result = "Apple Inc.";
+
+        let result = extract_entity_name(&json).expect("Valid JSON should parse successfully");
+
+        assert_eq!(result, expected_result);
+    }
 }
 
 fn parse_data_point(

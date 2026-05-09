@@ -1249,6 +1249,7 @@ dependencies = [
  "tracing-subscriber",
  "url",
  "uuid",
+ "xbrl",
 ]
 
 [[package]]

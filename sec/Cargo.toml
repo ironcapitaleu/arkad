@@ -21,6 +21,7 @@ futures-core = "0.3"
 futures-util = "0.3"
 reqwest = { version = "0.13", features = ["json"] }
 state_maschine = { path = "../state_machine" }
+xbrl = { path = "../xbrl" }
 uuid = { version = "1.20.0", features = ["v4"] }
 regex = "1"
 serde = { version = "1.0", features = ["derive"] }
