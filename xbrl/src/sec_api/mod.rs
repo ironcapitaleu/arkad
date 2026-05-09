@@ -1,8 +1,8 @@
 //! # SEC EDGAR API Parsers
 //!
-//! JSON deserializers for the three SEC XBRL JSON API endpoints.
-//! All parsers produce the same `RawObservation`
-//! output type regardless of which API the data came from.
+//! JSON deserializers for SEC XBRL JSON API endpoints.
+//! Currently only [`company_facts`] is implemented. The other two
+//! modules are placeholders for future implementation.
 
 pub mod company_concept;
 pub mod company_facts;

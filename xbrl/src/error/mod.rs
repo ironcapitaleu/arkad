@@ -23,7 +23,7 @@ pub mod validation;
 #[derive(Debug, Error)]
 pub enum ErrorKind {
     /// An XBRL domain error occurred.
-    #[error("[Xbrl] {0}")]
+    #[error("[Xbrl] Caused by: {0}")]
     Xbrl(#[source] XbrlErrorKind),
 }
 

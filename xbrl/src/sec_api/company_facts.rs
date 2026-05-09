@@ -55,8 +55,8 @@ pub fn parse(json: &serde_json::Value) -> Result<Vec<RawObservation>, ErrorKind>
     let facts = json
         .get("facts")
         .and_then(serde_json::Value::as_object)
-        .ok_or_else(|| ParseErrorKind::MissingTopLevelKey {
-            key: "facts".to_string(),
+        .ok_or_else(|| ParseErrorKind::InvalidJson {
+            reason: "Expected 'facts' to be a JSON object".to_string(),
         })?;
 
     if !facts.contains_key(REQUIRED_FACTS_NAMESPACE) {
@@ -117,8 +117,8 @@ pub fn extract_entity_name(json: &serde_json::Value) -> Result<String, ErrorKind
         .and_then(serde_json::Value::as_str)
         .map(ToString::to_string)
         .ok_or_else(|| {
-            ParseErrorKind::MissingTopLevelKey {
-                key: "entityName".to_string(),
+            ParseErrorKind::InvalidJson {
+                reason: "Expected 'entityName' to be a string".to_string(),
             }
             .into()
         })

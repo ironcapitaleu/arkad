@@ -1,4 +1,3 @@
-//! # Company Concept Parser
+//! # Company Concept Parser (TODO)
 //!
-//! Deserializes the SEC `/api/xbrl/companyconcept/` JSON endpoint
-//! into a collection of `RawObservation`s.
+//! Placeholder for the SEC `/api/xbrl/companyconcept/` JSON endpoint parser.

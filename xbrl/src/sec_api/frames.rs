@@ -1,4 +1,3 @@
-//! # Frames Parser
+//! # Frames Parser (TODO)
 //!
-//! Deserializes the SEC `/api/xbrl/frames/` JSON endpoint
-//! into a collection of `RawObservation`s.
+//! Placeholder for the SEC `/api/xbrl/frames/` JSON endpoint parser.
