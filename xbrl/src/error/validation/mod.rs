@@ -23,7 +23,9 @@ pub enum ValidationErrorKind {
     },
 
     /// A financial identity (invariant) is violated.
-    #[error("[InconsistentIdentity] Invariant '{invariant}' violated, left={left_value}, right={right_value}")]
+    #[error(
+        "[InconsistentIdentity] Invariant '{invariant}' violated, left={left_value}, right={right_value}"
+    )]
     InconsistentIdentity {
         /// Which invariant was violated.
         invariant: Invariant,
@@ -34,7 +36,9 @@ pub enum ValidationErrorKind {
     },
 
     /// A roll-up parent does not match the sum of its children within tolerance.
-    #[error("[ImpreciseRollup] Roll-up mismatch for '{parent}', reported={parent_value}, computed={children_sum}, Reason: 'Deviation of {deviation_pct:.4}% exceeds threshold of {threshold_pct:.4}%'")]
+    #[error(
+        "[ImpreciseRollup] Roll-up mismatch for '{parent}', reported={parent_value}, computed={children_sum}, Reason: 'Deviation of {deviation_pct:.4}% exceeds threshold of {threshold_pct:.4}%'"
+    )]
     ImpreciseRollup {
         /// The parent element whose total is mismatched.
         parent: CanonicalElement,

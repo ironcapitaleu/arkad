@@ -55,10 +55,8 @@ pub fn parse(json: &serde_json::Value) -> Result<Vec<RawObservation>, ErrorKind>
     let facts = json
         .get("facts")
         .and_then(serde_json::Value::as_object)
-        .ok_or_else(|| {
-            ParseErrorKind::MissingTopLevelKey {
-                key: "facts".to_string(),
-            }
+        .ok_or_else(|| ParseErrorKind::MissingTopLevelKey {
+            key: "facts".to_string(),
         })?;
 
     if !facts.contains_key(REQUIRED_FACTS_NAMESPACE) {
@@ -80,7 +78,9 @@ pub fn parse(json: &serde_json::Value) -> Result<Vec<RawObservation>, ErrorKind>
         };
 
         for (concept_name, concept_data) in concepts {
-            let Some(units_obj) = concept_data.get("units").and_then(serde_json::Value::as_object)
+            let Some(units_obj) = concept_data
+                .get("units")
+                .and_then(serde_json::Value::as_object)
             else {
                 continue;
             };
@@ -95,9 +95,7 @@ pub fn parse(json: &serde_json::Value) -> Result<Vec<RawObservation>, ErrorKind>
                 };
 
                 for dp in data_points {
-                    if let Some(obs) =
-                        parse_data_point(dp, namespace, concept_name, unit)
-                    {
+                    if let Some(obs) = parse_data_point(dp, namespace, concept_name, unit) {
                         observations.push(obs);
                     }
                 }
@@ -127,9 +125,11 @@ pub fn extract_entity_name(json: &serde_json::Value) -> Result<String, ErrorKind
 }
 
 fn validate_top_level_structure(json: &serde_json::Value) -> Result<(), ErrorKind> {
-    let obj = json.as_object().ok_or_else(|| ParseErrorKind::InvalidJson {
-        reason: "Expected a JSON object at the top level".to_string(),
-    })?;
+    let obj = json
+        .as_object()
+        .ok_or_else(|| ParseErrorKind::InvalidJson {
+            reason: "Expected a JSON object at the top level".to_string(),
+        })?;
 
     for &key in REQUIRED_TOP_LEVEL_KEYS {
         if !obj.contains_key(key) {

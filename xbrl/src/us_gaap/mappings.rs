@@ -105,12 +105,7 @@ pub const REQUIRED_CONCEPTS: &[ConceptDefinition] = &[
         true,
     ),
     // Balance Sheet backbone
-    ConceptDefinition::new(
-        CanonicalElement::Assets,
-        &["Assets"],
-        Unit::Usd,
-        true,
-    ),
+    ConceptDefinition::new(CanonicalElement::Assets, &["Assets"], Unit::Usd, true),
     ConceptDefinition::new(
         CanonicalElement::Liabilities,
         &["Liabilities"],
