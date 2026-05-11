@@ -22,12 +22,13 @@
 //! use sec::implementations::states::extract::prepare_sec_request::*;
 //! use sec::shared::cik::Cik;
 //! use sec::prelude::*; // allows us to use call the `State` and other trait methods directly
-//!
+//! use sec::shared::http_client::implementations::sec_client::SecClient;
 //! #[tokio::main]
 //! async fn main() {
 //!     let cik = Cik::new("1067983").expect("Hardcoded CIK string should be valid format");
 //!     let user_agent = "Test Company contact@test.com".to_string();
-//!     let input = PrepareSecRequestInput::new(cik.clone(), user_agent);
+//!     let client = SecClient::default();
+//!     let input = PrepareSecRequestInput::new(cik.clone(), user_agent, client);
 //!     let context = PrepareSecRequestContext::new(cik);
 //!
 //!     let mut prepare_state = PrepareSecRequest::new(input, context);
@@ -56,7 +57,6 @@ use serde::Serialize;
 use state_maschine::prelude::State as SMState;
 
 use crate::error::State as StateError;
-use crate::shared::http_client::implementations::sec_client::SecClient;
 use crate::shared::request::implementations::sec_request::SecRequest;
 use crate::traits::state_machine::state::State;
 
@@ -79,7 +79,7 @@ pub use data::PrepareSecRequestOutput;
 /// - Validates the user agent string format for SEC compliance.
 /// - Creates an HTTP client configured with the validated user agent.
 /// - Constructs a request object targeting the SEC submissions endpoint for the given CIK.
-/// - Produces configured [`SecClient`] and [`SecRequest`] objects ready for API calls.
+/// - Produces configured [`SecRequest`] object ready for API calls.
 ///
 /// # Output
 /// The prepared client and request are stored internally after calling [`State::compute_output_data_async`].
@@ -88,10 +88,11 @@ pub use data::PrepareSecRequestOutput;
 /// ```
 /// use sec::implementations::states::extract::prepare_sec_request::*;
 /// use sec::shared::cik::Cik;
-///
+/// use sec::shared::http_client::implementations::sec_client::SecClient;
 /// let cik = Cik::new("1067983").expect("Hardcoded CIK string should be valid format");
 /// let user_agent = "Sample Corp contact@sample.com".to_string();
-/// let input = PrepareSecRequestInput::new(cik.clone(), user_agent);
+/// let client = SecClient::default();
+/// let input = PrepareSecRequestInput::new(cik.clone(), user_agent, client);
 /// let context = PrepareSecRequestContext::new(cik);
 /// let mut prepare_state = PrepareSecRequest::new(input, context);
 /// ```
@@ -153,7 +154,7 @@ impl State for PrepareSecRequest {
     /// Returns `Ok(())` if the client and request are successfully created and stored,
     /// or `Err(StateError)` if preparation fails.
     async fn compute_output_data_async(&mut self) -> Result<(), StateError> {
-        let sec_client = SecClient::default();
+        let sec_client = self.input.sec_client.clone();
         let sec_request = SecRequest::builder()
             .all_company_facts()
             .cik(self.input.validated_cik.clone())
@@ -238,6 +239,7 @@ mod tests {
     use super::*;
     use crate::shared::cik::Cik;
     use crate::shared::cik::constants::BERKSHIRE_HATHAWAY_CIK_RAW;
+    use crate::shared::http_client::implementations::sec_client::SecClient;
     use crate::traits::state_machine::state::State;
     use pretty_assertions::assert_eq;
     use std::{fmt::Debug, hash::Hash};
@@ -248,7 +250,7 @@ mod tests {
     }
 
     fn create_test_input() -> PrepareSecRequestInput {
-        PrepareSecRequestInput::new(create_test_cik(), String::new())
+        PrepareSecRequestInput::new(create_test_cik(), String::new(), SecClient::default())
     }
 
     fn create_test_context() -> PrepareSecRequestContext {
@@ -306,7 +308,8 @@ mod tests {
     fn should_create_new_prepare_state_with_provided_input_and_context() {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
         let user_agent = "Test Company contact@test.com".to_string();
-        let input = PrepareSecRequestInput::new(cik.clone(), user_agent.clone());
+        let input =
+            PrepareSecRequestInput::new(cik.clone(), user_agent.clone(), SecClient::default());
         let context = create_test_context();
 
         let expected_input = input.clone();
@@ -451,7 +454,7 @@ mod tests {
     async fn should_not_change_input_data_when_computing_output_data() {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
         let user_agent = "Test Company contact@test.com".to_string();
-        let input = PrepareSecRequestInput::new(cik, user_agent);
+        let input = PrepareSecRequestInput::new(cik, user_agent, SecClient::default());
         let context = create_test_context();
         let mut prepare_state = PrepareSecRequest::new(input, context);
 
@@ -470,7 +473,7 @@ mod tests {
     async fn should_return_correct_output_data_when_computing_output_data() {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
         let user_agent = "Test Company contact@test.com".to_string();
-        let input = PrepareSecRequestInput::new(cik, user_agent);
+        let input = PrepareSecRequestInput::new(cik, user_agent, SecClient::default());
         let context = create_test_context();
         let mut prepare_state = PrepareSecRequest::new(input, context);
 
@@ -495,7 +498,7 @@ mod tests {
     async fn should_return_true_when_output_data_has_been_computed() {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
         let user_agent = "Test Company contact@test.com".to_string();
-        let input = PrepareSecRequestInput::new(cik, user_agent);
+        let input = PrepareSecRequestInput::new(cik, user_agent, SecClient::default());
         let context = create_test_context();
         let mut prepare_state = PrepareSecRequest::new(input, context);
 
