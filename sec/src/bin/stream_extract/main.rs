@@ -7,6 +7,7 @@ use std::time::Instant;
 
 use extraction::Extraction;
 use futures_util::StreamExt;
+use sec::shared::http_client::implementations::sec_client::SecClient;
 use tracing_subscriber::fmt::format::FmtSpan;
 
 use extraction::constants::CIKS;
@@ -37,10 +38,17 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
         .with_writer(non_blocking)
         .init();
 
+    let sec_client = SecClient::default();
     let start = Instant::now();
 
     let results: Vec<_> = futures_util::stream::iter(CIKS)
-        .map(|cik| Extraction::builder().cik(cik).build().run())
+        .map(|cik| {
+            Extraction::builder()
+                .cik(cik)
+                .sec_client(sec_client.clone())
+                .build()
+                .run()
+        })
         .buffer_unordered(3)
         .collect()
         .await;
