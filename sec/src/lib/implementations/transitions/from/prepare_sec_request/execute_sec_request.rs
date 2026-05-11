@@ -98,7 +98,7 @@ mod tests {
     async fn should_transition_to_execute_sec_request_when_prepare_sec_request_has_output() {
         let cik = Cik::new("0001234567")
             .expect("Hardcoded valid CIK string should always parse successfully");
-        let input = PrepareSecRequestInput::new(cik.clone(), String::new());
+        let input = PrepareSecRequestInput::new(cik.clone(), String::new(), SecClient::default());
         let context = PrepareSecRequestContext::new(cik.clone());
         let mut state = PrepareSecRequest::new(input, context);
         state
@@ -117,7 +117,7 @@ mod tests {
     fn should_return_error_when_prepare_sec_request_has_no_output() {
         let cik = Cik::new("0001234567")
             .expect("Hardcoded valid CIK string should always parse successfully");
-        let input = PrepareSecRequestInput::new(cik.clone(), String::new());
+        let input = PrepareSecRequestInput::new(cik.clone(), String::new(), SecClient::default());
         let context = PrepareSecRequestContext::new(cik);
         let state = PrepareSecRequest::new(input, context);
 

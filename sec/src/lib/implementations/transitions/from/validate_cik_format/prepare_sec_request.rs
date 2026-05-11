@@ -20,12 +20,15 @@ use crate::implementations::states::extract::prepare_sec_request::{
 };
 use crate::implementations::states::extract::validate_cik_format::ValidateCikFormat;
 use crate::implementations::states::extract::validate_cik_format::constants::STATE_NAME as VALIDATE_CIK_FORMAT;
+use crate::shared::http_client::implementations::sec_client::SecClient;
 use crate::shared::user_agent::constants::DEFAULT_SEC_USER_AGENT;
 
-impl TryFrom<ValidateCikFormat> for PrepareSecRequest {
+impl TryFrom<(ValidateCikFormat, SecClient)> for PrepareSecRequest {
     type Error = TransitionError;
 
-    fn try_from(state: ValidateCikFormat) -> Result<Self, TransitionError> {
+    fn try_from(
+        (state, sec_client): (ValidateCikFormat, SecClient),
+    ) -> Result<Self, TransitionError> {
         let (_input, output, _context) = state.into_parts();
         let output_data = output.ok_or_else(|| {
             transition::MissingOutput::new(VALIDATE_CIK_FORMAT, PREPARE_SEC_REQUEST)
@@ -36,6 +39,7 @@ impl TryFrom<ValidateCikFormat> for PrepareSecRequest {
         let new_input = PrepareSecRequestInput::new(
             output_data.validated_cik,
             DEFAULT_SEC_USER_AGENT.to_string(),
+            sec_client,
         );
 
         Ok(Self::new(new_input, new_context))
@@ -67,14 +71,18 @@ mod tests {
             .await
             .expect("Hardcoded valid CIK should always compute successfully");
 
+        let sec_client = SecClient::default();
         let expected_cik = Cik::new(cik_string)
             .expect("Hardcoded valid CIK string should always parse successfully");
         let expected_context = PrepareSecRequestContext::new(expected_cik.clone());
-        let expected_input =
-            PrepareSecRequestInput::new(expected_cik, DEFAULT_SEC_USER_AGENT.to_string());
+        let expected_input = PrepareSecRequestInput::new(
+            expected_cik,
+            DEFAULT_SEC_USER_AGENT.to_string(),
+            sec_client.clone(),
+        );
         let expected_result = PrepareSecRequest::new(expected_input, expected_context);
 
-        let result = PrepareSecRequest::try_from(state)
+        let result = PrepareSecRequest::try_from((state, sec_client))
             .expect("State with computed output should always transition successfully");
 
         assert_eq!(result, expected_result);
@@ -88,7 +96,7 @@ mod tests {
 
         let expected_result = true;
 
-        let result = PrepareSecRequest::try_from(state).is_err();
+        let result = PrepareSecRequest::try_from((state, SecClient::default())).is_err();
 
         assert_eq!(result, expected_result);
     }
