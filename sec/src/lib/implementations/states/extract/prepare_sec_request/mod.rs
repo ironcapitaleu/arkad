@@ -310,8 +310,7 @@ mod tests {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
         let user_agent = "Test Company contact@test.com".to_string();
         let sec_client = SecClient::default();
-        let input =
-            PrepareSecRequestInput::new(cik.clone(), user_agent.clone(), sec_client);
+        let input = PrepareSecRequestInput::new(cik.clone(), user_agent.clone(), sec_client);
         let context = create_test_context();
 
         let expected_input = input.clone();
