@@ -247,7 +247,8 @@ mod tests {
     fn create_test_input() -> PrepareSecRequestInput {
         let cik =
             Cik::new(BERKSHIRE_HATHAWAY_CIK_RAW).expect("Hardcoded CIK should always be valid");
-        PrepareSecRequestInput::new(cik, String::new(), SecClient::default())
+        let sec_client = SecClient::default();
+        PrepareSecRequestInput::new(cik, String::new(), sec_client)
     }
 
     #[test]
@@ -265,7 +266,8 @@ mod tests {
     fn should_create_different_state_data_with_custom_data_when_using_new_as_constructor() {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
         let user_agent = "Custom Company contact@custom.com".to_string();
-        let prepare_state_data = PrepareSecRequestInput::new(cik, user_agent, SecClient::default());
+        let sec_client = SecClient::default();
+        let prepare_state_data = PrepareSecRequestInput::new(cik, user_agent, sec_client);
 
         let default_prepare_state_data = &create_test_input();
 
@@ -283,8 +285,8 @@ mod tests {
             .validated_cik(new_cik.clone(), new_user_agent.clone())
             .build();
 
-        let expected_result =
-            &PrepareSecRequestInput::new(new_cik, new_user_agent, SecClient::default());
+        let sec_client = SecClient::default();
+        let expected_result = &PrepareSecRequestInput::new(new_cik, new_user_agent, sec_client);
 
         StateData::update_state(&mut state_data, update)
             .expect("Update with valid 'update' value should always succeed");
@@ -302,8 +304,9 @@ mod tests {
             .user_agent(new_user_agent.clone())
             .build();
 
+        let sec_client = SecClient::default();
         let expected_result =
-            &PrepareSecRequestInput::new(original_cik, new_user_agent, SecClient::default());
+            &PrepareSecRequestInput::new(original_cik, new_user_agent, sec_client);
 
         StateData::update_state(&mut state_data, update)
             .expect("Update with valid 'update' value should always succeed");
@@ -321,8 +324,9 @@ mod tests {
             .cik(new_cik.clone())
             .build();
 
+        let sec_client = SecClient::default();
         let expected_result =
-            &PrepareSecRequestInput::new(new_cik, original_user_agent, SecClient::default());
+            &PrepareSecRequestInput::new(new_cik, original_user_agent, sec_client);
 
         StateData::update_state(&mut state_data, update)
             .expect("Update with valid 'update' value should always succeed");
@@ -344,8 +348,8 @@ mod tests {
             .validated_cik(final_cik.clone(), final_user_agent.clone())
             .build();
 
-        let expected_result =
-            &PrepareSecRequestInput::new(final_cik, final_user_agent, SecClient::default());
+        let sec_client = SecClient::default();
+        let expected_result = &PrepareSecRequestInput::new(final_cik, final_user_agent, sec_client);
 
         StateData::update_state(&mut state_data, update)
             .expect("Update with valid 'update' value should always succeed");
@@ -372,8 +376,8 @@ mod tests {
     fn should_return_validated_cik_when_accessor_method_is_called() {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
         let user_agent = "Test Company contact@test.com".to_string();
-        let prepare_state_data =
-            PrepareSecRequestInput::new(cik.clone(), user_agent, SecClient::default());
+        let sec_client = SecClient::default();
+        let prepare_state_data = PrepareSecRequestInput::new(cik.clone(), user_agent, sec_client);
 
         let expected_result = &cik;
 
@@ -386,8 +390,8 @@ mod tests {
     fn should_return_user_agent_when_accessor_method_is_called() {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
         let user_agent = "Test Company contact@test.com".to_string();
-        let prepare_state_data =
-            PrepareSecRequestInput::new(cik, user_agent.clone(), SecClient::default());
+        let sec_client = SecClient::default();
+        let prepare_state_data = PrepareSecRequestInput::new(cik, user_agent.clone(), sec_client);
 
         let expected_result = &user_agent;
 
