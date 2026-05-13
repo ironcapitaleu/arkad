@@ -250,7 +250,8 @@ mod tests {
     }
 
     fn create_test_input() -> PrepareSecRequestInput {
-        PrepareSecRequestInput::new(create_test_cik(), String::new(), SecClient::default())
+        let sec_client = SecClient::default();
+        PrepareSecRequestInput::new(create_test_cik(), String::new(), sec_client)
     }
 
     fn create_test_context() -> PrepareSecRequestContext {
@@ -308,8 +309,9 @@ mod tests {
     fn should_create_new_prepare_state_with_provided_input_and_context() {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
         let user_agent = "Test Company contact@test.com".to_string();
+        let sec_client = SecClient::default();
         let input =
-            PrepareSecRequestInput::new(cik.clone(), user_agent.clone(), SecClient::default());
+            PrepareSecRequestInput::new(cik.clone(), user_agent.clone(), sec_client);
         let context = create_test_context();
 
         let expected_input = input.clone();
@@ -454,7 +456,8 @@ mod tests {
     async fn should_not_change_input_data_when_computing_output_data() {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
         let user_agent = "Test Company contact@test.com".to_string();
-        let input = PrepareSecRequestInput::new(cik, user_agent, SecClient::default());
+        let sec_client = SecClient::default();
+        let input = PrepareSecRequestInput::new(cik, user_agent, sec_client);
         let context = create_test_context();
         let mut prepare_state = PrepareSecRequest::new(input, context);
 
@@ -473,7 +476,8 @@ mod tests {
     async fn should_return_correct_output_data_when_computing_output_data() {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
         let user_agent = "Test Company contact@test.com".to_string();
-        let input = PrepareSecRequestInput::new(cik, user_agent, SecClient::default());
+        let sec_client = SecClient::default();
+        let input = PrepareSecRequestInput::new(cik, user_agent, sec_client);
         let context = create_test_context();
         let mut prepare_state = PrepareSecRequest::new(input, context);
 
@@ -498,7 +502,8 @@ mod tests {
     async fn should_return_true_when_output_data_has_been_computed() {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
         let user_agent = "Test Company contact@test.com".to_string();
-        let input = PrepareSecRequestInput::new(cik, user_agent, SecClient::default());
+        let sec_client = SecClient::default();
+        let input = PrepareSecRequestInput::new(cik, user_agent, sec_client);
         let context = create_test_context();
         let mut prepare_state = PrepareSecRequest::new(input, context);
 
