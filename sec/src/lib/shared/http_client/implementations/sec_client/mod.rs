@@ -19,6 +19,11 @@ pub mod error;
 /// `SecClient` orchestrates the full request-response cycle: it takes a
 /// validated `SecRequest`, executes it via the underlying HTTP client, and
 /// returns a validated `SecResponse`.
+///
+/// # Cloning
+///
+/// The underlying `reqwest::Client` uses `Arc` internally, so clones share the same connection pool, TLS sessions, and DNS
+/// cache. No additional `Arc` wrapping is needed for concurrent use.
 #[derive(Debug, Clone)]
 pub struct SecClient {
     inner: reqwest::Client,
