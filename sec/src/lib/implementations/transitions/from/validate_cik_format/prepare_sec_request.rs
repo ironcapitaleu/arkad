@@ -5,10 +5,9 @@
 //! input and context.
 //!
 //! ## Transition Flow
-//! 1. Receives the source [`ValidateCikFormat`] state and the [`ExtractSuperStateContext`]
-//! 2. Extracts output data from the source state
-//! 3. Converts the output to [`PrepareSecRequestContext`] and [`PrepareSecRequestInput`]
-//! 4. Constructs and returns a new [`PrepareSecRequest`] state
+//! 1. Extracts output data and context from the source [`ValidateCikFormat`] state
+//! 2. Converts the output to [`PrepareSecRequestContext`] and [`PrepareSecRequestInput`]
+//! 3. Constructs and returns a new [`PrepareSecRequest`] state
 //!
 //! ## Error Handling
 //! Returns a [`TransitionError`] if the source state lacks required output data.
