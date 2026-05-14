@@ -21,22 +21,20 @@
 //! use tokio;
 //!
 //! use sec::implementations::states::extract::validate_cik_format::{ValidateCikFormat, ValidateCikFormatInput, ValidateCikFormatContext};
+//! use sec::shared::http_client::implementations::sec_client::SecClient;
 //! use sec::prelude::*;
 //!
 //! #[tokio::main]
 //! async fn main() {
-//!     // Initialze input and context for the `ValidateCikFormat` state
 //!     let input = ValidateCikFormatInput::new("1234");
-//!     let context = ValidateCikFormatContext::new("1234");
-//!     
-//!     // For testing purposes: Define the expected result after validation
+//!     let sec_client = SecClient::default();
+//!     let context = ValidateCikFormatContext::new("1234", sec_client);
+//!
 //!     let expected_result = "0000001234";
-//!     
-//!     // Create the `ValidateCikFormat` state with the newly created `input` and `context` and compute the output data asynchronously
+//!
 //!     let mut state = ValidateCikFormat::new(input, context);
 //!     state.compute_output_data_async().await;
 //!
-//!     // Retrieve the validated CIK from the output data of the state
 //!     let result = state.output_data().expect("Output data should always be present in provided `ValidateCikFormat` state").validated_cik.value();
 //!
 //!     assert_eq!(result, expected_result);

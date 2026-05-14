@@ -227,7 +227,7 @@ impl ExtractSuperState<ValidateCikFormat> {
     pub fn new(input: impl Into<String>, sec_client: SecClient) -> Self {
         let input: String = input.into();
         let input_data = ValidateCikFormatInput::new(input.clone());
-        let state_context = ValidateCikFormatContext::new(input);
+        let state_context = ValidateCikFormatContext::new(input, sec_client.clone());
 
         Self {
             current_state: ValidateCikFormat::new(input_data, state_context),
@@ -300,8 +300,7 @@ impl NonTerminal for ExtractSuperState<ExecuteSecRequest> {
 
 impl Transition<ValidateCikFormat, PrepareSecRequest> for ExtractSuperState<ValidateCikFormat> {
     fn transition_to_next_state_sec(self) -> Result<Self::NewStateMachine, TransitionError> {
-        let sec_client = self.context.sec_client.clone();
-        let next_state = PrepareSecRequest::try_from((self.current_state, sec_client))?;
+        let next_state = PrepareSecRequest::try_from(self.current_state)?;
 
         Ok(ExtractSuperState::<PrepareSecRequest> {
             current_state: next_state,
