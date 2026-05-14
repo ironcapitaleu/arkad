@@ -117,7 +117,7 @@ mod tests {
     fn should_return_error_when_prepare_sec_request_has_no_output() {
         let cik = Cik::new("0001234567")
             .expect("Hardcoded valid CIK string should always parse successfully");
-        let input = PrepareSecRequestInput::new(cik.clone(), String::new(), SecClient::default());
+        let input = PrepareSecRequestInput::new(cik.clone(), "", SecClient::default());
         let context = PrepareSecRequestContext::new(cik);
         let state = PrepareSecRequest::new(input, context);
 

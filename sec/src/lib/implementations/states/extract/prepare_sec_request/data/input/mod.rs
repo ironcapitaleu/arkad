@@ -57,15 +57,14 @@ impl PrepareSecRequestInput {
     /// use sec::shared::http_client::implementations::sec_client::SecClient;
     ///
     /// let cik = Cik::new("1067983").expect("Hardcoded CIK string should be valid format");
-    /// let user_agent = "Test Company contact@test.com".to_string();
     /// let client = SecClient::default();
-    /// let input_data = PrepareSecRequestInput::new(cik, user_agent, client);
+    /// let input_data = PrepareSecRequestInput::new(cik, "Test Company contact@test.com", client);
     /// ```
     #[must_use]
-    pub const fn new(validated_cik: Cik, user_agent: String, sec_client: SecClient) -> Self {
+    pub fn new(validated_cik: Cik, user_agent: impl Into<String>, sec_client: SecClient) -> Self {
         Self {
             validated_cik,
-            user_agent,
+            user_agent: user_agent.into(),
             sec_client,
         }
     }
