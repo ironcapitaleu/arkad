@@ -1,15 +1,15 @@
 //! # SEC Request Preparation State
 //!
-//! This module provides the [`PrepareSecRequest`] state and related types for preparing HTTP clients and requests for SEC API interactions as part of the SEC filings extraction workflow.
+//! This module provides the [`PrepareSecRequest`] state and related types for preparing HTTP requests for SEC API interactions as part of the SEC filings extraction workflow.
 //!
 //! ## Overview
-//! The [`PrepareSecRequest`] state is responsible for creating and configuring the necessary HTTP infrastructure to interact with SEC API endpoints. It takes a validated CIK and user agent string as input and produces a configured HTTP client and request object ready for SEC API calls.
+//! The [`PrepareSecRequest`] state is responsible for constructing the request object to interact with SEC API endpoints. It takes a validated CIK and a pre-configured HTTP client as input and produces a request object ready for SEC API calls.
 //!
 //! ## Components
 //! - [`context`]: Defines the context and updater types for the request preparation process, allowing stateful tracking of preparation-related context.
 //! - [`data`]: Contains input and output data structures for the preparation state, including updaters and builders for ergonomic data manipulation.
 //! - [`PrepareSecRequestContext`]: Context data type for the state.
-//! - [`PrepareSecRequestInput`]: Input data type holding the validated CIK and user agent string.
+//! - [`PrepareSecRequestInput`]: Input data type holding the validated CIK and HTTP client.
 //! - [`PrepareSecRequestOutput`]: Output data type containing the prepared SEC client and request.
 //!
 //! ## Usage
@@ -21,21 +21,19 @@
 //!
 //! use sec::implementations::states::extract::prepare_sec_request::*;
 //! use sec::shared::cik::Cik;
-//! use sec::prelude::*; // allows us to use call the `State` and other trait methods directly
+//! use sec::prelude::*;
 //! use sec::shared::http_client::implementations::sec_client::SecClient;
 //! #[tokio::main]
 //! async fn main() {
 //!     let cik = Cik::new("1067983").expect("Hardcoded CIK string should be valid format");
-//!     let user_agent = "Test Company contact@test.com".to_string();
 //!     let client = SecClient::default();
-//!     let input = PrepareSecRequestInput::new(cik.clone(), user_agent, client);
+//!     let input = PrepareSecRequestInput::new(cik.clone(), client);
 //!     let context = PrepareSecRequestContext::new(cik);
 //!
 //!     let mut prepare_state = PrepareSecRequest::new(input, context);
 //!     prepare_state.compute_output_data_async().await.unwrap();
 //!     let prepared_output = prepare_state.output_data().unwrap();
 //!
-//!     // Now you have a client and request ready for SEC API calls
 //!     let client = prepared_output.client();
 //!     let request = prepared_output.request();
 //! }
@@ -69,16 +67,14 @@ pub use context::PrepareSecRequestContext;
 pub use data::PrepareSecRequestInput;
 pub use data::PrepareSecRequestOutput;
 
-/// State that prepares HTTP client and request objects for SEC API interactions.
+/// State that prepares request objects for SEC API interactions.
 ///
-/// The state takes a validated CIK and user agent string as input, creates a configured
-/// HTTP client with proper user agent headers, and constructs a request object targeting
-/// the appropriate SEC API endpoint for the given CIK.
+/// The state takes a validated CIK and a pre-configured HTTP client as input, and
+/// constructs a request object targeting the appropriate SEC API endpoint for the given CIK.
 ///
 /// # Behavior
-/// - Validates the user agent string format for SEC compliance.
-/// - Creates an HTTP client configured with the validated user agent.
-/// - Constructs a request object targeting the SEC submissions endpoint for the given CIK.
+/// - Constructs a request object targeting the SEC company facts endpoint for the given CIK.
+/// - Pairs the request with the pre-configured HTTP client for execution.
 /// - Produces configured [`SecRequest`] object ready for API calls.
 ///
 /// # Output
@@ -90,9 +86,8 @@ pub use data::PrepareSecRequestOutput;
 /// use sec::shared::cik::Cik;
 /// use sec::shared::http_client::implementations::sec_client::SecClient;
 /// let cik = Cik::new("1067983").expect("Hardcoded CIK string should be valid format");
-/// let user_agent = "Sample Corp contact@sample.com".to_string();
 /// let client = SecClient::default();
-/// let input = PrepareSecRequestInput::new(cik.clone(), user_agent, client);
+/// let input = PrepareSecRequestInput::new(cik.clone(), client);
 /// let context = PrepareSecRequestContext::new(cik);
 /// let mut prepare_state = PrepareSecRequest::new(input, context);
 /// ```
@@ -138,21 +133,14 @@ impl PrepareSecRequest {
 
 #[async_trait]
 impl State for PrepareSecRequest {
-    /// Computes the output data by creating SEC client and request objects.
+    /// Computes the output data by preparing the SEC request object.
     ///
-    /// This method validates the user agent format, creates an HTTP client configured
-    /// with the user agent, and constructs a request object for the given CIK.
-    ///
-    /// # Errors
-    ///
-    /// Returns a [`StateError`] if:
-    /// - The user agent string doesn't meet SEC format requirements
-    /// - The HTTP client cannot be created due to configuration issues
+    /// This method constructs a request object targeting the SEC API endpoint
+    /// for the given CIK, paired with the pre-configured HTTP client.
     ///
     /// # Returns
     ///
-    /// Returns `Ok(())` if the client and request are successfully created and stored,
-    /// or `Err(StateError)` if preparation fails.
+    /// Returns `Ok(())` after the client and request are stored as output data.
     async fn compute_output_data_async(&mut self) -> Result<(), StateError> {
         let sec_client = self.input.sec_client.clone();
         let sec_request = SecRequest::builder()
@@ -251,7 +239,7 @@ mod tests {
 
     fn create_test_input() -> PrepareSecRequestInput {
         let sec_client = SecClient::default();
-        PrepareSecRequestInput::new(create_test_cik(), String::new(), sec_client)
+        PrepareSecRequestInput::new(create_test_cik(), sec_client)
     }
 
     fn create_test_context() -> PrepareSecRequestContext {
@@ -308,9 +296,8 @@ mod tests {
     #[test]
     fn should_create_new_prepare_state_with_provided_input_and_context() {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
-        let user_agent = "Test Company contact@test.com".to_string();
         let sec_client = SecClient::default();
-        let input = PrepareSecRequestInput::new(cik.clone(), user_agent.clone(), sec_client);
+        let input = PrepareSecRequestInput::new(cik, sec_client);
         let context = create_test_context();
 
         let expected_input = input.clone();
@@ -454,9 +441,8 @@ mod tests {
     #[tokio::test]
     async fn should_not_change_input_data_when_computing_output_data() {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
-        let user_agent = "Test Company contact@test.com".to_string();
         let sec_client = SecClient::default();
-        let input = PrepareSecRequestInput::new(cik, user_agent, sec_client);
+        let input = PrepareSecRequestInput::new(cik, sec_client);
         let context = create_test_context();
         let mut prepare_state = PrepareSecRequest::new(input, context);
 
@@ -474,9 +460,8 @@ mod tests {
     #[tokio::test]
     async fn should_return_correct_output_data_when_computing_output_data() {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
-        let user_agent = "Test Company contact@test.com".to_string();
         let sec_client = SecClient::default();
-        let input = PrepareSecRequestInput::new(cik, user_agent, sec_client);
+        let input = PrepareSecRequestInput::new(cik, sec_client);
         let context = create_test_context();
         let mut prepare_state = PrepareSecRequest::new(input, context);
 
@@ -500,9 +485,8 @@ mod tests {
     #[tokio::test]
     async fn should_return_true_when_output_data_has_been_computed() {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
-        let user_agent = "Test Company contact@test.com".to_string();
         let sec_client = SecClient::default();
-        let input = PrepareSecRequestInput::new(cik, user_agent, sec_client);
+        let input = PrepareSecRequestInput::new(cik, sec_client);
         let context = create_test_context();
         let mut prepare_state = PrepareSecRequest::new(input, context);
 

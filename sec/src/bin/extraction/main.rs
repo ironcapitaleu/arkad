@@ -49,7 +49,6 @@ async fn main() {
                 .expect("Should be valid")
                 .validated_cik
                 .clone(),
-            "Test User Agent test@example.com".to_string(),
             sec_client.clone(),
         ),
         PrepareSecRequestContext::new(

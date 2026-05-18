@@ -20,7 +20,6 @@ use crate::implementations::states::extract::prepare_sec_request::{
 };
 use crate::implementations::states::extract::validate_cik_format::ValidateCikFormat;
 use crate::implementations::states::extract::validate_cik_format::constants::STATE_NAME as VALIDATE_CIK_FORMAT;
-use crate::shared::user_agent::constants::DEFAULT_SEC_USER_AGENT;
 
 impl TryFrom<ValidateCikFormat> for PrepareSecRequest {
     type Error = TransitionError;
@@ -32,11 +31,7 @@ impl TryFrom<ValidateCikFormat> for PrepareSecRequest {
         })?;
 
         let new_context = PrepareSecRequestContext::new(output_data.validated_cik.clone());
-        let new_input = PrepareSecRequestInput::new(
-            output_data.validated_cik,
-            DEFAULT_SEC_USER_AGENT.to_string(),
-            context.sec_client,
-        );
+        let new_input = PrepareSecRequestInput::new(output_data.validated_cik, context.sec_client);
 
         Ok(Self::new(new_input, new_context))
     }
@@ -72,11 +67,7 @@ mod tests {
         let expected_cik = Cik::new(cik_string)
             .expect("Hardcoded valid CIK string should always parse successfully");
         let expected_context = PrepareSecRequestContext::new(expected_cik.clone());
-        let expected_input = PrepareSecRequestInput::new(
-            expected_cik,
-            DEFAULT_SEC_USER_AGENT.to_string(),
-            sec_client,
-        );
+        let expected_input = PrepareSecRequestInput::new(expected_cik, sec_client);
         let expected_result = PrepareSecRequest::new(expected_input, expected_context);
 
         let result = PrepareSecRequest::try_from(state)

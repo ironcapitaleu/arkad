@@ -8,6 +8,7 @@ use crate::shared::http_client::SecClient as SecClientTrait;
 use crate::shared::request::implementations::sec_request::SecRequest;
 use crate::shared::response::SecResponse as SecResponseTrait;
 use crate::shared::response::implementations::sec_response::SecResponse;
+use crate::shared::user_agent::UserAgent;
 use crate::shared::user_agent::constants::DEFAULT_SEC_USER_AGENT;
 
 use self::error::FailedSecRequest;
@@ -24,6 +25,12 @@ pub mod error;
 ///
 /// The underlying `reqwest::Client` uses `Arc` internally, so clones share the same connection pool, TLS sessions, and DNS
 /// cache. No additional `Arc` wrapping is needed for concurrent use.
+///
+/// # User Agent
+///
+/// The default client enforces the User-Agent header via a validated [`UserAgent`] newtype.
+/// This ensures all requests made by a default `SecClient` include a properly formatted
+/// SEC-compliant User-Agent header.
 #[derive(Debug, Clone)]
 pub struct SecClient {
     inner: reqwest::Client,
@@ -44,16 +51,15 @@ impl SecClient {
     }
 }
 
-/// Creates a default `SecClient`.
-///
-/// Wraps around `reqwest::Client` and sets the required User-Agent header for SEC API requests.
+/// Creates a default `SecClient` configured with the default SEC user agent.
 impl Default for SecClient {
-    /// Creates a default `SecClient` configured with the default SEC user agent.
     fn default() -> Self {
+        let user_agent = UserAgent::new(DEFAULT_SEC_USER_AGENT)
+            .expect("The default SEC user agent constant should always be valid");
         let http_client = reqwest::Client::builder()
-            .user_agent(DEFAULT_SEC_USER_AGENT)
+            .user_agent(user_agent.inner())
             .build()
-            .expect("The default SEC user agent should always produce a valid HTTP client");
+            .expect("A validated UserAgent should always produce a valid HTTP client");
         Self::new(http_client)
     }
 }
