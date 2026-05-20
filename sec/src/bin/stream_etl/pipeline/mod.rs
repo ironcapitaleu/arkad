@@ -9,9 +9,10 @@ use futures_util::StreamExt;
 use sec::implementations::states::extract::ExtractSuperState;
 use sec::implementations::states::extract::validate_cik_format::ValidateCikFormat;
 use sec::prelude::*;
+use sec::shared::http_client::implementations::sec_client::SecClient;
 use uuid::Uuid;
 
-use builder::{NoCik, PipelineBuilder};
+use builder::{NoCik, NoClient, PipelineBuilder};
 
 /// Events emitted by the pipeline runner (consumer-level, not part of the library).
 enum PipelineEvent {
@@ -34,17 +35,18 @@ impl Display for PipelineEvent {
 /// automatically chains through Transform via the cross-`SuperState` transition.
 pub struct Pipeline {
     raw_cik: String,
+    sec_client: SecClient,
 }
 
 impl Pipeline {
-    pub const fn builder() -> PipelineBuilder<NoCik> {
+    pub const fn builder() -> PipelineBuilder<NoCik, NoClient> {
         PipelineBuilder::new()
     }
 
     /// Creates a stream that drives the full ETL pipeline (Extract → Transform).
     #[must_use]
     pub fn into_stream(self, execution_id: Uuid) -> StateMachineStream {
-        let state = ExtractSuperState::<ValidateCikFormat>::new(self.raw_cik);
+        let state = ExtractSuperState::<ValidateCikFormat>::new(self.raw_cik, self.sec_client);
         state.into_stream(execution_id)
     }
 

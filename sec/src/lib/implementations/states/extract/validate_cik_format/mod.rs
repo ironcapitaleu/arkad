@@ -21,12 +21,14 @@
 //!
 //! use sec::implementations::states::extract::validate_cik_format::*;
 //! use sec::prelude::*; // allows us to use call the `State`and other trait methods directly`
+//! use sec::shared::http_client::implementations::sec_client::SecClient;
 //!
 //! #[tokio::main]
 //! async fn main() {
 //!
 //!     let input = ValidateCikFormatInput::new("1234");
-//!     let context = ValidateCikFormatContext::new("1234");
+//!     let sec_client = SecClient::default();
+//!     let context = ValidateCikFormatContext::new("1234", sec_client);
 //!
 //!     let expected_result = "0000001234";
 //!
@@ -90,9 +92,11 @@ use crate::shared::cik::Cik;
 /// # Example
 /// ```
 /// use sec::implementations::states::extract::validate_cik_format::*;
+/// use sec::shared::http_client::implementations::sec_client::SecClient;
 ///
 /// let input = ValidateCikFormatInput::new("1234");
-/// let context = ValidateCikFormatContext::new("1234");
+/// let sec_client = SecClient::default();
+/// let context = ValidateCikFormatContext::new("1234", sec_client);
 /// let mut validation_state = ValidateCikFormat::new(input, context);
 /// ```
 pub struct ValidateCikFormat {
@@ -217,6 +221,7 @@ impl fmt::Display for ValidateCikFormat {
 #[cfg(test)]
 mod tests {
     use crate::shared::cik::constants::BERKSHIRE_HATHAWAY_CIK_RAW;
+    use crate::shared::http_client::implementations::sec_client::SecClient;
 
     use super::*;
     use pretty_assertions::assert_eq;
@@ -224,7 +229,8 @@ mod tests {
     use tokio;
 
     fn test_context() -> ValidateCikFormatContext {
-        ValidateCikFormatContext::new(BERKSHIRE_HATHAWAY_CIK_RAW)
+        let sec_client = SecClient::default();
+        ValidateCikFormatContext::new(BERKSHIRE_HATHAWAY_CIK_RAW, sec_client)
     }
 
     fn test_input() -> ValidateCikFormatInput {

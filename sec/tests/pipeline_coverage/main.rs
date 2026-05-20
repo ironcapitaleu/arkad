@@ -19,6 +19,7 @@ use futures_util::StreamExt;
 
 use builder::Pipeline;
 use constants::{MUST_PASS_CIKS, SP500_CIKS};
+use sec::shared::http_client::implementations::sec_client::SecClient;
 
 /// Writes directly to stderr, bypassing the test framework's output capture.
 fn write_progress(msg: &str) {
@@ -47,9 +48,23 @@ const MINIMUM_SUCCESS_THRESHOLD: usize = 270;
 #[tokio::test(flavor = "multi_thread")]
 #[ignore = "Hits the live SEC API for must-pass companies (~10 seconds)"]
 async fn should_succeed_for_must_pass_companies() {
+    let sec_client = SecClient::default();
     let ciks: Vec<&str> = MUST_PASS_CIKS.iter().map(|(cik, _)| *cik).collect();
     let stream_results: Vec<_> = futures_util::stream::iter(ciks.iter())
-        .map(|cik| async move { (*cik, Pipeline::builder().cik(*cik).build().run().await) })
+        .map(|cik| {
+            let client = sec_client.clone();
+            async move {
+                (
+                    *cik,
+                    Pipeline::builder()
+                        .cik(*cik)
+                        .sec_client(client)
+                        .build()
+                        .run()
+                        .await,
+                )
+            }
+        })
         .buffer_unordered(10)
         .collect()
         .await;
@@ -79,6 +94,7 @@ async fn should_meet_threshold_for_sp500_companies() {
     use std::sync::Mutex;
     use std::sync::atomic::{AtomicUsize, Ordering};
 
+    let sec_client = SecClient::default();
     let ciks: Vec<&str> = SP500_CIKS.to_vec();
     let total = ciks.len();
     let completed = AtomicUsize::new(0);
@@ -92,8 +108,14 @@ async fn should_meet_threshold_for_sp500_companies() {
             let completed = &completed;
             let successes = &successes;
             let failures = &failures;
+            let client = sec_client.clone();
             async move {
-                let result = Pipeline::builder().cik(*cik).build().run().await;
+                let result = Pipeline::builder()
+                    .cik(*cik)
+                    .sec_client(client)
+                    .build()
+                    .run()
+                    .await;
                 let n = completed.fetch_add(1, Ordering::Relaxed) + 1;
                 match result {
                     Ok(()) => {

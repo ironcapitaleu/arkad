@@ -114,7 +114,9 @@ impl Headers {
     /// known headers.
     #[must_use]
     pub fn get(&self, name: &str) -> Option<&str> {
-        self.other.get(&name.to_ascii_lowercase()).map(String::as_str)
+        self.other
+            .get(&name.to_ascii_lowercase())
+            .map(String::as_str)
     }
 
     /// Returns a reference to the overflow map of remaining headers.
