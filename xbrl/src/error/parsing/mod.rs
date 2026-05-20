@@ -12,10 +12,17 @@ pub mod missing_top_level_key;
 /// Specific parsing failure variants.
 #[derive(Debug, PartialEq, Eq, Error)]
 pub enum ParseErrorKind {
-    /// The input is not valid JSON.
+    /// The input cannot be parsed as valid JSON (malformed bytes).
     #[error("[InvalidJson] Failed to parse JSON body, Reason: '{reason}'")]
     InvalidJson {
-        /// Description of what went wrong during JSON parsing.
+        /// Description of the deserialization failure.
+        reason: String,
+    },
+
+    /// The JSON is valid but does not match the expected schema. Keys may be missing or their values may have the wrong type.
+    #[error("[UnexpectedJsonSchema] Unexpected JSON schema, Reason: '{reason}'")]
+    UnexpectedJsonSchema {
+        /// Description of what was expected vs what was found.
         reason: String,
     },
 

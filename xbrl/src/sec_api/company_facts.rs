@@ -54,7 +54,7 @@ pub fn parse(json: &serde_json::Value) -> Result<Vec<RawObservation>, ParseError
     let facts = json
         .get("facts")
         .and_then(serde_json::Value::as_object)
-        .ok_or_else(|| ParseErrorKind::InvalidJson {
+        .ok_or_else(|| ParseErrorKind::UnexpectedJsonSchema {
             reason: "Expected 'facts' to be a JSON object".to_string(),
         })?;
 
@@ -114,7 +114,7 @@ pub fn extract_entity_name(json: &serde_json::Value) -> Result<String, ParseErro
     json.get("entityName")
         .and_then(serde_json::Value::as_str)
         .map(ToString::to_string)
-        .ok_or_else(|| ParseErrorKind::InvalidJson {
+        .ok_or_else(|| ParseErrorKind::UnexpectedJsonSchema {
             reason: "Expected 'entityName' to be a string".to_string(),
         })
 }
