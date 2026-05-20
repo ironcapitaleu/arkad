@@ -10,7 +10,7 @@ pub mod missing_namespace;
 pub mod missing_top_level_key;
 
 /// Specific parsing failure variants.
-#[derive(Debug, Error)]
+#[derive(Debug, PartialEq, Eq, Error)]
 pub enum ParseErrorKind {
     /// The input is not valid JSON.
     #[error("[InvalidJson] Failed to parse JSON body, Reason: '{reason}'")]

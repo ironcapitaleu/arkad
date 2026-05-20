@@ -37,7 +37,6 @@ use crate::core::observation::RawObservation;
 use crate::core::period::Period;
 use crate::core::provenance::Provenance;
 use crate::core::unit::Unit;
-use crate::error::ErrorKind;
 use crate::error::parsing::ParseErrorKind;
 use crate::us_gaap::mappings::{REQUIRED_FACTS_NAMESPACE, REQUIRED_TOP_LEVEL_KEYS};
 
@@ -48,8 +47,8 @@ use crate::us_gaap::mappings::{REQUIRED_FACTS_NAMESPACE, REQUIRED_TOP_LEVEL_KEYS
 ///
 /// # Errors
 ///
-/// Returns [`ErrorKind`] if the JSON structure is invalid or required keys are missing.
-pub fn parse(json: &serde_json::Value) -> Result<Vec<RawObservation>, ErrorKind> {
+/// Returns [`ParseErrorKind`] if the JSON structure is invalid or required keys are missing.
+pub fn parse(json: &serde_json::Value) -> Result<Vec<RawObservation>, ParseErrorKind> {
     validate_top_level_structure(json)?;
 
     let facts = json
@@ -62,8 +61,7 @@ pub fn parse(json: &serde_json::Value) -> Result<Vec<RawObservation>, ErrorKind>
     if !facts.contains_key(REQUIRED_FACTS_NAMESPACE) {
         return Err(ParseErrorKind::MissingNamespace {
             namespace: REQUIRED_FACTS_NAMESPACE.to_string(),
-        }
-        .into());
+        });
     }
 
     let mut observations = Vec::new();
@@ -110,21 +108,18 @@ pub fn parse(json: &serde_json::Value) -> Result<Vec<RawObservation>, ErrorKind>
 ///
 /// # Errors
 ///
-/// Returns [`ErrorKind`] if the structure is invalid.
-pub fn extract_entity_name(json: &serde_json::Value) -> Result<String, ErrorKind> {
+/// Returns [`ParseErrorKind`] if the structure is invalid.
+pub fn extract_entity_name(json: &serde_json::Value) -> Result<String, ParseErrorKind> {
     validate_top_level_structure(json)?;
     json.get("entityName")
         .and_then(serde_json::Value::as_str)
         .map(ToString::to_string)
-        .ok_or_else(|| {
-            ParseErrorKind::InvalidJson {
-                reason: "Expected 'entityName' to be a string".to_string(),
-            }
-            .into()
+        .ok_or_else(|| ParseErrorKind::InvalidJson {
+            reason: "Expected 'entityName' to be a string".to_string(),
         })
 }
 
-fn validate_top_level_structure(json: &serde_json::Value) -> Result<(), ErrorKind> {
+fn validate_top_level_structure(json: &serde_json::Value) -> Result<(), ParseErrorKind> {
     let obj = json
         .as_object()
         .ok_or_else(|| ParseErrorKind::InvalidJson {
@@ -135,8 +130,7 @@ fn validate_top_level_structure(json: &serde_json::Value) -> Result<(), ErrorKin
         if !obj.contains_key(key) {
             return Err(ParseErrorKind::MissingTopLevelKey {
                 key: key.to_string(),
-            }
-            .into());
+            });
         }
     }
 
@@ -288,6 +282,25 @@ mod tests {
         let expected_result = "Apple Inc.";
 
         let result = extract_entity_name(&json).expect("Valid JSON should parse successfully");
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_missing_namespace_error_when_us_gaap_namespace_is_absent() {
+        let json = json!({
+            "cik": 320193,
+            "entityName": "Apple Inc.",
+            "facts": {
+                "dei": {}
+            }
+        });
+
+        let expected_result = ParseErrorKind::MissingNamespace {
+            namespace: "us-gaap".to_string(),
+        };
+
+        let result = parse(&json).unwrap_err();
 
         assert_eq!(result, expected_result);
     }

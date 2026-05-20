@@ -13,7 +13,7 @@ pub mod incomplete_data;
 pub mod inconsistent_identity;
 
 /// Specific validation failure variants.
-#[derive(Debug, Error)]
+#[derive(Debug, PartialEq, Error)]
 pub enum ValidationErrorKind {
     /// Required canonical elements are missing from the resolved data.
     #[error("[IncompleteData] Missing required elements: {missing_elements}")]
