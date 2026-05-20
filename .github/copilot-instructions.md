@@ -82,7 +82,9 @@ Error types must follow consistent naming patterns based on the kind of error th
 Error messages follow a consistent chaining convention:
 
 - **Chaining errors** (wrapping an inner error): Use `Caused by:` to link to the next error in the chain. Do **not** wrap the inner error in quotes — it formats itself.
-- **Leaf errors** (the root cause, no inner error): Use `Reason:` followed by a human-readable description. Primitive values may be quoted.
+- **Leaf errors** (the root cause, no inner error): Two forms depending on whether the error is self-describing:
+  - **With `Reason:`** — when the error carries a free-form explanation that isn't obvious from the error name alone: `[InvalidJson] Failed to parse JSON body, Reason: 'unexpected EOF at position 4096'`
+  - **Without `Reason:`** — when the structured fields already say everything: `[MissingTopLevelKey] Required key 'facts' not found in response`
 
 **Format pattern:**
 
