@@ -2,10 +2,10 @@
 //!
 //! This module defines the input data structure and updater patterns for the `PrepareSecRequest` state
 //! within the SEC extraction state machine. It provides types and builders for representing and updating
-//! the validated Central Index Key (CIK) and user agent information required for preparing SEC API requests.
+//! the validated Central Index Key (CIK) and HTTP client required for preparing SEC API requests.
 //!
 //! ## Types
-//! - [`PrepareSecRequestInput`]: Holds the validated CIK and user agent string to be processed by the prepare request state.
+//! - [`PrepareSecRequestInput`]: Holds the validated CIK and HTTP client to be processed by the prepare request state.
 //! - [`PrepareSecRequestInputUpdater`]: Updater type for modifying the input data in a controlled manner.
 //! - [`PrepareSecRequestInputUpdaterBuilder`]: Builder for constructing updater instances with optional fields.
 //!
@@ -19,7 +19,6 @@
 //!
 //! ## See Also
 //! - [`crate::shared::cik`]: Utilities for CIK parsing and validation.
-//! - [`crate::shared::user_agent`]: Utilities for user agent validation.
 //! - [`state_maschine::prelude::StateData`]: Trait for state data integration.
 //!
 //! ## Examples
@@ -32,20 +31,16 @@ use state_maschine::prelude::StateData as SMStateData;
 
 use crate::error::State as StateError;
 use crate::shared::cik::Cik;
+use crate::shared::http_client::implementations::sec_client::SecClient;
 use crate::traits::state_machine::state::StateData;
 
 /// Input data for preparing SEC API requests.
-///
-/// This struct holds the validated Central Index Key (CIK) and user agent string
-/// that will be used to prepare HTTP requests to SEC API endpoints. It is designed
-/// to be used as part of the SEC document extraction workflow, and supports
-/// builder-based updates and integration with the state machine framework.
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
 pub struct PrepareSecRequestInput {
     /// The validated CIK that will be used for the SEC API request.
     pub validated_cik: Cik,
-    /// The user agent string that will be included in the HTTP request headers.
-    pub user_agent: String,
+    /// The shared HTTP client passed down from the super-state context.
+    pub sec_client: SecClient,
 }
 
 impl PrepareSecRequestInput {
@@ -56,16 +51,17 @@ impl PrepareSecRequestInput {
     /// ```
     /// use sec::implementations::states::extract::prepare_sec_request::data::input::PrepareSecRequestInput;
     /// use sec::shared::cik::Cik;
+    /// use sec::shared::http_client::implementations::sec_client::SecClient;
     ///
     /// let cik = Cik::new("1067983").expect("Hardcoded CIK string should be valid format");
-    /// let user_agent = "Test Company contact@test.com".to_string();
-    /// let input_data = PrepareSecRequestInput::new(cik, user_agent);
+    /// let client = SecClient::default();
+    /// let input_data = PrepareSecRequestInput::new(cik, client);
     /// ```
     #[must_use]
-    pub const fn new(validated_cik: Cik, user_agent: String) -> Self {
+    pub const fn new(validated_cik: Cik, sec_client: SecClient) -> Self {
         Self {
             validated_cik,
-            user_agent,
+            sec_client,
         }
     }
 
@@ -75,24 +71,23 @@ impl PrepareSecRequestInput {
         &self.validated_cik
     }
 
-    /// Returns a reference to the user agent string.
+    /// Returns a reference to the HTTP client.
     #[must_use]
-    pub const fn user_agent(&self) -> &String {
-        &self.user_agent
+    pub const fn sec_client(&self) -> &SecClient {
+        &self.sec_client
     }
 }
 
 impl StateData for PrepareSecRequestInput {
     /// Updates the state data using the provided updater.
     ///
-    /// If `validated_cik` is `Some`, updates the CIK; if `user_agent` is `Some`, updates the user agent;
-    /// otherwise, leaves the respective fields unchanged.
+    /// Only fields set to `Some` in the updater are modified; others are left unchanged.
     fn update_state(&mut self, updates: Self::UpdateType) -> Result<(), StateError> {
         if let Some(validated_cik) = updates.validated_cik {
             self.validated_cik = validated_cik;
         }
-        if let Some(user_agent) = updates.user_agent {
-            self.user_agent = user_agent;
+        if let Some(sec_client) = updates.sec_client {
+            self.sec_client = sec_client;
         }
         Ok(())
     }
@@ -119,25 +114,19 @@ impl SMStateData for PrepareSecRequestInput {
 
 impl fmt::Display for PrepareSecRequestInput {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "\tValidated CIK: {}\nUser Agent: {}",
-            self.validated_cik, self.user_agent
-        )
+        write!(f, "\tValidated CIK: {}", self.validated_cik)
     }
 }
 
 /// Updater for [`PrepareSecRequestInput`].
 ///
-/// This struct is used to specify updates to the input data in a controlled, partial manner.
-/// Fields set to `None` will not be updated. Used in conjunction with the state machine's
-/// update mechanism to ensure safe and explicit state transitions.
+/// Fields set to `None` will not be updated.
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 pub struct PrepareSecRequestInputUpdater {
     /// Optional new value for the validated CIK.
     pub validated_cik: Option<Cik>,
-    /// Optional new value for the user agent string.
-    pub user_agent: Option<String>,
+    /// Optional new value for the HTTP client.
+    pub sec_client: Option<SecClient>,
 }
 
 impl PrepareSecRequestInputUpdater {
@@ -149,12 +138,9 @@ impl PrepareSecRequestInputUpdater {
 }
 
 /// Builder for [`PrepareSecRequestInputUpdater`].
-///
-/// This builder allows for ergonomic and explicit construction of updater instances,
-/// supporting method chaining and optional fields. Use `.build()` to produce the updater.
 pub struct PrepareSecRequestInputUpdaterBuilder {
     pub validated_cik: Option<Cik>,
-    pub user_agent: Option<String>,
+    pub sec_client: Option<SecClient>,
 }
 
 impl PrepareSecRequestInputUpdaterBuilder {
@@ -163,45 +149,31 @@ impl PrepareSecRequestInputUpdaterBuilder {
     pub const fn new() -> Self {
         Self {
             validated_cik: None,
-            user_agent: None,
+            sec_client: None,
         }
     }
 
-    /// Sets both the validated CIK and user agent values to be updated.
-    ///
-    /// # Arguments
-    ///
-    /// * `validated_cik` - The new validated CIK value.
-    /// * `user_agent` - The new user agent string value.
-    #[must_use]
-    #[allow(clippy::missing_const_for_fn)]
-    pub fn validated_cik(mut self, validated_cik: Cik, user_agent: String) -> Self {
-        self.validated_cik = Some(validated_cik);
-        self.user_agent = Some(user_agent);
-        self
-    }
-
-    /// Sets only the user agent value to be updated.
-    ///
-    /// # Arguments
-    ///
-    /// * `user_agent` - The new user agent string value.
-    #[must_use]
-    #[allow(clippy::missing_const_for_fn)]
-    pub fn user_agent(mut self, user_agent: String) -> Self {
-        self.user_agent = Some(user_agent);
-        self
-    }
-
-    /// Sets only the validated [`Cik`] value to be updated.
+    /// Sets the validated CIK value to be updated.
     ///
     /// # Arguments
     ///
     /// * `validated_cik` - The new validated CIK value.
     #[must_use]
     #[allow(clippy::missing_const_for_fn)]
-    pub fn cik(mut self, validated_cik: Cik) -> Self {
+    pub fn validated_cik(mut self, validated_cik: Cik) -> Self {
         self.validated_cik = Some(validated_cik);
+        self
+    }
+
+    /// Sets the HTTP client value to be updated.
+    ///
+    /// # Arguments
+    ///
+    /// * `sec_client` - The new HTTP client.
+    #[must_use]
+    #[allow(clippy::missing_const_for_fn)]
+    pub fn sec_client(mut self, sec_client: SecClient) -> Self {
+        self.sec_client = Some(sec_client);
         self
     }
 
@@ -210,7 +182,7 @@ impl PrepareSecRequestInputUpdaterBuilder {
     pub fn build(self) -> PrepareSecRequestInputUpdater {
         PrepareSecRequestInputUpdater {
             validated_cik: self.validated_cik,
-            user_agent: self.user_agent,
+            sec_client: self.sec_client,
         }
     }
 }
@@ -232,12 +204,14 @@ mod tests {
     use super::{PrepareSecRequestInput, PrepareSecRequestInputUpdaterBuilder};
     use crate::shared::cik::Cik;
     use crate::shared::cik::constants::BERKSHIRE_HATHAWAY_CIK_RAW;
+    use crate::shared::http_client::implementations::sec_client::SecClient;
     use crate::traits::state_machine::state::StateData;
 
     fn create_test_input() -> PrepareSecRequestInput {
         let cik =
             Cik::new(BERKSHIRE_HATHAWAY_CIK_RAW).expect("Hardcoded CIK should always be valid");
-        PrepareSecRequestInput::new(cik, String::new())
+        let sec_client = SecClient::default();
+        PrepareSecRequestInput::new(cik, sec_client)
     }
 
     #[test]
@@ -254,8 +228,8 @@ mod tests {
     #[test]
     fn should_create_different_state_data_with_custom_data_when_using_new_as_constructor() {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
-        let user_agent = "Custom Company contact@custom.com".to_string();
-        let prepare_state_data = PrepareSecRequestInput::new(cik, user_agent);
+        let sec_client = SecClient::default();
+        let prepare_state_data = PrepareSecRequestInput::new(cik, sec_client);
 
         let default_prepare_state_data = &create_test_input();
 
@@ -268,30 +242,12 @@ mod tests {
     fn should_update_state_data_to_specified_values_when_update_contains_specified_values() {
         let mut state_data = create_test_input();
         let new_cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
-        let new_user_agent = "Updated Company contact@updated.com".to_string();
         let update = PrepareSecRequestInputUpdaterBuilder::default()
-            .validated_cik(new_cik.clone(), new_user_agent.clone())
+            .validated_cik(new_cik.clone())
             .build();
 
-        let expected_result = &PrepareSecRequestInput::new(new_cik, new_user_agent);
-
-        StateData::update_state(&mut state_data, update)
-            .expect("Update with valid 'update' value should always succeed");
-        let result = state_data.state();
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
-    fn should_update_only_user_agent_when_update_contains_only_user_agent() {
-        let mut state_data = create_test_input();
-        let original_cik = state_data.validated_cik.clone();
-        let new_user_agent = "New User Agent contact@new.com".to_string();
-        let update = PrepareSecRequestInputUpdaterBuilder::default()
-            .user_agent(new_user_agent.clone())
-            .build();
-
-        let expected_result = &PrepareSecRequestInput::new(original_cik, new_user_agent);
+        let sec_client = SecClient::default();
+        let expected_result = &PrepareSecRequestInput::new(new_cik, sec_client);
 
         StateData::update_state(&mut state_data, update)
             .expect("Update with valid 'update' value should always succeed");
@@ -303,13 +259,13 @@ mod tests {
     #[test]
     fn should_update_only_cik_when_update_contains_only_cik() {
         let mut state_data = create_test_input();
-        let original_user_agent = state_data.user_agent.clone();
         let new_cik = Cik::new("9876543210").expect("Hardcoded CIK should always be valid");
         let update = PrepareSecRequestInputUpdaterBuilder::default()
-            .cik(new_cik.clone())
+            .validated_cik(new_cik.clone())
             .build();
 
-        let expected_result = &PrepareSecRequestInput::new(new_cik, original_user_agent);
+        let sec_client = SecClient::default();
+        let expected_result = &PrepareSecRequestInput::new(new_cik, sec_client);
 
         StateData::update_state(&mut state_data, update)
             .expect("Update with valid 'update' value should always succeed");
@@ -322,16 +278,15 @@ mod tests {
     fn should_update_state_data_to_latest_specified_values_when_multiple_updates_in_builder() {
         let mut state_data = create_test_input();
         let first_cik = Cik::new("1111111111").expect("Hardcoded CIK should always be valid");
-        let first_user_agent = "First Company contact@first.com".to_string();
         let final_cik = Cik::new("2222222222").expect("Hardcoded CIK should always be valid");
-        let final_user_agent = "Final Company contact@final.com".to_string();
 
         let update = PrepareSecRequestInputUpdaterBuilder::default()
-            .validated_cik(first_cik, first_user_agent)
-            .validated_cik(final_cik.clone(), final_user_agent.clone())
+            .validated_cik(first_cik)
+            .validated_cik(final_cik.clone())
             .build();
 
-        let expected_result = &PrepareSecRequestInput::new(final_cik, final_user_agent);
+        let sec_client = SecClient::default();
+        let expected_result = &PrepareSecRequestInput::new(final_cik, sec_client);
 
         StateData::update_state(&mut state_data, update)
             .expect("Update with valid 'update' value should always succeed");
@@ -357,25 +312,12 @@ mod tests {
     #[test]
     fn should_return_validated_cik_when_accessor_method_is_called() {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
-        let user_agent = "Test Company contact@test.com".to_string();
-        let prepare_state_data = PrepareSecRequestInput::new(cik.clone(), user_agent);
+        let sec_client = SecClient::default();
+        let prepare_state_data = PrepareSecRequestInput::new(cik.clone(), sec_client);
 
         let expected_result = &cik;
 
         let result = prepare_state_data.validated_cik();
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
-    fn should_return_user_agent_when_accessor_method_is_called() {
-        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
-        let user_agent = "Test Company contact@test.com".to_string();
-        let prepare_state_data = PrepareSecRequestInput::new(cik, user_agent.clone());
-
-        let expected_result = &user_agent;
-
-        let result = prepare_state_data.user_agent();
 
         assert_eq!(result, expected_result);
     }

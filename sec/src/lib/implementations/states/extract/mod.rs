@@ -17,10 +17,12 @@
 //! use sec::implementations::states::extract::*;
 //! use sec::implementations::states::extract::validate_cik_format::ValidateCikFormat;
 //! use sec::prelude::*;
+//! use sec::shared::http_client::implementations::sec_client::SecClient;
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
-//!     let mut extract_state = ExtractSuperState::<ValidateCikFormat>::new("1234567890");
+//!     let client = SecClient::default();
+//!     let mut extract_state = ExtractSuperState::<ValidateCikFormat>::new("1234567890", client);
 //!     extract_state.compute_output_data_async().await?;
 //!     let next_state = extract_state.transition_to_next_state_sec()?;
 //!     Ok(())
@@ -79,10 +81,18 @@ impl StateData for ExtractSuperStateData {
 }
 
 /// Context data structure for the Extract super-state.
-///
-/// Provides configuration and runtime context for the [`ExtractSuperState`], including retry policies.
-#[derive(Debug, Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
-pub struct ExtractSuperStateContext;
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
+pub struct ExtractSuperStateContext {
+    pub(crate) sec_client: SecClient,
+}
+
+impl ExtractSuperStateContext {
+    /// Creates a new context with the given HTTP client.
+    #[must_use]
+    pub const fn new(sec_client: SecClient) -> Self {
+        Self { sec_client }
+    }
+}
 
 impl SMContext for ExtractSuperStateContext {
     type UpdateType = ();
@@ -214,46 +224,46 @@ impl<S: State> SuperState<S> for ExtractSuperState<S> {}
 
 impl ExtractSuperState<ValidateCikFormat> {
     #[must_use]
-    pub fn new(input: impl Into<String>) -> Self {
+    pub fn new(input: impl Into<String>, sec_client: SecClient) -> Self {
         let input: String = input.into();
         let input_data = ValidateCikFormatInput::new(input.clone());
-        let context = ValidateCikFormatContext::new(input);
+        let state_context = ValidateCikFormatContext::new(input, sec_client.clone());
 
         Self {
-            current_state: ValidateCikFormat::new(input_data, context),
+            current_state: ValidateCikFormat::new(input_data, state_context),
             input: ExtractSuperStateData,
             output: None,
-            context: ExtractSuperStateContext,
+            context: ExtractSuperStateContext::new(sec_client),
         }
     }
 }
 
 impl ExtractSuperState<PrepareSecRequest> {
     #[must_use]
-    pub fn new(validated_cik: Cik, user_agent: impl Into<String>) -> Self {
-        let input_data = PrepareSecRequestInput::new(validated_cik.clone(), user_agent.into());
+    pub fn new(validated_cik: Cik, sec_client: SecClient) -> Self {
+        let input_data = PrepareSecRequestInput::new(validated_cik.clone(), sec_client.clone());
         let context = PrepareSecRequestContext::new(validated_cik);
 
         Self {
             current_state: PrepareSecRequest::new(input_data, context),
             input: ExtractSuperStateData,
             output: None,
-            context: ExtractSuperStateContext,
+            context: ExtractSuperStateContext::new(sec_client),
         }
     }
 }
 
 impl ExtractSuperState<ExecuteSecRequest> {
     #[must_use]
-    pub const fn new(client: SecClient, request: SecRequest, cik: Cik) -> Self {
-        let esr_input = ExecuteSecRequestInput::new(client, request);
+    pub fn new(client: SecClient, request: SecRequest, cik: Cik) -> Self {
+        let esr_input = ExecuteSecRequestInput::new(client.clone(), request);
         let esr_context = ExecuteSecRequestContext::new(cik);
 
         Self {
             current_state: ExecuteSecRequest::new(esr_input, esr_context),
             input: ExtractSuperStateData,
             output: None,
-            context: ExtractSuperStateContext,
+            context: ExtractSuperStateContext::new(client),
         }
     }
 }
@@ -292,7 +302,7 @@ impl Transition<ValidateCikFormat, PrepareSecRequest> for ExtractSuperState<Vali
             current_state: next_state,
             input: ExtractSuperStateData,
             output: None,
-            context: ExtractSuperStateContext,
+            context: self.context,
         })
     }
 }
@@ -305,7 +315,7 @@ impl Transition<PrepareSecRequest, ExecuteSecRequest> for ExtractSuperState<Prep
             current_state: next_state,
             input: ExtractSuperStateData,
             output: None,
-            context: ExtractSuperStateContext,
+            context: self.context,
         })
     }
 }
@@ -371,12 +381,13 @@ mod tests {
 
     use super::*;
     use crate::shared::cik::Cik;
-    use crate::shared::user_agent::constants::DEFAULT_SEC_USER_AGENT;
+    use crate::shared::http_client::implementations::sec_client::SecClient;
 
     #[test]
     fn should_return_super_state_name_with_current_state_when_in_validate_cik_format_state() {
         let input_cik = "1234567890";
-        let super_state = ExtractSuperState::<ValidateCikFormat>::new(input_cik);
+        let sec_client = SecClient::default();
+        let super_state = ExtractSuperState::<ValidateCikFormat>::new(input_cik, sec_client);
 
         let expected_result = "Extract SuperState (Current: Validate CIK Format)";
 
@@ -388,8 +399,8 @@ mod tests {
     #[test]
     fn should_return_super_state_name_with_current_state_when_in_prepare_sec_request_state() {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should be valid");
-        let user_agent = DEFAULT_SEC_USER_AGENT.to_string();
-        let super_state = ExtractSuperState::<PrepareSecRequest>::new(cik, user_agent);
+        let sec_client = SecClient::default();
+        let super_state = ExtractSuperState::<PrepareSecRequest>::new(cik, sec_client);
 
         let expected_result = "Extract SuperState (Current: Prepare SEC Request)";
 
@@ -401,7 +412,8 @@ mod tests {
     #[test]
     fn should_access_current_validate_cik_format_state_from_super_state() {
         let input_cik = "1234567890";
-        let super_state = ExtractSuperState::<ValidateCikFormat>::new(input_cik);
+        let sec_client = SecClient::default();
+        let super_state = ExtractSuperState::<ValidateCikFormat>::new(input_cik, sec_client);
 
         let expected_result = "Validate CIK Format";
 
@@ -413,8 +425,8 @@ mod tests {
     #[test]
     fn should_access_current_prepare_sec_request_state_from_super_state() {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should be valid");
-        let user_agent = DEFAULT_SEC_USER_AGENT.to_string();
-        let super_state = ExtractSuperState::<PrepareSecRequest>::new(cik, user_agent);
+        let sec_client = SecClient::default();
+        let super_state = ExtractSuperState::<PrepareSecRequest>::new(cik, sec_client);
 
         let expected_result = "Prepare SEC Request";
 
@@ -426,7 +438,8 @@ mod tests {
     #[tokio::test]
     async fn should_transition_from_prepare_sec_request_to_execute_sec_request_state() {
         let input_cik = "1234567890";
-        let mut super_state = ExtractSuperState::<ValidateCikFormat>::new(input_cik);
+        let sec_client = SecClient::default();
+        let mut super_state = ExtractSuperState::<ValidateCikFormat>::new(input_cik, sec_client);
 
         super_state
             .compute_output_data_async()
@@ -456,8 +469,8 @@ mod tests {
     #[tokio::test]
     async fn should_fail_transition_from_prepare_sec_request_when_output_data_not_yet_computed() {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should be valid");
-        let user_agent = DEFAULT_SEC_USER_AGENT.to_string();
-        let super_state = ExtractSuperState::<PrepareSecRequest>::new(cik, user_agent);
+        let sec_client = SecClient::default();
+        let super_state = ExtractSuperState::<PrepareSecRequest>::new(cik, sec_client);
 
         let expected_result = true;
         let result = super_state.transition_to_next_state_sec().is_err();
@@ -468,7 +481,8 @@ mod tests {
     #[tokio::test]
     async fn should_delegate_computation_to_current_state_when_computing_output_data() {
         let input_cik = "1234567890";
-        let mut super_state = ExtractSuperState::<ValidateCikFormat>::new(input_cik);
+        let sec_client = SecClient::default();
+        let mut super_state = ExtractSuperState::<ValidateCikFormat>::new(input_cik, sec_client);
 
         let expected_result = Ok(());
 
@@ -480,7 +494,8 @@ mod tests {
     #[tokio::test]
     async fn should_transition_from_validate_cik_format_to_prepare_sec_request_state() {
         let input_cik = "1234567890";
-        let mut super_state = ExtractSuperState::<ValidateCikFormat>::new(input_cik);
+        let sec_client = SecClient::default();
+        let mut super_state = ExtractSuperState::<ValidateCikFormat>::new(input_cik, sec_client);
 
         super_state
             .compute_output_data_async()
@@ -502,7 +517,8 @@ mod tests {
     #[should_panic]
     async fn should_fail_transition_when_output_data_not_yet_computed() {
         let input_cik = "1234567890";
-        let super_state = ExtractSuperState::<ValidateCikFormat>::new(input_cik);
+        let sec_client = SecClient::default();
+        let super_state = ExtractSuperState::<ValidateCikFormat>::new(input_cik, sec_client);
 
         let _result = super_state
             .transition_to_next_state_sec()
