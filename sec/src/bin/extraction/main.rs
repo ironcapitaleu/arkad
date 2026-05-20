@@ -6,6 +6,7 @@ use sec::implementations::states::extract::prepare_sec_request::{
     PrepareSecRequest, PrepareSecRequestContext, PrepareSecRequestInput,
 };
 use sec::implementations::states::extract::validate_cik_format::ValidateCikFormat;
+use sec::shared::http_client::implementations::sec_client::SecClient;
 
 use sec::prelude::*;
 
@@ -13,6 +14,8 @@ use sec::prelude::*;
 // Let this be here for testing purposes. Will be removed later.
 #[allow(clippy::too_many_lines)]
 async fn main() {
+    let sec_client = SecClient::default();
+
     let input =
         sec::implementations::states::extract::validate_cik_format::ValidateCikFormatInput::new(
             "1067983",
@@ -20,6 +23,7 @@ async fn main() {
     let context =
         sec::implementations::states::extract::validate_cik_format::ValidateCikFormatContext::new(
             "1067983",
+            sec_client.clone(),
         );
     let mut validate_cik_state = ValidateCikFormat::new(input, context);
 
@@ -45,7 +49,7 @@ async fn main() {
                 .expect("Should be valid")
                 .validated_cik
                 .clone(),
-            "Test User Agent test@example.com".to_string(),
+            sec_client.clone(),
         ),
         PrepareSecRequestContext::new(
             validate_cik_state
@@ -96,7 +100,7 @@ async fn main() {
     println!("\n=======================================================");
     println!("Initial Extract SuperState:");
 
-    let mut super_state = ExtractSuperState::<ValidateCikFormat>::new("1067983");
+    let mut super_state = ExtractSuperState::<ValidateCikFormat>::new("1067983", sec_client);
 
     super_state
         .compute_output_data_async()
