@@ -1,7 +1,12 @@
 # Documentation Guidelines
 
-This document defines the standards for writing Rust documentation in this project.
-It covers module-level docs, item-level docs, sections, linking, doc-tests, and error documentation.
+This document defines the standards for writing Rust documentation in this project. It tells you **what** to document, **how** to structure it, and **where** to place doc-tests.
+
+The document is organized as follows:
+
+1. **General Principles** — the W-Fragen framework and documentable items overview
+2. **Per-Item Sections** — modules, functions, structs, enums, traits, constants
+3. **Cross-Cutting Reference** — intra-doc links, doc-test mechanics, CI, checklist
 
 ---
 
@@ -13,24 +18,38 @@ It covers module-level docs, item-level docs, sections, linking, doc-tests, and 
 - Keep the first line short and self-contained as `rustdoc` uses it as a preview in module listings.
 - Use present tense, third-person: "Returns the validated CIK", not "This will return..." or "Return the CIK".
 
+### Documentable Items
+
+The following item kinds are used in this project and require documentation when public:
+
+| Item kind | Example | Doc syntax |
+|-----------|---------|------------|
+| Module | `mod cik;` | `//!` (inside the module file) |
+| Function / Method | `fn validate() {}` | `///` (above) |
+| Struct | `struct Cik { value: String }` | `///` (above struct + each public field) |
+| Enum | `enum StatusCode { Ok, NotFound }` | `///` (above enum + each variant + variant fields) |
+| Trait | `trait SecResponse {}` | `///` (above trait + each method + associated types) |
+| Implementation | `impl SecResponse for ... {}` | `///` only when behavior is surprising |
+| Type alias | `type StateMachineStream = Pin<...>;` | `///` (above) |
+| Constant | `const STATE_NAME: &str = "...";` | `///` (above) |
+| Re-export | `pub use cik::Cik;` | Not required (target item's doc is used) |
+
 ### The W-Fragen Principle
 
 Every doc comment answers a subset of these questions, in this priority order:
 
-| Question | Answers | Required? |
-|----------|---------|-----------|
-| **Was?** (What?) | What does this item do or represent? | Always — this is the summary line |
-| **Warum?** (Why?) | Why does it exist? What problem does it solve? | When the "what" alone doesn't justify the item's existence |
-| **Wie?** (How?) | How does it achieve its purpose? What approach or delegation? | When the mechanism is non-obvious from the signature/type |
-| **Wer?** (Who?) | Who uses this? Who implements this? | Primarily for traits and extension points |
-| **Wann?** (When?) | Under what conditions is this triggered / produced? | Primarily for error variants and callbacks |
-| **Wo?** (Where?) | Where does this fit in the system? Where does it originate? | When the item's placement is non-obvious |
+| Question | Answers | Applicable items | Required? |
+|----------|---------|------------------|-----------|
+| **Was?** (What?) | What does this item do or represent? | All | Always — this is the summary line |
+| **Warum?** (Why?) | Why does it exist? What problem does it solve? | Modules, structs, traits, enums, type aliases | When the "what" alone doesn't justify the item's existence |
+| **Wie?** (How?) | How does it achieve its purpose? What approach or delegation? | Modules, functions, traits | When the mechanism is non-obvious from the signature/type |
+| **Wer?** (Who?) | Who uses this? Who implements this? | Traits, modules | Primarily for traits and extension points |
+| **Wann?** (When?) | Under what conditions is this triggered / produced? | Enum variants, functions | Primarily for error variants and callbacks |
+| **Wo?** (Where?) | Where does this fit in the system? Where does it originate? | Modules, structs, constants | When the item's placement is non-obvious |
 
 Not every item needs all questions answered. Simple accessors need only *Was?*. Complex traits may need all six. The goal is that a reader never has to guess the answer to a question they'd naturally ask.
 
----
-
-## Comment Syntax
+### Comment Syntax
 
 | Scope | Syntax | Placement |
 |-------|--------|-----------|
@@ -41,29 +60,48 @@ Never use `/** */` block comments for documentation. They are harder to maintain
 
 ---
 
-## Module-Level Documentation (`//!`)
+## Modules
 
-Every `lib.rs` and every `mod.rs` that introduces a logical grouping **must** have module-level documentation.
+Modules are both documentable items (with their own `rustdoc` page) and containers for other items. The `//!` syntax documents *the module itself*, while `///` documents the items inside it.
+
+Every `lib.rs` and every `mod.rs` **must** have module-level documentation.
+
+### Module Categories
+
+This project uses two kinds of modules:
+
+| Category | Purpose | Example |
+|----------|---------|---------|
+| **Grouping module** | Organizes multiple related child modules under a shared namespace | `shared/mod.rs` (groups `cik`, `http_client`, `response`, etc.) |
+| **Single-type module** | Namespaces one primary struct or enum with its supporting code | `fiscal_year/mod.rs` (holds `FiscalYear` newtype + impls + tests) |
+
+Both require module docs, but at different levels of detail:
+- **Grouping modules** need the full structure: title, what, why/how, `## Modules`, `## See Also`.
+- **Single-type modules** need only: title + what-sentence. The type inside carries the bulk of documentation.
 
 ### Content Structure
 
-Module docs follow a fixed three-part structure:
+Module docs follow a fixed structure:
 
 1. **Title** — `# Module Name` on the first line.
 2. **What-sentence** — One sentence answering *"What does this module provide?"*. This is the summary that appears in parent module listings.
-3. **Why/How paragraph** — After a blank line, two to three sentences answering *"Why does this module exist?"* and *"How does it achieve its purpose?"*. This grounds the reader in motivation and approach.
+3. **Why/How paragraph** — After a blank line, two to three sentences answering *"Why does this module exist?"* and *"How does it achieve its purpose?"*. (Can be omitted for single-type modules.)
 
 After the introductory prose, include structured sections:
 
-4. **`## Modules`** — List of child modules with one-line descriptions. Use intra-doc links.
+4. **`## Modules`** — List of child modules with one-line descriptions. Use intra-doc links. (Only for grouping modules.)
 5. **`## See Also`** *(optional)* — Links to related modules, external crates, or design documents.
 
-### Optional Sections (use when relevant)
+Optional additional sections:
 
-- **`## Usage`** — Brief prose or code example showing how to use the module (answers *"How do I use this?"*).
-- **`## Integration`** — How this module fits into the larger system (answers *"Where does this belong?"*).
+- **`## Usage`** — Brief prose or code example showing how the module's items compose together.
+- **`## Integration`** — How this module fits into the larger system.
 
-### Template
+### Doc-Tests in Modules
+
+Doc-tests are **not required** in module-level documentation. If present, they belong in a `## Usage` section to show how the module's exports compose together. Prefer placing doc-tests on individual functions/methods instead.
+
+### Template (Grouping Module)
 
 ```rust
 //! # Crate / Module Name
@@ -81,6 +119,14 @@ After the introductory prose, include structured sections:
 //! ## See Also
 //!
 //! - [`crate::related_module`]: Why this is related.
+```
+
+### Template (Single-Type Module)
+
+```rust
+//! # Type Name
+//!
+//! One sentence: what the primary type in this module represents.
 ```
 
 ### Example
@@ -106,23 +152,35 @@ After the introductory prose, include structured sections:
 
 ---
 
-## Item-Level Documentation (`///`)
+## Functions and Methods
+
+### W-Fragen
+
+- **Was?** — Always. Start with a verb in third-person present tense ("Creates", "Returns", "Validates").
+- **Warum?/Wie?** — When the function's purpose or mechanism is non-obvious from the signature.
+- **Wann?** — For callbacks or conditionally-invoked methods.
 
 ### Content Structure
 
-Item docs follow the same W-Fragen principle as module docs, scaled to the item's complexity:
+1. **What-sentence** (required) — Must not exceed ~80 characters. Must be a complete sentence.
+2. **Why/How paragraph** (when needed) — After a blank doc line.
+3. **`# Sections`** (when applicable, in this order):
 
-1. **What-sentence** (required) — One sentence answering *"What does this item do / represent?"*
-   - Functions/methods: start with a verb in third-person present tense ("Creates", "Returns", "Validates").
-   - Types (structs, enums, traits): describe what it *is* ("Input data for...", "Error variants for...").
-   - Must not exceed ~80 characters.
-   - Must be a complete sentence (capitalize, end with period).
+| Section | When to include |
+|---------|-----------------|
+| `# Arguments` | Non-obvious parameters |
+| `# Returns` | When the return value needs clarification beyond the type |
+| `# Errors` | Any function returning `Result` — list each error variant and when it occurs |
+| `# Panics` | Any code path that can panic — document the condition |
+| `# Examples` | Constructors and primary entry points (see doc-tests below) |
 
-2. **Why/How paragraph** (when the what-sentence is insufficient) — After a blank doc line, one to three sentences answering:
-   - *"Why does this exist?"* — The motivation or responsibility.
-   - *"How does it work?"* — The approach, delegation, or key constraint.
+### Doc-Tests
 
-Skip the why/how paragraph for trivial items (simple accessors, single-field wrappers) where the what-sentence says everything.
+- **Required** on public constructors (`fn new`) and primary API entry points.
+- **Required** on any fallible function whose error conditions are non-obvious.
+- **Optional** on trivial accessors — prefer no example over a meaningless one.
+
+Place doc-tests on the function itself under `# Examples`, not on the containing struct or module.
 
 ### Examples
 
@@ -134,7 +192,7 @@ Minimal (accessor — what-sentence only):
 pub const fn value(&self) -> i64 { ... }
 ```
 
-Full (constructor — what + why/how):
+Full (constructor — what + why/how + # sections + doc-test):
 
 ```rust
 /// Creates a new [`Cik`] from any value implementing [`ToString`].
@@ -146,84 +204,6 @@ Full (constructor — what + why/how):
 ///
 /// Returns a [`CikError`] if the input contains non-numeric characters
 /// or exceeds the maximum allowed length.
-pub fn new(cik: &(impl ToString + ?Sized)) -> Result<Self, CikError> { ... }
-```
-
-Type (struct — what + why/how):
-
-```rust
-/// Strongly-typed wrapper for a validated SEC Central Index Key (CIK).
-///
-/// Ensures that only valid, 10-digit, zero-padded numeric CIKs are constructed
-/// and used throughout the library. Use [`Cik::new`] to construct and validate.
-pub struct Cik { ... }
-```
-
----
-
-## Standard Sections
-
-Use the following `# Heading` sections **in this order** when applicable.
-Only include sections that provide value. Omit empty ones
-
-| Section | When to include |
-|---------|-----------------|
-| `# Type Parameters` | Generic types that need explanation beyond their trait bounds |
-| `# Arguments` | Functions/methods with non-obvious parameters |
-| `# Returns` | When the return value needs clarification beyond the type signature |
-| `# Errors` | Any function returning `Result`. List each error variant and when it occurs |
-| `# Panics` | Any code path that can panic. Document the condition |
-| `# Safety` | `unsafe` functions. Document the invariants the caller must uphold |
-| `# Examples` | Public API entry points, constructors, and non-trivial methods |
-
-### Section Formatting Rules
-
-- Use `# Heading` (single `#`) inside doc comments. `rustdoc` renders these as `<h2>` within the item.
-- List items use `* item` or `- item` consistently (this project uses `-`).
-- Wrap parameter names in backticks: `` `validated_cik` ``.
-
----
-
-## Intra-Doc Links
-
-Use Rustdoc's intra-doc link syntax to create hyperlinks within the generated documentation.
-These links are **checked at compile time** when `rustdoc` lints are enabled.
-
-### Syntax
-
-| Target | Syntax |
-|--------|--------|
-| Type in same crate | `` [`TypeName`] `` |
-| Module (relative) | `` [`module_name`] `` |
-| Module (absolute) | `` [`crate::path::to::module`] `` |
-| Method | `` [`TypeName::method_name`] `` |
-| Trait method | `` [`Trait::method`] `` |
-| Enum variant | `` [`EnumName::Variant`] `` |
-| Field | `` [`StructName::field`] `` |
-| Renamed link | `` [`display text`](crate::path::Type) `` |
-| External crate type | `` [`external_crate::Type`] `` |
-
-### Rules
-
-- Prefer short-form links (`` [`Type`] ``) when the target is unambiguous in scope.
-- Use fully-qualified paths (`` [`crate::module::Type`] ``) when linking across module boundaries to avoid ambiguity.
-- Use renamed links when the fully-qualified path would hurt readability in prose.
-- All intra-doc links **must resolve**. Broken links are treated as errors in CI.
-
-## Doc-Tests
-
-Doc-tests serve dual purposes: they demonstrate usage and they verify the example compiles and runs.
-
-### When to Write Doc-Tests
-
-- **Required** on public constructors and primary API entry points.
-- **Recommended** on any method whose usage is non-obvious from the signature alone.
-- **Optional** on trivial accessors (prefer no example over a meaningless one).
-
-### Formatting
-
-```rust
-/// Creates a new [`Cik`] from any value implementing [`ToString`].
 ///
 /// # Examples
 ///
@@ -233,52 +213,53 @@ Doc-tests serve dual purposes: they demonstrate usage and they verify the exampl
 /// let cik = Cik::new("123456789").expect("CIK creation with the hardcoded value should always succeed");
 /// assert_eq!(cik.value(), "0123456789");
 /// ```
+pub fn new(cik: &(impl ToString + ?Sized)) -> Result<Self, CikError> { ... }
 ```
-
-### Rules
-
-- Import paths must be fully qualified from the crate root (as an external consumer would write them).
-- Use `#` to hide boilerplate lines that distract from the example's point:
-  ```rust
-  /// ```
-  /// # use sec::shared::cik::Cik;
-  /// let cik = Cik::new("1067983").expect("Hardcoded CIK should be valid");
-  /// ```
-  ```
-- `.expect()` messages in doc-tests must explain **why** the operation should not fail (same rule as test code).
-- Mark examples that should not run (e.g., they require network) with `no_run`:
-  ```rust
-  /// ```no_run
-  /// // Example that requires a live SEC connection
-  /// ```
-  ```
-- Mark examples that should not even compile (illustrating incorrect usage) with `compile_fail`:
-  ```rust
-  /// ```compile_fail
-  /// // This demonstrates what NOT to do
-  /// ```
-  ```
-- Mark examples that are not Rust code with the appropriate language tag or `text`:
-  ```rust
-  /// ```text
-  /// SEC Format: "Company Name email@domain.com"
-  /// ```
-  ```
 
 ---
 
-## Struct and Enum Documentation
+## Structs
 
-### Structs
+### W-Fragen
 
-The struct-level doc follows the standard what/why/how structure. Fields answer *"What does this hold?"* and optionally *"Why is it here?"*.
+- **Was?** — What does this type represent?
+- **Warum?** — Why does it exist as its own type? (especially for newtypes/wrappers)
+- **Wie?** — How is it constructed? (point to the constructor)
+
+### Content Structure
+
+1. **What-sentence** on the struct.
+2. **Why/How paragraph** when the what-sentence is insufficient.
+3. **Field docs** — Every public field gets `///` answering *"What does this hold?"* and optionally *"Where does it come from?"*.
+
+### Applicable `# Sections`
+
+| Section | When to include |
+|---------|-----------------|
+| `# Examples` | Only if there is no constructor method — otherwise place the doc-test on the constructor |
+
+### Doc-Tests
+
+Place doc-tests on the **constructor method** (`fn new`), not on the struct declaration itself. The struct's `///` describes what it *is*; the constructor's `///` shows how to *use* it.
+
+### Example
+
+```rust
+/// Strongly-typed wrapper for a validated SEC Central Index Key (CIK).
+///
+/// Ensures that only valid, 10-digit, zero-padded numeric CIKs are constructed
+/// and used throughout the library. Use [`Cik::new`] to construct and validate.
+pub struct Cik { ... }
+```
+
+With fields:
 
 ```rust
 /// Input data for the SEC request preparation state.
 ///
 /// Bundles the validated CIK and shared HTTP client required by
 /// [`PrepareSecRequest`](crate::implementations::states::extract::prepare_sec_request).
-/// Passed in from the super-state context to avoid per-state client construction.
+/// [`SecClient`] passed in from the super-state context to avoid per-state client construction.
 #[derive(Debug, Clone, PartialEq)]
 pub struct PrepareSecRequestInput {
     /// The validated CIK that will be used for the SEC API request.
@@ -288,41 +269,64 @@ pub struct PrepareSecRequestInput {
 }
 ```
 
-- Document **every** public field with `///`.
-- The field doc answers *"What does this hold?"* and, if non-obvious, *"Why is it here?"* or *"Where does it come from?"*.
+---
 
-### Enums
+## Enums
 
-Each variant answers *"When does this occur?"* (the triggering condition). Named fields within variants answer *"What does this carry?"*.
+### W-Fragen
+
+- **Was?** — What family of values does this enum represent?
+- **Warum?** — Why are these grouped together? (especially: data enums vs error enums)
+- **Wann?** — On each variant: under what condition is this variant produced?
+
+### Content Structure
+
+1. **What-sentence** on the enum.
+2. **Why/How paragraph** when the enum's purpose needs justification.
+3. **Variant docs** — Each variant gets `///` answering *"When does this occur?"*.
+4. **Variant field docs** — Each named field gets `///` answering *"What does this carry?"*.
+
+### Applicable `# Sections`
+
+| Section | When to include |
+|---------|-----------------|
+| `# Examples` | Rare — only when showing variant construction aids understanding |
+
+### Doc-Tests
+
+Do **not** place doc-tests on the enum declaration. If a doc-test is needed, place it on an associated function or method of the enum (e.g., `StatusCode::from_u16`).
+
+### Examples
+
+Data enum:
 
 ```rust
-/// Time period for a financial observation.
+/// HTTP status code classification for SEC API responses.
 ///
-/// Distinguishes between point-in-time snapshots and measurements over a date range.
-/// SEC XBRL data uses instant periods for Balance Sheet items and duration periods
-/// for Income Statement and Cash Flow items.
+/// Models the specific HTTP codes relevant to SEC API interactions as explicit
+/// variants, so match arms can handle rate-limiting (429) or not-found (404)
+/// without raw integer comparisons. Unrecognized codes are captured by `Other`.
 #[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
-pub enum Period {
-    /// A point-in-time snapshot (e.g., Balance Sheet items).
-    Instant {
-        /// The date of the measurement.
-        date: NaiveDate,
-    },
-    /// A measurement over a date range (e.g., Income Statement items).
-    Duration {
-        /// The start of the measurement period (inclusive).
-        start: NaiveDate,
-        /// The end of the measurement period (inclusive).
-        end: NaiveDate,
-    },
+pub enum StatusCode {
+    /// 200 OK.
+    Ok,
+    /// 404 Not Found.
+    NotFound,
+    /// 429 Too Many Requests.
+    TooManyRequests,
+    /// Any other valid HTTP status code not explicitly modeled.
+    Other(u16),
 }
 ```
 
-Error enum example:
+Error enum:
 
 ```rust
 /// Reason for an invalid CIK format.
+///
+/// Distinguishes between structural violations (non-numeric characters) and
+/// length violations so callers can provide targeted user-facing messages.
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum InvalidCikReason {
@@ -336,20 +340,52 @@ pub enum InvalidCikReason {
 }
 ```
 
-- Document **every** variant with `///`.
-- Document **every** named field within variants.
-- For unit variants, the variant doc is sufficient.
-
 ---
 
-## Trait Documentation
+## Traits
 
-Traits define contracts for multiple implementors, so their docs must answer additional questions:
+Traits define contracts for multiple implementors, so their docs must answer additional questions beyond the standard W-Fragen.
 
-- **What** — What responsibility does this trait represent?
-- **Why** — Why is this a trait rather than a concrete type? (polymorphism, testability, decoupling)
-- **Who** — Who implements it? (brief mention of key implementors or the intended audience)
-- **How** — How should an implementor fulfil the contract? (key invariants, ordering constraints)
+### W-Fragen
+
+- **Was?** — What responsibility does this trait represent?
+- **Warum?** — Why is this a trait rather than a concrete type? (polymorphism, testability, decoupling)
+- **Wer?** — Who implements it? (brief mention of key implementors or the intended audience)
+- **Wie?** — How should an implementor fulfil the contract? (key invariants, ordering constraints)
+
+### Content Structure
+
+1. **What-sentence** on the trait.
+2. **Why/Who/How paragraph** explaining motivation and contract.
+3. **`# Associated Types`** — Document each associated type.
+4. **Method docs** — Each method gets its own `///` with applicable `# Sections`.
+
+### Applicable `# Sections`
+
+On the trait itself:
+
+| Section | When to include |
+|---------|-----------------|
+| `# Associated Types` | When the trait has associated types |
+| `# Required Traits` | When supertraits need explanation |
+
+On individual trait methods:
+
+| Section | When to include |
+|---------|-----------------|
+| `# Errors` | Methods returning `Result` |
+| `# Panics` | Methods that can panic |
+| `# Examples` | Entry-point methods that consumers would call directly |
+
+### Doc-Tests
+
+Place doc-tests on **individual trait methods**, not on the trait declaration. The trait-level doc describes the contract; method-level docs show usage.
+
+### Default Implementations
+
+If a trait provides a default implementation, state whether implementors should override it and under what conditions.
+
+### Example
 
 ```rust
 /// Defines the interface of an HTTP response from the SEC API.
@@ -366,7 +402,7 @@ Traits define contracts for multiple implementors, so their docs must answer add
 /// - `Url`: The URL type of the response.
 /// - `Headers`: The headers type of the response.
 /// - `StatusCode`: The HTTP status code type.
-/// - `ContentType`: The content type type.
+/// - `ContentType`: The content type returned from the HTTP response payload.
 /// - `Error`: Errors that can occur when processing the response.
 #[async_trait]
 pub trait SecResponse: Send + Sync + Debug + Sized {
@@ -388,9 +424,45 @@ pub trait SecResponse: Send + Sync + Debug + Sized {
 }
 ```
 
-- Document each associated type in the trait-level doc under `# Associated Types`.
-- Document each method with its own `///` including `# Returns` and `# Errors` where applicable.
-- If a trait has a default implementation, state whether implementors should override it and when.
+---
+
+## Constants and Type Aliases
+
+### W-Fragen
+
+- **Was?** — Always. What does this value/type represent?
+- **Warum?** — When the constant's existence is non-obvious (why not inline the value?).
+- **Wo?** — When the constant's placement in this module needs explanation.
+
+### Content Structure
+
+A what-sentence is sufficient for most constants. Add a why/how paragraph only when the value's purpose is non-obvious.
+
+### Doc-Tests
+
+Not required. Constants and type aliases do not need `# Examples`.
+
+### Examples
+
+```rust
+/// Human-readable name of the "Validate CIK Format" state, used in error messages and logging.
+pub const STATE_NAME: &str = "Validate CIK Format";
+```
+
+```rust
+/// A boxed, `Send`-able stream of state machine execution results.
+///
+/// Each item is `Ok(StreamItem)` for successful events or `Err(StreamError)` for failures.
+pub type StateMachineStream = Pin<Box<dyn Stream<Item = Result<StreamItem, StreamError>> + Send>>;
+```
+
+---
+
+## Builders
+
+- The **Builder** doc must link to the type it constructs.
+- Each builder method documents the field it sets (what-sentence is sufficient).
+- Doc-tests: not required on individual setter methods. Place one on `build()` if the construction is complex.
 
 ---
 
@@ -424,21 +496,12 @@ Functions returning `Result` must list possible error variants, answering *"When
 
 ---
 
-## Builder and Updater Patterns
-
-For types following the Data / Updater / UpdaterBuilder pattern:
-
-- The **module doc** must list all three types and their roles.
-- The **Updater** doc must state that `None` fields are not applied.
-- The **Builder** doc must link back to the Updater it constructs.
-- Each builder method must document the field it sets.
-
----
-
 ## Re-exports and Preludes
 
 - Prelude modules (`prelude.rs`) must have module-level documentation explaining what is re-exported and why.
-- Individual `pub use` re-exports do **not** need their own doc comment
+- Individual `pub use` re-exports do **not** need their own doc comment.
+
+---
 
 ## What Not to Document
 
@@ -446,10 +509,78 @@ For types following the Data / Updater / UpdaterBuilder pattern:
 - **Obvious accessors** — A one-line summary suffices; skip `# Arguments` / `# Returns` / `# Examples`.
 - **Trait implementations** — Only document if the implementation has surprising behavior or deviates from the trait's contract. Standard `From`, `Display`, `Default` implementations typically need no doc.
 - **Test modules** — `#[cfg(test)] mod tests` does not need documentation.
+- **Public modules** — Always require `//!` documentation, even single-type modules. There is no exception.
 
 ---
 
-## CI Enforcement
+## Cross-Cutting Reference
+
+### Intra-Doc Links
+
+Use Rustdoc's intra-doc link syntax to create hyperlinks within the generated documentation. These links are **checked at compile time** when `rustdoc` lints are enabled.
+
+#### Syntax
+
+| Target | Syntax |
+|--------|--------|
+| Type in same crate | `` [`TypeName`] `` |
+| Module (relative) | `` [`module_name`] `` |
+| Module (absolute) | `` [`crate::path::to::module`] `` |
+| Method | `` [`TypeName::method_name`] `` |
+| Trait method | `` [`Trait::method`] `` |
+| Enum variant | `` [`EnumName::Variant`] `` |
+| Field | `` [`StructName::field`] `` |
+| Renamed link | `` [`display text`](crate::path::Type) `` |
+| External crate type | `` [`external_crate::Type`] `` |
+
+#### Rules
+
+- Prefer short-form links (`` [`Type`] ``) when the target is unambiguous in scope.
+- Use fully-qualified paths (`` [`crate::module::Type`] ``) when linking across module boundaries to avoid ambiguity.
+- Use renamed links when the fully-qualified path would hurt readability in prose.
+- All intra-doc links **must resolve**. Broken links are treated as errors in CI.
+
+### Doc-Test Mechanics
+
+Doc-tests answer the *Wie?* (How?) question concretely — they show a consumer how to use the item. These are the formatting rules for writing them.
+
+#### Rules
+
+- Import paths must be fully qualified from the crate root (as an external consumer would write them).
+- Use `#` to hide boilerplate lines that distract from the example's point:
+  ```rust
+  /// ```
+  /// # use sec::shared::cik::Cik;
+  /// let cik = Cik::new("1067983").expect("Hardcoded CIK should be valid");
+  /// ```
+  ```
+- `.expect()` messages in doc-tests must explain **why** the operation should not fail (same rule as test code).
+- Mark examples that should not run (e.g., they require network) with `no_run`:
+  ```rust
+  /// ```no_run
+  /// // Example that requires a live SEC connection
+  /// ```
+  ```
+- Mark examples that should not even compile (illustrating incorrect usage) with `compile_fail`:
+  ```rust
+  /// ```compile_fail
+  /// // This demonstrates what NOT to do
+  /// ```
+  ```
+- Mark examples that are not Rust code with the appropriate language tag or `text`:
+  ```rust
+  /// ```text
+  /// SEC Format: "Company Name email@domain.com"
+  /// ```
+  ```
+
+### Section Formatting Rules
+
+- Use `# Heading` (single `#`) inside doc comments. `rustdoc` renders these as `<h2>` within the item.
+- List items use `-` consistently in this project.
+- Wrap parameter names in backticks: `` `validated_cik` ``.
+
+### CI Enforcement
 
 The following must pass in CI without warnings:
 
@@ -473,6 +604,6 @@ Before submitting a PR, verify:
 - [ ] All intra-doc links resolve (`cargo doc` passes).
 - [ ] `# Errors` section exists for all `Result`-returning public functions.
 - [ ] `# Panics` section exists for any function that can panic.
-- [ ] Doc-tests exist for constructors and primary API methods.
+- [ ] Doc-tests exist on constructors and primary API entry points.
 - [ ] Field-level docs exist on all public struct fields and enum variant fields.
 - [ ] Each doc comment answers the relevant W-Fragen (at minimum *Was?*).
