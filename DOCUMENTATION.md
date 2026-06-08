@@ -99,7 +99,14 @@ Optional additional sections:
 
 ### Doc-Tests in Modules
 
-Doc-tests are **not required** in module-level documentation. If present, they belong in a `## Usage` section to show how the module's exports compose together. Prefer placing doc-tests on individual functions/methods instead.
+Doc-tests are **not required** in module-level documentation. When they are present, they belong in a `## Usage` section.
+
+Module-level doc-tests make sense when **multiple items must be imported and composed together** to demonstrate the module's purpose — something that no single item's doc-test could show on its own. For example:
+
+- Showing how to construct a state with specific config, then run the state machine computation.
+- Demonstrating how a prelude import + multiple types work together as a workflow.
+
+If the usage can be shown on a single function or constructor, prefer placing the doc-test there instead.
 
 ### Template (Grouping Module)
 
@@ -375,7 +382,7 @@ On individual trait methods:
 |---------|-----------------|
 | `# Errors` | Methods returning `Result` |
 | `# Panics` | Methods that can panic |
-| `# Examples` | Entry-point methods that consumers would call directly |
+| `# Examples` | Methods that a consumer calls to initiate work (e.g., `from_inner`, `compute_output_data_async`) |
 
 ### Doc-Tests
 
@@ -509,7 +516,6 @@ Functions returning `Result` must list possible error variants, answering *"When
 - **Obvious accessors** — A one-line summary suffices; skip `# Arguments` / `# Returns` / `# Examples`.
 - **Trait implementations** — Only document if the implementation has surprising behavior or deviates from the trait's contract. Standard `From`, `Display`, `Default` implementations typically need no doc.
 - **Test modules** — `#[cfg(test)] mod tests` does not need documentation.
-- **Public modules** — Always require `//!` documentation, even single-type modules. There is no exception.
 
 ---
 
@@ -533,7 +539,31 @@ Use Rustdoc's intra-doc link syntax to create hyperlinks within the generated do
 | Renamed link | `` [`display text`](crate::path::Type) `` |
 | External crate type | `` [`external_crate::Type`] `` |
 
-#### Rules
+#### Link Direction Principle
+
+Intra-doc links follow the same direction as `use` statements — they point toward **dependencies**, never toward **dependents**:
+
+| Direction | Allowed? | Example |
+|-----------|----------|---------|
+| **Downward** (toward your dependencies) | Yes | `Cik` linking to [`CikError`] |
+| **Sideways** (toward siblings in the same module) | Yes | `PrepareSecRequestInput` linking to [`SecClient`] |
+| **Upward** (toward things that depend on you) | No | `Cik` linking to a state that *uses* `Cik` |
+
+This keeps documentation decoupled the same way the code is. If you add a new implementor of a trait, you do **not** go back to the trait's docs to add a link to it. The implementor links to the trait it implements, not the other way around.
+
+Exception: `## See Also` in module-level docs may link upward for discoverability, since module docs serve as navigation aids.
+
+#### When to Link
+
+Link only when the reader would **need to navigate** to the target to understand the current item:
+
+- **Link** our own types: states, errors, shared domain types, traits — the reader likely needs to see their definition.
+- **Don't link** standard library types (`String`, `Vec`, `Result`, `Option`) or obvious external crate types (`serde::Serialize`) — the reader already knows what these are.
+- **Don't link** the same target repeatedly within one doc comment — one link is enough.
+
+Rule of thumb: if removing the link would leave the reader guessing what something is or where to find it, include it. If the type is self-explanatory, don't.
+
+#### Syntax Rules
 
 - Prefer short-form links (`` [`Type`] ``) when the target is unambiguous in scope.
 - Use fully-qualified paths (`` [`crate::module::Type`] ``) when linking across module boundaries to avoid ambiguity.
@@ -604,6 +634,7 @@ Before submitting a PR, verify:
 - [ ] All intra-doc links resolve (`cargo doc` passes).
 - [ ] `# Errors` section exists for all `Result`-returning public functions.
 - [ ] `# Panics` section exists for any function that can panic.
-- [ ] Doc-tests exist on constructors and primary API entry points.
+- [ ] Doc-tests exist on constructors and fallible entry-point methods.
+- [ ] Module-level doc-tests exist where multiple items must compose together to demonstrate usage.
 - [ ] Field-level docs exist on all public struct fields and enum variant fields.
 - [ ] Each doc comment answers the relevant W-Fragen (at minimum *Was?*).
