@@ -23,6 +23,7 @@
   - Docstrings
   - Design documents (if applicable, e.g., mermaid diagrams)
 - **Documentation must be version controlled**.
+- For documentation-related tasks, see `DOCUMENTATION.md` for detailed guidance on structure, content, doc-tests, and intra-doc links.
 
 ## Import Order Conventions
 
