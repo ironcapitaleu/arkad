@@ -1,17 +1,16 @@
 //! # Transition: `PrepareSecRequest` → `ExecuteSecRequest`
 //!
-//! This module implements the state transition from [`PrepareSecRequest`] to [`ExecuteSecRequest`].
-//! The transition extracts the prepared SEC request and HTTP client from the source state and
-//! initializes the next state for executing the HTTP request.
+//! Implements `TryFrom<`[`PrepareSecRequest`]`>` for [`ExecuteSecRequest`], the second extract-phase
+//! transition.
 //!
-//! ## Transition Flow
-//! 1. Extracts output data (client and request) from the source [`PrepareSecRequest`] state
-//! 2. Converts the source context to [`ExecuteSecRequestContext`]
-//! 3. Converts the output to [`ExecuteSecRequestInput`]
-//! 4. Constructs and returns a new [`ExecuteSecRequest`] state
+//! It moves the prepared client and request from the source state's output into the next state's
+//! input, and carries the CIK across via context. The supporting `From` impls perform the
+//! field-level conversions; the `TryFrom` is fallible because the source output may be absent.
 //!
-//! ## Error Handling
-//! Returns a [`TransitionError`] if the source state lacks required output data.
+//! # Errors
+//!
+//! Returns [`TransitionError`] (a [`MissingOutput`](crate::error::state_machine::transition::MissingOutput))
+//! when the source state has no computed output to carry forward.
 
 use crate::error::state_machine::transition;
 use crate::error::state_machine::transition::Transition as TransitionError;

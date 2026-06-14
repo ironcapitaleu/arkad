@@ -1,16 +1,16 @@
 //! # Transition: `ValidateCikFormat` → `PrepareSecRequest`
 //!
-//! This module implements the state transition from [`ValidateCikFormat`] to [`PrepareSecRequest`].
-//! The transition extracts validated CIK output data and uses it to initialize the next state's
-//! input and context.
+//! Implements `TryFrom<`[`ValidateCikFormat`]`>` for [`PrepareSecRequest`], the first extract-phase
+//! transition.
 //!
-//! ## Transition Flow
-//! 1. Extracts output data and context from the source [`ValidateCikFormat`] state
-//! 2. Converts the output to [`PrepareSecRequestContext`] and [`PrepareSecRequestInput`]
-//! 3. Constructs and returns a new [`PrepareSecRequest`] state
+//! It takes the validated [`Cik`](crate::shared::cik::Cik) from the source state's output and the
+//! shared client from its context, and seeds the next state's input and context with them. The
+//! conversion is fallible because the source state may not have computed its output yet.
 //!
-//! ## Error Handling
-//! Returns a [`TransitionError`] if the source state lacks required output data.
+//! # Errors
+//!
+//! Returns [`TransitionError`] (a [`MissingOutput`](crate::error::state_machine::transition::MissingOutput))
+//! when the source state has no computed output to carry forward.
 
 use crate::error::state_machine::transition;
 use crate::error::state_machine::transition::Transition as TransitionError;

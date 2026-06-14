@@ -1,17 +1,17 @@
 //! # Transition: `ParseCompanyFacts` → `CreateFinancialStatements`
 //!
-//! This module implements the state transition from [`ParseCompanyFacts`] to [`CreateFinancialStatements`].
-//! The transition extracts the parsed company data from the source state and initializes the next
-//! state for creating financial statements.
+//! Implements `TryFrom<`[`ParseCompanyFacts`]`>` for [`CreateFinancialStatements`], the transform-phase
+//! transition.
 //!
-//! ## Transition Flow
-//! 1. Extracts output data (company data) from the source [`ParseCompanyFacts`] state
-//! 2. Converts the source context to [`CreateFinancialStatementsContext`]
-//! 3. Converts the output to [`CreateFinancialStatementsInput`]
-//! 4. Constructs and returns a new [`CreateFinancialStatements`] state
+//! It moves the parsed [`CompanyData`](crate::shared::financial::company_data::CompanyData) from the
+//! source state's output into the next state's input, and carries the CIK across via context. The
+//! supporting `From` impls perform the field-level conversions; the `TryFrom` is fallible because
+//! the source output may be absent.
 //!
-//! ## Error Handling
-//! Returns a [`TransitionError`] if the source state lacks required output data.
+//! # Errors
+//!
+//! Returns [`TransitionError`] (a [`MissingOutput`](crate::error::state_machine::transition::MissingOutput))
+//! when the source state has no computed output to carry forward.
 
 use crate::error::state_machine::transition;
 use crate::error::state_machine::transition::Transition as TransitionError;

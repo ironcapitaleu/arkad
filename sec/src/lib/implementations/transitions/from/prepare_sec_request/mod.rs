@@ -1,5 +1,11 @@
-//! # Transitions from `PrepareSecRequest` State
+//! # Transitions from `PrepareSecRequest`
 //!
-//! This module contains transition implementations originating from the [`PrepareSecRequest`](crate::implementations::states::extract::prepare_sec_request::PrepareSecRequest) state.
+//! Holds the transitions leaving the
+//! [`PrepareSecRequest`](crate::implementations::states::extract::prepare_sec_request::PrepareSecRequest)
+//! state.
+//!
+//! ## Modules
+//!
+//! - [`execute_sec_request`]: Transition into the request-execution state.
 
 pub mod execute_sec_request;
