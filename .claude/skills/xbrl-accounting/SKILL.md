@@ -78,7 +78,7 @@ Example: Amazon doesn't report `Liabilities` but reports `LiabilitiesCurrent` + 
 
 ## Raw Taxonomy Data
 
-The authoritative FASB linkbase XML files are stored in `data/taxonomy/2026/`:
+The authoritative FASB linkbase XML files are stored in `./data/taxonomy/2026/` (relative to this skill):
 
 - `stm/` — Statement linkbases (balance sheet, income statement, cash flow)
   - `-cal-` files: arithmetic (summation) relationships with weights

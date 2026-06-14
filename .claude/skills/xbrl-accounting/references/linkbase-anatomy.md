@@ -6,7 +6,7 @@ update-frequency: never (XBRL spec is stable; taxonomy XML updates annually but 
 
 # Linkbase XML Anatomy — Reading Guide
 
-This reference teaches how to read the raw FASB taxonomy XML files stored in `data/taxonomy/2026/`. The file format follows the XBRL 2.1 and Dimensions 1.0 specifications.
+This reference teaches how to read the raw FASB taxonomy XML files stored in `../data/taxonomy/2026/` (relative to this references directory). The file format follows the XBRL 2.1 and Dimensions 1.0 specifications.
 
 ## File Naming Convention
 
@@ -234,10 +234,10 @@ When resolving an unknown concept from SEC data:
 3. **Check label linkbase** — What's the human-readable name? Does it match a known canonical element?
 4. **Check definition linkbase** — Is the data point dimensional? Is it a total or segment?
 
-## Files in This Project
+## Files in This Skill
 
 ```
-data/taxonomy/2026/
+../data/taxonomy/2026/
 ├── stm/
 │   ├── us-gaap-stm-sfp-cls-cal-2026.xml    # Balance Sheet (classified) — calculation
 │   ├── us-gaap-stm-sfp-cls-pre-2026.xml    # Balance Sheet (classified) — presentation

@@ -362,7 +362,7 @@ version: 0.1.0
 
 ### Best Practices
 
-- Skills are auto-discovered — do NOT list other skills inside a skill
+- Skills are auto-discovered — avoid cataloging other skills inside a skill (references to prerequisite or next-step skills are fine)
 - SKILL.md is for procedures and decision rules, not raw data dumps
 - Reference files are for lookup data the agent consults during specific tasks
 - Keep SKILL.md under ~2KB; put large content in references/
