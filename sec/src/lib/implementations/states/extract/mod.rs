@@ -1,32 +1,39 @@
-//! # Extract State Module
+//! # Extract Phase
 //!
-//! This module provides state implementations for the extraction phase of the SEC filings ETL workflow.
-//! It handles validation of raw input data and preparation of SEC API requests through a hierarchical super-state.
+//! Provides the states of the extract phase — the first phase of the SEC ETL pipeline —
+//! and the [`ExtractSuperState`] that drives them.
 //!
-//! ## Components
-//! - [`validate_cik_format`]: Validates and normalizes CIK (Central Index Key) strings to proper 10-digit format.
-//! - [`prepare_sec_request`]: Creates HTTP clients and prepares request objects for SEC API calls.
-//! - [`execute_sec_request`]: Executes prepared SEC API requests and handles responses.
-//! - [`ExtractSuperState`]: Super-state that orchestrates the extraction workflow and state transitions.
+//! Extraction turns a raw CIK string into a fetched SEC response through three ordered
+//! states. The super-state owns the shared HTTP client and the type-safe transitions
+//! between them, so callers advance the pipeline without managing each state by hand.
+//!
+//! ## Modules
+//!
+//! - [`validate_cik_format`]: Validates and normalizes the raw CIK.
+//! - [`prepare_sec_request`]: Builds the request targeting the SEC API endpoint.
+//! - [`execute_sec_request`]: Sends the request and captures the response.
 //!
 //! ## State Flow
-//! The extraction follows this progression: [`ValidateCikFormat`] → [`PrepareSecRequest`] → [`ExecuteSecRequest`]
 //!
-//! ## Example
-//! ```rust
+//! [`ValidateCikFormat`] → [`PrepareSecRequest`] → [`ExecuteSecRequest`], after which the
+//! pipeline crosses into the transform phase.
+//!
+//! ## Usage
+//!
+//! ```no_run
 //! use sec::implementations::states::extract::*;
 //! use sec::implementations::states::extract::validate_cik_format::ValidateCikFormat;
 //! use sec::prelude::*;
 //! use sec::shared::http_client::implementations::sec_client::SecClient;
 //!
-//! #[tokio::main]
-//! async fn main() -> Result<(), Box<dyn std::error::Error>> {
-//!     let client = SecClient::default();
-//!     let mut extract_state = ExtractSuperState::<ValidateCikFormat>::new("1234567890", client);
-//!     extract_state.compute_output_data_async().await?;
-//!     let next_state = extract_state.transition_to_next_state_sec()?;
-//!     Ok(())
-//! }
+//! # #[tokio::main]
+//! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! let mut extract_state =
+//!     ExtractSuperState::<ValidateCikFormat>::new("1234567890", SecClient::default());
+//! extract_state.compute_output_data_async().await?;
+//! let _next_state = extract_state.transition_to_next_state_sec()?;
+//! # Ok(())
+//! # }
 //! ```
 
 pub mod execute_sec_request;
@@ -60,9 +67,10 @@ use crate::shared::cik::Cik;
 use crate::shared::http_client::implementations::sec_client::SecClient;
 use crate::shared::request::implementations::sec_request::SecRequest;
 
-/// Data structure for the Extract super-state.
+/// Input and output data for the [`ExtractSuperState`].
 ///
-/// Currently serves as a placeholder type with unit update semantics for the [`ExtractSuperState`].
+/// A placeholder with unit update semantics: the super-state delegates all real data
+/// handling to its current inner state, so it carries no data of its own.
 #[derive(Debug, Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub struct ExtractSuperStateData;
 
@@ -80,14 +88,17 @@ impl StateData for ExtractSuperStateData {
     }
 }
 
-/// Context data structure for the Extract super-state.
+/// Ambient context for the [`ExtractSuperState`].
+///
+/// Holds the shared [`SecClient`] handed down to each inner state, so the client is
+/// constructed once and reused across the whole extract phase.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub struct ExtractSuperStateContext {
     pub(crate) sec_client: SecClient,
 }
 
 impl ExtractSuperStateContext {
-    /// Creates a new context with the given HTTP client.
+    /// Creates a new context wrapping the shared HTTP client.
     #[must_use]
     pub const fn new(sec_client: SecClient) -> Self {
         Self { sec_client }
@@ -108,16 +119,13 @@ impl Context for ExtractSuperStateContext {
     }
 }
 
-/// A hierarchical super-state that orchestrates the extraction phase of the SEC ETL pipeline.
+/// Hierarchical super-state that orchestrates the extract phase.
 ///
-/// Manages progression through extraction states like [`ValidateCikFormat`] and [`PrepareSecRequest`],
-/// providing type-safe transitions and unified state machine interfaces.
-///
-/// # Type Parameter
-/// - `S`: The current active state, which must implement the [`State`] trait
-///
-/// # State Transitions
-/// Supports transitions: `ValidateCikFormat` → `PrepareSecRequest`
+/// Wraps the currently active extract state in its `S` type parameter and owns the shared
+/// HTTP client, exposing the inner state through a unified state-machine interface and
+/// advancing the pipeline via type-safe transitions: [`ValidateCikFormat`] →
+/// [`PrepareSecRequest`] → [`ExecuteSecRequest`]. Encoding the active state in the type
+/// makes invalid transitions a compile error rather than a runtime check.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub struct ExtractSuperState<S: State> {
     current_state: S,
@@ -223,6 +231,7 @@ impl<S: State> SMSuperState<S> for ExtractSuperState<S> {}
 impl<S: State> SuperState<S> for ExtractSuperState<S> {}
 
 impl ExtractSuperState<ValidateCikFormat> {
+    /// Creates the super-state at the pipeline entry point from a raw CIK and shared client.
     #[must_use]
     pub fn new(input: impl Into<String>, sec_client: SecClient) -> Self {
         let input: String = input.into();
@@ -239,6 +248,7 @@ impl ExtractSuperState<ValidateCikFormat> {
 }
 
 impl ExtractSuperState<PrepareSecRequest> {
+    /// Creates the super-state positioned at the request-preparation state.
     #[must_use]
     pub fn new(validated_cik: Cik, sec_client: SecClient) -> Self {
         let input_data = PrepareSecRequestInput::new(validated_cik.clone(), sec_client.clone());
@@ -254,6 +264,7 @@ impl ExtractSuperState<PrepareSecRequest> {
 }
 
 impl ExtractSuperState<ExecuteSecRequest> {
+    /// Creates the super-state positioned at the request-execution state.
     #[must_use]
     pub fn new(client: SecClient, request: SecRequest, cik: Cik) -> Self {
         let esr_input = ExecuteSecRequestInput::new(client.clone(), request);
