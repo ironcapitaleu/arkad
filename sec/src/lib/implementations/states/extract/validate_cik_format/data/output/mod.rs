@@ -1,29 +1,17 @@
-//! # `ValidateCikFormatOutput` Module
+//! # Validate CIK Format Output
 //!
-//! This module defines the output data structure and updater patterns for the `ValidateCikFormat` state
-//! within the SEC extraction state machine. It encapsulates the validated Central Index Key (CIK) and
-//! provides builders and updaters for controlled mutation of output data.
+//! Provides the [`ValidateCikFormatOutput`] holding the validated CIK produced by the
+//! [`ValidateCikFormat`](crate::implementations::states::extract::validate_cik_format::ValidateCikFormat)
+//! state, along with its updater and builder.
 //!
-//! ## Types
-//! - [`ValidateCikFormatOutput`]: Holds the validated CIK after successful format validation.
-//! - [`ValidateCikFormatOutputUpdater`]: Updater type for modifying the output data in a controlled manner.
-//! - [`ValidateCikFormatOutputUpdaterBuilder`]: Builder for constructing updater instances with optional fields.
-//!
-//! ## Integration
-//! - Implements [`StateData`](state_maschine::state_machine::state::StateData) for compatibility with the state machine framework.
-//! - Used by [`ValidateCikFormat`](crate::implementations::states::extract::validate_cik_format) to produce and update CIK output data.
-//!
-//! ## Usage
-//! This module is intended for use in the output phase of CIK validation. It supports builder-based updates and
-//! integrates with the state machine's updater and state data traits for robust, testable workflows.
+//! This is the *validated* side of the state's data: the CIK is wrapped in a
+//! [`Cik`], guaranteeing the ten-digit, zero-padded form for every downstream state.
+//! The unvalidated counterpart lives in [`input`](super::input).
 //!
 //! ## See Also
-//! - [`input`](super::input): Input data structure for unvalidated CIKs.
-//! - [`crate::shared::cik`]: Utilities for CIK parsing and validation.
-//! - [`state_maschine::prelude::StateData`]: Trait for state data integration.
 //!
-//! ## Examples
-//! See the unit tests in this module for usage patterns and updater logic.
+//! - [`input`](super::input): The raw CIK that this output is produced from.
+//! - [`crate::shared::cik`]: The CIK parsing and validation utilities backing this output.
 
 use std::fmt;
 
@@ -38,23 +26,33 @@ use crate::traits::error::FromDomainError;
 use crate::traits::state_machine::state::StateData;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
-/// Output data containing a validated CIK.
+/// Output data of the [`ValidateCikFormat`](super::super::ValidateCikFormat) state.
 ///
-/// This struct holds a validated [`Cik`] value, produced by the `ValidateCikFormat` state
-/// after successful validation. It is used as output in the SEC extraction state machine,
-/// and supports builder-based updates and integration with the state machine framework.
+/// Wraps the validated [`Cik`] produced once the raw input passes validation. Holding a
+/// [`Cik`] rather than a plain string is what lets downstream states rely on the format
+/// guarantee instead of re-checking it.
 pub struct ValidateCikFormatOutput {
-    /// The validated CIK.
+    /// The validated, normalized CIK.
     pub validated_cik: Cik,
 }
 
 impl ValidateCikFormatOutput {
-    /// Creates a new instance of the output data for the CIK validation state.
-    /// The output must follow the correct formatting.
+    /// Creates output data by validating and normalizing a CIK string.
     ///
     /// # Errors
     ///
-    /// Returns a [`StateError::InvalidCikFormat`] if the CIK is not formatted correctly.
+    /// Returns [`StateError::InvalidCikFormat`] if the CIK contains non-numeric characters
+    /// or exceeds the maximum allowed length.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use sec::implementations::states::extract::validate_cik_format::data::output::ValidateCikFormatOutput;
+    ///
+    /// let output = ValidateCikFormatOutput::new("1067983")
+    ///     .expect("A syntactically valid CIK should always produce output");
+    /// assert_eq!(output.cik(), "0001067983");
+    /// ```
     pub fn new(cik: impl Into<String>) -> Result<Self, StateError> {
         let cik_str = cik.into();
         let validated_cik = Cik::new(cik_str.as_str())
@@ -112,11 +110,10 @@ impl fmt::Display for ValidateCikFormatOutput {
 }
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
-/// Updater for [`ValidateCikFormatOutput`].
+/// Partial update for a [`ValidateCikFormatOutput`].
 ///
-/// This struct is used to specify updates to the output data in a controlled, partial manner.
-/// Fields set to `None` will not be updated. Used in conjunction with the state machine's
-/// update mechanism to ensure safe and explicit state transitions.
+/// When `cik` is `None` the output is left unchanged; when `Some`, the carried [`Cik`]
+/// replaces the validated CIK.
 pub struct ValidateCikFormatOutputUpdater {
     /// Optional new value for the validated CIK.
     pub cik: Option<Cik>,
@@ -130,15 +127,11 @@ impl ValidateCikFormatOutputUpdater {
     }
 }
 
-/// Updater builder for the validation output.
+/// Fluent builder for a [`ValidateCikFormatOutputUpdater`].
 pub struct ValidateCikFormatOutputUpdaterBuilder {
     cik: Option<Cik>,
 }
 
-/// Builder for [`ValidateCikFormatOutputUpdater`].
-///
-/// This builder allows for ergonomic and explicit construction of updater instances,
-/// supporting method chaining and optional fields. Use `.build()` to produce the updater.
 impl ValidateCikFormatOutputUpdaterBuilder {
     /// Creates a new updater builder with no fields set.
     #[must_use]
