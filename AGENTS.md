@@ -368,6 +368,7 @@ version: 0.1.0
 - Keep SKILL.md under ~2KB; put large content in references/
 - Include "Authoritative Sources" section with URLs for live lookup when references are insufficient
 - Include staleness instructions so the agent knows when to prompt for updates
+- **Keep authoritative data as-is in terms of content.** When including external reference data (e.g., taxonomy files, standards documents), store it in its original form or a lossless format conversion. Do not rewrite, summarize, or reinterpret authoritative content — this avoids translation drift and ensures the skill always reflects the source of truth exactly
 
 ---
 

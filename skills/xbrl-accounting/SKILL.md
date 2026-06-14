@@ -76,6 +76,19 @@ Example: Amazon doesn't report `Liabilities` but reports `LiabilitiesCurrent` + 
   - Calculation relationships: `stm/us-gaap-stm-*-cal-{year}.xml`
   - Labels: `elts/us-gaap-lab-{year}.xml`
 
+## Raw Taxonomy Data
+
+The authoritative FASB linkbase XML files are stored in `data/taxonomy/2026/`:
+
+- `stm/` — Statement linkbases (balance sheet, income statement, cash flow)
+  - `-cal-` files: arithmetic (summation) relationships with weights
+  - `-pre-` files: display hierarchy and grouping
+  - `-def-` files: dimensional relationships (segment vs. total)
+- `elts/` — Element-level data
+  - `us-gaap-lab-2026.xml`: human-readable labels for all concepts
+
+See `references/linkbase-anatomy.md` for how to read these XML files.
+
 ## Staleness Check
 
 Before using calculation linkbase relationships, check the `taxonomy-year` header in `references/calculation-linkbase.md`. If it is older than the current calendar year, prompt the user:
@@ -83,3 +96,31 @@ Before using calculation linkbase relationships, check the `taxonomy-year` heade
 > "The FASB taxonomy reference is from {year}. A newer version may be available at xbrl.fasb.org/us-gaap/. Should I verify and update the references?"
 
 For `references/canonical-elements.md`: if you notice CanonicalElement enum members in the source code that are not in the reference file, flag the mismatch to the user.
+
+## Update Logic
+
+### When to update taxonomy XML files (`data/taxonomy/`)
+
+FASB releases a new US GAAP taxonomy annually (typically Q1). Update when:
+
+1. The current calendar year is newer than the `2026` in the directory path
+2. The user explicitly asks to update to a newer taxonomy version
+3. A concept is encountered that doesn't exist in the current taxonomy files
+
+### How to update
+
+1. Check latest available year: `curl -s https://xbrl.fasb.org/us-gaap/ | grep -oP '\d{4}' | sort -rn | head -1`
+2. Download new files into `data/taxonomy/{new_year}/stm/` and `data/taxonomy/{new_year}/elts/`:
+   - `us-gaap-stm-sfp-cls-{cal,pre,def}-{year}.xml` (balance sheet, classified)
+   - `us-gaap-stm-soi-{cal,pre,def}-{year}.xml` (income statement)
+   - `us-gaap-stm-scf-indir-{cal,pre,def}-{year}.xml` (cash flow, indirect)
+   - `us-gaap-lab-{year}.xml` (labels)
+3. Update `references/calculation-linkbase.md` header: set `taxonomy-year` to the new year
+4. Verify no existing concept mappings broke (concept names may have changed between versions)
+5. Prompt user to remove old taxonomy directory if no longer needed
+
+### What does NOT need updating
+
+- `references/sfac6-elements.md` — SFAC 6 is permanent (1985, never changes)
+- `references/linkbase-anatomy.md` — XBRL spec is stable; file format does not change between taxonomy years
+- `references/resolution-tiers.md` — only update if the crate's resolution architecture changes
