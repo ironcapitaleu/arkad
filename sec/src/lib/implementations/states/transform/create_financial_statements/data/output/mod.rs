@@ -1,27 +1,16 @@
-//! # `CreateFinancialStatementsOutput` Module
+//! # Create Financial Statements Output
 //!
-//! This module defines the output data structure and updater patterns for the `CreateFinancialStatements` state
-//! within the SEC transform state machine.
+//! Provides the [`CreateFinancialStatementsOutput`] produced by the
+//! [`CreateFinancialStatements`](crate::implementations::states::transform::create_financial_statements::CreateFinancialStatements)
+//! state, along with its updater and builder.
 //!
-//! ## Types
-//! - [`CreateFinancialStatementsOutput`]: Placeholder unit struct for the financial statements output.
-//! - [`CreateFinancialStatementsOutputUpdater`]: Updater type for modifying the output data in a controlled manner.
-//! - [`CreateFinancialStatementsOutputUpdaterBuilder`]: Builder for constructing updater instances.
-//!
-//! ## Integration
-//! - Implements [`StateData`](state_maschine::state_machine::state::StateData) for compatibility with the state machine framework.
-//! - Used by [`CreateFinancialStatements`](crate::implementations::states::transform::create_financial_statements) to produce output data.
-//!
-//! ## Usage
-//! This module is a placeholder for the output phase of financial statement creation.
-//! The output struct will be extended with financial statement fields in a future iteration.
+//! Since the state is a scaffold, this output is a placeholder unit struct that will gain
+//! concrete financial-statement fields in a future iteration. The input it is built from lives
+//! in [`input`](super::input).
 //!
 //! ## See Also
-//! - [`input`](super::input): Input data structure for company data.
-//! - [`state_maschine::prelude::StateData`]: Trait for state data integration.
 //!
-//! ## Examples
-//! See the unit tests in this module for usage patterns.
+//! - [`input`](super::input): The company data this output is built from.
 
 use std::fmt;
 
@@ -32,10 +21,10 @@ use crate::error::State as StateError;
 use crate::traits::state_machine::state::StateData;
 
 #[derive(Debug, Clone, Default, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
-/// Placeholder output data for the Create Financial Statements state.
+/// Output data of the [`CreateFinancialStatements`](super::super::CreateFinancialStatements) state.
 ///
-/// This unit struct serves as a scaffold for the financial statement creation output.
-/// It will be extended with concrete financial statement fields in a future iteration.
+/// A placeholder unit struct for the scaffold state; concrete financial-statement fields will
+/// be added in a future iteration.
 pub struct CreateFinancialStatementsOutput;
 
 impl StateData for CreateFinancialStatementsOutput {
@@ -73,10 +62,9 @@ impl fmt::Display for CreateFinancialStatementsOutput {
 }
 
 #[derive(Debug, Clone, Default, PartialEq, PartialOrd, Hash, Eq, Ord)]
-/// Updater for [`CreateFinancialStatementsOutput`].
+/// Partial update for a [`CreateFinancialStatementsOutput`].
 ///
-/// This struct is a placeholder updater with no fields. It will be extended
-/// alongside the output struct in a future iteration.
+/// A placeholder with no fields; it will gain fields alongside the output struct.
 pub struct CreateFinancialStatementsOutputUpdater;
 
 impl CreateFinancialStatementsOutputUpdater {
@@ -87,10 +75,9 @@ impl CreateFinancialStatementsOutputUpdater {
     }
 }
 
-/// Builder for [`CreateFinancialStatementsOutputUpdater`].
+/// Fluent builder for a [`CreateFinancialStatementsOutputUpdater`].
 ///
-/// This builder is a placeholder. It will be extended with fields
-/// alongside the output struct in a future iteration.
+/// A placeholder; it will gain setters alongside the output struct.
 pub struct CreateFinancialStatementsOutputUpdaterBuilder;
 
 impl CreateFinancialStatementsOutputUpdaterBuilder {

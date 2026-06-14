@@ -1,62 +1,23 @@
 //! # Create Financial Statements State
 //!
-//! This module provides the [`CreateFinancialStatements`] state and related types for creating
-//! financial statements from parsed company data as part of the SEC transform workflow.
+//! Provides the [`CreateFinancialStatements`] state, the final and terminal step of the
+//! pipeline, which builds financial statements from parsed [`CompanyData`](crate::shared::financial::company_data::CompanyData).
 //!
-//! ## Overview
-//! The [`CreateFinancialStatements`] state is responsible for transforming [`CompanyData`](crate::shared::financial::company_data::CompanyData)
-//! into structured financial statements. This is currently a **scaffold** -- the compute logic
-//! is a stub that will be filled in a future iteration.
+//! This state is currently a **scaffold**: it accepts the parsed company data and produces a
+//! placeholder output, with the statement-building logic to be filled in a future iteration.
+//! It still participates fully in the state machine so the pipeline shape is complete end to end.
 //!
-//! ## Components
-//! - [`context`]: Defines the context and updater types for the financial statement creation process.
-//! - [`data`]: Contains input and output data structures for the state, including updaters and builders.
-//! - [`CreateFinancialStatementsContext`]: Context data type for the state.
-//! - [`CreateFinancialStatementsInput`]: Input data type holding the [`CompanyData`](crate::shared::financial::company_data::CompanyData).
-//! - [`CreateFinancialStatementsOutput`]: Placeholder output data type.
+//! ## Modules
 //!
-//! ## Usage
-//! This state is intended to be used in the transform phase of the SEC state machine ETL pipeline,
-//! after company facts have been parsed. It is designed to be composed with other states for robust
-//! and testable SEC filings processing workflows.
-//!
-//! ## Example
-//! ```rust
-//! use std::collections::HashMap;
-//! use tokio;
-//!
-//! use sec::implementations::states::transform::create_financial_statements::*;
-//! use sec::shared::cik::Cik;
-//! use sec::shared::financial::company_data::CompanyData;
-//! use sec::shared::financial::entity_name::EntityName;
-//! use sec::prelude::*;
-//!
-//! #[tokio::main]
-//! async fn main() {
-//!     let company_data = CompanyData::new(
-//!         Cik::new("0000320193").expect("Hardcoded CIK should always be valid"),
-//!         EntityName::new("Apple Inc."),
-//!         HashMap::new(),
-//!     );
-//!     let input = CreateFinancialStatementsInput::new(company_data);
-//!     let context = CreateFinancialStatementsContext::new(
-//!         Cik::new("0000320193").expect("Hardcoded CIK should always be valid"),
-//!     );
-//!
-//!     let mut state = CreateFinancialStatements::new(input, context);
-//!     state.compute_output_data_async().await.unwrap();
-//!     let output = state.output_data().unwrap();
-//!     assert_eq!(output, &CreateFinancialStatementsOutput);
-//! }
-//! ```
+//! - [`constants`]: State metadata such as [`STATE_NAME`].
+//! - [`context`]: The [`CreateFinancialStatementsContext`] carried alongside the state.
+//! - [`data`]: The [`CreateFinancialStatementsInput`] and [`CreateFinancialStatementsOutput`] data types.
 //!
 //! ## See Also
-//! - [`crate::implementations::states::transform`]: Parent module for transform-related states.
-//! - [`crate::shared::financial::company_data::CompanyData`]: Core data type used as input.
-//! - [`crate::traits::state_machine::state::State`]: State trait implemented by [`CreateFinancialStatements`].
 //!
-//! ## Testing
-//! This module includes comprehensive unit tests covering state behavior, trait compliance, and stub output.
+//! - [`crate::implementations::states::transform`]: Parent module describing the transform flow.
+//! - [`crate::shared::financial::company_data::CompanyData`]: The input data type this state consumes.
+//! - [`crate::traits::state_machine::state::State`]: The trait implemented by [`CreateFinancialStatements`].
 
 use std::fmt;
 use std::hash::{Hash, Hasher};
@@ -83,39 +44,11 @@ use serde::Serialize;
 // containing a `HashMap`. This struct therefore also uses manual implementations
 // for these traits.
 #[derive(Debug, Clone, Serialize)]
-/// State that creates financial statements from parsed company data.
+/// Terminal transform-phase state, building financial statements from [`CompanyData`](crate::shared::financial::company_data::CompanyData).
 ///
-/// This state takes [`CompanyData`](crate::shared::financial::company_data::CompanyData) as input and produces
-/// structured financial statements as output. Currently this is a **scaffold** -- the
-/// compute logic is a stub that returns a placeholder output.
-///
-/// # Behavior
-/// - Accepts [`CompanyData`](crate::shared::financial::company_data::CompanyData) containing resolved financial facts.
-/// - Produces a placeholder [`CreateFinancialStatementsOutput`].
-/// - The actual financial statement creation logic will be implemented in a future iteration.
-///
-/// # Output
-/// The output is stored internally after calling [`State::compute_output_data_async`].
-///
-/// # Example
-/// ```
-/// use std::collections::HashMap;
-/// use sec::implementations::states::transform::create_financial_statements::*;
-/// use sec::shared::cik::Cik;
-/// use sec::shared::financial::company_data::CompanyData;
-/// use sec::shared::financial::entity_name::EntityName;
-///
-/// let company_data = CompanyData::new(
-///     Cik::new("0000320193").expect("Hardcoded CIK should always be valid"),
-///     EntityName::new("Apple Inc."),
-///     HashMap::new(),
-/// );
-/// let input = CreateFinancialStatementsInput::new(company_data);
-/// let context = CreateFinancialStatementsContext::new(
-///     Cik::new("0000320193").expect("Hardcoded CIK should always be valid"),
-/// );
-/// let state = CreateFinancialStatements::new(input, context);
-/// ```
+/// A **scaffold**: it accepts the parsed company data and currently produces a placeholder
+/// [`CreateFinancialStatementsOutput`]. The statement-building logic is deferred to a future
+/// iteration, but the state is wired into the pipeline so the end-to-end shape is complete.
 pub struct CreateFinancialStatements {
     input: CreateFinancialStatementsInput,
     context: CreateFinancialStatementsContext,
@@ -123,7 +56,26 @@ pub struct CreateFinancialStatements {
 }
 
 impl CreateFinancialStatements {
-    /// Creates a new [`CreateFinancialStatements`] state with the given input and context.
+    /// Creates a new state from its input and context, with no output computed yet.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::collections::HashMap;
+    ///
+    /// use sec::implementations::states::transform::create_financial_statements::*;
+    /// use sec::shared::cik::Cik;
+    /// use sec::shared::financial::company_data::CompanyData;
+    /// use sec::shared::financial::entity_name::EntityName;
+    ///
+    /// let cik = Cik::new("0000320193").expect("A hardcoded valid CIK should always parse");
+    /// let company_data = CompanyData::new(cik.clone(), EntityName::new("Apple Inc."), HashMap::new());
+    ///
+    /// let input = CreateFinancialStatementsInput::new(company_data);
+    /// let context = CreateFinancialStatementsContext::new(cik);
+    ///
+    /// let state = CreateFinancialStatements::new(input, context);
+    /// ```
     #[must_use]
     pub const fn new(
         input: CreateFinancialStatementsInput,
@@ -136,7 +88,7 @@ impl CreateFinancialStatements {
         }
     }
 
-    /// Consumes the state and returns its components. Used for state transitions.
+    /// Consumes the state and returns its input, optional output, and context.
     #[must_use]
     pub fn into_parts(
         self,
@@ -151,6 +103,12 @@ impl CreateFinancialStatements {
 
 #[async_trait]
 impl State for CreateFinancialStatements {
+    /// Produces the placeholder output for this scaffold state.
+    ///
+    /// # Errors
+    ///
+    /// Currently infallible; the [`Result`] exists to satisfy the [`State`] contract and to
+    /// accommodate the real statement-building logic in a future iteration.
     async fn compute_output_data_async(&mut self) -> Result<(), StateError> {
         // Stub: actual financial statement creation logic will be implemented in a future iteration.
         self.output = Some(CreateFinancialStatementsOutput);
