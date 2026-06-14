@@ -295,15 +295,15 @@ Refs: #123
 
 ### What Is a Skill
 
-A skill is a domain-specific knowledge bundle that loads into the agent's context only when relevant work is triggered. Skills live in `skills/{name}/SKILL.md` within the project's plugin structure.
+A skill is a domain-specific knowledge bundle that loads into the agent's context only when relevant work is triggered. Skills live in `.claude/skills/{name}/SKILL.md` within the project's plugin structure.
 
 ### What Belongs in a Skill vs. Elsewhere
 
 | Content | Location | Loaded |
 | ------- | -------- | ------ |
 | Universal dev rules (all crates) | AGENTS.md | Always |
-| Domain knowledge for specific crate work | skills/{name}/SKILL.md | On trigger |
-| Large reference data (lookup tables) | skills/{name}/references/*.md | On demand |
+| Domain knowledge for specific crate work | .claude/skills/{name}/SKILL.md | On trigger |
+| Large reference data (lookup tables) | .claude/skills/{name}/references/*.md | On demand |
 | Live external data queries | MCP tools / WebFetch | Runtime |
 | Project decisions, status, strategy | .claude/memory/ | Session |
 
@@ -325,9 +325,9 @@ Do NOT create a skill when:
 
 ### Adding a New Skill
 
-1. Create `skills/{name}/SKILL.md` with frontmatter (name, description, version)
+1. Create `.claude/skills/{name}/SKILL.md` with frontmatter (name, description, version)
 2. Write procedures and decision rules in the body
-3. Put lookup/reference data in `skills/{name}/references/` as separate markdown files
+3. Put lookup/reference data in `.claude/skills/{name}/references/` as separate markdown files
 4. Add staleness headers to reference files (source, last-verified, update-frequency, taxonomy-year)
 5. If reference content derives from source code, note the source file in the header
 

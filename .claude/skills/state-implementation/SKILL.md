@@ -5,6 +5,8 @@ description: >
   compute_output_data, introducing domain errors, or designing the testing
   strategy for a specific state's business logic. Pair-programming guide.
 version: 0.1.0
+argument-hint: "[state-name]"
+allowed-tools: [Read, Write, Edit, Bash, AskUserQuestion]
 ---
 
 # State Implementation Skill

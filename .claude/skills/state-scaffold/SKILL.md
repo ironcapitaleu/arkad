@@ -5,6 +5,8 @@ description: >
   state to the state machine. Generates the full directory structure, structs,
   trait implementations, and test suite through a guided questionnaire.
 version: 0.1.0
+argument-hint: "[state-name]"
+allowed-tools: [Read, Write, Edit, Bash, AskUserQuestion]
 ---
 
 # State Scaffold Skill
