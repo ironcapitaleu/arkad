@@ -7,7 +7,7 @@ taxonomy-year: 2026
 
 # Calculation Linkbase — Key Derivation Relationships
 
-Curated subset of FASB calculation linkbase arcs relevant to the 42 canonical elements. Source: `us-gaap-stm-*-cal-2026.xml` files.
+Curated subset of FASB calculation linkbase arcs relevant to the `CanonicalElement` set. Source: `us-gaap-stm-*-cal-2026.xml` files.
 
 ## Income Statement (from `us-gaap-stm-soi-cal-2026.xml`)
 
