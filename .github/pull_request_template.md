@@ -19,4 +19,4 @@
 
 ## Checklist
 
-- [ ] The [Software Development Guidelines](AGENTS.md) are followed
+- [ ] The [Software Development Guidelines](../AGENTS.md) are followed
