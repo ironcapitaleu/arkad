@@ -13,17 +13,29 @@ allowed-tools: [Read, Write, Edit, Bash, AskUserQuestion]
 
 ## Purpose
 
-Guide the incremental implementation of domain logic for a state after its boilerplate scaffold exists. This is a pair-programming workflow — the skill prompts questions, then guides step-by-step implementation.
+Guide the incremental implementation of domain logic for a state after its boilerplate scaffold
+exists. This is a pair-programming workflow — step-by-step with the user.
 
-## Initial Questioning
+This skill assumes:
 
-Before implementation, clarify:
+- A state design exists (from `/state-design`)
+- Boilerplate is scaffolded (from `/state-scaffold`)
 
-1. **What does this state compute?** (high-level: "validates CIK format", "executes HTTP request")
-2. **What domain concepts does it introduce?** (e.g., Cik, SecClient, XbrlParser)
-3. **What external dependencies are needed?** (HTTP clients, file I/O, parsers, crates)
-4. **What can go wrong?** (error cases: network failure, invalid format, missing data)
-5. **Downstream consumers?** (who uses this state's output? affects output design)
+If either is missing, direct the user to run those first.
+
+## Initial Verification
+
+Before starting implementation, verify:
+
+1. Read the state design document for requirements
+2. Confirm scaffold exists (directory structure, stub files)
+3. Confirm it compiles (`cargo check`)
+
+Then clarify any remaining questions with the user:
+
+1. **What domain concepts does it introduce?** (e.g., Cik, SecClient, XbrlParser)
+2. **What external dependencies are needed?** (HTTP clients, file I/O, parsers, crates)
+3. **What can go wrong?** (error cases: network failure, invalid format, missing data)
 
 ## Implementation Workflow
 
@@ -38,31 +50,119 @@ Design and implement domain structs/traits that the state uses but that exist in
 
 These are the building blocks. Each should be fully tested before the state uses them.
 
-### Phase 2: Compute Logic (happy path first)
+### Phase 2: Compute Logic
 
 Implement `compute_output_data_async`:
 
-1. Start with the happy path only
-2. Use domain concepts from Phase 1
-3. Transform input + context into output
-4. Set `self.output = Some(output)` on success
-5. Write async test verifying happy path
+1. Call the domain method/function that does the work (returns its own `Result`)
+2. On success: wrap in output struct, set `self.output = Some(output)`
+3. On error: convert to `StateError` via named error type and propagate
+4. Write tests for both happy path and error path
 
-### Phase 3: Error Handling (one error case at a time)
+### Phase 3: Error Handling
 
-For each error scenario:
+Error handling follows natural Result propagation — not one error at a time, but by calling
+functions that return their own errors and converting at the state boundary:
 
-1. Define the domain error variant (if new)
-2. Define how it maps into StateError (via `From` or explicit conversion)
-3. Add the error path to `compute_output_data_async`
-4. Write a test triggering that exact error
-5. Verify the error chain format matches project conventions: `[StateError] ..., Caused by: [DomainError] ..., Reason: '...'`
+```rust
+async fn compute_output_data_async(&mut self) -> Result<(), StateError> {
+    let result = self.input.client.do_something().await;
+
+    match result {
+        Ok(data) => {
+            self.output = Some(MyStateOutput::new(data));
+            Ok(())
+        }
+        Err(e) => {
+            let e: StateError =
+                NamedStateError::from_domain_error(self.state_name().to_string(), e).into();
+            Err(e)
+        }
+    }
+}
+```
+
+The pattern:
+
+1. Call a domain function/method that returns its own error type
+2. Convert to a **named state error** (e.g., `InvalidCikFormat`, `FailedRequestExecution`) using `from_domain_error` or `::new`
+3. Convert that into `StateError` via `.into()`
+4. Return `Err(e)`
 
 Error hierarchy:
 
-- **Domain errors** = "this concept is invalid" (e.g., `InvalidCikFormat`)
-- **State errors** = "something went wrong in this state" (wraps domain errors)
-- **SuperState errors** = top-level wrapper (wraps state errors)
+- **Domain errors** — returned by domain methods (e.g., `CikError`, `SecClientError`)
+- **Named state errors** — wrap domain errors with state context (e.g., `InvalidCikFormat`)
+- **StateError** — the enum all named state errors convert into
+- **SuperStateError** — top-level wrapper (wraps StateError)
+
+## Examples from the Codebase
+
+### Example 1: Simple compute — no external call (PrepareSecRequest)
+
+Assembles output from input fields, no async work, cannot fail:
+
+```rust
+async fn compute_output_data_async(&mut self) -> Result<(), StateError> {
+    let sec_client = self.input.sec_client.clone();
+    let sec_request = SecRequest::builder()
+        .all_company_facts()
+        .cik(self.input.validated_cik.clone())
+        .build();
+
+    self.output = Some(PrepareSecRequestOutput::new(sec_client, sec_request));
+
+    Ok(())
+}
+```
+
+### Example 2: Validation with domain error (ValidateCikFormat)
+
+Calls a domain constructor that validates and returns its own error type:
+
+```rust
+async fn compute_output_data_async(&mut self) -> Result<(), StateError> {
+    let cik = Cik::new(&self.input.raw_cik);
+
+    match cik {
+        Ok(cik) => {
+            self.output = Some(ValidateCikFormatOutput { validated_cik: cik });
+        }
+        Err(e) => {
+            let e: StateError =
+                InvalidCikFormat::from_domain_error(self.state_name().to_string(), e).into();
+            return Err(e);
+        }
+    }
+
+    Ok(())
+}
+```
+
+### Example 3: External async call (ExecuteSecRequest)
+
+Calls an async method on a client, converts error at boundary:
+
+```rust
+async fn compute_output_data_async(&mut self) -> Result<(), StateError> {
+    let client = &self.input.sec_client;
+    let request = &self.input.sec_request;
+
+    let result = client.execute_sec_request(request.clone()).await;
+
+    match result {
+        Ok(response) => {
+            self.output = Some(ExecuteSecRequestOutput::new(response));
+            Ok(())
+        }
+        Err(e) => {
+            let e: StateError =
+                FailedRequestExecution::new(self.state_name().to_string(), e).into();
+            Err(e)
+        }
+    }
+}
+```
 
 ### Phase 4: Dependency Inversion (if external deps)
 

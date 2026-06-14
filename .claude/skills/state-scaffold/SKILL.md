@@ -13,19 +13,26 @@ allowed-tools: [Read, Write, Edit, Bash, AskUserQuestion]
 
 ## Purpose
 
-Generate the complete boilerplate for a new state in the SEC state machine. This includes the directory structure, all required structs, trait implementations, Display impls, and the full test suite.
+Generate the complete boilerplate for a new state in the SEC state machine. This includes the
+directory structure, all required structs, trait implementations, Display impls, and the full
+test suite.
 
-## Questionnaire
+This skill assumes a state design already exists (from `/state-design`). If no design exists,
+direct the user to run `/state-design` first.
 
-Before generating code, gather these inputs from the user:
+## Inputs
 
-1. **State name** — e.g., `ValidateCikFormat`, `ExecuteSecRequest`
-2. **Input fields** — what data does this state receive? (field names, types, sources)
-3. **Context** — shared dependencies (clients, config, max_retries)
-4. **Output fields** — what does this state produce? (field names, types)
-5. **Source state** — which state transitions into this one? (for Transition impl)
-6. **Async?** — does compute_output_data need async? (almost always yes for SEC)
-7. **SuperState** — which state machine does this belong to?
+Read the state design document to extract:
+
+1. **State name**
+2. **Input fields** — names, types
+3. **Output fields** — names, types
+4. **Context fields** — shared dependencies
+5. **Source state** — for Transition stub
+6. **Async?** — almost always yes for SEC
+7. **SuperState** — which state machine
+
+If no design document is available, gather these from the user directly via questionnaire.
 
 ## Generated Directory Structure
 
@@ -69,8 +76,7 @@ For each data struct, generate:
 4. **SEC State trait impl** (`compute_output_data_async` — stub returning `Ok(())`)
 5. **state_machine State trait impl** (blocking wrapper with tokio runtime detection)
 6. **Display impl** (formatted summary of all fields)
-7. **Transition impl** from source state
-8. **Test module:**
+7. **Test module:**
    - `should_return_state_name`
    - `should_return_input_data`
    - `should_return_context_data`
@@ -104,25 +110,6 @@ impl SMState for MyState {
         if let Err(e) = result {
             panic!("compute_output_data failed: {e}")
         }
-    }
-}
-```
-
-### Transition Pattern
-
-```rust
-impl Transition<SourceState, NewState> for SuperState<SourceState> {
-    type NewStateMachine = SuperState<NewState>;
-
-    fn transition_to_next_state(self) -> Result<Self::NewStateMachine, &'static str> {
-        let (source_input, source_output, source_context) = self.current_state.into_parts();
-        let output = source_output.ok_or("Source state has no computed output")?;
-
-        let new_input = NewStateInput::new(/* fields from output */);
-        let new_context = NewStateContext::new(/* shared deps from source_context */);
-        let new_state = NewState::new(new_input, new_context);
-
-        Ok(SuperState { current_state: new_state, ..self })
     }
 }
 ```
