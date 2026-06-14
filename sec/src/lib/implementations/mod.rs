@@ -1,47 +1,22 @@
-//! # Implementations Module
+//! # Implementations
 //!
-//! This module contains concrete implementations of state machine components for the SEC state machine library.
-//! It provides real-world state, context, and data types that leverage the core traits and error types defined in the [`crate::traits`] and [`crate::error`] modules.
+//! Provides the concrete state machine that processes SEC filings, built on the abstractions in
+//! [`crate::traits`].
 //!
-//! ## Structure
-//! - [`states`]: Contains implementations for the Extract, Transform, and Load (ETL) states used in SEC data processing pipelines. Each submodule provides concrete state logic, input/output/context, and validation routines.
-//! - [`transitions`]: Contains implementations of state transitions organized by source state, enabling type-safe state machine transitions.
+//! Where [`crate::traits`] defines *what* a state, context, and transition are, this module
+//! supplies the *real* ETL pipeline: the individual states and the transitions that wire them
+//! together. The two concerns are split into separate child modules so a state's logic stays
+//! independent of how it connects to its neighbours.
 //!
-//! ## Usage
-//! These implementations are intended to be used as building blocks for constructing SEC-specific state machines. They demonstrate how to apply the framework's extensible traits and error handling in practice.
+//! ## Modules
 //!
-//! ## Related Modules
-//! - [`crate::traits`]: Defines the core traits for state machines, states, transitions, context, and data.
-//! - [`crate::error`]: Provides strongly-typed error handling for all state machine operations.
-//! - [`crate::shared`]: Shared utilities and domain types (e.g., CIK parsing) used by implementations.
-//! - [`crate::prelude`]: Re-exports core traits for easy downstream use.
+//! - [`states`]: The Extract, Transform, and Load states, each with its own input, output, and context.
+//! - [`transitions`]: The `TryFrom`/`From` conversions that move one state's output into the next state.
 //!
-//! ## Example
-//! ```rust
-//! use tokio;
+//! ## See Also
 //!
-//! use sec::implementations::states::extract::validate_cik_format::{ValidateCikFormat, ValidateCikFormatInput, ValidateCikFormatContext};
-//! use sec::shared::http_client::implementations::sec_client::SecClient;
-//! use sec::prelude::*;
-//!
-//! #[tokio::main]
-//! async fn main() {
-//!     let input = ValidateCikFormatInput::new("1234");
-//!     let sec_client = SecClient::default();
-//!     let context = ValidateCikFormatContext::new("1234", sec_client);
-//!
-//!     let expected_result = "0000001234";
-//!
-//!     let mut state = ValidateCikFormat::new(input, context);
-//!     state.compute_output_data_async().await;
-//!
-//!     let result = state.output_data().expect("Output data should always be present in provided `ValidateCikFormat` state").validated_cik.value();
-//!
-//!     assert_eq!(result, expected_result);
-//! }
-//! ```
-//!
-//! See the [`states`] module for details on each concrete state implementation.
+//! - [`crate::traits`]: The state-machine traits these types implement.
+//! - [`crate::shared`]: The shared domain types (e.g. [`Cik`](crate::shared::cik::Cik)) the states operate on.
 
 pub mod states;
 pub mod transitions;
