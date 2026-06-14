@@ -1,35 +1,33 @@
-//! # Prepare SEC Request Context Module
+//! # Prepare SEC Request Context
 //!
-//! This module defines the context structures and updaters for the [`PrepareSecRequest`](../mod.rs) state in the SEC filings extraction workflow.
+//! Provides the [`PrepareSecRequestContext`] carried alongside the
+//! [`PrepareSecRequest`](crate::implementations::states::extract::prepare_sec_request::PrepareSecRequest)
+//! state, together with its updater and builder.
 //!
-//! The context provides stateful information required during the preparation of an SEC request, such as retry configurations. It is designed to be used with the [`Context`] trait, enabling ergonomic context management and updates within state machines.
-//!
-//! ## Components
-//! - [`PrepareSecRequestContext`]: Holds the current context for preparing an SEC request.
-//! - [`PrepareSecRequestContextUpdater`]: Updater type for modifying context fields in a controlled way.
-//! - [`PrepareSecRequestContextUpdaterBuilder`]: Builder for constructing context updaters with a fluent API.
+//! The context holds the validated [`Cik`] and the retry budget that persist across the
+//! state's lifetime, so they survive updates and transitions.
 //!
 //! ## Usage
-//! The context is used by the [`PrepareSecRequest`](../mod.rs) state to manage retry logic. It supports updates via the builder pattern, making it easy to compose context changes in state machine workflows.
 //!
-//! ## Example
 //! ```rust
 //! use sec::implementations::states::extract::prepare_sec_request::context::*;
 //! use sec::shared::cik::Cik;
 //! use state_maschine::prelude::*;
 //!
-//! let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
+//! let cik = Cik::new("1234567890").expect("A hardcoded valid CIK should always parse");
 //! let mut context = PrepareSecRequestContext::new(cik);
 //! let update = PrepareSecRequestContextUpdater::builder()
 //!     .max_retries(5)
 //!     .build();
+//!
 //! context.update_context(update);
 //! assert_eq!(context.max_retries, 5);
 //! ```
 //!
 //! ## See Also
-//! - [`crate::traits::state_machine::state::Context`]: Trait for context management in states.
-//! - [`crate::implementations::states::extract::prepare_sec_request`]: Parent module for the SEC request preparation state and data types.
+//!
+//! - [`crate::traits::state_machine::state::Context`]: Trait that defines context updates and the retry budget.
+//! - [`crate::implementations::states::extract::prepare_sec_request`]: Parent module for the preparation state and its data types.
 
 use std::fmt;
 
@@ -40,17 +38,20 @@ use crate::shared::cik::Cik;
 use crate::traits::state_machine::state::Context;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
-/// State context for the SEC request preparation state.
+/// Ambient context for the [`PrepareSecRequest`](super::PrepareSecRequest) state.
+///
+/// Holds the validated [`Cik`] the request targets and the retry budget, both of which
+/// persist across updates and transitions.
 pub struct PrepareSecRequestContext {
+    /// The validated CIK the prepared request targets.
     pub cik: Cik,
+    /// Maximum number of times the state may be retried on failure.
     pub max_retries: u32,
 }
 
 impl PrepareSecRequestContext {
+    /// Creates a new context from a validated CIK, with the retry budget at zero.
     #[must_use]
-    /// Creates a new instance of the state context for SEC request preparation.
-    /// # Arguments
-    /// * `cik` - The Central Index Key (CIK) associated with the SEC request.
     pub const fn new(cik: Cik) -> Self {
         Self {
             cik,
@@ -99,11 +100,13 @@ impl fmt::Display for PrepareSecRequestContext {
 }
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
-/// Updater for the state context.
+/// Partial update for a [`PrepareSecRequestContext`].
 ///
-/// Using this struct allows you to update fields of [`PrepareSecRequestContext`] in a controlled way.
+/// Fields set to `None` are left unchanged when the updater is applied.
 pub struct PrepareSecRequestContextUpdater {
+    /// Optional new value for the validated CIK.
     pub cik: Option<Cik>,
+    /// Optional new value for the retry budget.
     pub max_retries: Option<u32>,
 }
 
@@ -115,9 +118,7 @@ impl PrepareSecRequestContextUpdater {
     }
 }
 
-/// Builder for [`PrepareSecRequestContextUpdater`].
-///
-/// Use this builder to fluently construct an updater for the context.
+/// Fluent builder for a [`PrepareSecRequestContextUpdater`].
 pub struct PrepareSecRequestContextUpdaterBuilder {
     cik: Option<Cik>,
     max_retries: Option<u32>,

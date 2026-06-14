@@ -1,52 +1,51 @@
-//! # SEC Request Preparation State
+//! # Prepare SEC Request State
 //!
-//! This module provides the [`PrepareSecRequest`] state and related types for preparing HTTP requests for SEC API interactions as part of the SEC filings extraction workflow.
+//! Provides the [`PrepareSecRequest`] state, the second step of the extract phase, which
+//! builds the [`SecRequest`] targeting the SEC API endpoint for a validated CIK.
 //!
-//! ## Overview
-//! The [`PrepareSecRequest`] state is responsible for constructing the request object to interact with SEC API endpoints. It takes a validated CIK and a pre-configured HTTP client as input and produces a request object ready for SEC API calls.
+//! Taking a validated [`Cik`](crate::shared::cik::Cik) and the shared HTTP client, it
+//! assembles the company-facts request and pairs it with that client, leaving a ready-to-send
+//! request for the next state. Separating preparation from execution keeps request
+//! construction synchronous and independently testable, without touching the network.
 //!
-//! ## Components
-//! - [`context`]: Defines the context and updater types for the request preparation process, allowing stateful tracking of preparation-related context.
-//! - [`data`]: Contains input and output data structures for the preparation state, including updaters and builders for ergonomic data manipulation.
-//! - [`PrepareSecRequestContext`]: Context data type for the state.
-//! - [`PrepareSecRequestInput`]: Input data type holding the validated CIK and HTTP client.
-//! - [`PrepareSecRequestOutput`]: Output data type containing the prepared SEC client and request.
+//! ## Modules
+//!
+//! - [`constants`]: State metadata such as [`STATE_NAME`].
+//! - [`context`]: The [`PrepareSecRequestContext`] carried alongside the state.
+//! - [`data`]: The [`PrepareSecRequestInput`] and [`PrepareSecRequestOutput`] data types.
 //!
 //! ## Usage
-//! This state is typically used in the extract phase of the SEC state machine ETL pipeline, after CIK validation and before making actual HTTP requests to SEC endpoints. It is designed to be composed with other states for robust and testable SEC filings processing workflows.
 //!
-//! ## Example
 //! ```rust
-//! use tokio;
-//!
 //! use sec::implementations::states::extract::prepare_sec_request::*;
-//! use sec::shared::cik::Cik;
 //! use sec::prelude::*;
+//! use sec::shared::cik::Cik;
 //! use sec::shared::http_client::implementations::sec_client::SecClient;
-//! #[tokio::main]
-//! async fn main() {
-//!     let cik = Cik::new("1067983").expect("Hardcoded CIK string should be valid format");
-//!     let client = SecClient::default();
-//!     let input = PrepareSecRequestInput::new(cik.clone(), client);
-//!     let context = PrepareSecRequestContext::new(cik);
 //!
-//!     let mut prepare_state = PrepareSecRequest::new(input, context);
-//!     prepare_state.compute_output_data_async().await.unwrap();
-//!     let prepared_output = prepare_state.output_data().unwrap();
+//! # #[tokio::main]
+//! # async fn main() {
+//! let cik = Cik::new("1067983").expect("A hardcoded valid CIK should always parse");
+//! let input = PrepareSecRequestInput::new(cik.clone(), SecClient::default());
+//! let context = PrepareSecRequestContext::new(cik);
 //!
-//!     let client = prepared_output.client();
-//!     let request = prepared_output.request();
-//! }
+//! let mut state = PrepareSecRequest::new(input, context);
+//! state
+//!     .compute_output_data_async()
+//!     .await
+//!     .expect("Request preparation is infallible for a valid CIK");
+//!
+//! let output = state
+//!     .output_data()
+//!     .expect("Output is present after a successful computation");
+//! let _request = output.request();
+//! # }
 //! ```
 //!
 //! ## See Also
-//! - [`crate::implementations::states::extract`]: Parent module for extraction-related states.
-//! - [`crate::shared::http_client::implementations::sec_client::SecClient`]: Core SEC client type used for HTTP requests.
-//! - [`crate::shared::request::implementations::sec_request::SecRequest`]: Core SEC request type for API calls.
-//! - [`crate::traits::state_machine::state::State`]: State trait implemented by [`PrepareSecRequest`].
 //!
-//! ## Testing
-//! This module includes comprehensive unit tests covering state behavior, trait compliance, and error handling.
+//! - [`crate::implementations::states::extract`]: Parent module describing the extraction flow.
+//! - [`crate::shared::request::implementations::sec_request::SecRequest`]: The request type produced by this state.
+//! - [`crate::traits::state_machine::state::State`]: The trait implemented by [`PrepareSecRequest`].
 
 use std::fmt;
 
@@ -67,30 +66,11 @@ pub use context::PrepareSecRequestContext;
 pub use data::PrepareSecRequestInput;
 pub use data::PrepareSecRequestOutput;
 
-/// State that prepares request objects for SEC API interactions.
+/// Second extract-phase state, building the [`SecRequest`] for a validated CIK.
 ///
-/// The state takes a validated CIK and a pre-configured HTTP client as input, and
-/// constructs a request object targeting the appropriate SEC API endpoint for the given CIK.
-///
-/// # Behavior
-/// - Constructs a request object targeting the SEC company facts endpoint for the given CIK.
-/// - Pairs the request with the pre-configured HTTP client for execution.
-/// - Produces configured [`SecRequest`] object ready for API calls.
-///
-/// # Output
-/// The prepared client and request are stored internally after calling [`State::compute_output_data_async`].
-///
-/// # Example
-/// ```
-/// use sec::implementations::states::extract::prepare_sec_request::*;
-/// use sec::shared::cik::Cik;
-/// use sec::shared::http_client::implementations::sec_client::SecClient;
-/// let cik = Cik::new("1067983").expect("Hardcoded CIK string should be valid format");
-/// let client = SecClient::default();
-/// let input = PrepareSecRequestInput::new(cik.clone(), client);
-/// let context = PrepareSecRequestContext::new(cik);
-/// let mut prepare_state = PrepareSecRequest::new(input, context);
-/// ```
+/// Takes a validated [`Cik`](crate::shared::cik::Cik) and the shared HTTP client and
+/// assembles a company-facts request targeting the matching SEC endpoint, paired with that
+/// client for the executing state. The work is purely local: no network call is made here.
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
 pub struct PrepareSecRequest {
     input: PrepareSecRequestInput,
@@ -99,16 +79,21 @@ pub struct PrepareSecRequest {
 }
 
 impl PrepareSecRequest {
-    /// Creates a new [`PrepareSecRequest`] state with the provided input and context.
+    /// Creates a new state from its input and context, with no output computed yet.
     ///
-    /// # Arguments
+    /// # Examples
     ///
-    /// * `input` - The [`PrepareSecRequestInput`] containing the validated [`Cik`](crate::shared::cik::Cik) and user agent string.
-    /// * `context` - The [`PrepareSecRequestContext`] for the preparation process.
+    /// ```
+    /// use sec::implementations::states::extract::prepare_sec_request::*;
+    /// use sec::shared::cik::Cik;
+    /// use sec::shared::http_client::implementations::sec_client::SecClient;
     ///
-    /// # Returns
+    /// let cik = Cik::new("1067983").expect("A hardcoded valid CIK should always parse");
+    /// let input = PrepareSecRequestInput::new(cik.clone(), SecClient::default());
+    /// let context = PrepareSecRequestContext::new(cik);
     ///
-    /// Returns a new [`PrepareSecRequest`] state ready for computation.
+    /// let state = PrepareSecRequest::new(input, context);
+    /// ```
     #[must_use]
     pub const fn new(input: PrepareSecRequestInput, context: PrepareSecRequestContext) -> Self {
         Self {
@@ -118,7 +103,9 @@ impl PrepareSecRequest {
         }
     }
 
-    /// Consumes the state and returns its components. Used for state transitions.
+    /// Consumes the state and returns its input, optional output, and context.
+    ///
+    /// Used by transitions to move the prepared request into the next state without cloning.
     #[must_use]
     pub fn into_parts(
         self,
@@ -133,14 +120,11 @@ impl PrepareSecRequest {
 
 #[async_trait]
 impl State for PrepareSecRequest {
-    /// Computes the output data by preparing the SEC request object.
+    /// Builds the company-facts [`SecRequest`] for the input CIK and stores it as output.
     ///
-    /// This method constructs a request object targeting the SEC API endpoint
-    /// for the given CIK, paired with the pre-configured HTTP client.
+    /// # Errors
     ///
-    /// # Returns
-    ///
-    /// Returns `Ok(())` after the client and request are stored as output data.
+    /// Infallible in practice; the [`Result`] exists to satisfy the [`State`] contract.
     async fn compute_output_data_async(&mut self) -> Result<(), StateError> {
         let sec_client = self.input.sec_client.clone();
         let sec_request = SecRequest::builder()

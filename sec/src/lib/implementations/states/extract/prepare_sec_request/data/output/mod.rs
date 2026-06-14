@@ -1,30 +1,16 @@
-//! # `PrepareSecRequestOutput` Module
+//! # Prepare SEC Request Output
 //!
-//! This module defines the output data structure and updater patterns for the `PrepareSecRequest` state
-//! within the SEC extraction state machine. It encapsulates the prepared SEC client and request objects
-//! and provides builders and updaters for controlled mutation of output data.
+//! Provides the [`PrepareSecRequestOutput`] produced by the
+//! [`PrepareSecRequest`](crate::implementations::states::extract::prepare_sec_request::PrepareSecRequest)
+//! state, along with its updater and builder.
 //!
-//! ## Types
-//! - [`PrepareSecRequestOutput`]: Holds the prepared SEC client and HTTP request after successful preparation.
-//! - [`PrepareSecRequestOutputUpdater`]: Updater type for modifying the output data in a controlled manner.
-//! - [`PrepareSecRequestOutputUpdaterBuilder`]: Builder for constructing updater instances with optional fields.
-//!
-//! ## Integration
-//! - Implements [`StateData`](state_maschine::state_machine::state::StateData) for compatibility with the state machine framework.
-//! - Used by [`PrepareSecRequest`](crate::implementations::states::extract::prepare_sec_request) to produce and update request output data.
-//!
-//! ## Usage
-//! This module is intended for use in the output phase of SEC request preparation. It supports builder-based updates and
-//! integrates with the state machine's updater and state data traits for robust, testable workflows.
+//! It pairs the prepared [`SecRequest`] with the [`SecClient`] that will send it, handing the
+//! executing state everything it needs. The unprepared inputs live in [`input`](super::input).
 //!
 //! ## See Also
-//! - [`input`](super::input): Input data structure for request preparation parameters.
-//! - [`crate::shared::http_client`]: Utilities for SEC client creation.
-//! - [`crate::shared::request`]: Utilities for SEC request construction.
-//! - [`state_maschine::prelude::StateData`]: Trait for state data integration.
 //!
-//! ## Examples
-//! See the unit tests in this module for usage patterns and updater logic.
+//! - [`input`](super::input): The CIK and client this output is prepared from.
+//! - [`crate::shared::request`]: The SEC request type carried here.
 
 use std::{fmt, hash::Hash};
 
@@ -36,11 +22,10 @@ use crate::shared::http_client::implementations::sec_client::SecClient;
 use crate::shared::request::implementations::sec_request::SecRequest;
 use crate::traits::state_machine::state::StateData;
 
-/// Output data containing a prepared SEC client and request.
+/// Output data of the [`PrepareSecRequest`](super::super::PrepareSecRequest) state.
 ///
-/// This struct holds a prepared [`SecClient`] and [`SecRequest`] value, produced by the [`PrepareSecRequest`](crate::implementations::states::extract::prepare_sec_request) state
-/// after successful preparation. It is used as output in the SEC extraction state machine,
-/// and supports builder-based updates and integration with the state machine framework.
+/// Pairs the prepared [`SecRequest`] with the [`SecClient`] that will execute it, so the
+/// next state can send the request without reconstructing either.
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
 pub struct PrepareSecRequestOutput {
     /// The prepared SEC client for making HTTP requests.
@@ -50,7 +35,7 @@ pub struct PrepareSecRequestOutput {
 }
 
 impl PrepareSecRequestOutput {
-    /// Creates a new instance of the output data for the prepare SEC request state.
+    /// Creates output data from a prepared client and request.
     ///
     /// # Examples
     ///
@@ -60,17 +45,10 @@ impl PrepareSecRequestOutput {
     /// use sec::shared::request::implementations::sec_request::SecRequest;
     /// use sec::shared::cik::Cik;
     ///
-    /// let client = SecClient::default();
-    /// let cik = Cik::new("1067983").expect("Hardcoded CIK string should be valid format");
-    /// let request = SecRequest::builder()
-    ///     .all_company_facts()
-    ///     .cik(cik)
-    ///     .build();
-    /// let output_data = PrepareSecRequestOutput::new(client, request);
+    /// let cik = Cik::new("1067983").expect("A hardcoded valid CIK should always parse");
+    /// let request = SecRequest::builder().all_company_facts().cik(cik).build();
+    /// let output = PrepareSecRequestOutput::new(SecClient::default(), request);
     /// ```
-    ///
-    /// # Errors
-    /// Returns a [`StateError`] if the output data cannot be created from the provided data.
     pub const fn new(client: SecClient, request: SecRequest) -> Self {
         Self { client, request }
     }
@@ -128,11 +106,9 @@ impl fmt::Display for PrepareSecRequestOutput {
     }
 }
 
-/// Updater for [`PrepareSecRequestOutput`].
+/// Partial update for a [`PrepareSecRequestOutput`].
 ///
-/// This struct is used to specify updates to the output data in a controlled, partial manner.
-/// Fields set to `None` will not be updated. Used in conjunction with the state machine's
-/// update mechanism to ensure safe and explicit state transitions.
+/// Fields set to `None` are left unchanged when the updater is applied.
 #[derive(Debug)]
 pub struct PrepareSecRequestOutputUpdater {
     /// Optional new value for the SEC client.
@@ -149,10 +125,7 @@ impl PrepareSecRequestOutputUpdater {
     }
 }
 
-/// Builder for [`PrepareSecRequestOutputUpdater`].
-///
-/// This builder allows for ergonomic and explicit construction of updater instances,
-/// supporting method chaining and optional fields. Use `.build()` to produce the updater.
+/// Fluent builder for a [`PrepareSecRequestOutputUpdater`].
 pub struct PrepareSecRequestOutputUpdaterBuilder {
     client: Option<SecClient>,
     request: Option<SecRequest>,

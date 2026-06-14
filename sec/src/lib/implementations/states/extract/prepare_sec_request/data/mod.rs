@@ -1,26 +1,19 @@
-//! # PSR Data Module
+//! # Prepare SEC Request Data
 //!
-//! This module provides the input and output data structures for the `PrepareSecRequest` state
-//! within the SEC extraction state machine. It defines types and builders for handling the
-//! SEC API client and request preparation process, encapsulating both the configuration input
-//! and the prepared client/request output.
+//! Groups the input and output data types for the
+//! [`PrepareSecRequest`](super::PrepareSecRequest) state.
+//!
+//! The state consumes a validated CIK plus HTTP client and produces a ready-to-send request.
+//! Keeping the two roles in separate child modules mirrors that input-to-output transformation.
 //!
 //! ## Modules
-//! - [`input`]: Contains [`PrepareSecRequestInput`] and related types for representing and updating the CIK and user agent input data.
-//! - [`output`]: Contains [`PrepareSecRequestOutput`] and related types for representing and updating the prepared SEC client and request output data.
 //!
-//! ## Usage
-//! These types are used by the `PrepareSecRequest` state to receive configuration data,
-//! prepare SEC API client and request objects, and output them as part of the SEC document
-//! extraction workflow. They implement the necessary traits for integration with the state
-//! machine framework, including `StateData` and custom updater patterns.
+//! - [`input`]: The [`PrepareSecRequestInput`] holding the validated CIK and shared HTTP client.
+//! - [`output`]: The [`PrepareSecRequestOutput`] holding the prepared client and request.
 //!
 //! ## See Also
-//! - [`crate::implementations::states::extract::prepare_sec_request`]: The parent state implementation.
-//! - [`state_maschine::state_machine::state::StateData`]: Trait defining the methods and logic of how to interact with state-internal data.
 //!
-//! ## Examples
-//! See the documentation and tests in the submodules for usage patterns.
+//! - [`crate::implementations::states::extract::prepare_sec_request`]: The parent state implementation.
 
 pub mod input;
 pub mod output;
