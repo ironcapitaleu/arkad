@@ -258,8 +258,8 @@ pub struct SecClient { /* ... */ }
 impl HttpClient for SecClient { /* ... */ }
 
 // Test fixture
-pub struct MockClient { pub response: Response }
-impl HttpClient for MockClient {
+pub struct FakeClient { pub response: Response }
+impl HttpClient for FakeClient {
     async fn get(&self, _url: &str) -> Result<Response, ClientError> {
         Ok(self.response.clone())
     }
