@@ -1,3 +1,16 @@
+//! # Headers
+//!
+//! Provides the [`Headers`] type wrapping the HTTP response headers of a SEC API response.
+//!
+//! Construction lifts the headers SEC interactions care about (`content-type`, `etag`, `date`,
+//! `accept-encoding`) into typed fields, keeping everything else in an overflow map, so callers
+//! read known headers through typed accessors instead of string lookups.
+//!
+//! ## Modules
+//!
+//! - [`constants`]: The recognized header-name constants.
+//! - [`headers_error`]: The [`HeadersError`] reported on header validation failure.
+
 use std::collections::HashMap;
 
 use serde::Serialize;
@@ -11,49 +24,46 @@ pub mod headers_error;
 
 pub use headers_error::{HeadersError, InvalidHeadersReason};
 
-/// Validated HTTP response headers from an SEC API endpoint.
+/// The HTTP response headers of a SEC API response.
 ///
-/// The `Headers` type provides typed accessors for known headers and stores
-/// remaining headers in a catch-all map. `ContentType` is parsed from the
-/// `content-type` header during construction.
-///
-/// # Examples
-///
-/// ```rust
-/// use std::collections::HashMap;
-/// use sec::shared::headers::Headers;
-/// use sec::shared::content_type::ContentType;
-///
-/// let mut raw = HashMap::new();
-/// raw.insert("content-type".to_string(), "application/json".to_string());
-/// raw.insert("etag".to_string(), "\"abc123\"".to_string());
-/// raw.insert("x-custom".to_string(), "value".to_string());
-///
-/// let headers = Headers::new(raw);
-/// assert_eq!(*headers.content_type(), ContentType::Json);
-/// assert_eq!(headers.etag(), Some("\"abc123\""));
-/// assert_eq!(headers.get("x-custom"), Some("value"));
-/// ```
+/// Recognized headers are promoted to typed fields with a [`ContentType`] parsed from
+/// `content-type`; any others are kept in an overflow map reachable via [`Headers::get`].
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct Headers {
     /// The content type parsed from the `Content-Type` header.
     content_type: ContentType,
     /// The `ETag` header value, if present.
     etag: Option<String>,
-    /// The Date header value, if present.
+    /// The `Date` header value, if present.
     date: Option<String>,
-    /// The Accept-Encoding header value, if present.
+    /// The `Accept-Encoding` header value, if present.
     accept_encoding: Option<String>,
     /// Any remaining headers not captured by typed fields.
     other: HashMap<String, String>,
 }
 
 impl Headers {
-    /// Creates a new `Headers` from a raw header map.
+    /// Builds a [`Headers`] from a raw header map, sorting recognized headers into typed fields.
     ///
-    /// Known headers are extracted into typed fields. The `content-type`
-    /// header is parsed into a `ContentType` value. Remaining headers
-    /// are stored in the overflow map.
+    /// Header names are matched case-insensitively, and the `content-type` value is parsed into a
+    /// [`ContentType`]. Everything unrecognized stays in the overflow map.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::collections::HashMap;
+    ///
+    /// use sec::shared::content_type::ContentType;
+    /// use sec::shared::headers::Headers;
+    ///
+    /// let mut raw = HashMap::new();
+    /// raw.insert("content-type".to_string(), "application/json".to_string());
+    /// raw.insert("x-custom".to_string(), "value".to_string());
+    ///
+    /// let headers = Headers::new(raw);
+    /// assert_eq!(*headers.content_type(), ContentType::Json);
+    /// assert_eq!(headers.get("x-custom"), Some("value"));
+    /// ```
     #[must_use]
     pub fn new(raw_headers: HashMap<String, String>) -> Self {
         // HTTP header names are case-insensitive ASCII tokens (RFC 7230 §3.2).
@@ -104,14 +114,9 @@ impl Headers {
         self.accept_encoding.as_deref()
     }
 
-    /// Returns the value of a header by name from the overflow map.
+    /// Returns an overflow-map header value by case-insensitive name.
     ///
-    /// Lookup is case-insensitive (ASCII-lowercases the key before searching).
-    /// This allocates a short-lived `String` per call, which is acceptable
-    /// since header lookups are infrequent.
-    ///
-    /// This does not search typed fields. Use the typed accessors for
-    /// known headers.
+    /// Searches only the overflow map; use the typed accessors for recognized headers.
     #[must_use]
     pub fn get(&self, name: &str) -> Option<&str> {
         self.other

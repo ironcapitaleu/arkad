@@ -1,8 +1,6 @@
-//! # Observation Module
+//! # Observation
 //!
-//! Provides the [`Observation`] struct representing a single measured financial data point
-//! with full typing and lineage. Each observation carries its value, unit, time period,
-//! optional SEC frame identifier, and the filing it originated from.
+//! Provides the [`Observation`] struct: a single measured financial data point with full lineage.
 
 use std::fmt::{self, Display, Formatter};
 
@@ -13,42 +11,11 @@ use crate::shared::financial::frame::Frame;
 use crate::shared::financial::period::Period;
 use crate::shared::financial::unit::Unit;
 
-/// A single measured financial data point with full typing and lineage.
+/// A single measured financial data point, fully typed and traceable to its filing.
 ///
-/// Represents one value in a time series for a financial concept (e.g., "Revenue was $383B USD
-/// for the period Oct 2022 - Sep 2023, from filing 10-K FY2023").
-///
-/// # Example
-/// ```
-/// use chrono::NaiveDate;
-/// use sec::shared::financial::accession_number::AccessionNumber;
-/// use sec::shared::financial::filing_source::FilingSource;
-/// use sec::shared::financial::fiscal_period::FiscalPeriod;
-/// use sec::shared::financial::fiscal_year::FiscalYear;
-/// use sec::shared::financial::form::Form;
-/// use sec::shared::financial::frame::Frame;
-/// use sec::shared::financial::observation::Observation;
-/// use sec::shared::financial::period::Period;
-/// use sec::shared::financial::unit::Unit;
-///
-/// let obs = Observation::new(
-///     383_285_000_000,
-///     Unit::Usd,
-///     Period::Duration {
-///         start: NaiveDate::from_ymd_opt(2022, 10, 1).unwrap(),
-///         end: NaiveDate::from_ymd_opt(2023, 9, 30).unwrap(),
-///     },
-///     Some(Frame::new(2023, None, false)),
-///     FilingSource::new(
-///         AccessionNumber::new("0000320193-23-000106"),
-///         Form::TenK,
-///         FiscalYear::from(2023_u16),
-///         FiscalPeriod::Fy,
-///         NaiveDate::from_ymd_opt(2023, 11, 3).unwrap(),
-///         NaiveDate::from_ymd_opt(2023, 9, 30).unwrap(),
-///     ),
-/// );
-/// ```
+/// One value in a concept's time series — e.g. "Revenue was $383B USD over Oct 2022–Sep 2023,
+/// reported in 10-K FY2023" — bundling the value with its [`Unit`], [`Period`], optional
+/// [`Frame`], and originating [`FilingSource`].
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub struct Observation {
     value: i64,
@@ -59,7 +26,39 @@ pub struct Observation {
 }
 
 impl Observation {
-    /// Creates a new [`Observation`] with the given components.
+    /// Creates an [`Observation`] from its value, unit, period, optional frame, and filing source.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use chrono::NaiveDate;
+    /// use sec::shared::financial::accession_number::AccessionNumber;
+    /// use sec::shared::financial::filing_source::FilingSource;
+    /// use sec::shared::financial::fiscal_period::FiscalPeriod;
+    /// use sec::shared::financial::fiscal_year::FiscalYear;
+    /// use sec::shared::financial::form::Form;
+    /// use sec::shared::financial::frame::Frame;
+    /// use sec::shared::financial::observation::Observation;
+    /// use sec::shared::financial::period::Period;
+    /// use sec::shared::financial::unit::Unit;
+    ///
+    /// let date = |y, m, d| NaiveDate::from_ymd_opt(y, m, d).expect("hardcoded date is valid");
+    /// let obs = Observation::new(
+    ///     383_285_000_000,
+    ///     Unit::Usd,
+    ///     Period::Duration { start: date(2022, 10, 1), end: date(2023, 9, 30) },
+    ///     Some(Frame::new(2023, None, false)),
+    ///     FilingSource::new(
+    ///         AccessionNumber::new("0000320193-23-000106"),
+    ///         Form::TenK,
+    ///         FiscalYear::from(2023_u16),
+    ///         FiscalPeriod::Fy,
+    ///         date(2023, 11, 3),
+    ///         date(2023, 9, 30),
+    ///     ),
+    /// );
+    /// assert_eq!(obs.value(), 383_285_000_000);
+    /// ```
     #[must_use]
     pub const fn new(
         value: i64,

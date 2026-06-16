@@ -1,11 +1,15 @@
-/// The HTTP header name for the Content-Type field.
+//! # Header Constants
+//!
+//! Lowercase names of the HTTP headers [`Headers`](super::Headers) promotes to typed fields.
+
+/// The `Content-Type` header name, lowercased.
 pub const CONTENT_TYPE_HEADER: &str = "content-type";
 
-/// The HTTP header name for the `ETag` identifier.
+/// The `ETag` header name, lowercased.
 pub const ETAG_HEADER: &str = "etag";
 
-/// The HTTP header name for the Date field.
+/// The `Date` header name, lowercased.
 pub const DATE_HEADER: &str = "date";
 
-/// The HTTP header name for the Accept-Encoding field.
+/// The `Accept-Encoding` header name, lowercased.
 pub const ACCEPT_ENCODING_HEADER: &str = "accept-encoding";

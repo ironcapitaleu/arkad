@@ -1,25 +1,16 @@
-//! # Quarter Module
+//! # Quarter
 //!
-//! Provides the [`Quarter`] enum representing calendar quarters.
-//! Used in [`Frame`](crate::shared::financial::frame::Frame) to identify
-//! which calendar quarter a data point belongs to.
+//! Provides the [`Quarter`] enum representing calendar quarters, used by
+//! [`Frame`](crate::shared::financial::frame::Frame) to place a data point in time.
 
 use std::fmt::{self, Display, Formatter};
 
 use serde::Serialize;
 
-/// A calendar quarter (Q1 through Q4).
+/// A calendar quarter (Q1–Q4), independent of any company's fiscal year.
 ///
-/// Represents a standard calendar quarter, independent of a company's fiscal year.
-/// A company's fiscal Q4 may correspond to calendar Q3 (e.g., Apple's fiscal year ends in September).
-///
-/// # Example
-/// ```
-/// use sec::shared::financial::quarter::Quarter;
-///
-/// let q = Quarter::Q1;
-/// assert_eq!(q.to_string(), "Q1");
-/// ```
+/// Distinct from fiscal quarters: a company's fiscal Q4 may fall in calendar Q3 (e.g. Apple's
+/// fiscal year ends in September).
 #[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub enum Quarter {
@@ -45,11 +36,16 @@ impl Display for Quarter {
 }
 
 impl Quarter {
-    /// Attempts to parse a [`Quarter`] from a numeric string (e.g., `"1"` → `Q1`).
+    /// Parses a [`Quarter`] from a numeric string (`"1"`–`"4"`), or `None` otherwise.
     ///
-    /// # Errors
+    /// # Examples
     ///
-    /// Returns `None` if the input is not `"1"`, `"2"`, `"3"`, or `"4"`.
+    /// ```
+    /// use sec::shared::financial::quarter::Quarter;
+    ///
+    /// assert_eq!(Quarter::from_number_str("3"), Some(Quarter::Q3));
+    /// assert_eq!(Quarter::from_number_str("5"), None);
+    /// ```
     #[must_use]
     pub fn from_number_str(s: &str) -> Option<Self> {
         match s {

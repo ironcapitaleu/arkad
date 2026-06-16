@@ -1,17 +1,15 @@
-//! # Concept Definition Module
+//! # Concept Definition
 //!
-//! Provides the [`ConceptDefinition`] struct that describes an XBRL financial concept
-//! to look for in SEC Company Facts data. Each definition specifies a canonical name,
-//! a prioritized list of XBRL key aliases, the expected measurement unit, and whether
-//! the concept is required for validation.
+//! Provides the [`ConceptDefinition`] struct describing an XBRL financial concept to resolve from
+//! SEC Company Facts data.
+//!
+//! Definitions are **statement-agnostic**: a concept like Net Income can appear in both the
+//! Income Statement and the Cash Flow Statement, so financial statements reference concepts
+//! rather than concepts knowing which statement they belong to.
 //!
 //! ## Modules
-//! - [`constants`]: Canonical name constants and predefined concept definition arrays.
 //!
-//! ## Design
-//! Concept definitions are **statement-agnostic** -- a concept like Net Income can appear
-//! in both the Income Statement and the Cash Flow Statement. Financial statements reference
-//! concepts; concepts do not know about statements.
+//! - [`constants`]: Canonical-name constants and the predefined concept arrays.
 
 pub mod constants;
 
@@ -22,27 +20,12 @@ use serde::{Serialize, Serializer};
 
 use crate::shared::financial::unit::Unit;
 
-/// Specification for an XBRL financial concept to extract from SEC data.
+/// A specification of one XBRL financial concept to resolve from SEC data.
 ///
-/// Describes what to look for in the SEC Company Facts JSON response.
-/// The `xbrl_keys` are tried in priority order -- the first match wins.
-/// This handles the fact that different companies may use different XBRL
-/// tag names for the same economic concept (e.g., "Revenues" vs "`SalesRevenueNet`").
-///
-/// # Example
-/// ```
-/// use sec::shared::financial::concept_definition::ConceptDefinition;
-/// use sec::shared::financial::unit::Unit;
-///
-/// let revenue = ConceptDefinition::new(
-///     "Revenue",
-///     &["Revenues", "SalesRevenueNet"],
-///     Unit::Usd,
-///     true,
-/// );
-/// assert_eq!(revenue.canonical_name(), "Revenue");
-/// assert!(revenue.required());
-/// ```
+/// Says what to look for in a Company Facts response: a canonical name for querying, the
+/// XBRL key aliases to try in priority order (first match wins, accommodating companies that tag
+/// the same concept differently, e.g. `"Revenues"` vs `"SalesRevenueNet"`), the expected [`Unit`],
+/// and whether the concept is required for validation.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ConceptDefinition {
     canonical_name: &'static str,
@@ -52,14 +35,18 @@ pub struct ConceptDefinition {
 }
 
 impl ConceptDefinition {
-    /// Creates a new [`ConceptDefinition`].
+    /// Creates a [`ConceptDefinition`] from its canonical name, key aliases, unit, and required flag.
     ///
-    /// # Arguments
+    /// # Examples
     ///
-    /// * `canonical_name` - The canonical name for querying (should reference a constant).
-    /// * `xbrl_keys` - XBRL key aliases tried in priority order.
-    /// * `expected_unit` - The expected measurement unit for this concept.
-    /// * `required` - Whether this concept must be present for validation to succeed.
+    /// ```
+    /// use sec::shared::financial::concept_definition::ConceptDefinition;
+    /// use sec::shared::financial::unit::Unit;
+    ///
+    /// let revenue = ConceptDefinition::new("Revenue", &["Revenues", "SalesRevenueNet"], Unit::Usd, true);
+    /// assert_eq!(revenue.canonical_name(), "Revenue");
+    /// assert!(revenue.required());
+    /// ```
     #[must_use]
     pub const fn new(
         canonical_name: &'static str,

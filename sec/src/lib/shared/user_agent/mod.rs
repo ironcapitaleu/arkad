@@ -1,25 +1,15 @@
-//! # User Agent Utilities
+//! # User Agent
 //!
-//! This module provides the [`UserAgent`] type and related utilities for creating and validating
-//! SEC-compliant user agent strings. It is used throughout the SEC state machine library to ensure that
-//! HTTP requests to SEC API endpoints include properly formatted user agent headers.
+//! Provides the [`UserAgent`] type for validating SEC-compliant `User-Agent` strings.
+//!
+//! The SEC asks every request to identify the caller with a `User-Agent` of the form
+//! `Company Name email@domain.com`. This newtype validates that format once at construction, so
+//! the HTTP client can send the header without re-checking it.
 //!
 //! ## Modules
-//! - [`user_agent_error`]: Error types and reasons for invalid user agent strings.
 //!
-//! ## Types
-//! - [`UserAgent`]: Strongly-typed wrapper for a validated user agent string that complies with SEC format requirements.
-//! - [`UserAgentError`], [`UserAgentErrorReason`]: Error types for reporting user agent validation failures.
-//!
-//! ## Usage
-//! The [`UserAgent`] type is used by HTTP client implementations and state machine logic to ensure that
-//! all requests to SEC API endpoints include properly formatted user agent strings. The SEC requires
-//! user agent strings to follow the format "Company Name email@domain.com".
-//!
-//! ## See Also
-//! - [`crate::shared`]: Shared domain types and utilities used across the SEC state machine library.
-//! - [`crate::shared::http_client`]: SEC client utilities that use user agent strings for HTTP requests.
-//! - [`crate::error`]: Error types that may reference [`UserAgentError`] and [`UserAgentErrorReason`] for detailed diagnostics.
+//! - [`constants`]: Default user-agent values.
+//! - [`user_agent_error`]: The [`UserAgentError`] returned when validation fails.
 
 use regex::Regex;
 
@@ -27,23 +17,33 @@ pub mod constants;
 pub mod user_agent_error;
 pub use user_agent_error::{UserAgentError, UserAgentErrorReason};
 
-/// Strongly-typed wrapper for a validated SEC-compliant user agent string.
+/// A `User-Agent` string validated against the SEC's required format.
 ///
-/// The `UserAgent` type ensures that only valid, SEC-compliant user agent strings are constructed and used
-/// throughout the SEC state machine library. The SEC requires user agent strings to follow the format
-/// "Company Name email@domain.com". Use [`UserAgent::new`] to construct and validate a user agent value.
+/// The SEC requires the form `Company Name email@domain.com`; wrapping it in a newtype turns that
+/// requirement into a type-level guarantee. Build one with [`UserAgent::new`].
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 pub struct UserAgent {
+    /// The validated user-agent string.
     pub inner: String,
 }
 
 impl UserAgent {
-    /// Creates a new `UserAgent`.
-    ///
-    /// The user agent must comply with SEC format requirements.
+    /// Validates a string into a [`UserAgent`].
     ///
     /// # Errors
-    /// Returns an error if the user agent string doesn't match the SEC format.
+    ///
+    /// Returns [`UserAgentError`] ([`UserAgentErrorReason::InvalidSecFormat`]) if the string is not
+    /// of the form `Company Name email@domain.com`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use sec::shared::user_agent::UserAgent;
+    ///
+    /// let agent = UserAgent::new("Sample Company contact@example.com")
+    ///     .expect("A hardcoded SEC-format string should always validate");
+    /// assert_eq!(agent.inner(), "Sample Company contact@example.com");
+    /// ```
     pub fn new(user_agent: &str) -> Result<Self, UserAgentError> {
         Self::validate_sec_format(user_agent)?;
 
@@ -52,12 +52,7 @@ impl UserAgent {
         })
     }
 
-    /// Validates that the user agent string complies with SEC format.
-    ///
-    /// The SEC format requires: "Sample Name contact@domain.com"
-    /// - Sample Name: one or more words (letters, numbers, spaces, hyphens, periods)
-    /// - Single space separator
-    /// - Valid email address
+    /// Validates that the string is a company name and email separated by a single space.
     fn validate_sec_format(user_agent: &str) -> Result<(), UserAgentError> {
         // Split the user agent into parts (company name and email)
         let parts: Vec<&str> = user_agent.rsplitn(2, ' ').collect();
@@ -114,6 +109,7 @@ impl UserAgent {
         Ok(())
     }
 
+    /// Returns the validated user-agent string.
     #[must_use]
     pub fn inner(&self) -> &str {
         &self.inner

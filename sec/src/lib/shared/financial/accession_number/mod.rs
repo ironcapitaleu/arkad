@@ -1,30 +1,29 @@
-//! # Accession Number Module
+//! # Accession Number
 //!
 //! Provides the [`AccessionNumber`] newtype for SEC filing accession numbers.
-//! An accession number uniquely identifies a filing in the SEC EDGAR system
-//! (e.g., `"0000320193-23-000106"`).
 
 use std::fmt::{self, Display, Formatter};
 
 use serde::Serialize;
 
-/// An SEC filing accession number.
+/// An SEC filing accession number — the unique ID of one EDGAR submission.
 ///
-/// A unique identifier assigned by the SEC to each filing submission.
-/// Format is typically `{CIK}-{YY}-{sequence}` (e.g., `"0000320193-23-000106"`).
-///
-/// # Example
-/// ```
-/// use sec::shared::financial::accession_number::AccessionNumber;
-///
-/// let accn = AccessionNumber::new("0000320193-23-000106");
-/// assert_eq!(accn.value(), "0000320193-23-000106");
-/// ```
+/// Stored verbatim in its typical `{CIK}-{YY}-{sequence}` shape (e.g. `"0000320193-23-000106"`);
+/// the newtype keeps it distinct from other identifier strings.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub struct AccessionNumber(String);
 
 impl AccessionNumber {
-    /// Creates a new [`AccessionNumber`] from a string value.
+    /// Creates an [`AccessionNumber`] from a string.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use sec::shared::financial::accession_number::AccessionNumber;
+    ///
+    /// let accn = AccessionNumber::new("0000320193-23-000106");
+    /// assert_eq!(accn.value(), "0000320193-23-000106");
+    /// ```
     #[must_use]
     pub fn new(value: impl Into<String>) -> Self {
         Self(value.into())

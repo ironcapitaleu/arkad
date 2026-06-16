@@ -1,25 +1,12 @@
-//! # Form Module
+//! # Form
 //!
-//! Provides the [`Form`] enum representing SEC filing form types.
-//! Each SEC filing is associated with a form type that determines the nature
-//! and scope of the reported financial data.
+//! Provides the [`Form`] enum representing the SEC filing types a data point can originate from.
 
 use std::fmt::{self, Display, Formatter};
 
 use serde::Serialize;
 
-/// SEC filing form type.
-///
-/// Represents the type of SEC filing from which a data point originates.
-/// Uses `#[non_exhaustive]` to allow future extensions for additional form types.
-///
-/// # Example
-/// ```
-/// use sec::shared::financial::form::Form;
-///
-/// let form = Form::TenK;
-/// assert_eq!(form.to_string(), "10-K");
-/// ```
+/// The SEC filing form a data point originates from.
 #[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub enum Form {
@@ -39,11 +26,16 @@ impl Display for Form {
 }
 
 impl Form {
-    /// Attempts to parse a [`Form`] from an SEC form string.
+    /// Parses a [`Form`] from its SEC form string (e.g. `"10-K"`), or `None` if unrecognized.
     ///
-    /// # Errors
+    /// # Examples
     ///
-    /// Returns `None` if the input string does not match any known form type.
+    /// ```
+    /// use sec::shared::financial::form::Form;
+    ///
+    /// assert_eq!(Form::from_sec_str("10-K"), Some(Form::TenK));
+    /// assert_eq!(Form::from_sec_str("8-K"), None);
+    /// ```
     #[must_use]
     pub fn from_sec_str(s: &str) -> Option<Self> {
         match s {

@@ -1,25 +1,15 @@
-//! # Fiscal Period Module
+//! # Fiscal Period
 //!
 //! Provides the [`FiscalPeriod`] enum representing a company's fiscal reporting period.
-//! Unlike calendar quarters, fiscal periods are relative to a company's fiscal year
-//! (e.g., Apple's FY ends in September, so their fiscal Q4 is calendar Q3).
 
 use std::fmt::{self, Display, Formatter};
 
 use serde::Serialize;
 
-/// Fiscal reporting period.
+/// A company's fiscal reporting period — a full year or one of its fiscal quarters.
 ///
-/// Represents the fiscal period associated with a financial data point.
-/// A company's fiscal year may not align with the calendar year.
-///
-/// # Example
-/// ```
-/// use sec::shared::financial::fiscal_period::FiscalPeriod;
-///
-/// let period = FiscalPeriod::Fy;
-/// assert_eq!(period.to_string(), "FY");
-/// ```
+/// Relative to the company's fiscal year, which need not align with the calendar (e.g. Apple's
+/// fiscal year ends in September, so its fiscal Q4 falls in calendar Q3).
 #[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub enum FiscalPeriod {
@@ -48,11 +38,16 @@ impl Display for FiscalPeriod {
 }
 
 impl FiscalPeriod {
-    /// Attempts to parse a [`FiscalPeriod`] from an SEC fiscal period string.
+    /// Parses a [`FiscalPeriod`] from its SEC string (e.g. `"FY"`, `"Q1"`), or `None` if unrecognized.
     ///
-    /// # Errors
+    /// # Examples
     ///
-    /// Returns `None` if the input string does not match any known fiscal period.
+    /// ```
+    /// use sec::shared::financial::fiscal_period::FiscalPeriod;
+    ///
+    /// assert_eq!(FiscalPeriod::from_sec_str("Q1"), Some(FiscalPeriod::Q1));
+    /// assert_eq!(FiscalPeriod::from_sec_str("H1"), None);
+    /// ```
     #[must_use]
     pub fn from_sec_str(s: &str) -> Option<Self> {
         match s {

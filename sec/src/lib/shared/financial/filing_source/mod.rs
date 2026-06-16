@@ -1,8 +1,6 @@
-//! # Filing Source Module
+//! # Filing Source
 //!
-//! Provides the [`FilingSource`] struct for tracking data lineage back to specific SEC filings.
-//! Every financial observation carries a `FilingSource` to maintain a complete audit trail
-//! of where each data point originated.
+//! Provides the [`FilingSource`] struct recording which SEC filing a data point came from.
 
 use std::fmt::{self, Display, Formatter};
 
@@ -15,29 +13,10 @@ use crate::shared::financial::fiscal_period::FiscalPeriod;
 use crate::shared::financial::fiscal_year::FiscalYear;
 use crate::shared::financial::form::Form;
 
-/// Provenance metadata for a financial data point.
+/// Provenance metadata identifying the SEC filing a data point came from.
 ///
-/// Tracks which SEC filing a data point came from, enabling full data lineage
-/// from the final financial statement back to the original SEC submission.
-///
-/// # Example
-/// ```
-/// use chrono::NaiveDate;
-/// use sec::shared::financial::accession_number::AccessionNumber;
-/// use sec::shared::financial::filing_source::FilingSource;
-/// use sec::shared::financial::fiscal_period::FiscalPeriod;
-/// use sec::shared::financial::fiscal_year::FiscalYear;
-/// use sec::shared::financial::form::Form;
-///
-/// let source = FilingSource::new(
-///     AccessionNumber::new("0000320193-23-000106"),
-///     Form::TenK,
-///     FiscalYear::from(2023_u16),
-///     FiscalPeriod::Fy,
-///     NaiveDate::from_ymd_opt(2023, 11, 3).unwrap(),
-///     NaiveDate::from_ymd_opt(2023, 9, 30).unwrap(),
-/// );
-/// ```
+/// Carried by every [`Observation`](crate::shared::financial::observation::Observation) so each
+/// value in a final statement can be traced back to its originating submission.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub struct FilingSource {
     accession_number: AccessionNumber,
@@ -49,7 +28,29 @@ pub struct FilingSource {
 }
 
 impl FilingSource {
-    /// Creates a new [`FilingSource`] with the given metadata.
+    /// Creates a [`FilingSource`] from its filing-identifying metadata.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use chrono::NaiveDate;
+    /// use sec::shared::financial::accession_number::AccessionNumber;
+    /// use sec::shared::financial::filing_source::FilingSource;
+    /// use sec::shared::financial::fiscal_period::FiscalPeriod;
+    /// use sec::shared::financial::fiscal_year::FiscalYear;
+    /// use sec::shared::financial::form::Form;
+    ///
+    /// let date = |y, m, d| NaiveDate::from_ymd_opt(y, m, d).expect("hardcoded date is valid");
+    /// let source = FilingSource::new(
+    ///     AccessionNumber::new("0000320193-23-000106"),
+    ///     Form::TenK,
+    ///     FiscalYear::from(2023_u16),
+    ///     FiscalPeriod::Fy,
+    ///     date(2023, 11, 3),
+    ///     date(2023, 9, 30),
+    /// );
+    /// assert_eq!(source.form(), Form::TenK);
+    /// ```
     #[must_use]
     pub const fn new(
         accession_number: AccessionNumber,

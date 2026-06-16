@@ -1,8 +1,6 @@
-//! # Company Data Module
+//! # Company Data
 //!
-//! Provides the [`CompanyData`] struct, the top-level output of the `ParseCompanyFacts` state.
-//! Contains all resolved company facts keyed by their concept definition, enabling
-//! canonical querying (e.g., look up "Revenue" regardless of the company's XBRL key).
+//! Provides the [`CompanyData`] struct: a company's complete set of resolved financial facts.
 
 use std::collections::HashMap;
 use std::fmt::{self, Display, Formatter};
@@ -15,26 +13,12 @@ use crate::shared::financial::company_fact::CompanyFact;
 use crate::shared::financial::concept_definition::ConceptDefinition;
 use crate::shared::financial::entity_name::EntityName;
 
-/// Top-level container for all resolved financial facts of a company.
+/// A company's complete set of resolved financial facts, keyed by concept.
 ///
-/// Produced by the `ParseCompanyFacts` state after validating and resolving
-/// SEC Company Facts data. Facts are keyed by their [`ConceptDefinition`] reference,
-/// enabling querying by canonical concept name.
-///
-/// # Example
-/// ```
-/// use std::collections::HashMap;
-/// use sec::shared::cik::Cik;
-/// use sec::shared::financial::company_data::CompanyData;
-/// use sec::shared::financial::entity_name::EntityName;
-///
-/// let company_data = CompanyData::new(
-///     Cik::new("0000320193").expect("Hardcoded CIK should always be valid"),
-///     EntityName::new("Apple Inc."),
-///     HashMap::new(),
-/// );
-/// assert_eq!(company_data.entity_name().value(), "Apple Inc.");
-/// ```
+/// The output of the
+/// [`ParseCompanyFacts`](crate::implementations::states::transform::parse_company_facts) state.
+/// Keying facts by their [`ConceptDefinition`] lets callers look up a canonical concept (e.g.
+/// "Revenue") without knowing which XBRL key the company happened to use.
 #[derive(Debug, Clone)]
 pub struct CompanyData {
     cik: Cik,
@@ -43,7 +27,21 @@ pub struct CompanyData {
 }
 
 impl CompanyData {
-    /// Creates a new [`CompanyData`] with the given components.
+    /// Creates a [`CompanyData`] from a CIK, entity name, and resolved facts map.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::collections::HashMap;
+    ///
+    /// use sec::shared::cik::Cik;
+    /// use sec::shared::financial::company_data::CompanyData;
+    /// use sec::shared::financial::entity_name::EntityName;
+    ///
+    /// let cik = Cik::new("0000320193").expect("A hardcoded valid CIK should always parse");
+    /// let company_data = CompanyData::new(cik, EntityName::new("Apple Inc."), HashMap::new());
+    /// assert_eq!(company_data.entity_name().value(), "Apple Inc.");
+    /// ```
     #[must_use]
     pub const fn new(
         cik: Cik,

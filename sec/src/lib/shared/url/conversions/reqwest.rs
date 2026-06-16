@@ -1,3 +1,8 @@
+//! # Conversion from `reqwest::Url`
+//!
+//! Implements `From<reqwest::Url>` for [`Url`], letting an already-parsed reqwest URL be
+//! adopted without re-validation.
+
 use super::super::Url;
 
 impl From<reqwest::Url> for Url {

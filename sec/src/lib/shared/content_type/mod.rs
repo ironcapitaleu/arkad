@@ -1,45 +1,50 @@
+//! # Content Type
+//!
+//! The [`ContentType`] of a SEC API response, classified from its `Content-Type` header.
+
 use std::collections::HashMap;
 use std::fmt::{self, Display, Formatter};
 
 use serde::Serialize;
 
-/// Content type enum with automatic detection from HTTP headers.
+/// The MIME content type of a SEC API response.
 ///
-/// `ContentType` represents the main content types expected from SEC API responses.
-/// It provides methods to detect content type from response headers and format
-/// content type strings for use in HTTP headers.
-///
-/// # Examples
-///
-/// ```rust
-/// use std::collections::HashMap;
-/// use sec::shared::content_type::ContentType;
-///
-/// let mut headers = HashMap::new();
-/// headers.insert("content-type".to_string(), "application/json".to_string());
-///
-/// let content_type = ContentType::from_headers(&headers);
-/// assert_eq!(content_type, ContentType::Json);
-/// assert_eq!(content_type.to_string(), "application/json");
-/// ```
+/// Models the content types relevant to SEC interactions as explicit variants so callers can
+/// match on them directly instead of comparing header strings. Anything recognized-but-unmodeled
+/// is captured by `Other`, and a missing or unreadable header by `Unknown`.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub enum ContentType {
-    /// Content type is JSON (e.g., `application/json`).
+    /// `application/json`.
     Json,
-    /// Content type is XML (e.g., `application/xml` or `text/xml`).
+    /// `application/xml` or `text/xml`.
     Xml,
-    /// Content type is HTML (e.g., `text/html`).
+    /// `text/html`.
     Html,
-    /// Content type is plain text (e.g., `text/plain`).
+    /// `text/plain`.
     Text,
-    /// Content type is present but does not match the types we expect.
+    /// A valid content type that is not one of the modeled variants.
     Other(String),
-    /// Content type is unknown (e.g., `Content-Type` header is absent or invalid).
+    /// The `Content-Type` header was absent or could not be read.
     Unknown,
 }
 
 impl ContentType {
-    /// Determines the content type from response headers.
+    /// Classifies the content type from a header map, keyed by lowercase `content-type`.
+    ///
+    /// Returns [`ContentType::Unknown`] if the header is absent.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::collections::HashMap;
+    ///
+    /// use sec::shared::content_type::ContentType;
+    ///
+    /// let mut headers = HashMap::new();
+    /// headers.insert("content-type".to_string(), "application/json".to_string());
+    ///
+    /// assert_eq!(ContentType::from_headers(&headers), ContentType::Json);
+    /// ```
     #[must_use]
     pub fn from_headers(headers: &HashMap<String, String>) -> Self {
         headers.get("content-type").map_or_else(
@@ -48,9 +53,9 @@ impl ContentType {
         )
     }
 
-    /// Determines the content type from a string.
+    /// Classifies the content type from a header value string.
     ///
-    /// Strips any parameters (e.g., `; charset=utf-8`) before matching the MIME type.
+    /// Strips any parameters (e.g. `; charset=utf-8`) before matching the MIME type.
     #[must_use]
     pub fn from_content_type(content_type_str: &str) -> Self {
         let mime_type = content_type_str
