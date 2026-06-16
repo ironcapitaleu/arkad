@@ -1,3 +1,12 @@
+//! # SEC Client
+//!
+//! Provides the [`SecClient`], the concrete [`SecClient`](crate::shared::http_client::SecClient)
+//! used throughout the pipeline.
+//!
+//! ## Modules
+//!
+//! - [`error`]: The [`FailedSecRequest`] error returned when execution fails.
+
 use async_trait::async_trait;
 
 use serde::ser::SerializeStruct;
@@ -15,22 +24,21 @@ use self::error::FailedSecRequest;
 
 pub mod error;
 
-/// An SEC API client that connects `SecRequest` and `SecResponse`.
+/// The default SEC API client, driving the full `SecRequest` → `SecResponse` cycle.
 ///
-/// `SecClient` orchestrates the full request-response cycle: it takes a
-/// validated `SecRequest`, executes it via the underlying HTTP client, and
-/// returns a validated `SecResponse`.
+/// Executes a validated request through a `reqwest::Client` and validates the reply into a
+/// [`SecResponse`]. Construct one with [`SecClient::default`] for the standard SEC-compliant setup,
+/// or [`SecClient::new`] to supply your own transport.
 ///
 /// # Cloning
 ///
-/// The underlying `reqwest::Client` uses `Arc` internally, so clones share the same connection pool, TLS sessions, and DNS
-/// cache. No additional `Arc` wrapping is needed for concurrent use.
+/// `reqwest::Client` is `Arc`-backed, so clones share one connection pool, TLS sessions, and DNS
+/// cache — no extra `Arc` wrapping is needed for concurrent use.
 ///
 /// # User Agent
 ///
-/// The default client enforces the User-Agent header via a validated [`UserAgent`] newtype.
-/// This ensures all requests made by a default `SecClient` include a properly formatted
-/// SEC-compliant User-Agent header.
+/// [`SecClient::default`] sets the `User-Agent` from a validated [`UserAgent`], guaranteeing every
+/// request carries the SEC-compliant header the API requires.
 #[derive(Debug, Clone)]
 pub struct SecClient {
     inner: reqwest::Client,

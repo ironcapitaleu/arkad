@@ -4,15 +4,38 @@ use async_trait::async_trait;
 
 use crate::shared::http_client::InnerClient;
 
-/// A trait defining the behavior a high-level `SecClient` is expected to implement. This is used to define operations on a level where domain-specific knowledge can be used to abstract away the inner handling of HTTP requests, endpoints, etc.
+/// The domain-level SEC HTTP client: executes a SEC request and returns a SEC response.
+///
+/// Sits above [`InnerClient`], adding the SEC-specific knowledge (endpoints, request/response
+/// shaping) that the raw transport lacks. Existing as a trait lets states depend on the behavior
+/// rather than a concrete client, so a fake implementation can replace the network in tests.
+///
+/// # Associated Types
+///
+/// - `Inner`: The underlying transport, an [`InnerClient`].
+/// - `Request`: The SEC request type accepted by [`SecClient::execute_sec_request`].
+/// - `Response`: The SEC response type returned on success.
+/// - `Error`: The error returned when execution or response validation fails.
 #[async_trait]
 pub trait SecClient: Send + Sync + Debug {
+    /// The underlying transport this client delegates to.
     type Inner: InnerClient;
+    /// The SEC response returned on success.
     type Response;
+    /// The error returned when execution or response validation fails.
     type Error;
+    /// The SEC request this client executes.
     type Request;
 
+    /// Returns a reference to the underlying transport.
     fn inner(&self) -> &Self::Inner;
+
+    /// Executes a SEC request, returning the validated response.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Self::Error` if the request fails at the transport level or the response fails
+    /// SEC validation.
     async fn execute_sec_request(
         &self,
         request: Self::Request,
