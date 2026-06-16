@@ -3,7 +3,7 @@
 //! Groups the input and output data types for the
 //! [`CreateFinancialStatements`](super::CreateFinancialStatements) state.
 //!
-//! The state consumes parsed company data and produces financial statements. The two roles
+//! The state consumes parsed company data and produces financial statements. Input and output
 //! live in separate child modules to mirror that transformation.
 //!
 //! ## Modules

@@ -4,7 +4,7 @@
 //! [`ParseCompanyFacts`](super::ParseCompanyFacts) state.
 //!
 //! The state consumes the raw Company Facts JSON and produces structured
-//! [`CompanyData`](crate::shared::financial::company_data::CompanyData). The two roles live
+//! [`CompanyData`](crate::shared::financial::company_data::CompanyData). Input and output live
 //! in separate child modules to mirror that transformation.
 //!
 //! ## Modules

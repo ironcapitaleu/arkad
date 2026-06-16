@@ -4,7 +4,7 @@
 //! [`ValidateCikFormat`](super::ValidateCikFormat) state.
 //!
 //! The state consumes a raw CIK string and produces a validated [`Cik`](crate::shared::cik::Cik).
-//! These two roles are kept in separate child modules so the unvalidated and validated forms
+//! Input and output live in separate child modules so the unvalidated and validated forms
 //! remain distinct types and cannot be confused at a transition boundary.
 //!
 //! ## Modules

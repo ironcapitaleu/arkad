@@ -4,7 +4,7 @@
 //! [`PrepareSecRequest`](super::PrepareSecRequest) state.
 //!
 //! The state consumes a validated CIK plus HTTP client and produces a ready-to-send request.
-//! Keeping the two roles in separate child modules mirrors that input-to-output transformation.
+//! Input and output live in separate child modules to mirror that transformation.
 //!
 //! ## Modules
 //!

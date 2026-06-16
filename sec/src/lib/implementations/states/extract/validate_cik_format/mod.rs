@@ -1,12 +1,15 @@
 //! # Validate CIK Format State
 //!
-//! Provides the [`ValidateCikFormat`] state, the first step of the extract phase, which
-//! syntactically validates and normalizes a raw CIK (Central Index Key) string.
+//! Provides the [`ValidateCikFormat`] state, the first step of the extract phase, which turns a
+//! plain input string that is *assumed* to denote a CIK (Central Index Key) into a validated
+//! [`Cik`].
 //!
-//! The SEC identifies every filer by a CIK that must be exactly ten zero-padded digits.
-//! This state encapsulates that invariant at the pipeline entry point so that every
-//! downstream state can rely on a well-formed [`Cik`] without re-validating. It performs
-//! *syntactic* validation only and does not verify that the CIK exists in the SEC's records.
+//! The state's input is just a free-floating [`String`] and nothing about its type guarantees it
+//! is a real CIK. The SEC requires every CIK to be exactly ten zero-padded digits, so this state
+//! validates and normalizes that string and, on success, parses it into the [`Cik`] newtype.
+//! From there on the type itself carries the guarantee, letting downstream states consume a
+//! well-formed CIK without re-checking. Validation is *syntactic* only: it does not verify that
+//! the CIK exists in the SEC's records.
 //!
 //! ## Modules
 //!
@@ -68,12 +71,12 @@ pub use data::ValidateCikFormatOutput;
 use crate::shared::cik::Cik;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
-/// First extract-phase state, validating and normalizing a raw CIK into a [`Cik`].
+/// First extract-phase state, parsing a presumed-CIK input string into a validated [`Cik`].
 ///
-/// Takes an unvalidated CIK string, trims whitespace, rejects any non-numeric input,
-/// and zero-pads the result to the ten-digit form the SEC requires. Existing as a
-/// dedicated state means the rest of the pipeline can consume a guaranteed-valid
-/// [`Cik`] rather than re-checking the format at every step.
+/// Takes a plain [`String`] assumed to denote a CIK, trims whitespace, rejects any non-numeric
+/// input, and zero-pads the result to the ten-digit form the SEC requires. On success the string
+/// is parsed into the [`Cik`] newtype, so the rest of the pipeline relies on that type for a
+/// well-formed CIK rather than re-checking the format at every step.
 ///
 /// Validation is **syntactic only**: a well-formed CIK that does not correspond to any
 /// real filer still passes. Existence is established later, when the SEC request is executed.

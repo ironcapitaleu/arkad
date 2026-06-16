@@ -4,7 +4,7 @@
 //! [`ExecuteSecRequest`](super::ExecuteSecRequest) state.
 //!
 //! The state consumes a prepared client and request and produces the SEC response.
-//! The two roles live in separate child modules to mirror that transformation.
+//! Input and output live in separate child modules to mirror that transformation.
 //!
 //! ## Modules
 //!
