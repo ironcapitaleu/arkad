@@ -170,14 +170,14 @@ When the state calls external systems:
 
 1. Define a trait for the external dependency (e.g., `trait HttpClient`)
 2. Context holds a concrete implementation (e.g., `SecClient`)
-3. For tests: create a fixture/mock implementing the trait
+3. For tests: create a fixture/fake implementing the trait
 4. Inject via Context — state only knows the trait interface
 
 ### Phase 5: Integration Tests
 
 In `tests/` directory:
 
-1. Test the state with real (or realistic mock) dependencies
+1. Test the state with real (or realistic fake) dependencies
 2. End-to-end: construct state → compute → verify output
 3. Test transition from source state → this state → verify
 4. Error scenarios with realistic failure modes
@@ -218,10 +218,10 @@ Final checks:
 | What | Where | Dependencies |
 | --- | --- | --- |
 | Domain concepts (Cik, etc.) | Same file, `#[cfg(test)]` | None |
-| State compute (happy path) | Same file, `#[cfg(test)]` | Mock/fixture context |
-| State compute (errors) | Same file, `#[cfg(test)]` | Mock/fixture context |
+| State compute (happy path) | Same file, `#[cfg(test)]` | Fake/fixture context |
+| State compute (errors) | Same file, `#[cfg(test)]` | Fake/fixture context |
 | Transitions | SuperState test module | Previous state fixture |
-| Integration (end-to-end) | `tests/` directory | Real or mock external deps |
+| Integration (end-to-end) | `tests/` directory | Real or fake external deps |
 
 ## Domain Error Pattern
 
