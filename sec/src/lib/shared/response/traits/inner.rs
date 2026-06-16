@@ -2,35 +2,57 @@ use std::fmt::Debug;
 
 use async_trait::async_trait;
 
-/// A trait defining the interface of an HTTP response. This is used to decouple from third party libraries.
+/// The transport-level HTTP response, decoupled from any HTTP crate.
+///
+/// Abstracts over a concrete response type so the domain layer doesn't depend on a specific
+/// transport. Implemented for the `reqwest` response type and the test fakes;
+/// [`SecResponse`](super::SecResponse) builds on top of it.
+///
+/// # Associated Types
+///
+/// - `Url`: The response's URL type.
+/// - `Headers`: The response's headers type.
+/// - `Body`: The response's body type.
+/// - `StatusCode`: The response's HTTP status code type.
+/// - `ContentType`: The response's content type.
+/// - `Error`: The error returned when reading the body fails.
 #[async_trait]
 pub trait InnerResponse: Send + Sync + Debug {
-    /// This type represents the endpoint that the client executed the corresponding HTTP request against.
+    /// The response's URL type.
     type Url;
 
-    /// This type represents the headers of the HTTP response.
+    /// The response's headers type.
     type Headers;
 
-    /// This type represents the body of the HTTP response.
+    /// The response's body type.
     type Body;
 
-    /// This type represents the status code of the HTTP response.
+    /// The response's HTTP status code type.
     type StatusCode;
 
-    /// This type represents the content type of the HTTP response.
+    /// The response's content type.
     type ContentType;
 
-    // TODO: check if needed, if not delete --- IGNORE ---
+    /// The error returned when reading the body fails.
     type Error;
 
+    /// Returns a reference to the response's URL.
     fn url(&self) -> &Self::Url;
 
+    /// Returns a reference to the response's headers.
     fn headers(&self) -> &Self::Headers;
 
+    /// Consumes the response and reads its body.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Self::Error` if the body cannot be read.
     async fn body(self) -> Result<Self::Body, Self::Error>;
 
+    /// Returns the response's HTTP status code.
     fn status_code(&self) -> Self::StatusCode;
 
+    /// Returns the response's content type.
     fn content_type(&self) -> Self::ContentType;
 }
 
