@@ -1,16 +1,28 @@
 use std::fmt::Debug;
 
-/// A trait defining how a request has to be created. This is used to decouple from third party libraries.
+/// The transport-level request: a method and a URL, decoupled from any HTTP crate.
+///
+/// Abstracts over a concrete request type so the domain layer doesn't depend on a specific
+/// transport. Implemented for the `reqwest` request type and the test fakes;
+/// [`SecRequest`](super::SecRequest) builds on top of it.
+///
+/// # Associated Types
+///
+/// - `Method`: The transport's HTTP method type.
+/// - `Url`: The transport's URL type.
 pub trait InnerRequest: Send + Sync + Debug {
-    /// This type represents the HTTP method that the client is going to execute against the URL.
+    /// The transport's HTTP method type.
     type Method;
-    /// This type represents the endpoint that the client is going to execute the request method against.
+    /// The transport's URL type.
     type Url;
 
-    /// Creates a new request for the client.
-    /// Returns an instance of a Request struct.
+    /// Builds a request from a method and a URL.
     fn new(method: Self::Method, url: Self::Url) -> Self;
+
+    /// Returns a reference to the request's HTTP method.
     fn method(&self) -> &Self::Method;
+
+    /// Returns a reference to the request's target URL.
     fn url(&self) -> &Self::Url;
 }
 
