@@ -10,7 +10,7 @@ use thiserror::Error;
 
 use crate::shared::response::implementations::sec_response::error::InvalidSecResponse;
 
-/// Reports that a SEC request could not be completed successfully.
+/// Reports that an SEC request could not be completed successfully.
 ///
 /// Wraps the [`ErrorReason`] distinguishing a transport-level failure from a response that arrived
 /// but failed SEC validation.
