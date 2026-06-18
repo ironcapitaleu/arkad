@@ -1,6 +1,10 @@
 # Description
 
-Please include a summary of the changes you made.
+<!-- What changed and why -->
+
+## Related
+
+<!-- Link to tickets, issues, or prior PRs -->
 
 ## Type of change
 
@@ -9,7 +13,10 @@ Please include a summary of the changes you made.
 - [ ] Breaking change (fix or feature that would cause existing functionality to not work as expected)
 - [ ] This change requires a documentation update
 
+## Test Plan
+
+<!-- How was this tested? How can a reviewer verify? -->
+
 ## Checklist
 
-- [ ] The [Software Development Guidelines](
-https://www.notion.so/Arkad-Software-Development-Guidelines-214cfe3cc9fb809082a0d15d3e6036cc) are followed
+- [ ] The [Software Development Guidelines](/ironcapitaleu/arkad/blob/main/AGENTS.md) are followed
