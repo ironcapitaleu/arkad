@@ -200,7 +200,7 @@ Update design docs and README to reflect the implemented logic:
 - **README.md**: Update architecture overviews, module descriptions, or feature lists if the state introduces new capabilities
 - **Mermaid sequence/state diagrams**: Ensure the compute flow, error branching, and dependency interactions are accurately represented
 
-Always verify existing diagrams still reflect reality after implementation changes.
+Always present updated mermaid diagrams to the user for visual verification — AI cannot render or confirm diagram correctness.
 
 ### Phase 7: Verification
 

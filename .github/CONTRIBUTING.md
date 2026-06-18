@@ -38,8 +38,7 @@ Make sure to change the **placeholders** in the commands.
 
 ### Code guidelines
 
-Make sure the [code guidelines](
-https://www.notion.so/Arkad-Software-Development-Guidelines-214cfe3cc9fb809082a0d15d3e6036cc) are followed at all times. This saves us a lot of time.
+Make sure the [code guidelines](../AGENTS.md) are followed at all times. This saves us a lot of time.
 
 ### Submitting a Pull Request
 
