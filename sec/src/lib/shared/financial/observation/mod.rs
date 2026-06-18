@@ -42,7 +42,7 @@ impl Observation {
     /// use sec::shared::financial::period::Period;
     /// use sec::shared::financial::unit::Unit;
     ///
-    /// let date = |y, m, d| NaiveDate::from_ymd_opt(y, m, d).expect("hardcoded date is valid");
+    /// let date = |y, m, d| NaiveDate::from_ymd_opt(y, m, d).expect("A hardcoded date is valid");
     /// let obs = Observation::new(
     ///     383_285_000_000,
     ///     Unit::Usd,
