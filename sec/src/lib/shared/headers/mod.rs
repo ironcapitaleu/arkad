@@ -24,7 +24,7 @@ pub mod headers_error;
 
 pub use headers_error::{HeadersError, InvalidHeadersReason};
 
-/// The HTTP response headers of a SEC API response.
+/// The HTTP response headers of an SEC API response.
 ///
 /// Recognized headers are promoted to typed fields with a [`ContentType`] parsed from
 /// `content-type`; any others are kept in an overflow map reachable via [`Headers::get`].
