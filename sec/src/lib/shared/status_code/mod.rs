@@ -1,6 +1,6 @@
 //! # Status Code
 //!
-//! The [`StatusCode`] of a SEC API response, classifying the HTTP codes relevant to SEC interactions.
+//! The [`StatusCode`] of an SEC API response, classifying the HTTP codes relevant to SEC interactions.
 
 use std::fmt::{self, Display, Formatter};
 
