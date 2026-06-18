@@ -7,7 +7,7 @@ use std::fmt::{self, Display, Formatter};
 
 use thiserror::Error;
 
-/// Reports that a string could not be validated as a SEC user agent.
+/// Reports that a string could not be validated as an SEC user agent.
 ///
 /// Carries the [`UserAgentErrorReason`] and the offending input for diagnostics.
 #[derive(Debug, Error, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
