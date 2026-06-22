@@ -1,19 +1,17 @@
-//! # SEC State Machine Traits
+//! # State Machine Traits
 //!
-//! This module defines the core traits for building SEC-specific state machines, states, super states, and transitions.
-//! It extends the generic [`state_maschine`] framework with domain-specific abstractions for robust, type-safe, and testable workflows
-//! in SEC data processing pipelines.
+//! Provides the SEC-specific state machine traits, layered on the generic [`state_maschine`]
+//! framework.
+//!
+//! This module's own [`StateMachine`] trait ties the pieces together; its submodules define the
+//! states, transitions, and hierarchy that a machine is built from.
 //!
 //! ## Modules
-//! - [`state`]: Traits for defining states, context, and state data used within SEC state machines.
-//! - [`super_state`]: Traits for hierarchical (composite) states, supporting advanced state machine patterns.
-//! - [`transition`]: Traits for modeling transitions between states, including error handling for transition failures.
 //!
-//! ## Usage
-//! Implement the [`StateMachine`] trait for your SEC-specific state machine types to leverage the extensible framework
-//! and integrate with concrete state, context, and data implementations found in [`crate::implementations`].
-//!
-//! See the documentation for each submodule for details on trait requirements and usage patterns.
+//! - [`state`]: The [`State`] trait plus its context and state-data traits.
+//! - [`super_state`]: The [`SuperState`](super_state::SuperState) trait for hierarchical states.
+//! - [`transition`]: The [`Transition`](transition::Transition) trait for moving between states.
+//! - [`stream`]: Converting a state machine into an async event stream.
 
 use std::fmt::Display;
 
@@ -26,11 +24,14 @@ pub mod transition;
 
 use state::State;
 
-/// The `StateMachine` trait is a marker trait for SEC-specific state machines,
-/// extending the generic [`StateMachine`] trait with additional constraints for SEC domain states.
+/// Marker trait for SEC state machines, refining the generic [`SMStateMachine`] to SEC states.
+///
+/// Adds no methods; it bundles the bounds a SEC machine must satisfy ([`Display`] plus a state
+/// type implementing the SEC [`State`] trait) into one nameable contract.
 ///
 /// # Type Parameters
-/// - `S`: The state type, which must implement the SEC [`State`] trait.
+///
+/// - `S`: The active state type. Must implement [`State`].
 pub trait StateMachine<S>: SMStateMachine<S> + Display
 where
     S: State,

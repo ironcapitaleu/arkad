@@ -1,54 +1,42 @@
-//! # SEC State Machine `Transition` Trait
+//! # Transition Trait
 //!
-//! This module defines the [`Transition`] trait for SEC-specific state machines, extending the generic
-//! [`state_maschine::state_machine::transition::Transition`] trait. Transitions model the movement between two states
-//! (`T` and `U`) in a state machine, enabling robust, type-safe, and testable workflows for SEC data processing.
+//! Provides the [`Transition`] trait modeling a move from one SEC state to another.
 //!
-//! ## Usage
-//! Implement the [`Transition`] trait for types that represent valid transitions between SEC state types.
-//! This trait ensures compatibility with the core state machine framework and enforces trait bounds for
-//! both source (`T`) and target (`U`) states, effectively allowing the SEC state machine to transiton from one SEC state to another.
-//!
-//! ## See Also
-//! - [`crate::traits::state_machine::state::State`]: The trait for SEC state types.
-//! - [`state_maschine::state_machine::transition::Transition`]: The generic transition trait from the underlying state machine framework.
-//! - [`crate::traits::state_machine::StateMachine`]: The main trait for SEC state machines.
-//!
+//! It refines the generic [`state_maschine`] transition with a SEC-specific method that reports
+//! rich [`TransitionError`]s instead of the framework's static strings.
 
 use state_maschine::prelude::Transition as SMTransition;
 
 use crate::error::state_machine::transition::Transition as TransitionError;
 use crate::traits::state_machine::state::State;
 
-/// The `Transition` trait defines a transition between two SEC state types within a state machine.
+/// A transition from source state `T` to target state `U`.
 ///
-/// This trait extends the generic [`state_maschine::state_machine::transition::Transition`] trait, enforcing that both
-/// the source (`T`) and target (`U`) types implement the SEC [`State`] trait. Implement this trait
-/// for types that represent valid transition functions in your SEC state machine.
+/// Refines the generic [`SMTransition`], constraining both ends to the SEC [`State`] trait and
+/// adding [`transition_to_next_state_sec`](Transition::transition_to_next_state_sec) for
+/// domain-typed error reporting. Implemented by the extract and transform super-states for each
+/// valid edge.
 ///
 /// # Type Parameters
-/// - `T`: The source state type, must implement [`State`].
-/// - `U`: The target state type, must implement [`State`].
+///
+/// - `T`: The source state type. Must implement [`State`].
+/// - `U`: The target state type. Must implement [`State`].
 pub trait Transition<T, U>: SMTransition<T, U>
 where
     T: State,
     U: State,
 {
-    /// Transitions the state machine to the next state using SEC-specific error handling.
+    /// Transitions to the next state, reporting failures as SEC [`TransitionError`]s.
     ///
-    /// This method provides the same functionality as the generic `transition_to_next_state` method,
-    /// but returns SEC-specific [`TransitionError`] types instead of static strings, enabling
-    /// richer error handling and diagnostics.
-    ///
-    /// # Returns
-    ///
-    /// - `Ok(NewStateMachine)`: The updated state machine in the new state.
-    /// - `Err(TransitionError)`: A SEC-specific error describing the failure reason.
+    /// Mirrors the generic `transition_to_next_state` but returns a domain-typed error rather than
+    /// a static string, enabling richer diagnostics.
     ///
     /// # Errors
     ///
-    /// Returns a [`TransitionError`] if the transition fails, such as:
-    /// - [`TransitionError::FailedOutputConversion`]: When the source state's output cannot be converted to the target state's input.
-    /// - [`TransitionError::FailedContextConversion`]: When the source state's context cannot be converted to the target state's context.
+    /// Returns [`TransitionError`] if the move fails, e.g.
+    /// [`FailedOutputConversion`](TransitionError::FailedOutputConversion) when the source's output
+    /// can't become the target's input, or
+    /// [`FailedContextConversion`](TransitionError::FailedContextConversion) when its context can't
+    /// be carried across.
     fn transition_to_next_state_sec(self) -> Result<Self::NewStateMachine, TransitionError>;
 }

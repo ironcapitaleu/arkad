@@ -1,16 +1,15 @@
 //! # State Machine Stream
 //!
-//! This module defines the [`IntoStateMachineStream`] trait, the [`NonTerminal`] marker trait,
-//! and the [`StateMachineStream`] type alias for converting state machines into async streams
-//! that drive their own state machine execution to completion.
+//! Provides [`IntoStateMachineStream`] for driving a state machine to completion as an async
+//! stream of events, along with the [`NonTerminal`] marker trait and the [`StateMachineStream`]
+//! type alias.
 //!
 //! ## Design
 //!
-//! The [`NonTerminal`] trait marks a state machine at a specific state as non-terminal, declaring
-//! which state it is currently at and which state it transitions to. The blanket implementation
-//! of [`IntoStateMachineStream`] covers any state machine that implements [`NonTerminal`] and has
-//! a [`Transition`] to its declared successor, where the state machine at that successor state is
-//! also streamable. Only terminal states (no [`NonTerminal`] impl) need a manual implementation.
+//! [`NonTerminal`] marks a state machine at a given state as non-terminal, declaring its current
+//! state and its successor. A blanket [`IntoStateMachineStream`] impl then covers any machine that
+//! is [`NonTerminal`] and has a [`Transition`] to that successor, recursively streaming the
+//! successor too. Only terminal states (those with no [`NonTerminal`] impl) need a manual impl.
 
 use std::fmt;
 use std::pin::Pin;
@@ -66,7 +65,7 @@ pub struct StreamItem {
     /// Serialized state data at the time of the event.
     pub data: serde_json::Value,
     /// How long since the start of this state. Measured from the beginning of the state's
-    /// lifecycle in the stream — includes compute time but not consumer wait time.
+    /// lifecycle in the stream; includes compute time but not consumer wait time.
     pub event_duration: std::time::Duration,
 }
 
@@ -97,11 +96,14 @@ pub type StateMachineStream = Pin<Box<dyn Stream<Item = Result<StreamItem, Strea
 
 /// Marker trait declaring that a state machine is at a non-terminal state.
 ///
-/// Each impl represents one edge in the state machine's transition graph,
-/// pinning down the current state and its successor for streaming purposes.
+/// Each impl represents one edge in the transition graph, pinning down the current state and its
+/// successor for streaming. A machine may have multiple [`Transition`] impls (branching or circular
+/// graphs); [`NonTerminal`] picks the one the streaming path follows.
 ///
-/// A state machine can still have multiple [`Transition`] impls (branching, circular graphs).
-/// [`NonTerminal`] declares which transition the streaming path follows.
+/// # Associated Types
+///
+/// - `Current`: The state the machine is at now. Must be [`State`] and serializable for event data.
+/// - `Next`: The successor state the stream transitions to.
 pub trait NonTerminal {
     /// The state this state machine is currently at.
     type Current: State + serde::Serialize;
@@ -145,7 +147,7 @@ where
                 event_duration: std::time::Duration::ZERO,
             });
 
-            // Compute — time it, convert error immediately to release the mutable borrow on sm
+            // Compute: time it, convert error immediately to release the mutable borrow on sm
             let compute_err: Option<crate::error::StateMachine> = {
                 let result = sm.current_state_mut().compute_output_data_async().await;
                 match result {
@@ -192,7 +194,7 @@ where
                         event_duration: transition_start.elapsed(),
                     });
 
-                    // Chain — forward same execution_id
+                    // Chain: forward same execution_id
                     let mut rest = std::pin::pin!(next.into_stream(execution_id));
                     while let Some(item) = futures_util::StreamExt::next(&mut rest).await {
                         yield item;
@@ -433,7 +435,7 @@ mod tests {
     }
 
     // --- Trait compliance: StateMachineStream ---
-    // Note: StateMachineStream is Send but NOT Sync — async streams hold mutable
+    // Note: StateMachineStream is Send but NOT Sync. Async streams hold mutable
     // state across await points. You move a stream to a consumer, not share it.
 
     const fn assert_send<T: Send>() {}

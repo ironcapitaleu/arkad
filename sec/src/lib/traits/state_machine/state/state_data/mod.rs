@@ -1,39 +1,27 @@
-//! # SEC State Data Trait
+//! # State Data Trait
 //!
-//! This module defines the [`StateData`] trait for SEC-specific state machines, extending the generic
-//! [`state_maschine::state_machine::state::StateData`] trait with domain-aware error handling.
+//! Provides the [`StateData`] trait for a SEC state's input/output data, adding fallible,
+//! domain-typed updates to the generic [`state_maschine`] state data.
 //!
-//! State data represents the internal, mutable data associated with a state in the SEC state machine framework.
-//! Implementations of this trait are responsible for encapsulating and updating the input/output data
-//! for each state, supporting robust, type-safe, and testable workflows.
-//!
-//! ## Usage
-//! Implement [`StateData`] for your SEC state data types to enable controlled updates and error propagation
-//! during state transitions. The trait enforces that all updates return a strongly-typed [`crate::error::State`]
-//! error on failure, ensuring consistent error handling across the state machine.
-//!
-//! See also:
-//! - [`crate::traits::state_machine::state::Context`]: For context management.
-//! - [`crate::implementations`]: For concrete state data implementations used in SEC ETL pipelines.
-//! - [`crate::error`]: For error types used in update operations.
+//! State data is the per-computation data a state reads and produces, as opposed to the ambient
+//! [`Context`](super::Context). SEC updates can fail (an update may itself need validation), so
+//! the trait makes updating return a [`StateError`] rather than the framework's infallible update.
 
 use state_maschine::prelude::StateData as SMStateData;
 
 use crate::error::State as StateError;
 
-/// Trait for SEC-specific state data, extending the generic state machine state data trait with domain error handling.
+/// A SEC state's input/output data, supporting fallible updates.
 ///
-/// Implement this trait for SEC state data types to provide custom update logic with error propagation.
-///
-/// # Errors
-///
-/// Returns a [`crate::error::State`] if the update fails.
+/// Refines the generic [`SMStateData`] so updates return a [`StateError`] instead of being
+/// infallible, keeping error handling uniform across the pipeline. Implemented by every state's
+/// input and output types.
 pub trait StateData: SMStateData {
-    /// Updates the state with new data given in the `updates` parameter.
+    /// Applies `updates` to the state data.
     ///
     /// # Errors
     ///
-    /// Returns a [`crate::error::State`] if the update fails.
+    /// Returns a [`StateError`] if the update is rejected (e.g. it fails validation).
     fn update_state(&mut self, updates: Self::UpdateType) -> Result<(), StateError>;
 }
 

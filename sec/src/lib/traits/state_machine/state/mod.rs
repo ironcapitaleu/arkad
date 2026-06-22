@@ -1,19 +1,15 @@
-//! # SEC State Machine Traits
+//! # State Traits
 //!
-//! This module defines the core traits for SEC-specific state types, as well as their associated context and state data.
-//! For transition and super state traits, see the [`crate::traits::state_machine::transition`] and [`crate::traits::state_machine::super_state`] modules.
-//! It extends the generic [`state_maschine`] framework with domain-specific abstractions for robust, type-safe, and testable workflows
-//! in SEC data processing pipelines. Notably, it provides error handling capabilities and the ability to compute output data asynchronously.
+//! Provides the [`State`] trait every SEC pipeline state implements, plus the context and
+//! state-data traits its data is built from.
+//!
+//! [`State`] extends the generic [`state_maschine`] state with the two things SEC processing needs:
+//! fallible, domain-typed errors and asynchronous output computation (the pipeline performs I/O).
 //!
 //! ## Modules
-//! - [`context_data`]: Traits for defining context used within SEC state machines.
-//! - [`state_data`]: Traits for defining state data used within SEC state machines.
 //!
-//! ## Usage
-//! Implement the [`StateMachine`](super::StateMachine) trait for your SEC-specific state machine types to leverage the extensible framework
-//! and integrate with concrete state, context, and data implementations found in [`crate::implementations`].
-//!
-//! See the documentation for each submodule for details on trait requirements and usage patterns.
+//! - [`context_data`]: The [`Context`] trait for a state's ambient context.
+//! - [`state_data`]: The [`StateData`] trait for a state's input/output data.
 
 use std::fmt::Display;
 
@@ -29,20 +25,18 @@ pub mod state_data;
 pub use context_data::Context;
 pub use state_data::StateData;
 
-/// Trait for SEC-specific states, extending the generic state machine state with domain error handling and asynchronous output data computation.
+/// A SEC pipeline state, computing its output asynchronously with domain-typed errors.
 ///
-/// Implement this trait for SEC state types to provide custom asynchronous output computation logic with error propagation.
-///
-/// # Errors
-///
-/// Returns an error convertible into a [`StateError`] if output data computation fails.
+/// Refines the generic [`SMState`] with the two needs of SEC processing: async output computation
+/// (states perform network I/O) and failures expressed as [`StateError`]s rather than panics.
+/// Implemented by every concrete state in [`crate::implementations::states`].
 #[async_trait]
 pub trait State: SMState + Display {
-    /// Computes the output data for the SEC state.
+    /// Computes and stores the state's output data.
     ///
     /// # Errors
     ///
-    /// Returns an error convertible into a [`StateError`] if the output data computation fails.
+    /// Returns an error convertible into a [`StateError`] if the computation fails.
     async fn compute_output_data_async(&mut self) -> Result<(), impl Into<StateError>>;
 }
 
