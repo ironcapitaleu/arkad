@@ -1,23 +1,17 @@
-//! # State Error Types
+//! # State Errors
 //!
-//! This module defines error types that can occur within the internal logic of a state in the SEC state machine framework.
-//! These errors represent failures related to CIK validation, SEC request execution, data validation, and state/context updates.
+//! Provides the [`State`] error covering failures inside a state's own logic: CIK validation, SEC
+//! request execution, data completeness, and input/context/output handling.
 //!
-//! ## Types
-//! - [`State`]: Enum representing all error variants that can arise from state operations.
-//! - [`InvalidCikFormat`]: Error type for invalid CIK format validation failures.
-//! - [`FailedRequestExecution`]: Error type for failed SEC request execution.
-//! - [`IncompleteCompanyFacts`]: Error type for incomplete or missing data in SEC Company Facts responses.
+//! The richer variants ([`InvalidCikFormat`], [`FailedRequestExecution`],
+//! [`IncompleteCompanyFacts`]) wrap a domain error with the failing state's name; the rest are
+//! plain markers. [`State`] is wrapped by [`StateMachine`](super::StateMachine) for propagation.
 //!
-//! ## Usage
-//! Use [`State`] for error propagation and pattern matching when handling errors that originate from state logic. This enables granular error handling for state-specific failures within the broader state machine error hierarchy.
+//! ## Modules
 //!
-//! ## Related Modules
-//!
-//! - [`crate::error`]: Top-level error types for the SEC state machine library, providing unified error handling across all components.
-//! - [`crate::error::state_machine`]: Error types specific to state machine operations, such as transition failures and invalid state transitions.
-//! - [`crate::traits::state_machine::state`]: Core trait definitions for state behavior, including state lifecycle, data management, and error propagation.
-//! - [`crate::implementations::states`]: Concrete state implementations that use these error types for robust error handling in real-world scenarios.
+//! - [`invalid_cik_format`]: The [`InvalidCikFormat`] error wrapping a CIK validation failure.
+//! - [`failed_request_execution`]: The [`FailedRequestExecution`] error wrapping a failed SEC request.
+//! - [`incomplete_company_facts`]: The [`IncompleteCompanyFacts`] error for a response missing required fields.
 
 use thiserror::Error;
 
@@ -30,6 +24,11 @@ pub use invalid_cik_format::InvalidCikFormat;
 
 #[non_exhaustive]
 #[derive(Debug, Error, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
+/// An error occurring inside a state's own logic.
+///
+/// Spans the ways a state can fail while computing its output: a wrapped domain error (invalid
+/// CIK, failed request, incomplete facts) or a plain marker for invalid input, context, or a
+/// failed update/computation.
 pub enum State {
     /// Invalid Cik format.
     #[error("[StateError] A state level error occurred, Caused by: {0}")]

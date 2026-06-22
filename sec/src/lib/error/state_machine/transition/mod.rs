@@ -1,36 +1,24 @@
-//! # Transition Error Types
+//! # Transition Errors
 //!
-//! This module defines the [`Transition`] error enum, representing errors that can occur during state transitions
-//! within a state machine. These errors are used throughout the SEC state machine framework to provide
-//! strongly-typed, descriptive error handling for transition operations.
+//! Provides the [`Transition`] error covering the ways moving from one state to the next can fail.
 //!
-//! ## Overview
+//! Each variant wraps a concrete sub-error carrying the source and target state names. [`Transition`]
+//! is returned by implementors of the
+//! [`Transition`](crate::traits::state_machine::transition::Transition) trait and wrapped by
+//! [`StateMachine`](super::StateMachine) for propagation.
 //!
-//! The [`Transition`] enum covers three main failure scenarios:
-//! - [`MissingOutput`](Transition::MissingOutput): Occurs when the output data of the source state is missing or cannot be accessed during the transition.
-//! - [`FailedOutputConversion`](Transition::FailedOutputConversion): Occurs when the output data of the source state cannot be converted into the input data of the destination state.
-//! - [`FailedContextConversion`](Transition::FailedContextConversion): Occurs when the context of the source state cannot be converted into the context of the destination state.
+//! ## Modules
 //!
-//! These errors are intended to be used by implementers of the [`Transition`](crate::traits::state_machine::transition::Transition) trait
-//! and are surfaced by the state machine error handling system (see [`crate::error`] and [`crate::error::state_machine`]).
+//! - [`missing_output`]: The [`MissingOutput`] error, when the source state had no computed output.
+//! - [`failed_output_conversion`]: The [`FailedOutputConversion`] error, when output couldn't become the next input.
+//! - [`failed_context_conversion`]: The [`FailedContextConversion`] error, when context couldn't be carried across.
 //!
 //! ## Usage
-//!
-//! These error types are typically returned by transition logic in the state machine implementation, and can be
-//! matched against to provide detailed diagnostics or recovery strategies.
-//!
-//! ## Related Modules
-//! - [`crate::error`]: Top-level error types for the SEC state machine library.
-//! - [`crate::error::state_machine`]: Error types specific to state machine operations.
-//! - [`crate::traits::state_machine::transition`]: The trait defining transition behavior in the state machine framework.
-//!
-//! ## Example
 //!
 //! ```rust
 //! use sec::error::state_machine::transition::{Transition, FailedOutputConversion};
 //!
 //! fn perform_transition() -> Result<(), Transition> {
-//!     // ... transition logic ...
 //!     Err(Transition::FailedOutputConversion(
 //!         FailedOutputConversion::new("SourceState", "TargetState"),
 //!     ))
@@ -48,26 +36,21 @@ pub use missing_output::MissingOutput;
 
 #[non_exhaustive]
 #[derive(Debug, Error, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
-/// Represents errors that can occur during state transitions within the state machine framework.
+/// An error occurring while transitioning between states.
 ///
-/// This enum is used to signal failure scenarios when, for example, converting state output or context
-/// between states. It is intended for use by implementers of the [`Transition`](crate::traits::state_machine::transition::Transition) trait,
-/// and is surfaced by the state machine error handling system.
-///
-/// See the module-level documentation for more details and usage examples.
+/// Groups the ways a transition can fail: the source produced no output, its output couldn't be
+/// converted to the next state's input, or its context couldn't be carried across. Each case wraps
+/// a concrete sub-error.
 pub enum Transition {
-    /// Failed to convert output of the source state into the input of the destination state.
-    ///
-    /// This error variant indicates that the output data produced by the source state is missing
-    /// or could not be accessed during the transition.
+    /// The source state had not computed its output before the transition.
     #[error("[TransitionError] A transition error occurred, Caused by: {0}")]
     MissingOutput(#[source] MissingOutput),
 
-    /// Failed to convert output of the source state into the input of the destination state.
+    /// The source state's output could not be converted into the destination state's input.
     #[error("[TransitionError] A transition error occurred, Caused by: {0}")]
     FailedOutputConversion(#[source] FailedOutputConversion),
 
-    /// Failed to convert context of the source state into the context of the destination state.
+    /// The source state's context could not be converted into the destination state's context.
     #[error("[TransitionError] A transition error occurred, Caused by: {0}")]
     FailedContextConversion(#[source] FailedContextConversion),
 }

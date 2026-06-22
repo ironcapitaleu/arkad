@@ -1,24 +1,21 @@
-//! # State Machine Error Types
+//! # State Machine Errors
 //!
-//! This module defines error types specific to the operation of SEC state machines, including errors
-//! originating from states, transitions, and invalid state machine configurations. These error types
-//! enable robust and granular error handling throughout the SEC state machine framework.
+//! Provides the [`StateMachine`] error, the middle layer of the error hierarchy, covering
+//! failures within states, during transitions, and from invalid configuration.
+//!
+//! It wraps the more specific [`State`] and [`Transition`] errors and is itself wrapped by
+//! [`ErrorKind`]; the [`TryFrom`] impls recover the inner error.
 //!
 //! ## Modules
-//! - [`state`](state/mod.rs): Contains error types for state-internal failures (e.g., invalid input, context, or output computation).
-//! - [`transition`](transition/mod.rs): Contains error types for failures during state transitions (e.g., failed output or context conversion).
 //!
-//! ## Types
-//! - [`StateMachine`]: Enum representing all errors that can occur at the state machine level, including state and transition errors.
-//! - [`State`] (state/mod.rs): Enum for errors that occur within a state.
-//! - [`Transition`] (transition/mod.rs): Enum for errors that occur during state transitions.
+//! - [`state`]: The [`State`] error for failures inside a state.
+//! - [`transition`]: The [`Transition`] error for failures while moving between states.
 //!
 //! ## Usage
-//! Use [`StateMachine`] as the primary error type for state machine operations. Errors can be downcast to [`State`] or [`Transition`] for more specific handling.
 //!
-//! ## Example
 //! ```rust
 //! use sec::error::state_machine::{StateMachine, State, Transition};
+//!
 //! let err = StateMachine::State(State::InvalidInput);
 //! match err {
 //!     StateMachine::State(state_err) => println!("State error: {state_err}"),
@@ -40,18 +37,19 @@ use std::fmt::{self, Display, Formatter};
 
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
-/// Represents all error kinds that can occur at the state machine level.
+/// An error occurring at the state machine level.
 ///
-/// This enum encapsulates errors from invalid configurations, state-internal failures, and transition failures.
-/// It supports conversions from [`State`] and [`Transition`] errors, and provides downcasting for granular error handling.
+/// Groups the three ways execution can fail: a misconfigured machine, a failure inside a state,
+/// or a failure transitioning between states. The latter two wrap the [`State`] and [`Transition`]
+/// errors respectively.
 pub enum StateMachine {
-    /// Invalid configuration of the state machine.
+    /// The state machine was configured invalidly.
     InvalidConfiguration,
 
-    /// State-internal error.
+    /// A failure occurred inside a state.
     State(State),
 
-    /// Transition related error.
+    /// A failure occurred while transitioning between states.
     Transition(Transition),
 }
 
@@ -80,18 +78,12 @@ impl Display for StateMachine {
 impl Error for StateMachine {}
 
 impl From<State> for StateMachine {
-    /// Converts a [`State`] error into a more general [`StateMachine`] error.
-    ///
-    /// This enables seamless propagation of state errors as state machine errors.
     fn from(error: State) -> Self {
         Self::State(error)
     }
 }
 
 impl From<Transition> for StateMachine {
-    /// Converts a [`Transition`] error into a more general [`StateMachine`] error.
-    ///
-    /// This enables seamless propagation of transition errors as state machine errors.
     fn from(error: Transition) -> Self {
         Self::Transition(error)
     }
@@ -100,9 +92,9 @@ impl From<Transition> for StateMachine {
 impl TryFrom<StateMachine> for State {
     type Error = ErrorKind;
 
-    /// Attempts to convert a [`StateMachine`] into a [`State`] error.
+    /// # Errors
     ///
-    /// Returns `Ok(State)` if the variant matches, or `Err(ErrorKind::DowncastNotPossible)` otherwise.
+    /// Returns [`ErrorKind::DowncastNotPossible`] if the value is not a [`State`] error.
     fn try_from(value: StateMachine) -> Result<Self, Self::Error> {
         match value {
             StateMachine::State(state) => Ok(state),
@@ -114,9 +106,9 @@ impl TryFrom<StateMachine> for State {
 impl TryFrom<StateMachine> for Transition {
     type Error = ErrorKind;
 
-    /// Attempts to convert a [`StateMachine`] into a [`Transition`] error.
+    /// # Errors
     ///
-    /// Returns `Ok(Transition)` if the variant matches, or `Err(ErrorKind::DowncastNotPossible)` otherwise.
+    /// Returns [`ErrorKind::DowncastNotPossible`] if the value is not a [`Transition`] error.
     fn try_from(value: StateMachine) -> Result<Self, Self::Error> {
         match value {
             StateMachine::Transition(transition) => Ok(transition),

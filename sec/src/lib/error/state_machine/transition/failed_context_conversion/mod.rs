@@ -1,17 +1,15 @@
-//! # Failed Context Conversion Transition Error
+//! # Failed Context Conversion Error
 //!
-//! This module defines the [`FailedContextConversion`] error type, which represents a failure
-//! to convert the context of a source state into the context of a destination state
-//! during a state transition.
+//! Provides the [`FailedContextConversion`] error: a source state's context could not be converted
+//! into the destination state's context during a transition.
 
 use thiserror::Error;
 
 use super::Transition as TransitionError;
 
-/// Error representing a failed context conversion during a state transition.
+/// A source state's context could not be converted into the destination state's context.
 ///
-/// This error type captures which states were involved when the context
-/// could not be transformed into the context required by the destination state.
+/// Records both states involved, so the failed conversion pinpoints which transition broke.
 #[derive(Error, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[error(
     "[FailedContextConversion] Failure during transition from '{source_state_name}' to '{target_state_name}', Reason: Failed to convert context data"
@@ -24,7 +22,7 @@ pub struct FailedContextConversion {
 }
 
 impl FailedContextConversion {
-    /// Creates a new [`FailedContextConversion`] error.
+    /// Creates a new error from the source and target state names.
     #[must_use]
     pub fn new(source_state_name: impl Into<String>, target_state_name: impl Into<String>) -> Self {
         Self {
