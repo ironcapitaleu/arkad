@@ -12,30 +12,33 @@ use super::InnerResponse;
 ///
 /// # Associated Types
 ///
-/// - `Inner`: The raw response consumed during construction, an [`InnerResponse`].
-/// - `Url`: The response's URL type.
-/// - `Headers`: The response's headers type.
-/// - `StatusCode`: The response's HTTP status code type.
-/// - `ContentType`: The response's content type.
-/// - `Error`: The error returned when the response cannot be read or validated.
+/// Each implementor chooses the concrete types filling these slots, which is what keeps the trait
+/// decoupled from any specific HTTP crate:
+///
+/// - `Inner`: The raw response type consumed during construction. Must implement [`InnerResponse`].
+/// - `Url`: The type representing the response's URL.
+/// - `Headers`: The type representing the response's headers.
+/// - `StatusCode`: The type representing the response's HTTP status code.
+/// - `ContentType`: The type representing the response's content type.
+/// - `Error`: The error type returned when the response cannot be read or validated.
 #[async_trait]
 pub trait SecResponse: Send + Sync + Debug + Sized {
-    /// The raw response consumed during construction.
+    /// The raw response type consumed during construction.
     type Inner: InnerResponse;
 
-    /// The response's URL type.
+    /// The type representing the response's URL.
     type Url;
 
-    /// The response's headers type.
+    /// The type representing the response's headers.
     type Headers;
 
-    /// The response's HTTP status code type.
+    /// The type representing the response's HTTP status code.
     type StatusCode;
 
-    /// The response's content type.
+    /// The type representing the response's content type.
     type ContentType;
 
-    /// The error returned when the response cannot be read or validated.
+    /// The error type returned when the response cannot be read or validated.
     type Error;
 
     /// Consumes a raw response and builds a validated `SecResponse`.

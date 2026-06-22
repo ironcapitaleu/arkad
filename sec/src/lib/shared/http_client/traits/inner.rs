@@ -10,16 +10,19 @@ use async_trait::async_trait;
 ///
 /// # Associated Types
 ///
-/// - `Request`: The transport's request type.
-/// - `Response`: The transport's response type, returned on success.
-/// - `Error`: The transport's error type, returned on failure.
+/// Each implementor binds these to its transport's concrete types, which is what lets the domain
+/// layer stay independent of any specific HTTP crate:
+///
+/// - `Request`: The type representing the transport's request.
+/// - `Response`: The type representing the transport's response, returned on success.
+/// - `Error`: The error type returned on failure.
 #[async_trait]
 pub trait InnerClient: Send + Sync + Debug + Clone {
-    /// The transport's request type.
+    /// The type representing the transport's request.
     type Request;
-    /// The transport's response type, returned on success.
+    /// The type representing the transport's response, returned on success.
     type Response;
-    /// The transport's error type, returned on failure.
+    /// The error type returned on failure.
     type Error;
 
     /// Executes an HTTP request, returning the transport's response.

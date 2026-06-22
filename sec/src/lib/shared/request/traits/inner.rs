@@ -8,12 +8,15 @@ use std::fmt::Debug;
 ///
 /// # Associated Types
 ///
-/// - `Method`: The transport's HTTP method type.
-/// - `Url`: The transport's URL type.
+/// Each implementor binds these to its transport's concrete types, which is what lets the domain
+/// layer stay independent of any specific HTTP crate:
+///
+/// - `Method`: The type representing the request's HTTP method.
+/// - `Url`: The type representing the request's URL.
 pub trait InnerRequest: Send + Sync + Debug {
-    /// The transport's HTTP method type.
+    /// The type representing the request's HTTP method.
     type Method;
-    /// The transport's URL type.
+    /// The type representing the request's URL.
     type Url;
 
     /// Builds a request from a method and a URL.
