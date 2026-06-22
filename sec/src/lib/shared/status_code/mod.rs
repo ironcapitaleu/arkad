@@ -1,12 +1,12 @@
 //! # Status Code
 //!
-//! The [`StatusCode`] of a SEC API response, classifying the HTTP codes relevant to SEC interactions.
+//! The [`StatusCode`] of an SEC API response, classifying the HTTP codes relevant to SEC interactions.
 
 use std::fmt::{self, Display, Formatter};
 
 use serde::Serialize;
 
-/// An HTTP status code from a SEC API response.
+/// An HTTP status code from an SEC API response.
 ///
 /// Models the codes relevant to SEC interactions as explicit variants so match arms can handle
 /// cases like rate-limiting (429) or not-found (404) without raw integer comparisons. Any other

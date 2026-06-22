@@ -4,7 +4,7 @@ use async_trait::async_trait;
 
 use crate::shared::http_client::InnerClient;
 
-/// The domain-level SEC HTTP client: executes a SEC request and returns a SEC response.
+/// The domain-level SEC HTTP client: executes an SEC request and returns an SEC response.
 ///
 /// Sits above [`InnerClient`], adding the SEC-specific knowledge (endpoints, request/response
 /// shaping) that the raw transport lacks. Existing as a trait lets states depend on the behavior

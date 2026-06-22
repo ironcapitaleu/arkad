@@ -40,7 +40,7 @@ impl FilingSource {
     /// use sec::shared::financial::fiscal_year::FiscalYear;
     /// use sec::shared::financial::form::Form;
     ///
-    /// let date = |y, m, d| NaiveDate::from_ymd_opt(y, m, d).expect("hardcoded date is valid");
+    /// let date = |y, m, d| NaiveDate::from_ymd_opt(y, m, d).expect("A hardcoded date is valid");
     /// let source = FilingSource::new(
     ///     AccessionNumber::new("0000320193-23-000106"),
     ///     Form::TenK,
