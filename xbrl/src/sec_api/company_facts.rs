@@ -43,7 +43,7 @@ use crate::us_gaap::mappings::{REQUIRED_FACTS_NAMESPACE, REQUIRED_TOP_LEVEL_KEYS
 /// Parses a raw SEC Company Facts JSON body into raw observations.
 ///
 /// Extracts all data points from all namespaces and concepts present in the response.
-/// Does not perform concept resolution — returns flat observations for downstream processing.
+/// Does not perform concept resolution; returns flat observations for downstream processing.
 ///
 /// # Errors
 ///

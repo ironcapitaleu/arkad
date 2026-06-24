@@ -11,7 +11,7 @@ use super::resolved_fact::ResolvedFact;
 
 /// A coherent set of resolved financial facts for a single entity and period.
 ///
-/// Represents the resolved state of one financial reporting period — the
+/// Represents the resolved state of one financial reporting period: the
 /// collection that validation checks operate on.
 #[derive(Debug, Clone)]
 pub struct FactSet {
