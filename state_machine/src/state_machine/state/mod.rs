@@ -1,3 +1,13 @@
+//! # State Trait
+//!
+//! Provides the [`State`] trait, one node in a state machine, along with its [`Context`] and
+//! [`StateData`] traits.
+//!
+//! ## Modules
+//!
+//! - [`context`]: The [`Context`] trait for a state's ambient context.
+//! - [`state_data`]: The [`StateData`] trait for a state's input and output data.
+
 use std::{fmt::Debug, hash::Hash};
 
 pub mod context;
@@ -6,100 +16,53 @@ pub mod state_data;
 pub use context::Context;
 pub use state_data::StateData;
 
-/// The `State` trait defines the behavior and characteristics of a state within a state machine.
+/// One node in a state machine: holds input, context, and computed output.
 ///
-/// This trait encompasses the key functionalities that a state must implement, including methods for
-/// retrieving state names, handling input and output data, and managing context data. It also defines
-/// the data types that are associated with the state, ensuring that all states conform to a standard
-/// interface for interacting with the rest of the state machine.
+/// A state reads typed input and context and computes its output on demand. The supertrait bounds
+/// keep every state thread-safe, comparable, and hashable so machines can store and reason about
+/// them uniformly.
 ///
 /// # Associated Types
 ///
-/// - `InputData`: Represents the type of data input that the state processes. Must implement the `StateData` trait.
-/// - `OutputData`: Represents the type of data output that the state produces. Must implement the `StateData` trait.
-/// - `Context`: Represents the context or environment data associated with the state. Must implement the `Context` trait.
+/// - `InputData`: The data the state processes. Must implement [`StateData`].
+/// - `OutputData`: The data the state produces. Must implement [`StateData`].
+/// - `Context`: The state's ambient context. Must implement [`Context`].
 ///
 /// # Required Traits
 ///
-/// Implementations of the `State` trait must also implement several Rust standard traits to ensure
-/// thread safety, comparison, and debugging capabilities:
-/// - `Debug`: Allows the state to be formatted using the `{:?}` formatter, which is useful for debugging.
-/// - `Send`, `Sync`, `Unpin`: Ensure that the state can be safely transferred and accessed across threads.
-/// - `Clone`, `PartialEq`, `PartialOrd`, `Hash`, `Eq`, `Ord`: Support comparison and hashing, which is
-///   necessary for certain data structures like sets or maps.
-///
-/// # Methods
-///
-/// The `State` trait defines several methods that must be implemented:
-///
-/// - `state_name`: Returns the name of the state as a string representation. Useful for identifying the current state.
-/// - `input_data`: Returns a reference to the input data associated with the state. This data is used for processing within the state.
-/// - `compute_output_data`: Performs computations to generate the output data from the input data. This method modifies the state to store the output data.
-/// - `output_data`: Returns an optional reference to the output data. If the output data has been computed, it will return `Some(&OutputData)`, otherwise `None`.
-/// - `has_output_data_been_computed`: Returns a boolean indicating whether the output data has been computed. The default implementation checks if `output_data` returns `Some`.
-/// - `context_data`: Returns a reference to the context data associated with the state. This data provides additional information or settings relevant to the state.
+/// Implementors must be `Debug + Send + Sync + Unpin + Clone + PartialEq + PartialOrd + Hash + Eq +
+/// Ord` so states are thread-safe and usable as keys in ordered or hashed collections.
 pub trait State:
     Debug + Send + Sync + Unpin + Clone + PartialEq + PartialOrd + Hash + Eq + Ord
 {
+    /// The data the state processes.
     type InputData: StateData;
+    /// The data the state produces.
     type OutputData: StateData;
+    /// The state's ambient context.
     type Context: Context;
 
-    /// Returns the name of the state.
-    ///
-    /// This method provides a way to identify the current state by name, which can be useful for debugging
-    /// or logging purposes.
-    ///
-    /// # Returns
-    ///
-    /// A type that can be converted into a string, representing the name of the state.
+    /// Returns the state's name, for identification in logs and diagnostics.
     fn state_name(&self) -> impl ToString;
 
-    /// Returns a reference to the input data associated with the state.
-    ///
-    /// Input data is used by the state to perform its operations and produce output data. This method
-    /// provides access to the current input data.
-    ///
-    /// # Returns
-    ///
-    /// A reference to the input data of type `InputData`.
+    /// Returns a reference to the state's input data.
     fn input_data(&self) -> &Self::InputData;
 
-    /// Computes the output data from the input data.
-    ///
-    /// This method is responsible for processing the input data and generating the corresponding output data.
-    /// It modifies the state to store the computed output data.
+    /// Computes the output data from the input and stores it on the state.
     fn compute_output_data(&mut self);
 
-    /// Returns an optional reference to the output data.
-    ///
-    /// This method provides access to the output data if it has been computed. If the output data has not
-    /// been computed, it returns `None`.
-    ///
-    /// # Returns
-    ///
-    /// An `Option` containing a reference to the output data of type `OutputData` if available, otherwise `None`.
+    /// Returns the computed output data, or `None` if it has not been computed yet.
     fn output_data(&self) -> Option<&Self::OutputData>;
 
-    /// Checks if the output data has been computed.
+    /// Returns `true` if the output data has been computed.
     ///
-    /// By default, this method checks if `output_data` returns `Some`. It can be overridden for more complex checks.
-    ///
-    /// # Returns
-    ///
-    /// `true` if the output data has been computed, otherwise `false`.
+    /// Defaults to checking whether [`output_data`](State::output_data) is `Some`; override for
+    /// more involved checks.
     fn has_output_data_been_computed(&self) -> bool {
         self.output_data().is_some()
     }
 
-    /// Returns a reference to the context data associated with the state.
-    ///
-    /// Context data provides additional information or configuration that is relevant to the state. This method
-    /// provides access to the current context data.
-    ///
-    /// # Returns
-    ///
-    /// A reference to the context data of type `Context`.
+    /// Returns a reference to the state's context data.
     fn context_data(&self) -> &Self::Context;
 }
 

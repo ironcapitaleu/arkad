@@ -1,60 +1,34 @@
+//! # State Data Trait
+//!
+//! Provides the [`StateData`] trait for the input and output data a state reads and produces,
+//! separate from its ambient [`Context`](super::Context).
+
 use std::{fmt::Debug, hash::Hash};
 
-/// The `StateData` trait defines the behavior and characteristics of state data within a state machine.
+/// The input or output data of a state, supporting partial updates.
 ///
-/// This trait is used to represent the data associated with a specific state in a state machine. It provides
-/// methods to access and update the state data, ensuring that state transitions and updates are handled
-/// consistently and correctly. The `StateData` trait requires the implementation of various Rust standard
-/// traits to guarantee safety, comparability, and debugging capabilities.
+/// Encapsulates the data a state reads and produces, exposing read access and a structured update
+/// path. The supertrait bounds keep it thread-safe, comparable, and hashable like the state that
+/// owns it.
 ///
 /// # Associated Types
 ///
-/// - `UpdateType`: Defines the type of updates that can be applied to the state data. This allows
-///   the state data to be modified based on specific requirements, encapsulating the changes in
-///   a structured manner.
+/// - `UpdateType`: The partial update applied by [`update_state`](StateData::update_state).
 ///
 /// # Required Traits
 ///
-/// Implementations of the `StateData` trait must also implement several Rust standard traits to ensure
-/// thread safety, comparison, and debugging capabilities:
-/// - `Debug`: Allows the state data to be formatted using the `{:?}` formatter, which is useful for debugging.
-/// - `Send`, `Sync`, `Unpin`: Ensure that the state data can be safely transferred and accessed across threads.
-/// - `Clone`, `PartialEq`, `PartialOrd`, `Hash`, `Eq`, `Ord`: Support comparison and hashing, which is
-///   necessary for certain data structures like sets or maps.
-///
-/// # Methods
-///
-/// The `StateData` trait defines two key methods:
-///
-/// - `state`: Returns a reference to the state data. This method provides access to the current state data,
-///   allowing the state machine to inspect or read the data.
-/// - `update_state`: Updates the state data based on the provided updates. This method allows modifications to the state data,
-///   applying the changes specified by the `UpdateType`.
+/// Implementors must be `Debug + Send + Sync + Unpin + Clone + PartialEq + PartialOrd + Hash + Eq +
+/// Ord`, matching the bounds on [`State`](super::State).
 pub trait StateData:
     Debug + Send + Sync + Unpin + Clone + PartialEq + PartialOrd + Hash + Eq + Ord
 {
+    /// The partial update applied by [`update_state`](StateData::update_state).
     type UpdateType;
 
-    /// Returns a reference to the internal state data.
-    ///
-    /// This method provides access to the current state data, allowing other parts of the state machine
-    /// to read the state information. It returns a reference to the data, ensuring that the actual state
-    /// is not modified by this method.
-    ///
-    /// # Returns
-    ///
-    /// A reference to the state data of the implementing type.
+    /// Returns a reference to the state data.
     fn state(&self) -> &Self;
 
-    /// Updates the internal state data based on the provided updates.
-    ///
-    /// This method allows the state data to be modified according to the changes specified in the
-    /// `updates` parameter. The type of `updates` is defined by the `UpdateType` associated type,
-    /// which allows for flexible and specific update mechanisms tailored to the state's needs.
-    ///
-    /// # Parameters
-    ///
-    /// - `updates`: A value of type `UpdateType` that contains the changes to be applied to the state data.
+    /// Applies a partial `updates` value to the state data.
     fn update_state(&mut self, updates: Self::UpdateType);
 }
 
