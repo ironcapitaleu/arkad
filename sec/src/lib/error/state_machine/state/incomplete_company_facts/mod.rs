@@ -68,9 +68,9 @@ impl fmt::Display for MissingFields {
 /// Error indicating an SEC Company Facts response is missing required concepts, tagged with the
 /// state it occurred in.
 ///
-    /// A *semantic* validation error, not a syntactic one: the JSON is valid, but some XBRL concepts
-    /// that are required for financial statement construction were not found in the response. Carries
-    /// the failing state's name and the list of missing concepts.
+/// A *semantic* validation error, not a syntactic one: the JSON is valid, but some XBRL concepts
+/// that are required for financial statement construction were not found in the response. Carries
+/// the failing state's name and the list of missing concepts.
 #[derive(Error, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[error(
     "[IncompleteCompanyFacts] SEC response is missing expected data fields in State: '{state_name}', Reason: 'Missing fields: {missing_fields}'"
