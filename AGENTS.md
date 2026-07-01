@@ -23,6 +23,7 @@
   - Docstrings
   - Design documents (if applicable, e.g., mermaid diagrams)
 - **Documentation must be version controlled**.
+- **Refer to [`DOCUMENTATION.md`](DOCUMENTATION.md) for the full documentation guidelines** — how to structure module, item, and error docs; when to include `# Sections`; intra-doc link and doc-test conventions; and the wording style to follow. Consult it whenever writing or reviewing documentation.
 
 ---
 
