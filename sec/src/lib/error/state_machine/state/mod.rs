@@ -34,7 +34,7 @@ pub enum State {
     #[error("[StateError] A state level error occurred, Caused by: {0}")]
     InvalidCikFormat(#[source] InvalidCikFormat),
 
-    /// Indicates that a SEC request execution has failed.
+    /// Indicates that an SEC request execution has failed.
     #[error("[StateError] A state level error occurred, Caused by: {0}")]
     FailedRequestExecution(#[source] FailedRequestExecution),
 

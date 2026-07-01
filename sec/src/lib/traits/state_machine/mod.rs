@@ -26,7 +26,7 @@ use state::State;
 
 /// Marker trait for SEC state machines, refining the generic [`SMStateMachine`] to SEC states.
 ///
-/// Adds no methods; it bundles the bounds a SEC machine must satisfy ([`Display`] plus a state
+/// Adds no methods; it bundles the bounds an SEC machine must satisfy ([`Display`] plus a state
 /// type implementing the SEC [`State`] trait) into one nameable contract.
 ///
 /// # Type Parameters

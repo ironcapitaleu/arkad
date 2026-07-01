@@ -33,7 +33,7 @@ pub trait SecClient: Send + Sync + Debug {
     /// Returns a reference to the underlying transport.
     fn inner(&self) -> &Self::Inner;
 
-    /// Executes a SEC request, returning the validated response.
+    /// Executes an SEC request, returning the validated response.
     ///
     /// # Errors
     ///

@@ -1,13 +1,13 @@
 //! # Content Type
 //!
-//! The [`ContentType`] of a SEC API response, classified from its `Content-Type` header.
+//! The [`ContentType`] of an SEC API response, classified from its `Content-Type` header.
 
 use std::collections::HashMap;
 use std::fmt::{self, Display, Formatter};
 
 use serde::Serialize;
 
-/// The MIME content type of a SEC API response.
+/// The MIME content type of an SEC API response.
 ///
 /// Models the content types relevant to SEC interactions as explicit variants so callers can
 /// match on them directly instead of comparing header strings. Anything recognized-but-unmodeled

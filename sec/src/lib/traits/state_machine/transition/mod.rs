@@ -2,7 +2,7 @@
 //!
 //! Provides the [`Transition`] trait modeling a move from one SEC state to another.
 //!
-//! It refines the generic [`state_maschine`] transition with a SEC-specific method that reports
+//! It refines the generic [`state_maschine`] transition with an SEC-specific method that reports
 //! rich [`TransitionError`]s instead of the framework's static strings.
 
 use state_maschine::prelude::Transition as SMTransition;

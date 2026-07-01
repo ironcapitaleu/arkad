@@ -1,6 +1,6 @@
 //! # Headers
 //!
-//! Provides the [`Headers`] type wrapping the HTTP response headers of a SEC API response.
+//! Provides the [`Headers`] type wrapping the HTTP response headers of an SEC API response.
 //!
 //! Construction lifts the headers SEC interactions care about (`content-type`, `etag`, `date`,
 //! `accept-encoding`) into typed fields, keeping everything else in an overflow map, so callers

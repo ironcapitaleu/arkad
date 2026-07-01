@@ -19,10 +19,10 @@ use super::State as StateError;
 use crate::shared::cik::CikError;
 use crate::traits::error::FromDomainError;
 
-/// A CIK validation failure, tagged with the state it occurred in.
+/// Error representing a CIK validation failure, tagged with the state it occurred in.
 ///
-/// Wraps a domain-level [`CikError`] together with the failing state's name, so a low-level
-/// validation error carries state context as it propagates up the error hierarchy.
+/// Wraps a domain-level [`CikError`] together with additional information about the state in which
+/// the error occurred, making it suitable for use in state machine error handling.
 #[derive(Error, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[error("[InvalidCikFormat] Failure in State: '{state_name}', Caused by: {cik_error}")]
 pub struct InvalidCikFormat {
@@ -34,17 +34,18 @@ pub struct InvalidCikFormat {
 }
 
 impl InvalidCikFormat {
-    /// Creates a new error from the failing state's name and the underlying CIK error.
+    /// Creates a new state-level [`InvalidCikFormat`] error.
     #[must_use]
-    pub fn new(state_name: impl Into<String>, cik_error: CikError) -> Self {
+    pub fn new(state_name: impl Into<String>, domain_error: CikError) -> Self {
         Self {
             state_name: state_name.into(),
-            cik_error,
+            cik_error: domain_error,
         }
     }
 }
 
 impl From<InvalidCikFormat> for StateError {
+    /// Converts an [`InvalidCikFormat`] into a [`StateError::InvalidCikFormat`] variant.
     fn from(domain_error: InvalidCikFormat) -> Self {
         Self::InvalidCikFormat(domain_error)
     }
@@ -53,6 +54,7 @@ impl From<InvalidCikFormat> for StateError {
 impl FromDomainError<CikError> for InvalidCikFormat {
     type DomainErr = CikError;
 
+    /// Converts a domain-level [`CikError`] into a state-level [`InvalidCikFormat`] error.
     fn from_domain_error(state_name: impl Into<String>, err: Self::DomainErr) -> Self {
         Self::new(state_name.into(), err)
     }

@@ -1,6 +1,6 @@
 //! # Context Trait
 //!
-//! Provides the [`Context`] trait for a SEC state's ambient context, adding a retry budget to the
+//! Provides the [`Context`] trait for an SEC state's ambient context, adding a retry budget to the
 //! generic [`state_maschine`] context.
 //!
 //! Context is the environmental information surrounding a state (shared client, retry policy,
@@ -9,7 +9,7 @@
 
 use state_maschine::prelude::Context as SMContext;
 
-/// A SEC state's ambient context, exposing a retry budget.
+/// An SEC state's ambient context, exposing a retry budget.
 ///
 /// Refines the generic [`SMContext`] with the retry limit SEC states consult, and provides
 /// [`can_retry`](Context::can_retry) on top of it. Implemented by every state's context type.

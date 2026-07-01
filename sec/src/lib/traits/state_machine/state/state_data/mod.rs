@@ -1,6 +1,6 @@
 //! # State Data Trait
 //!
-//! Provides the [`StateData`] trait for a SEC state's input/output data, adding fallible,
+//! Provides the [`StateData`] trait for an SEC state's input/output data, adding fallible,
 //! domain-typed updates to the generic [`state_maschine`] state data.
 //!
 //! State data is the per-computation data a state reads and produces, as opposed to the ambient
@@ -11,7 +11,7 @@ use state_maschine::prelude::StateData as SMStateData;
 
 use crate::error::State as StateError;
 
-/// A SEC state's input/output data, supporting fallible updates.
+/// An SEC state's input/output data, supporting fallible updates.
 ///
 /// Refines the generic [`SMStateData`] so updates return a [`StateError`] instead of being
 /// infallible, keeping error handling uniform across the pipeline. Implemented by every state's

@@ -17,6 +17,9 @@ The document is organized as follows:
 - Write for a reader who understands Rust but is unfamiliar with this codebase.
 - Keep the first line short and self-contained as `rustdoc` uses it as a preview in module listings.
 - Use present tense, third-person: "Returns the validated CIK", not "This will return..." or "Return the CIK".
+- Choose `a`/`an` by the **spoken sound**, not the first letter. "SEC" is read "ess-ee-see", so write "an SEC response", not "a SEC response".
+- Prefer clarity over terseness. A few extra words that remove ambiguity beat a tighter phrase that reads as jargon (e.g. "concepts that are missing inside a response" over "concepts missing from a response").
+- When tightening documentation that is already good, **blend** rather than replace: keep the established, well-worded opening and enrich it, instead of rewriting it wholesale.
 
 ### Documentable Items
 
@@ -108,6 +111,12 @@ Module-level doc-tests make sense when **multiple items must be imported and com
 
 If the usage can be shown on a single function or constructor, prefer placing the doc-test there instead.
 
+A module-level example should **demonstrate construction and composition, not assert on results**.
+Show how the pieces are built and wired together; do not tack an `assert_eq!` on the end (that
+reads as a test, not documentation). Match the plain construction style of sibling module examples.
+Result-checking assertions belong in a constructor's or method's own `# Examples` doc-test, where
+they illustrate the return value.
+
 ### Template (Grouping Module)
 
 ```rust
@@ -175,11 +184,16 @@ If the usage can be shown on a single function or constructor, prefer placing th
 
 | Section | When to include |
 |---------|-----------------|
-| `# Arguments` | Non-obvious parameters |
+| `# Arguments` | Parameters that stay ambiguous even after a clear signature — first try to make the signature self-documenting (see below) |
 | `# Returns` | When the return value needs clarification beyond the type |
 | `# Errors` | Any function returning `Result` — list each error variant and when it occurs |
 | `# Panics` | Any code path that can panic — document the condition |
 | `# Examples` | Constructors and primary entry points (see doc-tests below) |
+
+Prefer making the **signature self-documenting** over adding `# Arguments` / `# Returns`. Rename a
+parameter so its name and type carry the meaning (e.g. `domain_error: CikError` instead of a bare
+`err`), and a one-line summary is then enough on its own. Reach for `# Arguments` / `# Returns` only
+when a signature genuinely cannot be made clear — then do add them.
 
 ### Doc-Tests
 
@@ -188,6 +202,23 @@ If the usage can be shown on a single function or constructor, prefer placing th
 - **Optional** on trivial accessors — prefer no example over a meaningless one.
 
 Place doc-tests on the function itself under `# Examples`, not on the containing struct or module.
+
+### Constructors
+
+- Keep the summary a **one-liner that names the constructed type** with an intra-doc link:
+  `Creates a new [`InvalidCikFormat`] error.` — not a generic `Creates a new error from ...`.
+- Include a descriptive qualifier when it adds meaning: `Creates a new state-level [`InvalidCikFormat`] error.`
+- With a self-documenting signature (see above), the one-liner needs no `# Arguments` / `# Returns`.
+
+### Conversions
+
+Conversion methods get a **one-liner naming both source and target** with intra-doc links, even
+though they are trait-impl methods. Do not leave them undocumented.
+
+- `From::from` — `Converts an [`InvalidCikFormat`] into a [`StateError::InvalidCikFormat`] variant.`
+  (or `Wraps the error in the [`StateError::IncompleteCompanyFacts`] variant.`)
+- `TryFrom::try_from` — same shape, plus an `# Errors` line for the failure case.
+- Domain conversion traits (e.g. `FromDomainError::from_domain_error`) — `Converts a domain-level [`CikError`] into a state-level [`InvalidCikFormat`] error.`
 
 ### Examples
 
@@ -238,6 +269,15 @@ pub fn new(cik: &(impl ToString + ?Sized)) -> Result<Self, CikError> { ... }
 1. **What-sentence** on the struct.
 2. **Why/How paragraph** when the what-sentence is insufficient.
 3. **Field docs** — Every public field gets `///` answering *"What does this hold?"* and optionally *"Where does it come from?"*.
+
+When a newtype exists specifically to impose a stable `Display` format, **document the concrete
+output shape** rather than narrating why the newtype exists:
+
+```rust
+/// Formats as `["Revenue", "Total Assets"]`: brackets around the list, quotes around items, comma-separated.
+```
+
+Showing the reader the exact shape is more useful than explaining the design decision behind it.
 
 ### Applicable `# Sections`
 
@@ -476,6 +516,14 @@ pub type StateMachineStream = Pin<Box<dyn Stream<Item = Result<StreamItem, Strea
 ## Error Documentation
 
 Error types follow additional conventions specific to this project.
+
+### Wording
+
+- Open an error struct's doc with **"Error representing …"** or **"Error indicating …"**:
+  `Error representing a CIK validation failure, tagged with the state it occurred in.`
+- Use **"error"** for the type itself — it is a meaningful term in Rust. Reserve "failure" for the
+  *event or action* the error represents ("Error representing a CIK validation failure"), not the type.
+- For a state-level wrapper error, the established two-sentence shape works well: (1) `Error representing <failure>, tagged with the state it occurred in.` then (2) `Wraps a domain-level [`CikError`] together with ... the state in which the error occurred, making it suitable for use in state machine error handling.`
 
 ### Enum-Level
 

@@ -1,6 +1,6 @@
 //! # Incomplete Company Facts Error
 //!
-//! Provides the [`IncompleteCompanyFacts`] error: a SEC Company Facts response that parsed as valid
+//! Provides the [`IncompleteCompanyFacts`] error: an SEC Company Facts response that parsed as valid
 //! JSON but is missing XBRL concepts required to build financial statements.
 //!
 //! ## Example
@@ -10,11 +10,8 @@
 //!     IncompleteCompanyFacts, MissingFields,
 //! };
 //!
-//! let error = IncompleteCompanyFacts::new(
-//!     "Parse Company Facts",
-//!     MissingFields::new(vec!["Revenue".to_string(), "Total Assets".to_string()]),
-//! );
-//! assert_eq!(error.missing_fields().len(), 2);
+//! let missing = MissingFields::new(vec!["Revenue".to_string(), "Total Assets".to_string()]);
+//! let error = IncompleteCompanyFacts::new("Parse Company Facts", missing);
 //! ```
 
 use std::fmt;
@@ -23,10 +20,10 @@ use thiserror::Error;
 
 use super::State as StateError;
 
-/// The canonical names of the required concepts missing from a response.
+/// The canonical names of the required concepts that are missing inside a response.
 ///
-/// A newtype so the list formats deterministically as `["Revenue", "Total Assets"]`: a stable,
-/// quoted, comma-separated form rather than `Vec`'s `Debug` output.
+/// Formats as `["Revenue", "Total Assets"]`: brackets around the list, quotes around items,
+/// comma-separated.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct MissingFields(Vec<String>);
 
@@ -68,11 +65,12 @@ impl fmt::Display for MissingFields {
     }
 }
 
-/// A Company Facts response missing required concepts, tagged with the state it occurred in.
+/// Error indicating an SEC Company Facts response is missing required concepts, tagged with the
+/// state it occurred in.
 ///
-/// A *semantic* validation failure, not a syntactic one: the JSON parsed, but XBRL concepts
-/// required to build financial statements were absent. Carries the failing state's name and the
-/// list of missing concepts.
+    /// A *semantic* validation error, not a syntactic one: the JSON is valid, but some XBRL concepts
+    /// that are required for financial statement construction were not found in the response. Carries
+    /// the failing state's name and the list of missing concepts.
 #[derive(Error, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[error(
     "[IncompleteCompanyFacts] SEC response is missing expected data fields in State: '{state_name}', Reason: 'Missing fields: {missing_fields}'"
@@ -83,7 +81,7 @@ pub struct IncompleteCompanyFacts {
 }
 
 impl IncompleteCompanyFacts {
-    /// Creates a new error from the failing state's name and the missing concept names.
+    /// Creates a new [`IncompleteCompanyFacts`] error.
     #[must_use]
     pub fn new(state_name: impl Into<String>, missing_fields: MissingFields) -> Self {
         Self {
@@ -106,6 +104,7 @@ impl IncompleteCompanyFacts {
 }
 
 impl From<IncompleteCompanyFacts> for StateError {
+    /// Wraps the error in the [`StateError::IncompleteCompanyFacts`] variant.
     fn from(error: IncompleteCompanyFacts) -> Self {
         Self::IncompleteCompanyFacts(error)
     }

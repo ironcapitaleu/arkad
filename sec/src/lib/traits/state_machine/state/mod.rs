@@ -25,7 +25,7 @@ pub mod state_data;
 pub use context_data::Context;
 pub use state_data::StateData;
 
-/// A SEC pipeline state, computing its output asynchronously with domain-typed errors.
+/// An SEC pipeline state, computing its output asynchronously with domain-typed errors.
 ///
 /// Refines the generic [`SMState`] with the two needs of SEC processing: async output computation
 /// (states perform network I/O) and failures expressed as [`StateError`]s rather than panics.

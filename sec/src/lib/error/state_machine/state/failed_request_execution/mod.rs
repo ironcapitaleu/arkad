@@ -9,7 +9,7 @@ use super::State as StateError;
 use crate::shared::http_client::implementations::sec_client::error::FailedSecRequest;
 use crate::traits::error::FromDomainError;
 
-/// A SEC request execution failure, tagged with the state it occurred in.
+/// An error representing an SEC request execution failure, enriched with the state it occurred in.
 ///
 /// Wraps a domain-level [`FailedSecRequest`] together with the failing state's name, so a
 /// transport-level failure carries state context as it propagates up the error hierarchy.
@@ -24,7 +24,7 @@ pub struct FailedRequestExecution {
 }
 
 impl FailedRequestExecution {
-    /// Creates a new error from the failing state's name and the underlying request error.
+    /// Creates a new [`FailedRequestExecution`] error.
     #[must_use]
     pub fn new(state_name: impl Into<String>, domain_error: FailedSecRequest) -> Self {
         Self {
