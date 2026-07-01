@@ -17,4 +17,5 @@ target/
 .DS_Store
 
 # Claude Code local tooling state
-.claude/
+.claude/*
+!.claude/skills/
