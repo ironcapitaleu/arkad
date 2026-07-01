@@ -1,7 +1,7 @@
 //! # Transition: `ValidateCikFormat` → `PrepareSecRequest`
 //!
-//! Implements `TryFrom<`[`ValidateCikFormat`]`>` for [`PrepareSecRequest`], the first extract-phase
-//! transition.
+//! Implements the [`TryFrom`] conversion producing a [`PrepareSecRequest`] from a
+//! [`ValidateCikFormat`], the first extract-phase transition.
 //!
 //! It takes the validated [`Cik`](crate::shared::cik::Cik) from the source state's output and the
 //! shared client from its context, and seeds the next state's input and context with them. The

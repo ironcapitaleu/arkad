@@ -1,7 +1,7 @@
 //! # Transition: `PrepareSecRequest` → `ExecuteSecRequest`
 //!
-//! Implements `TryFrom<`[`PrepareSecRequest`]`>` for [`ExecuteSecRequest`], the second extract-phase
-//! transition.
+//! Implements the [`TryFrom`] conversion producing an [`ExecuteSecRequest`] from a
+//! [`PrepareSecRequest`], the second extract-phase transition.
 //!
 //! It moves the prepared client and request from the source state's output into the next state's
 //! input, and carries the CIK across via context. The supporting `From` impls perform the

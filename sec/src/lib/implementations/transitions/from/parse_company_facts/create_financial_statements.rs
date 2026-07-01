@@ -1,7 +1,7 @@
 //! # Transition: `ParseCompanyFacts` → `CreateFinancialStatements`
 //!
-//! Implements `TryFrom<`[`ParseCompanyFacts`]`>` for [`CreateFinancialStatements`], the transform-phase
-//! transition.
+//! Implements the [`TryFrom`] conversion producing a [`CreateFinancialStatements`] from a
+//! [`ParseCompanyFacts`], the transform-phase transition.
 //!
 //! It moves the parsed [`CompanyData`](crate::shared::financial::company_data::CompanyData) from the
 //! source state's output into the next state's input, and carries the CIK across via context. The
