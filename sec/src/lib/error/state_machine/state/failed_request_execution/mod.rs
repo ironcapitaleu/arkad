@@ -1,20 +1,7 @@
-//! # Failed Request Execution State Error
+//! # Failed Request Execution Error
 //!
-//! This module defines the [`FailedRequestExecution`] error type, which represents SEC request execution errors
-//! at the state level within the SEC state machine framework. It wraps domain-level [`FailedSecRequest`] errors with
-//! additional state context, enabling precise error reporting and handling in state machine workflows.
-//!
-//! ## Purpose
-//! - Enriches domain SEC request execution errors with state information for robust error propagation.
-//! - Supports conversion from domain errors and integration into the [`State`](super::State) error enum.
-//!
-//! ## Types
-//! - [`FailedRequestExecution`]: Struct representing a SEC request execution error with state context.
-//!
-//! ## Usage
-//! Use [`FailedRequestExecution`] to wrap [`FailedSecRequest`] errors when a SEC request execution failure
-//! occurs within a state. This allows downstream error handlers to access both the state context and
-//! the underlying domain error.
+//! Provides the [`FailedRequestExecution`] error: a domain-level [`FailedSecRequest`] enriched with
+//! the name of the state in which the SEC request failed.
 
 use thiserror::Error;
 
@@ -22,10 +9,10 @@ use super::State as StateError;
 use crate::shared::http_client::implementations::sec_client::error::FailedSecRequest;
 use crate::traits::error::FromDomainError;
 
-/// Error representing a SEC request execution failure at the state level.
+/// An error representing an SEC request execution failure, enriched with the state it occurred in.
 ///
-/// This error type is used to wrap domain-level [`FailedSecRequest`] errors with additional information about
-/// the state in which the error occurred, making it suitable for use in state machine error handling.
+/// Wraps a domain-level [`FailedSecRequest`] together with the failing state's name, so a
+/// transport-level failure carries state context as it propagates up the error hierarchy.
 #[derive(Error, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[error("[FailedRequestExecution] Failure in State: '{state_name}', Caused by: {domain_error}")]
 pub struct FailedRequestExecution {
@@ -38,13 +25,6 @@ pub struct FailedRequestExecution {
 
 impl FailedRequestExecution {
     /// Creates a new [`FailedRequestExecution`] error.
-    ///
-    /// # Arguments
-    /// * `state_name` - The name of the state where the error occurred.
-    /// * `domain_error` - The underlying [`FailedSecRequest`] error.
-    ///
-    /// # Returns
-    /// A new [`FailedRequestExecution`] instance with the provided state and domain error context.
     #[must_use]
     pub fn new(state_name: impl Into<String>, domain_error: FailedSecRequest) -> Self {
         Self {

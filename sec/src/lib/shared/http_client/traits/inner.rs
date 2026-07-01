@@ -2,19 +2,34 @@ use std::fmt::Debug;
 
 use async_trait::async_trait;
 
-/// A trait defining the methods an inner http client is expected to implement. This is used to enforce a consistent interface for any (third party) HTTP client that might be used.
+/// The transport-level HTTP client: executes a raw request and returns a raw response.
+///
+/// Abstracts over any concrete (often third-party) HTTP client so the library can swap transports
+/// without touching the domain layer. Implemented for [`reqwest::Client`] and the test fakes;
+/// [`SecClient`](super::SecClient) builds on top of it.
+///
+/// # Associated Types
+///
+/// Each implementor binds these to its transport's concrete types, which is what lets the domain
+/// layer stay independent of any specific HTTP crate:
+///
+/// - `Request`: The type representing the transport's request.
+/// - `Response`: The type representing the transport's response, returned on success.
+/// - `Error`: The error type returned on failure.
 #[async_trait]
 pub trait InnerClient: Send + Sync + Debug + Clone {
-    /// This type represents the input request that the client is going to execute.
+    /// The type representing the transport's request.
     type Request;
-    /// This type represents the output response that the client is going to return in case of a successful request.
+    /// The type representing the transport's response, returned on success.
     type Response;
-    /// This type represents the error that the client is going to return in case of a failed request.
+    /// The error type returned on failure.
     type Error;
 
-    /// Executes a given HTTP request asynchronously.
-    /// Returns a [Self::Response] on success or a [Self::Error] on failure.
-    /// The type for the input [`Self::Request`],  and output [Self::Response] / [Self::Error] is predefined and fixed for each [`InnerClient`] implementation.
+    /// Executes an HTTP request, returning the transport's response.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Self::Error` if the request fails at the transport level.
     async fn execute_request(&self, request: Self::Request) -> Result<Self::Response, Self::Error>;
 }
 

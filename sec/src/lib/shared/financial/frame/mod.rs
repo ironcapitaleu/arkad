@@ -1,8 +1,6 @@
-//! # Frame Module
+//! # Frame
 //!
 //! Provides the [`Frame`] struct representing an SEC XBRL frame identifier.
-//! Frames like `CY2023`, `CY2023Q1`, or `CY2023Q3I` tag data points with their
-//! calendar year, optional quarter, and whether the measurement is an instant or duration.
 
 use std::fmt::{self, Display, Formatter};
 
@@ -10,23 +8,11 @@ use serde::Serialize;
 
 use crate::shared::financial::quarter::Quarter;
 
-/// An SEC XBRL frame identifier.
+/// An SEC XBRL frame identifier, encoding when a data point applies.
 ///
-/// Parsed from strings like `"CY2023"` (annual duration), `"CY2023Q1"` (quarterly duration),
-/// or `"CY2023Q3I"` (quarterly instant). The frame encodes the calendar year, optional quarter,
-/// and whether the observation is an instant (point-in-time) or duration measurement.
-///
-/// # Example
-/// ```
-/// use sec::shared::financial::frame::Frame;
-///
-/// let frame = Frame::parse("CY2023Q3I");
-/// assert!(frame.is_some());
-///
-/// let frame = frame.unwrap();
-/// assert_eq!(frame.year(), 2023);
-/// assert!(frame.instant());
-/// ```
+/// SEC frame strings like `"CY2023"` (annual duration), `"CY2023Q1"` (quarterly duration), or
+/// `"CY2023Q3I"` (quarterly instant) pack a calendar year, an optional quarter, and an
+/// instant/duration flag into one token; this struct holds those three parts in typed form.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub struct Frame {
     year: u16,
@@ -35,7 +21,7 @@ pub struct Frame {
 }
 
 impl Frame {
-    /// Creates a new [`Frame`] with the given components.
+    /// Creates a [`Frame`] from its year, optional quarter, and instant flag.
     #[must_use]
     pub const fn new(year: u16, quarter: Option<Quarter>, instant: bool) -> Self {
         Self {
@@ -63,13 +49,19 @@ impl Frame {
         self.instant
     }
 
-    /// Attempts to parse a [`Frame`] from an SEC frame string (e.g., `"CY2023Q3I"`).
+    /// Parses a [`Frame`] from an SEC frame string of the form `CY{year}[Q{1-4}][I]`.
     ///
-    /// Expected format: `CY{year}[Q{1-4}][I]`
+    /// Returns `None` if the input does not match that format.
     ///
-    /// # Errors
+    /// # Examples
     ///
-    /// Returns `None` if the input string does not match the expected frame format.
+    /// ```
+    /// use sec::shared::financial::frame::Frame;
+    ///
+    /// let frame = Frame::parse("CY2023Q3I").expect("A hardcoded valid frame should always parse");
+    /// assert_eq!(frame.year(), 2023);
+    /// assert!(frame.instant());
+    /// ```
     #[must_use]
     pub fn parse(s: &str) -> Option<Self> {
         let s = s.strip_prefix("CY")?;

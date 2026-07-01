@@ -1,21 +1,26 @@
+//! # URL Errors
+//!
+//! Provides the [`UrlError`] returned when a string fails URL validation, and the
+//! [`InvalidUrlReason`] describing why.
+
 use std::fmt;
 
 use thiserror::Error;
 
-/// Error details for an invalid URL.
+/// Reports that a string could not be validated as a URL.
 ///
-/// This struct provides both the reason for the failure and the offending URL string.
+/// Carries the [`InvalidUrlReason`] and the offending input for diagnostics.
 #[derive(Debug, Error, Clone, PartialEq, Eq, Hash)]
 #[error("[UrlError] Invalid URL, Reason: '{reason}', Input: '{invalid_url}'")]
 pub struct UrlError {
-    /// The reason why the URL is considered invalid.
+    /// Why the URL is considered invalid.
     pub reason: InvalidUrlReason,
-    /// The invalid URL string that was provided.
+    /// The original string that failed validation.
     pub invalid_url: String,
 }
 
 impl UrlError {
-    /// Creates a new `UrlError`.
+    /// Creates a new error from a reason and the offending input.
     pub fn new(reason: InvalidUrlReason, invalid_url: impl Into<String>) -> Self {
         Self {
             reason,
@@ -24,18 +29,15 @@ impl UrlError {
     }
 }
 
-/// Enum representing the reason for an invalid URL.
-///
-/// This enum is marked as non-exhaustive to allow for future extension.
+/// Why a string failed URL validation.
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum InvalidUrlReason {
-    /// The input string could not be parsed as a valid URL.
+    /// The input could not be parsed as a URL.
     FailedToParse,
 }
 
 impl fmt::Display for InvalidUrlReason {
-    /// Formats the reason for display.
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Self::FailedToParse => write!(f, "Input could not be parsed as a valid URL"),

@@ -1,23 +1,16 @@
+//! # Status Code
+//!
+//! The [`StatusCode`] of an SEC API response, classifying the HTTP codes relevant to SEC interactions.
+
 use std::fmt::{self, Display, Formatter};
 
 use serde::Serialize;
 
-/// HTTP status code classification for SEC API responses.
+/// An HTTP status code from an SEC API response.
 ///
-/// `StatusCode` represents specific HTTP status codes that are relevant to
-/// SEC API interactions. Known codes are modeled as explicit variants, while
-/// any other valid HTTP status code is captured by the `Other` variant.
-///
-/// # Examples
-///
-/// ```rust
-/// use sec::shared::status_code::StatusCode;
-///
-/// let status = StatusCode::from_u16(200);
-/// assert_eq!(status, StatusCode::Ok);
-/// assert_eq!(status.as_u16(), 200);
-/// assert_eq!(status.to_string(), "200");
-/// ```
+/// Models the codes relevant to SEC interactions as explicit variants so match arms can handle
+/// cases like rate-limiting (429) or not-found (404) without raw integer comparisons. Any other
+/// valid code is captured by `Other`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 #[non_exhaustive]
 pub enum StatusCode {
@@ -53,7 +46,17 @@ pub enum StatusCode {
 }
 
 impl StatusCode {
-    /// Creates a `StatusCode` from a raw `u16` value.
+    /// Classifies a raw `u16` into a `StatusCode`, mapping unmodeled codes to `Other`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use sec::shared::status_code::StatusCode;
+    ///
+    /// let status = StatusCode::from_u16(200);
+    /// assert_eq!(status, StatusCode::Ok);
+    /// assert_eq!(status.as_u16(), 200);
+    /// ```
     #[must_use]
     pub const fn from_u16(code: u16) -> Self {
         match code {

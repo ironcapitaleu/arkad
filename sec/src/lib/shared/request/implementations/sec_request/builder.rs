@@ -1,80 +1,47 @@
-//! Typestate builder for constructing [`SecRequest`] instances with compile-time safety.
+//! # SEC Request Builder
 //!
-//! This module provides [`SecRequestBuilder`] as the entry point and variant-specific
-//! builders (e.g., [`AllCompanyFactsBuilder`]) that enable type-safe construction of
-//! [`SecRequest`]. Each request type variant gets its own builder struct carrying only
-//! the fields that variant requires.
+//! Provides the typestate [`SecRequestBuilder`] for constructing a [`SecRequest`] with
+//! compile-time guarantees.
 //!
-//! # Type Safety
+//! Selecting a request kind transitions into a variant-specific builder (e.g.
+//! [`AllCompanyFactsBuilder`]) that carries only that variant's fields, and `build()` only exists
+//! once every required field is set. This encodes the request's required inputs in the type
+//! system, so a missing or irrelevant field is a compile error rather than a runtime check.
 //!
-//! The builder prevents invalid states through compile-time type checking:
-//! - Cannot call `build()` without selecting a request type and providing all required inputs
-//! - Cannot set fields that are not relevant to the selected request type
-//! - Cannot set the same field twice
-//!
-//! # Examples
+//! ## Usage
 //!
 //! ```
 //! use sec::shared::cik::Cik;
 //! use sec::shared::request::implementations::sec_request::SecRequest;
 //!
-//! let cik = Cik::new("1067983").expect("Hardcoded CIK should be valid");
-//! let request = SecRequest::builder()
-//!     .all_company_facts()
-//!     .cik(cik)
-//!     .build();
+//! let cik = Cik::new("1067983").expect("A hardcoded valid CIK should always parse");
+//! let request = SecRequest::builder().all_company_facts().cik(cik).build();
 //! ```
 
 use crate::shared::cik::Cik;
 use crate::shared::request::implementations::sec_request::{SecRequest, SecRequestType};
 
-/// Marker type indicating no CIK has been provided yet.
+/// Typestate marker: no CIK has been set yet.
 ///
-/// This marker prevents [`AllCompanyFactsBuilder`] from calling
-/// [`build()`](AllCompanyFactsBuilder::build) until
-/// [`cik()`](AllCompanyFactsBuilder::cik) is called.
+/// While the builder is in this state, [`build`](AllCompanyFactsBuilder::build) is unavailable.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NoCik;
 
-/// Entry-point builder for constructing a [`SecRequest`].
+/// Entry point for building a [`SecRequest`].
 ///
-/// This builder serves as a dispatcher — call a request type selector method
-/// (e.g., [`all_company_facts()`](Self::all_company_facts)) to transition into
-/// a variant-specific builder that carries only the fields that variant requires.
-///
-/// # Examples
-///
-/// ```
-/// use sec::shared::cik::Cik;
-/// use sec::shared::request::implementations::sec_request::SecRequest;
-///
-/// let cik = Cik::new("1067983").expect("Hardcoded CIK should be valid");
-/// let request = SecRequest::builder()
-///     .all_company_facts()
-///     .cik(cik)
-///     .build();
-/// ```
+/// Dispatches to a variant-specific builder via a request-kind selector such as
+/// [`all_company_facts`](Self::all_company_facts).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SecRequestBuilder;
 
 impl SecRequestBuilder {
-    /// Creates a new [`SecRequestBuilder`].
-    ///
-    /// # Returns
-    ///
-    /// A new [`SecRequestBuilder`] instance ready for request type selection.
+    /// Creates a new builder ready for request-kind selection.
     #[must_use]
     pub const fn new() -> Self {
         Self
     }
 
-    /// Selects the [`FetchAllCompanyFacts`](SecRequestType::FetchAllCompanyFacts) request type.
-    ///
-    /// Consumes the builder and returns an [`AllCompanyFactsBuilder`] awaiting a CIK.
-    ///
-    /// # Returns
-    ///
-    /// A new [`AllCompanyFactsBuilder`] instance with no fields set.
+    /// Selects the [`FetchAllCompanyFacts`](SecRequestType::FetchAllCompanyFacts) request kind.
     #[must_use]
     pub const fn all_company_facts(self) -> AllCompanyFactsBuilder<NoCik> {
         AllCompanyFactsBuilder { cik: NoCik }
@@ -87,45 +54,17 @@ impl Default for SecRequestBuilder {
     }
 }
 
-/// Typestate builder for the [`FetchAllCompanyFacts`](SecRequestType::FetchAllCompanyFacts)
-/// request variant.
+/// Typestate builder for the [`FetchAllCompanyFacts`](SecRequestType::FetchAllCompanyFacts) request.
 ///
-/// This builder is returned by [`SecRequestBuilder::all_company_facts()`] and uses a
-/// consuming typestate pattern to ensure the required CIK is provided before building.
-///
-/// # Type Parameters
-///
-/// * `C` — The CIK field state. Starts as [`NoCik`] and transitions to [`Cik`] when
-///   [`cik()`](Self::cik) is called.
-///
-/// # Examples
-///
-/// ```
-/// use sec::shared::cik::Cik;
-/// use sec::shared::request::implementations::sec_request::SecRequest;
-///
-/// let cik = Cik::new("1067983").expect("Hardcoded CIK should be valid");
-/// let request = SecRequest::builder()
-///     .all_company_facts()
-///     .cik(cik)
-///     .build();
-/// ```
+/// The `C` type parameter tracks the CIK field's state: it starts as [`NoCik`] and becomes [`Cik`]
+/// once [`cik`](Self::cik) is called, which is what gates [`build`](Self::build).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AllCompanyFactsBuilder<C> {
     cik: C,
 }
 
 impl AllCompanyFactsBuilder<NoCik> {
-    /// Sets the CIK for the request.
-    ///
-    /// # Arguments
-    ///
-    /// * `cik` — The validated [`Cik`] to use for the request.
-    ///
-    /// # Returns
-    ///
-    /// A new [`AllCompanyFactsBuilder`] instance with the CIK field set, enabling
-    /// [`build()`](AllCompanyFactsBuilder::build).
+    /// Sets the CIK, unlocking [`build`](AllCompanyFactsBuilder::build).
     #[must_use]
     pub const fn cik(self, cik: Cik) -> AllCompanyFactsBuilder<Cik> {
         AllCompanyFactsBuilder { cik }
@@ -133,14 +72,7 @@ impl AllCompanyFactsBuilder<NoCik> {
 }
 
 impl AllCompanyFactsBuilder<Cik> {
-    /// Builds the [`SecRequest`] from the fully configured builder state.
-    ///
-    /// This method is only available when the CIK has been provided via
-    /// [`cik()`](AllCompanyFactsBuilder::cik).
-    ///
-    /// # Returns
-    ///
-    /// A fully configured [`SecRequest`] instance ready for execution.
+    /// Builds the [`SecRequest`]; available only once the CIK is set.
     ///
     /// # Examples
     ///
@@ -148,11 +80,8 @@ impl AllCompanyFactsBuilder<Cik> {
     /// use sec::shared::cik::Cik;
     /// use sec::shared::request::implementations::sec_request::SecRequest;
     ///
-    /// let cik = Cik::new("1067983").expect("Hardcoded CIK should be valid");
-    /// let request = SecRequest::builder()
-    ///     .all_company_facts()
-    ///     .cik(cik)
-    ///     .build();
+    /// let cik = Cik::new("1067983").expect("A hardcoded valid CIK should always parse");
+    /// let request = SecRequest::builder().all_company_facts().cik(cik).build();
     /// ```
     #[must_use]
     pub fn build(self) -> SecRequest {

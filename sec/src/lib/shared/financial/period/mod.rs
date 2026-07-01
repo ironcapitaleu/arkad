@@ -1,8 +1,6 @@
-//! # Period Module
+//! # Period
 //!
-//! Provides the [`Period`] enum representing the time window for a financial observation.
-//! SEC XBRL data distinguishes between instant measurements (Balance Sheet items at a point in time)
-//! and duration measurements (Income Statement/Cash Flow items over a range).
+//! Provides the [`Period`] enum representing the time window of a financial observation.
 
 use std::fmt::{self, Display, Formatter};
 
@@ -10,27 +8,14 @@ use serde::Serialize;
 
 use chrono::NaiveDate;
 
-/// Time period for a financial observation.
+/// The time window of a financial observation.
 ///
-/// Distinguishes between point-in-time snapshots and measurements over a date range.
+/// SEC XBRL data measures values either at a single point or over a range, and the two carry
+/// different fields — so they are modeled as distinct variants rather than a date pair with
+/// optional start:
 ///
-/// - **Instant**: A snapshot at a specific date (e.g., "Total Assets on Sep 30, 2023").
-/// - **Duration**: A measurement over a period (e.g., "Revenue from Oct 2022 through Sep 2023").
-///
-/// # Example
-/// ```
-/// use chrono::NaiveDate;
-/// use sec::shared::financial::period::Period;
-///
-/// let instant = Period::Instant {
-///     date: NaiveDate::from_ymd_opt(2023, 9, 30).unwrap(),
-/// };
-///
-/// let duration = Period::Duration {
-///     start: NaiveDate::from_ymd_opt(2022, 10, 1).unwrap(),
-///     end: NaiveDate::from_ymd_opt(2023, 9, 30).unwrap(),
-/// };
-/// ```
+/// - `Instant`: a snapshot on one date (Balance Sheet items, e.g. total assets on Sep 30, 2023).
+/// - `Duration`: a measurement spanning a range (Income Statement / Cash Flow items).
 #[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub enum Period {

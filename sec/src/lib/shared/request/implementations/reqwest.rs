@@ -1,22 +1,26 @@
+//! # Reqwest Inner Request
+//!
+//! Implements [`InnerRequest`] for [`reqwest::Request`], binding the transport's method and URL
+//! types and delegating to `reqwest`.
+
 use reqwest::{Method, Request, Url};
 
 use super::super::traits::InnerRequest;
 
 impl InnerRequest for Request {
+    /// The [`reqwest::Method`] type.
     type Method = Method;
+    /// The [`reqwest::Url`] type.
     type Url = Url;
 
-    /// Creates a new Request that can be executed by the reqwest library client.
     fn new(method: Method, url: Url) -> Self {
         Self::new(method, url)
     }
 
-    /// Returns the HTTP method of the request.
     fn method(&self) -> &Self::Method {
         self.method()
     }
 
-    /// Returns the URL endpoint of the HTTP request.
     fn url(&self) -> &Self::Url {
         self.url()
     }

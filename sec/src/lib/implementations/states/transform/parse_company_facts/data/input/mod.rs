@@ -1,28 +1,16 @@
-//! # `ParseCompanyFactsInput` Module
+//! # Parse Company Facts Input
 //!
-//! This module defines the input data structure and updater patterns for the `ParseCompanyFacts` state
-//! within the SEC transformation state machine. It provides types and builders for representing and updating
-//! the raw JSON response from the SEC Company Facts API that will be parsed into structured financial data.
+//! Provides the [`ParseCompanyFactsInput`] fed into the
+//! [`ParseCompanyFacts`](crate::implementations::states::transform::parse_company_facts::ParseCompanyFacts)
+//! state, along with its updater and builder.
 //!
-//! ## Types
-//! - [`ParseCompanyFactsInput`]: Holds the raw SEC Company Facts JSON response to be parsed.
-//! - [`ParseCompanyFactsInputUpdater`]: Updater type for modifying the input data in a controlled manner.
-//! - [`ParseCompanyFactsInputUpdaterBuilder`]: Builder for constructing updater instances with optional fields.
-//!
-//! ## Integration
-//! - Implements [`StateData`](state_maschine::state_machine::state::StateData) for compatibility with the state machine framework.
-//! - Used by [`ParseCompanyFacts`](crate::implementations::states::transform::parse_company_facts) to receive and update JSON input.
-//!
-//! ## Usage
-//! This module is intended for use in the input phase of company facts parsing. It supports builder-based
-//! updates and integrates with the state machine's updater and state data traits for robust, testable workflows.
+//! It carries the raw Company Facts JSON response, plus a precomputed
+//! [`BodyDigest`] so the (un-`Hash`able) JSON can still participate in equality and ordering.
+//! The parsed result lives in [`output`](super::output).
 //!
 //! ## See Also
-//! - [`output`](super::output): Output data structure for parsed company data.
-//! - [`state_maschine::prelude::StateData`]: Trait for state data integration.
 //!
-//! ## Examples
-//! See the unit tests in this module for usage patterns and updater logic.
+//! - [`output`](super::output): The structured company data produced from this input.
 
 use std::fmt;
 
@@ -32,12 +20,11 @@ use crate::error::State as StateError;
 use crate::shared::response::implementations::sec_response::body_digest::BodyDigest;
 use crate::traits::state_machine::state::StateData;
 
-/// Input data for parsing SEC Company Facts JSON.
+/// Input data for the [`ParseCompanyFacts`](super::super::ParseCompanyFacts) state.
 ///
-/// This struct holds the raw JSON response from the SEC Company Facts API
-/// that will be parsed by the `ParseCompanyFacts` state. It is designed
-/// to be used as part of the SEC transformation workflow, and supports
-/// builder-based updates and integration with the state machine framework.
+/// Holds the raw Company Facts JSON to be parsed, alongside a precomputed [`BodyDigest`]
+/// that backs the equality, ordering, and hashing impls (since [`serde_json::Value`]
+/// implements none of `Hash`/`Ord`).
 #[derive(Debug, Clone)]
 pub struct ParseCompanyFactsInput {
     /// The raw SEC Company Facts JSON response to be parsed.
@@ -47,7 +34,7 @@ pub struct ParseCompanyFactsInput {
 }
 
 impl ParseCompanyFactsInput {
-    /// Creates a new instance of the input data for the company facts parsing.
+    /// Creates input data from a raw JSON response and its precomputed digest.
     ///
     /// # Examples
     ///
@@ -170,10 +157,9 @@ impl fmt::Display for ParseCompanyFactsInput {
 }
 
 #[derive(Debug, Clone)]
-/// Updater for [`ParseCompanyFactsInput`].
+/// Partial update for a [`ParseCompanyFactsInput`].
 ///
-/// This struct is used to specify updates to the input data in a controlled, partial manner.
-/// Fields set to `None` will not be updated.
+/// When `response` is `None` the input is left unchanged.
 pub struct ParseCompanyFactsInputUpdater {
     /// Optional new value for the JSON response.
     pub response: Option<serde_json::Value>,
@@ -187,10 +173,7 @@ impl ParseCompanyFactsInputUpdater {
     }
 }
 
-/// Builder for [`ParseCompanyFactsInputUpdater`].
-///
-/// This builder allows for ergonomic and explicit construction of updater instances,
-/// supporting method chaining and optional fields. Use `.build()` to produce the updater.
+/// Fluent builder for a [`ParseCompanyFactsInputUpdater`].
 pub struct ParseCompanyFactsInputUpdaterBuilder {
     response: Option<serde_json::Value>,
 }

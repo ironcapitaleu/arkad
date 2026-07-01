@@ -1,35 +1,29 @@
-//! # Error Handling Traits
+//! # Error Traits
 //!
-//! This module defines traits for error handling and domain error conversions within the SEC state machine library.
-//! These traits enable consistent and extensible error propagation from domain-specific errors to state-level and state machine-level errors.
+//! Provides the [`FromDomainError`] trait for lifting a domain-level error into a state-level one.
 //!
-//! ## Traits
-//! - [`FromDomainError`]: Trait for converting domain-level errors into state-level errors, enriching them with state context.
-//!
-//! ## Usage
-//! Implement these traits for your custom error types to enable seamless error conversion and propagation in state and state machine implementations.
-//! This ensures that errors originating from domain logic (such as CIK validation) can be wrapped with additional context and handled uniformly by the state machine framework.
-//!
-//! ## See Also
-//! - [`crate::error`]: Strongly-typed error definitions for states, transitions, and state machines.
-//! - [`crate::traits::state_machine`]: Core traits for state machine extensibility and integration.
+//! Domain errors (such as CIK validation failures) know nothing about which state they occurred
+//! in. This trait is the single, uniform way to wrap such an error with that state context, so
+//! every state-level error is built consistently and converts cleanly into
+//! [`State`](crate::error::State).
 
 use crate::error::State as StateError;
 use std::error::Error;
 
-/// Trait for constructing a state-level error from a domain-level error,
-/// enriching it with state context such as the state name.
+/// Builds a state-level error from a domain error, tagging it with the failing state's name.
 ///
-/// # Type Parameters
-/// - `DomainErr`: The domain-level error type to wrap.
+/// Implemented by the state-level error wrappers (e.g.
+/// [`InvalidCikFormat`](crate::error::state_machine::state::InvalidCikFormat)). The
+/// [`Into<StateError>`] bound guarantees the result slots into the [`State`](crate::error::State)
+/// hierarchy.
+///
+/// # Associated Types
+///
+/// - `DomainErr`: The domain-level error type being wrapped.
 pub trait FromDomainError<DomainErr>: Error + Into<StateError> + Sized {
-    /// The domain-level error type to wrap.
+    /// The domain-level error type being wrapped.
     type DomainErr: Error + 'static;
 
-    /// Constructs a state-level error from a domain error and state-level context.
-    ///
-    /// # Arguments
-    /// * `state_name` - The name of the state where the error occurred.
-    /// * `err` - The domain-level error to wrap.
+    /// Wraps a domain error with the name of the state in which it occurred.
     fn from_domain_error(state_name: impl Into<String>, err: Self::DomainErr) -> Self;
 }

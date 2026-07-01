@@ -1,3 +1,8 @@
+//! # Reqwest Inner Response
+//!
+//! Implements [`InnerResponse`] for [`reqwest::Response`], binding the transport's part types and
+//! deriving a [`ContentType`] from the `Content-Type` header.
+
 use async_trait::async_trait;
 use reqwest::header::HeaderMap;
 use reqwest::{Response, StatusCode, Url};
@@ -8,31 +13,32 @@ use super::super::traits::InnerResponse;
 
 #[async_trait]
 impl InnerResponse for Response {
+    /// The [`reqwest::Url`] type.
     type Url = Url;
+    /// The [`reqwest::header::HeaderMap`] type.
     type Headers = HeaderMap;
+    /// The body as a UTF-8 [`String`].
     type Body = String;
+    /// The [`reqwest::StatusCode`] type.
     type StatusCode = StatusCode;
+    /// The crate's own [`ContentType`], parsed from the `Content-Type` header.
     type ContentType = ContentType;
+    /// The [`reqwest::Error`] type.
     type Error = reqwest::Error;
 
-    /// Returns the URL endpoint of the HTTP request.
     fn url(&self) -> &Self::Url {
         self.url()
     }
 
-    /// Returns the headers of the HTTP response.
     fn headers(&self) -> &Self::Headers {
         self.headers()
     }
 
-    /// Returns the HTTP status code of the response.
     fn status_code(&self) -> Self::StatusCode {
         self.status()
     }
 
-    /// Returns the content type of the HTTP response.
-    ///
-    /// Returns an empty string if the `Content-Type` header is absent or contains invalid UTF-8.
+    /// Returns [`ContentType::Unknown`] if the `Content-Type` header is absent or not valid UTF-8.
     fn content_type(&self) -> Self::ContentType {
         self.headers()
             .get("content-type")
@@ -40,7 +46,6 @@ impl InnerResponse for Response {
             .map_or_else(|| ContentType::Unknown, ContentType::from_content_type)
     }
 
-    /// Consumes the response and returns the body as a UTF-8 string.
     async fn body(self) -> Result<Self::Body, Self::Error> {
         self.text().await
     }

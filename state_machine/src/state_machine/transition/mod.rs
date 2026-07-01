@@ -1,49 +1,32 @@
+//! # Transition Trait
+//!
+//! Provides the [`Transition`] trait for moving a state machine from one state to another.
+
 use crate::state_machine::{StateMachine, state::State};
 
-/// A trait that defines the ability of a state machine to transition from one state to another.
+/// A transition of a [`StateMachine`] from state `T` to state `U`.
 ///
-/// The `Transition` trait extends the `StateMachine` trait, allowing a state machine to move from
-/// one state of type `T` to a new state of type `U`. This trait is generic over the states `T` and `U`,
-/// which must both implement the `State` trait. The trait also requires the current state machine to
-/// implement `StateMachine<T>`.
+/// Implemented on a machine that is in state `T` to produce a machine in state `U`, encoding which
+/// moves are valid in the type system. Consumes the machine so the old state cannot be reused.
 ///
 /// # Associated Types
 ///
-/// - `NewStateMachine`: Represents the type of the state machine after the transition has been performed.
-///   This type must implement the `StateMachine<U>` trait, ensuring the state machine is valid in the new state.
+/// - `NewStateMachine`: The machine after the move. Must implement [`StateMachine<U>`](StateMachine).
 ///
-/// # Errors
+/// # Type Parameters
 ///
-/// Implementors of this trait must handle potential errors that could occur during state transitions.
-/// These errors can occur due to several reasons:
-/// - Attempting to transition to a state that is not defined in the state machine.
-/// - Incompatibilities between the data formats of the current state and the new state.
-/// - Logical errors in the state transition logic, such as invalid conditions for transitioning.
-///
+/// - `T`: The source state. Must implement [`State`].
+/// - `U`: The target state. Must implement [`State`].
 pub trait Transition<T: State, U: State>: StateMachine<T> {
-    /// The type of the state machine after transitioning to the new state.
-    ///
-    /// This type represents the state machine in its new state. It must implement the `StateMachine<U>` trait,
-    /// which ensures that it correctly represents a state machine capable of handling the state `U`.
+    /// The machine after transitioning to state `U`.
     type NewStateMachine: StateMachine<U>;
-    //type Error;
 
-    /// Transitions the state machine to the next state.
-    ///
-    /// This method performs the transition from the current state `T` to the new state `U`, updating
-    /// the state machine accordingly. The method returns a result that contains the updated state machine
-    /// in the new state or an error message if the transition fails.
-    ///
-    /// # Returns
-    ///
-    /// - `Ok(NewStateMachine)`: The updated state machine in the new state.
-    /// - `Err(&'static str)`: An error message indicating the reason for the failed transition.
+    /// Consumes the machine and transitions it from state `T` to state `U`.
     ///
     /// # Errors
     ///
-    /// Errors can occur for various reasons, including but not limited to:
-    /// - The transition is not defined between the current state and the target state.
-    /// - Incompatible data or invalid conditions prevent a successful transition.
+    /// Returns an error message if the move fails, e.g. the transition is undefined or the source
+    /// state's data cannot produce the target state.
     fn transition_to_next_state(self) -> Result<Self::NewStateMachine, &'static str>;
 }
 

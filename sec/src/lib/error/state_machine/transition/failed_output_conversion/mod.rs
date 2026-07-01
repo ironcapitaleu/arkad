@@ -1,17 +1,15 @@
-//! # Failed Output Conversion Transition Error
+//! # Failed Output Conversion Error
 //!
-//! This module defines the [`FailedOutputConversion`] error type, which represents a failure
-//! to convert the output data of a source state into the input data of a destination state
-//! during a state transition.
+//! Provides the [`FailedOutputConversion`] error: a source state's output could not be converted
+//! into the destination state's input during a transition.
 
 use thiserror::Error;
 
 use super::Transition as TransitionError;
 
-/// Error representing a failed output-to-input conversion during a state transition.
+/// A source state's output could not be converted into the destination state's input.
 ///
-/// This error type captures which states were involved when the output data
-/// could not be transformed into the input data required by the destination state.
+/// Records both states involved, so the failed conversion pinpoints which transition broke.
 #[derive(Error, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[error(
     "[FailedOutputConversion] Failure during transition from '{source_state_name}' to '{target_state_name}', Reason: Failed to convert output data to input data"
@@ -24,7 +22,7 @@ pub struct FailedOutputConversion {
 }
 
 impl FailedOutputConversion {
-    /// Creates a new [`FailedOutputConversion`] error.
+    /// Creates a new error from the source and target state names.
     #[must_use]
     pub fn new(source_state_name: impl Into<String>, target_state_name: impl Into<String>) -> Self {
         Self {

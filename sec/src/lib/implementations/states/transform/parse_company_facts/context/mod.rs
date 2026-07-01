@@ -1,39 +1,33 @@
-//! # Parse Company Facts Context Module
+//! # Parse Company Facts Context
 //!
-//! This module defines the context structures and updaters for the [`ParseCompanyFacts`](../mod.rs) state
-//! in the SEC filings transformation workflow.
+//! Provides the [`ParseCompanyFactsContext`] carried alongside the
+//! [`ParseCompanyFacts`](crate::implementations::states::transform::parse_company_facts::ParseCompanyFacts)
+//! state, together with its updater and builder.
 //!
-//! The context provides stateful information required during company facts parsing, such as the
-//! validated CIK and retry configuration. It is designed to be used with the [`Context`] trait,
-//! enabling ergonomic context management and updates within state machines.
-//!
-//! ## Components
-//! - [`ParseCompanyFactsContext`]: Holds the current context for company facts parsing.
-//! - [`ParseCompanyFactsContextUpdater`]: Updater type for modifying context fields in a controlled way.
-//! - [`ParseCompanyFactsContextUpdaterBuilder`]: Builder for constructing context updaters with a fluent API.
+//! The context tracks the [`Cik`] being processed and the retry budget, both of which persist
+//! across updates and transitions.
 //!
 //! ## Usage
-//! The context is used by the [`ParseCompanyFacts`](../mod.rs) state to track the CIK being processed
-//! and manage retry logic. It supports updates via the builder pattern.
 //!
-//! ## Example
 //! ```rust
 //! use sec::implementations::states::transform::parse_company_facts::context::*;
-//! use sec::shared::cik::Cik;
 //! use sec::prelude::*;
+//! use sec::shared::cik::Cik;
 //!
-//! let cik = Cik::new("0001067983").expect("Hardcoded CIK should always be valid");
+//! let cik = Cik::new("0001067983").expect("A hardcoded valid CIK should always parse");
 //! let mut context = ParseCompanyFactsContext::new(cik);
 //! let update = ParseCompanyFactsContextUpdater::builder()
 //!     .max_retries(3)
 //!     .build();
+//!
 //! context.update_context(update);
 //! assert_eq!(context.max_retries(), 3);
 //! ```
 //!
 //! ## See Also
-//! - [`crate::traits::state_machine::state::Context`]: Trait for context management in states.
-//! - [`crate::implementations::states::transform::parse_company_facts`]: Parent module for the parse company facts state.
+//!
+//! - [`crate::traits::state_machine::state::Context`]: Trait that defines context updates and the retry budget.
+//! - [`crate::implementations::states::transform::parse_company_facts`]: Parent module for the parsing state and its data types.
 
 use std::fmt;
 
@@ -44,24 +38,19 @@ use crate::shared::cik::Cik;
 use crate::traits::state_machine::state::Context;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
-/// State context for the Parse Company Facts state.
+/// Ambient context for the [`ParseCompanyFacts`](super::ParseCompanyFacts) state.
 ///
-/// Contains the validated CIK of the company being parsed and the maximum retry count.
+/// Tracks the [`Cik`] of the company being parsed and the retry budget, both of which persist
+/// across updates and transitions.
 pub struct ParseCompanyFactsContext {
     /// The validated CIK for the company whose facts are being parsed.
     pub cik: Cik,
-    /// The maximum number of retries allowed for parsing.
+    /// Maximum number of times the state may be retried on failure.
     pub max_retries: u32,
 }
 
 impl ParseCompanyFactsContext {
-    /// Creates a new instance of the state context for the Parse Company Facts state.
-    ///
-    /// # Arguments
-    /// * `cik` - A validated [`Cik`] for the company being parsed.
-    ///
-    /// # Returns
-    /// A new `ParseCompanyFactsContext` with the provided CIK and default retry count of 0.
+    /// Creates a new context from a CIK, with the retry budget at zero.
     #[must_use]
     pub const fn new(cik: Cik) -> Self {
         Self {
@@ -112,13 +101,13 @@ impl fmt::Display for ParseCompanyFactsContext {
 }
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
-/// Updater for the state context.
+/// Partial update for a [`ParseCompanyFactsContext`].
 ///
-/// Using this struct allows to update fields of `ParseCompanyFactsContext` in a controlled way.
+/// Fields set to `None` are left unchanged when the updater is applied.
 pub struct ParseCompanyFactsContextUpdater {
-    /// Optional new CIK value.
+    /// Optional new value for the CIK.
     pub cik: Option<Cik>,
-    /// Optional new max retries value.
+    /// Optional new value for the retry budget.
     pub max_retries: Option<u32>,
 }
 
@@ -130,9 +119,7 @@ impl ParseCompanyFactsContextUpdater {
     }
 }
 
-/// Builder for `ParseCompanyFactsContextUpdater`.
-///
-/// Use this builder to fluently construct an updater for the context.
+/// Fluent builder for a [`ParseCompanyFactsContextUpdater`].
 pub struct ParseCompanyFactsContextUpdaterBuilder {
     cik: Option<Cik>,
     max_retries: Option<u32>,

@@ -1,53 +1,53 @@
 //! # Validate CIK Format State
 //!
-//! This module provides the [`ValidateCikFormat`] state and related types for validating and normalizing raw CIK (Central Index Key) strings as part of the SEC filings extraction workflow.
+//! Provides the [`ValidateCikFormat`] state, the first step of the extract phase, which turns a
+//! plain input string that is *assumed* to denote a CIK (Central Index Key) into a validated
+//! [`Cik`].
 //!
-//! ## Overview
-//! The [`ValidateCikFormat`] state is responsible for syntactic validation and normalization of CIKs extracted from SEC filings. It ensures that the CIK is a 10-digit, zero-padded string containing only numeric characters. This state does **not** check for the existence of the CIK in the SEC database; it only validates the format.
+//! The state's input is just a free-floating [`String`] and nothing about its type guarantees it
+//! is a real CIK. The SEC requires every CIK to be exactly ten zero-padded digits, so this state
+//! validates and normalizes that string and, on success, parses it into the [`Cik`] newtype.
+//! From there on the type itself carries the guarantee, letting downstream states consume a
+//! well-formed CIK without re-checking. Validation is *syntactic* only: it does not verify that
+//! the CIK exists in the SEC's records.
 //!
-//! ## Components
-//! - [`context`]: Defines the context and updater types for the validation process, allowing stateful tracking of CIK-related context.
-//! - [`data`]: Contains input and output data structures for the validation state, including updaters and builders for ergonomic data manipulation.
-//! - [`ValidateCikFormatContext`]: Context data type for the state.
-//! - [`ValidateCikFormatInput`]: Input data type holding the raw CIK string.
-//! - [`ValidateCikFormatOutput`]: Output data type containing the validated and normalized CIK.
+//! ## Modules
+//!
+//! - [`constants`]: State metadata such as [`STATE_NAME`].
+//! - [`context`]: The [`ValidateCikFormatContext`] carried alongside the state.
+//! - [`data`]: The [`ValidateCikFormatInput`] and [`ValidateCikFormatOutput`] data types.
 //!
 //! ## Usage
-//! This state is typically used as the first step in the extract phase of the SEC state machine ETL pipeline, prior to any transformation or loading steps. It is designed to be composed with other states for robust and testable SEC filings processing workflows.
 //!
-//! ## Example
 //! ```rust
-//! use tokio;
-//!
 //! use sec::implementations::states::extract::validate_cik_format::*;
-//! use sec::prelude::*; // allows us to use call the `State`and other trait methods directly`
+//! use sec::prelude::*;
 //! use sec::shared::http_client::implementations::sec_client::SecClient;
 //!
-//! #[tokio::main]
-//! async fn main() {
+//! # #[tokio::main]
+//! # async fn main() {
+//! let input = ValidateCikFormatInput::new("1234");
+//! let context = ValidateCikFormatContext::new("1234", SecClient::default());
 //!
-//!     let input = ValidateCikFormatInput::new("1234");
-//!     let sec_client = SecClient::default();
-//!     let context = ValidateCikFormatContext::new("1234", sec_client);
+//! let mut state = ValidateCikFormat::new(input, context);
+//! state
+//!     .compute_output_data_async()
+//!     .await
+//!     .expect("A syntactically valid CIK should always validate successfully");
 //!
-//!     let expected_result = "0000001234";
-//!
-//!     let mut validation_state = ValidateCikFormat::new(input, context);
-//!     validation_state.compute_output_data_async().await.unwrap();
-//!     let validated_output = validation_state.output_data().unwrap();
-//!     let result = validated_output.validated_cik.value();
-//!
-//!     assert_eq!(result, expected_result);
-//! }
+//! let validated = state
+//!     .output_data()
+//!     .expect("Output is present after a successful computation");
+//! assert_eq!(validated.validated_cik.value(), "0000001234");
+//! # }
 //! ```
 //!
 //! ## See Also
-//! - [`crate::implementations::states::extract`]: Parent module for extraction-related states.
-//! - [`crate::shared::cik::Cik`]: Core CIK type used for format validation and normalization.
-//! - [`crate::traits::state_machine::state::State`]: State trait implemented by [`ValidateCikFormat`].
 //!
-//! ## Testing
-//! This module includes comprehensive unit tests covering state behavior, trait compliance, and error handling.
+//! - [`crate::implementations::states::extract`]: Parent module describing the extraction flow.
+//! - [`crate::shared::cik::Cik`]: The validated CIK type produced by this state.
+//! - [`crate::traits::state_machine::state::State`]: The trait implemented by [`ValidateCikFormat`].
+
 use std::fmt;
 
 use async_trait::async_trait;
@@ -71,34 +71,15 @@ pub use data::ValidateCikFormatOutput;
 use crate::shared::cik::Cik;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
-/// State that validates and normalizes a raw CIK format.
+/// First extract-phase state, parsing a presumed-CIK input string into a validated [`Cik`].
 ///
-/// The state takes an unvalidated CIK string as input, checks for format correctness,
-/// and ensures the CIK is correctly zero-padded to 10 digits. It does **not** verify
-/// the existence of the CIK in the SEC database.
+/// Takes a plain [`String`] assumed to denote a CIK, trims whitespace, rejects any non-numeric
+/// input, and zero-pads the result to the ten-digit form the SEC requires. On success the string
+/// is parsed into the [`Cik`] newtype, so the rest of the pipeline relies on that type for a
+/// well-formed CIK rather than re-checking the format at every step.
 ///
-/// # Behavior
-/// - Trims leading and trailing whitespace.
-/// - Ensures the CIK contains only digits.
-/// - Prepends leading zeros if necessary.
-/// - Produces a validated [`Cik`] object containing the normalized CIK.
-///
-/// # Limitations
-/// - This validation is **syntactic only**. It does **not** check whether the CIK actually exists in the SEC records.
-///
-/// # Output
-/// The validated CIK is stored internally after calling [`State::compute_output_data_async`].
-///
-/// # Example
-/// ```
-/// use sec::implementations::states::extract::validate_cik_format::*;
-/// use sec::shared::http_client::implementations::sec_client::SecClient;
-///
-/// let input = ValidateCikFormatInput::new("1234");
-/// let sec_client = SecClient::default();
-/// let context = ValidateCikFormatContext::new("1234", sec_client);
-/// let mut validation_state = ValidateCikFormat::new(input, context);
-/// ```
+/// Validation is **syntactic only**: a well-formed CIK that does not correspond to any
+/// real filer still passes. Existence is established later, when the SEC request is executed.
 pub struct ValidateCikFormat {
     input: ValidateCikFormatInput,
     context: ValidateCikFormatContext,
@@ -106,6 +87,19 @@ pub struct ValidateCikFormat {
 }
 
 impl ValidateCikFormat {
+    /// Creates a new state from its input and context, with no output computed yet.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use sec::implementations::states::extract::validate_cik_format::*;
+    /// use sec::shared::http_client::implementations::sec_client::SecClient;
+    ///
+    /// let input = ValidateCikFormatInput::new("1234");
+    /// let context = ValidateCikFormatContext::new("1234", SecClient::default());
+    ///
+    /// let state = ValidateCikFormat::new(input, context);
+    /// ```
     #[must_use]
     pub const fn new(input: ValidateCikFormatInput, context: ValidateCikFormatContext) -> Self {
         Self {
@@ -115,7 +109,9 @@ impl ValidateCikFormat {
         }
     }
 
-    /// Consumes the state and returns its components. Used for state transitions.
+    /// Consumes the state and returns its input, optional output, and context.
+    ///
+    /// Used by transitions to move the validated [`Cik`] into the next state without cloning.
     #[must_use]
     pub fn into_parts(
         self,
@@ -130,6 +126,12 @@ impl ValidateCikFormat {
 
 #[async_trait]
 impl State for ValidateCikFormat {
+    /// Validates the raw CIK and, on success, stores the normalized [`Cik`] as output.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StateError::InvalidCikFormat`] when the raw CIK contains non-numeric
+    /// characters or exceeds the maximum allowed length.
     async fn compute_output_data_async(&mut self) -> Result<(), StateError> {
         // Validate the CIK format
         let cik = Cik::new(&self.input.raw_cik);

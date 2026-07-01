@@ -1,33 +1,25 @@
-//! # SEC Context Trait
+//! # Context Trait
 //!
-//! This module defines the [`Context`] trait for SEC-specific state machines, extending the generic
-//! [`state_maschine::state_machine::state::Context`] trait with domain-specific retry logic.
+//! Provides the [`Context`] trait for an SEC state's ambient context, adding a retry budget to the
+//! generic [`state_maschine`] context.
 //!
-//! Context represents external or environmental information that may influence internal state computations
-//! in the SEC state machine framework, but is usally not directly tied to or mutated by state transitions themselves.
-//! Typical examples include retry policies, configuration parameters, or metadata required for workflows (e.g., time, ...).
-//!
-//! ## Usage
-//! Implement [`Context`] for your SEC context types to enable retry logic and context management
-//! during state transitions. The trait enforces a consistent interface for querying retry capabilities and limits.
-//!
-//! See also:
-//! - [`crate::traits::state_machine::state::StateData`]: For state data management.
-//! - [`crate::implementations`]: For concrete context implementations used in SEC ETL pipelines.
-//! - [`crate::error`]: For error types used in context-aware operations.
+//! Context is the environmental information surrounding a state (shared client, retry policy,
+//! configuration) that outlives any single input/output and is not mutated by transitions, as
+//! opposed to the per-computation [`StateData`](super::StateData).
 
 use state_maschine::prelude::Context as SMContext;
 
-/// Trait for SEC-specific context, extending the generic state machine context trait with retry logic.
+/// An SEC state's ambient context, exposing a retry budget.
 ///
-/// Implement this trait for SEC context types to provide custom retry policies and metadata.
+/// Refines the generic [`SMContext`] with the retry limit SEC states consult, and provides
+/// [`can_retry`](Context::can_retry) on top of it. Implemented by every state's context type.
 pub trait Context: SMContext {
-    /// Returns `true` if the state can be retried, based on the maximum allowed retries.
+    /// Returns `true` if the state may still be retried, given its retry budget.
     fn can_retry(&self) -> bool {
         self.max_retries() > 0
     }
 
-    /// Returns the maximum number of retries allowed for the state.
+    /// Returns the maximum number of times the state may be retried.
     fn max_retries(&self) -> u32;
 }
 

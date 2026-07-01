@@ -1,26 +1,16 @@
-//! # `ParseCompanyFactsOutput` Module
+//! # Parse Company Facts Output
 //!
-//! This module defines the output data structure and updater patterns for the `ParseCompanyFacts` state
-//! within the SEC transformation state machine. It encapsulates the parsed company data produced
-//! by resolving XBRL concepts from SEC Company Facts JSON.
+//! Provides the [`ParseCompanyFactsOutput`] produced by the
+//! [`ParseCompanyFacts`](crate::implementations::states::transform::parse_company_facts::ParseCompanyFacts)
+//! state, along with its updater and builder.
 //!
-//! ## Types
-//! - [`ParseCompanyFactsOutput`]: Holds the parsed [`CompanyData`] after successful fact resolution.
-//! - [`ParseCompanyFactsOutputUpdater`]: Updater type for modifying the output data in a controlled manner.
-//! - [`ParseCompanyFactsOutputUpdaterBuilder`]: Builder for constructing updater instances with optional fields.
-//!
-//! ## Integration
-//! - Implements [`StateData`](state_maschine::state_machine::state::StateData) for compatibility with the state machine framework.
-//! - Used by [`ParseCompanyFacts`](crate::implementations::states::transform::parse_company_facts) to produce and update parsed output.
-//!
-//! ## Usage
-//! This module is intended for use in the output phase of company facts parsing. It supports
-//! builder-based updates and integrates with the state machine's updater and state data traits.
+//! It wraps the resolved [`CompanyData`], the structured form the financial-statements state
+//! consumes. The raw JSON it was parsed from lives in [`input`](super::input).
 //!
 //! ## See Also
-//! - [`input`](super::input): Input data structure for raw JSON responses.
-//! - [`crate::shared::financial::company_data::CompanyData`]: The resolved company data type.
-//! - [`state_maschine::prelude::StateData`]: Trait for state data integration.
+//!
+//! - [`input`](super::input): The raw JSON this output is parsed from.
+//! - [`crate::shared::financial::company_data::CompanyData`]: The resolved company data type carried here.
 
 use std::fmt;
 
@@ -30,12 +20,10 @@ use crate::error::State as StateError;
 use crate::shared::financial::company_data::CompanyData;
 use crate::traits::state_machine::state::StateData;
 
-/// Output data containing parsed company financial data.
+/// Output data of the [`ParseCompanyFacts`](super::super::ParseCompanyFacts) state.
 ///
-/// This struct holds a [`CompanyData`] value, produced by the `ParseCompanyFacts` state
-/// after successfully resolving XBRL concepts from SEC Company Facts JSON. It is used as
-/// output in the SEC transformation state machine, and supports builder-based updates and
-/// integration with the state machine framework.
+/// Wraps the [`CompanyData`] resolved from the Company Facts JSON, ready for the
+/// financial-statements state to consume.
 #[derive(Debug, Clone)]
 pub struct ParseCompanyFactsOutput {
     /// The parsed company financial data.
@@ -43,7 +31,7 @@ pub struct ParseCompanyFactsOutput {
 }
 
 impl ParseCompanyFactsOutput {
-    /// Creates a new instance of the output data for the company facts parsing state.
+    /// Creates output data from resolved company data.
     #[must_use]
     pub const fn new(company_data: CompanyData) -> Self {
         Self { company_data }
@@ -132,10 +120,9 @@ impl fmt::Display for ParseCompanyFactsOutput {
 }
 
 #[derive(Debug, Clone)]
-/// Updater for [`ParseCompanyFactsOutput`].
+/// Partial update for a [`ParseCompanyFactsOutput`].
 ///
-/// This struct is used to specify updates to the output data in a controlled, partial manner.
-/// Fields set to `None` will not be updated.
+/// When `company_data` is `None` the output is left unchanged.
 pub struct ParseCompanyFactsOutputUpdater {
     /// Optional new value for the company data.
     pub company_data: Option<CompanyData>,
@@ -149,10 +136,7 @@ impl ParseCompanyFactsOutputUpdater {
     }
 }
 
-/// Builder for [`ParseCompanyFactsOutputUpdater`].
-///
-/// This builder allows for ergonomic and explicit construction of updater instances,
-/// supporting method chaining and optional fields. Use `.build()` to produce the updater.
+/// Fluent builder for a [`ParseCompanyFactsOutputUpdater`].
 pub struct ParseCompanyFactsOutputUpdaterBuilder {
     company_data: Option<CompanyData>,
 }

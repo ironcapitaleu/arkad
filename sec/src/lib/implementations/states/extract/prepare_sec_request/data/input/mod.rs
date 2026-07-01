@@ -1,28 +1,16 @@
-//! # `PrepareSecRequestInput` Module
+//! # Prepare SEC Request Input
 //!
-//! This module defines the input data structure and updater patterns for the `PrepareSecRequest` state
-//! within the SEC extraction state machine. It provides types and builders for representing and updating
-//! the validated Central Index Key (CIK) and HTTP client required for preparing SEC API requests.
+//! Provides the [`PrepareSecRequestInput`] fed into the
+//! [`PrepareSecRequest`](crate::implementations::states::extract::prepare_sec_request::PrepareSecRequest)
+//! state, along with its updater and builder.
 //!
-//! ## Types
-//! - [`PrepareSecRequestInput`]: Holds the validated CIK and HTTP client to be processed by the prepare request state.
-//! - [`PrepareSecRequestInputUpdater`]: Updater type for modifying the input data in a controlled manner.
-//! - [`PrepareSecRequestInputUpdaterBuilder`]: Builder for constructing updater instances with optional fields.
-//!
-//! ## Integration
-//! - Implements [`StateData`](state_maschine::state_machine::state::StateData) for compatibility with the state machine framework.
-//! - Used by [`PrepareSecRequest`](crate::implementations::states::extract::prepare_sec_request) to receive and update request parameters.
-//!
-//! ## Usage
-//! This module is intended for use in the preparation phase of SEC API requests. It supports builder-based updates and
-//! integrates with the state machine's updater and state data traits for robust, testable workflows.
+//! It carries the two ingredients the state needs to assemble a request: the validated
+//! [`Cik`] and the shared [`SecClient`]. The prepared result lives in [`output`](super::output).
 //!
 //! ## See Also
-//! - [`crate::shared::cik`]: Utilities for CIK parsing and validation.
-//! - [`state_maschine::prelude::StateData`]: Trait for state data integration.
 //!
-//! ## Examples
-//! See the unit tests in this module for usage patterns and updater logic.
+//! - [`output`](super::output): The prepared client and request produced from this input.
+//! - [`crate::shared::cik`]: The validated CIK type carried here.
 
 use std::fmt;
 
@@ -34,7 +22,9 @@ use crate::shared::cik::Cik;
 use crate::shared::http_client::implementations::sec_client::SecClient;
 use crate::traits::state_machine::state::StateData;
 
-/// Input data for preparing SEC API requests.
+/// Input data for the [`PrepareSecRequest`](super::super::PrepareSecRequest) state.
+///
+/// Bundles the validated [`Cik`] and the shared [`SecClient`] needed to assemble a request.
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
 pub struct PrepareSecRequestInput {
     /// The validated CIK that will be used for the SEC API request.
@@ -44,7 +34,7 @@ pub struct PrepareSecRequestInput {
 }
 
 impl PrepareSecRequestInput {
-    /// Creates a new instance of the input data for preparing SEC requests.
+    /// Creates input data from a validated CIK and a shared HTTP client.
     ///
     /// # Examples
     ///
@@ -53,9 +43,8 @@ impl PrepareSecRequestInput {
     /// use sec::shared::cik::Cik;
     /// use sec::shared::http_client::implementations::sec_client::SecClient;
     ///
-    /// let cik = Cik::new("1067983").expect("Hardcoded CIK string should be valid format");
-    /// let client = SecClient::default();
-    /// let input_data = PrepareSecRequestInput::new(cik, client);
+    /// let cik = Cik::new("1067983").expect("A hardcoded valid CIK should always parse");
+    /// let input = PrepareSecRequestInput::new(cik, SecClient::default());
     /// ```
     #[must_use]
     pub const fn new(validated_cik: Cik, sec_client: SecClient) -> Self {
@@ -118,9 +107,9 @@ impl fmt::Display for PrepareSecRequestInput {
     }
 }
 
-/// Updater for [`PrepareSecRequestInput`].
+/// Partial update for a [`PrepareSecRequestInput`].
 ///
-/// Fields set to `None` will not be updated.
+/// Fields set to `None` are left unchanged when the updater is applied.
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 pub struct PrepareSecRequestInputUpdater {
     /// Optional new value for the validated CIK.
@@ -137,7 +126,7 @@ impl PrepareSecRequestInputUpdater {
     }
 }
 
-/// Builder for [`PrepareSecRequestInputUpdater`].
+/// Fluent builder for a [`PrepareSecRequestInputUpdater`].
 pub struct PrepareSecRequestInputUpdaterBuilder {
     pub validated_cik: Option<Cik>,
     pub sec_client: Option<SecClient>,

@@ -1,37 +1,33 @@
-//! # Create Financial Statements Context Module
+//! # Create Financial Statements Context
 //!
-//! This module defines the context structures and updaters for the [`CreateFinancialStatements`](../mod.rs) state in the SEC transform workflow.
+//! Provides the [`CreateFinancialStatementsContext`] carried alongside the
+//! [`CreateFinancialStatements`](crate::implementations::states::transform::create_financial_statements::CreateFinancialStatements)
+//! state, together with its updater and builder.
 //!
-//! The context provides stateful information required during financial statement creation, such as the CIK and retry configuration.
-//! It is designed to be used with the [`Context`] trait, enabling ergonomic context management and updates within state machines.
-//!
-//! ## Components
-//! - [`CreateFinancialStatementsContext`]: Holds the current context for financial statement creation, including the CIK and retry count.
-//! - [`CreateFinancialStatementsContextUpdater`]: Updater type for modifying context fields in a controlled way.
-//! - [`CreateFinancialStatementsContextUpdaterBuilder`]: Builder for constructing context updaters with a fluent API.
+//! The context tracks the [`Cik`] of the company being processed and the retry budget, both of
+//! which persist across updates and transitions.
 //!
 //! ## Usage
-//! The context is used by the [`CreateFinancialStatements`](../mod.rs) state to track the company being processed and manage retry logic.
-//! It supports updates via the builder pattern, making it easy to compose context changes in state machine workflows.
 //!
-//! ## Example
 //! ```rust
 //! use sec::implementations::states::transform::create_financial_statements::context::*;
 //! use sec::shared::cik::Cik;
 //! use state_maschine::prelude::*;
 //!
-//! let cik = Cik::new("0001067983").expect("Hardcoded CIK should always be valid");
+//! let cik = Cik::new("0001067983").expect("A hardcoded valid CIK should always parse");
 //! let mut context = CreateFinancialStatementsContext::new(cik);
 //! let update = CreateFinancialStatementsContextUpdater::builder()
-//!     .cik(Cik::new("0000000001").expect("Hardcoded CIK should always be valid"))
+//!     .cik(Cik::new("0000000001").expect("A hardcoded valid CIK should always parse"))
 //!     .build();
+//!
 //! context.update_context(update);
 //! assert_eq!(context.cik().value(), "0000000001");
 //! ```
 //!
 //! ## See Also
-//! - [`crate::traits::state_machine::state::Context`]: Trait for context management in states.
-//! - [`crate::implementations::states::transform::create_financial_statements`]: Parent module for financial statement creation state and data types.
+//!
+//! - [`crate::traits::state_machine::state::Context`]: Trait that defines context updates and the retry budget.
+//! - [`crate::implementations::states::transform::create_financial_statements`]: Parent module for the state and its data types.
 
 use std::fmt;
 
@@ -42,22 +38,19 @@ use crate::shared::cik::Cik;
 use crate::traits::state_machine::state::Context;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
-/// State context for the Create Financial Statements state.
+/// Ambient context for the [`CreateFinancialStatements`](super::CreateFinancialStatements) state.
+///
+/// Tracks the [`Cik`] of the company being processed and the retry budget, both of which persist
+/// across updates and transitions.
 pub struct CreateFinancialStatementsContext {
     /// The CIK identifying the company whose financial statements are being created.
     pub cik: Cik,
-    /// The maximum number of retries allowed for this state.
+    /// Maximum number of times the state may be retried on failure.
     pub max_retries: u32,
 }
 
 impl CreateFinancialStatementsContext {
-    /// Creates a new instance of the state context for the Create Financial Statements state.
-    ///
-    /// # Arguments
-    /// * `cik` - A validated [`Cik`] identifying the company.
-    ///
-    /// # Returns
-    /// A new `CreateFinancialStatementsContext` with the provided CIK and default retry count.
+    /// Creates a new context from a CIK, with the retry budget at zero.
     #[must_use]
     pub const fn new(cik: Cik) -> Self {
         Self {
@@ -108,9 +101,9 @@ impl fmt::Display for CreateFinancialStatementsContext {
 }
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
-/// Updater for the state context.
+/// Partial update for a [`CreateFinancialStatementsContext`].
 ///
-/// Using this struct allows to update fields of `CreateFinancialStatementsContext` in a controlled way.
+/// Fields set to `None` are left unchanged when the updater is applied.
 pub struct CreateFinancialStatementsContextUpdater {
     /// Optional new value for the CIK.
     pub cik: Option<Cik>,
@@ -126,9 +119,7 @@ impl CreateFinancialStatementsContextUpdater {
     }
 }
 
-/// Builder for `CreateFinancialStatementsContextUpdater`.
-///
-/// Use this builder to fluently construct an updater for the context.
+/// Fluent builder for a [`CreateFinancialStatementsContextUpdater`].
 pub struct CreateFinancialStatementsContextUpdaterBuilder {
     cik: Option<Cik>,
     max_retries: Option<u32>,

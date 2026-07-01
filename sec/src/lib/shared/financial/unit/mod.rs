@@ -1,25 +1,12 @@
-//! # Unit Module
+//! # Unit
 //!
-//! Provides the [`Unit`] enum representing measurement units for SEC financial data.
-//! Each XBRL concept has an expected unit type (e.g., monetary values in USD,
-//! share counts in shares).
+//! Provides the [`Unit`] enum representing the measurement unit of a financial data point.
 
 use std::fmt::{self, Display, Formatter};
 
 use serde::Serialize;
 
-/// Measurement unit for a financial data point.
-///
-/// Represents the unit of measurement associated with an XBRL concept value.
-/// Uses `#[non_exhaustive]` to allow future extensions without breaking changes.
-///
-/// # Example
-/// ```
-/// use sec::shared::financial::unit::Unit;
-///
-/// let unit = Unit::Usd;
-/// assert_eq!(unit.to_string(), "USD");
-/// ```
+/// The measurement unit of a financial data point, as expected for its XBRL concept.
 #[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub enum Unit {
@@ -45,11 +32,16 @@ impl Display for Unit {
 }
 
 impl Unit {
-    /// Attempts to parse a [`Unit`] from an SEC XBRL unit string.
+    /// Parses a [`Unit`] from its SEC XBRL unit string (e.g. `"USD"`), or `None` if unrecognized.
     ///
-    /// # Errors
+    /// # Examples
     ///
-    /// Returns `None` if the input string does not match any known unit.
+    /// ```
+    /// use sec::shared::financial::unit::Unit;
+    ///
+    /// assert_eq!(Unit::from_sec_str("USD"), Some(Unit::Usd));
+    /// assert_eq!(Unit::from_sec_str("unknown_unit"), None);
+    /// ```
     #[must_use]
     pub fn from_sec_str(s: &str) -> Option<Self> {
         match s {

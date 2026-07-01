@@ -4,30 +4,50 @@ use async_trait::async_trait;
 
 use super::InnerResponse;
 
-/// A trait defining the interface of an HTTP response. This is used to decouple from third party libraries.
+/// The domain-level SEC response: validated, typed access to an HTTP response's parts.
+///
+/// Sits above [`InnerResponse`], building from a raw response and exposing its URL, headers,
+/// status, content type, and JSON body as validated domain types. Existing as a trait keeps the
+/// library decoupled from any HTTP crate and lets a fake response stand in for the network.
+///
+/// # Associated Types
+///
+/// Each implementor chooses the concrete types filling these slots, which is what keeps the trait
+/// decoupled from any specific HTTP crate:
+///
+/// - `Inner`: The raw response type consumed during construction. Must implement [`InnerResponse`].
+/// - `Url`: The type representing the response's URL.
+/// - `Headers`: The type representing the response's headers.
+/// - `StatusCode`: The type representing the response's HTTP status code.
+/// - `ContentType`: The type representing the response's content type.
+/// - `Error`: The error type returned when the response cannot be read or validated.
 #[async_trait]
 pub trait SecResponse: Send + Sync + Debug + Sized {
-    /// The HTTP response type used to construct this `SecResponse`.
+    /// The raw response type consumed during construction.
     type Inner: InnerResponse;
 
-    /// The type representing the URL of the response.
+    /// The type representing the response's URL.
     type Url;
 
-    /// The type representing the headers of the response.
+    /// The type representing the response's headers.
     type Headers;
 
-    /// The type representing the HTTP status code of the response.
+    /// The type representing the response's HTTP status code.
     type StatusCode;
 
-    /// The type representing the content type of the response.
+    /// The type representing the response's content type.
     type ContentType;
 
-    /// This type represents the syntactical and semantic errors that can occur when processing a response to an SEC API request.
+    /// The error type returned when the response cannot be read or validated.
     type Error;
 
-    /// Consumes the inner response and constructs a new `SecResponse` instance.
+    /// Consumes a raw response and builds a validated `SecResponse`.
     ///
-    /// This method is asynchronous because it will read the inner response body which might involve an asynchronous operation.
+    /// Asynchronous because reading the response body may involve I/O.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Self::Error` if the body cannot be read or the response fails SEC validation.
     async fn from_inner(inner: Self::Inner) -> Result<Self, Self::Error>;
 
     /// Returns the URL of the response.

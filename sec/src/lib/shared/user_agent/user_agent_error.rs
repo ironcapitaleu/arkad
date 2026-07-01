@@ -1,40 +1,26 @@
-//! # User Agent Error Types
+//! # User Agent Errors
 //!
-//! This module defines error types and reasons for user agent validation failures.
-//! It is used throughout the [`crate::shared::user_agent`] module and by state machine implementations
-//! that require robust error reporting for user agent string validation failures.
-//!
-//! ## Types
-//! - [`UserAgentError`]: Error struct containing the [`UserAgentErrorReason`] and the user agent string that caused the failure. This allows precise diagnostics about why a user agent string is invalid.
-//! - [`UserAgentErrorReason`]: Enum describing specific reasons for user agent validation failure, such as not following the required SEC format.
-//!
-//! ## Usage
-//! These error types are returned by user agent validation routines and are used in state data modules
-//! to provide detailed diagnostics and error handling for SEC-compliant user agent string validation.
-//! They are also used as domain errors for the general state machine error logic in [`crate::error`] and may be wrapped by state-level errors.
-//!
-//! ## See Also
-//! - [`crate::shared::user_agent`]: Main user agent utilities module.
-//! - [`crate::error`]: Error types that may reference user agent errors for reporting.
+//! Provides the [`UserAgentError`] returned when a string fails user-agent validation, and the
+//! [`UserAgentErrorReason`] describing why.
 
 use std::fmt::{self, Display, Formatter};
 
 use thiserror::Error;
 
-/// Error details for user agent validation failures.
+/// Reports that a string could not be validated as an SEC user agent.
 ///
-/// This struct provides both the reason for the failure and the user agent string that was provided.
+/// Carries the [`UserAgentErrorReason`] and the offending input for diagnostics.
 #[derive(Debug, Error, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[error("[UserAgentError] User agent creation failed, Reason: '{reason}', Input: '{user_agent}'")]
 pub struct UserAgentError {
-    /// The reason why the user agent couldn't be created.
+    /// Why the user agent is considered invalid.
     pub reason: UserAgentErrorReason,
-    /// The user agent string that was provided.
+    /// The original string that failed validation.
     pub user_agent: String,
 }
 
 impl UserAgentError {
-    /// Creates a new [`UserAgentError`].
+    /// Creates a new error from a reason and the offending input.
     pub fn new(reason: UserAgentErrorReason, user_agent: impl Into<String>) -> Self {
         Self {
             reason,
@@ -43,13 +29,11 @@ impl UserAgentError {
     }
 }
 
-/// Enum representing the reason for a user agent creation failure.
-///
-/// This enum is marked as non-exhaustive to allow for future extension.
+/// Why a string failed user-agent validation.
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum UserAgentErrorReason {
-    /// The format required for the SEC API is invalid.
+    /// The string does not match the SEC's required `Company Name email@domain.com` format.
     InvalidSecFormat,
 }
 

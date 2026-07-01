@@ -1,42 +1,51 @@
+//! # SEC Client Errors
+//!
+//! Provides the [`FailedSecRequest`] returned by
+//! [`SecClient::execute_sec_request`](crate::shared::http_client::SecClient::execute_sec_request),
+//! and its [`ErrorReason`].
+
 use std::fmt;
 
 use thiserror::Error;
 
 use crate::shared::response::implementations::sec_response::error::InvalidSecResponse;
 
-/// Error details for a failed SEC request execution.
+/// Reports that an SEC request could not be completed successfully.
 ///
-/// This struct provides the reason why the SEC request could not be
-/// executed successfully.
+/// Wraps the [`ErrorReason`] distinguishing a transport-level failure from a response that arrived
+/// but failed SEC validation.
 #[derive(Debug, Error, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[error("[FailedSecRequest] SEC request failed, Caused by: {reason}")]
 pub struct FailedSecRequest {
-    /// The reason why the SEC request failed.
+    /// Why the SEC request failed.
     pub reason: ErrorReason,
 }
 
 impl FailedSecRequest {
-    /// Creates a new `FailedSecRequest`.
+    /// Creates a new error from its reason.
     #[must_use]
     pub const fn new(reason: ErrorReason) -> Self {
         Self { reason }
     }
 }
 
-/// Enum representing the reason for a failed SEC request.
-///
-/// This enum is marked as non-exhaustive to allow for future extension.
+/// Why an SEC request failed.
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ErrorReason {
-    /// The HTTP request failed at the transport level (network error, timeout, etc.).
-    FailedRequestExecution { details: String },
-    /// The HTTP response was received but did not meet SEC response validity requirements.
-    InvalidResponse { source: InvalidSecResponse },
+    /// The request failed at the transport level (network error, timeout, etc.).
+    FailedRequestExecution {
+        /// A human-readable description of the transport failure.
+        details: String,
+    },
+    /// The response was received but did not meet SEC validity requirements.
+    InvalidResponse {
+        /// The underlying response-validation error.
+        source: InvalidSecResponse,
+    },
 }
 
 impl fmt::Display for ErrorReason {
-    /// Formats the reason for display.
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Self::FailedRequestExecution { details } => {

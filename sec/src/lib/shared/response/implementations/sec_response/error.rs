@@ -1,3 +1,8 @@
+//! # SEC Response Errors
+//!
+//! Provides the [`InvalidSecResponse`] raised when an HTTP response fails SEC validation, and its
+//! [`ErrorReason`].
+
 use std::fmt;
 
 use thiserror::Error;
@@ -5,43 +10,51 @@ use thiserror::Error;
 use crate::shared::content_type::ContentType;
 use crate::shared::status_code::StatusCode;
 
-/// Error details for an invalid SEC API response.
+/// Reports that an HTTP response could not be accepted as a valid SEC response.
 ///
-/// This struct provides the reason why the response could not be
-/// constructed as a valid `SecResponse`.
+/// Wraps the [`ErrorReason`] identifying which validation check failed.
 #[derive(Debug, Error, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[error("[InvalidSecResponse] Invalid SEC Response, Reason: '{reason}'")]
 pub struct InvalidSecResponse {
-    /// The reason why the SEC response is considered invalid.
+    /// Why the response is considered invalid.
     pub reason: ErrorReason,
 }
 
 impl InvalidSecResponse {
-    /// Creates a new `InvalidSecResponse`.
+    /// Creates a new error from its reason.
     #[must_use]
     pub const fn new(reason: ErrorReason) -> Self {
         Self { reason }
     }
 }
 
-/// Enum representing the reason for an invalid SEC response.
-///
-/// This enum is marked as non-exhaustive to allow for future extension.
+/// Why an HTTP response failed SEC validation.
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ErrorReason {
-    /// The HTTP status code is not in the success range (200–299).
-    InvalidStatusCode { status_code: StatusCode },
+    /// The status code is not in the success range (200–299).
+    InvalidStatusCode {
+        /// The non-success status code received.
+        status_code: StatusCode,
+    },
     /// The content type is not `application/json`.
-    InvalidContentType { content_type: ContentType },
-    /// The response body could not be parsed as syntactically valid JSON.
-    InvalidBody { details: String },
-    /// The response body could not be read from the HTTP response.
-    FailedBodyRead { details: String },
+    InvalidContentType {
+        /// The unexpected content type received.
+        content_type: ContentType,
+    },
+    /// The body could not be parsed as valid JSON.
+    InvalidBody {
+        /// The parser's description of the failure.
+        details: String,
+    },
+    /// The body could not be read from the HTTP response.
+    FailedBodyRead {
+        /// A description of the read failure.
+        details: String,
+    },
 }
 
 impl fmt::Display for ErrorReason {
-    /// Formats the reason for display.
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Self::InvalidStatusCode { status_code } => {

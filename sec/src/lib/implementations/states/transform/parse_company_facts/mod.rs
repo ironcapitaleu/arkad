@@ -1,33 +1,24 @@
 //! # Parse Company Facts State
 //!
-//! This module provides the [`ParseCompanyFacts`] state and related types for parsing and
-//! validating SEC Company Facts JSON data as part of the SEC filings transformation workflow.
+//! Provides the [`ParseCompanyFacts`] state, the first step of the transform phase, which
+//! resolves raw SEC Company Facts JSON into strongly-typed [`CompanyData`].
 //!
-//! ## Overview
-//! The [`ParseCompanyFacts`] state is responsible for taking raw SEC Company Facts JSON
-//! and resolving XBRL concepts into typed [`CompanyData`].
-//! It validates that all required concepts are present and produces structured financial data
-//! suitable for downstream processing.
+//! The SEC returns facts as deeply-nested XBRL JSON keyed by namespace and concept alias.
+//! This state walks that structure, resolving each required and optional concept into typed
+//! observations, and fails if any required concept is absent. Turning loosely-typed JSON into
+//! [`CompanyData`] here means the financial-statements state can work with validated domain types.
 //!
-//! ## Components
-//! - [`context`]: Defines the context and updater types for the parsing process.
-//! - [`data`]: Contains input and output data structures for the parsing state.
-//! - [`ParseCompanyFactsContext`]: Context data type for the state.
-//! - [`ParseCompanyFactsInput`]: Input data type holding the raw JSON response.
-//! - [`ParseCompanyFactsOutput`]: Output data type containing the parsed company data.
+//! ## Modules
 //!
-//! ## Usage
-//! This state is typically used in the transform phase of the SEC state machine ETL pipeline,
-//! after extracting the raw JSON from the SEC API. It resolves XBRL concepts from the JSON
-//! into strongly-typed financial data structures.
+//! - [`constants`]: State metadata such as [`STATE_NAME`].
+//! - [`context`]: The [`ParseCompanyFactsContext`] carried alongside the state.
+//! - [`data`]: The [`ParseCompanyFactsInput`] and [`ParseCompanyFactsOutput`] data types.
 //!
 //! ## See Also
-//! - [`crate::implementations::states::transform`]: Parent module for transformation-related states.
-//! - [`crate::shared::financial`]: Financial data types used by this state.
-//! - [`crate::traits::state_machine::state::State`]: State trait implemented by [`ParseCompanyFacts`].
 //!
-//! ## Testing
-//! This module includes comprehensive unit tests covering state behavior, trait compliance, and error handling.
+//! - [`crate::implementations::states::transform`]: Parent module describing the transform flow.
+//! - [`crate::shared::financial`]: The financial domain types this state produces.
+//! - [`crate::traits::state_machine::state::State`]: The trait implemented by [`ParseCompanyFacts`].
 
 use std::collections::HashMap;
 use std::fmt;
@@ -71,35 +62,12 @@ pub use data::ParseCompanyFactsInput;
 pub use data::ParseCompanyFactsOutput;
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
-/// State that parses SEC Company Facts JSON into structured financial data.
+/// First transform-phase state, resolving Company Facts JSON into [`CompanyData`].
 ///
-/// The state takes a raw SEC Company Facts JSON response as input, validates
-/// the presence of required XBRL concepts, resolves them into strongly-typed
-/// [`CompanyData`], and produces the result as output.
-///
-/// # Behavior
-/// - Extracts the CIK, entity name, and facts from the top-level JSON.
-/// - Iterates over required and optional concept definitions.
-/// - For each concept, tries XBRL key aliases in priority order.
-/// - Extracts observations from the matching concept's unit data.
-/// - Fails if any required concept is missing from the response.
-///
-/// # Output
-/// The parsed [`CompanyData`] is stored internally after calling
-/// [`State::compute_output_data_async`].
-///
-/// # Example
-/// ```rust
-/// use sec::implementations::states::transform::parse_company_facts::*;
-/// use sec::shared::response::implementations::sec_response::body_digest::BodyDigest;
-///
-/// let json = serde_json::json!({});
-/// let digest = BodyDigest::from_body_text(&json.to_string());
-/// let cik = sec::shared::cik::Cik::new("0001067983").expect("Hardcoded CIK should always be valid");
-/// let context = ParseCompanyFactsContext::new(cik);
-/// let input = ParseCompanyFactsInput::new(json, digest);
-/// let state = ParseCompanyFacts::new(input, context);
-/// ```
+/// Reads the CIK, entity name, and facts from the SEC JSON, then resolves each required and
+/// optional XBRL concept by trying its key aliases across the relevant namespaces and
+/// collecting the matching observations. The computation fails if any *required* concept is
+/// absent, so a successful output is guaranteed to carry the full required fact set.
 pub struct ParseCompanyFacts {
     input: ParseCompanyFactsInput,
     context: ParseCompanyFactsContext,
@@ -107,7 +75,24 @@ pub struct ParseCompanyFacts {
 }
 
 impl ParseCompanyFacts {
-    /// Creates a new [`ParseCompanyFacts`] state with the given input and context.
+    /// Creates a new state from its input and context, with no output computed yet.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use sec::implementations::states::transform::parse_company_facts::*;
+    /// use sec::shared::cik::Cik;
+    /// use sec::shared::response::implementations::sec_response::body_digest::BodyDigest;
+    ///
+    /// let json = serde_json::json!({});
+    /// let digest = BodyDigest::from_body_text(&json.to_string());
+    /// let cik = Cik::new("0001067983").expect("A hardcoded valid CIK should always parse");
+    ///
+    /// let input = ParseCompanyFactsInput::new(json, digest);
+    /// let context = ParseCompanyFactsContext::new(cik);
+    ///
+    /// let state = ParseCompanyFacts::new(input, context);
+    /// ```
     #[must_use]
     pub const fn new(input: ParseCompanyFactsInput, context: ParseCompanyFactsContext) -> Self {
         Self {
@@ -117,7 +102,9 @@ impl ParseCompanyFacts {
         }
     }
 
-    /// Consumes the state and returns its components. Used for state transitions.
+    /// Consumes the state and returns its input, optional output, and context.
+    ///
+    /// Used by transitions to move the parsed [`CompanyData`] into the next state without cloning.
     #[must_use]
     pub fn into_parts(
         self,
@@ -234,6 +221,13 @@ fn resolve_concept(
 
 #[async_trait]
 impl State for ParseCompanyFacts {
+    /// Resolves the Company Facts JSON into [`CompanyData`] and stores it as output.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StateError::IncompleteCompanyFacts`] when a required concept is missing, or
+    /// [`StateError::FailedOutputComputation`] when the JSON lacks the expected top-level
+    /// structure (`cik`, `entityName`, or `facts`).
     async fn compute_output_data_async(&mut self) -> Result<(), StateError> {
         let response = &self.input.response;
 

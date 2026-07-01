@@ -1,40 +1,31 @@
-//! # CIK Error Types
+//! # CIK Errors
 //!
-//! This module defines error types and reasons for invalid SEC Central Index Keys (CIKs).
-//! It is used throughout the [`crate::shared::cik`] module and by state machine implementations
-//! that require robust error reporting for CIK parsing and validation failures.
+//! Provides the [`CikError`] returned when a string fails CIK validation, and the
+//! [`InvalidCikReason`] describing why.
 //!
-//! ## Types
-//! - [`CikError`]: Error struct containing the [`InvalidCikReason`] and the offending CIK string. This allows precise diagnostics about why a CIK is invalid.
-//! - [`InvalidCikReason`]: Enum describing specific reasons for CIK validation failure, such as exceeding the maximum length or containing non-numeric characters.
-//!
-//! ## Usage
-//! These error types are returned by CIK parsing and validation routines, and are used in state data modules such as
-//! [`crate::implementations::states::extract::validate_cik_format::data`] to provide detailed diagnostics and error handling.
-//! They are also used as domain errors for the general state machine error logic in [`crate::error`] and are wrapped by state-level errors like [`crate::error::state_machine::state::InvalidCikFormat`].
-//!
-//! ## See Also
-//! - [`crate::shared::cik`]: Main CIK utilities module.
-//! - [`crate::error`]: Error types that may reference CIK errors for reporting.
-//! - [`crate::error::state_machine::state::InvalidCikFormat`]: State-level error that wraps `CikError` for error propagation in state machines.
+//! These are domain errors raised by [`Cik::new`](super::Cik::new); state-level code wraps them
+//! into [`InvalidCikFormat`](crate::error::state_machine::state::InvalidCikFormat) for propagation
+//! through the state machine.
 
 use thiserror::Error;
 
 use super::constants::CIK_LENGTH;
-/// Error details for an invalid CIK format.
+
+/// Reports that a string could not be validated as a CIK.
 ///
-/// This struct provides both the reason for the failure and the offending CIK string.
+/// Carries both the [`InvalidCikReason`] and the offending input, so callers can produce a
+/// precise, user-facing diagnostic.
 #[derive(Debug, Error, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[error("[CikError] Invalid CIK, Reason: '{reason}', Input: '{invalid_cik}'")]
 pub struct CikError {
-    /// The reason why the CIK is considered invalid.
+    /// Why the CIK is considered invalid.
     pub reason: InvalidCikReason,
-    /// The invalid CIK string that was provided.
+    /// The original string that failed validation.
     pub invalid_cik: String,
 }
 
 impl CikError {
-    /// Creates a new `CikError`.
+    /// Creates a new error from a reason and the offending input.
     pub fn new(reason: InvalidCikReason, invalid_cik: impl Into<String>) -> Self {
         Self {
             reason,
@@ -43,20 +34,20 @@ impl CikError {
     }
 }
 
-/// Enum representing the reason for an invalid CIK format.
-///
-/// This enum is marked as non-exhaustive to allow for future extension.
+/// Why a string failed CIK validation.
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum InvalidCikReason {
-    /// The CIK is too long.
-    MaxLengthExceeded { cik_length: usize },
-    /// The CIK contains non-numeric characters.
+    /// The input, after trimming, exceeds [`CIK_LENGTH`] digits.
+    MaxLengthExceeded {
+        /// The actual digit count of the offending input.
+        cik_length: usize,
+    },
+    /// The input contains characters that are not ASCII digits.
     ContainsNonNumericCharacters,
 }
 
 impl std::fmt::Display for InvalidCikReason {
-    /// Formats the reason for display.
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
             Self::MaxLengthExceeded { cik_length } => write!(

@@ -1,8 +1,6 @@
-//! # Entity Name Module
+//! # Entity Name
 //!
 //! Provides the [`EntityName`] newtype for SEC entity (company) names.
-//! Wraps the company name string reported in SEC filings
-//! (e.g., `"Apple Inc."`, `"BERKSHIRE HATHAWAY INC"`).
 
 use std::fmt::{self, Display, Formatter};
 
@@ -10,21 +8,22 @@ use serde::Serialize;
 
 /// An SEC entity (company) name.
 ///
-/// Wraps the `entityName` field from SEC Company Facts API responses.
-/// The name is stored exactly as reported by the SEC, without normalization.
-///
-/// # Example
-/// ```
-/// use sec::shared::financial::entity_name::EntityName;
-///
-/// let name = EntityName::new("Apple Inc.");
-/// assert_eq!(name.value(), "Apple Inc.");
-/// ```
+/// Wraps the `entityName` field from a Company Facts response, stored verbatim without
+/// normalization, so a company name can't be mixed up with other strings in the domain.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub struct EntityName(String);
 
 impl EntityName {
-    /// Creates a new [`EntityName`] from a string value.
+    /// Creates an [`EntityName`] from a string.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use sec::shared::financial::entity_name::EntityName;
+    ///
+    /// let name = EntityName::new("Apple Inc.");
+    /// assert_eq!(name.value(), "Apple Inc.");
+    /// ```
     #[must_use]
     pub fn new(value: impl Into<String>) -> Self {
         Self(value.into())

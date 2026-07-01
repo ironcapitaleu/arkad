@@ -1,29 +1,16 @@
-//! # `ExecuteSecRequestInput` Module
+//! # Execute SEC Request Input
 //!
-//! This module defines the input data structure and updater patterns for the `ExecuteSecRequest` state
-//! within the SEC extraction state machine. It provides types and builders for representing and updating
-//! the prepared SEC client and request objects required for executing HTTP requests to SEC API endpoints.
+//! Provides the [`ExecuteSecRequestInput`] fed into the
+//! [`ExecuteSecRequest`](crate::implementations::states::extract::execute_sec_request::ExecuteSecRequest)
+//! state, along with its updater and builder.
 //!
-//! ## Types
-//! - [`ExecuteSecRequestInput`]: Holds the prepared SEC client and request to be executed by the execute request state.
-//! - [`ExecuteSecRequestInputUpdater`]: Updater type for modifying the input data in a controlled manner.
-//! - [`ExecuteSecRequestInputUpdaterBuilder`]: Builder for constructing updater instances with optional fields.
-//!
-//! ## Integration
-//! - Implements [`StateData`](state_maschine::state_machine::state::StateData) for compatibility with the state machine framework.
-//! - Used by [`ExecuteSecRequest`](crate::implementations::states::extract::execute_sec_request) to receive and update execution parameters.
-//!
-//! ## Usage
-//! This module is intended for use in the execution phase of SEC API requests. It supports builder-based updates and
-//! integrates with the state machine's updater and state data traits for robust, testable workflows.
+//! It carries the prepared [`SecClient`] and [`SecRequest`] the state will dispatch. The
+//! received response lives in [`output`](super::output).
 //!
 //! ## See Also
-//! - [`crate::shared::http_client`]: Utilities for SEC client creation and management.
-//! - [`crate::shared::request`]: Utilities for SEC request construction.
-//! - [`state_maschine::prelude::StateData`]: Trait for state data integration.
 //!
-//! ## Examples
-//! See the unit tests in this module for usage patterns and updater logic.
+//! - [`output`](super::output): The SEC response produced from this input.
+//! - [`crate::shared::request`]: The SEC request type carried here.
 
 use std::fmt;
 
@@ -36,12 +23,9 @@ use crate::shared::request::SecRequest as SecRequestTrait;
 use crate::shared::request::implementations::sec_request::SecRequest;
 use crate::traits::state_machine::state::StateData;
 
-/// Input data for executing SEC API requests.
+/// Input data for the [`ExecuteSecRequest`](super::super::ExecuteSecRequest) state.
 ///
-/// This struct holds the prepared SEC client and request objects that will be used
-/// to execute HTTP requests to SEC API endpoints. It is designed to be used as part
-/// of the SEC document extraction workflow, and supports builder-based updates and
-/// integration with the state machine framework.
+/// Bundles the prepared [`SecClient`] and [`SecRequest`] the state will dispatch.
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
 pub struct ExecuteSecRequestInput {
     /// The prepared SEC client that will execute the HTTP request.
@@ -51,16 +35,7 @@ pub struct ExecuteSecRequestInput {
 }
 
 impl ExecuteSecRequestInput {
-    /// Creates a new instance of the input data for executing SEC requests.
-    ///
-    /// # Arguments
-    ///
-    /// * `sec_client` - The prepared [`SecClient`] configured with proper user agent.
-    /// * `sec_request` - The prepared [`SecRequest`] targeting the desired CIK.
-    ///
-    /// # Returns
-    ///
-    /// Returns a new [`ExecuteSecRequestInput`] instance ready for state processing.
+    /// Creates input data from a prepared client and request.
     pub const fn new(sec_client: SecClient, sec_request: SecRequest) -> Self {
         Self {
             sec_client,
@@ -69,20 +44,12 @@ impl ExecuteSecRequestInput {
     }
 
     /// Returns a reference to the SEC client.
-    ///
-    /// # Returns
-    ///
-    /// A reference to the [`SecClient`] that will be used for HTTP requests.
     #[must_use]
     pub const fn sec_client(&self) -> &SecClient {
         &self.sec_client
     }
 
     /// Returns a reference to the SEC request.
-    ///
-    /// # Returns
-    ///
-    /// A reference to the [`SecRequest`] that will be executed.
     #[must_use]
     pub const fn sec_request(&self) -> &SecRequest {
         &self.sec_request
@@ -125,15 +92,14 @@ impl fmt::Display for ExecuteSecRequestInput {
     }
 }
 
-/// Updater for modifying [`ExecuteSecRequestInput`] in a controlled manner.
+/// Partial update for an [`ExecuteSecRequestInput`].
 ///
-/// This struct allows for partial updates to input data fields while maintaining
-/// type safety and avoiding unnecessary allocations for unchanged fields.
+/// Fields set to `None` are left unchanged when the updater is applied.
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 pub struct ExecuteSecRequestInputUpdater {
-    /// Optional new SEC client to replace the current one.
+    /// Optional new value for the SEC client.
     pub sec_client: Option<SecClient>,
-    /// Optional new SEC request to replace the current one.
+    /// Optional new value for the SEC request.
     pub sec_request: Option<SecRequest>,
 }
 
@@ -145,10 +111,7 @@ impl ExecuteSecRequestInputUpdater {
     }
 }
 
-/// Builder for constructing [`ExecuteSecRequestInputUpdater`] instances.
-///
-/// This builder provides a fluent API for constructing updaters with only
-/// the fields that need to be changed, following the builder pattern.
+/// Fluent builder for an [`ExecuteSecRequestInputUpdater`].
 pub struct ExecuteSecRequestInputUpdaterBuilder {
     sec_client: Option<SecClient>,
     sec_request: Option<SecRequest>,

@@ -1,8 +1,6 @@
-//! # Body Digest Module
+//! # Body Digest
 //!
-//! Provides the [`BodyDigest`] newtype for a precomputed hash of an HTTP response body.
-//! Computed once at construction time and reused for `Hash` and `Ord` implementations,
-//! avoiding expensive re-serialization of large JSON payloads.
+//! Provides the [`BodyDigest`] newtype: a precomputed hash of an HTTP response body.
 
 use std::fmt::{self, Display, Formatter};
 use std::hash::{DefaultHasher, Hash, Hasher};
@@ -11,27 +9,24 @@ use serde::Serialize;
 
 /// A precomputed `u64` digest of a response body.
 ///
-/// Computed from body text using [`DefaultHasher`] at construction time.
-/// Used by [`SecResponse`](super::SecResponse) and downstream types to implement
-/// `Hash` and `Ord` efficiently without re-serializing the JSON body.
-///
-/// Only one construction path exists ([`from_body_text`](Self::from_body_text)) to ensure
-/// digest consistency. The idea is that the digest is computed on the raw body text,
-/// before the body is parsed as JSON. This way, the digest reflects the exact content of the body,
-/// and the digest computation is more efficient since it does not need to convert the JSON value back to text for hashing.
-///
-/// # Example
-/// ```
-/// use sec::shared::response::implementations::sec_response::body_digest::BodyDigest;
-///
-/// let digest = BodyDigest::from_body_text("some body text");
-/// assert_eq!(digest, BodyDigest::from_body_text("some body text"));
-/// ```
+/// Lets [`SecResponse`](super::SecResponse) and downstream types derive `Hash` and `Ord` cheaply,
+/// without re-serializing a large JSON body. The digest is taken over the *raw* body text at
+/// construction (before JSON parsing), so it reflects the exact bytes received; the single
+/// construction path ([`BodyDigest::from_body_text`]) keeps that computation consistent.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub struct BodyDigest(u64);
 
 impl BodyDigest {
-    /// Computes a digest from a string slice (typically the raw HTTP response body).
+    /// Computes a digest from raw body text.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use sec::shared::response::implementations::sec_response::body_digest::BodyDigest;
+    ///
+    /// let digest = BodyDigest::from_body_text("some body text");
+    /// assert_eq!(digest, BodyDigest::from_body_text("some body text"));
+    /// ```
     #[must_use]
     pub fn from_body_text(body_text: &str) -> Self {
         let mut hasher = DefaultHasher::new();

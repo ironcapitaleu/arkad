@@ -1,45 +1,48 @@
-//! # Transform State Module
+//! # Transform Phase
 //!
-//! This module provides state implementations for the transform phase of the SEC filings ETL workflow.
-//! It handles conversion of extracted data into structured, normalized, and enriched forms for downstream processing.
+//! Provides the states of the transform phase — the second phase of the SEC ETL pipeline —
+//! and the [`TransformSuperState`] that drives them.
 //!
-//! ## Components
-//! - [`create_financial_statements`]: Creates structured financial statements from parsed company data.
-//! - [`parse_company_facts`]: Parses SEC Company Facts JSON into structured [`CompanyData`].
-//! - [`TransformSuperState`]: Super-state that orchestrates the transform workflow and state transitions.
+//! Transformation turns a raw SEC response into structured financial statements through two
+//! ordered states. As in the extract phase, the super-state owns the type-safe transitions
+//! between them so callers advance the pipeline without managing each state by hand.
+//!
+//! ## Modules
+//!
+//! - [`parse_company_facts`]: Parses the Company Facts JSON into structured [`CompanyData`].
+//! - [`create_financial_statements`]: Builds financial statements from that [`CompanyData`].
 //!
 //! ## State Flow
-//! The transformation follows this progression: [`ParseCompanyFacts`] → [`CreateFinancialStatements`]
 //!
-//! ## Example
+//! [`ParseCompanyFacts`] → [`CreateFinancialStatements`], the terminal state of the pipeline.
+//!
+//! ## Usage
+//!
 //! ```rust
 //! use std::collections::HashMap;
+//!
 //! use sec::implementations::states::transform::*;
 //! use sec::implementations::states::transform::parse_company_facts::ParseCompanyFacts;
+//! use sec::prelude::*;
 //! use sec::shared::cik::Cik;
 //! use sec::shared::content_type::ContentType;
-//! use sec::shared::financial::company_data::CompanyData;
-//! use sec::shared::financial::entity_name::EntityName;
 //! use sec::shared::headers::Headers;
 //! use sec::shared::response::implementations::sec_response::SecResponse;
 //! use sec::shared::status_code::StatusCode;
 //! use sec::shared::url::Url;
-//! use sec::prelude::*;
 //!
-//! #[tokio::main]
-//! async fn main() -> Result<(), Box<dyn std::error::Error>> {
-//!     let body = serde_json::json!({});
-//!     let response = SecResponse::from_parts(
-//!         Url::from(reqwest::Url::parse("https://example.com")?),
-//!         Headers::new(HashMap::new()),
-//!         ContentType::Json,
-//!         StatusCode::Ok,
-//!         body,
-//!     );
-//!     let cik = Cik::new("0000320193")?;
-//!     let transform_state = TransformSuperState::<ParseCompanyFacts>::new(&response, cik);
-//!     Ok(())
-//! }
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! let response = SecResponse::from_parts(
+//!     Url::from(reqwest::Url::parse("https://example.com")?),
+//!     Headers::new(HashMap::new()),
+//!     ContentType::Json,
+//!     StatusCode::Ok,
+//!     serde_json::json!({}),
+//! );
+//! let cik = Cik::new("0000320193")?;
+//! let _transform_state = TransformSuperState::<ParseCompanyFacts>::new(&response, cik);
+//! # Ok(())
+//! # }
 //! ```
 
 pub mod create_financial_statements;
@@ -65,9 +68,10 @@ use crate::shared::financial::company_data::CompanyData;
 use crate::shared::response::implementations::sec_response::SecResponse;
 use crate::shared::response::traits::sec::SecResponse as SecResponseTrait;
 
-/// Data structure for the Transform super-state.
+/// Input and output data for the [`TransformSuperState`].
 ///
-/// Currently serves as a placeholder type with unit update semantics for the [`TransformSuperState`].
+/// A placeholder with unit update semantics: the super-state delegates all real data
+/// handling to its current inner state, so it carries no data of its own.
 #[derive(Debug, Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub struct TransformSuperStateData;
 
@@ -85,9 +89,10 @@ impl StateData for TransformSuperStateData {
     }
 }
 
-/// Context data structure for the Transform super-state.
+/// Ambient context for the [`TransformSuperState`].
 ///
-/// Provides configuration and runtime context for the [`TransformSuperState`], including retry policies.
+/// A placeholder carrying no shared resources: unlike the extract phase, the transform
+/// states operate purely on in-memory data and need no client.
 #[derive(Debug, Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub struct TransformSuperStateContext;
 
@@ -105,16 +110,12 @@ impl Context for TransformSuperStateContext {
     }
 }
 
-/// A hierarchical super-state that orchestrates the transform phase of the SEC ETL pipeline.
+/// Hierarchical super-state that orchestrates the transform phase.
 ///
-/// Manages progression through transform states like [`ParseCompanyFacts`] and [`CreateFinancialStatements`],
-/// providing type-safe transitions and unified state machine interfaces.
-///
-/// # Type Parameter
-/// - `S`: The current active state, which must implement the [`State`] trait
-///
-/// # State Transitions
-/// Supports transitions: `ParseCompanyFacts` → `CreateFinancialStatements`
+/// Wraps the currently active transform state in its `S` type parameter, exposing it through
+/// a unified state-machine interface and advancing the pipeline via type-safe transitions:
+/// [`ParseCompanyFacts`] → [`CreateFinancialStatements`]. Encoding the active state in the
+/// type makes invalid transitions a compile error rather than a runtime check.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub struct TransformSuperState<S: State> {
     current_state: S,
@@ -220,13 +221,9 @@ impl<S: State> SMSuperState<S> for TransformSuperState<S> {}
 impl<S: State> SuperState<S> for TransformSuperState<S> {}
 
 impl TransformSuperState<ParseCompanyFacts> {
-    /// Creates a new [`TransformSuperState`] starting at the [`ParseCompanyFacts`] state.
+    /// Creates the super-state at the transform entry point from an SEC response and CIK.
     ///
-    /// Extracts the body and its precomputed digest from the [`SecResponse`].
-    ///
-    /// # Arguments
-    /// * `response` - The validated SEC response containing the Company Facts JSON.
-    /// * `cik` - The validated CIK for the company being processed.
+    /// Extracts the response body and its precomputed digest to seed the parsing state.
     #[must_use]
     pub fn new(response: &SecResponse, cik: Cik) -> Self {
         let body = response.body().clone();
@@ -244,11 +241,7 @@ impl TransformSuperState<ParseCompanyFacts> {
 }
 
 impl TransformSuperState<CreateFinancialStatements> {
-    /// Creates a new [`TransformSuperState`] starting at the [`CreateFinancialStatements`] state.
-    ///
-    /// # Arguments
-    /// * `company_data` - The parsed company data to transform into financial statements.
-    /// * `cik` - The validated CIK for the company being processed.
+    /// Creates the super-state positioned at the financial-statements state.
     #[must_use]
     pub const fn new(company_data: CompanyData, cik: Cik) -> Self {
         let input_data = CreateFinancialStatementsInput::new(company_data);
@@ -304,7 +297,6 @@ impl IntoStateMachineStream for TransformSuperState<CreateFinancialStatements> {
                     });
                 }
                 Err(e) => {
-                    #[allow(clippy::useless_conversion)]
                     #[allow(clippy::useless_conversion)]
             let state_err: crate::error::State = e.into();
                     let sm_error: crate::error::StateMachine = state_err.into();

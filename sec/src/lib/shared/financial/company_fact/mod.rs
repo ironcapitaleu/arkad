@@ -1,9 +1,6 @@
-//! # Company Fact Module
+//! # Company Fact
 //!
-//! Provides the [`CompanyFact`] struct representing a company's reported data
-//! for a specific financial concept. A `CompanyFact` is the result of matching
-//! a [`ConceptDefinition`](crate::shared::financial::concept_definition::ConceptDefinition)
-//! against a specific company's SEC data.
+//! Provides the [`CompanyFact`] struct: one company's reported data for a single financial concept.
 
 use std::fmt::{self, Display, Formatter};
 
@@ -11,23 +8,13 @@ use serde::Serialize;
 
 use crate::shared::financial::observation::Observation;
 
-/// A company's reported data for a specific financial concept.
+/// One company's reported data for a single financial concept.
 ///
-/// Contains the company's own label for the concept, which XBRL key was matched,
-/// and the full time series of observations. This enables querying by canonical name
-/// while preserving the company's original terminology.
-///
-/// # Example
-/// ```
-/// use sec::shared::financial::company_fact::CompanyFact;
-///
-/// let fact = CompanyFact::new(
-///     "Net Sales".to_string(),
-///     "RevenueFromContractWithCustomerExcludingAssessedTax".to_string(),
-///     vec![],
-/// );
-/// assert_eq!(fact.company_label(), "Net Sales");
-/// ```
+/// Produced by matching a
+/// [`ConceptDefinition`](crate::shared::financial::concept_definition::ConceptDefinition) against a
+/// company's SEC data. Keeps the company's own label and the matched XBRL key alongside the
+/// observation time series, so data can be queried by canonical concept while preserving the
+/// company's original terminology.
 #[derive(Debug, Clone, Serialize)]
 pub struct CompanyFact {
     company_label: String,
@@ -36,13 +23,16 @@ pub struct CompanyFact {
 }
 
 impl CompanyFact {
-    /// Creates a new [`CompanyFact`] with the given components.
+    /// Creates a [`CompanyFact`] from the company's label, the matched XBRL key, and its observations.
     ///
-    /// # Arguments
+    /// # Examples
     ///
-    /// * `company_label` - The label the company uses for this concept in its filings.
-    /// * `matched_xbrl_key` - The XBRL key that was matched from the concept definition's aliases.
-    /// * `observations` - The time series of measured values for this concept.
+    /// ```
+    /// use sec::shared::financial::company_fact::CompanyFact;
+    ///
+    /// let fact = CompanyFact::new("Net Sales".to_string(), "Revenues".to_string(), vec![]);
+    /// assert_eq!(fact.company_label(), "Net Sales");
+    /// ```
     #[must_use]
     pub const fn new(
         company_label: String,

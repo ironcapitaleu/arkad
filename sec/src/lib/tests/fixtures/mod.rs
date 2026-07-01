@@ -1,16 +1,17 @@
 //! # Common Test Fixtures
 //!
-//! This module groups common fixtures and helpers used throughout the test suite.
-//! It provides reusable components, such as sample state machine and state implementations,
-//! that can be used to build consistent and maintainable tests.
+//! Reusable sample implementations of the crate's traits, used to build tests without live I/O.
 //!
 //! ## Modules
-//! - [`fake_http_client`]: Provides fake HTTP client implementations for testing.
-//! - [`sample_sec_state`]: Provides a generic "Hello World"! implementation of a `State`
-//!   for testing and reimplementation purposes.
-//! - [`sample_sec_super_state`]: Provides a simple super state implementation that makes use
-//! of [`sample_sec_state`] for testing and reimplementation purposes.
 //!
+//! - [`sample_http_client`]: Fake HTTP and SEC clients.
+//! - [`sample_request`]: Fake inner and SEC requests.
+//! - [`sample_response`]: Fake inner and SEC responses.
+//! - [`sample_sec_state`]: A minimal sample [`State`](crate::traits::state_machine::state::State).
+//! - [`sample_sec_super_state`]: A sample super-state wrapping [`sample_sec_state`].
+//! - [`sample_streaming_super_state`]: A multi-state super-state for streaming tests.
+//! - [`data`]: Raw JSON fixtures (e.g. captured SEC responses).
+
 pub mod sample_http_client;
 pub mod sample_request;
 pub mod sample_response;

@@ -1,58 +1,53 @@
-//! # SEC Request Execution State
+//! # Execute SEC Request State
 //!
-//! This module provides the [`ExecuteSecRequest`] state and related types for executing HTTP requests to SEC API endpoints as part of the SEC filings extraction workflow.
+//! Provides the [`ExecuteSecRequest`] state, the final step of the extract phase, which
+//! sends the prepared request to the SEC API and captures the response.
 //!
-//! ## Overview
-//! The [`ExecuteSecRequest`] state is responsible for executing HTTP requests using a prepared SEC client and request object. It takes the configured client and request as input and produces a response containing the SEC data.
+//! This is the one extract state that touches the network: it consumes the prepared client
+//! and request, performs the HTTP call, and produces a
+//! [`SecResponse`](crate::shared::response::implementations::sec_response::SecResponse) for the
+//! transform phase. Isolating the network call here keeps the earlier states pure and testable.
 //!
-//! ## Components
-//! - [`context`]: Defines the context and updater types for the request execution process, allowing stateful tracking of execution-related context.
-//! - [`data`]: Contains input and output data structures for the execution state, including updaters and builders for ergonomic data manipulation.
-//! - [`ExecuteSecRequestContext`]: Context data type for the state.
-//! - [`ExecuteSecRequestInput`]: Input data type holding the prepared SEC client and request.
-//! - [`ExecuteSecRequestOutput`]: Output data type containing the SEC response.
+//! ## Modules
+//!
+//! - [`constants`]: State metadata such as [`STATE_NAME`].
+//! - [`context`]: The [`ExecuteSecRequestContext`] carried alongside the state.
+//! - [`data`]: The [`ExecuteSecRequestInput`] and [`ExecuteSecRequestOutput`] data types.
 //!
 //! ## Usage
-//! This state is typically used in the extract phase of the SEC state machine ETL pipeline, after request preparation and before response processing. It is designed to be composed with other states for robust and testable SEC filings processing workflows.
 //!
-//! ## Example
-//! ```rust
-//! use tokio;
-//!
+//! ```no_run
 //! use sec::implementations::states::extract::execute_sec_request::*;
+//! use sec::prelude::*;
+//! use sec::shared::cik::Cik;
 //! use sec::shared::http_client::implementations::sec_client::SecClient;
 //! use sec::shared::request::implementations::sec_request::SecRequest;
-//! use sec::shared::cik::Cik;
-//! use sec::prelude::*;
 //!
-//! #[tokio::main]
-//! async fn main() {
-//!     let client = SecClient::default();
-//!     let cik = Cik::new("1067983").expect("Hardcoded CIK string should be valid format");
-//!     let request = SecRequest::builder()
-//!         .all_company_facts()
-//!         .cik(cik.clone())
-//!         .build();
+//! # #[tokio::main]
+//! # async fn main() {
+//! let cik = Cik::new("1067983").expect("A hardcoded valid CIK should always parse");
+//! let request = SecRequest::builder().all_company_facts().cik(cik.clone()).build();
+//! let input = ExecuteSecRequestInput::new(SecClient::default(), request);
+//! let context = ExecuteSecRequestContext::new(cik);
 //!
-//!     let input = ExecuteSecRequestInput::new(client, request);
-//!     let context = ExecuteSecRequestContext::new(cik);
+//! let mut state = ExecuteSecRequest::new(input, context);
+//! state
+//!     .compute_output_data_async()
+//!     .await
+//!     .expect("The live SEC request should succeed");
 //!
-//!     let mut execute_state = ExecuteSecRequest::new(input, context);
-//!     execute_state.compute_output_data_async().await.unwrap();
-//!     let response_output = execute_state.output_data().unwrap();
-//!
-//!     let response = response_output.response();
-//! }
+//! let _response = state
+//!     .output_data()
+//!     .expect("Output is present after a successful computation")
+//!     .response();
+//! # }
 //! ```
 //!
 //! ## See Also
-//! - [`crate::implementations::states::extract`]: Parent module for extraction-related states.
-//! - [`crate::shared::http_client::implementations::sec_client::SecClient`]: SEC client type used for HTTP requests.
-//! - [`crate::shared::request::implementations::sec_request::SecRequest`]: SEC request type for API calls.
-//! - [`crate::traits::state_machine::state::State`]: State trait implemented by [`ExecuteSecRequest`].
 //!
-//! ## Testing
-//! This module includes comprehensive unit tests covering state behavior, trait compliance, and error handling.
+//! - [`crate::implementations::states::extract`]: Parent module describing the extraction flow.
+//! - [`crate::shared::response::implementations::sec_response::SecResponse`]: The response type produced by this state.
+//! - [`crate::traits::state_machine::state::State`]: The trait implemented by [`ExecuteSecRequest`].
 
 use std::fmt;
 
@@ -74,38 +69,13 @@ pub use context::ExecuteSecRequestContext;
 pub use data::ExecuteSecRequestInput;
 pub use data::ExecuteSecRequestOutput;
 
-/// State that executes HTTP requests to SEC API endpoints.
+/// Final extract-phase state, sending the prepared request to the SEC API.
 ///
-/// This state takes a prepared SEC client and request object as input, executes the HTTP request
-/// to the SEC API, and produces a response containing the requested SEC data. It handles request
-/// execution and error handling for network-related failures.
-///
-/// # Behavior
-/// - Executes HTTP requests using the provided SEC client and request configuration.
-/// - Handles network errors and converts them to appropriate state errors.
-/// - Produces a [`SecResponse`](crate::shared::response::implementations::sec_response::SecResponse) object containing the SEC API response data.
-/// - Supports retry logic through the context configuration.
-///
-/// # Output
-/// The SEC response is stored internally after calling [`State::compute_output_data_async`].
-///
-/// # Example
-/// ```
-/// use sec::implementations::states::extract::execute_sec_request::*;
-/// use sec::shared::http_client::implementations::sec_client::SecClient;
-/// use sec::shared::request::implementations::sec_request::SecRequest;
-/// use sec::shared::cik::Cik;
-///
-/// let client = SecClient::default();
-/// let cik = Cik::new("1067983").expect("Hardcoded CIK string should be valid format");
-/// let request = SecRequest::builder()
-///     .all_company_facts()
-///     .cik(cik.clone())
-///     .build();
-/// let input = ExecuteSecRequestInput::new(client, request);
-/// let context = ExecuteSecRequestContext::new(cik);
-/// let mut execute_state = ExecuteSecRequest::new(input, context);
-/// ```
+/// Consumes the prepared [`SecClient`](crate::shared::http_client::implementations::sec_client::SecClient)
+/// and [`SecRequest`](crate::shared::request::implementations::sec_request::SecRequest), performs the
+/// HTTP call, and stores the resulting
+/// [`SecResponse`](crate::shared::response::implementations::sec_response::SecResponse). It is the only
+/// extract state that performs I/O, which is why network failures surface here.
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
 pub struct ExecuteSecRequest {
     input: ExecuteSecRequestInput,
@@ -114,16 +84,23 @@ pub struct ExecuteSecRequest {
 }
 
 impl ExecuteSecRequest {
-    /// Creates a new [`ExecuteSecRequest`] state with the provided input and context.
+    /// Creates a new state from its input and context, with no output computed yet.
     ///
-    /// # Arguments
+    /// # Examples
     ///
-    /// * `input` - The [`ExecuteSecRequestInput`] containing the prepared SEC client and request.
-    /// * `context` - The [`ExecuteSecRequestContext`] for the execution process.
+    /// ```
+    /// use sec::implementations::states::extract::execute_sec_request::*;
+    /// use sec::shared::cik::Cik;
+    /// use sec::shared::http_client::implementations::sec_client::SecClient;
+    /// use sec::shared::request::implementations::sec_request::SecRequest;
     ///
-    /// # Returns
+    /// let cik = Cik::new("1067983").expect("A hardcoded valid CIK should always parse");
+    /// let request = SecRequest::builder().all_company_facts().cik(cik.clone()).build();
+    /// let input = ExecuteSecRequestInput::new(SecClient::default(), request);
+    /// let context = ExecuteSecRequestContext::new(cik);
     ///
-    /// Returns a new [`ExecuteSecRequest`] state ready for computation.
+    /// let state = ExecuteSecRequest::new(input, context);
+    /// ```
     #[must_use]
     pub const fn new(input: ExecuteSecRequestInput, context: ExecuteSecRequestContext) -> Self {
         Self {
@@ -133,7 +110,9 @@ impl ExecuteSecRequest {
         }
     }
 
-    /// Consumes the state and returns its components. Used for state transitions.
+    /// Consumes the state and returns its input, optional output, and context.
+    ///
+    /// Used by transitions to move the SEC response into the transform phase without cloning.
     #[must_use]
     pub fn into_parts(
         self,
@@ -148,22 +127,12 @@ impl ExecuteSecRequest {
 
 #[async_trait]
 impl State for ExecuteSecRequest {
-    /// Computes the output data by executing the SEC HTTP request.
-    ///
-    /// This method takes the prepared SEC client and request from the input data,
-    /// executes the HTTP request asynchronously, and stores the response in the output data.
+    /// Executes the prepared SEC request and stores the response as output.
     ///
     /// # Errors
     ///
-    /// Returns a [`StateError`] if:
-    /// - The HTTP request fails due to network issues, timeouts, or invalid responses
-    /// - The SEC API returns an error response
-    /// - The response cannot be processed or stored
-    ///
-    /// # Returns
-    ///
-    /// Returns `Ok(())` if the request is successfully executed and the response is stored,
-    /// or `Err(StateError)` if execution fails.
+    /// Returns [`StateError::FailedRequestExecution`] when the HTTP request fails — for
+    /// example on a network error, timeout, or non-success SEC API response.
     async fn compute_output_data_async(&mut self) -> Result<(), StateError> {
         let client = &self.input.sec_client;
         let request = &self.input.sec_request;

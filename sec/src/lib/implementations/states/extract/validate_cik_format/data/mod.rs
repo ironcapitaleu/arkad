@@ -1,24 +1,21 @@
-//! # VCF Data Module
+//! # Validate CIK Format Data
 //!
-//! This module provides the input and output data structures for the `ValidateCikFormat` state
-//! within the SEC extraction state machine. It defines types and builders for handling the
-//! Central Index Key (CIK) validation process, encapsulating both the raw input and the validated output.
+//! Groups the input and output data types for the
+//! [`ValidateCikFormat`](super::ValidateCikFormat) state.
+//!
+//! The state consumes a raw CIK string and produces a validated [`Cik`](crate::shared::cik::Cik).
+//! Input and output live in separate child modules so the unvalidated and validated forms
+//! remain distinct types and cannot be confused at a transition boundary.
 //!
 //! ## Modules
-//! - [`input`]: Contains [`ValidateCikFormatInput`] and related types for representing and updating the CIK input data.
-//! - [`output`]: Contains [`ValidateCikFormatOutput`] and related types for representing and updating the validated CIK output data.
 //!
-//! ## Usage
-//! These types are used by the `ValidateCikFormat` state to receive, validate, and output CIK data
-//! as part of the SEC document extraction workflow. They implement the necessary traits for integration
-//! with the state machine framework, including `StateData` and custom updater patterns.
+//! - [`input`]: The [`ValidateCikFormatInput`] holding the raw, unvalidated CIK string.
+//! - [`output`]: The [`ValidateCikFormatOutput`] holding the validated, normalized CIK.
 //!
 //! ## See Also
-//! - [`crate::implementations::states::extract::validate_cik_format`]: The parent state implementation.
-//! - [`state_maschine::state_machine::state::StateData`]: Trait defining the methods and logic of how to interact with state-internal data.
 //!
-//! ## Examples
-//! See the documentation and tests in the submodules for usage patterns.
+//! - [`crate::implementations::states::extract::validate_cik_format`]: The parent state implementation.
+//! - [`crate::shared::cik`]: The CIK parsing and validation utilities these types build on.
 
 pub mod input;
 pub mod output;

@@ -1,36 +1,24 @@
-//! # Missing Output Data Transition Error
+//! # Missing Output Error
 //!
-//! This module defines the [`MissingOutput`] error type, which represents missing output data errors
-//! at the transition level within the SEC state machine framework. It captures situations where
-//! expected output data from a source state is not available during state transitions.
-//!
-//! ## Purpose
-//! - Reports missing output data errors with both the source and target state context.
-//! - Supports conversion to the [`Transition`](super::Transition) error enum for unified error handling.
-//!
-//! ## Types
-//! - [`MissingOutput`]: Struct representing a missing output data error with state context.
-//!
-//! ## Usage
-//! Use [`MissingOutput`] when a state transition fails due to missing output data from a source state.
-//! This allows downstream error handlers to identify which source state has not computed its output
-//! before attempting to transition to the target state.
+//! Provides the [`MissingOutput`] error: a transition attempted before the source state had
+//! computed its output.
 //!
 //! ## Example
+//!
 //! ```rust
 //! use sec::error::state_machine::transition::missing_output::MissingOutput;
 //!
-//! let error = MissingOutput::new("ValidateCikFormat", "PrepareSecRequest");
+//! let error = MissingOutput::new("Validate CIK Format", "Prepare SEC Request");
 //! ```
 
 use thiserror::Error;
 
 use super::Transition as TransitionError;
 
-/// Error representing missing output data during a state transition.
+/// A transition attempted before the source state computed its output.
 ///
-/// This error type is used when a state transition fails because the source state
-/// has not computed its output data before transitioning to the target state.
+/// Records both the source state that lacked output and the target state the transition was
+/// reaching for, so the failure pinpoints exactly where the pipeline stalled.
 #[derive(Error, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[error(
     "[MissingOutput] Failure during transition from '{source_state_name}', Reason: Output data has not been computed before transitioning to '{target_state_name}'"
@@ -43,14 +31,7 @@ pub struct MissingOutput {
 }
 
 impl MissingOutput {
-    /// Creates a new [`MissingOutput`] error.
-    ///
-    /// # Arguments
-    /// * `source_state_name` - The name of the source state missing output data.
-    /// * `target_state_name` - The name of the target state the transition was attempting.
-    ///
-    /// # Returns
-    /// A new [`MissingOutput`] error instance.
+    /// Creates a new error from the source and target state names.
     #[must_use]
     pub fn new(source_state_name: impl Into<String>, target_state_name: impl Into<String>) -> Self {
         Self {
@@ -60,15 +41,7 @@ impl MissingOutput {
     }
 }
 
-/// Converts a transition-level [`MissingOutput`] error into the [`TransitionError`] enum variant.
 impl From<MissingOutput> for TransitionError {
-    /// Converts a [`MissingOutput`] into a [`TransitionError::MissingOutput`] variant.
-    ///
-    /// # Arguments
-    /// * `error` - The [`MissingOutput`] error to convert.
-    ///
-    /// # Returns
-    /// A [`TransitionError`] containing the provided [`MissingOutput`] error.
     fn from(error: MissingOutput) -> Self {
         Self::MissingOutput(error)
     }

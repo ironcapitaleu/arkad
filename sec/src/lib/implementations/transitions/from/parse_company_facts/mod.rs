@@ -1,5 +1,11 @@
-//! # Transitions from `ParseCompanyFacts` State
+//! # Transitions from `ParseCompanyFacts`
 //!
-//! This module contains transition implementations originating from the [`ParseCompanyFacts`](crate::implementations::states::transform::parse_company_facts::ParseCompanyFacts) state.
+//! Holds the transitions leaving the
+//! [`ParseCompanyFacts`](crate::implementations::states::transform::parse_company_facts::ParseCompanyFacts)
+//! state.
+//!
+//! ## Modules
+//!
+//! - [`create_financial_statements`]: Transition into the financial-statements state.
 
 pub mod create_financial_statements;
