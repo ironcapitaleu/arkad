@@ -42,7 +42,7 @@ use crate::shared::cik::Cik;
 use crate::traits::state_machine::state::Context;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
-/// Ambient context for the [`PrepareSecRequest`](super::PrepareSecRequest) state.
+/// Context for the [`PrepareSecRequest`](super::PrepareSecRequest) state.
 ///
 /// Holds the validated [`Cik`] the request targets and the retry budget, both of which
 /// persist across updates and transitions.

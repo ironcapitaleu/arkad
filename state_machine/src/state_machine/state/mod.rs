@@ -5,7 +5,7 @@
 //!
 //! ## Modules
 //!
-//! - [`context`]: The [`Context`] trait for a state's ambient context.
+//! - [`context`]: The [`Context`] trait for a state's context.
 //! - [`state_data`]: The [`StateData`] trait for a state's input and output data.
 
 use std::{fmt::Debug, hash::Hash};
@@ -26,7 +26,7 @@ pub use state_data::StateData;
 ///
 /// - `InputData`: The data the state processes. Must implement [`StateData`].
 /// - `OutputData`: The data the state produces. Must implement [`StateData`].
-/// - `Context`: The state's ambient context. Must implement [`Context`].
+/// - `Context`: The state's context. Must implement [`Context`].
 ///
 /// # Required Traits
 ///
@@ -39,7 +39,7 @@ pub trait State:
     type InputData: StateData;
     /// The data the state produces.
     type OutputData: StateData;
-    /// The state's ambient context.
+    /// The state's context.
     type Context: Context;
 
     /// Returns the state's name, for identification in logs and diagnostics.

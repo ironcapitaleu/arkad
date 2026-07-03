@@ -89,7 +89,7 @@ impl StateData for TransformSuperStateData {
     }
 }
 
-/// Ambient context for the [`TransformSuperState`].
+/// Context for the [`TransformSuperState`].
 ///
 /// A placeholder carrying no shared resources: unlike the extract phase, the transform
 /// states operate purely on in-memory data and need no client.

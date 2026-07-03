@@ -88,7 +88,7 @@ impl StateData for ExtractSuperStateData {
     }
 }
 
-/// Ambient context for the [`ExtractSuperState`].
+/// Context for the [`ExtractSuperState`].
 ///
 /// Holds the shared [`SecClient`] handed down to each inner state, so the client is
 /// constructed once and reused across the whole extract phase.

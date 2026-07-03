@@ -1,11 +1,11 @@
 //! # Context Trait
 //!
-//! Provides the [`Context`] trait for the ambient data a state reads, separate from its
+//! Provides the [`Context`] trait for the data a state reads, separate from its
 //! input/output [`StateData`](super::StateData).
 
 use std::{fmt::Debug, hash::Hash};
 
-/// Ambient, partially-updatable data associated with a state.
+/// Partially-updatable data associated with a state.
 ///
 /// Holds environmental or shared information relevant to a state (configuration, retry policy,
 /// and the like) that is read during computation and changed only through explicit updates. The

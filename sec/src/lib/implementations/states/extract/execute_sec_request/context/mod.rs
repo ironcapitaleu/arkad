@@ -41,7 +41,7 @@ use state_maschine::prelude::Context as SMContext;
 use crate::shared::cik::Cik;
 use crate::traits::state_machine::state::Context;
 
-/// Ambient context for the [`ExecuteSecRequest`](super::ExecuteSecRequest) state.
+/// Context for the [`ExecuteSecRequest`](super::ExecuteSecRequest) state.
 ///
 /// Tracks the [`Cik`] being processed and the retry budget, both of which persist across
 /// updates and transitions.

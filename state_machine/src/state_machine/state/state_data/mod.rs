@@ -1,7 +1,7 @@
 //! # State Data Trait
 //!
 //! Provides the [`StateData`] trait for the input and output data a state reads and produces,
-//! separate from its ambient [`Context`](super::Context).
+//! separate from its [`Context`](super::Context).
 
 use std::{fmt::Debug, hash::Hash};
 

@@ -4,7 +4,7 @@
 //! [`ValidateCikFormat`](crate::implementations::states::extract::validate_cik_format::ValidateCikFormat)
 //! state, together with its updater and builder.
 //!
-//! The context holds ambient information that outlives any single input/output pair —
+//! The context holds information that outlives any single input/output pair —
 //! the shared [`SecClient`] and the retry budget — so the state can be re-run and
 //! transitioned without reconstructing those resources. Updates are applied through the
 //! [`Context`] trait via a builder-constructed updater, keeping mutation explicit and partial.
@@ -43,7 +43,7 @@ use crate::shared::http_client::implementations::sec_client::SecClient;
 use crate::traits::state_machine::state::Context;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
-/// Ambient context for the [`ValidateCikFormat`](super::ValidateCikFormat) state.
+/// Context for the [`ValidateCikFormat`](super::ValidateCikFormat) state.
 ///
 /// Bundles the resources and configuration that persist across the state's lifetime —
 /// the raw CIK under validation, the shared [`SecClient`], and the retry budget — so they

@@ -8,7 +8,7 @@
 //!
 //! ## Modules
 //!
-//! - [`context_data`]: The [`Context`] trait for a state's ambient context.
+//! - [`context_data`]: The [`Context`] trait for a state's context.
 //! - [`state_data`]: The [`StateData`] trait for a state's input/output data.
 
 use std::fmt::Display;

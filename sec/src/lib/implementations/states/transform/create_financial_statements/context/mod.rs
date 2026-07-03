@@ -42,7 +42,7 @@ use crate::shared::cik::Cik;
 use crate::traits::state_machine::state::Context;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
-/// Ambient context for the [`CreateFinancialStatements`](super::CreateFinancialStatements) state.
+/// Context for the [`CreateFinancialStatements`](super::CreateFinancialStatements) state.
 ///
 /// Tracks the [`Cik`] of the company being processed and the retry budget, both of which persist
 /// across updates and transitions.
