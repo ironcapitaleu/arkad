@@ -156,7 +156,7 @@ impl PrepareSecRequestInputUpdaterBuilder {
         self
     }
 
-    /// Sets the HTTP client field.
+    /// Sets the SEC client field.
     #[must_use]
     #[allow(clippy::missing_const_for_fn)]
     pub fn sec_client(mut self, sec_client: SecClient) -> Self {

@@ -163,7 +163,7 @@ impl ValidateCikFormatContextUpdaterBuilder {
         self
     }
 
-    /// Sets the HTTP client field.
+    /// Sets the SEC client field.
     #[must_use]
     pub fn sec_client(mut self, sec_client: SecClient) -> Self {
         self.sec_client = Some(sec_client);
