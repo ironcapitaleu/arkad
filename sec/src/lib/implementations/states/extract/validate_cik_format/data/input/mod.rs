@@ -41,7 +41,12 @@ impl ValidateCikFormatInput {
     /// use sec::implementations::states::extract::validate_cik_format::data::input::ValidateCikFormatInput;
     ///
     /// let input = ValidateCikFormatInput::new("1067983");
-    /// assert_eq!(input.cik(), "1067983");
+    ///
+    /// let expected_result = "1067983";
+    ///
+    /// let result = input.cik().as_str();
+    ///
+    /// assert_eq!(result, expected_result);
     /// ```
     pub fn new(cik: impl Into<String>) -> Self {
         Self {

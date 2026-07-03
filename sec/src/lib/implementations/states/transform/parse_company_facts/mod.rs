@@ -83,15 +83,21 @@ impl ParseCompanyFacts {
     /// use sec::implementations::states::transform::parse_company_facts::*;
     /// use sec::shared::cik::Cik;
     /// use sec::shared::response::implementations::sec_response::body_digest::BodyDigest;
+    /// use state_maschine::prelude::State as SMState;
     ///
     /// let json = serde_json::json!({});
     /// let digest = BodyDigest::from_body_text(&json.to_string());
     /// let cik = Cik::new("0001067983").expect("A hardcoded valid CIK should always parse");
-    ///
     /// let input = ParseCompanyFactsInput::new(json, digest);
     /// let context = ParseCompanyFactsContext::new(cik);
     ///
+    /// let expected_result = false;
+    ///
     /// let state = ParseCompanyFacts::new(input, context);
+    ///
+    /// let result = state.output_data().is_some();
+    ///
+    /// assert_eq!(result, expected_result);
     /// ```
     #[must_use]
     pub const fn new(input: ParseCompanyFactsInput, context: ParseCompanyFactsContext) -> Self {

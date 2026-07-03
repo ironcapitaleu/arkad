@@ -19,9 +19,13 @@
 //! let update = ParseCompanyFactsContextUpdater::builder()
 //!     .max_retries(3)
 //!     .build();
-//!
 //! context.update_context(update);
-//! assert_eq!(context.max_retries(), 3);
+//!
+//! let expected_result = 3;
+//!
+//! let result = context.max_retries();
+//!
+//! assert_eq!(result, expected_result);
 //! ```
 //!
 //! ## See Also

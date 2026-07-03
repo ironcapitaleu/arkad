@@ -22,7 +22,12 @@ impl AccessionNumber {
     /// use sec::shared::financial::accession_number::AccessionNumber;
     ///
     /// let accn = AccessionNumber::new("0000320193-23-000106");
-    /// assert_eq!(accn.value(), "0000320193-23-000106");
+    ///
+    /// let expected_result = "0000320193-23-000106";
+    ///
+    /// let result = accn.value();
+    ///
+    /// assert_eq!(result, expected_result);
     /// ```
     #[must_use]
     pub fn new(value: impl Into<String>) -> Self {

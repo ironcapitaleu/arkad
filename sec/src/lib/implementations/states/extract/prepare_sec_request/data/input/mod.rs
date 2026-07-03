@@ -44,7 +44,13 @@ impl PrepareSecRequestInput {
     /// use sec::shared::http_client::implementations::sec_client::SecClient;
     ///
     /// let cik = Cik::new("1067983").expect("A hardcoded valid CIK should always parse");
-    /// let input = PrepareSecRequestInput::new(cik, SecClient::default());
+    /// let input = PrepareSecRequestInput::new(cik.clone(), SecClient::default());
+    ///
+    /// let expected_result = &cik;
+    ///
+    /// let result = input.validated_cik();
+    ///
+    /// assert_eq!(result, expected_result);
     /// ```
     #[must_use]
     pub const fn new(validated_cik: Cik, sec_client: SecClient) -> Self {

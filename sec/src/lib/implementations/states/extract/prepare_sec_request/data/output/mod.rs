@@ -47,7 +47,13 @@ impl PrepareSecRequestOutput {
     ///
     /// let cik = Cik::new("1067983").expect("A hardcoded valid CIK should always parse");
     /// let request = SecRequest::builder().all_company_facts().cik(cik).build();
-    /// let output = PrepareSecRequestOutput::new(SecClient::default(), request);
+    /// let output = PrepareSecRequestOutput::new(SecClient::default(), request.clone());
+    ///
+    /// let expected_result = &request;
+    ///
+    /// let result = output.request();
+    ///
+    /// assert_eq!(result, expected_result);
     /// ```
     pub const fn new(client: SecClient, request: SecRequest) -> Self {
         Self { client, request }

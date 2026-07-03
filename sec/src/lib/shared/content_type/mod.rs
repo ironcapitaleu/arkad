@@ -43,7 +43,11 @@ impl ContentType {
     /// let mut headers = HashMap::new();
     /// headers.insert("content-type".to_string(), "application/json".to_string());
     ///
-    /// assert_eq!(ContentType::from_headers(&headers), ContentType::Json);
+    /// let expected_result = ContentType::Json;
+    ///
+    /// let result = ContentType::from_headers(&headers);
+    ///
+    /// assert_eq!(result, expected_result);
     /// ```
     #[must_use]
     pub fn from_headers(headers: &HashMap<String, String>) -> Self {

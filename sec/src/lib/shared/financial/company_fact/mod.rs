@@ -31,7 +31,12 @@ impl CompanyFact {
     /// use sec::shared::financial::company_fact::CompanyFact;
     ///
     /// let fact = CompanyFact::new("Net Sales".to_string(), "Revenues".to_string(), vec![]);
-    /// assert_eq!(fact.company_label(), "Net Sales");
+    ///
+    /// let expected_result = "Net Sales";
+    ///
+    /// let result = fact.company_label();
+    ///
+    /// assert_eq!(result, expected_result);
     /// ```
     #[must_use]
     pub const fn new(

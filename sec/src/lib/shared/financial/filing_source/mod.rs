@@ -49,7 +49,12 @@ impl FilingSource {
     ///     date(2023, 11, 3),
     ///     date(2023, 9, 30),
     /// );
-    /// assert_eq!(source.form(), Form::TenK);
+    ///
+    /// let expected_result = Form::TenK;
+    ///
+    /// let result = source.form();
+    ///
+    /// assert_eq!(result, expected_result);
     /// ```
     #[must_use]
     pub const fn new(

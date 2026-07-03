@@ -11,6 +11,12 @@
 //!
 //! let cik_error = CikError::new(InvalidCikReason::ContainsNonNumericCharacters, "bad");
 //! let state_error = InvalidCikFormat::new("Validate CIK Format", cik_error);
+//!
+//! let expected_result = "Validate CIK Format";
+//!
+//! let result = state_error.state_name.as_str();
+//!
+//! assert_eq!(result, expected_result);
 //! ```
 
 use thiserror::Error;

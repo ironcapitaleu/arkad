@@ -67,14 +67,20 @@ impl CreateFinancialStatements {
     /// use sec::shared::cik::Cik;
     /// use sec::shared::financial::company_data::CompanyData;
     /// use sec::shared::financial::entity_name::EntityName;
+    /// use state_maschine::prelude::State as SMState;
     ///
     /// let cik = Cik::new("0000320193").expect("A hardcoded valid CIK should always parse");
     /// let company_data = CompanyData::new(cik.clone(), EntityName::new("Apple Inc."), HashMap::new());
-    ///
     /// let input = CreateFinancialStatementsInput::new(company_data);
     /// let context = CreateFinancialStatementsContext::new(cik);
     ///
+    /// let expected_result = false;
+    ///
     /// let state = CreateFinancialStatements::new(input, context);
+    ///
+    /// let result = state.output_data().is_some();
+    ///
+    /// assert_eq!(result, expected_result);
     /// ```
     #[must_use]
     pub const fn new(

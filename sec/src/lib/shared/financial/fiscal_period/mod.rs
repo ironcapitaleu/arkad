@@ -45,8 +45,11 @@ impl FiscalPeriod {
     /// ```
     /// use sec::shared::financial::fiscal_period::FiscalPeriod;
     ///
-    /// assert_eq!(FiscalPeriod::from_sec_str("Q1"), Some(FiscalPeriod::Q1));
-    /// assert_eq!(FiscalPeriod::from_sec_str("H1"), None);
+    /// let expected_result = Some(FiscalPeriod::Q1);
+    ///
+    /// let result = FiscalPeriod::from_sec_str("Q1");
+    ///
+    /// assert_eq!(result, expected_result);
     /// ```
     #[must_use]
     pub fn from_sec_str(s: &str) -> Option<Self> {

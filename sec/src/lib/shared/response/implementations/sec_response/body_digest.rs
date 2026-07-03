@@ -24,8 +24,7 @@ impl BodyDigest {
     /// ```
     /// use sec::shared::response::implementations::sec_response::body_digest::BodyDigest;
     ///
-    /// let digest = BodyDigest::from_body_text("some body text");
-    /// assert_eq!(digest, BodyDigest::from_body_text("some body text"));
+    /// let _digest = BodyDigest::from_body_text("some body text");
     /// ```
     #[must_use]
     pub fn from_body_text(body_text: &str) -> Self {

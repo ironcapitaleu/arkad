@@ -40,7 +40,12 @@ impl CompanyData {
     ///
     /// let cik = Cik::new("0000320193").expect("A hardcoded valid CIK should always parse");
     /// let company_data = CompanyData::new(cik, EntityName::new("Apple Inc."), HashMap::new());
-    /// assert_eq!(company_data.entity_name().value(), "Apple Inc.");
+    ///
+    /// let expected_result = "Apple Inc.";
+    ///
+    /// let result = company_data.entity_name().value();
+    ///
+    /// assert_eq!(result, expected_result);
     /// ```
     #[must_use]
     pub const fn new(

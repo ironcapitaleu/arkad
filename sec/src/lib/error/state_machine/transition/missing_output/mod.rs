@@ -9,6 +9,12 @@
 //! use sec::error::state_machine::transition::missing_output::MissingOutput;
 //!
 //! let error = MissingOutput::new("Validate CIK Format", "Prepare SEC Request");
+//!
+//! let expected_result = "Validate CIK Format";
+//!
+//! let result = error.source_state_name.as_str();
+//!
+//! assert_eq!(result, expected_result);
 //! ```
 
 use thiserror::Error;

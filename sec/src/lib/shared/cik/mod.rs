@@ -52,7 +52,12 @@ impl Cik {
     /// use sec::shared::cik::Cik;
     ///
     /// let cik = Cik::new("123456789").expect("A hardcoded valid CIK should always parse");
-    /// assert_eq!(cik.value(), "0123456789");
+    ///
+    /// let expected_result = "0123456789";
+    ///
+    /// let result = cik.value();
+    ///
+    /// assert_eq!(result, expected_result);
     /// ```
     pub fn new(cik: &(impl ToString + ?Sized)) -> Result<Self, CikError> {
         let original_input = cik.to_string(); // Keep original input for error messages

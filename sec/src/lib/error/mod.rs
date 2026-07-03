@@ -17,11 +17,12 @@
 //! use sec::error::{ErrorKind, StateMachine};
 //!
 //! let err = ErrorKind::StateMachine(StateMachine::InvalidConfiguration);
-//! match err {
-//!     ErrorKind::StateMachine(sm_err) => println!("State machine error: {sm_err}"),
-//!     ErrorKind::DowncastNotPossible => println!("Downcast failed"),
-//!     _ => println!("Other error kind"),
-//! }
+//!
+//! let expected_result = true;
+//!
+//! let result = matches!(err, ErrorKind::StateMachine(StateMachine::InvalidConfiguration));
+//!
+//! assert_eq!(result, expected_result);
 //! ```
 
 pub mod state_machine;

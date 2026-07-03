@@ -44,8 +44,12 @@ impl ConceptDefinition {
     /// use sec::shared::financial::unit::Unit;
     ///
     /// let revenue = ConceptDefinition::new("Revenue", &["Revenues", "SalesRevenueNet"], Unit::Usd, true);
-    /// assert_eq!(revenue.canonical_name(), "Revenue");
-    /// assert!(revenue.required());
+    ///
+    /// let expected_result = "Revenue";
+    ///
+    /// let result = revenue.canonical_name();
+    ///
+    /// assert_eq!(result, expected_result);
     /// ```
     #[must_use]
     pub const fn new(

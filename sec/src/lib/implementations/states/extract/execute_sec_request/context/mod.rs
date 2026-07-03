@@ -19,9 +19,13 @@
 //! let update = ExecuteSecRequestContextUpdater::builder()
 //!     .cik(Cik::new("0987654321").expect("A hardcoded valid CIK should always parse"))
 //!     .build();
-//!
 //! context.update_context(update);
-//! assert_eq!(context.cik().to_string(), "0987654321");
+//!
+//! let expected_result = "0987654321";
+//!
+//! let result = context.cik().to_string();
+//!
+//! assert_eq!(result, expected_result);
 //! ```
 //!
 //! ## See Also

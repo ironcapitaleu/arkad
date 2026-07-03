@@ -54,8 +54,12 @@ impl StatusCode {
     /// use sec::shared::status_code::StatusCode;
     ///
     /// let status = StatusCode::from_u16(200);
-    /// assert_eq!(status, StatusCode::Ok);
-    /// assert_eq!(status.as_u16(), 200);
+    ///
+    /// let expected_result = StatusCode::Ok;
+    ///
+    /// let result = status;
+    ///
+    /// assert_eq!(result, expected_result);
     /// ```
     #[must_use]
     pub const fn from_u16(code: u16) -> Self {

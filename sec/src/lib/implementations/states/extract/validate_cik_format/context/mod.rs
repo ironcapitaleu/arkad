@@ -20,9 +20,13 @@
 //! let update = ValidateCikFormatContextUpdater::builder()
 //!     .cik("0000000001")
 //!     .build();
-//!
 //! context.update_context(update);
-//! assert_eq!(context.cik(), "0000000001");
+//!
+//! let expected_result = "0000000001";
+//!
+//! let result = context.cik().as_str();
+//!
+//! assert_eq!(result, expected_result);
 //! ```
 //!
 //! ## See Also

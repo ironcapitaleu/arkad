@@ -44,7 +44,13 @@ impl ParseCompanyFactsInput {
     ///
     /// let json = serde_json::json!({"cik": 320193, "entityName": "Apple Inc.", "facts": {}});
     /// let digest = BodyDigest::from_body_text(&json.to_string());
-    /// let input = ParseCompanyFactsInput::new(json, digest);
+    /// let input = ParseCompanyFactsInput::new(json.clone(), digest);
+    ///
+    /// let expected_result = &json;
+    ///
+    /// let result = input.response();
+    ///
+    /// assert_eq!(result, expected_result);
     /// ```
     #[must_use]
     pub const fn new(response: serde_json::Value, body_digest: BodyDigest) -> Self {

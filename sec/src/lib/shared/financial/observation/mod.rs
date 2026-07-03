@@ -57,7 +57,12 @@ impl Observation {
     ///         date(2023, 9, 30),
     ///     ),
     /// );
-    /// assert_eq!(obs.value(), 383_285_000_000);
+    ///
+    /// let expected_result = 383_285_000_000;
+    ///
+    /// let result = obs.value();
+    ///
+    /// assert_eq!(result, expected_result);
     /// ```
     #[must_use]
     pub const fn new(

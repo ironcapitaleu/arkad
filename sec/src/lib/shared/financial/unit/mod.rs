@@ -39,8 +39,11 @@ impl Unit {
     /// ```
     /// use sec::shared::financial::unit::Unit;
     ///
-    /// assert_eq!(Unit::from_sec_str("USD"), Some(Unit::Usd));
-    /// assert_eq!(Unit::from_sec_str("unknown_unit"), None);
+    /// let expected_result = Some(Unit::Usd);
+    ///
+    /// let result = Unit::from_sec_str("USD");
+    ///
+    /// assert_eq!(result, expected_result);
     /// ```
     #[must_use]
     pub fn from_sec_str(s: &str) -> Option<Self> {

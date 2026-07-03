@@ -16,6 +16,12 @@
 //!
 //! let cik = Cik::new("1067983").expect("A hardcoded valid CIK should always parse");
 //! let request = SecRequest::builder().all_company_facts().cik(cik).build();
+//!
+//! let expected_result = "https://data.sec.gov/api/xbrl/companyfacts/CIK0001067983.json";
+//!
+//! let result = request.inner.url().as_str();
+//!
+//! assert_eq!(result, expected_result);
 //! ```
 
 use crate::shared::cik::Cik;
@@ -82,6 +88,12 @@ impl AllCompanyFactsBuilder<Cik> {
     ///
     /// let cik = Cik::new("1067983").expect("A hardcoded valid CIK should always parse");
     /// let request = SecRequest::builder().all_company_facts().cik(cik).build();
+    ///
+    /// let expected_result = "https://data.sec.gov/api/xbrl/companyfacts/CIK0001067983.json";
+    ///
+    /// let result = request.inner.url().as_str();
+    ///
+    /// assert_eq!(result, expected_result);
     /// ```
     #[must_use]
     pub fn build(self) -> SecRequest {

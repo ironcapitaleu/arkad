@@ -17,12 +17,12 @@
 //! use sec::error::state_machine::{StateMachine, State, Transition};
 //!
 //! let err = StateMachine::State(State::InvalidInput);
-//! match err {
-//!     StateMachine::State(state_err) => println!("State error: {state_err}"),
-//!     StateMachine::Transition(trans_err) => println!("Transition error: {trans_err}"),
-//!     StateMachine::InvalidConfiguration => println!("Invalid state machine configuration"),
-//!     _ => println!("Other state machine error"),
-//! }
+//!
+//! let expected_result = true;
+//!
+//! let result = matches!(err, StateMachine::State(State::InvalidInput));
+//!
+//! assert_eq!(result, expected_result);
 //! ```
 
 pub mod state;

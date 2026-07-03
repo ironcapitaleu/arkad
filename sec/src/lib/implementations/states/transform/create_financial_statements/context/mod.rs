@@ -19,9 +19,13 @@
 //! let update = CreateFinancialStatementsContextUpdater::builder()
 //!     .cik(Cik::new("0000000001").expect("A hardcoded valid CIK should always parse"))
 //!     .build();
-//!
 //! context.update_context(update);
-//! assert_eq!(context.cik().value(), "0000000001");
+//!
+//! let expected_result = "0000000001";
+//!
+//! let result = context.cik().value().as_str();
+//!
+//! assert_eq!(result, expected_result);
 //! ```
 //!
 //! ## See Also

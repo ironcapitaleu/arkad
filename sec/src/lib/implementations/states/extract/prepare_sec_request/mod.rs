@@ -27,17 +27,17 @@
 //! let cik = Cik::new("1067983").expect("A hardcoded valid CIK should always parse");
 //! let input = PrepareSecRequestInput::new(cik.clone(), SecClient::default());
 //! let context = PrepareSecRequestContext::new(cik);
-//!
 //! let mut state = PrepareSecRequest::new(input, context);
 //! state
 //!     .compute_output_data_async()
 //!     .await
 //!     .expect("Request preparation is infallible for a valid CIK");
 //!
-//! let output = state
-//!     .output_data()
-//!     .expect("Output is present after a successful computation");
-//! let _request = output.request();
+//! let expected_result = true;
+//!
+//! let result = state.output_data().is_some();
+//!
+//! assert_eq!(result, expected_result);
 //! # }
 //! ```
 //!
@@ -87,12 +87,19 @@ impl PrepareSecRequest {
     /// use sec::implementations::states::extract::prepare_sec_request::*;
     /// use sec::shared::cik::Cik;
     /// use sec::shared::http_client::implementations::sec_client::SecClient;
+    /// use state_maschine::prelude::State as SMState;
     ///
     /// let cik = Cik::new("1067983").expect("A hardcoded valid CIK should always parse");
     /// let input = PrepareSecRequestInput::new(cik.clone(), SecClient::default());
     /// let context = PrepareSecRequestContext::new(cik);
     ///
+    /// let expected_result = false;
+    ///
     /// let state = PrepareSecRequest::new(input, context);
+    ///
+    /// let result = state.output_data().is_some();
+    ///
+    /// assert_eq!(result, expected_result);
     /// ```
     #[must_use]
     pub const fn new(input: PrepareSecRequestInput, context: PrepareSecRequestContext) -> Self {

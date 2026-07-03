@@ -111,9 +111,18 @@ Module-level doc-tests make sense when **multiple items must be imported and com
 
 If the usage can be shown on a single function or constructor, prefer placing the doc-test there instead.
 
-Module-level doc-tests follow the same **ADAA pattern** (Arrange, Define expected result, Act,
-Assert) used by unit tests. This keeps them readable, verifiable, and stylistically consistent
-with the rest of the codebase — a doc-test is still a test.
+Doc-tests follow the same **ADAA pattern** (Arrange, Define expected result, Act, Assert) used by
+unit tests. This keeps them readable, verifiable, and stylistically consistent with the rest of
+the codebase — a doc-test is still a test.
+
+**When to assert:** Assert when the constructor or method produces observable, verifiable output — a
+transformation where the result differs from the input (parsing `"123456789"` → `"0123456789"`,
+extracting a field, computing a value).
+
+**When to omit the assertion:** Omit when construction is the entire point — opaque types with no
+public accessor that exposes a meaningful value (like `BodyDigest`), or when the only possible
+assertion would be tautological or redundant. In that case, use `let _x = ...` to show that
+construction compiles and the type is inhabited.
 
 ### Template (Grouping Module)
 

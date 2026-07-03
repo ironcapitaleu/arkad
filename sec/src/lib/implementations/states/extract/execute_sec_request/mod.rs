@@ -93,13 +93,20 @@ impl ExecuteSecRequest {
     /// use sec::shared::cik::Cik;
     /// use sec::shared::http_client::implementations::sec_client::SecClient;
     /// use sec::shared::request::implementations::sec_request::SecRequest;
+    /// use state_maschine::prelude::State as SMState;
     ///
     /// let cik = Cik::new("1067983").expect("A hardcoded valid CIK should always parse");
     /// let request = SecRequest::builder().all_company_facts().cik(cik.clone()).build();
     /// let input = ExecuteSecRequestInput::new(SecClient::default(), request);
     /// let context = ExecuteSecRequestContext::new(cik);
     ///
+    /// let expected_result = false;
+    ///
     /// let state = ExecuteSecRequest::new(input, context);
+    ///
+    /// let result = state.output_data().is_some();
+    ///
+    /// assert_eq!(result, expected_result);
     /// ```
     #[must_use]
     pub const fn new(input: ExecuteSecRequestInput, context: ExecuteSecRequestContext) -> Self {

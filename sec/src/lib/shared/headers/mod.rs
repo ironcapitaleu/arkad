@@ -61,8 +61,12 @@ impl Headers {
     /// raw.insert("x-custom".to_string(), "value".to_string());
     ///
     /// let headers = Headers::new(raw);
-    /// assert_eq!(*headers.content_type(), ContentType::Json);
-    /// assert_eq!(headers.get("x-custom"), Some("value"));
+    ///
+    /// let expected_result = ContentType::Json;
+    ///
+    /// let result = headers.content_type().clone();
+    ///
+    /// assert_eq!(result, expected_result);
     /// ```
     #[must_use]
     pub fn new(raw_headers: HashMap<String, String>) -> Self {

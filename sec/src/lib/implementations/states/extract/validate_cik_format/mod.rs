@@ -28,17 +28,21 @@
 //! # async fn main() {
 //! let input = ValidateCikFormatInput::new("1234");
 //! let context = ValidateCikFormatContext::new("1234", SecClient::default());
-//!
 //! let mut state = ValidateCikFormat::new(input, context);
 //! state
 //!     .compute_output_data_async()
 //!     .await
 //!     .expect("A syntactically valid CIK should always validate successfully");
 //!
-//! let validated = state
+//! let expected_result = "0000001234";
+//!
+//! let result = state
 //!     .output_data()
-//!     .expect("Output is present after a successful computation");
-//! assert_eq!(validated.validated_cik.value(), "0000001234");
+//!     .expect("Output is present after a successful computation")
+//!     .validated_cik
+//!     .value();
+//!
+//! assert_eq!(result, expected_result);
 //! # }
 //! ```
 //!
@@ -94,11 +98,18 @@ impl ValidateCikFormat {
     /// ```
     /// use sec::implementations::states::extract::validate_cik_format::*;
     /// use sec::shared::http_client::implementations::sec_client::SecClient;
+    /// use state_maschine::prelude::State as SMState;
     ///
     /// let input = ValidateCikFormatInput::new("1234");
     /// let context = ValidateCikFormatContext::new("1234", SecClient::default());
     ///
+    /// let expected_result = false;
+    ///
     /// let state = ValidateCikFormat::new(input, context);
+    ///
+    /// let result = state.output_data().is_some();
+    ///
+    /// assert_eq!(result, expected_result);
     /// ```
     #[must_use]
     pub const fn new(input: ValidateCikFormatInput, context: ValidateCikFormatContext) -> Self {

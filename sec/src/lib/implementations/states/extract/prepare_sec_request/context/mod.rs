@@ -19,9 +19,13 @@
 //! let update = PrepareSecRequestContextUpdater::builder()
 //!     .max_retries(5)
 //!     .build();
-//!
 //! context.update_context(update);
-//! assert_eq!(context.max_retries, 5);
+//!
+//! let expected_result = 5;
+//!
+//! let result = context.max_retries;
+//!
+//! assert_eq!(result, expected_result);
 //! ```
 //!
 //! ## See Also

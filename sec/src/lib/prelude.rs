@@ -16,7 +16,15 @@
 //!
 //! ```rust
 //! use sec::prelude::*;
-//! // Now you can use State, StateData, Context, etc. directly.
+//! use sec::shared::cik::Cik;
+//!
+//! let cik = Cik::new("1067983").expect("A hardcoded valid CIK should always parse");
+//!
+//! let expected_result = "0001067983";
+//!
+//! let result = cik.value().as_str();
+//!
+//! assert_eq!(result, expected_result);
 //! ```
 
 pub use crate::traits::state_machine::StateMachine;

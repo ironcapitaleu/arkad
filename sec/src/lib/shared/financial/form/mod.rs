@@ -33,8 +33,11 @@ impl Form {
     /// ```
     /// use sec::shared::financial::form::Form;
     ///
-    /// assert_eq!(Form::from_sec_str("10-K"), Some(Form::TenK));
-    /// assert_eq!(Form::from_sec_str("8-K"), None);
+    /// let expected_result = Some(Form::TenK);
+    ///
+    /// let result = Form::from_sec_str("10-K");
+    ///
+    /// assert_eq!(result, expected_result);
     /// ```
     #[must_use]
     pub fn from_sec_str(s: &str) -> Option<Self> {

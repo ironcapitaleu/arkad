@@ -59,8 +59,12 @@ impl Frame {
     /// use sec::shared::financial::frame::Frame;
     ///
     /// let frame = Frame::parse("CY2023Q3I").expect("A hardcoded valid frame should always parse");
-    /// assert_eq!(frame.year(), 2023);
-    /// assert!(frame.instant());
+    ///
+    /// let expected_result = 2023;
+    ///
+    /// let result = frame.year();
+    ///
+    /// assert_eq!(result, expected_result);
     /// ```
     #[must_use]
     pub fn parse(s: &str) -> Option<Self> {

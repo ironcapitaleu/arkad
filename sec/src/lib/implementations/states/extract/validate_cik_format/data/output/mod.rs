@@ -51,7 +51,12 @@ impl ValidateCikFormatOutput {
     ///
     /// let output = ValidateCikFormatOutput::new("1067983")
     ///     .expect("A syntactically valid CIK should always produce output");
-    /// assert_eq!(output.cik(), "0001067983");
+    ///
+    /// let expected_result = "0001067983";
+    ///
+    /// let result = output.cik().as_str();
+    ///
+    /// assert_eq!(result, expected_result);
     /// ```
     pub fn new(cik: impl Into<String>) -> Result<Self, StateError> {
         let cik_str = cik.into();

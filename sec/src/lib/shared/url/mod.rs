@@ -43,7 +43,12 @@ impl FromStr for Url {
     /// let url: Url = "https://data.sec.gov/submissions/CIK0001067983.json"
     ///     .parse()
     ///     .expect("A hardcoded valid URL string should always parse");
-    /// assert_eq!(url.as_str(), "https://data.sec.gov/submissions/CIK0001067983.json");
+    ///
+    /// let expected_result = "https://data.sec.gov/submissions/CIK0001067983.json";
+    ///
+    /// let result = url.as_str();
+    ///
+    /// assert_eq!(result, expected_result);
     /// ```
     fn from_str(url: &str) -> Result<Self, Self::Err> {
         url::Url::parse(url).map_or_else(

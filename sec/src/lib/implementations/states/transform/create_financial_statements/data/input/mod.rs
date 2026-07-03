@@ -47,12 +47,19 @@ impl CreateFinancialStatementsInput {
     /// use sec::shared::financial::entity_name::EntityName;
     /// use sec::implementations::states::transform::create_financial_statements::data::input::CreateFinancialStatementsInput;
     ///
+    /// let cik = Cik::new("0000320193").expect("Hardcoded CIK should always be valid");
     /// let company_data = CompanyData::new(
-    ///     Cik::new("0000320193").expect("Hardcoded CIK should always be valid"),
+    ///     cik.clone(),
     ///     EntityName::new("Apple Inc."),
     ///     HashMap::new(),
     /// );
     /// let input = CreateFinancialStatementsInput::new(company_data);
+    ///
+    /// let expected_result = &cik;
+    ///
+    /// let result = input.company_data().cik();
+    ///
+    /// assert_eq!(result, expected_result);
     /// ```
     #[must_use]
     pub const fn new(company_data: CompanyData) -> Self {

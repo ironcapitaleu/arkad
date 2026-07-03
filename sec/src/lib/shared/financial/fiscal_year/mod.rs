@@ -22,7 +22,12 @@ impl FiscalYear {
     /// use sec::shared::financial::fiscal_year::FiscalYear;
     ///
     /// let fy = FiscalYear::from(2023_u16);
-    /// assert_eq!(fy.value(), 2023);
+    ///
+    /// let expected_result = 2023;
+    ///
+    /// let result = fy.value();
+    ///
+    /// assert_eq!(result, expected_result);
     /// ```
     #[must_use]
     pub const fn value(self) -> u16 {

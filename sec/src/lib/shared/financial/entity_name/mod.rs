@@ -22,7 +22,12 @@ impl EntityName {
     /// use sec::shared::financial::entity_name::EntityName;
     ///
     /// let name = EntityName::new("Apple Inc.");
-    /// assert_eq!(name.value(), "Apple Inc.");
+    ///
+    /// let expected_result = "Apple Inc.";
+    ///
+    /// let result = name.value();
+    ///
+    /// assert_eq!(result, expected_result);
     /// ```
     #[must_use]
     pub fn new(value: impl Into<String>) -> Self {

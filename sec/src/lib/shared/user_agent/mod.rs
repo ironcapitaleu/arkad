@@ -42,7 +42,12 @@ impl UserAgent {
     ///
     /// let agent = UserAgent::new("Sample Company contact@example.com")
     ///     .expect("A hardcoded SEC-format string should always validate");
-    /// assert_eq!(agent.inner(), "Sample Company contact@example.com");
+    ///
+    /// let expected_result = "Sample Company contact@example.com";
+    ///
+    /// let result = agent.inner();
+    ///
+    /// assert_eq!(result, expected_result);
     /// ```
     pub fn new(user_agent: &str) -> Result<Self, UserAgentError> {
         Self::validate_sec_format(user_agent)?;

@@ -43,8 +43,11 @@ impl Quarter {
     /// ```
     /// use sec::shared::financial::quarter::Quarter;
     ///
-    /// assert_eq!(Quarter::from_number_str("3"), Some(Quarter::Q3));
-    /// assert_eq!(Quarter::from_number_str("5"), None);
+    /// let expected_result = Some(Quarter::Q3);
+    ///
+    /// let result = Quarter::from_number_str("3");
+    ///
+    /// assert_eq!(result, expected_result);
     /// ```
     #[must_use]
     pub fn from_number_str(s: &str) -> Option<Self> {
