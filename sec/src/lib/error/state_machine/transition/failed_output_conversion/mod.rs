@@ -33,6 +33,7 @@ impl FailedOutputConversion {
 }
 
 impl From<FailedOutputConversion> for TransitionError {
+    /// Converts a [`FailedOutputConversion`] into a [`TransitionError::FailedOutputConversion`] variant.
     fn from(error: FailedOutputConversion) -> Self {
         Self::FailedOutputConversion(error)
     }

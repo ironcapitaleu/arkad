@@ -33,6 +33,7 @@ impl FailedContextConversion {
 }
 
 impl From<FailedContextConversion> for TransitionError {
+    /// Converts a [`FailedContextConversion`] into a [`TransitionError::FailedContextConversion`] variant.
     fn from(error: FailedContextConversion) -> Self {
         Self::FailedContextConversion(error)
     }

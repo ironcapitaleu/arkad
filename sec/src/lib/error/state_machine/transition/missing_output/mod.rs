@@ -48,6 +48,7 @@ impl MissingOutput {
 }
 
 impl From<MissingOutput> for TransitionError {
+    /// Converts a [`MissingOutput`] into a [`TransitionError::MissingOutput`] variant.
     fn from(error: MissingOutput) -> Self {
         Self::MissingOutput(error)
     }
