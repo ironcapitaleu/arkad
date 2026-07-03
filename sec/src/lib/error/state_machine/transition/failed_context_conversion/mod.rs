@@ -22,7 +22,7 @@ pub struct FailedContextConversion {
 }
 
 impl FailedContextConversion {
-    /// Creates a new error from the source and target state names.
+    /// Creates a new [`FailedContextConversion`] error.
     #[must_use]
     pub fn new(source_state_name: impl Into<String>, target_state_name: impl Into<String>) -> Self {
         Self {

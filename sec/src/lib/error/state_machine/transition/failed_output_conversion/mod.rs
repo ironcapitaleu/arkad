@@ -22,7 +22,7 @@ pub struct FailedOutputConversion {
 }
 
 impl FailedOutputConversion {
-    /// Creates a new error from the source and target state names.
+    /// Creates a new [`FailedOutputConversion`] error.
     #[must_use]
     pub fn new(source_state_name: impl Into<String>, target_state_name: impl Into<String>) -> Self {
         Self {

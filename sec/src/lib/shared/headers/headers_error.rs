@@ -21,7 +21,7 @@ pub struct HeadersError {
 }
 
 impl HeadersError {
-    /// Creates a new error from a reason and the raw headers that failed.
+    /// Creates a new [`HeadersError`].
     #[must_use]
     pub const fn new(reason: InvalidHeadersReason, raw_headers: HashMap<String, String>) -> Self {
         Self {

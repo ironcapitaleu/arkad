@@ -21,7 +21,7 @@ pub struct InvalidSecResponse {
 }
 
 impl InvalidSecResponse {
-    /// Creates a new error from its reason.
+    /// Creates a new [`InvalidSecResponse`] error.
     #[must_use]
     pub const fn new(reason: ErrorReason) -> Self {
         Self { reason }

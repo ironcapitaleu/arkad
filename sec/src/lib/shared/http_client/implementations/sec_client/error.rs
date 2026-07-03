@@ -22,7 +22,7 @@ pub struct FailedSecRequest {
 }
 
 impl FailedSecRequest {
-    /// Creates a new error from its reason.
+    /// Creates a new [`FailedSecRequest`] error.
     #[must_use]
     pub const fn new(reason: ErrorReason) -> Self {
         Self { reason }

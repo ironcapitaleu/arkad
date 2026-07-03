@@ -20,7 +20,7 @@ pub struct UrlError {
 }
 
 impl UrlError {
-    /// Creates a new error from a reason and the offending input.
+    /// Creates a new [`UrlError`].
     pub fn new(reason: InvalidUrlReason, invalid_url: impl Into<String>) -> Self {
         Self {
             reason,

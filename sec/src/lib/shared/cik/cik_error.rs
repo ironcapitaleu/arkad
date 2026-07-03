@@ -25,7 +25,7 @@ pub struct CikError {
 }
 
 impl CikError {
-    /// Creates a new error from a reason and the offending input.
+    /// Creates a new [`CikError`].
     pub fn new(reason: InvalidCikReason, invalid_cik: impl Into<String>) -> Self {
         Self {
             reason,
