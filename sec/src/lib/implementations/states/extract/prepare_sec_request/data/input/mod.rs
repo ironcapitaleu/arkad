@@ -4,12 +4,12 @@
 //! [`PrepareSecRequest`](crate::implementations::states::extract::prepare_sec_request::PrepareSecRequest)
 //! state, along with its updater and builder.
 //!
-//! It carries the two ingredients the state needs to assemble a request: the validated
-//! [`Cik`] and the shared [`SecClient`]. The prepared result lives in [`output`](super::output).
+//! It carries the two inputs the state needs to assemble an SEC request: the validated
+//! [`Cik`] and the shared [`SecClient`]. The prepared SEC request lives in [`output`](super::output).
 //!
 //! ## See Also
 //!
-//! - [`output`](super::output): The prepared client and request produced from this input.
+//! - [`output`](super::output): The prepared SEC request produced from this input.
 //! - [`crate::shared::cik`]: The validated CIK type carried here.
 
 use std::fmt;
