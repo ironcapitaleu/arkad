@@ -95,7 +95,7 @@ impl fmt::Display for ExecuteSecRequestContext {
     }
 }
 
-/// Partial update for an [`ExecuteSecRequestContext`].
+/// Updater for modifying [`ExecuteSecRequestContext`].
 ///
 /// Fields set to `None` are left unchanged when the updater is applied.
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]

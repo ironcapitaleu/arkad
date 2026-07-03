@@ -43,7 +43,7 @@ use std::fmt::{self, Display, Formatter};
 /// or a failure transitioning between states. The latter two wrap the [`State`] and [`Transition`]
 /// errors respectively.
 pub enum StateMachine {
-    /// The state machine was configured invalidly.
+    /// Invalid configuration of the state machine.
     InvalidConfiguration,
 
     /// A failure occurred inside a state.
