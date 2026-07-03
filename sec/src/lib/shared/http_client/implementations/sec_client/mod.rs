@@ -52,7 +52,7 @@ impl Serialize for SecClient {
 }
 
 impl SecClient {
-    /// Creates a new `SecClient` with the given `reqwest::Client`.
+    /// Creates a new [`SecClient`] with the given `reqwest::Client`.
     #[must_use]
     pub const fn new(inner: reqwest::Client) -> Self {
         Self { inner }

@@ -58,7 +58,7 @@ pub struct ValidateCikFormatContext {
 }
 
 impl ValidateCikFormatContext {
-    /// Creates a new context from a raw CIK and a shared HTTP client.
+    /// Creates a new [`ValidateCikFormatContext`] from a raw CIK and a shared HTTP client.
     pub fn new(cik: impl Into<String>, sec_client: SecClient) -> Self {
         Self {
             raw_cik: cik.into(),

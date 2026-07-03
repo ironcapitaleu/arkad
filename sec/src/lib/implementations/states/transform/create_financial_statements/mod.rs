@@ -56,7 +56,7 @@ pub struct CreateFinancialStatements {
 }
 
 impl CreateFinancialStatements {
-    /// Creates a new state from its input and context, with no output computed yet.
+    /// Creates a new [`CreateFinancialStatements`] state from its input and context, with no output computed yet.
     ///
     /// # Examples
     ///

@@ -91,7 +91,7 @@ pub struct ValidateCikFormat {
 }
 
 impl ValidateCikFormat {
-    /// Creates a new state from its input and context, with no output computed yet.
+    /// Creates a new [`ValidateCikFormat`] state from its input and context, with no output computed yet.
     ///
     /// # Examples
     ///

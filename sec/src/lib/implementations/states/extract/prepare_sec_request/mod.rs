@@ -79,7 +79,7 @@ pub struct PrepareSecRequest {
 }
 
 impl PrepareSecRequest {
-    /// Creates a new state from its input and context, with no output computed yet.
+    /// Creates a new [`PrepareSecRequest`] state from its input and context, with no output computed yet.
     ///
     /// # Examples
     ///

@@ -54,7 +54,7 @@ pub struct ExecuteSecRequestContext {
 }
 
 impl ExecuteSecRequestContext {
-    /// Creates a new context from a CIK, with the retry budget at zero.
+    /// Creates a new [`ExecuteSecRequestContext`] from a CIK, with the retry budget at zero.
     #[must_use]
     pub const fn new(cik: Cik) -> Self {
         Self {

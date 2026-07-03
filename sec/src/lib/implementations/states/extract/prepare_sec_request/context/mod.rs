@@ -54,7 +54,7 @@ pub struct PrepareSecRequestContext {
 }
 
 impl PrepareSecRequestContext {
-    /// Creates a new context from a validated CIK, with the retry budget at zero.
+    /// Creates a new [`PrepareSecRequestContext`] from a validated CIK, with the retry budget at zero.
     #[must_use]
     pub const fn new(cik: Cik) -> Self {
         Self {

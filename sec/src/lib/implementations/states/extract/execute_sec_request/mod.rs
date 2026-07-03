@@ -84,7 +84,7 @@ pub struct ExecuteSecRequest {
 }
 
 impl ExecuteSecRequest {
-    /// Creates a new state from its input and context, with no output computed yet.
+    /// Creates a new [`ExecuteSecRequest`] state from its input and context, with no output computed yet.
     ///
     /// # Examples
     ///

@@ -98,7 +98,7 @@ pub struct ExtractSuperStateContext {
 }
 
 impl ExtractSuperStateContext {
-    /// Creates a new context wrapping the shared HTTP client.
+    /// Creates a new [`ExtractSuperStateContext`] wrapping the shared HTTP client.
     #[must_use]
     pub const fn new(sec_client: SecClient) -> Self {
         Self { sec_client }

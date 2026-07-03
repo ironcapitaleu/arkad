@@ -214,7 +214,9 @@ Place doc-tests on the function itself under `# Examples`, not on the containing
 
 - Keep the summary a **one-liner that names the constructed type** with an intra-doc link:
   `Creates a new [`InvalidCikFormat`] error.` — not a generic `Creates a new error from ...`.
-- Include a descriptive qualifier when it adds meaning: `Creates a new state-level [`InvalidCikFormat`] error.`
+- Include a descriptive **qualifier** after the type link when the type name alone could be mistaken for
+  something else: `Creates a new [`ExecuteSecRequest`] state from its input and context.` — "state"
+  clarifies that `ExecuteSecRequest` is a state, not a request.
 - With a self-documenting signature (see above), the one-liner needs no `# Arguments` / `# Returns`.
 
 ### Conversions

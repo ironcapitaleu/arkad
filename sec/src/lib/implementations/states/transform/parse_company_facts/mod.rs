@@ -75,7 +75,7 @@ pub struct ParseCompanyFacts {
 }
 
 impl ParseCompanyFacts {
-    /// Creates a new state from its input and context, with no output computed yet.
+    /// Creates a new [`ParseCompanyFacts`] state from its input and context, with no output computed yet.
     ///
     /// # Examples
     ///
