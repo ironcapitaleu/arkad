@@ -122,7 +122,7 @@ impl fmt::Display for ParseCompanyFactsOutput {
 #[derive(Debug, Clone)]
 /// Updater for modifying [`ParseCompanyFactsOutput`].
 ///
-/// When `company_data` is `None` the output is left unchanged.
+/// Fields set to `None` are left unchanged when the updater is applied.
 pub struct ParseCompanyFactsOutputUpdater {
     /// Optional new value for the company data.
     pub company_data: Option<CompanyData>,
@@ -148,7 +148,7 @@ impl ParseCompanyFactsOutputUpdaterBuilder {
         Self { company_data: None }
     }
 
-    /// Sets the company data for the updater.
+    /// Sets the company data field.
     #[must_use]
     #[allow(clippy::missing_const_for_fn)]
     pub fn company_data(mut self, company_data: CompanyData) -> Self {
@@ -156,7 +156,7 @@ impl ParseCompanyFactsOutputUpdaterBuilder {
         self
     }
 
-    /// Builds the updater instance from the builder.
+    /// Builds the [`ParseCompanyFactsOutputUpdater`].
     #[must_use]
     pub fn build(self) -> ParseCompanyFactsOutputUpdater {
         ParseCompanyFactsOutputUpdater {

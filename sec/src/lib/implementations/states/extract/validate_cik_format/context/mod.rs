@@ -120,8 +120,7 @@ impl fmt::Display for ValidateCikFormatContext {
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 /// Updater for modifying [`ValidateCikFormatContext`].
 ///
-/// Each field is optional; only the fields set to `Some` are applied when the updater is
-/// passed to [`update_context`](state_maschine::state_machine::state::Context::update_context).
+/// Fields set to `None` are left unchanged when the updater is applied.
 pub struct ValidateCikFormatContextUpdater {
     /// Optional new raw CIK string value.
     pub raw_cik: Option<String>,
@@ -156,7 +155,7 @@ impl ValidateCikFormatContextUpdaterBuilder {
         }
     }
 
-    /// Sets the raw CIK value inside the context to the provided update value.
+    /// Sets the raw CIK field.
     #[must_use]
     #[allow(clippy::missing_const_for_fn)]
     pub fn cik(mut self, cik: impl Into<String>) -> Self {
@@ -164,21 +163,21 @@ impl ValidateCikFormatContextUpdaterBuilder {
         self
     }
 
-    /// Sets the HTTP client value inside the context to the provided update value.
+    /// Sets the HTTP client field.
     #[must_use]
     pub fn sec_client(mut self, sec_client: SecClient) -> Self {
         self.sec_client = Some(sec_client);
         self
     }
 
-    /// Sets the `max_retries` value inside the context to the provided update value.
+    /// Sets the `max_retries` field.
     #[must_use]
     pub const fn max_retries(mut self, max_retries: u32) -> Self {
         self.max_retries = Some(max_retries);
         self
     }
 
-    /// Builds the updater with the specified fields.
+    /// Builds the [`ValidateCikFormatContextUpdater`].
     #[must_use]
     pub fn build(self) -> ValidateCikFormatContextUpdater {
         ValidateCikFormatContextUpdater {

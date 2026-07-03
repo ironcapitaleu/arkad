@@ -141,7 +141,7 @@ impl fmt::Display for CreateFinancialStatementsInput {
 #[derive(Debug, Clone)]
 /// Updater for modifying [`CreateFinancialStatementsInput`].
 ///
-/// When `company_data` is `None` the input is left unchanged.
+/// Fields set to `None` are left unchanged when the updater is applied.
 pub struct CreateFinancialStatementsInputUpdater {
     /// Optional new value for the company data.
     pub company_data: Option<CompanyData>,
@@ -167,7 +167,7 @@ impl CreateFinancialStatementsInputUpdaterBuilder {
         Self { company_data: None }
     }
 
-    /// Sets the company data value to the one to be updated to.
+    /// Sets the company data field.
     #[must_use]
     #[allow(clippy::missing_const_for_fn)]
     pub fn company_data(mut self, company_data: CompanyData) -> Self {
@@ -175,7 +175,7 @@ impl CreateFinancialStatementsInputUpdaterBuilder {
         self
     }
 
-    /// Builds the updater instance from the builder.
+    /// Builds the [`CreateFinancialStatementsInputUpdater`].
     #[must_use]
     pub fn build(self) -> CreateFinancialStatementsInputUpdater {
         CreateFinancialStatementsInputUpdater {

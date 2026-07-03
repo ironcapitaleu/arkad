@@ -76,7 +76,7 @@ impl fmt::Display for ExecuteSecRequestOutput {
 
 /// Updater for modifying [`ExecuteSecRequestOutput`].
 ///
-/// When `response` is `None` the output is left unchanged.
+/// Fields set to `None` are left unchanged when the updater is applied.
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 pub struct ExecuteSecRequestOutputUpdater {
     /// Optional new value for the SEC response.
@@ -103,14 +103,14 @@ impl ExecuteSecRequestOutputUpdaterBuilder {
         Self { response: None }
     }
 
-    /// Sets the SEC response to be updated.
+    /// Sets the SEC response field.
     #[must_use]
     pub fn response(mut self, response: SecResponse) -> Self {
         self.response = Some(response);
         self
     }
 
-    /// Builds the updater with the configured fields.
+    /// Builds the [`ExecuteSecRequestOutputUpdater`].
     #[must_use]
     pub fn build(self) -> ExecuteSecRequestOutputUpdater {
         ExecuteSecRequestOutputUpdater {

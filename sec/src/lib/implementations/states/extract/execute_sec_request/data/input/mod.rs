@@ -127,7 +127,7 @@ impl ExecuteSecRequestInputUpdaterBuilder {
         }
     }
 
-    /// Sets the SEC client to be updated.
+    /// Sets the SEC client field.
     #[must_use]
     #[allow(clippy::missing_const_for_fn)]
     pub fn sec_client(mut self, sec_client: SecClient) -> Self {
@@ -135,7 +135,7 @@ impl ExecuteSecRequestInputUpdaterBuilder {
         self
     }
 
-    /// Sets the SEC request to be updated.
+    /// Sets the SEC request field.
     #[must_use]
     #[allow(clippy::missing_const_for_fn)]
     pub fn sec_request(mut self, sec_request: SecRequest) -> Self {
@@ -143,7 +143,7 @@ impl ExecuteSecRequestInputUpdaterBuilder {
         self
     }
 
-    /// Builds the updater with the configured fields.
+    /// Builds the [`ExecuteSecRequestInputUpdater`].
     #[must_use]
     pub fn build(self) -> ExecuteSecRequestInputUpdater {
         ExecuteSecRequestInputUpdater {

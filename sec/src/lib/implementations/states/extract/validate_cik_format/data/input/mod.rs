@@ -127,7 +127,7 @@ impl ValidateCikFormatInputUpdaterBuilder {
         Self { raw_cik: None }
     }
 
-    /// Sets the raw CIK value to the one to be updated to.
+    /// Sets the raw CIK field.
     #[must_use]
     #[allow(clippy::missing_const_for_fn)]
     pub fn cik(mut self, cik: impl Into<String>) -> Self {
@@ -135,7 +135,7 @@ impl ValidateCikFormatInputUpdaterBuilder {
         self
     }
 
-    /// Builds the updater instance from the builder.
+    /// Builds the [`ValidateCikFormatInputUpdater`].
     #[must_use]
     pub fn build(self) -> ValidateCikFormatInputUpdater {
         ValidateCikFormatInputUpdater {

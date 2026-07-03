@@ -139,7 +139,7 @@ impl ParseCompanyFactsContextUpdaterBuilder {
         }
     }
 
-    /// Sets the CIK value inside the context to the provided update value.
+    /// Sets the CIK field.
     #[must_use]
     #[allow(clippy::missing_const_for_fn)]
     pub fn cik(mut self, cik: Cik) -> Self {
@@ -147,14 +147,14 @@ impl ParseCompanyFactsContextUpdaterBuilder {
         self
     }
 
-    /// Sets the max retries value inside the context to the provided update value.
+    /// Sets the `max_retries` field.
     #[must_use]
     pub const fn max_retries(mut self, max_retries: u32) -> Self {
         self.max_retries = Some(max_retries);
         self
     }
 
-    /// Builds the updater with the specified fields.
+    /// Builds the [`ParseCompanyFactsContextUpdater`].
     #[must_use]
     pub fn build(self) -> ParseCompanyFactsContextUpdater {
         ParseCompanyFactsContextUpdater {

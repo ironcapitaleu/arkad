@@ -148,7 +148,7 @@ impl PrepareSecRequestInputUpdaterBuilder {
         }
     }
 
-    /// Sets the validated CIK value to be updated.
+    /// Sets the validated CIK field.
     #[must_use]
     #[allow(clippy::missing_const_for_fn)]
     pub fn validated_cik(mut self, validated_cik: Cik) -> Self {
@@ -156,7 +156,7 @@ impl PrepareSecRequestInputUpdaterBuilder {
         self
     }
 
-    /// Sets the HTTP client value to be updated.
+    /// Sets the HTTP client field.
     #[must_use]
     #[allow(clippy::missing_const_for_fn)]
     pub fn sec_client(mut self, sec_client: SecClient) -> Self {

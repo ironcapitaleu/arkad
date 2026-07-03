@@ -165,7 +165,7 @@ impl fmt::Display for ParseCompanyFactsInput {
 #[derive(Debug, Clone)]
 /// Updater for modifying [`ParseCompanyFactsInput`].
 ///
-/// When `response` is `None` the input is left unchanged.
+/// Fields set to `None` are left unchanged when the updater is applied.
 pub struct ParseCompanyFactsInputUpdater {
     /// Optional new value for the JSON response.
     pub response: Option<serde_json::Value>,
@@ -191,7 +191,7 @@ impl ParseCompanyFactsInputUpdaterBuilder {
         Self { response: None }
     }
 
-    /// Sets the response value to the one to be updated to.
+    /// Sets the response field.
     #[must_use]
     #[allow(clippy::missing_const_for_fn)]
     pub fn response(mut self, response: serde_json::Value) -> Self {
@@ -199,7 +199,7 @@ impl ParseCompanyFactsInputUpdaterBuilder {
         self
     }
 
-    /// Builds the updater instance from the builder.
+    /// Builds the [`ParseCompanyFactsInputUpdater`].
     #[must_use]
     pub fn build(self) -> ParseCompanyFactsInputUpdater {
         ParseCompanyFactsInputUpdater {

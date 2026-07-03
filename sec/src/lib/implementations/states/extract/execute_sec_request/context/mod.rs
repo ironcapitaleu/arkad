@@ -134,7 +134,7 @@ impl ExecuteSecRequestContextUpdaterBuilder {
         }
     }
 
-    /// Sets the CIK to be updated.
+    /// Sets the CIK field.
     #[must_use]
     #[allow(clippy::missing_const_for_fn)]
     pub fn cik(mut self, cik: Cik) -> Self {
@@ -142,7 +142,7 @@ impl ExecuteSecRequestContextUpdaterBuilder {
         self
     }
 
-    /// Sets the `max_retries` value inside the context to the provided update value.
+    /// Sets the `max_retries` field.
     #[must_use]
     #[allow(clippy::missing_const_for_fn)]
     pub fn max_retries(mut self, max_retries: u32) -> Self {
@@ -150,7 +150,7 @@ impl ExecuteSecRequestContextUpdaterBuilder {
         self
     }
 
-    /// Builds the updater with the configured fields.
+    /// Builds the [`ExecuteSecRequestContextUpdater`].
     #[must_use]
     pub fn build(self) -> ExecuteSecRequestContextUpdater {
         ExecuteSecRequestContextUpdater {

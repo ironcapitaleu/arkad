@@ -117,8 +117,7 @@ impl fmt::Display for ValidateCikFormatOutput {
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 /// Updater for modifying [`ValidateCikFormatOutput`].
 ///
-/// When `cik` is `None` the output is left unchanged; when `Some`, the carried [`Cik`]
-/// replaces the validated CIK.
+/// Fields set to `None` are left unchanged when the updater is applied.
 pub struct ValidateCikFormatOutputUpdater {
     /// Optional new value for the validated CIK.
     pub cik: Option<Cik>,
@@ -146,7 +145,7 @@ impl ValidateCikFormatOutputUpdaterBuilder {
 
     #[must_use]
     #[allow(clippy::missing_const_for_fn)]
-    /// Sets the CIK for the updater.
+    /// Sets the CIK field.
     ///
     /// # Panics
     ///
@@ -156,7 +155,7 @@ impl ValidateCikFormatOutputUpdaterBuilder {
         self
     }
 
-    /// Builds the updater instance from the builder.
+    /// Builds the [`ValidateCikFormatOutputUpdater`].
     #[must_use]
     pub fn build(self) -> ValidateCikFormatOutputUpdater {
         ValidateCikFormatOutputUpdater { cik: self.cik }

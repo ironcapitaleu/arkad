@@ -87,7 +87,7 @@ impl CreateFinancialStatementsOutputUpdaterBuilder {
         Self
     }
 
-    /// Builds the updater instance from the builder.
+    /// Builds the [`CreateFinancialStatementsOutputUpdater`].
     #[must_use]
     pub const fn build(self) -> CreateFinancialStatementsOutputUpdater {
         CreateFinancialStatementsOutputUpdater
