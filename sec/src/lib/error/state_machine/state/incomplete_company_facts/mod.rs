@@ -11,7 +11,14 @@
 //! };
 //!
 //! let missing = MissingFields::new(vec!["Revenue".to_string(), "Total Assets".to_string()]);
-//! let error = IncompleteCompanyFacts::new("Parse Company Facts", missing);
+//!
+//! let expected_result = 2;
+//!
+//! let result = IncompleteCompanyFacts::new("Parse Company Facts", missing)
+//!     .missing_fields()
+//!     .len();
+//!
+//! assert_eq!(result, expected_result);
 //! ```
 
 use std::fmt;
@@ -22,7 +29,7 @@ use super::State as StateError;
 
 /// The canonical names of the required concepts that are missing inside a response.
 ///
-/// Formats as `["Revenue", "Total Assets"]`: brackets around the list, quotes around items,
+/// Formats as: `["Revenue", "Total Assets"]` — brackets around list, quotes around items,
 /// comma-separated.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct MissingFields(Vec<String>);
@@ -65,8 +72,7 @@ impl fmt::Display for MissingFields {
     }
 }
 
-/// Error indicating an SEC Company Facts response is missing required concepts, tagged with the
-/// state it occurred in.
+/// Error indicating that an SEC Company Facts response is missing expected data fields.
 ///
 /// A *semantic* validation error, not a syntactic one: the JSON is valid, but some XBRL concepts
 /// that are required for financial statement construction were not found in the response. Carries

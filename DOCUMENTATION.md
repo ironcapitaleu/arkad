@@ -111,11 +111,9 @@ Module-level doc-tests make sense when **multiple items must be imported and com
 
 If the usage can be shown on a single function or constructor, prefer placing the doc-test there instead.
 
-A module-level example should **demonstrate construction and composition, not assert on results**.
-Show how the pieces are built and wired together; do not tack an `assert_eq!` on the end (that
-reads as a test, not documentation). Match the plain construction style of sibling module examples.
-Result-checking assertions belong in a constructor's or method's own `# Examples` doc-test, where
-they illustrate the return value.
+Module-level doc-tests follow the same **ADAA pattern** (Arrange, Define expected result, Act,
+Assert) used by unit tests. This keeps them readable, verifiable, and stylistically consistent
+with the rest of the codebase — a doc-test is still a test.
 
 ### Template (Grouping Module)
 
