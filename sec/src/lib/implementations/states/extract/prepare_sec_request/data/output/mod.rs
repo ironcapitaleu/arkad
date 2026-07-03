@@ -4,8 +4,8 @@
 //! [`PrepareSecRequest`](crate::implementations::states::extract::prepare_sec_request::PrepareSecRequest)
 //! state, along with its updater and builder.
 //!
-//! It pairs the prepared [`SecRequest`] with the [`SecClient`] that will send it, handing the
-//! executing state everything it needs. The unprepared inputs live in [`input`](super::input).
+//! Bundles the constructed [`SecRequest`] and the [`SecClient`] so the next state can
+//! dispatch the request without further preparation.
 //!
 //! ## See Also
 //!
