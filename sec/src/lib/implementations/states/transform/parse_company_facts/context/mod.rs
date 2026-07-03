@@ -130,7 +130,7 @@ pub struct ParseCompanyFactsContextUpdaterBuilder {
 }
 
 impl ParseCompanyFactsContextUpdaterBuilder {
-    /// Creates a new updater builder with no fields set.
+    /// Creates a new [`ParseCompanyFactsContextUpdaterBuilder`] with all fields initialized to `None`.
     #[must_use]
     pub const fn new() -> Self {
         Self {
@@ -140,9 +140,6 @@ impl ParseCompanyFactsContextUpdaterBuilder {
     }
 
     /// Sets the CIK value inside the context to the provided update value.
-    ///
-    /// # Arguments
-    /// * `cik` - The new validated [`Cik`] value.
     #[must_use]
     #[allow(clippy::missing_const_for_fn)]
     pub fn cik(mut self, cik: Cik) -> Self {
@@ -151,9 +148,6 @@ impl ParseCompanyFactsContextUpdaterBuilder {
     }
 
     /// Sets the max retries value inside the context to the provided update value.
-    ///
-    /// # Arguments
-    /// * `max_retries` - The new maximum number of retries.
     #[must_use]
     pub const fn max_retries(mut self, max_retries: u32) -> Self {
         self.max_retries = Some(max_retries);
@@ -171,7 +165,7 @@ impl ParseCompanyFactsContextUpdaterBuilder {
 }
 
 impl Default for ParseCompanyFactsContextUpdaterBuilder {
-    /// Returns a new context update builder with no fields set.
+    /// Returns a new [`ParseCompanyFactsContextUpdaterBuilder`] with all fields initialized to `None`.
     fn default() -> Self {
         Self::new()
     }

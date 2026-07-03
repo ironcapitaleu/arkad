@@ -59,11 +59,6 @@ pub struct ValidateCikFormatContext {
 
 impl ValidateCikFormatContext {
     /// Creates a new context from a raw CIK and a shared HTTP client.
-    ///
-    /// # Arguments
-    ///
-    /// * `cik` - The raw CIK to validate, as any value convertible into a [`String`].
-    /// * `sec_client` - The shared HTTP client for SEC API requests.
     pub fn new(cik: impl Into<String>, sec_client: SecClient) -> Self {
         Self {
             raw_cik: cik.into(),
@@ -151,7 +146,7 @@ pub struct ValidateCikFormatContextUpdaterBuilder {
     max_retries: Option<u32>,
 }
 impl ValidateCikFormatContextUpdaterBuilder {
-    /// Creates a new updater builder with no fields set.
+    /// Creates a new [`ValidateCikFormatContextUpdaterBuilder`] with all fields initialized to `None`.
     #[must_use]
     pub const fn new() -> Self {
         Self {
@@ -162,9 +157,6 @@ impl ValidateCikFormatContextUpdaterBuilder {
     }
 
     /// Sets the raw CIK value inside the context to the provided update value.
-    ///
-    /// # Arguments
-    /// * `cik` - A value that can be converted to a string, representing the new raw CIK.
     #[must_use]
     #[allow(clippy::missing_const_for_fn)]
     pub fn cik(mut self, cik: impl Into<String>) -> Self {
@@ -173,9 +165,6 @@ impl ValidateCikFormatContextUpdaterBuilder {
     }
 
     /// Sets the HTTP client value inside the context to the provided update value.
-    ///
-    /// # Arguments
-    /// * `sec_client` - The new HTTP client.
     #[must_use]
     pub fn sec_client(mut self, sec_client: SecClient) -> Self {
         self.sec_client = Some(sec_client);
@@ -183,9 +172,6 @@ impl ValidateCikFormatContextUpdaterBuilder {
     }
 
     /// Sets the `max_retries` value inside the context to the provided update value.
-    ///
-    /// # Arguments
-    /// * `max_retries` - The new value for `max_retries`.
     #[must_use]
     pub const fn max_retries(mut self, max_retries: u32) -> Self {
         self.max_retries = Some(max_retries);
@@ -204,7 +190,7 @@ impl ValidateCikFormatContextUpdaterBuilder {
 }
 
 impl Default for ValidateCikFormatContextUpdaterBuilder {
-    /// Returns a new context update builder with no fields set.
+    /// Returns a new [`ValidateCikFormatContextUpdaterBuilder`] with all fields initialized to `None`.
     fn default() -> Self {
         Self::new()
     }

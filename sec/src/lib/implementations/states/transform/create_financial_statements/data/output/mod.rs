@@ -81,7 +81,7 @@ impl CreateFinancialStatementsOutputUpdater {
 pub struct CreateFinancialStatementsOutputUpdaterBuilder;
 
 impl CreateFinancialStatementsOutputUpdaterBuilder {
-    /// Creates a new updater builder with no fields set.
+    /// Creates a new [`CreateFinancialStatementsOutputUpdaterBuilder`] with all fields initialized to `None`.
     #[must_use]
     pub const fn new() -> Self {
         Self
@@ -95,7 +95,7 @@ impl CreateFinancialStatementsOutputUpdaterBuilder {
 }
 
 impl Default for CreateFinancialStatementsOutputUpdaterBuilder {
-    /// Returns a new updater builder with no fields set.
+    /// Returns a new [`CreateFinancialStatementsOutputUpdaterBuilder`] with all fields initialized to `None`.
     fn default() -> Self {
         Self::new()
     }

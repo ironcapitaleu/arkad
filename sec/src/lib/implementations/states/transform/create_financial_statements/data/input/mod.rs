@@ -161,17 +161,13 @@ pub struct CreateFinancialStatementsInputUpdaterBuilder {
 }
 
 impl CreateFinancialStatementsInputUpdaterBuilder {
-    /// Creates a new updater builder with no fields set.
+    /// Creates a new [`CreateFinancialStatementsInputUpdaterBuilder`] with all fields initialized to `None`.
     #[must_use]
     pub const fn new() -> Self {
         Self { company_data: None }
     }
 
     /// Sets the company data value to the one to be updated to.
-    ///
-    /// # Arguments
-    ///
-    /// * `company_data` - The new [`CompanyData`] value.
     #[must_use]
     #[allow(clippy::missing_const_for_fn)]
     pub fn company_data(mut self, company_data: CompanyData) -> Self {
@@ -189,7 +185,7 @@ impl CreateFinancialStatementsInputUpdaterBuilder {
 }
 
 impl Default for CreateFinancialStatementsInputUpdaterBuilder {
-    /// Returns a new updater builder with no fields set.
+    /// Returns a new [`CreateFinancialStatementsInputUpdaterBuilder`] with all fields initialized to `None`.
     fn default() -> Self {
         Self::new()
     }

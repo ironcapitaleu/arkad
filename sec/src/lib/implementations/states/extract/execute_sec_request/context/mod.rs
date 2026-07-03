@@ -125,11 +125,7 @@ pub struct ExecuteSecRequestContextUpdaterBuilder {
 }
 
 impl ExecuteSecRequestContextUpdaterBuilder {
-    /// Creates a new builder with no fields set to be updated.
-    ///
-    /// # Returns
-    ///
-    /// A new [`ExecuteSecRequestContextUpdaterBuilder`] with all fields set to `None`.
+    /// Creates a new [`ExecuteSecRequestContextUpdaterBuilder`] with all fields initialized to `None`.
     #[must_use]
     pub const fn new() -> Self {
         Self {
@@ -139,14 +135,6 @@ impl ExecuteSecRequestContextUpdaterBuilder {
     }
 
     /// Sets the CIK to be updated.
-    ///
-    /// # Arguments
-    ///
-    /// * `cik` - The new [`Cik`] to set in the context.
-    ///
-    /// # Returns
-    ///
-    /// The builder instance with the CIK field set for update.
     #[must_use]
     #[allow(clippy::missing_const_for_fn)]
     pub fn cik(mut self, cik: Cik) -> Self {
@@ -155,10 +143,6 @@ impl ExecuteSecRequestContextUpdaterBuilder {
     }
 
     /// Sets the `max_retries` value inside the context to the provided update value.
-    ///
-    /// # Arguments
-    ///
-    /// * `max_retries` - The new value for `max_retries`.
     #[must_use]
     #[allow(clippy::missing_const_for_fn)]
     pub fn max_retries(mut self, max_retries: u32) -> Self {
@@ -167,10 +151,6 @@ impl ExecuteSecRequestContextUpdaterBuilder {
     }
 
     /// Builds the updater with the configured fields.
-    ///
-    /// # Returns
-    ///
-    /// A new [`ExecuteSecRequestContextUpdater`] with the fields set by this builder.
     #[must_use]
     pub fn build(self) -> ExecuteSecRequestContextUpdater {
         ExecuteSecRequestContextUpdater {

@@ -128,7 +128,7 @@ pub struct PrepareSecRequestContextUpdaterBuilder {
     max_retries: Option<u32>,
 }
 impl PrepareSecRequestContextUpdaterBuilder {
-    /// Creates a new [`PrepareSecRequestContextUpdaterBuilder`] with no fields set.
+    /// Creates a new [`PrepareSecRequestContextUpdaterBuilder`] with all fields initialized to `None`.
     #[must_use]
     pub const fn new() -> Self {
         Self {
@@ -138,9 +138,6 @@ impl PrepareSecRequestContextUpdaterBuilder {
     }
 
     /// Sets the `max_retries` value inside the context to the provided update value.
-    ///
-    /// # Arguments
-    /// * `max_retries` - The new value for `max_retries`.
     #[must_use]
     #[allow(clippy::missing_const_for_fn)]
     pub fn max_retries(mut self, max_retries: u32) -> Self {
@@ -149,9 +146,6 @@ impl PrepareSecRequestContextUpdaterBuilder {
     }
 
     /// Sets the `cik` value inside the context to the provided update value.
-    ///
-    /// # Arguments
-    /// * `cik` - The new value for `cik`.
     #[must_use]
     pub fn cik(mut self, cik: Cik) -> Self {
         self.cik = Some(cik);
@@ -169,7 +163,7 @@ impl PrepareSecRequestContextUpdaterBuilder {
 }
 
 impl Default for PrepareSecRequestContextUpdaterBuilder {
-    /// Returns a new [`PrepareSecRequestContextUpdaterBuilder`] with no fields set.
+    /// Returns a new [`PrepareSecRequestContextUpdaterBuilder`] with all fields initialized to `None`.
     fn default() -> Self {
         Self::new()
     }

@@ -97,25 +97,13 @@ pub struct ExecuteSecRequestOutputUpdaterBuilder {
 }
 
 impl ExecuteSecRequestOutputUpdaterBuilder {
-    /// Creates a new builder with no fields set to be updated.
-    ///
-    /// # Returns
-    ///
-    /// A new [`ExecuteSecRequestOutputUpdaterBuilder`] with all fields set to `None`.
+    /// Creates a new [`ExecuteSecRequestOutputUpdaterBuilder`] with all fields initialized to `None`.
     #[must_use]
     pub const fn new() -> Self {
         Self { response: None }
     }
 
     /// Sets the SEC response to be updated.
-    ///
-    /// # Arguments
-    ///
-    /// * `response` - The new [`SecResponse`] to set in the output data.
-    ///
-    /// # Returns
-    ///
-    /// The builder instance with the response field set for update.
     #[must_use]
     pub fn response(mut self, response: SecResponse) -> Self {
         self.response = Some(response);
@@ -123,10 +111,6 @@ impl ExecuteSecRequestOutputUpdaterBuilder {
     }
 
     /// Builds the updater with the configured fields.
-    ///
-    /// # Returns
-    ///
-    /// A new [`ExecuteSecRequestOutputUpdater`] with the fields set by this builder.
     #[must_use]
     pub fn build(self) -> ExecuteSecRequestOutputUpdater {
         ExecuteSecRequestOutputUpdater {

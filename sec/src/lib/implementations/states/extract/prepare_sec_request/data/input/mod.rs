@@ -139,7 +139,7 @@ pub struct PrepareSecRequestInputUpdaterBuilder {
 }
 
 impl PrepareSecRequestInputUpdaterBuilder {
-    /// Creates a new updater builder with no fields set.
+    /// Creates a new [`PrepareSecRequestInputUpdaterBuilder`] with all fields initialized to `None`.
     #[must_use]
     pub const fn new() -> Self {
         Self {
@@ -149,10 +149,6 @@ impl PrepareSecRequestInputUpdaterBuilder {
     }
 
     /// Sets the validated CIK value to be updated.
-    ///
-    /// # Arguments
-    ///
-    /// * `validated_cik` - The new validated CIK value.
     #[must_use]
     #[allow(clippy::missing_const_for_fn)]
     pub fn validated_cik(mut self, validated_cik: Cik) -> Self {
@@ -161,10 +157,6 @@ impl PrepareSecRequestInputUpdaterBuilder {
     }
 
     /// Sets the HTTP client value to be updated.
-    ///
-    /// # Arguments
-    ///
-    /// * `sec_client` - The new HTTP client.
     #[must_use]
     #[allow(clippy::missing_const_for_fn)]
     pub fn sec_client(mut self, sec_client: SecClient) -> Self {
@@ -183,7 +175,7 @@ impl PrepareSecRequestInputUpdaterBuilder {
 }
 
 impl Default for PrepareSecRequestInputUpdaterBuilder {
-    /// Returns a new [`PrepareSecRequestInputUpdaterBuilder`] with no fields set.
+    /// Returns a new [`PrepareSecRequestInputUpdaterBuilder`] with all fields initialized to `None`.
     fn default() -> Self {
         Self::new()
     }

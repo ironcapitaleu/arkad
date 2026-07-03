@@ -515,8 +515,11 @@ pub type StateMachineStream = Pin<Box<dyn Stream<Item = Result<StreamItem, Strea
 ## Builders
 
 - The **Builder** doc must link to the type it constructs.
+- Constructor one-liners **always name the type** with an intra-doc link:
+  ``Creates a new [`ParseCompanyFactsContextUpdaterBuilder`] with all fields initialized to `None`.``
 - Each builder method documents the field it sets (what-sentence is sufficient).
 - Doc-tests: not required on individual setter methods. Place one on `build()` if the construction is complex.
+- When unsure about style, look at sibling modules that already follow these conventions and match them.
 
 ---
 

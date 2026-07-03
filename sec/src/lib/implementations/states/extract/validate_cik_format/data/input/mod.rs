@@ -121,17 +121,13 @@ pub struct ValidateCikFormatInputUpdaterBuilder {
     raw_cik: Option<String>,
 }
 impl ValidateCikFormatInputUpdaterBuilder {
-    /// Creates a new updater builder with no fields set.
+    /// Creates a new [`ValidateCikFormatInputUpdaterBuilder`] with all fields initialized to `None`.
     #[must_use]
     pub const fn new() -> Self {
         Self { raw_cik: None }
     }
 
     /// Sets the raw CIK value to the one to be updated to.
-    ///
-    /// # Arguments
-    ///
-    /// * `cik` - The new raw CIK value as any type implementing `Into<String>`.
     #[must_use]
     #[allow(clippy::missing_const_for_fn)]
     pub fn cik(mut self, cik: impl Into<String>) -> Self {
@@ -149,7 +145,7 @@ impl ValidateCikFormatInputUpdaterBuilder {
 }
 
 impl Default for ValidateCikFormatInputUpdaterBuilder {
-    /// Returns a new updater builder with no fields set.
+    /// Returns a new [`ValidateCikFormatInputUpdaterBuilder`] with all fields initialized to `None`.
     fn default() -> Self {
         Self::new()
     }

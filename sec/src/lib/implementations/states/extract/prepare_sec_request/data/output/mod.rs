@@ -138,7 +138,7 @@ pub struct PrepareSecRequestOutputUpdaterBuilder {
 }
 
 impl PrepareSecRequestOutputUpdaterBuilder {
-    /// Creates a new [`PrepareSecRequestOutputUpdaterBuilder`] with no fields set.
+    /// Creates a new [`PrepareSecRequestOutputUpdaterBuilder`] with all fields initialized to `None`.
     #[must_use]
     pub const fn new() -> Self {
         Self {
@@ -148,10 +148,6 @@ impl PrepareSecRequestOutputUpdaterBuilder {
     }
 
     /// Sets the SEC client value to be updated.
-    ///
-    /// # Arguments
-    ///
-    /// * `client` - The new [`SecClient`] value.
     #[must_use]
     #[allow(clippy::missing_const_for_fn)]
     pub fn client(mut self, client: SecClient) -> Self {
@@ -160,10 +156,6 @@ impl PrepareSecRequestOutputUpdaterBuilder {
     }
 
     /// Sets the SEC request value to be updated.
-    ///
-    /// # Arguments
-    ///
-    /// * `request` - The new [`SecRequest`] value.
     #[must_use]
     #[allow(clippy::missing_const_for_fn)]
     pub fn request(mut self, request: SecRequest) -> Self {
@@ -182,7 +174,7 @@ impl PrepareSecRequestOutputUpdaterBuilder {
 }
 
 impl Default for PrepareSecRequestOutputUpdaterBuilder {
-    /// Returns a new [`PrepareSecRequestOutputUpdaterBuilder`] with no fields set.
+    /// Returns a new [`PrepareSecRequestOutputUpdaterBuilder`] with all fields initialized to `None`.
     fn default() -> Self {
         Self::new()
     }

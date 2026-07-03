@@ -130,7 +130,7 @@ pub struct CreateFinancialStatementsContextUpdaterBuilder {
 }
 
 impl CreateFinancialStatementsContextUpdaterBuilder {
-    /// Creates a new updater builder with no fields set.
+    /// Creates a new [`CreateFinancialStatementsContextUpdaterBuilder`] with all fields initialized to `None`.
     #[must_use]
     pub const fn new() -> Self {
         Self {
@@ -140,9 +140,6 @@ impl CreateFinancialStatementsContextUpdaterBuilder {
     }
 
     /// Sets the CIK value inside the context to the provided update value.
-    ///
-    /// # Arguments
-    /// * `cik` - A validated [`Cik`] representing the new CIK.
     #[must_use]
     #[allow(clippy::missing_const_for_fn)]
     pub fn cik(mut self, cik: Cik) -> Self {
@@ -151,9 +148,6 @@ impl CreateFinancialStatementsContextUpdaterBuilder {
     }
 
     /// Sets the `max_retries` value inside the context to the provided update value.
-    ///
-    /// # Arguments
-    /// * `max_retries` - The new value for `max_retries`.
     #[must_use]
     pub const fn max_retries(mut self, max_retries: u32) -> Self {
         self.max_retries = Some(max_retries);
@@ -171,7 +165,7 @@ impl CreateFinancialStatementsContextUpdaterBuilder {
 }
 
 impl Default for CreateFinancialStatementsContextUpdaterBuilder {
-    /// Returns a new context update builder with no fields set.
+    /// Returns a new [`CreateFinancialStatementsContextUpdaterBuilder`] with all fields initialized to `None`.
     fn default() -> Self {
         Self::new()
     }

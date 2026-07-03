@@ -118,11 +118,7 @@ pub struct ExecuteSecRequestInputUpdaterBuilder {
 }
 
 impl ExecuteSecRequestInputUpdaterBuilder {
-    /// Creates a new builder with no fields set to be updated.
-    ///
-    /// # Returns
-    ///
-    /// A new [`ExecuteSecRequestInputUpdaterBuilder`] with all fields set to `None`.
+    /// Creates a new [`ExecuteSecRequestInputUpdaterBuilder`] with all fields initialized to `None`.
     #[must_use]
     pub const fn new() -> Self {
         Self {
@@ -132,14 +128,6 @@ impl ExecuteSecRequestInputUpdaterBuilder {
     }
 
     /// Sets the SEC client to be updated.
-    ///
-    /// # Arguments
-    ///
-    /// * `sec_client` - The new [`SecClient`] to set in the input data.
-    ///
-    /// # Returns
-    ///
-    /// The builder instance with the SEC client field set for update.
     #[must_use]
     #[allow(clippy::missing_const_for_fn)]
     pub fn sec_client(mut self, sec_client: SecClient) -> Self {
@@ -148,14 +136,6 @@ impl ExecuteSecRequestInputUpdaterBuilder {
     }
 
     /// Sets the SEC request to be updated.
-    ///
-    /// # Arguments
-    ///
-    /// * `sec_request` - The new [`SecRequest`] to set in the input data.
-    ///
-    /// # Returns
-    ///
-    /// The builder instance with the SEC request field set for update.
     #[must_use]
     #[allow(clippy::missing_const_for_fn)]
     pub fn sec_request(mut self, sec_request: SecRequest) -> Self {
@@ -164,10 +144,6 @@ impl ExecuteSecRequestInputUpdaterBuilder {
     }
 
     /// Builds the updater with the configured fields.
-    ///
-    /// # Returns
-    ///
-    /// A new [`ExecuteSecRequestInputUpdater`] with the fields set by this builder.
     #[must_use]
     pub fn build(self) -> ExecuteSecRequestInputUpdater {
         ExecuteSecRequestInputUpdater {

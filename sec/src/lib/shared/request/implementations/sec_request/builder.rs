@@ -41,7 +41,7 @@ pub struct NoCik;
 pub struct SecRequestBuilder;
 
 impl SecRequestBuilder {
-    /// Creates a new builder ready for request-kind selection.
+    /// Creates a new [`SecRequestBuilder`].
     #[must_use]
     pub const fn new() -> Self {
         Self

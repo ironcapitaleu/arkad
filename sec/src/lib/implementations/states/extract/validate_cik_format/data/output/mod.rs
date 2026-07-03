@@ -138,7 +138,7 @@ pub struct ValidateCikFormatOutputUpdaterBuilder {
 }
 
 impl ValidateCikFormatOutputUpdaterBuilder {
-    /// Creates a new updater builder with no fields set.
+    /// Creates a new [`ValidateCikFormatOutputUpdaterBuilder`] with all fields initialized to `None`.
     #[must_use]
     pub const fn new() -> Self {
         Self { cik: None }
@@ -164,7 +164,7 @@ impl ValidateCikFormatOutputUpdaterBuilder {
 }
 
 impl Default for ValidateCikFormatOutputUpdaterBuilder {
-    /// Returns a new updater builder with no fields set.
+    /// Returns a new [`ValidateCikFormatOutputUpdaterBuilder`] with all fields initialized to `None`.
     fn default() -> Self {
         Self::new()
     }

@@ -185,17 +185,13 @@ pub struct ParseCompanyFactsInputUpdaterBuilder {
 }
 
 impl ParseCompanyFactsInputUpdaterBuilder {
-    /// Creates a new updater builder with no fields set.
+    /// Creates a new [`ParseCompanyFactsInputUpdaterBuilder`] with all fields initialized to `None`.
     #[must_use]
     pub const fn new() -> Self {
         Self { response: None }
     }
 
     /// Sets the response value to the one to be updated to.
-    ///
-    /// # Arguments
-    ///
-    /// * `response` - The new JSON response value.
     #[must_use]
     #[allow(clippy::missing_const_for_fn)]
     pub fn response(mut self, response: serde_json::Value) -> Self {
@@ -213,7 +209,7 @@ impl ParseCompanyFactsInputUpdaterBuilder {
 }
 
 impl Default for ParseCompanyFactsInputUpdaterBuilder {
-    /// Returns a new updater builder with no fields set.
+    /// Returns a new [`ParseCompanyFactsInputUpdaterBuilder`] with all fields initialized to `None`.
     fn default() -> Self {
         Self::new()
     }

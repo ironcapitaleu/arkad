@@ -142,17 +142,13 @@ pub struct ParseCompanyFactsOutputUpdaterBuilder {
 }
 
 impl ParseCompanyFactsOutputUpdaterBuilder {
-    /// Creates a new updater builder with no fields set.
+    /// Creates a new [`ParseCompanyFactsOutputUpdaterBuilder`] with all fields initialized to `None`.
     #[must_use]
     pub const fn new() -> Self {
         Self { company_data: None }
     }
 
     /// Sets the company data for the updater.
-    ///
-    /// # Arguments
-    ///
-    /// * `company_data` - The new [`CompanyData`] to set in the output data.
     #[must_use]
     #[allow(clippy::missing_const_for_fn)]
     pub fn company_data(mut self, company_data: CompanyData) -> Self {
@@ -170,7 +166,7 @@ impl ParseCompanyFactsOutputUpdaterBuilder {
 }
 
 impl Default for ParseCompanyFactsOutputUpdaterBuilder {
-    /// Returns a new updater builder with no fields set.
+    /// Returns a new [`ParseCompanyFactsOutputUpdaterBuilder`] with all fields initialized to `None`.
     fn default() -> Self {
         Self::new()
     }
