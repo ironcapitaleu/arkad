@@ -4,7 +4,7 @@
 //! sends the prepared request to the SEC API and captures the response.
 //!
 //! This is the one extract state that touches the network: it consumes the prepared client
-//! and request, performs the HTTP call, and produces a
+//! and request, performs the HTTP call, and produces an
 //! [`SecResponse`](crate::shared::response::implementations::sec_response::SecResponse) for the
 //! transform phase. Isolating the network call here keeps the earlier states pure and testable.
 //!
