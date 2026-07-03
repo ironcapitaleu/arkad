@@ -69,7 +69,7 @@ pub struct StreamItem {
     pub event_duration: std::time::Duration,
 }
 
-/// An error yielded by the state machine stream on failure.
+/// Error yielded by the state machine stream on failure.
 ///
 /// Wraps the existing [`StateMachine`](crate::error::StateMachine) error with stream context
 /// (execution ID, state name, event type, serialized state data).

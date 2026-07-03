@@ -9,7 +9,7 @@ use super::State as StateError;
 use crate::shared::http_client::implementations::sec_client::error::FailedSecRequest;
 use crate::traits::error::FromDomainError;
 
-/// An error representing an SEC request execution failure, enriched with the state it occurred in.
+/// Error representing an SEC request execution failure, enriched with the state it occurred in.
 ///
 /// Wraps a domain-level [`FailedSecRequest`] together with the failing state's name, so a
 /// transport-level failure carries state context as it propagates up the error hierarchy.

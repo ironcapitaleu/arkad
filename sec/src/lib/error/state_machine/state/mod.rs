@@ -24,7 +24,7 @@ pub use invalid_cik_format::InvalidCikFormat;
 
 #[non_exhaustive]
 #[derive(Debug, Error, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
-/// An error occurring inside a state's own logic.
+/// Error occurring inside a state's own logic.
 ///
 /// Spans the ways a state can fail while computing its output: a wrapped domain error (invalid
 /// CIK, failed request, incomplete facts) or a plain marker for invalid input, context, or a

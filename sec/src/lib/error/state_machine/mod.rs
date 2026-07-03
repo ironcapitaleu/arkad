@@ -37,7 +37,7 @@ use std::fmt::{self, Display, Formatter};
 
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
-/// An error occurring at the state machine level.
+/// Error occurring at the state machine level.
 ///
 /// Groups the three ways execution can fail: a misconfigured machine, a failure inside a state,
 /// or a failure transitioning between states. The latter two wrap the [`State`] and [`Transition`]

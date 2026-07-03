@@ -36,7 +36,7 @@ pub use missing_output::MissingOutput;
 
 #[non_exhaustive]
 #[derive(Debug, Error, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
-/// An error occurring while transitioning between states.
+/// Error occurring while transitioning between states.
 ///
 /// Groups the ways a transition can fail: the source produced no output, its output couldn't be
 /// converted to the next state's input, or its context couldn't be carried across. Each case wraps
