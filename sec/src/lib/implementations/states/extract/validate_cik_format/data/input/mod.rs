@@ -33,7 +33,7 @@ pub struct ValidateCikFormatInput {
 }
 
 impl ValidateCikFormatInput {
-    /// Creates input data from a raw CIK string.
+    /// Creates a new [`ValidateCikFormatInput`] from a raw CIK string.
     ///
     /// # Examples
     ///

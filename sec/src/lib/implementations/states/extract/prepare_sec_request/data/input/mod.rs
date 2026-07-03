@@ -34,7 +34,7 @@ pub struct PrepareSecRequestInput {
 }
 
 impl PrepareSecRequestInput {
-    /// Creates input data from a validated CIK and a shared HTTP client.
+    /// Creates a new [`PrepareSecRequestInput`] from a validated CIK and a shared HTTP client.
     ///
     /// # Examples
     ///

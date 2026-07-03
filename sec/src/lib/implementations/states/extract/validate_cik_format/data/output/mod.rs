@@ -37,7 +37,7 @@ pub struct ValidateCikFormatOutput {
 }
 
 impl ValidateCikFormatOutput {
-    /// Creates output data by validating and normalizing a CIK string.
+    /// Creates a new [`ValidateCikFormatOutput`] by validating and normalizing a CIK string.
     ///
     /// # Errors
     ///

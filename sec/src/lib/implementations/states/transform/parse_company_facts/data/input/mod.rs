@@ -34,7 +34,7 @@ pub struct ParseCompanyFactsInput {
 }
 
 impl ParseCompanyFactsInput {
-    /// Creates input data from a raw JSON response and its precomputed digest.
+    /// Creates a new [`ParseCompanyFactsInput`] from a raw JSON response and its precomputed digest.
     ///
     /// # Examples
     ///

@@ -35,7 +35,7 @@ pub struct ExecuteSecRequestInput {
 }
 
 impl ExecuteSecRequestInput {
-    /// Creates input data from a prepared client and request.
+    /// Creates a new [`ExecuteSecRequestInput`] from a SEC client and an SEC request.
     pub const fn new(sec_client: SecClient, sec_request: SecRequest) -> Self {
         Self {
             sec_client,

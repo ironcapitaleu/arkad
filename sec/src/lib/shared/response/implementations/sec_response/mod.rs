@@ -84,7 +84,7 @@ impl Ord for SecResponse {
 }
 
 impl SecResponse {
-    /// Creates a `SecResponse` directly from already-validated parts, skipping HTTP validation.
+    /// Creates an [`SecResponse`] directly from already-validated parts, skipping HTTP validation.
     ///
     /// Unlike [`from_inner`](SecResponseTrait::from_inner), the caller is responsible for ensuring
     /// the parts represent a valid SEC response. The body digest is taken from `body.to_string()`

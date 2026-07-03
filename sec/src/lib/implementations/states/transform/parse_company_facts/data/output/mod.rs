@@ -31,7 +31,7 @@ pub struct ParseCompanyFactsOutput {
 }
 
 impl ParseCompanyFactsOutput {
-    /// Creates output data from resolved company data.
+    /// Creates a new [`ParseCompanyFactsOutput`] from resolved company data.
     #[must_use]
     pub const fn new(company_data: CompanyData) -> Self {
         Self { company_data }

@@ -36,7 +36,7 @@ pub struct CreateFinancialStatementsInput {
 }
 
 impl CreateFinancialStatementsInput {
-    /// Creates input data from parsed company data.
+    /// Creates a new [`CreateFinancialStatementsInput`] from parsed company data.
     ///
     /// # Examples
     ///

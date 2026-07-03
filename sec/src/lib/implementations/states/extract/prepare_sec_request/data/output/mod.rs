@@ -35,7 +35,7 @@ pub struct PrepareSecRequestOutput {
 }
 
 impl PrepareSecRequestOutput {
-    /// Creates output data from a prepared client and request.
+    /// Creates a new [`PrepareSecRequestOutput`] from a prepared client and request.
     ///
     /// # Examples
     ///

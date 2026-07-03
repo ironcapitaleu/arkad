@@ -31,7 +31,7 @@ pub struct ExecuteSecRequestOutput {
 }
 
 impl ExecuteSecRequestOutput {
-    /// Creates output data from a received SEC response.
+    /// Creates a new [`ExecuteSecRequestOutput`] from an SEC response.
     #[must_use]
     pub const fn new(response: SecResponse) -> Self {
         Self { response }

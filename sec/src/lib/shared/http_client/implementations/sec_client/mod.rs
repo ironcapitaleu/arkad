@@ -59,7 +59,7 @@ impl SecClient {
     }
 }
 
-/// Creates a default `SecClient` configured with the default SEC user agent.
+/// Creates a default [`SecClient`] configured with the default SEC user agent.
 impl Default for SecClient {
     fn default() -> Self {
         let user_agent = UserAgent::new(DEFAULT_SEC_USER_AGENT)
