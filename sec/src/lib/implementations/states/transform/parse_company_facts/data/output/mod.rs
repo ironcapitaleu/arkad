@@ -120,7 +120,7 @@ impl fmt::Display for ParseCompanyFactsOutput {
 }
 
 #[derive(Debug, Clone)]
-/// Partial update for a [`ParseCompanyFactsOutput`].
+/// Updater for modifying [`ParseCompanyFactsOutput`].
 ///
 /// When `company_data` is `None` the output is left unchanged.
 pub struct ParseCompanyFactsOutputUpdater {

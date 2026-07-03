@@ -157,7 +157,7 @@ impl fmt::Display for ParseCompanyFactsInput {
 }
 
 #[derive(Debug, Clone)]
-/// Partial update for a [`ParseCompanyFactsInput`].
+/// Updater for modifying [`ParseCompanyFactsInput`].
 ///
 /// When `response` is `None` the input is left unchanged.
 pub struct ParseCompanyFactsInputUpdater {

@@ -92,7 +92,7 @@ impl fmt::Display for ExecuteSecRequestInput {
     }
 }
 
-/// Partial update for an [`ExecuteSecRequestInput`].
+/// Updater for modifying [`ExecuteSecRequestInput`].
 ///
 /// Fields set to `None` are left unchanged when the updater is applied.
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]

@@ -101,7 +101,7 @@ impl fmt::Display for CreateFinancialStatementsContext {
 }
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
-/// Partial update for a [`CreateFinancialStatementsContext`].
+/// Updater for modifying [`CreateFinancialStatementsContext`].
 ///
 /// Fields set to `None` are left unchanged when the updater is applied.
 pub struct CreateFinancialStatementsContextUpdater {

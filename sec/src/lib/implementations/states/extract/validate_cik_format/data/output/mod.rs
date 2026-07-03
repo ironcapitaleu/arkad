@@ -110,7 +110,7 @@ impl fmt::Display for ValidateCikFormatOutput {
 }
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
-/// Partial update for a [`ValidateCikFormatOutput`].
+/// Updater for modifying [`ValidateCikFormatOutput`].
 ///
 /// When `cik` is `None` the output is left unchanged; when `Some`, the carried [`Cik`]
 /// replaces the validated CIK.

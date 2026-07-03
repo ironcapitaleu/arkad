@@ -119,7 +119,7 @@ impl fmt::Display for ValidateCikFormatContext {
 }
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
-/// Partial update for a [`ValidateCikFormatContext`].
+/// Updater for modifying [`ValidateCikFormatContext`].
 ///
 /// Each field is optional; only the fields set to `Some` are applied when the updater is
 /// passed to [`update_context`](state_maschine::state_machine::state::Context::update_context).

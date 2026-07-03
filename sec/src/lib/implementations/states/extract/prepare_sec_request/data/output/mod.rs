@@ -106,7 +106,7 @@ impl fmt::Display for PrepareSecRequestOutput {
     }
 }
 
-/// Partial update for a [`PrepareSecRequestOutput`].
+/// Updater for modifying [`PrepareSecRequestOutput`].
 ///
 /// Fields set to `None` are left unchanged when the updater is applied.
 #[derive(Debug)]

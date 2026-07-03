@@ -132,7 +132,7 @@ impl fmt::Display for CreateFinancialStatementsInput {
 }
 
 #[derive(Debug, Clone)]
-/// Partial update for a [`CreateFinancialStatementsInput`].
+/// Updater for modifying [`CreateFinancialStatementsInput`].
 ///
 /// When `company_data` is `None` the input is left unchanged.
 pub struct CreateFinancialStatementsInputUpdater {

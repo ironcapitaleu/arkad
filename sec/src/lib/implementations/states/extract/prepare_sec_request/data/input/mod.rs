@@ -107,7 +107,7 @@ impl fmt::Display for PrepareSecRequestInput {
     }
 }
 
-/// Partial update for a [`PrepareSecRequestInput`].
+/// Updater for modifying [`PrepareSecRequestInput`].
 ///
 /// Fields set to `None` are left unchanged when the updater is applied.
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]

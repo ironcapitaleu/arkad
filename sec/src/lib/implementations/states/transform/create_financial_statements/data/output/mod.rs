@@ -62,7 +62,7 @@ impl fmt::Display for CreateFinancialStatementsOutput {
 }
 
 #[derive(Debug, Clone, Default, PartialEq, PartialOrd, Hash, Eq, Ord)]
-/// Partial update for a [`CreateFinancialStatementsOutput`].
+/// Updater for modifying [`CreateFinancialStatementsOutput`].
 ///
 /// A placeholder with no fields; it will gain fields alongside the output struct.
 pub struct CreateFinancialStatementsOutputUpdater;

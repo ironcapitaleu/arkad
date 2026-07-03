@@ -94,7 +94,7 @@ impl fmt::Display for ValidateCikFormatInput {
 }
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
-/// Partial update for a [`ValidateCikFormatInput`].
+/// Updater for modifying [`ValidateCikFormatInput`].
 ///
 /// Fields set to `None` are left unchanged when the updater is applied, so callers can
 /// modify the raw CIK without restating the rest.

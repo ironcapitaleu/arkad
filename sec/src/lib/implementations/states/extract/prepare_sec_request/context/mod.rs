@@ -100,7 +100,7 @@ impl fmt::Display for PrepareSecRequestContext {
 }
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
-/// Partial update for a [`PrepareSecRequestContext`].
+/// Updater for modifying [`PrepareSecRequestContext`].
 ///
 /// Fields set to `None` are left unchanged when the updater is applied.
 pub struct PrepareSecRequestContextUpdater {

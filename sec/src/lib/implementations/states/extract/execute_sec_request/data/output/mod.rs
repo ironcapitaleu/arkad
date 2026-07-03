@@ -74,7 +74,7 @@ impl fmt::Display for ExecuteSecRequestOutput {
     }
 }
 
-/// Partial update for an [`ExecuteSecRequestOutput`].
+/// Updater for modifying [`ExecuteSecRequestOutput`].
 ///
 /// When `response` is `None` the output is left unchanged.
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]

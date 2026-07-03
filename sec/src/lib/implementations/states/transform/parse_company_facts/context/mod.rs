@@ -101,7 +101,7 @@ impl fmt::Display for ParseCompanyFactsContext {
 }
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
-/// Partial update for a [`ParseCompanyFactsContext`].
+/// Updater for modifying [`ParseCompanyFactsContext`].
 ///
 /// Fields set to `None` are left unchanged when the updater is applied.
 pub struct ParseCompanyFactsContextUpdater {
