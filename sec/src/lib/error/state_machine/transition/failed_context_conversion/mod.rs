@@ -7,7 +7,7 @@ use thiserror::Error;
 
 use super::Transition as TransitionError;
 
-/// A source state's context could not be converted into the destination state's context.
+/// Error representing a failed context conversion during a state transition.
 ///
 /// Records both states involved, so the failed conversion pinpoints which transition broke.
 #[derive(Error, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]

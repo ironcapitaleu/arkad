@@ -21,7 +21,7 @@ use thiserror::Error;
 
 use super::Transition as TransitionError;
 
-/// A transition attempted before the source state computed its output.
+/// Error representing a missing output when a transition is attempted.
 ///
 /// Records both the source state that lacked output and the target state the transition was
 /// reaching for, so the failure pinpoints exactly where the pipeline stalled.

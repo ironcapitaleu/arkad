@@ -7,7 +7,7 @@ use thiserror::Error;
 
 use super::Transition as TransitionError;
 
-/// A source state's output could not be converted into the destination state's input.
+/// Error representing a failed output conversion during a state transition.
 ///
 /// Records both states involved, so the failed conversion pinpoints which transition broke.
 #[derive(Error, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
