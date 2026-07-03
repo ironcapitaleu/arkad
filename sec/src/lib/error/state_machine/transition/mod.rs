@@ -18,15 +18,9 @@
 //! ```rust
 //! use sec::error::state_machine::transition::{Transition, FailedOutputConversion};
 //!
-//! let error = Transition::FailedOutputConversion(
+//! let _err = Transition::FailedOutputConversion(
 //!     FailedOutputConversion::new("SourceState", "TargetState"),
 //! );
-//!
-//! let expected_result = true;
-//!
-//! let result = matches!(error, Transition::FailedOutputConversion(_));
-//!
-//! assert_eq!(result, expected_result);
 //! ```
 
 use thiserror::Error;

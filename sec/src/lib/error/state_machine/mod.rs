@@ -14,15 +14,9 @@
 //! ## Usage
 //!
 //! ```rust
-//! use sec::error::state_machine::{StateMachine, State, Transition};
+//! use sec::error::state_machine::{StateMachine, State};
 //!
-//! let err = StateMachine::State(State::InvalidInput);
-//!
-//! let expected_result = true;
-//!
-//! let result = matches!(err, StateMachine::State(State::InvalidInput));
-//!
-//! assert_eq!(result, expected_result);
+//! let _err = StateMachine::State(State::InvalidInput);
 //! ```
 
 pub mod state;

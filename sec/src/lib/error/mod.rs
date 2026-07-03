@@ -16,13 +16,7 @@
 //! ```rust
 //! use sec::error::{ErrorKind, StateMachine};
 //!
-//! let err = ErrorKind::StateMachine(StateMachine::InvalidConfiguration);
-//!
-//! let expected_result = true;
-//!
-//! let result = matches!(err, ErrorKind::StateMachine(StateMachine::InvalidConfiguration));
-//!
-//! assert_eq!(result, expected_result);
+//! let _err = ErrorKind::StateMachine(StateMachine::InvalidConfiguration);
 //! ```
 
 pub mod state_machine;
