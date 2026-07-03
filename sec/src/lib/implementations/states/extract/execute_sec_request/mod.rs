@@ -118,8 +118,6 @@ impl ExecuteSecRequest {
     }
 
     /// Consumes the state and returns its input, optional output, and context.
-    ///
-    /// Used by transitions to move the SEC response into the transform phase without cloning.
     #[must_use]
     pub fn into_parts(
         self,

@@ -109,8 +109,6 @@ impl ParseCompanyFacts {
     }
 
     /// Consumes the state and returns its input, optional output, and context.
-    ///
-    /// Used by transitions to move the parsed [`CompanyData`] into the next state without cloning.
     #[must_use]
     pub fn into_parts(
         self,
