@@ -11,7 +11,7 @@ use crate::state_machine::{StateMachine, state::State};
 ///
 /// # Associated Types
 ///
-/// - `NewStateMachine`: The machine after the move. Must implement [`StateMachine<U>`](StateMachine).
+/// - `NewStateMachine`: The machine after the move. Must implement [`StateMachine`].
 ///
 /// # Type Parameters
 ///
