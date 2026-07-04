@@ -69,8 +69,8 @@ pub use data::PrepareSecRequestOutput;
 /// Second extract-phase state, building the [`SecRequest`] for a validated CIK.
 ///
 /// Takes a validated [`Cik`](crate::shared::cik::Cik) and the shared HTTP client and
-/// assembles a company-facts request targeting the matching SEC endpoint, paired with that
-/// client for the executing state. The work is purely local: no network call is made here.
+/// assembles a company-facts request targeting the matching SEC endpoint. The work is purely
+/// local: no network call is made here.
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
 pub struct PrepareSecRequest {
     input: PrepareSecRequestInput,

@@ -223,7 +223,7 @@ impl<S: State> SuperState<S> for TransformSuperState<S> {}
 impl TransformSuperState<ParseCompanyFacts> {
     /// Creates the super-state at the transform entry point from an SEC response and CIK.
     ///
-    /// Extracts the response body and its precomputed digest to seed the parsing state.
+    /// Extracts the response body and its precomputed digest.
     #[must_use]
     pub fn new(response: &SecResponse, cik: Cik) -> Self {
         let body = response.body().clone();

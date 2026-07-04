@@ -23,7 +23,7 @@ use crate::traits::state_machine::state::StateData;
 
 /// Output data of the [`ExecuteSecRequest`](super::super::ExecuteSecRequest) state.
 ///
-/// Wraps the [`SecResponse`] returned by the SEC API, ready for the transform phase to parse.
+/// Wraps the [`SecResponse`] returned by the SEC API.
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
 pub struct ExecuteSecRequestOutput {
     /// The SEC response received from the API endpoint.

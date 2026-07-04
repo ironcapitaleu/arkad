@@ -4,8 +4,8 @@
 //! [`CreateFinancialStatements`](crate::implementations::states::transform::create_financial_statements::CreateFinancialStatements)
 //! state, along with its updater and builder.
 //!
-//! It carries the [`CompanyData`] produced by the parsing state, from which the statements are
-//! built. The produced output lives in [`output`](super::output).
+//! It carries the [`CompanyData`] from which financial statements are built. The produced
+//! output lives in [`output`](super::output).
 //!
 //! ## See Also
 //!
@@ -28,8 +28,7 @@ use crate::traits::state_machine::state::StateData;
 #[derive(Debug, Clone, Serialize)]
 /// Input data for the [`CreateFinancialStatements`](super::super::CreateFinancialStatements) state.
 ///
-/// Holds the [`CompanyData`] produced by the parsing state, from which financial statements
-/// are built.
+/// Holds the [`CompanyData`] from which financial statements are built.
 pub struct CreateFinancialStatementsInput {
     /// The company data containing parsed financial facts.
     pub company_data: CompanyData,
