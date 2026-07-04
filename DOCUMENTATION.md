@@ -609,7 +609,12 @@ Intra-doc links follow the same direction as `use` statements — they point tow
 | **Sideways** (toward siblings in the same module) | Yes | `PrepareSecRequestInput` linking to [`SecClient`] |
 | **Upward** (toward things that depend on you) | No | `Cik` linking to a state that *uses* `Cik` |
 
-This keeps documentation decoupled the same way the code is. If you add a new implementor of a trait, you do **not** go back to the trait's docs to add a link to it. The implementor links to the trait it implements, not the other way around.
+This principle applies to **prose as well as links**. Do not mention specific callers, consumers,
+or positions in a sequence ("the second step of the extract phase", "passed down from the
+super-state", "used by transitions to move..."). Describe *what* the item does, not *who* calls
+it or *where* it sits in a pipeline — that couples the doc to an arrangement that can change.
+
+If you add a new implementor of a trait, you do **not** go back to the trait's docs to add a link to it. The implementor links to the trait it implements, not the other way around.
 
 Exception: `## See Also` in module-level docs may link upward for discoverability, since module docs serve as navigation aids.
 
