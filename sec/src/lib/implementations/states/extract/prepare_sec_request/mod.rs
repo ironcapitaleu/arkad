@@ -4,9 +4,9 @@
 //! SEC API endpoint for a validated CIK.
 //!
 //! Taking a validated [`Cik`](crate::shared::cik::Cik) and the shared HTTP client, it
-//! assembles the company-facts request and pairs it with that client, leaving a ready-to-send
-//! request for the next state. Separating preparation from execution keeps request
-//! construction synchronous and independently testable, without touching the network.
+//! assembles the company-facts request and pairs it with that client. Separating preparation
+//! from execution keeps request construction synchronous and independently testable, without
+//! touching the network.
 //!
 //! ## Modules
 //!

@@ -6,9 +6,9 @@
 //! The state's input is just a free-floating [`String`] and nothing about its type guarantees it
 //! is a real CIK. The SEC requires every CIK to be exactly ten zero-padded digits, so this state
 //! validates and normalizes that string and, on success, parses it into the [`Cik`] newtype.
-//! From there on the type itself carries the guarantee, letting downstream states consume a
-//! well-formed CIK without re-checking. Validation is *syntactic* only: it does not verify that
-//! the CIK exists in the SEC's records.
+//! From there on the type itself carries the guarantee — a well-formed CIK without need for
+//! re-checking. Validation is *syntactic* only: it does not verify that the CIK exists in the
+//! SEC's records.
 //!
 //! ## Modules
 //!

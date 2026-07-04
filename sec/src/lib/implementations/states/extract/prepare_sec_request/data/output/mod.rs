@@ -4,8 +4,7 @@
 //! [`PrepareSecRequest`](crate::implementations::states::extract::prepare_sec_request::PrepareSecRequest)
 //! state, along with its updater and builder.
 //!
-//! Bundles the constructed [`SecRequest`] and the [`SecClient`] so the next state can
-//! dispatch the request without further preparation.
+//! Bundles the constructed [`SecRequest`] and the [`SecClient`] needed to execute the request.
 //!
 //! ## See Also
 //!

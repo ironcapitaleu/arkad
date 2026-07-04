@@ -21,8 +21,8 @@ use crate::traits::state_machine::state::StateData;
 
 /// Output data of the [`ParseCompanyFacts`](super::super::ParseCompanyFacts) state.
 ///
-/// Wraps the [`CompanyData`] resolved from the Company Facts JSON, ready for the
-/// financial-statements state to consume.
+/// Wraps the [`CompanyData`] resolved from the Company Facts JSON, ready for financial
+/// statement construction.
 #[derive(Debug, Clone)]
 pub struct ParseCompanyFactsOutput {
     /// The parsed company financial data.
