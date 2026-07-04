@@ -51,7 +51,7 @@ use crate::traits::state_machine::state::Context;
 pub struct ValidateCikFormatContext {
     /// The unvalidated CIK string provided for validation.
     pub raw_cik: String,
-    /// The shared HTTP client for SEC API requests, passed down from the super-state.
+    /// The shared HTTP client for SEC API requests.
     pub sec_client: SecClient,
     /// Maximum number of times the state may be retried on failure.
     pub max_retries: u32,

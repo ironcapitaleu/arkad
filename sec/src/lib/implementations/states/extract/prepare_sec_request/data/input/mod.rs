@@ -29,7 +29,7 @@ use crate::traits::state_machine::state::StateData;
 pub struct PrepareSecRequestInput {
     /// The validated CIK that will be used for the SEC API request.
     pub validated_cik: Cik,
-    /// The shared HTTP client passed down from the super-state context.
+    /// The shared HTTP client for SEC API requests.
     pub sec_client: SecClient,
 }
 
