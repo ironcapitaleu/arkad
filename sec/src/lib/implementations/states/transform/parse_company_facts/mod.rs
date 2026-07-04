@@ -1,7 +1,7 @@
 //! # Parse Company Facts State
 //!
-//! Provides the [`ParseCompanyFacts`] state, the first step of the transform phase, which
-//! resolves raw SEC Company Facts JSON into strongly-typed [`CompanyData`].
+//! Provides the [`ParseCompanyFacts`] state, which resolves raw SEC Company Facts JSON into
+//! strongly-typed [`CompanyData`].
 //!
 //! The SEC returns facts as deeply-nested XBRL JSON keyed by namespace and concept alias.
 //! This state walks that structure, resolving each required and optional concept into typed

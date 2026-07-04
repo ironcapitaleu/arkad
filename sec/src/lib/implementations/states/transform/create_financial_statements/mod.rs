@@ -1,7 +1,7 @@
 //! # Create Financial Statements State
 //!
-//! Provides the [`CreateFinancialStatements`] state, the final and terminal step of the
-//! pipeline, which builds financial statements from parsed [`CompanyData`](crate::shared::financial::company_data::CompanyData).
+//! Provides the [`CreateFinancialStatements`] state, which builds financial statements from
+//! parsed [`CompanyData`](crate::shared::financial::company_data::CompanyData).
 //!
 //! This state is currently a **scaffold**: it accepts the parsed company data and produces a
 //! placeholder output, with the statement-building logic to be filled in a future iteration.

@@ -1,7 +1,7 @@
 //! # Execute SEC Request State
 //!
-//! Provides the [`ExecuteSecRequest`] state, the final step of the extract phase, which
-//! sends the prepared request to the SEC API and captures the response.
+//! Provides the [`ExecuteSecRequest`] state, which sends the prepared request to the SEC API
+//! and captures the response.
 //!
 //! This is the one extract state that touches the network: it consumes the prepared client
 //! and request, performs the HTTP call, and produces an

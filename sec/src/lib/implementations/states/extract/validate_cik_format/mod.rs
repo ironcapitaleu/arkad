@@ -1,8 +1,7 @@
 //! # Validate CIK Format State
 //!
-//! Provides the [`ValidateCikFormat`] state, the first step of the extract phase, which turns a
-//! plain input string that is *assumed* to denote a CIK (Central Index Key) into a validated
-//! [`Cik`].
+//! Provides the [`ValidateCikFormat`] state, which turns a plain input string that is *assumed*
+//! to denote a CIK (Central Index Key) into a validated [`Cik`].
 //!
 //! The state's input is just a free-floating [`String`] and nothing about its type guarantees it
 //! is a real CIK. The SEC requires every CIK to be exactly ten zero-padded digits, so this state

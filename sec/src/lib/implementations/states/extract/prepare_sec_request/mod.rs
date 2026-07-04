@@ -1,7 +1,7 @@
 //! # Prepare SEC Request State
 //!
-//! Provides the [`PrepareSecRequest`] state, the second step of the extract phase, which
-//! builds the [`SecRequest`] targeting the SEC API endpoint for a validated CIK.
+//! Provides the [`PrepareSecRequest`] state, which builds the [`SecRequest`] targeting the
+//! SEC API endpoint for a validated CIK.
 //!
 //! Taking a validated [`Cik`](crate::shared::cik::Cik) and the shared HTTP client, it
 //! assembles the company-facts request and pairs it with that client, leaving a ready-to-send

@@ -1,7 +1,6 @@
 //! # Extract Phase
 //!
-//! Provides the states of the extract phase — the first phase of the SEC ETL pipeline —
-//! and the [`ExtractSuperState`] that drives them.
+//! Provides the states of the extract phase and the [`ExtractSuperState`] that drives them.
 //!
 //! Extraction turns a raw CIK string into a fetched SEC response through three ordered
 //! states. The super-state owns the shared HTTP client and the type-safe transitions

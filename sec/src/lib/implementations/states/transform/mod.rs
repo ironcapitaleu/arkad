@@ -1,7 +1,6 @@
 //! # Transform Phase
 //!
-//! Provides the states of the transform phase — the second phase of the SEC ETL pipeline —
-//! and the [`TransformSuperState`] that drives them.
+//! Provides the states of the transform phase and the [`TransformSuperState`] that drives them.
 //!
 //! Transformation turns a raw SEC response into structured financial statements through two
 //! ordered states. As in the extract phase, the super-state owns the type-safe transitions
