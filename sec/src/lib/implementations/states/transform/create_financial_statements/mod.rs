@@ -44,7 +44,7 @@ use serde::Serialize;
 // containing a `HashMap`. This struct therefore also uses manual implementations
 // for these traits.
 #[derive(Debug, Clone, Serialize)]
-/// Terminal transform-phase state, building financial statements from [`CompanyData`](crate::shared::financial::company_data::CompanyData).
+/// Builds financial statements from [`CompanyData`](crate::shared::financial::company_data::CompanyData).
 ///
 /// A **scaffold**: it accepts the parsed company data and currently produces a placeholder
 /// [`CreateFinancialStatementsOutput`]. The statement-building logic is deferred to a future
