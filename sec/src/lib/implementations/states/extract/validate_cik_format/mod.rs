@@ -102,10 +102,9 @@ impl ValidateCikFormat {
     ///
     /// let input = ValidateCikFormatInput::new("1234");
     /// let context = ValidateCikFormatContext::new("1234", SecClient::default());
+    /// let state = ValidateCikFormat::new(input, context);
     ///
     /// let expected_result = false;
-    ///
-    /// let state = ValidateCikFormat::new(input, context);
     ///
     /// let result = state.output_data().is_some();
     ///

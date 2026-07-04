@@ -90,10 +90,9 @@ impl ParseCompanyFacts {
     /// let cik = Cik::new("0001067983").expect("A hardcoded valid CIK should always parse");
     /// let input = ParseCompanyFactsInput::new(json, digest);
     /// let context = ParseCompanyFactsContext::new(cik);
+    /// let state = ParseCompanyFacts::new(input, context);
     ///
     /// let expected_result = false;
-    ///
-    /// let state = ParseCompanyFacts::new(input, context);
     ///
     /// let result = state.output_data().is_some();
     ///

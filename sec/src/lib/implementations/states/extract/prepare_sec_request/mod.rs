@@ -92,10 +92,9 @@ impl PrepareSecRequest {
     /// let cik = Cik::new("1067983").expect("A hardcoded valid CIK should always parse");
     /// let input = PrepareSecRequestInput::new(cik.clone(), SecClient::default());
     /// let context = PrepareSecRequestContext::new(cik);
+    /// let state = PrepareSecRequest::new(input, context);
     ///
     /// let expected_result = false;
-    ///
-    /// let state = PrepareSecRequest::new(input, context);
     ///
     /// let result = state.output_data().is_some();
     ///

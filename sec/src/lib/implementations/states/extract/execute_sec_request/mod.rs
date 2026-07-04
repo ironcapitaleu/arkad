@@ -99,10 +99,9 @@ impl ExecuteSecRequest {
     /// let request = SecRequest::builder().all_company_facts().cik(cik.clone()).build();
     /// let input = ExecuteSecRequestInput::new(SecClient::default(), request);
     /// let context = ExecuteSecRequestContext::new(cik);
+    /// let state = ExecuteSecRequest::new(input, context);
     ///
     /// let expected_result = false;
-    ///
-    /// let state = ExecuteSecRequest::new(input, context);
     ///
     /// let result = state.output_data().is_some();
     ///

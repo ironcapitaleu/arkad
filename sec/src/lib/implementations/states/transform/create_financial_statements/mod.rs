@@ -73,10 +73,9 @@ impl CreateFinancialStatements {
     /// let company_data = CompanyData::new(cik.clone(), EntityName::new("Apple Inc."), HashMap::new());
     /// let input = CreateFinancialStatementsInput::new(company_data);
     /// let context = CreateFinancialStatementsContext::new(cik);
+    /// let state = CreateFinancialStatements::new(input, context);
     ///
     /// let expected_result = false;
-    ///
-    /// let state = CreateFinancialStatements::new(input, context);
     ///
     /// let result = state.output_data().is_some();
     ///
