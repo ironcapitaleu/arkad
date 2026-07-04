@@ -4,8 +4,7 @@
 //! [`ParseCompanyFacts`](crate::implementations::states::transform::parse_company_facts::ParseCompanyFacts)
 //! state, along with its updater and builder.
 //!
-//! It wraps the resolved [`CompanyData`], the structured form the financial-statements state
-//! consumes. The raw JSON it was parsed from lives in [`input`](super::input).
+//! It wraps the resolved [`CompanyData`].
 //!
 //! ## See Also
 //!

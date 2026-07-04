@@ -6,7 +6,6 @@
 //!
 //! It carries the raw Company Facts JSON response, plus a precomputed
 //! [`BodyDigest`] so the (un-`Hash`able) JSON can still participate in equality and ordering.
-//! The parsed result lives in [`output`](super::output).
 //!
 //! ## See Also
 //!

@@ -6,7 +6,6 @@
 //!
 //! This is the *validated* side of the state's data: the CIK is wrapped in a
 //! [`Cik`], guaranteeing the ten-digit, zero-padded form for every downstream state.
-//! The unvalidated counterpart lives in [`input`](super::input).
 //!
 //! ## See Also
 //!

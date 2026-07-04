@@ -4,8 +4,7 @@
 //! [`CreateFinancialStatements`](crate::implementations::states::transform::create_financial_statements::CreateFinancialStatements)
 //! state, along with its updater and builder.
 //!
-//! It carries the [`CompanyData`] from which financial statements are built. The produced
-//! output lives in [`output`](super::output).
+//! It carries the [`CompanyData`] from which financial statements are built.
 //!
 //! ## See Also
 //!

@@ -5,8 +5,7 @@
 //! state, along with its updater and builder.
 //!
 //! This is the *unvalidated* side of the state's data: it carries the CIK exactly as it
-//! was supplied, before any format validation, trimming, or zero-padding. The validated
-//! counterpart lives in [`output`](super::output).
+//! was supplied, before any format validation, trimming, or zero-padding.
 //!
 //! ## See Also
 //!

@@ -5,7 +5,7 @@
 //! state, along with its updater and builder.
 //!
 //! It carries the two inputs the state needs to assemble an SEC request: the validated
-//! [`Cik`] and the shared [`SecClient`]. The prepared SEC request lives in [`output`](super::output).
+//! [`Cik`] and the shared [`SecClient`].
 //!
 //! ## See Also
 //!

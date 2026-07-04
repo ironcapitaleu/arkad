@@ -4,8 +4,7 @@
 //! [`ExecuteSecRequest`](crate::implementations::states::extract::execute_sec_request::ExecuteSecRequest)
 //! state, along with its updater and builder.
 //!
-//! It carries the prepared [`SecClient`] and [`SecRequest`] the state will dispatch. The
-//! received response lives in [`output`](super::output).
+//! It carries the prepared [`SecClient`] and [`SecRequest`] needed to execute the request.
 //!
 //! ## See Also
 //!
@@ -25,7 +24,7 @@ use crate::traits::state_machine::state::StateData;
 
 /// Input data for the [`ExecuteSecRequest`](super::super::ExecuteSecRequest) state.
 ///
-/// Bundles the prepared [`SecClient`] and [`SecRequest`] the state will dispatch.
+/// Bundles the prepared [`SecClient`] and [`SecRequest`] needed to execute the request.
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
 pub struct ExecuteSecRequestInput {
     /// The prepared SEC client that will execute the HTTP request.
