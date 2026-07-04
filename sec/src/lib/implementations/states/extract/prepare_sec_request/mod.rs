@@ -66,7 +66,7 @@ pub use context::PrepareSecRequestContext;
 pub use data::PrepareSecRequestInput;
 pub use data::PrepareSecRequestOutput;
 
-/// Second extract-phase state, building the [`SecRequest`] for a validated CIK.
+/// Builds the [`SecRequest`] for a validated CIK.
 ///
 /// Takes a validated [`Cik`](crate::shared::cik::Cik) and the shared HTTP client and
 /// assembles a company-facts request targeting the matching SEC endpoint. The work is purely

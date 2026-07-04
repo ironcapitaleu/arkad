@@ -69,7 +69,7 @@ pub use context::ExecuteSecRequestContext;
 pub use data::ExecuteSecRequestInput;
 pub use data::ExecuteSecRequestOutput;
 
-/// Final extract-phase state, sending the prepared request to the SEC API.
+/// Sends the prepared request to the SEC API and captures the response.
 ///
 /// Consumes the prepared [`SecClient`](crate::shared::http_client::implementations::sec_client::SecClient)
 /// and [`SecRequest`](crate::shared::request::implementations::sec_request::SecRequest), performs the

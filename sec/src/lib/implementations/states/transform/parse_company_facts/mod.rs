@@ -62,7 +62,7 @@ pub use data::ParseCompanyFactsInput;
 pub use data::ParseCompanyFactsOutput;
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
-/// First transform-phase state, resolving Company Facts JSON into [`CompanyData`].
+/// Resolves Company Facts JSON into [`CompanyData`].
 ///
 /// Reads the CIK, entity name, and facts from the SEC JSON, then resolves each required and
 /// optional XBRL concept by trying its key aliases across the relevant namespaces and

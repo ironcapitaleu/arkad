@@ -614,6 +614,11 @@ or positions in a sequence ("the second step of the extract phase", "passed down
 super-state", "used by transitions to move..."). Describe *what* the item does, not *who* calls
 it or *where* it sits in a pipeline — that couples the doc to an arrangement that can change.
 
+**Ordinal references** ("first", "second", "final step") are only appropriate when looking
+**downward**: a parent module may describe the order of its own children because it owns that
+sequence. A child must never claim its own position — it does not know (and should not assume)
+where or in what order it is assembled.
+
 If you add a new implementor of a trait, you do **not** go back to the trait's docs to add a link to it. The implementor links to the trait it implements, not the other way around.
 
 Exception: `## See Also` in module-level docs may link upward for discoverability, since module docs serve as navigation aids.

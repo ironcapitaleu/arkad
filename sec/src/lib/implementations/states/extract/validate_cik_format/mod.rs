@@ -74,7 +74,7 @@ pub use data::ValidateCikFormatOutput;
 use crate::shared::cik::Cik;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
-/// First extract-phase state, parsing a presumed-CIK input string into a validated [`Cik`].
+/// Parses a presumed-CIK input string into a validated [`Cik`].
 ///
 /// Takes a plain [`String`] assumed to denote a CIK, trims whitespace, rejects any non-numeric
 /// input, and zero-pads the result to the ten-digit form the SEC requires. On success the string
