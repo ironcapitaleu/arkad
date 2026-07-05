@@ -86,10 +86,9 @@ impl Ord for SecResponse {
 impl SecResponse {
     /// Creates an [`SecResponse`] directly from already-validated parts, skipping HTTP validation.
     ///
-    /// Unlike [`from_inner`](SecResponseTrait::from_inner), the caller is responsible for ensuring
-    /// the parts represent a valid SEC response. The body digest is taken from `body.to_string()`
-    /// (re-serialized JSON), which may differ from the raw text `from_inner` hashes due to
-    /// whitespace or key ordering — harmless, since the two paths are never applied to the same data.
+    /// Intended for **testing only**. The body digest is computed from `body.to_string()`
+    /// (re-serialized JSON), which may differ from the digest of the original raw text due to
+    /// whitespace or key ordering — making equality comparisons with real responses unreliable.
     #[must_use]
     pub fn from_parts(
         url: Url,
