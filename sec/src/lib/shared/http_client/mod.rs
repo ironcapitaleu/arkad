@@ -3,9 +3,9 @@
 //! Provides the HTTP client abstraction used to execute SEC API requests.
 //!
 //! The client is split into two trait layers so the library is not bound to any one HTTP crate:
-//! an [`InnerClient`] wraps a concrete transport (e.g. `reqwest`), and a [`SecClient`] adds the
-//! domain layer that turns a `SecRequest` into a `SecResponse`. States depend on the traits, so a
-//! fake client can stand in for the network in tests.
+//! an [`InnerClient`] wraps a raw HTTP client, and a [`SecClient`]
+//! adds the domain layer that turns a `SecRequest` into a `SecResponse`. This decoupling allows
+//! swapping the transport layer implementation or substituting a fake for unit testing.
 //!
 //! ## Modules
 //!

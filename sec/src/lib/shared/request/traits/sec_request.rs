@@ -15,13 +15,13 @@ use crate::shared::request::InnerRequest;
 /// Each implementor chooses the concrete types filling these slots, which is what keeps request
 /// construction decoupled from any specific HTTP crate:
 ///
-/// - `Inner`: The underlying transport request type. Must implement [`InnerRequest`].
-/// - `RequestInput`: The domain input type from which the request is built.
+/// - `Inner`: The raw HTTP request this trait delegates to. Must implement [`InnerRequest`].
+/// - `RequestInput`: The input data from which the request is constructed.
 #[async_trait]
 pub trait SecRequest: Send + Sync + Debug {
-    /// The underlying transport request type this wraps. Must implement [`InnerRequest`].
+    /// The raw HTTP request this trait delegates to. Must implement [`InnerRequest`].
     type Inner: InnerRequest;
-    /// The domain input type from which the request is built.
+    /// The input data from which the request is constructed.
     type RequestInput;
 
     /// Returns a reference to the underlying transport request.

@@ -14,17 +14,17 @@ use crate::shared::http_client::InnerClient;
 /// Each implementor chooses the concrete types filling these slots, which is what keeps the trait
 /// decoupled from any specific HTTP crate:
 ///
-/// - `Inner`: The underlying transport type. Must implement [`InnerClient`].
+/// - `Inner`: The raw HTTP client this trait delegates to. Must implement [`InnerClient`].
 /// - `Request`: The SEC request type accepted by [`SecClient::execute_sec_request`].
 /// - `Response`: The SEC response type returned on success.
-/// - `Error`: The error type returned when execution or response validation fails.
+/// - `Error`: The error type returned when request execution or response validation fails.
 #[async_trait]
 pub trait SecClient: Send + Sync + Debug {
-    /// The underlying transport type this client delegates to. Must implement [`InnerClient`].
+    /// The raw HTTP client this trait delegates to. Must implement [`InnerClient`].
     type Inner: InnerClient;
     /// The SEC response type returned on success.
     type Response;
-    /// The error type returned when execution or response validation fails.
+    /// The error type returned when request execution or response validation fails.
     type Error;
     /// The SEC request type this client executes.
     type Request;

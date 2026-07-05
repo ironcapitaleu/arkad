@@ -27,7 +27,7 @@ use constants::{SEC_COMPANY_FACTS_URL_PREFIX, SEC_COMPANY_FACTS_URL_SUFFIX};
 /// endpoint URL and HTTP method for the chosen request. Construct one with [`SecRequest::builder`].
 #[derive(Debug)]
 pub struct SecRequest {
-    /// The underlying transport request.
+    /// The raw HTTP request type this struct wraps.
     pub inner: Request,
 }
 
