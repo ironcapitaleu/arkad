@@ -1,6 +1,6 @@
 //! # Common Test Fixtures
 //!
-//! Reusable sample implementations of the crate's traits, used to build tests without live I/O.
+//! Reusable sample implementations and data for building tests without live I/O.
 //!
 //! ## Modules
 //!
