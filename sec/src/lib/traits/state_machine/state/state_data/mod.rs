@@ -3,9 +3,10 @@
 //! Provides the [`StateData`] trait for an SEC state's input/output data, adding fallible,
 //! domain-typed updates to the generic [`state_maschine`] state data.
 //!
-//! State data is the per-computation data a state reads and produces, as opposed to the
-//! [`Context`](super::Context). SEC updates can fail (an update may itself need validation), so
-//! the trait makes updating return a [`StateError`] rather than the framework's infallible update.
+//! State data is the per-computation data a state reads and produces — the input it receives
+//! and the output it computes. Updates are fallible because they may involve domain validation
+//! (e.g., setting a new CIK that must pass format checks), so the trait returns a [`StateError`]
+//! on failure.
 
 use state_maschine::prelude::StateData as SMStateData;
 
