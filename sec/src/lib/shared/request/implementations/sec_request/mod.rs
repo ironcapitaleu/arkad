@@ -24,8 +24,8 @@ use constants::{SEC_COMPANY_FACTS_URL_PREFIX, SEC_COMPANY_FACTS_URL_SUFFIX};
 
 /// A ready-to-send SEC API request.
 ///
-/// Wraps a `reqwest::Request` built from a high-level [`SecRequestType`], guaranteeing the right
-/// endpoint URL and HTTP method for the chosen request. Construct one with [`SecRequest::builder`].
+/// Wraps a `reqwest::Request` built from a high-level [`SecRequestType`], guaranteeing the right endpoint URL and HTTP
+/// method for the chosen request kind.
 #[derive(Debug)]
 pub struct SecRequest {
     /// The raw HTTP request type this struct wraps.
