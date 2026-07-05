@@ -4,10 +4,10 @@ use async_trait::async_trait;
 
 use crate::shared::request::InnerRequest;
 
-/// The domain-level SEC request: builds a transport request from SEC concepts.
+/// The domain-level SEC request: builds a raw HTTP request from SEC concepts.
 ///
 /// Sits above [`InnerRequest`], translating domain input (such as a CIK and target endpoint) into
-/// a ready-to-send transport request. Existing as a trait keeps request construction decoupled
+/// a ready-to-send HTTP request. Existing as a trait keeps request construction decoupled
 /// from any specific HTTP crate and testable with a fake.
 ///
 /// # Associated Types
@@ -24,7 +24,7 @@ pub trait SecRequest: Send + Sync + Debug {
     /// The input data from which the request is constructed.
     type RequestInput;
 
-    /// Returns a reference to the underlying transport request.
+    /// Returns a reference to the underlying raw HTTP request.
     fn inner(&self) -> &Self::Inner;
 
     /// Returns the request's HTTP method, delegating to the inner request.

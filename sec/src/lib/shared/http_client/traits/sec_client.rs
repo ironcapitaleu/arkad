@@ -7,7 +7,7 @@ use crate::shared::http_client::InnerClient;
 /// The domain-level SEC HTTP client: executes an SEC request and returns an SEC response.
 ///
 /// Sits above [`InnerClient`], adding the SEC-specific knowledge (endpoints, request/response
-/// shaping) that the raw transport lacks.
+/// shaping) that the raw HTTP client lacks.
 ///
 /// # Associated Types
 ///
@@ -29,14 +29,14 @@ pub trait SecClient: Send + Sync + Debug {
     /// The SEC request type this client executes.
     type Request;
 
-    /// Returns a reference to the underlying transport.
+    /// Returns a reference to the underlying raw HTTP client.
     fn inner(&self) -> &Self::Inner;
 
     /// Executes an SEC request, returning the validated response.
     ///
     /// # Errors
     ///
-    /// Returns `Self::Error` if the request fails at the transport level or the response fails
+    /// Returns `Self::Error` if the request fails at the network level or the response fails
     /// SEC validation.
     async fn execute_sec_request(
         &self,

@@ -1,6 +1,6 @@
 //! # Response Traits
 //!
-//! The two-layer response contract: an [`InnerResponse`] transport and the domain-level [`SecResponse`].
+//! The two-layer response contract: a raw [`InnerResponse`] and the domain-level [`SecResponse`].
 //!
 //! ## Modules
 //!

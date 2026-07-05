@@ -1,6 +1,6 @@
 //! # Request Traits
 //!
-//! The two-layer request contract: an [`InnerRequest`] transport and the domain-level [`SecRequest`].
+//! The two-layer request contract: a raw [`InnerRequest`] and the domain-level [`SecRequest`].
 //!
 //! ## Modules
 //!

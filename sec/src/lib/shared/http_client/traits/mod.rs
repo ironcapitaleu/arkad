@@ -1,10 +1,10 @@
 //! # HTTP Client Traits
 //!
-//! The two-layer client contract: an [`InnerClient`] transport and the domain-level [`SecClient`].
+//! The two-layer client contract: a raw [`InnerClient`] and the domain-level [`SecClient`].
 //!
 //! ## Modules
 //!
-//! - [`inner`]: The [`InnerClient`] trait abstracting a concrete HTTP transport.
+//! - [`inner`]: The [`InnerClient`] trait abstracting a concrete HTTP client.
 //! - [`sec_client`]: The [`SecClient`] trait adding SEC request/response semantics on top.
 
 pub mod inner;
