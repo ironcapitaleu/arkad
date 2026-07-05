@@ -2,9 +2,9 @@
 //!
 //! A generic, trait-based framework for building state machines in Rust.
 //!
-//! The crate defines the abstract pieces of a state machine, states, their context and data,
-//! transitions between them, and hierarchical super-states, as a set of traits. Downstream crates
-//! (such as `sec`) implement these traits to model their own domain workflows.
+//! The crate defines the abstract pieces of a state machine — states, their context and data,
+//! transitions between them, and hierarchical super-states — as a set of traits. Domain crates
+//! can implement these traits to model their own workflows.
 //!
 //! ## Modules
 //!
