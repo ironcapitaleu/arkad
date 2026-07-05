@@ -9,7 +9,6 @@ use serde::Serialize;
 /// A fiscal year identifier (e.g. 2023, 2024).
 ///
 /// Wraps the `fy` field from SEC XBRL data so a year can't be confused with other numeric fields.
-/// Construct it via the [`From`]/[`TryFrom`] conversions for the relevant integer types.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub struct FiscalYear(u16);
 
