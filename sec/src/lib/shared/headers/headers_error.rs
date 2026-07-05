@@ -8,7 +8,7 @@ use std::fmt;
 
 use thiserror::Error;
 
-/// Reports that a set of response headers failed validation.
+/// Error indicating that a set of response headers failed validation.
 ///
 /// Carries the [`InvalidHeadersReason`] and the raw headers as received, preserved for diagnostics.
 #[derive(Debug, Error, Clone, PartialEq, Eq)]

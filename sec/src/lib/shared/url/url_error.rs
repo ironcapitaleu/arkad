@@ -7,7 +7,7 @@ use std::fmt;
 
 use thiserror::Error;
 
-/// Reports that a string could not be validated as a URL.
+/// Error indicating that a string could not be validated as a URL.
 ///
 /// Carries the [`InvalidUrlReason`] and the offending input for diagnostics.
 #[derive(Debug, Error, Clone, PartialEq, Eq, Hash)]

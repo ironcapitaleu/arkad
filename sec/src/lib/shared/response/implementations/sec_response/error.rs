@@ -10,7 +10,7 @@ use thiserror::Error;
 use crate::shared::content_type::ContentType;
 use crate::shared::status_code::StatusCode;
 
-/// Reports that an HTTP response could not be accepted as a valid SEC response.
+/// Error indicating that an HTTP response could not be accepted as a valid SEC response.
 ///
 /// Wraps the [`ErrorReason`] identifying which validation check failed.
 #[derive(Debug, Error, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]

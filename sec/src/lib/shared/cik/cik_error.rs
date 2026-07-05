@@ -9,7 +9,7 @@ use thiserror::Error;
 
 use super::constants::CIK_LENGTH;
 
-/// Reports that a string could not be validated as a CIK.
+/// Error indicating that a string could not be validated as a CIK.
 ///
 /// Carries both the [`InvalidCikReason`] and the offending input, so callers can produce a
 /// precise, user-facing diagnostic.
