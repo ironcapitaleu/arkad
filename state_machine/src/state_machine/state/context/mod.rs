@@ -1,15 +1,17 @@
 //! # Context Trait
 //!
-//! Provides the [`Context`] trait for the data a state reads, separate from its
-//! input/output [`StateData`](super::StateData).
+//! Provides the [`Context`] trait for the environmental information surrounding a state
+//! (configuration, shared resources, retry policy) that can influence how a computation behaves.
+//! It outlives any single input/output cycle and is generally not expected to be mutated by
+//! transitions (although possible).
 
 use std::{fmt::Debug, hash::Hash};
 
-/// Partially-updatable data associated with a state.
+/// Environmental information surrounding a state that can influence how a computation behaves.
 ///
-/// Holds environmental or shared information relevant to a state (configuration, retry policy,
-/// and the like) that is read during computation and changed only through explicit updates. The
-/// supertrait bounds keep it thread-safe, comparable, and hashable like the state itself.
+/// Holds configuration, shared resources, or policy (e.g. retry budgets) that outlive any single
+/// input/output cycle. Changed only through explicit partial updates. The supertrait bounds keep
+/// it thread-safe, comparable, and hashable like the state itself.
 ///
 /// # Associated Types
 ///
