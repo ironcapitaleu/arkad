@@ -1,13 +1,13 @@
 //! # Transition Trait
 //!
-//! Provides the [`Transition`] trait for moving a state machine from one state to another.
+//! Provides the [`Transition`] trait modeling a move from one state to another.
+//!
+//! A transition encodes which moves are valid in the type system: it consumes the machine in
+//! state `T` and produces it in state `U`, so the old state cannot be reused.
 
 use crate::state_machine::{StateMachine, state::State};
 
-/// A transition of a [`StateMachine`] from state `T` to state `U`.
-///
-/// Implemented on a machine that is in state `T` to produce a machine in state `U`, encoding which
-/// moves are valid in the type system. Consumes the machine so the old state cannot be reused.
+/// A transition from source state `T` to target state `U`.
 ///
 /// # Associated Types
 ///
