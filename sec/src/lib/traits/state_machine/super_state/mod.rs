@@ -3,9 +3,8 @@
 //! Provides the [`SuperState`] trait for hierarchical states: a state that is itself a state
 //! machine.
 //!
-//! This is what lets a phase like extraction appear as a single state to the outer pipeline while
-//! internally driving its own sub-states. The extract and transform super-states are the concrete
-//! implementors.
+//! This is what lets a group of states appear as a single state to the outer pipeline while
+//! internally driving its own sub-states.
 
 use crate::prelude::{State, StateMachine};
 
