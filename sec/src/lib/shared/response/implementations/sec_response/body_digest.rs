@@ -9,15 +9,18 @@ use serde::Serialize;
 
 /// A precomputed `u64` digest of a response body.
 ///
-/// Lets [`SecResponse`](super::SecResponse) and downstream types derive `Hash` and `Ord` cheaply,
-/// without re-serializing a large JSON body. The digest is taken over the *raw* body text at
-/// construction (before JSON parsing), so it reflects the exact bytes received; the single
-/// construction path ([`BodyDigest::from_body_text`]) keeps that computation consistent.
+/// Enables cheap `Hash` and `Ord` for [`SecResponse`](super::SecResponse) without re-serializing
+/// a large JSON body. The digest is taken over the *raw* body text at construction (before JSON
+/// parsing), so it reflects the exact bytes received.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub struct BodyDigest(u64);
 
 impl BodyDigest {
     /// Computes a digest from raw body text.
+    ///
+    /// This is the only construction path — guaranteeing that two responses with identical
+    /// raw body text always produce equal digests. Without this, re-serialized JSON could
+    /// differ in whitespace or key order, breaking equality and hashing.
     ///
     /// # Examples
     ///
