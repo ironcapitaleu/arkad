@@ -17,7 +17,7 @@ use async_trait::async_trait;
 /// - `Body`: The response's body.
 /// - `StatusCode`: The response's HTTP status code.
 /// - `ContentType`: The response's content type.
-/// - `Error`: The error type returned when reading the body fails.
+/// - `Error`: The error returned on failure (e.g. when reading the body fails).
 #[async_trait]
 pub trait InnerResponse: Send + Sync + Debug {
     /// The response's URL.
@@ -35,7 +35,7 @@ pub trait InnerResponse: Send + Sync + Debug {
     /// The response's content type.
     type ContentType;
 
-    /// The error type returned when reading the body fails.
+    /// The error returned on failure.
     type Error;
 
     /// Returns a reference to the response's URL.
