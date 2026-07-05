@@ -27,9 +27,6 @@ where
 {
     /// Transitions to the next state, reporting failures as SEC [`TransitionError`]s.
     ///
-    /// Mirrors the generic `transition_to_next_state` but returns a domain-typed error rather than
-    /// a static string, enabling richer diagnostics.
-    ///
     /// # Errors
     ///
     /// Returns [`TransitionError`] if the move fails, e.g.
