@@ -4,8 +4,9 @@
 //! generic [`state_maschine`] context.
 //!
 //! Context is the environmental information surrounding a state (shared client, retry policy,
-//! configuration) that outlives any single input/output and is not mutated by transitions, as
-//! opposed to the per-computation [`StateData`](super::StateData).
+//! configuration) that can influence how a computation behaves — e.g., different retry budgets
+//! or credentials could yield different results for the same input. It outlives any single
+//! input/output cycle and is generally not expected to be mutated by transitions (although possible).
 
 use state_maschine::prelude::Context as SMContext;
 
