@@ -1,7 +1,8 @@
 //! # SEC Request
 //!
-//! Provides the [`SecRequest`], the concrete [`SecRequest`](crate::shared::request::SecRequest)
-//! sent to the SEC API, built through an [`SecRequestBuilder`].
+//! Provides the [`SecRequest`]. Given a request kind and its domain input (e.g. a CIK),
+//! it assembles a fully-formed HTTP request — endpoint, method, and all — ready to dispatch.
+//! Built through an [`SecRequestBuilder`].
 //!
 //! ## Modules
 //!
