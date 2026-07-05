@@ -2,10 +2,9 @@
 //!
 //! Provides the HTTP response abstraction returned by the SEC API.
 //!
-//! Mirroring the client and request, the response has two trait layers to stay
-//! HTTP-library-agnostic: an [`InnerResponse`] wraps a concrete response type (e.g. `reqwest`), and a
-//! [`SecResponse`] adds the domain layer that exposes validated, typed parts (URL, headers, status,
-//! content type, JSON body) and is built by reading the inner response.
+//! Split into two trait layers so the library is not bound to any one HTTP crate: an
+//! [`InnerResponse`] wraps a raw HTTP response, and an [`SecResponse`] validates it and exposes
+//! typed parts (URL, headers, status, content type, JSON body).
 //!
 //! ## Modules
 //!
