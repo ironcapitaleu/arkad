@@ -21,7 +21,7 @@ impl InnerResponse for Response {
     type Body = String;
     /// The [`reqwest::StatusCode`] type.
     type StatusCode = StatusCode;
-    /// The crate's own [`ContentType`], parsed from the `Content-Type` header.
+    /// The [`ContentType`], parsed from the `Content-Type` header.
     type ContentType = ContentType;
     /// The [`reqwest::Error`] type.
     type Error = reqwest::Error;
