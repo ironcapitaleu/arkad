@@ -1,12 +1,16 @@
 //! # State Trait
 //!
-//! Provides the [`State`] trait, one node in a state machine, along with its [`Context`] and
-//! [`StateData`] traits.
+//! Provides the [`State`] trait every state machine state implements, plus the context and
+//! state-data traits its data is built from.
+//!
+//! A [`State`] reads typed input and context, computes its output on demand, and exposes all
+//! three through a uniform interface. The supertrait bounds keep every state thread-safe,
+//! comparable, and hashable so machines can store and reason about them uniformly.
 //!
 //! ## Modules
 //!
 //! - [`context`]: The [`Context`] trait for a state's context.
-//! - [`state_data`]: The [`StateData`] trait for a state's input and output data.
+//! - [`state_data`]: The [`StateData`] trait for a state's input/output data.
 
 use std::{fmt::Debug, hash::Hash};
 
@@ -16,11 +20,7 @@ pub mod state_data;
 pub use context::Context;
 pub use state_data::StateData;
 
-/// One node in a state machine: holds input, context, and computed output.
-///
-/// A state reads typed input and context and computes its output on demand. The supertrait bounds
-/// keep every state thread-safe, comparable, and hashable so machines can store and reason about
-/// them uniformly.
+/// One node in a state machine: reads typed input and context, computes output on demand.
 ///
 /// # Associated Types
 ///
