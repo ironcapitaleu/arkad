@@ -17,7 +17,7 @@ use crate::shared::response::implementations::sec_response::error::InvalidSecRes
 #[derive(Debug, Error, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[error("[FailedSecRequest] SEC request failed, Caused by: {reason}")]
 pub struct FailedSecRequest {
-    /// Why the SEC request failed.
+    /// The reason why the SEC request failed.
     pub reason: ErrorReason,
 }
 

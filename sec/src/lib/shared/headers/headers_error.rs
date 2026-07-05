@@ -14,7 +14,7 @@ use thiserror::Error;
 #[derive(Debug, Error, Clone, PartialEq, Eq)]
 #[error("[HeadersError] Header validation failed, Reason: '{reason}'")]
 pub struct HeadersError {
-    /// Why header validation failed.
+    /// The reason why header validation failed.
     pub reason: InvalidHeadersReason,
     /// The raw headers as received, preserved for diagnostics.
     pub raw_headers: HashMap<String, String>,

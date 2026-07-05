@@ -16,7 +16,7 @@ use super::constants::CIK_LENGTH;
 #[derive(Debug, Error, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[error("[CikError] Invalid CIK, Reason: '{reason}', Input: '{invalid_cik}'")]
 pub struct CikError {
-    /// Why the CIK is considered invalid.
+    /// The reason why the CIK is considered invalid.
     pub reason: InvalidCikReason,
     /// The original string that failed validation.
     pub invalid_cik: String,

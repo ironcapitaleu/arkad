@@ -13,7 +13,7 @@ use thiserror::Error;
 #[derive(Debug, Error, Clone, PartialEq, Eq, Hash)]
 #[error("[UrlError] Invalid URL, Reason: '{reason}', Input: '{invalid_url}'")]
 pub struct UrlError {
-    /// Why the URL is considered invalid.
+    /// The reason why the URL is considered invalid.
     pub reason: InvalidUrlReason,
     /// The original string that failed validation.
     pub invalid_url: String,

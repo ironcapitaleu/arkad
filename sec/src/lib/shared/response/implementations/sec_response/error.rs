@@ -16,7 +16,7 @@ use crate::shared::status_code::StatusCode;
 #[derive(Debug, Error, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[error("[InvalidSecResponse] Invalid SEC Response, Reason: '{reason}'")]
 pub struct InvalidSecResponse {
-    /// Why the response is considered invalid.
+    /// The reason why the response is considered invalid.
     pub reason: ErrorReason,
 }
 

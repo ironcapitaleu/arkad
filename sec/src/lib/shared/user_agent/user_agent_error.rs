@@ -13,7 +13,7 @@ use thiserror::Error;
 #[derive(Debug, Error, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[error("[UserAgentError] User agent creation failed, Reason: '{reason}', Input: '{user_agent}'")]
 pub struct UserAgentError {
-    /// Why the user agent is considered invalid.
+    /// The reason why the user agent is considered invalid.
     pub reason: UserAgentErrorReason,
     /// The original string that failed validation.
     pub user_agent: String,
