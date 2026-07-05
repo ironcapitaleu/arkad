@@ -1,7 +1,7 @@
 //! # SEC Request
 //!
 //! Provides the [`SecRequest`], the concrete [`SecRequest`](crate::shared::request::SecRequest)
-//! sent to the SEC API, built through a [`SecRequestBuilder`].
+//! sent to the SEC API, built through an [`SecRequestBuilder`].
 //!
 //! ## Modules
 //!
@@ -41,7 +41,7 @@ impl Serialize for SecRequest {
 }
 
 impl SecRequest {
-    /// Creates a new [`SecRequestBuilder`] for constructing a [`SecRequest`].
+    /// Creates a new [`SecRequestBuilder`] for constructing an [`SecRequest`].
     ///
     /// # Examples
     ///
@@ -69,7 +69,7 @@ impl SecRequest {
         self.inner
     }
 
-    /// Creates a [`SecRequest`] from a fully-formed [`SecRequestType`].
+    /// Creates an [`SecRequest`] from a fully-formed [`SecRequestType`].
     pub(crate) fn from_request_type(request_type: SecRequestType) -> Self {
         match request_type {
             SecRequestType::FetchAllCompanyFacts { cik } => {
@@ -137,7 +137,7 @@ impl Ord for SecRequest {
 
 /// The supported high-level SEC request kinds.
 ///
-/// Each variant carries the inputs that request needs; building a [`SecRequest`] from it derives
+/// Each variant carries the inputs that request needs; building an [`SecRequest`] from it derives
 /// the correct endpoint URL and HTTP method.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize)]
 #[non_exhaustive]

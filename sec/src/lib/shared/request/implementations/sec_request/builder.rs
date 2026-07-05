@@ -1,6 +1,6 @@
 //! # SEC Request Builder
 //!
-//! Provides the typestate [`SecRequestBuilder`] for constructing a [`SecRequest`] with
+//! Provides the typestate [`SecRequestBuilder`] for constructing an [`SecRequest`] with
 //! compile-time guarantees.
 //!
 //! Selecting a request kind transitions into a variant-specific builder (e.g.
@@ -33,7 +33,7 @@ use crate::shared::request::implementations::sec_request::{SecRequest, SecReques
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NoCik;
 
-/// Entry point for building a [`SecRequest`].
+/// Entry point for building an [`SecRequest`].
 ///
 /// Dispatches to a variant-specific builder via a request-kind selector such as
 /// [`all_company_facts`](Self::all_company_facts).

@@ -3,8 +3,8 @@
 //! Provides the HTTP client abstraction used to execute SEC API requests.
 //!
 //! The client is split into two trait layers so the library is not bound to any one HTTP crate:
-//! an [`InnerClient`] wraps a raw HTTP client, and a [`SecClient`]
-//! adds the domain layer that turns a `SecRequest` into a `SecResponse`. This decoupling allows
+//! an [`InnerClient`] wraps a raw HTTP client, and an [`SecClient`]
+//! adds the domain layer that turns an `SecRequest` into an `SecResponse`. This decoupling allows
 //! swapping the transport layer implementation or substituting a fake for unit testing.
 //!
 //! ## Modules

@@ -31,7 +31,7 @@ pub mod error;
 /// A validated SEC API response.
 ///
 /// Only ever constructed once the HTTP response clears validation — a 2xx status, a JSON content
-/// type, and a syntactically valid JSON body — so code holding a `SecResponse` can trust those
+/// type, and a syntactically valid JSON body — so code holding an `SecResponse` can trust those
 /// invariants. Built from a raw response via
 /// [`from_inner`](crate::shared::response::SecResponse::from_inner), or from parts via
 /// [`SecResponse::from_parts`].
