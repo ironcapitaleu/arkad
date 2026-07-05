@@ -19,8 +19,8 @@ pub mod url_error;
 
 /// A string validated as a parseable URL.
 ///
-/// A newtype over [`String`] whose inner value is checked by the `url` crate at construction, so
-/// holding a `Url` guarantees it parses. Build one with [`Url::from_str`] or [`Url::from_string`].
+/// A newtype over [`String`] whose inner value is validated at construction, so holding a `Url`
+/// guarantees it parses.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub struct Url {
     value: String,
