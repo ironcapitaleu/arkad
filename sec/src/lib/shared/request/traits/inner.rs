@@ -1,14 +1,11 @@
 use std::fmt::Debug;
 
-/// The transport-level request: a method and a URL, decoupled from any HTTP crate.
+/// A raw HTTP request: a method and a URL, decoupled from any specific HTTP crate.
 ///
-/// Abstracts over a concrete request type so the domain layer doesn't depend on a specific
-/// transport.
+/// Abstracts over concrete request types so the domain layer doesn't depend on a specific
+/// HTTP library.
 ///
 /// # Associated Types
-///
-/// Each implementor binds these to its transport's concrete types, which is what lets the domain
-/// layer stay independent of any specific HTTP crate:
 ///
 /// - `Method`: The type representing the request's HTTP method.
 /// - `Url`: The type representing the request's URL.

@@ -2,10 +2,10 @@ use std::fmt::Debug;
 
 use async_trait::async_trait;
 
-/// The transport-level HTTP client: executes a raw request and returns a raw response.
+/// A raw HTTP client: executes a raw request and returns a raw response.
 ///
-/// Abstracts over any concrete (often third-party) HTTP client so the library can swap transports
-/// without touching the domain layer.
+/// Abstracts over concrete HTTP clients so the library can swap the HTTP library without
+/// touching the domain layer.
 ///
 /// # Associated Types
 ///

@@ -2,10 +2,10 @@ use std::fmt::Debug;
 
 use async_trait::async_trait;
 
-/// The transport-level HTTP response, decoupled from any HTTP crate.
+/// A raw HTTP response, decoupled from any specific HTTP crate.
 ///
-/// Abstracts over a concrete response type so the domain layer doesn't depend on a specific
-/// transport.
+/// Abstracts over concrete response types so the domain layer doesn't depend on a specific
+/// HTTP library.
 ///
 /// # Associated Types
 ///
