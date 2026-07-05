@@ -24,20 +24,28 @@ This skill operates in three modes:
 
 ## Entry Point
 
-When invoked, present a guided questionnaire:
+**Adaptive questionnaire** — only ask what you can't infer from the user's message.
 
-### Step 1: What do you want to do?
+When invoked, first parse the user's invocation message and conversation context for:
+- **Mode** — are they asking to write, check, refactor, or improve guidelines?
+- **Scope** — did they name a crate, module, file, or say "recent"?
+- **Detail level** — did they say "fully", "just module docs", "doctests only"?
 
-Ask the user (via `AskUserQuestion`):
+Then:
+1. **State your understanding** back to the user in one sentence (e.g. "I'll fully document all
+   public items in the recently added modules based on git diff.").
+2. **Ask only for what's genuinely unclear** via `AskUserQuestion`. If everything is inferable,
+   ask a single confirmation: "Does this look right, or should I adjust?"
+3. On confirmation, proceed. On correction, adjust and re-confirm.
+
+### Available modes:
 
 - **Document new/undocumented code** — Write docs from scratch
 - **Check existing docs for compliance** — Audit against DOCUMENTATION.md
 - **Refactor existing docs** — Improve docs that exist but don't follow conventions
 - **Improve the guidelines themselves** — Add clarifications to DOCUMENTATION.md
 
-### Step 2: What scope?
-
-Ask the user:
+### Available scopes:
 
 - **A specific crate** — e.g. `sec`, `state_machine`, `xbrl`
 - **A specific module or directory** — e.g. `sec/src/lib/shared/cik/`
@@ -45,9 +53,7 @@ Ask the user:
 - **Recently written code** — based on `git diff` or conversation context
 - **Everything** — full workspace scan (warn: this is large)
 
-### Step 3 (for Write/Refactor): What level of detail?
-
-Ask the user:
+### Available detail levels (for Write/Refactor):
 
 - **Module docs only** (`//!`) — title, what-sentence, why/how, modules list
 - **All public items** — full pass including structs, enums, traits, methods, fields
