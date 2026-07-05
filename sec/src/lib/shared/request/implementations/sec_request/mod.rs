@@ -136,10 +136,10 @@ impl Ord for SecRequest {
     }
 }
 
-/// The supported high-level SEC request kinds.
+/// The high-level SEC request kinds that are supported.
 ///
-/// Each variant carries the inputs that request needs; building an [`SecRequest`] from it derives
-/// the correct endpoint URL and HTTP method.
+/// Each variant carries the domain inputs that request needs; building an [`SecRequest`] from it
+/// derives the correct endpoint URL and HTTP method.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize)]
 #[non_exhaustive]
 pub enum SecRequestType {
