@@ -1,3 +1,13 @@
+//! # SEC Response
+//!
+//! Provides the [`SecResponse`], the concrete [`SecResponse`](crate::shared::response::SecResponse)
+//! returned by the SEC API.
+//!
+//! ## Modules
+//!
+//! - [`body_digest`]: The [`BodyDigest`] backing efficient `Hash`/`Ord`.
+//! - [`error`]: The [`InvalidSecResponse`] error raised during validation.
+
 use std::collections::HashMap;
 use std::fmt::{self, Display, Formatter};
 
@@ -20,9 +30,11 @@ pub mod error;
 
 /// A validated SEC API response.
 ///
-/// `SecResponse` is only constructed when the HTTP response meets all
-/// validity requirements: a success status code (2xx), a JSON content type,
-/// and a syntactically valid JSON body.
+/// Only ever constructed once the HTTP response clears validation — a 2xx status, a JSON content
+/// type, and a syntactically valid JSON body — so code holding an `SecResponse` can trust those
+/// invariants. Built from a raw response via
+/// [`from_inner`](crate::shared::response::SecResponse::from_inner), or from parts via
+/// [`SecResponse::from_parts`].
 #[derive(Debug, Clone)]
 pub struct SecResponse {
     url: Url,
@@ -72,16 +84,11 @@ impl Ord for SecResponse {
 }
 
 impl SecResponse {
-    /// Creates a `SecResponse` directly from its components.
+    /// Creates an [`SecResponse`] directly from already-validated parts, skipping HTTP validation.
     ///
-    /// Unlike [`from_inner`](SecResponseTrait::from_inner), this constructor does not
-    /// perform HTTP validation. The caller is responsible for ensuring the provided
-    /// parts represent a valid SEC response.
-    ///
-    /// Note: the body digest is computed from `body.to_string()` (re-serialized JSON),
-    /// which may differ from the raw HTTP body text used by `from_inner` due to
-    /// whitespace or key-ordering differences. This is acceptable because the two
-    /// construction paths are never used on the same data in practice.
+    /// Intended for **testing only**. The body digest is computed from `body.to_string()`
+    /// (re-serialized JSON), which may differ from the digest of the original raw text due to
+    /// whitespace or key ordering — making equality comparisons with real responses unreliable.
     #[must_use]
     pub fn from_parts(
         url: Url,

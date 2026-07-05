@@ -1,29 +1,15 @@
-//! # `CreateFinancialStatementsInput` Module
+//! # Create Financial Statements Input
 //!
-//! This module defines the input data structure and updater patterns for the `CreateFinancialStatements` state
-//! within the SEC transform state machine. It provides types and builders for representing and updating
-//! the company data input, which is used to create financial statements.
+//! Provides the [`CreateFinancialStatementsInput`] fed into the
+//! [`CreateFinancialStatements`](crate::implementations::states::transform::create_financial_statements::CreateFinancialStatements)
+//! state, along with its updater and builder.
 //!
-//! ## Types
-//! - [`CreateFinancialStatementsInput`]: Holds the [`CompanyData`] to be processed by the financial statement creation state.
-//! - [`CreateFinancialStatementsInputUpdater`]: Updater type for modifying the input data in a controlled manner.
-//! - [`CreateFinancialStatementsInputUpdaterBuilder`]: Builder for constructing updater instances with optional fields.
-//!
-//! ## Integration
-//! - Implements [`StateData`](state_maschine::state_machine::state::StateData) for compatibility with the state machine framework.
-//! - Used by [`CreateFinancialStatements`](crate::implementations::states::transform::create_financial_statements) to receive and update input data.
-//!
-//! ## Usage
-//! This module is intended for use in the input phase of financial statement creation. It supports builder-based updates and
-//! integrates with the state machine's updater and state data traits for robust, testable workflows.
+//! It carries the [`CompanyData`] from which financial statements are built.
 //!
 //! ## See Also
-//! - [`output`](super::output): Output data structure for financial statements.
-//! - [`crate::shared::financial::company_data`]: The [`CompanyData`] type used as the primary input.
-//! - [`state_maschine::prelude::StateData`]: Trait for state data integration.
 //!
-//! ## Examples
-//! See the unit tests in this module for usage patterns and updater logic.
+//! - [`output`](super::output): The financial statements produced from this input.
+//! - [`crate::shared::financial::company_data`]: The [`CompanyData`] type carried here.
 
 use std::fmt;
 use std::hash::{Hash, Hasher};
@@ -39,20 +25,16 @@ use crate::traits::state_machine::state::StateData;
 // implementations because it contains a `HashMap`. This struct delegates to those
 // manual implementations rather than deriving them.
 #[derive(Debug, Clone, Serialize)]
-/// Input data for creating financial statements from company data.
+/// Input data for the [`CreateFinancialStatements`](super::super::CreateFinancialStatements) state.
 ///
-/// This struct holds the [`CompanyData`] produced by a preceding parse state,
-/// which will be used by the `CreateFinancialStatements` state to generate
-/// financial statements. It is designed to be used as part of the SEC document
-/// transform workflow, and supports builder-based updates and integration with
-/// the state machine framework.
+/// Holds the [`CompanyData`] from which financial statements are built.
 pub struct CreateFinancialStatementsInput {
     /// The company data containing parsed financial facts.
     pub company_data: CompanyData,
 }
 
 impl CreateFinancialStatementsInput {
-    /// Creates a new instance of the input data for the financial statement creation state.
+    /// Creates a new [`CreateFinancialStatementsInput`] from parsed company data.
     ///
     /// # Examples
     ///
@@ -63,12 +45,19 @@ impl CreateFinancialStatementsInput {
     /// use sec::shared::financial::entity_name::EntityName;
     /// use sec::implementations::states::transform::create_financial_statements::data::input::CreateFinancialStatementsInput;
     ///
+    /// let cik = Cik::new("0000320193").expect("Hardcoded CIK should always be valid");
     /// let company_data = CompanyData::new(
-    ///     Cik::new("0000320193").expect("Hardcoded CIK should always be valid"),
+    ///     cik.clone(),
     ///     EntityName::new("Apple Inc."),
     ///     HashMap::new(),
     /// );
     /// let input = CreateFinancialStatementsInput::new(company_data);
+    ///
+    /// let expected_result = &cik;
+    ///
+    /// let result = input.company_data().cik();
+    ///
+    /// assert_eq!(result, expected_result);
     /// ```
     #[must_use]
     pub const fn new(company_data: CompanyData) -> Self {
@@ -148,11 +137,9 @@ impl fmt::Display for CreateFinancialStatementsInput {
 }
 
 #[derive(Debug, Clone)]
-/// Updater for [`CreateFinancialStatementsInput`].
+/// Updater for modifying [`CreateFinancialStatementsInput`].
 ///
-/// This struct is used to specify updates to the input data in a controlled, partial manner.
-/// Fields set to `None` will not be updated. Used in conjunction with the state machine's
-/// update mechanism to ensure safe and explicit state transitions.
+/// Fields set to `None` are left unchanged when the updater is applied.
 pub struct CreateFinancialStatementsInputUpdater {
     /// Optional new value for the company data.
     pub company_data: Option<CompanyData>,
@@ -166,26 +153,19 @@ impl CreateFinancialStatementsInputUpdater {
     }
 }
 
-/// Builder for [`CreateFinancialStatementsInputUpdater`].
-///
-/// This builder allows for ergonomic and explicit construction of updater instances,
-/// supporting method chaining and optional fields. Use `.build()` to produce the updater.
+/// Fluent builder for a [`CreateFinancialStatementsInputUpdater`].
 pub struct CreateFinancialStatementsInputUpdaterBuilder {
     company_data: Option<CompanyData>,
 }
 
 impl CreateFinancialStatementsInputUpdaterBuilder {
-    /// Creates a new updater builder with no fields set.
+    /// Creates a new [`CreateFinancialStatementsInputUpdaterBuilder`] with all fields initialized to `None`.
     #[must_use]
     pub const fn new() -> Self {
         Self { company_data: None }
     }
 
-    /// Sets the company data value to the one to be updated to.
-    ///
-    /// # Arguments
-    ///
-    /// * `company_data` - The new [`CompanyData`] value.
+    /// Sets the company data field.
     #[must_use]
     #[allow(clippy::missing_const_for_fn)]
     pub fn company_data(mut self, company_data: CompanyData) -> Self {
@@ -193,7 +173,7 @@ impl CreateFinancialStatementsInputUpdaterBuilder {
         self
     }
 
-    /// Builds the updater instance from the builder.
+    /// Builds the [`CreateFinancialStatementsInputUpdater`].
     #[must_use]
     pub fn build(self) -> CreateFinancialStatementsInputUpdater {
         CreateFinancialStatementsInputUpdater {
@@ -203,7 +183,7 @@ impl CreateFinancialStatementsInputUpdaterBuilder {
 }
 
 impl Default for CreateFinancialStatementsInputUpdaterBuilder {
-    /// Returns a new updater builder with no fields set.
+    /// Returns a new [`CreateFinancialStatementsInputUpdaterBuilder`] with all fields initialized to `None`.
     fn default() -> Self {
         Self::new()
     }

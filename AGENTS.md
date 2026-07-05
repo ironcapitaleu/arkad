@@ -23,6 +23,7 @@
   - Docstrings
   - Design documents (if applicable, e.g., mermaid diagrams)
 - **Documentation must be version controlled**.
+- **Refer to [`DOCUMENTATION.md`](DOCUMENTATION.md) for the full documentation guidelines** — how to structure module, item, and error docs; when to include `# Sections`; intra-doc link and doc-test conventions; and the wording style to follow. Consult it whenever writing or reviewing documentation.
 
 ---
 
@@ -271,6 +272,8 @@ Refs: #123
 
 ### Documentation Consistency
 
+- Check that the documentation matches the code behavior
+- Check that the conventions are in line with the project's documentation guidelines inside [`DOCUMENTATION.md`](DOCUMENTATION.md)
 - Cross-check code changes against `README.md`, API docs, and inline examples
 - Flag when function names, parameters, or behaviors change but docs are not updated
 - Ensure new features or breaking changes are properly documented

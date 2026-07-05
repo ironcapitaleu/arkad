@@ -21,7 +21,7 @@ pub const COMPANY_INFO_NAMESPACE: &str = "dei";
 
 /// A mapping from one or more XBRL concept names to a canonical financial element.
 ///
-/// The `xbrl_keys` array is ordered by priority — the first key that matches
+/// The `xbrl_keys` array is ordered by priority: the first key that matches
 /// in the SEC JSON wins. This handles taxonomy version changes over time.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ConceptDefinition {

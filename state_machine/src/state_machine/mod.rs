@@ -1,54 +1,41 @@
+//! # State Machine Traits
+//!
+//! Provides the [`StateMachine`] trait, the framework's central abstraction.
+//!
+//! This module's own [`StateMachine`] trait ties the pieces together; its submodules define the
+//! states, transitions, and hierarchy that a machine is built from.
+//!
+//! ## Modules
+//!
+//! - [`state`]: The [`State`] trait plus its context and state-data traits.
+//! - [`super_state`]: The [`SuperState`](super_state::SuperState) trait for hierarchical states.
+//! - [`transition`]: The [`Transition`](transition::Transition) trait for moving between states.
+
 pub mod state;
 pub mod super_state;
 pub mod transition;
 
 use crate::state_machine::state::State;
 
-/// The `StateMachine` trait defines the behavior and structure of a state machine.
+/// The framework's central trait: manages and advances a current state of type `S`.
 ///
-/// This trait is used to represent a state machine that can manage and transition between different states
-/// of type `S`. It provides methods for accessing the current state, running the state machine, and advancing
-/// to the next state. Implementing this trait allows the creation of modular and reusable state machine components.
+/// Gives access to the current state and the means to drive it forward. Implementors decide
+/// what "running" and "advancing" mean for their domain.
 ///
 /// # Type Parameters
 ///
-/// - `S`: A type that implements the `State` trait. This parameter specifies the type of state that the state
-///   machine manages.
-///
-/// # Methods
-///
-/// - `current_state`: Returns a reference to the current state of the state machine.
-/// - `current_state_mut`: Returns a mutable reference to the current state of the state machine, allowing
-///   modification of the state.
-/// - `run`: Executes the logic of the state machine. This method is expected to handle state transitions
-///   and perform any necessary computations.
-/// - `advance_state`: Advances the state machine to the next state. This method is typically used to trigger
-///   state transitions based on certain conditions or events.
+/// - `S`: The active state type. Must implement [`State`].
 pub trait StateMachine<S: State> {
-    /// Returns a reference to the current state of the state machine.
-    ///
-    /// # Returns
-    ///
-    /// A reference to the current state of type `S`.
+    /// Returns a reference to the current state.
     fn current_state(&self) -> &S;
 
-    /// Returns a mutable reference to the current state of the state machine.
-    ///
-    /// # Returns
-    ///
-    /// A mutable reference to the current state of type `S`.
+    /// Returns a mutable reference to the current state.
     fn current_state_mut(&mut self) -> &mut S;
 
-    /// Runs the state machine, executing its logic.
-    ///
-    /// This method is responsible for running the state machine, handling any necessary state transitions,
-    /// and executing the logic associated with each state.
+    /// Runs the state machine, executing its state logic and transitions.
     fn run(&mut self);
 
-    /// Advances the state machine to the next state.
-    ///
-    /// This method is used to transition the state machine to the next state, based on predefined
-    /// transition rules or conditions.
+    /// Advances the state machine to its next state.
     fn advance_state(&mut self);
 }
 

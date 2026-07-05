@@ -1,57 +1,36 @@
+//! # Context Trait
+//!
+//! Provides the [`Context`] trait for the environmental information surrounding a state
+//! (configuration, shared resources, retry policy) that can influence how a computation behaves.
+//! It outlives any single input/output cycle and is generally not expected to be mutated by
+//! transitions (although possible).
+
 use std::{fmt::Debug, hash::Hash};
 
-/// The `Context` trait defines the behavior and characteristics of context data within a state machine.
+/// Environmental information surrounding a state that can influence how a computation behaves.
 ///
-/// This trait specifies how context data should be accessed and updated within a state. Context data represents
-/// additional information or environmental settings that are relevant to the state machine's operation. It can be
-/// used to store global or shared state information that can be accessed and modified by various states.
+/// Holds configuration, shared resources, or policy (e.g. retry budgets) that outlive any single
+/// input/output cycle. Changed only through explicit partial updates. The supertrait bounds keep
+/// it thread-safe, comparable, and hashable like the state itself.
 ///
 /// # Associated Types
 ///
-/// - `UpdateType`: Represents the type of updates that can be applied to the context data. This type defines how
-///   context data can be modified or refreshed, allowing for flexible updates based on specific requirements.
+/// - `UpdateType`: The partial update applied by [`update_context`](Context::update_context).
 ///
 /// # Required Traits
 ///
-/// Implementations of the `Context` trait must also implement several Rust standard traits to ensure
-/// thread safety, comparison, and debugging capabilities:
-/// - `Debug`: Allows the context data to be formatted using the `{:?}` formatter, which is useful for debugging.
-/// - `Send`, `Sync`, `Unpin`: Ensure that the context data can be safely transferred and accessed across threads.
-/// - `Clone`, `PartialEq`, `PartialOrd`, `Hash`, `Eq`, `Ord`: Support comparison and hashing, which is
-///   necessary for certain data structures like sets or maps.
-///
-/// # Methods
-///
-/// The `Context` trait defines two key methods:
-///
-/// - `context`: Returns a reference to the context data. This method provides access to the current state of the context data.
-/// - `update_context`: Updates the context data based on the provided updates. This method allows modifications to the context data,
-///   applying the changes specified by the `UpdateType`.
+/// Implementors must be `Debug + Send + Sync + Unpin + Clone + PartialEq + PartialOrd + Hash + Eq +
+/// Ord`, matching the bounds on [`State`](super::State).
 pub trait Context:
     Debug + Send + Sync + Unpin + Clone + PartialEq + PartialOrd + Hash + Eq + Ord
 {
+    /// The partial update applied by [`update_context`](Context::update_context).
     type UpdateType;
 
     /// Returns a reference to the context data.
-    ///
-    /// This method provides access to the current context data, allowing other parts of the state machine
-    /// to read the context information. It returns a reference to the data, ensuring that the actual context
-    /// is not modified by this method.
-    ///
-    /// # Returns
-    ///
-    /// A reference to the context data of the implementing type.
     fn context(&self) -> &Self;
 
-    /// Updates the context data based on the provided updates.
-    ///
-    /// This method allows the context data to be modified according to the changes specified in the
-    /// `updates` parameter. The type of `updates` is defined by the `UpdateType` associated type,
-    /// which allows for flexible and specific update mechanisms tailored to the context's needs.
-    ///
-    /// # Parameters
-    ///
-    /// - `updates`: A value of type `UpdateType` that contains the changes to be applied to the context data.
+    /// Applies a partial `updates` value to the context.
     fn update_context(&mut self, updates: Self::UpdateType);
 }
 

@@ -1,10 +1,13 @@
-//! # Transitions Module
+//! # Transitions
 //!
-//! This module contains implementations of state transitions for the SEC state machine.
-//! Transitions are organized by source state, with each source state having a dedicated submodule
-//! containing transitions to various destination states.
+//! Provides the state-to-state transitions that advance the SEC pipeline.
 //!
-//! ## Module Structure
-//! - [`from`]: Contains transition implementations organized by source state
+//! A transition attempts to convert a source state into a successor state by assembling the
+//! successor state's input and context from the source state's data. Transitions are grouped by
+//! *source* state so that the conversions leaving any given state are all found in one place.
+//!
+//! ## Modules
+//!
+//! - [`from`]: Transitions grouped by the state they originate from.
 
 pub mod from;

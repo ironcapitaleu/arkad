@@ -1,3 +1,14 @@
+//! # SEC Request
+//!
+//! Provides the [`SecRequest`]. Given a request kind and its domain input (e.g. a CIK),
+//! it assembles a fully-formed HTTP request — endpoint, method, and all — ready to dispatch.
+//! Built through an [`SecRequestBuilder`].
+//!
+//! ## Modules
+//!
+//! - [`builder`]: The [`SecRequestBuilder`] for constructing requests fluently.
+//! - [`constants`]: The endpoint URL fragments.
+
 use reqwest::{Method, Request, Url};
 use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
@@ -11,13 +22,13 @@ pub use builder::SecRequestBuilder;
 
 use constants::{SEC_COMPANY_FACTS_URL_PREFIX, SEC_COMPANY_FACTS_URL_SUFFIX};
 
-/// A validated SEC API request.
+/// A ready-to-send SEC API request.
 ///
-/// `SecRequest` wraps a `reqwest::Request` that has been constructed from a
-/// high-level [`SecRequestType`], ensuring the correct URL endpoint and HTTP
-/// method are used.
+/// Wraps a `reqwest::Request` built from a high-level [`SecRequestType`], guaranteeing the right endpoint URL and HTTP
+/// method for the chosen request kind.
 #[derive(Debug)]
 pub struct SecRequest {
+    /// The raw HTTP request type this struct wraps.
     pub inner: Request,
 }
 
@@ -31,7 +42,7 @@ impl Serialize for SecRequest {
 }
 
 impl SecRequest {
-    /// Creates a new [`SecRequestBuilder`] for constructing a [`SecRequest`].
+    /// Creates a new [`SecRequestBuilder`] for constructing an [`SecRequest`].
     ///
     /// # Examples
     ///
@@ -39,11 +50,14 @@ impl SecRequest {
     /// use sec::shared::cik::Cik;
     /// use sec::shared::request::implementations::sec_request::SecRequest;
     ///
-    /// let cik = Cik::new("1067983").expect("Hardcoded CIK should be valid");
-    /// let request = SecRequest::builder()
-    ///     .all_company_facts()
-    ///     .cik(cik)
-    ///     .build();
+    /// let cik = Cik::new("1067983").expect("A hardcoded valid CIK should always parse");
+    /// let request = SecRequest::builder().all_company_facts().cik(cik).build();
+    ///
+    /// let expected_result = "https://data.sec.gov/api/xbrl/companyfacts/CIK0001067983.json";
+    ///
+    /// let result = request.inner.url().as_str();
+    ///
+    /// assert_eq!(result, expected_result);
     /// ```
     #[must_use]
     pub const fn builder() -> SecRequestBuilder {
@@ -56,7 +70,7 @@ impl SecRequest {
         self.inner
     }
 
-    /// Creates a [`SecRequest`] from a fully-formed [`SecRequestType`].
+    /// Creates an [`SecRequest`] from a fully-formed [`SecRequestType`].
     pub(crate) fn from_request_type(request_type: SecRequestType) -> Self {
         match request_type {
             SecRequestType::FetchAllCompanyFacts { cik } => {
@@ -122,16 +136,18 @@ impl Ord for SecRequest {
     }
 }
 
-/// Enum representing the different types of high-level SEC requests that are supported.
+/// The high-level SEC request kinds that are supported.
 ///
-/// Each variant encodes the input parameters that are required to make the request.
-/// Every variant automatically encodes the logic to create a properly formatted request
-/// based on the input parameters, that includes setting up the correct URL endpoint and HTTP method for the request.
+/// Each variant carries the domain inputs that request needs; building an [`SecRequest`] from it
+/// derives the correct endpoint URL and HTTP method.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize)]
 #[non_exhaustive]
 pub enum SecRequestType {
-    /// Fetches all the facts for a given company based on its CIK. This includes all the financial statement data that the company has submitted to the SEC over the years, such as balance sheets, income statements, cash flow statements, and other relevant financial information.
-    FetchAllCompanyFacts { cik: Cik },
+    /// Fetch a company's full Company Facts payload (all financial statement data) by CIK.
+    FetchAllCompanyFacts {
+        /// The CIK of the company to fetch.
+        cik: Cik,
+    },
 }
 
 #[cfg(test)]

@@ -1,28 +1,15 @@
-//! # `ParseCompanyFactsInput` Module
+//! # Parse Company Facts Input
 //!
-//! This module defines the input data structure and updater patterns for the `ParseCompanyFacts` state
-//! within the SEC transformation state machine. It provides types and builders for representing and updating
-//! the raw JSON response from the SEC Company Facts API that will be parsed into structured financial data.
+//! Provides the [`ParseCompanyFactsInput`] fed into the
+//! [`ParseCompanyFacts`](crate::implementations::states::transform::parse_company_facts::ParseCompanyFacts)
+//! state, along with its updater and builder.
 //!
-//! ## Types
-//! - [`ParseCompanyFactsInput`]: Holds the raw SEC Company Facts JSON response to be parsed.
-//! - [`ParseCompanyFactsInputUpdater`]: Updater type for modifying the input data in a controlled manner.
-//! - [`ParseCompanyFactsInputUpdaterBuilder`]: Builder for constructing updater instances with optional fields.
-//!
-//! ## Integration
-//! - Implements [`StateData`](state_maschine::state_machine::state::StateData) for compatibility with the state machine framework.
-//! - Used by [`ParseCompanyFacts`](crate::implementations::states::transform::parse_company_facts) to receive and update JSON input.
-//!
-//! ## Usage
-//! This module is intended for use in the input phase of company facts parsing. It supports builder-based
-//! updates and integrates with the state machine's updater and state data traits for robust, testable workflows.
+//! It carries the raw Company Facts JSON response, plus a precomputed
+//! [`BodyDigest`] so the (un-`Hash`able) JSON can still participate in equality and ordering.
 //!
 //! ## See Also
-//! - [`output`](super::output): Output data structure for parsed company data.
-//! - [`state_maschine::prelude::StateData`]: Trait for state data integration.
 //!
-//! ## Examples
-//! See the unit tests in this module for usage patterns and updater logic.
+//! - [`output`](super::output): The structured company data produced from this input.
 
 use std::fmt;
 
@@ -32,12 +19,11 @@ use crate::error::State as StateError;
 use crate::shared::response::implementations::sec_response::body_digest::BodyDigest;
 use crate::traits::state_machine::state::StateData;
 
-/// Input data for parsing SEC Company Facts JSON.
+/// Input data for the [`ParseCompanyFacts`](super::super::ParseCompanyFacts) state.
 ///
-/// This struct holds the raw JSON response from the SEC Company Facts API
-/// that will be parsed by the `ParseCompanyFacts` state. It is designed
-/// to be used as part of the SEC transformation workflow, and supports
-/// builder-based updates and integration with the state machine framework.
+/// Holds the raw Company Facts JSON to be parsed, alongside a precomputed [`BodyDigest`]
+/// that backs the equality, ordering, and hashing impls (since [`serde_json::Value`]
+/// implements none of `Hash`/`Ord`).
 #[derive(Debug, Clone)]
 pub struct ParseCompanyFactsInput {
     /// The raw SEC Company Facts JSON response to be parsed.
@@ -47,7 +33,7 @@ pub struct ParseCompanyFactsInput {
 }
 
 impl ParseCompanyFactsInput {
-    /// Creates a new instance of the input data for the company facts parsing.
+    /// Creates a new [`ParseCompanyFactsInput`] from a raw JSON response and its precomputed digest.
     ///
     /// # Examples
     ///
@@ -57,7 +43,13 @@ impl ParseCompanyFactsInput {
     ///
     /// let json = serde_json::json!({"cik": 320193, "entityName": "Apple Inc.", "facts": {}});
     /// let digest = BodyDigest::from_body_text(&json.to_string());
-    /// let input = ParseCompanyFactsInput::new(json, digest);
+    /// let input = ParseCompanyFactsInput::new(json.clone(), digest);
+    ///
+    /// let expected_result = &json;
+    ///
+    /// let result = input.response();
+    ///
+    /// assert_eq!(result, expected_result);
     /// ```
     #[must_use]
     pub const fn new(response: serde_json::Value, body_digest: BodyDigest) -> Self {
@@ -170,10 +162,9 @@ impl fmt::Display for ParseCompanyFactsInput {
 }
 
 #[derive(Debug, Clone)]
-/// Updater for [`ParseCompanyFactsInput`].
+/// Updater for modifying [`ParseCompanyFactsInput`].
 ///
-/// This struct is used to specify updates to the input data in a controlled, partial manner.
-/// Fields set to `None` will not be updated.
+/// Fields set to `None` are left unchanged when the updater is applied.
 pub struct ParseCompanyFactsInputUpdater {
     /// Optional new value for the JSON response.
     pub response: Option<serde_json::Value>,
@@ -187,26 +178,19 @@ impl ParseCompanyFactsInputUpdater {
     }
 }
 
-/// Builder for [`ParseCompanyFactsInputUpdater`].
-///
-/// This builder allows for ergonomic and explicit construction of updater instances,
-/// supporting method chaining and optional fields. Use `.build()` to produce the updater.
+/// Fluent builder for a [`ParseCompanyFactsInputUpdater`].
 pub struct ParseCompanyFactsInputUpdaterBuilder {
     response: Option<serde_json::Value>,
 }
 
 impl ParseCompanyFactsInputUpdaterBuilder {
-    /// Creates a new updater builder with no fields set.
+    /// Creates a new [`ParseCompanyFactsInputUpdaterBuilder`] with all fields initialized to `None`.
     #[must_use]
     pub const fn new() -> Self {
         Self { response: None }
     }
 
-    /// Sets the response value to the one to be updated to.
-    ///
-    /// # Arguments
-    ///
-    /// * `response` - The new JSON response value.
+    /// Sets the response field.
     #[must_use]
     #[allow(clippy::missing_const_for_fn)]
     pub fn response(mut self, response: serde_json::Value) -> Self {
@@ -214,7 +198,7 @@ impl ParseCompanyFactsInputUpdaterBuilder {
         self
     }
 
-    /// Builds the updater instance from the builder.
+    /// Builds the [`ParseCompanyFactsInputUpdater`].
     #[must_use]
     pub fn build(self) -> ParseCompanyFactsInputUpdater {
         ParseCompanyFactsInputUpdater {
@@ -224,7 +208,7 @@ impl ParseCompanyFactsInputUpdaterBuilder {
 }
 
 impl Default for ParseCompanyFactsInputUpdaterBuilder {
-    /// Returns a new updater builder with no fields set.
+    /// Returns a new [`ParseCompanyFactsInputUpdaterBuilder`] with all fields initialized to `None`.
     fn default() -> Self {
         Self::new()
     }

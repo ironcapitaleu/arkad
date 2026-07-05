@@ -1,29 +1,16 @@
-//! # `ValidateCikFormatInput` Module
+//! # Validate CIK Format Input
 //!
-//! This module defines the input data structure and updater patterns for the `ValidateCikFormat` state
-//! within the SEC extraction state machine. It provides types and builders for representing and updating
-//! the raw Central Index Key (CIK) input, which is validated as part of the SEC document extraction workflow.
+//! Provides the [`ValidateCikFormatInput`] holding the raw CIK string fed into the
+//! [`ValidateCikFormat`](crate::implementations::states::extract::validate_cik_format::ValidateCikFormat)
+//! state, along with its updater and builder.
 //!
-//! ## Types
-//! - [`ValidateCikFormatInput`]: Holds the unvalidated CIK string to be processed by the validation state.
-//! - [`ValidateCikFormatInputUpdater`]: Updater type for modifying the input data in a controlled manner.
-//! - [`ValidateCikFormatInputUpdaterBuilder`]: Builder for constructing updater instances with optional fields.
-//!
-//! ## Integration
-//! - Implements [`StateData`](state_maschine::state_machine::state::StateData) for compatibility with the state machine framework.
-//! - Used by [`ValidateCikFormat`](crate::implementations::states::extract::validate_cik_format) to receive and update CIK input.
-//!
-//! ## Usage
-//! This module is intended for use in the input phase of CIK validation. It supports builder-based updates and
-//! integrates with the state machine's updater and state data traits for robust, testable workflows.
+//! This is the *unvalidated* side of the state's data: it carries the CIK exactly as it
+//! was supplied, before any format validation, trimming, or zero-padding.
 //!
 //! ## See Also
-//! - [`output`](super::output): Output data structure for validated CIKs.
-//! - [`crate::shared::cik`]: Utilities for CIK parsing and validation.
-//! - [`state_maschine::prelude::StateData`]: Trait for state data integration.
 //!
-//! ## Examples
-//! See the unit tests in this module for usage patterns and updater logic.
+//! - [`output`](super::output): The validated CIK produced once this input is processed.
+//! - [`crate::shared::cik`]: The CIK parsing and validation utilities applied to this input.
 
 use std::fmt;
 
@@ -34,26 +21,31 @@ use crate::error::State as StateError;
 use crate::traits::state_machine::state::StateData;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
-/// Input data for validating the format of a CIK.
+/// Input data for the [`ValidateCikFormat`](super::super::ValidateCikFormat) state.
 ///
-/// This struct holds the raw, unvalidated Central Index Key (CIK) string
-/// that will be processed by the `ValidateCikFormat` state. It is designed
-/// to be used as part of the SEC document extraction workflow, and supports
-/// builder-based updates and integration with the state machine framework.
+/// Holds the raw, unvalidated CIK string exactly as supplied, before the state trims
+/// and zero-pads it. Kept distinct from the validated output type so the two forms can
+/// never be confused.
 pub struct ValidateCikFormatInput {
     /// The unvalidated CIK string provided for validation.
     pub raw_cik: String,
 }
 
 impl ValidateCikFormatInput {
-    /// Creates a new instance of the input data for the CIK format validation.
+    /// Creates a new [`ValidateCikFormatInput`] from a raw CIK string.
     ///
     /// # Examples
     ///
     /// ```
     /// use sec::implementations::states::extract::validate_cik_format::data::input::ValidateCikFormatInput;
     ///
-    /// let validation_input_data = ValidateCikFormatInput::new("1067983");
+    /// let input = ValidateCikFormatInput::new("1067983");
+    ///
+    /// let expected_result = "1067983";
+    ///
+    /// let result = input.cik().as_str();
+    ///
+    /// assert_eq!(result, expected_result);
     /// ```
     pub fn new(cik: impl Into<String>) -> Self {
         Self {
@@ -106,11 +98,10 @@ impl fmt::Display for ValidateCikFormatInput {
 }
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
-/// Updater for [`ValidateCikFormatInput`].
+/// Updater for modifying [`ValidateCikFormatInput`].
 ///
-/// This struct is used to specify updates to the input data in a controlled, partial manner.
-/// Fields set to `None` will not be updated. Used in conjunction with the state machine's
-/// update mechanism to ensure safe and explicit state transitions.
+/// Fields set to `None` are left unchanged when the updater is applied, so callers can
+/// modify the raw CIK without restating the rest.
 pub struct ValidateCikFormatInputUpdater {
     /// Optional new value for the raw CIK string.
     pub raw_cik: Option<String>,
@@ -124,25 +115,18 @@ impl ValidateCikFormatInputUpdater {
     }
 }
 
-/// Builder for [`ValidateCikFormatInputUpdater`].
-///
-/// This builder allows for ergonomic and explicit construction of updater instances,
-/// supporting method chaining and optional fields. Use `.build()` to produce the updater.
+/// Fluent builder for a [`ValidateCikFormatInputUpdater`].
 pub struct ValidateCikFormatInputUpdaterBuilder {
     raw_cik: Option<String>,
 }
 impl ValidateCikFormatInputUpdaterBuilder {
-    /// Creates a new updater builder with no fields set.
+    /// Creates a new [`ValidateCikFormatInputUpdaterBuilder`] with all fields initialized to `None`.
     #[must_use]
     pub const fn new() -> Self {
         Self { raw_cik: None }
     }
 
-    /// Sets the raw CIK value to the one to be updated to.
-    ///
-    /// # Arguments
-    ///
-    /// * `cik` - The new raw CIK value as any type implementing `Into<String>`.
+    /// Sets the raw CIK field.
     #[must_use]
     #[allow(clippy::missing_const_for_fn)]
     pub fn cik(mut self, cik: impl Into<String>) -> Self {
@@ -150,7 +134,7 @@ impl ValidateCikFormatInputUpdaterBuilder {
         self
     }
 
-    /// Builds the updater instance from the builder.
+    /// Builds the [`ValidateCikFormatInputUpdater`].
     #[must_use]
     pub fn build(self) -> ValidateCikFormatInputUpdater {
         ValidateCikFormatInputUpdater {
@@ -160,7 +144,7 @@ impl ValidateCikFormatInputUpdaterBuilder {
 }
 
 impl Default for ValidateCikFormatInputUpdaterBuilder {
-    /// Returns a new updater builder with no fields set.
+    /// Returns a new [`ValidateCikFormatInputUpdaterBuilder`] with all fields initialized to `None`.
     fn default() -> Self {
         Self::new()
     }

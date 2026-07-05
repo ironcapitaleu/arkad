@@ -1,16 +1,27 @@
 use std::fmt::Debug;
 
-/// A trait defining how a request has to be created. This is used to decouple from third party libraries.
+/// A raw HTTP request: a method and a URL, decoupled from any specific HTTP crate.
+///
+/// Abstracts over concrete request types so the domain layer doesn't depend on a specific
+/// HTTP library.
+///
+/// # Associated Types
+///
+/// - `Method`: The request's HTTP method.
+/// - `Url`: The request's URL.
 pub trait InnerRequest: Send + Sync + Debug {
-    /// This type represents the HTTP method that the client is going to execute against the URL.
+    /// The request's HTTP method.
     type Method;
-    /// This type represents the endpoint that the client is going to execute the request method against.
+    /// The request's URL.
     type Url;
 
-    /// Creates a new request for the client.
-    /// Returns an instance of a Request struct.
+    /// Builds a request from a method and a URL.
     fn new(method: Self::Method, url: Self::Url) -> Self;
+
+    /// Returns a reference to the request's HTTP method.
     fn method(&self) -> &Self::Method;
+
+    /// Returns a reference to the request's target URL.
     fn url(&self) -> &Self::Url;
 }
 

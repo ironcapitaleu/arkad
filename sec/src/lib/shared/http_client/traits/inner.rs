@@ -2,19 +2,33 @@ use std::fmt::Debug;
 
 use async_trait::async_trait;
 
-/// A trait defining the methods an inner http client is expected to implement. This is used to enforce a consistent interface for any (third party) HTTP client that might be used.
+/// A raw HTTP client: executes a raw request and returns a raw response.
+///
+/// Abstracts over concrete HTTP clients so the library can swap the HTTP library without
+/// touching the domain layer.
+///
+/// # Associated Types
+///
+/// Each implementor binds these to its HTTP library's concrete types, which is what keeps the
+/// domain layer independent of any specific HTTP crate:
+///
+/// - `Request`: The raw HTTP request to execute.
+/// - `Response`: The raw HTTP response, returned on success.
+/// - `Error`: The error returned on failure.
 #[async_trait]
 pub trait InnerClient: Send + Sync + Debug + Clone {
-    /// This type represents the input request that the client is going to execute.
+    /// The raw HTTP request to execute.
     type Request;
-    /// This type represents the output response that the client is going to return in case of a successful request.
+    /// The raw HTTP response, returned on success.
     type Response;
-    /// This type represents the error that the client is going to return in case of a failed request.
+    /// The error returned on failure.
     type Error;
 
-    /// Executes a given HTTP request asynchronously.
-    /// Returns a [Self::Response] on success or a [Self::Error] on failure.
-    /// The type for the input [`Self::Request`],  and output [Self::Response] / [Self::Error] is predefined and fixed for each [`InnerClient`] implementation.
+    /// Executes an HTTP request, returning the raw response.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Self::Error` if the request fails at the transport level.
     async fn execute_request(&self, request: Self::Request) -> Result<Self::Response, Self::Error>;
 }
 

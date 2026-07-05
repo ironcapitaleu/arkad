@@ -1,29 +1,33 @@
-//! # Fiscal Year Module
+//! # Fiscal Year
 //!
 //! Provides the [`FiscalYear`] newtype wrapping a fiscal year number.
-//! Prevents bare `u16` values from being confused with other numeric fields.
 
 use std::fmt::{self, Display, Formatter};
 
 use serde::Serialize;
 
-/// A fiscal year identifier (e.g., 2023, 2024).
+/// A fiscal year identifier (e.g. 2023, 2024).
 ///
-/// Wraps the `fy` field from SEC XBRL filing data.
-///
-/// # Example
-/// ```
-/// use sec::shared::financial::fiscal_year::FiscalYear;
-///
-/// let fy = FiscalYear::from(2023_u16);
-/// assert_eq!(fy.value(), 2023);
-/// assert_eq!(fy.to_string(), "2023");
-/// ```
+/// Wraps the `fy` field from SEC XBRL data so a year can't be confused with other numeric fields.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub struct FiscalYear(u16);
 
 impl FiscalYear {
     /// Returns the fiscal year as a `u16`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use sec::shared::financial::fiscal_year::FiscalYear;
+    ///
+    /// let fy = FiscalYear::from(2023_u16);
+    ///
+    /// let expected_result = 2023;
+    ///
+    /// let result = fy.value();
+    ///
+    /// assert_eq!(result, expected_result);
+    /// ```
     #[must_use]
     pub const fn value(self) -> u16 {
         self.0

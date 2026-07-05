@@ -1,34 +1,37 @@
-//! # Execute SEC Request Context Module
+//! # Execute SEC Request Context
 //!
-//! This module defines the context structures and updaters for the [`ExecuteSecRequest`](../mod.rs) state in the SEC filings extraction workflow.
+//! Provides the [`ExecuteSecRequestContext`] carried alongside the
+//! [`ExecuteSecRequest`](crate::implementations::states::extract::execute_sec_request::ExecuteSecRequest)
+//! state, together with its updater and builder.
 //!
-//! The context provides stateful information required during the execution of an SEC request, such as retry configurations and CIK tracking. It is designed to be used with the [`Context`] trait, enabling ergonomic context management and updates within state machines.
-//!
-//! ## Components
-//! - [`ExecuteSecRequestContext`]: Holds the current context for executing an SEC request.
-//! - [`ExecuteSecRequestContextUpdater`]: Updater type for modifying context fields in a controlled way.
-//! - [`ExecuteSecRequestContextUpdaterBuilder`]: Builder for constructing context updaters with a fluent API.
+//! The context tracks the [`Cik`] being processed and the retry budget, both of which persist
+//! across updates and transitions.
 //!
 //! ## Usage
-//! The context is used by the [`ExecuteSecRequest`](../mod.rs) state to manage retry logic and track the CIK being processed. It supports updates via the builder pattern, making it easy to compose context changes in state machine workflows.
 //!
-//! ## Example
 //! ```rust
 //! use sec::implementations::states::extract::execute_sec_request::context::*;
 //! use sec::shared::cik::Cik;
 //! use state_maschine::prelude::*;
 //!
-//! let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
+//! let cik = Cik::new("1234567890").expect("A hardcoded valid CIK should always parse");
 //! let mut context = ExecuteSecRequestContext::new(cik);
 //! let update = ExecuteSecRequestContextUpdater::builder()
-//!     .cik(Cik::new("0987654321").expect("Hardcoded CIK should always be valid"))
+//!     .cik(Cik::new("0987654321").expect("A hardcoded valid CIK should always parse"))
 //!     .build();
 //! context.update_context(update);
-//! assert_eq!(context.cik().to_string(), "0987654321");
+//!
+//! let expected_result = "0987654321";
+//!
+//! let result = context.cik().to_string();
+//!
+//! assert_eq!(result, expected_result);
 //! ```
+//!
 //! ## See Also
-//! - [`crate::traits::state_machine::state::Context`]: Trait for context management in states.
-//! - [`crate::implementations::states::extract::execute_sec_request`]: Parent module for the SEC request execution state and data types.
+//!
+//! - [`crate::traits::state_machine::state::Context`]: Trait that defines context updates and the retry budget.
+//! - [`crate::implementations::states::extract::execute_sec_request`]: Parent module for the execution state and its data types.
 
 use std::fmt;
 
@@ -38,30 +41,20 @@ use state_maschine::prelude::Context as SMContext;
 use crate::shared::cik::Cik;
 use crate::traits::state_machine::state::Context;
 
-/// State context for the SEC request execution state.
+/// Context for the [`ExecuteSecRequest`](super::ExecuteSecRequest) state.
 ///
-/// This context holds configuration and tracking information required during the
-/// execution of SEC HTTP requests, including the target CIK and retry settings.
-/// It supports updates through the builder pattern and integrates with the
-/// state machine framework's context management system.
+/// Tracks the [`Cik`] being processed and the retry budget, both of which persist across
+/// updates and transitions.
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
 pub struct ExecuteSecRequestContext {
     /// The Central Index Key (CIK) being processed in this execution context.
     pub cik: Cik,
-    /// Maximum number of retry attempts allowed for failed requests.
+    /// Maximum number of times the state may be retried on failure.
     pub max_retries: u32,
 }
 
 impl ExecuteSecRequestContext {
-    /// Creates a new instance of the execute state context.
-    ///
-    /// # Arguments
-    ///
-    /// * `cik` - The [`Cik`] that will be tracked in this context.
-    ///
-    /// # Returns
-    ///
-    /// Returns a new [`ExecuteSecRequestContext`] with the specified CIK and default retry settings.
+    /// Creates a new [`ExecuteSecRequestContext`] from a CIK, with the retry budget at zero.
     #[must_use]
     pub const fn new(cik: Cik) -> Self {
         Self {
@@ -70,11 +63,7 @@ impl ExecuteSecRequestContext {
         }
     }
 
-    /// Returns a reference to the context's CIK.
-    ///
-    /// # Returns
-    ///
-    /// A reference to the [`Cik`] being processed in this context.
+    /// Returns a reference to the CIK being processed.
     #[must_use]
     pub const fn cik(&self) -> &Cik {
         &self.cik
@@ -110,15 +99,14 @@ impl fmt::Display for ExecuteSecRequestContext {
     }
 }
 
-/// Updater for modifying [`ExecuteSecRequestContext`] in a controlled manner.
+/// Updater for modifying [`ExecuteSecRequestContext`].
 ///
-/// This struct allows for partial updates to context fields while maintaining
-/// type safety and avoiding unnecessary allocations for unchanged fields.
+/// Fields set to `None` are left unchanged when the updater is applied.
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 pub struct ExecuteSecRequestContextUpdater {
-    /// Optional new CIK to replace the current one.
+    /// Optional new value for the CIK.
     pub cik: Option<Cik>,
-    /// Optional new maximum retries value.
+    /// Optional new value for the retry budget.
     pub max_retries: Option<u32>,
 }
 
@@ -130,21 +118,14 @@ impl ExecuteSecRequestContextUpdater {
     }
 }
 
-/// Builder for constructing [`ExecuteSecRequestContextUpdater`] instances.
-///
-/// This builder provides a fluent API for constructing updaters with only
-/// the fields that need to be changed, following the builder pattern.
+/// Fluent builder for an [`ExecuteSecRequestContextUpdater`].
 pub struct ExecuteSecRequestContextUpdaterBuilder {
     cik: Option<Cik>,
     max_retries: Option<u32>,
 }
 
 impl ExecuteSecRequestContextUpdaterBuilder {
-    /// Creates a new builder with no fields set to be updated.
-    ///
-    /// # Returns
-    ///
-    /// A new [`ExecuteSecRequestContextUpdaterBuilder`] with all fields set to `None`.
+    /// Creates a new [`ExecuteSecRequestContextUpdaterBuilder`] with all fields initialized to `None`.
     #[must_use]
     pub const fn new() -> Self {
         Self {
@@ -153,15 +134,7 @@ impl ExecuteSecRequestContextUpdaterBuilder {
         }
     }
 
-    /// Sets the CIK to be updated.
-    ///
-    /// # Arguments
-    ///
-    /// * `cik` - The new [`Cik`] to set in the context.
-    ///
-    /// # Returns
-    ///
-    /// The builder instance with the CIK field set for update.
+    /// Sets the CIK field.
     #[must_use]
     #[allow(clippy::missing_const_for_fn)]
     pub fn cik(mut self, cik: Cik) -> Self {
@@ -169,11 +142,7 @@ impl ExecuteSecRequestContextUpdaterBuilder {
         self
     }
 
-    /// Sets the `max_retries` value inside the context to the provided update value.
-    ///
-    /// # Arguments
-    ///
-    /// * `max_retries` - The new value for `max_retries`.
+    /// Sets the `max_retries` field.
     #[must_use]
     #[allow(clippy::missing_const_for_fn)]
     pub fn max_retries(mut self, max_retries: u32) -> Self {
@@ -181,11 +150,7 @@ impl ExecuteSecRequestContextUpdaterBuilder {
         self
     }
 
-    /// Builds the updater with the configured fields.
-    ///
-    /// # Returns
-    ///
-    /// A new [`ExecuteSecRequestContextUpdater`] with the fields set by this builder.
+    /// Builds the [`ExecuteSecRequestContextUpdater`].
     #[must_use]
     pub fn build(self) -> ExecuteSecRequestContextUpdater {
         ExecuteSecRequestContextUpdater {

@@ -1,29 +1,16 @@
-//! # `ExecuteSecRequestOutput` Module
+//! # Execute SEC Request Output
 //!
-//! This module defines the output data structure and updater patterns for the `ExecuteSecRequest` state
-//! within the SEC extraction state machine. It encapsulates the SEC response received from executing
-//! HTTP requests to SEC API endpoints and provides builders and updaters for controlled mutation of output data.
+//! Provides the [`ExecuteSecRequestOutput`] produced by the
+//! [`ExecuteSecRequest`](crate::implementations::states::extract::execute_sec_request::ExecuteSecRequest)
+//! state, along with its updater and builder.
 //!
-//! ## Types
-//! - [`ExecuteSecRequestOutput`]: Holds the SEC response after successful request execution.
-//! - [`ExecuteSecRequestOutputUpdater`]: Updater type for modifying the output data in a controlled manner.
-//! - [`ExecuteSecRequestOutputUpdaterBuilder`]: Builder for constructing updater instances with optional fields.
-//!
-//! ## Integration
-//! - Implements [`StateData`](state_maschine::state_machine::state::StateData) for compatibility with the state machine framework.
-//! - Used by [`ExecuteSecRequest`](crate::implementations::states::extract::execute_sec_request) to produce and update request output data.
-//!
-//! ## Usage
-//! This module is intended for use in the output phase of SEC request execution. It supports builder-based updates and
-//! integrates with the state machine's updater and state data traits for robust, testable workflows.
+//! It wraps the [`SecResponse`] returned by the SEC API, which the transform phase consumes.
+//! The dispatched client and request live in [`input`](super::input).
 //!
 //! ## See Also
-//! - [`super::input`]: Input data structure for request execution parameters.
-//! - [`crate::shared::response`]: Utilities for SEC response handling.
-//! - [`state_maschine::prelude::StateData`]: Trait for state data integration.
 //!
-//! ## Examples
-//! See the unit tests in this module for usage patterns and updater logic.
+//! - [`input`](super::input): The client and request this response was produced from.
+//! - [`crate::shared::response`]: The SEC response type carried here.
 
 use std::fmt;
 
@@ -34,11 +21,9 @@ use crate::error::State as StateError;
 use crate::shared::response::implementations::sec_response::SecResponse;
 use crate::traits::state_machine::state::StateData;
 
-/// Output data containing a SEC response from executed requests.
+/// Output data of the [`ExecuteSecRequest`](super::super::ExecuteSecRequest) state.
 ///
-/// This struct holds a [`SecResponse`] value, produced by the [`ExecuteSecRequest`](crate::implementations::states::extract::execute_sec_request) state
-/// after successful HTTP request execution. It is used as output in the SEC extraction state machine,
-/// and supports builder-based updates and integration with the state machine framework.
+/// Wraps the [`SecResponse`] returned by the SEC API.
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
 pub struct ExecuteSecRequestOutput {
     /// The SEC response received from the API endpoint.
@@ -46,30 +31,13 @@ pub struct ExecuteSecRequestOutput {
 }
 
 impl ExecuteSecRequestOutput {
-    /// Creates a new instance of the output data for executed SEC requests.
-    ///
-    /// # Arguments
-    ///
-    /// * `response` - The [`SecResponse`] received from the SEC API endpoint.
-    ///
-    /// # Returns
-    ///
-    /// Returns a [`Result`] containing the new [`ExecuteSecRequestOutput`] if successful.
-    ///
-    /// # Errors
-    ///
-    /// Returns `StateError` if the provided `SecResponse` is invalid (currently this never fails,
-    /// but the Result type is maintained for future validation capabilities).
+    /// Creates a new [`ExecuteSecRequestOutput`] from an SEC response.
     #[must_use]
     pub const fn new(response: SecResponse) -> Self {
         Self { response }
     }
 
     /// Returns a reference to the SEC response.
-    ///
-    /// # Returns
-    ///
-    /// A reference to the [`SecResponse`] containing the API response data.
     #[must_use]
     pub const fn response(&self) -> &SecResponse {
         &self.response
@@ -106,13 +74,12 @@ impl fmt::Display for ExecuteSecRequestOutput {
     }
 }
 
-/// Updater for modifying [`ExecuteSecRequestOutput`] in a controlled manner.
+/// Updater for modifying [`ExecuteSecRequestOutput`].
 ///
-/// This struct allows for partial updates to output data fields while maintaining
-/// type safety and avoiding unnecessary allocations for unchanged fields.
+/// Fields set to `None` are left unchanged when the updater is applied.
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 pub struct ExecuteSecRequestOutputUpdater {
-    /// Optional new SEC response to replace the current one.
+    /// Optional new value for the SEC response.
     pub response: Option<SecResponse>,
 }
 
@@ -124,45 +91,26 @@ impl ExecuteSecRequestOutputUpdater {
     }
 }
 
-/// Builder for constructing [`ExecuteSecRequestOutputUpdater`] instances.
-///
-/// This builder provides a fluent API for constructing updaters with only
-/// the fields that need to be changed, following the builder pattern.
+/// Fluent builder for an [`ExecuteSecRequestOutputUpdater`].
 pub struct ExecuteSecRequestOutputUpdaterBuilder {
     response: Option<SecResponse>,
 }
 
 impl ExecuteSecRequestOutputUpdaterBuilder {
-    /// Creates a new builder with no fields set to be updated.
-    ///
-    /// # Returns
-    ///
-    /// A new [`ExecuteSecRequestOutputUpdaterBuilder`] with all fields set to `None`.
+    /// Creates a new [`ExecuteSecRequestOutputUpdaterBuilder`] with all fields initialized to `None`.
     #[must_use]
     pub const fn new() -> Self {
         Self { response: None }
     }
 
-    /// Sets the SEC response to be updated.
-    ///
-    /// # Arguments
-    ///
-    /// * `response` - The new [`SecResponse`] to set in the output data.
-    ///
-    /// # Returns
-    ///
-    /// The builder instance with the response field set for update.
+    /// Sets the SEC response field.
     #[must_use]
     pub fn response(mut self, response: SecResponse) -> Self {
         self.response = Some(response);
         self
     }
 
-    /// Builds the updater with the configured fields.
-    ///
-    /// # Returns
-    ///
-    /// A new [`ExecuteSecRequestOutputUpdater`] with the fields set by this builder.
+    /// Builds the [`ExecuteSecRequestOutputUpdater`].
     #[must_use]
     pub fn build(self) -> ExecuteSecRequestOutputUpdater {
         ExecuteSecRequestOutputUpdater {

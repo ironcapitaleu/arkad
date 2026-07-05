@@ -1,7 +1,8 @@
-//! The `state_maschine` imports the various traits defined in this crate.
+//! # Prelude
 //!
-//! The intention is that one can include `use state_maschine::prelude::*` and
-//! have easy access to the various traits and methods you will need.
+//! Re-exports the crate's core traits for glob import.
+//!
+//! Bring them all into scope with `use state_maschine::prelude::*`.
 
 pub use crate::state_machine::StateMachine;
 pub use crate::state_machine::state::Context;

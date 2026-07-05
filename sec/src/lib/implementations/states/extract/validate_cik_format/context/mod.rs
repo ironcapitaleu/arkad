@@ -1,35 +1,38 @@
-//! # Validate CIK Format Context Module
+//! # Validate CIK Format Context
 //!
-//! This module defines the context structures and updaters for the [`ValidateCikFormat`](../mod.rs) state in the SEC filings extraction workflow.
+//! Provides the [`ValidateCikFormatContext`] carried alongside the
+//! [`ValidateCikFormat`](crate::implementations::states::extract::validate_cik_format::ValidateCikFormat)
+//! state, together with its updater and builder.
 //!
-//! The context provides stateful information required during CIK format validation, such as the raw CIK string and retry configuration. It is designed to be used with the [`Context`] trait, enabling ergonomic context management and updates within state machines.
-//!
-//! ## Components
-//! - [`ValidateCikFormatContext`]: Holds the current context for CIK validation, including the raw CIK and retry count.
-//! - [`ValidateCikFormatContextUpdater`]: Updater type for modifying context fields in a controlled way.
-//! - [`ValidateCikFormatContextUpdaterBuilder`]: Builder for constructing context updaters with a fluent API.
+//! The context holds information that outlives any single input/output pair —
+//! the shared [`SecClient`] and the retry budget — so the state can be re-run and
+//! transitioned without reconstructing those resources. Updates are applied through the
+//! [`Context`] trait via a builder-constructed updater, keeping mutation explicit and partial.
 //!
 //! ## Usage
-//! The context is used by the [`ValidateCikFormat`](../mod.rs) state to track the CIK being validated and manage retry logic. It supports updates via the builder pattern, making it easy to compose context changes in state machine workflows.
 //!
-//! ## Example
 //! ```rust
 //! use sec::implementations::states::extract::validate_cik_format::context::*;
 //! use sec::shared::http_client::implementations::sec_client::SecClient;
 //! use state_maschine::prelude::*;
 //!
-//! let sec_client = SecClient::default();
-//! let mut context = ValidateCikFormatContext::new("1067983", sec_client);
+//! let mut context = ValidateCikFormatContext::new("1067983", SecClient::default());
 //! let update = ValidateCikFormatContextUpdater::builder()
 //!     .cik("0000000001")
 //!     .build();
 //! context.update_context(update);
-//! assert_eq!(context.cik(), "0000000001");
+//!
+//! let expected_result = "0000000001";
+//!
+//! let result = context.cik().as_str();
+//!
+//! assert_eq!(result, expected_result);
 //! ```
 //!
 //! ## See Also
-//! - [`crate::traits::state_machine::state::Context`]: Trait for context management in states.
-//! - [`crate::implementations::states::extract::validate_cik_format`]: Parent module for CIK validation state and data types.
+//!
+//! - [`crate::traits::state_machine::state::Context`]: Trait that defines context updates and the retry budget.
+//! - [`crate::implementations::states::extract::validate_cik_format`]: Parent module for the validation state and its data types.
 
 use std::fmt;
 
@@ -40,24 +43,22 @@ use crate::shared::http_client::implementations::sec_client::SecClient;
 use crate::traits::state_machine::state::Context;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
-/// State context for the Validate CIK Format state.
+/// Context for the [`ValidateCikFormat`](super::ValidateCikFormat) state.
+///
+/// Bundles the resources and configuration that persist across the state's lifetime —
+/// the raw CIK under validation, the shared [`SecClient`], and the retry budget — so they
+/// survive updates and transitions.
 pub struct ValidateCikFormatContext {
     /// The unvalidated CIK string provided for validation.
     pub raw_cik: String,
     /// The shared HTTP client for SEC API requests.
     pub sec_client: SecClient,
+    /// Maximum number of times the state may be retried on failure.
     pub max_retries: u32,
 }
 
 impl ValidateCikFormatContext {
-    /// Creates a new instance of the state context for the Validate CIK Format state.
-    ///
-    /// # Arguments
-    /// * `raw_cik` - A value that can be converted to a string, representing the raw CIK to validate.
-    /// * `sec_client` - The shared HTTP client for SEC API requests.
-    ///
-    /// # Returns
-    /// A new `ValidateCikFormatContext` with the provided CIK, client, and default retry count.
+    /// Creates a new [`ValidateCikFormatContext`] from a raw CIK and a shared HTTP client.
     pub fn new(cik: impl Into<String>, sec_client: SecClient) -> Self {
         Self {
             raw_cik: cik.into(),
@@ -117,9 +118,9 @@ impl fmt::Display for ValidateCikFormatContext {
 }
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
-/// Updater for the state context.
+/// Updater for modifying [`ValidateCikFormatContext`].
 ///
-/// Using this struct allows to update fields of `ValidateCikFormatContext` in a controlled way.
+/// Fields set to `None` are left unchanged when the updater is applied.
 pub struct ValidateCikFormatContextUpdater {
     /// Optional new raw CIK string value.
     pub raw_cik: Option<String>,
@@ -137,16 +138,14 @@ impl ValidateCikFormatContextUpdater {
     }
 }
 
-/// Builder for `ValidateCikFormatContextUpdater`.
-///
-/// Use this builder to fluently construct an updater for the context.
+/// Fluent builder for a [`ValidateCikFormatContextUpdater`].
 pub struct ValidateCikFormatContextUpdaterBuilder {
     raw_cik: Option<String>,
     sec_client: Option<SecClient>,
     max_retries: Option<u32>,
 }
 impl ValidateCikFormatContextUpdaterBuilder {
-    /// Creates a new updater builder with no fields set.
+    /// Creates a new [`ValidateCikFormatContextUpdaterBuilder`] with all fields initialized to `None`.
     #[must_use]
     pub const fn new() -> Self {
         Self {
@@ -156,10 +155,7 @@ impl ValidateCikFormatContextUpdaterBuilder {
         }
     }
 
-    /// Sets the raw CIK value inside the context to the provided update value.
-    ///
-    /// # Arguments
-    /// * `cik` - A value that can be converted to a string, representing the new raw CIK.
+    /// Sets the raw CIK field.
     #[must_use]
     #[allow(clippy::missing_const_for_fn)]
     pub fn cik(mut self, cik: impl Into<String>) -> Self {
@@ -167,27 +163,21 @@ impl ValidateCikFormatContextUpdaterBuilder {
         self
     }
 
-    /// Sets the HTTP client value inside the context to the provided update value.
-    ///
-    /// # Arguments
-    /// * `sec_client` - The new HTTP client.
+    /// Sets the SEC client field.
     #[must_use]
     pub fn sec_client(mut self, sec_client: SecClient) -> Self {
         self.sec_client = Some(sec_client);
         self
     }
 
-    /// Sets the `max_retries` value inside the context to the provided update value.
-    ///
-    /// # Arguments
-    /// * `max_retries` - The new value for `max_retries`.
+    /// Sets the `max_retries` field.
     #[must_use]
     pub const fn max_retries(mut self, max_retries: u32) -> Self {
         self.max_retries = Some(max_retries);
         self
     }
 
-    /// Builds the updater with the specified fields.
+    /// Builds the [`ValidateCikFormatContextUpdater`].
     #[must_use]
     pub fn build(self) -> ValidateCikFormatContextUpdater {
         ValidateCikFormatContextUpdater {
@@ -199,7 +189,7 @@ impl ValidateCikFormatContextUpdaterBuilder {
 }
 
 impl Default for ValidateCikFormatContextUpdaterBuilder {
-    /// Returns a new context update builder with no fields set.
+    /// Returns a new [`ValidateCikFormatContextUpdaterBuilder`] with all fields initialized to `None`.
     fn default() -> Self {
         Self::new()
     }
