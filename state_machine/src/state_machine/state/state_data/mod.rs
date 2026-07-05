@@ -1,15 +1,18 @@
 //! # State Data Trait
 //!
-//! Provides the [`StateData`] trait for the input and output data a state reads and produces,
-//! separate from its [`Context`](super::Context).
+//! Provides the [`StateData`] trait for a state's input/output data.
+//!
+//! State data is the per-computation data a state reads and produces — the input it receives
+//! and the output it computes. Updates are applied through the structured
+//! [`StateData::update_state`] path.
 
 use std::{fmt::Debug, hash::Hash};
 
-/// The input or output data of a state, supporting partial updates.
+/// A state's input/output data, supporting partial updates.
 ///
-/// Encapsulates the data a state reads and produces, exposing read access and a structured update
-/// path. The supertrait bounds keep it thread-safe, comparable, and hashable like the state that
-/// owns it.
+/// Encapsulates the per-computation data a state reads and produces, exposing read access and a
+/// structured update path. The supertrait bounds keep it thread-safe, comparable, and hashable
+/// like the state that owns it.
 ///
 /// # Associated Types
 ///
