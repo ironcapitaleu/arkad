@@ -1,11 +1,13 @@
-//! # State Machine Trait
+//! # State Machine Traits
 //!
-//! Provides the [`StateMachine`] trait, the framework's central abstraction, plus its submodules
-//! for states, super-states, and transitions.
+//! Provides the [`StateMachine`] trait, the framework's central abstraction.
+//!
+//! This module's own [`StateMachine`] trait ties the pieces together; its submodules define the
+//! states, transitions, and hierarchy that a machine is built from.
 //!
 //! ## Modules
 //!
-//! - [`state`]: The [`State`] trait and its context and data traits.
+//! - [`state`]: The [`State`] trait plus its context and state-data traits.
 //! - [`super_state`]: The [`SuperState`](super_state::SuperState) trait for hierarchical states.
 //! - [`transition`]: The [`Transition`](transition::Transition) trait for moving between states.
 
@@ -15,14 +17,14 @@ pub mod transition;
 
 use crate::state_machine::state::State;
 
-/// A state machine managing and advancing a current state of type `S`.
+/// The framework's central trait: manages and advances a current state of type `S`.
 ///
-/// The framework's central trait: it gives access to the current state and the means to drive it
-/// forward. Implementors decide what "running" and "advancing" mean for their domain.
+/// Gives access to the current state and the means to drive it forward. Implementors decide
+/// what "running" and "advancing" mean for their domain.
 ///
 /// # Type Parameters
 ///
-/// - `S`: The state type the machine manages. Must implement [`State`].
+/// - `S`: The active state type. Must implement [`State`].
 pub trait StateMachine<S: State> {
     /// Returns a reference to the current state.
     fn current_state(&self) -> &S;
