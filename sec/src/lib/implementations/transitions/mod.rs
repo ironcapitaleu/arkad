@@ -2,9 +2,9 @@
 //!
 //! Provides the state-to-state transitions that advance the SEC pipeline.
 //!
-//! A transition converts a completed state into the next one, carrying its output forward as the
-//! successor's input and context. They are grouped by *source* state so that the conversions
-//! leaving any given state are all found in one place.
+//! A transition attempts to convert a source state into a successor state by assembling the
+//! successor state's input and context from the source state's data. Transitions are grouped by
+//! *source* state so that the conversions leaving any given state are all found in one place.
 //!
 //! ## Modules
 //!

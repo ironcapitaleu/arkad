@@ -11,7 +11,7 @@
 //! ## Modules
 //!
 //! - [`states`]: The Extract, Transform, and Load states, each with its own input, output, and context.
-//! - [`transitions`]: The `TryFrom`/`From` conversions that move one state's output into the next state.
+//! - [`transitions`]: The `TryFrom`/`From` conversions that assemble a successor state from a source state's data.
 //!
 //! ## See Also
 //!

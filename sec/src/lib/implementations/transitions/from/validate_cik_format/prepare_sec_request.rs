@@ -4,7 +4,7 @@
 //! [`ValidateCikFormat`].
 //!
 //! It takes the validated [`Cik`](crate::shared::cik::Cik) from the source state's output and the
-//! shared client from its context, and seeds the next state's input and context with them. The
+//! shared client from its context, and seeds the successor's input and context with them. The
 //! conversion is fallible because the source state may not have computed its output yet.
 //!
 //! # Errors
