@@ -27,8 +27,7 @@ pub mod error;
 /// The default SEC API client, driving the full `SecRequest` → `SecResponse` cycle.
 ///
 /// Executes a validated request through a `reqwest::Client` and validates the reply into a
-/// [`SecResponse`]. Construct one with [`SecClient::default`] for the standard SEC-compliant setup,
-/// or [`SecClient::new`] to supply your own transport.
+/// [`SecResponse`].
 ///
 /// # Cloning
 ///
