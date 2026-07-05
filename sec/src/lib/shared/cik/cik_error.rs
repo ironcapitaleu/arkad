@@ -32,7 +32,7 @@ impl CikError {
     }
 }
 
-/// Why a string failed CIK validation.
+/// Enum representing the reason why a CIK failed format validation.
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum InvalidCikReason {

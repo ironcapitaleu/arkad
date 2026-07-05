@@ -28,7 +28,7 @@ impl InvalidSecResponse {
     }
 }
 
-/// Why an HTTP response failed SEC validation.
+/// Enum representing the reason why an HTTP response failed SEC validation.
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ErrorReason {

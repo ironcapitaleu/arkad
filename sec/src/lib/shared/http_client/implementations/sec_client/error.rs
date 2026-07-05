@@ -29,7 +29,7 @@ impl FailedSecRequest {
     }
 }
 
-/// Why an SEC request failed.
+/// Enum representing the reason why an SEC request failed.
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ErrorReason {

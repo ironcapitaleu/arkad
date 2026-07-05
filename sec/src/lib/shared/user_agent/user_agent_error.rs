@@ -29,7 +29,7 @@ impl UserAgentError {
     }
 }
 
-/// Why a string failed user-agent validation.
+/// Enum representing the reason why a user-agent string failed validation.
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum UserAgentErrorReason {

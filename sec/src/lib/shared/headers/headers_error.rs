@@ -31,7 +31,7 @@ impl HeadersError {
     }
 }
 
-/// Why a set of response headers failed validation.
+/// Enum representing the reason why a set of response headers failed validation.
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum InvalidHeadersReason {

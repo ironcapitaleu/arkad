@@ -29,7 +29,7 @@ impl UrlError {
     }
 }
 
-/// Why a string failed URL validation.
+/// Enum representing the reason why a string failed URL validation.
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum InvalidUrlReason {

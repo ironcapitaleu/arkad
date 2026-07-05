@@ -533,6 +533,8 @@ Error types follow additional conventions specific to this project.
 
 - Open an error struct's doc with **"Error representing …"** or **"Error indicating …"**:
   `Error representing a CIK validation failure, tagged with the state it occurred in.`
+- Open an error reason enum's doc with **"Enum representing the reason why …"**:
+  `Enum representing the reason why a CIK failed format validation.`
 - Use **"error"** for the type itself — it is a meaningful term in Rust. Reserve "failure" for the
   *event or action* the error represents ("Error representing a CIK validation failure"), not the type.
 - For a state-level wrapper error, the established two-sentence shape works well: (1) `Error representing <failure>, tagged with the state it occurred in.` then (2) `Wraps a domain-level [`CikError`] together with ... the state in which the error occurred, making it suitable for use in state machine error handling.`
