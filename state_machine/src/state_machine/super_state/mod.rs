@@ -1,19 +1,21 @@
 //! # Super-State Trait
 //!
 //! Provides the [`SuperState`] trait for hierarchical states: a state that is itself a state
-//! machine over sub-states.
+//! machine.
+//!
+//! This is what lets a group of states appear as a single state to an outer machine while
+//! internally driving its own sub-states.
 
 use super::{StateMachine, state::State};
 
-/// A state that is itself a state machine over sub-states of type `S`.
+/// A state that is itself a state machine over sub-states.
 ///
-/// Combining [`State`] and [`StateMachine`] lets a super-state act as a single state in a parent
-/// machine while internally managing and transitioning its own sub-states, the building block for
-/// nested or hierarchical state machines.
+/// Bundles the [`State`] and [`StateMachine`] bounds so a super-state can both participate as one
+/// state in a parent machine and drive its own inner states.
 ///
 /// # Type Parameters
 ///
-/// - `S`: The sub-state type the super-state manages. Must implement [`State`].
+/// - `S`: The active inner state type. Must implement [`State`].
 pub trait SuperState<S: State>: StateMachine<S> + State {}
 
 #[cfg(test)]
