@@ -29,7 +29,6 @@ pub use state_data::StateData;
 ///
 /// Refines the generic [`SMState`] with the two needs of SEC processing: async output computation
 /// (states perform network I/O) and failures expressed as [`StateError`]s rather than panics.
-/// Implemented by every concrete state in [`crate::implementations::states`].
 #[async_trait]
 pub trait State: SMState + Display {
     /// Computes and stores the state's output data.

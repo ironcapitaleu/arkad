@@ -5,8 +5,7 @@ use async_trait::async_trait;
 /// The transport-level HTTP response, decoupled from any HTTP crate.
 ///
 /// Abstracts over a concrete response type so the domain layer doesn't depend on a specific
-/// transport. Implemented for the `reqwest` response type and the test fakes;
-/// [`SecResponse`](super::SecResponse) builds on top of it.
+/// transport.
 ///
 /// # Associated Types
 ///

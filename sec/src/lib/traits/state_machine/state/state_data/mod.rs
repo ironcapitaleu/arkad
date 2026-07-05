@@ -14,8 +14,7 @@ use crate::error::State as StateError;
 /// An SEC state's input/output data, supporting fallible updates.
 ///
 /// Refines the generic [`SMStateData`] so updates return a [`StateError`] instead of being
-/// infallible, keeping error handling uniform across the pipeline. Implemented by every state's
-/// input and output types.
+/// infallible, keeping error handling uniform across the pipeline.
 pub trait StateData: SMStateData {
     /// Applies `updates` to the state data.
     ///

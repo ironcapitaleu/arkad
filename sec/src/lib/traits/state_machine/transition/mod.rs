@@ -14,8 +14,7 @@ use crate::traits::state_machine::state::State;
 ///
 /// Refines the generic [`SMTransition`], constraining both ends to the SEC [`State`] trait and
 /// adding [`transition_to_next_state_sec`](Transition::transition_to_next_state_sec) for
-/// domain-typed error reporting. Implemented by the extract and transform super-states for each
-/// valid edge.
+/// domain-typed error reporting.
 ///
 /// # Type Parameters
 ///

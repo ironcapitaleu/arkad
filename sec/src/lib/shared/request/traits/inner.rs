@@ -3,8 +3,7 @@ use std::fmt::Debug;
 /// The transport-level request: a method and a URL, decoupled from any HTTP crate.
 ///
 /// Abstracts over a concrete request type so the domain layer doesn't depend on a specific
-/// transport. Implemented for the `reqwest` request type and the test fakes;
-/// [`SecRequest`](super::SecRequest) builds on top of it.
+/// transport.
 ///
 /// # Associated Types
 ///

@@ -12,7 +12,7 @@ use state_maschine::prelude::Context as SMContext;
 /// An SEC state's context, exposing a retry budget.
 ///
 /// Refines the generic [`SMContext`] with the retry limit SEC states consult, and provides
-/// [`can_retry`](Context::can_retry) on top of it. Implemented by every state's context type.
+/// [`can_retry`](Context::can_retry) on top of it.
 pub trait Context: SMContext {
     /// Returns `true` if the state may still be retried, given its retry budget.
     fn can_retry(&self) -> bool {

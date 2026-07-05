@@ -12,10 +12,8 @@ use std::error::Error;
 
 /// Builds a state-level error from a domain error, tagging it with the failing state's name.
 ///
-/// Implemented by the state-level error wrappers (e.g.
-/// [`InvalidCikFormat`](crate::error::state_machine::state::InvalidCikFormat)). The
-/// [`Into<StateError>`] bound guarantees the result slots into the [`State`](crate::error::State)
-/// hierarchy.
+/// The [`Into<StateError>`] bound guarantees the result slots into the
+/// [`State`](crate::error::State) hierarchy.
 ///
 /// # Associated Types
 ///

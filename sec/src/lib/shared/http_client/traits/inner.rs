@@ -5,8 +5,7 @@ use async_trait::async_trait;
 /// The transport-level HTTP client: executes a raw request and returns a raw response.
 ///
 /// Abstracts over any concrete (often third-party) HTTP client so the library can swap transports
-/// without touching the domain layer. Implemented for [`reqwest::Client`] and the test fakes;
-/// [`SecClient`](super::SecClient) builds on top of it.
+/// without touching the domain layer.
 ///
 /// # Associated Types
 ///
