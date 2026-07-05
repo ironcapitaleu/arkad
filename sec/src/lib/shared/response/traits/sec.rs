@@ -16,26 +16,26 @@ use super::InnerResponse;
 /// decoupled from any specific HTTP crate:
 ///
 /// - `Inner`: The raw response type consumed during construction. Must implement [`InnerResponse`].
-/// - `Url`: The type representing the response's URL.
-/// - `Headers`: The type representing the response's headers.
-/// - `StatusCode`: The type representing the response's HTTP status code.
-/// - `ContentType`: The type representing the response's content type.
+/// - `Url`: The response's URL.
+/// - `Headers`: The response's headers.
+/// - `StatusCode`: The response's HTTP status code.
+/// - `ContentType`: The response's content type.
 /// - `Error`: The error type returned when the response cannot be read or validated.
 #[async_trait]
 pub trait SecResponse: Send + Sync + Debug + Sized {
     /// The raw response type consumed during construction.
     type Inner: InnerResponse;
 
-    /// The type representing the response's URL.
+    /// The response's URL.
     type Url;
 
-    /// The type representing the response's headers.
+    /// The response's headers.
     type Headers;
 
-    /// The type representing the response's HTTP status code.
+    /// The response's HTTP status code.
     type StatusCode;
 
-    /// The type representing the response's content type.
+    /// The response's content type.
     type ContentType;
 
     /// The error type returned when the response cannot be read or validated.

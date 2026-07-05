@@ -1,7 +1,7 @@
 //! # Reqwest Inner Client
 //!
-//! Implements [`InnerClient`] for [`reqwest::Client`], binding the transport's request, response,
-//! and error types and delegating execution to `reqwest`.
+//! Implements [`InnerClient`] for [`reqwest::Client`], binding the request, response, and error
+//! types to their `reqwest` equivalents.
 
 use async_trait::async_trait;
 use reqwest::{Client, Error as ReqwestError, Request, Response};

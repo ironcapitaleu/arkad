@@ -1,7 +1,7 @@
 //! # Reqwest Inner Response
 //!
-//! Implements [`InnerResponse`] for [`reqwest::Response`], binding the transport's part types and
-//! deriving a [`ContentType`] from the `Content-Type` header.
+//! Implements [`InnerResponse`] for [`reqwest::Response`], binding the associated types to their
+//! `reqwest` equivalents and deriving a [`ContentType`] from the `Content-Type` header.
 
 use async_trait::async_trait;
 use reqwest::header::HeaderMap;

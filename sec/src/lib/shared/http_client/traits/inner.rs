@@ -9,22 +9,22 @@ use async_trait::async_trait;
 ///
 /// # Associated Types
 ///
-/// Each implementor binds these to its transport's concrete types, which is what lets the domain
-/// layer stay independent of any specific HTTP crate:
+/// Each implementor binds these to its HTTP library's concrete types, which is what keeps the
+/// domain layer independent of any specific HTTP crate:
 ///
-/// - `Request`: The type representing the transport's request.
-/// - `Response`: The type representing the transport's response, returned on success.
-/// - `Error`: The error type returned on failure.
+/// - `Request`: The raw HTTP request to execute.
+/// - `Response`: The raw HTTP response, returned on success.
+/// - `Error`: The error returned on failure.
 #[async_trait]
 pub trait InnerClient: Send + Sync + Debug + Clone {
-    /// The type representing the transport's request.
+    /// The raw HTTP request to execute.
     type Request;
-    /// The type representing the transport's response, returned on success.
+    /// The raw HTTP response, returned on success.
     type Response;
-    /// The error type returned on failure.
+    /// The error returned on failure.
     type Error;
 
-    /// Executes an HTTP request, returning the transport's response.
+    /// Executes an HTTP request, returning the raw response.
     ///
     /// # Errors
     ///

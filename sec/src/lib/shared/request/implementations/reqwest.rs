@@ -1,7 +1,7 @@
 //! # Reqwest Inner Request
 //!
-//! Implements [`InnerRequest`] for [`reqwest::Request`], binding the transport's method and URL
-//! types and delegating to `reqwest`.
+//! Implements [`InnerRequest`] for [`reqwest::Request`], binding the method and URL types to
+//! their `reqwest` equivalents.
 
 use reqwest::{Method, Request, Url};
 

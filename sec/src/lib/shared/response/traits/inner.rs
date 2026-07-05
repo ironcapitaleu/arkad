@@ -9,30 +9,30 @@ use async_trait::async_trait;
 ///
 /// # Associated Types
 ///
-/// Each implementor binds these to its transport's concrete types, which is what lets the domain
-/// layer stay independent of any specific HTTP crate:
+/// Each implementor binds these to its response's concrete types, which is what keeps the
+/// domain layer independent of any specific HTTP crate:
 ///
-/// - `Url`: The type representing the response's URL.
-/// - `Headers`: The type representing the response's headers.
-/// - `Body`: The type representing the response's body.
-/// - `StatusCode`: The type representing the response's HTTP status code.
-/// - `ContentType`: The type representing the response's content type.
+/// - `Url`: The response's URL.
+/// - `Headers`: The response's headers.
+/// - `Body`: The response's body.
+/// - `StatusCode`: The response's HTTP status code.
+/// - `ContentType`: The response's content type.
 /// - `Error`: The error type returned when reading the body fails.
 #[async_trait]
 pub trait InnerResponse: Send + Sync + Debug {
-    /// The type representing the response's URL.
+    /// The response's URL.
     type Url;
 
-    /// The type representing the response's headers.
+    /// The response's headers.
     type Headers;
 
-    /// The type representing the response's body.
+    /// The response's body.
     type Body;
 
-    /// The type representing the response's HTTP status code.
+    /// The response's HTTP status code.
     type StatusCode;
 
-    /// The type representing the response's content type.
+    /// The response's content type.
     type ContentType;
 
     /// The error type returned when reading the body fails.

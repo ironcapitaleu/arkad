@@ -7,12 +7,12 @@ use std::fmt::Debug;
 ///
 /// # Associated Types
 ///
-/// - `Method`: The type representing the request's HTTP method.
-/// - `Url`: The type representing the request's URL.
+/// - `Method`: The request's HTTP method.
+/// - `Url`: The request's URL.
 pub trait InnerRequest: Send + Sync + Debug {
-    /// The type representing the request's HTTP method.
+    /// The request's HTTP method.
     type Method;
-    /// The type representing the request's URL.
+    /// The request's URL.
     type Url;
 
     /// Builds a request from a method and a URL.
