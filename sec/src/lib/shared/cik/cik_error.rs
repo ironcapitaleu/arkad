@@ -3,9 +3,7 @@
 //! Provides the [`CikError`] returned when a string fails CIK validation, and the
 //! [`InvalidCikReason`] describing why.
 //!
-//! These are domain errors raised by [`Cik::new`](super::Cik::new); state-level code wraps them
-//! into [`InvalidCikFormat`](crate::error::state_machine::state::InvalidCikFormat) for propagation
-//! through the state machine.
+//! These are domain errors raised by [`Cik::new`](super::Cik::new) when validation fails.
 
 use thiserror::Error;
 
