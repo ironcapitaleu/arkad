@@ -42,5 +42,18 @@ jobs:
       run: cargo test --lib
     - name: Documentation Tests
       run: cargo test --doc
+
+  integration-tests:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-22.04]
+        rust: [1.90.0]
+
+    steps:
+    - uses: actions/checkout@v7
+    - uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: ${{ matrix.rust }}
     - name: Integration Tests
       run: cargo test --test '*'
