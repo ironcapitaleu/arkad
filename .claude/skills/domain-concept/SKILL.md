@@ -97,13 +97,37 @@ impl fmt::Display for ConceptName {
 
 #### Phase 2: Error Type
 
-If construction is fallible:
+If construction is fallible, follow the `{Type}Error` struct + `Invalid{Type}Reason` enum pattern:
 
 ```rust
-#[derive(Debug, Error, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
-pub enum ConceptError {
-    #[error("[InvalidConceptName] Validation failed, Reason: '{reason}'")]
-    InvalidFormat { reason: String },
+#[derive(Debug, Error, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[error("[ConceptError] Invalid concept, Reason: '{reason}', Input: '{invalid_input}'")]
+pub struct ConceptError {
+    pub reason: InvalidConceptReason,
+    pub invalid_input: String,
+}
+
+impl ConceptError {
+    pub fn new(reason: InvalidConceptReason, invalid_input: impl Into<String>) -> Self {
+        Self {
+            reason,
+            invalid_input: invalid_input.into(),
+        }
+    }
+}
+
+#[non_exhaustive]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum InvalidConceptReason {
+    // One variant per invariant that can be violated
+}
+
+impl fmt::Display for InvalidConceptReason {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            // Format a stable, user-facing message per variant
+        }
+    }
 }
 ```
 
