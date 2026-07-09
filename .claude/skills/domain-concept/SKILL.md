@@ -422,35 +422,83 @@ async fn should_return_ok_status_code_when_request_is_valid() {
 
 ---
 
-## Value Type Examples
+## Value Type Examples (from the codebase)
 
-### Cik (validated, fallible)
+### Cik (validated, fallible, struct with private field)
 
 ```rust
-pub struct Cik { value: String }
+#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
+pub struct Cik {
+    value: String,
+}
 
 impl Cik {
-    pub fn new(raw: &str) -> Result<Self, CikError> {
-        let padded = format!("{:0>10}", raw.trim());
-        if padded.len() != 10 || !padded.chars().all(|c| c.is_ascii_digit()) {
-            return Err(CikError::InvalidFormat { input: raw.to_string() });
+    pub fn new(cik: &(impl ToString + ?Sized)) -> Result<Self, CikError> {
+        let original_input = cik.to_string();
+        let mut cik_str = cik.to_string().trim().to_string();
+
+        if !cik_str.chars().all(|c| c.is_ascii_digit()) {
+            return Err(CikError {
+                invalid_cik: original_input,
+                reason: InvalidCikReason::ContainsNonNumericCharacters,
+            });
         }
-        Ok(Self { value: padded })
+
+        if cik_str.len() < CIK_LENGTH {
+            cik_str = format!("{cik_str:0>CIK_LENGTH$}");
+        }
+
+        if cik_str.len() > CIK_LENGTH {
+            return Err(CikError {
+                invalid_cik: original_input,
+                reason: InvalidCikReason::MaxLengthExceeded {
+                    cik_length: cik_str.len(),
+                },
+            });
+        }
+
+        Ok(Self { value: cik_str })
+    }
+
+    #[must_use]
+    pub const fn value(&self) -> &String {
+        &self.value
+    }
+}
+
+impl Display for Cik {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        write!(f, "{}", self.value)
     }
 }
 ```
 
-### EntityName (simple wrapper, infallible)
+### EntityName (infallible, tuple struct)
 
 ```rust
-pub struct EntityName { value: String }
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
+pub struct EntityName(String);
 
 impl EntityName {
-    pub fn new(name: impl Into<String>) -> Self {
-        Self { value: name.into() }
+    #[must_use]
+    pub fn new(value: impl Into<String>) -> Self {
+        Self(value.into())
+    }
+
+    #[must_use]
+    pub fn value(&self) -> &str {
+        &self.0
+    }
+}
+
+impl Display for EntityName {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        write!(f, "{}", self.0)
     }
 }
 ```
+
+---
 
 ## Checklist
 
