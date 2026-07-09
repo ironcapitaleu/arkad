@@ -3,8 +3,8 @@ name: domain-concept
 description: >
   This skill should be used when the user asks to "create a domain concept", "add a domain type",
   "design a domain concept", "implement a shared type", "add dependency injection", or needs to
-  create a new domain struct, enum, or trait in the shared directory (e.g., Cik, SecClient,
-  HttpClient) with validation, errors, fakes, and tests.
+  create a new domain struct, enum, or trait in the shared directory (e.g., Cik, SecClient, InnerClient)
+  with validation, errors, fakes, and tests.
 version: 0.1.0
 argument-hint: "[concept-name]"
 allowed-tools: [Read, Write, Edit, Bash, AskUserQuestion]
@@ -19,7 +19,7 @@ Design and implement a new domain concept — a standalone type that lives in `s
 and tested in isolation.
 
 Domain concepts range from simple value types (like `Cik`) to trait-based abstractions with
-dependency injection (like `SecClient` / `HttpClient`).
+dependency injection (like `SecClient` / `InnerClient`).
 
 ## Questionnaire
 
@@ -178,11 +178,12 @@ Create Fakes in `sec/src/lib/tests/fixtures/sample_{concept_name}/` and write un
 against the trait using those Fakes. This validates the trait design before touching any
 3rd-party dependency.
 
-**Convention:** Each fake implements the trait and provides a fixed response. The naming
-pattern is `Always{Behavior}{ConceptName}` (e.g., `AlwaysSucceedingHttpClient`,
-`AlwaysFailingHttpClient`). By default, create at least two variants: one that always
-succeeds and one that always fails. Suggest additional variants if the domain warrants
-them (e.g., `AlwaysRateLimitedClient`, `AlwaysTimingOutClient`).
+**Convention:** Each fake implements the trait and provides a fixed response. For low-level
+`InnerClient` fakes, use `Always{Behavior}{ConceptName}` (e.g., `AlwaysSucceedingHttpClient`,
+`AlwaysFailingHttpClient`). For domain-level traits, prefer `Fake{ConceptName}` (e.g.,
+`FakeSecClient`) and put behavior variants in modules like `always_succeeding` / `always_failing`.
+By default, create at least two variants: one that always succeeds and one that always fails.
+Suggest additional variants if the domain warrants more failure modes.
 
 **Example 1: AlwaysSucceedingHttpClient (happy path fake)**
 
