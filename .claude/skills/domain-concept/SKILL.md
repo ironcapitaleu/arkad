@@ -514,3 +514,27 @@ impl Display for EntityName {
 - [ ] Error path test(s)
 - [ ] Module registered in parent `mod.rs`
 - [ ] Compiles and tests pass
+
+## Self-Improvement
+
+After completing a domain concept implementation where the user corrected or refined a pattern:
+
+1. Ask: "Should I update the domain-concept skill with this pattern?"
+2. If yes, update the relevant section (examples, conventions, checklist) in this SKILL.md.
+3. Apply after user approval.
+
+Examples of things worth capturing:
+- New derive conventions discovered (e.g., "we always derive `Default` on fakes")
+- Naming patterns that differed from the documented ones
+- Additional checklist items that came up during implementation
+- New fake variants that became standard
+- Few-shot examples that drifted from actual code — update them
+- New implementations that make good few-shot examples — add them
+- Implementations where the user had to correct the agent — add as examples to prevent repeating mistakes
+- Patterns that generalize across multiple domain concepts — promote to guidance
+
+Also periodically review: do the existing few-shot examples still match the codebase?
+If not, update them. If a new implementation is a better or complementary example, add it.
+The examples are authoritative guidance — they must reflect reality.
+
+This keeps the skill growing from real usage rather than speculation.
