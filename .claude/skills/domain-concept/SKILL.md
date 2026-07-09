@@ -507,6 +507,7 @@ impl Display for EntityName {
 ## Checklist
 
 - [ ] Struct/trait defined with correct derives and bounds
+- [ ] Public items include `///` docstrings
 - [ ] Constructor with validation (if value type)
 - [ ] Error type (if fallible)
 - [ ] Display impl
