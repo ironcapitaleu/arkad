@@ -263,6 +263,8 @@ Test the real implementation against the actual external system:
 - Verify the contract holds end-to-end
 
 ```rust
+use pretty_assertions::assert_eq;
+
 use sec::shared::http_client::InnerClient;
 
 fn test_client() -> reqwest::Client {
@@ -363,6 +365,8 @@ impl InnerClient for Client {
 ### 4. Integration test (verifies real impl against live endpoint)
 
 ```rust
+use pretty_assertions::assert_eq;
+
 use sec::shared::http_client::InnerClient;
 
 fn test_client() -> reqwest::Client {
