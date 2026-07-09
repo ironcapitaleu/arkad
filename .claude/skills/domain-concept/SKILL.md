@@ -83,6 +83,7 @@ impl ConceptName {
         Ok(Self { value: validated })
     }
 
+    #[must_use]
     pub fn value(&self) -> &InnerType {
         &self.value
     }
