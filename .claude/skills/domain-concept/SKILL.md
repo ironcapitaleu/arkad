@@ -1,0 +1,546 @@
+---
+name: domain-concept
+description: >
+  This skill should be used when the user asks to "create a domain concept", "add a domain type",
+  "design a domain concept", "implement a shared type", "add dependency injection", or needs to
+  create a new domain struct, enum, or trait in the shared directory (e.g., Cik, SecClient, InnerClient)
+  with validation, errors, fakes, and tests.
+version: 0.1.0
+argument-hint: "[concept-name]"
+allowed-tools: [Read, Write, Edit, Bash, AskUserQuestion]
+---
+
+# Domain Concept Skill
+
+## Purpose
+
+Design and implement a new domain concept — a standalone type that lives in `sec/src/lib/shared/`
+(or the equivalent shared directory), is independent of any specific state, and can be developed
+and tested in isolation.
+
+Domain concepts range from simple value types (like `Cik`) to trait-based abstractions with
+dependency injection (like `SecClient` / `InnerClient`).
+
+## Questionnaire
+
+Use `AskUserQuestion` for ALL questions. NEVER fall back to plain text questions.
+Free-form input uses the "Other" option — the user types their answer there.
+
+Not everything needs to be known upfront. It's fine to leave some answers as "don't know yet"
+and discover them together during implementation. The questionnaire is a starting point, not
+a gate.
+
+If the user provided context when invoking the skill (e.g., `/domain-concept RateLimiter`)
+or the conversation already established what the concept is, skip questions you can already
+answer. Do not guess names from existing codebase concepts — either infer from context or
+let the user provide the name via "Other".
+
+**First prompt:**
+
+- "Does it interact with an external system (HTTP, file system, database, etc.)?" — options:
+  - "Yes" — it calls or communicates with something outside the process
+  - "No" — it's self-contained data/logic
+  - "Don't know yet" — figure it out together
+- "Does it wrap an external dependency (3rd-party crate)?" — options:
+  - "Yes" — needs a trait abstraction + fake for testability
+  - "No" — standalone, no 3rd-party wrapping needed
+  - "Don't know yet" — figure it out together
+- "Is creation fallible?" — options:
+  - "Yes" — new() can fail, returns Result
+  - "No" — new() always succeeds
+  - "Don't know yet" — figure it out together
+
+**Second prompt (if it wraps an external dependency):**
+
+- "What 3rd-party crate does it wrap?" — use "Other" for free text (header: "Library")
+- "What trait methods define the interface?" — use "Other" for free text (header: "Trait methods")
+- "What associated types does the trait need? (e.g., Request, Response, Error)" — use "Other" for free text (header: "Types")
+
+**Determining the implementation path:**
+
+- If it wraps an external dependency → Path B (trait + fake + real impl + integration tests)
+- If it interacts with an external system but doesn't wrap a dep → Path B (trait for testability)
+- Otherwise → Path A (value type with optional validation)
+- If answers are "don't know yet" → start with what's known, discover the rest together
+
+## Implementation Workflow
+
+### Path A: Value Type (e.g., Cik, EntityName, Url)
+
+#### Phase 1: Type Definition
+
+Create in `sec/src/lib/shared/{concept_name}/mod.rs`:
+
+```rust
+#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
+pub struct ConceptName {
+    value: InnerType,
+}
+
+impl ConceptName {
+    pub fn new(input: &str) -> Result<Self, ConceptError> {
+        // validate
+        Ok(Self { value: validated })
+    }
+
+    #[must_use]
+    pub fn value(&self) -> &InnerType {
+        &self.value
+    }
+}
+
+impl fmt::Display for ConceptName {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.value)
+    }
+}
+```
+
+#### Phase 2: Error Type
+
+If construction is fallible, follow the `{Type}Error` struct + `Invalid{Type}Reason` enum pattern:
+
+```rust
+#[derive(Debug, Error, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[error("[ConceptError] Invalid concept, Reason: '{reason}', Input: '{invalid_input}'")]
+pub struct ConceptError {
+    pub reason: InvalidConceptReason,
+    pub invalid_input: String,
+}
+
+impl ConceptError {
+    pub fn new(reason: InvalidConceptReason, invalid_input: impl Into<String>) -> Self {
+        Self {
+            reason,
+            invalid_input: invalid_input.into(),
+        }
+    }
+}
+
+#[non_exhaustive]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum InvalidConceptReason {
+    // One variant per invariant that can be violated
+}
+
+impl fmt::Display for InvalidConceptReason {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            // Format a stable, user-facing message per variant
+        }
+    }
+}
+```
+
+#### Phase 3: Tests
+
+- Auto-trait tests (Send, Sync, Unpin, Sized, Clone, Debug, Hash, Eq, Ord, PartialEq, PartialOrd)
+- `should_create_valid_concept_when_input_is_valid`
+- `should_fail_when_input_violates_invariant` (one per invariant)
+- `should_return_inner_value`
+- `should_display_correctly`
+
+---
+
+### Path B: Trait-Based Abstraction with Dependency Injection
+
+Use this path when the concept wraps an external dependency (HTTP client, file system, etc.)
+that needs to be decoupled for testability.
+
+#### Directory Structure
+
+```text
+{concept_name}/
+├── mod.rs                    # Re-exports traits and implementations
+├── traits/
+│   ├── mod.rs                # pub use of trait modules
+│   ├── inner.rs              # Low-level trait (e.g., InnerClient)
+│   └── {domain}.rs           # Domain-level trait (e.g., SecClient)
+└── implementations/
+    ├── mod.rs                # pub use of implementation modules
+    ├── {library}.rs          # Real implementation (e.g., reqwest_client.rs)
+    └── {domain_impl}/
+        ├── mod.rs            # Domain implementation struct
+        └── error.rs          # Implementation-specific errors
+```
+
+#### Phase 1: Define the Trait(s)
+
+Start with the trait interface — what methods does it expose? The trait is the contract.
+Everything else (fakes, real impl) derives from it.
+
+**Low-level trait** (abstracts the library):
+
+```rust
+#[async_trait]
+pub trait InnerClient: Send + Sync + Debug + Clone {
+    type Request;
+    type Response;
+    type Error;
+
+    async fn execute_request(&self, request: Self::Request) -> Result<Self::Response, Self::Error>;
+}
+```
+
+**Domain-level trait** (adds domain knowledge on top):
+
+```rust
+#[async_trait]
+pub trait SecClient: Send + Sync + Debug {
+    type Inner: InnerClient;
+    type Response;
+    type Error;
+    type Request;
+
+    fn inner(&self) -> &Self::Inner;
+
+    async fn execute_sec_request(
+        &self,
+        request: Self::Request,
+    ) -> Result<Self::Response, Self::Error>;
+}
+```
+
+#### Phase 2: Fake Implementation(s) + Trait Unit Tests
+
+Create Fakes in `sec/src/lib/tests/fixtures/sample_{concept_name}/` and write unit tests
+against the trait using those Fakes. This validates the trait design before touching any
+3rd-party dependency.
+
+**Convention:** Each fake implements the trait and provides a fixed response. For low-level
+`InnerClient` fakes, use `Always{Behavior}{ConceptName}` (e.g., `AlwaysSucceedingHttpClient`,
+`AlwaysFailingHttpClient`). For domain-level traits, prefer `Fake{ConceptName}` (e.g.,
+`FakeSecClient`) and put behavior variants in modules like `always_succeeding`.
+Add an `always_failing` variant when you need to unit-test error handling paths.
+Suggest additional variants if the domain warrants more failure modes.
+
+**Example 1: AlwaysSucceedingHttpClient (happy path fake)**
+
+```rust
+#[derive(Debug, Clone, PartialEq)]
+pub struct AlwaysSucceedingHttpClient;
+
+#[async_trait]
+impl InnerClient for AlwaysSucceedingHttpClient {
+    type Request = ();
+    type Response = String;
+    type Error = String;
+
+    async fn execute_request(&self, request: Self::Request) -> Result<Self::Response, Self::Error> {
+        Ok(format!(
+            "Simulated success response for request: {:?}",
+            request
+        ))
+    }
+}
+```
+
+**Example 2: AlwaysFailingHttpClient (error path fake)**
+
+```rust
+#[derive(Debug, Clone)]
+pub struct AlwaysFailingHttpClient;
+
+#[async_trait]
+impl InnerClient for AlwaysFailingHttpClient {
+    type Request = ();
+    type Response = String;
+    type Error = String;
+
+    async fn execute_request(&self, request: Self::Request) -> Result<Self::Response, Self::Error> {
+        Err(format!(
+            "Simulated network error for request: {:?}",
+            request
+        ))
+    }
+}
+```
+
+Write trait-level unit tests using these Fakes (in the trait file's `#[cfg(test)]` module):
+
+- Happy path test using the always-succeeding fake
+- Error path test using the always-failing fake
+- Auto-trait tests on fake implementations
+
+#### Phase 3: Real Implementation
+
+Now wrap the actual 3rd-party dependency:
+
+```rust
+use async_trait::async_trait;
+use reqwest::{Client, Error as ReqwestError, Request, Response};
+
+#[async_trait]
+impl InnerClient for Client {
+    type Request = Request;
+    type Response = Response;
+    type Error = ReqwestError;
+
+    async fn execute_request(&self, request: Self::Request) -> Result<Self::Response, Self::Error> {
+        self.execute(request).await
+    }
+}
+```
+
+#### Phase 4: Integration Tests
+
+Test the real implementation against the actual external system:
+
+- Place in `tests/` directory
+- Use the real 3rd-party wrapped implementation
+- Test against a real or sandboxed endpoint
+- Verify the contract holds end-to-end
+
+```rust
+use pretty_assertions::assert_eq;
+
+use sec::shared::http_client::InnerClient;
+
+fn test_client() -> reqwest::Client {
+    reqwest::Client::builder()
+        .pool_max_idle_per_host(0)
+        .build()
+        .expect("Building a reqwest Client with default settings should always succeed")
+}
+
+#[tokio::test]
+async fn should_return_ok_status_code_when_request_is_valid() {
+    let client = test_client();
+    let url = "https://httpbin.org/get";
+    let request_url = reqwest::Url::parse(url)
+        .expect(&format!("The hardcoded URL `{url}` should always be valid"));
+    let request = reqwest::Request::new(reqwest::Method::GET, request_url);
+
+    let expected_result = reqwest::StatusCode::OK;
+
+    let result = client
+        .execute_request(request)
+        .await
+        .expect(&format!("A request to the URL `{url}` should always succeed"))
+        .status();
+
+    assert_eq!(result, expected_result);
+}
+```
+
+---
+
+## Full End-to-End Example: InnerClient (HTTP abstraction)
+
+This shows all four phases working together as a cohesive unit:
+
+### 1. Trait (the contract)
+
+```rust
+#[async_trait]
+pub trait InnerClient: Send + Sync + Debug + Clone {
+    type Request;
+    type Response;
+    type Error;
+
+    async fn execute_request(&self, request: Self::Request) -> Result<Self::Response, Self::Error>;
+}
+```
+
+### 2. Fakes (unit test the trait)
+
+```rust
+#[derive(Debug, Clone, PartialEq)]
+pub struct AlwaysSucceedingHttpClient;
+
+#[async_trait]
+impl InnerClient for AlwaysSucceedingHttpClient {
+    type Request = ();
+    type Response = String;
+    type Error = String;
+
+    async fn execute_request(&self, request: Self::Request) -> Result<Self::Response, Self::Error> {
+        Ok(format!("Simulated success response for request: {:?}", request))
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct AlwaysFailingHttpClient;
+
+#[async_trait]
+impl InnerClient for AlwaysFailingHttpClient {
+    type Request = ();
+    type Response = String;
+    type Error = String;
+
+    async fn execute_request(&self, request: Self::Request) -> Result<Self::Response, Self::Error> {
+        Err(format!("Simulated network error for request: {:?}", request))
+    }
+}
+```
+
+### 3. Real implementation (wraps reqwest)
+
+```rust
+use reqwest::{Client, Error as ReqwestError, Request, Response};
+
+#[async_trait]
+impl InnerClient for Client {
+    type Request = Request;
+    type Response = Response;
+    type Error = ReqwestError;
+
+    async fn execute_request(&self, request: Self::Request) -> Result<Self::Response, Self::Error> {
+        self.execute(request).await
+    }
+}
+```
+
+### 4. Integration test (verifies real impl against live endpoint)
+
+```rust
+use pretty_assertions::assert_eq;
+
+use sec::shared::http_client::InnerClient;
+
+fn test_client() -> reqwest::Client {
+    reqwest::Client::builder()
+        .pool_max_idle_per_host(0)
+        .build()
+        .expect("Building a reqwest Client with default settings should always succeed")
+}
+
+#[tokio::test]
+async fn should_return_ok_status_code_when_request_is_valid() {
+    let client = test_client();
+    let url = "https://httpbin.org/get";
+    let request_url = reqwest::Url::parse(url)
+        .expect(&format!("The hardcoded URL `{url}` should always be valid"));
+    let request = reqwest::Request::new(reqwest::Method::GET, request_url);
+
+    let expected_result = reqwest::StatusCode::OK;
+
+    let result = client
+        .execute_request(request)
+        .await
+        .expect(&format!("A request to the URL `{url}` should always succeed"))
+        .status();
+
+    assert_eq!(result, expected_result);
+}
+```
+
+---
+
+## Value Type Examples (from the codebase)
+
+### Cik (validated, fallible, struct with private field)
+
+```rust
+#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
+pub struct Cik {
+    value: String,
+}
+
+impl Cik {
+    pub fn new(cik: &(impl ToString + ?Sized)) -> Result<Self, CikError> {
+        let original_input = cik.to_string();
+        let mut cik_str = cik.to_string().trim().to_string();
+
+        if !cik_str.chars().all(|c| c.is_ascii_digit()) {
+            return Err(CikError {
+                invalid_cik: original_input,
+                reason: InvalidCikReason::ContainsNonNumericCharacters,
+            });
+        }
+
+        if cik_str.len() < CIK_LENGTH {
+            cik_str = format!("{cik_str:0>CIK_LENGTH$}");
+        }
+
+        if cik_str.len() > CIK_LENGTH {
+            return Err(CikError {
+                invalid_cik: original_input,
+                reason: InvalidCikReason::MaxLengthExceeded {
+                    cik_length: cik_str.len(),
+                },
+            });
+        }
+
+        Ok(Self { value: cik_str })
+    }
+
+    #[must_use]
+    pub const fn value(&self) -> &String {
+        &self.value
+    }
+}
+
+impl Display for Cik {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        write!(f, "{}", self.value)
+    }
+}
+```
+
+### EntityName (infallible, tuple struct)
+
+```rust
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
+pub struct EntityName(String);
+
+impl EntityName {
+    #[must_use]
+    pub fn new(value: impl Into<String>) -> Self {
+        Self(value.into())
+    }
+
+    #[must_use]
+    pub fn value(&self) -> &str {
+        &self.0
+    }
+}
+
+impl Display for EntityName {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+```
+
+---
+
+## Checklist
+
+- [ ] Struct/trait defined with correct derives and bounds
+- [ ] Public items include `///` docstrings
+- [ ] Constructor with validation (if value type)
+- [ ] Error type (if fallible)
+- [ ] Display impl
+- [ ] Getter/accessor method(s)
+- [ ] Real implementation (if trait-based)
+- [ ] Fake implementation in `tests/fixtures/` (if trait-based)
+- [ ] Auto-trait tests
+- [ ] Happy path test(s)
+- [ ] Error path test(s)
+- [ ] Module registered in parent `mod.rs`
+- [ ] Compiles and tests pass
+
+## Self-Improvement
+
+After completing a domain concept implementation where the user corrected or refined a pattern:
+
+1. Ask: "Should I update the domain-concept skill with this pattern?"
+2. If yes, update the relevant section (examples, conventions, checklist) in this SKILL.md.
+3. Apply after user approval.
+
+Examples of things worth capturing:
+- New derive conventions discovered (e.g., "we always derive `Default` on fakes")
+- Naming patterns that differed from the documented ones
+- Additional checklist items that came up during implementation
+- New fake variants that became standard
+- Few-shot examples that drifted from actual code — update them
+- New implementations that make good few-shot examples — add them
+- Implementations where the user had to correct the agent — add as examples to prevent repeating mistakes
+- Patterns that generalize across multiple domain concepts — promote to guidance
+
+Also periodically review: do the existing few-shot examples still match the codebase?
+If not, update them. If a new implementation is a better or complementary example, add it.
+The examples are authoritative guidance — they must reflect reality.
+
+This keeps the skill growing from real usage rather than speculation.
