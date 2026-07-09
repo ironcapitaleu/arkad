@@ -187,12 +187,16 @@ pub trait InnerClient: Send + Sync + Debug + Clone {
 #[async_trait]
 pub trait SecClient: Send + Sync + Debug {
     type Inner: InnerClient;
-    type Request;
     type Response;
     type Error;
+    type Request;
 
     fn inner(&self) -> &Self::Inner;
-    async fn execute_sec_request(&self, request: Self::Request) -> Result<Self::Response, Self::Error>;
+
+    async fn execute_sec_request(
+        &self,
+        request: Self::Request,
+    ) -> Result<Self::Response, Self::Error>;
 }
 ```
 
@@ -205,8 +209,8 @@ against the trait using those Fakes. This validates the trait design before touc
 **Convention:** Each fake implements the trait and provides a fixed response. For low-level
 `InnerClient` fakes, use `Always{Behavior}{ConceptName}` (e.g., `AlwaysSucceedingHttpClient`,
 `AlwaysFailingHttpClient`). For domain-level traits, prefer `Fake{ConceptName}` (e.g.,
-`FakeSecClient`) and put behavior variants in modules like `always_succeeding` / `always_failing`.
-By default, create at least two variants: one that always succeeds and one that always fails.
+`FakeSecClient`) and put behavior variants in modules like `always_succeeding`.
+Add an `always_failing` variant when you need to unit-test error handling paths.
 Suggest additional variants if the domain warrants more failure modes.
 
 **Example 1: AlwaysSucceedingHttpClient (happy path fake)**
