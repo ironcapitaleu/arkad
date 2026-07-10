@@ -50,7 +50,7 @@ Based on this reasoning, suggest what tests to write/review and let the user con
 - **Integration** — design and implement integration tests for a component or pipeline
 - **Compliance check** — verify all structs have the required boilerplate tests
 
-## Conventions (from AGENTS.md)
+## Conventions
 
 - **Pattern:** Arrange, Define, Act, Assert
 - **Exactly ONE `assert!` per test function**
@@ -62,7 +62,7 @@ Based on this reasoning, suggest what tests to write/review and let the user con
 
 ## Boilerplate Tests (apply to ALL domain types and state structs)
 
-Every struct that derives `Debug, Clone, PartialEq, Eq, Hash, Ord` must have these:
+Every type (struct/enum) that derives `Debug, Clone, PartialEq, Eq, Hash, Ord` must have these:
 
 ```rust
 const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
@@ -158,25 +158,20 @@ allow testing the trait's contract in isolation.
 
 ### Where to put them
 
-All fakes live in `sec/src/lib/tests/fixtures/sample_{concept_name}/`:
+Fakes live in the crate's test fixtures directory. For the `sec` crate: `sec/src/lib/tests/fixtures/sample_{concept_name}/`.
+
+Example structure:
 
 ```text
-tests/fixtures/
+sec/src/lib/tests/fixtures/
 ├── sample_http_client/
-│   ├── mod.rs
 │   ├── sample_inner_client/
-│   │   ├── mod.rs
-│   │   ├── always_succeeding.rs      # AlwaysSucceedingHttpClient
-│   │   └── always_failing.rs         # AlwaysFailingHttpClient
+│   │   ├── always_succeeding.rs
+│   │   └── always_failing.rs
 │   └── sample_sec_client/
-│       ├── mod.rs
-│       └── always_succeeding.rs      # FakeSecClient
-├── sample_rate_limiter/
-│   └── mod.rs                        # AlwaysReadyRateLimiter
+│       └── always_succeeding.rs
 ├── sample_request/
-│   └── ...
 └── sample_response/
-    └── ...
 ```
 
 ### How to define a Fake
@@ -352,14 +347,13 @@ async fn should_return_expected_success_response_for_fake_sec_client() {
 
 ### Structure
 
-Integration tests live in `tests/` directory, one file per component or concern:
+Integration tests live in the crate's `tests/` directory, one file per component or concern:
 
 ```
-tests/
+sec/tests/
 ├── reqwest_client.rs       # HTTP client against httpbin.org
 ├── sec_client.rs           # SEC client against SEC EDGAR
 ├── sec_response.rs         # Response parsing with real data
-├── rate_limiter.rs         # Timing verification
 └── pipeline_coverage/      # Multi-file pipeline test
     ├── main.rs
     ├── builder.rs
