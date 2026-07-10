@@ -62,7 +62,7 @@ Based on this reasoning, suggest what tests to write/review and let the user con
 
 ## Boilerplate Tests (apply to ALL domain types and state structs)
 
-Every domain type and state struct gets the full set of compile-time trait compliance tests:
+Every domain type and state struct should include compile-time trait compliance tests (auto traits like `Send`/`Sync`/`Unpin` and derived traits like `Debug`, `Clone`, `PartialEq`, `Eq`, `Hash`, `Ord` where applicable):
 
 ```rust
 const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
