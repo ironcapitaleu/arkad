@@ -53,7 +53,7 @@ Based on this reasoning, suggest what tests to write/review and let the user con
 ## Conventions
 
 - **Pattern:** Arrange, Define, Act, Assert
-- **Exactly ONE assertion per test function** (`assert_eq!`, `assert_ne!`, or `assert!(...)`)
+- **Exactly ONE assertion per test function** (`assert_eq!`, `assert_ne!`, or `assert!(...)`). Exceptions: compile-time auto-trait checks (bounds enforced by compilation) and `#[should_panic]` tests (the panic is the assertion).
 - **Naming:** `should_..._when_...` for all tests. Auto-trait tests use `should_implement_..._when_...` / `should_be_..._when_...`. Always snake_case, verbose is fine.
 - **Location:** Unit tests in same file under `#[cfg(test)]`; integration tests in `tests/` directory
 - **Assertions:** Use `pretty_assertions` (`assert_eq!`, `assert_ne!`)
@@ -300,7 +300,7 @@ fn should_update_state_data_when_update_contains_values() {
     let expected = &TestInput::new("updated_value");
 
     StateData::update_state(&mut data, update)
-        .expect("Update should succeed");
+        .expect("Given a non-empty update, updating state data should always succeed");
     let result = data.state();
 
     assert_eq!(result, expected);
@@ -314,7 +314,7 @@ fn should_leave_state_data_unchanged_when_empty_update() {
     let expected = &test_input();
 
     StateData::update_state(&mut data, empty_update)
-        .expect("Update should succeed");
+        .expect("Given an empty update, updating state data should always succeed");
     let result = data.state();
 
     assert_eq!(result, expected);
@@ -514,5 +514,11 @@ Examples of things worth capturing:
 Also periodically review: do the existing few-shot examples still match the codebase?
 If not, update them. If a new test is a better or complementary example, add it.
 The examples are authoritative guidance — they must reflect reality.
+
+**AGENTS.md takes priority.** If this skill diverges from AGENTS.md, AGENTS.md wins. When
+updating this skill, check AGENTS.md for conflicts and resolve in favor of AGENTS.md.
+
+**Proactive divergence detection.** When working on tests, if you suspect existing tests in the
+codebase diverge from the guidelines, fix them proactively without waiting to be asked.
 
 This keeps the skill growing from real usage rather than speculation.
