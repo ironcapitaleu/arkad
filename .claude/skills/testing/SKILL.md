@@ -53,12 +53,12 @@ Based on this reasoning, suggest what tests to write/review and let the user con
 ## Conventions
 
 - **Pattern:** Arrange, Define, Act, Assert
-- **Exactly ONE `assert!` per test function**
-- **Naming:** Behavioral tests use `should_..._when_...`; auto-trait compliance tests use `should_implement_...` or `should_be_...` (no `when` needed). Always snake_case, verbose is fine.
+- **Exactly ONE assertion per test function** (`assert_eq!`, `assert_ne!`, or `assert!(...)`)
+- **Naming:** `should_..._when_...` for all tests. Auto-trait tests use `should_implement_..._when_...` / `should_be_..._when_...`. Always snake_case, verbose is fine.
 - **Location:** Unit tests in same file under `#[cfg(test)]`; integration tests in `tests/` directory
 - **Assertions:** Use `pretty_assertions` (`assert_eq!`, `assert_ne!`)
 - **`.expect()` messages:** Explain WHY the operation should not fail in that context
-- **No comments:** No `// Arrange` / `// Act` — the structure speaks for itself
+- **No section-label comments:** Avoid `// Arrange` / `// Act` / `// Assert` markers — the structure speaks for itself
 
 ## Boilerplate Tests (apply to ALL domain types and state structs)
 
@@ -145,8 +145,9 @@ const fn should_implement_unpin() {
 }
 ```
 
-**When to apply:** Every new struct in `shared/`, every state Input/Output/Context, every
-domain concept. If you see a struct without these tests, add them proactively.
+**When to apply:** For every new type in `shared/` and every state Input/Output/Context, add
+Send/Sync/Unpin checks. Add `Hash`/`Eq`/`Ord`/etc. checks only when the type implements those traits.
+If you see a type without these tests, add them proactively.
 
 ## Fakes
 
@@ -386,7 +387,7 @@ Add a module-level docstring explaining how to run ignored tests:
 ### When NOT to use `#[ignore]`
 
 - Tests that complete in under ~5 seconds (like `reqwest_client.rs` against httpbin.org)
-- Tests that use fakes/fixtures instead of real endpoints
+- Tests that use local fixtures or local test servers instead of live endpoints
 - Tests that validate logic without I/O
 
 ### Integration test example — rate limiter timing
