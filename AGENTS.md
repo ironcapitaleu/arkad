@@ -118,7 +118,7 @@ Use `thiserror` with `#[error("...")]` and `#[source]` for deriving `Display` an
     - Use `Result<T, E>` for error handling
   - **Assert**: Verify results
     - Use `assert_eq!`, `assert_ne!`, or `assert!(condition)`
-    - **IMPORTANT**: Write **EXACTLY ONE** `assert!(...)` per test function
+    - **IMPORTANT**: Write **EXACTLY ONE** assertion per test function (`assert_eq!`, `assert_ne!`, or `assert!(...)`)
 - Unit tests go in the same file as the code under a `#[cfg(test)]` module.
 - Test function names use `should_..._when` in `snake_case`.
   - Names can be verbose — clarity over brevity.
