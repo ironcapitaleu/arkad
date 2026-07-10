@@ -57,7 +57,7 @@ Based on this reasoning, suggest what tests to write/review and let the user con
 - **Naming:** `should_..._when_...` for all tests. Auto-trait tests use `should_implement_..._when_...` / `should_be_..._when_...`. Always snake_case, verbose is fine.
 - **Location:** Unit tests in same file under `#[cfg(test)]`; integration tests in `tests/` directory
 - **Assertions:** Use `pretty_assertions` (`assert_eq!`, `assert_ne!`)
-- **`.expect()` messages:** Explain WHY the operation should not fail in that context
+- **`.expect()` messages:** Explain WHY the operation should not fail in that context. Capitalize the first word. Do **NOT** end with a period
 - **No section-label comments:** Avoid `// Arrange` / `// Act` / `// Assert` markers — the structure speaks for itself
 
 ## Boilerplate Tests (apply to ALL domain types and state structs)
@@ -67,7 +67,7 @@ Every domain type and state struct should include compile-time trait compliance 
 ```rust
 const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
 #[test]
-const fn should_implement_auto_traits() {
+const fn should_implement_auto_traits_when_using_my_type() {
     implements_auto_traits::<MyType>();
 }
 
@@ -75,72 +75,72 @@ const fn implements_send<T: Send>() {}
 const fn implements_sync<T: Sync>() {}
 
 #[test]
-const fn should_implement_send() {
+const fn should_implement_send_when_using_my_type() {
     implements_send::<MyType>();
 }
 
 #[test]
-const fn should_implement_sync() {
+const fn should_implement_sync_when_using_my_type() {
     implements_sync::<MyType>();
 }
 
 #[test]
-const fn should_be_thread_safe() {
+const fn should_be_thread_safe_when_using_my_type() {
     implements_send::<MyType>();
     implements_sync::<MyType>();
 }
 
 const fn implements_sized<T: Sized>() {}
 #[test]
-const fn should_be_sized() {
+const fn should_be_sized_when_using_my_type() {
     implements_sized::<MyType>();
 }
 
 const fn implements_hash<T: std::hash::Hash>() {}
 #[test]
-const fn should_implement_hash() {
+const fn should_implement_hash_when_using_my_type() {
     implements_hash::<MyType>();
 }
 
 const fn implements_partial_eq<T: PartialEq>() {}
 #[test]
-const fn should_implement_partial_eq() {
+const fn should_implement_partial_eq_when_using_my_type() {
     implements_partial_eq::<MyType>();
 }
 
 const fn implements_eq<T: Eq>() {}
 #[test]
-const fn should_implement_eq() {
+const fn should_implement_eq_when_using_my_type() {
     implements_eq::<MyType>();
 }
 
 const fn implements_partial_ord<T: PartialOrd>() {}
 #[test]
-const fn should_implement_partial_ord() {
+const fn should_implement_partial_ord_when_using_my_type() {
     implements_partial_ord::<MyType>();
 }
 
 const fn implements_ord<T: Ord>() {}
 #[test]
-const fn should_implement_ord() {
+const fn should_implement_ord_when_using_my_type() {
     implements_ord::<MyType>();
 }
 
 const fn implements_debug<T: std::fmt::Debug>() {}
 #[test]
-const fn should_implement_debug() {
+const fn should_implement_debug_when_using_my_type() {
     implements_debug::<MyType>();
 }
 
 const fn implements_clone<T: Clone>() {}
 #[test]
-const fn should_implement_clone() {
+const fn should_implement_clone_when_using_my_type() {
     implements_clone::<MyType>();
 }
 
 const fn implements_unpin<T: Unpin>() {}
 #[test]
-const fn should_implement_unpin() {
+const fn should_implement_unpin_when_using_my_type() {
     implements_unpin::<MyType>();
 }
 ```
@@ -363,7 +363,7 @@ sec/tests/
 
 ### Long-running tests: use `#[ignore]`
 
-Tests that hit live APIs or take significant time must be marked `#[ignore]` with a reason:
+Tests that take significant time or hit rate-limited live APIs must be marked `#[ignore]` with a reason:
 
 ```rust
 #[tokio::test(flavor = "multi_thread")]
