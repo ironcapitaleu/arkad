@@ -54,7 +54,7 @@ Based on this reasoning, suggest what tests to write/review and let the user con
 
 - **Pattern:** Arrange, Define, Act, Assert
 - **Exactly ONE `assert!` per test function**
-- **Naming:** `should_..._when_...` in snake_case (verbose is fine)
+- **Naming:** Behavioral tests use `should_..._when_...`; auto-trait compliance tests use `should_implement_...` or `should_be_...` (no `when` needed). Always snake_case, verbose is fine.
 - **Location:** Unit tests in same file under `#[cfg(test)]`; integration tests in `tests/` directory
 - **Assertions:** Use `pretty_assertions` (`assert_eq!`, `assert_ne!`)
 - **`.expect()` messages:** Explain WHY the operation should not fail in that context
@@ -62,7 +62,7 @@ Based on this reasoning, suggest what tests to write/review and let the user con
 
 ## Boilerplate Tests (apply to ALL domain types and state structs)
 
-Every type (struct/enum) that derives `Debug, Clone, PartialEq, Eq, Hash, Ord` must have these:
+Every domain type and state struct gets the full set of compile-time trait compliance tests:
 
 ```rust
 const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
