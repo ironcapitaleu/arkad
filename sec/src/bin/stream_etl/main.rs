@@ -5,7 +5,6 @@ use std::fmt::{self, Display, Formatter};
 use std::io::stdout;
 use std::time::Instant;
 
-use futures_util::StreamExt;
 use pipeline::Pipeline;
 use sec::shared::http_client::implementations::sec_client::SecClient;
 use tracing_subscriber::fmt::format::FmtSpan;
@@ -41,17 +40,17 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     let sec_client = SecClient::default();
     let start = Instant::now();
 
-    let results: Vec<_> = futures_util::stream::iter(CIKS)
-        .map(|cik| {
-            Pipeline::builder()
-                .cik(cik)
-                .sec_client(sec_client.clone())
-                .build()
-                .run()
-        })
-        .buffer_unordered(3)
-        .collect()
-        .await;
+    // Concurrency is intentionally unbounded: the 10 req/s cap is enforced globally by the shared
+    // RateLimiter baked into SecClient, so pipelines simply park at the limiter's permit gate
+    // (natural backpressure) rather than being throttled by a bounded concurrency window.
+    let pipelines = CIKS.into_iter().map(|cik| {
+        Pipeline::builder()
+            .cik(cik)
+            .sec_client(sec_client.clone())
+            .build()
+            .run()
+    });
+    let results: Vec<_> = futures_util::future::join_all(pipelines).await;
 
     let elapsed = start.elapsed();
 

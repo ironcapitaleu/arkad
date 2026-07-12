@@ -14,6 +14,7 @@ use serde::{Serialize, Serializer};
 
 use crate::shared::http_client::InnerClient;
 use crate::shared::http_client::SecClient as SecClientTrait;
+use crate::shared::rate_limiter::{RateLimiter, SecRateLimiter};
 use crate::shared::request::implementations::sec_request::SecRequest;
 use crate::shared::response::SecResponse as SecResponseTrait;
 use crate::shared::response::implementations::sec_response::SecResponse;
@@ -29,10 +30,17 @@ pub mod error;
 /// Executes a validated request through a `reqwest::Client` and validates the reply into a
 /// [`SecResponse`].
 ///
+/// # Rate Limiting
+///
+/// Rate limiting is baked in: every request first awaits a permit from a [`SecRateLimiter`],
+/// pacing outgoing traffic to stay safely under the SEC's request-rate ceiling. The limiter shares
+/// its budget across every clone, so all clones draw from one common budget.
+///
 /// # Cloning
 ///
 /// `reqwest::Client` is `Arc`-backed, so clones share one connection pool, TLS sessions, and DNS
-/// cache — no extra `Arc` wrapping is needed for concurrent use.
+/// cache — no extra `Arc` wrapping is needed for concurrent use. The [`SecRateLimiter`] likewise
+/// shares its budget across clones.
 ///
 /// # User Agent
 ///
@@ -41,6 +49,7 @@ pub mod error;
 #[derive(Debug, Clone)]
 pub struct SecClient {
     inner: reqwest::Client,
+    limiter: SecRateLimiter,
 }
 
 impl Serialize for SecClient {
@@ -51,10 +60,15 @@ impl Serialize for SecClient {
 }
 
 impl SecClient {
-    /// Creates a new [`SecClient`] with the given `reqwest::Client`.
+    /// Creates a new [`SecClient`] with the given `reqwest::Client` and a [`SecRateLimiter`].
+    ///
+    /// The limiter paces requests safely under the SEC's request-rate ceiling.
     #[must_use]
-    pub const fn new(inner: reqwest::Client) -> Self {
-        Self { inner }
+    pub fn new(inner: reqwest::Client) -> Self {
+        Self {
+            inner,
+            limiter: SecRateLimiter::new(),
+        }
     }
 }
 
@@ -71,9 +85,10 @@ impl Default for SecClient {
     }
 }
 
-// Deviation: `reqwest::Client` does not expose any comparable or hashable state,
-// so all `SecClient` instances are considered equal. This satisfies trait bounds
-// that require `Eq + Ord + Hash` (e.g. for use in collections or state machines).
+// Deviation: neither `reqwest::Client` nor the `SecRateLimiter` expose any comparable or
+// hashable state, so all `SecClient` instances are considered equal and the limiter field — like
+// `inner` — is excluded from these impls. This satisfies trait bounds that require
+// `Eq + Ord + Hash` (e.g. for use in collections or state machines).
 
 impl PartialEq for SecClient {
     fn eq(&self, _other: &Self) -> bool {
@@ -115,6 +130,9 @@ impl SecClientTrait for SecClient {
         request: Self::Request,
     ) -> Result<Self::Response, Self::Error> {
         let inner_request = request.into_inner();
+
+        self.limiter.await_turn().await;
+
         let inner_response = self.inner.execute_request(inner_request).await?;
         let sec_response = SecResponse::from_inner(inner_response).await?;
         Ok(sec_response)

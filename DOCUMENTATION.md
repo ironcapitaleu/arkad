@@ -616,6 +616,23 @@ or positions in a sequence ("the second step of the extract phase", "passed down
 super-state", "used by transitions to move..."). Describe *what* the item does, not *who* calls
 it or *where* it sits in a pipeline — that couples the doc to an arrangement that can change.
 
+**External system vs. internal dependent.** Referencing the *external system the crate serves*
+is not coupling — it is domain justification, and it belongs in the docs. Naming an *internal
+dependent* (a caller, state, pipeline, or the concrete type that holds this one) is coupling and
+must be avoided. The test: does the reference point at a real-world constraint the code exists to
+satisfy, or at another piece of *our* code that happens to use it?
+
+| Reference | Kind | Verdict |
+|-----------|------|---------|
+| "under the SEC's 10 req/s ceiling" (on a rate limiter) | External system the crate serves | Allowed — explains *why* the values exist |
+| "paces outgoing SEC requests" (on the generic `RateLimiter` trait) | Consumer vocabulary in a domain-agnostic contract | Avoid — the trait paces *callers/permits*, not "requests" |
+| "shared across concurrently running pipelines" | Internal dependent (`pipeline`) | Avoid — say "across all clones" |
+| "a refactor of both the limiter and the client that holds it" | Internal dependent (the holding type) | Avoid — describe the limiter's own property |
+
+Note the layer distinction: a **generic trait** must stay domain-agnostic (no "SEC", no
+"request"), while the **concept's module doc, constants, and concrete impl** may name the external
+system, since they embody the tuning chosen to satisfy it.
+
 **Ordinal references** ("first", "second", "final step") are only appropriate when looking
 **downward**: a parent module may describe the order of its own children because it owns that
 sequence. A child must never claim its own position — it does not know (and should not assume)
