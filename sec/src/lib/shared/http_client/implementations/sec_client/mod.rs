@@ -49,7 +49,7 @@ pub mod error;
 #[derive(Debug, Clone)]
 pub struct SecClient {
     inner: reqwest::Client,
-    limiter: SecRateLimiter,
+    rate_limiter: SecRateLimiter,
 }
 
 impl Serialize for SecClient {
@@ -62,12 +62,12 @@ impl Serialize for SecClient {
 impl SecClient {
     /// Creates a new [`SecClient`] with the given `reqwest::Client` and a [`SecRateLimiter`].
     ///
-    /// The limiter paces requests safely under the SEC's request-rate ceiling.
+    /// The rate limiter paces requests safely under the SEC's request-rate ceiling.
     #[must_use]
     pub fn new(inner: reqwest::Client) -> Self {
         Self {
             inner,
-            limiter: SecRateLimiter::new(),
+            rate_limiter: SecRateLimiter::new(),
         }
     }
 }
@@ -131,7 +131,7 @@ impl SecClientTrait for SecClient {
     ) -> Result<Self::Response, Self::Error> {
         let inner_request = request.into_inner();
 
-        self.limiter.await_turn().await;
+        self.rate_limiter.await_turn().await;
 
         let inner_response = self.inner.execute_request(inner_request).await?;
         let sec_response = SecResponse::from_inner(inner_response).await?;
