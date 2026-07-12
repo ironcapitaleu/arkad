@@ -3,6 +3,10 @@
 //! Provides the [`SecClient`], the concrete [`SecClient`](crate::shared::http_client::SecClient)
 //! used throughout the pipeline.
 //!
+//! Rate limiting is globally shared: all [`SecClient`] instances — whether constructed independently
+//! or cloned — draw from a single budget, ensuring the SEC's request-rate ceiling is never
+//! exceeded regardless of how many clients exist.
+//!
 //! ## Modules
 //!
 //! - [`error`]: The [`FailedSecRequest`] error returned when execution fails.
@@ -11,6 +15,8 @@ use async_trait::async_trait;
 
 use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
+
+use std::sync::OnceLock;
 
 use crate::shared::http_client::InnerClient;
 use crate::shared::http_client::SecClient as SecClientTrait;
@@ -25,27 +31,25 @@ use self::error::FailedSecRequest;
 
 pub mod error;
 
+/// Shared rate limiter backing all [`SecClient`] instances.
+static GLOBAL_RATE_LIMITER: OnceLock<SecRateLimiter> = OnceLock::new();
+
 /// The default SEC API client, driving the full `SecRequest` → `SecResponse` cycle.
 ///
 /// Executes a validated request through a `reqwest::Client` and validates the reply into a
 /// [`SecResponse`].
 ///
-/// # Usage
-///
-/// Create one `SecClient` per process and pass clones to concurrent tasks. Constructing multiple
-/// independent instances splits the rate-limit budget, which can exceed the SEC's ceiling.
-///
 /// # Rate Limiting
 ///
-/// Rate limiting is baked in: every request first awaits a permit from a [`SecRateLimiter`],
-/// pacing outgoing traffic to stay safely under the SEC's request-rate ceiling. The limiter shares
-/// its budget across every clone, so all clones draw from one common budget.
+/// Every request first awaits a permit from the shared [`SecRateLimiter`], pacing outgoing traffic
+/// under the SEC's request-rate ceiling. Multiple instances can maintain separate TLS connections
+/// while still collectively respecting the rate limit.
 ///
 /// # Cloning
 ///
 /// `reqwest::Client` is `Arc`-backed, so clones share one connection pool, TLS sessions, and DNS
-/// cache — no extra `Arc` wrapping is needed for concurrent use. The [`SecRateLimiter`] likewise
-/// shares its budget across clones.
+/// cache — no extra `Arc` wrapping is needed for concurrent use. To use separate connection pools
+/// while retaining the shared rate limit, construct independent instances via [`SecClient::new`].
 ///
 /// # User Agent
 ///
@@ -65,13 +69,15 @@ impl Serialize for SecClient {
 }
 
 impl SecClient {
-    /// Creates a new [`SecClient`] with the given `reqwest::Client` and an internally managed
+    /// Creates a new [`SecClient`] with the given `reqwest::Client`, backed by the shared
     /// [`SecRateLimiter`] that paces requests under the SEC's request-rate ceiling.
     #[must_use]
     pub fn new(inner: reqwest::Client) -> Self {
         Self {
             inner,
-            rate_limiter: SecRateLimiter::new(),
+            rate_limiter: GLOBAL_RATE_LIMITER
+                .get_or_init(SecRateLimiter::new)
+                .clone(),
         }
     }
 }

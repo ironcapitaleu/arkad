@@ -40,9 +40,9 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     let sec_client = SecClient::default();
     let start = Instant::now();
 
-    // Concurrency is intentionally unbounded: the 10 req/s cap is enforced across all clones of
-    // this SecClient instance (Arc-backed limiter), so futures simply park at the permit gate
-    // (natural backpressure) rather than being throttled by a bounded concurrency window.
+    // Concurrency is intentionally unbounded: the 10 req/s cap is enforced by a process-global
+    // rate limiter, so futures simply park at the permit gate (natural backpressure) rather than
+    // being throttled by a bounded concurrency window.
     // If the CIK count grows to thousands, revisit with buffer_unordered to cap in-flight futures.
     let extractions = CIKS.into_iter().map(|cik| {
         Extraction::builder()
