@@ -11,12 +11,11 @@
 //!
 //! - [`error`]: The [`FailedSecRequest`] error returned when execution fails.
 
-use async_trait::async_trait;
+use std::sync::OnceLock;
 
+use async_trait::async_trait;
 use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
-
-use std::sync::OnceLock;
 
 use crate::shared::http_client::InnerClient;
 use crate::shared::http_client::SecClient as SecClientTrait;
