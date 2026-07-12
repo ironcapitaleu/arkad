@@ -75,9 +75,7 @@ impl SecClient {
     pub fn new(inner: reqwest::Client) -> Self {
         Self {
             inner,
-            rate_limiter: GLOBAL_RATE_LIMITER
-                .get_or_init(SecRateLimiter::new)
-                .clone(),
+            rate_limiter: GLOBAL_RATE_LIMITER.get_or_init(SecRateLimiter::new).clone(),
         }
     }
 }
