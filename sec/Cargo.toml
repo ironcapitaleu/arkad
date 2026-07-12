@@ -20,6 +20,7 @@ async-trait = "0.1.88"
 futures-core = "0.3"
 futures-util = "0.3"
 reqwest = { version = "0.13", features = ["json"] }
+governor = "0.10.4"
 state_maschine = { path = "../state_machine" }
 xbrl = { path = "../xbrl" }
 uuid = { version = "1.23.2", features = ["v4"] }

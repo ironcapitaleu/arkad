@@ -6,6 +6,7 @@
 //! ## Modules
 //! - [`cik`]: Provides parsing, validation, and formatting utilities for SEC Central Index Keys (CIKs).
 //! - [`http_client`]: Provides utilities for creating and managing SEC API clients, including user agent handling.
+//! - [`rate_limiter`]: Provides a leaky-bucket rate limiter for pacing outgoing SEC API requests.
 //! - [`request`]: Provides utilities for constructing SEC API requests, ensuring proper URL formatting.
 //! - [`response`]: Provides utilities for handling HTTP responses from SEC endpoints.
 //! - [`user_agent`]: Provides utilities for creating and validating SEC-compliant user agent strings.
@@ -23,6 +24,7 @@ pub mod content_type;
 pub mod financial;
 pub mod headers;
 pub mod http_client;
+pub mod rate_limiter;
 pub mod request;
 pub mod response;
 pub mod status_code;

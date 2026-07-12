@@ -3,17 +3,23 @@
 //! Provides the [`SecClient`], the concrete [`SecClient`](crate::shared::http_client::SecClient)
 //! used throughout the pipeline.
 //!
+//! Rate limiting is globally shared within this process: all [`SecClient`] instances — whether
+//! constructed independently or cloned — draw from a single budget, ensuring the SEC's request-rate
+//! ceiling is not exceeded by this process regardless of how many clients exist.
+//!
 //! ## Modules
 //!
 //! - [`error`]: The [`FailedSecRequest`] error returned when execution fails.
 
-use async_trait::async_trait;
+use std::sync::OnceLock;
 
+use async_trait::async_trait;
 use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
 
 use crate::shared::http_client::InnerClient;
 use crate::shared::http_client::SecClient as SecClientTrait;
+use crate::shared::rate_limiter::{RateLimiter, SecRateLimiter};
 use crate::shared::request::implementations::sec_request::SecRequest;
 use crate::shared::response::SecResponse as SecResponseTrait;
 use crate::shared::response::implementations::sec_response::SecResponse;
@@ -24,15 +30,25 @@ use self::error::FailedSecRequest;
 
 pub mod error;
 
+/// Shared rate limiter backing all [`SecClient`] instances.
+static GLOBAL_RATE_LIMITER: OnceLock<SecRateLimiter> = OnceLock::new();
+
 /// The default SEC API client, driving the full `SecRequest` → `SecResponse` cycle.
 ///
 /// Executes a validated request through a `reqwest::Client` and validates the reply into a
 /// [`SecResponse`].
 ///
+/// # Rate Limiting
+///
+/// Every request first awaits a permit from the shared [`SecRateLimiter`], pacing outgoing traffic
+/// under the SEC's request-rate ceiling. Multiple instances can maintain separate TLS connections
+/// while still collectively respecting the rate limit.
+///
 /// # Cloning
 ///
 /// `reqwest::Client` is `Arc`-backed, so clones share one connection pool, TLS sessions, and DNS
-/// cache — no extra `Arc` wrapping is needed for concurrent use.
+/// cache — no extra `Arc` wrapping is needed for concurrent use. To use separate connection pools
+/// while retaining the shared rate limit, construct independent instances via [`SecClient::new`].
 ///
 /// # User Agent
 ///
@@ -41,6 +57,7 @@ pub mod error;
 #[derive(Debug, Clone)]
 pub struct SecClient {
     inner: reqwest::Client,
+    rate_limiter: SecRateLimiter,
 }
 
 impl Serialize for SecClient {
@@ -51,10 +68,14 @@ impl Serialize for SecClient {
 }
 
 impl SecClient {
-    /// Creates a new [`SecClient`] with the given `reqwest::Client`.
+    /// Creates a new [`SecClient`] with the given `reqwest::Client`, backed by the shared
+    /// [`SecRateLimiter`] that paces requests under the SEC's request-rate ceiling.
     #[must_use]
-    pub const fn new(inner: reqwest::Client) -> Self {
-        Self { inner }
+    pub fn new(inner: reqwest::Client) -> Self {
+        Self {
+            inner,
+            rate_limiter: GLOBAL_RATE_LIMITER.get_or_init(SecRateLimiter::new).clone(),
+        }
     }
 }
 
@@ -71,9 +92,10 @@ impl Default for SecClient {
     }
 }
 
-// Deviation: `reqwest::Client` does not expose any comparable or hashable state,
-// so all `SecClient` instances are considered equal. This satisfies trait bounds
-// that require `Eq + Ord + Hash` (e.g. for use in collections or state machines).
+// Deviation: neither `reqwest::Client` nor the `SecRateLimiter` expose any comparable or
+// hashable state, so all `SecClient` instances are considered equal and the limiter field — like
+// `inner` — is excluded from these impls. This satisfies trait bounds that require
+// `Eq + Ord + Hash` (e.g. for use in collections or state machines).
 
 impl PartialEq for SecClient {
     fn eq(&self, _other: &Self) -> bool {
@@ -102,6 +124,7 @@ impl Ord for SecClient {
 #[async_trait]
 impl SecClientTrait for SecClient {
     type Inner = reqwest::Client;
+    type Limiter = SecRateLimiter;
     type Request = SecRequest;
     type Response = SecResponse;
     type Error = FailedSecRequest;
@@ -110,11 +133,18 @@ impl SecClientTrait for SecClient {
         &self.inner
     }
 
+    fn rate_limiter(&self) -> &Self::Limiter {
+        &self.rate_limiter
+    }
+
     async fn execute_sec_request(
         &self,
         request: Self::Request,
     ) -> Result<Self::Response, Self::Error> {
         let inner_request = request.into_inner();
+
+        self.rate_limiter().await_turn().await;
+
         let inner_response = self.inner.execute_request(inner_request).await?;
         let sec_response = SecResponse::from_inner(inner_response).await?;
         Ok(sec_response)

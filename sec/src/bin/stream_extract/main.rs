@@ -6,7 +6,6 @@ use std::io::stdout;
 use std::time::Instant;
 
 use extraction::Extraction;
-use futures_util::StreamExt;
 use sec::shared::http_client::implementations::sec_client::SecClient;
 use tracing_subscriber::fmt::format::FmtSpan;
 
@@ -41,17 +40,18 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     let sec_client = SecClient::default();
     let start = Instant::now();
 
-    let results: Vec<_> = futures_util::stream::iter(CIKS)
-        .map(|cik| {
-            Extraction::builder()
-                .cik(cik)
-                .sec_client(sec_client.clone())
-                .build()
-                .run()
-        })
-        .buffer_unordered(3)
-        .collect()
-        .await;
+    // Concurrency is intentionally unbounded: the 10 req/s cap is enforced by a process-global
+    // rate limiter, so futures simply park at the permit gate (natural backpressure) rather than
+    // being throttled by a bounded concurrency window.
+    // If the CIK count grows to thousands, revisit with buffer_unordered to cap in-flight futures.
+    let extractions = CIKS.into_iter().map(|cik| {
+        Extraction::builder()
+            .cik(cik)
+            .sec_client(sec_client.clone())
+            .build()
+            .run()
+    });
+    let results: Vec<_> = futures_util::future::join_all(extractions).await;
 
     let elapsed = start.elapsed();
 

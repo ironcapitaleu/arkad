@@ -3,6 +3,7 @@ use std::fmt::Debug;
 use async_trait::async_trait;
 
 use crate::shared::http_client::InnerClient;
+use crate::shared::rate_limiter::RateLimiter;
 
 /// The domain-level SEC HTTP client: executes an SEC request and returns an SEC response.
 ///
@@ -15,6 +16,7 @@ use crate::shared::http_client::InnerClient;
 /// decoupled from any specific HTTP crate:
 ///
 /// - `Inner`: The raw HTTP client this trait delegates to. Must implement [`InnerClient`].
+/// - `Limiter`: The rate limiter pacing outgoing requests. Must implement [`RateLimiter`].
 /// - `Request`: The SEC request type accepted by [`SecClient::execute_sec_request`].
 /// - `Response`: The SEC response type returned on success.
 /// - `Error`: The error type returned when request execution or response validation fails.
@@ -22,6 +24,8 @@ use crate::shared::http_client::InnerClient;
 pub trait SecClient: Send + Sync + Debug {
     /// The raw HTTP client this trait delegates to. Must implement [`InnerClient`].
     type Inner: InnerClient;
+    /// The rate limiter pacing outgoing requests. Must implement [`RateLimiter`].
+    type Limiter: RateLimiter;
     /// The SEC response type returned on success.
     type Response;
     /// The error type returned when request execution or response validation fails.
@@ -32,7 +36,13 @@ pub trait SecClient: Send + Sync + Debug {
     /// Returns a reference to the underlying raw HTTP client.
     fn inner(&self) -> &Self::Inner;
 
+    /// Returns a reference to the rate limiter pacing outgoing requests.
+    fn rate_limiter(&self) -> &Self::Limiter;
+
     /// Executes an SEC request, returning the validated response.
+    ///
+    /// Implementors must call [`RateLimiter::await_turn`] on [`Self::Limiter`] before sending
+    /// the request to ensure the SEC's rate ceiling is respected.
     ///
     /// # Errors
     ///
