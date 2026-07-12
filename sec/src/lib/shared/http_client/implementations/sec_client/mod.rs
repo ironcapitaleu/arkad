@@ -3,9 +3,9 @@
 //! Provides the [`SecClient`], the concrete [`SecClient`](crate::shared::http_client::SecClient)
 //! used throughout the pipeline.
 //!
-//! Rate limiting is globally shared: all [`SecClient`] instances — whether constructed independently
-//! or cloned — draw from a single budget, ensuring the SEC's request-rate ceiling is never
-//! exceeded regardless of how many clients exist.
+//! Rate limiting is globally shared within this process: all [`SecClient`] instances — whether
+//! constructed independently or cloned — draw from a single budget, ensuring the SEC's request-rate
+//! ceiling is not exceeded by this process regardless of how many clients exist.
 //!
 //! ## Modules
 //!
