@@ -13,10 +13,6 @@
 //! - [`traits`]: The [`RateLimiter`] contract.
 //! - [`implementations`]: The generic [`GovernorRateLimiter`] and the SEC-configured
 //!   [`SecRateLimiter`].
-//!
-//! ## See Also
-//!
-//! - [`crate::shared::http_client`]: Uses a [`SecRateLimiter`] to pace outgoing requests.
 
 pub mod implementations;
 pub mod traits;

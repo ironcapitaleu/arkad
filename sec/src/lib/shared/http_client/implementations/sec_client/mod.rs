@@ -60,9 +60,8 @@ impl Serialize for SecClient {
 }
 
 impl SecClient {
-    /// Creates a new [`SecClient`] with the given `reqwest::Client` and a [`SecRateLimiter`].
-    ///
-    /// The rate limiter paces requests safely under the SEC's request-rate ceiling.
+    /// Creates a new [`SecClient`] with the given `reqwest::Client` and an internally managed
+    /// [`SecRateLimiter`] that paces requests under the SEC's request-rate ceiling.
     #[must_use]
     pub fn new(inner: reqwest::Client) -> Self {
         Self {
