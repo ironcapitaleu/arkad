@@ -30,6 +30,11 @@ pub mod error;
 /// Executes a validated request through a `reqwest::Client` and validates the reply into a
 /// [`SecResponse`].
 ///
+/// # Usage
+///
+/// Create one `SecClient` per process and pass clones to concurrent tasks. Constructing multiple
+/// independent instances splits the rate-limit budget, which can exceed the SEC's ceiling.
+///
 /// # Rate Limiting
 ///
 /// Rate limiting is baked in: every request first awaits a permit from a [`SecRateLimiter`],
