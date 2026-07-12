@@ -127,6 +127,7 @@ impl Ord for SecClient {
 #[async_trait]
 impl SecClientTrait for SecClient {
     type Inner = reqwest::Client;
+    type Limiter = SecRateLimiter;
     type Request = SecRequest;
     type Response = SecResponse;
     type Error = FailedSecRequest;
@@ -135,13 +136,17 @@ impl SecClientTrait for SecClient {
         &self.inner
     }
 
+    fn rate_limiter(&self) -> &Self::Limiter {
+        &self.rate_limiter
+    }
+
     async fn execute_sec_request(
         &self,
         request: Self::Request,
     ) -> Result<Self::Response, Self::Error> {
         let inner_request = request.into_inner();
 
-        self.rate_limiter.await_turn().await;
+        self.rate_limiter().await_turn().await;
 
         let inner_response = self.inner.execute_request(inner_request).await?;
         let sec_response = SecResponse::from_inner(inner_response).await?;
