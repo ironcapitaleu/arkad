@@ -41,6 +41,9 @@ pub trait SecClient: Send + Sync + Debug {
 
     /// Executes an SEC request, returning the validated response.
     ///
+    /// Implementors must call [`RateLimiter::await_turn`] on [`Self::Limiter`] before sending
+    /// the request to ensure the SEC's rate ceiling is respected.
+    ///
     /// # Errors
     ///
     /// Returns `Self::Error` if the request fails at the network level or the response fails
