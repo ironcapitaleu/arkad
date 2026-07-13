@@ -20,7 +20,7 @@ fn test_client() -> reqwest::Client {
 #[tokio::test]
 async fn should_create_sec_response_when_response_is_valid_json_with_success_status() {
     let client = test_client();
-    let url = "https://httpbin.org/get"; // Returns 200 OK with application/json content type and valid JSON body
+    let url = "https://jsonplaceholder.typicode.com/posts/1"; // Returns 200 OK with application/json content type and valid JSON body
     let request_url = reqwest::Url::parse(url).expect("The hardcoded URL should always be valid");
     let request = Request::new(Method::GET, request_url);
 
@@ -29,7 +29,7 @@ async fn should_create_sec_response_when_response_is_valid_json_with_success_sta
     let response = client
         .execute_request(request)
         .await
-        .expect("A request to httpbin.org should always succeed");
+        .expect("A request to jsonplaceholder should always succeed");
     let result = SecResponse::from_inner(response).await.is_ok();
 
     assert_eq!(result, expected_result);
@@ -38,14 +38,14 @@ async fn should_create_sec_response_when_response_is_valid_json_with_success_sta
 #[tokio::test]
 async fn should_return_json_content_type_when_sec_response_is_created_successfully() {
     let client = test_client();
-    let url = "https://httpbin.org/get";
+    let url = "https://jsonplaceholder.typicode.com/posts/1";
     let request_url = reqwest::Url::parse(url).expect("The hardcoded URL should always be valid");
     let request = Request::new(Method::GET, request_url);
 
     let response = client
         .execute_request(request)
         .await
-        .expect("A request to httpbin.org should always succeed");
+        .expect("A request to jsonplaceholder should always succeed");
 
     let expected_result = ContentType::Json;
 
@@ -60,14 +60,14 @@ async fn should_return_json_content_type_when_sec_response_is_created_successful
 #[tokio::test]
 async fn should_return_ok_status_code_when_sec_response_is_created_successfully() {
     let client = test_client();
-    let url = "https://httpbin.org/get";
+    let url = "https://jsonplaceholder.typicode.com/posts/1";
     let request_url = reqwest::Url::parse(url).expect("The hardcoded URL should always be valid");
     let request = Request::new(Method::GET, request_url);
 
     let response = client
         .execute_request(request)
         .await
-        .expect("A request to httpbin.org should always succeed");
+        .expect("A request to jsonplaceholder should always succeed");
 
     let expected_result = StatusCode::Ok;
 
@@ -82,14 +82,14 @@ async fn should_return_ok_status_code_when_sec_response_is_created_successfully(
 #[tokio::test]
 async fn should_fail_with_invalid_status_code_when_response_is_not_success() {
     let client = test_client();
-    let url = "https://httpbin.org/status/404"; // Returns 404 Not Found
+    let url = "https://mock.codes/404"; // Returns 404 Not Found
     let request_url = reqwest::Url::parse(url).expect("The hardcoded URL should always be valid");
     let request = Request::new(Method::GET, request_url);
 
     let response = client
         .execute_request(request)
         .await
-        .expect("A request to httpbin.org should always succeed");
+        .expect("A request to mock.codes should always succeed");
 
     let expected_result = ErrorReason::InvalidStatusCode {
         status_code: StatusCode::NotFound,
@@ -106,14 +106,14 @@ async fn should_fail_with_invalid_status_code_when_response_is_not_success() {
 #[tokio::test]
 async fn should_fail_with_invalid_content_type_when_response_is_not_json() {
     let client = test_client();
-    let url = "https://httpbin.org/html"; // Returns 200 OK with text/html content type
+    let url = "https://example.com"; // Returns 200 OK with text/html content type
     let request_url = reqwest::Url::parse(url).expect("The hardcoded URL should always be valid");
     let request = Request::new(Method::GET, request_url);
 
     let response = client
         .execute_request(request)
         .await
-        .expect("A request to httpbin.org should always succeed");
+        .expect("A request to example.com should always succeed");
 
     let expected_result = ErrorReason::InvalidContentType {
         content_type: ContentType::Html,
