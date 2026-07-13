@@ -16,6 +16,13 @@
   - Integration tests
   - Doctests
 
+### Codebase-Wide Propagation
+
+When making a change that applies to multiple places (renaming a pattern, replacing a dependency,
+migrating an endpoint, fixing a convention), proactively **apply it everywhere in the same pass**. Do not fix
+one file and leave identical occurrences in other files for a follow-up PR. Search the entire
+codebase for all instances before considering the change complete.
+
 ### Documentation
 
 - Public items in libraries **must include docstrings** (`///`).
