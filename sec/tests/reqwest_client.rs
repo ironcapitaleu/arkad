@@ -1,3 +1,12 @@
+//! # Reqwest Client Integration Tests
+//!
+//! Validates that the [`InnerClient`] implementation for `reqwest::Client` correctly propagates
+//! HTTP status codes from real endpoints.
+//!
+//! ## External Dependencies
+//!
+//! - `mock.codes` — Canned HTTP status code responses
+
 use pretty_assertions::assert_eq;
 use reqwest::Request;
 

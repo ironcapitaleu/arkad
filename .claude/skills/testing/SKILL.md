@@ -352,7 +352,7 @@ Integration tests live in the crate's `tests/` directory, one file per component
 
 ```
 sec/tests/
-├── reqwest_client.rs       # HTTP client against httpbin.org
+├── reqwest_client.rs       # HTTP client against mock.codes
 ├── sec_client.rs           # SEC client against SEC EDGAR
 ├── sec_response.rs         # Response parsing with real data
 └── pipeline_coverage/      # Multi-file pipeline test
@@ -360,6 +360,37 @@ sec/tests/
     ├── builder.rs
     └── constants.rs
 ```
+
+### External dependencies documentation
+
+Every integration test file must include a module-level `//!` docstring that lists its external
+dependencies — endpoints, live APIs, or real-world conditions it relies on. This makes it
+immediately clear what can cause failures unrelated to code changes.
+
+```rust
+//! # Reqwest Client Integration Tests
+//!
+//! Validates that the [`InnerClient`] impl for `reqwest::Client` correctly propagates
+//! HTTP status codes from real endpoints.
+//!
+//! ## External Dependencies
+//!
+//! - `mock.codes` — Canned HTTP status code responses
+```
+
+**Proactive propagation:** When migrating an endpoint (e.g., replacing `httpbin.org`), search
+ALL integration test files for that endpoint and migrate them in the same pass. Do not leave
+stale endpoints in other files to be caught later.
+
+### Preferred external test endpoints
+
+When integration tests need a live HTTP endpoint, prefer these (in order of reliability):
+
+- **`mock.codes/{status}`** — status code responses (`text/plain`). Lightweight, reliable.
+- **`jsonplaceholder.typicode.com`** — JSON responses with proper `application/json` content type.
+- **`example.com`** — HTML responses with `text/html` content type. IANA-maintained, stable.
+
+Avoid `httpbin.org` — it frequently returns 502/503 in CI environments.
 
 ### Long-running tests: use `#[ignore]`
 
@@ -386,7 +417,7 @@ Add a module-level docstring explaining how to run ignored tests:
 
 ### When NOT to use `#[ignore]`
 
-- Tests that complete in under ~5 seconds (like `reqwest_client.rs` against httpbin.org)
+- Tests that complete in under ~5 seconds (like `reqwest_client.rs` against mock.codes)
 - Tests that use local fixtures or local test servers instead of live endpoints
 - Tests that validate logic without I/O
 
@@ -422,7 +453,7 @@ async fn should_pace_requests_to_configured_rate_when_acquiring_permits() {
 #[tokio::test]
 async fn should_return_ok_status_code_when_request_is_valid() {
     let client = test_client();
-    let url = "https://httpbin.org/get";
+    let url = "https://mock.codes/200";
     let request_url = reqwest::Url::parse(url)
         .expect(&format!("The hardcoded URL `{url}` should always be valid"));
     let request = Request::new(reqwest::Method::GET, request_url);
