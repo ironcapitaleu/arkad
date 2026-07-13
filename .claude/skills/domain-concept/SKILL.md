@@ -306,7 +306,7 @@ fn test_client() -> reqwest::Client {
 #[tokio::test]
 async fn should_return_ok_status_code_when_request_is_valid() {
     let client = test_client();
-    let url = "https://httpbin.org/get";
+    let url = "https://mock.codes/200";
     let request_url = reqwest::Url::parse(url)
         .expect(&format!("The hardcoded URL `{url}` should always be valid"));
     let request = reqwest::Request::new(reqwest::Method::GET, request_url);
@@ -408,7 +408,7 @@ fn test_client() -> reqwest::Client {
 #[tokio::test]
 async fn should_return_ok_status_code_when_request_is_valid() {
     let client = test_client();
-    let url = "https://httpbin.org/get";
+    let url = "https://mock.codes/200";
     let request_url = reqwest::Url::parse(url)
         .expect(&format!("The hardcoded URL `{url}` should always be valid"));
     let request = reqwest::Request::new(reqwest::Method::GET, request_url);

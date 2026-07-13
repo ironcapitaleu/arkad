@@ -1,3 +1,12 @@
+//! # SecClient Integration Tests
+//!
+//! Validates that [`SecClient`] correctly executes requests against the live SEC EDGAR API and
+//! returns properly parsed responses.
+//!
+//! ## External Dependencies
+//!
+//! - `data.sec.gov` — Live SEC EDGAR API (JSON company filings)
+
 use pretty_assertions::assert_eq;
 use serde_json::Value;
 
