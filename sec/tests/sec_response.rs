@@ -1,3 +1,14 @@
+//! # SecResponse Integration Tests
+//!
+//! Validates that [`SecResponse`] correctly parses real HTTP responses (status codes, content
+//! types, and JSON bodies).
+//!
+//! ## External Dependencies
+//!
+//! - `jsonplaceholder.typicode.com` — JSON responses with `application/json` content type
+//! - `example.com` — HTML responses with `text/html` content type (IANA-maintained, stable)
+//! - `mock.codes` — Canned HTTP status code responses
+
 use pretty_assertions::assert_eq;
 use reqwest::{Method, Request};
 
