@@ -246,6 +246,21 @@ Refs: #123
 
 ---
 
+## Pull Request Creation
+
+When creating a pull request, always use the repository's PR template located at
+`.github/pull_request_template.md`. Fill in all sections:
+
+1. **Description** — what changed and why
+2. **Related** — link to tickets, issues, or prior PRs
+3. **Type of change** — check the appropriate box
+4. **Test Plan** — how was this tested, how can a reviewer verify
+5. **Checklist** — confirm guidelines are followed
+
+Never use a freeform PR body or a different structure.
+
+---
+
 ## PR Review Guidelines
 
 ### Code Quality Review
@@ -340,6 +355,7 @@ Do NOT create a skill when:
 3. Put lookup/reference data in `.claude/skills/{name}/references/` as separate markdown files
 4. Add staleness headers to reference files (source, last-verified, update-frequency, taxonomy-year)
 5. If reference content derives from source code, note the source file in the header
+6. Consider adding a **Self-Improvement** section if the skill covers a domain that evolves through usage (templates, conventions, examples). This section instructs the agent to propose updates to the skill when the user corrects or refines a pattern during use.
 
 **Minimal SKILL.md example:**
 
@@ -379,6 +395,7 @@ version: 0.1.0
 - Include "Authoritative Sources" section with URLs for live lookup when references are insufficient
 - Include staleness instructions so the agent knows when to prompt for updates
 - **Keep authoritative data as-is in terms of content.** When including external reference data (e.g., taxonomy files, standards documents), store it in its original form or a lossless format conversion. Do not rewrite, summarize, or reinterpret authoritative content — this avoids translation drift and ensures the skill always reflects the source of truth exactly
+- **Self-improvement sections** — for skills that encode conventions, templates, or workflows that evolve through team usage, add a "Self-Improvement" section at the end. This instructs the agent to ask the user whether corrections or refinements should be captured back into the skill. Good candidates: naming patterns, few-shot examples, new variants, checklist items discovered during use. Not every skill needs this — static reference data or fixed procedures do not benefit from it.
 
 ---
 
