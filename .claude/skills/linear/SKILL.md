@@ -592,3 +592,23 @@ label can be added manually in Linear, and the ID should be captured here afterw
   - IMPLEMENTATION: "Follow the Software Development Guidelines outlined [here](...)"
 - **Definition of Done structure:** Use nested checkboxes for sub-tasks. Top-level items are major deliverables; nested items are specific tasks within that deliverable.
 - **Next steps in Additional Notes:** When a ticket enables follow-on work, note it (e.g., "Once this is done, a `Transition` from X to Y can be implemented.").
+
+## Self-Improvement
+
+After creating an issue where the user corrected or refined the template, naming, or workflow:
+
+1. Ask: "Should I update the linear skill with this change?"
+2. If yes, update the relevant section in this SKILL.md.
+3. Apply after user approval.
+
+Examples of things worth capturing:
+- New issue types or labels that emerge (add to the tables and create a template if warranted)
+- Template adjustments (new sections, reworded headings, different Definition of Done phrasing)
+- New label IDs discovered when creating issues of previously-uncaptured types
+- Priority conventions that differ from the documented defaults
+- Workflow changes (e.g., new linking conventions, new fields to fill)
+- Few-shot examples that better represent current practice — replace outdated ones
+- Conventions the user establishes through repeated corrections
+
+Nothing in this skill is set in stone — templates, headings, types, and conventions should
+evolve as the team's process evolves. The skill is authoritative guidance, not a frozen spec.
