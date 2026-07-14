@@ -246,6 +246,21 @@ Refs: #123
 
 ---
 
+## Pull Request Creation
+
+When creating a pull request, always use the repository's PR template located at
+`.github/pull_request_template.md`. Fill in all sections:
+
+1. **Description** — what changed and why
+2. **Related** — link to tickets, issues, or prior PRs
+3. **Type of change** — check the appropriate box
+4. **Test Plan** — how was this tested, how can a reviewer verify
+5. **Checklist** — confirm guidelines are followed
+
+Never use a freeform PR body or a different structure.
+
+---
+
 ## PR Review Guidelines
 
 ### Code Quality Review
