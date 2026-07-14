@@ -303,7 +303,7 @@ This SPIKE ticket is related to the implementation ticket [STA-125](https://line
 
 - [ ] Review how to best implement a Rate Limiter for our State Machine Executions
   - [ ] Review if and what libraries are needed for this
-    - [ ] is there a built-in `tokio` rate limiter, is is usable for us?
+    - [ ] Is there a built-in `tokio` rate limiter, is it usable for us?
     - [ ] governor - not sure if this will do it instead?
   - [ ] how would they be best integrated into our existing async stream pipeline?
     - [ ] minimal disruptions to the async stream would be ideal
@@ -316,7 +316,7 @@ This SPIKE ticket is related to the implementation ticket [STA-125](https://line
 - [ ] Does it make sense to remove `buffer_unordered(3)` once we have the rate limiter?
 - [ ] Write a google doc containing the findings of the research of this topic.
   - [ ] Summarize these review findings and discuss potential alternatives (if they exist) on a very high level. Discuss pros and cons for each approach.
-  - [ ] Based on the summary, make a recommendation as to how rate limiting should be ideally be implemented with minimal disruptions to our async stream implementations for the etl pipeline
+  - [ ] Based on the summary, make a recommendation as to how rate limiting should ideally be implemented with minimal disruptions to our async stream implementations for the ETL pipeline
   - [ ] Link the created written document in the "Link to Findings" section in this ticket
 
 ## **Additional Notes:**
@@ -402,7 +402,7 @@ This ticket is a direct continuation of [STA-72](https://linear.app/state-machin
 
 ## Definition of Done:
 
-- [ ] `Transition` from the `ValidateCikFormat` to the `PrepareSecRequest` are implemented
+- [ ] `Transition` from the `ValidateCikFormat` to the `PrepareSecRequest` is implemented
   - [ ] `Transition` trait with its methods has been implemented from `ValidateCikFormat` to `PrepareSecRequest`
   - [ ] Implement the necessary domain concepts (if needed) inside the `arkad/sec/src/lib/shared/` directory
   - [ ] Implement Error Handling for the `Transition` according to the existing hybrid error handling model (add/use a `Transition` error)
@@ -439,11 +439,11 @@ so that I can use and modify the `Extract` `State` easily.
 
 ## **Description:**
 
-This is a refactoring ticket to finalize the implementation work of working on the `Extract` `SuperState` with all it's Sub-States.
+This is a refactoring ticket to finalize the implementation work of working on the `Extract` `SuperState` with all its Sub-States.
 
 ## Definition of Done:
 
-- [ ] Review the code with respect to (but not limited to) the following aspects. Refactor them if any of these things applies.
+- [ ] Review the code with respect to (but not limited to) the following aspects. Refactor them if any of these things apply.
   - [ ] Folder Structure and Naming
   - [ ] Idiomatic use of the `builder` pattern as a constructor
   - [ ] Renaming of some redundantly named concepts
@@ -564,6 +564,10 @@ Always confirm with the user before making changes.
 | REFACTOR | `f4ab8267-331c-400a-8b54-4e6424b7f3e7` |
 | DOCS | `4ae80929-fd9a-4d24-9e05-1c896d374700` |
 | ONBOARDING | `339b3f41-9f48-4574-a958-ff76cf82795e` |
+
+**Note:** Label IDs for IMPLEMENTATION, TEST, FRONTEND, and DESIGN are not yet captured.
+When creating an issue with one of these types for the first time, omit `labelIds` — the
+label can be added manually in Linear, and the ID should be captured here afterwards.
 
 ## Conventions
 
