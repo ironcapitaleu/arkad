@@ -204,7 +204,7 @@ This SPIKE ticket is related to the implementation ticket [STA-XXX](url).
 - [ ] Review …
   - [ ] …
   - [ ] …
-- [ ] Write a google doc containing the findings of the research of this topic.
+- [ ] Write a Google Doc containing the findings of this research.
   - [ ] Summarize these review findings and discuss potential alternatives (if they exist) on a very high level. Discuss pros and cons for each approach.
   - [ ] Based on the summary, make a recommendation as to how … should be ideally implemented.
   - [ ] Link the created written document in the "Link to Findings" section in this ticket
@@ -250,6 +250,11 @@ This ticket is the direct continuation of [STA-XXX](url).
 
 ---
 ```
+
+### DOCS / TEST / FRONTEND / DESIGN Templates
+
+These types do not have a dedicated template. Use the **BASIC USER TICKET** template below
+and adapt it to the specific needs of the issue.
 
 ### BASIC USER TICKET Template (no prefix)
 
@@ -314,7 +319,7 @@ This SPIKE ticket is related to the implementation ticket [STA-125](https://line
   - [ ] e.g., via timed integration tests or whatnot
 - [ ] Also note or review limitations of this rate limiting strategy and how it could be implemented in a distributed fashion
 - [ ] Does it make sense to remove `buffer_unordered(3)` once we have the rate limiter?
-- [ ] Write a google doc containing the findings of the research of this topic.
+- [ ] Write a Google Doc containing the findings of this research.
   - [ ] Summarize these review findings and discuss potential alternatives (if they exist) on a very high level. Discuss pros and cons for each approach.
   - [ ] Based on the summary, make a recommendation as to how rate limiting should ideally be implemented with minimal disruptions to our async stream implementations for the ETL pipeline
   - [ ] Link the created written document in the "Link to Findings" section in this ticket
@@ -536,7 +541,7 @@ Use `mcp__linear__create_issue` with:
 - `title`: formatted as `[LABEL] Title` (or just `Title` for basic)
 - `description`: filled template
 - `priority`: user-selected (default 2)
-- `labelIds`: match the label to existing IDs (see Label IDs section)
+- `labelIds`: match the label to existing IDs (see Label IDs section). Omit if the label ID is not yet captured.
 
 ### Step 4: Confirm
 
@@ -571,7 +576,7 @@ label can be added manually in Linear, and the ID should be captured here afterw
 
 ## Conventions
 
-- **SPIKE before FEATURE:** Research tickets (SPIKE) always precede implementation tickets (FEATURE). A SPIKE reduces ambiguity so the FEATURE can have clear, concrete acceptance criteria. Link them bidirectionally.
+- **SPIKE before FEATURE (when needed):** When requirements are unclear or multiple approaches exist, create a SPIKE before the FEATURE. Not every FEATURE needs a SPIKE — only those with ambiguity that needs resolving. When a SPIKE exists, link it bidirectionally with its FEATURE.
 - **Implementation requires clarity:** FEATURE and IMPLEMENTATION tickets should have concise requirements or designs in place before work begins. If requirements are unclear, create a SPIKE first.
 - **Comments as progress logs:** Use comments for meeting notes (DONE / NEXT STEPS format) and progress updates.
 - **Branch names:** Linear auto-generates branch names from titles — no manual naming needed.
