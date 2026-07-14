@@ -36,6 +36,7 @@ Each issue type exists for a specific reason in the development workflow:
 | **ONBOARDING** | Structured learning path for team members to get productive. | New team member or new technology area. | Completed reading/exercises. |
 | **DOCS** | Improve documentation quality and consistency. | Docs are missing, outdated, or inconsistent. | Updated documentation. |
 | **TEST** | Add or review test coverage. | Code exists but tests are missing or inadequate. | Test suite improvements. |
+| **FRONTEND** | UI/frontend implementation or changes. | Design or requirements available. | Working UI, tests, PR merged. |
 | **DESIGN** | Architectural/design work producing diagrams or specs. | System needs to be designed before implementation. | Design documents, diagrams. |
 
 ### The SPIKE → FEATURE Pipeline
@@ -253,8 +254,9 @@ This ticket is the direct continuation of [STA-XXX](url).
 
 ### DOCS / TEST / FRONTEND / DESIGN Templates
 
-These types do not have a dedicated template. Use the **BASIC USER TICKET** template below
-and adapt it to the specific needs of the issue.
+These types do not have a dedicated description template. Use the **BASIC USER TICKET**
+description structure below and adapt it to the specific needs of the issue.
+The title prefix still applies (e.g., `[DOCS] ...`, `[TEST] ...`).
 
 ### BASIC USER TICKET Template (no prefix)
 
