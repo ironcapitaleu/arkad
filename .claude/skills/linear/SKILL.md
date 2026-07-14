@@ -6,7 +6,7 @@ description: >
   "search linear", "update a ticket", or needs to interact with Linear in any way
   (creating, reading, updating, or searching issues).
 version: 0.1.0
-argument-hint: "[create|list|search|update] [details]"
+argument-hint: "[create|list|search|get|update] [details]"
 allowed-tools: [Read, Write, Edit, Bash, AskUserQuestion, mcp__linear__create_issue, mcp__linear__get_issue, mcp__linear__list_issues, mcp__linear__list_teams, mcp__linear__list_projects, mcp__linear__search_issues, mcp__linear__update_issue]
 ---
 
@@ -554,6 +554,8 @@ Show the user the created issue URL and summary.
 - **List issues:** Use `mcp__linear__list_issues` with team filter
 - **Search:** Use `mcp__linear__search_issues` with keywords
 - **Get details:** Use `mcp__linear__get_issue` with the issue ID
+- **List teams:** Use `mcp__linear__list_teams` to discover team IDs when needed
+- **List projects:** Use `mcp__linear__list_projects` to discover project IDs for filtering
 
 When presenting issues to the user, show: identifier, title, status, assignee, and URL.
 
