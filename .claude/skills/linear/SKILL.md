@@ -5,9 +5,9 @@ description: >
   "make a linear ticket", "create a SPIKE", "create a FEATURE ticket", "list my issues",
   "search linear", "update a ticket", or needs to interact with Linear in any way
   (creating, reading, updating, or searching issues).
-version: 0.2.0
-argument-hint: "[action] [details]"
-allowed-tools: [Read, Bash, AskUserQuestion, mcp__linear__create_issue, mcp__linear__get_issue, mcp__linear__list_issues, mcp__linear__list_teams, mcp__linear__list_projects, mcp__linear__search_issues, mcp__linear__update_issue]
+version: 0.1.0
+argument-hint: "[create|list|search|update] [details]"
+allowed-tools: [Read, Write, Edit, Bash, AskUserQuestion, mcp__linear__create_issue, mcp__linear__get_issue, mcp__linear__list_issues, mcp__linear__list_teams, mcp__linear__list_projects, mcp__linear__search_issues, mcp__linear__update_issue]
 ---
 
 # Linear Issue Management Skill
