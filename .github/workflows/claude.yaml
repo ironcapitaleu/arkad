@@ -5,6 +5,8 @@ on:
     types: [created]
   pull_request_review_comment:
     types: [created]
+  pull_request:
+    types: [opened]
   issues:
     types: [opened]
 
@@ -31,11 +33,11 @@ jobs:
       - uses: anthropics/claude-code-action@v1
         with:
           use_bedrock: "true"
+          github_token: ${{ secrets.GITHUB_TOKEN }}
           claude_args: '--model us.anthropic.claude-sonnet-4-6'
 
-  claude-review:
-    if: |
-      github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude review')
+  claude-auto-review:
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     env:
       AWS_BEARER_TOKEN_BEDROCK: ${{ secrets.CLAUDE_AWS_BEARER_TOKEN_BEDROCK }}
@@ -48,5 +50,18 @@ jobs:
       - uses: anthropics/claude-code-action@v1
         with:
           use_bedrock: "true"
+          github_token: ${{ secrets.GITHUB_TOKEN }}
           claude_args: '--model us.anthropic.claude-sonnet-4-6'
-          prompt: "Review this PR for correctness bugs, security issues, and performance regressions. Post findings as inline comments."
+          prompt: |
+            Review this PR using the project's AGENTS.md "PR Review Guidelines" section.
+
+            1. Post a summary of the changes in 2-3 bullet points.
+
+            2. For each finding, reference the specific file and line. Categorize by severity:
+               - 🔴 Bug / security issue / correctness problem (must fix)
+               - 🟡 Improvement / performance / style (should fix)
+               - 🟣 Nit / minor (optional)
+
+            3. When you can provide a concrete fix, include a code block showing the corrected code.
+
+            4. If the PR looks clean, just post the summary — no further action needed.
