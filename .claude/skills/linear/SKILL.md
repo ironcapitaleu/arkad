@@ -205,7 +205,7 @@ This SPIKE ticket is related to the implementation ticket [STA-XXX](url).
 - [ ] Review …
   - [ ] …
   - [ ] …
-- [ ] Write a Google Doc containing the findings of this research.
+- [ ] Write a document (e.g., Linear document) containing the findings of this research.
   - [ ] Summarize these review findings and discuss potential alternatives (if they exist) on a very high level. Discuss pros and cons for each approach.
   - [ ] Based on the summary, make a recommendation as to how … should be ideally implemented.
   - [ ] Link the created written document in the "Link to Findings" section in this ticket
@@ -321,7 +321,7 @@ This SPIKE ticket is related to the implementation ticket [STA-125](https://line
   - [ ] e.g., via timed integration tests or whatnot
 - [ ] Also note or review limitations of this rate limiting strategy and how it could be implemented in a distributed fashion
 - [ ] Does it make sense to remove `buffer_unordered(3)` once we have the rate limiter?
-- [ ] Write a Google Doc containing the findings of this research.
+- [ ] Write a document (e.g., Linear document) containing the findings of this research.
   - [ ] Summarize these review findings and discuss potential alternatives (if they exist) on a very high level. Discuss pros and cons for each approach.
   - [ ] Based on the summary, make a recommendation as to how rate limiting should ideally be implemented with minimal disruptions to our async stream implementations for the ETL pipeline
   - [ ] Link the created written document in the "Link to Findings" section in this ticket
@@ -513,6 +513,58 @@ This ticket is the direct continuation of [STA-69](https://linear.app/state-mach
 ---
 ```
 
+## Building the Definition of Done
+
+The Definition of Done (DoD) is the most critical part of every ticket — it defines when work
+is complete and prevents scope ambiguity. Every DoD should be constructed deliberately using
+the following methodology.
+
+### Structure Rules
+
+1. **Two levels of nesting:** Top-level checkboxes are major deliverables or work areas.
+   Nested checkboxes are specific, actionable tasks within that deliverable.
+2. **Actionable items only:** Each checkbox should describe a concrete action or artifact,
+   not a vague aspiration. "Implement error handling" → good. "Think about errors" → bad.
+3. **Ordered by execution flow:** Items should roughly follow the order in which they'd be
+   completed. Research before implementation, implementation before testing.
+4. **Final item is always the guidelines link** (for FEATURE, REFACTOR, IMPLEMENTATION types).
+
+### Per-Type DoD Patterns
+
+| Type | DoD Structure |
+| --- | --- |
+| **SPIKE** | Research areas (with specific questions as sub-items) → Testing/validation considerations → Write findings doc (with sub-items: summarize, recommend, link) |
+| **FEATURE** | Primary implementation (with sub-tasks: design, implement, domain concepts, error handling, integration) → Guidelines link |
+| **REFACTOR** | Review aspects as top-level items (with specific checks as sub-items) → Guidelines link |
+| **IMPLEMENTATION** | Same as FEATURE |
+| **ONBOARDING** | Resources grouped by source (book chapters, exercises, notes) with individual items as sub-checkboxes |
+| **DOCS / TEST / FRONTEND / DESIGN** | Deliverables specific to the work, no fixed pattern |
+
+### How to Build the DoD Interactively
+
+When the user provides enough context (e.g., "benchmark the pipeline performance"), infer
+the DoD from the problem description and domain knowledge. Draft it fully and present it
+in the created ticket.
+
+When context is insufficient, use `AskUserQuestion` to clarify:
+
+1. **What are the major deliverables?** — These become top-level checkboxes.
+2. **What specific sub-tasks does each deliverable involve?** — These become nested checkboxes.
+3. **Are there specific questions to answer or alternatives to compare?** (SPIKEs)
+4. **Are there specific files, modules, or components affected?** (FEATURE/REFACTOR)
+5. **What does "done" look like — how would you verify this is complete?**
+
+### DoD Quality Checklist (internal, not shown to user)
+
+Before finalizing a DoD, verify:
+
+- [ ] Every top-level item is independently verifiable (someone can check it off without ambiguity)
+- [ ] Sub-items are specific enough that two developers would interpret them the same way
+- [ ] No item duplicates what's already in the Description section
+- [ ] SPIKE DoDs end with the "Write a document" item and its standard sub-items
+- [ ] FEATURE/REFACTOR/IMPLEMENTATION DoDs end with the guidelines link (correct phrasing per type)
+- [ ] Items reference specific code names in backticks where applicable
+
 ## Workflow: Creating an Issue
 
 ### Step 1: Gather Information
@@ -527,9 +579,19 @@ Use `AskUserQuestion` to collect:
 If the user provided enough context when invoking the skill, skip questions you can already
 answer. Infer what you can from conversation context.
 
-### Step 2: Build the Description
+### Step 2: Build the Description and Definition of Done
 
-Based on the issue type, fill in the appropriate template. Ask follow-up questions for:
+Based on the issue type, fill in the appropriate template. The DoD is the most important
+part — follow the "Building the Definition of Done" section above to construct it.
+
+**Gathering DoD input:**
+
+- If the user provided rich context (problem description, specific concerns, components involved),
+  draft the full DoD from that context without asking additional questions.
+- If context is sparse, ask targeted follow-up questions (see "How to Build the DoD Interactively" above).
+- Always err on the side of being specific — a DoD that's too detailed is better than one that's too vague.
+
+**Additional template-specific questions:**
 
 - **FEATURE:** What are the acceptance criteria? Related design docs? Is there a preceding SPIKE?
 - **SPIKE:** What is the related implementation ticket? What specific research questions need answering? What alternatives should be compared?
@@ -592,7 +654,7 @@ label can be added manually in Linear, and the ID should be captured here afterw
   - FEATURE: "The Software Development Guidelines outlined [here](...) are followed"
   - REFACTOR: "Make sure the Software Development Guidelines outlined [here](...) are followed"
   - IMPLEMENTATION: "Follow the Software Development Guidelines outlined [here](...)"
-- **Definition of Done structure:** Use nested checkboxes for sub-tasks. Top-level items are major deliverables; nested items are specific tasks within that deliverable.
+- **Definition of Done structure:** See the dedicated "Building the Definition of Done" section above for the full methodology. In short: top-level items are major deliverables, nested items are specific tasks, ordered by execution flow.
 - **Next steps in Additional Notes:** When a ticket enables follow-on work, note it (e.g., "Once this is done, a `Transition` from X to Y can be implemented.").
 
 ## Self-Improvement
