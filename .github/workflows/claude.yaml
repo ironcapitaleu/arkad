@@ -71,4 +71,4 @@ jobs:
                - 🟡 Improvement / performance / style (should fix)
                - 🟣 Nit / minor (optional)
 
-            4. If the PR looks clean, just post the summary and approve.
+            4. If the PR looks clean, just post the summary comment — no further action needed.
