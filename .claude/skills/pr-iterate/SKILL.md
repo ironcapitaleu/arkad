@@ -18,6 +18,10 @@ Drive a tight feedback loop on a PR: read review comments, implement clearly val
 inform the human about changes made and ambiguous feedback, request a re-review, and repeat
 until the PR is clean.
 
+**Note:** This skill is designed for local interactive Claude Code sessions (terminal / IDE),
+not for GitHub Actions. Tools like `AskUserQuestion` and `gh run watch` rely on an interactive
+environment.
+
 ## Philosophy
 
 - **Autonomous on the obvious:** Implement feedback that is clearly correct (bugs, security
@@ -106,13 +110,17 @@ Comment on the PR to trigger a new Claude review:
 gh pr comment {pr_number} --body "@claude review the latest changes — I addressed the previous feedback"
 ```
 
-### Step 7: Monitor and Repeat
+### Step 7: Wait and Continue (if in local terminal)
 
 After requesting re-review:
-1. Wait for the review to complete (check workflow runs)
-2. Fetch new comments
+1. Use `gh run watch` (in background) to wait for the review workflow to complete
+2. Once complete, fetch new comments
 3. If new feedback exists, go back to Step 2
 4. If no new feedback or only approvals, report to the human: "PR is clean, ready to merge"
+
+Note: This wait-and-continue loop only works in a local interactive Claude Code session.
+If the session is interrupted, the user can re-invoke `/pr-iterate` to pick up where
+the loop left off — the skill will fetch the latest comments and continue from there.
 
 ### Exit Conditions
 
@@ -122,17 +130,19 @@ Stop iterating when:
 - The human says to stop
 - 3 iterations have passed without convergence (flag to human)
 
-## Resolving Conversations
+## Replying to Addressed Comments
 
-When you implement feedback from a specific review comment:
-- Resolve that conversation thread on GitHub if the platform supports it
-- Only resolve comments YOU addressed — never resolve human-escalated items
+When you implement feedback from a specific review comment, reply to confirm:
 
 ```bash
-# Resolve a review comment thread (if API supports it)
 gh api repos/{owner}/{repo}/pulls/{pr_number}/comments/{comment_id}/replies \
   --method POST -f body="Implemented — see commit {sha}"
 ```
+
+Note: GitHub's REST API does not support resolving threads — only the GraphQL
+`resolvePullRequestReviewThread` mutation does. Posting a reply confirms the fix
+but does not auto-resolve. Only reply to comments YOU addressed — never reply to
+human-escalated items.
 
 ## Guardrails
 
@@ -147,8 +157,9 @@ gh api repos/{owner}/{repo}/pulls/{pr_number}/comments/{comment_id}/replies \
 ## Integration with CI
 
 The skill works alongside the `claude.yaml` workflow:
-- The workflow's `claude-auto-review` job does the initial review on PR open
-- This skill handles the iteration after that first review (or any subsequent `@claude review`)
+- The workflow's `claude-auto-review` job does the initial review on PR open (triggered by `pull_request: opened`)
+- The `claude` job handles `@claude` comments (triggered by `issue_comment: created`)
+- When this skill posts `@claude review the latest changes`, it triggers the `claude` job (not `claude-auto-review`)
 - You can invoke this skill at any point to catch up on unaddressed feedback
 
 ## Example Invocation
