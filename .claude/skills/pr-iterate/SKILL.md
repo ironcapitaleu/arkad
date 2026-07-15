@@ -18,7 +18,7 @@ Drive a tight feedback loop on a PR: read review comments, implement clearly val
 inform the human about changes made and ambiguous feedback, request a re-review, and repeat
 until the PR is clean.
 
-**Note:** This skill is designed for local interactive Claude Code sessions (terminal / IDE),
+**Note:** This skill is designed for local interactive agent sessions (terminal / IDE),
 not for GitHub Actions. Tools like `AskUserQuestion` and `gh run watch` rely on an interactive
 environment.
 
