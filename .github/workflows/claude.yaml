@@ -55,20 +55,13 @@ jobs:
           prompt: |
             Review this PR using the project's AGENTS.md "PR Review Guidelines" section.
 
-            1. Post a top-level comment with a 2-3 bullet point summary of the changes.
+            1. Post a summary of the changes in 2-3 bullet points.
 
-            2. For each finding, post an inline review comment on the specific file and line.
-               Use GitHub's suggestion syntax when you can provide a concrete fix:
-
-               ```suggestion
-               corrected code here
-               ```
-
-               This gives the author a one-click "Commit suggestion" button.
-
-            3. Categorize findings by severity:
+            2. For each finding, reference the specific file and line. Categorize by severity:
                - 🔴 Bug / security issue / correctness problem (must fix)
                - 🟡 Improvement / performance / style (should fix)
                - 🟣 Nit / minor (optional)
 
-            4. If the PR looks clean, just post the summary comment — no further action needed.
+            3. When you can provide a concrete fix, include a code block showing the corrected code.
+
+            4. If the PR looks clean, just post the summary — no further action needed.
