@@ -31,6 +31,7 @@ jobs:
       - uses: anthropics/claude-code-action@v1
         with:
           use_bedrock: "true"
+          github_token: ${{ secrets.GITHUB_TOKEN }}
           claude_args: '--model us.anthropic.claude-sonnet-4-6'
 
   claude-review:
@@ -48,5 +49,6 @@ jobs:
       - uses: anthropics/claude-code-action@v1
         with:
           use_bedrock: "true"
+          github_token: ${{ secrets.GITHUB_TOKEN }}
           claude_args: '--model us.anthropic.claude-sonnet-4-6'
           prompt: "Review this PR for correctness bugs, security issues, and performance regressions. Post findings as inline comments."
