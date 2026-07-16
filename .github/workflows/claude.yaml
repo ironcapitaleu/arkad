@@ -52,6 +52,7 @@ jobs:
           use_bedrock: "true"
           github_token: ${{ secrets.GITHUB_TOKEN }}
           claude_args: '--model us.anthropic.claude-sonnet-4-6'
+          allowed_bots: 'dependabot[bot]'
           prompt: |
             Review this PR using the project's AGENTS.md "PR Review Guidelines" section.
 
