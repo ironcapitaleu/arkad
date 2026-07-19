@@ -635,10 +635,14 @@ Always confirm with the user before making changes.
 | REFACTOR | `f4ab8267-331c-400a-8b54-4e6424b7f3e7` |
 | DOCS | `4ae80929-fd9a-4d24-9e05-1c896d374700` |
 | ONBOARDING | `339b3f41-9f48-4574-a958-ff76cf82795e` |
+| IMPLEMENTATION | `88330314-8dc6-43dc-b2bb-855ede6634c1` |
+| TEST | `6edf3100-c0cf-4f7a-8c41-3342d21f1b6d` |
+| DESIGN | `ea9940a6-9ba4-443f-8c78-1f2da9251eeb` |
+| CI/CD | `f4a7c5c2-347f-4900-9181-f2706c7f0662` |
+| FIX | `0e1e8146-791e-4ec2-a266-65ef6282db06` |
 
-**Note:** Label IDs for IMPLEMENTATION, TEST, FRONTEND, and DESIGN are not yet captured.
-When creating an issue with one of these types for the first time, omit `labelIds` — the
-label can be added manually in Linear, and the ID should be captured here afterwards.
+**Note:** There is no FRONTEND label in the team — `[FRONTEND]` issues use the title
+prefix only (omit `labelIds`, or add a fitting label like REFACTOR/FEATURE if appropriate).
 
 ## Conventions
 
