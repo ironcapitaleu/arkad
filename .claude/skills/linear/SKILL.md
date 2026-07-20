@@ -544,11 +544,17 @@ the following methodology.
 
 ### How to Build the DoD Interactively
 
-When the user provides enough context (e.g., "benchmark the pipeline performance"), infer
-the DoD from the problem description and domain knowledge. Draft it fully and present it
-in the created ticket.
+Building the DoD is a natural end point of the guided flow: after system area, issue type,
+title, and user story are settled, converge on the DoD together with the user.
 
-When context is insufficient, use `AskUserQuestion` to clarify:
+**Propose-then-refine (default):** When you can think of DoD items — from the problem
+description, conversation context, or domain knowledge — draft a full list of proposed
+items and present it to the user for refinement *before* creating the ticket. Ask what
+to add, remove, or sharpen. Iterate until the user is satisfied, then create the ticket
+with the refined DoD.
+
+**Ideate together (fallback):** When you cannot propose meaningful items, don't present
+an empty or generic list — ideate with the user directly. Use `AskUserQuestion` to clarify:
 
 1. **What are the major deliverables?** — These become top-level checkboxes.
 2. **What specific sub-tasks does each deliverable involve?** — These become nested checkboxes.
@@ -600,8 +606,10 @@ part — follow the "Building the Definition of Done" section above to construct
 **Gathering DoD input:**
 
 - If the user provided rich context (problem description, specific concerns, components involved),
-  draft the full DoD from that context without asking additional questions.
-- If context is sparse, ask targeted follow-up questions (see "How to Build the DoD Interactively" above).
+  draft the full DoD from that context, propose it to the user, and refine it with their
+  feedback before creating the ticket (see "How to Build the DoD Interactively" above).
+- If context is sparse, ideate with the user via targeted follow-up questions instead of
+  proposing a generic list.
 - Always err on the side of being specific — a DoD that's too detailed is better than one that's too vague.
 
 **Additional template-specific questions:**
