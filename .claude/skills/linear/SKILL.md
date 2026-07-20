@@ -642,10 +642,8 @@ Always confirm with the user before making changes.
 | DESIGN | `ea9940a6-9ba4-443f-8c78-1f2da9251eeb` |
 | CI/CD | `f4a7c5c2-347f-4900-9181-f2706c7f0662` |
 | FIX | `0e1e8146-791e-4ec2-a266-65ef6282db06` |
-
-**Note:** Label IDs for FRONTEND and DATABASE are not yet captured. When creating an issue
-with one of these types for the first time, omit `labelIds` — the label can be added manually
-in Linear, and the ID should be captured here afterwards.
+| FRONTEND | `f4239270-e616-4f43-9db8-1fa284cbc147` |
+| DATABASE | `434537ba-1774-46cf-9803-a8870aa02a38` |
 
 ## Conventions
 
