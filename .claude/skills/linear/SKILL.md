@@ -517,8 +517,8 @@ This ticket is the direct continuation of [STA-69](https://linear.app/state-mach
 
 ## Building the Definition of Done
 
-The Definition of Done (DoD) is the most critical part of every ticket — it defines when work
-is complete and prevents scope ambiguity. Every DoD should be constructed deliberately using
+The Definition of Done is the most critical part of every ticket — it defines when work
+is complete and prevents scope ambiguity. Every Definition of Done should be constructed deliberately using
 the following methodology.
 
 ### Structure Rules
@@ -531,9 +531,9 @@ the following methodology.
    completed. Research before implementation, implementation before testing.
 4. **Final item is always the guidelines link** (for FEATURE, REFACTOR, IMPLEMENTATION types).
 
-### Per-Type DoD Patterns
+### Per-Type Definition of Done Patterns
 
-| Type | DoD Structure |
+| Type | Definition of Done Structure |
 | --- | --- |
 | **SPIKE** | Research areas (with specific questions as sub-items) → Testing/validation considerations → Write findings doc (with sub-items: summarize, recommend, link) |
 | **FEATURE** | Primary implementation (with sub-tasks: design, implement, domain concepts, error handling, integration) → Guidelines link |
@@ -542,16 +542,16 @@ the following methodology.
 | **ONBOARDING** | Resources grouped by source (book chapters, exercises, notes) with individual items as sub-checkboxes |
 | **DOCS / TEST / FRONTEND / DATABASE / DESIGN** | Deliverables specific to the work, no fixed pattern |
 
-### How to Build the DoD Interactively
+### How to Build the Definition of Done Interactively
 
-Building the DoD is a natural end point of the guided flow: after system area, issue type,
-title, and user story are settled, converge on the DoD together with the user.
+Building the Definition of Done is a natural end point of the guided flow: after system area, issue type,
+title, and user story are settled, converge on the Definition of Done together with the user.
 
-**Propose-then-refine (default):** When you can think of DoD items — from the problem
+**Propose-then-refine (default):** When you can think of Definition of Done items — from the problem
 description, conversation context, or domain knowledge — draft a full list of proposed
 items and present it to the user for refinement *before* creating the ticket. Ask what
 to add, remove, or sharpen. Iterate until the user is satisfied, then create the ticket
-with the refined DoD.
+with the refined Definition of Done.
 
 **Ideate together (fallback):** When you cannot propose meaningful items, don't present
 an empty or generic list — ideate with the user directly. Use `AskUserQuestion` to clarify:
@@ -562,15 +562,15 @@ an empty or generic list — ideate with the user directly. Use `AskUserQuestion
 4. **Are there specific files, modules, or components affected?** (FEATURE/REFACTOR)
 5. **What does "done" look like — how would you verify this is complete?**
 
-### DoD Quality Checklist (internal, not shown to user)
+### Definition of Done Quality Checklist (internal, not shown to user)
 
-Before finalizing a DoD, verify:
+Before finalizing a Definition of Done, verify:
 
 - [ ] Every top-level item is independently verifiable (someone can check it off without ambiguity)
 - [ ] Sub-items are specific enough that two developers would interpret them the same way
 - [ ] No item duplicates what's already in the Description section
-- [ ] SPIKE DoDs end with the "Write a document" item and its standard sub-items
-- [ ] FEATURE/REFACTOR/IMPLEMENTATION DoDs end with the guidelines link (correct phrasing per type)
+- [ ] SPIKE Definitions of Done end with the "Write a document" item and its standard sub-items
+- [ ] FEATURE/REFACTOR/IMPLEMENTATION Definitions of Done end with the guidelines link (correct phrasing per type)
 - [ ] Items reference specific code names in backticks where applicable
 
 ## Workflow: Creating an Issue
@@ -600,17 +600,17 @@ answer. Infer what you can from conversation context.
 
 ### Step 2: Build the Description and Definition of Done
 
-Based on the issue type, fill in the appropriate template. The DoD is the most important
+Based on the issue type, fill in the appropriate template. The Definition of Done is the most important
 part — follow the "Building the Definition of Done" section above to construct it.
 
-**Gathering DoD input:**
+**Gathering Definition of Done input:**
 
 - If the user provided rich context (problem description, specific concerns, components involved),
-  draft the full DoD from that context, propose it to the user, and refine it with their
-  feedback before creating the ticket (see "How to Build the DoD Interactively" above).
+  draft the full Definition of Done from that context, propose it to the user, and refine it with their
+  feedback before creating the ticket (see "How to Build the Definition of Done Interactively" above).
 - If context is sparse, ideate with the user via targeted follow-up questions instead of
   proposing a generic list.
-- Always err on the side of being specific — a DoD that's too detailed is better than one that's too vague.
+- Always err on the side of being specific — a Definition of Done that's too detailed is better than one that's too vague.
 
 **Additional template-specific questions:**
 
