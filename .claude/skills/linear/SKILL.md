@@ -37,6 +37,7 @@ Each issue type exists for a specific reason in the development workflow:
 | **DOCS** | Improve documentation quality and consistency. | Docs are missing, outdated, or inconsistent. | Updated documentation. |
 | **TEST** | Add or review test coverage. | Code exists but tests are missing or inadequate. | Test suite improvements. |
 | **FRONTEND** | UI/frontend implementation or changes. | Design or requirements available. | Working UI, tests, PR merged. |
+| **DATABASE** | Data layer work: schemas, migrations, queries, storage design, database infrastructure. | Data model or storage requirements known. | Schema/migration/query changes, tests, PR merged. |
 | **DESIGN** | Architectural/design work producing diagrams or specs. | System needs to be designed before implementation. | Design documents, diagrams. |
 
 ### The SPIKE → FEATURE Pipeline
@@ -61,6 +62,7 @@ by a SPIKE link back to it for context.
 | DOCS | `[DOCS]` | High (2) or Medium (3) |
 | TEST | `[TEST]` | Medium (3) |
 | FRONTEND | `[FRONTEND]` | Medium (3) |
+| DATABASE | `[DATABASE]` | High (2) |
 | DESIGN | `[DESIGN]` | High (2) |
 | (none) | (no prefix) | Varies |
 
@@ -252,7 +254,7 @@ This ticket is the direct continuation of [STA-XXX](url).
 ---
 ```
 
-### DOCS / TEST / FRONTEND / DESIGN Templates
+### DOCS / TEST / FRONTEND / DATABASE / DESIGN Templates
 
 These types do not have a dedicated description template. Use the **BASIC USER TICKET**
 description structure below and adapt it to the specific needs of the issue.
@@ -515,8 +517,8 @@ This ticket is the direct continuation of [STA-69](https://linear.app/state-mach
 
 ## Building the Definition of Done
 
-The Definition of Done (DoD) is the most critical part of every ticket — it defines when work
-is complete and prevents scope ambiguity. Every DoD should be constructed deliberately using
+The Definition of Done is the most critical part of every ticket — it defines when work
+is complete and prevents scope ambiguity. Every Definition of Done should be constructed deliberately using
 the following methodology.
 
 ### Structure Rules
@@ -529,24 +531,30 @@ the following methodology.
    completed. Research before implementation, implementation before testing.
 4. **Final item is always the guidelines link** (for FEATURE, REFACTOR, IMPLEMENTATION types).
 
-### Per-Type DoD Patterns
+### Per-Type Definition of Done Patterns
 
-| Type | DoD Structure |
+| Type | Definition of Done Structure |
 | --- | --- |
 | **SPIKE** | Research areas (with specific questions as sub-items) → Testing/validation considerations → Write findings doc (with sub-items: summarize, recommend, link) |
 | **FEATURE** | Primary implementation (with sub-tasks: design, implement, domain concepts, error handling, integration) → Guidelines link |
 | **REFACTOR** | Review aspects as top-level items (with specific checks as sub-items) → Guidelines link |
 | **IMPLEMENTATION** | Same as FEATURE |
 | **ONBOARDING** | Resources grouped by source (book chapters, exercises, notes) with individual items as sub-checkboxes |
-| **DOCS / TEST / FRONTEND / DESIGN** | Deliverables specific to the work, no fixed pattern |
+| **DOCS / TEST / FRONTEND / DATABASE / DESIGN** | Deliverables specific to the work, no fixed pattern |
 
-### How to Build the DoD Interactively
+### How to Build the Definition of Done Interactively
 
-When the user provides enough context (e.g., "benchmark the pipeline performance"), infer
-the DoD from the problem description and domain knowledge. Draft it fully and present it
-in the created ticket.
+Building the Definition of Done is a natural end point of the guided flow: after system area, issue type,
+title, and user story are settled, converge on the Definition of Done together with the user.
 
-When context is insufficient, use `AskUserQuestion` to clarify:
+**Propose-then-refine (default):** When you can think of Definition of Done items — from the problem
+description, conversation context, or domain knowledge — draft a full list of proposed
+items and present it to the user for refinement *before* creating the ticket. Ask what
+to add, remove, or sharpen. Iterate until the user is satisfied, then create the ticket
+with the refined Definition of Done.
+
+**Ideate together (fallback):** When you cannot propose meaningful items, don't present
+an empty or generic list — ideate with the user directly. Use `AskUserQuestion` to clarify:
 
 1. **What are the major deliverables?** — These become top-level checkboxes.
 2. **What specific sub-tasks does each deliverable involve?** — These become nested checkboxes.
@@ -554,42 +562,55 @@ When context is insufficient, use `AskUserQuestion` to clarify:
 4. **Are there specific files, modules, or components affected?** (FEATURE/REFACTOR)
 5. **What does "done" look like — how would you verify this is complete?**
 
-### DoD Quality Checklist (internal, not shown to user)
+### Definition of Done Quality Checklist (internal, not shown to user)
 
-Before finalizing a DoD, verify:
+Before finalizing a Definition of Done, verify:
 
 - [ ] Every top-level item is independently verifiable (someone can check it off without ambiguity)
 - [ ] Sub-items are specific enough that two developers would interpret them the same way
 - [ ] No item duplicates what's already in the Description section
-- [ ] SPIKE DoDs end with the "Write a document" item and its standard sub-items
-- [ ] FEATURE/REFACTOR/IMPLEMENTATION DoDs end with the guidelines link (correct phrasing per type)
+- [ ] SPIKE Definitions of Done end with the "Write a document" item and its standard sub-items
+- [ ] FEATURE/REFACTOR/IMPLEMENTATION Definitions of Done end with the guidelines link (correct phrasing per type)
 - [ ] Items reference specific code names in backticks where applicable
 
 ## Workflow: Creating an Issue
 
 ### Step 1: Gather Information
 
-Use `AskUserQuestion` to collect:
+Guide the user from high-level to specific. Use `AskUserQuestion` to collect:
 
-1. **Issue type** — options: FEATURE, SPIKE, REFACTOR, IMPLEMENTATION, ONBOARDING, DOCS, TEST, FRONTEND, DESIGN, Basic (no prefix)
-2. **Title** — what is this issue about? (will be formatted as `[TYPE] Title`, or just `Title` for basic)
-3. **User story** — what do you want and why?
-4. **Priority** — options: Urgent (1), High (2), Medium (3), Low (4) — default High (2)
+1. **System area** (only if not clear from the conversation/prompt) — which part of the
+   system is this ticket about? Options: **Backend** (pipeline, state machine, crates),
+   **Frontend** (UI, pages, components), **Database** (data layer: schemas, migrations,
+   queries, storage), **Cross-cutting** (docs, CI/CD, onboarding, process). Skip this
+   question entirely when the area is obvious from context — it exists to orient the
+   conversation, not to add friction.
+2. **Issue type** — options: FEATURE, SPIKE, REFACTOR, IMPLEMENTATION, ONBOARDING, DOCS, TEST, FRONTEND, DATABASE, DESIGN, Basic (no prefix).
+   Use the system area to narrow the options offered:
+   - **Frontend** → FRONTEND (or SPIKE/REFACTOR/TEST if the work is research, restructuring, or testing)
+   - **Database** → DATABASE (or SPIKE/DESIGN for research and schema-design work)
+   - **Backend** → FEATURE, IMPLEMENTATION, REFACTOR, SPIKE, TEST, DESIGN
+   - **Cross-cutting** → DOCS, ONBOARDING, or Basic
+3. **Title** — what is this issue about? (will be formatted as `[TYPE] Title`, or just `Title` for basic)
+4. **User story** — what do you want and why?
+5. **Priority** — options: Urgent (1), High (2), Medium (3), Low (4) — default High (2)
 
 If the user provided enough context when invoking the skill, skip questions you can already
 answer. Infer what you can from conversation context.
 
 ### Step 2: Build the Description and Definition of Done
 
-Based on the issue type, fill in the appropriate template. The DoD is the most important
+Based on the issue type, fill in the appropriate template. The Definition of Done is the most important
 part — follow the "Building the Definition of Done" section above to construct it.
 
-**Gathering DoD input:**
+**Gathering Definition of Done input:**
 
 - If the user provided rich context (problem description, specific concerns, components involved),
-  draft the full DoD from that context without asking additional questions.
-- If context is sparse, ask targeted follow-up questions (see "How to Build the DoD Interactively" above).
-- Always err on the side of being specific — a DoD that's too detailed is better than one that's too vague.
+  draft the full Definition of Done from that context, propose it to the user, and refine it with their
+  feedback before creating the ticket (see "How to Build the Definition of Done Interactively" above).
+- If context is sparse, ideate with the user via targeted follow-up questions instead of
+  proposing a generic list.
+- Always err on the side of being specific — a Definition of Done that's too detailed is better than one that's too vague.
 
 **Additional template-specific questions:**
 
@@ -635,10 +656,13 @@ Always confirm with the user before making changes.
 | REFACTOR | `f4ab8267-331c-400a-8b54-4e6424b7f3e7` |
 | DOCS | `4ae80929-fd9a-4d24-9e05-1c896d374700` |
 | ONBOARDING | `339b3f41-9f48-4574-a958-ff76cf82795e` |
-
-**Note:** Label IDs for IMPLEMENTATION, TEST, FRONTEND, and DESIGN are not yet captured.
-When creating an issue with one of these types for the first time, omit `labelIds` — the
-label can be added manually in Linear, and the ID should be captured here afterwards.
+| IMPLEMENTATION | `88330314-8dc6-43dc-b2bb-855ede6634c1` |
+| TEST | `6edf3100-c0cf-4f7a-8c41-3342d21f1b6d` |
+| DESIGN | `ea9940a6-9ba4-443f-8c78-1f2da9251eeb` |
+| CI/CD | `f4a7c5c2-347f-4900-9181-f2706c7f0662` |
+| FIX | `0e1e8146-791e-4ec2-a266-65ef6282db06` |
+| FRONTEND | `f4239270-e616-4f43-9db8-1fa284cbc147` |
+| DATABASE | `434537ba-1774-46cf-9803-a8870aa02a38` |
 
 ## Conventions
 

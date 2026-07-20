@@ -37,7 +37,7 @@ jobs:
           claude_args: '--model us.anthropic.claude-sonnet-4-6'
 
   claude-auto-review:
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' && github.actor != 'dependabot[bot]'
     runs-on: ubuntu-latest
     env:
       AWS_BEARER_TOKEN_BEDROCK: ${{ secrets.CLAUDE_AWS_BEARER_TOKEN_BEDROCK }}
@@ -52,7 +52,7 @@ jobs:
           use_bedrock: "true"
           github_token: ${{ secrets.GITHUB_TOKEN }}
           claude_args: '--model us.anthropic.claude-sonnet-4-6'
-          allowed_bots: 'dependabot[bot]'
+          track_progress: true
           prompt: |
             Review this PR using the project's AGENTS.md "PR Review Guidelines" section.
 
