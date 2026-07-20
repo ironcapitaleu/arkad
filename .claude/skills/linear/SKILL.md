@@ -37,6 +37,7 @@ Each issue type exists for a specific reason in the development workflow:
 | **DOCS** | Improve documentation quality and consistency. | Docs are missing, outdated, or inconsistent. | Updated documentation. |
 | **TEST** | Add or review test coverage. | Code exists but tests are missing or inadequate. | Test suite improvements. |
 | **FRONTEND** | UI/frontend implementation or changes. | Design or requirements available. | Working UI, tests, PR merged. |
+| **DATABASE** | Data layer work: schemas, migrations, queries, storage design, database infrastructure. | Data model or storage requirements known. | Schema/migration/query changes, tests, PR merged. |
 | **DESIGN** | Architectural/design work producing diagrams or specs. | System needs to be designed before implementation. | Design documents, diagrams. |
 
 ### The SPIKE → FEATURE Pipeline
@@ -61,6 +62,7 @@ by a SPIKE link back to it for context.
 | DOCS | `[DOCS]` | High (2) or Medium (3) |
 | TEST | `[TEST]` | Medium (3) |
 | FRONTEND | `[FRONTEND]` | Medium (3) |
+| DATABASE | `[DATABASE]` | High (2) |
 | DESIGN | `[DESIGN]` | High (2) |
 | (none) | (no prefix) | Varies |
 
@@ -252,7 +254,7 @@ This ticket is the direct continuation of [STA-XXX](url).
 ---
 ```
 
-### DOCS / TEST / FRONTEND / DESIGN Templates
+### DOCS / TEST / FRONTEND / DATABASE / DESIGN Templates
 
 These types do not have a dedicated description template. Use the **BASIC USER TICKET**
 description structure below and adapt it to the specific needs of the issue.
@@ -538,7 +540,7 @@ the following methodology.
 | **REFACTOR** | Review aspects as top-level items (with specific checks as sub-items) → Guidelines link |
 | **IMPLEMENTATION** | Same as FEATURE |
 | **ONBOARDING** | Resources grouped by source (book chapters, exercises, notes) with individual items as sub-checkboxes |
-| **DOCS / TEST / FRONTEND / DESIGN** | Deliverables specific to the work, no fixed pattern |
+| **DOCS / TEST / FRONTEND / DATABASE / DESIGN** | Deliverables specific to the work, no fixed pattern |
 
 ### How to Build the DoD Interactively
 
@@ -571,7 +573,7 @@ Before finalizing a DoD, verify:
 
 Use `AskUserQuestion` to collect:
 
-1. **Issue type** — options: FEATURE, SPIKE, REFACTOR, IMPLEMENTATION, ONBOARDING, DOCS, TEST, FRONTEND, DESIGN, Basic (no prefix)
+1. **Issue type** — options: FEATURE, SPIKE, REFACTOR, IMPLEMENTATION, ONBOARDING, DOCS, TEST, FRONTEND, DATABASE, DESIGN, Basic (no prefix)
 2. **Title** — what is this issue about? (will be formatted as `[TYPE] Title`, or just `Title` for basic)
 3. **User story** — what do you want and why?
 4. **Priority** — options: Urgent (1), High (2), Medium (3), Low (4) — default High (2)
@@ -641,8 +643,9 @@ Always confirm with the user before making changes.
 | CI/CD | `f4a7c5c2-347f-4900-9181-f2706c7f0662` |
 | FIX | `0e1e8146-791e-4ec2-a266-65ef6282db06` |
 
-**Note:** There is no FRONTEND label in the team — `[FRONTEND]` issues use the title
-prefix only (omit `labelIds`, or add a fitting label like REFACTOR/FEATURE if appropriate).
+**Note:** Label IDs for FRONTEND and DATABASE are not yet captured. When creating an issue
+with one of these types for the first time, omit `labelIds` — the label can be added manually
+in Linear, and the ID should be captured here afterwards.
 
 ## Conventions
 
