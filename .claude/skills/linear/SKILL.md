@@ -571,12 +571,23 @@ Before finalizing a DoD, verify:
 
 ### Step 1: Gather Information
 
-Use `AskUserQuestion` to collect:
+Guide the user from high-level to specific. Use `AskUserQuestion` to collect:
 
-1. **Issue type** — options: FEATURE, SPIKE, REFACTOR, IMPLEMENTATION, ONBOARDING, DOCS, TEST, FRONTEND, DATABASE, DESIGN, Basic (no prefix)
-2. **Title** — what is this issue about? (will be formatted as `[TYPE] Title`, or just `Title` for basic)
-3. **User story** — what do you want and why?
-4. **Priority** — options: Urgent (1), High (2), Medium (3), Low (4) — default High (2)
+1. **System area** (only if not clear from the conversation/prompt) — which part of the
+   system is this ticket about? Options: **Backend** (pipeline, state machine, crates),
+   **Frontend** (UI, pages, components), **Database** (data layer: schemas, migrations,
+   queries, storage), **Cross-cutting** (docs, CI/CD, onboarding, process). Skip this
+   question entirely when the area is obvious from context — it exists to orient the
+   conversation, not to add friction.
+2. **Issue type** — options: FEATURE, SPIKE, REFACTOR, IMPLEMENTATION, ONBOARDING, DOCS, TEST, FRONTEND, DATABASE, DESIGN, Basic (no prefix).
+   Use the system area to narrow the options offered:
+   - **Frontend** → FRONTEND (or SPIKE/REFACTOR/TEST if the work is research, restructuring, or testing)
+   - **Database** → DATABASE (or SPIKE/DESIGN for research and schema-design work)
+   - **Backend** → FEATURE, IMPLEMENTATION, REFACTOR, SPIKE, TEST, DESIGN
+   - **Cross-cutting** → DOCS, ONBOARDING, or Basic
+3. **Title** — what is this issue about? (will be formatted as `[TYPE] Title`, or just `Title` for basic)
+4. **User story** — what do you want and why?
+5. **Priority** — options: Urgent (1), High (2), Medium (3), Low (4) — default High (2)
 
 If the user provided enough context when invoking the skill, skip questions you can already
 answer. Infer what you can from conversation context.
