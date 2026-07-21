@@ -705,8 +705,9 @@ native graph tooling up front.
 1. Build **canonical core types** (`CanonicalElement`, `CanonicalFact`/`ResolvedFact`,
    `FactSet`, `Lei`/`CompanyId`, `Invariant`) — storage-agnostic domain layer.
 2. Build the **SEC adapter** (raw parse + resolution map + CIK→LEI).
-3. Implement **Load/`StoreData`** behind a storage-abstraction trait so Option A or B (or a
-   later split) is a matter of swapping the writer implementation, not rewriting the pipeline.
+3. Implement **`Load`** to call `Repository::ingest` behind the storage-abstraction traits
+   (**§14.F**), so Option A or B — or a later split — is a matter of swapping the `Repository`
+   impl / its associated tier stores, not rewriting the pipeline.
 4. Persist raw first (system of record), then materialize graph + canonical facts.
 
 > **Note:** under either option, an **Iceberg lakehouse is the expected long-term home for
@@ -732,6 +733,58 @@ truth** — the design isolates the risk:
 
 Effort is proportional to writing one new writer + a backfill job, not to a risky migration of
 the system of record. The storage-abstraction trait (§14.D.3) keeps the pipeline untouched.
+
+### 14.F Storage abstraction — trait design (converged)
+
+The trait layer that makes §14.D.3 real. Full design (traits, error model, fakes, crate topology,
+review checklist) lives in `storage_traits_design.md`; summarized here so the SPIKE is
+self-contained.
+
+**Shape — composition, not inheritance (the `SecClient` house pattern).** A composing `Repository`
+*has-a* store per tier via associated types, rather than one type implementing all three:
+
+```rust
+trait Repository: Send + Sync {
+    type Raw:   RawStore;    // each: Storage
+    type Graph: GraphStore;
+    type Facts: FactStore;
+    fn raw(&self) -> &Self::Raw;  fn graph(&self) -> &Self::Graph;  fn facts(&self) -> &Self::Facts;
+    async fn ingest(&self, unit: IngestionUnit) -> Result<(), StorageError>; // live write; atomic per impl
+}
+```
+
+This makes the **engine mixture the natural case**: Option A is `type Raw/Graph/Facts` all Postgres
+(sharing one pool); Option B is e.g. `DataLakeRawStore` + `Neo4jGraphStore` + `IcebergFactStore` —
+same trait, different associated types. A later per-tier split (§14.E) is a new `impl`, nothing else.
+
+**Capability traits** `RawStore`/`GraphStore`/`FactStore: Storage` speak **concrete domain types**
+(`RawFiling`, `FactSet`, `GraphDelta`) — uniform across backends, so no associated *data* types
+(unlike `SecClient`, whose associated `Request`/`Response` abstract the HTTP library).
+
+**Error currency.** Each store has a rich associated `type Error`, bounded once on the base
+`Storage` as `StorageError: From<Self::Error>` (the `From` direction, so `?` converts). Capability
+ops return the rich error; `Repository::ingest` returns one `StorageError` — an enum that
+*classifies* (retryable / conflict / not-found / integrity) while preserving the backend error via
+`source()`. `is_retryable()` is the one bit the ETL loop needs (retry vs. dead-letter).
+
+**`ingest` contract ↔ Option A vs B.** Pinned to the weakest guarantee both give: on `Ok`, **raw is
+durably the SoT; graph/fact materializations converge but may lag.** Option A (co-located Postgres)
+over-delivers — one transaction, atomic, read-after-write consistent ("dual-write is a non-issue,"
+§14.A). Option B (mixed engines) can't span one tx → raw-first + async projection. Callers must not
+assume read-after-write on the graph/fact tiers; that keeps the pipeline honest across the physical
+choice.
+
+**No `dyn`.** Associated types make these traits non-object-safe — consistent with the framework's
+`State` trait (also non-object-safe). Stores are injected by concrete type / generics into the
+`Load` context, exactly as `SecClient` is today.
+
+**Crate topology.** Traits + core types + `StorageError` + feature-gated fakes live in a new
+storage-agnostic **`domain`** crate (no `sqlx`); a **`storage-postgres`** crate holds the concrete
+`PostgresRepository`; only the composition root names Postgres. Makes §12a's language-agnostic /
+reversible-storage property enforceable by the compiler.
+
+> Deferred: **bulk vs incremental** update semantics are an orthogonal axis (crosses all three
+> tiers) — see `storage_traits_design.md`; to be designed when a backfill/migration consumer exists.
 
 ## 15. Open Questions / Risks
 

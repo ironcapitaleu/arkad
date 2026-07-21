@@ -3,8 +3,8 @@
 > Context: STA-130 SPIKE, Option A chosen (Postgres-centric, migration-gated split —
 > see `sec/design/data_model/hybrid_data_model.md` §14.A). This captures the DI/trait design
 > converged on in discussion, committed to the feature branch for cross-device handoff and
-> red-teaming. It is **not yet reflected in the SPIKE doc §14 or in Linear** — still a draft
-> to iterate on before cutting FEATURE tickets.
+> red-teaming. It is summarized in the SPIKE doc **§14.F**, but **not yet reflected in Linear** —
+> still a draft to iterate on before cutting FEATURE tickets.
 >
 > **Design converged (this revision):** composition-over-inheritance via associated types (the
 > `SecClient` pattern), per-store associated `type Error` bounded to convert into one `StorageError`
