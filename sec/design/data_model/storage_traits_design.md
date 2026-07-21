@@ -189,6 +189,23 @@ once against `Storage`, blind to data kind. A future Iceberg `FactStore` is pick
 3. **SEC adapter** — raw parse + resolution map + CIK→LEI, producing `IngestionUnit`s.
 4. **Wire `CreateFinancialStatements` → `FactSet` → `Load` calls `ingest`**; retire `sec::CompanyData`.
 
+## Deferred — update semantics: bulk vs incremental (orthogonal axis)
+
+Out of scope for the first trait cut; **noted here so it isn't lost.** This is a *second axis*,
+orthogonal to the raw/graph/facts split — it crosses all three tiers, it is not another store kind
+(cf. `hybrid_data_model.md` §12 Batch vs Incremental).
+
+- **Bulk** — builds **from zero up to whatever exists now** (initial load / backfill / rebuild).
+  Assumes no pre-existing state; it *establishes* the baseline. Idempotent by overwrite/recreate;
+  can use engine-native fast paths (empty-DB graph import, `COPY`, Iceberg partition overwrite)
+  that a one-at-a-time write can't reach.
+- **Incremental** — **requires / assumes existing state**; applies a delta onto it and updates.
+  Idempotent by key; the steady-state live path.
+
+Maps onto the live-vs-replay split (incremental = live `ingest`; bulk = the §14.E replay/backfill
+path). Likely a separate write-facade (`BulkLoad`) later, rather than doubling every capability
+method. **To be designed when a backfill/migration consumer actually exists.**
+
 ## Open questions to resolve before cutting tickets
 
 - **Unit-of-ingestion grain:** one `IngestionUnit` per filing (assumed). Confirm.
