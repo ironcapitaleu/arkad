@@ -69,6 +69,12 @@ them for tests. Swapping the physical store later (Option A → B, or a tier →
 
 ## Traits
 
+> **Method signatures below are illustrative, not frozen.** What is settled is the *structure* —
+> composition via associated types, the `type Error` → `StorageError` currency, no `dyn`, the crate
+> split. The exact method inventory per trait (and whether lifecycle methods like `health()` /
+> `migrate()` belong on `Storage` at all) is deliberately deferred until a real consumer forces the
+> shape — see Open questions. Read the code below for the *shape of the seams*, not as a decided API.
+
 ```rust
 use async_trait::async_trait;
 use futures::stream::BoxStream;
@@ -382,6 +388,11 @@ method. **To be designed when a backfill/migration consumer actually exists.**
 
 ## Open questions to resolve before cutting tickets
 
+- **Method inventory is provisional (the big one).** The per-trait method set is *not* frozen —
+  is `ingest` the right/only live-write entry point? Do `health()` / `migrate()` belong on the base
+  `Storage`, or are they composition-root / lifecycle concerns kept off the data traits? Which reads
+  (if any) live here now? Settle when ticket #1's contract is actually cut against a real consumer;
+  the structural decisions (composition, error currency, no `dyn`, crate split) are what's locked.
 - **Unit-of-ingestion grain:** one `IngestionUnit` per filing (assumed). Confirm.
 - **Read repositories now or later?** Lean: *declare* the read methods now (they are the trait
   vocabulary and cost nothing to name), but only *implement* what tests exercise plus
