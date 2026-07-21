@@ -12,7 +12,6 @@ permissions:
   contents: write
   pull-requests: write
   issues: write
-  id-token: write
 
 jobs:
   claude:
@@ -20,9 +19,6 @@ jobs:
       (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
       (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude'))
     runs-on: ubuntu-latest
-    env:
-      AWS_BEARER_TOKEN_BEDROCK: ${{ secrets.CLAUDE_AWS_BEARER_TOKEN_BEDROCK }}
-      AWS_REGION: ${{ vars.CLAUDE_AWS_REGION }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -30,16 +26,13 @@ jobs:
 
       - uses: anthropics/claude-code-action@v1
         with:
-          use_bedrock: "true"
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          claude_args: '--model us.anthropic.claude-sonnet-4-6'
+          claude_args: '--model claude-sonnet-4-6'
 
   claude-auto-review:
     if: github.event_name == 'pull_request' && github.actor != 'dependabot[bot]'
     runs-on: ubuntu-latest
-    env:
-      AWS_BEARER_TOKEN_BEDROCK: ${{ secrets.CLAUDE_AWS_BEARER_TOKEN_BEDROCK }}
-      AWS_REGION: ${{ vars.CLAUDE_AWS_REGION }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -47,9 +40,9 @@ jobs:
 
       - uses: anthropics/claude-code-action@v1
         with:
-          use_bedrock: "true"
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          claude_args: '--model us.anthropic.claude-sonnet-4-6'
+          claude_args: '--model claude-sonnet-4-6'
           track_progress: true
           prompt: |
             Review this PR using the project's AGENTS.md "PR Review Guidelines" section.
