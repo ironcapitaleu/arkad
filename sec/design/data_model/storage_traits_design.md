@@ -366,6 +366,9 @@ a concrete field on `ExtractSuperStateContext`. Production wires `PostgresReposi
 `Load` calls `store.ingest(unit)`. `CreateFinancialStatements` changes from emitting the placeholder
 output to producing `FactSet`s that feed the `IngestionUnit` — the "retire `sec::CompanyData`" work.
 
+> **See also** `load_superstate_design.md` — the Load `SuperState` designed against these ports
+> (sub-states, the `FinancialStatementRepository` / `LeiResolver` ports, adapters, and UML).
+
 ## What must NEVER leak through a trait (review checklist)
 
 | Leak | Why it kills the swap | Instead |
