@@ -740,6 +740,13 @@ The trait layer that makes §14.D.3 real. Full design (traits, error model, fake
 review checklist) lives in `storage_traits_design.md`; summarized here so the SPIKE is
 self-contained.
 
+**Design pattern.** This applies the **Repository pattern** to decouple the pipeline from the
+physical database backend — swapping stores is a new impl behind the same interface, never a
+pipeline change. Precisely: the composing `Repository` is a persistence facade whose `ingest`
+carries a Unit-of-Work flavor (one atomic multi-tier write) and whose read methods are classic
+repository queries; per-tier stores are persistence ports (DAO-like). Same ports-and-adapters shape
+as `SecClient`.
+
 **Shape — composition, not inheritance (the `SecClient` house pattern).** A composing `Repository`
 *has-a* store per tier via associated types, rather than one type implementing all three:
 

@@ -18,6 +18,37 @@ Same pattern as `SecClient`: define traits → a real struct implements them →
 them for tests. Swapping the physical store later (Option A → B, or a tier → Iceberg) is a new
 `impl` behind the same trait, not a pipeline rewrite (`hybrid_data_model.md` §14.D.3, §14.E).
 
+## Design pattern — Repository (decoupling from the storage backend)
+
+The storage layer applies the **Repository pattern**: the pipeline depends on an abstract,
+domain-typed persistence interface, never on a concrete database. Swapping the physical backend
+(Postgres → Iceberg → a graph DB, or any mixture) is a new implementation behind the same
+interface, not a pipeline change. This is the same ports-and-adapters shape the codebase already
+uses for `SecClient` (abstract trait → real impl → fake).
+
+**How we implement it:**
+
+1. **The abstraction (the "repository").** A composing `Repository` trait exposes what the pipeline
+   needs — `ingest(IngestionUnit)` for writes, domain-typed queries (`query`, `completeness`,
+   `ownership_tree`) for reads — in domain types only (no rows/SQL/Cypher). It *has-a* store per
+   tier via associated types (`type Raw: RawStore`, `type Graph: GraphStore`,
+   `type Facts: FactStore`), each itself a small persistence port.
+2. **The implementations (the "adapters").** Concrete backends implement the traits:
+   `PostgresRepository` (all three tiers on one pool), or a mixed deployment (data-lake raw +
+   graph-DB + Iceberg facts). The pipeline is blind to which.
+3. **Test doubles.** In-memory fakes implement the same traits, so pipeline/state tests run with
+   zero database.
+4. **Decoupling guaranteed by the crate boundary.** Traits + domain types live in the
+   storage-agnostic `domain` crate (no `sqlx`); backends live in separate crates. Only the
+   composition root ever names a concrete DB.
+
+**Precise note (so the doc doesn't overclaim).** We use "Repository" in the pragmatic
+*decouple-from-persistence* sense. Strictly, the composing `Repository` is a persistence **facade**
+whose `ingest` carries a **Unit-of-Work** flavor (one atomic multi-tier write); the *read* methods
+are classic repository queries; the per-tier `RawStore` / `GraphStore` / `FactStore` are persistence
+**ports** (DAO-like), not single-aggregate repositories. The decoupling intent — the reason we
+reach for the pattern — is fully honored either way.
+
 ## Design principles (the load-bearing decisions)
 
 1. **Composition over inheritance — the `SecClient` shape.** A composing `Repository` trait *has-a*
