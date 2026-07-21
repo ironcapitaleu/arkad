@@ -213,16 +213,37 @@ graph LR
   C -- OWNS_STAKE_IN --> C2
 ```
 
-### 5.4 Data-quality traversals (why a graph)
+### 5.4 Two workloads under one "graph" label
 
-The graph is a **completeness engine** — expected structure is modeled, so gaps are
-absences in a traversal rather than SQL NULL-hunting:
+The knowledge-graph *modeling* lens covers two very different **query shapes**, and conflating
+them oversells the need for a graph *engine*. Separating them sharpens the storage decision
+(§13–§14):
 
-- _"Which companies are missing a Q3-2024 quarterly report?"_ — for each `Company
-  -FILES_WITH-> R`, check for a `Filing -COVERS_PERIOD-> Q3-2024` of the right form.
-- _"Does FY2024 have all four quarters?"_ — count `Filing -COVERS_PERIOD-> {Q1..Q4 2024}`.
-- _"Which required concepts did this filing fail to report?"_ — the set difference between
+**(a) Structural completeness — relational-shaped (bounded, shallow).** Despite the "graph"
+framing, these are set/aggregate operations, not traversals — a row store does them *better*
+than a graph engine:
+
+- _"Which companies are missing a Q3-2024 quarterly report?"_ → an **anti-join**.
+- _"Does FY2024 have all four quarters?"_ → a **GROUP BY / count**.
+- _"Which required concepts did this filing fail to report?"_ → a **set difference** between
   expected `Concept`s and the filing's `REPORTS_CONCEPT` edges.
+
+  1-hop edges (`HAS_FILING`, `COVERS_PERIOD`, `REPORTS_CONCEPT`) are just indexed joins. This
+  is the **completeness engine**, and it stays comfortable in Postgres at the stated scale.
+
+**(b) Relationship traversal — genuinely graph-shaped (deep, variable-depth).** The
+`SUBSIDIARY_OF` / `OWNS_STAKE_IN` edges form corporate ownership networks:
+
+- _"Ultimate parent of company X"_, _"full beneficial-ownership tree"_, _"all cross-holdings
+  between two groups"_ → **recursive, multi-hop** traversals.
+
+  Here a native graph engine (index-free adjacency, Cypher) materially beats recursive CTEs,
+  which grow verbose and degrade with depth/branching.
+
+**Consequence for the decision:** completeness (a) does *not* justify a graph database;
+relationship traversal (b) is the only workload that does. So the §14 trigger for adopting a
+dedicated graph store is specifically *"when multi-hop ownership/relationship analysis becomes
+central,"* not the data-quality checks.
 
 ## 6. Universal Canonical Fact Store (Analytical Layer)
 
@@ -334,7 +355,68 @@ native tag it came from.
 Storage mechanics by option: **Postgres** → SQL aggregate checks + CHECK-style assertions +
 materialized views for scheduled audits; **graph DB** → completeness natively, invariants
 still computed at the fact tier; **Iceberg** → invariant/rollup batch jobs via DataFusion /
-DuckDB / any lakehouse engine (see §13a on polyglot access).
+DuckDB / any lakehouse engine (see §12a on polyglot access).
+
+### 8.2 Provenance Model
+
+Provenance is the platform's highest-value metadata — it is what makes every number
+trustworthy, auditable, and independently verifiable. It splits into **two kinds** with
+different natural homes:
+
+1. **Source provenance** — *which filing* a fact came from: accession, form, `filed_date`,
+   regulator, native `us-gaap` tag, taxonomy version. **Tabular** (one origin per observation).
+2. **Derivation provenance** — *how* a canonical fact was computed: `confidence` +
+   `resolution_path`. For `Exact`/`Synonym` it is a single tag; for `Derived`/`Computed` it is
+   a **DAG** (e.g. `Liabilities = LiabilitiesCurrent(+1) + LiabilitiesNoncurrent(+1)`, each
+   from a specific accession) — i.e. the calculation-linkbase structure itself.
+
+Insight: derivation provenance is **graph-shaped**, so the graph tier is its natural home;
+source provenance is happiest as flat rows/columns.
+
+**Hot-path rule.** The canonical fact row carries only `confidence` (a low-cardinality filter
+column) + `source_ref` (an opaque pointer into the adapter). Full provenance is a **drill-down**,
+never scanned during analytical aggregation — keeping screener scans lean.
+
+**Storage shape by option:**
+
+| | Postgres | Lakehouse (columnar) | Graph DB |
+| --- | --- | --- | --- |
+| Source provenance | `source_ref` FK → `raw_observation`/`filing` tables (normalized) | can be **inlined denormalized** — repeated accessions **dictionary/RLE-compress to ~nothing**; wide flat fact tables are idiomatic | edge property / `(Fact)-[:FROM]->(Filing)` |
+| Derivation (`resolution_path`) | JSONB column or `fact_input` join table (fact ↔ inputs, weight+role) | nested/list Parquet column or lineage table | **native** — `(Fact)-[:DERIVED_FROM {weight}]->(Observation)` |
+
+A genuine difference falls out: **columnar is *better* at inlining source provenance** (its
+repetition compresses for free), while **the graph is *better* at derivation lineage**;
+Postgres is the balanced middle.
+
+**Population.** Provenance is a **write-once byproduct** of the raw-first order (§8): the raw
+observation *is* the source provenance (written first); the fact references it in the same
+transaction/commit; the resolution engine emits `resolution_path`/`confidence` as it resolves.
+Provenance is **append-only and immutable** — a fact's origin never changes; a restatement is a
+*new* fact with *new* provenance, the old retained for audit (amendment supersedes,
+accession-keyed). Immutability means no UPDATE churn (Postgres) and no merge-on-read
+(lakehouse) — the one place lakehouse writes are easy.
+
+**Querying & performance.** Point drill-down ("provenance of this fact") is cheap everywhere.
+Reverse/analytical queries ("all `Derived` revenue", "all facts from filing X") index
+`confidence`/`source_ref`; columnar predicate-pushdown on `confidence` excels. "What breaks if
+filing X is restated?" walks `DERIVED_FROM` backward — the payoff for storing derivation as a
+graph. Deep multi-hop lineage for `Computed` facts is the only expensive case, and it is a
+drill-down, not a hot path.
+
+**Maintenance & retention.** Append-only → low churn, but it grows unboundedly (an audit
+trail). Partition/archive by period; and because the raw store is the rebuildable SoT (§8),
+detailed lineage may be treated as **reproducible** rather than stored forever. Provenance is
+also a **compliance asset** — "where did this number come from, and how was it derived" is
+exactly the auditability financial data requires.
+
+**Serving (API).** Expandable, not default: `GET /facts/{id}` → `{value, unit, confidence}`;
+`GET /facts/{id}/provenance` → full lineage (filing + native tag from the adapter raw store,
+plus the derivation DAG from the graph). The endpoint **composes across tiers** — a local join
+in Option A (single Postgres), a cross-store stitch in Option B. Product-facing, this is an
+**explainability/trust surface**: *"FY2024 Revenue is `Synonym`-matched from
+`us-gaap:SalesRevenueNet` in accession 0000320193-24-…, filed 2024-11-01."* Because it grounds
+in the polyglot raw SoT (§12a), it is independently verifiable. (Provenance drill-down being a
+local join is a mild point toward Option A.)
 
 ## 9. Mapping the Transform Pipeline Onto the Model
 
@@ -415,6 +497,93 @@ engines and languages — and outlives any single binding:
 Consequence: the **canonical fact store's intended destination is an Iceberg lakehouse**
 (open, polyglot, columnar), with Postgres as the low-burden on-ramp; the raw stores and any
 graph tier should likewise favor polyglot-accessible stores over Rust-embedded ones.
+
+## 12b. Workload Profile & Serving Layer
+
+Population (writes) and querying (reads) are **different workloads**, and each physical option
+optimizes a different one. The "raw = source of truth, graph + facts = rebuildable
+materializations" shape (§8) is effectively **CQRS**: write once into raw, project into
+read-optimized shapes. This section characterizes both sides and how they sit behind an API.
+
+### 12b.1 Write path (population)
+
+Bursty, batch-or-incremental, driven by the **Rust ETL — not user traffic**. Two modes:
+**backfill** (bulk) and **incremental** (one filing ≈ a few hundred rows). Idempotent upserts;
+restatements are point corrections (new fact, accession-keyed).
+
+### 12b.2 Read path (querying)
+
+User-facing, read-heavy, three shapes: **point lookups** ("Apple's FY2024 revenue"),
+**analytical scans** ("all software companies with ROE > 15%"), **traversals** ("ultimate
+parent of X").
+
+### 12b.3 Per-store behaviour
+
+| Workload | Postgres (row) | Lakehouse (Iceberg/Parquet, columnar) | Graph DB |
+| --- | --- | --- | --- |
+| Backfill (bulk write) | good (`COPY`) | **excellent** (big appends) | ok (bulk import) |
+| Incremental (small write) | **excellent** (`INSERT … ON CONFLICT`) | **weak** — tiny commits → many small files → compaction | good (`MERGE`) |
+| Restatement / point update | **trivial** (`UPDATE`) | **expensive** (merge-on-read / rewrite) | good |
+| Point-lookup read | excellent (indexed) | good | good |
+| Analytical scan / aggregation | ok at low-millions, degrades | **excellent** (columnar, 10–100×) | poor |
+| Deep traversal | weak (recursive CTE) | poor | **excellent** |
+
+Headline tension: **the lakehouse is the best reader for screeners but the worst writer for
+incremental filings.** Resolution: don't point incremental ETL at Iceberg — land small writes
+somewhere write-friendly (Postgres or raw Parquet staging) and **compact into Iceberg on a
+schedule** (medallion pattern). This is *why* the raw store and the analytical store can be
+different engines.
+
+### 12b.4 Maintenance burden
+
+- **Postgres (single store):** one system — autovacuum/bloat, index upkeep, `pg_dump`/WAL
+  backups, easy migrations. Lowest total maintenance.
+- **Lakehouse:** more parts — **file compaction**, snapshot expiration, orphan-file cleanup, a
+  **catalog** to run — but as *scheduled jobs*, not live tuning; schema evolution/time-travel
+  are first-class.
+- **Graph DB:** own backup/restore, memory sizing, upgrades, plus Rust-driver-maturity risk
+  (§13).
+- **Multi-store:** adds **reconciliation jobs** + dual-write coordination (§8 drift detection
+  becomes standing maintenance) — the main cost argument against day-one Option B. Mitigated
+  because materializations are replay-rebuildable from raw, lowering the stakes of any single
+  read-store's maintenance.
+
+### 12b.5 Serving behind a REST/GraphQL API
+
+The API is **decoupled from storage by design**, and the write side and read side are separate
+programs:
+
+```
+ETL binary (Rust) ──writes──▶ raw SoT ──projects──▶ [ graph tier | canonical facts ]
+                                                              ▲ reads
+                                       API binary (Rust, axum/actix) ──REST/GraphQL──▶ clients
+```
+
+- **Repository trait per read model** (`FactRepository`, `CompletenessRepository`,
+  `OwnershipRepository`). Handlers call traits, never SQL/Cypher directly — so swapping
+  Postgres→Iceberg for facts, or adding a graph DB for ownership, is a **new impl behind the
+  same trait**; the REST contract does not move (this is the §14.D storage-abstraction trait on
+  the read side).
+- **Endpoints compose across tiers** (the "start in graph, end in analytical" of §6):
+  `/companies/{lei}/facts` → `FactRepository` (columnar scan);
+  `/companies/{lei}/completeness` → `CompletenessRepository` (Postgres anti-join);
+  `/companies/{lei}/ownership-tree` → `OwnershipRepository` (recursive CTE now, graph DB later,
+  API unchanged); `/screener` → fans out (resolve candidate set → fetch numbers).
+- **Read-mostly ⇒ cacheable.** Append-mostly data + provenance means aggressive caching
+  (HTTP/Redis/materialized read-views), invalidated on new filings — hiding slow scans behind
+  warm caches regardless of backing store.
+- **Polyglot bonus (§12a):** because facts live in an open format, a Python/BI consumer can
+  read the same Iceberg tables directly, bypassing the Rust API, while the product API stays
+  Rust-over-trait.
+- **Per option:** Option A = one pool, local joins, transactional reads (`pg_duckdb` gives
+  columnar execution through the same connection). Option B = the API becomes a
+  **federation/composition layer** holding a graph client *and* an analytical client, owning
+  cross-store read consistency (may read a fact whose graph node hasn't projected yet) — more
+  powerful for traversal endpoints, more complex.
+
+**Net:** the trait-based, CQRS-shaped design lets you **start with Option A behind the REST API
+and evolve the backing stores without changing the API surface** — the strongest practical
+argument against over-committing the physical store on day one.
 
 ## 13. Storage Technology Decision
 
