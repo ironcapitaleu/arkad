@@ -49,6 +49,10 @@ are classic repository queries; the per-tier `RawStore` / `GraphStore` / `FactSt
 **ports** (DAO-like), not single-aggregate repositories. The decoupling intent — the reason we
 reach for the pattern — is fully honored either way.
 
+> **Background.** For a primer on these patterns (Repository, Ports & Adapters, Unit of Work, CQRS,
+> Specification, …) and how arkad combines them, see `design_patterns_primer.md` and the runnable
+> `design_patterns_demo.py`.
+
 ## Design principles (the load-bearing decisions)
 
 1. **Composition over inheritance — the `SecClient` shape.** A composing `Repository` trait *has-a*
