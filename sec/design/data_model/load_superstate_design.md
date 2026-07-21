@@ -234,6 +234,36 @@ uses a pure **`FinancialStatementsMapper`** (Data Mapper) to turn the applicatio
 `FinancialStatements` into the storage-domain `IngestionUnit` — then persists all three tiers in one
 transaction (Unit of Work). The Load state sees none of this.
 
+### 4.1 Connection pooling & sharing
+
+The repository's low-level "client" is a **connection pool** (`sqlx::PgPool`) — the exact analog of
+`reqwest::Client` inside `SecClient`. It is:
+
+- **Sealed inside the adapter**, never in the state context. The context holds the *port*
+  (the repository); the pool is an infrastructure detail. (This is why the DB "client" doesn't
+  appear in the context — the repository hides it.)
+- **Built once at the composition root** (`main`) and **shared** — `PgPool` is `Arc`-backed, so
+  clones share the same underlying pool, exactly as `reqwest::Client` clones share one connection
+  pool. Inject it (DI) rather than a process-global `OnceLock`: unlike `SecClient`'s rate limiter
+  (a genuine process-wide invariant that *is* a global), the pool is config-dependent (URL,
+  `max_connections`) and cleaner constructed-and-injected at the root.
+
+| | Extract (`SecClient`) | Load (repository) |
+| --- | --- | --- |
+| Low-level client | `reqwest::Client` (shared conn pool) | `sqlx::PgPool` (shared conn pool) |
+| Built | once, at the root | once, at the root |
+| Shared via | `Arc`-backed clone | `Arc`-backed clone |
+| Also shared | rate limiter (process-global) | the pool bounds total DB connections |
+
+**Why sharing is a *correctness* requirement, not just efficiency.** The atomic multi-tier `ingest`
+(the strong contract — raw + graph + facts in one transaction) works *only* because the three tiers
+draw from the **same** pool: a transaction cannot span two pools. So a co-located
+`PostgresFinancialStatementRepository` holds one `PgPool`, and `ingest` does one `pool.begin()` over
+all three writes. Separate pools per tier ⇒ no cross-tier transaction ⇒ the weak contract by
+construction. (Mirror of Extract: the *shared* rate limiter is what guarantees the SEC rate ceiling
+across all clients — sharing buys correctness there too.) A single bounded pool also caps total DB
+connections across all the concurrently-running company pipelines.
+
 ---
 
 ## 5. The store flow (how "data in a separate format" gets persisted)
