@@ -1,8 +1,10 @@
 # Universal Company Data Model — Canonical Core + Regulator Adapters
 
 > **SPIKE findings for [STA-130](https://linear.app/state-machine/issue/STA-130/spike-design-hybrid-data-model-graph-knowledge-base-analytical-data).**
-> Status: findings complete — logical model settled (§2–§12); physical-deployment choice
-> presented as an open team decision (§14). Owner: Damir Catovic. Date: 2026-07-21.
+> Status: findings complete — logical model settled (§2–§12); **physical deployment deliberately
+> deferred (decision 2026-08-08): storage is fully abstracted behind the `storage` crate's ports
+> (§14.F), and the physical choice waits for a measured trigger (§14).**
+> Owner: Damir Catovic. Date: 2026-07-21 (rev. 2026-08-08).
 
 ## 1. Context & Guiding Requirements
 
@@ -633,13 +635,20 @@ single reporter's pre-GA beta (since fixed). Kùzu forks' viability is unproven.
 is under-researched. BSL "Database Service" scope for a specific SaaS model is a legal
 question for counsel.
 
-## 14. Architecture Options — Physical Deployment (open decision)
+## 14. Architecture Options — Physical Deployment (decision: deferred behind the ports)
 
-The **logical** model (§2–§12) is settled and storage-independent. The **physical**
-deployment is an open team decision. Both options below implement the *same* three-tier
-logical hybrid; they differ only in whether the tiers live in one store or several from
-day one. Presented without a single verdict — the trade-offs are laid out for team
-discussion.
+> **Decision (2026-08-08): no physical deployment option is chosen at this stage — deliberately.**
+> The team decision is to **abstract physical storage completely** behind the `storage` crate's
+> ports (§14.F, `storage_traits_design.md`): the pipeline is built against those traits only, and
+> the physical choice — Option A, Option B, or any per-tier mixture — is deferred until a measured
+> trigger (§14.A table) forces it. Options A/B below are retained as the decision framework for
+> that later moment, not as a pending question. Next step: a **[DESIGN] ticket finalizing the
+> `storage` crate design**, then implementation (STA-139).
+
+The **logical** model (§2–§12) is settled and storage-independent. Both options below implement
+the *same* three-tier logical hybrid; they differ only in whether the tiers live in one store or
+several from day one. The trade-offs are laid out as the framework for the (deferred) physical
+decision.
 
 ### 14.A Option A — Postgres-centric, migration-gated split
 
@@ -779,16 +788,21 @@ durably the SoT; graph/fact materializations converge but may lag.** Option A (c
 over-delivers — one transaction, atomic, read-after-write consistent ("dual-write is a non-issue,"
 §14.A). Option B (mixed engines) can't span one tx → raw-first + async projection. Callers must not
 assume read-after-write on the graph/fact tiers; that keeps the pipeline honest across the physical
-choice.
+choice. **Transaction ownership** follows: a co-located impl realizes atomicity by implementing
+`ingest` directly against the shared transaction (impl-private helpers), *never* by composing its own
+capability-trait methods (three independent commits = a torn unit); a mixed-engine impl composes
+tier-by-tier with the raw write as commit point + idempotent, reconciled projections — see
+`storage_traits_design.md` § "Transaction ownership".
 
 **No `dyn`.** Associated types make these traits non-object-safe — consistent with the framework's
 `State` trait (also non-object-safe). Stores are injected by concrete type / generics into the
 `Load` context, exactly as `SecClient` is today.
 
-**Crate topology.** Traits + core types + `StorageError` + feature-gated fakes live in a new
-storage-agnostic **`domain`** crate (no `sqlx`); a **`storage-postgres`** crate holds the concrete
-`PostgresRepository`; only the composition root names Postgres. Makes §12a's language-agnostic /
-reversible-storage property enforceable by the compiler.
+**Crate topology.** The persistence ports + `StorageError` + ingest DTOs + feature-gated fakes
+live in a new backend-agnostic **`storage`** crate (no `sqlx`; renamed from `domain` — the domain
+vocabulary itself stays in `xbrl`, which `storage` depends on); a **`storage-postgres`** crate
+holds the concrete `PostgresRepository`; only the composition root names Postgres. Makes §12a's
+language-agnostic / reversible-storage property enforceable by the compiler.
 
 > Deferred: **bulk vs incremental** update semantics are an orthogonal axis (crosses all three
 > tiers) — see `storage_traits_design.md`; to be designed when a backfill/migration consumer exists.

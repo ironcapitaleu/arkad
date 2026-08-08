@@ -1,10 +1,12 @@
 # Storage Abstraction — Proposed Trait Design (WORKING DRAFT)
 
-> Context: STA-130 SPIKE, Option A chosen (Postgres-centric, migration-gated split —
-> see `sec/design/data_model/hybrid_data_model.md` §14.A). This captures the DI/trait design
-> converged on in discussion, committed to the feature branch for cross-device handoff and
-> red-teaming. It is summarized in the SPIKE doc **§14.F**, but **not yet reflected in Linear** —
-> still a draft to iterate on before cutting FEATURE tickets.
+> Context: STA-130 SPIKE. **Decision (2026-08-08): no physical deployment option is chosen at
+> this stage — deliberately.** The team decision is to abstract physical storage completely behind
+> the `storage` crate's ports (this doc); the physical choice (Option A, B, or any mixture —
+> `hybrid_data_model.md` §14) is deferred until a measured trigger forces it. This captures the
+> DI/trait design converged on in discussion, committed for cross-device handoff and red-teaming.
+> It is summarized in the SPIKE doc **§14.F**; a follow-up **[DESIGN] ticket finalizes this design
+> (method inventory + open questions) before implementation (STA-139)**.
 >
 > **Design converged (this revision):** composition-over-inheritance via associated types (the
 > `SecClient` pattern), per-store associated `type Error` bounded to convert into one `StorageError`
@@ -38,9 +40,10 @@ uses for `SecClient` (abstract trait → real impl → fake).
    graph-DB + Iceberg facts). The pipeline is blind to which.
 3. **Test doubles.** In-memory fakes implement the same traits, so pipeline/state tests run with
    zero database.
-4. **Decoupling guaranteed by the crate boundary.** Traits + domain types live in the
-   storage-agnostic `domain` crate (no `sqlx`); backends live in separate crates. Only the
-   composition root ever names a concrete DB.
+4. **Decoupling guaranteed by the crate boundary.** The persistence ports live in the
+   backend-agnostic `storage` crate (no `sqlx`), which depends on `xbrl` for the domain
+   vocabulary; backends live in separate crates. Only the composition root ever names a
+   concrete DB.
 
 **Precise note (so the doc doesn't overclaim).** We use "Repository" in the pragmatic
 *decouple-from-persistence* sense. Strictly, the composing `Repository` is a persistence **facade**
@@ -195,6 +198,12 @@ async fn ingest(&self, unit: IngestionUnit) -> Result<(), StorageError> {
 }
 ```
 
+> ⚠️ **This composed body realizes only the *weak* contract** — each tier-call acquires its own
+> connection and commits independently, so a mid-unit failure leaves earlier tiers committed. It is
+> the correct shape for a mixed-engine `Repository` (and for fakes), and **wrong for a co-located
+> one**: `PostgresRepository` must NOT implement `ingest` this way — see
+> [Transaction ownership](#tx-ownership).
+
 > Note the return-type split: **capability ops return the rich `Self::Error`** (caller gets native
 > detail, or converts to the currency at will); **`Repository::ingest` returns `StorageError`**
 > because it unifies three different store errors and is where cross-cutting logic (retry, logging)
@@ -264,27 +273,66 @@ over-delivers. This is *why* fakes assert on the recorded `IngestionUnit` rather
 through `query` — that keeps tests backend-honest instead of silently depending on synchronous
 visibility that only Postgres provides.
 
+### Transaction ownership — the facade holds the tx, never the tier stores {#tx-ownership}
+
+The unit-of-work seam is `ingest`, but *where the transaction lives* differs by impl, and getting
+this wrong silently downgrades the strong contract to the weak one:
+
+- **Co-located impl (`PostgresRepository`): `ingest` does NOT delegate to its own capability-trait
+  methods.** Calling `self.raw().append()` → `self.graph().upsert()` → `self.facts().upsert()`
+  yields **three independent commits** — a mid-unit failure leaves a torn unit (raw + graph
+  committed, facts absent), which is exactly what the strong contract exists to rule out. Instead,
+  `ingest` is implemented **directly against the shared pool**: open one transaction, run the three
+  tier writes as **impl-private helpers taking `&mut PgTransaction`**, commit; any error → native
+  rollback, the unit never happened. The transaction type appears only inside `storage-postgres`,
+  in private signatures — principle 6 (no `type Transaction` / `begin()` on any trait) is untouched.
+  The public capability-trait methods on the Postgres stores remain for **standalone/replay use**
+  (each wrapping its own short tx); they are simply not `ingest`'s building blocks.
+- **Mixed-engine impl: there is no cross-engine rollback, by design.** No transaction spans
+  Postgres + Neo4j + Iceberg, and the design does not simulate one (no 2PC, no compensating
+  actions). The composed tier-by-tier body above is the *correct* implementation here: the **raw
+  write is the commit point** — if it fails, `ingest` returns `Err` and the unit cleanly never
+  happened; if a later projection write fails, nothing is undone — graph/fact writes are
+  **idempotent by natural key**, so the unit is retried until convergent, and abandoned halves are
+  caught by the §8 reconciliation job and replayed. Effectively the raw tier is a transactional
+  outbox and the projections are its at-least-once, idempotent consumers.
+- **Fakes:** `FakeRepository::ingest` records the `IngestionUnit` and returns `Ok` — it neither
+  composes tier-calls nor models a transaction, keeping tests pinned to the weak contract.
+
+Rule of thumb for review: **atomicity is the composing facade's private business.** If a tier
+store's public method shows up inside `ingest`'s body in a co-located impl, or a transaction type
+shows up in any trait signature, the boundary has been drawn wrong.
+
 ## Domain types the traits reference (co-design with §14.D.1 core types)
 
+Type ownership follows the crate split: **domain vocabulary lives in `xbrl`** (a `FactSet` is a
+`FactSet` regardless of persistence — it must not depend on a crate named `storage`), while the
+**ingest-contract DTOs and query/report shapes live in `storage`** (they exist only to cross the
+persistence seam):
+
 ```rust
+// ---- `storage` crate: the ingest contract + query/report shapes ----
+
 /// Everything derived from ONE filing, ready to persist as a unit. The pipeline builds this;
 /// it never knows where or how it lands.
 pub struct IngestionUnit {
     pub raw:   RawFiling,   // verbatim — SoT
     pub graph: GraphDelta,  // company/filing/concept nodes + edges to upsert
-    pub facts: FactSet,     // canonical facts at the §6 grain
+    pub facts: FactSet,     // canonical facts at the §6 grain (type from `xbrl`)
 }
 
 pub struct RawFiling { /* cik, accession, native tag, taxonomy_version, value, unit, period... */ }
 pub struct GraphDelta { /* nodes + edges to upsert (idempotent) */ }
-pub struct FactSet { /* Vec<CanonicalFact> for one company/filing */ }
-pub struct CanonicalFact { /* §6 grain: company_id, canonical_element, value, unit, period... */ }
-
-pub struct CompanyId(/* LEI preferred, CIK fallback */);
-pub struct FiscalYear(u16);
 pub struct FactQuery { /* element(s), period range, dimension filter, ... */ }
 pub struct CompletenessReport { /* missing periods / missing required concepts */ }
 pub struct OwnershipTree { /* root + edges */ }
+
+// ---- `xbrl` crate (domain vocabulary — referenced, not defined, by `storage`) ----
+
+pub struct FactSet { /* Vec<CanonicalFact> for one company/filing */ }
+pub struct CanonicalFact { /* §6 grain: company_id, canonical_element, value, unit, period... */ }
+pub struct CompanyId(/* LEI preferred, CIK fallback */);
+pub struct FiscalYear(u16);
 ```
 
 ## Real backend + fakes
@@ -331,32 +379,41 @@ impl Repository for FakeRepository {
 ```
 
 **Fake location (grounded decision).** The `sec` crate's `tests/fixtures` are `#[cfg(test)]` and
-crate-internal, so they cannot cross a crate boundary. Because the traits live in the new `domain`
+crate-internal, so they cannot cross a crate boundary. Because the traits live in the new `storage`
 crate (below) but the consuming `Load` state lives in `sec`, the fakes must be reachable from both →
-ship them **feature-gated in `domain`** (`#[cfg(feature = "fakes")]`), pulled into `sec`'s dev-deps.
+ship them **feature-gated in `storage`** (`#[cfg(feature = "fakes")]`), pulled into `sec`'s dev-deps.
 This is the one place we deviate from the skill's "fakes in `tests/fixtures`" convention, and the
 deviation is *forced by the crate split*, not preference.
 
-## Crate topology (from the `domain`-crate decision)
+## Crate topology (from the `storage`-crate decision)
 
-The universal core must not depend on any backend, or "storage-agnostic" is a lie the compiler
-won't catch. So the decision implies a small topology, not one crate:
+The persistence ports must not depend on any backend, or "storage-agnostic" is a lie the compiler
+won't catch — and the domain vocabulary must not depend on the ports (a `FactSet` is domain, not
+persistence). So the decision implies a small topology, not one crate:
 
 ```
-domain            core types + storage traits + StorageError + feature-gated fakes.
-  ▲  ▲  ▲          deps: async-trait, futures, thiserror.  NO sqlx.
-  │  │  └── xbrl
-  │  └───── sec            (SEC adapter → IngestionUnit; the Load state holds the concrete store)
-  │         state_machine (framework)
-  │
-storage-postgres  PostgresRepository + the three Postgres stores. deps: domain + sqlx.
-  ▲
-  └── the binary / composition root wires PostgresRepository and injects it
+xbrl              domain vocabulary: CanonicalElement, FactSet, CanonicalFact,
+  ▲  ▲             CompanyId/Lei, Invariant, Period, Unit.  No async, no I/O.
+  │  │
+  │  storage      persistence ports: Storage/RawStore/GraphStore/FactStore/Repository traits
+  │   ▲  ▲         + StorageError + ingest DTOs (IngestionUnit, RawFiling, GraphDelta)
+  │   │  │         + feature-gated fakes.  deps: xbrl, async-trait, futures, thiserror.  NO sqlx.
+  │   │  │
+  │   │  storage-postgres   PostgresRepository + the three Postgres stores. deps: storage + sqlx.
+  │   │   ▲
+  └───┴───┼────── sec        (SEC adapter → IngestionUnit; the Load state holds the concrete store
+          │                   — via `storage` traits only, never `storage-postgres` directly)
+          └────── the binary / composition root wires PostgresRepository and injects it
 ```
 
-Only `main` ever names Postgres; `sec` / `state_machine` / `xbrl` see nothing but `domain` traits.
-This only holds if the Postgres impl is a *separate crate* — otherwise `sec`'s dep graph pulls in
-sqlx transitively and the boundary rots.
+Only the composition root ever names Postgres; `sec` / `state_machine` / `xbrl` see nothing but
+`storage` traits. This only holds if the Postgres impl is a *separate crate* — otherwise `sec`'s
+dep graph pulls in sqlx transitively and the boundary rots.
+
+> **Naming note (2026-08-08 revision).** This crate was called `domain` in earlier drafts. Renamed
+> `storage`: it holds the persistence *ports*, not the domain vocabulary — that stays in `xbrl`,
+> which `storage` depends on. The `storage` / `storage-postgres` pair also reads as one family
+> (cf. `sqlx` / `sqlx-postgres`).
 
 ## DI wiring (same as SecClient — concrete, no `dyn`)
 
@@ -401,8 +458,9 @@ once against `impl Storage`, blind to data kind. A future Iceberg `FactStore` is
 
 ## Revised implementation order (collapses handoff steps 1 & 3)
 
-1. **`domain` crate: core types + storage traits + `StorageError` + feature-gated fakes** — the DI
-   contract. (Types and traits are one ticket: the types are the traits' vocabulary.)
+1. **`storage` crate: ports + `StorageError` + ingest DTOs + feature-gated fakes** — the DI
+   contract. (DTOs and traits are one ticket: the DTOs are the traits' vocabulary; the domain
+   vocabulary itself stays in `xbrl`, which `storage` depends on.)
 2. **`storage-postgres` crate: `PostgresRepository`** implementing the traits (`ingest` = one tx).
 3. **SEC adapter** — raw parse + resolution map + CIK→LEI, producing `IngestionUnit`s.
 4. **Wire `CreateFinancialStatements` → `FactSet` → `Load` calls `ingest`**; retire `sec::CompanyData`.
@@ -454,5 +512,12 @@ method. **To be designed when a backfill/migration consumer actually exists.**
 - **No `dyn` anywhere** — was `Arc<dyn FinancialDataStore>` injection + `&[&dyn Storage]` bring-up;
   now concrete/generic, consistent with the non-object-safe `State` trait. Fleet bring-up is a
   generic `bring_up<S: Storage>` called per tier.
-- **Crate topology + feature-gated fakes** spelled out as the consequence of the `domain`-crate
+- **Crate topology + feature-gated fakes** spelled out as the consequence of the ports-crate
   decision.
+- **(2026-08-08)** Crate renamed **`domain` → `storage`**; domain vocabulary (`FactSet`,
+  `CanonicalFact`, `CompanyId`, …) stays in `xbrl`, which `storage` depends on — see the naming
+  note under Crate topology.
+- **(2026-08-08)** New **Transaction ownership** subsection (§tx-ownership): the composing facade
+  owns atomicity; a co-located impl must not build `ingest` from its own capability-trait methods.
+- **(2026-08-08)** Header decision updated: **no physical deployment chosen** — abstraction-first;
+  the physical choice is deferred behind these ports until a measured trigger forces it.
