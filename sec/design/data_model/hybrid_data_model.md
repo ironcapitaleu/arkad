@@ -44,7 +44,7 @@ What to carry forward vs. change (detail in §10):
 | `xbrl::ResolvedFact` + `Confidence` + `resolution_path` | **Keep & promote** — becomes the universal `CanonicalFact`, minus SEC specifics |
 | `xbrl::Invariant` (SFAC-6 identities) | **Keep** — universal validation |
 | `us_gaap::mappings` (tag → CanonicalElement) | **Reframe** — this is *one adapter* (SEC/US-GAAP), not the core |
-| `sec::Cik`-centric identity, `FilingSource` (accession/form) | **Demote** — SEC-adapter-specific; core keys on **LEI** |
+| `sec::Cik`-centric identity, `FilingSource` (accession/form) | **Scope to the SEC adapter** — `Cik` stays first-class: it is the adapter's primary key and the natural entry point of SEC pipelines (§11); *core* identity keys on **`CompanyId`** (LEI-preferred, §4), resolved at load time |
 | `sec::CompanyData/CompanyFact/Observation` | **Replace** — superseded by the canonical model |
 
 ## 2. Architectural Spine — Universal Core + Regulator Adapters (Hub & Spoke)
@@ -83,6 +83,34 @@ specific that has no canonical meaning (e.g. a bespoke `us-gaap` disclosure tag 
 SFAC-6 mapping) **remains in the adapter, fully queryable**, but is not forced into the
 universal model. This is precisely the "connect to and query regulator-specific data"
 requirement.
+
+### 2.1 Two rings inside the core: axiomatic vs derived (multi-adapter rule)
+
+"Source of truth" needs precision — the core has two rings with different epistemic status
+(review resolution, 2026-08-08):
+
+- **Axiomatic ring — identity & structure.** `Company`, its `Identifier`s, the adapter
+  bridges: only what is **independently verifiable against an authoritative registry** (GLEIF
+  says this LEI exists; EDGAR says this filing exists). This ring is what §8 means by "graph =
+  source of truth."
+- **Derived ring — normalized data.** Canonical facts (§6) and completeness edges are
+  **materializations computed from adapter data**, never axiomatic. Every datum carries
+  provenance (`source_ref`, `confidence`) and all of it is rebuildable by replay (§8). Values,
+  units, and periods in the core are therefore not "core truth" — they are normalized
+  *projections of* adapter observations, always traceable back to one.
+- **Query routing works in both directions** (§7.1): query an adapter directly by its native
+  PK (`Cik` against the SEC adapter), or query the universal `Company` by `CompanyId`/LEI and
+  let the core delegate to whichever adapters hold data for it.
+
+**Multi-adapter rule:** when several adapters normalize data for the same company, their
+outputs are **never destructively merged**. The §6 grain includes `source_ref`, so canonical
+facts from different adapters coexist as separate provenance-attributed rows. Example: a
+dual-listed filer reports FY2024 revenue via a 10-K (`us-gaap`, SEC adapter) *and* an ESEF
+report (`ifrs-full`, ESEF adapter) → **two rows** for (company, `Revenue`, FY2024), one per
+`source_ref`. **Agreement across sources upgrades confidence** (cross-source validation);
+divergence is surfaced as a data-quality finding; "which value wins" is **read-time policy**
+(e.g. prefer the primary regulator), never a write-time overwrite. The graph applies the same
+posture to relationship claims (§5.2).
 
 ## 3. Universal Canonical Concept Model
 
@@ -147,72 +175,132 @@ specific segment without the adapter.
 
 ## 4. Universal Identity
 
-- **Primary key: LEI** (ISO 17442, 20-char, GLEIF-issued) — global and regulator-agnostic.
-- A validated `Lei` newtype is added under `shared/` (sibling to the existing `Cik`), built
-  with the `domain-concept` pattern (format + ISO 17442 check-digit validation).
-- **CIK is not core.** It is an SEC-adapter identifier. The mapping CIK↔LEI is how the SEC
-  adapter attaches its data to the universal company (§11).
-- **Fallback identity.** Not every entity has an LEI. `CompanyId = Lei(..) | Cik(..) | …`
-  with LEI strongly preferred; a company first seen via SEC with no LEI is keyed on CIK and
-  **relinked to LEI later without rewriting facts** (facts key on the resolved `CompanyId`,
-  and the graph node carries all known identifiers as properties).
+- **Primary key: `CompanyId` — our own platform-owned newtype, not raw LEI.** What the model
+  presupposes is *one global PK*, **not** that every entity has an LEI. `CompanyId =
+  Lei(..) | Cik(..) | …`; the platform keys everything (facts, graph nodes, provenance) on
+  `CompanyId`, so the identity *scheme* can evolve — or fall back — without exposing the whole
+  data platform to LEI availability. (The same shielding-newtype pattern this repo already
+  uses for domain concepts.)
+- **LEI is the preferred/canonical scheme** (ISO 17442, 20-char, GLEIF-issued — global and
+  regulator-agnostic). A validated `Lei` newtype is added under `shared/` (sibling to the
+  existing `Cik`), built with the `domain-concept` pattern (format + ISO 17442 check-digit
+  validation).
+- **LEI cannot be presupposed for every entity — concrete gaps:** LEIs are mandatory mainly
+  for entities party to regulated financial transactions (EMIR/MiFID-style obligations); many
+  SEC registrants (smaller reporting companies, some foreign private issuers, trusts/shells)
+  have never obtained one; issued LEIs **lapse** when annual renewal stops; and private
+  companies appearing only in ownership claims (§5.2) often have no LEI at all.
+- **CIK is not core — but it is first-class inside the SEC adapter:** the adapter's primary
+  key and the natural entry point of SEC pipelines. The CIK↔LEI mapping is how the SEC adapter
+  attaches its data to the universal company (§11).
+- **Fallback & relink invariant.** A company first seen via SEC with no LEI is keyed on
+  `CompanyId::Cik(..)` and **relinked to LEI later without rewriting facts** (facts key on the
+  resolved `CompanyId`; the graph carries all known identifiers as `Identifier` nodes, §5.1).
 
 ## 5. Universal Knowledge Graph (Knowledge-Base Layer)
 
-Models **identity, structure, and relationships** for every company worldwide — regulator-
-agnostic core nodes, with regulator-specific `Filing` nodes attaching via the adapter.
+Models **identity, structure, and relationships** for every company worldwide. Reworked per
+PR review (2026-08-08): built **from the minimal axiomatic core outward** — start with the
+non-negotiables that hold for *every company ever*, then the SEC adapter, then the bridge
+between them. Everything not independently verifiable (classifications, relationships) enters
+as a **source-attributed claim** (§5.2), never as core truth. Keep the model minimal but
+extensible.
 
-### 5.1 Nodes
+### 5.1 Nodes — three rings
 
-| Node | Layer | Key | Notes |
+| Node | Ring | Key | Notes |
 | --- | --- | --- | --- |
-| `Company` | core | `lei` (or fallback `CompanyId`) | entity_name, country, status; carries `cik`, other ids as properties |
-| `Concept` | core | `CanonicalElement` | the canonical vocabulary as nodes (enables "which concepts expected/missing") |
-| `Period` | core | `(kind, key)` e.g. `FY2024`, `Q3-2024` | Instant/Duration |
-| `Exchange` | core | `mic` (ISO 10383) | |
-| `Industry`/`Sector` | core | `scheme+code` (GICS/SIC/NACE) | |
+| `Company` | **core — axiomatic** | `company_id` (§4) | *the* non-negotiable node; entity_name, country, status |
+| `Identifier` | **core — axiomatic** | `(scheme, value)` e.g. `(LEI, …)`, `(CIK, …)` | identity records attached to `Company`; each verifiable against its issuing registry (GLEIF, EDGAR) |
+| `Concept` | core — ours by construction | `CanonicalElement` | our own vocabulary — axiomatic because *we* define it (enables "which concepts expected/missing") |
+| `Period` | shared dimension | `(kind, key)` e.g. `FY2024`, `Q3-2024` | deterministic calendar construct (Instant/Duration) — verifiable by arithmetic, safe to share |
 | `Regulator`/`DataSource` | adapter-bridge | `code` (SEC, FCA, BaFin, ESMA) | |
 | `Filing` | adapter | `regulator + native_id` (SEC: accession) | form, filed_date, period_end, taxonomy version |
+| `Exchange` | reference data | `mic` (ISO 10383) | the *list* is a verifiable standard; any given *listing* is a claim (§5.2) |
+| `Industry`/`Sector` | **claim layer — not core** | `scheme+code` (GICS/SIC/NACE) | classifications are source-owned opinions (GICS is S&P/MSCI's, SIC is the SEC's), multi-label, and disagree across schemes — attached only via source-attributed `IN_INDUSTRY` claims |
 
-### 5.2 Edges
+**Build order (review directive):** ring 1 (`Company` + `Identifier`) → the SEC adapter
+(`Regulator`, `Filing` + structural edges) → the bridge (`HAS_FILING` via CIK→`CompanyId`
+resolution, §11). Claim-layer nodes enter only as their sources are onboarded.
+
+### 5.2 Edges — structural vs claims
+
+**Structural edges** — adapter-verifiable (a filing either exists in EDGAR or it doesn't):
 
 | Edge | From → To | Properties |
 | --- | --- | --- |
+| `HAS_IDENTIFIER` | Company → Identifier | since, status (active / lapsed) |
 | `HAS_FILING` | Company → Filing | (Filing is adapter-owned but hangs off the core company) |
 | `FILED_UNDER` | Filing → Regulator | |
 | `FILES_WITH` | Company → Regulator | first_filed |
 | `COVERS_PERIOD` | Filing → Period | |
 | `REPORTS_CONCEPT` | Filing → Concept | resolved confidence (structural completeness) |
+
+**Relationship edges — source-attributed claims.** A relationship assertion is only as good
+as its source, and sources disagree: `A OWNS_STAKE_IN B: 42% as of 2026-01-31 per S1` can
+coexist with `… 53% as of 2026-01-16 per S2` (different `as_of` — a legitimate time series,
+not a conflict) *and* with `… 53% as of 2026-01-31 per S2` (same `as_of` — a genuine
+conflict). So every relationship edge carries a uniform **claim envelope** beside its payload:
+
+- `source` — which adapter/dataset asserted it (provenance, §8.2)
+- `as_of` — the date the assertion is *about*; `observed_at` — when we ingested it
+- `verifiability` — `Verified` (regulatory filing / official registry) · `Reported`
+  (reputable aggregator or data vendor) · `Alleged` (news, unconfirmed)
+
+| Edge (claim) | From → To | Payload |
+| --- | --- | --- |
 | `LISTED_ON` | Company → Exchange | ticker, listing_date |
 | `IN_INDUSTRY` | Company → Industry | scheme |
 | `SUBSIDIARY_OF` | Company → Company | since |
 | `OWNS_STAKE_IN` | Company → Company | percentage |
 
+Rules: claims are **append-only and never destructively merged** — conflicting claims
+coexist; which one "wins" is **read-time policy** (most-recent `as_of`, highest
+verifiability, or "show all with sources"); cross-source **agreement upgrades confidence**,
+divergence is itself a data-quality signal to surface — the same posture as the fact store's
+multi-adapter rule (§2.1).
+
+**Data-quality checks per element** (anchoring the review ask "how do we check consistency
+for each of these"):
+
+| Element | Check |
+| --- | --- |
+| `Company` | has ≥ 1 `Identifier`; exactly one *primary* id; no orphan companies |
+| `Identifier` | validates against its scheme (LEI check digit, CIK format); LEI: GLEIF status current (issued, not lapsed) |
+| `HAS_FILING` / `Filing` | filing exists verbatim in the adapter raw store (§8 drift check) |
+| `COVERS_PERIOD` | period arithmetic consistent (dates ↔ fiscal year; four quarters ≈ FY, §5.4) |
+| `REPORTS_CONCEPT` | expected-concept set for the form type covered (completeness, §5.4) |
+| ownership claims | `percentage ∈ (0, 100]`; `as_of ≤ observed_at`; conflict detector: same edge + same `as_of`, different payloads |
+
 ### 5.3 Diagram
 
 ```mermaid
 graph LR
-  subgraph Core
-    C["Company (PK: LEI)"]
-    K["Concept (CanonicalElement)"]
-    P["Period"]
-    E["Exchange"]
-    I["Industry"]
-    C2["Company (related)"]
+  subgraph CoreAx["Ring 1 — axiomatic core (every company ever)"]
+    C["Company (PK: CompanyId)"]
+    ID["Identifier (LEI / CIK / …)"]
   end
-  subgraph Adapter
+  subgraph Adapter["SEC adapter (+ shared dimensions)"]
     R["Regulator (SEC/FCA/…)"]
     F["Filing (native id: accession)"]
+    K["Concept (CanonicalElement)"]
+    P["Period"]
   end
+  subgraph Claims["Claim layer (source-attributed)"]
+    E["Exchange"]
+    I["Industry (per scheme)"]
+    C2["Company (related)"]
+  end
+  C -- HAS_IDENTIFIER --> ID
   C -- HAS_FILING --> F
   C -- FILES_WITH --> R
   F -- FILED_UNDER --> R
   F -- COVERS_PERIOD --> P
   F -- REPORTS_CONCEPT --> K
-  C -- LISTED_ON --> E
-  C -- IN_INDUSTRY --> I
-  C -- SUBSIDIARY_OF --> C2
-  C -- OWNS_STAKE_IN --> C2
+  C -. "LISTED_ON {source, as_of}" .-> E
+  C -. "IN_INDUSTRY {source, scheme}" .-> I
+  C -. "SUBSIDIARY_OF {source, as_of}" .-> C2
+  C -. "OWNS_STAKE_IN {source, as_of, %}" .-> C2
 ```
 
 ### 5.4 Two workloads under one "graph" label
@@ -292,6 +380,26 @@ erDiagram
   }
 ```
 
+### 6.1 Yes — this *is* the time series (long form)
+
+The review asks whether facts are "better modeled as a time series" — they **are** one: the
+fact table is the standard **long/tidy form** of a time series, and a series is a *view* on
+it. `WHERE company_id = ? AND canonical_element = 'Revenue' AND dimension_sig = '' ORDER BY
+period_end` *is* Apple's revenue over time. Long form is chosen over per-series containers
+(one array/table per company × concept) because:
+
+- **Heterogeneous & sparse** — thousands of concepts × dimensions, most absent for most
+  companies; per-series containers multiply empty structures.
+- **Restatements are vintages** — `source_ref` in the grain lets original and amended values
+  for the same (element, period) coexist; an array-per-series cannot represent overlapping
+  vintages without reinventing exactly this table.
+- **Columnar engines are built for long form** — §12b's lakehouse / `pg_duckdb` path is
+  precisely the "scan a long fact table" workload; time-series-native access patterns
+  (per-concept series, rolling windows) are cheap projections over it.
+
+Materialized per-concept series (wide tables for hot screener paths) are **read-side
+projections built on demand — never the storage of record.**
+
 ## 7. Regulator Adapter Layer (SEC/EDGAR concrete)
 
 Each adapter owns three things, all **independently queryable** and joinable to the core by
@@ -319,7 +427,9 @@ Each adapter owns three things, all **independently queryable** and joinable to 
 
 ## 8. Consistency Model & Layer Hierarchy
 
-- **Graph = source of truth** for identity, relationships, structural metadata, completeness.
+- **Graph = source of truth** for identity, structural metadata, completeness — and the
+  *ledger* of relationship claims, which stay per-source and append-only (§5.2) rather than
+  being merged into one "true" relationship.
 - **Canonical fact store = authoritative** for canonical numeric values/time-series.
 - **Adapter raw store = the replay source** (system of record for what was actually filed).
 - **Write order:** adapter raw ingested → graph nodes/edges upserted → canonical facts
@@ -464,6 +574,19 @@ flowchart LR
   `cik/constants.rs`); (2) batch cross-reference GLEIF golden-copy × SEC ticker/CIK map;
   (3) on-demand GLEIF API lookup at ingest with cache. Ambiguous/missing → key on CIK,
   flag for review, backfill LEI later without rewriting facts.
+- **SEC pipelines start from `Cik`, and that is fine.** The ETL takes a `Cik` as input;
+  identity resolution to `CompanyId` happens **at the Load step** — Extract/Transform stay
+  purely SEC-native and are never blocked on LEI availability.
+- **What the LEI actually does at ingestion time** (the review question), concretely:
+  1. **Resolve** — `Cik → CompanyId` (LEI if mapped, else `CompanyId::Cik`).
+  2. **Attach** — upsert the core `Company` node and hang the new `Filing` off it; the
+     resolved id is the graph attach point — this is what keeps one canonical company across
+     regulators instead of one shadow company per adapter.
+  3. **Check** — data quality at the identity seam (§5.2 table): LEI check digit, GLEIF
+     status (issued vs lapsed), entity-name cross-check between the GLEIF record and the
+     filing.
+  4. **Degrade gracefully** — a missing/ambiguous mapping never blocks ingestion: proceed
+     CIK-keyed, flag for review, backfill the LEI later (relink invariant, §4).
 
 ## 12. Batch vs. Incremental
 

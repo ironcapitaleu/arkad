@@ -24,6 +24,12 @@ below; each doc's header states its own status.
   gated decision, not a pending question.
 - **Crate topology** — `xbrl` (domain vocabulary) ← `storage` (ports, no `sqlx`) ←
   `storage-postgres` (first concrete backend); only the composition root names a database.
+- **Core = axiomatic identity; everything else is derived or a claim (2026-08-08 review
+  iteration)** — the core splits into an axiomatic ring (`Company` + `Identifier`s, verifiable
+  against registries) and a derived ring (canonical facts as provenance-attributed
+  materializations); relationship edges are source-attributed claims that coexist rather than
+  merge; multi-adapter facts coexist by `source_ref` with read-time selection; the fact table
+  is the long-form time series. (`hybrid_data_model.md` §2.1, §4, §5, §6.1)
 
 ## What happens next
 
