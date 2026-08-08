@@ -46,10 +46,10 @@ in-memory fakes are adapters. Same shape the codebase already uses for `SecClien
 **What:** Concentric layers — UI → Application → Domain → Infrastructure — where source-code
 dependencies only ever point *inward*. The domain knows nothing about the database.
 
-**arkad:** Enforced by the **crate boundary**, not just convention: the `domain` crate (types +
-storage ports + `StorageError`) has **no `sqlx`**; the `storage-postgres` crate depends on `domain`,
-never the reverse. Only the composition root (the binary) names a concrete DB. The compiler enforces
-the dependency rule.
+**arkad:** Enforced by the **crate boundary**, not just convention: the `storage` crate (ports +
+ingest DTOs + `StorageError`; domain vocabulary stays in `xbrl`) has **no `sqlx`**; the
+`storage-postgres` crate depends on `storage`, never the reverse. Only the composition root (the
+binary) names a concrete DB. The compiler enforces the dependency rule.
 
 ## Repository
 
@@ -156,7 +156,7 @@ Mapping the pieces:
 | Concern | Pattern | In arkad |
 | --- | --- | --- |
 | Decouple from the DB backend | **Ports & Adapters** | `Storage`/`RawStore`/`GraphStore`/`FactStore`/`Repository` traits ↔ concrete adapters |
-| Enforce the boundary | **Clean Architecture** | `domain` crate (no `sqlx`) ← `storage-postgres` crate |
+| Enforce the boundary | **Clean Architecture** | `storage` crate (no `sqlx`) ← `storage-postgres` crate |
 | Wire it | **Dependency Injection** | concrete store injected into the `Load` context |
 | Atomic multi-tier write | **Unit of Work** | `Repository::ingest` (atomicity inside the adapter) |
 | Reads ≠ writes | **CQRS** | `ingest` vs `query`/`completeness`/`ownership_tree`; raw = SoT, graph/facts = projections |
