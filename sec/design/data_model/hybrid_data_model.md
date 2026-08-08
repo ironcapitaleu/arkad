@@ -941,3 +941,8 @@ language-agnostic / reversible-storage property enforceable by the compiler.
   replay source + graph-first ordering; reconciliation cadence needs tuning.
 - **Single-store vs hybrid** — resolved in §13/§14 from research, with the raw-store-as-SoT
   design keeping the storage choice reversible.
+- **Ontology layer / axiomatic enforcement on graph data** — deliberately deferred, but
+  mapped out: see `ontology_guardrails.md` for the arkad ↔ ontology correspondence (claims ≈
+  Wikidata statements, invariants ≈ OWL axioms), the reuse targets (FIBO, GLEIF Level 2,
+  SKOS), and the concrete adoption triggers. Reread it when the graph tier materializes, the
+  claim layer is finalized, or an agent layer lands on top.

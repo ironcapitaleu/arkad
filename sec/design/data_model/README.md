@@ -14,6 +14,7 @@ below; each doc's header states its own status.
 | 3 | [`load_superstate_design.md`](./load_superstate_design.md) | Exploratory, non-normative | The Load `SuperState` through the ports-and-adapters lens; for iteration before Load tickets are cut |
 | 4 | [`design_patterns_primer.md`](./design_patterns_primer.md) | Background | Shared vocabulary: Repository, Ports & Adapters, Unit of Work, CQRS — each mapped onto arkad |
 | 5 | [`design_patterns_demo.py`](./design_patterns_demo.py) | Background (runnable) | Dependency-free Python model of the same pattern combination: `python3 design_patterns_demo.py` |
+| 6 | [`ontology_guardrails.md`](./ontology_guardrails.md) | Future reference, non-normative | Ontologies as guardrails / axiomatic enforcement on graph data: the arkad ↔ ontology mapping, reuse targets (FIBO, GLEIF L2, SKOS, Wikidata model), enforcement levels, and the adoption triggers for when to revisit |
 
 ## Decisions so far
 
