@@ -19,7 +19,7 @@ stateDiagram-v2
     state Transform {
         ParseCompanyFacts --> CreateFinancialStatements
     }
-    
+
     Transform --> Load
 
     %% `Load` SuperState
