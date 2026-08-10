@@ -13,9 +13,9 @@ classDiagram
     class StateMachine{
         <<enum>>
         %% Errors during state machine execution
+        +InvalidConfiguration
         +State(State)
         +Transition(Transition)
-        +InvalidConfiguration
     }
 
     class State {
@@ -43,21 +43,27 @@ classDiagram
         <<struct>>
         %% State-level wrapper for CIK validation errors
         +String state_name
-        +CikError domain_error
+        +CikError cik_error
     }
 
     class FailedRequestExecution{
         <<struct>>
         %% State-level wrapper for request execution errors
         +String state_name
-        +SecRequestError domain_error
+        +FailedSecRequest domain_error
     }
 
     class IncompleteCompanyFacts{
         <<struct>>
         %% State-level error for missing XBRL concepts
-        +String state_name
-        +Vec~String~ missing_fields
+        -String state_name
+        -MissingFields missing_fields
+    }
+
+    class MissingFields{
+        <<struct>>
+        %% Newtype over the canonical names of the missing concepts
+        -Vec~String~ fields
     }
 
     class MissingOutput{
@@ -88,10 +94,39 @@ classDiagram
         +String invalid_cik
     }
 
-    class SecRequestError{
+    class InvalidCikReason{
+        <<enum>>
+        %% Why a string failed CIK validation
+        +MaxLengthExceeded(usize cik_length)
+        +ContainsNonNumericCharacters
+    }
+
+    class FailedSecRequest{
         <<struct>>
         %% Domain error for SEC request execution
-        +SecRequestErrorReason reason
+        +SecClientErrorReason reason
+    }
+
+    class SecClientErrorReason{
+        <<enum>>
+        %% `sec_client::error::ErrorReason`, renamed here for diagram uniqueness
+        +FailedRequestExecution(String details)
+        +InvalidResponse(InvalidSecResponse source)
+    }
+
+    class InvalidSecResponse{
+        <<struct>>
+        %% Domain error for a response that failed SEC validation
+        +SecResponseErrorReason reason
+    }
+
+    class SecResponseErrorReason{
+        <<enum>>
+        %% `sec_response::error::ErrorReason`, renamed here for diagram uniqueness
+        +InvalidStatusCode(StatusCode status_code)
+        +InvalidContentType(ContentType content_type)
+        +InvalidBody(String details)
+        +FailedBodyRead(String details)
     }
 
     %% Error hierarchy relationships
@@ -111,5 +146,10 @@ classDiagram
 
     %% State wrappers contain domain errors
     InvalidCikFormat --> CikError
-    FailedRequestExecution --> SecRequestError
+    CikError --> InvalidCikReason
+    IncompleteCompanyFacts --> MissingFields
+    FailedRequestExecution --> FailedSecRequest
+    FailedSecRequest --> SecClientErrorReason
+    SecClientErrorReason --> InvalidSecResponse
+    InvalidSecResponse --> SecResponseErrorReason
 ```
