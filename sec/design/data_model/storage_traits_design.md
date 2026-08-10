@@ -122,6 +122,13 @@ error/
 - **Downcast** = `TryFrom<Outer> for Inner`, `type Error = ErrorKind`, returns
   `ErrorKind::DowncastNotPossible` on mismatch (skip-level allowed, e.g. `TryFrom<ErrorKind> for
   BackendError`). This is the *fallible* direction — not `Into`.
+- **Naming — short variants, suffixed types (the one deliberate deviation from sec).** Variants stay
+  short (`ErrorKind::Write`, `WriteError::Backend`) since they're namespaced and can't clash; the
+  **types carry the `Error` suffix** (`ReadError` / `WriteError` / `BackendError`). Unlike sec's
+  suffix-less `State` / `Transition`, these three words collide: bare `Read` / `Write` shadow
+  `std::io::{Read, Write}` and `std::fmt::Write`, and bare `Backend` shadows the `Backend` store
+  trait — and only *types* escape into `use`, so only they need disambiguating. Do **not** simplify
+  the types back to bare `Read` / `Write` / `Backend`.
 
 **Method return types — the narrow class, not the union:**
 
