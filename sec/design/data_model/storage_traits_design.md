@@ -28,9 +28,9 @@ rationale (read the mapping in the status note above).
 | **facade** | `Repository` — *neutral*: `type Record` + `persist`, backend-blind |
 | **write method** | `persist(record)` (was `ingest`) |
 | **write-unit** | `Repository::Record` associated type; `sec` binds `type Record = FilingRecord` |
-| **store base** | `Backend` — `type Error` + `kind() -> BackendKind` (lifecycle stays off-trait) |
+| **store base** | `Backend` — `kind() -> BackendKind` only (identity; errors are operation-classed, lifecycle off-trait) |
 | **the three ports** | `RawStore` / `GraphStore` / `FactStore`, each `: Backend` |
-| **error** | `error::ErrorKind` (house name; de-stuttered) — value type, hierarchy leaf |
+| **error** | `error::ErrorKind` — value-type union over `ReadError` / `WriteError` (shared `BackendError`), sec-style `From`/`TryFrom` hierarchy |
 | **backends** | `BackendKind::{Postgres, Iceberg, Graph, DataLake, Memory, FileSystem, Fake}` |
 
 ### Crate topology
@@ -58,7 +58,11 @@ storage/
     ├── lib.rs                 # module decls + re-exports
     ├── repository.rs          # Repository  — neutral facade
     ├── backend.rs             # Backend, BackendKind
-    ├── error/mod.rs           # ErrorKind
+    ├── error/                 # sec-style hierarchy (module-per-level)
+    │   ├── mod.rs             # ErrorKind (union) + From/TryFrom + DowncastNotPossible
+    │   ├── write_error/mod.rs # WriteError
+    │   ├── backend_error/mod.rs # BackendError (is_retryable)
+    │   └── read_error/mod.rs  # ReadError  (added with the STA-139 read methods)
     └── store/
         ├── mod.rs
         ├── raw.rs             # RawStore   + RawFiling
@@ -71,59 +75,71 @@ storage/
 #[async_trait]
 pub trait Repository: Send + Sync {
     type Record;
-    async fn persist(&self, record: Self::Record) -> Result<(), ErrorKind>;
+    async fn persist(&self, record: Self::Record) -> Result<(), WriteError>;   // always a write
 }
 
-// backend.rs — what every store shares. Tiny by design (lifecycle is a composition-root concern).
-pub trait Backend: Send + Sync
-where
-    ErrorKind: From<Self::Error>,
-{
-    type Error;
+// backend.rs — what every store shares: identity only (errors are the operation-classed types below).
+pub trait Backend: Send + Sync {
     fn kind(&self) -> BackendKind;
 }
 pub enum BackendKind { Postgres, Iceberg, Graph, DataLake, Memory, FileSystem, Fake }
 
-// store/raw.rs · graph.rs · facts.rs — write-path; each `: Backend`
-#[async_trait] pub trait RawStore:   Backend { async fn append(&self, filing: &RawFiling) -> Result<(), Self::Error>; }        // immutable SoT
-#[async_trait] pub trait GraphStore: Backend { async fn upsert(&self, delta: &GraphDelta) -> Result<(), Self::Error>; }        // idempotent
-#[async_trait] pub trait FactStore:  Backend { async fn upsert(&self, company: &CompanyId, facts: &FactSet) -> Result<(), Self::Error>; } // by-full-grain
+// store/raw.rs · graph.rs · facts.rs — write-path; each `: Backend`; returns the WriteError class directly
+#[async_trait] pub trait RawStore:   Backend { async fn append(&self, filing: &RawFiling) -> Result<(), WriteError>; }        // immutable SoT
+#[async_trait] pub trait GraphStore: Backend { async fn upsert(&self, delta: &GraphDelta) -> Result<(), WriteError>; }        // idempotent
+#[async_trait] pub trait FactStore:  Backend { async fn upsert(&self, company: &CompanyId, facts: &FactSet) -> Result<(), WriteError>; } // by-full-grain
 ```
 
-### Error model — follows the `sec` hierarchy convention
+### Error model — mirrors the `sec` error hierarchy (operation-classed)
+
+Built **exactly like `sec/src/lib/error/`**: module-per-level, value-type at every level, `From`
+upcast / `TryFrom` downcast, a single `DowncastNotPossible` sentinel on the top, and the same
+`implements_*` trait-assertion + cast-round-trip test suite per level. The classes are keyed to the
+**kind of operation** — a read method returns a `ReadError`, a write method a `WriteError` — so
+illegal states are unrepresentable (`persist` can never hand back `MissingRecord`).
+
+**Layout** (`storage/src/error/`):
+
+```
+error/
+  mod.rs                → ErrorKind    { Read(ReadError), Write(WriteError), DowncastNotPossible }
+  read_error/mod.rs     → ReadError    { MissingRecord, Backend(BackendError), … }   ← arrives with the read methods (STA-139)
+  write_error/mod.rs    → WriteError   { ConflictingWrite{reason}, FailedIntegrityCheck{reason}, Backend(BackendError) }
+  backend_error/mod.rs  → BackendError { Unavailable{reason}, Failed{reason} }        ← is_retryable() lives here
+  // a RICH leaf gets its own module (e.g. missing_read_permission/), exactly as sec splits `invalid_cik_format`
+```
+
+**Per-level conventions — identical to sec:**
+
+- `#[non_exhaustive]` + `#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]`. **Value
+  type** — no `Box<dyn Error>`; rich detail is flattened to a `reason` string at the conversion
+  boundary. This is exactly what lets each level be *contained in* the level above it.
+- **Markers stay inline** on the enum with `#[error("[…] …, Reason: '…'")]`; **rich leaves get their
+  own module** and are wrapped (`Read(ReadError)`-style). Same split as sec's `State::InvalidInput`
+  (inline) vs `State::InvalidCikFormat(_)` (module). Today's causes are all markers → inline.
+- **Upcast** = `From<Inner> for Outer` — infallible, `?`-able: `MissingReadPermission → ReadError →
+  ErrorKind`. So a read method returns `ReadError` and anything `Into<ReadError>` flows in via `?`.
+- **Downcast** = `TryFrom<Outer> for Inner`, `type Error = ErrorKind`, returns
+  `ErrorKind::DowncastNotPossible` on mismatch (skip-level allowed, e.g. `TryFrom<ErrorKind> for
+  BackendError`). This is the *fallible* direction — not `Into`.
+
+**Method return types — the narrow class, not the union:**
 
 ```rust
-// storage/src/error/mod.rs — flat, VALUE TYPE (no boxed source), house display format
-#[non_exhaustive]
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, thiserror::Error)]
-pub enum ErrorKind {
-    #[error("[UnavailableStorage] Storage backend is temporarily unavailable, Reason: '{reason}'")]
-    UnavailableStorage { reason: String },
-    #[error("[ConflictingWrite] Write conflicts with existing data, Reason: '{reason}'")]
-    ConflictingWrite { reason: String },
-    #[error("[MissingRecord] Requested record not found")]
-    MissingRecord,
-    #[error("[FailedIntegrityCheck] Data integrity or invariant violated, Reason: '{reason}'")]
-    FailedIntegrityCheck { reason: String },
-    #[error("[FailedBackendOperation] Backend operation failed, Reason: '{reason}'")]
-    FailedBackendOperation { reason: String },
-}
-impl ErrorKind {
-    #[must_use]
-    pub const fn is_retryable(&self) -> bool { matches!(self, Self::UnavailableStorage { .. }) }
-}
+async fn persist(&self, r: Self::Record) -> Result<(), WriteError>;   // never MissingRecord
+async fn query(&self, …)                 -> Result<_,  ReadError>;    // never ConflictingWrite   (STA-139)
 ```
 
-- **Value type** — `Clone`/`Eq`/`Ord`/`Hash`, carrying `Reason` strings, **not** `Box<dyn Error>`.
-  Forced by the `State` trait's bounds, and it is exactly what lets the error be *contained in*
-  higher-level enums (matches every error in `sec`/`xbrl`). Backend detail is flattened into
-  `reason` at the conversion boundary (`impl From<sqlx::Error> for ErrorKind`).
-- **Flat leaf** — storage has one origin classified by kind; no internal hierarchy, no
-  `DowncastNotPossible` of its own.
-- **Up/down-cast happens at the `sec` seam**, exactly like sec's existing layers: `storage::ErrorKind`
-  becomes a leaf `State::FailedPersistence(storage::ErrorKind)`; `From` upcasts (so `?` in `Load`
-  works), `TryFrom` downcasts, and sec's top `ErrorKind` owns the `DowncastNotPossible` sentinel.
-  Storage grows its own hierarchy (nest by tier) only if a consumer ever needs per-tier recovery.
+The store methods return the classes **directly** (`append -> Result<(), WriteError>`); the Postgres
+impl maps `sqlx::Error → WriteError::Backend(BackendError::Failed { reason })` at its own boundary.
+This **drops the earlier `Backend::type Error` associated error** — the value-type decision already
+flattened rich detail to `reason`, so the associated type was buying flexibility we don't use.
+`ErrorKind` (the union) is what the **shared consumers** take — the retry decorator (`is_retryable()`)
+and the `sec` seam (`State::FailedPersistence(ErrorKind)`) — reached by the `From` upcast.
+
+**Grows with the methods.** Today only write methods exist → build `ErrorKind` + `WriteError` +
+`BackendError` now; add `ReadError` (and any rich read leaf) when the read methods land in STA-139.
+The union + `#[non_exhaustive]` make that additive, not a rewrite.
 
 ### `SecRepository` — where the triad lives
 
@@ -134,17 +150,18 @@ struct SecRepository<R: RawStore, G: GraphStore, F: FactStore> { raw: R, graph: 
 
 impl<R: RawStore, G: GraphStore, F: FactStore> Repository for SecRepository<R, G, F> {
     type Record = FilingRecord;                                   // { company, raw, graph, facts }
-    async fn persist(&self, r: FilingRecord) -> Result<(), ErrorKind> {
+    async fn persist(&self, r: FilingRecord) -> Result<(), WriteError> {
         let FilingRecord { company, raw, graph, facts } = r;
-        self.raw.append(&raw).await?;                             // Backend::Error ─┐
-        self.graph.upsert(&graph).await?;                        //                 ├─ all `?` → ErrorKind
-        self.facts.upsert(&company, &facts).await?;              //                 ┘
+        self.raw.append(&raw).await?;                             // each store returns WriteError, so
+        self.graph.upsert(&graph).await?;                        // `?` funnels straight through — no
+        self.facts.upsert(&company, &facts).await?;              // conversion needed
         Ok(())
     }
 }
 ```
 
-- `Repository` never names `Backend` — the only link is the `ErrorKind: From<Backend::Error>` currency bound.
+- `Repository` never names `Backend` — they meet only inside `persist`, where the tier stores'
+  `WriteError`s funnel through `?` into `persist`'s `WriteError` (no conversion; same class).
 - **SEC-specific = the raw tier** (verbatim SEC schema, CIK/accession keys); graph/facts are
   canonical/shared. A future `EsefRepository` is just another `impl Repository` sharing the
   canonical tiers, bringing its own raw store.
@@ -854,3 +871,14 @@ These are *not* part of the frozen v1 — they wait for a concrete consumer, by 
     on a second consumer.
   - Deferred to STA-139: read surface + CQRS split, `RawStore` payload genericity, `completeness`
     placement, retry/DLQ (decorator + reconciliation + poison-only DLQ, driver-level).
+- **(2026-08-10) — error model reworked to mirror the `sec` error hierarchy.** Replaced the flat
+  `ErrorKind` with an **operation-classed** hierarchy built exactly like `sec/src/lib/error/`:
+  `ErrorKind` (top union) = `Read(ReadError)` / `Write(WriteError)`; a shared `BackendError`
+  (`Unavailable`/`Failed`, `is_retryable()`) embedded in each; module-per-level, markers inline vs
+  rich leaves in their own module, `From` upcast / `TryFrom` downcast, `DowncastNotPossible` sentinel
+  on the top, full `implements_*` test suite per level. **Methods return the narrow class** —
+  `persist -> WriteError`, future `query -> ReadError` — so illegal states are unrepresentable; the
+  union `ErrorKind` is what the retry decorator + `sec` seam consume. This **drops `Backend::type
+  Error`** (stores return the classes directly; the value-type/`reason`-string decision already
+  flattened rich detail, making the associated error moot). Built write-side first; `ReadError`
+  arrives with the STA-139 read methods.
