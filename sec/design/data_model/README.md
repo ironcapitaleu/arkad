@@ -35,7 +35,7 @@ below; each doc's header states its own status.
 ## What happens next
 
 Tracked in Linear — the roadmap comment on STA-130 is the source of truth for the ticket series.
-The **[DESIGN] ticket finalizing the `storage` crate (STA-145)** is done — the trait signatures in
-`storage_traits_design.md` are frozen and the method-inventory questions resolved. Next up:
-**STA-139** (scaffold the `storage` crate to those signatures), preceded by the small prerequisite
+STA-145 froze an initial trait v1; the **Consolidated Design (2026-08-10)** in
+`storage_traits_design.md` has since refined it and is **the current scaffold target**. Next up:
+**STA-139** (scaffold the `storage` crate to the consolidated design), preceded by the small prerequisite
 **`Lei` / `CompanyId` domain-concept** type (the identity newtype the signatures reference).
