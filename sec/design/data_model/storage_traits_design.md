@@ -148,7 +148,8 @@ pub enum BackendKind { Postgres, Iceberg, Graph, DataLake, Fake }
 // ---- Base: universal to ANY store, whatever the data kind ----
 // The `where StorageError: From<Self::Error>` lives HERE so every capability op and
 // `Repository::ingest` gets the `?`-conversion into the currency for free.
-#[async_trait]
+// No `#[async_trait]`: the base has only the sync `backend()` — the async surface lives on the
+// data traits (RawStore/GraphStore/FactStore), each of which carries its own `#[async_trait]`.
 pub trait Storage: Send + Sync
 where
     StorageError: From<Self::Error>,
@@ -372,7 +373,10 @@ pub struct GraphDelta {
     pub nodes:  Vec<GraphNode>,  // Company · Identifier · Filing · Concept · Period (idempotent by key)
     pub edges:  Vec<GraphEdge>,  // structural edges + claim edges (see below)
 }
-pub enum GraphNode { Company(/*..*/), Identifier(/*scheme,value*/), Filing(/*..*/), Concept(/*..*/), Period(/*..*/) }
+pub enum GraphNode {           // key per §5.1:
+    Company(/*company_id*/), Identifier(/*scheme,value*/), Filing(/*regulator,native_id*/),
+    Concept(/*canonical_element*/), Period(/*kind,key*/),
+}
 pub enum GraphEdge {
     Structural { /* kind: HAS_IDENTIFIER | HAS_FILING | COVERS_PERIOD | REPORTS_CONCEPT | …, from, to */ },
     Claim {      /* kind: LISTED_ON | IN_INDUSTRY | SUBSIDIARY_OF | OWNS_STAKE_IN, from, to, payload,
