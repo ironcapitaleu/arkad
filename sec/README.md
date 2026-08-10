@@ -34,9 +34,9 @@ Validates, resolves, and structures the raw JSON response into typed financial d
 # Basic extraction demo
 cargo run --bin extraction
 
-# Full ETL pipeline (Extract + Transform) for all S&P 500 CIKs, 3 concurrent
+# Full ETL pipeline (Extract + Transform) for all S&P 500 CIKs
 cargo run --features tracing-logging --bin stream_etl
 
-# Extraction + Transform for all S&P 500 CIKs (same pipeline, legacy binary name)
+# Same pipeline under the legacy binary name; differs only in log field layout
 cargo run --features tracing-logging --bin stream_extract
 ```

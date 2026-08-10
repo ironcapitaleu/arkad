@@ -4,7 +4,7 @@ Arkad is a production-grade financial data engineering framework written in Rust
 
 ## Architecture
 
-Arkad is structured as a Rust workspace with two crates:
+Arkad is structured as a Rust workspace with three crates:
 
 ### `state_maschine`
 
@@ -13,6 +13,10 @@ A general-purpose HFSM library providing the core trait abstractions and executi
 ### `sec`
 
 Extends `state_maschine` for processing SEC filings — handling data acquisition, validation, transformation, and storage in a structured, type-safe pipeline.
+
+### `xbrl`
+
+The XBRL domain vocabulary: parsing the SEC JSON APIs, resolving concepts against the US-GAAP taxonomy, and validating financial statements against SFAC 6 invariants.
 
 ## Design
 
@@ -44,101 +48,35 @@ stateDiagram-v2
 
 ### Trait Hierarchy
 
-Each pipeline state implements a layered trait system that enforces correctness at compile time. The SEC-specific `State`, `StateData`, and `Context` traits extend base abstractions from `state_maschine`, enabling reuse of the execution engine while allowing full domain customisation.
+Each pipeline state implements a layered trait system that enforces correctness at compile time. The SEC-specific traits (`State`, `StateData`, `Context`, `StateMachine`, `Transition`) extend the `SM`-prefixed base abstractions from `state_maschine`, enabling reuse of the execution engine while allowing full domain customisation.
 
 ```mermaid
 ---
-title: "Sample `SEC` State: `SampleState`"
+title: "`sec` Trait Layering"
 ---
 classDiagram
-    class StateMachine~S: State~{
-        <<trait>>
-    }
-    class SMStateMachine~S: SMState~{
-        <<trait>>
-        +get_current_state(&self) &S
-        +get_current_state_mut(&mut self) &mut S
-        +advance_state(&mut self)
-        +run(&mut self)
-    }
-    class SuperState~S: State~ {
-        <<trait>>
-    }   
-    class SMSuperState~S: SMState~ {
-        <<trait>>
-    }   
-    class SMState {
-        <<trait>>
-        +type InputData: SMStateData
-        +type OutputData: SMStateData
-        +type Context: SMContext
-        +get_state_name(&self) impl ToString
-        +get_input_data(&self) &Self::InputData
-        +compute_output_data(&mut self)
-        +get_output_data(&self) Option~&Self::OutputData~
-        +get_context_data(&self) &Self::Context
-    }
-    class State {
-        <<trait>>
-        +compute_output_data(&mut self, Result~(), StateError~)
-    }
-    class SMStateData {
-        <<trait>>
-        +type UpdateType
-        +get_state(&self) &Self
-        +update_state(&mut self, updates: Self::UpdateType)
-    }
-    class StateData {
-        <<trait>>
-        +update_state(&mut self, updates: Self::UpdateType) Result~(), StateError~
-    }
-    class SMContext {
-        <<trait>>
-        +type UpdateType
-        +get_context(&self) &Self
-        +update_context(&mut self, updates: Self::UpdateType)
-    }
-    class Context {
-        <<trait>>
-        +can_retry(&self) bool
-        +get_max_retries(&self) u32
-    }
-    class SampleState {
-        <<struct>>
-        -input: SampleStateInput
-        -context: SampleStateContext
-        -output: Option~SampleStateOutput~
-        +new(input, context) Self
-    }
-    class SampleStateInput {
-        <<struct>>
-        +input_data: String
-    }
-    class SampleStateOutput {
-        <<struct>>
-        +output_data: String
-    }
-    class SampleStateContext {
-        <<struct>>
-        +context_data: String
-        +max_retries: u32
-    }
-    StateMachine --> State : "is in a"
-    SuperState --> StateMachine : "is a"
-    SuperState --> State : "is a"
-    StateMachine --> SMStateMachine : "extends"
-    SuperState --> SMSuperState : "extends"
-    State --> SMState : "extends"
-    StateData --> SMStateData : "extends"
-    Context --> SMContext : "extends"
-    SampleState --> State : "implements"
-    SampleStateInput --> StateData : "implements"
-    SampleStateOutput --> StateData : "implements"
-    SampleStateContext --> Context : "implements"
-    SampleState --> SampleStateInput : "has"
-    SampleState --> SampleStateOutput : "has"
-    SampleState --> SampleStateContext : "has"
+    class SMState { <<trait>> }
+    class SMStateData { <<trait>> }
+    class SMContext { <<trait>> }
+    class SMStateMachine { <<trait>> }
+    class SMTransition { <<trait>> }
+    class State { <<trait>> }
+    class StateData { <<trait>> }
+    class Context { <<trait>> }
+    class StateMachine { <<trait>> }
+    class Transition { <<trait>> }
+    class SampleSecState { <<struct>> }
+
+    SMState <|-- State
+    SMStateData <|-- StateData
+    SMContext <|-- Context
+    SMStateMachine <|-- StateMachine
+    SMTransition <|-- Transition
+    State <|-- SampleSecState
 ```
+
+Full signatures, the `SuperState` and streaming traits, and the input/output/context types are in the
+[trait hierarchy design doc](sec/design/uml_class_diagram/sec_sample_state.md).
 
 ### Error Type Hierarchy
 
@@ -156,9 +94,9 @@ classDiagram
     }
     class StateMachine{
         <<enum>>
+        +InvalidConfiguration
         +State(State)
         +Transition(Transition)
-        +InvalidConfiguration
     }
     class State {
         <<enum>>
@@ -174,48 +112,18 @@ classDiagram
     class Transition {
         <<enum>>
         +MissingOutput(MissingOutput)
-        +FailedOutputConversion
-        +FailedContextConversion
-    }
-    class InvalidCikFormat{
-        <<struct>>
-        +String state_name
-        +CikError domain_error
-    }
-    class FailedRequestExecution{
-        <<struct>>
-        +String state_name
-        +SecRequestError domain_error
-    }
-    class IncompleteCompanyFacts{
-        <<struct>>
-        +String state_name
-        +Vec~String~ missing_fields
-    }
-    class MissingOutput{
-        <<struct>>
-        +String super_state_name
-        +String target_state_name
-    }
-    class CikError{
-        <<struct>>
-        +InvalidCikReason reason
-        +String invalid_cik
-    }
-    class SecRequestError{
-        <<struct>>
-        +SecRequestErrorReason reason
+        +FailedOutputConversion(FailedOutputConversion)
+        +FailedContextConversion(FailedContextConversion)
     }
     ErrorKind <|-- StateMachine
     StateMachine <|-- State
     StateMachine <|-- Transition
-    State <|-- InvalidCikFormat
-    State <|-- FailedRequestExecution
-    State <|-- IncompleteCompanyFacts
-    Transition <|-- MissingOutput
-    InvalidCikFormat --> CikError
-    FailedRequestExecution --> SecRequestError
 ```
+
+Each `State` and `Transition` variant above wraps a struct carrying the failing state's name plus
+the underlying domain error — down to the concrete cause, e.g. an invalid CIK reason or a rejected
+HTTP status code. That full chain is in the
+[error handling design doc](sec/design/uml_class_diagram/sec_error_handling.md).
 
 ## Quality & Reliability
 
@@ -245,10 +153,10 @@ cd arkad
 Run the full ETL pipeline (Extract + Transform) with structured JSON logging:
 
 ```bash
-# All S&P 500 CIKs (3 concurrent)
+# All S&P 500 CIKs (paced by a rate limiter)
 cargo run --features tracing-logging --bin stream_etl
 ```
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines. All contributions are welcome.
+See [CONTRIBUTING.md](.github/CONTRIBUTING.md) for guidelines. All contributions are welcome.
