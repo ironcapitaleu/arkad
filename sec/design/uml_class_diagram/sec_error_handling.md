@@ -4,7 +4,7 @@ title: "`sec` Error Type Hierarchy"
 ---
 classDiagram
     class ErrorKind{
-        <<enum>>
+        << enum >>
         %% Top-level error enum for all SEC state machine errors
         +StateMachine(StateMachine)
         +DowncastNotPossible
