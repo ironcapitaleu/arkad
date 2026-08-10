@@ -273,6 +273,10 @@ matter of taste.**
   different activity than reviewing logic; do not let a large doc crowd out the code budget, or
   vice versa.
 
+**Work is committed to this budget at ticket creation, not at PR time** — see the Linear skill's
+"Ticket Sizing" section for the sizing test and the seams to split along. Slicing once the code
+exists is when it costs the most.
+
 ### Exceeding the Ceiling
 
 An oversized PR is permitted **only with a declared exception** in the PR description, stating:
