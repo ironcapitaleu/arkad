@@ -251,32 +251,45 @@ async fn ingest(&self, unit: IngestionUnit) -> Result<(), StorageError> {
 A concrete enum that **classifies without discarding**: the `From<ImplError>` impl decides the
 variant; the original backend error rides along as `source()`.
 
+Naming and messages follow the project error conventions (AGENTS.md § "Error Naming Conventions" /
+"Error Display Format"): Adjective-First / Failed-First variant names, each `#[error]` prefixed with
+its `[VariantName]` and chained with `Caused by: {0}` (leaf variants use `Reason:` or nothing).
+
 ```rust
 #[derive(Debug, thiserror::Error)]
 pub enum StorageError {
-    #[error("storage unavailable (retryable)")]
-    Unavailable(#[source] Box<dyn std::error::Error + Send + Sync>), // transient — retry
-    #[error("conflict / already exists")]
-    Conflict(#[source] Box<dyn std::error::Error + Send + Sync>),
-    #[error("not found")]
-    NotFound,
-    #[error("data integrity / invariant violated")]
-    Integrity(#[source] Box<dyn std::error::Error + Send + Sync>),
-    #[error("backend error")]
-    Backend(#[source] Box<dyn std::error::Error + Send + Sync>),      // uncategorized
+    /// Transient — safe to retry (connection drop, serialization failure, timeout).
+    #[error("[UnavailableStorage] Storage backend is temporarily unavailable, Caused by: {0}")]
+    UnavailableStorage(#[source] Box<dyn std::error::Error + Send + Sync>),
+
+    /// Write conflicts with existing data (unique violation, already-exists).
+    #[error("[ConflictingWrite] Write conflicts with existing data, Caused by: {0}")]
+    ConflictingWrite(#[source] Box<dyn std::error::Error + Send + Sync>),
+
+    /// Requested item not present (leaf — no inner error to chain).
+    #[error("[MissingRecord] Requested record not found")]
+    MissingRecord,
+
+    /// Data integrity / invariant violated (check constraint, SFAC-6 identity).
+    #[error("[FailedIntegrityCheck] Data integrity or invariant violated, Caused by: {0}")]
+    FailedIntegrityCheck(#[source] Box<dyn std::error::Error + Send + Sync>),
+
+    /// Uncategorized backend failure.
+    #[error("[FailedBackendOperation] Backend operation failed, Caused by: {0}")]
+    FailedBackendOperation(#[source] Box<dyn std::error::Error + Send + Sync>),
 }
 
 impl StorageError {
     /// The one decision the ETL loop needs: retry vs dead-letter.
     #[must_use]
-    pub const fn is_retryable(&self) -> bool { matches!(self, Self::Unavailable(_)) }
+    pub const fn is_retryable(&self) -> bool { matches!(self, Self::UnavailableStorage(_)) }
 }
 ```
 
 Each backend impls `From<ItsError> for StorageError`, mapping (e.g.) a Postgres serialization
-failure → `Unavailable`, a unique-violation → `Conflict`, a check-constraint → `Integrity`. Fakes
-take the trivial route: `type Error = StorageError` (the reflexive `From<StorageError>` satisfies the
-bound with zero boilerplate).
+failure → `UnavailableStorage`, a unique-violation → `ConflictingWrite`, a check-constraint →
+`FailedIntegrityCheck`. Fakes take the trivial route: `type Error = StorageError` (the reflexive
+`From<StorageError>` satisfies the bound with zero boilerplate).
 
 ## Mixture of engines — the general case, not a special case {#mixture}
 
@@ -652,3 +665,9 @@ These are *not* part of the frozen v1 — they wait for a concrete consumer, by 
     list (read surface, `BulkLoad`, `Lifecycle` trait).
   - **Load-port reconciliation** pinned: `FinancialStatementRepository` = Load-facing port whose
     adapter *contains* the storage `Repository`; `LeiResolver` stays a distinct Load port.
+- **(2026-08-10)** `StorageError` **realigned to the project error conventions** (AGENTS.md): variant
+  names are now Adjective-First / Failed-First (`Unavailable`→`UnavailableStorage`,
+  `Conflict`→`ConflictingWrite`, `NotFound`→`MissingRecord`, `Integrity`→`FailedIntegrityCheck`,
+  `Backend`→`FailedBackendOperation`), and each `#[error(...)]` carries its `[VariantName]` prefix +
+  `Caused by: {0}` chaining (matching `xbrl`/`sec` error types). The earlier bare-name, lowercase
+  messages would have violated conventions once STA-139 scaffolded them verbatim.
