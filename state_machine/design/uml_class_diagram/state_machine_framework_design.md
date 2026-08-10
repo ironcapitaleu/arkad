@@ -4,7 +4,7 @@ title: "`state_maschine` Framework Design"
 ---
 classDiagram
     class StateMachine~S: State~{
-        <<trait>>
+        << trait >>
         %% This is a trait that represents a `StateMachine`.
 
         %% These are the trait methods that must be implemented by any `StateMachine`.
@@ -15,7 +15,7 @@ classDiagram
     }
 
     class State {
-        <<trait>>
+        << trait >>
         %% This is a trait that represents a `State` in the `StateMachine`.
 
         %% These are the associated types that represent the data associated with a `State`.
@@ -34,7 +34,7 @@ classDiagram
 
 
     class SuperState~S: State~ {
-        <<trait>>
+        << trait >>
         %% This is a trait that represents a `SuperState` in a hierarchical state machine.
         %% A `SuperState` must implement both `State` and `StateMachine<S>` traits.
 
@@ -42,7 +42,7 @@ classDiagram
     }
 
     class Transition~T: State, U: State~ {
-        <<trait>>
+        << trait >>
         %% This is a trait that represents a valid move from `State` T to `State` U.
         %% It extends `StateMachine<T>`: only a machine currently at T can perform it.
 
@@ -54,7 +54,7 @@ classDiagram
     }
 
     class Context {
-        <<trait>>
+        << trait >>
         %% This is a trait that defines the behavior and characteristics of context data that is available to a `State` in a `StateMachine`.
 
         %% Associated type for updates to the context data.
@@ -66,7 +66,7 @@ classDiagram
     }    
 
     class StateData {
-        <<trait>>
+        << trait >>
         %% This is a trait that defines the behavior and characteristics of internal state data of a `State` in a `StateMachine`.
 
         %% Associated type for updates to the internal state data.

@@ -4,12 +4,12 @@ title: "Sample `SEC` State: `SampleSecState`"
 ---
 classDiagram
     class StateMachine~S: State~{
-        <<trait>>
+        << trait >>
         %% SEC-specific StateMachine trait: `SMStateMachine<S> + Display`
     }
 
     class SMStateMachine~S: SMState~{
-        <<trait>>
+        << trait >>
         %% Base StateMachine trait from `state_maschine`
 
         +current_state(&self) &S
@@ -19,17 +19,17 @@ classDiagram
     }
 
     class SuperState~S: State~ {
-        <<trait>>
+        << trait >>
         %% SEC-specific SuperState trait: `State + StateMachine<S>`
     }
 
     class SMSuperState~S: SMState~ {
-        <<trait>>
+        << trait >>
         %% Base SuperState trait from `state_maschine`
     }
 
     class SMState {
-        <<trait>>
+        << trait >>
         %% Base State trait from `state_maschine`
         +type InputData: SMStateData
         +type OutputData: SMStateData
@@ -43,13 +43,13 @@ classDiagram
     }
 
     class State {
-        <<trait>>
+        << trait >>
         %% SEC-specific State trait: `SMState + Display`, async via `#[async_trait]`
         +compute_output_data_async(&mut self) async Result~(), StateError~
     }
 
     class SMStateData {
-        <<trait>>
+        << trait >>
         %% Base StateData trait from `state_maschine`
         +type UpdateType
         +state(&self) &Self
@@ -57,13 +57,13 @@ classDiagram
     }
 
     class StateData {
-        <<trait>>
+        << trait >>
         %% SEC-specific StateData trait
         +update_state(&mut self, updates: Self::UpdateType) Result~(), StateError~
     }
 
     class SMContext {
-        <<trait>>
+        << trait >>
         %% Base Context trait from `state_maschine`
         +type UpdateType
         +context(&self) &Self
@@ -71,40 +71,40 @@ classDiagram
     }
 
     class Context {
-        <<trait>>
+        << trait >>
         %% SEC-specific Context trait
         +can_retry(&self) bool
         +max_retries(&self) u32
     }
 
     class SMTransition~T, U~ {
-        <<trait>>
+        << trait >>
         %% Base Transition trait from `state_maschine`: `StateMachine<T>`
         +type NewStateMachine: SMStateMachine~U~
         +transition_to_next_state(self) Result~Self::NewStateMachine, &'static str~
     }
 
     class Transition~T, U~ {
-        <<trait>>
+        << trait >>
         %% SEC-specific Transition trait
         +transition_to_next_state_sec(self) Result~Self::NewStateMachine, TransitionError~
     }
 
     class NonTerminal {
-        <<trait>>
+        << trait >>
         %% Marks a state machine as sitting at a non-terminal state
         +type Current: State + Serialize
         +type Next: State
     }
 
     class IntoStateMachineStream {
-        <<trait>>
+        << trait >>
         %% Drives a state machine to completion as an async event stream
         +into_stream(self, execution_id: Uuid) StateMachineStream
     }
 
     class StateError {
-        <<enum>>
+        << enum >>
         %% SEC-specific state errors, see `sec_error_handling.md`
         +InvalidCikFormat(InvalidCikFormat)
         +FailedRequestExecution(FailedRequestExecution)
@@ -117,7 +117,7 @@ classDiagram
     }
 
     class TransitionError {
-        <<enum>>
+        << enum >>
         %% SEC-specific transition errors, see `sec_error_handling.md`
         +MissingOutput(MissingOutput)
         +FailedOutputConversion(FailedOutputConversion)
@@ -125,7 +125,7 @@ classDiagram
     }
 
     class SampleSecState {
-        <<struct>>
+        << struct >>
         %% A sample SEC State implementation, represents any 'SecState'
         -input: SampleSecStateInput
         -context: SampleSecStateContext
@@ -134,19 +134,19 @@ classDiagram
     }
 
     class SampleSecStateInput {
-        <<struct>>
+        << struct >>
         %% Input for SampleSecState
         +input_data: String
     }
 
     class SampleSecStateOutput {
-        <<struct>>
+        << struct >>
         %% Output for SampleSecState
         +output_data: String
     }
 
     class SampleSecStateContext {
-        <<struct>>
+        << struct >>
         %% Context for SampleSecState
         +data: String
         +max_retries: u32

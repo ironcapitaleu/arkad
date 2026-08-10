@@ -11,7 +11,7 @@ classDiagram
     }
 
     class StateMachine{
-        <<enum>>
+        << enum >>
         %% Errors during state machine execution
         +InvalidConfiguration
         +State(State)
@@ -19,7 +19,7 @@ classDiagram
     }
 
     class State {
-        <<enum>>
+        << enum >>
         %% Errors from internal state operations
         +InvalidCikFormat(InvalidCikFormat)
         +FailedRequestExecution(FailedRequestExecution)
@@ -32,7 +32,7 @@ classDiagram
     }
 
     class Transition {
-        <<enum>>
+        << enum >>
         %% Errors during state transitions
         +MissingOutput(MissingOutput)
         +FailedOutputConversion(FailedOutputConversion)
@@ -40,88 +40,88 @@ classDiagram
     }
 
     class InvalidCikFormat{
-        <<struct>>
+        << struct >>
         %% State-level wrapper for CIK validation errors
         +String state_name
         +CikError cik_error
     }
 
     class FailedRequestExecution{
-        <<struct>>
+        << struct >>
         %% State-level wrapper for request execution errors
         +String state_name
         +FailedSecRequest domain_error
     }
 
     class IncompleteCompanyFacts{
-        <<struct>>
+        << struct >>
         %% State-level error for missing XBRL concepts
         -String state_name
         -MissingFields missing_fields
     }
 
     class MissingFields{
-        <<struct>>
+        << struct >>
         %% Newtype over the canonical names of the missing concepts
         -Vec~String~ fields
     }
 
     class MissingOutput{
-        <<struct>>
+        << struct >>
         %% Transition-level error for missing output data
         +String source_state_name
         +String target_state_name
     }
 
     class FailedOutputConversion{
-        <<struct>>
+        << struct >>
         %% Transition-level error for output-to-input conversion failure
         +String source_state_name
         +String target_state_name
     }
 
     class FailedContextConversion{
-        <<struct>>
+        << struct >>
         %% Transition-level error for context conversion failure
         +String source_state_name
         +String target_state_name
     }
 
     class CikError{
-        <<struct>>
+        << struct >>
         %% Domain error for invalid CIK format
         +InvalidCikReason reason
         +String invalid_cik
     }
 
     class InvalidCikReason{
-        <<enum>>
+        << enum >>
         %% Why a string failed CIK validation
         +MaxLengthExceeded(usize cik_length)
         +ContainsNonNumericCharacters
     }
 
     class FailedSecRequest{
-        <<struct>>
+        << struct >>
         %% Domain error for SEC request execution
         +SecClientErrorReason reason
     }
 
     class SecClientErrorReason{
-        <<enum>>
+        << enum >>
         %% `sec_client::error::ErrorReason`, renamed here for diagram uniqueness
         +FailedRequestExecution(String details)
         +InvalidResponse(InvalidSecResponse source)
     }
 
     class InvalidSecResponse{
-        <<struct>>
+        << struct >>
         %% Domain error for a response that failed SEC validation
         +SecResponseErrorReason reason
     }
 
     class SecResponseErrorReason{
-        <<enum>>
+        << enum >>
         %% `sec_response::error::ErrorReason`, renamed here for diagram uniqueness
         +InvalidStatusCode(StatusCode status_code)
         +InvalidContentType(ContentType content_type)
