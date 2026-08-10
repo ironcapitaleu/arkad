@@ -271,7 +271,10 @@ matter of taste.**
   with no behavioral change.
 - **Documentation and design docs are budgeted separately from code.** Reviewing prose is a
   different activity than reviewing logic; do not let a large doc crowd out the code budget, or
-  vice versa.
+  vice versa. A doc has **no hard line ceiling**, but past **~400 lines changed** the PR must
+  include a short **reading guide**: which sections are new vs. moved, which carry decisions, and
+  what specifically needs scrutiny. Length is not what makes prose hard to review — not knowing
+  where to focus is; the reading guide is what a reviewer needs and slicing prose is not.
 
 **Work is committed to this budget at ticket creation, not at PR time** — see the Linear skill's
 "Ticket Sizing" section for the sizing test and the seams to split along. Slicing once the code
