@@ -5,7 +5,7 @@ Welcome to the State Maschine Library for Rust! This library provides a modular 
 ## Features
 
 - **State Management**: Define and manage states and their data with ease.
-- **Transitions**: Handle complex state transitions, including hierarchical states and super states.
+- **Transitions**: Handle complex state transitions, including hierarchical states and super states. A transition consumes the state machine, so an outdated one cannot be reused.
 - **Trait Implementations**: Supports essential Rust traits like `Debug`, `Clone`, `PartialEq`, `Eq`, `Hash`, `Ord`, and `Unpin`.
 
 ## Modules
@@ -18,4 +18,6 @@ To get started with this library, add it to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-state_maschine = "0.1.1" 
+state_maschine = "0.1.1"
+```
+
