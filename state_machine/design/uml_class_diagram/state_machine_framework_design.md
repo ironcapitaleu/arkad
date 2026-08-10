@@ -86,7 +86,7 @@ classDiagram
     StateMachine --> State : "is in a"
 
     %% A `Transition` is implemented on the `StateMachine` and moves it between `State`s
-    Transition --> StateMachine : "extends"
+    Transition --> StateMachine : "advances"
     Transition --> State : "moves between"
 
     %% A `State` stores internal `StateData` and has access to `Context`
