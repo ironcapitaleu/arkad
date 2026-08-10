@@ -866,11 +866,11 @@ truth** — the design isolates the risk:
 Effort is proportional to writing one new writer + a backfill job, not to a risky migration of
 the system of record. The storage-abstraction trait (§14.D.3) keeps the pipeline untouched.
 
-### 14.F Storage abstraction — trait design (converged)
+### 14.F Storage abstraction — trait design (frozen, STA-145)
 
 The trait layer that makes §14.D.3 real. Full design (traits, error model, fakes, crate topology,
-review checklist) lives in `storage_traits_design.md`; summarized here so the SPIKE is
-self-contained.
+review checklist) lives in `storage_traits_design.md` — **signatures frozen by STA-145; that doc is
+the contract STA-139 scaffolds**. Summarized here so the SPIKE is self-contained.
 
 **Design pattern.** This applies the **Repository pattern** to decouple the pipeline from the
 physical database backend — swapping stores is a new impl behind the same interface, never a
