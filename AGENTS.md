@@ -246,6 +246,45 @@ Refs: #123
 
 ---
 
+## Branching & PR Size
+
+This project uses **trunk-based development**: `main` is always releasable, and work reaches it
+through short-lived branches that merge quickly.
+
+### Branch Policy
+
+- **One ticket → one branch → one PR.** Branch from the latest `main`.
+- **Target 2 days; 5 days maximum.** A branch that cannot merge within a work week was scoped
+  too large — split the remaining work into a follow-up ticket and merge what is done.
+- **Rebase or merge `main` daily.** Divergence is what makes integration painful.
+- **Delete the branch after merge.** Never stack new work on already-merged history.
+
+### PR Size Budget
+
+Review quality collapses on large diffs — defect detection per line drops sharply once the
+reviewer can no longer hold the change in their head. **PR size is a correctness concern, not a
+matter of taste.**
+
+- **Target ~200 reviewable LoC; 400 is the hard ceiling.**
+- **Reviewable LoC** = hand-written code a human must reason about. It **excludes** generated
+  scaffolding, lockfiles, test fixtures and snapshots, vendored code, and pure moves/renames
+  with no behavioral change.
+- **Documentation and design docs are budgeted separately from code.** Reviewing prose is a
+  different activity than reviewing logic; do not let a large doc crowd out the code budget, or
+  vice versa.
+
+### Exceeding the Ceiling
+
+An oversized PR is permitted **only with a declared exception** in the PR description, stating:
+
+1. **Why it cannot be split** — e.g. a rename that must land atomically to keep `main` compiling.
+2. **How to review it** — commit-by-commit ordering, which files carry the real logic, and what
+   is mechanical.
+
+A silently oversized PR is itself a defect in the PR. If the answer to (1) is weak, split it.
+
+---
+
 ## Pull Request Creation
 
 When creating a pull request, always use the repository's PR template located at
@@ -262,6 +301,23 @@ Never use a freeform PR body or a different structure.
 ---
 
 ## PR Review Guidelines
+
+### Review Budget & Rubber-Stamping
+
+An approval asserts that you checked the change. It is not a courtesy, and "looks good to me"
+without a per-item verdict is not a review.
+
+- **Review in sittings of at most ~400 LoC.** Concentration and defect detection degrade
+  measurably beyond that. Split a large review across sittings rather than skimming it in one.
+- **Never approve what you did not read.** If you reviewed only part, say which part, and
+  approve only that scope — or ask for a split.
+- **Review against the Definition of Done, not against vibes.** The ticket's DoD lists
+  verifiable assertions; the PR's Test Plan says how to check them. Confirm each item holds.
+  This chain — **DoD → Test Plan → per-item verdict** — is what makes an approval mean something.
+- **Requesting a split is always legitimate.** A PR over the ceiling with no declared exception
+  should be sent back to be sliced, however good the code is. Reviewability is part of done.
+- **Raise the finding you are unsure about.** Ask the question rather than silently deferring to
+  the author.
 
 ### Code Quality Review
 
