@@ -109,18 +109,19 @@ Any "no" → split it.
 
 ### How to Split
 
-Slice along seams where each piece stays independently mergeable:
+Split so each piece is complete on its own and the next one builds on it — every ticket can
+merge independently. Common orderings:
 
-| Seam | Example |
+| Split | Example |
 | --- | --- |
-| Type before use | `Lei`/`CompanyId` newtype, then the code consuming it |
-| Contract before implementation | freeze the traits (DESIGN), then scaffold them (FEATURE) |
-| Port before adapter | `storage` ports crate, then `storage-postgres` |
-| Scaffold before logic | generated `State` skeleton, then `compute_output_data` |
-| Happy path before edges | core flow, then error/retry/edge-case handling |
+| The type, then its users | the `Lei` / `CompanyId` newtype, then the code that consumes it |
+| The contract, then the implementation | freeze the traits (DESIGN), then scaffold them (FEATURE) |
+| The port, then the adapter | the `storage` ports crate, then `storage-postgres` |
+| The scaffold, then the logic | the generated `State` skeleton, then `compute_output_data` |
+| The happy path, then the edge cases | the core flow, then error / retry / edge-case handling |
 
-Split into **sequenced sub-tickets with explicit blocking relations**, not one ticket carrying a
-long checklist. Use sub-issues under a parent when the pieces share a single goal.
+Prefer **sequenced sub-tickets with explicit blocking links** over one ticket carrying a long
+checklist. Group them as sub-issues under a parent when they share a single goal.
 
 > A checklist with fifteen items is a roadmap wearing a ticket's clothes. Put the roadmap in the
 > parent (or a comment on the SPIKE) and cut the pieces as their own tickets.

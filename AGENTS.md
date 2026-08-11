@@ -277,7 +277,7 @@ matter of taste.**
   where to focus is; the reading guide is what a reviewer needs and slicing prose is not.
 
 **Work is committed to this budget at ticket creation, not at PR time** — see the Linear skill's
-"Ticket Sizing" section for the sizing test and the seams to split along. Slicing once the code
+"Ticket Sizing" section for the sizing test and how to split a ticket. Slicing once the code
 exists is when it costs the most.
 
 ### Exceeding the Ceiling
