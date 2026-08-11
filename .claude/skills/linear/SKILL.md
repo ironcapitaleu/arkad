@@ -603,10 +603,12 @@ the following methodology.
 The Definition of Done is what the reviewer checks the PR against, so every item must be
 **falsifiable by someone other than the author**:
 
-- ✅ "`Lei::try_from` rejects a 19-character input with `LeiError::InvalidLength`"
-- ✅ "`storage` builds with no `sqlx` anywhere in its dependency tree"
-- ❌ "LEI validation works properly"
-- ❌ "Code is clean and well tested"
+- **Falsifiable by a reviewer:**
+  - "`Lei::try_from` rejects a 19-character input with `LeiError::InvalidLength`"
+  - "`storage` builds with no `sqlx` anywhere in its dependency tree"
+- **Not checkable — avoid:**
+  - "LEI validation works properly"
+  - "Code is clean and well tested"
 
 Each item must be checkable by reading the diff or running a stated command. The PR's **Test
 Plan** section then says *how* to verify each item, and the reviewer confirms them one by one —
