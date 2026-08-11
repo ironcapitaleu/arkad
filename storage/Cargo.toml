@@ -1,0 +1,33 @@
+[package]
+name = "storage"
+version = "0.1.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+description = "Backend-agnostic persistence ports: the neutral Repository facade and its error hierarchy."
+repository = "https://github.com/ironcapital/state_machine"
+categories = ["database", "rust-patterns"]
+keywords = ["storage", "repository", "ports-and-adapters", "persistence"]
+readme = "../README.md"
+
+[dependencies]
+async-trait = "0.1.88"
+thiserror = "2"
+
+[dev-dependencies]
+pretty_assertions = "1"
+tokio = { version = "1.52.3", features = ["rt", "macros"] }
+
+[lib]
+name = "storage"
+path = "src/lib.rs"
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+cargo = "deny"
+all = "deny"
+pedantic = { level = "deny", priority = -1 }
+nursery = { level = "deny", priority = -1 }
+module_name_repetitions = { level = "allow", priority = 1 }
+multiple_crate_versions = { level = "allow", priority = 1 }
