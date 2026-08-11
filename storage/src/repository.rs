@@ -32,8 +32,8 @@ use crate::error::WriteError;
 /// database: swapping the physical backend is a new implementation behind the same port, not a
 /// change to its callers. It exposes a single write-unit ([`Repository::Record`]) and a single
 /// write method ([`Repository::persist`]), naming neither the storage tiers nor any concrete
-/// backend. Its associated [`Repository::Record`] makes the trait non-object-safe, so implementors
-/// are injected by concrete type or generic parameter rather than behind `dyn`.
+/// backend. Implementors are wired in by concrete type or generic parameter (static dispatch),
+/// not erased behind `dyn`.
 ///
 /// # Associated Types
 ///
