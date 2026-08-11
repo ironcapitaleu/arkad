@@ -1,13 +1,13 @@
 //! # Write Error
 //!
 //! Provides [`WriteError`], the operation-classed error every write method returns. Because a write
-//! method returns a [`WriteError`] and a read method (a later ticket) returns a `ReadError`,
+//! method returns a [`WriteError`] and a read method (a later slice) returns its own read error,
 //! illegal states are unrepresentable — a `persist` can never hand back a read-only failure.
 //!
 //! [`WriteError::Backend`] wraps the shared [`BackendError`]; the two marker variants
 //! ([`WriteError::ConflictingWrite`], [`WriteError::FailedIntegrityCheck`]) carry a flattened
-//! `reason`. [`WriteError`] is wrapped by [`ErrorKind`] for the shared consumers
-//! (the retry decorator, the `sec` seam) and recovers its [`BackendError`] via [`TryFrom`].
+//! `reason`. [`WriteError`] is wrapped by [`ErrorKind`] for the shared consumers (such as a retry
+//! decorator) and recovers its [`BackendError`] via [`TryFrom`].
 //!
 //! ## Usage
 //!
@@ -26,7 +26,7 @@ use super::backend_error::BackendError;
 
 #[non_exhaustive]
 #[derive(Debug, Error, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
-/// A failure raised by a write operation.
+/// Error representing a failure raised by a write operation.
 ///
 /// The class returned directly by every write method. Value type — the marker variants flatten
 /// their detail to a `reason` string, and [`WriteError::Backend`] embeds the shared
@@ -61,6 +61,8 @@ impl From<WriteError> for ErrorKind {
 impl TryFrom<WriteError> for BackendError {
     type Error = ErrorKind;
 
+    /// Extracts the [`BackendError`] from a [`WriteError::Backend`] — the fallible downcast.
+    ///
     /// # Errors
     ///
     /// Returns [`ErrorKind::DowncastNotPossible`] if the value is not a [`WriteError::Backend`].

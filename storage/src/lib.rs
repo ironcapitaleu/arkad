@@ -1,14 +1,16 @@
 //! # Storage — persistence ports
 //!
-//! Backend-agnostic persistence ports for the arkad pipeline. The crate owns the *word*
-//! "storage" so no trait is named `Storage`; the pipeline depends on these ports and never on a
-//! concrete database, so swapping the physical backend (Postgres, Iceberg, a graph DB, or any
-//! mixture) is a new implementation behind the same interface rather than a pipeline rewrite.
+//! Backend-agnostic persistence ports for the arkad workspace. The crate owns the *word*
+//! "storage" so no trait is named `Storage`; callers depend on these ports and never on a concrete
+//! database, so swapping the physical backend (Postgres, Iceberg, a graph DB, or any mixture) is a
+//! new implementation behind the same interface rather than a rewrite of the code that depends on
+//! it.
 //!
-//! This is the first, deliberately minimal slice (STA-139): the neutral [`Repository`] port and
-//! the write-side [`error::ErrorKind`] hierarchy. The tier capability traits (`RawStore` /
-//! `GraphStore` / `FactStore`), the composing `SecRepository`, the read surface, and every
-//! concrete backend are deferred to their own follow-ups so this stays easy to review.
+//! This is the first, deliberately minimal slice: the neutral [`Repository`] port and the
+//! write-side [`error::ErrorKind`] hierarchy. The tier capability traits (`RawStore` /
+//! `GraphStore` / `FactStore`), a composing repository, the read surface, and every concrete
+//! backend are layered on in their own follow-up slices so this foundation stays small and
+//! reviewable.
 //!
 //! ## Modules
 //!
@@ -19,7 +21,7 @@
 //! ## Usage
 //!
 //! ```rust
-//! use storage::{ErrorKind, Repository, WriteError};
+//! use storage::{ErrorKind, WriteError};
 //!
 //! let _err = ErrorKind::Write(WriteError::ConflictingWrite {
 //!     reason: "duplicate accession number".to_string(),

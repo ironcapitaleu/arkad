@@ -5,8 +5,8 @@
 //! [`WriteError`] (and, later, `ReadError`) so the retryability decision lives
 //! in one place.
 //!
-//! [`BackendError::is_retryable`] is the single decision the driver needs — retry versus
-//! dead-letter — and only [`BackendError::Unavailable`] is transient.
+//! [`BackendError::is_retryable`] classifies retryable versus permanent failures in one place —
+//! only [`BackendError::Unavailable`] is transient.
 //!
 //! ## Usage
 //!
@@ -24,7 +24,7 @@ use super::write_error::WriteError;
 
 #[non_exhaustive]
 #[derive(Debug, Error, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
-/// A backend-level failure, shared across every operation class.
+/// Error representing a backend-level failure, shared across every operation class.
 ///
 /// The innermost error in the hierarchy: it is embedded in the operation-classed errors
 /// ([`WriteError`], and later `ReadError`) rather than surfaced on its own, and it is where

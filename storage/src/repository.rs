@@ -1,9 +1,9 @@
 //! # Repository — the neutral persistence port
 //!
-//! Provides [`Repository`], the sole persistence port the pipeline injects. It is *neutral*: a
-//! single associated [`Repository::Record`] and one [`Repository::persist`] write method, blind to
-//! how or where the record lands. It names no tiers and no backend — the tier capability traits and
-//! the composing `SecRepository` (which binds `type Record` to a concrete filing record) are
+//! Provides [`Repository`], the persistence port callers inject. It is *neutral*: a single
+//! associated [`Repository::Record`] and one [`Repository::persist`] write method, blind to how or
+//! where the record lands. It names no tiers and no concrete backend — the tier capability traits
+//! and a composing repository (which binds [`Repository::Record`] to a concrete record type) are
 //! deferred to later slices.
 //!
 //! ## Usage
@@ -28,12 +28,13 @@ use async_trait::async_trait;
 
 use crate::error::WriteError;
 
-/// The neutral persistence port the pipeline depends on.
+/// A neutral, backend-blind persistence port.
 ///
-/// Backend-blind by design: it exposes a single write-unit ([`Repository::Record`]) and a single
-/// write method ([`Repository::persist`]), and names neither the storage tiers nor any concrete
-/// backend. Swapping the physical store is a new implementation of this trait, not a pipeline
-/// change. Consistent with the codebase's non-object-safe trait style, implementations are injected
+/// Exists as a trait so callers depend on an abstract persistence contract rather than a concrete
+/// database: swapping the physical backend is a new implementation behind the same port, not a
+/// change to its callers. It exposes a single write-unit ([`Repository::Record`]) and a single
+/// write method ([`Repository::persist`]), naming neither the storage tiers nor any concrete
+/// backend. Consistent with the codebase's non-object-safe trait style, implementors are injected
 /// by concrete type, never behind `dyn`.
 #[async_trait]
 pub trait Repository: Send + Sync {

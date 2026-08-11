@@ -2,17 +2,15 @@
 //!
 //! Provides the write-side error hierarchy for the `storage` crate, topped by [`ErrorKind`].
 //!
-//! The hierarchy is built exactly like the `sec` crate's `error` module: module-per-level,
-//! value-type at every level, `From` upcast / [`TryFrom`] downcast, and a single
-//! [`ErrorKind::DowncastNotPossible`] sentinel on the top. The classes are keyed to the *kind of
-//! operation* — a write method returns a [`WriteError`], so illegal states are unrepresentable —
-//! and each embeds the shared [`BackendError`]. Methods return the narrow class; the union
-//! [`ErrorKind`] is what the shared consumers (a retry decorator, the `sec` seam) take, reached by
-//! the `From` upcast.
+//! The hierarchy is operation-classed and value-typed at every level: module-per-level, `From`
+//! upcast / [`TryFrom`] downcast, and a single [`ErrorKind::DowncastNotPossible`] sentinel on the
+//! top. Each class is keyed to the *kind of operation* — a write method returns a [`WriteError`],
+//! so illegal states are unrepresentable — and each embeds the shared [`BackendError`]. Methods
+//! return the narrow class; the union [`ErrorKind`] is what shared consumers take (for example a
+//! retry decorator that reads [`BackendError::is_retryable`]), reached by the `From` upcast.
 //!
-//! Built write-side first: the [`ErrorKind::Write`] arm exists now; the `Read` arm and its
-//! `ReadError` arrive with the read methods in a later ticket, made additive by
-//! `#[non_exhaustive]`.
+//! Built write-side first: the [`ErrorKind::Write`] arm exists now; a read arm and its error type
+//! arrive with the read methods in a later slice, made additive by `#[non_exhaustive]`.
 //!
 //! ## Modules
 //!
@@ -43,7 +41,7 @@ pub use write_error::WriteError;
 ///
 /// The outermost layer of the hierarchy: it wraps every more specific write error so callers can
 /// propagate one type, and supports downward extraction to [`WriteError`] / [`BackendError`] via
-/// [`TryFrom`]. Only the write arm exists in this slice; the read arm is a later ticket.
+/// [`TryFrom`]. Only the write arm exists in this slice; the read arm is a later slice.
 pub enum ErrorKind {
     /// An error originating from a write operation.
     #[error("[Write] Problem occurred during a write operation, Caused by: {0}")]
@@ -57,6 +55,8 @@ pub enum ErrorKind {
 impl TryFrom<ErrorKind> for WriteError {
     type Error = ErrorKind;
 
+    /// Extracts the [`WriteError`] from an [`ErrorKind::Write`] — the fallible downcast.
+    ///
     /// # Errors
     ///
     /// Returns [`ErrorKind::DowncastNotPossible`] if the value is not an [`ErrorKind::Write`].
@@ -71,6 +71,9 @@ impl TryFrom<ErrorKind> for WriteError {
 impl TryFrom<ErrorKind> for BackendError {
     type Error = ErrorKind;
 
+    /// Extracts the [`BackendError`] from an [`ErrorKind`] wrapping a [`WriteError::Backend`] — the
+    /// fallible skip-level downcast.
+    ///
     /// # Errors
     ///
     /// Returns [`ErrorKind::DowncastNotPossible`] if the value is not an [`ErrorKind::Write`]
