@@ -10,7 +10,7 @@ below; each doc's header states its own status.
 | # | Document | Status | What it is |
 |---|----------|--------|------------|
 | 1 | [`hybrid_data_model.md`](./hybrid_data_model.md) | **Authoritative** (findings complete) | The SPIKE findings: universal canonical core (LEI-keyed, SFAC-6-rooted) + regulator adapters, knowledge-graph & canonical-fact tiers, consistency/provenance model, storage-tech research, deployment options |
-| 2 | [`storage_traits_design.md`](./storage_traits_design.md) | **Converged draft** — to be finalized by the `storage`-crate [DESIGN] ticket | The storage abstraction: composing `Repository` via associated types, `StorageError` currency, transaction ownership, crate topology, fakes |
+| 2 | [`storage_traits_design.md`](./storage_traits_design.md) | **Current: Consolidated Design (2026-08-10)** — supersedes the STA-145 v1 | The storage abstraction: neutral `Repository` + `persist`, `Backend` store base, `SecRepository` owning the tier triad, `ErrorKind` value-type hierarchy, crate topology, per-crate fakes. STA-145 v1 retained below for rationale. Feeds STA-139 |
 | 3 | [`load_superstate_design.md`](./load_superstate_design.md) | Exploratory, non-normative | The Load `SuperState` through the ports-and-adapters lens; for iteration before Load tickets are cut |
 | 4 | [`design_patterns_primer.md`](./design_patterns_primer.md) | Background | Shared vocabulary: Repository, Ports & Adapters, Unit of Work, CQRS — each mapped onto arkad |
 | 5 | [`design_patterns_demo.py`](./design_patterns_demo.py) | Background (runnable) | Dependency-free Python model of the same pattern combination: `python3 design_patterns_demo.py` |
@@ -35,5 +35,7 @@ below; each doc's header states its own status.
 ## What happens next
 
 Tracked in Linear — the roadmap comment on STA-130 is the source of truth for the ticket series.
-Next up: a **[DESIGN] ticket finalizing the `storage` crate** (method inventory + open questions
-in `storage_traits_design.md`), then **STA-139** (scaffold the `storage` crate).
+STA-145 froze an initial trait v1; the **Consolidated Design (2026-08-10)** in
+`storage_traits_design.md` has since refined it and is **the current scaffold target**. Next up:
+**STA-139** (scaffold the `storage` crate to the consolidated design), preceded by the small prerequisite
+**`Lei` / `CompanyId` domain-concept** type (the identity newtype the signatures reference).
