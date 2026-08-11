@@ -22,9 +22,7 @@
 //! ```rust
 //! use storage::{ErrorKind, WriteError};
 //!
-//! let _err = ErrorKind::Write(WriteError::ConflictingWrite {
-//!     reason: "duplicate accession number".to_string(),
-//! });
+//! let _err = ErrorKind::Write(WriteError::conflicting_write("duplicate accession number"));
 //! ```
 
 pub mod backend_error;
@@ -173,9 +171,7 @@ mod tests {
 
     #[test]
     fn should_downcast_to_write_error_when_error_kind_is_a_write_variant() {
-        let write_error = WriteError::ConflictingWrite {
-            reason: "duplicate accession".to_string(),
-        };
+        let write_error = WriteError::conflicting_write("duplicate accession");
         let error_kind = ErrorKind::Write(write_error.clone());
 
         let result = WriteError::try_from(error_kind)
@@ -197,9 +193,7 @@ mod tests {
 
     #[test]
     fn should_skip_level_downcast_to_backend_error_when_error_kind_wraps_a_backend_write() {
-        let backend_error = BackendError::Unavailable {
-            reason: "timeout".to_string(),
-        };
+        let backend_error = BackendError::unavailable("timeout");
         let error_kind = ErrorKind::Write(WriteError::Backend(backend_error.clone()));
 
         let result = BackendError::try_from(error_kind).expect(
@@ -211,9 +205,9 @@ mod tests {
 
     #[test]
     fn should_fail_skip_level_downcast_to_backend_error_when_write_is_not_a_backend_variant() {
-        let error_kind = ErrorKind::Write(WriteError::FailedIntegrityCheck {
-            reason: "SFAC-6 identity violated".to_string(),
-        });
+        let error_kind = ErrorKind::Write(WriteError::failed_integrity_check(
+            "SFAC-6 identity violated",
+        ));
         let expected_result = ErrorKind::DowncastNotPossible;
 
         let result = BackendError::try_from(error_kind).expect_err(
@@ -225,9 +219,7 @@ mod tests {
 
     #[test]
     fn should_roundtrip_write_error_when_upcast_then_downcast() {
-        let write_error = WriteError::FailedIntegrityCheck {
-            reason: "SFAC-6 identity violated".to_string(),
-        };
+        let write_error = WriteError::failed_integrity_check("SFAC-6 identity violated");
 
         let upcast: ErrorKind = write_error.clone().into();
         let result = WriteError::try_from(upcast)
@@ -238,9 +230,7 @@ mod tests {
 
     #[test]
     fn should_chain_write_display_after_caused_by_when_error_kind_wraps_write() {
-        let error_kind = ErrorKind::Write(WriteError::ConflictingWrite {
-            reason: "duplicate accession".to_string(),
-        });
+        let error_kind = ErrorKind::Write(WriteError::conflicting_write("duplicate accession"));
 
         let expected_result = "[Write] Problem occurred during a write operation, Caused by: [ConflictingWrite] Write conflicts with existing data, Reason: 'duplicate accession'";
 
@@ -263,9 +253,7 @@ mod tests {
 
     #[test]
     fn should_expose_write_error_as_source_when_error_kind_wraps_write() {
-        let write_error = WriteError::FailedIntegrityCheck {
-            reason: "SFAC-6 identity violated".to_string(),
-        };
+        let write_error = WriteError::failed_integrity_check("SFAC-6 identity violated");
         let error_kind = ErrorKind::Write(write_error.clone());
 
         let expected_result = Some(&write_error);

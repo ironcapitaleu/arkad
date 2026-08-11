@@ -21,9 +21,7 @@
 //! ```rust
 //! use storage::{ErrorKind, WriteError};
 //!
-//! let _err = ErrorKind::Write(WriteError::ConflictingWrite {
-//!     reason: "duplicate accession number".to_string(),
-//! });
+//! let _err = ErrorKind::Write(WriteError::conflicting_write("duplicate accession number"));
 //! ```
 
 pub mod error;

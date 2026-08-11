@@ -9,7 +9,7 @@
 //! ```rust
 //! use storage::BackendError;
 //!
-//! let _err = BackendError::Unavailable { reason: "connection reset".to_string() };
+//! let _err = BackendError::unavailable("connection reset");
 //! ```
 
 use thiserror::Error;
@@ -38,6 +38,24 @@ pub enum BackendError {
         /// Human-readable explanation of the failure.
         reason: String,
     },
+}
+
+impl BackendError {
+    /// Creates a [`BackendError::Unavailable`] from the given reason.
+    #[must_use]
+    pub fn unavailable(reason: impl Into<String>) -> Self {
+        Self::Unavailable {
+            reason: reason.into(),
+        }
+    }
+
+    /// Creates a [`BackendError::Failed`] from the given reason.
+    #[must_use]
+    pub fn failed(reason: impl Into<String>) -> Self {
+        Self::Failed {
+            reason: reason.into(),
+        }
+    }
 }
 
 impl From<BackendError> for WriteError {
@@ -142,9 +160,7 @@ mod tests {
 
     #[test]
     fn should_upcast_into_write_error_backend_variant_when_converting_from_backend_error() {
-        let backend_error = BackendError::Failed {
-            reason: "disk full".to_string(),
-        };
+        let backend_error = BackendError::failed("disk full");
         let expected_result = WriteError::Backend(backend_error.clone());
 
         let result: WriteError = backend_error.into();
@@ -154,9 +170,7 @@ mod tests {
 
     #[test]
     fn should_upcast_into_error_kind_write_backend_when_converting_from_backend_error() {
-        let backend_error = BackendError::Unavailable {
-            reason: "timeout".to_string(),
-        };
+        let backend_error = BackendError::unavailable("timeout");
         let expected_result = ErrorKind::Write(WriteError::Backend(backend_error.clone()));
 
         let result: ErrorKind = backend_error.into();
@@ -166,9 +180,7 @@ mod tests {
 
     #[test]
     fn should_format_display_with_bracketed_name_and_reason_when_backend_is_unavailable() {
-        let error = BackendError::Unavailable {
-            reason: "connection reset".to_string(),
-        };
+        let error = BackendError::unavailable("connection reset");
 
         let expected_result =
             "[Unavailable] Storage backend is temporarily unavailable, Reason: 'connection reset'";
@@ -180,9 +192,7 @@ mod tests {
 
     #[test]
     fn should_format_display_with_bracketed_name_and_reason_when_backend_operation_failed() {
-        let error = BackendError::Failed {
-            reason: "constraint violation".to_string(),
-        };
+        let error = BackendError::failed("constraint violation");
 
         let expected_result =
             "[Failed] Storage backend operation failed, Reason: 'constraint violation'";

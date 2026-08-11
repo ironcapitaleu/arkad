@@ -14,9 +14,7 @@
 //! ```rust
 //! use storage::WriteError;
 //!
-//! let _err = WriteError::FailedIntegrityCheck {
-//!     reason: "SFAC-6 identity violated".to_string(),
-//! };
+//! let _err = WriteError::failed_integrity_check("SFAC-6 identity violated");
 //! ```
 
 use thiserror::Error;
@@ -49,6 +47,24 @@ pub enum WriteError {
     /// The write failed at the backend level; carries the shared [`BackendError`].
     #[error("[Backend] Storage backend error occurred, Caused by: {0}")]
     Backend(#[source] BackendError),
+}
+
+impl WriteError {
+    /// Creates a [`WriteError::ConflictingWrite`] from the given reason.
+    #[must_use]
+    pub fn conflicting_write(reason: impl Into<String>) -> Self {
+        Self::ConflictingWrite {
+            reason: reason.into(),
+        }
+    }
+
+    /// Creates a [`WriteError::FailedIntegrityCheck`] from the given reason.
+    #[must_use]
+    pub fn failed_integrity_check(reason: impl Into<String>) -> Self {
+        Self::FailedIntegrityCheck {
+            reason: reason.into(),
+        }
+    }
 }
 
 impl From<WriteError> for ErrorKind {
@@ -161,9 +177,7 @@ mod tests {
 
     #[test]
     fn should_upcast_into_error_kind_write_when_converting_from_write_error() {
-        let write_error = WriteError::ConflictingWrite {
-            reason: "duplicate accession".to_string(),
-        };
+        let write_error = WriteError::conflicting_write("duplicate accession");
         let expected_result = ErrorKind::Write(write_error.clone());
 
         let result: ErrorKind = write_error.into();
@@ -173,9 +187,7 @@ mod tests {
 
     #[test]
     fn should_downcast_to_backend_error_when_write_error_is_a_backend_variant() {
-        let backend_error = BackendError::Unavailable {
-            reason: "timeout".to_string(),
-        };
+        let backend_error = BackendError::unavailable("timeout");
         let write_error = WriteError::Backend(backend_error.clone());
 
         let result = BackendError::try_from(write_error)
@@ -186,9 +198,7 @@ mod tests {
 
     #[test]
     fn should_fail_downcast_to_backend_error_when_write_error_is_not_a_backend_variant() {
-        let write_error = WriteError::ConflictingWrite {
-            reason: "duplicate accession".to_string(),
-        };
+        let write_error = WriteError::conflicting_write("duplicate accession");
         let expected_result = ErrorKind::DowncastNotPossible;
 
         let result = BackendError::try_from(write_error)
@@ -199,9 +209,7 @@ mod tests {
 
     #[test]
     fn should_format_display_with_bracketed_name_and_reason_when_write_conflicts() {
-        let error = WriteError::ConflictingWrite {
-            reason: "duplicate accession".to_string(),
-        };
+        let error = WriteError::conflicting_write("duplicate accession");
 
         let expected_result =
             "[ConflictingWrite] Write conflicts with existing data, Reason: 'duplicate accession'";
@@ -213,9 +221,7 @@ mod tests {
 
     #[test]
     fn should_format_display_with_bracketed_name_and_reason_when_integrity_check_fails() {
-        let error = WriteError::FailedIntegrityCheck {
-            reason: "SFAC-6 identity violated".to_string(),
-        };
+        let error = WriteError::failed_integrity_check("SFAC-6 identity violated");
 
         let expected_result = "[FailedIntegrityCheck] Data integrity or invariant violated, Reason: 'SFAC-6 identity violated'";
 
@@ -226,9 +232,7 @@ mod tests {
 
     #[test]
     fn should_chain_backend_display_after_caused_by_when_write_error_wraps_backend() {
-        let error = WriteError::Backend(BackendError::Failed {
-            reason: "disk full".to_string(),
-        });
+        let error = WriteError::Backend(BackendError::failed("disk full"));
 
         let expected_result = "[Backend] Storage backend error occurred, Caused by: [Failed] Storage backend operation failed, Reason: 'disk full'";
 
@@ -239,9 +243,7 @@ mod tests {
 
     #[test]
     fn should_expose_backend_error_as_source_when_write_error_wraps_backend() {
-        let backend_error = BackendError::Unavailable {
-            reason: "timeout".to_string(),
-        };
+        let backend_error = BackendError::unavailable("timeout");
         let error = WriteError::Backend(backend_error.clone());
 
         let expected_result = Some(&backend_error);
