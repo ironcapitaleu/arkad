@@ -61,7 +61,7 @@ impl TryFrom<ErrorKind> for WriteError {
     fn try_from(value: ErrorKind) -> Result<Self, Self::Error> {
         match value {
             ErrorKind::Write(write) => Ok(write),
-            ErrorKind::DowncastNotPossible => Err(ErrorKind::DowncastNotPossible),
+            _ => Err(ErrorKind::DowncastNotPossible),
         }
     }
 }
