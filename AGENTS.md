@@ -259,6 +259,20 @@ through short-lived branches that merge quickly.
 - **Rebase or merge `main` daily.** Divergence is what makes integration painful.
 - **Delete the branch after merge.** Never stack new work on already-merged history.
 
+### Branch Naming
+
+Name a branch `<type>/<short-description>`:
+
+- **`<type>`** — one of the commit types above (`feat`, `fix`, `refactor`, `chore`, `test`, `doc`, …).
+- **`<short-description>`** — a few kebab-case words naming the *functionality*, a noun-based phrase
+  a teammate can read at a glance.
+
+Do **not** encode ticket IDs, nor a slug of the ticket title, in the branch name — the PR links the
+ticket. The name describes *what the branch does*, kept short.
+
+Examples: `feat/storage-scaffold`, `feat/repository-port`, `fix/rate-limiter-backoff`,
+`refactor/error-hierarchy`, `chore/bump-clippy-lints`.
+
 ### PR Size Budget
 
 Review quality collapses on large diffs — defect detection per line drops sharply once the
