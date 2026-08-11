@@ -57,7 +57,7 @@ impl<Rec> FakeRepository<Rec> {
 #[async_trait]
 impl<Rec> Repository for FakeRepository<Rec>
 where
-    Rec: Send + Sync,
+    Rec: Send,
 {
     type Record = Rec;
 
