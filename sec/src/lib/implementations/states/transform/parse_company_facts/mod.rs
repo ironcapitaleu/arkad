@@ -364,13 +364,15 @@ impl fmt::Display for ParseCompanyFacts {
 
 #[cfg(test)]
 mod tests {
+    use std::{fmt::Debug, hash::Hash};
+
+    use pretty_assertions::assert_eq;
+    use tokio;
+
     use super::*;
     use crate::shared::cik::Cik;
     use crate::shared::cik::constants::BERKSHIRE_HATHAWAY_CIK_RAW;
     use crate::shared::response::implementations::sec_response::body_digest::BodyDigest;
-    use pretty_assertions::assert_eq;
-    use std::{fmt::Debug, hash::Hash};
-    use tokio;
 
     fn test_input() -> ParseCompanyFactsInput {
         let json = serde_json::json!({});
