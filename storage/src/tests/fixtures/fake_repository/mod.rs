@@ -72,9 +72,11 @@ where
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use std::fmt::Debug;
+
     use pretty_assertions::assert_eq;
-    use std::{fmt::Debug, hash::Hash};
+
+    use super::*;
 
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
     #[test]
@@ -117,12 +119,6 @@ mod tests {
     #[test]
     const fn should_be_able_to_rely_on_default_implementation_when_using_fake_repository() {
         implements_default::<FakeRepository<String>>();
-    }
-
-    const fn implements_hash<T: Hash>() {}
-    #[test]
-    const fn should_be_able_to_rely_on_record_hash_bound_when_using_fake_repository() {
-        implements_hash::<String>();
     }
 
     #[tokio::test]

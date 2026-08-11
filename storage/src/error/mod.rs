@@ -86,9 +86,11 @@ impl TryFrom<ErrorKind> for BackendError {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use pretty_assertions::assert_eq;
     use std::{fmt::Debug, hash::Hash};
+
+    use pretty_assertions::assert_eq;
+
+    use super::*;
 
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
     #[test]

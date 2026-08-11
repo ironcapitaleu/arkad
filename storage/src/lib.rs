@@ -12,8 +12,8 @@
 //!
 //! ## Modules
 //!
-//! - [`error`]: The write-side error hierarchy topped by [`ErrorKind`], mirroring the `sec` crate's
-//!   module-per-level, `From` upcast / `TryFrom` downcast shape.
+//! - [`error`]: The write-side error hierarchy topped by [`ErrorKind`] — module-per-level, with
+//!   `From` upcast / `TryFrom` downcast between levels.
 //! - [`repository`]: The neutral [`Repository`] port — `type Record` + `persist`, backend-blind.
 //!
 //! ## Usage

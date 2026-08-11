@@ -32,13 +32,19 @@ use crate::error::WriteError;
 /// database: swapping the physical backend is a new implementation behind the same port, not a
 /// change to its callers. It exposes a single write-unit ([`Repository::Record`]) and a single
 /// write method ([`Repository::persist`]), naming neither the storage tiers nor any concrete
-/// backend. Consistent with the codebase's non-object-safe trait style, implementors are injected
-/// by concrete type, never behind `dyn`.
+/// backend. Its associated [`Repository::Record`] makes the trait non-object-safe, so implementors
+/// are injected by concrete type or generic parameter rather than behind `dyn`.
+///
+/// # Associated Types
+///
+/// - [`Repository::Record`]: the write-unit accepted by [`Repository::persist`].
 #[async_trait]
 pub trait Repository: Send + Sync {
     /// The unit of persistence this repository accepts — one record per [`Repository::persist`]
     /// call. Implementations bind it to their concrete write-unit (for example, a filing record).
-    type Record;
+    ///
+    /// Bounded by [`Send`] because [`Repository::persist`] moves it across an `async` boundary.
+    type Record: Send;
 
     /// Persists a single record.
     ///
@@ -47,7 +53,9 @@ pub trait Repository: Send + Sync {
     ///
     /// # Errors
     ///
-    /// Returns a [`WriteError`] if the record cannot be persisted — a conflict with existing data,
-    /// a violated integrity invariant, or a backend-level failure.
+    /// Returns a [`WriteError`] if the record cannot be persisted:
+    /// - [`WriteError::ConflictingWrite`] — the record conflicts with data already present.
+    /// - [`WriteError::FailedIntegrityCheck`] — the record violates a data-integrity invariant.
+    /// - [`WriteError::Backend`] — the write failed at the backend level.
     async fn persist(&self, record: Self::Record) -> Result<(), WriteError>;
 }
