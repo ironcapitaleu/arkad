@@ -1,8 +1,7 @@
 //! # Write Error
 //!
-//! Provides [`WriteError`], the operation-classed error every write method returns. Because the
-//! error is operation-classed, a `persist` can only ever hand back a [`WriteError`], never a
-//! read-side failure — so illegal states are unrepresentable.
+//! Provides [`WriteError`], the operation-classed error every write method returns — the narrow
+//! class scoped to write failures, so a write path's error is always one of its variants.
 //!
 //! [`WriteError::Backend`] wraps the shared [`BackendError`]; the two marker variants
 //! ([`WriteError::ConflictingWrite`], [`WriteError::FailedIntegrityCheck`]) carry a flattened
