@@ -196,4 +196,59 @@ mod tests {
 
         assert_eq!(result, expected_result);
     }
+
+    #[test]
+    fn should_format_display_with_bracketed_name_and_reason_when_write_conflicts() {
+        let error = WriteError::ConflictingWrite {
+            reason: "duplicate accession".to_string(),
+        };
+
+        let expected_result =
+            "[ConflictingWrite] Write conflicts with existing data, Reason: 'duplicate accession'";
+
+        let result = error.to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_format_display_with_bracketed_name_and_reason_when_integrity_check_fails() {
+        let error = WriteError::FailedIntegrityCheck {
+            reason: "SFAC-6 identity violated".to_string(),
+        };
+
+        let expected_result = "[FailedIntegrityCheck] Data integrity or invariant violated, Reason: 'SFAC-6 identity violated'";
+
+        let result = error.to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_chain_backend_display_after_caused_by_when_write_error_wraps_backend() {
+        let error = WriteError::Backend(BackendError::Failed {
+            reason: "disk full".to_string(),
+        });
+
+        let expected_result = "[Backend] Storage backend error occurred, Caused by: [Failed] Storage backend operation failed, Reason: 'disk full'";
+
+        let result = error.to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_expose_backend_error_as_source_when_write_error_wraps_backend() {
+        let backend_error = BackendError::Unavailable {
+            reason: "timeout".to_string(),
+        };
+        let error = WriteError::Backend(backend_error.clone());
+
+        let expected_result = Some(&backend_error);
+
+        let result = std::error::Error::source(&error)
+            .and_then(|source| source.downcast_ref::<BackendError>());
+
+        assert_eq!(result, expected_result);
+    }
 }

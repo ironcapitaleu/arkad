@@ -163,4 +163,32 @@ mod tests {
 
         assert_eq!(result, expected_result);
     }
+
+    #[test]
+    fn should_format_display_with_bracketed_name_and_reason_when_backend_is_unavailable() {
+        let error = BackendError::Unavailable {
+            reason: "connection reset".to_string(),
+        };
+
+        let expected_result =
+            "[Unavailable] Storage backend is temporarily unavailable, Reason: 'connection reset'";
+
+        let result = error.to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_format_display_with_bracketed_name_and_reason_when_backend_operation_failed() {
+        let error = BackendError::Failed {
+            reason: "constraint violation".to_string(),
+        };
+
+        let expected_result =
+            "[Failed] Storage backend operation failed, Reason: 'constraint violation'";
+
+        let result = error.to_string();
+
+        assert_eq!(result, expected_result);
+    }
 }

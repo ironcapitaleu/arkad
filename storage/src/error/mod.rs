@@ -235,4 +235,44 @@ mod tests {
 
         assert_eq!(result, write_error);
     }
+
+    #[test]
+    fn should_chain_write_display_after_caused_by_when_error_kind_wraps_write() {
+        let error_kind = ErrorKind::Write(WriteError::ConflictingWrite {
+            reason: "duplicate accession".to_string(),
+        });
+
+        let expected_result = "[Write] Problem occurred during a write operation, Caused by: [ConflictingWrite] Write conflicts with existing data, Reason: 'duplicate accession'";
+
+        let result = error_kind.to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_format_display_with_bracketed_name_when_downcast_is_not_possible() {
+        let error_kind = ErrorKind::DowncastNotPossible;
+
+        let expected_result =
+            "[DowncastNotPossible] Failed to downcast error into a more specific type";
+
+        let result = error_kind.to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_expose_write_error_as_source_when_error_kind_wraps_write() {
+        let write_error = WriteError::FailedIntegrityCheck {
+            reason: "SFAC-6 identity violated".to_string(),
+        };
+        let error_kind = ErrorKind::Write(write_error.clone());
+
+        let expected_result = Some(&write_error);
+
+        let result = std::error::Error::source(&error_kind)
+            .and_then(|source| source.downcast_ref::<WriteError>());
+
+        assert_eq!(result, expected_result);
+    }
 }
