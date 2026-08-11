@@ -5,7 +5,7 @@ description: >
   "refactor docs", or wants to improve documentation for any part of the codebase. Supports
   documenting a specific package, module, recently written code, or running a compliance check
   against DOCUMENTATION.md guidelines.
-version: 0.1.0
+version: 0.2.0
 argument-hint: "[target-path or 'check' or 'recent']"
 allowed-tools: [Read, Write, Edit, Bash, AskUserQuestion, Agent]
 ---
@@ -83,6 +83,7 @@ Then:
    - Error reason enums not starting with "Enum representing the reason why..."
    - Coupling references (ordinals, naming consumers, "transport" jargon, sibling contrasts)
    - Internal-dependent references (naming a caller/state/pipeline or the concrete type that holds this one) — distinct from allowed references to the external system the crate serves; and domain vocabulary ("request", "SEC") leaking into a generic trait contract
+   - Temporal / roadmap references (naming *when* something exists or will: "later", "deferred", "first/minimal slice", "the read arm arrives later", "for now", "exists now", "built X-side first", ticket/PR IDs) — docs describe the current contract, not a timeline
    - Doctests not following ADAA pattern
    - Redundant/tautological assertions
    - "a SEC" instead of "an SEC" (vowel-sound rule)
@@ -114,6 +115,7 @@ These are loaded from `DOCUMENTATION.md` but summarized here for speed:
 - **Conversions**: One-liner naming source and target
 - **Doc-tests**: ADAA pattern; omit assertion when construction is the point (use `let _x = ...`)
 - **No coupling**: No ordinals from children, no naming consumers, no sibling contrasts
+- **No temporal coupling**: Describe what an item is now, never *when* — no "later", "deferred", "first/minimal slice", "arrives with", "for now", "exists now", or ticket/PR IDs. State deliberate boundaries as timeless properties ("names no concrete backend"); let `#[non_exhaustive]` carry extensibility
 - **External system vs. internal dependent**: Naming the external system the crate serves ("under the SEC's 10 req/s ceiling") is domain justification and allowed; naming an internal dependent (a caller, state, pipeline, or the concrete type that holds this one) is coupling and must be avoided. Generic traits stay domain-agnostic (no "SEC"/"request"); the concept's module doc, constants, and concrete impl may name the external system
 - **Grammar**: "an SEC", "an [`SecRequest`]" (vowel sound)
 - **Setters**: "Sets the X field." (one-liner)

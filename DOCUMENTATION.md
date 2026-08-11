@@ -638,6 +638,23 @@ system, since they embody the tuning chosen to satisfy it.
 sequence. A child must never claim its own position — it does not know (and should not assume)
 where or in what order it is assembled.
 
+**Temporal references** couple the doc to a project *timeline* rather than a place in the system,
+and are just as corrosive. Documentation describes what an item **is** and the contract it holds
+now — never when it came to exist, what used to be there, or what is planned next. Ban roadmap
+language: "this is the first slice", "the read arm arrives later", "deferred to a follow-up", "for
+now", "exists now", "built write-side first". A reader months on cannot tell whether "later"
+already happened, and the code itself does not record the schedule. Let `#[non_exhaustive]` and the
+type system carry extensibility. State a deliberate boundary as a **timeless property** ("names no
+concrete backend"), not as a deferral ("backends are added in a later slice"). Ticket IDs and
+slice/PR numbers never appear in rustdoc.
+
+| Prose | Problem | Instead |
+|-------|---------|---------|
+| "the first, deliberately minimal slice" | Timeline, not contract | "holds the persistence ports only" |
+| "the `Read` arm arrives with the read methods later" | Promises future code | (say nothing — `#[non_exhaustive]` covers it) |
+| "the tier traits are deferred to later slices" | Roadmap | "names no tiers and no concrete backend" |
+| "embeds into `WriteError` (and, later, `ReadError`)" | Future sibling | "embeds into the operation-classed errors (such as `WriteError`)" |
+
 If you add a new implementor of a trait, you do **not** go back to the trait's docs to add a link to it. The implementor links to the trait it implements, not the other way around.
 
 Exception: `## See Also` in module-level docs may link upward for discoverability, since module docs serve as navigation aids.
@@ -727,3 +744,4 @@ Before submitting a PR, verify:
 - [ ] Module-level doc-tests exist where multiple items must compose together to demonstrate usage.
 - [ ] Field-level docs exist on all public struct fields and enum variant fields.
 - [ ] Each doc comment answers the relevant W-Fragen (at minimum *Was?*).
+- [ ] No temporal / roadmap language ("later", "deferred", "first slice", ticket IDs) — docs describe the current contract, not the timeline.
