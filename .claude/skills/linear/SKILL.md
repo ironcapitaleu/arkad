@@ -89,6 +89,73 @@ Use backtick-quoted code names where appropriate:
 
 **Exception:** Basic user tickets have NO prefix — just the descriptive title.
 
+## Ticket Sizing — One Ticket, One Reviewable PR
+
+A ticket is where work is **committed to a size**. Slice here, before code exists — splitting
+later, at PR time, is when it costs the most.
+
+**The rule: one ticket → one branch → one PR that fits the review budget** (~200 reviewable LoC,
+400 ceiling; branch lives 2 days, 5 at most — see AGENTS.md "Branching & PR Size"). A ticket that
+cannot merge inside that window is too big, regardless of how coherent it feels.
+
+### Sizing Test — apply before creating the ticket
+
+- Can this merge to `main` within ~2 days of starting?
+- Does it yield a single coherent PR a reviewer can hold in their head?
+- Is it independently valuable, or at minimum independently *safe*, to merge?
+- Does its Definition of Done fit in a handful of checkable items?
+
+Any "no" → split it.
+
+### How to Split
+
+Split so each piece is complete on its own and the next one builds on it — every ticket can
+merge independently. Common orderings:
+
+| Split | Example |
+| --- | --- |
+| The type, then its users | the `Lei` / `CompanyId` newtype, then the code that consumes it |
+| The contract, then the implementation | freeze the traits (DESIGN), then scaffold them (FEATURE) |
+| The port, then the adapter | the `storage` ports crate, then `storage-postgres` |
+| The scaffold, then the logic | the generated `State` skeleton, then `compute_output_data` |
+| The happy path, then the edge cases | the core flow, then error / retry / edge-case handling |
+
+Prefer **sequenced sub-tickets with explicit blocking links** over one ticket carrying a long
+checklist. Group them as sub-issues under a parent when they share a single goal.
+
+> A checklist with fifteen items is a roadmap wearing a ticket's clothes. Put the roadmap in the
+> parent (or a comment on the SPIKE) and cut the pieces as their own tickets.
+
+## Cognitive Load — Write for the Two Readers
+
+Every ticket is read by two people who do not have your current context. Write for both:
+
+1. **The outsider** — generally familiar with the project, has never seen this ticket. They must
+   grasp *what* and *why* from the ticket body alone, without reading code or asking you.
+2. **The returning developer** — you, back after two weeks away, resuming an "In Progress"
+   ticket. They must pick up without re-deriving where things stood.
+
+### For the outsider — the ticket body
+
+- **State the why, not only the what.** What triggered this? What stays broken without it?
+- **Link, don't recap.** Point at design docs and predecessor tickets under "Related Design
+  Documents" instead of restating their content.
+- **Define terms on first use,** or link the doc that does. No unexplained internal shorthand.
+- **Keep it scannable** — the point should land in under a minute.
+
+### For the returning developer — the state-of-play comment
+
+**When a ticket is "In Progress" and work pauses — end of day, end of week, before time off —
+leave a state-of-play comment.** The body states the goal; this comment states the *position*:
+
+- What is done, and where — branch, PR number, commit
+- What is next, concretely — the immediate next action, not the remaining epic
+- What is blocked or undecided, and what would unblock it
+- Anything surprising discovered so far
+
+This is the single artifact that makes an "In Progress" ticket resumable cold. Keep one current
+comment rather than appending a new one each time, so the latest position is easy to find.
+
 ## Issue Templates
 
 ### FEATURE Template
@@ -531,6 +598,26 @@ the following methodology.
    completed. Research before implementation, implementation before testing.
 4. **Final item is always the guidelines link** (for FEATURE, REFACTOR, IMPLEMENTATION types).
 
+### Verifiable by the Reviewer, Not Just the Author
+
+The Definition of Done is what the reviewer checks the PR against, so every item must be
+**falsifiable by someone other than the author**:
+
+- **Falsifiable by a reviewer:**
+  - "`Lei::try_from` rejects a 19-character input with `LeiError::InvalidLength`"
+  - "`storage` builds with no `sqlx` anywhere in its dependency tree"
+- **Not checkable — avoid:**
+  - "LEI validation works properly"
+  - "Code is clean and well tested"
+
+Each item must be checkable by reading the diff or running a stated command. The PR's **Test
+Plan** section then says *how* to verify each item, and the reviewer confirms them one by one —
+the **DoD → Test Plan → per-item verdict** chain that stops approvals from being rubber stamps
+(AGENTS.md "Review Budget & Rubber-Stamping").
+
+**Length is a sizing signal.** If the Definition of Done needs more than ~5–7 top-level items,
+the ticket is too big — go back to the Sizing Test and split it.
+
 ### Per-Type Definition of Done Patterns
 
 | Type | Definition of Done Structure |
@@ -567,6 +654,8 @@ an empty or generic list — ideate with the user directly. Use `AskUserQuestion
 Before finalizing a Definition of Done, verify:
 
 - [ ] Every top-level item is independently verifiable (someone can check it off without ambiguity)
+- [ ] Every item is falsifiable by a *reviewer*, not only by the author (see "Verifiable by the Reviewer")
+- [ ] No more than ~5–7 top-level items — a longer list means the ticket needs splitting (see Ticket Sizing)
 - [ ] Sub-items are specific enough that two developers would interpret them the same way
 - [ ] No item duplicates what's already in the Description section
 - [ ] SPIKE Definitions of Done end with the "Write a document" item and its standard sub-items
@@ -611,6 +700,13 @@ part — follow the "Building the Definition of Done" section above to construct
 - If context is sparse, ideate with the user via targeted follow-up questions instead of
   proposing a generic list.
 - Always err on the side of being specific — a Definition of Done that's too detailed is better than one that's too vague.
+
+**Then apply the Sizing Test (do not skip).** Once the Definition of Done is drafted, check the
+ticket against the "Ticket Sizing" section: can it merge within ~2 days as one PR inside the
+review budget? If not — or if the Definition of Done ran past ~5–7 top-level items — **say so and
+propose a split** before creating anything: name the sub-tickets, their order, and which blocks
+which. Creating one oversized ticket is the failure mode this check exists to prevent; a ticket
+that cannot be reviewed in one sitting will not be reviewed properly.
 
 **Additional template-specific questions:**
 

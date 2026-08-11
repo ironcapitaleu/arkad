@@ -30,7 +30,7 @@ jobs:
           echo "::group::Execution Context"
           echo "GitHub Ref: ${{ github.ref }}"
           echo "GitHub Event: ${{ github.event_name }}"
-          echo "Username for Container Registry login : ${{ github.repository_owner }}"
+          echo "Username for Container Registry login : ${{ github.actor }}"
           echo "Repository Name (raw): ${{ github.repository }}"
           echo "Repository Name (lowercased): ${{ env.repository_name }}"
           echo "::endgroup::"
@@ -42,7 +42,7 @@ jobs:
         uses: docker/login-action@v4.6.0
         with:
           registry: ghcr.io
-          username: ${{ github.repository_owner }}
+          username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
 #      - name: Build and Push Docker Image
