@@ -2,9 +2,7 @@
 //!
 //! Provides [`Repository`], the persistence port callers inject. It is *neutral*: a single
 //! associated [`Repository::Record`] and one [`Repository::persist`] write method, blind to how or
-//! where the record lands. It names no tiers and no concrete backend — the tier capability traits
-//! and a composing repository (which binds [`Repository::Record`] to a concrete record type) are
-//! deferred to later slices.
+//! where the record lands. It names no tiers and no concrete backend.
 //!
 //! ## Usage
 //!
@@ -44,8 +42,8 @@ pub trait Repository: Send + Sync {
 
     /// Persists a single record.
     ///
-    /// Always a write; the return type is the narrow [`WriteError`] class, never the read class, so
-    /// illegal states are unrepresentable.
+    /// Always a write; the return type is the narrow [`WriteError`] class, so illegal states are
+    /// unrepresentable.
     ///
     /// # Errors
     ///

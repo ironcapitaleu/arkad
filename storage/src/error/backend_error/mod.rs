@@ -1,20 +1,15 @@
 //! # Backend Error
 //!
-//! Provides [`BackendError`], the innermost leaf of the write-side error hierarchy: the
-//! backend-level failures shared by every operation class. It embeds into
-//! [`WriteError`] (and, later, `ReadError`) so the retryability decision lives
-//! in one place.
-//!
-//! [`BackendError::is_retryable`] classifies retryable versus permanent failures in one place —
-//! only [`BackendError::Unavailable`] is transient.
+//! Provides [`BackendError`], the innermost leaf of the error hierarchy: the backend-level
+//! failures shared by every operation class. It is embedded in the operation-classed errors (such
+//! as [`WriteError`]) rather than surfaced on its own.
 //!
 //! ## Usage
 //!
 //! ```rust
 //! use storage::BackendError;
 //!
-//! let transient = BackendError::Unavailable { reason: "connection reset".to_string() };
-//! assert!(transient.is_retryable());
+//! let _err = BackendError::Unavailable { reason: "connection reset".to_string() };
 //! ```
 
 use thiserror::Error;
@@ -26,36 +21,23 @@ use super::write_error::WriteError;
 #[derive(Debug, Error, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 /// Error representing a backend-level failure, shared across every operation class.
 ///
-/// The innermost error in the hierarchy: it is embedded in the operation-classed errors
-/// ([`WriteError`], and later `ReadError`) rather than surfaced on its own, and it is where
-/// retryability is classified. Value type — rich backend detail is flattened to a `reason` string
-/// at the conversion boundary.
+/// The innermost error in the hierarchy: it is embedded in the operation-classed errors (such as
+/// [`WriteError`]) rather than surfaced on its own. Value type — rich backend detail is flattened
+/// to a `reason` string at the conversion boundary.
 pub enum BackendError {
-    /// The backend is temporarily unavailable — the operation is safe to retry (connection drop,
-    /// serialization failure, timeout).
+    /// The backend is temporarily unavailable (connection drop, serialization failure, timeout).
     #[error("[Unavailable] Storage backend is temporarily unavailable, Reason: '{reason}'")]
     Unavailable {
         /// Human-readable explanation of why the backend is unavailable.
         reason: String,
     },
 
-    /// The backend operation failed for a non-transient reason — retrying will not help.
+    /// The backend operation failed for a non-transient reason.
     #[error("[Failed] Storage backend operation failed, Reason: '{reason}'")]
     Failed {
         /// Human-readable explanation of the failure.
         reason: String,
     },
-}
-
-impl BackendError {
-    /// Returns `true` when the failure is transient and the operation may be retried.
-    ///
-    /// Only [`BackendError::Unavailable`] is retryable; [`BackendError::Failed`] denotes a
-    /// permanent failure that a retry cannot resolve.
-    #[must_use]
-    pub const fn is_retryable(&self) -> bool {
-        matches!(self, Self::Unavailable { .. })
-    }
 }
 
 impl From<BackendError> for WriteError {
@@ -156,28 +138,6 @@ mod tests {
     #[test]
     const fn should_be_able_to_rely_on_unpin_implementation_when_using_backend_error() {
         implements_unpin::<BackendError>();
-    }
-
-    #[test]
-    fn should_be_retryable_when_backend_is_unavailable() {
-        let error = BackendError::Unavailable {
-            reason: "connection reset".to_string(),
-        };
-
-        let result = error.is_retryable();
-
-        assert!(result);
-    }
-
-    #[test]
-    fn should_not_be_retryable_when_backend_operation_failed() {
-        let error = BackendError::Failed {
-            reason: "constraint violation".to_string(),
-        };
-
-        let result = error.is_retryable();
-
-        assert!(!result);
     }
 
     #[test]

@@ -1,13 +1,13 @@
 //! # Write Error
 //!
-//! Provides [`WriteError`], the operation-classed error every write method returns. Because a write
-//! method returns a [`WriteError`] and a read method (a later slice) returns its own read error,
-//! illegal states are unrepresentable — a `persist` can never hand back a read-only failure.
+//! Provides [`WriteError`], the operation-classed error every write method returns. Because the
+//! error is operation-classed, a `persist` can only ever hand back a [`WriteError`], never a
+//! read-side failure — so illegal states are unrepresentable.
 //!
 //! [`WriteError::Backend`] wraps the shared [`BackendError`]; the two marker variants
 //! ([`WriteError::ConflictingWrite`], [`WriteError::FailedIntegrityCheck`]) carry a flattened
-//! `reason`. [`WriteError`] is wrapped by [`ErrorKind`] for the shared consumers (such as a retry
-//! decorator) and recovers its [`BackendError`] via [`TryFrom`].
+//! `reason`. [`WriteError`] is wrapped by [`ErrorKind`] for the shared consumers and recovers its
+//! [`BackendError`] via [`TryFrom`].
 //!
 //! ## Usage
 //!
@@ -30,7 +30,7 @@ use super::backend_error::BackendError;
 ///
 /// The class returned directly by every write method. Value type — the marker variants flatten
 /// their detail to a `reason` string, and [`WriteError::Backend`] embeds the shared
-/// [`BackendError`] so backend failures keep their retryability classification.
+/// [`BackendError`].
 pub enum WriteError {
     /// The write conflicts with data already present (unique violation, already-exists).
     #[error("[ConflictingWrite] Write conflicts with existing data, Reason: '{reason}'")]

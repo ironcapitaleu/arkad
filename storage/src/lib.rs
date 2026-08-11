@@ -6,11 +6,9 @@
 //! new implementation behind the same interface rather than a rewrite of the code that depends on
 //! it.
 //!
-//! This is the first, deliberately minimal slice: the neutral [`Repository`] port and the
-//! write-side [`error::ErrorKind`] hierarchy. The tier capability traits (`RawStore` /
-//! `GraphStore` / `FactStore`), a composing repository, the read surface, and every concrete
-//! backend are layered on in their own follow-up slices so this foundation stays small and
-//! reviewable.
+//! This crate holds the persistence *ports* only: the neutral [`Repository`] port and the
+//! write-side [`error::ErrorKind`] hierarchy. Concrete backends live in separate crates, so
+//! depending on these ports never pulls in a backend.
 //!
 //! ## Modules
 //!

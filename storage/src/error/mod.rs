@@ -6,15 +6,15 @@
 //! upcast / [`TryFrom`] downcast, and a single [`ErrorKind::DowncastNotPossible`] sentinel on the
 //! top. Each class is keyed to the *kind of operation* — a write method returns a [`WriteError`],
 //! so illegal states are unrepresentable — and each embeds the shared [`BackendError`]. Methods
-//! return the narrow class; the union [`ErrorKind`] is what shared consumers take (for example a
-//! retry decorator that reads [`BackendError::is_retryable`]), reached by the `From` upcast.
+//! return the narrow class; the union [`ErrorKind`] is what shared consumers take, reached by the
+//! `From` upcast.
 //!
-//! Built write-side first: the [`ErrorKind::Write`] arm exists now; a read arm and its error type
-//! arrive with the read methods in a later slice, made additive by `#[non_exhaustive]`.
+//! Every level is `#[non_exhaustive]`, so introducing further operation classes or variants stays
+//! additive rather than breaking.
 //!
 //! ## Modules
 //!
-//! - [`backend_error`]: The shared [`BackendError`] leaf (`is_retryable`).
+//! - [`backend_error`]: The shared [`BackendError`] leaf.
 //! - [`write_error`]: The [`WriteError`] operation class returned by every write method.
 //!
 //! ## Usage
@@ -41,7 +41,7 @@ pub use write_error::WriteError;
 ///
 /// The outermost layer of the hierarchy: it wraps every more specific write error so callers can
 /// propagate one type, and supports downward extraction to [`WriteError`] / [`BackendError`] via
-/// [`TryFrom`]. Only the write arm exists in this slice; the read arm is a later slice.
+/// [`TryFrom`].
 pub enum ErrorKind {
     /// An error originating from a write operation.
     #[error("[Write] Problem occurred during a write operation, Caused by: {0}")]
