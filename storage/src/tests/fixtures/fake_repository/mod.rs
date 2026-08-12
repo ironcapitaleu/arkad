@@ -1,7 +1,7 @@
 //! # Fake Repository
 //!
 //! Provides [`FakeRepository`], an in-memory [`Repository`] test double that records every
-//! persisted record. It proves the [`Repository`] port end-to-end and lets consumer tests run with
+//! persisted record. It proves the [`Repository`] trait end-to-end and lets consumer tests run with
 //! zero database: [`FakeRepository::persist`] simply records the record and returns `Ok`, and
 //! [`FakeRepository::persisted`] exposes what was recorded for assertions.
 
@@ -16,7 +16,7 @@ use crate::repository::Repository;
 ///
 /// Generic over the record type so it fits any `Repository` binding. It neither composes tier
 /// writes nor models a transaction — it records the record and returns `Ok`, keeping consumer tests
-/// pinned to the port's contract.
+/// pinned to the trait's contract.
 #[derive(Debug)]
 pub struct FakeRepository<Rec> {
     persisted: Mutex<Vec<Rec>>,

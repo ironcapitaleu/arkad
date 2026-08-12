@@ -5,6 +5,6 @@
 //!
 //! ## Modules
 //!
-//! - [`fixtures`]: Reusable test doubles for the persistence ports.
+//! - [`fixtures`]: Reusable test doubles for the persistence traits.
 
 pub mod fixtures;

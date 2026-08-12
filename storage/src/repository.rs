@@ -1,6 +1,6 @@
 //! # Repository
 //!
-//! Provides [`Repository`], the persistence port through which a record is persisted to the store.
+//! Provides [`Repository`], the trait through which a record is persisted to the store.
 //!
 //! ## Usage
 //!
@@ -24,10 +24,10 @@ use async_trait::async_trait;
 
 use crate::error::WriteError;
 
-/// The persistence port: persists a record to the store.
+/// Persists a record to the store.
 ///
 /// Injected as a concrete type — production wires a real backend, tests wire a fake — so callers
-/// depend on this contract rather than on a database. Each implementor binds [`Repository::Record`]
+/// depend on this trait rather than on a database. Each implementor binds [`Repository::Record`]
 /// to its own write-unit.
 ///
 /// # Associated Types
