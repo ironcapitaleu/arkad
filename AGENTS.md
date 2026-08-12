@@ -264,8 +264,9 @@ through short-lived branches that merge quickly.
 Name a branch `<type>/<short-description>`:
 
 - **`<type>`** — one of the commit types above (`feat`, `fix`, `refactor`, `chore`, `test`, `doc`, …).
-- **`<short-description>`** — a few kebab-case words naming the *functionality*, a noun-based phrase
-  a teammate can read at a glance.
+- **`<short-description>`** — a few kebab-case words describing the *functionality*, short enough to
+  read at a glance. A noun phrase (`error-hierarchy`) or a verb phrase (`bump-clippy-lints`) — both
+  are fine; clarity is what matters.
 
 Do **not** encode ticket IDs, nor a slug of the ticket title, in the branch name — the PR links the
 ticket. The name describes *what the branch does*, kept short.
