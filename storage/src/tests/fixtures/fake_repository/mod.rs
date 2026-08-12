@@ -49,7 +49,7 @@ impl<Rec> FakeRepository<Rec> {
     {
         self.persisted
             .lock()
-            .expect("Fake repository mutex should never be poisoned in a single-threaded test")
+            .expect("Fake repository mutex should never be poisoned in a test")
             .clone()
     }
 }
@@ -64,7 +64,7 @@ where
     async fn persist(&self, record: Self::Record) -> Result<(), WriteError> {
         self.persisted
             .lock()
-            .expect("Fake repository mutex should never be poisoned in a single-threaded test")
+            .expect("Fake repository mutex should never be poisoned in a test")
             .push(record);
         Ok(())
     }

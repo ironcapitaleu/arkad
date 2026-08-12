@@ -2,9 +2,10 @@
 //!
 //! Reusable test doubles for the `storage` crate's persistence traits.
 //!
-//! Per the house convention, fakes live in each crate's own `#[cfg(test)]` `tests/fixtures/` and are
-//! not exported. A second consumer needing the same fake is the trigger to promote it to a shared
-//! testkit crate — not before.
+//! Per the house convention, fakes live in each crate's own `#[cfg(test)]` fixtures module — here
+//! `src/tests/fixtures/`, not the integration-test `tests/` directory — and are not exported. A
+//! second consumer needing the same fake is the trigger to promote it to a shared testkit crate —
+//! not before.
 //!
 //! ## Modules
 //!
