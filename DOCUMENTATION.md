@@ -653,7 +653,30 @@ slice/PR numbers never appear in rustdoc.
 | "the first, deliberately minimal slice" | Timeline, not contract | "holds the persistence ports only" |
 | "the `Read` arm arrives with the read methods later" | Promises future code | (say nothing — `#[non_exhaustive]` covers it) |
 | "the tier traits are deferred to later slices" | Roadmap | "names no tiers and no concrete backend" |
-| "embeds into `WriteError` (and, later, `ReadError`)" | Future sibling | "embeds into the operation-classed errors (such as `WriteError`)" |
+| "embeds into `WriteError` (and, later, `ReadError`)" | Future sibling | drop the future reference; state what the error represents (see positional rule below) |
+
+**Positional and consumption references** are the same mistake aimed at structure instead of time.
+Do not describe an item by **where it sits** in a hierarchy or **how it is consumed** — say what it
+*is* and does. A reader wants the item's meaning, not its coordinates in a diagram or the identity
+of its callers. Banned framings: "the innermost leaf / top-level / outermost layer", "the union
+over …", "shared across every operation class", "embedded in X rather than surfaced on its own",
+"the class returned by every write method", "wrapped by Y for the shared consumers". This is the
+positional twin of the caller/consumer rule and the temporal rule: **describe the item, not its
+relationships — on any axis (dependents, position, time, consumption).**
+
+| Prose | Problem | Instead |
+|-------|---------|---------|
+| "The innermost leaf of the error hierarchy, shared across every operation class." | Position + consumption | "Error occurring at the storage backend." (what failed) |
+| "The top-level, operation-classed error type for the crate." | Position | "The error type for the `storage` crate." |
+| "embedded in the operation-classed errors rather than surfaced on its own" | Consumption | (state what the error means) |
+
+**When you don't know how to phrase it, mirror the sibling that already does it well.**
+`sec/src/lib/error/` opens every error with *what failed* — "Error occurring inside a state's own
+logic" — then a why/how sentence, and never names its position. Copy that shape.
+
+**Don't restate what the code already says.** A `TryFrom` is fallible by definition — never write
+"the fallible downcast" or "infallible and `?`-able". An attribute is visible in the source — don't
+narrate `#[non_exhaustive]`. Jargon like "sentinel" adds nothing; name the variant's meaning plainly.
 
 If you add a new implementor of a trait, you do **not** go back to the trait's docs to add a link to it. The implementor links to the trait it implements, not the other way around.
 
