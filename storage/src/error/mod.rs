@@ -4,8 +4,7 @@
 //!
 //! Each kind of operation has its own narrow error — a write fails with a [`WriteError`] — while
 //! [`ErrorKind`] is the single type a caller can propagate for any operation, with [`TryFrom`]
-//! recovering the specific class. Errors are value types; each conversion is declared on the
-//! wrapping type (`WriteError`, `ErrorKind`), never on the type it wraps.
+//! recovering the specific class.
 //!
 //! ## Modules
 //!

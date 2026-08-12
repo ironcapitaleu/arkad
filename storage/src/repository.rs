@@ -43,9 +43,6 @@ pub trait Repository: Send + Sync {
 
     /// Persists a single record.
     ///
-    /// Always a write; the return type is the narrow [`WriteError`] class, so illegal states are
-    /// unrepresentable.
-    ///
     /// # Errors
     ///
     /// Returns a [`WriteError`] if the record cannot be persisted:
