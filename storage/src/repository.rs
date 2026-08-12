@@ -1,8 +1,6 @@
-//! # Repository — the neutral persistence port
+//! # Repository
 //!
-//! Provides [`Repository`], the persistence port callers inject. It is *neutral*: a single
-//! associated [`Repository::Record`] and one [`Repository::persist`] write method, blind to how or
-//! where the record lands. It names no tiers and no concrete backend.
+//! Provides [`Repository`], the persistence port through which a record is persisted to the store.
 //!
 //! ## Usage
 //!
@@ -26,14 +24,11 @@ use async_trait::async_trait;
 
 use crate::error::WriteError;
 
-/// A neutral, backend-blind persistence port.
+/// The persistence port: persists a record to the store.
 ///
-/// Exists as a trait so callers depend on an abstract persistence contract rather than a concrete
-/// database: swapping the physical backend is a new implementation behind the same port, not a
-/// change to its callers. It exposes a single write-unit ([`Repository::Record`]) and a single
-/// write method ([`Repository::persist`]), naming neither the storage tiers nor any concrete
-/// backend. Implementors are wired in by concrete type or generic parameter (static dispatch),
-/// not erased behind `dyn`.
+/// Injected as a concrete type — production wires a real backend, tests wire a fake — so callers
+/// depend on this contract rather than on a database. Each implementor binds [`Repository::Record`]
+/// to its own write-unit.
 ///
 /// # Associated Types
 ///

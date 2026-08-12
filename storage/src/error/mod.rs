@@ -1,21 +1,16 @@
 //! # Errors
 //!
-//! Provides the write-side error hierarchy for the `storage` crate, topped by [`ErrorKind`].
+//! Provides the error types the `storage` crate returns.
 //!
-//! The hierarchy is operation-classed and value-typed at every level: module-per-level, `From`
-//! upcast / [`TryFrom`] downcast, and a single [`ErrorKind::DowncastNotPossible`] sentinel on the
-//! top. Each class is keyed to the *kind of operation* — a write method returns a [`WriteError`],
-//! so illegal states are unrepresentable — and each embeds the shared [`BackendError`]. Methods
-//! return the narrow class; the union [`ErrorKind`] is what shared consumers take, reached by the
-//! `From` upcast.
-//!
-//! Every level is `#[non_exhaustive]`, so introducing further operation classes or variants stays
-//! additive rather than breaking.
+//! Each kind of operation has its own narrow error — a write fails with a [`WriteError`] — while
+//! [`ErrorKind`] is the single type a caller can propagate for any operation, with [`TryFrom`]
+//! recovering the specific class. Errors are value types; each conversion is declared on the
+//! wrapping type (`WriteError`, `ErrorKind`), never on the type it wraps.
 //!
 //! ## Modules
 //!
-//! - [`backend_error`]: The shared [`BackendError`] leaf.
-//! - [`write_error`]: The [`WriteError`] operation class returned by every write method.
+//! - [`backend_error`]: [`BackendError`] — failures at the storage backend.
+//! - [`write_error`]: [`WriteError`] — failures while writing to the store.
 //!
 //! ## Usage
 //!
@@ -35,25 +30,38 @@ pub use write_error::WriteError;
 
 #[non_exhaustive]
 #[derive(Debug, Error, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
-/// The top-level, operation-classed error type for the `storage` crate.
+/// The error type the `storage` crate returns.
 ///
-/// The outermost layer of the hierarchy: it wraps every more specific write error so callers can
-/// propagate one type, and supports downward extraction to [`WriteError`] / [`BackendError`] via
-/// [`TryFrom`].
+/// Unifies the per-operation error classes so a caller can propagate one type, and recovers a
+/// specific class ([`WriteError`] / [`BackendError`]) via [`TryFrom`].
 pub enum ErrorKind {
     /// An error originating from a write operation.
     #[error("[Write] Problem occurred during a write operation, Caused by: {0}")]
     Write(#[source] WriteError),
 
-    /// A [`TryFrom`] downcast to a more specific error type did not match the held variant.
+    /// A [`TryFrom`] downcast could not extract the requested error type.
     #[error("[DowncastNotPossible] Failed to downcast error into a more specific type")]
     DowncastNotPossible,
+}
+
+impl From<WriteError> for ErrorKind {
+    /// Converts a [`WriteError`] into the [`ErrorKind::Write`] variant.
+    fn from(error: WriteError) -> Self {
+        Self::Write(error)
+    }
+}
+
+impl From<BackendError> for ErrorKind {
+    /// Converts a [`BackendError`] into an [`ErrorKind::Write`] wrapping a [`WriteError::Backend`].
+    fn from(error: BackendError) -> Self {
+        Self::Write(WriteError::Backend(error))
+    }
 }
 
 impl TryFrom<ErrorKind> for WriteError {
     type Error = ErrorKind;
 
-    /// Extracts the [`WriteError`] from an [`ErrorKind::Write`] — the fallible downcast.
+    /// Extracts the [`WriteError`] from an [`ErrorKind::Write`].
     ///
     /// # Errors
     ///
@@ -69,13 +77,12 @@ impl TryFrom<ErrorKind> for WriteError {
 impl TryFrom<ErrorKind> for BackendError {
     type Error = ErrorKind;
 
-    /// Extracts the [`BackendError`] from an [`ErrorKind`] wrapping a [`WriteError::Backend`] — the
-    /// fallible skip-level downcast.
+    /// Extracts the [`BackendError`] from an [`ErrorKind`] wrapping a [`WriteError::Backend`].
     ///
     /// # Errors
     ///
     /// Returns [`ErrorKind::DowncastNotPossible`] if the value is not an [`ErrorKind::Write`]
-    /// wrapping a [`WriteError::Backend`] (skip-level downcast).
+    /// wrapping a [`WriteError::Backend`].
     fn try_from(value: ErrorKind) -> Result<Self, Self::Error> {
         match value {
             ErrorKind::Write(WriteError::Backend(backend)) => Ok(backend),
@@ -102,7 +109,7 @@ mod tests {
     const fn implements_sync<T: Sync>() {}
 
     #[test]
-    const fn should_have_implemented_send_when_using_error_kind() {
+    const fn should_implement_send_when_using_error_kind() {
         implements_send::<ErrorKind>();
     }
 
@@ -169,6 +176,26 @@ mod tests {
     #[test]
     const fn should_be_able_to_rely_on_unpin_implementation_when_using_error_kind() {
         implements_unpin::<ErrorKind>();
+    }
+
+    #[test]
+    fn should_wrap_write_error_into_write_variant_when_converting_from_write_error() {
+        let write_error = WriteError::conflicting_write("duplicate accession");
+        let expected_result = ErrorKind::Write(write_error.clone());
+
+        let result = ErrorKind::from(write_error);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_wrap_backend_error_into_write_backend_when_converting_from_backend_error() {
+        let backend_error = BackendError::unavailable("timeout");
+        let expected_result = ErrorKind::Write(WriteError::Backend(backend_error.clone()));
+
+        let result = ErrorKind::from(backend_error);
+
+        assert_eq!(result, expected_result);
     }
 
     #[test]

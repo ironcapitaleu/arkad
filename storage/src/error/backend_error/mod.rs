@@ -1,8 +1,7 @@
 //! # Backend Error
 //!
-//! Provides [`BackendError`], the innermost leaf of the error hierarchy: the backend-level
-//! failures shared by every operation class. It is embedded in the operation-classed errors (such
-//! as [`WriteError`]) rather than surfaced on its own.
+//! Provides [`BackendError`], the error raised when the underlying storage backend cannot carry out
+//! an operation — the datastore is unreachable, or the operation failed at the store.
 //!
 //! ## Usage
 //!
@@ -14,16 +13,12 @@
 
 use thiserror::Error;
 
-use super::ErrorKind;
-use super::write_error::WriteError;
-
 #[non_exhaustive]
 #[derive(Debug, Error, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
-/// Error representing a backend-level failure, shared across every operation class.
+/// Error occurring at the storage backend.
 ///
-/// The innermost error in the hierarchy: it is embedded in the operation-classed errors (such as
-/// [`WriteError`]) rather than surfaced on its own. Value type — rich backend detail is flattened
-/// to a `reason` string at the conversion boundary.
+/// Raised when the datastore itself cannot serve a request: it is unreachable, or the operation
+/// failed at the store. A value type — rich backend detail is flattened to a `reason` string.
 pub enum BackendError {
     /// The backend is temporarily unavailable (connection drop, serialization failure, timeout).
     #[error("[Unavailable] Storage backend is temporarily unavailable, Reason: '{reason}'")]
@@ -58,21 +53,6 @@ impl BackendError {
     }
 }
 
-impl From<BackendError> for WriteError {
-    /// Upcasts a [`BackendError`] into a [`WriteError::Backend`] — the one-level, `?`-able upcast.
-    fn from(error: BackendError) -> Self {
-        Self::Backend(error)
-    }
-}
-
-impl From<BackendError> for ErrorKind {
-    /// Upcasts a [`BackendError`] straight to the top [`ErrorKind`] (skip-level), mirroring the
-    /// skip-level [`TryFrom`] downcast.
-    fn from(error: BackendError) -> Self {
-        Self::Write(WriteError::Backend(error))
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use std::{fmt::Debug, hash::Hash};
@@ -91,7 +71,7 @@ mod tests {
     const fn implements_sync<T: Sync>() {}
 
     #[test]
-    const fn should_have_implemented_send_when_using_backend_error() {
+    const fn should_implement_send_when_using_backend_error() {
         implements_send::<BackendError>();
     }
 
@@ -158,26 +138,6 @@ mod tests {
     #[test]
     const fn should_be_able_to_rely_on_unpin_implementation_when_using_backend_error() {
         implements_unpin::<BackendError>();
-    }
-
-    #[test]
-    fn should_upcast_into_write_error_backend_variant_when_converting_from_backend_error() {
-        let backend_error = BackendError::failed("disk full");
-        let expected_result = WriteError::Backend(backend_error.clone());
-
-        let result: WriteError = backend_error.into();
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
-    fn should_upcast_into_error_kind_write_backend_when_converting_from_backend_error() {
-        let backend_error = BackendError::unavailable("timeout");
-        let expected_result = ErrorKind::Write(WriteError::Backend(backend_error.clone()));
-
-        let result: ErrorKind = backend_error.into();
-
-        assert_eq!(result, expected_result);
     }
 
     #[test]

@@ -1,20 +1,16 @@
 //! # Storage — persistence ports
 //!
-//! Backend-agnostic persistence ports for the arkad workspace. The crate owns the *word*
-//! "storage" so no trait is named `Storage`; callers depend on these ports and never on a concrete
-//! database, so swapping the physical backend (Postgres, Iceberg, a graph DB, or any mixture) is a
-//! new implementation behind the same interface rather than a rewrite of the code that depends on
-//! it.
+//! Provides the backend-agnostic persistence ports for the arkad workspace: the abstract interfaces
+//! code persists through, in domain types, without naming a concrete database. The crate owns the
+//! word "storage", so no trait is named `Storage`.
 //!
-//! This crate holds the persistence *ports* only: the neutral [`Repository`] port and the
-//! write-side [`error::ErrorKind`] hierarchy. Concrete backends live in separate crates, so
-//! depending on these ports never pulls in a backend.
+//! It contains the ports only — the [`Repository`] port and the [`error`] types it returns — and no
+//! concrete backend.
 //!
 //! ## Modules
 //!
-//! - [`error`]: The write-side error hierarchy topped by [`ErrorKind`] — module-per-level, with
-//!   `From` upcast / `TryFrom` downcast between levels.
-//! - [`repository`]: The neutral [`Repository`] port — `type Record` + `persist`, backend-blind.
+//! - [`error`]: The error types the crate returns and the conversions between them.
+//! - [`repository`]: The [`Repository`] persistence port.
 //!
 //! ## Usage
 //!

@@ -1,12 +1,7 @@
 //! # Write Error
 //!
-//! Provides [`WriteError`], the operation-classed error every write method returns — the narrow
-//! class scoped to write failures, so a write path's error is always one of its variants.
-//!
-//! [`WriteError::Backend`] wraps the shared [`BackendError`]; the two marker variants
-//! ([`WriteError::ConflictingWrite`], [`WriteError::FailedIntegrityCheck`]) carry a flattened
-//! `reason`. [`WriteError`] is wrapped by [`ErrorKind`] for the shared consumers and recovers its
-//! [`BackendError`] via [`TryFrom`].
+//! Provides [`WriteError`], the error raised when a write to the store cannot be completed — the
+//! write conflicts with existing data, violates an integrity invariant, or fails at the backend.
 //!
 //! ## Usage
 //!
@@ -23,11 +18,11 @@ use super::backend_error::BackendError;
 
 #[non_exhaustive]
 #[derive(Debug, Error, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
-/// Error representing a failure raised by a write operation.
+/// Error occurring while writing to the store.
 ///
-/// The class returned directly by every write method. Value type — the marker variants flatten
-/// their detail to a `reason` string, and [`WriteError::Backend`] embeds the shared
-/// [`BackendError`].
+/// Distinguishes three ways a write fails: a conflict with existing data, a violated integrity
+/// invariant, and a failure at the backend. A value type — the marker variants flatten their detail
+/// to a `reason` string.
 pub enum WriteError {
     /// The write conflicts with data already present (unique violation, already-exists).
     #[error("[ConflictingWrite] Write conflicts with existing data, Reason: '{reason}'")]
@@ -43,7 +38,7 @@ pub enum WriteError {
         reason: String,
     },
 
-    /// The write failed at the backend level; carries the shared [`BackendError`].
+    /// The write failed at the storage backend.
     #[error("[Backend] Storage backend error occurred, Caused by: {0}")]
     Backend(#[source] BackendError),
 }
@@ -66,17 +61,17 @@ impl WriteError {
     }
 }
 
-impl From<WriteError> for ErrorKind {
-    /// Upcasts a [`WriteError`] into the top-level [`ErrorKind::Write`] — infallible and `?`-able.
-    fn from(error: WriteError) -> Self {
-        Self::Write(error)
+impl From<BackendError> for WriteError {
+    /// Converts a [`BackendError`] into a [`WriteError::Backend`] variant.
+    fn from(error: BackendError) -> Self {
+        Self::Backend(error)
     }
 }
 
 impl TryFrom<WriteError> for BackendError {
     type Error = ErrorKind;
 
-    /// Extracts the [`BackendError`] from a [`WriteError::Backend`] — the fallible downcast.
+    /// Extracts the [`BackendError`] from a [`WriteError::Backend`].
     ///
     /// # Errors
     ///
@@ -107,7 +102,7 @@ mod tests {
     const fn implements_sync<T: Sync>() {}
 
     #[test]
-    const fn should_have_implemented_send_when_using_write_error() {
+    const fn should_implement_send_when_using_write_error() {
         implements_send::<WriteError>();
     }
 
@@ -177,11 +172,11 @@ mod tests {
     }
 
     #[test]
-    fn should_upcast_into_error_kind_write_when_converting_from_write_error() {
-        let write_error = WriteError::conflicting_write("duplicate accession");
-        let expected_result = ErrorKind::Write(write_error.clone());
+    fn should_wrap_backend_error_into_backend_variant_when_converting_from_backend_error() {
+        let backend_error = BackendError::failed("disk full");
+        let expected_result = WriteError::Backend(backend_error.clone());
 
-        let result: ErrorKind = write_error.into();
+        let result = WriteError::from(backend_error);
 
         assert_eq!(result, expected_result);
     }

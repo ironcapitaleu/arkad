@@ -88,7 +88,7 @@ mod tests {
     const fn implements_sync<T: Sync>() {}
 
     #[test]
-    const fn should_have_implemented_send_when_using_fake_repository() {
+    const fn should_implement_send_when_using_fake_repository() {
         implements_send::<FakeRepository<String>>();
     }
 
