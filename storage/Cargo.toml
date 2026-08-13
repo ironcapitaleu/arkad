@@ -3,10 +3,10 @@ name = "storage"
 version = "0.1.0"
 edition = "2024"
 license = "MIT OR Apache-2.0"
-description = "Backend-agnostic persistence ports: the neutral Repository facade and its error hierarchy."
+description = "Backend-agnostic persistence traits: the Repository trait and its error types."
 repository = "https://github.com/ironcapital/state_machine"
 categories = ["database", "rust-patterns"]
-keywords = ["storage", "repository", "ports-and-adapters", "persistence"]
+keywords = ["storage", "repository", "persistence", "backend-agnostic"]
 readme = "../README.md"
 
 [dependencies]
