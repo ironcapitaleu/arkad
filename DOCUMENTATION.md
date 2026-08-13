@@ -100,6 +100,36 @@ Optional additional sections:
 - **`## Usage`** — Brief prose or code example showing how the module's items compose together.
 - **`## Integration`** — How this module fits into the larger system.
 
+### What Doesn't Belong
+
+Module docs describe **what the module provides**, not team **policy, process, or rationale** — where
+fixtures live, when to extract a shared crate, why a past decision was made. That material belongs in
+the design docs or a skill, not in the rustdoc a reader hits while navigating the API.
+
+**Avoid** — a policy essay in the module doc:
+
+```rust
+//! # Common Test Fixtures
+//!
+//! Reusable test doubles for the crate's traits.
+//!
+//! Per the house convention, fakes live in each crate's own `#[cfg(test)]` fixtures module — not the
+//! integration-test `tests/` directory — and are not exported. A second consumer needing the same
+//! fake is the trigger to promote it to a shared testkit crate — not before.
+```
+
+**Prefer** — what the module provides, then its contents:
+
+```rust
+//! # Common Test Fixtures
+//!
+//! Reusable test doubles for building the crate's tests without live I/O.
+//!
+//! ## Modules
+//!
+//! - [`fake_repository`]: A fake `Repository` that records what it persists.
+```
+
 ### Doc-Tests in Modules
 
 Doc-tests are **not required** in module-level documentation. When they are present, they belong in a `## Usage` section.
