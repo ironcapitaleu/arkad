@@ -305,6 +305,24 @@ An oversized PR is permitted **only with a declared exception** in the PR descri
 
 A silently oversized PR is itself a defect in the PR. If the answer to (1) is weak, split it.
 
+### Before Opening a PR
+
+The line budget misses a second way a PR becomes too much to review: a diff can sit well under
+200 lines and still overwhelm a reviewer when it bundles separable concerns or embeds many open
+decisions at once. Run this scope gate **before** opening — splitting after a reviewer flags the
+bloat is the reactive, expensive path.
+
+- **One-sentence scope test.** State the PR's purpose in a single sentence. If it needs an "and",
+  it is more than one PR — "scaffold the crate *and* settle the doc conventions *and* fix an
+  unrelated import order" is three.
+- **Mechanism before convention.** A code skeleton and the docs or guideline edits that introduce
+  a *new* convention do not ship together. Land the code with minimal docs, then refine contested
+  prose in a follow-up. Convention debates are where review rounds multiply.
+- **No unrelated fixes.** A fix noticed in passing — an import order, a typo in another module —
+  rides its own PR, never the feature's.
+- **Stack, don't pile.** For genuinely sequential work, open a short stack of small PRs, each
+  reviewable in one sitting, rather than one PR that grows across review rounds.
+
 ---
 
 ## Pull Request Creation
