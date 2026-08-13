@@ -1,15 +1,9 @@
-//! # Fixtures
+//! # Common Test Fixtures
 //!
-//! Reusable test doubles for the `storage` crate's persistence traits.
-//!
-//! Per the house convention, fakes live in each crate's own `#[cfg(test)]` fixtures module — here
-//! `src/tests/fixtures/`, not the integration-test `tests/` directory — and are not exported. A
-//! second consumer needing the same fake is the trigger to promote it to a shared testkit crate —
-//! not before.
+//! Reusable test doubles for building `storage` tests without a real backend.
 //!
 //! ## Modules
 //!
-//! - [`fake_repository`]: The [`FakeRepository`](fake_repository::FakeRepository) test double for
-//!   the [`Repository`](crate::Repository) trait.
+//! - [`fake_repository`]: A fake [`Repository`](crate::Repository) that records what it persists.
 
 pub mod fake_repository;
