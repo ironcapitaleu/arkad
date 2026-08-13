@@ -1,11 +1,10 @@
 //! # Storage
 //!
-//! Provides the arkad workspace's backend-agnostic persistence interface: the abstract
-//! [`Repository`] trait code persists through — in domain types, without naming a concrete database
-//! — and the [`error`] types it returns. The crate owns the word "storage", so no trait is named
-//! `Storage`.
+//! Provides the arkad workspace's backend-agnostic persistence interface: the [`Repository`] trait
+//! that code persists domain records through, and the [`error`] types it returns.
 //!
-//! It holds these abstractions only, and no concrete backend.
+//! The interface is expressed in domain types and holds these abstractions only, naming no concrete
+//! database or backend.
 //!
 //! ## Modules
 //!
