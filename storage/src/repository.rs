@@ -1,24 +1,6 @@
 //! # Repository
 //!
 //! Provides [`Repository`], the trait through which a record is persisted to the store.
-//!
-//! ## Usage
-//!
-//! ```rust
-//! use async_trait::async_trait;
-//! use storage::{Repository, WriteError};
-//!
-//! struct InMemoryRepository;
-//!
-//! #[async_trait]
-//! impl Repository for InMemoryRepository {
-//!     type Record = String;
-//!
-//!     async fn persist(&self, _record: Self::Record) -> Result<(), WriteError> {
-//!         Ok(())
-//!     }
-//! }
-//! ```
 
 use async_trait::async_trait;
 
