@@ -1,0 +1,294 @@
+//! # Errors
+//!
+//! Provides the error types the `storage` crate returns.
+//!
+//! Each kind of operation has its own narrow error — a write fails with a [`WriteError`] — while
+//! [`ErrorKind`] is the single type a caller can propagate for any operation, with [`TryFrom`]
+//! recovering the specific class.
+//!
+//! ## Modules
+//!
+//! - [`backend_error`]: [`BackendError`] — failures at the storage backend.
+//! - [`write_error`]: [`WriteError`] — failures while writing to the store.
+//!
+//! ## Usage
+//!
+//! ```rust
+//! use storage::{ErrorKind, WriteError};
+//!
+//! let _err = ErrorKind::Write(WriteError::conflicting_write("duplicate accession number"));
+//! ```
+
+pub mod backend_error;
+pub mod write_error;
+
+use thiserror::Error;
+
+pub use backend_error::BackendError;
+pub use write_error::WriteError;
+
+#[non_exhaustive]
+#[derive(Debug, Error, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
+/// The error type the `storage` crate returns.
+///
+/// Unifies the per-operation error classes so a caller can propagate one type, and recovers a
+/// specific class ([`WriteError`] / [`BackendError`]) via [`TryFrom`].
+pub enum ErrorKind {
+    /// An error originating from a write operation.
+    #[error("[Write] Problem occurred during a write operation, Caused by: {0}")]
+    Write(#[source] WriteError),
+
+    /// A [`TryFrom`] downcast could not extract the requested error type.
+    #[error("[DowncastNotPossible] Failed to downcast error into a more specific type")]
+    DowncastNotPossible,
+}
+
+impl From<WriteError> for ErrorKind {
+    /// Converts a [`WriteError`] into the [`ErrorKind::Write`] variant.
+    fn from(error: WriteError) -> Self {
+        Self::Write(error)
+    }
+}
+
+impl From<BackendError> for ErrorKind {
+    /// Converts a [`BackendError`] into an [`ErrorKind::Write`] wrapping a [`WriteError::Backend`].
+    fn from(error: BackendError) -> Self {
+        Self::Write(WriteError::Backend(error))
+    }
+}
+
+impl TryFrom<ErrorKind> for WriteError {
+    type Error = ErrorKind;
+
+    /// Extracts the [`WriteError`] from an [`ErrorKind::Write`].
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ErrorKind::DowncastNotPossible`] if the value is not an [`ErrorKind::Write`].
+    fn try_from(value: ErrorKind) -> Result<Self, Self::Error> {
+        match value {
+            ErrorKind::Write(write) => Ok(write),
+            _ => Err(ErrorKind::DowncastNotPossible),
+        }
+    }
+}
+
+impl TryFrom<ErrorKind> for BackendError {
+    type Error = ErrorKind;
+
+    /// Extracts the [`BackendError`] from an [`ErrorKind`] wrapping a [`WriteError::Backend`].
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ErrorKind::DowncastNotPossible`] if the value is not an [`ErrorKind::Write`]
+    /// wrapping a [`WriteError::Backend`].
+    fn try_from(value: ErrorKind) -> Result<Self, Self::Error> {
+        match value {
+            ErrorKind::Write(WriteError::Backend(backend)) => Ok(backend),
+            _ => Err(ErrorKind::DowncastNotPossible),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{fmt::Debug, hash::Hash};
+
+    use pretty_assertions::assert_eq;
+
+    use super::*;
+
+    const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
+    #[test]
+    const fn should_be_able_to_rely_auto_trait_implementation_when_using_error_kind() {
+        implements_auto_traits::<ErrorKind>();
+    }
+
+    const fn implements_send<T: Send>() {}
+    const fn implements_sync<T: Sync>() {}
+
+    #[test]
+    const fn should_implement_send_when_using_error_kind() {
+        implements_send::<ErrorKind>();
+    }
+
+    #[test]
+    const fn should_implement_sync_when_using_error_kind() {
+        implements_sync::<ErrorKind>();
+    }
+
+    #[test]
+    const fn should_be_thread_safe_when_using_error_kind() {
+        implements_send::<ErrorKind>();
+        implements_sync::<ErrorKind>();
+    }
+
+    const fn implements_sized<T: Sized>() {}
+    #[test]
+    const fn should_be_able_to_rely_on_error_being_sized_when_using_error_kind() {
+        implements_sized::<ErrorKind>();
+    }
+
+    const fn implements_hash<T: Hash>() {}
+    #[test]
+    const fn should_be_able_to_rely_on_hash_implementation_when_using_error_kind() {
+        implements_hash::<ErrorKind>();
+    }
+
+    const fn implements_partial_eq<T: PartialEq>() {}
+    #[test]
+    const fn should_be_able_to_rely_on_partial_eq_implementation_when_using_error_kind() {
+        implements_partial_eq::<ErrorKind>();
+    }
+
+    const fn implements_eq<T: Eq>() {}
+    #[test]
+    const fn should_be_able_to_rely_on_eq_implementation_when_using_error_kind() {
+        implements_eq::<ErrorKind>();
+    }
+
+    const fn implements_partial_ord<T: PartialOrd>() {}
+    #[test]
+    const fn should_be_able_to_rely_on_partial_ord_implementation_when_using_error_kind() {
+        implements_partial_ord::<ErrorKind>();
+    }
+
+    const fn implements_ord<T: Ord>() {}
+    #[test]
+    const fn should_be_able_to_rely_on_ord_implementation_when_using_error_kind() {
+        implements_ord::<ErrorKind>();
+    }
+
+    const fn implements_debug<T: Debug>() {}
+    #[test]
+    const fn should_be_able_to_rely_on_debug_implementation_when_using_error_kind() {
+        implements_debug::<ErrorKind>();
+    }
+
+    const fn implements_clone<T: Clone>() {}
+    #[test]
+    const fn should_be_able_to_rely_on_clone_implementation_when_using_error_kind() {
+        implements_clone::<ErrorKind>();
+    }
+
+    const fn implements_unpin<T: Unpin>() {}
+    #[test]
+    const fn should_be_able_to_rely_on_unpin_implementation_when_using_error_kind() {
+        implements_unpin::<ErrorKind>();
+    }
+
+    #[test]
+    fn should_wrap_write_error_into_write_variant_when_converting_from_write_error() {
+        let write_error = WriteError::conflicting_write("duplicate accession");
+        let expected_result = ErrorKind::Write(write_error.clone());
+
+        let result = ErrorKind::from(write_error);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_wrap_backend_error_into_write_backend_when_converting_from_backend_error() {
+        let backend_error = BackendError::unavailable("timeout");
+        let expected_result = ErrorKind::Write(WriteError::Backend(backend_error.clone()));
+
+        let result = ErrorKind::from(backend_error);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_downcast_to_write_error_when_error_kind_is_a_write_variant() {
+        let write_error = WriteError::conflicting_write("duplicate accession");
+        let error_kind = ErrorKind::Write(write_error.clone());
+
+        let result = WriteError::try_from(error_kind)
+            .expect("Given an `ErrorKind::Write`, the downcast to `WriteError` should succeed");
+
+        assert_eq!(result, write_error);
+    }
+
+    #[test]
+    fn should_fail_downcast_to_write_error_when_error_kind_is_not_a_write_variant() {
+        let error_kind = ErrorKind::DowncastNotPossible;
+        let expected_result = ErrorKind::DowncastNotPossible;
+
+        let result = WriteError::try_from(error_kind)
+            .expect_err("A non-write `ErrorKind` must not downcast into a `WriteError`");
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_skip_level_downcast_to_backend_error_when_error_kind_wraps_a_backend_write() {
+        let backend_error = BackendError::unavailable("timeout");
+        let error_kind = ErrorKind::Write(WriteError::Backend(backend_error.clone()));
+
+        let result = BackendError::try_from(error_kind).expect(
+            "Given an `ErrorKind` wrapping a `WriteError::Backend`, the skip-level downcast should succeed",
+        );
+
+        assert_eq!(result, backend_error);
+    }
+
+    #[test]
+    fn should_fail_skip_level_downcast_to_backend_error_when_write_is_not_a_backend_variant() {
+        let error_kind = ErrorKind::Write(WriteError::failed_integrity_check(
+            "SFAC-6 identity violated",
+        ));
+        let expected_result = ErrorKind::DowncastNotPossible;
+
+        let result = BackendError::try_from(error_kind).expect_err(
+            "A non-backend `WriteError` must not skip-level downcast into a `BackendError`",
+        );
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_roundtrip_write_error_when_upcast_then_downcast() {
+        let write_error = WriteError::failed_integrity_check("SFAC-6 identity violated");
+
+        let upcast: ErrorKind = write_error.clone().into();
+        let result = WriteError::try_from(upcast)
+            .expect("A `WriteError` upcast into `ErrorKind` should downcast back unchanged");
+
+        assert_eq!(result, write_error);
+    }
+
+    #[test]
+    fn should_chain_write_display_after_caused_by_when_error_kind_wraps_write() {
+        let error_kind = ErrorKind::Write(WriteError::conflicting_write("duplicate accession"));
+
+        let expected_result = "[Write] Problem occurred during a write operation, Caused by: [ConflictingWrite] Write conflicts with existing data, Reason: 'duplicate accession'";
+
+        let result = error_kind.to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_format_display_with_bracketed_name_when_downcast_is_not_possible() {
+        let error_kind = ErrorKind::DowncastNotPossible;
+
+        let expected_result =
+            "[DowncastNotPossible] Failed to downcast error into a more specific type";
+
+        let result = error_kind.to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_expose_write_error_as_source_when_error_kind_wraps_write() {
+        let write_error = WriteError::failed_integrity_check("SFAC-6 identity violated");
+        let error_kind = ErrorKind::Write(write_error.clone());
+
+        let expected_result = Some(&write_error);
+
+        let result = std::error::Error::source(&error_kind)
+            .and_then(|source| source.downcast_ref::<WriteError>());
+
+        assert_eq!(result, expected_result);
+    }
+}
