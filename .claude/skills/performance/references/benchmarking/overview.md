@@ -1,14 +1,14 @@
 ---
-source: STA-127 findings §1, §2, §7 (framework and CI survey) — surveyed, not decided
-last-verified: 2026-08-11
+source: STA-127 findings §1, §2, §7 (framework and CI survey) — surveyed, not decided; sec/tests/rate_limiter.rs
+last-verified: 2026-08-17
 update-frequency: on-decision
 ---
 
 # Benchmarking — Placeholder
 
 **Status: nothing exists.** No framework is adopted, no benchmarks are written, no baseline is stored,
-and nothing performance-related runs in CI. This file is a placeholder that records what benchmarking
-is *for* here, what has already been surveyed, and what must be decided before anything is added.
+and no benchmark runs in CI. This file is a placeholder that records what benchmarking is *for* here,
+what has already been surveyed, and what must be decided before anything is added.
 
 Do not add a benchmark harness, a CI bench job, or a threshold gate without settling the open decisions
 below. When one is settled, move it out of the open list and into an "Adopted" section here.
@@ -33,9 +33,12 @@ These are conclusions from measurement, not preferences — they rule out the ob
 - **The rate-limited end-to-end path must never be benchmarked for throughput.** It measures
   `MIN_REQUEST_INTERVAL` (a config constant) plus SEC network latency. A deliberate config change would
   show up as a "regression"; a real code regression would hide underneath a ~53 s floor.
-- **The pacing constant is guarded by a unit test, not a benchmark.** Assert that N permits take
-  ~N × interval using an injectable fake clock. Instant, deterministic, no benchmark machinery — and it
-  is the correct tool for a config invariant.
+- **The pacing constant is already guarded by a test, not a benchmark.** `sec/tests/rate_limiter.rs`
+  asserts that N permits take at least (N − 1) × interval. It measures real wall-clock via
+  `Instant::now()`, yet it does not contradict the bullet above, because every assertion is a **lower
+  bound**: a leaky-bucket limiter can never release permits *faster* than its configured rate, so
+  runner noise can only push elapsed time up, never under the bound. No benchmark machinery, and it
+  already runs in the normal suite — the correct tool for a config invariant.
 - **Fixtures, never the live SEC API.** Non-deterministic, rate-limited, and the rate limit is often the
   thing under test.
 - **Allocation count is a good proxy for CPU cost on the parse path**, where ~86 % of CPU is

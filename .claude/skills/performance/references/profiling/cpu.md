@@ -1,6 +1,6 @@
 ---
-source: STA-127 findings §8 (hands-on tool evaluation, 2026-08-07); workspace Cargo.toml
-last-verified: 2026-08-11
+source: STA-127 findings §8 (hands-on tool evaluation, 2026-08-07); workspace Cargo.toml; sec/Cargo.toml
+last-verified: 2026-08-17
 update-frequency: on-measurement, on-tool-change
 ---
 
@@ -19,21 +19,11 @@ Silicon, which matters because the team spans both.
 cargo install --locked samply
 ```
 
-### Running it
-
-```sh
-cargo build --profile profiling --bin stream_etl
-samply record ./target/profiling/stream_etl
-```
-
-`samply record` opens a local Firefox-Profiler UI when the process exits. To capture without the UI,
-`samply record --save-only -o profile.json <cmd>`, then `samply load profile.json` to view it.
-
-### Required cargo profile
+### The `profiling` cargo profile
 
 The workspace `[profile.release]` sets `strip = true`. Profiling a release binary therefore yields a
-flamegraph of hex addresses and nothing else. Add a dedicated profile to the **workspace root**
-`Cargo.toml` (not yet committed — add it when you first need it):
+flamegraph of hex addresses and nothing else. The **workspace root** `Cargo.toml` carries a dedicated
+profile for this reason — it is committed, so nothing needs adding before a first run:
 
 ```toml
 [profile.profiling]
@@ -45,10 +35,27 @@ strip = false
 Same optimisation level as release, but symbols survive. Profiling a `dev` build instead is not a
 substitute — it measures unoptimised code that we never ship.
 
+### Running it
+
+```sh
+cargo build --profile profiling --features tracing-logging --bin stream_etl
+samply record ./target/profiling/stream_etl
+```
+
+`--features tracing-logging` is required, not optional: both `stream_etl` and `stream_extract` declare
+`required-features = ["tracing-logging"]` in `sec/Cargo.toml`, and cargo refuses to build them without
+it. The `extraction` binary has no such requirement.
+
+`samply record` opens a local Firefox-Profiler UI when the process exits. To capture without the UI,
+`samply record --save-only -o profile.json <cmd>`, then `samply load profile.json` to view it.
+
 ### Traps
 
-- **`strip = true` in release** — the reason the profile above exists. If every frame is a hex address,
-  this is why.
+- **`strip = true` in release** — the reason the `profiling` profile exists. If every frame is a hex
+  address, this is why.
+- **Omitting `--features tracing-logging`** — cargo fails with `requires the features:
+  'tracing-logging'` rather than building anything. Applies to every `cargo` command that names
+  `stream_etl` or `stream_extract`, `--release` builds included.
 - **`--save-only` writes an *unsymbolized* profile.** Symbolication happens in samply's UI, so a saved
   profile has an empty `nativeSymbols` and hex frames. Fine interactively (`samply load`), awkward in
   scripts — headless use needs `samply load` or manual `addr2line`.

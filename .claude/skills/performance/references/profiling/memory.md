@@ -1,6 +1,6 @@
 ---
-source: STA-127 findings §8 (2026-08-07); §6 live validation run (2026-07-23)
-last-verified: 2026-08-11
+source: STA-127 findings §8 (2026-08-07); §6 live validation run (2026-07-23); sec/Cargo.toml
+last-verified: 2026-08-17
 update-frequency: on-measurement, on-tool-change
 ---
 
@@ -18,9 +18,12 @@ attribution without first agreeing to adopt a tool.
 ## Peak resident memory — available today
 
 ```sh
-cargo build --release --bin stream_etl
+cargo build --release --features tracing-logging --bin stream_etl
 /usr/bin/time -v ./target/release/stream_etl
 ```
+
+`--features tracing-logging` is required — `stream_etl` declares `required-features` for it and cargo
+refuses to build the binary otherwise (see `references/profiling/cpu.md`).
 
 Read `Maximum resident set size (kbytes)`. Costs 30 seconds and no install. This is the correct first
 measurement for any "how much memory does X use?" question — it often answers it outright, in which
