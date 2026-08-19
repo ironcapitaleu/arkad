@@ -123,7 +123,7 @@ the design docs or a skill, not in the rustdoc a reader hits while navigating th
 ```rust
 //! # Common Test Fixtures
 //!
-//! Reusable test doubles for building the crate's tests without live I/O.
+//! Reusable test doubles for building the crate's tests without real dependencies.
 //!
 //! ## Modules
 //!
@@ -693,6 +693,12 @@ over …", "shared across every operation class", "embedded in X rather than sur
 "the class returned by every write method", "wrapped by Y for the shared consumers". This is the
 positional twin of the caller/consumer rule and the temporal rule: **describe the item, not its
 relationships — on any axis (dependents, position, time, consumption).**
+
+**Exception — when the relationships *are* the item.** Some items are defined by how they relate:
+a wrapper or decorator, an adapter, or a coordinator that composes several parts to accomplish one
+goal. There, naming what it wraps, adapts, or combines *is* saying what it does — describe the
+relationship. The rule bans a relationship offered as a *substitute* for meaning, not one that *is*
+the meaning.
 
 | Prose | Problem | Instead |
 |-------|---------|---------|
