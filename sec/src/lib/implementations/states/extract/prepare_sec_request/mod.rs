@@ -212,14 +212,16 @@ impl fmt::Display for PrepareSecRequest {
 
 #[cfg(test)]
 mod tests {
+    use std::{fmt::Debug, hash::Hash};
+
+    use pretty_assertions::assert_eq;
+    use tokio;
+
     use super::*;
     use crate::shared::cik::Cik;
     use crate::shared::cik::constants::BERKSHIRE_HATHAWAY_CIK_RAW;
     use crate::shared::http_client::implementations::sec_client::SecClient;
     use crate::traits::state_machine::state::State;
-    use pretty_assertions::assert_eq;
-    use std::{fmt::Debug, hash::Hash};
-    use tokio;
 
     fn create_test_cik() -> Cik {
         Cik::new(BERKSHIRE_HATHAWAY_CIK_RAW).expect("Hardcoded CIK should always be valid")

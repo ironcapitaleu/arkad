@@ -49,8 +49,9 @@ impl Display for UserAgentErrorReason {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use pretty_assertions::assert_eq;
+
+    use super::*;
 
     #[test]
     fn should_format_display_as_expected_when_reason_is_invalid_sec_format() {

@@ -123,8 +123,9 @@ impl UserAgent {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use pretty_assertions::assert_eq;
+
+    use super::*;
 
     #[test]
     fn should_create_user_agent_when_format_is_valid() {
