@@ -13,3 +13,11 @@ codegen-units = 1
 lto = "fat"
 strip = true
 panic = "abort"
+
+# Release-equivalent codegen with symbols retained, for profilers.
+# `release` strips symbols, which reduces any profile to hex addresses.
+# See .claude/skills/performance/references/profiling/cpu.md
+[profile.profiling]
+inherits = "release"
+debug = true
+strip = false
