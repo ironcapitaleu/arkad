@@ -69,8 +69,9 @@ pub enum State {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use std::{fmt::Debug, hash::Hash};
+
+    use super::*;
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
     #[test]
     const fn should_be_able_to_rely_auto_trait_implementation_when_using_state() {

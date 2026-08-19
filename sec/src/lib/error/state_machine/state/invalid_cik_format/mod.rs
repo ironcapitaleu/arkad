@@ -68,10 +68,10 @@ impl FromDomainError<CikError> for InvalidCikFormat {
 
 #[cfg(test)]
 mod tests {
-    use crate::shared::cik::InvalidCikReason;
+    use pretty_assertions::assert_eq;
 
     use super::*;
-    use pretty_assertions::assert_eq;
+    use crate::shared::cik::InvalidCikReason;
 
     #[test]
     fn should_create_invalid_cik_format_when_new_is_called() {

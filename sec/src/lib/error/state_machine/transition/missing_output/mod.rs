@@ -56,8 +56,9 @@ impl From<MissingOutput> for TransitionError {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use pretty_assertions::{assert_eq, assert_ne};
+
+    use super::*;
 
     #[test]
     fn should_create_missing_output_when_new_is_called() {

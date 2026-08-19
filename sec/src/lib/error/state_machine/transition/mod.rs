@@ -55,8 +55,9 @@ pub enum Transition {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use std::{fmt::Debug, hash::Hash};
+
+    use super::*;
 
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
     #[test]

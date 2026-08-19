@@ -229,13 +229,14 @@ impl fmt::Display for ValidateCikFormat {
 
 #[cfg(test)]
 mod tests {
-    use crate::shared::cik::constants::BERKSHIRE_HATHAWAY_CIK_RAW;
-    use crate::shared::http_client::implementations::sec_client::SecClient;
+    use std::{fmt::Debug, hash::Hash};
+
+    use pretty_assertions::assert_eq;
+    use tokio;
 
     use super::*;
-    use pretty_assertions::assert_eq;
-    use std::{fmt::Debug, hash::Hash};
-    use tokio;
+    use crate::shared::cik::constants::BERKSHIRE_HATHAWAY_CIK_RAW;
+    use crate::shared::http_client::implementations::sec_client::SecClient;
 
     fn test_context() -> ValidateCikFormatContext {
         let sec_client = SecClient::default();

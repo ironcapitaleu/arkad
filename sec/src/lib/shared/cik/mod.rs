@@ -136,9 +136,10 @@ impl TryFrom<String> for Cik {
 
 #[cfg(test)]
 mod tests {
+    use pretty_assertions::{assert_eq, assert_ne};
+
     use super::Cik;
     use super::{CikError, InvalidCikReason};
-    use pretty_assertions::{assert_eq, assert_ne};
 
     #[test]
     fn should_create_valid_cik_struct_if_numeric_string_with_ten_digits_is_passed() {
