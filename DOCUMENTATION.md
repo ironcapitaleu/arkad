@@ -102,9 +102,11 @@ Optional additional sections:
 
 ### What Doesn't Belong
 
-Module docs describe **what the module provides**, not team **policy, process, or rationale** — where
-fixtures live, when to extract a shared crate, why a past decision was made. That material belongs in
-the design docs or a skill, not in the rustdoc a reader hits while navigating the API.
+Module docs describe **what the module provides** and **why it exists** — the purpose it serves for
+someone reading the API. What they leave out is team **policy, process, or history**: where fixtures
+live, when to extract a shared crate, why a past decision was made. Both are "why", and the
+difference is what the reader can do with it. *Why this exists* helps them use the module. *Why we
+chose it* is a record of a debate they were not in, and belongs in the design docs or a skill.
 
 **Avoid** — a policy essay in the module doc:
 
@@ -118,12 +120,15 @@ the design docs or a skill, not in the rustdoc a reader hits while navigating th
 //! fake is the trigger to promote it to a shared testkit crate — not before.
 ```
 
-**Prefer** — what the module provides, then its contents:
+**Prefer** — what the module provides and why, then its contents:
 
 ```rust
 //! # Common Test Fixtures
 //!
 //! Reusable test doubles that stand in for the crate's injected dependencies.
+//!
+//! Substituting a double keeps a test deterministic and scoped to the crate's own logic, and makes
+//! a dependency's failure modes reproducible on demand.
 //!
 //! ## Modules
 //!
