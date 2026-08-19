@@ -125,9 +125,8 @@ chose it* is a record of a debate they were not in, and belongs in the design do
 ```rust
 //! # Common Test Fixtures
 //!
-//! Reusable test doubles that stand in for the crate's injected dependencies.
-//!
-//! The doubles keep tests deterministic and independent of real dependencies.
+//! Provides fixtures that function as stand-ins to keep the crate's unit tests independent of any
+//! externalities such as third-party dependencies, I/O, or external state.
 //!
 //! ## Modules
 //!
