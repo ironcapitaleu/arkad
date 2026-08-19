@@ -123,7 +123,7 @@ the design docs or a skill, not in the rustdoc a reader hits while navigating th
 ```rust
 //! # Common Test Fixtures
 //!
-//! Reusable test doubles for building the crate's tests without real dependencies.
+//! Reusable test doubles that stand in for the crate's injected dependencies.
 //!
 //! ## Modules
 //!
