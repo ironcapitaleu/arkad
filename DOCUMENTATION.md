@@ -127,9 +127,7 @@ chose it* is a record of a debate they were not in, and belongs in the design do
 //!
 //! Reusable test doubles that stand in for the crate's injected dependencies.
 //!
-//! Each double implements the same trait as the dependency it replaces, so a test exercises the
-//! crate's own logic without a live implementation. This substitution keeps results deterministic
-//! and makes a dependency's failure modes reproducible on demand.
+//! The doubles keep tests deterministic and independent of real dependencies.
 //!
 //! ## Modules
 //!
