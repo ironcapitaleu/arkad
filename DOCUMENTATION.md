@@ -100,6 +100,39 @@ Optional additional sections:
 - **`## Usage`** — Brief prose or code example showing how the module's items compose together.
 - **`## Integration`** — How this module fits into the larger system.
 
+### What Doesn't Belong
+
+Module docs describe **what the module provides** and **why it exists** — the purpose it serves for
+someone reading the API. What they leave out is team **policy, process, or history**: where fixtures
+live, when to extract a shared crate, why a past decision was made. Both are "why", and the
+difference is what the reader can do with it. *Why this exists* helps them use the module. *Why we
+chose it* is a record of a debate they were not in, and belongs in the design docs or a skill.
+
+**Avoid** — a policy essay in the module doc:
+
+```rust
+//! # Common Test Fixtures
+//!
+//! Reusable test doubles for the crate's traits.
+//!
+//! Per the house convention, fakes live in each crate's own `#[cfg(test)]` fixtures module — not the
+//! integration-test `tests/` directory — and are not exported. A second consumer needing the same
+//! fake is the trigger to promote it to a shared testkit crate — not before.
+```
+
+**Prefer** — what the module provides and why, then its contents:
+
+```rust
+//! # Common Test Fixtures
+//!
+//! Provides fixtures that function as stand-ins to keep the crate's unit tests independent of any
+//! externalities such as third-party dependencies, I/O, or external state.
+//!
+//! ## Modules
+//!
+//! - [`fake_repository`]: A fake `Repository` that records what it persists.
+```
+
 ### Doc-Tests in Modules
 
 Doc-tests are **not required** in module-level documentation. When they are present, they belong in a `## Usage` section.
@@ -638,6 +671,52 @@ system, since they embody the tuning chosen to satisfy it.
 sequence. A child must never claim its own position — it does not know (and should not assume)
 where or in what order it is assembled.
 
+**Temporal references** couple the doc to a project *timeline* rather than a place in the system,
+and are just as corrosive. Documentation describes what an item **is** and the contract it holds
+now — never when it came to exist, what used to be there, or what is planned next. Ban roadmap
+language: "this is the first slice", "the read arm arrives later", "deferred to a follow-up", "for
+now", "exists now", "built write-side first". A reader months on cannot tell whether "later"
+already happened, and the code itself does not record the schedule. Let `#[non_exhaustive]` and the
+type system carry extensibility. State a deliberate boundary as a **timeless property** ("names no
+concrete backend"), not as a deferral ("backends are added in a later slice"). Ticket IDs and
+slice/PR numbers never appear in rustdoc.
+
+| Prose | Problem | Instead |
+|-------|---------|---------|
+| "the first, deliberately minimal slice" | Timeline, not contract | "holds the persistence ports only" |
+| "the `Read` arm arrives with the read methods later" | Promises future code | (say nothing — `#[non_exhaustive]` covers it) |
+| "the tier traits are deferred to later slices" | Roadmap | "names no tiers and no concrete backend" |
+| "embeds into `WriteError` (and, later, `ReadError`)" | Future sibling | drop the future reference; state what the error represents (see positional rule below) |
+
+**Positional and consumption references** are the same mistake aimed at structure instead of time.
+Do not describe an item by **where it sits** in a hierarchy or **how it is consumed** — say what it
+*is* and does. A reader wants the item's meaning, not its coordinates in a diagram or the identity
+of its callers. Banned framings: "the innermost leaf / top-level / outermost layer", "the union
+over …", "shared across every operation class", "embedded in X rather than surfaced on its own",
+"the class returned by every write method", "wrapped by Y for the shared consumers". This is the
+positional twin of the caller/consumer rule and the temporal rule: **describe the item, not its
+relationships — on any axis (dependents, position, time, consumption).**
+
+**Exception — when the relationships *are* the item.** Some items are defined by how they relate:
+a wrapper or decorator, an adapter, or a coordinator that composes several parts to accomplish one
+goal. There, naming what it wraps, adapts, or combines *is* saying what it does — describe the
+relationship. The rule bans a relationship offered as a *substitute* for meaning, not one that *is*
+the meaning.
+
+| Prose | Problem | Instead |
+|-------|---------|---------|
+| "The innermost leaf of the error hierarchy, shared across every operation class." | Position + consumption | "Error occurring at the storage backend." (what failed) |
+| "The top-level, operation-classed error type for the crate." | Position | "The error type for the `storage` crate." |
+| "embedded in the operation-classed errors rather than surfaced on its own" | Consumption | (state what the error means) |
+
+**When you don't know how to phrase it, mirror the sibling that already does it well.**
+`sec/src/lib/error/` opens every error with *what failed* — "Error occurring inside a state's own
+logic" — then a why/how sentence, and never names its position. Copy that shape.
+
+**Don't restate what the code already says.** A `TryFrom` is fallible by definition — never write
+"the fallible downcast" or "infallible and `?`-able". An attribute is visible in the source — don't
+narrate `#[non_exhaustive]`. Jargon like "sentinel" adds nothing; name the variant's meaning plainly.
+
 If you add a new implementor of a trait, you do **not** go back to the trait's docs to add a link to it. The implementor links to the trait it implements, not the other way around.
 
 Exception: `## See Also` in module-level docs may link upward for discoverability, since module docs serve as navigation aids.
@@ -727,3 +806,4 @@ Before submitting a PR, verify:
 - [ ] Module-level doc-tests exist where multiple items must compose together to demonstrate usage.
 - [ ] Field-level docs exist on all public struct fields and enum variant fields.
 - [ ] Each doc comment answers the relevant W-Fragen (at minimum *Was?*).
+- [ ] No temporal / roadmap language ("later", "deferred", "first slice", ticket IDs) — docs describe the current contract, not the timeline.

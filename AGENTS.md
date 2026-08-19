@@ -259,6 +259,21 @@ through short-lived branches that merge quickly.
 - **Rebase or merge `main` daily.** Divergence is what makes integration painful.
 - **Delete the branch after merge.** Never stack new work on already-merged history.
 
+### Branch Naming
+
+Name a branch `<type>/<short-description>`:
+
+- **`<type>`** — one of the commit types above (`feat`, `fix`, `refactor`, `chore`, `test`, `doc`, …).
+- **`<short-description>`** — a few kebab-case words describing the *functionality*, short enough to
+  read at a glance. A noun phrase (`error-hierarchy`) or a verb phrase (`bump-clippy-lints`) — both
+  are fine; clarity is what matters.
+
+Do **not** encode ticket IDs, nor a slug of the ticket title, in the branch name — the PR links the
+ticket. The name describes *what the branch does*, kept short.
+
+Examples: `feat/storage-scaffold`, `feat/repository-port`, `fix/rate-limiter-backoff`,
+`refactor/error-hierarchy`, `chore/bump-clippy-lints`.
+
 ### PR Size Budget
 
 Review quality collapses on large diffs — defect detection per line drops sharply once the
@@ -289,6 +304,24 @@ An oversized PR is permitted **only with a declared exception** in the PR descri
    is mechanical.
 
 A silently oversized PR is itself a defect in the PR. If the answer to (1) is weak, split it.
+
+### Before Opening a PR
+
+The line budget misses a second way a PR becomes too much to review: a diff can sit well under
+200 lines and still overwhelm a reviewer when it bundles separable concerns or embeds many open
+decisions at once. Run this scope gate **before** opening — splitting after a reviewer flags the
+bloat is the reactive, expensive path.
+
+- **One-sentence scope test.** State the PR's purpose in a single sentence. If it needs an "and",
+  it is more than one PR — "scaffold the crate *and* settle the doc conventions *and* fix an
+  unrelated import order" is three.
+- **Mechanism before convention.** A code skeleton and the docs or guideline edits that introduce
+  a *new* convention do not ship together. Land the code with minimal docs, then refine contested
+  prose in a follow-up. Convention debates are where review rounds multiply.
+- **No unrelated fixes.** A fix noticed in passing — an import order, a typo in another module —
+  rides its own PR, never the feature's.
+- **Stack, don't pile.** For genuinely sequential work, open a short stack of small PRs, each
+  reviewable in one sitting, rather than one PR that grows across review rounds.
 
 ---
 
