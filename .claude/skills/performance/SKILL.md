@@ -4,8 +4,7 @@ description: >
   Use when the user asks to "profile", "benchmark", "measure performance", "find the bottleneck",
   "check for a performance regression", "how much memory does X use", "why is X slow", or wants to
   measure CPU, memory, or wall-time cost of a binary, state, state machine, function, or struct layout.
-  Also the source of truth for what we currently know about performance in this project.
-version: 0.1.0
+version: 0.2.0
 argument-hint: "[profile|benchmark] [component]"
 allowed-tools: [Read, Write, Edit, Bash, AskUserQuestion]
 ---
@@ -14,9 +13,9 @@ allowed-tools: [Read, Write, Edit, Bash, AskUserQuestion]
 
 ## Purpose
 
-This skill is the project's source of truth for performance engineering: what we measure, along which
-axes, with which tools, and what we have already learned. It exists so that a measurement is never
-started from scratch and never produces a number nobody can interpret.
+This skill is the project's source of truth for *how* we do performance engineering: what is worth
+measuring, along which axes, with which tools. It exists so that a measurement is never started from
+scratch and never produces a number nobody can interpret. It does not store results — see Reporting.
 
 Two pillars, deliberately separate:
 
@@ -38,9 +37,8 @@ Profiling finds the number worth watching. Benchmarking asserts it. Only the ass
 | Benchmarking | ❌ No framework, no benchmarks, no baseline store |
 | CI integration | ❌ Nothing runs in CI |
 
-Tooling is intentionally thin and **swappable**. The knowledge in this skill is the asset; the tool that
-currently produces it is not. When a tool is replaced, the recorded numbers stay valid — only the
-"how to run it" sections change.
+Tooling is intentionally thin and **swappable**. The method in this skill is the asset; the tool that
+currently implements it is not.
 
 ## Context Gathering — always in this order
 
@@ -74,7 +72,7 @@ plus SEC network latency, not the code. Everything we own is sub-millisecond.
 
 1. Confirm goal, axis, component (above).
 2. Open the matching reference and follow it — it carries the tool invocation, the required cargo
-   profile, the known traps, and the numbers we already have:
+   profile, and the known traps:
    - CPU → `references/profiling/cpu.md`
    - Memory → `references/profiling/memory.md`
 3. **Sanity-check the rig before trusting the profile.** If the measurement code differs from what
@@ -82,7 +80,15 @@ plus SEC network latency, not the code. Everything we own is sub-millisecond.
    before drawing any conclusion.
 4. Report: the number, the machine it was measured on, the date, and what it means for the goal from
    step 1. A profile reported without its machine and date is not reusable.
-5. If the finding is durable, record it in the reference file's "What we have measured" section.
+
+## Reporting — where results go
+
+Results do not live in this skill. Numbers go stale, and a stale number in a skill file is read as
+current fact by whoever loads it next. Report the measurement to the human; if the finding is durable,
+it belongs in a human-readable findings document (see Authoritative Sources), not here.
+
+What belongs in these files instead: the tool invocation, the traps, and which measurements are
+meaningful in the first place — the parts that stay true between runs.
 
 ## Mode: Benchmarking
 
@@ -110,10 +116,8 @@ profile it instead, and offer to work through the open decisions in that file.
 
 ## Proactive Behavior
 
-- When asked to "make X faster", **profile before changing anything.** Two prior predictions about
-  where this pipeline's cost lives were both wrong; measurement corrected both.
-- When a number in a reference file contradicts a fresh measurement, flag it and propose an update
-  rather than silently trusting either.
+- When asked to "make X faster", **profile before changing anything.** Predictions about where a
+  pipeline's cost lives are routinely wrong, including confident ones.
 - When someone proposes a CI performance gate, point at the Invariants — the gate must assert a
   deterministic number, not a wall-clock one.
 - When a measurement reveals a *functional* problem rather than a performance one, say so and recommend
@@ -129,7 +133,8 @@ profile it instead, and offer to work through the open decisions in that file.
 - [samply](https://github.com/mstange/samply) — the adopted CPU profiler.
 - [perf wiki](https://perfwiki.github.io/main/) — the substrate samply drives on Linux.
 - [STA-127 findings document](https://linear.app/state-machine/document/findings-benchmark-pipeline-performance-for-extract-and-critical-ed0bbbfbfa04)
-  — the SPIKE this skill was distilled from. Retains the full rate-limiter analysis and the tool survey.
+  — the SPIKE this skill was distilled from, and where measurements, the rate-limiter analysis, and the
+  tool survey live.
 
 ## Self-Improvement
 
@@ -138,7 +143,6 @@ that corrections accumulate instead of being re-derived.
 
 After any profiling or benchmarking session, ask whether to update this skill when:
 
-- A measurement contradicts a recorded number, or the recorded number is stale for the current code.
 - A tool is adopted, replaced, or dropped — update the Current Maturity table and the relevant reference.
 - A new trap is hit (a flag that silently ruins output, a profile that describes the rig, a build
   setting that strips what you needed). These are the highest-value additions.

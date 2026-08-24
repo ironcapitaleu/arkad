@@ -32,7 +32,7 @@ These are conclusions from measurement, not preferences — they rule out the ob
   measures the runner, and gating on one guarantees flaky red PRs.
 - **The rate-limited end-to-end path must never be benchmarked for throughput.** It measures
   `MIN_REQUEST_INTERVAL` (a config constant) plus SEC network latency. A deliberate config change would
-  show up as a "regression"; a real code regression would hide underneath a ~53 s floor.
+  show up as a "regression"; a real code regression would hide underneath the pacing floor.
 - **The pacing constant is already guarded by a test, not a benchmark.** `sec/tests/rate_limiter.rs`
   asserts that N permits take at least (N − 1) × interval. It measures real wall-clock via
   `Instant::now()`, yet it does not contradict the bullet above, because every assertion is a **lower
@@ -41,10 +41,10 @@ These are conclusions from measurement, not preferences — they rule out the ob
   already runs in the normal suite — the correct tool for a config invariant.
 - **Fixtures, never the live SEC API.** Non-deterministic, rate-limited, and the rate limit is often the
   thing under test.
-- **Allocation count is a good proxy for CPU cost on the parse path**, where ~86 % of CPU is
-  allocation-driven. An allocation-count assertion in a plain `#[test]` is cheap, deterministic, and
-  cross-platform — a candidate worth weighing against a real benchmark framework, since it needs no
-  bench job, no hosted service, and no Valgrind.
+- **Where a path is allocation-dominated, allocation count is a usable proxy for CPU cost.** An
+  allocation-count assertion in a plain `#[test]` is cheap, deterministic, and cross-platform — worth
+  weighing against a real benchmark framework, since it needs no bench job, no hosted service, and no
+  Valgrind. Confirm the path is allocation-dominated by profiling it first.
 
 ## Open decisions
 
