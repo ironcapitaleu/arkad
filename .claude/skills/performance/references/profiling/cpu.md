@@ -1,7 +1,7 @@
 ---
 source: workspace Cargo.toml; sec/Cargo.toml
-last-verified: 2026-08-24
-update-frequency: on-tool-change
+last-verified: 2026-08-30
+update-frequency: on-code-change
 ---
 
 # CPU Profiling
@@ -33,6 +33,10 @@ Profiling a `dev` build instead is not a substitute — it measures unoptimised 
 cargo build --profile profiling --features tracing-logging --bin stream_etl
 samply record ./target/profiling/stream_etl
 ```
+
+**This is a live run.** `stream_etl` has no fixture mode and no offline flag — it drives all 469 CIKs
+against EDGAR, so expect a ~52 s floor at the 110 ms pacing gate. That is the exploratory exception
+allowed by the invariant in `SKILL.md`: profile with it, never assert a number from it.
 
 `--features tracing-logging` is required, not optional: both `stream_etl` and `stream_extract` declare
 `required-features = ["tracing-logging"]` in `sec/Cargo.toml`, and cargo refuses to build them without

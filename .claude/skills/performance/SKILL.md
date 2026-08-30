@@ -107,8 +107,13 @@ profile it instead, and offer to work through the open decisions in that file.
   a config constant, not code. Changing it is a config decision, never a "regression".
 - **Separate pacing floor from code overhead.** The pacing floor is intentional and config-driven; code
   overhead is everything else. Only code overhead is a regression candidate.
-- **Never benchmark or profile against the live SEC API.** Non-deterministic, rate-limited, and the rate
-  limit is often the thing under test. Use a checked-in fixture.
+- **Never make the live SEC API the subject of an asserted number.** Non-deterministic, rate-limited,
+  and the rate limit is often the thing under test. Any number that is benchmarked, gated, or recorded
+  as a baseline must come from a checked-in fixture. *Exploratory profiling* of a real run is the one
+  permitted exception — no fixture-driven target exists yet, so the documented commands in
+  `references/profiling/` do hit EDGAR. Say so when you use them, and state the cost: every runnable
+  binary drives all 469 CIKs in `sec/src/bin/stream_etl/pipeline/constants.rs`, a ~52 s floor at the
+  110 ms pacing gate. Never promote a number measured that way into an assertion.
 - **Symbols are required.** The `release` profile sets `strip = true`, which reduces every profile to
   hex addresses. Use the profiling cargo profile documented in `cpu.md`.
 - **State the machine.** Numbers from Apple Silicon and x86-64 Linux are not comparable. Every recorded
