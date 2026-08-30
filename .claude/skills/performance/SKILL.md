@@ -130,17 +130,6 @@ profile it instead, and offer to work through the open decisions in that file.
 - If asked to measure an axis or component marked `❌` above, say why the number would mislead and
   propose the meaningful alternative.
 
-## Authoritative Sources
-
-- [The Rust Performance Book — Profiling](https://nnethercote.github.io/perf-book/profiling.html) —
-  a catalogue of what exists, not a ranking. Each question has one conventional answer.
-- [The Rust Performance Book — Benchmarking](https://nnethercote.github.io/perf-book/benchmarking.html)
-- [samply](https://github.com/mstange/samply) — the adopted CPU profiler.
-- [perf wiki](https://perfwiki.github.io/main/) — the substrate samply drives on Linux.
-- [STA-127 findings document](https://linear.app/state-machine/document/findings-benchmark-pipeline-performance-for-extract-and-critical-ed0bbbfbfa04)
-  — the SPIKE this skill was distilled from, and where measurements, the rate-limiter analysis, and the
-  tool survey live.
-
 ## Self-Improvement
 
 This skill is expected to be wrong in places and to be corrected through use. It is version-tracked so

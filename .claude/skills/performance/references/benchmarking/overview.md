@@ -74,11 +74,3 @@ The agreed sequence — do not skip ahead:
 Phase b means results are *visible*, never that a PR can fail on them. Any gate belongs to phase c and
 requires an explicit decision, plus an override for intentional changes such as a deliberate
 `MIN_REQUEST_INTERVAL` tweak, which is a config move rather than a regression.
-
-## Prior survey
-
-The full framework comparison, CI-integration options, threshold models, and the tiered-triggering
-proposal live in the
-[STA-127 findings document](https://linear.app/state-machine/document/findings-benchmark-pipeline-performance-for-extract-and-critical-ed0bbbfbfa04)
-(§1, §2, §7). It is a survey, not a decision — read it when working through the open decisions above,
-and record the outcome here rather than there.
