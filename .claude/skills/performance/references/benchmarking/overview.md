@@ -1,5 +1,4 @@
 ---
-source: STA-127 findings §1, §2, §7 (framework and CI survey) — surveyed, not decided; sec/tests/rate_limiter.rs
 last-verified: 2026-08-30
 update-frequency: on-decision
 ---

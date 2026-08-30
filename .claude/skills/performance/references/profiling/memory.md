@@ -1,5 +1,4 @@
 ---
-source: sec/Cargo.toml
 last-verified: 2026-08-30
 update-frequency: on-code-change
 ---
