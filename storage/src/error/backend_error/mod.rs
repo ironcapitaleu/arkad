@@ -1,7 +1,6 @@
 //! # Backend Error
 //!
-//! Provides [`BackendError`], the error raised when the underlying storage backend cannot carry out
-//! an operation — the datastore is unreachable, or the operation failed at the store.
+//! Provides [`BackendError`], the error raised when the storage backend cannot serve a request.
 //!
 //! ## Usage
 //!
@@ -17,8 +16,9 @@ use thiserror::Error;
 #[derive(Debug, Error, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 /// Error occurring at the storage backend.
 ///
-/// Raised when the datastore itself cannot serve a request: it is unreachable, or the operation
-/// failed at the store. A value type — rich backend detail is flattened to a `reason` string.
+/// Raised when the storage backend cannot serve a request, either because it is unreachable or
+/// because the request failed. Each variant flattens the backend detail into a `reason` string, so
+/// the error stays a plain value.
 pub enum BackendError {
     /// The backend is temporarily unavailable (connection drop, serialization failure, timeout).
     #[error("[Unavailable] Storage backend is temporarily unavailable, Reason: '{reason}'")]

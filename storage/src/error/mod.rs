@@ -2,14 +2,13 @@
 //!
 //! Provides the error types the `storage` crate returns.
 //!
-//! Each kind of operation has its own narrow error — a write fails with a [`WriteError`] — while
-//! [`ErrorKind`] is the single type a caller can propagate for any operation, with [`TryFrom`]
-//! recovering the specific class.
+//! Every operation has its own error type. A write fails with a [`WriteError`]. [`ErrorKind`] wraps
+//! them, so a caller propagates one type and recovers the specific error with [`TryFrom`].
 //!
 //! ## Modules
 //!
-//! - [`backend_error`]: [`BackendError`] — failures at the storage backend.
-//! - [`write_error`]: [`WriteError`] — failures while writing to the store.
+//! - [`backend_error`]: Errors raised by the storage backend.
+//! - [`write_error`]: Errors raised while writing to the store.
 //!
 //! ## Usage
 //!
@@ -19,10 +18,10 @@
 //! let _err = ErrorKind::Write(WriteError::conflicting_write("duplicate accession number"));
 //! ```
 
+use thiserror::Error;
+
 pub mod backend_error;
 pub mod write_error;
-
-use thiserror::Error;
 
 pub use backend_error::BackendError;
 pub use write_error::WriteError;
@@ -31,14 +30,14 @@ pub use write_error::WriteError;
 #[derive(Debug, Error, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 /// The error type the `storage` crate returns.
 ///
-/// Unifies the per-operation error classes so a caller can propagate one type, and recovers a
-/// specific class ([`WriteError`] / [`BackendError`]) via [`TryFrom`].
+/// Wraps the error of each operation, so a caller propagates one type. [`TryFrom`] extracts the
+/// wrapped [`WriteError`], or the [`BackendError`] inside it.
 pub enum ErrorKind {
     /// An error originating from a write operation.
     #[error("[Write] Problem occurred during a write operation, Caused by: {0}")]
     Write(#[source] WriteError),
 
-    /// A [`TryFrom`] downcast could not extract the requested error type.
+    /// Returned when a [`TryFrom`] downcast cannot extract the requested error type.
     #[error("[DowncastNotPossible] Failed to downcast error into a more specific type")]
     DowncastNotPossible,
 }
@@ -203,7 +202,7 @@ mod tests {
         let error_kind = ErrorKind::Write(write_error.clone());
 
         let result = WriteError::try_from(error_kind)
-            .expect("Given an `ErrorKind::Write`, the downcast to `WriteError` should succeed");
+            .expect("Given an `ErrorKind::Write`, the downcast to `WriteError` must succeed");
 
         assert_eq!(result, write_error);
     }
@@ -225,7 +224,7 @@ mod tests {
         let error_kind = ErrorKind::Write(WriteError::Backend(backend_error.clone()));
 
         let result = BackendError::try_from(error_kind).expect(
-            "Given an `ErrorKind` wrapping a `WriteError::Backend`, the skip-level downcast should succeed",
+            "Given an `ErrorKind` wrapping a `WriteError::Backend`, the skip-level downcast must succeed",
         );
 
         assert_eq!(result, backend_error);
@@ -251,7 +250,7 @@ mod tests {
 
         let upcast: ErrorKind = write_error.clone().into();
         let result = WriteError::try_from(upcast)
-            .expect("A `WriteError` upcast into `ErrorKind` should downcast back unchanged");
+            .expect("A `WriteError` upcast into `ErrorKind` must downcast back unchanged");
 
         assert_eq!(result, write_error);
     }
