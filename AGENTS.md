@@ -32,6 +32,27 @@ codebase for all instances before considering the change complete.
 - **Documentation must be version controlled**.
 - **Refer to [`DOCUMENTATION.md`](DOCUMENTATION.md) for the full documentation guidelines** — how to structure module, item, and error docs; when to include `# Sections`; intra-doc link and doc-test conventions; and the wording style to follow. Consult it whenever writing or reviewing documentation.
 
+### Writing Style
+
+All English text this project produces must be plain and readable on the first pass. This covers
+chat replies, documentation, comments, commit messages, PR descriptions, error strings, design
+documents, tickets, and the skills themselves.
+
+The full rules live in the **[`plain-english` skill](.claude/skills/plain-english/SKILL.md)**. Read
+it before writing prose of any length. The non-negotiable core:
+
+- Sentences of 20 words at most for instructions, 25 for explanations.
+- Active voice. Simple tenses. `can`, `will`, `must` — not `should`, `may`, `might`, `could`.
+- One word per concept, used the same way in the whole document. No synonym rotation.
+- Condition before command: "If the build fails, read the log."
+- No phrasal verbs, no semicolons, no filler, no adjectives that claim quality instead of showing it.
+- State what something does, not how it feels. Give an instruction, a fact, a number, or a mechanism.
+
+**This style layer is cross-cutting and takes precedence over the wording in any other skill.** Other
+skills decide what to write and in which structure; `plain-english` decides how the words read. When
+a template inside another skill contains wordy or promotional text, fix the wording and keep the
+structure. Out of scope: code, identifiers, quoted errors, vendored text, and generated files.
+
 ---
 
 ## Import Order Conventions
@@ -449,7 +470,7 @@ Do NOT create a skill when:
 1. Create `.claude/skills/{name}/SKILL.md` with frontmatter (name, description, version)
 2. Write procedures and decision rules in the body
 3. Put lookup/reference data in `.claude/skills/{name}/references/` as separate markdown files
-4. Add staleness headers to reference files (source, last-verified, update-frequency, taxonomy-year)
+4. Add staleness headers to reference files. The minimum is `last-verified` and `update-frequency`; add `source` to say where the data comes from. Only add domain-specific fields when they apply (e.g. `taxonomy-year` for the xbrl skill) — do not carry them into skills with no such taxonomy.
 5. If reference content derives from source code, note the source file in the header
 6. Consider adding a **Self-Improvement** section if the skill covers a domain that evolves through usage (templates, conventions, examples). This section instructs the agent to propose updates to the skill when the user corrects or refines a pattern during use.
 
