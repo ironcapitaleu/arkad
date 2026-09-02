@@ -13,139 +13,153 @@ allowed-tools: [Read, Write, Edit, Bash, AskUserQuestion]
 
 ## Purpose
 
-This skill is the project's source of truth for *how* we do performance engineering: what is worth
-measuring, along which axes, with which tools. It exists so that a measurement is never started from
-scratch and never produces a number nobody can interpret. It does not store results — see Reporting.
+This skill holds the project's rules for performance work. It states what is worth measuring, along
+which axes, and with which tools. Nobody starts a measurement from scratch, and no measurement
+produces a number that nobody can read. This skill stores no results. See "Reporting".
 
-Two pillars, deliberately separate:
+It covers two separate activities:
 
-- **Profiling** — measuring where cost goes along an axis (CPU, memory, wall-time), for a component,
-  with a stated goal. Output is an artifact a human reads. There is no pass/fail.
-- **Benchmarking** — asserting a number profiling found, so a regression fails loudly. Output is a
-  test result. **Not yet implemented in this project** — see `references/benchmarking/overview.md`.
+- **Profiling** measures where cost goes along one axis, for one component, with a stated goal. The
+  axes are CPU, memory, and wall-time. The output is a file a human reads. There is no pass or fail.
+- **Benchmarking** asserts a number that profiling found, so a regression fails loudly. The output is
+  a test result. This project has no benchmarking yet. See `references/benchmarking/overview.md`.
 
-Profiling finds the number worth watching. Benchmarking asserts it. Only the assertion can ever go in CI.
+Profiling finds the number worth watching. Benchmarking asserts it. Only the assertion can go in CI.
 
-## Current Maturity — read this before promising anything
+## Current Maturity
+
+Read this table before you promise anything.
 
 | Capability | Status |
 | --- | --- |
-| CPU profiling | ✅ Available — `samply`, validated on a real workload |
-| Memory profiling | ⚠️ Partial — peak resident memory only; no allocation-attribution tool adopted |
-| Wall-time measurement | ⚠️ Available but rarely meaningful (see Invariants) |
-| Storage / I/O profiling | ❌ Not covered — no measurements exist |
-| Benchmarking | ❌ No framework, no benchmarks, no baseline store |
-| CI integration | ❌ Nothing runs in CI |
+| CPU profiling | Available. Uses `samply`, validated on a real workload |
+| Memory profiling | Partial. Peak resident memory only. No allocation-attribution tool adopted |
+| Wall-time measurement | Available, but rarely meaningful. See "Critical Invariants" |
+| Storage and I/O profiling | Not covered. No measurements exist |
+| Benchmarking | None. No framework, no benchmarks, no baseline store |
+| CI integration | None. Nothing runs in CI |
 
-Tooling is intentionally thin and **swappable**. The method in this skill is the asset; the tool that
-currently implements it is not.
+The tooling is thin on purpose, and any tool here can be swapped. The method in this skill is the
+asset. The tool that implements it today is not.
 
-## Context Gathering — always in this order
+## Context Gathering
 
-Never start a tool before all three are answered. A profile without a goal is an artifact nobody acts on.
+Answer all three questions below before you start a tool. A profile without a goal is a file that
+nobody acts on.
 
-1. **Goal** — why measure? Valid goals: find a bottleneck, establish a baseline, confirm or refute a
-   suspicion, investigate a suspected regression. "Because it might be slow" is not a goal; ask for one.
-2. **Axis** — CPU, memory, or wall-time. If the user says "profile X" without an axis, ask.
-3. **Component** — binary, state machine / super-state, state, function/method, or struct layout.
+1. **Goal.** Why measure? These four goals are valid:
+   - Find a bottleneck.
+   - Establish a baseline.
+   - Confirm or refute a suspicion.
+   - Investigate a suspected regression.
 
-If the user names the component but not the axis, propose one from the matrix below and say why.
+   "Because it might be slow" is not a goal. Ask for a real one.
+2. **Axis.** CPU, memory, or wall-time. If the user says "profile X" and names no axis, ask.
+3. **Component.** A binary, a state machine, a super-state, a state, a function, or a struct layout.
 
-## Axis × Component — which combinations are meaningful
+If the user names the component but not the axis, propose one from the Axis × Component table. Say why.
 
-Not every combination is worth measuring. `✅` do it, `⚠️` only with a caveat, `❌` don't — the number
-would be misleading.
+## Axis × Component: Which Combinations Are Meaningful
+
+Not every combination is worth measuring. **Yes** means measure it. **Caution** means measure it
+only with the stated limit. **No** means the number will mislead you.
 
 | Component | CPU | Memory | Wall-time |
 | --- | --- | --- | --- |
-| **Binary** (`stream_etl`, `stream_extract`) | ✅ samply on the whole run | ✅ peak resident memory | ⚠️ dominated by the rate-limiter constant, not our code |
-| **StateMachine / SuperState** | ✅ | ⚠️ needs a client-injection seam to run without network | ❌ gate-bound — measures config and the internet |
-| **State** (single) | ✅ if pure (no I/O) | ⚠️ only via the enclosing run | ❌ sub-millisecond, below any noise floor |
-| **Function / method** | ✅ the common case | ⚠️ same | ❌ sub-millisecond |
-| **Struct layout** | ➖ indirect (stack vs heap affects CPU) | ✅ `size_of` / `align_of`, boxing decisions | ❌ |
+| **Binary** (`stream_etl`, `stream_extract`) | Yes. samply on the whole run | Yes. Peak resident memory | Caution. The rate-limiter constant dominates, not our code |
+| **StateMachine or SuperState** | Yes | Caution. Needs a client-injection seam to run without network | No. Gate-bound, so it measures config and the internet |
+| **State** (single) | Yes, if the state is pure and does no I/O | Caution. Only through the enclosing run | No. Sub-millisecond, below any noise floor |
+| **Function or method** | Yes. This is the common case | Caution. Same limit as a state | No. Sub-millisecond |
+| **Struct layout** | Indirect. Stack against heap affects CPU | Yes. Use `size_of` and `align_of` for boxing decisions | No |
 
-The `❌` column is the single most important thing in this table. The Extract path is paced by a global
-rate limiter at ~110 ms/permit; a wall-clock measurement of anything under it re-measures that constant
-plus SEC network latency, not the code. Everything we own is sub-millisecond.
+The wall-time column matters most. A global rate limiter paces the Extract path at about 110 ms per
+permit. A wall-clock measurement below that gate re-measures the constant and the SEC network
+latency, not our code. Everything we own runs in under a millisecond.
 
 ## Mode: Profiling
 
-1. Confirm goal, axis, component (above).
-2. Open the matching reference and follow it — it carries the tool invocation, the required cargo
-   profile, and the known traps:
-   - CPU → `references/profiling/cpu.md`
-   - Memory → `references/profiling/memory.md`
-3. **Check your measurement setup before trusting the profile.** If the code you wrote to drive the
-   measurement differs from what production does, the profile describes that driver, not the
-   application. Check the top frames make sense for the workload before drawing any conclusion.
-4. Report two things: **the measurement** — the number, the machine it ran on, and the date — and
-   **what it means** for the goal from step 1. A profile reported without its machine and date is not
-   reusable; one reported without an interpretation leaves the reader to guess.
+1. Confirm the goal, the axis, and the component.
+2. Open the matching reference and follow it. Each one carries the tool command, the required cargo
+   profile, and the known traps.
+   - CPU: `references/profiling/cpu.md`
+   - Memory: `references/profiling/memory.md`
+3. Check your measurement setup before you trust the profile. If the code you wrote to drive the
+   measurement differs from production, the profile describes that driver instead of the
+   application. Confirm that the top frames make sense for the workload first.
+4. Report two things. First the measurement: the number, the machine it ran on, and the date. Second
+   what it means for the goal from step 1. A profile without its machine and date is not reusable. A
+   profile without an interpretation leaves the reader to guess.
 
-## Reporting — where results go
+## Reporting
 
-Results do not live in this skill. Numbers go stale, and a stale number in a skill file is read as
-current fact by whoever loads it next. Report the measurement to the human; if the finding is durable,
-it belongs in a human-readable findings document (see Authoritative Sources), not here.
+Results do not live in this skill. Numbers go stale, and the next reader takes a stale number in a
+skill file as current fact. Report the measurement to the human. If the finding is durable, put it
+in a findings document that humans read, not here.
 
-What belongs in these files instead: the tool invocation, the traps, and which measurements are
-meaningful in the first place — the parts that stay true between runs.
+These files hold the tool commands, the traps, and the list of measurements that are meaningful.
+Those parts stay true between runs.
 
 ## Mode: Benchmarking
 
-Currently a placeholder. Read `references/benchmarking/overview.md` — it states what exists (nothing),
-what was surveyed, and what must be decided before a framework is adopted. Do not add a benchmark
-framework, a CI bench job, or a threshold gate without going through the open decisions listed there.
+This mode is a placeholder. Read `references/benchmarking/overview.md`. It records what exists,
+which is nothing, what the team surveyed, and what the team must decide before it adopts a
+framework. Do not add a benchmark framework, a CI bench job, or a threshold gate before you work
+through the open decisions in that file.
 
-If the user asks to benchmark something today, say plainly that no framework is adopted yet, offer to
-profile it instead, and offer to work through the open decisions in that file.
+If the user asks to benchmark something today, say that the project adopted no framework yet. Offer
+to profile the component instead. Offer to work through the open decisions in that file.
 
 ## Critical Invariants
 
-- **Profiling never runs in CI on a pull request.** Profilers cost 20–50× in runtime and produce
-  artifacts with no threshold to pass or fail. There is nothing for CI to gate on.
-- **Never wall-clock a rate-limited path for throughput.** It measures `MIN_REQUEST_INTERVAL`, which is
-  a config constant, not code. Changing it is a config decision, never a "regression".
-- **Separate pacing floor from code overhead.** The pacing floor is intentional and config-driven; code
-  overhead is everything else. Only code overhead is a regression candidate.
-- **Never make the live SEC API the subject of an asserted number.** Non-deterministic, rate-limited,
-  and the rate limit is often the thing under test. Any number that is benchmarked, gated, or recorded
-  as a baseline must come from a checked-in fixture. *Exploratory profiling* of a real run is the one
-  permitted exception — no fixture-driven target exists yet, so the documented commands in
-  `references/profiling/` do hit EDGAR. Say so when you use them, and state the cost: every runnable
-  binary drives all 469 CIKs in `sec/src/bin/stream_etl/pipeline/constants.rs`, a ~52 s floor at the
-  110 ms pacing gate. Never promote a number measured that way into an assertion.
-- **Debug symbols are required.** The `release` profile sets `strip = true`, which discards them and
-  reduces every profile to hex addresses — the profiler has no names left to attribute samples to.
+- **Profiling never runs in CI on a pull request.** A profiler costs 20 to 50 times the runtime. It
+  produces a file with no threshold to pass or fail, so CI has nothing to gate on.
+- **Never wall-clock a rate-limited path for throughput.** The measurement returns
+  `MIN_REQUEST_INTERVAL`, which is a config constant rather than code. Changing that constant is a
+  config decision, never a regression.
+- **Separate the pacing floor from code overhead.** The pacing floor is deliberate and config-driven.
+  Code overhead is everything else. Only code overhead can be a regression.
+- **Never make the live SEC API the subject of an asserted number.** It is non-deterministic and
+  rate-limited. The rate limit is often the thing under test. Any number that you benchmark, gate,
+  or record as a baseline must come from a checked-in fixture.
+
+  Exploratory profiling of a real run is the one permitted exception. No fixture-driven target exists
+  yet, so the commands in `references/profiling/` do call EDGAR. Say so when you use them, and state
+  the cost. Every runnable binary drives all 469 CIKs listed in
+  `sec/src/bin/stream_etl/pipeline/constants.rs`, which takes at least 52 seconds at the 110 ms
+  pacing gate. Never promote a number measured that way into an assertion.
+- **Debug symbols are required.** The `release` profile sets `strip = true`, which discards them.
+  Every profile then shows hex addresses, because the profiler has no names to attribute samples to.
   Use the profiling cargo profile documented in `cpu.md`.
-- **State the machine.** Numbers from Apple Silicon and x86-64 Linux are not comparable. Every recorded
-  measurement carries its machine and date.
+- **State the machine.** Numbers from Apple Silicon and from x86-64 Linux are not comparable. Every
+  recorded measurement carries its machine and its date.
 
 ## Proactive Behavior
 
-- When asked to "make X faster", **profile before changing anything.** Predictions about where a
-  pipeline's cost lives are routinely wrong, including confident ones.
-- When someone proposes a CI performance gate, point at the Invariants — the gate must assert a
+- When the user asks you to make something faster, profile it before you change anything.
+  Predictions about where a pipeline spends its time are often wrong, including confident ones.
+- When someone proposes a CI performance gate, point at the invariants. The gate must assert a
   deterministic number, not a wall-clock one.
-- When a measurement reveals a *functional* problem rather than a performance one, say so and recommend
-  a separate ticket. Performance work should not absorb correctness bugs.
-- If asked to measure an axis or component marked `❌` above, say why the number would mislead and
-  propose the meaningful alternative.
+- When a measurement reveals a functional bug rather than a performance problem, say so. Recommend a
+  separate ticket. Performance work must not absorb correctness bugs.
+- When asked to measure a combination marked **No** above, say why the number will mislead. Propose
+  the meaningful alternative.
 
 ## Self-Improvement
 
-This skill is expected to be wrong in places and to be corrected through use. It is version-tracked so
-that corrections accumulate instead of being re-derived.
+Parts of this skill will be wrong, and use will correct them. The version field tracks those
+corrections so that nobody derives them twice.
 
-After any profiling or benchmarking session, ask whether to update this skill when:
+After a profiling or benchmarking session, ask whether to update this skill in these cases:
 
-- A tool is adopted, replaced, or dropped — update the Current Maturity table and the relevant reference.
-- A new trap is hit (a flag that silently ruins output, a profile that describes the measurement setup
-  rather than the application, a build setting that strips what you needed). These are the
-  highest-value additions.
-- A new axis or component becomes measurable — add the row to the matrix.
-- A combination marked `❌` turns out to be meaningful after all, or vice versa.
-- A benchmarking decision from `references/benchmarking/overview.md` is settled — move it out of the
-  open list and into the adopted section.
+- The team adopts, replaces, or drops a tool. Update the maturity table and the matching reference.
+- You hit a new trap. These additions are worth the most. Three examples:
+  - A flag that ruins the output silently.
+  - A profile that describes the measurement setup instead of the application.
+  - A build setting that strips what you needed.
+- A new axis or component becomes measurable. Add the row to the table.
+- A combination marked **No** turns out to be meaningful, or a combination marked **Yes** turns out
+  to mislead.
+- The team settles a benchmarking decision from `references/benchmarking/overview.md`. Move it out
+  of the open list and into the adopted section.
 
-Apply updates only after the user approves them.
+Apply an update only after the user approves it.
