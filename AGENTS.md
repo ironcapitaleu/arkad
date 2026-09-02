@@ -470,7 +470,7 @@ Do NOT create a skill when:
 1. Create `.claude/skills/{name}/SKILL.md` with frontmatter (name, description, version)
 2. Write procedures and decision rules in the body
 3. Put lookup/reference data in `.claude/skills/{name}/references/` as separate markdown files
-4. Add staleness headers to reference files (source, last-verified, update-frequency, taxonomy-year)
+4. Add staleness headers to reference files. The minimum is `last-verified` and `update-frequency`; add `source` to say where the data comes from. Only add domain-specific fields when they apply (e.g. `taxonomy-year` for the xbrl skill) — do not carry them into skills with no such taxonomy.
 5. If reference content derives from source code, note the source file in the header
 6. Consider adding a **Self-Improvement** section if the skill covers a domain that evolves through usage (templates, conventions, examples). This section instructs the agent to propose updates to the skill when the user corrects or refines a pattern during use.
 

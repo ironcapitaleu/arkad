@@ -1,3 +1,9 @@
+---
+source: our own list, written for this repo
+last-verified: 2026-09-01
+update-frequency: on-demand, as new slop patterns are confirmed
+---
+
 # Word swaps
 
 Lookup table for the `plain-english` skill. Read it when you rewrite existing text.
@@ -97,14 +103,16 @@ elegant, groundbreaking, vibrant, stunning, world-class, best-in-class, producti
 
 ## Terms this project has already fixed
 
-| Concept | Word to use | Source |
-| ------- | ----------- | ------ |
-| The Rust type that carries a failure | error | `DOCUMENTATION.md` |
-| The event or action that went wrong | failure | `DOCUMENTATION.md` |
-| The commit type prefixes | feat, fix, refactor, style, perf, test, doc, ci, cd, build, revert, chore | `AGENTS.md` |
-| A failed action error name | `Failed[Action]`, never `[Action]Failed` | `AGENTS.md` |
-| A bad-state error name | `Invalid[Noun]`, `Missing[Noun]`, `Unexpected[Noun]` | `AGENTS.md` |
+For domain terms and naming conventions, follow the authoritative documents. Do not copy their
+words here, because a copy goes stale when the source changes:
 
-Pick one word per concept for terms this project has not fixed yet, then use it in the whole
+- `DOCUMENTATION.md` — domain vocabulary, such as `error` for the Rust type that carries a failure
+  and `failure` for the event that went wrong.
+- `AGENTS.md` — naming rules, such as the commit type prefixes, `Failed[Action]` for a failed
+  action error, and `Invalid[Noun]` / `Missing[Noun]` / `Unexpected[Noun]` for a bad-state error.
+
+For terms these documents have not fixed yet, pick one word per concept, then use it in the whole
 document. Common pairs that need a choice: config or settings, run or execute, check or validate,
-delete or remove, show or display.
+delete or remove, show or display. If a pick should hold across the project, record it in the
+suitable authoritative document (`DOCUMENTATION.md` for domain terms, `AGENTS.md` for naming
+conventions) so it becomes the source of truth.
