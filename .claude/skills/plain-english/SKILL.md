@@ -60,7 +60,7 @@ slop, fix the wording and keep the shape.
 - Marketing and brand copy. This project has none today. If it gets some, these rules do not
   apply to it, because they delete persuasion by design.
 
-## Two modes
+## Two Modes
 
 Pick a mode from the destination of the text. Do not announce the choice.
 
@@ -74,11 +74,11 @@ voice, simple tenses, restricted modals, no phrasal verbs, and no semicolons. Re
 one-word-one-meaning lockdown to one rule: never rotate synonyms for the same concept in one
 document. Prose needs some range, and a strict rewrite of prose reads as a personality transplant.
 
-This is a separate question from voice. See "Voice: repo text and chat replies differ" below.
+This is a separate question from voice. See "Voice: Repo Text and Chat Replies Differ" below.
 
-## Writing rules
+## Writing Rules
 
-### Sentence shape
+### Sentence Shape
 
 1. **Classify the passage first.** Procedural text tells the reader what to do. Descriptive text
    explains what a thing is or does. Every other rule depends on this choice.
@@ -136,7 +136,7 @@ This is a separate question from voice. See "Voice: repo text and chat replies d
 
 See `references/word-swaps.md` for the full substitution table.
 
-## Anti-slop checklist
+## Anti-Slop Checklist
 
 Remove these before delivering any text. The list is the Unslop tell set, cut to what appears in
 this project.
@@ -171,7 +171,8 @@ this project.
 14. **Boldface overuse.** Do not bold every noun or acronym.
 15. **Inline-header lists that restate themselves.** "**Performance:** Performance improved..." is
     a tell. A bold lead-in followed by new detail is fine.
-16. **Title Case Headings.** Use sentence case.
+16. **Sentence case headings.** Markdown headings use Title Case: `## Mode: Profiling`, not
+    `## Mode: profiling`. An identifier keeps the case the code uses.
 17. **Decorative emoji** in headings, bullets, or commit messages.
 18. **Curly quotes.** Use straight quotes.
 
@@ -189,7 +190,7 @@ this project.
 25. **Adverbs propping up weak verbs.** "runs quickly" becomes "is fast" or the number.
     "significantly improves" becomes the measured delta.
 
-## State what it does, not how it feels
+## State What It Does, Not How It Feels
 
 This is the core test, and it catches slop the checklist misses.
 
@@ -206,7 +207,7 @@ Two checks:
 Never invent a number, a cause, or a mechanism to pass this test. When the source gives no
 specifics, keep the general statement.
 
-## Voice: repo text and chat replies differ
+## Voice: Repo Text and Chat Replies Differ
 
 The rules above apply everywhere. Voice does not.
 
@@ -223,7 +224,7 @@ carry facts. They carry no personality. Write third person or the imperative.
 
 Voice never buys extra words. The length caps and the anti-slop checklist hold in chat too.
 
-## Self-check before you deliver
+## Self-Check Before You Deliver
 
 Run these six checks on every draft, in chat and in files. This step is not optional.
 
@@ -332,7 +333,7 @@ After:
 - **Unslop skill** by Cursor:
   <https://github.com/cursor/plugins/blob/main/pstack/skills/unslop/SKILL.md>
 
-### Dictionary copyright
+### Dictionary Copyright
 
 ASD-STE100 pairs its writing rules with a dictionary of about 900 approved words. ASD does not
 permit redistribution, so the list is not in this repository. Two rules follow:
@@ -344,7 +345,7 @@ permit redistribution, so the list is not in this repository. Two rules follow:
 The vocabulary rules above apply the principle of that dictionary instead of the list itself: pick
 the plainest common word, then use it the same way every time.
 
-## Self-improvement
+## Self-Improvement
 
 When the user rewrites your wording, or rejects a phrase, ask whether the correction belongs in this
 skill. Add a confirmed pattern to the anti-slop checklist or to `references/word-swaps.md`.

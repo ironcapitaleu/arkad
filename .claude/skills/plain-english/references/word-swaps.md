@@ -4,16 +4,16 @@ last-verified: 2026-09-01
 update-frequency: on-demand, as new slop patterns are confirmed
 ---
 
-# Word swaps
+# Word Swaps
 
 Lookup table for the `plain-english` skill. Read it when you rewrite existing text.
 
 If a word carries no fact, delete it instead of replacing it.
 
 These swaps are our own. They are not the ASD-STE100 approved word list, which stays out of this
-repository. See "Dictionary copyright" in `../SKILL.md`.
+repository. See "Dictionary Copyright" in `../SKILL.md`.
 
-## Connectives and filler
+## Connectives and Filler
 
 | Written | Write instead |
 | ------- | ------------- |
@@ -50,7 +50,7 @@ repository. See "Dictionary copyright" in `../SKILL.md`.
 | garner | get |
 | enhance | improve, or the measured delta |
 
-## Phrasal verbs
+## Phrasal Verbs
 
 | Written | Write instead |
 | ------- | ------------- |
@@ -65,14 +65,14 @@ repository. See "Dictionary copyright" in `../SKILL.md`.
 | come up with | design, write |
 | carry out | do |
 
-## Adjectives that claim quality
+## Adjectives That Claim Quality
 
 Delete these, or replace them with the number or mechanism that earns the claim.
 
 seamless, robust, powerful, comprehensive, holistic, cutting-edge, blazing-fast, effortless,
 elegant, groundbreaking, vibrant, stunning, world-class, best-in-class, production-grade, battle-tested
 
-## Abstract nouns
+## Abstract Nouns
 
 | Written | Write instead |
 | ------- | ------------- |
@@ -101,7 +101,7 @@ elegant, groundbreaking, vibrant, stunning, world-class, best-in-class, producti
 | would (hypothetical) | can, or restructure as "If X, then Y" |
 | shall | must |
 
-## Terms this project has already fixed
+## Terms This Project Has Already Fixed
 
 For domain terms and naming conventions, follow the authoritative documents. Do not copy their
 words here, because a copy goes stale when the source changes:
