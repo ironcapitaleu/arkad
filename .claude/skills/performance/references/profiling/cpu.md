@@ -21,7 +21,7 @@ cargo install --locked samply
 
 The workspace `[profile.release]` sets `strip = true`. Profiling a release binary therefore yields a
 flamegraph of hex addresses and nothing else. The **workspace root** `Cargo.toml` carries
-`[profile.profiling]` for this reason — release codegen with symbols retained. It is committed, so
+`[profile.profiling]` for this reason — release codegen with debug symbols retained. It is committed, so
 nothing needs adding before a first run.
 
 Profiling a `dev` build instead is not a substitute — it measures unoptimised code that we never ship.
@@ -48,9 +48,9 @@ it. The `extraction` binary has no such requirement.
 
 - **`strip = true` in release** — the reason the `profiling` profile exists. If every frame is a hex
   address, this is why.
-- **Omitting `--features tracing-logging`** — cargo fails with `requires the features:
-  'tracing-logging'` rather than building anything. Applies to every `cargo` command that names
-  `stream_etl` or `stream_extract`, `--release` builds included.
+- **Omitting `--features tracing-logging`** — cargo fails with
+  `target requires the features: 'tracing-logging'` rather than building anything. Applies to every
+  `cargo` command that names `stream_etl` or `stream_extract`, `--release` builds included.
 - **`--save-only` writes an *unsymbolized* profile.** Symbolication happens in samply's UI, so a saved
   profile has an empty `nativeSymbols` and hex frames. Fine interactively (`samply load`), awkward in
   scripts — headless use needs `samply load` or manual `addr2line`.
@@ -59,9 +59,9 @@ it. The `extraction` binary has no such requirement.
 - **Profile the right thing.** `[profile.profiling]` inherits `panic = "abort"` from release. Harmless
   for samply, fatal for any tool that reports on `Drop`.
 
-## Sanity-check the rig before trusting a profile
+## Check your measurement setup before trusting a profile
 
-If the measurement harness feeds the code something production never feeds it, the profile describes
-the rig rather than the application — and it looks entirely plausible while doing so. Read the top
-frames and ask whether they make sense for the workload *before* drawing any conclusion. Frames from a
-phase the workload does not perform are the clearest tell.
+If the code you wrote to drive the measurement feeds the application something production never feeds
+it, the profile describes that driver rather than the application — and it looks entirely plausible
+while doing so. Read the top frames and ask whether they make sense for the workload *before* drawing
+any conclusion. Frames from a phase the workload does not perform are the clearest tell.

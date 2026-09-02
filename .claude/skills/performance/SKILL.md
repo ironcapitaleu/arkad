@@ -31,7 +31,7 @@ Profiling finds the number worth watching. Benchmarking asserts it. Only the ass
 | Capability | Status |
 | --- | --- |
 | CPU profiling | ✅ Available — `samply`, validated on a real workload |
-| Memory profiling | ⚠️ Partial — peak RSS only; no allocation-attribution tool adopted |
+| Memory profiling | ⚠️ Partial — peak resident memory only; no allocation-attribution tool adopted |
 | Wall-time measurement | ⚠️ Available but rarely meaningful (see Invariants) |
 | Storage / I/O profiling | ❌ Not covered — no measurements exist |
 | Benchmarking | ❌ No framework, no benchmarks, no baseline store |
@@ -58,7 +58,7 @@ would be misleading.
 
 | Component | CPU | Memory | Wall-time |
 | --- | --- | --- | --- |
-| **Binary** (`stream_etl`, `stream_extract`) | ✅ samply on the whole run | ✅ peak RSS | ⚠️ dominated by the rate-limiter constant, not our code |
+| **Binary** (`stream_etl`, `stream_extract`) | ✅ samply on the whole run | ✅ peak resident memory | ⚠️ dominated by the rate-limiter constant, not our code |
 | **StateMachine / SuperState** | ✅ | ⚠️ needs a client-injection seam to run without network | ❌ gate-bound — measures config and the internet |
 | **State** (single) | ✅ if pure (no I/O) | ⚠️ only via the enclosing run | ❌ sub-millisecond, below any noise floor |
 | **Function / method** | ✅ the common case | ⚠️ same | ❌ sub-millisecond |
@@ -75,11 +75,12 @@ plus SEC network latency, not the code. Everything we own is sub-millisecond.
    profile, and the known traps:
    - CPU → `references/profiling/cpu.md`
    - Memory → `references/profiling/memory.md`
-3. **Sanity-check the rig before trusting the profile.** If the measurement code differs from what
-   production does, the profile describes the rig. Check the top frames make sense for the workload
-   before drawing any conclusion.
-4. Report: the number, the machine it was measured on, the date, and what it means for the goal from
-   step 1. A profile reported without its machine and date is not reusable.
+3. **Check your measurement setup before trusting the profile.** If the code you wrote to drive the
+   measurement differs from what production does, the profile describes that driver, not the
+   application. Check the top frames make sense for the workload before drawing any conclusion.
+4. Report two things: **the measurement** — the number, the machine it ran on, and the date — and
+   **what it means** for the goal from step 1. A profile reported without its machine and date is not
+   reusable; one reported without an interpretation leaves the reader to guess.
 
 ## Reporting — where results go
 
@@ -114,8 +115,9 @@ profile it instead, and offer to work through the open decisions in that file.
   `references/profiling/` do hit EDGAR. Say so when you use them, and state the cost: every runnable
   binary drives all 469 CIKs in `sec/src/bin/stream_etl/pipeline/constants.rs`, a ~52 s floor at the
   110 ms pacing gate. Never promote a number measured that way into an assertion.
-- **Symbols are required.** The `release` profile sets `strip = true`, which reduces every profile to
-  hex addresses. Use the profiling cargo profile documented in `cpu.md`.
+- **Debug symbols are required.** The `release` profile sets `strip = true`, which discards them and
+  reduces every profile to hex addresses — the profiler has no names left to attribute samples to.
+  Use the profiling cargo profile documented in `cpu.md`.
 - **State the machine.** Numbers from Apple Silicon and x86-64 Linux are not comparable. Every recorded
   measurement carries its machine and date.
 
@@ -138,8 +140,9 @@ that corrections accumulate instead of being re-derived.
 After any profiling or benchmarking session, ask whether to update this skill when:
 
 - A tool is adopted, replaced, or dropped — update the Current Maturity table and the relevant reference.
-- A new trap is hit (a flag that silently ruins output, a profile that describes the rig, a build
-  setting that strips what you needed). These are the highest-value additions.
+- A new trap is hit (a flag that silently ruins output, a profile that describes the measurement setup
+  rather than the application, a build setting that strips what you needed). These are the
+  highest-value additions.
 - A new axis or component becomes measurable — add the row to the matrix.
 - A combination marked `❌` turns out to be meaningful after all, or vice versa.
 - A benchmarking decision from `references/benchmarking/overview.md` is settled — move it out of the
