@@ -3,7 +3,7 @@ last-verified: 2026-08-30
 update-frequency: on-decision
 ---
 
-# Benchmarking: placeholder
+# Benchmarking: Placeholder
 
 **Status: nothing exists.** The project adopted no framework, wrote no benchmarks, stored no
 baseline, and runs no benchmark in CI. This file records three things instead. What benchmarking is
@@ -14,7 +14,7 @@ Do not add a benchmark harness, a CI bench job, or a threshold gate before you s
 decisions below. When the team settles one, move it out of the open list into an "Adopted" section
 in this file.
 
-## What benchmarking is for in this project
+## What Benchmarking Is For In This Project
 
 Profiling produces a file that a human reads. Benchmarking turns one number from that file into an
 assertion, and the assertion fails when the number moves. The order is always the same:
@@ -24,7 +24,7 @@ assertion, and the assertion fails when the number moves. The order is always th
 The purpose is regression detection, not discovery. A benchmark written before its profile guards a
 number that nobody showed to be meaningful.
 
-## Constraints that any future design must respect
+## Constraints That Any Future Design Must Respect
 
 These are conclusions from measurement, not preferences. Each one rules out an obvious approach.
 
@@ -48,7 +48,7 @@ These are conclusions from measurement, not preferences. Each one rules out an o
   needs no bench job, no hosted service, and no Valgrind, so weigh it against a real benchmark
   framework. Profile the path first, to confirm that allocation dominates it.
 
-## Open decisions
+## Open Decisions
 
 1. **Does the project need a framework at all, or do assertions in ordinary tests suffice?** Answer
    this question first. The answer can make decisions 2 to 4 unnecessary.
@@ -66,7 +66,7 @@ These are conclusions from measurement, not preferences. Each one rules out an o
    options are a path-filtered pull request job, an opt-in label, or a weekly cron. A deterministic
    measurement tolerates a tight bound. Wall-clock does not.
 
-## Rollout phasing
+## Rollout Phasing
 
 Follow this sequence and do not skip ahead.
 

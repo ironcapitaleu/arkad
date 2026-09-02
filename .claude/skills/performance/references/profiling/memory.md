@@ -3,7 +3,7 @@ last-verified: 2026-08-30
 update-frequency: on-code-change
 ---
 
-# Memory profiling
+# Memory Profiling
 
 Three separate questions are easy to confuse. Each one has a different answer.
 
@@ -18,7 +18,7 @@ Three separate questions are easy to confuse. Each one has a different answer.
 **Status: partly covered.** Only questions 1 and 3 have an answer today. Do not promise allocation
 attribution before the team agrees to adopt a tool.
 
-## Peak resident memory, against a live run
+## Peak Resident Memory, Against a Live Run
 
 **Peak resident memory** is the largest amount of physical RAM that the process held at any one
 instant during the run. Many tools shorten the term to *peak RSS*, for "resident set size". It is not
@@ -43,9 +43,9 @@ Run it first for any question of the form "how much memory does X use". It often
 outright, and a heap profiler then only confirms the result.
 
 This command measures the whole process, so it cannot attribute memory to one component. Read it
-next to the axis and component table in `SKILL.md`. Peak resident memory is a binary-level number.
+next to the Axis × Component table in `SKILL.md`. Peak resident memory is a binary-level number.
 
-## Struct layout
+## Struct Layout
 
 No profiler answers the question "does this type belong on the stack or the heap". Use
 `std::mem::size_of::<T>()` and `align_of::<T>()`, then reason about the result. The answer affects
@@ -53,7 +53,7 @@ CPU as well as memory. A large type moved by value costs a memcpy. Boxing it tra
 an allocation and a pointer chase. Measure the CPU effect with samply, described in
 `references/profiling/cpu.md`. Do not measure it with a memory tool.
 
-## Known blocker: a reproducible memory measurement
+## Known Blocker: A Reproducible Memory Measurement
 
 The command above runs today, but only by calling EDGAR. The number carries network
 non-determinism, so you cannot assert against it. The same multi-CIK run without the live SEC API

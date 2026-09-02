@@ -3,7 +3,7 @@ last-verified: 2026-08-30
 update-frequency: on-code-change
 ---
 
-# CPU profiling
+# CPU Profiling
 
 This reference answers one question: where does CPU time go? The tool is `samply`, a sampling
 profiler.
@@ -18,7 +18,7 @@ and on Apple Silicon, and the team uses both.
 cargo install --locked samply
 ```
 
-### The `profiling` cargo profile
+### The `profiling` Cargo Profile
 
 The workspace `[profile.release]` sets `strip = true`, so a profile of a release binary shows hex
 addresses and nothing else. For this reason the **workspace root** `Cargo.toml` carries
@@ -27,7 +27,7 @@ you add nothing before your first run.
 
 Do not profile a `dev` build instead. A `dev` build measures unoptimised code that we never ship.
 
-### Running it
+### Running It
 
 ```sh
 cargo build --profile profiling --features tracing-logging --bin stream_etl
@@ -63,7 +63,7 @@ to view the result.
 - **Profile the right thing.** `[profile.profiling]` inherits `panic = "abort"` from release. This is
   harmless for samply and fatal for any tool that writes its report on `Drop`.
 
-## Check your measurement setup before you trust a profile
+## Check Your Measurement Setup Before You Trust a Profile
 
 The code you write to drive a measurement can feed the application something that production never
 feeds it. The profile then describes that driver instead of the application, and it still looks

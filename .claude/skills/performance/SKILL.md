@@ -9,7 +9,7 @@ argument-hint: "[profile|benchmark] [component]"
 allowed-tools: [Read, Write, Edit, Bash, AskUserQuestion]
 ---
 
-# Performance: profiling and benchmarking
+# Performance: Profiling and Benchmarking
 
 ## Purpose
 
@@ -26,7 +26,7 @@ It covers two separate activities:
 
 Profiling finds the number worth watching. Benchmarking asserts it. Only the assertion can go in CI.
 
-## Current maturity
+## Current Maturity
 
 Read this table before you promise anything.
 
@@ -34,7 +34,7 @@ Read this table before you promise anything.
 | --- | --- |
 | CPU profiling | Available. Uses `samply`, validated on a real workload |
 | Memory profiling | Partial. Peak resident memory only. No allocation-attribution tool adopted |
-| Wall-time measurement | Available, but rarely meaningful. See "Invariants" |
+| Wall-time measurement | Available, but rarely meaningful. See "Critical Invariants" |
 | Storage and I/O profiling | Not covered. No measurements exist |
 | Benchmarking | None. No framework, no benchmarks, no baseline store |
 | CI integration | None. Nothing runs in CI |
@@ -42,7 +42,7 @@ Read this table before you promise anything.
 The tooling is thin on purpose, and any tool here can be swapped. The method in this skill is the
 asset. The tool that implements it today is not.
 
-## Context gathering
+## Context Gathering
 
 Answer all three questions below before you start a tool. A profile without a goal is a file that
 nobody acts on.
@@ -57,9 +57,9 @@ nobody acts on.
 2. **Axis.** CPU, memory, or wall-time. If the user says "profile X" and names no axis, ask.
 3. **Component.** A binary, a state machine, a super-state, a state, a function, or a struct layout.
 
-If the user names the component but not the axis, propose one from the table below. Say why.
+If the user names the component but not the axis, propose one from the Axis × Component table. Say why.
 
-## Axis and component: which combinations are meaningful
+## Axis × Component: Which Combinations Are Meaningful
 
 Not every combination is worth measuring. **Yes** means measure it. **Caution** means measure it
 only with the stated limit. **No** means the number will mislead you.
@@ -76,7 +76,7 @@ The wall-time column matters most. A global rate limiter paces the Extract path 
 permit. A wall-clock measurement below that gate re-measures the constant and the SEC network
 latency, not our code. Everything we own runs in under a millisecond.
 
-## Mode: profiling
+## Mode: Profiling
 
 1. Confirm the goal, the axis, and the component.
 2. Open the matching reference and follow it. Each one carries the tool command, the required cargo
@@ -99,7 +99,7 @@ in a findings document that humans read, not here.
 These files hold the tool commands, the traps, and the list of measurements that are meaningful.
 Those parts stay true between runs.
 
-## Mode: benchmarking
+## Mode: Benchmarking
 
 This mode is a placeholder. Read `references/benchmarking/overview.md`. It records what exists,
 which is nothing, what the team surveyed, and what the team must decide before it adopts a
@@ -109,7 +109,7 @@ through the open decisions in that file.
 If the user asks to benchmark something today, say that the project adopted no framework yet. Offer
 to profile the component instead. Offer to work through the open decisions in that file.
 
-## Critical invariants
+## Critical Invariants
 
 - **Profiling never runs in CI on a pull request.** A profiler costs 20 to 50 times the runtime. It
   produces a file with no threshold to pass or fail, so CI has nothing to gate on.
@@ -133,7 +133,7 @@ to profile the component instead. Offer to work through the open decisions in th
 - **State the machine.** Numbers from Apple Silicon and from x86-64 Linux are not comparable. Every
   recorded measurement carries its machine and its date.
 
-## Proactive behavior
+## Proactive Behavior
 
 - When the user asks you to make something faster, profile it before you change anything.
   Predictions about where a pipeline spends its time are often wrong, including confident ones.
@@ -144,7 +144,7 @@ to profile the component instead. Offer to work through the open decisions in th
 - When asked to measure a combination marked **No** above, say why the number will mislead. Propose
   the meaningful alternative.
 
-## Self-improvement
+## Self-Improvement
 
 Parts of this skill will be wrong, and use will correct them. The version field tracks those
 corrections so that nobody derives them twice.
