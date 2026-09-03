@@ -22,9 +22,6 @@ The document then starts a worker session that drives a PR, runs a long build, o
 parallel task. The caller feeds the document to a session-spawning tool, or the user pastes it into
 a new session. This skill writes the document and stops. It does not spawn the session itself.
 
-This skill is agent-agnostic. The guidance names no specific agent or host tool. Only the file
-format and location follow the host's skill convention.
-
 ## When to Use
 
 - The user wants a fresh session to own a bounded task while this session continues or ends.
