@@ -138,9 +138,21 @@ For a SuperState, the milestones follow the sub-states in order:
 Each milestone is a coherent increment the epic can reach and show. Propose the milestones. The user
 confirms or corrects them.
 
+## Tickets Follow the Milestones and the Fog
+
+Tickets have two sources:
+
+- A **milestone** breaks into the build tickets that reach it — FEATURE and IMPLEMENTATION tickets.
+- The **fog** produces decision tickets — SPIKE and DESIGN — as an unknown sharpens.
+
+Break a milestone into tickets when it is the next one to reach. Do not break every milestone at the
+start. A full upfront breakdown is a premature backlog. Cut the current milestone's tickets. Defer
+the later milestones.
+
 ## Mode: Define
 
-Use this mode to scaffold a new epic, or to expand a bare project.
+Use this mode to establish a new epic, or to expand a bare project. It sets the destination, the
+artifacts, the milestones, and the first frontier of tickets.
 
 1. **Gather the destination.** Use `AskUserQuestion` for the goal, the scope, and the out-of-scope
    boundary.
@@ -162,7 +174,7 @@ Use this mode to scaffold a new epic, or to expand a bare project.
 
 ## Mode: Refine
 
-Use this mode to develop the epic as work proceeds.
+Use this mode to advance an existing epic as work proceeds.
 
 1. **Load the Project** — its description, milestones, issues, fog log, and ledger.
 2. **Take one frontier ticket.** The open, unblocked, and unassigned issues are takeable. Assign it
@@ -172,7 +184,9 @@ Use this mode to develop the epic as work proceeds.
    Then add a one-line entry to the decisions ledger, linking the artifact and the ticket. Remove
    the matching item from the fog log. Check its Definition-of-Done item or milestone.
 4. **When fog sharpens:** create the SPIKE or DESIGN ticket, and wire its blocking edge.
-5. **Keep the plan honest.** Prune the fog log. Keep the ledger current. Keep each milestone's
+5. **When a milestone is next:** break it into its build tickets (FEATURE or IMPLEMENTATION), and
+   wire their blocking edges.
+6. **Keep the plan honest.** Prune the fog log. Keep the ledger current. Keep each milestone's
    progress true.
 
 Resolve one decision per session. Re-examine the fog afterward. A decision can reshape it. Research
