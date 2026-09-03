@@ -519,3 +519,7 @@ version: 0.1.0
 ## Deviations
 
 If you must deviate from any guideline, **include a code comment** explaining why. Consistency, safety, and clarity are the priorities in this project.
+
+## Reporting
+
+When reporting information to the user, be extremely concise. Sacrifice grammar for the sake of concision.
