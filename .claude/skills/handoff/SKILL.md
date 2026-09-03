@@ -2,9 +2,10 @@
 name: handoff
 description: >
   Use when the user asks to "hand off", "create a handoff", "start a new agent session",
-  "spin up a driver session", "compact this session for another agent", or invokes `/handoff`.
-  Compacts the current conversation into a self-contained prompt that a fresh agent session can act
-  on without this session's context.
+  "spin up a driver session", "compact this session for another agent", "leave a state-of-play
+  note", or invokes `/handoff`. Compacts the current conversation into a self-contained handoff:
+  a prompt for a fresh agent session, or a state-of-play note on the In Progress Linear ticket for
+  a human takeover.
 version: 0.1.0
 argument-hint: "[what the next session will do]"
 allowed-tools: [Read, Write, Bash, AskUserQuestion]
@@ -18,27 +19,37 @@ Compact the current conversation into a **standalone session prompt**. A fresh a
 only that prompt, so it must carry every fact the successor needs. The successor has none of this
 session's context.
 
-The document then starts a worker session that drives a PR, runs a long build, or handles a
-parallel task. The caller feeds the document to a session-spawning tool, or the user pastes it into
-a new session. This skill writes the document and stops. It does not spawn the session itself.
+The same compacted content serves two destinations: a fresh agent session, or a state-of-play
+comment on the Linear ticket for a human takeover. This skill writes the content and stops. It does
+not spawn a session or take over a ticket itself.
 
 ## When to Use
 
 - The user wants a fresh session to own a bounded task while this session continues or ends.
 - A task is large enough to run on its own (drive a PR to green, run a migration, a long refactor).
+- Work on an In Progress ticket pauses and a person or agent must resume it later.
 - The user says "hand off", "start a new session for this", or invokes `/handoff`.
+
+## Destinations
+
+One compacted handoff, rendered for the reader that receives it:
+
+- **A fresh agent session** — write the content as a second-person prompt to a temporary file. The
+  caller feeds it to a session-spawning tool, or the user pastes it into a new session. Ephemeral.
+- **A Linear ticket** — post the content as a state-of-play comment on the In Progress ticket, in
+  third-person status voice, so a person can take over. Persistent. Delegate the comment shape to
+  the `linear` skill. Do not copy its template here.
+
+Produce either, or both, from the same content. If the destination is unclear, ask the user.
 
 ## When Not to Use
 
-- To leave a resumable note on an **In Progress Linear ticket** — use the `linear` skill's
-  state-of-play comment instead. That note persists on the ticket. A handoff prompt is ephemeral
-  and feeds a new agent session.
 - To write project documentation — use the `documentation` skill.
 
 ## The Handoff Document
 
-The output is one Markdown document. It is a prompt for a fresh session, so write it in the second
-person and make it self-contained. Use this template:
+The output is one self-contained Markdown document. Write it in the second person for an agent
+session, or in third-person status voice for a Linear comment. Use this template:
 
 ```markdown
 # Mission
@@ -97,22 +108,26 @@ apply, and any "never" from this session. State each as `must` or `never`.>
    by path or URL. Do not paste file contents the successor can read itself.
 3. **Redact secrets.** Remove API keys, tokens, passwords, and personal data. Reference the
    secret's location instead, never its value.
-4. **Write the document** to a temporary directory outside the repository, as
-   `handoff-<short-slug>.md`. Do not commit it. It is ephemeral context, not repository content.
-5. **Stop at the document, then offer the two paths.** This skill produces the handoff document.
-   Spawning is the caller's step, not the skill's:
-   - **Spawn a session** — the caller feeds the document to a session-spawning tool as the initial
-     prompt, if the host has one.
-   - **Hand it over** — give the user the document to paste into a new session themselves.
+4. **Choose the destination** — a fresh agent session, a Linear note, or both (see Destinations).
+5. **Deliver:**
+   - **Agent session** — write the document to a temporary directory outside the repository, as
+     `handoff-<short-slug>.md`. Do not commit it. The caller feeds it to a session-spawning tool, or
+     the user pastes it into a new session.
+   - **Linear note** — post the content as a state-of-play comment on the In Progress ticket through
+     the `linear` skill, in status voice.
+
+   This skill writes the handoff content. It does not spawn a session or take over the ticket
+   itself.
 
 ## Critical Invariants
 
 - **Self-contained.** The successor sees only this prompt. If a fact is not in it, the successor
   does not have it.
 - **Reference, do not duplicate.** Link tickets, PRs, branches, and docs. Never copy their bodies.
-- **Redact before writing.** No secret value reaches the document.
-- **Ephemeral.** Write to a temporary directory, never to the repository. A handoff prompt is not a design
-  doc.
+- **Redact before writing.** No secret value reaches the document. This matters most for the Linear
+  note, which persists and other people read.
+- **Never in the repository.** The agent-session file goes to a temporary directory. The Linear note
+  goes to the ticket. A handoff is not a committed design doc.
 - **Plain English.** The `plain-english` skill applies. State the mission, the state, and the next
   steps as facts and instructions.
 
