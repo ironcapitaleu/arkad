@@ -23,7 +23,7 @@ The epic is a **Linear Project**. This skill works at the project level, not the
 keeps the planning state in Linear and the deliverable artifacts in the repository.
 
 Every project description, ticket, ledger entry, and design doc this skill writes is English text.
-The `plain-english` skill applies to all of it.
+The `plain-english` skill applies to all of this text.
 
 ## The Split: Linear Plans, the Repo Holds Artifacts
 
@@ -123,18 +123,18 @@ Use this mode to scaffold a new epic, or to expand a bare project.
 Use this mode to develop the epic as work proceeds.
 
 1. **Load the Project** — its description, milestones, issues, fog log, and ledger.
-2. **Take one frontier ticket** — the open, unblocked, unassigned issues are takeable. Claim it by
-   assigning it to yourself, then work it.
-3. **When a decision resolves:** record its artifact — a design decision as a mermaid design doc or
-   an ADR committed to the repo, a research finding as a repo doc or a Linear document. Add a
-   one-line entry to the decisions ledger linking the artifact and the ticket, remove the matching
-   item from the fog log, and check its Definition-of-Done item or milestone.
+2. **Take one frontier ticket.** The open, unblocked, and unassigned issues are takeable. Claim it
+   by assigning it to yourself, then work it.
+3. **When a decision resolves:** record its artifact. A design decision becomes a mermaid design
+   doc or an ADR committed to the repo. A research finding becomes a repo doc or a Linear document.
+   Then add a one-line entry to the decisions ledger, linking the artifact and the ticket. Remove
+   the matching item from the fog log. Check its Definition-of-Done item or milestone.
 4. **When fog sharpens:** create the SPIKE or DESIGN ticket, and wire its blocking edge.
-5. **Keep the plan honest** — prune the fog log, keep the ledger current, and keep each milestone's
+5. **Keep the plan honest.** Prune the fog log. Keep the ledger current. Keep each milestone's
    progress true.
 
 Resolve one decision per session, then re-examine the fog. A decision can reshape it. Research
-tickets are the exception — they can run in parallel.
+tickets are the exception. They can run in parallel.
 
 ## Critical Invariants
 
@@ -156,7 +156,7 @@ tickets are the exception — they can run in parallel.
 
 ## Authoritative Sources
 
-- `plain-english` skill — the wording of every description, ticket, and ledger entry this skill writes.
+- `plain-english` skill — the wording of every description, ticket, ledger entry, and design doc this skill writes.
 - `linear` skill — ticket templates, labels, and the Ticket Sizing rule.
 - `AGENTS.md` and `DOCUMENTATION.md` — the conventions for in-repo design docs and diagrams.
 - The `SEC ETL Pipeline - Extract SuperState` project — the reference epic to model.
