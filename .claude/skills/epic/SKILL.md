@@ -186,8 +186,8 @@ Use this mode to advance an existing epic as work proceeds.
 4. **When fog sharpens:** create the SPIKE or DESIGN ticket. Wire its blocking edge.
 5. **When a milestone is next:** break it into its build tickets (FEATURE or IMPLEMENTATION). Wire
    their blocking edges.
-6. **Keep the plan honest.** Prune the fog log. Keep the ledger current. Keep each milestone's
-   progress true.
+6. **Update the plan.** Remove resolved items from the fog log. Add new decisions to the ledger.
+   Set each milestone's progress to match the work done.
 
 Resolve one decision per session. Re-examine the fog afterward. A decision can reshape it. Research
 tickets are the exception. They can run in parallel.
