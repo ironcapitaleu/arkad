@@ -18,9 +18,9 @@ Compact the current conversation into a **standalone session prompt**. A fresh a
 only that prompt, so it must carry every fact the successor needs. The successor has none of this
 session's context.
 
-Use this to spawn a worker session through the host's session-spawning tool. The worker can drive a
-PR, run a long build, or handle a parallel task. Pass the document as its prompt. Or give the user
-the document to paste into a new session.
+The document then starts a worker session that drives a PR, runs a long build, or handles a
+parallel task. The caller feeds the document to a session-spawning tool, or the user pastes it into
+a new session. This skill writes the document and stops. It does not spawn the session itself.
 
 This skill is agent-agnostic. The guidance names no specific agent or host tool. Only the file
 format and location follow the host's skill convention.
@@ -102,9 +102,10 @@ apply, and any "never" from this session. State each as `must` or `never`.>
    secret's location instead, never its value.
 4. **Write the document** to a temporary directory outside the repository, as
    `handoff-<short-slug>.md`. Do not commit it. It is ephemeral context, not repository content.
-5. **Offer the two paths** with the finished document:
-   - **Spawn a session** — use the host's session-spawning tool with the repository as the source
-     and the document as the initial prompt.
+5. **Stop at the document, then offer the two paths.** This skill produces the handoff document.
+   Spawning is the caller's step, not the skill's:
+   - **Spawn a session** — the caller feeds the document to a session-spawning tool as the initial
+     prompt, if the host has one.
    - **Hand it over** — give the user the document to paste into a new session themselves.
 
 ## Critical Invariants
