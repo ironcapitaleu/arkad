@@ -123,6 +123,21 @@ sub-states it needs. Each sub-state is its own artifact, and each becomes its ow
 Propose a first list per category. The user confirms or corrects it. An undecided artifact stays as
 fog. A decided artifact becomes a ticket and a Definition-of-Done item.
 
+## Milestones Follow the Artifacts
+
+Milestones sequence the artifacts toward the destination. Once the artifact list is shared, propose
+milestones as an ordered grouping of those artifacts. Anchor the final set to the destination.
+
+For a SuperState, the milestones follow the sub-states in order:
+
+- The first sub-state is defined.
+- The second sub-state, and the transition from the first to the second.
+- The third sub-state, and the transition from the second to the third.
+- The design document is finalized.
+
+Each milestone is a coherent increment the epic can reach and show. Propose the milestones. The user
+confirms or corrects them.
+
 ## Mode: Define
 
 Use this mode to scaffold a new epic, or to expand a bare project.
@@ -135,8 +150,9 @@ Use this mode to scaffold a new epic, or to expand a bare project.
    `state-design` skill. For the domain model, use the `domain-concept` skill.
 3. **Write the Project.** Create or update the Linear Project with the description template above
    (`mcp__Linear__save_project`). State the destination in the User Story and the Description.
-4. **Create milestones** from the Definition-of-Done top-level items
-   (`mcp__Linear__save_milestone`), each with a target date.
+4. **Create milestones** from the artifacts, sequenced toward the destination (see "Milestones
+   Follow the Artifacts"). Each milestone is one Definition-of-Done top-level item. Give each a
+   target date (`mcp__Linear__save_milestone`).
 5. **Seed the decisions ledger** with decisions already made. Each entry links its in-repo artifact
    and the ticket that resolved it.
 6. **Seed the fog log** from the artifact categories. Apply the fog-versus-ticket test: create a
