@@ -106,7 +106,7 @@ next. Chart the fog breadth-first: surface the whole frontier before you study o
 ## Charting the Fog by Artifact
 
 Chart the fog by the artifacts the epic must produce. After the destination, ask one question:
-what artifacts do we build toward? Propose a first list, then refine it with the user.
+what artifacts do we build toward? Propose a first list. Refine it with the user.
 
 Chart the fog in these categories:
 
@@ -175,7 +175,7 @@ Use this mode to develop the epic as work proceeds.
 5. **Keep the plan honest.** Prune the fog log. Keep the ledger current. Keep each milestone's
    progress true.
 
-Resolve one decision per session, then re-examine the fog. A decision can reshape it. Research
+Resolve one decision per session. Re-examine the fog afterward. A decision can reshape it. Research
 tickets are the exception. They can run in parallel.
 
 ## Critical Invariants
@@ -190,7 +190,7 @@ tickets are the exception. They can run in parallel.
   or IMPLEMENTATION ticket.
 - **Ticket Sizing applies.** Every ticket the epic spawns follows the `linear` skill's Ticket
   Sizing rule — one ticket, one reviewable PR.
-- **One decision per session.** Resolve a single decision, then stop and re-examine the fog.
+- **One decision per session.** Resolve a single decision. Re-examine the fog before the next one.
   Research tickets can run in parallel.
 - **Claim before work.** Assign a ticket to yourself before working it, so two sessions never take
   the same one.
