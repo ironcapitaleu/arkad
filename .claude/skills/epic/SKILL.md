@@ -130,10 +130,10 @@ milestones as an ordered grouping of those artifacts. Anchor the final set to th
 
 For a SuperState, the milestones follow the sub-states in order:
 
-- The first sub-state is defined.
-- The second sub-state, and the transition from the first to the second.
-- The third sub-state, and the transition from the second to the third.
-- The design document is finalized.
+- Define the first sub-state.
+- Define the second sub-state and its transition from the first.
+- Define the third sub-state and its transition from the second.
+- Finalize the design document.
 
 Each milestone is a coherent increment the epic can reach and show. Propose the milestones. The user
 confirms or corrects them.
