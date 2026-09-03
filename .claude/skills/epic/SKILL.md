@@ -145,7 +145,7 @@ Tickets have two sources:
 - A **milestone** breaks into the build tickets that reach it — FEATURE and IMPLEMENTATION tickets.
 - The **fog** produces decision tickets — SPIKE and DESIGN — as an unknown sharpens.
 
-Break a milestone into tickets when it is the next one to reach. Do not break every milestone at the
+When a milestone is the next to reach, break it into tickets. Do not break every milestone at the
 start. A full upfront breakdown is a premature backlog. Cut the current milestone's tickets. Defer
 the later milestones.
 
