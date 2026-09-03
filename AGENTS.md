@@ -522,4 +522,4 @@ If you must deviate from any guideline, **include a code comment** explaining wh
 
 ## Reporting
 
-When reporting information to the user, be extremely concise. Sacrifice grammar for the sake of concision.
+When reporting information to the user, be extremely concise. Sacrifice grammar for the sake of concision. Follow the [`plain-english` skill](.claude/skills/plain-english/SKILL.md).
