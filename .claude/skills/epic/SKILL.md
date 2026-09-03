@@ -96,7 +96,7 @@ next. Chart the fog breadth-first: surface the whole frontier before you study o
 
 ## Mode: Define
 
-Use this mode to scaffold a new epic, or to flesh out a bare project.
+Use this mode to scaffold a new epic, or to expand a bare project.
 
 1. **Gather the destination.** Use `AskUserQuestion` for the goal, the scope, and the out-of-scope
    boundary. For requirements, use the `state-design` skill. For the domain model, use the
