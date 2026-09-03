@@ -17,6 +17,9 @@ allowed-tools: [Read, Write, Edit, Bash, AskUserQuestion, mcp__linear__create_is
 Create, read, update, and search Linear issues for the State-machine team. All issues follow
 a consistent template structure with typed labels, user stories, and definition-of-done checklists.
 
+All ticket text this skill writes — titles, user stories, and Definition of Done items — follows
+the `plain-english` skill.
+
 ## Team & Workspace
 
 - **Team:** State-machine

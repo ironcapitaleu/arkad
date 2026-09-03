@@ -198,6 +198,10 @@ A sentence must give the reader an instruction, a fact, a number, or a mechanism
 the database close at hand" names a feeling. "`SecClient::fetch` returns the parsed filing or a
 `SecClientError`" names a mechanism.
 
+An evaluative adjective is not an instruction. "Keep the plan honest", "keep the backlog healthy",
+and "keep progress true" name a state to feel good about, not an action to take. Name the action:
+"Remove resolved items from the fog log", "Set each milestone's progress to the work done".
+
 Two checks:
 
 - Can you restate the sentence as a concrete instruction, fact, or number? If not, cut it.
