@@ -19,8 +19,9 @@ Compact the current conversation into a **standalone session prompt**. A fresh C
 reads only that prompt, so it must carry every fact the successor needs. The successor has none of
 this session's context.
 
-Use this to spawn a worker session (a PR driver, a long build, a parallel task) through the Claude
-Code Remote `create_session` tool, or to hand the user a prompt they paste into a new session.
+Use this to spawn a worker session through the Claude Code Remote `create_session` tool. The worker
+can drive a PR, run a long build, or handle a parallel task. Pass the document as its prompt. Or
+give the user the document to paste into a new session.
 
 ## When to Use
 
@@ -91,8 +92,8 @@ apply, and any "never" from this session. State each as `must` or `never`.>
 
 ## Procedure
 
-1. **Read the argument.** If the user gave no focus, ask once with `AskUserQuestion`: what will the
-   next session do, and does it end at a branch, a merged PR, or a report?
+1. **Read the argument.** If the user gave no focus, ask once with `AskUserQuestion`. Ask what the
+   next session will do. Ask whether it ends at a branch, a merged PR, or a report.
 2. **Compile the document** from the conversation, following the template. Reference every artifact
    by path or URL. Do not paste file contents the successor can read itself.
 3. **Redact secrets.** Remove API keys, tokens, passwords, and personal data. Reference the
@@ -115,6 +116,10 @@ apply, and any "never" from this session. State each as `must` or `never`.>
 - **Plain English.** The `plain-english` skill applies. State the mission, the state, and the next
   steps as facts and instructions.
 
+## Authoritative Sources
+
+No external sources. This skill encodes internal procedure only.
+
 ## Self-Improvement
 
 After a handoff where the successor missed context or the user corrected the shape:
@@ -123,4 +128,4 @@ After a handoff where the successor missed context or the user corrected the sha
 2. Add the confirmed pattern to the template or the procedure.
 
 Common additions: a template section the successor needed, a guardrail that was easy to miss, a
-skill that should be suggested for a class of task.
+skill the successor must load for a class of task.
