@@ -134,17 +134,17 @@ After requesting the re-review, wait for it by the means the environment allows:
 
 Then:
 
-1. If new findings exist, go back to Step 2.
+1. If new findings exist, return to Step 2.
 2. If a review returns nothing new, or only approvals, notify the human: "The review is clean, the
    PR is ready to merge."
 
 If the session is interrupted, re-invoke `/pr-iterate` to resume. The skill fetches the latest
-findings and continues from there.
+findings and continues.
 
 ### Exit Conditions
 
 Stop iterating when:
-- The review comes back clean (no new comments)
+- The review returns clean (no new comments)
 - All remaining comments are ambiguous/human-decision items (escalated)
 - The human says to stop
 - 3 iterations have passed without convergence (flag to human)
