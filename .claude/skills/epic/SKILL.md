@@ -50,6 +50,10 @@ As a …, I want …, so that … .
 
 The goal of this epic, in a few sentences.
 
+## Notes
+
+Domain context and standing preferences that steer decisions.
+
 ## Definition of Done
 
 - [ ] <top-level outcome — one per milestone>
@@ -68,6 +72,10 @@ The goal of this epic, in a few sentences.
 ## Related Artifacts
 
 - <in-repo design docs, diagrams, ADRs, by path>
+
+## Out of Scope
+
+- <work ruled beyond the destination>
 ```
 
 - **Milestones**: one per Definition-of-Done top-level item, each with a target date.
@@ -84,7 +92,7 @@ ticket for it and wire its blocking edge. If it is too dim to phrase precisely, 
 log until it sharpens.
 
 The **frontier** is the set of open, unblocked, unassigned issues. It shows what a session can take
-next.
+next. Chart the fog breadth-first: surface the whole frontier before you study one thread in depth.
 
 ## Mode: Define
 
@@ -109,7 +117,8 @@ Use this mode to scaffold a new epic, or to flesh out a bare project.
 Use this mode to develop the epic as work proceeds.
 
 1. **Load the Project** — its description, milestones, issues, fog log, and ledger.
-2. **Read the frontier** — the open, unblocked, unassigned issues. These are takeable next.
+2. **Take one frontier ticket** — the open, unblocked, unassigned issues are takeable. Claim it by
+   assigning it to yourself, then work it.
 3. **When a decision resolves:** record its artifact — a design decision as a mermaid design doc or
    an ADR committed to the repo, a research finding as a repo doc or a Linear document. Add a
    one-line entry to the decisions ledger linking the artifact and the ticket, remove the matching
@@ -117,6 +126,9 @@ Use this mode to develop the epic as work proceeds.
 4. **When fog sharpens:** create the SPIKE or DESIGN ticket, and wire its blocking edge.
 5. **Keep the plan honest** — prune the fog log, keep the ledger current, and keep each milestone's
    progress true.
+
+Resolve one decision per session, then re-examine the fog. A decision can reshape it. Research
+tickets are the exception — they can run in parallel.
 
 ## Critical Invariants
 
@@ -130,6 +142,10 @@ Use this mode to develop the epic as work proceeds.
   or IMPLEMENTATION ticket.
 - **Ticket Sizing applies.** Every ticket the epic spawns follows the `linear` skill's Ticket
   Sizing rule — one ticket, one reviewable PR.
+- **One decision per session.** Resolve a single decision, then stop and re-examine the fog.
+  Research tickets can run in parallel.
+- **Claim before work.** Assign a ticket to yourself before working it, so two sessions never take
+  the same one.
 - **Refer by name.** Name an issue or milestone by its title, not a bare id.
 
 ## Authoritative Sources
