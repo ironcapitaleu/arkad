@@ -5,7 +5,7 @@ description: >
   "address review comments", "drive the PR loop", "implement PR review feedback", or wants
   to enter a tight iterate-on-PR-feedback workflow. It drives the cycle of: request a review on
   the current head → implement valid feedback → request a fresh review → repeat until nothing new
-  → then loop the human in.
+  → then notify the human.
 version: 0.2.0
 argument-hint: "[PR number or URL]"
 allowed-tools: [Read, Write, Edit, Bash, AskUserQuestion, Agent]
@@ -15,12 +15,11 @@ allowed-tools: [Read, Write, Edit, Bash, AskUserQuestion, Agent]
 
 ## Purpose
 
-Drive a tight feedback loop on a PR until a fresh review returns nothing new, then loop the human
-in.
+Drive a tight feedback loop on a PR until a fresh review returns nothing new, then notify the human.
 
 **What "iterate" means.** To iterate on a PR is to request a review on the current head, address
 every new finding, and request another review. Repeat until a review returns nothing new. Only then
-loop the human back in. Escalate an ambiguous finding to the human as it arises. Do not wait on the
+notify the human. Escalate an ambiguous finding to the human as it arises. Do not wait on the
 human to trigger each re-review — a fresh review after every push is part of the loop, not a
 checkpoint.
 
@@ -136,10 +135,10 @@ After requesting the re-review, wait for it by the means the environment allows:
 Then:
 
 1. If new findings exist, go back to Step 2.
-2. If a review returns nothing new, or only approvals, loop the human in: "The review is clean, the
+2. If a review returns nothing new, or only approvals, notify the human: "The review is clean, the
    PR is ready to merge."
 
-If the session is interrupted, re-invoke `/pr-iterate` to pick up. The skill fetches the latest
+If the session is interrupted, re-invoke `/pr-iterate` to resume. The skill fetches the latest
 findings and continues from there.
 
 ### Exit Conditions
