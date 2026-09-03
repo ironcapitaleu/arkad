@@ -66,6 +66,9 @@ Domain context and standing preferences that steer decisions.
 
 ## Open Questions (Fog)
 
+Group the fog by artifact category: design documents, abstractions, implementations, tests,
+dependencies.
+
 - <an unknown not yet sharp enough to ticket>
 - …
 
@@ -100,22 +103,45 @@ log until it sharpens.
 The **frontier** is the set of open, unblocked, unassigned issues. It shows what a session can take
 next. Chart the fog breadth-first: surface the whole frontier before you study one thread in depth.
 
+## Charting the Fog by Artifact
+
+Chart the fog by the artifacts the epic must produce. After the destination, ask one question:
+what artifacts do we build toward? Propose a first list, then refine it with the user.
+
+Chart the fog in these categories:
+
+- **Design documents** — the design docs, diagrams, and ADRs that describe the code.
+- **Abstractions** — the traits, types, and interfaces the code needs.
+- **Implementations** — the concrete implementations, adapters, and states that satisfy the
+  abstractions.
+- **Tests** — the unit tests, integration tests, and fixtures.
+- **Dependencies** — the crates and external services the epic adds.
+
+Structure-specific artifacts refine these categories. For a SuperState, the first question is which
+sub-states it needs. Each sub-state is its own artifact, and each becomes its own ticket.
+
+Propose a first list per category. The user confirms or corrects it. An undecided artifact stays as
+fog. A decided artifact becomes a ticket and a Definition-of-Done item.
+
 ## Mode: Define
 
 Use this mode to scaffold a new epic, or to expand a bare project.
 
 1. **Gather the destination.** Use `AskUserQuestion` for the goal, the scope, and the out-of-scope
-   boundary. For requirements, use the `state-design` skill. For the domain model, use the
-   `domain-concept` skill.
-2. **Write the Project.** Create or update the Linear Project with the description template above
+   boundary.
+2. **Chart the artifact fog.** Propose the artifacts the epic must produce, by category (design
+   documents, abstractions, implementations, tests, dependencies). Grill the user until the list is
+   shared. For a SuperState, ask which sub-states it needs first. For requirements, use the
+   `state-design` skill. For the domain model, use the `domain-concept` skill.
+3. **Write the Project.** Create or update the Linear Project with the description template above
    (`mcp__Linear__save_project`). State the destination in the User Story and the Description.
-3. **Create milestones** from the Definition-of-Done top-level items
+4. **Create milestones** from the Definition-of-Done top-level items
    (`mcp__Linear__save_milestone`), each with a target date.
-4. **Seed the decisions ledger** with decisions already made. Each entry links its in-repo artifact
+5. **Seed the decisions ledger** with decisions already made. Each entry links its in-repo artifact
    and the ticket that resolved it.
-5. **Seed the fog log** with the known unknowns. Apply the fog-versus-ticket test: create a SPIKE or
-   DESIGN ticket for each sharp question now, and wire its blocking edge.
-6. **Create the first design doc** in the repo, under the owning crate's `design/` directory, with a
+6. **Seed the fog log** from the artifact categories. Apply the fog-versus-ticket test: create a
+   SPIKE or DESIGN ticket for each sharp question now, and wire its blocking edge.
+7. **Create the first design doc** in the repo, under the owning crate's `design/` directory, with a
    mermaid diagram. Link it under Related Artifacts.
 
 ## Mode: Refine
@@ -123,8 +149,8 @@ Use this mode to scaffold a new epic, or to expand a bare project.
 Use this mode to develop the epic as work proceeds.
 
 1. **Load the Project** — its description, milestones, issues, fog log, and ledger.
-2. **Take one frontier ticket.** The open, unblocked, and unassigned issues are takeable. Claim it
-   by assigning it to yourself, then work it.
+2. **Take one frontier ticket.** The open, unblocked, and unassigned issues are takeable. Assign it
+   to yourself. Then work it.
 3. **When a decision resolves:** record its artifact. A design decision becomes a mermaid design
    doc or an ADR committed to the repo. A research finding becomes a repo doc or a Linear document.
    Then add a one-line entry to the decisions ledger, linking the artifact and the ticket. Remove
