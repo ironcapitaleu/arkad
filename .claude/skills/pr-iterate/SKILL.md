@@ -27,7 +27,7 @@ The auto-review runs only on PR open, so a new push is not reviewed on its own. 
 request a fresh review with an `@claude review` comment.
 
 **Two environments.** In a local interactive session (terminal / IDE), use the `gh` CLI, and
-`gh run watch` to wait for the review. In a remote session (Claude Code Remote) subscribed to the
+`gh run watch` to wait for the review. In a remote session (for example, Claude Code Remote) subscribed to the
 PR, use the GitHub MCP tools (`mcp__github__*`) instead of `gh`. Do not poll with `sleep`. Request
 the review, end the turn, and let the re-review arrive as a PR-activity wake event.
 
@@ -167,7 +167,7 @@ human-escalated items.
 
 - **Never force-push** during iteration
 - **Never resolve a comment without implementing it** (or explicitly explaining why it was skipped)
-- **Max 3 autonomous iterations** before checking in with the human
+- **Max 3 autonomous iterations** before consulting the human
 - **Never change the PR scope** — if feedback suggests new features or large refactors, flag
   to the human as a potential follow-up ticket
 - **Follow AGENTS.md** — all code changes must follow the project's development guidelines
@@ -179,7 +179,7 @@ The skill works alongside the `claude.yaml` workflow:
 - The workflow's `claude-auto-review` job does the initial review on PR open (triggered by `pull_request: opened`)
 - The `claude` job handles `@claude` comments (triggered by `issue_comment: created`)
 - When this skill posts `@claude review the latest changes`, it triggers the `claude` job (not `claude-auto-review`)
-- You can invoke this skill at any point to catch up on unaddressed feedback
+- You can invoke this skill at any point to address unaddressed feedback
 
 ## Example Invocation
 
