@@ -7,7 +7,7 @@ description: >
   on without this session's context.
 version: 0.1.0
 argument-hint: "[what the next session will do]"
-allowed-tools: [Read, Write, Bash]
+allowed-tools: [Read, Write, Bash, AskUserQuestion]
 ---
 
 # Handoff Skill
