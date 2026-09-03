@@ -168,7 +168,7 @@ artifacts, the milestones, and the first frontier of tickets.
 5. **Seed the decisions ledger** with decisions already made. Each entry links its in-repo artifact
    and the ticket that resolved it.
 6. **Seed the fog log** from the artifact categories. Apply the fog-versus-ticket test: create a
-   SPIKE or DESIGN ticket for each sharp question now, and wire its blocking edge.
+   SPIKE or DESIGN ticket for each sharp question now. Wire its blocking edge.
 7. **Create the first design doc** in the repo, under the owning crate's `design/` directory, with a
    mermaid diagram. Link it under Related Artifacts.
 
@@ -183,9 +183,9 @@ Use this mode to advance an existing epic as work proceeds.
    doc or an ADR committed to the repo. A research finding becomes a repo doc or a Linear document.
    Then add a one-line entry to the decisions ledger, linking the artifact and the ticket. Remove
    the matching item from the fog log. Check its Definition-of-Done item or milestone.
-4. **When fog sharpens:** create the SPIKE or DESIGN ticket, and wire its blocking edge.
-5. **When a milestone is next:** break it into its build tickets (FEATURE or IMPLEMENTATION), and
-   wire their blocking edges.
+4. **When fog sharpens:** create the SPIKE or DESIGN ticket. Wire its blocking edge.
+5. **When a milestone is next:** break it into its build tickets (FEATURE or IMPLEMENTATION). Wire
+   their blocking edges.
 6. **Keep the plan honest.** Prune the fog log. Keep the ledger current. Keep each milestone's
    progress true.
 
