@@ -58,7 +58,7 @@ write is unrepresentable. A backend adapter implements both traits, and the blan
 
 **Pros:**
 
-- Access is the trait bound. The read-only caller literally has no write method.
+- Access is the trait bound. The read-only caller has no write method.
 - Object-safe. `Box<dyn ReadRepository>` and `Arc<dyn WriteRepository>` both work with
   `async_trait`, so `dyn` dependency injection keeps working as it does today.
 - Minimal. The current `Repository` becomes `WriteRepository` with a rename. The read side is a new
@@ -100,13 +100,13 @@ same way `.producer()` and `.consumer()` choose the channel type.
 
 **Pros:**
 
-- One named handle carries its capability. This reads well when a builder constructs the port.
+- One named handle carries its capability, which suits construction by a builder.
 - The `ReadWrite` marker can expose both method sets through one more `impl` block.
 
 **Cons:**
 
 - Not object-safe in the useful direction. `dyn` erases the marker, so `Box<dyn ...>` cannot carry
-  the capability. The current DI passes trait objects, so this approach fights the existing wiring.
+  the capability. The current DI passes trait objects, so this approach works against that wiring.
 - The capability is a concrete-type parameter, not a trait bound. A generic consumer that wants
   "anything readable" still needs a trait, so Approach B tends to grow an Approach-A trait anyway.
 - Heavier. Every method sits behind a marker-bounded `impl` block.
@@ -173,7 +173,7 @@ keeps a consumer test pinned to the one trait it depends on.
 - A component that both reads and writes takes two bounds (`R: ReadRepository + WriteRepository`)
   or the `ReadWriteRepository` alias. This is the correct cost, because the type now states the
   component needs both.
-- Capability at the type level guards the API surface, not the database grants. A `ReadRepository`
+- Capability at the type level guards the read and write API, not the database grants. A `ReadRepository`
   adapter must still connect with least-privilege credentials, because the type system cannot
   enforce the backend's own permissions.
 - Transactions and multi-record units are out of scope for this SPIKE. The split does not model
@@ -191,8 +191,8 @@ Use **Approach A (capability traits)** for the ports:
 5. Split the fakes by capability.
 
 Reserve **Approach B (type-state marker)** for a later builder that constructs a concrete handle,
-if one is wanted — the same role `ChannelBuilder` plays for the queue. The ports themselves stay
-trait-based, because the DI passes trait objects and Approach A stays object-safe.
+if a builder is wanted. This is the same role `ChannelBuilder` plays for the queue. The ports
+themselves stay trait-based, because the DI passes trait objects and Approach A stays object-safe.
 
 ## Next Steps
 
