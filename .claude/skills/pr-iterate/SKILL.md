@@ -3,9 +3,10 @@ name: pr-iterate
 description: >
   This skill should be used when the user asks to "iterate on the PR", "handle PR feedback",
   "address review comments", "drive the PR loop", "implement PR review feedback", or wants
-  to enter a tight iterate-on-PR-feedback workflow. It drives the cycle of: read review
-  comments → implement valid feedback → inform the human → request re-review → repeat.
-version: 0.1.0
+  to enter a tight iterate-on-PR-feedback workflow. It drives the cycle of: request a review on
+  the current head → implement valid feedback → request a fresh review → repeat until nothing new
+  → then loop the human in.
+version: 0.2.0
 argument-hint: "[PR number or URL]"
 allowed-tools: [Read, Write, Edit, Bash, AskUserQuestion, Agent]
 ---
@@ -14,13 +15,22 @@ allowed-tools: [Read, Write, Edit, Bash, AskUserQuestion, Agent]
 
 ## Purpose
 
-Drive a tight feedback loop on a PR: read review comments, implement clearly valid feedback,
-inform the human about changes made and ambiguous feedback, request a re-review, and repeat
-until the PR is clean.
+Drive a tight feedback loop on a PR until a fresh review returns nothing new, then loop the human
+in.
 
-**Note:** This skill is designed for local interactive agent sessions (terminal / IDE),
-not for GitHub Actions. Tools like `AskUserQuestion` and `gh run watch` rely on an interactive
-environment.
+**What "iterate" means.** To iterate on a PR is to request a review on the current head, address
+every new finding, and request another review. Repeat until a review returns nothing new. Only then
+loop the human back in. Escalate an ambiguous finding to the human as it arises. Do not wait on the
+human to trigger each re-review — a fresh review after every push is part of the loop, not a
+checkpoint.
+
+The auto-review runs only on PR open, so a new push is not reviewed on its own. Each round must
+request a fresh review with an `@claude review` comment.
+
+**Two environments.** In a local interactive session (terminal / IDE), use the `gh` CLI, and
+`gh run watch` to wait for the review. In a remote session (Claude Code Remote) subscribed to the
+PR, use the GitHub MCP tools (`mcp__github__*`) instead of `gh`. Do not poll with `sleep`. Request
+the review, end the turn, and let the re-review arrive as a PR-activity wake event.
 
 ## Philosophy
 
@@ -47,6 +57,10 @@ If no PR number is provided, determine it from:
 gh api repos/{owner}/{repo}/pulls/{pr_number}/comments --paginate
 gh pr view {pr_number} --json reviews,comments
 ```
+
+In a remote session, use `mcp__github__pull_request_read` with methods `get_reviews`,
+`get_comments`, and `get_check_runs` instead of `gh`. Post the `@claude review` comment with
+`mcp__github__add_issue_comment`.
 
 Categorize each comment:
 
@@ -110,17 +124,23 @@ Comment on the PR to trigger a new Claude review:
 gh pr comment {pr_number} --body "@claude review the latest changes — I addressed the previous feedback"
 ```
 
-### Step 7: Wait and Continue (if in local terminal)
+### Step 7: Wait and Continue
 
-After requesting re-review:
-1. Use `gh run watch` (in background) to wait for the review workflow to complete
-2. Once complete, fetch new comments
-3. If new feedback exists, go back to Step 2
-4. If no new feedback or only approvals, report to the human: "PR is clean, ready to merge"
+After requesting the re-review, wait for it by the means the environment allows:
 
-Note: This wait-and-continue loop only works in a local interactive Claude Code session.
-If the session is interrupted, the user can re-invoke `/pr-iterate` to pick up where
-the loop left off — the skill will fetch the latest comments and continue from there.
+- **Local session:** use `gh run watch` in the background until the review workflow completes, then
+  fetch the new findings.
+- **Remote session subscribed to the PR:** end the turn. The re-review arrives as a PR-activity
+  wake event. Do not poll with `sleep`. On the event, fetch the new findings.
+
+Then:
+
+1. If new findings exist, go back to Step 2.
+2. If a review returns nothing new, or only approvals, loop the human in: "The review is clean, the
+   PR is ready to merge."
+
+If the session is interrupted, re-invoke `/pr-iterate` to pick up. The skill fetches the latest
+findings and continues from there.
 
 ### Exit Conditions
 
