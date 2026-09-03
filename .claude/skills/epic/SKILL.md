@@ -1,10 +1,12 @@
 ---
 name: epic
 description: >
-  Use when the user asks to "define an epic", "plan an epic", "start a Linear project",
-  "map out <project>", "refine the epic", "chart the fog for <project>", "update the epic map",
-  or invokes `/epic`. Defines and refines a large build as a Linear Project — destination,
-  milestones, a living fog log, and a decisions ledger that links to in-repo artifacts.
+  Use when the user asks to "define an epic", "plan an epic", "define a Linear project",
+  "refine a Linear project", "start a Linear project", "map out <project>", "refine the epic",
+  "chart the fog for <project>", "update the epic map", or invokes `/epic`. An epic is a Linear
+  Project. This skill works at the project level (the `linear` skill works at the ticket level).
+  It defines and refines the project — destination, milestones, a living fog log, and a decisions
+  ledger that links to in-repo artifacts.
 version: 0.1.0
 argument-hint: "[project name] [define|refine]"
 allowed-tools: [Read, Write, Bash, AskUserQuestion, mcp__Linear__get_project, mcp__Linear__save_project, mcp__Linear__list_milestones, mcp__Linear__save_milestone, mcp__Linear__list_issues, mcp__Linear__save_issue, mcp__Linear__list_documents, mcp__Linear__save_document]
