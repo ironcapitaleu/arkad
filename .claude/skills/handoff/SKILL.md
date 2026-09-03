@@ -3,25 +3,27 @@ name: handoff
 description: >
   Use when the user asks to "hand off", "create a handoff", "start a new agent session",
   "spin up a driver session", "compact this session for another agent", or invokes `/handoff`.
-  Compacts the current conversation into a self-contained prompt that a fresh Claude Code session
-  can act on without this session's context. Adapted to the Claude Code Remote `create_session`
-  flow.
+  Compacts the current conversation into a self-contained prompt that a fresh agent session can act
+  on without this session's context.
 version: 0.1.0
 argument-hint: "[what the next session will do]"
-allowed-tools: [Read, Write, Bash, AskUserQuestion]
+allowed-tools: [Read, Write, Bash]
 ---
 
 # Handoff Skill
 
 ## Purpose
 
-Compact the current conversation into a **standalone session prompt**. A fresh Claude Code session
-reads only that prompt, so it must carry every fact the successor needs. The successor has none of
-this session's context.
+Compact the current conversation into a **standalone session prompt**. A fresh agent session reads
+only that prompt, so it must carry every fact the successor needs. The successor has none of this
+session's context.
 
-Use this to spawn a worker session through the Claude Code Remote `create_session` tool. The worker
-can drive a PR, run a long build, or handle a parallel task. Pass the document as its prompt. Or
-give the user the document to paste into a new session.
+Use this to spawn a worker session through the host's session-spawning tool. The worker can drive a
+PR, run a long build, or handle a parallel task. Pass the document as its prompt. Or give the user
+the document to paste into a new session.
+
+This skill is agent-agnostic. The guidance names no specific agent or host tool. Only the file
+format and location follow the host's skill convention.
 
 ## When to Use
 
@@ -92,17 +94,17 @@ apply, and any "never" from this session. State each as `must` or `never`.>
 
 ## Procedure
 
-1. **Read the argument.** If the user gave no focus, ask once with `AskUserQuestion`. Ask what the
-   next session will do. Ask whether it ends at a branch, a merged PR, or a report.
+1. **Read the argument.** If the user gave no focus, ask the user once. Ask what the next session
+   will do. Ask whether it ends at a branch, a merged PR, or a report.
 2. **Compile the document** from the conversation, following the template. Reference every artifact
    by path or URL. Do not paste file contents the successor can read itself.
 3. **Redact secrets.** Remove API keys, tokens, passwords, and personal data. Reference the
    secret's location instead, never its value.
-4. **Write the document** to the scratchpad directory named in the system prompt, as
+4. **Write the document** to a temporary directory outside the repository, as
    `handoff-<short-slug>.md`. Do not commit it. It is ephemeral context, not repository content.
 5. **Offer the two paths** with the finished document:
-   - **Spawn a session** — call the Claude Code Remote `create_session` tool with the arkad repo as
-     the source and the document as the `prompt`. Load the tool through `ToolSearch` first.
+   - **Spawn a session** — use the host's session-spawning tool with the repository as the source
+     and the document as the initial prompt.
    - **Hand it over** — give the user the document to paste into a new session themselves.
 
 ## Critical Invariants
@@ -111,7 +113,7 @@ apply, and any "never" from this session. State each as `must` or `never`.>
   does not have it.
 - **Reference, do not duplicate.** Link tickets, PRs, branches, and docs. Never copy their bodies.
 - **Redact before writing.** No secret value reaches the document.
-- **Ephemeral.** Write to the scratchpad, never to the repository. A handoff prompt is not a design
+- **Ephemeral.** Write to a temporary directory, never to the repository. A handoff prompt is not a design
   doc.
 - **Plain English.** The `plain-english` skill applies. State the mission, the state, and the next
   steps as facts and instructions.
