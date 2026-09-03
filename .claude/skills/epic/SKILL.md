@@ -22,6 +22,9 @@ defines a new epic and refines it across its life.
 The epic is a **Linear Project**. This skill works at the project level, not the ticket level. It
 keeps the planning state in Linear and the deliverable artifacts in the repository.
 
+Every project description, ticket, ledger entry, and design doc this skill writes is English text.
+The `plain-english` skill applies to all of it.
+
 ## The Split: Linear Plans, the Repo Holds Artifacts
 
 - **Linear (the Project)** holds the plan: the description, the milestones, the fog log, and the
@@ -44,7 +47,9 @@ description has these sections:
 ```markdown
 ## User Story
 
-As a …, I want …, so that … .
+As a …,
+I want …,
+so that … .
 
 ## Description
 
@@ -78,6 +83,7 @@ Domain context and standing preferences that steer decisions.
 - <work ruled beyond the destination>
 ```
 
+- **User Story**: put each clause on its own line — `As a …,` / `I want …,` / `so that … .`
 - **Milestones**: one per Definition-of-Done top-level item, each with a target date.
 - **Issues**: the tickets of the epic, created through the `linear` skill, each carrying its label
   and its `blockedBy` edges.
@@ -150,6 +156,7 @@ tickets are the exception — they can run in parallel.
 
 ## Authoritative Sources
 
+- `plain-english` skill — the wording of every description, ticket, and ledger entry this skill writes.
 - `linear` skill — ticket templates, labels, and the Ticket Sizing rule.
 - `AGENTS.md` and `DOCUMENTATION.md` — the conventions for in-repo design docs and diagrams.
 - The `SEC ETL Pipeline - Extract SuperState` project — the reference epic to model.
