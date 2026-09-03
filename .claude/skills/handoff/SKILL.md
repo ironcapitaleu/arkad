@@ -36,8 +36,8 @@ One compacted handoff, rendered for the reader that receives it:
 
 - **A fresh agent session** — write the content as a second-person prompt to a temporary file. The
   caller feeds it to a session-spawning tool, or the user pastes it into a new session. Ephemeral.
-- **A Linear ticket** — post the content as a state-of-play comment on the In Progress ticket, in
-  third-person status voice, so a person can take over. Persistent. Delegate the comment shape to
+- **A Linear ticket** — post the content as a state-of-play comment on the In Progress ticket. Use
+  third-person status voice so a person can take over. Persistent. Delegate the comment shape to
   the `linear` skill. Do not copy its template here.
 
 Produce either, or both, from the same content. If the destination is unclear, ask the user.
