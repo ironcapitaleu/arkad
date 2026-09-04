@@ -24,11 +24,12 @@ jobs:
         with:
           fetch-depth: 1
 
-      - uses: anthropics/claude-code-action@v1.0.210
+      - uses: anthropics/claude-code-action@v1.0.213
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           claude_args: '--model claude-sonnet-4-6'
+          allowed_bots: "claude[bot]"
 
   claude-auto-review:
     if: github.event_name == 'pull_request' && github.actor != 'dependabot[bot]'
@@ -38,11 +39,12 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: anthropics/claude-code-action@v1.0.210
+      - uses: anthropics/claude-code-action@v1.0.213
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           claude_args: '--model claude-sonnet-4-6'
+          allowed_bots: "claude[bot]"
           track_progress: true
           prompt: |
             Review this PR using the project's AGENTS.md "PR Review Guidelines" section.
