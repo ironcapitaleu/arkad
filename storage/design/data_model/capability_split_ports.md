@@ -174,8 +174,8 @@ keeps a consumer test pinned to the one trait it depends on.
   or the `ReadWriteRepository` alias. This is the correct cost, because the type now states the
   component needs both.
 - Capability at the type level guards the read and write API, not the database grants. A `ReadRepository`
-  adapter must still connect with least-privilege credentials, because the type system cannot
-  enforce the backend's own permissions.
+  adapter must still connect with least-privilege credentials. The type system cannot enforce the
+  backend's own permissions.
 - Transactions and multi-record units are out of scope for this SPIKE. The split does not model
   them, and a later ticket must decide where a transaction boundary sits.
 
