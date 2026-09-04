@@ -196,6 +196,6 @@ themselves stay trait-based, because the DI passes trait objects and Approach A 
 
 ## Next Steps
 
-A follow-up FEATURE ticket implements the read side per this recommendation: the `ReadRepository`
-trait, the `ReadError` type and its `ErrorKind` wiring, the read fake, and the full test suite
-(conversions, `Display`, and the capability separation).
+A follow-up FEATURE ticket implements the read side per this recommendation. It covers the
+`ReadRepository` trait, `ReadError` and its `ErrorKind` wiring, the read fake, and the full test
+suite (conversions, `Display`, and the capability separation).
