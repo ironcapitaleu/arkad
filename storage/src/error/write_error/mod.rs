@@ -1,7 +1,6 @@
 //! # Write Error
 //!
-//! Provides [`WriteError`], the error raised when a write to the store cannot be completed — the
-//! write conflicts with existing data, violates an integrity invariant, or fails at the backend.
+//! Provides [`WriteError`], the error raised when the store cannot complete a write.
 //!
 //! ## Usage
 //!
@@ -20,9 +19,9 @@ use super::backend_error::BackendError;
 #[derive(Debug, Error, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 /// Error occurring while writing to the store.
 ///
-/// Distinguishes three ways a write fails: a conflict with existing data, a violated integrity
-/// invariant, and a failure at the backend. A value type — the marker variants flatten their detail
-/// to a `reason` string.
+/// Separates a conflict with existing data, a violated integrity invariant, and a failure at the
+/// storage backend. The conflict and integrity variants flatten their detail into a `reason`
+/// string, so the error stays a plain value.
 pub enum WriteError {
     /// The write conflicts with data already present (unique violation, already-exists).
     #[error("[ConflictingWrite] Write conflicts with existing data, Reason: '{reason}'")]
@@ -187,7 +186,7 @@ mod tests {
         let write_error = WriteError::Backend(backend_error.clone());
 
         let result = BackendError::try_from(write_error)
-            .expect("Given a `WriteError::Backend`, the downcast to `BackendError` should succeed");
+            .expect("Given a `WriteError::Backend`, the downcast to `BackendError` must succeed");
 
         assert_eq!(result, backend_error);
     }
