@@ -135,6 +135,11 @@ For a SuperState, the milestones follow the sub-states in order:
 - Define the third sub-state and its transition from the second.
 - Finalize the design document.
 
+**Sequence an abstraction before its implementation.** When an implementation depends on an
+abstraction, the abstraction settles in an earlier milestone. A trait settles before the concrete
+type that implements it. The ports settle before their backend adapter. This does not override the
+sub-state order above. A sub-state combines its abstraction and its implementation into one unit.
+
 Each milestone is a coherent increment the epic can reach and show. Propose the milestones. The user
 confirms or corrects them.
 
@@ -148,6 +153,28 @@ Tickets have two sources:
 When a milestone is the next to reach, break it into tickets. Do not break every milestone at the
 start. A full upfront breakdown is a premature backlog. Cut the current milestone's tickets. Defer
 the later milestones.
+
+### The Development Cycle
+
+Every unit of work runs the same fixed cycle. Cut its tickets in this order.
+
+1. **Clear the fog.** If the unit is uncertain, cut a SPIKE. After the SPIKE, if the design needs
+   its own step, cut a DESIGN ticket. These produce the findings and the high-level design.
+2. **Settle the abstraction.** If the unit has an abstraction, it is a trait. Cut a ticket to name
+   and implement the trait. Cut a ticket to test it through a fake, injected as a dependency.
+   Refactor the trait until it is stable, because changing it later forces every dependent to change
+   with it.
+3. **Build the implementation.** Cut a ticket for the concrete type behind the trait.
+
+A pure domain concept has no abstraction, so it skips step 2. `Cik` is a value with validation, so
+it is implementation only. `SecClient` is a port, so it runs the full cycle: trait, fake, then the
+real client.
+
+Each step maps to a skill. The `domain-concept` skill builds a trait or a domain type with its
+validation, errors, fake, and tests. It covers step 2 and the pure domain concept. A sub-state runs
+through the `state-design`, `state-scaffold`, and `state-implementation` skills. A transition runs
+through the `transition-design` and `transition-implementation` skills. The abstraction and its fake
+settle before the implementation, the same order the milestones follow.
 
 ## Mode: Define
 
