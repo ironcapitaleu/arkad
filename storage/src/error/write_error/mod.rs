@@ -19,9 +19,8 @@ use super::backend_error::BackendError;
 #[derive(Debug, Error, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 /// Error occurring while writing to the store.
 ///
-/// Separates a conflict with existing data, a violated integrity invariant, and a failure at the
-/// storage backend. The conflict and integrity variants flatten their detail into a `reason`
-/// string, so the error stays a plain value.
+/// Separates the kinds of write failure so a caller can tell them apart. Detail arrives as a
+/// `reason` string rather than a boxed source, which keeps the error a plain value.
 pub enum WriteError {
     /// The write conflicts with data already present (unique violation, already-exists).
     #[error("[ConflictingWrite] Write conflicts with existing data, Reason: '{reason}'")]
@@ -186,7 +185,7 @@ mod tests {
         let write_error = WriteError::Backend(backend_error.clone());
 
         let result = BackendError::try_from(write_error)
-            .expect("Given a `WriteError::Backend`, the downcast to `BackendError` must succeed");
+            .expect("Given a `WriteError::Backend`, the downcast to `BackendError` should succeed");
 
         assert_eq!(result, backend_error);
     }
@@ -197,7 +196,7 @@ mod tests {
         let expected_result = ErrorKind::DowncastNotPossible;
 
         let result = BackendError::try_from(write_error)
-            .expect_err("A non-backend `WriteError` must not downcast into a `BackendError`");
+            .expect_err("A non-backend `WriteError` should not downcast into a `BackendError`");
 
         assert_eq!(result, expected_result);
     }

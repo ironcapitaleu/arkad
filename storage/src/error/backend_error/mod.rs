@@ -16,9 +16,8 @@ use thiserror::Error;
 #[derive(Debug, Error, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 /// Error occurring at the storage backend.
 ///
-/// Raised when the storage backend cannot serve a request, either because it is unreachable or
-/// because the request failed. Each variant flattens the backend detail into a `reason` string, so
-/// the error stays a plain value.
+/// Raised when the storage backend cannot serve a request. Detail arrives as a `reason` string
+/// rather than a boxed source, which keeps the error a plain value.
 pub enum BackendError {
     /// The backend is temporarily unavailable (connection drop, serialization failure, timeout).
     #[error("[Unavailable] Storage backend is temporarily unavailable, Reason: '{reason}'")]

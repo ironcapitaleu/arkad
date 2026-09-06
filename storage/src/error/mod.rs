@@ -2,8 +2,10 @@
 //!
 //! Provides the error types the `storage` crate returns.
 //!
-//! Every operation has its own error type. A write fails with a [`WriteError`]. [`ErrorKind`] wraps
-//! them, so a caller propagates one type and recovers the specific error with [`TryFrom`].
+//! Errors nest by operation: a [`WriteError`] wraps a backend error, and an [`ErrorKind`] wraps
+//! that. A caller can therefore propagate one type and still recover the specific cause. The
+//! [`TryFrom`] impls extract the inner error, returning [`ErrorKind::DowncastNotPossible`] when
+//! the variant does not match.
 //!
 //! ## Modules
 //!
@@ -30,14 +32,15 @@ pub use write_error::WriteError;
 #[derive(Debug, Error, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 /// The error type the `storage` crate returns.
 ///
-/// Wraps the error of each operation, so a caller propagates one type. [`TryFrom`] extracts the
-/// wrapped [`WriteError`], or the [`BackendError`] inside it.
+/// Wraps the error of each operation, so a caller propagates one type. [`TryFrom`] extracts a
+/// lower-level error from it, and returns [`ErrorKind::DowncastNotPossible`] when the variant does
+/// not match.
 pub enum ErrorKind {
     /// An error originating from a write operation.
     #[error("[Write] Problem occurred during a write operation, Caused by: {0}")]
     Write(#[source] WriteError),
 
-    /// Returned when a [`TryFrom`] downcast cannot extract the requested error type.
+    /// A [`TryFrom`] downcast to a more specific error type did not match the held variant.
     #[error("[DowncastNotPossible] Failed to downcast error into a more specific type")]
     DowncastNotPossible,
 }
@@ -202,7 +205,7 @@ mod tests {
         let error_kind = ErrorKind::Write(write_error.clone());
 
         let result = WriteError::try_from(error_kind)
-            .expect("Given an `ErrorKind::Write`, the downcast to `WriteError` must succeed");
+            .expect("Given an `ErrorKind::Write`, the downcast to `WriteError` should succeed");
 
         assert_eq!(result, write_error);
     }
@@ -213,7 +216,7 @@ mod tests {
         let expected_result = ErrorKind::DowncastNotPossible;
 
         let result = WriteError::try_from(error_kind)
-            .expect_err("A non-write `ErrorKind` must not downcast into a `WriteError`");
+            .expect_err("A non-write `ErrorKind` should not downcast into a `WriteError`");
 
         assert_eq!(result, expected_result);
     }
@@ -224,7 +227,7 @@ mod tests {
         let error_kind = ErrorKind::Write(WriteError::Backend(backend_error.clone()));
 
         let result = BackendError::try_from(error_kind).expect(
-            "Given an `ErrorKind` wrapping a `WriteError::Backend`, the skip-level downcast must succeed",
+            "Given an `ErrorKind` wrapping a `WriteError::Backend`, the skip-level downcast should succeed",
         );
 
         assert_eq!(result, backend_error);
@@ -238,7 +241,7 @@ mod tests {
         let expected_result = ErrorKind::DowncastNotPossible;
 
         let result = BackendError::try_from(error_kind).expect_err(
-            "A non-backend `WriteError` must not skip-level downcast into a `BackendError`",
+            "A non-backend `WriteError` should not skip-level downcast into a `BackendError`",
         );
 
         assert_eq!(result, expected_result);
@@ -250,7 +253,7 @@ mod tests {
 
         let upcast: ErrorKind = write_error.clone().into();
         let result = WriteError::try_from(upcast)
-            .expect("A `WriteError` upcast into `ErrorKind` must downcast back unchanged");
+            .expect("A `WriteError` upcast into `ErrorKind` should downcast back unchanged");
 
         assert_eq!(result, write_error);
     }
