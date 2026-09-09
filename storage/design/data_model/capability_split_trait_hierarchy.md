@@ -86,7 +86,9 @@ pub trait ReadRepository: Send + Sync {
 ### `ReadWriteRepository`
 
 A store that offers both capabilities gets a supertrait plus a blanket impl. The supertrait adds no
-method. It names the pair, so a caller that needs both names one bound.
+method. It is one name for a store that implements both sides, and the blanket impl gives it to every
+such store. A caller pins `Record` on the parent traits, not on the supertrait. See
+[Capability Binding in a `State`](#capability-binding-in-a-state).
 
 ```rust
 pub trait ReadWriteRepository: ReadRepository + WriteRepository {}
@@ -104,13 +106,13 @@ classDiagram
     class WriteRepository {
         <<trait>>
         +type Record
-        +persist(record)
+        +persist(record) Result~WriteError~
     }
     class ReadRepository {
         <<trait>>
         +type Record
         +type Key
-        +get(key)
+        +get(key) Result~ReadError~
     }
     class ReadWriteRepository {
         <<trait>>
@@ -153,7 +155,8 @@ Each capability trait carries its own associated types.
 
 A full store binds `WriteRepository::Record` and `ReadRepository::Record` to the same type, so a
 record it writes reads back as the same type. The traits do not force this. A store can bind the two
-`Record` types apart when the read shape and the write shape differ.
+`Record` types apart when the read shape and the write shape differ. Apart is the atypical case. It
+drops the shared `Record` and names each `Record` on its own trait at every bound.
 
 `ReadWriteRepository` inherits a `Record` from each parent, so a bare `RW::Record` is ambiguous. A
 caller that names the associated type disambiguates it:
@@ -178,10 +181,12 @@ let writer: Box<dyn WriteRepository<Record = FilingRecord>> = /* ... */;
 let reader: Box<dyn ReadRepository<Record = FilingRecord, Key = FilingKey>> = /* ... */;
 ```
 
-`ReadWriteRepository` is object-safe in the same way, but a trait object over both capabilities must
-name the doubled `Record` through its parents, which reads poorly. A caller that needs both
-capabilities binds them by generic bound instead of a trait object. Single-capability trait objects
-stay available for a caller that holds a heterogeneous collection of read handles or write handles.
+`ReadWriteRepository` cannot pin `Record`. Both parents declare `Record`, so
+`ReadWriteRepository<Record = FilingRecord>` is an ambiguous associated type and does not compile. A
+caller that needs both capabilities binds the two parent traits instead, as a generic bound or as two
+single-capability trait objects. The blanket impl still holds, so `RW: ReadWriteRepository` stays a
+valid bound where `Record` is not named. Single-capability trait objects stay available for a caller
+that holds a collection of read handles or write handles.
 
 The split keeps the dispatch options the current port has. A caller injects a concrete store by
 generic bound, or holds a single-capability trait object where erasure helps.
@@ -209,13 +214,12 @@ where
     store: W,
 }
 
-/// A state that reads and writes names one bound.
+/// A state that reads and writes binds the two parent traits.
+/// `RW: ReadWriteRepository` still holds through the blanket impl.
 struct ReconcileFilings<RW>
 where
-    RW: ReadWriteRepository<
-        Record = FilingRecord,
-        Key = FilingKey,
-    >,
+    RW: ReadRepository<Record = FilingRecord, Key = FilingKey>
+        + WriteRepository<Record = FilingRecord>,
 {
     store: RW,
 }
