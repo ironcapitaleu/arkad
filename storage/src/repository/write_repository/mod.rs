@@ -49,7 +49,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_dispatch_persist_through_a_trait_object_when_the_repository_is_boxed() {
+    async fn should_return_ok_when_persisting_through_a_trait_object() {
         let repository: Box<dyn WriteRepository<Record = String>> =
             Box::new(FakeWriteRepository::new());
         let expected_result = Ok(());

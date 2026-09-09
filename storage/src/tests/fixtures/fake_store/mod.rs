@@ -121,14 +121,13 @@ mod tests {
         let store = FakeStore::new();
         let expected_result = Some("CIK0001067983".to_string());
 
-        store
-            .persist("CIK0001067983".to_string())
-            .await
-            .expect("Persisting into the fake store always succeeds");
+        store.persist("CIK0001067983".to_string()).await.expect(
+            "Given a fake store that records every record, the persist should always succeed",
+        );
         let result = store
             .get(0)
             .await
-            .expect("Reading a persisted position from the fake store always succeeds");
+            .expect("Given a record persisted at this position, the read should always succeed");
 
         assert_eq!(result, expected_result);
     }
@@ -141,7 +140,7 @@ mod tests {
         let result = store
             .get(0)
             .await
-            .expect("Reading an empty fake store reports an absent record without failing");
+            .expect("Given an empty fake store, the read should always succeed");
 
         assert_eq!(result, expected_result);
     }

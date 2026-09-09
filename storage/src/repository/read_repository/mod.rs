@@ -8,7 +8,7 @@
 //! use storage::ReadRepository;
 //!
 //! async fn read_through_a_reader<R: ReadRepository>(reader: &R, key: R::Key) -> Option<R::Record> {
-//!     reader.get(key).await.expect("A reader that holds the key returns the record")
+//!     reader.get(key).await.expect("Given a reader that holds the key, the read should always succeed")
 //! }
 //! ```
 //!
@@ -83,7 +83,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_dispatch_get_through_a_trait_object_when_the_repository_is_boxed() {
+    async fn should_return_the_seeded_record_when_reading_through_a_trait_object() {
         let repository: Box<dyn ReadRepository<Record = String, Key = String>> = Box::new(
             FakeReadRepository::seeded(vec![("0000320193".to_string(), "Apple".to_string())]),
         );
@@ -92,7 +92,7 @@ mod tests {
         let result = repository
             .get("0000320193".to_string())
             .await
-            .expect("A seeded fake read repository serves a seeded key without failing");
+            .expect("Given a key the fake was seeded with, the read should always succeed");
 
         assert_eq!(result, expected_result);
     }

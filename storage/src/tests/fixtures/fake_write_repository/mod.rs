@@ -130,7 +130,7 @@ mod tests {
         repository
             .persist(record)
             .await
-            .expect("Persisting into the fake write repository always succeeds");
+            .expect("Given a fake write repository that records every record, the persist should always succeed");
 
         let result = repository.persisted();
 
@@ -142,14 +142,12 @@ mod tests {
         let repository = FakeWriteRepository::new();
         let expected_result = vec!["first".to_string(), "second".to_string()];
 
-        repository
-            .persist("first".to_string())
-            .await
-            .expect("Persisting the first record into the fake write repository always succeeds");
-        repository
-            .persist("second".to_string())
-            .await
-            .expect("Persisting the second record into the fake write repository always succeeds");
+        repository.persist("first".to_string()).await.expect(
+            "Given a fake write repository, persisting the first record should always succeed",
+        );
+        repository.persist("second".to_string()).await.expect(
+            "Given a fake write repository, persisting the second record should always succeed",
+        );
 
         let result = repository.persisted();
 

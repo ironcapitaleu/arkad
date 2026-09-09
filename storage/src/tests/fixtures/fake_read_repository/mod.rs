@@ -132,7 +132,7 @@ mod tests {
         let result = repository
             .get("0000320193".to_string())
             .await
-            .expect("A seeded fake read repository serves a seeded key without failing");
+            .expect("Given a key the fake was seeded with, the read should always succeed");
 
         assert_eq!(result, expected_result);
     }
@@ -146,7 +146,7 @@ mod tests {
         let result = repository
             .get("0001067983".to_string())
             .await
-            .expect("A seeded fake read repository reports an unknown key without failing");
+            .expect("Given a fake that was not seeded to fail, the read should always succeed");
 
         assert_eq!(result, expected_result);
     }
@@ -158,10 +158,9 @@ mod tests {
             FakeReadRepository::failing(error.clone());
         let expected_result = error;
 
-        let result = repository
-            .get("0000320193".to_string())
-            .await
-            .expect_err("A fake read repository seeded to fail never returns a record");
+        let result = repository.get("0000320193".to_string()).await.expect_err(
+            "Given a fake seeded to fail, the read should always return the seeded error",
+        );
 
         assert_eq!(result, expected_result);
     }
