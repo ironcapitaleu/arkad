@@ -1,6 +1,6 @@
-//! # Repository
+//! # Write Repository
 //!
-//! Provides [`Repository`], the trait through which a record is persisted to the store.
+//! Provides [`WriteRepository`], the trait through which a record is persisted to the store.
 
 use async_trait::async_trait;
 
@@ -9,18 +9,18 @@ use crate::error::WriteError;
 /// Persists a record to the store.
 ///
 /// Injected as a concrete type — production wires a real backend, tests wire a fake — so callers
-/// depend on this trait rather than on a database. Each implementor binds [`Repository::Record`]
+/// depend on this trait rather than on a database. Each implementor binds [`WriteRepository::Record`]
 /// to its own write-unit.
 ///
 /// # Associated Types
 ///
-/// - [`Repository::Record`]: the write-unit accepted by [`Repository::persist`].
+/// - [`WriteRepository::Record`]: the write-unit accepted by [`WriteRepository::persist`].
 #[async_trait]
-pub trait Repository: Send + Sync {
-    /// The unit of persistence this repository accepts — one record per [`Repository::persist`]
+pub trait WriteRepository: Send + Sync {
+    /// The unit of persistence this repository accepts — one record per [`WriteRepository::persist`]
     /// call. Implementations bind it to their concrete write-unit (for example, a filing record).
     ///
-    /// Bounded by [`Send`] because [`Repository::persist`] moves it across an `async` boundary.
+    /// Bounded by [`Send`] because [`WriteRepository::persist`] moves it across an `async` boundary.
     type Record: Send;
 
     /// Persists a single record.

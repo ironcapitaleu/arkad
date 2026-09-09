@@ -4,6 +4,7 @@
 //!
 //! ## Modules
 //!
-//! - [`fake_repository`]: A fake [`Repository`](crate::Repository) that records what it persists.
+//! - [`fake_write_repository`]: A fake [`WriteRepository`](crate::WriteRepository) that records
+//!   what it persists.
 
-pub mod fake_repository;
+pub mod fake_write_repository;
