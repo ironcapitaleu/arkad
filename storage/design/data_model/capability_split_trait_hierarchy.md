@@ -223,9 +223,10 @@ generic bound, or holds a single-capability trait object where erasure helps.
 
 ## Capability Binding in a `State`
 
-A `State` holds its store the way a state holds its `SecClient`: a concrete field on the state's
-context, bound to the capability the state needs. The bound is the capability. A read-only state
-names `ReadRepository`, so no write method is in scope.
+The store follows the same split as `SecClient`: a trait for the capability, a backend adapter that
+implements it, and a fake for tests. A `State` carries its store on its context, the way a state
+carries its `SecClient`. The context names the capability the state needs. A read-only state names
+`ReadRepository`, so no write method is in scope.
 
 ```rust
 /// A state that only reads. It has no `persist` in scope.
@@ -259,6 +260,12 @@ Production wires a real backend adapter. Tests wire a fake. The state code is bl
 depends only on the capability trait. A write inside `ScreenFilings` does not compile, because
 `persist` is not in scope for an `R: ReadRepository`. This is the split's benefit: the state's type
 declares which capability it holds.
+
+The guard comes from the capability the field's type carries. It does not come from the field being
+generic. A generic parameter bounded by one capability carries that capability. So does a concrete
+adapter that implements only that capability. Both keep `persist` out of a read-only state. A
+concrete type that implements both capabilities is the one shape that drops the guard. Each state
+settles its own context shape when it is designed.
 
 ## Error Mapping
 
