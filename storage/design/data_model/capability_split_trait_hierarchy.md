@@ -99,6 +99,36 @@ impl<T: ReadRepository + WriteRepository> ReadWriteRepository for T {}
 The blanket impl gives `ReadWriteRepository` to every type that implements both sides. A backend
 adapter implements `ReadRepository` and `WriteRepository`, and gets the supertrait for free.
 
+### Full Store — the `SecClient` Implementor Shape
+
+A store that offers both capabilities follows the `SecClient` implementor shape. `SecClient` binds
+`Request`, `Response`, and `Error` on one concrete type. `execute_sec_request` ties them: it takes a
+`Request` and returns a `Response`. A full store does the same across the two capability traits. One
+concrete type implements both and binds `WriteRepository::Record` and `ReadRepository::Record` to the
+same domain type. `persist` takes that `Record`. `get` returns it. So a write reads back as the same
+type. The blanket impl then gives the type `ReadWriteRepository`.
+
+```rust
+struct FilingStore { /* backend handle */ }
+
+#[async_trait]
+impl WriteRepository for FilingStore {
+    type Record = FilingRecord;
+    async fn persist(&self, record: FilingRecord) -> Result<(), WriteError> { /* ... */ }
+}
+
+#[async_trait]
+impl ReadRepository for FilingStore {
+    type Record = FilingRecord; // the same type as the write side
+    type Key = FilingKey;
+    async fn get(&self, key: FilingKey) -> Result<Option<FilingRecord>, ReadError> { /* ... */ }
+}
+// FilingStore implements ReadWriteRepository through the blanket impl.
+```
+
+The coherence lives on the store, as it does on a `SecClient` implementor. A caller that depends on
+the round-trip restates it at its bound. See [Capability Binding in a `State`](#capability-binding-in-a-state).
+
 ### Trait Hierarchy
 
 ```mermaid
