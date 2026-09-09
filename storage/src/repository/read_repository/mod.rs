@@ -2,8 +2,17 @@
 //!
 //! Provides [`ReadRepository`], the trait through which a record is read from the store by key.
 //!
-//! The trait carries no write method. A caller bound to [`ReadRepository`] has no `persist` in
-//! scope, so a write from a read-only caller does not compile:
+//! A caller bound to [`ReadRepository`] has `get` in scope:
+//!
+//! ```rust
+//! use storage::ReadRepository;
+//!
+//! async fn read_through_a_reader<R: ReadRepository>(reader: &R, key: R::Key) -> Option<R::Record> {
+//!     reader.get(key).await.expect("A reader that holds the key returns the record")
+//! }
+//! ```
+//!
+//! The trait carries no write method, so a write from that same caller does not compile:
 //!
 //! ```compile_fail
 //! use storage::ReadRepository;
@@ -12,6 +21,10 @@
 //!     reader.persist(record).await.expect("A reader has no persist method");
 //! }
 //! ```
+//!
+//! The two examples share an import and a bound. `compile_fail` passes on any compilation error,
+//! so the example above it keeps this pair honest: a broken import fails that example and turns
+//! the build red, rather than passing the guard for the wrong reason.
 
 use async_trait::async_trait;
 
