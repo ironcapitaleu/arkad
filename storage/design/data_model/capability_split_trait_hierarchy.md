@@ -264,7 +264,9 @@ declares which capability it holds.
 The guard comes from the capability the field's type carries. It does not come from the field being
 generic. A generic parameter bounded by one capability carries that capability. So does a concrete
 adapter that implements only that capability. Both keep `persist` out of a read-only state. A
-concrete type that implements both capabilities is the one shape that drops the guard. Each state
+concrete type that implements both capabilities is the one shape that drops the guard. The examples
+above bind the capability generically to show the contract. A context can equally name the concrete
+adapter, the way a state context names its `SecClient`. The guard holds the same way. Each state
 settles its own context shape when it is designed.
 
 ## Error Mapping
