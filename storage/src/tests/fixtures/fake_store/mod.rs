@@ -98,6 +98,12 @@ mod tests {
         implements_sync::<FakeStore<String>>();
     }
 
+    #[test]
+    const fn should_be_thread_safe_when_using_fake_store() {
+        implements_send::<FakeStore<String>>();
+        implements_sync::<FakeStore<String>>();
+    }
+
     const fn implements_sized<T: Sized>() {}
     #[test]
     const fn should_be_able_to_rely_on_being_sized_when_using_fake_store() {
