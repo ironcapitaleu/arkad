@@ -33,3 +33,29 @@ pub trait WriteRepository: Send + Sync {
     /// - [`WriteError::Backend`] — the write failed at the backend level.
     async fn persist(&self, record: Self::Record) -> Result<(), WriteError>;
 }
+
+#[cfg(test)]
+mod tests {
+    use pretty_assertions::assert_eq;
+
+    use super::*;
+    use crate::tests::fixtures::fake_write_repository::FakeWriteRepository;
+
+    const fn implements_write_repository<T: WriteRepository>() {}
+
+    #[test]
+    const fn should_implement_write_repository_when_using_fake_write_repository() {
+        implements_write_repository::<FakeWriteRepository<String>>();
+    }
+
+    #[tokio::test]
+    async fn should_dispatch_persist_through_a_trait_object_when_the_repository_is_boxed() {
+        let repository: Box<dyn WriteRepository<Record = String>> =
+            Box::new(FakeWriteRepository::new());
+        let expected_result = Ok(());
+
+        let result = repository.persist("CIK0001067983".to_string()).await;
+
+        assert_eq!(result, expected_result);
+    }
+}

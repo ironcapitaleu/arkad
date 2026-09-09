@@ -57,6 +57,8 @@ pub trait ReadRepository: Send + Sync {
 
 #[cfg(test)]
 mod tests {
+    use pretty_assertions::assert_eq;
+
     use super::*;
     use crate::tests::fixtures::fake_read_repository::FakeReadRepository;
 
@@ -67,10 +69,18 @@ mod tests {
         implements_read_repository::<FakeReadRepository<String, String>>();
     }
 
-    const fn implements_sized<T: Sized>() {}
+    #[tokio::test]
+    async fn should_dispatch_get_through_a_trait_object_when_the_repository_is_boxed() {
+        let repository: Box<dyn ReadRepository<Record = String, Key = String>> = Box::new(
+            FakeReadRepository::seeded(vec![("0000320193".to_string(), "Apple".to_string())]),
+        );
+        let expected_result = Some("Apple".to_string());
 
-    #[test]
-    const fn should_be_object_safe_when_naming_both_associated_types() {
-        implements_sized::<Box<dyn ReadRepository<Record = String, Key = String>>>();
+        let result = repository
+            .get("0000320193".to_string())
+            .await
+            .expect("A seeded fake read repository serves a seeded key without failing");
+
+        assert_eq!(result, expected_result);
     }
 }
