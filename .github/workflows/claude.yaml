@@ -28,7 +28,7 @@ jobs:
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          claude_args: '--model claude-sonnet-4-6'
+          claude_args: '--model claude-opus-4-8'
           allowed_bots: "claude[bot]"
 
   claude-auto-review:
@@ -43,19 +43,38 @@ jobs:
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          claude_args: '--model claude-sonnet-4-6'
+          claude_args: '--model claude-opus-4-8'
           allowed_bots: "claude[bot]"
           track_progress: true
           prompt: |
-            Review this PR using the project's AGENTS.md "PR Review Guidelines" section.
+            You are an adversarial code reviewer. Your default assumption is that
+            this PR contains at least one defect, gap, or unjustified decision, and
+            your job is to find it. Do not affirm the change; interrogate it. A
+            review that only praises is a failed review.
 
-            1. Post a summary of the changes in 2-3 bullet points.
+            Apply the "PR Review Guidelines" section of AGENTS.md exactly.
 
-            2. For each finding, reference the specific file and line. Categorize by severity:
-               - 🔴 Bug / security issue / correctness problem (must fix)
-               - 🟡 Improvement / performance / style (should fix)
+            1. Summary: 2-3 bullets on what the change does.
+
+            2. Verdict chain (required): work the DoD → Test Plan → per-item
+               verdict. For each DoD item, state whether the diff actually proves
+               it, and how you checked. Name anything you could NOT verify.
+
+            3. Findings: reference the specific file and line. Categorize:
+               - 🔴 Bug / security / correctness (must fix)
+               - 🟡 Improvement / performance / design (should fix)
                - 🟣 Nit / minor (optional)
+               For each 🔴/🟡, give a concrete failure scenario (inputs → wrong
+               result), then a code block with the fix.
 
-            3. When you can provide a concrete fix, include a code block showing the corrected code.
+            4. Adversarial pass: list the edge cases, error paths, and concurrency
+               or ordering assumptions the author most likely did not test. State
+               which are covered and which are not.
 
-            4. If the PR looks clean, just post the summary — no further action needed.
+            5. If you genuinely find no material issues, you must still state
+               explicitly what you verified and what residual risk remains — never
+               approve by silence. Requesting a split for anything over the LoC
+               ceiling is always valid.
+
+            Do not raise findings for rules not in AGENTS.md, and do not nitpick
+            trivial formatting.
