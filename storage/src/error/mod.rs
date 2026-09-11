@@ -2,14 +2,18 @@
 //!
 //! Provides the error types the `storage` crate returns.
 //!
-//! Errors nest by operation: a [`WriteError`] wraps a backend error, and an [`ErrorKind`] wraps
-//! that. A caller can therefore propagate one type and still recover the specific cause. The
-//! [`TryFrom`] impls extract the inner error, returning [`ErrorKind::DowncastNotPossible`] when
-//! the variant does not match.
+//! Errors nest by operation: a [`ReadError`] or a [`WriteError`] wraps a backend error, and an
+//! [`ErrorKind`] wraps that. A caller can therefore propagate one type and still recover the
+//! specific cause. The [`TryFrom`] impls extract the inner error, returning
+//! [`ErrorKind::DowncastNotPossible`] when the variant does not match.
+//!
+//! A [`BackendError`] reaches [`ErrorKind`] through the operation that raised it. The backend error
+//! alone does not say which operation that was, so it has no direct conversion to [`ErrorKind`].
 //!
 //! ## Modules
 //!
 //! - [`backend_error`]: Errors raised by the storage backend.
+//! - [`read_error`]: Errors raised while reading from the store.
 //! - [`write_error`]: Errors raised while writing to the store.
 //!
 //! ## Usage
@@ -23,9 +27,11 @@
 use thiserror::Error;
 
 pub mod backend_error;
+pub mod read_error;
 pub mod write_error;
 
 pub use backend_error::BackendError;
+pub use read_error::ReadError;
 pub use write_error::WriteError;
 
 #[non_exhaustive]
@@ -36,6 +42,10 @@ pub use write_error::WriteError;
 /// lower-level error from it, and returns [`ErrorKind::DowncastNotPossible`] when the variant does
 /// not match.
 pub enum ErrorKind {
+    /// An error originating from a read operation.
+    #[error("[Read] Problem occurred during a read operation, Caused by: {0}")]
+    Read(#[source] ReadError),
+
     /// An error originating from a write operation.
     #[error("[Write] Problem occurred during a write operation, Caused by: {0}")]
     Write(#[source] WriteError),
@@ -45,6 +55,13 @@ pub enum ErrorKind {
     DowncastNotPossible,
 }
 
+impl From<ReadError> for ErrorKind {
+    /// Converts a [`ReadError`] into the [`ErrorKind::Read`] variant.
+    fn from(error: ReadError) -> Self {
+        Self::Read(error)
+    }
+}
+
 impl From<WriteError> for ErrorKind {
     /// Converts a [`WriteError`] into the [`ErrorKind::Write`] variant.
     fn from(error: WriteError) -> Self {
@@ -52,10 +69,19 @@ impl From<WriteError> for ErrorKind {
     }
 }
 
-impl From<BackendError> for ErrorKind {
-    /// Converts a [`BackendError`] into an [`ErrorKind::Write`] wrapping a [`WriteError::Backend`].
-    fn from(error: BackendError) -> Self {
-        Self::Write(WriteError::Backend(error))
+impl TryFrom<ErrorKind> for ReadError {
+    type Error = ErrorKind;
+
+    /// Extracts the [`ReadError`] from an [`ErrorKind::Read`].
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ErrorKind::DowncastNotPossible`] if the value is not an [`ErrorKind::Read`].
+    fn try_from(value: ErrorKind) -> Result<Self, Self::Error> {
+        match value {
+            ErrorKind::Read(read) => Ok(read),
+            _ => Err(ErrorKind::DowncastNotPossible),
+        }
     }
 }
 
@@ -78,15 +104,17 @@ impl TryFrom<ErrorKind> for WriteError {
 impl TryFrom<ErrorKind> for BackendError {
     type Error = ErrorKind;
 
-    /// Extracts the [`BackendError`] from an [`ErrorKind`] wrapping a [`WriteError::Backend`].
+    /// Extracts the [`BackendError`] from an [`ErrorKind`] holding a read or a write that failed at
+    /// the backend.
     ///
     /// # Errors
     ///
-    /// Returns [`ErrorKind::DowncastNotPossible`] if the value is not an [`ErrorKind::Write`]
-    /// wrapping a [`WriteError::Backend`].
+    /// Returns [`ErrorKind::DowncastNotPossible`] if neither the read nor the write branch holds a
+    /// [`BackendError`].
     fn try_from(value: ErrorKind) -> Result<Self, Self::Error> {
         match value {
-            ErrorKind::Write(WriteError::Backend(backend)) => Ok(backend),
+            ErrorKind::Read(ReadError::Backend(backend))
+            | ErrorKind::Write(WriteError::Backend(backend)) => Ok(backend),
             _ => Err(ErrorKind::DowncastNotPossible),
         }
     }
@@ -116,12 +144,6 @@ mod tests {
 
     #[test]
     const fn should_implement_sync_when_using_error_kind() {
-        implements_sync::<ErrorKind>();
-    }
-
-    #[test]
-    const fn should_be_thread_safe_when_using_error_kind() {
-        implements_send::<ErrorKind>();
         implements_sync::<ErrorKind>();
     }
 
@@ -180,6 +202,16 @@ mod tests {
     }
 
     #[test]
+    fn should_wrap_read_error_into_read_variant_when_converting_from_read_error() {
+        let read_error = ReadError::MissingRecord;
+        let expected_result = ErrorKind::Read(read_error.clone());
+
+        let result = ErrorKind::from(read_error);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
     fn should_wrap_write_error_into_write_variant_when_converting_from_write_error() {
         let write_error = WriteError::conflicting_write("duplicate accession");
         let expected_result = ErrorKind::Write(write_error.clone());
@@ -190,11 +222,23 @@ mod tests {
     }
 
     #[test]
-    fn should_wrap_backend_error_into_write_backend_when_converting_from_backend_error() {
-        let backend_error = BackendError::unavailable("timeout");
-        let expected_result = ErrorKind::Write(WriteError::Backend(backend_error.clone()));
+    fn should_downcast_to_read_error_when_error_kind_is_a_read_variant() {
+        let read_error = ReadError::MissingRecord;
+        let error_kind = ErrorKind::Read(read_error.clone());
 
-        let result = ErrorKind::from(backend_error);
+        let result = ReadError::try_from(error_kind)
+            .expect("Given an `ErrorKind::Read`, the downcast to `ReadError` should succeed");
+
+        assert_eq!(result, read_error);
+    }
+
+    #[test]
+    fn should_fail_downcast_to_read_error_when_error_kind_is_not_a_read_variant() {
+        let error_kind = ErrorKind::Write(WriteError::conflicting_write("duplicate accession"));
+        let expected_result = ErrorKind::DowncastNotPossible;
+
+        let result = ReadError::try_from(error_kind)
+            .expect_err("A non-read `ErrorKind` should not downcast into a `ReadError`");
 
         assert_eq!(result, expected_result);
     }
@@ -212,7 +256,7 @@ mod tests {
 
     #[test]
     fn should_fail_downcast_to_write_error_when_error_kind_is_not_a_write_variant() {
-        let error_kind = ErrorKind::DowncastNotPossible;
+        let error_kind = ErrorKind::Read(ReadError::MissingRecord);
         let expected_result = ErrorKind::DowncastNotPossible;
 
         let result = WriteError::try_from(error_kind)
@@ -222,8 +266,20 @@ mod tests {
     }
 
     #[test]
+    fn should_skip_level_downcast_to_backend_error_when_error_kind_wraps_a_backend_read() {
+        let backend_error = BackendError::unreachable_storage("timeout");
+        let error_kind = ErrorKind::Read(ReadError::Backend(backend_error.clone()));
+
+        let result = BackendError::try_from(error_kind).expect(
+            "Given an `ErrorKind` wrapping a `ReadError::Backend`, the skip-level downcast should succeed",
+        );
+
+        assert_eq!(result, backend_error);
+    }
+
+    #[test]
     fn should_skip_level_downcast_to_backend_error_when_error_kind_wraps_a_backend_write() {
-        let backend_error = BackendError::unavailable("timeout");
+        let backend_error = BackendError::unreachable_storage("timeout");
         let error_kind = ErrorKind::Write(WriteError::Backend(backend_error.clone()));
 
         let result = BackendError::try_from(error_kind).expect(
@@ -234,17 +290,28 @@ mod tests {
     }
 
     #[test]
-    fn should_fail_skip_level_downcast_to_backend_error_when_write_is_not_a_backend_variant() {
+    fn should_fail_skip_level_downcast_to_backend_error_when_no_branch_holds_a_backend_error() {
         let error_kind = ErrorKind::Write(WriteError::failed_integrity_check(
             "SFAC-6 identity violated",
         ));
         let expected_result = ErrorKind::DowncastNotPossible;
 
         let result = BackendError::try_from(error_kind).expect_err(
-            "A non-backend `WriteError` should not skip-level downcast into a `BackendError`",
+            "An `ErrorKind` holding no backend error should not skip-level downcast into a `BackendError`",
         );
 
         assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_roundtrip_read_error_when_upcast_then_downcast() {
+        let read_error = ReadError::MissingRecord;
+
+        let upcast: ErrorKind = read_error.clone().into();
+        let result = ReadError::try_from(upcast)
+            .expect("A `ReadError` upcast into `ErrorKind` should downcast back unchanged");
+
+        assert_eq!(result, read_error);
     }
 
     #[test]
@@ -256,6 +323,17 @@ mod tests {
             .expect("A `WriteError` upcast into `ErrorKind` should downcast back unchanged");
 
         assert_eq!(result, write_error);
+    }
+
+    #[test]
+    fn should_chain_read_display_after_caused_by_when_error_kind_wraps_read() {
+        let error_kind = ErrorKind::Read(ReadError::MissingRecord);
+
+        let expected_result = "[Read] Problem occurred during a read operation, Caused by: [MissingRecord] Requested record not found";
+
+        let result = error_kind.to_string();
+
+        assert_eq!(result, expected_result);
     }
 
     #[test]
@@ -277,6 +355,19 @@ mod tests {
             "[DowncastNotPossible] Failed to downcast error into a more specific type";
 
         let result = error_kind.to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_expose_read_error_as_source_when_error_kind_wraps_read() {
+        let read_error = ReadError::MissingRecord;
+        let error_kind = ErrorKind::Read(read_error.clone());
+
+        let expected_result = Some(&read_error);
+
+        let result = std::error::Error::source(&error_kind)
+            .and_then(|source| source.downcast_ref::<ReadError>());
 
         assert_eq!(result, expected_result);
     }
