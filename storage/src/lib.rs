@@ -22,7 +22,7 @@
 pub mod error;
 pub mod repository;
 
-pub use error::{BackendError, ErrorKind, WriteError};
+pub use error::{BackendError, ErrorKind, ReadError, WriteError};
 pub use repository::Repository;
 
 #[cfg(test)]

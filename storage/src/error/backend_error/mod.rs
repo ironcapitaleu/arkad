@@ -1,14 +1,13 @@
 //! # Backend Error
 //!
-//! Provides [`BackendError`], the error raised when the underlying storage backend cannot carry out
-//! an operation — the datastore is unreachable, or the operation failed at the store.
+//! Provides [`BackendError`], the error raised when the storage backend cannot serve a request.
 //!
 //! ## Usage
 //!
 //! ```rust
 //! use storage::BackendError;
 //!
-//! let _err = BackendError::unavailable("connection reset");
+//! let _err = BackendError::unreachable_storage("connection reset");
 //! ```
 
 use thiserror::Error;
@@ -17,37 +16,52 @@ use thiserror::Error;
 #[derive(Debug, Error, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 /// Error occurring at the storage backend.
 ///
-/// Raised when the datastore itself cannot serve a request: it is unreachable, or the operation
-/// failed at the store. A value type — rich backend detail is flattened to a `reason` string.
+/// Raised when the storage backend cannot serve a request. Detail arrives as a `reason` string
+/// rather than a boxed source, which keeps the error a plain value.
 pub enum BackendError {
-    /// The backend is temporarily unavailable (connection drop, serialization failure, timeout).
-    #[error("[Unavailable] Storage backend is temporarily unavailable, Reason: '{reason}'")]
-    Unavailable {
-        /// Human-readable explanation of why the backend is unavailable.
+    /// The backend cannot be reached (connection drop, timeout, host down).
+    #[error("[UnreachableStorage] Storage backend is not reachable, Reason: '{reason}'")]
+    UnreachableStorage {
+        /// Human-readable explanation of why the backend cannot be reached.
         reason: String,
     },
 
-    /// The backend operation failed for a non-transient reason.
-    #[error("[Failed] Storage backend operation failed, Reason: '{reason}'")]
-    Failed {
+    /// The backend rejected or aborted the operation.
+    #[error("[FailedOperation] Storage backend operation failed, Reason: '{reason}'")]
+    FailedOperation {
         /// Human-readable explanation of the failure.
+        reason: String,
+    },
+
+    /// The backend refused the request because the caller lacks permission.
+    #[error("[UnauthorizedAccess] Storage backend denied access, Reason: '{reason}'")]
+    UnauthorizedAccess {
+        /// Human-readable explanation of why access was denied.
         reason: String,
     },
 }
 
 impl BackendError {
-    /// Creates a [`BackendError::Unavailable`] from the given reason.
+    /// Creates a [`BackendError::UnreachableStorage`] from the given reason.
     #[must_use]
-    pub fn unavailable(reason: impl Into<String>) -> Self {
-        Self::Unavailable {
+    pub fn unreachable_storage(reason: impl Into<String>) -> Self {
+        Self::UnreachableStorage {
             reason: reason.into(),
         }
     }
 
-    /// Creates a [`BackendError::Failed`] from the given reason.
+    /// Creates a [`BackendError::FailedOperation`] from the given reason.
     #[must_use]
-    pub fn failed(reason: impl Into<String>) -> Self {
-        Self::Failed {
+    pub fn failed_operation(reason: impl Into<String>) -> Self {
+        Self::FailedOperation {
+            reason: reason.into(),
+        }
+    }
+
+    /// Creates a [`BackendError::UnauthorizedAccess`] from the given reason.
+    #[must_use]
+    pub fn unauthorized_access(reason: impl Into<String>) -> Self {
+        Self::UnauthorizedAccess {
             reason: reason.into(),
         }
     }
@@ -77,12 +91,6 @@ mod tests {
 
     #[test]
     const fn should_implement_sync_when_using_backend_error() {
-        implements_sync::<BackendError>();
-    }
-
-    #[test]
-    const fn should_be_thread_safe_when_using_backend_error() {
-        implements_send::<BackendError>();
         implements_sync::<BackendError>();
     }
 
@@ -141,11 +149,44 @@ mod tests {
     }
 
     #[test]
-    fn should_format_display_with_bracketed_name_and_reason_when_backend_is_unavailable() {
-        let error = BackendError::unavailable("connection reset");
+    fn should_build_unreachable_storage_variant_when_using_its_constructor() {
+        let expected_result = BackendError::UnreachableStorage {
+            reason: "connection reset".to_owned(),
+        };
+
+        let result = BackendError::unreachable_storage("connection reset");
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_build_failed_operation_variant_when_using_its_constructor() {
+        let expected_result = BackendError::FailedOperation {
+            reason: "constraint violation".to_owned(),
+        };
+
+        let result = BackendError::failed_operation("constraint violation");
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_build_unauthorized_access_variant_when_using_its_constructor() {
+        let expected_result = BackendError::UnauthorizedAccess {
+            reason: "role lacks INSERT".to_owned(),
+        };
+
+        let result = BackendError::unauthorized_access("role lacks INSERT");
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_format_display_with_bracketed_name_and_reason_when_storage_is_unreachable() {
+        let error = BackendError::unreachable_storage("connection reset");
 
         let expected_result =
-            "[Unavailable] Storage backend is temporarily unavailable, Reason: 'connection reset'";
+            "[UnreachableStorage] Storage backend is not reachable, Reason: 'connection reset'";
 
         let result = error.to_string();
 
@@ -154,10 +195,22 @@ mod tests {
 
     #[test]
     fn should_format_display_with_bracketed_name_and_reason_when_backend_operation_failed() {
-        let error = BackendError::failed("constraint violation");
+        let error = BackendError::failed_operation("constraint violation");
 
         let expected_result =
-            "[Failed] Storage backend operation failed, Reason: 'constraint violation'";
+            "[FailedOperation] Storage backend operation failed, Reason: 'constraint violation'";
+
+        let result = error.to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_format_display_with_bracketed_name_and_reason_when_access_is_denied() {
+        let error = BackendError::unauthorized_access("role lacks INSERT");
+
+        let expected_result =
+            "[UnauthorizedAccess] Storage backend denied access, Reason: 'role lacks INSERT'";
 
         let result = error.to_string();
 

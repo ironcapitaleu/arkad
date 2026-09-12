@@ -1,7 +1,6 @@
 //! # Write Error
 //!
-//! Provides [`WriteError`], the error raised when a write to the store cannot be completed — the
-//! write conflicts with existing data, violates an integrity invariant, or fails at the backend.
+//! Provides [`WriteError`], the error raised when the store cannot complete a write.
 //!
 //! ## Usage
 //!
@@ -20,9 +19,8 @@ use super::backend_error::BackendError;
 #[derive(Debug, Error, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 /// Error occurring while writing to the store.
 ///
-/// Distinguishes three ways a write fails: a conflict with existing data, a violated integrity
-/// invariant, and a failure at the backend. A value type — the marker variants flatten their detail
-/// to a `reason` string.
+/// Separates the kinds of write failure so a caller can tell them apart. Detail arrives as a
+/// `reason` string rather than a boxed source, which keeps the error a plain value.
 pub enum WriteError {
     /// The write conflicts with data already present (unique violation, already-exists).
     #[error("[ConflictingWrite] Write conflicts with existing data, Reason: '{reason}'")]
@@ -111,12 +109,6 @@ mod tests {
         implements_sync::<WriteError>();
     }
 
-    #[test]
-    const fn should_be_thread_safe_when_using_write_error() {
-        implements_send::<WriteError>();
-        implements_sync::<WriteError>();
-    }
-
     const fn implements_sized<T: Sized>() {}
     #[test]
     const fn should_be_able_to_rely_on_error_being_sized_when_using_write_error() {
@@ -173,7 +165,7 @@ mod tests {
 
     #[test]
     fn should_wrap_backend_error_into_backend_variant_when_converting_from_backend_error() {
-        let backend_error = BackendError::failed("disk full");
+        let backend_error = BackendError::failed_operation("disk full");
         let expected_result = WriteError::Backend(backend_error.clone());
 
         let result = WriteError::from(backend_error);
@@ -183,7 +175,7 @@ mod tests {
 
     #[test]
     fn should_downcast_to_backend_error_when_write_error_is_a_backend_variant() {
-        let backend_error = BackendError::unavailable("timeout");
+        let backend_error = BackendError::unreachable_storage("timeout");
         let write_error = WriteError::Backend(backend_error.clone());
 
         let result = BackendError::try_from(write_error)
@@ -198,7 +190,7 @@ mod tests {
         let expected_result = ErrorKind::DowncastNotPossible;
 
         let result = BackendError::try_from(write_error)
-            .expect_err("A non-backend `WriteError` must not downcast into a `BackendError`");
+            .expect_err("A non-backend `WriteError` should not downcast into a `BackendError`");
 
         assert_eq!(result, expected_result);
     }
@@ -228,9 +220,9 @@ mod tests {
 
     #[test]
     fn should_chain_backend_display_after_caused_by_when_write_error_wraps_backend() {
-        let error = WriteError::Backend(BackendError::failed("disk full"));
+        let error = WriteError::Backend(BackendError::failed_operation("disk full"));
 
-        let expected_result = "[Backend] Storage backend error occurred, Caused by: [Failed] Storage backend operation failed, Reason: 'disk full'";
+        let expected_result = "[Backend] Storage backend error occurred, Caused by: [FailedOperation] Storage backend operation failed, Reason: 'disk full'";
 
         let result = error.to_string();
 
@@ -239,7 +231,7 @@ mod tests {
 
     #[test]
     fn should_expose_backend_error_as_source_when_write_error_wraps_backend() {
-        let backend_error = BackendError::unavailable("timeout");
+        let backend_error = BackendError::unreachable_storage("timeout");
         let error = WriteError::Backend(backend_error.clone());
 
         let expected_result = Some(&backend_error);
