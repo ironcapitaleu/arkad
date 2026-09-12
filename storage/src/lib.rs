@@ -1,7 +1,12 @@
 //! # Storage
 //!
-//! Provides the arkad workspace's backend-agnostic persistence interface: the [`Repository`] trait
-//! that code persists domain records through, and the [`error`] types it returns.
+//! Provides the arkad workspace's backend-agnostic persistence interface: the ports that code
+//! reads and writes domain records through, and the [`error`] types they return.
+//!
+//! The ports are split by access capability. [`ReadRepository`] reads a record by key.
+//! [`WriteRepository`] persists a record. [`ReadWriteRepository`] names a store that does both. A
+//! component depends on the port for the access it needs, so a write from a read-only caller does
+//! not compile.
 //!
 //! The interface is expressed in domain types and holds these abstractions only, naming no concrete
 //! database or backend.
@@ -9,7 +14,7 @@
 //! ## Modules
 //!
 //! - [`error`]: The error types the crate returns and the conversions between them.
-//! - [`repository`]: The [`Repository`] trait for persisting records.
+//! - [`repository`]: The persistence ports, split by access capability.
 //!
 //! ## Usage
 //!
@@ -22,8 +27,8 @@
 pub mod error;
 pub mod repository;
 
-pub use error::{BackendError, ErrorKind, WriteError};
-pub use repository::Repository;
+pub use error::{BackendError, ErrorKind, ReadError, WriteError};
+pub use repository::{ReadRepository, ReadWriteRepository, WriteRepository};
 
 #[cfg(test)]
 pub mod tests;
