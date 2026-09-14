@@ -43,11 +43,11 @@ pub use write_error::WriteError;
 /// not match.
 pub enum ErrorKind {
     /// An error originating from a read operation.
-    #[error("[Read] Problem occurred during a read operation, Caused by: {0}")]
+    #[error("[FailedRead] Problem occurred during a read operation, Caused by: {0}")]
     Read(#[source] ReadError),
 
     /// An error originating from a write operation.
-    #[error("[Write] Problem occurred during a write operation, Caused by: {0}")]
+    #[error("[FailedWrite] Problem occurred during a write operation, Caused by: {0}")]
     Write(#[source] WriteError),
 
     /// A [`TryFrom`] downcast to a more specific error type did not match the held variant.
@@ -203,7 +203,7 @@ mod tests {
 
     #[test]
     fn should_wrap_read_error_into_read_variant_when_converting_from_read_error() {
-        let read_error = ReadError::MissingRecord;
+        let read_error = ReadError::missing_record("0000320193-24-000123");
         let expected_result = ErrorKind::Read(read_error.clone());
 
         let result = ErrorKind::from(read_error);
@@ -223,7 +223,7 @@ mod tests {
 
     #[test]
     fn should_downcast_to_read_error_when_error_kind_is_a_read_variant() {
-        let read_error = ReadError::MissingRecord;
+        let read_error = ReadError::missing_record("0000320193-24-000123");
         let error_kind = ErrorKind::Read(read_error.clone());
 
         let result = ReadError::try_from(error_kind)
@@ -256,7 +256,7 @@ mod tests {
 
     #[test]
     fn should_fail_downcast_to_write_error_when_error_kind_is_not_a_write_variant() {
-        let error_kind = ErrorKind::Read(ReadError::MissingRecord);
+        let error_kind = ErrorKind::Read(ReadError::missing_record("0000320193-24-000123"));
         let expected_result = ErrorKind::DowncastNotPossible;
 
         let result = WriteError::try_from(error_kind)
@@ -305,7 +305,7 @@ mod tests {
 
     #[test]
     fn should_roundtrip_read_error_when_upcast_then_downcast() {
-        let read_error = ReadError::MissingRecord;
+        let read_error = ReadError::missing_record("0000320193-24-000123");
 
         let upcast: ErrorKind = read_error.clone().into();
         let result = ReadError::try_from(upcast)
@@ -327,9 +327,9 @@ mod tests {
 
     #[test]
     fn should_chain_read_display_after_caused_by_when_error_kind_wraps_read() {
-        let error_kind = ErrorKind::Read(ReadError::MissingRecord);
+        let error_kind = ErrorKind::Read(ReadError::missing_record("0000320193-24-000123"));
 
-        let expected_result = "[Read] Problem occurred during a read operation, Caused by: [MissingRecord] Requested record not found";
+        let expected_result = "[FailedRead] Problem occurred during a read operation, Caused by: [MissingRecord] Requested record '0000320193-24-000123' not found";
 
         let result = error_kind.to_string();
 
@@ -340,7 +340,7 @@ mod tests {
     fn should_chain_write_display_after_caused_by_when_error_kind_wraps_write() {
         let error_kind = ErrorKind::Write(WriteError::conflicting_write("duplicate accession"));
 
-        let expected_result = "[Write] Problem occurred during a write operation, Caused by: [ConflictingWrite] Write conflicts with existing data, Reason: 'duplicate accession'";
+        let expected_result = "[FailedWrite] Problem occurred during a write operation, Caused by: [ConflictingWrite] Write conflicts with existing data, Reason: 'duplicate accession'";
 
         let result = error_kind.to_string();
 
@@ -361,7 +361,7 @@ mod tests {
 
     #[test]
     fn should_expose_read_error_as_source_when_error_kind_wraps_read() {
-        let read_error = ReadError::MissingRecord;
+        let read_error = ReadError::missing_record("0000320193-24-000123");
         let error_kind = ErrorKind::Read(read_error.clone());
 
         let expected_result = Some(&read_error);

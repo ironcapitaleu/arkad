@@ -19,8 +19,7 @@ use super::backend_error::BackendError;
 #[derive(Debug, Error, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 /// Error occurring while writing to the store.
 ///
-/// Separates the kinds of write failure so a caller can tell them apart. Detail arrives as a
-/// `reason` string rather than a boxed source, which keeps the error a plain value.
+/// Separates the different kinds of write failures so a caller can tell them apart.
 pub enum WriteError {
     /// The write conflicts with data already present (unique violation, already-exists).
     #[error("[ConflictingWrite] Write conflicts with existing data, Reason: '{reason}'")]
@@ -37,7 +36,7 @@ pub enum WriteError {
     },
 
     /// The write failed at the storage backend.
-    #[error("[Backend] Storage backend error occurred, Caused by: {0}")]
+    #[error("[BackendError] Storage backend error occurred, Caused by: {0}")]
     Backend(#[source] BackendError),
 }
 
@@ -222,7 +221,7 @@ mod tests {
     fn should_chain_backend_display_after_caused_by_when_write_error_wraps_backend() {
         let error = WriteError::Backend(BackendError::failed_operation("disk full"));
 
-        let expected_result = "[Backend] Storage backend error occurred, Caused by: [FailedOperation] Storage backend operation failed, Reason: 'disk full'";
+        let expected_result = "[BackendError] Storage backend error occurred, Caused by: [FailedOperation] Storage backend operation failed, Reason: 'disk full'";
 
         let result = error.to_string();
 

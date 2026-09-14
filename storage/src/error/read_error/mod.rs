@@ -7,7 +7,7 @@
 //! ```rust
 //! use storage::ReadError;
 //!
-//! let _err = ReadError::MissingRecord;
+//! let _err = ReadError::missing_record("0000320193-24-000123");
 //! ```
 
 use thiserror::Error;
@@ -19,16 +19,28 @@ use super::backend_error::BackendError;
 #[derive(Debug, Error, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 /// Error occurring while reading from the store.
 ///
-/// Separates the kinds of read failure so a caller can tell them apart. A backend failure keeps its
-/// own type, so the cause survives the wrapping.
+/// Separates the different kinds of read failures so a caller can tell them apart.
 pub enum ReadError {
     /// The requested record is not present in the store.
-    #[error("[MissingRecord] Requested record not found")]
-    MissingRecord,
+    #[error("[MissingRecord] Requested record '{identifier}' not found")]
+    MissingRecord {
+        /// Identifier of the record that was requested.
+        identifier: String,
+    },
 
     /// The read failed at the storage backend.
-    #[error("[Backend] Storage backend error occurred, Caused by: {0}")]
+    #[error("[BackendError] Storage backend error occurred, Caused by: {0}")]
     Backend(#[source] BackendError),
+}
+
+impl ReadError {
+    /// Creates a [`ReadError::MissingRecord`] from the given record identifier.
+    #[must_use]
+    pub fn missing_record(identifier: impl Into<String>) -> Self {
+        Self::MissingRecord {
+            identifier: identifier.into(),
+        }
+    }
 }
 
 impl From<BackendError> for ReadError {
@@ -136,6 +148,17 @@ mod tests {
     }
 
     #[test]
+    fn should_build_missing_record_variant_when_using_its_constructor() {
+        let expected_result = ReadError::MissingRecord {
+            identifier: "0000320193-24-000123".to_owned(),
+        };
+
+        let result = ReadError::missing_record("0000320193-24-000123");
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
     fn should_wrap_backend_error_into_backend_variant_when_converting_from_backend_error() {
         let backend_error = BackendError::unreachable_storage("connection reset");
         let expected_result = ReadError::Backend(backend_error.clone());
@@ -158,7 +181,7 @@ mod tests {
 
     #[test]
     fn should_fail_downcast_to_backend_error_when_read_error_is_not_a_backend_variant() {
-        let read_error = ReadError::MissingRecord;
+        let read_error = ReadError::missing_record("0000320193-24-000123");
         let expected_result = ErrorKind::DowncastNotPossible;
 
         let result = BackendError::try_from(read_error)
@@ -168,10 +191,10 @@ mod tests {
     }
 
     #[test]
-    fn should_format_display_with_bracketed_name_when_record_is_missing() {
-        let error = ReadError::MissingRecord;
+    fn should_format_display_with_bracketed_name_and_identifier_when_record_is_missing() {
+        let error = ReadError::missing_record("0000320193-24-000123");
 
-        let expected_result = "[MissingRecord] Requested record not found";
+        let expected_result = "[MissingRecord] Requested record '0000320193-24-000123' not found";
 
         let result = error.to_string();
 
@@ -182,7 +205,7 @@ mod tests {
     fn should_chain_backend_display_after_caused_by_when_read_error_wraps_backend() {
         let error = ReadError::Backend(BackendError::failed_operation("statement timeout"));
 
-        let expected_result = "[Backend] Storage backend error occurred, Caused by: [FailedOperation] Storage backend operation failed, Reason: 'statement timeout'";
+        let expected_result = "[BackendError] Storage backend error occurred, Caused by: [FailedOperation] Storage backend operation failed, Reason: 'statement timeout'";
 
         let result = error.to_string();
 
