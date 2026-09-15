@@ -41,6 +41,17 @@ use crate::repository::write_repository::WriteRepository;
 /// }
 /// ```
 ///
+/// Inside a function already bound to [`ReadWriteRepository`], naming `Record` is ambiguous for
+/// the same reason. There the fix is a qualified path, which picks the parent the record comes
+/// from:
+///
+/// ```rust
+/// # use storage::{ReadWriteRepository, WriteRepository};
+/// fn write_unit<RW: ReadWriteRepository>() -> Option<<RW as WriteRepository>::Record> {
+///     None
+/// }
+/// ```
+///
 /// # Required Traits
 ///
 /// - [`ReadRepository`]: gives the store its `get` method.

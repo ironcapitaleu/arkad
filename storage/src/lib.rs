@@ -18,10 +18,17 @@
 //!
 //! ## Usage
 //!
-//! ```rust
-//! use storage::{ErrorKind, WriteError};
+//! A component names the capability it needs. This one reads, so it has no way to write:
 //!
-//! let _err = ErrorKind::Write(WriteError::conflicting_write("duplicate accession number"));
+//! ```rust
+//! use storage::{ReadError, ReadRepository};
+//!
+//! async fn load<R: ReadRepository>(
+//!     reader: &R,
+//!     key: R::Key,
+//! ) -> Result<Option<R::Record>, ReadError> {
+//!     reader.get(key).await
+//! }
 //! ```
 
 pub mod error;
