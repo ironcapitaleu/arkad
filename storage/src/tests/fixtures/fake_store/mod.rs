@@ -40,7 +40,7 @@ impl<Rec> FakeStore<Rec> {
 #[async_trait]
 impl<Rec> WriteRepository for FakeStore<Rec>
 where
-    Rec: Send + Sync,
+    Rec: Send,
 {
     type Record = Rec;
 
@@ -56,7 +56,7 @@ where
 #[async_trait]
 impl<Rec> ReadRepository for FakeStore<Rec>
 where
-    Rec: Clone + Send + Sync,
+    Rec: Clone + Send,
 {
     type Record = Rec;
     type Key = usize;
