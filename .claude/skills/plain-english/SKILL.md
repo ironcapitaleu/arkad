@@ -47,7 +47,8 @@ slop, fix the wording and keep the shape.
 - Rustdoc comments (`///`, `//!`) and inline comments.
 - `README.md`, `AGENTS.md`, `DOCUMENTATION.md`, design documents, ADRs.
 - Commit messages, branch descriptions, PR titles and bodies, review comments.
-- Error `Display` strings, `.expect()` messages, log messages.
+- Error `Display` strings and log messages.
+- `.expect()` and `.expect_err()` messages, for clarity only. These keep `should`. See rule 11.
 - Other skills in `.claude/skills/`, including their frontmatter descriptions.
 - Linear tickets and their Definition of Done.
 
@@ -90,7 +91,9 @@ This is a separate question from voice. See "Voice: Repo Text and Chat Replies D
 5. **Put the condition before the command,** separated by a comma: "If the build fails, read the
    log." Never "Read the log if the build fails."
 6. **One new fact per sentence** in descriptive text. One topic per paragraph. Six sentences per
-   paragraph at most.
+   paragraph at most. A split must keep the link between the facts. Three short sentences that no
+   longer say how they connect are worse than one 25-word sentence that does, so cut the words that
+   carry no meaning, never the words that carry the logic.
 7. **Use a list for three or more steps, conditions, or options.** Do not bury a sequence in prose.
    Do not nest lists. Do not mix instructions and facts in one list.
 8. **Split dense sentences.** If the reader must backtrack to parse it, it is two sentences.
@@ -107,6 +110,10 @@ This is a separate question from voice. See "Voice: Repo Text and Chat Replies D
     A requirement becomes `must`. A possibility becomes `can`. A recommendation becomes a fact with
     a reason, or it gets deleted. Agents read `should` as optional, so this rule matters twice as
     much in skills and agent instructions.
+    **One exception: `.expect()` and `.expect_err()` messages keep `should`.** AGENTS.md fixes their
+    shape as an explanation of why the call cannot fail, and `should` is the established word in that
+    shape across this codebase. Never rewrite `should` to `must` inside one. Rewrite such a message
+    only when it fails to say *why* the call cannot fail.
 12. **No phrasal verbs.** Use the single plain verb: `start` not `spin up`, `contact` not `reach
     out`, `read` not `dive into`, `configure` not `set up`, `decrease` not `go down`.
 13. **Use a verb for an action, not a noun.** "Analyze the log", not "perform an analysis of the
@@ -119,19 +126,23 @@ This is a separate question from voice. See "Voice: Repo Text and Chat Replies D
     for the connection pool", not "the connection pool timeout configuration value".
 17. **Give every pronoun a clear referent.** Prefer "this error" over a bare "this".
 
+18. **Describe the category, not its members.** When a type, module, or list names its own parts
+    directly below, the prose above it states what the parts have in common. "Separates the kinds of
+    write failure" beats naming each variant, which goes stale the moment one is added.
+
 ### Vocabulary
 
-18. **One word, one meaning, one part of speech.** Pick one term per concept and repeat it through
+19. **One word, one meaning, one part of speech.** Pick one term per concept and repeat it through
     the whole document. Never rotate synonyms to sound varied. The reader cannot tell whether
     "the user", "the customer", and "the client" are one thing or three.
-19. **Follow the terms this project already fixed.** `DOCUMENTATION.md` reserves *error* for the
+20. **Follow the terms this project already fixed.** `DOCUMENTATION.md` reserves *error* for the
     type and *failure* for the event it represents. `AGENTS.md` fixes the commit types and the error
     naming patterns. Those choices win.
-20. **Pick the plainest common word.** `use` not `utilize` or `leverage`, `help` not `facilitate`,
+21. **Pick the plainest common word.** `use` not `utilize` or `leverage`, `help` not `facilitate`,
     `many` not `numerous`, `if` not `in the event that`, `but` not `however`, `so` not `therefore`,
     `because` not `since`, `do` not `perform`, `for example` not `e.g.`, `that is` not `i.e.`.
-21. **Delete `etc.`** Name the items, or write "and more".
-22. **Keep domain nouns and verbs.** `webhook`, `CIK`, `transition`, `taxonomy`, `deploy`,
+22. **Delete `etc.`** Name the items, or write "and more".
+23. **Keep domain nouns and verbs.** `webhook`, `CIK`, `transition`, `taxonomy`, `deploy`,
     `deserialize`, and `rebase` are exact. Define a term once if it is not common in this codebase.
 
 See `references/word-swaps.md` for the full substitution table.
@@ -237,6 +248,7 @@ Run these six checks on every draft, in chat and in files. This step is not opti
 2. **Grep the draft** for these six mechanical habits. Each one is a word or mark you can point at,
    with no judgment call:
    - Restricted modals and hedges: `should`, `may`, `might`, `could`, `would`, `potentially`.
+     Skip `should` inside `.expect()` and `.expect_err()` messages. Rule 11 exempts them.
    - Quality claims: `seamless`, `robust`, `powerful`, `comprehensive`, `elegant`, `significantly`.
    - Nominalized actions: `perform a`, `conduct a`, `provides assistance`, `-ation of`.
    - Phrasal verbs: `spin up`, `set up`, `reach out`, `dive into`, `kick off`, `figure out`.
