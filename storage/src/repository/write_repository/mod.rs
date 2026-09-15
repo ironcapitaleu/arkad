@@ -18,16 +18,20 @@
 //! ```compile_fail
 //! use storage::WriteRepository;
 //!
-//! fn read_through_a_writer<W: WriteRepository>(writer: &W) {
+//! fn read_through_a_writer<W: WriteRepository>(mut writer: W) {
 //!     writer.get(todo!());
 //! }
 //! ```
 //!
 //! `compile_fail` passes on any compilation error, so the guard is built to leave only one. The
 //! two examples share an import, which a broken import fails in the passing one rather than
-//! silently satisfying the guard. The argument is `todo!()`, whose `!` type unifies with whatever
-//! key a leaked `get` would take. The call is neither awaited nor consumed, so its return type
-//! constrains nothing either. What is left can fail only on the missing method.
+//! silently satisfying the guard.
+//!
+//! A method call can fail in three positions besides resolution, and the guard frees all three.
+//! The argument is `todo!()`, whose `!` type unifies with whatever key a leaked `get` would take.
+//! The result is neither awaited nor consumed, so the return type constrains nothing. The receiver
+//! is taken by value, so autoref supplies a shared or a mutable borrow as the resolved method
+//! asks. What is left can fail only on the missing method.
 
 use async_trait::async_trait;
 
