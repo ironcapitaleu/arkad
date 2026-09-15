@@ -130,7 +130,7 @@ mod tests {
         repository
             .persist(record)
             .await
-            .expect("Given a fake write repository that records every record, the persist should always succeed");
+            .expect("Given a fake write repository, persisting the record should always succeed");
 
         let result = repository.persisted();
 
