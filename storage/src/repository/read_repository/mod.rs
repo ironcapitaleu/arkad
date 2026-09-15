@@ -2,6 +2,8 @@
 //!
 //! Provides [`ReadRepository`], the trait through which a record is read from the store by key.
 //!
+//! ## Usage
+//!
 //! A caller bound to [`ReadRepository`] has `get` in scope:
 //!
 //! ```rust

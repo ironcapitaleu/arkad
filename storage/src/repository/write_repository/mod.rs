@@ -2,6 +2,8 @@
 //!
 //! Provides [`WriteRepository`], the trait through which a record is persisted to the store.
 //!
+//! ## Usage
+//!
 //! A caller bound to [`WriteRepository`] has `persist` in scope:
 //!
 //! ```rust
