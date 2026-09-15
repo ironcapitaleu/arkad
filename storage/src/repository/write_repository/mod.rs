@@ -24,16 +24,14 @@
 //!     writer.get(todo!());
 //! }
 //! ```
-//!
-//! `compile_fail` passes on any compilation error, so the guard is built to leave only one. The
-//! two examples share an import, which a broken import fails in the passing one rather than
-//! silently satisfying the guard.
-//!
-//! A method call can fail in three positions besides resolution, and the guard frees all three.
-//! The argument is `todo!()`, whose `!` type unifies with whatever key a leaked `get` would take.
-//! The result is neither awaited nor consumed, so the return type constrains nothing. The receiver
-//! is taken by value, so autoref supplies a shared or a mutable borrow as the resolved method
-//! asks. What is left can fail only on the missing method.
+
+// How the guard above leaves the missing method as its only reachable failure, should anyone
+// rewrite it. A call can fail in three positions besides resolution, and it frees all three: the
+// argument is `todo!()`, whose `!` type unifies with whatever key a leaked `get` would take; the
+// result is neither awaited nor consumed, so the return type constrains nothing; and the receiver
+// is taken by value, so autoref supplies a shared or a mutable borrow as the resolved method asks.
+// The two examples also share an import, so breaking it fails the passing one rather than
+// satisfying the guard. What would blind both ports at once is recorded in the parent module.
 
 use async_trait::async_trait;
 
