@@ -5,18 +5,6 @@
 //! Each port names one capability. A caller depends on the port for the access it needs, so a
 //! read-only caller has no write method in scope.
 //!
-//! Each port module holds that claim with a paired doctest: an example that uses the method the
-//! port has, and a `compile_fail` example that calls the method it does not. A guard of that shape
-//! is only as good as the errors it rules out, so each one is written to leave the missing method
-//! as the single reachable failure. Should the method ever arrive, the block compiles and the
-//! guard turns red.
-//!
-//! That construction rests on a leak compiling with warnings rather than errors. Neither the
-//! `-D warnings` that `.cargo/config.toml` passes to rustdoc nor a `warnings` entry in the
-//! manifest's `[lints.rust]` table reaches a doctest body, so the warnings stay warnings.
-//! `#![doc(test(attr(deny(warnings))))]` on the crate root is the one setting that would promote
-//! them, and it would send both guards green through the leak they exist to catch.
-//!
 //! ## Modules
 //!
 //! - [`read_repository`]: [`ReadRepository`] — reads a record by key.
@@ -35,6 +23,17 @@
 //! }
 //! ```
 
+// Each port module holds its capability claim with a paired doctest: an example that uses the
+// method the port has, and a `compile_fail` example that calls the method it does not. A guard of
+// that shape is only as good as the errors it rules out, so each one is written to leave the
+// missing method as the single reachable failure. Should the method ever arrive, the block
+// compiles and the guard turns red.
+//
+// That construction rests on a leak compiling with warnings rather than errors. Neither the
+// `-D warnings` that `.cargo/config.toml` passes to rustdoc nor a `warnings` entry in the
+// manifest's `[lints.rust]` table reaches a doctest body, so the warnings stay warnings.
+// `#![doc(test(attr(deny(warnings))))]` on the crate root is the one setting that would promote
+// them, and it would send both guards green through the leak they exist to catch.
 pub mod read_repository;
 pub mod read_write_repository;
 pub mod write_repository;
