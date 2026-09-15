@@ -5,6 +5,17 @@
 //! Each port names one capability. A caller depends on the port for the access it needs, so a
 //! read-only caller has no write method in scope.
 //!
+//! Each port module holds that claim with a paired doctest: an example that uses the method the
+//! port has, and a `compile_fail` example that calls the method it does not. A guard of that shape
+//! is only as good as the errors it rules out, so each one is written to leave the missing method
+//! as the single reachable failure. Should the method ever arrive, the block compiles and the
+//! guard turns red.
+//!
+//! That construction rests on a leak compiling with warnings rather than errors. A doctest body
+//! does not inherit the `-D warnings` that `.cargo/config.toml` passes to rustdoc, so the warnings
+//! stay warnings. Adding `#![doc(test(attr(deny(warnings))))]` to the crate root would promote
+//! them, and both guards would go green through the leak they exist to catch.
+//!
 //! ## Modules
 //!
 //! - [`read_repository`]: [`ReadRepository`] — reads a record by key.

@@ -18,15 +18,16 @@
 //! ```compile_fail
 //! use storage::WriteRepository;
 //!
-//! async fn read_through_a_writer<W: WriteRepository>(writer: &W) {
-//!     writer.get(todo!()).await;
+//! fn read_through_a_writer<W: WriteRepository>(writer: &W) {
+//!     writer.get(todo!());
 //! }
 //! ```
 //!
 //! `compile_fail` passes on any compilation error, so the guard is built to leave only one. The
 //! two examples share an import, which a broken import fails in the passing one rather than
 //! silently satisfying the guard. The argument is `todo!()`, whose `!` type unifies with whatever
-//! key a leaked `get` would take, so a type mismatch cannot stand in for the missing method.
+//! key a leaked `get` would take. The call is neither awaited nor consumed, so its return type
+//! constrains nothing either. What is left can fail only on the missing method.
 
 use async_trait::async_trait;
 
