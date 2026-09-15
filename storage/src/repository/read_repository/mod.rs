@@ -63,8 +63,10 @@ pub trait ReadRepository: Send + Sync {
     /// # Errors
     ///
     /// Returns a [`ReadError`] if the read itself fails:
-    /// - [`ReadError::MissingRecord`] — the caller required a record the store does not hold.
-    /// - [`ReadError::Backend`] — the read failed at the backend level.
+    /// - [`ReadError::Backend`] — the read reached the backend and the backend failed.
+    ///
+    /// [`ReadError::MissingRecord`] is not among them. It names the case where a caller requires
+    /// the record to exist, which a required-read accessor reports and this method does not.
     async fn get(&self, key: Self::Key) -> Result<Option<Self::Record>, ReadError>;
 }
 
