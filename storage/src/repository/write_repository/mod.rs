@@ -1,6 +1,30 @@
 //! # Write Repository
 //!
 //! Provides [`WriteRepository`], the trait through which a record is persisted to the store.
+//!
+//! A caller bound to [`WriteRepository`] has `persist` in scope:
+//!
+//! ```rust
+//! use storage::WriteRepository;
+//!
+//! async fn write_through_a_writer<W: WriteRepository>(writer: &W, record: W::Record) {
+//!     writer.persist(record).await.expect("Given a writer that accepts the record, the write should always succeed");
+//! }
+//! ```
+//!
+//! The trait carries no read method, so a read from that same caller does not compile:
+//!
+//! ```compile_fail
+//! use storage::WriteRepository;
+//!
+//! async fn read_through_a_writer<W: WriteRepository>(writer: &W, key: String) {
+//!     writer.get(key).await.expect("A writer has no get method");
+//! }
+//! ```
+//!
+//! The two examples share an import and a bound. `compile_fail` passes on any compilation error,
+//! so the example above it keeps this pair honest: a broken import fails that example and turns
+//! the build red, rather than passing the guard for the wrong reason.
 
 use async_trait::async_trait;
 

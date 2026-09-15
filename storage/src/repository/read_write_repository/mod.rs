@@ -12,9 +12,25 @@ use crate::repository::write_repository::WriteRepository;
 /// both [`ReadRepository`] and [`WriteRepository`], so a backend adapter writes no implementation
 /// for it.
 ///
+/// Unparameterized, the bound is fine:
+///
+/// ```rust
+/// # use storage::ReadWriteRepository;
+/// fn takes_a_store<S: ReadWriteRepository>(_store: S) {}
+/// ```
+///
 /// Both parent traits declare a `Record`, so `ReadWriteRepository<Record = ...>` names an
-/// ambiguous associated type and does not compile. A caller that pins the record type binds the
-/// two parent traits instead:
+/// ambiguous associated type and does not compile:
+///
+/// ```compile_fail
+/// # use storage::ReadWriteRepository;
+/// fn takes_a_store<S: ReadWriteRepository<Record = String>>(_store: S) {}
+/// ```
+///
+/// The two examples share an import and differ only in that bound. `compile_fail` passes on any
+/// compilation error, so the example above it keeps this pair honest.
+///
+/// A caller that pins the record type binds the two parent traits instead:
 ///
 /// ```rust
 /// # use storage::{ReadRepository, WriteRepository};
