@@ -159,7 +159,7 @@ mod tests {
 
     #[tokio::test]
     async fn should_return_the_seeded_error_when_the_repository_is_seeded_to_fail() {
-        let error = ReadError::Backend(BackendError::unavailable("timeout"));
+        let error = ReadError::Backend(BackendError::unreachable_storage("timeout"));
         let repository: FakeReadRepository<String, String> =
             FakeReadRepository::failing(error.clone());
         let expected_result = error;
