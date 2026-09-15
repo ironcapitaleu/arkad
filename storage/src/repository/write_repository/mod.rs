@@ -8,7 +8,8 @@
 //! use storage::WriteRepository;
 //!
 //! async fn write_through_a_writer<W: WriteRepository>(writer: &W, record: W::Record) {
-//!     writer.persist(record).await.expect("Given a writer that accepts the record, the write should always succeed");
+//!     let write = writer.persist(record).await;
+//!     write.expect("Given a writer that accepts the record, the write should always succeed");
 //! }
 //! ```
 //!
@@ -17,14 +18,15 @@
 //! ```compile_fail
 //! use storage::WriteRepository;
 //!
-//! async fn read_through_a_writer<W: WriteRepository>(writer: &W, key: String) {
-//!     writer.get(key).await.expect("A writer has no get method");
+//! async fn read_through_a_writer<W: WriteRepository>(writer: &W) {
+//!     writer.get(todo!()).await;
 //! }
 //! ```
 //!
-//! The two examples share an import and a bound. `compile_fail` passes on any compilation error,
-//! so the example above it keeps this pair honest: a broken import fails that example and turns
-//! the build red, rather than passing the guard for the wrong reason.
+//! `compile_fail` passes on any compilation error, so the guard is built to leave only one. The
+//! two examples share an import, which a broken import fails in the passing one rather than
+//! silently satisfying the guard. The argument is `todo!()`, whose `!` type unifies with whatever
+//! key a leaked `get` would take, so a type mismatch cannot stand in for the missing method.
 
 use async_trait::async_trait;
 
@@ -33,18 +35,20 @@ use crate::error::WriteError;
 /// Persists a record to the store.
 ///
 /// Injected as a concrete type — production wires a real backend, tests wire a fake — so callers
-/// depend on this trait rather than on a database. Each implementor binds [`WriteRepository::Record`]
-/// to its own write-unit.
+/// depend on this trait rather than on a database. Each implementor binds
+/// [`WriteRepository::Record`] to its own write-unit.
 ///
 /// # Associated Types
 ///
 /// - [`WriteRepository::Record`]: the write-unit accepted by [`WriteRepository::persist`].
 #[async_trait]
 pub trait WriteRepository: Send + Sync {
-    /// The unit of persistence this repository accepts — one record per [`WriteRepository::persist`]
-    /// call. Implementations bind it to their concrete write-unit (for example, a filing record).
+    /// The unit of persistence this repository accepts — one record per
+    /// [`WriteRepository::persist`] call. Implementations bind it to their concrete write-unit
+    /// (for example, a filing record).
     ///
-    /// Bounded by [`Send`] because [`WriteRepository::persist`] moves it across an `async` boundary.
+    /// Bounded by [`Send`] because [`WriteRepository::persist`] moves it across an `async`
+    /// boundary.
     type Record: Send;
 
     /// Persists a single record.

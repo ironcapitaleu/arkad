@@ -7,8 +7,12 @@
 //! ```rust
 //! use storage::ReadRepository;
 //!
-//! async fn read_through_a_reader<R: ReadRepository>(reader: &R, key: R::Key) -> Option<R::Record> {
-//!     reader.get(key).await.expect("Given a reader that holds the key, the read should always succeed")
+//! async fn read_through_a_reader<R: ReadRepository>(
+//!     reader: &R,
+//!     key: R::Key,
+//! ) -> Option<R::Record> {
+//!     let read = reader.get(key).await;
+//!     read.expect("Given a reader that holds the key, the read should always succeed")
 //! }
 //! ```
 //!
@@ -17,14 +21,16 @@
 //! ```compile_fail
 //! use storage::ReadRepository;
 //!
-//! async fn write_through_a_reader<R: ReadRepository>(reader: &R, record: R::Record) {
-//!     reader.persist(record).await.expect("A reader has no persist method");
+//! async fn write_through_a_reader<R: ReadRepository>(reader: &R) {
+//!     reader.persist(todo!()).await;
 //! }
 //! ```
 //!
-//! The two examples share an import and a bound. `compile_fail` passes on any compilation error,
-//! so the example above it keeps this pair honest: a broken import fails that example and turns
-//! the build red, rather than passing the guard for the wrong reason.
+//! `compile_fail` passes on any compilation error, so the guard is built to leave only one. The
+//! two examples share an import, which a broken import fails in the passing one rather than
+//! silently satisfying the guard. The argument is `todo!()`, whose `!` type unifies with whatever
+//! record a leaked `persist` would take, so a type mismatch cannot stand in for the missing
+//! method.
 
 use async_trait::async_trait;
 
