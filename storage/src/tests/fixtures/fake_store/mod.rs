@@ -1,8 +1,8 @@
 //! # Fake Store
 //!
-//! Provides [`FakeStore`], an in-memory test double that implements both persistence ports. It
-//! round-trips a record: [`FakeStore::persist`] appends the record, and [`FakeStore::get`] returns
-//! the record at a position. The blanket implementation gives it
+//! Provides [`FakeStore`], an in-memory test double that implements both [`ReadRepository`] and
+//! [`WriteRepository`]. It round-trips a record: [`FakeStore::persist`] appends the record, and
+//! [`FakeStore::get`] returns the record at a position. The blanket implementation gives it
 //! [`ReadWriteRepository`](crate::repository::ReadWriteRepository).
 
 use std::sync::Mutex;
@@ -12,10 +12,10 @@ use async_trait::async_trait;
 use crate::error::{ReadError, WriteError};
 use crate::repository::{ReadRepository, WriteRepository};
 
-/// An in-memory test double that implements both persistence ports.
+/// An in-memory test double that implements both [`ReadRepository`] and [`WriteRepository`].
 ///
 /// Generic over the record type. The key is the position the record was persisted at, which lets a
-/// test write a record and read the same record back through the two ports.
+/// test write a record with [`FakeStore::persist`] and read it back with [`FakeStore::get`].
 #[derive(Debug)]
 pub struct FakeStore<Rec> {
     records: Mutex<Vec<Rec>>,
