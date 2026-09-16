@@ -17,10 +17,13 @@ use crate::repository::write_repository::WriteRepository;
 /// name, and nothing forces them to hold the same type.
 ///
 /// `ReadWriteRepository` has no `Record` of its own. It has the two it inherits from its parents.
-/// So `ReadWriteRepository<Record = String>` does not compile. The compiler cannot tell which of
-/// the two that bound sets. Set them on the parents instead:
+/// That makes the difference between these three bounds:
 ///
-/// `S: ReadRepository<Record = String, Key = String> + WriteRepository<Record = String>`
+/// - `S: ReadWriteRepository` compiles. Nothing to disambiguate.
+/// - `S: ReadWriteRepository<Record = String>` does not compile. The compiler cannot tell which
+///   of the two `Record`s that bound sets, and reports E0222.
+/// - `S: ReadRepository<Record = String, Key = String> + WriteRepository<Record = String>`
+///   compiles. Each `Record` is set on the trait that declares it.
 ///
 /// # Required Traits
 ///
