@@ -25,13 +25,8 @@
 //! }
 //! ```
 
-// How the guard above leaves the missing method as its only reachable failure, should anyone
-// rewrite it. A call can fail in three positions besides resolution, and it frees all three: the
-// argument is `todo!()`, whose `!` type unifies with whatever key a leaked `get` would take; the
-// result is neither awaited nor consumed, so the return type constrains nothing; and the receiver
-// is taken by value, so autoref supplies a shared or a mutable borrow as the resolved method asks.
-// The two examples also share an import, so breaking it fails the passing one rather than
-// satisfying the guard. What would blind both ports at once is recorded in the parent module.
+// Keep the guard above unconstrained: `todo!()` for the argument, the result unused, the receiver
+// by value. Anything more specific makes the block fail on that instead of on the missing method.
 
 use async_trait::async_trait;
 
@@ -60,10 +55,7 @@ pub trait WriteRepository: Send + Sync {
     ///
     /// # Errors
     ///
-    /// Returns a [`WriteError`] if the record cannot be persisted:
-    /// - [`WriteError::ConflictingWrite`] — the record conflicts with data already present.
-    /// - [`WriteError::FailedIntegrityCheck`] — the record violates a data-integrity invariant.
-    /// - [`WriteError::Backend`] — the write failed at the backend level.
+    /// Returns a [`WriteError`] if the record cannot be persisted.
     async fn persist(&self, record: Self::Record) -> Result<(), WriteError>;
 }
 
