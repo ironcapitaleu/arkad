@@ -388,8 +388,13 @@ after all four passes below run and the review states the residual risk. Never i
 fill an empty list. Never approve by silence: a review that finds nothing still names what it
 verified and what risk remains.
 
-A review asks no questions. When a skill below opens with a questionnaire, read the skill for its
-rules and take the diff as the scope.
+A review does not interrupt to ask. It never calls `AskUserQuestion` and never waits for an
+answer: when a skill below opens with a questionnaire, read the skill for its rules and take the
+diff as the scope. An uncertain finding still goes in the list, with the uncertainty stated.
+
+On a pull request the review job restores `CLAUDE.md` and `.claude/` from the base branch and
+parks the PR's copies in `.claude-pr/`. Apply the rules from the linked path. When the PR changes
+one of those files, review the version in `.claude-pr/`.
 
 ### Review Passes
 
@@ -401,9 +406,10 @@ and wording passes on the files that changed since the last review.
 "Security" sections below. Report:
 
 1. **Summary** — 2-3 bullets on what the change does.
-2. **Verdict chain** (required) — work the DoD → Test Plan → per-item verdict. For each DoD item,
+2. **Verdict chain** (required) — follow the chain DoD → Test Plan → per-item verdict. For each DoD item,
    state whether the diff proves it, and how you checked. Name anything you did not verify. If the
-   PR links no ticket, use its Test Plan, or the stated Type of change, and say which you used.
+   PR links no ticket, use its Test Plan. If it carries no Test Plan, use the stated Type of
+   change. Say which one you used.
 3. **Adversarial pass** — list the edge cases, error paths, and concurrency or ordering assumptions
    the author most likely did not test. State which are covered and which are not.
 
@@ -413,21 +419,20 @@ names is a 🔴 finding. State the reason each `compile_fail` doctest fails toda
 compiled it or read it.
 
 **Pass 3 — Documentation.** Apply the [`documentation` skill](.claude/skills/documentation/SKILL.md)
-in Check mode against [`DOCUMENTATION.md`](DOCUMENTATION.md) and the "Documentation Consistency"
-section below.
+in Check mode against [`DOCUMENTATION.md`](DOCUMENTATION.md) and the "Style & Documentation" and
+"Documentation Consistency" sections below.
 
 Report excess, not only absence. Documentation that repeats the signature, restates the code, or
 explains a decision the reader cannot act on is a finding, and the fix is a deletion. Quote the
 lines to delete.
 
-Budget: count the documentation lines `DOCUMENTATION.md` does not require. Module templates,
-`# Errors`, `# Panics`, field docs, and doctest bodies never count. When what remains exceeds the
-hand-written code lines the same file adds, report it and name the lines.
+Budget: count only documentation `DOCUMENTATION.md` does not require. Everything it requires is
+exempt, among it what-sentences, module templates, `# Errors`, `# Panics`, field docs, `# Examples`
+and doctest bodies. When what remains exceeds the hand-written code lines the same file adds,
+report it and name the lines.
 
-**Pass 4 — Wording.** Apply the [`plain-english` skill](.claude/skills/plain-english/SKILL.md).
-Strict mode covers error strings, `.expect()` messages, log messages, and agent instructions.
-Standard mode covers rustdoc, Markdown, the PR description, and the commit messages. Report the
-sentence and the rewrite.
+**Pass 4 — Wording.** Apply the [`plain-english` skill](.claude/skills/plain-english/SKILL.md),
+which picks its mode from the destination of the text. Report the sentence and the rewrite.
 
 ### Findings
 
