@@ -23,8 +23,10 @@
 //! }
 //! ```
 
-// The `compile_fail` guards in the port modules work by letting a leaked method compile, so
-// `#![doc(test(attr(deny(warnings))))]` on the crate root would blind both of them.
+// Never put `#![doc(test(attr(deny(warnings))))]` on the crate root. The `compile_fail` doctests
+// in the port modules pass while the call inside them does not compile. A method added to the
+// wrong port makes that call compile with warnings. That attribute turns the warnings into
+// errors, so the doctests pass again and the mistake goes unreported.
 pub mod read_repository;
 pub mod read_write_repository;
 pub mod write_repository;

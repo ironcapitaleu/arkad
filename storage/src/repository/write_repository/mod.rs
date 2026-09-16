@@ -25,8 +25,9 @@
 //! }
 //! ```
 
-// Keep the guard above unconstrained: `todo!()` for the argument, the result unused, the receiver
-// by value. Anything more specific makes the block fail on that instead of on the missing method.
+// The doctest above must fail only because `get` does not exist. Keep `todo!()` as the argument,
+// leave the result unused, and take the receiver by value. A typed argument, an `.await`, or a
+// `&` receiver each give the block another reason to fail.
 
 use async_trait::async_trait;
 
