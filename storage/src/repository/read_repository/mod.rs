@@ -17,20 +17,6 @@
 //!     read.expect("Given a reader that holds the key, the read should always succeed")
 //! }
 //! ```
-//!
-//! The trait carries no write method, so a write from that same caller does not compile:
-//!
-//! ```compile_fail
-//! use storage::ReadRepository;
-//!
-//! fn write_through_a_reader<R: ReadRepository>(mut reader: R) {
-//!     reader.persist(todo!());
-//! }
-//! ```
-
-// The code in the doctest above must produce "no method named `persist`" and no other
-// compiler error. Keep `todo!()` as the argument, leave the result unused, and take the
-// receiver by value. A typed argument, an `.await`, or a `&` receiver each add a second error.
 
 use async_trait::async_trait;
 

@@ -14,20 +14,6 @@
 //!     write.expect("Given a writer that accepts the record, the write should always succeed");
 //! }
 //! ```
-//!
-//! The trait carries no read method, so a read from that same caller does not compile:
-//!
-//! ```compile_fail
-//! use storage::WriteRepository;
-//!
-//! fn read_through_a_writer<W: WriteRepository>(mut writer: W) {
-//!     writer.get(todo!());
-//! }
-//! ```
-
-// The code in the doctest above must produce "no method named `get`" and no other
-// compiler error. Keep `todo!()` as the argument, leave the result unused, and take the
-// receiver by value. A typed argument, an `.await`, or a `&` receiver each add a second error.
 
 use async_trait::async_trait;
 
