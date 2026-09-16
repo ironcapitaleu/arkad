@@ -380,6 +380,66 @@ without a per-item verdict is not a review.
 - **Raise the finding you are unsure about.** Ask the question rather than silently deferring to
   the author.
 
+### Review Stance
+
+Start from the assumption that the PR contains at least one defect, gap, or unjustified decision.
+Interrogate the change rather than affirm it. "No material issues" is a valid result, but only
+after all four passes below run and the review states the residual risk. Never invent a finding to
+fill an empty list. Never approve by silence: a review that finds nothing still names what it
+verified and what risk remains.
+
+A review asks no questions. When a skill below opens with a questionnaire, read the skill for its
+rules and take the diff as the scope.
+
+### Review Passes
+
+Run four passes in this order: code, tests, documentation, wording. On the first review of a PR,
+run all four. On every later round, run the code pass in full, then run the test, documentation,
+and wording passes on the files that changed since the last review.
+
+**Pass 1 — Code.** Apply the "Code Quality Review", "Performance", "Correctness & Safety", and
+"Security" sections below. Report:
+
+1. **Summary** — 2-3 bullets on what the change does.
+2. **Verdict chain** (required) — work the DoD → Test Plan → per-item verdict. For each DoD item,
+   state whether the diff proves it, and how you checked. Name anything you did not verify. If the
+   PR links no ticket, use its Test Plan, or the stated Type of change, and say which you used.
+3. **Adversarial pass** — list the edge cases, error paths, and concurrency or ordering assumptions
+   the author most likely did not test. State which are covered and which are not.
+
+**Pass 2 — Tests.** Apply the [`testing` skill](.claude/skills/testing/SKILL.md) in Review mode and
+the "Testing Review" section below. A test that passes for a reason unrelated to the property it
+names is a 🔴 finding. State the reason each `compile_fail` doctest fails today, and say whether you
+compiled it or read it.
+
+**Pass 3 — Documentation.** Apply the [`documentation` skill](.claude/skills/documentation/SKILL.md)
+in Check mode against [`DOCUMENTATION.md`](DOCUMENTATION.md) and the "Documentation Consistency"
+section below.
+
+Report excess, not only absence. Documentation that repeats the signature, restates the code, or
+explains a decision the reader cannot act on is a finding, and the fix is a deletion. Quote the
+lines to delete.
+
+Budget: count the documentation lines `DOCUMENTATION.md` does not require. Module templates,
+`# Errors`, `# Panics`, field docs, and doctest bodies never count. When what remains exceeds the
+hand-written code lines the same file adds, report it and name the lines.
+
+**Pass 4 — Wording.** Apply the [`plain-english` skill](.claude/skills/plain-english/SKILL.md).
+Strict mode covers error strings, `.expect()` messages, log messages, and agent instructions.
+Standard mode covers rustdoc, Markdown, the PR description, and the commit messages. Report the
+sentence and the rewrite.
+
+### Findings
+
+Report one list for all four passes. Reference the specific file and line.
+
+- 🔴 Bug, security, correctness, or a guard that passes for the wrong reason (must fix)
+- 🟡 Improvement, performance, design, or documentation excess (fix or justify)
+- 🟣 Nit (optional)
+
+For each 🔴 and 🟡, give a concrete failure scenario (inputs → wrong result, or reader → wrong
+conclusion), then a code block with the fix.
+
 ### Code Quality Review
 
 - Readability and maintainability
@@ -427,10 +487,11 @@ without a per-item verdict is not a review.
 
 ### What NOT to Do
 
+- Avoid nitpicks on trivial formatting, in any language
 - Do not raise whitespace, line breaks, or anything else `cargo fmt` and `cargo clippy` own
 - Do not suggest unnecessary rewrites if code is clear and correct
 - Do not enforce rules outside these guidelines, [`DOCUMENTATION.md`](DOCUMENTATION.md), and the
-  skills the review prompt names
+  `testing`, `documentation`, and `plain-english` skills
 
 ---
 

@@ -53,79 +53,11 @@ jobs:
           allowed_bots: "claude[bot]"
           track_progress: true
           prompt: |
-            You are an adversarial code reviewer. Start from the assumption
-            that this PR contains at least one defect, gap, or unjustified
-            decision. Interrogate the change rather than affirm it. "No material
-            issues" is a valid result, but only after you complete every pass
-            below and state the residual risk. Never invent a finding to avoid an
-            empty list.
+            You are an adversarial code reviewer for this pull request.
 
-            Two documents carry the rules. Apply the "PR Review Guidelines"
-            section of AGENTS.md exactly. Apply DOCUMENTATION.md exactly for
-            every documentation finding. Each pass below names the skill that
-            carries its procedure.
+            Apply the "PR Review Guidelines" section of AGENTS.md exactly,
+            including its "Review Stance", "Review Passes", and "Findings"
+            procedure. Apply DOCUMENTATION.md exactly for every documentation
+            finding.
 
-            Run four passes in this order: code, tests, documentation, wording.
-            Content comes first and wording comes last, so the wording pass reads
-            text that the earlier passes leave alone.
-
-            Round rule: on the first review of a PR, run all four passes. On
-            every later round, run the code pass in full, then run the test,
-            documentation, and wording passes on the files that changed since
-            your last review.
-
-            Pass 1 — Code.
-
-            1. Summary: 2-3 bullets on what the change does.
-
-            2. Verdict chain (required): work the DoD → Test Plan → per-item
-               verdict. For each DoD item, state whether the diff actually proves
-               it, and how you checked. Name anything you did not verify. If the
-               PR has no linked ticket/DoD, use the PR's Test Plan (or, absent
-               that, the stated Type of change) as the DoD and say so explicitly.
-
-            3. Adversarial pass: list the edge cases, error paths, and concurrency
-               or ordering assumptions the author most likely did not test. State
-               which are covered and which are not.
-
-            Pass 2 — Tests. Load the `testing` skill and use its Review mode.
-            Check the pattern, the one-assertion rule, the naming, and the
-            placement of each new or changed test. A test that passes for a
-            reason unrelated to the property it names is a 🔴 finding. State the
-            reason each `compile_fail` doctest fails today.
-
-            Pass 3 — Documentation. Load the `documentation` skill and use its
-            Check mode against DOCUMENTATION.md.
-
-            Report excess, not only absence. Documentation that repeats the
-            signature, restates the code, or explains a decision the reader
-            cannot act on is a finding, and the fix is a deletion. Quote the
-            lines you want removed.
-
-            Budget: a file whose diff adds more documentation lines than
-            hand-written code lines is a finding, unless the PR is
-            documentation-only. Say which lines carry the excess.
-
-            Pass 4 — Wording. Load the `plain-english` skill. Apply Strict mode
-            to error strings, `.expect()` messages, log messages, and agent
-            instructions. Apply Standard mode to rustdoc, Markdown, the PR
-            description, and the commit messages. Report the sentence and the
-            rewrite.
-
-            Report one list of findings for all four passes. Reference the
-            specific file and line. Categorize:
-               - 🔴 Bug / security / correctness / broken guard (must fix)
-               - 🟡 Improvement / performance / design / doc excess (fix or
-                 justify)
-               - 🟣 Nit / minor (optional)
-            For each 🔴/🟡, give a concrete failure scenario (inputs → wrong
-            result, or reader → wrong conclusion), then a code block with the fix.
-
-            If you genuinely find no material issues, you must still state
-            explicitly what you verified and what residual risk remains. Never
-            approve by silence. Requesting a split for anything over the LoC
-            ceiling is always valid.
-
-            Raise findings only for rules in AGENTS.md, in DOCUMENTATION.md, or
-            in the three skills named above. Never raise whitespace, line
-            breaks, or anything else `cargo fmt` and `cargo clippy` own.
+            Post one review comment with all four passes.
