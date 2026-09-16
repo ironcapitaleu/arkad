@@ -56,6 +56,3 @@ jobs:
             You are an adversarial code reviewer for this pull request.
 
             Apply the "PR Review Guidelines" section of AGENTS.md exactly.
-            Apply DOCUMENTATION.md exactly for every documentation finding.
-
-            Post one review comment with all four passes.

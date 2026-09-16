@@ -377,8 +377,8 @@ without a per-item verdict is not a review.
   This chain — **DoD → Test Plan → per-item verdict** — is what makes an approval mean something.
 - **Requesting a split is always legitimate.** A PR over the ceiling with no declared exception
   should be sent back to be sliced, however good the code is. Reviewability is part of done.
-- **Raise the finding you are unsure about.** Ask the question rather than silently deferring to
-  the author.
+- **Raise the finding you are unsure about.** Put it in the list with the uncertainty stated,
+  rather than silently deferring to the author.
 
 ### Review Stance
 
@@ -393,17 +393,19 @@ answer: when a skill below opens with a questionnaire, read the skill for its ru
 diff as the scope. An uncertain finding still goes in the list, with the uncertainty stated.
 
 On a pull request the review job restores `CLAUDE.md` and `.claude/` from the base branch and
-parks the PR's copies in `.claude-pr/`. Apply the rules from the linked path. When the PR changes
-one of those files, review the version in `.claude-pr/`.
+parks the PR's copies in `.claude-pr/`. Apply the rules from the copy each pass below links. When
+the PR changes one of those files, review the version in `.claude-pr/`.
 
 ### Review Passes
 
 Run four passes in this order: code, tests, documentation, wording. On the first review of a PR,
 run all four. On every later round, run the code pass in full, then run the test, documentation,
-and wording passes on the files that changed since the last review.
+and wording passes on the files that changed since the commit the last review named. End every
+review by naming the commit you reviewed. When no earlier review names one, use the full diff
+against `origin/main`.
 
-**Pass 1 — Code.** Apply the "Code Quality Review", "Performance", "Correctness & Safety", and
-"Security" sections below. Report:
+**Pass 1 — Code.** Apply the "Review Budget & Rubber-Stamping", "Code Quality Review",
+"Performance", "Correctness & Safety", and "Security" sections above and below. Report:
 
 1. **Summary** — 2-3 bullets on what the change does.
 2. **Verdict chain** (required) — follow the chain DoD → Test Plan → per-item verdict. For each DoD item,
@@ -415,8 +417,8 @@ and wording passes on the files that changed since the last review.
 
 **Pass 2 — Tests.** Apply the [`testing` skill](.claude/skills/testing/SKILL.md) in Review mode and
 the "Testing Review" section below. A test that passes for a reason unrelated to the property it
-names is a 🔴 finding. State the reason each `compile_fail` doctest fails today, and say whether you
-compiled it or read it.
+names is a 🔴 finding. For each `compile_fail` doctest the PR adds or changes, state why it fails
+today, and say whether you compiled it or read it.
 
 **Pass 3 — Documentation.** Apply the [`documentation` skill](.claude/skills/documentation/SKILL.md)
 in Check mode against [`DOCUMENTATION.md`](DOCUMENTATION.md) and the "Style & Documentation" and
@@ -426,13 +428,14 @@ Report excess, not only absence. Documentation that repeats the signature, resta
 explains a decision the reader cannot act on is a finding, and the fix is a deletion. Quote the
 lines to delete.
 
-Budget: count only documentation `DOCUMENTATION.md` does not require. Everything it requires is
-exempt, among it what-sentences, module templates, `# Errors`, `# Panics`, field docs, `# Examples`
-and doctest bodies. When what remains exceeds the hand-written code lines the same file adds,
-report it and name the lines.
+Budget: this applies to source files. Count only documentation `DOCUMENTATION.md` does not
+require. Everything it requires is exempt, including what-sentences, module templates, `# Errors`,
+`# Panics`, field docs, `# Examples`, and doctest bodies. When what remains exceeds the code lines
+the same file adds, report it and name the lines. A PR that changes no source file has no budget.
 
 **Pass 4 — Wording.** Apply the [`plain-english` skill](.claude/skills/plain-english/SKILL.md),
-which picks its mode from the destination of the text. Report the sentence and the rewrite.
+which picks its mode from the destination of the text. Read the changed files, the PR description,
+and the commit messages this round adds. Report the sentence and the rewrite.
 
 ### Findings
 
