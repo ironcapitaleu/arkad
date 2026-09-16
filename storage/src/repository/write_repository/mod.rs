@@ -27,7 +27,7 @@
 
 // The doctest above must fail only because `get` does not exist. Keep `todo!()` as the argument,
 // leave the result unused, and take the receiver by value. A typed argument, an `.await`, or a
-// `&` receiver each give the block another reason to fail.
+// `&` receiver each give the doctest another reason to fail.
 
 use async_trait::async_trait;
 

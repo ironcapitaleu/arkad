@@ -23,10 +23,10 @@
 //! }
 //! ```
 
-// Never put `#![doc(test(attr(deny(warnings))))]` on the crate root. The `compile_fail` doctests
-// in the port modules pass while the call inside them does not compile. A method added to the
-// wrong port makes that call compile with warnings. That attribute turns the warnings into
-// errors, so the doctests pass again and the mistake goes unreported.
+// Never put `#![doc(test(attr(deny(warnings))))]` on the crate root. `read_repository` and
+// `write_repository` each have a `compile_fail` doctest that passes only while its code fails to
+// compile. Adding `persist` to `ReadRepository` makes that code compile with warnings, and the
+// doctest then fails. That attribute turns those warnings into errors, and the doctest passes.
 pub mod read_repository;
 pub mod read_write_repository;
 pub mod write_repository;

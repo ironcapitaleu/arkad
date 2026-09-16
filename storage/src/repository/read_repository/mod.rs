@@ -30,7 +30,7 @@
 
 // The doctest above must fail only because `persist` does not exist. Keep `todo!()` as the
 // argument, leave the result unused, and take the receiver by value. A typed argument, an
-// `.await`, or a `&` receiver each give the block another reason to fail.
+// `.await`, or a `&` receiver each give the doctest another reason to fail.
 
 use async_trait::async_trait;
 
