@@ -25,9 +25,9 @@
 //! }
 //! ```
 
-// The doctest above must fail only because `get` does not exist. Keep `todo!()` as the argument,
-// leave the result unused, and take the receiver by value. A typed argument, an `.await`, or a
-// `&` receiver each give the doctest another reason to fail.
+// The code in the doctest above must produce "no method named `get`" and no other
+// compiler error. Keep `todo!()` as the argument, leave the result unused, and take the
+// receiver by value. A typed argument, an `.await`, or a `&` receiver each add a second error.
 
 use async_trait::async_trait;
 
