@@ -23,9 +23,9 @@ use crate::repository::write_repository::WriteRepository;
 ///
 /// `S: ReadRepository<Record = String, Key = String> + WriteRepository<Record = String>`
 ///
-/// That bound sets each parent's `Record` on its own. It does not tie the two together: nothing
-/// makes them match, and nothing converts between them. They agree here only because the bound
-/// writes `String` twice.
+/// That bound makes `get` return a `String` and `persist` take a `String`. It sets each parent's
+/// `Record` separately: nothing makes the two match, and nothing converts between them. They are
+/// both `String` here only because the bound writes `String` twice.
 ///
 /// # Required Traits
 ///
