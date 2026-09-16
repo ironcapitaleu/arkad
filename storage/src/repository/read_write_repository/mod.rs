@@ -12,9 +12,15 @@ use crate::repository::write_repository::WriteRepository;
 ///
 /// # Setting the Record Type
 ///
-/// `ReadWriteRepository<Record = String>` does not compile. Both parent traits declare a
-/// `Record`, so the compiler cannot tell which one that bound means. Bind the parents instead:
-/// `S: ReadRepository<Record = String, Key = String> + WriteRepository<Record = String>`.
+/// Both parent traits have a `Record`. [`ReadRepository::Record`] is what `get` returns.
+/// [`WriteRepository::Record`] is what `persist` takes. They are two separate slots that share a
+/// name, and nothing forces them to hold the same type.
+///
+/// `ReadWriteRepository` has no `Record` of its own. It has the two it inherits from its parents.
+/// So `ReadWriteRepository<Record = String>` does not compile. The compiler cannot tell which of
+/// the two that bound sets. Set them on the parents instead:
+///
+/// `S: ReadRepository<Record = String, Key = String> + WriteRepository<Record = String>`
 ///
 /// # Required Traits
 ///
