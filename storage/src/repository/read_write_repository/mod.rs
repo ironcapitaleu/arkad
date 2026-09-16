@@ -18,7 +18,8 @@ use crate::repository::write_repository::WriteRepository;
 ///
 /// `ReadWriteRepository` has no `Record` of its own. It has the two it inherits from its parents.
 /// So `ReadWriteRepository<Record = String>` does not compile. The compiler cannot tell which of
-/// the two that bound sets. Set them on the parents instead:
+/// the two that bound sets. To set a record type on a `ReadWriteRepository`, set it on each
+/// parent instead:
 ///
 /// `S: ReadRepository<Record = String, Key = String> + WriteRepository<Record = String>`
 ///
