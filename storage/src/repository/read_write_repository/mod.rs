@@ -13,17 +13,8 @@ use crate::repository::write_repository::WriteRepository;
 /// # Setting the Record Type
 ///
 /// `ReadWriteRepository<Record = String>` does not compile. Both parent traits declare a
-/// `Record`, so the compiler cannot tell which one that bound means. Set the type on each parent
-/// instead:
-///
-/// ```rust
-/// # use storage::{ReadRepository, WriteRepository};
-/// fn takes_a_store<S>(_store: S)
-/// where
-///     S: ReadRepository<Record = String, Key = String> + WriteRepository<Record = String>,
-/// {
-/// }
-/// ```
+/// `Record`, so the compiler cannot tell which one that bound means. Bind the parents instead:
+/// `S: ReadRepository<Record = String, Key = String> + WriteRepository<Record = String>`.
 ///
 /// # Required Traits
 ///
