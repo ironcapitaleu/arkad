@@ -428,11 +428,13 @@ Report excess, not only absence. Documentation that repeats the signature, resta
 explains a decision the reader cannot act on is a finding, and the fix is a deletion. Quote the
 lines to delete.
 
-Budget: this applies to Rust source files. Count only documentation `DOCUMENTATION.md` does not
-require. Everything it requires is exempt, including what-sentences, module templates, `# Errors`,
-`# Panics`, field docs, `# Examples`, and doctest bodies. When what remains exceeds the code lines
-the same file adds, report it and name the lines. A file whose diff adds no code has no budget:
-judge it by the deletion test above. A PR that changes no Rust file has no budget.
+Budget: this applies to Rust files. For each Rust file in the diff, count the documentation lines
+it adds. Lines `DOCUMENTATION.md` requires never count: the what-sentence, the module template,
+`# Errors`, `# Panics`, field docs, `# Examples`, and doctest bodies.
+
+- When the count is higher than the code lines the same file adds, report it and name the lines.
+- When the file adds no code, use the deletion test above instead.
+- When the PR changes no Rust file, there is no budget.
 
 **Pass 4 — Wording.** Apply the [`plain-english` skill](.claude/skills/plain-english/SKILL.md),
 which picks its mode from the destination of the text. Read the changed files, the PR description,
