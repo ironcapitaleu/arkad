@@ -1,8 +1,8 @@
 //! # Fake Read Repository
 //!
-//! Provides [`FakeReadRepository`], an in-memory [`ReadRepository`] test double seeded with
+//! Provides [`FakeReadRepository`], an in-memory [`ReadRepository`] test double initialized with
 //! key-to-record entries. It proves the [`ReadRepository`] trait end-to-end and lets consumer
-//! tests run with no database: [`FakeReadRepository::get`] serves the seeded record, and
+//! tests run with no database: [`FakeReadRepository::get`] serves that record, and
 //! [`FakeReadRepository::failing`] builds a double that fails every read.
 
 use async_trait::async_trait;
@@ -10,7 +10,7 @@ use async_trait::async_trait;
 use crate::error::ReadError;
 use crate::repository::ReadRepository;
 
-/// An in-memory [`ReadRepository`] test double seeded with key-to-record entries.
+/// An in-memory [`ReadRepository`] test double initialized with key-to-record entries.
 ///
 /// Generic over the key type and the record type, so it fits any [`ReadRepository`] binding. It
 /// models no query beyond the key lookup the trait declares.
@@ -36,9 +36,9 @@ impl<Key, Rec> FakeReadRepository<Key, Rec> {
         }
     }
 
-    /// Creates a [`FakeReadRepository`] seeded with the given key-to-record entries.
+    /// Creates a [`FakeReadRepository`] initialized with the given key-to-record entries.
     #[must_use]
-    pub const fn seeded(entries: Vec<(Key, Rec)>) -> Self {
+    pub const fn initialized(entries: Vec<(Key, Rec)>) -> Self {
         Self {
             entries,
             failure: None,
@@ -72,7 +72,7 @@ where
         Ok(self
             .entries
             .iter()
-            .find(|(seeded_key, _)| *seeded_key == key)
+            .find(|(entry_key, _)| *entry_key == key)
             .map(|(_, record)| record.clone()))
     }
 }
@@ -130,42 +130,41 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_return_the_seeded_record_when_the_key_is_seeded() {
+    async fn should_return_the_record_when_the_key_is_known() {
         let repository =
-            FakeReadRepository::seeded(vec![("0000320193".to_string(), "Apple".to_string())]);
+            FakeReadRepository::initialized(vec![("0000320193".to_string(), "Apple".to_string())]);
         let expected_result = Some("Apple".to_string());
 
         let result = repository
             .get("0000320193".to_string())
             .await
-            .expect("Given a key the fake was seeded with, the read should always succeed");
+            .expect("Given a key the fake was initialized with, the read should always succeed");
 
         assert_eq!(result, expected_result);
     }
 
     #[tokio::test]
-    async fn should_return_none_when_the_key_is_not_seeded() {
+    async fn should_return_none_when_the_key_is_unknown() {
         let repository =
-            FakeReadRepository::seeded(vec![("0000320193".to_string(), "Apple".to_string())]);
+            FakeReadRepository::initialized(vec![("0000320193".to_string(), "Apple".to_string())]);
         let expected_result = None;
 
-        let result = repository
-            .get("0001067983".to_string())
-            .await
-            .expect("Given a fake that was not seeded to fail, the read should always succeed");
+        let result = repository.get("0001067983".to_string()).await.expect(
+            "Given a fake that was not initialized to fail, the read should always succeed",
+        );
 
         assert_eq!(result, expected_result);
     }
 
     #[tokio::test]
-    async fn should_return_the_seeded_error_when_the_repository_is_seeded_to_fail() {
+    async fn should_return_the_error_when_the_fake_is_initialized_to_fail() {
         let error = ReadError::Backend(BackendError::unreachable_storage("timeout"));
         let repository: FakeReadRepository<String, String> =
             FakeReadRepository::failing(error.clone());
         let expected_result = error;
 
         let result = repository.get("0000320193".to_string()).await.expect_err(
-            "Given a fake seeded to fail, the read should always return the seeded error",
+            "Given a fake initialized to fail, the read should always return that error",
         );
 
         assert_eq!(result, expected_result);

@@ -69,16 +69,16 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_return_the_seeded_record_when_reading_through_a_trait_object() {
+    async fn should_return_the_record_when_reading_through_a_trait_object() {
         let repository: Box<dyn ReadRepository<Record = String, Key = String>> = Box::new(
-            FakeReadRepository::seeded(vec![("0000320193".to_string(), "Apple".to_string())]),
+            FakeReadRepository::initialized(vec![("0000320193".to_string(), "Apple".to_string())]),
         );
         let expected_result = Some("Apple".to_string());
 
         let result = repository
             .get("0000320193".to_string())
             .await
-            .expect("Given a key the fake was seeded with, the read should always succeed");
+            .expect("Given a key the fake was initialized with, the read should always succeed");
 
         assert_eq!(result, expected_result);
     }

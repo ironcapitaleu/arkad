@@ -10,11 +10,11 @@ use crate::repository::write_repository::WriteRepository;
 /// Adds no method of its own. A blanket implementation grants it to every type that implements
 /// both [`ReadRepository`] and [`WriteRepository`], so a backend writes no implementation for it.
 ///
-/// # Naming the Record Type
+/// # Setting the Record Type
 ///
-/// Both parent traits declare a `Record`, so `ReadWriteRepository<Record = String>` does not
-/// compile. The compiler cannot tell which parent's `Record` the bound means. Name the parent
-/// traits instead:
+/// `ReadWriteRepository<Record = String>` does not compile. Both parent traits declare a
+/// `Record`, so the compiler cannot tell which one that bound means. Set the type on each parent
+/// instead:
 ///
 /// ```rust
 /// # use storage::{ReadRepository, WriteRepository};
@@ -24,9 +24,6 @@ use crate::repository::write_repository::WriteRepository;
 /// {
 /// }
 /// ```
-///
-/// Inside a function already bound to [`ReadWriteRepository`], write
-/// `<RW as WriteRepository>::Record` to say which parent the type comes from.
 ///
 /// # Required Traits
 ///
