@@ -4,7 +4,7 @@
 //!
 //! ## Usage
 //!
-//! A caller bound to [`WriteRepository`] has `persist` in scope:
+//! A caller bound to [`WriteRepository`] has [`persist`](WriteRepository::persist) in scope:
 //!
 //! ```rust
 //! use storage::WriteRepository;

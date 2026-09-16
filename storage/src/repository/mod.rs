@@ -2,9 +2,10 @@
 //!
 //! Provides the traits through which code reads and writes records.
 //!
-//! [`ReadRepository`] gives a caller `get` and nothing else. [`WriteRepository`] gives it
-//! `persist` and nothing else. A caller depends on the trait for the access it needs, so a
-//! read-only caller has no write method in scope.
+//! [`ReadRepository`] gives a caller [`get`](ReadRepository::get) and nothing else.
+//! [`WriteRepository`] gives it [`persist`](WriteRepository::persist) and nothing else. A caller
+//! depends on the trait for the access it needs, so a read-only caller has no write method in
+//! scope.
 //!
 //! ## Modules
 //!

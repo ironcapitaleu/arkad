@@ -12,9 +12,9 @@ use crate::repository::write_repository::WriteRepository;
 ///
 /// # Setting the Record Type
 ///
-/// Both parent traits have a `Record`. [`ReadRepository::Record`] is what `get` returns.
-/// [`WriteRepository::Record`] is what `persist` takes. They are two separate slots that share a
-/// name.
+/// Both parent traits have a `Record`. [`ReadRepository::Record`] is what
+/// [`get`](ReadRepository::get) returns. [`WriteRepository::Record`] is what
+/// [`persist`](WriteRepository::persist) takes. They are two separate slots that share a name.
 ///
 /// `ReadWriteRepository` has no `Record` of its own. It has the two it inherits from its parents.
 /// So `ReadWriteRepository<Record = String>` does not compile. The compiler cannot tell which of
@@ -23,14 +23,15 @@ use crate::repository::write_repository::WriteRepository;
 ///
 /// `S: ReadRepository<Record = String, Key = String> + WriteRepository<Record = String>`
 ///
-/// In the example above, the bound makes `get` return a `String` and `persist` take a `String`.
-/// It sets each parent's `Record` separately: nothing makes the two match, and nothing converts
-/// between them. They are both `String` here only because the bound writes `String` twice.
+/// In the example above, the bound makes [`get`](ReadRepository::get) return a `String` and
+/// [`persist`](WriteRepository::persist) take a `String`. It sets each parent's `Record`
+/// separately: nothing makes the two match, and nothing converts between them. They are both
+/// `String` here only because the bound writes `String` twice.
 ///
 /// # Required Traits
 ///
-/// - [`ReadRepository`]: gives the store its `get` method.
-/// - [`WriteRepository`]: gives the store its `persist` method.
+/// - [`ReadRepository`]: gives the store its [`get`](ReadRepository::get) method.
+/// - [`WriteRepository`]: gives the store its [`persist`](WriteRepository::persist) method.
 pub trait ReadWriteRepository: ReadRepository + WriteRepository {}
 
 impl<T: ReadRepository + WriteRepository> ReadWriteRepository for T {}

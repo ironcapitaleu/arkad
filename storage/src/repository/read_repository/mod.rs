@@ -4,7 +4,7 @@
 //!
 //! ## Usage
 //!
-//! A caller bound to [`ReadRepository`] has `get` in scope:
+//! A caller bound to [`ReadRepository`] has [`get`](ReadRepository::get) in scope:
 //!
 //! ```rust
 //! use storage::ReadRepository;
