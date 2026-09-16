@@ -1,8 +1,3 @@
-// Never put `#![doc(test(attr(deny(warnings))))]` here. `read_repository` and `write_repository`
-// each have a `compile_fail` doctest that passes only while its code fails to compile. Adding
-// `persist` to `ReadRepository` makes that code compile with warnings, and the doctest then
-// fails. That attribute turns those warnings into errors, and the doctest passes.
-
 //! # Storage
 //!
 //! Provides the arkad workspace's backend-agnostic persistence interface: the ports that code
