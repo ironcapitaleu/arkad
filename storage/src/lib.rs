@@ -1,12 +1,11 @@
 //! # Storage
 //!
-//! Provides the arkad workspace's backend-agnostic persistence interface: the ports that code
+//! Provides the arkad workspace's backend-agnostic persistence interface: the traits that code
 //! reads and writes domain records through, and the [`error`] types they return.
 //!
-//! The ports are split by access capability. [`ReadRepository`] reads a record by key.
-//! [`WriteRepository`] persists a record. [`ReadWriteRepository`] names a store that does both. A
-//! component depends on the port for the access it needs, so a write from a read-only caller does
-//! not compile.
+//! [`ReadRepository`] reads a record by key. [`WriteRepository`] persists a record.
+//! [`ReadWriteRepository`] names a store that does both. A component depends on the trait for the
+//! access it needs, so a write from a read-only caller does not compile.
 //!
 //! The interface is expressed in domain types and holds these abstractions only, naming no concrete
 //! database or backend.
@@ -14,11 +13,11 @@
 //! ## Modules
 //!
 //! - [`error`]: The error types the crate returns and the conversions between them.
-//! - [`repository`]: The persistence ports, split by access capability.
+//! - [`repository`]: The traits for reading and writing records.
 //!
 //! ## Usage
 //!
-//! A component names the capability it needs. This one reads, so it has no way to write:
+//! A component names the trait it needs. This one reads, so it has no way to write:
 //!
 //! ```rust
 //! use storage::{ReadError, ReadRepository};

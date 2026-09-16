@@ -1,7 +1,6 @@
 //! # Read Write Repository
 //!
-//! Provides [`ReadWriteRepository`], the one name for a store that offers both the read capability
-//! and the write capability.
+//! Provides [`ReadWriteRepository`], the one name for a store that both reads and writes.
 
 use crate::repository::read_repository::ReadRepository;
 use crate::repository::write_repository::WriteRepository;
