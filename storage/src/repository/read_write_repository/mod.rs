@@ -19,11 +19,16 @@ use crate::repository::write_repository::WriteRepository;
 /// `ReadWriteRepository` has no `Record` of its own. It has the two it inherits from its parents.
 /// That makes the difference between these three bounds:
 ///
-/// - `S: ReadWriteRepository` compiles. Nothing to disambiguate.
+/// - `S: ReadWriteRepository` compiles. It sets no record type, so there is nothing to
+///   disambiguate.
 /// - `S: ReadWriteRepository<Record = String>` does not compile. The compiler cannot tell which
 ///   of the two `Record`s that bound sets, and reports E0222.
 /// - `S: ReadRepository<Record = String, Key = String> + WriteRepository<Record = String>`
 ///   compiles. Each `Record` is set on the trait that declares it.
+///
+/// Naming the type is separate from setting it. `S::Record` is ambiguous wherever both parents
+/// are in scope, and reports E0221. That holds even where both are set to the same type. Write
+/// `<S as ReadRepository>::Record` or `<S as WriteRepository>::Record`.
 ///
 /// # Required Traits
 ///
