@@ -427,9 +427,10 @@ without a per-item verdict is not a review.
 
 ### What NOT to Do
 
-- Avoid nitpicks on trivial formatting
+- Do not raise whitespace, line breaks, or anything else `cargo fmt` and `cargo clippy` own
 - Do not suggest unnecessary rewrites if code is clear and correct
-- Do not enforce rules not listed in these guidelines
+- Do not enforce rules outside these guidelines, [`DOCUMENTATION.md`](DOCUMENTATION.md), and the
+  skills the review prompt names
 
 ---
 
