@@ -5,31 +5,16 @@
 use crate::repository::read_repository::ReadRepository;
 use crate::repository::write_repository::WriteRepository;
 
-/// Names a store that reads and writes.
+/// Names a store that both reads and writes.
 ///
 /// Adds no method of its own. A blanket implementation grants it to every type that implements
-/// both [`ReadRepository`] and [`WriteRepository`], so a backend adapter writes no implementation
-/// for it.
+/// both [`ReadRepository`] and [`WriteRepository`], so a backend writes no implementation for it.
 ///
-/// Unparameterized, the bound is fine:
+/// # Naming the Record Type
 ///
-/// ```rust
-/// # use storage::ReadWriteRepository;
-/// fn takes_a_store<S: ReadWriteRepository>(_store: S) {}
-/// ```
-///
-/// Both parent traits declare a `Record`, so `ReadWriteRepository<Record = ...>` names an
-/// ambiguous associated type and does not compile:
-///
-/// ```compile_fail
-/// # use storage::ReadWriteRepository;
-/// fn takes_a_store<S: ReadWriteRepository<Record = String>>(_store: S) {}
-/// ```
-///
-/// The two examples share an import and differ only in that bound. `compile_fail` passes on any
-/// compilation error, so the example above it keeps this pair honest.
-///
-/// A caller that pins the record type binds the two parent traits instead:
+/// Both parent traits declare a `Record`, so `ReadWriteRepository<Record = String>` does not
+/// compile. The compiler cannot tell which parent's `Record` the bound means. Name the parent
+/// traits instead:
 ///
 /// ```rust
 /// # use storage::{ReadRepository, WriteRepository};
@@ -40,16 +25,8 @@ use crate::repository::write_repository::WriteRepository;
 /// }
 /// ```
 ///
-/// Inside a function already bound to [`ReadWriteRepository`], naming `Record` is ambiguous for
-/// the same reason. There the fix is a qualified path, which picks the parent the record comes
-/// from:
-///
-/// ```rust
-/// # use storage::{ReadWriteRepository, WriteRepository};
-/// fn write_unit<RW: ReadWriteRepository>() -> Option<<RW as WriteRepository>::Record> {
-///     None
-/// }
-/// ```
+/// Inside a function already bound to [`ReadWriteRepository`], write
+/// `<RW as WriteRepository>::Record` to say which parent the type comes from.
 ///
 /// # Required Traits
 ///
@@ -62,12 +39,12 @@ impl<T: ReadRepository + WriteRepository> ReadWriteRepository for T {}
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::tests::fixtures::fake_store::FakeStore;
+    use crate::tests::fixtures::fake_read_write_repository::FakeReadWriteRepository;
 
     const fn implements_read_write_repository<T: ReadWriteRepository>() {}
 
     #[test]
-    const fn should_implement_read_write_repository_when_using_fake_store() {
-        implements_read_write_repository::<FakeStore<String>>();
+    const fn should_implement_read_write_repository_when_using_fake_read_write_repository() {
+        implements_read_write_repository::<FakeReadWriteRepository<String>>();
     }
 }

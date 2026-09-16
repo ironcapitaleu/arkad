@@ -21,18 +21,15 @@ use crate::error::WriteError;
 
 /// Persists a record to the store.
 ///
-/// Injected as a concrete type — production wires a real backend, tests wire a fake — so callers
-/// depend on this trait rather than on a database. Each implementor binds
-/// [`WriteRepository::Record`] to its own write-unit.
-///
 /// # Associated Types
 ///
-/// - [`WriteRepository::Record`]: the write-unit accepted by [`WriteRepository::persist`].
+/// Each implementor chooses the concrete type filling this slot, which is what keeps the trait
+/// decoupled from any specific database:
+///
+/// - `Record`: The record this repository persists.
 #[async_trait]
 pub trait WriteRepository: Send + Sync {
-    /// The unit of persistence this repository accepts — one record per
-    /// [`WriteRepository::persist`] call. Implementations bind it to their concrete write-unit
-    /// (for example, a filing record).
+    /// The record this repository persists.
     ///
     /// Bounded by [`Send`] because [`WriteRepository::persist`] moves it across an `async`
     /// boundary.

@@ -111,13 +111,13 @@ mod tests {
 
     const fn implements_debug<T: Debug>() {}
     #[test]
-    const fn should_be_able_to_rely_on_debug_implementation_when_using_fake_write_repository() {
+    const fn should_be_able_to_rely_on_debug_when_using_fake_write_repository() {
         implements_debug::<FakeWriteRepository<String>>();
     }
 
     const fn implements_default<T: Default>() {}
     #[test]
-    const fn should_be_able_to_rely_on_default_implementation_when_using_fake_write_repository() {
+    const fn should_be_able_to_rely_on_default_when_using_fake_write_repository() {
         implements_default::<FakeWriteRepository<String>>();
     }
 

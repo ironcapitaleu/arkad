@@ -24,25 +24,21 @@ use crate::error::ReadError;
 
 /// Reads a record from the store by key.
 ///
-/// Injected as a concrete type — production wires a real backend, tests wire a fake — so callers
-/// depend on this trait rather than on a database. Each implementor binds
-/// [`ReadRepository::Record`] to its own read-unit and [`ReadRepository::Key`] to the value that
-/// identifies one record.
-///
 /// # Associated Types
 ///
-/// - [`ReadRepository::Record`]: the read-unit returned by [`ReadRepository::get`].
-/// - [`ReadRepository::Key`]: the lookup value that identifies one record.
+/// Each implementor chooses the concrete types filling these slots, which is what keeps the trait
+/// decoupled from any specific database:
+///
+/// - `Record`: The record this repository returns.
+/// - `Key`: The primary key identifying one record in the store.
 #[async_trait]
 pub trait ReadRepository: Send + Sync {
-    /// The unit this repository returns — one record per [`ReadRepository::get`] call.
-    /// Implementations bind it to their concrete read-unit (for example, a filing record).
+    /// The record this repository returns.
     ///
     /// Bounded by [`Send`] because [`ReadRepository::get`] returns it across an `async` boundary.
     type Record: Send;
 
-    /// The lookup value that identifies one record. Implementations bind it to their concrete key
-    /// (for example, an accession number).
+    /// The primary key identifying one record in the store.
     ///
     /// Bounded by [`Send`] because [`ReadRepository::get`] moves it across an `async` boundary.
     type Key: Send;
