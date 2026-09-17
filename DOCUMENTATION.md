@@ -130,7 +130,7 @@ chose it* is a record of a debate they were not in, and belongs in the design do
 //!
 //! ## Modules
 //!
-//! - [`fake_repository`]: A fake `Repository` that records what it persists.
+//! - [`fake_write_repository`]: A fake `WriteRepository` that records what it persists.
 ```
 
 ### Doc-Tests in Modules
