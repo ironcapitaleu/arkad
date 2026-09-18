@@ -91,7 +91,7 @@ mod tests {
 
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
     #[test]
-    const fn should_be_able_to_rely_auto_trait_implementation_when_using_write_error() {
+    const fn should_be_able_to_rely_on_auto_traits_when_using_write_error() {
         implements_auto_traits::<WriteError>();
     }
 
