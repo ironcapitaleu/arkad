@@ -469,12 +469,12 @@ mod tests {
 
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
     #[test]
-    const fn should_implement_auto_traits_for_parse_company_facts_super_state() {
+    const fn should_implement_auto_traits_when_using_parse_company_facts_super_state() {
         implements_auto_traits::<TransformSuperState<ParseCompanyFacts>>();
     }
 
     #[test]
-    const fn should_implement_auto_traits_for_create_financial_statements_super_state() {
+    const fn should_implement_auto_traits_when_using_create_financial_statements_super_state() {
         implements_auto_traits::<TransformSuperState<CreateFinancialStatements>>();
     }
 
