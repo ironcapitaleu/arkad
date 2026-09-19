@@ -773,7 +773,7 @@ mod tests {
 
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
     #[test]
-    const fn should_still_implement_auto_traits_when_implementing_state_trait() {
+    const fn should_implement_auto_traits_when_using_parse_company_facts() {
         implements_auto_traits::<ParseCompanyFacts>();
     }
 

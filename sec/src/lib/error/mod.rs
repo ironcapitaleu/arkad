@@ -131,7 +131,7 @@ mod tests {
 
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
     #[test]
-    const fn should_be_able_to_rely_on_auto_traits_when_using_errorkind() {
+    const fn should_implement_auto_traits_when_using_error_kind() {
         implements_auto_traits::<ErrorKind>();
     }
 
@@ -139,72 +139,72 @@ mod tests {
     const fn implements_sync<T: Sync>() {}
 
     #[test]
-    const fn should_have_implementend_send_when_using_errorkind() {
+    const fn should_implement_send_when_using_error_kind() {
         implements_send::<ErrorKind>();
     }
 
     #[test]
-    const fn should_implement_sync_when_using_errorkind() {
+    const fn should_implement_sync_when_using_error_kind() {
         implements_sync::<ErrorKind>();
     }
 
     #[test]
-    const fn should_be_thread_safe_when_using_errorkind() {
+    const fn should_be_thread_safe_when_using_error_kind() {
         implements_send::<ErrorKind>();
         implements_sync::<ErrorKind>();
     }
 
     const fn implements_sized<T: Sized>() {}
     #[test]
-    const fn should_be_able_to_rely_on_error_being_sized_when_using_errorkind() {
+    const fn should_be_able_to_rely_on_error_being_sized_when_using_error_kind() {
         implements_sized::<ErrorKind>();
     }
 
     const fn implements_hash<T: Hash>() {}
     #[test]
-    const fn should_be_able_to_rely_on_hash_implementation_when_using_errorkind() {
+    const fn should_be_able_to_rely_on_hash_implementation_when_using_error_kind() {
         implements_hash::<ErrorKind>();
     }
 
     const fn implements_partial_eq<T: PartialEq>() {}
     #[test]
-    const fn should_be_able_to_rely_on_partial_eq_implementation_when_using_errorkind() {
+    const fn should_be_able_to_rely_on_partial_eq_implementation_when_using_error_kind() {
         implements_partial_eq::<ErrorKind>();
     }
 
     const fn implements_eq<T: Eq>() {}
     #[test]
-    const fn should_be_able_to_rely_on_eq_implementation_when_using_errorkind() {
+    const fn should_be_able_to_rely_on_eq_implementation_when_using_error_kind() {
         implements_eq::<ErrorKind>();
     }
 
     const fn implements_partial_ord<T: PartialOrd>() {}
     #[test]
-    const fn should_be_able_to_rely_on_partial_ord_implementation_when_using_errorkind() {
+    const fn should_be_able_to_rely_on_partial_ord_implementation_when_using_error_kind() {
         implements_partial_ord::<ErrorKind>();
     }
 
     const fn implements_ord<T: Ord>() {}
     #[test]
-    const fn should_be_able_to_rely_on_ord_implementation_when_using_errorkind() {
+    const fn should_be_able_to_rely_on_ord_implementation_when_using_error_kind() {
         implements_ord::<ErrorKind>();
     }
 
     const fn implements_debug<T: Debug>() {}
     #[test]
-    const fn should_be_able_to_rely_on_debug_implementation_when_using_errorkind() {
+    const fn should_be_able_to_rely_on_debug_implementation_when_using_error_kind() {
         implements_debug::<ErrorKind>();
     }
 
     const fn implements_clone<T: Clone>() {}
     #[test]
-    const fn should_be_able_to_rely_on_clone_implementation_when_using_errorkind() {
+    const fn should_be_able_to_rely_on_clone_implementation_when_using_error_kind() {
         implements_clone::<ErrorKind>();
     }
 
     const fn implements_unpin<T: Unpin>() {}
     #[test]
-    const fn should_be_able_to_rely_on_unpin_implementation_when_using_errorkind() {
+    const fn should_be_able_to_rely_on_unpin_implementation_when_using_error_kind() {
         implements_unpin::<ErrorKind>();
     }
 
@@ -247,7 +247,7 @@ mod tests {
     }
 
     #[test]
-    fn should_be_able_to_cast_into_equivalent_errorkind_error_when_having_a_statemachine_error() {
+    fn should_be_able_to_cast_into_equivalent_error_kind_error_when_having_a_state_machine_error() {
         let expected_result = ErrorKind::StateMachine(StateMachine::InvalidConfiguration);
 
         let result: ErrorKind = StateMachine::InvalidConfiguration.into();

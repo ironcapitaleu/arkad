@@ -260,7 +260,7 @@ mod tests {
 
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
     #[test]
-    const fn should_still_implement_auto_traits_when_implementing_context_data_trait() {
+    const fn should_implement_auto_traits_when_using_prepare_sec_request_context() {
         implements_auto_traits::<PrepareSecRequestContext>();
     }
 

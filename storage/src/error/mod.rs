@@ -130,7 +130,7 @@ mod tests {
 
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
     #[test]
-    const fn should_be_able_to_rely_on_auto_traits_when_using_error_kind() {
+    const fn should_implement_auto_traits_when_using_error_kind() {
         implements_auto_traits::<ErrorKind>();
     }
 

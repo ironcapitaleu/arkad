@@ -120,7 +120,7 @@ impl SMState for MyState {
 const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
 
 #[test]
-const fn should_implement_auto_traits() {
+const fn should_implement_auto_traits_when_using_my_state_input() {
     implements_auto_traits::<MyStateInput>();
 }
 
@@ -128,7 +128,7 @@ const fn implements_send<T: Send>() {}
 const fn implements_sync<T: Sync>() {}
 
 #[test]
-const fn should_be_thread_safe() {
+const fn should_be_thread_safe_when_using_my_state_input() {
     implements_send::<MyStateInput>();
     implements_sync::<MyStateInput>();
 }
