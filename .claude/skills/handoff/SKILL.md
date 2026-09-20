@@ -93,7 +93,11 @@ ticket that records it. Reference — never restate the full content.>
 # Guardrails
 
 <The constraints the successor must hold: the branch it must push to, the AGENTS.md rules that
-apply, and any "never" from this session. State each as `must` or `never`.>
+apply, and any "never" from this session. State each as `must` or `never`.
+
+Always name the branch here, and always as `<type>/<short-description>` per AGENTS.md
+"Branch Naming" — for example `refactor/error-hierarchy`. Never hand over a `claude/...`
+branch, and never a ticket ID or a slug of the ticket title.>
 
 # Reporting
 
@@ -128,6 +132,9 @@ apply, and any "never" from this session. State each as `must` or `never`.>
   note, which persists and other people read.
 - **Never in the repository.** The agent-session file goes to a temporary directory. The Linear note
   goes to the ticket. A handoff is not a committed design doc.
+- **Branches follow AGENTS.md.** The handoff names the branch as `<type>/<short-description>`.
+  Never write a `claude/...` branch into a handoff, whatever the current session is running on —
+  a tool-assigned branch is not this project's convention, and a handoff is how it would spread.
 - **Plain English.** The `plain-english` skill applies. State the mission, the state, and the next
   steps as facts and instructions.
 
