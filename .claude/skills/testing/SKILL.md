@@ -54,7 +54,7 @@ Based on this reasoning, suggest what tests to write/review and let the user con
 
 - **Pattern:** Arrange, Define, Act, Assert
 - **Exactly ONE assertion per test function** (`assert_eq!`, `assert_ne!`, or `assert!(...)`). Exceptions: compile-time auto-trait checks (bounds enforced by compilation) and `#[should_panic]` tests (the panic is the assertion).
-- **Naming:** `should_..._when_...` for all tests. Auto-trait tests use `should_implement_..._when_...` / `should_be_..._when_...`. Always snake_case, verbose is fine.
+- **Naming:** `should_..._when_...` for all tests. The auto-trait witness is always `should_implement_auto_traits_when_using_<type>`. Other trait tests use `should_implement_..._when_...` / `should_be_..._when_...`. Always snake_case, verbose is fine.
 - **Location:** Unit tests in same file under `#[cfg(test)]`; integration tests in `tests/` directory
 - **Assertions:** Use `pretty_assertions` (`assert_eq!`, `assert_ne!`)
 - **`.expect()` messages:** Explain WHY the operation should not fail in that context. Capitalize the first word. Do **NOT** end with a period
