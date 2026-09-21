@@ -7,9 +7,10 @@ on:
     types: [created]
   pull_request:
     # `opened` alone leaves no recovery path. A PR opened through the GitHub
-    # API can produce no workflow runs at all, as PR #198 did. `reopened` gives
-    # a human a second chance to fire the review. `synchronize` is deliberately
-    # absent, because it would review every push. See the `pr-iterate` skill.
+    # API can produce no workflow runs at all, as PR #198 did, and the failure
+    # is intermittent. `reopened` gives a second chance to fire the review.
+    # `synchronize` is deliberately absent, because it would review every push.
+    # See the `pr-iterate` skill for the `@claude review` recovery path.
     types: [opened, reopened]
 
 permissions:

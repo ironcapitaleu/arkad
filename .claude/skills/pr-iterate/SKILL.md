@@ -27,14 +27,15 @@ The auto-review runs only on PR open or reopen, so a new push is not reviewed on
 round must request a fresh review with an `@claude review` comment.
 
 **When the PR opens with no review at all.** A PR opened through the GitHub API can receive no
-workflow runs on the `opened` event. PR #198 opened at 16:42 on 2026-09-21 and produced none.
-`ci.yaml` recovers on its own, because its default type list includes `synchronize`, so the next
-push fires it. The auto-review has no such path. Two ways to recover, in order:
+workflow runs on the `opened` event. PR #198 opened at 16:42 on 2026-09-21 and produced none. The
+failure is intermittent, not a rule: PR #199 opened the same way three hours later and fired all
+four checks. `ci.yaml` recovers on its own, because its default type list includes `synchronize`, so
+the next push fires it. The auto-review has no such path. Two ways to recover, in order:
 
 1. **Post `@claude review`.** This uses the `issue_comment` trigger, and it is what worked on
    #198. It is the same comment every iteration round uses, so it needs nothing new.
 2. **Close and reopen the PR.** This uses the `reopened` trigger. A reopen done with API
-   credentials can hit the same gap, so a human has to do it.
+   credentials can hit the same gap, so prefer a human reopen.
 
 Never assume the review ran. `mcp__github__pull_request_read` with method `get_check_runs`, or the
 Checks tab, says whether the review job ran on the current head.
