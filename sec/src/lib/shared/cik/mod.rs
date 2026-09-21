@@ -142,7 +142,7 @@ mod tests {
     use super::{CikError, InvalidCikReason};
 
     #[test]
-    fn should_create_valid_cik_struct_if_numeric_string_with_ten_digits_is_passed() {
+    fn should_create_valid_cik_struct_when_numeric_string_with_ten_digits_is_passed() {
         let cik_str = "1234567890";
 
         let expected_result = "1234567890";
