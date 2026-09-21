@@ -49,13 +49,13 @@ Two ways to recover, in order:
    the `reopened` type. Closing a PR is visible to everyone watching it, so escalate rather than do
    it yourself.
 
+Try option 1 first. If a second check still finds no run, or the run finishes without a review,
+escalate option 2 and wait, unless the PR comes from a fork.
+
 **Check for the run rather than waiting on a wake event, because a run that is never created sends
 no event.** A run takes a moment to appear, so an empty first check has learned nothing. Check again
 before calling it a failure. Once a run exists, wait for it as Step 7 does. A run that starts and
 then fails is not a review.
-
-Try option 1 first. If a second check still finds no run, or the run finishes without a review,
-escalate option 2, unless the PR comes from a fork.
 
 **On a fork PR option 2 cannot work.** Check with `gh pr view --json isCrossRepository` in a local
 session, or `mcp__github__pull_request_read` with method `get` in a remote one, comparing the head
@@ -68,9 +68,9 @@ reopen cannot help.
 If the reopen gives no review either, stop and tell the human the review cannot be started, rather
 than repeating either step. **If you escalated a reopen and the human has not done it, the
 procedure is waiting, not finished.** Say that instead, and name the reopen as the outstanding
-action. Both paths failing puts the cause outside the
-trigger configuration — a disabled workflow, an expired token, exhausted Actions minutes — so a
-third attempt costs a round without testing anything new.
+action. Both paths failing puts the cause outside the trigger configuration — a disabled workflow,
+an expired token, exhausted Actions minutes — so a third attempt costs a round without testing
+anything new.
 
 Never assume the review ran. Check the Checks tab, or ask for it: `gh pr checks` in a local session,
 `mcp__github__pull_request_read` with method `get_check_runs` in a remote one. Both report a failed
@@ -183,7 +183,9 @@ After requesting the re-review, wait for it by the means the environment allows:
 - **Local session:** use `gh run watch` in the background until the review workflow completes, then
   fetch the new findings.
 - **Remote session subscribed to the PR:** end the turn. The re-review arrives as a PR-activity
-  wake event. Do not poll with `sleep`. On the event, fetch the new findings.
+  wake event. Do not poll with `sleep`. On the event, fetch the new findings. If no event arrives,
+  check for the run rather than waiting further. A run that was never created sends none, and the
+  recovery procedure in Purpose applies.
 
 Then:
 
