@@ -160,32 +160,32 @@ mod tests {
     fn assert_sync<T: Sync>() {}
 
     #[test]
-    fn should_be_send_when_in_initial_state() {
+    fn should_be_send_for_sec_request_builder() {
         assert_send::<super::SecRequestBuilder>();
     }
 
     #[test]
-    fn should_be_sync_when_in_initial_state() {
+    fn should_be_sync_for_sec_request_builder() {
         assert_sync::<super::SecRequestBuilder>();
     }
 
     #[test]
-    fn should_be_send_when_in_all_company_facts_state_without_cik() {
+    fn should_be_send_for_all_company_facts_builder_without_cik() {
         assert_send::<super::AllCompanyFactsBuilder<super::NoCik>>();
     }
 
     #[test]
-    fn should_be_sync_when_in_all_company_facts_state_without_cik() {
+    fn should_be_sync_for_all_company_facts_builder_without_cik() {
         assert_sync::<super::AllCompanyFactsBuilder<super::NoCik>>();
     }
 
     #[test]
-    fn should_be_send_when_in_all_company_facts_state_with_cik() {
+    fn should_be_send_for_all_company_facts_builder_with_cik() {
         assert_send::<super::AllCompanyFactsBuilder<Cik>>();
     }
 
     #[test]
-    fn should_be_sync_when_in_all_company_facts_state_with_cik() {
+    fn should_be_sync_for_all_company_facts_builder_with_cik() {
         assert_sync::<super::AllCompanyFactsBuilder<Cik>>();
     }
 }
