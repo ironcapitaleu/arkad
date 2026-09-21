@@ -24,10 +24,11 @@ human to trigger each re-review — a fresh review after every push is part of t
 checkpoint.
 
 The auto-review runs only on PR open or reopen, so a new push is not reviewed on its own. Each
-round must request a fresh review with an `@claude review` comment.
+round must request a fresh review with an `@claude review` comment that names the PR Review
+Guidelines.
 
 **When the PR opens with no review at all.** An open sometimes produces no run, and the cause is
-unknown. Nothing recovers it by itself. Here is why, and what a person can do instead.
+unknown. Nothing recovers it by itself. Here is why, and what a person can do about it.
 
 The auto-review fires on two `pull_request` types, `opened` and `reopened`. Neither fires twice by
 itself. So if the open produces no workflow run, only a reopen starts the auto-review. A push does
@@ -43,21 +44,26 @@ Two ways to recover, in order:
 
 1. **Post `@claude review`.** This starts the `claude` job through the `issue_comment` trigger, a
    separate path from the `pull_request` one that failed. It works no matter who opened the PR, and
-   it is the same comment every iteration round uses. Name the PR Review Guidelines in the comment,
-   because this job takes its prompt from what you write, while the auto-review carries its own.
+   it is the same comment every iteration round uses. Name the PR Review Guidelines in the
+   comment, as every round does.
 2. **Ask the human to close and reopen the PR.** This retries the same `pull_request` path through
    the `reopened` type. Closing a PR is visible to everyone watching it, so escalate rather than do
    it yourself.
 
 Try option 1 once. If it produces no finished review, escalate option 2 and wait. Judge both by the
-same test: a run that starts and then fails is not a review. A fork PR starts the job and fails on
-the missing token, which looks like success to anyone watching for a run to appear.
+same test: a run that starts and then fails is not a review.
+
+**A fork PR is the case to watch, and the two paths differ on it.** A `pull_request` event raised
+from a fork gets no secrets, so option 2 starts the job and fails on the missing token, which looks
+like success to anyone watching for a run to appear. Option 1 keeps its token, because
+`issue_comment` runs in the base repository. So on a fork PR, do not escalate option 2.
 
 If the human reopens and that produces no finished review either, stop and tell the human the review
-cannot be started, rather than repeating either step. Two failures rule out the `pull_request` type
-list, so a third attempt costs a round without testing anything new. **If the human has not
-reopened, the procedure is waiting, not finished.** Say that instead, and name the reopen as the
-outstanding action.
+cannot be started, rather than repeating either step. Both paths failing puts the cause outside the
+trigger configuration — a disabled workflow, an expired token, exhausted Actions minutes — so a
+third attempt costs a round without testing anything new. **If the human has not reopened, the
+procedure is waiting, not finished.** Say that instead, and name the reopen as the outstanding
+action.
 
 Never assume the review ran. Check the Checks tab, or ask for it: `gh pr checks` in a local session,
 `mcp__github__pull_request_read` with method `get_check_runs` in a remote one. Both report a failed
@@ -96,7 +102,7 @@ gh pr view {pr_number} --json reviews,comments
 ```
 
 In a remote session, use `mcp__github__pull_request_read` with methods `get_reviews`,
-`get_comments`, and `get_check_runs` instead of `gh`. Post the `@claude review` comment with
+`get_comments`, and `get_check_runs` instead of `gh`. Post the Step 6 comment with
 `mcp__github__add_issue_comment`.
 
 Categorize each comment:
