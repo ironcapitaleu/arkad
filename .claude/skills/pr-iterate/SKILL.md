@@ -44,7 +44,11 @@ Two ways to recover, in order:
    the same comment every iteration round uses.
 2. **Ask the human to close and reopen the PR.** This retries the same `pull_request` path through
    the `reopened` type. Closing a PR is visible to everyone watching it, so escalate rather than do
-   it yourself. If the reopen produces no run either, go back to option 1.
+   it yourself.
+
+Try each once, in that order. If neither starts a run, stop and tell the human the review will not
+start, rather than repeating either step. Two silent failures mean the cause is not the trigger
+list, and a third attempt costs a round without testing anything new.
 
 Never assume the review ran. Check the Checks tab, or ask for it: `gh pr checks` in a local session,
 `mcp__github__pull_request_read` with method `get_check_runs` in a remote one.
