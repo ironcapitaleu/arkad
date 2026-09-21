@@ -8,8 +8,7 @@ on:
   pull_request:
     # A PR sometimes gets no workflow runs on open. With `opened` alone, no
     # later event on the PR fires the review. `reopened` adds one.
-    # `synchronize` is absent, because it reviews every push. The `pr-iterate`
-    # skill documents `@claude review`, which recovers whatever this list does.
+    # `synchronize` is absent, because it reviews every push.
     types: [opened, reopened]
 
 permissions:
