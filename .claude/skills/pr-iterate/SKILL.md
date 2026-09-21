@@ -49,21 +49,24 @@ Two ways to recover, in order:
    the `reopened` type. Closing a PR is visible to everyone watching it, so escalate rather than do
    it yourself.
 
-Try option 1 once. If it produces no finished review, escalate option 2 and wait, unless the PR
-comes from a fork. Judge both by the same test: a run that starts and then fails is not a review.
+Try option 1 once, and wait for the run the way Step 7 does. If it starts no run, or the run
+finishes without a review, escalate option 2 and wait, unless the PR comes from a fork — `gh pr view
+--json isCrossRepository` in a local session, the PR's head repository in a remote one. Judge every
+attempt by the same test: a run that has not finished is not yet an answer, and a run that starts
+and then fails is not a review.
 
 **On a fork PR the two paths differ.** A `pull_request` event raised from a fork gets no secrets, so
 option 2 starts the job and fails on the missing token, which looks like success to anyone watching
 for a run to appear. Option 1 keeps its token, because `issue_comment` runs in the base repository.
-So on a fork PR, do not escalate option 2. If option 1 produces no finished review there, stop and
+So on a fork PR, do not escalate option 2. If option 1 finishes without a review there, stop and
 tell the human, and say a reopen cannot help.
 
-If the human reopens and that produces no finished review either, stop and tell the human the review
-cannot be started, rather than repeating either step. Both paths failing puts the cause outside the
-trigger configuration — a disabled workflow, an expired token, exhausted Actions minutes — so a
-third attempt costs a round without testing anything new. **If you escalated a reopen and the human
-has not done it, the procedure is waiting, not finished.** Say that instead, and name the reopen as
-the outstanding action.
+If the human reopens and that run finishes without a review, stop and tell the human the review
+cannot be started, rather than repeating either step. **If you escalated a reopen and the human has
+not done it, the procedure is waiting, not finished.** Say that instead, and name the reopen as the
+outstanding action. Both paths failing puts the cause outside the trigger configuration — a disabled
+workflow, an expired token, exhausted Actions minutes — so a third attempt costs a round without
+testing anything new.
 
 Never assume the review ran. Check the Checks tab, or ask for it: `gh pr checks` in a local session,
 `mcp__github__pull_request_read` with method `get_check_runs` in a remote one. Both report a failed
