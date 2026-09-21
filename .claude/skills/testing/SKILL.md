@@ -55,9 +55,9 @@ Based on this reasoning, suggest what tests to write/review and let the user con
 - **Pattern:** Arrange, Define, Act, Assert
 - **Exactly ONE assertion per test function** (`assert_eq!`, `assert_ne!`, or `assert!(...)`). Exceptions: compile-time auto-trait checks (bounds enforced by compilation) and `#[should_panic]` tests (the panic is the assertion).
 - **Naming:** `when` names a condition. `for` names a subject. Pick the clause that fits what follows it.
-  - A test with a real condition reads `should_<behavior>_when_<condition>`.
+  - A test with a real condition reads `should_<behavior>_when_<condition>`, as in `should_return_false_when_state_has_not_computed_the_output`.
   - A test named after its subject reads `should_<behavior>_for_<subject>`, as in `should_meet_threshold_for_sp500_companies`.
-  - A boilerplate trait witness holds unconditionally, so it always takes `for`: `should_<check>_for_<type>`.
+  - A boilerplate trait witness holds unconditionally, so it always takes `for`: `should_<check>_for_<type>`, as in `should_implement_auto_traits_for_backend_error`.
   - Name a witness after the type it hands the helper, not after its module or the trait.
   - When sibling witnesses differ only by a type parameter, that parameter names the test, as in `should_implement_auto_traits_for_validate_cik_format_super_state`.
   - Always snake_case. Verbose names are fine.
