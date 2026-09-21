@@ -44,12 +44,15 @@ An open sometimes produces no run at all, and the cause is unknown. Two ways to 
    the `reopened` type. Closing a PR is visible to everyone watching it, so escalate rather than do
    it yourself.
 
-Try each once, in that order. If neither starts a run, stop and tell the human the review will not
-start, rather than repeating either step. Two silent failures mean the cause is not the trigger
-list, and a third attempt costs a round without testing anything new.
+Try each once, in that order. Judge both by the same test: a run that starts and then fails is not a
+review. A fork PR starts the job and fails on the missing token, which looks like success to anyone
+watching for a run to appear. If neither path produces a finished review, stop and tell the human,
+rather than repeating either step. Two failures mean the cause is not the trigger list, and a third
+attempt costs a round without testing anything new.
 
 Never assume the review ran. Check the Checks tab, or ask for it: `gh pr checks` in a local session,
-`mcp__github__pull_request_read` with method `get_check_runs` in a remote one.
+`mcp__github__pull_request_read` with method `get_check_runs` in a remote one. Both report a failed
+run as well as a missing one.
 
 **Two environments.** In a local interactive session (terminal / IDE), use the `gh` CLI, and
 `gh run watch` to wait for the review. In a remote session (for example, Claude Code Remote) subscribed to the
