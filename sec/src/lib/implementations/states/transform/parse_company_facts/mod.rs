@@ -773,7 +773,7 @@ mod tests {
 
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
     #[test]
-    const fn should_implement_auto_traits_when_using_parse_company_facts() {
+    const fn should_implement_auto_traits_for_parse_company_facts() {
         implements_auto_traits::<ParseCompanyFacts>();
     }
 
@@ -781,72 +781,72 @@ mod tests {
     const fn implements_sync<T: Sync>() {}
 
     #[test]
-    const fn should_implement_send_when_implementing_state_trait() {
+    const fn should_implement_send_for_parse_company_facts() {
         implements_send::<ParseCompanyFacts>();
     }
 
     #[test]
-    const fn should_implement_sync_when_implementing_state_trait() {
+    const fn should_implement_sync_for_parse_company_facts() {
         implements_sync::<ParseCompanyFacts>();
     }
 
     #[test]
-    const fn should_be_thread_safe_when_implementing_state_trait() {
+    const fn should_be_thread_safe_for_parse_company_facts() {
         implements_send::<ParseCompanyFacts>();
         implements_sync::<ParseCompanyFacts>();
     }
 
     const fn implements_sized<T: Sized>() {}
     #[test]
-    const fn should_be_sized_when_implementing_state_trait() {
+    const fn should_be_sized_for_parse_company_facts() {
         implements_sized::<ParseCompanyFacts>();
     }
 
     const fn implements_hash<T: Hash>() {}
     #[test]
-    const fn should_implement_hash_when_implementing_state_trait() {
+    const fn should_implement_hash_for_parse_company_facts() {
         implements_hash::<ParseCompanyFacts>();
     }
 
     const fn implements_partial_eq<T: PartialEq>() {}
     #[test]
-    const fn should_implement_partial_eq_when_implementing_state_trait() {
+    const fn should_implement_partial_eq_for_parse_company_facts() {
         implements_partial_eq::<ParseCompanyFacts>();
     }
 
     const fn implements_eq<T: Eq>() {}
     #[test]
-    const fn should_implement_eq_when_implementing_state_trait() {
+    const fn should_implement_eq_for_parse_company_facts() {
         implements_eq::<ParseCompanyFacts>();
     }
 
     const fn implements_partial_ord<T: PartialOrd>() {}
     #[test]
-    const fn should_implement_partial_ord_when_implementing_state_trait() {
+    const fn should_implement_partial_ord_for_parse_company_facts() {
         implements_partial_ord::<ParseCompanyFacts>();
     }
 
     const fn implements_ord<T: Ord>() {}
     #[test]
-    const fn should_implement_ord_when_implementing_state_trait() {
+    const fn should_implement_ord_for_parse_company_facts() {
         implements_ord::<ParseCompanyFacts>();
     }
 
     const fn implements_debug<T: Debug>() {}
     #[test]
-    const fn should_implement_debug_when_implementing_state_trait() {
+    const fn should_implement_debug_for_parse_company_facts() {
         implements_debug::<ParseCompanyFacts>();
     }
 
     const fn implements_clone<T: Clone>() {}
     #[test]
-    const fn should_implement_clone_when_implementing_state_trait() {
+    const fn should_implement_clone_for_parse_company_facts() {
         implements_clone::<ParseCompanyFacts>();
     }
 
     const fn implements_unpin<T: Unpin>() {}
     #[test]
-    const fn should_implement_unpin_when_implementing_state_trait() {
+    const fn should_implement_unpin_for_parse_company_facts() {
         implements_unpin::<ParseCompanyFacts>();
     }
 
