@@ -40,8 +40,8 @@ An open that produces no run at all does happen, and the cause is unknown. Check
 Two ways to recover, in order:
 
 1. **Post `@claude review`.** This starts the `claude` job through the `issue_comment` trigger, a
-   separate path from the `pull_request` one that failed. It works whoever opened the PR, and it is
-   the same comment every iteration round uses.
+   separate path from the `pull_request` one that failed. It works no matter who opened the PR, and
+   it is the same comment every iteration round uses.
 2. **Ask the human to close and reopen the PR.** This retries the same `pull_request` path through
    the `reopened` type. Closing a PR is visible to everyone watching it, so escalate rather than do
    it yourself.
