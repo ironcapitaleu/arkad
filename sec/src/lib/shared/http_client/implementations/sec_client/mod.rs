@@ -168,22 +168,22 @@ mod tests {
         assert_eq!(result, expected_result);
     }
 
-    fn assert_send<T: Send>() {}
-    fn assert_sync<T: Sync>() {}
-    fn assert_unpin<T: Unpin>() {}
+    const fn implements_send<T: Send>() {}
+    const fn implements_sync<T: Sync>() {}
+    const fn implements_unpin<T: Unpin>() {}
 
     #[test]
-    fn should_be_send_for_sec_client() {
-        assert_send::<SecClient>();
+    const fn should_be_send_for_sec_client() {
+        implements_send::<SecClient>();
     }
 
     #[test]
-    fn should_be_sync_for_sec_client() {
-        assert_sync::<SecClient>();
+    const fn should_be_sync_for_sec_client() {
+        implements_sync::<SecClient>();
     }
 
     #[test]
-    fn should_be_unpin_for_sec_client() {
-        assert_unpin::<SecClient>();
+    const fn should_be_unpin_for_sec_client() {
+        implements_unpin::<SecClient>();
     }
 }

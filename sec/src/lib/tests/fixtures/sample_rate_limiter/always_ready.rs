@@ -18,40 +18,40 @@ impl RateLimiter for AlwaysReadyRateLimiter {
 mod tests {
     use super::AlwaysReadyRateLimiter;
 
-    fn assert_send<T: Send>() {}
-    fn assert_sync<T: Sync>() {}
-    fn assert_unpin<T: Unpin>() {}
-    fn assert_debug<T: std::fmt::Debug>() {}
-    fn assert_clone<T: Clone>() {}
-    fn assert_partial_eq<T: PartialEq>() {}
+    const fn implements_send<T: Send>() {}
+    const fn implements_sync<T: Sync>() {}
+    const fn implements_unpin<T: Unpin>() {}
+    const fn implements_debug<T: std::fmt::Debug>() {}
+    const fn implements_clone<T: Clone>() {}
+    const fn implements_partial_eq<T: PartialEq>() {}
 
     #[test]
-    fn should_be_send_for_always_ready_rate_limiter() {
-        assert_send::<AlwaysReadyRateLimiter>();
+    const fn should_be_send_for_always_ready_rate_limiter() {
+        implements_send::<AlwaysReadyRateLimiter>();
     }
 
     #[test]
-    fn should_be_sync_for_always_ready_rate_limiter() {
-        assert_sync::<AlwaysReadyRateLimiter>();
+    const fn should_be_sync_for_always_ready_rate_limiter() {
+        implements_sync::<AlwaysReadyRateLimiter>();
     }
 
     #[test]
-    fn should_be_unpin_for_always_ready_rate_limiter() {
-        assert_unpin::<AlwaysReadyRateLimiter>();
+    const fn should_be_unpin_for_always_ready_rate_limiter() {
+        implements_unpin::<AlwaysReadyRateLimiter>();
     }
 
     #[test]
-    fn should_implement_debug_for_always_ready_rate_limiter() {
-        assert_debug::<AlwaysReadyRateLimiter>();
+    const fn should_implement_debug_for_always_ready_rate_limiter() {
+        implements_debug::<AlwaysReadyRateLimiter>();
     }
 
     #[test]
-    fn should_implement_clone_for_always_ready_rate_limiter() {
-        assert_clone::<AlwaysReadyRateLimiter>();
+    const fn should_implement_clone_for_always_ready_rate_limiter() {
+        implements_clone::<AlwaysReadyRateLimiter>();
     }
 
     #[test]
-    fn should_implement_partial_eq_for_always_ready_rate_limiter() {
-        assert_partial_eq::<AlwaysReadyRateLimiter>();
+    const fn should_implement_partial_eq_for_always_ready_rate_limiter() {
+        implements_partial_eq::<AlwaysReadyRateLimiter>();
     }
 }
