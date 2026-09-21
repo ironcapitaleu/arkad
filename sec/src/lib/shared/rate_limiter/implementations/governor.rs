@@ -74,27 +74,27 @@ mod tests {
     fn assert_clone<T: Clone>() {}
 
     #[test]
-    fn should_be_send() {
+    fn should_be_send_for_governor_rate_limiter() {
         assert_send::<GovernorRateLimiter>();
     }
 
     #[test]
-    fn should_be_sync() {
+    fn should_be_sync_for_governor_rate_limiter() {
         assert_sync::<GovernorRateLimiter>();
     }
 
     #[test]
-    fn should_be_unpin() {
+    fn should_be_unpin_for_governor_rate_limiter() {
         assert_unpin::<GovernorRateLimiter>();
     }
 
     #[test]
-    fn should_implement_debug() {
+    fn should_implement_debug_for_governor_rate_limiter() {
         assert_debug::<GovernorRateLimiter>();
     }
 
     #[test]
-    fn should_implement_clone() {
+    fn should_implement_clone_for_governor_rate_limiter() {
         assert_clone::<GovernorRateLimiter>();
     }
 }

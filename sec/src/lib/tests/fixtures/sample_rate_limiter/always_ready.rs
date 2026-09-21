@@ -26,32 +26,32 @@ mod tests {
     fn assert_partial_eq<T: PartialEq>() {}
 
     #[test]
-    fn should_be_send() {
+    fn should_be_send_for_always_ready_rate_limiter() {
         assert_send::<AlwaysReadyRateLimiter>();
     }
 
     #[test]
-    fn should_be_sync() {
+    fn should_be_sync_for_always_ready_rate_limiter() {
         assert_sync::<AlwaysReadyRateLimiter>();
     }
 
     #[test]
-    fn should_be_unpin() {
+    fn should_be_unpin_for_always_ready_rate_limiter() {
         assert_unpin::<AlwaysReadyRateLimiter>();
     }
 
     #[test]
-    fn should_implement_debug() {
+    fn should_implement_debug_for_always_ready_rate_limiter() {
         assert_debug::<AlwaysReadyRateLimiter>();
     }
 
     #[test]
-    fn should_implement_clone() {
+    fn should_implement_clone_for_always_ready_rate_limiter() {
         assert_clone::<AlwaysReadyRateLimiter>();
     }
 
     #[test]
-    fn should_implement_partial_eq() {
+    fn should_implement_partial_eq_for_always_ready_rate_limiter() {
         assert_partial_eq::<AlwaysReadyRateLimiter>();
     }
 }
