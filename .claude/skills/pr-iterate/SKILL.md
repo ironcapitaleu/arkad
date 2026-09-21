@@ -27,16 +27,17 @@ The auto-review runs only on PR open or reopen, so a new push is not reviewed on
 round must request a fresh review with an `@claude review` comment.
 
 **When the PR opens with no review at all.** An open sometimes produces no run, and the cause is
-unknown. Here is why nothing recovers it by itself, and what does.
+unknown. Nothing recovers it by itself. Here is why, and what a person can do instead.
 
 The auto-review fires on two `pull_request` types, `opened` and `reopened`. Neither fires twice by
-itself. So if the open produces no workflow run, only a reopen starts the auto-review again. A push
-does not, because `synchronize` is not in the list. A comment starts a review through a different
-job, which is what option 1 below uses.
+itself. So if the open produces no workflow run, only a reopen starts the auto-review. A push does
+not, because `synchronize` is not in the list. A comment starts a review through a different job,
+which is what option 1 below uses.
 
 `ci.yaml` behaves differently. It sets no type list, so it takes the default, which includes
-`synchronize`. Its next push fires it, on a PR that targets `main` or `master`, the only bases its
-`branches:` filter allows. That is why CI can come back on a PR where the auto-review never does.
+`synchronize`. The PR's next push fires it, if the PR targets `main` or `master`, the only bases
+`ci.yaml`'s `branches:` filter allows. That is why CI can come back on a PR where the auto-review
+never does.
 
 Two ways to recover, in order:
 
@@ -48,11 +49,15 @@ Two ways to recover, in order:
    the `reopened` type. Closing a PR is visible to everyone watching it, so escalate rather than do
    it yourself.
 
-Try each once, in that order. Judge both by the same test: a run that starts and then fails is not a
-review. A fork PR starts the job and fails on the missing token, which looks like success to anyone
-watching for a run to appear. If neither path produces a finished review, stop and tell the human,
-rather than repeating either step. Two failures mean the cause is not the trigger list, and a third
-attempt costs a round without testing anything new.
+Try option 1 once. If it produces no finished review, escalate option 2 and wait. Judge both by the
+same test: a run that starts and then fails is not a review. A fork PR starts the job and fails on
+the missing token, which looks like success to anyone watching for a run to appear.
+
+If the human reopens and that produces no finished review either, stop and tell the human the review
+cannot be started, rather than repeating either step. Two failures rule out the `pull_request` type
+list, so a third attempt costs a round without testing anything new. **If the human has not
+reopened, the procedure is waiting, not finished.** Say that instead, and name the reopen as the
+outstanding action.
 
 Never assume the review ran. Check the Checks tab, or ask for it: `gh pr checks` in a local session,
 `mcp__github__pull_request_read` with method `get_check_runs` in a remote one. Both report a failed
@@ -72,7 +77,8 @@ the review, end the turn, and let the re-review arrive as a PR-activity wake eve
 - **Keep the human in the loop:** Always summarize what feedback was received, what was
   implemented (and why), and what needs human input — even for changes you made autonomously.
 - **Proactive re-review:** After implementing a batch of changes, comment `@claude review the
-  latest changes` on the PR to trigger a new review cycle.
+  latest changes, applying the PR Review Guidelines in AGENTS.md` on the PR to trigger a new review
+  cycle. The `claude` job has no review prompt of its own, so the comment carries the contract.
 
 ## Workflow
 
@@ -152,7 +158,7 @@ git push
 Comment on the PR to trigger a new Claude review:
 
 ```bash
-gh pr comment {pr_number} --body "@claude review the latest changes — I addressed the previous feedback"
+gh pr comment {pr_number} --body "@claude review the latest changes, applying the PR Review Guidelines in AGENTS.md — I addressed the previous feedback"
 ```
 
 ### Step 7: Wait and Continue
@@ -210,7 +216,8 @@ human-escalated items.
 The skill works alongside the `claude.yaml` workflow:
 - The workflow's `claude-auto-review` job reviews on PR open and reopen (`pull_request: [opened, reopened]`)
 - The `claude` job handles `@claude` comments (triggered by `issue_comment: created`)
-- When this skill posts `@claude review the latest changes`, it triggers the `claude` job (not `claude-auto-review`)
+- When this skill posts `@claude review …`, it triggers the `claude` job (not `claude-auto-review`)
+- Only `claude-auto-review` carries a review prompt. The `claude` job takes its prompt from the comment, so every request must name the PR Review Guidelines
 - You can invoke this skill at any point to address unaddressed feedback
 
 ## Example Invocation
@@ -219,6 +226,6 @@ User: "iterate on the PR"
 → Skill fetches the PR's review comments
 → Implements 3 clearly valid fixes
 → Asks human about 1 architectural question
-→ Commits, pushes, comments `@claude review the latest changes`
+→ Commits, pushes, comments `@claude review the latest changes, applying the PR Review Guidelines in AGENTS.md`
 → Waits for new review
 → Reports: "New review is clean. PR ready to merge."
