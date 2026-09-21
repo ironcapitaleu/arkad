@@ -44,19 +44,19 @@ Two ways to recover, in order:
 
 1. **Post `@claude review`.** This starts the `claude` job through the `issue_comment` trigger, a
    separate path from the `pull_request` one that failed. It works no matter who opened the PR, and
-   it is the same comment every iteration round uses. Name the PR Review Guidelines in the
-   comment, as every round does.
+   it is the same comment every iteration round uses. Name the PR Review Guidelines in it.
 2. **Ask the human to close and reopen the PR.** This retries the same `pull_request` path through
    the `reopened` type. Closing a PR is visible to everyone watching it, so escalate rather than do
    it yourself.
 
-Try option 1 once. If it produces no finished review, escalate option 2 and wait. Judge both by the
-same test: a run that starts and then fails is not a review.
+Try option 1 once. If it produces no finished review, escalate option 2 and wait, unless the PR
+comes from a fork. Judge both by the same test: a run that starts and then fails is not a review.
 
-**A fork PR is the case to watch, and the two paths differ on it.** A `pull_request` event raised
-from a fork gets no secrets, so option 2 starts the job and fails on the missing token, which looks
-like success to anyone watching for a run to appear. Option 1 keeps its token, because
-`issue_comment` runs in the base repository. So on a fork PR, do not escalate option 2.
+**On a fork PR the two paths differ.** A `pull_request` event raised from a fork gets no secrets, so
+option 2 starts the job and fails on the missing token, which looks like success to anyone watching
+for a run to appear. Option 1 keeps its token, because `issue_comment` runs in the base repository.
+So on a fork PR, do not escalate option 2. If option 1 produces no finished review there, stop and
+tell the human, and say a reopen cannot help.
 
 If the human reopens and that produces no finished review either, stop and tell the human the review
 cannot be started, rather than repeating either step. Both paths failing puts the cause outside the
