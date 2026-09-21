@@ -27,13 +27,14 @@ The auto-review runs only on PR open or reopen, so a new push is not reviewed on
 round must request a fresh review with an `@claude review` comment.
 
 **When the PR opens with no review at all.** The auto-review fires on two `pull_request` types,
-`opened` and `reopened`. Neither repeats on its own. So if the open produces no workflow run,
-nothing later in the PR's life starts the review, and a push does not either, because `synchronize`
-is not in the list.
+`opened` and `reopened`. Neither repeats on its own. So if the open produces no workflow run, no
+later `pull_request` event starts the auto-review, and a push does not either, because `synchronize`
+is not in the list. A comment still starts a review, through a different job, which is what option 1
+below uses.
 
 `ci.yaml` behaves differently. It sets no type list, so it takes the default, which includes
-`synchronize`. Its next push fires it. That is why CI can come back on a PR where the review never
-does.
+`synchronize`. Its next push fires it. That is why CI can come back on a PR where the auto-review
+never does.
 
 An open that produces no run at all does happen, and the cause is unknown. Check rather than assume.
 Two ways to recover, in order:
