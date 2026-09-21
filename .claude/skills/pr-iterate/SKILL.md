@@ -23,8 +23,21 @@ notify the human. Escalate an ambiguous finding to the human as it arises. Do no
 human to trigger each re-review — a fresh review after every push is part of the loop, not a
 checkpoint.
 
-The auto-review runs only on PR open, so a new push is not reviewed on its own. Each round must
-request a fresh review with an `@claude review` comment.
+The auto-review runs only on PR open or reopen, so a new push is not reviewed on its own. Each
+round must request a fresh review with an `@claude review` comment.
+
+**When the PR opens with no review at all.** A PR opened through the GitHub API can receive no
+workflow runs on the `opened` event. PR #198 opened at 16:42 on 2026-09-21 and produced none.
+`ci.yaml` recovers on its own, because its default type list includes `synchronize`, so the next
+push fires it. The auto-review has no such path. Two ways to recover, in order:
+
+1. **Post `@claude review`.** This uses the `issue_comment` trigger, and it is what worked on
+   #198. It is the same comment every iteration round uses, so it needs nothing new.
+2. **Close and reopen the PR.** This uses the `reopened` trigger. A reopen done with API
+   credentials can hit the same gap, so a human has to do it.
+
+Never assume the review ran. `mcp__github__pull_request_read` with method `get_check_runs`, or the
+Checks tab, says whether the review job ran on the current head.
 
 **Two environments.** In a local interactive session (terminal / IDE), use the `gh` CLI, and
 `gh run watch` to wait for the review. In a remote session (for example, Claude Code Remote) subscribed to the
@@ -176,7 +189,7 @@ human-escalated items.
 ## Integration with CI
 
 The skill works alongside the `claude.yaml` workflow:
-- The workflow's `claude-auto-review` job does the initial review on PR open (triggered by `pull_request: opened`)
+- The workflow's `claude-auto-review` job reviews on PR open and reopen (`pull_request: [opened, reopened]`)
 - The `claude` job handles `@claude` comments (triggered by `issue_comment: created`)
 - When this skill posts `@claude review the latest changes`, it triggers the `claude` job (not `claude-auto-review`)
 - You can invoke this skill at any point to address unaddressed feedback
