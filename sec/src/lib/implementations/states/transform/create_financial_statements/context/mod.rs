@@ -286,7 +286,7 @@ mod tests {
 
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
     #[test]
-    const fn should_implement_auto_traits_when_using_create_financial_statements_context() {
+    const fn should_implement_auto_traits_for_create_financial_statements_context() {
         implements_auto_traits::<CreateFinancialStatementsContext>();
     }
 
@@ -294,72 +294,72 @@ mod tests {
     const fn implements_sync<T: Sync>() {}
 
     #[test]
-    const fn should_implement_send_when_implementing_context_data_trait() {
+    const fn should_implement_send_for_create_financial_statements_context() {
         implements_send::<CreateFinancialStatementsContext>();
     }
 
     #[test]
-    const fn should_implement_sync_when_implementing_context_data_trait() {
+    const fn should_implement_sync_for_create_financial_statements_context() {
         implements_sync::<CreateFinancialStatementsContext>();
     }
 
     #[test]
-    const fn should_be_thread_safe_when_implementing_context_data_trait() {
+    const fn should_be_thread_safe_for_create_financial_statements_context() {
         implements_send::<CreateFinancialStatementsContext>();
         implements_sync::<CreateFinancialStatementsContext>();
     }
 
     const fn implements_sized<T: Sized>() {}
     #[test]
-    const fn should_be_sized_when_implementing_context_data_trait() {
+    const fn should_be_sized_for_create_financial_statements_context() {
         implements_sized::<CreateFinancialStatementsContext>();
     }
 
     const fn implements_hash<T: Hash>() {}
     #[test]
-    const fn should_implement_hash_when_implementing_context_data_trait() {
+    const fn should_implement_hash_for_create_financial_statements_context() {
         implements_hash::<CreateFinancialStatementsContext>();
     }
 
     const fn implements_partial_eq<T: PartialEq>() {}
     #[test]
-    const fn should_implement_partial_eq_when_implementing_context_data_trait() {
+    const fn should_implement_partial_eq_for_create_financial_statements_context() {
         implements_partial_eq::<CreateFinancialStatementsContext>();
     }
 
     const fn implements_eq<T: Eq>() {}
     #[test]
-    const fn should_implement_eq_when_implementing_context_data_trait() {
+    const fn should_implement_eq_for_create_financial_statements_context() {
         implements_eq::<CreateFinancialStatementsContext>();
     }
 
     const fn implements_partial_ord<T: PartialOrd>() {}
     #[test]
-    const fn should_implement_partial_ord_when_implementing_context_data_trait() {
+    const fn should_implement_partial_ord_for_create_financial_statements_context() {
         implements_partial_ord::<CreateFinancialStatementsContext>();
     }
 
     const fn implements_ord<T: Ord>() {}
     #[test]
-    const fn should_implement_ord_when_implementing_context_data_trait() {
+    const fn should_implement_ord_for_create_financial_statements_context() {
         implements_ord::<CreateFinancialStatementsContext>();
     }
 
     const fn implements_debug<T: Debug>() {}
     #[test]
-    const fn should_implement_debug_when_implementing_context_data_trait() {
+    const fn should_implement_debug_for_create_financial_statements_context() {
         implements_debug::<CreateFinancialStatementsContext>();
     }
 
     const fn implements_clone<T: Clone>() {}
     #[test]
-    const fn should_implement_clone_when_implementing_context_data_trait() {
+    const fn should_implement_clone_for_create_financial_statements_context() {
         implements_clone::<CreateFinancialStatementsContext>();
     }
 
     const fn implements_unpin<T: Unpin>() {}
     #[test]
-    const fn should_implement_unpin_when_implementing_context_data_trait() {
+    const fn should_implement_unpin_for_create_financial_statements_context() {
         implements_unpin::<CreateFinancialStatementsContext>();
     }
 }
