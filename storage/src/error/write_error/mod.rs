@@ -91,7 +91,7 @@ mod tests {
 
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
     #[test]
-    const fn should_implement_auto_traits_when_using_write_error() {
+    const fn should_implement_auto_traits_for_write_error() {
         implements_auto_traits::<WriteError>();
     }
 
@@ -99,66 +99,66 @@ mod tests {
     const fn implements_sync<T: Sync>() {}
 
     #[test]
-    const fn should_implement_send_when_using_write_error() {
+    const fn should_implement_send_for_write_error() {
         implements_send::<WriteError>();
     }
 
     #[test]
-    const fn should_implement_sync_when_using_write_error() {
+    const fn should_implement_sync_for_write_error() {
         implements_sync::<WriteError>();
     }
 
     const fn implements_sized<T: Sized>() {}
     #[test]
-    const fn should_be_able_to_rely_on_error_being_sized_when_using_write_error() {
+    const fn should_be_able_to_rely_on_error_being_sized_for_write_error() {
         implements_sized::<WriteError>();
     }
 
     const fn implements_hash<T: Hash>() {}
     #[test]
-    const fn should_be_able_to_rely_on_hash_implementation_when_using_write_error() {
+    const fn should_be_able_to_rely_on_hash_implementation_for_write_error() {
         implements_hash::<WriteError>();
     }
 
     const fn implements_partial_eq<T: PartialEq>() {}
     #[test]
-    const fn should_be_able_to_rely_on_partial_eq_implementation_when_using_write_error() {
+    const fn should_be_able_to_rely_on_partial_eq_implementation_for_write_error() {
         implements_partial_eq::<WriteError>();
     }
 
     const fn implements_eq<T: Eq>() {}
     #[test]
-    const fn should_be_able_to_rely_on_eq_implementation_when_using_write_error() {
+    const fn should_be_able_to_rely_on_eq_implementation_for_write_error() {
         implements_eq::<WriteError>();
     }
 
     const fn implements_partial_ord<T: PartialOrd>() {}
     #[test]
-    const fn should_be_able_to_rely_on_partial_ord_implementation_when_using_write_error() {
+    const fn should_be_able_to_rely_on_partial_ord_implementation_for_write_error() {
         implements_partial_ord::<WriteError>();
     }
 
     const fn implements_ord<T: Ord>() {}
     #[test]
-    const fn should_be_able_to_rely_on_ord_implementation_when_using_write_error() {
+    const fn should_be_able_to_rely_on_ord_implementation_for_write_error() {
         implements_ord::<WriteError>();
     }
 
     const fn implements_debug<T: Debug>() {}
     #[test]
-    const fn should_be_able_to_rely_on_debug_implementation_when_using_write_error() {
+    const fn should_be_able_to_rely_on_debug_implementation_for_write_error() {
         implements_debug::<WriteError>();
     }
 
     const fn implements_clone<T: Clone>() {}
     #[test]
-    const fn should_be_able_to_rely_on_clone_implementation_when_using_write_error() {
+    const fn should_be_able_to_rely_on_clone_implementation_for_write_error() {
         implements_clone::<WriteError>();
     }
 
     const fn implements_unpin<T: Unpin>() {}
     #[test]
-    const fn should_be_able_to_rely_on_unpin_implementation_when_using_write_error() {
+    const fn should_be_able_to_rely_on_unpin_implementation_for_write_error() {
         implements_unpin::<WriteError>();
     }
 

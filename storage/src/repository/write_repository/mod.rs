@@ -53,7 +53,7 @@ mod tests {
     const fn implements_write_repository<T: WriteRepository>() {}
 
     #[test]
-    const fn should_implement_write_repository_when_using_fake_write_repository() {
+    const fn should_implement_write_repository_for_fake_write_repository() {
         implements_write_repository::<FakeWriteRepository<String>>();
     }
 

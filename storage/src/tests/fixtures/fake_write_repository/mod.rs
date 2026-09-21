@@ -80,7 +80,7 @@ mod tests {
 
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
     #[test]
-    const fn should_implement_auto_traits_when_using_fake_write_repository() {
+    const fn should_implement_auto_traits_for_fake_write_repository() {
         implements_auto_traits::<FakeWriteRepository<String>>();
     }
 
@@ -88,36 +88,36 @@ mod tests {
     const fn implements_sync<T: Sync>() {}
 
     #[test]
-    const fn should_implement_send_when_using_fake_write_repository() {
+    const fn should_implement_send_for_fake_write_repository() {
         implements_send::<FakeWriteRepository<String>>();
     }
 
     #[test]
-    const fn should_implement_sync_when_using_fake_write_repository() {
+    const fn should_implement_sync_for_fake_write_repository() {
         implements_sync::<FakeWriteRepository<String>>();
     }
 
     #[test]
-    const fn should_be_thread_safe_when_using_fake_write_repository() {
+    const fn should_be_thread_safe_for_fake_write_repository() {
         implements_send::<FakeWriteRepository<String>>();
         implements_sync::<FakeWriteRepository<String>>();
     }
 
     const fn implements_sized<T: Sized>() {}
     #[test]
-    const fn should_be_able_to_rely_on_being_sized_when_using_fake_write_repository() {
+    const fn should_be_able_to_rely_on_being_sized_for_fake_write_repository() {
         implements_sized::<FakeWriteRepository<String>>();
     }
 
     const fn implements_debug<T: Debug>() {}
     #[test]
-    const fn should_be_able_to_rely_on_debug_when_using_fake_write_repository() {
+    const fn should_be_able_to_rely_on_debug_for_fake_write_repository() {
         implements_debug::<FakeWriteRepository<String>>();
     }
 
     const fn implements_default<T: Default>() {}
     #[test]
-    const fn should_be_able_to_rely_on_default_when_using_fake_write_repository() {
+    const fn should_be_able_to_rely_on_default_for_fake_write_repository() {
         implements_default::<FakeWriteRepository<String>>();
     }
 
