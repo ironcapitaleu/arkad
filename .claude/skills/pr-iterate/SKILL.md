@@ -26,20 +26,20 @@ checkpoint.
 The auto-review runs only on PR open or reopen, so a new push is not reviewed on its own. Each
 round must request a fresh review with an `@claude review` comment.
 
-**When the PR opens with no review at all.** A PR can receive no workflow runs on the `opened`
-event. PR #198 opened at 16:42 on 2026-09-21 and produced none. PR #199 opened the same way three
-hours later and fired all four checks, so the cause is unconfirmed. `ci.yaml` recovers on its own,
-because its default type list includes `synchronize`, so the next push fires it. The auto-review has
-no such path. Two ways to recover, in order:
+**When the PR opens with no review at all.** A PR sometimes receives no workflow runs on the
+`opened` event. One PR got none. Another, opened the same way, fired every check. The cause is
+unknown, so treat a missing review as possible on any open. `ci.yaml` recovers on its own, because
+its default type list includes `synchronize`, so the next push fires it. The auto-review has no such
+path. Two ways to recover, in order:
 
-1. **Post `@claude review`.** This uses the `issue_comment` trigger, and it is what worked on
-   #198. It is the same comment every iteration round uses, so it needs nothing new.
-2. **Ask the human to close and reopen the PR.** This uses the `reopened` trigger. A reopen made
-   with API credentials can fail the same way, so the human must click Reopen. Escalate it the way
-   the Philosophy section escalates an ambiguous finding.
+1. **Post `@claude review`.** This uses the `issue_comment` trigger, and it works whoever opened
+   the PR. It is the same comment every iteration round uses, so it needs nothing new.
+2. **Ask the human to close and reopen the PR.** This uses the `reopened` trigger. Closing a PR is
+   visible to everyone watching it, so escalate rather than do it yourself. If the reopen produces
+   no run either, go back to option 1.
 
-Never assume the review ran. `mcp__github__pull_request_read` with method `get_check_runs`, or the
-Checks tab, says whether the review job ran on the current head.
+Never assume the review ran. Check the Checks tab, or ask for it: `gh pr checks` in a local session,
+`mcp__github__pull_request_read` with method `get_check_runs` in a remote one.
 
 **Two environments.** In a local interactive session (terminal / IDE), use the `gh` CLI, and
 `gh run watch` to wait for the review. In a remote session (for example, Claude Code Remote) subscribed to the
