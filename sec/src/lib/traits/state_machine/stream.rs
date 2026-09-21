@@ -438,135 +438,135 @@ mod tests {
     // Note: StateMachineStream is Send but NOT Sync. Async streams hold mutable
     // state across await points. You move a stream to a consumer, not share it.
 
-    const fn assert_send<T: Send>() {}
+    const fn implements_send<T: Send>() {}
 
     #[test]
     const fn should_produce_send_stream_when_into_stream_is_called() {
-        assert_send::<super::StateMachineStream>();
+        implements_send::<super::StateMachineStream>();
     }
 
     // --- Trait compliance: non-terminal SampleStreamingSuperState<SampleStateA> ---
 
-    const fn assert_sync<T: Sync>() {}
-    const fn assert_unpin<T: Unpin>() {}
-    const fn assert_sized<T: Sized>() {}
-    const fn assert_debug<T: Debug>() {}
-    const fn assert_clone<T: Clone>() {}
-    const fn assert_hash<T: Hash>() {}
-    const fn assert_partial_eq<T: PartialEq>() {}
-    const fn assert_eq<T: Eq>() {}
-    const fn assert_partial_ord<T: PartialOrd>() {}
-    const fn assert_ord<T: Ord>() {}
+    const fn implements_sync<T: Sync>() {}
+    const fn implements_unpin<T: Unpin>() {}
+    const fn implements_sized<T: Sized>() {}
+    const fn implements_debug<T: Debug>() {}
+    const fn implements_clone<T: Clone>() {}
+    const fn implements_hash<T: Hash>() {}
+    const fn implements_partial_eq<T: PartialEq>() {}
+    const fn implements_eq<T: Eq>() {}
+    const fn implements_partial_ord<T: PartialOrd>() {}
+    const fn implements_ord<T: Ord>() {}
 
     #[test]
     const fn should_implement_send_for_non_terminal_streaming_super_state() {
-        assert_send::<SampleStreamingSuperState<SampleStateA>>();
+        implements_send::<SampleStreamingSuperState<SampleStateA>>();
     }
 
     #[test]
     const fn should_implement_sync_for_non_terminal_streaming_super_state() {
-        assert_sync::<SampleStreamingSuperState<SampleStateA>>();
+        implements_sync::<SampleStreamingSuperState<SampleStateA>>();
     }
 
     #[test]
     const fn should_implement_unpin_for_non_terminal_streaming_super_state() {
-        assert_unpin::<SampleStreamingSuperState<SampleStateA>>();
+        implements_unpin::<SampleStreamingSuperState<SampleStateA>>();
     }
 
     #[test]
     const fn should_implement_sized_for_non_terminal_streaming_super_state() {
-        assert_sized::<SampleStreamingSuperState<SampleStateA>>();
+        implements_sized::<SampleStreamingSuperState<SampleStateA>>();
     }
 
     #[test]
     const fn should_implement_debug_for_non_terminal_streaming_super_state() {
-        assert_debug::<SampleStreamingSuperState<SampleStateA>>();
+        implements_debug::<SampleStreamingSuperState<SampleStateA>>();
     }
 
     #[test]
     const fn should_implement_clone_for_non_terminal_streaming_super_state() {
-        assert_clone::<SampleStreamingSuperState<SampleStateA>>();
+        implements_clone::<SampleStreamingSuperState<SampleStateA>>();
     }
 
     #[test]
     const fn should_implement_hash_for_non_terminal_streaming_super_state() {
-        assert_hash::<SampleStreamingSuperState<SampleStateA>>();
+        implements_hash::<SampleStreamingSuperState<SampleStateA>>();
     }
 
     #[test]
     const fn should_implement_partial_eq_for_non_terminal_streaming_super_state() {
-        assert_partial_eq::<SampleStreamingSuperState<SampleStateA>>();
+        implements_partial_eq::<SampleStreamingSuperState<SampleStateA>>();
     }
 
     #[test]
     const fn should_implement_eq_for_non_terminal_streaming_super_state() {
-        assert_eq::<SampleStreamingSuperState<SampleStateA>>();
+        implements_eq::<SampleStreamingSuperState<SampleStateA>>();
     }
 
     #[test]
     const fn should_implement_partial_ord_for_non_terminal_streaming_super_state() {
-        assert_partial_ord::<SampleStreamingSuperState<SampleStateA>>();
+        implements_partial_ord::<SampleStreamingSuperState<SampleStateA>>();
     }
 
     #[test]
     const fn should_implement_ord_for_non_terminal_streaming_super_state() {
-        assert_ord::<SampleStreamingSuperState<SampleStateA>>();
+        implements_ord::<SampleStreamingSuperState<SampleStateA>>();
     }
 
     // --- Trait compliance: terminal SampleStreamingSuperState<SampleStateC> ---
 
     #[test]
     const fn should_implement_send_for_terminal_streaming_super_state() {
-        assert_send::<SampleStreamingSuperState<SampleStateC>>();
+        implements_send::<SampleStreamingSuperState<SampleStateC>>();
     }
 
     #[test]
     const fn should_implement_sync_for_terminal_streaming_super_state() {
-        assert_sync::<SampleStreamingSuperState<SampleStateC>>();
+        implements_sync::<SampleStreamingSuperState<SampleStateC>>();
     }
 
     #[test]
     const fn should_implement_unpin_for_terminal_streaming_super_state() {
-        assert_unpin::<SampleStreamingSuperState<SampleStateC>>();
+        implements_unpin::<SampleStreamingSuperState<SampleStateC>>();
     }
 
     #[test]
     const fn should_implement_sized_for_terminal_streaming_super_state() {
-        assert_sized::<SampleStreamingSuperState<SampleStateC>>();
+        implements_sized::<SampleStreamingSuperState<SampleStateC>>();
     }
 
     #[test]
     const fn should_implement_debug_for_terminal_streaming_super_state() {
-        assert_debug::<SampleStreamingSuperState<SampleStateC>>();
+        implements_debug::<SampleStreamingSuperState<SampleStateC>>();
     }
 
     #[test]
     const fn should_implement_clone_for_terminal_streaming_super_state() {
-        assert_clone::<SampleStreamingSuperState<SampleStateC>>();
+        implements_clone::<SampleStreamingSuperState<SampleStateC>>();
     }
 
     #[test]
     const fn should_implement_hash_for_terminal_streaming_super_state() {
-        assert_hash::<SampleStreamingSuperState<SampleStateC>>();
+        implements_hash::<SampleStreamingSuperState<SampleStateC>>();
     }
 
     #[test]
     const fn should_implement_partial_eq_for_terminal_streaming_super_state() {
-        assert_partial_eq::<SampleStreamingSuperState<SampleStateC>>();
+        implements_partial_eq::<SampleStreamingSuperState<SampleStateC>>();
     }
 
     #[test]
     const fn should_implement_eq_for_terminal_streaming_super_state() {
-        assert_eq::<SampleStreamingSuperState<SampleStateC>>();
+        implements_eq::<SampleStreamingSuperState<SampleStateC>>();
     }
 
     #[test]
     const fn should_implement_partial_ord_for_terminal_streaming_super_state() {
-        assert_partial_ord::<SampleStreamingSuperState<SampleStateC>>();
+        implements_partial_ord::<SampleStreamingSuperState<SampleStateC>>();
     }
 
     #[test]
     const fn should_implement_ord_for_terminal_streaming_super_state() {
-        assert_ord::<SampleStreamingSuperState<SampleStateC>>();
+        implements_ord::<SampleStreamingSuperState<SampleStateC>>();
     }
 }
