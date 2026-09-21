@@ -26,20 +26,24 @@ checkpoint.
 The auto-review runs only on PR open or reopen, so a new push is not reviewed on its own. Each
 round must request a fresh review with an `@claude review` comment.
 
-**When the PR opens with no review at all.** The auto-review fires on two `pull_request` types,
-`opened` and `reopened`. Neither fires twice by itself. So if the open produces no workflow run,
-only a reopen starts the auto-review again. A push does not, because `synchronize` is not in the
-list. A comment starts a review through a different job, which is what option 1 below uses.
+**When the PR opens with no review at all.** An open sometimes produces no run, and the cause is
+unknown. Here is why nothing recovers it by itself, and what does.
+
+The auto-review fires on two `pull_request` types, `opened` and `reopened`. Neither fires twice by
+itself. So if the open produces no workflow run, only a reopen starts the auto-review again. A push
+does not, because `synchronize` is not in the list. A comment starts a review through a different
+job, which is what option 1 below uses.
 
 `ci.yaml` behaves differently. It sets no type list, so it takes the default, which includes
 `synchronize`. Its next push fires it, on a PR that targets `main` or `master`, the only bases its
 `branches:` filter allows. That is why CI can come back on a PR where the auto-review never does.
 
-An open sometimes produces no run at all, and the cause is unknown. Two ways to recover, in order:
+Two ways to recover, in order:
 
 1. **Post `@claude review`.** This starts the `claude` job through the `issue_comment` trigger, a
    separate path from the `pull_request` one that failed. It works no matter who opened the PR, and
-   it is the same comment every iteration round uses.
+   it is the same comment every iteration round uses. Name the PR Review Guidelines in the comment,
+   because this job takes its prompt from what you write, while the auto-review carries its own.
 2. **Ask the human to close and reopen the PR.** This retries the same `pull_request` path through
    the `reopened` type. Closing a PR is visible to everyone watching it, so escalate rather than do
    it yourself.

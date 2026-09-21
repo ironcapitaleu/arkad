@@ -30,7 +30,12 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          fetch-depth: 1
+          # A review diffs `origin/main...HEAD`, which needs the merge base. A
+          # shallow fetch carries it only while the branch is level with
+          # `main`, so a review requested after `main` moves would read the
+          # wrong diff without saying so. `claude-auto-review` already does
+          # this.
+          fetch-depth: 0
 
       - uses: anthropics/claude-code-action@v1.0.230
         with:
