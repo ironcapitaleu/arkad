@@ -26,17 +26,24 @@ checkpoint.
 The auto-review runs only on PR open or reopen, so a new push is not reviewed on its own. Each
 round must request a fresh review with an `@claude review` comment.
 
-**When the PR opens with no review at all.** A PR sometimes receives no workflow runs on the
-`opened` event. One PR got none. Another, opened the same way, fired every check. The cause is
-unknown, so treat a missing review as possible on any open. `ci.yaml` recovers on its own, because
-its default type list includes `synchronize`, so the next push fires it. The auto-review has no such
-path. Two ways to recover, in order:
+**When the PR opens with no review at all.** The auto-review fires on two `pull_request` types,
+`opened` and `reopened`. Neither repeats on its own. So if the open produces no workflow run,
+nothing later in the PR's life starts the review, and a push does not either, because `synchronize`
+is not in the list.
 
-1. **Post `@claude review`.** This uses the `issue_comment` trigger, and it works whoever opened
-   the PR. It is the same comment every iteration round uses, so it needs nothing new.
-2. **Ask the human to close and reopen the PR.** This uses the `reopened` trigger. Closing a PR is
-   visible to everyone watching it, so escalate rather than do it yourself. If the reopen produces
-   no run either, go back to option 1.
+`ci.yaml` behaves differently. It sets no type list, so it takes the default, which includes
+`synchronize`. Its next push fires it. That is why CI can come back on a PR where the review never
+does.
+
+An open that produces no run at all does happen, and the cause is unknown. Check rather than assume.
+Two ways to recover, in order:
+
+1. **Post `@claude review`.** This starts the `claude` job through the `issue_comment` trigger, a
+   separate path from the `pull_request` one that failed. It works whoever opened the PR, and it is
+   the same comment every iteration round uses.
+2. **Ask the human to close and reopen the PR.** This retries the same `pull_request` path through
+   the `reopened` type. Closing a PR is visible to everyone watching it, so escalate rather than do
+   it yourself. If the reopen produces no run either, go back to option 1.
 
 Never assume the review ran. Check the Checks tab, or ask for it: `gh pr checks` in a local session,
 `mcp__github__pull_request_read` with method `get_check_runs` in a remote one.
@@ -199,7 +206,7 @@ The skill works alongside the `claude.yaml` workflow:
 ## Example Invocation
 
 User: "iterate on the PR"
-→ Skill fetches PR #111's review comments
+→ Skill fetches the PR's review comments
 → Implements 3 clearly valid fixes
 → Asks human about 1 architectural question
 → Commits, pushes, comments `@claude review the latest changes`
