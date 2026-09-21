@@ -441,7 +441,7 @@ mod tests {
     const fn implements_send<T: Send>() {}
 
     #[test]
-    const fn should_produce_send_stream_for_state_machine_stream() {
+    const fn should_implement_send_for_state_machine_stream() {
         implements_send::<super::StateMachineStream>();
     }
 
