@@ -6,7 +6,7 @@ description: >
   to enter a tight iterate-on-PR-feedback workflow. It drives the cycle of: request a review on
   the current head → implement valid feedback → request a fresh review → repeat until nothing new
   → then notify the human.
-version: 0.2.0
+version: 0.3.0
 argument-hint: "[PR number or URL]"
 allowed-tools: [Read, Write, Edit, Bash, AskUserQuestion, Agent]
 ---
@@ -26,16 +26,17 @@ checkpoint.
 The auto-review runs only on PR open or reopen, so a new push is not reviewed on its own. Each
 round must request a fresh review with an `@claude review` comment.
 
-**When the PR opens with no review at all.** A PR opened through the GitHub API can receive no
-workflow runs on the `opened` event. PR #198 opened at 16:42 on 2026-09-21 and produced none. The
-failure is intermittent, not a rule: PR #199 opened the same way three hours later and fired all
-four checks. `ci.yaml` recovers on its own, because its default type list includes `synchronize`, so
-the next push fires it. The auto-review has no such path. Two ways to recover, in order:
+**When the PR opens with no review at all.** A PR can receive no workflow runs on the `opened`
+event. PR #198 opened at 16:42 on 2026-09-21 and produced none. PR #199 opened the same way three
+hours later and fired all four checks, so the cause is unconfirmed. `ci.yaml` recovers on its own,
+because its default type list includes `synchronize`, so the next push fires it. The auto-review has
+no such path. Two ways to recover, in order:
 
 1. **Post `@claude review`.** This uses the `issue_comment` trigger, and it is what worked on
    #198. It is the same comment every iteration round uses, so it needs nothing new.
-2. **Close and reopen the PR.** This uses the `reopened` trigger. A reopen done with API
-   credentials can hit the same gap, so prefer a human reopen.
+2. **Ask the human to close and reopen the PR.** This uses the `reopened` trigger. A reopen made
+   with API credentials can fail the same way, so the human must click Reopen. Escalate it the way
+   the Philosophy section escalates an ambiguous finding.
 
 Never assume the review ran. `mcp__github__pull_request_read` with method `get_check_runs`, or the
 Checks tab, says whether the review job ran on the current head.
