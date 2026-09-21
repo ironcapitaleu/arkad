@@ -148,7 +148,13 @@ Use `thiserror` with `#[error("...")]` and `#[source]` for deriving `Display` an
     - Use `assert_eq!`, `assert_ne!`, or `assert!(condition)`
     - **IMPORTANT**: Write **EXACTLY ONE** assertion per test function (`assert_eq!`, `assert_ne!`, or `assert!(...)`)
 - Unit tests go in the same file as the code under a `#[cfg(test)]` module.
-- Test function names use `should_..._when` in `snake_case`.
+- Test function names are `snake_case`. `when` names a condition, `for` names a subject.
+  - A test with a real condition reads `should_<behavior>_when_<condition>`.
+    Example: `should_return_false_when_state_has_not_computed_the_output`.
+  - A test named after its subject reads `should_<behavior>_for_<subject>`.
+    Example: `should_meet_threshold_for_sp500_companies`.
+  - A compile-time trait test has no condition, so it reads `should_<check>_for_<type>`.
+    Example: `should_implement_auto_traits_for_backend_error`.
   - Names can be verbose — clarity over brevity.
 - Integration tests go in the `tests/` directory, each in its own file.
 - `.expect()` messages must explain **why the operation should not fail** in that context:

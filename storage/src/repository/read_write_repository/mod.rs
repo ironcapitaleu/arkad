@@ -44,7 +44,7 @@ mod tests {
     const fn implements_read_write_repository<T: ReadWriteRepository>() {}
 
     #[test]
-    const fn should_implement_read_write_repository_when_using_fake_read_write_repository() {
+    const fn should_implement_read_write_repository_for_fake_read_write_repository() {
         implements_read_write_repository::<FakeReadWriteRepository<String>>();
     }
 }

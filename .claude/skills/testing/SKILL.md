@@ -54,7 +54,13 @@ Based on this reasoning, suggest what tests to write/review and let the user con
 
 - **Pattern:** Arrange, Define, Act, Assert
 - **Exactly ONE assertion per test function** (`assert_eq!`, `assert_ne!`, or `assert!(...)`). Exceptions: compile-time auto-trait checks (bounds enforced by compilation) and `#[should_panic]` tests (the panic is the assertion).
-- **Naming:** `should_..._when_...` for all tests. The auto-trait witness is always `should_implement_auto_traits_when_using_<type>`. Other trait tests use `should_implement_..._when_...` / `should_be_..._when_...`. Always snake_case, verbose is fine.
+- **Naming:** `when` names a condition. `for` names a subject. Pick the clause that fits what follows it.
+  - A test with a real condition reads `should_<behavior>_when_<condition>`, as in `should_return_false_when_state_has_not_computed_the_output`.
+  - A test named after its subject reads `should_<behavior>_for_<subject>`, as in `should_meet_threshold_for_sp500_companies`.
+  - A compile-time trait test has no condition, so it always takes `for`: `should_<check>_for_<type>`, as in `should_implement_auto_traits_for_backend_error`.
+  - Name the test after the type it passes to the helper, not after its module or the trait.
+  - When two tests in one module differ only by a type parameter, that parameter names the test, as in `should_be_thread_safe_for_validate_cik_format_super_state`.
+  - Always snake_case. Verbose names are fine.
 - **Location:** Unit tests in same file under `#[cfg(test)]`; integration tests in `tests/` directory
 - **Assertions:** Use `pretty_assertions` (`assert_eq!`, `assert_ne!`)
 - **`.expect()` messages:** Explain WHY the operation should not fail in that context. Capitalize the first word. Do **NOT** end with a period
@@ -67,7 +73,7 @@ Every domain type and state struct should include compile-time trait compliance 
 ```rust
 const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
 #[test]
-const fn should_implement_auto_traits_when_using_my_type() {
+const fn should_implement_auto_traits_for_my_type() {
     implements_auto_traits::<MyType>();
 }
 
@@ -75,72 +81,72 @@ const fn implements_send<T: Send>() {}
 const fn implements_sync<T: Sync>() {}
 
 #[test]
-const fn should_implement_send_when_using_my_type() {
+const fn should_implement_send_for_my_type() {
     implements_send::<MyType>();
 }
 
 #[test]
-const fn should_implement_sync_when_using_my_type() {
+const fn should_implement_sync_for_my_type() {
     implements_sync::<MyType>();
 }
 
 #[test]
-const fn should_be_thread_safe_when_using_my_type() {
+const fn should_be_thread_safe_for_my_type() {
     implements_send::<MyType>();
     implements_sync::<MyType>();
 }
 
 const fn implements_sized<T: Sized>() {}
 #[test]
-const fn should_be_sized_when_using_my_type() {
+const fn should_be_sized_for_my_type() {
     implements_sized::<MyType>();
 }
 
 const fn implements_hash<T: std::hash::Hash>() {}
 #[test]
-const fn should_implement_hash_when_using_my_type() {
+const fn should_implement_hash_for_my_type() {
     implements_hash::<MyType>();
 }
 
 const fn implements_partial_eq<T: PartialEq>() {}
 #[test]
-const fn should_implement_partial_eq_when_using_my_type() {
+const fn should_implement_partial_eq_for_my_type() {
     implements_partial_eq::<MyType>();
 }
 
 const fn implements_eq<T: Eq>() {}
 #[test]
-const fn should_implement_eq_when_using_my_type() {
+const fn should_implement_eq_for_my_type() {
     implements_eq::<MyType>();
 }
 
 const fn implements_partial_ord<T: PartialOrd>() {}
 #[test]
-const fn should_implement_partial_ord_when_using_my_type() {
+const fn should_implement_partial_ord_for_my_type() {
     implements_partial_ord::<MyType>();
 }
 
 const fn implements_ord<T: Ord>() {}
 #[test]
-const fn should_implement_ord_when_using_my_type() {
+const fn should_implement_ord_for_my_type() {
     implements_ord::<MyType>();
 }
 
 const fn implements_debug<T: std::fmt::Debug>() {}
 #[test]
-const fn should_implement_debug_when_using_my_type() {
+const fn should_implement_debug_for_my_type() {
     implements_debug::<MyType>();
 }
 
 const fn implements_clone<T: Clone>() {}
 #[test]
-const fn should_implement_clone_when_using_my_type() {
+const fn should_implement_clone_for_my_type() {
     implements_clone::<MyType>();
 }
 
 const fn implements_unpin<T: Unpin>() {}
 #[test]
-const fn should_implement_unpin_when_using_my_type() {
+const fn should_implement_unpin_for_my_type() {
     implements_unpin::<MyType>();
 }
 ```
