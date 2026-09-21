@@ -6,7 +6,7 @@ description: >
   to enter a tight iterate-on-PR-feedback workflow. It drives the cycle of: request a review on
   the current head → implement valid feedback → request a fresh review → repeat until nothing new
   → then notify the human.
-version: 0.2.0
+version: 0.3.0
 argument-hint: "[PR number or URL]"
 allowed-tools: [Read, Write, Edit, Bash, AskUserQuestion, Agent]
 ---
@@ -23,13 +23,65 @@ notify the human. Escalate an ambiguous finding to the human as it arises. Do no
 human to trigger each re-review — a fresh review after every push is part of the loop, not a
 checkpoint.
 
-The auto-review runs only on PR open, so a new push is not reviewed on its own. Each round must
-request a fresh review with an `@claude review` comment.
+The auto-review runs only on PR open or reopen, so a new push is not reviewed on its own. Each
+round must request a fresh review with an `@claude review` comment that names the PR Review
+Guidelines.
+
+**When the PR opens with no review at all.** An open sometimes produces no run, and the cause is
+unknown. Nothing recovers it by itself. Here is why, and what a person can do about it.
+
+The auto-review fires on two `pull_request` types, `opened` and `reopened`. Neither fires twice by
+itself. So if the open produces no workflow run, only a reopen starts the auto-review. A push does
+not, because `synchronize` is not in the list. A comment starts a review through a different job,
+which is what option 1 below uses.
+
+`ci.yaml` behaves differently. It sets no type list, so it takes the default, which includes
+`synchronize`. The PR's next push fires it, if the PR targets `main` or `master`, the only bases
+`ci.yaml`'s `branches:` filter allows. That is why CI can come back on a PR where the auto-review
+never does.
+
+Two ways to recover, in order:
+
+1. **Post `@claude review`.** This starts the `claude` job through the `issue_comment` trigger, a
+   separate path from the `pull_request` one that failed. It works no matter who opened the PR, and
+   it is the same comment every iteration round uses. Name the PR Review Guidelines in it.
+2. **Ask the human to close and reopen the PR.** This retries the same `pull_request` path through
+   the `reopened` type. Closing a PR is visible to everyone watching it, so escalate rather than do
+   it yourself.
+
+Try option 1 first. If a second check still finds no run, or the run finishes without a review,
+escalate option 2 and wait, unless the PR comes from a fork.
+
+**Check for the run rather than waiting on a wake event, because a run that is never created sends
+no event.** A run takes a moment to appear, so an empty first check has learned nothing. Check again
+before calling it a failure. Once a run exists, wait for it as Step 7 does. A run that starts and
+then fails is not a review.
+
+**On a fork PR option 2 cannot work.** Check with `gh pr view --json isCrossRepository` in a local
+session, or `mcp__github__pull_request_read` with method `get` in a remote one, comparing the head
+repository to the base. A `pull_request` event raised from a fork gets no secrets, so a reopen
+starts the job and it fails on the missing token, which looks like success to anyone watching for a
+run to appear. Option 1 keeps its token, because `issue_comment` runs in the base repository. So on
+a fork PR, do not escalate. If option 1 gives no review there, stop and tell the human, and say a
+reopen cannot help.
+
+If the reopen gives no review either, stop and tell the human the review cannot be started, rather
+than repeating either step. **If you escalated a reopen and the human has not done it, the
+procedure is waiting, not finished.** Say that instead, and name the reopen as the outstanding
+action. Both paths failing puts the cause outside the trigger configuration — a disabled workflow,
+an expired token, exhausted Actions minutes — so a third attempt costs a round without testing
+anything new.
+
+Never assume the review ran. Check the Checks tab, or ask for it: `gh pr checks` in a local session,
+`mcp__github__pull_request_read` with method `get_check_runs` in a remote one. Both report a failed
+run as well as a missing one, and both name a run that is still queued or running.
 
 **Two environments.** In a local interactive session (terminal / IDE), use the `gh` CLI, and
 `gh run watch` to wait for the review. In a remote session (for example, Claude Code Remote) subscribed to the
 PR, use the GitHub MCP tools (`mcp__github__*`) instead of `gh`. Do not poll with `sleep`. Request
-the review, end the turn, and let the re-review arrive as a PR-activity wake event.
+the review, end the turn, and let the re-review arrive as a PR-activity wake event. Recovering an
+open that produced no run is the exception: a run that was never created sends no event, so check
+for the run as the procedure above says.
 
 ## Philosophy
 
@@ -40,7 +92,8 @@ the review, end the turn, and let the re-review arrive as a PR-activity wake eve
 - **Keep the human in the loop:** Always summarize what feedback was received, what was
   implemented (and why), and what needs human input — even for changes you made autonomously.
 - **Proactive re-review:** After implementing a batch of changes, comment `@claude review the
-  latest changes` on the PR to trigger a new review cycle.
+  latest changes, applying the PR Review Guidelines in AGENTS.md` on the PR to trigger a new review
+  cycle. The `claude` job has no review prompt of its own, so the comment carries the contract.
 
 ## Workflow
 
@@ -58,7 +111,7 @@ gh pr view {pr_number} --json reviews,comments
 ```
 
 In a remote session, use `mcp__github__pull_request_read` with methods `get_reviews`,
-`get_comments`, and `get_check_runs` instead of `gh`. Post the `@claude review` comment with
+`get_comments`, and `get_check_runs` instead of `gh`. Post the Step 6 comment with
 `mcp__github__add_issue_comment`.
 
 Categorize each comment:
@@ -120,7 +173,7 @@ git push
 Comment on the PR to trigger a new Claude review:
 
 ```bash
-gh pr comment {pr_number} --body "@claude review the latest changes — I addressed the previous feedback"
+gh pr comment {pr_number} --body "@claude review the latest changes, applying the PR Review Guidelines in AGENTS.md — I addressed the previous feedback"
 ```
 
 ### Step 7: Wait and Continue
@@ -130,7 +183,9 @@ After requesting the re-review, wait for it by the means the environment allows:
 - **Local session:** use `gh run watch` in the background until the review workflow completes, then
   fetch the new findings.
 - **Remote session subscribed to the PR:** end the turn. The re-review arrives as a PR-activity
-  wake event. Do not poll with `sleep`. On the event, fetch the new findings.
+  wake event. Do not poll with `sleep`. On the event, fetch the new findings. If no event arrives,
+  check for the run rather than waiting further. A run that was never created sends none, and the
+  recovery procedure in Purpose applies.
 
 Then:
 
@@ -176,17 +231,18 @@ human-escalated items.
 ## Integration with CI
 
 The skill works alongside the `claude.yaml` workflow:
-- The workflow's `claude-auto-review` job does the initial review on PR open (triggered by `pull_request: opened`)
+- The workflow's `claude-auto-review` job reviews on PR open and reopen (`pull_request: [opened, reopened]`)
 - The `claude` job handles `@claude` comments (triggered by `issue_comment: created`)
-- When this skill posts `@claude review the latest changes`, it triggers the `claude` job (not `claude-auto-review`)
+- When this skill posts `@claude review …`, it triggers the `claude` job (not `claude-auto-review`)
+- Only `claude-auto-review` carries a review prompt. The `claude` job takes its prompt from the comment, so every request must name the PR Review Guidelines
 - You can invoke this skill at any point to address unaddressed feedback
 
 ## Example Invocation
 
 User: "iterate on the PR"
-→ Skill fetches PR #111's review comments
+→ Skill fetches the PR's review comments
 → Implements 3 clearly valid fixes
 → Asks human about 1 architectural question
-→ Commits, pushes, comments `@claude review the latest changes`
+→ Commits, pushes, comments `@claude review the latest changes, applying the PR Review Guidelines in AGENTS.md`
 → Waits for new review
 → Reports: "New review is clean. PR ready to merge."
