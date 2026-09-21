@@ -49,28 +49,33 @@ Two ways to recover, in order:
    the `reopened` type. Closing a PR is visible to everyone watching it, so escalate rather than do
    it yourself.
 
-Try option 1 once, and wait for the run the way Step 7 does. If it starts no run, or the run
-finishes without a review, escalate option 2 and wait, unless the PR comes from a fork — `gh pr view
---json isCrossRepository` in a local session, the PR's head repository in a remote one. Judge every
-attempt by the same test: a run that has not finished is not yet an answer, and a run that starts
-and then fails is not a review.
+Try option 1 once, then wait for the run as Step 7 does, with one difference. Step 7 waits for a run
+that is already starting, and here it may never start, so check once for a run rather than wait on a
+wake event that a missing run cannot send. Judge every attempt by the same three states: no run is a
+failure, a run that has not finished is not yet an answer, and a run that starts and then fails is
+not a review.
 
-**On a fork PR the two paths differ.** A `pull_request` event raised from a fork gets no secrets, so
-option 2 starts the job and fails on the missing token, which looks like success to anyone watching
-for a run to appear. Option 1 keeps its token, because `issue_comment` runs in the base repository.
-So on a fork PR, do not escalate option 2. If option 1 finishes without a review there, stop and
-tell the human, and say a reopen cannot help.
+If option 1 starts no run, or its run finishes without a review, escalate option 2 and wait, unless
+the PR comes from a fork.
 
-If the human reopens and that run finishes without a review, stop and tell the human the review
-cannot be started, rather than repeating either step. **If you escalated a reopen and the human has
-not done it, the procedure is waiting, not finished.** Say that instead, and name the reopen as the
-outstanding action. Both paths failing puts the cause outside the trigger configuration — a disabled
-workflow, an expired token, exhausted Actions minutes — so a third attempt costs a round without
-testing anything new.
+**On a fork PR the two paths differ.** Check with `gh pr view --json isCrossRepository` in a local
+session, or `mcp__github__pull_request_read` with method `get` in a remote one, comparing the head
+repository to the base. A `pull_request` event raised from a fork gets no secrets, so option 2
+starts the job and fails on the missing token, which looks like success to anyone watching for a run
+to appear. Option 1 keeps its token, because `issue_comment` runs in the base repository. So on a
+fork PR, do not escalate option 2. If option 1 starts no run there, or its run finishes without a
+review, stop and tell the human, and say a reopen cannot help.
+
+If the human reopens and that starts no run either, or its run finishes without a review, stop and
+tell the human the review cannot be started, rather than repeating either step. **If you escalated
+a reopen and the human has not done it, the procedure is waiting, not finished.** Say that instead,
+and name the reopen as the outstanding action. Both paths failing puts the cause outside the
+trigger configuration — a disabled workflow, an expired token, exhausted Actions minutes — so a
+third attempt costs a round without testing anything new.
 
 Never assume the review ran. Check the Checks tab, or ask for it: `gh pr checks` in a local session,
 `mcp__github__pull_request_read` with method `get_check_runs` in a remote one. Both report a failed
-run as well as a missing one.
+run as well as a missing one, and both name a run that is still queued or running.
 
 **Two environments.** In a local interactive session (terminal / IDE), use the `gh` CLI, and
 `gh run watch` to wait for the review. In a remote session (for example, Claude Code Remote) subscribed to the
