@@ -61,9 +61,9 @@ tell the human, and say a reopen cannot help.
 If the human reopens and that produces no finished review either, stop and tell the human the review
 cannot be started, rather than repeating either step. Both paths failing puts the cause outside the
 trigger configuration — a disabled workflow, an expired token, exhausted Actions minutes — so a
-third attempt costs a round without testing anything new. **If the human has not reopened, the
-procedure is waiting, not finished.** Say that instead, and name the reopen as the outstanding
-action.
+third attempt costs a round without testing anything new. **If you escalated a reopen and the human
+has not done it, the procedure is waiting, not finished.** Say that instead, and name the reopen as
+the outstanding action.
 
 Never assume the review ran. Check the Checks tab, or ask for it: `gh pr checks` in a local session,
 `mcp__github__pull_request_read` with method `get_check_runs` in a remote one. Both report a failed
