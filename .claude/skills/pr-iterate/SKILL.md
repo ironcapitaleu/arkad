@@ -49,27 +49,26 @@ Two ways to recover, in order:
    the `reopened` type. Closing a PR is visible to everyone watching it, so escalate rather than do
    it yourself.
 
-Try option 1 once, then wait for the run as Step 7 does, with one difference. Step 7 waits for a run
-that is already starting, and here it may never start, so check once for a run rather than wait on a
-wake event that a missing run cannot send. Judge every attempt by the same three states: no run is a
-failure, a run that has not finished is not yet an answer, and a run that starts and then fails is
-not a review.
+**Check for the run rather than waiting on a wake event, because a run that is never created sends
+no event.** A run takes a moment to appear, so an empty first check has learned nothing. Check again
+before calling it a failure. Once a run exists, wait for it as Step 7 does. A run that starts and
+then fails is not a review.
 
-If option 1 starts no run, or its run finishes without a review, escalate option 2 and wait, unless
-the PR comes from a fork.
+Try option 1 first. If a second check still finds no run, or the run finishes without a review,
+escalate option 2, unless the PR comes from a fork.
 
-**On a fork PR the two paths differ.** Check with `gh pr view --json isCrossRepository` in a local
+**On a fork PR option 2 cannot work.** Check with `gh pr view --json isCrossRepository` in a local
 session, or `mcp__github__pull_request_read` with method `get` in a remote one, comparing the head
-repository to the base. A `pull_request` event raised from a fork gets no secrets, so option 2
-starts the job and fails on the missing token, which looks like success to anyone watching for a run
-to appear. Option 1 keeps its token, because `issue_comment` runs in the base repository. So on a
-fork PR, do not escalate option 2. If option 1 starts no run there, or its run finishes without a
-review, stop and tell the human, and say a reopen cannot help.
+repository to the base. A `pull_request` event raised from a fork gets no secrets, so a reopen
+starts the job and it fails on the missing token, which looks like success to anyone watching for a
+run to appear. Option 1 keeps its token, because `issue_comment` runs in the base repository. So on
+a fork PR, do not escalate. If option 1 gives no review there, stop and tell the human, and say a
+reopen cannot help.
 
-If the human reopens and that starts no run either, or its run finishes without a review, stop and
-tell the human the review cannot be started, rather than repeating either step. **If you escalated
-a reopen and the human has not done it, the procedure is waiting, not finished.** Say that instead,
-and name the reopen as the outstanding action. Both paths failing puts the cause outside the
+If the reopen gives no review either, stop and tell the human the review cannot be started, rather
+than repeating either step. **If you escalated a reopen and the human has not done it, the
+procedure is waiting, not finished.** Say that instead, and name the reopen as the outstanding
+action. Both paths failing puts the cause outside the
 trigger configuration — a disabled workflow, an expired token, exhausted Actions minutes — so a
 third attempt costs a round without testing anything new.
 
@@ -80,7 +79,9 @@ run as well as a missing one, and both name a run that is still queued or runnin
 **Two environments.** In a local interactive session (terminal / IDE), use the `gh` CLI, and
 `gh run watch` to wait for the review. In a remote session (for example, Claude Code Remote) subscribed to the
 PR, use the GitHub MCP tools (`mcp__github__*`) instead of `gh`. Do not poll with `sleep`. Request
-the review, end the turn, and let the re-review arrive as a PR-activity wake event.
+the review, end the turn, and let the re-review arrive as a PR-activity wake event. Recovering an
+open that produced no run is the exception: a run that was never created sends no event, so check
+for the run as the procedure above says.
 
 ## Philosophy
 
