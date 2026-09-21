@@ -57,9 +57,9 @@ Based on this reasoning, suggest what tests to write/review and let the user con
 - **Naming:** `when` names a condition. `for` names a subject. Pick the clause that fits what follows it.
   - A test with a real condition reads `should_<behavior>_when_<condition>`, as in `should_return_false_when_state_has_not_computed_the_output`.
   - A test named after its subject reads `should_<behavior>_for_<subject>`, as in `should_meet_threshold_for_sp500_companies`.
-  - A boilerplate trait witness holds unconditionally, so it always takes `for`: `should_<check>_for_<type>`, as in `should_implement_auto_traits_for_backend_error`.
-  - Name a witness after the type it hands the helper, not after its module or the trait.
-  - When sibling witnesses differ only by a type parameter, that parameter names the test, as in `should_be_thread_safe_for_validate_cik_format_super_state`.
+  - A compile-time trait test has no condition, so it always takes `for`: `should_<check>_for_<type>`, as in `should_implement_auto_traits_for_backend_error`.
+  - Name the test after the type it passes to the helper, not after its module or the trait.
+  - When two tests in one module differ only by a type parameter, that parameter names the test, as in `should_be_thread_safe_for_validate_cik_format_super_state`.
   - Always snake_case. Verbose names are fine.
 - **Location:** Unit tests in same file under `#[cfg(test)]`; integration tests in `tests/` directory
 - **Assertions:** Use `pretty_assertions` (`assert_eq!`, `assert_ne!`)
