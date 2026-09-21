@@ -173,17 +173,17 @@ mod tests {
     fn assert_unpin<T: Unpin>() {}
 
     #[test]
-    fn should_be_send() {
+    fn should_be_send_for_sec_client() {
         assert_send::<SecClient>();
     }
 
     #[test]
-    fn should_be_sync() {
+    fn should_be_sync_for_sec_client() {
         assert_sync::<SecClient>();
     }
 
     #[test]
-    fn should_be_unpin() {
+    fn should_be_unpin_for_sec_client() {
         assert_unpin::<SecClient>();
     }
 }

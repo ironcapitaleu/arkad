@@ -214,17 +214,17 @@ mod tests {
     fn assert_unpin<T: Unpin>() {}
 
     #[test]
-    fn should_be_send() {
+    fn should_be_send_for_sec_request() {
         assert_send::<SecRequest>();
     }
 
     #[test]
-    fn should_be_sync() {
+    fn should_be_sync_for_sec_request() {
         assert_sync::<SecRequest>();
     }
 
     #[test]
-    fn should_be_unpin() {
+    fn should_be_unpin_for_sec_request() {
         assert_unpin::<SecRequest>();
     }
 }
