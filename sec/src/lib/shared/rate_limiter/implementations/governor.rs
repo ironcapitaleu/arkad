@@ -67,34 +67,34 @@ impl RateLimiter for GovernorRateLimiter {
 mod tests {
     use super::GovernorRateLimiter;
 
-    fn assert_send<T: Send>() {}
-    fn assert_sync<T: Sync>() {}
-    fn assert_unpin<T: Unpin>() {}
-    fn assert_debug<T: std::fmt::Debug>() {}
-    fn assert_clone<T: Clone>() {}
+    const fn implements_send<T: Send>() {}
+    const fn implements_sync<T: Sync>() {}
+    const fn implements_unpin<T: Unpin>() {}
+    const fn implements_debug<T: std::fmt::Debug>() {}
+    const fn implements_clone<T: Clone>() {}
 
     #[test]
-    fn should_be_send_for_governor_rate_limiter() {
-        assert_send::<GovernorRateLimiter>();
+    const fn should_be_send_for_governor_rate_limiter() {
+        implements_send::<GovernorRateLimiter>();
     }
 
     #[test]
-    fn should_be_sync_for_governor_rate_limiter() {
-        assert_sync::<GovernorRateLimiter>();
+    const fn should_be_sync_for_governor_rate_limiter() {
+        implements_sync::<GovernorRateLimiter>();
     }
 
     #[test]
-    fn should_be_unpin_for_governor_rate_limiter() {
-        assert_unpin::<GovernorRateLimiter>();
+    const fn should_be_unpin_for_governor_rate_limiter() {
+        implements_unpin::<GovernorRateLimiter>();
     }
 
     #[test]
-    fn should_implement_debug_for_governor_rate_limiter() {
-        assert_debug::<GovernorRateLimiter>();
+    const fn should_implement_debug_for_governor_rate_limiter() {
+        implements_debug::<GovernorRateLimiter>();
     }
 
     #[test]
-    fn should_implement_clone_for_governor_rate_limiter() {
-        assert_clone::<GovernorRateLimiter>();
+    const fn should_implement_clone_for_governor_rate_limiter() {
+        implements_clone::<GovernorRateLimiter>();
     }
 }

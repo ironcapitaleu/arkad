@@ -209,22 +209,22 @@ mod tests {
         assert_eq!(result, expected_result);
     }
 
-    fn assert_send<T: Send>() {}
-    fn assert_sync<T: Sync>() {}
-    fn assert_unpin<T: Unpin>() {}
+    const fn implements_send<T: Send>() {}
+    const fn implements_sync<T: Sync>() {}
+    const fn implements_unpin<T: Unpin>() {}
 
     #[test]
-    fn should_be_send_for_sec_request() {
-        assert_send::<SecRequest>();
+    const fn should_be_send_for_sec_request() {
+        implements_send::<SecRequest>();
     }
 
     #[test]
-    fn should_be_sync_for_sec_request() {
-        assert_sync::<SecRequest>();
+    const fn should_be_sync_for_sec_request() {
+        implements_sync::<SecRequest>();
     }
 
     #[test]
-    fn should_be_unpin_for_sec_request() {
-        assert_unpin::<SecRequest>();
+    const fn should_be_unpin_for_sec_request() {
+        implements_unpin::<SecRequest>();
     }
 }

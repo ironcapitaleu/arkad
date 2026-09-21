@@ -156,36 +156,36 @@ mod tests {
         assert_eq!(result, expected_result);
     }
 
-    fn assert_send<T: Send>() {}
-    fn assert_sync<T: Sync>() {}
+    const fn implements_send<T: Send>() {}
+    const fn implements_sync<T: Sync>() {}
 
     #[test]
-    fn should_be_send_for_sec_request_builder() {
-        assert_send::<super::SecRequestBuilder>();
+    const fn should_be_send_for_sec_request_builder() {
+        implements_send::<super::SecRequestBuilder>();
     }
 
     #[test]
-    fn should_be_sync_for_sec_request_builder() {
-        assert_sync::<super::SecRequestBuilder>();
+    const fn should_be_sync_for_sec_request_builder() {
+        implements_sync::<super::SecRequestBuilder>();
     }
 
     #[test]
-    fn should_be_send_for_all_company_facts_builder_without_cik() {
-        assert_send::<super::AllCompanyFactsBuilder<super::NoCik>>();
+    const fn should_be_send_for_all_company_facts_builder_without_cik() {
+        implements_send::<super::AllCompanyFactsBuilder<super::NoCik>>();
     }
 
     #[test]
-    fn should_be_sync_for_all_company_facts_builder_without_cik() {
-        assert_sync::<super::AllCompanyFactsBuilder<super::NoCik>>();
+    const fn should_be_sync_for_all_company_facts_builder_without_cik() {
+        implements_sync::<super::AllCompanyFactsBuilder<super::NoCik>>();
     }
 
     #[test]
-    fn should_be_send_for_all_company_facts_builder_with_cik() {
-        assert_send::<super::AllCompanyFactsBuilder<Cik>>();
+    const fn should_be_send_for_all_company_facts_builder_with_cik() {
+        implements_send::<super::AllCompanyFactsBuilder<Cik>>();
     }
 
     #[test]
-    fn should_be_sync_for_all_company_facts_builder_with_cik() {
-        assert_sync::<super::AllCompanyFactsBuilder<Cik>>();
+    const fn should_be_sync_for_all_company_facts_builder_with_cik() {
+        implements_sync::<super::AllCompanyFactsBuilder<Cik>>();
     }
 }

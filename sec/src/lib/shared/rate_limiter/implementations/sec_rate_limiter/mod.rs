@@ -76,34 +76,34 @@ impl RateLimiter for SecRateLimiter {
 mod tests {
     use super::SecRateLimiter;
 
-    fn assert_send<T: Send>() {}
-    fn assert_sync<T: Sync>() {}
-    fn assert_unpin<T: Unpin>() {}
-    fn assert_debug<T: std::fmt::Debug>() {}
-    fn assert_clone<T: Clone>() {}
+    const fn implements_send<T: Send>() {}
+    const fn implements_sync<T: Sync>() {}
+    const fn implements_unpin<T: Unpin>() {}
+    const fn implements_debug<T: std::fmt::Debug>() {}
+    const fn implements_clone<T: Clone>() {}
 
     #[test]
-    fn should_be_send_for_sec_rate_limiter() {
-        assert_send::<SecRateLimiter>();
+    const fn should_be_send_for_sec_rate_limiter() {
+        implements_send::<SecRateLimiter>();
     }
 
     #[test]
-    fn should_be_sync_for_sec_rate_limiter() {
-        assert_sync::<SecRateLimiter>();
+    const fn should_be_sync_for_sec_rate_limiter() {
+        implements_sync::<SecRateLimiter>();
     }
 
     #[test]
-    fn should_be_unpin_for_sec_rate_limiter() {
-        assert_unpin::<SecRateLimiter>();
+    const fn should_be_unpin_for_sec_rate_limiter() {
+        implements_unpin::<SecRateLimiter>();
     }
 
     #[test]
-    fn should_implement_debug_for_sec_rate_limiter() {
-        assert_debug::<SecRateLimiter>();
+    const fn should_implement_debug_for_sec_rate_limiter() {
+        implements_debug::<SecRateLimiter>();
     }
 
     #[test]
-    fn should_implement_clone_for_sec_rate_limiter() {
-        assert_clone::<SecRateLimiter>();
+    const fn should_implement_clone_for_sec_rate_limiter() {
+        implements_clone::<SecRateLimiter>();
     }
 }
