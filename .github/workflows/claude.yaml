@@ -18,7 +18,7 @@ permissions:
 
 env:
   # Model used by both Claude jobs. Defined once so the two jobs cannot drift.
-  CLAUDE_MODEL: claude-opus-5
+  CLAUDE_MODEL: claude-opus-5-5
 
 jobs:
   claude:
