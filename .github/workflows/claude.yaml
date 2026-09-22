@@ -63,7 +63,6 @@ jobs:
           claude_args: '--model ${{ env.CLAUDE_MODEL }}'
           allowed_bots: "claude[bot]"
           track_progress: true
-          show_full_output: true
           prompt: |
             You are an adversarial code reviewer for this pull request.
 
