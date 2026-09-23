@@ -243,7 +243,7 @@ mod tests {
 
     #[test]
     #[should_panic]
-    fn should_be_failing_when_when_trying_to_compare_casting_result_from_different_enum_variant() {
+    fn should_be_failing_when_trying_to_compare_casting_result_from_different_enum_variant() {
         let expected_result = StateMachine::Transition(Transition::FailedOutputConversion(
             transition::FailedOutputConversion::new("StateA", "StateB"),
         ));
