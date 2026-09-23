@@ -333,7 +333,7 @@ mod tests {
     // Trait implementation tests
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
     #[test]
-    const fn should_implement_auto_traits_when_using_execute_sec_request() {
+    const fn should_implement_auto_traits_for_execute_sec_request() {
         implements_auto_traits::<ExecuteSecRequest>();
     }
 
@@ -341,72 +341,72 @@ mod tests {
     const fn implements_sync<T: Sync>() {}
 
     #[test]
-    const fn should_implement_send_when_implementing_state_trait() {
+    const fn should_implement_send_for_execute_sec_request() {
         implements_send::<ExecuteSecRequest>();
     }
 
     #[test]
-    const fn should_implement_sync_when_implementing_state_trait() {
+    const fn should_implement_sync_for_execute_sec_request() {
         implements_sync::<ExecuteSecRequest>();
     }
 
     #[test]
-    const fn should_be_thread_safe_when_implementing_state_trait() {
+    const fn should_be_thread_safe_for_execute_sec_request() {
         implements_send::<ExecuteSecRequest>();
         implements_sync::<ExecuteSecRequest>();
     }
 
     const fn implements_sized<T: Sized>() {}
     #[test]
-    const fn should_be_sized_when_implementing_state_trait() {
+    const fn should_be_sized_for_execute_sec_request() {
         implements_sized::<ExecuteSecRequest>();
     }
 
     const fn implements_hash<T: Hash>() {}
     #[test]
-    const fn should_implement_hash_when_implementing_state_trait() {
+    const fn should_implement_hash_for_execute_sec_request() {
         implements_hash::<ExecuteSecRequest>();
     }
 
     const fn implements_partial_eq<T: PartialEq>() {}
     #[test]
-    const fn should_implement_partial_eq_when_implementing_state_trait() {
+    const fn should_implement_partial_eq_for_execute_sec_request() {
         implements_partial_eq::<ExecuteSecRequest>();
     }
 
     const fn implements_eq<T: Eq>() {}
     #[test]
-    const fn should_implement_eq_when_implementing_state_trait() {
+    const fn should_implement_eq_for_execute_sec_request() {
         implements_eq::<ExecuteSecRequest>();
     }
 
     const fn implements_partial_ord<T: PartialOrd>() {}
     #[test]
-    const fn should_implement_partial_ord_when_implementing_state_trait() {
+    const fn should_implement_partial_ord_for_execute_sec_request() {
         implements_partial_ord::<ExecuteSecRequest>();
     }
 
     const fn implements_ord<T: Ord>() {}
     #[test]
-    const fn should_implement_ord_when_implementing_state_trait() {
+    const fn should_implement_ord_for_execute_sec_request() {
         implements_ord::<ExecuteSecRequest>();
     }
 
     const fn implements_debug<T: Debug>() {}
     #[test]
-    const fn should_implement_debug_when_implementing_state_trait() {
+    const fn should_implement_debug_for_execute_sec_request() {
         implements_debug::<ExecuteSecRequest>();
     }
 
     const fn implements_clone<T: Clone>() {}
     #[test]
-    const fn should_implement_clone_when_implementing_state_trait() {
+    const fn should_implement_clone_for_execute_sec_request() {
         implements_clone::<ExecuteSecRequest>();
     }
 
     const fn implements_unpin<T: Unpin>() {}
     #[test]
-    const fn should_implement_unpin_when_implementing_state_trait() {
+    const fn should_implement_unpin_for_execute_sec_request() {
         implements_unpin::<ExecuteSecRequest>();
     }
 

@@ -537,17 +537,17 @@ mod tests {
 
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
     #[test]
-    const fn should_implement_auto_traits_when_using_validate_cik_format_super_state() {
+    const fn should_implement_auto_traits_for_validate_cik_format_super_state() {
         implements_auto_traits::<ExtractSuperState<ValidateCikFormat>>();
     }
 
     #[test]
-    const fn should_implement_auto_traits_when_using_prepare_sec_request_super_state() {
+    const fn should_implement_auto_traits_for_prepare_sec_request_super_state() {
         implements_auto_traits::<ExtractSuperState<PrepareSecRequest>>();
     }
 
     #[test]
-    const fn should_implement_auto_traits_when_using_execute_sec_request_super_state() {
+    const fn should_implement_auto_traits_for_execute_sec_request_super_state() {
         implements_auto_traits::<ExtractSuperState<ExecuteSecRequest>>();
     }
 
