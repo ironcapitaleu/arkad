@@ -18,7 +18,7 @@ permissions:
 
 env:
   # Model used by both Claude jobs. Defined once so the two jobs cannot drift.
-  CLAUDE_MODEL: claude-opus-5
+  CLAUDE_MODEL: claude-opus-5-5
 
 jobs:
   claude:
@@ -35,7 +35,7 @@ jobs:
           # `main`, so a later review would read a wrong diff and not say so.
           fetch-depth: 0
 
-      - uses: anthropics/claude-code-action@v1.0.231
+      - uses: anthropics/claude-code-action@v1.0.232
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
@@ -56,7 +56,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: anthropics/claude-code-action@v1.0.231
+      - uses: anthropics/claude-code-action@v1.0.232
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
