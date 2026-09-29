@@ -22,8 +22,9 @@ pub enum InvalidDocumentKey {
     #[error("[EmptyPath] Document key is empty")]
     EmptyPath,
 
-    /// The path is absolute, so it resolves outside the store's root.
-    #[error("[AbsolutePath] Document key '{path}' is absolute, but must be relative")]
+    /// The path is absolute or carries a Windows prefix such as `C:`, so it does not resolve
+    /// against the store's root.
+    #[error("[AbsolutePath] Document key '{path}' does not resolve against the store's root")]
     AbsolutePath {
         /// The path that was rejected.
         path: String,
@@ -171,7 +172,7 @@ mod tests {
         let error = InvalidDocumentKey::absolute_path("/etc/passwd");
 
         let expected_result =
-            "[AbsolutePath] Document key '/etc/passwd' is absolute, but must be relative";
+            "[AbsolutePath] Document key '/etc/passwd' does not resolve against the store's root";
 
         let result = error.to_string();
 

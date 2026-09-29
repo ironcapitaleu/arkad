@@ -32,12 +32,14 @@ pub use invalid_document_key::InvalidDocumentKey;
 /// Relative path identifying one document beneath the store's root directory.
 ///
 /// The path is the primary key, so it is also the document's location on disk. Construction
-/// drops every `.` component and every repeated separator. It keeps letter case as given, so on a
-/// case-insensitive filesystem two keys that differ only in case name the same file.
+/// drops every `.` component and every repeated separator. It does not fold letter case, Unicode
+/// form, or the trailing dots and spaces that Windows strips. On a filesystem that ignores those
+/// differences, two unequal keys can point to one file.
 ///
-/// Construction also rejects an absolute path and every `..` component, wherever the `..` sits,
-/// including one that resolves back inside the root. The check reads the key's text alone. It does
-/// not follow symbolic links, so a link inside the root can still point outside it.
+/// Construction also rejects an absolute path, a Windows prefix such as `C:`, and every `..`
+/// component, wherever the `..` sits, including one that resolves back inside the root. The check
+/// reads the key's text alone, with the separator rules of the platform it runs on. It does not
+/// follow symbolic links, so a link inside the root can still point outside it.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct DocumentKey {
     path: PathBuf,
@@ -49,9 +51,12 @@ impl DocumentKey {
     /// # Errors
     ///
     /// Returns an [`InvalidDocumentKey`] if the path names no file below the root
-    /// ([`InvalidDocumentKey::EmptyPath`]), is absolute ([`InvalidDocumentKey::AbsolutePath`]), or
-    /// holds a `..` component ([`InvalidDocumentKey::ContainsParentComponent`]). A path made only
-    /// of `.` components, such as `"."` or `"./"`, names the root itself and counts as empty.
+    /// ([`InvalidDocumentKey::EmptyPath`]), does not resolve against the root
+    /// ([`InvalidDocumentKey::AbsolutePath`]), or holds a `..` component
+    /// ([`InvalidDocumentKey::ContainsParentComponent`]). A path made only of `.` components, such
+    /// as `"."` or `"./"`, names the root itself and counts as empty. A Windows prefix, such as the
+    /// `C:` in `"C:x.json"`, resolves against a drive rather than the root, so it counts as
+    /// absolute.
     ///
     /// # Examples
     ///
@@ -255,6 +260,16 @@ mod tests {
         let result = DocumentKey::new("./sec//CIK0000320193.json").expect(
             "Given a relative path with a redundant separator, the key should always build",
         );
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_reject_a_single_current_directory_component_when_building_a_key() {
+        let expected_result = InvalidDocumentKey::EmptyPath;
+
+        let result = DocumentKey::new(".")
+            .expect_err("A path naming the root itself should never build a document key");
 
         assert_eq!(result, expected_result);
     }
