@@ -4,9 +4,9 @@
 //! traits against a local directory.
 //!
 //! One root directory holds one collection of documents, the way a table does. A [`DocumentKey`] is
-//! a document's path under that root, so the key and the location are the same thing. Each document
-//! is stored exactly as its source returned it, with a [`DocumentMetadata`] file beside it
-//! describing the fetch.
+//! a document's path under that root, so the key and the location are the same thing. A
+//! [`RawDocument`] holds a document's bytes exactly as its source returned them, together with the
+//! [`DocumentMetadata`] describing the fetch.
 //!
 //! ## Modules
 //!

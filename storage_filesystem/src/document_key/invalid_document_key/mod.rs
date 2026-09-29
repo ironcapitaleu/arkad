@@ -18,7 +18,7 @@ use thiserror::Error;
 ///
 /// Separates the different kinds of rejected path so a caller can tell them apart.
 pub enum InvalidDocumentKey {
-    /// The path holds no components.
+    /// The path names no file below the store's root.
     #[error("[EmptyPath] Document key is empty")]
     EmptyPath,
 
@@ -62,7 +62,7 @@ mod tests {
 
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
     #[test]
-    const fn should_implement_auto_traits_when_using_invalid_document_key() {
+    const fn should_implement_auto_traits_for_invalid_document_key() {
         implements_auto_traits::<InvalidDocumentKey>();
     }
 
@@ -70,43 +70,67 @@ mod tests {
     const fn implements_sync<T: Sync>() {}
 
     #[test]
-    const fn should_implement_send_when_using_invalid_document_key() {
+    const fn should_implement_send_for_invalid_document_key() {
         implements_send::<InvalidDocumentKey>();
     }
 
     #[test]
-    const fn should_implement_sync_when_using_invalid_document_key() {
+    const fn should_implement_sync_for_invalid_document_key() {
         implements_sync::<InvalidDocumentKey>();
     }
 
     const fn implements_debug<T: Debug>() {}
     #[test]
-    const fn should_be_able_to_rely_on_debug_implementation_when_using_invalid_document_key() {
+    const fn should_be_able_to_rely_on_debug_implementation_for_invalid_document_key() {
         implements_debug::<InvalidDocumentKey>();
     }
 
     const fn implements_clone<T: Clone>() {}
     #[test]
-    const fn should_be_able_to_rely_on_clone_implementation_when_using_invalid_document_key() {
+    const fn should_be_able_to_rely_on_clone_implementation_for_invalid_document_key() {
         implements_clone::<InvalidDocumentKey>();
     }
 
     const fn implements_hash<T: Hash>() {}
     #[test]
-    const fn should_be_able_to_rely_on_hash_implementation_when_using_invalid_document_key() {
+    const fn should_be_able_to_rely_on_hash_implementation_for_invalid_document_key() {
         implements_hash::<InvalidDocumentKey>();
     }
 
     const fn implements_eq<T: Eq>() {}
     #[test]
-    const fn should_be_able_to_rely_on_eq_implementation_when_using_invalid_document_key() {
+    const fn should_be_able_to_rely_on_eq_implementation_for_invalid_document_key() {
         implements_eq::<InvalidDocumentKey>();
     }
 
     const fn implements_ord<T: Ord>() {}
     #[test]
-    const fn should_be_able_to_rely_on_ord_implementation_when_using_invalid_document_key() {
+    const fn should_be_able_to_rely_on_ord_implementation_for_invalid_document_key() {
         implements_ord::<InvalidDocumentKey>();
+    }
+
+    const fn implements_sized<T: Sized>() {}
+    #[test]
+    const fn should_be_sized_for_invalid_document_key() {
+        implements_sized::<InvalidDocumentKey>();
+    }
+
+    const fn implements_partial_eq<T: PartialEq>() {}
+    #[test]
+    const fn should_be_able_to_rely_on_partial_eq_implementation_for_invalid_document_key() {
+        implements_partial_eq::<InvalidDocumentKey>();
+    }
+
+    const fn implements_partial_ord<T: PartialOrd>() {}
+    #[test]
+    const fn should_be_able_to_rely_on_partial_ord_implementation_for_invalid_document_key() {
+        implements_partial_ord::<InvalidDocumentKey>();
+    }
+
+    const fn implements_unpin<T: Unpin>() {}
+    #[test]
+    const fn should_be_able_to_rely_on_unpin_implementation_for_invalid_document_key() {
+        implements_unpin::<InvalidDocumentKey>();
     }
 
     #[test]

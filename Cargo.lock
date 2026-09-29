@@ -1590,7 +1590,6 @@ dependencies = [
  "serde_json",
  "storage",
  "thiserror",
- "tokio",
 ]
 
 [[package]]

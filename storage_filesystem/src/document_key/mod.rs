@@ -30,7 +30,11 @@ pub use invalid_document_key::InvalidDocumentKey;
 /// Relative path identifying one document beneath the store's root directory.
 ///
 /// The path is the primary key, so it doubles as the document's location on disk. Construction
-/// rejects an absolute path and a `..` component, because each one resolves outside the root.
+/// drops every `.` component and every repeated separator, so one file has exactly one key.
+///
+/// Construction also rejects an absolute path and a `..` component, because each one names a
+/// location outside the root. This is a check on the key's text alone. It does not follow symbolic
+/// links, so a link inside the root can still point outside it.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct DocumentKey {
     path: PathBuf,
@@ -41,9 +45,10 @@ impl DocumentKey {
     ///
     /// # Errors
     ///
-    /// Returns an [`InvalidDocumentKey`] if the path is empty
-    /// ([`InvalidDocumentKey::EmptyPath`]), absolute ([`InvalidDocumentKey::AbsolutePath`]), or
-    /// holds a `..` component ([`InvalidDocumentKey::ContainsParentComponent`]).
+    /// Returns an [`InvalidDocumentKey`] if the path names no file below the root
+    /// ([`InvalidDocumentKey::EmptyPath`]), is absolute ([`InvalidDocumentKey::AbsolutePath`]), or
+    /// holds a `..` component ([`InvalidDocumentKey::ContainsParentComponent`]). A path made only
+    /// of `.` components, such as `"."` or `"./"`, names the root itself and counts as empty.
     ///
     /// # Examples
     ///
@@ -70,6 +75,7 @@ impl DocumentKey {
             return Err(InvalidDocumentKey::EmptyPath);
         }
 
+        let mut normalized = PathBuf::new();
         for component in path.components() {
             match component {
                 Component::ParentDir => {
@@ -80,11 +86,16 @@ impl DocumentKey {
                 Component::RootDir | Component::Prefix(_) => {
                     return Err(InvalidDocumentKey::absolute_path(path.to_string_lossy()));
                 }
-                Component::CurDir | Component::Normal(_) => {}
+                Component::CurDir => {}
+                Component::Normal(part) => normalized.push(part),
             }
         }
 
-        Ok(Self { path })
+        if normalized.as_os_str().is_empty() {
+            return Err(InvalidDocumentKey::EmptyPath);
+        }
+
+        Ok(Self { path: normalized })
     }
 
     /// Returns the relative path this key names.
@@ -105,7 +116,7 @@ mod tests {
 
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
     #[test]
-    const fn should_implement_auto_traits_when_using_document_key() {
+    const fn should_implement_auto_traits_for_document_key() {
         implements_auto_traits::<DocumentKey>();
     }
 
@@ -113,43 +124,67 @@ mod tests {
     const fn implements_sync<T: Sync>() {}
 
     #[test]
-    const fn should_implement_send_when_using_document_key() {
+    const fn should_implement_send_for_document_key() {
         implements_send::<DocumentKey>();
     }
 
     #[test]
-    const fn should_implement_sync_when_using_document_key() {
+    const fn should_implement_sync_for_document_key() {
         implements_sync::<DocumentKey>();
     }
 
     const fn implements_debug<T: Debug>() {}
     #[test]
-    const fn should_be_able_to_rely_on_debug_implementation_when_using_document_key() {
+    const fn should_be_able_to_rely_on_debug_implementation_for_document_key() {
         implements_debug::<DocumentKey>();
     }
 
     const fn implements_clone<T: Clone>() {}
     #[test]
-    const fn should_be_able_to_rely_on_clone_implementation_when_using_document_key() {
+    const fn should_be_able_to_rely_on_clone_implementation_for_document_key() {
         implements_clone::<DocumentKey>();
     }
 
     const fn implements_hash<T: Hash>() {}
     #[test]
-    const fn should_be_able_to_rely_on_hash_implementation_when_using_document_key() {
+    const fn should_be_able_to_rely_on_hash_implementation_for_document_key() {
         implements_hash::<DocumentKey>();
     }
 
     const fn implements_eq<T: Eq>() {}
     #[test]
-    const fn should_be_able_to_rely_on_eq_implementation_when_using_document_key() {
+    const fn should_be_able_to_rely_on_eq_implementation_for_document_key() {
         implements_eq::<DocumentKey>();
     }
 
     const fn implements_ord<T: Ord>() {}
     #[test]
-    const fn should_be_able_to_rely_on_ord_implementation_when_using_document_key() {
+    const fn should_be_able_to_rely_on_ord_implementation_for_document_key() {
         implements_ord::<DocumentKey>();
+    }
+
+    const fn implements_sized<T: Sized>() {}
+    #[test]
+    const fn should_be_sized_for_document_key() {
+        implements_sized::<DocumentKey>();
+    }
+
+    const fn implements_partial_eq<T: PartialEq>() {}
+    #[test]
+    const fn should_be_able_to_rely_on_partial_eq_implementation_for_document_key() {
+        implements_partial_eq::<DocumentKey>();
+    }
+
+    const fn implements_partial_ord<T: PartialOrd>() {}
+    #[test]
+    const fn should_be_able_to_rely_on_partial_ord_implementation_for_document_key() {
+        implements_partial_ord::<DocumentKey>();
+    }
+
+    const fn implements_unpin<T: Unpin>() {}
+    #[test]
+    const fn should_be_able_to_rely_on_unpin_implementation_for_document_key() {
+        implements_unpin::<DocumentKey>();
     }
 
     #[test]
@@ -193,12 +228,34 @@ mod tests {
     }
 
     #[test]
-    fn should_accept_a_current_directory_component_when_building_a_key() {
-        let expected_result = Path::new("./sec/CIK0000320193.json");
+    fn should_drop_a_current_directory_component_when_building_a_key() {
+        let expected_result = Path::new("sec/CIK0000320193.json");
 
-        let key = DocumentKey::new("./sec/CIK0000320193.json")
+        let key = DocumentKey::new("./sec/./CIK0000320193.json")
             .expect("A current directory component stays inside the root, so the key should build");
 
         assert_eq!(key.as_path(), expected_result);
+    }
+
+    #[test]
+    fn should_build_equal_keys_when_two_paths_name_the_same_file() {
+        let expected_result = DocumentKey::new("sec/CIK0000320193.json")
+            .expect("Given a valid relative path, the key should always build");
+
+        let result = DocumentKey::new("./sec//CIK0000320193.json").expect(
+            "Given a relative path with a redundant separator, the key should always build",
+        );
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_reject_a_path_naming_the_root_when_building_a_key() {
+        let expected_result = InvalidDocumentKey::EmptyPath;
+
+        let result = DocumentKey::new("./")
+            .expect_err("A path naming the root itself should never build a document key");
+
+        assert_eq!(result, expected_result);
     }
 }

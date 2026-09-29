@@ -18,7 +18,7 @@
 //!     http_status: 200,
 //!     user_agent: "arkad contact@example.com".to_owned(),
 //!     bytes: 3_789_099,
-//!     sha256: "73a86c6aedc31f77cac2ea4df5f80f0b".to_owned(),
+//!     sha256: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855".to_owned(),
 //! };
 //!
 //! let expected_result = 200;
@@ -75,13 +75,13 @@ mod tests {
             http_status: 200,
             user_agent: "arkad contact@example.com".to_owned(),
             bytes: 3_789_099,
-            sha256: "73a86c6aedc31f77cac2ea4df5f80f0b".to_owned(),
+            sha256: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855".to_owned(),
         }
     }
 
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
     #[test]
-    const fn should_implement_auto_traits_when_using_document_metadata() {
+    const fn should_implement_auto_traits_for_document_metadata() {
         implements_auto_traits::<DocumentMetadata>();
     }
 
@@ -89,43 +89,67 @@ mod tests {
     const fn implements_sync<T: Sync>() {}
 
     #[test]
-    const fn should_implement_send_when_using_document_metadata() {
+    const fn should_implement_send_for_document_metadata() {
         implements_send::<DocumentMetadata>();
     }
 
     #[test]
-    const fn should_implement_sync_when_using_document_metadata() {
+    const fn should_implement_sync_for_document_metadata() {
         implements_sync::<DocumentMetadata>();
     }
 
     const fn implements_debug<T: Debug>() {}
     #[test]
-    const fn should_be_able_to_rely_on_debug_implementation_when_using_document_metadata() {
+    const fn should_be_able_to_rely_on_debug_implementation_for_document_metadata() {
         implements_debug::<DocumentMetadata>();
     }
 
     const fn implements_clone<T: Clone>() {}
     #[test]
-    const fn should_be_able_to_rely_on_clone_implementation_when_using_document_metadata() {
+    const fn should_be_able_to_rely_on_clone_implementation_for_document_metadata() {
         implements_clone::<DocumentMetadata>();
     }
 
     const fn implements_hash<T: Hash>() {}
     #[test]
-    const fn should_be_able_to_rely_on_hash_implementation_when_using_document_metadata() {
+    const fn should_be_able_to_rely_on_hash_implementation_for_document_metadata() {
         implements_hash::<DocumentMetadata>();
     }
 
     const fn implements_eq<T: Eq>() {}
     #[test]
-    const fn should_be_able_to_rely_on_eq_implementation_when_using_document_metadata() {
+    const fn should_be_able_to_rely_on_eq_implementation_for_document_metadata() {
         implements_eq::<DocumentMetadata>();
     }
 
     const fn implements_ord<T: Ord>() {}
     #[test]
-    const fn should_be_able_to_rely_on_ord_implementation_when_using_document_metadata() {
+    const fn should_be_able_to_rely_on_ord_implementation_for_document_metadata() {
         implements_ord::<DocumentMetadata>();
+    }
+
+    const fn implements_sized<T: Sized>() {}
+    #[test]
+    const fn should_be_sized_for_document_metadata() {
+        implements_sized::<DocumentMetadata>();
+    }
+
+    const fn implements_partial_eq<T: PartialEq>() {}
+    #[test]
+    const fn should_be_able_to_rely_on_partial_eq_implementation_for_document_metadata() {
+        implements_partial_eq::<DocumentMetadata>();
+    }
+
+    const fn implements_partial_ord<T: PartialOrd>() {}
+    #[test]
+    const fn should_be_able_to_rely_on_partial_ord_implementation_for_document_metadata() {
+        implements_partial_ord::<DocumentMetadata>();
+    }
+
+    const fn implements_unpin<T: Unpin>() {}
+    #[test]
+    const fn should_be_able_to_rely_on_unpin_implementation_for_document_metadata() {
+        implements_unpin::<DocumentMetadata>();
     }
 
     #[test]
