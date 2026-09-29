@@ -44,6 +44,32 @@ pub struct RawDocument {
 
 impl RawDocument {
     /// Creates a new [`RawDocument`] from its key, its bytes, and its metadata.
+    ///
+    /// Accepts any pair. Nothing checks that the metadata describes these bytes.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use chrono::{TimeZone, Utc};
+    /// # use storage_filesystem::{DocumentKey, DocumentMetadata, RawDocument};
+    /// # let metadata = DocumentMetadata {
+    /// #     metadata_version: 1,
+    /// #     url: "https://data.sec.gov/api/xbrl/companyfacts/CIK0000320193.json".to_owned(),
+    /// #     fetched_at: Utc.with_ymd_and_hms(2026, 9, 22, 20, 5, 30).single().expect("Given a hardcoded valid timestamp, the conversion should always succeed"),
+    /// #     http_status: 200,
+    /// #     user_agent: "arkad contact@example.com".to_owned(),
+    /// #     bytes: 2,
+    /// #     sha256: "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a".to_owned(),
+    /// # };
+    /// let key = DocumentKey::new("sec/companyfacts/CIK0000320193.json")
+    ///     .expect("Given a valid relative path, the key should always build");
+    ///
+    /// let expected_result = b"{}";
+    ///
+    /// let result = RawDocument::new(key, b"{}".to_vec(), metadata);
+    ///
+    /// assert_eq!(result.bytes(), expected_result);
+    /// ```
     #[must_use]
     pub const fn new(key: DocumentKey, bytes: Vec<u8>, metadata: DocumentMetadata) -> Self {
         Self {

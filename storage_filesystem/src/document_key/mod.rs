@@ -9,14 +9,16 @@
 //! ## Usage
 //!
 //! ```rust
+//! use std::path::Path;
+//!
 //! use storage_filesystem::DocumentKey;
 //!
 //! let key = DocumentKey::new("sec/companyfacts/CIK0000320193.json")
 //!     .expect("Given a relative path with no parent component, the key should always build");
 //!
-//! let expected_result = "sec/companyfacts/CIK0000320193.json";
+//! let expected_result = Path::new("sec/companyfacts/CIK0000320193.json");
 //!
-//! let result = key.as_path().to_string_lossy();
+//! let result = key.as_path();
 //!
 //! assert_eq!(result, expected_result);
 //! ```
@@ -30,11 +32,12 @@ pub use invalid_document_key::InvalidDocumentKey;
 /// Relative path identifying one document beneath the store's root directory.
 ///
 /// The path is the primary key, so it is also the document's location on disk. Construction
-/// drops every `.` component and every repeated separator, so one file has exactly one key.
+/// drops every `.` component and every repeated separator. It keeps letter case as given, so on a
+/// case-insensitive filesystem two keys that differ only in case name the same file.
 ///
-/// Construction also rejects an absolute path and every `..` component. A `..` is rejected wherever
-/// it sits, including one that resolves back inside the root. This is a check on the key's text
-/// alone. It does not follow symbolic links, so a link inside the root can still point outside it.
+/// Construction also rejects an absolute path and every `..` component, wherever the `..` sits,
+/// including one that resolves back inside the root. The check reads the key's text alone. It does
+/// not follow symbolic links, so a link inside the root can still point outside it.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct DocumentKey {
     path: PathBuf,

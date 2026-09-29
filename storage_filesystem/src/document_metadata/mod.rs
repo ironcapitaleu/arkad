@@ -17,8 +17,8 @@
 //!         .expect("Given a hardcoded valid timestamp, the conversion should always succeed"),
 //!     http_status: 200,
 //!     user_agent: "arkad contact@example.com".to_owned(),
-//!     bytes: 3_789_099,
-//!     sha256: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855".to_owned(),
+//!     bytes: 2,
+//!     sha256: "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a".to_owned(),
 //! };
 //!
 //! let expected_result = 200;
@@ -37,8 +37,8 @@ use serde::{Deserialize, Serialize};
 /// document afterwards. The source API sends no `ETag` and no `Last-Modified`, which leaves
 /// [`DocumentMetadata::sha256`] as the only way to tell whether a refetch returned new bytes.
 ///
-/// This is a plain record. Nothing checks that [`DocumentMetadata::bytes`] matches the document's
-/// length or that [`DocumentMetadata::sha256`] is a well-formed digest.
+/// [`DocumentMetadata`] is a plain record. Nothing checks that [`DocumentMetadata::bytes`]
+/// matches the document's length or that [`DocumentMetadata::sha256`] is a well-formed digest.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct DocumentMetadata {
     /// Version of this metadata format, so a later change stays readable.
@@ -77,8 +77,8 @@ mod tests {
                 .expect("Given a hardcoded valid timestamp, the conversion should always succeed"),
             http_status: 200,
             user_agent: "arkad contact@example.com".to_owned(),
-            bytes: 3_789_099,
-            sha256: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855".to_owned(),
+            bytes: 2,
+            sha256: "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a".to_owned(),
         }
     }
 
