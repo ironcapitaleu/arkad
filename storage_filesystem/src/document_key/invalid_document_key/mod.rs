@@ -1,14 +1,6 @@
 //! # Invalid Document Key
 //!
 //! Provides [`InvalidDocumentKey`], the error raised when a path cannot name a document.
-//!
-//! ## Usage
-//!
-//! ```rust
-//! use storage_filesystem::InvalidDocumentKey;
-//!
-//! let _err = InvalidDocumentKey::absolute_path("/etc/passwd");
-//! ```
 
 use thiserror::Error;
 
@@ -19,7 +11,7 @@ use thiserror::Error;
 /// Separates the different kinds of rejected path so a caller can tell them apart.
 pub enum InvalidDocumentKey {
     /// The path names no file below the store's root.
-    #[error("[EmptyPath] Document key is empty")]
+    #[error("[EmptyPath] Document key names no file below the store's root")]
     EmptyPath,
 
     /// The path is absolute or carries a Windows prefix such as `C:`, so it does not resolve
@@ -30,7 +22,8 @@ pub enum InvalidDocumentKey {
         path: String,
     },
 
-    /// The path holds a `..` component, so it can resolve outside the store's root.
+    /// The path holds a `..` component. Construction rejects every `..`, including one that
+    /// resolves back inside the store's root.
     #[error("[ContainsParentComponent] Document key '{path}' contains a parent component")]
     ContainsParentComponent {
         /// The path that was rejected.
@@ -40,12 +33,42 @@ pub enum InvalidDocumentKey {
 
 impl InvalidDocumentKey {
     /// Creates an [`InvalidDocumentKey::AbsolutePath`] from the rejected path.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use storage_filesystem::InvalidDocumentKey;
+    ///
+    /// let error = InvalidDocumentKey::absolute_path("/etc/passwd");
+    ///
+    /// let expected_result =
+    ///     "[AbsolutePath] Document key '/etc/passwd' does not resolve against the store's root";
+    ///
+    /// let result = error.to_string();
+    ///
+    /// assert_eq!(result, expected_result);
+    /// ```
     #[must_use]
     pub fn absolute_path(path: impl Into<String>) -> Self {
         Self::AbsolutePath { path: path.into() }
     }
 
     /// Creates an [`InvalidDocumentKey::ContainsParentComponent`] from the rejected path.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use storage_filesystem::InvalidDocumentKey;
+    ///
+    /// let error = InvalidDocumentKey::contains_parent_component("sec/../etc");
+    ///
+    /// let expected_result =
+    ///     "[ContainsParentComponent] Document key 'sec/../etc' contains a parent component";
+    ///
+    /// let result = error.to_string();
+    ///
+    /// assert_eq!(result, expected_result);
+    /// ```
     #[must_use]
     pub fn contains_parent_component(path: impl Into<String>) -> Self {
         Self::ContainsParentComponent { path: path.into() }
@@ -157,10 +180,10 @@ mod tests {
     }
 
     #[test]
-    fn should_format_display_with_bracketed_name_when_path_is_empty() {
+    fn should_format_display_with_bracketed_name_when_the_path_names_no_file() {
         let error = InvalidDocumentKey::EmptyPath;
 
-        let expected_result = "[EmptyPath] Document key is empty";
+        let expected_result = "[EmptyPath] Document key names no file below the store's root";
 
         let result = error.to_string();
 

@@ -36,10 +36,10 @@ pub use invalid_document_key::InvalidDocumentKey;
 /// form, or the trailing dots and spaces that Windows strips. On a filesystem that ignores those
 /// differences, two unequal keys can point to one file.
 ///
-/// Construction also rejects an absolute path, a Windows prefix such as `C:`, and every `..`
-/// component, wherever the `..` sits, including one that resolves back inside the root. The check
-/// reads the key's text alone, with the separator rules of the platform it runs on. It does not
-/// follow symbolic links, so a link inside the root can still point outside it.
+/// Construction also rejects an absolute path and a Windows prefix such as `C:`. It rejects every
+/// `..` component, wherever the `..` sits, including one that resolves back inside the root. The
+/// check reads the key's text alone, with the separator rules of the platform it runs on. It does
+/// not follow symbolic links, so a link inside the root can still point outside it.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct DocumentKey {
     path: PathBuf,
@@ -55,8 +55,8 @@ impl DocumentKey {
     /// ([`InvalidDocumentKey::AbsolutePath`]), or holds a `..` component
     /// ([`InvalidDocumentKey::ContainsParentComponent`]). A path made only of `.` components, such
     /// as `"."` or `"./"`, names the root itself and counts as empty. A Windows prefix, such as the
-    /// `C:` in `"C:x.json"`, resolves against a drive rather than the root, so it counts as
-    /// absolute.
+    /// `C:` in `"C:x.json"`, resolves against a drive rather than the root, so it is rejected under
+    /// the same variant as an absolute path.
     ///
     /// # Examples
     ///
@@ -265,7 +265,7 @@ mod tests {
     }
 
     #[test]
-    fn should_reject_a_single_current_directory_component_when_building_a_key() {
+    fn should_reject_a_root_path_when_it_is_written_as_a_single_dot() {
         let expected_result = InvalidDocumentKey::EmptyPath;
 
         let result = DocumentKey::new(".")
@@ -275,7 +275,7 @@ mod tests {
     }
 
     #[test]
-    fn should_reject_a_path_naming_the_root_when_building_a_key() {
+    fn should_reject_a_root_path_when_it_is_written_with_a_trailing_separator() {
         let expected_result = InvalidDocumentKey::EmptyPath;
 
         let result = DocumentKey::new("./")
