@@ -15,14 +15,16 @@ pub enum InvalidDocumentKey {
     EmptyPath,
 
     /// The path starts at a root directory, such as `/etc` on Unix or `\etc` on Windows.
-    #[error("[AbsolutePath] Document key '{path}' must be relative")]
-    AbsolutePath {
+    #[error("[ContainsRootComponent] Document key '{path}' starts at a root directory")]
+    ContainsRootComponent {
         /// The path that was rejected.
         path: String,
     },
 
-    /// The path starts with a Windows prefix, such as `C:` or `\\server\share`. It resolves
-    /// against that drive or share rather than the store's root, even without a root directory.
+    /// The path starts with a Windows prefix, such as `C:` or `\\server\share`. The path resolves
+    /// against that drive or share rather than the store's root, even without a root directory. A
+    /// path with both a prefix and a root directory, such as `C:\data`, reports this variant,
+    /// because the prefix comes first.
     #[error("[ContainsPrefixComponent] Document key '{path}' contains a Windows path prefix")]
     ContainsPrefixComponent {
         /// The path that was rejected.
@@ -39,25 +41,25 @@ pub enum InvalidDocumentKey {
 }
 
 impl InvalidDocumentKey {
-    /// Creates an [`InvalidDocumentKey::AbsolutePath`] from the rejected path.
+    /// Creates an [`InvalidDocumentKey::ContainsRootComponent`] from the rejected path.
     ///
     /// # Examples
     ///
     /// ```rust
     /// use storage_filesystem::InvalidDocumentKey;
     ///
-    /// let error = InvalidDocumentKey::absolute_path("/etc/passwd");
+    /// let error = InvalidDocumentKey::contains_root_component("/etc/passwd");
     ///
     /// let expected_result =
-    ///     "[AbsolutePath] Document key '/etc/passwd' must be relative";
+    ///     "[ContainsRootComponent] Document key '/etc/passwd' starts at a root directory";
     ///
     /// let result = error.to_string();
     ///
     /// assert_eq!(result, expected_result);
     /// ```
     #[must_use]
-    pub fn absolute_path(path: impl Into<String>) -> Self {
-        Self::AbsolutePath { path: path.into() }
+    pub fn contains_root_component(path: impl Into<String>) -> Self {
+        Self::ContainsRootComponent { path: path.into() }
     }
 
     /// Creates an [`InvalidDocumentKey::ContainsPrefixComponent`] from the rejected path.
@@ -186,12 +188,12 @@ mod tests {
     }
 
     #[test]
-    fn should_build_absolute_path_variant_when_using_its_constructor() {
-        let expected_result = InvalidDocumentKey::AbsolutePath {
+    fn should_build_contains_root_component_variant_when_using_its_constructor() {
+        let expected_result = InvalidDocumentKey::ContainsRootComponent {
             path: "/etc/passwd".to_owned(),
         };
 
-        let result = InvalidDocumentKey::absolute_path("/etc/passwd");
+        let result = InvalidDocumentKey::contains_root_component("/etc/passwd");
 
         assert_eq!(result, expected_result);
     }
@@ -230,10 +232,11 @@ mod tests {
     }
 
     #[test]
-    fn should_format_display_with_bracketed_name_and_path_when_path_is_absolute() {
-        let error = InvalidDocumentKey::absolute_path("/etc/passwd");
+    fn should_format_display_with_bracketed_name_and_path_when_path_has_a_root_component() {
+        let error = InvalidDocumentKey::contains_root_component("/etc/passwd");
 
-        let expected_result = "[AbsolutePath] Document key '/etc/passwd' must be relative";
+        let expected_result =
+            "[ContainsRootComponent] Document key '/etc/passwd' starts at a root directory";
 
         let result = error.to_string();
 

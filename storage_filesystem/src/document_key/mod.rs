@@ -36,10 +36,11 @@ pub use invalid_document_key::InvalidDocumentKey;
 /// form, or the trailing dots and spaces that Windows strips. On a filesystem that ignores those
 /// differences, two unequal keys can point to one file.
 ///
-/// Construction also rejects an absolute path and a Windows prefix such as `C:`. It rejects every
-/// `..` component, wherever the `..` sits, including one that resolves back inside the root. The
-/// check reads the key's text alone, with the separator rules of the platform it runs on. It does
-/// not follow symbolic links, so a link inside the root can still point outside it.
+/// Construction also rejects a path that starts at a root directory or with a Windows prefix such
+/// as `C:`. It rejects every `..` component, wherever the `..` sits, including one that resolves
+/// back inside the root. The check reads the key's text alone, with the separator rules of the
+/// platform it runs on. It does not follow symbolic links, so a link inside the root can still
+/// point outside it.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct DocumentKey {
     path: PathBuf,
@@ -53,9 +54,10 @@ impl DocumentKey {
     /// Returns an [`InvalidDocumentKey`] if the path:
     /// - names no file below the root ([`InvalidDocumentKey::EmptyPath`]). A path made only of `.`
     ///   components, such as `"."` or `"./"`, names the root itself.
-    /// - starts at a root directory ([`InvalidDocumentKey::AbsolutePath`]).
-    /// - starts with a Windows prefix such as `C:`
-    ///   ([`InvalidDocumentKey::ContainsPrefixComponent`]).
+    /// - starts at a root directory ([`InvalidDocumentKey::ContainsRootComponent`]).
+    /// - starts with a Windows prefix such as `C:`, on a platform that reads one
+    ///   ([`InvalidDocumentKey::ContainsPrefixComponent`]). On Linux and macOS, `"C:x.json"` is an
+    ///   ordinary file name and builds a key.
     /// - holds a `..` component ([`InvalidDocumentKey::ContainsParentComponent`]).
     ///
     /// # Examples
@@ -88,7 +90,9 @@ impl DocumentKey {
                     ));
                 }
                 Component::RootDir => {
-                    return Err(InvalidDocumentKey::absolute_path(path.to_string_lossy()));
+                    return Err(InvalidDocumentKey::contains_root_component(
+                        path.to_string_lossy(),
+                    ));
                 }
                 Component::Prefix(_) => {
                     return Err(InvalidDocumentKey::contains_prefix_component(
@@ -217,22 +221,55 @@ mod tests {
     }
 
     #[test]
-    fn should_reject_an_absolute_path_when_building_a_key() {
-        let expected_result = InvalidDocumentKey::absolute_path("/etc/passwd");
+    fn should_reject_a_root_component_when_the_path_starts_at_a_root_directory() {
+        let expected_result = InvalidDocumentKey::contains_root_component("/etc/passwd");
 
         let result = DocumentKey::new("/etc/passwd")
-            .expect_err("An absolute path should never build a document key");
+            .expect_err("A path starting at a root directory should never build a document key");
 
         assert_eq!(result, expected_result);
     }
 
-    #[cfg(windows)]
     #[test]
+    #[cfg_attr(
+        not(windows),
+        ignore = "A path prefix component exists only on Windows"
+    )]
     fn should_reject_a_prefix_component_when_the_path_is_drive_relative() {
         let expected_result = InvalidDocumentKey::contains_prefix_component("C:x.json");
 
         let result = DocumentKey::new("C:x.json")
             .expect_err("A path resolving against a drive should never build a document key");
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    #[cfg_attr(
+        not(windows),
+        ignore = "A path prefix component exists only on Windows"
+    )]
+    fn should_reject_a_prefix_component_when_the_path_is_drive_absolute() {
+        let expected_result = InvalidDocumentKey::contains_prefix_component(r"C:\data\x.json");
+
+        let result = DocumentKey::new(r"C:\data\x.json")
+            .expect_err("A path resolving against a drive should never build a document key");
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    #[cfg_attr(
+        not(windows),
+        ignore = "A path prefix component exists only on Windows"
+    )]
+    fn should_reject_a_prefix_component_when_the_path_names_a_network_share() {
+        let expected_result =
+            InvalidDocumentKey::contains_prefix_component(r"\\server\share\x.json");
+
+        let result = DocumentKey::new(r"\\server\share\x.json").expect_err(
+            "A path resolving against a network share should never build a document key",
+        );
 
         assert_eq!(result, expected_result);
     }
