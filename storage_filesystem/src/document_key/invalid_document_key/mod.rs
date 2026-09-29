@@ -14,10 +14,17 @@ pub enum InvalidDocumentKey {
     #[error("[EmptyPath] Document key names no file below the store's root")]
     EmptyPath,
 
-    /// The path is absolute or carries a Windows prefix such as `C:`, so it does not resolve
-    /// against the store's root.
-    #[error("[AbsolutePath] Document key '{path}' does not resolve against the store's root")]
+    /// The path starts at a root directory, such as `/etc` on Unix or `\etc` on Windows.
+    #[error("[AbsolutePath] Document key '{path}' must be relative")]
     AbsolutePath {
+        /// The path that was rejected.
+        path: String,
+    },
+
+    /// The path starts with a Windows prefix, such as `C:` or `\\server\share`. It resolves
+    /// against that drive or share rather than the store's root, even without a root directory.
+    #[error("[ContainsPrefixComponent] Document key '{path}' contains a Windows path prefix")]
+    ContainsPrefixComponent {
         /// The path that was rejected.
         path: String,
     },
@@ -42,7 +49,7 @@ impl InvalidDocumentKey {
     /// let error = InvalidDocumentKey::absolute_path("/etc/passwd");
     ///
     /// let expected_result =
-    ///     "[AbsolutePath] Document key '/etc/passwd' does not resolve against the store's root";
+    ///     "[AbsolutePath] Document key '/etc/passwd' must be relative";
     ///
     /// let result = error.to_string();
     ///
@@ -51,6 +58,27 @@ impl InvalidDocumentKey {
     #[must_use]
     pub fn absolute_path(path: impl Into<String>) -> Self {
         Self::AbsolutePath { path: path.into() }
+    }
+
+    /// Creates an [`InvalidDocumentKey::ContainsPrefixComponent`] from the rejected path.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use storage_filesystem::InvalidDocumentKey;
+    ///
+    /// let error = InvalidDocumentKey::contains_prefix_component("C:x.json");
+    ///
+    /// let expected_result =
+    ///     "[ContainsPrefixComponent] Document key 'C:x.json' contains a Windows path prefix";
+    ///
+    /// let result = error.to_string();
+    ///
+    /// assert_eq!(result, expected_result);
+    /// ```
+    #[must_use]
+    pub fn contains_prefix_component(path: impl Into<String>) -> Self {
+        Self::ContainsPrefixComponent { path: path.into() }
     }
 
     /// Creates an [`InvalidDocumentKey::ContainsParentComponent`] from the rejected path.
@@ -169,6 +197,17 @@ mod tests {
     }
 
     #[test]
+    fn should_build_contains_prefix_component_variant_when_using_its_constructor() {
+        let expected_result = InvalidDocumentKey::ContainsPrefixComponent {
+            path: "C:x.json".to_owned(),
+        };
+
+        let result = InvalidDocumentKey::contains_prefix_component("C:x.json");
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
     fn should_build_contains_parent_component_variant_when_using_its_constructor() {
         let expected_result = InvalidDocumentKey::ContainsParentComponent {
             path: "sec/../etc".to_owned(),
@@ -194,8 +233,19 @@ mod tests {
     fn should_format_display_with_bracketed_name_and_path_when_path_is_absolute() {
         let error = InvalidDocumentKey::absolute_path("/etc/passwd");
 
+        let expected_result = "[AbsolutePath] Document key '/etc/passwd' must be relative";
+
+        let result = error.to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_format_display_with_bracketed_name_and_path_when_path_has_a_prefix_component() {
+        let error = InvalidDocumentKey::contains_prefix_component("C:x.json");
+
         let expected_result =
-            "[AbsolutePath] Document key '/etc/passwd' does not resolve against the store's root";
+            "[ContainsPrefixComponent] Document key 'C:x.json' contains a Windows path prefix";
 
         let result = error.to_string();
 

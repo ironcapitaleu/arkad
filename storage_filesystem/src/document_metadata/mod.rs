@@ -1,32 +1,6 @@
 //! # Document Metadata
 //!
 //! Provides [`DocumentMetadata`], the record of where one stored document came from.
-//!
-//! ## Usage
-//!
-//! ```rust
-//! use chrono::{TimeZone, Utc};
-//! use storage_filesystem::DocumentMetadata;
-//!
-//! let metadata = DocumentMetadata {
-//!     metadata_version: 1,
-//!     url: "https://data.sec.gov/api/xbrl/companyfacts/CIK0000320193.json".to_owned(),
-//!     fetched_at: Utc
-//!         .with_ymd_and_hms(2026, 9, 22, 20, 5, 30)
-//!         .single()
-//!         .expect("Given a hardcoded valid timestamp, the conversion should always succeed"),
-//!     http_status: 200,
-//!     user_agent: "arkad contact@example.com".to_owned(),
-//!     bytes: 2,
-//!     sha256: "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a".to_owned(),
-//! };
-//!
-//! let expected_result = 200;
-//!
-//! let result = metadata.http_status;
-//!
-//! assert_eq!(result, expected_result);
-//! ```
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -39,6 +13,36 @@ use serde::{Deserialize, Serialize};
 ///
 /// [`DocumentMetadata`] is a plain record. Nothing checks that [`DocumentMetadata::bytes`]
 /// matches the document's length or that [`DocumentMetadata::sha256`] is a well-formed digest.
+///
+/// # Examples
+///
+/// ```rust
+/// use chrono::{TimeZone, Utc};
+/// use storage_filesystem::DocumentMetadata;
+///
+/// let metadata = DocumentMetadata {
+///     metadata_version: 1,
+///     url: "https://data.sec.gov/api/xbrl/companyfacts/CIK0000320193.json".to_owned(),
+///     fetched_at: Utc
+///         .with_ymd_and_hms(2026, 9, 22, 20, 5, 30)
+///         .single()
+///         .expect("Given a hardcoded valid timestamp, the conversion should always succeed"),
+///     http_status: 200,
+///     user_agent: "arkad contact@example.com".to_owned(),
+///     bytes: 2,
+///     sha256: "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a".to_owned(),
+/// };
+///
+/// let expected_result = "2026-09-22T20:05:30Z";
+///
+/// let json = serde_json::to_value(&metadata)
+///     .expect("Given a metadata value of owned fields, serialization should always succeed");
+/// let result = json["fetched_at"]
+///     .as_str()
+///     .expect("Given a serialized timestamp, the field should always hold a string");
+///
+/// assert_eq!(result, expected_result);
+/// ```
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct DocumentMetadata {
     /// Version of this metadata format, so a later change stays readable.

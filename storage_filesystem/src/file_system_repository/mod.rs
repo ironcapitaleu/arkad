@@ -278,10 +278,10 @@ mod tests {
         let expected_result =
             BackendError::unreachable_storage(format!("{} is not a directory", root.display()));
 
-        let result = FileSystemRepository::new(&root);
+        let outcome = FileSystemRepository::new(&root);
         std::fs::remove_file(&root)
             .expect("Given a file this test just created, removing it should always succeed");
-        let result = result.expect_err("A root that is a file should never open as a store");
+        let result = outcome.expect_err("A root that is a file should never open as a store");
 
         assert_eq!(result, expected_result);
     }

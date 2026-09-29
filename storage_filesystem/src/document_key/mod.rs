@@ -50,13 +50,13 @@ impl DocumentKey {
     ///
     /// # Errors
     ///
-    /// Returns an [`InvalidDocumentKey`] if the path names no file below the root
-    /// ([`InvalidDocumentKey::EmptyPath`]), does not resolve against the root
-    /// ([`InvalidDocumentKey::AbsolutePath`]), or holds a `..` component
-    /// ([`InvalidDocumentKey::ContainsParentComponent`]). A path made only of `.` components, such
-    /// as `"."` or `"./"`, names the root itself and counts as empty. A Windows prefix, such as the
-    /// `C:` in `"C:x.json"`, resolves against a drive rather than the root, so it is rejected under
-    /// the same variant as an absolute path.
+    /// Returns an [`InvalidDocumentKey`] if the path:
+    /// - names no file below the root ([`InvalidDocumentKey::EmptyPath`]). A path made only of `.`
+    ///   components, such as `"."` or `"./"`, names the root itself.
+    /// - starts at a root directory ([`InvalidDocumentKey::AbsolutePath`]).
+    /// - starts with a Windows prefix such as `C:`
+    ///   ([`InvalidDocumentKey::ContainsPrefixComponent`]).
+    /// - holds a `..` component ([`InvalidDocumentKey::ContainsParentComponent`]).
     ///
     /// # Examples
     ///
@@ -87,8 +87,13 @@ impl DocumentKey {
                         path.to_string_lossy(),
                     ));
                 }
-                Component::RootDir | Component::Prefix(_) => {
+                Component::RootDir => {
                     return Err(InvalidDocumentKey::absolute_path(path.to_string_lossy()));
+                }
+                Component::Prefix(_) => {
+                    return Err(InvalidDocumentKey::contains_prefix_component(
+                        path.to_string_lossy(),
+                    ));
                 }
                 Component::CurDir => {}
                 Component::Normal(part) => normalized.push(part),
@@ -221,8 +226,19 @@ mod tests {
         assert_eq!(result, expected_result);
     }
 
+    #[cfg(windows)]
     #[test]
-    fn should_reject_a_parent_component_when_building_a_key() {
+    fn should_reject_a_prefix_component_when_the_path_is_drive_relative() {
+        let expected_result = InvalidDocumentKey::contains_prefix_component("C:x.json");
+
+        let result = DocumentKey::new("C:x.json")
+            .expect_err("A path resolving against a drive should never build a document key");
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_reject_a_parent_component_when_it_escapes_the_root() {
         let expected_result = InvalidDocumentKey::contains_parent_component("sec/../../etc/passwd");
 
         let result = DocumentKey::new("sec/../../etc/passwd")
