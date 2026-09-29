@@ -43,7 +43,7 @@ pub struct FileSystemRepository {
 impl FileSystemRepository {
     /// Creates a new [`FileSystemRepository`] rooted at the given directory.
     ///
-    /// Nothing is opened and nothing is held beyond the path. The check reads the root once, so it
+    /// The constructor opens nothing and holds nothing beyond the path. The check reads the root once, so it
     /// catches a misconfigured path at startup rather than on the first operation. It does not
     /// prove that a write succeeds. A read-only root passes here and fails later.
     ///
@@ -275,6 +275,8 @@ mod tests {
         std::fs::write(&root, b"").expect(
             "Given the system temporary directory, writing an empty file should always succeed",
         );
+        let expected_result =
+            BackendError::unreachable_storage(format!("{} is not a directory", root.display()));
 
         let result = FileSystemRepository::new(&root)
             .expect_err("A root that is a file should never open as a store");
@@ -282,7 +284,7 @@ mod tests {
         std::fs::remove_file(&root)
             .expect("Given a file this test just created, removing it should always succeed");
 
-        assert!(matches!(result, BackendError::UnreachableStorage { .. }));
+        assert_eq!(result, expected_result);
     }
 
     #[test]

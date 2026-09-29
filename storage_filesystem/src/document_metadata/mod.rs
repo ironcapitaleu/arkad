@@ -36,6 +36,9 @@ use serde::{Deserialize, Serialize};
 /// Every field records something only the fetch knows, so none of it is recoverable from the
 /// document afterwards. The source API sends no `ETag` and no `Last-Modified`, which leaves
 /// [`DocumentMetadata::sha256`] as the only way to tell whether a refetch returned new bytes.
+///
+/// This is a plain record. Nothing checks that [`DocumentMetadata::bytes`] matches the document's
+/// length or that [`DocumentMetadata::sha256`] is a well-formed digest.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct DocumentMetadata {
     /// Version of this metadata format, so a later change stays readable.

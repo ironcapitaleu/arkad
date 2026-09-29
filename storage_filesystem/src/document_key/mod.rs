@@ -29,12 +29,12 @@ pub use invalid_document_key::InvalidDocumentKey;
 
 /// Relative path identifying one document beneath the store's root directory.
 ///
-/// The path is the primary key, so it doubles as the document's location on disk. Construction
+/// The path is the primary key, so it is also the document's location on disk. Construction
 /// drops every `.` component and every repeated separator, so one file has exactly one key.
 ///
-/// Construction also rejects an absolute path and a `..` component, because each one names a
-/// location outside the root. This is a check on the key's text alone. It does not follow symbolic
-/// links, so a link inside the root can still point outside it.
+/// Construction also rejects an absolute path and every `..` component. A `..` is rejected wherever
+/// it sits, including one that resolves back inside the root. This is a check on the key's text
+/// alone. It does not follow symbolic links, so a link inside the root can still point outside it.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct DocumentKey {
     path: PathBuf,
@@ -70,10 +70,6 @@ impl DocumentKey {
     /// ```
     pub fn new(path: impl Into<PathBuf>) -> Result<Self, InvalidDocumentKey> {
         let path = path.into();
-
-        if path.as_os_str().is_empty() {
-            return Err(InvalidDocumentKey::EmptyPath);
-        }
 
         let mut normalized = PathBuf::new();
         for component in path.components() {
@@ -223,6 +219,17 @@ mod tests {
 
         let result = DocumentKey::new("sec/../../etc/passwd")
             .expect_err("A path escaping the root should never build a document key");
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_reject_a_parent_component_when_it_resolves_inside_the_root() {
+        let expected_result =
+            InvalidDocumentKey::contains_parent_component("sec/companyfacts/../submissions/x.json");
+
+        let result = DocumentKey::new("sec/companyfacts/../submissions/x.json")
+            .expect_err("A path holding a parent component should never build a document key");
 
         assert_eq!(result, expected_result);
     }
