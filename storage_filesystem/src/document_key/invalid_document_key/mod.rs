@@ -22,9 +22,9 @@ pub enum InvalidDocumentKey {
     },
 
     /// The path starts with a Windows prefix, such as `C:` or `\\server\share`. The path resolves
-    /// against that drive or share rather than the store's root, even without a root directory. A
-    /// path with both a prefix and a root directory, such as `C:\data`, reports this variant,
-    /// because the prefix comes first.
+    /// against that drive or share rather than the store's root, even without a root directory.
+    /// Construction reports this variant for a path with both a prefix and a root directory, such
+    /// as `C:\data`, because the prefix comes first.
     #[error("[ContainsPrefixComponent] Document key '{path}' contains a Windows path prefix")]
     ContainsPrefixComponent {
         /// The path that was rejected.

@@ -36,11 +36,11 @@ pub use invalid_document_key::InvalidDocumentKey;
 /// form, or the trailing dots and spaces that Windows strips. On a filesystem that ignores those
 /// differences, two unequal keys can point to one file.
 ///
-/// Construction also rejects a path that starts at a root directory or with a Windows prefix such
-/// as `C:`. It rejects every `..` component, wherever the `..` sits, including one that resolves
-/// back inside the root. The check reads the key's text alone, with the separator rules of the
-/// platform it runs on. It does not follow symbolic links, so a link inside the root can still
-/// point outside it.
+/// Construction also rejects a path that starts at a root directory, and a path that starts with a
+/// Windows prefix such as `C:`. It rejects every `..` component, wherever the `..` sits, including
+/// one that resolves back inside the root. The check reads the key's text alone, with the separator
+/// rules of the platform it runs on. It does not follow symbolic links, so a link inside the root
+/// can still point outside it.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct DocumentKey {
     path: PathBuf,
@@ -54,7 +54,9 @@ impl DocumentKey {
     /// Returns an [`InvalidDocumentKey`] if the path:
     /// - names no file below the root ([`InvalidDocumentKey::EmptyPath`]). A path made only of `.`
     ///   components, such as `"."` or `"./"`, names the root itself.
-    /// - starts at a root directory ([`InvalidDocumentKey::ContainsRootComponent`]).
+    /// - starts at a root directory ([`InvalidDocumentKey::ContainsRootComponent`]). A leading `\`
+    ///   counts only on Windows. On Linux and macOS, `"\data\x.json"` is an ordinary file name and
+    ///   builds a key.
     /// - starts with a Windows prefix such as `C:`, on a platform that reads one
     ///   ([`InvalidDocumentKey::ContainsPrefixComponent`]). On Linux and macOS, `"C:x.json"` is an
     ///   ordinary file name and builds a key.
@@ -84,11 +86,6 @@ impl DocumentKey {
         let mut normalized = PathBuf::new();
         for component in path.components() {
             match component {
-                Component::ParentDir => {
-                    return Err(InvalidDocumentKey::contains_parent_component(
-                        path.to_string_lossy(),
-                    ));
-                }
                 Component::RootDir => {
                     return Err(InvalidDocumentKey::contains_root_component(
                         path.to_string_lossy(),
@@ -96,6 +93,11 @@ impl DocumentKey {
                 }
                 Component::Prefix(_) => {
                     return Err(InvalidDocumentKey::contains_prefix_component(
+                        path.to_string_lossy(),
+                    ));
+                }
+                Component::ParentDir => {
+                    return Err(InvalidDocumentKey::contains_parent_component(
                         path.to_string_lossy(),
                     ));
                 }
@@ -221,13 +223,25 @@ mod tests {
     }
 
     #[test]
-    fn should_reject_a_root_component_when_the_path_starts_at_a_root_directory() {
+    fn should_reject_a_root_component_when_the_path_starts_with_a_separator() {
         let expected_result = InvalidDocumentKey::contains_root_component("/etc/passwd");
 
         let result = DocumentKey::new("/etc/passwd")
             .expect_err("A path starting at a root directory should never build a document key");
 
         assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    #[cfg_attr(windows, ignore = "A backslash separates components only on Windows")]
+    fn should_build_a_key_when_a_backslash_path_is_an_ordinary_file_name() {
+        let expected_result = Path::new(r"\data\x.json");
+
+        let key = DocumentKey::new(r"\data\x.json").expect(
+            "Outside Windows a backslash is an ordinary character, so the key should always build",
+        );
+
+        assert_eq!(key.as_path(), expected_result);
     }
 
     #[test]
@@ -253,7 +267,7 @@ mod tests {
         let expected_result = InvalidDocumentKey::contains_prefix_component(r"C:\data\x.json");
 
         let result = DocumentKey::new(r"C:\data\x.json")
-            .expect_err("A path resolving against a drive should never build a document key");
+            .expect_err("A drive-absolute path should never build a document key");
 
         assert_eq!(result, expected_result);
     }
