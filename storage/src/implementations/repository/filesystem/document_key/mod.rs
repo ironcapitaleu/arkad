@@ -32,11 +32,10 @@ pub use invalid_document_key::InvalidDocumentKey;
 /// Relative path identifying one document beneath the store's root directory.
 ///
 /// The path is the primary key, so it is also the document's location on disk. Construction
-/// drops every `.` component and every repeated separator. It does not fold letter case, Unicode
-/// form, or the trailing dots and spaces that Windows strips. It keeps a leading `~` as an ordinary
-/// component, so `"~/cache/x.json"` names a `~` directory under the root. On a filesystem that
-/// ignores letter case, Unicode form, or trailing dots and spaces, two unequal keys can point to
-/// one file.
+/// drops every `.` component and every repeated separator. It keeps a leading `~` as an ordinary
+/// component, so `"~/cache/x.json"` names a `~` directory under the root. It does not fold letter
+/// case, Unicode form, or the trailing dots and spaces that Windows strips. On a filesystem that
+/// ignores those differences, two unequal keys can point to one file.
 ///
 /// Construction also rejects a path that starts at a root directory, and a path that starts with a
 /// Windows prefix such as `C:`. It rejects every `..` component, wherever the `..` sits, including
