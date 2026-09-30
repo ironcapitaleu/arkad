@@ -30,8 +30,9 @@
 //! assert_eq!(result, expected_result);
 //! ```
 
+use std::ffi::OsStr;
 use std::io;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 
 use crate::error::BackendError;
 
@@ -50,7 +51,8 @@ pub use raw_document::RawDocument;
 /// The root plays the part a table plays in a database, and a [`DocumentKey`] is the path under it.
 /// A document lives at the root joined with its key, so a root of `/data/arkad` and a key of
 /// `sec/CIK0000320193.json` name `/data/arkad/sec/CIK0000320193.json`. The join uses the
-/// separator of the platform the store runs on.
+/// separator of the platform the store runs on. [`FilesystemRepository::document_path`] performs
+/// that join.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct FilesystemRepository {
     root: PathBuf,
@@ -63,14 +65,16 @@ impl FilesystemRepository {
     /// once, so it catches a misconfigured path at startup rather than on the first operation. It
     /// does not prove that a write succeeds. A read-only root passes here and fails later.
     ///
-    /// The root must be absolute, so the store does not move with the process's working directory.
-    /// The constructor expands nothing, so a `~` is a directory named `~`, not the home directory.
+    /// A leading `~` component stands for the current user's home directory, so `"~/arkad"` roots
+    /// the store at `arkad` inside it. The constructor expands only a bare `~`. A `~user` prefix
+    /// stays as written. After that expansion, the root must be absolute, so the store does not
+    /// move with the process's working directory.
     ///
     /// # Errors
     ///
     /// Returns a [`BackendError`] if the root cannot serve as a store:
-    /// - [`BackendError::UnreachableStorage`] if the root is not absolute, does not exist, or
-    ///   exists but is not a directory.
+    /// - [`BackendError::UnreachableStorage`] if the root starts with `~` and the home directory is
+    ///   unknown, or if the root is not absolute, does not exist, or exists but is not a directory.
     /// - [`BackendError::UnauthorizedAccess`] if the process cannot read the root.
     /// - [`BackendError::FailedOperation`] for any other failure while inspecting the root.
     ///
@@ -89,7 +93,7 @@ impl FilesystemRepository {
     /// assert_eq!(result, expected_result);
     /// ```
     pub fn new(root: impl Into<PathBuf>) -> Result<Self, BackendError> {
-        let root = root.into();
+        let root = expand_home(root.into(), std::env::home_dir())?;
 
         if !root.is_absolute() {
             return Err(BackendError::unreachable_storage(format!(
@@ -114,6 +118,53 @@ impl FilesystemRepository {
     #[must_use]
     pub fn root(&self) -> &Path {
         &self.root
+    }
+
+    /// Returns the path on disk of the document a key names: the root joined with the key.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use storage::implementations::repository::filesystem::{DocumentKey, FilesystemRepository};
+    ///
+    /// let repository = FilesystemRepository::new(std::env::temp_dir())
+    ///     .expect("Given the system temporary directory, the root check should always succeed");
+    /// let key = DocumentKey::new("sec/CIK0000320193.json")
+    ///     .expect("Given a valid relative path, the key should always build");
+    ///
+    /// let expected_result = std::env::temp_dir().join("sec").join("CIK0000320193.json");
+    ///
+    /// let result = repository.document_path(&key);
+    ///
+    /// assert_eq!(result, expected_result);
+    /// ```
+    #[must_use]
+    pub fn document_path(&self, key: &DocumentKey) -> PathBuf {
+        self.root.join(key.as_path())
+    }
+}
+
+/// Replaces a leading `~` component of a root with the given home directory.
+///
+/// A root that does not start with a bare `~` returns unchanged.
+fn expand_home(root: PathBuf, home: Option<PathBuf>) -> Result<PathBuf, BackendError> {
+    let mut components = root.components();
+    if components.next() != Some(Component::Normal(OsStr::new("~"))) {
+        return Ok(root);
+    }
+
+    let home = home.ok_or_else(|| {
+        BackendError::unreachable_storage(format!(
+            "{} starts with ~, but the home directory is unknown",
+            root.display()
+        ))
+    })?;
+    let rest = components.as_path();
+
+    if rest.as_os_str().is_empty() {
+        Ok(home)
+    } else {
+        Ok(home.join(rest))
     }
 }
 
@@ -237,6 +288,79 @@ mod tests {
         );
 
         assert_eq!(repository.root(), expected_result);
+    }
+
+    #[test]
+    fn should_open_the_store_in_the_home_directory_when_the_root_is_a_tilde() {
+        let expected_result = std::env::home_dir();
+
+        let repository = FilesystemRepository::new("~")
+            .expect("Given a user with a home directory, opening the store there should succeed");
+
+        assert_eq!(Some(repository.root().to_path_buf()), expected_result);
+    }
+
+    #[test]
+    fn should_join_the_home_directory_and_the_rest_when_the_root_starts_with_a_tilde() {
+        let home = Path::new("/home/arkad-user");
+        let expected_result = home.join("Projects").join("arkad");
+
+        let result = expand_home(PathBuf::from("~/Projects/arkad"), Some(home.to_path_buf()))
+            .expect("Given a known home directory, the expansion should always succeed");
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_the_home_directory_when_the_root_is_a_bare_tilde() {
+        let expected_result = PathBuf::from("/home/arkad-user");
+
+        let result = expand_home(PathBuf::from("~"), Some(expected_result.clone()))
+            .expect("Given a known home directory, the expansion should always succeed");
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_keep_the_root_unchanged_when_it_names_another_user() {
+        let expected_result = PathBuf::from("~other/arkad");
+
+        let result = expand_home(
+            expected_result.clone(),
+            Some(PathBuf::from("/home/arkad-user")),
+        )
+        .expect("Given a root with no bare tilde, the expansion should always succeed");
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_fail_to_expand_the_root_when_the_home_directory_is_unknown() {
+        let expected_result = BackendError::unreachable_storage(
+            "~/arkad starts with ~, but the home directory is unknown",
+        );
+
+        let result = expand_home(PathBuf::from("~/arkad"), None)
+            .expect_err("A tilde root with no home directory should never expand");
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_join_the_root_and_the_key_when_building_a_document_path() {
+        let repository = FilesystemRepository::new(std::env::temp_dir()).expect(
+            "Given the system temporary directory, opening the store should always succeed",
+        );
+        let key = DocumentKey::new("sec/companyfacts/CIK0000320193.json")
+            .expect("Given a valid relative path, the key should always build");
+        let expected_result = std::env::temp_dir()
+            .join("sec")
+            .join("companyfacts")
+            .join("CIK0000320193.json");
+
+        let result = repository.document_path(&key);
+
+        assert_eq!(result, expected_result);
     }
 
     #[test]

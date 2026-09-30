@@ -87,19 +87,13 @@ impl DocumentKey {
         for component in path.components() {
             match component {
                 Component::RootDir => {
-                    return Err(InvalidDocumentKey::contains_root_component(
-                        path.to_string_lossy(),
-                    ));
+                    return Err(InvalidDocumentKey::contains_root_component(path.clone()));
                 }
                 Component::Prefix(_) => {
-                    return Err(InvalidDocumentKey::contains_prefix_component(
-                        path.to_string_lossy(),
-                    ));
+                    return Err(InvalidDocumentKey::contains_prefix_component(path.clone()));
                 }
                 Component::ParentDir => {
-                    return Err(InvalidDocumentKey::contains_parent_component(
-                        path.to_string_lossy(),
-                    ));
+                    return Err(InvalidDocumentKey::contains_parent_component(path.clone()));
                 }
                 Component::CurDir => {}
                 Component::Normal(part) => normalized.push(part),

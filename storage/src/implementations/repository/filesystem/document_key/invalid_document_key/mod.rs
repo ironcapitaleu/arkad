@@ -2,6 +2,8 @@
 //!
 //! Provides [`InvalidDocumentKey`], the error raised when a path cannot name a document.
 
+use std::path::PathBuf;
+
 use thiserror::Error;
 
 #[non_exhaustive]
@@ -15,28 +17,37 @@ pub enum InvalidDocumentKey {
     EmptyPath,
 
     /// The path starts at a root directory, such as `/etc` on Unix or `\etc` on Windows.
-    #[error("[ContainsRootComponent] Document key '{path}' starts at a root directory")]
+    #[error(
+        "[ContainsRootComponent] Document key '{}' starts at a root directory",
+        .path.display()
+    )]
     ContainsRootComponent {
         /// The path that was rejected.
-        path: String,
+        path: PathBuf,
     },
 
     /// The path starts with a Windows prefix, such as `C:` or `\\server\share`. The path resolves
     /// against that drive or share rather than the store's root, even without a root directory.
     /// Construction reports this variant for a path with both a prefix and a root directory, such
     /// as `C:\data`, because the prefix comes first.
-    #[error("[ContainsPrefixComponent] Document key '{path}' contains a Windows path prefix")]
+    #[error(
+        "[ContainsPrefixComponent] Document key '{}' contains a Windows path prefix",
+        .path.display()
+    )]
     ContainsPrefixComponent {
         /// The path that was rejected.
-        path: String,
+        path: PathBuf,
     },
 
     /// The path holds a `..` component. Construction rejects every `..`, including one that
     /// resolves back inside the store's root.
-    #[error("[ContainsParentComponent] Document key '{path}' contains a parent component")]
+    #[error(
+        "[ContainsParentComponent] Document key '{}' contains a parent component",
+        .path.display()
+    )]
     ContainsParentComponent {
         /// The path that was rejected.
-        path: String,
+        path: PathBuf,
     },
 }
 
@@ -58,7 +69,7 @@ impl InvalidDocumentKey {
     /// assert_eq!(result, expected_result);
     /// ```
     #[must_use]
-    pub fn contains_root_component(path: impl Into<String>) -> Self {
+    pub fn contains_root_component(path: impl Into<PathBuf>) -> Self {
         Self::ContainsRootComponent { path: path.into() }
     }
 
@@ -79,7 +90,7 @@ impl InvalidDocumentKey {
     /// assert_eq!(result, expected_result);
     /// ```
     #[must_use]
-    pub fn contains_prefix_component(path: impl Into<String>) -> Self {
+    pub fn contains_prefix_component(path: impl Into<PathBuf>) -> Self {
         Self::ContainsPrefixComponent { path: path.into() }
     }
 
@@ -100,7 +111,7 @@ impl InvalidDocumentKey {
     /// assert_eq!(result, expected_result);
     /// ```
     #[must_use]
-    pub fn contains_parent_component(path: impl Into<String>) -> Self {
+    pub fn contains_parent_component(path: impl Into<PathBuf>) -> Self {
         Self::ContainsParentComponent { path: path.into() }
     }
 }
@@ -190,7 +201,7 @@ mod tests {
     #[test]
     fn should_build_contains_root_component_variant_when_using_its_constructor() {
         let expected_result = InvalidDocumentKey::ContainsRootComponent {
-            path: "/etc/passwd".to_owned(),
+            path: PathBuf::from("/etc/passwd"),
         };
 
         let result = InvalidDocumentKey::contains_root_component("/etc/passwd");
@@ -201,7 +212,7 @@ mod tests {
     #[test]
     fn should_build_contains_prefix_component_variant_when_using_its_constructor() {
         let expected_result = InvalidDocumentKey::ContainsPrefixComponent {
-            path: "C:x.json".to_owned(),
+            path: PathBuf::from("C:x.json"),
         };
 
         let result = InvalidDocumentKey::contains_prefix_component("C:x.json");
@@ -212,7 +223,7 @@ mod tests {
     #[test]
     fn should_build_contains_parent_component_variant_when_using_its_constructor() {
         let expected_result = InvalidDocumentKey::ContainsParentComponent {
-            path: "sec/../etc".to_owned(),
+            path: PathBuf::from("sec/../etc"),
         };
 
         let result = InvalidDocumentKey::contains_parent_component("sec/../etc");
