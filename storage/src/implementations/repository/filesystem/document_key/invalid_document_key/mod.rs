@@ -17,7 +17,7 @@ pub enum InvalidDocumentKey {
     EmptyPath,
 
     /// The path starts at a root directory. A leading `/` names a root on every platform, and a
-    /// leading `\` names one only on Windows.
+    /// single leading `\` names one only on Windows.
     #[error(
         "[ContainsRootComponent] Document key '{}' starts at a root directory",
         .path.display()

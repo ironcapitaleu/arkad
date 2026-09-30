@@ -32,10 +32,12 @@ pub use invalid_document_key::InvalidDocumentKey;
 /// Relative path identifying one document beneath the store's root directory.
 ///
 /// The path is the primary key, so it is also the document's location on disk. Construction
-/// drops every `.` component and every repeated separator. It keeps a `~` as an ordinary
-/// component, wherever the `~` sits, so `"~/cache/x.json"` names a `~` directory under the root.
-/// It does not fold letter case, Unicode form, or the trailing dots and spaces that Windows
-/// strips. On a filesystem that ignores those differences, two unequal keys can point to one file.
+/// drops every `.` component and every repeated separator. It rebuilds the path with the
+/// separator of its platform, so `"sec/x.json"` holds a `\` on Windows. It keeps a `~` as an
+/// ordinary component, wherever the `~` sits, so `"~/cache/x.json"` names a `~` directory under
+/// the root. It does not fold letter case, Unicode form, or the trailing dots and spaces that
+/// Windows strips. On a filesystem that ignores those differences, two unequal keys can point to
+/// one file.
 ///
 /// Construction also rejects a path that starts at a root directory, and a path that starts with a
 /// Windows prefix such as `C:`. It rejects every `..` component, wherever the `..` sits, including
@@ -53,12 +55,12 @@ impl DocumentKey {
     /// # Errors
     ///
     /// Returns an [`InvalidDocumentKey`] if the path:
-    /// - starts with a Windows prefix such as `C:`, on a platform that reads one
-    ///   ([`InvalidDocumentKey::ContainsPrefixComponent`]). On Linux and macOS, `"C:x.json"` is a
-    ///   single ordinary file name and builds a key.
+    /// - starts with a Windows prefix such as `C:` or `\\server\share`, on a platform that reads
+    ///   one ([`InvalidDocumentKey::ContainsPrefixComponent`]). On Linux and macOS, `"C:x.json"` is
+    ///   a single ordinary file name and builds a key.
     /// - starts at a root directory ([`InvalidDocumentKey::ContainsRootComponent`]). A leading `/`
-    ///   names a root on every platform, and a leading `\` names one only on Windows. On Linux and
-    ///   macOS, `"\data\x.json"` is a single ordinary file name and builds a key.
+    ///   names a root on every platform, and a single leading `\` names one only on Windows. On
+    ///   Linux and macOS, `"\data\x.json"` is a single ordinary file name and builds a key.
     /// - holds a `..` component ([`InvalidDocumentKey::ContainsParentComponent`]). Construction
     ///   reads `..` with the separator rules of its platform. On Linux and macOS,
     ///   `"sec\..\x.json"` is a single ordinary file name and builds a key.
