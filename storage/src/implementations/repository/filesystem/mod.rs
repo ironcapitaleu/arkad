@@ -57,8 +57,8 @@ impl FilesystemRepository {
     /// A root that starts with a bare `~` needs a home directory that is known and absolute.
     /// Without one, the constructor fails at startup rather than guessing. The root must be
     /// absolute after any expansion, so the store does not move with the process's working
-    /// directory. Absoluteness follows the platform. A Windows root needs a drive or a share, so
-    /// `"/data/arkad"` opens a store on Linux and macOS and is rejected on Windows.
+    /// directory. What counts as absolute follows the platform. A Windows root needs a drive or a
+    /// share, so `"/data/arkad"` is absolute on Linux and macOS and is not absolute on Windows.
     ///
     /// # Errors
     ///
@@ -155,7 +155,7 @@ impl FilesystemRepository {
 
 /// Replaces a leading `~` component of a root with the given home directory.
 ///
-/// A root that does not start with a bare `~` returns unchanged. Construction reads the root's
+/// A root that does not start with a bare `~` returns unchanged. The constructor reads the root's
 /// components with the separator rules of the platform, so a `\` separates them only on Windows.
 ///
 /// # Errors
@@ -382,11 +382,11 @@ mod tests {
 
     #[test]
     #[cfg_attr(not(windows), ignore = "A rooted path needs a drive only on Windows")]
-    fn should_fail_to_open_the_store_when_the_root_carries_no_drive() {
+    fn should_fail_to_open_the_store_when_the_root_is_relative_because_it_carries_no_drive() {
         let expected_result =
-            BackendError::unreachable_storage(r"\data\arkad is not an absolute path");
+            BackendError::unreachable_storage("/data/arkad is not an absolute path");
 
-        let result = FilesystemRepository::new(r"\data\arkad")
+        let result = FilesystemRepository::new("/data/arkad")
             .expect_err("A root with no drive should never open as a store");
 
         assert_eq!(result, expected_result);
@@ -496,7 +496,10 @@ mod tests {
             expected_result.clone(),
             Some(PathBuf::from("/home/arkad-user")),
         )
-        .expect("Outside Windows a backslash is an ordinary character, so the root should stay unchanged");
+        .expect(
+            "Outside Windows a backslash is an ordinary character, so the root should stay \
+             unchanged",
+        );
 
         assert_eq!(result, expected_result);
     }
