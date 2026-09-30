@@ -52,9 +52,9 @@ impl FilesystemRepository {
     /// A leading `~` component stands for the current user's home directory, so `"~/arkad"` roots
     /// the store at `arkad` inside it. The constructor expands only a bare `~`. A `~user` prefix
     /// stays as written. A root that starts with a bare `~` needs a home directory that is known
-    /// and absolute. A process with no home directory fails at startup rather than guessing. The
-    /// root must be absolute after any expansion, so the store does not move with the process's
-    /// working directory.
+    /// and absolute. Without one, the constructor fails at startup rather than guessing. The root
+    /// must be absolute after any expansion, so the store does not move with the process's working
+    /// directory.
     ///
     /// # Errors
     ///
@@ -464,9 +464,8 @@ mod tests {
     fn should_keep_the_root_unchanged_when_it_starts_with_no_tilde_and_the_home_is_unknown() {
         let expected_result = PathBuf::from("/data/arkad");
 
-        let result = expand_home(expected_result.clone(), None).expect(
-            "Given a root with no bare tilde, the expansion should never read the home directory",
-        );
+        let result = expand_home(expected_result.clone(), None)
+            .expect("Given a root with no bare tilde, the expansion should always succeed");
 
         assert_eq!(result, expected_result);
     }

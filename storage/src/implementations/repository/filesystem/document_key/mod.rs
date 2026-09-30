@@ -305,10 +305,20 @@ mod tests {
     }
 
     #[test]
-    fn should_keep_a_leading_tilde_when_building_a_key() {
+    fn should_keep_a_tilde_when_it_is_the_first_component_of_a_key() {
         let expected_result = Path::new("~/cache/x.json");
 
         let key = DocumentKey::new("~/cache/x.json")
+            .expect("A tilde is an ordinary component, so the key should always build");
+
+        assert_eq!(key.as_path(), expected_result);
+    }
+
+    #[test]
+    fn should_keep_a_tilde_when_it_sits_inside_a_key() {
+        let expected_result = Path::new("cache/~/x.json");
+
+        let key = DocumentKey::new("cache/~/x.json")
             .expect("A tilde is an ordinary component, so the key should always build");
 
         assert_eq!(key.as_path(), expected_result);
