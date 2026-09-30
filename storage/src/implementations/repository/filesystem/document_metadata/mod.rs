@@ -57,7 +57,7 @@ pub struct DocumentMetadata {
     pub user_agent: String,
     /// Size of the document in bytes.
     pub bytes: u64,
-    /// Hex-encoded SHA-256 of the document, used to detect a changed refetch.
+    /// Hex-encoded SHA-256 of the document.
     pub sha256: String,
 }
 

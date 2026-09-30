@@ -33,9 +33,10 @@ pub use invalid_document_key::InvalidDocumentKey;
 ///
 /// The path is the primary key, so it is also the document's location on disk. Construction
 /// drops every `.` component and every repeated separator. It does not fold letter case, Unicode
-/// form, or the trailing dots and spaces that Windows strips. On a filesystem that ignores those
-/// differences, two unequal keys can point to one file. Construction does not expand a leading
-/// `~`, which names a directory called `~` under the root.
+/// form, or the trailing dots and spaces that Windows strips. It keeps a leading `~` as an ordinary
+/// component, so `"~/cache/x.json"` names a `~` directory under the root. On a filesystem that
+/// ignores letter case, Unicode form, or trailing dots and spaces, two unequal keys can point to
+/// one file.
 ///
 /// Construction also rejects a path that starts at a root directory, and a path that starts with a
 /// Windows prefix such as `C:`. It rejects every `..` component, wherever the `..` sits, including
@@ -302,6 +303,16 @@ mod tests {
             .expect_err("A path holding a parent component should never build a document key");
 
         assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_keep_a_leading_tilde_when_building_a_key() {
+        let expected_result = Path::new("~/cache/x.json");
+
+        let key = DocumentKey::new("~/cache/x.json")
+            .expect("A tilde is an ordinary component, so the key should always build");
+
+        assert_eq!(key.as_path(), expected_result);
     }
 
     #[test]
