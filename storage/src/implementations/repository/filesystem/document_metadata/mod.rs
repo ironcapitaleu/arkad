@@ -18,7 +18,7 @@ use serde::{Deserialize, Serialize};
 ///
 /// ```rust
 /// use chrono::{TimeZone, Utc};
-/// use storage_filesystem::DocumentMetadata;
+/// use storage::implementations::repository::filesystem::DocumentMetadata;
 ///
 /// let metadata = DocumentMetadata {
 ///     metadata_version: 1,

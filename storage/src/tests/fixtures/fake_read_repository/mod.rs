@@ -8,7 +8,7 @@
 use async_trait::async_trait;
 
 use crate::error::ReadError;
-use crate::repository::ReadRepository;
+use crate::traits::repository::ReadRepository;
 
 /// An in-memory [`ReadRepository`] test double initialized with key-to-record entries.
 ///

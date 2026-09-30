@@ -1574,22 +1574,12 @@ name = "storage"
 version = "0.1.0"
 dependencies = [
  "async-trait",
- "pretty_assertions",
- "thiserror",
- "tokio",
-]
-
-[[package]]
-name = "storage_filesystem"
-version = "0.1.0"
-dependencies = [
- "async-trait",
  "chrono",
  "pretty_assertions",
  "serde",
  "serde_json",
- "storage",
  "thiserror",
+ "tokio",
 ]
 
 [[package]]

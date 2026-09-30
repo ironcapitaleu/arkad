@@ -11,7 +11,7 @@
 //! ```rust
 //! use std::path::Path;
 //!
-//! use storage_filesystem::DocumentKey;
+//! use storage::implementations::repository::filesystem::DocumentKey;
 //!
 //! let key = DocumentKey::new("sec/companyfacts/CIK0000320193.json")
 //!     .expect("Given a relative path with no parent component, the key should always build");
@@ -65,7 +65,7 @@ impl DocumentKey {
     /// # Examples
     ///
     /// ```rust
-    /// use storage_filesystem::DocumentKey;
+    /// use storage::implementations::repository::filesystem::DocumentKey;
     ///
     /// let key = DocumentKey::new("sec/companyfacts/CIK0000320193.json")
     ///     .expect("Given a valid relative path, the key should always build");

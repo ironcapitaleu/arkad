@@ -1,19 +1,26 @@
-//! # File System Repository
+//! # Filesystem Repository
 //!
-//! Provides [`FileSystemRepository`], the adapter that stores documents as files under a root
+//! Provides [`FilesystemRepository`], the adapter that stores documents as files under a root
 //! directory.
 //!
 //! ## Record and Key
 //!
-//! [`ReadRepository`] and [`WriteRepository`] each leave their associated types to the implementor.
-//! This adapter pins `Record` to [`RawDocument`] and `Key` to [`DocumentKey`].
+//! [`ReadRepository`](crate::ReadRepository) and [`WriteRepository`](crate::WriteRepository) each
+//! leave their associated types to the implementor. This adapter pins `Record` to [`RawDocument`]
+//! and `Key` to [`DocumentKey`].
+//!
+//! ## Modules
+//!
+//! - [`document_key`]: The [`DocumentKey`] naming one document, and the error for a rejected path.
+//! - [`document_metadata`]: The [`DocumentMetadata`] stored beside a document.
+//! - [`raw_document`]: The [`RawDocument`] a read returns and a write accepts.
 //!
 //! ## Usage
 //!
 //! ```rust
-//! use storage_filesystem::FileSystemRepository;
+//! use storage::implementations::repository::filesystem::FilesystemRepository;
 //!
-//! let repository = FileSystemRepository::new(std::env::temp_dir())
+//! let repository = FilesystemRepository::new(std::env::temp_dir())
 //!     .expect("Given the system temporary directory, the root check should always succeed");
 //!
 //! let expected_result = std::env::temp_dir();
@@ -26,41 +33,53 @@
 use std::io;
 use std::path::{Path, PathBuf};
 
-use async_trait::async_trait;
-use storage::{BackendError, ReadError, ReadRepository, WriteError, WriteRepository};
+use crate::error::BackendError;
 
-use crate::document_key::DocumentKey;
-use crate::raw_document::RawDocument;
+pub mod document_key;
+pub mod document_metadata;
+pub mod raw_document;
+mod read_repository;
+mod write_repository;
+
+pub use document_key::{DocumentKey, InvalidDocumentKey};
+pub use document_metadata::DocumentMetadata;
+pub use raw_document::RawDocument;
 
 /// Stores documents as files beneath one root directory.
 ///
 /// The root plays the part a table plays in a database, and a [`DocumentKey`] is the path under it.
+/// A document lives at the root joined with its key, so a root of `/data/arkad` and a key of
+/// `sec/CIK0000320193.json` name `/data/arkad/sec/CIK0000320193.json`. The join uses the
+/// separator of the platform the store runs on.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct FileSystemRepository {
+pub struct FilesystemRepository {
     root: PathBuf,
 }
 
-impl FileSystemRepository {
-    /// Creates a new [`FileSystemRepository`] rooted at the given directory.
+impl FilesystemRepository {
+    /// Creates a new [`FilesystemRepository`] rooted at the given absolute directory.
     ///
     /// The constructor opens nothing and holds nothing beyond the path. The check reads the root
     /// once, so it catches a misconfigured path at startup rather than on the first operation. It
     /// does not prove that a write succeeds. A read-only root passes here and fails later.
     ///
+    /// The root must be absolute, so the store does not move with the process's working directory.
+    /// The constructor expands nothing, so a `~` is a directory named `~`, not the home directory.
+    ///
     /// # Errors
     ///
     /// Returns a [`BackendError`] if the root cannot serve as a store:
-    /// - [`BackendError::UnreachableStorage`] if the root does not exist, or exists but is not a
-    ///   directory.
+    /// - [`BackendError::UnreachableStorage`] if the root is not absolute, does not exist, or
+    ///   exists but is not a directory.
     /// - [`BackendError::UnauthorizedAccess`] if the process cannot read the root.
     /// - [`BackendError::FailedOperation`] for any other failure while inspecting the root.
     ///
     /// # Examples
     ///
     /// ```rust
-    /// use storage_filesystem::FileSystemRepository;
+    /// use storage::implementations::repository::filesystem::FilesystemRepository;
     ///
-    /// let repository = FileSystemRepository::new(std::env::temp_dir())
+    /// let repository = FilesystemRepository::new(std::env::temp_dir())
     ///     .expect("Given the system temporary directory, the root check should always succeed");
     ///
     /// let expected_result = true;
@@ -71,6 +90,14 @@ impl FileSystemRepository {
     /// ```
     pub fn new(root: impl Into<PathBuf>) -> Result<Self, BackendError> {
         let root = root.into();
+
+        if !root.is_absolute() {
+            return Err(BackendError::unreachable_storage(format!(
+                "{} is not an absolute path",
+                root.display()
+            )));
+        }
+
         let metadata = std::fs::metadata(&root).map_err(|error| to_backend_error(&error))?;
 
         if metadata.is_dir() {
@@ -83,7 +110,7 @@ impl FileSystemRepository {
         }
     }
 
-    /// Returns the root directory every key resolves under.
+    /// Returns the absolute root directory every key resolves under.
     #[must_use]
     pub fn root(&self) -> &Path {
         &self.root
@@ -112,145 +139,115 @@ fn to_backend_error(error: &io::Error) -> BackendError {
     }
 }
 
-#[async_trait]
-impl ReadRepository for FileSystemRepository {
-    type Record = RawDocument;
-    type Key = DocumentKey;
-
-    /// Reads the document a key names, together with its metadata.
-    ///
-    /// # Panics
-    ///
-    /// Always panics. This adapter holds no read implementation.
-    async fn get(&self, _key: Self::Key) -> Result<Option<Self::Record>, ReadError> {
-        unimplemented!("FileSystemRepository holds no read implementation")
-    }
-}
-
-#[async_trait]
-impl WriteRepository for FileSystemRepository {
-    type Record = RawDocument;
-
-    /// Writes a document and its metadata under the root.
-    ///
-    /// # Panics
-    ///
-    /// Always panics. This adapter holds no write implementation.
-    async fn persist(&self, _record: Self::Record) -> Result<(), WriteError> {
-        unimplemented!("FileSystemRepository holds no write implementation")
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use std::fmt::Debug;
     use std::hash::Hash;
 
+    use crate::traits::repository::ReadWriteRepository;
     use pretty_assertions::assert_eq;
-    use storage::ReadWriteRepository;
 
     use super::*;
 
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
     #[test]
-    const fn should_implement_auto_traits_for_file_system_repository() {
-        implements_auto_traits::<FileSystemRepository>();
+    const fn should_implement_auto_traits_for_filesystem_repository() {
+        implements_auto_traits::<FilesystemRepository>();
     }
 
     const fn implements_send<T: Send>() {}
     const fn implements_sync<T: Sync>() {}
 
     #[test]
-    const fn should_implement_send_for_file_system_repository() {
-        implements_send::<FileSystemRepository>();
+    const fn should_implement_send_for_filesystem_repository() {
+        implements_send::<FilesystemRepository>();
     }
 
     #[test]
-    const fn should_implement_sync_for_file_system_repository() {
-        implements_sync::<FileSystemRepository>();
+    const fn should_implement_sync_for_filesystem_repository() {
+        implements_sync::<FilesystemRepository>();
     }
 
     const fn implements_debug<T: Debug>() {}
     #[test]
-    const fn should_be_able_to_rely_on_debug_implementation_for_file_system_repository() {
-        implements_debug::<FileSystemRepository>();
+    const fn should_be_able_to_rely_on_debug_implementation_for_filesystem_repository() {
+        implements_debug::<FilesystemRepository>();
     }
 
     const fn implements_clone<T: Clone>() {}
     #[test]
-    const fn should_be_able_to_rely_on_clone_implementation_for_file_system_repository() {
-        implements_clone::<FileSystemRepository>();
+    const fn should_be_able_to_rely_on_clone_implementation_for_filesystem_repository() {
+        implements_clone::<FilesystemRepository>();
     }
 
     const fn implements_hash<T: Hash>() {}
     #[test]
-    const fn should_be_able_to_rely_on_hash_implementation_for_file_system_repository() {
-        implements_hash::<FileSystemRepository>();
+    const fn should_be_able_to_rely_on_hash_implementation_for_filesystem_repository() {
+        implements_hash::<FilesystemRepository>();
     }
 
     const fn implements_eq<T: Eq>() {}
     #[test]
-    const fn should_be_able_to_rely_on_eq_implementation_for_file_system_repository() {
-        implements_eq::<FileSystemRepository>();
+    const fn should_be_able_to_rely_on_eq_implementation_for_filesystem_repository() {
+        implements_eq::<FilesystemRepository>();
     }
 
     const fn implements_ord<T: Ord>() {}
     #[test]
-    const fn should_be_able_to_rely_on_ord_implementation_for_file_system_repository() {
-        implements_ord::<FileSystemRepository>();
+    const fn should_be_able_to_rely_on_ord_implementation_for_filesystem_repository() {
+        implements_ord::<FilesystemRepository>();
     }
 
     const fn implements_sized<T: Sized>() {}
     #[test]
-    const fn should_be_sized_for_file_system_repository() {
-        implements_sized::<FileSystemRepository>();
+    const fn should_be_sized_for_filesystem_repository() {
+        implements_sized::<FilesystemRepository>();
     }
 
     const fn implements_partial_eq<T: PartialEq>() {}
     #[test]
-    const fn should_be_able_to_rely_on_partial_eq_implementation_for_file_system_repository() {
-        implements_partial_eq::<FileSystemRepository>();
+    const fn should_be_able_to_rely_on_partial_eq_implementation_for_filesystem_repository() {
+        implements_partial_eq::<FilesystemRepository>();
     }
 
     const fn implements_partial_ord<T: PartialOrd>() {}
     #[test]
-    const fn should_be_able_to_rely_on_partial_ord_implementation_for_file_system_repository() {
-        implements_partial_ord::<FileSystemRepository>();
+    const fn should_be_able_to_rely_on_partial_ord_implementation_for_filesystem_repository() {
+        implements_partial_ord::<FilesystemRepository>();
     }
 
     const fn implements_unpin<T: Unpin>() {}
     #[test]
-    const fn should_be_able_to_rely_on_unpin_implementation_for_file_system_repository() {
-        implements_unpin::<FileSystemRepository>();
-    }
-
-    const fn implements_read_repository<T: ReadRepository>() {}
-    #[test]
-    const fn should_implement_read_repository_for_file_system_repository() {
-        implements_read_repository::<FileSystemRepository>();
-    }
-
-    const fn implements_write_repository<T: WriteRepository>() {}
-    #[test]
-    const fn should_implement_write_repository_for_file_system_repository() {
-        implements_write_repository::<FileSystemRepository>();
+    const fn should_be_able_to_rely_on_unpin_implementation_for_filesystem_repository() {
+        implements_unpin::<FilesystemRepository>();
     }
 
     const fn implements_read_write_repository<T: ReadWriteRepository>() {}
     #[test]
-    const fn should_implement_read_write_repository_for_file_system_repository() {
-        implements_read_write_repository::<FileSystemRepository>();
+    const fn should_implement_read_write_repository_for_filesystem_repository() {
+        implements_read_write_repository::<FilesystemRepository>();
     }
 
     #[test]
     fn should_open_the_store_when_the_root_is_an_existing_directory() {
         let expected_result = std::env::temp_dir();
 
-        let repository = FileSystemRepository::new(std::env::temp_dir()).expect(
+        let repository = FilesystemRepository::new(std::env::temp_dir()).expect(
             "Given the system temporary directory, opening the store should always succeed",
         );
 
         assert_eq!(repository.root(), expected_result);
+    }
+
+    #[test]
+    fn should_fail_to_open_the_store_when_the_root_is_relative() {
+        let expected_result =
+            BackendError::unreachable_storage("arkad/data is not an absolute path");
+
+        let result = FilesystemRepository::new("arkad/data")
+            .expect_err("A relative root should never open as a store");
+
+        assert_eq!(result, expected_result);
     }
 
     #[test]
@@ -260,7 +257,7 @@ mod tests {
             std::process::id()
         ));
 
-        let result = FileSystemRepository::new(missing)
+        let result = FilesystemRepository::new(missing)
             .expect_err("A root that does not exist should never open as a store");
 
         assert!(matches!(result, BackendError::UnreachableStorage { .. }));
@@ -278,7 +275,7 @@ mod tests {
         let expected_result =
             BackendError::unreachable_storage(format!("{} is not a directory", root.display()));
 
-        let outcome = FileSystemRepository::new(&root);
+        let outcome = FilesystemRepository::new(&root);
         std::fs::remove_file(&root)
             .expect("Given a file this test just created, removing it should always succeed");
         let result = outcome.expect_err("A root that is a file should never open as a store");

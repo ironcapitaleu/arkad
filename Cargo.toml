@@ -4,7 +4,6 @@ members = [
     "state_machine",
     "sec",
     "storage",
-    "storage_filesystem",
     "xbrl",
 ]
 

@@ -4,14 +4,14 @@
 //! [`ReadRepository`] and [`WriteRepository`]. [`FakeReadWriteRepository::persist`] appends a
 //! record and [`FakeReadWriteRepository::get`] returns the record at a position, so a test can
 //! write a record and read the same record back. The blanket implementation gives it
-//! [`ReadWriteRepository`](crate::repository::ReadWriteRepository).
+//! [`ReadWriteRepository`](crate::traits::repository::ReadWriteRepository).
 
 use std::sync::Mutex;
 
 use async_trait::async_trait;
 
 use crate::error::{ReadError, WriteError};
-use crate::repository::{ReadRepository, WriteRepository};
+use crate::traits::repository::{ReadRepository, WriteRepository};
 
 /// An in-memory test double that implements both [`ReadRepository`] and [`WriteRepository`].
 ///

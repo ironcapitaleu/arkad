@@ -10,7 +10,7 @@ use std::sync::Mutex;
 use async_trait::async_trait;
 
 use crate::error::WriteError;
-use crate::repository::WriteRepository;
+use crate::traits::repository::WriteRepository;
 
 /// An in-memory [`WriteRepository`] test double that records every persisted record.
 ///

@@ -46,7 +46,7 @@ impl InvalidDocumentKey {
     /// # Examples
     ///
     /// ```rust
-    /// use storage_filesystem::InvalidDocumentKey;
+    /// use storage::implementations::repository::filesystem::InvalidDocumentKey;
     ///
     /// let error = InvalidDocumentKey::contains_root_component("/etc/passwd");
     ///
@@ -67,7 +67,7 @@ impl InvalidDocumentKey {
     /// # Examples
     ///
     /// ```rust
-    /// use storage_filesystem::InvalidDocumentKey;
+    /// use storage::implementations::repository::filesystem::InvalidDocumentKey;
     ///
     /// let error = InvalidDocumentKey::contains_prefix_component("C:x.json");
     ///
@@ -88,7 +88,7 @@ impl InvalidDocumentKey {
     /// # Examples
     ///
     /// ```rust
-    /// use storage_filesystem::InvalidDocumentKey;
+    /// use storage::implementations::repository::filesystem::InvalidDocumentKey;
     ///
     /// let error = InvalidDocumentKey::contains_parent_component("sec/../etc");
     ///
