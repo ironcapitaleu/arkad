@@ -65,9 +65,10 @@ impl DocumentKey {
     /// - names no file below the root ([`InvalidDocumentKey::EmptyPath`]). A path made only of `.`
     ///   components, such as `"."` or `"./"`, names the root itself.
     ///
-    /// A path that breaks more than one of these reports the first offending component, so
-    /// `"C:\data"` reports the prefix and `"/sec/../x.json"` reports the root. A path that breaks
-    /// none of them and still names no file reports [`InvalidDocumentKey::EmptyPath`].
+    /// Construction walks the path's components in order and reports the first one it rejects, so
+    /// `"/sec/../x.json"` reports the root rather than the `..`. On Windows, `"C:\data"` reports
+    /// the prefix rather than the root. A path whose components are all accepted, and that still
+    /// names no file, reports [`InvalidDocumentKey::EmptyPath`].
     ///
     /// # Examples
     ///
@@ -290,11 +291,23 @@ mod tests {
     }
 
     #[test]
-    fn should_reject_a_root_component_when_the_path_also_holds_a_parent_component() {
+    fn should_reject_a_root_component_when_it_comes_before_a_parent_component() {
         let expected_result = InvalidDocumentKey::contains_root_component("/sec/../x.json");
 
-        let result = DocumentKey::new("/sec/../x.json")
-            .expect_err("A path starting at a root directory should never build a document key");
+        let result = DocumentKey::new("/sec/../x.json").expect_err(
+            "A path starting at a root directory should never build a document key, whatever else \
+             it holds",
+        );
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_reject_a_parent_component_when_the_path_names_the_parent_of_the_root() {
+        let expected_result = InvalidDocumentKey::contains_parent_component("./..");
+
+        let result = DocumentKey::new("./..")
+            .expect_err("A path naming the parent of the root should never build a document key");
 
         assert_eq!(result, expected_result);
     }
