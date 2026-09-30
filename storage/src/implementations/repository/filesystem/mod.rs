@@ -58,7 +58,7 @@ impl FilesystemRepository {
     /// Without one, the constructor fails at startup rather than guessing. The root must be
     /// absolute after any expansion, so the store does not move with the process's working
     /// directory. What counts as absolute follows the platform. A Windows root needs a drive or a
-    /// share, so `"/data/arkad"` is absolute on Linux and macOS and is not absolute on Windows.
+    /// share, so `"/data/arkad"` is absolute on Linux and macOS but not on Windows.
     ///
     /// # Errors
     ///
@@ -235,6 +235,13 @@ mod tests {
     use super::*;
     use crate::traits::repository::ReadWriteRepository;
 
+    /// An absolute home directory on the platform the tests run on.
+    #[cfg(windows)]
+    const ABSOLUTE_HOME: &str = r"C:\Users\arkad-user";
+    /// An absolute home directory on the platform the tests run on.
+    #[cfg(not(windows))]
+    const ABSOLUTE_HOME: &str = "/home/arkad-user";
+
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
     #[test]
     const fn should_implement_auto_traits_for_filesystem_repository() {
@@ -381,13 +388,16 @@ mod tests {
     }
 
     #[test]
-    #[cfg_attr(not(windows), ignore = "A rooted path needs a drive only on Windows")]
-    fn should_fail_to_open_the_store_when_the_root_is_relative_because_it_carries_no_drive() {
+    #[cfg_attr(
+        not(windows),
+        ignore = "A rooted path needs a Windows prefix only on Windows"
+    )]
+    fn should_fail_to_open_the_store_when_the_root_is_relative_because_it_carries_no_prefix() {
         let expected_result =
             BackendError::unreachable_storage("/data/arkad is not an absolute path");
 
         let result = FilesystemRepository::new("/data/arkad")
-            .expect_err("A root with no drive should never open as a store");
+            .expect_err("A root with no Windows prefix should never open as a store");
 
         assert_eq!(result, expected_result);
     }
@@ -444,21 +454,21 @@ mod tests {
 
     #[test]
     fn should_join_the_home_directory_and_the_rest_when_the_root_starts_with_a_tilde() {
-        let home = Path::new("/home/arkad-user");
+        let home = Path::new(ABSOLUTE_HOME);
         let expected_result = home.join("Projects").join("arkad");
 
         let result = expand_home(PathBuf::from("~/Projects/arkad"), Some(home.to_path_buf()))
-            .expect("Given a known home directory, the expansion should always succeed");
+            .expect("Given an absolute home directory, the expansion should always succeed");
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_return_the_home_directory_when_the_root_is_a_bare_tilde() {
-        let expected_result = PathBuf::from("/home/arkad-user");
+        let expected_result = PathBuf::from(ABSOLUTE_HOME);
 
         let result = expand_home(PathBuf::from("~"), Some(expected_result.clone()))
-            .expect("Given a known home directory, the expansion should always succeed");
+            .expect("Given an absolute home directory, the expansion should always succeed");
 
         assert_eq!(result, expected_result);
     }
@@ -467,11 +477,10 @@ mod tests {
     fn should_keep_the_root_unchanged_when_it_names_another_user() {
         let expected_result = PathBuf::from("~other/arkad");
 
-        let result = expand_home(
-            expected_result.clone(),
-            Some(PathBuf::from("/home/arkad-user")),
-        )
-        .expect("Given a root whose tilde names another user, the expansion should always succeed");
+        let result = expand_home(expected_result.clone(), Some(PathBuf::from(ABSOLUTE_HOME)))
+            .expect(
+                "Given a root whose tilde names another user, the expansion should always succeed",
+            );
 
         assert_eq!(result, expected_result);
     }
@@ -492,14 +501,11 @@ mod tests {
     fn should_keep_the_root_unchanged_when_a_backslash_follows_the_tilde() {
         let expected_result = PathBuf::from(r"~\arkad");
 
-        let result = expand_home(
-            expected_result.clone(),
-            Some(PathBuf::from("/home/arkad-user")),
-        )
-        .expect(
-            "Outside Windows a backslash is an ordinary character, so the root should stay \
+        let result = expand_home(expected_result.clone(), Some(PathBuf::from(ABSOLUTE_HOME)))
+            .expect(
+                "Outside Windows a backslash is an ordinary character, so the root should stay \
              unchanged",
-        );
+            );
 
         assert_eq!(result, expected_result);
     }
