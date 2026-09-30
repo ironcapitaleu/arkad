@@ -55,13 +55,16 @@ impl DocumentKey {
     /// Returns an [`InvalidDocumentKey`] if the path:
     /// - names no file below the root ([`InvalidDocumentKey::EmptyPath`]). A path made only of `.`
     ///   components, such as `"."` or `"./"`, names the root itself.
-    /// - starts at a root directory ([`InvalidDocumentKey::ContainsRootComponent`]). A leading `\`
-    ///   counts only on Windows. On Linux and macOS, `"\data\x.json"` is an ordinary file name and
-    ///   builds a key.
     /// - starts with a Windows prefix such as `C:`, on a platform that reads one
     ///   ([`InvalidDocumentKey::ContainsPrefixComponent`]). On Linux and macOS, `"C:x.json"` is an
     ///   ordinary file name and builds a key.
-    /// - holds a `..` component ([`InvalidDocumentKey::ContainsParentComponent`]).
+    /// - starts at a root directory ([`InvalidDocumentKey::ContainsRootComponent`]). A leading `\`
+    ///   counts only on Windows. On Linux and macOS, `"\data\x.json"` is an ordinary file name and
+    ///   builds a key. A path carrying both a prefix and a root directory, such as `C:\data`,
+    ///   reports the prefix instead, because the prefix comes first.
+    /// - holds a `..` component ([`InvalidDocumentKey::ContainsParentComponent`]), with the
+    ///   separator rules of the platform it runs on. On Linux and macOS, `"sec\..\x.json"` is one
+    ///   ordinary file name and builds a key.
     ///
     /// # Examples
     ///
@@ -218,7 +221,7 @@ mod tests {
     }
 
     #[test]
-    fn should_reject_a_root_component_when_the_path_starts_with_a_separator() {
+    fn should_reject_a_root_component_when_the_path_starts_with_a_forward_slash() {
         let expected_result = InvalidDocumentKey::contains_root_component("/etc/passwd");
 
         let result = DocumentKey::new("/etc/passwd")
@@ -229,7 +232,7 @@ mod tests {
 
     #[test]
     #[cfg_attr(windows, ignore = "A backslash separates components only on Windows")]
-    fn should_build_a_key_when_a_backslash_path_is_an_ordinary_file_name() {
+    fn should_build_a_key_when_the_path_starts_with_a_backslash() {
         let expected_result = Path::new(r"\data\x.json");
 
         let key = DocumentKey::new(r"\data\x.json").expect(
