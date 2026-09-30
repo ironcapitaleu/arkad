@@ -58,8 +58,8 @@ impl FilesystemRepository {
     /// Without one, the constructor fails at startup rather than guessing. The root must be
     /// absolute after any expansion, so the store does not move with the process's working
     /// directory. What counts as absolute follows the platform. A Windows root needs a path
-    /// prefix, such as a drive or a share, so `"/data/arkad"` is absolute on Linux and macOS but
-    /// not on Windows.
+    /// prefix, such as a drive or a share. `"/data/arkad"` carries none, so it is absolute on
+    /// Linux and macOS but not on Windows.
     ///
     /// # Errors
     ///
@@ -487,7 +487,7 @@ mod tests {
     }
 
     #[test]
-    fn should_keep_the_root_unchanged_when_it_starts_with_no_tilde_and_the_home_is_unknown() {
+    fn should_keep_the_root_unchanged_when_the_path_starts_with_no_tilde() {
         let expected_result = PathBuf::from("/data/arkad");
 
         let result = expand_home(expected_result.clone(), None).expect(
@@ -502,11 +502,10 @@ mod tests {
     fn should_keep_the_root_unchanged_when_a_backslash_follows_the_tilde() {
         let expected_result = PathBuf::from(r"~\arkad");
 
-        let result = expand_home(expected_result.clone(), Some(PathBuf::from(ABSOLUTE_HOME)))
-            .expect(
-                "Outside Windows a backslash is an ordinary character, so the root should stay \
-                 unchanged",
-            );
+        let result = expand_home(expected_result.clone(), None).expect(
+            "Outside Windows a backslash is an ordinary character, so the root should stay \
+             unchanged without a home directory",
+        );
 
         assert_eq!(result, expected_result);
     }
