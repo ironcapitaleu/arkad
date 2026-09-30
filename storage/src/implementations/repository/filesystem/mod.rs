@@ -50,12 +50,15 @@ impl FilesystemRepository {
     /// does not prove that a write succeeds. A read-only root passes here and fails later.
     ///
     /// A leading `~` component stands for the current user's home directory, so `"~/arkad"` roots
-    /// the store at `arkad` inside it. The constructor reads the root's components with the
-    /// separator rules of its platform, so `"~\arkad"` expands only on Windows. The constructor
-    /// expands only a bare `~`. A `~user` prefix stays as written. A root that starts with a bare
-    /// `~` needs a home directory that is known and absolute. Without one, the constructor fails at
-    /// startup rather than guessing. The root must be absolute after any expansion, so the store
-    /// does not move with the process's working directory.
+    /// the store at `arkad` inside it. The constructor expands only a bare `~`. A `~user` prefix
+    /// stays as written. The constructor reads the root's components with the separator rules of
+    /// its platform, so `"~\arkad"` expands only on Windows.
+    ///
+    /// A root that starts with a bare `~` needs a home directory that is known and absolute.
+    /// Without one, the constructor fails at startup rather than guessing. The root must be
+    /// absolute after any expansion, so the store does not move with the process's working
+    /// directory. Absoluteness follows the platform. A Windows root needs a drive or a share, so
+    /// `"/data/arkad"` opens a store on Linux and macOS and is rejected on Windows.
     ///
     /// # Errors
     ///
@@ -152,8 +155,8 @@ impl FilesystemRepository {
 
 /// Replaces a leading `~` component of a root with the given home directory.
 ///
-/// A root that does not start with a bare `~` returns unchanged. The first component is read with
-/// the separator rules of the platform, so a `\` separates one only on Windows.
+/// A root that does not start with a bare `~` returns unchanged. Construction reads the root's
+/// components with the separator rules of the platform, so a `\` separates them only on Windows.
 ///
 /// # Errors
 ///
@@ -378,6 +381,18 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(not(windows), ignore = "A rooted path needs a drive only on Windows")]
+    fn should_fail_to_open_the_store_when_the_root_carries_no_drive() {
+        let expected_result =
+            BackendError::unreachable_storage(r"\data\arkad is not an absolute path");
+
+        let result = FilesystemRepository::new(r"\data\arkad")
+            .expect_err("A root with no drive should never open as a store");
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
     fn should_fail_to_open_the_store_when_the_root_does_not_exist() {
         let missing = std::env::temp_dir().join(format!(
             "arkad-storage-filesystem-absent-root-{}",
@@ -481,7 +496,7 @@ mod tests {
             expected_result.clone(),
             Some(PathBuf::from("/home/arkad-user")),
         )
-        .expect("Outside Windows a backslash is an ordinary character, so the root should hold");
+        .expect("Outside Windows a backslash is an ordinary character, so the root should stay unchanged");
 
         assert_eq!(result, expected_result);
     }
