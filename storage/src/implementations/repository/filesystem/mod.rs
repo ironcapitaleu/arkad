@@ -51,8 +51,9 @@ impl FilesystemRepository {
     ///
     /// A leading `~` component stands for the current user's home directory, so `"~/arkad"` roots
     /// the store at `arkad` inside it. The constructor expands only a bare `~`. A `~user` prefix
-    /// stays as written. The home directory must be absolute. The root must be absolute after that
-    /// expansion, so the store does not move with the process's working directory.
+    /// stays as written. The home directory must be known and absolute, and the root must be
+    /// absolute after that expansion. Both rules keep the store from moving with the process's
+    /// working directory.
     ///
     /// # Errors
     ///

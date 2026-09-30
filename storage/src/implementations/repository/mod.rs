@@ -5,8 +5,7 @@
 //!
 //! ## Modules
 //!
-//! - [`filesystem`]: [`FilesystemRepository`] — stores documents as files under a root directory.
+//! - [`filesystem`]: [`FilesystemRepository`](filesystem::FilesystemRepository), which stores
+//!   documents as files under a root directory.
 
 pub mod filesystem;
-
-pub use filesystem::FilesystemRepository;

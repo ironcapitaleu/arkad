@@ -47,7 +47,7 @@ use serde::{Deserialize, Serialize};
 pub struct DocumentMetadata {
     /// Version of this metadata format.
     pub metadata_version: u32,
-    /// The URL the document was fetched from.
+    /// The URL the fetch requested.
     pub url: String,
     /// When the fetch that produced these exact bytes completed.
     pub fetched_at: DateTime<Utc>,
