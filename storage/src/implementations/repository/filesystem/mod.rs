@@ -57,8 +57,8 @@ impl FilesystemRepository {
     /// # Errors
     ///
     /// Returns a [`BackendError`] if the root cannot serve as a store:
-    /// - [`BackendError::UnreachableStorage`] if the root cannot be reached. The root is empty,
-    ///   starts with `~` while the home directory is unknown, or is not absolute. Or it does not
+    /// - [`BackendError::UnreachableStorage`] if the root cannot be reached. The root is empty, is
+    ///   not absolute, or starts with `~` while the home directory is unknown. The root does not
     ///   exist, is not a directory, or sits on a filesystem that did not answer.
     /// - [`BackendError::UnauthorizedAccess`] if the process cannot read the root.
     /// - [`BackendError::FailedOperation`] for any other failure while inspecting the root.
@@ -86,12 +86,16 @@ impl FilesystemRepository {
     ///
     /// [`FilesystemRepository::new`] passes the process's home directory. A test passes its own, so
     /// the result does not depend on the machine.
+    ///
+    /// # Errors
+    ///
+    /// Returns the same [`BackendError`] values [`FilesystemRepository::new`] lists.
     fn with_home_directory(root: PathBuf, home: Option<PathBuf>) -> Result<Self, BackendError> {
+        let root = expand_home(root, home)?;
+
         if root.as_os_str().is_empty() {
             return Err(BackendError::unreachable_storage("The root path is empty"));
         }
-
-        let root = expand_home(root, home)?;
 
         if !root.is_absolute() {
             return Err(BackendError::unreachable_storage(format!(
@@ -145,6 +149,11 @@ impl FilesystemRepository {
 /// Replaces a leading `~` component of a root with the given home directory.
 ///
 /// A root that does not start with a bare `~` returns unchanged.
+///
+/// # Errors
+///
+/// Returns a [`BackendError::UnreachableStorage`] if the root starts with `~` and `home` is
+/// `None`.
 fn expand_home(root: PathBuf, home: Option<PathBuf>) -> Result<PathBuf, BackendError> {
     let mut components = root.components();
     if components.next() != Some(Component::Normal(OsStr::new("~"))) {
@@ -168,9 +177,9 @@ fn expand_home(root: PathBuf, home: Option<PathBuf>) -> Result<PathBuf, BackendE
 
 /// Maps a filesystem failure onto the storage crate's backend error.
 ///
-/// The mapping follows what the caller can do about the failure. An absent or unreachable root is
-/// a storage problem. A refused request is a permission problem. Anything else is a failed
-/// operation.
+/// The mapping follows what the caller can do about the failure. A root that is absent, or that
+/// the filesystem cannot reach, is a storage problem. A denied permission is a permission problem.
+/// Anything else is a failed operation.
 ///
 /// A caller that treats an absent file as a result rather than a failure must check for
 /// [`io::ErrorKind::NotFound`] before it calls this function.
@@ -291,15 +300,36 @@ mod tests {
 
     #[test]
     fn should_open_the_store_in_the_home_directory_when_the_root_is_a_tilde() {
-        let expected_result = std::env::temp_dir();
+        let home = std::env::temp_dir();
+        let expected_result = home.clone();
 
-        let repository = FilesystemRepository::with_home_directory(
-            PathBuf::from("~"),
-            Some(std::env::temp_dir()),
-        )
-        .expect("Given an existing directory as the home directory, the store should always open");
+        let repository = FilesystemRepository::with_home_directory(PathBuf::from("~"), Some(home))
+            .expect(
+                "Given an existing directory as the home directory, the store should always open",
+            );
 
         assert_eq!(repository.root(), expected_result);
+    }
+
+    #[test]
+    fn should_expand_the_tilde_from_the_process_home_directory_when_opening_the_store() {
+        let expected_result =
+            FilesystemRepository::with_home_directory(PathBuf::from("~"), std::env::home_dir());
+
+        let result = FilesystemRepository::new("~");
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_fail_to_open_the_store_when_the_home_directory_expands_to_an_empty_root() {
+        let expected_result = BackendError::unreachable_storage("The root path is empty");
+
+        let result =
+            FilesystemRepository::with_home_directory(PathBuf::from("~"), Some(PathBuf::new()))
+                .expect_err("An empty root should never open as a store");
+
+        assert_eq!(result, expected_result);
     }
 
     #[test]
