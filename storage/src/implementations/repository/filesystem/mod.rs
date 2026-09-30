@@ -50,17 +50,17 @@ impl FilesystemRepository {
     /// does not prove that a write succeeds. A read-only root passes here and fails later.
     ///
     /// A leading `~` component stands for the current user's home directory, so `"~/arkad"` roots
-    /// the store at `arkad` inside it. The constructor expands only a bare `~`. A `~user` prefix
-    /// stays as written. The home directory must itself be absolute. After that expansion, the
-    /// root must be absolute, so the store does not move with the process's working directory.
+    /// the store at `arkad` inside it. The constructor expands only a bare `~`, and a `~user`
+    /// prefix stays as written. The home directory must itself be absolute, and so must the root
+    /// after that expansion, so the store does not move with the process's working directory.
     ///
     /// # Errors
     ///
     /// Returns a [`BackendError`] if the root cannot serve as a store:
-    /// - [`BackendError::UnreachableStorage`] if the root cannot be reached. Any of these makes it
-    ///   unreachable: the root is empty or not absolute, the root starts with a bare `~` while the
-    ///   home directory is unknown, empty, or not absolute, the root does not exist, the root is
-    ///   not a directory, or the filesystem holding the root did not answer.
+    /// - [`BackendError::UnreachableStorage`] if the root cannot be reached. Any one of the
+    ///   following is enough. The root is empty, or it is not absolute. The root starts with a
+    ///   bare `~` while the home directory is unknown, empty, or not absolute. The root does not
+    ///   exist, or it is not a directory. The filesystem holding the root did not answer.
     /// - [`BackendError::UnauthorizedAccess`] if the process cannot read the root.
     /// - [`BackendError::FailedOperation`] for any other failure while inspecting the root.
     ///
@@ -154,8 +154,8 @@ impl FilesystemRepository {
 /// # Errors
 ///
 /// Returns a [`BackendError::UnreachableStorage`] if the root starts with a bare `~` and `home`
-/// is `None`, empty, or not absolute. The reason says which of the root and the home directory is
-/// at fault, and it names the home directory when there is one to name.
+/// is `None`, empty, or not absolute. Every reason blames the home directory and quotes the root,
+/// so a caller can tell this failure from a root the caller wrote wrong.
 fn expand_home(root: PathBuf, home: Option<PathBuf>) -> Result<PathBuf, BackendError> {
     let mut components = root.components();
     if components.next() != Some(Component::Normal(OsStr::new("~"))) {
@@ -164,22 +164,22 @@ fn expand_home(root: PathBuf, home: Option<PathBuf>) -> Result<PathBuf, BackendE
 
     let home = home.ok_or_else(|| {
         BackendError::unreachable_storage(format!(
-            "The home directory is unknown, so the root {} cannot expand its leading ~",
+            "The home directory is unknown, so the leading ~ in the root {} stays unexpanded",
             root.display()
         ))
     })?;
 
     if home.as_os_str().is_empty() {
         return Err(BackendError::unreachable_storage(format!(
-            "The home directory is empty, so the root {} cannot expand its leading ~",
+            "The home directory is empty, so the leading ~ in the root {} stays unexpanded",
             root.display()
         )));
     }
 
     if !home.is_absolute() {
         return Err(BackendError::unreachable_storage(format!(
-            "The home directory {} is not an absolute path, so the root {} cannot expand its \
-             leading ~",
+            "The home directory {} is not an absolute path, so the leading ~ in the root {} stays \
+             unexpanded",
             home.display(),
             root.display()
         )));
@@ -351,6 +351,62 @@ mod tests {
     }
 
     #[test]
+    fn should_fail_to_open_the_store_when_the_root_is_relative() {
+        let expected_result =
+            BackendError::unreachable_storage("arkad/data is not an absolute path");
+
+        let result = FilesystemRepository::new("arkad/data")
+            .expect_err("A relative root should never open as a store");
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_fail_to_open_the_store_when_the_home_directory_is_unknown() {
+        let expected_result = BackendError::unreachable_storage(
+            "The home directory is unknown, so the leading ~ in the root ~/arkad stays unexpanded",
+        );
+
+        let result = FilesystemRepository::with_home_directory(PathBuf::from("~/arkad"), None)
+            .expect_err("A tilde root with no home directory should never open as a store");
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_fail_to_open_the_store_when_the_root_does_not_exist() {
+        let missing = std::env::temp_dir().join(format!(
+            "arkad-storage-filesystem-absent-root-{}",
+            std::process::id()
+        ));
+
+        let result = FilesystemRepository::new(missing)
+            .expect_err("A root that does not exist should never open as a store");
+
+        assert!(matches!(result, BackendError::UnreachableStorage { .. }));
+    }
+
+    #[test]
+    fn should_fail_to_open_the_store_when_the_root_is_a_file() {
+        let root = std::env::temp_dir().join(format!(
+            "arkad-storage-filesystem-root-is-a-file-{}",
+            std::process::id()
+        ));
+        std::fs::write(&root, b"").expect(
+            "Given the system temporary directory, writing an empty file should always succeed",
+        );
+        let expected_result =
+            BackendError::unreachable_storage(format!("{} is not a directory", root.display()));
+
+        let outcome = FilesystemRepository::new(&root);
+        std::fs::remove_file(&root)
+            .expect("Given a file this test just created, removing it should always succeed");
+        let result = outcome.expect_err("A root that is a file should never open as a store");
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
     fn should_join_the_home_directory_and_the_rest_when_the_root_starts_with_a_tilde() {
         let home = Path::new("/home/arkad-user");
         let expected_result = home.join("Projects").join("arkad");
@@ -387,7 +443,7 @@ mod tests {
     #[test]
     fn should_fail_to_expand_the_root_when_the_home_directory_is_unknown() {
         let expected_result = BackendError::unreachable_storage(
-            "The home directory is unknown, so the root ~/arkad cannot expand its leading ~",
+            "The home directory is unknown, so the leading ~ in the root ~/arkad stays unexpanded",
         );
 
         let result = expand_home(PathBuf::from("~/arkad"), None)
@@ -399,10 +455,10 @@ mod tests {
     #[test]
     fn should_fail_to_expand_the_root_when_the_home_directory_is_empty() {
         let expected_result = BackendError::unreachable_storage(
-            "The home directory is empty, so the root ~ cannot expand its leading ~",
+            "The home directory is empty, so the leading ~ in the root ~/arkad stays unexpanded",
         );
 
-        let result = expand_home(PathBuf::from("~"), Some(PathBuf::new()))
+        let result = expand_home(PathBuf::from("~/arkad"), Some(PathBuf::new()))
             .expect_err("A tilde root with an empty home directory should never expand");
 
         assert_eq!(result, expected_result);
@@ -411,11 +467,11 @@ mod tests {
     #[test]
     fn should_fail_to_expand_the_root_when_the_home_directory_is_relative() {
         let expected_result = BackendError::unreachable_storage(
-            "The home directory arkad-home is not an absolute path, so the root ~/data cannot \
-             expand its leading ~",
+            "The home directory arkad-home is not an absolute path, so the leading ~ in the root \
+             ~/arkad stays unexpanded",
         );
 
-        let result = expand_home(PathBuf::from("~/data"), Some(PathBuf::from("arkad-home")))
+        let result = expand_home(PathBuf::from("~/arkad"), Some(PathBuf::from("arkad-home")))
             .expect_err("A tilde root with a relative home directory should never expand");
 
         assert_eq!(result, expected_result);
@@ -434,50 +490,6 @@ mod tests {
             .join("CIK0000320193.json");
 
         let result = repository.document_path(&key);
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
-    fn should_fail_to_open_the_store_when_the_root_is_relative() {
-        let expected_result =
-            BackendError::unreachable_storage("arkad/data is not an absolute path");
-
-        let result = FilesystemRepository::new("arkad/data")
-            .expect_err("A relative root should never open as a store");
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
-    fn should_fail_to_open_the_store_when_the_root_does_not_exist() {
-        let missing = std::env::temp_dir().join(format!(
-            "arkad-storage-filesystem-absent-root-{}",
-            std::process::id()
-        ));
-
-        let result = FilesystemRepository::new(missing)
-            .expect_err("A root that does not exist should never open as a store");
-
-        assert!(matches!(result, BackendError::UnreachableStorage { .. }));
-    }
-
-    #[test]
-    fn should_fail_to_open_the_store_when_the_root_is_a_file() {
-        let root = std::env::temp_dir().join(format!(
-            "arkad-storage-filesystem-root-is-a-file-{}",
-            std::process::id()
-        ));
-        std::fs::write(&root, b"").expect(
-            "Given the system temporary directory, writing an empty file should always succeed",
-        );
-        let expected_result =
-            BackendError::unreachable_storage(format!("{} is not a directory", root.display()));
-
-        let outcome = FilesystemRepository::new(&root);
-        std::fs::remove_file(&root)
-            .expect("Given a file this test just created, removing it should always succeed");
-        let result = outcome.expect_err("A root that is a file should never open as a store");
 
         assert_eq!(result, expected_result);
     }
