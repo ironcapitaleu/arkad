@@ -53,18 +53,21 @@ impl DocumentKey {
     /// # Errors
     ///
     /// Returns an [`InvalidDocumentKey`] if the path:
+    /// - starts with a Windows prefix such as `C:`, on a platform that reads one
+    ///   ([`InvalidDocumentKey::ContainsPrefixComponent`]). On Linux and macOS, `"C:x.json"` is a
+    ///   single ordinary file name and builds a key.
+    /// - starts at a root directory ([`InvalidDocumentKey::ContainsRootComponent`]). A leading `\`
+    ///   counts only on Windows. On Linux and macOS, `"\data\x.json"` is a single ordinary file
+    ///   name and builds a key.
+    /// - holds a `..` component ([`InvalidDocumentKey::ContainsParentComponent`]). Construction
+    ///   reads `..` with the separator rules of its platform. On Linux and macOS,
+    ///   `"sec\..\x.json"` is a single ordinary file name and builds a key.
     /// - names no file below the root ([`InvalidDocumentKey::EmptyPath`]). A path made only of `.`
     ///   components, such as `"."` or `"./"`, names the root itself.
-    /// - starts with a Windows prefix such as `C:`, on a platform that reads one
-    ///   ([`InvalidDocumentKey::ContainsPrefixComponent`]). On Linux and macOS, `"C:x.json"` is an
-    ///   ordinary file name and builds a key.
-    /// - starts at a root directory ([`InvalidDocumentKey::ContainsRootComponent`]). A leading `\`
-    ///   counts only on Windows. On Linux and macOS, `"\data\x.json"` is an ordinary file name and
-    ///   builds a key. A path carrying both a prefix and a root directory, such as `C:\data`,
-    ///   reports the prefix instead, because the prefix comes first.
-    /// - holds a `..` component ([`InvalidDocumentKey::ContainsParentComponent`]), with the
-    ///   separator rules of the platform it runs on. On Linux and macOS, `"sec\..\x.json"` is one
-    ///   ordinary file name and builds a key.
+    ///
+    /// A path that breaks more than one of these reports the first offending component, so
+    /// `"C:\data"` reports the prefix and `"/sec/../x.json"` reports the root. A path that breaks
+    /// none of them and still names no file reports [`InvalidDocumentKey::EmptyPath`].
     ///
     /// # Examples
     ///
@@ -282,6 +285,16 @@ mod tests {
         let result = DocumentKey::new(r"\\server\share\x.json").expect_err(
             "A path resolving against a network share should never build a document key",
         );
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_reject_a_root_component_when_the_path_also_holds_a_parent_component() {
+        let expected_result = InvalidDocumentKey::contains_root_component("/sec/../x.json");
+
+        let result = DocumentKey::new("/sec/../x.json")
+            .expect_err("A path starting at a root directory should never build a document key");
 
         assert_eq!(result, expected_result);
     }
