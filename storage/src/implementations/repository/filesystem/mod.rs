@@ -34,7 +34,7 @@ pub use raw_document::RawDocument;
 /// Stores documents as files beneath one root directory.
 ///
 /// A [`DocumentKey`] is a document's path under the root. A document lives at the root joined with
-/// its key, so a root of `/data/arkad` and a key of `sec/CIK0000320193.json` name
+/// its key, so a Unix root of `/data/arkad` and a key of `sec/CIK0000320193.json` name
 /// `/data/arkad/sec/CIK0000320193.json`. The join uses the separator of the platform the store runs
 /// on. [`FilesystemRepository::document_path`] performs that join.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -58,7 +58,7 @@ impl FilesystemRepository {
     /// Without one, the constructor fails at startup rather than guessing. The root must be
     /// absolute after any expansion, so the store does not move with the process's working
     /// directory. What counts as absolute follows the platform. A Windows root needs a path
-    /// prefix, such as a drive or a share. `"/data/arkad"` carries none, so it is absolute on
+    /// prefix, such as a drive or a share. `"/data/arkad"` carries no prefix, so it is absolute on
     /// Linux and macOS but not on Windows.
     ///
     /// # Errors
@@ -130,7 +130,7 @@ impl FilesystemRepository {
         &self.root
     }
 
-    /// Returns the path on disk of the document a key names: the root joined with the key.
+    /// Returns the path on disk of the document a key names.
     ///
     /// # Examples
     ///
@@ -487,7 +487,7 @@ mod tests {
     }
 
     #[test]
-    fn should_keep_the_root_unchanged_when_the_path_starts_with_no_tilde() {
+    fn should_keep_the_root_unchanged_when_it_starts_with_no_tilde() {
         let expected_result = PathBuf::from("/data/arkad");
 
         let result = expand_home(expected_result.clone(), None).expect(
