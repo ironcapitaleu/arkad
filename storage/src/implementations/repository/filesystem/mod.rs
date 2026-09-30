@@ -57,8 +57,9 @@ impl FilesystemRepository {
     /// A root that starts with a bare `~` needs a home directory that is known and absolute.
     /// Without one, the constructor fails at startup rather than guessing. The root must be
     /// absolute after any expansion, so the store does not move with the process's working
-    /// directory. What counts as absolute follows the platform. A Windows root needs a drive or a
-    /// share, so `"/data/arkad"` is absolute on Linux and macOS but not on Windows.
+    /// directory. What counts as absolute follows the platform. A Windows root needs a path
+    /// prefix, such as a drive or a share, so `"/data/arkad"` is absolute on Linux and macOS but
+    /// not on Windows.
     ///
     /// # Errors
     ///
@@ -236,11 +237,11 @@ mod tests {
     use crate::traits::repository::ReadWriteRepository;
 
     /// An absolute home directory on the platform the tests run on.
-    #[cfg(windows)]
-    const ABSOLUTE_HOME: &str = r"C:\Users\arkad-user";
-    /// An absolute home directory on the platform the tests run on.
-    #[cfg(not(windows))]
-    const ABSOLUTE_HOME: &str = "/home/arkad-user";
+    const ABSOLUTE_HOME: &str = if cfg!(windows) {
+        r"C:\Users\arkad-user"
+    } else {
+        "/home/arkad-user"
+    };
 
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
     #[test]
@@ -477,10 +478,10 @@ mod tests {
     fn should_keep_the_root_unchanged_when_it_names_another_user() {
         let expected_result = PathBuf::from("~other/arkad");
 
-        let result = expand_home(expected_result.clone(), Some(PathBuf::from(ABSOLUTE_HOME)))
-            .expect(
-                "Given a root whose tilde names another user, the expansion should always succeed",
-            );
+        let result = expand_home(expected_result.clone(), None).expect(
+            "Given a root whose tilde names another user, the expansion should succeed without a \
+             home directory",
+        );
 
         assert_eq!(result, expected_result);
     }
@@ -504,7 +505,7 @@ mod tests {
         let result = expand_home(expected_result.clone(), Some(PathBuf::from(ABSOLUTE_HOME)))
             .expect(
                 "Outside Windows a backslash is an ordinary character, so the root should stay \
-             unchanged",
+                 unchanged",
             );
 
         assert_eq!(result, expected_result);
