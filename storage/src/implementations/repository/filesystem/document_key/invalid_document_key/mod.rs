@@ -8,7 +8,7 @@ use thiserror::Error;
 
 /// Error occurring while building a document key.
 ///
-/// Separates the different kinds of rejected path so a caller can tell them apart.
+/// Names the kinds of rejected path a caller can act on.
 #[non_exhaustive]
 #[derive(Debug, Error, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum InvalidDocumentKey {
@@ -16,7 +16,8 @@ pub enum InvalidDocumentKey {
     #[error("[EmptyPath] Document key names no file below the store's root")]
     EmptyPath,
 
-    /// The path starts at a root directory, such as `/etc` on Unix or `\etc` on Windows.
+    /// The path starts at a root directory. A leading `/` counts on every platform, and a leading
+    /// `\` counts only on Windows.
     #[error(
         "[ContainsRootComponent] Document key '{}' starts at a root directory",
         .path.display()

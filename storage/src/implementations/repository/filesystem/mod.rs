@@ -7,7 +7,7 @@
 //!
 //! [`ReadRepository`](crate::ReadRepository) and [`WriteRepository`](crate::WriteRepository) each
 //! leave their associated types to the implementor. This adapter pins `Record` to [`RawDocument`]
-//! and `Key` to [`DocumentKey`].
+//! in both, and [`ReadRepository`](crate::ReadRepository)'s `Key` to [`DocumentKey`].
 //!
 //! ## Modules
 //!
@@ -34,7 +34,7 @@ pub use raw_document::RawDocument;
 /// Stores documents as files beneath one root directory.
 ///
 /// A [`DocumentKey`] is a document's path under the root. A document lives at the root joined with
-/// its key, so a Unix root of `/data/arkad` and a key of `sec/CIK0000320193.json` name
+/// its key. On Linux and macOS, a root of `/data/arkad` and a key of `sec/CIK0000320193.json` name
 /// `/data/arkad/sec/CIK0000320193.json`. The join uses the separator of the platform the store runs
 /// on. [`FilesystemRepository::document_path`] performs that join.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
