@@ -12,23 +12,8 @@
 //! ## Modules
 //!
 //! - [`document_key`]: The [`DocumentKey`] naming one document, and the error for a rejected path.
-//! - [`document_metadata`]: The [`DocumentMetadata`] stored beside a document.
+//! - [`document_metadata`]: The [`DocumentMetadata`] describing the fetch behind a document.
 //! - [`raw_document`]: The [`RawDocument`] a read returns and a write accepts.
-//!
-//! ## Usage
-//!
-//! ```rust
-//! use storage::implementations::repository::filesystem::FilesystemRepository;
-//!
-//! let repository = FilesystemRepository::new(std::env::temp_dir())
-//!     .expect("Given the system temporary directory, the root check should always succeed");
-//!
-//! let expected_result = std::env::temp_dir();
-//!
-//! let result = repository.root();
-//!
-//! assert_eq!(result, expected_result);
-//! ```
 
 use std::ffi::OsStr;
 use std::io;
@@ -48,11 +33,10 @@ pub use raw_document::RawDocument;
 
 /// Stores documents as files beneath one root directory.
 ///
-/// The root plays the part a table plays in a database, and a [`DocumentKey`] is the path under it.
-/// A document lives at the root joined with its key, so a root of `/data/arkad` and a key of
-/// `sec/CIK0000320193.json` name `/data/arkad/sec/CIK0000320193.json`. The join uses the
-/// separator of the platform the store runs on. [`FilesystemRepository::document_path`] performs
-/// that join.
+/// A [`DocumentKey`] is a document's path under the root. A document lives at the root joined with
+/// its key, so a root of `/data/arkad` and a key of `sec/CIK0000320193.json` name
+/// `/data/arkad/sec/CIK0000320193.json`. The join uses the separator of the platform the store runs
+/// on. [`FilesystemRepository::document_path`] performs that join.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct FilesystemRepository {
     root: PathBuf,
@@ -73,8 +57,9 @@ impl FilesystemRepository {
     /// # Errors
     ///
     /// Returns a [`BackendError`] if the root cannot serve as a store:
-    /// - [`BackendError::UnreachableStorage`] if the root starts with `~` and the home directory is
-    ///   unknown, or if the root is not absolute, does not exist, or exists but is not a directory.
+    /// - [`BackendError::UnreachableStorage`] if the root cannot be reached. The root is empty,
+    ///   starts with `~` while the home directory is unknown, or is not absolute. Or it does not
+    ///   exist, is not a directory, or sits on a filesystem that did not answer.
     /// - [`BackendError::UnauthorizedAccess`] if the process cannot read the root.
     /// - [`BackendError::FailedOperation`] for any other failure while inspecting the root.
     ///
@@ -93,7 +78,20 @@ impl FilesystemRepository {
     /// assert_eq!(result, expected_result);
     /// ```
     pub fn new(root: impl Into<PathBuf>) -> Result<Self, BackendError> {
-        let root = expand_home(root.into(), std::env::home_dir())?;
+        Self::with_home_directory(root.into(), std::env::home_dir())
+    }
+
+    /// Creates a new [`FilesystemRepository`], expanding a leading `~` to the given home
+    /// directory.
+    ///
+    /// [`FilesystemRepository::new`] passes the process's home directory. A test passes its own, so
+    /// the result does not depend on the machine.
+    fn with_home_directory(root: PathBuf, home: Option<PathBuf>) -> Result<Self, BackendError> {
+        if root.as_os_str().is_empty() {
+            return Err(BackendError::unreachable_storage("The root path is empty"));
+        }
+
+        let root = expand_home(root, home)?;
 
         if !root.is_absolute() {
             return Err(BackendError::unreachable_storage(format!(
@@ -195,8 +193,9 @@ mod tests {
     use std::fmt::Debug;
     use std::hash::Hash;
 
-    use crate::traits::repository::ReadWriteRepository;
     use pretty_assertions::assert_eq;
+
+    use crate::traits::repository::ReadWriteRepository;
 
     use super::*;
 
@@ -292,12 +291,25 @@ mod tests {
 
     #[test]
     fn should_open_the_store_in_the_home_directory_when_the_root_is_a_tilde() {
-        let expected_result = std::env::home_dir();
+        let expected_result = std::env::temp_dir();
 
-        let repository = FilesystemRepository::new("~")
-            .expect("Given a user with a home directory, opening the store there should succeed");
+        let repository = FilesystemRepository::with_home_directory(
+            PathBuf::from("~"),
+            Some(std::env::temp_dir()),
+        )
+        .expect("Given an existing directory as the home directory, the store should always open");
 
-        assert_eq!(Some(repository.root().to_path_buf()), expected_result);
+        assert_eq!(repository.root(), expected_result);
+    }
+
+    #[test]
+    fn should_fail_to_open_the_store_when_the_root_is_empty() {
+        let expected_result = BackendError::unreachable_storage("The root path is empty");
+
+        let result =
+            FilesystemRepository::new("").expect_err("An empty root should never open as a store");
+
+        assert_eq!(result, expected_result);
     }
 
     #[test]
@@ -420,6 +432,16 @@ mod tests {
     #[test]
     fn should_map_a_not_found_failure_to_unreachable_storage() {
         let error = io::Error::from(io::ErrorKind::NotFound);
+        let expected_result = BackendError::unreachable_storage(error.to_string());
+
+        let result = to_backend_error(&error);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_map_a_connection_refused_failure_to_unreachable_storage() {
+        let error = io::Error::from(io::ErrorKind::ConnectionRefused);
         let expected_result = BackendError::unreachable_storage(error.to_string());
 
         let result = to_backend_error(&error);

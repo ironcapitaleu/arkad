@@ -6,11 +6,11 @@ use std::path::PathBuf;
 
 use thiserror::Error;
 
-#[non_exhaustive]
-#[derive(Debug, Error, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 /// Error occurring while building a document key.
 ///
 /// Separates the different kinds of rejected path so a caller can tell them apart.
+#[non_exhaustive]
+#[derive(Debug, Error, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum InvalidDocumentKey {
     /// The path names no file below the store's root.
     #[error("[EmptyPath] Document key names no file below the store's root")]

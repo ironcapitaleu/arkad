@@ -5,7 +5,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-/// Describes the fetch that produced one stored document, in its own JSON file beside it.
+/// Describes the fetch that produced one stored document.
 ///
 /// Every field records something only the fetch knows, so none of it is recoverable from the
 /// document afterwards. The source API sends no `ETag` and no `Last-Modified`, which leaves
@@ -45,7 +45,7 @@ use serde::{Deserialize, Serialize};
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct DocumentMetadata {
-    /// Version of this metadata format, so a later change stays readable.
+    /// Version of this metadata format.
     pub metadata_version: u32,
     /// The URL the document was fetched from.
     pub url: String,
