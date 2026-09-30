@@ -1,8 +1,8 @@
 //! # Storage
 //!
 //! Provides the arkad workspace's persistence layer. Code reads and writes domain records through
-//! the backend-agnostic traits, which return the [`error`] types. The concrete backends implement
-//! those traits.
+//! the backend-agnostic traits, whose methods return the [`error`] types. The concrete backends
+//! implement those traits.
 //!
 //! [`ReadRepository`] reads a record by key. [`WriteRepository`] persists a record.
 //! [`ReadWriteRepository`] names a store that does both. A component depends on the trait for the
