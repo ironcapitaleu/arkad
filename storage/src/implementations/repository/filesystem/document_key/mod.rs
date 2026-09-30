@@ -56,9 +56,9 @@ impl DocumentKey {
     /// - starts with a Windows prefix such as `C:`, on a platform that reads one
     ///   ([`InvalidDocumentKey::ContainsPrefixComponent`]). On Linux and macOS, `"C:x.json"` is a
     ///   single ordinary file name and builds a key.
-    /// - starts at a root directory ([`InvalidDocumentKey::ContainsRootComponent`]). A leading `\`
-    ///   counts only on Windows. On Linux and macOS, `"\data\x.json"` is a single ordinary file
-    ///   name and builds a key.
+    /// - starts at a root directory ([`InvalidDocumentKey::ContainsRootComponent`]). A leading `/`
+    ///   names a root on every platform, and a leading `\` names one only on Windows. On Linux and
+    ///   macOS, `"\data\x.json"` is a single ordinary file name and builds a key.
     /// - holds a `..` component ([`InvalidDocumentKey::ContainsParentComponent`]). Construction
     ///   reads `..` with the separator rules of its platform. On Linux and macOS,
     ///   `"sec\..\x.json"` is a single ordinary file name and builds a key.

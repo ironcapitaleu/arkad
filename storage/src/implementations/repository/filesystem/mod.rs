@@ -7,11 +7,12 @@
 //!
 //! [`ReadRepository`](crate::ReadRepository) and [`WriteRepository`](crate::WriteRepository) each
 //! leave their associated types to the implementor. This adapter pins `Record` to [`RawDocument`]
-//! in both, and [`ReadRepository`](crate::ReadRepository)'s `Key` to [`DocumentKey`].
+//! in both, and `ReadRepository`'s `Key` to [`DocumentKey`].
 //!
 //! ## Modules
 //!
-//! - [`document_key`]: The [`DocumentKey`] naming one document, and the error for a rejected path.
+//! - [`document_key`]: The [`DocumentKey`] naming one document, and the [`InvalidDocumentKey`] for
+//!   a rejected path.
 //! - [`document_metadata`]: The [`DocumentMetadata`] describing the fetch behind a document.
 //! - [`raw_document`]: The [`RawDocument`] a read returns and a write accepts.
 
@@ -35,8 +36,9 @@ pub use raw_document::RawDocument;
 ///
 /// A [`DocumentKey`] is a document's path under the root. A document lives at the root joined with
 /// its key. On Linux and macOS, a root of `/data/arkad` and a key of `sec/CIK0000320193.json` name
-/// `/data/arkad/sec/CIK0000320193.json`. The join uses the separator of the platform the store runs
-/// on. [`FilesystemRepository::document_path`] performs that join.
+/// `/data/arkad/sec/CIK0000320193.json`. On Windows, a root of `C:\data\arkad` and the same key
+/// name `C:\data\arkad\sec\CIK0000320193.json`. The join uses the separator of the platform the
+/// store runs on. [`FilesystemRepository::document_path`] performs that join.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct FilesystemRepository {
     root: PathBuf,
