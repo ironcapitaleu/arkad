@@ -303,7 +303,7 @@ mod tests {
     }
 
     #[test]
-    fn should_reject_a_parent_component_when_the_path_names_the_parent_of_the_root() {
+    fn should_reject_a_parent_component_when_the_path_holds_nothing_else() {
         let expected_result = InvalidDocumentKey::contains_parent_component("./..");
 
         let result = DocumentKey::new("./..")
