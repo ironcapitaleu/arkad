@@ -227,9 +227,8 @@ mod tests {
 
     use pretty_assertions::assert_eq;
 
-    use crate::traits::repository::ReadWriteRepository;
-
     use super::*;
+    use crate::traits::repository::ReadWriteRepository;
 
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
     #[test]
@@ -455,7 +454,7 @@ mod tests {
             expected_result.clone(),
             Some(PathBuf::from("/home/arkad-user")),
         )
-        .expect("Given a root with no bare tilde, the expansion should always succeed");
+        .expect("Given a root whose tilde names another user, the expansion should always succeed");
 
         assert_eq!(result, expected_result);
     }
@@ -464,8 +463,9 @@ mod tests {
     fn should_keep_the_root_unchanged_when_it_starts_with_no_tilde_and_the_home_is_unknown() {
         let expected_result = PathBuf::from("/data/arkad");
 
-        let result = expand_home(expected_result.clone(), None)
-            .expect("Given a root with no bare tilde, the expansion should always succeed");
+        let result = expand_home(expected_result.clone(), None).expect(
+            "Given a root with no tilde, the expansion should succeed without a home directory",
+        );
 
         assert_eq!(result, expected_result);
     }
