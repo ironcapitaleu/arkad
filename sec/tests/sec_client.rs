@@ -182,16 +182,9 @@ async fn should_return_expected_facts_keys_when_retrieving_berkshire_company_fac
     let client = sec_client();
     let cik = Cik::new("1067983").expect("A hardcoded CIK should always be valid");
     let request = SecRequest::builder().all_company_facts().cik(cik).build();
-    let fixture: Value = serde_json::from_str(BERKSHIRE_FIXTURE)
-        .expect("The Berkshire Hathaway fixture should always be valid JSON");
-    let fixture_keys: Vec<&str> = fixture["facts"]
-        .as_object()
-        .expect("The fixture 'facts' field should be a JSON object")
-        .keys()
-        .map(String::as_str)
-        .collect();
-
-    let expected_result = fixture_keys;
+    // The live response gains taxonomies over time (e.g. `rxp`), so the
+    // expected keys are pinned here instead of read from the fixture snapshot.
+    let expected_result = vec!["dei", "ffd", "rxp", "us-gaap"];
 
     let body = client
         .execute_sec_request(request)
