@@ -1,5 +1,5 @@
 /// Raw JSON fixture for CIK0001067983 (Berkshire Hathaway) company facts.
-/// Retrieved from SEC API on 03.03.2026.
+/// Retrieved from SEC API on 01.10.2026.
 pub const CIK0001067983: &str = include_str!("CIK0001067983.json");
 
 #[cfg(test)]
