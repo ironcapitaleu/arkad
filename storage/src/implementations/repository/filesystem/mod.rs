@@ -46,6 +46,11 @@ const METADATA_SUFFIX: &str = ".meta.json";
 /// with `.meta.json` appended, so `sec/CIK0000320193.json` keeps its metadata in
 /// `sec/CIK0000320193.json.meta.json`. A key that ends in `.meta.json` names the metadata file of
 /// another key, so one store must not hold both keys.
+///
+/// A write replaces each file through a temporary file in the same directory and a rename. A reader
+/// sees the old file or the new file, never a partial one. The store renames the metadata first
+/// and the document second, so a document on disk always has its metadata. Between the two
+/// renames, a reader can see new metadata beside the old document.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct FilesystemRepository {
     root: PathBuf,
