@@ -1,7 +1,8 @@
 //! # Repository Implementations
 //!
-//! Provides the backends that implement [`ReadRepository`](crate::ReadRepository) and
-//! [`WriteRepository`](crate::WriteRepository).
+//! Provides the backends that implement [`ReadRepository`](crate::ReadRepository),
+//! [`WriteRepository`](crate::WriteRepository), or both. A backend that implements both is also a
+//! [`ReadWriteRepository`](crate::ReadWriteRepository).
 //!
 //! ## Modules
 //!
