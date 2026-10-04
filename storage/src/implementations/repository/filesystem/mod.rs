@@ -123,7 +123,7 @@ impl FilesystemRepository {
     /// # Errors
     ///
     /// Returns a [`BackendError::UnreachableStorage`] if the root is missing, is not a directory,
-    /// or has a file in its own path. Any other failure to inspect the root maps as
+    /// or has a file in its path. Any other failure to inspect the root maps as
     /// [`backend_error`] describes.
     async fn ensure_root_is_reachable(&self) -> Result<(), BackendError> {
         match tokio::fs::metadata(&self.root).await {
