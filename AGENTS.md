@@ -398,9 +398,9 @@ A review does not interrupt to ask. It never calls `AskUserQuestion` and never w
 answer: when a skill below opens with a questionnaire, read the skill for its rules and take the
 diff as the scope. An uncertain finding still goes in the list, with the uncertainty stated.
 
-On a pull request the review job restores `CLAUDE.md` and `.claude/` from the base branch and
-parks the PR's copies in `.claude-pr/`. Apply the rules from the copy each pass below links. When
-the PR changes one of those files, review the version in `.claude-pr/`.
+On a pull request the review job restores `.claude/` from the base branch and parks
+the PR's copy in `.claude-pr/`. Apply the rules from the copy each pass below links. When
+the PR changes a file there, review the version in `.claude-pr/`.
 
 ### Review Passes
 
