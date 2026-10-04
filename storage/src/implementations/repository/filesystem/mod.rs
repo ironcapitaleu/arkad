@@ -46,9 +46,11 @@ pub struct FilesystemRepository {
 impl FilesystemRepository {
     /// Creates a new [`FilesystemRepository`] rooted at the given directory.
     ///
-    /// The constructor opens nothing and holds nothing beyond the path. The check reads the root
-    /// once, so it catches a misconfigured path at startup rather than on the first operation. It
-    /// does not prove that a write succeeds. A read-only root passes here and fails later.
+    /// The constructor opens nothing and holds nothing beyond the path. It looks the root up once,
+    /// so a misconfigured path fails at startup rather than on the first operation. It checks only
+    /// that the root exists and is a directory. It checks no read or write access, because
+    /// permissions can differ for each document under the root. Each operation reports a denied
+    /// permission for the document it touches.
     ///
     /// The root must be absolute, so the store does not move with the process's working directory.
     /// What counts as absolute follows the platform. A Windows root needs a path prefix, such as a
@@ -61,9 +63,7 @@ impl FilesystemRepository {
     /// - [`BackendError::UnreachableStorage`] if the root cannot be reached. Any one of the
     ///   following is enough. The root is empty, or it is not absolute. The root does not exist, or
     ///   it is not a directory. The filesystem holding the root did not answer.
-    /// - [`BackendError::UnauthorizedAccess`] if the process cannot read the root. The constructor
-    ///   does not check write access, because only a write can prove it, and the constructor
-    ///   writes nothing. A read-only root passes here and fails at the first write.
+    /// - [`BackendError::UnauthorizedAccess`] if a directory above the root denies the lookup.
     /// - [`BackendError::FailedOperation`] for any other failure while inspecting the root.
     ///
     /// # Examples
