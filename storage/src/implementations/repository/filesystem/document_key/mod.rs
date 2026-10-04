@@ -33,11 +33,9 @@ pub use invalid_document_key::InvalidDocumentKey;
 ///
 /// The path is the primary key, so it is also the document's location on disk. Construction
 /// drops every `.` component and every repeated separator. It rebuilds the path with the
-/// separator of its platform, so `"sec/x.json"` holds a `\` on Windows. It keeps a `~` as an
-/// ordinary component, wherever the `~` sits, so `"~/cache/x.json"` names a `~` directory under
-/// the root. It does not fold letter case, Unicode form, or the trailing dots and spaces that
-/// Windows strips. On a filesystem that ignores those differences, two unequal keys can point to
-/// one file.
+/// separator of its platform, so `"sec/x.json"` holds a `\` on Windows. It does not fold letter
+/// case, Unicode form, or the trailing dots and spaces that Windows strips. On a filesystem that
+/// ignores those differences, two unequal keys can point to one file.
 ///
 /// Construction also rejects a path that starts at a root directory, and a path that starts with a
 /// Windows prefix such as `C:`. It rejects every `..` component, wherever the `..` sits, including
@@ -333,26 +331,6 @@ mod tests {
             .expect_err("A path holding a parent component should never build a document key");
 
         assert_eq!(result, expected_result);
-    }
-
-    #[test]
-    fn should_keep_a_tilde_when_it_is_the_first_component_of_a_key() {
-        let expected_result = Path::new("~/cache/x.json");
-
-        let key = DocumentKey::new("~/cache/x.json")
-            .expect("A tilde is an ordinary component, so the key should always build");
-
-        assert_eq!(key.as_path(), expected_result);
-    }
-
-    #[test]
-    fn should_keep_a_tilde_when_it_sits_inside_a_key() {
-        let expected_result = Path::new("cache/~/x.json");
-
-        let key = DocumentKey::new("cache/~/x.json")
-            .expect("A tilde is an ordinary component, so the key should always build");
-
-        assert_eq!(key.as_path(), expected_result);
     }
 
     #[test]

@@ -16,9 +16,8 @@
 //! - [`document_metadata`]: The [`DocumentMetadata`] describing the fetch behind a document.
 //! - [`raw_document`]: The [`RawDocument`] a read returns and a write accepts.
 
-use std::ffi::OsStr;
 use std::io;
-use std::path::{Component, Path, PathBuf};
+use std::path::{Path, PathBuf};
 
 use crate::error::BackendError;
 
@@ -51,25 +50,17 @@ impl FilesystemRepository {
     /// once, so it catches a misconfigured path at startup rather than on the first operation. It
     /// does not prove that a write succeeds. A read-only root passes here and fails later.
     ///
-    /// A leading `~` component stands for the current user's home directory, so `"~/arkad"` roots
-    /// the store at `arkad` inside it. The constructor expands only a bare `~`. A `~user` prefix
-    /// stays as written. The constructor reads the root's components with the separator rules of
-    /// its platform, so `"~\arkad"` expands only on Windows.
-    ///
-    /// A root that starts with a bare `~` needs a home directory that is known and absolute.
-    /// Without one, the constructor fails at startup rather than guessing. The root must be
-    /// absolute after any expansion, so the store does not move with the process's working
-    /// directory. What counts as absolute follows the platform. A Windows root needs a path
-    /// prefix, such as a drive or a share. `"/data/arkad"` carries no prefix, so it is absolute on
-    /// Linux and macOS but not on Windows.
+    /// The root must be absolute, so the store does not move with the process's working directory.
+    /// What counts as absolute follows the platform. A Windows root needs a path prefix, such as a
+    /// drive or a share. `"/data/arkad"` carries no prefix, so it is absolute on Linux and macOS
+    /// but not on Windows.
     ///
     /// # Errors
     ///
     /// Returns a [`BackendError`] if the root cannot serve as a store:
     /// - [`BackendError::UnreachableStorage`] if the root cannot be reached. Any one of the
-    ///   following is enough. The root is empty, or it is not absolute. The root starts with a
-    ///   bare `~` while the home directory is unknown, empty, or not absolute. The root does not
-    ///   exist, or it is not a directory. The filesystem holding the root did not answer.
+    ///   following is enough. The root is empty, or it is not absolute. The root does not exist, or
+    ///   it is not a directory. The filesystem holding the root did not answer.
     /// - [`BackendError::UnauthorizedAccess`] if the process cannot read the root. The constructor
     ///   does not check write access, because only a write can prove it, and the constructor
     ///   writes nothing. A read-only root passes here and fails at the first write.
@@ -90,27 +81,11 @@ impl FilesystemRepository {
     /// assert_eq!(result, expected_result);
     /// ```
     pub fn new(root: impl Into<PathBuf>) -> Result<Self, BackendError> {
-        Self::with_home_directory(root.into(), std::env::home_dir())
-    }
+        let root = root.into();
 
-    /// Creates a new [`FilesystemRepository`], replacing a leading `~` in the root with the given
-    /// home directory.
-    ///
-    /// [`FilesystemRepository::new`] passes the process's home directory. A test passes its own, so
-    /// the result does not depend on the machine.
-    ///
-    /// # Errors
-    ///
-    /// Returns the same [`BackendError`] values [`FilesystemRepository::new`] lists.
-    fn with_home_directory(
-        root: PathBuf,
-        home_directory: Option<PathBuf>,
-    ) -> Result<Self, BackendError> {
         if root.as_os_str().is_empty() {
             return Err(BackendError::unreachable_storage("The root path is empty"));
         }
-
-        let root = replace_leading_tilde(root, home_directory)?;
 
         if !root.is_absolute() {
             return Err(BackendError::unreachable_storage(format!(
@@ -161,64 +136,6 @@ impl FilesystemRepository {
     }
 }
 
-/// Replaces the `~` at the start of the store's root path with the user's home directory.
-///
-/// `~` is the shell's shorthand for the home directory. With a home directory of `/home/alice`,
-/// the root path `~/arkad` becomes `/home/alice/arkad`, and `~` alone becomes `/home/alice`. A root
-/// path that does not start with a bare `~` returns unchanged, such as `/data/arkad` or
-/// `~other/arkad`.
-///
-/// The function reads the root path's components with the separator rules of the platform, so a
-/// `\` separates them only on Windows.
-///
-/// # Errors
-///
-/// Returns a [`BackendError::UnreachableStorage`] if the root path starts with a bare `~` and
-/// `home_directory` is `None`, empty, or not absolute. Every reason blames the home directory and
-/// names the root path, so a caller can tell this failure from a root path the caller wrote wrong.
-fn replace_leading_tilde(
-    root_path: PathBuf,
-    home_directory: Option<PathBuf>,
-) -> Result<PathBuf, BackendError> {
-    let mut components = root_path.components();
-    if components.next() != Some(Component::Normal(OsStr::new("~"))) {
-        return Ok(root_path);
-    }
-
-    let home_directory = home_directory.ok_or_else(|| {
-        BackendError::unreachable_storage(format!(
-            "The home directory is unknown, so the constructor cannot expand the leading ~ in the \
-             root {}",
-            root_path.display()
-        ))
-    })?;
-
-    if home_directory.as_os_str().is_empty() {
-        return Err(BackendError::unreachable_storage(format!(
-            "The home directory is empty, so the constructor cannot expand the leading ~ in the \
-             root {}",
-            root_path.display()
-        )));
-    }
-
-    if !home_directory.is_absolute() {
-        return Err(BackendError::unreachable_storage(format!(
-            "The home directory {} is not an absolute path, so the constructor cannot expand the \
-             leading ~ in the root {}",
-            home_directory.display(),
-            root_path.display()
-        )));
-    }
-
-    let rest_of_path = components.as_path();
-
-    if rest_of_path.as_os_str().is_empty() {
-        Ok(home_directory)
-    } else {
-        Ok(home_directory.join(rest_of_path))
-    }
-}
-
 /// Maps a filesystem failure onto the storage crate's backend error.
 ///
 /// The mapping follows what the caller can do about the failure. A path that is absent, or that
@@ -250,13 +167,6 @@ mod tests {
 
     use super::*;
     use crate::traits::repository::ReadWriteRepository;
-
-    /// An absolute home directory on the platform the tests run on.
-    const ABSOLUTE_HOME: &str = if cfg!(windows) {
-        r"C:\Users\arkad-user"
-    } else {
-        "/home/arkad-user"
-    };
 
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
     #[test]
@@ -352,36 +262,6 @@ mod tests {
     }
 
     #[test]
-    fn should_open_the_store_in_the_home_directory_when_the_root_is_a_tilde() {
-        let root = PathBuf::from("~");
-        let home_directory = std::env::temp_dir();
-
-        let expected_result = std::env::temp_dir();
-
-        let repository = FilesystemRepository::with_home_directory(root, Some(home_directory))
-            .expect(
-                "Given an existing directory as the home directory, the store should always open",
-            );
-        let result = repository.root();
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
-    fn should_expand_the_tilde_from_the_process_home_directory_when_opening_the_store() {
-        let root = "~";
-
-        // The machine's home directory decides the outcome, so `new` must behave exactly like
-        // `with_home_directory` given that same home directory.
-        let expected_result =
-            FilesystemRepository::with_home_directory(PathBuf::from(root), std::env::home_dir());
-
-        let result = FilesystemRepository::new(root);
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
     fn should_fail_to_open_the_store_when_the_root_is_empty() {
         let root = "";
 
@@ -402,22 +282,6 @@ mod tests {
 
         let result = FilesystemRepository::new(root)
             .expect_err("A relative root should never open as a store");
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
-    fn should_fail_to_open_the_store_when_the_home_directory_is_unknown() {
-        let root = PathBuf::from("~/arkad");
-        let home_directory = None;
-
-        let expected_result = BackendError::unreachable_storage(
-            "The home directory is unknown, so the constructor cannot expand the leading ~ in the \
-             root ~/arkad",
-        );
-
-        let result = FilesystemRepository::with_home_directory(root, home_directory)
-            .expect_err("A tilde root with no home directory should never open as a store");
 
         assert_eq!(result, expected_result);
     }
@@ -489,124 +353,6 @@ mod tests {
             .join("CIK0000320193.json");
 
         let result = repository.document_path(&key);
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
-    fn should_join_the_home_directory_and_the_rest_when_the_root_starts_with_a_tilde() {
-        let root_path = PathBuf::from("~/Projects/arkad");
-        let home_directory = PathBuf::from(ABSOLUTE_HOME);
-
-        // "/home/arkad-user/Projects/arkad", or "C:\Users\arkad-user\Projects\arkad" on Windows
-        let expected_result = PathBuf::from(ABSOLUTE_HOME).join("Projects").join("arkad");
-
-        let result = replace_leading_tilde(root_path, Some(home_directory))
-            .expect("Given an absolute home directory, the replacement should always succeed");
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
-    fn should_return_the_home_directory_when_the_root_is_a_bare_tilde() {
-        let root_path = PathBuf::from("~");
-        let home_directory = PathBuf::from(ABSOLUTE_HOME);
-
-        // "/home/arkad-user", or "C:\Users\arkad-user" on Windows
-        let expected_result = PathBuf::from(ABSOLUTE_HOME);
-
-        let result = replace_leading_tilde(root_path, Some(home_directory))
-            .expect("Given an absolute home directory, the replacement should always succeed");
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
-    fn should_keep_the_root_unchanged_when_it_names_another_user() {
-        let root_path = PathBuf::from("~other/arkad");
-
-        let expected_result = PathBuf::from("~other/arkad");
-
-        let result = replace_leading_tilde(root_path, None).expect(
-            "Given a root whose tilde names another user, the replacement should succeed without \
-             a home directory",
-        );
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
-    fn should_keep_the_root_unchanged_when_it_starts_with_no_tilde() {
-        let root_path = PathBuf::from("/data/arkad");
-
-        let expected_result = PathBuf::from("/data/arkad");
-
-        let result = replace_leading_tilde(root_path, None).expect(
-            "Given a root with no tilde, the replacement should succeed without a home directory",
-        );
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
-    #[cfg_attr(windows, ignore = "A backslash separates components only on Windows")]
-    fn should_keep_the_root_unchanged_when_a_backslash_follows_the_tilde() {
-        let root_path = PathBuf::from(r"~\arkad");
-
-        let expected_result = PathBuf::from(r"~\arkad");
-
-        let result = replace_leading_tilde(root_path, None).expect(
-            "Outside Windows a backslash is an ordinary character, so the root should stay \
-             unchanged without a home directory",
-        );
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
-    fn should_fail_to_replace_the_tilde_when_the_home_directory_is_unknown() {
-        let root_path = PathBuf::from("~/arkad");
-        let home_directory = None;
-
-        let expected_result = BackendError::unreachable_storage(
-            "The home directory is unknown, so the constructor cannot expand the leading ~ in the \
-             root ~/arkad",
-        );
-
-        let result = replace_leading_tilde(root_path, home_directory)
-            .expect_err("A tilde root with no home directory should never be replaced");
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
-    fn should_fail_to_replace_the_tilde_when_the_home_directory_is_empty() {
-        let root_path = PathBuf::from("~/arkad");
-        let home_directory = PathBuf::new();
-
-        let expected_result = BackendError::unreachable_storage(
-            "The home directory is empty, so the constructor cannot expand the leading ~ in the \
-             root ~/arkad",
-        );
-
-        let result = replace_leading_tilde(root_path, Some(home_directory))
-            .expect_err("A tilde root with an empty home directory should never be replaced");
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
-    fn should_fail_to_replace_the_tilde_when_the_home_directory_is_relative() {
-        let root_path = PathBuf::from("~/arkad");
-        let home_directory = PathBuf::from("arkad-home");
-
-        let expected_result = BackendError::unreachable_storage(
-            "The home directory arkad-home is not an absolute path, so the constructor cannot \
-             expand the leading ~ in the root ~/arkad",
-        );
-
-        let result = replace_leading_tilde(root_path, Some(home_directory))
-            .expect_err("A tilde root with a relative home directory should never be replaced");
 
         assert_eq!(result, expected_result);
     }
