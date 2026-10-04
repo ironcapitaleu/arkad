@@ -20,8 +20,9 @@ impl ReadRepository for FilesystemRepository {
 
     /// Reads the document a key names, together with its metadata.
     ///
-    /// Returns `None` if the root exists and holds no document at the key. If the document read
-    /// fails, `get` checks the root first, so a bad root always reports the same error.
+    /// Returns `None` if the root exists and holds no document at the key. A key whose path runs
+    /// through a stored file also returns `None`. If the document read fails, `get` checks the
+    /// root first, so a bad root always reports the same error.
     ///
     /// `get` does not check the bytes against
     /// [`DocumentMetadata::bytes`](super::DocumentMetadata::bytes) or
@@ -30,7 +31,8 @@ impl ReadRepository for FilesystemRepository {
     /// # Errors
     ///
     /// Returns a [`ReadError::Backend`] if:
-    /// - the root is missing or is not a directory ([`BackendError::UnreachableStorage`]).
+    /// - the root is missing, is not a directory, or has a file in its path
+    ///   ([`BackendError::UnreachableStorage`]).
     /// - the filesystem denies access to the document or its metadata
     ///   ([`BackendError::UnauthorizedAccess`]).
     /// - the document has no metadata file, the metadata file holds no valid metadata, or the
@@ -41,7 +43,10 @@ impl ReadRepository for FilesystemRepository {
             Ok(bytes) => bytes,
             Err(error) => {
                 self.ensure_root_is_reachable().await?;
-                if error.kind() == io::ErrorKind::NotFound {
+                if matches!(
+                    error.kind(),
+                    io::ErrorKind::NotFound | io::ErrorKind::NotADirectory
+                ) {
                     return Ok(None);
                 }
                 return Err(backend_error("read", &document_path, &error).into());
@@ -125,6 +130,21 @@ mod tests {
     async fn should_return_none_when_the_key_names_no_document() {
         let root = temporary_root();
         let repository = FilesystemRepository::new(root.path());
+
+        let expected_result = Ok(None);
+
+        let result = repository.get(sample_raw_document().key().clone()).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_return_none_when_a_key_component_names_a_stored_file() {
+        let root = temporary_root();
+        let repository = FilesystemRepository::new(root.path());
+        std::fs::write(root.path().join("sec"), b"").expect(
+            "Given a writable temp directory, writing a file into it should always succeed",
+        );
 
         let expected_result = Ok(None);
 
