@@ -38,7 +38,8 @@ impl WriteRepository for FilesystemRepository {
     /// # Errors
     ///
     /// Returns a [`WriteError::Backend`] if:
-    /// - the root is missing or is not a directory ([`BackendError::UnreachableStorage`]).
+    /// - the root is missing, is not a directory, or has a file in its path
+    ///   ([`BackendError::UnreachableStorage`]).
     /// - the filesystem denies access to a path the write touches
     ///   ([`BackendError::UnauthorizedAccess`]).
     /// - the filesystem rejects the write for any other reason, such as a full disk or a file
@@ -65,8 +66,8 @@ impl WriteRepository for FilesystemRepository {
 
 /// Writes the metadata and the document to temporary files, then renames both into place.
 ///
-/// Both temporary files are complete and synced before the first rename. A failed write
-/// therefore changes no file under the key. The metadata is renamed first, so a document on disk
+/// Both temporary files are complete and synced before the first rename. If a temporary file
+/// fails, no file under the key changes. The metadata is renamed first, so a document on disk
 /// always has its metadata.
 async fn write_pair(
     metadata_path: &Path,
@@ -320,6 +321,39 @@ mod tests {
         ];
 
         // A file cannot replace a non-empty directory, so the document rename fails. The write
+        // error is not the subject of this test. This test checks the disk afterwards.
+        let _ = repository.persist(record).await;
+        let mut result: Vec<String> = std::fs::read_dir(directory)
+            .expect("Given a directory this test created, listing it should always succeed")
+            .map(|entry| {
+                entry
+                    .expect("Given a readable directory, every entry should always be readable")
+                    .file_name()
+                    .to_string_lossy()
+                    .into_owned()
+            })
+            .collect();
+        result.sort();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_leave_no_temporary_file_when_the_metadata_rename_fails() {
+        let root = temporary_root();
+        let repository = FilesystemRepository::new(root.path());
+        let record = sample_raw_document();
+        let metadata_path = repository.metadata_path(record.key());
+        std::fs::create_dir_all(&metadata_path).expect(
+            "Given a writable temp directory, creating subdirectories should always succeed",
+        );
+        std::fs::write(metadata_path.join("child"), b"")
+            .expect("Given an existing directory, writing a file into it should always succeed");
+        let directory = root.path().join("sec/companyfacts");
+
+        let expected_result = vec!["CIK0000320193.json.meta.json".to_owned()];
+
+        // A file cannot replace a non-empty directory, so the metadata rename fails. The write
         // error is not the subject of this test. This test checks the disk afterwards.
         let _ = repository.persist(record).await;
         let mut result: Vec<String> = std::fs::read_dir(directory)
