@@ -122,8 +122,9 @@ impl FilesystemRepository {
     ///
     /// # Errors
     ///
-    /// Returns a [`BackendError::UnreachableStorage`] if the root is missing or is not a
-    /// directory. Any other failure to inspect the root maps as [`backend_error`] describes.
+    /// Returns a [`BackendError::UnreachableStorage`] if the root is missing, is not a directory,
+    /// or has a file in its own path. Any other failure to inspect the root maps as
+    /// [`backend_error`] describes.
     async fn ensure_root_is_reachable(&self) -> Result<(), BackendError> {
         match tokio::fs::metadata(&self.root).await {
             Ok(metadata) if metadata.is_dir() => Ok(()),
@@ -131,6 +132,12 @@ impl FilesystemRepository {
                 "Root '{}' is not a directory",
                 self.root.display()
             ))),
+            Err(error) if error.kind() == io::ErrorKind::NotADirectory => {
+                Err(BackendError::unreachable_storage(format!(
+                    "Failed to inspect '{}', {error}",
+                    self.root.display()
+                )))
+            }
             Err(error) => Err(backend_error("inspect", &self.root, &error)),
         }
     }
@@ -266,7 +273,7 @@ mod tests {
     }
 
     #[test]
-    fn should_append_the_metadata_suffix_when_building_a_metadata_path() {
+    fn should_append_the_metadata_suffix_for_a_document_key() {
         let repository = FilesystemRepository::new("/data/arkad");
         let key = DocumentKey::new("sec/companyfacts/CIK0000320193.json")
             .expect("Given a valid relative path, the key should always build");
@@ -362,6 +369,30 @@ mod tests {
 
         let expected_result = Err(BackendError::unreachable_storage(format!(
             "Root '{}' is not a directory",
+            root.display()
+        )));
+
+        let result = repository.ensure_root_is_reachable().await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_return_unreachable_storage_when_the_root_has_a_file_in_its_path() {
+        let parent = TempDir::new().expect(
+            "Given a writable system temp directory, creating a directory in it should always succeed",
+        );
+        let file = parent.path().join("file");
+        std::fs::write(&file, b"").expect(
+            "Given a writable temp directory, writing a file into it should always succeed",
+        );
+        let root = file.join("data");
+        let repository = FilesystemRepository::new(&root);
+        let io_error = std::fs::metadata(&root)
+            .expect_err("Given a root below a regular file, inspecting it should always fail");
+
+        let expected_result = Err(BackendError::unreachable_storage(format!(
+            "Failed to inspect '{}', {io_error}",
             root.display()
         )));
 

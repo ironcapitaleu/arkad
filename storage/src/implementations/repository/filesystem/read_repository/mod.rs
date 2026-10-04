@@ -20,7 +20,12 @@ impl ReadRepository for FilesystemRepository {
 
     /// Reads the document a key names, together with its metadata.
     ///
-    /// Returns `None` if the root exists and holds no document at the key.
+    /// Returns `None` if the root exists and holds no document at the key. If the document read
+    /// fails, `get` checks the root first, so a bad root always reports the same error.
+    ///
+    /// `get` does not check the bytes against
+    /// [`DocumentMetadata::bytes`](super::DocumentMetadata::bytes) or
+    /// [`DocumentMetadata::sha256`](super::DocumentMetadata::sha256).
     ///
     /// # Errors
     ///
@@ -34,11 +39,13 @@ impl ReadRepository for FilesystemRepository {
         let document_path = self.document_path(&key);
         let bytes = match fs::read(&document_path).await {
             Ok(bytes) => bytes,
-            Err(error) if error.kind() == io::ErrorKind::NotFound => {
+            Err(error) => {
                 self.ensure_root_is_reachable().await?;
-                return Ok(None);
+                if error.kind() == io::ErrorKind::NotFound {
+                    return Ok(None);
+                }
+                return Err(backend_error("read", &document_path, &error).into());
             }
-            Err(error) => return Err(backend_error("read", &document_path, &error).into()),
         };
 
         let metadata_path = self.metadata_path(&key);
@@ -139,6 +146,49 @@ mod tests {
         )));
 
         let result = repository.get(sample_raw_document().key().clone()).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_return_unreachable_storage_when_reading_from_a_root_that_is_a_file() {
+        let parent = temporary_root();
+        let root = parent.path().join("file");
+        std::fs::write(&root, b"").expect(
+            "Given a writable temp directory, writing a file into it should always succeed",
+        );
+        let repository = FilesystemRepository::new(&root);
+
+        let expected_result = Err(ReadError::Backend(BackendError::unreachable_storage(
+            format!("Root '{}' is not a directory", root.display()),
+        )));
+
+        let result = repository.get(sample_raw_document().key().clone()).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_parse_the_metadata_when_the_metadata_file_holds_the_stored_format() {
+        let root = temporary_root();
+        let repository = FilesystemRepository::new(root.path());
+        let record = sample_raw_document();
+        write_record_files(&repository, &record);
+        let stored_metadata = r#"{
+  "metadata_version": 1,
+  "url": "https://data.sec.gov/api/xbrl/companyfacts/CIK0000320193.json",
+  "fetched_at": "2026-09-22T20:05:30Z",
+  "http_status": 200,
+  "user_agent": "arkad contact@example.com",
+  "bytes": 2,
+  "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+}"#;
+        std::fs::write(repository.metadata_path(record.key()), stored_metadata)
+            .expect("Given an existing directory, overwriting the metadata should always succeed");
+
+        let expected_result = Ok(Some(record.clone()));
+
+        let result = repository.get(record.key().clone()).await;
 
         assert_eq!(result, expected_result);
     }
