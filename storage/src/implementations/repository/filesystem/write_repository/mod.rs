@@ -66,8 +66,8 @@ impl WriteRepository for FilesystemRepository {
 
 /// Writes the metadata and the document to temporary files, then renames both into place.
 ///
-/// Both temporary files are complete and synced before the first rename. If a temporary file
-/// fails, no file under the key changes. The metadata is renamed first, so a document on disk
+/// Both temporary files are complete and synced before the first rename. If writing a temporary
+/// file fails, no file under the key changes. The metadata is renamed first, so a document on disk
 /// always has its metadata.
 async fn write_pair(
     metadata_path: &Path,

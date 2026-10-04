@@ -52,7 +52,8 @@ const METADATA_SUFFIX: &str = ".meta.json";
 /// file or the new file, never a partial one. A document on disk always has its metadata. Between
 /// the two renames, a reader can see new metadata beside the old document. If the document rename
 /// fails, or the caller drops the write between the renames, the new metadata stays beside the old
-/// document until the next successful write under that key.
+/// document until the next successful write under that key. If the caller drops the write before
+/// the renames, its temporary files stay in the directory.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct FilesystemRepository {
     root: PathBuf,
