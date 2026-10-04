@@ -89,7 +89,7 @@ impl FilesystemRepository {
     /// let key = DocumentKey::new("sec/CIK0000320193.json")
     ///     .expect("Given a valid relative path, the key should always build");
     ///
-    /// let expected_result = Path::new("/data/arkad").join("sec").join("CIK0000320193.json");
+    /// let expected_result = Path::new("/data/arkad/sec/CIK0000320193.json");
     ///
     /// let result = repository.document_path(&key);
     ///
@@ -208,11 +208,7 @@ mod tests {
         let key = DocumentKey::new("sec/companyfacts/CIK0000320193.json")
             .expect("Given a valid relative path, the key should always build");
 
-        // "/data/arkad/sec/companyfacts/CIK0000320193.json"
-        let expected_result = Path::new("/data/arkad")
-            .join("sec")
-            .join("companyfacts")
-            .join("CIK0000320193.json");
+        let expected_result = Path::new("/data/arkad/sec/companyfacts/CIK0000320193.json");
 
         let result = repository.document_path(&key);
 
