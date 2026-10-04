@@ -18,7 +18,7 @@ impl ReadRepository for FilesystemRepository {
     type Record = RawDocument;
     type Key = DocumentKey;
 
-    /// Reads the document a key names, together with its metadata.
+    /// Reads the document a key identifies, together with its metadata.
     ///
     /// Returns `None` if the root exists and holds no document at the key. A key whose path runs
     /// through a stored file also returns `None`. If the document read fails, `get` checks the
