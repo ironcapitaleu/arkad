@@ -31,7 +31,7 @@ pub use invalid_document_key::InvalidDocumentKey;
 
 /// Relative path identifying one document beneath the store's root directory.
 ///
-/// The path is the primary key, so it is also the document's location on disk. Construction
+/// The path of the document serves as the primary key. Construction
 /// drops every `.` component and every repeated separator. It rebuilds the path with the
 /// separator of its platform, so `"sec/x.json"` holds a `\` on Windows. It does not fold letter
 /// case, Unicode form, or the trailing dots and spaces that Windows strips. On a filesystem that
