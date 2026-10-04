@@ -206,29 +206,36 @@ mod tests {
 
     #[test]
     fn should_hold_the_path_when_building_from_a_relative_path() {
+        let path = "sec/companyfacts/CIK0000320193.json";
+
         let expected_result = Path::new("sec/companyfacts/CIK0000320193.json");
 
-        let key = DocumentKey::new("sec/companyfacts/CIK0000320193.json")
+        let key = DocumentKey::new(path)
             .expect("Given a valid relative path, the key should always build");
+        let result = key.as_path();
 
-        assert_eq!(key.as_path(), expected_result);
+        assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_reject_an_empty_path_when_building_a_key() {
+        let path = "";
+
         let expected_result = InvalidDocumentKey::EmptyPath;
 
         let result =
-            DocumentKey::new("").expect_err("An empty path should never build a document key");
+            DocumentKey::new(path).expect_err("An empty path should never build a document key");
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_reject_a_root_component_when_the_path_starts_with_a_forward_slash() {
+        let path = "/etc/passwd";
+
         let expected_result = InvalidDocumentKey::contains_root_component("/etc/passwd");
 
-        let result = DocumentKey::new("/etc/passwd")
+        let result = DocumentKey::new(path)
             .expect_err("A path starting at a root directory should never build a document key");
 
         assert_eq!(result, expected_result);
@@ -237,13 +244,16 @@ mod tests {
     #[test]
     #[cfg_attr(windows, ignore = "A backslash separates components only on Windows")]
     fn should_build_a_key_when_the_path_starts_with_a_backslash() {
+        let path = r"\data\x.json";
+
         let expected_result = Path::new(r"\data\x.json");
 
-        let key = DocumentKey::new(r"\data\x.json").expect(
+        let key = DocumentKey::new(path).expect(
             "Outside Windows a backslash is an ordinary character, so the key should always build",
         );
+        let result = key.as_path();
 
-        assert_eq!(key.as_path(), expected_result);
+        assert_eq!(result, expected_result);
     }
 
     #[test]
@@ -252,9 +262,11 @@ mod tests {
         ignore = "A path prefix component exists only on Windows"
     )]
     fn should_reject_a_prefix_component_when_the_path_is_drive_relative() {
+        let path = "C:x.json";
+
         let expected_result = InvalidDocumentKey::contains_prefix_component("C:x.json");
 
-        let result = DocumentKey::new("C:x.json")
+        let result = DocumentKey::new(path)
             .expect_err("A path resolving against a drive should never build a document key");
 
         assert_eq!(result, expected_result);
@@ -266,9 +278,11 @@ mod tests {
         ignore = "A path prefix component exists only on Windows"
     )]
     fn should_reject_a_prefix_component_when_the_path_is_drive_absolute() {
+        let path = r"C:\data\x.json";
+
         let expected_result = InvalidDocumentKey::contains_prefix_component(r"C:\data\x.json");
 
-        let result = DocumentKey::new(r"C:\data\x.json")
+        let result = DocumentKey::new(path)
             .expect_err("A drive-absolute path should never build a document key");
 
         assert_eq!(result, expected_result);
@@ -280,10 +294,12 @@ mod tests {
         ignore = "A path prefix component exists only on Windows"
     )]
     fn should_reject_a_prefix_component_when_the_path_names_a_network_share() {
+        let path = r"\\server\share\x.json";
+
         let expected_result =
             InvalidDocumentKey::contains_prefix_component(r"\\server\share\x.json");
 
-        let result = DocumentKey::new(r"\\server\share\x.json").expect_err(
+        let result = DocumentKey::new(path).expect_err(
             "A path resolving against a network share should never build a document key",
         );
 
@@ -292,9 +308,11 @@ mod tests {
 
     #[test]
     fn should_reject_a_root_component_when_it_comes_before_a_parent_component() {
+        let path = "/sec/../x.json";
+
         let expected_result = InvalidDocumentKey::contains_root_component("/sec/../x.json");
 
-        let result = DocumentKey::new("/sec/../x.json").expect_err(
+        let result = DocumentKey::new(path).expect_err(
             "A path starting at a root directory should never build a document key, whatever else \
              it holds",
         );
@@ -304,9 +322,11 @@ mod tests {
 
     #[test]
     fn should_reject_a_parent_component_when_no_other_component_survives() {
+        let path = "./..";
+
         let expected_result = InvalidDocumentKey::contains_parent_component("./..");
 
-        let result = DocumentKey::new("./..")
+        let result = DocumentKey::new(path)
             .expect_err("A path naming the parent of the root should never build a document key");
 
         assert_eq!(result, expected_result);
@@ -314,9 +334,11 @@ mod tests {
 
     #[test]
     fn should_reject_a_parent_component_when_it_escapes_the_root() {
+        let path = "sec/../../etc/passwd";
+
         let expected_result = InvalidDocumentKey::contains_parent_component("sec/../../etc/passwd");
 
-        let result = DocumentKey::new("sec/../../etc/passwd")
+        let result = DocumentKey::new(path)
             .expect_err("A path escaping the root should never build a document key");
 
         assert_eq!(result, expected_result);
@@ -324,10 +346,12 @@ mod tests {
 
     #[test]
     fn should_reject_a_parent_component_when_it_resolves_inside_the_root() {
+        let path = "sec/companyfacts/../submissions/x.json";
+
         let expected_result =
             InvalidDocumentKey::contains_parent_component("sec/companyfacts/../submissions/x.json");
 
-        let result = DocumentKey::new("sec/companyfacts/../submissions/x.json")
+        let result = DocumentKey::new(path)
             .expect_err("A path holding a parent component should never build a document key");
 
         assert_eq!(result, expected_result);
@@ -335,20 +359,26 @@ mod tests {
 
     #[test]
     fn should_drop_a_current_directory_component_when_building_a_key() {
+        let path = "./sec/./CIK0000320193.json";
+
         let expected_result = Path::new("sec/CIK0000320193.json");
 
-        let key = DocumentKey::new("./sec/./CIK0000320193.json")
+        let key = DocumentKey::new(path)
             .expect("A current directory component stays inside the root, so the key should build");
+        let result = key.as_path();
 
-        assert_eq!(key.as_path(), expected_result);
+        assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_build_equal_keys_when_two_paths_name_the_same_file() {
-        let expected_result = DocumentKey::new("sec/CIK0000320193.json")
+        let plain_path = "sec/CIK0000320193.json";
+        let redundant_path = "./sec//CIK0000320193.json";
+
+        let expected_result = DocumentKey::new(plain_path)
             .expect("Given a valid relative path, the key should always build");
 
-        let result = DocumentKey::new("./sec//CIK0000320193.json").expect(
+        let result = DocumentKey::new(redundant_path).expect(
             "Given a relative path with a redundant separator, the key should always build",
         );
 
@@ -357,9 +387,11 @@ mod tests {
 
     #[test]
     fn should_reject_a_root_path_when_it_is_written_as_a_single_dot() {
+        let path = ".";
+
         let expected_result = InvalidDocumentKey::EmptyPath;
 
-        let result = DocumentKey::new(".")
+        let result = DocumentKey::new(path)
             .expect_err("A path naming the root itself should never build a document key");
 
         assert_eq!(result, expected_result);
@@ -367,9 +399,11 @@ mod tests {
 
     #[test]
     fn should_reject_a_root_path_when_it_is_written_with_a_trailing_separator() {
+        let path = "./";
+
         let expected_result = InvalidDocumentKey::EmptyPath;
 
-        let result = DocumentKey::new("./")
+        let result = DocumentKey::new(path)
             .expect_err("A path naming the root itself should never build a document key");
 
         assert_eq!(result, expected_result);

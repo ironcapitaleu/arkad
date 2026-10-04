@@ -161,9 +161,11 @@ mod tests {
 
     #[test]
     fn should_round_trip_through_json_when_serializing_and_deserializing() {
-        let expected_result = sample_metadata();
-        let json = serde_json::to_string(&expected_result)
+        let metadata = sample_metadata();
+        let json = serde_json::to_string(&metadata)
             .expect("Given a metadata value of owned fields, serialization should always succeed");
+
+        let expected_result = sample_metadata();
 
         let result: DocumentMetadata = serde_json::from_str(&json)
             .expect("Given JSON this type produced, deserialization should always succeed");
@@ -173,7 +175,8 @@ mod tests {
 
     #[test]
     fn should_serialize_the_timestamp_as_rfc_3339_when_writing_json() {
-        let json = serde_json::to_value(sample_metadata())
+        let metadata = sample_metadata();
+        let json = serde_json::to_value(metadata)
             .expect("Given a metadata value of owned fields, serialization should always succeed");
 
         let expected_result = "2026-09-22T20:05:30Z";
