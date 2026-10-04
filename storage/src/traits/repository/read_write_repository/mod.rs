@@ -2,8 +2,8 @@
 //!
 //! Provides [`ReadWriteRepository`], the one name for a store that both reads and writes.
 
-use crate::repository::read_repository::ReadRepository;
-use crate::repository::write_repository::WriteRepository;
+use crate::traits::repository::read_repository::ReadRepository;
+use crate::traits::repository::write_repository::WriteRepository;
 
 /// Names a store that both reads and writes.
 ///

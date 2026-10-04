@@ -3,18 +3,21 @@ name = "storage"
 version = "0.1.0"
 edition = "2024"
 license = "MIT OR Apache-2.0"
-description = "Backend-agnostic persistence traits: the Repository traits and their error types."
-repository = "https://github.com/ironcapital/state_machine"
-categories = ["database", "rust-patterns"]
-keywords = ["storage", "repository", "persistence", "backend-agnostic"]
+description = "Persistence layer: the backend-agnostic Repository traits, their error types, and the backends that implement them."
+repository = "https://github.com/ironcapitaleu/arkad"
+categories = ["database", "filesystem", "rust-patterns"]
+keywords = ["storage", "repository", "persistence", "filesystem"]
 readme = "../README.md"
 
 [dependencies]
 async-trait = "0.1.88"
+chrono = { version = "0.4", features = ["serde"] }
+serde = { version = "1.0", features = ["derive"] }
 thiserror = "2"
 
 [dev-dependencies]
 pretty_assertions = "1"
+serde_json = "1.0"
 tokio = { version = "1.52.3", features = ["rt", "macros"] }
 
 [lib]
