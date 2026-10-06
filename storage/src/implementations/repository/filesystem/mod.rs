@@ -1,17 +1,17 @@
 //! # Filesystem Repository
 //!
-//! Provides [`FilesystemRepository`], the adapter that stores documents as files under a root
+//! Provides [`FilesystemRepository`], which stores documents as files under a root
 //! directory.
 //!
 //! ## Record and Key
 //!
 //! [`ReadRepository`](crate::ReadRepository) and [`WriteRepository`](crate::WriteRepository) each
-//! leave their associated types to the implementor. This adapter pins `Record` to [`RawDocument`]
+//! leave their associated types to the implementor. This repository pins `Record` to [`RawDocument`]
 //! in both, and `ReadRepository`'s `Key` to [`DocumentKey`].
 //!
 //! ## Errors
 //!
-//! The adapter's own code reports a [`FilesystemError`].
+//! The repository's own code reports a [`FilesystemError`].
 //!
 //! ## Modules
 //!
