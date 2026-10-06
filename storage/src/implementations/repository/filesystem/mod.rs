@@ -11,8 +11,7 @@
 //!
 //! ## Errors
 //!
-//! The adapter's own code reports a [`FilesystemError`]. The trait methods convert it into a
-//! [`BackendError`] at the boundary, so [`FilesystemError`] names no storage error type.
+//! The adapter's own code reports a [`FilesystemError`].
 //!
 //! ## Modules
 //!
