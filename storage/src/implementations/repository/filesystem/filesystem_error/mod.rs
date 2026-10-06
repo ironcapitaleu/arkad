@@ -11,8 +11,7 @@ use thiserror::Error;
 
 /// Error representing a failed operation on one path of the filesystem.
 ///
-/// Carries the reason and the path it applies to. It names no storage error type, so the code
-/// that uses it decides how it surfaces.
+/// Carries the reason and the path it applies to.
 #[derive(Debug, Error, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[error(
     "[FilesystemError] Filesystem operation failed, Reason: '{reason}', Path: '{}'",
