@@ -1,7 +1,7 @@
 [workspace]
 resolver = "2"
 members = [
-    "state_machine",
+    "state_maschine",
     "sec",
     "storage",
     "xbrl",
