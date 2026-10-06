@@ -12,9 +12,10 @@ use async_trait::async_trait;
 use tokio::fs::{self, File, OpenOptions};
 use tokio::io::AsyncWriteExt;
 
+use super::FilesystemRepository;
+use super::filesystem_error::{FilesystemError, FilesystemErrorReason, FilesystemOperation};
 use super::raw_document::RawDocument;
-use super::{FilesystemRepository, backend_error};
-use crate::error::{BackendError, WriteError};
+use crate::error::WriteError;
 use crate::traits::repository::WriteRepository;
 
 /// Counter that gives every temporary file of this process a distinct name.
@@ -37,30 +38,42 @@ impl WriteRepository for FilesystemRepository {
     ///
     /// # Errors
     ///
-    /// Returns a [`WriteError::Backend`] if:
-    /// - the root is missing, is not a directory, or has a file in its path
-    ///   ([`BackendError::UnreachableStorage`]).
+    /// Returns a [`WriteError::Backend`] that holds the [`FilesystemError`] message if:
+    /// - the root does not exist, is not a directory, or has a file in its path
+    ///   ([`BackendError::UnreachableStorage`](crate::BackendError::UnreachableStorage)).
     /// - the filesystem denies access to a path the write touches
-    ///   ([`BackendError::UnauthorizedAccess`]).
+    ///   ([`BackendError::UnauthorizedAccess`](crate::BackendError::UnauthorizedAccess)).
     /// - the filesystem rejects the write for any other reason, such as a full disk or a file
-    ///   where a directory must be ([`BackendError::FailedOperation`]).
+    ///   where a directory must be
+    ///   ([`BackendError::FailedOperation`](crate::BackendError::FailedOperation)).
     async fn persist(&self, record: Self::Record) -> Result<(), WriteError> {
+        self.write_record(&record)
+            .await
+            .map_err(|error| WriteError::Backend(error.into()))
+    }
+}
+
+impl FilesystemRepository {
+    /// Creates the directories below the root, then writes the record's metadata and document.
+    async fn write_record(&self, record: &RawDocument) -> Result<(), FilesystemError> {
         self.ensure_root_is_reachable().await?;
 
         let document_path = self.document_path(record.key());
         if let Some(directory) = document_path.parent() {
-            fs::create_dir_all(directory)
-                .await
-                .map_err(|error| backend_error("create directory", directory, &error))?;
+            fs::create_dir_all(directory).await.map_err(|error| {
+                FilesystemError::from_io(FilesystemOperation::CreateDirectory, directory, &error)
+            })?;
         }
 
-        let metadata = serde_json::to_vec_pretty(record.metadata()).map_err(|error| {
-            BackendError::failed_operation(format!("Failed to serialize the metadata, {error}"))
-        })?;
         let metadata_path = self.metadata_path(record.key());
+        let metadata = serde_json::to_vec_pretty(record.metadata()).map_err(|_| {
+            FilesystemError::new(
+                FilesystemErrorReason::UnserializableMetadata,
+                &metadata_path,
+            )
+        })?;
 
-        write_pair(&metadata_path, &metadata, &document_path, record.bytes()).await?;
-        Ok(())
+        write_pair(&metadata_path, &metadata, &document_path, record.bytes()).await
     }
 }
 
@@ -74,7 +87,7 @@ async fn write_pair(
     metadata: &[u8],
     document_path: &Path,
     document: &[u8],
-) -> Result<(), BackendError> {
+) -> Result<(), FilesystemError> {
     let metadata_temporary = write_temporary_file(metadata_path, metadata).await?;
     let document_temporary = match write_temporary_file(document_path, document).await {
         Ok(path) => path,
@@ -94,7 +107,7 @@ async fn write_pair(
 /// Writes bytes to a new temporary file beside the target and syncs them to disk.
 ///
 /// Returns the path of the temporary file. If a step fails, the function removes the file.
-async fn write_temporary_file(target: &Path, bytes: &[u8]) -> Result<PathBuf, BackendError> {
+async fn write_temporary_file(target: &Path, bytes: &[u8]) -> Result<PathBuf, FilesystemError> {
     let (temporary, mut file) = create_temporary_file(target).await?;
     let result = write_and_sync(&mut file, &temporary, bytes).await;
     drop(file);
@@ -112,7 +125,7 @@ async fn write_temporary_file(target: &Path, bytes: &[u8]) -> Result<PathBuf, Ba
 ///
 /// Opens the file only if no file exists at its path, so two writers never share one temporary
 /// file. If the path exists, the function tries the next name.
-async fn create_temporary_file(target: &Path) -> Result<(PathBuf, File), BackendError> {
+async fn create_temporary_file(target: &Path) -> Result<(PathBuf, File), FilesystemError> {
     let mut attempt = 1;
     loop {
         let temporary = temporary_path(target);
@@ -129,7 +142,13 @@ async fn create_temporary_file(target: &Path) -> Result<(PathBuf, File), Backend
             {
                 attempt += 1;
             }
-            Err(error) => return Err(backend_error("create", &temporary, &error)),
+            Err(error) => {
+                return Err(FilesystemError::from_io(
+                    FilesystemOperation::CreateFile,
+                    &temporary,
+                    &error,
+                ));
+            }
         }
     }
 }
@@ -138,26 +157,23 @@ async fn create_temporary_file(target: &Path) -> Result<(PathBuf, File), Backend
 ///
 /// The flush comes before the sync because tokio reports an error from its last buffered write
 /// only to a flush, not to a sync.
-async fn write_and_sync(file: &mut File, path: &Path, bytes: &[u8]) -> Result<(), BackendError> {
-    file.write_all(bytes)
-        .await
-        .map_err(|error| backend_error("write", path, &error))?;
-    file.flush()
-        .await
-        .map_err(|error| backend_error("write", path, &error))?;
+async fn write_and_sync(file: &mut File, path: &Path, bytes: &[u8]) -> Result<(), FilesystemError> {
+    let write_error = |error| FilesystemError::from_io(FilesystemOperation::Write, path, &error);
+    file.write_all(bytes).await.map_err(write_error)?;
+    file.flush().await.map_err(write_error)?;
     file.sync_all()
         .await
-        .map_err(|error| backend_error("sync", path, &error))
+        .map_err(|error| FilesystemError::from_io(FilesystemOperation::Sync, path, &error))
 }
 
 /// Renames a temporary file over the target in one step.
 ///
 /// The temporary file sits in the target's directory, so the rename stays on one filesystem. If
 /// the rename fails, the function removes the temporary file.
-async fn replace(temporary: &Path, target: &Path) -> Result<(), BackendError> {
+async fn replace(temporary: &Path, target: &Path) -> Result<(), FilesystemError> {
     let result = fs::rename(temporary, target)
         .await
-        .map_err(|error| backend_error("replace", target, &error));
+        .map_err(|error| FilesystemError::from_io(FilesystemOperation::Replace, target, &error));
     if result.is_err() {
         remove_temporary_file(temporary).await;
     }
@@ -184,17 +200,45 @@ fn temporary_path(target: &Path) -> PathBuf {
 
 #[cfg(test)]
 mod tests {
-    use chrono::{TimeZone, Utc};
+    use chrono::{DateTime, Utc};
     use pretty_assertions::{assert_eq, assert_ne};
     use tempfile::TempDir;
 
     use super::*;
+    use crate::error::BackendError;
     use crate::implementations::repository::filesystem::DocumentMetadata;
     use crate::tests::fixtures::sample_raw_document::sample_raw_document;
 
     fn temporary_root() -> TempDir {
-        TempDir::new()
-            .expect("Given a writable system temp directory, creating a directory in it should always succeed")
+        TempDir::new().expect(
+            "Given a writable system temp directory, creating a directory in it should always succeed",
+        )
+    }
+
+    /// Returns the names of the entries in a directory, sorted.
+    fn sorted_file_names(directory: &Path) -> Vec<String> {
+        let entries = std::fs::read_dir(directory)
+            .expect("Given a directory this test created, listing it should always succeed");
+        let mut names = Vec::new();
+        for entry in entries {
+            let entry =
+                entry.expect("Given a readable directory, every entry should always be readable");
+            let name = entry.file_name();
+            names.push(
+                name.into_string()
+                    .expect("Given file names this test chose, each name should always be UTF-8"),
+            );
+        }
+        names.sort();
+        names
+    }
+
+    /// Reads and parses a metadata file the repository wrote.
+    fn read_stored_metadata(metadata_path: &Path) -> DocumentMetadata {
+        let metadata_json = std::fs::read(metadata_path)
+            .expect("Given a persisted record, its metadata file should always exist");
+        serde_json::from_slice(&metadata_json)
+            .expect("Given metadata the repository serialized, parsing it should always succeed")
     }
 
     const fn implements_write_repository<T: WriteRepository>() {}
@@ -207,13 +251,13 @@ mod tests {
     async fn should_write_the_document_bytes_when_persisting_a_record() {
         let root = temporary_root();
         let repository = FilesystemRepository::new(root.path());
-        let record = sample_raw_document();
-        let document_path = repository.document_path(record.key());
+        let sample_document = sample_raw_document();
+        let document_path = repository.document_path(sample_document.key());
 
-        let expected_result = record.bytes().to_vec();
+        let expected_result = sample_document.bytes().to_vec();
 
         repository
-            .persist(record)
+            .persist(sample_document)
             .await
             .expect("Given an existing writable root, persisting a record should always succeed");
         let result = std::fs::read(document_path)
@@ -226,19 +270,16 @@ mod tests {
     async fn should_write_the_metadata_beside_the_document_when_persisting_a_record() {
         let root = temporary_root();
         let repository = FilesystemRepository::new(root.path());
-        let record = sample_raw_document();
-        let metadata_path = repository.metadata_path(record.key());
+        let sample_document = sample_raw_document();
+        let metadata_path = repository.metadata_path(sample_document.key());
 
-        let expected_result = record.metadata().clone();
+        let expected_result = sample_document.metadata().clone();
 
         repository
-            .persist(record)
+            .persist(sample_document)
             .await
             .expect("Given an existing writable root, persisting a record should always succeed");
-        let metadata_json = std::fs::read(metadata_path)
-            .expect("Given a persisted record, its metadata file should always exist");
-        let result: DocumentMetadata = serde_json::from_slice(&metadata_json)
-            .expect("Given metadata the repository serialized, parsing it should always succeed");
+        let result = read_stored_metadata(&metadata_path);
 
         assert_eq!(result, expected_result);
     }
@@ -247,22 +288,21 @@ mod tests {
     async fn should_replace_the_document_when_persisting_a_record_under_an_existing_key() {
         let root = temporary_root();
         let repository = FilesystemRepository::new(root.path());
-        let first = sample_raw_document();
-        let second = RawDocument::new(
-            first.key().clone(),
-            br#"{"cik":320193}"#.to_vec(),
-            first.metadata().clone(),
-        );
-        let document_path = repository.document_path(first.key());
+        let first_document = sample_raw_document();
+        let key = first_document.key().clone();
+        let metadata = first_document.metadata().clone();
+        let second_document =
+            RawDocument::new(key.clone(), br#"{"cik":320193}"#.to_vec(), metadata);
+        let document_path = repository.document_path(&key);
 
-        let expected_result = second.bytes().to_vec();
+        let expected_result = second_document.bytes().to_vec();
 
         repository
-            .persist(first)
+            .persist(first_document)
             .await
             .expect("Given an existing writable root, persisting a record should always succeed");
         repository
-            .persist(second)
+            .persist(second_document)
             .await
             .expect("Given an existing writable root, replacing a record should always succeed");
         let result = std::fs::read(document_path)
@@ -275,29 +315,27 @@ mod tests {
     async fn should_replace_the_metadata_when_persisting_a_record_under_an_existing_key() {
         let root = temporary_root();
         let repository = FilesystemRepository::new(root.path());
-        let first = sample_raw_document();
-        let mut second_metadata = first.metadata().clone();
-        second_metadata.fetched_at = Utc
-            .with_ymd_and_hms(2026, 10, 4, 8, 0, 0)
-            .single()
-            .expect("Given a hardcoded valid timestamp, the conversion should always succeed");
-        let second = RawDocument::new(first.key().clone(), first.bytes().to_vec(), second_metadata);
-        let metadata_path = repository.metadata_path(first.key());
+        let first_document = sample_raw_document();
+        let key = first_document.key().clone();
+        let bytes = first_document.bytes().to_vec();
+        let mut second_metadata = first_document.metadata().clone();
+        second_metadata.fetched_at = "2026-10-04T08:00:00Z"
+            .parse::<DateTime<Utc>>()
+            .expect("Given a hardcoded RFC 3339 timestamp, parsing it should always succeed");
+        let second_document = RawDocument::new(key.clone(), bytes, second_metadata);
+        let metadata_path = repository.metadata_path(&key);
 
-        let expected_result = second.metadata().clone();
+        let expected_result = second_document.metadata().clone();
 
         repository
-            .persist(first)
+            .persist(first_document)
             .await
             .expect("Given an existing writable root, persisting a record should always succeed");
         repository
-            .persist(second)
+            .persist(second_document)
             .await
             .expect("Given an existing writable root, replacing a record should always succeed");
-        let metadata_json = std::fs::read(metadata_path)
-            .expect("Given a persisted record, its metadata file should always exist");
-        let result: DocumentMetadata = serde_json::from_slice(&metadata_json)
-            .expect("Given metadata the repository serialized, parsing it should always succeed");
+        let result = read_stored_metadata(&metadata_path);
 
         assert_eq!(result, expected_result);
     }
@@ -306,8 +344,8 @@ mod tests {
     async fn should_leave_no_temporary_file_when_the_document_rename_fails() {
         let root = temporary_root();
         let repository = FilesystemRepository::new(root.path());
-        let record = sample_raw_document();
-        let document_path = repository.document_path(record.key());
+        let sample_document = sample_raw_document();
+        let document_path = repository.document_path(sample_document.key());
         std::fs::create_dir_all(&document_path).expect(
             "Given a writable temp directory, creating subdirectories should always succeed",
         );
@@ -322,18 +360,8 @@ mod tests {
 
         // A file cannot replace a non-empty directory, so the document rename fails. The write
         // error is not the subject of this test. This test checks the disk afterwards.
-        let _ = repository.persist(record).await;
-        let mut result: Vec<String> = std::fs::read_dir(directory)
-            .expect("Given a directory this test created, listing it should always succeed")
-            .map(|entry| {
-                entry
-                    .expect("Given a readable directory, every entry should always be readable")
-                    .file_name()
-                    .to_string_lossy()
-                    .into_owned()
-            })
-            .collect();
-        result.sort();
+        let _ = repository.persist(sample_document).await;
+        let result = sorted_file_names(&directory);
 
         assert_eq!(result, expected_result);
     }
@@ -342,8 +370,8 @@ mod tests {
     async fn should_leave_no_temporary_file_when_the_metadata_rename_fails() {
         let root = temporary_root();
         let repository = FilesystemRepository::new(root.path());
-        let record = sample_raw_document();
-        let metadata_path = repository.metadata_path(record.key());
+        let sample_document = sample_raw_document();
+        let metadata_path = repository.metadata_path(sample_document.key());
         std::fs::create_dir_all(&metadata_path).expect(
             "Given a writable temp directory, creating subdirectories should always succeed",
         );
@@ -355,18 +383,8 @@ mod tests {
 
         // A file cannot replace a non-empty directory, so the metadata rename fails. The write
         // error is not the subject of this test. This test checks the disk afterwards.
-        let _ = repository.persist(record).await;
-        let mut result: Vec<String> = std::fs::read_dir(directory)
-            .expect("Given a directory this test created, listing it should always succeed")
-            .map(|entry| {
-                entry
-                    .expect("Given a readable directory, every entry should always be readable")
-                    .file_name()
-                    .to_string_lossy()
-                    .into_owned()
-            })
-            .collect();
-        result.sort();
+        let _ = repository.persist(sample_document).await;
+        let result = sorted_file_names(&directory);
 
         assert_eq!(result, expected_result);
     }
@@ -375,7 +393,7 @@ mod tests {
     async fn should_leave_only_the_document_and_its_metadata_when_persisting_a_record() {
         let root = temporary_root();
         let repository = FilesystemRepository::new(root.path());
-        let record = sample_raw_document();
+        let sample_document = sample_raw_document();
         let directory = root.path().join("sec/companyfacts");
 
         let expected_result = vec![
@@ -384,76 +402,63 @@ mod tests {
         ];
 
         repository
-            .persist(record)
+            .persist(sample_document)
             .await
             .expect("Given an existing writable root, persisting a record should always succeed");
-        let mut result: Vec<String> = std::fs::read_dir(directory)
-            .expect("Given a persisted record, its directory should always exist")
-            .map(|entry| {
-                entry
-                    .expect("Given a readable directory, every entry should always be readable")
-                    .file_name()
-                    .to_string_lossy()
-                    .into_owned()
-            })
-            .collect();
-        result.sort();
+        let result = sorted_file_names(&directory);
 
         assert_eq!(result, expected_result);
     }
 
     #[tokio::test]
-    async fn should_return_unreachable_storage_when_persisting_under_a_missing_root() {
+    async fn should_return_missing_root_when_persisting_under_a_root_that_does_not_exist() {
         let parent = temporary_root();
         let root = parent.path().join("missing");
         let repository = FilesystemRepository::new(&root);
-        let io_error = std::fs::metadata(&root)
-            .expect_err("Given a root this test never created, inspecting it should always fail");
+        let sample_document = sample_raw_document();
+        let filesystem_error = FilesystemError::new(FilesystemErrorReason::MissingRoot, &root);
 
-        let expected_result = Err(WriteError::Backend(BackendError::unreachable_storage(
-            format!("Failed to inspect '{}', {io_error}", root.display()),
-        )));
+        let expected_result = Err(WriteError::Backend(BackendError::from(filesystem_error)));
 
-        let result = repository.persist(sample_raw_document()).await;
+        let result = repository.persist(sample_document).await;
 
         assert_eq!(result, expected_result);
     }
 
     #[tokio::test]
-    async fn should_not_create_the_root_when_persisting_under_a_missing_root() {
+    async fn should_not_create_the_root_when_persisting_under_a_root_that_does_not_exist() {
         let parent = temporary_root();
         let root = parent.path().join("missing");
         let repository = FilesystemRepository::new(&root);
+        let sample_document = sample_raw_document();
 
         let expected_result = false;
 
         // The write error is the subject of another test. This test checks the disk afterwards.
-        let _ = repository.persist(sample_raw_document()).await;
+        let _ = repository.persist(sample_document).await;
         let result = root.exists();
 
         assert_eq!(result, expected_result);
     }
 
     #[tokio::test]
-    async fn should_return_failed_operation_when_a_file_stands_where_a_directory_must_be() {
+    async fn should_return_failed_create_directory_when_a_file_stands_where_a_directory_must_be() {
         let root = temporary_root();
         std::fs::write(root.path().join("sec"), b"").expect(
             "Given a writable temp directory, writing a file into it should always succeed",
         );
         let repository = FilesystemRepository::new(root.path());
+        let sample_document = sample_raw_document();
         let directory = root.path().join("sec/companyfacts");
-        let io_error = std::fs::create_dir_all(&directory).expect_err(
-            "Given a file named 'sec' in the root, creating a directory below it should always fail",
-        );
+        let reason = FilesystemErrorReason::FailedIo {
+            operation: FilesystemOperation::CreateDirectory,
+            kind: io::ErrorKind::NotADirectory,
+        };
+        let filesystem_error = FilesystemError::new(reason, &directory);
 
-        let expected_result = Err(WriteError::Backend(BackendError::failed_operation(
-            format!(
-                "Failed to create directory '{}', {io_error}",
-                directory.display()
-            ),
-        )));
+        let expected_result = Err(WriteError::Backend(BackendError::from(filesystem_error)));
 
-        let result = repository.persist(sample_raw_document()).await;
+        let result = repository.persist(sample_document).await;
 
         assert_eq!(result, expected_result);
     }
