@@ -4,7 +4,7 @@ Arkad is a production-grade financial data engineering framework written in Rust
 
 ## Architecture
 
-Arkad is structured as a Rust workspace with three crates:
+Arkad is structured as a Rust workspace with four crates:
 
 ### `state_maschine`
 
@@ -17,6 +17,10 @@ Extends `state_maschine` for processing SEC filings — handling data acquisitio
 ### `xbrl`
 
 The XBRL domain vocabulary: parsing the SEC JSON APIs, resolving concepts against the US-GAAP taxonomy, and validating financial statements against SFAC 6 invariants.
+
+### `storage`
+
+The persistence layer: backend-agnostic `ReadRepository` and `WriteRepository` traits, their error types, and the backends behind them. The filesystem backend stores each document byte for byte as a file beneath one root directory, with a JSON metadata file beside it.
 
 ## Design
 
