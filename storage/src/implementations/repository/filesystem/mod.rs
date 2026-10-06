@@ -54,6 +54,14 @@ pub use raw_document::RawDocument;
 /// with [`METADATA_SUFFIX`] appended, so `sec/CIK0000320193.json` keeps its metadata in
 /// `sec/CIK0000320193.json<METADATA_SUFFIX>`. A key that ends in [`METADATA_SUFFIX`] names the
 /// metadata file of another key, so one store must not hold both keys.
+///
+/// A write first writes both files to synced temporary files in the same directory. It then
+/// renames the metadata over its target, and the document over its target. A reader sees the old
+/// file or the new file, never a partial one. A document on disk always has its metadata. Between
+/// the two renames, a reader can see new metadata beside the old document. If the document rename
+/// fails, or the caller drops the write between the renames, the new metadata stays beside the old
+/// document until the next successful write under that key. If the caller drops the write before
+/// the renames, its temporary files stay in the directory.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct FilesystemRepository {
     root: PathBuf,
