@@ -9,11 +9,18 @@
 //! leave their associated types to the implementor. This adapter pins `Record` to [`RawDocument`]
 //! in both, and `ReadRepository`'s `Key` to [`DocumentKey`].
 //!
+//! ## Errors
+//!
+//! The adapter's own code reports a [`FilesystemError`]. The trait methods convert it into a
+//! [`BackendError`] at the boundary, so [`FilesystemError`] names no storage error type.
+//!
 //! ## Modules
 //!
+//! - [`constants`]: The constants that fix the file layout, such as [`METADATA_SUFFIX`].
 //! - [`document_key`]: The [`DocumentKey`] naming one document, and the [`InvalidDocumentKey`] for
 //!   a rejected path.
 //! - [`document_metadata`]: The [`DocumentMetadata`] describing the fetch behind a document.
+//! - [`filesystem_error`]: The [`FilesystemError`] for a failed operation on a path.
 //! - [`raw_document`]: The [`RawDocument`] a read returns and a write accepts.
 
 use std::io;
@@ -21,18 +28,19 @@ use std::path::{Path, PathBuf};
 
 use crate::error::BackendError;
 
+pub mod constants;
 pub mod document_key;
 pub mod document_metadata;
+pub mod filesystem_error;
 pub mod raw_document;
 mod read_repository;
 mod write_repository;
 
+pub use constants::METADATA_SUFFIX;
 pub use document_key::{DocumentKey, InvalidDocumentKey};
 pub use document_metadata::DocumentMetadata;
+pub use filesystem_error::{FilesystemError, FilesystemErrorReason, FilesystemOperation};
 pub use raw_document::RawDocument;
-
-/// Suffix appended to a document's file name to name its metadata file.
-const METADATA_SUFFIX: &str = ".meta.json";
 
 /// Stores documents as files beneath one root directory.
 ///
@@ -43,9 +51,9 @@ const METADATA_SUFFIX: &str = ".meta.json";
 /// store runs on. [`FilesystemRepository::document_path`] performs that join.
 ///
 /// Each document has a metadata file beside it. The metadata file name is the document's file name
-/// with `.meta.json` appended, so `sec/CIK0000320193.json` keeps its metadata in
-/// `sec/CIK0000320193.json.meta.json`. A key that ends in `.meta.json` names the metadata file of
-/// another key, so one store must not hold both keys.
+/// with [`METADATA_SUFFIX`] appended, so `sec/CIK0000320193.json` keeps its metadata in
+/// `sec/CIK0000320193.json<METADATA_SUFFIX>`. A key that ends in [`METADATA_SUFFIX`] names the
+/// metadata file of another key, so one store must not hold both keys.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct FilesystemRepository {
     root: PathBuf,
@@ -122,38 +130,63 @@ impl FilesystemRepository {
     ///
     /// # Errors
     ///
-    /// Returns a [`BackendError::UnreachableStorage`] if the root is missing, is not a directory,
-    /// or has a file in its path. Any other failure to inspect the root maps as
-    /// [`backend_error`] describes.
-    async fn ensure_root_is_reachable(&self) -> Result<(), BackendError> {
+    /// Returns a [`FilesystemError`] with:
+    /// - [`FilesystemErrorReason::MissingRoot`] if the root does not exist, or a file stands in
+    ///   its path.
+    /// - [`FilesystemErrorReason::RootIsNotADirectory`] if the root is a file.
+    /// - [`FilesystemErrorReason::FailedIo`] if the filesystem cannot inspect the root.
+    async fn ensure_root_is_reachable(&self) -> Result<(), FilesystemError> {
         match tokio::fs::metadata(&self.root).await {
             Ok(metadata) if metadata.is_dir() => Ok(()),
-            Ok(_) => Err(BackendError::unreachable_storage(format!(
-                "Root '{}' is not a directory",
-                self.root.display()
-            ))),
-            Err(error) if error.kind() == io::ErrorKind::NotADirectory => {
-                Err(BackendError::unreachable_storage(format!(
-                    "Failed to inspect '{}', {error}",
-                    self.root.display()
-                )))
+            Ok(_) => Err(FilesystemError::new(
+                FilesystemErrorReason::RootIsNotADirectory,
+                &self.root,
+            )),
+            Err(error)
+                if matches!(
+                    error.kind(),
+                    io::ErrorKind::NotFound | io::ErrorKind::NotADirectory
+                ) =>
+            {
+                Err(FilesystemError::new(
+                    FilesystemErrorReason::MissingRoot,
+                    &self.root,
+                ))
             }
-            Err(error) => Err(backend_error("inspect", &self.root, &error)),
+            Err(error) => Err(FilesystemError::from_io(
+                FilesystemOperation::Inspect,
+                &self.root,
+                &error,
+            )),
         }
     }
 }
 
-/// Converts an I/O error raised on a path into a [`BackendError`].
-///
-/// A missing path becomes [`BackendError::UnreachableStorage`]. A denied permission becomes
-/// [`BackendError::UnauthorizedAccess`]. Every other kind becomes
-/// [`BackendError::FailedOperation`].
-fn backend_error(operation: &str, path: &Path, error: &io::Error) -> BackendError {
-    let reason = format!("Failed to {operation} '{}', {error}", path.display());
-    match error.kind() {
-        io::ErrorKind::NotFound => BackendError::unreachable_storage(reason),
-        io::ErrorKind::PermissionDenied => BackendError::unauthorized_access(reason),
-        _ => BackendError::failed_operation(reason),
+impl From<FilesystemError> for BackendError {
+    /// Converts a [`FilesystemError`] into the [`BackendError`] variant for its reason.
+    ///
+    /// A missing root, a root that is not a directory, and a path that vanished become
+    /// [`BackendError::UnreachableStorage`]. A denied permission becomes
+    /// [`BackendError::UnauthorizedAccess`]. Every other reason becomes
+    /// [`BackendError::FailedOperation`]. The [`FilesystemError`] message becomes the reason.
+    fn from(error: FilesystemError) -> Self {
+        let reason = error.to_string();
+        match error.reason {
+            FilesystemErrorReason::MissingRoot
+            | FilesystemErrorReason::RootIsNotADirectory
+            | FilesystemErrorReason::FailedIo {
+                kind: io::ErrorKind::NotFound,
+                ..
+            } => Self::unreachable_storage(reason),
+            FilesystemErrorReason::FailedIo {
+                kind: io::ErrorKind::PermissionDenied,
+                ..
+            } => Self::unauthorized_access(reason),
+            FilesystemErrorReason::MissingMetadataFile
+            | FilesystemErrorReason::InvalidMetadata { .. }
+            | FilesystemErrorReason::UnserializableMetadata
+            | FilesystemErrorReason::FailedIo { .. } => Self::failed_operation(reason),
+        }
     }
 }
 
@@ -167,6 +200,12 @@ mod tests {
 
     use super::*;
     use crate::traits::repository::ReadWriteRepository;
+
+    fn temporary_root() -> TempDir {
+        TempDir::new().expect(
+            "Given a writable system temp directory, creating a directory in it should always succeed",
+        )
+    }
 
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
     #[test]
@@ -287,50 +326,104 @@ mod tests {
     }
 
     #[test]
-    fn should_return_unreachable_storage_when_the_io_error_is_not_found() {
-        let error = io::Error::from(io::ErrorKind::NotFound);
-        let path = Path::new("/data/arkad/x.json");
+    fn should_return_unreachable_storage_when_converting_a_missing_root() {
+        let error = FilesystemError::new(FilesystemErrorReason::MissingRoot, "/data/arkad");
 
-        let expected_result = BackendError::unreachable_storage(format!(
-            "Failed to read '/data/arkad/x.json', {error}"
-        ));
+        let expected_result = BackendError::unreachable_storage(
+            "[FilesystemError] Filesystem operation failed, \
+            Reason: 'Root directory does not exist', Path: '/data/arkad'",
+        );
 
-        let result = backend_error("read", path, &error);
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
-    fn should_return_unauthorized_access_when_the_io_error_is_permission_denied() {
-        let error = io::Error::from(io::ErrorKind::PermissionDenied);
-        let path = Path::new("/data/arkad/x.json");
-
-        let expected_result = BackendError::unauthorized_access(format!(
-            "Failed to read '/data/arkad/x.json', {error}"
-        ));
-
-        let result = backend_error("read", path, &error);
+        let result = BackendError::from(error);
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
-    fn should_return_failed_operation_when_the_io_error_is_storage_full() {
-        let error = io::Error::from(io::ErrorKind::StorageFull);
-        let path = Path::new("/data/arkad/x.json");
+    fn should_return_unreachable_storage_when_converting_a_root_that_is_not_a_directory() {
+        let error = FilesystemError::new(FilesystemErrorReason::RootIsNotADirectory, "/data/arkad");
 
-        let expected_result = BackendError::failed_operation(format!(
-            "Failed to write '/data/arkad/x.json', {error}"
-        ));
+        let expected_result = BackendError::unreachable_storage(
+            "[FilesystemError] Filesystem operation failed, \
+            Reason: 'Root is not a directory', Path: '/data/arkad'",
+        );
 
-        let result = backend_error("write", path, &error);
+        let result = BackendError::from(error);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_unreachable_storage_when_converting_a_path_that_vanished() {
+        let io_error = io::Error::from(io::ErrorKind::NotFound);
+        let error = FilesystemError::from_io(
+            FilesystemOperation::CreateFile,
+            "/data/arkad/x.json",
+            &io_error,
+        );
+
+        let expected_result = BackendError::unreachable_storage(
+            "[FilesystemError] Filesystem operation failed, \
+            Reason: 'Failed to create file, entity not found', Path: '/data/arkad/x.json'",
+        );
+
+        let result = BackendError::from(error);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_unauthorized_access_when_converting_a_denied_permission() {
+        let io_error = io::Error::from(io::ErrorKind::PermissionDenied);
+        let error =
+            FilesystemError::from_io(FilesystemOperation::Read, "/data/arkad/x.json", &io_error);
+
+        let expected_result = BackendError::unauthorized_access(
+            "[FilesystemError] Filesystem operation failed, \
+            Reason: 'Failed to read, permission denied', Path: '/data/arkad/x.json'",
+        );
+
+        let result = BackendError::from(error);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_failed_operation_when_converting_a_full_disk() {
+        let io_error = io::Error::from(io::ErrorKind::StorageFull);
+        let error =
+            FilesystemError::from_io(FilesystemOperation::Write, "/data/arkad/x.json", &io_error);
+
+        let expected_result = BackendError::failed_operation(
+            "[FilesystemError] Filesystem operation failed, \
+            Reason: 'Failed to write, no storage space', Path: '/data/arkad/x.json'",
+        );
+
+        let result = BackendError::from(error);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_failed_operation_when_converting_a_missing_metadata_file() {
+        let error = FilesystemError::new(
+            FilesystemErrorReason::MissingMetadataFile,
+            "/data/arkad/x.json.meta.json",
+        );
+
+        let expected_result = BackendError::failed_operation(
+            "[FilesystemError] Filesystem operation failed, \
+            Reason: 'Metadata file does not exist', Path: '/data/arkad/x.json.meta.json'",
+        );
+
+        let result = BackendError::from(error);
 
         assert_eq!(result, expected_result);
     }
 
     #[tokio::test]
     async fn should_accept_the_root_when_the_root_is_an_existing_directory() {
-        let root = TempDir::new().expect("Given a writable system temp directory, creating a directory in it should always succeed");
+        let root = temporary_root();
         let repository = FilesystemRepository::new(root.path());
 
         let expected_result = Ok(());
@@ -341,17 +434,15 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_return_unreachable_storage_when_the_root_is_missing() {
-        let parent = TempDir::new().expect("Given a writable system temp directory, creating a directory in it should always succeed");
+    async fn should_return_missing_root_when_the_root_does_not_exist() {
+        let parent = temporary_root();
         let root = parent.path().join("missing");
         let repository = FilesystemRepository::new(&root);
-        let io_error = std::fs::metadata(&root)
-            .expect_err("Given a root this test never created, inspecting it should always fail");
 
-        let expected_result = Err(BackendError::unreachable_storage(format!(
-            "Failed to inspect '{}', {io_error}",
-            root.display()
-        )));
+        let expected_result = Err(FilesystemError::new(
+            FilesystemErrorReason::MissingRoot,
+            &root,
+        ));
 
         let result = repository.ensure_root_is_reachable().await;
 
@@ -359,42 +450,38 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_return_unreachable_storage_when_the_root_is_a_file() {
-        let parent = TempDir::new().expect("Given a writable system temp directory, creating a directory in it should always succeed");
-        let root = parent.path().join("file");
-        std::fs::write(&root, b"").expect(
-            "Given a writable temp directory, writing a file into it should always succeed",
-        );
-        let repository = FilesystemRepository::new(&root);
-
-        let expected_result = Err(BackendError::unreachable_storage(format!(
-            "Root '{}' is not a directory",
-            root.display()
-        )));
-
-        let result = repository.ensure_root_is_reachable().await;
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[tokio::test]
-    async fn should_return_unreachable_storage_when_the_root_has_a_file_in_its_path() {
-        let parent = TempDir::new().expect(
-            "Given a writable system temp directory, creating a directory in it should always succeed",
-        );
+    async fn should_return_missing_root_when_the_root_has_a_file_in_its_path() {
+        let parent = temporary_root();
         let file = parent.path().join("file");
         std::fs::write(&file, b"").expect(
             "Given a writable temp directory, writing a file into it should always succeed",
         );
         let root = file.join("data");
         let repository = FilesystemRepository::new(&root);
-        let io_error = std::fs::metadata(&root)
-            .expect_err("Given a root below a regular file, inspecting it should always fail");
 
-        let expected_result = Err(BackendError::unreachable_storage(format!(
-            "Failed to inspect '{}', {io_error}",
-            root.display()
-        )));
+        let expected_result = Err(FilesystemError::new(
+            FilesystemErrorReason::MissingRoot,
+            &root,
+        ));
+
+        let result = repository.ensure_root_is_reachable().await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_return_root_is_not_a_directory_when_the_root_is_a_file() {
+        let parent = temporary_root();
+        let root = parent.path().join("file");
+        std::fs::write(&root, b"").expect(
+            "Given a writable temp directory, writing a file into it should always succeed",
+        );
+        let repository = FilesystemRepository::new(&root);
+
+        let expected_result = Err(FilesystemError::new(
+            FilesystemErrorReason::RootIsNotADirectory,
+            &root,
+        ));
 
         let result = repository.ensure_root_is_reachable().await;
 
