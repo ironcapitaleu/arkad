@@ -8,7 +8,8 @@
 //!
 //! ## Modules
 //!
-//! - [`input`]: The [`ExecuteSecRequestInput`] holding the prepared client and request.
+//! - [`input`]: The [`ExecuteSecRequestInput`] holding the prepared client and request, and the
+//!   [`ExecutableSecClient`] bound on that client.
 //! - [`output`]: The [`ExecuteSecRequestOutput`] holding the received SEC response.
 //!
 //! ## See Also

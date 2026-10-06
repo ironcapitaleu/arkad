@@ -57,8 +57,8 @@ an allocation and a pointer chase. Measure the CPU effect with samply, described
 
 The command above runs today, but only by calling EDGAR. The number carries network
 non-determinism, so you cannot assert against it. The same multi-CIK run without the live SEC API
-needs a client-injection seam, and that seam does not exist. The state contexts hold the **concrete**
-`SecClient` struct instead of a generic `C: SecClient`, so no fake can pass through them. The
-existing fakes are placeholders as well, with `Request = ()` and `Response = String`. They must
-become fixture-backed first. That refactor is its own ticket. Say so instead of improvising a
-measurement setup of your own.
+needs a client seam from the binary down. `ExecuteSecRequest<C>` accepts any `ExecutableSecClient`,
+and the `StubSecClient` test fixture returns real `SecResponse` values. `ExtractSuperState`, the
+transitions and the binaries still use the concrete `SecClient`, so a binary-level run cannot inject
+the stub yet. That refactor is its own ticket. Say so instead of improvising a measurement setup of
+your own.

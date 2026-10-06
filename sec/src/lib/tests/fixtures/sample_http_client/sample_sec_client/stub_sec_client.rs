@@ -13,6 +13,9 @@ use crate::tests::fixtures::sample_rate_limiter::always_ready::AlwaysReadyRateLi
 ///
 /// It uses the same request, response, and error types as the real `SecClient`, so it can replace
 /// that client in any state that is generic over the SEC client.
+// Deviation: the testing skill names domain-level fakes `Fake{ConceptName}`. `FakeSecClient` already
+// names the placeholder fake in `always_succeeding.rs`, and this type returns a preset result, so
+// it is named `StubSecClient`.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct StubSecClient {
     result: Result<SecResponse, FailedSecRequest>,
@@ -20,6 +23,7 @@ pub struct StubSecClient {
 
 impl StubSecClient {
     /// Creates a stub that returns `response` for every request.
+    #[must_use]
     pub const fn succeeding(response: SecResponse) -> Self {
         Self {
             result: Ok(response),
@@ -27,6 +31,7 @@ impl StubSecClient {
     }
 
     /// Creates a stub that returns `error` for every request.
+    #[must_use]
     pub const fn failing(error: FailedSecRequest) -> Self {
         Self { result: Err(error) }
     }

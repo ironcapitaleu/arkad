@@ -12,7 +12,8 @@
 //!
 //! - [`constants`]: State metadata such as [`STATE_NAME`].
 //! - [`context`]: The [`ExecuteSecRequestContext`] carried alongside the state.
-//! - [`data`]: The [`ExecuteSecRequestInput`] and [`ExecuteSecRequestOutput`] data types.
+//! - [`data`]: The [`ExecuteSecRequestInput`] and [`ExecuteSecRequestOutput`] data types, and the
+//!   [`ExecutableSecClient`] bound on the client.
 //!
 //! ## Usage
 //!
@@ -585,6 +586,17 @@ mod tests {
         let result = execute_state.compute_output_data_async().await;
 
         assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    #[should_panic(expected = "compute_output_data failed")]
+    fn should_panic_when_client_fails_in_blocking_compute() {
+        let client_error = FailedSecRequest::new(ErrorReason::FailedRequestExecution {
+            details: "simulated network error".to_string(),
+        });
+        let mut execute_state = create_stub_state(StubSecClient::failing(client_error));
+
+        SMState::compute_output_data(&mut execute_state);
     }
 
     #[tokio::test]
