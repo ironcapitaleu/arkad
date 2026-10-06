@@ -18,5 +18,6 @@
 pub mod input;
 pub mod output;
 
+pub use input::ExecutableSecClient;
 pub use input::ExecuteSecRequestInput;
 pub use output::ExecuteSecRequestOutput;

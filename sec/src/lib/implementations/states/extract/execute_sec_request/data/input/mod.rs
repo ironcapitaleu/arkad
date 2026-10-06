@@ -4,7 +4,8 @@
 //! [`ExecuteSecRequest`](crate::implementations::states::extract::execute_sec_request::ExecuteSecRequest)
 //! state, along with its updater and builder.
 //!
-//! It carries the prepared [`SecClient`] and [`SecRequest`] needed to execute the request.
+//! It carries the prepared SEC client and [`SecRequest`] needed to execute the request. The client
+//! is generic over [`ExecutableSecClient`], so tests can replace the real [`SecClient`] with a fake.
 //!
 //! ## See Also
 //!
@@ -12,30 +13,67 @@
 //! - [`crate::shared::request`]: The SEC request type carried here.
 
 use std::fmt;
+use std::hash::Hash;
 
 use serde::Serialize;
 use state_maschine::prelude::StateData as SMStateData;
 
 use crate::error::State as StateError;
+use crate::shared::http_client::SecClient as SecClientTrait;
 use crate::shared::http_client::implementations::sec_client::SecClient;
+use crate::shared::http_client::implementations::sec_client::error::FailedSecRequest;
 use crate::shared::request::SecRequest as SecRequestTrait;
 use crate::shared::request::implementations::sec_request::SecRequest;
+use crate::shared::response::implementations::sec_response::SecResponse;
 use crate::traits::state_machine::state::StateData;
+
+/// An SEC client that the [`ExecuteSecRequest`](super::super::ExecuteSecRequest) state can hold
+/// and run.
+///
+/// The state needs a client that executes a [`SecRequest`] into a [`SecResponse`], and that meets
+/// the trait bounds every state data type carries. Every type that meets these bounds implements
+/// this trait. The real [`SecClient`] is one of them.
+pub trait ExecutableSecClient:
+    SecClientTrait<Request = SecRequest, Response = SecResponse, Error = FailedSecRequest>
+    + Clone
+    + Unpin
+    + PartialEq
+    + Eq
+    + PartialOrd
+    + Ord
+    + Hash
+    + Serialize
+{
+}
+
+impl<T> ExecutableSecClient for T where
+    T: SecClientTrait<Request = SecRequest, Response = SecResponse, Error = FailedSecRequest>
+        + Clone
+        + Unpin
+        + PartialEq
+        + Eq
+        + PartialOrd
+        + Ord
+        + Hash
+        + Serialize
+{
+}
 
 /// Input data for the [`ExecuteSecRequest`](super::super::ExecuteSecRequest) state.
 ///
-/// Bundles the prepared [`SecClient`] and [`SecRequest`] needed to execute the request.
+/// Bundles the prepared SEC client and [`SecRequest`] needed to execute the request. The client
+/// type `C` defaults to the real [`SecClient`].
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
-pub struct ExecuteSecRequestInput {
+pub struct ExecuteSecRequestInput<C = SecClient> {
     /// The prepared SEC client that will execute the HTTP request.
-    pub sec_client: SecClient,
+    pub sec_client: C,
     /// The prepared SEC request targeting a specific CIK.
     pub sec_request: SecRequest,
 }
 
-impl ExecuteSecRequestInput {
+impl<C> ExecuteSecRequestInput<C> {
     /// Creates a new [`ExecuteSecRequestInput`] from an SEC client and an SEC request.
-    pub const fn new(sec_client: SecClient, sec_request: SecRequest) -> Self {
+    pub const fn new(sec_client: C, sec_request: SecRequest) -> Self {
         Self {
             sec_client,
             sec_request,
@@ -44,7 +82,7 @@ impl ExecuteSecRequestInput {
 
     /// Returns a reference to the SEC client.
     #[must_use]
-    pub const fn sec_client(&self) -> &SecClient {
+    pub const fn sec_client(&self) -> &C {
         &self.sec_client
     }
 
@@ -55,7 +93,7 @@ impl ExecuteSecRequestInput {
     }
 }
 
-impl StateData for ExecuteSecRequestInput {
+impl<C: ExecutableSecClient> StateData for ExecuteSecRequestInput<C> {
     fn update_state(&mut self, updates: Self::UpdateType) -> Result<(), StateError> {
         if let Some(sec_client) = updates.sec_client {
             self.sec_client = sec_client;
@@ -67,8 +105,8 @@ impl StateData for ExecuteSecRequestInput {
     }
 }
 
-impl SMStateData for ExecuteSecRequestInput {
-    type UpdateType = ExecuteSecRequestInputUpdater;
+impl<C: ExecutableSecClient> SMStateData for ExecuteSecRequestInput<C> {
+    type UpdateType = ExecuteSecRequestInputUpdater<C>;
 
     fn state(&self) -> &Self {
         self
@@ -85,7 +123,7 @@ impl SMStateData for ExecuteSecRequestInput {
     }
 }
 
-impl fmt::Display for ExecuteSecRequestInput {
+impl<C> fmt::Display for ExecuteSecRequestInput<C> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "SEC Request URL: {}", self.sec_request.url())
     }
@@ -95,28 +133,28 @@ impl fmt::Display for ExecuteSecRequestInput {
 ///
 /// Fields set to `None` are left unchanged when the updater is applied.
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
-pub struct ExecuteSecRequestInputUpdater {
+pub struct ExecuteSecRequestInputUpdater<C = SecClient> {
     /// Optional new value for the SEC client.
-    pub sec_client: Option<SecClient>,
+    pub sec_client: Option<C>,
     /// Optional new value for the SEC request.
     pub sec_request: Option<SecRequest>,
 }
 
-impl ExecuteSecRequestInputUpdater {
+impl<C> ExecuteSecRequestInputUpdater<C> {
     /// Creates a new builder for constructing [`ExecuteSecRequestInputUpdater`] instances.
     #[must_use]
-    pub const fn builder() -> ExecuteSecRequestInputUpdaterBuilder {
+    pub const fn builder() -> ExecuteSecRequestInputUpdaterBuilder<C> {
         ExecuteSecRequestInputUpdaterBuilder::new()
     }
 }
 
 /// Fluent builder for an [`ExecuteSecRequestInputUpdater`].
-pub struct ExecuteSecRequestInputUpdaterBuilder {
-    sec_client: Option<SecClient>,
+pub struct ExecuteSecRequestInputUpdaterBuilder<C = SecClient> {
+    sec_client: Option<C>,
     sec_request: Option<SecRequest>,
 }
 
-impl ExecuteSecRequestInputUpdaterBuilder {
+impl<C> ExecuteSecRequestInputUpdaterBuilder<C> {
     /// Creates a new [`ExecuteSecRequestInputUpdaterBuilder`] with all fields initialized to `None`.
     #[must_use]
     pub const fn new() -> Self {
@@ -129,7 +167,7 @@ impl ExecuteSecRequestInputUpdaterBuilder {
     /// Sets the SEC client field.
     #[must_use]
     #[allow(clippy::missing_const_for_fn)]
-    pub fn sec_client(mut self, sec_client: SecClient) -> Self {
+    pub fn sec_client(mut self, sec_client: C) -> Self {
         self.sec_client = Some(sec_client);
         self
     }
@@ -144,7 +182,7 @@ impl ExecuteSecRequestInputUpdaterBuilder {
 
     /// Builds the [`ExecuteSecRequestInputUpdater`].
     #[must_use]
-    pub fn build(self) -> ExecuteSecRequestInputUpdater {
+    pub fn build(self) -> ExecuteSecRequestInputUpdater<C> {
         ExecuteSecRequestInputUpdater {
             sec_client: self.sec_client,
             sec_request: self.sec_request,
@@ -152,7 +190,7 @@ impl ExecuteSecRequestInputUpdaterBuilder {
     }
 }
 
-impl Default for ExecuteSecRequestInputUpdaterBuilder {
+impl<C> Default for ExecuteSecRequestInputUpdaterBuilder<C> {
     fn default() -> Self {
         Self::new()
     }

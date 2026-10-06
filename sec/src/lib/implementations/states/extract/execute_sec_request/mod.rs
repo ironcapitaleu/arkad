@@ -57,7 +57,7 @@ use state_maschine::prelude::State as SMState;
 
 use crate::error::State as StateError;
 use crate::error::state_machine::state::failed_request_execution::FailedRequestExecution;
-use crate::shared::http_client::SecClient as SecClientTrait;
+use crate::shared::http_client::implementations::sec_client::SecClient;
 use crate::traits::state_machine::state::State;
 
 pub mod constants;
@@ -66,24 +66,28 @@ pub mod data;
 
 pub use constants::STATE_NAME;
 pub use context::ExecuteSecRequestContext;
+pub use data::ExecutableSecClient;
 pub use data::ExecuteSecRequestInput;
 pub use data::ExecuteSecRequestOutput;
 
 /// Sends the prepared request to the SEC API and captures the response.
 ///
-/// Consumes the prepared [`SecClient`](crate::shared::http_client::implementations::sec_client::SecClient)
-/// and [`SecRequest`](crate::shared::request::implementations::sec_request::SecRequest), performs the
+/// Consumes the prepared SEC client and
+/// [`SecRequest`](crate::shared::request::implementations::sec_request::SecRequest), performs the
 /// HTTP call, and stores the resulting
 /// [`SecResponse`](crate::shared::response::implementations::sec_response::SecResponse). It is the only
 /// extract state that performs I/O, which is why network failures surface here.
+///
+/// The client type `C` defaults to the real [`SecClient`]. Any [`ExecutableSecClient`] can
+/// replace it, for example a fake in tests.
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
-pub struct ExecuteSecRequest {
-    input: ExecuteSecRequestInput,
+pub struct ExecuteSecRequest<C = SecClient> {
+    input: ExecuteSecRequestInput<C>,
     context: ExecuteSecRequestContext,
     output: Option<ExecuteSecRequestOutput>,
 }
 
-impl ExecuteSecRequest {
+impl<C> ExecuteSecRequest<C> {
     /// Creates a new [`ExecuteSecRequest`] state from its input and context, with no output computed yet.
     ///
     /// # Examples
@@ -108,7 +112,7 @@ impl ExecuteSecRequest {
     /// assert_eq!(result, expected_result);
     /// ```
     #[must_use]
-    pub const fn new(input: ExecuteSecRequestInput, context: ExecuteSecRequestContext) -> Self {
+    pub const fn new(input: ExecuteSecRequestInput<C>, context: ExecuteSecRequestContext) -> Self {
         Self {
             input,
             context,
@@ -121,7 +125,7 @@ impl ExecuteSecRequest {
     pub fn into_parts(
         self,
     ) -> (
-        ExecuteSecRequestInput,
+        ExecuteSecRequestInput<C>,
         Option<ExecuteSecRequestOutput>,
         ExecuteSecRequestContext,
     ) {
@@ -130,7 +134,7 @@ impl ExecuteSecRequest {
 }
 
 #[async_trait]
-impl State for ExecuteSecRequest {
+impl<C: ExecutableSecClient> State for ExecuteSecRequest<C> {
     /// Executes the prepared SEC request and stores the response as output.
     ///
     /// # Errors
@@ -157,8 +161,8 @@ impl State for ExecuteSecRequest {
     }
 }
 
-impl SMState for ExecuteSecRequest {
-    type InputData = ExecuteSecRequestInput;
+impl<C: ExecutableSecClient> SMState for ExecuteSecRequest<C> {
+    type InputData = ExecuteSecRequestInput<C>;
     type OutputData = ExecuteSecRequestOutput;
     type Context = ExecuteSecRequestContext;
 
@@ -205,7 +209,7 @@ impl SMState for ExecuteSecRequest {
     }
 }
 
-impl fmt::Display for ExecuteSecRequest {
+impl<C: ExecutableSecClient> fmt::Display for ExecuteSecRequest<C> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
@@ -227,14 +231,23 @@ impl fmt::Display for ExecuteSecRequest {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
     use std::{fmt::Debug, hash::Hash};
 
     use pretty_assertions::assert_eq;
 
     use super::*;
     use crate::shared::cik::Cik;
-    use crate::shared::http_client::implementations::sec_client::SecClient;
+    use crate::shared::content_type::ContentType;
+    use crate::shared::headers::Headers;
+    use crate::shared::http_client::implementations::sec_client::error::{
+        ErrorReason, FailedSecRequest,
+    };
     use crate::shared::request::implementations::sec_request::SecRequest;
+    use crate::shared::response::implementations::sec_response::SecResponse;
+    use crate::shared::status_code::StatusCode;
+    use crate::shared::url::Url;
+    use crate::tests::fixtures::sample_http_client::sample_sec_client::StubSecClient;
 
     const TEST_CIK: &str = "0001067983";
 
@@ -468,76 +481,123 @@ mod tests {
         assert_eq!(result, expected_result);
     }
 
+    /// Creates a fixed `SecResponse`, as returned by the stub client.
+    fn create_stub_response() -> SecResponse {
+        let url: Url = "https://data.sec.gov/api/xbrl/companyfacts/CIK0001067983.json"
+            .parse()
+            .expect("Hardcoded URL should always parse successfully");
+
+        let mut raw_headers = HashMap::new();
+        raw_headers.insert("content-type".to_string(), "application/json".to_string());
+        let headers = Headers::new(raw_headers);
+
+        SecResponse::from_parts(
+            url,
+            headers,
+            ContentType::Json,
+            StatusCode::Ok,
+            serde_json::json!({ "cik": 1_067_983 }),
+        )
+    }
+
+    /// Creates an `ExecuteSecRequest` state whose client never touches the network.
+    fn create_stub_state(client: StubSecClient) -> ExecuteSecRequest<StubSecClient> {
+        let cik = create_test_cik();
+        let request = SecRequest::builder()
+            .all_company_facts()
+            .cik(cik.clone())
+            .build();
+        let input = ExecuteSecRequestInput::new(client, request);
+        let context = ExecuteSecRequestContext::new(cik);
+        ExecuteSecRequest::new(input, context)
+    }
+
     #[tokio::test]
     async fn should_not_change_input_data_when_computing_output_data() {
-        let client = SecClient::default();
-        let cik = Cik::new("0001067983").expect("Hardcoded CIK should be valid");
-        let request = SecRequest::builder().all_company_facts().cik(cik).build();
-        let input = ExecuteSecRequestInput::new(client, request);
-        let context = ExecuteSecRequestContext::new(create_test_cik());
-        let mut execute_state = ExecuteSecRequest::new(input, context);
+        let mut execute_state =
+            create_stub_state(StubSecClient::succeeding(create_stub_response()));
 
         let expected_result = &execute_state.input_data().clone();
 
         execute_state
             .compute_output_data_async()
             .await
-            .expect("Valid state should always compute output data");
+            .expect("A stub client that always succeeds should always produce output data");
         let result = execute_state.input_data();
 
         assert_eq!(result, expected_result);
     }
 
     #[tokio::test]
-    async fn should_return_correct_output_data_when_computing_output_data() {
-        let client = SecClient::default();
-        let cik = Cik::new("0001067983").expect("Hardcoded CIK should be valid");
-        let request = SecRequest::builder().all_company_facts().cik(cik).build();
-        let input = ExecuteSecRequestInput::new(client, request);
-        let context = ExecuteSecRequestContext::new(create_test_cik());
-        let mut execute_state = ExecuteSecRequest::new(input, context);
+    async fn should_return_client_response_as_output_when_computing_output_data() {
+        let mut execute_state =
+            create_stub_state(StubSecClient::succeeding(create_stub_response()));
+
+        let expected_result = Some(&ExecuteSecRequestOutput::new(create_stub_response()));
 
         execute_state
             .compute_output_data_async()
             .await
-            .expect("Valid state should always compute output data");
-
+            .expect("A stub client that always succeeds should always produce output data");
         let result = execute_state.output_data();
 
-        assert!(result.is_some());
+        assert_eq!(result, expected_result);
     }
 
     #[tokio::test]
     async fn should_return_true_when_output_data_has_been_computed() {
-        let client = SecClient::default();
-        let cik = Cik::new("0001067983").expect("Hardcoded CIK should be valid");
-        let request = SecRequest::builder().all_company_facts().cik(cik).build();
-        let input = ExecuteSecRequestInput::new(client, request);
-        let context = ExecuteSecRequestContext::new(create_test_cik());
-        let mut execute_state = ExecuteSecRequest::new(input, context);
+        let mut execute_state =
+            create_stub_state(StubSecClient::succeeding(create_stub_response()));
 
         let expected_result = true;
 
         execute_state
             .compute_output_data_async()
             .await
-            .expect("Valid state should always compute output data");
+            .expect("A stub client that always succeeds should always produce output data");
         let result = execute_state.has_output_data_been_computed();
 
         assert_eq!(result, expected_result);
     }
 
     #[tokio::test]
-    async fn should_succeed_when_valid_input_is_provided() {
-        let client = SecClient::default();
-        let cik = Cik::new("0001067983").expect("Hardcoded CIK should be valid");
-        let request = SecRequest::builder().all_company_facts().cik(cik).build();
-        let input = ExecuteSecRequestInput::new(client, request);
-        let context = ExecuteSecRequestContext::new(create_test_cik());
-        let mut execute_state = ExecuteSecRequest::new(input, context);
+    async fn should_succeed_when_client_returns_a_response() {
+        let mut execute_state =
+            create_stub_state(StubSecClient::succeeding(create_stub_response()));
 
         let expected_result = true;
+
         let result = execute_state.compute_output_data_async().await.is_ok();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_return_failed_request_execution_error_when_client_fails() {
+        let client_error = FailedSecRequest::new(ErrorReason::FailedRequestExecution {
+            details: "simulated network error".to_string(),
+        });
+        let mut execute_state = create_stub_state(StubSecClient::failing(client_error.clone()));
+
+        let expected_result: Result<(), StateError> =
+            Err(FailedRequestExecution::new(STATE_NAME.to_string(), client_error).into());
+
+        let result = execute_state.compute_output_data_async().await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_not_store_output_when_client_fails() {
+        let client_error = FailedSecRequest::new(ErrorReason::FailedRequestExecution {
+            details: "simulated network error".to_string(),
+        });
+        let mut execute_state = create_stub_state(StubSecClient::failing(client_error));
+
+        let expected_result = false;
+
+        let _ = execute_state.compute_output_data_async().await;
+        let result = execute_state.has_output_data_been_computed();
 
         assert_eq!(result, expected_result);
     }
