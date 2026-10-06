@@ -56,7 +56,7 @@ For each data struct, generate:
 
 1. **Core struct** with derives: `Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize`
 2. **Constructor** (`new(...)`)
-3. **StateData/Context trait impl** (SEC version with `Result` + state_machine version)
+3. **StateData/Context trait impl** (SEC version with `Result` + `state_maschine` version)
 4. **Updater struct** — all fields wrapped in `Option`
 5. **UpdaterBuilder** — const `new()`, fluent setters, `build()` method, `Default` impl
 6. **Display impl**
@@ -74,7 +74,7 @@ For each data struct, generate:
 2. **Constructor** (`new(input, context)`)
 3. **`into_parts()`** method for transition decomposition
 4. **SEC State trait impl** (`compute_output_data_async` — stub returning `Ok(())`)
-5. **state_machine State trait impl** (blocking wrapper with tokio runtime detection)
+5. **`state_maschine` State trait impl** (blocking wrapper with tokio runtime detection)
 6. **Display impl** (formatted summary of all fields)
 7. **Test module:**
    - `should_return_state_name`
@@ -97,7 +97,7 @@ impl State for MyState {
     }
 }
 
-// state_machine trait (sync, infallible wrapper)
+// state_maschine trait (sync, infallible wrapper)
 impl SMState for MyState {
     fn compute_output_data(&mut self) {
         let result = if let Ok(handle) = tokio::runtime::Handle::try_current() {

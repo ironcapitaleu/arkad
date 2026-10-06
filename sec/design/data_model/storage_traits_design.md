@@ -668,7 +668,7 @@ xbrl              domain vocabulary: CanonicalElement, FactSet, CanonicalFact,
           └────── the binary / composition root wires PostgresRepository and injects it
 ```
 
-Only the composition root ever names Postgres; `sec` / `state_machine` / `xbrl` see nothing but
+Only the composition root ever names Postgres; `sec` / `state_maschine` / `xbrl` see nothing but
 `storage` traits. This only holds if the Postgres impl is a *separate crate* — otherwise `sec`'s
 dep graph pulls in sqlx transitively and the boundary rots.
 

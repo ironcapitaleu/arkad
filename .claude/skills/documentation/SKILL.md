@@ -47,7 +47,7 @@ Then:
 
 ### Available scopes:
 
-- **A specific crate** — e.g. `sec`, `state_machine`, `xbrl`
+- **A specific crate** — e.g. `sec`, `state_maschine`, `xbrl`
 - **A specific module or directory** — e.g. `sec/src/lib/shared/cik/`
 - **A specific file** — e.g. `sec/src/lib/shared/cik/mod.rs`
 - **Recently written code** — based on `git diff` or conversation context

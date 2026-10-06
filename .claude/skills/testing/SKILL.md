@@ -27,7 +27,7 @@ If no specific target is provided, gather context automatically:
 
 When a target is identified (either from context or user input), reason about:
 
-- **What crate/module is it in?** — `sec`, `xbrl`, `state_machine`?
+- **What crate/module is it in?** — `sec`, `xbrl`, `state_maschine`?
 - **What kind of item is it?** — struct, trait, enum, state, domain concept?
 - **What role does it play?**
   - A state in a state machine → needs state method tests, async compute tests, auto-trait tests

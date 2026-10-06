@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 description = "A State Machine Library for processing SEC filings in Rust."
-repository = "https://github.com/ironcapital/state_machine"
+repository = "https://github.com/ironcapitaleu/arkad"
 categories = ["algorithms", "rust-patterns"]
 keywords = ["state-machine", "design-pattern"]
 
@@ -21,7 +21,7 @@ futures-core = "0.3"
 futures-util = "0.3"
 reqwest = { version = "0.13", features = ["json"] }
 governor = "0.10.4"
-state_maschine = { path = "../state_machine" }
+state_maschine = { path = "../state_maschine" }
 xbrl = { path = "../xbrl" }
 uuid = { version = "1.23.2", features = ["v4"] }
 regex = "1"
