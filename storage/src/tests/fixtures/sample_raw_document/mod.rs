@@ -4,7 +4,8 @@
 
 use chrono::{DateTime, Utc};
 
-use crate::implementations::repository::filesystem::{DocumentKey, DocumentMetadata, RawDocument};
+use crate::implementations::repository::filesystem::{DocumentMetadata, RawDocument};
+use crate::shared::document_key::DocumentKey;
 
 /// Returns a [`RawDocument`] holding `{}` under the key `sec/companyfacts/CIK0000320193.json`.
 ///

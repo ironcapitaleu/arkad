@@ -8,11 +8,11 @@ use async_trait::async_trait;
 use tokio::fs;
 
 use super::FilesystemRepository;
-use super::document_key::DocumentKey;
 use super::document_metadata::DocumentMetadata;
 use super::filesystem_error::{FilesystemError, FilesystemErrorReason, FilesystemOperation};
 use super::raw_document::RawDocument;
 use crate::error::ReadError;
+use crate::shared::document_key::DocumentKey;
 use crate::traits::repository::ReadRepository;
 
 #[async_trait]
