@@ -6,8 +6,8 @@
 //! ## Record and Key
 //!
 //! [`ReadRepository`](crate::ReadRepository) and [`WriteRepository`](crate::WriteRepository) each
-//! leave their associated types to the implementor. This repository pins `Record` to [`RawDocument`]
-//! in both, and `ReadRepository`'s `Key` to [`DocumentKey`].
+//! leave their associated types to the implementor. A `FilesystemRepository<D>` sets `Record` to
+//! the [`Document`] type `D` in both, and `ReadRepository`'s `Key` to [`DocumentKey`].
 //!
 //! ## Errors
 //!
@@ -16,29 +16,32 @@
 //! ## Modules
 //!
 //! - [`constants`]: The constants that fix the file layout, such as [`METADATA_SUFFIX`].
-//! - [`document_metadata`]: The [`DocumentMetadata`] describing the fetch behind a document.
 //! - [`filesystem_error`]: The [`FilesystemError`] for a failed operation on a path.
-//! - [`raw_document`]: The [`RawDocument`] a read returns and a write accepts.
 
+use std::cmp::Ordering;
+use std::fmt;
+use std::hash::{Hash, Hasher};
 use std::io;
+use std::marker::PhantomData;
 use std::path::{Path, PathBuf};
 
 use crate::error::BackendError;
 use crate::shared::document_key::DocumentKey;
+#[cfg(doc)]
+use crate::traits::document::Document;
 
 pub mod constants;
-pub mod document_metadata;
 pub mod filesystem_error;
-pub mod raw_document;
 mod read_repository;
 mod write_repository;
 
 pub use constants::METADATA_SUFFIX;
-pub use document_metadata::DocumentMetadata;
 pub use filesystem_error::{FilesystemError, FilesystemErrorReason, FilesystemOperation};
-pub use raw_document::RawDocument;
 
-/// Stores documents as files beneath one root directory.
+/// Stores documents of one [`Document`] kind `D` as files beneath one root directory.
+///
+/// A read returns a `D`, and a write accepts one. A read rejects a metadata file of another kind.
+/// Repositories for different kinds can share one root, as long as their keys differ.
 ///
 /// A [`DocumentKey`] is a document's path under the root. A document lives at the root joined with
 /// its key. On Linux and macOS, a root of `/data/arkad` and a key of `sec/CIK0000320193.json` name
@@ -58,12 +61,14 @@ pub use raw_document::RawDocument;
 /// fails, or the caller drops the write between the renames, the new metadata stays beside the old
 /// document until the next successful write under that key. If the caller drops the write before
 /// the renames, its temporary files stay in the directory.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct FilesystemRepository {
+pub struct FilesystemRepository<D> {
     root: PathBuf,
+    // Deviation: `fn() -> D` instead of `D`. The repository holds no `D`, so it stays `Send`, `Sync`,
+    // and `Unpin` for every `D`.
+    document: PhantomData<fn() -> D>,
 }
 
-impl FilesystemRepository {
+impl<D> FilesystemRepository<D> {
     /// Creates a new [`FilesystemRepository`] rooted at the given directory.
     ///
     /// The constructor checks nothing and touches no disk. Whether the root exists, is a
@@ -80,7 +85,8 @@ impl FilesystemRepository {
     ///
     /// use storage::implementations::repository::filesystem::FilesystemRepository;
     ///
-    /// let repository = FilesystemRepository::new("/data/arkad");
+    /// // `root` needs no document kind, so `()` stands in for one.
+    /// let repository = FilesystemRepository::<()>::new("/data/arkad");
     ///
     /// let expected_result = Path::new("/data/arkad");
     ///
@@ -90,7 +96,10 @@ impl FilesystemRepository {
     /// ```
     #[must_use]
     pub fn new(root: impl Into<PathBuf>) -> Self {
-        Self { root: root.into() }
+        Self {
+            root: root.into(),
+            document: PhantomData,
+        }
     }
 
     /// Returns the root directory every key resolves under.
@@ -109,7 +118,8 @@ impl FilesystemRepository {
     /// use storage::DocumentKey;
     /// use storage::implementations::repository::filesystem::FilesystemRepository;
     ///
-    /// let repository = FilesystemRepository::new("/data/arkad");
+    /// // `document_path` needs no document kind, so `()` stands in for one.
+    /// let repository = FilesystemRepository::<()>::new("/data/arkad");
     /// let key = DocumentKey::new("sec/CIK0000320193.json")
     ///     .expect("Given a valid relative path, the key should always build");
     ///
@@ -167,6 +177,48 @@ impl FilesystemRepository {
     }
 }
 
+// Deviation: the traits below are implemented by hand. `#[derive]` would bound each one on `D`. The
+// repository holds no `D`, so a repository of any kind compares, hashes, and clones by its root.
+impl<D> fmt::Debug for FilesystemRepository<D> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("FilesystemRepository")
+            .field("root", &self.root)
+            .finish()
+    }
+}
+
+impl<D> Clone for FilesystemRepository<D> {
+    fn clone(&self) -> Self {
+        Self::new(self.root.clone())
+    }
+}
+
+impl<D> PartialEq for FilesystemRepository<D> {
+    fn eq(&self, other: &Self) -> bool {
+        self.root == other.root
+    }
+}
+
+impl<D> Eq for FilesystemRepository<D> {}
+
+impl<D> PartialOrd for FilesystemRepository<D> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl<D> Ord for FilesystemRepository<D> {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.root.cmp(&other.root)
+    }
+}
+
+impl<D> Hash for FilesystemRepository<D> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.root.hash(state);
+    }
+}
+
 impl From<FilesystemError> for BackendError {
     /// Converts a [`FilesystemError`] into the [`BackendError`] variant for its reason.
     ///
@@ -189,6 +241,7 @@ impl From<FilesystemError> for BackendError {
             } => Self::unauthorized_access(reason),
             FilesystemErrorReason::MissingMetadataFile
             | FilesystemErrorReason::InvalidMetadata { .. }
+            | FilesystemErrorReason::UnexpectedMetadataKind { .. }
             | FilesystemErrorReason::UnserializableMetadata
             | FilesystemErrorReason::FailedIo { .. } => Self::failed_operation(reason),
         }
@@ -204,7 +257,14 @@ mod tests {
     use tempfile::TempDir;
 
     use super::*;
+    use crate::tests::fixtures::sample_document::SampleDocument;
     use crate::traits::repository::ReadWriteRepository;
+
+    /// The repository type these tests build. The path tests need no particular kind.
+    type SampleRepository = FilesystemRepository<SampleDocument>;
+
+    /// A document kind with no trait implementations, to show the repository needs none of them.
+    struct KindWithoutTraits;
 
     fn temporary_root() -> TempDir {
         TempDir::new().expect(
@@ -215,7 +275,7 @@ mod tests {
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
     #[test]
     const fn should_implement_auto_traits_for_filesystem_repository() {
-        implements_auto_traits::<FilesystemRepository>();
+        implements_auto_traits::<SampleRepository>();
     }
 
     const fn implements_send<T: Send>() {}
@@ -223,72 +283,86 @@ mod tests {
 
     #[test]
     const fn should_implement_send_for_filesystem_repository() {
-        implements_send::<FilesystemRepository>();
+        implements_send::<SampleRepository>();
     }
 
     #[test]
     const fn should_implement_sync_for_filesystem_repository() {
-        implements_sync::<FilesystemRepository>();
+        implements_sync::<SampleRepository>();
     }
 
     const fn implements_debug<T: Debug>() {}
     #[test]
     const fn should_be_able_to_rely_on_debug_implementation_for_filesystem_repository() {
-        implements_debug::<FilesystemRepository>();
+        implements_debug::<SampleRepository>();
     }
 
     const fn implements_clone<T: Clone>() {}
     #[test]
     const fn should_be_able_to_rely_on_clone_implementation_for_filesystem_repository() {
-        implements_clone::<FilesystemRepository>();
+        implements_clone::<SampleRepository>();
     }
 
     const fn implements_hash<T: Hash>() {}
     #[test]
     const fn should_be_able_to_rely_on_hash_implementation_for_filesystem_repository() {
-        implements_hash::<FilesystemRepository>();
+        implements_hash::<SampleRepository>();
     }
 
     const fn implements_eq<T: Eq>() {}
     #[test]
     const fn should_be_able_to_rely_on_eq_implementation_for_filesystem_repository() {
-        implements_eq::<FilesystemRepository>();
+        implements_eq::<SampleRepository>();
     }
 
     const fn implements_ord<T: Ord>() {}
     #[test]
     const fn should_be_able_to_rely_on_ord_implementation_for_filesystem_repository() {
-        implements_ord::<FilesystemRepository>();
+        implements_ord::<SampleRepository>();
     }
 
     const fn implements_sized<T: Sized>() {}
     #[test]
     const fn should_be_sized_for_filesystem_repository() {
-        implements_sized::<FilesystemRepository>();
+        implements_sized::<SampleRepository>();
     }
 
     const fn implements_partial_eq<T: PartialEq>() {}
     #[test]
     const fn should_be_able_to_rely_on_partial_eq_implementation_for_filesystem_repository() {
-        implements_partial_eq::<FilesystemRepository>();
+        implements_partial_eq::<SampleRepository>();
     }
 
     const fn implements_partial_ord<T: PartialOrd>() {}
     #[test]
     const fn should_be_able_to_rely_on_partial_ord_implementation_for_filesystem_repository() {
-        implements_partial_ord::<FilesystemRepository>();
+        implements_partial_ord::<SampleRepository>();
     }
 
     const fn implements_unpin<T: Unpin>() {}
     #[test]
     const fn should_be_able_to_rely_on_unpin_implementation_for_filesystem_repository() {
-        implements_unpin::<FilesystemRepository>();
+        implements_unpin::<SampleRepository>();
+    }
+
+    const fn implements_value_traits<
+        T: Debug + Clone + PartialEq + Eq + PartialOrd + Ord + Hash + Send + Sync + Unpin,
+    >() {
+    }
+    #[test]
+    const fn should_implement_value_traits_for_filesystem_repository_of_a_kind_without_traits() {
+        implements_value_traits::<FilesystemRepository<KindWithoutTraits>>();
+    }
+
+    #[test]
+    const fn should_implement_auto_traits_for_filesystem_repository_of_a_kind_that_is_not_send() {
+        implements_auto_traits::<FilesystemRepository<std::rc::Rc<u8>>>();
     }
 
     const fn implements_read_write_repository<T: ReadWriteRepository>() {}
     #[test]
     const fn should_implement_read_write_repository_for_filesystem_repository() {
-        implements_read_write_repository::<FilesystemRepository>();
+        implements_read_write_repository::<SampleRepository>();
     }
 
     #[test]
@@ -297,7 +371,7 @@ mod tests {
 
         let expected_result = Path::new("/data/arkad");
 
-        let repository = FilesystemRepository::new(root);
+        let repository = SampleRepository::new(root);
         let result = repository.root();
 
         assert_eq!(result, expected_result);
@@ -305,7 +379,7 @@ mod tests {
 
     #[test]
     fn should_join_the_root_and_the_key_when_building_a_document_path() {
-        let repository = FilesystemRepository::new("/data/arkad");
+        let repository = SampleRepository::new("/data/arkad");
         let key = DocumentKey::new("sec/companyfacts/CIK0000320193.json")
             .expect("Given a valid relative path, the key should always build");
 
@@ -318,7 +392,7 @@ mod tests {
 
     #[test]
     fn should_append_the_metadata_suffix_for_a_document_key() {
-        let repository = FilesystemRepository::new("/data/arkad");
+        let repository = SampleRepository::new("/data/arkad");
         let key = DocumentKey::new("sec/companyfacts/CIK0000320193.json")
             .expect("Given a valid relative path, the key should always build");
 
@@ -429,7 +503,7 @@ mod tests {
     #[tokio::test]
     async fn should_accept_the_root_when_the_root_is_an_existing_directory() {
         let root = temporary_root();
-        let repository = FilesystemRepository::new(root.path());
+        let repository = SampleRepository::new(root.path());
 
         let expected_result = Ok(());
 
@@ -442,7 +516,7 @@ mod tests {
     async fn should_return_missing_root_when_the_root_does_not_exist() {
         let parent = temporary_root();
         let root = parent.path().join("missing");
-        let repository = FilesystemRepository::new(&root);
+        let repository = SampleRepository::new(&root);
 
         let expected_result = Err(FilesystemError::new(
             FilesystemErrorReason::MissingRoot,
@@ -462,7 +536,7 @@ mod tests {
             "Given a writable temp directory, writing a file into it should always succeed",
         );
         let root = file.join("data");
-        let repository = FilesystemRepository::new(&root);
+        let repository = SampleRepository::new(&root);
 
         let expected_result = Err(FilesystemError::new(
             FilesystemErrorReason::MissingRoot,
@@ -481,7 +555,7 @@ mod tests {
         std::fs::write(&root, b"").expect(
             "Given a writable temp directory, writing a file into it should always succeed",
         );
-        let repository = FilesystemRepository::new(&root);
+        let repository = SampleRepository::new(&root);
 
         let expected_result = Err(FilesystemError::new(
             FilesystemErrorReason::RootIsNotADirectory,

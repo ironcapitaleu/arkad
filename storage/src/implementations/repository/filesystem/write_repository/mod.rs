@@ -14,8 +14,8 @@ use tokio::io::AsyncWriteExt;
 
 use super::FilesystemRepository;
 use super::filesystem_error::{FilesystemError, FilesystemErrorReason, FilesystemOperation};
-use super::raw_document::RawDocument;
 use crate::error::WriteError;
+use crate::traits::document::Document;
 use crate::traits::repository::WriteRepository;
 
 /// Counter that gives every temporary file of this process a distinct name.
@@ -27,8 +27,8 @@ static TEMPORARY_FILE_COUNTER: AtomicU64 = AtomicU64::new(0);
 const MAX_TEMPORARY_FILE_ATTEMPTS: u32 = 16;
 
 #[async_trait]
-impl WriteRepository for FilesystemRepository {
-    type Record = RawDocument;
+impl<D: Document> WriteRepository for FilesystemRepository<D> {
+    type Record = D;
 
     /// Writes a document and its metadata under the root.
     ///
@@ -47,15 +47,15 @@ impl WriteRepository for FilesystemRepository {
     ///   where a directory must be
     ///   ([`BackendError::FailedOperation`](crate::BackendError::FailedOperation)).
     async fn persist(&self, record: Self::Record) -> Result<(), WriteError> {
-        self.write_record(&record)
+        self.write_record(record)
             .await
             .map_err(|error| WriteError::Backend(error.into()))
     }
 }
 
-impl FilesystemRepository {
+impl<D: Document> FilesystemRepository<D> {
     /// Creates the directories below the root, then writes the record's metadata and document.
-    async fn write_record(&self, record: &RawDocument) -> Result<(), FilesystemError> {
+    async fn write_record(&self, record: D) -> Result<(), FilesystemError> {
         self.ensure_root_is_reachable().await?;
 
         let document_path = self.document_path(record.key());
@@ -206,8 +206,12 @@ mod tests {
 
     use super::*;
     use crate::error::BackendError;
-    use crate::implementations::repository::filesystem::DocumentMetadata;
-    use crate::tests::fixtures::sample_raw_document::sample_raw_document;
+    use crate::tests::fixtures::sample_document::{
+        SampleDocument, SampleMetadata, sample_document,
+    };
+
+    /// The repository type these tests write through.
+    type SampleRepository = FilesystemRepository<SampleDocument>;
 
     fn temporary_root() -> TempDir {
         TempDir::new().expect(
@@ -234,7 +238,7 @@ mod tests {
     }
 
     /// Reads and parses a metadata file the repository wrote.
-    fn read_stored_metadata(metadata_path: &Path) -> DocumentMetadata {
+    fn read_stored_metadata(metadata_path: &Path) -> SampleMetadata {
         let metadata_json = std::fs::read(metadata_path)
             .expect("Given a persisted record, its metadata file should always exist");
         serde_json::from_slice(&metadata_json)
@@ -244,14 +248,14 @@ mod tests {
     const fn implements_write_repository<T: WriteRepository>() {}
     #[test]
     const fn should_implement_write_repository_for_filesystem_repository() {
-        implements_write_repository::<FilesystemRepository>();
+        implements_write_repository::<SampleRepository>();
     }
 
     #[tokio::test]
     async fn should_write_the_document_bytes_when_persisting_a_record() {
         let root = temporary_root();
-        let repository = FilesystemRepository::new(root.path());
-        let sample_document = sample_raw_document();
+        let repository = SampleRepository::new(root.path());
+        let sample_document = sample_document();
         let document_path = repository.document_path(sample_document.key());
 
         let expected_result = sample_document.bytes().to_vec();
@@ -269,8 +273,8 @@ mod tests {
     #[tokio::test]
     async fn should_write_the_metadata_beside_the_document_when_persisting_a_record() {
         let root = temporary_root();
-        let repository = FilesystemRepository::new(root.path());
-        let sample_document = sample_raw_document();
+        let repository = SampleRepository::new(root.path());
+        let sample_document = sample_document();
         let metadata_path = repository.metadata_path(sample_document.key());
 
         let expected_result = sample_document.metadata().clone();
@@ -287,12 +291,12 @@ mod tests {
     #[tokio::test]
     async fn should_replace_the_document_when_persisting_a_record_under_an_existing_key() {
         let root = temporary_root();
-        let repository = FilesystemRepository::new(root.path());
-        let first_document = sample_raw_document();
+        let repository = SampleRepository::new(root.path());
+        let first_document = sample_document();
         let key = first_document.key().clone();
         let metadata = first_document.metadata().clone();
         let second_document =
-            RawDocument::new(key.clone(), br#"{"cik":320193}"#.to_vec(), metadata);
+            SampleDocument::from_parts(key.clone(), br#"{"cik":320193}"#.to_vec(), metadata);
         let document_path = repository.document_path(&key);
 
         let expected_result = second_document.bytes().to_vec();
@@ -314,15 +318,15 @@ mod tests {
     #[tokio::test]
     async fn should_replace_the_metadata_when_persisting_a_record_under_an_existing_key() {
         let root = temporary_root();
-        let repository = FilesystemRepository::new(root.path());
-        let first_document = sample_raw_document();
+        let repository = SampleRepository::new(root.path());
+        let first_document = sample_document();
         let key = first_document.key().clone();
         let bytes = first_document.bytes().to_vec();
         let mut second_metadata = first_document.metadata().clone();
-        second_metadata.fetched_at = "2026-10-04T08:00:00Z"
+        second_metadata.produced_at = "2026-10-04T08:00:00Z"
             .parse::<DateTime<Utc>>()
             .expect("Given a hardcoded RFC 3339 timestamp, parsing it should always succeed");
-        let second_document = RawDocument::new(key.clone(), bytes, second_metadata);
+        let second_document = SampleDocument::from_parts(key.clone(), bytes, second_metadata);
         let metadata_path = repository.metadata_path(&key);
 
         let expected_result = second_document.metadata().clone();
@@ -343,8 +347,8 @@ mod tests {
     #[tokio::test]
     async fn should_leave_no_temporary_file_when_the_document_rename_fails() {
         let root = temporary_root();
-        let repository = FilesystemRepository::new(root.path());
-        let sample_document = sample_raw_document();
+        let repository = SampleRepository::new(root.path());
+        let sample_document = sample_document();
         let document_path = repository.document_path(sample_document.key());
         std::fs::create_dir_all(&document_path).expect(
             "Given a writable temp directory, creating subdirectories should always succeed",
@@ -369,8 +373,8 @@ mod tests {
     #[tokio::test]
     async fn should_leave_no_temporary_file_when_the_metadata_rename_fails() {
         let root = temporary_root();
-        let repository = FilesystemRepository::new(root.path());
-        let sample_document = sample_raw_document();
+        let repository = SampleRepository::new(root.path());
+        let sample_document = sample_document();
         let metadata_path = repository.metadata_path(sample_document.key());
         std::fs::create_dir_all(&metadata_path).expect(
             "Given a writable temp directory, creating subdirectories should always succeed",
@@ -392,8 +396,8 @@ mod tests {
     #[tokio::test]
     async fn should_leave_only_the_document_and_its_metadata_when_persisting_a_record() {
         let root = temporary_root();
-        let repository = FilesystemRepository::new(root.path());
-        let sample_document = sample_raw_document();
+        let repository = SampleRepository::new(root.path());
+        let sample_document = sample_document();
         let directory = root.path().join("sec/companyfacts");
 
         let expected_result = vec![
@@ -414,8 +418,8 @@ mod tests {
     async fn should_return_missing_root_when_persisting_under_a_root_that_does_not_exist() {
         let parent = temporary_root();
         let root = parent.path().join("missing");
-        let repository = FilesystemRepository::new(&root);
-        let sample_document = sample_raw_document();
+        let repository = SampleRepository::new(&root);
+        let sample_document = sample_document();
         let filesystem_error = FilesystemError::new(FilesystemErrorReason::MissingRoot, &root);
 
         let expected_result = Err(WriteError::Backend(BackendError::from(filesystem_error)));
@@ -429,8 +433,8 @@ mod tests {
     async fn should_not_create_the_root_when_persisting_under_a_root_that_does_not_exist() {
         let parent = temporary_root();
         let root = parent.path().join("missing");
-        let repository = FilesystemRepository::new(&root);
-        let sample_document = sample_raw_document();
+        let repository = SampleRepository::new(&root);
+        let sample_document = sample_document();
 
         let expected_result = false;
 
@@ -447,8 +451,8 @@ mod tests {
         std::fs::write(root.path().join("sec"), b"").expect(
             "Given a writable temp directory, writing a file into it should always succeed",
         );
-        let repository = FilesystemRepository::new(root.path());
-        let sample_document = sample_raw_document();
+        let repository = SampleRepository::new(root.path());
+        let sample_document = sample_document();
         let directory = root.path().join("sec/companyfacts");
         let reason = FilesystemErrorReason::FailedIo {
             operation: FilesystemOperation::CreateDirectory,
