@@ -25,6 +25,10 @@
 
 use std::path::{Component, Path, PathBuf};
 
+use serde::de::Error as _;
+use serde::ser::Error as _;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
+
 pub mod invalid_document_key;
 
 pub use invalid_document_key::InvalidDocumentKey;
@@ -119,6 +123,42 @@ impl DocumentKey {
     #[must_use]
     pub fn as_path(&self) -> &Path {
         &self.path
+    }
+}
+
+impl Serialize for DocumentKey {
+    /// Serializes the key as its path with `/` between components, on every platform.
+    ///
+    /// A key written on Windows reads back on Linux, and the other way round.
+    ///
+    /// # Errors
+    ///
+    /// Returns the serializer's error if a component of the path is not valid UTF-8.
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let mut components = Vec::new();
+        for component in self.path.components() {
+            let text = component.as_os_str().to_str().ok_or_else(|| {
+                S::Error::custom(format!(
+                    "[UnserializableDocumentKey] Document key '{}' is not valid UTF-8",
+                    self.path.display()
+                ))
+            })?;
+            components.push(text);
+        }
+        serializer.serialize_str(&components.join("/"))
+    }
+}
+
+impl<'de> Deserialize<'de> for DocumentKey {
+    /// Deserializes a key from a path string, with the checks of [`DocumentKey::new`].
+    ///
+    /// # Errors
+    ///
+    /// Returns the deserializer's error, holding the [`InvalidDocumentKey`] message, if the path
+    /// cannot name a document.
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let path = String::deserialize(deserializer)?;
+        Self::new(path).map_err(D::Error::custom)
     }
 }
 
@@ -405,6 +445,80 @@ mod tests {
 
         let result = DocumentKey::new(path)
             .expect_err("A path naming the root itself should never build a document key");
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_serialize_the_path_with_forward_slashes_for_a_nested_key() {
+        let key = DocumentKey::new("sec/companyfacts/CIK0000320193.json")
+            .expect("Given a valid relative path, the key should always build");
+
+        let expected_result = r#""sec/companyfacts/CIK0000320193.json""#;
+
+        let result = serde_json::to_string(&key)
+            .expect("Given a key of UTF-8 components, serialization should always succeed");
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_the_same_key_when_deserializing_a_serialized_key() {
+        let key = DocumentKey::new("sec/companyfacts/CIK0000320193.json")
+            .expect("Given a valid relative path, the key should always build");
+        let json = serde_json::to_string(&key)
+            .expect("Given a key of UTF-8 components, serialization should always succeed");
+
+        let expected_result = key;
+
+        let result: DocumentKey = serde_json::from_str(&json)
+            .expect("Given JSON this type produced, deserialization should always succeed");
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_normalize_the_path_when_deserializing_a_key_with_current_directory_components() {
+        let json = r#""./sec//CIK0000320193.json""#;
+
+        let expected_result = DocumentKey::new("sec/CIK0000320193.json")
+            .expect("Given a valid relative path, the key should always build");
+
+        let result: DocumentKey = serde_json::from_str(json).expect(
+            "Given a relative path with no parent component, deserialization should always succeed",
+        );
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_reject_a_parent_component_when_deserializing_a_key() {
+        let json = r#""sec/../CIK0000320193.json""#;
+
+        let expected_result = "[ContainsParentComponent] Document key 'sec/../CIK0000320193.json' contains a parent component";
+
+        let result = serde_json::from_str::<DocumentKey>(json)
+            .expect_err("A path with a parent component should never deserialize into a key")
+            .to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn should_fail_serialization_when_a_component_is_not_valid_utf_8() {
+        use std::ffi::OsStr;
+        use std::os::unix::ffi::OsStrExt;
+
+        let key = DocumentKey::new(OsStr::from_bytes(b"sec/\xFF.json"))
+            .expect("Given a relative path with no parent component, the key should always build");
+
+        let expected_result =
+            "[UnserializableDocumentKey] Document key 'sec/\u{FFFD}.json' is not valid UTF-8";
+
+        let result = serde_json::to_string(&key)
+            .expect_err("A key with a non-UTF-8 component should never serialize")
+            .to_string();
 
         assert_eq!(result, expected_result);
     }

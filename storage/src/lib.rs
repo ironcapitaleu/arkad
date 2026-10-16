@@ -16,7 +16,7 @@
 //! - [`error`]: The error types the crate returns and the conversions between them.
 //! - [`implementations`]: The concrete backends, one module per storage medium.
 //! - [`shared`]: The domain types every backend uses, such as [`DocumentKey`].
-//! - [`traits`]: The traits for reading and writing records.
+//! - [`traits`]: The traits for documents, their metadata, and reading and writing records.
 //!
 //! ## Usage
 //!
@@ -40,6 +40,10 @@ pub mod traits;
 
 pub use error::{BackendError, ErrorKind, ReadError, WriteError};
 pub use shared::document_key::{DocumentKey, InvalidDocumentKey};
+pub use shared::input_document::InputDocument;
+pub use shared::producer::Producer;
+pub use traits::document::Document;
+pub use traits::document_metadata::{DocumentMetadata, METADATA_VERSION};
 pub use traits::repository::{ReadRepository, ReadWriteRepository, WriteRepository};
 
 #[cfg(test)]
