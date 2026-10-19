@@ -80,8 +80,8 @@ pub trait CanRead: Access {}
 ///
 /// # Examples
 ///
-/// A read handle passed where a [`WriteRepository`](crate::WriteRepository) is required fails
-/// with this trait's message, so this does not compile:
+/// A read handle passed where a [`WriteRepository`](crate::WriteRepository) is required does
+/// not compile. The compiler reports this trait's message:
 ///
 /// ```compile_fail,E0277
 /// use storage::WriteRepository;
