@@ -3,13 +3,6 @@
 //! Provides [`FilesystemRepository`], which stores documents as files under a root
 //! directory, and the [`FilesystemRepositoryBuilder`] that builds it.
 //!
-//! ## Access
-//!
-//! A repository holds an access marker: [`Read`], [`Write`], or [`ReadWrite`]. A `Read` repository
-//! implements [`ReadRepository`](crate::ReadRepository) only, a `Write` repository implements
-//! [`WriteRepository`](crate::WriteRepository) only, and a `ReadWrite` repository implements both.
-//! The builder sets the marker, so the type of a repository shows what it can do.
-//!
 //! ## Record and Key
 //!
 //! [`ReadRepository`](crate::ReadRepository) and [`WriteRepository`](crate::WriteRepository) each

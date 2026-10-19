@@ -67,14 +67,30 @@ pub struct ReadWrite;
 /// after it holds one of them.
 pub trait Access: sealed::Sealed + Send + Sync {}
 
-/// Defines an access that allows reads.
+/// Defines an access that allows reads, so the repository implements
+/// [`ReadRepository`](crate::ReadRepository).
 #[diagnostic::on_unimplemented(
     message = "a repository with `{Self}` access cannot read documents",
     note = "build the repository with `.reader()` or `.read_write()` to read through it"
 )]
 pub trait CanRead: Access {}
 
-/// Defines an access that allows writes.
+/// Defines an access that allows writes, so the repository implements
+/// [`WriteRepository`](crate::WriteRepository).
+///
+/// # Examples
+///
+/// A read handle passed where a [`WriteRepository`](crate::WriteRepository) is required fails
+/// with this trait's message, so this does not compile:
+///
+/// ```compile_fail,E0277
+/// use storage::WriteRepository;
+/// use storage::implementations::repository::filesystem::FilesystemRepositoryBuilder;
+///
+/// fn needs_a_writer<W: WriteRepository>(_writer: W) {}
+///
+/// needs_a_writer(FilesystemRepositoryBuilder::new().reader().root("/data/arkad").build());
+/// ```
 #[diagnostic::on_unimplemented(
     message = "a repository with `{Self}` access cannot write documents",
     note = "build the repository with `.writer()` or `.read_write()` to write through it"

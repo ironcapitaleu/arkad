@@ -96,6 +96,8 @@ impl<A: CanRead> FilesystemRepository<A> {
 
 #[cfg(test)]
 mod tests {
+    use std::path::PathBuf;
+
     use pretty_assertions::assert_eq;
     use tempfile::TempDir;
 
@@ -107,7 +109,7 @@ mod tests {
     use crate::tests::fixtures::sample_raw_document::sample_raw_document;
 
     /// Builds a repository with read access under the given root.
-    fn repository_at(root: impl Into<std::path::PathBuf>) -> FilesystemRepository<Read> {
+    fn repository_at(root: impl Into<PathBuf>) -> FilesystemRepository<Read> {
         FilesystemRepositoryBuilder::new()
             .reader()
             .root(root)

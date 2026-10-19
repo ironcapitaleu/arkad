@@ -125,6 +125,14 @@ impl<A: Access> FilesystemRepositoryBuilder<A, PathBuf> {
     ///
     /// let repository = FilesystemRepositoryBuilder::new().reader().build();
     /// ```
+    ///
+    /// A builder without an access has no `build` method either, so this does not compile:
+    ///
+    /// ```compile_fail,E0599
+    /// use storage::implementations::repository::filesystem::FilesystemRepositoryBuilder;
+    ///
+    /// let repository = FilesystemRepositoryBuilder::new().root("/data/arkad").build();
+    /// ```
     #[must_use]
     pub fn build(self) -> FilesystemRepository<A> {
         FilesystemRepository {
@@ -221,10 +229,10 @@ mod tests {
 
     #[test]
     fn should_build_the_same_repository_when_setting_the_root_before_the_access() {
-        let expected_result = FilesystemRepositoryBuilder::new()
-            .reader()
-            .root("/data/arkad")
-            .build();
+        let expected_result = FilesystemRepository {
+            root: PathBuf::from("/data/arkad"),
+            access: Read,
+        };
 
         let result = FilesystemRepositoryBuilder::new()
             .root("/data/arkad")
