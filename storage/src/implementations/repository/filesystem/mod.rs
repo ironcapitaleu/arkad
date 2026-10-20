@@ -1,7 +1,7 @@
 //! # Filesystem Repository
 //!
 //! Provides [`FilesystemRepository`], which stores documents as files under a root
-//! directory.
+//! directory, and the [`FilesystemRepositoryBuilder`] that builds it.
 //!
 //! ## Record and Key
 //!
@@ -15,6 +15,8 @@
 //!
 //! ## Modules
 //!
+//! - [`access`]: The access markers and the traits that connect them to the ports.
+//! - [`builder`]: The [`FilesystemRepositoryBuilder`] and the markers for its missing steps.
 //! - [`constants`]: The constants that fix the file layout, such as [`METADATA_SUFFIX`].
 //! - [`document_key`]: The [`DocumentKey`] naming one document, and the [`InvalidDocumentKey`] for
 //!   a rejected path.
@@ -27,6 +29,8 @@ use std::path::{Path, PathBuf};
 
 use crate::error::BackendError;
 
+pub mod access;
+pub mod builder;
 pub mod constants;
 pub mod document_key;
 pub mod document_metadata;
@@ -35,13 +39,18 @@ pub mod raw_document;
 mod read_repository;
 mod write_repository;
 
+pub use access::{Access, CanRead, CanWrite, Read, ReadWrite, Write};
+pub use builder::{FilesystemRepositoryBuilder, NoAccess, NoRoot};
 pub use constants::METADATA_SUFFIX;
 pub use document_key::{DocumentKey, InvalidDocumentKey};
 pub use document_metadata::DocumentMetadata;
 pub use filesystem_error::{FilesystemError, FilesystemErrorReason, FilesystemOperation};
 pub use raw_document::RawDocument;
 
-/// Stores documents as files beneath one root directory.
+/// Stores documents as files beneath one root directory, with the access the marker `A` allows.
+///
+/// [`FilesystemRepository::builder`] starts the builder that builds it. `A` is [`Read`], [`Write`],
+/// or [`ReadWrite`].
 ///
 /// A [`DocumentKey`] is a document's path under the root. A document lives at the root joined with
 /// its key. On Linux and macOS, a root of `/data/arkad` and a key of `sec/CIK0000320193.json` name
@@ -62,19 +71,17 @@ pub use raw_document::RawDocument;
 /// document until the next successful write under that key. If the caller drops the write before
 /// the renames, its temporary files stay in the directory.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct FilesystemRepository {
+pub struct FilesystemRepository<A> {
     root: PathBuf,
+    access: A,
 }
 
-impl FilesystemRepository {
-    /// Creates a new [`FilesystemRepository`] rooted at the given directory.
+impl FilesystemRepository<NoAccess> {
+    /// Starts a [`FilesystemRepositoryBuilder`], which is the only way to build a
+    /// [`FilesystemRepository`].
     ///
-    /// The constructor checks nothing and touches no disk. Whether the root exists, is a
-    /// directory, and allows reads or writes can change at any time, and it can differ for each
-    /// document under the root. Each operation reports those failures for the document it touches.
-    ///
-    /// Pass an absolute root. A relative root resolves against the process's working directory,
-    /// so the store would move with it.
+    /// The impl uses `NoAccess` so that a call needs no type annotation. No built repository has
+    /// `NoAccess`.
     ///
     /// # Examples
     ///
@@ -83,7 +90,10 @@ impl FilesystemRepository {
     ///
     /// use storage::implementations::repository::filesystem::FilesystemRepository;
     ///
-    /// let repository = FilesystemRepository::new("/data/arkad");
+    /// let repository = FilesystemRepository::builder()
+    ///     .reader()
+    ///     .root("/data/arkad")
+    ///     .build();
     ///
     /// let expected_result = Path::new("/data/arkad");
     ///
@@ -92,10 +102,12 @@ impl FilesystemRepository {
     /// assert_eq!(result, expected_result);
     /// ```
     #[must_use]
-    pub fn new(root: impl Into<PathBuf>) -> Self {
-        Self { root: root.into() }
+    pub const fn builder() -> FilesystemRepositoryBuilder<NoAccess, NoRoot> {
+        FilesystemRepositoryBuilder::new()
     }
+}
 
+impl<A> FilesystemRepository<A> {
     /// Returns the root directory every key resolves under.
     #[must_use]
     pub fn root(&self) -> &Path {
@@ -109,9 +121,14 @@ impl FilesystemRepository {
     /// ```rust
     /// use std::path::Path;
     ///
-    /// use storage::implementations::repository::filesystem::{DocumentKey, FilesystemRepository};
+    /// use storage::implementations::repository::filesystem::{
+    ///     DocumentKey, FilesystemRepository,
+    /// };
     ///
-    /// let repository = FilesystemRepository::new("/data/arkad");
+    /// let repository = FilesystemRepository::builder()
+    ///     .reader()
+    ///     .root("/data/arkad")
+    ///     .build();
     /// let key = DocumentKey::new("sec/CIK0000320193.json")
     ///     .expect("Given a valid relative path, the key should always build");
     ///
@@ -132,7 +149,11 @@ impl FilesystemRepository {
         path.push(METADATA_SUFFIX);
         PathBuf::from(path)
     }
+}
 
+// `A: Access` makes `A` `Sync`, so the future of `ensure_root_is_reachable` is `Send`. Without the
+// bound, clippy's `future_not_send` lint rejects the method.
+impl<A: Access> FilesystemRepository<A> {
     /// Checks that the root exists and is a directory.
     ///
     /// # Errors
@@ -208,6 +229,14 @@ mod tests {
     use super::*;
     use crate::traits::repository::ReadWriteRepository;
 
+    /// Builds a repository with read and write access under the given root.
+    fn repository_at(root: impl Into<PathBuf>) -> FilesystemRepository<ReadWrite> {
+        FilesystemRepository::builder()
+            .read_write()
+            .root(root)
+            .build()
+    }
+
     fn temporary_root() -> TempDir {
         TempDir::new().expect(
             "Given a writable system temp directory, creating a directory in it should always succeed",
@@ -217,7 +246,7 @@ mod tests {
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
     #[test]
     const fn should_implement_auto_traits_for_filesystem_repository() {
-        implements_auto_traits::<FilesystemRepository>();
+        implements_auto_traits::<FilesystemRepository<ReadWrite>>();
     }
 
     const fn implements_send<T: Send>() {}
@@ -225,72 +254,72 @@ mod tests {
 
     #[test]
     const fn should_implement_send_for_filesystem_repository() {
-        implements_send::<FilesystemRepository>();
+        implements_send::<FilesystemRepository<ReadWrite>>();
     }
 
     #[test]
     const fn should_implement_sync_for_filesystem_repository() {
-        implements_sync::<FilesystemRepository>();
+        implements_sync::<FilesystemRepository<ReadWrite>>();
     }
 
     const fn implements_debug<T: Debug>() {}
     #[test]
     const fn should_be_able_to_rely_on_debug_implementation_for_filesystem_repository() {
-        implements_debug::<FilesystemRepository>();
+        implements_debug::<FilesystemRepository<ReadWrite>>();
     }
 
     const fn implements_clone<T: Clone>() {}
     #[test]
     const fn should_be_able_to_rely_on_clone_implementation_for_filesystem_repository() {
-        implements_clone::<FilesystemRepository>();
+        implements_clone::<FilesystemRepository<ReadWrite>>();
     }
 
     const fn implements_hash<T: Hash>() {}
     #[test]
     const fn should_be_able_to_rely_on_hash_implementation_for_filesystem_repository() {
-        implements_hash::<FilesystemRepository>();
+        implements_hash::<FilesystemRepository<ReadWrite>>();
     }
 
     const fn implements_eq<T: Eq>() {}
     #[test]
     const fn should_be_able_to_rely_on_eq_implementation_for_filesystem_repository() {
-        implements_eq::<FilesystemRepository>();
+        implements_eq::<FilesystemRepository<ReadWrite>>();
     }
 
     const fn implements_ord<T: Ord>() {}
     #[test]
     const fn should_be_able_to_rely_on_ord_implementation_for_filesystem_repository() {
-        implements_ord::<FilesystemRepository>();
+        implements_ord::<FilesystemRepository<ReadWrite>>();
     }
 
     const fn implements_sized<T: Sized>() {}
     #[test]
     const fn should_be_sized_for_filesystem_repository() {
-        implements_sized::<FilesystemRepository>();
+        implements_sized::<FilesystemRepository<ReadWrite>>();
     }
 
     const fn implements_partial_eq<T: PartialEq>() {}
     #[test]
     const fn should_be_able_to_rely_on_partial_eq_implementation_for_filesystem_repository() {
-        implements_partial_eq::<FilesystemRepository>();
+        implements_partial_eq::<FilesystemRepository<ReadWrite>>();
     }
 
     const fn implements_partial_ord<T: PartialOrd>() {}
     #[test]
     const fn should_be_able_to_rely_on_partial_ord_implementation_for_filesystem_repository() {
-        implements_partial_ord::<FilesystemRepository>();
+        implements_partial_ord::<FilesystemRepository<ReadWrite>>();
     }
 
     const fn implements_unpin<T: Unpin>() {}
     #[test]
     const fn should_be_able_to_rely_on_unpin_implementation_for_filesystem_repository() {
-        implements_unpin::<FilesystemRepository>();
+        implements_unpin::<FilesystemRepository<ReadWrite>>();
     }
 
     const fn implements_read_write_repository<T: ReadWriteRepository>() {}
     #[test]
     const fn should_implement_read_write_repository_for_filesystem_repository() {
-        implements_read_write_repository::<FilesystemRepository>();
+        implements_read_write_repository::<FilesystemRepository<ReadWrite>>();
     }
 
     #[test]
@@ -299,7 +328,7 @@ mod tests {
 
         let expected_result = Path::new("/data/arkad");
 
-        let repository = FilesystemRepository::new(root);
+        let repository = repository_at(root);
         let result = repository.root();
 
         assert_eq!(result, expected_result);
@@ -307,7 +336,7 @@ mod tests {
 
     #[test]
     fn should_join_the_root_and_the_key_when_building_a_document_path() {
-        let repository = FilesystemRepository::new("/data/arkad");
+        let repository = repository_at("/data/arkad");
         let key = DocumentKey::new("sec/companyfacts/CIK0000320193.json")
             .expect("Given a valid relative path, the key should always build");
 
@@ -320,7 +349,7 @@ mod tests {
 
     #[test]
     fn should_append_the_metadata_suffix_for_a_document_key() {
-        let repository = FilesystemRepository::new("/data/arkad");
+        let repository = repository_at("/data/arkad");
         let key = DocumentKey::new("sec/companyfacts/CIK0000320193.json")
             .expect("Given a valid relative path, the key should always build");
 
@@ -431,7 +460,7 @@ mod tests {
     #[tokio::test]
     async fn should_accept_the_root_when_the_root_is_an_existing_directory() {
         let root = temporary_root();
-        let repository = FilesystemRepository::new(root.path());
+        let repository = repository_at(root.path());
 
         let expected_result = Ok(());
 
@@ -444,7 +473,7 @@ mod tests {
     async fn should_return_missing_root_when_the_root_does_not_exist() {
         let parent = temporary_root();
         let root = parent.path().join("missing");
-        let repository = FilesystemRepository::new(&root);
+        let repository = repository_at(&root);
 
         let expected_result = Err(FilesystemError::new(
             FilesystemErrorReason::MissingRoot,
@@ -464,7 +493,7 @@ mod tests {
             "Given a writable temp directory, writing a file into it should always succeed",
         );
         let root = file.join("data");
-        let repository = FilesystemRepository::new(&root);
+        let repository = repository_at(&root);
 
         let expected_result = Err(FilesystemError::new(
             FilesystemErrorReason::MissingRoot,
@@ -483,7 +512,7 @@ mod tests {
         std::fs::write(&root, b"").expect(
             "Given a writable temp directory, writing a file into it should always succeed",
         );
-        let repository = FilesystemRepository::new(&root);
+        let repository = repository_at(&root);
 
         let expected_result = Err(FilesystemError::new(
             FilesystemErrorReason::RootIsNotADirectory,
