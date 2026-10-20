@@ -22,9 +22,9 @@ pub struct NoRoot;
 
 /// Builds a [`FilesystemRepository`] with a chosen access and root.
 ///
-/// [`FilesystemRepository::builder`] starts one. Set the access with [`reader`](Self::reader), [`writer`](Self::writer), or
-/// [`read_write`](Self::read_write), and the root with [`root`](Self::root), in any order. Then call
-/// [`build`](Self::build).
+/// Set the access with [`reader`](Self::reader), [`writer`](Self::writer), or
+/// [`read_write`](Self::read_write), and the root with [`root`](Self::root), in any order.
+/// Then call [`build`](Self::build).
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct FilesystemRepositoryBuilder<A, R> {
     access: A,
