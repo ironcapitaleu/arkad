@@ -8,6 +8,7 @@ use async_trait::async_trait;
 use tokio::fs;
 
 use super::FilesystemRepository;
+use super::access::CanRead;
 use super::document_key::DocumentKey;
 use super::document_metadata::DocumentMetadata;
 use super::filesystem_error::{FilesystemError, FilesystemErrorReason, FilesystemOperation};
@@ -16,7 +17,7 @@ use crate::error::ReadError;
 use crate::traits::repository::ReadRepository;
 
 #[async_trait]
-impl ReadRepository for FilesystemRepository {
+impl<A: CanRead> ReadRepository for FilesystemRepository<A> {
     type Record = RawDocument;
     type Key = DocumentKey;
 
@@ -46,7 +47,7 @@ impl ReadRepository for FilesystemRepository {
     }
 }
 
-impl FilesystemRepository {
+impl<A: CanRead> FilesystemRepository<A> {
     /// Reads the document at the key and the metadata file beside it.
     async fn read_record(&self, key: DocumentKey) -> Result<Option<RawDocument>, FilesystemError> {
         let document_path = self.document_path(&key);
@@ -95,12 +96,20 @@ impl FilesystemRepository {
 
 #[cfg(test)]
 mod tests {
+    use std::path::PathBuf;
+
     use pretty_assertions::assert_eq;
     use tempfile::TempDir;
 
     use super::*;
     use crate::error::BackendError;
+    use crate::implementations::repository::filesystem::{Read, ReadWrite};
     use crate::tests::fixtures::sample_raw_document::sample_raw_document;
+
+    /// Builds a repository with read access under the given root.
+    fn repository_at(root: impl Into<PathBuf>) -> FilesystemRepository<Read> {
+        FilesystemRepository::builder().reader().root(root).build()
+    }
 
     fn temporary_root() -> TempDir {
         TempDir::new().expect(
@@ -110,7 +119,7 @@ mod tests {
 
     /// Writes the record's document and metadata files by hand, so a test of `get` does not
     /// depend on `persist`.
-    fn write_record_files(repository: &FilesystemRepository, record: &RawDocument) {
+    fn write_record_files(repository: &FilesystemRepository<Read>, record: &RawDocument) {
         let document_path = repository.document_path(record.key());
         let directory = document_path
             .parent()
@@ -133,14 +142,19 @@ mod tests {
 
     const fn implements_read_repository<T: ReadRepository>() {}
     #[test]
-    const fn should_implement_read_repository_for_filesystem_repository() {
-        implements_read_repository::<FilesystemRepository>();
+    const fn should_implement_read_repository_for_filesystem_repository_with_read_access() {
+        implements_read_repository::<FilesystemRepository<Read>>();
+    }
+
+    #[test]
+    const fn should_implement_read_repository_for_filesystem_repository_with_read_write_access() {
+        implements_read_repository::<FilesystemRepository<ReadWrite>>();
     }
 
     #[tokio::test]
     async fn should_return_the_record_when_the_key_names_a_stored_document() {
         let root = temporary_root();
-        let repository = FilesystemRepository::new(root.path());
+        let repository = repository_at(root.path());
         let sample_document = sample_raw_document();
         let key = sample_document.key().clone();
         write_record_files(&repository, &sample_document);
@@ -155,7 +169,7 @@ mod tests {
     #[tokio::test]
     async fn should_return_none_when_the_key_names_no_document() {
         let root = temporary_root();
-        let repository = FilesystemRepository::new(root.path());
+        let repository = repository_at(root.path());
         let sample_document = sample_raw_document();
         let key = sample_document.key().clone();
 
@@ -169,7 +183,7 @@ mod tests {
     #[tokio::test]
     async fn should_return_none_when_a_key_component_names_a_stored_file() {
         let root = temporary_root();
-        let repository = FilesystemRepository::new(root.path());
+        let repository = repository_at(root.path());
         let sample_document = sample_raw_document();
         let key = sample_document.key().clone();
         std::fs::write(root.path().join("sec"), b"").expect(
@@ -187,7 +201,7 @@ mod tests {
     async fn should_return_missing_root_when_reading_from_a_root_that_does_not_exist() {
         let parent = temporary_root();
         let root = parent.path().join("missing");
-        let repository = FilesystemRepository::new(&root);
+        let repository = repository_at(&root);
         let sample_document = sample_raw_document();
         let key = sample_document.key().clone();
 
@@ -205,7 +219,7 @@ mod tests {
         std::fs::write(&root, b"").expect(
             "Given a writable temp directory, writing a file into it should always succeed",
         );
-        let repository = FilesystemRepository::new(&root);
+        let repository = repository_at(&root);
         let sample_document = sample_raw_document();
         let key = sample_document.key().clone();
 
@@ -222,7 +236,7 @@ mod tests {
     #[tokio::test]
     async fn should_parse_the_metadata_when_the_metadata_file_holds_the_stored_format() {
         let root = temporary_root();
-        let repository = FilesystemRepository::new(root.path());
+        let repository = repository_at(root.path());
         let sample_document = sample_raw_document();
         let key = sample_document.key().clone();
         let metadata_path = repository.metadata_path(&key);
@@ -249,7 +263,7 @@ mod tests {
     #[tokio::test]
     async fn should_return_missing_metadata_file_when_the_document_has_no_metadata_file() {
         let root = temporary_root();
-        let repository = FilesystemRepository::new(root.path());
+        let repository = repository_at(root.path());
         let sample_document = sample_raw_document();
         let key = sample_document.key().clone();
         let metadata_path = repository.metadata_path(&key);
@@ -271,7 +285,7 @@ mod tests {
     #[tokio::test]
     async fn should_return_invalid_metadata_when_the_metadata_file_holds_no_valid_metadata() {
         let root = temporary_root();
-        let repository = FilesystemRepository::new(root.path());
+        let repository = repository_at(root.path());
         let sample_document = sample_raw_document();
         let key = sample_document.key().clone();
         let metadata_path = repository.metadata_path(&key);
@@ -292,7 +306,7 @@ mod tests {
     #[tokio::test]
     async fn should_return_failed_read_when_the_key_names_a_directory() {
         let root = temporary_root();
-        let repository = FilesystemRepository::new(root.path());
+        let repository = repository_at(root.path());
         let sample_document = sample_raw_document();
         let key = sample_document.key().clone();
         let document_path = repository.document_path(&key);
