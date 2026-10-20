@@ -103,17 +103,12 @@ mod tests {
 
     use super::*;
     use crate::error::BackendError;
-    use crate::implementations::repository::filesystem::{
-        Access, FilesystemRepositoryBuilder, Read, ReadWrite,
-    };
+    use crate::implementations::repository::filesystem::{Read, ReadWrite};
     use crate::tests::fixtures::sample_raw_document::sample_raw_document;
 
     /// Builds a repository with read access under the given root.
     fn repository_at(root: impl Into<PathBuf>) -> FilesystemRepository<Read> {
-        FilesystemRepositoryBuilder::new()
-            .reader()
-            .root(root)
-            .build()
+        FilesystemRepository::builder().reader().root(root).build()
     }
 
     fn temporary_root() -> TempDir {
@@ -124,7 +119,7 @@ mod tests {
 
     /// Writes the record's document and metadata files by hand, so a test of `get` does not
     /// depend on `persist`.
-    fn write_record_files<A: Access>(repository: &FilesystemRepository<A>, record: &RawDocument) {
+    fn write_record_files(repository: &FilesystemRepository<Read>, record: &RawDocument) {
         let document_path = repository.document_path(record.key());
         let directory = document_path
             .parent()

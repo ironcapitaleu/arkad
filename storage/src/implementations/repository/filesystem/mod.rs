@@ -75,7 +75,38 @@ pub struct FilesystemRepository<A> {
     access: A,
 }
 
-impl<A: Access> FilesystemRepository<A> {
+impl FilesystemRepository<NoAccess> {
+    /// Starts a [`FilesystemRepositoryBuilder`], which is the only way to build a
+    /// [`FilesystemRepository`].
+    ///
+    /// The `NoAccess` in this impl only names where `builder` lives, so a call needs no type
+    /// annotation. No repository with `NoAccess` exists.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use std::path::Path;
+    ///
+    /// use storage::implementations::repository::filesystem::FilesystemRepository;
+    ///
+    /// let repository = FilesystemRepository::builder()
+    ///     .reader()
+    ///     .root("/data/arkad")
+    ///     .build();
+    ///
+    /// let expected_result = Path::new("/data/arkad");
+    ///
+    /// let result = repository.root();
+    ///
+    /// assert_eq!(result, expected_result);
+    /// ```
+    #[must_use]
+    pub const fn builder() -> FilesystemRepositoryBuilder<NoAccess, NoRoot> {
+        FilesystemRepositoryBuilder::new()
+    }
+}
+
+impl<A> FilesystemRepository<A> {
     /// Returns the root directory every key resolves under.
     #[must_use]
     pub fn root(&self) -> &Path {
@@ -90,10 +121,10 @@ impl<A: Access> FilesystemRepository<A> {
     /// use std::path::Path;
     ///
     /// use storage::implementations::repository::filesystem::{
-    ///     DocumentKey, FilesystemRepositoryBuilder,
+    ///     DocumentKey, FilesystemRepository,
     /// };
     ///
-    /// let repository = FilesystemRepositoryBuilder::new()
+    /// let repository = FilesystemRepository::builder()
     ///     .reader()
     ///     .root("/data/arkad")
     ///     .build();
@@ -117,7 +148,10 @@ impl<A: Access> FilesystemRepository<A> {
         path.push(METADATA_SUFFIX);
         PathBuf::from(path)
     }
+}
 
+// `A: Access` makes `A` `Sync`, so the future of `ensure_root_is_reachable` is `Send`.
+impl<A: Access> FilesystemRepository<A> {
     /// Checks that the root exists and is a directory.
     ///
     /// # Errors
@@ -195,7 +229,7 @@ mod tests {
 
     /// Builds a repository with read and write access under the given root.
     fn repository_at(root: impl Into<PathBuf>) -> FilesystemRepository<ReadWrite> {
-        FilesystemRepositoryBuilder::new()
+        FilesystemRepository::builder()
             .read_write()
             .root(root)
             .build()

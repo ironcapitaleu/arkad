@@ -22,7 +22,7 @@ pub struct NoRoot;
 
 /// Builds a [`FilesystemRepository`] with a chosen access and root.
 ///
-/// Set the access with [`reader`](Self::reader), [`writer`](Self::writer), or
+/// [`FilesystemRepository::builder`] starts one. Set the access with [`reader`](Self::reader), [`writer`](Self::writer), or
 /// [`read_write`](Self::read_write), and the root with [`root`](Self::root), in any order. Then call
 /// [`build`](Self::build).
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -33,37 +33,11 @@ pub struct FilesystemRepositoryBuilder<A, R> {
 
 impl FilesystemRepositoryBuilder<NoAccess, NoRoot> {
     /// Creates a new [`FilesystemRepositoryBuilder`] that holds no access and no root.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use std::path::Path;
-    ///
-    /// use storage::implementations::repository::filesystem::FilesystemRepositoryBuilder;
-    ///
-    /// let repository = FilesystemRepositoryBuilder::new()
-    ///     .reader()
-    ///     .root("/data/arkad")
-    ///     .build();
-    ///
-    /// let expected_result = Path::new("/data/arkad");
-    ///
-    /// let result = repository.root();
-    ///
-    /// assert_eq!(result, expected_result);
-    /// ```
-    #[must_use]
-    pub const fn new() -> Self {
+    pub(super) const fn new() -> Self {
         Self {
             access: NoAccess,
             root: NoRoot,
         }
-    }
-}
-
-impl Default for FilesystemRepositoryBuilder<NoAccess, NoRoot> {
-    fn default() -> Self {
-        Self::new()
     }
 }
 
@@ -121,17 +95,17 @@ impl<A: Access> FilesystemRepositoryBuilder<A, PathBuf> {
     /// A builder without a root has no `build` method, so this does not compile:
     ///
     /// ```compile_fail,E0599
-    /// use storage::implementations::repository::filesystem::FilesystemRepositoryBuilder;
+    /// use storage::implementations::repository::filesystem::FilesystemRepository;
     ///
-    /// let repository = FilesystemRepositoryBuilder::new().reader().build();
+    /// let repository = FilesystemRepository::builder().reader().build();
     /// ```
     ///
     /// A builder without an access has no `build` method either, so this does not compile:
     ///
     /// ```compile_fail,E0599
-    /// use storage::implementations::repository::filesystem::FilesystemRepositoryBuilder;
+    /// use storage::implementations::repository::filesystem::FilesystemRepository;
     ///
-    /// let repository = FilesystemRepositoryBuilder::new().root("/data/arkad").build();
+    /// let repository = FilesystemRepository::builder().root("/data/arkad").build();
     /// ```
     #[must_use]
     pub fn build(self) -> FilesystemRepository<A> {
@@ -177,17 +151,20 @@ mod tests {
     }
 
     #[test]
-    fn should_create_the_same_builder_when_using_default_and_new() {
-        let expected_result = FilesystemRepositoryBuilder::default();
+    fn should_hold_no_access_and_no_root_when_starting_a_builder() {
+        let expected_result = FilesystemRepositoryBuilder {
+            access: NoAccess,
+            root: NoRoot,
+        };
 
-        let result = FilesystemRepositoryBuilder::new();
+        let result = FilesystemRepository::builder();
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_build_a_repository_with_read_access_when_choosing_reader() {
-        let builder = FilesystemRepositoryBuilder::new().reader();
+        let builder = FilesystemRepository::builder().reader();
 
         let expected_result = FilesystemRepository {
             root: PathBuf::from("/data/arkad"),
@@ -201,7 +178,7 @@ mod tests {
 
     #[test]
     fn should_build_a_repository_with_write_access_when_choosing_writer() {
-        let builder = FilesystemRepositoryBuilder::new().writer();
+        let builder = FilesystemRepository::builder().writer();
 
         let expected_result = FilesystemRepository {
             root: PathBuf::from("/data/arkad"),
@@ -215,7 +192,7 @@ mod tests {
 
     #[test]
     fn should_build_a_repository_with_read_write_access_when_choosing_read_write() {
-        let builder = FilesystemRepositoryBuilder::new().read_write();
+        let builder = FilesystemRepository::builder().read_write();
 
         let expected_result = FilesystemRepository {
             root: PathBuf::from("/data/arkad"),
@@ -228,16 +205,43 @@ mod tests {
     }
 
     #[test]
-    fn should_build_the_same_repository_when_setting_the_root_before_the_access() {
+    fn should_build_a_repository_with_read_access_when_setting_the_root_before_the_access() {
+        let builder = FilesystemRepository::builder().root("/data/arkad");
+
         let expected_result = FilesystemRepository {
             root: PathBuf::from("/data/arkad"),
             access: Read,
         };
 
-        let result = FilesystemRepositoryBuilder::new()
-            .root("/data/arkad")
-            .reader()
-            .build();
+        let result = builder.reader().build();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_build_a_repository_with_write_access_when_setting_the_root_before_the_access() {
+        let builder = FilesystemRepository::builder().root("/data/arkad");
+
+        let expected_result = FilesystemRepository {
+            root: PathBuf::from("/data/arkad"),
+            access: Write,
+        };
+
+        let result = builder.writer().build();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_build_a_repository_with_read_write_access_when_setting_the_root_before_the_access() {
+        let builder = FilesystemRepository::builder().root("/data/arkad");
+
+        let expected_result = FilesystemRepository {
+            root: PathBuf::from("/data/arkad"),
+            access: ReadWrite,
+        };
+
+        let result = builder.read_write().build();
 
         assert_eq!(result, expected_result);
     }

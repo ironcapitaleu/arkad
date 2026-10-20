@@ -207,17 +207,12 @@ mod tests {
 
     use super::*;
     use crate::error::BackendError;
-    use crate::implementations::repository::filesystem::{
-        DocumentMetadata, FilesystemRepositoryBuilder, ReadWrite, Write,
-    };
+    use crate::implementations::repository::filesystem::{DocumentMetadata, ReadWrite, Write};
     use crate::tests::fixtures::sample_raw_document::sample_raw_document;
 
     /// Builds a repository with write access under the given root.
     fn repository_at(root: impl Into<PathBuf>) -> FilesystemRepository<Write> {
-        FilesystemRepositoryBuilder::new()
-            .writer()
-            .root(root)
-            .build()
+        FilesystemRepository::builder().writer().root(root).build()
     }
 
     fn temporary_root() -> TempDir {

@@ -20,11 +20,11 @@ mod sealed {
 ///
 /// ```compile_fail,E0599
 /// use storage::WriteRepository;
-/// use storage::implementations::repository::filesystem::FilesystemRepositoryBuilder;
+/// use storage::implementations::repository::filesystem::FilesystemRepository;
 /// # use storage::implementations::repository::filesystem::RawDocument;
 ///
 /// async fn write_through_a_reader(document: RawDocument) {
-///     let reader = FilesystemRepositoryBuilder::new()
+///     let reader = FilesystemRepository::builder()
 ///         .reader()
 ///         .root("/data/arkad")
 ///         .build();
@@ -43,10 +43,10 @@ pub struct Read;
 ///
 /// ```compile_fail,E0599
 /// use storage::ReadRepository;
-/// use storage::implementations::repository::filesystem::{DocumentKey, FilesystemRepositoryBuilder};
+/// use storage::implementations::repository::filesystem::{DocumentKey, FilesystemRepository};
 ///
 /// async fn read_through_a_writer(key: DocumentKey) {
-///     let writer = FilesystemRepositoryBuilder::new()
+///     let writer = FilesystemRepository::builder()
 ///         .writer()
 ///         .root("/data/arkad")
 ///         .build();
@@ -85,11 +85,11 @@ pub trait CanRead: Access {}
 ///
 /// ```compile_fail,E0277
 /// use storage::WriteRepository;
-/// use storage::implementations::repository::filesystem::FilesystemRepositoryBuilder;
+/// use storage::implementations::repository::filesystem::FilesystemRepository;
 ///
 /// fn needs_a_writer<W: WriteRepository>(_writer: W) {}
 ///
-/// needs_a_writer(FilesystemRepositoryBuilder::new().reader().root("/data/arkad").build());
+/// needs_a_writer(FilesystemRepository::builder().reader().root("/data/arkad").build());
 /// ```
 #[diagnostic::on_unimplemented(
     message = "a repository with `{Self}` access cannot write documents",
