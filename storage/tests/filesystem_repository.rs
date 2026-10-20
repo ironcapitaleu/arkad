@@ -45,7 +45,10 @@ async fn should_return_the_same_record_when_reading_back_a_persisted_record_by_k
     let root = TempDir::new().expect(
         "Given a writable system temp directory, creating a directory in it should always succeed",
     );
-    let repository = FilesystemRepository::new(root.path());
+    let repository = FilesystemRepository::builder()
+        .read_write()
+        .root(root.path())
+        .build();
     let record = sample_raw_document();
     let key = record.key().clone();
 
