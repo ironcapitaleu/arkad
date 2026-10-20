@@ -49,7 +49,8 @@ pub use raw_document::RawDocument;
 
 /// Stores documents as files beneath one root directory, with the access the marker `A` allows.
 ///
-/// [`FilesystemRepositoryBuilder`] builds it. `A` is [`Read`], [`Write`], or [`ReadWrite`].
+/// [`FilesystemRepository::builder`] starts the builder that builds it. `A` is [`Read`], [`Write`],
+/// or [`ReadWrite`].
 ///
 /// A [`DocumentKey`] is a document's path under the root. A document lives at the root joined with
 /// its key. On Linux and macOS, a root of `/data/arkad` and a key of `sec/CIK0000320193.json` name
@@ -79,8 +80,8 @@ impl FilesystemRepository<NoAccess> {
     /// Starts a [`FilesystemRepositoryBuilder`], which is the only way to build a
     /// [`FilesystemRepository`].
     ///
-    /// The `NoAccess` in this impl only names where `builder` lives, so a call needs no type
-    /// annotation. No repository with `NoAccess` exists.
+    /// The impl uses `NoAccess` so that a call needs no type annotation. No built repository has
+    /// `NoAccess`.
     ///
     /// # Examples
     ///
@@ -150,7 +151,8 @@ impl<A> FilesystemRepository<A> {
     }
 }
 
-// `A: Access` makes `A` `Sync`, so the future of `ensure_root_is_reachable` is `Send`.
+// `A: Access` makes `A` `Sync`, so the future of `ensure_root_is_reachable` is `Send`. Without the
+// bound, clippy's `future_not_send` lint rejects the method.
 impl<A: Access> FilesystemRepository<A> {
     /// Checks that the root exists and is a directory.
     ///
