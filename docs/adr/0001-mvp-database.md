@@ -189,16 +189,17 @@ needs one.
 
 The lead set the second regulator as a trigger as well. This trigger is an architecture choice, not
 a performance threshold. From that point the graph is the identity spine across all sources, and
-the lead wants it in a graph engine before the tables hold the claims of several sources. A
-measured trigger, such as a slow ownership-tree query, is not needed for this reason. The triggers are in [Triggers to Revisit](#triggers-to-revisit).
+the lead wants it in a graph engine before the tables hold the claims of several sources. So this
+trigger needs no measurement, such as a slow ownership-tree query. The triggers are in [Triggers to Revisit](#triggers-to-revisit).
 
 ### Design Rules
 
 1. Identifiers are rows, not columns. Each row holds `company_id`, scheme, value, valid from, valid
    to, and source.
 2. A link between identifiers is a claim with a source and a date, not a fact. Conflicting claims
-   coexist in the store. At each run, the batch resolver picks one claim per identifier, target
-   scheme, and validity period, by a fixed source priority. Only picked claims enter the grouping. `ontology_guardrails.md`
+   coexist in the store. At each run, the batch resolver picks at most one claim per identifier,
+   target scheme, and point in time, by a fixed source priority. A claim enters the grouping only if
+   the resolver picks it from both of its ends. `ontology_guardrails.md`
    describes this claim envelope.
 3. Grouping uses exact keys only. Fuzzy matches by name or address go to a review queue and are
    never chained. Chaining A≈B and B≈C merges A and C by mistake.
@@ -206,8 +207,8 @@ measured trigger, such as a slow ownership-tree query, is not needed for this re
    - A corporate merger or spin-off is a dated `merged_into` event.
    - If the grouping joins two existing ids, the older id survives. The other id gets a dated
      `same_as` event, and reads follow it to the surviving id.
-   - A split of a group is out of scope for the MVP. With SEC data only, no claim from a second
-     source exists that a retraction can remove. [Open Questions](#open-questions) holds the
+   - A split of a group is out of scope for the MVP. With SEC data only, no second-source claim
+     exists to retract. [Open Questions](#open-questions) holds the
      split rule.
 5. One resolver port hides the engine. The engine can change from SQL to Neo4j without a pipeline
    change.
@@ -263,22 +264,26 @@ the RDF conditions above holds.
 | The fact tier passes about 50 GB, for example at full US coverage | Add Iceberg next to Postgres, not in place of it |
 | Historical screens over many years and thousands of companies become a product goal | Add Iceberg next to Postgres |
 | The p95 latency of the screener endpoint stays above 500 ms for a week, or screener queries use more than a quarter of the database CPU | Serve the screener as a CDN snapshot |
-| Database egress passes 200 GB a month, and `/v1` responses cause most of it | Cache `/v1` responses at the edge |
+| Database egress passes 200 GB a month, the API logs show that `/v1` responses cause most of it, and no edge cache for `/v1` exists yet | Cache `/v1` responses at the edge |
 | One of the RDF conditions above holds | Add the RDF export job, or the Ontop view |
 
 The 50 GB threshold comes from the cost model and is an assumption.
 
-The CDN trigger measures load, not egress, because the screener causes little egress. At the
-"Scale" level of the cost model, the egress splits as follows:
+The CDN trigger measures load, not egress. At the "Scale" level of the cost model, the egress
+splits as follows:
 
-| Source | Raw | Share served from a cache | Egress to the database |
-| ------ | --: | ------------------------: | ---------------------: |
-| Screener: 1.5 million loads × 0.08 MB | 120 GB | 95% | about 6 GB |
-| `/v1`: 20 million calls × 0.05 MB | 1,000 GB | 70% | about 300 GB |
+| Source | Raw egress | Share served from a cache | Egress with the cache |
+| ------ | ---------: | ------------------------: | --------------------: |
+| Screener: 1.5 million loads × 0.08 MB | 120 GB | 95%, the CDN snapshot | about 6 GB |
+| `/v1`: 20 million calls × 0.05 MB | 1,000 GB | 70%, the edge cache | about 300 GB |
 
-An egress trigger fires because of `/v1`, and a screener snapshot does not fix that. Egress above
-the quota also costs little: 100 GB costs about $9 a month, against about 2 developer-days for the
-snapshot.
+Without any cache, `/v1` causes about eight times the screener egress. An egress trigger fires
+because of `/v1`, and a screener snapshot does not fix that.
+
+With the edge cache, egress stays near 300 GB. The 50 GB above the 250 GB quota cost about $5 a
+month, so no further action follows. Egress above the quota costs little in general: 100 GB cost
+about $9 a month. The cost model gives the CDN snapshot 2 developer-days to build and a quarter of
+a day a month to run. Over three years, that is 11 developer-days, or about $8,800.
 
 The CDN and `/v1` triggers rest on these assumptions:
 
@@ -290,12 +295,18 @@ The CDN and `/v1` triggers rest on these assumptions:
   queries. It is a choice, not a measurement.
 - Supabase reports database CPU per query well enough to show the screener's share. Nobody checked
   this yet.
+- Supabase egress does not split by endpoint, so the API logs must show the share of `/v1`.
+  Nobody checked this yet.
+- The CDN snapshot takes 2 developer-days to build and a quarter of a day a month to run. Both come
+  from the cost model.
 - 200 GB leaves a margin below the 250 GB of egress that the Pro plan includes.
 
 ## Consequences
 
 - The Load stage implements `GraphStore` and `FactStore` against one Postgres database, and
   `RawStore` against the filesystem.
+- `PgGraphStore` and `PgFactStore` share one `PgPool`, built once at the root. A transaction cannot
+  span two pools, so the hybrid `ingest` needs this shared pool.
 - The §8 reconciliation job is part of the MVP, because the raw write and the Postgres writes do
   not share one transaction.
 - The graph port and the resolver port hide the engine, so Neo4j becomes a new implementation
