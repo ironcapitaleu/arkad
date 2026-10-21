@@ -35,8 +35,8 @@ not spawn a session or take over a ticket itself.
 One compacted handoff, rendered for the reader that receives it:
 
 - **A fresh agent session** — print the content as a second-person prompt in one fenced code block
-  in the chat reply. The chat client shows a copy button on the block, so the user copies it with
-  one tap, also on a phone. Ephemeral.
+  in the chat reply. In a web, desktop, or mobile chat client, the block has a copy button. The user
+  copies it with one tap, on a desktop or on a phone. Ephemeral.
 - **A Linear ticket** — post the content as a state-of-play comment on the In Progress ticket. Use
   third-person status voice so a person can take over. Persistent. Delegate the comment shape to
   the `linear` skill. Do not copy its template here.
@@ -112,11 +112,12 @@ apply, and any "never" from this session. State each as `must` or `never`.>
 4. **Choose the destination** — a fresh agent session, a Linear note, or both (see Destinations).
 5. **Deliver:**
    - **Agent session** — print the whole document in the chat reply, inside one fenced code block
-     tagged `markdown`. Put nothing else inside the block. If the document contains a ``` fence,
-     open and close the outer block with ```` (four backticks) so the inner fence does not end it.
-     Do not split the document across several blocks, and do not send it as a file by default.
-     If the user asks for a file, or a session-spawning tool needs one, also write it to a
-     temporary directory outside the repository as `handoff-<short-slug>.md`. Never commit it.
+     tagged `markdown`. Put nothing else inside the block. Count the longest run of backticks that
+     opens a fence in the document. Open and close the outer block with one more backtick than that
+     run. Use at least three. Do not split the document across several blocks.
+     Write a file only in these cases: the user asks for one, a session-spawning tool needs one, or
+     the session runs in a terminal. Write it to a temporary directory outside the repository, as
+     `handoff-<short-slug>.md`. Never commit it.
    - **Linear note** — post the content as a state-of-play comment on the In Progress ticket through
      the `linear` skill, in status voice.
 
