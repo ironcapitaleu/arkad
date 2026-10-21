@@ -199,7 +199,8 @@ trigger needs no measurement, such as a slow ownership-tree query. The triggers 
 2. A link between identifiers is a claim with a source and a date, not a fact. Conflicting claims
    coexist in the store. At each run, the batch resolver picks at most one claim per identifier,
    target scheme, and point in time, by a fixed source priority. A claim enters the grouping only if
-   the resolver picks it from both of its ends. `ontology_guardrails.md`
+   the resolver picks it from both of its ends for its whole validity period. A claim that loses at
+   any point goes to the review queue. `ontology_guardrails.md`
    describes this claim envelope.
 3. Grouping uses exact keys only. Fuzzy matches by name or address go to a review queue and are
    never chained. Chaining A≈B and B≈C merges A and C by mistake.
@@ -280,8 +281,8 @@ splits as follows:
 Without any cache, `/v1` causes about eight times the screener egress. An egress trigger fires
 because of `/v1`, and a screener snapshot does not fix that.
 
-With the edge cache, egress stays near 300 GB. The 50 GB above the 250 GB quota cost about $5 a
-month, so no further action follows. Egress above the quota costs little in general: 100 GB cost
+With the edge cache, egress stays near 300 GB. The 50 GB above the 250 GB quota costs about $5 a
+month, so no further action follows. Egress above the quota costs little in general: 100 GB costs
 about $9 a month. The cost model gives the CDN snapshot 2 developer-days to build and a quarter of
 a day a month to run. Over three years, that is 11 developer-days, or about $8,800.
 
