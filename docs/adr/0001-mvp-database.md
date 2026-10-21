@@ -47,7 +47,11 @@ in one Postgres database. Here `ingest` follows the mixed-engine contract of
 `storage_traits_design.md`:
 
 - The raw write is the commit point.
-- The graph and fact writes share one Postgres transaction. The raw write is not part of it.
+- The graph and fact writes share one Postgres transaction. The raw write is not part of it. So
+  `ingest` is a hybrid implementation. It appends the raw record, then runs the graph and fact
+  writes as impl-private helpers on one `PgTransaction`, as the co-located rule of
+  `storage_traits_design.md` describes. It does not compose `GraphStore::upsert` and
+  `FactStore::upsert`, because each of those commits on its own.
 - The graph and fact writes are idempotent projections of the raw record.
 - The §8 reconciliation job replays every projection that failed after the raw write.
 
@@ -55,7 +59,7 @@ The rest of the decision:
 
 - Do not use `pg_duckdb`. Supabase does not offer it.
 - Put the graph tier and the fact tier in a schema that the Supabase Data API does not expose.
-  Only the `/v1` API binary and the ETL binary read and write them.
+  The ETL binary writes them. The `/v1` API binary reads them.
 - Store the graph as plain tables behind the graph port. Recursive CTEs answer the traversals.
 - Add Neo4j when the first trigger in [Triggers to Revisit](#triggers-to-revisit) fires.
 - Keep the graph model ready now. [Entity Resolution and the Graph](#entity-resolution-and-the-graph)
@@ -105,7 +109,7 @@ The table rates the decision as taken: Option A with the raw store on the filesy
 | The graph tier and the fact tier share one transaction | The raw write is not in that transaction, so the §8 reconciliation job is required |
 | | Recursive CTEs are longer to write than Cypher |
 | | `pg_duckdb` is not available on Supabase |
-| Supabase already runs it for authentication | A move to a graph database or a lakehouse comes later |
+| Supabase is already the authentication provider, so the team knows its tooling | A move to a graph database or a lakehouse comes later |
 | Mature async Rust drivers (`sqlx`, `tokio-postgres`) | One node sets the scaling limit |
 
 ### Option B: Separate Stores from Day One
@@ -184,16 +188,16 @@ ultimate parent across all sources". RDF and SHACL tooling, such as Neo4j `neose
 needs one.
 
 The lead set the second regulator as a trigger as well. From that point the graph is the identity
-spine across all sources, and the lead wants it in a graph engine before the claims of several
-sources pile up in tables. The triggers are in [Triggers to Revisit](#triggers-to-revisit).
+spine across all sources, and the lead wants it in a graph engine before the tables hold the claims
+of several sources. The triggers are in [Triggers to Revisit](#triggers-to-revisit).
 
 ### Design Rules
 
 1. Identifiers are rows, not columns. Each row holds `company_id`, scheme, value, valid from, valid
    to, and source.
 2. A link between identifiers is a claim with a source and a date, not a fact. Conflicting claims
-   coexist in the store. At each run, the batch resolver picks one claim per identifier pair by a
-   fixed source priority. Only picked claims enter the grouping. `ontology_guardrails.md`
+   coexist in the store. At each run, the batch resolver picks one claim per identifier, target
+   scheme, and validity period, by a fixed source priority. Only picked claims enter the grouping. `ontology_guardrails.md`
    describes this claim envelope.
 3. Grouping uses exact keys only. Fuzzy matches by name or address go to a review queue and are
    never chained. Chaining A≈B and B≈C merges A and C by mistake.
@@ -201,8 +205,9 @@ sources pile up in tables. The triggers are in [Triggers to Revisit](#triggers-t
    - A corporate merger or spin-off is a dated `merged_into` event.
    - If the grouping joins two existing ids, the older id survives. The other id gets a dated
      `same_as` event, and reads follow it to the surviving id.
-   - If a retracted claim splits a group, the new group gets a new id. Changes of this kind go to
-     the review queue before they apply.
+   - A split of a group is out of scope for the MVP. With SEC data only, no claim from a second
+     source exists that a retraction can remove. [Open Questions](#open-questions) holds the
+     split rule.
 5. One resolver port hides the engine. The engine can change from SQL to Neo4j without a pipeline
    change.
 
@@ -293,8 +298,13 @@ threshold leaves a margin below the 250 GB of egress that the Pro plan includes.
 - **Supabase project.** STA-280 decides whether the graph tier and the fact tier share the Supabase
   project of the authentication, or get a separate project.
 - **Base domain for IRIs.** The company IRI needs a domain. The company is not founded yet.
-- **Sector source.** The epic fog log holds a first suggestion: SEC SIC codes and an own roll-up
-  table.
+- **Sector source.** The epic fog log holds a first suggestion: SEC SIC codes and a roll-up table
+  of our own.
+- **Split rule.** A retracted claim can split a group once a second source exists. Facts key on
+  `company_id` at write time, so the facts of the split-off identifiers stay on the old id. One
+  proposal: the part that holds the oldest identifier keeps the id, the pipeline replays the
+  affected filings from the raw store under the new id, and the old fact rows go to quarantine.
+  The lead and the student decide the rule before the second source loads.
 - **Fact count.** The cost model assumes 15 million fact rows, or about 4.5 GB in Postgres. A count
   against the real SEC company facts for the S&P 500 will confirm the compute size.
 
