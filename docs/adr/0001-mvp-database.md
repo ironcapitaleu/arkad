@@ -194,6 +194,9 @@ trigger needs no measurement, such as a slow ownership-tree query. The triggers 
 
 ### Design Rules
 
+Rules 2 to 4 are a first draft. Before the second source loads, a claim resolution spec replaces
+them. [Open Questions](#open-questions) lists what that spec must fix.
+
 1. Identifiers are rows, not columns. Each row holds `company_id`, scheme, value, valid from, valid
    to, and source.
 2. A link between identifiers is a claim with a source and a date, not a fact. Conflicting claims
@@ -339,6 +342,16 @@ The CDN and `/v1` triggers rest on these assumptions:
 - **Base domain for IRIs.** The company IRI needs a domain. The company is not founded yet.
 - **Sector source.** The epic fog log holds a first suggestion: SEC SIC codes and a roll-up table
   of our own.
+- **Claim resolution for a second source.** With SEC data only, every link comes from one source,
+  so no claims compete. The second source, for example GLEIF or DART, needs a claim resolution
+  spec before it loads. Rules 2 to 4 in [Design Rules](#design-rules) are a first draft of that
+  spec. The spec must fix these points:
+  - The source priority order.
+  - How the resolver picks one claim per identifier, target scheme, and point in time.
+  - When a claim confirms the picked claim, and when it conflicts with it.
+  - How claims with overlapping validity periods enter the grouping.
+  - What the review queue holds, and who works it.
+  - The split rule below.
 - **Split rule.** A retracted claim can split a group once a second source exists. Facts key on
   `company_id` at write time, so the facts of the split-off identifiers stay on the old id. One
   proposal: the part that holds the oldest identifier keeps the id, the pipeline replays the
