@@ -2,7 +2,7 @@
 
 | Field | Value |
 | ----- | ----- |
-| Status | Proposed |
+| Status | Accepted by the lead on 2026-10-21. The student reviews it after a two-week leave. |
 | Date | 2026-10-21 |
 | Deciders | The project lead and the master's student |
 | Ticket | [STA-272](https://linear.app/state-machine/issue/STA-272) |
