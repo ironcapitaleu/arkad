@@ -187,9 +187,10 @@ Live multi-hop questions over large ownership chains need a graph database. An e
 ultimate parent across all sources". RDF and SHACL tooling, such as Neo4j `neosemantics`, also
 needs one.
 
-The lead set the second regulator as a trigger as well. From that point the graph is the identity
-spine across all sources, and the lead wants it in a graph engine before the tables hold the claims
-of several sources. The triggers are in [Triggers to Revisit](#triggers-to-revisit).
+The lead set the second regulator as a trigger as well. This trigger is an architecture choice, not
+a performance threshold. From that point the graph is the identity spine across all sources, and
+the lead wants it in a graph engine before the tables hold the claims of several sources. A
+measured trigger, such as a slow ownership-tree query, is not needed for this reason. The triggers are in [Triggers to Revisit](#triggers-to-revisit).
 
 ### Design Rules
 
