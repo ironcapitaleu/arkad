@@ -262,11 +262,35 @@ the RDF conditions above holds.
 | The first GLEIF parent-chain load or the second regulator, whichever comes first. The second regulator is a lead decision, see [Why a Graph Database Will Come Later](#why-a-graph-database-will-come-later). | Add Neo4j behind the graph port. Confirm that an n10s release exists for the chosen Neo4j version. |
 | The fact tier passes about 50 GB, for example at full US coverage | Add Iceberg next to Postgres, not in place of it |
 | Historical screens over many years and thousands of companies become a product goal | Add Iceberg next to Postgres |
-| Screener traffic passes 1.5 million loads a month, or database egress passes 200 GB a month | Serve the screener as a CDN snapshot |
+| The p95 latency of the screener endpoint stays above 500 ms for a week, or screener queries use more than a quarter of the database CPU | Serve the screener as a CDN snapshot |
+| Database egress passes 200 GB a month, and `/v1` responses cause most of it | Cache `/v1` responses at the edge |
 | One of the RDF conditions above holds | Add the RDF export job, or the Ontop view |
 
-The 50 GB and 1.5 million thresholds come from the cost model and are assumptions. The 200 GB
-threshold leaves a margin below the 250 GB of egress that the Pro plan includes.
+The 50 GB threshold comes from the cost model and is an assumption.
+
+The CDN trigger measures load, not egress, because the screener causes little egress. At the
+"Scale" level of the cost model, the egress splits as follows:
+
+| Source | Raw | Share served from a cache | Egress to the database |
+| ------ | --: | ------------------------: | ---------------------: |
+| Screener: 1.5 million loads × 0.08 MB | 120 GB | 95% | about 6 GB |
+| `/v1`: 20 million calls × 0.05 MB | 1,000 GB | 70% | about 300 GB |
+
+An egress trigger fires because of `/v1`, and a screener snapshot does not fix that. Egress above
+the quota also costs little: 100 GB costs about $9 a month, against about 2 developer-days for the
+snapshot.
+
+The CDN and `/v1` triggers rest on these assumptions:
+
+- The screener snapshot is 0.08 MB compressed. An average `/v1` response is 0.05 MB. Both come
+  from the cost model.
+- A cache serves 95% of screener loads and 70% of `/v1` calls. Both come from the cost model.
+- 500 ms is a placeholder for the latency a user notices. It is a choice, not a measurement.
+- "A quarter of the database CPU" is a placeholder for the point where the screener slows other
+  queries. It is a choice, not a measurement.
+- Supabase reports database CPU per query well enough to show the screener's share. Nobody checked
+  this yet.
+- 200 GB leaves a margin below the 250 GB of egress that the Pro plan includes.
 
 ## Consequences
 
@@ -329,6 +353,8 @@ threshold leaves a margin below the 250 GB of egress that the Pro plan includes.
 | FIBO is MIT | Verified | `edmcouncil/fibo` LICENSE |
 | Ontop is Apache 2.0 and maps SQL to RDF through R2RML | Verified | `ontop/ontop` README |
 | Fact count, data sizes, traffic, and developer effort | Unverified, assumptions | Cost model of 2026-10-19 |
-| Trigger thresholds of 50 GB and 1.5 million screener loads a month | Unverified, assumptions | Cost model of 2026-10-19 |
+| Trigger threshold of 50 GB, response sizes, and cache shares | Unverified, assumptions | Cost model of 2026-10-19 |
+| Trigger thresholds of 500 ms and a quarter of the database CPU | Unverified, placeholders | This ADR |
+| Supabase reports database CPU per query | Unverified | Not checked |
 | GLEIF publishes RDF, GLEIF data is CC0 | Unverified | gleif.org is blocked from the container |
 | Aura limits plugins, Neo4j Community has only uniqueness constraints | Unverified | neo4j.com is blocked from the container |
