@@ -199,8 +199,10 @@ trigger needs no measurement, such as a slow ownership-tree query. The triggers 
 2. A link between identifiers is a claim with a source and a date, not a fact. Conflicting claims
    coexist in the store. At each run, the batch resolver picks at most one claim per identifier,
    target scheme, and point in time, by a fixed source priority. A claim enters the grouping only if
-   the resolver picks it from both of its ends for its whole validity period. A claim that loses at
-   any point goes to the review queue. `ontology_guardrails.md`
+   the resolver picks it from both of its ends for its whole validity period. A claim loses only
+   where the picked claim names a different identifier. A claim that loses at any point goes to the
+   review queue. A claim that names the same identifier as the picked claim is a confirmation, not a
+   loss. `ontology_guardrails.md`
    describes this claim envelope.
 3. Grouping uses exact keys only. Fuzzy matches by name or address go to a review queue and are
    never chained. Chaining A≈B and B≈C merges A and C by mistake.
