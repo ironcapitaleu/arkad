@@ -2,9 +2,9 @@
 
 | Field | Value |
 | ----- | ----- |
-| Status | Accepted by the lead on 2026-10-21. The student reviews it after a two-week leave. |
+| Status | Accepted by the lead on 2026-10-21. The student reviews it by 2026-11-06. If that review changes the decision, a new ADR supersedes this ADR. |
 | Date | 2026-10-21 |
-| Deciders | The project lead and the master's student |
+| Deciders | The project lead. The master's student reviews it after a two-week leave. |
 | Ticket | [STA-272](https://linear.app/state-machine/issue/STA-272) |
 | Closes | The deferred decision in `sec/design/data_model/hybrid_data_model.md` §14, for the MVP |
 
@@ -22,7 +22,7 @@ Earlier spikes fixed these inputs:
 
 - The `/v1` API returns fundamentals only. Prices live in a separate store for the screener
   ([STA-270](https://linear.app/state-machine/issue/STA-270)).
-- Coverage at launch is the S&P 500. The fact store is append-only, and the newest filing wins
+- Coverage at launch is the S&P 500. The fact tier is append-only, and the newest filing wins
   ([STA-271](https://linear.app/state-machine/issue/STA-271),
   [STA-284](https://linear.app/state-machine/issue/STA-284)).
 - Every fact keys on a stable internal `company_id`. CIK and LEI are dated identifiers
@@ -39,10 +39,23 @@ stage to define its output.
 
 ## Decision
 
-Use **one managed Supabase Postgres database** for the graph tier and the canonical fact tier. This
-is Option A of §14. The raw store stays on the filesystem, as the earlier findings decided.
+Use **one managed Supabase Postgres database** for the graph tier and the fact tier. The raw store
+stays on the filesystem, as the earlier findings decided.
+
+This is a per-tier mixture based on §14 Option A, not Option A itself. Option A puts all three tiers
+in one Postgres database. Here `ingest` follows the mixed-engine contract of
+`storage_traits_design.md`:
+
+- The raw write is the commit point.
+- The graph and fact writes share one Postgres transaction. The raw write is not part of it.
+- The graph and fact writes are idempotent projections of the raw record.
+- The §8 reconciliation job replays every projection that failed after the raw write.
+
+The rest of the decision:
 
 - Do not use `pg_duckdb`. Supabase does not offer it.
+- Put the graph tier and the fact tier in a schema that the Supabase Data API does not expose.
+  Only the `/v1` API binary and the ETL binary read and write them.
 - Store the graph as plain tables behind the graph port. Recursive CTEs answer the traversals.
 - Add Neo4j when the first trigger in [Triggers to Revisit](#triggers-to-revisit) fires.
 - Keep the graph model ready now. [Entity Resolution and the Graph](#entity-resolution-and-the-graph)
@@ -82,12 +95,16 @@ scale needs a column store or a graph engine.
 
 ## Options Considered
 
-### Option A: One Postgres Database (Chosen)
+### Option A: One Postgres Database (Basis of the Decision)
+
+The table rates the decision as taken: Option A with the raw store on the filesystem.
 
 | Pros | Cons |
 | ---- | ---- |
-| One database, one backup, no sync job | Recursive CTEs are longer to write than Cypher |
-| The graph tier and the fact tier share one transaction | `pg_duckdb` is not available on Supabase |
+| One database for the graph tier and the fact tier | Two stores to back up: the raw filesystem and Postgres |
+| The graph tier and the fact tier share one transaction | The raw write is not in that transaction, so the §8 reconciliation job is required |
+| | Recursive CTEs are longer to write than Cypher |
+| | `pg_duckdb` is not available on Supabase |
 | Supabase already runs it for authentication | A move to a graph database or a lakehouse comes later |
 | Mature async Rust drivers (`sqlx`, `tokio-postgres`) | One node sets the scaling limit |
 
@@ -157,26 +174,35 @@ Resolution follows those links. It groups every identifier that the links connec
 - With SEC data only, the CIK is the key. Resolution is a lookup in dated CIK ranges and
   predecessor links.
 - With GLEIF or DART, most matches are exact key joins. Postgres does joins well.
-- Grouping runs once per load as a batch job, with union-find in Rust or a recursive CTE. It does
-  not run per user request.
+- The resolver runs once per load as a batch job, with union-find in Rust or a recursive CTE. It
+  does not run per user request.
 
 ### Why a Graph Database Will Come Later
 
 Live multi-hop questions over large ownership chains need a graph database. An example is "the
 ultimate parent across all sources". RDF and SHACL tooling, such as Neo4j `neosemantics`, also
-needs one. The trigger is in [Triggers to Revisit](#triggers-to-revisit).
+needs one.
+
+The lead set the second regulator as a trigger as well. From that point the graph is the identity
+spine across all sources, and the lead wants it in a graph engine before the claims of several
+sources pile up in tables. The triggers are in [Triggers to Revisit](#triggers-to-revisit).
 
 ### Design Rules
 
 1. Identifiers are rows, not columns. Each row holds `company_id`, scheme, value, valid from, valid
    to, and source.
 2. A link between identifiers is a claim with a source and a date, not a fact. Conflicting claims
-   sit side by side, and the resolver chooses at read time. `ontology_guardrails.md` describes this
-   claim envelope.
+   coexist in the store. At each run, the batch resolver picks one claim per identifier pair by a
+   fixed source priority. Only picked claims enter the grouping. `ontology_guardrails.md`
+   describes this claim envelope.
 3. Grouping uses exact keys only. Fuzzy matches by name or address go to a review queue and are
    never chained. Chaining A≈B and B≈C merges A and C by mistake.
-4. `company_id` is stable. Nothing reuses or rewrites it. A merge or a split is a dated event
-   (`merged_into`), so facts never move.
+4. `company_id` is stable. Nothing reuses or rewrites it. Facts never move.
+   - A corporate merger or spin-off is a dated `merged_into` event.
+   - If the grouping joins two existing ids, the older id survives. The other id gets a dated
+     `same_as` event, and reads follow it to the surviving id.
+   - If a retracted claim splits a group, the new group gets a new id. Changes of this kind go to
+     the review queue before they apply.
 5. One resolver port hides the engine. The engine can change from SQL to Neo4j without a pipeline
    change.
 
@@ -197,7 +223,7 @@ The cost of a later export job or an Ontop mapping depends on four choices made 
 - Claims carry a source and a date. They map to RDF named graphs.
 - Identifiers are rows. They map to the identifier terms of FIBO.
 
-RDF earns its place when one of these conditions holds:
+Add RDF when one of these conditions holds:
 
 - The product links to outside ontologies, such as FIBO or GLEIF, for data exchange.
 - A customer or a partner asks for RDF or SPARQL.
@@ -211,8 +237,8 @@ OWL reasoning needs four parts:
 1. **IRIs.** Every company, identifier, and edge type has a global IRI. The stable `company_id`
    gives the company IRI.
 2. **An ontology.** A file defines the classes, the properties, and the axioms, for example "the
-   `ultimatelyConsolidatedBy` property is transitive". It reuses FIBO and GLEIF terms and adds own
-   terms only where none exist.
+   `ultimatelyConsolidatedBy` property is transitive". It reuses FIBO and GLEIF terms and adds its
+   own terms only where none exist.
 3. **Data in RDF.** The export job or the Ontop view gives the data as RDF triples.
 4. **A reasoner.** A batch job reads the ontology and the data, and it writes the derived facts.
    The job writes each derived fact back as a claim with the source "reasoner".
@@ -220,23 +246,30 @@ OWL reasoning needs four parts:
 OWL reads data under an open world. Missing data is unknown, not an error. Validation needs a closed
 world, so validation uses SHACL, not OWL.
 
-The first two parts cost little and can start at any time. The other two parts wait until RDF
-earns its place.
+The first two parts cost little and can start at any time. The other two parts wait until one of
+the RDF conditions above holds.
 
 ## Triggers to Revisit
 
 | Trigger | Action |
 | ------- | ------ |
-| The first GLEIF parent-chain load or the second regulator, whichever comes first | Add Neo4j behind the graph port. Confirm that an n10s release exists for the chosen Neo4j version. |
-| The fact store passes about 50 GB, for example at full US coverage | Add Iceberg next to Postgres, not in place of it |
+| The first GLEIF parent-chain load or the second regulator, whichever comes first. The second regulator is a lead decision, see [Why a Graph Database Will Come Later](#why-a-graph-database-will-come-later). | Add Neo4j behind the graph port. Confirm that an n10s release exists for the chosen Neo4j version. |
+| The fact tier passes about 50 GB, for example at full US coverage | Add Iceberg next to Postgres, not in place of it |
 | Historical screens over many years and thousands of companies become a product goal | Add Iceberg next to Postgres |
-| Screener traffic nears 1.5 million loads a month, or database load or egress grows | Serve the screener as a CDN snapshot |
+| Screener traffic passes 1.5 million loads a month, or database egress passes 200 GB a month | Serve the screener as a CDN snapshot |
 | One of the RDF conditions above holds | Add the RDF export job, or the Ontop view |
+
+The 50 GB and 1.5 million thresholds come from the cost model and are assumptions. The 200 GB
+threshold leaves a margin below the 250 GB of egress that the Pro plan includes.
 
 ## Consequences
 
-- The Load stage implements the `storage` ports against one Postgres database.
-- The graph port and the resolver port hide the engine, so Neo4j comes in as a new implementation.
+- The Load stage implements `GraphStore` and `FactStore` against one Postgres database, and
+  `RawStore` against the filesystem.
+- The §8 reconciliation job is part of the MVP, because the raw write and the Postgres writes do
+  not share one transaction.
+- The graph port and the resolver port hide the engine, so Neo4j becomes a new implementation
+  behind the graph port.
 - `pg_duckdb` is out. If Postgres scans become slow, the next steps are the CDN snapshot or the
   Supabase wrappers to Iceberg.
 - The team runs no second database before the MVP.
@@ -251,6 +284,14 @@ earns its place.
   identity. STA-288 chose an internal `company_id`. A rename of the port to `EntityResolver`, which
   returns `company_id` for any `(scheme, value)` pair, removes the mismatch. The paths in §12b.5 use
   `{lei}` and need the same change.
+- **Design documents still say "deferred".** `hybrid_data_model.md` §14 still marks the decision as
+  deferred, and §12b.5 and §14.A still name `pg_duckdb`. The student owns that document and updates
+  it after the review.
+- **Price store.** STA-270 keeps prices out of `/v1` and puts them in a separate store for the
+  screener. This ADR does not decide where that store lives. The lead decides it before STA-280
+  sizes the hosting.
+- **Supabase project.** STA-280 decides whether the graph tier and the fact tier share the Supabase
+  project of the authentication, or get a separate project.
 - **Base domain for IRIs.** The company IRI needs a domain. The company is not founded yet.
 - **Sector source.** The epic fog log holds a first suggestion: SEC SIC codes and an own roll-up
   table.
@@ -268,6 +309,7 @@ earns its place.
 | Compute Micro $10, Small $15, Medium $60, Large $110 a month | Verified | [Compute and disk](https://supabase.com/docs/guides/platform/compute-and-disk) |
 | 8 GB disk included, then $0.125 per GB | Verified | [Disk size](https://supabase.com/docs/guides/platform/manage-your-usage/disk-size) |
 | 250 GB egress included, then $0.09 per GB | Verified | [Egress](https://supabase.com/docs/guides/platform/manage-your-usage/egress) |
+| A table in an exposed schema without RLS is readable and writable by any role with a grant on it | Verified | [Row Level Security](https://supabase.com/docs/guides/database/postgres/row-level-security) |
 | `WITH RECURSIVE`, `percentile_cont` | Verified | [PostgreSQL docs](https://www.postgresql.org/docs/current/) |
 | `pg_duckdb` is MIT and offers self-install, Docker, or MotherDuck | Verified | `duckdb/pg_duckdb` README |
 | Neo4j is GPLv3 | Verified | `neo4j/neo4j` LICENSE.txt |
@@ -276,5 +318,6 @@ earns its place.
 | FIBO is MIT | Verified | `edmcouncil/fibo` LICENSE |
 | Ontop is Apache 2.0 and maps SQL to RDF through R2RML | Verified | `ontop/ontop` README |
 | Fact count, data sizes, traffic, and developer effort | Unverified, assumptions | Cost model of 2026-10-19 |
+| Trigger thresholds of 50 GB and 1.5 million screener loads a month | Unverified, assumptions | Cost model of 2026-10-19 |
 | GLEIF publishes RDF, GLEIF data is CC0 | Unverified | gleif.org is blocked from the container |
 | Aura limits plugins, Neo4j Community has only uniqueness constraints | Unverified | neo4j.com is blocked from the container |
