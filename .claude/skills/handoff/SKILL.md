@@ -6,7 +6,7 @@ description: >
   note", or invokes `/handoff`. Compacts the current conversation into a self-contained handoff:
   a prompt for a fresh agent session, or a state-of-play note on the In Progress Linear ticket for
   a human takeover.
-version: 0.1.0
+version: 0.2.0
 argument-hint: "[what the next session will do]"
 allowed-tools: [Read, Write, Bash, AskUserQuestion]
 ---
@@ -34,8 +34,9 @@ not spawn a session or take over a ticket itself.
 
 One compacted handoff, rendered for the reader that receives it:
 
-- **A fresh agent session** — write the content as a second-person prompt to a temporary file. The
-  caller feeds it to a session-spawning tool, or the user pastes it into a new session. Ephemeral.
+- **A fresh agent session** — print the content as a second-person prompt in one fenced code block
+  in the chat reply. The chat client shows a copy button on the block, so the user copies it with
+  one tap, also on a phone. Ephemeral.
 - **A Linear ticket** — post the content as a state-of-play comment on the In Progress ticket. Use
   third-person status voice so a person can take over. Persistent. Delegate the comment shape to
   the `linear` skill. Do not copy its template here.
@@ -110,9 +111,12 @@ apply, and any "never" from this session. State each as `must` or `never`.>
    secret's location instead, never its value.
 4. **Choose the destination** — a fresh agent session, a Linear note, or both (see Destinations).
 5. **Deliver:**
-   - **Agent session** — write the document to a temporary directory outside the repository, as
-     `handoff-<short-slug>.md`. Do not commit it. The caller feeds it to a session-spawning tool, or
-     the user pastes it into a new session.
+   - **Agent session** — print the whole document in the chat reply, inside one fenced code block
+     tagged `markdown`. Put nothing else inside the block. If the document contains a ``` fence,
+     open and close the outer block with ```` (four backticks) so the inner fence does not end it.
+     Do not split the document across several blocks, and do not send it as a file by default.
+     If the user asks for a file, or a session-spawning tool needs one, also write it to a
+     temporary directory outside the repository as `handoff-<short-slug>.md`. Never commit it.
    - **Linear note** — post the content as a state-of-play comment on the In Progress ticket through
      the `linear` skill, in status voice.
 
@@ -126,8 +130,10 @@ apply, and any "never" from this session. State each as `must` or `never`.>
 - **Reference, do not duplicate.** Link tickets, PRs, branches, and docs. Never copy their bodies.
 - **Redact before writing.** No secret value reaches the document. This matters most for the Linear
   note, which persists and other people read.
-- **Never in the repository.** The agent-session file goes to a temporary directory. The Linear note
-  goes to the ticket. A handoff is not a committed design doc.
+- **Never in the repository.** The agent-session prompt goes to the chat, plus a temporary file if
+  one is needed. The Linear note goes to the ticket. A handoff is not a committed design doc.
+- **One copyable block.** The agent-session prompt is one fenced code block, so one tap copies all
+  of it.
 - **Plain English.** The `plain-english` skill applies. State the mission, the state, and the next
   steps as facts and instructions.
 
