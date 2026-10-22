@@ -45,9 +45,9 @@ pub use filesystem_error::{FilesystemError, FilesystemErrorReason, FilesystemOpe
 /// access the marker `A` allows.
 ///
 /// [`FilesystemRepository::builder`] starts the builder that builds it. `A` is [`Read`], [`Write`],
-/// or [`ReadWrite`]. A read rejects a metadata file of another document kind, and a write rejects a record of
-/// another kind. Repositories for
-/// different kinds can share one root, as long as their keys differ.
+/// or [`ReadWrite`]. A read rejects a metadata file of another document kind, and a write
+/// rejects a record of another kind. Repositories for different kinds can share one root, as long
+/// as their keys differ.
 ///
 /// A [`DocumentKey`] is a document's path under the root. A document lives at the root joined with
 /// its key. On Linux and macOS, a root of `/data/arkad` and a key of `sec/CIK0000320193.json` name
