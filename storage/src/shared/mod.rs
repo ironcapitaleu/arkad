@@ -10,5 +10,13 @@
 //!
 //! - [`document_key`]: The [`DocumentKey`](document_key::DocumentKey) naming one document, and the
 //!   [`InvalidDocumentKey`](document_key::InvalidDocumentKey) for a rejected path.
+//! - [`document_metadata`]: The [`DocumentMetadata`](document_metadata::DocumentMetadata) stored
+//!   beside every document.
+//! - [`input_document`]: The [`InputDocument`](input_document::InputDocument) pointing at a
+//!   document that a stored document came from.
+//! - [`producer`]: The [`Producer`](producer::Producer) naming the code that wrote a document.
 
 pub mod document_key;
+pub mod document_metadata;
+pub mod input_document;
+pub mod producer;
