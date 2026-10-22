@@ -187,4 +187,17 @@ mod tests {
 
         assert_eq!(result, expected_result);
     }
+
+    #[test]
+    fn should_return_the_same_producer_when_deserializing_a_serialized_producer() {
+        let json = serde_json::to_string(&sample_producer())
+            .expect("Given a producer of owned strings, serialization should always succeed");
+
+        let expected_result = sample_producer();
+
+        let result: Producer = serde_json::from_str(&json)
+            .expect("Given JSON this type produced, deserialization should always succeed");
+
+        assert_eq!(result, expected_result);
+    }
 }
