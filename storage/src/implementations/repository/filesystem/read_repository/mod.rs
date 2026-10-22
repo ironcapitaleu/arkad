@@ -35,7 +35,8 @@ impl<A: CanRead, D: Document> ReadRepository for FilesystemRepository<A, D> {
     /// fails with its kind named, even if its other fields do not fit the context of `D`.
     ///
     /// `get` does not check the bytes against [`DocumentMetadata::bytes`] or
-    /// [`DocumentMetadata::sha256`].
+    /// [`DocumentMetadata::sha256`], and it does not compare [`DocumentMetadata::metadata_version`]
+    /// with [`METADATA_VERSION`](crate::METADATA_VERSION).
     ///
     /// # Errors
     ///
