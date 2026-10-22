@@ -487,6 +487,33 @@ mod tests {
         assert_eq!(result, expected_result);
     }
 
+    #[test]
+    fn should_reject_an_empty_path_when_deserializing_a_key() {
+        let json = r#""""#;
+
+        let expected_result = "[EmptyPath] Document key names no file below the store's root";
+
+        let result = serde_json::from_str::<DocumentKey>(json)
+            .expect_err("Given an empty path, deserialization should always fail")
+            .to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_reject_a_root_component_when_deserializing_a_key() {
+        let json = r#""/x.json""#;
+
+        let expected_result =
+            "[ContainsRootComponent] Document key '/x.json' starts at a root directory";
+
+        let result = serde_json::from_str::<DocumentKey>(json)
+            .expect_err("Given a path that starts at a root, deserialization should always fail")
+            .to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
     #[cfg(unix)]
     #[test]
     fn should_fail_serialization_when_a_component_is_not_valid_utf_8() {

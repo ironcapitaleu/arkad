@@ -1,6 +1,10 @@
 //! # Document Metadata
 //!
-//! Provides [`DocumentMetadata`], the metadata stored beside every document.
+//! Provides [`DocumentMetadata`], the metadata stored with every document.
+//!
+//! It replaces the fixed
+//! [`filesystem::DocumentMetadata`](crate::implementations::repository::filesystem::DocumentMetadata),
+//! which holds the fields of one SEC fetch.
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -22,7 +26,11 @@ pub const METADATA_VERSION: u32 = 1;
 /// names.
 ///
 /// [`DocumentMetadata::new`] sets `kind` from [`MetadataContext::KIND`] and `metadata_version` from
-/// [`METADATA_VERSION`]. Metadata read from a file keeps the values the file stores.
+/// [`METADATA_VERSION`]. Deserialized metadata keeps the values it was stored with, and nothing
+/// compares them with `C`. A reader that needs one kind compares [`DocumentMetadata::kind`] with
+/// [`MetadataContext::KIND`] before it uses the metadata.
+///
+/// Nothing checks that the SHA-256 is 64 lowercase hex characters.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct DocumentMetadata<C> {
     metadata_version: u32,

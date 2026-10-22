@@ -11,6 +11,9 @@ use crate::shared::document_key::DocumentKey;
 /// Holds the input's key and the SHA-256 of the input's bytes at the time they were read. If the
 /// key holds other bytes when it is read again, their SHA-256 differs from the one stored here.
 /// The pointer holds nothing else. The input's own metadata holds the rest.
+///
+/// Nothing checks that the SHA-256 is 64 lowercase hex characters, so two spellings of one digest
+/// compare as different.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct InputDocument {
     key: DocumentKey,

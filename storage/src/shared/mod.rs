@@ -9,7 +9,7 @@
 //!
 //! - [`document_key`]: The [`DocumentKey`] naming one document, and the [`InvalidDocumentKey`]
 //!   for a rejected path.
-//! - [`document_metadata`]: The [`DocumentMetadata`] stored beside every document.
+//! - [`document_metadata`]: The [`DocumentMetadata`] stored with every document.
 //! - [`input_document`]: The [`InputDocument`] pointing at a document that a stored document came
 //!   from.
 //! - [`producer`]: The [`Producer`] naming the code that wrote a document.
