@@ -252,16 +252,14 @@ impl From<FilesystemError> for BackendError {
 
 #[cfg(test)]
 mod tests {
+    use std::cell::Cell;
     use std::fmt::Debug;
     use std::hash::Hash;
-
-    use pretty_assertions::assert_eq;
-    use tempfile::TempDir;
-
-    use std::cell::Cell;
     use std::marker::PhantomPinned;
 
+    use pretty_assertions::assert_eq;
     use serde::{Deserialize, Serialize};
+    use tempfile::TempDir;
 
     use super::*;
     use crate::shared::document_metadata::DocumentMetadata;
@@ -269,7 +267,6 @@ mod tests {
     use crate::traits::document::Document;
     use crate::traits::metadata_context::MetadataContext;
     use crate::traits::repository::ReadWriteRepository;
-
     /// The repository type these tests build.
     type SampleRepository = FilesystemRepository<ReadWrite, SampleDocument>;
 
@@ -345,7 +342,7 @@ mod tests {
     const fn implements_sync<T: Sync>() {}
 
     #[test]
-    const fn should_implement_auto_traits_for_filesystem_repository_when_the_document_type_is_not_sync()
+    const fn should_implement_auto_traits_for_filesystem_repository_when_the_document_type_is_neither_sync_nor_unpin()
      {
         implements_auto_traits::<FilesystemRepository<ReadWrite, UnsyncDocument>>();
     }
