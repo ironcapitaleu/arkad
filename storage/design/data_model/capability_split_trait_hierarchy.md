@@ -265,8 +265,8 @@ The guard comes from the capability the field's type carries. It does not come f
 generic. A generic parameter bounded by one capability carries that capability. So does a concrete
 adapter that implements only that capability. Both keep `persist` out of a read-only state. A
 concrete type that implements both capabilities is the one shape that drops the guard.
-`FilesystemRepository<Read>` and `FilesystemRepository<Write>` are concrete adapters with one
-capability each, so a context that names them keeps the guard. `FilesystemRepository<ReadWrite>`
+`FilesystemRepository<Read, D>` and `FilesystemRepository<Write, D>` are concrete adapters with one
+capability each, so a context that names them keeps the guard. `FilesystemRepository<ReadWrite, D>`
 implements both capabilities, so it drops the guard. The examples
 above bind the capability generically to show the contract. A context can equally name the concrete
 adapter, the way a state context names its `SecClient`. The guard holds the same way. Each state
@@ -338,7 +338,7 @@ the consumer depends on, and a write path cannot leak into it.
   credentials. The type system cannot enforce the backend's own permissions.
 - **The type-state marker.** STA-157 reserved the marker approach for a builder that constructs a
   concrete handle. `FilesystemRepositoryBuilder` is that builder. It sets a `Read`, `Write`, or
-  `ReadWrite` marker on `FilesystemRepository<A>`, and the sealed `CanRead` and `CanWrite` traits
+  `ReadWrite` marker on `FilesystemRepository<A, D>`, and the sealed `CanRead` and `CanWrite` traits
   map the marker onto the ports (STA-268). The ports stay trait-based, because the traits stay
   object-safe.
 

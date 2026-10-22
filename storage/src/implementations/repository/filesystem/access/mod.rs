@@ -21,11 +21,26 @@ mod sealed {
 /// ```compile_fail,E0599
 /// use storage::WriteRepository;
 /// use storage::implementations::repository::filesystem::FilesystemRepository;
-/// # use storage::implementations::repository::filesystem::RawDocument;
+/// # use serde::{Deserialize, Serialize};
+/// # use storage::{Document, DocumentKey, DocumentMetadata, MetadataContext};
+/// # #[derive(Serialize, Deserialize)]
+/// # struct FetchContext;
+/// # impl MetadataContext for FetchContext { const KIND: &'static str = "fetch.v1"; }
+/// # struct Fetch { key: DocumentKey, bytes: Vec<u8>, metadata: DocumentMetadata<FetchContext> }
+/// # impl Document for Fetch {
+/// #     type Context = FetchContext;
+/// #     fn key(&self) -> &DocumentKey { &self.key }
+/// #     fn bytes(&self) -> &[u8] { &self.bytes }
+/// #     fn metadata(&self) -> &DocumentMetadata<FetchContext> { &self.metadata }
+/// #     fn from_parts(key: DocumentKey, bytes: Vec<u8>, metadata: DocumentMetadata<FetchContext>) -> Self {
+/// #         Self { key, bytes, metadata }
+/// #     }
+/// # }
 ///
-/// async fn write_through_a_reader(document: RawDocument) {
+/// async fn write_through_a_reader(document: Fetch) {
 ///     let reader = FilesystemRepository::builder()
 ///         .reader()
+///         .document_type::<Fetch>()
 ///         .root("/data/arkad")
 ///         .build();
 ///
@@ -43,12 +58,27 @@ pub struct Read;
 ///
 /// ```compile_fail,E0599
 /// use storage::ReadRepository;
-/// use storage::DocumentKey;
 /// use storage::implementations::repository::filesystem::FilesystemRepository;
+/// # use serde::{Deserialize, Serialize};
+/// # use storage::{Document, DocumentKey, DocumentMetadata, MetadataContext};
+/// # #[derive(Serialize, Deserialize)]
+/// # struct FetchContext;
+/// # impl MetadataContext for FetchContext { const KIND: &'static str = "fetch.v1"; }
+/// # struct Fetch { key: DocumentKey, bytes: Vec<u8>, metadata: DocumentMetadata<FetchContext> }
+/// # impl Document for Fetch {
+/// #     type Context = FetchContext;
+/// #     fn key(&self) -> &DocumentKey { &self.key }
+/// #     fn bytes(&self) -> &[u8] { &self.bytes }
+/// #     fn metadata(&self) -> &DocumentMetadata<FetchContext> { &self.metadata }
+/// #     fn from_parts(key: DocumentKey, bytes: Vec<u8>, metadata: DocumentMetadata<FetchContext>) -> Self {
+/// #         Self { key, bytes, metadata }
+/// #     }
+/// # }
 ///
 /// async fn read_through_a_writer(key: DocumentKey) {
 ///     let writer = FilesystemRepository::builder()
 ///         .writer()
+///         .document_type::<Fetch>()
 ///         .root("/data/arkad")
 ///         .build();
 ///
@@ -87,10 +117,31 @@ pub trait CanRead: Access {}
 /// ```compile_fail,E0277
 /// use storage::WriteRepository;
 /// use storage::implementations::repository::filesystem::FilesystemRepository;
+/// # use serde::{Deserialize, Serialize};
+/// # use storage::{Document, DocumentKey, DocumentMetadata, MetadataContext};
+/// # #[derive(Serialize, Deserialize)]
+/// # struct FetchContext;
+/// # impl MetadataContext for FetchContext { const KIND: &'static str = "fetch.v1"; }
+/// # struct Fetch { key: DocumentKey, bytes: Vec<u8>, metadata: DocumentMetadata<FetchContext> }
+/// # impl Document for Fetch {
+/// #     type Context = FetchContext;
+/// #     fn key(&self) -> &DocumentKey { &self.key }
+/// #     fn bytes(&self) -> &[u8] { &self.bytes }
+/// #     fn metadata(&self) -> &DocumentMetadata<FetchContext> { &self.metadata }
+/// #     fn from_parts(key: DocumentKey, bytes: Vec<u8>, metadata: DocumentMetadata<FetchContext>) -> Self {
+/// #         Self { key, bytes, metadata }
+/// #     }
+/// # }
 ///
 /// fn needs_a_writer<W: WriteRepository>(_writer: W) {}
 ///
-/// needs_a_writer(FilesystemRepository::builder().reader().root("/data/arkad").build());
+/// needs_a_writer(
+///     FilesystemRepository::builder()
+///         .reader()
+///         .document_type::<Fetch>()
+///         .root("/data/arkad")
+///         .build(),
+/// );
 /// ```
 #[diagnostic::on_unimplemented(
     message = "a repository with `{Self}` access cannot write documents",

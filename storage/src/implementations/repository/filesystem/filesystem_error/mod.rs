@@ -93,7 +93,7 @@ impl FilesystemError {
 
 /// Enum representing the reason why a filesystem operation failed.
 #[non_exhaustive]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum FilesystemErrorReason {
     /// The root directory does not exist, or a file stands in its path.
     MissingRoot,
@@ -107,6 +107,13 @@ pub enum FilesystemErrorReason {
         line: usize,
         /// Column of the first character the parser rejected.
         column: usize,
+    },
+    /// The metadata file holds the metadata of another document kind.
+    UnexpectedMetadataKind {
+        /// The kind the metadata holds.
+        found: String,
+        /// The kind the repository reads and writes.
+        expected: String,
     },
     /// The metadata cannot be serialized as JSON.
     UnserializableMetadata,
@@ -128,6 +135,10 @@ impl fmt::Display for FilesystemErrorReason {
             Self::InvalidMetadata { line, column } => write!(
                 f,
                 "Metadata file holds no valid metadata at line {line}, column {column}"
+            ),
+            Self::UnexpectedMetadataKind { found, expected } => write!(
+                f,
+                "Metadata holds kind '{found}', expected kind '{expected}'"
             ),
             Self::UnserializableMetadata => write!(f, "Metadata cannot be serialized as JSON"),
             Self::FailedIo { operation, kind } => write!(f, "Failed to {operation}, {kind}"),
@@ -293,6 +304,21 @@ mod tests {
         let reason = FilesystemErrorReason::InvalidMetadata { line: 3, column: 7 };
 
         let expected_result = "Metadata file holds no valid metadata at line 3, column 7";
+
+        let result = reason.to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_format_display_as_expected_when_the_metadata_kind_is_unexpected() {
+        let reason = FilesystemErrorReason::UnexpectedMetadataKind {
+            found: "other_kind.v1".to_owned(),
+            expected: "sample_document.v1".to_owned(),
+        };
+
+        let expected_result =
+            "Metadata holds kind 'other_kind.v1', expected kind 'sample_document.v1'";
 
         let result = reason.to_string();
 

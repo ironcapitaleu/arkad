@@ -6,8 +6,8 @@
 //! ## Record and Key
 //!
 //! [`ReadRepository`](crate::ReadRepository) and [`WriteRepository`](crate::WriteRepository) each
-//! leave their associated types to the implementor. This repository pins `Record` to [`RawDocument`]
-//! in both, and `ReadRepository`'s `Key` to [`DocumentKey`].
+//! leave their associated types to the implementor. A `FilesystemRepository<A, D>` sets `Record` to
+//! the [`Document`] type `D` in both, and `ReadRepository`'s `Key` to [`DocumentKey`].
 //!
 //! ## Errors
 //!
@@ -18,36 +18,35 @@
 //! - [`access`]: The access markers and the traits that connect them to the ports.
 //! - [`builder`]: The [`FilesystemRepositoryBuilder`] and the markers for its missing steps.
 //! - [`constants`]: The constants that fix the file layout, such as [`METADATA_SUFFIX`].
-//! - [`document_metadata`]: The [`DocumentMetadata`] describing the fetch behind a document.
 //! - [`filesystem_error`]: The [`FilesystemError`] for a failed operation on a path.
-//! - [`raw_document`]: The [`RawDocument`] a read returns and a write accepts.
 
 use std::io;
+use std::marker::PhantomData;
 use std::path::{Path, PathBuf};
 
 use crate::error::BackendError;
 use crate::shared::document_key::DocumentKey;
+#[cfg(doc)]
+use crate::traits::document::Document;
 
 pub mod access;
 pub mod builder;
 pub mod constants;
-pub mod document_metadata;
 pub mod filesystem_error;
-pub mod raw_document;
 mod read_repository;
 mod write_repository;
 
 pub use access::{Access, CanRead, CanWrite, Read, ReadWrite, Write};
-pub use builder::{FilesystemRepositoryBuilder, NoAccess, NoRoot};
+pub use builder::{FilesystemRepositoryBuilder, NoAccess, NoDocumentType, NoRoot};
 pub use constants::METADATA_SUFFIX;
-pub use document_metadata::DocumentMetadata;
 pub use filesystem_error::{FilesystemError, FilesystemErrorReason, FilesystemOperation};
-pub use raw_document::RawDocument;
 
-/// Stores documents as files beneath one root directory, with the access the marker `A` allows.
+/// Stores documents of one [`Document`] type `D` as files beneath one root directory, with the
+/// access the marker `A` allows.
 ///
 /// [`FilesystemRepository::builder`] starts the builder that builds it. `A` is [`Read`], [`Write`],
-/// or [`ReadWrite`].
+/// or [`ReadWrite`]. A read rejects a metadata file of another document kind. Repositories for
+/// different kinds can share one root, as long as their keys differ.
 ///
 /// A [`DocumentKey`] is a document's path under the root. A document lives at the root joined with
 /// its key. On Linux and macOS, a root of `/data/arkad` and a key of `sec/CIK0000320193.json` name
@@ -68,17 +67,20 @@ pub use raw_document::RawDocument;
 /// document until the next successful write under that key. If the caller drops the write before
 /// the renames, its temporary files stay in the directory.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct FilesystemRepository<A> {
+pub struct FilesystemRepository<A, D> {
     root: PathBuf,
     access: A,
+    // Deviation: `fn() -> D` instead of `D`. The repository holds no `D`, so it stays `Send`, `Sync`,
+    // and `Unpin` for every `D`.
+    document_type: PhantomData<fn() -> D>,
 }
 
-impl FilesystemRepository<NoAccess> {
+impl FilesystemRepository<NoAccess, NoDocumentType> {
     /// Starts a [`FilesystemRepositoryBuilder`], which is the only way to build a
     /// [`FilesystemRepository`].
     ///
-    /// The impl uses `NoAccess` so that a call needs no type annotation. No built repository has
-    /// `NoAccess`.
+    /// The impl uses `NoAccess` and `NoDocumentType` so that a call needs no type annotation. No
+    /// built repository has either.
     ///
     /// # Examples
     ///
@@ -86,9 +88,25 @@ impl FilesystemRepository<NoAccess> {
     /// use std::path::Path;
     ///
     /// use storage::implementations::repository::filesystem::FilesystemRepository;
+    /// # use serde::{Deserialize, Serialize};
+    /// # use storage::{Document, DocumentKey, DocumentMetadata, MetadataContext};
+    /// # #[derive(Serialize, Deserialize)]
+    /// # struct FetchContext;
+    /// # impl MetadataContext for FetchContext { const KIND: &'static str = "fetch.v1"; }
+    /// # struct Fetch { key: DocumentKey, bytes: Vec<u8>, metadata: DocumentMetadata<FetchContext> }
+    /// # impl Document for Fetch {
+    /// #     type Context = FetchContext;
+    /// #     fn key(&self) -> &DocumentKey { &self.key }
+    /// #     fn bytes(&self) -> &[u8] { &self.bytes }
+    /// #     fn metadata(&self) -> &DocumentMetadata<FetchContext> { &self.metadata }
+    /// #     fn from_parts(key: DocumentKey, bytes: Vec<u8>, metadata: DocumentMetadata<FetchContext>) -> Self {
+    /// #         Self { key, bytes, metadata }
+    /// #     }
+    /// # }
     ///
     /// let repository = FilesystemRepository::builder()
     ///     .reader()
+    ///     .document_type::<Fetch>()
     ///     .root("/data/arkad")
     ///     .build();
     ///
@@ -99,12 +117,12 @@ impl FilesystemRepository<NoAccess> {
     /// assert_eq!(result, expected_result);
     /// ```
     #[must_use]
-    pub const fn builder() -> FilesystemRepositoryBuilder<NoAccess, NoRoot> {
+    pub const fn builder() -> FilesystemRepositoryBuilder<NoAccess, NoRoot, NoDocumentType> {
         FilesystemRepositoryBuilder::new()
     }
 }
 
-impl<A> FilesystemRepository<A> {
+impl<A, D> FilesystemRepository<A, D> {
     /// Returns the root directory every key resolves under.
     #[must_use]
     pub fn root(&self) -> &Path {
@@ -120,9 +138,25 @@ impl<A> FilesystemRepository<A> {
     ///
     /// use storage::DocumentKey;
     /// use storage::implementations::repository::filesystem::FilesystemRepository;
+    /// # use serde::{Deserialize, Serialize};
+    /// # use storage::{Document, DocumentMetadata, MetadataContext};
+    /// # #[derive(Serialize, Deserialize)]
+    /// # struct FetchContext;
+    /// # impl MetadataContext for FetchContext { const KIND: &'static str = "fetch.v1"; }
+    /// # struct Fetch { key: DocumentKey, bytes: Vec<u8>, metadata: DocumentMetadata<FetchContext> }
+    /// # impl Document for Fetch {
+    /// #     type Context = FetchContext;
+    /// #     fn key(&self) -> &DocumentKey { &self.key }
+    /// #     fn bytes(&self) -> &[u8] { &self.bytes }
+    /// #     fn metadata(&self) -> &DocumentMetadata<FetchContext> { &self.metadata }
+    /// #     fn from_parts(key: DocumentKey, bytes: Vec<u8>, metadata: DocumentMetadata<FetchContext>) -> Self {
+    /// #         Self { key, bytes, metadata }
+    /// #     }
+    /// # }
     ///
     /// let repository = FilesystemRepository::builder()
     ///     .reader()
+    ///     .document_type::<Fetch>()
     ///     .root("/data/arkad")
     ///     .build();
     /// let key = DocumentKey::new("sec/CIK0000320193.json")
@@ -149,7 +183,7 @@ impl<A> FilesystemRepository<A> {
 
 // `A: Access` makes `A` `Sync`, so the future of `ensure_root_is_reachable` is `Send`. Without the
 // bound, clippy's `future_not_send` lint rejects the method.
-impl<A: Access> FilesystemRepository<A> {
+impl<A: Access, D> FilesystemRepository<A, D> {
     /// Checks that the root exists and is a directory.
     ///
     /// # Errors
@@ -208,6 +242,7 @@ impl From<FilesystemError> for BackendError {
             } => Self::unauthorized_access(reason),
             FilesystemErrorReason::MissingMetadataFile
             | FilesystemErrorReason::InvalidMetadata { .. }
+            | FilesystemErrorReason::UnexpectedMetadataKind { .. }
             | FilesystemErrorReason::UnserializableMetadata
             | FilesystemErrorReason::FailedIo { .. } => Self::failed_operation(reason),
         }
@@ -223,12 +258,17 @@ mod tests {
     use tempfile::TempDir;
 
     use super::*;
+    use crate::tests::fixtures::sample_document::SampleDocument;
     use crate::traits::repository::ReadWriteRepository;
 
+    /// The repository type these tests build.
+    type SampleRepository = FilesystemRepository<ReadWrite, SampleDocument>;
+
     /// Builds a repository with read and write access under the given root.
-    fn repository_at(root: impl Into<PathBuf>) -> FilesystemRepository<ReadWrite> {
+    fn repository_at(root: impl Into<PathBuf>) -> SampleRepository {
         FilesystemRepository::builder()
             .read_write()
+            .document_type::<SampleDocument>()
             .root(root)
             .build()
     }
@@ -242,7 +282,7 @@ mod tests {
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
     #[test]
     const fn should_implement_auto_traits_for_filesystem_repository() {
-        implements_auto_traits::<FilesystemRepository<ReadWrite>>();
+        implements_auto_traits::<SampleRepository>();
     }
 
     const fn implements_send<T: Send>() {}
@@ -250,72 +290,72 @@ mod tests {
 
     #[test]
     const fn should_implement_send_for_filesystem_repository() {
-        implements_send::<FilesystemRepository<ReadWrite>>();
+        implements_send::<SampleRepository>();
     }
 
     #[test]
     const fn should_implement_sync_for_filesystem_repository() {
-        implements_sync::<FilesystemRepository<ReadWrite>>();
+        implements_sync::<SampleRepository>();
     }
 
     const fn implements_debug<T: Debug>() {}
     #[test]
     const fn should_be_able_to_rely_on_debug_implementation_for_filesystem_repository() {
-        implements_debug::<FilesystemRepository<ReadWrite>>();
+        implements_debug::<SampleRepository>();
     }
 
     const fn implements_clone<T: Clone>() {}
     #[test]
     const fn should_be_able_to_rely_on_clone_implementation_for_filesystem_repository() {
-        implements_clone::<FilesystemRepository<ReadWrite>>();
+        implements_clone::<SampleRepository>();
     }
 
     const fn implements_hash<T: Hash>() {}
     #[test]
     const fn should_be_able_to_rely_on_hash_implementation_for_filesystem_repository() {
-        implements_hash::<FilesystemRepository<ReadWrite>>();
+        implements_hash::<SampleRepository>();
     }
 
     const fn implements_eq<T: Eq>() {}
     #[test]
     const fn should_be_able_to_rely_on_eq_implementation_for_filesystem_repository() {
-        implements_eq::<FilesystemRepository<ReadWrite>>();
+        implements_eq::<SampleRepository>();
     }
 
     const fn implements_ord<T: Ord>() {}
     #[test]
     const fn should_be_able_to_rely_on_ord_implementation_for_filesystem_repository() {
-        implements_ord::<FilesystemRepository<ReadWrite>>();
+        implements_ord::<SampleRepository>();
     }
 
     const fn implements_sized<T: Sized>() {}
     #[test]
     const fn should_be_sized_for_filesystem_repository() {
-        implements_sized::<FilesystemRepository<ReadWrite>>();
+        implements_sized::<SampleRepository>();
     }
 
     const fn implements_partial_eq<T: PartialEq>() {}
     #[test]
     const fn should_be_able_to_rely_on_partial_eq_implementation_for_filesystem_repository() {
-        implements_partial_eq::<FilesystemRepository<ReadWrite>>();
+        implements_partial_eq::<SampleRepository>();
     }
 
     const fn implements_partial_ord<T: PartialOrd>() {}
     #[test]
     const fn should_be_able_to_rely_on_partial_ord_implementation_for_filesystem_repository() {
-        implements_partial_ord::<FilesystemRepository<ReadWrite>>();
+        implements_partial_ord::<SampleRepository>();
     }
 
     const fn implements_unpin<T: Unpin>() {}
     #[test]
     const fn should_be_able_to_rely_on_unpin_implementation_for_filesystem_repository() {
-        implements_unpin::<FilesystemRepository<ReadWrite>>();
+        implements_unpin::<SampleRepository>();
     }
 
     const fn implements_read_write_repository<T: ReadWriteRepository>() {}
     #[test]
     const fn should_implement_read_write_repository_for_filesystem_repository() {
-        implements_read_write_repository::<FilesystemRepository<ReadWrite>>();
+        implements_read_write_repository::<SampleRepository>();
     }
 
     #[test]

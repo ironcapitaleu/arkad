@@ -10,30 +10,82 @@
 
 use chrono::{DateTime, Utc};
 use pretty_assertions::assert_eq;
+use serde::{Deserialize, Serialize};
 use tempfile::TempDir;
+use uuid::Uuid;
 
-use storage::implementations::repository::filesystem::{
-    DocumentMetadata, FilesystemRepository, RawDocument,
+use storage::implementations::repository::filesystem::FilesystemRepository;
+use storage::{
+    Document, DocumentKey, DocumentMetadata, MetadataContext, Producer, ReadRepository,
+    WriteRepository,
 };
-use storage::{DocumentKey, ReadRepository, WriteRepository};
 
-fn sample_raw_document() -> RawDocument {
+/// The metadata fields that only a [`RoundTripDocument`] has.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+struct RoundTripContext {
+    url: String,
+}
+
+impl MetadataContext for RoundTripContext {
+    const KIND: &'static str = "round_trip.v1";
+}
+
+/// A document kind that exists only for this test.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct RoundTripDocument {
+    key: DocumentKey,
+    bytes: Vec<u8>,
+    metadata: DocumentMetadata<RoundTripContext>,
+}
+
+impl Document for RoundTripDocument {
+    type Context = RoundTripContext;
+
+    fn key(&self) -> &DocumentKey {
+        &self.key
+    }
+
+    fn bytes(&self) -> &[u8] {
+        &self.bytes
+    }
+
+    fn metadata(&self) -> &DocumentMetadata<RoundTripContext> {
+        &self.metadata
+    }
+
+    fn from_parts(
+        key: DocumentKey,
+        bytes: Vec<u8>,
+        metadata: DocumentMetadata<RoundTripContext>,
+    ) -> Self {
+        Self {
+            key,
+            bytes,
+            metadata,
+        }
+    }
+}
+
+fn sample_round_trip_document() -> RoundTripDocument {
     let key = DocumentKey::new("sec/companyfacts/CIK0000320193.json")
         .expect("Given a valid relative path, the key should always build");
-    let fetched_at = "2026-09-22T20:05:30Z"
+    let produced_at = "2026-09-22T20:05:30Z"
         .parse::<DateTime<Utc>>()
         .expect("Given a hardcoded RFC 3339 timestamp, parsing it should always succeed");
-    let metadata = DocumentMetadata {
-        metadata_version: 1,
-        url: "https://data.sec.gov/api/xbrl/companyfacts/CIK0000320193.json".to_owned(),
-        fetched_at,
-        http_status: 200,
-        user_agent: "arkad contact@example.com".to_owned(),
-        bytes: 41,
-        sha256: "9d7e13ec27ff57b43422959a9ae627fd5bd65e67b54af2857e9c454a9262376b".to_owned(),
-    };
+    let metadata = DocumentMetadata::new(
+        "application/json",
+        41,
+        "9d7e13ec27ff57b43422959a9ae627fd5bd65e67b54af2857e9c454a9262376b",
+        produced_at,
+        Uuid::from_u128(0x0b6f_3c1e_5d2a_4f7b_9c3e_8a1d_2b4c_6e8f),
+        Producer::new("Round Trip", "0.1.0", "63c1f59"),
+        Vec::new(),
+        RoundTripContext {
+            url: "https://data.sec.gov/api/xbrl/companyfacts/CIK0000320193.json".to_owned(),
+        },
+    );
 
-    RawDocument::new(
+    RoundTripDocument::from_parts(
         key,
         br#"{"cik":320193, "n":1.50, "dup":1,"dup":2}"#.to_vec(),
         metadata,
@@ -47,9 +99,10 @@ async fn should_return_the_same_record_when_reading_back_a_persisted_record_by_k
     );
     let repository = FilesystemRepository::builder()
         .read_write()
+        .document_type::<RoundTripDocument>()
         .root(root.path())
         .build();
-    let record = sample_raw_document();
+    let record = sample_round_trip_document();
     let key = record.key().clone();
 
     let expected_result = Some(record.clone());
