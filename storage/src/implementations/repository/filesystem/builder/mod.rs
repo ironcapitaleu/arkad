@@ -119,7 +119,7 @@ impl<A: Access, D: Document> FilesystemRepositoryBuilder<A, PathBuf, D> {
     /// A builder without a root has no `build` method, so this does not compile:
     ///
     /// ```compile_fail,E0599
-    /// # use storage::implementations::repository::filesystem::FilesystemRepository;
+    /// use storage::implementations::repository::filesystem::FilesystemRepository;
     /// # use serde::{Deserialize, Serialize};
     /// # use storage::{Document, DocumentKey, DocumentMetadata, MetadataContext};
     /// # #[derive(Serialize, Deserialize)]
@@ -144,7 +144,7 @@ impl<A: Access, D: Document> FilesystemRepositoryBuilder<A, PathBuf, D> {
     /// A builder without an access has no `build` method either:
     ///
     /// ```compile_fail,E0599
-    /// # use storage::implementations::repository::filesystem::FilesystemRepository;
+    /// use storage::implementations::repository::filesystem::FilesystemRepository;
     /// # use serde::{Deserialize, Serialize};
     /// # use storage::{Document, DocumentKey, DocumentMetadata, MetadataContext};
     /// # #[derive(Serialize, Deserialize)]
@@ -227,7 +227,7 @@ mod tests {
     }
 
     #[test]
-    fn should_hold_no_access_and_no_root_when_starting_a_builder() {
+    fn should_hold_no_access_root_or_document_type_when_starting_a_builder() {
         let expected_result = FilesystemRepositoryBuilder {
             access: NoAccess,
             root: NoRoot,

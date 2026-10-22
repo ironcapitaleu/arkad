@@ -45,7 +45,8 @@ pub use filesystem_error::{FilesystemError, FilesystemErrorReason, FilesystemOpe
 /// access the marker `A` allows.
 ///
 /// [`FilesystemRepository::builder`] starts the builder that builds it. `A` is [`Read`], [`Write`],
-/// or [`ReadWrite`]. A read rejects a metadata file of another document kind. Repositories for
+/// or [`ReadWrite`]. A read rejects a metadata file of another document kind, and a write rejects a record of
+/// another kind. Repositories for
 /// different kinds can share one root, as long as their keys differ.
 ///
 /// A [`DocumentKey`] is a document's path under the root. A document lives at the root joined with
@@ -257,8 +258,16 @@ mod tests {
     use pretty_assertions::assert_eq;
     use tempfile::TempDir;
 
+    use std::cell::Cell;
+    use std::marker::PhantomPinned;
+
+    use serde::{Deserialize, Serialize};
+
     use super::*;
+    use crate::shared::document_metadata::DocumentMetadata;
     use crate::tests::fixtures::sample_document::SampleDocument;
+    use crate::traits::document::Document;
+    use crate::traits::metadata_context::MetadataContext;
     use crate::traits::repository::ReadWriteRepository;
 
     /// The repository type these tests build.
@@ -279,6 +288,53 @@ mod tests {
         )
     }
 
+    /// The context of [`UnsyncDocument`].
+    #[derive(Serialize, Deserialize)]
+    struct UnsyncContext;
+
+    impl MetadataContext for UnsyncContext {
+        const KIND: &'static str = "unsync.v1";
+    }
+
+    /// A document kind that is `Send` but neither `Sync` nor `Unpin`.
+    struct UnsyncDocument {
+        key: DocumentKey,
+        bytes: Vec<u8>,
+        metadata: DocumentMetadata<UnsyncContext>,
+        _not_sync: Cell<u8>,
+        _not_unpin: PhantomPinned,
+    }
+
+    impl Document for UnsyncDocument {
+        type Context = UnsyncContext;
+
+        fn key(&self) -> &DocumentKey {
+            &self.key
+        }
+
+        fn bytes(&self) -> &[u8] {
+            &self.bytes
+        }
+
+        fn metadata(&self) -> &DocumentMetadata<UnsyncContext> {
+            &self.metadata
+        }
+
+        fn from_parts(
+            key: DocumentKey,
+            bytes: Vec<u8>,
+            metadata: DocumentMetadata<UnsyncContext>,
+        ) -> Self {
+            Self {
+                key,
+                bytes,
+                metadata,
+                _not_sync: Cell::new(0),
+                _not_unpin: PhantomPinned,
+            }
+        }
+    }
+
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
     #[test]
     const fn should_implement_auto_traits_for_filesystem_repository() {
@@ -287,6 +343,12 @@ mod tests {
 
     const fn implements_send<T: Send>() {}
     const fn implements_sync<T: Sync>() {}
+
+    #[test]
+    const fn should_implement_auto_traits_for_filesystem_repository_when_the_document_type_is_not_sync()
+     {
+        implements_auto_traits::<FilesystemRepository<ReadWrite, UnsyncDocument>>();
+    }
 
     #[test]
     const fn should_implement_send_for_filesystem_repository() {
@@ -469,6 +531,25 @@ mod tests {
         let expected_result = BackendError::failed_operation(
             "[FilesystemError] Filesystem operation failed, \
             Reason: 'Failed to write, no storage space', Path: '/data/arkad/x.json'",
+        );
+
+        let result = BackendError::from(error);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_failed_operation_when_converting_an_unexpected_metadata_kind() {
+        let reason = FilesystemErrorReason::UnexpectedMetadataKind {
+            found: "other_kind.v1".to_owned(),
+            expected: "sample_document.v1".to_owned(),
+        };
+        let error = FilesystemError::new(reason, "/data/arkad/x.json.meta.json");
+
+        let expected_result = BackendError::failed_operation(
+            "[FilesystemError] Filesystem operation failed, \
+            Reason: 'Metadata holds kind 'other_kind.v1', expected kind 'sample_document.v1'', \
+            Path: '/data/arkad/x.json.meta.json'",
         );
 
         let result = BackendError::from(error);

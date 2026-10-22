@@ -1,10 +1,6 @@
 //! # Document Metadata
 //!
 //! Provides [`DocumentMetadata`], the metadata stored with every document.
-//!
-//! It replaces the fixed
-//! [`filesystem::DocumentMetadata`](crate::implementations::repository::filesystem::DocumentMetadata),
-//! which holds the fields of one SEC fetch.
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};

@@ -446,4 +446,28 @@ mod tests {
 
         assert_eq!(result, expected_result);
     }
+
+    #[tokio::test]
+    async fn should_return_invalid_metadata_when_the_kind_matches_but_other_fields_are_missing() {
+        let root = temporary_root();
+        let repository = repository_at(root.path());
+        let sample_document = sample_document();
+        let key = sample_document.key().clone();
+        let metadata_path = repository.metadata_path(&key);
+        write_record_files(&repository, &sample_document);
+        std::fs::write(&metadata_path, br#"{"kind":"sample_document.v1"}"#)
+            .expect("Given an existing directory, overwriting the metadata should always succeed");
+
+        let expected_result = Err(read_error(
+            FilesystemErrorReason::InvalidMetadata {
+                line: 1,
+                column: 29,
+            },
+            &metadata_path,
+        ));
+
+        let result = repository.get(key).await;
+
+        assert_eq!(result, expected_result);
+    }
 }
