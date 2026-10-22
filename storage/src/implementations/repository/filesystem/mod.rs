@@ -18,8 +18,6 @@
 //! - [`access`]: The access markers and the traits that connect them to the ports.
 //! - [`builder`]: The [`FilesystemRepositoryBuilder`] and the markers for its missing steps.
 //! - [`constants`]: The constants that fix the file layout, such as [`METADATA_SUFFIX`].
-//! - [`document_key`]: The [`DocumentKey`] naming one document, and the [`InvalidDocumentKey`] for
-//!   a rejected path.
 //! - [`document_metadata`]: The [`DocumentMetadata`] describing the fetch behind a document.
 //! - [`filesystem_error`]: The [`FilesystemError`] for a failed operation on a path.
 //! - [`raw_document`]: The [`RawDocument`] a read returns and a write accepts.
@@ -28,11 +26,11 @@ use std::io;
 use std::path::{Path, PathBuf};
 
 use crate::error::BackendError;
+use crate::shared::document_key::DocumentKey;
 
 pub mod access;
 pub mod builder;
 pub mod constants;
-pub mod document_key;
 pub mod document_metadata;
 pub mod filesystem_error;
 pub mod raw_document;
@@ -42,7 +40,6 @@ mod write_repository;
 pub use access::{Access, CanRead, CanWrite, Read, ReadWrite, Write};
 pub use builder::{FilesystemRepositoryBuilder, NoAccess, NoRoot};
 pub use constants::METADATA_SUFFIX;
-pub use document_key::{DocumentKey, InvalidDocumentKey};
 pub use document_metadata::DocumentMetadata;
 pub use filesystem_error::{FilesystemError, FilesystemErrorReason, FilesystemOperation};
 pub use raw_document::RawDocument;
@@ -121,9 +118,8 @@ impl<A> FilesystemRepository<A> {
     /// ```rust
     /// use std::path::Path;
     ///
-    /// use storage::implementations::repository::filesystem::{
-    ///     DocumentKey, FilesystemRepository,
-    /// };
+    /// use storage::DocumentKey;
+    /// use storage::implementations::repository::filesystem::FilesystemRepository;
     ///
     /// let repository = FilesystemRepository::builder()
     ///     .reader()

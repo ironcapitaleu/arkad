@@ -2,8 +2,8 @@
 //!
 //! Provides [`RawDocument`], one document and its metadata as the store reads and writes them.
 
-use super::document_key::DocumentKey;
 use super::document_metadata::DocumentMetadata;
+use crate::shared::document_key::DocumentKey;
 
 /// One document, the key naming it, and the metadata of the fetch that produced it.
 ///
@@ -26,7 +26,8 @@ impl RawDocument {
     ///
     /// ```rust
     /// # use chrono::{TimeZone, Utc};
-    /// # use storage::implementations::repository::filesystem::{DocumentKey, DocumentMetadata, RawDocument};
+    /// # use storage::DocumentKey;
+    /// # use storage::implementations::repository::filesystem::{DocumentMetadata, RawDocument};
     /// # let metadata = DocumentMetadata {
     /// #     metadata_version: 1,
     /// #     url: "https://data.sec.gov/api/xbrl/companyfacts/CIK0000320193.json".to_owned(),

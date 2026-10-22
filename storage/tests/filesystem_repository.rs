@@ -13,9 +13,9 @@ use pretty_assertions::assert_eq;
 use tempfile::TempDir;
 
 use storage::implementations::repository::filesystem::{
-    DocumentKey, DocumentMetadata, FilesystemRepository, RawDocument,
+    DocumentMetadata, FilesystemRepository, RawDocument,
 };
-use storage::{ReadRepository, WriteRepository};
+use storage::{DocumentKey, ReadRepository, WriteRepository};
 
 fn sample_raw_document() -> RawDocument {
     let key = DocumentKey::new("sec/companyfacts/CIK0000320193.json")

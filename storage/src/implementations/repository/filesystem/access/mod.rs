@@ -43,7 +43,8 @@ pub struct Read;
 ///
 /// ```compile_fail,E0599
 /// use storage::ReadRepository;
-/// use storage::implementations::repository::filesystem::{DocumentKey, FilesystemRepository};
+/// use storage::DocumentKey;
+/// use storage::implementations::repository::filesystem::FilesystemRepository;
 ///
 /// async fn read_through_a_writer(key: DocumentKey) {
 ///     let writer = FilesystemRepository::builder()
