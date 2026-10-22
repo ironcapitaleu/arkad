@@ -23,8 +23,9 @@ pub const METADATA_VERSION: u32 = 1;
 ///
 /// [`DocumentMetadata::new`] sets `kind` from [`MetadataContext::KIND`] and `metadata_version` from
 /// [`METADATA_VERSION`]. Deserialized metadata keeps the values it was stored with, and
-/// deserializing checks neither of them. Before a reader uses the metadata, it compares [`DocumentMetadata::kind`] with
-/// [`MetadataContext::KIND`], and [`DocumentMetadata::metadata_version`] with [`METADATA_VERSION`].
+/// deserializing checks neither of them. Before a reader uses the metadata, it compares
+/// [`DocumentMetadata::kind`] with [`MetadataContext::KIND`], and
+/// [`DocumentMetadata::metadata_version`] with [`METADATA_VERSION`].
 ///
 /// Nothing checks that the SHA-256 is 64 lowercase hex characters.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
