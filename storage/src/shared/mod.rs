@@ -1,22 +1,25 @@
 //! # Shared
 //!
-//! Provides the domain types every storage backend uses.
+//! Provides the domain types that belong to no single storage backend.
 //!
-//! A backend stores documents, and every backend names them the same way. These types live outside
-//! [`implementations`](crate::implementations), so a second backend reuses them without depending
-//! on the first.
+//! These types live outside [`implementations`](crate::implementations), so a second backend can
+//! use them without depending on the first.
 //!
 //! ## Modules
 //!
-//! - [`document_key`]: The [`DocumentKey`](document_key::DocumentKey) naming one document, and the
-//!   [`InvalidDocumentKey`](document_key::InvalidDocumentKey) for a rejected path.
-//! - [`document_metadata`]: The [`DocumentMetadata`](document_metadata::DocumentMetadata) stored
-//!   beside every document.
-//! - [`input_document`]: The [`InputDocument`](input_document::InputDocument) pointing at a
-//!   document that a stored document came from.
-//! - [`producer`]: The [`Producer`](producer::Producer) naming the code that wrote a document.
+//! - [`document_key`]: The [`DocumentKey`] naming one document, and the [`InvalidDocumentKey`]
+//!   for a rejected path.
+//! - [`document_metadata`]: The [`DocumentMetadata`] stored beside every document.
+//! - [`input_document`]: The [`InputDocument`] pointing at a document that a stored document came
+//!   from.
+//! - [`producer`]: The [`Producer`] naming the code that wrote a document.
 
 pub mod document_key;
 pub mod document_metadata;
 pub mod input_document;
 pub mod producer;
+
+pub use document_key::{DocumentKey, InvalidDocumentKey};
+pub use document_metadata::{DocumentMetadata, METADATA_VERSION};
+pub use input_document::InputDocument;
+pub use producer::Producer;
