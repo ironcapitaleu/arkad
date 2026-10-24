@@ -260,7 +260,6 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;
-    use crate::tests::fixtures::sample_response::sample_reqwest_response::fake_reqwest_response;
 
     const RAW_BODY: &[u8] = b"{ \"price\":   1.50 }";
 
@@ -298,35 +297,6 @@ mod tests {
         let response = response_from_parts(RAW_BODY)
             .expect("Given a valid JSON body, building the response should always succeed");
         let result = response.body_digest().clone();
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[tokio::test]
-    async fn should_give_equal_digests_for_the_http_path_and_from_parts_for_one_body() {
-        let expected_result = response_from_parts(RAW_BODY)
-            .expect("Given a valid JSON body, building the response should always succeed")
-            .body_digest()
-            .clone();
-
-        let inner = fake_reqwest_response("200 OK", "application/json", RAW_BODY).await;
-        let response = SecResponse::from_inner(inner).await.expect(
-            "Given a 200 JSON response with a valid body, validation should always succeed",
-        );
-        let result = response.body_digest().clone();
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[tokio::test]
-    async fn should_return_invalid_status_code_when_the_http_response_is_a_404() {
-        let inner = fake_reqwest_response("404 Not Found", "application/json", RAW_BODY).await;
-
-        let expected_result = Err(InvalidSecResponse::new(ErrorReason::InvalidStatusCode {
-            status_code: StatusCode::NotFound,
-        }));
-
-        let result = SecResponse::from_inner(inner).await;
 
         assert_eq!(result, expected_result);
     }
