@@ -2,10 +2,6 @@
 //!
 //! Provides [`DocumentKey`], the validated relative path that identifies one document in the store.
 //!
-//! ## Modules
-//!
-//! - [`invalid_document_key`]: The [`InvalidDocumentKey`] error for a path the store rejects.
-//!
 //! ## Usage
 //!
 //! ```rust
@@ -25,9 +21,7 @@
 
 use std::path::{Component, Path, PathBuf};
 
-pub mod invalid_document_key;
-
-pub use invalid_document_key::InvalidDocumentKey;
+use crate::implementations::repository::filesystem::error::InvalidDocumentKey;
 
 /// Relative path identifying one document beneath the store's root directory.
 ///

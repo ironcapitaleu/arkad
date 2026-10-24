@@ -14,7 +14,7 @@ use tokio::io::AsyncWriteExt;
 
 use crate::error::WriteError;
 use crate::implementations::repository::filesystem::FilesystemRepository;
-use crate::implementations::repository::filesystem::filesystem_error::{
+use crate::implementations::repository::filesystem::error::{
     FilesystemError, FilesystemErrorReason, FilesystemOperation,
 };
 use crate::implementations::repository::filesystem::raw_document::RawDocument;

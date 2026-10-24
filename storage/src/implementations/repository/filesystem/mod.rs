@@ -18,10 +18,10 @@
 //! - [`traits`]: The access markers and the traits that connect them to the ports.
 //! - [`implementations`]: The [`FilesystemRepositoryBuilder`], the constants that fix the file
 //!   layout, such as [`METADATA_SUFFIX`], and the port implementations.
-//! - [`document_key`]: The [`DocumentKey`] naming one document, and the [`InvalidDocumentKey`] for
-//!   a rejected path.
+//! - [`document_key`]: The [`DocumentKey`] naming one document.
 //! - [`document_metadata`]: The [`DocumentMetadata`] describing the fetch behind a document.
-//! - [`filesystem_error`]: The [`FilesystemError`] for a failed operation on a path.
+//! - [`error`]: The [`FilesystemError`] for a failed operation on a path, and the
+//!   [`InvalidDocumentKey`] for a rejected path.
 //! - [`raw_document`]: The [`RawDocument`] a read returns and a write accepts.
 
 use std::io;
@@ -31,14 +31,14 @@ use crate::error::BackendError;
 
 pub mod document_key;
 pub mod document_metadata;
-pub mod filesystem_error;
+pub mod error;
 pub mod implementations;
 pub mod raw_document;
 pub mod traits;
 
-pub use document_key::{DocumentKey, InvalidDocumentKey};
+pub use document_key::DocumentKey;
 pub use document_metadata::DocumentMetadata;
-pub use filesystem_error::{FilesystemError, FilesystemErrorReason, FilesystemOperation};
+pub use error::{FilesystemError, FilesystemErrorReason, FilesystemOperation, InvalidDocumentKey};
 pub use implementations::builder::{FilesystemRepositoryBuilder, NoAccess, NoRoot};
 pub use implementations::constants::METADATA_SUFFIX;
 pub use raw_document::RawDocument;

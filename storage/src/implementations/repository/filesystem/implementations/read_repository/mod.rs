@@ -11,7 +11,7 @@ use crate::error::ReadError;
 use crate::implementations::repository::filesystem::FilesystemRepository;
 use crate::implementations::repository::filesystem::document_key::DocumentKey;
 use crate::implementations::repository::filesystem::document_metadata::DocumentMetadata;
-use crate::implementations::repository::filesystem::filesystem_error::{
+use crate::implementations::repository::filesystem::error::{
     FilesystemError, FilesystemErrorReason, FilesystemOperation,
 };
 use crate::implementations::repository::filesystem::raw_document::RawDocument;
