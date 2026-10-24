@@ -48,6 +48,7 @@ pub use shared::document_metadata::{
     DocumentMetadata, DocumentMetadataBuilder, InputDocument, METADATA_VERSION, NoDocumentType,
     Producer,
 };
+pub use shared::sha256::sha256_hex;
 pub use traits::access::{Access, CanRead, CanWrite, Read, ReadWrite, Write};
 pub use traits::document::Document;
 
@@ -72,7 +73,12 @@ pub use traits::document::Document;
 /// Each document has a metadata file beside it. The metadata file name is the document's file name
 /// with [`METADATA_SUFFIX`] appended, so `sec/CIK0000320193.json` keeps its metadata in
 /// `sec/CIK0000320193.json<METADATA_SUFFIX>`. A key that ends in [`METADATA_SUFFIX`] names the
-/// metadata file of another key, so one store must not hold both keys.
+/// metadata file of another key. `get` and `persist` reject such a key with
+/// [`FailedFilesystemOperationReason::InvalidKeySuffix`] before they read or write a file.
+///
+/// The metadata names the size and the SHA-256 digest of its document. `get` and `persist` check
+/// both. If the stored metadata and the stored document both match the digest of a new record,
+/// `persist` writes no file, so `produced_at` keeps naming the run that produced the bytes.
 ///
 /// A write first writes both files to synced temporary files in the same directory. It then
 /// renames the metadata over its target, and the document over its target. A reader sees the old
@@ -293,6 +299,51 @@ impl<A, D> FilesystemRepository<A, D> {
         path.push(METADATA_SUFFIX);
         PathBuf::from(path)
     }
+
+    /// Checks that the key does not end in [`METADATA_SUFFIX`].
+    ///
+    /// # Errors
+    ///
+    /// Returns a [`FailedFilesystemOperation`] with
+    /// [`FailedFilesystemOperationReason::InvalidKeySuffix`] if the key ends in [`METADATA_SUFFIX`].
+    fn check_key(&self, key: &DocumentKey) -> Result<(), FailedFilesystemOperation> {
+        let key_bytes = key.as_path().as_os_str().as_encoded_bytes();
+        if key_bytes.ends_with(METADATA_SUFFIX.as_bytes()) {
+            return Err(FailedFilesystemOperation::new(
+                FailedFilesystemOperationReason::InvalidKeySuffix,
+                self.document_path(key),
+            ));
+        }
+        Ok(())
+    }
+}
+
+/// Checks that the bytes have the size and the SHA-256 digest the metadata names.
+///
+/// # Errors
+///
+/// Returns [`FailedFilesystemOperationReason::UnexpectedDocumentSize`] if the size differs, or
+/// [`FailedFilesystemOperationReason::UnexpectedDocumentDigest`] if the digest differs.
+fn check_content<C>(
+    bytes: &[u8],
+    metadata: &DocumentMetadata<C>,
+) -> Result<(), FailedFilesystemOperationReason> {
+    // A `usize` always fits in a `u64` on the platforms Rust supports.
+    let found_size = bytes.len() as u64;
+    if found_size != metadata.size_in_bytes() {
+        return Err(FailedFilesystemOperationReason::UnexpectedDocumentSize {
+            found_size,
+            expected_size: metadata.size_in_bytes(),
+        });
+    }
+    let found_digest = sha256_hex(bytes);
+    if found_digest != metadata.sha256() {
+        return Err(FailedFilesystemOperationReason::UnexpectedDocumentDigest {
+            found_digest,
+            expected_digest: metadata.sha256().to_owned(),
+        });
+    }
+    Ok(())
 }
 
 // `A: Access` makes `A` `Sync`, so the future of `ensure_root_is_reachable` is `Send`. Without the
@@ -360,6 +411,9 @@ impl From<FailedFilesystemOperation> for BackendError {
             | FailedFilesystemOperationReason::InvalidMetadata { .. }
             | FailedFilesystemOperationReason::UnexpectedMetadataKind { .. }
             | FailedFilesystemOperationReason::UnserializableMetadata
+            | FailedFilesystemOperationReason::UnexpectedDocumentSize { .. }
+            | FailedFilesystemOperationReason::UnexpectedDocumentDigest { .. }
+            | FailedFilesystemOperationReason::InvalidKeySuffix
             | FailedFilesystemOperationReason::FailedIo { .. } => Self::failed_operation(reason),
         }
     }
@@ -684,6 +738,37 @@ mod tests {
         );
 
         let result = BackendError::from(error);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_failed_operation_when_converting_an_invalid_key_suffix() {
+        let error = FailedFilesystemOperation::new(
+            FailedFilesystemOperationReason::InvalidKeySuffix,
+            "/data/arkad/x.json.meta.json",
+        );
+
+        let expected_result = BackendError::failed_operation(
+            "[FailedFilesystemOperation] Filesystem operation failed, \
+            Reason: 'Key ends in '.meta.json', the suffix of a metadata file', \
+            Path: '/data/arkad/x.json.meta.json'",
+        );
+
+        let result = BackendError::from(error);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_accept_the_key_when_the_key_only_contains_the_metadata_suffix() {
+        let repository = repository_at("/data/arkad");
+        let key = DocumentKey::new("sec/x.meta.jsonl")
+            .expect("Given a valid relative path, the key should always build");
+
+        let expected_result = Ok(());
+
+        let result = repository.check_key(&key);
 
         assert_eq!(result, expected_result);
     }

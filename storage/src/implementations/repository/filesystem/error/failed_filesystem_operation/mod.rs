@@ -9,6 +9,8 @@ use std::path::PathBuf;
 
 use thiserror::Error;
 
+use crate::implementations::repository::filesystem::METADATA_SUFFIX;
+
 /// Error representing a failed operation on one path of the filesystem.
 ///
 /// Carries the reason and the path it applies to.
@@ -131,6 +133,22 @@ pub enum FailedFilesystemOperationReason {
     },
     /// The metadata cannot be serialized as JSON.
     UnserializableMetadata,
+    /// The document holds another number of bytes than its metadata names.
+    UnexpectedDocumentSize {
+        /// The number of bytes the document holds.
+        found_size: u64,
+        /// The number of bytes the metadata names.
+        expected_size: u64,
+    },
+    /// The document has another SHA-256 digest than its metadata names.
+    UnexpectedDocumentDigest {
+        /// The digest of the bytes the document holds.
+        found_digest: String,
+        /// The digest the metadata names.
+        expected_digest: String,
+    },
+    /// The key ends in the suffix of a metadata file, so it names the metadata file of another key.
+    InvalidKeySuffix,
     /// An I/O operation failed.
     FailedIo {
         /// The operation that failed.
@@ -161,6 +179,24 @@ impl fmt::Display for FailedFilesystemOperationReason {
                  '{expected_kind}' version {expected_kind_version}"
             ),
             Self::UnserializableMetadata => write!(f, "Metadata cannot be serialized as JSON"),
+            Self::UnexpectedDocumentSize {
+                found_size,
+                expected_size,
+            } => write!(
+                f,
+                "Document holds {found_size} bytes, metadata names {expected_size} bytes"
+            ),
+            Self::UnexpectedDocumentDigest {
+                found_digest,
+                expected_digest,
+            } => write!(
+                f,
+                "Document has SHA-256 '{found_digest}', metadata names '{expected_digest}'"
+            ),
+            Self::InvalidKeySuffix => write!(
+                f,
+                "Key ends in '{METADATA_SUFFIX}', the suffix of a metadata file"
+            ),
             Self::FailedIo { operation, kind } => write!(f, "Failed to {operation}, {kind}"),
         }
     }
@@ -370,6 +406,45 @@ mod tests {
 
         let expected_result = "Metadata holds kind 'other_document' version 2, expected kind \
                                'sample_document' version 1";
+
+        let result = reason.to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_format_display_as_expected_when_the_document_size_is_unexpected() {
+        let reason = FailedFilesystemOperationReason::UnexpectedDocumentSize {
+            found_size: 3,
+            expected_size: 2,
+        };
+
+        let expected_result = "Document holds 3 bytes, metadata names 2 bytes";
+
+        let result = reason.to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_format_display_as_expected_when_the_document_digest_is_unexpected() {
+        let reason = FailedFilesystemOperationReason::UnexpectedDocumentDigest {
+            found_digest: "ab".to_owned(),
+            expected_digest: "cd".to_owned(),
+        };
+
+        let expected_result = "Document has SHA-256 'ab', metadata names 'cd'";
+
+        let result = reason.to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_format_display_as_expected_when_the_key_suffix_is_invalid() {
+        let reason = FailedFilesystemOperationReason::InvalidKeySuffix;
+
+        let expected_result = "Key ends in '.meta.json', the suffix of a metadata file";
 
         let result = reason.to_string();
 

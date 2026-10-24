@@ -11,7 +11,6 @@ use serde::de::DeserializeOwned;
 use tokio::fs;
 
 use crate::error::ReadError;
-use crate::implementations::repository::filesystem::FilesystemRepository;
 use crate::implementations::repository::filesystem::error::{
     FailedFilesystemOperation, FailedFilesystemOperationReason, FilesystemOperation,
 };
@@ -19,6 +18,7 @@ use crate::implementations::repository::filesystem::shared::document_key::Docume
 use crate::implementations::repository::filesystem::shared::document_metadata::DocumentMetadata;
 use crate::implementations::repository::filesystem::traits::access::CanRead;
 use crate::implementations::repository::filesystem::traits::document::Document;
+use crate::implementations::repository::filesystem::{FilesystemRepository, check_content};
 use crate::traits::repository::ReadRepository;
 
 #[async_trait]
@@ -36,9 +36,12 @@ impl<A: CanRead, D: Document> ReadRepository for FilesystemRepository<A, D> {
     /// of another kind or kind version fails with both named, even if its other fields do not fit
     /// the context of `D`.
     ///
-    /// `get` does not check the bytes against [`DocumentMetadata::size_in_bytes`] or
-    /// [`DocumentMetadata::sha256`], and it does not compare
-    /// [`DocumentMetadata::metadata_version`] with
+    /// `get` rejects a key that ends in
+    /// [`METADATA_SUFFIX`](crate::implementations::repository::filesystem::METADATA_SUFFIX) before
+    /// it reads a file. After the read, `get` checks the length of the bytes against
+    /// [`DocumentMetadata::size_in_bytes`], then their SHA-256 digest against
+    /// [`DocumentMetadata::sha256`]. A torn write or a corrupt file fails one of the two checks.
+    /// `get` does not compare [`DocumentMetadata::metadata_version`] with
     /// [`METADATA_VERSION`](crate::implementations::repository::filesystem::METADATA_VERSION).
     ///
     /// # Errors
@@ -48,9 +51,11 @@ impl<A: CanRead, D: Document> ReadRepository for FilesystemRepository<A, D> {
     ///   ([`BackendError::UnreachableStorage`](crate::BackendError::UnreachableStorage)).
     /// - the filesystem denies access to the document or its metadata
     ///   ([`BackendError::UnauthorizedAccess`](crate::BackendError::UnauthorizedAccess)).
-    /// - the document has no metadata file, the metadata file holds no valid metadata, the metadata
-    ///   holds another kind or kind version than `D`, or the filesystem rejects the read for any
-    ///   other reason ([`BackendError::FailedOperation`](crate::BackendError::FailedOperation)).
+    /// - the key ends in the metadata suffix, the document has no metadata file, the metadata file
+    ///   holds no valid metadata, the metadata holds another kind or kind version than `D`, the
+    ///   bytes have another size or digest than the metadata names, or the filesystem rejects the
+    ///   read for any other reason
+    ///   ([`BackendError::FailedOperation`](crate::BackendError::FailedOperation)).
     async fn get(&self, key: Self::Key) -> Result<Option<Self::Record>, ReadError> {
         self.read_record(key)
             .await
@@ -59,8 +64,10 @@ impl<A: CanRead, D: Document> ReadRepository for FilesystemRepository<A, D> {
 }
 
 impl<A: CanRead, D: Document> FilesystemRepository<A, D> {
-    /// Reads the document at the key and the metadata file beside it.
+    /// Reads the document at the key and the metadata file beside it, then checks one against the
+    /// other.
     async fn read_record(&self, key: DocumentKey) -> Result<Option<D>, FailedFilesystemOperation> {
+        self.check_key(&key)?;
         let document_path = self.document_path(&key);
         let bytes = match fs::read(&document_path).await {
             Ok(bytes) => bytes,
@@ -81,6 +88,8 @@ impl<A: CanRead, D: Document> FilesystemRepository<A, D> {
         };
 
         let metadata = self.read_metadata(&key).await?;
+        check_content(&bytes, &metadata)
+            .map_err(|reason| FailedFilesystemOperation::new(reason, &document_path))?;
         Ok(Some(D::from_parts(key, bytes, metadata)))
     }
 
@@ -150,7 +159,7 @@ mod tests {
 
     use super::*;
     use crate::error::BackendError;
-    use crate::implementations::repository::filesystem::{Read, ReadWrite};
+    use crate::implementations::repository::filesystem::{Read, ReadWrite, sha256_hex};
     use crate::tests::fixtures::sample_document::{SampleDocument, sample_document};
 
     /// Builds a repository with read access under the given root.
@@ -509,6 +518,77 @@ mod tests {
                 column: 18,
             },
             &metadata_path,
+        ));
+
+        let result = repository.get(key).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_return_unexpected_document_size_when_the_document_is_longer_than_its_metadata()
+    {
+        let root = temporary_root();
+        let repository = repository_at(root.path());
+        let sample_document = sample_document();
+        let key = sample_document.key().clone();
+        let document_path = repository.document_path(&key);
+        write_record_files(&repository, &sample_document);
+        std::fs::write(&document_path, b"{ }")
+            .expect("Given an existing directory, overwriting the document should always succeed");
+
+        let expected_result = Err(read_error(
+            FailedFilesystemOperationReason::UnexpectedDocumentSize {
+                found_size: 3,
+                expected_size: 2,
+            },
+            &document_path,
+        ));
+
+        let result = repository.get(key).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_return_unexpected_document_digest_when_the_document_differs_from_its_metadata()
+    {
+        let root = temporary_root();
+        let repository = repository_at(root.path());
+        let sample_document = sample_document();
+        let key = sample_document.key().clone();
+        let document_path = repository.document_path(&key);
+        write_record_files(&repository, &sample_document);
+        std::fs::write(&document_path, b"[]")
+            .expect("Given an existing directory, overwriting the document should always succeed");
+
+        let expected_result = Err(read_error(
+            FailedFilesystemOperationReason::UnexpectedDocumentDigest {
+                found_digest: sha256_hex(b"[]"),
+                expected_digest: sample_document.metadata().sha256().to_owned(),
+            },
+            &document_path,
+        ));
+
+        let result = repository.get(key).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_return_invalid_key_suffix_when_reading_a_key_that_ends_in_the_metadata_suffix()
+    {
+        let root = temporary_root();
+        let repository = repository_at(root.path());
+        let sample_document = sample_document();
+        let key = DocumentKey::new("sec/companyfacts/CIK0000320193.json.meta.json")
+            .expect("Given a valid relative path, the key should always build");
+        let document_path = repository.document_path(&key);
+        write_record_files(&repository, &sample_document);
+
+        let expected_result = Err(read_error(
+            FailedFilesystemOperationReason::InvalidKeySuffix,
+            &document_path,
         ));
 
         let result = repository.get(key).await;
