@@ -4,6 +4,7 @@
 //!
 //! ## Modules
 //!
+//! - [`constants`]: The version of the shared fields, [`METADATA_VERSION`].
 //! - [`input_document`]: The [`InputDocument`] pointing at a document that another document came
 //!   from.
 //! - [`producer`]: The [`Producer`] naming the code that wrote a document.
@@ -14,17 +15,13 @@ use uuid::Uuid;
 
 use crate::implementations::repository::filesystem::traits::document::Document;
 
+pub mod constants;
 pub mod input_document;
 pub mod producer;
 
+pub use constants::METADATA_VERSION;
 pub use input_document::InputDocument;
 pub use producer::Producer;
-
-/// Version of the shared fields in [`DocumentMetadata`].
-///
-/// [`Producer`] and [`InputDocument`] serialize inside the shared fields, so this version covers
-/// their fields too. Raise it when a shared field is removed, renamed, or redefined.
-pub const METADATA_VERSION: u32 = 1;
 
 /// Describes one stored document: the fields every kind shares, and the context of its kind.
 ///
