@@ -39,6 +39,7 @@ pub use error::{FailedFilesystemOperation, FailedFilesystemOperationReason, File
 pub use implementations::builder::{FilesystemRepositoryBuilder, NoAccess, NoRoot};
 pub use implementations::constants::METADATA_SUFFIX;
 pub use shared::document_key::{DocumentKey, InvalidDocumentKey};
+pub use shared::document_metadata::{InputDocument, Producer};
 pub use shared::legacy_document_metadata::LegacyDocumentMetadata;
 pub use shared::raw_document::RawDocument;
 pub use traits::access::{Access, CanRead, CanWrite, Read, ReadWrite, Write};
