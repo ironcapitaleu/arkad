@@ -34,7 +34,6 @@ url = "2"
 tracing-logging = ["tracing", "tracing-appender", "tracing-subscriber"]
 
 [dev-dependencies]
-http = "1"
 pretty_assertions = "1"
 
 [lib]

@@ -260,6 +260,7 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;
+    use crate::tests::fixtures::sample_response::sample_reqwest_response::fake_reqwest_response;
 
     const RAW_BODY: &[u8] = b"{ \"price\":   1.50 }";
 
@@ -277,18 +278,6 @@ mod tests {
             StatusCode::Ok,
             raw_body.to_vec(),
         )
-    }
-
-    /// Builds a `reqwest::Response` with a JSON content type and the given body, with no network.
-    fn json_http_response(raw_body: &[u8]) -> reqwest::Response {
-        let response = http::Response::builder()
-            .status(200)
-            .header("content-type", "application/json")
-            .body(raw_body.to_vec())
-            .expect(
-                "Given a hardcoded status and header, building the response should always succeed",
-            );
-        reqwest::Response::from(response)
     }
 
     #[test]
@@ -320,11 +309,10 @@ mod tests {
             .body_digest()
             .clone();
 
-        let response = SecResponse::from_inner(json_http_response(RAW_BODY))
-            .await
-            .expect(
-                "Given a 200 JSON response with a valid body, validation should always succeed",
-            );
+        let inner = fake_reqwest_response("200 OK", "application/json", RAW_BODY).await;
+        let response = SecResponse::from_inner(inner).await.expect(
+            "Given a 200 JSON response with a valid body, validation should always succeed",
+        );
         let result = response.body_digest().clone();
 
         assert_eq!(result, expected_result);
