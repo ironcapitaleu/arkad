@@ -9,32 +9,30 @@
 //!
 //! - [`raw_document_metadata_context`]: The [`RawDocumentMetadataContext`] with the fields that
 //!   only a raw document has.
-//! - [`raw_source`]: The [`RawSource`] trait that names the SEC file, and one marker per file,
-//!   such as [`CompanyFacts`].
 
 use std::marker::PhantomData;
 
 use storage::implementations::repository::filesystem::{Document, DocumentKey, DocumentMetadata};
 
 use crate::shared::document_kind::SecDocumentKind;
+use crate::shared::raw_source::RawSource;
 
 pub mod raw_document_metadata_context;
-pub mod raw_source;
 
 pub use raw_document_metadata_context::RawDocumentMetadataContext;
-pub use raw_source::{CompanyFacts, RawSource};
 
 /// One SEC file of the source `S`, the key naming it, and the metadata of the fetch that produced
 /// it.
 ///
-/// `S` sets the document's kind, so `RawDocument<CompanyFacts>` and a raw document of another file
-/// are different types. A repository of one never accepts the other.
+/// `S` sets the document's kind, so `RawDocument<RawCompanyFacts>` and a raw document of another
+/// file are different types. A repository of one never accepts the other.
 ///
 /// # Examples
 ///
 /// ```rust
 /// use chrono::{DateTime, Utc};
-/// use sec::shared::raw_document::{CompanyFacts, RawDocument, RawDocumentMetadataContext};
+/// use sec::shared::raw_document::{RawDocument, RawDocumentMetadataContext};
+/// use sec::shared::raw_source::RawCompanyFacts;
 /// use storage::implementations::repository::filesystem::{
 ///     Document, DocumentKey, DocumentMetadata, Producer,
 /// };
@@ -43,7 +41,7 @@ pub use raw_source::{CompanyFacts, RawSource};
 /// let key = DocumentKey::new("sec/companyfacts/CIK0000320193.json")
 ///     .expect("Given a valid relative path, the key should always build");
 /// let metadata = DocumentMetadata::builder()
-///     .document_type::<RawDocument<CompanyFacts>>()
+///     .document_type::<RawDocument<RawCompanyFacts>>()
 ///     .media_type("application/json")
 ///     .content(2, "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a")
 ///     .produced_at(DateTime::<Utc>::UNIX_EPOCH)
@@ -55,7 +53,7 @@ pub use raw_source::{CompanyFacts, RawSource};
 ///     })
 ///     .build();
 ///
-/// let document = RawDocument::<CompanyFacts>::from_parts(key, b"{}".to_vec(), metadata);
+/// let document = RawDocument::<RawCompanyFacts>::from_parts(key, b"{}".to_vec(), metadata);
 ///
 /// let expected_result = "raw_company_facts";
 ///
@@ -119,12 +117,13 @@ mod tests {
     use uuid::Uuid;
 
     use super::*;
+    use crate::shared::raw_source::RawCompanyFacts;
 
-    fn sample_raw_document() -> RawDocument<CompanyFacts> {
+    fn sample_raw_document() -> RawDocument<RawCompanyFacts> {
         let key = DocumentKey::new("sec/companyfacts/CIK0000320193.json")
             .expect("Given a valid relative path, the key should always build");
         let metadata = DocumentMetadata::builder()
-            .document_type::<RawDocument<CompanyFacts>>()
+            .document_type::<RawDocument<RawCompanyFacts>>()
             .media_type("application/json")
             .content(
                 2,
@@ -146,8 +145,8 @@ mod tests {
 
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
     #[test]
-    const fn should_implement_auto_traits_for_raw_document_of_company_facts() {
-        implements_auto_traits::<RawDocument<CompanyFacts>>();
+    const fn should_implement_auto_traits_for_raw_document_of_raw_company_facts() {
+        implements_auto_traits::<RawDocument<RawCompanyFacts>>();
     }
 
     const fn implements_value_traits<
@@ -155,21 +154,21 @@ mod tests {
     >() {
     }
     #[test]
-    const fn should_implement_value_traits_for_raw_document_of_company_facts() {
-        implements_value_traits::<RawDocument<CompanyFacts>>();
+    const fn should_implement_value_traits_for_raw_document_of_raw_company_facts() {
+        implements_value_traits::<RawDocument<RawCompanyFacts>>();
     }
 
     const fn implements_document<T: Document>() {}
     #[test]
-    const fn should_implement_document_for_raw_document_of_company_facts() {
-        implements_document::<RawDocument<CompanyFacts>>();
+    const fn should_implement_document_for_raw_document_of_raw_company_facts() {
+        implements_document::<RawDocument<RawCompanyFacts>>();
     }
 
     const fn implements_read_write_repository<T: ReadWriteRepository>() {}
     #[test]
     const fn should_implement_read_write_repository_for_a_filesystem_repository_of_raw_document() {
         implements_read_write_repository::<
-            FilesystemRepository<ReadWrite, RawDocument<CompanyFacts>>,
+            FilesystemRepository<ReadWrite, RawDocument<RawCompanyFacts>>,
         >();
     }
 
