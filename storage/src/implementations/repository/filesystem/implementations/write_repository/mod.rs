@@ -49,8 +49,8 @@ impl<A: CanWrite, D: Document> WriteRepository for FilesystemRepository<A, D> {
     /// 3. The bytes have the size and the SHA-256 digest the metadata names.
     ///
     /// Then `persist` checks that the root exists. If the stored metadata equals the new metadata
-    /// in every field except `produced_at` and `execution_id`, and the stored document matches the
-    /// digest of the new bytes, `persist` writes no file and returns `Ok(())`. The stored
+    /// in every field except `produced_at` and `execution_id`, both stored run fields are valid, and
+    /// the stored document matches the digest of the new bytes, `persist` writes no file and returns `Ok(())`. The stored
     /// `produced_at` and `execution_id` stay. In every other case, `persist` creates every
     /// missing directory between the root and the document, and the new bytes and metadata replace
     /// the old. This case covers a torn pair, whose metadata matches the new bytes but whose
@@ -179,15 +179,15 @@ async fn stored_pair_matches(
     let Ok(stored_json) = fs::read(metadata_path).await else {
         return false;
     };
-    if serde_json::from_slice::<StoredRun>(&stored_json).is_err() {
-        return false;
-    }
     let (Ok(stored), Ok(new)) = (
         serde_json::from_slice::<Value>(&stored_json),
         serde_json::from_slice::<Value>(metadata),
     ) else {
         return false;
     };
+    if StoredRun::deserialize(&stored).is_err() {
+        return false;
+    }
     if without_run_fields(stored) != without_run_fields(new) {
         return false;
     }
@@ -865,19 +865,21 @@ mod tests {
         assert_eq!(result, expected_result);
     }
 
-    #[tokio::test]
-    async fn should_replace_the_metadata_when_the_stored_metadata_holds_another_kind_version() {
+    /// Persists the sample document, sets one field of its stored metadata, persists the document
+    /// again, and returns the stored metadata.
+    async fn persist_over_stored_metadata_field(
+        field: &str,
+        value: serde_json::Value,
+    ) -> DocumentMetadata<SampleContext> {
         let root = temporary_root();
         let repository = repository_at(root.path());
         let record = sample_document();
         let metadata_path = repository.metadata_path(record.key());
         let mut stored = serde_json::to_value(record.metadata())
             .expect("Given metadata of owned fields, serialization should always succeed");
-        stored["kind_version"] = 0.into();
+        stored[field] = value;
         let stored_json = serde_json::to_vec(&stored)
             .expect("Given a JSON value, serialization should always succeed");
-
-        let expected_result = record.metadata().clone();
 
         repository
             .persist(record.clone())
@@ -889,36 +891,33 @@ mod tests {
             .persist(record)
             .await
             .expect("Given an existing writable root, persisting a record should always succeed");
-        let result = read_stored_metadata(&metadata_path);
+        read_stored_metadata(&metadata_path)
+    }
+
+    #[tokio::test]
+    async fn should_replace_the_metadata_when_the_stored_metadata_holds_another_kind_version() {
+        let expected_result = sample_metadata();
+
+        let result = persist_over_stored_metadata_field("kind_version", 0.into()).await;
 
         assert_eq!(result, expected_result);
     }
 
     #[tokio::test]
     async fn should_replace_the_metadata_when_the_stored_produced_at_is_invalid() {
-        let root = temporary_root();
-        let repository = repository_at(root.path());
-        let record = sample_document();
-        let metadata_path = repository.metadata_path(record.key());
-        let mut stored = serde_json::to_value(record.metadata())
-            .expect("Given metadata of owned fields, serialization should always succeed");
-        stored["produced_at"] = "not a timestamp".into();
-        let stored_json = serde_json::to_vec(&stored)
-            .expect("Given a JSON value, serialization should always succeed");
+        let expected_result = sample_metadata();
 
-        let expected_result = record.metadata().clone();
+        let result =
+            persist_over_stored_metadata_field("produced_at", "not a timestamp".into()).await;
 
-        repository
-            .persist(record.clone())
-            .await
-            .expect("Given an existing writable root, persisting a record should always succeed");
-        std::fs::write(&metadata_path, stored_json)
-            .expect("Given an existing directory, overwriting the metadata should always succeed");
-        repository
-            .persist(record)
-            .await
-            .expect("Given an existing writable root, persisting a record should always succeed");
-        let result = read_stored_metadata(&metadata_path);
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_replace_the_metadata_when_the_stored_execution_id_is_invalid() {
+        let expected_result = sample_metadata();
+
+        let result = persist_over_stored_metadata_field("execution_id", "not a uuid".into()).await;
 
         assert_eq!(result, expected_result);
     }
