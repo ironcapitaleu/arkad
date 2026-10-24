@@ -10,7 +10,7 @@
 //! - [`document_metadata`]: The parts of the metadata that every stored document carries, such
 //!   as the [`Producer`](document_metadata::Producer).
 //! - [`sha256`]: The [`sha256_hex`](sha256::sha256_hex) function that computes the digest a
-//!   metadata file holds.
+//!   metadata file holds, and the [`Sha256Digest`](sha256::Sha256Digest) that holds one.
 
 pub mod document_key;
 pub mod document_metadata;

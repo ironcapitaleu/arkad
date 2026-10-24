@@ -93,8 +93,9 @@ mod tests {
             Headers::new(HashMap::new()),
             ContentType::Json,
             StatusCode::Ok,
-            serde_json::json!({}),
-        );
+            b"{}".to_vec(),
+        )
+        .expect("Given the hardcoded JSON body '{}', building the response should always succeed");
         let user_agent = sample_user_agent();
 
         let expected_result = sample_context();

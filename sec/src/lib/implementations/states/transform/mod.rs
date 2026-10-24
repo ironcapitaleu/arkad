@@ -36,8 +36,8 @@
 //!     Headers::new(HashMap::new()),
 //!     ContentType::Json,
 //!     StatusCode::Ok,
-//!     serde_json::json!({}),
-//! );
+//!     b"{}".to_vec(),
+//! )?;
 //! let cik = Cik::new("0000320193")?;
 //! let _transform_state = TransformSuperState::<ParseCompanyFacts>::new(&response, cik);
 //! # Ok(())
@@ -222,11 +222,11 @@ impl<S: State> SuperState<S> for TransformSuperState<S> {}
 impl TransformSuperState<ParseCompanyFacts> {
     /// Creates the super-state at the transform entry point from an SEC response and CIK.
     ///
-    /// Extracts the response body and its precomputed digest.
+    /// Takes the parsed response body and the digest of its raw bytes.
     #[must_use]
     pub fn new(response: &SecResponse, cik: Cik) -> Self {
         let body = response.body().clone();
-        let body_digest = response.body_digest();
+        let body_digest = response.body_digest().clone();
         let input_data = ParseCompanyFactsInput::new(body, body_digest);
         let context = ParseCompanyFactsContext::new(cik);
 
@@ -368,7 +368,7 @@ mod tests {
         CompanyData::new(test_cik(), EntityName::new("Apple Inc."), HashMap::new())
     }
 
-    fn test_sec_response(body: serde_json::Value) -> SecResponse {
+    fn test_sec_response(body: &serde_json::Value) -> SecResponse {
         SecResponse::from_parts(
             Url::from(
                 reqwest::Url::parse(
@@ -379,8 +379,9 @@ mod tests {
             Headers::new(HashMap::new()),
             ContentType::Json,
             StatusCode::Ok,
-            body,
+            body.to_string().into_bytes(),
         )
+        .expect("Given a body serialized from a JSON value, parsing it should always succeed")
     }
 
     #[test]
@@ -389,7 +390,7 @@ mod tests {
         reason = "False positive: `state_name` returns `impl ToString`, which is a `String` here. Clippy flags `.to_string()` as a clone, but removing it does not compile"
     )]
     fn should_return_super_state_name_with_current_state_when_in_parse_company_facts_state() {
-        let response = test_sec_response(serde_json::json!({}));
+        let response = test_sec_response(&serde_json::json!({}));
         let super_state = TransformSuperState::<ParseCompanyFacts>::new(&response, test_cik());
 
         let expected_result = "Transform SuperState (Current: Parse Company Facts)";
@@ -418,7 +419,7 @@ mod tests {
 
     #[test]
     fn should_access_current_parse_company_facts_state_from_super_state() {
-        let response = test_sec_response(serde_json::json!({}));
+        let response = test_sec_response(&serde_json::json!({}));
         let super_state = TransformSuperState::<ParseCompanyFacts>::new(&response, test_cik());
 
         let expected_result = "Parse Company Facts";
@@ -455,7 +456,7 @@ mod tests {
 
     #[tokio::test]
     async fn should_fail_transition_from_parse_company_facts_when_output_data_not_yet_computed() {
-        let response = test_sec_response(serde_json::json!({}));
+        let response = test_sec_response(&serde_json::json!({}));
         let super_state = TransformSuperState::<ParseCompanyFacts>::new(&response, test_cik());
 
         let expected_result = true;
@@ -467,7 +468,7 @@ mod tests {
     #[tokio::test]
     #[should_panic(expected = "Transition should fail when output data is not yet computed")]
     async fn should_fail_transition_when_output_data_not_yet_computed() {
-        let response = test_sec_response(serde_json::json!({}));
+        let response = test_sec_response(&serde_json::json!({}));
         let super_state = TransformSuperState::<ParseCompanyFacts>::new(&response, test_cik());
 
         let _result = super_state

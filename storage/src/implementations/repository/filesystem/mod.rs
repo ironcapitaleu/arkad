@@ -48,7 +48,7 @@ pub use shared::document_metadata::{
     DocumentMetadata, DocumentMetadataBuilder, InputDocument, METADATA_VERSION, NoDocumentType,
     Producer,
 };
-pub use shared::sha256::sha256_hex;
+pub use shared::sha256::{Sha256Digest, sha256_hex};
 pub use traits::access::{Access, CanRead, CanWrite, Read, ReadWrite, Write};
 pub use traits::document::Document;
 

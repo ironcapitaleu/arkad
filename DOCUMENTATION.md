@@ -153,7 +153,7 @@ transformation where the result differs from the input (parsing `"123456789"` â†
 extracting a field, computing a value).
 
 **When to omit the assertion:** Omit when construction is the entire point â€” opaque types with no
-public accessor that exposes a meaningful value (like `BodyDigest`), or when the only possible
+public accessor that exposes a meaningful value, or when the only possible
 assertion would be tautological or redundant. In that case, use `let _x = ...` to show that
 construction compiles and the type is inhabited.
 
