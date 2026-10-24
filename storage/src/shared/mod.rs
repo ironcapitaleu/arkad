@@ -1,6 +1,6 @@
 //! # Shared
 //!
-//! Provides the types that more than one backend, or a caller of the crate, uses.
+//! Provides the types that the backends and the callers of the crate both use.
 //!
 //! ## Modules
 //!

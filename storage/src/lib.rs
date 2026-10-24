@@ -15,7 +15,8 @@
 //!
 //! - [`error`]: The error types the crate returns and the conversions between them.
 //! - [`implementations`]: The concrete backends, one module per storage medium.
-//! - [`shared`]: The types that more than one backend uses, such as the [`Sha256Digest`].
+//! - [`shared`]: The types that the backends and the callers of the crate both use, such as the
+//!   [`Sha256Digest`].
 //! - [`traits`]: The traits for reading and writing records.
 //!
 //! ## Usage

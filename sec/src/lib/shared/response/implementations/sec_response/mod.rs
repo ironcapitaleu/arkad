@@ -199,7 +199,7 @@ impl SecResponseTrait for SecResponse {
         let headers = Headers::new(raw_headers);
         let content_type = headers.content_type().clone();
 
-        // Checks before the body read, so the body of a rejected response is never read.
+        // Run the checks first, so `from_inner` never reads the body of a rejected response.
         check_status_and_content_type(status_code, &content_type)?;
 
         let raw_body = inner.bytes().await.map_err(|e| {
