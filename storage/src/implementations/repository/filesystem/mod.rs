@@ -23,7 +23,8 @@
 //!   layout, such as [`METADATA_SUFFIX`], and the port implementations.
 //! - [`shared`]: The value types that more than one module uses, such as the [`DocumentKey`] and
 //!   the [`RawDocument`].
-//! - [`traits`]: The access markers and the traits that connect them to the ports.
+//! - [`traits`]: The access markers, the traits that connect them to the ports, and the
+//!   [`Document`] trait every stored document kind implements.
 
 use std::io;
 use std::path::{Path, PathBuf};
@@ -39,10 +40,11 @@ pub use error::{FailedFilesystemOperation, FailedFilesystemOperationReason, File
 pub use implementations::builder::{FilesystemRepositoryBuilder, NoAccess, NoRoot};
 pub use implementations::constants::METADATA_SUFFIX;
 pub use shared::document_key::{DocumentKey, InvalidDocumentKey};
-pub use shared::document_metadata::{InputDocument, Producer};
+pub use shared::document_metadata::{DocumentMetadata, InputDocument, METADATA_VERSION, Producer};
 pub use shared::legacy_document_metadata::LegacyDocumentMetadata;
 pub use shared::raw_document::RawDocument;
 pub use traits::access::{Access, CanRead, CanWrite, Read, ReadWrite, Write};
+pub use traits::document::Document;
 
 /// Stores documents as files beneath one root directory, with the access the marker `A` allows.
 ///
