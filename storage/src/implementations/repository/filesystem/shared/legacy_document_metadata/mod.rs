@@ -1,6 +1,9 @@
-//! # Document Metadata
+//! # Legacy Document Metadata
 //!
-//! Provides [`DocumentMetadata`], the record of where one stored document came from.
+//! Provides [`LegacyDocumentMetadata`], the record of where one stored document came from.
+//!
+//! The repository stores this record until it moves to the `DocumentMetadata` envelope, which
+//! holds the shared fields of every document kind. Then this module goes away.
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -9,18 +12,19 @@ use serde::{Deserialize, Serialize};
 ///
 /// Every field records something only the fetch knows, so none of it is recoverable from the
 /// document afterwards. The source API sends no `ETag` and no `Last-Modified`, which leaves
-/// [`DocumentMetadata::sha256`] as the only way to tell whether a refetch returned new bytes.
+/// [`LegacyDocumentMetadata::sha256`] as the only way to tell whether a refetch returned new bytes.
 ///
-/// [`DocumentMetadata`] is a plain record. Nothing checks that [`DocumentMetadata::bytes`]
-/// matches the document's length or that [`DocumentMetadata::sha256`] is a well-formed digest.
+/// [`LegacyDocumentMetadata`] is a plain record. Nothing checks that
+/// [`LegacyDocumentMetadata::bytes`] matches the document's length or that
+/// [`LegacyDocumentMetadata::sha256`] is a well-formed digest.
 ///
 /// # Examples
 ///
 /// ```rust
 /// use chrono::{TimeZone, Utc};
-/// use storage::implementations::repository::filesystem::DocumentMetadata;
+/// use storage::implementations::repository::filesystem::LegacyDocumentMetadata;
 ///
-/// let metadata = DocumentMetadata {
+/// let metadata = LegacyDocumentMetadata {
 ///     metadata_version: 1,
 ///     url: "https://data.sec.gov/api/xbrl/companyfacts/CIK0000320193.json".to_owned(),
 ///     fetched_at: Utc
@@ -44,7 +48,7 @@ use serde::{Deserialize, Serialize};
 /// assert_eq!(result, expected_result);
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-pub struct DocumentMetadata {
+pub struct LegacyDocumentMetadata {
     /// Version of this metadata format.
     pub metadata_version: u32,
     /// The URL the fetch requested.
@@ -71,8 +75,8 @@ mod tests {
 
     use super::*;
 
-    fn sample_metadata() -> DocumentMetadata {
-        DocumentMetadata {
+    fn sample_metadata() -> LegacyDocumentMetadata {
+        LegacyDocumentMetadata {
             metadata_version: 1,
             url: "https://data.sec.gov/api/xbrl/companyfacts/CIK0000320193.json".to_owned(),
             fetched_at: Utc
@@ -89,7 +93,7 @@ mod tests {
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
     #[test]
     const fn should_implement_auto_traits_for_document_metadata() {
-        implements_auto_traits::<DocumentMetadata>();
+        implements_auto_traits::<LegacyDocumentMetadata>();
     }
 
     const fn implements_send<T: Send>() {}
@@ -97,66 +101,66 @@ mod tests {
 
     #[test]
     const fn should_implement_send_for_document_metadata() {
-        implements_send::<DocumentMetadata>();
+        implements_send::<LegacyDocumentMetadata>();
     }
 
     #[test]
     const fn should_implement_sync_for_document_metadata() {
-        implements_sync::<DocumentMetadata>();
+        implements_sync::<LegacyDocumentMetadata>();
     }
 
     const fn implements_debug<T: Debug>() {}
     #[test]
     const fn should_be_able_to_rely_on_debug_implementation_for_document_metadata() {
-        implements_debug::<DocumentMetadata>();
+        implements_debug::<LegacyDocumentMetadata>();
     }
 
     const fn implements_clone<T: Clone>() {}
     #[test]
     const fn should_be_able_to_rely_on_clone_implementation_for_document_metadata() {
-        implements_clone::<DocumentMetadata>();
+        implements_clone::<LegacyDocumentMetadata>();
     }
 
     const fn implements_hash<T: Hash>() {}
     #[test]
     const fn should_be_able_to_rely_on_hash_implementation_for_document_metadata() {
-        implements_hash::<DocumentMetadata>();
+        implements_hash::<LegacyDocumentMetadata>();
     }
 
     const fn implements_eq<T: Eq>() {}
     #[test]
     const fn should_be_able_to_rely_on_eq_implementation_for_document_metadata() {
-        implements_eq::<DocumentMetadata>();
+        implements_eq::<LegacyDocumentMetadata>();
     }
 
     const fn implements_ord<T: Ord>() {}
     #[test]
     const fn should_be_able_to_rely_on_ord_implementation_for_document_metadata() {
-        implements_ord::<DocumentMetadata>();
+        implements_ord::<LegacyDocumentMetadata>();
     }
 
     const fn implements_sized<T: Sized>() {}
     #[test]
     const fn should_be_sized_for_document_metadata() {
-        implements_sized::<DocumentMetadata>();
+        implements_sized::<LegacyDocumentMetadata>();
     }
 
     const fn implements_partial_eq<T: PartialEq>() {}
     #[test]
     const fn should_be_able_to_rely_on_partial_eq_implementation_for_document_metadata() {
-        implements_partial_eq::<DocumentMetadata>();
+        implements_partial_eq::<LegacyDocumentMetadata>();
     }
 
     const fn implements_partial_ord<T: PartialOrd>() {}
     #[test]
     const fn should_be_able_to_rely_on_partial_ord_implementation_for_document_metadata() {
-        implements_partial_ord::<DocumentMetadata>();
+        implements_partial_ord::<LegacyDocumentMetadata>();
     }
 
     const fn implements_unpin<T: Unpin>() {}
     #[test]
     const fn should_be_able_to_rely_on_unpin_implementation_for_document_metadata() {
-        implements_unpin::<DocumentMetadata>();
+        implements_unpin::<LegacyDocumentMetadata>();
     }
 
     #[test]
@@ -167,7 +171,7 @@ mod tests {
 
         let expected_result = sample_metadata();
 
-        let result: DocumentMetadata = serde_json::from_str(&json)
+        let result: LegacyDocumentMetadata = serde_json::from_str(&json)
             .expect("Given JSON this type produced, deserialization should always succeed");
 
         assert_eq!(result, expected_result);

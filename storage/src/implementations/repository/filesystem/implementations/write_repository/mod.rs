@@ -223,7 +223,9 @@ mod tests {
 
     use super::*;
     use crate::error::BackendError;
-    use crate::implementations::repository::filesystem::{DocumentMetadata, ReadWrite, Write};
+    use crate::implementations::repository::filesystem::{
+        LegacyDocumentMetadata, ReadWrite, Write,
+    };
     use crate::tests::fixtures::sample_raw_document::sample_raw_document;
 
     /// Builds a repository with write access under the given root.
@@ -256,7 +258,7 @@ mod tests {
     }
 
     /// Reads and parses a metadata file the repository wrote.
-    fn read_stored_metadata(metadata_path: &Path) -> DocumentMetadata {
+    fn read_stored_metadata(metadata_path: &Path) -> LegacyDocumentMetadata {
         let metadata_json = std::fs::read(metadata_path)
             .expect("Given a persisted record, its metadata file should always exist");
         serde_json::from_slice(&metadata_json)
