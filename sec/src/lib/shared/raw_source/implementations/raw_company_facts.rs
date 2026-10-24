@@ -35,4 +35,13 @@ mod tests {
 
         assert_eq!(result, expected_result);
     }
+
+    #[test]
+    fn should_name_kind_version_one_for_raw_company_facts() {
+        let expected_result = 1;
+
+        let result = RawCompanyFacts::KIND_VERSION;
+
+        assert_eq!(result, expected_result);
+    }
 }

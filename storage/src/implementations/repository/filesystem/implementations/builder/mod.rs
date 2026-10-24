@@ -34,8 +34,8 @@ pub struct NoRoot;
 /// Set the access with [`reader`](Self::reader), [`writer`](Self::writer), or
 /// [`read_write`](Self::read_write), the document type with [`document_type`](Self::document_type),
 /// and the root with [`root`](Self::root), in any order. Then call [`build`](Self::build).
-// Deviation: the value traits below are written by hand. A derive would require `D` to implement
-// each of them, although the builder holds no `D`.
+// The value traits below are written by hand. A derive would require `D` to implement each of
+// them, although the builder holds no `D`.
 pub struct FilesystemRepositoryBuilder<A, R, D> {
     access: A,
     root: R,
@@ -298,7 +298,7 @@ mod tests {
     use std::fmt::Debug;
     use std::hash::Hash;
 
-    use pretty_assertions::assert_eq;
+    use pretty_assertions::{assert_eq, assert_ne};
 
     use super::*;
     use crate::tests::fixtures::sample_document::SampleDocument;
@@ -456,5 +456,14 @@ mod tests {
         let result = builder.document_type::<SampleDocument>().build();
 
         assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_compare_unequal_when_two_builders_have_different_roots() {
+        let expected_result = FilesystemRepository::builder().root("/data/other");
+
+        let result = FilesystemRepository::builder().root("/data/arkad");
+
+        assert_ne!(result, expected_result);
     }
 }

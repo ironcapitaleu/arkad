@@ -25,7 +25,8 @@ pub use raw_document_metadata_context::RawDocumentMetadataContext;
 /// it.
 ///
 /// `S` sets the document's kind, so `RawDocument<RawCompanyFacts>` and a raw document of another
-/// file are different types. A repository of one never accepts the other.
+/// file are different types. A repository of one rejects the files of the other, as long as each
+/// marker names its own kind.
 ///
 /// # Examples
 ///

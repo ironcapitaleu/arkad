@@ -81,8 +81,8 @@ pub use traits::document::Document;
 /// fails, or the caller drops the write between the renames, the new metadata stays beside the old
 /// document until the next successful write under that key. If the caller drops the write before
 /// the renames, its temporary files stay in the directory.
-// Deviation: the value traits below are written by hand. A derive would require `D` to implement
-// each of them, although the repository holds no `D`.
+// The value traits below are written by hand. A derive would require `D` to implement each of
+// them, although the repository holds no `D`.
 pub struct FilesystemRepository<A, D> {
     root: PathBuf,
     access: A,
@@ -370,7 +370,7 @@ mod tests {
     use std::fmt::Debug;
     use std::hash::Hash;
 
-    use pretty_assertions::assert_eq;
+    use pretty_assertions::{assert_eq, assert_ne};
     use tempfile::TempDir;
 
     use super::*;
@@ -433,6 +433,15 @@ mod tests {
     #[test]
     const fn should_implement_value_traits_when_the_document_type_derives_nothing() {
         implements_value_traits::<FilesystemRepository<ReadWrite, BareDocument>>();
+    }
+
+    #[test]
+    fn should_compare_unequal_when_two_repositories_have_different_roots() {
+        let expected_result = repository_at("/data/other");
+
+        let result = repository_at("/data/arkad");
+
+        assert_ne!(result, expected_result);
     }
 
     #[test]
