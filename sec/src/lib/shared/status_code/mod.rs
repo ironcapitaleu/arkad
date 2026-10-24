@@ -4,14 +4,18 @@
 
 use std::fmt::{self, Display, Formatter};
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 /// An HTTP status code from an SEC API response.
 ///
 /// Models the codes relevant to SEC interactions as explicit variants so match arms can handle
 /// cases like rate-limiting (429) or not-found (404) without raw integer comparisons. Any other
 /// valid code is captured by `Other`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
+///
+/// A status code serializes as its number, for example `200`, and deserializes from any number
+/// through [`StatusCode::from_u16`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(from = "u16", into = "u16")]
 #[non_exhaustive]
 pub enum StatusCode {
     /// 100 Continue.
@@ -122,6 +126,20 @@ impl StatusCode {
     #[must_use]
     pub const fn is_server_error(&self) -> bool {
         matches!(self.as_u16(), 500..=599)
+    }
+}
+
+impl From<u16> for StatusCode {
+    /// Classifies a raw `u16` into a [`StatusCode`], as [`StatusCode::from_u16`] does.
+    fn from(code: u16) -> Self {
+        Self::from_u16(code)
+    }
+}
+
+impl From<StatusCode> for u16 {
+    /// Returns the raw `u16` of a [`StatusCode`], as [`StatusCode::as_u16`] does.
+    fn from(status: StatusCode) -> Self {
+        status.as_u16()
     }
 }
 
@@ -364,6 +382,55 @@ mod tests {
         let expected_result = StatusCode::Other(201);
 
         let result = StatusCode::from(reqwest_status);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_serialize_as_its_number_for_a_modeled_status_code() {
+        let status = StatusCode::Ok;
+
+        let expected_result = serde_json::json!(200);
+
+        let result = serde_json::to_value(status)
+            .expect("Given a status code, serialization should always succeed");
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_serialize_as_its_number_for_an_unmodeled_status_code() {
+        let status = StatusCode::Other(418);
+
+        let expected_result = serde_json::json!(418);
+
+        let result = serde_json::to_value(status)
+            .expect("Given a status code, serialization should always succeed");
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_deserialize_the_modeled_variant_when_reading_its_number() {
+        let json = "404";
+
+        let expected_result = StatusCode::NotFound;
+
+        let result: StatusCode = serde_json::from_str(json)
+            .expect("Given a JSON number in the u16 range, deserialization should always succeed");
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_the_same_status_code_when_deserializing_a_serialized_status_code() {
+        let json = serde_json::to_string(&StatusCode::Other(418))
+            .expect("Given a status code, serialization should always succeed");
+
+        let expected_result = StatusCode::Other(418);
+
+        let result: StatusCode = serde_json::from_str(&json)
+            .expect("Given JSON this type produced, deserialization should always succeed");
 
         assert_eq!(result, expected_result);
     }
