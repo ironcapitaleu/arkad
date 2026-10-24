@@ -7,13 +7,15 @@ use std::io;
 use async_trait::async_trait;
 use tokio::fs;
 
-use super::FilesystemRepository;
-use super::access::CanRead;
-use super::document_key::DocumentKey;
-use super::document_metadata::DocumentMetadata;
-use super::filesystem_error::{FilesystemError, FilesystemErrorReason, FilesystemOperation};
-use super::raw_document::RawDocument;
 use crate::error::ReadError;
+use crate::implementations::repository::filesystem::FilesystemRepository;
+use crate::implementations::repository::filesystem::access::CanRead;
+use crate::implementations::repository::filesystem::document_key::DocumentKey;
+use crate::implementations::repository::filesystem::document_metadata::DocumentMetadata;
+use crate::implementations::repository::filesystem::filesystem_error::{
+    FilesystemError, FilesystemErrorReason, FilesystemOperation,
+};
+use crate::implementations::repository::filesystem::raw_document::RawDocument;
 use crate::traits::repository::ReadRepository;
 
 #[async_trait]

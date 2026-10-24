@@ -35,9 +35,8 @@ pub mod constants;
 pub mod document_key;
 pub mod document_metadata;
 pub mod filesystem_error;
+mod implementations;
 pub mod raw_document;
-mod read_repository;
-mod write_repository;
 
 pub use access::{Access, CanRead, CanWrite, Read, ReadWrite, Write};
 pub use builder::{FilesystemRepositoryBuilder, NoAccess, NoRoot};
