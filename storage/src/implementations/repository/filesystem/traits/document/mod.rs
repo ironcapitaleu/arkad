@@ -17,8 +17,8 @@ use crate::implementations::repository::filesystem::shared::document_metadata::D
 ///
 /// The crate that owns a kind defines an enum of its kinds and sets [`Document::Kind`] to it.
 /// [`Document::KIND`] names the variant of this type, and [`Document::KIND_VERSION`] the version
-/// of its [`Document::Context`]. [`DocumentMetadata::new`] stores both, so the store can reject a
-/// file of another kind or version.
+/// of its [`Document::Context`]. [`DocumentMetadataBuilder::build`] stores both, so the store can
+/// reject a file of another kind or version.
 ///
 /// # Associated Types
 ///
@@ -90,6 +90,8 @@ use crate::implementations::repository::filesystem::shared::document_metadata::D
 ///
 /// assert_eq!(result, expected_result);
 /// ```
+///
+/// [`DocumentMetadataBuilder::build`]: crate::implementations::repository::filesystem::DocumentMetadataBuilder::build
 pub trait Document: Send + Sized {
     /// The enum of document kinds in the crate that owns this kind.
     ///

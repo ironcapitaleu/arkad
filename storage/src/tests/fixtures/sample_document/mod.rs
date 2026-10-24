@@ -88,19 +88,24 @@ pub fn sample_metadata() -> DocumentMetadata<SampleContext> {
         .expect("Given a hardcoded RFC 3339 timestamp, parsing it should always succeed");
     let input_key = DocumentKey::new("sec/companyfacts/CIK0000320193.json")
         .expect("Given a valid relative path, the key should always build");
-    DocumentMetadata::new::<SampleDocument>(
-        "application/json",
-        2,
-        "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
-        produced_at,
-        Uuid::from_u128(0x0b6f_3c1e_5d2a_4f7b_9c3e_8a1d_2b4c_6e8f),
-        Producer::new("Sample State", "0.1.0", "63c1f59"),
-        vec![InputDocument::new(
+    DocumentMetadata::builder()
+        .document_type::<SampleDocument>()
+        .media_type("application/json")
+        .content(
+            2,
+            "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+        )
+        .produced_at(produced_at)
+        .run(
+            Uuid::from_u128(0x0b6f_3c1e_5d2a_4f7b_9c3e_8a1d_2b4c_6e8f),
+            Producer::new("Sample State", "0.1.0", "63c1f59"),
+        )
+        .context(SampleContext {
+            url: "https://data.sec.gov/api/xbrl/companyfacts/CIK0000320193.json".to_owned(),
+        })
+        .inputs(vec![InputDocument::new(
             input_key,
             "73a86c6aedc31f77cac2ea4df5f80f0b73a86c6aedc31f77cac2ea4df5f80f0b",
-        )],
-        SampleContext {
-            url: "https://data.sec.gov/api/xbrl/companyfacts/CIK0000320193.json".to_owned(),
-        },
-    )
+        )])
+        .build()
 }
