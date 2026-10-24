@@ -515,11 +515,12 @@ async fn should_succeed_for_must_pass_companies() {
 ## Regression Tests
 
 If you fix a bug in code, add a regression test in the same change as the fix. This rule covers a
-bug that a reviewer finds, a bug that a user reports, and a bug that you find yourself.
+bug that a reviewer finds, a bug that a user reports, and a bug that you find yourself. If this
+skill loads for a bug fix, apply only this section. Skip Context Gathering and Proactive Behavior.
 
 1. Write a test that fails on the code before the fix.
-2. Prove that the test fails. Revert the fix, run the test, and confirm that it fails. Then restore
-   the fix.
+2. Prove that the test fails. Undo the code change and keep the test. Run the test and confirm that
+   it fails. Then restore the code change.
 3. Name the test after the behavior that the fix restores, not after the bug.
 4. If a review found the bug, name the test in your reply to that review.
 

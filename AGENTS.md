@@ -15,6 +15,7 @@
   - Unit tests
   - Integration tests
   - Doctests
+- Every bug fix ships with a regression test that fails on the old code (see the `testing` skill, "Regression Tests").
 
 ### Codebase-Wide Propagation
 
@@ -157,7 +158,6 @@ Use `thiserror` with `#[error("...")]` and `#[source]` for deriving `Display` an
     Example: `should_implement_auto_traits_for_backend_error`.
   - Names can be verbose — clarity over brevity.
 - Integration tests go in the `tests/` directory, each in its own file.
-- Every bug fix ships with a regression test that fails on the old code (see the `testing` skill, "Regression Tests").
 - `.expect()` messages must explain **why the operation should not fail** in that context:
   - Bad: `.expect("should work")`
   - Good: `.expect("Given a valid hardcoded CIK, the creation of a CIK object should always succeed")`
