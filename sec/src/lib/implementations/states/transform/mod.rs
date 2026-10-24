@@ -384,6 +384,10 @@ mod tests {
     }
 
     #[test]
+    #[expect(
+        clippy::redundant_clone,
+        reason = "`state_name` returns `impl ToString`, so the call is needed, but clippy sees the `String` behind it"
+    )]
     fn should_return_super_state_name_with_current_state_when_in_parse_company_facts_state() {
         let response = test_sec_response(serde_json::json!({}));
         let super_state = TransformSuperState::<ParseCompanyFacts>::new(&response, test_cik());
@@ -396,6 +400,10 @@ mod tests {
     }
 
     #[test]
+    #[expect(
+        clippy::redundant_clone,
+        reason = "`state_name` returns `impl ToString`, so the call is needed, but clippy sees the `String` behind it"
+    )]
     fn should_return_super_state_name_with_current_state_when_in_create_financial_statements_state()
     {
         let super_state =

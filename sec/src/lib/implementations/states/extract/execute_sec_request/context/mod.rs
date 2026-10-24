@@ -228,7 +228,7 @@ mod tests {
     #[test]
     fn should_not_update_fields_when_updater_is_empty() {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
-        let original_context = ExecuteSecRequestContext::new(cik.clone());
+        let original_context = ExecuteSecRequestContext::new(cik);
         let mut context = original_context.clone();
 
         let updater = ExecuteSecRequestContextUpdater::builder().build();

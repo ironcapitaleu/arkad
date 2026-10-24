@@ -233,6 +233,10 @@ mod tests {
     // --- Functional tests ---
 
     #[test]
+    #[expect(
+        clippy::redundant_clone,
+        reason = "`state_name` returns `impl ToString`, so the call is needed, but clippy sees the `String` behind it"
+    )]
     fn should_return_super_state_name_when_in_initial_streaming_state() {
         let sm = SampleStreamingSuperState::<SampleStateA>::new();
 

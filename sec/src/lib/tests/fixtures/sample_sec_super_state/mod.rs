@@ -33,14 +33,18 @@ impl SampleSecSuperState<SampleSecState> {
     pub fn new() -> Self {
         Self {
             current_state: SampleSecState::default(),
-            input: SampleSecSuperStateData::default(),
+            input: SampleSecSuperStateData,
             output: None,
-            context: SampleSecSuperStateContext::default(),
+            context: SampleSecSuperStateContext,
         }
     }
 }
 
 impl<S: State> fmt::Display for SampleSecSuperState<S> {
+    #[expect(
+        clippy::redundant_clone,
+        reason = "`state_name` returns `impl ToString`, so the call is needed, but clippy sees the `String` behind it"
+    )]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "SampleSecSuperState({})", self.state_name().to_string())
     }

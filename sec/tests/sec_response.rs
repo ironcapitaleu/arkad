@@ -1,4 +1,4 @@
-//! # SecResponse Integration Tests
+//! # `SecResponse` Integration Tests
 //!
 //! Validates that [`SecResponse`] correctly parses real HTTP responses (status codes, content
 //! types, and JSON bodies).

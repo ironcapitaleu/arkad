@@ -41,6 +41,10 @@ mod tests {
     };
 
     #[test]
+    #[expect(
+        clippy::redundant_clone,
+        reason = "`state_name` returns `impl ToString`, so the call is needed, but clippy sees the `String` behind it"
+    )]
     fn should_return_super_state_name_when_in_sample_super_state() {
         let super_state = SampleSecSuperState::<SampleSecState>::new();
 
@@ -82,7 +86,7 @@ mod tests {
     #[test]
     fn should_return_default_context_data_when_in_initial_super_state() {
         let super_state = SampleSecSuperState::<SampleSecState>::new();
-        let expected_result = &SampleSecSuperStateContext::default();
+        let expected_result = &SampleSecSuperStateContext;
         let result = super_state.context_data();
         assert_eq!(result, expected_result);
     }
@@ -90,7 +94,7 @@ mod tests {
     #[test]
     fn should_return_default_input_data_when_in_initial_super_state() {
         let super_state = SampleSecSuperState::<SampleSecState>::new();
-        let expected_result = &SampleSecSuperStateData::default();
+        let expected_result = &SampleSecSuperStateData;
         let result = super_state.input_data();
         assert_eq!(result, expected_result);
     }

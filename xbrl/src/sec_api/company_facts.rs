@@ -137,6 +137,60 @@ fn validate_top_level_structure(json: &serde_json::Value) -> Result<(), ParseErr
     Ok(())
 }
 
+fn parse_data_point(
+    dp: &serde_json::Value,
+    namespace: Namespace,
+    concept_name: &str,
+    unit: Unit,
+) -> Option<RawObservation> {
+    let val = dp.get("val")?.as_i64()?;
+    let end_str = dp.get("end")?.as_str()?;
+    let end_date = NaiveDate::parse_from_str(end_str, "%Y-%m-%d").ok()?;
+
+    let period = if let Some(start_str) = dp.get("start").and_then(serde_json::Value::as_str) {
+        let start_date = NaiveDate::parse_from_str(start_str, "%Y-%m-%d").ok()?;
+        Period::Duration {
+            start: start_date,
+            end: end_date,
+        }
+    } else {
+        Period::Instant { date: end_date }
+    };
+
+    let frame = dp
+        .get("frame")
+        .and_then(serde_json::Value::as_str)
+        .and_then(Frame::parse);
+
+    let accn = dp.get("accn")?.as_str()?;
+    let form_str = dp.get("form")?.as_str()?;
+    let form = Form::from_sec_str(form_str)?;
+    let fy = u16::try_from(dp.get("fy")?.as_u64()?).ok()?;
+    let fp_str = dp.get("fp")?.as_str()?;
+    let fiscal_period = FiscalPeriod::from_sec_str(fp_str)?;
+    let filed_str = dp.get("filed")?.as_str()?;
+    let filed_date = NaiveDate::parse_from_str(filed_str, "%Y-%m-%d").ok()?;
+
+    let provenance = Provenance::new(
+        AccessionNumber::new(accn),
+        form,
+        FiscalYear::new(fy),
+        fiscal_period,
+        filed_date,
+        end_date,
+    );
+
+    Some(RawObservation::new(
+        namespace,
+        concept_name,
+        val,
+        unit,
+        period,
+        frame,
+        provenance,
+    ))
+}
+
 #[cfg(test)]
 mod tests {
     use pretty_assertions::assert_eq;
@@ -146,7 +200,7 @@ mod tests {
 
     fn sample_company_facts_json() -> serde_json::Value {
         json!({
-            "cik": 320193,
+            "cik": 320_193,
             "entityName": "Apple Inc.",
             "facts": {
                 "us-gaap": {
@@ -157,7 +211,7 @@ mod tests {
                             "USD": [
                                 {
                                     "end": "2024-09-28",
-                                    "val": 364980000000_i64,
+                                    "val": 364_980_000_000_i64,
                                     "accn": "0000320193-24-000123",
                                     "fy": 2024,
                                     "fp": "FY",
@@ -176,7 +230,7 @@ mod tests {
                                 {
                                     "start": "2023-10-01",
                                     "end": "2024-09-28",
-                                    "val": 391035000000_i64,
+                                    "val": 391_035_000_000_i64,
                                     "accn": "0000320193-24-000123",
                                     "fy": 2024,
                                     "fp": "FY",
@@ -196,7 +250,7 @@ mod tests {
                             "shares": [
                                 {
                                     "end": "2024-10-18",
-                                    "val": 15115823000_i64,
+                                    "val": 15_115_823_000_i64,
                                     "accn": "0000320193-24-000123",
                                     "fy": 2024,
                                     "fp": "FY",
@@ -289,7 +343,7 @@ mod tests {
     #[test]
     fn should_return_missing_namespace_error_when_us_gaap_namespace_is_absent() {
         let json = json!({
-            "cik": 320193,
+            "cik": 320_193,
             "entityName": "Apple Inc.",
             "facts": {
                 "dei": {}
@@ -304,58 +358,4 @@ mod tests {
 
         assert_eq!(result, expected_result);
     }
-}
-
-fn parse_data_point(
-    dp: &serde_json::Value,
-    namespace: Namespace,
-    concept_name: &str,
-    unit: Unit,
-) -> Option<RawObservation> {
-    let val = dp.get("val")?.as_i64()?;
-    let end_str = dp.get("end")?.as_str()?;
-    let end_date = NaiveDate::parse_from_str(end_str, "%Y-%m-%d").ok()?;
-
-    let period = if let Some(start_str) = dp.get("start").and_then(serde_json::Value::as_str) {
-        let start_date = NaiveDate::parse_from_str(start_str, "%Y-%m-%d").ok()?;
-        Period::Duration {
-            start: start_date,
-            end: end_date,
-        }
-    } else {
-        Period::Instant { date: end_date }
-    };
-
-    let frame = dp
-        .get("frame")
-        .and_then(serde_json::Value::as_str)
-        .and_then(Frame::parse);
-
-    let accn = dp.get("accn")?.as_str()?;
-    let form_str = dp.get("form")?.as_str()?;
-    let form = Form::from_sec_str(form_str)?;
-    let fy = u16::try_from(dp.get("fy")?.as_u64()?).ok()?;
-    let fp_str = dp.get("fp")?.as_str()?;
-    let fiscal_period = FiscalPeriod::from_sec_str(fp_str)?;
-    let filed_str = dp.get("filed")?.as_str()?;
-    let filed_date = NaiveDate::parse_from_str(filed_str, "%Y-%m-%d").ok()?;
-
-    let provenance = Provenance::new(
-        AccessionNumber::new(accn),
-        form,
-        FiscalYear::new(fy),
-        fiscal_period,
-        filed_date,
-        end_date,
-    );
-
-    Some(RawObservation::new(
-        namespace,
-        concept_name,
-        val,
-        unit,
-        period,
-        frame,
-        provenance,
-    ))
 }

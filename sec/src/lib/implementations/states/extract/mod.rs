@@ -394,6 +394,10 @@ mod tests {
     use crate::shared::http_client::implementations::sec_client::SecClient;
 
     #[test]
+    #[expect(
+        clippy::redundant_clone,
+        reason = "`state_name` returns `impl ToString`, so the call is needed, but clippy sees the `String` behind it"
+    )]
     fn should_return_super_state_name_with_current_state_when_in_validate_cik_format_state() {
         let input_cik = "1234567890";
         let sec_client = SecClient::default();
@@ -407,6 +411,10 @@ mod tests {
     }
 
     #[test]
+    #[expect(
+        clippy::redundant_clone,
+        reason = "`state_name` returns `impl ToString`, so the call is needed, but clippy sees the `String` behind it"
+    )]
     fn should_return_super_state_name_with_current_state_when_in_prepare_sec_request_state() {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should be valid");
         let sec_client = SecClient::default();
@@ -446,6 +454,10 @@ mod tests {
     }
 
     #[tokio::test]
+    #[expect(
+        clippy::redundant_clone,
+        reason = "`state_name` returns `impl ToString`, so the call is needed, but clippy sees the `String` behind it"
+    )]
     async fn should_transition_from_prepare_sec_request_to_execute_sec_request_state() {
         let input_cik = "1234567890";
         let sec_client = SecClient::default();
@@ -502,6 +514,10 @@ mod tests {
     }
 
     #[tokio::test]
+    #[expect(
+        clippy::redundant_clone,
+        reason = "`state_name` returns `impl ToString`, so the call is needed, but clippy sees the `String` behind it"
+    )]
     async fn should_transition_from_validate_cik_format_to_prepare_sec_request_state() {
         let input_cik = "1234567890";
         let sec_client = SecClient::default();
@@ -524,7 +540,7 @@ mod tests {
     }
 
     #[tokio::test]
-    #[should_panic]
+    #[should_panic(expected = "Transition should fail when output data is not yet computed")]
     async fn should_fail_transition_when_output_data_not_yet_computed() {
         let input_cik = "1234567890";
         let sec_client = SecClient::default();
