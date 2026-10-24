@@ -511,6 +511,23 @@ async fn should_succeed_for_must_pass_companies() {
 }
 ```
 
+## Regression Tests
+
+If you find a bug or a logic flaw, add a regression test in the same change as the fix. This
+rule covers a bug that a reviewer finds, a bug that a user reports, and a bug that you find
+yourself.
+
+1. Write a test that fails on the code before the fix.
+2. Prove that the test fails. Revert the fix or break the check on purpose, run the test, then
+   restore the code.
+3. Name the test after the behavior that the fix restores, not after the bug.
+4. If a review found the bug, name the test in your reply to that review.
+
+A fix without a test that fails on the old code is not done. Example: the skip rule of
+`FilesystemRepository::persist` compared only `sha256`, so stale metadata stayed on disk. The fix
+came with `should_replace_the_metadata_when_the_stored_metadata_holds_another_kind_version`, and
+that test fails if the skip compares only `sha256`.
+
 ## Proactive Behavior
 
 When reviewing or writing tests:
