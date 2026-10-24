@@ -34,6 +34,8 @@ pub use raw_document_metadata_context::RawDocumentMetadataContext;
 /// use chrono::{DateTime, Utc};
 /// use sec::shared::raw_document::{RawDocument, RawDocumentMetadataContext};
 /// use sec::shared::raw_source::RawCompanyFacts;
+/// use sec::shared::status_code::StatusCode;
+/// use sec::shared::user_agent::UserAgent;
 /// use storage::implementations::repository::filesystem::{
 ///     Document, DocumentKey, DocumentMetadata, Producer,
 /// };
@@ -48,9 +50,12 @@ pub use raw_document_metadata_context::RawDocumentMetadataContext;
 ///     .produced_at(DateTime::<Utc>::UNIX_EPOCH)
 ///     .run(Uuid::nil(), Producer::new("Store Company Facts", "0.1.0", "63c1f59"))
 ///     .context(RawDocumentMetadataContext {
-///         url: "https://data.sec.gov/api/xbrl/companyfacts/CIK0000320193.json".to_owned(),
-///         http_status: 200,
-///         user_agent: "arkad contact@example.com".to_owned(),
+///         url: "https://data.sec.gov/api/xbrl/companyfacts/CIK0000320193.json"
+///             .parse()
+///             .expect("A hardcoded valid URL string should always parse"),
+///         http_status: StatusCode::Ok,
+///         user_agent: UserAgent::new("arkad contact@example.com")
+///             .expect("A hardcoded SEC-format string should always validate"),
 ///     })
 ///     .build();
 ///
@@ -119,6 +124,20 @@ mod tests {
 
     use super::*;
     use crate::shared::raw_source::RawCompanyFacts;
+    use crate::shared::status_code::StatusCode;
+    use crate::shared::url::Url;
+    use crate::shared::user_agent::UserAgent;
+
+    fn sample_url() -> Url {
+        "https://data.sec.gov/api/xbrl/companyfacts/CIK0000320193.json"
+            .parse()
+            .expect("A hardcoded valid URL string should always parse")
+    }
+
+    fn sample_user_agent() -> UserAgent {
+        UserAgent::new("arkad contact@example.com")
+            .expect("A hardcoded SEC-format string should always validate")
+    }
 
     fn sample_raw_document() -> RawDocument<RawCompanyFacts> {
         let key = DocumentKey::new("sec/companyfacts/CIK0000320193.json")
@@ -136,9 +155,9 @@ mod tests {
                 Producer::new("Store Company Facts", "0.1.0", "63c1f59"),
             )
             .context(RawDocumentMetadataContext {
-                url: "https://data.sec.gov/api/xbrl/companyfacts/CIK0000320193.json".to_owned(),
-                http_status: 200,
-                user_agent: "arkad contact@example.com".to_owned(),
+                url: sample_url(),
+                http_status: StatusCode::Ok,
+                user_agent: sample_user_agent(),
             })
             .build();
         RawDocument::from_parts(key, b"{}".to_vec(), metadata)
@@ -212,12 +231,64 @@ mod tests {
         let document = sample_raw_document();
 
         let expected_result = RawDocumentMetadataContext {
-            url: "https://data.sec.gov/api/xbrl/companyfacts/CIK0000320193.json".to_owned(),
-            http_status: 200,
-            user_agent: "arkad contact@example.com".to_owned(),
+            url: sample_url(),
+            http_status: StatusCode::Ok,
+            user_agent: sample_user_agent(),
         };
 
         let result = document.metadata().context().clone();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_serialize_the_metadata_in_the_format_of_the_findings_for_raw_company_facts() {
+        let produced_at = "2026-09-22T20:05:30Z"
+            .parse::<DateTime<Utc>>()
+            .expect("Given a hardcoded RFC 3339 timestamp, parsing it should always succeed");
+        let metadata = DocumentMetadata::builder()
+            .document_type::<RawDocument<RawCompanyFacts>>()
+            .media_type("application/json")
+            .content(
+                3_789_099,
+                "73a86c6aedc31f77cac2ea4df5f80f0b73a86c6aedc31f77cac2ea4df5f80f0b",
+            )
+            .produced_at(produced_at)
+            .run(
+                Uuid::from_u128(0x0b6f_3c1e_5d2a_4f7b_9c3e_8a1d_2b4c_6e8f),
+                Producer::new("Store Company Facts", "0.1.0", "63c1f59"),
+            )
+            .context(RawDocumentMetadataContext {
+                url: sample_url(),
+                http_status: StatusCode::Ok,
+                user_agent: sample_user_agent(),
+            })
+            .build();
+
+        let expected_result = serde_json::json!({
+            "metadata_version": 1,
+            "kind": "raw_company_facts",
+            "kind_version": 1,
+            "media_type": "application/json",
+            "bytes": 3_789_099,
+            "sha256": "73a86c6aedc31f77cac2ea4df5f80f0b73a86c6aedc31f77cac2ea4df5f80f0b",
+            "produced_at": "2026-09-22T20:05:30Z",
+            "execution_id": "0b6f3c1e-5d2a-4f7b-9c3e-8a1d2b4c6e8f",
+            "producer": {
+                "name": "Store Company Facts",
+                "crate_version": "0.1.0",
+                "commit": "63c1f59",
+            },
+            "inputs": [],
+            "context": {
+                "url": "https://data.sec.gov/api/xbrl/companyfacts/CIK0000320193.json",
+                "http_status": 200,
+                "user_agent": "arkad contact@example.com",
+            },
+        });
+
+        let result = serde_json::to_value(metadata)
+            .expect("Given metadata of domain types, serialization should always succeed");
 
         assert_eq!(result, expected_result);
     }

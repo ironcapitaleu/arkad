@@ -12,6 +12,7 @@
 //! - [`user_agent_error`]: The [`UserAgentError`] returned when validation fails.
 
 use regex::Regex;
+use serde::{Deserialize, Serialize};
 
 pub mod constants;
 pub mod user_agent_error;
@@ -21,10 +22,26 @@ pub use user_agent_error::{UserAgentError, UserAgentErrorReason};
 ///
 /// The SEC requires the form `Company Name email@domain.com`; wrapping it in a newtype turns that
 /// requirement into a type-level guarantee. Build one with [`UserAgent::new`].
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
+///
+/// A `UserAgent` serializes as its string. Deserializing goes through [`UserAgent::new`], so a
+/// user agent read from a file passes the same check.
+///
+/// # Examples
+///
+/// The field is private, so code outside this module cannot build a `UserAgent` without the check:
+///
+/// ```compile_fail,E0451
+/// use sec::shared::user_agent::UserAgent;
+///
+/// let agent = UserAgent {
+///     inner: String::new(),
+/// };
+/// ```
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(try_from = "String", into = "String")]
 pub struct UserAgent {
     /// The validated user-agent string.
-    pub inner: String,
+    inner: String,
 }
 
 impl UserAgent {
@@ -118,6 +135,27 @@ impl UserAgent {
     #[must_use]
     pub fn inner(&self) -> &str {
         &self.inner
+    }
+}
+
+impl TryFrom<String> for UserAgent {
+    type Error = UserAgentError;
+
+    /// Validates an owned [`String`] into a [`UserAgent`], as [`UserAgent::new`] does.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`UserAgentError`] ([`UserAgentErrorReason::InvalidSecFormat`]) if the string is not
+    /// of the form `Company Name email@domain.com`.
+    fn try_from(user_agent: String) -> Result<Self, Self::Error> {
+        Self::new(&user_agent)
+    }
+}
+
+impl From<UserAgent> for String {
+    /// Returns the user-agent string of a [`UserAgent`].
+    fn from(user_agent: UserAgent) -> Self {
+        user_agent.inner
     }
 }
 
@@ -249,5 +287,48 @@ mod tests {
         let result = user_agent.inner();
 
         assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_serialize_as_its_string_for_a_user_agent() {
+        let agent = UserAgent::new("Sample Company contact@example.com")
+            .expect("A hardcoded SEC-format string should always validate");
+
+        let expected_result = serde_json::json!("Sample Company contact@example.com");
+
+        let result = serde_json::to_value(agent)
+            .expect("Given a user agent, serialization should always succeed");
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_the_same_user_agent_when_deserializing_a_serialized_user_agent() {
+        let agent = UserAgent::new("Sample Company contact@example.com")
+            .expect("A hardcoded SEC-format string should always validate");
+        let json = serde_json::to_string(&agent)
+            .expect("Given a user agent, serialization should always succeed");
+
+        let expected_result = agent;
+
+        let result: UserAgent = serde_json::from_str(&json)
+            .expect("Given JSON this type produced, deserialization should always succeed");
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_fail_to_deserialize_when_the_string_has_no_email() {
+        let json = r#""Sample Company""#;
+
+        let expected_result =
+            UserAgentError::new(UserAgentErrorReason::InvalidSecFormat, "Sample Company")
+                .to_string();
+
+        let result = serde_json::from_str::<UserAgent>(json)
+            .expect_err("Given a user agent without an email, deserialization should always fail")
+            .to_string();
+
+        assert!(result.starts_with(&expected_result));
     }
 }

@@ -10,7 +10,7 @@
 use std::fmt::{self, Display, Formatter};
 use std::str::FromStr;
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use self::url_error::{InvalidUrlReason, UrlError};
 
@@ -21,7 +21,11 @@ pub mod url_error;
 ///
 /// A newtype over [`String`] whose inner value is validated at construction, so holding a `Url`
 /// guarantees it parses.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
+///
+/// A `Url` serializes as its string. Deserializing goes through [`Url::from_string`], so a URL
+/// read from a file passes the same check.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(try_from = "String", into = "String")]
 pub struct Url {
     value: String,
 }
@@ -83,6 +87,26 @@ impl Url {
     #[must_use]
     pub fn as_str(&self) -> &str {
         &self.value
+    }
+}
+
+impl TryFrom<String> for Url {
+    type Error = UrlError;
+
+    /// Validates an owned [`String`] into a [`Url`], as [`Url::from_string`] does.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`UrlError`] ([`InvalidUrlReason::FailedToParse`]) if the input is not a valid URL.
+    fn try_from(url: String) -> Result<Self, Self::Error> {
+        Self::from_string(url)
+    }
+}
+
+impl From<Url> for String {
+    /// Returns the URL string of a [`Url`].
+    fn from(url: Url) -> Self {
+        url.value
     }
 }
 
@@ -234,5 +258,50 @@ mod tests {
             .invalid_url;
 
         assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_serialize_as_its_string_for_a_url() {
+        let url: Url = "https://data.sec.gov/api/xbrl/companyfacts/CIK0000320193.json"
+            .parse()
+            .expect("A hardcoded valid URL string should always parse");
+
+        let expected_result =
+            serde_json::json!("https://data.sec.gov/api/xbrl/companyfacts/CIK0000320193.json");
+
+        let result =
+            serde_json::to_value(url).expect("Given a URL, serialization should always succeed");
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_the_same_url_when_deserializing_a_serialized_url() {
+        let url: Url = "https://data.sec.gov/api/xbrl/companyfacts/CIK0000320193.json"
+            .parse()
+            .expect("A hardcoded valid URL string should always parse");
+        let json =
+            serde_json::to_string(&url).expect("Given a URL, serialization should always succeed");
+
+        let expected_result = url;
+
+        let result: Url = serde_json::from_str(&json)
+            .expect("Given JSON this type produced, deserialization should always succeed");
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_fail_to_deserialize_when_the_string_is_not_a_url() {
+        let json = r#""not a url""#;
+
+        let expected_result =
+            UrlError::new(InvalidUrlReason::FailedToParse, "not a url").to_string();
+
+        let result = serde_json::from_str::<Url>(json)
+            .expect_err("Given a string that is not a URL, deserialization should always fail")
+            .to_string();
+
+        assert!(result.starts_with(&expected_result));
     }
 }
