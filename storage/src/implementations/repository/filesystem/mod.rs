@@ -17,13 +17,13 @@
 //!
 //! ## Modules
 //!
-//! - [`traits`]: The access markers and the traits that connect them to the ports.
+//! - [`error`]: The [`FailedFilesystemOperation`] for an operation on a path that did not
+//!   complete.
 //! - [`implementations`]: The [`FilesystemRepositoryBuilder`], the constants that fix the file
 //!   layout, such as [`METADATA_SUFFIX`], and the port implementations.
-//! - [`shared`]: The [`DocumentKey`], the [`DocumentMetadata`], and the [`RawDocument`] that more
-//!   than one module uses.
-//! - [`error`]: The [`FailedFilesystemOperation`] for an operation on a path that did not
-//!   complete, and the [`InvalidDocumentKey`] for a rejected path.
+//! - [`shared`]: The [`DocumentKey`] and its [`InvalidDocumentKey`], the [`DocumentMetadata`], and
+//!   the [`RawDocument`] that more than one module uses.
+//! - [`traits`]: The access markers and the traits that connect them to the ports.
 
 use std::io;
 use std::path::{Path, PathBuf};
@@ -35,13 +35,10 @@ pub mod implementations;
 pub mod shared;
 pub mod traits;
 
-pub use error::{
-    FailedFilesystemOperation, FailedFilesystemOperationReason, FilesystemOperation,
-    InvalidDocumentKey,
-};
+pub use error::{FailedFilesystemOperation, FailedFilesystemOperationReason, FilesystemOperation};
 pub use implementations::builder::{FilesystemRepositoryBuilder, NoAccess, NoRoot};
 pub use implementations::constants::METADATA_SUFFIX;
-pub use shared::document_key::DocumentKey;
+pub use shared::document_key::{DocumentKey, InvalidDocumentKey};
 pub use shared::document_metadata::DocumentMetadata;
 pub use shared::raw_document::RawDocument;
 pub use traits::access::{Access, CanRead, CanWrite, Read, ReadWrite, Write};

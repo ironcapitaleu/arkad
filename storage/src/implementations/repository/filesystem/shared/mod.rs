@@ -5,7 +5,8 @@
 //!
 //! ## Modules
 //!
-//! - [`document_key`]: The [`DocumentKey`](document_key::DocumentKey) naming one document.
+//! - [`document_key`]: The [`DocumentKey`](document_key::DocumentKey) naming one document, and the
+//!   [`InvalidDocumentKey`](document_key::InvalidDocumentKey) for a path the store rejects.
 //! - [`document_metadata`]: The [`DocumentMetadata`](document_metadata::DocumentMetadata)
 //!   describing the fetch behind a document.
 //! - [`raw_document`]: The [`RawDocument`](raw_document::RawDocument) a read returns and a write
