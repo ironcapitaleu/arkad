@@ -159,7 +159,8 @@ mod tests {
 
     use super::*;
     use crate::error::BackendError;
-    use crate::implementations::repository::filesystem::{Read, ReadWrite, sha256_hex};
+    use crate::implementations::repository::filesystem::{Read, ReadWrite};
+    use crate::shared::sha256_hex;
     use crate::tests::fixtures::sample_document::{SampleDocument, sample_document};
 
     /// Builds a repository with read access under the given root.

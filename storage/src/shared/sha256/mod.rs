@@ -1,7 +1,8 @@
 //! # SHA-256
 //!
 //! Provides [`sha256_hex`], which computes the digest that [`DocumentMetadata::sha256`] holds, and
-//! the [`Sha256Digest`] newtype that holds such a digest.
+//! the [`Sha256Digest`] newtype that holds such a digest. Callers outside `storage` use the same
+//! function, so the digest of a response matches the digest in its metadata file.
 //!
 //! [`DocumentMetadata::sha256`]: crate::implementations::repository::filesystem::DocumentMetadata::sha256
 
@@ -14,7 +15,7 @@ use sha2::{Digest, Sha256};
 /// # Examples
 ///
 /// ```rust
-/// use storage::implementations::repository::filesystem::sha256_hex;
+/// use storage::shared::sha256_hex;
 ///
 /// let expected_result = "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a";
 ///
@@ -46,7 +47,7 @@ impl Sha256Digest {
     /// # Examples
     ///
     /// ```rust
-    /// use storage::implementations::repository::filesystem::Sha256Digest;
+    /// use storage::shared::Sha256Digest;
     ///
     /// let expected_result = "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a";
     ///

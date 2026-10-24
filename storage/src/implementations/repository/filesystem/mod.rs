@@ -34,6 +34,7 @@ use std::marker::PhantomData;
 use std::path::{Path, PathBuf};
 
 use crate::error::BackendError;
+use crate::shared::sha256_hex;
 
 pub mod error;
 pub mod implementations;
@@ -48,7 +49,6 @@ pub use shared::document_metadata::{
     DocumentMetadata, DocumentMetadataBuilder, InputDocument, METADATA_VERSION, NoDocumentType,
     Producer,
 };
-pub use shared::sha256::{Sha256Digest, sha256_hex};
 pub use traits::access::{Access, CanRead, CanWrite, Read, ReadWrite, Write};
 pub use traits::document::Document;
 

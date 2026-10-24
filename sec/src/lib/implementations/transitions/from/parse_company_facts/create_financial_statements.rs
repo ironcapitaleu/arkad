@@ -57,7 +57,7 @@ mod tests {
     use std::collections::HashMap;
 
     use pretty_assertions::assert_eq;
-    use storage::implementations::repository::filesystem::Sha256Digest;
+    use storage::shared::Sha256Digest;
 
     use super::*;
     use crate::implementations::states::transform::parse_company_facts::ParseCompanyFactsInput;

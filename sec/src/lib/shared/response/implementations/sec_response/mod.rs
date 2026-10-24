@@ -13,7 +13,7 @@ use std::fmt::{self, Display, Formatter};
 use async_trait::async_trait;
 use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
-use storage::implementations::repository::filesystem::Sha256Digest;
+use storage::shared::Sha256Digest;
 
 use crate::shared::content_type::ContentType;
 use crate::shared::headers::Headers;

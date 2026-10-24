@@ -15,6 +15,7 @@
 //!
 //! - [`error`]: The error types the crate returns and the conversions between them.
 //! - [`implementations`]: The concrete backends, one module per storage medium.
+//! - [`shared`]: The types that more than one backend uses, such as the [`Sha256Digest`].
 //! - [`traits`]: The traits for reading and writing records.
 //!
 //! ## Usage
@@ -34,9 +35,11 @@
 
 pub mod error;
 pub mod implementations;
+pub mod shared;
 pub mod traits;
 
 pub use error::{BackendError, ErrorKind, ReadError, WriteError};
+pub use shared::{Sha256Digest, sha256_hex};
 pub use traits::repository::{ReadRepository, ReadWriteRepository, WriteRepository};
 
 #[cfg(test)]

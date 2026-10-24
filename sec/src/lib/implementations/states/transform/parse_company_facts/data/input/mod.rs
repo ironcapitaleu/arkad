@@ -14,7 +14,7 @@
 use std::fmt;
 
 use state_maschine::prelude::StateData as SMStateData;
-use storage::implementations::repository::filesystem::Sha256Digest;
+use storage::shared::Sha256Digest;
 
 use crate::error::State as StateError;
 use crate::traits::state_machine::state::StateData;
@@ -40,7 +40,7 @@ impl ParseCompanyFactsInput {
     ///
     /// ```
     /// use sec::implementations::states::transform::parse_company_facts::data::input::ParseCompanyFactsInput;
-    /// use storage::implementations::repository::filesystem::Sha256Digest;
+    /// use storage::shared::Sha256Digest;
     ///
     /// let json = serde_json::json!({"cik": 320193, "entityName": "Apple Inc.", "facts": {}});
     /// let digest = Sha256Digest::of(json.to_string().as_bytes());
@@ -226,7 +226,7 @@ mod tests {
 
     use pretty_assertions::{assert_eq, assert_ne};
     use state_maschine::prelude::StateData as SMStateData;
-    use storage::implementations::repository::filesystem::Sha256Digest;
+    use storage::shared::Sha256Digest;
 
     use super::{ParseCompanyFactsInput, ParseCompanyFactsInputUpdaterBuilder};
     use crate::traits::state_machine::state::StateData;

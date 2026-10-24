@@ -83,7 +83,7 @@ impl ParseCompanyFacts {
     /// use sec::implementations::states::transform::parse_company_facts::*;
     /// use sec::shared::cik::Cik;
     /// use state_maschine::prelude::State as SMState;
-    /// use storage::implementations::repository::filesystem::Sha256Digest;
+    /// use storage::shared::Sha256Digest;
     ///
     /// let json = serde_json::json!({});
     /// let digest = Sha256Digest::of(json.to_string().as_bytes());
@@ -367,7 +367,7 @@ mod tests {
     use std::{fmt::Debug, hash::Hash};
 
     use pretty_assertions::assert_eq;
-    use storage::implementations::repository::filesystem::Sha256Digest;
+    use storage::shared::Sha256Digest;
     use tokio;
 
     use super::*;
