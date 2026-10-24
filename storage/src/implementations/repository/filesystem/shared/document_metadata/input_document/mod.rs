@@ -209,4 +209,16 @@ mod tests {
 
         assert!(result.starts_with(expected_result));
     }
+
+    #[test]
+    fn should_reject_the_input_document_when_the_sha256_is_not_a_digest() {
+        let json = r#"{"key":"sec/companyfacts/CIK0000320193.json","sha256":"NOT-HEX"}"#;
+
+        let expected_result = true;
+
+        let result = serde_json::from_str::<InputDocument>(json)
+            .is_err_and(|error| error.to_string().starts_with("[InvalidSha256Digest]"));
+
+        assert_eq!(result, expected_result);
+    }
 }

@@ -40,8 +40,6 @@ pub use producer::Producer;
 /// receive metadata built for another type. Deserializing checks none of the three values either.
 /// So a reader compares them with the document type's values before it uses the metadata.
 ///
-/// Nothing checks that the SHA-256 is 64 lowercase hex characters.
-///
 /// [`Document`]: crate::implementations::repository::filesystem::Document
 /// [`Document::from_parts`]: crate::implementations::repository::filesystem::Document::from_parts
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]

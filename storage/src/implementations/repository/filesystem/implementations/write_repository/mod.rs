@@ -807,7 +807,7 @@ mod tests {
         let record = SampleDocument::from_parts(key, b"[]".to_vec(), sample_metadata());
         let reason = FailedFilesystemOperationReason::UnexpectedDocumentDigest {
             found_digest: Sha256Digest::of(b"[]"),
-            expected_digest: sample_metadata().sha256().to_owned(),
+            expected_digest: sample_metadata().sha256().clone(),
         };
 
         let expected_result = Err(WriteError::failed_integrity_check(reason.to_string()));

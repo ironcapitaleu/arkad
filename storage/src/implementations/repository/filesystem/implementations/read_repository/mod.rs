@@ -566,7 +566,7 @@ mod tests {
         let expected_result = Err(read_error(
             FailedFilesystemOperationReason::UnexpectedDocumentDigest {
                 found_digest: Sha256Digest::of(b"[]"),
-                expected_digest: sample_document.metadata().sha256().to_owned(),
+                expected_digest: sample_document.metadata().sha256().clone(),
             },
             &document_path,
         ));

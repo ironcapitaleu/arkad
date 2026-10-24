@@ -1,8 +1,8 @@
 //! # SHA-256
 //!
-//! Provides [`sha256_hex`], which computes a SHA-256 digest, and the [`Sha256Digest`] newtype that
-//! [`DocumentMetadata::sha256`] holds. Callers outside `storage` use the same type, so the digest
-//! of a response matches the digest in its metadata file.
+//! Provides the [`Sha256Digest`] newtype that [`DocumentMetadata::sha256`] holds. Callers outside
+//! `storage` use the same type, so the digest of a response matches the digest in its metadata
+//! file.
 //!
 //! ## Modules
 //!
@@ -22,19 +22,8 @@ pub use invalid_sha256_digest::InvalidSha256Digest;
 
 /// Returns the SHA-256 digest of the bytes as 64 lowercase hex characters.
 ///
-/// # Examples
-///
-/// ```rust
-/// use storage::shared::sha256_hex;
-///
-/// let expected_result = "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a";
-///
-/// let result = sha256_hex(b"{}");
-///
-/// assert_eq!(result, expected_result);
-/// ```
-#[must_use]
-pub fn sha256_hex(bytes: &[u8]) -> String {
+/// Private, so every caller gets a [`Sha256Digest`] through [`Sha256Digest::of`].
+fn sha256_hex(bytes: &[u8]) -> String {
     Sha256::digest(bytes)
         .iter()
         .fold(String::with_capacity(64), |mut hex, byte| {
@@ -47,8 +36,8 @@ pub fn sha256_hex(bytes: &[u8]) -> String {
 /// The SHA-256 digest of a byte slice, as 64 lowercase hex characters.
 ///
 /// [`Sha256Digest::of`] computes a digest. [`str::parse`] and deserialization accept only 64
-/// lowercase hex characters, so every value has the form that [`sha256_hex`] returns. A digest
-/// serializes as its hex string.
+/// lowercase hex characters, so every value has the form that [`Sha256Digest::of`] produces. A
+/// digest serializes as its hex string.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Sha256Digest(String);
 
@@ -230,7 +219,8 @@ mod tests {
 
         let expected_result = true;
 
-        let result = serde_json::from_str::<Sha256Digest>(&json).is_err();
+        let result = serde_json::from_str::<Sha256Digest>(&json)
+            .is_err_and(|error| error.to_string().starts_with("[InvalidSha256Digest]"));
 
         assert_eq!(result, expected_result);
     }
