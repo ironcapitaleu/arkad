@@ -9,17 +9,23 @@ use std::process;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use async_trait::async_trait;
+use chrono::{DateTime, Utc};
+use serde::Deserialize;
+use serde_json::Value;
 use tokio::fs::{self, File, OpenOptions};
 use tokio::io::AsyncWriteExt;
+use uuid::Uuid;
 
 use crate::error::WriteError;
-use crate::implementations::repository::filesystem::FilesystemRepository;
 use crate::implementations::repository::filesystem::error::{
     FailedFilesystemOperation, FailedFilesystemOperationReason, FilesystemOperation,
 };
 use crate::implementations::repository::filesystem::shared::document_key::DocumentKey;
 use crate::implementations::repository::filesystem::traits::access::CanWrite;
 use crate::implementations::repository::filesystem::traits::document::Document;
+use crate::implementations::repository::filesystem::{
+    FilesystemRepository, check_content, sha256_hex,
+};
 use crate::traits::repository::WriteRepository;
 
 /// Counter that gives every temporary file of this process a distinct name.
@@ -36,16 +42,29 @@ impl<A: CanWrite, D: Document> WriteRepository for FilesystemRepository<A, D> {
 
     /// Writes a document and its metadata under the root.
     ///
-    /// Checks that the record's metadata holds the kind and kind version of `D`, and serializes the
-    /// metadata. Then checks that the root exists, and creates every missing directory between the
-    /// root and the document. If the key already names a document, the new bytes and metadata
-    /// replace the old.
+    /// Checks the record before it touches a file, in this order:
+    /// 1. The key does not end in
+    ///    [`METADATA_SUFFIX`](crate::implementations::repository::filesystem::METADATA_SUFFIX).
+    /// 2. The metadata holds the kind and kind version of `D`, and serializes as JSON.
+    /// 3. The bytes have the size and the SHA-256 digest the metadata names.
+    ///
+    /// Then `persist` checks that the root exists. If the stored metadata equals the new metadata
+    /// in every field except `produced_at` and `execution_id`, both stored run fields are valid, and
+    /// the stored document matches the digest of the new bytes, `persist` writes no file and returns `Ok(())`. The stored
+    /// `produced_at` and `execution_id` stay. In every other case, `persist` creates every
+    /// missing directory between the root and the document, and the new bytes and metadata replace
+    /// the old. This case covers a torn pair, whose metadata matches the new bytes but whose
+    /// document does not.
     ///
     /// # Errors
     ///
+    /// Returns a [`WriteError::FailedIntegrityCheck`] that names the mismatch if the bytes have
+    /// another size or digest than the record's metadata names. The write touches no file.
+    ///
     /// Returns a [`WriteError::Backend`] that holds the [`FailedFilesystemOperation`] message if:
-    /// - the record's metadata holds another kind or kind version than `D`. The write touches no
-    ///   file ([`BackendError::FailedOperation`](crate::BackendError::FailedOperation)).
+    /// - the key ends in the metadata suffix, or the record's metadata holds another kind or kind
+    ///   version than `D`. The write touches no file
+    ///   ([`BackendError::FailedOperation`](crate::BackendError::FailedOperation)).
     /// - the root does not exist, is not a directory, or has a file in its path
     ///   ([`BackendError::UnreachableStorage`](crate::BackendError::UnreachableStorage)).
     /// - the filesystem denies access to a path the write touches
@@ -57,21 +76,25 @@ impl<A: CanWrite, D: Document> WriteRepository for FilesystemRepository<A, D> {
         let metadata = self
             .prepare_metadata(&record)
             .map_err(|error| WriteError::Backend(error.into()))?;
+        check_content(record.bytes(), record.metadata())
+            .map_err(|reason| WriteError::failed_integrity_check(reason.to_string()))?;
         let key = record.key();
         let bytes = record.bytes();
-        self.write_files(key, &metadata, bytes)
+        let digest = record.metadata().sha256();
+        self.write_files(key, &metadata, bytes, digest)
             .await
             .map_err(|error| WriteError::Backend(error.into()))
     }
 }
 
 impl<A: CanWrite, D: Document> FilesystemRepository<A, D> {
-    /// Checks that the record's metadata holds the kind and kind version of `D`, then serializes
-    /// the metadata.
+    /// Checks the record's key, checks that its metadata holds the kind and kind version of `D`,
+    /// then serializes the metadata.
     ///
     /// Runs before the first `await`, so the write's future holds no reference to `D`, and `D`
     /// needs no `Sync` bound.
     fn prepare_metadata(&self, record: &D) -> Result<Vec<u8>, FailedFilesystemOperation> {
+        self.check_key(record.key())?;
         let metadata_path = self.metadata_path(record.key());
         let metadata = record.metadata();
         let expected_kind = D::KIND.to_string();
@@ -96,17 +119,23 @@ impl<A: CanWrite, D: Document> FilesystemRepository<A, D> {
 // `A: Access` makes `A` `Sync`, so the future of `write_files` is `Send`. The method takes no `D`,
 // so `D` needs no bound.
 impl<A: CanWrite, D> FilesystemRepository<A, D> {
-    /// Checks the root, creates the directories below it, then writes the metadata and the
-    /// document under the key.
+    /// Checks the root. Unless the stored pair matches the new pair, creates the directories below
+    /// the root, then writes the metadata and the document under the key.
     async fn write_files(
         &self,
         key: &DocumentKey,
         metadata: &[u8],
         bytes: &[u8],
+        digest: &str,
     ) -> Result<(), FailedFilesystemOperation> {
         self.ensure_root_is_reachable().await?;
 
         let document_path = self.document_path(key);
+        let metadata_path = self.metadata_path(key);
+        if stored_pair_matches(&metadata_path, metadata, &document_path, digest).await {
+            return Ok(());
+        }
+
         if let Some(directory) = document_path.parent() {
             fs::create_dir_all(directory).await.map_err(|error| {
                 FailedFilesystemOperation::from_io(
@@ -117,9 +146,63 @@ impl<A: CanWrite, D> FilesystemRepository<A, D> {
             })?;
         }
 
-        let metadata_path = self.metadata_path(key);
         write_pair(&metadata_path, metadata, &document_path, bytes).await
     }
+}
+
+/// The metadata fields that name the run, which a skipped write keeps from the stored metadata.
+#[derive(Deserialize)]
+struct StoredRun {
+    #[expect(
+        dead_code,
+        reason = "parsed only to check that the stored value is valid"
+    )]
+    produced_at: DateTime<Utc>,
+    #[expect(
+        dead_code,
+        reason = "parsed only to check that the stored value is valid"
+    )]
+    execution_id: Uuid,
+}
+
+/// Returns `true` if the stored metadata equals the new metadata outside the run fields, and the
+/// stored document matches the digest.
+///
+/// Returns `false` if a file is missing or unreadable, a stored run field is invalid, or another
+/// field differs, so the write repairs the pair.
+async fn stored_pair_matches(
+    metadata_path: &Path,
+    metadata: &[u8],
+    document_path: &Path,
+    digest: &str,
+) -> bool {
+    let Ok(stored_json) = fs::read(metadata_path).await else {
+        return false;
+    };
+    let (Ok(stored), Ok(new)) = (
+        serde_json::from_slice::<Value>(&stored_json),
+        serde_json::from_slice::<Value>(metadata),
+    ) else {
+        return false;
+    };
+    if StoredRun::deserialize(&stored).is_err() {
+        return false;
+    }
+    if without_run_fields(stored) != without_run_fields(new) {
+        return false;
+    }
+    fs::read(document_path)
+        .await
+        .is_ok_and(|document| sha256_hex(&document) == digest)
+}
+
+/// Removes `produced_at` and `execution_id` from a metadata object.
+fn without_run_fields(mut metadata: Value) -> Value {
+    if let Some(fields) = metadata.as_object_mut() {
+        fields.remove("produced_at");
+        fields.remove("execution_id");
+    }
+    metadata
 }
 
 /// Writes the metadata and the document to temporary files, then renames both into place.
@@ -262,7 +345,7 @@ mod tests {
     use crate::error::BackendError;
     use crate::implementations::repository::filesystem::{DocumentMetadata, ReadWrite, Write};
     use crate::tests::fixtures::sample_document::{
-        SampleContext, SampleDocument, sample_document, sample_metadata_produced_at,
+        SampleContext, SampleDocument, sample_document, sample_document_holding, sample_metadata,
     };
 
     /// Builds a repository with write access under the given root.
@@ -359,11 +442,8 @@ mod tests {
         let root = temporary_root();
         let repository = repository_at(root.path());
         let first_document = sample_document();
-        let key = first_document.key().clone();
-        let metadata = first_document.metadata().clone();
-        let second_document =
-            SampleDocument::from_parts(key.clone(), br#"{"cik":320193}"#.to_vec(), metadata);
-        let document_path = repository.document_path(&key);
+        let second_document = sample_document_holding(br#"{"cik":320193}"#, "2026-10-04T08:00:00Z");
+        let document_path = repository.document_path(first_document.key());
 
         let expected_result = second_document.bytes().to_vec();
 
@@ -382,15 +462,12 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_replace_the_metadata_when_persisting_a_record_under_an_existing_key() {
+    async fn should_replace_the_metadata_when_persisting_changed_bytes_under_an_existing_key() {
         let root = temporary_root();
         let repository = repository_at(root.path());
         let first_document = sample_document();
-        let key = first_document.key().clone();
-        let bytes = first_document.bytes().to_vec();
-        let second_metadata = sample_metadata_produced_at("2026-10-04T08:00:00Z");
-        let second_document = SampleDocument::from_parts(key.clone(), bytes, second_metadata);
-        let metadata_path = repository.metadata_path(&key);
+        let second_document = sample_document_holding(br#"{"cik":320193}"#, "2026-10-04T08:00:00Z");
+        let metadata_path = repository.metadata_path(first_document.key());
 
         let expected_result = second_document.metadata().clone();
 
@@ -650,6 +727,197 @@ mod tests {
         // The write error is the subject of another test. This test checks the disk afterwards.
         let _ = repository.persist(record).await;
         let result = sorted_file_names(root.path());
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_keep_the_stored_metadata_when_persisting_unchanged_bytes() {
+        let root = temporary_root();
+        let repository = repository_at(root.path());
+        let first_document = sample_document();
+        let refetched_document = sample_document_holding(b"{}", "2026-10-04T08:00:00Z");
+        let metadata_path = repository.metadata_path(first_document.key());
+
+        let expected_result = first_document.metadata().clone();
+
+        repository
+            .persist(first_document)
+            .await
+            .expect("Given an existing writable root, persisting a record should always succeed");
+        repository.persist(refetched_document).await.expect(
+            "Given an existing writable root, persisting unchanged bytes should always succeed",
+        );
+        let result = read_stored_metadata(&metadata_path);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_replace_the_document_when_a_refetch_finds_a_torn_pair() {
+        let root = temporary_root();
+        let repository = repository_at(root.path());
+        let old_document = sample_document();
+        let new_document = sample_document_holding(br#"{"cik":320193}"#, "2026-10-04T08:00:00Z");
+        let document_path = repository.document_path(old_document.key());
+        let metadata_path = repository.metadata_path(old_document.key());
+        let new_metadata_json = serde_json::to_vec(new_document.metadata())
+            .expect("Given metadata of owned fields, serialization should always succeed");
+
+        let expected_result = new_document.bytes().to_vec();
+
+        repository
+            .persist(old_document)
+            .await
+            .expect("Given an existing writable root, persisting a record should always succeed");
+        // The new metadata beside the old document is the state a failed document rename leaves.
+        std::fs::write(&metadata_path, new_metadata_json)
+            .expect("Given an existing directory, overwriting the metadata should always succeed");
+        repository
+            .persist(new_document)
+            .await
+            .expect("Given an existing writable root, repairing a torn pair should always succeed");
+        let result = std::fs::read(document_path)
+            .expect("Given a persisted record, its document file should always exist");
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_return_failed_integrity_check_when_the_bytes_are_longer_than_the_metadata_names()
+     {
+        let root = temporary_root();
+        let repository = repository_at(root.path());
+        let key = sample_document().key().clone();
+        let record = SampleDocument::from_parts(key, b"{ }".to_vec(), sample_metadata());
+
+        let expected_result = Err(WriteError::failed_integrity_check(
+            "Document holds 3 bytes, metadata names 2 bytes",
+        ));
+
+        let result = repository.persist(record).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_return_failed_integrity_check_when_the_bytes_differ_from_the_metadata_digest() {
+        let root = temporary_root();
+        let repository = repository_at(root.path());
+        let key = sample_document().key().clone();
+        let record = SampleDocument::from_parts(key, b"[]".to_vec(), sample_metadata());
+        let reason = FailedFilesystemOperationReason::UnexpectedDocumentDigest {
+            found_digest: sha256_hex(b"[]"),
+            expected_digest: sample_metadata().sha256().to_owned(),
+        };
+
+        let expected_result = Err(WriteError::failed_integrity_check(reason.to_string()));
+
+        let result = repository.persist(record).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_keep_the_stored_document_when_persisting_a_record_that_fails_the_integrity_check()
+     {
+        let root = temporary_root();
+        let repository = repository_at(root.path());
+        let stored_document = sample_document();
+        let key = stored_document.key().clone();
+        let document_path = repository.document_path(&key);
+        let record = SampleDocument::from_parts(key, b"[]".to_vec(), sample_metadata());
+
+        let expected_result = stored_document.bytes().to_vec();
+
+        repository
+            .persist(stored_document)
+            .await
+            .expect("Given an existing writable root, persisting a record should always succeed");
+        // The write error is the subject of the two tests above. This test checks the disk
+        // afterwards.
+        let _ = repository.persist(record).await;
+        let result = std::fs::read(document_path)
+            .expect("Given a persisted record, its document file should always exist");
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_return_invalid_key_suffix_when_persisting_a_key_that_ends_in_the_metadata_suffix()
+     {
+        let root = temporary_root();
+        let repository = repository_at(root.path());
+        let key = DocumentKey::new("sec/companyfacts/CIK0000320193.json.meta.json")
+            .expect("Given a valid relative path, the key should always build");
+        let document_path = repository.document_path(&key);
+        let record = SampleDocument::from_parts(key, b"{}".to_vec(), sample_metadata());
+
+        let expected_result = Err(WriteError::Backend(BackendError::from(
+            FailedFilesystemOperation::new(
+                FailedFilesystemOperationReason::InvalidKeySuffix,
+                document_path,
+            ),
+        )));
+
+        let result = repository.persist(record).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    /// Persists the sample document, sets one field of its stored metadata, persists the document
+    /// again, and returns the stored metadata.
+    async fn persist_over_stored_metadata_field(
+        field: &str,
+        value: serde_json::Value,
+    ) -> DocumentMetadata<SampleContext> {
+        let root = temporary_root();
+        let repository = repository_at(root.path());
+        let record = sample_document();
+        let metadata_path = repository.metadata_path(record.key());
+        let mut stored = serde_json::to_value(record.metadata())
+            .expect("Given metadata of owned fields, serialization should always succeed");
+        stored[field] = value;
+        let stored_json = serde_json::to_vec(&stored)
+            .expect("Given a JSON value, serialization should always succeed");
+
+        repository
+            .persist(record.clone())
+            .await
+            .expect("Given an existing writable root, persisting a record should always succeed");
+        std::fs::write(&metadata_path, stored_json)
+            .expect("Given an existing directory, overwriting the metadata should always succeed");
+        repository
+            .persist(record)
+            .await
+            .expect("Given an existing writable root, persisting a record should always succeed");
+        read_stored_metadata(&metadata_path)
+    }
+
+    #[tokio::test]
+    async fn should_replace_the_metadata_when_the_stored_metadata_holds_another_kind_version() {
+        let expected_result = sample_metadata();
+
+        let result = persist_over_stored_metadata_field("kind_version", 0.into()).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_replace_the_metadata_when_the_stored_produced_at_is_invalid() {
+        let expected_result = sample_metadata();
+
+        let result =
+            persist_over_stored_metadata_field("produced_at", "not a timestamp".into()).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_replace_the_metadata_when_the_stored_execution_id_is_invalid() {
+        let expected_result = sample_metadata();
+
+        let result = persist_over_stored_metadata_field("execution_id", "not a uuid".into()).await;
 
         assert_eq!(result, expected_result);
     }
