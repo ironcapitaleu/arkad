@@ -1,8 +1,7 @@
 //! # Implementations
 //!
 //! Provides the [`FilesystemRepositoryBuilder`](builder::FilesystemRepositoryBuilder), the file
-//! layout constants, and the repository ports for
-//! [`FilesystemRepository`](super::FilesystemRepository).
+//! layout constants, and the repository ports for [`FilesystemRepository`].
 //!
 //! ## Modules
 //!
@@ -12,6 +11,8 @@
 //!   [`METADATA_SUFFIX`](constants::METADATA_SUFFIX).
 //! - `read_repository`: Implements [`ReadRepository`](crate::ReadRepository).
 //! - `write_repository`: Implements [`WriteRepository`](crate::WriteRepository).
+//!
+//! [`FilesystemRepository`]: crate::implementations::repository::filesystem::FilesystemRepository
 
 pub mod builder;
 pub mod constants;

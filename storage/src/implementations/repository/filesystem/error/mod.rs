@@ -1,16 +1,16 @@
 //! # Filesystem Errors
 //!
-//! Provides the error types the
-//! [`FilesystemRepository`](crate::implementations::repository::filesystem::FilesystemRepository)
-//! raises.
+//! Provides the error types the [`FilesystemRepository`] raises.
 //!
-//! An error that a type in [`shared`](crate::implementations::repository::filesystem::shared) raises
-//! lives beside that type.
+//! An error that a type in [`shared`] raises lives beside that type.
 //!
 //! ## Modules
 //!
 //! - [`failed_filesystem_operation`]: The [`FailedFilesystemOperation`] for an operation on a path
 //!   that did not complete.
+//!
+//! [`FilesystemRepository`]: crate::implementations::repository::filesystem::FilesystemRepository
+//! [`shared`]: crate::implementations::repository::filesystem::shared
 
 pub mod failed_filesystem_operation;
 
