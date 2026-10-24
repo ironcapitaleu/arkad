@@ -14,8 +14,7 @@ pub use constants::{CRATE_VERSION, GIT_COMMIT};
 
 /// Returns the [`Producer`] of a document that the given state writes with this build.
 ///
-/// Pass the state's `STATE_NAME`. The crate version and the commit come from the build, so two
-/// builds of one version differ in the commit.
+/// Pass the state's `STATE_NAME`.
 ///
 /// # Examples
 ///
@@ -83,6 +82,13 @@ mod tests {
 
     #[test]
     fn should_match_the_checkout_head_when_built_inside_a_git_checkout() {
+        // A packaged crate records `unknown`, even inside another git repository, whose HEAD this
+        // test would read.
+        let manifest_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+        if manifest_dir.join(".cargo_vcs_info.json").exists() {
+            return;
+        }
+
         let expected_result = std::process::Command::new("git")
             .args(["rev-parse", "HEAD"])
             .output()
@@ -91,7 +97,7 @@ mod tests {
             .and_then(|output| String::from_utf8(output.stdout).ok())
             .map_or_else(|| "unknown".to_owned(), |commit| commit.trim().to_owned());
 
-        let result = GIT_COMMIT.to_owned();
+        let result = GIT_COMMIT;
 
         assert_eq!(result, expected_result);
     }

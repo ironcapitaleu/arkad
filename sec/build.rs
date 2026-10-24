@@ -31,8 +31,10 @@ fn main() {
 
     println!("cargo:rerun-if-changed=build.rs");
     // Cargo reruns a script on every build if a watched path does not exist, so the script asks
-    // git for the paths of this checkout, which differ in a worktree, and watches only those.
-    for name in ["HEAD", "refs", "packed-refs"] {
+    // git for the paths of this checkout, which differ in a worktree, and watches only those. It
+    // watches `refs/heads`, not `refs`, because a fetch or a new tag changes no commit of the
+    // checkout. A repository in the reftable format keeps its refs in `reftable`.
+    for name in ["HEAD", "refs/heads", "packed-refs", "reftable"] {
         if let Some(path) = git(&["rev-parse", "--git-path", name])
             && Path::new(&path).exists()
         {
