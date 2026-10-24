@@ -13,7 +13,7 @@ use crate::implementations::repository::filesystem::error::{
     FailedFilesystemOperation, FailedFilesystemOperationReason, FilesystemOperation,
 };
 use crate::implementations::repository::filesystem::shared::document_key::DocumentKey;
-use crate::implementations::repository::filesystem::shared::document_metadata::DocumentMetadata;
+use crate::implementations::repository::filesystem::shared::legacy_document_metadata::LegacyDocumentMetadata;
 use crate::implementations::repository::filesystem::shared::raw_document::RawDocument;
 use crate::implementations::repository::filesystem::traits::access::CanRead;
 use crate::traits::repository::ReadRepository;
@@ -29,8 +29,8 @@ impl<A: CanRead> ReadRepository for FilesystemRepository<A> {
     /// through a stored file also returns `None`. If the document read fails, `get` checks the
     /// root first, so a bad root always reports the same error.
     ///
-    /// `get` does not check the bytes against [`DocumentMetadata::bytes`] or
-    /// [`DocumentMetadata::sha256`].
+    /// `get` does not check the bytes against [`LegacyDocumentMetadata::bytes`] or
+    /// [`LegacyDocumentMetadata::sha256`].
     ///
     /// # Errors
     ///
@@ -82,7 +82,7 @@ impl<A: CanRead> FilesystemRepository<A> {
     async fn read_metadata(
         &self,
         key: &DocumentKey,
-    ) -> Result<DocumentMetadata, FailedFilesystemOperation> {
+    ) -> Result<LegacyDocumentMetadata, FailedFilesystemOperation> {
         let metadata_path = self.metadata_path(key);
         let metadata_json = fs::read(&metadata_path).await.map_err(|error| {
             if error.kind() == io::ErrorKind::NotFound {

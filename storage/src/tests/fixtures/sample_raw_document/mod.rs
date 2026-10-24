@@ -4,7 +4,9 @@
 
 use chrono::{DateTime, Utc};
 
-use crate::implementations::repository::filesystem::{DocumentKey, DocumentMetadata, RawDocument};
+use crate::implementations::repository::filesystem::{
+    DocumentKey, LegacyDocumentMetadata, RawDocument,
+};
 
 /// Returns a [`RawDocument`] holding `{}` under the key `sec/companyfacts/CIK0000320193.json`.
 ///
@@ -18,7 +20,7 @@ pub fn sample_raw_document() -> RawDocument {
     let fetched_at = "2026-09-22T20:05:30Z"
         .parse::<DateTime<Utc>>()
         .expect("Given a hardcoded RFC 3339 timestamp, parsing it should always succeed");
-    let metadata = DocumentMetadata {
+    let metadata = LegacyDocumentMetadata {
         metadata_version: 1,
         url: "https://data.sec.gov/api/xbrl/companyfacts/CIK0000320193.json".to_owned(),
         fetched_at,

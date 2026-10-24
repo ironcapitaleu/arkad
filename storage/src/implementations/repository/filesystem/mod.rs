@@ -21,8 +21,8 @@
 //!   complete.
 //! - [`implementations`]: The [`FilesystemRepositoryBuilder`], the constants that fix the file
 //!   layout, such as [`METADATA_SUFFIX`], and the port implementations.
-//! - [`shared`]: The [`DocumentKey`] and its [`InvalidDocumentKey`], the [`DocumentMetadata`], and
-//!   the [`RawDocument`] that more than one module uses.
+//! - [`shared`]: The value types that more than one module uses, such as the [`DocumentKey`] and
+//!   the [`RawDocument`].
 //! - [`traits`]: The access markers and the traits that connect them to the ports.
 
 use std::io;
@@ -39,7 +39,8 @@ pub use error::{FailedFilesystemOperation, FailedFilesystemOperationReason, File
 pub use implementations::builder::{FilesystemRepositoryBuilder, NoAccess, NoRoot};
 pub use implementations::constants::METADATA_SUFFIX;
 pub use shared::document_key::{DocumentKey, InvalidDocumentKey};
-pub use shared::document_metadata::DocumentMetadata;
+pub use shared::document_metadata::{InputDocument, Producer};
+pub use shared::legacy_document_metadata::LegacyDocumentMetadata;
 pub use shared::raw_document::RawDocument;
 pub use traits::access::{Access, CanRead, CanWrite, Read, ReadWrite, Write};
 

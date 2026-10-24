@@ -3,7 +3,7 @@
 //! Provides [`RawDocument`], one document and its metadata as the store reads and writes them.
 
 use crate::implementations::repository::filesystem::shared::document_key::DocumentKey;
-use crate::implementations::repository::filesystem::shared::document_metadata::DocumentMetadata;
+use crate::implementations::repository::filesystem::shared::legacy_document_metadata::LegacyDocumentMetadata;
 
 /// One document, the key naming it, and the metadata of the fetch that produced it.
 ///
@@ -13,7 +13,7 @@ use crate::implementations::repository::filesystem::shared::document_metadata::D
 pub struct RawDocument {
     key: DocumentKey,
     bytes: Vec<u8>,
-    metadata: DocumentMetadata,
+    metadata: LegacyDocumentMetadata,
 }
 
 impl RawDocument {
@@ -26,8 +26,10 @@ impl RawDocument {
     ///
     /// ```rust
     /// # use chrono::{TimeZone, Utc};
-    /// # use storage::implementations::repository::filesystem::{DocumentKey, DocumentMetadata, RawDocument};
-    /// # let metadata = DocumentMetadata {
+    /// # use storage::implementations::repository::filesystem::{
+    /// #     DocumentKey, LegacyDocumentMetadata, RawDocument,
+    /// # };
+    /// # let metadata = LegacyDocumentMetadata {
     /// #     metadata_version: 1,
     /// #     url: "https://data.sec.gov/api/xbrl/companyfacts/CIK0000320193.json".to_owned(),
     /// #     fetched_at: Utc.with_ymd_and_hms(2026, 9, 22, 20, 5, 30).single().expect("Given a hardcoded valid timestamp, the conversion should always succeed"),
@@ -48,7 +50,7 @@ impl RawDocument {
     /// assert_eq!(result, expected_result);
     /// ```
     #[must_use]
-    pub const fn new(key: DocumentKey, bytes: Vec<u8>, metadata: DocumentMetadata) -> Self {
+    pub const fn new(key: DocumentKey, bytes: Vec<u8>, metadata: LegacyDocumentMetadata) -> Self {
         Self {
             key,
             bytes,
@@ -70,7 +72,7 @@ impl RawDocument {
 
     /// Returns the metadata of the fetch that produced these bytes.
     #[must_use]
-    pub const fn metadata(&self) -> &DocumentMetadata {
+    pub const fn metadata(&self) -> &LegacyDocumentMetadata {
         &self.metadata
     }
 }
@@ -88,7 +90,7 @@ mod tests {
     fn sample_document() -> RawDocument {
         let key = DocumentKey::new("sec/companyfacts/CIK0000320193.json")
             .expect("Given a valid relative path, the key should always build");
-        let metadata = DocumentMetadata {
+        let metadata = LegacyDocumentMetadata {
             metadata_version: 1,
             url: "https://data.sec.gov/api/xbrl/companyfacts/CIK0000320193.json".to_owned(),
             fetched_at: Utc
