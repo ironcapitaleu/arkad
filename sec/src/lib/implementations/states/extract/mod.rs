@@ -540,7 +540,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_fail_transition_when_output_data_not_yet_computed() {
+    async fn should_fail_transition_from_validate_cik_format_when_output_data_not_yet_computed() {
         let input_cik = "1234567890";
         let sec_client = SecClient::default();
         let super_state = ExtractSuperState::<ValidateCikFormat>::new(input_cik, sec_client);
