@@ -4,12 +4,10 @@
 //!
 //! [`DocumentMetadata`]: crate::implementations::repository::filesystem::DocumentMetadata
 
-/// Version of the shared fields in [`DocumentMetadata`].
+/// Version of the shared fields in [`DocumentMetadata`], including the fields of the types they
+/// hold.
 ///
-/// [`Producer`] and [`InputDocument`] serialize inside the shared fields, so this version covers
-/// their fields too. Raise it when a shared field is removed, renamed, or redefined.
+/// Raise it when such a field is removed, renamed, or redefined.
 ///
 /// [`DocumentMetadata`]: crate::implementations::repository::filesystem::DocumentMetadata
-/// [`Producer`]: crate::implementations::repository::filesystem::Producer
-/// [`InputDocument`]: crate::implementations::repository::filesystem::InputDocument
 pub const METADATA_VERSION: u32 = 1;
