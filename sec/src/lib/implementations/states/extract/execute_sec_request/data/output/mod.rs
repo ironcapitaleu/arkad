@@ -186,7 +186,7 @@ mod tests {
         let mut output_data = ExecuteSecRequestOutput::new(original_response);
 
         let updater = ExecuteSecRequestOutputUpdater::builder()
-            .response(new_response.clone())
+            .response(new_response)
             .build();
 
         let expected_result = Ok(());

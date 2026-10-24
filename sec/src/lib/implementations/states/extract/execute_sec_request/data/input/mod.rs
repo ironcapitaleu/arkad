@@ -294,7 +294,7 @@ mod tests {
 
         let updater = ExecuteSecRequestInputUpdater::builder()
             .sec_client(new_client.clone())
-            .sec_request(new_request.clone())
+            .sec_request(new_request)
             .build();
 
         let _ = StateData::update_state(&mut input_data, updater);
@@ -323,7 +323,7 @@ mod tests {
         let mut input_data = ExecuteSecRequestInput::new(original_client, original_request);
 
         let updater = ExecuteSecRequestInputUpdater::builder()
-            .sec_client(new_client.clone())
+            .sec_client(new_client)
             .sec_request(new_request.clone())
             .build();
 

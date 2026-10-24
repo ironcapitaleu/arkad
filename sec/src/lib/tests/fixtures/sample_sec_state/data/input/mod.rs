@@ -72,7 +72,7 @@ impl Default for SampleSecStateInput {
 
 impl fmt::Display for SampleSecStateInput {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "\tInput Data: {}", self.input_data,)
+        write!(f, "\tInput Data: {}", self.input_data)
     }
 }
 

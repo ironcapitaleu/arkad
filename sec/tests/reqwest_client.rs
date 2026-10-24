@@ -26,7 +26,7 @@ async fn should_return_ok_status_code_when_request_is_valid() {
     let client = test_client();
     let url = "https://mock.codes/200"; // Returns canned response with 200 OK status code
     let request_url = reqwest::Url::parse(url)
-        .expect(&format!("The hardcoded URL `{url}` should always be valid"));
+        .unwrap_or_else(|_| panic!("The hardcoded URL `{url}` should always be valid"));
     let request_method = reqwest::Method::GET;
     let request = Request::new(request_method, request_url);
 
@@ -35,9 +35,7 @@ async fn should_return_ok_status_code_when_request_is_valid() {
     let result = client
         .execute_request(request)
         .await
-        .expect(&format!(
-            "A request to the URL `{url}` should always succeed"
-        ))
+        .unwrap_or_else(|_| panic!("A request to the URL `{url}` should always succeed"))
         .status();
 
     assert_eq!(result, expected_result);
@@ -48,7 +46,7 @@ async fn should_return_created_status_code_when_resource_is_created() {
     let client = test_client();
     let url = "https://mock.codes/201"; // Returns canned response with 201 Created status code
     let request_url = reqwest::Url::parse(url)
-        .expect(&format!("The hardcoded URL `{url}` should always be valid"));
+        .unwrap_or_else(|_| panic!("The hardcoded URL `{url}` should always be valid"));
     let request_method = reqwest::Method::POST;
     let request = Request::new(request_method, request_url);
 
@@ -57,9 +55,7 @@ async fn should_return_created_status_code_when_resource_is_created() {
     let result = client
         .execute_request(request)
         .await
-        .expect(&format!(
-            "A request to the URL `{url}` should always succeed"
-        ))
+        .unwrap_or_else(|_| panic!("A request to the URL `{url}` should always succeed"))
         .status();
 
     assert_eq!(result, expected_result);
@@ -70,7 +66,7 @@ async fn should_return_bad_request_status_code_when_request_is_invalid() {
     let client = test_client();
     let url = "https://mock.codes/400"; // Returns canned response with 400 Bad Request status code
     let request_url = reqwest::Url::parse(url)
-        .expect(&format!("The hardcoded URL `{url}` should always be valid"));
+        .unwrap_or_else(|_| panic!("The hardcoded URL `{url}` should always be valid"));
     let request_method = reqwest::Method::GET;
     let request = Request::new(request_method, request_url);
 
@@ -79,9 +75,7 @@ async fn should_return_bad_request_status_code_when_request_is_invalid() {
     let result = client
         .execute_request(request)
         .await
-        .expect(&format!(
-            "A request to the URL `{url}` should always succeed"
-        ))
+        .unwrap_or_else(|_| panic!("A request to the URL `{url}` should always succeed"))
         .status();
 
     assert_eq!(result, expected_result);
@@ -92,7 +86,7 @@ async fn should_return_unauthorized_status_code_when_not_authorized() {
     let client = test_client();
     let url = "https://mock.codes/401"; // Returns canned response with 401 Unauthorized status code
     let request_url = reqwest::Url::parse(url)
-        .expect(&format!("The hardcoded URL `{url}` should always be valid"));
+        .unwrap_or_else(|_| panic!("The hardcoded URL `{url}` should always be valid"));
     let request_method = reqwest::Method::GET;
     let request = Request::new(request_method, request_url);
 
@@ -101,9 +95,7 @@ async fn should_return_unauthorized_status_code_when_not_authorized() {
     let result = client
         .execute_request(request)
         .await
-        .expect(&format!(
-            "A request to the URL `{url}` should always succeed"
-        ))
+        .unwrap_or_else(|_| panic!("A request to the URL `{url}` should always succeed"))
         .status();
 
     assert_eq!(result, expected_result);
@@ -114,7 +106,7 @@ async fn should_return_forbidden_status_code_when_resource_is_forbidden() {
     let client = test_client();
     let url = "https://mock.codes/403"; // Returns canned response with 403 Forbidden status code
     let request_url = reqwest::Url::parse(url)
-        .expect(&format!("The hardcoded URL `{url}` should always be valid"));
+        .unwrap_or_else(|_| panic!("The hardcoded URL `{url}` should always be valid"));
     let request_method = reqwest::Method::GET;
     let request = Request::new(request_method, request_url);
 
@@ -123,9 +115,7 @@ async fn should_return_forbidden_status_code_when_resource_is_forbidden() {
     let result = client
         .execute_request(request)
         .await
-        .expect(&format!(
-            "A request to the URL `{url}` should always succeed"
-        ))
+        .unwrap_or_else(|_| panic!("A request to the URL `{url}` should always succeed"))
         .status();
 
     assert_eq!(result, expected_result);
@@ -136,7 +126,7 @@ async fn should_return_not_found_status_code_when_resource_is_not_found() {
     let client = test_client();
     let url = "https://mock.codes/404"; // Returns canned response with 404 Not Found status code
     let request_url = reqwest::Url::parse(url)
-        .expect(&format!("The hardcoded URL `{url}` should always be valid"));
+        .unwrap_or_else(|_| panic!("The hardcoded URL `{url}` should always be valid"));
     let request_method = reqwest::Method::GET;
     let request = Request::new(request_method, request_url);
 
@@ -145,9 +135,7 @@ async fn should_return_not_found_status_code_when_resource_is_not_found() {
     let result = client
         .execute_request(request)
         .await
-        .expect(&format!(
-            "A request to the URL `{url}` should always succeed"
-        ))
+        .unwrap_or_else(|_| panic!("A request to the URL `{url}` should always succeed"))
         .status();
 
     assert_eq!(result, expected_result);
@@ -158,7 +146,7 @@ async fn should_return_too_many_requests_status_code_when_rate_limited() {
     let client = test_client();
     let url = "https://mock.codes/429"; // Returns canned response with 429 Too Many Requests status code
     let request_url = reqwest::Url::parse(url)
-        .expect(&format!("The hardcoded URL `{url}` should always be valid"));
+        .unwrap_or_else(|_| panic!("The hardcoded URL `{url}` should always be valid"));
     let request_method = reqwest::Method::GET;
     let request = Request::new(request_method, request_url);
 
@@ -167,9 +155,7 @@ async fn should_return_too_many_requests_status_code_when_rate_limited() {
     let result = client
         .execute_request(request)
         .await
-        .expect(&format!(
-            "A request to the URL `{url}` should always succeed"
-        ))
+        .unwrap_or_else(|_| panic!("A request to the URL `{url}` should always succeed"))
         .status();
 
     assert_eq!(result, expected_result);
@@ -180,7 +166,7 @@ async fn should_return_internal_server_error_status_code_when_server_error_occur
     let client = test_client();
     let url = "https://mock.codes/500"; // Returns canned response with 500 Internal Server Error status code
     let request_url = reqwest::Url::parse(url)
-        .expect(&format!("The hardcoded URL `{url}` should always be valid"));
+        .unwrap_or_else(|_| panic!("The hardcoded URL `{url}` should always be valid"));
     let request_method = reqwest::Method::GET;
     let request = Request::new(request_method, request_url);
 
@@ -189,9 +175,7 @@ async fn should_return_internal_server_error_status_code_when_server_error_occur
     let result = client
         .execute_request(request)
         .await
-        .expect(&format!(
-            "A request to the URL `{url}` should always succeed"
-        ))
+        .unwrap_or_else(|_| panic!("A request to the URL `{url}` should always succeed"))
         .status();
 
     assert_eq!(result, expected_result);
@@ -202,7 +186,7 @@ async fn should_return_service_unavailable_status_code_when_service_is_unavailab
     let client = test_client();
     let url = "https://mock.codes/503"; // Returns canned response with 503 Service Unavailable status code
     let request_url = reqwest::Url::parse(url)
-        .expect(&format!("The hardcoded URL `{url}` should always be valid"));
+        .unwrap_or_else(|_| panic!("The hardcoded URL `{url}` should always be valid"));
     let request_method = reqwest::Method::GET;
     let request = Request::new(request_method, request_url);
 
@@ -211,9 +195,7 @@ async fn should_return_service_unavailable_status_code_when_service_is_unavailab
     let result = client
         .execute_request(request)
         .await
-        .expect(&format!(
-            "A request to the URL `{url}` should always succeed"
-        ))
+        .unwrap_or_else(|_| panic!("A request to the URL `{url}` should always succeed"))
         .status();
 
     assert_eq!(result, expected_result);
