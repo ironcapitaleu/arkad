@@ -9,9 +9,12 @@ use std::process;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use async_trait::async_trait;
+use chrono::{DateTime, Utc};
 use serde::Deserialize;
+use serde_json::Value;
 use tokio::fs::{self, File, OpenOptions};
 use tokio::io::AsyncWriteExt;
+use uuid::Uuid;
 
 use crate::error::WriteError;
 use crate::implementations::repository::filesystem::error::{
@@ -45,9 +48,10 @@ impl<A: CanWrite, D: Document> WriteRepository for FilesystemRepository<A, D> {
     /// 2. The metadata holds the kind and kind version of `D`, and serializes as JSON.
     /// 3. The bytes have the size and the SHA-256 digest the metadata names.
     ///
-    /// Then `persist` checks that the root exists. If the stored metadata and the stored document
-    /// both match the digest of the new bytes, `persist` writes no file and returns `Ok(())`. The
-    /// stored `produced_at` and `execution_id` stay. In every other case, `persist` creates every
+    /// Then `persist` checks that the root exists. If the stored metadata equals the new metadata
+    /// in every field except `produced_at` and `execution_id`, and the stored document matches the
+    /// digest of the new bytes, `persist` writes no file and returns `Ok(())`. The stored
+    /// `produced_at` and `execution_id` stay. In every other case, `persist` creates every
     /// missing directory between the root and the document, and the new bytes and metadata replace
     /// the old. This case covers a torn pair, whose metadata matches the new bytes but whose
     /// document does not.
@@ -115,7 +119,7 @@ impl<A: CanWrite, D: Document> FilesystemRepository<A, D> {
 // `A: Access` makes `A` `Sync`, so the future of `write_files` is `Send`. The method takes no `D`,
 // so `D` needs no bound.
 impl<A: CanWrite, D> FilesystemRepository<A, D> {
-    /// Checks the root. Unless the stored pair matches the digest, creates the directories below
+    /// Checks the root. Unless the stored pair matches the new pair, creates the directories below
     /// the root, then writes the metadata and the document under the key.
     async fn write_files(
         &self,
@@ -128,7 +132,7 @@ impl<A: CanWrite, D> FilesystemRepository<A, D> {
 
         let document_path = self.document_path(key);
         let metadata_path = self.metadata_path(key);
-        if stored_pair_matches(&metadata_path, &document_path, digest).await {
+        if stored_pair_matches(&metadata_path, metadata, &document_path, digest).await {
             return Ok(());
         }
 
@@ -146,29 +150,59 @@ impl<A: CanWrite, D> FilesystemRepository<A, D> {
     }
 }
 
-/// The `sha256` of a stored metadata file, which the skip rule compares with the new digest.
+/// The metadata fields that name the run, which a skipped write keeps from the stored metadata.
 #[derive(Deserialize)]
-struct StoredDigest {
-    sha256: String,
+struct StoredRun {
+    #[expect(
+        dead_code,
+        reason = "parsed only to check that the stored value is valid"
+    )]
+    produced_at: DateTime<Utc>,
+    #[expect(
+        dead_code,
+        reason = "parsed only to check that the stored value is valid"
+    )]
+    execution_id: Uuid,
 }
 
-/// Returns `true` if the stored metadata and the stored document both match the digest.
+/// Returns `true` if the stored metadata equals the new metadata outside the run fields, and the
+/// stored document matches the digest.
 ///
-/// Returns `false` if a file is missing or unreadable, or the metadata holds no `sha256`, so the
-/// write repairs the pair.
-async fn stored_pair_matches(metadata_path: &Path, document_path: &Path, digest: &str) -> bool {
-    let Ok(metadata_json) = fs::read(metadata_path).await else {
+/// Returns `false` if a file is missing or unreadable, a stored run field is invalid, or another
+/// field differs, so the write repairs the pair.
+async fn stored_pair_matches(
+    metadata_path: &Path,
+    metadata: &[u8],
+    document_path: &Path,
+    digest: &str,
+) -> bool {
+    let Ok(stored_json) = fs::read(metadata_path).await else {
         return false;
     };
-    let Ok(stored) = serde_json::from_slice::<StoredDigest>(&metadata_json) else {
+    if serde_json::from_slice::<StoredRun>(&stored_json).is_err() {
+        return false;
+    }
+    let (Ok(stored), Ok(new)) = (
+        serde_json::from_slice::<Value>(&stored_json),
+        serde_json::from_slice::<Value>(metadata),
+    ) else {
         return false;
     };
-    if stored.sha256 != digest {
+    if without_run_fields(stored) != without_run_fields(new) {
         return false;
     }
     fs::read(document_path)
         .await
         .is_ok_and(|document| sha256_hex(&document) == digest)
+}
+
+/// Removes `produced_at` and `execution_id` from a metadata object.
+fn without_run_fields(mut metadata: Value) -> Value {
+    if let Some(fields) = metadata.as_object_mut() {
+        fields.remove("produced_at");
+        fields.remove("execution_id");
+    }
+    metadata
 }
 
 /// Writes the metadata and the document to temporary files, then renames both into place.
@@ -827,6 +861,64 @@ mod tests {
         )));
 
         let result = repository.persist(record).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_replace_the_metadata_when_the_stored_metadata_holds_another_kind_version() {
+        let root = temporary_root();
+        let repository = repository_at(root.path());
+        let record = sample_document();
+        let metadata_path = repository.metadata_path(record.key());
+        let mut stored = serde_json::to_value(record.metadata())
+            .expect("Given metadata of owned fields, serialization should always succeed");
+        stored["kind_version"] = 0.into();
+        let stored_json = serde_json::to_vec(&stored)
+            .expect("Given a JSON value, serialization should always succeed");
+
+        let expected_result = record.metadata().clone();
+
+        repository
+            .persist(record.clone())
+            .await
+            .expect("Given an existing writable root, persisting a record should always succeed");
+        std::fs::write(&metadata_path, stored_json)
+            .expect("Given an existing directory, overwriting the metadata should always succeed");
+        repository
+            .persist(record)
+            .await
+            .expect("Given an existing writable root, persisting a record should always succeed");
+        let result = read_stored_metadata(&metadata_path);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_replace_the_metadata_when_the_stored_produced_at_is_invalid() {
+        let root = temporary_root();
+        let repository = repository_at(root.path());
+        let record = sample_document();
+        let metadata_path = repository.metadata_path(record.key());
+        let mut stored = serde_json::to_value(record.metadata())
+            .expect("Given metadata of owned fields, serialization should always succeed");
+        stored["produced_at"] = "not a timestamp".into();
+        let stored_json = serde_json::to_vec(&stored)
+            .expect("Given a JSON value, serialization should always succeed");
+
+        let expected_result = record.metadata().clone();
+
+        repository
+            .persist(record.clone())
+            .await
+            .expect("Given an existing writable root, persisting a record should always succeed");
+        std::fs::write(&metadata_path, stored_json)
+            .expect("Given an existing directory, overwriting the metadata should always succeed");
+        repository
+            .persist(record)
+            .await
+            .expect("Given an existing writable root, persisting a record should always succeed");
+        let result = read_stored_metadata(&metadata_path);
 
         assert_eq!(result, expected_result);
     }

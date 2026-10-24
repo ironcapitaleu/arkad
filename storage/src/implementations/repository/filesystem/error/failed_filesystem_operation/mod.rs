@@ -133,14 +133,14 @@ pub enum FailedFilesystemOperationReason {
     },
     /// The metadata cannot be serialized as JSON.
     UnserializableMetadata,
-    /// The document holds another number of bytes than its metadata names.
+    /// The document size differs from the size its metadata names.
     UnexpectedDocumentSize {
         /// The number of bytes the document holds.
         found_size: u64,
         /// The number of bytes the metadata names.
         expected_size: u64,
     },
-    /// The document has another SHA-256 digest than its metadata names.
+    /// The document digest differs from the SHA-256 digest its metadata names.
     UnexpectedDocumentDigest {
         /// The digest of the bytes the document holds.
         found_digest: String,

@@ -77,7 +77,7 @@ pub use traits::document::Document;
 /// [`FailedFilesystemOperationReason::InvalidKeySuffix`] before they read or write a file.
 ///
 /// The metadata names the size and the SHA-256 digest of its document. `get` and `persist` check
-/// both. If the stored metadata and the stored document both match the digest of a new record,
+/// both. If a new record differs from the stored pair only in `produced_at` and `execution_id`,
 /// `persist` writes no file, so `produced_at` keeps naming the run that produced the bytes.
 ///
 /// A write first writes both files to synced temporary files in the same directory. It then
@@ -761,7 +761,7 @@ mod tests {
     }
 
     #[test]
-    fn should_accept_the_key_when_the_key_only_contains_the_metadata_suffix() {
+    fn should_accept_the_key_when_the_metadata_suffix_is_not_at_its_end() {
         let repository = repository_at("/data/arkad");
         let key = DocumentKey::new("sec/x.meta.jsonl")
             .expect("Given a valid relative path, the key should always build");
