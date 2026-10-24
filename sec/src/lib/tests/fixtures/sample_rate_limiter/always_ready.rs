@@ -6,7 +6,7 @@ use crate::shared::rate_limiter::traits::RateLimiter;
 ///
 /// Used for testing code that depends on a [`RateLimiter`] without incurring any real pacing
 /// delay, by simulating a limiter that never blocks.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AlwaysReadyRateLimiter;
 
 #[async_trait]

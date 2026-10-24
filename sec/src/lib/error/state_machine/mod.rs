@@ -216,7 +216,11 @@ mod tests {
 
     #[test]
     fn should_be_able_to_create_state_machine_error_when_using_enum_directly() {
-        let _result = StateMachine::InvalidConfiguration;
+        let expected_result = StateMachine::InvalidConfiguration;
+
+        let result = StateMachine::InvalidConfiguration;
+
+        assert_eq!(result, expected_result);
     }
 
     #[test]
@@ -242,7 +246,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
+    #[should_panic(expected = "left == right")]
     fn should_be_failing_when_trying_to_compare_casting_result_from_different_enum_variant() {
         let expected_result = StateMachine::Transition(Transition::FailedOutputConversion(
             transition::FailedOutputConversion::new("StateA", "StateB"),

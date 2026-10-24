@@ -127,7 +127,7 @@ async fn should_meet_threshold_for_sp500_companies() {
                         failures
                             .lock()
                             .expect("Mutex should not be poisoned")
-                            .push((cik.to_string(), e.to_string()));
+                            .push(((*cik).to_string(), e.to_string()));
                     }
                 }
             }
@@ -164,7 +164,7 @@ async fn should_meet_threshold_for_sp500_companies() {
         }
         if !field_counts.is_empty() {
             let mut sorted: Vec<_> = field_counts.into_iter().collect();
-            sorted.sort_by(|a, b| b.1.cmp(&a.1));
+            sorted.sort_by_key(|entry| std::cmp::Reverse(entry.1));
             write_progress("\nMissing Field Breakdown:\n");
             for (field, count) in &sorted {
                 write_progress(&format!("  {count:>4}x {field}\n"));

@@ -243,7 +243,11 @@ mod tests {
 
     #[test]
     fn should_be_able_to_create_state_machine_error_when_using_enum_directly() {
-        let _result = StateMachine::InvalidConfiguration;
+        let expected_result = StateMachine::InvalidConfiguration;
+
+        let result = StateMachine::InvalidConfiguration;
+
+        assert_eq!(result, expected_result);
     }
 
     #[test]

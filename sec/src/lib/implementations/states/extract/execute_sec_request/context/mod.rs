@@ -177,15 +177,17 @@ mod tests {
     use crate::shared::cik::Cik;
 
     #[test]
-    fn should_create_new_context_with_provided_cik() {
+    fn should_set_cik_and_zero_max_retries_when_created_with_new() {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
-        let expected_cik = cik.clone();
-        let expected_max_retries = 0;
+
+        let expected_result = ExecuteSecRequestContext {
+            cik: cik.clone(),
+            max_retries: 0,
+        };
 
         let result = ExecuteSecRequestContext::new(cik);
 
-        assert_eq!(result.cik(), &expected_cik);
-        assert_eq!(result.max_retries, expected_max_retries);
+        assert_eq!(result, expected_result);
     }
 
     #[test]
@@ -220,22 +222,26 @@ mod tests {
             .cik(new_cik.clone())
             .build();
 
-        context.update_context(updater);
+        let expected_result = &new_cik;
 
-        assert_eq!(context.cik(), &new_cik);
+        context.update_context(updater);
+        let result = context.cik();
+
+        assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_not_update_fields_when_updater_is_empty() {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
-        let original_context = ExecuteSecRequestContext::new(cik.clone());
-        let mut context = original_context.clone();
-
+        let mut context = ExecuteSecRequestContext::new(cik.clone());
         let updater = ExecuteSecRequestContextUpdater::builder().build();
 
-        context.update_context(updater);
+        let expected_result = ExecuteSecRequestContext::new(cik);
 
-        assert_eq!(context, original_context);
+        context.update_context(updater);
+        let result = context;
+
+        assert_eq!(result, expected_result);
     }
 
     #[test]

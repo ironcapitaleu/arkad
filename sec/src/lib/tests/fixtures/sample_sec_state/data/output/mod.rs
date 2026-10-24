@@ -30,6 +30,10 @@ pub struct SampleSecStateOutput {
 
 impl SampleSecStateOutput {
     /// Creates a new instance of the output data for the sample state.
+    ///
+    /// # Errors
+    ///
+    /// Never returns an error. The `Result` matches the constructors of real state outputs.
     pub fn new(data: &(impl ToString + ?Sized)) -> Result<Self, StateError> {
         Ok(Self {
             output_data: data.to_string(),
@@ -69,7 +73,7 @@ impl Default for SampleSecStateOutput {
 
 impl fmt::Display for SampleSecStateOutput {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "\tOutput Data: {}", self.output_data,)
+        write!(f, "\tOutput Data: {}", self.output_data)
     }
 }
 

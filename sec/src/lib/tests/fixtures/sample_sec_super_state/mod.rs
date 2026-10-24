@@ -33,14 +33,18 @@ impl SampleSecSuperState<SampleSecState> {
     pub fn new() -> Self {
         Self {
             current_state: SampleSecState::default(),
-            input: SampleSecSuperStateData::default(),
+            input: SampleSecSuperStateData,
             output: None,
-            context: SampleSecSuperStateContext::default(),
+            context: SampleSecSuperStateContext,
         }
     }
 }
 
 impl<S: State> fmt::Display for SampleSecSuperState<S> {
+    #[expect(
+        clippy::redundant_clone,
+        reason = "False positive: `state_name` returns `impl ToString`, which is a `String` here. Clippy flags `.to_string()` as a clone, but removing it does not compile"
+    )]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "SampleSecSuperState({})", self.state_name().to_string())
     }
