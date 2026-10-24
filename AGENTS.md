@@ -15,6 +15,7 @@
   - Unit tests
   - Integration tests
   - Doctests
+- Every bug fix ships with a regression test that fails on the old code (see the `testing` skill, "Regression Tests").
 
 ### Codebase-Wide Propagation
 

@@ -2,8 +2,9 @@
 name: testing
 description: >
   This skill should be used when the user asks to "review tests", "add tests", "check test coverage",
-  "write integration tests", "add boilerplate tests", "review testing strategy", or needs to write,
-  review, or improve unit tests or integration tests for a module, component, package, or crate.
+  "write integration tests", "add boilerplate tests", "review testing strategy", "fix a bug",
+  "address a review finding", or needs to write, review, or improve unit tests or integration tests
+  for a module, component, package, or crate.
 version: 0.1.0
 argument-hint: "[module-or-file-path]"
 allowed-tools: [Read, Write, Edit, Bash, AskUserQuestion]
@@ -510,6 +511,23 @@ async fn should_succeed_for_must_pass_companies() {
     assert_eq!(result, expected_result);
 }
 ```
+
+## Regression Tests
+
+If you fix a bug in code, add a regression test in the same change as the fix. This rule covers a
+bug that a reviewer finds, a bug that a user reports, and a bug that you find yourself. If this
+skill loads for a bug fix, apply only this section and Conventions. Skip the rest of the skill.
+
+1. Write a test that fails on the code before the fix.
+2. Prove that the test fails. Undo the code change and keep the test. Run the test and confirm that
+   it fails. Then restore the code change.
+3. Name the test after the behavior that the fix restores, not after the bug.
+4. If a review found the bug, name the test in your reply to that review.
+
+A fix without a test that fails on the old code is not done. Example: in a review round of #246,
+the skip rule of `FilesystemRepository::persist` compared only `sha256`, so stale metadata stayed on
+disk. The fix added `should_replace_the_metadata_when_the_stored_metadata_holds_another_kind_version`,
+and that test fails if the skip compares only `sha256`.
 
 ## Proactive Behavior
 
