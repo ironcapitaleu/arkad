@@ -436,6 +436,15 @@ mod tests {
     }
 
     #[test]
+    fn should_order_repositories_by_root_when_the_roots_differ() {
+        let expected_result = Ordering::Less;
+
+        let result = repository_at("/data/a").cmp(&repository_at("/data/b"));
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
     fn should_compare_unequal_when_two_repositories_have_different_roots() {
         let expected_result = repository_at("/data/other");
 
