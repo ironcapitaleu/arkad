@@ -8,10 +8,10 @@
 
 - Code must be **properly formatted** (`rustfmt`).
 - Dependencies must be **free of known security vulnerabilities** (`cargo audit`).
-- Documentation must **build without warnings** (`cargo doc --no-deps --document-private-items --workspace`).
+- Documentation must **build without warnings** (`RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --document-private-items --workspace`).
 - Code must **compile without errors** and pass:
   - Linting (`clippy`)
-  - Doc linting (`rustdoc` broken/redundant link warnings are errors)
+  - Doc linting (every `rustdoc` warning is an error)
   - Unit tests
   - Integration tests
   - Doctests

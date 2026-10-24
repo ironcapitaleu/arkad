@@ -38,8 +38,8 @@ impl SampleStateContextUpdaterBuilder {
         Self { context_data: None }
     }
 
-    pub fn context_data(mut self, context_data: impl ToString) -> Self {
-        self.context_data = Some(context_data.to_string());
+    pub fn context_data(mut self, context_data: impl Into<String>) -> Self {
+        self.context_data = Some(context_data.into());
         self
     }
 

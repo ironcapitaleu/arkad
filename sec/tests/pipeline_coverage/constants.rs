@@ -2,7 +2,7 @@
 /// If any of these fail, the pipeline has a fundamental issue.
 ///
 /// Excluded from must-pass (known industry gaps -- tracked for future resolution):
-/// - JPMorgan Chase (19617): Banks don't report `OperatingIncomeLoss`
+/// - `JPMorgan` Chase (19617): Banks don't report `OperatingIncomeLoss`
 /// - Exxon Mobil (34088): Oil companies don't report `OperatingIncomeLoss`
 /// - Amazon (1018724): Does not report bare `Liabilities` concept
 pub const MUST_PASS_CIKS: &[(&str, &str)] = &[

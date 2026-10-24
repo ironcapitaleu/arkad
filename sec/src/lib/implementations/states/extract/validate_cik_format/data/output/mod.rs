@@ -272,7 +272,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
+    #[should_panic(expected = "left == right")]
     fn should_panic_when_comparing_valid_but_unformatted_default_cik_with_formatted_and_validated_default_output()
      {
         let validation_state_data = &create_test_output();

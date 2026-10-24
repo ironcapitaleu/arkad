@@ -1,4 +1,4 @@
-//! # SecClient Integration Tests
+//! # `SecClient` Integration Tests
 //!
 //! Validates that [`SecClient`] correctly executes requests against the live SEC EDGAR API and
 //! returns properly parsed responses.
