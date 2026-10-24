@@ -10,7 +10,6 @@ use crate::implementations::repository::filesystem::shared::document_key::Docume
 ///
 /// Holds the input's key and the SHA-256 of the input's bytes at the time they were read. If the
 /// key holds other bytes when it is read again, their SHA-256 differs from the one stored here.
-/// The pointer holds nothing else. The input's own metadata holds the rest.
 ///
 /// Nothing checks that the SHA-256 is 64 lowercase hex characters, so two spellings of one digest
 /// compare as different.
@@ -155,6 +154,18 @@ mod tests {
     }
 
     #[test]
+    fn should_return_the_key_when_building_an_input_document() {
+        let input = sample_input_document();
+
+        let expected_result = &DocumentKey::new("sec/companyfacts/CIK0000320193.json")
+            .expect("Given a valid relative path, the key should always build");
+
+        let result = input.key();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
     fn should_return_the_sha256_when_building_an_input_document() {
         let input = sample_input_document();
 
@@ -189,6 +200,19 @@ mod tests {
 
         let result: InputDocument = serde_json::from_str(&json)
             .expect("Given JSON this type produced, deserialization should always succeed");
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_reject_a_key_that_escapes_the_root_when_deserializing_an_input_document() {
+        let json = r#"{"key":"../escape.json","sha256":"44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"}"#;
+
+        let expected_result = "[ContainsParentComponent] Document key '../escape.json' contains a parent component at line 1 column 23";
+
+        let result = serde_json::from_str::<InputDocument>(json)
+            .expect_err("Given a key with a parent component, deserialization should always fail")
+            .to_string();
 
         assert_eq!(result, expected_result);
     }

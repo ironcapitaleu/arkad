@@ -92,7 +92,7 @@ mod tests {
 
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
     #[test]
-    const fn should_implement_auto_traits_for_document_metadata() {
+    const fn should_implement_auto_traits_for_legacy_document_metadata() {
         implements_auto_traits::<LegacyDocumentMetadata>();
     }
 
@@ -100,66 +100,66 @@ mod tests {
     const fn implements_sync<T: Sync>() {}
 
     #[test]
-    const fn should_implement_send_for_document_metadata() {
+    const fn should_implement_send_for_legacy_document_metadata() {
         implements_send::<LegacyDocumentMetadata>();
     }
 
     #[test]
-    const fn should_implement_sync_for_document_metadata() {
+    const fn should_implement_sync_for_legacy_document_metadata() {
         implements_sync::<LegacyDocumentMetadata>();
     }
 
     const fn implements_debug<T: Debug>() {}
     #[test]
-    const fn should_be_able_to_rely_on_debug_implementation_for_document_metadata() {
+    const fn should_be_able_to_rely_on_debug_implementation_for_legacy_document_metadata() {
         implements_debug::<LegacyDocumentMetadata>();
     }
 
     const fn implements_clone<T: Clone>() {}
     #[test]
-    const fn should_be_able_to_rely_on_clone_implementation_for_document_metadata() {
+    const fn should_be_able_to_rely_on_clone_implementation_for_legacy_document_metadata() {
         implements_clone::<LegacyDocumentMetadata>();
     }
 
     const fn implements_hash<T: Hash>() {}
     #[test]
-    const fn should_be_able_to_rely_on_hash_implementation_for_document_metadata() {
+    const fn should_be_able_to_rely_on_hash_implementation_for_legacy_document_metadata() {
         implements_hash::<LegacyDocumentMetadata>();
     }
 
     const fn implements_eq<T: Eq>() {}
     #[test]
-    const fn should_be_able_to_rely_on_eq_implementation_for_document_metadata() {
+    const fn should_be_able_to_rely_on_eq_implementation_for_legacy_document_metadata() {
         implements_eq::<LegacyDocumentMetadata>();
     }
 
     const fn implements_ord<T: Ord>() {}
     #[test]
-    const fn should_be_able_to_rely_on_ord_implementation_for_document_metadata() {
+    const fn should_be_able_to_rely_on_ord_implementation_for_legacy_document_metadata() {
         implements_ord::<LegacyDocumentMetadata>();
     }
 
     const fn implements_sized<T: Sized>() {}
     #[test]
-    const fn should_be_sized_for_document_metadata() {
+    const fn should_be_sized_for_legacy_document_metadata() {
         implements_sized::<LegacyDocumentMetadata>();
     }
 
     const fn implements_partial_eq<T: PartialEq>() {}
     #[test]
-    const fn should_be_able_to_rely_on_partial_eq_implementation_for_document_metadata() {
+    const fn should_be_able_to_rely_on_partial_eq_implementation_for_legacy_document_metadata() {
         implements_partial_eq::<LegacyDocumentMetadata>();
     }
 
     const fn implements_partial_ord<T: PartialOrd>() {}
     #[test]
-    const fn should_be_able_to_rely_on_partial_ord_implementation_for_document_metadata() {
+    const fn should_be_able_to_rely_on_partial_ord_implementation_for_legacy_document_metadata() {
         implements_partial_ord::<LegacyDocumentMetadata>();
     }
 
     const fn implements_unpin<T: Unpin>() {}
     #[test]
-    const fn should_be_able_to_rely_on_unpin_implementation_for_document_metadata() {
+    const fn should_be_able_to_rely_on_unpin_implementation_for_legacy_document_metadata() {
         implements_unpin::<LegacyDocumentMetadata>();
     }
 

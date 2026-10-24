@@ -4,7 +4,7 @@
 
 use serde::{Deserialize, Serialize};
 
-/// Names the code that wrote a stored document: the step, the crate version, and the build.
+/// Names the code that wrote a stored document: the state, the crate version, and the build.
 ///
 /// A derived document changes when the code that derives it changes, even if its input does not.
 /// [`Producer::commit`] tells two builds apart. [`Producer::crate_version`] alone does not, because
@@ -17,7 +17,7 @@ pub struct Producer {
 }
 
 impl Producer {
-    /// Creates a new [`Producer`] from the step name, the crate version, and the git commit.
+    /// Creates a new [`Producer`] from the state name, the crate version, and the git commit.
     ///
     /// # Examples
     ///
@@ -45,7 +45,7 @@ impl Producer {
         }
     }
 
-    /// Returns the name of the step that wrote the document.
+    /// Returns the name of the state that wrote the document.
     #[must_use]
     pub fn name(&self) -> &str {
         &self.name
