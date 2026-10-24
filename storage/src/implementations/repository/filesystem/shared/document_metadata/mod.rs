@@ -373,6 +373,22 @@ mod tests {
     }
 
     #[test]
+    fn should_keep_the_stored_kind_when_reading_metadata_of_another_kind() {
+        let mut stored = serde_json::to_value(sample_metadata())
+            .expect("Given metadata of owned fields, serialization should always succeed");
+        stored["kind"] = "another_kind".into();
+
+        let expected_result = "another_kind";
+
+        let result = serde_json::from_value::<DocumentMetadata<SampleContext>>(stored)
+            .expect("Given JSON with every field, deserialization should always succeed")
+            .kind()
+            .to_owned();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
     fn should_keep_the_stored_kind_version_when_reading_metadata_of_another_kind_version() {
         let mut stored = serde_json::to_value(sample_metadata())
             .expect("Given metadata of owned fields, serialization should always succeed");
