@@ -9,8 +9,8 @@ use serde::{Deserialize, Serialize};
 /// An HTTP status code from an SEC API response.
 ///
 /// Models the codes relevant to SEC interactions as explicit variants so match arms can handle
-/// cases like rate-limiting (429) or not-found (404) without raw integer comparisons. Any other
-/// valid code is captured by `Other`.
+/// cases like rate-limiting (429) or not-found (404) without raw integer comparisons. `Other`
+/// holds any other code.
 ///
 /// A status code serializes as its number, for example `200`, and deserializes from any `u16`
 /// through [`StatusCode::from_u16`].
@@ -45,10 +45,10 @@ pub enum StatusCode {
     /// 503 Service Unavailable.
     ServiceUnavailable,
 
-    /// Any other HTTP status code not explicitly modeled.
+    /// Any status code that no other variant models.
     ///
-    /// Holds a code that no other variant models. [`StatusCode::from_u16`] never builds it for a
-    /// modeled code, so `Other(200)` does not round-trip through serde: it reads back as `Ok`.
+    /// [`StatusCode::from_u16`] never builds `Other` for a modeled code, so `Other(200)` reads
+    /// back through serde as `Ok`.
     Other(u16),
 }
 
@@ -431,6 +431,19 @@ mod tests {
             .expect("Given a status code, serialization should always succeed");
 
         let expected_result = StatusCode::Other(418);
+
+        let result: StatusCode = serde_json::from_str(&json)
+            .expect("Given JSON this type produced, deserialization should always succeed");
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_read_back_as_the_modeled_variant_when_other_holds_a_modeled_code() {
+        let json = serde_json::to_string(&StatusCode::Other(200))
+            .expect("Given a status code, serialization should always succeed");
+
+        let expected_result = StatusCode::Ok;
 
         let result: StatusCode = serde_json::from_str(&json)
             .expect("Given JSON this type produced, deserialization should always succeed");
