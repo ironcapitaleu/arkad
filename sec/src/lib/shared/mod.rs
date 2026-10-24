@@ -4,6 +4,7 @@
 //! These components provide reusable logic and strongly-typed representations for common SEC concepts, such as the Central Index Key (CIK).
 //!
 //! ## Modules
+//! - [`build_info`]: Provides the version and the git commit of the build, and the [`Producer`](storage::implementations::repository::filesystem::Producer) of a stored document.
 //! - [`cik`]: Provides parsing, validation, and formatting utilities for SEC Central Index Keys (CIKs).
 //! - [`document_kind`]: Provides [`SecDocumentKind`](document_kind::SecDocumentKind), the kinds of document the SEC state machines store.
 //! - [`http_client`]: Provides utilities for creating and managing SEC API clients, including user agent handling.
@@ -22,6 +23,7 @@
 //! - [`crate::implementations`]: Concrete state and state machine implementations that use these shared utilities.
 //! - [`crate::error`]: Error types that may reference shared domain types for detailed error reporting.
 
+pub mod build_info;
 pub mod cik;
 pub mod content_type;
 pub mod document_kind;
