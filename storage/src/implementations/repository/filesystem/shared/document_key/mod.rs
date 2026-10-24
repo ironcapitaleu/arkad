@@ -45,10 +45,10 @@ pub use invalid_document_key::InvalidDocumentKey;
 /// rules of the platform it runs on. It does not follow symbolic links, so a link inside the root
 /// can still point outside it.
 ///
-/// Construction rejects a component that holds a `\` or a `:`, or that is not valid UTF-8. So a key
-/// names the same file on every platform. A key serializes as one string with `/` between its
-/// components. Deserializing goes through [`DocumentKey::new`], so a key read from a file passes
-/// the same checks.
+/// Construction rejects a component that holds a `\` or a `:`, or that is not valid UTF-8. So
+/// Windows splits a key into the same components as Linux and macOS. A key serializes as one
+/// string with `/` between its components. Deserializing goes through [`DocumentKey::new`], so a
+/// key read from a file passes the same checks.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Deserialize)]
 #[serde(try_from = "String")]
 pub struct DocumentKey {
@@ -69,9 +69,9 @@ impl DocumentKey {
     /// - holds a component that is not valid UTF-8
     ///   ([`InvalidDocumentKey::ContainsNonUtf8Component`]).
     /// - holds a component with a `\` or a `:`
-    ///   ([`InvalidDocumentKey::ContainsNonPortableComponent`]). Only Linux and macOS read such a
-    ///   component, so `"C:x.json"`, `"\data\x.json"`, and `"sec\..\x.json"` report this variant
-    ///   there and a prefix, a root, or a parent on Windows.
+    ///   ([`InvalidDocumentKey::ContainsNonPortableComponent`]). Windows splits `"C:x.json"`,
+    ///   `"\data\x.json"`, and `"sec\..\x.json"` before this check, so there they report a
+    ///   prefix, a root, or a parent instead.
     /// - names no file below the root ([`InvalidDocumentKey::EmptyPath`]). A path made only of `.`
     ///   components, such as `"."` or `"./"`, names the root itself.
     ///
@@ -159,6 +159,11 @@ impl TryFrom<String> for DocumentKey {
 
 impl Serialize for DocumentKey {
     /// Serializes the key as one string, with `/` between its components.
+    ///
+    /// # Panics
+    ///
+    /// Panics if a component is not valid UTF-8. [`DocumentKey::new`] rejects such a component, so
+    /// a built key never panics.
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         let components: Vec<&str> = self
             .path

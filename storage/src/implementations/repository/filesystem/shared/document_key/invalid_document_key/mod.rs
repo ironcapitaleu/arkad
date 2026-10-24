@@ -165,9 +165,9 @@ impl InvalidDocumentKey {
     /// ```rust
     /// use storage::implementations::repository::filesystem::InvalidDocumentKey;
     ///
-    /// let error = InvalidDocumentKey::contains_non_utf8_component("sec/x.json");
+    /// let error = InvalidDocumentKey::contains_non_utf8_component("sec/\u{FFFD}.json");
     ///
-    /// let expected_result = "[ContainsNonUtf8Component] Document key 'sec/x.json' \
+    /// let expected_result = "[ContainsNonUtf8Component] Document key 'sec/\u{FFFD}.json' \
     ///     contains a component that is not valid UTF-8";
     ///
     /// let result = error.to_string();
@@ -356,10 +356,10 @@ mod tests {
     #[test]
     fn should_build_contains_non_utf8_component_variant_when_using_its_constructor() {
         let expected_result = InvalidDocumentKey::ContainsNonUtf8Component {
-            path: PathBuf::from("sec/x.json"),
+            path: PathBuf::from("sec/\u{FFFD}.json"),
         };
 
-        let result = InvalidDocumentKey::contains_non_utf8_component("sec/x.json");
+        let result = InvalidDocumentKey::contains_non_utf8_component("sec/\u{FFFD}.json");
 
         assert_eq!(result, expected_result);
     }
@@ -377,9 +377,9 @@ mod tests {
 
     #[test]
     fn should_format_display_with_bracketed_name_and_path_when_path_has_a_non_utf8_component() {
-        let error = InvalidDocumentKey::contains_non_utf8_component("sec/x.json");
+        let error = InvalidDocumentKey::contains_non_utf8_component("sec/\u{FFFD}.json");
 
-        let expected_result = "[ContainsNonUtf8Component] Document key 'sec/x.json' contains a component that is not valid UTF-8";
+        let expected_result = "[ContainsNonUtf8Component] Document key 'sec/\u{FFFD}.json' contains a component that is not valid UTF-8";
 
         let result = error.to_string();
 
