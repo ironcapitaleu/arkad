@@ -83,15 +83,17 @@ impl Ord for SecResponse {
 }
 
 impl SecResponse {
-    /// Creates an [`SecResponse`] from its parts and the raw body bytes, and skips the status and
-    /// content-type checks.
+    /// Creates an [`SecResponse`] from its parts and the raw body bytes, after the same checks as
+    /// the HTTP path.
     ///
     /// The HTTP path calls this function too, so a body gets the same digest on both paths.
     ///
     /// # Errors
     ///
-    /// Returns an [`InvalidSecResponse`] with [`ErrorReason::InvalidBody`] if the raw body is not
-    /// valid JSON.
+    /// Returns an [`InvalidSecResponse`] with:
+    /// - [`ErrorReason::InvalidStatusCode`] if the status code is not in the 2xx range.
+    /// - [`ErrorReason::InvalidContentType`] if the content type is not JSON.
+    /// - [`ErrorReason::InvalidBody`] if the raw body is not valid JSON.
     ///
     /// # Examples
     ///
@@ -129,6 +131,7 @@ impl SecResponse {
         status_code: StatusCode,
         raw_body: Vec<u8>,
     ) -> Result<Self, InvalidSecResponse> {
+        check_status_and_content_type(status_code, &content_type)?;
         let body_digest = Sha256Digest::of(&raw_body);
         let body = serde_json::from_slice(&raw_body).map_err(|e| {
             InvalidSecResponse::new(ErrorReason::InvalidBody {
@@ -196,17 +199,8 @@ impl SecResponseTrait for SecResponse {
         let headers = Headers::new(raw_headers);
         let content_type = headers.content_type().clone();
 
-        if !status_code.is_success() {
-            return Err(InvalidSecResponse::new(ErrorReason::InvalidStatusCode {
-                status_code,
-            }));
-        }
-
-        if content_type != ContentType::Json {
-            return Err(InvalidSecResponse::new(ErrorReason::InvalidContentType {
-                content_type,
-            }));
-        }
+        // Checks before the body read, so the body of a rejected response is never read.
+        check_status_and_content_type(status_code, &content_type)?;
 
         let raw_body = inner.bytes().await.map_err(|e| {
             InvalidSecResponse::new(ErrorReason::FailedBodyRead {
@@ -214,7 +208,7 @@ impl SecResponseTrait for SecResponse {
             })
         })?;
 
-        Self::from_parts(url, headers, content_type, status_code, raw_body.to_vec())
+        Self::from_parts(url, headers, content_type, status_code, Vec::from(raw_body))
     }
 
     fn url(&self) -> &Self::Url {
@@ -236,6 +230,29 @@ impl SecResponseTrait for SecResponse {
     fn body(&self) -> &serde_json::Value {
         &self.body
     }
+}
+
+/// Checks that a response has a 2xx status code and a JSON content type.
+///
+/// # Errors
+///
+/// Returns an [`InvalidSecResponse`] with [`ErrorReason::InvalidStatusCode`] or
+/// [`ErrorReason::InvalidContentType`] for the first check that fails.
+fn check_status_and_content_type(
+    status_code: StatusCode,
+    content_type: &ContentType,
+) -> Result<(), InvalidSecResponse> {
+    if !status_code.is_success() {
+        return Err(InvalidSecResponse::new(ErrorReason::InvalidStatusCode {
+            status_code,
+        }));
+    }
+    if *content_type != ContentType::Json {
+        return Err(InvalidSecResponse::new(ErrorReason::InvalidContentType {
+            content_type: content_type.clone(),
+        }));
+    }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -309,6 +326,40 @@ mod tests {
                 "Given a 200 JSON response with a valid body, validation should always succeed",
             );
         let result = response.body_digest().clone();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_invalid_status_code_when_building_from_parts_with_a_404() {
+        let expected_result = Err(InvalidSecResponse::new(ErrorReason::InvalidStatusCode {
+            status_code: StatusCode::NotFound,
+        }));
+
+        let result = SecResponse::from_parts(
+            sample_url(),
+            Headers::new(HashMap::new()),
+            ContentType::Json,
+            StatusCode::NotFound,
+            RAW_BODY.to_vec(),
+        );
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_invalid_content_type_when_building_from_parts_with_html() {
+        let expected_result = Err(InvalidSecResponse::new(ErrorReason::InvalidContentType {
+            content_type: ContentType::Html,
+        }));
+
+        let result = SecResponse::from_parts(
+            sample_url(),
+            Headers::new(HashMap::new()),
+            ContentType::Html,
+            StatusCode::Ok,
+            RAW_BODY.to_vec(),
+        );
 
         assert_eq!(result, expected_result);
     }

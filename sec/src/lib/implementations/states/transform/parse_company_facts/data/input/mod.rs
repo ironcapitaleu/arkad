@@ -27,7 +27,7 @@ use crate::traits::state_machine::state::StateData;
 /// implements neither `Hash` nor `Ord`. Two inputs are equal if and only if their digests are.
 #[derive(Debug, Clone)]
 pub struct ParseCompanyFactsInput {
-    /// The raw SEC Company Facts JSON response to be parsed.
+    /// The parsed SEC Company Facts JSON response.
     pub response: serde_json::Value,
     /// The SHA-256 digest of the raw response body.
     body_digest: Sha256Digest,
@@ -125,7 +125,7 @@ impl StateData for ParseCompanyFactsInput {
     /// If `response` is `Some`, updates the JSON response; otherwise, leaves it unchanged.
     ///
     /// An updater holds no raw body, so the new digest is the digest of the serialized response.
-    /// Without it, the old digest would make `Eq`, `Hash`, and `Ord` describe the old response.
+    /// A stale digest makes `Eq`, `Hash`, and `Ord` describe the old response.
     fn update_state(&mut self, updates: Self::UpdateType) -> Result<(), StateError> {
         if let Some(response) = updates.response {
             self.body_digest = Sha256Digest::of(response.to_string().as_bytes());

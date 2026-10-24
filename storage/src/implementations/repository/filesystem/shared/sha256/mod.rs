@@ -75,10 +75,10 @@ impl Display for Sha256Digest {
 
 #[cfg(test)]
 mod tests {
-    use pretty_assertions::assert_eq;
-
     use std::fmt::Debug;
     use std::hash::Hash;
+
+    use pretty_assertions::assert_eq;
 
     use super::*;
 
