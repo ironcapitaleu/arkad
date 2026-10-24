@@ -50,6 +50,27 @@ pub enum InvalidDocumentKey {
         /// The path that was rejected.
         path: PathBuf,
     },
+
+    /// The path holds a component with a `\` or a `:`. Windows reads a `\` as a separator and a
+    /// `:` as a drive or a stream name, so the key names another file there.
+    #[error(
+        "[ContainsNonPortableComponent] Document key '{}' contains a component with '\\' or ':'",
+        .path.display()
+    )]
+    ContainsNonPortableComponent {
+        /// The path that was rejected.
+        path: PathBuf,
+    },
+
+    /// The path holds a component that is not valid UTF-8.
+    #[error(
+        "[ContainsNonUtf8Component] Document key '{}' contains a component that is not valid UTF-8",
+        .path.display()
+    )]
+    ContainsNonUtf8Component {
+        /// The path that was rejected.
+        path: PathBuf,
+    },
 }
 
 impl InvalidDocumentKey {
@@ -114,6 +135,48 @@ impl InvalidDocumentKey {
     #[must_use]
     pub fn contains_parent_component(path: impl Into<PathBuf>) -> Self {
         Self::ContainsParentComponent { path: path.into() }
+    }
+
+    /// Creates an [`InvalidDocumentKey::ContainsNonPortableComponent`] from the rejected path.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use storage::implementations::repository::filesystem::InvalidDocumentKey;
+    ///
+    /// let error = InvalidDocumentKey::contains_non_portable_component("sec/a:b.json");
+    ///
+    /// let expected_result = "[ContainsNonPortableComponent] Document key 'sec/a:b.json' \
+    ///     contains a component with '\\' or ':'";
+    ///
+    /// let result = error.to_string();
+    ///
+    /// assert_eq!(result, expected_result);
+    /// ```
+    #[must_use]
+    pub fn contains_non_portable_component(path: impl Into<PathBuf>) -> Self {
+        Self::ContainsNonPortableComponent { path: path.into() }
+    }
+
+    /// Creates an [`InvalidDocumentKey::ContainsNonUtf8Component`] from the rejected path.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use storage::implementations::repository::filesystem::InvalidDocumentKey;
+    ///
+    /// let error = InvalidDocumentKey::contains_non_utf8_component("sec/\u{FFFD}.json");
+    ///
+    /// let expected_result = "[ContainsNonUtf8Component] Document key 'sec/\u{FFFD}.json' \
+    ///     contains a component that is not valid UTF-8";
+    ///
+    /// let result = error.to_string();
+    ///
+    /// assert_eq!(result, expected_result);
+    /// ```
+    #[must_use]
+    pub fn contains_non_utf8_component(path: impl Into<PathBuf>) -> Self {
+        Self::ContainsNonUtf8Component { path: path.into() }
     }
 }
 
@@ -273,6 +336,50 @@ mod tests {
 
         let expected_result =
             "[ContainsParentComponent] Document key 'sec/../etc' contains a parent component";
+
+        let result = error.to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_build_contains_non_portable_component_variant_when_using_its_constructor() {
+        let expected_result = InvalidDocumentKey::ContainsNonPortableComponent {
+            path: PathBuf::from("sec/a:b.json"),
+        };
+
+        let result = InvalidDocumentKey::contains_non_portable_component("sec/a:b.json");
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_build_contains_non_utf8_component_variant_when_using_its_constructor() {
+        let expected_result = InvalidDocumentKey::ContainsNonUtf8Component {
+            path: PathBuf::from("sec/\u{FFFD}.json"),
+        };
+
+        let result = InvalidDocumentKey::contains_non_utf8_component("sec/\u{FFFD}.json");
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_format_display_with_bracketed_name_and_path_when_path_has_a_non_portable_component() {
+        let error = InvalidDocumentKey::contains_non_portable_component("sec/a:b.json");
+
+        let expected_result = r"[ContainsNonPortableComponent] Document key 'sec/a:b.json' contains a component with '\' or ':'";
+
+        let result = error.to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_format_display_with_bracketed_name_and_path_when_path_has_a_non_utf8_component() {
+        let error = InvalidDocumentKey::contains_non_utf8_component("sec/\u{FFFD}.json");
+
+        let expected_result = "[ContainsNonUtf8Component] Document key 'sec/\u{FFFD}.json' contains a component that is not valid UTF-8";
 
         let result = error.to_string();
 
