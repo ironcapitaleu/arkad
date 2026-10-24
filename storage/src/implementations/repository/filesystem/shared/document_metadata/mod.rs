@@ -31,8 +31,8 @@ pub use producer::Producer;
 /// [`DocumentMetadata::new`] sets `metadata_version` from [`METADATA_VERSION`], and `kind` and
 /// `kind_version` from the [`Document`] type it names. The metadata holds no link to that type.
 /// Two document types can share one context type, so [`Document::from_parts`] can receive metadata
-/// built for another type. Deserializing checks none of the three values either. So the store
-/// compares them with the document type's values on every write and every read.
+/// built for another type. Deserializing checks none of the three values either. So a reader
+/// compares them with the document type's values before it uses the metadata.
 ///
 /// Nothing checks that the SHA-256 is 64 lowercase hex characters.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]

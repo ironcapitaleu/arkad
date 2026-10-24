@@ -17,8 +17,8 @@ use crate::implementations::repository::filesystem::shared::document_metadata::D
 ///
 /// The crate that owns a kind defines an enum of its kinds and sets [`Document::Kind`] to it.
 /// [`Document::KIND`] names the variant of this type, and [`Document::KIND_VERSION`] the version
-/// of its [`Document::Context`]. [`DocumentMetadata::new`] stores both, so the store can reject a
-/// file of another kind or version.
+/// of its [`Document::Context`]. [`DocumentMetadata::new`] stores both, so a reader can tell a file
+/// of another kind or version apart.
 ///
 /// # Associated Types
 ///
