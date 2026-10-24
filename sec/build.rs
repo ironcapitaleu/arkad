@@ -22,7 +22,7 @@ fn main() {
         git(&["rev-parse", "HEAD"])
     };
     if commit.is_none() {
-        println!("cargo:warning=no git checkout found, SEC_GIT_COMMIT is 'unknown'");
+        println!("cargo:warning=could not read the git commit, SEC_GIT_COMMIT is 'unknown'");
     }
     println!(
         "cargo:rustc-env=SEC_GIT_COMMIT={}",
