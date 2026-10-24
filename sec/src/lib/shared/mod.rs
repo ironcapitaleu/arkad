@@ -7,7 +7,7 @@
 //! - [`cik`]: Provides parsing, validation, and formatting utilities for SEC Central Index Keys (CIKs).
 //! - [`document_kind`]: Provides [`SecDocumentKind`](document_kind::SecDocumentKind), the kinds of document the SEC state machines store.
 //! - [`http_client`]: Provides utilities for creating and managing SEC API clients, including user agent handling.
-//! - [`raw_document`]: Provides [`RawDocument`](raw_document::RawDocument), one SEC response body as the store keeps it.
+//! - [`raw_document`]: Provides [`RawDocument`](raw_document::RawDocument), one SEC file as the store keeps it.
 //! - [`rate_limiter`]: Provides a leaky-bucket rate limiter for pacing outgoing SEC API requests.
 //! - [`request`]: Provides utilities for constructing SEC API requests, ensuring proper URL formatting.
 //! - [`response`]: Provides utilities for handling HTTP responses from SEC endpoints.
