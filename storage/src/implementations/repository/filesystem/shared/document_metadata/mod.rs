@@ -20,7 +20,8 @@ pub mod input_document;
 pub mod producer;
 
 pub use builder::{
-    DocumentMetadataBuilder, NoContent, NoContext, NoDocumentType, NoMediaType, NoProducedAt, NoRun,
+    Content, DocumentMetadataBuilder, NoContent, NoContext, NoDocumentType, NoMediaType,
+    NoProducedAt, NoRun, Run,
 };
 pub use constants::METADATA_VERSION;
 pub use input_document::InputDocument;
@@ -58,8 +59,7 @@ pub struct DocumentMetadata<C> {
 }
 
 impl DocumentMetadata<NoContext> {
-    /// Starts a [`DocumentMetadataBuilder`], which is the only way to build a
-    /// [`DocumentMetadata`].
+    /// Starts a [`DocumentMetadataBuilder`] for new [`DocumentMetadata`].
     ///
     /// The impl uses `NoContext` so that a call needs no type annotation. No built metadata has
     /// `NoContext`.

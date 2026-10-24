@@ -63,6 +63,10 @@ pub struct Run {
 /// [`produced_at`](Self::produced_at), [`run`](Self::run), and [`context`](Self::context), in any
 /// order. [`inputs`](Self::inputs) is optional and defaults to no inputs. Then call
 /// [`build`](Self::build).
+///
+/// The derived traits require `D` to implement them too. A builder exists only between
+/// [`DocumentMetadata::builder`] and [`build`](Self::build), so this matters only for code that
+/// compares, orders, or hashes a builder.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct DocumentMetadataBuilder<D, M, B, P, R, C> {
     document_type: PhantomData<fn() -> D>,
@@ -213,7 +217,7 @@ impl<D, M, B, P, R> DocumentMetadataBuilder<D, M, B, P, R, NoContext> {
 impl<D, M, B, P, R, C> DocumentMetadataBuilder<D, M, B, P, R, C> {
     /// Sets the documents this document came from, in place of any set before.
     ///
-    /// A builder holds no inputs until this step, which fits a document that came from none.
+    /// If you skip this step, the metadata holds no inputs.
     #[must_use]
     pub fn inputs(mut self, inputs: Vec<InputDocument>) -> Self {
         self.inputs = inputs;
@@ -242,6 +246,127 @@ impl<D: Document> DocumentMetadataBuilder<D, String, Content, DateTime<Utc>, Run
     ///     .produced_at(DateTime::<Utc>::UNIX_EPOCH)
     ///     .run(Uuid::nil(), Producer::new("Summarize", "0.1.0", "63c1f59"))
     ///     .context(())
+    ///     .build();
+    /// ```
+    ///
+    /// A context of another type than the document type's context has no `build` method either:
+    ///
+    /// ```compile_fail,E0599
+    /// # use std::fmt;
+    /// #
+    /// # use chrono::{DateTime, Utc};
+    /// # use serde::{Deserialize, Serialize};
+    /// # use storage::implementations::repository::filesystem::{
+    /// #     Document, DocumentKey, DocumentMetadata, Producer,
+    /// # };
+    /// # use uuid::Uuid;
+    /// #
+    /// # #[derive(Debug, Clone, Copy)]
+    /// # enum ReportKind {
+    /// #     Summary,
+    /// # }
+    /// #
+    /// # impl fmt::Display for ReportKind {
+    /// #     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    /// #         write!(f, "summary")
+    /// #     }
+    /// # }
+    /// #
+    /// # #[derive(Serialize, Deserialize)]
+    /// # struct SummaryContext {
+    /// #     source: String,
+    /// # }
+    /// #
+    /// # struct Summary {
+    /// #     key: DocumentKey,
+    /// #     bytes: Vec<u8>,
+    /// #     metadata: DocumentMetadata<SummaryContext>,
+    /// # }
+    /// #
+    /// # impl Document for Summary {
+    /// #     type Kind = ReportKind;
+    /// #     const KIND: ReportKind = ReportKind::Summary;
+    /// #     const KIND_VERSION: u32 = 1;
+    /// #     type Context = SummaryContext;
+    /// #     fn key(&self) -> &DocumentKey { &self.key }
+    /// #     fn bytes(&self) -> &[u8] { &self.bytes }
+    /// #     fn metadata(&self) -> &DocumentMetadata<SummaryContext> { &self.metadata }
+    /// #     fn from_parts(
+    /// #         key: DocumentKey,
+    /// #         bytes: Vec<u8>,
+    /// #         metadata: DocumentMetadata<SummaryContext>,
+    /// #     ) -> Self {
+    /// #         Self { key, bytes, metadata }
+    /// #     }
+    /// # }
+    /// #
+    /// let metadata = DocumentMetadata::builder()
+    ///     .document_type::<Summary>()
+    ///     .media_type("application/json")
+    ///     .content(2, "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a")
+    ///     .produced_at(DateTime::<Utc>::UNIX_EPOCH)
+    ///     .run(Uuid::nil(), Producer::new("Summarize", "0.1.0", "63c1f59"))
+    ///     .context(())
+    ///     .build();
+    /// ```
+    ///
+    /// A builder without a run has no `build` method either:
+    ///
+    /// ```compile_fail,E0599
+    /// # use std::fmt;
+    /// #
+    /// # use chrono::{DateTime, Utc};
+    /// # use serde::{Deserialize, Serialize};
+    /// # use storage::implementations::repository::filesystem::{
+    /// #     Document, DocumentKey, DocumentMetadata, Producer,
+    /// # };
+    /// # use uuid::Uuid;
+    /// #
+    /// # #[derive(Debug, Clone, Copy)]
+    /// # enum ReportKind {
+    /// #     Summary,
+    /// # }
+    /// #
+    /// # impl fmt::Display for ReportKind {
+    /// #     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    /// #         write!(f, "summary")
+    /// #     }
+    /// # }
+    /// #
+    /// # #[derive(Serialize, Deserialize)]
+    /// # struct SummaryContext {
+    /// #     source: String,
+    /// # }
+    /// #
+    /// # struct Summary {
+    /// #     key: DocumentKey,
+    /// #     bytes: Vec<u8>,
+    /// #     metadata: DocumentMetadata<SummaryContext>,
+    /// # }
+    /// #
+    /// # impl Document for Summary {
+    /// #     type Kind = ReportKind;
+    /// #     const KIND: ReportKind = ReportKind::Summary;
+    /// #     const KIND_VERSION: u32 = 1;
+    /// #     type Context = SummaryContext;
+    /// #     fn key(&self) -> &DocumentKey { &self.key }
+    /// #     fn bytes(&self) -> &[u8] { &self.bytes }
+    /// #     fn metadata(&self) -> &DocumentMetadata<SummaryContext> { &self.metadata }
+    /// #     fn from_parts(
+    /// #         key: DocumentKey,
+    /// #         bytes: Vec<u8>,
+    /// #         metadata: DocumentMetadata<SummaryContext>,
+    /// #     ) -> Self {
+    /// #         Self { key, bytes, metadata }
+    /// #     }
+    /// # }
+    /// #
+    /// let metadata = DocumentMetadata::builder()
+    ///     .document_type::<Summary>()
+    ///     .media_type("application/json")
+    ///     .content(2, "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a")
+    ///     .produced_at(DateTime::<Utc>::UNIX_EPOCH)
+    ///     .context(SummaryContext { source: "a test".to_owned() })
     ///     .build();
     /// ```
     #[must_use]
@@ -400,5 +525,45 @@ mod tests {
         let result = metadata.inputs();
 
         assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    const fn should_implement_value_traits_for_no_document_type() {
+        implements_value_traits::<NoDocumentType>();
+    }
+
+    #[test]
+    const fn should_implement_value_traits_for_no_media_type() {
+        implements_value_traits::<NoMediaType>();
+    }
+
+    #[test]
+    const fn should_implement_value_traits_for_no_content() {
+        implements_value_traits::<NoContent>();
+    }
+
+    #[test]
+    const fn should_implement_value_traits_for_no_produced_at() {
+        implements_value_traits::<NoProducedAt>();
+    }
+
+    #[test]
+    const fn should_implement_value_traits_for_no_run() {
+        implements_value_traits::<NoRun>();
+    }
+
+    #[test]
+    const fn should_implement_value_traits_for_no_context() {
+        implements_value_traits::<NoContext>();
+    }
+
+    #[test]
+    const fn should_implement_value_traits_for_content() {
+        implements_value_traits::<Content>();
+    }
+
+    #[test]
+    const fn should_implement_value_traits_for_run() {
+        implements_value_traits::<Run>();
     }
 }
