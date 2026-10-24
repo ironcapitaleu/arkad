@@ -102,7 +102,7 @@ impl FailedFilesystemOperation {
 
 /// Enum representing the reason why a filesystem operation failed.
 #[non_exhaustive]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum FailedFilesystemOperationReason {
     /// The root directory does not exist, or a file stands in its path.
     MissingRoot,
@@ -116,6 +116,18 @@ pub enum FailedFilesystemOperationReason {
         line: usize,
         /// Column of the first character the parser rejected.
         column: usize,
+    },
+    /// The metadata holds another document kind or kind version than the repository's document
+    /// type.
+    UnexpectedMetadataKind {
+        /// The kind the metadata holds.
+        found_kind: String,
+        /// The kind version the metadata holds.
+        found_kind_version: u32,
+        /// The kind of the repository's document type.
+        expected_kind: String,
+        /// The kind version of the repository's document type.
+        expected_kind_version: u32,
     },
     /// The metadata cannot be serialized as JSON.
     UnserializableMetadata,
@@ -137,6 +149,16 @@ impl fmt::Display for FailedFilesystemOperationReason {
             Self::InvalidMetadata { line, column } => write!(
                 f,
                 "Metadata file holds no valid metadata at line {line}, column {column}"
+            ),
+            Self::UnexpectedMetadataKind {
+                found_kind,
+                found_kind_version,
+                expected_kind,
+                expected_kind_version,
+            } => write!(
+                f,
+                "Metadata holds kind '{found_kind}' version {found_kind_version}, expected kind \
+                 '{expected_kind}' version {expected_kind_version}"
             ),
             Self::UnserializableMetadata => write!(f, "Metadata cannot be serialized as JSON"),
             Self::FailedIo { operation, kind } => write!(f, "Failed to {operation}, {kind}"),
@@ -331,6 +353,23 @@ mod tests {
         };
 
         let expected_result = "Failed to create directory, permission denied";
+
+        let result = reason.to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_format_display_as_expected_when_the_metadata_kind_is_unexpected() {
+        let reason = FailedFilesystemOperationReason::UnexpectedMetadataKind {
+            found_kind: "other_document".to_owned(),
+            found_kind_version: 2,
+            expected_kind: "sample_document".to_owned(),
+            expected_kind_version: 1,
+        };
+
+        let expected_result = "Metadata holds kind 'other_document' version 2, expected kind \
+                               'sample_document' version 1";
 
         let result = reason.to_string();
 

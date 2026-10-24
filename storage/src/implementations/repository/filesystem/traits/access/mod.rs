@@ -23,11 +23,53 @@ mod sealed {
 /// ```compile_fail,E0599
 /// use storage::WriteRepository;
 /// use storage::implementations::repository::filesystem::FilesystemRepository;
-/// # use storage::implementations::repository::filesystem::RawDocument;
+/// # use std::fmt;
+/// #
+/// # use serde::{Deserialize, Serialize};
+/// # use storage::implementations::repository::filesystem::{Document, DocumentKey, DocumentMetadata};
+/// #
+/// # #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+/// # enum ReportKind {
+/// #     Summary,
+/// # }
+/// #
+/// # impl fmt::Display for ReportKind {
+/// #     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+/// #         write!(f, "summary")
+/// #     }
+/// # }
+/// #
+/// # #[derive(Serialize, Deserialize)]
+/// # struct SummaryContext;
+/// #
+/// # struct Summary {
+/// #     key: DocumentKey,
+/// #     bytes: Vec<u8>,
+/// #     metadata: DocumentMetadata<SummaryContext>,
+/// # }
+/// #
+/// # impl Document for Summary {
+/// #     type Kind = ReportKind;
+/// #     const KIND: ReportKind = ReportKind::Summary;
+/// #     const KIND_VERSION: u32 = 1;
+/// #     type Context = SummaryContext;
+/// #     fn key(&self) -> &DocumentKey { &self.key }
+/// #     fn bytes(&self) -> &[u8] { &self.bytes }
+/// #     fn metadata(&self) -> &DocumentMetadata<SummaryContext> { &self.metadata }
+/// #     fn from_parts(
+/// #         key: DocumentKey,
+/// #         bytes: Vec<u8>,
+/// #         metadata: DocumentMetadata<SummaryContext>,
+/// #     ) -> Self {
+/// #         Self { key, bytes, metadata }
+/// #     }
+/// # }
+/// #
 ///
-/// async fn write_through_a_reader(document: RawDocument) {
+/// async fn write_through_a_reader(document: Summary) {
 ///     let reader = FilesystemRepository::builder()
 ///         .reader()
+///         .document_type::<Summary>()
 ///         .root("/data/arkad")
 ///         .build();
 ///
@@ -45,11 +87,54 @@ pub struct Read;
 ///
 /// ```compile_fail,E0599
 /// use storage::ReadRepository;
-/// use storage::implementations::repository::filesystem::{DocumentKey, FilesystemRepository};
+/// use storage::implementations::repository::filesystem::FilesystemRepository;
+/// # use std::fmt;
+/// #
+/// # use serde::{Deserialize, Serialize};
+/// # use storage::implementations::repository::filesystem::{Document, DocumentKey, DocumentMetadata};
+/// #
+/// # #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+/// # enum ReportKind {
+/// #     Summary,
+/// # }
+/// #
+/// # impl fmt::Display for ReportKind {
+/// #     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+/// #         write!(f, "summary")
+/// #     }
+/// # }
+/// #
+/// # #[derive(Serialize, Deserialize)]
+/// # struct SummaryContext;
+/// #
+/// # struct Summary {
+/// #     key: DocumentKey,
+/// #     bytes: Vec<u8>,
+/// #     metadata: DocumentMetadata<SummaryContext>,
+/// # }
+/// #
+/// # impl Document for Summary {
+/// #     type Kind = ReportKind;
+/// #     const KIND: ReportKind = ReportKind::Summary;
+/// #     const KIND_VERSION: u32 = 1;
+/// #     type Context = SummaryContext;
+/// #     fn key(&self) -> &DocumentKey { &self.key }
+/// #     fn bytes(&self) -> &[u8] { &self.bytes }
+/// #     fn metadata(&self) -> &DocumentMetadata<SummaryContext> { &self.metadata }
+/// #     fn from_parts(
+/// #         key: DocumentKey,
+/// #         bytes: Vec<u8>,
+/// #         metadata: DocumentMetadata<SummaryContext>,
+/// #     ) -> Self {
+/// #         Self { key, bytes, metadata }
+/// #     }
+/// # }
+/// #
 ///
 /// async fn read_through_a_writer(key: DocumentKey) {
 ///     let writer = FilesystemRepository::builder()
 ///         .writer()
+///         .document_type::<Summary>()
 ///         .root("/data/arkad")
 ///         .build();
 ///
@@ -90,10 +175,58 @@ pub trait CanRead: Access {}
 /// ```compile_fail,E0277
 /// use storage::WriteRepository;
 /// use storage::implementations::repository::filesystem::FilesystemRepository;
+/// # use std::fmt;
+/// #
+/// # use serde::{Deserialize, Serialize};
+/// # use storage::implementations::repository::filesystem::{Document, DocumentKey, DocumentMetadata};
+/// #
+/// # #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+/// # enum ReportKind {
+/// #     Summary,
+/// # }
+/// #
+/// # impl fmt::Display for ReportKind {
+/// #     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+/// #         write!(f, "summary")
+/// #     }
+/// # }
+/// #
+/// # #[derive(Serialize, Deserialize)]
+/// # struct SummaryContext;
+/// #
+/// # struct Summary {
+/// #     key: DocumentKey,
+/// #     bytes: Vec<u8>,
+/// #     metadata: DocumentMetadata<SummaryContext>,
+/// # }
+/// #
+/// # impl Document for Summary {
+/// #     type Kind = ReportKind;
+/// #     const KIND: ReportKind = ReportKind::Summary;
+/// #     const KIND_VERSION: u32 = 1;
+/// #     type Context = SummaryContext;
+/// #     fn key(&self) -> &DocumentKey { &self.key }
+/// #     fn bytes(&self) -> &[u8] { &self.bytes }
+/// #     fn metadata(&self) -> &DocumentMetadata<SummaryContext> { &self.metadata }
+/// #     fn from_parts(
+/// #         key: DocumentKey,
+/// #         bytes: Vec<u8>,
+/// #         metadata: DocumentMetadata<SummaryContext>,
+/// #     ) -> Self {
+/// #         Self { key, bytes, metadata }
+/// #     }
+/// # }
+/// #
 ///
 /// fn needs_a_writer<W: WriteRepository>(_writer: W) {}
 ///
-/// needs_a_writer(FilesystemRepository::builder().reader().root("/data/arkad").build());
+/// needs_a_writer(
+///     FilesystemRepository::builder()
+///         .reader()
+///         .document_type::<Summary>()
+///         .root("/data/arkad")
+///         .build(),
+/// );
 /// ```
 #[diagnostic::on_unimplemented(
     message = "a repository with `{Self}` access cannot write documents",

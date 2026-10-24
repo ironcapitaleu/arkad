@@ -83,7 +83,17 @@ impl Document for SampleDocument {
 /// Panics if the hardcoded timestamp or key is invalid. Both are valid values.
 #[must_use]
 pub fn sample_metadata() -> DocumentMetadata<SampleContext> {
-    let produced_at = "2026-09-22T20:05:30Z"
+    sample_metadata_produced_at("2026-09-22T20:05:30Z")
+}
+
+/// Returns the metadata of [`sample_metadata`], produced at the given RFC 3339 timestamp.
+///
+/// # Panics
+///
+/// Panics if the timestamp is not valid RFC 3339. Every caller passes a hardcoded valid one.
+#[must_use]
+pub fn sample_metadata_produced_at(produced_at: &str) -> DocumentMetadata<SampleContext> {
+    let produced_at = produced_at
         .parse::<DateTime<Utc>>()
         .expect("Given a hardcoded RFC 3339 timestamp, parsing it should always succeed");
     let input_key = DocumentKey::new("sec/companyfacts/CIK0000320193.json")
@@ -108,4 +118,16 @@ pub fn sample_metadata() -> DocumentMetadata<SampleContext> {
             "73a86c6aedc31f77cac2ea4df5f80f0b73a86c6aedc31f77cac2ea4df5f80f0b",
         )])
         .build()
+}
+
+/// Returns a [`SampleDocument`] holding `{}` under the key `sec/companyfacts/CIK0000320193.json`.
+///
+/// # Panics
+///
+/// Panics if the hardcoded key is invalid. It is a valid value.
+#[must_use]
+pub fn sample_document() -> SampleDocument {
+    let key = DocumentKey::new("sec/companyfacts/CIK0000320193.json")
+        .expect("Given a valid relative path, the key should always build");
+    SampleDocument::from_parts(key, b"{}".to_vec(), sample_metadata())
 }
