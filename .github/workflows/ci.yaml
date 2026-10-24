@@ -37,6 +37,8 @@ jobs:
       run: cargo check
     - name: Documentation Check
       run: cargo doc --no-deps --document-private-items --workspace
+      env:
+        RUSTDOCFLAGS: "-D warnings"
     - name: Linting
       run: cargo clippy --workspace --all-targets --all-features -- -D warnings
     - name: Unit Tests
