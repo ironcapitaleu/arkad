@@ -318,6 +318,19 @@ mod tests {
         assert_eq!(result, expected_result);
     }
 
+    #[tokio::test]
+    async fn should_return_invalid_status_code_when_the_http_response_is_a_404() {
+        let inner = fake_reqwest_response("404 Not Found", "application/json", RAW_BODY).await;
+
+        let expected_result = Err(InvalidSecResponse::new(ErrorReason::InvalidStatusCode {
+            status_code: StatusCode::NotFound,
+        }));
+
+        let result = SecResponse::from_inner(inner).await;
+
+        assert_eq!(result, expected_result);
+    }
+
     #[test]
     fn should_return_invalid_status_code_when_building_from_parts_with_a_404() {
         let expected_result = Err(InvalidSecResponse::new(ErrorReason::InvalidStatusCode {

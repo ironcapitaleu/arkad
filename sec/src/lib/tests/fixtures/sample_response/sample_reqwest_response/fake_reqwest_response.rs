@@ -4,8 +4,8 @@ use std::thread;
 
 /// Returns a real `reqwest::Response` with the given status line, content type, and body.
 ///
-/// A one-shot server on a local port answers a single request, so the test needs no network and
-/// no extra HTTP crate.
+/// A one-shot server on a loopback port answers a single request, so the test needs no outside
+/// network and no extra HTTP crate.
 ///
 /// # Panics
 ///
@@ -32,9 +32,18 @@ pub async fn fake_reqwest_response(
         let (mut stream, _) = listener
             .accept()
             .expect("Given a client that connects, accepting the connection should always succeed");
-        let mut request = [0_u8; 1024];
-        // Deviation: the request is read only to drain it. Its content does not matter.
-        let _ = stream.read(&mut request);
+        // Reads the whole request head. A close with unread bytes sends a reset, not a normal close.
+        let mut request = Vec::new();
+        let mut chunk = [0_u8; 1024];
+        while !request.ends_with(b"\r\n\r\n") {
+            let read = stream
+                .read(&mut chunk)
+                .expect("Given an open connection, reading the request should always succeed");
+            if read == 0 {
+                break;
+            }
+            request.extend_from_slice(&chunk[..read]);
+        }
         stream
             .write_all(&message)
             .expect("Given an open connection, writing the response should always succeed");
