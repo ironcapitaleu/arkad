@@ -22,6 +22,7 @@ futures-util = "0.3"
 reqwest = { version = "0.13", features = ["json"] }
 governor = "0.10.4"
 state_maschine = { path = "../state_maschine" }
+storage = { path = "../storage" }
 xbrl = { path = "../xbrl" }
 uuid = { version = "1.23.2", features = ["v4"] }
 regex = "1"
