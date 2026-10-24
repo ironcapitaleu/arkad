@@ -25,11 +25,23 @@ pub use user_agent_error::{UserAgentError, UserAgentErrorReason};
 ///
 /// A `UserAgent` serializes as its string. Deserializing goes through [`UserAgent::new`], so a
 /// user agent read from a file passes the same check.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default, Serialize, Deserialize)]
+///
+/// # Examples
+///
+/// The field is private, so code outside this module cannot build a `UserAgent` without the check:
+///
+/// ```compile_fail,E0451
+/// use sec::shared::user_agent::UserAgent;
+///
+/// let agent = UserAgent {
+///     inner: String::new(),
+/// };
+/// ```
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(try_from = "String", into = "String")]
 pub struct UserAgent {
     /// The validated user-agent string.
-    pub inner: String,
+    inner: String,
 }
 
 impl UserAgent {
