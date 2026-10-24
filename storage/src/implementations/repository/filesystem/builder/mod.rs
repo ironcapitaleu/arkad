@@ -10,7 +10,7 @@
 use std::path::PathBuf;
 
 use super::FilesystemRepository;
-use super::access::{Access, Read, ReadWrite, Write};
+use super::traits::access::{Access, Read, ReadWrite, Write};
 
 /// Marks a builder that holds no access yet.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]

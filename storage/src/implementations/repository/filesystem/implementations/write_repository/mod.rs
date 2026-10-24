@@ -14,11 +14,11 @@ use tokio::io::AsyncWriteExt;
 
 use crate::error::WriteError;
 use crate::implementations::repository::filesystem::FilesystemRepository;
-use crate::implementations::repository::filesystem::access::CanWrite;
 use crate::implementations::repository::filesystem::filesystem_error::{
     FilesystemError, FilesystemErrorReason, FilesystemOperation,
 };
 use crate::implementations::repository::filesystem::raw_document::RawDocument;
+use crate::implementations::repository::filesystem::traits::access::CanWrite;
 use crate::traits::repository::WriteRepository;
 
 /// Counter that gives every temporary file of this process a distinct name.

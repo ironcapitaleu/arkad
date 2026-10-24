@@ -15,7 +15,7 @@
 //!
 //! ## Modules
 //!
-//! - [`access`]: The access markers and the traits that connect them to the ports.
+//! - [`traits`]: The access markers and the traits that connect them to the ports.
 //! - [`builder`]: The [`FilesystemRepositoryBuilder`] and the markers for its missing steps.
 //! - [`constants`]: The constants that fix the file layout, such as [`METADATA_SUFFIX`].
 //! - [`document_key`]: The [`DocumentKey`] naming one document, and the [`InvalidDocumentKey`] for
@@ -29,7 +29,6 @@ use std::path::{Path, PathBuf};
 
 use crate::error::BackendError;
 
-pub mod access;
 pub mod builder;
 pub mod constants;
 pub mod document_key;
@@ -37,14 +36,15 @@ pub mod document_metadata;
 pub mod filesystem_error;
 mod implementations;
 pub mod raw_document;
+pub mod traits;
 
-pub use access::{Access, CanRead, CanWrite, Read, ReadWrite, Write};
 pub use builder::{FilesystemRepositoryBuilder, NoAccess, NoRoot};
 pub use constants::METADATA_SUFFIX;
 pub use document_key::{DocumentKey, InvalidDocumentKey};
 pub use document_metadata::DocumentMetadata;
 pub use filesystem_error::{FilesystemError, FilesystemErrorReason, FilesystemOperation};
 pub use raw_document::RawDocument;
+pub use traits::access::{Access, CanRead, CanWrite, Read, ReadWrite, Write};
 
 /// Stores documents as files beneath one root directory, with the access the marker `A` allows.
 ///
