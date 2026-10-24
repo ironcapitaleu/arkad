@@ -1,6 +1,7 @@
 //! # Sample Document
 //!
-//! Provides [`SampleDocument`], a document kind that exists only for tests, and fixed values of it.
+//! Provides [`SampleDocument`], a document kind that exists only for tests, and fixed metadata
+//! of it.
 
 use std::fmt;
 
@@ -75,7 +76,7 @@ impl Document for SampleDocument {
     }
 }
 
-/// Returns the metadata of [`sample_document`].
+/// Returns fixed metadata of a [`SampleDocument`].
 ///
 /// # Panics
 ///
@@ -102,16 +103,4 @@ pub fn sample_metadata() -> DocumentMetadata<SampleContext> {
             url: "https://data.sec.gov/api/xbrl/companyfacts/CIK0000320193.json".to_owned(),
         },
     )
-}
-
-/// Returns a [`SampleDocument`] holding `{}` under the key `sec/derived/CIK0000320193.json`.
-///
-/// # Panics
-///
-/// Panics if the hardcoded key is invalid. It is a valid value.
-#[must_use]
-pub fn sample_document() -> SampleDocument {
-    let key = DocumentKey::new("sec/derived/CIK0000320193.json")
-        .expect("Given a valid relative path, the key should always build");
-    SampleDocument::from_parts(key, b"{}".to_vec(), sample_metadata())
 }

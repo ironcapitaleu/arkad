@@ -26,12 +26,13 @@ pub use producer::Producer;
 /// Describes one stored document: the fields every kind shares, and the context of its kind.
 ///
 /// The shared fields serialize at the top level of a JSON object. The context serializes as a
-/// nested object under `context`. So every kind writes the shared fields under the same names.
+/// nested object under `context`.
 ///
 /// [`DocumentMetadata::new`] sets `metadata_version` from [`METADATA_VERSION`], and `kind` and
-/// `kind_version` from the [`Document`] type. Deserialized metadata keeps the values it was stored
-/// with, and deserializing checks none of them. A reader compares them with its own values before
-/// it uses the metadata.
+/// `kind_version` from the [`Document`] type it names. The metadata holds no link to that type.
+/// Two document types can share one context type, so [`Document::from_parts`] can receive metadata
+/// built for another type. Deserializing checks none of the three values either. So the store
+/// compares them with the document type's values on every write and every read.
 ///
 /// Nothing checks that the SHA-256 is 64 lowercase hex characters.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -40,7 +41,8 @@ pub struct DocumentMetadata<C> {
     kind: String,
     kind_version: u32,
     media_type: String,
-    bytes: u64,
+    #[serde(rename = "bytes")]
+    size_in_bytes: u64,
     sha256: String,
     produced_at: DateTime<Utc>,
     execution_id: Uuid,
@@ -52,7 +54,8 @@ pub struct DocumentMetadata<C> {
 impl<C> DocumentMetadata<C> {
     /// Creates new [`DocumentMetadata`] for a document of kind `D`.
     ///
-    /// `bytes` is the size of the document and `sha256` the hex-encoded SHA-256 of its bytes.
+    /// `size_in_bytes` is the size of the document and `sha256` the hex-encoded SHA-256 of its
+    /// bytes.
     /// `inputs` names the documents this one came from, and is empty for a document that came
     /// from none.
     ///
@@ -130,7 +133,7 @@ impl<C> DocumentMetadata<C> {
     #[must_use]
     pub fn new<D: Document<Context = C>>(
         media_type: impl Into<String>,
-        bytes: u64,
+        size_in_bytes: u64,
         sha256: impl Into<String>,
         produced_at: DateTime<Utc>,
         execution_id: Uuid,
@@ -143,7 +146,7 @@ impl<C> DocumentMetadata<C> {
             kind: D::KIND.to_string(),
             kind_version: D::KIND_VERSION,
             media_type: media_type.into(),
-            bytes,
+            size_in_bytes,
             sha256: sha256.into(),
             produced_at,
             execution_id,
@@ -179,8 +182,8 @@ impl<C> DocumentMetadata<C> {
 
     /// Returns the size of the document in bytes.
     #[must_use]
-    pub const fn bytes(&self) -> u64 {
-        self.bytes
+    pub const fn size_in_bytes(&self) -> u64 {
+        self.size_in_bytes
     }
 
     /// Returns the hex-encoded SHA-256 of the document bytes.
@@ -236,13 +239,46 @@ mod tests {
         implements_auto_traits::<DocumentMetadata<SampleContext>>();
     }
 
-    const fn implements_value_traits<
-        T: Debug + Clone + PartialEq + Eq + PartialOrd + Ord + Hash,
-    >() {
-    }
+    const fn implements_debug<T: Debug>() {}
     #[test]
-    const fn should_implement_value_traits_for_document_metadata() {
-        implements_value_traits::<DocumentMetadata<SampleContext>>();
+    const fn should_be_able_to_rely_on_debug_implementation_for_document_metadata() {
+        implements_debug::<DocumentMetadata<SampleContext>>();
+    }
+
+    const fn implements_clone<T: Clone>() {}
+    #[test]
+    const fn should_be_able_to_rely_on_clone_implementation_for_document_metadata() {
+        implements_clone::<DocumentMetadata<SampleContext>>();
+    }
+
+    const fn implements_partial_eq<T: PartialEq>() {}
+    #[test]
+    const fn should_be_able_to_rely_on_partial_eq_implementation_for_document_metadata() {
+        implements_partial_eq::<DocumentMetadata<SampleContext>>();
+    }
+
+    const fn implements_eq<T: Eq>() {}
+    #[test]
+    const fn should_be_able_to_rely_on_eq_implementation_for_document_metadata() {
+        implements_eq::<DocumentMetadata<SampleContext>>();
+    }
+
+    const fn implements_partial_ord<T: PartialOrd>() {}
+    #[test]
+    const fn should_be_able_to_rely_on_partial_ord_implementation_for_document_metadata() {
+        implements_partial_ord::<DocumentMetadata<SampleContext>>();
+    }
+
+    const fn implements_ord<T: Ord>() {}
+    #[test]
+    const fn should_be_able_to_rely_on_ord_implementation_for_document_metadata() {
+        implements_ord::<DocumentMetadata<SampleContext>>();
+    }
+
+    const fn implements_hash<T: Hash>() {}
+    #[test]
+    const fn should_be_able_to_rely_on_hash_implementation_for_document_metadata() {
+        implements_hash::<DocumentMetadata<SampleContext>>();
     }
 
     #[test]
@@ -279,7 +315,8 @@ mod tests {
     }
 
     #[test]
-    fn should_serialize_the_shared_fields_at_the_top_level_and_nest_the_context() {
+    fn should_serialize_the_shared_fields_at_the_top_level_and_nest_the_context_for_document_metadata()
+     {
         let metadata = sample_metadata();
 
         let expected_result = serde_json::json!({

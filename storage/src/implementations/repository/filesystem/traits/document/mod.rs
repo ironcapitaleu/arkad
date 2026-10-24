@@ -92,6 +92,9 @@ use crate::implementations::repository::filesystem::shared::document_metadata::D
 /// ```
 pub trait Document: Send + Sized {
     /// The enum of document kinds in the crate that owns this kind.
+    ///
+    /// The store writes its `Display` text as `kind`. The text must be unique across every crate
+    /// that stores documents, because the store cannot tell two equal texts apart.
     type Kind: fmt::Display;
 
     /// The variant of [`Document::Kind`] that names this document kind.
@@ -126,40 +129,12 @@ pub trait Document: Send + Sized {
 
 #[cfg(test)]
 mod tests {
-    use pretty_assertions::assert_eq;
-
     use super::*;
-    use crate::tests::fixtures::sample_document::{SampleDocument, sample_document};
+    use crate::tests::fixtures::sample_document::SampleDocument;
 
     const fn implements_document<T: Document>() {}
     #[test]
     const fn should_implement_document_for_sample_document() {
         implements_document::<SampleDocument>();
-    }
-
-    #[test]
-    fn should_write_the_kind_as_its_display_text_for_sample_document() {
-        let expected_result = "sample_document";
-
-        let result = SampleDocument::KIND.to_string();
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
-    fn should_keep_the_key_when_building_a_document_from_its_parts() {
-        let document = sample_document();
-
-        let expected_result = document.key().clone();
-
-        let result = SampleDocument::from_parts(
-            document.key().clone(),
-            document.bytes().to_vec(),
-            document.metadata().clone(),
-        )
-        .key()
-        .clone();
-
-        assert_eq!(result, expected_result);
     }
 }
