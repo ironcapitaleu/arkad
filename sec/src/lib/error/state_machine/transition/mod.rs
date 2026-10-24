@@ -137,4 +137,11 @@ mod tests {
     const fn should_be_able_to_rely_on_unpin_implementation_for_transition_error() {
         implements_unpin::<Transition>();
     }
+
+    #[test]
+    fn should_be_able_to_create_transition_failedcontextconversion_error_when_using_enum_directly()
+    {
+        let _result =
+            Transition::FailedContextConversion(FailedContextConversion::new("StateA", "StateB"));
+    }
 }

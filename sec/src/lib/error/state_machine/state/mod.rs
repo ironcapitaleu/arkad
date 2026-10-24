@@ -71,6 +71,8 @@ pub enum State {
 mod tests {
     use std::{fmt::Debug, hash::Hash};
 
+    use pretty_assertions::assert_eq;
+
     use super::*;
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
     #[test]
@@ -149,5 +151,14 @@ mod tests {
     #[test]
     const fn should_be_able_to_rely_on_unpin_implementation_for_state_error() {
         implements_unpin::<State>();
+    }
+
+    #[test]
+    fn should_be_able_to_create_state_invalidinput_error_when_using_enum_directly() {
+        let expected_result = State::InvalidInput;
+
+        let result = State::InvalidInput;
+
+        assert_eq!(result, expected_result);
     }
 }
