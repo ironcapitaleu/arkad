@@ -9,15 +9,6 @@ mod tests {
     use super::*;
 
     #[test]
-    fn should_load_fixture_correctly_when_accessing_constant() {
-        let expected_result = true;
-
-        let result = serde_json::from_str::<serde_json::Value>(CIK0001067983).is_ok();
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
     fn should_correctly_extract_berkshire_cik_when_fixture_is_parsed() {
         let json: Value = serde_json::from_str(CIK0001067983)
             .expect("CIK0001067983.json is a well-formed fixture and should always parse");

@@ -43,7 +43,7 @@ impl SampleSecSuperState<SampleSecState> {
 impl<S: State> fmt::Display for SampleSecSuperState<S> {
     #[expect(
         clippy::redundant_clone,
-        reason = "`state_name` returns `impl ToString`, so the call is needed, but clippy sees the `String` behind it"
+        reason = "`state_name` returns `impl ToString`, which is a `String` here. Clippy flags `.to_string()` as a clone, but removing it does not compile"
     )]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "SampleSecSuperState({})", self.state_name().to_string())
