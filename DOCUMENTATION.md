@@ -794,7 +794,7 @@ Before submitting a PR, verify:
 
 - [ ] Every public item has a `///` doc comment with a summary line.
 - [ ] Every `mod.rs` / `lib.rs` has `//!` module-level documentation.
-- [ ] All intra-doc links resolve (`cargo doc` passes).
+- [ ] The docs build without warnings (`RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --document-private-items --workspace` passes).
 - [ ] `# Errors` section exists for all `Result`-returning public functions.
 - [ ] `# Panics` section exists for any function that can panic.
 - [ ] Doc-tests exist on constructors and fallible entry-point methods.
