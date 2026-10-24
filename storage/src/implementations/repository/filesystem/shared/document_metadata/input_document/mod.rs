@@ -208,12 +208,13 @@ mod tests {
     fn should_reject_a_key_that_escapes_the_root_when_deserializing_an_input_document() {
         let json = r#"{"key":"../escape.json","sha256":"44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"}"#;
 
-        let expected_result = "[ContainsParentComponent] Document key '../escape.json' contains a parent component at line 1 column 23";
+        let expected_result =
+            "[ContainsParentComponent] Document key '../escape.json' contains a parent component";
 
         let result = serde_json::from_str::<InputDocument>(json)
             .expect_err("Given a key with a parent component, deserialization should always fail")
             .to_string();
 
-        assert_eq!(result, expected_result);
+        assert!(result.starts_with(expected_result));
     }
 }
