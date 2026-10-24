@@ -14,7 +14,7 @@ use crate::implementations::repository::filesystem::shared::document_metadata::{
     DocumentMetadata, InputDocument, Producer,
 };
 use crate::implementations::repository::filesystem::traits::document::Document;
-use crate::shared::sha256_hex;
+use crate::shared::Sha256Digest;
 
 /// The document kinds that exist only for tests.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -103,7 +103,7 @@ pub fn sample_metadata_of(bytes: &[u8], produced_at: &str) -> DocumentMetadata<S
     DocumentMetadata::builder()
         .document_type::<SampleDocument>()
         .media_type("application/json")
-        .content(bytes.len() as u64, sha256_hex(bytes))
+        .content(bytes.len() as u64, Sha256Digest::of(bytes))
         .produced_at(produced_at)
         .run(
             Uuid::from_u128(0x0b6f_3c1e_5d2a_4f7b_9c3e_8a1d_2b4c_6e8f),
@@ -114,7 +114,11 @@ pub fn sample_metadata_of(bytes: &[u8], produced_at: &str) -> DocumentMetadata<S
         })
         .inputs(vec![InputDocument::new(
             input_key,
-            "73a86c6aedc31f77cac2ea4df5f80f0b73a86c6aedc31f77cac2ea4df5f80f0b",
+            "73a86c6aedc31f77cac2ea4df5f80f0b73a86c6aedc31f77cac2ea4df5f80f0b"
+                .parse()
+                .expect(
+                    "Given 64 hardcoded lowercase hex characters, parsing should always succeed",
+                ),
         )])
         .build()
 }

@@ -10,6 +10,7 @@ use std::path::PathBuf;
 use thiserror::Error;
 
 use crate::implementations::repository::filesystem::METADATA_SUFFIX;
+use crate::shared::Sha256Digest;
 
 /// Error representing a failed operation on one path of the filesystem.
 ///
@@ -143,9 +144,9 @@ pub enum FailedFilesystemOperationReason {
     /// The document digest differs from the SHA-256 digest its metadata names.
     UnexpectedDocumentDigest {
         /// The digest of the bytes the document holds.
-        found_digest: String,
+        found_digest: Sha256Digest,
         /// The digest the metadata names.
-        expected_digest: String,
+        expected_digest: Sha256Digest,
     },
     /// The key ends in the suffix of a metadata file, so it names the metadata file of another key.
     InvalidKeySuffix,
@@ -429,11 +430,13 @@ mod tests {
     #[test]
     fn should_format_display_as_expected_when_the_document_digest_is_unexpected() {
         let reason = FailedFilesystemOperationReason::UnexpectedDocumentDigest {
-            found_digest: "ab".to_owned(),
-            expected_digest: "cd".to_owned(),
+            found_digest: Sha256Digest::of(b"[]"),
+            expected_digest: Sha256Digest::of(b"{}"),
         };
 
-        let expected_result = "Document has SHA-256 'ab', metadata names 'cd'";
+        let expected_result = "Document has SHA-256 \
+            '4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945', metadata names \
+            '44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a'";
 
         let result = reason.to_string();
 

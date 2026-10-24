@@ -40,7 +40,7 @@ pub mod shared;
 pub mod traits;
 
 pub use error::{BackendError, ErrorKind, ReadError, WriteError};
-pub use shared::{Sha256Digest, sha256_hex};
+pub use shared::{InvalidSha256Digest, Sha256Digest, sha256_hex};
 pub use traits::repository::{ReadRepository, ReadWriteRepository, WriteRepository};
 
 #[cfg(test)]

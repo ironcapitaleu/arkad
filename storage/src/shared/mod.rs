@@ -4,8 +4,9 @@
 //!
 //! ## Modules
 //!
-//! - [`sha256`]: The [`sha256_hex`] function and the [`Sha256Digest`] that holds its result.
+//! - [`sha256`]: The [`sha256_hex`] function, the [`Sha256Digest`] that holds its result, and the
+//!   [`InvalidSha256Digest`] for a string that is not a digest.
 
 pub mod sha256;
 
-pub use sha256::{Sha256Digest, sha256_hex};
+pub use sha256::{InvalidSha256Digest, Sha256Digest, sha256_hex};

@@ -34,7 +34,7 @@ use std::marker::PhantomData;
 use std::path::{Path, PathBuf};
 
 use crate::error::BackendError;
-use crate::shared::sha256_hex;
+use crate::shared::Sha256Digest;
 
 pub mod error;
 pub mod implementations;
@@ -337,11 +337,11 @@ fn check_content<C>(
             expected_size: metadata.size_in_bytes(),
         });
     }
-    let found_digest = sha256_hex(bytes);
-    if found_digest != metadata.sha256() {
+    let found_digest = Sha256Digest::of(bytes);
+    if found_digest != *metadata.sha256() {
         return Err(FailedFilesystemOperationReason::UnexpectedDocumentDigest {
             found_digest,
-            expected_digest: metadata.sha256().to_owned(),
+            expected_digest: metadata.sha256().clone(),
         });
     }
     Ok(())

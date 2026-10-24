@@ -24,7 +24,7 @@ use crate::implementations::repository::filesystem::shared::document_key::Docume
 use crate::implementations::repository::filesystem::traits::access::CanWrite;
 use crate::implementations::repository::filesystem::traits::document::Document;
 use crate::implementations::repository::filesystem::{FilesystemRepository, check_content};
-use crate::shared::sha256_hex;
+use crate::shared::Sha256Digest;
 use crate::traits::repository::WriteRepository;
 
 /// Counter that gives every temporary file of this process a distinct name.
@@ -125,7 +125,7 @@ impl<A: CanWrite, D> FilesystemRepository<A, D> {
         key: &DocumentKey,
         metadata: &[u8],
         bytes: &[u8],
-        digest: &str,
+        digest: &Sha256Digest,
     ) -> Result<(), FailedFilesystemOperation> {
         self.ensure_root_is_reachable().await?;
 
@@ -173,7 +173,7 @@ async fn stored_pair_matches(
     metadata_path: &Path,
     metadata: &[u8],
     document_path: &Path,
-    digest: &str,
+    digest: &Sha256Digest,
 ) -> bool {
     let Ok(stored_json) = fs::read(metadata_path).await else {
         return false;
@@ -192,7 +192,7 @@ async fn stored_pair_matches(
     }
     fs::read(document_path)
         .await
-        .is_ok_and(|document| sha256_hex(&document) == digest)
+        .is_ok_and(|document| Sha256Digest::of(&document) == *digest)
 }
 
 /// Removes `produced_at` and `execution_id` from a metadata object.
@@ -806,7 +806,7 @@ mod tests {
         let key = sample_document().key().clone();
         let record = SampleDocument::from_parts(key, b"[]".to_vec(), sample_metadata());
         let reason = FailedFilesystemOperationReason::UnexpectedDocumentDigest {
-            found_digest: sha256_hex(b"[]"),
+            found_digest: Sha256Digest::of(b"[]"),
             expected_digest: sample_metadata().sha256().to_owned(),
         };
 

@@ -17,6 +17,7 @@ use crate::implementations::repository::filesystem::shared::document_metadata::c
 use crate::implementations::repository::filesystem::shared::document_metadata::input_document::InputDocument;
 use crate::implementations::repository::filesystem::shared::document_metadata::producer::Producer;
 use crate::implementations::repository::filesystem::traits::document::Document;
+use crate::shared::Sha256Digest;
 
 /// Marks a builder that holds no document type yet.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -46,7 +47,7 @@ pub struct NoContext;
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Content {
     size_in_bytes: u64,
-    sha256: String,
+    sha256: Sha256Digest,
 }
 
 /// The run and the code that produced one document, as a builder holds them.
@@ -132,21 +133,21 @@ impl<D, B, P, R, C> DocumentMetadataBuilder<D, NoMediaType, B, P, R, C> {
 }
 
 impl<D, M, P, R, C> DocumentMetadataBuilder<D, M, NoContent, P, R, C> {
-    /// Sets the size of the document in bytes and the hex-encoded SHA-256 of its bytes.
+    /// Sets the size of the document in bytes and the SHA-256 digest of its bytes.
     ///
     /// The builder checks neither value against the document.
     #[must_use]
     pub fn content(
         self,
         size_in_bytes: u64,
-        sha256: impl Into<String>,
+        sha256: Sha256Digest,
     ) -> DocumentMetadataBuilder<D, M, Content, P, R, C> {
         DocumentMetadataBuilder {
             document_type: self.document_type,
             media_type: self.media_type,
             content: Content {
                 size_in_bytes,
-                sha256: sha256.into(),
+                sha256,
             },
             produced_at: self.produced_at,
             run: self.run,
@@ -244,7 +245,7 @@ impl<D: Document> DocumentMetadataBuilder<D, String, Content, DateTime<Utc>, Run
     ///
     /// let metadata = DocumentMetadata::builder()
     ///     .media_type("application/json")
-    ///     .content(2, "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a")
+    ///     .content(2, storage::shared::Sha256Digest::of(b"{}"))
     ///     .produced_at(DateTime::<Utc>::UNIX_EPOCH)
     ///     .run(Uuid::nil(), Producer::new("Summarize", "0.1.0", "63c1f59"))
     ///     .context(())
@@ -305,7 +306,7 @@ impl<D: Document> DocumentMetadataBuilder<D, String, Content, DateTime<Utc>, Run
     /// let metadata = DocumentMetadata::builder()
     ///     .document_type::<Summary>()
     ///     .media_type("application/json")
-    ///     .content(2, "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a")
+    ///     .content(2, storage::shared::Sha256Digest::of(b"{}"))
     ///     .produced_at(DateTime::<Utc>::UNIX_EPOCH)
     ///     .run(Uuid::nil(), Producer::new("Summarize", "0.1.0", "63c1f59"))
     ///     .context(())
@@ -366,7 +367,7 @@ impl<D: Document> DocumentMetadataBuilder<D, String, Content, DateTime<Utc>, Run
     /// let metadata = DocumentMetadata::builder()
     ///     .document_type::<Summary>()
     ///     .media_type("application/json")
-    ///     .content(2, "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a")
+    ///     .content(2, storage::shared::Sha256Digest::of(b"{}"))
     ///     .produced_at(DateTime::<Utc>::UNIX_EPOCH)
     ///     .context(SummaryContext { source: "a test".to_owned() })
     ///     .build();
@@ -399,7 +400,9 @@ mod tests {
     use super::*;
     use crate::tests::fixtures::sample_document::{SampleContext, SampleDocument, sample_metadata};
 
-    const SHA256: &str = "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a";
+    fn sha256() -> Sha256Digest {
+        Sha256Digest::of(b"{}")
+    }
 
     fn produced_at() -> DateTime<Utc> {
         "2026-09-22T20:05:30Z"
@@ -480,7 +483,7 @@ mod tests {
         let result = DocumentMetadata::builder()
             .document_type::<SampleDocument>()
             .media_type("application/json")
-            .content(2, SHA256)
+            .content(2, sha256())
             .produced_at(produced_at())
             .run(execution_id, producer)
             .context(sample_context())
@@ -502,7 +505,7 @@ mod tests {
             .context(sample_context())
             .run(execution_id, producer)
             .produced_at(produced_at())
-            .content(2, SHA256)
+            .content(2, sha256())
             .media_type("application/json")
             .document_type::<SampleDocument>()
             .build();
@@ -519,7 +522,7 @@ mod tests {
         let metadata = DocumentMetadata::builder()
             .document_type::<SampleDocument>()
             .media_type("application/json")
-            .content(2, SHA256)
+            .content(2, sha256())
             .produced_at(produced_at())
             .run(execution_id, producer)
             .context(sample_context())
