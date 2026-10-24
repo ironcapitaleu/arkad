@@ -200,6 +200,8 @@ impl<D, M, B, P, C> DocumentMetadataBuilder<D, M, B, P, NoRun, C> {
 
 impl<D, M, B, P, R> DocumentMetadataBuilder<D, M, B, P, R, NoContext> {
     /// Sets the fields that only this document kind has.
+    ///
+    /// If `C` is not the document type's [`Document::Context`], the builder has no `build` method.
     #[must_use]
     pub fn context<C>(self, context: C) -> DocumentMetadataBuilder<D, M, B, P, R, C> {
         DocumentMetadataBuilder {
