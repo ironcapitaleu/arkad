@@ -163,7 +163,7 @@ impl Serialize for DocumentKey {
     /// # Panics
     ///
     /// Panics if a component is not valid UTF-8. [`DocumentKey::new`] rejects such a component, so
-    /// a built key never panics.
+    /// serializing a built key never panics.
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         let components: Vec<&str> = self
             .path
