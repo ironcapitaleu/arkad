@@ -128,7 +128,6 @@ impl<C> DocumentMetadata<C> {
     /// assert_eq!(result, expected_result);
     /// ```
     // Deviation: eight arguments, over clippy's limit of seven. Each argument is a stored field.
-    // A typed builder replaces this constructor in a later PR of STA-282.
     #[expect(clippy::too_many_arguments)]
     #[must_use]
     pub fn new<D: Document<Context = C>>(
