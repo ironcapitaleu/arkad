@@ -38,8 +38,8 @@ impl<A: CanWrite, D: Document> WriteRepository for FilesystemRepository<A, D> {
     ///
     /// Checks that the record's metadata holds the kind and kind version of `D`, and serializes the
     /// metadata. Then checks that the root exists, and creates every missing directory between the
-    /// root and the document. If the key
-    /// already names a document, the new bytes and metadata replace the old.
+    /// root and the document. If the key already names a document, the new bytes and metadata
+    /// replace the old.
     ///
     /// # Errors
     ///
@@ -631,6 +631,23 @@ mod tests {
 
         let expected_result: Vec<String> = Vec::new();
 
+        // The write error is the subject of the two tests above. This test checks the disk
+        // afterwards.
+        let _ = repository.persist(record).await;
+        let result = sorted_file_names(root.path());
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_write_no_file_when_persisting_a_record_of_another_kind_version() {
+        let root = temporary_root();
+        let repository = repository_at(root.path());
+        let record = sample_document_with_metadata_field("kind_version", 2.into());
+
+        let expected_result: Vec<String> = Vec::new();
+
+        // The write error is the subject of another test. This test checks the disk afterwards.
         let _ = repository.persist(record).await;
         let result = sorted_file_names(root.path());
 

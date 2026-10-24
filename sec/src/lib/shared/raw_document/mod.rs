@@ -98,7 +98,10 @@ mod tests {
 
     use chrono::{DateTime, Utc};
     use pretty_assertions::assert_eq;
-    use storage::implementations::repository::filesystem::Producer;
+    use storage::ReadWriteRepository;
+    use storage::implementations::repository::filesystem::{
+        FilesystemRepository, Producer, ReadWrite,
+    };
     use uuid::Uuid;
 
     use super::*;
@@ -148,6 +151,12 @@ mod tests {
         implements_document::<RawDocument>();
     }
 
+    const fn implements_read_write_repository<T: ReadWriteRepository>() {}
+    #[test]
+    const fn should_implement_read_write_repository_for_a_filesystem_repository_of_raw_document() {
+        implements_read_write_repository::<FilesystemRepository<ReadWrite, RawDocument>>();
+    }
+
     #[test]
     fn should_store_the_raw_company_facts_kind_when_building_its_metadata() {
         let document = sample_raw_document();
@@ -186,9 +195,13 @@ mod tests {
     fn should_keep_the_context_when_building_a_raw_document_from_its_parts() {
         let document = sample_raw_document();
 
-        let expected_result = 200;
+        let expected_result = RawDocumentMetadataContext {
+            url: "https://data.sec.gov/api/xbrl/companyfacts/CIK0000320193.json".to_owned(),
+            http_status: 200,
+            user_agent: "arkad contact@example.com".to_owned(),
+        };
 
-        let result = document.metadata().context().http_status;
+        let result = document.metadata().context().clone();
 
         assert_eq!(result, expected_result);
     }

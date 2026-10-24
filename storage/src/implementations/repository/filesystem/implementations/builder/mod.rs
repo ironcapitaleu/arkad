@@ -8,6 +8,9 @@
 //! one of them does not compile. The access marker decides which ports the built repository
 //! implements, and the document type decides which records it reads and writes.
 
+use std::cmp::Ordering;
+use std::fmt;
+use std::hash::{Hash, Hasher};
 use std::marker::PhantomData;
 use std::path::PathBuf;
 
@@ -31,11 +34,59 @@ pub struct NoRoot;
 /// Set the access with [`reader`](Self::reader), [`writer`](Self::writer), or
 /// [`read_write`](Self::read_write), the document type with [`document_type`](Self::document_type),
 /// and the root with [`root`](Self::root), in any order. Then call [`build`](Self::build).
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+// Deviation: the value traits below are written by hand. A derive would require `D` to implement
+// each of them, although the builder holds no `D`.
 pub struct FilesystemRepositoryBuilder<A, R, D> {
     access: A,
     root: R,
     document_type: PhantomData<fn() -> D>,
+}
+
+impl<A: fmt::Debug, R: fmt::Debug, D> fmt::Debug for FilesystemRepositoryBuilder<A, R, D> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("FilesystemRepositoryBuilder")
+            .field("access", &self.access)
+            .field("root", &self.root)
+            .field("document_type", &self.document_type)
+            .finish()
+    }
+}
+
+impl<A: Clone, R: Clone, D> Clone for FilesystemRepositoryBuilder<A, R, D> {
+    fn clone(&self) -> Self {
+        Self {
+            access: self.access.clone(),
+            root: self.root.clone(),
+            document_type: PhantomData,
+        }
+    }
+}
+
+impl<A: PartialEq, R: PartialEq, D> PartialEq for FilesystemRepositoryBuilder<A, R, D> {
+    fn eq(&self, other: &Self) -> bool {
+        (&self.access, &self.root) == (&other.access, &other.root)
+    }
+}
+
+impl<A: Eq, R: Eq, D> Eq for FilesystemRepositoryBuilder<A, R, D> {}
+
+impl<A: PartialOrd, R: PartialOrd, D> PartialOrd for FilesystemRepositoryBuilder<A, R, D> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        (&self.access, &self.root).partial_cmp(&(&other.access, &other.root))
+    }
+}
+
+impl<A: Ord, R: Ord, D> Ord for FilesystemRepositoryBuilder<A, R, D> {
+    fn cmp(&self, other: &Self) -> Ordering {
+        (&self.access, &self.root).cmp(&(&other.access, &other.root))
+    }
+}
+
+impl<A: Hash, R: Hash, D> Hash for FilesystemRepositoryBuilder<A, R, D> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.access.hash(state);
+        self.root.hash(state);
+    }
 }
 
 impl FilesystemRepositoryBuilder<NoAccess, NoRoot, NoDocumentType> {

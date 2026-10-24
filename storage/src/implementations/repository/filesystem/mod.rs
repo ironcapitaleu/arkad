@@ -26,6 +26,9 @@
 //! - [`traits`]: The access markers, the traits that connect them to the ports, and the
 //!   [`Document`] trait every stored document kind implements.
 
+use std::cmp::Ordering;
+use std::fmt;
+use std::hash::{Hash, Hasher};
 use std::io;
 use std::marker::PhantomData;
 use std::path::{Path, PathBuf};
@@ -56,7 +59,9 @@ pub use traits::document::Document;
 /// write rejects a record whose metadata holds another kind or kind version. Repositories for
 /// different document types can share one root, as long as their keys differ.
 ///
-/// The repository derives its traits, so `D` must implement them too.
+/// The repository implements `Debug`, `Clone`, `PartialEq`, `Eq`, `PartialOrd`, `Ord`, and `Hash`
+/// with no bound on `D`, so a `State` context can hold it for every document type. Two repositories
+/// compare by root and access.
 ///
 /// A [`DocumentKey`] is a document's path under the root. A document lives at the root joined with
 /// its key. On Linux and macOS, a root of `/data/arkad` and a key of `sec/CIK0000320193.json` name
@@ -76,13 +81,61 @@ pub use traits::document::Document;
 /// fails, or the caller drops the write between the renames, the new metadata stays beside the old
 /// document until the next successful write under that key. If the caller drops the write before
 /// the renames, its temporary files stay in the directory.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+// Deviation: the value traits below are written by hand. A derive would require `D` to implement
+// each of them, although the repository holds no `D`.
 pub struct FilesystemRepository<A, D> {
     root: PathBuf,
     access: A,
-    // Deviation: `fn() -> D` instead of `D`. The repository holds no `D`, so it stays `Send`,
-    // `Sync`, and `Unpin` for every `D`.
+    // `fn() -> D` instead of `D`: the repository holds no `D`, so it stays `Send`, `Sync`, and
+    // `Unpin` for every `D`.
     document_type: PhantomData<fn() -> D>,
+}
+
+impl<A: fmt::Debug, D> fmt::Debug for FilesystemRepository<A, D> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("FilesystemRepository")
+            .field("root", &self.root)
+            .field("access", &self.access)
+            .field("document_type", &self.document_type)
+            .finish()
+    }
+}
+
+impl<A: Clone, D> Clone for FilesystemRepository<A, D> {
+    fn clone(&self) -> Self {
+        Self {
+            root: self.root.clone(),
+            access: self.access.clone(),
+            document_type: PhantomData,
+        }
+    }
+}
+
+impl<A: PartialEq, D> PartialEq for FilesystemRepository<A, D> {
+    fn eq(&self, other: &Self) -> bool {
+        (&self.root, &self.access) == (&other.root, &other.access)
+    }
+}
+
+impl<A: Eq, D> Eq for FilesystemRepository<A, D> {}
+
+impl<A: PartialOrd, D> PartialOrd for FilesystemRepository<A, D> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        (&self.root, &self.access).partial_cmp(&(&other.root, &other.access))
+    }
+}
+
+impl<A: Ord, D> Ord for FilesystemRepository<A, D> {
+    fn cmp(&self, other: &Self) -> Ordering {
+        (&self.root, &self.access).cmp(&(&other.root, &other.access))
+    }
+}
+
+impl<A: Hash, D> Hash for FilesystemRepository<A, D> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.root.hash(state);
+        self.access.hash(state);
+    }
 }
 
 impl FilesystemRepository<NoAccess, NoDocumentType> {
@@ -321,7 +374,7 @@ mod tests {
     use tempfile::TempDir;
 
     use super::*;
-    use crate::tests::fixtures::sample_document::SampleDocument;
+    use crate::tests::fixtures::sample_document::{SampleDocument, SampleDocumentKind};
     use crate::traits::repository::ReadWriteRepository;
 
     /// Builds a repository with read and write access under the given root.
@@ -337,6 +390,58 @@ mod tests {
         TempDir::new().expect(
             "Given a writable system temp directory, creating a directory in it should always succeed",
         )
+    }
+
+    /// A document type that derives no trait, so a test can show that the repository needs none.
+    struct BareDocument {
+        key: DocumentKey,
+        bytes: Vec<u8>,
+        metadata: DocumentMetadata<()>,
+    }
+
+    impl Document for BareDocument {
+        type Kind = SampleDocumentKind;
+        const KIND: SampleDocumentKind = SampleDocumentKind::SampleDocument;
+        const KIND_VERSION: u32 = 1;
+        type Context = ();
+
+        fn key(&self) -> &DocumentKey {
+            &self.key
+        }
+
+        fn bytes(&self) -> &[u8] {
+            &self.bytes
+        }
+
+        fn metadata(&self) -> &DocumentMetadata<()> {
+            &self.metadata
+        }
+
+        fn from_parts(key: DocumentKey, bytes: Vec<u8>, metadata: DocumentMetadata<()>) -> Self {
+            Self {
+                key,
+                bytes,
+                metadata,
+            }
+        }
+    }
+
+    const fn implements_value_traits<
+        T: Debug + Clone + PartialEq + Eq + PartialOrd + Ord + Hash,
+    >() {
+    }
+    #[test]
+    const fn should_implement_value_traits_when_the_document_type_derives_nothing() {
+        implements_value_traits::<FilesystemRepository<ReadWrite, BareDocument>>();
+    }
+
+    #[test]
+    fn should_compare_equal_when_two_repositories_share_the_root_and_the_access() {
+        let expected_result = repository_at("/data/arkad");
+
+        let result = repository_at("/data/arkad");
+
+        assert_eq!(result, expected_result);
     }
 
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
