@@ -69,7 +69,7 @@ Then:
    - Check what documentation exists vs what's required.
    - Write/rewrite docs following the conventions.
    - For doctests, apply the ADAA pattern (Arrange, Define expected, Act, Assert).
-4. Run `cargo doc --no-deps -p <crate>` to verify no broken links.
+4. Run `RUSTDOCFLAGS="-D warnings" cargo doc --no-deps -p <crate>` to verify the docs build without warnings.
 5. Run `cargo test --doc -p <crate>` to verify doctests pass.
 
 ### For "Check" mode:

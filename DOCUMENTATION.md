@@ -780,16 +780,11 @@ Doc-tests answer the *Wie?* (How?) question concretely — they show a consumer 
 
 ### CI Enforcement
 
-The following must pass in CI without warnings:
+CI fails on every `rustdoc` warning. Run the same check locally:
 
 ```sh
-cargo doc --no-deps --document-private-items --workspace
+RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --document-private-items --workspace
 ```
-
-Relevant `rustdoc` lints treated as errors:
-- `broken_intra_doc_links`
-- `private_intra_doc_links`
-- `redundant_explicit_links`
 
 ---
 
