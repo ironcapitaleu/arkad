@@ -5,7 +5,10 @@
 //!
 //! ## Modules
 //! - [`cik`]: Provides parsing, validation, and formatting utilities for SEC Central Index Keys (CIKs).
+//! - [`document_kind`]: Provides [`SecDocumentKind`](document_kind::SecDocumentKind), the kinds of document the SEC state machines store.
 //! - [`http_client`]: Provides utilities for creating and managing SEC API clients, including user agent handling.
+//! - [`raw_document`]: Provides [`RawDocument`](raw_document::RawDocument), one SEC file as the store keeps it.
+//! - [`raw_source`]: Provides [`RawSource`](raw_source::RawSource), the trait that names the SEC file a raw document holds, and one implementation per file.
 //! - [`rate_limiter`]: Provides a leaky-bucket rate limiter for pacing outgoing SEC API requests.
 //! - [`request`]: Provides utilities for constructing SEC API requests, ensuring proper URL formatting.
 //! - [`response`]: Provides utilities for handling HTTP responses from SEC endpoints.
@@ -21,10 +24,13 @@
 
 pub mod cik;
 pub mod content_type;
+pub mod document_kind;
 pub mod financial;
 pub mod headers;
 pub mod http_client;
 pub mod rate_limiter;
+pub mod raw_document;
+pub mod raw_source;
 pub mod request;
 pub mod response;
 pub mod status_code;

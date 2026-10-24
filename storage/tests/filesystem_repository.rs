@@ -8,32 +8,84 @@
 //! - A writable system temp directory. Each test creates its own root there and deletes it at the
 //!   end.
 
+use std::fmt;
+
 use chrono::{DateTime, Utc};
 use pretty_assertions::assert_eq;
 use tempfile::TempDir;
+use uuid::Uuid;
 
 use storage::implementations::repository::filesystem::{
-    DocumentKey, FilesystemRepository, LegacyDocumentMetadata, RawDocument,
+    Document, DocumentKey, DocumentMetadata, FilesystemRepository, Producer,
 };
 use storage::{ReadRepository, WriteRepository};
 
-fn sample_raw_document() -> RawDocument {
+/// The document kinds of this test.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum SampleDocumentKind {
+    SampleDocument,
+}
+
+impl fmt::Display for SampleDocumentKind {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "sample_document")
+    }
+}
+
+/// A document kind that exists only for this test, with an empty context.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct SampleDocument {
+    key: DocumentKey,
+    bytes: Vec<u8>,
+    metadata: DocumentMetadata<()>,
+}
+
+impl Document for SampleDocument {
+    type Kind = SampleDocumentKind;
+    const KIND: SampleDocumentKind = SampleDocumentKind::SampleDocument;
+    const KIND_VERSION: u32 = 1;
+    type Context = ();
+
+    fn key(&self) -> &DocumentKey {
+        &self.key
+    }
+
+    fn bytes(&self) -> &[u8] {
+        &self.bytes
+    }
+
+    fn metadata(&self) -> &DocumentMetadata<()> {
+        &self.metadata
+    }
+
+    fn from_parts(key: DocumentKey, bytes: Vec<u8>, metadata: DocumentMetadata<()>) -> Self {
+        Self {
+            key,
+            bytes,
+            metadata,
+        }
+    }
+}
+
+fn sample_document() -> SampleDocument {
     let key = DocumentKey::new("sec/companyfacts/CIK0000320193.json")
         .expect("Given a valid relative path, the key should always build");
-    let fetched_at = "2026-09-22T20:05:30Z"
-        .parse::<DateTime<Utc>>()
-        .expect("Given a hardcoded RFC 3339 timestamp, parsing it should always succeed");
-    let metadata = LegacyDocumentMetadata {
-        metadata_version: 1,
-        url: "https://data.sec.gov/api/xbrl/companyfacts/CIK0000320193.json".to_owned(),
-        fetched_at,
-        http_status: 200,
-        user_agent: "arkad contact@example.com".to_owned(),
-        bytes: 41,
-        sha256: "9d7e13ec27ff57b43422959a9ae627fd5bd65e67b54af2857e9c454a9262376b".to_owned(),
-    };
+    let metadata = DocumentMetadata::builder()
+        .document_type::<SampleDocument>()
+        .media_type("application/json")
+        .content(
+            41,
+            "9d7e13ec27ff57b43422959a9ae627fd5bd65e67b54af2857e9c454a9262376b",
+        )
+        .produced_at(DateTime::<Utc>::UNIX_EPOCH)
+        .run(
+            Uuid::nil(),
+            Producer::new("Sample State", "0.1.0", "63c1f59"),
+        )
+        .context(())
+        .build();
 
-    RawDocument::new(
+    SampleDocument::from_parts(
         key,
         br#"{"cik":320193, "n":1.50, "dup":1,"dup":2}"#.to_vec(),
         metadata,
@@ -47,9 +99,10 @@ async fn should_return_the_same_record_when_reading_back_a_persisted_record_by_k
     );
     let repository = FilesystemRepository::builder()
         .read_write()
+        .document_type::<SampleDocument>()
         .root(root.path())
         .build();
-    let record = sample_raw_document();
+    let record = sample_document();
     let key = record.key().clone();
 
     let expected_result = Some(record.clone());
