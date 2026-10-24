@@ -6,11 +6,14 @@
 //!
 //! ## Modules
 //!
-//! - [`filesystem_error`]: The [`FilesystemError`] for a failed operation on a path.
+//! - [`failed_filesystem_operation`]: The [`FailedFilesystemOperation`] for an operation on a path
+//!   that did not complete.
 //! - [`invalid_document_key`]: The [`InvalidDocumentKey`] for a path the store rejects.
 
-pub mod filesystem_error;
+pub mod failed_filesystem_operation;
 pub mod invalid_document_key;
 
-pub use filesystem_error::{FilesystemError, FilesystemErrorReason, FilesystemOperation};
+pub use failed_filesystem_operation::{
+    FailedFilesystemOperation, FailedFilesystemOperationReason, FilesystemOperation,
+};
 pub use invalid_document_key::InvalidDocumentKey;

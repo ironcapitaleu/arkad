@@ -15,7 +15,7 @@ use tokio::io::AsyncWriteExt;
 use crate::error::WriteError;
 use crate::implementations::repository::filesystem::FilesystemRepository;
 use crate::implementations::repository::filesystem::error::{
-    FilesystemError, FilesystemErrorReason, FilesystemOperation,
+    FailedFilesystemOperation, FailedFilesystemOperationReason, FilesystemOperation,
 };
 use crate::implementations::repository::filesystem::raw_document::RawDocument;
 use crate::implementations::repository::filesystem::traits::access::CanWrite;
@@ -41,7 +41,7 @@ impl<A: CanWrite> WriteRepository for FilesystemRepository<A> {
     ///
     /// # Errors
     ///
-    /// Returns a [`WriteError::Backend`] that holds the [`FilesystemError`] message if:
+    /// Returns a [`WriteError::Backend`] that holds the [`FailedFilesystemOperation`] message if:
     /// - the root does not exist, is not a directory, or has a file in its path
     ///   ([`BackendError::UnreachableStorage`](crate::BackendError::UnreachableStorage)).
     /// - the filesystem denies access to a path the write touches
@@ -58,20 +58,24 @@ impl<A: CanWrite> WriteRepository for FilesystemRepository<A> {
 
 impl<A: CanWrite> FilesystemRepository<A> {
     /// Creates the directories below the root, then writes the record's metadata and document.
-    async fn write_record(&self, record: &RawDocument) -> Result<(), FilesystemError> {
+    async fn write_record(&self, record: &RawDocument) -> Result<(), FailedFilesystemOperation> {
         self.ensure_root_is_reachable().await?;
 
         let document_path = self.document_path(record.key());
         if let Some(directory) = document_path.parent() {
             fs::create_dir_all(directory).await.map_err(|error| {
-                FilesystemError::from_io(FilesystemOperation::CreateDirectory, directory, &error)
+                FailedFilesystemOperation::from_io(
+                    FilesystemOperation::CreateDirectory,
+                    directory,
+                    &error,
+                )
             })?;
         }
 
         let metadata_path = self.metadata_path(record.key());
         let metadata = serde_json::to_vec_pretty(record.metadata()).map_err(|_| {
-            FilesystemError::new(
-                FilesystemErrorReason::UnserializableMetadata,
+            FailedFilesystemOperation::new(
+                FailedFilesystemOperationReason::UnserializableMetadata,
                 &metadata_path,
             )
         })?;
@@ -90,7 +94,7 @@ async fn write_pair(
     metadata: &[u8],
     document_path: &Path,
     document: &[u8],
-) -> Result<(), FilesystemError> {
+) -> Result<(), FailedFilesystemOperation> {
     let metadata_temporary = write_temporary_file(metadata_path, metadata).await?;
     let document_temporary = match write_temporary_file(document_path, document).await {
         Ok(path) => path,
@@ -110,7 +114,10 @@ async fn write_pair(
 /// Writes bytes to a new temporary file beside the target and syncs them to disk.
 ///
 /// Returns the path of the temporary file. If a step fails, the function removes the file.
-async fn write_temporary_file(target: &Path, bytes: &[u8]) -> Result<PathBuf, FilesystemError> {
+async fn write_temporary_file(
+    target: &Path,
+    bytes: &[u8],
+) -> Result<PathBuf, FailedFilesystemOperation> {
     let (temporary, mut file) = create_temporary_file(target).await?;
     let result = write_and_sync(&mut file, &temporary, bytes).await;
     drop(file);
@@ -128,7 +135,9 @@ async fn write_temporary_file(target: &Path, bytes: &[u8]) -> Result<PathBuf, Fi
 ///
 /// Opens the file only if no file exists at its path, so two writers never share one temporary
 /// file. If the path exists, the function tries the next name.
-async fn create_temporary_file(target: &Path) -> Result<(PathBuf, File), FilesystemError> {
+async fn create_temporary_file(
+    target: &Path,
+) -> Result<(PathBuf, File), FailedFilesystemOperation> {
     let mut attempt = 1;
     loop {
         let temporary = temporary_path(target);
@@ -146,7 +155,7 @@ async fn create_temporary_file(target: &Path) -> Result<(PathBuf, File), Filesys
                 attempt += 1;
             }
             Err(error) => {
-                return Err(FilesystemError::from_io(
+                return Err(FailedFilesystemOperation::from_io(
                     FilesystemOperation::CreateFile,
                     &temporary,
                     &error,
@@ -160,23 +169,28 @@ async fn create_temporary_file(target: &Path) -> Result<(PathBuf, File), Filesys
 ///
 /// The flush comes before the sync because tokio reports an error from its last buffered write
 /// only to a flush, not to a sync.
-async fn write_and_sync(file: &mut File, path: &Path, bytes: &[u8]) -> Result<(), FilesystemError> {
-    let write_error = |error| FilesystemError::from_io(FilesystemOperation::Write, path, &error);
+async fn write_and_sync(
+    file: &mut File,
+    path: &Path,
+    bytes: &[u8],
+) -> Result<(), FailedFilesystemOperation> {
+    let write_error =
+        |error| FailedFilesystemOperation::from_io(FilesystemOperation::Write, path, &error);
     file.write_all(bytes).await.map_err(write_error)?;
     file.flush().await.map_err(write_error)?;
-    file.sync_all()
-        .await
-        .map_err(|error| FilesystemError::from_io(FilesystemOperation::Sync, path, &error))
+    file.sync_all().await.map_err(|error| {
+        FailedFilesystemOperation::from_io(FilesystemOperation::Sync, path, &error)
+    })
 }
 
 /// Renames a temporary file over the target in one step.
 ///
 /// The temporary file sits in the target's directory, so the rename stays on one filesystem. If
 /// the rename fails, the function removes the temporary file.
-async fn replace(temporary: &Path, target: &Path) -> Result<(), FilesystemError> {
-    let result = fs::rename(temporary, target)
-        .await
-        .map_err(|error| FilesystemError::from_io(FilesystemOperation::Replace, target, &error));
+async fn replace(temporary: &Path, target: &Path) -> Result<(), FailedFilesystemOperation> {
+    let result = fs::rename(temporary, target).await.map_err(|error| {
+        FailedFilesystemOperation::from_io(FilesystemOperation::Replace, target, &error)
+    });
     if result.is_err() {
         remove_temporary_file(temporary).await;
     }
@@ -429,9 +443,12 @@ mod tests {
         let root = parent.path().join("missing");
         let repository = repository_at(&root);
         let sample_document = sample_raw_document();
-        let filesystem_error = FilesystemError::new(FilesystemErrorReason::MissingRoot, &root);
+        let failed_filesystem_operation =
+            FailedFilesystemOperation::new(FailedFilesystemOperationReason::MissingRoot, &root);
 
-        let expected_result = Err(WriteError::Backend(BackendError::from(filesystem_error)));
+        let expected_result = Err(WriteError::Backend(BackendError::from(
+            failed_filesystem_operation,
+        )));
 
         let result = repository.persist(sample_document).await;
 
@@ -463,13 +480,15 @@ mod tests {
         let repository = repository_at(root.path());
         let sample_document = sample_raw_document();
         let directory = root.path().join("sec/companyfacts");
-        let reason = FilesystemErrorReason::FailedIo {
+        let reason = FailedFilesystemOperationReason::FailedIo {
             operation: FilesystemOperation::CreateDirectory,
             kind: io::ErrorKind::NotADirectory,
         };
-        let filesystem_error = FilesystemError::new(reason, &directory);
+        let failed_filesystem_operation = FailedFilesystemOperation::new(reason, &directory);
 
-        let expected_result = Err(WriteError::Backend(BackendError::from(filesystem_error)));
+        let expected_result = Err(WriteError::Backend(BackendError::from(
+            failed_filesystem_operation,
+        )));
 
         let result = repository.persist(sample_document).await;
 
