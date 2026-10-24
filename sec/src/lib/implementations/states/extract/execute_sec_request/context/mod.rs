@@ -179,13 +179,15 @@ mod tests {
     #[test]
     fn should_create_new_context_with_provided_cik() {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
-        let expected_cik = cik.clone();
-        let expected_max_retries = 0;
+
+        let expected_result = ExecuteSecRequestContext {
+            cik: cik.clone(),
+            max_retries: 0,
+        };
 
         let result = ExecuteSecRequestContext::new(cik);
 
-        assert_eq!(result.cik(), &expected_cik);
-        assert_eq!(result.max_retries, expected_max_retries);
+        assert_eq!(result, expected_result);
     }
 
     #[test]
@@ -220,9 +222,12 @@ mod tests {
             .cik(new_cik.clone())
             .build();
 
-        context.update_context(updater);
+        let expected_result = &new_cik;
 
-        assert_eq!(context.cik(), &new_cik);
+        context.update_context(updater);
+        let result = context.cik();
+
+        assert_eq!(result, expected_result);
     }
 
     #[test]

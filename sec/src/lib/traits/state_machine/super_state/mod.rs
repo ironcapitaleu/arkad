@@ -43,7 +43,7 @@ mod tests {
     #[test]
     #[expect(
         clippy::redundant_clone,
-        reason = "`state_name` returns `impl ToString`, which is a `String` here. Clippy flags `.to_string()` as a clone, but removing it does not compile"
+        reason = "False positive: `state_name` returns `impl ToString`, which is a `String` here. Clippy flags `.to_string()` as a clone, but removing it does not compile"
     )]
     fn should_return_super_state_name_when_in_sample_super_state() {
         let super_state = SampleSecSuperState::<SampleSecState>::new();
