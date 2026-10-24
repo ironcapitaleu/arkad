@@ -80,10 +80,7 @@ mod tests {
         let client = SecClient::default();
         let cik = Cik::new("0001234567")
             .expect("Hardcoded valid CIK string should always parse successfully");
-        let request = SecRequest::builder()
-            .all_company_facts()
-            .cik(cik.clone())
-            .build();
+        let request = SecRequest::builder().all_company_facts().cik(cik).build();
         let output = PrepareSecRequestOutput::new(client.clone(), request.clone());
 
         let expected_result = ExecuteSecRequestInput::new(client, request);

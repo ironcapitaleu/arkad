@@ -112,7 +112,7 @@ mod tests {
 
     #[test]
     fn should_return_reference_to_default_output_data_when_initialized_with_default() {
-        let output = CreateFinancialStatementsOutput::default();
+        let output = CreateFinancialStatementsOutput;
 
         let expected_result = &CreateFinancialStatementsOutput;
 

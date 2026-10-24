@@ -3,7 +3,7 @@ use async_trait::async_trait;
 use super::super::sample_inner_response::FakeInnerResponse;
 use crate::shared::response::SecResponse;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FakeSecResponse {
     pub inner: FakeInnerResponse,
     pub body: serde_json::Value,

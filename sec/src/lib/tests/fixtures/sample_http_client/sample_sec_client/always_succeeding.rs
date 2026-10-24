@@ -5,14 +5,21 @@ use crate::shared::rate_limiter::RateLimiter;
 use crate::tests::fixtures::sample_http_client::sample_inner_client::AlwaysSucceedingHttpClient;
 use crate::tests::fixtures::sample_rate_limiter::always_ready::AlwaysReadyRateLimiter;
 
-/// Fake SecClient that always returns a successful fixed string response.
+/// Fake `SecClient` that always returns a successful fixed string response.
 #[derive(Debug)]
 pub struct FakeSecClient {
     pub inner: AlwaysSucceedingHttpClient,
     pub rate_limiter: AlwaysReadyRateLimiter,
 }
 
+impl Default for FakeSecClient {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl FakeSecClient {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             inner: AlwaysSucceedingHttpClient,
@@ -43,8 +50,7 @@ impl SecClient for FakeSecClient {
     ) -> Result<Self::Response, Self::Error> {
         self.rate_limiter().await_turn().await;
         Ok(format!(
-            "Simulated success response for sec request: {:?}",
-            request
+            "Simulated success response for sec request: {request:?}"
         ))
     }
 }

@@ -394,6 +394,10 @@ mod tests {
     use crate::shared::http_client::implementations::sec_client::SecClient;
 
     #[test]
+    #[expect(
+        clippy::redundant_clone,
+        reason = "False positive: `state_name` returns `impl ToString`, which is a `String` here. Clippy flags `.to_string()` as a clone, but removing it does not compile"
+    )]
     fn should_return_super_state_name_with_current_state_when_in_validate_cik_format_state() {
         let input_cik = "1234567890";
         let sec_client = SecClient::default();
@@ -407,6 +411,10 @@ mod tests {
     }
 
     #[test]
+    #[expect(
+        clippy::redundant_clone,
+        reason = "False positive: `state_name` returns `impl ToString`, which is a `String` here. Clippy flags `.to_string()` as a clone, but removing it does not compile"
+    )]
     fn should_return_super_state_name_with_current_state_when_in_prepare_sec_request_state() {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should be valid");
         let sec_client = SecClient::default();
@@ -446,6 +454,10 @@ mod tests {
     }
 
     #[tokio::test]
+    #[expect(
+        clippy::redundant_clone,
+        reason = "False positive: `state_name` returns `impl ToString`, which is a `String` here. Clippy flags `.to_string()` as a clone, but removing it does not compile"
+    )]
     async fn should_transition_from_prepare_sec_request_to_execute_sec_request_state() {
         let input_cik = "1234567890";
         let sec_client = SecClient::default();
@@ -502,6 +514,10 @@ mod tests {
     }
 
     #[tokio::test]
+    #[expect(
+        clippy::redundant_clone,
+        reason = "False positive: `state_name` returns `impl ToString`, which is a `String` here. Clippy flags `.to_string()` as a clone, but removing it does not compile"
+    )]
     async fn should_transition_from_validate_cik_format_to_prepare_sec_request_state() {
         let input_cik = "1234567890";
         let sec_client = SecClient::default();
@@ -524,15 +540,16 @@ mod tests {
     }
 
     #[tokio::test]
-    #[should_panic]
-    async fn should_fail_transition_when_output_data_not_yet_computed() {
+    async fn should_fail_transition_from_validate_cik_format_when_output_data_not_yet_computed() {
         let input_cik = "1234567890";
         let sec_client = SecClient::default();
         let super_state = ExtractSuperState::<ValidateCikFormat>::new(input_cik, sec_client);
 
-        let _result = super_state
-            .transition_to_next_state_sec()
-            .expect("Transition should fail when output data is not yet computed");
+        let expected_result = true;
+
+        let result = super_state.transition_to_next_state_sec().is_err();
+
+        assert_eq!(result, expected_result);
     }
 
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}

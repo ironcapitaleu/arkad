@@ -132,12 +132,10 @@ mod tests {
             status_code: 200,
             content_type: String::from("application/json"),
         }
-        .status_code()
-        .clone();
+        .status_code();
 
-        let result = FakeInnerResponse::new(url, body, headers, status_code, content_type)
-            .status_code()
-            .clone();
+        let result =
+            FakeInnerResponse::new(url, body, headers, status_code, content_type).status_code();
 
         assert_eq!(result, expected_result);
     }
@@ -157,12 +155,10 @@ mod tests {
             status_code: 200,
             content_type: String::from("application/json"),
         }
-        .content_type()
-        .clone();
+        .content_type();
 
-        let result = FakeInnerResponse::new(url, body, headers, status_code, content_type)
-            .content_type()
-            .clone();
+        let result =
+            FakeInnerResponse::new(url, body, headers, status_code, content_type).content_type();
 
         assert_eq!(result, expected_result);
     }
