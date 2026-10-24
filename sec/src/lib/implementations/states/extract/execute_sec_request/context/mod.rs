@@ -177,7 +177,7 @@ mod tests {
     use crate::shared::cik::Cik;
 
     #[test]
-    fn should_create_new_context_with_provided_cik() {
+    fn should_set_cik_and_zero_max_retries_when_created_with_new() {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
 
         let expected_result = ExecuteSecRequestContext {
