@@ -281,6 +281,8 @@ mod tests {
 
     #[test]
     fn should_compare_unequal_when_two_inputs_hold_one_response_with_different_digests() {
+        // Both raw bodies parse to the same JSON. The second body has spaces, so its SHA-256
+        // differs, and `Eq` compares only the digest.
         let json = serde_json::json!({"cik": 320_193});
         let compact_input =
             ParseCompanyFactsInput::new(json.clone(), Sha256Digest::of(br#"{"cik":320193}"#));
