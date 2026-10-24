@@ -9,8 +9,10 @@
 
 use std::path::PathBuf;
 
-use super::FilesystemRepository;
-use super::traits::access::{Access, Read, ReadWrite, Write};
+use crate::implementations::repository::filesystem::FilesystemRepository;
+use crate::implementations::repository::filesystem::traits::access::{
+    Access, Read, ReadWrite, Write,
+};
 
 /// Marks a builder that holds no access yet.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -33,7 +35,7 @@ pub struct FilesystemRepositoryBuilder<A, R> {
 
 impl FilesystemRepositoryBuilder<NoAccess, NoRoot> {
     /// Creates a new [`FilesystemRepositoryBuilder`] that holds no access and no root.
-    pub(super) const fn new() -> Self {
+    pub(in crate::implementations::repository::filesystem) const fn new() -> Self {
         Self {
             access: NoAccess,
             root: NoRoot,

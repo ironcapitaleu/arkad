@@ -1,11 +1,19 @@
-//! # Port Implementations
+//! # Implementations
 //!
-//! Implements the repository ports for [`FilesystemRepository`](super::FilesystemRepository).
+//! Provides the [`FilesystemRepositoryBuilder`](builder::FilesystemRepositoryBuilder), the file
+//! layout constants, and the repository ports for
+//! [`FilesystemRepository`](super::FilesystemRepository).
 //!
 //! ## Modules
 //!
-//! - [`read_repository`]: Implements [`ReadRepository`](crate::ReadRepository).
-//! - [`write_repository`]: Implements [`WriteRepository`](crate::WriteRepository).
+//! - [`builder`]: The [`FilesystemRepositoryBuilder`](builder::FilesystemRepositoryBuilder) and the
+//!   markers for its missing steps.
+//! - [`constants`]: The constants that fix the file layout, such as
+//!   [`METADATA_SUFFIX`](constants::METADATA_SUFFIX).
+//! - `read_repository`: Implements [`ReadRepository`](crate::ReadRepository).
+//! - `write_repository`: Implements [`WriteRepository`](crate::WriteRepository).
 
+pub mod builder;
+pub mod constants;
 mod read_repository;
 mod write_repository;
