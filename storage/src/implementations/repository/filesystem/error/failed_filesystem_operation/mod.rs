@@ -1,7 +1,7 @@
-//! # Filesystem Error
+//! # Failed Filesystem Operation
 //!
-//! Provides [`FilesystemError`], the error raised when the filesystem cannot complete an
-//! operation on a path, and the [`FilesystemErrorReason`] that names the cause.
+//! Provides [`FailedFilesystemOperation`], the error raised when the filesystem cannot complete an
+//! operation on a path, and the [`FailedFilesystemOperationReason`] that names the cause.
 
 use std::fmt;
 use std::io;
@@ -14,27 +14,32 @@ use thiserror::Error;
 /// Carries the reason and the path it applies to.
 #[derive(Debug, Error, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[error(
-    "[FilesystemError] Filesystem operation failed, Reason: '{reason}', Path: '{}'",
+    "[FailedFilesystemOperation] Filesystem operation failed, Reason: '{reason}', Path: '{}'",
     .path.display()
 )]
-pub struct FilesystemError {
+pub struct FailedFilesystemOperation {
     /// The reason the operation failed.
-    pub reason: FilesystemErrorReason,
+    pub reason: FailedFilesystemOperationReason,
     /// The path the operation failed on.
     pub path: PathBuf,
 }
 
-impl FilesystemError {
-    /// Creates a new [`FilesystemError`] from its reason and the path it applies to.
+impl FailedFilesystemOperation {
+    /// Creates a new [`FailedFilesystemOperation`] from its reason and the path it applies to.
     ///
     /// # Examples
     ///
     /// ```rust
-    /// use storage::implementations::repository::filesystem::{FilesystemError, FilesystemErrorReason};
+    /// use storage::implementations::repository::filesystem::{
+    ///     FailedFilesystemOperation, FailedFilesystemOperationReason,
+    /// };
     ///
-    /// let error = FilesystemError::new(FilesystemErrorReason::MissingRoot, "/data/arkad");
+    /// let error = FailedFilesystemOperation::new(
+    ///     FailedFilesystemOperationReason::MissingRoot,
+    ///     "/data/arkad",
+    /// );
     ///
-    /// let expected_result = "[FilesystemError] Filesystem operation failed, \
+    /// let expected_result = "[FailedFilesystemOperation] Filesystem operation failed, \
     ///     Reason: 'Root directory does not exist', Path: '/data/arkad'";
     ///
     /// let result = error.to_string();
@@ -42,14 +47,14 @@ impl FilesystemError {
     /// assert_eq!(result, expected_result);
     /// ```
     #[must_use]
-    pub fn new(reason: FilesystemErrorReason, path: impl Into<PathBuf>) -> Self {
+    pub fn new(reason: FailedFilesystemOperationReason, path: impl Into<PathBuf>) -> Self {
         Self {
             reason,
             path: path.into(),
         }
     }
 
-    /// Creates a new [`FilesystemError`] from an I/O error raised by an operation on a path.
+    /// Creates a new [`FailedFilesystemOperation`] from the I/O error of an operation on a path.
     ///
     /// Keeps the kind of the I/O error and drops its operating-system message, so the same
     /// failure reads the same on every platform.
@@ -60,17 +65,21 @@ impl FilesystemError {
     /// use std::io;
     ///
     /// use storage::implementations::repository::filesystem::{
-    ///     FilesystemError, FilesystemErrorReason, FilesystemOperation,
+    ///     FailedFilesystemOperation, FailedFilesystemOperationReason, FilesystemOperation,
     /// };
     ///
     /// let io_error = io::Error::from(io::ErrorKind::PermissionDenied);
     ///
-    /// let expected_result = FilesystemErrorReason::FailedIo {
+    /// let expected_result = FailedFilesystemOperationReason::FailedIo {
     ///     operation: FilesystemOperation::Read,
     ///     kind: io::ErrorKind::PermissionDenied,
     /// };
     ///
-    /// let error = FilesystemError::from_io(FilesystemOperation::Read, "/data/arkad/x.json", &io_error);
+    /// let error = FailedFilesystemOperation::from_io(
+    ///     FilesystemOperation::Read,
+    ///     "/data/arkad/x.json",
+    ///     &io_error,
+    /// );
     /// let result = error.reason;
     ///
     /// assert_eq!(result, expected_result);
@@ -82,7 +91,7 @@ impl FilesystemError {
         io_error: &io::Error,
     ) -> Self {
         Self::new(
-            FilesystemErrorReason::FailedIo {
+            FailedFilesystemOperationReason::FailedIo {
                 operation,
                 kind: io_error.kind(),
             },
@@ -94,7 +103,7 @@ impl FilesystemError {
 /// Enum representing the reason why a filesystem operation failed.
 #[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum FilesystemErrorReason {
+pub enum FailedFilesystemOperationReason {
     /// The root directory does not exist, or a file stands in its path.
     MissingRoot,
     /// The root exists but is not a directory.
@@ -119,7 +128,7 @@ pub enum FilesystemErrorReason {
     },
 }
 
-impl fmt::Display for FilesystemErrorReason {
+impl fmt::Display for FailedFilesystemOperationReason {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::MissingRoot => write!(f, "Root directory does not exist"),
@@ -182,13 +191,13 @@ mod tests {
 
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
     #[test]
-    const fn should_implement_auto_traits_for_filesystem_error() {
-        implements_auto_traits::<FilesystemError>();
+    const fn should_implement_auto_traits_for_failed_filesystem_operation() {
+        implements_auto_traits::<FailedFilesystemOperation>();
     }
 
     #[test]
-    const fn should_implement_auto_traits_for_filesystem_error_reason() {
-        implements_auto_traits::<FilesystemErrorReason>();
+    const fn should_implement_auto_traits_for_failed_filesystem_operation_reason() {
+        implements_auto_traits::<FailedFilesystemOperationReason>();
     }
 
     #[test]
@@ -198,8 +207,8 @@ mod tests {
 
     const fn implements_error<T: std::error::Error>() {}
     #[test]
-    const fn should_implement_error_for_filesystem_error() {
-        implements_error::<FilesystemError>();
+    const fn should_implement_error_for_failed_filesystem_operation() {
+        implements_error::<FailedFilesystemOperation>();
     }
 
     const fn implements_value_traits<
@@ -207,13 +216,13 @@ mod tests {
     >() {
     }
     #[test]
-    const fn should_implement_value_traits_for_filesystem_error() {
-        implements_value_traits::<FilesystemError>();
+    const fn should_implement_value_traits_for_failed_filesystem_operation() {
+        implements_value_traits::<FailedFilesystemOperation>();
     }
 
     #[test]
-    const fn should_implement_value_traits_for_filesystem_error_reason() {
-        implements_value_traits::<FilesystemErrorReason>();
+    const fn should_implement_value_traits_for_failed_filesystem_operation_reason() {
+        implements_value_traits::<FailedFilesystemOperationReason>();
     }
 
     #[test]
@@ -222,16 +231,16 @@ mod tests {
     }
 
     #[test]
-    fn should_hold_the_reason_and_the_path_when_building_a_filesystem_error() {
-        let reason = FilesystemErrorReason::MissingRoot;
+    fn should_hold_the_reason_and_the_path_when_building_a_failed_filesystem_operation() {
+        let reason = FailedFilesystemOperationReason::MissingRoot;
         let path = Path::new("/data/arkad");
 
-        let expected_result = FilesystemError {
-            reason: FilesystemErrorReason::MissingRoot,
+        let expected_result = FailedFilesystemOperation {
+            reason: FailedFilesystemOperationReason::MissingRoot,
             path: PathBuf::from("/data/arkad"),
         };
 
-        let result = FilesystemError::new(reason, path);
+        let result = FailedFilesystemOperation::new(reason, path);
 
         assert_eq!(result, expected_result);
     }
@@ -241,24 +250,28 @@ mod tests {
         let io_error = io::Error::from(io::ErrorKind::StorageFull);
         let path = Path::new("/data/arkad/x.json");
 
-        let expected_result = FilesystemError {
-            reason: FilesystemErrorReason::FailedIo {
+        let expected_result = FailedFilesystemOperation {
+            reason: FailedFilesystemOperationReason::FailedIo {
                 operation: FilesystemOperation::Write,
                 kind: io::ErrorKind::StorageFull,
             },
             path: PathBuf::from("/data/arkad/x.json"),
         };
 
-        let result = FilesystemError::from_io(FilesystemOperation::Write, path, &io_error);
+        let result =
+            FailedFilesystemOperation::from_io(FilesystemOperation::Write, path, &io_error);
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
-    fn should_format_display_as_expected_for_a_filesystem_error() {
-        let error = FilesystemError::new(FilesystemErrorReason::MissingRoot, "/data/arkad");
+    fn should_format_display_as_expected_for_a_failed_filesystem_operation() {
+        let error = FailedFilesystemOperation::new(
+            FailedFilesystemOperationReason::MissingRoot,
+            "/data/arkad",
+        );
 
-        let expected_result = "[FilesystemError] Filesystem operation failed, \
+        let expected_result = "[FailedFilesystemOperation] Filesystem operation failed, \
             Reason: 'Root directory does not exist', Path: '/data/arkad'";
 
         let result = error.to_string();
@@ -268,7 +281,7 @@ mod tests {
 
     #[test]
     fn should_format_display_as_expected_when_the_root_is_not_a_directory() {
-        let reason = FilesystemErrorReason::RootIsNotADirectory;
+        let reason = FailedFilesystemOperationReason::RootIsNotADirectory;
 
         let expected_result = "Root is not a directory";
 
@@ -279,7 +292,7 @@ mod tests {
 
     #[test]
     fn should_format_display_as_expected_when_the_metadata_file_is_missing() {
-        let reason = FilesystemErrorReason::MissingMetadataFile;
+        let reason = FailedFilesystemOperationReason::MissingMetadataFile;
 
         let expected_result = "Metadata file does not exist";
 
@@ -290,7 +303,7 @@ mod tests {
 
     #[test]
     fn should_format_display_as_expected_when_the_metadata_is_invalid() {
-        let reason = FilesystemErrorReason::InvalidMetadata { line: 3, column: 7 };
+        let reason = FailedFilesystemOperationReason::InvalidMetadata { line: 3, column: 7 };
 
         let expected_result = "Metadata file holds no valid metadata at line 3, column 7";
 
@@ -301,7 +314,7 @@ mod tests {
 
     #[test]
     fn should_format_display_as_expected_when_the_metadata_is_unserializable() {
-        let reason = FilesystemErrorReason::UnserializableMetadata;
+        let reason = FailedFilesystemOperationReason::UnserializableMetadata;
 
         let expected_result = "Metadata cannot be serialized as JSON";
 
@@ -312,7 +325,7 @@ mod tests {
 
     #[test]
     fn should_format_display_as_expected_when_an_io_operation_fails() {
-        let reason = FilesystemErrorReason::FailedIo {
+        let reason = FailedFilesystemOperationReason::FailedIo {
             operation: FilesystemOperation::CreateDirectory,
             kind: io::ErrorKind::PermissionDenied,
         };

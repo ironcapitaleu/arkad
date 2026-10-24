@@ -1,11 +1,13 @@
 //! # Access
 //!
 //! Provides the access markers [`Read`], [`Write`], and [`ReadWrite`], which set what a
-//! [`FilesystemRepository`](super::FilesystemRepository) can do.
+//! [`FilesystemRepository`] can do.
 //!
 //! A repository implements only the ports its marker allows. Code that holds a read handle has no
 //! `persist` method, so a write through it does not compile. [`CanRead`] and [`CanWrite`] connect
 //! the markers to the ports, and only the markers in this module implement them.
+//!
+//! [`FilesystemRepository`]: crate::implementations::repository::filesystem::FilesystemRepository
 
 /// Keeps [`Access`] closed, so no type outside this module becomes an access marker.
 mod sealed {
@@ -61,10 +63,12 @@ pub struct Write;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ReadWrite;
 
-/// Defines the access of a [`FilesystemRepository`](super::FilesystemRepository).
+/// Defines the access of a [`FilesystemRepository`].
 ///
 /// Only [`Read`], [`Write`], and [`ReadWrite`] implement it. A builder can build a repository only
 /// after it holds one of them.
+///
+/// [`FilesystemRepository`]: crate::implementations::repository::filesystem::FilesystemRepository
 pub trait Access: sealed::Sealed + Send + Sync {}
 
 /// Defines an access that allows reads, so the repository implements

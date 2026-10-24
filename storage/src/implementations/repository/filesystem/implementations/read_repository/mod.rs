@@ -7,13 +7,15 @@ use std::io;
 use async_trait::async_trait;
 use tokio::fs;
 
-use super::FilesystemRepository;
-use super::access::CanRead;
-use super::document_key::DocumentKey;
-use super::document_metadata::DocumentMetadata;
-use super::filesystem_error::{FilesystemError, FilesystemErrorReason, FilesystemOperation};
-use super::raw_document::RawDocument;
 use crate::error::ReadError;
+use crate::implementations::repository::filesystem::FilesystemRepository;
+use crate::implementations::repository::filesystem::error::{
+    FailedFilesystemOperation, FailedFilesystemOperationReason, FilesystemOperation,
+};
+use crate::implementations::repository::filesystem::shared::document_key::DocumentKey;
+use crate::implementations::repository::filesystem::shared::document_metadata::DocumentMetadata;
+use crate::implementations::repository::filesystem::shared::raw_document::RawDocument;
+use crate::implementations::repository::filesystem::traits::access::CanRead;
 use crate::traits::repository::ReadRepository;
 
 #[async_trait]
@@ -32,7 +34,7 @@ impl<A: CanRead> ReadRepository for FilesystemRepository<A> {
     ///
     /// # Errors
     ///
-    /// Returns a [`ReadError::Backend`] that holds the [`FilesystemError`] message if:
+    /// Returns a [`ReadError::Backend`] that holds the [`FailedFilesystemOperation`] message if:
     /// - the root does not exist, is not a directory, or has a file in its path
     ///   ([`BackendError::UnreachableStorage`](crate::BackendError::UnreachableStorage)).
     /// - the filesystem denies access to the document or its metadata
@@ -49,7 +51,10 @@ impl<A: CanRead> ReadRepository for FilesystemRepository<A> {
 
 impl<A: CanRead> FilesystemRepository<A> {
     /// Reads the document at the key and the metadata file beside it.
-    async fn read_record(&self, key: DocumentKey) -> Result<Option<RawDocument>, FilesystemError> {
+    async fn read_record(
+        &self,
+        key: DocumentKey,
+    ) -> Result<Option<RawDocument>, FailedFilesystemOperation> {
         let document_path = self.document_path(&key);
         let bytes = match fs::read(&document_path).await {
             Ok(bytes) => bytes,
@@ -61,7 +66,7 @@ impl<A: CanRead> FilesystemRepository<A> {
                 ) {
                     return Ok(None);
                 }
-                return Err(FilesystemError::from_io(
+                return Err(FailedFilesystemOperation::from_io(
                     FilesystemOperation::Read,
                     &document_path,
                     &error,
@@ -74,22 +79,32 @@ impl<A: CanRead> FilesystemRepository<A> {
     }
 
     /// Reads and parses the metadata file beside the key's document.
-    async fn read_metadata(&self, key: &DocumentKey) -> Result<DocumentMetadata, FilesystemError> {
+    async fn read_metadata(
+        &self,
+        key: &DocumentKey,
+    ) -> Result<DocumentMetadata, FailedFilesystemOperation> {
         let metadata_path = self.metadata_path(key);
         let metadata_json = fs::read(&metadata_path).await.map_err(|error| {
             if error.kind() == io::ErrorKind::NotFound {
-                FilesystemError::new(FilesystemErrorReason::MissingMetadataFile, &metadata_path)
+                FailedFilesystemOperation::new(
+                    FailedFilesystemOperationReason::MissingMetadataFile,
+                    &metadata_path,
+                )
             } else {
-                FilesystemError::from_io(FilesystemOperation::Read, &metadata_path, &error)
+                FailedFilesystemOperation::from_io(
+                    FilesystemOperation::Read,
+                    &metadata_path,
+                    &error,
+                )
             }
         })?;
 
         serde_json::from_slice(&metadata_json).map_err(|error| {
-            let reason = FilesystemErrorReason::InvalidMetadata {
+            let reason = FailedFilesystemOperationReason::InvalidMetadata {
                 line: error.line(),
                 column: error.column(),
             };
-            FilesystemError::new(reason, &metadata_path)
+            FailedFilesystemOperation::new(reason, &metadata_path)
         })
     }
 }
@@ -135,9 +150,14 @@ mod tests {
             .expect("Given an existing directory, writing the metadata should always succeed");
     }
 
-    /// Converts a [`FilesystemError`] into the [`ReadError`] that `get` returns for it.
-    fn read_error(reason: FilesystemErrorReason, path: impl Into<std::path::PathBuf>) -> ReadError {
-        ReadError::Backend(BackendError::from(FilesystemError::new(reason, path)))
+    /// Converts a [`FailedFilesystemOperation`] into the [`ReadError`] that `get` returns for it.
+    fn read_error(
+        reason: FailedFilesystemOperationReason,
+        path: impl Into<std::path::PathBuf>,
+    ) -> ReadError {
+        ReadError::Backend(BackendError::from(FailedFilesystemOperation::new(
+            reason, path,
+        )))
     }
 
     const fn implements_read_repository<T: ReadRepository>() {}
@@ -205,7 +225,10 @@ mod tests {
         let sample_document = sample_raw_document();
         let key = sample_document.key().clone();
 
-        let expected_result = Err(read_error(FilesystemErrorReason::MissingRoot, &root));
+        let expected_result = Err(read_error(
+            FailedFilesystemOperationReason::MissingRoot,
+            &root,
+        ));
 
         let result = repository.get(key).await;
 
@@ -224,7 +247,7 @@ mod tests {
         let key = sample_document.key().clone();
 
         let expected_result = Err(read_error(
-            FilesystemErrorReason::RootIsNotADirectory,
+            FailedFilesystemOperationReason::RootIsNotADirectory,
             &root,
         ));
 
@@ -273,7 +296,7 @@ mod tests {
         );
 
         let expected_result = Err(read_error(
-            FilesystemErrorReason::MissingMetadataFile,
+            FailedFilesystemOperationReason::MissingMetadataFile,
             &metadata_path,
         ));
 
@@ -294,7 +317,7 @@ mod tests {
             .expect("Given an existing directory, overwriting the metadata should always succeed");
 
         let expected_result = Err(read_error(
-            FilesystemErrorReason::InvalidMetadata { line: 1, column: 2 },
+            FailedFilesystemOperationReason::InvalidMetadata { line: 1, column: 2 },
             &metadata_path,
         ));
 
@@ -315,7 +338,7 @@ mod tests {
         );
 
         let expected_result = Err(read_error(
-            FilesystemErrorReason::FailedIo {
+            FailedFilesystemOperationReason::FailedIo {
                 operation: FilesystemOperation::Read,
                 kind: io::ErrorKind::IsADirectory,
             },
