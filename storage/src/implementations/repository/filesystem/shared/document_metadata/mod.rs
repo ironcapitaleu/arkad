@@ -4,6 +4,7 @@
 //!
 //! ## Modules
 //!
+//! - [`builder`]: The [`DocumentMetadataBuilder`] and the markers for its missing steps.
 //! - [`constants`]: The version of the shared fields, [`METADATA_VERSION`].
 //! - [`input_document`]: The [`InputDocument`] pointing at a document that another document came
 //!   from.
@@ -13,12 +14,14 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::implementations::repository::filesystem::traits::document::Document;
-
+pub mod builder;
 pub mod constants;
 pub mod input_document;
 pub mod producer;
 
+pub use builder::{
+    DocumentMetadataBuilder, NoContent, NoContext, NoDocumentType, NoMediaType, NoProducedAt, NoRun,
+};
 pub use constants::METADATA_VERSION;
 pub use input_document::InputDocument;
 pub use producer::Producer;
@@ -28,13 +31,16 @@ pub use producer::Producer;
 /// The shared fields serialize at the top level of a JSON object. The context serializes as a
 /// nested object under `context`.
 ///
-/// [`DocumentMetadata::new`] sets `metadata_version` from [`METADATA_VERSION`], and `kind` and
-/// `kind_version` from the [`Document`] type it names. The metadata holds no link to that type.
-/// Two document types can share one context type, so [`Document::from_parts`] can receive metadata
-/// built for another type. Deserializing checks none of the three values either. So a reader
-/// compares them with the document type's values before it uses the metadata.
+/// [`DocumentMetadataBuilder::build`] sets `metadata_version` from [`METADATA_VERSION`], and
+/// `kind` and `kind_version` from the [`Document`] type it names. The metadata holds no link to
+/// that type. Two document types can share one context type, so [`Document::from_parts`] can
+/// receive metadata built for another type. Deserializing checks none of the three values either.
+/// So a reader compares them with the document type's values before it uses the metadata.
 ///
 /// Nothing checks that the SHA-256 is 64 lowercase hex characters.
+///
+/// [`Document`]: crate::implementations::repository::filesystem::Document
+/// [`Document::from_parts`]: crate::implementations::repository::filesystem::Document::from_parts
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct DocumentMetadata<C> {
     metadata_version: u32,
@@ -51,13 +57,12 @@ pub struct DocumentMetadata<C> {
     context: C,
 }
 
-impl<C> DocumentMetadata<C> {
-    /// Creates new [`DocumentMetadata`] for a document of kind `D`.
+impl DocumentMetadata<NoContext> {
+    /// Starts a [`DocumentMetadataBuilder`], which is the only way to build a
+    /// [`DocumentMetadata`].
     ///
-    /// `size_in_bytes` is the size of the document and `sha256` the hex-encoded SHA-256 of its
-    /// bytes.
-    /// `inputs` names the documents this one came from, and is empty for a document that came
-    /// from none.
+    /// The impl uses `NoContext` so that a call needs no type annotation. No built metadata has
+    /// `NoContext`.
     ///
     /// # Examples
     ///
@@ -110,16 +115,14 @@ impl<C> DocumentMetadata<C> {
     /// #     }
     /// # }
     /// #
-    /// let metadata = DocumentMetadata::new::<Summary>(
-    ///     "application/json",
-    ///     2,
-    ///     "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
-    ///     DateTime::<Utc>::UNIX_EPOCH,
-    ///     Uuid::nil(),
-    ///     Producer::new("Summarize", "0.1.0", "63c1f59"),
-    ///     Vec::new(),
-    ///     SummaryContext { source: "a test".to_owned() },
-    /// );
+    /// let metadata = DocumentMetadata::builder()
+    ///     .document_type::<Summary>()
+    ///     .media_type("application/json")
+    ///     .content(2, "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a")
+    ///     .produced_at(DateTime::<Utc>::UNIX_EPOCH)
+    ///     .run(Uuid::nil(), Producer::new("Summarize", "0.1.0", "63c1f59"))
+    ///     .context(SummaryContext { source: "a test".to_owned() })
+    ///     .build();
     ///
     /// let expected_result = "summary";
     ///
@@ -127,34 +130,20 @@ impl<C> DocumentMetadata<C> {
     ///
     /// assert_eq!(result, expected_result);
     /// ```
-    // Deviation: eight arguments, over clippy's limit of seven. Each argument is a stored field.
-    #[expect(clippy::too_many_arguments)]
     #[must_use]
-    pub fn new<D: Document<Context = C>>(
-        media_type: impl Into<String>,
-        size_in_bytes: u64,
-        sha256: impl Into<String>,
-        produced_at: DateTime<Utc>,
-        execution_id: Uuid,
-        producer: Producer,
-        inputs: Vec<InputDocument>,
-        context: C,
-    ) -> Self {
-        Self {
-            metadata_version: METADATA_VERSION,
-            kind: D::KIND.to_string(),
-            kind_version: D::KIND_VERSION,
-            media_type: media_type.into(),
-            size_in_bytes,
-            sha256: sha256.into(),
-            produced_at,
-            execution_id,
-            producer,
-            inputs,
-            context,
-        }
+    pub const fn builder() -> DocumentMetadataBuilder<
+        NoDocumentType,
+        NoMediaType,
+        NoContent,
+        NoProducedAt,
+        NoRun,
+        NoContext,
+    > {
+        DocumentMetadataBuilder::new()
     }
+}
 
+impl<C> DocumentMetadata<C> {
     /// Returns the version of the shared fields stored in the metadata.
     #[must_use]
     pub const fn metadata_version(&self) -> u32 {
