@@ -45,7 +45,8 @@ mod tests {
     fn should_name_the_state_when_building_a_producer() {
         let expected_result = "Store Company Facts";
 
-        let result = producer("Store Company Facts").name().to_owned();
+        let producer = producer("Store Company Facts");
+        let result = producer.name();
 
         assert_eq!(result, expected_result);
     }
@@ -54,7 +55,8 @@ mod tests {
     fn should_take_the_crate_version_from_cargo_when_building_a_producer() {
         let expected_result = env!("CARGO_PKG_VERSION");
 
-        let result = producer("Store Company Facts").crate_version().to_owned();
+        let producer = producer("Store Company Facts");
+        let result = producer.crate_version();
 
         assert_eq!(result, expected_result);
     }
@@ -63,7 +65,8 @@ mod tests {
     fn should_take_the_commit_from_the_build_when_building_a_producer() {
         let expected_result = GIT_COMMIT;
 
-        let result = producer("Store Company Facts").commit().to_owned();
+        let producer = producer("Store Company Facts");
+        let result = producer.commit();
 
         assert_eq!(result, expected_result);
     }
@@ -76,5 +79,20 @@ mod tests {
         let result = is_full_hash || GIT_COMMIT == "unknown";
 
         assert!(result);
+    }
+
+    #[test]
+    fn should_match_the_checkout_head_when_built_inside_a_git_checkout() {
+        let expected_result = std::process::Command::new("git")
+            .args(["rev-parse", "HEAD"])
+            .output()
+            .ok()
+            .filter(|output| output.status.success())
+            .and_then(|output| String::from_utf8(output.stdout).ok())
+            .map_or_else(|| "unknown".to_owned(), |commit| commit.trim().to_owned());
+
+        let result = GIT_COMMIT.to_owned();
+
+        assert_eq!(result, expected_result);
     }
 }
