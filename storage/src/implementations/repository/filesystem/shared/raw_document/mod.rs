@@ -2,8 +2,8 @@
 //!
 //! Provides [`RawDocument`], one document and its metadata as the store reads and writes them.
 
-use super::document_key::DocumentKey;
-use super::document_metadata::DocumentMetadata;
+use crate::implementations::repository::filesystem::shared::document_key::DocumentKey;
+use crate::implementations::repository::filesystem::shared::document_metadata::DocumentMetadata;
 
 /// One document, the key naming it, and the metadata of the fetch that produced it.
 ///

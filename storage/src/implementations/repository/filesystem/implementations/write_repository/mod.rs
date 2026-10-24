@@ -17,7 +17,7 @@ use crate::implementations::repository::filesystem::FilesystemRepository;
 use crate::implementations::repository::filesystem::error::{
     FailedFilesystemOperation, FailedFilesystemOperationReason, FilesystemOperation,
 };
-use crate::implementations::repository::filesystem::raw_document::RawDocument;
+use crate::implementations::repository::filesystem::shared::raw_document::RawDocument;
 use crate::implementations::repository::filesystem::traits::access::CanWrite;
 use crate::traits::repository::WriteRepository;
 

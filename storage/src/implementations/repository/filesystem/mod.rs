@@ -20,33 +20,30 @@
 //! - [`traits`]: The access markers and the traits that connect them to the ports.
 //! - [`implementations`]: The [`FilesystemRepositoryBuilder`], the constants that fix the file
 //!   layout, such as [`METADATA_SUFFIX`], and the port implementations.
-//! - [`document_key`]: The [`DocumentKey`] naming one document.
-//! - [`document_metadata`]: The [`DocumentMetadata`] describing the fetch behind a document.
+//! - [`shared`]: The [`DocumentKey`], the [`DocumentMetadata`], and the [`RawDocument`] that more
+//!   than one module uses.
 //! - [`error`]: The [`FailedFilesystemOperation`] for an operation on a path that did not
 //!   complete, and the [`InvalidDocumentKey`] for a rejected path.
-//! - [`raw_document`]: The [`RawDocument`] a read returns and a write accepts.
 
 use std::io;
 use std::path::{Path, PathBuf};
 
 use crate::error::BackendError;
 
-pub mod document_key;
-pub mod document_metadata;
 pub mod error;
 pub mod implementations;
-pub mod raw_document;
+pub mod shared;
 pub mod traits;
 
-pub use document_key::DocumentKey;
-pub use document_metadata::DocumentMetadata;
 pub use error::{
     FailedFilesystemOperation, FailedFilesystemOperationReason, FilesystemOperation,
     InvalidDocumentKey,
 };
 pub use implementations::builder::{FilesystemRepositoryBuilder, NoAccess, NoRoot};
 pub use implementations::constants::METADATA_SUFFIX;
-pub use raw_document::RawDocument;
+pub use shared::document_key::DocumentKey;
+pub use shared::document_metadata::DocumentMetadata;
+pub use shared::raw_document::RawDocument;
 pub use traits::access::{Access, CanRead, CanWrite, Read, ReadWrite, Write};
 
 /// Stores documents as files beneath one root directory, with the access the marker `A` allows.
