@@ -11,7 +11,9 @@
 //!
 //! ## Errors
 //!
-//! The repository's own code reports a [`FailedFilesystemOperation`].
+//! [`DocumentKey::new`] reports an [`InvalidDocumentKey`] for a path the store rejects. The
+//! repository takes only a valid [`DocumentKey`], so its own code reports a
+//! [`FailedFilesystemOperation`].
 //!
 //! ## Modules
 //!
