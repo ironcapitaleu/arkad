@@ -12,7 +12,6 @@ use std::fmt;
 
 use chrono::{DateTime, Utc};
 use pretty_assertions::assert_eq;
-use serde::{Deserialize, Serialize};
 use tempfile::TempDir;
 use uuid::Uuid;
 
@@ -23,37 +22,29 @@ use storage::{ReadRepository, WriteRepository};
 
 /// The document kinds of this test.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum TestDocumentKind {
-    RoundTrip,
+enum SampleDocumentKind {
+    SampleDocument,
 }
 
-impl fmt::Display for TestDocumentKind {
+impl fmt::Display for SampleDocumentKind {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::RoundTrip => write!(f, "round_trip"),
-        }
+        write!(f, "sample_document")
     }
 }
 
-/// The metadata fields that only a [`RoundTripDocument`] has.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-struct RoundTripContext {
-    url: String,
-}
-
-/// A document kind that exists only for this test.
+/// A document kind that exists only for this test, with an empty context.
 #[derive(Debug, Clone, PartialEq, Eq)]
-struct RoundTripDocument {
+struct SampleDocument {
     key: DocumentKey,
     bytes: Vec<u8>,
-    metadata: DocumentMetadata<RoundTripContext>,
+    metadata: DocumentMetadata<()>,
 }
 
-impl Document for RoundTripDocument {
-    type Kind = TestDocumentKind;
-    const KIND: TestDocumentKind = TestDocumentKind::RoundTrip;
+impl Document for SampleDocument {
+    type Kind = SampleDocumentKind;
+    const KIND: SampleDocumentKind = SampleDocumentKind::SampleDocument;
     const KIND_VERSION: u32 = 1;
-    type Context = RoundTripContext;
+    type Context = ();
 
     fn key(&self) -> &DocumentKey {
         &self.key
@@ -63,15 +54,11 @@ impl Document for RoundTripDocument {
         &self.bytes
     }
 
-    fn metadata(&self) -> &DocumentMetadata<RoundTripContext> {
+    fn metadata(&self) -> &DocumentMetadata<()> {
         &self.metadata
     }
 
-    fn from_parts(
-        key: DocumentKey,
-        bytes: Vec<u8>,
-        metadata: DocumentMetadata<RoundTripContext>,
-    ) -> Self {
+    fn from_parts(key: DocumentKey, bytes: Vec<u8>, metadata: DocumentMetadata<()>) -> Self {
         Self {
             key,
             bytes,
@@ -80,30 +67,25 @@ impl Document for RoundTripDocument {
     }
 }
 
-fn round_trip_document() -> RoundTripDocument {
+fn sample_document() -> SampleDocument {
     let key = DocumentKey::new("sec/companyfacts/CIK0000320193.json")
         .expect("Given a valid relative path, the key should always build");
-    let produced_at = "2026-09-22T20:05:30Z"
-        .parse::<DateTime<Utc>>()
-        .expect("Given a hardcoded RFC 3339 timestamp, parsing it should always succeed");
     let metadata = DocumentMetadata::builder()
-        .document_type::<RoundTripDocument>()
+        .document_type::<SampleDocument>()
         .media_type("application/json")
         .content(
             41,
             "9d7e13ec27ff57b43422959a9ae627fd5bd65e67b54af2857e9c454a9262376b",
         )
-        .produced_at(produced_at)
+        .produced_at(DateTime::<Utc>::UNIX_EPOCH)
         .run(
-            Uuid::from_u128(0x0b6f_3c1e_5d2a_4f7b_9c3e_8a1d_2b4c_6e8f),
-            Producer::new("Round Trip", "0.1.0", "63c1f59"),
+            Uuid::nil(),
+            Producer::new("Sample State", "0.1.0", "63c1f59"),
         )
-        .context(RoundTripContext {
-            url: "https://data.sec.gov/api/xbrl/companyfacts/CIK0000320193.json".to_owned(),
-        })
+        .context(())
         .build();
 
-    RoundTripDocument::from_parts(
+    SampleDocument::from_parts(
         key,
         br#"{"cik":320193, "n":1.50, "dup":1,"dup":2}"#.to_vec(),
         metadata,
@@ -117,10 +99,10 @@ async fn should_return_the_same_record_when_reading_back_a_persisted_record_by_k
     );
     let repository = FilesystemRepository::builder()
         .read_write()
-        .document_type::<RoundTripDocument>()
+        .document_type::<SampleDocument>()
         .root(root.path())
         .build();
-    let record = round_trip_document();
+    let record = sample_document();
     let key = record.key().clone();
 
     let expected_result = Some(record.clone());
