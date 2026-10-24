@@ -154,8 +154,9 @@ mod tests {
             headers,
             ContentType::Json,
             StatusCode::Ok,
-            serde_json::json!({}),
+            b"{}".to_vec(),
         )
+        .expect("Given the hardcoded JSON body '{}', building the response should always succeed")
     }
 
     #[test]

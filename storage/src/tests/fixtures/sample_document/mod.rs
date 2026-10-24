@@ -13,8 +13,8 @@ use crate::implementations::repository::filesystem::shared::document_key::Docume
 use crate::implementations::repository::filesystem::shared::document_metadata::{
     DocumentMetadata, InputDocument, Producer,
 };
-use crate::implementations::repository::filesystem::shared::sha256::sha256_hex;
 use crate::implementations::repository::filesystem::traits::document::Document;
+use crate::shared::sha256_hex;
 
 /// The document kinds that exist only for tests.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]

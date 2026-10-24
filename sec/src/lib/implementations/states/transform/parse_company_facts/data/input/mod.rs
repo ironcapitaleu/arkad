@@ -4,8 +4,8 @@
 //! [`ParseCompanyFacts`](crate::implementations::states::transform::parse_company_facts::ParseCompanyFacts)
 //! state, along with its updater and builder.
 //!
-//! It carries the raw Company Facts JSON response, plus a precomputed
-//! [`BodyDigest`] so the (un-`Hash`able) JSON can still participate in equality and ordering.
+//! It carries the parsed Company Facts JSON response, plus the [`Sha256Digest`] of the raw body, so
+//! the JSON, which implements neither `Hash` nor `Ord`, can still take part in equality and ordering.
 //!
 //! ## See Also
 //!
@@ -14,35 +14,36 @@
 use std::fmt;
 
 use state_maschine::prelude::StateData as SMStateData;
+use storage::shared::Sha256Digest;
 
 use crate::error::State as StateError;
-use crate::shared::response::implementations::sec_response::body_digest::BodyDigest;
 use crate::traits::state_machine::state::StateData;
 
 /// Input data for the [`ParseCompanyFacts`](super::super::ParseCompanyFacts) state.
 ///
-/// Holds the raw Company Facts JSON to be parsed, alongside a precomputed [`BodyDigest`]
-/// that backs the equality, ordering, and hashing impls (since [`serde_json::Value`]
-/// implements none of `Hash`/`Ord`).
+/// Holds the Company Facts JSON to be parsed, alongside the [`Sha256Digest`] of the raw body.
+///
+/// The digest backs the equality, ordering, and hashing impls, because [`serde_json::Value`]
+/// implements neither `Hash` nor `Ord`. Two inputs are equal if and only if their digests are.
 #[derive(Debug, Clone)]
 pub struct ParseCompanyFactsInput {
-    /// The raw SEC Company Facts JSON response to be parsed.
+    /// The parsed SEC Company Facts JSON response.
     pub response: serde_json::Value,
-    /// Precomputed digest of the response body for efficient hashing and ordering.
-    body_digest: BodyDigest,
+    /// The SHA-256 digest of the raw response body.
+    body_digest: Sha256Digest,
 }
 
 impl ParseCompanyFactsInput {
-    /// Creates a new [`ParseCompanyFactsInput`] from a raw JSON response and its precomputed digest.
+    /// Creates a new [`ParseCompanyFactsInput`] from a JSON response and the digest of its raw body.
     ///
     /// # Examples
     ///
     /// ```
     /// use sec::implementations::states::transform::parse_company_facts::data::input::ParseCompanyFactsInput;
-    /// use sec::shared::response::implementations::sec_response::body_digest::BodyDigest;
+    /// use storage::shared::Sha256Digest;
     ///
     /// let json = serde_json::json!({"cik": 320193, "entityName": "Apple Inc.", "facts": {}});
-    /// let digest = BodyDigest::from_body_text(&json.to_string());
+    /// let digest = Sha256Digest::of(json.to_string().as_bytes());
     /// let input = ParseCompanyFactsInput::new(json.clone(), digest);
     ///
     /// let expected_result = &json;
@@ -52,7 +53,7 @@ impl ParseCompanyFactsInput {
     /// assert_eq!(result, expected_result);
     /// ```
     #[must_use]
-    pub const fn new(response: serde_json::Value, body_digest: BodyDigest) -> Self {
+    pub const fn new(response: serde_json::Value, body_digest: Sha256Digest) -> Self {
         Self {
             response,
             body_digest,
@@ -65,23 +66,24 @@ impl ParseCompanyFactsInput {
         &self.response
     }
 
-    /// Returns the precomputed body digest.
+    /// Returns the SHA-256 digest of the raw response body.
     #[must_use]
-    pub const fn body_digest(&self) -> BodyDigest {
-        self.body_digest
+    pub const fn body_digest(&self) -> &Sha256Digest {
+        &self.body_digest
     }
 }
 
+// Compares the digest, not the response, so that `Eq` agrees with `Hash` and `Ord`.
 impl PartialEq for ParseCompanyFactsInput {
     fn eq(&self, other: &Self) -> bool {
-        self.response == other.response
+        self.body_digest == other.body_digest
     }
 }
 
 impl Eq for ParseCompanyFactsInput {}
 
 // `serde_json::Value` does not implement `Hash`.
-// Uses the precomputed `BodyDigest` instead of re-serializing.
+// Uses the `Sha256Digest` of the raw body instead of re-serializing.
 impl std::hash::Hash for ParseCompanyFactsInput {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.body_digest.hash(state);
@@ -95,7 +97,7 @@ impl PartialOrd for ParseCompanyFactsInput {
 }
 
 // `serde_json::Value` does not implement `Ord`.
-// Uses the precomputed `BodyDigest` instead of re-serializing.
+// Uses the `Sha256Digest` of the raw body instead of re-serializing.
 impl Ord for ParseCompanyFactsInput {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         self.body_digest.cmp(&other.body_digest)
@@ -121,8 +123,12 @@ impl StateData for ParseCompanyFactsInput {
     /// Updates the state data using the provided updater.
     ///
     /// If `response` is `Some`, updates the JSON response; otherwise, leaves it unchanged.
+    ///
+    /// An updater holds no raw body, so the new digest is the digest of the serialized response.
+    /// A stale digest makes `Eq`, `Hash`, and `Ord` describe the old response.
     fn update_state(&mut self, updates: Self::UpdateType) -> Result<(), StateError> {
         if let Some(response) = updates.response {
+            self.body_digest = Sha256Digest::of(response.to_string().as_bytes());
             self.response = response;
         }
         Ok(())
@@ -220,14 +226,14 @@ mod tests {
 
     use pretty_assertions::{assert_eq, assert_ne};
     use state_maschine::prelude::StateData as SMStateData;
+    use storage::shared::Sha256Digest;
 
     use super::{ParseCompanyFactsInput, ParseCompanyFactsInputUpdaterBuilder};
-    use crate::shared::response::implementations::sec_response::body_digest::BodyDigest;
     use crate::traits::state_machine::state::StateData;
 
     fn test_input() -> ParseCompanyFactsInput {
         let json = serde_json::json!({});
-        let digest = BodyDigest::from_body_text(&json.to_string());
+        let digest = Sha256Digest::of(json.to_string().as_bytes());
         ParseCompanyFactsInput::new(json, digest)
     }
 
@@ -245,7 +251,7 @@ mod tests {
     #[test]
     fn should_create_different_input_data_with_custom_json_when_using_new_as_constructor() {
         let json = serde_json::json!({"cik": 320_193});
-        let digest = BodyDigest::from_body_text(&json.to_string());
+        let digest = Sha256Digest::of(json.to_string().as_bytes());
         let input_data = &ParseCompanyFactsInput::new(json, digest);
 
         let default_input_data = &test_input();
@@ -263,7 +269,7 @@ mod tests {
             .response(new_json.clone())
             .build();
 
-        let digest = BodyDigest::from_body_text(&new_json.to_string());
+        let digest = Sha256Digest::of(new_json.to_string().as_bytes());
         let expected_result = &ParseCompanyFactsInput::new(new_json, digest);
 
         StateData::update_state(&mut state_data, update)
@@ -271,6 +277,21 @@ mod tests {
         let result = state_data.state();
 
         assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_compare_unequal_when_two_inputs_hold_one_response_with_different_digests() {
+        // Both raw bodies parse to the same JSON. The second body has spaces, so its SHA-256
+        // differs, and `Eq` compares only the digest.
+        let json = serde_json::json!({"cik": 320_193});
+        let compact_input =
+            ParseCompanyFactsInput::new(json.clone(), Sha256Digest::of(br#"{"cik":320193}"#));
+
+        let expected_result = compact_input;
+
+        let result = ParseCompanyFactsInput::new(json, Sha256Digest::of(br#"{ "cik": 320193 }"#));
+
+        assert_ne!(result, expected_result);
     }
 
     #[test]

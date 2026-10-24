@@ -23,9 +23,8 @@ use crate::implementations::repository::filesystem::error::{
 use crate::implementations::repository::filesystem::shared::document_key::DocumentKey;
 use crate::implementations::repository::filesystem::traits::access::CanWrite;
 use crate::implementations::repository::filesystem::traits::document::Document;
-use crate::implementations::repository::filesystem::{
-    FilesystemRepository, check_content, sha256_hex,
-};
+use crate::implementations::repository::filesystem::{FilesystemRepository, check_content};
+use crate::shared::sha256_hex;
 use crate::traits::repository::WriteRepository;
 
 /// Counter that gives every temporary file of this process a distinct name.

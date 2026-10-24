@@ -82,11 +82,11 @@ impl ParseCompanyFacts {
     /// ```
     /// use sec::implementations::states::transform::parse_company_facts::*;
     /// use sec::shared::cik::Cik;
-    /// use sec::shared::response::implementations::sec_response::body_digest::BodyDigest;
     /// use state_maschine::prelude::State as SMState;
+    /// use storage::shared::Sha256Digest;
     ///
     /// let json = serde_json::json!({});
-    /// let digest = BodyDigest::from_body_text(&json.to_string());
+    /// let digest = Sha256Digest::of(json.to_string().as_bytes());
     /// let cik = Cik::new("0001067983").expect("A hardcoded valid CIK should always parse");
     /// let input = ParseCompanyFactsInput::new(json, digest);
     /// let context = ParseCompanyFactsContext::new(cik);
@@ -367,16 +367,16 @@ mod tests {
     use std::{fmt::Debug, hash::Hash};
 
     use pretty_assertions::assert_eq;
+    use storage::shared::Sha256Digest;
     use tokio;
 
     use super::*;
     use crate::shared::cik::Cik;
     use crate::shared::cik::constants::BERKSHIRE_HATHAWAY_CIK_RAW;
-    use crate::shared::response::implementations::sec_response::body_digest::BodyDigest;
 
     fn test_input() -> ParseCompanyFactsInput {
         let json = serde_json::json!({});
-        let digest = BodyDigest::from_body_text(&json.to_string());
+        let digest = Sha256Digest::of(json.to_string().as_bytes());
         ParseCompanyFactsInput::new(json, digest)
     }
 
@@ -670,7 +670,7 @@ mod tests {
     #[tokio::test]
     async fn should_produce_output_with_correct_entity_name_when_computing_valid_json() {
         let json = get_baseline_company_facts_json();
-        let digest = BodyDigest::from_body_text(&json.to_string());
+        let digest = Sha256Digest::of(json.to_string().as_bytes());
         let input = ParseCompanyFactsInput::new(json, digest);
         let context = test_context();
         let mut parse_state = ParseCompanyFacts::new(input, context);
@@ -694,7 +694,7 @@ mod tests {
     #[tokio::test]
     async fn should_resolve_all_required_concepts_when_computing_valid_json() {
         let json = get_baseline_company_facts_json();
-        let digest = BodyDigest::from_body_text(&json.to_string());
+        let digest = Sha256Digest::of(json.to_string().as_bytes());
         let input = ParseCompanyFactsInput::new(json, digest);
         let context = test_context();
         let mut parse_state = ParseCompanyFacts::new(input, context);
@@ -725,7 +725,7 @@ mod tests {
                 "dei": {}
             }
         });
-        let digest = BodyDigest::from_body_text(&json.to_string());
+        let digest = Sha256Digest::of(json.to_string().as_bytes());
         let input = ParseCompanyFactsInput::new(json, digest);
         let context = test_context();
         let mut parse_state = ParseCompanyFacts::new(input, context);
@@ -740,7 +740,7 @@ mod tests {
     #[tokio::test]
     async fn should_not_change_input_data_when_computing_output_data() {
         let json = get_baseline_company_facts_json();
-        let digest = BodyDigest::from_body_text(&json.to_string());
+        let digest = Sha256Digest::of(json.to_string().as_bytes());
         let input = ParseCompanyFactsInput::new(json, digest);
         let context = test_context();
         let mut parse_state = ParseCompanyFacts::new(input, context);
@@ -759,7 +759,7 @@ mod tests {
     #[tokio::test]
     async fn should_return_error_when_response_is_not_an_object() {
         let json = serde_json::json!("not an object");
-        let digest = BodyDigest::from_body_text(&json.to_string());
+        let digest = Sha256Digest::of(json.to_string().as_bytes());
         let input = ParseCompanyFactsInput::new(json, digest);
         let context = test_context();
         let mut parse_state = ParseCompanyFacts::new(input, context);
@@ -911,7 +911,7 @@ mod tests {
     #[test]
     fn should_produce_output_when_calling_sync_compute_outside_tokio_runtime() {
         let json = get_baseline_company_facts_json();
-        let digest = BodyDigest::from_body_text(&json.to_string());
+        let digest = Sha256Digest::of(json.to_string().as_bytes());
         let input = ParseCompanyFactsInput::new(json, digest);
         let context = test_context();
         let mut state = ParseCompanyFacts::new(input, context);
@@ -927,7 +927,7 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn should_produce_output_when_calling_sync_compute_inside_tokio_runtime() {
         let json = get_baseline_company_facts_json();
-        let digest = BodyDigest::from_body_text(&json.to_string());
+        let digest = Sha256Digest::of(json.to_string().as_bytes());
         let input = ParseCompanyFactsInput::new(json, digest);
         let context = test_context();
         let mut state = ParseCompanyFacts::new(input, context);

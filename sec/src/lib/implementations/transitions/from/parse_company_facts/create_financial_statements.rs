@@ -57,17 +57,17 @@ mod tests {
     use std::collections::HashMap;
 
     use pretty_assertions::assert_eq;
+    use storage::shared::Sha256Digest;
 
     use super::*;
     use crate::implementations::states::transform::parse_company_facts::ParseCompanyFactsInput;
     use crate::shared::cik::Cik;
     use crate::shared::financial::company_data::CompanyData;
     use crate::shared::financial::entity_name::EntityName;
-    use crate::shared::response::implementations::sec_response::body_digest::BodyDigest;
 
     fn get_baseline_parse_state_without_output() -> ParseCompanyFacts {
         let json: serde_json::Value = serde_json::json!({});
-        let digest = BodyDigest::from_body_text(&json.to_string());
+        let digest = Sha256Digest::of(json.to_string().as_bytes());
         let input = ParseCompanyFactsInput::new(json, digest);
         let cik = Cik::new("0001067983").expect("Hardcoded CIK should always be valid");
         let context = ParseCompanyFactsContext::new(cik);
