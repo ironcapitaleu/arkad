@@ -45,8 +45,10 @@ pub use invalid_document_key::InvalidDocumentKey;
 /// rules of the platform it runs on. It does not follow symbolic links, so a link inside the root
 /// can still point outside it.
 ///
-/// A key serializes as one string with `/` between its components, on every platform. Deserializing
-/// goes through [`DocumentKey::new`], so a key read from a file passes the same checks.
+/// Construction rejects a component that holds a `\` or a `:`, or that is not valid UTF-8. So a key
+/// names the same file on every platform. A key serializes as one string with `/` between its
+/// components. Deserializing goes through [`DocumentKey::new`], so a key read from a file passes
+/// the same checks.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Deserialize)]
 #[serde(try_from = "String")]
 pub struct DocumentKey {
@@ -59,15 +61,17 @@ impl DocumentKey {
     /// # Errors
     ///
     /// Returns an [`InvalidDocumentKey`] if the path:
-    /// - starts with a Windows prefix such as `C:` or `\\server\share`, on a platform that reads
-    ///   one ([`InvalidDocumentKey::ContainsPrefixComponent`]). On Linux and macOS, `"C:x.json"` is
-    ///   a single ordinary file name and builds a key.
+    /// - starts with a Windows prefix such as `C:` or `\\server\share`, on Windows
+    ///   ([`InvalidDocumentKey::ContainsPrefixComponent`]).
     /// - starts at a root directory ([`InvalidDocumentKey::ContainsRootComponent`]). A leading `/`
-    ///   names a root on every platform, and a single leading `\` names one only on Windows. On
-    ///   Linux and macOS, `"\data\x.json"` is a single ordinary file name and builds a key.
-    /// - holds a `..` component ([`InvalidDocumentKey::ContainsParentComponent`]). Construction
-    ///   reads `..` with the separator rules of its platform. On Linux and macOS,
-    ///   `"sec\..\x.json"` is a single ordinary file name and builds a key.
+    ///   names a root on every platform, and a single leading `\` names one only on Windows.
+    /// - holds a `..` component ([`InvalidDocumentKey::ContainsParentComponent`]).
+    /// - holds a component that is not valid UTF-8
+    ///   ([`InvalidDocumentKey::ContainsNonUtf8Component`]).
+    /// - holds a component with a `\` or a `:`
+    ///   ([`InvalidDocumentKey::ContainsNonPortableComponent`]). Only Linux and macOS read such a
+    ///   component, so `"C:x.json"`, `"\data\x.json"`, and `"sec\..\x.json"` report this variant
+    ///   there and a prefix, a root, or a parent on Windows.
     /// - names no file below the root ([`InvalidDocumentKey::EmptyPath`]). A path made only of `.`
     ///   components, such as `"."` or `"./"`, names the root itself.
     ///
@@ -110,7 +114,19 @@ impl DocumentKey {
                     return Err(InvalidDocumentKey::contains_parent_component(path.clone()));
                 }
                 Component::CurDir => {}
-                Component::Normal(part) => normalized.push(part),
+                Component::Normal(part) => {
+                    let Some(text) = part.to_str() else {
+                        return Err(InvalidDocumentKey::contains_non_utf8_component(
+                            path.clone(),
+                        ));
+                    };
+                    if text.contains(['\\', ':']) {
+                        return Err(InvalidDocumentKey::contains_non_portable_component(
+                            path.clone(),
+                        ));
+                    }
+                    normalized.push(part);
+                }
             }
         }
 
@@ -143,21 +159,16 @@ impl TryFrom<String> for DocumentKey {
 
 impl Serialize for DocumentKey {
     /// Serializes the key as one string, with `/` between its components.
-    ///
-    /// # Errors
-    ///
-    /// Returns the serializer's error if a component is not valid UTF-8.
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        let mut components = Vec::new();
-        for component in self.path.components() {
-            let text = component.as_os_str().to_str().ok_or_else(|| {
-                serde::ser::Error::custom(format!(
-                    "[UnserializableDocumentKey] Document key '{}' is not valid UTF-8",
-                    self.path.display()
-                ))
-            })?;
-            components.push(text);
-        }
+        let components: Vec<&str> = self
+            .path
+            .components()
+            .map(|component| {
+                component.as_os_str().to_str().expect(
+                    "Given a built key, construction rejected every component that is not valid UTF-8, so the conversion should always succeed",
+                )
+            })
+            .collect();
         serializer.serialize_str(&components.join("/"))
     }
 }
@@ -283,15 +294,70 @@ mod tests {
 
     #[test]
     #[cfg_attr(windows, ignore = "A backslash separates components only on Windows")]
-    fn should_build_a_key_when_the_path_starts_with_a_backslash() {
+    fn should_reject_a_non_portable_component_when_the_path_starts_with_a_backslash() {
         let path = r"\data\x.json";
 
-        let expected_result = Path::new(r"\data\x.json");
+        let expected_result = InvalidDocumentKey::contains_non_portable_component(r"\data\x.json");
 
-        let key = DocumentKey::new(path).expect(
-            "Outside Windows a backslash is an ordinary character, so the key should always build",
+        let result = DocumentKey::new(path).expect_err(
+            "Outside Windows a backslash stays inside a component, so the key should never build",
         );
-        let result = key.as_path();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    #[cfg_attr(windows, ignore = "A backslash separates components only on Windows")]
+    fn should_reject_a_non_portable_component_when_a_component_holds_a_backslash() {
+        let path = r"sec\x.json";
+
+        let expected_result = InvalidDocumentKey::contains_non_portable_component(r"sec\x.json");
+
+        let result = DocumentKey::new(path).expect_err(
+            "Outside Windows a backslash stays inside a component, so the key should never build",
+        );
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    #[cfg_attr(windows, ignore = "A leading drive letter is a prefix on Windows")]
+    fn should_reject_a_non_portable_component_when_the_path_starts_with_a_drive_letter() {
+        let path = "C:x.json";
+
+        let expected_result = InvalidDocumentKey::contains_non_portable_component("C:x.json");
+
+        let result = DocumentKey::new(path).expect_err(
+            "Outside Windows a drive letter stays inside a component, so the key should never build",
+        );
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_reject_a_non_portable_component_when_a_later_component_holds_a_colon() {
+        let path = "sec/a:b.json";
+
+        let expected_result = InvalidDocumentKey::contains_non_portable_component("sec/a:b.json");
+
+        let result = DocumentKey::new(path)
+            .expect_err("A component holding a colon should never build a document key");
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn should_reject_a_non_utf8_component_when_building_a_key() {
+        use std::ffi::OsStr;
+        use std::os::unix::ffi::OsStrExt;
+
+        let path = OsStr::from_bytes(b"sec/\xFF.json");
+
+        let expected_result = InvalidDocumentKey::contains_non_utf8_component(path);
+
+        let result = DocumentKey::new(path)
+            .expect_err("A component that is not valid UTF-8 should never build a document key");
 
         assert_eq!(result, expected_result);
     }
@@ -490,21 +556,16 @@ mod tests {
         assert_eq!(result, expected_result);
     }
 
-    #[cfg(unix)]
+    #[cfg(windows)]
     #[test]
-    fn should_fail_serialization_when_a_component_is_not_valid_utf_8() {
-        use std::ffi::OsStr;
-        use std::os::unix::ffi::OsStrExt;
+    fn should_serialize_with_forward_slashes_when_running_on_windows() {
+        let key = DocumentKey::new(r"sec\companyfacts\CIK0000320193.json")
+            .expect("Given a valid relative path, the key should always build");
 
-        let key = DocumentKey::new(OsStr::from_bytes(b"sec/\xFF.json"))
-            .expect("Given a relative path with no parent component, the key should always build");
-
-        let expected_result =
-            "[UnserializableDocumentKey] Document key 'sec/\u{FFFD}.json' is not valid UTF-8";
+        let expected_result = r#""sec/companyfacts/CIK0000320193.json""#;
 
         let result = serde_json::to_string(&key)
-            .expect_err("Given a key with a non-UTF-8 component, serialization should always fail")
-            .to_string();
+            .expect("Given a key of UTF-8 components, serialization should always succeed");
 
         assert_eq!(result, expected_result);
     }
