@@ -14,13 +14,13 @@ use crate::shared::user_agent::UserAgent;
 /// The metadata fields that only a [`RawDocument`](super::RawDocument) has: the request that
 /// fetched it.
 ///
-/// The repository writes these fields as the nested `context` of the metadata file. Each field is
-/// a domain type, so a metadata file read back passes the same checks as a fetch.
+/// The repository writes these fields as the nested `context` of the metadata file. On read, the
+/// URL and the user agent pass the same checks as on a fetch.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct RawDocumentMetadataContext {
-    /// The URL the fetch requested.
+    /// The URL the response came from, after any redirects.
     pub url: Url,
-    /// The HTTP status the fetch returned.
+    /// The HTTP status of the final response, after any redirects.
     pub http_status: StatusCode,
     /// The `User-Agent` the fetch sent.
     pub user_agent: UserAgent,

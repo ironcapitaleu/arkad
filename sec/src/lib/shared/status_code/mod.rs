@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 /// cases like rate-limiting (429) or not-found (404) without raw integer comparisons. Any other
 /// valid code is captured by `Other`.
 ///
-/// A status code serializes as its number, for example `200`, and deserializes from any number
+/// A status code serializes as its number, for example `200`, and deserializes from any `u16`
 /// through [`StatusCode::from_u16`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(from = "u16", into = "u16")]
@@ -45,7 +45,10 @@ pub enum StatusCode {
     /// 503 Service Unavailable.
     ServiceUnavailable,
 
-    /// Any other valid HTTP status code not explicitly modeled.
+    /// Any other HTTP status code not explicitly modeled.
+    ///
+    /// Holds a code that no other variant models. [`StatusCode::from_u16`] never builds it for a
+    /// modeled code, so `Other(200)` does not round-trip through serde: it reads back as `Ok`.
     Other(u16),
 }
 
