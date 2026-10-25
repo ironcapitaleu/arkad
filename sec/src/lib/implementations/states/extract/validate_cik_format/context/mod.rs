@@ -573,9 +573,16 @@ mod tests {
 
     #[test]
     fn should_return_repository_when_accessing_repository_of_validate_cik_format_context() {
-        let context = test_context();
+        let context = ValidateCikFormatContext::new(
+            BERKSHIRE_HATHAWAY_CIK_RAW,
+            SecClient::default(),
+            SAMPLE_EXECUTION_ID,
+            sample_user_agent(),
+            FakeWriteRepository::rejecting(WriteError::conflicting_write("Sample conflict")),
+        );
 
-        let expected_result = &FakeWriteRepository::new();
+        let expected_result =
+            &FakeWriteRepository::rejecting(WriteError::conflicting_write("Sample conflict"));
 
         let result = context.repository();
 
@@ -596,6 +603,25 @@ mod tests {
 
         context.update_context(update);
         let result = context.repository();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_include_the_repository_when_serializing_the_context() {
+        let context = test_context();
+
+        let expected_result = serde_json::json!({
+            "raw_cik": BERKSHIRE_HATHAWAY_CIK_RAW,
+            "sec_client": {},
+            "execution_id": "00000000-0000-0000-0000-000000000007",
+            "user_agent": "Sample Company contact@example.com",
+            "repository": { "kind": "fake", "rejection": null },
+            "max_retries": 0,
+        });
+
+        let result = serde_json::to_value(context)
+            .expect("Given a context of domain types, serialization should always succeed");
 
         assert_eq!(result, expected_result);
     }

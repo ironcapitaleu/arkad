@@ -629,7 +629,7 @@ mod tests {
 
         let mut super_state = super_state
             .transition_to_next_state_sec()
-            .expect("Should transition to PrepareSecRequest<FakeWriteRepository>");
+            .expect("Given a computed ValidateCikFormat, the transition to PrepareSecRequest should always succeed");
 
         super_state
             .compute_output_data_async()
@@ -640,7 +640,7 @@ mod tests {
 
         let state = super_state
             .transition_to_next_state_sec()
-            .expect("Should transition to ExecuteSecRequest<FakeWriteRepository>");
+            .expect("Given a computed PrepareSecRequest, the transition to ExecuteSecRequest should always succeed");
 
         let result = state.state_name().to_string();
 
