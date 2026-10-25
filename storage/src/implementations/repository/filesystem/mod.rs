@@ -33,6 +33,9 @@ use std::io;
 use std::marker::PhantomData;
 use std::path::{Path, PathBuf};
 
+use serde::ser::SerializeStruct;
+use serde::{Serialize, Serializer};
+
 use crate::error::BackendError;
 use crate::shared::Sha256Digest;
 
@@ -142,6 +145,19 @@ impl<A: Hash, D> Hash for FilesystemRepository<A, D> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.root.hash(state);
         self.access.hash(state);
+    }
+}
+
+/// Serializes as `{ "root": "/data/arkad", "access": "ReadWrite" }`.
+///
+/// The output names the repository for logs only. It leaves out anything sensitive, and the type
+/// has no `Deserialize`. A root that is not valid UTF-8 shows its invalid bytes as `U+FFFD`.
+impl<A: Access, D> Serialize for FilesystemRepository<A, D> {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let mut state = serializer.serialize_struct("FilesystemRepository", 2)?;
+        state.serialize_field("root", &self.root.to_string_lossy())?;
+        state.serialize_field("access", A::NAME)?;
+        state.end()
     }
 }
 
@@ -488,6 +504,34 @@ mod tests {
     #[test]
     const fn should_implement_value_traits_when_the_document_type_derives_nothing() {
         implements_value_traits::<FilesystemRepository<ReadWrite, BareDocument>>();
+    }
+
+    #[test]
+    fn should_serialize_the_root_and_the_access_name_for_a_filesystem_repository() {
+        let repository = repository_at("/data/arkad");
+
+        let expected_result = serde_json::json!({ "root": "/data/arkad", "access": "ReadWrite" });
+
+        let result = serde_json::to_value(repository)
+            .expect("Given a repository with a UTF-8 root, serialization should always succeed");
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_serialize_the_write_access_name_for_a_writer() {
+        let repository = FilesystemRepository::builder()
+            .writer()
+            .document_type::<SampleDocument>()
+            .root("/data/arkad")
+            .build();
+
+        let expected_result = serde_json::json!({ "root": "/data/arkad", "access": "Write" });
+
+        let result = serde_json::to_value(repository)
+            .expect("Given a repository with a UTF-8 root, serialization should always succeed");
+
+        assert_eq!(result, expected_result);
     }
 
     #[test]
