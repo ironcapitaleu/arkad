@@ -13,6 +13,7 @@ use serde_json::Value;
 use sec::shared::cik::Cik;
 use sec::shared::content_type::ContentType;
 use sec::shared::http_client::SecClient as SecClientTrait;
+use sec::shared::http_client::implementations::reqwest_client::ReqwestClient;
 use sec::shared::http_client::implementations::sec_client::SecClient;
 use sec::shared::http_client::implementations::sec_client::error::ErrorReason;
 use sec::shared::request::implementations::sec_request::SecRequest;
@@ -21,18 +22,17 @@ use sec::shared::response::implementations::sec_response::error::{
     ErrorReason as SecResponseErrorReason, InvalidSecResponse,
 };
 use sec::shared::status_code::StatusCode;
+use sec::shared::user_agent::UserAgent;
 
 const BERKSHIRE_FIXTURE: &str =
     include_str!("../src/lib/tests/fixtures/data/raw_input/CIK0001067983.json");
 
-/// Creates an `SecClient` for testing. Connection pooling is disabled
-/// since tests do not benefit from connection reuse.
+/// Creates an `SecClient` for testing.
 fn sec_client() -> SecClient {
-    let http_client = reqwest::Client::builder()
-        .user_agent("ArkadTest admin@example.com")
-        .pool_max_idle_per_host(0)
-        .build()
-        .expect("A hardcoded user agent should always produce a valid HTTP client");
+    let user_agent = UserAgent::new("ArkadTest admin@example.com")
+        .expect("A hardcoded SEC-format string should always validate");
+    let http_client = ReqwestClient::new(user_agent)
+        .expect("Given a validated user agent, the client creation should always succeed");
     SecClient::new(http_client)
 }
 

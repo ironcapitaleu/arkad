@@ -20,7 +20,6 @@ use futures_util::StreamExt;
 use builder::{Pipeline, raw_company_facts_writer};
 use constants::{MUST_PASS_CIKS, SP500_CIKS};
 use sec::shared::http_client::implementations::sec_client::SecClient;
-use sec::shared::user_agent::UserAgent;
 
 /// Writes directly to stderr, bypassing the test framework's output capture.
 fn write_progress(msg: &str) {
@@ -49,19 +48,13 @@ const MINIMUM_SUCCESS_THRESHOLD: usize = 270;
 #[tokio::test(flavor = "multi_thread")]
 #[ignore = "Hits the live SEC API for must-pass companies (~10 seconds)"]
 async fn should_succeed_for_must_pass_companies() {
-    let user_agent = UserAgent::default();
-    let http_client = reqwest::Client::builder()
-        .user_agent(user_agent.inner())
-        .build()
-        .expect("A validated UserAgent should always produce a valid HTTP client");
-    let sec_client = SecClient::new(http_client);
+    let sec_client = SecClient::default();
     let repository = raw_company_facts_writer();
     let ciks: Vec<&str> = MUST_PASS_CIKS.iter().map(|(cik, _)| *cik).collect();
     let stream_results: Vec<_> = futures_util::stream::iter(ciks.iter())
         .map(|cik| {
             let client = sec_client.clone();
             let repository = repository.clone();
-            let user_agent = user_agent.clone();
             async move {
                 (
                     *cik,
@@ -69,7 +62,6 @@ async fn should_succeed_for_must_pass_companies() {
                         .cik(*cik)
                         .sec_client(client)
                         .repository(repository)
-                        .user_agent(user_agent)
                         .build()
                         .run()
                         .await,
@@ -105,12 +97,7 @@ async fn should_meet_threshold_for_sp500_companies() {
     use std::sync::Mutex;
     use std::sync::atomic::{AtomicUsize, Ordering};
 
-    let user_agent = UserAgent::default();
-    let http_client = reqwest::Client::builder()
-        .user_agent(user_agent.inner())
-        .build()
-        .expect("A validated UserAgent should always produce a valid HTTP client");
-    let sec_client = SecClient::new(http_client);
+    let sec_client = SecClient::default();
     let repository = raw_company_facts_writer();
     let ciks: Vec<&str> = SP500_CIKS.to_vec();
     let total = ciks.len();
@@ -127,13 +114,11 @@ async fn should_meet_threshold_for_sp500_companies() {
             let failures = &failures;
             let client = sec_client.clone();
             let repository = repository.clone();
-            let user_agent = user_agent.clone();
             async move {
                 let result = Pipeline::builder()
                     .cik(*cik)
                     .sec_client(client)
                     .repository(repository)
-                    .user_agent(user_agent)
                     .build()
                     .run()
                     .await;
