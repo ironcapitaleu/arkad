@@ -37,6 +37,19 @@ pub fn default_user_agent_warning(sec_client: &SecClient) -> Option<String> {
     })
 }
 
+/// Returns the cause of a failed [`sec_client`] call, without the raw `User-Agent` value.
+///
+/// The [`UserAgentError`] display holds the raw value, which can hold an email. For that error,
+/// the cause is its reason only.
+// Only the binaries with a log subscriber call this. The other crates that include this file do
+// not, so the lint does not apply to them.
+#[allow(dead_code)]
+pub fn startup_error_cause(error: &(dyn Error + Send + Sync + 'static)) -> String {
+    error
+        .downcast_ref::<UserAgentError>()
+        .map_or_else(|| error.to_string(), |error| error.reason.to_string())
+}
+
 /// Returns the [`UserAgent`] that `value` names, or the default if `value` is unset or empty.
 ///
 /// # Errors
@@ -142,6 +155,19 @@ mod tests {
         let expected_result = None;
 
         let result = default_user_agent_warning(&sec_client);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_omit_raw_value_when_error_is_user_agent_error() {
+        let error: Box<dyn Error + Send + Sync> = Box::new(UserAgentError::new(
+            UserAgentErrorReason::InvalidSecFormat,
+            "Jane jane@acme",
+        ));
+        let expected_result = "The format required for the SEC API is invalid".to_string();
+
+        let result = startup_error_cause(error.as_ref());
 
         assert_eq!(result, expected_result);
     }
