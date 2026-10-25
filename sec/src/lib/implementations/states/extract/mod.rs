@@ -7,7 +7,7 @@
 //! storage repository. It also owns the type-safe transitions between the states, so callers
 //! advance the pipeline without managing each state by hand. A fourth state,
 //! [`StoreCompanyFacts`], writes a fetched response to the store. A transition leads into it from
-//! [`ExecuteSecRequest`], but the stream does not run it.
+//! [`ExecuteSecRequest`].
 //!
 //! ## Modules
 //!
@@ -19,7 +19,7 @@
 //! ## State Flow
 //!
 //! [`ValidateCikFormat`] → [`PrepareSecRequest`] → [`ExecuteSecRequest`], after which the
-//! stream crosses into the transform phase. [`ExecuteSecRequest`] can also transition to
+//! pipeline crosses into the transform phase. [`ExecuteSecRequest`] can also transition to
 //! [`StoreCompanyFacts`].
 //!
 //! ## Usage
