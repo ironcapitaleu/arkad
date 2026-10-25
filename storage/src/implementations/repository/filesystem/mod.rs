@@ -63,9 +63,9 @@ pub use traits::document::Document;
 /// write rejects a record whose metadata holds another kind or kind version. Repositories for
 /// different document types can share one root, as long as their keys differ.
 ///
-/// The repository implements `Debug`, `Clone`, `PartialEq`, `Eq`, `PartialOrd`, `Ord`, and `Hash`
-/// with no bound on `D`, so a `State` context can hold it for every document type. Two repositories
-/// compare by root and access.
+/// The repository implements `Debug`, `Clone`, `PartialEq`, `Eq`, `PartialOrd`, `Ord`, `Hash`, and
+/// `Serialize` with no bound on `D`, so a `State` context can hold it for every document type. Two
+/// repositories compare by root and access.
 ///
 /// A [`DocumentKey`] is a document's path under the root. A document lives at the root joined with
 /// its key. On Linux and macOS, a root of `/data/arkad` and a key of `sec/CIK0000320193.json` name
@@ -91,8 +91,8 @@ pub use traits::document::Document;
 /// fails, or the caller drops the write between the renames, the new metadata stays beside the old
 /// document until the next successful write under that key. If the caller drops the write before
 /// the renames, its temporary files stay in the directory.
-// The value traits below are written by hand. A derive would require `D` to implement each of
-// them, although the repository holds no `D`.
+// The value traits and `Serialize` below are written by hand. A derive would require `D` to
+// implement each of them, although the repository holds no `D`.
 pub struct FilesystemRepository<A, D> {
     root: PathBuf,
     access: A,

@@ -24,8 +24,7 @@ use crate::traits::state_machine::state::Context;
 /// A [`WriteRepository`] of raw Company Facts documents that a state context can hold.
 ///
 /// A state context must implement the value traits and `Serialize`, so the repository must
-/// implement them too. Each backend writes its own `Serialize` and leaves out sensitive fields.
-/// Every type that meets the bounds implements this trait.
+/// implement them too. Every type that meets the bounds implements this trait.
 pub trait RawCompanyFactsRepository:
     WriteRepository<Record = RawDocument<RawCompanyFacts>>
     + Debug
