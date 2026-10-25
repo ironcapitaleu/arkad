@@ -116,8 +116,9 @@ impl StateData for ExtractSuperStateData {
 /// Context for the [`ExtractSuperState`].
 ///
 /// Holds the shared [`SecClient`] handed down to each inner state, so the client is
-/// constructed once and reused across the whole extract phase. It also holds the
-/// `execution_id` of the run and the storage repository `R` that [`StoreCompanyFacts`] writes to.
+/// constructed once and reused across the whole extract phase. It also holds the `execution_id`
+/// of the run and the storage repository `R`. Each inner state carries its own clone of the
+/// repository, and [`StoreCompanyFacts`] writes to that clone.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub struct ExtractSuperStateContext<R> {
     pub(crate) sec_client: SecClient,
