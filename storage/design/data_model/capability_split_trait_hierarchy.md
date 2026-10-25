@@ -276,7 +276,8 @@ A state context implements `Serialize`, so every state event shows the store's s
 backend writes its own `Serialize` and shows only its non-sensitive settings. It never shows a
 secret such as a password or a token. `FilesystemRepository` shows its root and its access, as
 `{ "root": "/data/arkad", "access": "ReadWrite" }`. No backend implements `Deserialize`, so this
-output names the store for logs only.
+output names the store for logs only. Its `Display` shows the same fields, as
+`Filesystem repository at '/data/arkad' (ReadWrite)`.
 
 ## Error Mapping
 

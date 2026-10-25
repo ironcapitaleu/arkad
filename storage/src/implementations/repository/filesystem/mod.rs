@@ -147,6 +147,20 @@ impl<A: Hash, D> Hash for FilesystemRepository<A, D> {
     }
 }
 
+/// Formats as `Filesystem repository at '/data/arkad' (ReadWrite)`.
+///
+/// It shows the same fields as the `Serialize` output, and nothing sensitive.
+impl<A: Access, D> fmt::Display for FilesystemRepository<A, D> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "Filesystem repository at '{}' ({})",
+            self.root.display(),
+            A::NAME
+        )
+    }
+}
+
 /// Serializes as `{ "root": "/data/arkad", "access": "ReadWrite" }`.
 ///
 /// The output names the repository for logs only. It leaves out anything sensitive, and the type
@@ -513,6 +527,17 @@ mod tests {
 
         let result = serde_json::to_value(repository)
             .expect("Given a repository with a UTF-8 root, serialization should always succeed");
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_display_the_root_and_the_access_name_for_a_filesystem_repository() {
+        let repository = repository_at("/data/arkad");
+
+        let expected_result = "Filesystem repository at '/data/arkad' (ReadWrite)";
+
+        let result = repository.to_string();
 
         assert_eq!(result, expected_result);
     }
