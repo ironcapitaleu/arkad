@@ -14,6 +14,8 @@
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
+use self::constants::DEFAULT_SEC_USER_AGENT;
+
 pub mod constants;
 pub mod user_agent_error;
 pub use user_agent_error::{UserAgentError, UserAgentErrorReason};
@@ -152,6 +154,19 @@ impl TryFrom<String> for UserAgent {
     }
 }
 
+impl Default for UserAgent {
+    /// Returns the [`UserAgent`] built from [`DEFAULT_SEC_USER_AGENT`].
+    ///
+    /// # Panics
+    ///
+    /// Panics if [`DEFAULT_SEC_USER_AGENT`] does not have the SEC format. A test pins the
+    /// constant, so this does not happen.
+    fn default() -> Self {
+        Self::new(DEFAULT_SEC_USER_AGENT)
+            .expect("Given the hardcoded default SEC user agent, validation should always succeed")
+    }
+}
+
 impl From<UserAgent> for String {
     /// Returns the user-agent string of a [`UserAgent`].
     fn from(user_agent: UserAgent) -> Self {
@@ -164,6 +179,15 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;
+
+    #[test]
+    fn should_hold_the_default_sec_user_agent_when_created_with_default() {
+        let expected_result = DEFAULT_SEC_USER_AGENT;
+
+        let result = UserAgent::default().inner().to_string();
+
+        assert_eq!(result, expected_result);
+    }
 
     #[test]
     fn should_create_user_agent_when_format_is_valid() {
