@@ -1,4 +1,4 @@
-# Runtime image for the `stream_extract` binary.
+# Runtime image for the `stream_extract` binary (toy PR #264, do not merge).
 #
 # Build from the repository root: `docker build -t arkad-extract .`
 
