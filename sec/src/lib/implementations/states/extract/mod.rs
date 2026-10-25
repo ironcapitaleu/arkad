@@ -529,7 +529,7 @@ mod tests {
 
     use super::*;
     use crate::implementations::states::extract::execute_sec_request::ExecuteSecRequestOutput;
-    use crate::implementations::states::extract::store_company_facts::STATE_NAME as STORE_COMPANY_FACTS;
+    use crate::implementations::states::extract::store_company_facts::constants::STATE_NAME as STORE_COMPANY_FACTS;
     use crate::shared::cik::Cik;
     use crate::shared::content_type::ContentType;
     use crate::shared::headers::Headers;

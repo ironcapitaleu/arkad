@@ -5,8 +5,8 @@
 //!
 //! It moves the response from the output of the source state, the requested URL from its
 //! [`SecRequest`], the `User-Agent` from its [`SecClient`], and the CIK and the storage repository
-//! from its context. The `execution_id` belongs to the run, not to the source state, so it comes
-//! in as the second element of the tuple.
+//! from its context. The `execution_id` belongs to the state machine run, not to the source state,
+//! so it comes from the state machine context.
 //!
 //! # Errors
 //!
