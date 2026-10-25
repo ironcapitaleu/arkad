@@ -5,7 +5,7 @@
 //! state, together with its updater and builder.
 //!
 //! The context holds the validated [`Cik`], the storage repository of the run, and the retry
-//! budget. They persist across the state's lifetime, so they survive updates and transitions.
+//! budget.
 //!
 //! ## Usage
 //!
@@ -53,8 +53,7 @@ use crate::traits::state_machine::state::Context;
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
 /// Context for the [`PrepareSecRequest`](super::PrepareSecRequest) state.
 ///
-/// Holds the validated [`Cik`], the storage repository of the run, and the retry budget. All of
-/// them persist across updates and transitions.
+/// Holds the validated [`Cik`], the storage repository of the run, and the retry budget.
 pub struct PrepareSecRequestContext<R> {
     /// The validated CIK the prepared request targets.
     pub cik: Cik,

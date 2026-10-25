@@ -5,7 +5,7 @@
 //! state, together with its updater and builder.
 //!
 //! The context tracks the [`Cik`] being processed, the storage repository of the run, and the
-//! retry budget. All of them persist across updates and transitions.
+//! retry budget.
 //!
 //! ## Usage
 //!
@@ -53,7 +53,6 @@ use crate::traits::state_machine::state::Context;
 /// Context for the [`ExecuteSecRequest`](super::ExecuteSecRequest) state.
 ///
 /// Tracks the [`Cik`] being processed, the storage repository of the run, and the retry budget.
-/// All of them persist across updates and transitions.
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
 pub struct ExecuteSecRequestContext<R> {
     /// The Central Index Key (CIK) being processed in this execution context.

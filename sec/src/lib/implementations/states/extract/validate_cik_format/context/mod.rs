@@ -5,9 +5,9 @@
 //! state, together with its updater and builder.
 //!
 //! The context holds the raw CIK under validation, the shared [`SecClient`], the storage repository
-//! of the run, and the retry budget. These outlive any single input/output pair. The state can then
-//! re-run and transition without rebuilding them. The [`Context`] trait applies updates from an
-//! updater that a builder constructs, so each update is explicit and partial.
+//! of the run, and the retry budget. These outlive any single input/output pair. The [`Context`]
+//! trait applies updates from an updater that a builder constructs, so each update is explicit and
+//! partial.
 //!
 //! ## Usage
 //!
@@ -55,7 +55,7 @@ use crate::traits::state_machine::state::Context;
 /// Context for the [`ValidateCikFormat`](super::ValidateCikFormat) state.
 ///
 /// Holds the raw CIK under validation, the shared [`SecClient`], and the storage repository of
-/// the run. It also holds the retry budget. All of them survive updates and transitions.
+/// the run. It also holds the retry budget.
 pub struct ValidateCikFormatContext<R> {
     /// The unvalidated CIK string provided for validation.
     pub raw_cik: String,

@@ -4,8 +4,7 @@
 //! [`CreateFinancialStatements`](crate::implementations::states::transform::create_financial_statements::CreateFinancialStatements)
 //! state, together with its updater and builder.
 //!
-//! The context tracks the [`Cik`] of the company being processed and the retry budget, both of
-//! which persist across updates and transitions.
+//! The context tracks the [`Cik`] of the company being processed and the retry budget.
 //!
 //! ## Usage
 //!
@@ -44,8 +43,7 @@ use crate::traits::state_machine::state::Context;
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
 /// Context for the [`CreateFinancialStatements`](super::CreateFinancialStatements) state.
 ///
-/// Tracks the [`Cik`] of the company being processed and the retry budget, both of which persist
-/// across updates and transitions.
+/// Tracks the [`Cik`] of the company being processed and the retry budget.
 pub struct CreateFinancialStatementsContext {
     /// The CIK identifying the company whose financial statements are being created.
     pub cik: Cik,
