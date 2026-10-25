@@ -268,9 +268,6 @@ impl<S: State, R: RawCompanyFactsRepository> SuperState<S> for ExtractSuperState
 
 impl<R: RawCompanyFactsRepository> ExtractSuperState<ValidateCikFormat<R>, R> {
     /// Returns an [`ExtractSuperStateBuilder`] that holds no field yet.
-    ///
-    /// The builder builds the super-state at its entry state [`ValidateCikFormat`].
-    /// [`ExtractSuperState::into_run_stream`] tags the stream with the `execution_id` it holds.
     #[must_use]
     pub const fn builder()
     -> ExtractSuperStateBuilder<NoCik, NoSecClient, NoExecutionId, NoRepository<R>> {
@@ -935,8 +932,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_keep_execution_id_of_first_constructor_when_transitioning_to_execute_sec_request()
-     {
+    async fn should_keep_execution_id_of_builder_when_transitioning_to_execute_sec_request() {
         let execution_id = Uuid::from_u128(7);
         let mut super_state = ExtractSuperState::builder()
             .cik("1067983")
@@ -968,8 +964,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_carry_execution_id_of_first_constructor_when_transitioning_to_store_company_facts()
-     {
+    async fn should_carry_execution_id_of_builder_when_transitioning_to_store_company_facts() {
         let execution_id = Uuid::from_u128(7);
         let mut super_state = ExtractSuperState::builder()
             .cik("1067983")
