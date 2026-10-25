@@ -364,7 +364,7 @@ sec/tests/
 ├── sec_response.rs         # Response parsing with real data
 └── pipeline_coverage/      # Multi-file pipeline test
     ├── main.rs
-    ├── builder.rs
+    ├── pipeline.rs
     └── constants.rs
 ```
 

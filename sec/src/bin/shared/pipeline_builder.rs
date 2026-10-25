@@ -23,6 +23,7 @@ pub struct Pipeline<R> {
 
 impl<R: RawCompanyFactsRepository + 'static> Pipeline<R> {
     /// Returns a [`PipelineBuilder`] that holds no field yet.
+    #[must_use]
     pub const fn builder() -> PipelineBuilder<NoCik, NoSecClient, NoRepository<R>> {
         PipelineBuilder {
             cik: NoCik,
@@ -42,6 +43,7 @@ impl<R: RawCompanyFactsRepository + 'static> Pipeline<R> {
     /// Returns the stream that drives the pipeline, tagged with `execution_id`.
     ///
     /// The stream crosses from the extract phase into the transform phase on its own.
+    #[must_use]
     pub fn into_stream(self, execution_id: Uuid) -> StateMachineStream {
         ExtractSuperState::builder()
             .cik(self.cik)
@@ -65,6 +67,7 @@ pub struct PipelineBuilder<C, S, R> {
 
 impl<S, R> PipelineBuilder<NoCik, S, R> {
     /// Sets the raw CIK. The extract phase validates it.
+    #[must_use]
     pub fn cik(self, cik: impl Into<String>) -> PipelineBuilder<String, S, R> {
         PipelineBuilder {
             cik: cik.into(),
@@ -76,6 +79,7 @@ impl<S, R> PipelineBuilder<NoCik, S, R> {
 
 impl<C, R> PipelineBuilder<C, NoSecClient, R> {
     /// Sets the [`SecClient`] that sends the SEC request.
+    #[must_use]
     pub fn sec_client(self, sec_client: SecClient) -> PipelineBuilder<C, SecClient, R> {
         PipelineBuilder {
             cik: self.cik,
@@ -87,6 +91,7 @@ impl<C, R> PipelineBuilder<C, NoSecClient, R> {
 
 impl<C, S, R> PipelineBuilder<C, S, NoRepository<R>> {
     /// Sets the repository that stores the raw Company Facts.
+    #[must_use]
     pub fn repository(self, repository: R) -> PipelineBuilder<C, S, R> {
         PipelineBuilder {
             cik: self.cik,
@@ -98,6 +103,7 @@ impl<C, S, R> PipelineBuilder<C, S, NoRepository<R>> {
 
 impl<R: RawCompanyFactsRepository> PipelineBuilder<String, SecClient, R> {
     /// Builds the [`Pipeline`] with the fields this builder holds.
+    #[must_use]
     pub fn build(self) -> Pipeline<R> {
         Pipeline {
             cik: self.cik,

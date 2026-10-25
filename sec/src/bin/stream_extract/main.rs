@@ -74,7 +74,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     // rate limiter, so futures simply park at the permit gate (natural backpressure) rather than
     // being throttled by a bounded concurrency window.
     // If the CIK count grows to thousands, revisit with buffer_unordered to cap in-flight futures.
-    let extractions = CIKS.into_iter().map(|cik| {
+    let pipelines = CIKS.into_iter().map(|cik| {
         Pipeline::builder()
             .cik(cik)
             .sec_client(sec_client.clone())
@@ -82,7 +82,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
             .build()
             .run()
     });
-    let results: Vec<_> = futures_util::future::join_all(extractions).await;
+    let results: Vec<_> = futures_util::future::join_all(pipelines).await;
 
     let elapsed = start.elapsed();
 
