@@ -1,9 +1,9 @@
 //! # State Errors
 //!
 //! Provides the [`State`] error covering failures inside a state's own logic: CIK validation, SEC
-//! request execution, data completeness, and input/context/output handling.
+//! request execution, document writes, data completeness, and input/context/output handling.
 //!
-//! The richer variants ([`InvalidCikFormat`], [`FailedRequestExecution`],
+//! The richer variants ([`InvalidCikFormat`], [`FailedRequestExecution`], [`FailedDocumentWrite`],
 //! [`IncompleteCompanyFacts`]) wrap a domain error with the failing state's name; the rest are
 //! plain markers. [`State`] is wrapped by [`StateMachine`](super::StateMachine) for propagation.
 //!
@@ -11,10 +11,13 @@
 //!
 //! - [`invalid_cik_format`]: The [`InvalidCikFormat`] error wrapping a CIK validation failure.
 //! - [`failed_request_execution`]: The [`FailedRequestExecution`] error wrapping a failed SEC request.
+//! - [`failed_document_write`]: The [`FailedDocumentWrite`] error wrapping a rejected store write.
 //! - [`incomplete_company_facts`]: The [`IncompleteCompanyFacts`] error for a response missing required fields.
 
 use thiserror::Error;
 
+pub mod failed_document_write;
+pub use failed_document_write::FailedDocumentWrite;
 pub mod failed_request_execution;
 pub use failed_request_execution::FailedRequestExecution;
 pub mod incomplete_company_facts;
@@ -27,7 +30,7 @@ pub use invalid_cik_format::InvalidCikFormat;
 /// Error occurring inside a state's own logic.
 ///
 /// Spans the ways a state can fail while computing its output: a wrapped domain error (invalid
-/// CIK, failed request, incomplete facts) or a plain marker for invalid input, context, or a
+/// CIK, failed request, rejected write, incomplete facts) or a plain marker for invalid input, context, or a
 /// failed update/computation.
 pub enum State {
     /// Invalid Cik format.
@@ -37,6 +40,10 @@ pub enum State {
     /// Indicates that an SEC request execution has failed.
     #[error("[StateError] A state level error occurred, Caused by: {0}")]
     FailedRequestExecution(#[source] FailedRequestExecution),
+
+    /// Indicates that the store rejected the write of a document.
+    #[error("[StateError] A state level error occurred, Caused by: {0}")]
+    FailedDocumentWrite(#[source] FailedDocumentWrite),
 
     /// Indicates that the SEC Company Facts response is missing expected data fields.
     #[error("[StateError] A state level error occurred, Caused by: {0}")]
