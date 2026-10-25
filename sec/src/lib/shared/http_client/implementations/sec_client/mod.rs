@@ -63,7 +63,8 @@ pub struct SecClient {
 
 impl Serialize for SecClient {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        let state = serializer.serialize_struct("SecClient", 0)?;
+        let mut state = serializer.serialize_struct("SecClient", 1)?;
+        state.serialize_field("user_agent", self.user_agent())?;
         state.end()
     }
 }
@@ -95,26 +96,27 @@ impl Default for SecClient {
     /// to initialize.
     fn default() -> Self {
         let inner = ReqwestClient::new(UserAgent::default())
-            .expect("Given the validated default user agent, the HTTP client creation should always succeed");
+            .expect("Given the validated default user agent, building the HTTP client fails only if the TLS backend cannot initialize");
         Self::new(inner)
     }
 }
 
-// Deviation: neither the `ReqwestClient` nor the `SecRateLimiter` expose any comparable or
-// hashable state, so all `SecClient` instances are considered equal and the limiter field — like
-// `inner` — is excluded from these impls. This satisfies trait bounds that require
-// `Eq + Ord + Hash` (e.g. for use in collections or state machines).
+// Deviation: neither `reqwest::Client` nor the `SecRateLimiter` expose comparable or hashable
+// state. Equality, ordering and hashing use only the `UserAgent` the client sends. This satisfies
+// trait bounds that require `Eq + Ord + Hash` (e.g. for use in collections or state machines).
 
 impl PartialEq for SecClient {
-    fn eq(&self, _other: &Self) -> bool {
-        true
+    fn eq(&self, other: &Self) -> bool {
+        self.user_agent() == other.user_agent()
     }
 }
 
 impl Eq for SecClient {}
 
 impl std::hash::Hash for SecClient {
-    fn hash<H: std::hash::Hasher>(&self, _state: &mut H) {}
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.user_agent().hash(state);
+    }
 }
 
 impl PartialOrd for SecClient {
@@ -124,8 +126,8 @@ impl PartialOrd for SecClient {
 }
 
 impl Ord for SecClient {
-    fn cmp(&self, _other: &Self) -> std::cmp::Ordering {
-        std::cmp::Ordering::Equal
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.user_agent().cmp(other.user_agent())
     }
 }
 
@@ -161,16 +163,26 @@ impl SecClientTrait for SecClient {
 
 #[cfg(test)]
 mod tests {
-    use pretty_assertions::assert_eq;
+    use pretty_assertions::{assert_eq, assert_ne};
 
     use super::SecClient;
+    use crate::shared::http_client::implementations::reqwest_client::ReqwestClient;
     use crate::shared::user_agent::UserAgent;
+    use crate::shared::user_agent::constants::DEFAULT_SEC_USER_AGENT;
+
+    fn sec_client_with_other_user_agent() -> SecClient {
+        let user_agent = UserAgent::new("Other Company other@example.com")
+            .expect("A hardcoded SEC-format string should always validate");
+        let inner = ReqwestClient::new(user_agent)
+            .expect("Given a validated user agent, the client creation should always succeed");
+        SecClient::new(inner)
+    }
 
     #[test]
-    fn should_serialize_to_empty_struct_when_serialized_to_json() {
+    fn should_serialize_the_user_agent_when_serialized_to_json() {
         let client = SecClient::default();
 
-        let expected_result = serde_json::json!({});
+        let expected_result = serde_json::json!({ "user_agent": DEFAULT_SEC_USER_AGENT });
 
         let result = serde_json::to_value(&client).expect("SecClient should serialize to JSON");
 
@@ -184,6 +196,28 @@ mod tests {
         let expected_result = &UserAgent::default();
 
         let result = client.user_agent();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_not_be_equal_when_user_agents_differ() {
+        let client = SecClient::default();
+
+        let expected_result = sec_client_with_other_user_agent();
+
+        let result = client;
+
+        assert_ne!(result, expected_result);
+    }
+
+    #[test]
+    fn should_be_equal_when_user_agents_match() {
+        let client = SecClient::default();
+
+        let expected_result = SecClient::default();
+
+        let result = client;
 
         assert_eq!(result, expected_result);
     }
