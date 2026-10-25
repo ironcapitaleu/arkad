@@ -44,3 +44,5 @@ cargo run --features tracing-logging --bin stream_extract
 ```
 
 Each binary builds a document store at startup. `ARKAD_STORAGE_ROOT` sets its root directory. If the variable is unset or empty, the root is `data`, relative to the working directory.
+
+Each binary also builds an `SecClient` at startup. `ARKAD_SEC_USER_AGENT` sets the `User-Agent` of every SEC request. The SEC requires the form `Company Name email@domain.com`, for example `ARKAD_SEC_USER_AGENT="Acme Corp ops@acme.com"`. If the variable is unset or empty, the value is `Test Company contact@test.com`. If the value does not have this form, the binary stops at startup with a `UserAgentError`.

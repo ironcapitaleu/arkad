@@ -1,7 +1,9 @@
 mod extraction;
 // Each binary is its own crate root, so it cannot import another binary's modules. `#[path]`
-// compiles the one shared file into this binary as a private module, so all binaries build the
-// store the same way.
+// compiles each shared file into this binary as a private module, so all binaries build the
+// client and the store the same way.
+#[path = "../shared/sec_client.rs"]
+mod sec_client;
 #[path = "../shared/storage_root.rs"]
 mod storage_root;
 
@@ -11,9 +13,9 @@ use std::io::stdout;
 use std::time::Instant;
 
 use extraction::Extraction;
-use sec::shared::http_client::implementations::sec_client::SecClient;
 use tracing_subscriber::fmt::format::FmtSpan;
 
+use sec_client::sec_client;
 use storage_root::raw_company_facts_writer;
 
 use extraction::constants::CIKS;
@@ -44,7 +46,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
         .with_writer(non_blocking)
         .init();
 
-    let sec_client = SecClient::default();
+    let sec_client = sec_client()?;
     let repository = raw_company_facts_writer();
     let start = Instant::now();
 
