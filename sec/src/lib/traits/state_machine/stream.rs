@@ -10,7 +10,7 @@
 //! state and its successor. A blanket [`IntoStateMachineStream`] impl then covers any machine that
 //! is [`NonTerminal`] and has a [`Transition`] to that successor, recursively streaming the
 //! successor too. Only terminal states (those with no [`NonTerminal`] impl) need a manual impl,
-//! and [`terminal_stream`] supplies its body.
+//! and `terminal_stream` supplies its body.
 
 use std::fmt;
 use std::pin::Pin;
@@ -221,7 +221,7 @@ where
 /// The stream yields [`StreamEvent::StateStarted`] and computes the current state. It then yields
 /// [`StreamEvent::StateCompleted`], or a [`StreamError`] with [`StreamEvent::StateFailed`], and
 /// ends. Each terminal [`IntoStateMachineStream`] impl returns this stream.
-pub fn terminal_stream<SM, S>(sm: SM, execution_id: uuid::Uuid) -> StateMachineStream
+pub(crate) fn terminal_stream<SM, S>(sm: SM, execution_id: uuid::Uuid) -> StateMachineStream
 where
     SM: SMStateMachine<S> + Send + 'static,
     S: State + serde::Serialize + Send,

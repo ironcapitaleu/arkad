@@ -26,7 +26,7 @@ requirements drive the design:
 ### 1.1 The current codebase is an immature seed, not the target
 
 The design below is a **redesign**, not a preservation of what exists. Today the workspace
-has two parallel, non-integrated models and no persistence:
+has two parallel, non-integrated models and one raw-document store:
 
 - `sec` crate (live): `CompanyData → HashMap<&ConceptDefinition, CompanyFact> → Vec<Observation>`,
   identity is **`Cik`-centric** (SEC-specific), concept resolution is string-alias matching.
