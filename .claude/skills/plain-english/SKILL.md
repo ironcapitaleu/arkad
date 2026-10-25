@@ -291,7 +291,7 @@ After:
 ```rust
 //! Client for the SEC EDGAR API.
 //!
-//! The client fetches company filings by CIK. It returns a [`SecClientError`] when the
+//! The client fetches company filings by CIK. It returns an [`SecClientError`] when the
 //! request fails or when the response is not valid JSON.
 ```
 
@@ -306,7 +306,7 @@ Before:
 After:
 > refactor(sec): wrap client errors in a state-tagged error type
 >
-> A `SecClientError` did not name the state that produced it. `StateError` now carries the
+> An `SecClientError` did not name the state that produced it. `StateError` now carries the
 > state name next to the source error.
 
 **Procedure**
