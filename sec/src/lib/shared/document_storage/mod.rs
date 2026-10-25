@@ -79,9 +79,9 @@ impl fmt::Display for DocumentStorageErrorReason {
 
 /// Converts a [`WriteError`] from the store into a [`FailedDocumentStorage`] error.
 ///
-/// A rejected write keeps only the reason the store gave. A backend error and any other variant
-/// keep their full message. A `WriteError` variant with no match here becomes
-/// [`DocumentStorageErrorReason::Other`].
+/// A rejected write keeps only the reason the store gave. A backend error keeps the message of
+/// its `BackendError`. A `WriteError` variant with no match here becomes
+/// [`DocumentStorageErrorReason::Other`] and keeps the full `WriteError` message.
 impl From<WriteError> for FailedDocumentStorage {
     fn from(error: WriteError) -> Self {
         let reason = match error {
@@ -172,7 +172,7 @@ mod tests {
     }
 
     #[test]
-    fn should_display_a_conflicting_write_as_a_leaf_with_its_reason() {
+    fn should_show_the_reason_after_its_name_for_conflicting_write() {
         let reason = DocumentStorageErrorReason::ConflictingWrite {
             details: CONFLICT_REASON.to_string(),
         };
@@ -185,7 +185,7 @@ mod tests {
     }
 
     #[test]
-    fn should_display_a_failed_integrity_check_as_a_leaf_with_its_reason() {
+    fn should_show_the_reason_after_its_name_for_failed_integrity_check() {
         let reason = DocumentStorageErrorReason::FailedIntegrityCheck {
             details: "size does not match".to_string(),
         };
