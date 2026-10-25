@@ -76,7 +76,7 @@ impl<C, S, U> PipelineBuilder<C, S, NoRepository, U> {
 }
 
 impl<C, S, R> PipelineBuilder<C, S, R, NoUserAgent> {
-    /// Sets the `User-Agent` that the run sends to the SEC.
+    /// Sets the `User-Agent` of the run. It must equal the header that the [`SecClient`] sends.
     pub fn user_agent(self, user_agent: UserAgent) -> PipelineBuilder<C, S, R, UserAgent> {
         PipelineBuilder {
             cik: self.cik,

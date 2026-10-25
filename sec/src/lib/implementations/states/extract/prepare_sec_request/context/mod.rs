@@ -54,7 +54,7 @@ use crate::traits::state_machine::state::Context;
 pub struct PrepareSecRequestContext {
     /// The validated CIK the prepared request targets.
     pub cik: Cik,
-    /// The `User-Agent` that the run sends to the SEC.
+    /// The `User-Agent` of the run. It must equal the header that the SEC client sends.
     pub user_agent: UserAgent,
     /// Maximum number of times the state may be retried on failure.
     pub max_retries: u32,
@@ -72,7 +72,7 @@ impl PrepareSecRequestContext {
         }
     }
 
-    /// Returns the `User-Agent` that the run sends to the SEC.
+    /// Returns the `User-Agent` of the run.
     #[must_use]
     pub const fn user_agent(&self) -> &UserAgent {
         &self.user_agent

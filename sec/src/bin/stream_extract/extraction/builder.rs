@@ -76,7 +76,7 @@ impl<C, S, U> ExtractionBuilder<C, S, NoRepository, U> {
 }
 
 impl<C, S, R> ExtractionBuilder<C, S, R, NoUserAgent> {
-    /// Sets the `User-Agent` that the run sends to the SEC.
+    /// Sets the `User-Agent` of the run. It must equal the header that the [`SecClient`] sends.
     pub fn user_agent(self, user_agent: UserAgent) -> ExtractionBuilder<C, S, R, UserAgent> {
         ExtractionBuilder {
             cik: self.cik,

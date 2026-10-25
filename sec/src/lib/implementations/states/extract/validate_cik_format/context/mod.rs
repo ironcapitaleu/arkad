@@ -57,7 +57,7 @@ pub struct ValidateCikFormatContext {
     pub raw_cik: String,
     /// The shared HTTP client for SEC API requests.
     pub sec_client: SecClient,
-    /// The `User-Agent` that the run sends to the SEC.
+    /// The `User-Agent` of the run. It must equal the header that the SEC client sends.
     pub user_agent: UserAgent,
     /// Maximum number of times the state may be retried on failure.
     pub max_retries: u32,
@@ -87,7 +87,7 @@ impl ValidateCikFormatContext {
         &self.sec_client
     }
 
-    /// Returns the `User-Agent` that the run sends to the SEC.
+    /// Returns the `User-Agent` of the run.
     #[must_use]
     pub const fn user_agent(&self) -> &UserAgent {
         &self.user_agent
