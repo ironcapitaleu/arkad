@@ -4,15 +4,15 @@
 //! [`ExecuteSecRequest`] and the `execution_id` of the run.
 //!
 //! It moves the response from the output of the source state, the requested URL from its
-//! [`SecRequest`], and the `User-Agent`, the CIK and the storage repository from its context. The
-//! `execution_id` belongs to the run, not to the source state, so it comes in as the second
-//! element of the tuple. The requested URL must name the CIK of the context.
+//! [`SecRequest`], the `User-Agent` from its [`SecClient`], and the CIK and the storage repository
+//! from its context. The `execution_id` belongs to the run, not to the source state, so it comes
+//! in as the second element of the tuple.
 //!
 //! # Errors
 //!
 //! Returns [`TransitionError`] when the source state has no computed output
 //! ([`MissingOutput`](crate::error::state_machine::transition::MissingOutput)), or when its
-//! request names another CIK than its context
+//! request names a different CIK from its context
 //! ([`FailedContextConversion`](crate::error::state_machine::transition::FailedContextConversion)).
 
 use uuid::Uuid;
@@ -25,6 +25,8 @@ use crate::implementations::states::extract::store_company_facts::constants::STA
 use crate::implementations::states::extract::store_company_facts::{
     StoreCompanyFacts, StoreCompanyFactsContext, StoreCompanyFactsInput,
 };
+#[cfg(doc)]
+use crate::shared::http_client::implementations::sec_client::SecClient;
 use crate::shared::request::implementations::sec_request::SecRequest;
 use crate::shared::url::Url;
 
@@ -38,9 +40,9 @@ impl<R> TryFrom<(ExecuteSecRequest<R>, Uuid)> for StoreCompanyFacts<R> {
     ///
     /// Returns [`TransitionError::MissingOutput`] if `state` has no computed output.
     ///
-    /// Returns [`TransitionError::FailedContextConversion`] if the request of `state` names
-    /// another CIK than its context. The stored key follows the context CIK, so a mismatch would
-    /// store a response under the wrong company.
+    /// Returns [`TransitionError::FailedContextConversion`] if the request of `state` names a
+    /// different CIK from its context. The stored key follows the context CIK, so a mismatch stores
+    /// a response under the wrong company.
     fn try_from(
         (state, execution_id): (ExecuteSecRequest<R>, Uuid),
     ) -> Result<Self, TransitionError> {
@@ -62,8 +64,9 @@ impl<R> TryFrom<(ExecuteSecRequest<R>, Uuid)> for StoreCompanyFacts<R> {
         }
 
         let requested_url = Url::from(input.sec_request.inner.url().clone());
+        let user_agent = input.sec_client.user_agent().clone();
         let new_input =
-            StoreCompanyFactsInput::new(output_data.response, requested_url, context.user_agent);
+            StoreCompanyFactsInput::new(output_data.response, requested_url, user_agent);
         let new_context =
             StoreCompanyFactsContext::new(context.cik, execution_id, context.repository);
 
@@ -86,11 +89,14 @@ mod tests {
     use crate::shared::cik::Cik;
     use crate::shared::content_type::ContentType;
     use crate::shared::headers::Headers;
+    use crate::shared::http_client::implementations::reqwest_client::ReqwestClient;
     use crate::shared::http_client::implementations::sec_client::SecClient;
     use crate::shared::response::implementations::sec_response::SecResponse;
     use crate::shared::status_code::StatusCode;
-    use crate::tests::fixtures::sample_run::{SAMPLE_EXECUTION_ID, sample_user_agent};
+    use crate::shared::user_agent::UserAgent;
     use crate::tests::fixtures::sample_write_repository::FakeWriteRepository;
+
+    const SAMPLE_EXECUTION_ID: Uuid = Uuid::from_u128(7);
 
     const REQUESTED_URL: &str = "https://data.sec.gov/api/xbrl/companyfacts/CIK0001067983.json";
     const REDIRECTED_URL: &str = "https://data.sec.gov/redirected/CIK0001067983.json";
@@ -98,6 +104,17 @@ mod tests {
     fn sample_cik() -> Cik {
         Cik::new("1067983")
             .expect("Given a hardcoded numeric CIK, its creation should always succeed")
+    }
+
+    fn other_user_agent() -> UserAgent {
+        UserAgent::new("Other Company other@example.com")
+            .expect("Given a hardcoded SEC-format string, validation should always succeed")
+    }
+
+    fn sec_client_with_other_user_agent() -> SecClient {
+        let inner = ReqwestClient::new(other_user_agent())
+            .expect("Given a validated user agent, the client creation should always succeed");
+        SecClient::new(inner)
     }
 
     fn rejecting_repository() -> FakeWriteRepository {
@@ -119,12 +136,12 @@ mod tests {
     }
 
     fn sample_context() -> ExecuteSecRequestContext<FakeWriteRepository> {
-        ExecuteSecRequestContext::new(sample_cik(), sample_user_agent(), rejecting_repository())
+        ExecuteSecRequestContext::new(sample_cik(), rejecting_repository())
     }
 
     fn execute_sec_request_without_output(cik: Cik) -> ExecuteSecRequest<FakeWriteRepository> {
         let request = SecRequest::builder().all_company_facts().cik(cik).build();
-        let input = ExecuteSecRequestInput::new(SecClient::default(), request);
+        let input = ExecuteSecRequestInput::new(sec_client_with_other_user_agent(), request);
         ExecuteSecRequest::new(input, sample_context())
     }
 
@@ -158,10 +175,10 @@ mod tests {
     }
 
     #[test]
-    fn should_take_user_agent_from_context_when_source_has_output() {
+    fn should_take_user_agent_from_sec_client_when_source_has_output() {
         let state = store_company_facts();
 
-        let expected_result = &sample_user_agent();
+        let expected_result = &other_user_agent();
 
         let result = state.input_data().user_agent();
 

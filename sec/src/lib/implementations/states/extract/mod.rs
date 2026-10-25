@@ -989,7 +989,6 @@ mod tests {
             "1067983",
             SecClient::default(),
             execution_id,
-            sample_user_agent(),
             FakeWriteRepository::new(),
         );
         super_state
@@ -1039,7 +1038,6 @@ mod tests {
             request,
             cik,
             Uuid::nil(),
-            sample_user_agent(),
             FakeWriteRepository::new(),
         );
 
