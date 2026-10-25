@@ -55,7 +55,7 @@ impl<R: RawCompanyFactsRepository> StoreCompanyFacts<R> {
             .all_company_facts()
             .cik(context.cik.clone())
             .build();
-        if input.sec_request.inner.url() != context_request.inner.url() {
+        if input.sec_request != context_request {
             return Err(transition::FailedContextConversion::new(
                 EXECUTE_SEC_REQUEST,
                 STORE_COMPANY_FACTS,
