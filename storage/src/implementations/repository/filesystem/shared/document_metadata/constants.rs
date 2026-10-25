@@ -10,4 +10,4 @@
 /// Raise it when such a field is removed, renamed, or redefined.
 ///
 /// [`DocumentMetadata`]: crate::implementations::repository::filesystem::DocumentMetadata
-pub const METADATA_VERSION: u32 = 2;
+pub const METADATA_VERSION: u32 = 1;

@@ -317,7 +317,7 @@ mod tests {
         let metadata_path = repository.metadata_path(&key);
         write_record_files(&repository, &sample_document);
         let stored_metadata = r#"{
-  "metadata_version": 2,
+  "metadata_version": 1,
   "document_type": "sample_document",
   "document_type_version": 1,
   "media_type": "application/json",
@@ -539,6 +539,33 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn should_return_invalid_metadata_when_the_metadata_file_holds_the_kind_layout() {
+        let root = temporary_root();
+        let repository = repository_at(root.path());
+        let sample_document = sample_document();
+        let key = sample_document.key().clone();
+        let metadata_path = repository.metadata_path(&key);
+        write_record_files(&repository, &sample_document);
+        std::fs::write(
+            &metadata_path,
+            br#"{"metadata_version":1,"kind":"sample_document","kind_version":1}"#,
+        )
+        .expect("Given an existing directory, overwriting the metadata should always succeed");
+
+        let expected_result = Err(read_error(
+            FailedFilesystemOperationReason::InvalidMetadata {
+                line: 1,
+                column: 64,
+            },
+            &metadata_path,
+        ));
+
+        let result = repository.get(key).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
     async fn should_return_unexpected_document_size_when_the_document_is_longer_than_its_metadata()
     {
         let root = temporary_root();
@@ -618,7 +645,7 @@ mod tests {
         let metadata_path = repository.metadata_path(&key);
         write_record_files(&repository, &sample_document);
         let stored_metadata = r#"{
-  "metadata_version": 2,
+  "metadata_version": 1,
   "document_type": "sample_document",
   "document_type_version": 1,
   "media_type": "application/json",

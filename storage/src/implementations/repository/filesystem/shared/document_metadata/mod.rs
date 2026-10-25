@@ -311,7 +311,7 @@ mod tests {
         let metadata = sample_metadata();
 
         let expected_result = serde_json::json!({
-            "metadata_version": 2,
+            "metadata_version": 1,
             "document_type": "sample_document",
             "document_type_version": 1,
             "media_type": "application/json",
