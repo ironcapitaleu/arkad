@@ -52,12 +52,13 @@ static GLOBAL_RATE_LIMITER: OnceLock<SecRateLimiter> = OnceLock::new();
 ///
 /// # User Agent
 ///
-/// [`SecClient::default`] sets the `User-Agent` from a validated [`UserAgent`], guaranteeing every
-/// request carries the SEC-compliant header the API requires.
+/// Every constructor sets the `User-Agent` from a validated [`UserAgent`], so every request
+/// carries the SEC-compliant header the API requires. [`SecClient::user_agent`] returns that value.
 #[derive(Debug, Clone)]
 pub struct SecClient {
     inner: reqwest::Client,
     rate_limiter: SecRateLimiter,
+    user_agent: UserAgent,
 }
 
 impl Serialize for SecClient {
@@ -68,14 +69,29 @@ impl Serialize for SecClient {
 }
 
 impl SecClient {
-    /// Creates a new [`SecClient`] with the given `reqwest::Client`, backed by the shared
-    /// [`SecRateLimiter`] that paces requests under the SEC's request-rate ceiling.
+    /// Creates a new [`SecClient`] that sends `user_agent` as its `User-Agent` header, backed by
+    /// the shared [`SecRateLimiter`] that paces requests under the SEC's request-rate ceiling.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `reqwest` cannot initialize its TLS backend.
     #[must_use]
-    pub fn new(inner: reqwest::Client) -> Self {
+    pub fn new(user_agent: UserAgent) -> Self {
+        let inner = reqwest::Client::builder()
+            .user_agent(user_agent.inner())
+            .build()
+            .expect("A validated UserAgent should always produce a valid HTTP client");
         Self {
             inner,
             rate_limiter: GLOBAL_RATE_LIMITER.get_or_init(SecRateLimiter::new).clone(),
+            user_agent,
         }
+    }
+
+    /// Returns the [`UserAgent`] this client sends in its `User-Agent` header.
+    #[must_use]
+    pub const fn user_agent(&self) -> &UserAgent {
+        &self.user_agent
     }
 }
 
@@ -84,29 +100,26 @@ impl Default for SecClient {
     fn default() -> Self {
         let user_agent = UserAgent::new(DEFAULT_SEC_USER_AGENT)
             .expect("The default SEC user agent constant should always be valid");
-        let http_client = reqwest::Client::builder()
-            .user_agent(user_agent.inner())
-            .build()
-            .expect("A validated UserAgent should always produce a valid HTTP client");
-        Self::new(http_client)
+        Self::new(user_agent)
     }
 }
 
 // Deviation: neither `reqwest::Client` nor the `SecRateLimiter` expose any comparable or
-// hashable state, so all `SecClient` instances are considered equal and the limiter field — like
-// `inner` — is excluded from these impls. This satisfies trait bounds that require
-// `Eq + Ord + Hash` (e.g. for use in collections or state machines).
+// hashable state, so these impls compare and hash only the `user_agent` field. This satisfies
+// trait bounds that require `Eq + Ord + Hash` (e.g. for use in collections or state machines).
 
 impl PartialEq for SecClient {
-    fn eq(&self, _other: &Self) -> bool {
-        true
+    fn eq(&self, other: &Self) -> bool {
+        self.user_agent == other.user_agent
     }
 }
 
 impl Eq for SecClient {}
 
 impl std::hash::Hash for SecClient {
-    fn hash<H: std::hash::Hasher>(&self, _state: &mut H) {}
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        std::hash::Hash::hash(&self.user_agent, state);
+    }
 }
 
 impl PartialOrd for SecClient {
@@ -116,8 +129,8 @@ impl PartialOrd for SecClient {
 }
 
 impl Ord for SecClient {
-    fn cmp(&self, _other: &Self) -> std::cmp::Ordering {
-        std::cmp::Ordering::Equal
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.user_agent.cmp(&other.user_agent)
     }
 }
 
@@ -153,9 +166,10 @@ impl SecClientTrait for SecClient {
 
 #[cfg(test)]
 mod tests {
-    use pretty_assertions::assert_eq;
+    use pretty_assertions::{assert_eq, assert_ne};
 
     use super::SecClient;
+    use crate::shared::user_agent::UserAgent;
 
     #[test]
     fn should_serialize_to_empty_struct_when_serialized_to_json() {
@@ -166,6 +180,32 @@ mod tests {
         let result = serde_json::to_value(&client).expect("SecClient should serialize to JSON");
 
         assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_given_user_agent_when_created_with_new() {
+        let user_agent = UserAgent::new("Sample Company contact@example.com")
+            .expect("A hardcoded SEC-format string should always validate");
+        let client = SecClient::new(user_agent.clone());
+
+        let expected_result = &user_agent;
+
+        let result = client.user_agent();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_differ_when_user_agents_differ() {
+        let user_agent = UserAgent::new("Sample Company contact@example.com")
+            .expect("A hardcoded SEC-format string should always validate");
+        let client = SecClient::new(user_agent);
+
+        let expected_result = SecClient::default();
+
+        let result = client;
+
+        assert_ne!(result, expected_result);
     }
 
     const fn implements_send<T: Send>() {}

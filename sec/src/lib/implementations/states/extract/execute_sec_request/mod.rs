@@ -127,6 +127,14 @@ impl ExecuteSecRequest {
     ) {
         (self.input, self.output, self.context)
     }
+
+    /// Returns the state with `output` set, as if it had computed it without a network call.
+    #[cfg(test)]
+    #[must_use]
+    pub(crate) fn with_output(mut self, output: ExecuteSecRequestOutput) -> Self {
+        self.output = Some(output);
+        self
+    }
 }
 
 #[async_trait]
