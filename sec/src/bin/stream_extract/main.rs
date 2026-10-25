@@ -1,13 +1,17 @@
 mod extraction;
+#[path = "../shared/storage_root.rs"]
+mod storage_root;
 
 use std::error::Error;
 use std::fmt::{self, Display, Formatter};
 use std::io::stdout;
 use std::time::Instant;
 
-use extraction::{Extraction, raw_company_facts_writer};
+use extraction::Extraction;
 use sec::shared::http_client::implementations::sec_client::SecClient;
 use tracing_subscriber::fmt::format::FmtSpan;
+
+use storage_root::raw_company_facts_writer;
 
 use extraction::constants::CIKS;
 

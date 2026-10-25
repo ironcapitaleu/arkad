@@ -1,6 +1,8 @@
-use super::{Pipeline, RawCompanyFactsWriter};
+use super::Pipeline;
 
 use sec::shared::http_client::implementations::sec_client::SecClient;
+
+use crate::storage_root::RawCompanyFactsWriter;
 /// Marker type indicating no CIK has been provided yet.
 pub struct NoCik;
 /// Marker type indicating no [`SecClient`] has been provided yet.

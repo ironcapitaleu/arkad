@@ -3,11 +3,11 @@
 //! Provides the states of the extract phase and the [`ExtractSuperState`] that drives them.
 //!
 //! Extraction turns a raw CIK string into a fetched SEC response through three ordered
-//! states. The super-state owns the shared HTTP client, the `execution_id` of the run, the
-//! repository, and the type-safe transitions between the states, so callers advance the pipeline
-//! without managing each state by hand. A fourth state, [`StoreCompanyFacts`], writes a fetched
-//! response to the store. A transition leads into it from [`ExecuteSecRequest`], but the stream
-//! does not run it.
+//! states. The super-state owns the shared HTTP client, the `execution_id` of the run, and the
+//! repository. It also owns the type-safe transitions between the states, so callers advance the
+//! pipeline without managing each state by hand. A fourth state, [`StoreCompanyFacts`], writes a
+//! fetched response to the store. A transition leads into it from [`ExecuteSecRequest`], but the
+//! stream does not run it.
 //!
 //! ## Modules
 //!
@@ -155,11 +155,11 @@ impl<R: RawCompanyFactsRepository> Context for ExtractSuperStateContext<R> {
 /// Hierarchical super-state that orchestrates the extract phase.
 ///
 /// Wraps the currently active extract state in its `S` type parameter and owns the shared
-/// HTTP client and the repository `R`. It exposes the inner state through a unified state-machine
-/// interface and advances the pipeline via type-safe transitions: [`ValidateCikFormat`] →
-/// [`PrepareSecRequest`] → [`ExecuteSecRequest`]. [`ExecuteSecRequest`] can also transition to
-/// [`StoreCompanyFacts`]. Encoding the active state in the type makes invalid transitions a
-/// compile error rather than a runtime check.
+/// HTTP client, the `execution_id` of the run, and the repository `R`. It exposes the inner state
+/// through a unified state-machine interface. It moves the pipeline through type-safe transitions:
+/// [`ValidateCikFormat`] → [`PrepareSecRequest`] → [`ExecuteSecRequest`]. [`ExecuteSecRequest`]
+/// can also transition to [`StoreCompanyFacts`]. Encoding the active state in the type makes
+/// invalid transitions a compile error rather than a runtime check.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub struct ExtractSuperState<S: State, R: RawCompanyFactsRepository> {
     current_state: S,
@@ -268,8 +268,7 @@ impl<R: RawCompanyFactsRepository> ExtractSuperState<ValidateCikFormat, R> {
     /// Creates the super-state at the pipeline entry point from a raw CIK, the shared client, the
     /// `execution_id` of the run, and the repository.
     ///
-    /// The metadata of the stored document records `execution_id`. Pass the same id to
-    /// `into_stream`, so the document names the run that wrote it.
+    /// [`ExtractSuperState::into_run_stream`] tags the stream with `execution_id`.
     #[must_use]
     pub fn new(
         input: impl Into<String>,
@@ -336,8 +335,7 @@ impl<R: RawCompanyFactsRepository> ExtractSuperState<ExecuteSecRequest, R> {
 impl<R: RawCompanyFactsRepository> ExtractSuperState<StoreCompanyFacts<R>, R> {
     /// Creates the super-state positioned at the state that stores the Company Facts.
     ///
-    /// The metadata of the stored document records `execution_id`. Pass the same id to
-    /// `into_stream`, so the document names the run that wrote it.
+    /// [`ExtractSuperState::into_run_stream`] tags the stream with `execution_id`.
     #[must_use]
     pub fn new(
         client: SecClient,
@@ -369,6 +367,20 @@ impl<S: State, R: RawCompanyFactsRepository> ExtractSuperState<S, R> {
 }
 
 // --- Streaming ---
+
+impl<S: State, R: RawCompanyFactsRepository> ExtractSuperState<S, R>
+where
+    Self: IntoStateMachineStream,
+{
+    /// Returns the stream of the run, tagged with the `execution_id` that the context holds.
+    ///
+    /// Use it instead of `into_stream`, so the stream and the stored document name the same run.
+    #[must_use]
+    pub fn into_run_stream(self) -> StateMachineStream {
+        let execution_id = self.context.execution_id;
+        self.into_stream(execution_id)
+    }
+}
 
 impl<R: RawCompanyFactsRepository> NonTerminal for ExtractSuperState<ValidateCikFormat, R> {
     type Current = ValidateCikFormat;
@@ -513,6 +525,7 @@ mod tests {
     use std::collections::HashMap;
     use std::{fmt::Debug, hash::Hash};
 
+    use futures_util::StreamExt;
     use pretty_assertions::assert_eq;
     use storage::implementations::repository::filesystem::Document;
 
@@ -990,6 +1003,29 @@ mod tests {
 
         let result = Transition::<ExecuteSecRequest, StoreCompanyFacts<FakeWriteRepository>>::transition_to_next_state_sec(super_state)
             .expect_err("Given a request without output, the transition should always fail");
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_tag_stream_with_execution_id_of_context_when_streaming_the_run() {
+        let execution_id = Uuid::from_u128(7);
+        let super_state = ExtractSuperState::<ValidateCikFormat, _>::new(
+            "ABC",
+            SecClient::default(),
+            execution_id,
+            FakeWriteRepository::new(),
+        );
+        let mut stream = super_state.into_run_stream();
+
+        let expected_result = Some(execution_id);
+
+        let mut result = None;
+        while let Some(item) = stream.next().await {
+            if let Err(error) = item {
+                result = Some(error.execution_id);
+            }
+        }
 
         assert_eq!(result, expected_result);
     }
