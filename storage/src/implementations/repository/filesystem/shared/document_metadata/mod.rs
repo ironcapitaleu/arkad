@@ -119,7 +119,7 @@ impl DocumentMetadata<NoContext> {
     /// let metadata = DocumentMetadata::builder()
     ///     .document_type::<Summary>()
     ///     .media_type("application/json")
-    ///     .content(bytes.len() as u64, storage::shared::Sha256Digest::of(bytes))
+    ///     .content(bytes)
     ///     .produced_at(DateTime::<Utc>::UNIX_EPOCH)
     ///     .run(Uuid::nil(), Producer::new("Summarize", "0.1.0", "63c1f59"))
     ///     .context(SummaryContext { source: "a test".to_owned() })

@@ -133,21 +133,23 @@ impl<D, B, P, R, C> DocumentMetadataBuilder<D, NoMediaType, B, P, R, C> {
 }
 
 impl<D, M, P, R, C> DocumentMetadataBuilder<D, M, NoContent, P, R, C> {
-    /// Sets the size of the document in bytes and the SHA-256 digest of its bytes.
+    /// Sets the size and the SHA-256 digest of the document from its bytes.
     ///
-    /// The builder checks neither value against the document.
+    /// Both values come from the same bytes, so they always agree. The record must hold the same
+    /// bytes. `persist` and `get` check that it does.
     #[must_use]
     pub fn content(
         self,
-        size_in_bytes: u64,
-        sha256: Sha256Digest,
+        bytes: impl AsRef<[u8]>,
     ) -> DocumentMetadataBuilder<D, M, Content, P, R, C> {
+        let bytes = bytes.as_ref();
         DocumentMetadataBuilder {
             document_type: self.document_type,
             media_type: self.media_type,
             content: Content {
-                size_in_bytes,
-                sha256,
+                // A `usize` always fits in a `u64` on the platforms Rust supports.
+                size_in_bytes: bytes.len() as u64,
+                sha256: Sha256Digest::of(bytes),
             },
             produced_at: self.produced_at,
             run: self.run,
@@ -246,7 +248,7 @@ impl<D: Document> DocumentMetadataBuilder<D, String, Content, DateTime<Utc>, Run
     /// let bytes = b"{}";
     /// let metadata = DocumentMetadata::builder()
     ///     .media_type("application/json")
-    ///     .content(bytes.len() as u64, storage::shared::Sha256Digest::of(bytes))
+    ///     .content(bytes)
     ///     .produced_at(DateTime::<Utc>::UNIX_EPOCH)
     ///     .run(Uuid::nil(), Producer::new("Summarize", "0.1.0", "63c1f59"))
     ///     .context(())
@@ -308,7 +310,7 @@ impl<D: Document> DocumentMetadataBuilder<D, String, Content, DateTime<Utc>, Run
     /// let metadata = DocumentMetadata::builder()
     ///     .document_type::<Summary>()
     ///     .media_type("application/json")
-    ///     .content(bytes.len() as u64, storage::shared::Sha256Digest::of(bytes))
+    ///     .content(bytes)
     ///     .produced_at(DateTime::<Utc>::UNIX_EPOCH)
     ///     .run(Uuid::nil(), Producer::new("Summarize", "0.1.0", "63c1f59"))
     ///     .context(())
@@ -370,7 +372,7 @@ impl<D: Document> DocumentMetadataBuilder<D, String, Content, DateTime<Utc>, Run
     /// let metadata = DocumentMetadata::builder()
     ///     .document_type::<Summary>()
     ///     .media_type("application/json")
-    ///     .content(bytes.len() as u64, storage::shared::Sha256Digest::of(bytes))
+    ///     .content(bytes)
     ///     .produced_at(DateTime::<Utc>::UNIX_EPOCH)
     ///     .context(SummaryContext { source: "a test".to_owned() })
     ///     .build();
@@ -402,10 +404,6 @@ mod tests {
 
     use super::*;
     use crate::tests::fixtures::sample_document::{SampleContext, SampleDocument, sample_metadata};
-
-    fn sha256() -> Sha256Digest {
-        Sha256Digest::of(b"{}")
-    }
 
     fn produced_at() -> DateTime<Utc> {
         "2026-09-22T20:05:30Z"
@@ -486,7 +484,7 @@ mod tests {
         let result = DocumentMetadata::builder()
             .document_type::<SampleDocument>()
             .media_type("application/json")
-            .content(2, sha256())
+            .content(b"{}")
             .produced_at(produced_at())
             .run(execution_id, producer)
             .context(sample_context())
@@ -508,10 +506,29 @@ mod tests {
             .context(sample_context())
             .run(execution_id, producer)
             .produced_at(produced_at())
-            .content(2, sha256())
+            .content(b"{}")
             .media_type("application/json")
             .document_type::<SampleDocument>()
             .build();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_set_the_size_and_the_digest_from_the_bytes_when_setting_the_content() {
+        let (execution_id, producer) = sample_run();
+
+        let expected_result = (2, Sha256Digest::of(b"{}"));
+
+        let metadata = DocumentMetadata::builder()
+            .document_type::<SampleDocument>()
+            .media_type("application/json")
+            .content(b"{}")
+            .produced_at(produced_at())
+            .run(execution_id, producer)
+            .context(sample_context())
+            .build();
+        let result = (metadata.size_in_bytes(), metadata.sha256().clone());
 
         assert_eq!(result, expected_result);
     }
@@ -525,7 +542,7 @@ mod tests {
         let metadata = DocumentMetadata::builder()
             .document_type::<SampleDocument>()
             .media_type("application/json")
-            .content(2, sha256())
+            .content(b"{}")
             .produced_at(produced_at())
             .run(execution_id, producer)
             .context(sample_context())

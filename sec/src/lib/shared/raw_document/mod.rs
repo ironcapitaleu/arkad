@@ -47,7 +47,7 @@ pub use raw_document_metadata_context::RawDocumentMetadataContext;
 /// let metadata = DocumentMetadata::builder()
 ///     .document_type::<RawDocument<RawCompanyFacts>>()
 ///     .media_type("application/json")
-///     .content(bytes.len() as u64, storage::shared::Sha256Digest::of(bytes))
+///     .content(bytes)
 ///     .produced_at(DateTime::<Utc>::UNIX_EPOCH)
 ///     .run(Uuid::nil(), Producer::new("Store Company Facts", "0.1.0", "63c1f59"))
 ///     .context(RawDocumentMetadataContext {
@@ -146,7 +146,7 @@ mod tests {
         let metadata = DocumentMetadata::builder()
             .document_type::<RawDocument<RawCompanyFacts>>()
             .media_type("application/json")
-            .content(2, storage::shared::Sha256Digest::of(b"{}"))
+            .content(b"{}")
             .produced_at(DateTime::<Utc>::UNIX_EPOCH)
             .run(
                 Uuid::nil(),
@@ -247,12 +247,7 @@ mod tests {
         let metadata = DocumentMetadata::builder()
             .document_type::<RawDocument<RawCompanyFacts>>()
             .media_type("application/json")
-            .content(
-                3_789_099,
-                "73a86c6aedc31f77cac2ea4df5f80f0b73a86c6aedc31f77cac2ea4df5f80f0b"
-                    .parse()
-                    .expect("Given 64 hardcoded lowercase hex characters, parsing should always succeed"),
-            )
+            .content(b"{}")
             .produced_at(produced_at)
             .run(
                 Uuid::from_u128(0x0b6f_3c1e_5d2a_4f7b_9c3e_8a1d_2b4c_6e8f),
@@ -270,8 +265,8 @@ mod tests {
             "kind": "raw_company_facts",
             "kind_version": 1,
             "media_type": "application/json",
-            "bytes": 3_789_099,
-            "sha256": "73a86c6aedc31f77cac2ea4df5f80f0b73a86c6aedc31f77cac2ea4df5f80f0b",
+            "bytes": 2,
+            "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
             "produced_at": "2026-09-22T20:05:30Z",
             "execution_id": "0b6f3c1e-5d2a-4f7b-9c3e-8a1d2b4c6e8f",
             "producer": {
