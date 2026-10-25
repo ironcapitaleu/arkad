@@ -13,7 +13,6 @@ use std::time::Instant;
 use pipeline::Pipeline;
 use sec::shared::http_client::implementations::sec_client::SecClient;
 use sec::shared::user_agent::UserAgent;
-use sec::shared::user_agent::constants::DEFAULT_SEC_USER_AGENT;
 use tracing_subscriber::fmt::format::FmtSpan;
 
 use storage_root::raw_company_facts_writer;
@@ -46,9 +45,12 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
         .with_writer(non_blocking)
         .init();
 
-    let sec_client = SecClient::default();
-    let user_agent = UserAgent::new(DEFAULT_SEC_USER_AGENT)
-        .expect("The default SEC user agent constant should always be valid");
+    let user_agent = UserAgent::default();
+    let http_client = reqwest::Client::builder()
+        .user_agent(user_agent.inner())
+        .build()
+        .expect("A validated UserAgent should always produce a valid HTTP client");
+    let sec_client = SecClient::new(http_client);
     let repository = raw_company_facts_writer();
     let start = Instant::now();
 

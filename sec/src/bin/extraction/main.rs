@@ -8,7 +8,6 @@ use sec::implementations::states::extract::prepare_sec_request::{
 use sec::implementations::states::extract::validate_cik_format::ValidateCikFormat;
 use sec::shared::http_client::implementations::sec_client::SecClient;
 use sec::shared::user_agent::UserAgent;
-use sec::shared::user_agent::constants::DEFAULT_SEC_USER_AGENT;
 use uuid::Uuid;
 
 use sec::prelude::*;
@@ -25,9 +24,12 @@ mod storage_root;
 // Let this be here for testing purposes. Will be removed later.
 #[allow(clippy::too_many_lines)]
 async fn main() {
-    let sec_client = SecClient::default();
-    let user_agent = UserAgent::new(DEFAULT_SEC_USER_AGENT)
-        .expect("The default SEC user agent constant should always be valid");
+    let user_agent = UserAgent::default();
+    let http_client = reqwest::Client::builder()
+        .user_agent(user_agent.inner())
+        .build()
+        .expect("A validated UserAgent should always produce a valid HTTP client");
+    let sec_client = SecClient::new(http_client);
     let execution_id = Uuid::new_v4();
     let repository = raw_company_facts_writer();
 
@@ -39,7 +41,6 @@ async fn main() {
         sec::implementations::states::extract::validate_cik_format::ValidateCikFormatContext::new(
             "1067983",
             sec_client.clone(),
-            execution_id,
             user_agent.clone(),
             repository.clone(),
         );
@@ -75,7 +76,6 @@ async fn main() {
                 .expect("Should be valid")
                 .validated_cik
                 .clone(),
-            execution_id,
             user_agent.clone(),
             repository.clone(),
         ),
@@ -107,7 +107,6 @@ async fn main() {
                 .expect("Should be valid")
                 .validated_cik
                 .clone(),
-            execution_id,
             user_agent.clone(),
             repository.clone(),
         ),

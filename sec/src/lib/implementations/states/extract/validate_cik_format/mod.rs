@@ -27,9 +27,8 @@
 //! # async fn main() {
 //! let input = ValidateCikFormatInput::new("1234");
 //! # use sec::shared::user_agent::UserAgent;
-//! # use uuid::Uuid;
-//! # let user_agent = UserAgent::new("Sample Company contact@example.com")
-//! #     .expect("A hardcoded SEC-format user agent should always validate");
+//! let user_agent = UserAgent::new("Sample Company contact@example.com")
+//!     .expect("Given a hardcoded SEC-format user agent, validation should always succeed");
 //! # use sec::shared::raw_document::RawDocument;
 //! # use sec::shared::raw_source::RawCompanyFacts;
 //! # use storage::implementations::repository::filesystem::FilesystemRepository;
@@ -38,7 +37,7 @@
 //! #     .document_type::<RawDocument<RawCompanyFacts>>()
 //! #     .root("data")
 //! #     .build();
-//! let context = ValidateCikFormatContext::new("1234", SecClient::default(), Uuid::new_v4(), user_agent, repository);
+//! let context = ValidateCikFormatContext::new("1234", SecClient::default(), user_agent, repository);
 //! let mut state = ValidateCikFormat::new(input, context);
 //! state
 //!     .compute_output_data_async()
@@ -114,9 +113,8 @@ impl<R> ValidateCikFormat<R> {
     ///
     /// let input = ValidateCikFormatInput::new("1234");
     /// # use sec::shared::user_agent::UserAgent;
-    /// # use uuid::Uuid;
-    /// # let user_agent = UserAgent::new("Sample Company contact@example.com")
-    /// #     .expect("A hardcoded SEC-format user agent should always validate");
+    /// let user_agent = UserAgent::new("Sample Company contact@example.com")
+    ///     .expect("Given a hardcoded SEC-format user agent, validation should always succeed");
     /// # use sec::shared::raw_document::RawDocument;
     /// # use sec::shared::raw_source::RawCompanyFacts;
     /// # use storage::implementations::repository::filesystem::FilesystemRepository;
@@ -125,7 +123,7 @@ impl<R> ValidateCikFormat<R> {
     /// #     .document_type::<RawDocument<RawCompanyFacts>>()
     /// #     .root("data")
     /// #     .build();
-    /// let context = ValidateCikFormatContext::new("1234", SecClient::default(), Uuid::new_v4(), user_agent, repository);
+    /// let context = ValidateCikFormatContext::new("1234", SecClient::default(), user_agent, repository);
     /// let state = ValidateCikFormat::new(input, context);
     ///
     /// let expected_result = false;
@@ -262,7 +260,7 @@ mod tests {
     use super::*;
     use crate::shared::cik::constants::BERKSHIRE_HATHAWAY_CIK_RAW;
     use crate::shared::http_client::implementations::sec_client::SecClient;
-    use crate::tests::fixtures::sample_run::{SAMPLE_EXECUTION_ID, sample_user_agent};
+    use crate::tests::fixtures::sample_run::sample_user_agent;
     use crate::tests::fixtures::sample_write_repository::FakeWriteRepository;
 
     fn test_context() -> ValidateCikFormatContext<FakeWriteRepository> {
@@ -270,7 +268,6 @@ mod tests {
         ValidateCikFormatContext::new(
             BERKSHIRE_HATHAWAY_CIK_RAW,
             sec_client,
-            SAMPLE_EXECUTION_ID,
             sample_user_agent(),
             FakeWriteRepository::new(),
         )

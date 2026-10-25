@@ -25,12 +25,7 @@ use crate::implementations::states::extract::prepare_sec_request::{
 
 impl<R> From<PrepareSecRequestContext<R>> for ExecuteSecRequestContext<R> {
     fn from(context: PrepareSecRequestContext<R>) -> Self {
-        Self::new(
-            context.cik,
-            context.execution_id,
-            context.user_agent,
-            context.repository,
-        )
+        Self::new(context.cik, context.user_agent, context.repository)
     }
 }
 
@@ -60,7 +55,6 @@ impl<R> TryFrom<PrepareSecRequest<R>> for ExecuteSecRequest<R> {
 mod tests {
     use pretty_assertions::assert_eq;
     use storage::WriteError;
-    use uuid::Uuid;
 
     use super::*;
     use crate::implementations::states::extract::prepare_sec_request::PrepareSecRequestInput;
@@ -68,7 +62,7 @@ mod tests {
     use crate::shared::http_client::implementations::sec_client::SecClient;
     use crate::shared::request::implementations::sec_request::SecRequest;
     use crate::shared::user_agent::UserAgent;
-    use crate::tests::fixtures::sample_run::{SAMPLE_EXECUTION_ID, sample_user_agent};
+    use crate::tests::fixtures::sample_run::sample_user_agent;
     use crate::tests::fixtures::sample_write_repository::FakeWriteRepository;
     use crate::traits::state_machine::state::State;
 
@@ -78,17 +72,12 @@ mod tests {
             .expect("Hardcoded valid CIK string should always parse successfully");
         let context = PrepareSecRequestContext::new(
             cik.clone(),
-            SAMPLE_EXECUTION_ID,
             sample_user_agent(),
             FakeWriteRepository::new(),
         );
 
-        let expected_result = ExecuteSecRequestContext::new(
-            cik,
-            SAMPLE_EXECUTION_ID,
-            sample_user_agent(),
-            FakeWriteRepository::new(),
-        );
+        let expected_result =
+            ExecuteSecRequestContext::new(cik, sample_user_agent(), FakeWriteRepository::new());
 
         let result = ExecuteSecRequestContext::from(context);
 
@@ -118,7 +107,6 @@ mod tests {
         let input = PrepareSecRequestInput::new(cik.clone(), sec_client);
         let context = PrepareSecRequestContext::new(
             cik.clone(),
-            SAMPLE_EXECUTION_ID,
             sample_user_agent(),
             FakeWriteRepository::new(),
         );
@@ -141,35 +129,13 @@ mod tests {
             .expect("Hardcoded valid CIK string should always parse successfully");
         let sec_client = SecClient::default();
         let input = PrepareSecRequestInput::new(cik.clone(), sec_client);
-        let context = PrepareSecRequestContext::new(
-            cik,
-            SAMPLE_EXECUTION_ID,
-            sample_user_agent(),
-            FakeWriteRepository::new(),
-        );
+        let context =
+            PrepareSecRequestContext::new(cik, sample_user_agent(), FakeWriteRepository::new());
         let state = PrepareSecRequest::new(input, context);
 
         let expected_result = true;
 
         let result = ExecuteSecRequest::try_from(state).is_err();
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
-    fn should_carry_execution_id_when_converting_context() {
-        let cik = Cik::new("0001234567")
-            .expect("Hardcoded valid CIK string should always parse successfully");
-        let context = PrepareSecRequestContext::new(
-            cik,
-            Uuid::from_u128(42),
-            sample_user_agent(),
-            FakeWriteRepository::new(),
-        );
-
-        let expected_result = Uuid::from_u128(42);
-
-        let result = ExecuteSecRequestContext::from(context).execution_id();
 
         assert_eq!(result, expected_result);
     }
@@ -182,7 +148,6 @@ mod tests {
             .expect("Given a hardcoded SEC-format user agent, validation should always succeed");
         let context = PrepareSecRequestContext::new(
             cik,
-            SAMPLE_EXECUTION_ID,
             other_user_agent.clone(),
             FakeWriteRepository::new(),
         );
@@ -200,7 +165,6 @@ mod tests {
             .expect("Hardcoded valid CIK string should always parse successfully");
         let context = PrepareSecRequestContext::new(
             cik,
-            SAMPLE_EXECUTION_ID,
             sample_user_agent(),
             FakeWriteRepository::rejecting(WriteError::conflicting_write("Sample conflict")),
         );
