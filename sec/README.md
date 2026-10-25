@@ -57,3 +57,23 @@ cargo run --features tracing-logging --bin stream_extract
 Each binary builds a document store at startup. `ARKAD_STORAGE_ROOT` sets its root directory. If the variable is unset or empty, the root is `data`, relative to the working directory. The binary creates the root and its missing parents at startup. If it cannot, it stops at startup with an `io::Error`.
 
 Each binary also builds an `SecClient` at startup. `ARKAD_SEC_USER_AGENT` sets the `User-Agent` of every SEC request. The SEC requires the form `Company Name email@domain.com`, for example `ARKAD_SEC_USER_AGENT="Acme Corp ops@acme.com"`. If the variable is unset or empty, the client sends the default `UserAgent`, which is `Test Company contact@test.com`. The binary then warns at startup, because the SEC can throttle a placeholder `User-Agent`. If the value is not valid UTF-8 or does not have this form, the binary stops at startup with a `UserAgentError`. If the value holds a character that an HTTP header cannot carry, it stops with a `reqwest` error.
+
+### Container Image
+
+The `Dockerfile` at the repository root builds an image that runs `stream_extract`. Build it from the repository root:
+
+```sh
+docker build -t arkad-extract .
+```
+
+The image sets no storage root, so the root is `/data` inside the container. Removing the container deletes the documents. To keep them, mount a volume and set `ARKAD_STORAGE_ROOT` to its path:
+
+```sh
+docker run --rm \
+  -e ARKAD_SEC_USER_AGENT="Acme Corp ops@acme.com" \
+  -e ARKAD_STORAGE_ROOT=/mnt/arkad \
+  -v "$PWD/data:/mnt/arkad" \
+  arkad-extract
+```
+
+The build reads the commit from `.git`, so `.dockerignore` and `.gcloudignore` keep it in the build context.

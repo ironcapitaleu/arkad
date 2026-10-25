@@ -1,0 +1,8 @@
+# `.git` stays in the context, because `sec/build.rs` reads the commit from it.
+target
+data
+.claude
+.claude-pr
+.devcontainer
+.github
+docs
