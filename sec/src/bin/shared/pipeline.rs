@@ -1,4 +1,4 @@
-//! # Pipeline Builder
+//! # Pipeline
 //!
 //! Provides the [`Pipeline`] that runs the Extract → Transform phases for one CIK, and the
 //! [`PipelineBuilder`] that builds it.
@@ -126,14 +126,14 @@ mod tests {
             .document_type::<RawDocument<RawCompanyFacts>>()
             .root(std::env::temp_dir())
             .build();
-        let pipeline = Pipeline::builder()
+        let builder = Pipeline::builder()
             .cik("1067983")
             .sec_client(SecClient::default())
-            .repository(repository)
-            .build();
+            .repository(repository);
 
         let expected_result = "1067983";
 
+        let pipeline = builder.build();
         let result = pipeline.cik();
 
         assert_eq!(result, expected_result);

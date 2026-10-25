@@ -11,10 +11,8 @@
 
 mod constants;
 mod pipeline;
-// The test builds its pipeline and its client the same way the binaries do. `#[path]` compiles
-// their shared files into this test as private modules.
-#[path = "../../src/bin/shared/pipeline_builder.rs"]
-mod pipeline_builder;
+// The test builds its client the same way the binaries do. `#[path]` compiles their shared file
+// into this test as a private module.
 #[path = "../../src/bin/shared/sec_client.rs"]
 mod sec_client;
 
@@ -24,8 +22,7 @@ use std::io::Write;
 use futures_util::StreamExt;
 
 use constants::{MUST_PASS_CIKS, SP500_CIKS};
-use pipeline::raw_company_facts_writer;
-use pipeline_builder::Pipeline;
+use pipeline::{Pipeline, raw_company_facts_writer};
 use sec_client::{default_user_agent_warning, sec_client};
 
 /// Writes directly to stderr, bypassing the test framework's output capture.

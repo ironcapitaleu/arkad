@@ -1,9 +1,7 @@
-mod extraction;
+mod pipeline;
 // Each binary is its own crate root, so it cannot import another binary's modules. `#[path]`
-// compiles each shared file into this binary as a private module, so the binaries build the
-// pipeline, the client and the store the same way.
-#[path = "../shared/pipeline_builder.rs"]
-mod pipeline_builder;
+// compiles each shared file into this binary as a private module, so all binaries build the
+// client and the store the same way.
 #[path = "../shared/sec_client.rs"]
 mod sec_client;
 #[path = "../shared/storage_root.rs"]
@@ -16,11 +14,11 @@ use std::time::Instant;
 
 use tracing_subscriber::fmt::format::FmtSpan;
 
-use pipeline_builder::Pipeline;
+use pipeline::Pipeline;
 use sec_client::{USER_AGENT_ENV_VAR, default_user_agent_warning, sec_client, startup_error_cause};
 use storage_root::raw_company_facts_writer;
 
-use extraction::constants::CIKS;
+use pipeline::constants::CIKS;
 
 /// Top-level batch events.
 enum BatchEvent {

@@ -7,7 +7,12 @@ use sec::shared::raw_source::RawCompanyFacts;
 use storage::implementations::repository::filesystem::{FilesystemRepository, Write};
 use uuid::Uuid;
 
-use crate::pipeline_builder::Pipeline;
+// The test builds its pipeline the same way the binaries do. `#[path]` compiles their shared file
+// into this module.
+#[path = "../../src/bin/shared/pipeline.rs"]
+mod shared;
+
+pub use shared::Pipeline;
 
 /// The storage repository that stores the raw Company Facts of each run.
 pub type RawCompanyFactsWriter = FilesystemRepository<Write, RawDocument<RawCompanyFacts>>;

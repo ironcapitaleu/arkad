@@ -8,8 +8,14 @@ use futures_util::StreamExt;
 use sec::prelude::*;
 use uuid::Uuid;
 
-use crate::pipeline_builder::Pipeline;
 use crate::storage_root::RawCompanyFactsWriter;
+
+// Each binary is its own crate root, so it cannot import another binary's modules. `#[path]`
+// compiles the shared file into this module, so the binaries build the pipeline the same way.
+#[path = "../../shared/pipeline.rs"]
+mod shared;
+
+pub use shared::Pipeline;
 
 /// Events emitted by the pipeline runner (consumer-level, not part of the library).
 enum PipelineEvent {
