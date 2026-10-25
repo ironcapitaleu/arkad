@@ -25,11 +25,7 @@ mod storage_root;
 #[allow(clippy::too_many_lines)]
 async fn main() {
     let user_agent = UserAgent::default();
-    let http_client = reqwest::Client::builder()
-        .user_agent(user_agent.inner())
-        .build()
-        .expect("A validated UserAgent should always produce a valid HTTP client");
-    let sec_client = SecClient::new(http_client);
+    let sec_client = SecClient::from_user_agent(&user_agent);
     let execution_id = Uuid::new_v4();
     let repository = raw_company_facts_writer();
 

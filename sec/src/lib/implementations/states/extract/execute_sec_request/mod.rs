@@ -22,13 +22,13 @@
 //! use sec::shared::cik::Cik;
 //! use sec::shared::http_client::implementations::sec_client::SecClient;
 //! use sec::shared::request::implementations::sec_request::SecRequest;
+//! use sec::shared::user_agent::UserAgent;
 //!
 //! # #[tokio::main]
 //! # async fn main() {
 //! let cik = Cik::new("1067983").expect("A hardcoded valid CIK should always parse");
 //! let request = SecRequest::builder().all_company_facts().cik(cik.clone()).build();
 //! let input = ExecuteSecRequestInput::new(SecClient::default(), request);
-//! # use sec::shared::user_agent::UserAgent;
 //! let user_agent = UserAgent::new("Sample Company contact@example.com")
 //!     .expect("Given a hardcoded SEC-format user agent, validation should always succeed");
 //! let context = ExecuteSecRequestContext::new(cik, user_agent);
@@ -97,11 +97,11 @@ impl ExecuteSecRequest {
     /// use sec::shared::http_client::implementations::sec_client::SecClient;
     /// use sec::shared::request::implementations::sec_request::SecRequest;
     /// use state_maschine::prelude::State as SMState;
+    /// use sec::shared::user_agent::UserAgent;
     ///
     /// let cik = Cik::new("1067983").expect("A hardcoded valid CIK should always parse");
     /// let request = SecRequest::builder().all_company_facts().cik(cik.clone()).build();
     /// let input = ExecuteSecRequestInput::new(SecClient::default(), request);
-    /// # use sec::shared::user_agent::UserAgent;
     /// let user_agent = UserAgent::new("Sample Company contact@example.com")
     ///     .expect("Given a hardcoded SEC-format user agent, validation should always succeed");
     /// let context = ExecuteSecRequestContext::new(cik, user_agent);

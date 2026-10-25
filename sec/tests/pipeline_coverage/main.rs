@@ -50,11 +50,7 @@ const MINIMUM_SUCCESS_THRESHOLD: usize = 270;
 #[ignore = "Hits the live SEC API for must-pass companies (~10 seconds)"]
 async fn should_succeed_for_must_pass_companies() {
     let user_agent = UserAgent::default();
-    let http_client = reqwest::Client::builder()
-        .user_agent(user_agent.inner())
-        .build()
-        .expect("A validated UserAgent should always produce a valid HTTP client");
-    let sec_client = SecClient::new(http_client);
+    let sec_client = SecClient::from_user_agent(&user_agent);
     let repository = raw_company_facts_writer();
     let ciks: Vec<&str> = MUST_PASS_CIKS.iter().map(|(cik, _)| *cik).collect();
     let stream_results: Vec<_> = futures_util::stream::iter(ciks.iter())
@@ -106,11 +102,7 @@ async fn should_meet_threshold_for_sp500_companies() {
     use std::sync::atomic::{AtomicUsize, Ordering};
 
     let user_agent = UserAgent::default();
-    let http_client = reqwest::Client::builder()
-        .user_agent(user_agent.inner())
-        .build()
-        .expect("A validated UserAgent should always produce a valid HTTP client");
-    let sec_client = SecClient::new(http_client);
+    let sec_client = SecClient::from_user_agent(&user_agent);
     let repository = raw_company_facts_writer();
     let ciks: Vec<&str> = SP500_CIKS.to_vec();
     let total = ciks.len();

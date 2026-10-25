@@ -14,9 +14,9 @@
 //! use sec::implementations::states::extract::prepare_sec_request::context::*;
 //! use sec::shared::cik::Cik;
 //! use state_maschine::prelude::*;
+//! use sec::shared::user_agent::UserAgent;
 //!
 //! let cik = Cik::new("1234567890").expect("A hardcoded valid CIK should always parse");
-//! # use sec::shared::user_agent::UserAgent;
 //! let user_agent = UserAgent::new("Sample Company contact@example.com")
 //!     .expect("Given a hardcoded SEC-format user agent, validation should always succeed");
 //! let mut context = PrepareSecRequestContext::new(cik, user_agent);

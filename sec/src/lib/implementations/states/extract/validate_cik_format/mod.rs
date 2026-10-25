@@ -22,11 +22,11 @@
 //! use sec::implementations::states::extract::validate_cik_format::*;
 //! use sec::prelude::*;
 //! use sec::shared::http_client::implementations::sec_client::SecClient;
+//! use sec::shared::user_agent::UserAgent;
 //!
 //! # #[tokio::main]
 //! # async fn main() {
 //! let input = ValidateCikFormatInput::new("1234");
-//! # use sec::shared::user_agent::UserAgent;
 //! let user_agent = UserAgent::new("Sample Company contact@example.com")
 //!     .expect("Given a hardcoded SEC-format user agent, validation should always succeed");
 //! let context = ValidateCikFormatContext::new("1234", SecClient::default(), user_agent);
@@ -101,9 +101,9 @@ impl ValidateCikFormat {
     /// use sec::implementations::states::extract::validate_cik_format::*;
     /// use sec::shared::http_client::implementations::sec_client::SecClient;
     /// use state_maschine::prelude::State as SMState;
+    /// use sec::shared::user_agent::UserAgent;
     ///
     /// let input = ValidateCikFormatInput::new("1234");
-    /// # use sec::shared::user_agent::UserAgent;
     /// let user_agent = UserAgent::new("Sample Company contact@example.com")
     ///     .expect("Given a hardcoded SEC-format user agent, validation should always succeed");
     /// let context = ValidateCikFormatContext::new("1234", SecClient::default(), user_agent);

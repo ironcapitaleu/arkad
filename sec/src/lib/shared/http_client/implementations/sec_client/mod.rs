@@ -76,17 +76,28 @@ impl SecClient {
             rate_limiter: GLOBAL_RATE_LIMITER.get_or_init(SecRateLimiter::new).clone(),
         }
     }
-}
 
-/// Creates a default [`SecClient`] configured with the default SEC user agent.
-impl Default for SecClient {
-    fn default() -> Self {
-        let user_agent = UserAgent::default();
+    /// Creates a new [`SecClient`] whose inner client sends `user_agent` as its `User-Agent`
+    /// header.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `reqwest` cannot build a client from the validated `user_agent`, for example
+    /// when its TLS backend fails to initialize.
+    #[must_use]
+    pub fn from_user_agent(user_agent: &UserAgent) -> Self {
         let http_client = reqwest::Client::builder()
             .user_agent(user_agent.inner())
             .build()
             .expect("A validated UserAgent should always produce a valid HTTP client");
         Self::new(http_client)
+    }
+}
+
+/// Creates a default [`SecClient`] configured with the default SEC user agent.
+impl Default for SecClient {
+    fn default() -> Self {
+        Self::from_user_agent(&UserAgent::default())
     }
 }
 

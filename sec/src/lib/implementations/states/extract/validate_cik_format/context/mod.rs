@@ -15,8 +15,8 @@
 //! use sec::implementations::states::extract::validate_cik_format::context::*;
 //! use sec::shared::http_client::implementations::sec_client::SecClient;
 //! use state_maschine::prelude::*;
+//! use sec::shared::user_agent::UserAgent;
 //!
-//! # use sec::shared::user_agent::UserAgent;
 //! let user_agent = UserAgent::new("Sample Company contact@example.com")
 //!     .expect("Given a hardcoded SEC-format user agent, validation should always succeed");
 //! let mut context = ValidateCikFormatContext::new("1067983", SecClient::default(), user_agent);
@@ -49,9 +49,8 @@ use crate::traits::state_machine::state::Context;
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
 /// Context for the [`ValidateCikFormat`](super::ValidateCikFormat) state.
 ///
-/// Holds the raw CIK under validation, the shared [`SecClient`], and the `User-Agent` of the run. It
-/// also holds the retry budget. All of them survive updates and
-/// transitions.
+/// Holds the raw CIK under validation, the shared [`SecClient`], the `User-Agent` of the run, and
+/// the retry budget. All of them survive updates and transitions.
 pub struct ValidateCikFormatContext {
     /// The unvalidated CIK string provided for validation.
     pub raw_cik: String,
