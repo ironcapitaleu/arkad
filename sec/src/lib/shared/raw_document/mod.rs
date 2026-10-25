@@ -158,7 +158,7 @@ mod tests {
                 user_agent: sample_user_agent(),
             })
             .build();
-        RawDocument::from_parts(key, bytes.to_vec(), metadata)
+        RawDocument::from_parts(key, b"{}".to_vec(), metadata)
     }
 
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
