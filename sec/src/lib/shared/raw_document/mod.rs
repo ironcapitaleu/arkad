@@ -241,8 +241,6 @@ mod tests {
 
     #[test]
     fn should_serialize_the_metadata_in_the_format_of_the_findings_for_raw_company_facts() {
-        // Checks the key names, the nesting, and the value types of the findings format. The
-        // values come from a `{}` body, not from the example in the findings document.
         let produced_at = "2026-09-22T20:05:30Z"
             .parse::<DateTime<Utc>>()
             .expect("Given a hardcoded RFC 3339 timestamp, parsing it should always succeed");
