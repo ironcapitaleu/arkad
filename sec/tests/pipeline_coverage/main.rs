@@ -1,7 +1,7 @@
 //! # Pipeline Coverage Integration Test
 //!
-//! Runs the full Extract → Transform pipeline against SEC EDGAR to measure
-//! pipeline quality and track progress as XBRL aliases are expanded.
+//! Runs the extract pipeline against SEC EDGAR, from `ValidateCikFormat` to
+//! `StoreCompanyFacts`, and measures how many companies pass.
 //!
 //! ## Running
 //! ```sh

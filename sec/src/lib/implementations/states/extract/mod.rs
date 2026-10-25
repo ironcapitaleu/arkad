@@ -2,11 +2,10 @@
 //!
 //! Provides the states of the extract phase and the [`ExtractSuperState`] that drives them.
 //!
-//! Extraction turns a raw CIK string into a fetched SEC response through three ordered states. The
-//! super-state owns the shared HTTP client, the `execution_id`, and the storage repository. It also
-//! owns the type-safe transitions between the states, so callers advance the pipeline without
-//! managing each state by hand. A fourth state, [`StoreCompanyFacts`], writes a fetched response to
-//! the store.
+//! Extraction turns a raw CIK string into a fetched SEC response and writes that response to the
+//! store, through four ordered states. The super-state owns the shared HTTP client, the
+//! `execution_id`, and the storage repository. It also owns the type-safe transitions between the
+//! states, so callers advance the pipeline without managing each state by hand.
 //!
 //! ## Modules
 //!
@@ -18,9 +17,9 @@
 //!
 //! ## State Flow
 //!
-//! [`ValidateCikFormat`] → [`PrepareSecRequest`] → [`ExecuteSecRequest`], after which the
-//! pipeline crosses into the transform phase. [`ExecuteSecRequest`] can also transition to
-//! [`StoreCompanyFacts`].
+//! [`ValidateCikFormat`] → [`PrepareSecRequest`] → [`ExecuteSecRequest`] → [`StoreCompanyFacts`].
+//! The stream ends after [`StoreCompanyFacts`]. [`ExecuteSecRequest`] can also transition straight
+//! into the transform phase.
 //!
 //! ## Usage
 //!
@@ -159,8 +158,8 @@ impl<R: RawCompanyFactsRepository> Context for ExtractSuperStateContext<R> {
 /// Wraps the currently active extract state in its `S` type parameter and owns the shared HTTP
 /// client, the `execution_id`, and the storage repository `R`. It exposes the inner state through a
 /// unified state-machine interface. It moves the pipeline through type-safe transitions:
-/// [`ValidateCikFormat`] → [`PrepareSecRequest`] → [`ExecuteSecRequest`]. [`ExecuteSecRequest`] can
-/// also transition to [`StoreCompanyFacts`]. Encoding the active state in the type makes invalid
+/// [`ValidateCikFormat`] → [`PrepareSecRequest`] → [`ExecuteSecRequest`] → [`StoreCompanyFacts`].
+/// Encoding the active state in the type makes invalid
 /// transitions a compile error rather than a runtime check.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub struct ExtractSuperState<S: State, R: RawCompanyFactsRepository> {
@@ -378,10 +377,55 @@ impl<R: RawCompanyFactsRepository> NonTerminal for ExtractSuperState<PrepareSecR
     type Next = ExecuteSecRequest<R>;
 }
 
-/// `ExecuteSecRequest` is no longer terminal -- it transitions into the Transform `SuperState`.
 impl<R: RawCompanyFactsRepository> NonTerminal for ExtractSuperState<ExecuteSecRequest<R>, R> {
     type Current = ExecuteSecRequest<R>;
-    type Next = ParseCompanyFacts;
+    type Next = StoreCompanyFacts<R>;
+}
+
+/// Ends the stream after [`StoreCompanyFacts`] writes the response to the store.
+impl<R: RawCompanyFactsRepository + Send + 'static> IntoStateMachineStream
+    for ExtractSuperState<StoreCompanyFacts<R>, R>
+{
+    fn into_stream(self, execution_id: Uuid) -> StateMachineStream {
+        Box::pin(async_stream::stream! {
+            let mut sm = self;
+            let state_name = sm.current_state().state_name().to_string();
+            let state_start = std::time::Instant::now();
+
+            yield Ok(StreamItem {
+                event: StreamEvent::StateStarted,
+                state_name: state_name.clone(),
+                data: serde_json::to_value(sm.current_state()).unwrap_or_else(|e| {
+                    serde_json::json!({ "serialization_error": e.to_string() })
+                }),
+                event_duration: std::time::Duration::ZERO,
+            });
+
+            let result = sm.current_state_mut().compute_output_data_async().await;
+            let data = serde_json::to_value(sm.current_state()).unwrap_or_else(|e| {
+                serde_json::json!({ "serialization_error": e.to_string() })
+            });
+            match result {
+                Ok(()) => {
+                    yield Ok(StreamItem {
+                        event: StreamEvent::StateCompleted,
+                        state_name,
+                        data,
+                        event_duration: state_start.elapsed(),
+                    });
+                }
+                Err(error) => {
+                    yield Err(StreamError {
+                        event: StreamEvent::StateFailed,
+                        execution_id,
+                        state_name,
+                        data,
+                        source: error.into(),
+                    });
+                }
+            }
+        })
+    }
 }
 
 impl<R: RawCompanyFactsRepository> Transition<ValidateCikFormat<R>, PrepareSecRequest<R>>
@@ -510,6 +554,7 @@ mod tests {
 
     use futures_util::StreamExt;
     use pretty_assertions::assert_eq;
+    use storage::WriteError;
     use storage::implementations::repository::filesystem::Document;
 
     use super::*;
@@ -888,6 +933,7 @@ mod tests {
 
     fn store_company_facts_super_state(
         execution_id: Uuid,
+        repository: FakeWriteRepository,
     ) -> ExtractSuperState<StoreCompanyFacts<FakeWriteRepository>, FakeWriteRepository> {
         let url = sample_url();
         let response = sample_response();
@@ -902,14 +948,15 @@ mod tests {
             user_agent,
             cik,
             execution_id,
-            FakeWriteRepository::new(),
+            repository,
         )
     }
 
     #[tokio::test]
     async fn should_record_the_execution_id_of_the_constructor_when_storing_company_facts() {
         let execution_id = Uuid::from_u128(7);
-        let mut super_state = store_company_facts_super_state(execution_id);
+        let mut super_state =
+            store_company_facts_super_state(execution_id, FakeWriteRepository::new());
         let repository = super_state
             .current_state()
             .context_data()
@@ -1064,5 +1111,75 @@ mod tests {
         implements_auto_traits::<
             ExtractSuperState<StoreCompanyFacts<FakeWriteRepository>, FakeWriteRepository>,
         >();
+    }
+
+    const fn continues_to<T: NonTerminal<Next = N>, N>() {}
+    #[test]
+    const fn should_continue_to_store_company_facts_when_execute_sec_request_completes() {
+        continues_to::<
+            ExtractSuperState<ExecuteSecRequest<FakeWriteRepository>, FakeWriteRepository>,
+            StoreCompanyFacts<FakeWriteRepository>,
+        >();
+    }
+
+    #[tokio::test]
+    async fn should_end_the_stream_after_store_company_facts_completes() {
+        let execution_id = Uuid::from_u128(7);
+        let super_state = store_company_facts_super_state(execution_id, FakeWriteRepository::new());
+
+        let expected_result = vec![
+            (StreamEvent::StateStarted, STORE_COMPANY_FACTS.to_string()),
+            (StreamEvent::StateCompleted, STORE_COMPANY_FACTS.to_string()),
+        ];
+
+        let result: Vec<(StreamEvent, String)> = super_state
+            .into_run_stream()
+            .map(|item| {
+                let item = item.expect(
+                    "Given a fake repository that accepts every write, every stream item should be a success",
+                );
+                (item.event, item.state_name)
+            })
+            .collect()
+            .await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_write_one_document_when_streaming_store_company_facts() {
+        let execution_id = Uuid::from_u128(7);
+        let super_state = store_company_facts_super_state(execution_id, FakeWriteRepository::new());
+        let repository = super_state
+            .current_state()
+            .context_data()
+            .repository()
+            .clone();
+
+        let expected_result = 1;
+
+        super_state.into_run_stream().collect::<Vec<_>>().await;
+        let result = repository.persisted().len();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_end_the_stream_with_state_failed_when_the_store_rejects_the_write() {
+        let super_state = store_company_facts_super_state(
+            Uuid::from_u128(7),
+            FakeWriteRepository::rejecting(WriteError::conflicting_write("Sample conflict")),
+        );
+
+        let expected_result = Some(StreamEvent::StateFailed);
+
+        let result = super_state
+            .into_run_stream()
+            .filter_map(|item| std::future::ready(item.err().map(|error| error.event)))
+            .collect::<Vec<_>>()
+            .await
+            .pop();
+
+        assert_eq!(result, expected_result);
     }
 }

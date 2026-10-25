@@ -89,7 +89,7 @@ impl PipelineBuilder<String, SecClient, RawCompanyFactsWriter> {
     }
 }
 
-/// A full Extract + Transform pipeline for a single CIK.
+/// The extract pipeline for a single CIK.
 pub struct Pipeline {
     raw_cik: String,
     sec_client: SecClient,

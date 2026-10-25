@@ -16,12 +16,12 @@ Extract                          Transform                        Load (planned)
 
 ### Extract SuperState
 
-Fetches raw SEC Company Facts JSON from the EDGAR API and writes it to the store:
+Fetches raw SEC Company Facts JSON from the EDGAR API and writes it to the store. A stream of the super-state ends after StoreCompanyFacts:
 
 1. **ValidateCikFormat** -- Validates and normalizes CIK strings to 10-digit zero-padded format.
 2. **PrepareSecRequest** -- Creates the HTTP client and builds the SEC API request.
 3. **ExecuteSecRequest** -- Executes the HTTP request and returns the validated SEC response.
-4. **StoreCompanyFacts** -- Writes the raw body of the SEC response to the store and returns the key of the stored document. A transition leads into this state from ExecuteSecRequest. No binary runs this state.
+4. **StoreCompanyFacts** -- Writes the raw body of the SEC response to the store and returns the key of the stored document. It is the last state of the stream.
 
 Build the super-state at its entry state with `ExtractSuperState::builder()`. Set every field by name, in any order. `build()` exists only once the builder holds all four fields, so a `build()` call with a missing field does not compile:
 
@@ -47,7 +47,7 @@ Validates, resolves, and structures the raw JSON response into typed financial d
 # Basic extraction demo
 cargo run --bin extraction
 
-# Full ETL pipeline (Extract + Transform) for all S&P 500 CIKs
+# Extract pipeline for all S&P 500 CIKs. Stores each response under ARKAD_STORAGE_ROOT
 cargo run --features tracing-logging --bin stream_etl
 
 # Same pipeline under the legacy binary name; differs only in log field layout
