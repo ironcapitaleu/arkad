@@ -66,14 +66,18 @@ The `Dockerfile` at the repository root builds an image that runs `stream_extrac
 docker build -t arkad-extract .
 ```
 
-The binary runs as user `arkad` (uid and gid `10001`) in `/home/arkad`. The image sets no storage root, so the root is `/home/arkad/data` inside the container. Removing the container deletes the documents. To keep them, mount a volume that uid `10001` can write to, and set `ARKAD_STORAGE_ROOT` to its path:
+The binary runs as user `arkad` (uid and gid `10001`) in `/home/arkad`. The image sets no storage root, so the root is `/home/arkad/data` inside the container. Removing the container deletes the documents. To keep them, mount a volume and set `ARKAD_STORAGE_ROOT` to its path. The container user must be able to write to the volume. For a bind mount, run the container as the host user:
 
 ```sh
+mkdir -p data
 docker run --rm \
+  --user "$(id -u):$(id -g)" \
   -e ARKAD_SEC_USER_AGENT="Acme Corp ops@acme.com" \
   -e ARKAD_STORAGE_ROOT=/mnt/arkad \
   -v "$PWD/data:/mnt/arkad" \
   arkad-extract
 ```
+
+On rootless Docker or Podman, leave out `--user`. Container root maps to the host user there.
 
 The build reads the commit from `.git`, so `.dockerignore` and `.gcloudignore` keep it in the build context.
