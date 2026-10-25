@@ -57,7 +57,7 @@ Based on this reasoning, suggest what tests to write/review and let the user con
 - **Exactly ONE assertion per test function** (`assert_eq!`, `assert_ne!`, or `assert!(...)`). Exceptions: compile-time auto-trait checks (bounds enforced by compilation) and `#[should_panic]` tests (the panic is the assertion).
 - **Naming:** `when` names a condition. `for` names a subject. Pick the clause that fits what follows it.
   - A test with a real condition reads `should_<behavior>_when_<condition>`, as in `should_return_false_when_state_has_not_computed_the_output`.
-  - A test named after its subject reads `should_<behavior>_for_<subject>`, as in `should_meet_threshold_for_sp500_companies`.
+  - A test named after its subject reads `should_<behavior>_for_<subject>`, as in `should_store_company_facts_for_sp500_companies`.
   - A compile-time trait test has no condition, so it always takes `for`: `should_<check>_for_<type>`, as in `should_implement_auto_traits_for_backend_error`.
   - Name the test after the type it passes to the helper, not after its module or the trait.
   - When two tests in one module differ only by a type parameter, that parameter names the test, as in `should_be_thread_safe_for_validate_cik_format_super_state`.
@@ -406,7 +406,7 @@ Tests that take significant time or hit rate-limited live APIs must be marked `#
 ```rust
 #[tokio::test(flavor = "multi_thread")]
 #[ignore = "Hits the live SEC API for all S&P 500 CIKs (~3 minutes)"]
-async fn should_meet_threshold_for_sp500_companies() {
+async fn should_store_company_facts_for_sp500_companies() {
     // ...
 }
 ```

@@ -78,11 +78,12 @@ mod tests {
 
     #[test]
     fn should_create_the_root_directory_when_it_is_missing() {
-        let root = env::temp_dir().join(format!("arkad-storage-root-{}", std::process::id()));
+        let temporary = tempfile::TempDir::new()
+            .expect("Given a writable temporary directory, creating a subdirectory should succeed");
         let repository = FilesystemRepository::builder()
             .writer()
             .document_type::<RawDocument<RawCompanyFacts>>()
-            .root(root.join("nested"))
+            .root(temporary.path().join("nested"))
             .build();
 
         let expected_result = true;

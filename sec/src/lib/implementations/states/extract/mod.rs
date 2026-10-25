@@ -159,7 +159,7 @@ impl<R: RawCompanyFactsRepository> Context for ExtractSuperStateContext<R> {
 /// client, the `execution_id`, and the storage repository `R`. It exposes the inner state through a
 /// unified state-machine interface. It moves the pipeline through type-safe transitions:
 /// [`ValidateCikFormat`] → [`PrepareSecRequest`] → [`ExecuteSecRequest`] → [`StoreCompanyFacts`].
-/// Encoding the active state in the type makes invalid
+/// [`ExecuteSecRequest`] can also transition straight into the transform phase. Encoding the active state in the type makes invalid
 /// transitions a compile error rather than a runtime check.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub struct ExtractSuperState<S: State, R: RawCompanyFactsRepository> {
@@ -387,44 +387,7 @@ impl<R: RawCompanyFactsRepository + Send + 'static> IntoStateMachineStream
     for ExtractSuperState<StoreCompanyFacts<R>, R>
 {
     fn into_stream(self, execution_id: Uuid) -> StateMachineStream {
-        Box::pin(async_stream::stream! {
-            let mut sm = self;
-            let state_name = sm.current_state().state_name().to_string();
-            let state_start = std::time::Instant::now();
-
-            yield Ok(StreamItem {
-                event: StreamEvent::StateStarted,
-                state_name: state_name.clone(),
-                data: serde_json::to_value(sm.current_state()).unwrap_or_else(|e| {
-                    serde_json::json!({ "serialization_error": e.to_string() })
-                }),
-                event_duration: std::time::Duration::ZERO,
-            });
-
-            let result = sm.current_state_mut().compute_output_data_async().await;
-            let data = serde_json::to_value(sm.current_state()).unwrap_or_else(|e| {
-                serde_json::json!({ "serialization_error": e.to_string() })
-            });
-            match result {
-                Ok(()) => {
-                    yield Ok(StreamItem {
-                        event: StreamEvent::StateCompleted,
-                        state_name,
-                        data,
-                        event_duration: state_start.elapsed(),
-                    });
-                }
-                Err(error) => {
-                    yield Err(StreamError {
-                        event: StreamEvent::StateFailed,
-                        execution_id,
-                        state_name,
-                        data,
-                        source: error.into(),
-                    });
-                }
-            }
-        })
+        terminal_stream(self, execution_id)
     }
 }
 
@@ -1115,7 +1078,7 @@ mod tests {
 
     const fn continues_to<T: NonTerminal<Next = N>, N>() {}
     #[test]
-    const fn should_continue_to_store_company_facts_when_execute_sec_request_completes() {
+    const fn should_continue_to_store_company_facts_for_execute_sec_request_super_state() {
         continues_to::<
             ExtractSuperState<ExecuteSecRequest<FakeWriteRepository>, FakeWriteRepository>,
             StoreCompanyFacts<FakeWriteRepository>,
@@ -1171,14 +1134,13 @@ mod tests {
             FakeWriteRepository::rejecting(WriteError::conflicting_write("Sample conflict")),
         );
 
-        let expected_result = Some(StreamEvent::StateFailed);
+        let expected_result = vec![StreamEvent::StateStarted, StreamEvent::StateFailed];
 
-        let result = super_state
+        let result: Vec<StreamEvent> = super_state
             .into_run_stream()
-            .filter_map(|item| std::future::ready(item.err().map(|error| error.event)))
-            .collect::<Vec<_>>()
-            .await
-            .pop();
+            .map(|item| item.map_or_else(|error| error.event, |item| item.event))
+            .collect()
+            .await;
 
         assert_eq!(result, expected_result);
     }

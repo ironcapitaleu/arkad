@@ -153,7 +153,7 @@ Use `thiserror` with `#[error("...")]` and `#[source]` for deriving `Display` an
   - A test with a real condition reads `should_<behavior>_when_<condition>`.
     Example: `should_return_false_when_state_has_not_computed_the_output`.
   - A test named after its subject reads `should_<behavior>_for_<subject>`.
-    Example: `should_meet_threshold_for_sp500_companies`.
+    Example: `should_store_company_facts_for_sp500_companies`.
   - A compile-time trait test has no condition, so it reads `should_<check>_for_<type>`.
     Example: `should_implement_auto_traits_for_backend_error`.
   - Names can be verbose — clarity over brevity.

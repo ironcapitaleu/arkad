@@ -37,6 +37,7 @@ pub use crate::traits::state_machine::stream::StateMachineStream;
 pub use crate::traits::state_machine::stream::StreamError;
 pub use crate::traits::state_machine::stream::StreamEvent;
 pub use crate::traits::state_machine::stream::StreamItem;
+pub use crate::traits::state_machine::stream::terminal_stream;
 pub use crate::traits::state_machine::super_state::SuperState;
 pub use crate::traits::state_machine::transition::Transition;
 
