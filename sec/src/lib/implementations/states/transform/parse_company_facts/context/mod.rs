@@ -4,8 +4,7 @@
 //! [`ParseCompanyFacts`](crate::implementations::states::transform::parse_company_facts::ParseCompanyFacts)
 //! state, together with its updater and builder.
 //!
-//! The context tracks the [`Cik`] being processed and the retry budget, both of which persist
-//! across updates and transitions.
+//! The context tracks the [`Cik`] being processed and the retry budget.
 //!
 //! ## Usage
 //!
@@ -44,8 +43,7 @@ use crate::traits::state_machine::state::Context;
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
 /// Context for the [`ParseCompanyFacts`](super::ParseCompanyFacts) state.
 ///
-/// Tracks the [`Cik`] of the company being parsed and the retry budget, both of which persist
-/// across updates and transitions.
+/// Tracks the [`Cik`] of the company being parsed and the retry budget.
 pub struct ParseCompanyFactsContext {
     /// The validated CIK for the company whose facts are being parsed.
     pub cik: Cik,
