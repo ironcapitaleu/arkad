@@ -39,7 +39,6 @@ async fn main() {
         sec::implementations::states::extract::validate_cik_format::ValidateCikFormatContext::new(
             "1067983",
             sec_client.clone(),
-            execution_id,
             user_agent.clone(),
         );
     let mut validate_cik_state = ValidateCikFormat::new(input, context);
@@ -74,7 +73,6 @@ async fn main() {
                 .expect("Should be valid")
                 .validated_cik
                 .clone(),
-            execution_id,
             user_agent.clone(),
         ),
     );
@@ -105,7 +103,6 @@ async fn main() {
                 .expect("Should be valid")
                 .validated_cik
                 .clone(),
-            execution_id,
             user_agent.clone(),
         ),
     );

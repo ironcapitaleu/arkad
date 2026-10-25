@@ -279,8 +279,7 @@ impl<R: RawCompanyFactsRepository> ExtractSuperState<ValidateCikFormat, R> {
     ) -> Self {
         let input: String = input.into();
         let input_data = ValidateCikFormatInput::new(input.clone());
-        let state_context =
-            ValidateCikFormatContext::new(input, sec_client.clone(), execution_id, user_agent);
+        let state_context = ValidateCikFormatContext::new(input, sec_client.clone(), user_agent);
 
         Self {
             current_state: ValidateCikFormat::new(input_data, state_context),
@@ -302,7 +301,7 @@ impl<R: RawCompanyFactsRepository> ExtractSuperState<PrepareSecRequest, R> {
         repository: R,
     ) -> Self {
         let input_data = PrepareSecRequestInput::new(validated_cik.clone(), sec_client.clone());
-        let context = PrepareSecRequestContext::new(validated_cik, execution_id, user_agent);
+        let context = PrepareSecRequestContext::new(validated_cik, user_agent);
 
         Self {
             current_state: PrepareSecRequest::new(input_data, context),
@@ -325,7 +324,7 @@ impl<R: RawCompanyFactsRepository> ExtractSuperState<ExecuteSecRequest, R> {
         repository: R,
     ) -> Self {
         let esr_input = ExecuteSecRequestInput::new(client.clone(), request);
-        let esr_context = ExecuteSecRequestContext::new(cik, execution_id, user_agent);
+        let esr_context = ExecuteSecRequestContext::new(cik, user_agent);
 
         Self {
             current_state: ExecuteSecRequest::new(esr_input, esr_context),
@@ -945,24 +944,6 @@ mod tests {
     }
 
     #[test]
-    fn should_carry_execution_id_into_sub_state_context_when_constructing_validate_cik_format_super_state()
-     {
-        let super_state = ExtractSuperState::<ValidateCikFormat, _>::new(
-            "1067983",
-            SecClient::default(),
-            Uuid::from_u128(42),
-            sample_user_agent(),
-            FakeWriteRepository::new(),
-        );
-
-        let expected_result = Uuid::from_u128(42);
-
-        let result = super_state.current_state().context_data().execution_id();
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
     fn should_carry_user_agent_into_sub_state_context_when_constructing_validate_cik_format_super_state()
      {
         let other_user_agent = UserAgent::new("Other Company other@example.com")
@@ -978,25 +959,6 @@ mod tests {
         let expected_result = &other_user_agent;
 
         let result = super_state.current_state().context_data().user_agent();
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
-    fn should_carry_execution_id_into_sub_state_context_when_constructing_prepare_sec_request_super_state()
-     {
-        let super_state = ExtractSuperState::<PrepareSecRequest, _>::new(
-            Cik::new("1067983")
-                .expect("Given a hardcoded numeric CIK, its creation should always succeed"),
-            SecClient::default(),
-            Uuid::from_u128(42),
-            sample_user_agent(),
-            FakeWriteRepository::new(),
-        );
-
-        let expected_result = Uuid::from_u128(42);
-
-        let result = super_state.current_state().context_data().execution_id();
 
         assert_eq!(result, expected_result);
     }
@@ -1018,30 +980,6 @@ mod tests {
         let expected_result = &other_user_agent;
 
         let result = super_state.current_state().context_data().user_agent();
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
-    fn should_carry_execution_id_into_sub_state_context_when_constructing_execute_sec_request_super_state()
-     {
-        let cik = Cik::new("1067983")
-            .expect("Given a hardcoded numeric CIK, its creation should always succeed");
-        let super_state = ExtractSuperState::<ExecuteSecRequest, _>::new(
-            SecClient::default(),
-            SecRequest::builder()
-                .all_company_facts()
-                .cik(cik.clone())
-                .build(),
-            cik,
-            Uuid::from_u128(42),
-            sample_user_agent(),
-            FakeWriteRepository::new(),
-        );
-
-        let expected_result = Uuid::from_u128(42);
-
-        let result = super_state.current_state().context_data().execution_id();
 
         assert_eq!(result, expected_result);
     }

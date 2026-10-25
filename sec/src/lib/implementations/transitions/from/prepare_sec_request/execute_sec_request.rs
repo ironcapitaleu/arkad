@@ -25,7 +25,7 @@ use crate::implementations::states::extract::prepare_sec_request::{
 
 impl From<PrepareSecRequestContext> for ExecuteSecRequestContext {
     fn from(context: PrepareSecRequestContext) -> Self {
-        Self::new(context.cik, context.execution_id, context.user_agent)
+        Self::new(context.cik, context.user_agent)
     }
 }
 
@@ -54,7 +54,6 @@ impl TryFrom<PrepareSecRequest> for ExecuteSecRequest {
 #[cfg(test)]
 mod tests {
     use pretty_assertions::assert_eq;
-    use uuid::Uuid;
 
     use super::*;
     use crate::implementations::states::extract::prepare_sec_request::PrepareSecRequestInput;
@@ -62,18 +61,16 @@ mod tests {
     use crate::shared::http_client::implementations::sec_client::SecClient;
     use crate::shared::request::implementations::sec_request::SecRequest;
     use crate::shared::user_agent::UserAgent;
-    use crate::tests::fixtures::sample_run::{SAMPLE_EXECUTION_ID, sample_user_agent};
+    use crate::tests::fixtures::sample_run::sample_user_agent;
     use crate::traits::state_machine::state::State;
 
     #[test]
     fn should_convert_context_when_valid_context() {
         let cik = Cik::new("0001234567")
             .expect("Hardcoded valid CIK string should always parse successfully");
-        let context =
-            PrepareSecRequestContext::new(cik.clone(), SAMPLE_EXECUTION_ID, sample_user_agent());
+        let context = PrepareSecRequestContext::new(cik.clone(), sample_user_agent());
 
-        let expected_result =
-            ExecuteSecRequestContext::new(cik, SAMPLE_EXECUTION_ID, sample_user_agent());
+        let expected_result = ExecuteSecRequestContext::new(cik, sample_user_agent());
 
         let result = ExecuteSecRequestContext::from(context);
 
@@ -101,8 +98,7 @@ mod tests {
             .expect("Hardcoded valid CIK string should always parse successfully");
         let sec_client = SecClient::default();
         let input = PrepareSecRequestInput::new(cik.clone(), sec_client);
-        let context =
-            PrepareSecRequestContext::new(cik.clone(), SAMPLE_EXECUTION_ID, sample_user_agent());
+        let context = PrepareSecRequestContext::new(cik.clone(), sample_user_agent());
         let mut state = PrepareSecRequest::new(input, context);
         state
             .compute_output_data_async()
@@ -122,7 +118,7 @@ mod tests {
             .expect("Hardcoded valid CIK string should always parse successfully");
         let sec_client = SecClient::default();
         let input = PrepareSecRequestInput::new(cik.clone(), sec_client);
-        let context = PrepareSecRequestContext::new(cik, SAMPLE_EXECUTION_ID, sample_user_agent());
+        let context = PrepareSecRequestContext::new(cik, sample_user_agent());
         let state = PrepareSecRequest::new(input, context);
 
         let expected_result = true;
@@ -133,26 +129,12 @@ mod tests {
     }
 
     #[test]
-    fn should_carry_execution_id_when_converting_context() {
-        let cik = Cik::new("0001234567")
-            .expect("Hardcoded valid CIK string should always parse successfully");
-        let context = PrepareSecRequestContext::new(cik, Uuid::from_u128(42), sample_user_agent());
-
-        let expected_result = Uuid::from_u128(42);
-
-        let result = ExecuteSecRequestContext::from(context).execution_id();
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
     fn should_carry_user_agent_when_converting_context() {
         let cik = Cik::new("0001234567")
             .expect("Hardcoded valid CIK string should always parse successfully");
         let other_user_agent = UserAgent::new("Other Company other@example.com")
             .expect("Given a hardcoded SEC-format user agent, validation should always succeed");
-        let context =
-            PrepareSecRequestContext::new(cik, SAMPLE_EXECUTION_ID, other_user_agent.clone());
+        let context = PrepareSecRequestContext::new(cik, other_user_agent.clone());
 
         let expected_result = other_user_agent;
 

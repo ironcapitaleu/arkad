@@ -4,8 +4,8 @@
 //! [`ValidateCikFormat`](crate::implementations::states::extract::validate_cik_format::ValidateCikFormat)
 //! state, together with its updater and builder.
 //!
-//! The context holds the shared [`SecClient`], the `execution_id` and the `User-Agent` of the
-//! run, and the retry budget. These outlive any single input/output pair. The state can then
+//! The context holds the shared [`SecClient`], the `User-Agent` of the run, and the
+//! retry budget. These outlive any single input/output pair. The state can then
 //! re-run and transition without rebuilding them. Updates are applied through the
 //! [`Context`] trait via a builder-constructed updater, keeping mutation explicit and partial.
 //!
@@ -17,10 +17,9 @@
 //! use state_maschine::prelude::*;
 //!
 //! # use sec::shared::user_agent::UserAgent;
-//! # use uuid::Uuid;
 //! let user_agent = UserAgent::new("Sample Company contact@example.com")
 //!     .expect("Given a hardcoded SEC-format user agent, validation should always succeed");
-//! let mut context = ValidateCikFormatContext::new("1067983", SecClient::default(), Uuid::new_v4(), user_agent);
+//! let mut context = ValidateCikFormatContext::new("1067983", SecClient::default(), user_agent);
 //! let update = ValidateCikFormatContextUpdater::builder()
 //!     .cik("0000000001")
 //!     .build();
@@ -42,7 +41,6 @@ use std::fmt;
 
 use serde::Serialize;
 use state_maschine::prelude::Context as SMContext;
-use uuid::Uuid;
 
 use crate::shared::http_client::implementations::sec_client::SecClient;
 use crate::shared::user_agent::UserAgent;
@@ -51,16 +49,14 @@ use crate::traits::state_machine::state::Context;
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
 /// Context for the [`ValidateCikFormat`](super::ValidateCikFormat) state.
 ///
-/// Holds the raw CIK under validation, the shared [`SecClient`], and the `execution_id` and the
-/// `User-Agent` of the run. It also holds the retry budget. All of them survive updates and
+/// Holds the raw CIK under validation, the shared [`SecClient`], and the `User-Agent` of the run. It
+/// also holds the retry budget. All of them survive updates and
 /// transitions.
 pub struct ValidateCikFormatContext {
     /// The unvalidated CIK string provided for validation.
     pub raw_cik: String,
     /// The shared HTTP client for SEC API requests.
     pub sec_client: SecClient,
-    /// The `execution_id` of the run.
-    pub execution_id: Uuid,
     /// The `User-Agent` that the run sends to the SEC.
     pub user_agent: UserAgent,
     /// Maximum number of times the state may be retried on failure.
@@ -68,18 +64,12 @@ pub struct ValidateCikFormatContext {
 }
 
 impl ValidateCikFormatContext {
-    /// Creates a new [`ValidateCikFormatContext`] from a raw CIK, a shared HTTP client, the
-    /// `execution_id` of the run, and the `User-Agent` of the run.
-    pub fn new(
-        cik: impl Into<String>,
-        sec_client: SecClient,
-        execution_id: Uuid,
-        user_agent: UserAgent,
-    ) -> Self {
+    /// Creates a new [`ValidateCikFormatContext`] from a raw CIK, a shared HTTP client, and the
+    /// `User-Agent` of the run.
+    pub fn new(cik: impl Into<String>, sec_client: SecClient, user_agent: UserAgent) -> Self {
         Self {
             raw_cik: cik.into(),
             sec_client,
-            execution_id,
             user_agent,
             max_retries: 0,
         }
@@ -95,12 +85,6 @@ impl ValidateCikFormatContext {
     #[must_use]
     pub const fn sec_client(&self) -> &SecClient {
         &self.sec_client
-    }
-
-    /// Returns the `execution_id` of the run.
-    #[must_use]
-    pub const fn execution_id(&self) -> Uuid {
-        self.execution_id
     }
 
     /// Returns the `User-Agent` that the run sends to the SEC.
@@ -135,9 +119,6 @@ impl SMContext for ValidateCikFormatContext {
         if let Some(sec_client) = updates.sec_client {
             self.sec_client = sec_client;
         }
-        if let Some(execution_id) = updates.execution_id {
-            self.execution_id = execution_id;
-        }
         if let Some(user_agent) = updates.user_agent {
             self.user_agent = user_agent;
         }
@@ -162,8 +143,6 @@ pub struct ValidateCikFormatContextUpdater {
     pub raw_cik: Option<String>,
     /// Optional new HTTP client value.
     pub sec_client: Option<SecClient>,
-    /// Optional new value for the `execution_id`.
-    pub execution_id: Option<Uuid>,
     /// Optional new value for the `User-Agent`.
     pub user_agent: Option<UserAgent>,
     /// Optional new maximum retries value.
@@ -182,7 +161,6 @@ impl ValidateCikFormatContextUpdater {
 pub struct ValidateCikFormatContextUpdaterBuilder {
     raw_cik: Option<String>,
     sec_client: Option<SecClient>,
-    execution_id: Option<Uuid>,
     user_agent: Option<UserAgent>,
     max_retries: Option<u32>,
 }
@@ -193,7 +171,6 @@ impl ValidateCikFormatContextUpdaterBuilder {
         Self {
             raw_cik: None,
             sec_client: None,
-            execution_id: None,
             user_agent: None,
             max_retries: None,
         }
@@ -221,13 +198,6 @@ impl ValidateCikFormatContextUpdaterBuilder {
         self
     }
 
-    /// Sets the `execution_id` field.
-    #[must_use]
-    pub const fn execution_id(mut self, execution_id: Uuid) -> Self {
-        self.execution_id = Some(execution_id);
-        self
-    }
-
     /// Sets the `User-Agent` field.
     #[must_use]
     pub fn user_agent(mut self, user_agent: UserAgent) -> Self {
@@ -241,7 +211,6 @@ impl ValidateCikFormatContextUpdaterBuilder {
         ValidateCikFormatContextUpdater {
             raw_cik: self.raw_cik,
             sec_client: self.sec_client,
-            execution_id: self.execution_id,
             user_agent: self.user_agent,
             max_retries: self.max_retries,
         }
@@ -261,7 +230,6 @@ mod tests {
 
     use pretty_assertions::{assert_eq, assert_ne};
     use state_maschine::prelude::*;
-    use uuid::Uuid;
 
     use super::{
         ValidateCikFormatContext, ValidateCikFormatContextUpdater,
@@ -270,16 +238,11 @@ mod tests {
     use crate::shared::cik::constants::BERKSHIRE_HATHAWAY_CIK_RAW;
     use crate::shared::http_client::implementations::sec_client::SecClient;
     use crate::shared::user_agent::UserAgent;
-    use crate::tests::fixtures::sample_run::{SAMPLE_EXECUTION_ID, sample_user_agent};
+    use crate::tests::fixtures::sample_run::sample_user_agent;
 
     fn test_context() -> ValidateCikFormatContext {
         let sec_client = SecClient::default();
-        ValidateCikFormatContext::new(
-            BERKSHIRE_HATHAWAY_CIK_RAW,
-            sec_client,
-            SAMPLE_EXECUTION_ID,
-            sample_user_agent(),
-        )
+        ValidateCikFormatContext::new(BERKSHIRE_HATHAWAY_CIK_RAW, sec_client, sample_user_agent())
     }
 
     #[test]
@@ -296,12 +259,8 @@ mod tests {
     #[test]
     fn should_create_different_context_with_custom_data_when_using_new_as_constructor() {
         let sec_client = SecClient::default();
-        let validation_context = &ValidateCikFormatContext::new(
-            "0000000000",
-            sec_client,
-            SAMPLE_EXECUTION_ID,
-            sample_user_agent(),
-        );
+        let validation_context =
+            &ValidateCikFormatContext::new("0000000000", sec_client, sample_user_agent());
 
         let expected_result = &test_context();
 
@@ -318,12 +277,8 @@ mod tests {
             .build();
 
         let sec_client = SecClient::default();
-        let expected_result = &ValidateCikFormatContext::new(
-            "Updated CIK!",
-            sec_client,
-            SAMPLE_EXECUTION_ID,
-            sample_user_agent(),
-        );
+        let expected_result =
+            &ValidateCikFormatContext::new("Updated CIK!", sec_client, sample_user_agent());
 
         context.update_context(update);
         let result = context.context();
@@ -340,12 +295,8 @@ mod tests {
             .build();
 
         let sec_client = SecClient::default();
-        let expected_result = &ValidateCikFormatContext::new(
-            "Latest CIK Update!",
-            sec_client,
-            SAMPLE_EXECUTION_ID,
-            sample_user_agent(),
-        );
+        let expected_result =
+            &ValidateCikFormatContext::new("Latest CIK Update!", sec_client, sample_user_agent());
 
         context.update_context(update);
         let result = context.context();
@@ -476,39 +427,12 @@ mod tests {
     }
 
     #[test]
-    fn should_return_execution_id_when_accessing_execution_id_of_validate_cik_format_context() {
-        let context = test_context();
-
-        let expected_result = SAMPLE_EXECUTION_ID;
-
-        let result = context.execution_id();
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
     fn should_return_user_agent_when_accessing_user_agent_of_validate_cik_format_context() {
         let context = test_context();
 
         let expected_result = &sample_user_agent();
 
         let result = context.user_agent();
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
-    fn should_update_execution_id_when_updater_contains_execution_id_for_validate_cik_format_context()
-     {
-        let mut context = test_context();
-        let update = ValidateCikFormatContextUpdater::builder()
-            .execution_id(Uuid::from_u128(42))
-            .build();
-
-        let expected_result = Uuid::from_u128(42);
-
-        context.update_context(update);
-        let result = context.execution_id();
 
         assert_eq!(result, expected_result);
     }
