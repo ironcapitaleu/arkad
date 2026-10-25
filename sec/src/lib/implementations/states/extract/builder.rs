@@ -34,8 +34,10 @@ pub struct NoExecutionId;
 
 /// Marks a builder that holds no repository of type `R` yet.
 ///
-/// The marker names `R`, so the compiler infers the repository type of the built super-state from
-/// the value passed to the repository setter.
+/// The marker carries `R`. The compiler infers `R` from the value passed to
+/// [`repository`](ExtractSuperStateBuilder::repository).
+// Deviation: the derives bound `R` on each trait, although the marker holds no `R`. Every
+// `RawCompanyFactsRepository` implements these traits, so the bounds cost nothing here.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct NoRepository<R>(PhantomData<fn() -> R>);
 
@@ -186,6 +188,8 @@ mod tests {
     use pretty_assertions::{assert_eq, assert_ne};
 
     use super::*;
+    use crate::shared::http_client::implementations::reqwest_client::ReqwestClient;
+    use crate::shared::user_agent::UserAgent;
     use crate::tests::fixtures::sample_write_repository::FakeWriteRepository;
 
     type EmptyBuilder = ExtractSuperStateBuilder<
@@ -195,11 +199,20 @@ mod tests {
         NoRepository<FakeWriteRepository>,
     >;
 
+    fn sample_sec_client() -> SecClient {
+        let user_agent = UserAgent::new("Sample Company contact@example.com")
+            .expect("Given a hardcoded SEC-format string, validation should always succeed");
+        SecClient::new(
+            ReqwestClient::new(user_agent)
+                .expect("Given a valid user agent, building the HTTP client should always succeed"),
+        )
+    }
+
     fn expected_super_state(
         cik: &str,
+        sec_client: SecClient,
         execution_id: Uuid,
     ) -> ExtractSuperState<ValidateCikFormat<FakeWriteRepository>, FakeWriteRepository> {
-        let sec_client = SecClient::default();
         let repository = FakeWriteRepository::new();
         let state_context =
             ValidateCikFormatContext::new(cik, sec_client.clone(), repository.clone());
@@ -232,28 +245,21 @@ mod tests {
         implements_value_traits::<NoRepository<FakeWriteRepository>>();
     }
 
+    const fn holds_no_field(_: EmptyBuilder) {}
     #[test]
-    fn should_hold_no_field_when_starting_a_builder() {
-        let expected_result: EmptyBuilder = ExtractSuperStateBuilder {
-            cik: NoCik,
-            sec_client: NoSecClient,
-            execution_id: NoExecutionId,
-            repository: NoRepository::new(),
-        };
-
-        let result = ExtractSuperState::builder();
-
-        assert_eq!(result, expected_result);
+    const fn should_hold_no_field_when_starting_a_builder() {
+        holds_no_field(ExtractSuperState::builder());
     }
 
     #[test]
     fn should_build_a_super_state_at_validate_cik_format_when_setting_every_field() {
         let builder = ExtractSuperState::builder()
             .cik("1067983")
-            .sec_client(SecClient::default())
+            .sec_client(sample_sec_client())
             .execution_id(Uuid::from_u128(7));
 
-        let expected_result = expected_super_state("1067983", Uuid::from_u128(7));
+        let expected_result =
+            expected_super_state("1067983", sample_sec_client(), Uuid::from_u128(7));
 
         let result = builder.repository(FakeWriteRepository::new()).build();
 
@@ -265,9 +271,10 @@ mod tests {
         let builder = ExtractSuperState::builder()
             .repository(FakeWriteRepository::new())
             .execution_id(Uuid::from_u128(7))
-            .sec_client(SecClient::default());
+            .sec_client(sample_sec_client());
 
-        let expected_result = expected_super_state("1067983", Uuid::from_u128(7));
+        let expected_result =
+            expected_super_state("1067983", sample_sec_client(), Uuid::from_u128(7));
 
         let result = builder.cik("1067983").build();
 
