@@ -2,4 +2,4 @@
 # `.git`, but `sec/build.rs` reads the commit from it, so this file keeps it.
 .gcloudignore
 #!include:.gitignore
-data
+/data
