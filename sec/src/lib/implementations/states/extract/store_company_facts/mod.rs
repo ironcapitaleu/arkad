@@ -31,6 +31,7 @@ use crate::error::State as StateError;
 use crate::error::state_machine::state::FailedDocumentWrite;
 use crate::shared::build_info::producer;
 use crate::shared::cik::Cik;
+use crate::shared::document_storage::FailedDocumentStorage;
 use crate::shared::raw_document::RawDocument;
 use crate::shared::raw_source::RawCompanyFacts;
 use crate::traits::state_machine::state::State;
@@ -108,7 +109,14 @@ impl<R: RawCompanyFactsRepository> State for StoreCompanyFacts<R> {
             producer(STATE_NAME),
         );
 
-        match self.context.repository.persist(document).await {
+        let write = self
+            .context
+            .repository
+            .persist(document)
+            .await
+            .map_err(FailedDocumentStorage::from);
+
+        match write {
             Ok(()) => {
                 self.output = Some(StoreCompanyFactsOutput::new(key));
                 Ok(())
@@ -204,6 +212,7 @@ mod tests {
 
     use super::*;
     use crate::shared::content_type::ContentType;
+    use crate::shared::document_storage::DocumentStorageErrorReason;
     use crate::shared::headers::Headers;
     use crate::shared::raw_document::RawDocumentMetadataContext;
     use crate::shared::response::implementations::sec_response::SecResponse;
@@ -422,11 +431,13 @@ mod tests {
     #[tokio::test]
     async fn should_return_failed_document_write_when_the_repository_rejects_the_write() {
         let write_error = WriteError::conflicting_write("stored bytes differ");
-        let mut state = sample_state(FakeWriteRepository::rejecting(write_error.clone()));
+        let mut state = sample_state(FakeWriteRepository::rejecting(write_error));
 
         let expected_result = Err(StateError::FailedDocumentWrite(FailedDocumentWrite::new(
             STATE_NAME,
-            write_error,
+            FailedDocumentStorage::new(DocumentStorageErrorReason::ConflictingWrite {
+                details: "[ConflictingWrite] Write conflicts with existing data, Reason: 'stored bytes differ'".to_string(),
+            }),
         )));
 
         let result = state.compute_output_data_async().await;

@@ -58,15 +58,27 @@ classDiagram
         << struct >>
         %% State-level wrapper for a write that the store rejected
         +String state_name
-        +WriteError domain_error
+        +FailedDocumentStorage domain_error
+    }
+
+    class FailedDocumentStorage{
+        << struct >>
+        %% Domain error for a document that the store did not keep
+        +DocumentStorageErrorReason reason
+    }
+
+    class DocumentStorageErrorReason{
+        << enum >>
+        %% Why the store did not keep the document
+        +ConflictingWrite(String details)
+        +FailedIntegrityCheck(String details)
+        +FailedBackend(String details)
+        +Other(String details)
     }
 
     class WriteError{
         << enum >>
-        %% `storage::WriteError`, from the `storage` crate
-        +ConflictingWrite(String reason)
-        +FailedIntegrityCheck(String reason)
-        +Backend(BackendError)
+        %% `storage::WriteError`, converted at the boundary and never held
     }
 
     class IncompleteCompanyFacts{
@@ -166,7 +178,9 @@ classDiagram
     CikError --> InvalidCikReason
     IncompleteCompanyFacts --> MissingFields
     FailedRequestExecution --> FailedSecRequest
-    FailedDocumentWrite --> WriteError
+    FailedDocumentWrite --> FailedDocumentStorage
+    FailedDocumentStorage --> DocumentStorageErrorReason
+    WriteError ..> FailedDocumentStorage : From
     FailedSecRequest --> SecClientErrorReason
     SecClientErrorReason --> InvalidSecResponse
     InvalidSecResponse --> SecResponseErrorReason
