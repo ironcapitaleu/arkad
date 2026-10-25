@@ -35,7 +35,7 @@ xbrl/
     frames.rs         <- JSON deserializer for /frames/ endpoint
 ```
 
-**Crate boundary**: `xbrl::sec_api` takes `&str` or `&serde_json::Value` (raw JSON body), NOT a `SecResponse`. The `sec` crate owns HTTP, rate limiting, and response handling. `xbrl` has zero network dependencies.
+**Crate boundary**: `xbrl::sec_api` takes `&str` or `&serde_json::Value` (raw JSON body), NOT an `SecResponse`. The `sec` crate owns HTTP, rate limiting, and response handling. `xbrl` has zero network dependencies.
 
 ---
 
