@@ -126,7 +126,7 @@ impl Pipeline {
 
     pub async fn run(self) -> Result<(), StreamError> {
         let execution_id = Uuid::new_v4();
-        let state = ExtractSuperState::<ValidateCikFormat, _>::new(
+        let state = ExtractSuperState::<ValidateCikFormat<_>, _>::new(
             self.raw_cik,
             self.sec_client,
             execution_id,

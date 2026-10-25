@@ -30,7 +30,15 @@
 //! # use uuid::Uuid;
 //! # let user_agent = UserAgent::new("Sample Company contact@example.com")
 //! #     .expect("A hardcoded SEC-format user agent should always validate");
-//! let context = ValidateCikFormatContext::new("1234", SecClient::default(), Uuid::new_v4(), user_agent);
+//! # use sec::shared::raw_document::RawDocument;
+//! # use sec::shared::raw_source::RawCompanyFacts;
+//! # use storage::implementations::repository::filesystem::FilesystemRepository;
+//! # let repository = FilesystemRepository::builder()
+//! #     .writer()
+//! #     .document_type::<RawDocument<RawCompanyFacts>>()
+//! #     .root("data")
+//! #     .build();
+//! let context = ValidateCikFormatContext::new("1234", SecClient::default(), Uuid::new_v4(), user_agent, repository);
 //! let mut state = ValidateCikFormat::new(input, context);
 //! state
 //!     .compute_output_data_async()
@@ -63,6 +71,7 @@ use state_maschine::prelude::State as SMState;
 
 use crate::error::State as StateError;
 use crate::error::state_machine::state::InvalidCikFormat;
+use crate::implementations::states::extract::store_company_facts::RawCompanyFactsRepository;
 use crate::traits::error::FromDomainError;
 use crate::traits::state_machine::state::State;
 
@@ -87,13 +96,13 @@ use crate::shared::cik::Cik;
 ///
 /// Validation is **syntactic only**: a well-formed CIK that does not correspond to any
 /// real filer still passes. Existence is established later, when the SEC request is executed.
-pub struct ValidateCikFormat {
+pub struct ValidateCikFormat<R> {
     input: ValidateCikFormatInput,
-    context: ValidateCikFormatContext,
+    context: ValidateCikFormatContext<R>,
     output: Option<ValidateCikFormatOutput>,
 }
 
-impl ValidateCikFormat {
+impl<R> ValidateCikFormat<R> {
     /// Creates a new [`ValidateCikFormat`] state from its input and context, with no output computed yet.
     ///
     /// # Examples
@@ -108,7 +117,15 @@ impl ValidateCikFormat {
     /// # use uuid::Uuid;
     /// # let user_agent = UserAgent::new("Sample Company contact@example.com")
     /// #     .expect("A hardcoded SEC-format user agent should always validate");
-    /// let context = ValidateCikFormatContext::new("1234", SecClient::default(), Uuid::new_v4(), user_agent);
+    /// # use sec::shared::raw_document::RawDocument;
+    /// # use sec::shared::raw_source::RawCompanyFacts;
+    /// # use storage::implementations::repository::filesystem::FilesystemRepository;
+    /// # let repository = FilesystemRepository::builder()
+    /// #     .writer()
+    /// #     .document_type::<RawDocument<RawCompanyFacts>>()
+    /// #     .root("data")
+    /// #     .build();
+    /// let context = ValidateCikFormatContext::new("1234", SecClient::default(), Uuid::new_v4(), user_agent, repository);
     /// let state = ValidateCikFormat::new(input, context);
     ///
     /// let expected_result = false;
@@ -118,7 +135,7 @@ impl ValidateCikFormat {
     /// assert_eq!(result, expected_result);
     /// ```
     #[must_use]
-    pub const fn new(input: ValidateCikFormatInput, context: ValidateCikFormatContext) -> Self {
+    pub const fn new(input: ValidateCikFormatInput, context: ValidateCikFormatContext<R>) -> Self {
         Self {
             input,
             context,
@@ -133,14 +150,14 @@ impl ValidateCikFormat {
     ) -> (
         ValidateCikFormatInput,
         Option<ValidateCikFormatOutput>,
-        ValidateCikFormatContext,
+        ValidateCikFormatContext<R>,
     ) {
         (self.input, self.output, self.context)
     }
 }
 
 #[async_trait]
-impl State for ValidateCikFormat {
+impl<R: RawCompanyFactsRepository> State for ValidateCikFormat<R> {
     /// Validates the raw CIK and, on success, stores the normalized [`Cik`] as output.
     ///
     /// # Errors
@@ -168,10 +185,10 @@ impl State for ValidateCikFormat {
     }
 }
 
-impl SMState for ValidateCikFormat {
+impl<R: RawCompanyFactsRepository> SMState for ValidateCikFormat<R> {
     type InputData = ValidateCikFormatInput;
     type OutputData = ValidateCikFormatOutput;
-    type Context = ValidateCikFormatContext;
+    type Context = ValidateCikFormatContext<R>;
 
     fn state_name(&self) -> impl ToString {
         STATE_NAME
@@ -215,7 +232,7 @@ impl SMState for ValidateCikFormat {
     }
 }
 
-impl fmt::Display for ValidateCikFormat {
+impl<R: RawCompanyFactsRepository> fmt::Display for ValidateCikFormat<R> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
@@ -246,14 +263,16 @@ mod tests {
     use crate::shared::cik::constants::BERKSHIRE_HATHAWAY_CIK_RAW;
     use crate::shared::http_client::implementations::sec_client::SecClient;
     use crate::tests::fixtures::sample_run::{SAMPLE_EXECUTION_ID, sample_user_agent};
+    use crate::tests::fixtures::sample_write_repository::FakeWriteRepository;
 
-    fn test_context() -> ValidateCikFormatContext {
+    fn test_context() -> ValidateCikFormatContext<FakeWriteRepository> {
         let sec_client = SecClient::default();
         ValidateCikFormatContext::new(
             BERKSHIRE_HATHAWAY_CIK_RAW,
             sec_client,
             SAMPLE_EXECUTION_ID,
             sample_user_agent(),
+            FakeWriteRepository::new(),
         )
     }
 
@@ -261,7 +280,7 @@ mod tests {
         ValidateCikFormatInput::new(BERKSHIRE_HATHAWAY_CIK_RAW)
     }
 
-    fn test_state() -> ValidateCikFormat {
+    fn test_state() -> ValidateCikFormat<FakeWriteRepository> {
         ValidateCikFormat::new(test_input(), test_context())
     }
 
@@ -325,7 +344,7 @@ mod tests {
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
     #[test]
     const fn should_implement_auto_traits_for_validate_cik_format() {
-        implements_auto_traits::<ValidateCikFormat>();
+        implements_auto_traits::<ValidateCikFormat<FakeWriteRepository>>();
     }
 
     const fn implements_send<T: Send>() {}
@@ -333,72 +352,72 @@ mod tests {
 
     #[test]
     const fn should_implement_send_for_validate_cik_format() {
-        implements_send::<ValidateCikFormat>();
+        implements_send::<ValidateCikFormat<FakeWriteRepository>>();
     }
 
     #[test]
     const fn should_implement_sync_for_validate_cik_format() {
-        implements_sync::<ValidateCikFormat>();
+        implements_sync::<ValidateCikFormat<FakeWriteRepository>>();
     }
 
     #[test]
     const fn should_be_thread_safe_for_validate_cik_format() {
-        implements_send::<ValidateCikFormat>();
-        implements_sync::<ValidateCikFormat>();
+        implements_send::<ValidateCikFormat<FakeWriteRepository>>();
+        implements_sync::<ValidateCikFormat<FakeWriteRepository>>();
     }
 
     const fn implements_sized<T: Sized>() {}
     #[test]
     const fn should_be_sized_for_validate_cik_format() {
-        implements_sized::<ValidateCikFormat>();
+        implements_sized::<ValidateCikFormat<FakeWriteRepository>>();
     }
 
     const fn implements_hash<T: Hash>() {}
     #[test]
     const fn should_implement_hash_for_validate_cik_format() {
-        implements_hash::<ValidateCikFormat>();
+        implements_hash::<ValidateCikFormat<FakeWriteRepository>>();
     }
 
     const fn implements_partial_eq<T: PartialEq>() {}
     #[test]
     const fn should_implement_partial_eq_for_validate_cik_format() {
-        implements_partial_eq::<ValidateCikFormat>();
+        implements_partial_eq::<ValidateCikFormat<FakeWriteRepository>>();
     }
 
     const fn implements_eq<T: Eq>() {}
     #[test]
     const fn should_implement_eq_for_validate_cik_format() {
-        implements_eq::<ValidateCikFormat>();
+        implements_eq::<ValidateCikFormat<FakeWriteRepository>>();
     }
 
     const fn implements_partial_ord<T: PartialOrd>() {}
     #[test]
     const fn should_implement_partial_ord_for_validate_cik_format() {
-        implements_partial_ord::<ValidateCikFormat>();
+        implements_partial_ord::<ValidateCikFormat<FakeWriteRepository>>();
     }
 
     const fn implements_ord<T: Ord>() {}
     #[test]
     const fn should_implement_ord_for_validate_cik_format() {
-        implements_ord::<ValidateCikFormat>();
+        implements_ord::<ValidateCikFormat<FakeWriteRepository>>();
     }
 
     const fn implements_debug<T: Debug>() {}
     #[test]
     const fn should_implement_debug_for_validate_cik_format() {
-        implements_debug::<ValidateCikFormat>();
+        implements_debug::<ValidateCikFormat<FakeWriteRepository>>();
     }
 
     const fn implements_clone<T: Clone>() {}
     #[test]
     const fn should_implement_clone_for_validate_cik_format() {
-        implements_clone::<ValidateCikFormat>();
+        implements_clone::<ValidateCikFormat<FakeWriteRepository>>();
     }
 
     const fn implements_unpin<T: Unpin>() {}
     #[test]
     const fn should_implement_unpin_for_validate_cik_format() {
-        implements_unpin::<ValidateCikFormat>();
+        implements_unpin::<ValidateCikFormat<FakeWriteRepository>>();
     }
 
     #[test]

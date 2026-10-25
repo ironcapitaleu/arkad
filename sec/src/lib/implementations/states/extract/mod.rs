@@ -40,7 +40,7 @@
 //!     .document_type::<RawDocument<RawCompanyFacts>>()
 //!     .root("data")
 //!     .build();
-//! let mut extract_state = ExtractSuperState::<ValidateCikFormat, _>::new(
+//! let mut extract_state = ExtractSuperState::<ValidateCikFormat<_>, _>::new(
 //!     "1234567890",
 //!     SecClient::default(),
 //!     Uuid::new_v4(),
@@ -264,7 +264,7 @@ impl<S: State, R: RawCompanyFactsRepository> SMSuperState<S> for ExtractSuperSta
 
 impl<S: State, R: RawCompanyFactsRepository> SuperState<S> for ExtractSuperState<S, R> {}
 
-impl<R: RawCompanyFactsRepository> ExtractSuperState<ValidateCikFormat, R> {
+impl<R: RawCompanyFactsRepository> ExtractSuperState<ValidateCikFormat<R>, R> {
     /// Creates the super-state at the pipeline entry point from a raw CIK, the shared client, the
     /// `execution_id` and the `User-Agent` of the run, and the storage repository.
     ///
@@ -279,8 +279,13 @@ impl<R: RawCompanyFactsRepository> ExtractSuperState<ValidateCikFormat, R> {
     ) -> Self {
         let input: String = input.into();
         let input_data = ValidateCikFormatInput::new(input.clone());
-        let state_context =
-            ValidateCikFormatContext::new(input, sec_client.clone(), execution_id, user_agent);
+        let state_context = ValidateCikFormatContext::new(
+            input,
+            sec_client.clone(),
+            execution_id,
+            user_agent,
+            repository.clone(),
+        );
 
         Self {
             current_state: ValidateCikFormat::new(input_data, state_context),
@@ -291,7 +296,7 @@ impl<R: RawCompanyFactsRepository> ExtractSuperState<ValidateCikFormat, R> {
     }
 }
 
-impl<R: RawCompanyFactsRepository> ExtractSuperState<PrepareSecRequest, R> {
+impl<R: RawCompanyFactsRepository> ExtractSuperState<PrepareSecRequest<R>, R> {
     /// Creates the super-state positioned at the request-preparation state.
     #[must_use]
     pub fn new(
@@ -302,7 +307,12 @@ impl<R: RawCompanyFactsRepository> ExtractSuperState<PrepareSecRequest, R> {
         repository: R,
     ) -> Self {
         let input_data = PrepareSecRequestInput::new(validated_cik.clone(), sec_client.clone());
-        let context = PrepareSecRequestContext::new(validated_cik, execution_id, user_agent);
+        let context = PrepareSecRequestContext::new(
+            validated_cik,
+            execution_id,
+            user_agent,
+            repository.clone(),
+        );
 
         Self {
             current_state: PrepareSecRequest::new(input_data, context),
@@ -313,7 +323,7 @@ impl<R: RawCompanyFactsRepository> ExtractSuperState<PrepareSecRequest, R> {
     }
 }
 
-impl<R: RawCompanyFactsRepository> ExtractSuperState<ExecuteSecRequest, R> {
+impl<R: RawCompanyFactsRepository> ExtractSuperState<ExecuteSecRequest<R>, R> {
     /// Creates the super-state positioned at the request-execution state.
     #[must_use]
     pub fn new(
@@ -325,7 +335,8 @@ impl<R: RawCompanyFactsRepository> ExtractSuperState<ExecuteSecRequest, R> {
         repository: R,
     ) -> Self {
         let esr_input = ExecuteSecRequestInput::new(client.clone(), request);
-        let esr_context = ExecuteSecRequestContext::new(cik, execution_id, user_agent);
+        let esr_context =
+            ExecuteSecRequestContext::new(cik, execution_id, user_agent, repository.clone());
 
         Self {
             current_state: ExecuteSecRequest::new(esr_input, esr_context),
@@ -386,29 +397,29 @@ where
     }
 }
 
-impl<R: RawCompanyFactsRepository> NonTerminal for ExtractSuperState<ValidateCikFormat, R> {
-    type Current = ValidateCikFormat;
-    type Next = PrepareSecRequest;
+impl<R: RawCompanyFactsRepository> NonTerminal for ExtractSuperState<ValidateCikFormat<R>, R> {
+    type Current = ValidateCikFormat<R>;
+    type Next = PrepareSecRequest<R>;
 }
 
-impl<R: RawCompanyFactsRepository> NonTerminal for ExtractSuperState<PrepareSecRequest, R> {
-    type Current = PrepareSecRequest;
-    type Next = ExecuteSecRequest;
+impl<R: RawCompanyFactsRepository> NonTerminal for ExtractSuperState<PrepareSecRequest<R>, R> {
+    type Current = PrepareSecRequest<R>;
+    type Next = ExecuteSecRequest<R>;
 }
 
 /// `ExecuteSecRequest` is no longer terminal -- it transitions into the Transform `SuperState`.
-impl<R: RawCompanyFactsRepository> NonTerminal for ExtractSuperState<ExecuteSecRequest, R> {
-    type Current = ExecuteSecRequest;
+impl<R: RawCompanyFactsRepository> NonTerminal for ExtractSuperState<ExecuteSecRequest<R>, R> {
+    type Current = ExecuteSecRequest<R>;
     type Next = ParseCompanyFacts;
 }
 
-impl<R: RawCompanyFactsRepository> Transition<ValidateCikFormat, PrepareSecRequest>
-    for ExtractSuperState<ValidateCikFormat, R>
+impl<R: RawCompanyFactsRepository> Transition<ValidateCikFormat<R>, PrepareSecRequest<R>>
+    for ExtractSuperState<ValidateCikFormat<R>, R>
 {
     fn transition_to_next_state_sec(self) -> Result<Self::NewStateMachine, TransitionError> {
         let next_state = PrepareSecRequest::try_from(self.current_state)?;
 
-        Ok(ExtractSuperState::<PrepareSecRequest, R> {
+        Ok(ExtractSuperState::<PrepareSecRequest<R>, R> {
             current_state: next_state,
             input: ExtractSuperStateData,
             output: None,
@@ -417,13 +428,13 @@ impl<R: RawCompanyFactsRepository> Transition<ValidateCikFormat, PrepareSecReque
     }
 }
 
-impl<R: RawCompanyFactsRepository> Transition<PrepareSecRequest, ExecuteSecRequest>
-    for ExtractSuperState<PrepareSecRequest, R>
+impl<R: RawCompanyFactsRepository> Transition<PrepareSecRequest<R>, ExecuteSecRequest<R>>
+    for ExtractSuperState<PrepareSecRequest<R>, R>
 {
     fn transition_to_next_state_sec(self) -> Result<Self::NewStateMachine, TransitionError> {
         let next_state = ExecuteSecRequest::try_from(self.current_state)?;
 
-        Ok(ExtractSuperState::<ExecuteSecRequest, R> {
+        Ok(ExtractSuperState::<ExecuteSecRequest<R>, R> {
             current_state: next_state,
             input: ExtractSuperStateData,
             output: None,
@@ -432,10 +443,10 @@ impl<R: RawCompanyFactsRepository> Transition<PrepareSecRequest, ExecuteSecReque
     }
 }
 
-impl<R: RawCompanyFactsRepository> SMTransition<PrepareSecRequest, ExecuteSecRequest>
-    for ExtractSuperState<PrepareSecRequest, R>
+impl<R: RawCompanyFactsRepository> SMTransition<PrepareSecRequest<R>, ExecuteSecRequest<R>>
+    for ExtractSuperState<PrepareSecRequest<R>, R>
 {
-    type NewStateMachine = ExtractSuperState<ExecuteSecRequest, R>;
+    type NewStateMachine = ExtractSuperState<ExecuteSecRequest<R>, R>;
 
     fn transition_to_next_state(self) -> Result<Self::NewStateMachine, &'static str> {
         // Placeholder implementation - use transition_to_next_state_sec() for actual functionality
@@ -445,10 +456,10 @@ impl<R: RawCompanyFactsRepository> SMTransition<PrepareSecRequest, ExecuteSecReq
     }
 }
 
-impl<R: RawCompanyFactsRepository> SMTransition<ValidateCikFormat, PrepareSecRequest>
-    for ExtractSuperState<ValidateCikFormat, R>
+impl<R: RawCompanyFactsRepository> SMTransition<ValidateCikFormat<R>, PrepareSecRequest<R>>
+    for ExtractSuperState<ValidateCikFormat<R>, R>
 {
-    type NewStateMachine = ExtractSuperState<PrepareSecRequest, R>;
+    type NewStateMachine = ExtractSuperState<PrepareSecRequest<R>, R>;
 
     fn transition_to_next_state(self) -> Result<Self::NewStateMachine, &'static str> {
         // Placeholder implementation - use transition_to_next_state_sec() for actual functionality
@@ -460,8 +471,8 @@ impl<R: RawCompanyFactsRepository> SMTransition<ValidateCikFormat, PrepareSecReq
 
 // --- Cross-SuperState transition: Extract → Transform ---
 
-impl<R: RawCompanyFactsRepository> Transition<ExecuteSecRequest, ParseCompanyFacts>
-    for ExtractSuperState<ExecuteSecRequest, R>
+impl<R: RawCompanyFactsRepository> Transition<ExecuteSecRequest<R>, ParseCompanyFacts>
+    for ExtractSuperState<ExecuteSecRequest<R>, R>
 {
     fn transition_to_next_state_sec(self) -> Result<Self::NewStateMachine, TransitionError> {
         let inner_state = self.into_current_state();
@@ -481,8 +492,8 @@ impl<R: RawCompanyFactsRepository> Transition<ExecuteSecRequest, ParseCompanyFac
     }
 }
 
-impl<R: RawCompanyFactsRepository> SMTransition<ExecuteSecRequest, ParseCompanyFacts>
-    for ExtractSuperState<ExecuteSecRequest, R>
+impl<R: RawCompanyFactsRepository> SMTransition<ExecuteSecRequest<R>, ParseCompanyFacts>
+    for ExtractSuperState<ExecuteSecRequest<R>, R>
 {
     type NewStateMachine = TransformSuperState<ParseCompanyFacts>;
 
@@ -519,7 +530,7 @@ mod tests {
     fn should_return_super_state_name_with_current_state_when_in_validate_cik_format_state() {
         let input_cik = "1234567890";
         let sec_client = SecClient::default();
-        let super_state = ExtractSuperState::<ValidateCikFormat, _>::new(
+        let super_state = ExtractSuperState::<ValidateCikFormat<_>, _>::new(
             input_cik,
             sec_client,
             Uuid::nil(),
@@ -542,7 +553,7 @@ mod tests {
     fn should_return_super_state_name_with_current_state_when_in_prepare_sec_request_state() {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should be valid");
         let sec_client = SecClient::default();
-        let super_state = ExtractSuperState::<PrepareSecRequest, _>::new(
+        let super_state = ExtractSuperState::<PrepareSecRequest<_>, _>::new(
             cik,
             sec_client,
             Uuid::nil(),
@@ -561,7 +572,7 @@ mod tests {
     fn should_access_current_validate_cik_format_state_from_super_state() {
         let input_cik = "1234567890";
         let sec_client = SecClient::default();
-        let super_state = ExtractSuperState::<ValidateCikFormat, _>::new(
+        let super_state = ExtractSuperState::<ValidateCikFormat<_>, _>::new(
             input_cik,
             sec_client,
             Uuid::nil(),
@@ -580,7 +591,7 @@ mod tests {
     fn should_access_current_prepare_sec_request_state_from_super_state() {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should be valid");
         let sec_client = SecClient::default();
-        let super_state = ExtractSuperState::<PrepareSecRequest, _>::new(
+        let super_state = ExtractSuperState::<PrepareSecRequest<_>, _>::new(
             cik,
             sec_client,
             Uuid::nil(),
@@ -603,7 +614,7 @@ mod tests {
     async fn should_transition_from_prepare_sec_request_to_execute_sec_request_state() {
         let input_cik = "1234567890";
         let sec_client = SecClient::default();
-        let mut super_state = ExtractSuperState::<ValidateCikFormat, _>::new(
+        let mut super_state = ExtractSuperState::<ValidateCikFormat<_>, _>::new(
             input_cik,
             sec_client,
             Uuid::nil(),
@@ -618,7 +629,7 @@ mod tests {
 
         let mut super_state = super_state
             .transition_to_next_state_sec()
-            .expect("Should transition to PrepareSecRequest");
+            .expect("Should transition to PrepareSecRequest<FakeWriteRepository>");
 
         super_state
             .compute_output_data_async()
@@ -629,7 +640,7 @@ mod tests {
 
         let state = super_state
             .transition_to_next_state_sec()
-            .expect("Should transition to ExecuteSecRequest");
+            .expect("Should transition to ExecuteSecRequest<FakeWriteRepository>");
 
         let result = state.state_name().to_string();
 
@@ -640,7 +651,7 @@ mod tests {
     async fn should_fail_transition_from_prepare_sec_request_when_output_data_not_yet_computed() {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should be valid");
         let sec_client = SecClient::default();
-        let super_state = ExtractSuperState::<PrepareSecRequest, _>::new(
+        let super_state = ExtractSuperState::<PrepareSecRequest<_>, _>::new(
             cik,
             sec_client,
             Uuid::nil(),
@@ -658,7 +669,7 @@ mod tests {
     async fn should_delegate_computation_to_current_state_when_computing_output_data() {
         let input_cik = "1234567890";
         let sec_client = SecClient::default();
-        let mut super_state = ExtractSuperState::<ValidateCikFormat, _>::new(
+        let mut super_state = ExtractSuperState::<ValidateCikFormat<_>, _>::new(
             input_cik,
             sec_client,
             Uuid::nil(),
@@ -681,7 +692,7 @@ mod tests {
     async fn should_transition_from_validate_cik_format_to_prepare_sec_request_state() {
         let input_cik = "1234567890";
         let sec_client = SecClient::default();
-        let mut super_state = ExtractSuperState::<ValidateCikFormat, _>::new(
+        let mut super_state = ExtractSuperState::<ValidateCikFormat<_>, _>::new(
             input_cik,
             sec_client,
             Uuid::nil(),
@@ -709,7 +720,7 @@ mod tests {
     async fn should_fail_transition_from_validate_cik_format_when_output_data_not_yet_computed() {
         let input_cik = "1234567890";
         let sec_client = SecClient::default();
-        let super_state = ExtractSuperState::<ValidateCikFormat, _>::new(
+        let super_state = ExtractSuperState::<ValidateCikFormat<_>, _>::new(
             input_cik,
             sec_client,
             Uuid::nil(),
@@ -727,17 +738,23 @@ mod tests {
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
     #[test]
     const fn should_implement_auto_traits_for_validate_cik_format_super_state() {
-        implements_auto_traits::<ExtractSuperState<ValidateCikFormat, FakeWriteRepository>>();
+        implements_auto_traits::<
+            ExtractSuperState<ValidateCikFormat<FakeWriteRepository>, FakeWriteRepository>,
+        >();
     }
 
     #[test]
     const fn should_implement_auto_traits_for_prepare_sec_request_super_state() {
-        implements_auto_traits::<ExtractSuperState<PrepareSecRequest, FakeWriteRepository>>();
+        implements_auto_traits::<
+            ExtractSuperState<PrepareSecRequest<FakeWriteRepository>, FakeWriteRepository>,
+        >();
     }
 
     #[test]
     const fn should_implement_auto_traits_for_execute_sec_request_super_state() {
-        implements_auto_traits::<ExtractSuperState<ExecuteSecRequest, FakeWriteRepository>>();
+        implements_auto_traits::<
+            ExtractSuperState<ExecuteSecRequest<FakeWriteRepository>, FakeWriteRepository>,
+        >();
     }
 
     const fn implements_send<T: Send>() {}
@@ -745,84 +762,120 @@ mod tests {
 
     #[test]
     const fn should_be_thread_safe_for_validate_cik_format_super_state() {
-        implements_send::<ExtractSuperState<ValidateCikFormat, FakeWriteRepository>>();
-        implements_sync::<ExtractSuperState<ValidateCikFormat, FakeWriteRepository>>();
+        implements_send::<
+            ExtractSuperState<ValidateCikFormat<FakeWriteRepository>, FakeWriteRepository>,
+        >();
+        implements_sync::<
+            ExtractSuperState<ValidateCikFormat<FakeWriteRepository>, FakeWriteRepository>,
+        >();
     }
 
     #[test]
     const fn should_be_thread_safe_for_prepare_sec_request_super_state() {
-        implements_send::<ExtractSuperState<PrepareSecRequest, FakeWriteRepository>>();
-        implements_sync::<ExtractSuperState<PrepareSecRequest, FakeWriteRepository>>();
+        implements_send::<
+            ExtractSuperState<PrepareSecRequest<FakeWriteRepository>, FakeWriteRepository>,
+        >();
+        implements_sync::<
+            ExtractSuperState<PrepareSecRequest<FakeWriteRepository>, FakeWriteRepository>,
+        >();
     }
 
     #[test]
     const fn should_be_thread_safe_for_execute_sec_request_super_state() {
-        implements_send::<ExtractSuperState<ExecuteSecRequest, FakeWriteRepository>>();
-        implements_sync::<ExtractSuperState<ExecuteSecRequest, FakeWriteRepository>>();
+        implements_send::<
+            ExtractSuperState<ExecuteSecRequest<FakeWriteRepository>, FakeWriteRepository>,
+        >();
+        implements_sync::<
+            ExtractSuperState<ExecuteSecRequest<FakeWriteRepository>, FakeWriteRepository>,
+        >();
     }
 
     const fn implements_debug<T: Debug>() {}
     #[test]
     const fn should_implement_debug_for_validate_cik_format_super_state() {
-        implements_debug::<ExtractSuperState<ValidateCikFormat, FakeWriteRepository>>();
+        implements_debug::<
+            ExtractSuperState<ValidateCikFormat<FakeWriteRepository>, FakeWriteRepository>,
+        >();
     }
 
     #[test]
     const fn should_implement_debug_for_prepare_sec_request_super_state() {
-        implements_debug::<ExtractSuperState<PrepareSecRequest, FakeWriteRepository>>();
+        implements_debug::<
+            ExtractSuperState<PrepareSecRequest<FakeWriteRepository>, FakeWriteRepository>,
+        >();
     }
 
     #[test]
     const fn should_implement_debug_for_execute_sec_request_super_state() {
-        implements_debug::<ExtractSuperState<ExecuteSecRequest, FakeWriteRepository>>();
+        implements_debug::<
+            ExtractSuperState<ExecuteSecRequest<FakeWriteRepository>, FakeWriteRepository>,
+        >();
     }
 
     const fn implements_clone<T: Clone>() {}
     #[test]
     const fn should_implement_clone_for_validate_cik_format_super_state() {
-        implements_clone::<ExtractSuperState<ValidateCikFormat, FakeWriteRepository>>();
+        implements_clone::<
+            ExtractSuperState<ValidateCikFormat<FakeWriteRepository>, FakeWriteRepository>,
+        >();
     }
 
     #[test]
     const fn should_implement_clone_for_prepare_sec_request_super_state() {
-        implements_clone::<ExtractSuperState<PrepareSecRequest, FakeWriteRepository>>();
+        implements_clone::<
+            ExtractSuperState<PrepareSecRequest<FakeWriteRepository>, FakeWriteRepository>,
+        >();
     }
 
     #[test]
     const fn should_implement_clone_for_execute_sec_request_super_state() {
-        implements_clone::<ExtractSuperState<ExecuteSecRequest, FakeWriteRepository>>();
+        implements_clone::<
+            ExtractSuperState<ExecuteSecRequest<FakeWriteRepository>, FakeWriteRepository>,
+        >();
     }
 
     const fn implements_partial_eq<T: PartialEq>() {}
     #[test]
     const fn should_implement_partial_eq_for_validate_cik_format_super_state() {
-        implements_partial_eq::<ExtractSuperState<ValidateCikFormat, FakeWriteRepository>>();
+        implements_partial_eq::<
+            ExtractSuperState<ValidateCikFormat<FakeWriteRepository>, FakeWriteRepository>,
+        >();
     }
 
     #[test]
     const fn should_implement_partial_eq_for_prepare_sec_request_super_state() {
-        implements_partial_eq::<ExtractSuperState<PrepareSecRequest, FakeWriteRepository>>();
+        implements_partial_eq::<
+            ExtractSuperState<PrepareSecRequest<FakeWriteRepository>, FakeWriteRepository>,
+        >();
     }
 
     #[test]
     const fn should_implement_partial_eq_for_execute_sec_request_super_state() {
-        implements_partial_eq::<ExtractSuperState<ExecuteSecRequest, FakeWriteRepository>>();
+        implements_partial_eq::<
+            ExtractSuperState<ExecuteSecRequest<FakeWriteRepository>, FakeWriteRepository>,
+        >();
     }
 
     const fn implements_hash<T: Hash>() {}
     #[test]
     const fn should_implement_hash_for_validate_cik_format_super_state() {
-        implements_hash::<ExtractSuperState<ValidateCikFormat, FakeWriteRepository>>();
+        implements_hash::<
+            ExtractSuperState<ValidateCikFormat<FakeWriteRepository>, FakeWriteRepository>,
+        >();
     }
 
     #[test]
     const fn should_implement_hash_for_prepare_sec_request_super_state() {
-        implements_hash::<ExtractSuperState<PrepareSecRequest, FakeWriteRepository>>();
+        implements_hash::<
+            ExtractSuperState<PrepareSecRequest<FakeWriteRepository>, FakeWriteRepository>,
+        >();
     }
 
     #[test]
     const fn should_implement_hash_for_execute_sec_request_super_state() {
-        implements_hash::<ExtractSuperState<ExecuteSecRequest, FakeWriteRepository>>();
+        implements_hash::<
+            ExtractSuperState<ExecuteSecRequest<FakeWriteRepository>, FakeWriteRepository>,
+        >();
     }
 
     fn store_company_facts_super_state(
@@ -883,7 +936,7 @@ mod tests {
     async fn should_keep_execution_id_of_first_constructor_when_transitioning_to_execute_sec_request()
      {
         let execution_id = Uuid::from_u128(7);
-        let mut super_state = ExtractSuperState::<ValidateCikFormat, _>::new(
+        let mut super_state = ExtractSuperState::<ValidateCikFormat<_>, _>::new(
             "1067983",
             SecClient::default(),
             execution_id,
@@ -916,7 +969,7 @@ mod tests {
     #[tokio::test]
     async fn should_tag_stream_with_execution_id_of_context_when_streaming_the_run() {
         let execution_id = Uuid::from_u128(7);
-        let super_state = ExtractSuperState::<ValidateCikFormat, _>::new(
+        let super_state = ExtractSuperState::<ValidateCikFormat<_>, _>::new(
             "ABC",
             SecClient::default(),
             execution_id,

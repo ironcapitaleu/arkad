@@ -41,6 +41,7 @@ async fn main() {
             sec_client.clone(),
             execution_id,
             user_agent.clone(),
+            repository.clone(),
         );
     let mut validate_cik_state = ValidateCikFormat::new(input, context);
 
@@ -76,6 +77,7 @@ async fn main() {
                 .clone(),
             execution_id,
             user_agent.clone(),
+            repository.clone(),
         ),
     );
     println!("{:.500}", prepare_sec_request.to_string().as_str());
@@ -107,6 +109,7 @@ async fn main() {
                 .clone(),
             execution_id,
             user_agent.clone(),
+            repository.clone(),
         ),
     );
     println!("{:.500}", execute_sec_request.to_string().as_str());
@@ -121,7 +124,7 @@ async fn main() {
     println!("\n=======================================================");
     println!("Initial Extract SuperState:");
 
-    let mut super_state = ExtractSuperState::<ValidateCikFormat, _>::new(
+    let mut super_state = ExtractSuperState::<ValidateCikFormat<_>, _>::new(
         "1067983",
         sec_client,
         execution_id,

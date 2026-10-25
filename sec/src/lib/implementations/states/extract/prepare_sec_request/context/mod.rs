@@ -4,9 +4,9 @@
 //! [`PrepareSecRequest`](crate::implementations::states::extract::prepare_sec_request::PrepareSecRequest)
 //! state, together with its updater and builder.
 //!
-//! The context holds the validated [`Cik`], the `execution_id` and the `User-Agent` of the run,
-//! and the retry budget. They persist across the state's lifetime, so they survive updates and
-//! transitions.
+//! The context holds the validated [`Cik`], the `execution_id`, the `User-Agent` and the storage
+//! repository of the run, and the retry budget. They persist across the state's lifetime, so
+//! they survive updates and transitions.
 //!
 //! ## Usage
 //!
@@ -20,7 +20,15 @@
 //! # use uuid::Uuid;
 //! # let user_agent = UserAgent::new("Sample Company contact@example.com")
 //! #     .expect("A hardcoded SEC-format user agent should always validate");
-//! let mut context = PrepareSecRequestContext::new(cik, Uuid::new_v4(), user_agent);
+//! # use sec::shared::raw_document::RawDocument;
+//! # use sec::shared::raw_source::RawCompanyFacts;
+//! # use storage::implementations::repository::filesystem::FilesystemRepository;
+//! # let repository = FilesystemRepository::builder()
+//! #     .writer()
+//! #     .document_type::<RawDocument<RawCompanyFacts>>()
+//! #     .root("data")
+//! #     .build();
+//! let mut context = PrepareSecRequestContext::new(cik, Uuid::new_v4(), user_agent, repository);
 //! let update = PrepareSecRequestContextUpdater::builder()
 //!     .max_retries(5)
 //!     .build();
@@ -44,6 +52,7 @@ use serde::Serialize;
 use state_maschine::prelude::Context as SMContext;
 use uuid::Uuid;
 
+use crate::implementations::states::extract::store_company_facts::RawCompanyFactsRepository;
 use crate::shared::cik::Cik;
 use crate::shared::user_agent::UserAgent;
 use crate::traits::state_machine::state::Context;
@@ -51,27 +60,31 @@ use crate::traits::state_machine::state::Context;
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
 /// Context for the [`PrepareSecRequest`](super::PrepareSecRequest) state.
 ///
-/// Holds the validated [`Cik`] the request targets, the `execution_id` and the `User-Agent` of
-/// the run, and the retry budget. All of them persist across updates and transitions.
-pub struct PrepareSecRequestContext {
+/// Holds the validated [`Cik`] the request targets, the `execution_id`, the `User-Agent` and the
+/// storage repository of the run, and the retry budget. All of them persist across updates and
+/// transitions.
+pub struct PrepareSecRequestContext<R> {
     /// The validated CIK the prepared request targets.
     pub cik: Cik,
     /// The `execution_id` of the run.
     pub execution_id: Uuid,
     /// The `User-Agent` that the run sends to the SEC.
     pub user_agent: UserAgent,
+    /// The storage repository of the run.
+    pub repository: R,
     /// Maximum number of times the state may be retried on failure.
     pub max_retries: u32,
 }
 
-impl PrepareSecRequestContext {
+impl<R> PrepareSecRequestContext<R> {
     /// Creates a new [`PrepareSecRequestContext`] from a validated CIK, with the retry budget at zero.
     #[must_use]
-    pub const fn new(cik: Cik, execution_id: Uuid, user_agent: UserAgent) -> Self {
+    pub const fn new(cik: Cik, execution_id: Uuid, user_agent: UserAgent, repository: R) -> Self {
         Self {
             cik,
             execution_id,
             user_agent,
+            repository,
             max_retries: 0,
         }
     }
@@ -87,17 +100,23 @@ impl PrepareSecRequestContext {
     pub const fn user_agent(&self) -> &UserAgent {
         &self.user_agent
     }
+
+    /// Returns a reference to the storage repository of the run.
+    #[must_use]
+    pub const fn repository(&self) -> &R {
+        &self.repository
+    }
 }
 
-impl Context for PrepareSecRequestContext {
+impl<R: RawCompanyFactsRepository> Context for PrepareSecRequestContext<R> {
     /// Returns the maximum number of retries allowed for the SEC request.
     fn max_retries(&self) -> u32 {
         self.max_retries
     }
 }
 
-impl SMContext for PrepareSecRequestContext {
-    type UpdateType = PrepareSecRequestContextUpdater;
+impl<R: RawCompanyFactsRepository> SMContext for PrepareSecRequestContext<R> {
+    type UpdateType = PrepareSecRequestContextUpdater<R>;
 
     /// Returns a reference to the current context.
     fn context(&self) -> &Self {
@@ -114,6 +133,9 @@ impl SMContext for PrepareSecRequestContext {
         if let Some(user_agent) = updates.user_agent {
             self.user_agent = user_agent;
         }
+        if let Some(repository) = updates.repository {
+            self.repository = repository;
+        }
         if let Some(max_retries) = updates.max_retries {
             self.max_retries = max_retries;
         }
@@ -124,7 +146,7 @@ impl SMContext for PrepareSecRequestContext {
     }
 }
 
-impl fmt::Display for PrepareSecRequestContext {
+impl<R> fmt::Display for PrepareSecRequestContext<R> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
@@ -138,33 +160,36 @@ impl fmt::Display for PrepareSecRequestContext {
 /// Updater for modifying [`PrepareSecRequestContext`].
 ///
 /// Fields set to `None` are left unchanged when the updater is applied.
-pub struct PrepareSecRequestContextUpdater {
+pub struct PrepareSecRequestContextUpdater<R> {
     /// Optional new value for the validated CIK.
     pub cik: Option<Cik>,
     /// Optional new value for the `execution_id`.
     pub execution_id: Option<Uuid>,
     /// Optional new value for the `User-Agent`.
     pub user_agent: Option<UserAgent>,
+    /// Optional new value for the storage repository.
+    pub repository: Option<R>,
     /// Optional new value for the retry budget.
     pub max_retries: Option<u32>,
 }
 
-impl PrepareSecRequestContextUpdater {
+impl<R> PrepareSecRequestContextUpdater<R> {
     /// Creates a new builder for constructing [`PrepareSecRequestContextUpdater`] instances.
     #[must_use]
-    pub const fn builder() -> PrepareSecRequestContextUpdaterBuilder {
+    pub const fn builder() -> PrepareSecRequestContextUpdaterBuilder<R> {
         PrepareSecRequestContextUpdaterBuilder::new()
     }
 }
 
 /// Fluent builder for a [`PrepareSecRequestContextUpdater`].
-pub struct PrepareSecRequestContextUpdaterBuilder {
+pub struct PrepareSecRequestContextUpdaterBuilder<R> {
     cik: Option<Cik>,
     execution_id: Option<Uuid>,
     user_agent: Option<UserAgent>,
+    repository: Option<R>,
     max_retries: Option<u32>,
 }
-impl PrepareSecRequestContextUpdaterBuilder {
+impl<R> PrepareSecRequestContextUpdaterBuilder<R> {
     /// Creates a new [`PrepareSecRequestContextUpdaterBuilder`] with all fields initialized to `None`.
     #[must_use]
     pub const fn new() -> Self {
@@ -172,6 +197,7 @@ impl PrepareSecRequestContextUpdaterBuilder {
             cik: None,
             execution_id: None,
             user_agent: None,
+            repository: None,
             max_retries: None,
         }
     }
@@ -205,19 +231,27 @@ impl PrepareSecRequestContextUpdaterBuilder {
         self
     }
 
+    /// Sets the storage repository field.
+    #[must_use]
+    pub fn repository(mut self, repository: R) -> Self {
+        self.repository = Some(repository);
+        self
+    }
+
     /// Builds the [`PrepareSecRequestContextUpdater`] with the specified fields.
     #[must_use]
-    pub fn build(self) -> PrepareSecRequestContextUpdater {
+    pub fn build(self) -> PrepareSecRequestContextUpdater<R> {
         PrepareSecRequestContextUpdater {
             cik: self.cik,
             execution_id: self.execution_id,
             user_agent: self.user_agent,
+            repository: self.repository,
             max_retries: self.max_retries,
         }
     }
 }
 
-impl Default for PrepareSecRequestContextUpdaterBuilder {
+impl<R> Default for PrepareSecRequestContextUpdaterBuilder<R> {
     /// Returns a new [`PrepareSecRequestContextUpdaterBuilder`] with all fields initialized to `None`.
     fn default() -> Self {
         Self::new()
@@ -230,6 +264,7 @@ mod tests {
 
     use pretty_assertions::{assert_eq, assert_ne};
     use state_maschine::prelude::*;
+    use storage::WriteError;
     use uuid::Uuid;
 
     use super::{
@@ -240,11 +275,17 @@ mod tests {
     use crate::shared::cik::constants::BERKSHIRE_HATHAWAY_CIK_RAW;
     use crate::shared::user_agent::UserAgent;
     use crate::tests::fixtures::sample_run::{SAMPLE_EXECUTION_ID, sample_user_agent};
+    use crate::tests::fixtures::sample_write_repository::FakeWriteRepository;
 
-    fn create_test_context() -> PrepareSecRequestContext {
+    fn create_test_context() -> PrepareSecRequestContext<FakeWriteRepository> {
         let cik =
             Cik::new(BERKSHIRE_HATHAWAY_CIK_RAW).expect("Hardcoded CIK should always be valid");
-        PrepareSecRequestContext::new(cik, SAMPLE_EXECUTION_ID, sample_user_agent())
+        PrepareSecRequestContext::new(
+            cik,
+            SAMPLE_EXECUTION_ID,
+            sample_user_agent(),
+            FakeWriteRepository::new(),
+        )
     }
 
     #[test]
@@ -260,6 +301,7 @@ mod tests {
             cik,
             execution_id: SAMPLE_EXECUTION_ID,
             user_agent: sample_user_agent(),
+            repository: FakeWriteRepository::new(),
             max_retries: 5,
         };
 
@@ -283,6 +325,7 @@ mod tests {
             cik,
             execution_id: SAMPLE_EXECUTION_ID,
             user_agent: sample_user_agent(),
+            repository: FakeWriteRepository::new(),
             max_retries: 10,
         };
 
@@ -323,7 +366,7 @@ mod tests {
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
     #[test]
     const fn should_implement_auto_traits_for_prepare_sec_request_context() {
-        implements_auto_traits::<PrepareSecRequestContext>();
+        implements_auto_traits::<PrepareSecRequestContext<FakeWriteRepository>>();
     }
 
     const fn implements_send<T: Send>() {}
@@ -331,72 +374,72 @@ mod tests {
 
     #[test]
     const fn should_implement_send_for_prepare_sec_request_context() {
-        implements_send::<PrepareSecRequestContext>();
+        implements_send::<PrepareSecRequestContext<FakeWriteRepository>>();
     }
 
     #[test]
     const fn should_implement_sync_for_prepare_sec_request_context() {
-        implements_sync::<PrepareSecRequestContext>();
+        implements_sync::<PrepareSecRequestContext<FakeWriteRepository>>();
     }
 
     #[test]
     const fn should_be_thread_safe_for_prepare_sec_request_context() {
-        implements_send::<PrepareSecRequestContext>();
-        implements_sync::<PrepareSecRequestContext>();
+        implements_send::<PrepareSecRequestContext<FakeWriteRepository>>();
+        implements_sync::<PrepareSecRequestContext<FakeWriteRepository>>();
     }
 
     const fn implements_sized<T: Sized>() {}
     #[test]
     const fn should_be_sized_for_prepare_sec_request_context() {
-        implements_sized::<PrepareSecRequestContext>();
+        implements_sized::<PrepareSecRequestContext<FakeWriteRepository>>();
     }
 
     const fn implements_hash<T: Hash>() {}
     #[test]
     const fn should_implement_hash_for_prepare_sec_request_context() {
-        implements_hash::<PrepareSecRequestContext>();
+        implements_hash::<PrepareSecRequestContext<FakeWriteRepository>>();
     }
 
     const fn implements_partial_eq<T: PartialEq>() {}
     #[test]
     const fn should_implement_partial_eq_for_prepare_sec_request_context() {
-        implements_partial_eq::<PrepareSecRequestContext>();
+        implements_partial_eq::<PrepareSecRequestContext<FakeWriteRepository>>();
     }
 
     const fn implements_eq<T: Eq>() {}
     #[test]
     const fn should_implement_eq_for_prepare_sec_request_context() {
-        implements_eq::<PrepareSecRequestContext>();
+        implements_eq::<PrepareSecRequestContext<FakeWriteRepository>>();
     }
 
     const fn implements_partial_ord<T: PartialOrd>() {}
     #[test]
     const fn should_implement_partial_ord_for_prepare_sec_request_context() {
-        implements_partial_ord::<PrepareSecRequestContext>();
+        implements_partial_ord::<PrepareSecRequestContext<FakeWriteRepository>>();
     }
 
     const fn implements_ord<T: Ord>() {}
     #[test]
     const fn should_implement_ord_for_prepare_sec_request_context() {
-        implements_ord::<PrepareSecRequestContext>();
+        implements_ord::<PrepareSecRequestContext<FakeWriteRepository>>();
     }
 
     const fn implements_debug<T: Debug>() {}
     #[test]
     const fn should_implement_debug_for_prepare_sec_request_context() {
-        implements_debug::<PrepareSecRequestContext>();
+        implements_debug::<PrepareSecRequestContext<FakeWriteRepository>>();
     }
 
     const fn implements_clone<T: Clone>() {}
     #[test]
     const fn should_implement_clone_for_prepare_sec_request_context() {
-        implements_clone::<PrepareSecRequestContext>();
+        implements_clone::<PrepareSecRequestContext<FakeWriteRepository>>();
     }
 
     const fn implements_unpin<T: Unpin>() {}
     #[test]
     const fn should_implement_unpin_for_prepare_sec_request_context() {
-        implements_unpin::<PrepareSecRequestContext>();
+        implements_unpin::<PrepareSecRequestContext<FakeWriteRepository>>();
     }
 
     #[test]
@@ -450,6 +493,35 @@ mod tests {
 
         context.update_context(update);
         let result = context.user_agent();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_repository_when_accessing_repository_of_prepare_sec_request_context() {
+        let context = create_test_context();
+
+        let expected_result = &FakeWriteRepository::new();
+
+        let result = context.repository();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_update_repository_when_updater_contains_repository_for_prepare_sec_request_context() {
+        let mut context = create_test_context();
+        let update = PrepareSecRequestContextUpdater::builder()
+            .repository(FakeWriteRepository::rejecting(
+                WriteError::conflicting_write("Sample conflict"),
+            ))
+            .build();
+
+        let expected_result =
+            &FakeWriteRepository::rejecting(WriteError::conflicting_write("Sample conflict"));
+
+        context.update_context(update);
+        let result = context.repository();
 
         assert_eq!(result, expected_result);
     }

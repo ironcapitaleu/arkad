@@ -21,10 +21,10 @@ use crate::implementations::states::extract::prepare_sec_request::{
 use crate::implementations::states::extract::validate_cik_format::ValidateCikFormat;
 use crate::implementations::states::extract::validate_cik_format::constants::STATE_NAME as VALIDATE_CIK_FORMAT;
 
-impl TryFrom<ValidateCikFormat> for PrepareSecRequest {
+impl<R> TryFrom<ValidateCikFormat<R>> for PrepareSecRequest<R> {
     type Error = TransitionError;
 
-    fn try_from(state: ValidateCikFormat) -> Result<Self, TransitionError> {
+    fn try_from(state: ValidateCikFormat<R>) -> Result<Self, TransitionError> {
         let (_input, output, context) = state.into_parts();
         let output_data = output.ok_or_else(|| {
             transition::MissingOutput::new(VALIDATE_CIK_FORMAT, PREPARE_SEC_REQUEST)
@@ -34,6 +34,7 @@ impl TryFrom<ValidateCikFormat> for PrepareSecRequest {
             output_data.validated_cik.clone(),
             context.execution_id,
             context.user_agent,
+            context.repository,
         );
         let new_input = PrepareSecRequestInput::new(output_data.validated_cik, context.sec_client);
 
@@ -45,6 +46,7 @@ impl TryFrom<ValidateCikFormat> for PrepareSecRequest {
 mod tests {
     use pretty_assertions::assert_eq;
     use state_maschine::prelude::State as SMState;
+    use storage::WriteError;
     use uuid::Uuid;
 
     use super::*;
@@ -56,6 +58,7 @@ mod tests {
     use crate::shared::http_client::implementations::sec_client::SecClient;
     use crate::shared::user_agent::UserAgent;
     use crate::tests::fixtures::sample_run::{SAMPLE_EXECUTION_ID, sample_user_agent};
+    use crate::tests::fixtures::sample_write_repository::FakeWriteRepository;
     use crate::traits::state_machine::state::State;
 
     #[tokio::test]
@@ -70,6 +73,7 @@ mod tests {
             sec_client.clone(),
             SAMPLE_EXECUTION_ID,
             sample_user_agent(),
+            FakeWriteRepository::new(),
         );
         let mut state = ValidateCikFormat::new(input, context);
         state
@@ -83,6 +87,7 @@ mod tests {
             expected_cik.clone(),
             SAMPLE_EXECUTION_ID,
             sample_user_agent(),
+            FakeWriteRepository::new(),
         );
         let expected_input = PrepareSecRequestInput::new(expected_cik, sec_client);
         let expected_result = PrepareSecRequest::new(expected_input, expected_context);
@@ -102,6 +107,7 @@ mod tests {
             sec_client,
             SAMPLE_EXECUTION_ID,
             sample_user_agent(),
+            FakeWriteRepository::new(),
         );
         let state = ValidateCikFormat::new(input, context);
 
@@ -115,13 +121,15 @@ mod tests {
     async fn computed_validate_cik_format(
         execution_id: Uuid,
         user_agent: UserAgent,
-    ) -> ValidateCikFormat {
+        repository: FakeWriteRepository,
+    ) -> ValidateCikFormat<FakeWriteRepository> {
         let input = ValidateCikFormatInput::new(BERKSHIRE_HATHAWAY_CIK_RAW);
         let context = ValidateCikFormatContext::new(
             BERKSHIRE_HATHAWAY_CIK_RAW,
             SecClient::default(),
             execution_id,
             user_agent,
+            repository,
         );
         let mut state = ValidateCikFormat::new(input, context);
         state
@@ -133,7 +141,12 @@ mod tests {
 
     #[tokio::test]
     async fn should_carry_execution_id_when_validate_cik_format_has_output() {
-        let state = computed_validate_cik_format(Uuid::from_u128(42), sample_user_agent()).await;
+        let state = computed_validate_cik_format(
+            Uuid::from_u128(42),
+            sample_user_agent(),
+            FakeWriteRepository::new(),
+        )
+        .await;
 
         let expected_result = Uuid::from_u128(42);
 
@@ -149,8 +162,12 @@ mod tests {
     async fn should_carry_user_agent_when_validate_cik_format_has_output() {
         let other_user_agent = UserAgent::new("Other Company other@example.com")
             .expect("Given a hardcoded SEC-format user agent, validation should always succeed");
-        let state =
-            computed_validate_cik_format(SAMPLE_EXECUTION_ID, other_user_agent.clone()).await;
+        let state = computed_validate_cik_format(
+            SAMPLE_EXECUTION_ID,
+            other_user_agent.clone(),
+            FakeWriteRepository::new(),
+        )
+        .await;
 
         let expected_result = other_user_agent;
 
@@ -158,6 +175,27 @@ mod tests {
             .expect("Given a state with output, the transition should always succeed")
             .context_data()
             .user_agent()
+            .clone();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_carry_repository_when_validate_cik_format_has_output() {
+        let state = computed_validate_cik_format(
+            SAMPLE_EXECUTION_ID,
+            sample_user_agent(),
+            FakeWriteRepository::rejecting(WriteError::conflicting_write("Sample conflict")),
+        )
+        .await;
+
+        let expected_result =
+            FakeWriteRepository::rejecting(WriteError::conflicting_write("Sample conflict"));
+
+        let result = PrepareSecRequest::try_from(state)
+            .expect("Given a state with output, the transition should always succeed")
+            .context_data()
+            .repository()
             .clone();
 
         assert_eq!(result, expected_result);

@@ -30,7 +30,15 @@
 //! # use uuid::Uuid;
 //! # let user_agent = UserAgent::new("Sample Company contact@example.com")
 //! #     .expect("A hardcoded SEC-format user agent should always validate");
-//! let context = PrepareSecRequestContext::new(cik, Uuid::new_v4(), user_agent);
+//! # use sec::shared::raw_document::RawDocument;
+//! # use sec::shared::raw_source::RawCompanyFacts;
+//! # use storage::implementations::repository::filesystem::FilesystemRepository;
+//! # let repository = FilesystemRepository::builder()
+//! #     .writer()
+//! #     .document_type::<RawDocument<RawCompanyFacts>>()
+//! #     .root("data")
+//! #     .build();
+//! let context = PrepareSecRequestContext::new(cik, Uuid::new_v4(), user_agent, repository);
 //! let mut state = PrepareSecRequest::new(input, context);
 //! state
 //!     .compute_output_data_async()
@@ -58,6 +66,7 @@ use serde::Serialize;
 use state_maschine::prelude::State as SMState;
 
 use crate::error::State as StateError;
+use crate::implementations::states::extract::store_company_facts::RawCompanyFactsRepository;
 use crate::shared::request::implementations::sec_request::SecRequest;
 use crate::traits::state_machine::state::State;
 
@@ -76,13 +85,13 @@ pub use data::PrepareSecRequestOutput;
 /// assembles a company-facts request targeting the matching SEC endpoint. The work is purely
 /// local: no network call is made here.
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
-pub struct PrepareSecRequest {
+pub struct PrepareSecRequest<R> {
     input: PrepareSecRequestInput,
-    context: PrepareSecRequestContext,
+    context: PrepareSecRequestContext<R>,
     output: Option<PrepareSecRequestOutput>,
 }
 
-impl PrepareSecRequest {
+impl<R> PrepareSecRequest<R> {
     /// Creates a new [`PrepareSecRequest`] state from its input and context, with no output computed yet.
     ///
     /// # Examples
@@ -99,7 +108,15 @@ impl PrepareSecRequest {
     /// # use uuid::Uuid;
     /// # let user_agent = UserAgent::new("Sample Company contact@example.com")
     /// #     .expect("A hardcoded SEC-format user agent should always validate");
-    /// let context = PrepareSecRequestContext::new(cik, Uuid::new_v4(), user_agent);
+    /// # use sec::shared::raw_document::RawDocument;
+    /// # use sec::shared::raw_source::RawCompanyFacts;
+    /// # use storage::implementations::repository::filesystem::FilesystemRepository;
+    /// # let repository = FilesystemRepository::builder()
+    /// #     .writer()
+    /// #     .document_type::<RawDocument<RawCompanyFacts>>()
+    /// #     .root("data")
+    /// #     .build();
+    /// let context = PrepareSecRequestContext::new(cik, Uuid::new_v4(), user_agent, repository);
     /// let state = PrepareSecRequest::new(input, context);
     ///
     /// let expected_result = false;
@@ -109,7 +126,7 @@ impl PrepareSecRequest {
     /// assert_eq!(result, expected_result);
     /// ```
     #[must_use]
-    pub const fn new(input: PrepareSecRequestInput, context: PrepareSecRequestContext) -> Self {
+    pub const fn new(input: PrepareSecRequestInput, context: PrepareSecRequestContext<R>) -> Self {
         Self {
             input,
             context,
@@ -124,14 +141,14 @@ impl PrepareSecRequest {
     ) -> (
         PrepareSecRequestInput,
         Option<PrepareSecRequestOutput>,
-        PrepareSecRequestContext,
+        PrepareSecRequestContext<R>,
     ) {
         (self.input, self.output, self.context)
     }
 }
 
 #[async_trait]
-impl State for PrepareSecRequest {
+impl<R: RawCompanyFactsRepository> State for PrepareSecRequest<R> {
     /// Builds the company-facts [`SecRequest`] for the input CIK and stores it as output.
     ///
     /// # Errors
@@ -150,10 +167,10 @@ impl State for PrepareSecRequest {
     }
 }
 
-impl SMState for PrepareSecRequest {
+impl<R: RawCompanyFactsRepository> SMState for PrepareSecRequest<R> {
     type InputData = PrepareSecRequestInput;
     type OutputData = PrepareSecRequestOutput;
-    type Context = PrepareSecRequestContext;
+    type Context = PrepareSecRequestContext<R>;
 
     /// Returns the human-readable name of this state.
     fn state_name(&self) -> impl ToString {
@@ -198,7 +215,7 @@ impl SMState for PrepareSecRequest {
     }
 }
 
-impl fmt::Display for PrepareSecRequest {
+impl<R: RawCompanyFactsRepository> fmt::Display for PrepareSecRequest<R> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
@@ -230,6 +247,7 @@ mod tests {
     use crate::shared::cik::constants::BERKSHIRE_HATHAWAY_CIK_RAW;
     use crate::shared::http_client::implementations::sec_client::SecClient;
     use crate::tests::fixtures::sample_run::{SAMPLE_EXECUTION_ID, sample_user_agent};
+    use crate::tests::fixtures::sample_write_repository::FakeWriteRepository;
     use crate::traits::state_machine::state::State;
 
     fn create_test_cik() -> Cik {
@@ -241,11 +259,16 @@ mod tests {
         PrepareSecRequestInput::new(create_test_cik(), sec_client)
     }
 
-    fn create_test_context() -> PrepareSecRequestContext {
-        PrepareSecRequestContext::new(create_test_cik(), SAMPLE_EXECUTION_ID, sample_user_agent())
+    fn create_test_context() -> PrepareSecRequestContext<FakeWriteRepository> {
+        PrepareSecRequestContext::new(
+            create_test_cik(),
+            SAMPLE_EXECUTION_ID,
+            sample_user_agent(),
+            FakeWriteRepository::new(),
+        )
     }
 
-    fn create_test_state() -> PrepareSecRequest {
+    fn create_test_state() -> PrepareSecRequest<FakeWriteRepository> {
         PrepareSecRequest::new(create_test_input(), create_test_context())
     }
 
@@ -313,7 +336,7 @@ mod tests {
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
     #[test]
     const fn should_implement_auto_traits_for_prepare_sec_request() {
-        implements_auto_traits::<PrepareSecRequest>();
+        implements_auto_traits::<PrepareSecRequest<FakeWriteRepository>>();
     }
 
     const fn implements_send<T: Send>() {}
@@ -321,72 +344,72 @@ mod tests {
 
     #[test]
     const fn should_implement_send_for_prepare_sec_request() {
-        implements_send::<PrepareSecRequest>();
+        implements_send::<PrepareSecRequest<FakeWriteRepository>>();
     }
 
     #[test]
     const fn should_implement_sync_for_prepare_sec_request() {
-        implements_sync::<PrepareSecRequest>();
+        implements_sync::<PrepareSecRequest<FakeWriteRepository>>();
     }
 
     #[test]
     const fn should_be_thread_safe_for_prepare_sec_request() {
-        implements_send::<PrepareSecRequest>();
-        implements_sync::<PrepareSecRequest>();
+        implements_send::<PrepareSecRequest<FakeWriteRepository>>();
+        implements_sync::<PrepareSecRequest<FakeWriteRepository>>();
     }
 
     const fn implements_sized<T: Sized>() {}
     #[test]
     const fn should_be_sized_for_prepare_sec_request() {
-        implements_sized::<PrepareSecRequest>();
+        implements_sized::<PrepareSecRequest<FakeWriteRepository>>();
     }
 
     const fn implements_hash<T: Hash>() {}
     #[test]
     const fn should_implement_hash_for_prepare_sec_request() {
-        implements_hash::<PrepareSecRequest>();
+        implements_hash::<PrepareSecRequest<FakeWriteRepository>>();
     }
 
     const fn implements_partial_eq<T: PartialEq>() {}
     #[test]
     const fn should_implement_partial_eq_for_prepare_sec_request() {
-        implements_partial_eq::<PrepareSecRequest>();
+        implements_partial_eq::<PrepareSecRequest<FakeWriteRepository>>();
     }
 
     const fn implements_eq<T: Eq>() {}
     #[test]
     const fn should_implement_eq_for_prepare_sec_request() {
-        implements_eq::<PrepareSecRequest>();
+        implements_eq::<PrepareSecRequest<FakeWriteRepository>>();
     }
 
     const fn implements_partial_ord<T: PartialOrd>() {}
     #[test]
     const fn should_implement_partial_ord_for_prepare_sec_request() {
-        implements_partial_ord::<PrepareSecRequest>();
+        implements_partial_ord::<PrepareSecRequest<FakeWriteRepository>>();
     }
 
     const fn implements_ord<T: Ord>() {}
     #[test]
     const fn should_implement_ord_for_prepare_sec_request() {
-        implements_ord::<PrepareSecRequest>();
+        implements_ord::<PrepareSecRequest<FakeWriteRepository>>();
     }
 
     const fn implements_debug<T: Debug>() {}
     #[test]
     const fn should_implement_debug_for_prepare_sec_request() {
-        implements_debug::<PrepareSecRequest>();
+        implements_debug::<PrepareSecRequest<FakeWriteRepository>>();
     }
 
     const fn implements_clone<T: Clone>() {}
     #[test]
     const fn should_implement_clone_for_prepare_sec_request() {
-        implements_clone::<PrepareSecRequest>();
+        implements_clone::<PrepareSecRequest<FakeWriteRepository>>();
     }
 
     const fn implements_unpin<T: Unpin>() {}
     #[test]
     const fn should_implement_unpin_for_prepare_sec_request() {
-        implements_unpin::<PrepareSecRequest>();
+        implements_unpin::<PrepareSecRequest<FakeWriteRepository>>();
     }
 
     #[test]
