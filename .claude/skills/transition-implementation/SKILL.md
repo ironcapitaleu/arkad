@@ -154,13 +154,11 @@ fn transition_to_next_state(self) -> Result<Self::NewStateMachine, &'static str>
 
 // For complex transitions (type conversions, validation)
 fn transition_to_next_state(self) -> Result<Self::NewStateMachine, TransitionError> {
-    let output = source_output.ok_or(TransitionError::MissingOutput {
-        state: "SourceState".to_string(),
+    let output = source_output
+        .ok_or_else(|| transition::MissingOutput::new("SourceState", "TargetState"))?;
+    let mapped_field = TryFrom::try_from(output.field).map_err(|e| {
+        transition::FailedOutputConversion::new("SourceState", "TargetState", e.to_string())
     })?;
-    let mapped_field = TryFrom::try_from(output.field)
-        .map_err(|e| TransitionError::FailedOutputConversion {
-            reason: e.to_string(),
-        })?;
     // ...
 }
 ```

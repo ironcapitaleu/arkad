@@ -232,7 +232,11 @@ mod tests {
      {
         let _result: Transition = ErrorKind::StateMachine(StateMachine::Transition(
             Transition::FailedOutputConversion(
-                crate::error::state_machine::transition::FailedOutputConversion::new("A", "B"),
+                crate::error::state_machine::transition::FailedOutputConversion::new(
+                    "A",
+                    "B",
+                    "Sample reason",
+                ),
             ),
         ))
         .try_into()

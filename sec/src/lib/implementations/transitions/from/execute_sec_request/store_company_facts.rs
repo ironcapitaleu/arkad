@@ -6,7 +6,7 @@
 //! It moves the response from the output of the source state, the requested URL from its
 //! [`SecRequest`], the `User-Agent` from its [`SecClient`], and the CIK and the storage repository
 //! from its context. The `execution_id` belongs to the state machine run, not to the source state,
-//! so it comes from the state machine context.
+//! so the caller passes the one from the state machine context.
 //!
 //! # Errors
 //!
@@ -55,9 +55,15 @@ impl<R> TryFrom<(ExecuteSecRequest<R>, Uuid)> for StoreCompanyFacts<R> {
             .cik(context.cik.clone())
             .build();
         if input.sec_request != context_request {
+            let reason = format!(
+                "The request targets '{}', but the context names CIK '{}'",
+                input.sec_request.inner.url(),
+                context.cik
+            );
             return Err(transition::FailedContextConversion::new(
                 EXECUTE_SEC_REQUEST,
                 STORE_COMPANY_FACTS,
+                reason,
             )
             .into());
         }
@@ -225,7 +231,11 @@ mod tests {
             .with_output(ExecuteSecRequestOutput::new(sample_response()));
 
         let expected_result = TransitionError::FailedContextConversion(
-            transition::FailedContextConversion::new(EXECUTE_SEC_REQUEST, STORE_COMPANY_FACTS),
+            transition::FailedContextConversion::new(
+                EXECUTE_SEC_REQUEST,
+                STORE_COMPANY_FACTS,
+                "The request targets 'https://data.sec.gov/api/xbrl/companyfacts/CIK0000320193.json', but the context names CIK '0001067983'",
+            ),
         );
 
         let result = StoreCompanyFacts::try_from((state, SAMPLE_EXECUTION_ID))

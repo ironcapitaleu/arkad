@@ -208,7 +208,7 @@ mod tests {
     #[test]
     fn should_be_able_to_create_transition_error_when_casting_from_specific_state_machine() {
         let _result: Transition = StateMachine::Transition(Transition::FailedContextConversion(
-            transition::FailedContextConversion::new("StateA", "StateB"),
+            transition::FailedContextConversion::new("StateA", "StateB", "Sample reason"),
         ))
         .try_into()
         .expect("Should always be able to cast provided hardcoded `StateMachine` error into `Transition` error");
@@ -235,7 +235,9 @@ mod tests {
     #[test]
     fn should_be_able_to_cast_into_equivalent_state_machine_error_when_having_a_transition_error() {
         let error = Transition::FailedOutputConversion(transition::FailedOutputConversion::new(
-            "StateA", "StateB",
+            "StateA",
+            "StateB",
+            "Sample reason",
         ));
 
         let expected_result = StateMachine::Transition(error.clone());
@@ -249,11 +251,11 @@ mod tests {
     #[should_panic(expected = "left == right")]
     fn should_be_failing_when_trying_to_compare_casting_result_from_different_enum_variant() {
         let expected_result = StateMachine::Transition(Transition::FailedOutputConversion(
-            transition::FailedOutputConversion::new("StateA", "StateB"),
+            transition::FailedOutputConversion::new("StateA", "StateB", "Sample reason"),
         ));
 
         let result: StateMachine = Transition::FailedContextConversion(
-            transition::FailedContextConversion::new("StateX", "StateY"),
+            transition::FailedContextConversion::new("StateX", "StateY", "Sample reason"),
         )
         .into();
 
