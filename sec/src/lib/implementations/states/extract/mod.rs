@@ -333,7 +333,7 @@ impl<R: RawCompanyFactsRepository> ExtractSuperState<ExecuteSecRequest, R> {
 impl<R: RawCompanyFactsRepository> ExtractSuperState<StoreCompanyFacts<R>, R> {
     /// Creates the super-state positioned at the state that stores the Company Facts.
     ///
-    /// [`ExtractSuperState::into_run_stream`] tags the stream with `execution_id`.
+    /// The metadata of the stored document records `execution_id`.
     #[must_use]
     pub fn new(
         client: SecClient,
