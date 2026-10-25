@@ -1,56 +1,79 @@
 use super::Pipeline;
 
 use sec::shared::http_client::implementations::sec_client::SecClient;
+
+use crate::storage_root::RawCompanyFactsWriter;
 /// Marker type indicating no CIK has been provided yet.
 pub struct NoCik;
 /// Marker type indicating no [`SecClient`] has been provided yet.
 pub struct NoClient;
+/// Marker type indicating no storage repository has been provided yet.
+pub struct NoRepository;
 
 /// Typestate builder for constructing a [`Pipeline`].
 ///
 /// Uses a consuming typestate pattern to enforce at compile time
 /// that all required fields are provided before building.
-pub struct PipelineBuilder<C, S> {
+pub struct PipelineBuilder<C, S, R> {
     cik: C,
     sec_client: S,
+    repository: R,
 }
 
-impl PipelineBuilder<NoCik, NoClient> {
+impl PipelineBuilder<NoCik, NoClient, NoRepository> {
     /// Creates a new builder with no fields set.
     pub(super) const fn new() -> Self {
         Self {
             cik: NoCik,
             sec_client: NoClient,
+            repository: NoRepository,
         }
     }
 }
 
-impl<S> PipelineBuilder<NoCik, S> {
+impl<S, R> PipelineBuilder<NoCik, S, R> {
     /// Sets the CIK for the pipeline.
-    pub fn cik(self, cik: impl Into<String>) -> PipelineBuilder<String, S> {
+    pub fn cik(self, cik: impl Into<String>) -> PipelineBuilder<String, S, R> {
         PipelineBuilder {
             cik: cik.into(),
             sec_client: self.sec_client,
+            repository: self.repository,
         }
     }
 }
 
-impl<C> PipelineBuilder<C, NoClient> {
+impl<C, R> PipelineBuilder<C, NoClient, R> {
     /// Sets the shared HTTP client for the pipeline.
-    pub fn sec_client(self, sec_client: SecClient) -> PipelineBuilder<C, SecClient> {
+    pub fn sec_client(self, sec_client: SecClient) -> PipelineBuilder<C, SecClient, R> {
         PipelineBuilder {
             cik: self.cik,
             sec_client,
+            repository: self.repository,
         }
     }
 }
 
-impl PipelineBuilder<String, SecClient> {
+impl<C, S> PipelineBuilder<C, S, NoRepository> {
+    /// Sets the storage repository that stores the raw Company Facts.
+    pub fn repository(
+        self,
+        repository: RawCompanyFactsWriter,
+    ) -> PipelineBuilder<C, S, RawCompanyFactsWriter> {
+        PipelineBuilder {
+            cik: self.cik,
+            sec_client: self.sec_client,
+            repository,
+        }
+    }
+}
+
+impl PipelineBuilder<String, SecClient, RawCompanyFactsWriter> {
     /// Builds the [`Pipeline`] from the fully configured builder state.
     pub fn build(self) -> Pipeline {
         Pipeline {
             raw_cik: self.cik,
             sec_client: self.sec_client,
+            repository: self.repository,
         }
     }
 }

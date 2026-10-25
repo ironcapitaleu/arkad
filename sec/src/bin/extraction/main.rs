@@ -7,14 +7,24 @@ use sec::implementations::states::extract::prepare_sec_request::{
 };
 use sec::implementations::states::extract::validate_cik_format::ValidateCikFormat;
 use sec::shared::http_client::implementations::sec_client::SecClient;
+use uuid::Uuid;
 
 use sec::prelude::*;
+
+use storage_root::raw_company_facts_writer;
+
+// Each binary is its own crate root, so it cannot import another binary's modules. `#[path]`
+// compiles the one shared file into this binary as a private module, so all binaries build the
+// store the same way.
+#[path = "../shared/storage_root.rs"]
+mod storage_root;
 
 #[tokio::main]
 // Let this be here for testing purposes. Will be removed later.
 #[allow(clippy::too_many_lines)]
 async fn main() {
     let sec_client = SecClient::default();
+    let repository = raw_company_facts_writer();
 
     let input =
         sec::implementations::states::extract::validate_cik_format::ValidateCikFormatInput::new(
@@ -100,7 +110,12 @@ async fn main() {
     println!("\n=======================================================");
     println!("Initial Extract SuperState:");
 
-    let mut super_state = ExtractSuperState::<ValidateCikFormat>::new("1067983", sec_client);
+    let mut super_state = ExtractSuperState::<ValidateCikFormat, _>::new(
+        "1067983",
+        sec_client,
+        Uuid::new_v4(),
+        repository,
+    );
 
     super_state
         .compute_output_data_async()

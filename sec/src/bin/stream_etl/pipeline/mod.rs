@@ -12,7 +12,8 @@ use sec::prelude::*;
 use sec::shared::http_client::implementations::sec_client::SecClient;
 use uuid::Uuid;
 
-use builder::{NoCik, NoClient, PipelineBuilder};
+use crate::storage_root::RawCompanyFactsWriter;
+use builder::{NoCik, NoClient, NoRepository, PipelineBuilder};
 
 /// Events emitted by the pipeline runner (consumer-level, not part of the library).
 enum PipelineEvent {
@@ -36,18 +37,24 @@ impl Display for PipelineEvent {
 pub struct Pipeline {
     raw_cik: String,
     sec_client: SecClient,
+    repository: RawCompanyFactsWriter,
 }
 
 impl Pipeline {
-    pub const fn builder() -> PipelineBuilder<NoCik, NoClient> {
+    pub const fn builder() -> PipelineBuilder<NoCik, NoClient, NoRepository> {
         PipelineBuilder::new()
     }
 
     /// Creates a stream that drives the full ETL pipeline (Extract → Transform).
     #[must_use]
     pub fn into_stream(self, execution_id: Uuid) -> StateMachineStream {
-        let state = ExtractSuperState::<ValidateCikFormat>::new(self.raw_cik, self.sec_client);
-        state.into_stream(execution_id)
+        let state = ExtractSuperState::<ValidateCikFormat, _>::new(
+            self.raw_cik,
+            self.sec_client,
+            execution_id,
+            self.repository,
+        );
+        state.into_run_stream()
     }
 
     pub async fn run(self) -> Result<(), StreamError> {

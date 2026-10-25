@@ -1,4 +1,9 @@
 mod pipeline;
+// Each binary is its own crate root, so it cannot import another binary's modules. `#[path]`
+// compiles the one shared file into this binary as a private module, so all binaries build the
+// store the same way.
+#[path = "../shared/storage_root.rs"]
+mod storage_root;
 
 use std::error::Error;
 use std::fmt::{self, Display, Formatter};
@@ -8,6 +13,8 @@ use std::time::Instant;
 use pipeline::Pipeline;
 use sec::shared::http_client::implementations::sec_client::SecClient;
 use tracing_subscriber::fmt::format::FmtSpan;
+
+use storage_root::raw_company_facts_writer;
 
 use pipeline::constants::CIKS;
 
@@ -38,6 +45,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
         .init();
 
     let sec_client = SecClient::default();
+    let repository = raw_company_facts_writer();
     let start = Instant::now();
 
     // Concurrency is intentionally unbounded: the 10 req/s cap is enforced by a process-global
@@ -48,6 +56,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
         Pipeline::builder()
             .cik(cik)
             .sec_client(sec_client.clone())
+            .repository(repository.clone())
             .build()
             .run()
     });
