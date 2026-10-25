@@ -507,15 +507,11 @@ impl<R: RawCompanyFactsRepository> SMTransition<ExecuteSecRequest<R>, ParseCompa
     }
 }
 
-impl<R: RawCompanyFactsRepository> Transition<ExecuteSecRequest, StoreCompanyFacts<R>>
-    for ExtractSuperState<ExecuteSecRequest, R>
+impl<R: RawCompanyFactsRepository> Transition<ExecuteSecRequest<R>, StoreCompanyFacts<R>>
+    for ExtractSuperState<ExecuteSecRequest<R>, R>
 {
     fn transition_to_next_state_sec(self) -> Result<Self::NewStateMachine, TransitionError> {
-        let next_state = StoreCompanyFacts::try_from_execute_sec_request(
-            self.current_state,
-            self.context.execution_id,
-            self.context.repository.clone(),
-        )?;
+        let next_state = StoreCompanyFacts::try_from(self.current_state)?;
 
         Ok(ExtractSuperState::<StoreCompanyFacts<R>, R> {
             current_state: next_state,
@@ -526,8 +522,8 @@ impl<R: RawCompanyFactsRepository> Transition<ExecuteSecRequest, StoreCompanyFac
     }
 }
 
-impl<R: RawCompanyFactsRepository> SMTransition<ExecuteSecRequest, StoreCompanyFacts<R>>
-    for ExtractSuperState<ExecuteSecRequest, R>
+impl<R: RawCompanyFactsRepository> SMTransition<ExecuteSecRequest<R>, StoreCompanyFacts<R>>
+    for ExtractSuperState<ExecuteSecRequest<R>, R>
 {
     type NewStateMachine = ExtractSuperState<StoreCompanyFacts<R>, R>;
 
@@ -1014,10 +1010,11 @@ mod tests {
     async fn should_carry_execution_id_of_first_constructor_when_transitioning_to_store_company_facts()
      {
         let execution_id = Uuid::from_u128(7);
-        let mut super_state = ExtractSuperState::<ValidateCikFormat, _>::new(
+        let mut super_state = ExtractSuperState::<ValidateCikFormat<_>, _>::new(
             "1067983",
             SecClient::default(),
             execution_id,
+            sample_user_agent(),
             FakeWriteRepository::new(),
         );
         super_state
@@ -1042,11 +1039,14 @@ mod tests {
 
         let expected_result = execution_id;
 
-        let result = Transition::<ExecuteSecRequest, StoreCompanyFacts<FakeWriteRepository>>::transition_to_next_state_sec(super_state)
-            .expect("Given a request with output, the transition should always succeed")
-            .current_state()
-            .context_data()
-            .execution_id();
+        let result = Transition::<
+            ExecuteSecRequest<FakeWriteRepository>,
+            StoreCompanyFacts<FakeWriteRepository>,
+        >::transition_to_next_state_sec(super_state)
+        .expect("Given a request with output, the transition should always succeed")
+        .current_state()
+        .context_data()
+        .execution_id();
 
         assert_eq!(result, expected_result);
     }
@@ -1059,11 +1059,12 @@ mod tests {
             .all_company_facts()
             .cik(cik.clone())
             .build();
-        let super_state = ExtractSuperState::<ExecuteSecRequest, _>::new(
+        let super_state = ExtractSuperState::<ExecuteSecRequest<_>, _>::new(
             SecClient::default(),
             request,
             cik,
             Uuid::nil(),
+            sample_user_agent(),
             FakeWriteRepository::new(),
         );
 
@@ -1072,8 +1073,11 @@ mod tests {
             STORE_COMPANY_FACTS,
         ));
 
-        let result = Transition::<ExecuteSecRequest, StoreCompanyFacts<FakeWriteRepository>>::transition_to_next_state_sec(super_state)
-            .expect_err("Given a request without output, the transition should always fail");
+        let result = Transition::<
+            ExecuteSecRequest<FakeWriteRepository>,
+            StoreCompanyFacts<FakeWriteRepository>,
+        >::transition_to_next_state_sec(super_state)
+        .expect_err("Given a request without output, the transition should always fail");
 
         assert_eq!(result, expected_result);
     }
