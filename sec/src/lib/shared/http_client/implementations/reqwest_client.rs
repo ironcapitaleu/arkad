@@ -54,7 +54,7 @@ impl ReqwestClient {
     /// let user_agent = UserAgent::new("Sample Company contact@example.com")
     ///     .expect("A hardcoded SEC-format string should always validate");
     /// let client = ReqwestClient::new(user_agent.clone())
-    ///     .expect("Given a validated user agent, the client creation should always succeed");
+    ///     .expect("Given a validated user agent, building the HTTP client fails only if the TLS backend cannot initialize");
     ///
     /// let expected_result = &user_agent;
     ///
@@ -118,7 +118,7 @@ mod tests {
         let expected_result = user_agent.clone();
 
         let result = ReqwestClient::new(user_agent)
-            .expect("Given a validated user agent, the client creation should always succeed")
+            .expect("Given a validated user agent, building the HTTP client fails only if the TLS backend cannot initialize")
             .user_agent()
             .clone();
 
@@ -133,7 +133,7 @@ mod tests {
         let expected_result = user_agent.clone();
 
         let result = ReqwestClient::from_builder(Client::builder(), user_agent)
-            .expect("Given a validated user agent, the client creation should always succeed")
+            .expect("Given a validated user agent, building the HTTP client fails only if the TLS backend cannot initialize")
             .user_agent()
             .clone();
 

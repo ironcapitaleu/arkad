@@ -54,7 +54,7 @@ static GLOBAL_RATE_LIMITER: OnceLock<SecRateLimiter> = OnceLock::new();
 ///
 /// The [`ReqwestClient`] holds the [`UserAgent`] that every request carries.
 /// [`SecClient::user_agent`] returns it, so other code reads the `User-Agent` from the client
-/// that sends it.
+/// that sends it. Two clients are equal if they send the same `User-Agent`.
 #[derive(Debug, Clone)]
 pub struct SecClient {
     inner: ReqwestClient,
@@ -164,7 +164,7 @@ impl SecClientTrait for SecClient {
 
 #[cfg(test)]
 mod tests {
-    use pretty_assertions::{assert_eq, assert_ne};
+    use pretty_assertions::assert_eq;
 
     use super::SecClient;
     use crate::shared::http_client::implementations::reqwest_client::ReqwestClient;
@@ -174,7 +174,7 @@ mod tests {
         let user_agent = UserAgent::new("Other Company other@example.com")
             .expect("A hardcoded SEC-format string should always validate");
         let inner = ReqwestClient::new(user_agent)
-            .expect("Given a validated user agent, the client creation should always succeed");
+            .expect("Given a validated user agent, building the HTTP client fails only if the TLS backend cannot initialize");
         SecClient::new(inner)
     }
 
@@ -203,21 +203,23 @@ mod tests {
     #[test]
     fn should_not_be_equal_when_user_agents_differ() {
         let client = SecClient::default();
+        let other = sec_client_with_other_user_agent();
 
-        let expected_result = sec_client_with_other_user_agent();
+        let expected_result = false;
 
-        let result = client;
+        let result = client == other;
 
-        assert_ne!(result, expected_result);
+        assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_be_equal_when_user_agents_match() {
         let client = SecClient::default();
+        let other = SecClient::default();
 
-        let expected_result = SecClient::default();
+        let expected_result = true;
 
-        let result = client;
+        let result = client == other;
 
         assert_eq!(result, expected_result);
     }

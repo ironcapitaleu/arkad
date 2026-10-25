@@ -113,7 +113,7 @@ mod tests {
 
     fn sec_client_with_other_user_agent() -> SecClient {
         let inner = ReqwestClient::new(other_user_agent())
-            .expect("Given a validated user agent, the client creation should always succeed");
+            .expect("Given a validated user agent, building the HTTP client fails only if the TLS backend cannot initialize");
         SecClient::new(inner)
     }
 
