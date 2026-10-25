@@ -5,6 +5,13 @@ on:
     branches: 
       - main
       - master
+  pull_request:
+    branches:
+      - main
+    paths:
+      - Dockerfile
+      - .dockerignore
+      - .github/workflows/container_ci.yaml
 
 permissions:
   contents: read
@@ -44,6 +51,19 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build Image
+        run: docker build --load -t arkad-extract .
+
+      # The image must run as uid and gid 10001, and the `arkad` group must own gid 10001.
+      - name: Check Image User
+        run: |
+          expected="10001 10001 10001:10001 arkad"
+          result="$(docker run --rm --entrypoint sh arkad-extract -c 'echo "$(id -u) $(id -g) $(stat -c %u:%g /home/arkad) $(getent group 10001 | cut -d: -f1)"')"
+          if [ "$result" != "$expected" ]; then
+            echo "::error::Expected '$expected', got '$result'"
+            exit 1
+          fi
 
 #      - name: Build and Push Docker Image
 #        uses: docker/build-push-action@v6

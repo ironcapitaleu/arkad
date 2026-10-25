@@ -78,4 +78,6 @@ docker run --rm \
   arkad-extract
 ```
 
+On rootless Docker or Podman, leave out `--user`. Container root maps to the host user there.
+
 The build reads the commit from `.git`, so `.dockerignore` and `.gcloudignore` keep it in the build context.
