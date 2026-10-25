@@ -7,6 +7,8 @@ use sec::implementations::states::extract::prepare_sec_request::{
 };
 use sec::implementations::states::extract::validate_cik_format::ValidateCikFormat;
 use sec::shared::http_client::implementations::sec_client::SecClient;
+use sec::shared::user_agent::UserAgent;
+use sec::shared::user_agent::constants::DEFAULT_SEC_USER_AGENT;
 use uuid::Uuid;
 
 use sec::prelude::*;
@@ -24,6 +26,9 @@ mod storage_root;
 #[allow(clippy::too_many_lines)]
 async fn main() {
     let sec_client = SecClient::default();
+    let user_agent = UserAgent::new(DEFAULT_SEC_USER_AGENT)
+        .expect("The default SEC user agent constant should always be valid");
+    let execution_id = Uuid::new_v4();
     let repository = raw_company_facts_writer();
 
     let input =
@@ -34,6 +39,8 @@ async fn main() {
         sec::implementations::states::extract::validate_cik_format::ValidateCikFormatContext::new(
             "1067983",
             sec_client.clone(),
+            execution_id,
+            user_agent.clone(),
         );
     let mut validate_cik_state = ValidateCikFormat::new(input, context);
 
@@ -67,6 +74,8 @@ async fn main() {
                 .expect("Should be valid")
                 .validated_cik
                 .clone(),
+            execution_id,
+            user_agent.clone(),
         ),
     );
     println!("{:.500}", prepare_sec_request.to_string().as_str());
@@ -96,6 +105,8 @@ async fn main() {
                 .expect("Should be valid")
                 .validated_cik
                 .clone(),
+            execution_id,
+            user_agent.clone(),
         ),
     );
     println!("{:.500}", execute_sec_request.to_string().as_str());
@@ -113,7 +124,8 @@ async fn main() {
     let mut super_state = ExtractSuperState::<ValidateCikFormat, _>::new(
         "1067983",
         sec_client,
-        Uuid::new_v4(),
+        execution_id,
+        user_agent,
         repository,
     );
 

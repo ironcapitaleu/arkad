@@ -26,7 +26,11 @@
 //! # #[tokio::main]
 //! # async fn main() {
 //! let input = ValidateCikFormatInput::new("1234");
-//! let context = ValidateCikFormatContext::new("1234", SecClient::default());
+//! # use sec::shared::user_agent::UserAgent;
+//! # use uuid::Uuid;
+//! # let user_agent = UserAgent::new("Sample Company contact@example.com")
+//! #     .expect("A hardcoded SEC-format user agent should always validate");
+//! let context = ValidateCikFormatContext::new("1234", SecClient::default(), Uuid::new_v4(), user_agent);
 //! let mut state = ValidateCikFormat::new(input, context);
 //! state
 //!     .compute_output_data_async()
@@ -100,7 +104,11 @@ impl ValidateCikFormat {
     /// use state_maschine::prelude::State as SMState;
     ///
     /// let input = ValidateCikFormatInput::new("1234");
-    /// let context = ValidateCikFormatContext::new("1234", SecClient::default());
+    /// # use sec::shared::user_agent::UserAgent;
+    /// # use uuid::Uuid;
+    /// # let user_agent = UserAgent::new("Sample Company contact@example.com")
+    /// #     .expect("A hardcoded SEC-format user agent should always validate");
+    /// let context = ValidateCikFormatContext::new("1234", SecClient::default(), Uuid::new_v4(), user_agent);
     /// let state = ValidateCikFormat::new(input, context);
     ///
     /// let expected_result = false;
@@ -237,10 +245,16 @@ mod tests {
     use super::*;
     use crate::shared::cik::constants::BERKSHIRE_HATHAWAY_CIK_RAW;
     use crate::shared::http_client::implementations::sec_client::SecClient;
+    use crate::tests::fixtures::sample_run::{SAMPLE_EXECUTION_ID, sample_user_agent};
 
     fn test_context() -> ValidateCikFormatContext {
         let sec_client = SecClient::default();
-        ValidateCikFormatContext::new(BERKSHIRE_HATHAWAY_CIK_RAW, sec_client)
+        ValidateCikFormatContext::new(
+            BERKSHIRE_HATHAWAY_CIK_RAW,
+            sec_client,
+            SAMPLE_EXECUTION_ID,
+            sample_user_agent(),
+        )
     }
 
     fn test_input() -> ValidateCikFormatInput {

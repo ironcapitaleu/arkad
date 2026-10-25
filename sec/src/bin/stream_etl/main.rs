@@ -12,6 +12,8 @@ use std::time::Instant;
 
 use pipeline::Pipeline;
 use sec::shared::http_client::implementations::sec_client::SecClient;
+use sec::shared::user_agent::UserAgent;
+use sec::shared::user_agent::constants::DEFAULT_SEC_USER_AGENT;
 use tracing_subscriber::fmt::format::FmtSpan;
 
 use storage_root::raw_company_facts_writer;
@@ -45,6 +47,8 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
         .init();
 
     let sec_client = SecClient::default();
+    let user_agent = UserAgent::new(DEFAULT_SEC_USER_AGENT)
+        .expect("The default SEC user agent constant should always be valid");
     let repository = raw_company_facts_writer();
     let start = Instant::now();
 
@@ -57,6 +61,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
             .cik(cik)
             .sec_client(sec_client.clone())
             .repository(repository.clone())
+            .user_agent(user_agent.clone())
             .build()
             .run()
     });
