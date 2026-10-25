@@ -21,7 +21,7 @@ Fetches raw SEC Company Facts JSON from the EDGAR API and writes it to the store
 1. **ValidateCikFormat** -- Validates and normalizes CIK strings to 10-digit zero-padded format.
 2. **PrepareSecRequest** -- Creates the HTTP client and builds the SEC API request.
 3. **ExecuteSecRequest** -- Executes the HTTP request and returns the validated SEC response.
-4. **StoreCompanyFacts** -- Writes the raw body of the SEC response to the store and returns the key of the stored document. No transition leads into this state.
+4. **StoreCompanyFacts** -- Writes the raw body of the SEC response to the store and returns the key of the stored document. A transition leads into this state from ExecuteSecRequest. No binary runs this state.
 
 ### Transform SuperState
 

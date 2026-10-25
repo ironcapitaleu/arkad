@@ -6,7 +6,7 @@
 //! super-state owns the shared HTTP client, the `execution_id`, and the storage repository. It also
 //! owns the type-safe transitions between the states, so callers advance the pipeline without
 //! managing each state by hand. A fourth state, [`StoreCompanyFacts`], writes a fetched response to
-//! the store. No transition leads into it.
+//! the store.
 //!
 //! ## Modules
 //!
@@ -18,7 +18,8 @@
 //! ## State Flow
 //!
 //! [`ValidateCikFormat`] → [`PrepareSecRequest`] → [`ExecuteSecRequest`], after which the
-//! pipeline crosses into the transform phase.
+//! pipeline crosses into the transform phase. [`ExecuteSecRequest`] can also transition to
+//! [`StoreCompanyFacts`].
 //!
 //! ## Usage
 //!
@@ -156,8 +157,9 @@ impl<R: RawCompanyFactsRepository> Context for ExtractSuperStateContext<R> {
 /// Wraps the currently active extract state in its `S` type parameter and owns the shared HTTP
 /// client, the `execution_id`, and the storage repository `R`. It exposes the inner state through a
 /// unified state-machine interface. It moves the pipeline through type-safe transitions:
-/// [`ValidateCikFormat`] → [`PrepareSecRequest`] → [`ExecuteSecRequest`]. Encoding the active state
-/// in the type makes invalid transitions a compile error rather than a runtime check.
+/// [`ValidateCikFormat`] → [`PrepareSecRequest`] → [`ExecuteSecRequest`]. [`ExecuteSecRequest`] can
+/// also transition to [`StoreCompanyFacts`]. Encoding the active state in the type makes invalid
+/// transitions a compile error rather than a runtime check.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub struct ExtractSuperState<S: State, R: RawCompanyFactsRepository> {
     current_state: S,
@@ -488,6 +490,34 @@ impl<R: RawCompanyFactsRepository> SMTransition<ExecuteSecRequest<R>, ParseCompa
     }
 }
 
+impl<R: RawCompanyFactsRepository> Transition<ExecuteSecRequest<R>, StoreCompanyFacts<R>>
+    for ExtractSuperState<ExecuteSecRequest<R>, R>
+{
+    fn transition_to_next_state_sec(self) -> Result<Self::NewStateMachine, TransitionError> {
+        let next_state =
+            StoreCompanyFacts::try_from((self.current_state, self.context.execution_id))?;
+
+        Ok(ExtractSuperState::<StoreCompanyFacts<R>, R> {
+            current_state: next_state,
+            input: ExtractSuperStateData,
+            output: None,
+            context: self.context,
+        })
+    }
+}
+
+impl<R: RawCompanyFactsRepository> SMTransition<ExecuteSecRequest<R>, StoreCompanyFacts<R>>
+    for ExtractSuperState<ExecuteSecRequest<R>, R>
+{
+    type NewStateMachine = ExtractSuperState<StoreCompanyFacts<R>, R>;
+
+    fn transition_to_next_state(self) -> Result<Self::NewStateMachine, &'static str> {
+        Err(
+            "Use transition_to_next_state_sec() for SEC-specific transitions with rich error handling",
+        )
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
@@ -498,6 +528,8 @@ mod tests {
     use storage::implementations::repository::filesystem::Document;
 
     use super::*;
+    use crate::implementations::states::extract::execute_sec_request::ExecuteSecRequestOutput;
+    use crate::implementations::states::extract::store_company_facts::constants::STATE_NAME as STORE_COMPANY_FACTS;
     use crate::shared::cik::Cik;
     use crate::shared::content_type::ContentType;
     use crate::shared::headers::Headers;
@@ -852,20 +884,28 @@ mod tests {
         >();
     }
 
-    fn store_company_facts_super_state(
-        execution_id: Uuid,
-    ) -> ExtractSuperState<StoreCompanyFacts<FakeWriteRepository>, FakeWriteRepository> {
-        let url: Url = "https://data.sec.gov/api/xbrl/companyfacts/CIK0001067983.json"
+    fn sample_url() -> Url {
+        "https://data.sec.gov/api/xbrl/companyfacts/CIK0001067983.json"
             .parse()
-            .expect("Given a hardcoded valid URL, parsing should always succeed");
-        let response = SecResponse::from_parts(
-            url.clone(),
+            .expect("Given a hardcoded valid URL, parsing should always succeed")
+    }
+
+    fn sample_response() -> SecResponse {
+        SecResponse::from_parts(
+            sample_url(),
             Headers::new(HashMap::new()),
             ContentType::Json,
             StatusCode::Ok,
             b"{}".to_vec(),
         )
-        .expect("Given the hardcoded JSON body '{}', building the response should always succeed");
+        .expect("Given the hardcoded JSON body '{}', building the response should always succeed")
+    }
+
+    fn store_company_facts_super_state(
+        execution_id: Uuid,
+    ) -> ExtractSuperState<StoreCompanyFacts<FakeWriteRepository>, FakeWriteRepository> {
+        let url = sample_url();
+        let response = sample_response();
         let user_agent = UserAgent::new("arkad contact@example.com")
             .expect("Given a hardcoded SEC-format user agent, validation should always succeed");
         let cik = Cik::new("1067983")
@@ -935,6 +975,80 @@ mod tests {
             .expect("Given a prepared request, the transition should always succeed")
             .context_data()
             .execution_id;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_carry_execution_id_of_first_constructor_when_transitioning_to_store_company_facts()
+     {
+        let execution_id = Uuid::from_u128(7);
+        let mut super_state = ExtractSuperState::<ValidateCikFormat<_>, _>::new(
+            "1067983",
+            SecClient::default(),
+            execution_id,
+            FakeWriteRepository::new(),
+        );
+        super_state
+            .compute_output_data_async()
+            .await
+            .expect("Given a hardcoded valid CIK, validation should always succeed");
+        let mut super_state = super_state
+            .transition_to_next_state_sec()
+            .expect("Given a computed CIK validation, the transition should always succeed");
+        super_state
+            .compute_output_data_async()
+            .await
+            .expect("Given a validated CIK, preparing the request should always succeed");
+        let mut super_state = super_state
+            .transition_to_next_state_sec()
+            .expect("Given a prepared request, the transition should always succeed");
+        let executed = super_state
+            .current_state()
+            .clone()
+            .with_output(ExecuteSecRequestOutput::new(sample_response()));
+        *super_state.current_state_mut() = executed;
+
+        let expected_result = execution_id;
+
+        let result = Transition::<
+            ExecuteSecRequest<FakeWriteRepository>,
+            StoreCompanyFacts<FakeWriteRepository>,
+        >::transition_to_next_state_sec(super_state)
+        .expect("Given a request with output, the transition should always succeed")
+        .current_state()
+        .context_data()
+        .execution_id();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_missing_output_when_transitioning_to_store_company_facts_without_output() {
+        let cik = Cik::new("1067983")
+            .expect("Given a hardcoded numeric CIK, its creation should always succeed");
+        let request = SecRequest::builder()
+            .all_company_facts()
+            .cik(cik.clone())
+            .build();
+        let super_state = ExtractSuperState::<ExecuteSecRequest<_>, _>::new(
+            SecClient::default(),
+            request,
+            cik,
+            Uuid::nil(),
+            FakeWriteRepository::new(),
+        );
+
+        let expected_result = TransitionError::MissingOutput(transition::MissingOutput::new(
+            EXECUTE_SEC_REQUEST,
+            STORE_COMPANY_FACTS,
+        ));
+
+        let result = Transition::<
+            ExecuteSecRequest<FakeWriteRepository>,
+            StoreCompanyFacts<FakeWriteRepository>,
+        >::transition_to_next_state_sec(super_state)
+        .expect_err("Given a request without output, the transition should always fail");
 
         assert_eq!(result, expected_result);
     }

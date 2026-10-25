@@ -144,6 +144,14 @@ impl<R> ExecuteSecRequest<R> {
     ) {
         (self.input, self.output, self.context)
     }
+
+    /// Returns the state with `output` set. Tests use it to skip the network call.
+    #[cfg(test)]
+    #[must_use]
+    pub(crate) fn with_output(mut self, output: ExecuteSecRequestOutput) -> Self {
+        self.output = Some(output);
+        self
+    }
 }
 
 #[async_trait]

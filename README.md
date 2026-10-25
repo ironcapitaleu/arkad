@@ -38,8 +38,8 @@ stateDiagram-v2
     state Extract {
         ValidateCikFormat --> PrepareSecRequest
         PrepareSecRequest --> ExecuteSecRequest
-        StoreCompanyFacts
-        note right of StoreCompanyFacts : No transition leads into this state
+        ExecuteSecRequest --> StoreCompanyFacts
+        note right of StoreCompanyFacts : No binary runs this state
     }
     Extract --> Transform
     state Transform {
@@ -329,6 +329,7 @@ classDiagram
         %% Transition-level error for output-to-input conversion failure
         +String source_state_name
         +String target_state_name
+        +String reason
     }
 
     class FailedContextConversion{
@@ -336,6 +337,7 @@ classDiagram
         %% Transition-level error for context conversion failure
         +String source_state_name
         +String target_state_name
+        +String reason
     }
 
     class CikError{

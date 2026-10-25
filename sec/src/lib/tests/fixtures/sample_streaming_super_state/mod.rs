@@ -182,6 +182,7 @@ impl Transition<SampleStateA, SampleStateB> for SampleStreamingSuperState<Sample
                 crate::error::state_machine::transition::FailedContextConversion::new(
                     "SampleStateA",
                     "SampleStateB",
+                    "Forced transition error",
                 ),
             ));
         }
@@ -211,6 +212,7 @@ impl Transition<SampleStateB, SampleStateC> for SampleStreamingSuperState<Sample
                 crate::error::state_machine::transition::FailedContextConversion::new(
                     "SampleStateB",
                     "SampleStateC",
+                    "Forced transition error",
                 ),
             ));
         }

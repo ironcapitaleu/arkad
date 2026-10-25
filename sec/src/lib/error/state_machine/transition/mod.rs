@@ -19,7 +19,7 @@
 //! use sec::error::state_machine::transition::{Transition, FailedOutputConversion};
 //!
 //! let _err = Transition::FailedOutputConversion(
-//!     FailedOutputConversion::new("SourceState", "TargetState"),
+//!     FailedOutputConversion::new("SourceState", "TargetState", "Sample reason"),
 //! );
 //! ```
 
@@ -141,7 +141,10 @@ mod tests {
     #[test]
     fn should_be_able_to_create_transition_failedcontextconversion_error_when_using_enum_directly()
     {
-        let _result =
-            Transition::FailedContextConversion(FailedContextConversion::new("StateA", "StateB"));
+        let _result = Transition::FailedContextConversion(FailedContextConversion::new(
+            "StateA",
+            "StateB",
+            "Sample reason",
+        ));
     }
 }
