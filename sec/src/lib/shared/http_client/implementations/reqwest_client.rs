@@ -7,7 +7,7 @@
 //! sends.
 
 use async_trait::async_trait;
-use reqwest::{Client, Error as ReqwestError, Request, Response};
+use reqwest::{Client, ClientBuilder, Error as ReqwestError, Request, Response};
 
 use super::super::traits::InnerClient;
 use crate::shared::user_agent::UserAgent;
@@ -63,7 +63,23 @@ impl ReqwestClient {
     /// assert_eq!(result, expected_result);
     /// ```
     pub fn new(user_agent: UserAgent) -> Result<Self, ReqwestError> {
-        let client = Client::builder().user_agent(user_agent.inner()).build()?;
+        Self::from_builder(Client::builder(), user_agent)
+    }
+
+    /// Builds the client from `builder` and sets `user_agent` as its `User-Agent` header.
+    ///
+    /// The builder carries any other client settings, such as timeouts or pool size. This method
+    /// sets the header, so the header and [`ReqwestClient::user_agent`] stay the same value.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`reqwest::Error`] if `reqwest` cannot build the client, for example when the TLS
+    /// backend fails to initialize.
+    pub fn from_builder(
+        builder: ClientBuilder,
+        user_agent: UserAgent,
+    ) -> Result<Self, ReqwestError> {
+        let client = builder.user_agent(user_agent.inner()).build()?;
         Ok(Self { client, user_agent })
     }
 
@@ -102,6 +118,21 @@ mod tests {
         let expected_result = user_agent.clone();
 
         let result = ReqwestClient::new(user_agent)
+            .expect("Given a validated user agent, the client creation should always succeed")
+            .user_agent()
+            .clone();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_the_user_agent_it_was_built_from_when_created_from_a_builder() {
+        let user_agent = UserAgent::new("Sample Company contact@example.com")
+            .expect("A hardcoded SEC-format string should always validate");
+
+        let expected_result = user_agent.clone();
+
+        let result = ReqwestClient::from_builder(Client::builder(), user_agent)
             .expect("Given a validated user agent, the client creation should always succeed")
             .user_agent()
             .clone();
