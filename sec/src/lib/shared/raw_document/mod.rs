@@ -206,10 +206,9 @@ impl<S: RawSource> Document for RawDocument<S> {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
     use std::fmt::Debug;
     use std::hash::Hash;
-
-    use std::collections::HashMap;
 
     use pretty_assertions::assert_eq;
     use storage::ReadWriteRepository;

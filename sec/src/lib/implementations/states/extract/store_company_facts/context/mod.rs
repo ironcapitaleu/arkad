@@ -54,7 +54,7 @@ impl<R> RawCompanyFactsRepository for R where
 /// Context for the [`StoreCompanyFacts`](super::StoreCompanyFacts) state.
 ///
 /// Holds the [`Cik`] that names the stored document, the `execution_id` that the metadata records,
-/// and the repository that stores the document. The context names no concrete backend.
+/// and the repository that stores the document.
 ///
 /// Serialization leaves out the repository, which has no data to show.
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]

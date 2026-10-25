@@ -225,18 +225,28 @@ mod tests {
             .expect("Given a hardcoded valid URL, parsing should always succeed")
     }
 
+    fn redirected_url() -> Url {
+        "https://data.sec.gov/api/xbrl/companyfacts/redirected/CIK0001067983.json"
+            .parse()
+            .expect("Given a hardcoded valid URL, parsing should always succeed")
+    }
+
+    fn user_agent() -> UserAgent {
+        UserAgent::new("arkad contact@example.com")
+            .expect("Given a hardcoded SEC-format user agent, validation should always succeed")
+    }
+
+    /// Returns an input whose response came from a redirect, so the two URLs differ.
     fn sample_input() -> StoreCompanyFactsInput {
         let response = SecResponse::from_parts(
-            requested_url(),
+            redirected_url(),
             Headers::new(HashMap::new()),
             ContentType::Json,
             StatusCode::Ok,
             RAW_BODY.to_vec(),
         )
         .expect("Given a hardcoded valid JSON body, building the response should always succeed");
-        let user_agent = UserAgent::new("arkad contact@example.com")
-            .expect("Given a hardcoded SEC-format user agent, validation should always succeed");
-        StoreCompanyFactsInput::new(response, requested_url(), user_agent)
+        StoreCompanyFactsInput::new(response, requested_url(), user_agent())
     }
 
     fn sample_state(repository: FakeWriteRepository) -> StoreCompanyFacts<FakeWriteRepository> {
@@ -374,15 +384,15 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_persist_the_context_of_the_fetch() {
+    async fn should_persist_the_context_of_the_fetch_when_the_response_was_redirected() {
         let document = persisted_document().await;
-        let input = sample_input();
 
-        let expected_result = &RawDocumentMetadataContext::new(
-            input.response(),
-            input.requested_url(),
-            input.user_agent(),
-        );
+        let expected_result = &RawDocumentMetadataContext {
+            requested_url: requested_url(),
+            final_url: redirected_url(),
+            http_status: StatusCode::Ok,
+            user_agent: user_agent(),
+        };
 
         let result = document.metadata().context();
 

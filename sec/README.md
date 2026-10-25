@@ -16,7 +16,7 @@ Extract                          Transform                        Load (planned)
 
 ### Extract SuperState
 
-Fetches raw SEC Company Facts JSON from the EDGAR API:
+Fetches raw SEC Company Facts JSON from the EDGAR API and writes it to the store:
 
 1. **ValidateCikFormat** -- Validates and normalizes CIK strings to 10-digit zero-padded format.
 2. **PrepareSecRequest** -- Creates the HTTP client and builds the SEC API request.
