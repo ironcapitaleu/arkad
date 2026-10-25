@@ -8,6 +8,8 @@ use std::hash::{Hash, Hasher};
 use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
+use serde::ser::SerializeStruct;
+use serde::{Serialize, Serializer};
 use storage::{WriteError, WriteRepository};
 
 use crate::shared::raw_document::RawDocument;
@@ -49,6 +51,19 @@ impl FakeWriteRepository {
             .lock()
             .expect("No test panics while it holds the fake repository mutex")
             .clone()
+    }
+}
+
+/// Serializes as `{ "kind": "fake", "rejection": null }`, or with the rejection message.
+impl Serialize for FakeWriteRepository {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let mut state = serializer.serialize_struct("FakeWriteRepository", 2)?;
+        state.serialize_field("kind", "fake")?;
+        state.serialize_field(
+            "rejection",
+            &self.rejection.as_ref().map(ToString::to_string),
+        )?;
+        state.end()
     }
 }
 

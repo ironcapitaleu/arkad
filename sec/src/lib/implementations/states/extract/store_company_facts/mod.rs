@@ -50,8 +50,6 @@ pub use data::StoreCompanyFactsOutput;
 /// [`RawDocument::from_response`], writes it under the key `sec/companyfacts/CIK##########.json`
 /// through the repository of type `R`, and outputs that [`DocumentKey`].
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
-// The context leaves out the repository, so serialization needs no bound on `R`.
-#[serde(bound(serialize = ""))]
 pub struct StoreCompanyFacts<R> {
     input: StoreCompanyFactsInput,
     context: StoreCompanyFactsContext<R>,

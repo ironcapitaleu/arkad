@@ -23,7 +23,8 @@ use crate::traits::state_machine::state::Context;
 
 /// A [`WriteRepository`] of raw Company Facts documents that a state context can hold.
 ///
-/// A state context must implement the value traits, so the repository must implement them too.
+/// A state context must implement the value traits and `Serialize`, so the repository must
+/// implement them too. Each backend writes its own `Serialize` and leaves out sensitive fields.
 /// Every type that meets the bounds implements this trait.
 pub trait RawCompanyFactsRepository:
     WriteRepository<Record = RawDocument<RawCompanyFacts>>
@@ -35,6 +36,7 @@ pub trait RawCompanyFactsRepository:
     + Ord
     + Hash
     + Unpin
+    + Serialize
 {
 }
 
@@ -48,6 +50,7 @@ impl<R> RawCompanyFactsRepository for R where
         + Ord
         + Hash
         + Unpin
+        + Serialize
 {
 }
 
@@ -55,8 +58,6 @@ impl<R> RawCompanyFactsRepository for R where
 ///
 /// Holds the [`Cik`] that names the stored document, the `execution_id` that the metadata records,
 /// and the repository that stores the document.
-///
-/// Serialization leaves out the repository, which has no data to show.
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
 pub struct StoreCompanyFactsContext<R> {
     /// The Central Index Key (CIK) of the company whose facts the state stores.
@@ -64,7 +65,6 @@ pub struct StoreCompanyFactsContext<R> {
     /// The id of the run. The metadata of the stored document records it.
     pub execution_id: Uuid,
     /// The repository that stores the document.
-    #[serde(skip)]
     pub repository: R,
     /// Maximum number of times the state may be retried on failure.
     pub max_retries: u32,
@@ -348,12 +348,13 @@ mod tests {
     }
 
     #[test]
-    fn should_leave_out_the_repository_when_serializing_the_context() {
+    fn should_include_the_repository_when_serializing_the_context() {
         let context = sample_context();
 
         let expected_result = serde_json::json!({
             "cik": { "value": "0001067983" },
             "execution_id": "00000000-0000-0000-0000-000000000000",
+            "repository": { "kind": "fake", "rejection": null },
             "max_retries": 0,
         });
 
