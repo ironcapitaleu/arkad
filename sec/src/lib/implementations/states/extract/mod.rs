@@ -157,8 +157,9 @@ impl<R: RawCompanyFactsRepository> Context for ExtractSuperStateContext<R> {
 /// Wraps the currently active extract state in its `S` type parameter and owns the shared
 /// HTTP client and the repository `R`. It exposes the inner state through a unified state-machine
 /// interface and advances the pipeline via type-safe transitions: [`ValidateCikFormat`] →
-/// [`PrepareSecRequest`] → [`ExecuteSecRequest`] → [`StoreCompanyFacts`]. Encoding the active
-/// state in the type makes invalid transitions a compile error rather than a runtime check.
+/// [`PrepareSecRequest`] → [`ExecuteSecRequest`]. [`ExecuteSecRequest`] can also transition to
+/// [`StoreCompanyFacts`]. Encoding the active state in the type makes invalid transitions a
+/// compile error rather than a runtime check.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub struct ExtractSuperState<S: State, R: RawCompanyFactsRepository> {
     current_state: S,

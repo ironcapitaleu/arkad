@@ -196,7 +196,7 @@ mod tests {
     }
 
     #[test]
-    fn should_differ_when_user_agents_differ() {
+    fn should_not_equal_default_client_when_user_agent_differs() {
         let user_agent = UserAgent::new("Sample Company contact@example.com")
             .expect("A hardcoded SEC-format string should always validate");
         let client = SecClient::new(user_agent);

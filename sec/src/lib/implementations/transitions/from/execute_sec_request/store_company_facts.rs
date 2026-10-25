@@ -4,14 +4,16 @@
 //! [`StoreCompanyFacts`] from an [`ExecuteSecRequest`].
 //!
 //! It moves the response from the output of the source state. It takes the requested URL from the
-//! [`SecRequest`](crate::shared::request::implementations::sec_request::SecRequest) and the
-//! `User-Agent` from the [`SecClient`](crate::shared::http_client::implementations::sec_client::SecClient)
-//! that sent it. The CIK comes from the context of the same state.
+//! [`SecRequest`] and the `User-Agent` from the
+//! [`SecClient`](crate::shared::http_client::implementations::sec_client::SecClient) that sent it.
+//! The CIK comes from the context of the same state, and the requested URL must name that CIK.
 //!
 //! # Errors
 //!
-//! Returns [`TransitionError`] (a [`MissingOutput`](crate::error::state_machine::transition::MissingOutput))
-//! when the source state has no computed output to carry forward.
+//! Returns [`TransitionError`] when the source state has no computed output
+//! ([`MissingOutput`](crate::error::state_machine::transition::MissingOutput)), or when its
+//! request names another CIK than its context
+//! ([`FailedContextConversion`](crate::error::state_machine::transition::FailedContextConversion)).
 
 use uuid::Uuid;
 
@@ -23,6 +25,7 @@ use crate::implementations::states::extract::store_company_facts::constants::STA
 use crate::implementations::states::extract::store_company_facts::{
     RawCompanyFactsRepository, StoreCompanyFacts, StoreCompanyFactsContext, StoreCompanyFactsInput,
 };
+use crate::shared::request::implementations::sec_request::SecRequest;
 use crate::shared::url::Url;
 
 impl<R: RawCompanyFactsRepository> StoreCompanyFacts<R> {
@@ -34,6 +37,10 @@ impl<R: RawCompanyFactsRepository> StoreCompanyFacts<R> {
     /// # Errors
     ///
     /// Returns [`TransitionError::MissingOutput`] if `state` has no computed output.
+    ///
+    /// Returns [`TransitionError::FailedContextConversion`] if the request of `state` names
+    /// another CIK than its context. The stored key follows the context CIK, so a mismatch would
+    /// store a response under the wrong company.
     pub fn try_from_execute_sec_request(
         state: ExecuteSecRequest,
         execution_id: Uuid,
@@ -43,6 +50,18 @@ impl<R: RawCompanyFactsRepository> StoreCompanyFacts<R> {
         let output_data = output.ok_or_else(|| {
             transition::MissingOutput::new(EXECUTE_SEC_REQUEST, STORE_COMPANY_FACTS)
         })?;
+
+        let context_request = SecRequest::builder()
+            .all_company_facts()
+            .cik(context.cik.clone())
+            .build();
+        if input.sec_request.inner.url() != context_request.inner.url() {
+            return Err(transition::FailedContextConversion::new(
+                EXECUTE_SEC_REQUEST,
+                STORE_COMPANY_FACTS,
+            )
+            .into());
+        }
 
         let requested_url = Url::from(input.sec_request.inner.url().clone());
         let user_agent = input.sec_client.user_agent().clone();
@@ -57,7 +76,6 @@ impl<R: RawCompanyFactsRepository> StoreCompanyFacts<R> {
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
-    use std::ffi::OsStr;
 
     use pretty_assertions::assert_eq;
 
@@ -70,7 +88,6 @@ mod tests {
     use crate::shared::content_type::ContentType;
     use crate::shared::headers::Headers;
     use crate::shared::http_client::implementations::sec_client::SecClient;
-    use crate::shared::request::implementations::sec_request::SecRequest;
     use crate::shared::response::implementations::sec_response::SecResponse;
     use crate::shared::status_code::StatusCode;
     use crate::shared::user_agent::UserAgent;
@@ -181,19 +198,28 @@ mod tests {
         assert_eq!(result, expected_result);
     }
 
-    #[tokio::test]
-    async fn should_name_key_after_cik_of_requested_url_when_stored() {
-        let mut state = store_company_facts();
-        state
-            .compute_output_data_async()
-            .await
-            .expect("Given a fake repository that accepts every write, the state should succeed");
+    #[test]
+    fn should_return_failed_context_conversion_when_request_names_another_cik() {
+        let other_cik = Cik::new("320193")
+            .expect("Given a hardcoded numeric CIK, its creation should always succeed");
+        let request = SecRequest::builder()
+            .all_company_facts()
+            .cik(other_cik)
+            .build();
+        let input = ExecuteSecRequestInput::new(SecClient::new(sample_user_agent()), request);
+        let state = ExecuteSecRequest::new(input, ExecuteSecRequestContext::new(sample_cik()))
+            .with_output(ExecuteSecRequestOutput::new(sample_response()));
 
-        let expected_result = REQUESTED_URL.rsplit('/').next().map(OsStr::new);
+        let expected_result = TransitionError::FailedContextConversion(
+            transition::FailedContextConversion::new(EXECUTE_SEC_REQUEST, STORE_COMPANY_FACTS),
+        );
 
-        let result = state
-            .output_data()
-            .and_then(|output| output.key.as_path().file_name());
+        let result = StoreCompanyFacts::try_from_execute_sec_request(
+            state,
+            Uuid::from_u128(7),
+            FakeWriteRepository::new(),
+        )
+        .expect_err("Given a request for another CIK, the transition should always fail");
 
         assert_eq!(result, expected_result);
     }

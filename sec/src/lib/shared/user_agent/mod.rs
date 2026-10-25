@@ -95,7 +95,8 @@ impl UserAgent {
         Ok(())
     }
 
-    /// Validates that the company name part is not empty and contains valid characters.
+    /// Validates that the company name part is not empty and holds only visible ASCII characters
+    /// and spaces, the characters an HTTP header value can carry.
     ///
     /// # Errors
     /// Returns an error if the company name is empty or invalid.
@@ -103,7 +104,10 @@ impl UserAgent {
         company_name: &str,
         original_user_agent: &str,
     ) -> Result<(), UserAgentError> {
-        if company_name.trim().is_empty() {
+        let has_header_characters_only = company_name
+            .chars()
+            .all(|character| character == ' ' || character.is_ascii_graphic());
+        if company_name.trim().is_empty() || !has_header_characters_only {
             return Err(UserAgentError::new(
                 UserAgentErrorReason::InvalidSecFormat,
                 original_user_agent,
@@ -205,6 +209,30 @@ mod tests {
     #[test]
     fn should_return_error_when_email_format_is_invalid() {
         let user_agent_str = "Sample Name invalid-email";
+
+        let expected_result =
+            UserAgentError::new(UserAgentErrorReason::InvalidSecFormat, user_agent_str);
+
+        let result = UserAgent::new(user_agent_str);
+
+        assert_eq!(result.unwrap_err(), expected_result);
+    }
+
+    #[test]
+    fn should_return_error_when_company_name_has_a_control_character() {
+        let user_agent_str = "Sample\nCompany admin@samplecompany.com";
+
+        let expected_result =
+            UserAgentError::new(UserAgentErrorReason::InvalidSecFormat, user_agent_str);
+
+        let result = UserAgent::new(user_agent_str);
+
+        assert_eq!(result.unwrap_err(), expected_result);
+    }
+
+    #[test]
+    fn should_return_error_when_company_name_has_a_non_ascii_character() {
+        let user_agent_str = "Müller GmbH admin@mueller.com";
 
         let expected_result =
             UserAgentError::new(UserAgentErrorReason::InvalidSecFormat, user_agent_str);
