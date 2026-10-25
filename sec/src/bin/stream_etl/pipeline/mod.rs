@@ -1,7 +1,9 @@
 mod builder;
 pub mod constants;
 
+use std::env;
 use std::fmt::{self, Display, Formatter};
+use std::path::PathBuf;
 use std::pin::pin;
 use std::time::Instant;
 
@@ -10,9 +12,29 @@ use sec::implementations::states::extract::ExtractSuperState;
 use sec::implementations::states::extract::validate_cik_format::ValidateCikFormat;
 use sec::prelude::*;
 use sec::shared::http_client::implementations::sec_client::SecClient;
+use sec::shared::raw_document::RawDocument;
+use sec::shared::raw_source::RawCompanyFacts;
+use storage::implementations::repository::filesystem::{FilesystemRepository, Write};
 use uuid::Uuid;
 
-use builder::{NoCik, NoClient, PipelineBuilder};
+use builder::{NoCik, NoClient, NoRepository, PipelineBuilder};
+use constants::{DEFAULT_STORAGE_ROOT, STORAGE_ROOT_ENV_VAR};
+
+/// The repository that stores the raw Company Facts of each run.
+pub type RawCompanyFactsWriter = FilesystemRepository<Write, RawDocument<RawCompanyFacts>>;
+
+/// Builds the [`RawCompanyFactsWriter`] for the root that `ARKAD_STORAGE_ROOT` names.
+///
+/// If the variable is unset, the root is [`DEFAULT_STORAGE_ROOT`]. Building touches no disk.
+pub fn raw_company_facts_writer() -> RawCompanyFactsWriter {
+    let root = env::var_os(STORAGE_ROOT_ENV_VAR)
+        .map_or_else(|| PathBuf::from(DEFAULT_STORAGE_ROOT), PathBuf::from);
+    FilesystemRepository::builder()
+        .writer()
+        .document_type::<RawDocument<RawCompanyFacts>>()
+        .root(root)
+        .build()
+}
 
 /// Events emitted by the pipeline runner (consumer-level, not part of the library).
 enum PipelineEvent {
@@ -36,17 +58,23 @@ impl Display for PipelineEvent {
 pub struct Pipeline {
     raw_cik: String,
     sec_client: SecClient,
+    repository: RawCompanyFactsWriter,
 }
 
 impl Pipeline {
-    pub const fn builder() -> PipelineBuilder<NoCik, NoClient> {
+    pub const fn builder() -> PipelineBuilder<NoCik, NoClient, NoRepository> {
         PipelineBuilder::new()
     }
 
     /// Creates a stream that drives the full ETL pipeline (Extract → Transform).
     #[must_use]
     pub fn into_stream(self, execution_id: Uuid) -> StateMachineStream {
-        let state = ExtractSuperState::<ValidateCikFormat>::new(self.raw_cik, self.sec_client);
+        let state = ExtractSuperState::<ValidateCikFormat, _>::new(
+            self.raw_cik,
+            self.sec_client,
+            execution_id,
+            self.repository,
+        );
         state.into_stream(execution_id)
     }
 

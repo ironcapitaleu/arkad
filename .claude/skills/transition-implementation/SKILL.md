@@ -35,7 +35,9 @@ context, and assemble the target state.
 **Real example** (from `Extract<ExecuteSecRequest>` → `Transform<ParseCompanyFacts>`):
 
 ```rust
-impl Transition<ExecuteSecRequest, ParseCompanyFacts> for ExtractSuperState<ExecuteSecRequest> {
+impl<R: RawCompanyFactsRepository> Transition<ExecuteSecRequest, ParseCompanyFacts>
+    for ExtractSuperState<ExecuteSecRequest, R>
+{
     fn transition_to_next_state_sec(self) -> Result<Self::NewStateMachine, TransitionError> {
         let inner_state = self.into_current_state();
         let (_input, output, context) = inner_state.into_parts();

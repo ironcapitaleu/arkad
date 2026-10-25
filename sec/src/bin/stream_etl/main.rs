@@ -5,7 +5,7 @@ use std::fmt::{self, Display, Formatter};
 use std::io::stdout;
 use std::time::Instant;
 
-use pipeline::Pipeline;
+use pipeline::{Pipeline, raw_company_facts_writer};
 use sec::shared::http_client::implementations::sec_client::SecClient;
 use tracing_subscriber::fmt::format::FmtSpan;
 
@@ -38,6 +38,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
         .init();
 
     let sec_client = SecClient::default();
+    let repository = raw_company_facts_writer();
     let start = Instant::now();
 
     // Concurrency is intentionally unbounded: the 10 req/s cap is enforced by a process-global
@@ -48,6 +49,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
         Pipeline::builder()
             .cik(cik)
             .sec_client(sec_client.clone())
+            .repository(repository.clone())
             .build()
             .run()
     });

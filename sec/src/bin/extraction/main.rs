@@ -1,3 +1,6 @@
+use std::env;
+use std::path::PathBuf;
+
 use sec::implementations::states::extract::ExtractSuperState;
 use sec::implementations::states::extract::execute_sec_request::{
     ExecuteSecRequest, ExecuteSecRequestContext, ExecuteSecRequestInput,
@@ -7,14 +10,31 @@ use sec::implementations::states::extract::prepare_sec_request::{
 };
 use sec::implementations::states::extract::validate_cik_format::ValidateCikFormat;
 use sec::shared::http_client::implementations::sec_client::SecClient;
+use sec::shared::raw_document::RawDocument;
+use sec::shared::raw_source::RawCompanyFacts;
+use storage::implementations::repository::filesystem::FilesystemRepository;
+use uuid::Uuid;
 
 use sec::prelude::*;
+
+/// The environment variable that names the root directory of the document store.
+const STORAGE_ROOT_ENV_VAR: &str = "ARKAD_STORAGE_ROOT";
+
+/// The root directory of the document store when `ARKAD_STORAGE_ROOT` is unset.
+const DEFAULT_STORAGE_ROOT: &str = "data";
 
 #[tokio::main]
 // Let this be here for testing purposes. Will be removed later.
 #[allow(clippy::too_many_lines)]
 async fn main() {
     let sec_client = SecClient::default();
+    let storage_root = env::var_os(STORAGE_ROOT_ENV_VAR)
+        .map_or_else(|| PathBuf::from(DEFAULT_STORAGE_ROOT), PathBuf::from);
+    let repository = FilesystemRepository::builder()
+        .writer()
+        .document_type::<RawDocument<RawCompanyFacts>>()
+        .root(storage_root)
+        .build();
 
     let input =
         sec::implementations::states::extract::validate_cik_format::ValidateCikFormatInput::new(
@@ -100,7 +120,12 @@ async fn main() {
     println!("\n=======================================================");
     println!("Initial Extract SuperState:");
 
-    let mut super_state = ExtractSuperState::<ValidateCikFormat>::new("1067983", sec_client);
+    let mut super_state = ExtractSuperState::<ValidateCikFormat, _>::new(
+        "1067983",
+        sec_client,
+        Uuid::new_v4(),
+        repository,
+    );
 
     super_state
         .compute_output_data_async()

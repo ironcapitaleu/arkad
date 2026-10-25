@@ -17,7 +17,7 @@ use std::io::Write;
 
 use futures_util::StreamExt;
 
-use builder::Pipeline;
+use builder::{Pipeline, raw_company_facts_writer};
 use constants::{MUST_PASS_CIKS, SP500_CIKS};
 use sec::shared::http_client::implementations::sec_client::SecClient;
 
@@ -49,16 +49,19 @@ const MINIMUM_SUCCESS_THRESHOLD: usize = 270;
 #[ignore = "Hits the live SEC API for must-pass companies (~10 seconds)"]
 async fn should_succeed_for_must_pass_companies() {
     let sec_client = SecClient::default();
+    let repository = raw_company_facts_writer();
     let ciks: Vec<&str> = MUST_PASS_CIKS.iter().map(|(cik, _)| *cik).collect();
     let stream_results: Vec<_> = futures_util::stream::iter(ciks.iter())
         .map(|cik| {
             let client = sec_client.clone();
+            let repository = repository.clone();
             async move {
                 (
                     *cik,
                     Pipeline::builder()
                         .cik(*cik)
                         .sec_client(client)
+                        .repository(repository)
                         .build()
                         .run()
                         .await,
@@ -95,6 +98,7 @@ async fn should_meet_threshold_for_sp500_companies() {
     use std::sync::atomic::{AtomicUsize, Ordering};
 
     let sec_client = SecClient::default();
+    let repository = raw_company_facts_writer();
     let ciks: Vec<&str> = SP500_CIKS.to_vec();
     let total = ciks.len();
     let completed = AtomicUsize::new(0);
@@ -109,10 +113,12 @@ async fn should_meet_threshold_for_sp500_companies() {
             let successes = &successes;
             let failures = &failures;
             let client = sec_client.clone();
+            let repository = repository.clone();
             async move {
                 let result = Pipeline::builder()
                     .cik(*cik)
                     .sec_client(client)
+                    .repository(repository)
                     .build()
                     .run()
                     .await;
