@@ -27,14 +27,14 @@ use sec::shared::user_agent::UserAgent;
 const BERKSHIRE_FIXTURE: &str =
     include_str!("../src/lib/tests/fixtures/data/raw_input/CIK0001067983.json");
 
-/// Creates an `SecClient` for testing. Connection pooling is disabled
-/// since tests do not benefit from connection reuse.
+/// Creates a `SecClient` for testing, with connection pooling off. The tests do not reuse
+/// connections.
 fn sec_client() -> SecClient {
     let user_agent = UserAgent::new("ArkadTest admin@example.com")
         .expect("A hardcoded SEC-format string should always validate");
     let builder = reqwest::Client::builder().pool_max_idle_per_host(0);
     let http_client = ReqwestClient::from_builder(builder, user_agent)
-        .expect("Given a validated user agent, the client creation should always succeed");
+        .expect("Given a validated user agent, building the HTTP client fails only if the TLS backend cannot initialize");
     SecClient::new(http_client)
 }
 
