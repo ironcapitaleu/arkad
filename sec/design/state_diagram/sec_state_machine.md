@@ -12,7 +12,7 @@ stateDiagram-v2
         ValidateCikFormat --> PrepareSecRequest
         PrepareSecRequest --> ExecuteSecRequest
         ExecuteSecRequest --> StoreCompanyFacts
-        note right of StoreCompanyFacts : No binary runs this state
+        note right of StoreCompanyFacts : The stream ends after this state
     }
 
     Extract --> Transform

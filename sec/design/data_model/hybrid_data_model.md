@@ -33,7 +33,7 @@ has two parallel, non-integrated models and no persistence:
 - `xbrl` crate (dormant, not referenced by the pipeline): `CanonicalElement` (42 SFAC-6-rooted
   variants), `ResolvedFact` (with a `Confidence` ladder + `resolution_path`), `FactSet`,
   `Invariant` validation, and a graph-engine **TODO stub**.
-- Pipeline runs **Extract → Transform** only. `CreateFinancialStatements` emits a placeholder
+- The stream runs **Extract** only and ends after `StoreCompanyFacts`. `CreateFinancialStatements` emits a placeholder
   unit struct; the entire **Load SuperState is an empty file**.
 
 What to carry forward vs. change (detail in §10):
