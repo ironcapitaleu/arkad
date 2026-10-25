@@ -242,6 +242,7 @@ mod tests {
     };
     use crate::shared::cik::constants::BERKSHIRE_HATHAWAY_CIK_RAW;
     use crate::shared::http_client::implementations::sec_client::SecClient;
+    use crate::shared::user_agent::constants::DEFAULT_SEC_USER_AGENT;
     use crate::tests::fixtures::sample_write_repository::FakeWriteRepository;
 
     fn test_context() -> ValidateCikFormatContext<FakeWriteRepository> {
@@ -477,7 +478,7 @@ mod tests {
 
         let expected_result = serde_json::json!({
             "raw_cik": BERKSHIRE_HATHAWAY_CIK_RAW,
-            "sec_client": {},
+            "sec_client": { "user_agent": DEFAULT_SEC_USER_AGENT },
             "repository": { "kind": "fake", "rejection": null },
             "max_retries": 0,
         });
