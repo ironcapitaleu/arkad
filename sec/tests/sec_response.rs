@@ -62,7 +62,7 @@ async fn should_return_json_content_type_when_sec_response_is_created_successful
 
     let result = SecResponse::from_inner(response)
         .await
-        .expect("A valid JSON response with 200 status should create a SecResponse")
+        .expect("A valid JSON response with 200 status should create an SecResponse")
         .content_type();
 
     assert_eq!(result, expected_result);
@@ -84,7 +84,7 @@ async fn should_return_ok_status_code_when_sec_response_is_created_successfully(
 
     let result = SecResponse::from_inner(response)
         .await
-        .expect("A valid JSON response with 200 status should create a SecResponse")
+        .expect("A valid JSON response with 200 status should create an SecResponse")
         .status_code();
 
     assert_eq!(result, expected_result);
@@ -108,7 +108,7 @@ async fn should_fail_with_invalid_status_code_when_response_is_not_success() {
 
     let result = SecResponse::from_inner(response)
         .await
-        .expect_err("A 404 response should fail to create a SecResponse")
+        .expect_err("A 404 response should fail to create an SecResponse")
         .reason;
 
     assert_eq!(result, expected_result);
@@ -132,7 +132,7 @@ async fn should_fail_with_invalid_content_type_when_response_is_not_json() {
 
     let result = SecResponse::from_inner(response)
         .await
-        .expect_err("An HTML response should fail to create a SecResponse")
+        .expect_err("An HTML response should fail to create an SecResponse")
         .reason;
 
     assert_eq!(result, expected_result);

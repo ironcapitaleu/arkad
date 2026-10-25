@@ -89,7 +89,7 @@ impl SecClient {
 }
 
 impl Default for SecClient {
-    /// Returns a [`SecClient`] that sends the default [`UserAgent`].
+    /// Returns an [`SecClient`] that sends the default [`UserAgent`].
     ///
     /// # Panics
     ///

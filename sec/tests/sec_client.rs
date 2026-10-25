@@ -27,7 +27,7 @@ use sec::shared::user_agent::UserAgent;
 const BERKSHIRE_FIXTURE: &str =
     include_str!("../src/lib/tests/fixtures/data/raw_input/CIK0001067983.json");
 
-/// Creates a `SecClient` for testing, with connection pooling off. The tests do not reuse
+/// Creates an `SecClient` for testing, with connection pooling off. The tests do not reuse
 /// connections.
 fn sec_client() -> SecClient {
     let user_agent = UserAgent::new("ArkadTest admin@example.com")

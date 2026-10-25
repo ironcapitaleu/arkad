@@ -126,7 +126,7 @@ impl ReadRepository for FilingStore {
 // FilingStore implements ReadWriteRepository through the blanket impl.
 ```
 
-The coherence lives on the store, as it does on a `SecClient` implementor. A caller that depends on
+The coherence lives on the store, as it does on an `SecClient` implementor. A caller that depends on
 the round-trip restates it at its bound. See [Capability Binding in a `State`](#capability-binding-in-a-state).
 
 ### Trait Hierarchy
