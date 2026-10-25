@@ -17,7 +17,7 @@ pub const STORAGE_ROOT_ENV_VAR: &str = "ARKAD_STORAGE_ROOT";
 /// The root directory of the document store when `ARKAD_STORAGE_ROOT` is unset or empty.
 pub const DEFAULT_STORAGE_ROOT: &str = "data";
 
-/// The repository that stores the raw Company Facts of each run.
+/// The storage repository that stores the raw Company Facts of each run.
 pub type RawCompanyFactsWriter = FilesystemRepository<Write, RawDocument<RawCompanyFacts>>;
 
 /// Builds the [`RawCompanyFactsWriter`] for the root that `ARKAD_STORAGE_ROOT` names.

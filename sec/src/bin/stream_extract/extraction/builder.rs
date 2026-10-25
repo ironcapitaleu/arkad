@@ -7,7 +7,7 @@ use crate::storage_root::RawCompanyFactsWriter;
 pub struct NoCik;
 /// Marker type indicating no [`SecClient`] has been provided yet.
 pub struct NoClient;
-/// Marker type indicating no repository has been provided yet.
+/// Marker type indicating no storage repository has been provided yet.
 pub struct NoRepository;
 
 /// Typestate builder for constructing an [`Extraction`].
@@ -54,7 +54,7 @@ impl<C, R> ExtractionBuilder<C, NoClient, R> {
 }
 
 impl<C, S> ExtractionBuilder<C, S, NoRepository> {
-    /// Sets the repository that stores the raw Company Facts.
+    /// Sets the storage repository that stores the raw Company Facts.
     pub fn repository(
         self,
         repository: RawCompanyFactsWriter,
