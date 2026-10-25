@@ -61,10 +61,11 @@ pub struct SecClient {
     rate_limiter: SecRateLimiter,
 }
 
+// The `User-Agent` holds a contact email. State snapshots go into the logs, so the client
+// serializes no fields.
 impl Serialize for SecClient {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        let mut state = serializer.serialize_struct("SecClient", 1)?;
-        state.serialize_field("user_agent", self.user_agent())?;
+        let state = serializer.serialize_struct("SecClient", 0)?;
         state.end()
     }
 }
@@ -168,7 +169,6 @@ mod tests {
     use super::SecClient;
     use crate::shared::http_client::implementations::reqwest_client::ReqwestClient;
     use crate::shared::user_agent::UserAgent;
-    use crate::shared::user_agent::constants::DEFAULT_SEC_USER_AGENT;
 
     fn sec_client_with_other_user_agent() -> SecClient {
         let user_agent = UserAgent::new("Other Company other@example.com")
@@ -179,10 +179,10 @@ mod tests {
     }
 
     #[test]
-    fn should_serialize_the_user_agent_when_serialized_to_json() {
+    fn should_serialize_to_empty_struct_when_serialized_to_json() {
         let client = SecClient::default();
 
-        let expected_result = serde_json::json!({ "user_agent": DEFAULT_SEC_USER_AGENT });
+        let expected_result = serde_json::json!({});
 
         let result = serde_json::to_value(&client).expect("SecClient should serialize to JSON");
 
