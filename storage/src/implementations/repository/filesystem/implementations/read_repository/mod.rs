@@ -160,7 +160,7 @@ mod tests {
     use super::*;
     use crate::error::BackendError;
     use crate::implementations::repository::filesystem::{Read, ReadWrite};
-    use crate::shared::sha256_hex;
+    use crate::shared::Sha256Digest;
     use crate::tests::fixtures::sample_document::{SampleDocument, sample_document};
 
     /// Builds a repository with read access under the given root.
@@ -565,8 +565,8 @@ mod tests {
 
         let expected_result = Err(read_error(
             FailedFilesystemOperationReason::UnexpectedDocumentDigest {
-                found_digest: sha256_hex(b"[]"),
-                expected_digest: sample_document.metadata().sha256().to_owned(),
+                found_digest: Sha256Digest::of(b"[]"),
+                expected_digest: sample_document.metadata().sha256().clone(),
             },
             &document_path,
         ));
@@ -590,6 +590,43 @@ mod tests {
         let expected_result = Err(read_error(
             FailedFilesystemOperationReason::InvalidKeySuffix,
             &document_path,
+        ));
+
+        let result = repository.get(key).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_return_invalid_metadata_when_the_stored_sha256_is_not_a_digest() {
+        let root = temporary_root();
+        let repository = repository_at(root.path());
+        let sample_document = sample_document();
+        let key = sample_document.key().clone();
+        let metadata_path = repository.metadata_path(&key);
+        write_record_files(&repository, &sample_document);
+        let stored_metadata = r#"{
+  "metadata_version": 1,
+  "kind": "sample_document",
+  "kind_version": 1,
+  "media_type": "application/json",
+  "bytes": 2,
+  "sha256": "NOT-HEX",
+  "produced_at": "2026-09-22T20:05:30Z",
+  "execution_id": "0b6f3c1e-5d2a-4f7b-9c3e-8a1d2b4c6e8f",
+  "producer": { "name": "Sample State", "crate_version": "0.1.0", "commit": "63c1f59" },
+  "inputs": [],
+  "context": { "url": "https://data.sec.gov/api/xbrl/companyfacts/CIK0000320193.json" }
+}"#;
+        std::fs::write(&metadata_path, stored_metadata)
+            .expect("Given an existing directory, overwriting the metadata should always succeed");
+
+        let expected_result = Err(read_error(
+            FailedFilesystemOperationReason::InvalidMetadata {
+                line: 7,
+                column: 21,
+            },
+            &metadata_path,
         ));
 
         let result = repository.get(key).await;

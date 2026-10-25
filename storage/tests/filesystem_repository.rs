@@ -75,7 +75,11 @@ fn sample_document() -> SampleDocument {
         .media_type("application/json")
         .content(
             41,
-            "9d7e13ec27ff57b43422959a9ae627fd5bd65e67b54af2857e9c454a9262376b",
+            "9d7e13ec27ff57b43422959a9ae627fd5bd65e67b54af2857e9c454a9262376b"
+                .parse()
+                .expect(
+                    "Given 64 hardcoded lowercase hex characters, parsing should always succeed",
+                ),
         )
         .produced_at(DateTime::<Utc>::UNIX_EPOCH)
         .run(

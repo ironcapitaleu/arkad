@@ -14,6 +14,8 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+use crate::shared::Sha256Digest;
+
 pub mod builder;
 pub mod constants;
 pub mod input_document;
@@ -38,8 +40,6 @@ pub use producer::Producer;
 /// receive metadata built for another type. Deserializing checks none of the three values either.
 /// So a reader compares them with the document type's values before it uses the metadata.
 ///
-/// Nothing checks that the SHA-256 is 64 lowercase hex characters.
-///
 /// [`Document`]: crate::implementations::repository::filesystem::Document
 /// [`Document::from_parts`]: crate::implementations::repository::filesystem::Document::from_parts
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -50,7 +50,7 @@ pub struct DocumentMetadata<C> {
     media_type: String,
     #[serde(rename = "bytes")]
     size_in_bytes: u64,
-    sha256: String,
+    sha256: Sha256Digest,
     produced_at: DateTime<Utc>,
     execution_id: Uuid,
     producer: Producer,
@@ -115,10 +115,11 @@ impl DocumentMetadata<NoContext> {
     /// #     }
     /// # }
     /// #
+    /// let bytes = b"{}";
     /// let metadata = DocumentMetadata::builder()
     ///     .document_type::<Summary>()
     ///     .media_type("application/json")
-    ///     .content(2, "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a")
+    ///     .content(bytes.len() as u64, storage::shared::Sha256Digest::of(bytes))
     ///     .produced_at(DateTime::<Utc>::UNIX_EPOCH)
     ///     .run(Uuid::nil(), Producer::new("Summarize", "0.1.0", "63c1f59"))
     ///     .context(SummaryContext { source: "a test".to_owned() })
@@ -174,9 +175,9 @@ impl<C> DocumentMetadata<C> {
         self.size_in_bytes
     }
 
-    /// Returns the hex-encoded SHA-256 of the document bytes.
+    /// Returns the SHA-256 digest of the document bytes.
     #[must_use]
-    pub fn sha256(&self) -> &str {
+    pub const fn sha256(&self) -> &Sha256Digest {
         &self.sha256
     }
 

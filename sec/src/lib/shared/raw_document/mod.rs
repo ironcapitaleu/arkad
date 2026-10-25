@@ -43,10 +43,11 @@ pub use raw_document_metadata_context::RawDocumentMetadataContext;
 ///
 /// let key = DocumentKey::new("sec/companyfacts/CIK0000320193.json")
 ///     .expect("Given a valid relative path, the key should always build");
+/// let bytes = b"{}";
 /// let metadata = DocumentMetadata::builder()
 ///     .document_type::<RawDocument<RawCompanyFacts>>()
 ///     .media_type("application/json")
-///     .content(2, "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a")
+///     .content(bytes.len() as u64, storage::shared::Sha256Digest::of(bytes))
 ///     .produced_at(DateTime::<Utc>::UNIX_EPOCH)
 ///     .run(Uuid::nil(), Producer::new("Store Company Facts", "0.1.0", "63c1f59"))
 ///     .context(RawDocumentMetadataContext {
@@ -59,7 +60,7 @@ pub use raw_document_metadata_context::RawDocumentMetadataContext;
 ///     })
 ///     .build();
 ///
-/// let document = RawDocument::<RawCompanyFacts>::from_parts(key, b"{}".to_vec(), metadata);
+/// let document = RawDocument::<RawCompanyFacts>::from_parts(key, bytes.to_vec(), metadata);
 ///
 /// let expected_result = "raw_company_facts";
 ///
@@ -145,10 +146,7 @@ mod tests {
         let metadata = DocumentMetadata::builder()
             .document_type::<RawDocument<RawCompanyFacts>>()
             .media_type("application/json")
-            .content(
-                2,
-                "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
-            )
+            .content(2, storage::shared::Sha256Digest::of(b"{}"))
             .produced_at(DateTime::<Utc>::UNIX_EPOCH)
             .run(
                 Uuid::nil(),
@@ -251,7 +249,9 @@ mod tests {
             .media_type("application/json")
             .content(
                 3_789_099,
-                "73a86c6aedc31f77cac2ea4df5f80f0b73a86c6aedc31f77cac2ea4df5f80f0b",
+                "73a86c6aedc31f77cac2ea4df5f80f0b73a86c6aedc31f77cac2ea4df5f80f0b"
+                    .parse()
+                    .expect("Given 64 hardcoded lowercase hex characters, parsing should always succeed"),
             )
             .produced_at(produced_at)
             .run(

@@ -43,7 +43,7 @@ impl ParseCompanyFactsInput {
     /// use storage::shared::Sha256Digest;
     ///
     /// let json = serde_json::json!({"cik": 320193, "entityName": "Apple Inc.", "facts": {}});
-    /// let digest = Sha256Digest::of(json.to_string().as_bytes());
+    /// let digest = Sha256Digest::of(json.to_string());
     /// let input = ParseCompanyFactsInput::new(json.clone(), digest);
     ///
     /// let expected_result = &json;
@@ -128,7 +128,7 @@ impl StateData for ParseCompanyFactsInput {
     /// A stale digest makes `Eq`, `Hash`, and `Ord` describe the old response.
     fn update_state(&mut self, updates: Self::UpdateType) -> Result<(), StateError> {
         if let Some(response) = updates.response {
-            self.body_digest = Sha256Digest::of(response.to_string().as_bytes());
+            self.body_digest = Sha256Digest::of(response.to_string());
             self.response = response;
         }
         Ok(())
@@ -233,7 +233,7 @@ mod tests {
 
     fn test_input() -> ParseCompanyFactsInput {
         let json = serde_json::json!({});
-        let digest = Sha256Digest::of(json.to_string().as_bytes());
+        let digest = Sha256Digest::of(json.to_string());
         ParseCompanyFactsInput::new(json, digest)
     }
 
@@ -251,7 +251,7 @@ mod tests {
     #[test]
     fn should_create_different_input_data_with_custom_json_when_using_new_as_constructor() {
         let json = serde_json::json!({"cik": 320_193});
-        let digest = Sha256Digest::of(json.to_string().as_bytes());
+        let digest = Sha256Digest::of(json.to_string());
         let input_data = &ParseCompanyFactsInput::new(json, digest);
 
         let default_input_data = &test_input();
@@ -269,7 +269,7 @@ mod tests {
             .response(new_json.clone())
             .build();
 
-        let digest = Sha256Digest::of(new_json.to_string().as_bytes());
+        let digest = Sha256Digest::of(new_json.to_string());
         let expected_result = &ParseCompanyFactsInput::new(new_json, digest);
 
         StateData::update_state(&mut state_data, update)

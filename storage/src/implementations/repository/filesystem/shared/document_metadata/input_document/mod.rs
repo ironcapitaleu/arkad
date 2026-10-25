@@ -5,22 +5,20 @@
 use serde::{Deserialize, Serialize};
 
 use crate::implementations::repository::filesystem::shared::document_key::DocumentKey;
+use crate::shared::Sha256Digest;
 
 /// Points at one document that a stored document came from.
 ///
 /// Holds the input's key and the SHA-256 of the input's bytes at the time they were read. If the
 /// key holds other bytes when it is read again, their SHA-256 differs from the one stored here.
-///
-/// Nothing checks that the SHA-256 is 64 lowercase hex characters, so two spellings of one digest
-/// compare as different.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct InputDocument {
     key: DocumentKey,
-    sha256: String,
+    sha256: Sha256Digest,
 }
 
 impl InputDocument {
-    /// Creates a new [`InputDocument`] from the input's key and the hex SHA-256 of its bytes.
+    /// Creates a new [`InputDocument`] from the input's key and the SHA-256 digest of its bytes.
     ///
     /// # Examples
     ///
@@ -32,7 +30,7 @@ impl InputDocument {
     ///
     /// let input = InputDocument::new(
     ///     key.clone(),
-    ///     "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+    ///     storage::shared::Sha256Digest::of(b"{}"),
     /// );
     ///
     /// let expected_result = &key;
@@ -42,11 +40,8 @@ impl InputDocument {
     /// assert_eq!(result, expected_result);
     /// ```
     #[must_use]
-    pub fn new(key: DocumentKey, sha256: impl Into<String>) -> Self {
-        Self {
-            key,
-            sha256: sha256.into(),
-        }
+    pub const fn new(key: DocumentKey, sha256: Sha256Digest) -> Self {
+        Self { key, sha256 }
     }
 
     /// Returns the key of the input document.
@@ -55,9 +50,9 @@ impl InputDocument {
         &self.key
     }
 
-    /// Returns the hex-encoded SHA-256 of the input's bytes when they were read.
+    /// Returns the SHA-256 digest of the input's bytes when they were read.
     #[must_use]
-    pub fn sha256(&self) -> &str {
+    pub const fn sha256(&self) -> &Sha256Digest {
         &self.sha256
     }
 }
@@ -74,10 +69,7 @@ mod tests {
     fn sample_input_document() -> InputDocument {
         let key = DocumentKey::new("sec/companyfacts/CIK0000320193.json")
             .expect("Given a valid relative path, the key should always build");
-        InputDocument::new(
-            key,
-            "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
-        )
+        InputDocument::new(key, Sha256Digest::of(b"{}"))
     }
 
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
@@ -169,7 +161,7 @@ mod tests {
     fn should_return_the_sha256_when_building_an_input_document() {
         let input = sample_input_document();
 
-        let expected_result = "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a";
+        let expected_result = &Sha256Digest::of(b"{}");
 
         let result = input.sha256();
 
@@ -216,5 +208,17 @@ mod tests {
             .to_string();
 
         assert!(result.starts_with(expected_result));
+    }
+
+    #[test]
+    fn should_reject_the_input_document_when_the_sha256_is_not_a_digest() {
+        let json = r#"{"key":"sec/companyfacts/CIK0000320193.json","sha256":"NOT-HEX"}"#;
+
+        let expected_result = true;
+
+        let result = serde_json::from_str::<InputDocument>(json)
+            .is_err_and(|error| error.to_string().starts_with("[InvalidSha256Digest]"));
+
+        assert_eq!(result, expected_result);
     }
 }
