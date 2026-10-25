@@ -56,10 +56,7 @@ async fn should_succeed_for_must_pass_companies() {
         "Given ARKAD_SEC_USER_AGENT is unset, empty or SEC-formatted, building the client should succeed",
     );
     if let Some(warning) = default_user_agent_warning(&sec_client) {
-        write_progress(&format!(
-            "Warning: {warning}
-"
-        ));
+        write_progress(&format!("Warning: {warning}\n"));
     }
     let repository = raw_company_facts_writer();
     let ciks: Vec<&str> = MUST_PASS_CIKS.iter().map(|(cik, _)| *cik).collect();
@@ -113,10 +110,7 @@ async fn should_meet_threshold_for_sp500_companies() {
         "Given ARKAD_SEC_USER_AGENT is unset, empty or SEC-formatted, building the client should succeed",
     );
     if let Some(warning) = default_user_agent_warning(&sec_client) {
-        write_progress(&format!(
-            "Warning: {warning}
-"
-        ));
+        write_progress(&format!("Warning: {warning}\n"));
     }
     let repository = raw_company_facts_writer();
     let ciks: Vec<&str> = SP500_CIKS.to_vec();
