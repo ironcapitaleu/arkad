@@ -4,7 +4,7 @@
 //!
 //! The limiter is split into a trait layer so the library is not bound to any one rate-limiting
 //! crate: a [`RateLimiter`] contract, a generic [`GovernorRateLimiter`] backed by the `governor`
-//! crate, and a [`SecRateLimiter`] that configures the generic limiter for the SEC EDGAR API's
+//! crate, and an [`SecRateLimiter`] that configures the generic limiter for the SEC EDGAR API's
 //! request-rate ceiling. This layering keeps the pacing mechanism reusable while confining the
 //! SEC-specific policy to one type, and lets tests substitute a fake that never blocks.
 //!
