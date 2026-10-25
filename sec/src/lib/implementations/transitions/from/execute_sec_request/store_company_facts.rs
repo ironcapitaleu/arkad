@@ -1,7 +1,7 @@
 //! # Transition: `ExecuteSecRequest` → `StoreCompanyFacts`
 //!
 //! Implements the [`TryFrom`] conversion producing a [`StoreCompanyFacts`] from an
-//! [`ExecuteSecRequest`] and the `execution_id` of the run.
+//! [`ExecuteSecRequest`] and the `execution_id`.
 //!
 //! It moves the response from the output of the source state, the requested URL from its
 //! [`SecRequest`], the `User-Agent` from its [`SecClient`], and the CIK and the storage repository
@@ -33,8 +33,7 @@ use crate::shared::url::Url;
 impl<R> TryFrom<(ExecuteSecRequest<R>, Uuid)> for StoreCompanyFacts<R> {
     type Error = TransitionError;
 
-    /// Builds a [`StoreCompanyFacts`] from a computed [`ExecuteSecRequest`] and the
-    /// `execution_id` of the run.
+    /// Builds a [`StoreCompanyFacts`] from a computed [`ExecuteSecRequest`] and the `execution_id`.
     ///
     /// # Errors
     ///
