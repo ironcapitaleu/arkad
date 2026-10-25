@@ -64,8 +64,7 @@ pub use traits::document::Document;
 /// different document types can share one root, as long as their keys differ.
 ///
 /// The repository implements `Debug`, `Clone`, `PartialEq`, `Eq`, `PartialOrd`, `Ord`, `Hash`, and
-/// `Serialize` with no bound on `D`, so it implements them for every document type. Two
-/// repositories compare by root and access.
+/// `Serialize` for every document type `D`. Two repositories compare by root and access.
 ///
 /// A [`DocumentKey`] is a document's path under the root. A document lives at the root joined with
 /// its key. On Linux and macOS, a root of `/data/arkad` and a key of `sec/CIK0000320193.json` name
