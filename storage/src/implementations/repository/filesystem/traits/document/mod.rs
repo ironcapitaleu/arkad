@@ -1,6 +1,6 @@
 //! # Document
 //!
-//! Provides [`Document`], the trait every document kind implements to be stored as a file.
+//! Provides [`Document`], the trait every document type implements to be stored as a file.
 
 use std::fmt;
 
@@ -13,17 +13,18 @@ use crate::implementations::repository::filesystem::shared::document_metadata::D
 /// Defines what the store needs from a document to write it as a file and to read it back.
 ///
 /// A document is a key, the bytes stored under it, and the metadata stored beside them. Each
-/// document kind is its own type and implements this trait.
+/// document type is its own Rust type and implements this trait.
 ///
-/// The crate that owns a kind defines an enum of its kinds and sets [`Document::Kind`] to it.
-/// [`Document::KIND`] names the variant of this type, and [`Document::KIND_VERSION`] the version
-/// of its [`Document::Context`]. [`DocumentMetadataBuilder::build`] stores both, so a reader can
-/// tell a file of another kind or version apart.
+/// The crate that owns a document type defines an enum of its document types and sets
+/// [`Document::DocumentType`] to it. [`Document::DOCUMENT_TYPE`] names the variant of this type,
+/// and [`Document::DOCUMENT_TYPE_VERSION`] the version of its [`Document::Context`].
+/// [`DocumentMetadataBuilder::build`] stores both, so a reader can tell a file of another document
+/// type or version apart.
 ///
 /// # Associated Types
 ///
-/// - `Kind`: The enum of document kinds in the crate that owns this kind.
-/// - `Context`: The metadata fields that only this document kind has.
+/// - `DocumentType`: The enum of document types in the crate that owns this document type.
+/// - `Context`: The metadata fields that only this document type has.
 ///
 /// # Examples
 ///
@@ -34,11 +35,11 @@ use crate::implementations::repository::filesystem::shared::document_metadata::D
 /// use storage::implementations::repository::filesystem::{Document, DocumentKey, DocumentMetadata};
 ///
 /// #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-/// enum ReportKind {
+/// enum ReportType {
 ///     Summary,
 /// }
 ///
-/// impl fmt::Display for ReportKind {
+/// impl fmt::Display for ReportType {
 ///     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
 ///         match self {
 ///             Self::Summary => write!(f, "summary"),
@@ -58,9 +59,9 @@ use crate::implementations::repository::filesystem::shared::document_metadata::D
 /// }
 ///
 /// impl Document for Summary {
-///     type Kind = ReportKind;
-///     const KIND: ReportKind = ReportKind::Summary;
-///     const KIND_VERSION: u32 = 1;
+///     type DocumentType = ReportType;
+///     const DOCUMENT_TYPE: ReportType = ReportType::Summary;
+///     const DOCUMENT_TYPE_VERSION: u32 = 1;
 ///     type Context = SummaryContext;
 ///
 ///     fn key(&self) -> &DocumentKey {
@@ -86,28 +87,28 @@ use crate::implementations::repository::filesystem::shared::document_metadata::D
 ///
 /// let expected_result = "summary";
 ///
-/// let result = Summary::KIND.to_string();
+/// let result = Summary::DOCUMENT_TYPE.to_string();
 ///
 /// assert_eq!(result, expected_result);
 /// ```
 ///
 /// [`DocumentMetadataBuilder::build`]: crate::implementations::repository::filesystem::DocumentMetadataBuilder::build
 pub trait Document: Send + Sized {
-    /// The enum of document kinds in the crate that owns this kind.
+    /// The enum of document types in the crate that owns this document type.
     ///
-    /// The store writes its `Display` text as `kind`. The text must be unique across every crate
-    /// that stores documents, because the store cannot tell two equal texts apart.
-    type Kind: fmt::Display;
+    /// The store writes its `Display` text as `document_type`. The text must be unique across every
+    /// crate that stores documents, because the store cannot tell two equal texts apart.
+    type DocumentType: fmt::Display;
 
-    /// The variant of [`Document::Kind`] that names this document kind.
-    const KIND: Self::Kind;
+    /// The variant of [`Document::DocumentType`] that names this document type.
+    const DOCUMENT_TYPE: Self::DocumentType;
 
     /// The version of [`Document::Context`].
     ///
     /// Raise it when a context field is removed, renamed, or redefined.
-    const KIND_VERSION: u32;
+    const DOCUMENT_TYPE_VERSION: u32;
 
-    /// The metadata fields that only this document kind has.
+    /// The metadata fields that only this document type has.
     type Context: Serialize + DeserializeOwned;
 
     /// Returns the key that names this document in the store.

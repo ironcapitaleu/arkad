@@ -24,7 +24,7 @@
 //! - [`shared`]: The value types that more than one module uses, such as the [`DocumentKey`] and
 //!   the [`DocumentMetadata`].
 //! - [`traits`]: The access markers, the traits that connect them to the ports, and the
-//!   [`Document`] trait every stored document kind implements.
+//!   [`Document`] trait every stored document type implements.
 
 use std::cmp::Ordering;
 use std::fmt;
@@ -59,9 +59,10 @@ pub use traits::document::Document;
 /// access the marker `A` allows.
 ///
 /// [`FilesystemRepository::builder`] starts the builder that builds it. `A` is [`Read`], [`Write`],
-/// or [`ReadWrite`]. A read rejects a metadata file of another kind or kind version than `D`, and a
-/// write rejects a record whose metadata holds another kind or kind version. Repositories for
-/// different document types can share one root, as long as their keys differ.
+/// or [`ReadWrite`]. A read rejects a metadata file of another document type or document type
+/// version than `D`, and a write rejects a record whose metadata holds another document type or
+/// document type version. Repositories for different document types can share one root, as long as
+/// their keys differ.
 ///
 /// The repository implements `Debug`, `Display`, `Clone`, `PartialEq`, `Eq`, `PartialOrd`, `Ord`,
 /// `Hash`, and `Serialize` for every document type `D`. Two repositories compare by root and
@@ -194,11 +195,11 @@ impl FilesystemRepository<NoAccess, NoDocumentType> {
     /// # use storage::implementations::repository::filesystem::{Document, DocumentMetadata};
     /// #
     /// # #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-    /// # enum ReportKind {
+    /// # enum ReportType {
     /// #     Summary,
     /// # }
     /// #
-    /// # impl fmt::Display for ReportKind {
+    /// # impl fmt::Display for ReportType {
     /// #     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     /// #         write!(f, "summary")
     /// #     }
@@ -214,9 +215,9 @@ impl FilesystemRepository<NoAccess, NoDocumentType> {
     /// # }
     /// #
     /// # impl Document for Summary {
-    /// #     type Kind = ReportKind;
-    /// #     const KIND: ReportKind = ReportKind::Summary;
-    /// #     const KIND_VERSION: u32 = 1;
+    /// #     type DocumentType = ReportType;
+    /// #     const DOCUMENT_TYPE: ReportType = ReportType::Summary;
+    /// #     const DOCUMENT_TYPE_VERSION: u32 = 1;
     /// #     type Context = SummaryContext;
     /// #     fn key(&self) -> &DocumentKey { &self.key }
     /// #     fn bytes(&self) -> &[u8] { &self.bytes }
@@ -269,11 +270,11 @@ impl<A, D> FilesystemRepository<A, D> {
     /// # use storage::implementations::repository::filesystem::{Document, DocumentMetadata};
     /// #
     /// # #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-    /// # enum ReportKind {
+    /// # enum ReportType {
     /// #     Summary,
     /// # }
     /// #
-    /// # impl fmt::Display for ReportKind {
+    /// # impl fmt::Display for ReportType {
     /// #     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     /// #         write!(f, "summary")
     /// #     }
@@ -289,9 +290,9 @@ impl<A, D> FilesystemRepository<A, D> {
     /// # }
     /// #
     /// # impl Document for Summary {
-    /// #     type Kind = ReportKind;
-    /// #     const KIND: ReportKind = ReportKind::Summary;
-    /// #     const KIND_VERSION: u32 = 1;
+    /// #     type DocumentType = ReportType;
+    /// #     const DOCUMENT_TYPE: ReportType = ReportType::Summary;
+    /// #     const DOCUMENT_TYPE_VERSION: u32 = 1;
     /// #     type Context = SummaryContext;
     /// #     fn key(&self) -> &DocumentKey { &self.key }
     /// #     fn bytes(&self) -> &[u8] { &self.bytes }
@@ -440,7 +441,7 @@ impl From<FailedFilesystemOperation> for BackendError {
             } => Self::unauthorized_access(reason),
             FailedFilesystemOperationReason::MissingMetadataFile
             | FailedFilesystemOperationReason::InvalidMetadata { .. }
-            | FailedFilesystemOperationReason::UnexpectedMetadataKind { .. }
+            | FailedFilesystemOperationReason::UnexpectedDocumentType { .. }
             | FailedFilesystemOperationReason::UnserializableMetadata
             | FailedFilesystemOperationReason::UnexpectedDocumentSize { .. }
             | FailedFilesystemOperationReason::UnexpectedDocumentDigest { .. }
@@ -459,7 +460,7 @@ mod tests {
     use tempfile::TempDir;
 
     use super::*;
-    use crate::tests::fixtures::sample_document::{SampleDocument, SampleDocumentKind};
+    use crate::tests::fixtures::sample_document::{SampleDocument, SampleDocumentType};
     use crate::traits::repository::ReadWriteRepository;
 
     /// Builds a repository with read and write access under the given root.
@@ -485,9 +486,9 @@ mod tests {
     }
 
     impl Document for BareDocument {
-        type Kind = SampleDocumentKind;
-        const KIND: SampleDocumentKind = SampleDocumentKind::SampleDocument;
-        const KIND_VERSION: u32 = 1;
+        type DocumentType = SampleDocumentType;
+        const DOCUMENT_TYPE: SampleDocumentType = SampleDocumentType::SampleDocument;
+        const DOCUMENT_TYPE_VERSION: u32 = 1;
         type Context = ();
 
         fn key(&self) -> &DocumentKey {
@@ -911,20 +912,20 @@ mod tests {
     }
 
     #[test]
-    fn should_return_failed_operation_when_converting_an_unexpected_metadata_kind() {
+    fn should_return_failed_operation_when_converting_an_unexpected_document_type() {
         let error = FailedFilesystemOperation::new(
-            FailedFilesystemOperationReason::UnexpectedMetadataKind {
-                found_kind: "other_document".to_owned(),
-                found_kind_version: 1,
-                expected_kind: "sample_document".to_owned(),
-                expected_kind_version: 1,
+            FailedFilesystemOperationReason::UnexpectedDocumentType {
+                found_document_type: "other_document".to_owned(),
+                found_document_type_version: 1,
+                expected_document_type: "sample_document".to_owned(),
+                expected_document_type_version: 1,
             },
             "/data/arkad/x.json.meta.json",
         );
 
         let expected_result = BackendError::failed_operation(
             "[FailedFilesystemOperation] Filesystem operation failed, \
-            Reason: 'Metadata holds kind 'other_document' version 1, expected kind \
+            Reason: 'Metadata holds document type 'other_document' version 1, expected document type \
             'sample_document' version 1', Path: '/data/arkad/x.json.meta.json'",
         );
 

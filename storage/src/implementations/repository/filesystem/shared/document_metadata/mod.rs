@@ -29,24 +29,26 @@ pub use constants::METADATA_VERSION;
 pub use input_document::InputDocument;
 pub use producer::Producer;
 
-/// Describes one stored document: the fields every kind shares, and the context of its kind.
+/// Describes one stored document: the fields every document type shares, and the context of its
+/// document type.
 ///
 /// The shared fields serialize at the top level of a JSON object. The context serializes as a
 /// nested object under `context`.
 ///
 /// [`DocumentMetadataBuilder::build`] sets `metadata_version` from [`METADATA_VERSION`], and
-/// `kind` and `kind_version` from the [`Document`] type it names. The metadata holds no link to
-/// that type. Two document types can share one context type, so [`Document::from_parts`] can
-/// receive metadata built for another type. Deserializing checks none of the three values either.
-/// So a reader compares them with the document type's values before it uses the metadata.
+/// `document_type` and `document_type_version` from the [`Document`] type it names. The metadata
+/// holds no link to that type. Two document types can share one context type, so
+/// [`Document::from_parts`] can receive metadata built for another type. Deserializing checks none
+/// of the three values either. So a reader compares them with the document type's values before it
+/// uses the metadata.
 ///
 /// [`Document`]: crate::implementations::repository::filesystem::Document
 /// [`Document::from_parts`]: crate::implementations::repository::filesystem::Document::from_parts
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct DocumentMetadata<C> {
     metadata_version: u32,
-    kind: String,
-    kind_version: u32,
+    document_type: String,
+    document_type_version: u32,
     media_type: String,
     #[serde(rename = "bytes")]
     size_in_bytes: u64,
@@ -77,11 +79,11 @@ impl DocumentMetadata<NoContext> {
     /// # use uuid::Uuid;
     /// #
     /// # #[derive(Debug, Clone, Copy)]
-    /// # enum ReportKind {
+    /// # enum ReportType {
     /// #     Summary,
     /// # }
     /// #
-    /// # impl fmt::Display for ReportKind {
+    /// # impl fmt::Display for ReportType {
     /// #     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     /// #         write!(f, "summary")
     /// #     }
@@ -99,9 +101,9 @@ impl DocumentMetadata<NoContext> {
     /// # }
     /// #
     /// # impl Document for Summary {
-    /// #     type Kind = ReportKind;
-    /// #     const KIND: ReportKind = ReportKind::Summary;
-    /// #     const KIND_VERSION: u32 = 1;
+    /// #     type DocumentType = ReportType;
+    /// #     const DOCUMENT_TYPE: ReportType = ReportType::Summary;
+    /// #     const DOCUMENT_TYPE_VERSION: u32 = 1;
     /// #     type Context = SummaryContext;
     /// #     fn key(&self) -> &DocumentKey { &self.key }
     /// #     fn bytes(&self) -> &[u8] { &self.bytes }
@@ -127,7 +129,7 @@ impl DocumentMetadata<NoContext> {
     ///
     /// let expected_result = "summary";
     ///
-    /// let result = metadata.kind();
+    /// let result = metadata.document_type();
     ///
     /// assert_eq!(result, expected_result);
     /// ```
@@ -151,16 +153,16 @@ impl<C> DocumentMetadata<C> {
         self.metadata_version
     }
 
-    /// Returns the kind stored in the metadata.
+    /// Returns the document type stored in the metadata.
     #[must_use]
-    pub fn kind(&self) -> &str {
-        &self.kind
+    pub fn document_type(&self) -> &str {
+        &self.document_type
     }
 
     /// Returns the version of the context stored in the metadata.
     #[must_use]
-    pub const fn kind_version(&self) -> u32 {
-        self.kind_version
+    pub const fn document_type_version(&self) -> u32 {
+        self.document_type_version
     }
 
     /// Returns the media type of the document bytes, for example `application/json`.
@@ -205,7 +207,7 @@ impl<C> DocumentMetadata<C> {
         &self.inputs
     }
 
-    /// Returns the fields that only this document kind has.
+    /// Returns the fields that only this document type has.
     #[must_use]
     pub const fn context(&self) -> &C {
         &self.context
@@ -271,23 +273,23 @@ mod tests {
     }
 
     #[test]
-    fn should_take_the_kind_from_the_document_type_when_creating_metadata() {
+    fn should_take_the_document_type_from_the_document_when_creating_metadata() {
         let metadata = sample_metadata();
 
         let expected_result = "sample_document";
 
-        let result = metadata.kind();
+        let result = metadata.document_type();
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
-    fn should_take_the_kind_version_from_the_document_type_when_creating_metadata() {
+    fn should_take_the_document_type_version_from_the_document_when_creating_metadata() {
         let metadata = sample_metadata();
 
         let expected_result = 1;
 
-        let result = metadata.kind_version();
+        let result = metadata.document_type_version();
 
         assert_eq!(result, expected_result);
     }
@@ -310,8 +312,8 @@ mod tests {
 
         let expected_result = serde_json::json!({
             "metadata_version": 1,
-            "kind": "sample_document",
-            "kind_version": 1,
+            "document_type": "sample_document",
+            "document_type_version": 1,
             "media_type": "application/json",
             "bytes": 2,
             "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
@@ -362,32 +364,33 @@ mod tests {
     }
 
     #[test]
-    fn should_keep_the_stored_kind_when_reading_metadata_of_another_kind() {
+    fn should_keep_the_stored_document_type_when_reading_metadata_of_another_document_type() {
         let mut stored = serde_json::to_value(sample_metadata())
             .expect("Given metadata of owned fields, serialization should always succeed");
-        stored["kind"] = "another_kind".into();
+        stored["document_type"] = "another_document_type".into();
 
-        let expected_result = "another_kind";
+        let expected_result = "another_document_type";
 
         let result = serde_json::from_value::<DocumentMetadata<SampleContext>>(stored)
             .expect("Given JSON with every field, deserialization should always succeed")
-            .kind()
+            .document_type()
             .to_owned();
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
-    fn should_keep_the_stored_kind_version_when_reading_metadata_of_another_kind_version() {
+    fn should_keep_the_stored_document_type_version_when_reading_metadata_of_another_document_type_version()
+     {
         let mut stored = serde_json::to_value(sample_metadata())
             .expect("Given metadata of owned fields, serialization should always succeed");
-        stored["kind_version"] = 7.into();
+        stored["document_type_version"] = 7.into();
 
         let expected_result = 7;
 
         let result = serde_json::from_value::<DocumentMetadata<SampleContext>>(stored)
             .expect("Given JSON with every field, deserialization should always succeed")
-            .kind_version();
+            .document_type_version();
 
         assert_eq!(result, expected_result);
     }

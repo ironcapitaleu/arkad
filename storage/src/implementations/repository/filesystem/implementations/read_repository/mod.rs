@@ -32,9 +32,9 @@ impl<A: CanRead, D: Document> ReadRepository for FilesystemRepository<A, D> {
     /// through a stored file also returns `None`. If the document read fails, `get` checks the
     /// root first, so a bad root always reports the same error.
     ///
-    /// `get` reads `kind` and `kind_version` from the metadata file before the rest of it. A file
-    /// of another kind or kind version fails with both named, even if its other fields do not fit
-    /// the context of `D`.
+    /// `get` reads `document_type` and `document_type_version` from the metadata file before the
+    /// rest of it. A file of another document type or document type version fails with both named,
+    /// even if its other fields do not fit the context of `D`.
     ///
     /// `get` rejects a key that ends in
     /// [`METADATA_SUFFIX`](crate::implementations::repository::filesystem::METADATA_SUFFIX) before
@@ -52,9 +52,9 @@ impl<A: CanRead, D: Document> ReadRepository for FilesystemRepository<A, D> {
     /// - the filesystem denies access to the document or its metadata
     ///   ([`BackendError::UnauthorizedAccess`](crate::BackendError::UnauthorizedAccess)).
     /// - the key ends in the metadata suffix, the document has no metadata file, the metadata file
-    ///   holds no valid metadata, the metadata holds another kind or kind version than `D`, the
-    ///   bytes have another size or digest than the metadata names, or the filesystem rejects the
-    ///   read for any other reason
+    ///   holds no valid metadata, the metadata holds another document type or document type version
+    ///   than `D`, the bytes have another size or digest than the metadata names, or the filesystem
+    ///   rejects the read for any other reason
     ///   ([`BackendError::FailedOperation`](crate::BackendError::FailedOperation)).
     async fn get(&self, key: Self::Key) -> Result<Option<Self::Record>, ReadError> {
         self.read_record(key)
@@ -93,7 +93,7 @@ impl<A: CanRead, D: Document> FilesystemRepository<A, D> {
         Ok(Some(D::from_parts(key, bytes, metadata)))
     }
 
-    /// Reads the metadata file beside the key's document, checks its kind, then parses it.
+    /// Reads the metadata file beside the key's document, checks its document type, then parses it.
     async fn read_metadata(
         &self,
         key: &DocumentKey,
@@ -114,14 +114,16 @@ impl<A: CanRead, D: Document> FilesystemRepository<A, D> {
             }
         })?;
 
-        let stored: StoredKind = parse_metadata(&metadata_json, &metadata_path)?;
-        let expected_kind = D::KIND.to_string();
-        if stored.kind != expected_kind || stored.kind_version != D::KIND_VERSION {
-            let reason = FailedFilesystemOperationReason::UnexpectedMetadataKind {
-                found_kind: stored.kind,
-                found_kind_version: stored.kind_version,
-                expected_kind,
-                expected_kind_version: D::KIND_VERSION,
+        let stored: StoredDocumentType = parse_metadata(&metadata_json, &metadata_path)?;
+        let expected_document_type = D::DOCUMENT_TYPE.to_string();
+        if stored.document_type != expected_document_type
+            || stored.document_type_version != D::DOCUMENT_TYPE_VERSION
+        {
+            let reason = FailedFilesystemOperationReason::UnexpectedDocumentType {
+                found_document_type: stored.document_type,
+                found_document_type_version: stored.document_type_version,
+                expected_document_type,
+                expected_document_type_version: D::DOCUMENT_TYPE_VERSION,
             };
             return Err(FailedFilesystemOperation::new(reason, &metadata_path));
         }
@@ -129,11 +131,12 @@ impl<A: CanRead, D: Document> FilesystemRepository<A, D> {
     }
 }
 
-/// The `kind` and `kind_version` of a metadata file, which a read checks before it parses the rest.
+/// The `document_type` and `document_type_version` of a metadata file, which a read checks before
+/// it parses the rest.
 #[derive(Deserialize)]
-struct StoredKind {
-    kind: String,
-    kind_version: u32,
+struct StoredDocumentType {
+    document_type: String,
+    document_type_version: u32,
 }
 
 /// Parses a metadata file, and reports where the parser stopped if the file does not fit `T`.
@@ -315,8 +318,8 @@ mod tests {
         write_record_files(&repository, &sample_document);
         let stored_metadata = r#"{
   "metadata_version": 1,
-  "kind": "sample_document",
-  "kind_version": 1,
+  "document_type": "sample_document",
+  "document_type_version": 1,
   "media_type": "application/json",
   "bytes": 2,
   "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
@@ -428,19 +431,23 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_return_unexpected_metadata_kind_when_the_metadata_holds_another_kind() {
+    async fn should_return_unexpected_document_type_when_the_metadata_holds_another_document_type()
+    {
         let root = temporary_root();
         let repository = repository_at(root.path());
         let key = sample_document().key().clone();
         let metadata_path = repository.metadata_path(&key);
-        write_record_files_with_metadata_fields(&repository, &[("kind", "other_document".into())]);
+        write_record_files_with_metadata_fields(
+            &repository,
+            &[("document_type", "other_document".into())],
+        );
 
         let expected_result = Err(read_error(
-            FailedFilesystemOperationReason::UnexpectedMetadataKind {
-                found_kind: "other_document".to_owned(),
-                found_kind_version: 1,
-                expected_kind: "sample_document".to_owned(),
-                expected_kind_version: 1,
+            FailedFilesystemOperationReason::UnexpectedDocumentType {
+                found_document_type: "other_document".to_owned(),
+                found_document_type_version: 1,
+                expected_document_type: "sample_document".to_owned(),
+                expected_document_type_version: 1,
             },
             &metadata_path,
         ));
@@ -451,19 +458,23 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_return_unexpected_metadata_kind_when_the_metadata_holds_another_kind_version() {
+    async fn should_return_unexpected_document_type_when_the_metadata_holds_another_document_type_version()
+     {
         let root = temporary_root();
         let repository = repository_at(root.path());
         let key = sample_document().key().clone();
         let metadata_path = repository.metadata_path(&key);
-        write_record_files_with_metadata_fields(&repository, &[("kind_version", 2.into())]);
+        write_record_files_with_metadata_fields(
+            &repository,
+            &[("document_type_version", 2.into())],
+        );
 
         let expected_result = Err(read_error(
-            FailedFilesystemOperationReason::UnexpectedMetadataKind {
-                found_kind: "sample_document".to_owned(),
-                found_kind_version: 2,
-                expected_kind: "sample_document".to_owned(),
-                expected_kind_version: 1,
+            FailedFilesystemOperationReason::UnexpectedDocumentType {
+                found_document_type: "sample_document".to_owned(),
+                found_document_type_version: 2,
+                expected_document_type: "sample_document".to_owned(),
+                expected_document_type_version: 1,
             },
             &metadata_path,
         ));
@@ -474,7 +485,8 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_report_the_kind_before_the_context_when_another_kind_has_another_context() {
+    async fn should_report_the_document_type_before_the_context_when_another_document_type_has_another_context()
+     {
         let root = temporary_root();
         let repository = repository_at(root.path());
         let key = sample_document().key().clone();
@@ -482,17 +494,17 @@ mod tests {
         write_record_files_with_metadata_fields(
             &repository,
             &[
-                ("kind", "other_document".into()),
+                ("document_type", "other_document".into()),
                 ("context", serde_json::json!({ "other_field": 1 })),
             ],
         );
 
         let expected_result = Err(read_error(
-            FailedFilesystemOperationReason::UnexpectedMetadataKind {
-                found_kind: "other_document".to_owned(),
-                found_kind_version: 1,
-                expected_kind: "sample_document".to_owned(),
-                expected_kind_version: 1,
+            FailedFilesystemOperationReason::UnexpectedDocumentType {
+                found_document_type: "other_document".to_owned(),
+                found_document_type_version: 1,
+                expected_document_type: "sample_document".to_owned(),
+                expected_document_type_version: 1,
             },
             &metadata_path,
         ));
@@ -503,20 +515,47 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_return_invalid_metadata_when_the_metadata_file_has_no_kind() {
+    async fn should_return_invalid_metadata_when_the_metadata_file_has_no_document_type() {
         let root = temporary_root();
         let repository = repository_at(root.path());
         let sample_document = sample_document();
         let key = sample_document.key().clone();
         let metadata_path = repository.metadata_path(&key);
         write_record_files(&repository, &sample_document);
-        std::fs::write(&metadata_path, br#"{"kind_version":1}"#)
+        std::fs::write(&metadata_path, br#"{"document_type_version":1}"#)
             .expect("Given an existing directory, overwriting the metadata should always succeed");
 
         let expected_result = Err(read_error(
             FailedFilesystemOperationReason::InvalidMetadata {
                 line: 1,
-                column: 18,
+                column: 27,
+            },
+            &metadata_path,
+        ));
+
+        let result = repository.get(key).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_return_invalid_metadata_when_the_metadata_file_holds_the_kind_layout() {
+        let root = temporary_root();
+        let repository = repository_at(root.path());
+        let sample_document = sample_document();
+        let key = sample_document.key().clone();
+        let metadata_path = repository.metadata_path(&key);
+        write_record_files(&repository, &sample_document);
+        std::fs::write(
+            &metadata_path,
+            br#"{"metadata_version":1,"kind":"sample_document","kind_version":1}"#,
+        )
+        .expect("Given an existing directory, overwriting the metadata should always succeed");
+
+        let expected_result = Err(read_error(
+            FailedFilesystemOperationReason::InvalidMetadata {
+                line: 1,
+                column: 64,
             },
             &metadata_path,
         ));
@@ -607,8 +646,8 @@ mod tests {
         write_record_files(&repository, &sample_document);
         let stored_metadata = r#"{
   "metadata_version": 1,
-  "kind": "sample_document",
-  "kind_version": 1,
+  "document_type": "sample_document",
+  "document_type_version": 1,
   "media_type": "application/json",
   "bytes": 2,
   "sha256": "NOT-HEX",

@@ -29,11 +29,11 @@ mod sealed {
 /// # use storage::implementations::repository::filesystem::{Document, DocumentKey, DocumentMetadata};
 /// #
 /// # #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-/// # enum ReportKind {
+/// # enum ReportType {
 /// #     Summary,
 /// # }
 /// #
-/// # impl fmt::Display for ReportKind {
+/// # impl fmt::Display for ReportType {
 /// #     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
 /// #         write!(f, "summary")
 /// #     }
@@ -49,9 +49,9 @@ mod sealed {
 /// # }
 /// #
 /// # impl Document for Summary {
-/// #     type Kind = ReportKind;
-/// #     const KIND: ReportKind = ReportKind::Summary;
-/// #     const KIND_VERSION: u32 = 1;
+/// #     type DocumentType = ReportType;
+/// #     const DOCUMENT_TYPE: ReportType = ReportType::Summary;
+/// #     const DOCUMENT_TYPE_VERSION: u32 = 1;
 /// #     type Context = SummaryContext;
 /// #     fn key(&self) -> &DocumentKey { &self.key }
 /// #     fn bytes(&self) -> &[u8] { &self.bytes }
@@ -94,11 +94,11 @@ pub struct Read;
 /// # use storage::implementations::repository::filesystem::{Document, DocumentKey, DocumentMetadata};
 /// #
 /// # #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-/// # enum ReportKind {
+/// # enum ReportType {
 /// #     Summary,
 /// # }
 /// #
-/// # impl fmt::Display for ReportKind {
+/// # impl fmt::Display for ReportType {
 /// #     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
 /// #         write!(f, "summary")
 /// #     }
@@ -114,9 +114,9 @@ pub struct Read;
 /// # }
 /// #
 /// # impl Document for Summary {
-/// #     type Kind = ReportKind;
-/// #     const KIND: ReportKind = ReportKind::Summary;
-/// #     const KIND_VERSION: u32 = 1;
+/// #     type DocumentType = ReportType;
+/// #     const DOCUMENT_TYPE: ReportType = ReportType::Summary;
+/// #     const DOCUMENT_TYPE_VERSION: u32 = 1;
 /// #     type Context = SummaryContext;
 /// #     fn key(&self) -> &DocumentKey { &self.key }
 /// #     fn bytes(&self) -> &[u8] { &self.bytes }
@@ -184,11 +184,11 @@ pub trait CanRead: Access {}
 /// # use storage::implementations::repository::filesystem::{Document, DocumentKey, DocumentMetadata};
 /// #
 /// # #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-/// # enum ReportKind {
+/// # enum ReportType {
 /// #     Summary,
 /// # }
 /// #
-/// # impl fmt::Display for ReportKind {
+/// # impl fmt::Display for ReportType {
 /// #     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
 /// #         write!(f, "summary")
 /// #     }
@@ -204,9 +204,9 @@ pub trait CanRead: Access {}
 /// # }
 /// #
 /// # impl Document for Summary {
-/// #     type Kind = ReportKind;
-/// #     const KIND: ReportKind = ReportKind::Summary;
-/// #     const KIND_VERSION: u32 = 1;
+/// #     type DocumentType = ReportType;
+/// #     const DOCUMENT_TYPE: ReportType = ReportType::Summary;
+/// #     const DOCUMENT_TYPE_VERSION: u32 = 1;
 /// #     type Context = SummaryContext;
 /// #     fn key(&self) -> &DocumentKey { &self.key }
 /// #     fn bytes(&self) -> &[u8] { &self.bytes }

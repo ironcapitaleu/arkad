@@ -11,7 +11,7 @@
 //!   and round-trips a record.
 //! - [`fake_write_repository`]: A fake [`WriteRepository`](crate::WriteRepository) that records
 //!   what it persists.
-//! - [`sample_document`]: A document kind that exists only for tests, and fixed metadata of it.
+//! - [`sample_document`]: A document type that exists only for tests, and fixed metadata of it.
 
 pub mod fake_read_repository;
 pub mod fake_read_write_repository;

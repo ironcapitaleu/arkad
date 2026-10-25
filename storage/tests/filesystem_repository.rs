@@ -20,19 +20,19 @@ use storage::implementations::repository::filesystem::{
 };
 use storage::{ReadRepository, WriteRepository};
 
-/// The document kinds of this test.
+/// The document types of this test.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum SampleDocumentKind {
+enum SampleDocumentType {
     SampleDocument,
 }
 
-impl fmt::Display for SampleDocumentKind {
+impl fmt::Display for SampleDocumentType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "sample_document")
     }
 }
 
-/// A document kind that exists only for this test, with an empty context.
+/// A document type that exists only for this test, with an empty context.
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct SampleDocument {
     key: DocumentKey,
@@ -41,9 +41,9 @@ struct SampleDocument {
 }
 
 impl Document for SampleDocument {
-    type Kind = SampleDocumentKind;
-    const KIND: SampleDocumentKind = SampleDocumentKind::SampleDocument;
-    const KIND_VERSION: u32 = 1;
+    type DocumentType = SampleDocumentType;
+    const DOCUMENT_TYPE: SampleDocumentType = SampleDocumentType::SampleDocument;
+    const DOCUMENT_TYPE_VERSION: u32 = 1;
     type Context = ();
 
     fn key(&self) -> &DocumentKey {

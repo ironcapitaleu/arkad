@@ -526,7 +526,7 @@ skill loads for a bug fix, apply only this section and Conventions. Skip the res
 
 A fix without a test that fails on the old code is not done. Example: in a review round of #246,
 the skip rule of `FilesystemRepository::persist` compared only `sha256`, so stale metadata stayed on
-disk. The fix added `should_replace_the_metadata_when_the_stored_metadata_holds_another_kind_version`,
+disk. The fix added `should_replace_the_metadata_when_the_stored_metadata_holds_another_document_type_version`,
 and that test fails if the skip compares only `sha256`.
 
 ## Proactive Behavior
