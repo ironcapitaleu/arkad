@@ -30,10 +30,10 @@ pub struct NoClient;
 pub struct NoRepository;
 
 /// Typestate builder for constructing a [`Pipeline`].
-pub struct PipelineBuilder<C, S, P> {
+pub struct PipelineBuilder<C, S, R> {
     cik: C,
     sec_client: S,
-    repository: P,
+    repository: R,
 }
 
 impl PipelineBuilder<NoCik, NoClient, NoRepository> {
@@ -46,8 +46,8 @@ impl PipelineBuilder<NoCik, NoClient, NoRepository> {
     }
 }
 
-impl<S, P> PipelineBuilder<NoCik, S, P> {
-    pub fn cik(self, cik: impl Into<String>) -> PipelineBuilder<String, S, P> {
+impl<S, R> PipelineBuilder<NoCik, S, R> {
+    pub fn cik(self, cik: impl Into<String>) -> PipelineBuilder<String, S, R> {
         PipelineBuilder {
             cik: cik.into(),
             sec_client: self.sec_client,
@@ -56,8 +56,8 @@ impl<S, P> PipelineBuilder<NoCik, S, P> {
     }
 }
 
-impl<C, P> PipelineBuilder<C, NoClient, P> {
-    pub fn sec_client(self, sec_client: SecClient) -> PipelineBuilder<C, SecClient, P> {
+impl<C, R> PipelineBuilder<C, NoClient, R> {
+    pub fn sec_client(self, sec_client: SecClient) -> PipelineBuilder<C, SecClient, R> {
         PipelineBuilder {
             cik: self.cik,
             sec_client,

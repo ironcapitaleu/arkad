@@ -14,10 +14,10 @@ pub struct NoRepository;
 ///
 /// Uses a consuming typestate pattern to enforce at compile time
 /// that all required fields are provided before building.
-pub struct ExtractionBuilder<C, S, P> {
+pub struct ExtractionBuilder<C, S, R> {
     cik: C,
     sec_client: S,
-    repository: P,
+    repository: R,
 }
 
 impl ExtractionBuilder<NoCik, NoClient, NoRepository> {
@@ -31,9 +31,9 @@ impl ExtractionBuilder<NoCik, NoClient, NoRepository> {
     }
 }
 
-impl<S, P> ExtractionBuilder<NoCik, S, P> {
+impl<S, R> ExtractionBuilder<NoCik, S, R> {
     /// Sets the CIK for the extraction.
-    pub fn cik(self, cik: impl Into<String>) -> ExtractionBuilder<String, S, P> {
+    pub fn cik(self, cik: impl Into<String>) -> ExtractionBuilder<String, S, R> {
         ExtractionBuilder {
             cik: cik.into(),
             sec_client: self.sec_client,
@@ -42,9 +42,9 @@ impl<S, P> ExtractionBuilder<NoCik, S, P> {
     }
 }
 
-impl<C, P> ExtractionBuilder<C, NoClient, P> {
+impl<C, R> ExtractionBuilder<C, NoClient, R> {
     /// Sets the shared HTTP client for the extraction.
-    pub fn sec_client(self, sec_client: SecClient) -> ExtractionBuilder<C, SecClient, P> {
+    pub fn sec_client(self, sec_client: SecClient) -> ExtractionBuilder<C, SecClient, R> {
         ExtractionBuilder {
             cik: self.cik,
             sec_client,

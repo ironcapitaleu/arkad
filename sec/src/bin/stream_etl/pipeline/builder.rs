@@ -14,10 +14,10 @@ pub struct NoRepository;
 ///
 /// Uses a consuming typestate pattern to enforce at compile time
 /// that all required fields are provided before building.
-pub struct PipelineBuilder<C, S, P> {
+pub struct PipelineBuilder<C, S, R> {
     cik: C,
     sec_client: S,
-    repository: P,
+    repository: R,
 }
 
 impl PipelineBuilder<NoCik, NoClient, NoRepository> {
@@ -31,9 +31,9 @@ impl PipelineBuilder<NoCik, NoClient, NoRepository> {
     }
 }
 
-impl<S, P> PipelineBuilder<NoCik, S, P> {
+impl<S, R> PipelineBuilder<NoCik, S, R> {
     /// Sets the CIK for the pipeline.
-    pub fn cik(self, cik: impl Into<String>) -> PipelineBuilder<String, S, P> {
+    pub fn cik(self, cik: impl Into<String>) -> PipelineBuilder<String, S, R> {
         PipelineBuilder {
             cik: cik.into(),
             sec_client: self.sec_client,
@@ -42,9 +42,9 @@ impl<S, P> PipelineBuilder<NoCik, S, P> {
     }
 }
 
-impl<C, P> PipelineBuilder<C, NoClient, P> {
+impl<C, R> PipelineBuilder<C, NoClient, R> {
     /// Sets the shared HTTP client for the pipeline.
-    pub fn sec_client(self, sec_client: SecClient) -> PipelineBuilder<C, SecClient, P> {
+    pub fn sec_client(self, sec_client: SecClient) -> PipelineBuilder<C, SecClient, R> {
         PipelineBuilder {
             cik: self.cik,
             sec_client,
