@@ -48,7 +48,7 @@ impl Pipeline {
     /// Creates a stream that drives the full ETL pipeline (Extract → Transform).
     #[must_use]
     pub fn into_stream(self, execution_id: Uuid) -> StateMachineStream {
-        let state = ExtractSuperState::<ValidateCikFormat, _>::new(
+        let state = ExtractSuperState::<ValidateCikFormat<_>, _>::new(
             self.raw_cik,
             self.sec_client,
             execution_id,

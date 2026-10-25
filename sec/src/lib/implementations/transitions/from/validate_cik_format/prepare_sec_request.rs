@@ -21,16 +21,17 @@ use crate::implementations::states::extract::prepare_sec_request::{
 use crate::implementations::states::extract::validate_cik_format::ValidateCikFormat;
 use crate::implementations::states::extract::validate_cik_format::constants::STATE_NAME as VALIDATE_CIK_FORMAT;
 
-impl TryFrom<ValidateCikFormat> for PrepareSecRequest {
+impl<R> TryFrom<ValidateCikFormat<R>> for PrepareSecRequest<R> {
     type Error = TransitionError;
 
-    fn try_from(state: ValidateCikFormat) -> Result<Self, TransitionError> {
+    fn try_from(state: ValidateCikFormat<R>) -> Result<Self, TransitionError> {
         let (_input, output, context) = state.into_parts();
         let output_data = output.ok_or_else(|| {
             transition::MissingOutput::new(VALIDATE_CIK_FORMAT, PREPARE_SEC_REQUEST)
         })?;
 
-        let new_context = PrepareSecRequestContext::new(output_data.validated_cik.clone());
+        let new_context =
+            PrepareSecRequestContext::new(output_data.validated_cik.clone(), context.repository);
         let new_input = PrepareSecRequestInput::new(output_data.validated_cik, context.sec_client);
 
         Ok(Self::new(new_input, new_context))
@@ -40,6 +41,8 @@ impl TryFrom<ValidateCikFormat> for PrepareSecRequest {
 #[cfg(test)]
 mod tests {
     use pretty_assertions::assert_eq;
+    use state_maschine::prelude::State as SMState;
+    use storage::WriteError;
 
     use super::*;
     use crate::implementations::states::extract::validate_cik_format::{
@@ -48,6 +51,7 @@ mod tests {
     use crate::shared::cik::Cik;
     use crate::shared::cik::constants::BERKSHIRE_HATHAWAY_CIK_RAW;
     use crate::shared::http_client::implementations::sec_client::SecClient;
+    use crate::tests::fixtures::sample_write_repository::FakeWriteRepository;
     use crate::traits::state_machine::state::State;
 
     #[tokio::test]
@@ -57,7 +61,11 @@ mod tests {
         let input = ValidateCikFormatInput {
             raw_cik: cik_string.into(),
         };
-        let context = ValidateCikFormatContext::new(cik_string, sec_client.clone());
+        let context = ValidateCikFormatContext::new(
+            cik_string,
+            sec_client.clone(),
+            FakeWriteRepository::new(),
+        );
         let mut state = ValidateCikFormat::new(input, context);
         state
             .compute_output_data_async()
@@ -66,7 +74,8 @@ mod tests {
 
         let expected_cik = Cik::new(cik_string)
             .expect("Hardcoded valid CIK string should always parse successfully");
-        let expected_context = PrepareSecRequestContext::new(expected_cik.clone());
+        let expected_context =
+            PrepareSecRequestContext::new(expected_cik.clone(), FakeWriteRepository::new());
         let expected_input = PrepareSecRequestInput::new(expected_cik, sec_client);
         let expected_result = PrepareSecRequest::new(expected_input, expected_context);
 
@@ -80,12 +89,52 @@ mod tests {
     fn should_return_error_when_validate_cik_format_has_no_output() {
         let sec_client = SecClient::default();
         let input = ValidateCikFormatInput::new(BERKSHIRE_HATHAWAY_CIK_RAW);
-        let context = ValidateCikFormatContext::new(BERKSHIRE_HATHAWAY_CIK_RAW, sec_client);
+        let context = ValidateCikFormatContext::new(
+            BERKSHIRE_HATHAWAY_CIK_RAW,
+            sec_client,
+            FakeWriteRepository::new(),
+        );
         let state = ValidateCikFormat::new(input, context);
 
         let expected_result = true;
 
         let result = PrepareSecRequest::try_from(state).is_err();
+
+        assert_eq!(result, expected_result);
+    }
+
+    async fn computed_validate_cik_format(
+        repository: FakeWriteRepository,
+    ) -> ValidateCikFormat<FakeWriteRepository> {
+        let input = ValidateCikFormatInput::new(BERKSHIRE_HATHAWAY_CIK_RAW);
+        let context = ValidateCikFormatContext::new(
+            BERKSHIRE_HATHAWAY_CIK_RAW,
+            SecClient::default(),
+            repository,
+        );
+        let mut state = ValidateCikFormat::new(input, context);
+        state
+            .compute_output_data_async()
+            .await
+            .expect("Given a hardcoded valid CIK, validation should always succeed");
+        state
+    }
+
+    #[tokio::test]
+    async fn should_carry_repository_when_validate_cik_format_has_output() {
+        let state = computed_validate_cik_format(FakeWriteRepository::rejecting(
+            WriteError::conflicting_write("Sample conflict"),
+        ))
+        .await;
+
+        let expected_result =
+            FakeWriteRepository::rejecting(WriteError::conflicting_write("Sample conflict"));
+
+        let result = PrepareSecRequest::try_from(state)
+            .expect("Given a state with output, the transition should always succeed")
+            .context_data()
+            .repository()
+            .clone();
 
         assert_eq!(result, expected_result);
     }

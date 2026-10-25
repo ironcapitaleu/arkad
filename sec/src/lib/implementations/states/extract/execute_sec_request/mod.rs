@@ -28,7 +28,15 @@
 //! let cik = Cik::new("1067983").expect("A hardcoded valid CIK should always parse");
 //! let request = SecRequest::builder().all_company_facts().cik(cik.clone()).build();
 //! let input = ExecuteSecRequestInput::new(SecClient::default(), request);
-//! let context = ExecuteSecRequestContext::new(cik);
+//! # use sec::shared::raw_document::RawDocument;
+//! # use sec::shared::raw_source::RawCompanyFacts;
+//! # use storage::implementations::repository::filesystem::FilesystemRepository;
+//! # let repository = FilesystemRepository::builder()
+//! #     .writer()
+//! #     .document_type::<RawDocument<RawCompanyFacts>>()
+//! #     .root("data")
+//! #     .build();
+//! let context = ExecuteSecRequestContext::new(cik, repository);
 //!
 //! let mut state = ExecuteSecRequest::new(input, context);
 //! state
@@ -57,6 +65,7 @@ use state_maschine::prelude::State as SMState;
 
 use crate::error::State as StateError;
 use crate::error::state_machine::state::failed_request_execution::FailedRequestExecution;
+use crate::implementations::states::extract::store_company_facts::RawCompanyFactsRepository;
 use crate::shared::http_client::SecClient as SecClientTrait;
 use crate::traits::state_machine::state::State;
 
@@ -77,13 +86,13 @@ pub use data::ExecuteSecRequestOutput;
 /// [`SecResponse`](crate::shared::response::implementations::sec_response::SecResponse). It is the only
 /// extract state that performs I/O, which is why network failures surface here.
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
-pub struct ExecuteSecRequest {
+pub struct ExecuteSecRequest<R> {
     input: ExecuteSecRequestInput,
-    context: ExecuteSecRequestContext,
+    context: ExecuteSecRequestContext<R>,
     output: Option<ExecuteSecRequestOutput>,
 }
 
-impl ExecuteSecRequest {
+impl<R> ExecuteSecRequest<R> {
     /// Creates a new [`ExecuteSecRequest`] state from its input and context, with no output computed yet.
     ///
     /// # Examples
@@ -98,7 +107,15 @@ impl ExecuteSecRequest {
     /// let cik = Cik::new("1067983").expect("A hardcoded valid CIK should always parse");
     /// let request = SecRequest::builder().all_company_facts().cik(cik.clone()).build();
     /// let input = ExecuteSecRequestInput::new(SecClient::default(), request);
-    /// let context = ExecuteSecRequestContext::new(cik);
+    /// # use sec::shared::raw_document::RawDocument;
+    /// # use sec::shared::raw_source::RawCompanyFacts;
+    /// # use storage::implementations::repository::filesystem::FilesystemRepository;
+    /// # let repository = FilesystemRepository::builder()
+    /// #     .writer()
+    /// #     .document_type::<RawDocument<RawCompanyFacts>>()
+    /// #     .root("data")
+    /// #     .build();
+    /// let context = ExecuteSecRequestContext::new(cik, repository);
     /// let state = ExecuteSecRequest::new(input, context);
     ///
     /// let expected_result = false;
@@ -108,7 +125,7 @@ impl ExecuteSecRequest {
     /// assert_eq!(result, expected_result);
     /// ```
     #[must_use]
-    pub const fn new(input: ExecuteSecRequestInput, context: ExecuteSecRequestContext) -> Self {
+    pub const fn new(input: ExecuteSecRequestInput, context: ExecuteSecRequestContext<R>) -> Self {
         Self {
             input,
             context,
@@ -123,14 +140,14 @@ impl ExecuteSecRequest {
     ) -> (
         ExecuteSecRequestInput,
         Option<ExecuteSecRequestOutput>,
-        ExecuteSecRequestContext,
+        ExecuteSecRequestContext<R>,
     ) {
         (self.input, self.output, self.context)
     }
 }
 
 #[async_trait]
-impl State for ExecuteSecRequest {
+impl<R: RawCompanyFactsRepository> State for ExecuteSecRequest<R> {
     /// Executes the prepared SEC request and stores the response as output.
     ///
     /// # Errors
@@ -157,10 +174,10 @@ impl State for ExecuteSecRequest {
     }
 }
 
-impl SMState for ExecuteSecRequest {
+impl<R: RawCompanyFactsRepository> SMState for ExecuteSecRequest<R> {
     type InputData = ExecuteSecRequestInput;
     type OutputData = ExecuteSecRequestOutput;
-    type Context = ExecuteSecRequestContext;
+    type Context = ExecuteSecRequestContext<R>;
 
     /// Returns the human-readable name of this state.
     fn state_name(&self) -> impl ToString {
@@ -205,7 +222,7 @@ impl SMState for ExecuteSecRequest {
     }
 }
 
-impl fmt::Display for ExecuteSecRequest {
+impl<R: RawCompanyFactsRepository> fmt::Display for ExecuteSecRequest<R> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
@@ -235,6 +252,7 @@ mod tests {
     use crate::shared::cik::Cik;
     use crate::shared::http_client::implementations::sec_client::SecClient;
     use crate::shared::request::implementations::sec_request::SecRequest;
+    use crate::tests::fixtures::sample_write_repository::FakeWriteRepository;
 
     const TEST_CIK: &str = "0001067983";
 
@@ -243,7 +261,7 @@ mod tests {
     }
 
     /// Creates a baseline `ExecuteSecRequest` state for use in tests.
-    fn create_baseline_state() -> ExecuteSecRequest {
+    fn create_baseline_state() -> ExecuteSecRequest<FakeWriteRepository> {
         let cik = create_test_cik();
         let client = SecClient::default();
         let request = SecRequest::builder()
@@ -251,7 +269,7 @@ mod tests {
             .cik(cik.clone())
             .build();
         let input = ExecuteSecRequestInput::new(client, request);
-        let context = ExecuteSecRequestContext::new(cik);
+        let context = ExecuteSecRequestContext::new(cik, FakeWriteRepository::new());
         ExecuteSecRequest::new(input, context)
     }
 
@@ -304,7 +322,7 @@ mod tests {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should be valid");
         let request = SecRequest::builder().all_company_facts().cik(cik).build();
         let input = ExecuteSecRequestInput::new(client, request);
-        let context = ExecuteSecRequestContext::new(create_test_cik());
+        let context = ExecuteSecRequestContext::new(create_test_cik(), FakeWriteRepository::new());
 
         let expected_result = &context.clone();
 
@@ -320,7 +338,7 @@ mod tests {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should be valid");
         let request = SecRequest::builder().all_company_facts().cik(cik).build();
         let input = ExecuteSecRequestInput::new(client, request);
-        let context = ExecuteSecRequestContext::new(create_test_cik());
+        let context = ExecuteSecRequestContext::new(create_test_cik(), FakeWriteRepository::new());
 
         let expected_result = true;
 
@@ -334,7 +352,7 @@ mod tests {
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
     #[test]
     const fn should_implement_auto_traits_for_execute_sec_request() {
-        implements_auto_traits::<ExecuteSecRequest>();
+        implements_auto_traits::<ExecuteSecRequest<FakeWriteRepository>>();
     }
 
     const fn implements_send<T: Send>() {}
@@ -342,72 +360,72 @@ mod tests {
 
     #[test]
     const fn should_implement_send_for_execute_sec_request() {
-        implements_send::<ExecuteSecRequest>();
+        implements_send::<ExecuteSecRequest<FakeWriteRepository>>();
     }
 
     #[test]
     const fn should_implement_sync_for_execute_sec_request() {
-        implements_sync::<ExecuteSecRequest>();
+        implements_sync::<ExecuteSecRequest<FakeWriteRepository>>();
     }
 
     #[test]
     const fn should_be_thread_safe_for_execute_sec_request() {
-        implements_send::<ExecuteSecRequest>();
-        implements_sync::<ExecuteSecRequest>();
+        implements_send::<ExecuteSecRequest<FakeWriteRepository>>();
+        implements_sync::<ExecuteSecRequest<FakeWriteRepository>>();
     }
 
     const fn implements_sized<T: Sized>() {}
     #[test]
     const fn should_be_sized_for_execute_sec_request() {
-        implements_sized::<ExecuteSecRequest>();
+        implements_sized::<ExecuteSecRequest<FakeWriteRepository>>();
     }
 
     const fn implements_hash<T: Hash>() {}
     #[test]
     const fn should_implement_hash_for_execute_sec_request() {
-        implements_hash::<ExecuteSecRequest>();
+        implements_hash::<ExecuteSecRequest<FakeWriteRepository>>();
     }
 
     const fn implements_partial_eq<T: PartialEq>() {}
     #[test]
     const fn should_implement_partial_eq_for_execute_sec_request() {
-        implements_partial_eq::<ExecuteSecRequest>();
+        implements_partial_eq::<ExecuteSecRequest<FakeWriteRepository>>();
     }
 
     const fn implements_eq<T: Eq>() {}
     #[test]
     const fn should_implement_eq_for_execute_sec_request() {
-        implements_eq::<ExecuteSecRequest>();
+        implements_eq::<ExecuteSecRequest<FakeWriteRepository>>();
     }
 
     const fn implements_partial_ord<T: PartialOrd>() {}
     #[test]
     const fn should_implement_partial_ord_for_execute_sec_request() {
-        implements_partial_ord::<ExecuteSecRequest>();
+        implements_partial_ord::<ExecuteSecRequest<FakeWriteRepository>>();
     }
 
     const fn implements_ord<T: Ord>() {}
     #[test]
     const fn should_implement_ord_for_execute_sec_request() {
-        implements_ord::<ExecuteSecRequest>();
+        implements_ord::<ExecuteSecRequest<FakeWriteRepository>>();
     }
 
     const fn implements_debug<T: Debug>() {}
     #[test]
     const fn should_implement_debug_for_execute_sec_request() {
-        implements_debug::<ExecuteSecRequest>();
+        implements_debug::<ExecuteSecRequest<FakeWriteRepository>>();
     }
 
     const fn implements_clone<T: Clone>() {}
     #[test]
     const fn should_implement_clone_for_execute_sec_request() {
-        implements_clone::<ExecuteSecRequest>();
+        implements_clone::<ExecuteSecRequest<FakeWriteRepository>>();
     }
 
     const fn implements_unpin<T: Unpin>() {}
     #[test]
     const fn should_implement_unpin_for_execute_sec_request() {
-        implements_unpin::<ExecuteSecRequest>();
+        implements_unpin::<ExecuteSecRequest<FakeWriteRepository>>();
     }
 
     #[test]
@@ -474,7 +492,7 @@ mod tests {
         let cik = Cik::new("0001067983").expect("Hardcoded CIK should be valid");
         let request = SecRequest::builder().all_company_facts().cik(cik).build();
         let input = ExecuteSecRequestInput::new(client, request);
-        let context = ExecuteSecRequestContext::new(create_test_cik());
+        let context = ExecuteSecRequestContext::new(create_test_cik(), FakeWriteRepository::new());
         let mut execute_state = ExecuteSecRequest::new(input, context);
 
         let expected_result = &execute_state.input_data().clone();
@@ -494,7 +512,7 @@ mod tests {
         let cik = Cik::new("0001067983").expect("Hardcoded CIK should be valid");
         let request = SecRequest::builder().all_company_facts().cik(cik).build();
         let input = ExecuteSecRequestInput::new(client, request);
-        let context = ExecuteSecRequestContext::new(create_test_cik());
+        let context = ExecuteSecRequestContext::new(create_test_cik(), FakeWriteRepository::new());
         let mut execute_state = ExecuteSecRequest::new(input, context);
 
         execute_state
@@ -513,7 +531,7 @@ mod tests {
         let cik = Cik::new("0001067983").expect("Hardcoded CIK should be valid");
         let request = SecRequest::builder().all_company_facts().cik(cik).build();
         let input = ExecuteSecRequestInput::new(client, request);
-        let context = ExecuteSecRequestContext::new(create_test_cik());
+        let context = ExecuteSecRequestContext::new(create_test_cik(), FakeWriteRepository::new());
         let mut execute_state = ExecuteSecRequest::new(input, context);
 
         let expected_result = true;
@@ -533,7 +551,7 @@ mod tests {
         let cik = Cik::new("0001067983").expect("Hardcoded CIK should be valid");
         let request = SecRequest::builder().all_company_facts().cik(cik).build();
         let input = ExecuteSecRequestInput::new(client, request);
-        let context = ExecuteSecRequestContext::new(create_test_cik());
+        let context = ExecuteSecRequestContext::new(create_test_cik(), FakeWriteRepository::new());
         let mut execute_state = ExecuteSecRequest::new(input, context);
 
         let expected_result = true;
