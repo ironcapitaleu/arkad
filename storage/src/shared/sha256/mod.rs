@@ -45,7 +45,8 @@ impl Sha256Digest {
     /// Computes the SHA-256 digest of the bytes.
     ///
     /// Takes any byte container, such as `&[u8]`, `Vec<u8>`, a byte array, or a `String`. A
-    /// `String` gives the digest of its UTF-8 bytes.
+    /// `String` gives the digest of its UTF-8 bytes. To read a digest that is already hex, use
+    /// [`str::parse`].
     ///
     /// # Examples
     ///

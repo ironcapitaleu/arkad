@@ -67,7 +67,7 @@ mod tests {
 
     fn get_baseline_parse_state_without_output() -> ParseCompanyFacts {
         let json: serde_json::Value = serde_json::json!({});
-        let digest = Sha256Digest::of(json.to_string().as_bytes());
+        let digest = Sha256Digest::of(json.to_string());
         let input = ParseCompanyFactsInput::new(json, digest);
         let cik = Cik::new("0001067983").expect("Hardcoded CIK should always be valid");
         let context = ParseCompanyFactsContext::new(cik);
