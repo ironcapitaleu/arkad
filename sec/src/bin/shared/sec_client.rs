@@ -9,6 +9,7 @@ use std::ffi::OsString;
 
 use sec::shared::http_client::implementations::reqwest_client::ReqwestClient;
 use sec::shared::http_client::implementations::sec_client::SecClient;
+use sec::shared::user_agent::constants::DEFAULT_SEC_USER_AGENT;
 use sec::shared::user_agent::{UserAgent, UserAgentError, UserAgentErrorReason};
 
 /// The environment variable that names the `User-Agent` of every SEC request.
@@ -26,6 +27,11 @@ pub const USER_AGENT_ENV_VAR: &str = "ARKAD_SEC_USER_AGENT";
 pub fn sec_client() -> Result<SecClient, Box<dyn Error + Send + Sync>> {
     let user_agent = user_agent(env::var_os(USER_AGENT_ENV_VAR))?;
     Ok(SecClient::new(ReqwestClient::new(user_agent)?))
+}
+
+/// Returns `true` if `sec_client` sends [`DEFAULT_SEC_USER_AGENT`].
+pub fn sends_default_user_agent(sec_client: &SecClient) -> bool {
+    sec_client.user_agent().inner() == DEFAULT_SEC_USER_AGENT
 }
 
 /// Returns the [`UserAgent`] that `value` names, or the default if `value` is unset or empty.
@@ -50,7 +56,6 @@ fn user_agent(value: Option<OsString>) -> Result<UserAgent, UserAgentError> {
 #[cfg(test)]
 mod tests {
     use pretty_assertions::assert_eq;
-    use sec::shared::user_agent::constants::DEFAULT_SEC_USER_AGENT;
 
     use super::*;
 
@@ -106,6 +111,31 @@ mod tests {
         ));
 
         let result = user_agent(Some(value));
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_report_default_user_agent_when_client_sends_the_default() {
+        let sec_client = SecClient::default();
+        let expected_result = true;
+
+        let result = sends_default_user_agent(&sec_client);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_not_report_default_user_agent_when_client_sends_a_given_value() {
+        let user_agent = UserAgent::new("Sample Company contact@example.com")
+            .expect("Given a hardcoded SEC-format string, validation should always succeed");
+        let sec_client = SecClient::new(
+            ReqwestClient::new(user_agent)
+                .expect("Given a valid user agent, building the HTTP client should always succeed"),
+        );
+        let expected_result = false;
+
+        let result = sends_default_user_agent(&sec_client);
 
         assert_eq!(result, expected_result);
     }

@@ -15,7 +15,7 @@ use std::time::Instant;
 use pipeline::Pipeline;
 use tracing_subscriber::fmt::format::FmtSpan;
 
-use sec_client::{USER_AGENT_ENV_VAR, sec_client};
+use sec_client::{USER_AGENT_ENV_VAR, sec_client, sends_default_user_agent};
 use storage_root::raw_company_facts_writer;
 
 use pipeline::constants::CIKS;
@@ -23,6 +23,7 @@ use pipeline::constants::CIKS;
 /// Top-level batch events.
 enum BatchEvent {
     Complete,
+    DefaultUserAgent,
     StartupFailed,
 }
 
@@ -30,6 +31,7 @@ impl Display for BatchEvent {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             Self::Complete => write!(f, "batch_complete"),
+            Self::DefaultUserAgent => write!(f, "batch_default_user_agent"),
             Self::StartupFailed => write!(f, "batch_startup_failed"),
         }
     }
@@ -55,6 +57,13 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
             env_var = USER_AGENT_ENV_VAR,
         );
     })?;
+    if sends_default_user_agent(&sec_client) {
+        tracing::warn!(
+            event = %BatchEvent::DefaultUserAgent,
+            message = %format!("'{USER_AGENT_ENV_VAR}' is unset or empty, so every SEC request sends the placeholder User-Agent"),
+            env_var = USER_AGENT_ENV_VAR,
+        );
+    }
     let repository = raw_company_facts_writer();
     let start = Instant::now();
 
