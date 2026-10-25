@@ -12,10 +12,10 @@ FROM debian:bookworm-slim
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates \
     && rm -rf /var/lib/apt/lists/*
-RUN useradd --system --uid 10001 --user-group --create-home --home-dir /home/arkad arkad
+RUN groupadd --system --gid 10001 arkad \
+    && useradd --system --uid 10001 --gid 10001 --create-home --home-dir /home/arkad arkad
 COPY --from=build /arkad/target/release/stream_extract /usr/local/bin/stream_extract
-# The binary runs as a user without root rights. Its default storage root `data` sits in the
-# home directory, which that user owns.
+# The default storage root `data` sits in the home directory, which the user owns.
 USER 10001:10001
 WORKDIR /home/arkad
 ENTRYPOINT ["/usr/local/bin/stream_extract"]
