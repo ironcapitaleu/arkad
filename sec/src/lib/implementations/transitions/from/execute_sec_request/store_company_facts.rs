@@ -1,12 +1,12 @@
 //! # Transition: `ExecuteSecRequest` → `StoreCompanyFacts`
 //!
 //! Implements the [`TryFrom`] conversion producing a [`StoreCompanyFacts`] from an
-//! [`ExecuteSecRequest`].
+//! [`ExecuteSecRequest`] and the `execution_id` of the run.
 //!
 //! It moves the response from the output of the source state, the requested URL from its
-//! [`SecRequest`], and the `User-Agent` from its context. The supporting `From` impl carries the
-//! CIK, the `execution_id` and the storage repository across via context. The requested URL must
-//! name the CIK of the context.
+//! [`SecRequest`], and the `User-Agent`, the CIK and the storage repository from its context. The
+//! `execution_id` belongs to the run, not to the source state, so it comes in as the second
+//! element of the tuple. The requested URL must name the CIK of the context.
 //!
 //! # Errors
 //!
@@ -15,12 +15,12 @@
 //! request names another CIK than its context
 //! ([`FailedContextConversion`](crate::error::state_machine::transition::FailedContextConversion)).
 
+use uuid::Uuid;
+
 use crate::error::state_machine::transition;
 use crate::error::state_machine::transition::Transition as TransitionError;
+use crate::implementations::states::extract::execute_sec_request::ExecuteSecRequest;
 use crate::implementations::states::extract::execute_sec_request::constants::STATE_NAME as EXECUTE_SEC_REQUEST;
-use crate::implementations::states::extract::execute_sec_request::{
-    ExecuteSecRequest, ExecuteSecRequestContext,
-};
 use crate::implementations::states::extract::store_company_facts::constants::STATE_NAME as STORE_COMPANY_FACTS;
 use crate::implementations::states::extract::store_company_facts::{
     StoreCompanyFacts, StoreCompanyFactsContext, StoreCompanyFactsInput,
@@ -28,16 +28,11 @@ use crate::implementations::states::extract::store_company_facts::{
 use crate::shared::request::implementations::sec_request::SecRequest;
 use crate::shared::url::Url;
 
-impl<R> From<ExecuteSecRequestContext<R>> for StoreCompanyFactsContext<R> {
-    fn from(context: ExecuteSecRequestContext<R>) -> Self {
-        Self::new(context.cik, context.execution_id, context.repository)
-    }
-}
-
-impl<R> TryFrom<ExecuteSecRequest<R>> for StoreCompanyFacts<R> {
+impl<R> TryFrom<(ExecuteSecRequest<R>, Uuid)> for StoreCompanyFacts<R> {
     type Error = TransitionError;
 
-    /// Builds a [`StoreCompanyFacts`] from a computed [`ExecuteSecRequest`].
+    /// Builds a [`StoreCompanyFacts`] from a computed [`ExecuteSecRequest`] and the
+    /// `execution_id` of the run.
     ///
     /// # Errors
     ///
@@ -46,7 +41,9 @@ impl<R> TryFrom<ExecuteSecRequest<R>> for StoreCompanyFacts<R> {
     /// Returns [`TransitionError::FailedContextConversion`] if the request of `state` names
     /// another CIK than its context. The stored key follows the context CIK, so a mismatch would
     /// store a response under the wrong company.
-    fn try_from(state: ExecuteSecRequest<R>) -> Result<Self, TransitionError> {
+    fn try_from(
+        (state, execution_id): (ExecuteSecRequest<R>, Uuid),
+    ) -> Result<Self, TransitionError> {
         let (input, output, context) = state.into_parts();
         let output_data = output.ok_or_else(|| {
             transition::MissingOutput::new(EXECUTE_SEC_REQUEST, STORE_COMPANY_FACTS)
@@ -65,12 +62,10 @@ impl<R> TryFrom<ExecuteSecRequest<R>> for StoreCompanyFacts<R> {
         }
 
         let requested_url = Url::from(input.sec_request.inner.url().clone());
-        let new_input = StoreCompanyFactsInput::new(
-            output_data.response,
-            requested_url,
-            context.user_agent.clone(),
-        );
-        let new_context: StoreCompanyFactsContext<R> = context.into();
+        let new_input =
+            StoreCompanyFactsInput::new(output_data.response, requested_url, context.user_agent);
+        let new_context =
+            StoreCompanyFactsContext::new(context.cik, execution_id, context.repository);
 
         Ok(Self::new(new_input, new_context))
     }
@@ -85,7 +80,7 @@ mod tests {
 
     use super::*;
     use crate::implementations::states::extract::execute_sec_request::{
-        ExecuteSecRequestInput, ExecuteSecRequestOutput,
+        ExecuteSecRequestContext, ExecuteSecRequestInput, ExecuteSecRequestOutput,
     };
     use crate::prelude::*;
     use crate::shared::cik::Cik;
@@ -124,12 +119,7 @@ mod tests {
     }
 
     fn sample_context() -> ExecuteSecRequestContext<FakeWriteRepository> {
-        ExecuteSecRequestContext::new(
-            sample_cik(),
-            SAMPLE_EXECUTION_ID,
-            sample_user_agent(),
-            rejecting_repository(),
-        )
+        ExecuteSecRequestContext::new(sample_cik(), sample_user_agent(), rejecting_repository())
     }
 
     fn execute_sec_request_without_output(cik: Cik) -> ExecuteSecRequest<FakeWriteRepository> {
@@ -141,23 +131,8 @@ mod tests {
     fn store_company_facts() -> StoreCompanyFacts<FakeWriteRepository> {
         let state = execute_sec_request_without_output(sample_cik())
             .with_output(ExecuteSecRequestOutput::new(sample_response()));
-        StoreCompanyFacts::try_from(state)
+        StoreCompanyFacts::try_from((state, SAMPLE_EXECUTION_ID))
             .expect("Given a source state with output, the transition should always succeed")
-    }
-
-    #[test]
-    fn should_convert_context_when_valid_context() {
-        let context = sample_context();
-
-        let expected_result = StoreCompanyFactsContext::new(
-            sample_cik(),
-            SAMPLE_EXECUTION_ID,
-            rejecting_repository(),
-        );
-
-        let result = StoreCompanyFactsContext::from(context);
-
-        assert_eq!(result, expected_result);
     }
 
     #[test]
@@ -205,7 +180,7 @@ mod tests {
     }
 
     #[test]
-    fn should_move_execution_id_when_source_has_output() {
+    fn should_take_execution_id_from_run_when_source_has_output() {
         let state = store_company_facts();
 
         let expected_result = SAMPLE_EXECUTION_ID;
@@ -237,7 +212,7 @@ mod tests {
             transition::FailedContextConversion::new(EXECUTE_SEC_REQUEST, STORE_COMPANY_FACTS),
         );
 
-        let result = StoreCompanyFacts::try_from(state)
+        let result = StoreCompanyFacts::try_from((state, SAMPLE_EXECUTION_ID))
             .expect_err("Given a request for another CIK, the transition should always fail");
 
         assert_eq!(result, expected_result);
@@ -252,7 +227,7 @@ mod tests {
             STORE_COMPANY_FACTS,
         ));
 
-        let result = StoreCompanyFacts::try_from(state)
+        let result = StoreCompanyFacts::try_from((state, SAMPLE_EXECUTION_ID))
             .expect_err("Given a source state without output, the transition should always fail");
 
         assert_eq!(result, expected_result);

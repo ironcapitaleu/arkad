@@ -504,7 +504,8 @@ impl<R: RawCompanyFactsRepository> Transition<ExecuteSecRequest<R>, StoreCompany
     for ExtractSuperState<ExecuteSecRequest<R>, R>
 {
     fn transition_to_next_state_sec(self) -> Result<Self::NewStateMachine, TransitionError> {
-        let next_state = StoreCompanyFacts::try_from(self.current_state)?;
+        let next_state =
+            StoreCompanyFacts::try_from((self.current_state, self.context.execution_id))?;
 
         Ok(ExtractSuperState::<StoreCompanyFacts<R>, R> {
             current_state: next_state,
