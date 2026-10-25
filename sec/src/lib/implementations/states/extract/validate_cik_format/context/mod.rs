@@ -4,10 +4,10 @@
 //! [`ValidateCikFormat`](crate::implementations::states::extract::validate_cik_format::ValidateCikFormat)
 //! state, together with its updater and builder.
 //!
-//! The context holds the shared [`SecClient`], the storage repository of the run, and the retry
-//! budget. These outlive any single input/output pair. The state can then re-run and transition
-//! without rebuilding them. The [`Context`] trait applies updates from an updater that a builder constructs, so each update is explicit and
-//! partial.
+//! The context holds the raw CIK under validation, the shared [`SecClient`], the storage repository
+//! of the run, and the retry budget. These outlive any single input/output pair. The state can then
+//! re-run and transition without rebuilding them. The [`Context`] trait applies updates from an
+//! updater that a builder constructs, so each update is explicit and partial.
 //!
 //! ## Usage
 //!
@@ -242,6 +242,7 @@ mod tests {
     };
     use crate::shared::cik::constants::BERKSHIRE_HATHAWAY_CIK_RAW;
     use crate::shared::http_client::implementations::sec_client::SecClient;
+    use crate::shared::user_agent::constants::DEFAULT_SEC_USER_AGENT;
     use crate::tests::fixtures::sample_write_repository::FakeWriteRepository;
 
     fn test_context() -> ValidateCikFormatContext<FakeWriteRepository> {
@@ -477,7 +478,7 @@ mod tests {
 
         let expected_result = serde_json::json!({
             "raw_cik": BERKSHIRE_HATHAWAY_CIK_RAW,
-            "sec_client": {},
+            "sec_client": { "user_agent": DEFAULT_SEC_USER_AGENT },
             "repository": { "kind": "fake", "rejection": null },
             "max_retries": 0,
         });
