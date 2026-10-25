@@ -63,7 +63,8 @@ pub struct ExecuteSecRequestContext<R> {
 }
 
 impl<R> ExecuteSecRequestContext<R> {
-    /// repository, with the retry budget at zero.
+    /// Creates a new [`ExecuteSecRequestContext`] from a CIK and the storage repository, with the
+    /// retry budget at zero.
     #[must_use]
     pub const fn new(cik: Cik, repository: R) -> Self {
         Self {

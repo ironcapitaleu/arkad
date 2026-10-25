@@ -63,7 +63,8 @@ pub struct PrepareSecRequestContext<R> {
 }
 
 impl<R> PrepareSecRequestContext<R> {
-    /// storage repository, with the retry budget at zero.
+    /// Creates a new [`PrepareSecRequestContext`] from a validated CIK and the storage repository,
+    /// with the retry budget at zero.
     #[must_use]
     pub const fn new(cik: Cik, repository: R) -> Self {
         Self {
