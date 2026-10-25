@@ -224,6 +224,9 @@ mod tests {
     // Whitespace and a trailing zero that a parse and a reserialization drop.
     const RAW_BODY: &[u8] = b"{ \"cik\": 1067983, \"price\": 1.50 }";
 
+    const CONFLICT_REASON: &str =
+        "A document already exists under sec/companyfacts/CIK0001067983.json";
+
     const EXECUTION_ID: Uuid = Uuid::from_u128(0x0b6f_3c1e_5d2a_4f7b_9c3e_8a1d_2b4c_6e8f);
 
     fn requested_url() -> Url {
@@ -430,13 +433,13 @@ mod tests {
 
     #[tokio::test]
     async fn should_return_failed_document_write_when_the_repository_rejects_the_write() {
-        let write_error = WriteError::conflicting_write("stored bytes differ");
+        let write_error = WriteError::conflicting_write(CONFLICT_REASON);
         let mut state = sample_state(FakeWriteRepository::rejecting(write_error));
 
         let expected_result = Err(StateError::FailedDocumentWrite(FailedDocumentWrite::new(
             STATE_NAME,
             FailedDocumentStorage::new(DocumentStorageErrorReason::ConflictingWrite {
-                details: "[ConflictingWrite] Write conflicts with existing data, Reason: 'stored bytes differ'".to_string(),
+                details: CONFLICT_REASON.to_string(),
             }),
         )));
 
@@ -447,7 +450,7 @@ mod tests {
 
     #[tokio::test]
     async fn should_have_no_output_data_when_the_repository_rejects_the_write() {
-        let write_error = WriteError::conflicting_write("stored bytes differ");
+        let write_error = WriteError::conflicting_write(CONFLICT_REASON);
         let mut state = sample_state(FakeWriteRepository::rejecting(write_error));
 
         let expected_result = false;

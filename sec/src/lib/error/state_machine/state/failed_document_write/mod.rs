@@ -76,7 +76,8 @@ mod tests {
 
     fn sample_domain_error() -> FailedDocumentStorage {
         FailedDocumentStorage::new(DocumentStorageErrorReason::ConflictingWrite {
-            details: "[ConflictingWrite] Write conflicts with existing data, Reason: 'stored bytes differ'".to_string(),
+            details: "A document already exists under sec/companyfacts/CIK0001067983.json"
+                .to_string(),
         })
     }
 
@@ -126,7 +127,7 @@ mod tests {
     fn should_chain_the_storage_error_after_caused_by_when_displayed() {
         let error = FailedDocumentWrite::new(STATE_NAME, sample_domain_error());
 
-        let expected_result = "[FailedDocumentWrite] Failure in State: 'Store Company Facts', Caused by: [FailedDocumentStorage] Document storage failed, Reason: '[ConflictingWrite] Write conflicts with existing data, Reason: 'stored bytes differ''";
+        let expected_result = "[FailedDocumentWrite] Failure in State: 'Store Company Facts', Caused by: [FailedDocumentStorage] Document storage failed, Caused by: [ConflictingWrite] Document conflicts with a stored document, Reason: 'A document already exists under sec/companyfacts/CIK0001067983.json'";
 
         let result = error.to_string();
 
