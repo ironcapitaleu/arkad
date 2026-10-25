@@ -329,6 +329,7 @@ classDiagram
         %% Transition-level error for output-to-input conversion failure
         +String source_state_name
         +String target_state_name
+        +String reason
     }
 
     class FailedContextConversion{
@@ -336,6 +337,7 @@ classDiagram
         %% Transition-level error for context conversion failure
         +String source_state_name
         +String target_state_name
+        +String reason
     }
 
     class CikError{
