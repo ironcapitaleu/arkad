@@ -43,10 +43,11 @@ pub use raw_document_metadata_context::RawDocumentMetadataContext;
 ///
 /// let key = DocumentKey::new("sec/companyfacts/CIK0000320193.json")
 ///     .expect("Given a valid relative path, the key should always build");
+/// let bytes = b"{}";
 /// let metadata = DocumentMetadata::builder()
 ///     .document_type::<RawDocument<RawCompanyFacts>>()
 ///     .media_type("application/json")
-///     .content(2, storage::shared::Sha256Digest::of(b"{}"))
+///     .content(bytes.len() as u64, storage::shared::Sha256Digest::of(bytes))
 ///     .produced_at(DateTime::<Utc>::UNIX_EPOCH)
 ///     .run(Uuid::nil(), Producer::new("Store Company Facts", "0.1.0", "63c1f59"))
 ///     .context(RawDocumentMetadataContext {
@@ -59,7 +60,7 @@ pub use raw_document_metadata_context::RawDocumentMetadataContext;
 ///     })
 ///     .build();
 ///
-/// let document = RawDocument::<RawCompanyFacts>::from_parts(key, b"{}".to_vec(), metadata);
+/// let document = RawDocument::<RawCompanyFacts>::from_parts(key, bytes.to_vec(), metadata);
 ///
 /// let expected_result = "raw_company_facts";
 ///
@@ -157,7 +158,7 @@ mod tests {
                 user_agent: sample_user_agent(),
             })
             .build();
-        RawDocument::from_parts(key, b"{}".to_vec(), metadata)
+        RawDocument::from_parts(key, bytes.to_vec(), metadata)
     }
 
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}

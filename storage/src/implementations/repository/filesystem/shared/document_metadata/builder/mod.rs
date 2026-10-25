@@ -243,9 +243,10 @@ impl<D: Document> DocumentMetadataBuilder<D, String, Content, DateTime<Utc>, Run
     /// use storage::implementations::repository::filesystem::{DocumentMetadata, Producer};
     /// use uuid::Uuid;
     ///
+    /// let bytes = b"{}";
     /// let metadata = DocumentMetadata::builder()
     ///     .media_type("application/json")
-    ///     .content(2, storage::shared::Sha256Digest::of(b"{}"))
+    ///     .content(bytes.len() as u64, storage::shared::Sha256Digest::of(bytes))
     ///     .produced_at(DateTime::<Utc>::UNIX_EPOCH)
     ///     .run(Uuid::nil(), Producer::new("Summarize", "0.1.0", "63c1f59"))
     ///     .context(())
@@ -303,10 +304,11 @@ impl<D: Document> DocumentMetadataBuilder<D, String, Content, DateTime<Utc>, Run
     /// #     }
     /// # }
     /// #
+    /// let bytes = b"{}";
     /// let metadata = DocumentMetadata::builder()
     ///     .document_type::<Summary>()
     ///     .media_type("application/json")
-    ///     .content(2, storage::shared::Sha256Digest::of(b"{}"))
+    ///     .content(bytes.len() as u64, storage::shared::Sha256Digest::of(bytes))
     ///     .produced_at(DateTime::<Utc>::UNIX_EPOCH)
     ///     .run(Uuid::nil(), Producer::new("Summarize", "0.1.0", "63c1f59"))
     ///     .context(())
@@ -364,10 +366,11 @@ impl<D: Document> DocumentMetadataBuilder<D, String, Content, DateTime<Utc>, Run
     /// #     }
     /// # }
     /// #
+    /// let bytes = b"{}";
     /// let metadata = DocumentMetadata::builder()
     ///     .document_type::<Summary>()
     ///     .media_type("application/json")
-    ///     .content(2, storage::shared::Sha256Digest::of(b"{}"))
+    ///     .content(bytes.len() as u64, storage::shared::Sha256Digest::of(bytes))
     ///     .produced_at(DateTime::<Utc>::UNIX_EPOCH)
     ///     .context(SummaryContext { source: "a test".to_owned() })
     ///     .build();
