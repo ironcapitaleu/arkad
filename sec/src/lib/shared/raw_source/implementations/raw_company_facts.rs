@@ -3,7 +3,7 @@
 //! Provides [`RawCompanyFacts`], the [`RawSource`] marker for the Company Facts JSON of one
 //! company.
 
-use crate::shared::document_kind::SecDocumentKind;
+use crate::shared::document_type::SecDocumentType;
 use crate::shared::raw_source::traits::RawSource;
 
 /// Marks the Company Facts JSON of one company, as the SEC returns it.
@@ -11,8 +11,8 @@ use crate::shared::raw_source::traits::RawSource;
 pub struct RawCompanyFacts;
 
 impl RawSource for RawCompanyFacts {
-    const KIND: SecDocumentKind = SecDocumentKind::RawCompanyFacts;
-    const KIND_VERSION: u32 = 1;
+    const DOCUMENT_TYPE: SecDocumentType = SecDocumentType::RawCompanyFacts;
+    const DOCUMENT_TYPE_VERSION: u32 = 1;
 }
 
 #[cfg(test)]
@@ -28,19 +28,19 @@ mod tests {
     }
 
     #[test]
-    fn should_name_the_raw_company_facts_kind_for_raw_company_facts() {
-        let expected_result = SecDocumentKind::RawCompanyFacts;
+    fn should_name_the_raw_company_facts_document_type_for_raw_company_facts() {
+        let expected_result = SecDocumentType::RawCompanyFacts;
 
-        let result = RawCompanyFacts::KIND;
+        let result = RawCompanyFacts::DOCUMENT_TYPE;
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
-    fn should_name_kind_version_one_for_raw_company_facts() {
+    fn should_name_document_type_version_one_for_raw_company_facts() {
         let expected_result = 1;
 
-        let result = RawCompanyFacts::KIND_VERSION;
+        let result = RawCompanyFacts::DOCUMENT_TYPE_VERSION;
 
         assert_eq!(result, expected_result);
     }

@@ -120,17 +120,17 @@ pub enum FailedFilesystemOperationReason {
         /// Column of the first character the parser rejected.
         column: usize,
     },
-    /// The metadata holds another document kind or kind version than the repository's document
-    /// type.
-    UnexpectedMetadataKind {
-        /// The kind the metadata holds.
-        found_kind: String,
-        /// The kind version the metadata holds.
-        found_kind_version: u32,
-        /// The kind of the repository's document type.
-        expected_kind: String,
-        /// The kind version of the repository's document type.
-        expected_kind_version: u32,
+    /// The metadata holds another document type or document type version than the repository reads
+    /// and writes.
+    UnexpectedDocumentType {
+        /// The document type the metadata holds.
+        found_document_type: String,
+        /// The document type version the metadata holds.
+        found_document_type_version: u32,
+        /// The document type that the repository reads and writes.
+        expected_document_type: String,
+        /// The document type version that the repository reads and writes.
+        expected_document_type_version: u32,
     },
     /// The metadata cannot be serialized as JSON.
     UnserializableMetadata,
@@ -169,15 +169,15 @@ impl fmt::Display for FailedFilesystemOperationReason {
                 f,
                 "Metadata file holds no valid metadata at line {line}, column {column}"
             ),
-            Self::UnexpectedMetadataKind {
-                found_kind,
-                found_kind_version,
-                expected_kind,
-                expected_kind_version,
+            Self::UnexpectedDocumentType {
+                found_document_type,
+                found_document_type_version,
+                expected_document_type,
+                expected_document_type_version,
             } => write!(
                 f,
-                "Metadata holds kind '{found_kind}' version {found_kind_version}, expected kind \
-                 '{expected_kind}' version {expected_kind_version}"
+                "Metadata holds document type '{found_document_type}' version {found_document_type_version}, expected document type \
+                 '{expected_document_type}' version {expected_document_type_version}"
             ),
             Self::UnserializableMetadata => write!(f, "Metadata cannot be serialized as JSON"),
             Self::UnexpectedDocumentSize {
@@ -397,15 +397,15 @@ mod tests {
     }
 
     #[test]
-    fn should_format_display_as_expected_when_the_metadata_kind_is_unexpected() {
-        let reason = FailedFilesystemOperationReason::UnexpectedMetadataKind {
-            found_kind: "other_document".to_owned(),
-            found_kind_version: 2,
-            expected_kind: "sample_document".to_owned(),
-            expected_kind_version: 1,
+    fn should_format_display_as_expected_when_the_document_type_is_unexpected() {
+        let reason = FailedFilesystemOperationReason::UnexpectedDocumentType {
+            found_document_type: "other_document".to_owned(),
+            found_document_type_version: 2,
+            expected_document_type: "sample_document".to_owned(),
+            expected_document_type_version: 1,
         };
 
-        let expected_result = "Metadata holds kind 'other_document' version 2, expected kind \
+        let expected_result = "Metadata holds document type 'other_document' version 2, expected document type \
                                'sample_document' version 1";
 
         let result = reason.to_string();

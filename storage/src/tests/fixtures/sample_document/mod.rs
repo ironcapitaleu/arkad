@@ -1,6 +1,6 @@
 //! # Sample Document
 //!
-//! Provides [`SampleDocument`], a document kind that exists only for tests, and fixed metadata
+//! Provides [`SampleDocument`], a document type that exists only for tests, and fixed metadata
 //! of it.
 
 use std::fmt;
@@ -15,14 +15,14 @@ use crate::implementations::repository::filesystem::shared::document_metadata::{
 };
 use crate::implementations::repository::filesystem::traits::document::Document;
 
-/// The document kinds that exist only for tests.
+/// The document types that exist only for tests.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum SampleDocumentKind {
-    /// The kind of a [`SampleDocument`].
+pub enum SampleDocumentType {
+    /// The document type of a [`SampleDocument`].
     SampleDocument,
 }
 
-impl fmt::Display for SampleDocumentKind {
+impl fmt::Display for SampleDocumentType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::SampleDocument => write!(f, "sample_document"),
@@ -37,7 +37,7 @@ pub struct SampleContext {
     pub url: String,
 }
 
-/// A document kind that exists only for tests.
+/// A document type that exists only for tests.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct SampleDocument {
     key: DocumentKey,
@@ -46,9 +46,9 @@ pub struct SampleDocument {
 }
 
 impl Document for SampleDocument {
-    type Kind = SampleDocumentKind;
-    const KIND: SampleDocumentKind = SampleDocumentKind::SampleDocument;
-    const KIND_VERSION: u32 = 1;
+    type DocumentType = SampleDocumentType;
+    const DOCUMENT_TYPE: SampleDocumentType = SampleDocumentType::SampleDocument;
+    const DOCUMENT_TYPE_VERSION: u32 = 1;
     type Context = SampleContext;
 
     fn key(&self) -> &DocumentKey {

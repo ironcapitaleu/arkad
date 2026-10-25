@@ -5,7 +5,7 @@
 //! ## Modules
 //!
 //! - [`access`]: The access markers and the traits that connect them to the ports.
-//! - [`document`]: The [`Document`](document::Document) trait every stored document kind
+//! - [`document`]: The [`Document`](document::Document) trait every stored document type
 //!   implements.
 //!
 //! [`FilesystemRepository`]: crate::implementations::repository::filesystem::FilesystemRepository

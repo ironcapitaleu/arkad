@@ -18,7 +18,7 @@ use storage::implementations::repository::filesystem::{
 };
 use uuid::Uuid;
 
-use crate::shared::document_kind::SecDocumentKind;
+use crate::shared::document_type::SecDocumentType;
 use crate::shared::raw_source::RawSource;
 use crate::shared::response::SecResponse as SecResponseTrait;
 use crate::shared::response::implementations::sec_response::SecResponse;
@@ -32,9 +32,9 @@ pub use raw_document_metadata_context::RawDocumentMetadataContext;
 /// One SEC file of the source `S`, the key naming it, and the metadata of the fetch that produced
 /// it.
 ///
-/// `S` sets the document's kind, so `RawDocument<RawCompanyFacts>` and a raw document of another
-/// file are different types. A repository of one rejects the files of the other, as long as each
-/// marker names its own kind.
+/// `S` sets the document type, so `RawDocument<RawCompanyFacts>` and a raw document of another file
+/// are different types. A repository of one rejects the files of the other, as long as each
+/// marker names its own document type.
 ///
 /// # Examples
 ///
@@ -75,7 +75,7 @@ pub use raw_document_metadata_context::RawDocumentMetadataContext;
 ///
 /// let expected_result = "raw_company_facts";
 ///
-/// let result = document.metadata().kind();
+/// let result = document.metadata().document_type();
 ///
 /// assert_eq!(result, expected_result);
 /// ```
@@ -173,9 +173,9 @@ impl<S: RawSource> RawDocument<S> {
 }
 
 impl<S: RawSource> Document for RawDocument<S> {
-    type Kind = SecDocumentKind;
-    const KIND: SecDocumentKind = S::KIND;
-    const KIND_VERSION: u32 = S::KIND_VERSION;
+    type DocumentType = SecDocumentType;
+    const DOCUMENT_TYPE: SecDocumentType = S::DOCUMENT_TYPE;
+    const DOCUMENT_TYPE_VERSION: u32 = S::DOCUMENT_TYPE_VERSION;
     type Context = RawDocumentMetadataContext;
 
     fn key(&self) -> &DocumentKey {
@@ -317,12 +317,12 @@ mod tests {
     }
 
     #[test]
-    fn should_store_the_raw_company_facts_kind_when_building_its_metadata() {
+    fn should_store_the_raw_company_facts_document_type_when_building_its_metadata() {
         let document = sample_raw_document();
 
         let expected_result = "raw_company_facts";
 
-        let result = document.metadata().kind();
+        let result = document.metadata().document_type();
 
         assert_eq!(result, expected_result);
     }
@@ -389,9 +389,9 @@ mod tests {
             .build();
 
         let expected_result = serde_json::json!({
-            "metadata_version": 1,
-            "kind": "raw_company_facts",
-            "kind_version": 1,
+            "metadata_version": 2,
+            "document_type": "raw_company_facts",
+            "document_type_version": 1,
             "media_type": "application/json",
             "bytes": 2,
             "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",

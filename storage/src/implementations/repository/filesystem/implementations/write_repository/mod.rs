@@ -44,7 +44,8 @@ impl<A: CanWrite, D: Document> WriteRepository for FilesystemRepository<A, D> {
     /// Checks the record before it touches a file, in this order:
     /// 1. The key does not end in
     ///    [`METADATA_SUFFIX`](crate::implementations::repository::filesystem::METADATA_SUFFIX).
-    /// 2. The metadata holds the kind and kind version of `D`, and serializes as JSON.
+    /// 2. The metadata holds the document type and document type version of `D`, and serializes as
+    ///    JSON.
     /// 3. The bytes have the size and the SHA-256 digest the metadata names.
     ///
     /// Then `persist` checks that the root exists. If the stored metadata equals the new metadata
@@ -61,8 +62,8 @@ impl<A: CanWrite, D: Document> WriteRepository for FilesystemRepository<A, D> {
     /// another size or digest than the record's metadata names. The write touches no file.
     ///
     /// Returns a [`WriteError::Backend`] that holds the [`FailedFilesystemOperation`] message if:
-    /// - the key ends in the metadata suffix, or the record's metadata holds another kind or kind
-    ///   version than `D`. The write touches no file
+    /// - the key ends in the metadata suffix, or the record's metadata holds another document type or
+    ///   document type version than `D`. The write touches no file
     ///   ([`BackendError::FailedOperation`](crate::BackendError::FailedOperation)).
     /// - the root does not exist, is not a directory, or has a file in its path
     ///   ([`BackendError::UnreachableStorage`](crate::BackendError::UnreachableStorage)).
@@ -87,8 +88,8 @@ impl<A: CanWrite, D: Document> WriteRepository for FilesystemRepository<A, D> {
 }
 
 impl<A: CanWrite, D: Document> FilesystemRepository<A, D> {
-    /// Checks the record's key, checks that its metadata holds the kind and kind version of `D`,
-    /// then serializes the metadata.
+    /// Checks the record's key, checks that its metadata holds the document type and document type
+    /// version of `D`, then serializes the metadata.
     ///
     /// Runs before the first `await`, so the write's future holds no reference to `D`, and `D`
     /// needs no `Sync` bound.
@@ -96,13 +97,15 @@ impl<A: CanWrite, D: Document> FilesystemRepository<A, D> {
         self.check_key(record.key())?;
         let metadata_path = self.metadata_path(record.key());
         let metadata = record.metadata();
-        let expected_kind = D::KIND.to_string();
-        if metadata.kind() != expected_kind || metadata.kind_version() != D::KIND_VERSION {
-            let reason = FailedFilesystemOperationReason::UnexpectedMetadataKind {
-                found_kind: metadata.kind().to_owned(),
-                found_kind_version: metadata.kind_version(),
-                expected_kind,
-                expected_kind_version: D::KIND_VERSION,
+        let expected_document_type = D::DOCUMENT_TYPE.to_string();
+        if metadata.document_type() != expected_document_type
+            || metadata.document_type_version() != D::DOCUMENT_TYPE_VERSION
+        {
+            let reason = FailedFilesystemOperationReason::UnexpectedDocumentType {
+                found_document_type: metadata.document_type().to_owned(),
+                found_document_type_version: metadata.document_type_version(),
+                expected_document_type,
+                expected_document_type_version: D::DOCUMENT_TYPE_VERSION,
             };
             return Err(FailedFilesystemOperation::new(reason, metadata_path));
         }
@@ -636,7 +639,8 @@ mod tests {
 
     /// Returns the sample document with the given field of its metadata set to `value`.
     ///
-    /// Deserializing keeps any kind and kind version, so the result can hold a foreign kind.
+    /// Deserializing keeps any document type and document type version, so the result can hold a
+    /// foreign document type.
     fn sample_document_with_metadata_field(
         field: &str,
         value: serde_json::Value,
@@ -651,44 +655,20 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_return_unexpected_metadata_kind_when_persisting_a_record_of_another_kind() {
-        let root = temporary_root();
-        let repository = repository_at(root.path());
-        let record = sample_document_with_metadata_field("kind", "other_document".into());
-        let metadata_path = repository.metadata_path(record.key());
-
-        let expected_result = Err(WriteError::Backend(BackendError::from(
-            FailedFilesystemOperation::new(
-                FailedFilesystemOperationReason::UnexpectedMetadataKind {
-                    found_kind: "other_document".to_owned(),
-                    found_kind_version: 1,
-                    expected_kind: "sample_document".to_owned(),
-                    expected_kind_version: 1,
-                },
-                metadata_path,
-            ),
-        )));
-
-        let result = repository.persist(record).await;
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[tokio::test]
-    async fn should_return_unexpected_metadata_kind_when_persisting_a_record_of_another_kind_version()
+    async fn should_return_unexpected_document_type_when_persisting_a_record_of_another_document_type()
      {
         let root = temporary_root();
         let repository = repository_at(root.path());
-        let record = sample_document_with_metadata_field("kind_version", 2.into());
+        let record = sample_document_with_metadata_field("document_type", "other_document".into());
         let metadata_path = repository.metadata_path(record.key());
 
         let expected_result = Err(WriteError::Backend(BackendError::from(
             FailedFilesystemOperation::new(
-                FailedFilesystemOperationReason::UnexpectedMetadataKind {
-                    found_kind: "sample_document".to_owned(),
-                    found_kind_version: 2,
-                    expected_kind: "sample_document".to_owned(),
-                    expected_kind_version: 1,
+                FailedFilesystemOperationReason::UnexpectedDocumentType {
+                    found_document_type: "other_document".to_owned(),
+                    found_document_type_version: 1,
+                    expected_document_type: "sample_document".to_owned(),
+                    expected_document_type_version: 1,
                 },
                 metadata_path,
             ),
@@ -700,10 +680,35 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_write_no_file_when_persisting_a_record_of_another_kind() {
+    async fn should_return_unexpected_document_type_when_persisting_a_record_of_another_document_type_version()
+     {
         let root = temporary_root();
         let repository = repository_at(root.path());
-        let record = sample_document_with_metadata_field("kind", "other_document".into());
+        let record = sample_document_with_metadata_field("document_type_version", 2.into());
+        let metadata_path = repository.metadata_path(record.key());
+
+        let expected_result = Err(WriteError::Backend(BackendError::from(
+            FailedFilesystemOperation::new(
+                FailedFilesystemOperationReason::UnexpectedDocumentType {
+                    found_document_type: "sample_document".to_owned(),
+                    found_document_type_version: 2,
+                    expected_document_type: "sample_document".to_owned(),
+                    expected_document_type_version: 1,
+                },
+                metadata_path,
+            ),
+        )));
+
+        let result = repository.persist(record).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_write_no_file_when_persisting_a_record_of_another_document_type() {
+        let root = temporary_root();
+        let repository = repository_at(root.path());
+        let record = sample_document_with_metadata_field("document_type", "other_document".into());
 
         let expected_result: Vec<String> = Vec::new();
 
@@ -716,10 +721,10 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_write_no_file_when_persisting_a_record_of_another_kind_version() {
+    async fn should_write_no_file_when_persisting_a_record_of_another_document_type_version() {
         let root = temporary_root();
         let repository = repository_at(root.path());
-        let record = sample_document_with_metadata_field("kind_version", 2.into());
+        let record = sample_document_with_metadata_field("document_type_version", 2.into());
 
         let expected_result: Vec<String> = Vec::new();
 
@@ -894,10 +899,11 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_replace_the_metadata_when_the_stored_metadata_holds_another_kind_version() {
+    async fn should_replace_the_metadata_when_the_stored_metadata_holds_another_document_type_version()
+     {
         let expected_result = sample_metadata();
 
-        let result = persist_over_stored_metadata_field("kind_version", 0.into()).await;
+        let result = persist_over_stored_metadata_field("document_type_version", 0.into()).await;
 
         assert_eq!(result, expected_result);
     }

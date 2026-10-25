@@ -3,9 +3,10 @@
 //! Provides [`DocumentMetadataBuilder`], which builds a [`DocumentMetadata`] for one document
 //! type.
 //!
-//! Each step changes the builder's type. [`build`](DocumentMetadataBuilder::build) exists only
-//! once the builder holds the document type and every required field, so metadata without one of
-//! them does not compile. The document type sets `kind`, `kind_version`, and the context type.
+//! Each step changes the builder's type. [`build`](DocumentMetadataBuilder::build) exists only once
+//! the builder holds the document type and every required field, so metadata without one of them
+//! does not compile. The document type sets `document_type`, `document_type_version`, and the
+//! context type.
 
 use std::marker::PhantomData;
 
@@ -98,7 +99,8 @@ impl
 }
 
 impl<M, B, P, R, C> DocumentMetadataBuilder<NoDocumentType, M, B, P, R, C> {
-    /// Sets the document type, which sets `kind`, `kind_version`, and the context type.
+    /// Sets the document type, which sets `document_type`, `document_type_version`, and the context
+    /// type.
     #[must_use]
     pub fn document_type<D: Document>(self) -> DocumentMetadataBuilder<D, M, B, P, R, C> {
         DocumentMetadataBuilder {
@@ -201,7 +203,7 @@ impl<D, M, B, P, C> DocumentMetadataBuilder<D, M, B, P, NoRun, C> {
 }
 
 impl<D, M, B, P, R> DocumentMetadataBuilder<D, M, B, P, R, NoContext> {
-    /// Sets the fields that only this document kind has.
+    /// Sets the fields that only this document type has.
     ///
     /// If `C` is not the document type's [`Document::Context`], the builder has no `build` method.
     #[must_use]
@@ -232,8 +234,9 @@ impl<D, M, B, P, R, C> DocumentMetadataBuilder<D, M, B, P, R, C> {
 impl<D: Document> DocumentMetadataBuilder<D, String, Content, DateTime<Utc>, Run, D::Context> {
     /// Builds a [`DocumentMetadata`] with the fields this builder holds.
     ///
-    /// Sets `metadata_version` from [`METADATA_VERSION`], `kind` from [`Document::KIND`], and
-    /// `kind_version` from [`Document::KIND_VERSION`].
+    /// Sets `metadata_version` from [`METADATA_VERSION`], `document_type` from
+    /// [`Document::DOCUMENT_TYPE`], and `document_type_version` from
+    /// [`Document::DOCUMENT_TYPE_VERSION`].
     ///
     /// # Examples
     ///
@@ -267,11 +270,11 @@ impl<D: Document> DocumentMetadataBuilder<D, String, Content, DateTime<Utc>, Run
     /// # use uuid::Uuid;
     /// #
     /// # #[derive(Debug, Clone, Copy)]
-    /// # enum ReportKind {
+    /// # enum ReportType {
     /// #     Summary,
     /// # }
     /// #
-    /// # impl fmt::Display for ReportKind {
+    /// # impl fmt::Display for ReportType {
     /// #     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     /// #         write!(f, "summary")
     /// #     }
@@ -289,9 +292,9 @@ impl<D: Document> DocumentMetadataBuilder<D, String, Content, DateTime<Utc>, Run
     /// # }
     /// #
     /// # impl Document for Summary {
-    /// #     type Kind = ReportKind;
-    /// #     const KIND: ReportKind = ReportKind::Summary;
-    /// #     const KIND_VERSION: u32 = 1;
+    /// #     type DocumentType = ReportType;
+    /// #     const DOCUMENT_TYPE: ReportType = ReportType::Summary;
+    /// #     const DOCUMENT_TYPE_VERSION: u32 = 1;
     /// #     type Context = SummaryContext;
     /// #     fn key(&self) -> &DocumentKey { &self.key }
     /// #     fn bytes(&self) -> &[u8] { &self.bytes }
@@ -329,11 +332,11 @@ impl<D: Document> DocumentMetadataBuilder<D, String, Content, DateTime<Utc>, Run
     /// # use uuid::Uuid;
     /// #
     /// # #[derive(Debug, Clone, Copy)]
-    /// # enum ReportKind {
+    /// # enum ReportType {
     /// #     Summary,
     /// # }
     /// #
-    /// # impl fmt::Display for ReportKind {
+    /// # impl fmt::Display for ReportType {
     /// #     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     /// #         write!(f, "summary")
     /// #     }
@@ -351,9 +354,9 @@ impl<D: Document> DocumentMetadataBuilder<D, String, Content, DateTime<Utc>, Run
     /// # }
     /// #
     /// # impl Document for Summary {
-    /// #     type Kind = ReportKind;
-    /// #     const KIND: ReportKind = ReportKind::Summary;
-    /// #     const KIND_VERSION: u32 = 1;
+    /// #     type DocumentType = ReportType;
+    /// #     const DOCUMENT_TYPE: ReportType = ReportType::Summary;
+    /// #     const DOCUMENT_TYPE_VERSION: u32 = 1;
     /// #     type Context = SummaryContext;
     /// #     fn key(&self) -> &DocumentKey { &self.key }
     /// #     fn bytes(&self) -> &[u8] { &self.bytes }
@@ -380,8 +383,8 @@ impl<D: Document> DocumentMetadataBuilder<D, String, Content, DateTime<Utc>, Run
     pub fn build(self) -> DocumentMetadata<D::Context> {
         DocumentMetadata {
             metadata_version: METADATA_VERSION,
-            kind: D::KIND.to_string(),
-            kind_version: D::KIND_VERSION,
+            document_type: D::DOCUMENT_TYPE.to_string(),
+            document_type_version: D::DOCUMENT_TYPE_VERSION,
             media_type: self.media_type,
             size_in_bytes: self.content.size_in_bytes,
             sha256: self.content.sha256,

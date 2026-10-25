@@ -1,20 +1,20 @@
-//! # Document Kind
+//! # Document Type
 //!
-//! Provides [`SecDocumentKind`], the kinds of document that the SEC state machines store.
+//! Provides [`SecDocumentType`], the types of document that the SEC state machines store.
 
 use std::fmt::{self, Display, Formatter};
 
-/// The kinds of document that the SEC state machines store.
+/// The types of document that the SEC state machines store.
 ///
-/// Each variant's [`Display`] text is the `kind` the store writes into a document's metadata. The
-/// text must stay unique across every crate that stores documents.
+/// Each variant's [`Display`] text is the `document_type` the store writes into a document's
+/// metadata. The text must stay unique across every crate that stores documents.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum SecDocumentKind {
+pub enum SecDocumentType {
     /// The Company Facts JSON exactly as the SEC returned it.
     RawCompanyFacts,
 }
 
-impl Display for SecDocumentKind {
+impl Display for SecDocumentType {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match self {
             Self::RawCompanyFacts => write!(f, "raw_company_facts"),
@@ -33,8 +33,8 @@ mod tests {
 
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
     #[test]
-    const fn should_implement_auto_traits_for_sec_document_kind() {
-        implements_auto_traits::<SecDocumentKind>();
+    const fn should_implement_auto_traits_for_sec_document_type() {
+        implements_auto_traits::<SecDocumentType>();
     }
 
     const fn implements_value_traits<
@@ -42,15 +42,15 @@ mod tests {
     >() {
     }
     #[test]
-    const fn should_implement_value_traits_for_sec_document_kind() {
-        implements_value_traits::<SecDocumentKind>();
+    const fn should_implement_value_traits_for_sec_document_type() {
+        implements_value_traits::<SecDocumentType>();
     }
 
     #[test]
-    fn should_display_raw_company_facts_for_the_raw_company_facts_kind() {
+    fn should_display_raw_company_facts_for_the_raw_company_facts_document_type() {
         let expected_result = "raw_company_facts";
 
-        let result = SecDocumentKind::RawCompanyFacts.to_string();
+        let result = SecDocumentType::RawCompanyFacts.to_string();
 
         assert_eq!(result, expected_result);
     }
