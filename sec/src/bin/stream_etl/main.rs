@@ -13,6 +13,7 @@ use std::io::stdout;
 use std::time::Instant;
 
 use pipeline::Pipeline;
+use sec::shared::user_agent::UserAgentError;
 use tracing_subscriber::fmt::format::FmtSpan;
 
 use sec_client::{USER_AGENT_ENV_VAR, sec_client, sends_default_user_agent};
@@ -51,9 +52,14 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
         .init();
 
     let sec_client = sec_client().inspect_err(|error| {
+        // The `UserAgentError` display holds the raw value, which can hold an email. Log only its
+        // reason.
+        let cause = error
+            .downcast_ref::<UserAgentError>()
+            .map_or_else(|| error.to_string(), |error| error.reason.to_string());
         tracing::error!(
             event = %BatchEvent::StartupFailed,
-            message = %format!("Failed to build the SEC client from '{USER_AGENT_ENV_VAR}', Caused by: {error}"),
+            message = %format!("Failed to build the SEC client, Caused by: {cause}"),
             env_var = USER_AGENT_ENV_VAR,
         );
     })?;
