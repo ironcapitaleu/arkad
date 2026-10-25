@@ -4,8 +4,7 @@
 //! [`ExecuteSecRequest`](crate::implementations::states::extract::execute_sec_request::ExecuteSecRequest)
 //! state, together with its updater and builder.
 //!
-//! The context tracks the [`Cik`] being processed, the storage repository of the run, and the
-//! retry budget.
+//! The context tracks the [`Cik`] being processed, the storage repository, and the retry budget.
 //!
 //! ## Usage
 //!
@@ -52,19 +51,19 @@ use crate::traits::state_machine::state::Context;
 
 /// Context for the [`ExecuteSecRequest`](super::ExecuteSecRequest) state.
 ///
-/// Tracks the [`Cik`] being processed, the storage repository of the run, and the retry budget.
+/// Tracks the [`Cik`] being processed, the storage repository, and the retry budget.
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
 pub struct ExecuteSecRequestContext<R> {
     /// The Central Index Key (CIK) being processed in this execution context.
     pub cik: Cik,
-    /// The storage repository of the run.
+    /// The storage repository.
     pub repository: R,
     /// Maximum number of times the state may be retried on failure.
     pub max_retries: u32,
 }
 
 impl<R> ExecuteSecRequestContext<R> {
-    /// repository of the run, with the retry budget at zero.
+    /// repository, with the retry budget at zero.
     #[must_use]
     pub const fn new(cik: Cik, repository: R) -> Self {
         Self {
@@ -80,7 +79,7 @@ impl<R> ExecuteSecRequestContext<R> {
         &self.cik
     }
 
-    /// Returns a reference to the storage repository of the run.
+    /// Returns a reference to the storage repository.
     #[must_use]
     pub const fn repository(&self) -> &R {
         &self.repository

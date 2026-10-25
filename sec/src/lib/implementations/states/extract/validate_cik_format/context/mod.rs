@@ -5,9 +5,8 @@
 //! state, together with its updater and builder.
 //!
 //! The context holds the raw CIK under validation, the shared [`SecClient`], the storage repository
-//! of the run, and the retry budget. These outlive any single input/output pair. The [`Context`]
-//! trait applies updates from an updater that a builder constructs, so each update is explicit and
-//! partial.
+//! and the retry budget. These outlive any single input/output pair. The [`Context`] trait applies
+//! updates from an updater that a builder constructs, so each update is explicit and partial.
 //!
 //! ## Usage
 //!
@@ -61,7 +60,7 @@ pub struct ValidateCikFormatContext<R> {
     pub raw_cik: String,
     /// The shared HTTP client for SEC API requests.
     pub sec_client: SecClient,
-    /// The storage repository of the run.
+    /// The storage repository.
     pub repository: R,
     /// Maximum number of times the state may be retried on failure.
     pub max_retries: u32,
@@ -69,7 +68,7 @@ pub struct ValidateCikFormatContext<R> {
 
 impl<R> ValidateCikFormatContext<R> {
     /// Creates a new [`ValidateCikFormatContext`] from a raw CIK, a shared HTTP client, and the
-    /// storage repository of the run.
+    /// storage repository.
     pub fn new(cik: impl Into<String>, sec_client: SecClient, repository: R) -> Self {
         Self {
             raw_cik: cik.into(),
@@ -91,7 +90,7 @@ impl<R> ValidateCikFormatContext<R> {
         &self.sec_client
     }
 
-    /// Returns a reference to the storage repository of the run.
+    /// Returns a reference to the storage repository.
     #[must_use]
     pub const fn repository(&self) -> &R {
         &self.repository

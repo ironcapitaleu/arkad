@@ -5,8 +5,8 @@
 //! state, together with its updater, its builder, and the [`RawCompanyFactsRepository`] bound on
 //! the repository it holds.
 //!
-//! The context holds the [`Cik`] being processed, the `execution_id` of the run, the repository
-//! that stores the document, and the retry budget.
+//! The context holds the [`Cik`] being processed, the `execution_id`, the repository that stores
+//! the document, and the retry budget.
 
 use std::fmt::{self, Debug, Display};
 use std::hash::Hash;

@@ -4,8 +4,7 @@
 //! [`PrepareSecRequest`](crate::implementations::states::extract::prepare_sec_request::PrepareSecRequest)
 //! state, together with its updater and builder.
 //!
-//! The context holds the validated [`Cik`], the storage repository of the run, and the retry
-//! budget.
+//! The context holds the validated [`Cik`], the storage repository, and the retry budget.
 //!
 //! ## Usage
 //!
@@ -53,18 +52,18 @@ use crate::traits::state_machine::state::Context;
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
 /// Context for the [`PrepareSecRequest`](super::PrepareSecRequest) state.
 ///
-/// Holds the validated [`Cik`], the storage repository of the run, and the retry budget.
+/// Holds the validated [`Cik`], the storage repository, and the retry budget.
 pub struct PrepareSecRequestContext<R> {
     /// The validated CIK the prepared request targets.
     pub cik: Cik,
-    /// The storage repository of the run.
+    /// The storage repository.
     pub repository: R,
     /// Maximum number of times the state may be retried on failure.
     pub max_retries: u32,
 }
 
 impl<R> PrepareSecRequestContext<R> {
-    /// storage repository of the run, with the retry budget at zero.
+    /// storage repository, with the retry budget at zero.
     #[must_use]
     pub const fn new(cik: Cik, repository: R) -> Self {
         Self {
@@ -74,7 +73,7 @@ impl<R> PrepareSecRequestContext<R> {
         }
     }
 
-    /// Returns a reference to the storage repository of the run.
+    /// Returns a reference to the storage repository.
     #[must_use]
     pub const fn repository(&self) -> &R {
         &self.repository
