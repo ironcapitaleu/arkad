@@ -14,15 +14,15 @@ use sec::shared::user_agent::{UserAgent, UserAgentError, UserAgentErrorReason};
 /// The environment variable that names the `User-Agent` of every SEC request.
 pub const USER_AGENT_ENV_VAR: &str = "ARKAD_SEC_USER_AGENT";
 
-/// Builds the [`SecClient`] that sends the `User-Agent` that `ARKAD_SEC_USER_AGENT` names.
+/// Builds an [`SecClient`] whose `User-Agent` is the value of `ARKAD_SEC_USER_AGENT`.
 ///
 /// If the variable is unset or empty, the client sends the default [`UserAgent`].
 ///
 /// # Errors
 ///
-/// Returns [`UserAgentError`] if the variable does not have the form
+/// Returns [`UserAgentError`] if the variable is not valid UTF-8 or does not have the form
 /// `Company Name email@domain.com`. Returns [`reqwest::Error`] if `reqwest` cannot build the HTTP
-/// client.
+/// client, for example when the value holds a character that an HTTP header cannot carry.
 pub fn sec_client() -> Result<SecClient, Box<dyn Error + Send + Sync>> {
     let user_agent = user_agent(env::var_os(USER_AGENT_ENV_VAR))?;
     Ok(SecClient::new(ReqwestClient::new(user_agent)?))
@@ -30,7 +30,10 @@ pub fn sec_client() -> Result<SecClient, Box<dyn Error + Send + Sync>> {
 
 /// Returns the [`UserAgent`] that `value` names, or the default if `value` is unset or empty.
 ///
-/// A value that is not valid UTF-8 fails with [`UserAgentErrorReason::InvalidSecFormat`].
+/// # Errors
+///
+/// Returns [`UserAgentError`] with [`UserAgentErrorReason::InvalidSecFormat`] if `value` is not
+/// valid UTF-8 or does not have the form `Company Name email@domain.com`.
 fn user_agent(value: Option<OsString>) -> Result<UserAgent, UserAgentError> {
     let Some(value) = value.filter(|agent| !agent.is_empty()) else {
         return Ok(UserAgent::default());
@@ -71,7 +74,8 @@ mod tests {
 
     #[test]
     fn should_return_given_user_agent_when_variable_is_valid() {
-        let expected_result = UserAgent::new("Sample Company contact@example.com");
+        let expected_result = Ok(UserAgent::new("Sample Company contact@example.com")
+            .expect("Given a hardcoded SEC-format string, validation should always succeed"));
 
         let result = user_agent(Some(OsString::from("Sample Company contact@example.com")));
 

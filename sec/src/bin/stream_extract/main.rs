@@ -15,7 +15,7 @@ use std::time::Instant;
 use extraction::Extraction;
 use tracing_subscriber::fmt::format::FmtSpan;
 
-use sec_client::sec_client;
+use sec_client::{USER_AGENT_ENV_VAR, sec_client};
 use storage_root::raw_company_facts_writer;
 
 use extraction::constants::CIKS;
@@ -23,12 +23,14 @@ use extraction::constants::CIKS;
 /// Top-level batch events.
 enum BatchEvent {
     Complete,
+    StartupFailed,
 }
 
 impl Display for BatchEvent {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             Self::Complete => write!(f, "batch_complete"),
+            Self::StartupFailed => write!(f, "batch_startup_failed"),
         }
     }
 }
@@ -46,7 +48,13 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
         .with_writer(non_blocking)
         .init();
 
-    let sec_client = sec_client()?;
+    let sec_client = sec_client().inspect_err(|error| {
+        tracing::error!(
+            event = %BatchEvent::StartupFailed,
+            message = %format!("Failed to build the SEC client from '{USER_AGENT_ENV_VAR}', Caused by: {error}"),
+            env_var = USER_AGENT_ENV_VAR,
+        );
+    })?;
     let repository = raw_company_facts_writer();
     let start = Instant::now();
 
