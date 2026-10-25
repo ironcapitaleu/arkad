@@ -9,7 +9,6 @@ use std::ffi::OsString;
 
 use sec::shared::http_client::implementations::reqwest_client::ReqwestClient;
 use sec::shared::http_client::implementations::sec_client::SecClient;
-use sec::shared::user_agent::constants::DEFAULT_SEC_USER_AGENT;
 use sec::shared::user_agent::{UserAgent, UserAgentError, UserAgentErrorReason};
 
 /// The environment variable that names the `User-Agent` of every SEC request.
@@ -29,9 +28,9 @@ pub fn sec_client() -> Result<SecClient, Box<dyn Error + Send + Sync>> {
     Ok(SecClient::new(ReqwestClient::new(user_agent)?))
 }
 
-/// Returns a warning if `sec_client` sends [`DEFAULT_SEC_USER_AGENT`], else `None`.
+/// Returns a warning if `sec_client` sends the default [`UserAgent`], else `None`.
 pub fn default_user_agent_warning(sec_client: &SecClient) -> Option<String> {
-    (sec_client.user_agent().inner() == DEFAULT_SEC_USER_AGENT).then(|| {
+    (*sec_client.user_agent() == UserAgent::default()).then(|| {
         format!(
             "Every SEC request sends the placeholder User-Agent. Set '{USER_AGENT_ENV_VAR}' to 'Company Name email@domain.com'"
         )
@@ -65,7 +64,7 @@ mod tests {
 
     #[test]
     fn should_return_default_user_agent_when_variable_is_unset() {
-        let expected_result = UserAgent::new(DEFAULT_SEC_USER_AGENT);
+        let expected_result = Ok(UserAgent::default());
 
         let result = user_agent(None);
 
@@ -74,7 +73,7 @@ mod tests {
 
     #[test]
     fn should_return_default_user_agent_when_variable_is_empty() {
-        let expected_result = UserAgent::new(DEFAULT_SEC_USER_AGENT);
+        let expected_result = Ok(UserAgent::default());
 
         let result = user_agent(Some(OsString::new()));
 
