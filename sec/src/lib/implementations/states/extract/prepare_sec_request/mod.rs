@@ -28,8 +28,8 @@
 //! let input = PrepareSecRequestInput::new(cik.clone(), SecClient::default());
 //! # use sec::shared::user_agent::UserAgent;
 //! # use uuid::Uuid;
-//! # let user_agent = UserAgent::new("Sample Company contact@example.com")
-//! #     .expect("A hardcoded SEC-format user agent should always validate");
+//! let user_agent = UserAgent::new("Sample Company contact@example.com")
+//!     .expect("Given a hardcoded SEC-format user agent, validation should always succeed");
 //! let context = PrepareSecRequestContext::new(cik, Uuid::new_v4(), user_agent);
 //! let mut state = PrepareSecRequest::new(input, context);
 //! state
@@ -97,8 +97,8 @@ impl PrepareSecRequest {
     /// let input = PrepareSecRequestInput::new(cik.clone(), SecClient::default());
     /// # use sec::shared::user_agent::UserAgent;
     /// # use uuid::Uuid;
-    /// # let user_agent = UserAgent::new("Sample Company contact@example.com")
-    /// #     .expect("A hardcoded SEC-format user agent should always validate");
+    /// let user_agent = UserAgent::new("Sample Company contact@example.com")
+    ///     .expect("Given a hardcoded SEC-format user agent, validation should always succeed");
     /// let context = PrepareSecRequestContext::new(cik, Uuid::new_v4(), user_agent);
     /// let state = PrepareSecRequest::new(input, context);
     ///

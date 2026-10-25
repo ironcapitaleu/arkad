@@ -17,8 +17,8 @@
 //! let cik = Cik::new("1234567890").expect("A hardcoded valid CIK should always parse");
 //! # use sec::shared::user_agent::UserAgent;
 //! # use uuid::Uuid;
-//! # let user_agent = UserAgent::new("Sample Company contact@example.com")
-//! #     .expect("A hardcoded SEC-format user agent should always validate");
+//! let user_agent = UserAgent::new("Sample Company contact@example.com")
+//!     .expect("Given a hardcoded SEC-format user agent, validation should always succeed");
 //! let mut context = ExecuteSecRequestContext::new(cik, Uuid::new_v4(), user_agent);
 //! let update = ExecuteSecRequestContextUpdater::builder()
 //!     .cik(Cik::new("0987654321").expect("A hardcoded valid CIK should always parse"))
@@ -64,7 +64,8 @@ pub struct ExecuteSecRequestContext {
 }
 
 impl ExecuteSecRequestContext {
-    /// Creates a new [`ExecuteSecRequestContext`] from a CIK, with the retry budget at zero.
+    /// Creates a new [`ExecuteSecRequestContext`] from a CIK and the `execution_id` and the
+    /// `User-Agent` of the run, with the retry budget at zero.
     #[must_use]
     pub const fn new(cik: Cik, execution_id: Uuid, user_agent: UserAgent) -> Self {
         Self {
@@ -232,7 +233,7 @@ mod tests {
     use crate::tests::fixtures::sample_run::{SAMPLE_EXECUTION_ID, sample_user_agent};
 
     #[test]
-    fn should_set_cik_and_zero_max_retries_when_created_with_new() {
+    fn should_set_all_fields_when_created_with_new() {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
 
         let expected_result = ExecuteSecRequestContext {

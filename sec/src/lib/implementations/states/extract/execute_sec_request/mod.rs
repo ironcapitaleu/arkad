@@ -30,8 +30,8 @@
 //! let input = ExecuteSecRequestInput::new(SecClient::default(), request);
 //! # use sec::shared::user_agent::UserAgent;
 //! # use uuid::Uuid;
-//! # let user_agent = UserAgent::new("Sample Company contact@example.com")
-//! #     .expect("A hardcoded SEC-format user agent should always validate");
+//! let user_agent = UserAgent::new("Sample Company contact@example.com")
+//!     .expect("Given a hardcoded SEC-format user agent, validation should always succeed");
 //! let context = ExecuteSecRequestContext::new(cik, Uuid::new_v4(), user_agent);
 //!
 //! let mut state = ExecuteSecRequest::new(input, context);
@@ -104,8 +104,8 @@ impl ExecuteSecRequest {
     /// let input = ExecuteSecRequestInput::new(SecClient::default(), request);
     /// # use sec::shared::user_agent::UserAgent;
     /// # use uuid::Uuid;
-    /// # let user_agent = UserAgent::new("Sample Company contact@example.com")
-    /// #     .expect("A hardcoded SEC-format user agent should always validate");
+    /// let user_agent = UserAgent::new("Sample Company contact@example.com")
+    ///     .expect("Given a hardcoded SEC-format user agent, validation should always succeed");
     /// let context = ExecuteSecRequestContext::new(cik, Uuid::new_v4(), user_agent);
     /// let state = ExecuteSecRequest::new(input, context);
     ///

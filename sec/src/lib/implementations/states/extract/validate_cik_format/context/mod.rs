@@ -4,10 +4,9 @@
 //! [`ValidateCikFormat`](crate::implementations::states::extract::validate_cik_format::ValidateCikFormat)
 //! state, together with its updater and builder.
 //!
-//! The context holds information that outlives any single input/output pair —
-//! the shared [`SecClient`], the `execution_id` and the `User-Agent` of the run, and the retry
-//! budget — so the state can be re-run and
-//! transitioned without reconstructing those resources. Updates are applied through the
+//! The context holds the shared [`SecClient`], the `execution_id` and the `User-Agent` of the
+//! run, and the retry budget. These outlive any single input/output pair. The state can then
+//! re-run and transition without rebuilding them. Updates are applied through the
 //! [`Context`] trait via a builder-constructed updater, keeping mutation explicit and partial.
 //!
 //! ## Usage
@@ -19,8 +18,8 @@
 //!
 //! # use sec::shared::user_agent::UserAgent;
 //! # use uuid::Uuid;
-//! # let user_agent = UserAgent::new("Sample Company contact@example.com")
-//! #     .expect("A hardcoded SEC-format user agent should always validate");
+//! let user_agent = UserAgent::new("Sample Company contact@example.com")
+//!     .expect("Given a hardcoded SEC-format user agent, validation should always succeed");
 //! let mut context = ValidateCikFormatContext::new("1067983", SecClient::default(), Uuid::new_v4(), user_agent);
 //! let update = ValidateCikFormatContextUpdater::builder()
 //!     .cik("0000000001")
@@ -52,9 +51,9 @@ use crate::traits::state_machine::state::Context;
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
 /// Context for the [`ValidateCikFormat`](super::ValidateCikFormat) state.
 ///
-/// Bundles the resources and configuration that persist across the state's lifetime —
-/// the raw CIK under validation, the shared [`SecClient`], the `execution_id` and the
-/// `User-Agent` of the run, and the retry budget — so they survive updates and transitions.
+/// Holds the raw CIK under validation, the shared [`SecClient`], and the `execution_id` and the
+/// `User-Agent` of the run. It also holds the retry budget. All of them survive updates and
+/// transitions.
 pub struct ValidateCikFormatContext {
     /// The unvalidated CIK string provided for validation.
     pub raw_cik: String,

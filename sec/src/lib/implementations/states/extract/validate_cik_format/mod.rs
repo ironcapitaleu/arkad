@@ -28,8 +28,8 @@
 //! let input = ValidateCikFormatInput::new("1234");
 //! # use sec::shared::user_agent::UserAgent;
 //! # use uuid::Uuid;
-//! # let user_agent = UserAgent::new("Sample Company contact@example.com")
-//! #     .expect("A hardcoded SEC-format user agent should always validate");
+//! let user_agent = UserAgent::new("Sample Company contact@example.com")
+//!     .expect("Given a hardcoded SEC-format user agent, validation should always succeed");
 //! let context = ValidateCikFormatContext::new("1234", SecClient::default(), Uuid::new_v4(), user_agent);
 //! let mut state = ValidateCikFormat::new(input, context);
 //! state
@@ -106,8 +106,8 @@ impl ValidateCikFormat {
     /// let input = ValidateCikFormatInput::new("1234");
     /// # use sec::shared::user_agent::UserAgent;
     /// # use uuid::Uuid;
-    /// # let user_agent = UserAgent::new("Sample Company contact@example.com")
-    /// #     .expect("A hardcoded SEC-format user agent should always validate");
+    /// let user_agent = UserAgent::new("Sample Company contact@example.com")
+    ///     .expect("Given a hardcoded SEC-format user agent, validation should always succeed");
     /// let context = ValidateCikFormatContext::new("1234", SecClient::default(), Uuid::new_v4(), user_agent);
     /// let state = ValidateCikFormat::new(input, context);
     ///

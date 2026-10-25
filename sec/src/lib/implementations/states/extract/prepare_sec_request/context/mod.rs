@@ -18,8 +18,8 @@
 //! let cik = Cik::new("1234567890").expect("A hardcoded valid CIK should always parse");
 //! # use sec::shared::user_agent::UserAgent;
 //! # use uuid::Uuid;
-//! # let user_agent = UserAgent::new("Sample Company contact@example.com")
-//! #     .expect("A hardcoded SEC-format user agent should always validate");
+//! let user_agent = UserAgent::new("Sample Company contact@example.com")
+//!     .expect("Given a hardcoded SEC-format user agent, validation should always succeed");
 //! let mut context = PrepareSecRequestContext::new(cik, Uuid::new_v4(), user_agent);
 //! let update = PrepareSecRequestContextUpdater::builder()
 //!     .max_retries(5)
@@ -65,7 +65,8 @@ pub struct PrepareSecRequestContext {
 }
 
 impl PrepareSecRequestContext {
-    /// Creates a new [`PrepareSecRequestContext`] from a validated CIK, with the retry budget at zero.
+    /// Creates a new [`PrepareSecRequestContext`] from a validated CIK and the `execution_id` and
+    /// the `User-Agent` of the run, with the retry budget at zero.
     #[must_use]
     pub const fn new(cik: Cik, execution_id: Uuid, user_agent: UserAgent) -> Self {
         Self {

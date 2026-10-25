@@ -13,7 +13,8 @@ pub const SAMPLE_EXECUTION_ID: Uuid = Uuid::from_u128(7);
 ///
 /// # Panics
 ///
-/// Never panics, because the hardcoded string has the SEC format.
+/// Panics if [`UserAgent::new`] rejects the hardcoded string. The string has the SEC format, so
+/// this does not happen.
 #[must_use]
 pub fn sample_user_agent() -> UserAgent {
     UserAgent::new("Sample Company contact@example.com")
