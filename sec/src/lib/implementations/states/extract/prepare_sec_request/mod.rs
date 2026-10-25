@@ -27,7 +27,6 @@
 //! let cik = Cik::new("1067983").expect("A hardcoded valid CIK should always parse");
 //! let input = PrepareSecRequestInput::new(cik.clone(), SecClient::default());
 //! # use sec::shared::user_agent::UserAgent;
-//! # use uuid::Uuid;
 //! let user_agent = UserAgent::new("Sample Company contact@example.com")
 //!     .expect("Given a hardcoded SEC-format user agent, validation should always succeed");
 //! # use sec::shared::raw_document::RawDocument;
@@ -38,7 +37,7 @@
 //! #     .document_type::<RawDocument<RawCompanyFacts>>()
 //! #     .root("data")
 //! #     .build();
-//! let context = PrepareSecRequestContext::new(cik, Uuid::new_v4(), user_agent, repository);
+//! let context = PrepareSecRequestContext::new(cik, user_agent, repository);
 //! let mut state = PrepareSecRequest::new(input, context);
 //! state
 //!     .compute_output_data_async()
@@ -105,7 +104,6 @@ impl<R> PrepareSecRequest<R> {
     /// let cik = Cik::new("1067983").expect("A hardcoded valid CIK should always parse");
     /// let input = PrepareSecRequestInput::new(cik.clone(), SecClient::default());
     /// # use sec::shared::user_agent::UserAgent;
-    /// # use uuid::Uuid;
     /// let user_agent = UserAgent::new("Sample Company contact@example.com")
     ///     .expect("Given a hardcoded SEC-format user agent, validation should always succeed");
     /// # use sec::shared::raw_document::RawDocument;
@@ -116,7 +114,7 @@ impl<R> PrepareSecRequest<R> {
     /// #     .document_type::<RawDocument<RawCompanyFacts>>()
     /// #     .root("data")
     /// #     .build();
-    /// let context = PrepareSecRequestContext::new(cik, Uuid::new_v4(), user_agent, repository);
+    /// let context = PrepareSecRequestContext::new(cik, user_agent, repository);
     /// let state = PrepareSecRequest::new(input, context);
     ///
     /// let expected_result = false;
@@ -246,7 +244,7 @@ mod tests {
     use crate::shared::cik::Cik;
     use crate::shared::cik::constants::BERKSHIRE_HATHAWAY_CIK_RAW;
     use crate::shared::http_client::implementations::sec_client::SecClient;
-    use crate::tests::fixtures::sample_run::{SAMPLE_EXECUTION_ID, sample_user_agent};
+    use crate::tests::fixtures::sample_run::sample_user_agent;
     use crate::tests::fixtures::sample_write_repository::FakeWriteRepository;
     use crate::traits::state_machine::state::State;
 
@@ -262,7 +260,6 @@ mod tests {
     fn create_test_context() -> PrepareSecRequestContext<FakeWriteRepository> {
         PrepareSecRequestContext::new(
             create_test_cik(),
-            SAMPLE_EXECUTION_ID,
             sample_user_agent(),
             FakeWriteRepository::new(),
         )

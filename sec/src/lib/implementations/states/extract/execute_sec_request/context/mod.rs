@@ -4,9 +4,8 @@
 //! [`ExecuteSecRequest`](crate::implementations::states::extract::execute_sec_request::ExecuteSecRequest)
 //! state, together with its updater and builder.
 //!
-//! The context tracks the [`Cik`] being processed, the `execution_id`, the `User-Agent` and the
-//! storage repository of the run, and the retry budget. All of them persist across updates and
-//! transitions.
+//! The context tracks the [`Cik`] being processed, the `User-Agent` and the storage repository of
+//! the run, and the retry budget. All of them persist across updates and transitions.
 //!
 //! ## Usage
 //!
@@ -17,7 +16,6 @@
 //!
 //! let cik = Cik::new("1234567890").expect("A hardcoded valid CIK should always parse");
 //! # use sec::shared::user_agent::UserAgent;
-//! # use uuid::Uuid;
 //! let user_agent = UserAgent::new("Sample Company contact@example.com")
 //!     .expect("Given a hardcoded SEC-format user agent, validation should always succeed");
 //! # use sec::shared::raw_document::RawDocument;
@@ -28,7 +26,7 @@
 //! #     .document_type::<RawDocument<RawCompanyFacts>>()
 //! #     .root("data")
 //! #     .build();
-//! let mut context = ExecuteSecRequestContext::new(cik, Uuid::new_v4(), user_agent, repository);
+//! let mut context = ExecuteSecRequestContext::new(cik, user_agent, repository);
 //! let update = ExecuteSecRequestContextUpdater::builder()
 //!     .cik(Cik::new("0987654321").expect("A hardcoded valid CIK should always parse"))
 //!     .build();
@@ -50,7 +48,6 @@ use std::fmt;
 
 use serde::Serialize;
 use state_maschine::prelude::Context as SMContext;
-use uuid::Uuid;
 
 use crate::implementations::states::extract::store_company_facts::RawCompanyFactsRepository;
 use crate::shared::cik::Cik;
@@ -59,16 +56,13 @@ use crate::traits::state_machine::state::Context;
 
 /// Context for the [`ExecuteSecRequest`](super::ExecuteSecRequest) state.
 ///
-/// Tracks the [`Cik`] being processed, the `execution_id`, the `User-Agent` and the storage
-/// repository of the run, and the retry budget. All of them persist across updates and
-/// transitions.
+/// Tracks the [`Cik`] being processed, the `User-Agent` and the storage repository of the run,
+/// and the retry budget. All of them persist across updates and transitions.
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
 pub struct ExecuteSecRequestContext<R> {
     /// The Central Index Key (CIK) being processed in this execution context.
     pub cik: Cik,
-    /// The `execution_id` of the run.
-    pub execution_id: Uuid,
-    /// The `User-Agent` that the run sends to the SEC.
+    /// The `User-Agent` of the run. It must equal the header that the SEC client sends.
     pub user_agent: UserAgent,
     /// The storage repository of the run.
     pub repository: R,
@@ -77,13 +71,12 @@ pub struct ExecuteSecRequestContext<R> {
 }
 
 impl<R> ExecuteSecRequestContext<R> {
-    /// Creates a new [`ExecuteSecRequestContext`] from a CIK and the `execution_id`, the
-    /// `User-Agent` and the storage repository of the run, with the retry budget at zero.
+    /// Creates a new [`ExecuteSecRequestContext`] from a CIK and the `User-Agent` and the storage
+    /// repository of the run, with the retry budget at zero.
     #[must_use]
-    pub const fn new(cik: Cik, execution_id: Uuid, user_agent: UserAgent, repository: R) -> Self {
+    pub const fn new(cik: Cik, user_agent: UserAgent, repository: R) -> Self {
         Self {
             cik,
-            execution_id,
             user_agent,
             repository,
             max_retries: 0,
@@ -96,13 +89,7 @@ impl<R> ExecuteSecRequestContext<R> {
         &self.cik
     }
 
-    /// Returns the `execution_id` of the run.
-    #[must_use]
-    pub const fn execution_id(&self) -> Uuid {
-        self.execution_id
-    }
-
-    /// Returns the `User-Agent` that the run sends to the SEC.
+    /// Returns the `User-Agent` of the run.
     #[must_use]
     pub const fn user_agent(&self) -> &UserAgent {
         &self.user_agent
@@ -132,9 +119,6 @@ impl<R: RawCompanyFactsRepository> SMContext for ExecuteSecRequestContext<R> {
         if let Some(cik) = updates.cik {
             self.cik = cik;
         }
-        if let Some(execution_id) = updates.execution_id {
-            self.execution_id = execution_id;
-        }
         if let Some(user_agent) = updates.user_agent {
             self.user_agent = user_agent;
         }
@@ -160,8 +144,6 @@ impl<R> fmt::Display for ExecuteSecRequestContext<R> {
 pub struct ExecuteSecRequestContextUpdater<R> {
     /// Optional new value for the CIK.
     pub cik: Option<Cik>,
-    /// Optional new value for the `execution_id`.
-    pub execution_id: Option<Uuid>,
     /// Optional new value for the `User-Agent`.
     pub user_agent: Option<UserAgent>,
     /// Optional new value for the storage repository.
@@ -181,7 +163,6 @@ impl<R> ExecuteSecRequestContextUpdater<R> {
 /// Fluent builder for an [`ExecuteSecRequestContextUpdater`].
 pub struct ExecuteSecRequestContextUpdaterBuilder<R> {
     cik: Option<Cik>,
-    execution_id: Option<Uuid>,
     user_agent: Option<UserAgent>,
     repository: Option<R>,
     max_retries: Option<u32>,
@@ -193,7 +174,6 @@ impl<R> ExecuteSecRequestContextUpdaterBuilder<R> {
     pub const fn new() -> Self {
         Self {
             cik: None,
-            execution_id: None,
             user_agent: None,
             repository: None,
             max_retries: None,
@@ -216,13 +196,6 @@ impl<R> ExecuteSecRequestContextUpdaterBuilder<R> {
         self
     }
 
-    /// Sets the `execution_id` field.
-    #[must_use]
-    pub const fn execution_id(mut self, execution_id: Uuid) -> Self {
-        self.execution_id = Some(execution_id);
-        self
-    }
-
     /// Sets the `User-Agent` field.
     #[must_use]
     pub fn user_agent(mut self, user_agent: UserAgent) -> Self {
@@ -242,7 +215,6 @@ impl<R> ExecuteSecRequestContextUpdaterBuilder<R> {
     pub fn build(self) -> ExecuteSecRequestContextUpdater<R> {
         ExecuteSecRequestContextUpdater {
             cik: self.cik,
-            execution_id: self.execution_id,
             user_agent: self.user_agent,
             repository: self.repository,
             max_retries: self.max_retries,
@@ -266,7 +238,7 @@ mod tests {
 
     use super::*;
     use crate::shared::cik::Cik;
-    use crate::tests::fixtures::sample_run::{SAMPLE_EXECUTION_ID, sample_user_agent};
+    use crate::tests::fixtures::sample_run::sample_user_agent;
     use crate::tests::fixtures::sample_write_repository::FakeWriteRepository;
 
     #[test]
@@ -275,18 +247,13 @@ mod tests {
 
         let expected_result = ExecuteSecRequestContext {
             cik: cik.clone(),
-            execution_id: SAMPLE_EXECUTION_ID,
             user_agent: sample_user_agent(),
             repository: FakeWriteRepository::new(),
             max_retries: 0,
         };
 
-        let result = ExecuteSecRequestContext::new(
-            cik,
-            SAMPLE_EXECUTION_ID,
-            sample_user_agent(),
-            FakeWriteRepository::new(),
-        );
+        let result =
+            ExecuteSecRequestContext::new(cik, sample_user_agent(), FakeWriteRepository::new());
 
         assert_eq!(result, expected_result);
     }
@@ -296,7 +263,6 @@ mod tests {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
         let context = ExecuteSecRequestContext::new(
             cik.clone(),
-            SAMPLE_EXECUTION_ID,
             sample_user_agent(),
             FakeWriteRepository::new(),
         );
@@ -310,12 +276,8 @@ mod tests {
     #[test]
     fn should_return_max_retries_when_accessing_max_retries() {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
-        let context = ExecuteSecRequestContext::new(
-            cik,
-            SAMPLE_EXECUTION_ID,
-            sample_user_agent(),
-            FakeWriteRepository::new(),
-        );
+        let context =
+            ExecuteSecRequestContext::new(cik, sample_user_agent(), FakeWriteRepository::new());
 
         let expected_result = 0;
         let result = context.max_retries();
@@ -329,7 +291,6 @@ mod tests {
         let new_cik = Cik::new("0987654321").expect("Hardcoded CIK should always be valid");
         let mut context = ExecuteSecRequestContext::new(
             original_cik,
-            SAMPLE_EXECUTION_ID,
             sample_user_agent(),
             FakeWriteRepository::new(),
         );
@@ -351,18 +312,13 @@ mod tests {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
         let mut context = ExecuteSecRequestContext::new(
             cik.clone(),
-            SAMPLE_EXECUTION_ID,
             sample_user_agent(),
             FakeWriteRepository::new(),
         );
         let updater = ExecuteSecRequestContextUpdater::builder().build();
 
-        let expected_result = ExecuteSecRequestContext::new(
-            cik,
-            SAMPLE_EXECUTION_ID,
-            sample_user_agent(),
-            FakeWriteRepository::new(),
-        );
+        let expected_result =
+            ExecuteSecRequestContext::new(cik, sample_user_agent(), FakeWriteRepository::new());
 
         context.update_context(updater);
         let result = context;
@@ -373,12 +329,8 @@ mod tests {
     #[test]
     fn should_update_max_retries_when_updater_contains_max_retries() {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
-        let mut context = ExecuteSecRequestContext::new(
-            cik,
-            SAMPLE_EXECUTION_ID,
-            sample_user_agent(),
-            FakeWriteRepository::new(),
-        );
+        let mut context =
+            ExecuteSecRequestContext::new(cik, sample_user_agent(), FakeWriteRepository::new());
 
         let updater = ExecuteSecRequestContextUpdater::builder()
             .max_retries(5)
@@ -395,12 +347,8 @@ mod tests {
     #[test]
     fn should_return_context_reference_when_accessing_context() {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
-        let context = ExecuteSecRequestContext::new(
-            cik,
-            SAMPLE_EXECUTION_ID,
-            sample_user_agent(),
-            FakeWriteRepository::new(),
-        );
+        let context =
+            ExecuteSecRequestContext::new(cik, sample_user_agent(), FakeWriteRepository::new());
 
         let expected_result = &context;
         let result = context.context();
@@ -411,12 +359,8 @@ mod tests {
     #[test]
     fn should_display_context_information_when_formatted() {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
-        let context = ExecuteSecRequestContext::new(
-            cik,
-            SAMPLE_EXECUTION_ID,
-            sample_user_agent(),
-            FakeWriteRepository::new(),
-        );
+        let context =
+            ExecuteSecRequestContext::new(cik, sample_user_agent(), FakeWriteRepository::new());
 
         let expected_result = "Context Data: 1234567890";
         let result = format!("{context}");
@@ -505,26 +449,9 @@ mod tests {
     }
 
     #[test]
-    fn should_return_execution_id_when_accessing_execution_id_of_execute_sec_request_context() {
-        let context = ExecuteSecRequestContext::new(
-            Cik::new("1234567890").expect("Hardcoded CIK should always be valid"),
-            SAMPLE_EXECUTION_ID,
-            sample_user_agent(),
-            FakeWriteRepository::new(),
-        );
-
-        let expected_result = SAMPLE_EXECUTION_ID;
-
-        let result = context.execution_id();
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
     fn should_return_user_agent_when_accessing_user_agent_of_execute_sec_request_context() {
         let context = ExecuteSecRequestContext::new(
             Cik::new("1234567890").expect("Hardcoded CIK should always be valid"),
-            SAMPLE_EXECUTION_ID,
             sample_user_agent(),
             FakeWriteRepository::new(),
         );
@@ -537,31 +464,9 @@ mod tests {
     }
 
     #[test]
-    fn should_update_execution_id_when_updater_contains_execution_id_for_execute_sec_request_context()
-     {
-        let mut context = ExecuteSecRequestContext::new(
-            Cik::new("1234567890").expect("Hardcoded CIK should always be valid"),
-            SAMPLE_EXECUTION_ID,
-            sample_user_agent(),
-            FakeWriteRepository::new(),
-        );
-        let update = ExecuteSecRequestContextUpdater::builder()
-            .execution_id(Uuid::from_u128(42))
-            .build();
-
-        let expected_result = Uuid::from_u128(42);
-
-        context.update_context(update);
-        let result = context.execution_id();
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
     fn should_update_user_agent_when_updater_contains_user_agent_for_execute_sec_request_context() {
         let mut context = ExecuteSecRequestContext::new(
             Cik::new("1234567890").expect("Hardcoded CIK should always be valid"),
-            SAMPLE_EXECUTION_ID,
             sample_user_agent(),
             FakeWriteRepository::new(),
         );
@@ -583,7 +488,6 @@ mod tests {
     fn should_return_repository_when_accessing_repository_of_execute_sec_request_context() {
         let context = ExecuteSecRequestContext::new(
             Cik::new("1234567890").expect("Hardcoded CIK should always be valid"),
-            SAMPLE_EXECUTION_ID,
             sample_user_agent(),
             FakeWriteRepository::rejecting(WriteError::conflicting_write("Sample conflict")),
         );
@@ -600,7 +504,6 @@ mod tests {
     fn should_update_repository_when_updater_contains_repository_for_execute_sec_request_context() {
         let mut context = ExecuteSecRequestContext::new(
             Cik::new("1234567890").expect("Hardcoded CIK should always be valid"),
-            SAMPLE_EXECUTION_ID,
             sample_user_agent(),
             FakeWriteRepository::new(),
         );
@@ -623,14 +526,12 @@ mod tests {
     fn should_include_the_repository_when_serializing_the_context() {
         let context = ExecuteSecRequestContext::new(
             Cik::new("1234567890").expect("Hardcoded CIK should always be valid"),
-            SAMPLE_EXECUTION_ID,
             sample_user_agent(),
             FakeWriteRepository::new(),
         );
 
         let expected_result = serde_json::json!({
             "cik": { "value": "1234567890" },
-            "execution_id": "00000000-0000-0000-0000-000000000007",
             "user_agent": "Sample Company contact@example.com",
             "repository": { "kind": "fake", "rejection": null },
             "max_retries": 0,

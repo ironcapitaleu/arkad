@@ -32,7 +32,6 @@ impl<R> TryFrom<ValidateCikFormat<R>> for PrepareSecRequest<R> {
 
         let new_context = PrepareSecRequestContext::new(
             output_data.validated_cik.clone(),
-            context.execution_id,
             context.user_agent,
             context.repository,
         );
@@ -47,7 +46,6 @@ mod tests {
     use pretty_assertions::assert_eq;
     use state_maschine::prelude::State as SMState;
     use storage::WriteError;
-    use uuid::Uuid;
 
     use super::*;
     use crate::implementations::states::extract::validate_cik_format::{
@@ -57,7 +55,7 @@ mod tests {
     use crate::shared::cik::constants::BERKSHIRE_HATHAWAY_CIK_RAW;
     use crate::shared::http_client::implementations::sec_client::SecClient;
     use crate::shared::user_agent::UserAgent;
-    use crate::tests::fixtures::sample_run::{SAMPLE_EXECUTION_ID, sample_user_agent};
+    use crate::tests::fixtures::sample_run::sample_user_agent;
     use crate::tests::fixtures::sample_write_repository::FakeWriteRepository;
     use crate::traits::state_machine::state::State;
 
@@ -71,7 +69,6 @@ mod tests {
         let context = ValidateCikFormatContext::new(
             cik_string,
             sec_client.clone(),
-            SAMPLE_EXECUTION_ID,
             sample_user_agent(),
             FakeWriteRepository::new(),
         );
@@ -85,7 +82,6 @@ mod tests {
             .expect("Hardcoded valid CIK string should always parse successfully");
         let expected_context = PrepareSecRequestContext::new(
             expected_cik.clone(),
-            SAMPLE_EXECUTION_ID,
             sample_user_agent(),
             FakeWriteRepository::new(),
         );
@@ -105,7 +101,6 @@ mod tests {
         let context = ValidateCikFormatContext::new(
             BERKSHIRE_HATHAWAY_CIK_RAW,
             sec_client,
-            SAMPLE_EXECUTION_ID,
             sample_user_agent(),
             FakeWriteRepository::new(),
         );
@@ -119,7 +114,6 @@ mod tests {
     }
 
     async fn computed_validate_cik_format(
-        execution_id: Uuid,
         user_agent: UserAgent,
         repository: FakeWriteRepository,
     ) -> ValidateCikFormat<FakeWriteRepository> {
@@ -127,7 +121,6 @@ mod tests {
         let context = ValidateCikFormatContext::new(
             BERKSHIRE_HATHAWAY_CIK_RAW,
             SecClient::default(),
-            execution_id,
             user_agent,
             repository,
         );
@@ -140,34 +133,12 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_carry_execution_id_when_validate_cik_format_has_output() {
-        let state = computed_validate_cik_format(
-            Uuid::from_u128(42),
-            sample_user_agent(),
-            FakeWriteRepository::new(),
-        )
-        .await;
-
-        let expected_result = Uuid::from_u128(42);
-
-        let result = PrepareSecRequest::try_from(state)
-            .expect("Given a state with output, the transition should always succeed")
-            .context_data()
-            .execution_id();
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[tokio::test]
     async fn should_carry_user_agent_when_validate_cik_format_has_output() {
         let other_user_agent = UserAgent::new("Other Company other@example.com")
             .expect("Given a hardcoded SEC-format user agent, validation should always succeed");
-        let state = computed_validate_cik_format(
-            SAMPLE_EXECUTION_ID,
-            other_user_agent.clone(),
-            FakeWriteRepository::new(),
-        )
-        .await;
+        let state =
+            computed_validate_cik_format(other_user_agent.clone(), FakeWriteRepository::new())
+                .await;
 
         let expected_result = other_user_agent;
 
@@ -183,7 +154,6 @@ mod tests {
     #[tokio::test]
     async fn should_carry_repository_when_validate_cik_format_has_output() {
         let state = computed_validate_cik_format(
-            SAMPLE_EXECUTION_ID,
             sample_user_agent(),
             FakeWriteRepository::rejecting(WriteError::conflicting_write("Sample conflict")),
         )

@@ -4,9 +4,9 @@
 //! [`ValidateCikFormat`](crate::implementations::states::extract::validate_cik_format::ValidateCikFormat)
 //! state, together with its updater and builder.
 //!
-//! The context holds the shared [`SecClient`], the `execution_id`, the `User-Agent` and the
-//! storage repository of the run, and the retry budget. These outlive any single input/output
-//! pair. The state can then re-run and transition without rebuilding them. The [`Context`] trait
+//! The context holds the shared [`SecClient`], the `User-Agent` and the storage repository of the
+//! run, and the retry budget. These outlive any single input/output pair. The state can then
+//! re-run and transition without rebuilding them. The [`Context`] trait
 //! applies updates from an updater that a builder constructs, so each update is explicit and
 //! partial.
 //!
@@ -18,7 +18,6 @@
 //! use state_maschine::prelude::*;
 //!
 //! # use sec::shared::user_agent::UserAgent;
-//! # use uuid::Uuid;
 //! let user_agent = UserAgent::new("Sample Company contact@example.com")
 //!     .expect("Given a hardcoded SEC-format user agent, validation should always succeed");
 //! # use sec::shared::raw_document::RawDocument;
@@ -29,7 +28,7 @@
 //! #     .document_type::<RawDocument<RawCompanyFacts>>()
 //! #     .root("data")
 //! #     .build();
-//! let mut context = ValidateCikFormatContext::new("1067983", SecClient::default(), Uuid::new_v4(), user_agent, repository);
+//! let mut context = ValidateCikFormatContext::new("1067983", SecClient::default(), user_agent, repository);
 //! let update = ValidateCikFormatContextUpdater::builder()
 //!     .cik("0000000001")
 //!     .build();
@@ -51,7 +50,6 @@ use std::fmt;
 
 use serde::Serialize;
 use state_maschine::prelude::Context as SMContext;
-use uuid::Uuid;
 
 use crate::implementations::states::extract::store_company_facts::RawCompanyFactsRepository;
 use crate::shared::http_client::implementations::sec_client::SecClient;
@@ -61,17 +59,15 @@ use crate::traits::state_machine::state::Context;
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
 /// Context for the [`ValidateCikFormat`](super::ValidateCikFormat) state.
 ///
-/// Holds the raw CIK under validation, the shared [`SecClient`], and the `execution_id`, the
-/// `User-Agent` and the storage repository of the run. It also holds the retry budget. All of them
-/// survive updates and transitions.
+/// Holds the raw CIK under validation, the shared [`SecClient`], and the `User-Agent` and the
+/// storage repository of the run. It also holds the retry budget. All of them survive updates and
+/// transitions.
 pub struct ValidateCikFormatContext<R> {
     /// The unvalidated CIK string provided for validation.
     pub raw_cik: String,
     /// The shared HTTP client for SEC API requests.
     pub sec_client: SecClient,
-    /// The `execution_id` of the run.
-    pub execution_id: Uuid,
-    /// The `User-Agent` that the run sends to the SEC.
+    /// The `User-Agent` of the run. It must equal the header that the SEC client sends.
     pub user_agent: UserAgent,
     /// The storage repository of the run.
     pub repository: R,
@@ -81,18 +77,16 @@ pub struct ValidateCikFormatContext<R> {
 
 impl<R> ValidateCikFormatContext<R> {
     /// Creates a new [`ValidateCikFormatContext`] from a raw CIK, a shared HTTP client, and the
-    /// `execution_id`, the `User-Agent` and the storage repository of the run.
+    /// `User-Agent` and the storage repository of the run.
     pub fn new(
         cik: impl Into<String>,
         sec_client: SecClient,
-        execution_id: Uuid,
         user_agent: UserAgent,
         repository: R,
     ) -> Self {
         Self {
             raw_cik: cik.into(),
             sec_client,
-            execution_id,
             user_agent,
             repository,
             max_retries: 0,
@@ -111,13 +105,7 @@ impl<R> ValidateCikFormatContext<R> {
         &self.sec_client
     }
 
-    /// Returns the `execution_id` of the run.
-    #[must_use]
-    pub const fn execution_id(&self) -> Uuid {
-        self.execution_id
-    }
-
-    /// Returns the `User-Agent` that the run sends to the SEC.
+    /// Returns the `User-Agent` of the run.
     #[must_use]
     pub const fn user_agent(&self) -> &UserAgent {
         &self.user_agent
@@ -155,9 +143,6 @@ impl<R: RawCompanyFactsRepository> SMContext for ValidateCikFormatContext<R> {
         if let Some(sec_client) = updates.sec_client {
             self.sec_client = sec_client;
         }
-        if let Some(execution_id) = updates.execution_id {
-            self.execution_id = execution_id;
-        }
         if let Some(user_agent) = updates.user_agent {
             self.user_agent = user_agent;
         }
@@ -185,8 +170,6 @@ pub struct ValidateCikFormatContextUpdater<R> {
     pub raw_cik: Option<String>,
     /// Optional new HTTP client value.
     pub sec_client: Option<SecClient>,
-    /// Optional new value for the `execution_id`.
-    pub execution_id: Option<Uuid>,
     /// Optional new value for the `User-Agent`.
     pub user_agent: Option<UserAgent>,
     /// Optional new value for the storage repository.
@@ -207,7 +190,6 @@ impl<R> ValidateCikFormatContextUpdater<R> {
 pub struct ValidateCikFormatContextUpdaterBuilder<R> {
     raw_cik: Option<String>,
     sec_client: Option<SecClient>,
-    execution_id: Option<Uuid>,
     user_agent: Option<UserAgent>,
     repository: Option<R>,
     max_retries: Option<u32>,
@@ -219,7 +201,6 @@ impl<R> ValidateCikFormatContextUpdaterBuilder<R> {
         Self {
             raw_cik: None,
             sec_client: None,
-            execution_id: None,
             user_agent: None,
             repository: None,
             max_retries: None,
@@ -248,13 +229,6 @@ impl<R> ValidateCikFormatContextUpdaterBuilder<R> {
         self
     }
 
-    /// Sets the `execution_id` field.
-    #[must_use]
-    pub const fn execution_id(mut self, execution_id: Uuid) -> Self {
-        self.execution_id = Some(execution_id);
-        self
-    }
-
     /// Sets the `User-Agent` field.
     #[must_use]
     pub fn user_agent(mut self, user_agent: UserAgent) -> Self {
@@ -275,7 +249,6 @@ impl<R> ValidateCikFormatContextUpdaterBuilder<R> {
         ValidateCikFormatContextUpdater {
             raw_cik: self.raw_cik,
             sec_client: self.sec_client,
-            execution_id: self.execution_id,
             user_agent: self.user_agent,
             repository: self.repository,
             max_retries: self.max_retries,
@@ -297,7 +270,6 @@ mod tests {
     use pretty_assertions::{assert_eq, assert_ne};
     use state_maschine::prelude::*;
     use storage::WriteError;
-    use uuid::Uuid;
 
     use super::{
         ValidateCikFormatContext, ValidateCikFormatContextUpdater,
@@ -306,7 +278,7 @@ mod tests {
     use crate::shared::cik::constants::BERKSHIRE_HATHAWAY_CIK_RAW;
     use crate::shared::http_client::implementations::sec_client::SecClient;
     use crate::shared::user_agent::UserAgent;
-    use crate::tests::fixtures::sample_run::{SAMPLE_EXECUTION_ID, sample_user_agent};
+    use crate::tests::fixtures::sample_run::sample_user_agent;
     use crate::tests::fixtures::sample_write_repository::FakeWriteRepository;
 
     fn test_context() -> ValidateCikFormatContext<FakeWriteRepository> {
@@ -314,7 +286,6 @@ mod tests {
         ValidateCikFormatContext::new(
             BERKSHIRE_HATHAWAY_CIK_RAW,
             sec_client,
-            SAMPLE_EXECUTION_ID,
             sample_user_agent(),
             FakeWriteRepository::new(),
         )
@@ -337,7 +308,6 @@ mod tests {
         let validation_context = &ValidateCikFormatContext::new(
             "0000000000",
             sec_client,
-            SAMPLE_EXECUTION_ID,
             sample_user_agent(),
             FakeWriteRepository::new(),
         );
@@ -360,7 +330,6 @@ mod tests {
         let expected_result = &ValidateCikFormatContext::new(
             "Updated CIK!",
             sec_client,
-            SAMPLE_EXECUTION_ID,
             sample_user_agent(),
             FakeWriteRepository::new(),
         );
@@ -383,7 +352,6 @@ mod tests {
         let expected_result = &ValidateCikFormatContext::new(
             "Latest CIK Update!",
             sec_client,
-            SAMPLE_EXECUTION_ID,
             sample_user_agent(),
             FakeWriteRepository::new(),
         );
@@ -517,39 +485,12 @@ mod tests {
     }
 
     #[test]
-    fn should_return_execution_id_when_accessing_execution_id_of_validate_cik_format_context() {
-        let context = test_context();
-
-        let expected_result = SAMPLE_EXECUTION_ID;
-
-        let result = context.execution_id();
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
     fn should_return_user_agent_when_accessing_user_agent_of_validate_cik_format_context() {
         let context = test_context();
 
         let expected_result = &sample_user_agent();
 
         let result = context.user_agent();
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
-    fn should_update_execution_id_when_updater_contains_execution_id_for_validate_cik_format_context()
-     {
-        let mut context = test_context();
-        let update = ValidateCikFormatContextUpdater::builder()
-            .execution_id(Uuid::from_u128(42))
-            .build();
-
-        let expected_result = Uuid::from_u128(42);
-
-        context.update_context(update);
-        let result = context.execution_id();
 
         assert_eq!(result, expected_result);
     }
@@ -576,7 +517,6 @@ mod tests {
         let context = ValidateCikFormatContext::new(
             BERKSHIRE_HATHAWAY_CIK_RAW,
             SecClient::default(),
-            SAMPLE_EXECUTION_ID,
             sample_user_agent(),
             FakeWriteRepository::rejecting(WriteError::conflicting_write("Sample conflict")),
         );
@@ -614,7 +554,6 @@ mod tests {
         let expected_result = serde_json::json!({
             "raw_cik": BERKSHIRE_HATHAWAY_CIK_RAW,
             "sec_client": {},
-            "execution_id": "00000000-0000-0000-0000-000000000007",
             "user_agent": "Sample Company contact@example.com",
             "repository": { "kind": "fake", "rejection": null },
             "max_retries": 0,

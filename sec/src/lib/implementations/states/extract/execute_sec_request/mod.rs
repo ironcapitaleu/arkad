@@ -29,7 +29,6 @@
 //! let request = SecRequest::builder().all_company_facts().cik(cik.clone()).build();
 //! let input = ExecuteSecRequestInput::new(SecClient::default(), request);
 //! # use sec::shared::user_agent::UserAgent;
-//! # use uuid::Uuid;
 //! let user_agent = UserAgent::new("Sample Company contact@example.com")
 //!     .expect("Given a hardcoded SEC-format user agent, validation should always succeed");
 //! # use sec::shared::raw_document::RawDocument;
@@ -40,7 +39,7 @@
 //! #     .document_type::<RawDocument<RawCompanyFacts>>()
 //! #     .root("data")
 //! #     .build();
-//! let context = ExecuteSecRequestContext::new(cik, Uuid::new_v4(), user_agent, repository);
+//! let context = ExecuteSecRequestContext::new(cik, user_agent, repository);
 //!
 //! let mut state = ExecuteSecRequest::new(input, context);
 //! state
@@ -112,7 +111,6 @@ impl<R> ExecuteSecRequest<R> {
     /// let request = SecRequest::builder().all_company_facts().cik(cik.clone()).build();
     /// let input = ExecuteSecRequestInput::new(SecClient::default(), request);
     /// # use sec::shared::user_agent::UserAgent;
-    /// # use uuid::Uuid;
     /// let user_agent = UserAgent::new("Sample Company contact@example.com")
     ///     .expect("Given a hardcoded SEC-format user agent, validation should always succeed");
     /// # use sec::shared::raw_document::RawDocument;
@@ -123,7 +121,7 @@ impl<R> ExecuteSecRequest<R> {
     /// #     .document_type::<RawDocument<RawCompanyFacts>>()
     /// #     .root("data")
     /// #     .build();
-    /// let context = ExecuteSecRequestContext::new(cik, Uuid::new_v4(), user_agent, repository);
+    /// let context = ExecuteSecRequestContext::new(cik, user_agent, repository);
     /// let state = ExecuteSecRequest::new(input, context);
     ///
     /// let expected_result = false;
@@ -260,7 +258,7 @@ mod tests {
     use crate::shared::cik::Cik;
     use crate::shared::http_client::implementations::sec_client::SecClient;
     use crate::shared::request::implementations::sec_request::SecRequest;
-    use crate::tests::fixtures::sample_run::{SAMPLE_EXECUTION_ID, sample_user_agent};
+    use crate::tests::fixtures::sample_run::sample_user_agent;
     use crate::tests::fixtures::sample_write_repository::FakeWriteRepository;
 
     const TEST_CIK: &str = "0001067983";
@@ -278,12 +276,8 @@ mod tests {
             .cik(cik.clone())
             .build();
         let input = ExecuteSecRequestInput::new(client, request);
-        let context = ExecuteSecRequestContext::new(
-            cik,
-            SAMPLE_EXECUTION_ID,
-            sample_user_agent(),
-            FakeWriteRepository::new(),
-        );
+        let context =
+            ExecuteSecRequestContext::new(cik, sample_user_agent(), FakeWriteRepository::new());
         ExecuteSecRequest::new(input, context)
     }
 
@@ -338,7 +332,6 @@ mod tests {
         let input = ExecuteSecRequestInput::new(client, request);
         let context = ExecuteSecRequestContext::new(
             create_test_cik(),
-            SAMPLE_EXECUTION_ID,
             sample_user_agent(),
             FakeWriteRepository::new(),
         );
@@ -359,7 +352,6 @@ mod tests {
         let input = ExecuteSecRequestInput::new(client, request);
         let context = ExecuteSecRequestContext::new(
             create_test_cik(),
-            SAMPLE_EXECUTION_ID,
             sample_user_agent(),
             FakeWriteRepository::new(),
         );
@@ -518,7 +510,6 @@ mod tests {
         let input = ExecuteSecRequestInput::new(client, request);
         let context = ExecuteSecRequestContext::new(
             create_test_cik(),
-            SAMPLE_EXECUTION_ID,
             sample_user_agent(),
             FakeWriteRepository::new(),
         );
@@ -543,7 +534,6 @@ mod tests {
         let input = ExecuteSecRequestInput::new(client, request);
         let context = ExecuteSecRequestContext::new(
             create_test_cik(),
-            SAMPLE_EXECUTION_ID,
             sample_user_agent(),
             FakeWriteRepository::new(),
         );
@@ -567,7 +557,6 @@ mod tests {
         let input = ExecuteSecRequestInput::new(client, request);
         let context = ExecuteSecRequestContext::new(
             create_test_cik(),
-            SAMPLE_EXECUTION_ID,
             sample_user_agent(),
             FakeWriteRepository::new(),
         );
@@ -592,7 +581,6 @@ mod tests {
         let input = ExecuteSecRequestInput::new(client, request);
         let context = ExecuteSecRequestContext::new(
             create_test_cik(),
-            SAMPLE_EXECUTION_ID,
             sample_user_agent(),
             FakeWriteRepository::new(),
         );
