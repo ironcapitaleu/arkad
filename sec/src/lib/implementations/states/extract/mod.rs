@@ -4,9 +4,9 @@
 //!
 //! Extraction turns a raw CIK string into a fetched SEC response through three ordered
 //! states. The super-state owns the shared HTTP client, the `execution_id` of the run, and the
-//! repository. It also owns the type-safe transitions between the states, so callers advance the
-//! pipeline without managing each state by hand. A fourth state, [`StoreCompanyFacts`], writes a
-//! fetched response to the store. No transition leads into it.
+//! storage repository. It also owns the type-safe transitions between the states, so callers
+//! advance the pipeline without managing each state by hand. A fourth state,
+//! [`StoreCompanyFacts`], writes a fetched response to the store. No transition leads into it.
 //!
 //! ## Modules
 //!
@@ -115,7 +115,7 @@ impl StateData for ExtractSuperStateData {
 ///
 /// Holds the shared [`SecClient`] handed down to each inner state, so the client is
 /// constructed once and reused across the whole extract phase. It also holds the
-/// `execution_id` of the run and the repository `R` that [`StoreCompanyFacts`] writes to.
+/// `execution_id` of the run and the storage repository `R` that [`StoreCompanyFacts`] writes to.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub struct ExtractSuperStateContext<R> {
     pub(crate) sec_client: SecClient,
@@ -125,7 +125,7 @@ pub struct ExtractSuperStateContext<R> {
 
 impl<R> ExtractSuperStateContext<R> {
     /// Creates a new [`ExtractSuperStateContext`] from the shared HTTP client, the
-    /// `execution_id` of the run, and the repository.
+    /// `execution_id` of the run, and the storage repository.
     #[must_use]
     pub const fn new(sec_client: SecClient, execution_id: Uuid, repository: R) -> Self {
         Self {
@@ -153,11 +153,11 @@ impl<R: RawCompanyFactsRepository> Context for ExtractSuperStateContext<R> {
 /// Hierarchical super-state that orchestrates the extract phase.
 ///
 /// Wraps the currently active extract state in its `S` type parameter and owns the shared
-/// HTTP client, the `execution_id` of the run, and the repository `R`. It exposes the inner state
-/// through a unified state-machine interface. It moves the pipeline through type-safe transitions:
-/// [`ValidateCikFormat`] →
-/// [`PrepareSecRequest`] → [`ExecuteSecRequest`]. Encoding the active state in the type makes
-/// invalid transitions a compile error rather than a runtime check.
+/// HTTP client, the `execution_id` of the run, and the storage repository `R`. It exposes the
+/// inner state through a unified state-machine interface. It moves the pipeline through
+/// type-safe transitions: [`ValidateCikFormat`] → [`PrepareSecRequest`] →
+/// [`ExecuteSecRequest`]. Encoding the active state in the type makes invalid transitions a
+/// compile error rather than a runtime check.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub struct ExtractSuperState<S: State, R: RawCompanyFactsRepository> {
     current_state: S,
@@ -264,7 +264,7 @@ impl<S: State, R: RawCompanyFactsRepository> SuperState<S> for ExtractSuperState
 
 impl<R: RawCompanyFactsRepository> ExtractSuperState<ValidateCikFormat, R> {
     /// Creates the super-state at the pipeline entry point from a raw CIK, the shared client, the
-    /// `execution_id` of the run, and the repository.
+    /// `execution_id` of the run, and the storage repository.
     ///
     /// [`ExtractSuperState::into_run_stream`] tags the stream with `execution_id`.
     #[must_use]
