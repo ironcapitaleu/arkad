@@ -33,9 +33,6 @@ impl<R: RawCompanyFactsRepository + 'static> Pipeline<R> {
     }
 
     /// Returns the raw CIK of this pipeline.
-    // Only the stream binaries log the CIK. `pipeline_coverage` includes this file without calling
-    // it, so `dead_code` would fire there.
-    #[allow(dead_code)]
     pub fn cik(&self) -> &str {
         &self.cik
     }
@@ -101,7 +98,7 @@ impl<C, S, R> PipelineBuilder<C, S, NoRepository<R>> {
     }
 }
 
-impl<R: RawCompanyFactsRepository> PipelineBuilder<String, SecClient, R> {
+impl<R: RawCompanyFactsRepository + 'static> PipelineBuilder<String, SecClient, R> {
     /// Builds the [`Pipeline`] with the fields this builder holds.
     #[must_use]
     pub fn build(self) -> Pipeline<R> {
@@ -110,5 +107,35 @@ impl<R: RawCompanyFactsRepository> PipelineBuilder<String, SecClient, R> {
             sec_client: self.sec_client,
             repository: self.repository,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use pretty_assertions::assert_eq;
+    use sec::shared::raw_document::RawDocument;
+    use sec::shared::raw_source::RawCompanyFacts;
+    use storage::implementations::repository::filesystem::FilesystemRepository;
+
+    use super::*;
+
+    #[test]
+    fn should_keep_the_cik_when_building_a_pipeline() {
+        let repository = FilesystemRepository::builder()
+            .writer()
+            .document_type::<RawDocument<RawCompanyFacts>>()
+            .root(std::env::temp_dir())
+            .build();
+        let pipeline = Pipeline::builder()
+            .cik("1067983")
+            .sec_client(SecClient::default())
+            .repository(repository)
+            .build();
+
+        let expected_result = "1067983";
+
+        let result = pipeline.cik();
+
+        assert_eq!(result, expected_result);
     }
 }
