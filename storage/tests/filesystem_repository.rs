@@ -70,17 +70,11 @@ impl Document for SampleDocument {
 fn sample_document() -> SampleDocument {
     let key = DocumentKey::new("sec/companyfacts/CIK0000320193.json")
         .expect("Given a valid relative path, the key should always build");
+    let bytes = br#"{"cik":320193, "n":1.50, "dup":1,"dup":2}"#;
     let metadata = DocumentMetadata::builder()
         .document_type::<SampleDocument>()
         .media_type("application/json")
-        .content(
-            41,
-            "9d7e13ec27ff57b43422959a9ae627fd5bd65e67b54af2857e9c454a9262376b"
-                .parse()
-                .expect(
-                    "Given 64 hardcoded lowercase hex characters, parsing should always succeed",
-                ),
-        )
+        .content(bytes)
         .produced_at(DateTime::<Utc>::UNIX_EPOCH)
         .run(
             Uuid::nil(),
@@ -89,11 +83,7 @@ fn sample_document() -> SampleDocument {
         .context(())
         .build();
 
-    SampleDocument::from_parts(
-        key,
-        br#"{"cik":320193, "n":1.50, "dup":1,"dup":2}"#.to_vec(),
-        metadata,
-    )
+    SampleDocument::from_parts(key, bytes.to_vec(), metadata)
 }
 
 #[tokio::test]
