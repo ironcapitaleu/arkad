@@ -7,7 +7,6 @@ use std::time::Instant;
 
 use futures_util::StreamExt;
 use sec::implementations::states::extract::ExtractSuperState;
-use sec::implementations::states::extract::validate_cik_format::ValidateCikFormat;
 use sec::prelude::*;
 use sec::shared::http_client::implementations::sec_client::SecClient;
 use uuid::Uuid;
@@ -43,12 +42,12 @@ impl Extraction {
 
     #[must_use]
     pub fn into_stream(self, execution_id: Uuid) -> StateMachineStream {
-        let state = ExtractSuperState::<ValidateCikFormat<_>, _>::new(
-            self.raw_cik,
-            self.sec_client,
-            execution_id,
-            self.repository,
-        );
+        let state = ExtractSuperState::builder()
+            .cik(self.raw_cik)
+            .sec_client(self.sec_client)
+            .execution_id(execution_id)
+            .repository(self.repository)
+            .build();
         state.into_run_stream()
     }
 
