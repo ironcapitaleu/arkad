@@ -110,7 +110,7 @@ impl Pipeline {
             execution_id,
             self.repository,
         );
-        let mut stream = pin!(state.into_stream(execution_id));
+        let mut stream = pin!(state.into_run_stream());
 
         while let Some(result) = stream.next().await {
             result?;

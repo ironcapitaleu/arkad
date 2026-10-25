@@ -1,9 +1,3 @@
-/// The environment variable that names the root directory of the document store.
-pub const STORAGE_ROOT_ENV_VAR: &str = "ARKAD_STORAGE_ROOT";
-
-/// The root directory of the document store when `ARKAD_STORAGE_ROOT` is unset.
-pub const DEFAULT_STORAGE_ROOT: &str = "data";
-
 /// S&P 500 company CIKs sourced from SEC EDGAR.
 ///
 /// Source: <https://www.sec.gov/files/company_tickers.json>
