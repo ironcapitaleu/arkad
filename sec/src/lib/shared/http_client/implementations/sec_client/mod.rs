@@ -26,6 +26,7 @@ use crate::shared::response::implementations::sec_response::SecResponse;
 use crate::shared::user_agent::UserAgent;
 
 use self::error::FailedSecRequest;
+use super::reqwest_client::ReqwestClient;
 
 pub mod error;
 
@@ -34,7 +35,7 @@ static GLOBAL_RATE_LIMITER: OnceLock<SecRateLimiter> = OnceLock::new();
 
 /// The default SEC API client, driving the full `SecRequest` → `SecResponse` cycle.
 ///
-/// Executes a validated request through a `reqwest::Client` and validates the reply into a
+/// Executes a validated request through a [`ReqwestClient`] and validates the reply into a
 /// [`SecResponse`].
 ///
 /// # Rate Limiting
@@ -51,11 +52,12 @@ static GLOBAL_RATE_LIMITER: OnceLock<SecRateLimiter> = OnceLock::new();
 ///
 /// # User Agent
 ///
-/// [`SecClient::default`] sets the `User-Agent` from a validated [`UserAgent`], guaranteeing every
-/// request carries the SEC-compliant header the API requires.
+/// The [`ReqwestClient`] holds the [`UserAgent`] that every request carries.
+/// [`SecClient::user_agent`] returns it, so other code reads the `User-Agent` from the client
+/// that sends it.
 #[derive(Debug, Clone)]
 pub struct SecClient {
-    inner: reqwest::Client,
+    inner: ReqwestClient,
     rate_limiter: SecRateLimiter,
 }
 
@@ -67,30 +69,38 @@ impl Serialize for SecClient {
 }
 
 impl SecClient {
-    /// Creates a new [`SecClient`] with the given `reqwest::Client`, backed by the shared
+    /// Creates a new [`SecClient`] with the given [`ReqwestClient`], backed by the shared
     /// [`SecRateLimiter`] that paces requests under the SEC's request-rate ceiling.
     #[must_use]
-    pub fn new(inner: reqwest::Client) -> Self {
+    pub fn new(inner: ReqwestClient) -> Self {
         Self {
             inner,
             rate_limiter: GLOBAL_RATE_LIMITER.get_or_init(SecRateLimiter::new).clone(),
         }
     }
-}
 
-/// Creates a default [`SecClient`] configured with the default SEC user agent.
-impl Default for SecClient {
-    fn default() -> Self {
-        let user_agent = UserAgent::default();
-        let http_client = reqwest::Client::builder()
-            .user_agent(user_agent.inner())
-            .build()
-            .expect("A validated UserAgent should always produce a valid HTTP client");
-        Self::new(http_client)
+    /// Returns the [`UserAgent`] that every request carries.
+    #[must_use]
+    pub const fn user_agent(&self) -> &UserAgent {
+        self.inner.user_agent()
     }
 }
 
-// Deviation: neither `reqwest::Client` nor the `SecRateLimiter` expose any comparable or
+impl Default for SecClient {
+    /// Returns a [`SecClient`] that sends the default [`UserAgent`].
+    ///
+    /// # Panics
+    ///
+    /// Panics if `reqwest` cannot build the HTTP client, for example when the TLS backend fails
+    /// to initialize.
+    fn default() -> Self {
+        let inner = ReqwestClient::new(UserAgent::default())
+            .expect("Given the validated default user agent, the HTTP client creation should always succeed");
+        Self::new(inner)
+    }
+}
+
+// Deviation: neither the `ReqwestClient` nor the `SecRateLimiter` expose any comparable or
 // hashable state, so all `SecClient` instances are considered equal and the limiter field — like
 // `inner` — is excluded from these impls. This satisfies trait bounds that require
 // `Eq + Ord + Hash` (e.g. for use in collections or state machines).
@@ -121,7 +131,7 @@ impl Ord for SecClient {
 
 #[async_trait]
 impl SecClientTrait for SecClient {
-    type Inner = reqwest::Client;
+    type Inner = ReqwestClient;
     type Limiter = SecRateLimiter;
     type Request = SecRequest;
     type Response = SecResponse;
@@ -154,6 +164,7 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use super::SecClient;
+    use crate::shared::user_agent::UserAgent;
 
     #[test]
     fn should_serialize_to_empty_struct_when_serialized_to_json() {
@@ -162,6 +173,17 @@ mod tests {
         let expected_result = serde_json::json!({});
 
         let result = serde_json::to_value(&client).expect("SecClient should serialize to JSON");
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_the_default_user_agent_when_created_with_default() {
+        let client = SecClient::default();
+
+        let expected_result = &UserAgent::default();
+
+        let result = client.user_agent();
 
         assert_eq!(result, expected_result);
     }

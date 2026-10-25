@@ -29,7 +29,6 @@
 //! use sec::shared::http_client::implementations::sec_client::SecClient;
 //! use sec::shared::raw_document::RawDocument;
 //! use sec::shared::raw_source::RawCompanyFacts;
-//! use sec::shared::user_agent::UserAgent;
 //! use storage::implementations::repository::filesystem::FilesystemRepository;
 //! use uuid::Uuid;
 //!
@@ -44,7 +43,6 @@
 //!     "1234567890",
 //!     SecClient::default(),
 //!     Uuid::new_v4(),
-//!     UserAgent::new("Sample Company contact@example.com")?,
 //!     repository,
 //! );
 //! extract_state.compute_output_data_async().await?;
@@ -267,7 +265,7 @@ impl<S: State, R: RawCompanyFactsRepository> SuperState<S> for ExtractSuperState
 
 impl<R: RawCompanyFactsRepository> ExtractSuperState<ValidateCikFormat<R>, R> {
     /// Creates the super-state at the pipeline entry point from a raw CIK, the shared client, the
-    /// `execution_id` and the `User-Agent` of the run, and the storage repository.
+    /// `execution_id` of the run, and the storage repository.
     ///
     /// [`ExtractSuperState::into_run_stream`] tags the stream with `execution_id`.
     #[must_use]
@@ -275,17 +273,12 @@ impl<R: RawCompanyFactsRepository> ExtractSuperState<ValidateCikFormat<R>, R> {
         input: impl Into<String>,
         sec_client: SecClient,
         execution_id: Uuid,
-        user_agent: UserAgent,
         repository: R,
     ) -> Self {
         let input: String = input.into();
         let input_data = ValidateCikFormatInput::new(input.clone());
-        let state_context = ValidateCikFormatContext::new(
-            input,
-            sec_client.clone(),
-            user_agent,
-            repository.clone(),
-        );
+        let state_context =
+            ValidateCikFormatContext::new(input, sec_client.clone(), repository.clone());
 
         Self {
             current_state: ValidateCikFormat::new(input_data, state_context),
@@ -303,11 +296,10 @@ impl<R: RawCompanyFactsRepository> ExtractSuperState<PrepareSecRequest<R>, R> {
         validated_cik: Cik,
         sec_client: SecClient,
         execution_id: Uuid,
-        user_agent: UserAgent,
         repository: R,
     ) -> Self {
         let input_data = PrepareSecRequestInput::new(validated_cik.clone(), sec_client.clone());
-        let context = PrepareSecRequestContext::new(validated_cik, user_agent, repository.clone());
+        let context = PrepareSecRequestContext::new(validated_cik, repository.clone());
 
         Self {
             current_state: PrepareSecRequest::new(input_data, context),
@@ -326,11 +318,10 @@ impl<R: RawCompanyFactsRepository> ExtractSuperState<ExecuteSecRequest<R>, R> {
         request: SecRequest,
         cik: Cik,
         execution_id: Uuid,
-        user_agent: UserAgent,
         repository: R,
     ) -> Self {
         let esr_input = ExecuteSecRequestInput::new(client.clone(), request);
-        let esr_context = ExecuteSecRequestContext::new(cik, user_agent, repository.clone());
+        let esr_context = ExecuteSecRequestContext::new(cik, repository.clone());
 
         Self {
             current_state: ExecuteSecRequest::new(esr_input, esr_context),
@@ -513,7 +504,6 @@ mod tests {
     use crate::shared::headers::Headers;
     use crate::shared::http_client::implementations::sec_client::SecClient;
     use crate::shared::status_code::StatusCode;
-    use crate::tests::fixtures::sample_run::{SAMPLE_EXECUTION_ID, sample_user_agent};
     use crate::tests::fixtures::sample_write_repository::FakeWriteRepository;
 
     #[test]
@@ -528,7 +518,6 @@ mod tests {
             input_cik,
             sec_client,
             Uuid::nil(),
-            sample_user_agent(),
             FakeWriteRepository::new(),
         );
 
@@ -551,7 +540,6 @@ mod tests {
             cik,
             sec_client,
             Uuid::nil(),
-            sample_user_agent(),
             FakeWriteRepository::new(),
         );
 
@@ -570,7 +558,6 @@ mod tests {
             input_cik,
             sec_client,
             Uuid::nil(),
-            sample_user_agent(),
             FakeWriteRepository::new(),
         );
 
@@ -589,7 +576,6 @@ mod tests {
             cik,
             sec_client,
             Uuid::nil(),
-            sample_user_agent(),
             FakeWriteRepository::new(),
         );
 
@@ -612,7 +598,6 @@ mod tests {
             input_cik,
             sec_client,
             Uuid::nil(),
-            sample_user_agent(),
             FakeWriteRepository::new(),
         );
 
@@ -649,7 +634,6 @@ mod tests {
             cik,
             sec_client,
             Uuid::nil(),
-            sample_user_agent(),
             FakeWriteRepository::new(),
         );
 
@@ -667,7 +651,6 @@ mod tests {
             input_cik,
             sec_client,
             Uuid::nil(),
-            sample_user_agent(),
             FakeWriteRepository::new(),
         );
 
@@ -690,7 +673,6 @@ mod tests {
             input_cik,
             sec_client,
             Uuid::nil(),
-            sample_user_agent(),
             FakeWriteRepository::new(),
         );
 
@@ -718,7 +700,6 @@ mod tests {
             input_cik,
             sec_client,
             Uuid::nil(),
-            sample_user_agent(),
             FakeWriteRepository::new(),
         );
 
@@ -934,7 +915,6 @@ mod tests {
             "1067983",
             SecClient::default(),
             execution_id,
-            sample_user_agent(),
             FakeWriteRepository::new(),
         );
         super_state
@@ -967,7 +947,6 @@ mod tests {
             "ABC",
             SecClient::default(),
             execution_id,
-            sample_user_agent(),
             FakeWriteRepository::new(),
         );
         let mut stream = super_state.into_run_stream();
@@ -989,72 +968,5 @@ mod tests {
         implements_auto_traits::<
             ExtractSuperState<StoreCompanyFacts<FakeWriteRepository>, FakeWriteRepository>,
         >();
-    }
-
-    #[test]
-    fn should_carry_user_agent_into_sub_state_context_when_constructing_validate_cik_format_super_state()
-     {
-        let other_user_agent = UserAgent::new("Other Company other@example.com")
-            .expect("Given a hardcoded SEC-format user agent, validation should always succeed");
-        let super_state = ExtractSuperState::<ValidateCikFormat<_>, _>::new(
-            "1067983",
-            SecClient::default(),
-            SAMPLE_EXECUTION_ID,
-            other_user_agent.clone(),
-            FakeWriteRepository::new(),
-        );
-
-        let expected_result = &other_user_agent;
-
-        let result = super_state.current_state().context_data().user_agent();
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
-    fn should_carry_user_agent_into_sub_state_context_when_constructing_prepare_sec_request_super_state()
-     {
-        let other_user_agent = UserAgent::new("Other Company other@example.com")
-            .expect("Given a hardcoded SEC-format user agent, validation should always succeed");
-        let super_state = ExtractSuperState::<PrepareSecRequest<_>, _>::new(
-            Cik::new("1067983")
-                .expect("Given a hardcoded numeric CIK, its creation should always succeed"),
-            SecClient::default(),
-            SAMPLE_EXECUTION_ID,
-            other_user_agent.clone(),
-            FakeWriteRepository::new(),
-        );
-
-        let expected_result = &other_user_agent;
-
-        let result = super_state.current_state().context_data().user_agent();
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
-    fn should_carry_user_agent_into_sub_state_context_when_constructing_execute_sec_request_super_state()
-     {
-        let cik = Cik::new("1067983")
-            .expect("Given a hardcoded numeric CIK, its creation should always succeed");
-        let other_user_agent = UserAgent::new("Other Company other@example.com")
-            .expect("Given a hardcoded SEC-format user agent, validation should always succeed");
-        let super_state = ExtractSuperState::<ExecuteSecRequest<_>, _>::new(
-            SecClient::default(),
-            SecRequest::builder()
-                .all_company_facts()
-                .cik(cik.clone())
-                .build(),
-            cik,
-            SAMPLE_EXECUTION_ID,
-            other_user_agent.clone(),
-            FakeWriteRepository::new(),
-        );
-
-        let expected_result = &other_user_agent;
-
-        let result = super_state.current_state().context_data().user_agent();
-
-        assert_eq!(result, expected_result);
     }
 }

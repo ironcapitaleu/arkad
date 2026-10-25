@@ -28,9 +28,6 @@
 //! let cik = Cik::new("1067983").expect("A hardcoded valid CIK should always parse");
 //! let request = SecRequest::builder().all_company_facts().cik(cik.clone()).build();
 //! let input = ExecuteSecRequestInput::new(SecClient::default(), request);
-//! # use sec::shared::user_agent::UserAgent;
-//! let user_agent = UserAgent::new("Sample Company contact@example.com")
-//!     .expect("Given a hardcoded SEC-format user agent, validation should always succeed");
 //! # use sec::shared::raw_document::RawDocument;
 //! # use sec::shared::raw_source::RawCompanyFacts;
 //! # use storage::implementations::repository::filesystem::FilesystemRepository;
@@ -39,7 +36,7 @@
 //! #     .document_type::<RawDocument<RawCompanyFacts>>()
 //! #     .root("data")
 //! #     .build();
-//! let context = ExecuteSecRequestContext::new(cik, user_agent, repository);
+//! let context = ExecuteSecRequestContext::new(cik, repository);
 //!
 //! let mut state = ExecuteSecRequest::new(input, context);
 //! state
@@ -110,9 +107,6 @@ impl<R> ExecuteSecRequest<R> {
     /// let cik = Cik::new("1067983").expect("A hardcoded valid CIK should always parse");
     /// let request = SecRequest::builder().all_company_facts().cik(cik.clone()).build();
     /// let input = ExecuteSecRequestInput::new(SecClient::default(), request);
-    /// # use sec::shared::user_agent::UserAgent;
-    /// let user_agent = UserAgent::new("Sample Company contact@example.com")
-    ///     .expect("Given a hardcoded SEC-format user agent, validation should always succeed");
     /// # use sec::shared::raw_document::RawDocument;
     /// # use sec::shared::raw_source::RawCompanyFacts;
     /// # use storage::implementations::repository::filesystem::FilesystemRepository;
@@ -121,7 +115,7 @@ impl<R> ExecuteSecRequest<R> {
     /// #     .document_type::<RawDocument<RawCompanyFacts>>()
     /// #     .root("data")
     /// #     .build();
-    /// let context = ExecuteSecRequestContext::new(cik, user_agent, repository);
+    /// let context = ExecuteSecRequestContext::new(cik, repository);
     /// let state = ExecuteSecRequest::new(input, context);
     ///
     /// let expected_result = false;
@@ -258,7 +252,6 @@ mod tests {
     use crate::shared::cik::Cik;
     use crate::shared::http_client::implementations::sec_client::SecClient;
     use crate::shared::request::implementations::sec_request::SecRequest;
-    use crate::tests::fixtures::sample_run::sample_user_agent;
     use crate::tests::fixtures::sample_write_repository::FakeWriteRepository;
 
     const TEST_CIK: &str = "0001067983";
@@ -276,8 +269,7 @@ mod tests {
             .cik(cik.clone())
             .build();
         let input = ExecuteSecRequestInput::new(client, request);
-        let context =
-            ExecuteSecRequestContext::new(cik, sample_user_agent(), FakeWriteRepository::new());
+        let context = ExecuteSecRequestContext::new(cik, FakeWriteRepository::new());
         ExecuteSecRequest::new(input, context)
     }
 
@@ -330,11 +322,7 @@ mod tests {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should be valid");
         let request = SecRequest::builder().all_company_facts().cik(cik).build();
         let input = ExecuteSecRequestInput::new(client, request);
-        let context = ExecuteSecRequestContext::new(
-            create_test_cik(),
-            sample_user_agent(),
-            FakeWriteRepository::new(),
-        );
+        let context = ExecuteSecRequestContext::new(create_test_cik(), FakeWriteRepository::new());
 
         let expected_result = &context.clone();
 
@@ -350,11 +338,7 @@ mod tests {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should be valid");
         let request = SecRequest::builder().all_company_facts().cik(cik).build();
         let input = ExecuteSecRequestInput::new(client, request);
-        let context = ExecuteSecRequestContext::new(
-            create_test_cik(),
-            sample_user_agent(),
-            FakeWriteRepository::new(),
-        );
+        let context = ExecuteSecRequestContext::new(create_test_cik(), FakeWriteRepository::new());
 
         let expected_result = true;
 
@@ -508,11 +492,7 @@ mod tests {
         let cik = Cik::new("0001067983").expect("Hardcoded CIK should be valid");
         let request = SecRequest::builder().all_company_facts().cik(cik).build();
         let input = ExecuteSecRequestInput::new(client, request);
-        let context = ExecuteSecRequestContext::new(
-            create_test_cik(),
-            sample_user_agent(),
-            FakeWriteRepository::new(),
-        );
+        let context = ExecuteSecRequestContext::new(create_test_cik(), FakeWriteRepository::new());
         let mut execute_state = ExecuteSecRequest::new(input, context);
 
         let expected_result = &execute_state.input_data().clone();
@@ -532,11 +512,7 @@ mod tests {
         let cik = Cik::new("0001067983").expect("Hardcoded CIK should be valid");
         let request = SecRequest::builder().all_company_facts().cik(cik).build();
         let input = ExecuteSecRequestInput::new(client, request);
-        let context = ExecuteSecRequestContext::new(
-            create_test_cik(),
-            sample_user_agent(),
-            FakeWriteRepository::new(),
-        );
+        let context = ExecuteSecRequestContext::new(create_test_cik(), FakeWriteRepository::new());
         let mut execute_state = ExecuteSecRequest::new(input, context);
 
         execute_state
@@ -555,11 +531,7 @@ mod tests {
         let cik = Cik::new("0001067983").expect("Hardcoded CIK should be valid");
         let request = SecRequest::builder().all_company_facts().cik(cik).build();
         let input = ExecuteSecRequestInput::new(client, request);
-        let context = ExecuteSecRequestContext::new(
-            create_test_cik(),
-            sample_user_agent(),
-            FakeWriteRepository::new(),
-        );
+        let context = ExecuteSecRequestContext::new(create_test_cik(), FakeWriteRepository::new());
         let mut execute_state = ExecuteSecRequest::new(input, context);
 
         let expected_result = true;
@@ -579,11 +551,7 @@ mod tests {
         let cik = Cik::new("0001067983").expect("Hardcoded CIK should be valid");
         let request = SecRequest::builder().all_company_facts().cik(cik).build();
         let input = ExecuteSecRequestInput::new(client, request);
-        let context = ExecuteSecRequestContext::new(
-            create_test_cik(),
-            sample_user_agent(),
-            FakeWriteRepository::new(),
-        );
+        let context = ExecuteSecRequestContext::new(create_test_cik(), FakeWriteRepository::new());
         let mut execute_state = ExecuteSecRequest::new(input, context);
 
         let expected_result = true;

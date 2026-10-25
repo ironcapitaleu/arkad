@@ -7,7 +7,6 @@ use sec::implementations::states::extract::prepare_sec_request::{
 };
 use sec::implementations::states::extract::validate_cik_format::ValidateCikFormat;
 use sec::shared::http_client::implementations::sec_client::SecClient;
-use sec::shared::user_agent::UserAgent;
 use uuid::Uuid;
 
 use sec::prelude::*;
@@ -24,13 +23,7 @@ mod storage_root;
 // Let this be here for testing purposes. Will be removed later.
 #[allow(clippy::too_many_lines)]
 async fn main() {
-    let user_agent = UserAgent::default();
-    let http_client = reqwest::Client::builder()
-        .user_agent(user_agent.inner())
-        .build()
-        .expect("A validated UserAgent should always produce a valid HTTP client");
-    let sec_client = SecClient::new(http_client);
-    let execution_id = Uuid::new_v4();
+    let sec_client = SecClient::default();
     let repository = raw_company_facts_writer();
 
     let input =
@@ -41,7 +34,6 @@ async fn main() {
         sec::implementations::states::extract::validate_cik_format::ValidateCikFormatContext::new(
             "1067983",
             sec_client.clone(),
-            user_agent.clone(),
             repository.clone(),
         );
     let mut validate_cik_state = ValidateCikFormat::new(input, context);
@@ -76,7 +68,6 @@ async fn main() {
                 .expect("Should be valid")
                 .validated_cik
                 .clone(),
-            user_agent.clone(),
             repository.clone(),
         ),
     );
@@ -107,7 +98,6 @@ async fn main() {
                 .expect("Should be valid")
                 .validated_cik
                 .clone(),
-            user_agent.clone(),
             repository.clone(),
         ),
     );
@@ -126,8 +116,7 @@ async fn main() {
     let mut super_state = ExtractSuperState::<ValidateCikFormat<_>, _>::new(
         "1067983",
         sec_client,
-        execution_id,
-        user_agent,
+        Uuid::new_v4(),
         repository,
     );
 
