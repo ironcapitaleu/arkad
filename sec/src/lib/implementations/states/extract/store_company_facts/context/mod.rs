@@ -8,7 +8,7 @@
 //! The context holds the [`Cik`] being processed, the `execution_id` of the run, the repository
 //! that stores the document, and the retry budget.
 
-use std::fmt::{self, Debug};
+use std::fmt::{self, Debug, Display};
 use std::hash::Hash;
 
 use serde::Serialize;
@@ -23,8 +23,8 @@ use crate::traits::state_machine::state::Context;
 
 /// A [`WriteRepository`] of raw Company Facts documents that a state context can hold.
 ///
-/// A state context must implement the value traits and `Serialize`, so the repository must
-/// implement them too. Every type that meets the bounds implements this trait.
+/// A state context must implement the value traits, `Serialize` and `Display`, so the repository
+/// must implement them too. Every type that meets the bounds implements this trait.
 pub trait RawCompanyFactsRepository:
     WriteRepository<Record = RawDocument<RawCompanyFacts>>
     + Debug
@@ -36,6 +36,7 @@ pub trait RawCompanyFactsRepository:
     + Hash
     + Unpin
     + Serialize
+    + Display
 {
 }
 
@@ -50,6 +51,7 @@ impl<R> RawCompanyFactsRepository for R where
         + Hash
         + Unpin
         + Serialize
+        + Display
 {
 }
 
@@ -129,12 +131,12 @@ impl<R: RawCompanyFactsRepository> SMContext for StoreCompanyFactsContext<R> {
     }
 }
 
-impl<R> fmt::Display for StoreCompanyFactsContext<R> {
+impl<R: Display> fmt::Display for StoreCompanyFactsContext<R> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "Context Data: {}, Execution ID: {}",
-            self.cik, self.execution_id
+            "Context Data: {}, Execution ID: {}, Repository: {}",
+            self.cik, self.execution_id, self.repository
         )
     }
 }
@@ -364,11 +366,10 @@ mod tests {
     }
 
     #[test]
-    fn should_display_the_cik_and_the_execution_id_when_formatted() {
+    fn should_display_the_cik_the_execution_id_and_the_repository_when_formatted() {
         let context = sample_context();
 
-        let expected_result =
-            "Context Data: 0001067983, Execution ID: 00000000-0000-0000-0000-000000000000";
+        let expected_result = "Context Data: 0001067983, Execution ID: 00000000-0000-0000-0000-000000000000, Repository: Fake write repository";
 
         let result = context.to_string();
 

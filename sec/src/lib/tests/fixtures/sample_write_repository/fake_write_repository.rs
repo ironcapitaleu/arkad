@@ -4,6 +4,7 @@
 //! documents.
 
 use std::cmp::Ordering;
+use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::sync::{Arc, Mutex};
 
@@ -51,6 +52,16 @@ impl FakeWriteRepository {
             .lock()
             .expect("No test panics while it holds the fake repository mutex")
             .clone()
+    }
+}
+
+/// Formats as `Fake write repository`, or with `, rejecting writes with <error>` when it rejects.
+impl fmt::Display for FakeWriteRepository {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match &self.rejection {
+            None => write!(f, "Fake write repository"),
+            Some(error) => write!(f, "Fake write repository, rejecting writes with {error}"),
+        }
     }
 }
 
