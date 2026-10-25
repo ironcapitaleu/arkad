@@ -19,6 +19,7 @@ mod constants;
 #[path = "../../src/bin/shared/sec_client.rs"]
 mod sec_client;
 
+use std::collections::HashMap;
 use std::io::Write;
 
 use futures_util::StreamExt;
@@ -98,7 +99,7 @@ async fn should_succeed_for_must_pass_companies() {
 }
 
 // ---------------------------------------------------------------------------
-// Diagnostic test — live progress and per-CIK errors
+// Diagnostic test — live progress, per-CIK errors, aggregated breakdown
 // ---------------------------------------------------------------------------
 
 #[tokio::test(flavor = "multi_thread")]
@@ -169,6 +170,29 @@ async fn should_store_company_facts_for_sp500_companies() {
         write_progress("\nFailed CIKs:\n");
         for (cik, error_chain) in &failure_list {
             write_progress(&format!("\n  CIK {cik}:\n    {error_chain}\n"));
+        }
+
+        // Counts the XBRL fields that Transform reports as missing. It prints nothing while the
+        // stream ends before Transform, and counts again once Transform runs in the stream.
+        let mut field_counts: HashMap<String, usize> = HashMap::new();
+        for (_, error_chain) in &failure_list {
+            if let Some(start) = error_chain.find("Missing fields: [\"") {
+                let fields_start = start + "Missing fields: [\"".len();
+                if let Some(end) = error_chain[fields_start..].find("\"]") {
+                    let fields_str = &error_chain[fields_start..fields_start + end];
+                    for field in fields_str.split("\", \"") {
+                        *field_counts.entry(field.to_string()).or_default() += 1;
+                    }
+                }
+            }
+        }
+        if !field_counts.is_empty() {
+            let mut sorted: Vec<_> = field_counts.into_iter().collect();
+            sorted.sort_by_key(|entry| std::cmp::Reverse(entry.1));
+            write_progress("\nMissing Field Breakdown:\n");
+            for (field, count) in &sorted {
+                write_progress(&format!("  {count:>4}x {field}\n"));
+            }
         }
     }
 
