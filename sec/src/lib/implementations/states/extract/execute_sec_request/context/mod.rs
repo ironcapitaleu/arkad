@@ -18,8 +18,8 @@
 //! let cik = Cik::new("1234567890").expect("A hardcoded valid CIK should always parse");
 //! # use sec::shared::user_agent::UserAgent;
 //! # use uuid::Uuid;
-//! # let user_agent = UserAgent::new("Sample Company contact@example.com")
-//! #     .expect("A hardcoded SEC-format user agent should always validate");
+//! let user_agent = UserAgent::new("Sample Company contact@example.com")
+//!     .expect("Given a hardcoded SEC-format user agent, validation should always succeed");
 //! # use sec::shared::raw_document::RawDocument;
 //! # use sec::shared::raw_source::RawCompanyFacts;
 //! # use storage::implementations::repository::filesystem::FilesystemRepository;
@@ -77,7 +77,8 @@ pub struct ExecuteSecRequestContext<R> {
 }
 
 impl<R> ExecuteSecRequestContext<R> {
-    /// Creates a new [`ExecuteSecRequestContext`] from a CIK, with the retry budget at zero.
+    /// Creates a new [`ExecuteSecRequestContext`] from a CIK and the `execution_id`, the
+    /// `User-Agent` and the storage repository of the run, with the retry budget at zero.
     #[must_use]
     pub const fn new(cik: Cik, execution_id: Uuid, user_agent: UserAgent, repository: R) -> Self {
         Self {
@@ -269,7 +270,7 @@ mod tests {
     use crate::tests::fixtures::sample_write_repository::FakeWriteRepository;
 
     #[test]
-    fn should_set_cik_and_zero_max_retries_when_created_with_new() {
+    fn should_set_all_fields_when_created_with_new() {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
 
         let expected_result = ExecuteSecRequestContext {

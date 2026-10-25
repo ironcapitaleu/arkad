@@ -519,7 +519,7 @@ mod tests {
     use crate::shared::headers::Headers;
     use crate::shared::http_client::implementations::sec_client::SecClient;
     use crate::shared::status_code::StatusCode;
-    use crate::tests::fixtures::sample_run::sample_user_agent;
+    use crate::tests::fixtures::sample_run::{SAMPLE_EXECUTION_ID, sample_user_agent};
     use crate::tests::fixtures::sample_write_repository::FakeWriteRepository;
 
     #[test]
@@ -995,5 +995,133 @@ mod tests {
         implements_auto_traits::<
             ExtractSuperState<StoreCompanyFacts<FakeWriteRepository>, FakeWriteRepository>,
         >();
+    }
+
+    #[test]
+    fn should_carry_execution_id_into_sub_state_context_when_constructing_validate_cik_format_super_state()
+     {
+        let super_state = ExtractSuperState::<ValidateCikFormat<_>, _>::new(
+            "1067983",
+            SecClient::default(),
+            Uuid::from_u128(42),
+            sample_user_agent(),
+            FakeWriteRepository::new(),
+        );
+
+        let expected_result = Uuid::from_u128(42);
+
+        let result = super_state.current_state().context_data().execution_id();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_carry_user_agent_into_sub_state_context_when_constructing_validate_cik_format_super_state()
+     {
+        let other_user_agent = UserAgent::new("Other Company other@example.com")
+            .expect("Given a hardcoded SEC-format user agent, validation should always succeed");
+        let super_state = ExtractSuperState::<ValidateCikFormat<_>, _>::new(
+            "1067983",
+            SecClient::default(),
+            SAMPLE_EXECUTION_ID,
+            other_user_agent.clone(),
+            FakeWriteRepository::new(),
+        );
+
+        let expected_result = &other_user_agent;
+
+        let result = super_state.current_state().context_data().user_agent();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_carry_execution_id_into_sub_state_context_when_constructing_prepare_sec_request_super_state()
+     {
+        let super_state = ExtractSuperState::<PrepareSecRequest<_>, _>::new(
+            Cik::new("1067983")
+                .expect("Given a hardcoded numeric CIK, its creation should always succeed"),
+            SecClient::default(),
+            Uuid::from_u128(42),
+            sample_user_agent(),
+            FakeWriteRepository::new(),
+        );
+
+        let expected_result = Uuid::from_u128(42);
+
+        let result = super_state.current_state().context_data().execution_id();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_carry_user_agent_into_sub_state_context_when_constructing_prepare_sec_request_super_state()
+     {
+        let other_user_agent = UserAgent::new("Other Company other@example.com")
+            .expect("Given a hardcoded SEC-format user agent, validation should always succeed");
+        let super_state = ExtractSuperState::<PrepareSecRequest<_>, _>::new(
+            Cik::new("1067983")
+                .expect("Given a hardcoded numeric CIK, its creation should always succeed"),
+            SecClient::default(),
+            SAMPLE_EXECUTION_ID,
+            other_user_agent.clone(),
+            FakeWriteRepository::new(),
+        );
+
+        let expected_result = &other_user_agent;
+
+        let result = super_state.current_state().context_data().user_agent();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_carry_execution_id_into_sub_state_context_when_constructing_execute_sec_request_super_state()
+     {
+        let cik = Cik::new("1067983")
+            .expect("Given a hardcoded numeric CIK, its creation should always succeed");
+        let super_state = ExtractSuperState::<ExecuteSecRequest<_>, _>::new(
+            SecClient::default(),
+            SecRequest::builder()
+                .all_company_facts()
+                .cik(cik.clone())
+                .build(),
+            cik,
+            Uuid::from_u128(42),
+            sample_user_agent(),
+            FakeWriteRepository::new(),
+        );
+
+        let expected_result = Uuid::from_u128(42);
+
+        let result = super_state.current_state().context_data().execution_id();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_carry_user_agent_into_sub_state_context_when_constructing_execute_sec_request_super_state()
+     {
+        let cik = Cik::new("1067983")
+            .expect("Given a hardcoded numeric CIK, its creation should always succeed");
+        let other_user_agent = UserAgent::new("Other Company other@example.com")
+            .expect("Given a hardcoded SEC-format user agent, validation should always succeed");
+        let super_state = ExtractSuperState::<ExecuteSecRequest<_>, _>::new(
+            SecClient::default(),
+            SecRequest::builder()
+                .all_company_facts()
+                .cik(cik.clone())
+                .build(),
+            cik,
+            SAMPLE_EXECUTION_ID,
+            other_user_agent.clone(),
+            FakeWriteRepository::new(),
+        );
+
+        let expected_result = &other_user_agent;
+
+        let result = super_state.current_state().context_data().user_agent();
+
+        assert_eq!(result, expected_result);
     }
 }
