@@ -1,4 +1,3 @@
-mod builder;
 pub mod constants;
 
 use std::fmt::{self, Display, Formatter};
@@ -6,13 +5,11 @@ use std::pin::pin;
 use std::time::Instant;
 
 use futures_util::StreamExt;
-use sec::implementations::states::extract::ExtractSuperState;
 use sec::prelude::*;
-use sec::shared::http_client::implementations::sec_client::SecClient;
 use uuid::Uuid;
 
+use crate::pipeline_builder::Pipeline;
 use crate::storage_root::RawCompanyFactsWriter;
-use builder::{ExtractionBuilder, NoCik, NoClient, NoRepository};
 
 /// Events emitted by the pipeline runner (consumer-level, not part of the library).
 enum PipelineEvent {
@@ -29,30 +26,10 @@ impl Display for PipelineEvent {
     }
 }
 
-pub struct Extraction {
-    raw_cik: String,
-    sec_client: SecClient,
-    repository: RawCompanyFactsWriter,
-}
-
-impl Extraction {
-    pub const fn builder() -> ExtractionBuilder<NoCik, NoClient, NoRepository> {
-        ExtractionBuilder::new()
-    }
-
-    #[must_use]
-    pub fn into_stream(self, execution_id: Uuid) -> StateMachineStream {
-        let state = ExtractSuperState::builder()
-            .cik(self.raw_cik)
-            .sec_client(self.sec_client)
-            .execution_id(execution_id)
-            .repository(self.repository)
-            .build();
-        state.into_run_stream()
-    }
-
+impl Pipeline<RawCompanyFactsWriter> {
+    /// Runs the pipeline and logs each event of its stream.
     pub async fn run(self) -> Result<(), StreamError> {
-        let cik = self.raw_cik.clone();
+        let cik = self.cik().to_owned();
         let execution_id = Uuid::new_v4();
         let pipeline_start = Instant::now();
         let mut stream = pin!(self.into_stream(execution_id));
