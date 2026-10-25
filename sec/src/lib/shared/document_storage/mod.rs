@@ -3,7 +3,7 @@
 //! Provides the [`FailedDocumentStorage`] error for a document that the store did not keep, and its
 //! [`DocumentStorageErrorReason`].
 //!
-//! A storage error becomes a `sec` domain error at the call that returns it, so no `sec` error
+//! A storage error becomes an `sec` domain error at the call that returns it, so no `sec` error
 //! type holds a `storage` type.
 
 use storage::WriteError;
