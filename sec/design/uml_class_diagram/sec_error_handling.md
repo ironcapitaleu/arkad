@@ -23,6 +23,7 @@ classDiagram
         %% Errors from internal state operations
         +InvalidCikFormat(InvalidCikFormat)
         +FailedRequestExecution(FailedRequestExecution)
+        +FailedDocumentWrite(FailedDocumentWrite)
         +IncompleteCompanyFacts(IncompleteCompanyFacts)
         +InvalidInput
         +InvalidContext
@@ -51,6 +52,21 @@ classDiagram
         %% State-level wrapper for request execution errors
         +String state_name
         +FailedSecRequest domain_error
+    }
+
+    class FailedDocumentWrite{
+        << struct >>
+        %% State-level wrapper for a write that the store rejected
+        +String state_name
+        +WriteError domain_error
+    }
+
+    class WriteError{
+        << enum >>
+        %% `storage::WriteError`, from the `storage` crate
+        +ConflictingWrite(String reason)
+        +FailedIntegrityCheck(String reason)
+        +Backend(BackendError)
     }
 
     class IncompleteCompanyFacts{
@@ -137,6 +153,7 @@ classDiagram
     %% State error wraps domain errors
     State <|-- InvalidCikFormat
     State <|-- FailedRequestExecution
+    State <|-- FailedDocumentWrite
     State <|-- IncompleteCompanyFacts
 
     %% Transition error wraps specific errors
@@ -149,6 +166,7 @@ classDiagram
     CikError --> InvalidCikReason
     IncompleteCompanyFacts --> MissingFields
     FailedRequestExecution --> FailedSecRequest
+    FailedDocumentWrite --> WriteError
     FailedSecRequest --> SecClientErrorReason
     SecClientErrorReason --> InvalidSecResponse
     InvalidSecResponse --> SecResponseErrorReason

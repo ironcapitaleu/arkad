@@ -11,6 +11,8 @@ stateDiagram-v2
     state Extract {
         ValidateCikFormat --> PrepareSecRequest
         PrepareSecRequest --> ExecuteSecRequest
+        StoreCompanyFacts
+        note right of StoreCompanyFacts : No transition leads into this state
     }
 
     Extract --> Transform
