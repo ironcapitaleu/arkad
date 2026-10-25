@@ -61,7 +61,8 @@ pub fn startup_error_cause(error: &(dyn Error + Send + Sync + 'static)) -> Strin
 /// # Errors
 ///
 /// Returns [`UserAgentError`] with [`UserAgentErrorReason::InvalidSecFormat`] if `value` is not
-/// valid UTF-8 or does not have the form `Company Name email@domain.com`.
+/// valid UTF-8 or does not have the form `Company Name email@domain.com`. If `value` is unset or
+/// empty, this function falls back to the default [`UserAgent`] and does not fail.
 fn user_agent(value: Option<OsString>) -> Result<UserAgent, UserAgentError> {
     let Some(value) = value.filter(|agent| !agent.is_empty()) else {
         return Ok(UserAgent::default());
