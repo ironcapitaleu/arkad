@@ -135,8 +135,7 @@ impl<D, B, P, R, C> DocumentMetadataBuilder<D, NoMediaType, B, P, R, C> {
 impl<D, M, P, R, C> DocumentMetadataBuilder<D, M, NoContent, P, R, C> {
     /// Sets the size and the SHA-256 digest of the document from its bytes.
     ///
-    /// Both values come from the same bytes, so they always agree. The record must hold the same
-    /// bytes. `persist` and `get` check that it does.
+    /// The record must hold the same bytes. `persist` and `get` check that it does.
     #[must_use]
     pub fn content(
         self,
@@ -516,14 +515,35 @@ mod tests {
 
     #[test]
     fn should_set_the_size_and_the_digest_from_the_bytes_when_setting_the_content() {
+        let bytes = b"{}";
         let (execution_id, producer) = sample_run();
 
-        let expected_result = (2, Sha256Digest::of(b"{}"));
+        let expected_result = (2, Sha256Digest::of(bytes));
 
         let metadata = DocumentMetadata::builder()
             .document_type::<SampleDocument>()
             .media_type("application/json")
-            .content(b"{}")
+            .content(bytes)
+            .produced_at(produced_at())
+            .run(execution_id, producer)
+            .context(sample_context())
+            .build();
+        let result = (metadata.size_in_bytes(), metadata.sha256().clone());
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_set_size_zero_and_the_empty_digest_when_the_content_is_empty() {
+        let bytes = b"";
+        let (execution_id, producer) = sample_run();
+
+        let expected_result = (0, Sha256Digest::of(bytes));
+
+        let metadata = DocumentMetadata::builder()
+            .document_type::<SampleDocument>()
+            .media_type("application/json")
+            .content(bytes)
             .produced_at(produced_at())
             .run(execution_id, producer)
             .context(sample_context())
