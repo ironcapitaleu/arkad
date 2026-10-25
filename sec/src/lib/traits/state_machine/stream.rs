@@ -9,7 +9,8 @@
 //! [`NonTerminal`] marks a state machine at a given state as non-terminal, declaring its current
 //! state and its successor. A blanket [`IntoStateMachineStream`] impl then covers any machine that
 //! is [`NonTerminal`] and has a [`Transition`] to that successor, recursively streaming the
-//! successor too. Only terminal states (those with no [`NonTerminal`] impl) need a manual impl.
+//! successor too. Only terminal states (those with no [`NonTerminal`] impl) need a manual impl,
+//! and `terminal_stream` supplies its body.
 
 use std::fmt;
 use std::pin::Pin;
@@ -213,6 +214,63 @@ where
             }
         })
     }
+}
+
+/// Returns the stream of a state machine at its last state.
+///
+/// The stream yields [`StreamEvent::StateStarted`] and computes the current state. It then yields
+/// [`StreamEvent::StateCompleted`], or a [`StreamError`] with [`StreamEvent::StateFailed`], and
+/// ends. Each terminal [`IntoStateMachineStream`] impl returns this stream.
+pub(crate) fn terminal_stream<SM, S>(sm: SM, execution_id: uuid::Uuid) -> StateMachineStream
+where
+    SM: SMStateMachine<S> + Send + 'static,
+    S: State + serde::Serialize + Send,
+{
+    Box::pin(async_stream::stream! {
+        let mut sm = sm;
+        let state_name = sm.current_state().state_name().to_string();
+        let state_start = std::time::Instant::now();
+
+        yield Ok(StreamItem {
+            event: StreamEvent::StateStarted,
+            state_name: state_name.clone(),
+            data: state_data(sm.current_state()),
+            event_duration: std::time::Duration::ZERO,
+        });
+
+        // Converts the error at once, because the state's own error type need not be `Send`.
+        let result: Result<(), crate::error::State> = sm
+            .current_state_mut()
+            .compute_output_data_async()
+            .await
+            .map_err(Into::into);
+        let data = state_data(sm.current_state());
+        match result {
+            Ok(()) => {
+                yield Ok(StreamItem {
+                    event: StreamEvent::StateCompleted,
+                    state_name,
+                    data,
+                    event_duration: state_start.elapsed(),
+                });
+            }
+            Err(error) => {
+                yield Err(StreamError {
+                    event: StreamEvent::StateFailed,
+                    execution_id,
+                    state_name,
+                    data,
+                    source: error.into(),
+                });
+            }
+        }
+    })
+}
+
+/// Serializes `state` for a stream event, or describes why serialization failed.
+fn state_data<S: serde::Serialize>(state: &S) -> serde_json::Value {
+    serde_json::to_value(state)
+        .unwrap_or_else(|e| serde_json::json!({ "serialization_error": e.to_string() }))
 }
 
 #[cfg(test)]

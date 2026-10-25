@@ -29,10 +29,8 @@ impl Display for PipelineEvent {
     }
 }
 
-/// A full Extract + Transform pipeline for a single CIK.
-///
-/// Creates an `ExtractSuperState` and calls `into_stream()` -- the framework
-/// automatically chains through Transform via the cross-`SuperState` transition.
+/// The extract pipeline for a single CIK. It ends after `StoreCompanyFacts` writes the response to
+/// the store.
 pub struct Pipeline {
     raw_cik: String,
     sec_client: SecClient,
@@ -44,7 +42,7 @@ impl Pipeline {
         PipelineBuilder::new()
     }
 
-    /// Creates a stream that drives the full ETL pipeline (Extract → Transform).
+    /// Creates a stream that drives the extract pipeline.
     #[must_use]
     pub fn into_stream(self, execution_id: Uuid) -> StateMachineStream {
         let state = ExtractSuperState::builder()

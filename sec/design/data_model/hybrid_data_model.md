@@ -26,14 +26,14 @@ requirements drive the design:
 ### 1.1 The current codebase is an immature seed, not the target
 
 The design below is a **redesign**, not a preservation of what exists. Today the workspace
-has two parallel, non-integrated models and no persistence:
+has two parallel, non-integrated models and one raw-document store:
 
 - `sec` crate (live): `CompanyData → HashMap<&ConceptDefinition, CompanyFact> → Vec<Observation>`,
   identity is **`Cik`-centric** (SEC-specific), concept resolution is string-alias matching.
 - `xbrl` crate (dormant, not referenced by the pipeline): `CanonicalElement` (42 SFAC-6-rooted
   variants), `ResolvedFact` (with a `Confidence` ladder + `resolution_path`), `FactSet`,
   `Invariant` validation, and a graph-engine **TODO stub**.
-- Pipeline runs **Extract → Transform** only. `CreateFinancialStatements` emits a placeholder
+- The stream runs **Extract** only and ends after `StoreCompanyFacts`. `CreateFinancialStatements` emits a placeholder
   unit struct; the entire **Load SuperState is an empty file**.
 
 What to carry forward vs. change (detail in §10):

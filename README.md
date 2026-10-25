@@ -39,7 +39,7 @@ stateDiagram-v2
         ValidateCikFormat --> PrepareSecRequest
         PrepareSecRequest --> ExecuteSecRequest
         ExecuteSecRequest --> StoreCompanyFacts
-        note right of StoreCompanyFacts : No binary runs this state
+        note right of StoreCompanyFacts : The stream ends after this state
     }
     Extract --> Transform
     state Transform {
@@ -432,7 +432,7 @@ git clone https://github.com/ironcapitaleu/arkad.git
 cd arkad
 ```
 
-Run the full ETL pipeline (Extract + Transform) with structured JSON logging:
+Run the extract pipeline with structured JSON logging. Each run writes the SEC response of every CIK to the store under `ARKAD_STORAGE_ROOT`:
 
 ```bash
 # All S&P 500 CIKs (paced by a rate limiter)

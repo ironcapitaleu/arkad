@@ -16,12 +16,12 @@ Extract                          Transform                        Load (planned)
 
 ### Extract SuperState
 
-Fetches raw SEC Company Facts JSON from the EDGAR API and writes it to the store:
+Fetches raw SEC Company Facts JSON from the EDGAR API and writes it to the store. A stream of the super-state ends after StoreCompanyFacts:
 
 1. **ValidateCikFormat** -- Validates and normalizes CIK strings to 10-digit zero-padded format.
 2. **PrepareSecRequest** -- Creates the HTTP client and builds the SEC API request.
 3. **ExecuteSecRequest** -- Executes the HTTP request and returns the validated SEC response.
-4. **StoreCompanyFacts** -- Writes the raw body of the SEC response to the store and returns the key of the stored document. A transition leads into this state from ExecuteSecRequest. No binary runs this state.
+4. **StoreCompanyFacts** -- Writes the raw body of the SEC response to the store and returns the key of the stored document. It is the last state of the stream.
 
 Build the super-state at its entry state with `ExtractSuperState::builder()`. Set every field by name, in any order. `build()` exists only once the builder holds all four fields, so a `build()` call with a missing field does not compile:
 
@@ -47,13 +47,13 @@ Validates, resolves, and structures the raw JSON response into typed financial d
 # Basic extraction demo
 cargo run --bin extraction
 
-# Full ETL pipeline (Extract + Transform) for all S&P 500 CIKs
+# Extract pipeline for all S&P 500 CIKs. Stores each response under ARKAD_STORAGE_ROOT
 cargo run --features tracing-logging --bin stream_etl
 
 # Same pipeline under the legacy binary name; differs only in log field layout
 cargo run --features tracing-logging --bin stream_extract
 ```
 
-Each binary builds a document store at startup. `ARKAD_STORAGE_ROOT` sets its root directory. If the variable is unset or empty, the root is `data`, relative to the working directory.
+Each binary builds a document store at startup. `ARKAD_STORAGE_ROOT` sets its root directory. If the variable is unset or empty, the root is `data`, relative to the working directory. The binary creates the root and its missing parents at startup. If it cannot, it stops at startup with an `io::Error`.
 
 Each binary also builds an `SecClient` at startup. `ARKAD_SEC_USER_AGENT` sets the `User-Agent` of every SEC request. The SEC requires the form `Company Name email@domain.com`, for example `ARKAD_SEC_USER_AGENT="Acme Corp ops@acme.com"`. If the variable is unset or empty, the client sends the default `UserAgent`, which is `Test Company contact@test.com`. The binary then warns at startup, because the SEC can throttle a placeholder `User-Agent`. If the value is not valid UTF-8 or does not have this form, the binary stops at startup with a `UserAgentError`. If the value holds a character that an HTTP header cannot carry, it stops with a `reqwest` error.

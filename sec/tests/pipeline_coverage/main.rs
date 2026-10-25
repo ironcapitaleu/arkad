@@ -1,13 +1,16 @@
 //! # Pipeline Coverage Integration Test
 //!
-//! Runs the full Extract → Transform pipeline against SEC EDGAR to measure
-//! pipeline quality and track progress as XBRL aliases are expanded.
+//! Runs the extract pipeline against SEC EDGAR, from `ValidateCikFormat` to
+//! `StoreCompanyFacts`, and measures how many companies pass.
 //!
 //! ## Running
 //! ```sh
 //! # Run both tests sequentially with live output
 //! cargo test --test pipeline_coverage -- --ignored --nocapture --test-threads=1
 //! ```
+//!
+//! The S&P 500 test writes about 469 documents of several MB each under
+//! `$TMPDIR/arkad-pipeline-coverage`. A second run replaces the same keys.
 
 mod builder;
 mod constants;
@@ -41,9 +44,8 @@ fn lookup_must_pass_name(cik: &str) -> &str {
         .map_or("Unknown", |(_, name)| name)
 }
 
-/// Minimum number of S&P 500 companies that must succeed.
-/// Increase this threshold as XBRL aliases are expanded.
-const MINIMUM_SUCCESS_THRESHOLD: usize = 270;
+/// Minimum number of S&P 500 companies whose Company Facts the pipeline fetches and stores.
+const MINIMUM_STORED_THRESHOLD: usize = 450;
 
 // ---------------------------------------------------------------------------
 // Clean end-to-end test — mirrors the production binary
@@ -102,7 +104,7 @@ async fn should_succeed_for_must_pass_companies() {
 
 #[tokio::test(flavor = "multi_thread")]
 #[ignore = "Hits the live SEC API for all S&P 500 CIKs (~3 minutes)"]
-async fn should_meet_threshold_for_sp500_companies() {
+async fn should_store_company_facts_for_sp500_companies() {
     use std::sync::Mutex;
     use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -170,6 +172,8 @@ async fn should_meet_threshold_for_sp500_companies() {
             write_progress(&format!("\n  CIK {cik}:\n    {error_chain}\n"));
         }
 
+        // Counts the XBRL fields that Transform reports as missing. It prints nothing while the
+        // stream ends before Transform, and counts again once Transform runs in the stream.
         let mut field_counts: HashMap<String, usize> = HashMap::new();
         for (_, error_chain) in &failure_list {
             if let Some(start) = error_chain.find("Missing fields: [\"") {
@@ -193,10 +197,10 @@ async fn should_meet_threshold_for_sp500_companies() {
     }
 
     write_progress(&format!(
-        "\nThreshold: {success_count} >= {MINIMUM_SUCCESS_THRESHOLD}\n"
+        "\nThreshold: {success_count} >= {MINIMUM_STORED_THRESHOLD}\n"
     ));
 
-    let result = success_count >= MINIMUM_SUCCESS_THRESHOLD;
+    let result = success_count >= MINIMUM_STORED_THRESHOLD;
 
     assert_eq!(result, expected_result);
 }

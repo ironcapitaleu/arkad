@@ -35,6 +35,7 @@ tracing-logging = ["tracing", "tracing-appender", "tracing-subscriber"]
 
 [dev-dependencies]
 pretty_assertions = "1"
+tempfile = "3"
 
 [lib]
 name = "sec"
