@@ -6,8 +6,7 @@
 //! states. The super-state owns the shared HTTP client, the `execution_id` of the run, and the
 //! storage repository. It also owns the type-safe transitions between the states, so callers
 //! advance the pipeline without managing each state by hand. A fourth state,
-//! [`StoreCompanyFacts`], writes a fetched response to the store. A transition leads into it from
-//! [`ExecuteSecRequest`].
+//! [`StoreCompanyFacts`], writes a fetched response to the store.
 //!
 //! ## Modules
 //!
