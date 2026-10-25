@@ -64,7 +64,7 @@ pub use traits::document::Document;
 /// different document types can share one root, as long as their keys differ.
 ///
 /// The repository implements `Debug`, `Clone`, `PartialEq`, `Eq`, `PartialOrd`, `Ord`, `Hash`, and
-/// `Serialize` with no bound on `D`, so a `State` context can hold it for every document type. Two
+/// `Serialize` with no bound on `D`, so it implements them for every document type. Two
 /// repositories compare by root and access.
 ///
 /// A [`DocumentKey`] is a document's path under the root. A document lives at the root joined with

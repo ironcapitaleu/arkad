@@ -155,7 +155,7 @@ pub struct ReadWrite;
 ///
 /// [`FilesystemRepository`]: crate::implementations::repository::filesystem::FilesystemRepository
 pub trait Access: sealed::Sealed + Send + Sync {
-    /// The name of the access, as a serialized repository shows it.
+    /// The name of the access, such as `ReadWrite`.
     const NAME: &'static str;
 }
 

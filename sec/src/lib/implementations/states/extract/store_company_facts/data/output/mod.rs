@@ -18,7 +18,7 @@ use crate::traits::state_machine::state::StateData;
 
 /// Output data of the [`StoreCompanyFacts`](super::super::StoreCompanyFacts) state.
 ///
-/// Holds the [`DocumentKey`] of the stored document, so a later state can read it back.
+/// Holds the [`DocumentKey`] under which the store keeps the document.
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 pub struct StoreCompanyFactsOutput {
     /// The key under which the state stored the document.
