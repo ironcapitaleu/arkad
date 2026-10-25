@@ -44,6 +44,9 @@ pub struct Sha256Digest(String);
 impl Sha256Digest {
     /// Computes the SHA-256 digest of the bytes.
     ///
+    /// Takes any byte container, such as `&[u8]`, `Vec<u8>`, a byte array, or a `String`. A
+    /// `String` gives the digest of its UTF-8 bytes.
+    ///
     /// # Examples
     ///
     /// ```rust
@@ -57,8 +60,8 @@ impl Sha256Digest {
     /// assert_eq!(result, expected_result);
     /// ```
     #[must_use]
-    pub fn of(bytes: &[u8]) -> Self {
-        Self(sha256_hex(bytes))
+    pub fn of(bytes: impl AsRef<[u8]>) -> Self {
+        Self(sha256_hex(bytes.as_ref()))
     }
 
     /// Returns the digest as 64 lowercase hex characters.
@@ -221,6 +224,28 @@ mod tests {
 
         let result = serde_json::from_str::<Sha256Digest>(&json)
             .is_err_and(|error| error.to_string().starts_with("[InvalidSha256Digest]"));
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_one_digest_for_a_vec_and_a_slice_of_the_same_bytes() {
+        let owned: Vec<u8> = Vec::from("abc");
+
+        let expected_result = Sha256Digest::of(b"abc");
+
+        let result = Sha256Digest::of(owned);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_one_digest_for_a_string_and_its_bytes() {
+        let text = String::from("abc");
+
+        let expected_result = Sha256Digest::of(b"abc");
+
+        let result = Sha256Digest::of(text);
 
         assert_eq!(result, expected_result);
     }

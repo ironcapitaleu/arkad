@@ -192,7 +192,7 @@ async fn stored_pair_matches(
     }
     fs::read(document_path)
         .await
-        .is_ok_and(|document| Sha256Digest::of(&document) == *digest)
+        .is_ok_and(|document| Sha256Digest::of(document) == *digest)
 }
 
 /// Removes `produced_at` and `execution_id` from a metadata object.
