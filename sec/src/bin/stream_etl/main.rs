@@ -1,4 +1,7 @@
 mod pipeline;
+// Each binary is its own crate root, so it cannot import another binary's modules. `#[path]`
+// compiles the one shared file into this binary as a private module, so all binaries build the
+// store the same way.
 #[path = "../shared/storage_root.rs"]
 mod storage_root;
 
