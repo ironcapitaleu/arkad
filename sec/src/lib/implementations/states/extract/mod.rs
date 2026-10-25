@@ -10,6 +10,7 @@
 //!
 //! ## Modules
 //!
+//! - [`builder`]: Builds the [`ExtractSuperState`] at its entry state [`ValidateCikFormat`].
 //! - [`validate_cik_format`]: Validates and normalizes the raw CIK.
 //! - [`prepare_sec_request`]: Builds the request targeting the SEC API endpoint.
 //! - [`execute_sec_request`]: Sends the request and captures the response.
@@ -25,7 +26,6 @@
 //!
 //! ```no_run
 //! use sec::implementations::states::extract::*;
-//! use sec::implementations::states::extract::validate_cik_format::ValidateCikFormat;
 //! use sec::prelude::*;
 //! use sec::shared::http_client::implementations::sec_client::SecClient;
 //! use sec::shared::raw_document::RawDocument;
@@ -40,18 +40,19 @@
 //!     .document_type::<RawDocument<RawCompanyFacts>>()
 //!     .root("data")
 //!     .build();
-//! let mut extract_state = ExtractSuperState::<ValidateCikFormat<_>, _>::new(
-//!     "1234567890",
-//!     SecClient::default(),
-//!     Uuid::new_v4(),
-//!     repository,
-//! );
+//! let mut extract_state = ExtractSuperState::builder()
+//!     .cik("1234567890")
+//!     .sec_client(SecClient::default())
+//!     .execution_id(Uuid::new_v4())
+//!     .repository(repository)
+//!     .build();
 //! extract_state.compute_output_data_async().await?;
 //! let _next_state = extract_state.transition_to_next_state_sec()?;
 //! # Ok(())
 //! # }
 //! ```
 
+pub mod builder;
 pub mod execute_sec_request;
 pub mod prepare_sec_request;
 pub mod store_company_facts;
@@ -67,6 +68,9 @@ use uuid::Uuid;
 use crate::error::State as StateError;
 use crate::error::state_machine::transition;
 use crate::error::state_machine::transition::Transition as TransitionError;
+use crate::implementations::states::extract::builder::{
+    ExtractSuperStateBuilder, NoCik, NoExecutionId, NoRepository, NoSecClient,
+};
 use crate::implementations::states::extract::execute_sec_request::constants::STATE_NAME as EXECUTE_SEC_REQUEST;
 use crate::implementations::states::extract::execute_sec_request::{
     ExecuteSecRequest, ExecuteSecRequestContext, ExecuteSecRequestInput,
@@ -77,9 +81,7 @@ use crate::implementations::states::extract::prepare_sec_request::{
 use crate::implementations::states::extract::store_company_facts::{
     RawCompanyFactsRepository, StoreCompanyFacts, StoreCompanyFactsContext, StoreCompanyFactsInput,
 };
-use crate::implementations::states::extract::validate_cik_format::{
-    ValidateCikFormat, ValidateCikFormatContext, ValidateCikFormatInput,
-};
+use crate::implementations::states::extract::validate_cik_format::ValidateCikFormat;
 use crate::implementations::states::transform::TransformSuperState;
 use crate::implementations::states::transform::parse_company_facts::ParseCompanyFacts;
 use crate::implementations::states::transform::parse_company_facts::constants::STATE_NAME as PARSE_COMPANY_FACTS;
@@ -265,28 +267,11 @@ impl<S: State, R: RawCompanyFactsRepository> SMSuperState<S> for ExtractSuperSta
 impl<S: State, R: RawCompanyFactsRepository> SuperState<S> for ExtractSuperState<S, R> {}
 
 impl<R: RawCompanyFactsRepository> ExtractSuperState<ValidateCikFormat<R>, R> {
-    /// Creates the super-state at the pipeline entry point from a raw CIK, the shared client, the
-    /// `execution_id`, and the storage repository.
-    ///
-    /// [`ExtractSuperState::into_run_stream`] tags the stream with `execution_id`.
+    /// Returns an [`ExtractSuperStateBuilder`] that holds no field yet.
     #[must_use]
-    pub fn new(
-        input: impl Into<String>,
-        sec_client: SecClient,
-        execution_id: Uuid,
-        repository: R,
-    ) -> Self {
-        let input: String = input.into();
-        let input_data = ValidateCikFormatInput::new(input.clone());
-        let state_context =
-            ValidateCikFormatContext::new(input, sec_client.clone(), repository.clone());
-
-        Self {
-            current_state: ValidateCikFormat::new(input_data, state_context),
-            input: ExtractSuperStateData,
-            output: None,
-            context: ExtractSuperStateContext::new(sec_client, execution_id, repository),
-        }
+    pub const fn builder()
+    -> ExtractSuperStateBuilder<NoCik, NoSecClient, NoExecutionId, NoRepository<R>> {
+        ExtractSuperStateBuilder::new()
     }
 }
 
@@ -545,12 +530,12 @@ mod tests {
     fn should_return_super_state_name_with_current_state_when_in_validate_cik_format_state() {
         let input_cik = "1234567890";
         let sec_client = SecClient::default();
-        let super_state = ExtractSuperState::<ValidateCikFormat<_>, _>::new(
-            input_cik,
-            sec_client,
-            Uuid::nil(),
-            FakeWriteRepository::new(),
-        );
+        let super_state = ExtractSuperState::builder()
+            .cik(input_cik)
+            .sec_client(sec_client)
+            .execution_id(Uuid::nil())
+            .repository(FakeWriteRepository::new())
+            .build();
 
         let expected_result = "Extract SuperState (Current: Validate CIK Format)";
 
@@ -585,12 +570,12 @@ mod tests {
     fn should_access_current_validate_cik_format_state_from_super_state() {
         let input_cik = "1234567890";
         let sec_client = SecClient::default();
-        let super_state = ExtractSuperState::<ValidateCikFormat<_>, _>::new(
-            input_cik,
-            sec_client,
-            Uuid::nil(),
-            FakeWriteRepository::new(),
-        );
+        let super_state = ExtractSuperState::builder()
+            .cik(input_cik)
+            .sec_client(sec_client)
+            .execution_id(Uuid::nil())
+            .repository(FakeWriteRepository::new())
+            .build();
 
         let expected_result = "Validate CIK Format";
 
@@ -625,12 +610,12 @@ mod tests {
     async fn should_transition_from_prepare_sec_request_to_execute_sec_request_state() {
         let input_cik = "1234567890";
         let sec_client = SecClient::default();
-        let mut super_state = ExtractSuperState::<ValidateCikFormat<_>, _>::new(
-            input_cik,
-            sec_client,
-            Uuid::nil(),
-            FakeWriteRepository::new(),
-        );
+        let mut super_state = ExtractSuperState::builder()
+            .cik(input_cik)
+            .sec_client(sec_client)
+            .execution_id(Uuid::nil())
+            .repository(FakeWriteRepository::new())
+            .build();
 
         super_state
             .compute_output_data_async()
@@ -678,12 +663,12 @@ mod tests {
     async fn should_delegate_computation_to_current_state_when_computing_output_data() {
         let input_cik = "1234567890";
         let sec_client = SecClient::default();
-        let mut super_state = ExtractSuperState::<ValidateCikFormat<_>, _>::new(
-            input_cik,
-            sec_client,
-            Uuid::nil(),
-            FakeWriteRepository::new(),
-        );
+        let mut super_state = ExtractSuperState::builder()
+            .cik(input_cik)
+            .sec_client(sec_client)
+            .execution_id(Uuid::nil())
+            .repository(FakeWriteRepository::new())
+            .build();
 
         let expected_result = Ok(());
 
@@ -700,12 +685,12 @@ mod tests {
     async fn should_transition_from_validate_cik_format_to_prepare_sec_request_state() {
         let input_cik = "1234567890";
         let sec_client = SecClient::default();
-        let mut super_state = ExtractSuperState::<ValidateCikFormat<_>, _>::new(
-            input_cik,
-            sec_client,
-            Uuid::nil(),
-            FakeWriteRepository::new(),
-        );
+        let mut super_state = ExtractSuperState::builder()
+            .cik(input_cik)
+            .sec_client(sec_client)
+            .execution_id(Uuid::nil())
+            .repository(FakeWriteRepository::new())
+            .build();
 
         super_state
             .compute_output_data_async()
@@ -727,12 +712,12 @@ mod tests {
     async fn should_fail_transition_from_validate_cik_format_when_output_data_not_yet_computed() {
         let input_cik = "1234567890";
         let sec_client = SecClient::default();
-        let super_state = ExtractSuperState::<ValidateCikFormat<_>, _>::new(
-            input_cik,
-            sec_client,
-            Uuid::nil(),
-            FakeWriteRepository::new(),
-        );
+        let super_state = ExtractSuperState::builder()
+            .cik(input_cik)
+            .sec_client(sec_client)
+            .execution_id(Uuid::nil())
+            .repository(FakeWriteRepository::new())
+            .build();
 
         let expected_result = true;
 
@@ -947,15 +932,14 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_keep_execution_id_of_first_constructor_when_transitioning_to_execute_sec_request()
-     {
+    async fn should_keep_execution_id_of_builder_when_transitioning_to_execute_sec_request() {
         let execution_id = Uuid::from_u128(7);
-        let mut super_state = ExtractSuperState::<ValidateCikFormat<_>, _>::new(
-            "1067983",
-            SecClient::default(),
-            execution_id,
-            FakeWriteRepository::new(),
-        );
+        let mut super_state = ExtractSuperState::builder()
+            .cik("1067983")
+            .sec_client(SecClient::default())
+            .execution_id(execution_id)
+            .repository(FakeWriteRepository::new())
+            .build();
         super_state
             .compute_output_data_async()
             .await
@@ -980,15 +964,14 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_carry_execution_id_of_first_constructor_when_transitioning_to_store_company_facts()
-     {
+    async fn should_carry_execution_id_of_builder_when_transitioning_to_store_company_facts() {
         let execution_id = Uuid::from_u128(7);
-        let mut super_state = ExtractSuperState::<ValidateCikFormat<_>, _>::new(
-            "1067983",
-            SecClient::default(),
-            execution_id,
-            FakeWriteRepository::new(),
-        );
+        let mut super_state = ExtractSuperState::builder()
+            .cik("1067983")
+            .sec_client(SecClient::default())
+            .execution_id(execution_id)
+            .repository(FakeWriteRepository::new())
+            .build();
         super_state
             .compute_output_data_async()
             .await
@@ -1056,12 +1039,12 @@ mod tests {
     #[tokio::test]
     async fn should_tag_stream_with_execution_id_of_context_when_streaming_the_run() {
         let execution_id = Uuid::from_u128(7);
-        let super_state = ExtractSuperState::<ValidateCikFormat<_>, _>::new(
-            "ABC",
-            SecClient::default(),
-            execution_id,
-            FakeWriteRepository::new(),
-        );
+        let super_state = ExtractSuperState::builder()
+            .cik("ABC")
+            .sec_client(SecClient::default())
+            .execution_id(execution_id)
+            .repository(FakeWriteRepository::new())
+            .build();
         let mut stream = super_state.into_run_stream();
 
         let expected_result = Some(execution_id);

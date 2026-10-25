@@ -120,12 +120,12 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     println!("\n=======================================================");
     println!("Initial Extract SuperState:");
 
-    let mut super_state = ExtractSuperState::<ValidateCikFormat<_>, _>::new(
-        "1067983",
-        sec_client,
-        Uuid::new_v4(),
-        repository,
-    );
+    let mut super_state = ExtractSuperState::builder()
+        .cik("1067983")
+        .sec_client(sec_client)
+        .execution_id(Uuid::new_v4())
+        .repository(repository)
+        .build();
 
     super_state
         .compute_output_data_async()
