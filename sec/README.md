@@ -66,7 +66,7 @@ The `Dockerfile` at the repository root builds an image that runs `stream_extrac
 docker build -t arkad-extract .
 ```
 
-The image sets no storage root, so the root is `/data` inside the container. Removing the container deletes the documents. To keep them, mount a volume and set `ARKAD_STORAGE_ROOT` to its path:
+The binary runs as user `arkad` (uid and gid `10001`) in `/home/arkad`. The image sets no storage root, so the root is `/home/arkad/data` inside the container. Removing the container deletes the documents. To keep them, mount a volume that uid `10001` can write to, and set `ARKAD_STORAGE_ROOT` to its path:
 
 ```sh
 docker run --rm \
