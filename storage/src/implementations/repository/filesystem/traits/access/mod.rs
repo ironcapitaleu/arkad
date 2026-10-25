@@ -154,7 +154,10 @@ pub struct ReadWrite;
 /// after it holds one of them.
 ///
 /// [`FilesystemRepository`]: crate::implementations::repository::filesystem::FilesystemRepository
-pub trait Access: sealed::Sealed + Send + Sync {}
+pub trait Access: sealed::Sealed + Send + Sync {
+    /// The name of the access, such as `ReadWrite`.
+    const NAME: &'static str;
+}
 
 /// Defines an access that allows reads, so the repository implements
 /// [`ReadRepository`](crate::ReadRepository).
@@ -238,9 +241,17 @@ impl sealed::Sealed for Read {}
 impl sealed::Sealed for Write {}
 impl sealed::Sealed for ReadWrite {}
 
-impl Access for Read {}
-impl Access for Write {}
-impl Access for ReadWrite {}
+impl Access for Read {
+    const NAME: &'static str = "Read";
+}
+
+impl Access for Write {
+    const NAME: &'static str = "Write";
+}
+
+impl Access for ReadWrite {
+    const NAME: &'static str = "ReadWrite";
+}
 
 impl CanRead for Read {}
 impl CanRead for ReadWrite {}
@@ -252,6 +263,8 @@ impl CanWrite for ReadWrite {}
 mod tests {
     use std::fmt::Debug;
     use std::hash::Hash;
+
+    use pretty_assertions::assert_eq;
 
     use super::*;
 
@@ -273,6 +286,33 @@ mod tests {
     #[test]
     const fn should_implement_marker_traits_for_read_write() {
         implements_marker_traits::<ReadWrite>();
+    }
+
+    #[test]
+    fn should_name_read_access_for_read() {
+        let expected_result = "Read";
+
+        let result = Read::NAME;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_name_write_access_for_write() {
+        let expected_result = "Write";
+
+        let result = Write::NAME;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_name_read_write_access_for_read_write() {
+        let expected_result = "ReadWrite";
+
+        let result = ReadWrite::NAME;
+
+        assert_eq!(result, expected_result);
     }
 
     const fn implements_can_read<T: CanRead>() {}

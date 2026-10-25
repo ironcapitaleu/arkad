@@ -5,12 +5,15 @@
 //! Extraction turns a raw CIK string into a fetched SEC response through three ordered
 //! states. The super-state owns the shared HTTP client and the type-safe transitions
 //! between them, so callers advance the pipeline without managing each state by hand.
+//! A fourth state, [`StoreCompanyFacts`], writes a fetched response to the store. No transition
+//! leads into it.
 //!
 //! ## Modules
 //!
 //! - [`validate_cik_format`]: Validates and normalizes the raw CIK.
 //! - [`prepare_sec_request`]: Builds the request targeting the SEC API endpoint.
 //! - [`execute_sec_request`]: Sends the request and captures the response.
+//! - [`store_company_facts`]: Writes the raw body of the response to the store.
 //!
 //! ## State Flow
 //!
@@ -37,6 +40,7 @@
 
 pub mod execute_sec_request;
 pub mod prepare_sec_request;
+pub mod store_company_facts;
 pub mod validate_cik_format;
 
 use std::fmt::{self, Display, Formatter};
@@ -44,6 +48,7 @@ use std::fmt::{self, Display, Formatter};
 use async_trait::async_trait;
 use serde::Serialize;
 use state_maschine::prelude::{StateMachine as SMStateMachine, Transition as SMTransition};
+use uuid::Uuid;
 
 use crate::error::State as StateError;
 use crate::error::state_machine::transition;
@@ -55,6 +60,9 @@ use crate::implementations::states::extract::execute_sec_request::{
 use crate::implementations::states::extract::prepare_sec_request::{
     PrepareSecRequest, PrepareSecRequestContext, PrepareSecRequestInput,
 };
+use crate::implementations::states::extract::store_company_facts::{
+    RawCompanyFactsRepository, StoreCompanyFacts, StoreCompanyFactsContext, StoreCompanyFactsInput,
+};
 use crate::implementations::states::extract::validate_cik_format::{
     ValidateCikFormat, ValidateCikFormatContext, ValidateCikFormatInput,
 };
@@ -65,6 +73,9 @@ use crate::prelude::*;
 use crate::shared::cik::Cik;
 use crate::shared::http_client::implementations::sec_client::SecClient;
 use crate::shared::request::implementations::sec_request::SecRequest;
+use crate::shared::response::implementations::sec_response::SecResponse;
+use crate::shared::url::Url;
+use crate::shared::user_agent::UserAgent;
 
 /// Input and output data for the [`ExtractSuperState`].
 ///
@@ -278,6 +289,33 @@ impl ExtractSuperState<ExecuteSecRequest> {
     }
 }
 
+impl<R: RawCompanyFactsRepository> ExtractSuperState<StoreCompanyFacts<R>> {
+    /// Creates the super-state positioned at the state that stores the Company Facts.
+    ///
+    /// The metadata of the stored document records `execution_id`. Pass the same id to
+    /// `into_stream`, so the document names the run that wrote it.
+    #[must_use]
+    pub const fn new(
+        client: SecClient,
+        response: SecResponse,
+        requested_url: Url,
+        user_agent: UserAgent,
+        cik: Cik,
+        execution_id: Uuid,
+        repository: R,
+    ) -> Self {
+        let input = StoreCompanyFactsInput::new(response, requested_url, user_agent);
+        let context = StoreCompanyFactsContext::new(cik, execution_id, repository);
+
+        Self {
+            current_state: StoreCompanyFacts::new(input, context),
+            input: ExtractSuperStateData,
+            output: None,
+            context: ExtractSuperStateContext::new(client),
+        }
+    }
+}
+
 impl<S: State> ExtractSuperState<S> {
     /// Consumes the `SuperState` and returns the inner state.
     #[must_use]
@@ -385,13 +423,19 @@ impl SMTransition<ExecuteSecRequest, ParseCompanyFacts> for ExtractSuperState<Ex
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
     use std::{fmt::Debug, hash::Hash};
 
     use pretty_assertions::assert_eq;
+    use storage::implementations::repository::filesystem::Document;
 
     use super::*;
     use crate::shared::cik::Cik;
+    use crate::shared::content_type::ContentType;
+    use crate::shared::headers::Headers;
     use crate::shared::http_client::implementations::sec_client::SecClient;
+    use crate::shared::status_code::StatusCode;
+    use crate::tests::fixtures::sample_write_repository::FakeWriteRepository;
 
     #[test]
     #[expect(
@@ -651,5 +695,64 @@ mod tests {
     #[test]
     const fn should_implement_hash_for_execute_sec_request_super_state() {
         implements_hash::<ExtractSuperState<ExecuteSecRequest>>();
+    }
+
+    fn store_company_facts_super_state(
+        execution_id: Uuid,
+    ) -> ExtractSuperState<StoreCompanyFacts<FakeWriteRepository>> {
+        let url: Url = "https://data.sec.gov/api/xbrl/companyfacts/CIK0001067983.json"
+            .parse()
+            .expect("Given a hardcoded valid URL, parsing should always succeed");
+        let response = SecResponse::from_parts(
+            url.clone(),
+            Headers::new(HashMap::new()),
+            ContentType::Json,
+            StatusCode::Ok,
+            b"{}".to_vec(),
+        )
+        .expect("Given the hardcoded JSON body '{}', building the response should always succeed");
+        let user_agent = UserAgent::new("arkad contact@example.com")
+            .expect("Given a hardcoded SEC-format user agent, validation should always succeed");
+        let cik = Cik::new("1067983")
+            .expect("Given a hardcoded numeric CIK, its creation should always succeed");
+        ExtractSuperState::<StoreCompanyFacts<FakeWriteRepository>>::new(
+            SecClient::default(),
+            response,
+            url,
+            user_agent,
+            cik,
+            execution_id,
+            FakeWriteRepository::new(),
+        )
+    }
+
+    #[tokio::test]
+    async fn should_record_the_execution_id_of_the_constructor_when_storing_company_facts() {
+        let execution_id = Uuid::from_u128(7);
+        let mut super_state = store_company_facts_super_state(execution_id);
+        let repository = super_state
+            .current_state()
+            .context_data()
+            .repository()
+            .clone();
+
+        let expected_result = vec![execution_id];
+
+        super_state
+            .compute_output_data_async()
+            .await
+            .expect("Given a fake repository that accepts every write, the state should succeed");
+        let result: Vec<Uuid> = repository
+            .persisted()
+            .iter()
+            .map(|document| document.metadata().execution_id())
+            .collect();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    const fn should_implement_auto_traits_for_store_company_facts_super_state() {
+        implements_auto_traits::<ExtractSuperState<StoreCompanyFacts<FakeWriteRepository>>>();
     }
 }

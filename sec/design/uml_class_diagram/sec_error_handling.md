@@ -23,6 +23,7 @@ classDiagram
         %% Errors from internal state operations
         +InvalidCikFormat(InvalidCikFormat)
         +FailedRequestExecution(FailedRequestExecution)
+        +FailedDocumentWrite(FailedDocumentWrite)
         +IncompleteCompanyFacts(IncompleteCompanyFacts)
         +InvalidInput
         +InvalidContext
@@ -51,6 +52,33 @@ classDiagram
         %% State-level wrapper for request execution errors
         +String state_name
         +FailedSecRequest domain_error
+    }
+
+    class FailedDocumentWrite{
+        << struct >>
+        %% State-level wrapper for a write that the store rejected
+        +String state_name
+        +FailedDocumentStorage domain_error
+    }
+
+    class FailedDocumentStorage{
+        << struct >>
+        %% Domain error for a document that the store did not keep
+        +DocumentStorageErrorReason reason
+    }
+
+    class DocumentStorageErrorReason{
+        << enum >>
+        %% Why the store did not keep the document
+        +ConflictingWrite(String details)
+        +FailedIntegrityCheck(String details)
+        +FailedBackend(String details)
+        +Other(String details)
+    }
+
+    class WriteError{
+        << enum >>
+        %% `storage::WriteError`, converted at the boundary and never held
     }
 
     class IncompleteCompanyFacts{
@@ -137,6 +165,7 @@ classDiagram
     %% State error wraps domain errors
     State <|-- InvalidCikFormat
     State <|-- FailedRequestExecution
+    State <|-- FailedDocumentWrite
     State <|-- IncompleteCompanyFacts
 
     %% Transition error wraps specific errors
@@ -149,6 +178,9 @@ classDiagram
     CikError --> InvalidCikReason
     IncompleteCompanyFacts --> MissingFields
     FailedRequestExecution --> FailedSecRequest
+    FailedDocumentWrite --> FailedDocumentStorage
+    FailedDocumentStorage --> DocumentStorageErrorReason
+    WriteError ..> FailedDocumentStorage : From
     FailedSecRequest --> SecClientErrorReason
     SecClientErrorReason --> InvalidSecResponse
     InvalidSecResponse --> SecResponseErrorReason

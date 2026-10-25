@@ -7,6 +7,7 @@
 //! - [`build_info`]: Provides the version and the git commit of the build, and the [`Producer`](storage::implementations::repository::filesystem::Producer) of a stored document.
 //! - [`cik`]: Provides parsing, validation, and formatting utilities for SEC Central Index Keys (CIKs).
 //! - [`document_kind`]: Provides [`SecDocumentKind`](document_kind::SecDocumentKind), the kinds of document the SEC state machines store.
+//! - [`document_storage`]: Provides [`FailedDocumentStorage`](document_storage::FailedDocumentStorage), the error for a document that the store did not keep.
 //! - [`http_client`]: Provides utilities for creating and managing SEC API clients, including user agent handling.
 //! - [`raw_document`]: Provides [`RawDocument`](raw_document::RawDocument), one SEC file as the store keeps it.
 //! - [`raw_source`]: Provides [`RawSource`](raw_source::RawSource), the trait that names the SEC file a raw document holds, and one implementation per file.
@@ -27,6 +28,7 @@ pub mod build_info;
 pub mod cik;
 pub mod content_type;
 pub mod document_kind;
+pub mod document_storage;
 pub mod financial;
 pub mod headers;
 pub mod http_client;

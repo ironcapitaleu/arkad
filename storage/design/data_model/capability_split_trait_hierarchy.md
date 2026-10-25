@@ -272,6 +272,14 @@ above bind the capability generically to show the contract. A context can equall
 adapter, the way a state context names its `SecClient`. The guard holds the same way. Each state
 settles its own context shape when it is designed.
 
+A state context implements `Serialize` and `Display`, so every state event and state summary
+show the store's settings. Each backend writes its own `Serialize` and `Display` and shows only
+its non-sensitive settings. It never shows a secret such as a password or a token.
+`FilesystemRepository` shows its root and its access, as
+`{ "root": "/data/arkad", "access": "ReadWrite" }` and as
+`Filesystem repository at '/data/arkad' (ReadWrite)`. No backend implements `Deserialize`, so
+this output names the store for logs only.
+
 ## Error Mapping
 
 STA-147 owns the `storage` error hierarchy. This document maps the traits onto it and does not

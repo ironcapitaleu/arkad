@@ -33,6 +33,9 @@ use std::io;
 use std::marker::PhantomData;
 use std::path::{Path, PathBuf};
 
+use serde::ser::SerializeStruct;
+use serde::{Serialize, Serializer};
+
 use crate::error::BackendError;
 use crate::shared::Sha256Digest;
 
@@ -60,9 +63,9 @@ pub use traits::document::Document;
 /// write rejects a record whose metadata holds another kind or kind version. Repositories for
 /// different document types can share one root, as long as their keys differ.
 ///
-/// The repository implements `Debug`, `Clone`, `PartialEq`, `Eq`, `PartialOrd`, `Ord`, and `Hash`
-/// with no bound on `D`, so a `State` context can hold it for every document type. Two repositories
-/// compare by root and access.
+/// The repository implements `Debug`, `Display`, `Clone`, `PartialEq`, `Eq`, `PartialOrd`, `Ord`,
+/// `Hash`, and `Serialize` for every document type `D`. Two repositories compare by root and
+/// access.
 ///
 /// A [`DocumentKey`] is a document's path under the root. A document lives at the root joined with
 /// its key. On Linux and macOS, a root of `/data/arkad` and a key of `sec/CIK0000320193.json` name
@@ -88,8 +91,8 @@ pub use traits::document::Document;
 /// fails, or the caller drops the write between the renames, the new metadata stays beside the old
 /// document until the next successful write under that key. If the caller drops the write before
 /// the renames, its temporary files stay in the directory.
-// The value traits below are written by hand. A derive would require `D` to implement each of
-// them, although the repository holds no `D`.
+// The value traits and `Serialize` below are written by hand. A derive would require `D` to
+// implement each of them, although the repository holds no `D`.
 pub struct FilesystemRepository<A, D> {
     root: PathBuf,
     access: A,
@@ -142,6 +145,33 @@ impl<A: Hash, D> Hash for FilesystemRepository<A, D> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.root.hash(state);
         self.access.hash(state);
+    }
+}
+
+/// Formats as `Filesystem repository at '/data/arkad' (ReadWrite)`.
+///
+/// It shows the same fields as the `Serialize` output, and nothing sensitive.
+impl<A: Access, D> fmt::Display for FilesystemRepository<A, D> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "Filesystem repository at '{}' ({})",
+            self.root.display(),
+            A::NAME
+        )
+    }
+}
+
+/// Serializes as `{ "root": "/data/arkad", "access": "ReadWrite" }`.
+///
+/// The output names the repository for logs only. It leaves out anything sensitive, and the type
+/// has no `Deserialize`. A root that is not valid UTF-8 shows its invalid bytes as `U+FFFD`.
+impl<A: Access, D> Serialize for FilesystemRepository<A, D> {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let mut state = serializer.serialize_struct("FilesystemRepository", 2)?;
+        state.serialize_field("root", &self.root.to_string_lossy())?;
+        state.serialize_field("access", A::NAME)?;
+        state.end()
     }
 }
 
@@ -488,6 +518,45 @@ mod tests {
     #[test]
     const fn should_implement_value_traits_when_the_document_type_derives_nothing() {
         implements_value_traits::<FilesystemRepository<ReadWrite, BareDocument>>();
+    }
+
+    #[test]
+    fn should_serialize_the_root_and_the_access_name_for_a_filesystem_repository() {
+        let repository = repository_at("/data/arkad");
+
+        let expected_result = serde_json::json!({ "root": "/data/arkad", "access": "ReadWrite" });
+
+        let result = serde_json::to_value(repository)
+            .expect("Given a repository with a UTF-8 root, serialization should always succeed");
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_display_the_root_and_the_access_name_for_a_filesystem_repository() {
+        let repository = repository_at("/data/arkad");
+
+        let expected_result = "Filesystem repository at '/data/arkad' (ReadWrite)";
+
+        let result = repository.to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_serialize_the_write_access_name_for_a_writer() {
+        let repository = FilesystemRepository::builder()
+            .writer()
+            .document_type::<SampleDocument>()
+            .root("/data/arkad")
+            .build();
+
+        let expected_result = serde_json::json!({ "root": "/data/arkad", "access": "Write" });
+
+        let result = serde_json::to_value(repository)
+            .expect("Given a repository with a UTF-8 root, serialization should always succeed");
+
+        assert_eq!(result, expected_result);
     }
 
     #[test]

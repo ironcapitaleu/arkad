@@ -18,8 +18,12 @@ use crate::shared::user_agent::UserAgent;
 /// URL and the user agent pass the same checks as on a fetch.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct RawDocumentMetadataContext {
-    /// The URL the response came from, after any redirects.
-    pub url: Url,
+    /// The URL the fetch sent. It equals [`final_url`](Self::final_url) when the SEC does not
+    /// redirect.
+    pub requested_url: Url,
+    /// The URL the response came from, after any redirects. It equals
+    /// [`requested_url`](Self::requested_url) when the SEC does not redirect.
+    pub final_url: Url,
     /// The HTTP status of the final response, after any redirects.
     pub http_status: StatusCode,
     /// The `User-Agent` the fetch sent.
@@ -27,12 +31,15 @@ pub struct RawDocumentMetadataContext {
 }
 
 impl RawDocumentMetadataContext {
-    /// Creates a new [`RawDocumentMetadataContext`] from a response and the `User-Agent` the fetch
-    /// sent.
+    /// Creates a new [`RawDocumentMetadataContext`] from a response, and the URL and the
+    /// `User-Agent` the fetch sent.
+    ///
+    /// The final URL comes from [`SecResponse::url`](SecResponseTrait::url).
     #[must_use]
-    pub fn new(response: &SecResponse, user_agent: &UserAgent) -> Self {
+    pub fn new(response: &SecResponse, requested_url: &Url, user_agent: &UserAgent) -> Self {
         Self {
-            url: response.url().clone(),
+            requested_url: requested_url.clone(),
+            final_url: response.url().clone(),
             http_status: response.status_code(),
             user_agent: user_agent.clone(),
         }
@@ -52,20 +59,27 @@ mod tests {
     use crate::shared::headers::Headers;
     use crate::shared::user_agent::{UserAgentError, UserAgentErrorReason};
 
-    fn sample_url() -> Url {
-        "https://data.sec.gov/api/xbrl/companyfacts/CIK0000320193.json"
-            .parse()
-            .expect("A hardcoded valid URL string should always parse")
-    }
-
     fn sample_user_agent() -> UserAgent {
         UserAgent::new("Sample Company contact@example.com")
             .expect("A hardcoded SEC-format string should always validate")
     }
 
+    fn sample_requested_url() -> Url {
+        "https://data.sec.gov/api/xbrl/companyfacts/CIK0000320193.json"
+            .parse()
+            .expect("A hardcoded valid URL string should always parse")
+    }
+
+    fn sample_final_url() -> Url {
+        "https://data.sec.gov/api/xbrl/companyfacts/redirected/CIK0000320193.json"
+            .parse()
+            .expect("A hardcoded valid URL string should always parse")
+    }
+
     fn sample_context() -> RawDocumentMetadataContext {
         RawDocumentMetadataContext {
-            url: sample_url(),
+            requested_url: sample_requested_url(),
+            final_url: sample_final_url(),
             http_status: StatusCode::Ok,
             user_agent: sample_user_agent(),
         }
@@ -86,31 +100,72 @@ mod tests {
         implements_value_traits::<RawDocumentMetadataContext>();
     }
 
-    #[test]
-    fn should_take_the_url_and_the_status_from_the_response_when_creating_a_context() {
-        let response = SecResponse::from_parts(
-            sample_url(),
+    fn sample_redirected_response() -> SecResponse {
+        SecResponse::from_parts(
+            sample_final_url(),
             Headers::new(HashMap::new()),
             ContentType::Json,
             StatusCode::Ok,
             b"{}".to_vec(),
         )
-        .expect("Given the hardcoded JSON body '{}', building the response should always succeed");
-        let user_agent = sample_user_agent();
+        .expect("Given the hardcoded JSON body '{}', building the response should always succeed")
+    }
 
-        let expected_result = sample_context();
+    #[test]
+    fn should_put_the_requested_url_in_requested_url_when_creating_a_context() {
+        let response = sample_redirected_response();
 
-        let result = RawDocumentMetadataContext::new(&response, &user_agent);
+        let expected_result = sample_requested_url();
+
+        let result = RawDocumentMetadataContext::new(
+            &response,
+            &sample_requested_url(),
+            &sample_user_agent(),
+        )
+        .requested_url;
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
-    fn should_serialize_the_three_fields_as_plain_values_for_raw_document_metadata_context() {
+    fn should_put_the_response_url_in_final_url_when_creating_a_context() {
+        let response = sample_redirected_response();
+
+        let expected_result = response.url().clone();
+
+        let result = RawDocumentMetadataContext::new(
+            &response,
+            &sample_requested_url(),
+            &sample_user_agent(),
+        )
+        .final_url;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_take_the_status_from_the_response_when_creating_a_context() {
+        let response = sample_redirected_response();
+
+        let expected_result = response.status_code();
+
+        let result = RawDocumentMetadataContext::new(
+            &response,
+            &sample_requested_url(),
+            &sample_user_agent(),
+        )
+        .http_status;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_serialize_the_four_fields_as_plain_values_for_raw_document_metadata_context() {
         let context = sample_context();
 
         let expected_result = serde_json::json!({
-            "url": "https://data.sec.gov/api/xbrl/companyfacts/CIK0000320193.json",
+            "requested_url": "https://data.sec.gov/api/xbrl/companyfacts/CIK0000320193.json",
+            "final_url": "https://data.sec.gov/api/xbrl/companyfacts/redirected/CIK0000320193.json",
             "http_status": 200,
             "user_agent": "Sample Company contact@example.com",
         });
@@ -137,7 +192,8 @@ mod tests {
     #[test]
     fn should_fail_to_deserialize_when_the_user_agent_has_no_email() {
         let json = r#"{
-            "url": "https://data.sec.gov/api/xbrl/companyfacts/CIK0000320193.json",
+            "requested_url": "https://data.sec.gov/api/xbrl/companyfacts/CIK0000320193.json",
+            "final_url": "https://data.sec.gov/api/xbrl/companyfacts/CIK0000320193.json",
             "http_status": 200,
             "user_agent": "Sample Company"
         }"#;

@@ -11,6 +11,7 @@
 //! - [`sample_sec_state`]: A minimal sample [`State`](crate::traits::state_machine::state::State).
 //! - [`sample_sec_super_state`]: A sample super-state wrapping [`sample_sec_state`].
 //! - [`sample_streaming_super_state`]: A multi-state super-state for streaming tests.
+//! - [`sample_write_repository`]: A fake repository that records or rejects raw documents.
 //! - [`data`]: Raw JSON fixtures (e.g. captured SEC responses).
 
 pub mod sample_http_client;
@@ -21,5 +22,6 @@ pub mod sample_response;
 pub mod sample_sec_state;
 pub mod sample_sec_super_state;
 pub mod sample_streaming_super_state;
+pub mod sample_write_repository;
 
 pub mod data;
