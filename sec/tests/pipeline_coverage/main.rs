@@ -11,6 +11,10 @@
 
 mod builder;
 mod constants;
+// The test builds its client the same way the binaries do. `#[path]` compiles their shared file
+// into this test as a private module.
+#[path = "../../src/bin/shared/sec_client.rs"]
+mod sec_client;
 
 use std::collections::HashMap;
 use std::io::Write;
@@ -19,7 +23,7 @@ use futures_util::StreamExt;
 
 use builder::{Pipeline, raw_company_facts_writer};
 use constants::{MUST_PASS_CIKS, SP500_CIKS};
-use sec::shared::http_client::implementations::sec_client::SecClient;
+use sec_client::{default_user_agent_warning, sec_client};
 
 /// Writes directly to stderr, bypassing the test framework's output capture.
 fn write_progress(msg: &str) {
@@ -48,7 +52,12 @@ const MINIMUM_SUCCESS_THRESHOLD: usize = 270;
 #[tokio::test(flavor = "multi_thread")]
 #[ignore = "Hits the live SEC API for must-pass companies (~10 seconds)"]
 async fn should_succeed_for_must_pass_companies() {
-    let sec_client = SecClient::default();
+    let sec_client = sec_client().expect(
+        "Given ARKAD_SEC_USER_AGENT is unset, empty or SEC-formatted, building the client should succeed",
+    );
+    if let Some(warning) = default_user_agent_warning(&sec_client) {
+        write_progress(&format!("Warning: {warning}\n"));
+    }
     let repository = raw_company_facts_writer();
     let ciks: Vec<&str> = MUST_PASS_CIKS.iter().map(|(cik, _)| *cik).collect();
     let stream_results: Vec<_> = futures_util::stream::iter(ciks.iter())
@@ -97,7 +106,12 @@ async fn should_meet_threshold_for_sp500_companies() {
     use std::sync::Mutex;
     use std::sync::atomic::{AtomicUsize, Ordering};
 
-    let sec_client = SecClient::default();
+    let sec_client = sec_client().expect(
+        "Given ARKAD_SEC_USER_AGENT is unset, empty or SEC-formatted, building the client should succeed",
+    );
+    if let Some(warning) = default_user_agent_warning(&sec_client) {
+        write_progress(&format!("Warning: {warning}\n"));
+    }
     let repository = raw_company_facts_writer();
     let ciks: Vec<&str> = SP500_CIKS.to_vec();
     let total = ciks.len();

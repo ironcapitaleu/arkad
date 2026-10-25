@@ -1,7 +1,9 @@
 mod extraction;
 // Each binary is its own crate root, so it cannot import another binary's modules. `#[path]`
-// compiles the one shared file into this binary as a private module, so all binaries build the
-// store the same way.
+// compiles each shared file into this binary as a private module, so all binaries build the
+// client and the store the same way.
+#[path = "../shared/sec_client.rs"]
+mod sec_client;
 #[path = "../shared/storage_root.rs"]
 mod storage_root;
 
@@ -11,9 +13,9 @@ use std::io::stdout;
 use std::time::Instant;
 
 use extraction::Extraction;
-use sec::shared::http_client::implementations::sec_client::SecClient;
 use tracing_subscriber::fmt::format::FmtSpan;
 
+use sec_client::{USER_AGENT_ENV_VAR, default_user_agent_warning, sec_client, startup_error_cause};
 use storage_root::raw_company_facts_writer;
 
 use extraction::constants::CIKS;
@@ -21,12 +23,16 @@ use extraction::constants::CIKS;
 /// Top-level batch events.
 enum BatchEvent {
     Complete,
+    DefaultUserAgent,
+    StartupFailed,
 }
 
 impl Display for BatchEvent {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             Self::Complete => write!(f, "batch_complete"),
+            Self::DefaultUserAgent => write!(f, "batch_default_user_agent"),
+            Self::StartupFailed => write!(f, "batch_startup_failed"),
         }
     }
 }
@@ -44,7 +50,21 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
         .with_writer(non_blocking)
         .init();
 
-    let sec_client = SecClient::default();
+    let sec_client = sec_client().inspect_err(|error| {
+        let cause = startup_error_cause(error.as_ref());
+        tracing::error!(
+            event = %BatchEvent::StartupFailed,
+            message = %format!("Failed to build the SEC client, Caused by: {cause}"),
+            env_var = USER_AGENT_ENV_VAR,
+        );
+    })?;
+    if let Some(warning) = default_user_agent_warning(&sec_client) {
+        tracing::warn!(
+            event = %BatchEvent::DefaultUserAgent,
+            message = %warning,
+            env_var = USER_AGENT_ENV_VAR,
+        );
+    }
     let repository = raw_company_facts_writer();
     let start = Instant::now();
 

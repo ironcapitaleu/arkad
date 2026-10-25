@@ -1,3 +1,5 @@
+use std::error::Error;
+
 use sec::implementations::states::extract::ExtractSuperState;
 use sec::implementations::states::extract::execute_sec_request::{
     ExecuteSecRequest, ExecuteSecRequestContext, ExecuteSecRequestInput,
@@ -6,24 +8,29 @@ use sec::implementations::states::extract::prepare_sec_request::{
     PrepareSecRequest, PrepareSecRequestContext, PrepareSecRequestInput,
 };
 use sec::implementations::states::extract::validate_cik_format::ValidateCikFormat;
-use sec::shared::http_client::implementations::sec_client::SecClient;
 use uuid::Uuid;
 
 use sec::prelude::*;
 
+use sec_client::{default_user_agent_warning, sec_client};
 use storage_root::raw_company_facts_writer;
 
 // Each binary is its own crate root, so it cannot import another binary's modules. `#[path]`
-// compiles the one shared file into this binary as a private module, so all binaries build the
-// store the same way.
+// compiles each shared file into this binary as a private module, so all binaries build the
+// client and the store the same way.
+#[path = "../shared/sec_client.rs"]
+mod sec_client;
 #[path = "../shared/storage_root.rs"]
 mod storage_root;
 
 #[tokio::main]
 // Let this be here for testing purposes. Will be removed later.
 #[allow(clippy::too_many_lines)]
-async fn main() {
-    let sec_client = SecClient::default();
+async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
+    let sec_client = sec_client()?;
+    if let Some(warning) = default_user_agent_warning(&sec_client) {
+        eprintln!("Warning: {warning}");
+    }
     let repository = raw_company_facts_writer();
 
     let input =
@@ -182,4 +189,6 @@ async fn main() {
         .expect("ExecuteSecRequest should have output data");
 
     println!("{execute_output}");
+
+    Ok(())
 }
