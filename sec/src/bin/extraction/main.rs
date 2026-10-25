@@ -12,7 +12,7 @@ use uuid::Uuid;
 
 use sec::prelude::*;
 
-use sec_client::{USER_AGENT_ENV_VAR, sec_client, sends_default_user_agent};
+use sec_client::{default_user_agent_warning, sec_client};
 use storage_root::raw_company_facts_writer;
 
 // Each binary is its own crate root, so it cannot import another binary's modules. `#[path]`
@@ -28,10 +28,8 @@ mod storage_root;
 #[allow(clippy::too_many_lines)]
 async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     let sec_client = sec_client()?;
-    if sends_default_user_agent(&sec_client) {
-        eprintln!(
-            "Warning: '{USER_AGENT_ENV_VAR}' is unset or empty, so every SEC request sends the placeholder User-Agent"
-        );
+    if let Some(warning) = default_user_agent_warning(&sec_client) {
+        eprintln!("Warning: {warning}");
     }
     let repository = raw_company_facts_writer();
 

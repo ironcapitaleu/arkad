@@ -29,9 +29,13 @@ pub fn sec_client() -> Result<SecClient, Box<dyn Error + Send + Sync>> {
     Ok(SecClient::new(ReqwestClient::new(user_agent)?))
 }
 
-/// Returns `true` if `sec_client` sends [`DEFAULT_SEC_USER_AGENT`].
-pub fn sends_default_user_agent(sec_client: &SecClient) -> bool {
-    sec_client.user_agent().inner() == DEFAULT_SEC_USER_AGENT
+/// Returns a warning if `sec_client` sends [`DEFAULT_SEC_USER_AGENT`], else `None`.
+pub fn default_user_agent_warning(sec_client: &SecClient) -> Option<String> {
+    (sec_client.user_agent().inner() == DEFAULT_SEC_USER_AGENT).then(|| {
+        format!(
+            "Every SEC request sends the placeholder User-Agent. Set '{USER_AGENT_ENV_VAR}' to 'Company Name email@domain.com'"
+        )
+    })
 }
 
 /// Returns the [`UserAgent`] that `value` names, or the default if `value` is unset or empty.
@@ -116,26 +120,29 @@ mod tests {
     }
 
     #[test]
-    fn should_report_default_user_agent_when_client_sends_the_default() {
+    fn should_return_warning_when_client_sends_the_default_user_agent() {
         let sec_client = SecClient::default();
-        let expected_result = true;
+        let expected_result = Some(
+            "Every SEC request sends the placeholder User-Agent. Set 'ARKAD_SEC_USER_AGENT' to 'Company Name email@domain.com'"
+                .to_string(),
+        );
 
-        let result = sends_default_user_agent(&sec_client);
+        let result = default_user_agent_warning(&sec_client);
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
-    fn should_not_report_default_user_agent_when_client_sends_a_given_value() {
+    fn should_return_no_warning_when_client_sends_a_given_user_agent() {
         let user_agent = UserAgent::new("Sample Company contact@example.com")
             .expect("Given a hardcoded SEC-format string, validation should always succeed");
         let sec_client = SecClient::new(
             ReqwestClient::new(user_agent)
                 .expect("Given a valid user agent, building the HTTP client should always succeed"),
         );
-        let expected_result = false;
+        let expected_result = None;
 
-        let result = sends_default_user_agent(&sec_client);
+        let result = default_user_agent_warning(&sec_client);
 
         assert_eq!(result, expected_result);
     }

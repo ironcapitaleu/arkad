@@ -23,7 +23,7 @@ use futures_util::StreamExt;
 
 use builder::{Pipeline, raw_company_facts_writer};
 use constants::{MUST_PASS_CIKS, SP500_CIKS};
-use sec_client::{USER_AGENT_ENV_VAR, sec_client, sends_default_user_agent};
+use sec_client::{default_user_agent_warning, sec_client};
 
 /// Writes directly to stderr, bypassing the test framework's output capture.
 fn write_progress(msg: &str) {
@@ -55,9 +55,10 @@ async fn should_succeed_for_must_pass_companies() {
     let sec_client = sec_client().expect(
         "Given ARKAD_SEC_USER_AGENT is unset, empty or SEC-formatted, building the client should succeed",
     );
-    if sends_default_user_agent(&sec_client) {
+    if let Some(warning) = default_user_agent_warning(&sec_client) {
         write_progress(&format!(
-            "Warning: '{USER_AGENT_ENV_VAR}' is unset or empty, so every SEC request sends the placeholder User-Agent\n"
+            "Warning: {warning}
+"
         ));
     }
     let repository = raw_company_facts_writer();
@@ -111,9 +112,10 @@ async fn should_meet_threshold_for_sp500_companies() {
     let sec_client = sec_client().expect(
         "Given ARKAD_SEC_USER_AGENT is unset, empty or SEC-formatted, building the client should succeed",
     );
-    if sends_default_user_agent(&sec_client) {
+    if let Some(warning) = default_user_agent_warning(&sec_client) {
         write_progress(&format!(
-            "Warning: '{USER_AGENT_ENV_VAR}' is unset or empty, so every SEC request sends the placeholder User-Agent\n"
+            "Warning: {warning}
+"
         ));
     }
     let repository = raw_company_facts_writer();

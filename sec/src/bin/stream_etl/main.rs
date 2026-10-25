@@ -16,7 +16,7 @@ use pipeline::Pipeline;
 use sec::shared::user_agent::UserAgentError;
 use tracing_subscriber::fmt::format::FmtSpan;
 
-use sec_client::{USER_AGENT_ENV_VAR, sec_client, sends_default_user_agent};
+use sec_client::{USER_AGENT_ENV_VAR, default_user_agent_warning, sec_client};
 use storage_root::raw_company_facts_writer;
 
 use pipeline::constants::CIKS;
@@ -63,10 +63,10 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
             env_var = USER_AGENT_ENV_VAR,
         );
     })?;
-    if sends_default_user_agent(&sec_client) {
+    if let Some(warning) = default_user_agent_warning(&sec_client) {
         tracing::warn!(
             event = %BatchEvent::DefaultUserAgent,
-            message = %format!("'{USER_AGENT_ENV_VAR}' is unset or empty, so every SEC request sends the placeholder User-Agent"),
+            message = %warning,
             env_var = USER_AGENT_ENV_VAR,
         );
     }
