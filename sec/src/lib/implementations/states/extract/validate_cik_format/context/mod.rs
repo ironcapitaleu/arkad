@@ -5,9 +5,7 @@
 //! state, together with its updater and builder.
 //!
 //! The context holds the raw CIK under validation, the shared [`SecClient`], the storage
-//! repository, and the retry budget. These outlive any single input/output pair. The [`Context`]
-//! trait applies updates from an updater that a builder constructs, so each update is explicit and
-//! partial.
+//! repository, and the retry budget.
 //!
 //! ## Usage
 //!
