@@ -5,6 +5,8 @@
 
 use std::env;
 use std::ffi::OsString;
+use std::fs;
+use std::io;
 use std::path::PathBuf;
 
 use sec::shared::raw_document::RawDocument;
@@ -30,6 +32,17 @@ pub fn raw_company_facts_writer() -> RawCompanyFactsWriter {
         .document_type::<RawDocument<RawCompanyFacts>>()
         .root(storage_root(env::var_os(STORAGE_ROOT_ENV_VAR)))
         .build()
+}
+
+/// Creates the root directory of `repository`, with every missing parent.
+///
+/// The repository does not create its root, so a write under a missing root fails.
+///
+/// # Errors
+///
+/// Returns [`io::Error`] if the directory cannot be created.
+pub fn create_root(repository: &RawCompanyFactsWriter) -> io::Result<()> {
+    fs::create_dir_all(repository.root())
 }
 
 /// Returns the root that `value` names, or [`DEFAULT_STORAGE_ROOT`] if `value` is unset or empty.
@@ -59,6 +72,24 @@ mod tests {
         let expected_result = PathBuf::from(DEFAULT_STORAGE_ROOT);
 
         let result = storage_root(Some(OsString::new()));
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_create_the_root_directory_when_it_is_missing() {
+        let root = env::temp_dir().join(format!("arkad-storage-root-{}", std::process::id()));
+        let repository = FilesystemRepository::builder()
+            .writer()
+            .document_type::<RawDocument<RawCompanyFacts>>()
+            .root(root.join("nested"))
+            .build();
+
+        let expected_result = true;
+
+        create_root(&repository)
+            .expect("Given a path under the temporary directory, creating it should succeed");
+        let result = repository.root().is_dir();
 
         assert_eq!(result, expected_result);
     }

@@ -13,7 +13,7 @@ use uuid::Uuid;
 use sec::prelude::*;
 
 use sec_client::{default_user_agent_warning, sec_client};
-use storage_root::raw_company_facts_writer;
+use storage_root::{create_root, raw_company_facts_writer};
 
 // Each binary is its own crate root, so it cannot import another binary's modules. `#[path]`
 // compiles each shared file into this binary as a private module, so all binaries build the
@@ -32,6 +32,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
         eprintln!("Warning: {warning}");
     }
     let repository = raw_company_facts_writer();
+    create_root(&repository)?;
 
     let input =
         sec::implementations::states::extract::validate_cik_format::ValidateCikFormatInput::new(

@@ -16,7 +16,7 @@ use pipeline::Pipeline;
 use tracing_subscriber::fmt::format::FmtSpan;
 
 use sec_client::{USER_AGENT_ENV_VAR, default_user_agent_warning, sec_client, startup_error_cause};
-use storage_root::raw_company_facts_writer;
+use storage_root::{create_root, raw_company_facts_writer};
 
 use pipeline::constants::CIKS;
 
@@ -66,6 +66,13 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
         );
     }
     let repository = raw_company_facts_writer();
+    create_root(&repository).inspect_err(|error| {
+        tracing::error!(
+            event = %BatchEvent::StartupFailed,
+            message = %format!("Failed to create the storage root, Caused by: {error}"),
+            root = %repository.root().display(),
+        );
+    })?;
     let start = Instant::now();
 
     // Concurrency is intentionally unbounded: the 10 req/s cap is enforced by a process-global

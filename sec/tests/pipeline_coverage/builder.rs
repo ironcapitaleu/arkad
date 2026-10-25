@@ -12,12 +12,16 @@ use uuid::Uuid;
 /// The storage repository that stores the raw Company Facts of each run.
 pub type RawCompanyFactsWriter = FilesystemRepository<Write, RawDocument<RawCompanyFacts>>;
 
-/// Builds a [`RawCompanyFactsWriter`] rooted in the temporary directory. Building touches no disk.
+/// Builds a [`RawCompanyFactsWriter`] rooted in the temporary directory, and creates that root.
 pub fn raw_company_facts_writer() -> RawCompanyFactsWriter {
+    let root = std::env::temp_dir().join("arkad-pipeline-coverage");
+    std::fs::create_dir_all(&root).expect(
+        "Given a path under the temporary directory, creating the storage root should succeed",
+    );
     FilesystemRepository::builder()
         .writer()
         .document_type::<RawDocument<RawCompanyFacts>>()
-        .root(std::env::temp_dir().join("arkad-pipeline-coverage"))
+        .root(root)
         .build()
 }
 
