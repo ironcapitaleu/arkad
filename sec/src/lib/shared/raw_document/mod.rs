@@ -12,10 +12,18 @@
 
 use std::marker::PhantomData;
 
-use storage::implementations::repository::filesystem::{Document, DocumentKey, DocumentMetadata};
+use chrono::{DateTime, Utc};
+use storage::implementations::repository::filesystem::{
+    Document, DocumentKey, DocumentMetadata, Producer,
+};
+use uuid::Uuid;
 
 use crate::shared::document_kind::SecDocumentKind;
 use crate::shared::raw_source::RawSource;
+use crate::shared::response::SecResponse as SecResponseTrait;
+use crate::shared::response::implementations::sec_response::SecResponse;
+use crate::shared::url::Url;
+use crate::shared::user_agent::UserAgent;
 
 pub mod raw_document_metadata_context;
 
@@ -51,7 +59,10 @@ pub use raw_document_metadata_context::RawDocumentMetadataContext;
 ///     .produced_at(DateTime::<Utc>::UNIX_EPOCH)
 ///     .run(Uuid::nil(), Producer::new("Store Company Facts", "0.1.0", "63c1f59"))
 ///     .context(RawDocumentMetadataContext {
-///         url: "https://data.sec.gov/api/xbrl/companyfacts/CIK0000320193.json"
+///         requested_url: "https://data.sec.gov/api/xbrl/companyfacts/CIK0000320193.json"
+///             .parse()
+///             .expect("A hardcoded valid URL string should always parse"),
+///         final_url: "https://data.sec.gov/api/xbrl/companyfacts/CIK0000320193.json"
 ///             .parse()
 ///             .expect("A hardcoded valid URL string should always parse"),
 ///         http_status: StatusCode::Ok,
@@ -76,6 +87,89 @@ pub struct RawDocument<S: RawSource> {
     // `fn() -> S` instead of `S`: the document holds no `S`, so it stays `Send`, `Sync`, and
     // `Unpin` for every `S`.
     source: PhantomData<fn() -> S>,
+}
+
+impl<S: RawSource> RawDocument<S> {
+    /// Creates a new [`RawDocument`] from an SEC response and the fetch that produced it.
+    ///
+    /// The bytes, the size, and the SHA-256 digest all come from [`SecResponse::raw_body`], so the
+    /// document holds the body exactly as the SEC sent it. The media type comes from the response.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use std::collections::HashMap;
+    ///
+    /// use chrono::{DateTime, Utc};
+    /// use sec::shared::build_info::producer;
+    /// use sec::shared::content_type::ContentType;
+    /// use sec::shared::headers::Headers;
+    /// use sec::shared::raw_document::RawDocument;
+    /// use sec::shared::raw_source::RawCompanyFacts;
+    /// use sec::shared::response::implementations::sec_response::SecResponse;
+    /// use sec::shared::status_code::StatusCode;
+    /// use sec::shared::url::Url;
+    /// use sec::shared::user_agent::UserAgent;
+    /// use storage::implementations::repository::filesystem::{Document, DocumentKey};
+    /// use uuid::Uuid;
+    ///
+    /// let url: Url = "https://data.sec.gov/api/xbrl/companyfacts/CIK0000320193.json"
+    ///     .parse()
+    ///     .expect("A hardcoded valid URL string should always parse");
+    /// let response = SecResponse::from_parts(
+    ///     url.clone(),
+    ///     Headers::new(HashMap::new()),
+    ///     ContentType::Json,
+    ///     StatusCode::Ok,
+    ///     b"{ \"price\": 1.50 }".to_vec(),
+    /// )
+    /// .expect("Given a valid JSON body, building the response should always succeed");
+    /// let key = DocumentKey::new("sec/companyfacts/CIK0000320193.json")
+    ///     .expect("Given a valid relative path, the key should always build");
+    /// let user_agent = UserAgent::new("arkad contact@example.com")
+    ///     .expect("A hardcoded SEC-format string should always validate");
+    ///
+    /// let document = RawDocument::<RawCompanyFacts>::from_response(
+    ///     key,
+    ///     &response,
+    ///     &url,
+    ///     &user_agent,
+    ///     DateTime::<Utc>::UNIX_EPOCH,
+    ///     Uuid::nil(),
+    ///     producer("Store Company Facts"),
+    /// );
+    ///
+    /// let expected_result = b"{ \"price\": 1.50 }";
+    ///
+    /// let result = document.bytes();
+    ///
+    /// assert_eq!(result, expected_result);
+    /// ```
+    #[must_use]
+    pub fn from_response(
+        key: DocumentKey,
+        response: &SecResponse,
+        requested_url: &Url,
+        user_agent: &UserAgent,
+        produced_at: DateTime<Utc>,
+        execution_id: Uuid,
+        producer: Producer,
+    ) -> Self {
+        let raw_body = response.raw_body();
+        let metadata = DocumentMetadata::builder()
+            .document_type::<Self>()
+            .media_type(response.content_type().to_string())
+            .content(raw_body)
+            .produced_at(produced_at)
+            .run(execution_id, producer)
+            .context(RawDocumentMetadataContext::new(
+                response,
+                requested_url,
+                user_agent,
+            ))
+            .build();
+        Self::from_parts(key, raw_body.to_vec(), metadata)
+    }
 }
 
 impl<S: RawSource> Document for RawDocument<S> {
@@ -115,19 +209,51 @@ mod tests {
     use std::fmt::Debug;
     use std::hash::Hash;
 
-    use chrono::{DateTime, Utc};
+    use std::collections::HashMap;
+
     use pretty_assertions::assert_eq;
     use storage::ReadWriteRepository;
-    use storage::implementations::repository::filesystem::{
-        FilesystemRepository, Producer, ReadWrite,
-    };
-    use uuid::Uuid;
+    use storage::implementations::repository::filesystem::{FilesystemRepository, ReadWrite};
 
     use super::*;
+    use crate::shared::content_type::ContentType;
+    use crate::shared::headers::Headers;
     use crate::shared::raw_source::RawCompanyFacts;
     use crate::shared::status_code::StatusCode;
-    use crate::shared::url::Url;
-    use crate::shared::user_agent::UserAgent;
+
+    // Whitespace and a trailing zero that a parse and a reserialization drop.
+    const SAMPLE_RAW_BODY: &[u8] = b"{ \"price\": 1.50 }";
+
+    fn sample_redirected_url() -> Url {
+        "https://data.sec.gov/api/xbrl/companyfacts/redirected/CIK0000320193.json"
+            .parse()
+            .expect("A hardcoded valid URL string should always parse")
+    }
+
+    fn sample_response() -> SecResponse {
+        SecResponse::from_parts(
+            sample_redirected_url(),
+            Headers::new(HashMap::new()),
+            ContentType::Json,
+            StatusCode::Ok,
+            SAMPLE_RAW_BODY.to_vec(),
+        )
+        .expect("Given a hardcoded valid JSON body, building the response should always succeed")
+    }
+
+    fn sample_document_from_response() -> RawDocument<RawCompanyFacts> {
+        let key = DocumentKey::new("sec/companyfacts/CIK0000320193.json")
+            .expect("Given a valid relative path, the key should always build");
+        RawDocument::from_response(
+            key,
+            &sample_response(),
+            &sample_url(),
+            &sample_user_agent(),
+            DateTime::<Utc>::UNIX_EPOCH,
+            Uuid::nil(),
+            Producer::new("Store Company Facts", "0.1.0", "63c1f59"),
+        )
+    }
 
     fn sample_url() -> Url {
         "https://data.sec.gov/api/xbrl/companyfacts/CIK0000320193.json"
@@ -153,7 +279,8 @@ mod tests {
                 Producer::new("Store Company Facts", "0.1.0", "63c1f59"),
             )
             .context(RawDocumentMetadataContext {
-                url: sample_url(),
+                requested_url: sample_url(),
+                final_url: sample_url(),
                 http_status: StatusCode::Ok,
                 user_agent: sample_user_agent(),
             })
@@ -229,7 +356,8 @@ mod tests {
         let document = sample_raw_document();
 
         let expected_result = RawDocumentMetadataContext {
-            url: sample_url(),
+            requested_url: sample_url(),
+            final_url: sample_url(),
             http_status: StatusCode::Ok,
             user_agent: sample_user_agent(),
         };
@@ -254,7 +382,8 @@ mod tests {
                 Producer::new("Store Company Facts", "0.1.0", "63c1f59"),
             )
             .context(RawDocumentMetadataContext {
-                url: sample_url(),
+                requested_url: sample_url(),
+                final_url: sample_url(),
                 http_status: StatusCode::Ok,
                 user_agent: sample_user_agent(),
             })
@@ -276,7 +405,8 @@ mod tests {
             },
             "inputs": [],
             "context": {
-                "url": "https://data.sec.gov/api/xbrl/companyfacts/CIK0000320193.json",
+                "requested_url": "https://data.sec.gov/api/xbrl/companyfacts/CIK0000320193.json",
+                "final_url": "https://data.sec.gov/api/xbrl/companyfacts/CIK0000320193.json",
                 "http_status": 200,
                 "user_agent": "arkad contact@example.com",
             },
@@ -284,6 +414,88 @@ mod tests {
 
         let result = serde_json::to_value(metadata)
             .expect("Given metadata of domain types, serialization should always succeed");
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_hold_the_raw_body_unchanged_when_building_a_document_from_a_response() {
+        let document = sample_document_from_response();
+
+        let expected_result = SAMPLE_RAW_BODY;
+
+        let result = document.bytes();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_take_the_size_from_the_raw_body_when_building_a_document_from_a_response() {
+        let document = sample_document_from_response();
+
+        let expected_result = SAMPLE_RAW_BODY.len() as u64;
+
+        let result = document.metadata().size_in_bytes();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_take_the_digest_from_the_raw_body_when_building_a_document_from_a_response() {
+        let document = sample_document_from_response();
+
+        let expected_result = storage::Sha256Digest::of(SAMPLE_RAW_BODY);
+
+        let result = document.metadata().sha256().clone();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_take_the_media_type_from_the_response_when_building_a_document_from_a_response() {
+        let document = sample_document_from_response();
+
+        let expected_result = "application/json";
+
+        let result = document.metadata().media_type();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_record_both_urls_and_the_user_agent_when_building_a_document_from_a_response() {
+        let document = sample_document_from_response();
+
+        let expected_result = RawDocumentMetadataContext {
+            requested_url: sample_url(),
+            final_url: sample_redirected_url(),
+            http_status: StatusCode::Ok,
+            user_agent: sample_user_agent(),
+        };
+
+        let result = document.metadata().context().clone();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_record_the_producer_when_building_a_document_from_a_response() {
+        let document = sample_document_from_response();
+
+        let expected_result = Producer::new("Store Company Facts", "0.1.0", "63c1f59");
+
+        let result = document.metadata().producer().clone();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_record_the_execution_id_when_building_a_document_from_a_response() {
+        let document = sample_document_from_response();
+
+        let expected_result = Uuid::nil();
+
+        let result = document.metadata().execution_id();
 
         assert_eq!(result, expected_result);
     }
