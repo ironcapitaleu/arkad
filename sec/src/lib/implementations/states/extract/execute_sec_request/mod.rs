@@ -22,16 +22,13 @@
 //! use sec::shared::cik::Cik;
 //! use sec::shared::http_client::implementations::sec_client::SecClient;
 //! use sec::shared::request::implementations::sec_request::SecRequest;
-//! use sec::shared::user_agent::UserAgent;
 //!
 //! # #[tokio::main]
 //! # async fn main() {
 //! let cik = Cik::new("1067983").expect("A hardcoded valid CIK should always parse");
 //! let request = SecRequest::builder().all_company_facts().cik(cik.clone()).build();
 //! let input = ExecuteSecRequestInput::new(SecClient::default(), request);
-//! let user_agent = UserAgent::new("Sample Company contact@example.com")
-//!     .expect("Given a hardcoded SEC-format user agent, validation should always succeed");
-//! let context = ExecuteSecRequestContext::new(cik, user_agent);
+//! let context = ExecuteSecRequestContext::new(cik);
 //!
 //! let mut state = ExecuteSecRequest::new(input, context);
 //! state
@@ -97,14 +94,11 @@ impl ExecuteSecRequest {
     /// use sec::shared::http_client::implementations::sec_client::SecClient;
     /// use sec::shared::request::implementations::sec_request::SecRequest;
     /// use state_maschine::prelude::State as SMState;
-    /// use sec::shared::user_agent::UserAgent;
     ///
     /// let cik = Cik::new("1067983").expect("A hardcoded valid CIK should always parse");
     /// let request = SecRequest::builder().all_company_facts().cik(cik.clone()).build();
     /// let input = ExecuteSecRequestInput::new(SecClient::default(), request);
-    /// let user_agent = UserAgent::new("Sample Company contact@example.com")
-    ///     .expect("Given a hardcoded SEC-format user agent, validation should always succeed");
-    /// let context = ExecuteSecRequestContext::new(cik, user_agent);
+    /// let context = ExecuteSecRequestContext::new(cik);
     /// let state = ExecuteSecRequest::new(input, context);
     ///
     /// let expected_result = false;
@@ -241,7 +235,6 @@ mod tests {
     use crate::shared::cik::Cik;
     use crate::shared::http_client::implementations::sec_client::SecClient;
     use crate::shared::request::implementations::sec_request::SecRequest;
-    use crate::tests::fixtures::sample_run::sample_user_agent;
 
     const TEST_CIK: &str = "0001067983";
 
@@ -258,7 +251,7 @@ mod tests {
             .cik(cik.clone())
             .build();
         let input = ExecuteSecRequestInput::new(client, request);
-        let context = ExecuteSecRequestContext::new(cik, sample_user_agent());
+        let context = ExecuteSecRequestContext::new(cik);
         ExecuteSecRequest::new(input, context)
     }
 
@@ -311,7 +304,7 @@ mod tests {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should be valid");
         let request = SecRequest::builder().all_company_facts().cik(cik).build();
         let input = ExecuteSecRequestInput::new(client, request);
-        let context = ExecuteSecRequestContext::new(create_test_cik(), sample_user_agent());
+        let context = ExecuteSecRequestContext::new(create_test_cik());
 
         let expected_result = &context.clone();
 
@@ -327,7 +320,7 @@ mod tests {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should be valid");
         let request = SecRequest::builder().all_company_facts().cik(cik).build();
         let input = ExecuteSecRequestInput::new(client, request);
-        let context = ExecuteSecRequestContext::new(create_test_cik(), sample_user_agent());
+        let context = ExecuteSecRequestContext::new(create_test_cik());
 
         let expected_result = true;
 
@@ -481,7 +474,7 @@ mod tests {
         let cik = Cik::new("0001067983").expect("Hardcoded CIK should be valid");
         let request = SecRequest::builder().all_company_facts().cik(cik).build();
         let input = ExecuteSecRequestInput::new(client, request);
-        let context = ExecuteSecRequestContext::new(create_test_cik(), sample_user_agent());
+        let context = ExecuteSecRequestContext::new(create_test_cik());
         let mut execute_state = ExecuteSecRequest::new(input, context);
 
         let expected_result = &execute_state.input_data().clone();
@@ -501,7 +494,7 @@ mod tests {
         let cik = Cik::new("0001067983").expect("Hardcoded CIK should be valid");
         let request = SecRequest::builder().all_company_facts().cik(cik).build();
         let input = ExecuteSecRequestInput::new(client, request);
-        let context = ExecuteSecRequestContext::new(create_test_cik(), sample_user_agent());
+        let context = ExecuteSecRequestContext::new(create_test_cik());
         let mut execute_state = ExecuteSecRequest::new(input, context);
 
         execute_state
@@ -520,7 +513,7 @@ mod tests {
         let cik = Cik::new("0001067983").expect("Hardcoded CIK should be valid");
         let request = SecRequest::builder().all_company_facts().cik(cik).build();
         let input = ExecuteSecRequestInput::new(client, request);
-        let context = ExecuteSecRequestContext::new(create_test_cik(), sample_user_agent());
+        let context = ExecuteSecRequestContext::new(create_test_cik());
         let mut execute_state = ExecuteSecRequest::new(input, context);
 
         let expected_result = true;
@@ -540,7 +533,7 @@ mod tests {
         let cik = Cik::new("0001067983").expect("Hardcoded CIK should be valid");
         let request = SecRequest::builder().all_company_facts().cik(cik).build();
         let input = ExecuteSecRequestInput::new(client, request);
-        let context = ExecuteSecRequestContext::new(create_test_cik(), sample_user_agent());
+        let context = ExecuteSecRequestContext::new(create_test_cik());
         let mut execute_state = ExecuteSecRequest::new(input, context);
 
         let expected_result = true;

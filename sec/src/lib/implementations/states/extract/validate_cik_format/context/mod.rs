@@ -4,9 +4,9 @@
 //! [`ValidateCikFormat`](crate::implementations::states::extract::validate_cik_format::ValidateCikFormat)
 //! state, together with its updater and builder.
 //!
-//! The context holds the shared [`SecClient`], the `User-Agent` of the run, and the
-//! retry budget. These outlive any single input/output pair. The state can then
-//! re-run and transition without rebuilding them. Updates are applied through the
+//! The context holds information that outlives any single input/output pair —
+//! the shared [`SecClient`] and the retry budget — so the state can be re-run and
+//! transitioned without reconstructing those resources. Updates are applied through the
 //! [`Context`] trait via a builder-constructed updater, keeping mutation explicit and partial.
 //!
 //! ## Usage
@@ -15,11 +15,8 @@
 //! use sec::implementations::states::extract::validate_cik_format::context::*;
 //! use sec::shared::http_client::implementations::sec_client::SecClient;
 //! use state_maschine::prelude::*;
-//! use sec::shared::user_agent::UserAgent;
 //!
-//! let user_agent = UserAgent::new("Sample Company contact@example.com")
-//!     .expect("Given a hardcoded SEC-format user agent, validation should always succeed");
-//! let mut context = ValidateCikFormatContext::new("1067983", SecClient::default(), user_agent);
+//! let mut context = ValidateCikFormatContext::new("1067983", SecClient::default());
 //! let update = ValidateCikFormatContextUpdater::builder()
 //!     .cik("0000000001")
 //!     .build();
@@ -43,33 +40,29 @@ use serde::Serialize;
 use state_maschine::prelude::Context as SMContext;
 
 use crate::shared::http_client::implementations::sec_client::SecClient;
-use crate::shared::user_agent::UserAgent;
 use crate::traits::state_machine::state::Context;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
 /// Context for the [`ValidateCikFormat`](super::ValidateCikFormat) state.
 ///
-/// Holds the raw CIK under validation, the shared [`SecClient`], the `User-Agent` of the run, and
-/// the retry budget. All of them survive updates and transitions.
+/// Bundles the resources and configuration that persist across the state's lifetime —
+/// the raw CIK under validation, the shared [`SecClient`], and the retry budget — so they
+/// survive updates and transitions.
 pub struct ValidateCikFormatContext {
     /// The unvalidated CIK string provided for validation.
     pub raw_cik: String,
     /// The shared HTTP client for SEC API requests.
     pub sec_client: SecClient,
-    /// The `User-Agent` of the run. It must equal the header that the SEC client sends.
-    pub user_agent: UserAgent,
     /// Maximum number of times the state may be retried on failure.
     pub max_retries: u32,
 }
 
 impl ValidateCikFormatContext {
-    /// Creates a new [`ValidateCikFormatContext`] from a raw CIK, a shared HTTP client, and the
-    /// `User-Agent` of the run.
-    pub fn new(cik: impl Into<String>, sec_client: SecClient, user_agent: UserAgent) -> Self {
+    /// Creates a new [`ValidateCikFormatContext`] from a raw CIK and a shared HTTP client.
+    pub fn new(cik: impl Into<String>, sec_client: SecClient) -> Self {
         Self {
             raw_cik: cik.into(),
             sec_client,
-            user_agent,
             max_retries: 0,
         }
     }
@@ -84,12 +77,6 @@ impl ValidateCikFormatContext {
     #[must_use]
     pub const fn sec_client(&self) -> &SecClient {
         &self.sec_client
-    }
-
-    /// Returns the `User-Agent` of the run.
-    #[must_use]
-    pub const fn user_agent(&self) -> &UserAgent {
-        &self.user_agent
     }
 }
 
@@ -118,9 +105,6 @@ impl SMContext for ValidateCikFormatContext {
         if let Some(sec_client) = updates.sec_client {
             self.sec_client = sec_client;
         }
-        if let Some(user_agent) = updates.user_agent {
-            self.user_agent = user_agent;
-        }
         if let Some(max_retries) = updates.max_retries {
             self.max_retries = max_retries;
         }
@@ -142,8 +126,6 @@ pub struct ValidateCikFormatContextUpdater {
     pub raw_cik: Option<String>,
     /// Optional new HTTP client value.
     pub sec_client: Option<SecClient>,
-    /// Optional new value for the `User-Agent`.
-    pub user_agent: Option<UserAgent>,
     /// Optional new maximum retries value.
     pub max_retries: Option<u32>,
 }
@@ -160,7 +142,6 @@ impl ValidateCikFormatContextUpdater {
 pub struct ValidateCikFormatContextUpdaterBuilder {
     raw_cik: Option<String>,
     sec_client: Option<SecClient>,
-    user_agent: Option<UserAgent>,
     max_retries: Option<u32>,
 }
 impl ValidateCikFormatContextUpdaterBuilder {
@@ -170,7 +151,6 @@ impl ValidateCikFormatContextUpdaterBuilder {
         Self {
             raw_cik: None,
             sec_client: None,
-            user_agent: None,
             max_retries: None,
         }
     }
@@ -197,20 +177,12 @@ impl ValidateCikFormatContextUpdaterBuilder {
         self
     }
 
-    /// Sets the `User-Agent` field.
-    #[must_use]
-    pub fn user_agent(mut self, user_agent: UserAgent) -> Self {
-        self.user_agent = Some(user_agent);
-        self
-    }
-
     /// Builds the [`ValidateCikFormatContextUpdater`].
     #[must_use]
     pub fn build(self) -> ValidateCikFormatContextUpdater {
         ValidateCikFormatContextUpdater {
             raw_cik: self.raw_cik,
             sec_client: self.sec_client,
-            user_agent: self.user_agent,
             max_retries: self.max_retries,
         }
     }
@@ -236,12 +208,10 @@ mod tests {
     };
     use crate::shared::cik::constants::BERKSHIRE_HATHAWAY_CIK_RAW;
     use crate::shared::http_client::implementations::sec_client::SecClient;
-    use crate::shared::user_agent::UserAgent;
-    use crate::tests::fixtures::sample_run::sample_user_agent;
 
     fn test_context() -> ValidateCikFormatContext {
         let sec_client = SecClient::default();
-        ValidateCikFormatContext::new(BERKSHIRE_HATHAWAY_CIK_RAW, sec_client, sample_user_agent())
+        ValidateCikFormatContext::new(BERKSHIRE_HATHAWAY_CIK_RAW, sec_client)
     }
 
     #[test]
@@ -258,8 +228,7 @@ mod tests {
     #[test]
     fn should_create_different_context_with_custom_data_when_using_new_as_constructor() {
         let sec_client = SecClient::default();
-        let validation_context =
-            &ValidateCikFormatContext::new("0000000000", sec_client, sample_user_agent());
+        let validation_context = &ValidateCikFormatContext::new("0000000000", sec_client);
 
         let expected_result = &test_context();
 
@@ -276,8 +245,7 @@ mod tests {
             .build();
 
         let sec_client = SecClient::default();
-        let expected_result =
-            &ValidateCikFormatContext::new("Updated CIK!", sec_client, sample_user_agent());
+        let expected_result = &ValidateCikFormatContext::new("Updated CIK!", sec_client);
 
         context.update_context(update);
         let result = context.context();
@@ -294,8 +262,7 @@ mod tests {
             .build();
 
         let sec_client = SecClient::default();
-        let expected_result =
-            &ValidateCikFormatContext::new("Latest CIK Update!", sec_client, sample_user_agent());
+        let expected_result = &ValidateCikFormatContext::new("Latest CIK Update!", sec_client);
 
         context.update_context(update);
         let result = context.context();
@@ -423,33 +390,5 @@ mod tests {
     #[test]
     const fn should_implement_unpin_for_validate_cik_format_context() {
         implements_unpin::<ValidateCikFormatContext>();
-    }
-
-    #[test]
-    fn should_return_user_agent_when_accessing_user_agent_of_validate_cik_format_context() {
-        let context = test_context();
-
-        let expected_result = &sample_user_agent();
-
-        let result = context.user_agent();
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
-    fn should_update_user_agent_when_updater_contains_user_agent_for_validate_cik_format_context() {
-        let mut context = test_context();
-        let other_user_agent = UserAgent::new("Other Company other@example.com")
-            .expect("Given a hardcoded SEC-format user agent, validation should always succeed");
-        let update = ValidateCikFormatContextUpdater::builder()
-            .user_agent(other_user_agent.clone())
-            .build();
-
-        let expected_result = &other_user_agent;
-
-        context.update_context(update);
-        let result = context.user_agent();
-
-        assert_eq!(result, expected_result);
     }
 }

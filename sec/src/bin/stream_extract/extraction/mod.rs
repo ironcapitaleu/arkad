@@ -10,11 +10,10 @@ use sec::implementations::states::extract::ExtractSuperState;
 use sec::implementations::states::extract::validate_cik_format::ValidateCikFormat;
 use sec::prelude::*;
 use sec::shared::http_client::implementations::sec_client::SecClient;
-use sec::shared::user_agent::UserAgent;
 use uuid::Uuid;
 
 use crate::storage_root::RawCompanyFactsWriter;
-use builder::{ExtractionBuilder, NoCik, NoClient, NoRepository, NoUserAgent};
+use builder::{ExtractionBuilder, NoCik, NoClient, NoRepository};
 
 /// Events emitted by the pipeline runner (consumer-level, not part of the library).
 enum PipelineEvent {
@@ -35,11 +34,10 @@ pub struct Extraction {
     raw_cik: String,
     sec_client: SecClient,
     repository: RawCompanyFactsWriter,
-    user_agent: UserAgent,
 }
 
 impl Extraction {
-    pub const fn builder() -> ExtractionBuilder<NoCik, NoClient, NoRepository, NoUserAgent> {
+    pub const fn builder() -> ExtractionBuilder<NoCik, NoClient, NoRepository> {
         ExtractionBuilder::new()
     }
 
@@ -49,7 +47,6 @@ impl Extraction {
             self.raw_cik,
             self.sec_client,
             execution_id,
-            self.user_agent,
             self.repository,
         );
         state.into_run_stream()

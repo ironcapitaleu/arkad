@@ -12,7 +12,6 @@ use std::time::Instant;
 
 use pipeline::Pipeline;
 use sec::shared::http_client::implementations::sec_client::SecClient;
-use sec::shared::user_agent::UserAgent;
 use tracing_subscriber::fmt::format::FmtSpan;
 
 use storage_root::raw_company_facts_writer;
@@ -45,8 +44,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
         .with_writer(non_blocking)
         .init();
 
-    let user_agent = UserAgent::default();
-    let sec_client = SecClient::from_user_agent(&user_agent);
+    let sec_client = SecClient::default();
     let repository = raw_company_facts_writer();
     let start = Instant::now();
 
@@ -59,7 +57,6 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
             .cik(cik)
             .sec_client(sec_client.clone())
             .repository(repository.clone())
-            .user_agent(user_agent.clone())
             .build()
             .run()
     });

@@ -21,15 +21,12 @@
 //! use sec::prelude::*;
 //! use sec::shared::cik::Cik;
 //! use sec::shared::http_client::implementations::sec_client::SecClient;
-//! use sec::shared::user_agent::UserAgent;
 //!
 //! # #[tokio::main]
 //! # async fn main() {
 //! let cik = Cik::new("1067983").expect("A hardcoded valid CIK should always parse");
 //! let input = PrepareSecRequestInput::new(cik.clone(), SecClient::default());
-//! let user_agent = UserAgent::new("Sample Company contact@example.com")
-//!     .expect("Given a hardcoded SEC-format user agent, validation should always succeed");
-//! let context = PrepareSecRequestContext::new(cik, user_agent);
+//! let context = PrepareSecRequestContext::new(cik);
 //! let mut state = PrepareSecRequest::new(input, context);
 //! state
 //!     .compute_output_data_async()
@@ -91,13 +88,10 @@ impl PrepareSecRequest {
     /// use sec::shared::cik::Cik;
     /// use sec::shared::http_client::implementations::sec_client::SecClient;
     /// use state_maschine::prelude::State as SMState;
-    /// use sec::shared::user_agent::UserAgent;
     ///
     /// let cik = Cik::new("1067983").expect("A hardcoded valid CIK should always parse");
     /// let input = PrepareSecRequestInput::new(cik.clone(), SecClient::default());
-    /// let user_agent = UserAgent::new("Sample Company contact@example.com")
-    ///     .expect("Given a hardcoded SEC-format user agent, validation should always succeed");
-    /// let context = PrepareSecRequestContext::new(cik, user_agent);
+    /// let context = PrepareSecRequestContext::new(cik);
     /// let state = PrepareSecRequest::new(input, context);
     ///
     /// let expected_result = false;
@@ -227,7 +221,6 @@ mod tests {
     use crate::shared::cik::Cik;
     use crate::shared::cik::constants::BERKSHIRE_HATHAWAY_CIK_RAW;
     use crate::shared::http_client::implementations::sec_client::SecClient;
-    use crate::tests::fixtures::sample_run::sample_user_agent;
     use crate::traits::state_machine::state::State;
 
     fn create_test_cik() -> Cik {
@@ -240,7 +233,7 @@ mod tests {
     }
 
     fn create_test_context() -> PrepareSecRequestContext {
-        PrepareSecRequestContext::new(create_test_cik(), sample_user_agent())
+        PrepareSecRequestContext::new(create_test_cik())
     }
 
     fn create_test_state() -> PrepareSecRequest {

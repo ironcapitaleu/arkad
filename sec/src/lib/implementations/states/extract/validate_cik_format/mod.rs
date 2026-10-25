@@ -22,14 +22,11 @@
 //! use sec::implementations::states::extract::validate_cik_format::*;
 //! use sec::prelude::*;
 //! use sec::shared::http_client::implementations::sec_client::SecClient;
-//! use sec::shared::user_agent::UserAgent;
 //!
 //! # #[tokio::main]
 //! # async fn main() {
 //! let input = ValidateCikFormatInput::new("1234");
-//! let user_agent = UserAgent::new("Sample Company contact@example.com")
-//!     .expect("Given a hardcoded SEC-format user agent, validation should always succeed");
-//! let context = ValidateCikFormatContext::new("1234", SecClient::default(), user_agent);
+//! let context = ValidateCikFormatContext::new("1234", SecClient::default());
 //! let mut state = ValidateCikFormat::new(input, context);
 //! state
 //!     .compute_output_data_async()
@@ -101,12 +98,9 @@ impl ValidateCikFormat {
     /// use sec::implementations::states::extract::validate_cik_format::*;
     /// use sec::shared::http_client::implementations::sec_client::SecClient;
     /// use state_maschine::prelude::State as SMState;
-    /// use sec::shared::user_agent::UserAgent;
     ///
     /// let input = ValidateCikFormatInput::new("1234");
-    /// let user_agent = UserAgent::new("Sample Company contact@example.com")
-    ///     .expect("Given a hardcoded SEC-format user agent, validation should always succeed");
-    /// let context = ValidateCikFormatContext::new("1234", SecClient::default(), user_agent);
+    /// let context = ValidateCikFormatContext::new("1234", SecClient::default());
     /// let state = ValidateCikFormat::new(input, context);
     ///
     /// let expected_result = false;
@@ -243,11 +237,10 @@ mod tests {
     use super::*;
     use crate::shared::cik::constants::BERKSHIRE_HATHAWAY_CIK_RAW;
     use crate::shared::http_client::implementations::sec_client::SecClient;
-    use crate::tests::fixtures::sample_run::sample_user_agent;
 
     fn test_context() -> ValidateCikFormatContext {
         let sec_client = SecClient::default();
-        ValidateCikFormatContext::new(BERKSHIRE_HATHAWAY_CIK_RAW, sec_client, sample_user_agent())
+        ValidateCikFormatContext::new(BERKSHIRE_HATHAWAY_CIK_RAW, sec_client)
     }
 
     fn test_input() -> ValidateCikFormatInput {
