@@ -240,7 +240,7 @@ mod tests {
     }
 
     #[test]
-    fn should_serialize_the_metadata_in_the_format_of_the_findings_for_raw_company_facts() {
+    fn should_serialize_the_metadata_in_the_stored_format_for_raw_company_facts() {
         let produced_at = "2026-09-22T20:05:30Z"
             .parse::<DateTime<Utc>>()
             .expect("Given a hardcoded RFC 3339 timestamp, parsing it should always succeed");
