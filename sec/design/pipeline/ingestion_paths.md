@@ -326,12 +326,14 @@ Out of MVP scope. Recorded in the MVP Data project, "Later: Notes download impro
 
 ## New-Filing Extract
 
-> **Proposed.** Not yet discussed with the lead.
+> **Status:** detection, forms, and companies decided by the lead on 2026-10-28. The rest is
+> proposed.
 
 ### Detection
 
-Proposed: read the EDGAR daily index `form.YYYYMMDD.idx` once a day, not the latest-filings feed
-every 2 minutes.
+The SLA for the start is T+1: a filing is in the raw store on the morning after its filed date.
+Decided by the lead on 2026-10-28. To meet it, the job reads the EDGAR daily index
+`form.YYYYMMDD.idx` once a day, not the latest-filings feed every 2 minutes.
 
 | | Daily index | Latest-filings feed |
 | - | ----------- | ------------------- |
@@ -357,7 +359,9 @@ filings that day", not as a failure.
 ### Filing Selection
 
 `SelectFilings` keeps the rows whose form is 10-K, 10-Q, 20-F, or 40-F, or an amendment of one of
-them (`/A`). Decided by the lead on 2026-10-28. The form list is a constant. Foreign filers of
+them (`/A`). It keeps the filings of all companies, with no company list. Both decided by the lead
+on 2026-10-28. The backfill also covers all companies, because each Notes file holds every filer.
+The form list is a constant. Foreign filers of
 20-F and 40-F can report in IFRS, and transform must handle this taxonomy (STA-332). It outputs one
 `FilingRef` per kept row:
 
@@ -405,9 +409,9 @@ small (2.8 KB and 22.8 KB for this filing), so the run caps filings by the rate 
 - URL: `https://data.sec.gov/submissions/CIK##########.json`. Measured: it holds `sic`,
   `sicDescription`, `name`, `tickers`, `exchanges`, `formerNames`, and the recent filings.
 - New-filing path: one run per distinct CIK of the day's filings.
-- Backfill: one run per distinct CIK in the selected filings. `sub.tsv` already holds the SIC code
-  and the name at filing time, so the backfill needs `submissions` only for the current company
-  data.
+- Backfill: one run per distinct CIK in all Notes files. 2024q1 alone has 6,587 companies. The
+  total over all files is not measured. `sub.tsv` already holds the SIC code and the name at
+  filing time, so the backfill needs `submissions` only for the current company data.
 
 ### Cut-Over Between the Paths
 
@@ -544,13 +548,15 @@ MVP Operations owns the Cloud Run jobs and the schedule. These tickets are not i
 
 ## Open Questions
 
-For the lead:
+Decided by the lead on 2026-10-28:
 
-1. Detection: the daily index once a day, or the latest-filings feed every 2 minutes (STA-284)?
-2. Companies: all filers of the day, or a fixed list such as the `CIKS` of `stream_extract`?
+- The SLA for the start is T+1, met with the daily index.
+- The forms include 20-F and 40-F. All companies, with no company list.
+- The backfill runs once, by hand.
+- The `Extraction` facade, and `ingestion_mode` in the metadata.
 
-Decided on 2026-10-28: the forms include 20-F and 40-F, the backfill runs once, by hand, the
-`Extraction` facade, and `ingestion_mode` in the metadata.
+A later SLA under one hour polls the latest-filings feed every 15 minutes and keeps the daily index
+to fill gaps. Detection outputs only a `Vec<FilingRef>`, so the filing machine does not change.
 
 Still open from the findings: GLEIF access, detail depth, the `-xbrl.zip` and the inline parser, and
 amendments.
