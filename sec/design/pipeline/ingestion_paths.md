@@ -318,14 +318,17 @@ The MVP has no requirement for a delay of minutes. The daily index needs no curs
 day needs only a rerun for that date. The feed can come later for a shorter delay, and the daily
 index then fills its gaps.
 
-The index of 2026-10-27 has 76 rows for the forms 10-K and 10-Q. A day without filings, such as a
+Rows for the selected forms, measured: 77 on 2026-10-27, 197 on 2026-03-02, and 295 on
+2026-08-10. Other peak days are not measured. A day without filings, such as a
 weekend, has no index file, and the SEC returns 404. `DownloadDailyIndex` treats a 404 as "no
 filings that day", not as a failure.
 
 ### Filing Selection
 
-`SelectFilings` keeps the rows whose form is 10-K, 10-Q, 10-K/A, or 10-Q/A. Proposed. The form list
-is a constant. It outputs one `FilingRef` per kept row:
+`SelectFilings` keeps the rows whose form is 10-K, 10-Q, 20-F, or 40-F, or an amendment of one of
+them (`/A`). Decided by the lead on 2026-10-28. The form list is a constant. Foreign filers of
+20-F and 40-F can report in IFRS, and transform must handle this taxonomy (STA-332). It outputs one
+`FilingRef` per kept row:
 
 ```rust
 pub struct FilingRef {
@@ -377,8 +380,9 @@ small (2.8 KB and 22.8 KB for this filing), so the run caps filings by the rate 
 
 ### Cut-Over Between the Paths
 
-The last Notes file, `2026_09`, holds filings up to 2026-09-30. Proposed: the new-filing path starts
-at the daily index of 2026-10-01, and the backfill stops at the last published Notes file. A filing
+The last Notes file, `2026_09`, holds filings up to 2026-09-30. The backfill runs once, by hand, up
+to the last published Notes file. Decided by the lead on 2026-10-28. Proposed: the new-filing path
+starts at the daily index of 2026-10-01. A filing
 after 5:30 PM Eastern on the last day of a month gets the filed date of the next business day
 (unverified). If a filing reaches both paths, the fact store keys it by accession number
 (STA-331).
@@ -496,9 +500,9 @@ For the lead:
    ingestion provenance on every fact. Proposed: no field. The document type already names the
    path, and transform knows which path it runs.
 2. Detection: the daily index once a day, or the latest-filings feed every 2 minutes (STA-284)?
-3. Forms: 10-K, 10-Q, and their amendments only? 20-F and 40-F filers also file XBRL.
-4. Companies: all filers of the day, or a fixed list such as the `CIKS` of `stream_extract`?
-5. Does the backfill run once, or monthly for each new Notes file next to the new-filing path?
+3. Companies: all filers of the day, or a fixed list such as the `CIKS` of `stream_extract`?
+
+Decided on 2026-10-28: the forms include 20-F and 40-F, and the backfill runs once, by hand.
 
 Still open from the findings: GLEIF access, detail depth, the `-xbrl.zip` and the inline parser, and
 amendments.
