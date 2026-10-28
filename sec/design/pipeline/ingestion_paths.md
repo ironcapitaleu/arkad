@@ -449,7 +449,7 @@ All documents use `FilesystemRepository` and `RawDocument<S>`. Each source gets 
 
 The metadata of each raw document records the ingestion mode of the run that created it, as
 `"ingestion_mode": "backfill"` or `"ingestion_mode": "incremental"`. Decided by the lead on
-2026-10-28. The key name is proposed.
+2026-10-28, with this key name.
 
 - `ingestion_mode` is a run field in `DocumentMetadata`, next to `execution_id` and
   `produced_at`. `storage` holds it as a string, so `storage` does not depend on `sec`.
