@@ -16,6 +16,8 @@
 - [New-Filing Extract](#new-filing-extract) is new and fully proposed. It needs the most scrutiny.
 - [Calling the Machines](#calling-the-machines) and the ingestion mode in the metadata are new and
   decided.
+- [Cut-Over Between the Paths](#cut-over-between-the-paths) and
+  [Idempotent Writes](#idempotent-writes) list their assumptions. Check them first.
 - [Raw Store](#raw-store), [Handover to Transform](#handover-to-transform),
   [Deployment](#deployment), and [Implementation Tickets](#implementation-tickets) are new and
   proposed.
@@ -415,12 +417,57 @@ small (2.8 KB and 22.8 KB for this filing), so the run caps filings by the rate 
 
 ### Cut-Over Between the Paths
 
-The last Notes file, `2026_09`, holds filings up to 2026-09-30. The backfill runs once, by hand, up
-to the last published Notes file. Decided by the lead on 2026-10-28. Proposed: the new-filing path
-starts at the daily index of 2026-10-01. A filing
-after 5:30 PM Eastern on the last day of a month gets the filed date of the next business day
-(unverified). If a filing reaches both paths, the fact store keys it by accession number
-(STA-331).
+The backfill runs once, by hand, up to the last published Notes file, `2026_09`. Decided by the
+lead on 2026-10-28. After that, the new-filing path catches each new filing. No step checks
+whether a company or a filing already exists. See [Idempotent Writes](#idempotent-writes).
+
+Rules:
+
+1. The new-filing path starts at the daily index of 2026-09-30, one day before the end of the
+   last Notes file. The overlap of one day covers assumption A2 below.
+2. The first `daily_filings` run reads every day from the start date up to yesterday. Each later
+   run reads one day.
+3. A missed day is a rerun for that date.
+4. A filing that reaches both paths changes nothing, because every write is idempotent.
+
+Assumptions:
+
+| Id | Assumption | Status | If it is false |
+| -- | ---------- | ------ | -------------- |
+| A1 | `2026_09` holds every filing of the selected forms with a filed date up to 2026-09-30 | Measured: its `sub.tsv` runs from 2026-09-01 to 2026-09-30 | A filing before 2026-09-30 is lost. To check, compare `sub.tsv` with the daily indexes of September. |
+| A2 | A filing after 5:30 PM Eastern on the last day of a month gets the next business day as its filed date, and the daily index of that day lists it | Unverified | The overlap of one day covers a filing on 2026-09-30. A longer gap needs a longer overlap. |
+| A3 | The daily index lists every filing of its day, and the SEC does not change it after publication | Unverified | A late change is lost. A rerun of that date picks it up. |
+| A4 | The SEC replaces old Notes files after the backfill, for example `2025q3` on 2026-10-07 | Measured | The backfill does not pick up the change. An amendment reaches the new-filing path as its own filing (10-K/A, 10-Q/A). |
+| A5 | CIK and accession number never change and are never reused | Unverified, SEC practice | Idempotent writes on these keys merge two different things |
+
+### Idempotent Writes
+
+> **Input for STA-331.** Decided as a direction by the lead on 2026-10-28. The fact store design
+> (round 2) fixes the schema.
+
+An upsert is one statement that inserts a row, or updates it if a row with the same key exists. In
+Postgres, it is `INSERT … ON CONFLICT (key) DO UPDATE` or `DO NOTHING`. The database makes the
+check and the write one atomic step, so two runs cannot both insert the same row.
+
+Rules:
+
+- **No read before a write.** No step asks "does this company exist?" and then creates it. Every
+  write is an upsert on a natural key.
+- **Companies** are keyed by CIK: `ON CONFLICT (cik) DO UPDATE`. The first filing of a company
+  creates the row. A later one updates it.
+- **Company data only moves forward.** The update has a guard:
+  `WHERE excluded.as_of >= companies.as_of`. Without it, a Notes file loaded late overwrites newer
+  company data with older data.
+- **Filings** are keyed by accession number: `ON CONFLICT (accession_number) DO NOTHING`.
+- **Facts** hold the CIK and the accession number directly, not a surrogate id from a lookup. A
+  fact is keyed by its accession number and its value key (STA-331): `DO NOTHING`.
+- **One transaction per filing.** The load writes the company, then the filing, then its facts.
+
+So the order of Notes files, the order of days, a rerun, and an overlap do not change the result.
+
+Open for STA-331: its draft keys the fact store by `company_id`. If `company_id` is a surrogate
+id, each write needs a lookup first, and this rule breaks. The id must come from the filing itself,
+for example the CIK.
 
 ## Raw Store
 
@@ -501,8 +548,9 @@ Proposed for MVP Operations. Both paths run as Cloud Run jobs with the bucket mo
 | Backfill | `notes_backfill` | By hand, once. Rerun by hand. | 4 to 8 GiB memory, task timeout of 1 hour |
 | New filing | `daily_filings` | Cloud Scheduler, once a day at 07:13 UTC | 1 GiB memory, task timeout of 30 minutes |
 
-- `daily_filings` reads the date from an environment variable. If it is unset, the job reads
-  yesterday in Eastern time. A rerun for a missed day sets the variable.
+- `daily_filings` reads a start date and an end date from environment variables. If they are
+  unset, the job reads yesterday in Eastern time. The first run and a rerun for missed days set
+  them.
 - `daily_filings` runs the three new-filing machines in order: detection, then one filing machine
   per `FilingRef`, then one `submissions` machine per distinct CIK.
 - `notes_backfill` runs the `submissions` machine for each distinct CIK after the Notes files.
