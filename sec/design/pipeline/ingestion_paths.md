@@ -477,6 +477,17 @@ An upsert is one statement that inserts a row, or updates it if a row with the s
 Postgres, it is `INSERT … ON CONFLICT (key) DO UPDATE` or `DO NOTHING`. The database makes the
 check and the write one atomic step, so two runs cannot both insert the same row.
 
+```sql
+INSERT INTO companies (cik, name, sic, as_of)
+VALUES ('0000320193', 'Apple Inc.', '3571', '2026-10-28')
+ON CONFLICT (cik) DO UPDATE
+  SET name = excluded.name, sic = excluded.sic, as_of = excluded.as_of
+  WHERE excluded.as_of >= companies.as_of;
+```
+
+`excluded` is the row that the statement tried to insert. The table name and the columns are an
+example. STA-331 fixes the schema.
+
 Rules:
 
 - **No read before a write.** No step asks "does this company exist?" and then creates it. Every
