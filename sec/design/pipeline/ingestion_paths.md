@@ -147,8 +147,8 @@ quarter) or a month (year and month).
 - Quarters run from 2009q1 to 2025q3. Months run from 2025_10 onward. Measured on the SEC page.
 - Construction rejects a quarter after 2025q3, a month before 2025_10, and a year before 2009.
 - `NotesPeriod::file_name()` returns the SEC file name. See [File Names](#file-names).
-- `xbrl::core::quarter::Quarter` (Q1 to Q4) can hold the quarter part. `sec` already depends on
-  `xbrl`. The month part needs its own type.
+- `sec::shared::financial::quarter::Quarter` (Q1 to Q4) holds the quarter part. The month part
+  needs its own type.
 
 The 2009q1 file holds the table headers and no rows (SEC readme, section 2). The run keeps it in
 the list, because it tests the empty case at the cost of one request of 28 KB.
@@ -170,8 +170,8 @@ Both names return HTTP 200, so the pattern downloads an old version of the data 
 So `NotesPeriod::file_name()` reads a table of overrides in `constants.rs`. A unit test
 asserts all 79 names against the list measured on 2026-10-28.
 
-Proposed: if the SEC adds a suffix to another file later, the run downloads the old version. A
-later improvement can compare the list with the SEC page.
+Risk: if the SEC adds a suffix to another file, the run downloads the old version without an
+error. A later improvement can compare the list with the SEC page.
 
 ### Request
 
@@ -202,10 +202,13 @@ SHA-256. The new-filing path uses the same method for XML files and the daily in
 
 ### Storage
 
-- `StoreNotesArchive` reuses `FilesystemRepository` and `RawDocument` unchanged. The key is
+- `StoreNotesArchive` reuses `FilesystemRepository` unchanged. `RawDocument` and
+  `RawDocumentMetadataContext` get a constructor from `SecFile`. The key is
   `sec/notes/<file name>`, for example `sec/notes/2024q1_notes.zip`.
 - The repository writes temp files and renames them. If the stored pair matches the new bytes, it
   skips the write. If the bytes differ, the new bytes replace the old.
+- The comparison includes the `Producer` with its git commit. So a rerun after a new deploy
+  rewrites every file, 27.7 GB for the backfill, even if the bytes are equal.
 - The files live on the Cloud Storage bucket mounted into the Cloud Run job. The states read the
   ZIP from there.
 - Storing all 79 files takes 27.7 GB, under $1 a month (estimate).
@@ -223,8 +226,10 @@ The rate limiter limits requests per second. It does not limit downloads in flig
 bound memory. The run caps the Notes files in flight at 2, with `buffer_unordered(2)` instead of
 `join_all`.
 
-Each file in flight holds its bytes once in memory. The largest file is 0.85 GB. Two files need
-about 3 to 4 GB (estimate, measure it with the `performance` skill).
+Each file in flight holds up to 3 copies at its peak: the response body, the `RawDocument` bytes,
+and the stored file that `persist` reads to compare digests on a rerun. `RawDocument::from_file`
+takes the `SecFile` bytes by value, which removes the second copy. The largest file is 0.85 GB, so
+two files need about 4 to 5 GB (estimate, measure it with the `performance` skill).
 
 ### Archive Metadata
 
@@ -274,8 +279,8 @@ UTF-8.
 2024-03-29. The most common forms are 8-K (16,272), 10-K (3,987), and 10-Q (1,044). The column
 `instance` names the XBRL instance file of each filing, for example `ae-20240221_htm.xml`.
 
-**Publication.** The SEC page reads "January 2009 - September 2026". The page text says that the
-SEC updates the data sets monthly since November 2020. The file list still has quarterly files up
+**Publication.** The SEC page reads "January 2009 - September 2026". The page says that the SEC
+has updated the data sets monthly since November 2020. The file list still has quarterly files up
 to 2025q3 and monthly files from 2025_10. Filings after 5:30 PM Eastern on the last day of the month go
 into the next file. The Last-Modified dates of recent monthly files:
 
@@ -316,6 +321,12 @@ quarantines the row or the filing, and the file goes on.
   states do today.
 - A fixture ZIP of a few KB with all ten members and one quoted field with a tab. It never holds
   real SEC data larger than a few rows.
+- `DownloadDailyIndex`: a 404 for a date that the quarter listing has passed gives an empty list. A
+  404 for any other date fails the run.
+- `SelectFilings`: two rows with one accession number give one `FilingRef`. `10-K/A`, `20-F`, and
+  `40-F` are kept. `8-K` and `10-KT` are dropped.
+- `SelectFilingDocuments`: the fallback rule without `_htm.xml`, a filing without `_lab.xml`, and a
+  filing without an instance.
 - No test downloads from the SEC.
 
 ### Later Improvements
@@ -354,29 +365,45 @@ day needs only a rerun for that date. The feed can come later for a shorter dela
 index then fills its gaps.
 
 Rows for the selected forms, measured: 77 on 2026-10-27, 197 on 2026-03-02, and 295 on
-2026-08-10. Other peak days are not measured. A day without filings, such as a
-weekend, has no index file, and the SEC returns 404. `DownloadDailyIndex` treats a 404 as "no
-filings that day", not as a failure.
+2026-08-10. Other peak days are not measured.
+
+A day without filings, such as a weekend, has no index file, and the SEC returns 404. An index that
+the SEC has not yet published also returns 404. `DownloadDailyIndex` tells the two cases apart
+with the listing of the quarter, `daily-index/YYYY/QTRn/index.json`, which costs one request:
+
+- If the listing has an index for a later date, the day had no filings. The result is an empty
+  list.
+- Otherwise, the run fails with `MissingDailyIndex`, and Cloud Run retries it.
+
+This rule needs no list of SEC holidays.
 
 ### Filing Selection
 
 `SelectFilings` keeps the rows whose form is 10-K, 10-Q, 20-F, or 40-F, or an amendment of one of
 them (`/A`). It keeps the filings of all companies, with no company list. Both decided by the lead
 on 2026-10-28. The backfill also covers all companies, because each Notes file holds every filer.
-The form list is a constant. Foreign filers of
-20-F and 40-F can report in IFRS, and transform must handle this taxonomy (STA-332). It outputs one
-`FilingRef` per kept row:
+The form list is a constant. Foreign filers of 20-F and 40-F can report in IFRS, and transform
+must handle this taxonomy (STA-332).
+
+The Notes files hold every form, for example 16,272 8-K of 24,364 filings in 2024q1. Proposed:
+transform of the backfill keeps the same form list, so both paths cover the same forms (STA-332).
+
+A filing with several filers has one row per filer in the index. `SelectFilings` keeps one
+`FilingRef` per accession number: the first row. It outputs one `FilingRef` per kept filing:
 
 ```rust
 pub struct FilingRef {
     cik: Cik,
     accession_number: AccessionNumber,
     form: Form,
+    is_amendment: bool,
     filed_date: NaiveDate,
 }
 ```
 
-`AccessionNumber` and `Form` exist in `sec/src/lib/shared/financial/`.
+`AccessionNumber` and `Form` exist in `sec/src/lib/shared/financial/`. `Form` has only `TenK` and
+`TenQ` today. It gets the variants `TwentyF` and `FortyF`. `is_amendment` marks the `/A` forms, so
+amendments need no extra variants.
 
 ### Fetch of Each Filing
 
@@ -392,7 +419,8 @@ One `ExtractFilingSuperState` runs per `FilingRef`. It sends three requests:
 - The instance is the member that ends in `_htm.xml`. If none exists, it is the one `.xml` member
   that is not `FilingSummary.xml` and does not end in `_cal.xml`, `_def.xml`, `_lab.xml`, or
   `_pre.xml`.
-- The label file is the member that ends in `_lab.xml`.
+- The label file is the member that ends in `_lab.xml`. If a filing has none, the machine stores
+  the instance only, and `labels_key` is `None`.
 - If a filing has no instance, the machine fails with an error that names the accession number.
 
 Measured on one filing (`0000003545-26-000047`): the folder holds `alco-20260908_htm.xml` and
@@ -500,6 +528,8 @@ The metadata of each raw document records the ingestion mode of the run that cre
 
 - `ingestion_mode` is a run field in `DocumentMetadata`, next to `execution_id` and
   `produced_at`. `storage` holds it as a string, so `storage` does not depend on `sec`.
+- `ingestion_mode` is optional. `companyfacts` writes none, because it stays outside the facade.
+  A stored file without the field reads with no mode. `METADATA_VERSION` goes from 1 to 2.
 - `persist` leaves `ingestion_mode` out of the comparison, as it does with `execution_id` and
   `produced_at`. If a run stores the same bytes again, the write is skipped and the stored run
   fields stay.
@@ -525,7 +555,7 @@ pub struct NotesArchiveRef {
 pub struct FilingDocumentsRef {
     filing: FilingRef,
     instance_key: DocumentKey,
-    labels_key: DocumentKey,
+    labels_key: Option<DocumentKey>,
 }
 
 /// Both paths: the stored company data of one company.
@@ -545,7 +575,7 @@ Proposed for MVP Operations. Both paths run as Cloud Run jobs with the bucket mo
 
 | Path | Binary | Trigger | Size (estimate) |
 | ---- | ------ | ------- | --------------- |
-| Backfill | `notes_backfill` | By hand, once. Rerun by hand. | 4 to 8 GiB memory, task timeout of 1 hour |
+| Backfill | `notes_backfill` | By hand, once. Rerun by hand. | 6 to 8 GiB memory, task timeout of 1 hour |
 | New filing | `daily_filings` | Cloud Scheduler, once a day at 07:13 UTC | 1 GiB memory, task timeout of 30 minutes |
 
 - `daily_filings` reads a start date and an end date from environment variables. If they are
@@ -553,6 +583,9 @@ Proposed for MVP Operations. Both paths run as Cloud Run jobs with the bucket mo
   them.
 - `daily_filings` runs the three new-filing machines in order: detection, then one filing machine
   per `FilingRef`, then one `submissions` machine per distinct CIK.
+- If one machine fails, the job logs the failure and runs the other machines. At the end, the job
+  exits with an error if any machine failed, and Cloud Run retries it. The retry is safe, because
+  every write is idempotent.
 - `notes_backfill` runs the `submissions` machine for each distinct CIK after the Notes files.
 - Both jobs share the SEC client, the User-Agent, and the storage root through
   `sec/src/bin/shared/`.
@@ -565,32 +598,41 @@ decision "backfill first".
 Backfill:
 
 1. REFACTOR: rename `ExtractSuperState` to `ExtractCompanyFactsSuperState`.
-2. FEATURE (`storage`): the run field `ingestion_mode` in `DocumentMetadata`, left out of the
-   comparison in `persist`.
+2. FEATURE: the optional run field `ingestion_mode` in `DocumentMetadata` (`storage`), left out of
+   the comparison in `persist`, `METADATA_VERSION` 2, and `IngestionMode` in `sec`.
 3. FEATURE: `NotesPeriod`, with the range checks and the file names with overrides.
 4. FEATURE: `SecRequestType::FetchNotesFile` and the builder `notes_file().period(p)`.
 5. FEATURE: `SecFile` and `SecClient::download_sec_file`, with the transport checks of layer 1.
-6. FEATURE: `RawNotesArchive`, its `SecDocumentType` variant, and `RawDocument::from_file`.
+6. FEATURE: `RawNotesArchive`, its `SecDocumentType` variant, and the constructors of
+   `RawDocument` and `RawDocumentMetadataContext` from `SecFile`.
 7. FEATURE: the states `ValidateNotesPeriod` and `PrepareNotesRequest`.
 8. FEATURE: the state `DownloadNotesArchive`.
 9. FEATURE: the state `StoreNotesArchive` and `NotesArchiveRef`.
 10. FEATURE: `ExtractNotesSuperState`, its transitions, and its builder.
-11. FEATURE: the facade `Extraction` with `backfill().notes()` and `IngestionMode`.
+11. FEATURE: the facade `Extraction` with `backfill().notes()`.
 12. FEATURE: the binary `notes_backfill`, with `buffer_unordered(2)` over the Notes periods.
 
 New filing and company data:
 
-1. FEATURE: `FilingRef` and the parser for `form.YYYYMMDD.idx`.
-2. FEATURE: the request variants `FetchDailyIndex`, `FetchFilingIndex`, `FetchFilingDocument`, and
-   `FetchSubmissions`.
-3. FEATURE: `RawDailyIndex`, `RawXbrlInstance`, `RawXbrlLabels`, and `RawSubmissions`.
-4. FEATURE: `DetectFilingsSuperState` and its five states.
-5. FEATURE: `SelectFilingDocuments`, the pick of the instance and the label file.
-6. FEATURE: `ExtractFilingSuperState`, its other states, and `FilingDocumentsRef`.
-7. FEATURE: `ExtractSubmissionsSuperState`, `StoreSubmissions`, and `SubmissionsRef`.
-8. FEATURE: the facade calls `incremental()`, `daily_index()`, `filing()`, and `submissions()`.
-9. FEATURE: the binary `daily_filings`.
-10. FEATURE: the `submissions` run in `notes_backfill`.
+1. FEATURE: the `Form` variants `TwentyF` and `FortyF`.
+2. FEATURE: `FilingRef` and the parser for `form.YYYYMMDD.idx`.
+3. FEATURE: the request variants `FetchDailyIndex`, `FetchDailyIndexListing`, `FetchFilingIndex`,
+   `FetchFilingDocument`, and `FetchSubmissions`.
+4. FEATURE: `RawDailyIndex`, `RawXbrlInstance`, `RawXbrlLabels`, and `RawSubmissions`.
+5. FEATURE: the states `ValidateIndexDate` and `PrepareDailyIndexRequest`.
+6. FEATURE: the state `DownloadDailyIndex`, with the 404 rule.
+7. FEATURE: the state `StoreDailyIndex`.
+8. FEATURE: the state `SelectFilings`.
+9. FEATURE: `DetectFilingsSuperState`, its transitions, and its builder.
+10. FEATURE: the states `PrepareFilingIndexRequest` and `SelectFilingDocuments`.
+11. FEATURE: the state `DownloadFilingDocuments`.
+12. FEATURE: the state `StoreFilingDocuments` and `FilingDocumentsRef`.
+13. FEATURE: `ExtractFilingSuperState`, its transitions, and its builder.
+14. FEATURE: `StoreSubmissions` and `SubmissionsRef`.
+15. FEATURE: `ExtractSubmissionsSuperState`, its transitions, and its builder.
+16. FEATURE: the facade calls `incremental()`, `daily_index()`, `filing()`, and `submissions()`.
+17. FEATURE: the binary `daily_filings`.
+18. FEATURE: the `submissions` run in `notes_backfill`.
 
 MVP Operations owns the Cloud Run jobs and the schedule. These tickets are not in this list.
 
@@ -606,5 +648,8 @@ Decided by the lead on 2026-10-28:
 A later SLA under one hour polls the latest-filings feed every 15 minutes and keeps the daily index
 to fill gaps. Detection outputs only a `Vec<FilingRef>`, so the filing machine does not change.
 
+For the lead: does transform of the backfill keep the same form list as the new-filing path? See
+[Filing Selection](#filing-selection).
+
 Still open from the findings: GLEIF access, detail depth, the `-xbrl.zip` and the inline parser, and
-amendments.
+how the fact store treats amendments (STA-331).
