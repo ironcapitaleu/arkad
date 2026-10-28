@@ -14,6 +14,8 @@
   subsection [Notes ZIP Findings](#notes-zip-findings) is new and changes three of them: the file
   name, the content type check, and the table parser.
 - [New-Filing Extract](#new-filing-extract) is new and fully proposed. It needs the most scrutiny.
+- [Calling the Machines](#calling-the-machines) and the ingestion mode in the metadata are new and
+  decided.
 - [Raw Store](#raw-store), [Handover to Transform](#handover-to-transform),
   [Deployment](#deployment), and [Implementation Tickets](#implementation-tickets) are new and
   proposed.
@@ -79,6 +81,35 @@ flowchart TB
 
 Green states exist today. `PrepareSecRequest` is reused with a new `SecRequestType` variant.
 Yellow states are new.
+
+### Ingestion Mode
+
+Each run has an ingestion mode: `backfill` or `incremental`. The backfill runs in mode `backfill`.
+The new-filing path runs in mode `incremental`. In `sec`, an enum `IngestionMode` holds the two
+values.
+
+### Calling the Machines
+
+One facade, `Extraction`, builds every extract SuperState. Decided by the lead on 2026-10-28. The
+first call picks the ingestion mode. The second call picks the source. A typestate builder then
+asks for the inputs of that source:
+
+```rust
+Extraction::backfill().notes().period(p).sec_client(c).repository(r).build()
+Extraction::backfill().submissions().cik(cik).sec_client(c).repository(r).build()
+Extraction::incremental().daily_index().date(d).sec_client(c).repository(r).build()
+Extraction::incremental().filing().filing_ref(f).sec_client(c).repository(r).build()
+Extraction::incremental().submissions().cik(cik).sec_client(c).repository(r).build()
+```
+
+- `backfill()` offers only `notes()` and `submissions()`. `incremental()` offers only
+  `daily_index()`, `filing()`, and `submissions()`. A call such as
+  `Extraction::incremental().notes()` does not compile.
+- Each `build()` returns the concrete SuperState, for example `ExtractNotesSuperState`. There is no
+  generic SuperState.
+- The facade passes the ingestion mode to the SuperState. The store state writes it into the
+  metadata of each raw document. See [Raw Store](#raw-store).
+- `companyfacts` stays outside the facade. It is a cross-check only.
 
 ## Backfill Extract
 
@@ -410,6 +441,21 @@ All documents use `FilesystemRepository` and `RawDocument<S>`. Each source gets 
 - The metadata records the content type that the SEC sent, for example `application/octet-stream`
   for a Notes ZIP.
 
+### Ingestion Mode in the Metadata
+
+The metadata of each raw document records the ingestion mode of the run that created it, as
+`"ingestion_mode": "backfill"` or `"ingestion_mode": "incremental"`. Decided by the lead on
+2026-10-28. The key name is proposed.
+
+- `ingestion_mode` is a run field in `DocumentMetadata`, next to `execution_id` and
+  `produced_at`. `storage` holds it as a string, so `storage` does not depend on `sec`.
+- `persist` leaves `ingestion_mode` out of the comparison, as it does with `execution_id` and
+  `produced_at`. If a run stores the same bytes again, the write is skipped and the stored run
+  fields stay.
+- So the metadata names the run that created the document. `submissions` serves both modes. If
+  `ingestion_mode` were part of the comparison, each run in the other mode would rewrite the file.
+- Transform copies the mode onto each fact (STA-331).
+
 ## Handover to Transform
 
 Each extract machine outputs a small reference, not the bytes. Transform reads the bytes from the
@@ -467,15 +513,18 @@ decision "backfill first".
 Backfill:
 
 1. REFACTOR: rename `ExtractSuperState` to `ExtractCompanyFactsSuperState`.
-2. FEATURE: `NotesPeriod`, with the range checks and the file names with overrides.
-3. FEATURE: `SecRequestType::FetchNotesFile` and the builder `notes_file().period(p)`.
-4. FEATURE: `SecFile` and `SecClient::download_sec_file`, with the transport checks of layer 1.
-5. FEATURE: `RawNotesArchive`, its `SecDocumentType` variant, and `RawDocument::from_file`.
-6. FEATURE: the states `ValidateNotesPeriod` and `PrepareNotesRequest`.
-7. FEATURE: the state `DownloadNotesArchive`.
-8. FEATURE: the state `StoreNotesArchive` and `NotesArchiveRef`.
-9. FEATURE: `ExtractNotesSuperState`, its transitions, and its builder.
-10. FEATURE: the binary `notes_backfill`, with `buffer_unordered(2)` over the Notes periods.
+2. FEATURE (`storage`): the run field `ingestion_mode` in `DocumentMetadata`, left out of the
+   comparison in `persist`.
+3. FEATURE: `NotesPeriod`, with the range checks and the file names with overrides.
+4. FEATURE: `SecRequestType::FetchNotesFile` and the builder `notes_file().period(p)`.
+5. FEATURE: `SecFile` and `SecClient::download_sec_file`, with the transport checks of layer 1.
+6. FEATURE: `RawNotesArchive`, its `SecDocumentType` variant, and `RawDocument::from_file`.
+7. FEATURE: the states `ValidateNotesPeriod` and `PrepareNotesRequest`.
+8. FEATURE: the state `DownloadNotesArchive`.
+9. FEATURE: the state `StoreNotesArchive` and `NotesArchiveRef`.
+10. FEATURE: `ExtractNotesSuperState`, its transitions, and its builder.
+11. FEATURE: the facade `Extraction` with `backfill().notes()` and `IngestionMode`.
+12. FEATURE: the binary `notes_backfill`, with `buffer_unordered(2)` over the Notes periods.
 
 New filing and company data:
 
@@ -487,8 +536,9 @@ New filing and company data:
 5. FEATURE: `SelectFilingDocuments`, the pick of the instance and the label file.
 6. FEATURE: `ExtractFilingSuperState`, its other states, and `FilingDocumentsRef`.
 7. FEATURE: `ExtractSubmissionsSuperState`, `StoreSubmissions`, and `SubmissionsRef`.
-8. FEATURE: the binary `daily_filings`.
-9. FEATURE: the `submissions` run in `notes_backfill`.
+8. FEATURE: the facade calls `incremental()`, `daily_index()`, `filing()`, and `submissions()`.
+9. FEATURE: the binary `daily_filings`.
+10. FEATURE: the `submissions` run in `notes_backfill`.
 
 MVP Operations owns the Cloud Run jobs and the schedule. These tickets are not in this list.
 
@@ -496,13 +546,11 @@ MVP Operations owns the Cloud Run jobs and the schedule. These tickets are not i
 
 For the lead:
 
-1. Does each raw document record its ingestion path (`Backfill` or `NewFiling`)? STA-331 requires
-   ingestion provenance on every fact. Proposed: no field. The document type already names the
-   path, and transform knows which path it runs.
-2. Detection: the daily index once a day, or the latest-filings feed every 2 minutes (STA-284)?
-3. Companies: all filers of the day, or a fixed list such as the `CIKS` of `stream_extract`?
+1. Detection: the daily index once a day, or the latest-filings feed every 2 minutes (STA-284)?
+2. Companies: all filers of the day, or a fixed list such as the `CIKS` of `stream_extract`?
 
-Decided on 2026-10-28: the forms include 20-F and 40-F, and the backfill runs once, by hand.
+Decided on 2026-10-28: the forms include 20-F and 40-F, the backfill runs once, by hand, the
+`Extraction` facade, and `ingestion_mode` in the metadata.
 
 Still open from the findings: GLEIF access, detail depth, the `-xbrl.zip` and the inline parser, and
 amendments.
