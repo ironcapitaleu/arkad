@@ -382,11 +382,33 @@ This rule needs no list of SEC holidays.
 `SelectFilings` keeps the rows whose form is 10-K, 10-Q, 20-F, or 40-F, or an amendment of one of
 them (`/A`). It keeps the filings of all companies, with no company list. Both decided by the lead
 on 2026-10-28. The backfill also covers all companies, because each Notes file holds every filer.
-The form list is a constant. Foreign filers of 20-F and 40-F can report in IFRS, and transform
-must handle this taxonomy (STA-332).
+Foreign filers of 20-F and 40-F can report in IFRS, and transform must handle this taxonomy
+(STA-332).
 
-The Notes files hold every form, for example 16,272 8-K of 24,364 filings in 2024q1. Proposed:
-transform of the backfill keeps the same form list, so both paths cover the same forms (STA-332).
+Both paths keep the same forms. Decided by the lead on 2026-10-28. The Notes files hold every
+form, so transform of the backfill drops the other forms (STA-332). Measured on 2024q1:
+
+| | 4 forms and their amendments | All other forms |
+| - | ---------------------------- | --------------- |
+| Filings | 5,762 (24%) | 18,602 (76%) |
+| Values in `num.tsv` | 8.36 million (92%) | 0.75 million (8%) |
+
+The 8-K filings (16,701 with amendments) hold about 4,500 values. The other forms with values are
+mostly S-1, S-4, 6-K, and DEF 14A.
+
+One shared constant holds the form list. Each entry is a `Form` value, not a string:
+
+```rust
+/// The forms that both ingestion paths extract.
+pub const SELECTED_FORMS: [Form; 4] = [Form::TenK, Form::TenQ, Form::TwentyF, Form::FortyF];
+```
+
+- `SelectFilings` and the transform of the backfill both read `SELECTED_FORMS`.
+- `Form::from_sec_str` parses the SEC form text. A form with `/A` matches its base form and sets
+  `is_amendment`.
+- To widen the list later, add a variant to `Form` and to `SELECTED_FORMS`. The raw store already
+  holds all forms of the backfill in the Notes ZIPs, and the stored daily indexes list the skipped
+  filings. So widening needs no new download of the Notes files.
 
 A filing with several filers has one row per filer in the index. `SelectFilings` keeps one
 `FilingRef` per accession number: the first row. It outputs one `FilingRef` per kept filing:
@@ -625,7 +647,7 @@ Backfill:
 
 New filing and company data:
 
-1. FEATURE: the `Form` variants `TwentyF` and `FortyF`.
+1. FEATURE: the `Form` variants `TwentyF` and `FortyF`, the `/A` parse, and `SELECTED_FORMS`.
 2. FEATURE: `FilingRef` and the parser for `form.YYYYMMDD.idx`.
 3. FEATURE: the request variants `FetchDailyIndex`, `FetchDailyIndexListing`, `FetchFilingIndex`,
    `FetchFilingDocument`, and `FetchSubmissions`.
@@ -652,15 +674,13 @@ MVP Operations owns the Cloud Run jobs and the schedule. These tickets are not i
 Decided by the lead on 2026-10-28:
 
 - The SLA for the start is T+1, met with the daily index.
-- The forms include 20-F and 40-F. All companies, with no company list.
+- Both paths extract 10-K, 10-Q, 20-F, 40-F, and their amendments, from one shared constant. All
+  companies, with no company list.
 - The backfill runs once, by hand.
 - The `Extraction` facade, and `ingestion_mode` in the metadata.
 
 A later SLA under one hour polls the latest-filings feed every 15 minutes and keeps the daily index
 to fill gaps. Detection outputs only a `Vec<FilingRef>`, so the filing machine does not change.
-
-For the lead: does transform of the backfill keep the same form list as the new-filing path? See
-[Filing Selection](#filing-selection).
 
 Still open from the findings: GLEIF access, detail depth, the `-xbrl.zip` and the inline parser, and
 how the fact store treats amendments (STA-331).
