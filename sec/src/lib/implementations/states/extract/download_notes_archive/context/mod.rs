@@ -16,11 +16,13 @@ use crate::implementations::states::extract::notes_repository::NotesRepository;
 use crate::shared::http_client::InnerClient;
 use crate::shared::http_client::SecClient as SecClientTrait;
 use crate::shared::http_client::implementations::sec_client::SecClient;
+use crate::shared::notes_period::NotesPeriod;
+use crate::shared::user_agent::UserAgent;
 use crate::traits::state_machine::state::Context;
 
 /// An SEC client that can download a Notes file and fits into a state context.
 ///
-/// Its inner client sends `reqwest` requests. Every type with these bounds implements it.
+/// Its inner client sends `reqwest` requests.
 pub trait NotesFileClient:
     SecClientTrait<
         Inner: InnerClient<
@@ -36,30 +38,23 @@ pub trait NotesFileClient:
     + Send
     + Sync
     + Unpin
+    + Serialize
 {
+    /// Returns the [`UserAgent`] that every request of the client carries.
+    fn user_agent(&self) -> &UserAgent;
 }
 
-impl<C> NotesFileClient for C where
-    C: SecClientTrait<
-            Inner: InnerClient<
-                Request = reqwest::Request,
-                Response = reqwest::Response,
-                Error = reqwest::Error,
-            >,
-        > + Debug
-        + Clone
-        + Eq
-        + Ord
-        + Hash
-        + Send
-        + Sync
-        + Unpin
-{
+impl NotesFileClient for SecClient {
+    fn user_agent(&self) -> &UserAgent {
+        Self::user_agent(self)
+    }
 }
 
 /// Context for the [`DownloadNotesArchive`](super::DownloadNotesArchive) state.
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
 pub struct DownloadNotesArchiveContext<R, C = SecClient> {
+    /// The period of the Notes file to download.
+    pub notes_period: NotesPeriod,
     /// The ID of the run.
     pub execution_id: Uuid,
     /// The storage repository.
@@ -78,9 +73,12 @@ impl<R, C> DownloadNotesArchiveContext<R, C> {
     /// ```
     /// use sec::implementations::states::extract::download_notes_archive::DownloadNotesArchiveContext;
     /// use sec::shared::http_client::implementations::sec_client::SecClient;
+    /// use sec::shared::notes_period::NotesPeriod;
     /// use uuid::Uuid;
     ///
-    /// let context = DownloadNotesArchiveContext::new(Uuid::nil(), (), SecClient::default());
+    /// let period = NotesPeriod::new("2024q1")
+    ///     .expect("Given a hardcoded published quarter, parsing should always succeed");
+    /// let context = DownloadNotesArchiveContext::new(period, Uuid::nil(), (), SecClient::default());
     ///
     /// let expected_result = 0;
     ///
@@ -89,8 +87,14 @@ impl<R, C> DownloadNotesArchiveContext<R, C> {
     /// assert_eq!(result, expected_result);
     /// ```
     #[must_use]
-    pub const fn new(execution_id: Uuid, repository: R, sec_client: C) -> Self {
+    pub const fn new(
+        notes_period: NotesPeriod,
+        execution_id: Uuid,
+        repository: R,
+        sec_client: C,
+    ) -> Self {
         Self {
+            notes_period,
             execution_id,
             repository,
             sec_client,
@@ -114,6 +118,9 @@ impl<R: NotesRepository, C: NotesFileClient> SMContext for DownloadNotesArchiveC
 
     /// Replaces each field that the updater sets.
     fn update_context(&mut self, updates: Self::UpdateType) {
+        if let Some(notes_period) = updates.notes_period {
+            self.notes_period = notes_period;
+        }
         if let Some(execution_id) = updates.execution_id {
             self.execution_id = execution_id;
         }
@@ -131,7 +138,11 @@ impl<R: NotesRepository, C: NotesFileClient> SMContext for DownloadNotesArchiveC
 
 impl<R, C> fmt::Display for DownloadNotesArchiveContext<R, C> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "\tExecution ID: {}", self.execution_id)
+        write!(
+            f,
+            "\tNotes Period: {}\n\tExecution ID: {}",
+            self.notes_period, self.execution_id
+        )
     }
 }
 
@@ -140,6 +151,8 @@ impl<R, C> fmt::Display for DownloadNotesArchiveContext<R, C> {
 /// Fields set to `None` stay unchanged when the updater is applied.
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 pub struct DownloadNotesArchiveContextUpdater<R, C> {
+    /// The new Notes period.
+    pub notes_period: Option<NotesPeriod>,
     /// The new `execution_id`.
     pub execution_id: Option<Uuid>,
     /// The new storage repository.
@@ -161,6 +174,7 @@ impl<R, C> DownloadNotesArchiveContextUpdater<R, C> {
 /// Fluent builder for a [`DownloadNotesArchiveContextUpdater`].
 #[derive(Debug)]
 pub struct DownloadNotesArchiveContextUpdaterBuilder<R, C> {
+    notes_period: Option<NotesPeriod>,
     execution_id: Option<Uuid>,
     repository: Option<R>,
     sec_client: Option<C>,
@@ -172,11 +186,19 @@ impl<R, C> DownloadNotesArchiveContextUpdaterBuilder<R, C> {
     #[must_use]
     pub const fn new() -> Self {
         Self {
+            notes_period: None,
             execution_id: None,
             repository: None,
             sec_client: None,
             max_retries: None,
         }
+    }
+
+    /// Sets the Notes period.
+    #[must_use]
+    pub const fn notes_period(mut self, notes_period: NotesPeriod) -> Self {
+        self.notes_period = Some(notes_period);
+        self
     }
 
     /// Sets the `execution_id`.
@@ -213,6 +235,7 @@ impl<R, C> DownloadNotesArchiveContextUpdaterBuilder<R, C> {
     #[must_use]
     pub fn build(self) -> DownloadNotesArchiveContextUpdater<R, C> {
         DownloadNotesArchiveContextUpdater {
+            notes_period: self.notes_period,
             execution_id: self.execution_id,
             repository: self.repository,
             sec_client: self.sec_client,
@@ -243,8 +266,45 @@ mod tests {
         AlwaysRespondingReadySecClient::new(status, Vec::new(), Vec::new())
     }
 
+    fn sample_period(raw_period: &str) -> NotesPeriod {
+        NotesPeriod::new(raw_period)
+            .expect("Given a hardcoded published period, parsing should always succeed")
+    }
+
     fn test_context() -> TestContext {
-        DownloadNotesArchiveContext::new(Uuid::nil(), FakeNotesRepository::new(), sec_client(200))
+        DownloadNotesArchiveContext::new(
+            sample_period("2024q1"),
+            Uuid::nil(),
+            FakeNotesRepository::new(),
+            sec_client(200),
+        )
+    }
+
+    #[test]
+    fn should_update_notes_period_when_update_contains_notes_period() {
+        let mut context = test_context();
+        let update = DownloadNotesArchiveContextUpdater::builder()
+            .notes_period(sample_period("2025_10"))
+            .build();
+
+        let expected_result = sample_period("2025_10");
+
+        context.update_context(update);
+        let result = context.notes_period;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_display_notes_period_and_execution_id_for_download_notes_archive_context() {
+        let context = test_context();
+
+        let expected_result =
+            "\tNotes Period: 2024q1\n\tExecution ID: 00000000-0000-0000-0000-000000000000";
+
+        let result = context.to_string();
+
+        assert_eq!(result, expected_result);
     }
 
     #[test]

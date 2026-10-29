@@ -8,6 +8,8 @@
 
 use std::collections::HashMap;
 
+use serde::ser::SerializeStruct;
+use serde::{Serialize, Serializer};
 use storage::shared::Sha256Digest;
 
 use crate::shared::content_type::ContentType;
@@ -168,6 +170,20 @@ impl SecNotesFileResponse {
     }
 }
 
+/// Serializes the URL, the status code, the content type, the headers, and the SHA-256 of the
+/// body, without the body bytes.
+impl Serialize for SecNotesFileResponse {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let mut state = serializer.serialize_struct("SecNotesFileResponse", 5)?;
+        state.serialize_field("url", &self.url.to_string())?;
+        state.serialize_field("status_code", &self.status_code.to_string())?;
+        state.serialize_field("content_type", &self.content_type.to_string())?;
+        state.serialize_field("headers", &self.headers)?;
+        state.serialize_field("body_sha256", &self.body_digest)?;
+        state.end()
+    }
+}
+
 /// Checks that a response has status 200 and an `OctetStream` or `Zip` content type.
 ///
 /// # Errors
@@ -230,6 +246,35 @@ mod tests {
             raw.insert("content-length".to_string(), content_length.to_string());
         }
         Headers::new(raw)
+    }
+
+    #[test]
+    fn should_serialize_every_field_but_the_body_for_a_valid_notes_file() {
+        let response = SecNotesFileResponse::from_parts(
+            sample_url(),
+            headers("application/zip", None),
+            StatusCode::Ok,
+            BODY.to_vec(),
+        )
+        .expect("Given status 200 and a ZIP, building the response should always succeed");
+
+        let expected_result = vec![
+            "body_sha256",
+            "content_type",
+            "headers",
+            "status_code",
+            "url",
+        ];
+
+        let value = serde_json::to_value(&response).expect(
+            "Given a response of strings and a digest, serialization should always succeed",
+        );
+        let result: Vec<&str> = value
+            .as_object()
+            .map(|fields| fields.keys().map(String::as_str).collect())
+            .unwrap_or_default();
+
+        assert_eq!(result, expected_result);
     }
 
     #[test]

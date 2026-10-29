@@ -9,6 +9,8 @@ use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
+use serde::ser::SerializeStruct;
+use serde::{Serialize, Serializer};
 use state_maschine::prelude::StateData as SMStateData;
 use storage::Sha256Digest;
 
@@ -128,6 +130,18 @@ impl SMStateData for StoreNotesArchiveInput {
         if let Err(e) = <Self as StateData>::update_state(self, updates) {
             panic!("StateData::update_state failed: {e}")
         }
+    }
+}
+
+/// Serializes the response without its body bytes, or `null` after the state took it.
+impl Serialize for StoreNotesArchiveInput {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let mut state = serializer.serialize_struct("StoreNotesArchiveInput", 4)?;
+        state.serialize_field("response", &self.response.as_deref())?;
+        state.serialize_field("notes_period", &self.notes_period)?;
+        state.serialize_field("requested_url", &self.requested_url)?;
+        state.serialize_field("user_agent", &self.user_agent)?;
+        state.end()
     }
 }
 

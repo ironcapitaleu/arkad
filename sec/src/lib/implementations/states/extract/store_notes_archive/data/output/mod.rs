@@ -6,6 +6,7 @@
 
 use std::fmt;
 
+use serde::Serialize;
 use state_maschine::prelude::StateData as SMStateData;
 
 use crate::error::State as StateError;
@@ -13,7 +14,7 @@ use crate::shared::notes_archive_ref::NotesArchiveRef;
 use crate::traits::state_machine::state::StateData;
 
 /// Output data of the [`StoreNotesArchive`](super::super::StoreNotesArchive) state.
-#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
+#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
 pub struct StoreNotesArchiveOutput {
     /// The reference to the stored Notes file.
     pub archive: NotesArchiveRef,

@@ -1,9 +1,13 @@
 use std::sync::atomic::AtomicUsize;
 
 use async_trait::async_trait;
+use serde::ser::SerializeStruct;
+use serde::{Serialize, Serializer};
 
+use crate::implementations::states::extract::download_notes_archive::NotesFileClient;
 use crate::shared::http_client::{InnerClient, SecClient};
 use crate::shared::rate_limiter::RateLimiter;
+use crate::shared::user_agent::UserAgent;
 use crate::tests::fixtures::sample_http_client::sample_inner_client::AlwaysRespondingHttpClient;
 use crate::tests::fixtures::sample_rate_limiter::always_ready::AlwaysReadyRateLimiter;
 use crate::tests::fixtures::sample_rate_limiter::counting::CountingRateLimiter;
@@ -74,12 +78,20 @@ pub struct AlwaysRespondingReadySecClient {
     pub inner: AlwaysRespondingHttpClient,
     /// The rate limiter, which never waits.
     pub rate_limiter: AlwaysReadyRateLimiter,
+    /// The `User-Agent` the client reports.
+    pub user_agent: UserAgent,
 }
 
 impl AlwaysRespondingReadySecClient {
     /// Creates an [`AlwaysRespondingReadySecClient`] whose responses have the given status, headers, and body.
+    ///
+    /// The client reports the `User-Agent` `Fake Notes Client fake@example.com`.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the hardcoded `User-Agent` fails validation.
     #[must_use]
-    pub const fn new(status: u16, headers: Vec<(&'static str, String)>, body: Vec<u8>) -> Self {
+    pub fn new(status: u16, headers: Vec<(&'static str, String)>, body: Vec<u8>) -> Self {
         Self {
             inner: AlwaysRespondingHttpClient {
                 status,
@@ -87,7 +99,25 @@ impl AlwaysRespondingReadySecClient {
                 body,
             },
             rate_limiter: AlwaysReadyRateLimiter,
+            user_agent: UserAgent::new("Fake Notes Client fake@example.com").expect(
+                "Given a hardcoded SEC-format user agent, validation should always succeed",
+            ),
         }
+    }
+}
+
+/// Serializes the `User-Agent` only, as the production client does.
+impl Serialize for AlwaysRespondingReadySecClient {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let mut state = serializer.serialize_struct("AlwaysRespondingReadySecClient", 1)?;
+        state.serialize_field("user_agent", &self.user_agent)?;
+        state.end()
+    }
+}
+
+impl NotesFileClient for AlwaysRespondingReadySecClient {
+    fn user_agent(&self) -> &UserAgent {
+        &self.user_agent
     }
 }
 

@@ -9,6 +9,8 @@ use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
+use serde::ser::SerializeStruct;
+use serde::{Serialize, Serializer};
 use state_maschine::prelude::StateData as SMStateData;
 
 use crate::error::State as StateError;
@@ -90,6 +92,15 @@ impl SMStateData for DownloadNotesArchiveOutput {
         if let Err(e) = <Self as StateData>::update_state(self, updates) {
             panic!("StateData::update_state failed: {e}")
         }
+    }
+}
+
+/// Serializes the response without its body bytes.
+impl Serialize for DownloadNotesArchiveOutput {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let mut state = serializer.serialize_struct("DownloadNotesArchiveOutput", 1)?;
+        state.serialize_field("response", self.response.as_ref())?;
+        state.end()
     }
 }
 

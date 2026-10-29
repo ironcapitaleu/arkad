@@ -5,6 +5,7 @@
 
 use std::fmt::{self, Display, Formatter};
 
+use serde::Serialize;
 use storage::Sha256Digest;
 use storage::implementations::repository::filesystem::DocumentKey;
 
@@ -13,7 +14,7 @@ use crate::shared::notes_period::NotesPeriod;
 /// The period, the key, the size, and the SHA-256 digest of one stored Notes file.
 ///
 /// A reader finds the bytes under the key and checks them against the size and the digest.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub struct NotesArchiveRef {
     period: NotesPeriod,
     key: DocumentKey,

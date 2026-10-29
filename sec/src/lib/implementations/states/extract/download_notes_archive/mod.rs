@@ -35,7 +35,8 @@
 //! #     .document_type::<RawDocument<RawNotesArchive>>()
 //! #     .root("data")
 //! #     .build();
-//! let context = DownloadNotesArchiveContext::new(Uuid::new_v4(), repository, SecClient::default());
+//! let context =
+//!     DownloadNotesArchiveContext::new(period, Uuid::new_v4(), repository, SecClient::default());
 //! let mut state = DownloadNotesArchive::new(input, context);
 //! state
 //!     .compute_output_data_async()
@@ -53,6 +54,7 @@
 use std::fmt;
 
 use async_trait::async_trait;
+use serde::Serialize;
 use state_maschine::prelude::State as SMState;
 
 use crate::error::State as StateError;
@@ -72,7 +74,7 @@ pub use data::DownloadNotesArchiveOutput;
 
 /// Downloads one Notes file and outputs it as a
 /// [`SecNotesFileResponse`](crate::shared::response::implementations::sec_notes_file_response::SecNotesFileResponse).
-#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
+#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
 pub struct DownloadNotesArchive<R, C = SecClient> {
     input: DownloadNotesArchiveInput,
     context: DownloadNotesArchiveContext<R, C>,
@@ -103,7 +105,7 @@ impl<R, C> DownloadNotesArchive<R, C> {
     /// #     .document_type::<RawDocument<RawNotesArchive>>()
     /// #     .root("data")
     /// #     .build();
-    /// let context = DownloadNotesArchiveContext::new(Uuid::nil(), repository, SecClient::default());
+    /// let context = DownloadNotesArchiveContext::new(period, Uuid::nil(), repository, SecClient::default());
     /// let state = DownloadNotesArchive::new(input, context);
     ///
     /// let expected_result = false;
@@ -258,7 +260,12 @@ mod tests {
         );
         DownloadNotesArchive::new(
             DownloadNotesArchiveInput::new(request),
-            DownloadNotesArchiveContext::new(Uuid::nil(), FakeNotesRepository::new(), sec_client),
+            DownloadNotesArchiveContext::new(
+                period,
+                Uuid::nil(),
+                FakeNotesRepository::new(),
+                sec_client,
+            ),
         )
     }
 
