@@ -48,12 +48,17 @@ impl<A: CanWrite, D: Document> WriteRepository for FilesystemRepository<A, D> {
     ///    JSON.
     /// 3. The bytes have the size and the SHA-256 digest the metadata names.
     ///
-    /// Then `persist` checks that the root exists. If the stored metadata equals the new metadata
-    /// in every field except the run fields `produced_at`, `execution_id`, and `ingestion_mode`, the
-    /// stored run fields are valid, and the stored document matches the digest of the new bytes,
-    /// `persist` writes no file and returns `Ok(())`. The stored run fields stay. In every other case, `persist` creates every
-    /// missing directory between the root and the document, and the new bytes and metadata replace
-    /// the old. This case covers a torn pair, whose metadata matches the new bytes but whose
+    /// Then `persist` checks that the root exists. `persist` writes no file and returns `Ok(())` if
+    /// all three conditions hold:
+    ///
+    /// 1. The stored metadata equals the new metadata outside the run fields `produced_at`,
+    ///    `execution_id`, and `ingestion_mode`.
+    /// 2. The stored run fields are valid.
+    /// 3. The stored document matches the digest of the new bytes.
+    ///
+    /// The stored run fields then stay. In every other case, `persist` creates every missing
+    /// directory between the root and the document, and the new bytes and metadata replace the
+    /// old. This case covers a torn pair, whose metadata matches the new bytes but whose
     /// document does not.
     ///
     /// # Errors
