@@ -366,6 +366,8 @@ When creating a pull request, always use the repository's PR template located at
 
 Never use a freeform PR body or a different structure.
 
+After opening a PR, run the `pr-iterate` skill. A fresh review after every push is part of the loop.
+
 ---
 
 ## PR Review Guidelines
