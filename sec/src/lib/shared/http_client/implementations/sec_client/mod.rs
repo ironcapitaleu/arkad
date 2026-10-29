@@ -211,6 +211,8 @@ impl SecClientTrait for SecClient {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::atomic::Ordering;
+
     use pretty_assertions::assert_eq;
 
     use super::{SecClient, download_notes_file};
@@ -223,7 +225,7 @@ mod tests {
     use crate::shared::status_code::StatusCode;
     use crate::shared::user_agent::UserAgent;
     use crate::shared::user_agent::constants::DEFAULT_SEC_USER_AGENT;
-    use crate::tests::fixtures::sample_http_client::sample_sec_client::always_responding::FakeSecClient;
+    use crate::tests::fixtures::sample_http_client::sample_sec_client::always_responding::AlwaysRespondingSecClient;
 
     const NOTES_FILE_BODY: &[u8] = b"PK\x03\x04 notes";
 
@@ -234,8 +236,12 @@ mod tests {
         reqwest::Request::new(reqwest::Method::GET, url)
     }
 
-    fn responding_client(status: u16, content_type: &str, body: &[u8]) -> FakeSecClient {
-        FakeSecClient::new(
+    fn responding_client(
+        status: u16,
+        content_type: &str,
+        body: &[u8],
+    ) -> AlwaysRespondingSecClient {
+        AlwaysRespondingSecClient::new(
             status,
             vec![
                 ("content-type", content_type.to_string()),
@@ -260,6 +266,18 @@ mod tests {
             .expect("Given status 200, an octet stream and a matching length, the download should always succeed")
             .body()
             .to_vec();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_wait_on_the_rate_limiter_once_when_downloading_a_notes_file() {
+        let client = responding_client(200, "application/zip", NOTES_FILE_BODY);
+
+        let expected_result = 1;
+
+        let _ = download_notes_file(&client, notes_file_request()).await;
+        let result = client.rate_limiter.turns.load(Ordering::SeqCst);
 
         assert_eq!(result, expected_result);
     }
