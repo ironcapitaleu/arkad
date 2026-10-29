@@ -9,6 +9,8 @@ use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
+use serde::ser::SerializeStruct;
+use serde::{Serialize, Serializer};
 use state_maschine::prelude::StateData as SMStateData;
 
 use crate::error::State as StateError;
@@ -90,6 +92,15 @@ impl SMStateData for DownloadNotesArchiveOutput {
         if let Err(e) = <Self as StateData>::update_state(self, updates) {
             panic!("StateData::update_state failed: {e}")
         }
+    }
+}
+
+/// Serializes the response without its body bytes.
+impl Serialize for DownloadNotesArchiveOutput {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let mut state = serializer.serialize_struct("DownloadNotesArchiveOutput", 1)?;
+        state.serialize_field("response", self.response.as_ref())?;
+        state.end()
     }
 }
 
@@ -181,6 +192,29 @@ mod tests {
         let mut hasher = DefaultHasher::new();
         output.hash(&mut hasher);
         hasher.finish()
+    }
+
+    #[test]
+    fn should_serialize_the_response_without_its_body_for_download_notes_archive_output() {
+        let output = DownloadNotesArchiveOutput::new(notes_file_response(b"PK"));
+
+        let expected_result = vec![
+            "body_sha256",
+            "content_type",
+            "headers",
+            "status_code",
+            "url",
+        ];
+
+        let value = serde_json::to_value(&output).expect(
+            "Given a response of strings and a digest, serialization should always succeed",
+        );
+        let result: Vec<&str> = value["response"]
+            .as_object()
+            .map(|fields| fields.keys().map(String::as_str).collect())
+            .unwrap_or_default();
+
+        assert_eq!(result, expected_result);
     }
 
     #[test]

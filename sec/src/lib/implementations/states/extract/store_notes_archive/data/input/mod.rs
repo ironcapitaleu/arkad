@@ -9,6 +9,8 @@ use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
+use serde::ser::SerializeStruct;
+use serde::{Serialize, Serializer};
 use state_maschine::prelude::StateData as SMStateData;
 use storage::Sha256Digest;
 
@@ -128,6 +130,18 @@ impl SMStateData for StoreNotesArchiveInput {
         if let Err(e) = <Self as StateData>::update_state(self, updates) {
             panic!("StateData::update_state failed: {e}")
         }
+    }
+}
+
+/// Serializes the response without its body bytes, or `null` after the state took it.
+impl Serialize for StoreNotesArchiveInput {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let mut state = serializer.serialize_struct("StoreNotesArchiveInput", 4)?;
+        state.serialize_field("response", &self.response.as_deref())?;
+        state.serialize_field("notes_period", &self.notes_period)?;
+        state.serialize_field("requested_url", &self.requested_url)?;
+        state.serialize_field("user_agent", &self.user_agent)?;
+        state.end()
     }
 }
 
@@ -290,6 +304,44 @@ mod tests {
             notes_url("2024q1_notes.zip"),
             user_agent(),
         )
+    }
+
+    #[test]
+    fn should_serialize_the_response_without_its_body_for_store_notes_archive_input() {
+        let input = sample_input(b"PK");
+
+        let expected_result = vec![
+            "body_sha256",
+            "content_type",
+            "headers",
+            "status_code",
+            "url",
+        ];
+
+        let value = serde_json::to_value(&input).expect(
+            "Given a response of strings and a digest, serialization should always succeed",
+        );
+        let result: Vec<&str> = value["response"]
+            .as_object()
+            .map(|fields| fields.keys().map(String::as_str).collect())
+            .unwrap_or_default();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_serialize_a_null_response_when_the_state_took_the_response() {
+        let mut input = sample_input(b"PK");
+        input.response = None;
+
+        let expected_result = Some(serde_json::Value::Null);
+
+        let value = serde_json::to_value(&input).expect(
+            "Given an input of strings and no response, serialization should always succeed",
+        );
+        let result = value.get("response").cloned();
+
+        assert_eq!(result, expected_result);
     }
 
     #[test]

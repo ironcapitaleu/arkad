@@ -18,6 +18,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use chrono::Utc;
+use serde::Serialize;
 use state_maschine::prelude::State as SMState;
 use storage::implementations::repository::filesystem::{Document, DocumentKey, IngestionMode};
 
@@ -48,7 +49,7 @@ pub use data::StoreNotesArchiveOutput;
 /// [`RawDocument::from_file`], writes it under the key `sec/notes/<file name>` through the
 /// repository of type `R`, and outputs a [`NotesArchiveRef`]. The metadata records the ingestion
 /// mode [`IngestionMode::Backfill`].
-#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
+#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
 pub struct StoreNotesArchive<R> {
     input: StoreNotesArchiveInput,
     context: StoreNotesArchiveContext<R>,

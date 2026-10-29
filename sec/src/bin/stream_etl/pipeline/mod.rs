@@ -6,7 +6,7 @@ use std::pin::pin;
 use std::time::Instant;
 
 use futures_util::StreamExt;
-use sec::implementations::states::extract::ExtractCompanyFactsSuperState;
+use sec::implementations::states::extract::company_facts::ExtractCompanyFactsSuperState;
 use sec::prelude::*;
 use sec::shared::http_client::implementations::sec_client::SecClient;
 use uuid::Uuid;

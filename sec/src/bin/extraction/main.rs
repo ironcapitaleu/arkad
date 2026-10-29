@@ -1,6 +1,6 @@
 use std::error::Error;
 
-use sec::implementations::states::extract::ExtractCompanyFactsSuperState;
+use sec::implementations::states::extract::company_facts::ExtractCompanyFactsSuperState;
 use sec::implementations::states::extract::execute_sec_request::{
     ExecuteSecRequest, ExecuteSecRequestContext, ExecuteSecRequestInput,
 };
