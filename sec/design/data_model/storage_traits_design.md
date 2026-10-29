@@ -680,8 +680,9 @@ dep graph pulls in sqlx transitively and the boundary rots.
 ## DI wiring (same as SecClient — concrete, no `dyn`)
 
 Inject the concrete `Repository` type into the `Load` state's **context**, exactly as `SecClient` is
-a concrete field on `ExtractSuperStateContext`. Production wires `PostgresRepository`; tests wire
-`FakeRepository`. No `dyn`, no trait objects — consistent with the non-object-safe `State` trait.
+a concrete field on `ExtractCompanyFactsSuperStateContext`. Production wires `PostgresRepository`;
+tests wire `FakeRepository`. No `dyn`, no trait objects — consistent with the non-object-safe
+`State` trait.
 `Load` calls `store.ingest(unit)`. `CreateFinancialStatements` changes from emitting the placeholder
 output to producing `FactSet`s that feed the `IngestionUnit` — the "retire `sec::CompanyData`" work.
 

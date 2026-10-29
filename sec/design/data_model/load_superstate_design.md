@@ -119,7 +119,7 @@ stateDiagram-v2
 An optional third state, `ReconcilePersistence` (post-write SFAC-6 invariant + completeness check),
 is deferred — it only pays once there is something to reconcile against.
 
-**Context (dependency injection).** Exactly like `ExtractSuperStateContext<R> { sec_client: SecClient, execution_id: Uuid, repository: R }`,
+**Context (dependency injection).** Exactly like `ExtractCompanyFactsSuperStateContext<R> { sec_client: SecClient, execution_id: Uuid, repository: R }`,
 the Load context carries the injected concrete ports:
 
 ```rust

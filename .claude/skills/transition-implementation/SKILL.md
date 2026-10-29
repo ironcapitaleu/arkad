@@ -36,7 +36,7 @@ context, and assemble the target state.
 
 ```rust
 impl<R: RawCompanyFactsRepository> Transition<ExecuteSecRequest<R>, ParseCompanyFacts>
-    for ExtractSuperState<ExecuteSecRequest<R>, R>
+    for ExtractCompanyFactsSuperState<ExecuteSecRequest<R>, R>
 {
     fn transition_to_next_state_sec(self) -> Result<Self::NewStateMachine, TransitionError> {
         let inner_state = self.into_current_state();
