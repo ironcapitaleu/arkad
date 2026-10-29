@@ -14,6 +14,7 @@ use sec::shared::raw_document::RawDocument;
 use sec::shared::raw_source::RawNotesArchive;
 use serde_json::{Value, json};
 use storage::implementations::repository::filesystem::{FilesystemRepository, Write};
+use thiserror::Error;
 
 /// The most Notes files that the run downloads at once.
 ///
@@ -26,7 +27,32 @@ pub type PeriodOutcome = Result<NotesArchiveRef, StreamError>;
 /// The outcome of every period of one run, in the order of the given periods.
 pub struct RunSummary(Vec<(String, PeriodOutcome)>);
 
+/// The error of a run in which at least one period failed.
+#[derive(Debug, Error, PartialEq, Eq)]
+#[error("[FailedBackfill] {failures} of {periods} Notes periods failed")]
+pub struct FailedBackfill {
+    /// The number of periods that failed.
+    pub failures: usize,
+    /// The number of periods of the run.
+    pub periods: usize,
+}
+
 impl RunSummary {
+    /// Returns `Ok` if every period stored its file.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`FailedBackfill`] if at least one period failed.
+    pub fn result(&self) -> Result<(), FailedBackfill> {
+        match self.failure_count() {
+            0 => Ok(()),
+            failures => Err(FailedBackfill {
+                failures,
+                periods: self.0.len(),
+            }),
+        }
+    }
+
     /// Returns the number of periods that failed.
     pub fn failure_count(&self) -> usize {
         self.0

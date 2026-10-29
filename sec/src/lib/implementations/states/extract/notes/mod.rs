@@ -307,7 +307,8 @@ where
 
     /// Runs the stream to its end and returns the [`NotesArchiveRef`] of the stored file.
     ///
-    /// Calls `on_item` with each successful stream item, in stream order.
+    /// Calls `on_item` with each successful stream item, in stream order. Each call gets its own
+    /// slot for the archive, so clones of one super-state never share it.
     ///
     /// # Errors
     ///
@@ -318,10 +319,11 @@ where
     /// Panics if the stream ends without an error before [`StoreNotesArchive`] computes its
     /// output. The state flow rules this out.
     pub async fn run_to_archive(
-        self,
+        mut self,
         mut on_item: impl FnMut(&StreamItem),
     ) -> Result<NotesArchiveRef, StreamError> {
-        let archive_slot = self.context.archive_slot.clone();
+        let archive_slot = ArchiveSlot::default();
+        self.context.archive_slot = archive_slot.clone();
         let mut stream = self.into_run_stream();
         while let Some(item) = stream.next().await {
             on_item(&item?);
@@ -453,7 +455,7 @@ impl<R: NotesRepository, C: NotesFileClient>
 
 #[cfg(test)]
 mod tests {
-    use std::path::Path;
+    use std::path::{Path, PathBuf};
     use std::sync::Arc;
 
     use futures_util::StreamExt;
@@ -780,6 +782,24 @@ mod tests {
             .run_to_archive(|item| result.push((item.event.clone(), item.state_name.clone())))
             .await
             .expect("Given a published period, the fake client, and a fake store, the run should always succeed");
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_return_the_archive_when_a_clone_empties_the_slot_it_was_built_with() {
+        let super_state = super_state("2024q1", FakeNotesRepository::new());
+        let built_slot = super_state.context.archive_slot.clone();
+
+        let expected_result = Some(PathBuf::from("sec/notes/2024q1_notes.zip"));
+
+        let result = super_state
+            .run_to_archive(|_| {
+                built_slot.take();
+            })
+            .await
+            .ok()
+            .map(|archive| archive.key().as_path().to_path_buf());
 
         assert_eq!(result, expected_result);
     }

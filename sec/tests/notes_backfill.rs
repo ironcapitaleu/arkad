@@ -23,7 +23,7 @@ use sec::shared::raw_document::RawDocument;
 use sec::shared::raw_source::RawNotesArchive;
 use sec::shared::user_agent::UserAgent;
 
-use backfill::RunSummary;
+use backfill::{FailedBackfill, RunSummary};
 
 /// A month far after the last published file, so the SEC answers 404.
 const UNPUBLISHED_PERIOD: &str = "2099_01";
@@ -104,12 +104,24 @@ async fn should_store_the_other_periods_when_one_period_fails() {
 }
 
 #[tokio::test]
-async fn should_report_one_failure_when_one_period_is_unpublished() {
-    let expected_result = 1;
+async fn should_return_failed_backfill_when_one_period_is_unpublished() {
+    let expected_result = Err(FailedBackfill {
+        failures: 1,
+        periods: 3,
+    });
 
     let result = run_backfill(&["2009q1", UNPUBLISHED_PERIOD, "2009q2"])
         .await
-        .failure_count();
+        .result();
+
+    assert_eq!(result, expected_result);
+}
+
+#[tokio::test]
+async fn should_return_ok_when_every_period_is_stored() {
+    let expected_result = Ok(());
+
+    let result = run_backfill(&["2009q1"]).await.result();
 
     assert_eq!(result, expected_result);
 }

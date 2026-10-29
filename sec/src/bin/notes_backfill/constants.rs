@@ -4,8 +4,8 @@
 
 /// Every published Notes period, from 2009q1 to `2026_09`, in publication order.
 ///
-/// The SEC publishes each month some days into the next month. Add a month to the list only after
-/// the SEC publishes its file.
+/// The SEC publishes the file of each month a few days after the month ends. Add a month to the
+/// list only after the SEC publishes its file.
 pub const NOTES_PERIODS: [&str; 79] = [
     "2009q1", "2009q2", "2009q3", "2009q4", "2010q1", "2010q2", "2010q3", "2010q4", "2011q1",
     "2011q2", "2011q3", "2011q4", "2012q1", "2012q2", "2012q3", "2012q4", "2013q1", "2013q2",
@@ -24,6 +24,22 @@ mod tests {
     use sec::shared::notes_period::{NotesPeriod, NotesPeriodError};
 
     use super::*;
+
+    #[test]
+    fn should_list_every_quarter_then_every_month_for_notes_periods() {
+        let quarters = (2009..=2025)
+            .flat_map(|year| (1..=4).map(move |quarter| format!("{year}q{quarter}")))
+            .take_while(|period| period != "2025q4");
+        let months = (10..=12)
+            .map(|month| format!("2025_{month}"))
+            .chain((1..=9).map(|month| format!("2026_{month:02}")));
+
+        let expected_result: Vec<String> = quarters.chain(months).collect();
+
+        let result: Vec<String> = NOTES_PERIODS.iter().map(ToString::to_string).collect();
+
+        assert_eq!(result, expected_result);
+    }
 
     #[test]
     fn should_hold_valid_periods_in_increasing_order_for_notes_periods() {

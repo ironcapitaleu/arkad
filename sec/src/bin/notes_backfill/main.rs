@@ -126,10 +126,9 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
         "periods": summary.entries(),
     });
     let message = format!("{successes} Notes files stored, {failures} failed in {elapsed:.2?}");
-    if failures > 0 {
+    summary.result().inspect_err(|_| {
         tracing::error!(event = %BackfillEvent::Failed, message = %message, context = %context);
-        return Err(format!("[FailedBackfill] {message}").into());
-    }
+    })?;
     tracing::info!(event = %BackfillEvent::Complete, message = %message, context = %context);
     Ok(())
 }
