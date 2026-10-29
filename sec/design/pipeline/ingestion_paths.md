@@ -246,17 +246,22 @@ The rate limiter limits requests per second. It does not limit downloads in flig
 bound memory. The run caps the Notes files in flight at 2, with `buffer_unordered(2)` instead of
 `join_all`.
 
-The cap stays at 2. Measured on 2026-10-29, the network limits the download in the cloud container
-and on a Mac on Wi-Fi. More files in flight make each file slower and raise the peak memory, but
+The cap stays at 2. Measured on 2026-10-29 in a cloud container (not Cloud Run) and on a Mac on
+Wi-Fi, the network limits the download. More files in flight make each file slower and raise the peak memory, but
 the total time stays the same. Measure once on Cloud Run before you change the cap. The numbers
 are in
 [notes_backfill Network and Stream Cut-Off: Findings](https://linear.app/state-machine/document/notes-backfill-network-and-stream-cut-off-findings-2238f0c1e060).
-The method is in `.claude/skills/performance/references/profiling/network.md`.
+The method is in
+[`network.md`](../../../.claude/skills/performance/references/profiling/network.md) of the
+`performance` skill.
 
 Each file in flight holds up to 3 copies at its peak: the response body, the `RawDocument` bytes,
 and the stored file that `persist` reads to compare digests on a rerun. `RawDocument::from_file`
-takes the `SecNotesFileResponse` bytes by value, which removes the second copy. The largest file
-is 0.85 GB. The findings document holds the measured peaks.
+takes the `SecNotesFileResponse` bytes by value, which removes the second copy. The measured
+peaks show about one copy of each body in flight on a first run. The largest file is 0.85 GB, so
+two of the largest files in flight need about 2.2 GB (estimate from the measured peaks). A rerun
+also reads the stored file for the digest check, so plan for 2 copies each, about 3.4 GB. The
+findings document holds the measured peaks.
 
 Each SHA-256 of a file body runs on the blocking thread pool through
 `Sha256Digest::of_owned_async`, so the task polls other futures during the hash. This covers the
