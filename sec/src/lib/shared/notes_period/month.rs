@@ -75,6 +75,15 @@ mod tests {
     }
 
     #[test]
+    fn should_return_none_when_number_has_letters() {
+        let expected_result = (None, None);
+
+        let result = (Month::from_number_str("ab"), Month::from_number_str("abc"));
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
     fn should_order_january_before_december_for_months() {
         let expected_result = true;
 

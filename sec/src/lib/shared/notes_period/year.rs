@@ -56,6 +56,15 @@ mod tests {
     }
 
     #[test]
+    fn should_return_none_when_number_has_letters() {
+        let expected_result = (None, None);
+
+        let result = (Year::from_number_str("Dumb"), Year::from_number_str("Dumbo"));
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
     fn should_display_the_four_digits_when_year_is_2009() {
         let expected_result = "2009";
 
