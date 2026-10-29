@@ -562,9 +562,10 @@ The metadata of each raw document records the ingestion mode of the run that cre
 
 - `ingestion_mode` is a run field in `DocumentMetadata`, next to `execution_id` and
   `produced_at`. `storage` holds it as a string, so `storage` does not depend on `sec`.
-- `ingestion_mode` is required, and it has exactly two values. Metadata without a mode does not
-  compile. A stored file without the field fails to read. Decided by the lead on 2026-10-29.
-- `companyfacts` is a backfill by default, so `StoreCompanyFacts` writes `backfill`.
+- `ingestion_mode` is required. `sec` writes one of two values through `IngestionMode`.
+  `storage` accepts any string. Metadata without a mode does not compile. A stored file without
+  the field fails to read. Decided by the lead on 2026-10-29.
+- `companyfacts` runs as a backfill, so `StoreCompanyFacts` writes `backfill`.
 - `METADATA_VERSION` stays 1 until the MVP. Files written before the MVP do not need to stay
   readable.
 - `persist` leaves `ingestion_mode` out of the comparison, as it does with `execution_id` and

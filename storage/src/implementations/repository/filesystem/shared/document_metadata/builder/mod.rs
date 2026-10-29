@@ -106,9 +106,9 @@ impl
             content: NoContent,
             produced_at: NoProducedAt,
             run: NoRun,
+            ingestion_mode: NoIngestionMode,
             context: NoContext,
             inputs: Vec::new(),
-            ingestion_mode: NoIngestionMode,
         }
     }
 }
@@ -124,9 +124,9 @@ impl<M, B, P, R, I, C> DocumentMetadataBuilder<NoDocumentType, M, B, P, R, I, C>
             content: self.content,
             produced_at: self.produced_at,
             run: self.run,
+            ingestion_mode: self.ingestion_mode,
             context: self.context,
             inputs: self.inputs,
-            ingestion_mode: self.ingestion_mode,
         }
     }
 }
@@ -144,9 +144,9 @@ impl<D, B, P, R, I, C> DocumentMetadataBuilder<D, NoMediaType, B, P, R, I, C> {
             content: self.content,
             produced_at: self.produced_at,
             run: self.run,
+            ingestion_mode: self.ingestion_mode,
             context: self.context,
             inputs: self.inputs,
-            ingestion_mode: self.ingestion_mode,
         }
     }
 }
@@ -171,9 +171,9 @@ impl<D, M, P, R, I, C> DocumentMetadataBuilder<D, M, NoContent, P, R, I, C> {
             },
             produced_at: self.produced_at,
             run: self.run,
+            ingestion_mode: self.ingestion_mode,
             context: self.context,
             inputs: self.inputs,
-            ingestion_mode: self.ingestion_mode,
         }
     }
 }
@@ -191,9 +191,9 @@ impl<D, M, B, R, I, C> DocumentMetadataBuilder<D, M, B, NoProducedAt, R, I, C> {
             content: self.content,
             produced_at,
             run: self.run,
+            ingestion_mode: self.ingestion_mode,
             context: self.context,
             inputs: self.inputs,
-            ingestion_mode: self.ingestion_mode,
         }
     }
 }
@@ -215,9 +215,9 @@ impl<D, M, B, P, I, C> DocumentMetadataBuilder<D, M, B, P, NoRun, I, C> {
                 execution_id,
                 producer,
             },
+            ingestion_mode: self.ingestion_mode,
             context: self.context,
             inputs: self.inputs,
-            ingestion_mode: self.ingestion_mode,
         }
     }
 }
@@ -255,9 +255,9 @@ impl<D, M, B, P, R, I> DocumentMetadataBuilder<D, M, B, P, R, I, NoContext> {
             content: self.content,
             produced_at: self.produced_at,
             run: self.run,
+            ingestion_mode: self.ingestion_mode,
             context,
             inputs: self.inputs,
-            ingestion_mode: self.ingestion_mode,
         }
     }
 }
@@ -579,9 +579,9 @@ mod tests {
             content: NoContent,
             produced_at: NoProducedAt,
             run: NoRun,
+            ingestion_mode: NoIngestionMode,
             context: NoContext,
             inputs: Vec::new(),
-            ingestion_mode: NoIngestionMode,
         };
 
         let result = DocumentMetadata::builder();
