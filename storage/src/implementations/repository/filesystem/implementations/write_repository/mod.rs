@@ -358,9 +358,7 @@ mod tests {
 
     use super::*;
     use crate::error::BackendError;
-    use crate::implementations::repository::filesystem::{
-        DocumentMetadata, IngestionMode, ReadWrite, Write,
-    };
+    use crate::implementations::repository::filesystem::{DocumentMetadata, ReadWrite, Write};
     use crate::tests::fixtures::sample_document::{
         SampleContext, SampleDocument, sample_document, sample_document_holding, sample_metadata,
     };
