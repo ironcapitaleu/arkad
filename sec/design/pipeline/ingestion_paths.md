@@ -241,10 +241,10 @@ and the stored file that `persist` reads to compare digests on a rerun. `RawDocu
 takes the `SecNotesFileResponse` bytes by value, which removes the second copy. The largest file is 0.85 GB, so
 two files need about 4 to 5 GB (estimate, measure it with the `performance` skill).
 
-The output of `DownloadNotesArchive` holds the response in an `Arc`. `StoreNotesArchive` moves the
-output out of the state with `into_parts`. Then it takes the bytes with `Arc::try_unwrap` and
-`into_body`. The unwrap fails if a second clone of the output is alive, so no transition keeps a
-clone.
+The output of `DownloadNotesArchive` holds the response in an `Arc`. The transition to
+`StoreNotesArchive` moves the output out of the state with `into_parts`. Then it takes the bytes
+with `Arc::try_unwrap` and `into_body`. The unwrap fails if a second clone of the output is alive.
+A transition must never keep a clone.
 
 ### Archive Metadata
 

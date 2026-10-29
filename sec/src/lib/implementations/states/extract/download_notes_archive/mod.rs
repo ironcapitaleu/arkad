@@ -127,10 +127,12 @@ impl<R: NotesRepository, C: NotesFileClient> State for DownloadNotesArchive<R, C
     ///
     /// # Errors
     ///
-    /// Returns [`StateError::FailedRequestExecution`] if the request fails at the network level.
-    /// It also returns this error if the response fails a transport check: status 200, an
-    /// accepted content type, and a body length equal to `Content-Length` if that header is
-    /// present.
+    /// Returns [`StateError::FailedRequestExecution`] if the request fails at the network level,
+    /// or if the response fails one of these transport checks:
+    ///
+    /// - The status is 200.
+    /// - The content type is `application/zip` or `application/octet-stream`.
+    /// - The body length equals `Content-Length`, if that header is present.
     async fn compute_output_data_async(&mut self) -> Result<(), StateError> {
         let request = self.input.request.clone().into_inner();
         let response = download_notes_file(&self.context.sec_client, request)
