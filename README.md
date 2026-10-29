@@ -356,6 +356,15 @@ classDiagram
         +String invalid_period
     }
 
+    class InvalidNotesPeriodReason{
+        << enum >>
+        %% Why a string failed Notes period validation
+        +InvalidNotesPeriodFormat
+        +UnpublishedYear{year: Year}
+        +UnpublishedQuarter
+        +UnpublishedMonth
+    }
+
     class CikError{
         << struct >>
         %% Domain error for invalid CIK format
@@ -418,6 +427,7 @@ classDiagram
     InvalidCikFormat --> CikError
     CikError --> InvalidCikReason
     InvalidNotesPeriod --> NotesPeriodError
+    NotesPeriodError --> InvalidNotesPeriodReason
     IncompleteCompanyFacts --> MissingFields
     FailedRequestExecution --> FailedSecRequest
     FailedSecRequest --> SecClientErrorReason
