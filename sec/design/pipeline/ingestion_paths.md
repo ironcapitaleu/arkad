@@ -34,8 +34,8 @@ The MVP decisions (STA-284) chose these SEC sources:
 | `submissions` JSON | Both | Company data: name, SIC code, tickers, former names |
 | `companyfacts` JSON | Neither | Cross-check only. It drops every value with a dimension. |
 
-The pipeline extracts only `companyfacts` today. `ExtractSuperState` runs `ValidateCikFormat` →
-`PrepareSecRequest` → `ExecuteSecRequest` → `StoreCompanyFacts`
+The pipeline extracts only `companyfacts` today. `ExtractCompanyFactsSuperState` runs
+`ValidateCikFormat` → `PrepareSecRequest` → `ExecuteSecRequest` → `StoreCompanyFacts`
 (`sec/src/lib/implementations/states/extract/`).
 
 ## Extraction Overview

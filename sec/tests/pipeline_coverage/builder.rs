@@ -1,7 +1,7 @@
 use std::pin::pin;
 
 use futures_util::StreamExt;
-use sec::implementations::states::extract::ExtractSuperState;
+use sec::implementations::states::extract::ExtractCompanyFactsSuperState;
 use sec::prelude::*;
 use sec::shared::http_client::implementations::sec_client::SecClient;
 use sec::shared::raw_document::RawDocument;
@@ -107,7 +107,7 @@ impl Pipeline {
 
     pub async fn run(self) -> Result<(), StreamError> {
         let execution_id = Uuid::new_v4();
-        let state = ExtractSuperState::builder()
+        let state = ExtractCompanyFactsSuperState::builder()
             .cik(self.raw_cik)
             .sec_client(self.sec_client)
             .execution_id(execution_id)

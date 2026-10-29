@@ -26,8 +26,8 @@ shows the specific combination arkad's storage layer uses.
 `OrderService(PostgresRepository())`, write `OrderService(repository)` and let the caller decide.
 
 **arkad:** Core. The concrete store is injected into a state's context, exactly as `SecClient` is a
-concrete field on `ExtractSuperStateContext` today. Production wires `PostgresRepository`; tests wire
-a fake. The pipeline names no backend.
+concrete field on `ExtractCompanyFactsSuperStateContext` today. Production wires
+`PostgresRepository`; tests wire a fake. The pipeline names no backend.
 
 ## Ports & Adapters (Hexagonal Architecture)
 

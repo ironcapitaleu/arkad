@@ -1,6 +1,6 @@
 use std::error::Error;
 
-use sec::implementations::states::extract::ExtractSuperState;
+use sec::implementations::states::extract::ExtractCompanyFactsSuperState;
 use sec::implementations::states::extract::execute_sec_request::{
     ExecuteSecRequest, ExecuteSecRequestContext, ExecuteSecRequestInput,
 };
@@ -119,9 +119,9 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     println!("{:.500}", execute_sec_request.to_string().as_str());
 
     println!("\n=======================================================");
-    println!("Initial Extract SuperState:");
+    println!("Initial Extract Company Facts SuperState:");
 
-    let mut super_state = ExtractSuperState::builder()
+    let mut super_state = ExtractCompanyFactsSuperState::builder()
         .cik("1067983")
         .sec_client(sec_client)
         .execution_id(Uuid::new_v4())
