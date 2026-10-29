@@ -57,7 +57,7 @@ pub use raw_document_metadata_context::RawDocumentMetadataContext;
 ///     .content(bytes)
 ///     .produced_at(DateTime::<Utc>::UNIX_EPOCH)
 ///     .run(Uuid::nil(), Producer::new("Store Company Facts", "0.1.0", "63c1f59"))
-///     .ingestion_mode(&IngestionMode::Backfill)
+///     .ingestion_mode(IngestionMode::Backfill)
 ///     .context(RawDocumentMetadataContext {
 ///         requested_url: "https://data.sec.gov/api/xbrl/companyfacts/CIK0000320193.json"
 ///             .parse()
@@ -166,7 +166,7 @@ impl<S: RawSource> RawDocument<S> {
             .content(raw_body)
             .produced_at(run.produced_at)
             .run(run.execution_id, run.producer)
-            .ingestion_mode(&run.ingestion_mode)
+            .ingestion_mode(run.ingestion_mode)
             .context(RawDocumentMetadataContext::new(
                 response,
                 requested_url,
@@ -290,7 +290,7 @@ mod tests {
                 Uuid::nil(),
                 Producer::new("Store Company Facts", "0.1.0", "63c1f59"),
             )
-            .ingestion_mode(&IngestionMode::Backfill)
+            .ingestion_mode(IngestionMode::Backfill)
             .context(RawDocumentMetadataContext {
                 requested_url: sample_url(),
                 final_url: sample_url(),
@@ -394,7 +394,7 @@ mod tests {
                 Uuid::from_u128(0x0b6f_3c1e_5d2a_4f7b_9c3e_8a1d_2b4c_6e8f),
                 Producer::new("Store Company Facts", "0.1.0", "63c1f59"),
             )
-            .ingestion_mode(&IngestionMode::Backfill)
+            .ingestion_mode(IngestionMode::Backfill)
             .context(RawDocumentMetadataContext {
                 requested_url: sample_url(),
                 final_url: sample_url(),

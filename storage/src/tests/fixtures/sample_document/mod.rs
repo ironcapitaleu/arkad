@@ -109,7 +109,7 @@ pub fn sample_metadata_of(bytes: &[u8], produced_at: &str) -> DocumentMetadata<S
             Uuid::from_u128(0x0b6f_3c1e_5d2a_4f7b_9c3e_8a1d_2b4c_6e8f),
             Producer::new("Sample State", "0.1.0", "63c1f59"),
         )
-        .ingestion_mode(&"backfill")
+        .ingestion_mode("backfill")
         .context(SampleContext {
             url: "https://data.sec.gov/api/xbrl/companyfacts/CIK0000320193.json".to_owned(),
         })

@@ -255,6 +255,7 @@ impl<D: Document, M, B, P, R, C> DocumentMetadataBuilder<D, M, B, P, R, NoIngest
     /// #     }
     /// # }
     /// #
+    /// #[derive(Clone, Copy)]
     /// enum RunMode {
     ///     Backfill,
     /// }
@@ -287,12 +288,12 @@ impl<D: Document, M, B, P, R, C> DocumentMetadataBuilder<D, M, B, P, R, NoIngest
     ///
     /// let builder = DocumentMetadata::builder()
     ///     .document_type::<Summary>()
-    ///     .ingestion_mode(&"foo");
+    ///     .ingestion_mode("foo");
     /// ```
     #[must_use]
     pub fn ingestion_mode(
         self,
-        ingestion_mode: &D::IngestionMode,
+        ingestion_mode: D::IngestionMode,
     ) -> DocumentMetadataBuilder<D, M, B, P, R, String, C> {
         DocumentMetadataBuilder {
             document_type: self.document_type,
@@ -424,7 +425,7 @@ impl<D: Document>
     ///     .content(bytes)
     ///     .produced_at(DateTime::<Utc>::UNIX_EPOCH)
     ///     .run(Uuid::nil(), Producer::new("Summarize", "0.1.0", "63c1f59"))
-    ///     .ingestion_mode(&"backfill")
+    ///     .ingestion_mode("backfill")
     ///     .context(())
     ///     .build();
     /// ```
@@ -487,7 +488,7 @@ impl<D: Document>
     ///     .media_type("application/json")
     ///     .content(bytes)
     ///     .produced_at(DateTime::<Utc>::UNIX_EPOCH)
-    ///     .ingestion_mode(&"backfill")
+    ///     .ingestion_mode("backfill")
     ///     .context(SummaryContext { source: "a test".to_owned() })
     ///     .build();
     /// ```
@@ -668,7 +669,7 @@ mod tests {
             .content(b"{}")
             .produced_at(produced_at())
             .run(execution_id, producer)
-            .ingestion_mode(&"backfill")
+            .ingestion_mode("backfill")
             .context(sample_context())
             .inputs(input)
             .build();
@@ -691,7 +692,7 @@ mod tests {
             .content(b"{}")
             .media_type("application/json")
             .document_type::<SampleDocument>()
-            .ingestion_mode(&"backfill")
+            .ingestion_mode("backfill")
             .build();
 
         assert_eq!(result, expected_result);
@@ -710,7 +711,7 @@ mod tests {
             .content(bytes)
             .produced_at(produced_at())
             .run(execution_id, producer)
-            .ingestion_mode(&"backfill")
+            .ingestion_mode("backfill")
             .context(sample_context())
             .build();
         let result = (metadata.size_in_bytes(), metadata.sha256().clone());
@@ -731,7 +732,7 @@ mod tests {
             .content(bytes)
             .produced_at(produced_at())
             .run(execution_id, producer)
-            .ingestion_mode(&"backfill")
+            .ingestion_mode("backfill")
             .context(sample_context())
             .build();
         let result = (metadata.size_in_bytes(), metadata.sha256().clone());
@@ -751,7 +752,7 @@ mod tests {
             .content(b"{}")
             .produced_at(produced_at())
             .run(execution_id, producer)
-            .ingestion_mode(&"backfill")
+            .ingestion_mode("backfill")
             .context(sample_context())
             .build();
         let result = metadata.inputs();
@@ -771,7 +772,7 @@ mod tests {
             .content(b"{}")
             .produced_at(produced_at())
             .run(execution_id, producer)
-            .ingestion_mode(&"backfill")
+            .ingestion_mode("backfill")
             .context(sample_context())
             .build();
         let result = metadata.ingestion_mode();
