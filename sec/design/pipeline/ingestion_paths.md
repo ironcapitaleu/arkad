@@ -115,6 +115,7 @@ Extraction::incremental().submissions().cik(cik).sec_client(c).repository(r).bui
   The facade passes the mode to the SuperState once `incremental()` exists (lead, 2026-10-29).
 - `Extraction::backfill()` creates one `execution_id` per run. Every SuperState built from the same
   handle carries it. `Extraction::backfill().execution_id(id)` replaces it (lead, 2026-10-29).
+  `Backfill::id()` returns it, so a binary can name the run in its logs.
 - The facade lives in `sec/src/lib/implementations/extraction/`. Only `backfill().notes()` exists
   today (STA-343).
 - `companyfacts` stays outside the facade. It is a cross-check only. `StoreCompanyFacts` writes

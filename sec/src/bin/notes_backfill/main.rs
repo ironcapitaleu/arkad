@@ -77,18 +77,22 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
             context = %serde_json::json!({ "root": repository.root().display().to_string() }),
         );
     })?;
+    let backfill = Extraction::backfill();
+    let execution_id = backfill.id().to_string();
+    let item_execution_id = execution_id.clone();
     let start = Instant::now();
 
     let summary = backfill::run(
-        Extraction::backfill(),
+        backfill,
         &NOTES_PERIODS,
         &sec_client,
         &repository,
-        |period, item| {
+        move |period, item| {
             tracing::info!(
                 event = %item.event,
                 message = %format!("{}: '{}'", item.event, item.state_name),
                 context = %serde_json::json!({
+                    "execution_id": item_execution_id,
                     "period": period,
                     "state": item.state_name,
                     "event_duration_ms": item.event_duration.as_millis(),
@@ -115,6 +119,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     let failures = summary.failure_count();
     let successes = NOTES_PERIODS.len() - failures;
     let context = serde_json::json!({
+        "execution_id": execution_id,
         "successes": successes,
         "failures": failures,
         "duration_ms": elapsed.as_millis(),
