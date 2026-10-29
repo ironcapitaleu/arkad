@@ -226,9 +226,9 @@ impl RawDocument<RawNotesArchive> {
     ///     },
     /// );
     ///
-    /// let expected_result = "raw_notes_archive";
+    /// let expected_result = b"PK";
     ///
-    /// let result = document.metadata().document_type();
+    /// let result = document.bytes();
     ///
     /// assert_eq!(result, expected_result);
     /// ```
@@ -657,7 +657,7 @@ mod tests {
     }
 
     #[test]
-    fn should_take_the_digest_of_the_file_when_building_a_document_from_a_file() {
+    fn should_match_the_digest_of_the_file_when_building_a_document_from_a_file() {
         let document = sample_document_from_file();
 
         let expected_result = sample_notes_file().body_digest().clone();
