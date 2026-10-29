@@ -10,6 +10,7 @@ use std::fmt::{self, Display, Formatter};
 use thiserror::Error;
 
 use super::constants::{FIRST_MONTH, FIRST_YEAR, LAST_QUARTER};
+use super::{NotesPeriod, PeriodPart};
 
 /// Error indicating that a string could not be validated as a Notes period.
 #[derive(Debug, Error, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -55,15 +56,23 @@ impl Display for InvalidNotesPeriodReason {
                 write!(f, "Expected the form 'YYYYqN' or 'YYYY_MM'")
             }
             Self::UnpublishedYear { year } => {
-                write!(f, "The first Notes year is {FIRST_YEAR}, got '{year}'")
+                write!(f, "The first Notes year is {FIRST_YEAR}, got {year}")
             }
             Self::UnpublishedQuarter => {
                 let (year, quarter) = LAST_QUARTER;
-                write!(f, "The last quarterly Notes file is {year} {quarter}")
+                let last_quarter = NotesPeriod {
+                    year,
+                    part: PeriodPart::Quarter(quarter),
+                };
+                write!(f, "The last quarterly Notes file is {last_quarter}")
             }
             Self::UnpublishedMonth => {
                 let (year, month) = FIRST_MONTH;
-                write!(f, "The first monthly Notes file is {} {year}", month.name())
+                let first_month = NotesPeriod {
+                    year,
+                    part: PeriodPart::Month(month),
+                };
+                write!(f, "The first monthly Notes file is {first_month}")
             }
         }
     }
@@ -82,7 +91,7 @@ mod tests {
             "2008q4",
         );
 
-        let expected_result = "[NotesPeriodError] Invalid Notes period, Reason: 'The first Notes year is 2009, got '2008'', Input: '2008q4'";
+        let expected_result = "[NotesPeriodError] Invalid Notes period, Reason: 'The first Notes year is 2009, got 2008', Input: '2008q4'";
 
         let result = error.to_string();
 
@@ -90,8 +99,17 @@ mod tests {
     }
 
     #[test]
+    fn should_format_display_with_both_forms_when_reason_is_invalid_format() {
+        let expected_result = "Expected the form 'YYYYqN' or 'YYYY_MM'";
+
+        let result = InvalidNotesPeriodReason::InvalidNotesPeriodFormat.to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
     fn should_format_display_with_last_quarter_when_reason_is_unpublished_quarter() {
-        let expected_result = "The last quarterly Notes file is 2025 Q3";
+        let expected_result = "The last quarterly Notes file is 2025q3";
 
         let result = InvalidNotesPeriodReason::UnpublishedQuarter.to_string();
 
@@ -100,7 +118,7 @@ mod tests {
 
     #[test]
     fn should_format_display_with_first_month_when_reason_is_unpublished_month() {
-        let expected_result = "The first monthly Notes file is October 2025";
+        let expected_result = "The first monthly Notes file is 2025_10";
 
         let result = InvalidNotesPeriodReason::UnpublishedMonth.to_string();
 

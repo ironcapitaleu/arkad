@@ -21,7 +21,8 @@ pub const FILE_NAME_SUFFIX: &str = "_notes.zip";
 
 /// The periods whose linked file name breaks the pattern, and the linked file name.
 ///
-/// The file name of the pattern also returns HTTP 200 for these periods, but with data from 2020.
+/// For these periods, the file name of the pattern also returns HTTP 200. It serves an older
+/// version of the file, last modified on 2020-12-22.
 pub const FILE_NAME_OVERRIDES: [(&str, &str); 3] = [
     ("2010q1", "2010q1_notes_1.zip"),
     ("2010q2", "2010q2_notes_0.zip"),

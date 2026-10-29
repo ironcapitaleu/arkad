@@ -27,8 +27,9 @@ use constants::{FILE_NAME_SUFFIX, FIRST_MONTH, FIRST_YEAR, LAST_QUARTER};
 
 /// The period of one SEC Financial Statement and Notes file: a quarter or a month of a year.
 ///
-/// Values are only produced through [`NotesPeriod::new`] (or the [`TryFrom`] impl), so every value
-/// names a period with a published Notes file.
+/// Values are only produced through [`NotesPeriod::new`] (or the [`TryFrom`] impl). Every quarter
+/// has a published Notes file. Months have no upper limit, so a month after the latest published
+/// file also parses.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct NotesPeriod {
     year: u16,
@@ -56,6 +57,9 @@ impl NotesPeriod {
     /// ([`InvalidNotesPeriodReason::UnpublishedYear`]), the quarter comes after 2025q3
     /// ([`InvalidNotesPeriodReason::UnpublishedQuarter`]), or the month comes before `2025_10`
     /// ([`InvalidNotesPeriodReason::UnpublishedMonth`]).
+    ///
+    /// The year check runs first, so `2008_12` returns
+    /// [`InvalidNotesPeriodReason::UnpublishedYear`], not `UnpublishedMonth`.
     ///
     /// # Examples
     ///
@@ -336,6 +340,42 @@ mod tests {
     }
 
     #[test]
+    fn should_reject_with_unpublished_year_when_month_is_also_before_2025_10() {
+        let expected_result = Some(InvalidNotesPeriodReason::UnpublishedYear { year: 2008 });
+
+        let result = rejection_reason("2008_12");
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_accept_a_month_when_month_is_after_the_last_published_file() {
+        let expected_result = true;
+
+        let result = NotesPeriod::new("2099_12").is_ok();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_parse_the_period_when_input_has_surrounding_whitespace() {
+        let expected_result = NotesPeriod::new("2024q1");
+
+        let result = NotesPeriod::new(" \t2024q1\n");
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_parse_the_same_period_when_try_from_is_called() {
+        let expected_result = NotesPeriod::new("2025_10");
+
+        let result = NotesPeriod::try_from("2025_10");
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
     fn should_reject_with_invalid_format_when_input_matches_neither_form() {
         let malformed_periods = [
             "", "2024", "2024Q1", "2024q5", "2024q01", "24q1", "2025_1", "2025_13", "2025_00",
@@ -360,9 +400,11 @@ mod tests {
         let first_month = NotesPeriod::new("2025_10")
             .expect("Given the first published month, parsing should always succeed");
 
+        let expected_result = true;
+
         let result = last_quarter < first_month;
 
-        assert!(result);
+        assert_eq!(result, expected_result);
     }
 
     #[test]
