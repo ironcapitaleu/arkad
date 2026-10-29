@@ -334,12 +334,12 @@ mod tests {
         let mut input = sample_input(b"PK");
         input.response = None;
 
-        let expected_result = serde_json::Value::Null;
+        let expected_result = Some(serde_json::Value::Null);
 
         let value = serde_json::to_value(&input).expect(
             "Given an input of strings and no response, serialization should always succeed",
         );
-        let result = value["response"].clone();
+        let result = value.get("response").cloned();
 
         assert_eq!(result, expected_result);
     }

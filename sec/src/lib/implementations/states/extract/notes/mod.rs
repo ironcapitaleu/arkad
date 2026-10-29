@@ -627,7 +627,7 @@ mod tests {
         let items = run_stream(super_state).await;
         let result = items
             .last()
-            .map(|item| item.data["input"]["response"].clone());
+            .and_then(|item| item.data.pointer("/input/response").cloned());
 
         assert_eq!(result, expected_result);
     }
