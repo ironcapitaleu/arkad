@@ -9,6 +9,7 @@
 //! - [`document_type`]: Provides [`SecDocumentType`](document_type::SecDocumentType), the types of document the SEC state machines store.
 //! - [`document_storage`]: Provides [`FailedDocumentStorage`](document_storage::FailedDocumentStorage), the error for a document that the store did not keep.
 //! - [`http_client`]: Provides utilities for creating and managing SEC API clients, including user agent handling.
+//! - [`notes_period`]: Provides [`NotesPeriod`](notes_period::NotesPeriod), the period of one SEC Financial Statement and Notes file, and its file name.
 //! - [`raw_document`]: Provides [`RawDocument`](raw_document::RawDocument), one SEC file as the store keeps it.
 //! - [`raw_source`]: Provides [`RawSource`](raw_source::RawSource), the trait that names the SEC file a raw document holds, and one implementation per file.
 //! - [`rate_limiter`]: Provides a leaky-bucket rate limiter for pacing outgoing SEC API requests.
@@ -33,6 +34,7 @@ pub mod document_type;
 pub mod financial;
 pub mod headers;
 pub mod http_client;
+pub mod notes_period;
 pub mod rate_limiter;
 pub mod raw_document;
 pub mod raw_source;
