@@ -217,6 +217,7 @@ impl FilesystemRepository<NoAccess, NoDocumentType> {
     /// #
     /// # impl Document for Summary {
     /// #     type DocumentType = ReportType;
+    /// #     type IngestionMode = &'static str;
     /// #     const DOCUMENT_TYPE: ReportType = ReportType::Summary;
     /// #     const DOCUMENT_TYPE_VERSION: u32 = 1;
     /// #     type Context = SummaryContext;
@@ -292,6 +293,7 @@ impl<A, D> FilesystemRepository<A, D> {
     /// #
     /// # impl Document for Summary {
     /// #     type DocumentType = ReportType;
+    /// #     type IngestionMode = &'static str;
     /// #     const DOCUMENT_TYPE: ReportType = ReportType::Summary;
     /// #     const DOCUMENT_TYPE_VERSION: u32 = 1;
     /// #     type Context = SummaryContext;
@@ -488,6 +490,7 @@ mod tests {
 
     impl Document for BareDocument {
         type DocumentType = SampleDocumentType;
+        type IngestionMode = &'static str;
         const DOCUMENT_TYPE: SampleDocumentType = SampleDocumentType::SampleDocument;
         const DOCUMENT_TYPE_VERSION: u32 = 1;
         type Context = ();

@@ -15,6 +15,7 @@ use std::marker::PhantomData;
 use storage::implementations::repository::filesystem::{Document, DocumentKey, DocumentMetadata};
 
 use crate::shared::document_type::SecDocumentType;
+use crate::shared::ingestion_mode::IngestionMode;
 use crate::shared::raw_source::RawSource;
 use crate::shared::response::SecResponse as SecResponseTrait;
 use crate::shared::response::implementations::sec_response::SecResponse;
@@ -56,7 +57,7 @@ pub use raw_document_metadata_context::RawDocumentMetadataContext;
 ///     .content(bytes)
 ///     .produced_at(DateTime::<Utc>::UNIX_EPOCH)
 ///     .run(Uuid::nil(), Producer::new("Store Company Facts", "0.1.0", "63c1f59"))
-///     .ingestion_mode(IngestionMode::Backfill)
+///     .ingestion_mode(&IngestionMode::Backfill)
 ///     .context(RawDocumentMetadataContext {
 ///         requested_url: "https://data.sec.gov/api/xbrl/companyfacts/CIK0000320193.json"
 ///             .parse()
@@ -165,7 +166,7 @@ impl<S: RawSource> RawDocument<S> {
             .content(raw_body)
             .produced_at(run.produced_at)
             .run(run.execution_id, run.producer)
-            .ingestion_mode(run.ingestion_mode)
+            .ingestion_mode(&run.ingestion_mode)
             .context(RawDocumentMetadataContext::new(
                 response,
                 requested_url,
@@ -178,6 +179,7 @@ impl<S: RawSource> RawDocument<S> {
 
 impl<S: RawSource> Document for RawDocument<S> {
     type DocumentType = SecDocumentType;
+    type IngestionMode = IngestionMode;
     const DOCUMENT_TYPE: SecDocumentType = S::DOCUMENT_TYPE;
     const DOCUMENT_TYPE_VERSION: u32 = S::DOCUMENT_TYPE_VERSION;
     type Context = RawDocumentMetadataContext;
@@ -225,7 +227,6 @@ mod tests {
     use super::*;
     use crate::shared::content_type::ContentType;
     use crate::shared::headers::Headers;
-    use crate::shared::ingestion_mode::IngestionMode;
     use crate::shared::raw_source::RawCompanyFacts;
     use crate::shared::status_code::StatusCode;
 
@@ -289,7 +290,7 @@ mod tests {
                 Uuid::nil(),
                 Producer::new("Store Company Facts", "0.1.0", "63c1f59"),
             )
-            .ingestion_mode(IngestionMode::Backfill)
+            .ingestion_mode(&IngestionMode::Backfill)
             .context(RawDocumentMetadataContext {
                 requested_url: sample_url(),
                 final_url: sample_url(),
@@ -393,7 +394,7 @@ mod tests {
                 Uuid::from_u128(0x0b6f_3c1e_5d2a_4f7b_9c3e_8a1d_2b4c_6e8f),
                 Producer::new("Store Company Facts", "0.1.0", "63c1f59"),
             )
-            .ingestion_mode(IngestionMode::Backfill)
+            .ingestion_mode(&IngestionMode::Backfill)
             .context(RawDocumentMetadataContext {
                 requested_url: sample_url(),
                 final_url: sample_url(),

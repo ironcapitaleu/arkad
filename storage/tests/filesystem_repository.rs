@@ -42,6 +42,7 @@ struct SampleDocument {
 
 impl Document for SampleDocument {
     type DocumentType = SampleDocumentType;
+    type IngestionMode = &'static str;
     const DOCUMENT_TYPE: SampleDocumentType = SampleDocumentType::SampleDocument;
     const DOCUMENT_TYPE_VERSION: u32 = 1;
     type Context = ();
@@ -80,7 +81,7 @@ fn sample_document() -> SampleDocument {
             Uuid::nil(),
             Producer::new("Sample State", "0.1.0", "63c1f59"),
         )
-        .ingestion_mode("backfill")
+        .ingestion_mode(&"backfill")
         .context(())
         .build();
 

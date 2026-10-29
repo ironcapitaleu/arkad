@@ -50,6 +50,7 @@ mod sealed {
 /// #
 /// # impl Document for Summary {
 /// #     type DocumentType = ReportType;
+/// #     type IngestionMode = &'static str;
 /// #     const DOCUMENT_TYPE: ReportType = ReportType::Summary;
 /// #     const DOCUMENT_TYPE_VERSION: u32 = 1;
 /// #     type Context = SummaryContext;
@@ -115,6 +116,7 @@ pub struct Read;
 /// #
 /// # impl Document for Summary {
 /// #     type DocumentType = ReportType;
+/// #     type IngestionMode = &'static str;
 /// #     const DOCUMENT_TYPE: ReportType = ReportType::Summary;
 /// #     const DOCUMENT_TYPE_VERSION: u32 = 1;
 /// #     type Context = SummaryContext;
@@ -205,6 +207,7 @@ pub trait CanRead: Access {}
 /// #
 /// # impl Document for Summary {
 /// #     type DocumentType = ReportType;
+/// #     type IngestionMode = &'static str;
 /// #     const DOCUMENT_TYPE: ReportType = ReportType::Summary;
 /// #     const DOCUMENT_TYPE_VERSION: u32 = 1;
 /// #     type Context = SummaryContext;

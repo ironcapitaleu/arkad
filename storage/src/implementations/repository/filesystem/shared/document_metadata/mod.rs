@@ -103,6 +103,7 @@ impl DocumentMetadata<NoContext> {
     /// #
     /// # impl Document for Summary {
     /// #     type DocumentType = ReportType;
+    /// #     type IngestionMode = &'static str;
     /// #     const DOCUMENT_TYPE: ReportType = ReportType::Summary;
     /// #     const DOCUMENT_TYPE_VERSION: u32 = 1;
     /// #     type Context = SummaryContext;
@@ -125,7 +126,7 @@ impl DocumentMetadata<NoContext> {
     ///     .content(bytes)
     ///     .produced_at(DateTime::<Utc>::UNIX_EPOCH)
     ///     .run(Uuid::nil(), Producer::new("Summarize", "0.1.0", "63c1f59"))
-    ///     .ingestion_mode("backfill")
+    ///     .ingestion_mode(&"backfill")
     ///     .context(SummaryContext { source: "a test".to_owned() })
     ///     .build();
     ///
