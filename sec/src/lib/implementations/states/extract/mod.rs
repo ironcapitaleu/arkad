@@ -175,7 +175,7 @@ impl<S: State, R: RawCompanyFactsRepository> Display for ExtractCompanyFactsSupe
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         write!(
             f,
-            "Extract SuperState (Current: {})",
+            "Extract Company Facts SuperState (Current: {})",
             self.current_state.state_name().to_string()
         )
     }
@@ -188,7 +188,7 @@ impl<S: State, R: RawCompanyFactsRepository> SMState for ExtractCompanyFactsSupe
 
     fn state_name(&self) -> impl ToString {
         format!(
-            "Extract SuperState (Current: {})",
+            "Extract Company Facts SuperState (Current: {})",
             self.current_state.state_name().to_string()
         )
     }
@@ -566,7 +566,7 @@ mod tests {
             .repository(FakeWriteRepository::new())
             .build();
 
-        let expected_result = "Extract SuperState (Current: Validate CIK Format)";
+        let expected_result = "Extract Company Facts SuperState (Current: Validate CIK Format)";
 
         let result = super_state.state_name().to_string();
 
@@ -588,7 +588,7 @@ mod tests {
             FakeWriteRepository::new(),
         );
 
-        let expected_result = "Extract SuperState (Current: Prepare SEC Request)";
+        let expected_result = "Extract Company Facts SuperState (Current: Prepare SEC Request)";
 
         let result = super_state.state_name().to_string();
 
@@ -660,7 +660,7 @@ mod tests {
             .await
             .expect("Should compute output data");
 
-        let expected_result = "Extract SuperState (Current: Execute SEC Request)";
+        let expected_result = "Extract Company Facts SuperState (Current: Execute SEC Request)";
 
         let state = super_state
             .transition_to_next_state_sec()
@@ -726,7 +726,7 @@ mod tests {
             .await
             .expect("Should compute output data");
 
-        let expected_result = "Extract SuperState (Current: Prepare SEC Request)";
+        let expected_result = "Extract Company Facts SuperState (Current: Prepare SEC Request)";
 
         let result = super_state
             .transition_to_next_state_sec()

@@ -14,7 +14,7 @@ Extract                          Transform                        Load (planned)
   StoreCompanyFacts
 ```
 
-### Extract SuperState
+### Extract Company Facts SuperState
 
 Fetches raw SEC Company Facts JSON from the EDGAR API and writes it to the store. A stream of the super-state ends after StoreCompanyFacts:
 

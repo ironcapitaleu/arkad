@@ -119,7 +119,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     println!("{:.500}", execute_sec_request.to_string().as_str());
 
     println!("\n=======================================================");
-    println!("Initial Extract SuperState:");
+    println!("Initial Extract Company Facts SuperState:");
 
     let mut super_state = ExtractCompanyFactsSuperState::builder()
         .cik("1067983")
