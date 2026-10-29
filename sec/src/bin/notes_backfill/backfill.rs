@@ -91,8 +91,8 @@ pub async fn run(
         let period = period.to_string();
         let on_item = Arc::clone(&on_item);
         let on_error = Arc::clone(&on_error);
-        // A task per period keeps one body download running while the other period writes its
-        // file. One shared task stops polling the download during the write.
+        // A task per period keeps one body download running while the other period hashes its
+        // file. The hash does not yield, so one shared task stops polling the download during it.
         async move {
             let task = tokio::spawn(async move {
                 let outcome = super_state

@@ -250,8 +250,9 @@ and the stored file that `persist` reads to compare digests on a rerun. `RawDocu
 takes the `SecNotesFileResponse` bytes by value, which removes the second copy. The largest file is 0.85 GB, so
 two files need about 4 to 5 GB (estimate, measure it with the `performance` skill).
 
-Each period of the run is its own task. If two periods share one task, the write of one file stops
-the body read of the other, and the SEC download of that file fails.
+Each period of the run is its own task. If two periods share one task, the SHA-256 of one file
+stops the body read of the other, because the hash does not yield. The download of that file then
+fails.
 
 The output of `DownloadNotesArchive` holds the response in an `Arc`. The transition to
 `StoreNotesArchive` moves the `Arc` into the input of `StoreNotesArchive`, which holds it as
