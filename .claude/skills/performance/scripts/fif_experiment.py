@@ -190,7 +190,10 @@ def cleanup(repo, workdir):
         subprocess.run(["git", "-C", str(repo), "worktree", "remove", "--force", str(tree)])
     shutil.rmtree(workdir, ignore_errors=True)
     subprocess.run(["git", "-C", str(repo), "worktree", "prune"])
-    print(f"Deleted {workdir} and the worktree.")
+    if workdir.exists():
+        print(f"Could not delete all of {workdir}. Delete it by hand.")
+    else:
+        print(f"Deleted {workdir} and the worktree.")
 
 
 def git(repo, *arguments):

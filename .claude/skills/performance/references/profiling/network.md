@@ -27,7 +27,7 @@ Run both steps on the same machine, at the same time of day.
 
 For each run, record the total duration, the peak resident memory (`ru_maxrss` via `os.wait4`), the
 download time of each file from its `state_completed` event, and every failure. The script prints
-all four in its table.
+all four: the table, then each failure below it.
 
 ```sh
 ARKAD_SEC_USER_AGENT="Company Name email@domain.com" \
