@@ -74,6 +74,12 @@ impl Backfill {
         Self { execution_id }
     }
 
+    /// Returns the `execution_id` of the run.
+    #[must_use]
+    pub const fn id(&self) -> Uuid {
+        self.execution_id
+    }
+
     /// Returns the builder of an [`ExtractNotesSuperState`] that holds the run's `execution_id`.
     ///
     /// The builder still needs a period, an SEC client, and a repository of type `R`.
@@ -182,6 +188,17 @@ mod tests {
             .build();
 
         let result = notes_super_state(&backfill);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_the_given_execution_id_when_reading_the_id_of_the_run() {
+        let backfill = Extraction::backfill().execution_id(Uuid::from_u128(7));
+
+        let expected_result = Uuid::from_u128(7);
+
+        let result = backfill.id();
 
         assert_eq!(result, expected_result);
     }
