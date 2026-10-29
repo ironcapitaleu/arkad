@@ -100,13 +100,17 @@ impl SecClient {
         &self,
         request: SecRequest,
     ) -> Result<SecNotesFileResponse, FailedSecRequest> {
-        download_notes_file(&self.inner, &self.rate_limiter, request.into_inner()).await
+        download_notes_file(self, request.into_inner()).await
     }
 }
 
-/// Waits on `rate_limiter`, sends `request` through `client`, and validates the reply.
+// TODO(STA-347): Merge `download_sec_file` and this function into one generic
+// `execute_sec_request`, whose request kind decides the response type.
+
+/// Waits on the rate limiter of `client`, sends `request` through its inner client, and
+/// validates the reply.
 ///
-/// Generic over the client, so tests can send the request through a fake [`InnerClient`].
+/// Generic over the client, so tests can send the request through a fake [`SecClientTrait`].
 ///
 /// # Errors
 ///
@@ -114,19 +118,19 @@ impl SecClient {
 /// response fails a check of [`SecNotesFileResponse::from_parts`].
 async fn download_notes_file<C>(
     client: &C,
-    rate_limiter: &impl RateLimiter,
     request: reqwest::Request,
 ) -> Result<SecNotesFileResponse, FailedSecRequest>
 where
-    C: InnerClient<
+    C: SecClientTrait,
+    C::Inner: InnerClient<
             Request = reqwest::Request,
             Response = reqwest::Response,
             Error = reqwest::Error,
         >,
 {
-    rate_limiter.await_turn().await;
+    client.rate_limiter().await_turn().await;
 
-    let inner_response = client.execute_request(request).await?;
+    let inner_response = client.inner().execute_request(request).await?;
     let notes_file_response = SecNotesFileResponse::from_inner(inner_response).await?;
     Ok(notes_file_response)
 }
@@ -219,8 +223,7 @@ mod tests {
     use crate::shared::status_code::StatusCode;
     use crate::shared::user_agent::UserAgent;
     use crate::shared::user_agent::constants::DEFAULT_SEC_USER_AGENT;
-    use crate::tests::fixtures::sample_http_client::sample_inner_client::AlwaysRespondingHttpClient;
-    use crate::tests::fixtures::sample_rate_limiter::always_ready::AlwaysReadyRateLimiter;
+    use crate::tests::fixtures::sample_http_client::sample_sec_client::always_responding::FakeSecClient;
 
     const NOTES_FILE_BODY: &[u8] = b"PK\x03\x04 notes";
 
@@ -231,15 +234,15 @@ mod tests {
         reqwest::Request::new(reqwest::Method::GET, url)
     }
 
-    fn responding_client(status: u16, content_type: &str) -> AlwaysRespondingHttpClient {
-        AlwaysRespondingHttpClient {
+    fn responding_client(status: u16, content_type: &str, body: &[u8]) -> FakeSecClient {
+        FakeSecClient::new(
             status,
-            headers: vec![
+            vec![
                 ("content-type", content_type.to_string()),
                 ("content-length", NOTES_FILE_BODY.len().to_string()),
             ],
-            body: NOTES_FILE_BODY.to_vec(),
-        }
+            body.to_vec(),
+        )
     }
 
     fn invalid_response(reason: ErrorReason) -> FailedSecRequest {
@@ -248,11 +251,11 @@ mod tests {
 
     #[tokio::test]
     async fn should_return_the_body_when_the_notes_file_download_succeeds() {
-        let client = responding_client(200, "application/octet-stream");
+        let client = responding_client(200, "application/octet-stream", NOTES_FILE_BODY);
 
         let expected_result = NOTES_FILE_BODY.to_vec();
 
-        let result = download_notes_file(&client, &AlwaysReadyRateLimiter, notes_file_request())
+        let result = download_notes_file(&client, notes_file_request())
             .await
             .expect("Given status 200, an octet stream and a matching length, the download should always succeed")
             .body()
@@ -263,13 +266,13 @@ mod tests {
 
     #[tokio::test]
     async fn should_return_invalid_status_code_when_the_notes_file_is_not_found() {
-        let client = responding_client(404, "application/octet-stream");
+        let client = responding_client(404, "application/octet-stream", NOTES_FILE_BODY);
 
         let expected_result = Some(invalid_response(ErrorReason::InvalidStatusCode {
             status_code: StatusCode::NotFound,
         }));
 
-        let result = download_notes_file(&client, &AlwaysReadyRateLimiter, notes_file_request())
+        let result = download_notes_file(&client, notes_file_request())
             .await
             .err();
 
@@ -278,13 +281,13 @@ mod tests {
 
     #[tokio::test]
     async fn should_return_invalid_content_type_when_the_notes_file_is_html() {
-        let client = responding_client(200, "text/html");
+        let client = responding_client(200, "text/html", NOTES_FILE_BODY);
 
         let expected_result = Some(invalid_response(ErrorReason::InvalidContentType {
             content_type: ContentType::Html,
         }));
 
-        let result = download_notes_file(&client, &AlwaysReadyRateLimiter, notes_file_request())
+        let result = download_notes_file(&client, notes_file_request())
             .await
             .err();
 
@@ -293,17 +296,14 @@ mod tests {
 
     #[tokio::test]
     async fn should_return_invalid_content_length_when_the_notes_file_body_is_short() {
-        let client = AlwaysRespondingHttpClient {
-            body: NOTES_FILE_BODY[..4].to_vec(),
-            ..responding_client(200, "application/zip")
-        };
+        let client = responding_client(200, "application/zip", &NOTES_FILE_BODY[..4]);
 
         let expected_result = Some(invalid_response(ErrorReason::InvalidContentLength {
             content_length: NOTES_FILE_BODY.len().to_string(),
             body_length: 4,
         }));
 
-        let result = download_notes_file(&client, &AlwaysReadyRateLimiter, notes_file_request())
+        let result = download_notes_file(&client, notes_file_request())
             .await
             .err();
 
