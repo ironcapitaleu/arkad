@@ -72,18 +72,17 @@ package in scope.>
 
 <Only when the ticket belongs to an ordered set of tickets: an epic (a Linear project), a project
 milestone, or the "Implementation Tickets" list of a design doc. One row per ticket in the set, in
-working order. Read the status of each ticket from Linear when you write the handoff. Mark the
-successor's ticket with ▶.>
+working order. Mark the successor's ticket with ▶.>
 
-Project <name>, milestone <name>. All tickets link to <design ticket>.
+Project <name>, milestone <name>. All tickets link to <design ticket>. Statuses as of <YYYY-MM-DD>.
 
 | # | Ticket | Scope | Blocked by | Status |
 | - | ------ | ----- | ---------- | ------ |
 | 1 | STA-xxx | <three to six words> | none | Done |
 | 2 | ▶ STA-xxx | <three to six words> | none | Backlog |
 
-Critical path: <the longest chain of blockers, as STA-xxx → STA-xxx → …>
-Unblocked now: <every ticket whose blockers have all merged, and which has no branch yet>
+Critical path: <the longest chain of open tickets linked by blockers, as STA-xxx → STA-xxx → …>
+Unblocked now: <every ticket in Backlog or Todo whose blockers are all Done or have a merged PR>
 
 # Key Decisions
 
@@ -126,7 +125,8 @@ The statuses are a snapshot of that day. Read the live statuses from Linear for 
 ```markdown
 # Roadmap
 
-Project MVP Data, milestone "Data in Postgres". All tickets link to STA-328.
+Project MVP Data, milestone "Data in Postgres". All tickets link to STA-328. Statuses as of
+2026-10-29.
 
 | # | Ticket | Scope | Blocked by | Status |
 | - | ------ | ----- | ---------- | ------ |
@@ -160,9 +160,11 @@ successor knows how much slack it has.
    by path or URL. Do not paste file contents the successor can read itself.
 3. **Add the Roadmap** if the ticket belongs to an ordered set: an epic (a Linear project), a
    project milestone, or the "Implementation Tickets" list of a design doc. See "Roadmap Example".
-   Read every ticket's status and blockers from Linear at the time you write the handoff. Never
-   copy a roadmap from an earlier handoff without this check. Recompute the critical path and the
-   unblocked tickets from the fresh data.
+   Read every ticket's status, blockers, and linked PR through the `linear` skill at the time you
+   write the handoff. Never copy a roadmap from an earlier handoff without this check. Recompute
+   the critical path and the unblocked tickets from the fresh data. If Linear is unreachable,
+   leave the Roadmap out and say so under "Blocked / undecided". The Linear note carries the
+   Roadmap too, with its date, so a reader can tell how old the statuses are.
 4. **Redact secrets.** Remove API keys, tokens, passwords, and personal data. Reference the
    secret's location instead, never its value.
 5. **Choose the destination** — a fresh agent session, a Linear note, or both (see Destinations).
@@ -185,8 +187,7 @@ successor knows how much slack it has.
 - **Self-contained.** The successor sees only this prompt. If a fact is not in it, the successor
   does not have it.
 - **Reference, do not duplicate.** Link tickets, PRs, branches, and docs. Never copy their bodies.
-  The Roadmap table is an index, not a copy: it holds only the ID, a short scope, the blockers,
-  and the status.
+  The Roadmap table is an index, not a copy.
 - **Redact before writing.** No secret value reaches the document. This matters most for the Linear
   note, which persists and other people read.
 - **Never in the repository.** The agent-session prompt goes to the chat, plus a temporary file if
