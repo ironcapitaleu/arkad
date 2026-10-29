@@ -421,6 +421,17 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn should_persist_no_ingestion_mode_for_company_facts() {
+        let document = persisted_document().await;
+
+        let expected_result = None;
+
+        let result = document.metadata().ingestion_mode();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
     async fn should_name_this_state_as_the_producer_of_the_document() {
         let document = persisted_document().await;
 

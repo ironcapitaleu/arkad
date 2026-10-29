@@ -87,8 +87,8 @@ Yellow states are new.
 ### Ingestion Mode
 
 Each run has an ingestion mode: `backfill` or `incremental`. The backfill runs in mode `backfill`.
-The new-filing path runs in mode `incremental`. In `sec`, an enum `IngestionMode` holds the two
-values.
+The new-filing path runs in mode `incremental`. In `sec`, the enum `IngestionMode` in
+`sec/src/lib/shared/ingestion_mode/` holds the two values.
 
 ### Calling the Machines
 

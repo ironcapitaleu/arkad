@@ -389,7 +389,7 @@ mod tests {
             .build();
 
         let expected_result = serde_json::json!({
-            "metadata_version": 1,
+            "metadata_version": 2,
             "document_type": "raw_company_facts",
             "document_type_version": 1,
             "media_type": "application/json",

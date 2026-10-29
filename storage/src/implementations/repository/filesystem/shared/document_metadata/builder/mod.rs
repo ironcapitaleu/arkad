@@ -63,7 +63,8 @@ pub struct Run {
 /// Set the document type with [`document_type`](Self::document_type), and the required fields
 /// with [`media_type`](Self::media_type), [`content`](Self::content),
 /// [`produced_at`](Self::produced_at), [`run`](Self::run), and [`context`](Self::context), in any
-/// order. [`inputs`](Self::inputs) is optional and defaults to no inputs. Then call
+/// order. [`inputs`](Self::inputs) is optional and defaults to no inputs.
+/// [`ingestion_mode`](Self::ingestion_mode) is optional and defaults to no mode. Then call
 /// [`build`](Self::build).
 ///
 /// The derived traits require `D` to implement them too. A builder exists only between
@@ -78,6 +79,7 @@ pub struct DocumentMetadataBuilder<D, M, B, P, R, C> {
     run: R,
     context: C,
     inputs: Vec<InputDocument>,
+    ingestion_mode: Option<String>,
 }
 
 impl
@@ -94,6 +96,7 @@ impl
             run: NoRun,
             context: NoContext,
             inputs: Vec::new(),
+            ingestion_mode: None,
         }
     }
 }
@@ -111,6 +114,7 @@ impl<M, B, P, R, C> DocumentMetadataBuilder<NoDocumentType, M, B, P, R, C> {
             run: self.run,
             context: self.context,
             inputs: self.inputs,
+            ingestion_mode: self.ingestion_mode,
         }
     }
 }
@@ -130,6 +134,7 @@ impl<D, B, P, R, C> DocumentMetadataBuilder<D, NoMediaType, B, P, R, C> {
             run: self.run,
             context: self.context,
             inputs: self.inputs,
+            ingestion_mode: self.ingestion_mode,
         }
     }
 }
@@ -156,6 +161,7 @@ impl<D, M, P, R, C> DocumentMetadataBuilder<D, M, NoContent, P, R, C> {
             run: self.run,
             context: self.context,
             inputs: self.inputs,
+            ingestion_mode: self.ingestion_mode,
         }
     }
 }
@@ -175,6 +181,7 @@ impl<D, M, B, R, C> DocumentMetadataBuilder<D, M, B, NoProducedAt, R, C> {
             run: self.run,
             context: self.context,
             inputs: self.inputs,
+            ingestion_mode: self.ingestion_mode,
         }
     }
 }
@@ -198,6 +205,7 @@ impl<D, M, B, P, C> DocumentMetadataBuilder<D, M, B, P, NoRun, C> {
             },
             context: self.context,
             inputs: self.inputs,
+            ingestion_mode: self.ingestion_mode,
         }
     }
 }
@@ -216,6 +224,7 @@ impl<D, M, B, P, R> DocumentMetadataBuilder<D, M, B, P, R, NoContext> {
             run: self.run,
             context,
             inputs: self.inputs,
+            ingestion_mode: self.ingestion_mode,
         }
     }
 }
@@ -227,6 +236,16 @@ impl<D, M, B, P, R, C> DocumentMetadataBuilder<D, M, B, P, R, C> {
     #[must_use]
     pub fn inputs(mut self, inputs: Vec<InputDocument>) -> Self {
         self.inputs = inputs;
+        self
+    }
+
+    /// Sets the ingestion mode of the run that produced the document bytes, for example
+    /// `backfill`.
+    ///
+    /// If you skip this step, the metadata holds no ingestion mode.
+    #[must_use]
+    pub fn ingestion_mode(mut self, ingestion_mode: impl Into<String>) -> Self {
+        self.ingestion_mode = Some(ingestion_mode.into());
         self
     }
 }
@@ -390,6 +409,7 @@ impl<D: Document> DocumentMetadataBuilder<D, String, Content, DateTime<Utc>, Run
             sha256: self.content.sha256,
             produced_at: self.produced_at,
             execution_id: self.run.execution_id,
+            ingestion_mode: self.ingestion_mode,
             producer: self.run.producer,
             inputs: self.inputs,
             context: self.context,
@@ -469,6 +489,7 @@ mod tests {
             run: NoRun,
             context: NoContext,
             inputs: Vec::new(),
+            ingestion_mode: None,
         };
 
         let result = DocumentMetadata::builder();
@@ -571,6 +592,45 @@ mod tests {
             .context(sample_context())
             .build();
         let result = metadata.inputs();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_hold_no_ingestion_mode_when_the_ingestion_mode_step_is_left_out() {
+        let (execution_id, producer) = sample_run();
+
+        let expected_result = None;
+
+        let metadata = DocumentMetadata::builder()
+            .document_type::<SampleDocument>()
+            .media_type("application/json")
+            .content(b"{}")
+            .produced_at(produced_at())
+            .run(execution_id, producer)
+            .context(sample_context())
+            .build();
+        let result = metadata.ingestion_mode();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_hold_the_ingestion_mode_when_setting_the_ingestion_mode() {
+        let (execution_id, producer) = sample_run();
+
+        let expected_result = Some("backfill");
+
+        let metadata = DocumentMetadata::builder()
+            .document_type::<SampleDocument>()
+            .media_type("application/json")
+            .content(b"{}")
+            .produced_at(produced_at())
+            .run(execution_id, producer)
+            .ingestion_mode("backfill")
+            .context(sample_context())
+            .build();
+        let result = metadata.ingestion_mode();
 
         assert_eq!(result, expected_result);
     }

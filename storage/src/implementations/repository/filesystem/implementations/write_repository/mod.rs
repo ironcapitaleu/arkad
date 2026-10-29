@@ -49,9 +49,9 @@ impl<A: CanWrite, D: Document> WriteRepository for FilesystemRepository<A, D> {
     /// 3. The bytes have the size and the SHA-256 digest the metadata names.
     ///
     /// Then `persist` checks that the root exists. If the stored metadata equals the new metadata
-    /// in every field except `produced_at` and `execution_id`, both stored run fields are valid, and
-    /// the stored document matches the digest of the new bytes, `persist` writes no file and returns `Ok(())`. The stored
-    /// `produced_at` and `execution_id` stay. In every other case, `persist` creates every
+    /// in every field except the run fields `produced_at`, `execution_id`, and `ingestion_mode`, the
+    /// stored run fields are valid, and the stored document matches the digest of the new bytes,
+    /// `persist` writes no file and returns `Ok(())`. The stored run fields stay. In every other case, `persist` creates every
     /// missing directory between the root and the document, and the new bytes and metadata replace
     /// the old. This case covers a torn pair, whose metadata matches the new bytes but whose
     /// document does not.
@@ -165,6 +165,11 @@ struct StoredRun {
         reason = "parsed only to check that the stored value is valid"
     )]
     execution_id: Uuid,
+    #[expect(
+        dead_code,
+        reason = "parsed only to check that the stored value is valid"
+    )]
+    ingestion_mode: Option<String>,
 }
 
 /// Returns `true` if the stored metadata equals the new metadata outside the run fields, and the
@@ -198,11 +203,12 @@ async fn stored_pair_matches(
         .is_ok_and(|document| Sha256Digest::of(document) == *digest)
 }
 
-/// Removes `produced_at` and `execution_id` from a metadata object.
+/// Removes `produced_at`, `execution_id`, and `ingestion_mode` from a metadata object.
 fn without_run_fields(mut metadata: Value) -> Value {
     if let Some(fields) = metadata.as_object_mut() {
         fields.remove("produced_at");
         fields.remove("execution_id");
+        fields.remove("ingestion_mode");
     }
     metadata
 }
@@ -753,6 +759,88 @@ mod tests {
             "Given an existing writable root, persisting unchanged bytes should always succeed",
         );
         let result = read_stored_metadata(&metadata_path);
+
+        assert_eq!(result, expected_result);
+    }
+
+    /// Returns the sample document with the given ingestion mode.
+    fn sample_document_with_ingestion_mode(ingestion_mode: &str) -> SampleDocument {
+        sample_document_with_metadata_field("ingestion_mode", ingestion_mode.into())
+    }
+
+    /// Returns the inode numbers of the metadata file and the document file.
+    ///
+    /// A write renames a new file into place, so a rewritten file gets a new inode.
+    #[cfg(unix)]
+    fn inodes(metadata_path: &Path, document_path: &Path) -> (u64, u64) {
+        use std::os::unix::fs::MetadataExt;
+
+        let inode = |path: &Path| {
+            std::fs::metadata(path)
+                .expect("Given a persisted record, its files should always exist")
+                .ino()
+        };
+        (inode(metadata_path), inode(document_path))
+    }
+
+    #[tokio::test]
+    async fn should_keep_the_stored_ingestion_mode_when_persisting_unchanged_bytes_with_another_ingestion_mode()
+     {
+        let root = temporary_root();
+        let repository = repository_at(root.path());
+        let backfill_document = sample_document_with_ingestion_mode("backfill");
+        let metadata_path = repository.metadata_path(backfill_document.key());
+
+        let expected_result = Some("backfill".to_owned());
+
+        repository
+            .persist(backfill_document)
+            .await
+            .expect("Given an existing writable root, persisting a record should always succeed");
+        repository
+            .persist(sample_document_with_ingestion_mode("incremental"))
+            .await
+            .expect(
+                "Given an existing writable root, persisting unchanged bytes should always succeed",
+            );
+        let result = read_stored_metadata(&metadata_path)
+            .ingestion_mode()
+            .map(str::to_owned);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn should_write_no_file_when_persisting_unchanged_bytes_with_another_ingestion_mode() {
+        let root = temporary_root();
+        let repository = repository_at(root.path());
+        let backfill_document = sample_document_with_ingestion_mode("backfill");
+        let metadata_path = repository.metadata_path(backfill_document.key());
+        let document_path = repository.document_path(backfill_document.key());
+        repository
+            .persist(backfill_document)
+            .await
+            .expect("Given an existing writable root, persisting a record should always succeed");
+
+        let expected_result = inodes(&metadata_path, &document_path);
+
+        repository
+            .persist(sample_document_with_ingestion_mode("incremental"))
+            .await
+            .expect(
+                "Given an existing writable root, persisting unchanged bytes should always succeed",
+            );
+        let result = inodes(&metadata_path, &document_path);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_replace_the_metadata_when_the_stored_ingestion_mode_is_invalid() {
+        let expected_result = sample_metadata();
+
+        let result = persist_over_stored_metadata_field("ingestion_mode", 7.into()).await;
 
         assert_eq!(result, expected_result);
     }
