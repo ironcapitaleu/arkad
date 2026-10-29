@@ -27,9 +27,11 @@
 //! A Notes file request needs a period before `build()` exists:
 //!
 //! ```compile_fail,E0599
-//! use sec::shared::request::implementations::sec_request::SecRequest;
+//! use sec::shared::request::implementations::sec_request::builder::{NoPeriod, NotesFileBuilder};
 //!
-//! let request = SecRequest::builder().notes_file().build();
+//! fn build_without_period(builder: NotesFileBuilder<NoPeriod>) {
+//!     let _request = builder.build();
+//! }
 //! ```
 
 use crate::shared::cik::Cik;
@@ -83,8 +85,8 @@ impl Default for SecRequestBuilder {
 
 /// Typestate builder for the [`FetchAllCompanyFacts`](SecRequestType::FetchAllCompanyFacts) request.
 ///
-/// The `C` type parameter tracks the CIK field's state: it starts as [`NoCik`] and becomes [`Cik`]
-/// once [`cik`](Self::cik) is called, which is what gates [`build`](Self::build).
+/// The `C` type parameter tracks the CIK. It starts as [`NoCik`]. [`cik`](Self::cik) changes it to
+/// [`Cik`]. Only that type has [`build`](Self::build).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AllCompanyFactsBuilder<C> {
     cik: C,
@@ -125,9 +127,8 @@ impl AllCompanyFactsBuilder<Cik> {
 
 /// Typestate builder for the [`FetchNotesFile`](SecRequestType::FetchNotesFile) request.
 ///
-/// The `P` type parameter tracks the period field's state: it starts as [`NoPeriod`] and becomes
-/// [`NotesPeriod`] once [`period`](Self::period) is called, which is what gates
-/// [`build`](Self::build).
+/// The `P` type parameter tracks the period. It starts as [`NoPeriod`]. [`period`](Self::period)
+/// changes it to [`NotesPeriod`]. Only that type has [`build`](Self::build).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NotesFileBuilder<P> {
     period: P,
@@ -215,7 +216,8 @@ mod tests {
     }
 
     fn build_notes_file_url(period: &str) -> Url {
-        let period = NotesPeriod::new(period).expect("Hardcoded Notes period should be valid");
+        let period = NotesPeriod::new(period)
+            .expect("Given a published period, NotesPeriod creation should always succeed");
         SecRequest::builder()
             .notes_file()
             .period(period)
@@ -226,7 +228,7 @@ mod tests {
     }
 
     #[test]
-    fn should_produce_correct_url_when_building_notes_file_request_for_a_quarter() {
+    fn should_produce_quarterly_url_for_notes_file_request() {
         let expected_result = Url::parse(
             "https://www.sec.gov/files/dera/data/financial-statement-notes-data-sets/2024q1_notes.zip",
         )
@@ -238,7 +240,7 @@ mod tests {
     }
 
     #[test]
-    fn should_produce_correct_url_when_building_notes_file_request_for_a_month() {
+    fn should_produce_monthly_url_for_notes_file_request() {
         let expected_result = Url::parse(
             "https://www.sec.gov/files/dera/data/financial-statement-notes-data-sets/2025_10_notes.zip",
         )
@@ -250,7 +252,7 @@ mod tests {
     }
 
     #[test]
-    fn should_use_overridden_file_name_when_building_notes_file_request_for_2010q1() {
+    fn should_use_overridden_file_name_for_2010q1_notes_file_request() {
         let expected_result = Url::parse(
             "https://www.sec.gov/files/dera/data/financial-statement-notes-data-sets/2010q1_notes_1.zip",
         )
@@ -262,8 +264,9 @@ mod tests {
     }
 
     #[test]
-    fn should_produce_get_method_when_building_notes_file_request() {
-        let period = NotesPeriod::new("2024q1").expect("Hardcoded Notes period should be valid");
+    fn should_produce_get_method_for_notes_file_request() {
+        let period = NotesPeriod::new("2024q1")
+            .expect("Given a published period, NotesPeriod creation should always succeed");
 
         let expected_result = Method::GET;
 

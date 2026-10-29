@@ -1,7 +1,7 @@
 //! # SEC Request Constants
 //!
-//! URL fragments for building SEC endpoints: the company-facts URL joins its fragments around a
-//! CIK, and the Notes URL puts its prefix before a Notes file name.
+//! URL fragments for SEC endpoints. The company-facts URL puts a CIK between its prefix and suffix.
+//! The Notes URL puts a Notes file name after its prefix.
 
 /// The company-facts URL prefix, placed before the CIK.
 pub const SEC_COMPANY_FACTS_URL_PREFIX: &str = "https://data.sec.gov/api/xbrl/companyfacts/CIK";
