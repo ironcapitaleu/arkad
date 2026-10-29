@@ -59,7 +59,10 @@ mod tests {
     fn should_return_none_when_number_has_letters() {
         let expected_result = (None, None);
 
-        let result = (Year::from_number_str("Dumb"), Year::from_number_str("Dumbo"));
+        let result = (
+            Year::from_number_str("Dumb"),
+            Year::from_number_str("Dumbo"),
+        );
 
         assert_eq!(result, expected_result);
     }
