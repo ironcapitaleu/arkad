@@ -123,7 +123,7 @@ No periods between segments — commas separate the description from `Caused by:
 **Example chain:**
 
 ```text
-[StateError] A state level error occurred, Caused by: [FailedRequestExecution] Failure in State: 'Execute SEC Request', Caused by: [FailedSecRequest] SEC request failed, Caused by: [InvalidResponse] Response validation failed, Caused by: [InvalidSecResponse] Invalid SEC Response, Reason: 'Expected a success status code (2xx), got '404' status code instead'
+[StateError] A state level error occurred, Caused by: [FailedRequestExecution] Failure in State: 'Execute SEC Request', Caused by: [FailedSecRequest] SEC request failed, Caused by: [InvalidResponse] Response validation failed, Caused by: [InvalidSecResponse] Invalid SEC Response, Reason: 'Status code '404' is not accepted'
 ```
 
 Use `thiserror` with `#[error("...")]` and `#[source]` for deriving `Display` and `Error` on error types.

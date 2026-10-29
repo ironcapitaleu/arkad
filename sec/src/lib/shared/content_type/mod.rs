@@ -22,6 +22,10 @@ pub enum ContentType {
     Html,
     /// `text/plain`.
     Text,
+    /// `application/octet-stream`.
+    OctetStream,
+    /// `application/zip`.
+    Zip,
     /// A valid content type that is not one of the modeled variants.
     Other(String),
     /// The `Content-Type` header was absent or could not be read.
@@ -74,6 +78,8 @@ impl ContentType {
             "application/xml" | "text/xml" => Self::Xml,
             "text/html" => Self::Html,
             "text/plain" => Self::Text,
+            "application/octet-stream" => Self::OctetStream,
+            "application/zip" => Self::Zip,
             _ => Self::Other(content_type_str.to_string()),
         }
     }
@@ -86,6 +92,8 @@ impl Display for ContentType {
             Self::Xml => write!(f, "application/xml"),
             Self::Html => write!(f, "text/html"),
             Self::Text => write!(f, "text/plain"),
+            Self::OctetStream => write!(f, "application/octet-stream"),
+            Self::Zip => write!(f, "application/zip"),
             Self::Other(content_type) => write!(f, "{content_type}"),
             Self::Unknown => write!(f, "unknown"),
         }
@@ -200,6 +208,50 @@ mod tests {
         let expected_result = ContentType::Text;
 
         let result = ContentType::from_content_type(content_type_str);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_octet_stream_when_content_type_is_application_octet_stream() {
+        let content_type_str = "application/octet-stream";
+
+        let expected_result = ContentType::OctetStream;
+
+        let result = ContentType::from_content_type(content_type_str);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_zip_when_content_type_is_application_zip() {
+        let content_type_str = "application/zip";
+
+        let expected_result = ContentType::Zip;
+
+        let result = ContentType::from_content_type(content_type_str);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_display_the_mime_type_when_content_type_is_octet_stream() {
+        let content_type = ContentType::OctetStream;
+
+        let expected_result = "application/octet-stream";
+
+        let result = content_type.to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_display_the_mime_type_when_content_type_is_zip() {
+        let content_type = ContentType::Zip;
+
+        let expected_result = "application/zip";
+
+        let result = content_type.to_string();
 
         assert_eq!(result, expected_result);
     }
