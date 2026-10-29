@@ -22,6 +22,23 @@ pub struct ValidateNotesPeriodOutput {
 
 impl ValidateNotesPeriodOutput {
     /// Creates a new [`ValidateNotesPeriodOutput`] from a validated Notes period.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use sec::implementations::states::extract::validate_notes_period::ValidateNotesPeriodOutput;
+    /// use sec::shared::notes_period::NotesPeriod;
+    ///
+    /// let period = NotesPeriod::new("2024q1")
+    ///     .expect("Given a hardcoded published quarter, parsing should always succeed");
+    /// let data = ValidateNotesPeriodOutput::new(period);
+    ///
+    /// let expected_result = period;
+    ///
+    /// let result = data.notes_period;
+    ///
+    /// assert_eq!(result, expected_result);
+    /// ```
     #[must_use]
     pub const fn new(notes_period: NotesPeriod) -> Self {
         Self { notes_period }

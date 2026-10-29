@@ -22,6 +22,23 @@ pub struct PrepareNotesRequestInput {
 
 impl PrepareNotesRequestInput {
     /// Creates a new [`PrepareNotesRequestInput`] from the period of the Notes file.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use sec::implementations::states::extract::prepare_notes_request::PrepareNotesRequestInput;
+    /// use sec::shared::notes_period::NotesPeriod;
+    ///
+    /// let period = NotesPeriod::new("2024q1")
+    ///     .expect("Given a hardcoded published quarter, parsing should always succeed");
+    /// let data = PrepareNotesRequestInput::new(period);
+    ///
+    /// let expected_result = period;
+    ///
+    /// let result = data.notes_period;
+    ///
+    /// assert_eq!(result, expected_result);
+    /// ```
     #[must_use]
     pub const fn new(notes_period: NotesPeriod) -> Self {
         Self { notes_period }

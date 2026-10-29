@@ -4,18 +4,16 @@
 //! [`PrepareNotesRequest`](crate::implementations::states::extract::prepare_notes_request::PrepareNotesRequest)
 //! state, together with its updater and builder.
 
-use std::fmt::{self, Debug};
-use std::hash::Hash;
+use std::fmt;
 
 use serde::Serialize;
 use state_maschine::prelude::Context as SMContext;
 use uuid::Uuid;
 
+use crate::implementations::states::extract::notes_repository::NotesRepository;
 use crate::traits::state_machine::state::Context;
 
 /// Context for the [`PrepareNotesRequest`](super::PrepareNotesRequest) state.
-///
-/// Holds the `execution_id` of the run, the storage repository, and the retry budget.
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
 pub struct PrepareNotesRequestContext<R> {
     /// The ID of the run.
@@ -28,6 +26,21 @@ pub struct PrepareNotesRequestContext<R> {
 
 impl<R> PrepareNotesRequestContext<R> {
     /// Creates a new [`PrepareNotesRequestContext`] with a retry budget of 0.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use sec::implementations::states::extract::prepare_notes_request::PrepareNotesRequestContext;
+    /// use uuid::Uuid;
+    ///
+    /// let context = PrepareNotesRequestContext::new(Uuid::nil(), ());
+    ///
+    /// let expected_result = 0;
+    ///
+    /// let result = context.max_retries;
+    ///
+    /// assert_eq!(result, expected_result);
+    /// ```
     #[must_use]
     pub const fn new(execution_id: Uuid, repository: R) -> Self {
         Self {
@@ -38,17 +51,13 @@ impl<R> PrepareNotesRequestContext<R> {
     }
 }
 
-impl<R: Debug + Clone + Eq + Ord + Hash + Send + Sync + Unpin> Context
-    for PrepareNotesRequestContext<R>
-{
+impl<R: NotesRepository> Context for PrepareNotesRequestContext<R> {
     fn max_retries(&self) -> u32 {
         self.max_retries
     }
 }
 
-impl<R: Debug + Clone + Eq + Ord + Hash + Send + Sync + Unpin> SMContext
-    for PrepareNotesRequestContext<R>
-{
+impl<R: NotesRepository> SMContext for PrepareNotesRequestContext<R> {
     type UpdateType = PrepareNotesRequestContextUpdater<R>;
 
     fn context(&self) -> &Self {
@@ -156,6 +165,8 @@ impl<R> Default for PrepareNotesRequestContextUpdaterBuilder<R> {
 
 #[cfg(test)]
 mod tests {
+    use std::{fmt::Debug, hash::Hash};
+
     use pretty_assertions::assert_eq;
     use storage::WriteError;
 

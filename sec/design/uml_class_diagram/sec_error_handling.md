@@ -143,7 +143,7 @@ classDiagram
         << enum >>
         %% Why a string failed Notes period validation
         +InvalidNotesPeriodFormat
-        +UnpublishedYear(Year year)
+        +UnpublishedYear{year: Year}
         +UnpublishedQuarter
         +UnpublishedMonth
     }

@@ -107,6 +107,7 @@ classDiagram
         << enum >>
         %% SEC-specific state errors, see `sec_error_handling.md`
         +InvalidCikFormat(InvalidCikFormat)
+        +InvalidNotesPeriod(InvalidNotesPeriod)
         +FailedRequestExecution(FailedRequestExecution)
         +IncompleteCompanyFacts(IncompleteCompanyFacts)
         +InvalidInput

@@ -46,14 +46,14 @@
 //! # }
 //! ```
 
-use std::fmt::{self, Debug};
-use std::hash::Hash;
+use std::fmt;
 
 use async_trait::async_trait;
 use serde::Serialize;
 use state_maschine::prelude::State as SMState;
 
 use crate::error::State as StateError;
+use crate::implementations::states::extract::notes_repository::NotesRepository;
 use crate::shared::request::implementations::sec_request::SecRequest;
 use crate::traits::state_machine::state::State;
 
@@ -76,6 +76,27 @@ pub struct PrepareNotesRequest<R> {
 
 impl<R> PrepareNotesRequest<R> {
     /// Creates a new [`PrepareNotesRequest`] state with no output computed yet.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use sec::implementations::states::extract::prepare_notes_request::*;
+    /// use sec::shared::notes_period::NotesPeriod;
+    /// use state_maschine::prelude::State as SMState;
+    /// use uuid::Uuid;
+    ///
+    /// let period = NotesPeriod::new("2024q1")
+    ///     .expect("Given a hardcoded published quarter, parsing should always succeed");
+    /// let input = PrepareNotesRequestInput::new(period);
+    /// let context = PrepareNotesRequestContext::new(Uuid::nil(), ());
+    /// let state = PrepareNotesRequest::new(input, context);
+    ///
+    /// let expected_result = false;
+    ///
+    /// let result = state.has_output_data_been_computed();
+    ///
+    /// assert_eq!(result, expected_result);
+    /// ```
     #[must_use]
     pub const fn new(
         input: PrepareNotesRequestInput,
@@ -102,7 +123,7 @@ impl<R> PrepareNotesRequest<R> {
 }
 
 #[async_trait]
-impl<R: Debug + Clone + Eq + Ord + Hash + Send + Sync + Unpin> State for PrepareNotesRequest<R> {
+impl<R: NotesRepository> State for PrepareNotesRequest<R> {
     /// Builds the Notes file request for the input period and stores it as output.
     ///
     /// # Errors
@@ -118,7 +139,7 @@ impl<R: Debug + Clone + Eq + Ord + Hash + Send + Sync + Unpin> State for Prepare
     }
 }
 
-impl<R: Debug + Clone + Eq + Ord + Hash + Send + Sync + Unpin> SMState for PrepareNotesRequest<R> {
+impl<R: NotesRepository> SMState for PrepareNotesRequest<R> {
     type InputData = PrepareNotesRequestInput;
     type OutputData = PrepareNotesRequestOutput;
     type Context = PrepareNotesRequestContext<R>;
@@ -161,9 +182,7 @@ impl<R: Debug + Clone + Eq + Ord + Hash + Send + Sync + Unpin> SMState for Prepa
     }
 }
 
-impl<R: Debug + Clone + Eq + Ord + Hash + Send + Sync + Unpin> fmt::Display
-    for PrepareNotesRequest<R>
-{
+impl<R: NotesRepository> fmt::Display for PrepareNotesRequest<R> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
@@ -185,6 +204,8 @@ impl<R: Debug + Clone + Eq + Ord + Hash + Send + Sync + Unpin> fmt::Display
 
 #[cfg(test)]
 mod tests {
+    use std::{fmt::Debug, hash::Hash};
+
     use pretty_assertions::assert_eq;
     use uuid::Uuid;
 
@@ -242,6 +263,18 @@ mod tests {
             .await
             .expect("Given a validated period, the preparation should always succeed");
         let result = state.output_data();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn should_produce_output_when_calling_sync_compute_inside_tokio_runtime() {
+        let mut state = test_state("2024q1");
+
+        let expected_result = true;
+
+        state.compute_output_data();
+        let result = state.has_output_data_been_computed();
 
         assert_eq!(result, expected_result);
     }

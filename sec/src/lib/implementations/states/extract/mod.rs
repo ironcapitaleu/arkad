@@ -57,6 +57,7 @@
 
 pub mod builder;
 pub mod execute_sec_request;
+pub mod notes_repository;
 pub mod prepare_notes_request;
 pub mod prepare_sec_request;
 pub mod store_company_facts;

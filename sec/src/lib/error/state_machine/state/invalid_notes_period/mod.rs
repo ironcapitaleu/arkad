@@ -26,7 +26,7 @@ use super::State as StateError;
 use crate::shared::notes_period::NotesPeriodError;
 use crate::traits::error::FromDomainError;
 
-/// Error for a failed Notes period validation, tagged with the state it occurred in.
+/// Error representing a Notes period validation failure, tagged with the state it occurred in.
 #[derive(Error, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[error("[InvalidNotesPeriod] Failure in State: '{state_name}', Caused by: {notes_period_error}")]
 pub struct InvalidNotesPeriod {
@@ -39,6 +39,23 @@ pub struct InvalidNotesPeriod {
 
 impl InvalidNotesPeriod {
     /// Creates a new state-level [`InvalidNotesPeriod`] error.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use sec::error::state_machine::state::InvalidNotesPeriod;
+    /// use sec::shared::notes_period::{InvalidNotesPeriodReason, NotesPeriodError};
+    ///
+    /// let notes_period_error =
+    ///     NotesPeriodError::new(InvalidNotesPeriodReason::UnpublishedQuarter, "2025q4");
+    /// let state_error = InvalidNotesPeriod::new("Validate Notes Period", notes_period_error.clone());
+    ///
+    /// let expected_result = notes_period_error;
+    ///
+    /// let result = state_error.notes_period_error;
+    ///
+    /// assert_eq!(result, expected_result);
+    /// ```
     #[must_use]
     pub fn new(state_name: impl Into<String>, domain_error: NotesPeriodError) -> Self {
         Self {

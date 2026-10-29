@@ -22,6 +22,25 @@ pub struct PrepareNotesRequestOutput {
 
 impl PrepareNotesRequestOutput {
     /// Creates a new [`PrepareNotesRequestOutput`] from a prepared request.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use sec::implementations::states::extract::prepare_notes_request::PrepareNotesRequestOutput;
+    /// use sec::shared::notes_period::NotesPeriod;
+    /// use sec::shared::request::implementations::sec_request::SecRequest;
+    ///
+    /// let period = NotesPeriod::new("2024q1")
+    ///     .expect("Given a hardcoded published quarter, parsing should always succeed");
+    /// let request = SecRequest::builder().notes_file().period(period).build();
+    /// let output = PrepareNotesRequestOutput::new(request.clone());
+    ///
+    /// let expected_result = request;
+    ///
+    /// let result = output.request;
+    ///
+    /// assert_eq!(result, expected_result);
+    /// ```
     #[must_use]
     pub const fn new(request: SecRequest) -> Self {
         Self { request }

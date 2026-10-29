@@ -39,8 +39,7 @@
 //! # }
 //! ```
 
-use std::fmt::{self, Debug};
-use std::hash::Hash;
+use std::fmt;
 
 use async_trait::async_trait;
 use serde::Serialize;
@@ -48,6 +47,7 @@ use state_maschine::prelude::State as SMState;
 
 use crate::error::State as StateError;
 use crate::error::state_machine::state::InvalidNotesPeriod;
+use crate::implementations::states::extract::notes_repository::NotesRepository;
 use crate::shared::notes_period::NotesPeriod;
 use crate::traits::error::FromDomainError;
 use crate::traits::state_machine::state::State;
@@ -74,6 +74,24 @@ pub struct ValidateNotesPeriod<R> {
 
 impl<R> ValidateNotesPeriod<R> {
     /// Creates a new [`ValidateNotesPeriod`] state with no output computed yet.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use sec::implementations::states::extract::validate_notes_period::*;
+    /// use state_maschine::prelude::State as SMState;
+    /// use uuid::Uuid;
+    ///
+    /// let input = ValidateNotesPeriodInput::new("2024q1");
+    /// let context = ValidateNotesPeriodContext::new(Uuid::nil(), ());
+    /// let state = ValidateNotesPeriod::new(input, context);
+    ///
+    /// let expected_result = false;
+    ///
+    /// let result = state.has_output_data_been_computed();
+    ///
+    /// assert_eq!(result, expected_result);
+    /// ```
     #[must_use]
     pub const fn new(
         input: ValidateNotesPeriodInput,
@@ -100,7 +118,7 @@ impl<R> ValidateNotesPeriod<R> {
 }
 
 #[async_trait]
-impl<R: Debug + Clone + Eq + Ord + Hash + Send + Sync + Unpin> State for ValidateNotesPeriod<R> {
+impl<R: NotesRepository> State for ValidateNotesPeriod<R> {
     /// Validates the raw period and stores the [`NotesPeriod`] as output.
     ///
     /// # Errors
@@ -114,7 +132,7 @@ impl<R: Debug + Clone + Eq + Ord + Hash + Send + Sync + Unpin> State for Validat
     }
 }
 
-impl<R: Debug + Clone + Eq + Ord + Hash + Send + Sync + Unpin> SMState for ValidateNotesPeriod<R> {
+impl<R: NotesRepository> SMState for ValidateNotesPeriod<R> {
     type InputData = ValidateNotesPeriodInput;
     type OutputData = ValidateNotesPeriodOutput;
     type Context = ValidateNotesPeriodContext<R>;
@@ -157,9 +175,7 @@ impl<R: Debug + Clone + Eq + Ord + Hash + Send + Sync + Unpin> SMState for Valid
     }
 }
 
-impl<R: Debug + Clone + Eq + Ord + Hash + Send + Sync + Unpin> fmt::Display
-    for ValidateNotesPeriod<R>
-{
+impl<R: NotesRepository> fmt::Display for ValidateNotesPeriod<R> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
@@ -181,6 +197,8 @@ impl<R: Debug + Clone + Eq + Ord + Hash + Send + Sync + Unpin> fmt::Display
 
 #[cfg(test)]
 mod tests {
+    use std::{fmt::Debug, hash::Hash};
+
     use pretty_assertions::assert_eq;
     use uuid::Uuid;
 
@@ -219,7 +237,7 @@ mod tests {
 
     #[tokio::test]
     async fn should_output_the_notes_period_when_raw_period_is_published() {
-        let mut state = test_state(" 2024q1 ");
+        let mut state = test_state("2024q1");
 
         let expected_result = Some(&ValidateNotesPeriodOutput::new(
             NotesPeriod::new("2024q1")
@@ -230,6 +248,24 @@ mod tests {
             .compute_output_data_async()
             .await
             .expect("Given a published quarter, validation should always succeed");
+        let result = state.output_data();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_output_the_notes_period_when_raw_period_has_surrounding_whitespace() {
+        let mut state = test_state(" 2024q1 ");
+
+        let expected_result = Some(&ValidateNotesPeriodOutput::new(
+            NotesPeriod::new("2024q1")
+                .expect("Given a hardcoded published quarter, parsing should always succeed"),
+        ));
+
+        state
+            .compute_output_data_async()
+            .await
+            .expect("Given a published quarter with whitespace, validation should always succeed");
         let result = state.output_data();
 
         assert_eq!(result, expected_result);
@@ -260,6 +296,18 @@ mod tests {
 
         let _ = state.compute_output_data_async().await;
         let result = state.output_data();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn should_produce_output_when_calling_sync_compute_inside_tokio_runtime() {
+        let mut state = test_state("2024q1");
+
+        let expected_result = true;
+
+        state.compute_output_data();
+        let result = state.has_output_data_been_computed();
 
         assert_eq!(result, expected_result);
     }

@@ -13,8 +13,6 @@ use crate::error::State as StateError;
 use crate::traits::state_machine::state::StateData;
 
 /// Input data for the [`ValidateNotesPeriod`](super::super::ValidateNotesPeriod) state.
-///
-/// Holds the period string as supplied, before validation.
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
 pub struct ValidateNotesPeriodInput {
     /// The unvalidated period string, for example `2024q1`.
