@@ -997,6 +997,15 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn should_replace_the_metadata_when_the_stored_metadata_holds_version_1() {
+        let expected_result = sample_metadata();
+
+        let result = persist_over_stored_metadata_field("metadata_version", 1.into()).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
     async fn should_replace_the_metadata_when_the_stored_produced_at_is_invalid() {
         let expected_result = sample_metadata();
 
