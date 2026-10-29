@@ -81,7 +81,8 @@ flowchart TB
     SB -- "SubmissionsRef" --> TN
 ```
 
-Green states exist today. `PrepareSecRequest` is reused with a new `SecRequestType` variant.
+Green states exist today. The Submissions path reuses `PrepareSecRequest` with a new `SecRequestType`
+variant. The Notes path builds its request in its own state, `PrepareNotesRequest`.
 Yellow states are new.
 
 ### Ingestion Mode

@@ -16,6 +16,8 @@
 //! - [`prepare_sec_request`]: Builds the request targeting the SEC API endpoint.
 //! - [`execute_sec_request`]: Sends the request and captures the response.
 //! - [`store_company_facts`]: Writes the raw body of the response to the store.
+//! - [`validate_notes_period`]: Validates the raw period of a Notes file.
+//! - [`prepare_notes_request`]: Builds the request for the Notes file of one period.
 //!
 //! ## State Flow
 //!
@@ -55,9 +57,12 @@
 
 pub mod builder;
 pub mod execute_sec_request;
+pub mod notes_repository;
+pub mod prepare_notes_request;
 pub mod prepare_sec_request;
 pub mod store_company_facts;
 pub mod validate_cik_format;
+pub mod validate_notes_period;
 
 use std::fmt::{self, Display, Formatter};
 

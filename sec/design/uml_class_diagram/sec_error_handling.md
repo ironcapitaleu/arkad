@@ -22,6 +22,7 @@ classDiagram
         << enum >>
         %% Errors from internal state operations
         +InvalidCikFormat(InvalidCikFormat)
+        +InvalidNotesPeriod(InvalidNotesPeriod)
         +FailedRequestExecution(FailedRequestExecution)
         +FailedDocumentWrite(FailedDocumentWrite)
         +IncompleteCompanyFacts(IncompleteCompanyFacts)
@@ -45,6 +46,13 @@ classDiagram
         %% State-level wrapper for CIK validation errors
         +String state_name
         +CikError cik_error
+    }
+
+    class InvalidNotesPeriod{
+        << struct >>
+        %% State-level wrapper for Notes period validation errors
+        +String state_name
+        +NotesPeriodError notes_period_error
     }
 
     class FailedRequestExecution{
@@ -124,6 +132,22 @@ classDiagram
         +String invalid_cik
     }
 
+    class NotesPeriodError{
+        << struct >>
+        %% Domain error for an invalid Notes period
+        +InvalidNotesPeriodReason reason
+        +String invalid_period
+    }
+
+    class InvalidNotesPeriodReason{
+        << enum >>
+        %% Why a string failed Notes period validation
+        +InvalidNotesPeriodFormat
+        +UnpublishedYear{year: Year}
+        +UnpublishedQuarter
+        +UnpublishedMonth
+    }
+
     class InvalidCikReason{
         << enum >>
         %% Why a string failed CIK validation
@@ -166,6 +190,7 @@ classDiagram
 
     %% State error wraps domain errors
     State <|-- InvalidCikFormat
+    State <|-- InvalidNotesPeriod
     State <|-- FailedRequestExecution
     State <|-- FailedDocumentWrite
     State <|-- IncompleteCompanyFacts
@@ -178,6 +203,8 @@ classDiagram
     %% State wrappers contain domain errors
     InvalidCikFormat --> CikError
     CikError --> InvalidCikReason
+    InvalidNotesPeriod --> NotesPeriodError
+    NotesPeriodError --> InvalidNotesPeriodReason
     IncompleteCompanyFacts --> MissingFields
     FailedRequestExecution --> FailedSecRequest
     FailedDocumentWrite --> FailedDocumentStorage

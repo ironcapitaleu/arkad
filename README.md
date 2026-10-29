@@ -165,6 +165,7 @@ classDiagram
         << enum >>
         %% SEC-specific state errors, see `sec_error_handling.md`
         +InvalidCikFormat(InvalidCikFormat)
+        +InvalidNotesPeriod(InvalidNotesPeriod)
         +FailedRequestExecution(FailedRequestExecution)
         +IncompleteCompanyFacts(IncompleteCompanyFacts)
         +InvalidInput
@@ -273,6 +274,7 @@ classDiagram
         << enum >>
         %% Errors from internal state operations
         +InvalidCikFormat(InvalidCikFormat)
+        +InvalidNotesPeriod(InvalidNotesPeriod)
         +FailedRequestExecution(FailedRequestExecution)
         +IncompleteCompanyFacts(IncompleteCompanyFacts)
         +InvalidInput
@@ -295,6 +297,13 @@ classDiagram
         %% State-level wrapper for CIK validation errors
         +String state_name
         +CikError cik_error
+    }
+
+    class InvalidNotesPeriod{
+        << struct >>
+        %% State-level wrapper for Notes period validation errors
+        +String state_name
+        +NotesPeriodError notes_period_error
     }
 
     class FailedRequestExecution{
@@ -338,6 +347,22 @@ classDiagram
         +String source_state_name
         +String target_state_name
         +String reason
+    }
+
+    class NotesPeriodError{
+        << struct >>
+        %% Domain error for an invalid Notes period
+        +InvalidNotesPeriodReason reason
+        +String invalid_period
+    }
+
+    class InvalidNotesPeriodReason{
+        << enum >>
+        %% Why a string failed Notes period validation
+        +InvalidNotesPeriodFormat
+        +UnpublishedYear{year: Year}
+        +UnpublishedQuarter
+        +UnpublishedMonth
     }
 
     class CikError{
@@ -389,6 +414,7 @@ classDiagram
 
     %% State error wraps domain errors
     State <|-- InvalidCikFormat
+    State <|-- InvalidNotesPeriod
     State <|-- FailedRequestExecution
     State <|-- IncompleteCompanyFacts
 
@@ -400,6 +426,8 @@ classDiagram
     %% State wrappers contain domain errors
     InvalidCikFormat --> CikError
     CikError --> InvalidCikReason
+    InvalidNotesPeriod --> NotesPeriodError
+    NotesPeriodError --> InvalidNotesPeriodReason
     IncompleteCompanyFacts --> MissingFields
     FailedRequestExecution --> FailedSecRequest
     FailedSecRequest --> SecClientErrorReason
