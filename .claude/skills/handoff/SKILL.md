@@ -6,7 +6,7 @@ description: >
   note", or invokes `/handoff`. Compacts the current conversation into a self-contained handoff:
   a prompt for a fresh agent session, or a state-of-play note on the In Progress Linear ticket for
   a human takeover.
-version: 0.2.0
+version: 0.3.0
 argument-hint: "[what the next session will do]"
 allowed-tools: [Read, Write, Bash, AskUserQuestion]
 ---
@@ -68,6 +68,24 @@ package in scope.>
 - In flight: <open branches, open PRs with numbers, tickets In Progress>
 - Blocked / undecided: <anything waiting on a decision, and what would unblock it>
 
+# Roadmap
+
+<Only when the ticket belongs to an ordered set (see Procedure step 3). One row per ticket, in
+working order. Mark the successor's ticket with ▶.>
+
+Project <name>, milestone <name>. All tickets link to <design ticket>. Statuses as of <YYYY-MM-DD>.
+
+| # | Ticket | Scope | Blocked by | Status |
+| - | ------ | ----- | ---------- | ------ |
+| 1 | STA-xxx | <three to six words> | none | Done |
+| 2 | STA-xxx | <three to six words> | none | In Review (merged, #N) |
+| 3 | ▶ STA-xxx | <three to six words> | STA-xxx | Backlog |
+
+A ticket is finished when it is Done or its PR has merged. Every other ticket is open.
+
+Critical path: <the longest chain of open tickets linked by blockers, as STA-xxx → STA-xxx → …>
+Unblocked now: <every ticket in Backlog or Todo whose blockers are all finished>
+
 # Key Decisions
 
 <Each decision the successor must respect, one line each, with a link to the ADR, design doc, or
@@ -101,16 +119,62 @@ apply, and any "never" from this session. State each as `must` or `never`.>
 <When and how to report back: report on completion or on a blocker it cannot resolve.>
 ```
 
+### Roadmap Example
+
+The backfill tickets of milestone "Data in Postgres", from the handoff of STA-334 on 2026-10-29.
+The statuses are a snapshot of that day. Read the live statuses from Linear for every new handoff.
+
+```markdown
+# Roadmap
+
+Project MVP Data, milestone "Data in Postgres". All tickets link to STA-328. Statuses as of
+2026-10-29.
+
+| # | Ticket | Scope | Blocked by | Status |
+| - | ------ | ----- | ---------- | ------ |
+| 1 | STA-333 | rename to `ExtractCompanyFactsSuperState` | none | In Review (merged, #270) |
+| 2 | ▶ STA-334 | `ingestion_mode` run field | none | Backlog |
+| 3 | STA-335 | `NotesPeriod` | none | Backlog |
+| 4 | STA-337 | `FetchNotesFile` and builder | STA-335 | Backlog |
+| 5 | STA-336 | `SecFile` and `download_sec_file` | none | Backlog |
+| 6 | STA-338 | `RawNotesArchive` | STA-334, STA-336 | Backlog |
+| 7 | STA-339 | `ValidateNotesPeriod` and `PrepareNotesRequest` | STA-335, STA-337 | Backlog |
+| 8 | STA-340 | `DownloadNotesArchive` | STA-336, STA-339 | Backlog |
+| 9 | STA-341 | `StoreNotesArchive` | STA-338, STA-340 | Backlog |
+| 10 | STA-342 | `ExtractNotesSuperState` | STA-341 | Backlog |
+| 11 | STA-343 | `Extraction` facade | STA-342 | Backlog |
+| 12 | STA-344 | `notes_backfill` binary | STA-343 | Backlog |
+
+A ticket is finished when it is Done or its PR has merged. Every other ticket is open.
+
+Critical path: STA-335 → STA-337 → STA-339 → STA-340 → STA-341 → STA-342 → STA-343 → STA-344
+Unblocked now: STA-334, STA-335, STA-336
+
+STA-334 is off the critical path. Only STA-338 needs it, and STA-341 waits on both STA-338 and
+STA-340. STA-340 ends a chain of four open tickets, and STA-334 → STA-338 is two, so STA-334 has
+two steps of slack.
+```
+
+The last line is optional. Add it when the successor's ticket sits off the critical path, so the
+successor knows how much slack it has.
+
 ## Procedure
 
 1. **Read the argument.** If the user gave no focus, ask the user once. Ask what the next session
    will do. Ask whether it ends at a branch, a merged PR, or a report.
 2. **Compile the document** from the conversation, following the template. Reference every artifact
    by path or URL. Do not paste file contents the successor can read itself.
-3. **Redact secrets.** Remove API keys, tokens, passwords, and personal data. Reference the
+3. **Add the Roadmap** if the ticket belongs to an ordered set: an epic (a Linear project), a
+   project milestone, or the "Implementation Tickets" list of a design doc. See "Roadmap Example".
+   Read every ticket's status, blockers, and linked PR through the `linear` skill at the time you
+   write the handoff. Never copy a roadmap from an earlier handoff without this check. Recompute
+   the critical path and the unblocked tickets from the fresh data. If Linear is unreachable,
+   leave the Roadmap out and say so under "Blocked / undecided". The Linear note carries the
+   Roadmap too, with its date, so a reader can tell how old the statuses are.
+4. **Redact secrets.** Remove API keys, tokens, passwords, and personal data. Reference the
    secret's location instead, never its value.
-4. **Choose the destination** — a fresh agent session, a Linear note, or both (see Destinations).
-5. **Deliver:**
+5. **Choose the destination** — a fresh agent session, a Linear note, or both (see Destinations).
+6. **Deliver:**
    - **Agent session** — print the whole document in the chat reply, inside one fenced code block
      tagged `markdown`. Put nothing else inside the block. Count the longest run of backticks that
      opens a fence in the document. Open and close the outer block with one more backtick than that
@@ -129,6 +193,7 @@ apply, and any "never" from this session. State each as `must` or `never`.>
 - **Self-contained.** The successor sees only this prompt. If a fact is not in it, the successor
   does not have it.
 - **Reference, do not duplicate.** Link tickets, PRs, branches, and docs. Never copy their bodies.
+  The Roadmap table is an index, not a copy.
 - **Redact before writing.** No secret value reaches the document. This matters most for the Linear
   note, which persists and other people read.
 - **Never in the repository.** The agent-session prompt goes to the chat, plus a temporary file if
