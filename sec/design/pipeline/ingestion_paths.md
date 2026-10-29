@@ -253,8 +253,8 @@ two files need about 4 to 5 GB (estimate). The measured peak for 2025q1 and 2024
 MB) is 2,397,876 KB (release build, x86-64 Linux, 4 cores, 2026-10-29).
 
 Each SHA-256 of a file body runs on the blocking thread pool through
-`Sha256Digest::of_owned_async`. A hash takes 3.6 s for 620 MB, and the task polls other futures
-during it. This covers the digest in `SecNotesFileResponse::from_inner`, the content check in
+`Sha256Digest::of_owned_async`. A hash takes 0.43 s for 619 MB (release build, x86-64 with
+SHA-NI, 2026-10-29), and the task polls other futures during it. This covers the digest in `SecNotesFileResponse::from_inner`, the content check in
 `persist` and `get`, and the digest check of a stored file on a rerun. `RawDocument::from_file`
 takes the digest of the response and does not hash the body again.
 
