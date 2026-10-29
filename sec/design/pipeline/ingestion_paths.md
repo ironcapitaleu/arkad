@@ -246,22 +246,29 @@ The rate limiter limits requests per second. It does not limit downloads in flig
 bound memory. The run caps the Notes files in flight at 2, with `buffer_unordered(2)` instead of
 `join_all`.
 
+The cap stays at 2. Measured on 2026-10-29, the network limits the download in the cloud container
+and on a Mac on Wi-Fi. More files in flight make each file slower and raise the peak memory, but
+the total time stays the same. Measure once on Cloud Run before you change the cap. The numbers
+are in
+[notes_backfill Network and Stream Cut-Off: Findings](https://linear.app/state-machine/document/notes-backfill-network-and-stream-cut-off-findings-2238f0c1e060).
+The method is in `.claude/skills/performance/references/profiling/network.md`.
+
 Each file in flight holds up to 3 copies at its peak: the response body, the `RawDocument` bytes,
 and the stored file that `persist` reads to compare digests on a rerun. `RawDocument::from_file`
-takes the `SecNotesFileResponse` bytes by value, which removes the second copy. The largest file is 0.85 GB, so
-two files need about 4 to 5 GB (estimate). The measured peak for 2025q1 and 2024q1 (663 MB and 619
-MB) is 2,397,876 KB (release build, x86-64 Linux, 4 cores, 2026-10-29).
+takes the `SecNotesFileResponse` bytes by value, which removes the second copy. The largest file
+is 0.85 GB. The findings document holds the measured peaks.
 
 Each SHA-256 of a file body runs on the blocking thread pool through
-`Sha256Digest::of_owned_async`. A hash takes 0.43 s for 619 MB (release build, x86-64 with
-SHA-NI, 2026-10-29), and the task polls other futures during it. This covers the digest in `SecNotesFileResponse::from_inner`, the content check in
-`persist` and `get`, and the digest check of a stored file on a rerun. `RawDocument::from_file`
-takes the digest of the response and does not hash the body again.
+`Sha256Digest::of_owned_async`, so the task polls other futures during the hash. This covers the
+digest in `SecNotesFileResponse::from_inner`, the content check in `persist` and `get`, and the
+digest check of a stored file on a rerun. `RawDocument::from_file` takes the digest of the response
+and does not hash the body again.
 
-The run gives each period its own task. This split was a workaround while the hash ran on the
-task: two periods in one task failed, because the hash of one file stopped the body read of the
-other. With the hash off the task, one shared task stored both files in one run. One run does not
-prove that the split is no longer needed. Whether the run keeps it is an open decision (STA-360).
+The run gives each period its own task. STA-344 added this split after two periods in one task
+failed twice, and blamed the hash of one file for stopping the body read of the other. Later, 8
+runs with one shared task passed, on the code before and after the hash moved off the task. So the
+failure did not reproduce, and its cause is open. Whether the run keeps the split is an open
+decision (STA-360).
 
 The output of `DownloadNotesArchive` holds the response in an `Arc`. The transition to
 `StoreNotesArchive` moves the `Arc` into the input of `StoreNotesArchive`, which holds it as
