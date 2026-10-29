@@ -10,8 +10,7 @@ use crate::shared::ingestion_mode::IngestionMode;
 
 /// The metadata fields that name the run that produced a stored document.
 ///
-/// Every stored document has these four fields, so a constructor takes them as one value, for
-/// example [`RawDocument::from_response`](crate::shared::raw_document::RawDocument::from_response).
+/// Every stored document has these four fields, so a constructor takes them as one value.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct RunFields {
     /// When the producing state made the document bytes.
