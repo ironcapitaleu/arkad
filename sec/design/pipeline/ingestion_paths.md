@@ -562,9 +562,11 @@ The metadata of each raw document records the ingestion mode of the run that cre
 
 - `ingestion_mode` is a run field in `DocumentMetadata`, next to `execution_id` and
   `produced_at`. `storage` holds it as a string, so `storage` does not depend on `sec`.
-- `ingestion_mode` is required. `sec` writes one of two values through `IngestionMode`.
-  `storage` accepts any string. Metadata without a mode does not compile. A stored file without
+- `ingestion_mode` is required. Metadata without a mode does not compile. A stored file without
   the field fails to read. Decided by the lead on 2026-10-29.
+- The `Document` trait in `storage` has the associated type `IngestionMode`. The builder takes a
+  value of that type and stores its `Display` text. `RawDocument` sets it to `IngestionMode`, so
+  `sec` can write only `backfill` or `incremental`. A read accepts any string.
 - `companyfacts` runs as a backfill, so `StoreCompanyFacts` writes `backfill`.
 - `METADATA_VERSION` stays 1 until the MVP. Files written before the MVP do not need to stay
   readable.
