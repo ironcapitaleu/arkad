@@ -161,7 +161,7 @@ impl TryFrom<&str> for NotesPeriod {
     ///
     /// # Errors
     ///
-    /// Returns a [`NotesPeriodError`] if the input is not a published Notes period.
+    /// Returns a [`NotesPeriodError`] in the same cases as [`NotesPeriod::new`].
     fn try_from(period: &str) -> Result<Self, Self::Error> {
         Self::new(period)
     }
