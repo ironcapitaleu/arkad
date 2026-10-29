@@ -161,7 +161,8 @@ successor knows how much slack it has.
 3. **Add the Roadmap** if the ticket belongs to an ordered set: an epic (a Linear project), a
    project milestone, or the "Implementation Tickets" list of a design doc. See "Roadmap Example".
    Read every ticket's status and blockers from Linear at the time you write the handoff. Never
-   copy a roadmap from an earlier handoff without this check. Recompute the critical path and the unblocked tickets from the fresh data.
+   copy a roadmap from an earlier handoff without this check. Recompute the critical path and the
+   unblocked tickets from the fresh data.
 4. **Redact secrets.** Remove API keys, tokens, passwords, and personal data. Reference the
    secret's location instead, never its value.
 5. **Choose the destination** — a fresh agent session, a Linear note, or both (see Destinations).
