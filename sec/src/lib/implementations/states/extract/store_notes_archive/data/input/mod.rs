@@ -307,6 +307,44 @@ mod tests {
     }
 
     #[test]
+    fn should_serialize_the_response_without_its_body_for_store_notes_archive_input() {
+        let input = sample_input(b"PK");
+
+        let expected_result = vec![
+            "body_sha256",
+            "content_type",
+            "headers",
+            "status_code",
+            "url",
+        ];
+
+        let value = serde_json::to_value(&input).expect(
+            "Given a response of strings and a digest, serialization should always succeed",
+        );
+        let result: Vec<&str> = value["response"]
+            .as_object()
+            .map(|fields| fields.keys().map(String::as_str).collect())
+            .unwrap_or_default();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_serialize_a_null_response_when_the_state_took_the_response() {
+        let mut input = sample_input(b"PK");
+        input.response = None;
+
+        let expected_result = serde_json::Value::Null;
+
+        let value = serde_json::to_value(&input).expect(
+            "Given an input of strings and no response, serialization should always succeed",
+        );
+        let result = value["response"].clone();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
     fn should_be_equal_when_two_inputs_have_the_same_body() {
         let input = sample_input(b"PK");
         let other = sample_input(b"PK");

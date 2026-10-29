@@ -2,8 +2,8 @@
 //!
 //! Provides the states of the extract phase and the super-states that drive them.
 //!
-//! Each super-state lives in its own module. The states stay flat in this module, because several
-//! super-states share them.
+//! Each super-state lives in its own module. The states stay flat in this module, because later
+//! super-states reuse them.
 //!
 //! ## Modules
 //!

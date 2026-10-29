@@ -377,10 +377,10 @@ mod tests {
 
     use futures_util::StreamExt;
     use pretty_assertions::assert_eq;
-    use storage::Sha256Digest;
     use storage::implementations::repository::filesystem::{
         DocumentKey, FilesystemRepository, Write,
     };
+    use storage::{Sha256Digest, WriteError};
     use tempfile::TempDir;
 
     use super::*;
@@ -570,6 +570,64 @@ mod tests {
             .response
             .as_ref()
             .map(Arc::strong_count);
+
+        assert_eq!(result, expected_result);
+    }
+
+    /// Runs the whole stream and returns the state names of its errors.
+    async fn failed_state_names<R: NotesRepository + 'static>(
+        super_state: ExtractNotesSuperState<ValidateNotesPeriod<R>, AlwaysRespondingReadySecClient>,
+    ) -> Vec<String> {
+        super_state
+            .into_run_stream()
+            .filter_map(|item| async move { item.err().map(|error| error.state_name) })
+            .collect()
+            .await
+    }
+
+    #[tokio::test]
+    async fn should_end_the_stream_with_a_failed_download_when_the_notes_file_is_not_found() {
+        let super_state = ExtractNotesSuperState::builder()
+            .period("2024q1")
+            .sec_client(AlwaysRespondingReadySecClient::new(
+                404,
+                Vec::new(),
+                Vec::new(),
+            ))
+            .execution_id(SAMPLE_EXECUTION_ID)
+            .repository(FakeNotesRepository::new())
+            .build();
+
+        let expected_result = vec![DOWNLOAD_NOTES_ARCHIVE.to_string()];
+
+        let result = failed_state_names(super_state).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_end_the_stream_with_a_failed_store_when_the_repository_rejects_the_write() {
+        let repository =
+            FakeNotesRepository::rejecting(WriteError::conflicting_write("Sample conflict"));
+        let super_state = super_state("2024q1", repository);
+
+        let expected_result = vec![STORE_NOTES_ARCHIVE.to_string()];
+
+        let result = failed_state_names(super_state).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_serialize_a_null_response_when_store_notes_archive_took_the_body() {
+        let super_state = super_state("2024q1", FakeNotesRepository::new());
+
+        let expected_result = Some(serde_json::Value::Null);
+
+        let items = run_stream(super_state).await;
+        let result = items
+            .last()
+            .map(|item| item.data["input"]["response"].clone());
 
         assert_eq!(result, expected_result);
     }

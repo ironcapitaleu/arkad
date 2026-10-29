@@ -195,6 +195,29 @@ mod tests {
     }
 
     #[test]
+    fn should_serialize_the_response_without_its_body_for_download_notes_archive_output() {
+        let output = DownloadNotesArchiveOutput::new(notes_file_response(b"PK"));
+
+        let expected_result = vec![
+            "body_sha256",
+            "content_type",
+            "headers",
+            "status_code",
+            "url",
+        ];
+
+        let value = serde_json::to_value(&output).expect(
+            "Given a response of strings and a digest, serialization should always succeed",
+        );
+        let result: Vec<&str> = value["response"]
+            .as_object()
+            .map(|fields| fields.keys().map(String::as_str).collect())
+            .unwrap_or_default();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
     fn should_share_the_response_allocation_when_the_output_is_cloned() {
         let output = DownloadNotesArchiveOutput::new(notes_file_response(b"PK"));
 
