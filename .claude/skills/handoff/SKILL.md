@@ -70,8 +70,7 @@ package in scope.>
 
 # Roadmap
 
-<Only when the ticket belongs to an ordered set of tickets: an epic (a Linear project), a project
-milestone, or the "Implementation Tickets" list of a design doc. One row per ticket in the set, in
+<Only when the ticket belongs to an ordered set (see Procedure step 3). One row per ticket, in
 working order. Mark the successor's ticket with ▶.>
 
 Project <name>, milestone <name>. All tickets link to <design ticket>. Statuses as of <YYYY-MM-DD>.
@@ -79,10 +78,13 @@ Project <name>, milestone <name>. All tickets link to <design ticket>. Statuses 
 | # | Ticket | Scope | Blocked by | Status |
 | - | ------ | ----- | ---------- | ------ |
 | 1 | STA-xxx | <three to six words> | none | Done |
-| 2 | ▶ STA-xxx | <three to six words> | none | Backlog |
+| 2 | STA-xxx | <three to six words> | none | In Review (merged, #N) |
+| 3 | ▶ STA-xxx | <three to six words> | STA-xxx | Backlog |
+
+A ticket is finished when it is Done or its PR has merged. Every other ticket is open.
 
 Critical path: <the longest chain of open tickets linked by blockers, as STA-xxx → STA-xxx → …>
-Unblocked now: <every ticket in Backlog or Todo whose blockers are all Done or have a merged PR>
+Unblocked now: <every ticket in Backlog or Todo whose blockers are all finished>
 
 # Key Decisions
 
@@ -133,15 +135,17 @@ Project MVP Data, milestone "Data in Postgres". All tickets link to STA-328. Sta
 | 1 | STA-333 | rename to `ExtractCompanyFactsSuperState` | none | In Review (merged, #270) |
 | 2 | ▶ STA-334 | `ingestion_mode` run field | none | Backlog |
 | 3 | STA-335 | `NotesPeriod` | none | Backlog |
-| 4 | STA-337 | `FetchNotesFile` and builder | 335 | Backlog |
+| 4 | STA-337 | `FetchNotesFile` and builder | STA-335 | Backlog |
 | 5 | STA-336 | `SecFile` and `download_sec_file` | none | Backlog |
-| 6 | STA-338 | `RawNotesArchive` | 334, 336 | Backlog |
-| 7 | STA-339 | `ValidateNotesPeriod` and `PrepareNotesRequest` | 335, 337 | Backlog |
-| 8 | STA-340 | `DownloadNotesArchive` | 336, 339 | Backlog |
-| 9 | STA-341 | `StoreNotesArchive` | 338, 340 | Backlog |
-| 10 | STA-342 | `ExtractNotesSuperState` | 341 | Backlog |
-| 11 | STA-343 | `Extraction` facade | 342 | Backlog |
-| 12 | STA-344 | `notes_backfill` binary | 343 | Backlog |
+| 6 | STA-338 | `RawNotesArchive` | STA-334, STA-336 | Backlog |
+| 7 | STA-339 | `ValidateNotesPeriod` and `PrepareNotesRequest` | STA-335, STA-337 | Backlog |
+| 8 | STA-340 | `DownloadNotesArchive` | STA-336, STA-339 | Backlog |
+| 9 | STA-341 | `StoreNotesArchive` | STA-338, STA-340 | Backlog |
+| 10 | STA-342 | `ExtractNotesSuperState` | STA-341 | Backlog |
+| 11 | STA-343 | `Extraction` facade | STA-342 | Backlog |
+| 12 | STA-344 | `notes_backfill` binary | STA-343 | Backlog |
+
+A ticket is finished when it is Done or its PR has merged. Every other ticket is open.
 
 Critical path: STA-335 → STA-337 → STA-339 → STA-340 → STA-341 → STA-342 → STA-343 → STA-344
 Unblocked now: STA-334, STA-335, STA-336
