@@ -17,7 +17,7 @@ use crate::traits::state_machine::state::StateData;
 
 /// Output data of the [`DownloadNotesArchive`](super::super::DownloadNotesArchive) state.
 ///
-/// The response sits behind an [`Arc`], because a `Clone` of the body would copy up to 0.85 GB.
+/// The response sits behind an [`Arc`], because a `Clone` of the body would copy the whole file.
 /// A clone of the output copies only the pointer. Equality, ordering, and hashing use only the
 /// SHA-256 digest of the body.
 #[derive(Debug, Clone)]

@@ -21,7 +21,7 @@ use crate::traits::state_machine::state::StateData;
 
 /// Input data for the [`StoreNotesArchive`](super::super::StoreNotesArchive) state.
 ///
-/// The response sits behind an [`Arc`], because a `Clone` of the body would copy up to 0.85 GB.
+/// The response sits behind an [`Arc`], because a `Clone` of the body would copy the whole file.
 /// The state takes the response out of the input, so the field is `None` after a successful
 /// store. Equality, ordering, and hashing use the SHA-256 digest of the body, not the bytes.
 #[derive(Debug, Clone)]
