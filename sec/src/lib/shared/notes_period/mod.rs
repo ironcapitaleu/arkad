@@ -11,18 +11,20 @@
 //! - [`constants`]: The range limits and the [`FILE_NAME_OVERRIDES`].
 //! - [`notes_period_error`]: The [`NotesPeriodError`] returned when validation fails, and its
 //!   [`InvalidNotesPeriodReason`].
+//! - [`quarter`]: The [`Quarter`] of a calendar year that one quarterly Notes file covers.
 
 pub mod constants;
 pub mod notes_period_error;
+pub mod quarter;
 
 pub use constants::FILE_NAME_OVERRIDES;
 pub use notes_period_error::{InvalidNotesPeriodReason, NotesPeriodError};
+pub use quarter::Quarter;
 
 use std::fmt::{self, Display, Formatter};
 
 use chrono::Month;
 
-use crate::shared::financial::quarter::Quarter;
 use constants::{FILE_NAME_SUFFIX, FIRST_MONTH, FIRST_YEAR, LAST_QUARTER};
 
 /// The period of one SEC Financial Statement and Notes file: a quarter or a month of a year.
@@ -145,7 +147,7 @@ impl Display for NotesPeriod {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match self.part {
             PeriodPart::Quarter(quarter) => {
-                write!(f, "{}{}", self.year, quarter.to_string().to_lowercase())
+                write!(f, "{}{quarter}", self.year)
             }
             PeriodPart::Month(month) => {
                 write!(f, "{}_{:02}", self.year, month.number_from_month())

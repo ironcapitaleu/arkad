@@ -5,7 +5,7 @@
 
 use chrono::Month;
 
-use crate::shared::financial::quarter::Quarter;
+use super::quarter::Quarter;
 
 /// The first year with a Notes file.
 pub const FIRST_YEAR: u16 = 2009;
