@@ -180,7 +180,7 @@ impl RawDocument<RawNotesArchive> {
     ///
     /// The document takes the body of `file` by value, so the bytes are not copied. The size and
     /// the SHA-256 digest come from the same bytes. The media type is the content type the SEC
-    /// sent. `run` names the run that fetched the file and its ingestion mode.
+    /// sent.
     ///
     /// # Examples
     ///
