@@ -26,7 +26,8 @@ Run both steps on the same machine, at the same time of day.
    the change in network speed over the day across all three values.
 
 For each run, record the total duration, the peak resident memory (`ru_maxrss` via `os.wait4`), the
-download time of each file from its `state_completed` event, and every failure.
+download time of each file from its `state_completed` event, and every failure. The script prints
+all four in its table.
 
 ```sh
 ARKAD_SEC_USER_AGENT="Company Name email@domain.com" \
@@ -66,9 +67,8 @@ lead's Wi-Fi, a wired line pays off, and the files-in-flight runs are worth repe
 
 ## Peak Memory on macOS and on Linux
 
-`ru_maxrss` is in bytes on macOS and in KB on Linux. The script converts both to KB. The macOS peak
-also counts memory in another way than Linux, so it is less reliable for Cloud Run planning. Plan
-Cloud Run memory from a Linux run.
+`ru_maxrss` is in bytes on macOS and in KB on Linux. The script converts both to KB. Cloud Run
+runs Linux, so plan its memory from a Linux run.
 
 ## Rules
 

@@ -84,7 +84,7 @@ latency, not our code. Everything we own runs in under a millisecond.
    profile, and the known traps.
    - CPU: `references/profiling/cpu.md`
    - Memory: `references/profiling/memory.md`
-   - Network: `references/profiling/network.md`, where the Notes download is limited. It runs
+   - Network: `references/profiling/network.md`, what limits the Notes download. Its script is
      `scripts/fif_experiment.py`
 3. Check your measurement setup before you trust the profile. If the code you wrote to drive the
    measurement differs from production, the profile describes that driver instead of the

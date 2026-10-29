@@ -10,7 +10,8 @@ Method and how to read the results: `../references/profiling/network.md`.
 3. Cleanup: every download, the worktree, and the build directory.
 
 The script downloads from the live SEC. It needs a real User-Agent in `ARKAD_SEC_USER_AGENT`.
-Standard library only, so it runs with any Python 3.9 or later.
+Standard library only, so it runs with any Python 3.9 or later on macOS or Linux (`os.wait4` is
+Unix only).
 """
 
 import argparse
@@ -159,28 +160,36 @@ def read_log(log):
             continue
         if event.get("event") == "state_completed" and context.get("state") == "Download Notes Archive":
             downloads[context.get("period")] = context.get("event_duration_ms", 0) / 1000
-        if event.get("level") == "ERROR":
+        # `batch_failed` is the summary of the failed periods, not a failure of its own.
+        if event.get("level") == "ERROR" and event.get("event") != "batch_failed":
             failures.append(line)
     return downloads, failures
 
 
 def print_table(rows):
-    print("| FILES_IN_FLIGHT | Exit | Duration | Peak | Mean download per file | Failures |")
-    print("| --- | --- | --- | --- | --- | --- |")
+    print("| FILES_IN_FLIGHT | Exit | Duration | Peak | Mean download per file "
+          "| Download per file | Failures |")
+    print("| --- | --- | --- | --- | --- | --- | --- |")
     for row in rows:
         times = row["downloads"].values()
         mean = f"{sum(times) / len(times):.1f} s" if times else "-"
+        per_file = ", ".join(
+            f"{period} {seconds:.1f} s" for period, seconds in sorted(row["downloads"].items())
+        ) or "-"
         print(f"| {row['files_in_flight']} | {row['exit']} | {row['seconds']:.1f} s "
-              f"| {row['peak_kb']:,} KB | {mean} | {len(row['failures'])} |")
+              f"| {row['peak_kb']:,} KB | {mean} | {per_file} | {len(row['failures'])} |")
     for row in rows:
         for failure in row["failures"]:
             print(f"\nFailure, FILES_IN_FLIGHT {row['files_in_flight']}:\n{failure}")
 
 
 def cleanup(repo, workdir):
-    if (workdir / "tree").exists():
-        git(repo, "worktree", "remove", "--force", str(workdir / "tree"))
+    # No `check=True`: a failed git call must not stop the deletion or hide the original error.
+    tree = workdir / "tree"
+    if tree.exists():
+        subprocess.run(["git", "-C", str(repo), "worktree", "remove", "--force", str(tree)])
     shutil.rmtree(workdir, ignore_errors=True)
+    subprocess.run(["git", "-C", str(repo), "worktree", "prune"])
     print(f"Deleted {workdir} and the worktree.")
 
 
