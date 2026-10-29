@@ -78,7 +78,7 @@ mod tests {
     }
 
     #[test]
-    fn should_convert_to_the_display_text_when_converting_into_a_string() {
+    fn should_convert_to_the_display_text_for_the_incremental_ingestion_mode() {
         let expected_result = "incremental".to_owned();
 
         let result = String::from(IngestionMode::Incremental);
