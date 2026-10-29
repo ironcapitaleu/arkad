@@ -18,6 +18,7 @@
 //! - [`store_company_facts`]: Writes the raw body of the response to the store.
 //! - [`validate_notes_period`]: Validates the raw period of a Notes file.
 //! - [`prepare_notes_request`]: Builds the request for the Notes file of one period.
+//! - [`download_notes_archive`]: Downloads the Notes file of one request.
 //!
 //! ## State Flow
 //!
@@ -56,6 +57,7 @@
 //! ```
 
 pub mod builder;
+pub mod download_notes_archive;
 pub mod execute_sec_request;
 pub mod notes_repository;
 pub mod prepare_notes_request;

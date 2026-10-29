@@ -6,7 +6,7 @@ use crate::shared::http_client::traits::InnerClient;
 ///
 /// Used for testing code that reads a real `reqwest::Response` without a network call. Each call
 /// builds a new response, because `reqwest::Response` is not `Clone`.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct AlwaysRespondingHttpClient {
     /// The HTTP status code of every response.
     pub status: u16,
