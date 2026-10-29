@@ -9,6 +9,7 @@
 //!
 //! - [`company_facts`]: The [`ExtractCompanyFactsSuperState`](company_facts::ExtractCompanyFactsSuperState)
 //!   and its builder.
+//! - [`notes`]: The [`ExtractNotesSuperState`](notes::ExtractNotesSuperState) and its builder.
 //! - [`validate_cik_format`]: Validates and normalizes the raw CIK.
 //! - [`prepare_sec_request`]: Builds the request targeting the SEC API endpoint.
 //! - [`execute_sec_request`]: Sends the request and captures the response.
@@ -21,6 +22,7 @@
 pub mod company_facts;
 pub mod download_notes_archive;
 pub mod execute_sec_request;
+pub mod notes;
 pub mod notes_repository;
 pub mod prepare_notes_request;
 pub mod prepare_sec_request;
