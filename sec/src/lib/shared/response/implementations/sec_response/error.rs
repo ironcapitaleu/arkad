@@ -97,13 +97,11 @@ mod tests {
 
     #[test]
     fn should_format_display_as_expected_when_reason_is_invalid_status_code() {
-        let reason = ErrorReason::InvalidStatusCode {
+        let error = InvalidSecResponse::new(ErrorReason::InvalidStatusCode {
             status_code: StatusCode::NotFound,
-        };
-        let error = InvalidSecResponse::new(reason.clone());
+        });
 
-        let expected_result =
-            format!("[InvalidSecResponse] Invalid SEC Response, Reason: '{reason}'");
+        let expected_result = "[InvalidSecResponse] Invalid SEC Response, Reason: 'Status code '404' is not accepted'";
 
         let result = format!("{error}");
 
@@ -112,13 +110,11 @@ mod tests {
 
     #[test]
     fn should_format_display_as_expected_when_reason_is_invalid_content_type() {
-        let reason = ErrorReason::InvalidContentType {
+        let error = InvalidSecResponse::new(ErrorReason::InvalidContentType {
             content_type: ContentType::Xml,
-        };
-        let error = InvalidSecResponse::new(reason.clone());
+        });
 
-        let expected_result =
-            format!("[InvalidSecResponse] Invalid SEC Response, Reason: '{reason}'");
+        let expected_result = "[InvalidSecResponse] Invalid SEC Response, Reason: 'Content type 'application/xml' is not accepted'";
 
         let result = format!("{error}");
 

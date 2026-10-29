@@ -37,10 +37,10 @@ pub struct SecNotesFileResponse {
 }
 
 impl SecNotesFileResponse {
-    /// Creates a [`SecNotesFileResponse`] from its parts, after the checks of the HTTP path.
+    /// Creates a [`SecNotesFileResponse`] from its parts and checks the status, the content type,
+    /// and the body length.
     ///
-    /// The content type comes from the `Content-Type` header. The body is taken by value, so a
-    /// large file is not copied.
+    /// The content type comes from the `Content-Type` header.
     ///
     /// # Errors
     ///
@@ -227,7 +227,7 @@ mod tests {
     }
 
     #[test]
-    fn should_digest_the_body_when_building_from_parts() {
+    fn should_store_the_sha256_of_the_body_for_a_valid_notes_file() {
         let expected_result = Sha256Digest::of(BODY);
 
         let response = SecNotesFileResponse::from_parts(
@@ -285,6 +285,41 @@ mod tests {
         let result = SecNotesFileResponse::from_parts(
             sample_url(),
             headers("application/zip", Some("eleven")),
+            StatusCode::Ok,
+            BODY.to_vec(),
+        )
+        .err();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_invalid_content_type_when_the_content_type_header_is_missing() {
+        let expected_result = Some(InvalidSecResponse::new(ErrorReason::InvalidContentType {
+            content_type: ContentType::Unknown,
+        }));
+
+        let result = SecNotesFileResponse::from_parts(
+            sample_url(),
+            Headers::new(HashMap::new()),
+            StatusCode::Ok,
+            BODY.to_vec(),
+        )
+        .err();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_invalid_content_length_when_the_body_is_longer_than_the_header() {
+        let expected_result = Some(InvalidSecResponse::new(ErrorReason::InvalidContentLength {
+            content_length: "4".to_string(),
+            body_length: BODY.len(),
+        }));
+
+        let result = SecNotesFileResponse::from_parts(
+            sample_url(),
+            headers("application/zip", Some("4")),
             StatusCode::Ok,
             BODY.to_vec(),
         )
