@@ -22,8 +22,8 @@ pub mod input_document;
 pub mod producer;
 
 pub use builder::{
-    Content, DocumentMetadataBuilder, NoContent, NoContext, NoDocumentType, NoMediaType,
-    NoProducedAt, NoRun, Run,
+    Content, DocumentMetadataBuilder, NoContent, NoContext, NoDocumentType, NoIngestionMode,
+    NoMediaType, NoProducedAt, NoRun, Run,
 };
 pub use constants::METADATA_VERSION;
 pub use input_document::InputDocument;
@@ -55,8 +55,7 @@ pub struct DocumentMetadata<C> {
     sha256: Sha256Digest,
     produced_at: DateTime<Utc>,
     execution_id: Uuid,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    ingestion_mode: Option<String>,
+    ingestion_mode: String,
     producer: Producer,
     inputs: Vec<InputDocument>,
     context: C,
@@ -126,6 +125,7 @@ impl DocumentMetadata<NoContext> {
     ///     .content(bytes)
     ///     .produced_at(DateTime::<Utc>::UNIX_EPOCH)
     ///     .run(Uuid::nil(), Producer::new("Summarize", "0.1.0", "63c1f59"))
+    ///     .ingestion_mode("backfill")
     ///     .context(SummaryContext { source: "a test".to_owned() })
     ///     .build();
     ///
@@ -142,6 +142,7 @@ impl DocumentMetadata<NoContext> {
         NoContent,
         NoProducedAt,
         NoRun,
+        NoIngestionMode,
         NoContext,
     > {
         DocumentMetadataBuilder::new()
@@ -199,11 +200,9 @@ impl<C> DocumentMetadata<C> {
 
     /// Returns the ingestion mode of the run that produced the document bytes, for example
     /// `backfill`.
-    ///
-    /// Returns `None` if the run set no mode, or if the metadata is of version 1.
     #[must_use]
-    pub fn ingestion_mode(&self) -> Option<&str> {
-        self.ingestion_mode.as_deref()
+    pub fn ingestion_mode(&self) -> &str {
+        &self.ingestion_mode
     }
 
     /// Returns the code that wrote the document.
@@ -322,7 +321,7 @@ mod tests {
         let metadata = sample_metadata();
 
         let expected_result = serde_json::json!({
-            "metadata_version": 2,
+            "metadata_version": 1,
             "document_type": "sample_document",
             "document_type_version": 1,
             "media_type": "application/json",
@@ -330,6 +329,7 @@ mod tests {
             "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
             "produced_at": "2026-09-22T20:05:30Z",
             "execution_id": "0b6f3c1e-5d2a-4f7b-9c3e-8a1d2b4c6e8f",
+            "ingestion_mode": "backfill",
             "producer": { "name": "Sample State", "crate_version": "0.1.0", "commit": "63c1f59" },
             "inputs": [{
                 "key": "sec/companyfacts/CIK0000320193.json",
@@ -346,68 +346,18 @@ mod tests {
         assert_eq!(result, expected_result);
     }
 
-    /// Returns the sample metadata with the ingestion mode `backfill`.
-    fn sample_metadata_with_ingestion_mode() -> DocumentMetadata<SampleContext> {
-        DocumentMetadata {
-            ingestion_mode: Some("backfill".to_owned()),
-            ..sample_metadata()
-        }
-    }
-
     #[test]
-    fn should_write_the_ingestion_mode_key_when_the_metadata_holds_an_ingestion_mode() {
-        let metadata = sample_metadata_with_ingestion_mode();
-
-        let expected_result = serde_json::json!("backfill");
-
-        let result = serde_json::to_value(metadata)
-            .expect("Given metadata of owned fields, serialization should always succeed")
-            ["ingestion_mode"]
-            .take();
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
-    fn should_omit_the_ingestion_mode_key_when_the_metadata_holds_no_ingestion_mode() {
-        let metadata = sample_metadata();
-
-        let expected_result = false;
-
-        let result = serde_json::to_value(metadata)
-            .expect("Given metadata of owned fields, serialization should always succeed")
-            .as_object()
-            .expect("Given a struct, serialization should always produce a JSON object")
-            .contains_key("ingestion_mode");
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
-    fn should_return_the_same_metadata_when_deserializing_serialized_metadata_with_an_ingestion_mode()
-     {
-        let json = serde_json::to_string(&sample_metadata_with_ingestion_mode())
-            .expect("Given metadata of owned fields, serialization should always succeed");
-
-        let expected_result = sample_metadata_with_ingestion_mode();
-
-        let result: DocumentMetadata<SampleContext> = serde_json::from_str(&json)
-            .expect("Given JSON this type produced, deserialization should always succeed");
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
-    fn should_read_no_ingestion_mode_when_reading_metadata_of_version_1() {
+    fn should_fail_to_read_metadata_without_the_ingestion_mode_key() {
         let mut stored = serde_json::to_value(sample_metadata())
             .expect("Given metadata of owned fields, serialization should always succeed");
-        stored["metadata_version"] = 1.into();
+        stored
+            .as_object_mut()
+            .expect("Given a struct, serialization should always produce a JSON object")
+            .remove("ingestion_mode");
 
-        let expected_result = None;
+        let expected_result = true;
 
-        let metadata = serde_json::from_value::<DocumentMetadata<SampleContext>>(stored)
-            .expect("Given JSON of version 1, deserialization should always succeed");
-        let result = metadata.ingestion_mode();
+        let result = serde_json::from_value::<DocumentMetadata<SampleContext>>(stored).is_err();
 
         assert_eq!(result, expected_result);
     }

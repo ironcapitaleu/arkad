@@ -32,7 +32,8 @@ use crate::error::state_machine::state::FailedDocumentWrite;
 use crate::shared::build_info::producer;
 use crate::shared::cik::Cik;
 use crate::shared::document_storage::FailedDocumentStorage;
-use crate::shared::raw_document::RawDocument;
+use crate::shared::ingestion_mode::IngestionMode;
+use crate::shared::raw_document::{RawDocument, RunFields};
 use crate::shared::raw_source::RawCompanyFacts;
 use crate::traits::state_machine::state::State;
 
@@ -49,7 +50,8 @@ pub use data::StoreCompanyFactsOutput;
 ///
 /// Builds one [`RawDocument<RawCompanyFacts>`] with
 /// [`RawDocument::from_response`], writes it under the key `sec/companyfacts/CIK##########.json`
-/// through the repository of type `R`, and outputs that [`DocumentKey`].
+/// through the repository of type `R`, and outputs that [`DocumentKey`]. The metadata records the
+/// ingestion mode [`IngestionMode::Backfill`], because `companyfacts` runs as a backfill.
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
 pub struct StoreCompanyFacts<R> {
     input: StoreCompanyFactsInput,
@@ -104,9 +106,12 @@ impl<R: RawCompanyFactsRepository> State for StoreCompanyFacts<R> {
             &self.input.response,
             &self.input.requested_url,
             &self.input.user_agent,
-            Utc::now(),
-            self.context.execution_id,
-            producer(STATE_NAME),
+            RunFields {
+                produced_at: Utc::now(),
+                execution_id: self.context.execution_id,
+                producer: producer(STATE_NAME),
+                ingestion_mode: IngestionMode::Backfill,
+            },
         );
 
         let write = self
@@ -421,10 +426,10 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_persist_no_ingestion_mode_for_company_facts() {
+    async fn should_persist_backfill_as_the_ingestion_mode_for_company_facts() {
         let document = persisted_document().await;
 
-        let expected_result = None;
+        let expected_result = "backfill";
 
         let result = document.metadata().ingestion_mode();
 

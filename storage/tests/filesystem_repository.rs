@@ -80,6 +80,7 @@ fn sample_document() -> SampleDocument {
             Uuid::nil(),
             Producer::new("Sample State", "0.1.0", "63c1f59"),
         )
+        .ingestion_mode("backfill")
         .context(())
         .build();
 

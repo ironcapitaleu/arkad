@@ -40,6 +40,10 @@ pub struct NoProducedAt;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct NoRun;
 
+/// Marks a builder that holds no ingestion mode yet.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct NoIngestionMode;
+
 /// Marks a builder that holds no context yet.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct NoContext;
@@ -62,28 +66,36 @@ pub struct Run {
 ///
 /// Set the document type with [`document_type`](Self::document_type), and the required fields
 /// with [`media_type`](Self::media_type), [`content`](Self::content),
-/// [`produced_at`](Self::produced_at), [`run`](Self::run), and [`context`](Self::context), in any
-/// order. [`inputs`](Self::inputs) is optional and defaults to no inputs.
-/// [`ingestion_mode`](Self::ingestion_mode) is optional and defaults to no mode. Then call
+/// [`produced_at`](Self::produced_at), [`run`](Self::run),
+/// [`ingestion_mode`](Self::ingestion_mode), and [`context`](Self::context), in any order.
+/// [`inputs`](Self::inputs) is optional and defaults to no inputs. Then call
 /// [`build`](Self::build).
 ///
 /// The derived traits require `D` to implement them too. A builder exists only between
 /// [`DocumentMetadata::builder`] and [`build`](Self::build), so this matters only for code that
 /// compares, orders, or hashes a builder.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct DocumentMetadataBuilder<D, M, B, P, R, C> {
+pub struct DocumentMetadataBuilder<D, M, B, P, R, I, C> {
     document_type: PhantomData<fn() -> D>,
     media_type: M,
     content: B,
     produced_at: P,
     run: R,
+    ingestion_mode: I,
     context: C,
     inputs: Vec<InputDocument>,
-    ingestion_mode: Option<String>,
 }
 
 impl
-    DocumentMetadataBuilder<NoDocumentType, NoMediaType, NoContent, NoProducedAt, NoRun, NoContext>
+    DocumentMetadataBuilder<
+        NoDocumentType,
+        NoMediaType,
+        NoContent,
+        NoProducedAt,
+        NoRun,
+        NoIngestionMode,
+        NoContext,
+    >
 {
     /// Creates a new [`DocumentMetadataBuilder`] that holds no document type, no field, and no
     /// inputs.
@@ -96,16 +108,16 @@ impl
             run: NoRun,
             context: NoContext,
             inputs: Vec::new(),
-            ingestion_mode: None,
+            ingestion_mode: NoIngestionMode,
         }
     }
 }
 
-impl<M, B, P, R, C> DocumentMetadataBuilder<NoDocumentType, M, B, P, R, C> {
+impl<M, B, P, R, I, C> DocumentMetadataBuilder<NoDocumentType, M, B, P, R, I, C> {
     /// Sets the document type, which sets `document_type`, `document_type_version`, and the context
     /// type.
     #[must_use]
-    pub fn document_type<D: Document>(self) -> DocumentMetadataBuilder<D, M, B, P, R, C> {
+    pub fn document_type<D: Document>(self) -> DocumentMetadataBuilder<D, M, B, P, R, I, C> {
         DocumentMetadataBuilder {
             document_type: PhantomData,
             media_type: self.media_type,
@@ -119,13 +131,13 @@ impl<M, B, P, R, C> DocumentMetadataBuilder<NoDocumentType, M, B, P, R, C> {
     }
 }
 
-impl<D, B, P, R, C> DocumentMetadataBuilder<D, NoMediaType, B, P, R, C> {
+impl<D, B, P, R, I, C> DocumentMetadataBuilder<D, NoMediaType, B, P, R, I, C> {
     /// Sets the media type of the document bytes, for example `application/json`.
     #[must_use]
     pub fn media_type(
         self,
         media_type: impl Into<String>,
-    ) -> DocumentMetadataBuilder<D, String, B, P, R, C> {
+    ) -> DocumentMetadataBuilder<D, String, B, P, R, I, C> {
         DocumentMetadataBuilder {
             document_type: self.document_type,
             media_type: media_type.into(),
@@ -139,7 +151,7 @@ impl<D, B, P, R, C> DocumentMetadataBuilder<D, NoMediaType, B, P, R, C> {
     }
 }
 
-impl<D, M, P, R, C> DocumentMetadataBuilder<D, M, NoContent, P, R, C> {
+impl<D, M, P, R, I, C> DocumentMetadataBuilder<D, M, NoContent, P, R, I, C> {
     /// Sets the size and the SHA-256 digest of the document from its bytes.
     ///
     /// The record must hold the same bytes. `persist` and `get` check that it does.
@@ -147,7 +159,7 @@ impl<D, M, P, R, C> DocumentMetadataBuilder<D, M, NoContent, P, R, C> {
     pub fn content(
         self,
         bytes: impl AsRef<[u8]>,
-    ) -> DocumentMetadataBuilder<D, M, Content, P, R, C> {
+    ) -> DocumentMetadataBuilder<D, M, Content, P, R, I, C> {
         let bytes = bytes.as_ref();
         DocumentMetadataBuilder {
             document_type: self.document_type,
@@ -166,13 +178,13 @@ impl<D, M, P, R, C> DocumentMetadataBuilder<D, M, NoContent, P, R, C> {
     }
 }
 
-impl<D, M, B, R, C> DocumentMetadataBuilder<D, M, B, NoProducedAt, R, C> {
+impl<D, M, B, R, I, C> DocumentMetadataBuilder<D, M, B, NoProducedAt, R, I, C> {
     /// Sets when the producing state made the document bytes.
     #[must_use]
     pub fn produced_at(
         self,
         produced_at: DateTime<Utc>,
-    ) -> DocumentMetadataBuilder<D, M, B, DateTime<Utc>, R, C> {
+    ) -> DocumentMetadataBuilder<D, M, B, DateTime<Utc>, R, I, C> {
         DocumentMetadataBuilder {
             document_type: self.document_type,
             media_type: self.media_type,
@@ -186,14 +198,14 @@ impl<D, M, B, R, C> DocumentMetadataBuilder<D, M, B, NoProducedAt, R, C> {
     }
 }
 
-impl<D, M, B, P, C> DocumentMetadataBuilder<D, M, B, P, NoRun, C> {
+impl<D, M, B, P, I, C> DocumentMetadataBuilder<D, M, B, P, NoRun, I, C> {
     /// Sets the id of the run and the code that produced the document bytes.
     #[must_use]
     pub fn run(
         self,
         execution_id: Uuid,
         producer: Producer,
-    ) -> DocumentMetadataBuilder<D, M, B, P, Run, C> {
+    ) -> DocumentMetadataBuilder<D, M, B, P, Run, I, C> {
         DocumentMetadataBuilder {
             document_type: self.document_type,
             media_type: self.media_type,
@@ -210,12 +222,33 @@ impl<D, M, B, P, C> DocumentMetadataBuilder<D, M, B, P, NoRun, C> {
     }
 }
 
-impl<D, M, B, P, R> DocumentMetadataBuilder<D, M, B, P, R, NoContext> {
+impl<D, M, B, P, R, C> DocumentMetadataBuilder<D, M, B, P, R, NoIngestionMode, C> {
+    /// Sets the ingestion mode of the run that produced the document bytes, for example
+    /// `backfill`.
+    #[must_use]
+    pub fn ingestion_mode(
+        self,
+        ingestion_mode: impl Into<String>,
+    ) -> DocumentMetadataBuilder<D, M, B, P, R, String, C> {
+        DocumentMetadataBuilder {
+            document_type: self.document_type,
+            media_type: self.media_type,
+            content: self.content,
+            produced_at: self.produced_at,
+            run: self.run,
+            ingestion_mode: ingestion_mode.into(),
+            context: self.context,
+            inputs: self.inputs,
+        }
+    }
+}
+
+impl<D, M, B, P, R, I> DocumentMetadataBuilder<D, M, B, P, R, I, NoContext> {
     /// Sets the fields that only this document type has.
     ///
     /// If `C` is not the document type's [`Document::Context`], the builder has no `build` method.
     #[must_use]
-    pub fn context<C>(self, context: C) -> DocumentMetadataBuilder<D, M, B, P, R, C> {
+    pub fn context<C>(self, context: C) -> DocumentMetadataBuilder<D, M, B, P, R, I, C> {
         DocumentMetadataBuilder {
             document_type: self.document_type,
             media_type: self.media_type,
@@ -229,7 +262,7 @@ impl<D, M, B, P, R> DocumentMetadataBuilder<D, M, B, P, R, NoContext> {
     }
 }
 
-impl<D, M, B, P, R, C> DocumentMetadataBuilder<D, M, B, P, R, C> {
+impl<D, M, B, P, R, I, C> DocumentMetadataBuilder<D, M, B, P, R, I, C> {
     /// Sets the documents this document came from, in place of any set before.
     ///
     /// If you skip this step, the metadata holds no inputs.
@@ -238,19 +271,11 @@ impl<D, M, B, P, R, C> DocumentMetadataBuilder<D, M, B, P, R, C> {
         self.inputs = inputs;
         self
     }
-
-    /// Sets the ingestion mode of the run that produced the document bytes, for example
-    /// `backfill`.
-    ///
-    /// If you skip this step, the metadata holds no ingestion mode.
-    #[must_use]
-    pub fn ingestion_mode(mut self, ingestion_mode: impl Into<String>) -> Self {
-        self.ingestion_mode = Some(ingestion_mode.into());
-        self
-    }
 }
 
-impl<D: Document> DocumentMetadataBuilder<D, String, Content, DateTime<Utc>, Run, D::Context> {
+impl<D: Document>
+    DocumentMetadataBuilder<D, String, Content, DateTime<Utc>, Run, String, D::Context>
+{
     /// Builds a [`DocumentMetadata`] with the fields this builder holds.
     ///
     /// Sets `metadata_version` from [`METADATA_VERSION`], `document_type` from
@@ -272,6 +297,7 @@ impl<D: Document> DocumentMetadataBuilder<D, String, Content, DateTime<Utc>, Run
     ///     .content(bytes)
     ///     .produced_at(DateTime::<Utc>::UNIX_EPOCH)
     ///     .run(Uuid::nil(), Producer::new("Summarize", "0.1.0", "63c1f59"))
+    ///     .ingestion_mode("backfill")
     ///     .context(())
     ///     .build();
     /// ```
@@ -334,6 +360,7 @@ impl<D: Document> DocumentMetadataBuilder<D, String, Content, DateTime<Utc>, Run
     ///     .content(bytes)
     ///     .produced_at(DateTime::<Utc>::UNIX_EPOCH)
     ///     .run(Uuid::nil(), Producer::new("Summarize", "0.1.0", "63c1f59"))
+    ///     .ingestion_mode("backfill")
     ///     .context(())
     ///     .build();
     /// ```
@@ -395,6 +422,69 @@ impl<D: Document> DocumentMetadataBuilder<D, String, Content, DateTime<Utc>, Run
     ///     .media_type("application/json")
     ///     .content(bytes)
     ///     .produced_at(DateTime::<Utc>::UNIX_EPOCH)
+    ///     .ingestion_mode("backfill")
+    ///     .context(SummaryContext { source: "a test".to_owned() })
+    ///     .build();
+    /// ```
+    ///
+    /// A builder without an ingestion mode has no `build` method either:
+    ///
+    /// ```compile_fail,E0599
+    /// # use std::fmt;
+    /// #
+    /// # use chrono::{DateTime, Utc};
+    /// # use serde::{Deserialize, Serialize};
+    /// # use storage::implementations::repository::filesystem::{
+    /// #     Document, DocumentKey, DocumentMetadata, Producer,
+    /// # };
+    /// # use uuid::Uuid;
+    /// #
+    /// # #[derive(Debug, Clone, Copy)]
+    /// # enum ReportType {
+    /// #     Summary,
+    /// # }
+    /// #
+    /// # impl fmt::Display for ReportType {
+    /// #     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    /// #         write!(f, "summary")
+    /// #     }
+    /// # }
+    /// #
+    /// # #[derive(Serialize, Deserialize)]
+    /// # struct SummaryContext {
+    /// #     source: String,
+    /// # }
+    /// #
+    /// # struct Summary {
+    /// #     key: DocumentKey,
+    /// #     bytes: Vec<u8>,
+    /// #     metadata: DocumentMetadata<SummaryContext>,
+    /// # }
+    /// #
+    /// # impl Document for Summary {
+    /// #     type DocumentType = ReportType;
+    /// #     const DOCUMENT_TYPE: ReportType = ReportType::Summary;
+    /// #     const DOCUMENT_TYPE_VERSION: u32 = 1;
+    /// #     type Context = SummaryContext;
+    /// #     fn key(&self) -> &DocumentKey { &self.key }
+    /// #     fn bytes(&self) -> &[u8] { &self.bytes }
+    /// #     fn metadata(&self) -> &DocumentMetadata<SummaryContext> { &self.metadata }
+    /// #     fn from_parts(
+    /// #         key: DocumentKey,
+    /// #         bytes: Vec<u8>,
+    /// #         metadata: DocumentMetadata<SummaryContext>,
+    /// #     ) -> Self {
+    /// #         Self { key, bytes, metadata }
+    /// #     }
+    /// # }
+    /// #
+    /// let bytes = b"{}";
+    /// let metadata = DocumentMetadata::builder()
+    ///     .document_type::<Summary>()
+    ///     .media_type("application/json")
+    ///     .content(bytes)
+    ///     .produced_at(DateTime::<Utc>::UNIX_EPOCH)
+    ///     .run(Uuid::nil(), Producer::new("Summarize", "0.1.0", "63c1f59"))
     ///     .context(SummaryContext { source: "a test".to_owned() })
     ///     .build();
     /// ```
@@ -456,6 +546,7 @@ mod tests {
                 NoContent,
                 NoProducedAt,
                 NoRun,
+                NoIngestionMode,
                 NoContext,
             >,
         >();
@@ -474,6 +565,7 @@ mod tests {
                 NoContent,
                 NoProducedAt,
                 NoRun,
+                NoIngestionMode,
                 NoContext,
             >,
         >();
@@ -489,7 +581,7 @@ mod tests {
             run: NoRun,
             context: NoContext,
             inputs: Vec::new(),
-            ingestion_mode: None,
+            ingestion_mode: NoIngestionMode,
         };
 
         let result = DocumentMetadata::builder();
@@ -510,6 +602,7 @@ mod tests {
             .content(b"{}")
             .produced_at(produced_at())
             .run(execution_id, producer)
+            .ingestion_mode("backfill")
             .context(sample_context())
             .inputs(input)
             .build();
@@ -528,6 +621,7 @@ mod tests {
             .inputs(input)
             .context(sample_context())
             .run(execution_id, producer)
+            .ingestion_mode("backfill")
             .produced_at(produced_at())
             .content(b"{}")
             .media_type("application/json")
@@ -550,6 +644,7 @@ mod tests {
             .content(bytes)
             .produced_at(produced_at())
             .run(execution_id, producer)
+            .ingestion_mode("backfill")
             .context(sample_context())
             .build();
         let result = (metadata.size_in_bytes(), metadata.sha256().clone());
@@ -570,6 +665,7 @@ mod tests {
             .content(bytes)
             .produced_at(produced_at())
             .run(execution_id, producer)
+            .ingestion_mode("backfill")
             .context(sample_context())
             .build();
         let result = (metadata.size_in_bytes(), metadata.sha256().clone());
@@ -589,6 +685,7 @@ mod tests {
             .content(b"{}")
             .produced_at(produced_at())
             .run(execution_id, producer)
+            .ingestion_mode("backfill")
             .context(sample_context())
             .build();
         let result = metadata.inputs();
@@ -597,29 +694,10 @@ mod tests {
     }
 
     #[test]
-    fn should_hold_no_ingestion_mode_when_the_ingestion_mode_step_is_left_out() {
-        let (execution_id, producer) = sample_run();
-
-        let expected_result = None;
-
-        let metadata = DocumentMetadata::builder()
-            .document_type::<SampleDocument>()
-            .media_type("application/json")
-            .content(b"{}")
-            .produced_at(produced_at())
-            .run(execution_id, producer)
-            .context(sample_context())
-            .build();
-        let result = metadata.ingestion_mode();
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
     fn should_hold_the_ingestion_mode_when_setting_the_ingestion_mode() {
         let (execution_id, producer) = sample_run();
 
-        let expected_result = Some("backfill");
+        let expected_result = "backfill";
 
         let metadata = DocumentMetadata::builder()
             .document_type::<SampleDocument>()
@@ -658,6 +736,11 @@ mod tests {
     #[test]
     const fn should_implement_value_traits_for_no_run() {
         implements_value_traits::<NoRun>();
+    }
+
+    #[test]
+    const fn should_implement_value_traits_for_no_ingestion_mode() {
+        implements_value_traits::<NoIngestionMode>();
     }
 
     #[test]

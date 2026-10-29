@@ -111,7 +111,8 @@ Extraction::incremental().submissions().cik(cik).sec_client(c).repository(r).bui
   generic SuperState.
 - The facade passes the ingestion mode to the SuperState. The store state writes it into the
   metadata of each raw document. See [Raw Store](#raw-store).
-- `companyfacts` stays outside the facade. It is a cross-check only.
+- `companyfacts` stays outside the facade. It is a cross-check only. `StoreCompanyFacts` writes
+  the mode `backfill`.
 
 ## Backfill Extract
 
@@ -561,11 +562,15 @@ The metadata of each raw document records the ingestion mode of the run that cre
 
 - `ingestion_mode` is a run field in `DocumentMetadata`, next to `execution_id` and
   `produced_at`. `storage` holds it as a string, so `storage` does not depend on `sec`.
-- `ingestion_mode` is optional. `companyfacts` writes none, because it stays outside the facade.
-  A stored file without the field reads with no mode. `METADATA_VERSION` goes from 1 to 2.
+- `ingestion_mode` is required, and it has exactly two values. Metadata without a mode does not
+  compile. A stored file without the field fails to read. Decided by the lead on 2026-10-29.
+- `companyfacts` is a backfill by default, so `StoreCompanyFacts` writes `backfill`.
+- `METADATA_VERSION` stays 1 until the MVP. Files written before the MVP do not need to stay
+  readable.
 - `persist` leaves `ingestion_mode` out of the comparison, as it does with `execution_id` and
   `produced_at`. If a run stores the same bytes again, the write is skipped and the stored run
-  fields stay.
+  fields stay. A stored file without the field fails the check of the run fields, so `persist`
+  rewrites it.
 - So the metadata names the run that created the document. `submissions` serves both modes. If
   `ingestion_mode` were part of the comparison, each run in the other mode would rewrite the file.
 - Transform copies the mode onto each fact (STA-331).
@@ -631,8 +636,8 @@ decision "backfill first".
 Backfill:
 
 1. REFACTOR: rename `ExtractSuperState` to `ExtractCompanyFactsSuperState`.
-2. FEATURE: the optional run field `ingestion_mode` in `DocumentMetadata` (`storage`), left out of
-   the comparison in `persist`, `METADATA_VERSION` 2, and `IngestionMode` in `sec`.
+2. FEATURE: the required run field `ingestion_mode` in `DocumentMetadata` (`storage`), left out
+   of the comparison in `persist`, and `IngestionMode` in `sec`.
 3. FEATURE: `NotesPeriod`, with the range checks and the file names with overrides.
 4. FEATURE: `SecRequestType::FetchNotesFile` and the builder `notes_file().period(p)`.
 5. FEATURE: `SecFile` and `SecClient::download_sec_file`, with the transport checks of layer 1.

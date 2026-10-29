@@ -82,8 +82,9 @@ pub use traits::document::Document;
 ///
 /// The metadata names the size and the SHA-256 digest of its document. `get` and `persist` check
 /// both. The run fields are `produced_at`, `execution_id`, and `ingestion_mode`. If the stored
-/// run fields are valid and a new record differs from the stored pair only in them, `persist`
-/// writes no file. The stored run fields then keep naming the run that produced the bytes.
+/// run fields are present and valid, and a new record differs from the stored pair only in them,
+/// `persist` writes no file. The stored run fields then keep naming the run that produced the
+/// bytes.
 ///
 /// A write first writes both files to synced temporary files in the same directory. It then
 /// renames the metadata over its target, and the document over its target. A reader sees the old

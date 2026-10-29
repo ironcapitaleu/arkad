@@ -317,7 +317,7 @@ mod tests {
         let metadata_path = repository.metadata_path(&key);
         write_record_files(&repository, &sample_document);
         let stored_metadata = r#"{
-  "metadata_version": 2,
+  "metadata_version": 1,
   "document_type": "sample_document",
   "document_type_version": 1,
   "media_type": "application/json",
@@ -325,6 +325,7 @@ mod tests {
   "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
   "produced_at": "2026-09-22T20:05:30Z",
   "execution_id": "0b6f3c1e-5d2a-4f7b-9c3e-8a1d2b4c6e8f",
+  "ingestion_mode": "backfill",
   "producer": { "name": "Sample State", "crate_version": "0.1.0", "commit": "63c1f59" },
   "inputs": [{
     "key": "sec/companyfacts/CIK0000320193.json",
@@ -343,7 +344,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_read_no_ingestion_mode_when_the_metadata_file_holds_version_1() {
+    async fn should_return_invalid_metadata_when_the_stored_metadata_has_no_ingestion_mode() {
         let root = temporary_root();
         let repository = repository_at(root.path());
         let sample_document = sample_document();
@@ -369,11 +370,15 @@ mod tests {
         std::fs::write(&metadata_path, stored_metadata)
             .expect("Given an existing directory, overwriting the metadata should always succeed");
 
-        let expected_result = Ok(Some(None));
+        let expected_result = Err(read_error(
+            FailedFilesystemOperationReason::InvalidMetadata {
+                line: 16,
+                column: 1,
+            },
+            &metadata_path,
+        ));
 
-        let result = repository.get(key).await.map(|record| {
-            record.map(|document| document.metadata().ingestion_mode().map(str::to_owned))
-        });
+        let result = repository.get(key).await;
 
         assert_eq!(result, expected_result);
     }

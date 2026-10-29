@@ -53,7 +53,7 @@ impl<A: CanWrite, D: Document> WriteRepository for FilesystemRepository<A, D> {
     ///
     /// 1. The stored metadata equals the new metadata outside the run fields `produced_at`,
     ///    `execution_id`, and `ingestion_mode`.
-    /// 2. The stored run fields are valid.
+    /// 2. The stored metadata holds every run field, and each one is valid.
     /// 3. The stored document matches the digest of the new bytes.
     ///
     /// The stored run fields then stay. In every other case, `persist` creates every missing
@@ -174,14 +174,14 @@ struct StoredRun {
         dead_code,
         reason = "parsed only to check that the stored value is valid"
     )]
-    ingestion_mode: Option<String>,
+    ingestion_mode: String,
 }
 
 /// Returns `true` if the stored metadata equals the new metadata outside the run fields, and the
 /// stored document matches the digest.
 ///
-/// Returns `false` if a file is missing or unreadable, a stored run field is invalid, or another
-/// field differs, so the write repairs the pair.
+/// Returns `false` if a file is missing or unreadable, a stored run field is missing or invalid, or
+/// another field differs, so the write repairs the pair.
 async fn stored_pair_matches(
     metadata_path: &Path,
     metadata: &[u8],
@@ -796,7 +796,7 @@ mod tests {
         let backfill_document = sample_document_with_ingestion_mode("backfill");
         let metadata_path = repository.metadata_path(backfill_document.key());
 
-        let expected_result = Some("backfill".to_owned());
+        let expected_result = "backfill".to_owned();
 
         repository
             .persist(backfill_document)
@@ -810,7 +810,7 @@ mod tests {
             );
         let result = read_stored_metadata(&metadata_path)
             .ingestion_mode()
-            .map(str::to_owned);
+            .to_owned();
 
         assert_eq!(result, expected_result);
     }
@@ -968,13 +968,21 @@ mod tests {
         field: &str,
         value: serde_json::Value,
     ) -> DocumentMetadata<SampleContext> {
+        persist_over_edited_stored_metadata(|stored| stored[field] = value).await
+    }
+
+    /// Persists the sample document, applies `edit` to its stored metadata, persists the document
+    /// again, and returns the stored metadata.
+    async fn persist_over_edited_stored_metadata(
+        edit: impl FnOnce(&mut serde_json::Value),
+    ) -> DocumentMetadata<SampleContext> {
         let root = temporary_root();
         let repository = repository_at(root.path());
         let record = sample_document();
         let metadata_path = repository.metadata_path(record.key());
         let mut stored = serde_json::to_value(record.metadata())
             .expect("Given metadata of owned fields, serialization should always succeed");
-        stored[field] = value;
+        edit(&mut stored);
         let stored_json = serde_json::to_vec(&stored)
             .expect("Given a JSON value, serialization should always succeed");
 
@@ -1002,10 +1010,16 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_replace_the_metadata_when_the_stored_metadata_holds_version_1() {
+    async fn should_replace_the_metadata_when_the_stored_metadata_has_no_ingestion_mode() {
         let expected_result = sample_metadata();
 
-        let result = persist_over_stored_metadata_field("metadata_version", 1.into()).await;
+        let result = persist_over_edited_stored_metadata(|stored| {
+            stored
+                .as_object_mut()
+                .expect("Given serialized metadata, the JSON value should always be an object")
+                .remove("ingestion_mode");
+        })
+        .await;
 
         assert_eq!(result, expected_result);
     }
