@@ -1,15 +1,17 @@
 //! # State Errors
 //!
-//! Provides the [`State`] error covering failures inside a state's own logic: CIK validation, SEC
-//! request execution, document writes, data completeness, and input/context/output handling.
+//! Provides the [`State`] error covering failures inside a state's own logic: CIK validation
+//! and Notes period validation, SEC request execution, document writes, data completeness, and
+//! input/context/output handling.
 //!
-//! The richer variants ([`InvalidCikFormat`], [`FailedRequestExecution`], [`FailedDocumentWrite`],
-//! [`IncompleteCompanyFacts`]) wrap a domain error with the failing state's name; the rest are
+//! The richer variants ([`InvalidCikFormat`], [`InvalidNotesPeriod`], [`FailedRequestExecution`],
+//! [`FailedDocumentWrite`], [`IncompleteCompanyFacts`]) wrap a domain error with the failing state's name; the rest are
 //! plain markers. [`State`] is wrapped by [`StateMachine`](super::StateMachine) for propagation.
 //!
 //! ## Modules
 //!
 //! - [`invalid_cik_format`]: The [`InvalidCikFormat`] error wrapping a CIK validation failure.
+//! - [`invalid_notes_period`]: The [`InvalidNotesPeriod`] error wrapping a Notes period validation failure.
 //! - [`failed_request_execution`]: The [`FailedRequestExecution`] error wrapping a failed SEC request.
 //! - [`failed_document_write`]: The [`FailedDocumentWrite`] error wrapping a rejected store write.
 //! - [`incomplete_company_facts`]: The [`IncompleteCompanyFacts`] error for a response missing required fields.
@@ -24,18 +26,24 @@ pub mod incomplete_company_facts;
 pub use incomplete_company_facts::IncompleteCompanyFacts;
 pub mod invalid_cik_format;
 pub use invalid_cik_format::InvalidCikFormat;
+pub mod invalid_notes_period;
+pub use invalid_notes_period::InvalidNotesPeriod;
 
 #[non_exhaustive]
 #[derive(Debug, Error, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 /// Error occurring inside a state's own logic.
 ///
 /// Spans the ways a state can fail while computing its output: a wrapped domain error (invalid
-/// CIK, failed request, rejected write, incomplete facts) or a plain marker for invalid input, context, or a
+/// CIK, invalid Notes period, failed request, rejected write, incomplete facts) or a plain marker for invalid input, context, or a
 /// failed update/computation.
 pub enum State {
     /// Invalid Cik format.
     #[error("[StateError] A state level error occurred, Caused by: {0}")]
     InvalidCikFormat(#[source] InvalidCikFormat),
+
+    /// Invalid Notes period.
+    #[error("[StateError] A state level error occurred, Caused by: {0}")]
+    InvalidNotesPeriod(#[source] InvalidNotesPeriod),
 
     /// Indicates that an SEC request execution has failed.
     #[error("[StateError] A state level error occurred, Caused by: {0}")]
