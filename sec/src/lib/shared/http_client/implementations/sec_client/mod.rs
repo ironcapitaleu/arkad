@@ -22,6 +22,7 @@ use crate::shared::http_client::SecClient as SecClientTrait;
 use crate::shared::rate_limiter::{RateLimiter, SecRateLimiter};
 use crate::shared::request::implementations::sec_request::SecRequest;
 use crate::shared::response::SecResponse as SecResponseTrait;
+use crate::shared::response::implementations::sec_notes_file_response::SecNotesFileResponse;
 use crate::shared::response::implementations::sec_response::SecResponse;
 use crate::shared::user_agent::UserAgent;
 
@@ -86,6 +87,48 @@ impl SecClient {
     pub const fn user_agent(&self) -> &UserAgent {
         self.inner.user_agent()
     }
+
+    /// Downloads one Notes file and returns it as a [`SecNotesFileResponse`].
+    ///
+    /// Waits on the rate limiter, sends the request, and reads the whole body.
+    ///
+    /// # Errors
+    ///
+    /// Returns a [`FailedSecRequest`] if the request fails at the network level, or if the
+    /// response fails a check of [`SecNotesFileResponse::from_parts`].
+    pub async fn download_sec_file(
+        &self,
+        request: SecRequest,
+    ) -> Result<SecNotesFileResponse, FailedSecRequest> {
+        download_notes_file(&self.inner, &self.rate_limiter, request.into_inner()).await
+    }
+}
+
+/// Waits on `rate_limiter`, sends `request` through `client`, and validates the reply.
+///
+/// Generic over the client, so tests can send the request through a fake [`InnerClient`].
+///
+/// # Errors
+///
+/// Returns a [`FailedSecRequest`] if the request fails at the network level, or if the
+/// response fails a check of [`SecNotesFileResponse::from_parts`].
+async fn download_notes_file<C>(
+    client: &C,
+    rate_limiter: &impl RateLimiter,
+    request: reqwest::Request,
+) -> Result<SecNotesFileResponse, FailedSecRequest>
+where
+    C: InnerClient<
+            Request = reqwest::Request,
+            Response = reqwest::Response,
+            Error = reqwest::Error,
+        >,
+{
+    rate_limiter.await_turn().await;
+
+    let inner_response = client.execute_request(request).await?;
+    let notes_file_response = SecNotesFileResponse::from_inner(inner_response).await?;
+    Ok(notes_file_response)
 }
 
 impl Default for SecClient {
@@ -166,10 +209,106 @@ impl SecClientTrait for SecClient {
 mod tests {
     use pretty_assertions::assert_eq;
 
-    use super::SecClient;
+    use super::{SecClient, download_notes_file};
+    use crate::shared::content_type::ContentType;
     use crate::shared::http_client::implementations::reqwest_client::ReqwestClient;
+    use crate::shared::http_client::implementations::sec_client::error::FailedSecRequest;
+    use crate::shared::response::implementations::sec_response::error::{
+        ErrorReason, InvalidSecResponse,
+    };
+    use crate::shared::status_code::StatusCode;
     use crate::shared::user_agent::UserAgent;
     use crate::shared::user_agent::constants::DEFAULT_SEC_USER_AGENT;
+    use crate::tests::fixtures::sample_http_client::sample_inner_client::AlwaysRespondingHttpClient;
+    use crate::tests::fixtures::sample_rate_limiter::always_ready::AlwaysReadyRateLimiter;
+
+    const NOTES_FILE_BODY: &[u8] = b"PK\x03\x04 notes";
+
+    fn notes_file_request() -> reqwest::Request {
+        let url = "https://www.sec.gov/files/dera/data/financial-statement-and-notes-data-sets/2024q1_notes.zip";
+        let url = reqwest::Url::parse(url)
+            .expect("Given a hardcoded valid URL, parsing should always succeed");
+        reqwest::Request::new(reqwest::Method::GET, url)
+    }
+
+    fn responding_client(status: u16, content_type: &str) -> AlwaysRespondingHttpClient {
+        AlwaysRespondingHttpClient {
+            status,
+            headers: vec![
+                ("content-type", content_type.to_string()),
+                ("content-length", NOTES_FILE_BODY.len().to_string()),
+            ],
+            body: NOTES_FILE_BODY.to_vec(),
+        }
+    }
+
+    fn invalid_response(reason: ErrorReason) -> FailedSecRequest {
+        FailedSecRequest::from(InvalidSecResponse::new(reason))
+    }
+
+    #[tokio::test]
+    async fn should_return_the_body_when_the_notes_file_download_succeeds() {
+        let client = responding_client(200, "application/octet-stream");
+
+        let expected_result = NOTES_FILE_BODY.to_vec();
+
+        let result = download_notes_file(&client, &AlwaysReadyRateLimiter, notes_file_request())
+            .await
+            .expect("Given status 200, an octet stream and a matching length, the download should always succeed")
+            .body()
+            .to_vec();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_return_invalid_status_code_when_the_notes_file_is_not_found() {
+        let client = responding_client(404, "application/octet-stream");
+
+        let expected_result = Some(invalid_response(ErrorReason::InvalidStatusCode {
+            status_code: StatusCode::NotFound,
+        }));
+
+        let result = download_notes_file(&client, &AlwaysReadyRateLimiter, notes_file_request())
+            .await
+            .err();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_return_invalid_content_type_when_the_notes_file_is_html() {
+        let client = responding_client(200, "text/html");
+
+        let expected_result = Some(invalid_response(ErrorReason::InvalidContentType {
+            content_type: ContentType::Html,
+        }));
+
+        let result = download_notes_file(&client, &AlwaysReadyRateLimiter, notes_file_request())
+            .await
+            .err();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_return_invalid_content_length_when_the_notes_file_body_is_short() {
+        let client = AlwaysRespondingHttpClient {
+            body: NOTES_FILE_BODY[..4].to_vec(),
+            ..responding_client(200, "application/zip")
+        };
+
+        let expected_result = Some(invalid_response(ErrorReason::InvalidContentLength {
+            content_length: NOTES_FILE_BODY.len().to_string(),
+            body_length: 4,
+        }));
+
+        let result = download_notes_file(&client, &AlwaysReadyRateLimiter, notes_file_request())
+            .await
+            .err();
+
+        assert_eq!(result, expected_result);
+    }
 
     fn sec_client_with_other_user_agent() -> SecClient {
         let user_agent = UserAgent::new("Other Company other@example.com")

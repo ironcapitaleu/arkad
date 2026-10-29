@@ -192,20 +192,27 @@ The run downloads the whole file, not HTTP range reads.
 - A local file can seek, so the `zip` crate reads it directly.
 
 The download goes through the existing layers: `SecRequest` → `SecClient` → `InnerClient`.
-`SecResponse` parses its body as JSON, so it cannot hold a ZIP. `SecClient` gets a sibling method
-next to `execute_sec_request`:
+`SecResponse` parses its body as JSON, so it cannot hold a ZIP. The concrete `SecClient` gets a
+method next to `execute_sec_request`. It is not on the `SecClient` trait, so the trait fakes do
+not change:
 
 ```rust
-async fn download_sec_file(&self, request: Self::Request) -> Result<SecFile, Self::Error>;
+pub async fn download_sec_file(
+    &self,
+    request: SecRequest,
+) -> Result<SecNotesFileResponse, FailedSecRequest>;
 ```
 
-`SecFile` holds the URL, the headers, the content type, the status code, the bytes, and their
-SHA-256. The new-filing path uses the same method for XML files and the daily index.
+`SecNotesFileResponse` holds the URL, the headers, the content type, the status code, the bytes,
+and their SHA-256. It accepts only status 200 and the content types `application/octet-stream`
+and `application/zip`. If the `Content-Length` header is present, the byte count must match it.
+Each later file kind gets its own response type, for example the XML files of the new-filing
+path.
 
 ### Storage
 
 - `StoreNotesArchive` reuses `FilesystemRepository` unchanged. `RawDocument` and
-  `RawDocumentMetadataContext` get a constructor from `SecFile`. The key is
+  `RawDocumentMetadataContext` get a constructor from `SecNotesFileResponse`. The key is
   `sec/notes/<file name>`, for example `sec/notes/2024q1_notes.zip`.
 - The repository writes temp files and renames them. If the stored pair matches the new bytes, it
   skips the write. If the bytes differ, the new bytes replace the old.
@@ -230,7 +237,7 @@ bound memory. The run caps the Notes files in flight at 2, with `buffer_unordere
 
 Each file in flight holds up to 3 copies at its peak: the response body, the `RawDocument` bytes,
 and the stored file that `persist` reads to compare digests on a rerun. `RawDocument::from_file`
-takes the `SecFile` bytes by value, which removes the second copy. The largest file is 0.85 GB, so
+takes the `SecNotesFileResponse` bytes by value, which removes the second copy. The largest file is 0.85 GB, so
 two files need about 4 to 5 GB (estimate, measure it with the `performance` skill).
 
 ### Archive Metadata
@@ -302,8 +309,9 @@ replaces old files: `2025q3_notes.zip` has a Last-Modified of 2026-10-07, and `2
 Four layers, each in the state that first sees the data. Layers 1 to 3 fail the file. Layer 4
 quarantines the row or the filing, and the file goes on.
 
-1. **Transport**, in `DownloadNotesArchive`: HTTP 200, a content type of
-   `application/octet-stream` or `application/zip`, and a byte count equal to `Content-Length`.
+1. **Transport**, in `SecNotesFileResponse`, which `DownloadNotesArchive` gets from
+   `download_sec_file`: HTTP 200, a content type of `application/octet-stream` or
+   `application/zip`, and a byte count equal to `Content-Length` if the header is present.
 2. **Container**, in the first transform state: the bytes start with the ZIP signature `PK\x03\x04`,
    the ZIP index parses, all eight tables and `notes-metadata.json` are present, every member uses
    deflate, every member name has no path separator, and the unzipped size stays under a limit.
@@ -451,7 +459,8 @@ Measured on one filing (`0000003545-26-000047`): the folder holds `alco-20260908
 `alco-20260908_lab.xml`, both served as `text/xml`. The `instance` column of `sub.tsv` uses the
 same names. The rule for older filings without inline XBRL is unverified.
 
-`DownloadFilingDocuments` fetches both files with `SecClient::download_sec_file`. The files are
+`DownloadFilingDocuments` fetches both files with a sibling of `SecClient::download_sec_file`
+that returns a response type for XML files. The files are
 small (2.8 KB and 22.8 KB for this filing), so the run caps filings by the rate limiter only.
 
 ### Company Data
@@ -643,9 +652,10 @@ Backfill:
    type `IngestionMode` (`storage`), left out of the comparison in `persist`.
 3. FEATURE: `NotesPeriod`, with the range checks and the file names with overrides.
 4. FEATURE: `SecRequestType::FetchNotesFile` and the builder `notes_file().period(p)`.
-5. FEATURE: `SecFile` and `SecClient::download_sec_file`, with the transport checks of layer 1.
+5. FEATURE: `SecNotesFileResponse` and `SecClient::download_sec_file`, with the transport
+   checks of layer 1.
 6. FEATURE: `RawNotesArchive`, its `SecDocumentType` variant, and the constructors of
-   `RawDocument` and `RawDocumentMetadataContext` from `SecFile`.
+   `RawDocument` and `RawDocumentMetadataContext` from `SecNotesFileResponse`.
 7. FEATURE: the states `ValidateNotesPeriod` and `PrepareNotesRequest`.
 8. FEATURE: the state `DownloadNotesArchive`.
 9. FEATURE: the state `StoreNotesArchive` and `NotesArchiveRef`.

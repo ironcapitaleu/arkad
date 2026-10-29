@@ -32,12 +32,12 @@ impl InvalidSecResponse {
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ErrorReason {
-    /// The status code is not in the success range (200–299).
+    /// The status code is not one the response accepts.
     InvalidStatusCode {
-        /// The non-success status code received.
+        /// The status code received.
         status_code: StatusCode,
     },
-    /// The content type is not `application/json`.
+    /// The content type is not one the response accepts.
     InvalidContentType {
         /// The unexpected content type received.
         content_type: ContentType,
@@ -52,28 +52,38 @@ pub enum ErrorReason {
         /// A description of the read failure.
         details: String,
     },
+    /// The body length does not match the `Content-Length` header.
+    InvalidContentLength {
+        /// The `Content-Length` header value as received.
+        content_length: String,
+        /// The number of body bytes received.
+        body_length: usize,
+    },
 }
 
 impl fmt::Display for ErrorReason {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Self::InvalidStatusCode { status_code } => {
-                write!(
-                    f,
-                    "Expected a success status code (2xx), got '{status_code}' status code instead"
-                )
+                write!(f, "Status code '{status_code}' is not accepted")
             }
             Self::InvalidContentType { content_type } => {
-                write!(
-                    f,
-                    "Expected content type 'application/json', got '{content_type}' instead"
-                )
+                write!(f, "Content type '{content_type}' is not accepted")
             }
             Self::InvalidBody { details } => {
                 write!(f, "Response body is not valid JSON: '{details}'")
             }
             Self::FailedBodyRead { details } => {
                 write!(f, "Failed to read response body: '{details}'")
+            }
+            Self::InvalidContentLength {
+                content_length,
+                body_length,
+            } => {
+                write!(
+                    f,
+                    "Expected '{content_length}' body bytes from the 'Content-Length' header, got '{body_length}' instead"
+                )
             }
         }
     }
@@ -139,6 +149,21 @@ mod tests {
 
         let expected_result =
             format!("[InvalidSecResponse] Invalid SEC Response, Reason: '{reason}'");
+
+        let result = format!("{error}");
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_format_display_as_expected_when_reason_is_invalid_content_length() {
+        let reason = ErrorReason::InvalidContentLength {
+            content_length: "1024".to_string(),
+            body_length: 512,
+        };
+        let error = InvalidSecResponse::new(reason);
+
+        let expected_result = "[InvalidSecResponse] Invalid SEC Response, Reason: 'Expected '1024' body bytes from the 'Content-Length' header, got '512' instead'";
 
         let result = format!("{error}");
 

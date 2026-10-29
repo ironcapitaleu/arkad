@@ -181,6 +181,7 @@ classDiagram
         +InvalidContentType(ContentType content_type)
         +InvalidBody(String details)
         +FailedBodyRead(String details)
+        +InvalidContentLength(String content_length, usize body_length)
     }
 
     %% Error hierarchy relationships
