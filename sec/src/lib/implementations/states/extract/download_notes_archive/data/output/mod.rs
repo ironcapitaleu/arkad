@@ -220,14 +220,12 @@ mod tests {
     }
 
     #[test]
-    fn should_order_outputs_by_body_digest() {
+    fn should_order_outputs_by_body_digest_when_bodies_differ() {
         let output = DownloadNotesArchiveOutput::new(notes_file_response(b"PK"));
         let other = DownloadNotesArchiveOutput::new(notes_file_response(b"PK!"));
 
-        let expected_result = output
-            .response
-            .body_digest()
-            .cmp(other.response.body_digest());
+        // The SHA-256 of `PK` starts with `fcab`, the one of `PK!` with `58ce`.
+        let expected_result = Ordering::Greater;
 
         let result = output.cmp(&other);
 

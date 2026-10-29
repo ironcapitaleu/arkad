@@ -137,7 +137,8 @@ A separate REFACTOR renames the existing `ExtractSuperState` to `ExtractCompanyF
 1. `ValidateNotesPeriod` parses a raw string such as `2024q1` or `2025_10` into a `NotesPeriod`.
 2. `PrepareNotesRequest` builds `SecRequest::builder().notes_file().period(p).build()`.
 3. `DownloadNotesArchive` sends the request and reads the whole body into memory. It runs the
-   transport checks of [Validation](#validation), layer 1.
+   transport checks of [Validation](#validation), layer 1. Its output holds the
+   `SecNotesFileResponse` in an `Arc`, because the state traits require `Clone`.
 4. `StoreNotesArchive` writes the bytes as a `RawDocument<RawNotesArchive>` and outputs a
    `NotesArchiveRef`.
 
@@ -240,6 +241,11 @@ and the stored file that `persist` reads to compare digests on a rerun. `RawDocu
 takes the `SecNotesFileResponse` bytes by value, which removes the second copy. The largest file is 0.85 GB, so
 two files need about 4 to 5 GB (estimate, measure it with the `performance` skill).
 
+The output of `DownloadNotesArchive` holds the response in an `Arc`. `StoreNotesArchive` moves the
+output out of the state with `into_parts`. Then it takes the bytes with `Arc::try_unwrap` and
+`into_body`. The unwrap fails if a second clone of the output is alive, so no transition keeps a
+clone.
+
 ### Archive Metadata
 
 - The repository records the size and SHA-256 of the whole file, as for every raw document.
@@ -310,7 +316,7 @@ Four layers, each in the state that first sees the data. Layers 1 to 3 fail the 
 quarantines the row or the filing, and the file goes on.
 
 1. **Transport**, in `SecNotesFileResponse`, which `DownloadNotesArchive` gets from
-   `download_sec_file`: HTTP 200, a content type of `application/octet-stream` or
+   `download_notes_file`, the generic body of `download_sec_file`: HTTP 200, a content type of `application/octet-stream` or
    `application/zip`, and a byte count equal to `Content-Length` if the header is present.
 2. **Container**, in the first transform state: the bytes start with the ZIP signature `PK\x03\x04`,
    the ZIP index parses, all eight tables and `notes-metadata.json` are present, every member uses

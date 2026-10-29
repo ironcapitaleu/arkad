@@ -127,9 +127,10 @@ impl<R: NotesRepository, C: NotesFileClient> State for DownloadNotesArchive<R, C
     ///
     /// # Errors
     ///
-    /// Returns [`StateError::FailedRequestExecution`] if the request fails at the network level,
-    /// or if the response does not have status 200, an accepted content type, and a body length
-    /// that matches the `Content-Length` header.
+    /// Returns [`StateError::FailedRequestExecution`] if the request fails at the network level.
+    /// It also returns this error if the response fails a transport check: status 200, an
+    /// accepted content type, and a body length equal to `Content-Length` if that header is
+    /// present.
     async fn compute_output_data_async(&mut self) -> Result<(), StateError> {
         let request = self.input.request.clone().into_inner();
         let response = download_notes_file(&self.context.sec_client, request)
@@ -289,7 +290,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_accept_an_octet_stream_when_the_download_succeeds() {
+    async fn should_succeed_when_the_content_type_is_octet_stream() {
         let mut state = test_state(200, "application/octet-stream");
 
         let expected_result = true;
