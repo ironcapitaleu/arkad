@@ -6,7 +6,7 @@ use crate::shared::rate_limiter::traits::RateLimiter;
 
 /// A fake rate limiter that never waits and counts each call to `await_turn`.
 ///
-/// Used for testing that code waits on its [`RateLimiter`] before it sends a request.
+/// Used for testing how often code waits on its [`RateLimiter`].
 #[derive(Debug, Default)]
 pub struct CountingRateLimiter {
     /// The number of calls to `await_turn`.

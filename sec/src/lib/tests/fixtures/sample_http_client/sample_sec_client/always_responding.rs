@@ -21,7 +21,7 @@ pub struct AlwaysRespondingSecClient {
 }
 
 impl AlwaysRespondingSecClient {
-    /// Creates a [`AlwaysRespondingSecClient`] whose responses have the given status, headers, and body.
+    /// Creates an [`AlwaysRespondingSecClient`] whose responses have the given status, headers, and body.
     #[must_use]
     pub const fn new(status: u16, headers: Vec<(&'static str, String)>, body: Vec<u8>) -> Self {
         Self {
