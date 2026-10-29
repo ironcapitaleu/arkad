@@ -175,6 +175,13 @@ impl SecNotesFileResponse {
         &self.body_digest
     }
 
+    /// Replaces the body digest, so a test can tell a stored digest apart from a new hash.
+    #[cfg(test)]
+    pub(crate) fn with_body_digest(mut self, body_digest: Sha256Digest) -> Self {
+        self.body_digest = body_digest;
+        self
+    }
+
     /// Consumes the response and returns the body bytes without a copy.
     #[must_use]
     pub fn into_body(self) -> Vec<u8> {

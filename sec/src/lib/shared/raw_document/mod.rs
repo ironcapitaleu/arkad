@@ -160,7 +160,7 @@ impl<S: RawSource> RawDocument<S> {
         let metadata = DocumentMetadata::builder()
             .document_type::<Self>()
             .media_type(response.content_type().to_string())
-            .content(raw_body)
+            .content_with_digest(raw_body, response.body_digest().clone())
             .produced_at(run.produced_at)
             .run(run.execution_id, run.producer)
             .ingestion_mode(run.ingestion_mode)
@@ -177,9 +177,9 @@ impl<S: RawSource> RawDocument<S> {
 impl RawDocument<RawNotesArchive> {
     /// Creates a new [`RawDocument`] from a Notes file response and the fetch that produced it.
     ///
-    /// The document takes the body of `file` by value, so the bytes are not copied. The size and
-    /// the SHA-256 digest come from the same bytes. The media type is the content type the SEC
-    /// sent.
+    /// The document takes the body of `file` by value, so the bytes are not copied. The size comes
+    /// from the body, and the SHA-256 digest is the body digest of `file`, so the body is not
+    /// hashed again. The media type is the content type the SEC sent.
     ///
     /// # Examples
     ///
@@ -242,7 +242,7 @@ impl RawDocument<RawNotesArchive> {
         let metadata = DocumentMetadata::builder()
             .document_type::<Self>()
             .media_type(file.content_type().to_string())
-            .content(file.body())
+            .content_with_digest(file.body(), file.body_digest().clone())
             .produced_at(run.produced_at)
             .run(run.execution_id, run.producer)
             .ingestion_mode(run.ingestion_mode)
@@ -619,9 +619,13 @@ mod tests {
     }
 
     fn sample_document_from_file() -> RawDocument<RawNotesArchive> {
+        document_from_file(sample_notes_file())
+    }
+
+    fn document_from_file(file: SecNotesFileResponse) -> RawDocument<RawNotesArchive> {
         RawDocument::from_file(
             sample_notes_key(),
-            sample_notes_file(),
+            file,
             &sample_notes_url(),
             &sample_user_agent(),
             RunFields {
@@ -662,6 +666,19 @@ mod tests {
         let expected_result = sample_notes_file().body_digest().clone();
 
         let result = document.metadata().sha256().clone();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_take_the_digest_from_the_file_without_hashing_the_body_when_building_a_document_from_a_file()
+     {
+        let digest_of_other_bytes = storage::Sha256Digest::of(b"[]");
+        let file = sample_notes_file().with_body_digest(digest_of_other_bytes.clone());
+
+        let expected_result = digest_of_other_bytes;
+
+        let result = document_from_file(file).metadata().sha256().clone();
 
         assert_eq!(result, expected_result);
     }
