@@ -7,7 +7,8 @@ use std::fmt::{self, Display, Formatter};
 /// The mode of the run that creates a raw document.
 ///
 /// Each variant's [`Display`] text is the `ingestion_mode` the store writes into a document's
-/// metadata.
+/// metadata. The [`From`] impl for [`String`] gives the same text, so a store state can pass the
+/// mode straight to the metadata builder.
 ///
 /// # Examples
 ///
@@ -34,6 +35,12 @@ impl Display for IngestionMode {
             Self::Backfill => write!(f, "backfill"),
             Self::Incremental => write!(f, "incremental"),
         }
+    }
+}
+
+impl From<IngestionMode> for String {
+    fn from(ingestion_mode: IngestionMode) -> Self {
+        ingestion_mode.to_string()
     }
 }
 
@@ -66,6 +73,15 @@ mod tests {
         let expected_result = "backfill";
 
         let result = IngestionMode::Backfill.to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_convert_to_the_display_text_when_converting_into_a_string() {
+        let expected_result = "incremental".to_owned();
+
+        let result = String::from(IngestionMode::Incremental);
 
         assert_eq!(result, expected_result);
     }
