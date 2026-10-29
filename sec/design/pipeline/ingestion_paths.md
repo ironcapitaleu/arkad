@@ -260,8 +260,7 @@ takes the digest of the response and does not hash the body again.
 
 Each period of the run is its own task. Before the hash moved to the blocking thread pool, two
 periods in one task failed: the hash of one file stopped the body read of the other. With the
-hash off the task, one shared task stored both files in one run. One task per period lets two
-files hash on two cores.
+hash off the task, one shared task stored both files in one run.
 
 The output of `DownloadNotesArchive` holds the response in an `Arc`. The transition to
 `StoreNotesArchive` moves the `Arc` into the input of `StoreNotesArchive`, which holds it as

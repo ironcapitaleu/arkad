@@ -180,8 +180,8 @@ impl<D, M, P, R, I, C> DocumentMetadataBuilder<D, M, NoContent, P, R, I, C> {
 
     /// Sets the size of the document from its bytes, and its SHA-256 digest from `sha256`.
     ///
-    /// Does not hash the bytes. `sha256` must be the digest of the same bytes. `persist` checks
-    /// that it is.
+    /// Does not hash the bytes. `sha256` must be the digest of `bytes`. `persist` rejects a record
+    /// whose digest differs.
     #[must_use]
     pub fn content_with_digest(
         self,

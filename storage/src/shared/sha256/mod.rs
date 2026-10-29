@@ -99,7 +99,7 @@ impl Sha256Digest {
     {
         tokio::task::spawn_blocking(move || (Self::of(bytes.as_ref()), bytes))
             .await
-            .expect("Given a hash that never panics, the blocking task should always complete")
+            .expect("Given a hash that never panics and a runtime that outlives the call, the blocking task should always complete")
     }
 
     /// Returns the digest as 64 lowercase hex characters.

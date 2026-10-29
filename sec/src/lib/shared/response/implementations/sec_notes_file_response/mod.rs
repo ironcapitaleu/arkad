@@ -100,9 +100,9 @@ impl SecNotesFileResponse {
 
     /// Creates a [`SecNotesFileResponse`] from a raw `reqwest` response, reading the whole body.
     ///
-    /// The status code and the content type are checked before the body is read. The body is
-    /// hashed on the blocking thread pool through [`Sha256Digest::of_owned_async`], so the task can
-    /// poll other futures while the hash runs.
+    /// The status code and the content type are checked before the body is read. Hashes the body
+    /// on the blocking thread pool with [`Sha256Digest::of_owned_async`], so the task polls other
+    /// futures during the hash.
     ///
     /// # Errors
     ///
@@ -126,7 +126,23 @@ impl SecNotesFileResponse {
             })
         })?;
 
-        let body = Vec::from(body);
+        Self::from_read_body(url, headers, status_code, Vec::from(body)).await
+    }
+
+    /// Checks the body length, hashes the body off the task, and builds the response.
+    ///
+    /// The caller has checked the status code and the content type.
+    ///
+    /// # Errors
+    ///
+    /// Returns an [`InvalidSecResponse`] with [`ErrorReason::InvalidContentLength`] if the body
+    /// length does not match the `Content-Length` header.
+    async fn from_read_body(
+        url: Url,
+        headers: Headers,
+        status_code: StatusCode,
+        body: Vec<u8>,
+    ) -> Result<Self, InvalidSecResponse> {
         check_content_length(&headers, &body)?;
         let (body_digest, body) = Sha256Digest::of_owned_async(body).await;
         Ok(Self {
@@ -256,6 +272,8 @@ mod tests {
     const BODY: &[u8] = b"PK\x03\x04 notes";
 
     /// The size in bytes of a body whose hash takes long enough for the ticker to tick many times.
+    ///
+    /// The same value as in `storage/src/tests/fixtures/ticker`.
     const LARGE_BODY_SIZE: usize = 8 * 1024 * 1024;
 
     /// Builds a raw `reqwest` response with status 200, a ZIP content type, and the body.
@@ -269,6 +287,8 @@ mod tests {
     }
 
     /// Yields to the task until `is_done` is `true`, and returns the number of times it ran.
+    ///
+    /// A copy of `storage/src/tests/fixtures/ticker`, which `sec` cannot import. Keep both the same.
     async fn count_ticks_until(is_done: &AtomicBool) -> u64 {
         let mut ticks = 0;
         while !is_done.load(Ordering::Relaxed) {
@@ -325,11 +345,15 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_poll_another_future_when_building_from_a_large_raw_response_hashes_its_body() {
-        let inner = zip_inner_response(vec![0_u8; LARGE_BODY_SIZE]);
+    async fn should_poll_another_future_when_building_from_a_large_read_body_hashes_it() {
+        let headers = headers("application/zip", None);
+        let body = vec![0_u8; LARGE_BODY_SIZE];
         let build_is_done = AtomicBool::new(false);
+        // Starts after the body read, so every tick comes from the hash.
         let build = async {
-            let outcome = SecNotesFileResponse::from_inner(inner).await;
+            let outcome =
+                SecNotesFileResponse::from_read_body(sample_url(), headers, StatusCode::Ok, body)
+                    .await;
             build_is_done.store(true, Ordering::Relaxed);
             outcome
         };
