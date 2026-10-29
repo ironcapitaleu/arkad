@@ -3,18 +3,18 @@
 //! Range limits of the SEC Financial Statement and Notes files, and the file names that break the
 //! naming pattern.
 
-use chrono::Month;
-
+use super::month::Month;
 use super::quarter::Quarter;
+use super::year::Year;
 
 /// The first year with a Notes file.
-pub const FIRST_YEAR: u16 = 2009;
+pub const FIRST_YEAR: Year = Year(2009);
 
 /// The year and quarter of the last quarterly Notes file.
-pub const LAST_QUARTER: (u16, Quarter) = (2025, Quarter::Q3);
+pub const LAST_QUARTER: (Year, Quarter) = (Year(2025), Quarter::Q3);
 
 /// The year and month of the first monthly Notes file.
-pub const FIRST_MONTH: (u16, Month) = (2025, Month::October);
+pub const FIRST_MONTH: (Year, Month) = (Year(2025), Month(chrono::Month::October));
 
 /// The text after the period in every Notes file name that follows the pattern.
 pub const FILE_NAME_SUFFIX: &str = "_notes.zip";

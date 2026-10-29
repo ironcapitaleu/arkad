@@ -11,19 +11,25 @@
 //! - [`constants`]: The range limits and the [`FILE_NAME_OVERRIDES`].
 //! - [`notes_period_error`]: The [`NotesPeriodError`] returned when validation fails, and its
 //!   [`InvalidNotesPeriodReason`].
+//! - [`month`]: The [`Month`] of a calendar year that one monthly Notes file covers.
 //! - [`quarter`]: The [`Quarter`] of a calendar year that one quarterly Notes file covers.
+//! - [`year`]: The calendar [`Year`] of one Notes file.
 
 pub mod constants;
+pub mod month;
 pub mod notes_period_error;
 pub mod quarter;
+pub mod year;
 
 pub use constants::FILE_NAME_OVERRIDES;
+pub use month::Month;
 pub use notes_period_error::{InvalidNotesPeriodReason, NotesPeriodError};
 pub use quarter::Quarter;
+pub use year::Year;
 
 use std::fmt::{self, Display, Formatter};
 
-use chrono::Month;
+use serde::{Serialize, Serializer};
 
 use constants::{FILE_NAME_SUFFIX, FIRST_MONTH, FIRST_YEAR, LAST_QUARTER};
 
@@ -34,7 +40,7 @@ use constants::{FILE_NAME_SUFFIX, FIRST_MONTH, FIRST_YEAR, LAST_QUARTER};
 /// file also parses.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct NotesPeriod {
-    year: u16,
+    year: Year,
     part: PeriodPart,
 }
 
@@ -127,20 +133,14 @@ impl NotesPeriod {
 }
 
 /// Splits a trimmed period string into its year and part, or `None` if it has neither form.
-fn parse(period: &str) -> Option<(u16, PeriodPart)> {
+fn parse(period: &str) -> Option<(Year, PeriodPart)> {
     if let Some((year, quarter)) = period.split_once('q') {
         let quarter = Quarter::from_number_str(quarter)?;
-        return Some((parse_digits(year, 4)?, PeriodPart::Quarter(quarter)));
+        return Some((Year::from_number_str(year)?, PeriodPart::Quarter(quarter)));
     }
     let (year, month) = period.split_once('_')?;
-    let month = Month::try_from(u8::try_from(parse_digits(month, 2)?).ok()?).ok()?;
-    Some((parse_digits(year, 4)?, PeriodPart::Month(month)))
-}
-
-/// Parses a string of exactly `length` ASCII digits, or returns `None`.
-fn parse_digits(digits: &str, length: usize) -> Option<u16> {
-    let is_valid = digits.len() == length && digits.bytes().all(|byte| byte.is_ascii_digit());
-    is_valid.then(|| digits.parse().ok()).flatten()
+    let month = Month::from_number_str(month)?;
+    Some((Year::from_number_str(year)?, PeriodPart::Month(month)))
 }
 
 impl Display for NotesPeriod {
@@ -150,9 +150,16 @@ impl Display for NotesPeriod {
                 write!(f, "{}{quarter}", self.year)
             }
             PeriodPart::Month(month) => {
-                write!(f, "{}_{:02}", self.year, month.number_from_month())
+                write!(f, "{}_{month}", self.year)
             }
         }
+    }
+}
+
+impl Serialize for NotesPeriod {
+    /// Serializes the period as the SEC writes it, for example `"2024q1"`.
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.collect_str(self)
     }
 }
 
@@ -281,7 +288,7 @@ mod tests {
     #[test]
     fn should_parse_year_and_quarter_when_input_has_the_quarter_form() {
         let expected_result = Ok(NotesPeriod {
-            year: 2024,
+            year: Year(2024),
             part: PeriodPart::Quarter(Quarter::Q1),
         });
 
@@ -293,8 +300,8 @@ mod tests {
     #[test]
     fn should_parse_year_and_month_when_input_has_the_month_form() {
         let expected_result = Ok(NotesPeriod {
-            year: 2025,
-            part: PeriodPart::Month(Month::October),
+            year: Year(2025),
+            part: PeriodPart::Month(Month(chrono::Month::October)),
         });
 
         let result = NotesPeriod::new("2025_10");
@@ -334,7 +341,7 @@ mod tests {
 
     #[test]
     fn should_reject_with_unpublished_year_when_year_is_before_2009() {
-        let expected_result = Some(InvalidNotesPeriodReason::UnpublishedYear { year: 2008 });
+        let expected_result = Some(InvalidNotesPeriodReason::UnpublishedYear { year: Year(2008) });
 
         let result = rejection_reason("2008q4");
 
@@ -343,7 +350,7 @@ mod tests {
 
     #[test]
     fn should_reject_with_unpublished_year_when_month_is_also_before_2025_10() {
-        let expected_result = Some(InvalidNotesPeriodReason::UnpublishedYear { year: 2008 });
+        let expected_result = Some(InvalidNotesPeriodReason::UnpublishedYear { year: Year(2008) });
 
         let result = rejection_reason("2008_12");
 
@@ -429,6 +436,19 @@ mod tests {
         let expected_result = "2026_01";
 
         let result = period.to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_serialize_the_sec_form_when_period_is_a_month() {
+        let period = NotesPeriod::new("2025_10")
+            .expect("Given the first published month, parsing should always succeed");
+
+        let expected_result = "\"2025_10\"";
+
+        let result = serde_json::to_string(&period)
+            .expect("Serializing a period as a JSON string should always succeed");
 
         assert_eq!(result, expected_result);
     }

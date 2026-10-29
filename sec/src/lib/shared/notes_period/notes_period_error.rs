@@ -10,7 +10,7 @@ use std::fmt::{self, Display, Formatter};
 use thiserror::Error;
 
 use super::constants::{FIRST_MONTH, FIRST_YEAR, LAST_QUARTER};
-use super::{NotesPeriod, PeriodPart};
+use super::{NotesPeriod, PeriodPart, Year};
 
 /// Error indicating that a string could not be validated as a Notes period.
 #[derive(Debug, Error, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -41,7 +41,7 @@ pub enum InvalidNotesPeriodReason {
     /// The year comes before [`FIRST_YEAR`].
     UnpublishedYear {
         /// The year of the input.
-        year: u16,
+        year: Year,
     },
     /// The quarter comes after [`LAST_QUARTER`].
     UnpublishedQuarter,
@@ -87,7 +87,7 @@ mod tests {
     #[test]
     fn should_format_display_with_reason_and_input_when_reason_is_unpublished_year() {
         let error = NotesPeriodError::new(
-            InvalidNotesPeriodReason::UnpublishedYear { year: 2008 },
+            InvalidNotesPeriodReason::UnpublishedYear { year: Year(2008) },
             "2008q4",
         );
 
