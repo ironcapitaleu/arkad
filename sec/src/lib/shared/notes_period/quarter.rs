@@ -1,10 +1,10 @@
 //! # Quarter
 //!
-//! Provides the [`Quarter`] of a calendar year that one quarterly Notes file covers.
+//! Provides the [`Quarter`] type for a quarter of a calendar year.
 
 use std::fmt::{self, Display, Formatter};
 
-/// A quarter of a calendar year, written as the SEC writes it in Notes file names (`q1` to `q4`).
+/// A quarter of a calendar year, written `q1` to `q4`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Quarter {
     /// January to March.

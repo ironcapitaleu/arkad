@@ -1,12 +1,12 @@
 //! # Month
 //!
-//! Provides the [`Month`] of a calendar year that one monthly Notes file covers.
+//! Provides the [`Month`] type for a month of a calendar year.
 
 use std::fmt::{self, Display, Formatter};
 
 use super::is_ascii_digits;
 
-/// A month of a calendar year, written as the SEC writes it in Notes file names (`01` to `12`).
+/// A month of a calendar year, written as two digits (`01` to `12`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Month(pub(super) chrono::Month);
 

@@ -1,14 +1,12 @@
 //! # Year
 //!
-//! Provides the calendar [`Year`] of one Notes file.
+//! Provides the [`Year`] type for a calendar year.
 
 use std::fmt::{self, Display, Formatter};
 
 use super::is_ascii_digits;
 
 /// A calendar year, not a company's fiscal year.
-///
-/// A Notes file holds the filings with a filed date in its period, so its year is a calendar year.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Year(pub(super) u16);
 

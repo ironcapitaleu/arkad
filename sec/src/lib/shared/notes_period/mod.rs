@@ -11,9 +11,9 @@
 //! - [`constants`]: The range limits and the [`FILE_NAME_OVERRIDES`].
 //! - [`notes_period_error`]: The [`NotesPeriodError`] returned when validation fails, and its
 //!   [`InvalidNotesPeriodReason`].
-//! - [`month`]: The [`Month`] of a calendar year that one monthly Notes file covers.
-//! - [`quarter`]: The [`Quarter`] of a calendar year that one quarterly Notes file covers.
-//! - [`year`]: The calendar [`Year`] of one Notes file.
+//! - [`month`]: The [`Month`] type for a month of a calendar year.
+//! - [`quarter`]: The [`Quarter`] type for a quarter of a calendar year.
+//! - [`year`]: The [`Year`] type for a calendar year.
 
 pub mod constants;
 pub mod month;

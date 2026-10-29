@@ -53,7 +53,7 @@ impl Display for InvalidNotesPeriodReason {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match self {
             Self::InvalidNotesPeriodFormat => {
-                write!(f, "Expected the form 'YYYYqN' or 'YYYY_MM'")
+                write!(f, "Expected the form YYYYqN or YYYY_MM")
             }
             Self::UnpublishedYear { year } => {
                 write!(f, "The first Notes year is {FIRST_YEAR}, got {year}")
@@ -100,7 +100,7 @@ mod tests {
 
     #[test]
     fn should_format_display_with_both_forms_when_reason_is_invalid_format() {
-        let expected_result = "Expected the form 'YYYYqN' or 'YYYY_MM'";
+        let expected_result = "Expected the form YYYYqN or YYYY_MM";
 
         let result = InvalidNotesPeriodReason::InvalidNotesPeriodFormat.to_string();
 
