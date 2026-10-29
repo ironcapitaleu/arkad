@@ -110,13 +110,14 @@ impl SecClient {
 /// Waits on the rate limiter of `client`, sends `request` through its inner client, and
 /// validates the reply.
 ///
-/// Generic over the client, so tests can send the request through a fake [`SecClientTrait`].
+/// Generic over the client, so the request can go through any [`SecClientTrait`] with a
+/// `reqwest` inner client, a fake included.
 ///
 /// # Errors
 ///
 /// Returns a [`FailedSecRequest`] if the request fails at the network level, or if the
 /// response fails a check of [`SecNotesFileResponse::from_parts`].
-async fn download_notes_file<C>(
+pub(crate) async fn download_notes_file<C>(
     client: &C,
     request: reqwest::Request,
 ) -> Result<SecNotesFileResponse, FailedSecRequest>
