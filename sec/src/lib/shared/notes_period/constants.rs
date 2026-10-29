@@ -12,8 +12,7 @@ pub const FIRST_YEAR: Year = Year(2009);
 
 /// The year and quarter of the last quarterly Notes file.
 ///
-/// After this quarter, the SEC switched to monthly Notes files. The date does not change, so it is
-/// a constant.
+/// After this quarter, the SEC switched to monthly Notes files.
 pub const LAST_QUARTER: (Year, Quarter) = (Year(2025), Quarter::Q3);
 
 /// The year and month of the first monthly Notes file.

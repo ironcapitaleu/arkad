@@ -4,6 +4,8 @@
 
 use std::fmt::{self, Display, Formatter};
 
+use super::is_ascii_digits;
+
 /// A month of a calendar year, written as the SEC writes it in Notes file names (`01` to `12`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Month(pub(super) chrono::Month);
@@ -26,8 +28,9 @@ impl Month {
     /// ```
     #[must_use]
     pub fn from_number_str(number: &str) -> Option<Self> {
-        let is_two_digits = number.len() == 2 && number.bytes().all(|byte| byte.is_ascii_digit());
-        let number: u8 = is_two_digits.then(|| number.parse().ok()).flatten()?;
+        let number: u8 = is_ascii_digits(number, 2)
+            .then(|| number.parse().ok())
+            .flatten()?;
         chrono::Month::try_from(number).ok().map(Self)
     }
 }
@@ -58,6 +61,15 @@ mod tests {
         let expected_result = None;
 
         let result = Month::from_number_str("1");
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_none_when_number_has_a_sign() {
+        let expected_result = None;
+
+        let result = Month::from_number_str("+1");
 
         assert_eq!(result, expected_result);
     }

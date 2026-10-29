@@ -4,6 +4,8 @@
 
 use std::fmt::{self, Display, Formatter};
 
+use super::is_ascii_digits;
+
 /// A calendar year, not a company's fiscal year.
 ///
 /// A Notes file holds the filings with a filed date in its period, so its year is a calendar year.
@@ -28,8 +30,7 @@ impl Year {
     /// ```
     #[must_use]
     pub fn from_number_str(number: &str) -> Option<Self> {
-        let is_four_digits = number.len() == 4 && number.bytes().all(|byte| byte.is_ascii_digit());
-        is_four_digits
+        is_ascii_digits(number, 4)
             .then(|| number.parse().ok().map(Self))
             .flatten()
     }

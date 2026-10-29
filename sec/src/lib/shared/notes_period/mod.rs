@@ -143,6 +143,11 @@ fn parse(period: &str) -> Option<(Year, PeriodPart)> {
     Some((Year::from_number_str(year)?, PeriodPart::Month(month)))
 }
 
+/// Returns whether `number` is exactly `length` ASCII digits.
+fn is_ascii_digits(number: &str, length: usize) -> bool {
+    number.len() == length && number.bytes().all(|byte| byte.is_ascii_digit())
+}
+
 impl Display for NotesPeriod {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match self.part {
