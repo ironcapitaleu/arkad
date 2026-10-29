@@ -105,9 +105,8 @@ pub trait Document: Send + Sized {
     /// The type that names the ingestion mode of the run that produced a document, for example an
     /// enum with one variant per mode.
     ///
-    /// [`DocumentMetadataBuilder::ingestion_mode`] takes a value of this type and stores its
-    /// `Display` text as `ingestion_mode`. So a document type accepts only its own modes. A mode is
-    /// a small value, so the type is `Copy` and the builder takes it by value.
+    /// [`DocumentMetadataBuilder::ingestion_mode`] takes a value of this type by value and stores
+    /// its `Display` text. If the type is an enum, the builder accepts only its variants.
     ///
     /// [`DocumentMetadataBuilder::ingestion_mode`]: crate::implementations::repository::filesystem::DocumentMetadataBuilder::ingestion_mode
     type IngestionMode: fmt::Display + Copy;

@@ -227,10 +227,8 @@ impl<D, M, B, P, I, C> DocumentMetadataBuilder<D, M, B, P, NoRun, I, C> {
 }
 
 impl<D: Document, M, B, P, R, C> DocumentMetadataBuilder<D, M, B, P, R, NoIngestionMode, C> {
-    /// Sets the ingestion mode of the run that produced the document bytes.
-    ///
-    /// Takes the document type's [`Document::IngestionMode`] and stores its `Display` text, for
-    /// example `backfill`.
+    /// Sets the ingestion mode of the run that produced the document bytes, as the `Display` text
+    /// of `ingestion_mode`, for example `backfill`.
     ///
     /// # Examples
     ///
@@ -349,7 +347,8 @@ impl<D: Document>
     ///
     /// # Examples
     ///
-    /// A builder without a document type has no `build` method, so this does not compile:
+    /// A builder without a document type has no `build` method, so this does not compile. It also
+    /// has no ingestion mode, because that step needs the document type:
     ///
     /// ```compile_fail,E0599
     /// use chrono::{DateTime, Utc};
