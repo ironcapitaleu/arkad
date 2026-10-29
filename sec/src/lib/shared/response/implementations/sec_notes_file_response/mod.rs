@@ -288,6 +288,9 @@ mod tests {
 
     /// Yields to the task until `is_done` is `true`, and returns the number of times it ran.
     ///
+    /// Joined with a future on one task, it ticks only while that future waits. A future that blocks
+    /// the task to its end lets it tick at most once.
+    ///
     /// A copy of `storage/src/tests/fixtures/ticker`, which `sec` cannot import. Keep both the same.
     async fn count_ticks_until(is_done: &AtomicBool) -> u64 {
         let mut ticks = 0;
@@ -345,7 +348,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_poll_another_future_when_building_from_a_large_read_body_hashes_it() {
+    async fn should_poll_another_future_when_hashing_a_large_read_body() {
         let headers = headers("application/zip", None);
         let body = vec![0_u8; LARGE_BODY_SIZE];
         let build_is_done = AtomicBool::new(false);

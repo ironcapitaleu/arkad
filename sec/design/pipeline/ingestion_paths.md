@@ -258,9 +258,10 @@ during it. This covers the digest in `SecNotesFileResponse::from_inner`, the con
 `persist` and `get`, and the digest check of a stored file on a rerun. `RawDocument::from_file`
 takes the digest of the response and does not hash the body again.
 
-Each period of the run is its own task. Before the hash moved to the blocking thread pool, two
-periods in one task failed: the hash of one file stopped the body read of the other. With the
-hash off the task, one shared task stored both files in one run.
+The run gives each period its own task. This split was a workaround while the hash ran on the
+task: two periods in one task failed, because the hash of one file stopped the body read of the
+other. With the hash off the task, one shared task stored both files in one run, so the split is
+no longer needed for correctness. Whether the run keeps it is an open decision (STA-360).
 
 The output of `DownloadNotesArchive` holds the response in an `Arc`. The transition to
 `StoreNotesArchive` moves the `Arc` into the input of `StoreNotesArchive`, which holds it as
