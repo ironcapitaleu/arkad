@@ -6,7 +6,7 @@ description: >
   note", or invokes `/handoff`. Compacts the current conversation into a self-contained handoff:
   a prompt for a fresh agent session, or a state-of-play note on the In Progress Linear ticket for
   a human takeover.
-version: 0.2.0
+version: 0.3.0
 argument-hint: "[what the next session will do]"
 allowed-tools: [Read, Write, Bash, AskUserQuestion]
 ---
@@ -68,6 +68,22 @@ package in scope.>
 - In flight: <open branches, open PRs with numbers, tickets In Progress>
 - Blocked / undecided: <anything waiting on a decision, and what would unblock it>
 
+# Roadmap
+
+<Only when the ticket belongs to an ordered set of tickets. One row per ticket in the set, in
+working order. Read the status of each ticket from Linear when you write the handoff. Mark the
+successor's ticket with ▶.>
+
+Project <name>, milestone <name>. All tickets link to <design ticket>.
+
+| # | Ticket | Scope | Blocked by | Status |
+| - | ------ | ----- | ---------- | ------ |
+| 1 | STA-xxx | <three to six words> | none | Done |
+| 2 | ▶ STA-xxx | <three to six words> | none | Backlog |
+
+Critical path: <the longest chain of blockers, as STA-xxx → STA-xxx → …>
+Unblocked now: <every ticket whose blockers have all merged, and which has no branch yet>
+
 # Key Decisions
 
 <Each decision the successor must respect, one line each, with a link to the ADR, design doc, or
@@ -107,10 +123,14 @@ apply, and any "never" from this session. State each as `must` or `never`.>
    will do. Ask whether it ends at a branch, a merged PR, or a report.
 2. **Compile the document** from the conversation, following the template. Reference every artifact
    by path or URL. Do not paste file contents the successor can read itself.
-3. **Redact secrets.** Remove API keys, tokens, passwords, and personal data. Reference the
+3. **Add the Roadmap** if the ticket belongs to an ordered set, such as a milestone or the
+   "Implementation Tickets" list of a design doc. Read every ticket's status and blockers from
+   Linear at the time you write the handoff. Never copy a roadmap from an earlier handoff without
+   this check. Recompute the critical path and the unblocked tickets from the fresh data.
+4. **Redact secrets.** Remove API keys, tokens, passwords, and personal data. Reference the
    secret's location instead, never its value.
-4. **Choose the destination** — a fresh agent session, a Linear note, or both (see Destinations).
-5. **Deliver:**
+5. **Choose the destination** — a fresh agent session, a Linear note, or both (see Destinations).
+6. **Deliver:**
    - **Agent session** — print the whole document in the chat reply, inside one fenced code block
      tagged `markdown`. Put nothing else inside the block. Count the longest run of backticks that
      opens a fence in the document. Open and close the outer block with one more backtick than that
@@ -129,6 +149,8 @@ apply, and any "never" from this session. State each as `must` or `never`.>
 - **Self-contained.** The successor sees only this prompt. If a fact is not in it, the successor
   does not have it.
 - **Reference, do not duplicate.** Link tickets, PRs, branches, and docs. Never copy their bodies.
+  The Roadmap table is an index, not a copy: it holds only the ID, a short scope, the blockers,
+  and the status.
 - **Redact before writing.** No secret value reaches the document. This matters most for the Linear
   note, which persists and other people read.
 - **Never in the repository.** The agent-session prompt goes to the chat, plus a temporary file if
