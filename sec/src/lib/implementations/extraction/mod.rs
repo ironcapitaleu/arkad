@@ -5,9 +5,6 @@
 //! The first call picks the ingestion mode. The second call picks the source and returns the
 //! typestate builder of that source's super-state. Each [`build`] returns the concrete super-state.
 //!
-//! A mode handle creates one `execution_id`. Every super-state built from the same handle carries
-//! that id.
-//!
 //! [`build`]: ExtractNotesSuperStateBuilder::build
 //!
 //! ## Usage
@@ -94,7 +91,7 @@ mod tests {
     use std::hash::Hash;
 
     use futures_util::StreamExt;
-    use pretty_assertions::assert_eq;
+    use pretty_assertions::{assert_eq, assert_ne};
     use storage::implementations::repository::filesystem::FilesystemRepository;
     use tempfile::TempDir;
 
@@ -151,6 +148,15 @@ mod tests {
     #[test]
     const fn should_implement_value_traits_for_backfill() {
         implements_value_traits::<Backfill>();
+    }
+
+    #[test]
+    fn should_create_a_different_execution_id_when_starting_two_backfill_runs() {
+        let expected_result = Extraction::backfill();
+
+        let result = Extraction::backfill();
+
+        assert_ne!(result, expected_result);
     }
 
     #[test]
