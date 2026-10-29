@@ -9,7 +9,6 @@
 //!
 //! - [`raw_document_metadata_context`]: The [`RawDocumentMetadataContext`] with the fields that
 //!   only a raw document has.
-//! - [`run_fields`]: The [`RunFields`] that name the run that produced a raw document.
 
 use std::marker::PhantomData;
 
@@ -19,14 +18,13 @@ use crate::shared::document_type::SecDocumentType;
 use crate::shared::raw_source::RawSource;
 use crate::shared::response::SecResponse as SecResponseTrait;
 use crate::shared::response::implementations::sec_response::SecResponse;
+use crate::shared::run_fields::RunFields;
 use crate::shared::url::Url;
 use crate::shared::user_agent::UserAgent;
 
 pub mod raw_document_metadata_context;
-pub mod run_fields;
 
 pub use raw_document_metadata_context::RawDocumentMetadataContext;
-pub use run_fields::RunFields;
 
 /// One SEC file of the source `S`, the key naming it, and the metadata of the fetch that produced
 /// it.
@@ -107,9 +105,10 @@ impl<S: RawSource> RawDocument<S> {
     /// use sec::shared::content_type::ContentType;
     /// use sec::shared::headers::Headers;
     /// use sec::shared::ingestion_mode::IngestionMode;
-    /// use sec::shared::raw_document::{RawDocument, RunFields};
+    /// use sec::shared::raw_document::RawDocument;
     /// use sec::shared::raw_source::RawCompanyFacts;
     /// use sec::shared::response::implementations::sec_response::SecResponse;
+    /// use sec::shared::run_fields::RunFields;
     /// use sec::shared::status_code::StatusCode;
     /// use sec::shared::url::Url;
     /// use sec::shared::user_agent::UserAgent;

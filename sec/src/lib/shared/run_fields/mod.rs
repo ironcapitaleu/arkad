@@ -1,7 +1,6 @@
 //! # Run Fields
 //!
-//! Provides [`RunFields`], the metadata fields that name the run that produced a
-//! [`RawDocument`](super::RawDocument).
+//! Provides [`RunFields`], the metadata fields that name the run that produced a stored document.
 
 use chrono::{DateTime, Utc};
 use storage::implementations::repository::filesystem::Producer;
@@ -9,9 +8,10 @@ use uuid::Uuid;
 
 use crate::shared::ingestion_mode::IngestionMode;
 
-/// The metadata fields that name the run that produced a [`RawDocument`](super::RawDocument).
+/// The metadata fields that name the run that produced a stored document.
 ///
-/// Every constructor of a raw document takes these four values, so they travel as one value.
+/// Every stored document has these four fields, so a constructor takes them as one value, for
+/// example [`RawDocument::from_response`](crate::shared::raw_document::RawDocument::from_response).
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct RunFields {
     /// When the producing state made the document bytes.

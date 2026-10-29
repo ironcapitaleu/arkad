@@ -33,8 +33,9 @@ use crate::shared::build_info::producer;
 use crate::shared::cik::Cik;
 use crate::shared::document_storage::FailedDocumentStorage;
 use crate::shared::ingestion_mode::IngestionMode;
-use crate::shared::raw_document::{RawDocument, RunFields};
+use crate::shared::raw_document::RawDocument;
 use crate::shared::raw_source::RawCompanyFacts;
+use crate::shared::run_fields::RunFields;
 use crate::traits::state_machine::state::State;
 
 pub mod constants;

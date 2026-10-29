@@ -15,6 +15,7 @@
 //! - [`rate_limiter`]: Provides a leaky-bucket rate limiter for pacing outgoing SEC API requests.
 //! - [`request`]: Provides utilities for constructing SEC API requests, ensuring proper URL formatting.
 //! - [`response`]: Provides utilities for handling HTTP responses from SEC endpoints.
+//! - [`run_fields`]: Provides [`RunFields`](run_fields::RunFields), the metadata fields that name the run that produced a stored document.
 //! - [`user_agent`]: Provides utilities for creating and validating SEC-compliant user agent strings.
 //!
 //! ## Usage
@@ -39,6 +40,7 @@ pub mod raw_document;
 pub mod raw_source;
 pub mod request;
 pub mod response;
+pub mod run_fields;
 pub mod status_code;
 pub mod url;
 pub mod user_agent;
