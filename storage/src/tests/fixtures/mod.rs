@@ -12,8 +12,10 @@
 //! - [`fake_write_repository`]: A fake [`WriteRepository`](crate::WriteRepository) that records
 //!   what it persists.
 //! - [`sample_document`]: A document type that exists only for tests, and fixed metadata of it.
+//! - [`ticker`]: A future that counts how often the task polls it while another future runs.
 
 pub mod fake_read_repository;
 pub mod fake_read_write_repository;
 pub mod fake_write_repository;
 pub mod sample_document;
+pub mod ticker;

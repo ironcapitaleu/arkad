@@ -100,7 +100,9 @@ impl SecNotesFileResponse {
 
     /// Creates a [`SecNotesFileResponse`] from a raw `reqwest` response, reading the whole body.
     ///
-    /// The status code and the content type are checked before the body is read.
+    /// The status code and the content type are checked before the body is read. The body is
+    /// hashed on the blocking thread pool through [`Sha256Digest::of_owned_async`], so the task can
+    /// poll other futures while the hash runs.
     ///
     /// # Errors
     ///
@@ -124,7 +126,17 @@ impl SecNotesFileResponse {
             })
         })?;
 
-        Self::from_parts(url, headers, status_code, Vec::from(body))
+        let body = Vec::from(body);
+        check_content_length(&headers, &body)?;
+        let (body_digest, body) = Sha256Digest::of_owned_async(body).await;
+        Ok(Self {
+            url,
+            content_type: headers.content_type().clone(),
+            headers,
+            status_code,
+            body,
+            body_digest,
+        })
     }
 
     /// Returns the URL the response came from.
@@ -228,11 +240,101 @@ fn check_content_length(headers: &Headers, body: &[u8]) -> Result<(), InvalidSec
 
 #[cfg(test)]
 mod tests {
+    use std::sync::atomic::{AtomicBool, Ordering};
+
     use pretty_assertions::assert_eq;
 
     use super::*;
 
     const BODY: &[u8] = b"PK\x03\x04 notes";
+
+    /// The size in bytes of a body whose hash takes long enough for the ticker to tick many times.
+    const LARGE_BODY_SIZE: usize = 8 * 1024 * 1024;
+
+    /// Builds a raw `reqwest` response with status 200, a ZIP content type, and the body.
+    fn zip_inner_response(body: Vec<u8>) -> reqwest::Response {
+        let response = http::Response::builder()
+            .status(200)
+            .header("content-type", "application/zip")
+            .body(body)
+            .expect("Given a valid status code and header names, building the response should always succeed");
+        reqwest::Response::from(response)
+    }
+
+    /// Yields to the task until `is_done` is `true`, and returns the number of times it ran.
+    async fn count_ticks_until(is_done: &AtomicBool) -> u64 {
+        let mut ticks = 0;
+        while !is_done.load(Ordering::Relaxed) {
+            ticks += 1;
+            tokio::task::yield_now().await;
+        }
+        ticks
+    }
+
+    #[tokio::test]
+    async fn should_store_the_sha256_of_the_body_when_building_from_a_raw_response() {
+        let expected_result = Sha256Digest::of(BODY);
+
+        let response = SecNotesFileResponse::from_inner(zip_inner_response(BODY.to_vec()))
+            .await
+            .expect("Given status 200 and a ZIP, building the response should always succeed");
+        let result = response.body_digest().clone();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_return_the_body_unchanged_when_building_from_a_raw_response() {
+        let expected_result = BODY.to_vec();
+
+        let response = SecNotesFileResponse::from_inner(zip_inner_response(BODY.to_vec()))
+            .await
+            .expect("Given status 200 and a ZIP, building the response should always succeed");
+        let result = response.into_body();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_return_invalid_content_length_when_a_raw_response_body_is_longer_than_the_header()
+     {
+        let response = http::Response::builder()
+            .status(200)
+            .header("content-type", "application/zip")
+            .header("content-length", "4")
+            .body(BODY.to_vec())
+            .expect("Given a valid status code and header names, building the response should always succeed");
+
+        let expected_result = Some(InvalidSecResponse::new(ErrorReason::InvalidContentLength {
+            content_length: "4".to_string(),
+            body_length: BODY.len(),
+        }));
+
+        let result = SecNotesFileResponse::from_inner(reqwest::Response::from(response))
+            .await
+            .err();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_poll_another_future_when_building_from_a_large_raw_response_hashes_its_body() {
+        let inner = zip_inner_response(vec![0_u8; LARGE_BODY_SIZE]);
+        let build_is_done = AtomicBool::new(false);
+        let build = async {
+            let outcome = SecNotesFileResponse::from_inner(inner).await;
+            build_is_done.store(true, Ordering::Relaxed);
+            outcome
+        };
+        let ticker = count_ticks_until(&build_is_done);
+
+        let expected_result = true;
+
+        let (_, ticks) = tokio::join!(build, ticker);
+        let result = ticks > 1;
+
+        assert_eq!(result, expected_result);
+    }
 
     fn sample_url() -> Url {
         "https://www.sec.gov/files/dera/data/financial-statement-and-notes-data-sets/2024q1_notes.zip"

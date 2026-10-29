@@ -65,6 +65,43 @@ impl Sha256Digest {
         Self(sha256_hex(bytes.as_ref()))
     }
 
+    /// Computes the SHA-256 digest of the bytes on the blocking thread pool, and returns the
+    /// digest with the bytes.
+    ///
+    /// The hash is CPU work. [`Sha256Digest::of`] blocks the task that awaits it, so the task polls
+    /// no other future until the hash ends. This function runs [`Sha256Digest::of`] in
+    /// [`tokio::task::spawn_blocking`], so the task can poll other futures while the hash runs.
+    ///
+    /// Takes the bytes by value, because the blocking thread needs owned data. Returns them
+    /// unchanged, so the caller keeps them without a copy.
+    ///
+    /// # Panics
+    ///
+    /// Panics if called outside a Tokio runtime, or if the runtime shuts down before the hash ends.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use storage::shared::Sha256Digest;
+    ///
+    /// # #[tokio::main(flavor = "current_thread")]
+    /// # async fn main() {
+    /// let expected_result = (Sha256Digest::of(b"{}"), b"{}".to_vec());
+    ///
+    /// let result = Sha256Digest::of_owned_async(b"{}".to_vec()).await;
+    ///
+    /// assert_eq!(result, expected_result);
+    /// # }
+    /// ```
+    pub async fn of_owned_async<B>(bytes: B) -> (Self, B)
+    where
+        B: AsRef<[u8]> + Send + 'static,
+    {
+        tokio::task::spawn_blocking(move || (Self::of(bytes.as_ref()), bytes))
+            .await
+            .expect("Given a hash that never panics, the blocking task should always complete")
+    }
+
     /// Returns the digest as 64 lowercase hex characters.
     #[must_use]
     pub fn as_str(&self) -> &str {
@@ -129,10 +166,12 @@ impl<'de> Deserialize<'de> for Sha256Digest {
 mod tests {
     use std::fmt::Debug;
     use std::hash::Hash;
+    use std::sync::atomic::{AtomicBool, Ordering};
 
     use pretty_assertions::assert_eq;
 
     use super::*;
+    use crate::tests::fixtures::ticker::{LARGE_BODY_SIZE, count_ticks_until};
 
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
     #[test]
@@ -256,6 +295,42 @@ mod tests {
         let expected_result = "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad";
 
         let result = Sha256Digest::of(b"abc").to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_return_the_digest_of_the_bytes_when_hashing_on_the_blocking_thread_pool() {
+        let expected_result = Sha256Digest::of(b"abc");
+
+        let (result, _) = Sha256Digest::of_owned_async(b"abc".to_vec()).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_return_the_bytes_unchanged_when_hashing_on_the_blocking_thread_pool() {
+        let expected_result = b"abc".to_vec();
+
+        let (_, result) = Sha256Digest::of_owned_async(b"abc".to_vec()).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_poll_another_future_when_the_hash_runs_on_the_blocking_thread_pool() {
+        let hash_is_done = AtomicBool::new(false);
+        let hash = async {
+            let digest = Sha256Digest::of_owned_async(vec![0_u8; LARGE_BODY_SIZE]).await;
+            hash_is_done.store(true, Ordering::Relaxed);
+            digest
+        };
+        let ticker = count_ticks_until(&hash_is_done);
+
+        let expected_result = true;
+
+        let (_, ticks) = tokio::join!(hash, ticker);
+        let result = ticks > 1;
 
         assert_eq!(result, expected_result);
     }
