@@ -11,13 +11,13 @@ use std::marker::PhantomData;
 
 use uuid::Uuid;
 
+use crate::implementations::states::extract::company_facts::{
+    ExtractCompanyFactsSuperState, ExtractCompanyFactsSuperStateContext,
+    ExtractCompanyFactsSuperStateData,
+};
 use crate::implementations::states::extract::store_company_facts::RawCompanyFactsRepository;
 use crate::implementations::states::extract::validate_cik_format::{
     ValidateCikFormat, ValidateCikFormatContext, ValidateCikFormatInput,
-};
-use crate::implementations::states::extract::{
-    ExtractCompanyFactsSuperState, ExtractCompanyFactsSuperStateContext,
-    ExtractCompanyFactsSuperStateData,
 };
 use crate::shared::http_client::implementations::sec_client::SecClient;
 
@@ -153,7 +153,7 @@ impl<R: RawCompanyFactsRepository>
     /// A builder without an `execution_id` has no `build` method, so this does not compile:
     ///
     /// ```compile_fail,E0599
-    /// use sec::implementations::states::extract::ExtractCompanyFactsSuperState;
+    /// use sec::implementations::states::extract::company_facts::ExtractCompanyFactsSuperState;
     /// use sec::shared::http_client::implementations::sec_client::SecClient;
     /// use sec::shared::raw_document::RawDocument;
     /// use sec::shared::raw_source::RawCompanyFacts;
