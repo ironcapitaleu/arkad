@@ -15,6 +15,7 @@ use uuid::Uuid;
 
 use crate::implementations::repository::filesystem::shared::document_metadata::DocumentMetadata;
 use crate::implementations::repository::filesystem::shared::document_metadata::constants::METADATA_VERSION;
+use crate::implementations::repository::filesystem::shared::document_metadata::ingestion_mode::IngestionMode;
 use crate::implementations::repository::filesystem::shared::document_metadata::input_document::InputDocument;
 use crate::implementations::repository::filesystem::shared::document_metadata::producer::Producer;
 use crate::implementations::repository::filesystem::traits::document::Document;
@@ -67,13 +68,9 @@ pub struct Run {
 /// Set the document type with [`document_type`](Self::document_type), and the required fields
 /// with [`media_type`](Self::media_type), [`content`](Self::content),
 /// [`produced_at`](Self::produced_at), [`run`](Self::run),
-/// [`ingestion_mode`](Self::ingestion_mode), and [`context`](Self::context).
+/// [`ingestion_mode`](Self::ingestion_mode), and [`context`](Self::context), in any order.
 /// [`inputs`](Self::inputs) is optional and defaults to no inputs. Then call
 /// [`build`](Self::build).
-///
-/// [`ingestion_mode`](Self::ingestion_mode) takes the document type's
-/// [`Document::IngestionMode`], so it comes after [`document_type`](Self::document_type). All
-/// other steps come in any order.
 ///
 /// The derived traits require `D` to implement them too. A builder exists only between
 /// [`DocumentMetadata::builder`] and [`build`](Self::build), so this matters only for code that
@@ -226,80 +223,30 @@ impl<D, M, B, P, I, C> DocumentMetadataBuilder<D, M, B, P, NoRun, I, C> {
     }
 }
 
-impl<D: Document, M, B, P, R, C> DocumentMetadataBuilder<D, M, B, P, R, NoIngestionMode, C> {
-    /// Sets the ingestion mode of the run that produced the document bytes, as the `Display` text
-    /// of `ingestion_mode`, for example `backfill`.
+impl<D, M, B, P, R, C> DocumentMetadataBuilder<D, M, B, P, R, NoIngestionMode, C> {
+    /// Sets the ingestion mode of the run that produced the document bytes.
     ///
     /// # Examples
     ///
-    /// A raw string is not a mode of a document type whose mode is an enum, so this does not
-    /// compile:
+    /// A raw string is not an [`IngestionMode`], so this does not compile:
     ///
     /// ```compile_fail,E0308
-    /// # use std::fmt;
-    /// #
-    /// # use storage::implementations::repository::filesystem::{
-    /// #     Document, DocumentKey, DocumentMetadata,
-    /// # };
-    /// #
-    /// # #[derive(Debug, Clone, Copy)]
-    /// # enum ReportType {
-    /// #     Summary,
-    /// # }
-    /// #
-    /// # impl fmt::Display for ReportType {
-    /// #     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    /// #         write!(f, "summary")
-    /// #     }
-    /// # }
-    /// #
-    /// #[derive(Clone, Copy)]
-    /// enum RunMode {
-    ///     Backfill,
-    /// }
+    /// use storage::implementations::repository::filesystem::DocumentMetadata;
     ///
-    /// impl fmt::Display for RunMode {
-    ///     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    ///         write!(f, "backfill")
-    ///     }
-    /// }
-    /// #
-    /// # struct Summary {
-    /// #     key: DocumentKey,
-    /// #     bytes: Vec<u8>,
-    /// #     metadata: DocumentMetadata<()>,
-    /// # }
-    /// #
-    /// # impl Document for Summary {
-    /// #     type DocumentType = ReportType;
-    /// #     type IngestionMode = RunMode;
-    /// #     const DOCUMENT_TYPE: ReportType = ReportType::Summary;
-    /// #     const DOCUMENT_TYPE_VERSION: u32 = 1;
-    /// #     type Context = ();
-    /// #     fn key(&self) -> &DocumentKey { &self.key }
-    /// #     fn bytes(&self) -> &[u8] { &self.bytes }
-    /// #     fn metadata(&self) -> &DocumentMetadata<()> { &self.metadata }
-    /// #     fn from_parts(key: DocumentKey, bytes: Vec<u8>, metadata: DocumentMetadata<()>) -> Self {
-    /// #         Self { key, bytes, metadata }
-    /// #     }
-    /// # }
-    ///
-    /// let builder = DocumentMetadata::builder()
-    ///     .document_type::<Summary>()
-    ///     .ingestion_mode("foo");
+    /// let builder = DocumentMetadata::builder().ingestion_mode("backfill");
     /// ```
     #[must_use]
     pub fn ingestion_mode(
         self,
-        ingestion_mode: D::IngestionMode,
-    ) -> DocumentMetadataBuilder<D, M, B, P, R, String, C> {
+        ingestion_mode: IngestionMode,
+    ) -> DocumentMetadataBuilder<D, M, B, P, R, IngestionMode, C> {
         DocumentMetadataBuilder {
             document_type: self.document_type,
             media_type: self.media_type,
             content: self.content,
             produced_at: self.produced_at,
             run: self.run,
-            ingestion_mode: ingestion_mode.to_string(),
+            ingestion_mode,
             context: self.context,
             inputs: self.inputs,
         }
@@ -337,7 +284,7 @@ impl<D, M, B, P, R, I, C> DocumentMetadataBuilder<D, M, B, P, R, I, C> {
 }
 
 impl<D: Document>
-    DocumentMetadataBuilder<D, String, Content, DateTime<Utc>, Run, String, D::Context>
+    DocumentMetadataBuilder<D, String, Content, DateTime<Utc>, Run, IngestionMode, D::Context>
 {
     /// Builds a [`DocumentMetadata`] with the fields this builder holds.
     ///
@@ -347,12 +294,13 @@ impl<D: Document>
     ///
     /// # Examples
     ///
-    /// A builder without a document type has no `build` method, so this does not compile. It also
-    /// has no ingestion mode, because that step needs the document type:
+    /// A builder without a document type has no `build` method, so this does not compile:
     ///
     /// ```compile_fail,E0599
     /// use chrono::{DateTime, Utc};
-    /// use storage::implementations::repository::filesystem::{DocumentMetadata, Producer};
+    /// use storage::implementations::repository::filesystem::{
+    ///     DocumentMetadata, IngestionMode, Producer,
+    /// };
     /// use uuid::Uuid;
     ///
     /// let bytes = b"{}";
@@ -361,6 +309,7 @@ impl<D: Document>
     ///     .content(bytes)
     ///     .produced_at(DateTime::<Utc>::UNIX_EPOCH)
     ///     .run(Uuid::nil(), Producer::new("Summarize", "0.1.0", "63c1f59"))
+    ///     .ingestion_mode(IngestionMode::Backfill)
     ///     .context(())
     ///     .build();
     /// ```
@@ -373,7 +322,7 @@ impl<D: Document>
     /// # use chrono::{DateTime, Utc};
     /// # use serde::{Deserialize, Serialize};
     /// # use storage::implementations::repository::filesystem::{
-    /// #     Document, DocumentKey, DocumentMetadata, Producer,
+    /// #     Document, DocumentKey, DocumentMetadata, IngestionMode, Producer,
     /// # };
     /// # use uuid::Uuid;
     /// #
@@ -401,7 +350,6 @@ impl<D: Document>
     /// #
     /// # impl Document for Summary {
     /// #     type DocumentType = ReportType;
-    /// #     type IngestionMode = &'static str;
     /// #     const DOCUMENT_TYPE: ReportType = ReportType::Summary;
     /// #     const DOCUMENT_TYPE_VERSION: u32 = 1;
     /// #     type Context = SummaryContext;
@@ -424,7 +372,7 @@ impl<D: Document>
     ///     .content(bytes)
     ///     .produced_at(DateTime::<Utc>::UNIX_EPOCH)
     ///     .run(Uuid::nil(), Producer::new("Summarize", "0.1.0", "63c1f59"))
-    ///     .ingestion_mode("backfill")
+    ///     .ingestion_mode(IngestionMode::Backfill)
     ///     .context(())
     ///     .build();
     /// ```
@@ -437,7 +385,7 @@ impl<D: Document>
     /// # use chrono::{DateTime, Utc};
     /// # use serde::{Deserialize, Serialize};
     /// # use storage::implementations::repository::filesystem::{
-    /// #     Document, DocumentKey, DocumentMetadata, Producer,
+    /// #     Document, DocumentKey, DocumentMetadata, IngestionMode, Producer,
     /// # };
     /// # use uuid::Uuid;
     /// #
@@ -465,7 +413,6 @@ impl<D: Document>
     /// #
     /// # impl Document for Summary {
     /// #     type DocumentType = ReportType;
-    /// #     type IngestionMode = &'static str;
     /// #     const DOCUMENT_TYPE: ReportType = ReportType::Summary;
     /// #     const DOCUMENT_TYPE_VERSION: u32 = 1;
     /// #     type Context = SummaryContext;
@@ -487,7 +434,7 @@ impl<D: Document>
     ///     .media_type("application/json")
     ///     .content(bytes)
     ///     .produced_at(DateTime::<Utc>::UNIX_EPOCH)
-    ///     .ingestion_mode("backfill")
+    ///     .ingestion_mode(IngestionMode::Backfill)
     ///     .context(SummaryContext { source: "a test".to_owned() })
     ///     .build();
     /// ```
@@ -528,7 +475,6 @@ impl<D: Document>
     /// #
     /// # impl Document for Summary {
     /// #     type DocumentType = ReportType;
-    /// #     type IngestionMode = &'static str;
     /// #     const DOCUMENT_TYPE: ReportType = ReportType::Summary;
     /// #     const DOCUMENT_TYPE_VERSION: u32 = 1;
     /// #     type Context = SummaryContext;
@@ -668,7 +614,7 @@ mod tests {
             .content(b"{}")
             .produced_at(produced_at())
             .run(execution_id, producer)
-            .ingestion_mode("backfill")
+            .ingestion_mode(IngestionMode::Backfill)
             .context(sample_context())
             .inputs(input)
             .build();
@@ -691,7 +637,7 @@ mod tests {
             .content(b"{}")
             .media_type("application/json")
             .document_type::<SampleDocument>()
-            .ingestion_mode("backfill")
+            .ingestion_mode(IngestionMode::Backfill)
             .build();
 
         assert_eq!(result, expected_result);
@@ -710,7 +656,7 @@ mod tests {
             .content(bytes)
             .produced_at(produced_at())
             .run(execution_id, producer)
-            .ingestion_mode("backfill")
+            .ingestion_mode(IngestionMode::Backfill)
             .context(sample_context())
             .build();
         let result = (metadata.size_in_bytes(), metadata.sha256().clone());
@@ -731,7 +677,7 @@ mod tests {
             .content(bytes)
             .produced_at(produced_at())
             .run(execution_id, producer)
-            .ingestion_mode("backfill")
+            .ingestion_mode(IngestionMode::Backfill)
             .context(sample_context())
             .build();
         let result = (metadata.size_in_bytes(), metadata.sha256().clone());
@@ -751,7 +697,7 @@ mod tests {
             .content(b"{}")
             .produced_at(produced_at())
             .run(execution_id, producer)
-            .ingestion_mode("backfill")
+            .ingestion_mode(IngestionMode::Backfill)
             .context(sample_context())
             .build();
         let result = metadata.inputs();
@@ -763,7 +709,7 @@ mod tests {
     fn should_hold_the_ingestion_mode_when_setting_the_ingestion_mode() {
         let (execution_id, producer) = sample_run();
 
-        let expected_result = "backfill";
+        let expected_result = IngestionMode::Backfill;
 
         let metadata = DocumentMetadata::builder()
             .document_type::<SampleDocument>()
@@ -771,7 +717,7 @@ mod tests {
             .content(b"{}")
             .produced_at(produced_at())
             .run(execution_id, producer)
-            .ingestion_mode("backfill")
+            .ingestion_mode(IngestionMode::Backfill)
             .context(sample_context())
             .build();
         let result = metadata.ingestion_mode();

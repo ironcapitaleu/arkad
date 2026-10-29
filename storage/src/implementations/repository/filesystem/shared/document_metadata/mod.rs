@@ -6,6 +6,7 @@
 //!
 //! - [`builder`]: The [`DocumentMetadataBuilder`] and the markers for its missing steps.
 //! - [`constants`]: The version of the shared fields, [`METADATA_VERSION`].
+//! - [`ingestion_mode`]: The [`IngestionMode`] of the run that produced a document.
 //! - [`input_document`]: The [`InputDocument`] pointing at a document that another document came
 //!   from.
 //! - [`producer`]: The [`Producer`] naming the code that wrote a document.
@@ -18,6 +19,7 @@ use crate::shared::Sha256Digest;
 
 pub mod builder;
 pub mod constants;
+pub mod ingestion_mode;
 pub mod input_document;
 pub mod producer;
 
@@ -26,6 +28,7 @@ pub use builder::{
     NoMediaType, NoProducedAt, NoRun, Run,
 };
 pub use constants::METADATA_VERSION;
+pub use ingestion_mode::IngestionMode;
 pub use input_document::InputDocument;
 pub use producer::Producer;
 
@@ -55,7 +58,7 @@ pub struct DocumentMetadata<C> {
     sha256: Sha256Digest,
     produced_at: DateTime<Utc>,
     execution_id: Uuid,
-    ingestion_mode: String,
+    ingestion_mode: IngestionMode,
     producer: Producer,
     inputs: Vec<InputDocument>,
     context: C,
@@ -75,7 +78,7 @@ impl DocumentMetadata<NoContext> {
     /// # use chrono::{DateTime, Utc};
     /// # use serde::{Deserialize, Serialize};
     /// # use storage::implementations::repository::filesystem::{
-    /// #     Document, DocumentKey, DocumentMetadata, Producer,
+    /// #     Document, DocumentKey, DocumentMetadata, IngestionMode, Producer,
     /// # };
     /// # use uuid::Uuid;
     /// #
@@ -103,7 +106,6 @@ impl DocumentMetadata<NoContext> {
     /// #
     /// # impl Document for Summary {
     /// #     type DocumentType = ReportType;
-    /// #     type IngestionMode = &'static str;
     /// #     const DOCUMENT_TYPE: ReportType = ReportType::Summary;
     /// #     const DOCUMENT_TYPE_VERSION: u32 = 1;
     /// #     type Context = SummaryContext;
@@ -126,7 +128,7 @@ impl DocumentMetadata<NoContext> {
     ///     .content(bytes)
     ///     .produced_at(DateTime::<Utc>::UNIX_EPOCH)
     ///     .run(Uuid::nil(), Producer::new("Summarize", "0.1.0", "63c1f59"))
-    ///     .ingestion_mode("backfill")
+    ///     .ingestion_mode(IngestionMode::Backfill)
     ///     .context(SummaryContext { source: "a test".to_owned() })
     ///     .build();
     ///
@@ -199,11 +201,10 @@ impl<C> DocumentMetadata<C> {
         self.execution_id
     }
 
-    /// Returns the ingestion mode of the run that produced the document bytes, for example
-    /// `backfill`.
+    /// Returns the ingestion mode of the run that produced the document bytes.
     #[must_use]
-    pub fn ingestion_mode(&self) -> &str {
-        &self.ingestion_mode
+    pub const fn ingestion_mode(&self) -> IngestionMode {
+        self.ingestion_mode
     }
 
     /// Returns the code that wrote the document.
@@ -355,6 +356,19 @@ mod tests {
             .as_object_mut()
             .expect("Given a struct, serialization should always produce a JSON object")
             .remove("ingestion_mode");
+
+        let expected_result = true;
+
+        let result = serde_json::from_value::<DocumentMetadata<SampleContext>>(stored).is_err();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_fail_to_read_metadata_when_the_ingestion_mode_is_unknown() {
+        let mut stored = serde_json::to_value(sample_metadata())
+            .expect("Given metadata of owned fields, serialization should always succeed");
+        stored["ingestion_mode"] = "foo".into();
 
         let expected_result = true;
 

@@ -87,8 +87,8 @@ Yellow states are new.
 ### Ingestion Mode
 
 Each run has an ingestion mode: `backfill` or `incremental`. The backfill runs in mode `backfill`.
-The new-filing path runs in mode `incremental`. In `sec`, the enum `IngestionMode` in
-`sec/src/lib/shared/ingestion_mode/` holds the two values.
+The new-filing path runs in mode `incremental`. The enum `IngestionMode` in `storage` holds the
+two values. Decided by the lead on 2026-10-29.
 
 ### Calling the Machines
 
@@ -561,18 +561,17 @@ The metadata of each raw document records the ingestion mode of the run that cre
 2026-10-28, with this key name.
 
 - `ingestion_mode` is a run field in `DocumentMetadata`, next to `execution_id` and
-  `produced_at`. `storage` holds it as a string, so `storage` does not depend on `sec`.
+  `produced_at`. Its type is the enum `IngestionMode` in `storage`, so `storage` does not depend
+  on `sec`, and `sec` uses the same enum.
 - `ingestion_mode` is required. Metadata without a mode does not compile. A stored file without
-  the field fails to read. Decided by the lead on 2026-10-29.
-- The `Document` trait in `storage` has the associated type `IngestionMode`. The builder takes a
-  value of that type and stores its `Display` text. `RawDocument` sets it to `IngestionMode`, so
-  `sec` can write only `backfill` or `incremental`. A read accepts any string.
+  the field, with `null`, or with any text other than `backfill` or `incremental` fails to read.
+  Decided by the lead on 2026-10-29.
 - `companyfacts` runs as a backfill, so `StoreCompanyFacts` writes `backfill`.
 - `METADATA_VERSION` stays 1 until the MVP. Files written before the MVP do not need to stay
   readable.
 - `persist` leaves `ingestion_mode` out of the comparison, as it does with `execution_id` and
   `produced_at`. If a run stores the same bytes again, the write is skipped and the stored run
-  fields stay. A stored file without the field fails the check of the run fields, so `persist`
+  fields stay. A stored file without a valid mode fails the check of the run fields, so `persist`
   rewrites it.
 - So the metadata names the run that created the document. `submissions` serves both modes. If
   `ingestion_mode` were part of the comparison, each run in the other mode would rewrite the file.
@@ -639,8 +638,8 @@ decision "backfill first".
 Backfill:
 
 1. REFACTOR: rename `ExtractSuperState` to `ExtractCompanyFactsSuperState`.
-2. FEATURE: the required run field `ingestion_mode` in `DocumentMetadata` (`storage`), left out
-   of the comparison in `persist`, and `IngestionMode` in `sec`.
+2. FEATURE: the required run field `ingestion_mode` in `DocumentMetadata` (`storage`), of the
+   type `IngestionMode` (`storage`), left out of the comparison in `persist`.
 3. FEATURE: `NotesPeriod`, with the range checks and the file names with overrides.
 4. FEATURE: `SecRequestType::FetchNotesFile` and the builder `notes_file().period(p)`.
 5. FEATURE: `SecFile` and `SecClient::download_sec_file`, with the transport checks of layer 1.

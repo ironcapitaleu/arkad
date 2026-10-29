@@ -24,7 +24,6 @@ use crate::implementations::repository::filesystem::shared::document_metadata::D
 /// # Associated Types
 ///
 /// - `DocumentType`: The enum of document types in the crate that owns this document type.
-/// - `IngestionMode`: The type that names the ingestion mode of the run that produced a document.
 /// - `Context`: The metadata fields that only this document type has.
 ///
 /// # Examples
@@ -61,7 +60,6 @@ use crate::implementations::repository::filesystem::shared::document_metadata::D
 ///
 /// impl Document for Summary {
 ///     type DocumentType = ReportType;
-///     type IngestionMode = &'static str;
 ///     const DOCUMENT_TYPE: ReportType = ReportType::Summary;
 ///     const DOCUMENT_TYPE_VERSION: u32 = 1;
 ///     type Context = SummaryContext;
@@ -101,15 +99,6 @@ pub trait Document: Send + Sized {
     /// The store writes its `Display` text as `document_type`. The text must be unique across every
     /// crate that stores documents, because the store cannot tell two equal texts apart.
     type DocumentType: fmt::Display;
-
-    /// The type that names the ingestion mode of the run that produced a document, for example an
-    /// enum with one variant per mode.
-    ///
-    /// [`DocumentMetadataBuilder::ingestion_mode`] takes this type by value and stores its
-    /// `Display` text. If the type is an enum, the builder accepts only its variants.
-    ///
-    /// [`DocumentMetadataBuilder::ingestion_mode`]: crate::implementations::repository::filesystem::DocumentMetadataBuilder::ingestion_mode
-    type IngestionMode: fmt::Display + Copy;
 
     /// The variant of [`Document::DocumentType`] that names this document type.
     const DOCUMENT_TYPE: Self::DocumentType;

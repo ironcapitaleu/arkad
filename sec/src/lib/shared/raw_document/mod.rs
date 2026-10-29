@@ -15,7 +15,6 @@ use std::marker::PhantomData;
 use storage::implementations::repository::filesystem::{Document, DocumentKey, DocumentMetadata};
 
 use crate::shared::document_type::SecDocumentType;
-use crate::shared::ingestion_mode::IngestionMode;
 use crate::shared::raw_source::RawSource;
 use crate::shared::response::SecResponse as SecResponseTrait;
 use crate::shared::response::implementations::sec_response::SecResponse;
@@ -38,13 +37,12 @@ pub use raw_document_metadata_context::RawDocumentMetadataContext;
 ///
 /// ```rust
 /// use chrono::{DateTime, Utc};
-/// use sec::shared::ingestion_mode::IngestionMode;
 /// use sec::shared::raw_document::{RawDocument, RawDocumentMetadataContext};
 /// use sec::shared::raw_source::RawCompanyFacts;
 /// use sec::shared::status_code::StatusCode;
 /// use sec::shared::user_agent::UserAgent;
 /// use storage::implementations::repository::filesystem::{
-///     Document, DocumentKey, DocumentMetadata, Producer,
+///     Document, DocumentKey, DocumentMetadata, IngestionMode, Producer,
 /// };
 /// use uuid::Uuid;
 ///
@@ -105,7 +103,6 @@ impl<S: RawSource> RawDocument<S> {
     /// use sec::shared::build_info::producer;
     /// use sec::shared::content_type::ContentType;
     /// use sec::shared::headers::Headers;
-    /// use sec::shared::ingestion_mode::IngestionMode;
     /// use sec::shared::raw_document::RawDocument;
     /// use sec::shared::raw_source::RawCompanyFacts;
     /// use sec::shared::response::implementations::sec_response::SecResponse;
@@ -113,7 +110,7 @@ impl<S: RawSource> RawDocument<S> {
     /// use sec::shared::status_code::StatusCode;
     /// use sec::shared::url::Url;
     /// use sec::shared::user_agent::UserAgent;
-    /// use storage::implementations::repository::filesystem::{Document, DocumentKey};
+    /// use storage::implementations::repository::filesystem::{Document, DocumentKey, IngestionMode};
     /// use uuid::Uuid;
     ///
     /// let url: Url = "https://data.sec.gov/api/xbrl/companyfacts/CIK0000320193.json"
@@ -179,7 +176,6 @@ impl<S: RawSource> RawDocument<S> {
 
 impl<S: RawSource> Document for RawDocument<S> {
     type DocumentType = SecDocumentType;
-    type IngestionMode = IngestionMode;
     const DOCUMENT_TYPE: SecDocumentType = S::DOCUMENT_TYPE;
     const DOCUMENT_TYPE_VERSION: u32 = S::DOCUMENT_TYPE_VERSION;
     type Context = RawDocumentMetadataContext;
@@ -220,7 +216,7 @@ mod tests {
     use pretty_assertions::assert_eq;
     use storage::ReadWriteRepository;
     use storage::implementations::repository::filesystem::{
-        FilesystemRepository, Producer, ReadWrite,
+        FilesystemRepository, IngestionMode, Producer, ReadWrite,
     };
     use uuid::Uuid;
 

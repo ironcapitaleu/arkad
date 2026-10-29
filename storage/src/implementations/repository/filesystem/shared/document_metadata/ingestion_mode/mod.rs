@@ -4,15 +4,18 @@
 
 use std::fmt::{self, Display, Formatter};
 
+use serde::{Deserialize, Serialize};
+
 /// The mode of the run that produced a stored document.
 ///
 /// Each variant's [`Display`] text is the `ingestion_mode` the store writes into a document's
-/// metadata. The [`From`] impl for [`String`] gives the same text.
+/// metadata. Serde writes and reads the same text, so a stored mode that is not one of these
+/// texts fails to read.
 ///
 /// # Examples
 ///
 /// ```rust
-/// use sec::shared::ingestion_mode::IngestionMode;
+/// use storage::implementations::repository::filesystem::IngestionMode;
 ///
 /// let expected_result = "backfill";
 ///
@@ -20,7 +23,8 @@ use std::fmt::{self, Display, Formatter};
 ///
 /// assert_eq!(result, expected_result);
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum IngestionMode {
     /// A run that loads the history from the SEC bulk files.
     Backfill,
@@ -34,12 +38,6 @@ impl Display for IngestionMode {
             Self::Backfill => write!(f, "backfill"),
             Self::Incremental => write!(f, "incremental"),
         }
-    }
-}
-
-impl From<IngestionMode> for String {
-    fn from(ingestion_mode: IngestionMode) -> Self {
-        ingestion_mode.to_string()
     }
 }
 
@@ -77,19 +75,39 @@ mod tests {
     }
 
     #[test]
-    fn should_convert_to_the_display_text_for_the_incremental_ingestion_mode() {
-        let expected_result = "incremental".to_owned();
+    fn should_display_incremental_for_the_incremental_ingestion_mode() {
+        let expected_result = "incremental";
 
-        let result = String::from(IngestionMode::Incremental);
+        let result = IngestionMode::Incremental.to_string();
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
-    fn should_display_incremental_for_the_incremental_ingestion_mode() {
-        let expected_result = "incremental";
+    fn should_serialize_the_display_text_for_the_incremental_ingestion_mode() {
+        let expected_result = serde_json::json!("incremental");
 
-        let result = IngestionMode::Incremental.to_string();
+        let result = serde_json::to_value(IngestionMode::Incremental)
+            .expect("Given a unit variant, serialization should always succeed");
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_read_the_ingestion_mode_when_the_text_is_backfill() {
+        let expected_result = IngestionMode::Backfill;
+
+        let result: IngestionMode = serde_json::from_str("\"backfill\"")
+            .expect("Given the text of a variant, deserialization should always succeed");
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_fail_to_read_the_ingestion_mode_when_the_text_is_unknown() {
+        let expected_result = true;
+
+        let result = serde_json::from_str::<IngestionMode>("\"foo\"").is_err();
 
         assert_eq!(result, expected_result);
     }

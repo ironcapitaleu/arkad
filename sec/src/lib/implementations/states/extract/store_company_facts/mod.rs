@@ -25,14 +25,13 @@ use async_trait::async_trait;
 use chrono::Utc;
 use serde::Serialize;
 use state_maschine::prelude::State as SMState;
-use storage::implementations::repository::filesystem::DocumentKey;
+use storage::implementations::repository::filesystem::{DocumentKey, IngestionMode};
 
 use crate::error::State as StateError;
 use crate::error::state_machine::state::FailedDocumentWrite;
 use crate::shared::build_info::producer;
 use crate::shared::cik::Cik;
 use crate::shared::document_storage::FailedDocumentStorage;
-use crate::shared::ingestion_mode::IngestionMode;
 use crate::shared::raw_document::RawDocument;
 use crate::shared::raw_source::RawCompanyFacts;
 use crate::shared::run_fields::RunFields;
@@ -430,7 +429,7 @@ mod tests {
     async fn should_persist_backfill_as_the_ingestion_mode_for_company_facts() {
         let document = persisted_document().await;
 
-        let expected_result = "backfill";
+        let expected_result = IngestionMode::Backfill;
 
         let result = document.metadata().ingestion_mode();
 

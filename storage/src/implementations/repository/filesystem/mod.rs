@@ -49,8 +49,8 @@ pub use implementations::builder::{FilesystemRepositoryBuilder, NoAccess, NoRoot
 pub use implementations::constants::METADATA_SUFFIX;
 pub use shared::document_key::{DocumentKey, InvalidDocumentKey};
 pub use shared::document_metadata::{
-    DocumentMetadata, DocumentMetadataBuilder, InputDocument, METADATA_VERSION, NoDocumentType,
-    Producer,
+    DocumentMetadata, DocumentMetadataBuilder, IngestionMode, InputDocument, METADATA_VERSION,
+    NoDocumentType, Producer,
 };
 pub use traits::access::{Access, CanRead, CanWrite, Read, ReadWrite, Write};
 pub use traits::document::Document;
@@ -217,7 +217,6 @@ impl FilesystemRepository<NoAccess, NoDocumentType> {
     /// #
     /// # impl Document for Summary {
     /// #     type DocumentType = ReportType;
-    /// #     type IngestionMode = &'static str;
     /// #     const DOCUMENT_TYPE: ReportType = ReportType::Summary;
     /// #     const DOCUMENT_TYPE_VERSION: u32 = 1;
     /// #     type Context = SummaryContext;
@@ -293,7 +292,6 @@ impl<A, D> FilesystemRepository<A, D> {
     /// #
     /// # impl Document for Summary {
     /// #     type DocumentType = ReportType;
-    /// #     type IngestionMode = &'static str;
     /// #     const DOCUMENT_TYPE: ReportType = ReportType::Summary;
     /// #     const DOCUMENT_TYPE_VERSION: u32 = 1;
     /// #     type Context = SummaryContext;
@@ -490,7 +488,6 @@ mod tests {
 
     impl Document for BareDocument {
         type DocumentType = SampleDocumentType;
-        type IngestionMode = &'static str;
         const DOCUMENT_TYPE: SampleDocumentType = SampleDocumentType::SampleDocument;
         const DOCUMENT_TYPE_VERSION: u32 = 1;
         type Context = ();

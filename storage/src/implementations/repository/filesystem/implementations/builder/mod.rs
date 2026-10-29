@@ -198,7 +198,6 @@ impl<A: Access, D: Document> FilesystemRepositoryBuilder<A, PathBuf, D> {
     /// #
     /// # impl Document for Summary {
     /// #     type DocumentType = ReportType;
-    /// #     type IngestionMode = &'static str;
     /// #     const DOCUMENT_TYPE: ReportType = ReportType::Summary;
     /// #     const DOCUMENT_TYPE_VERSION: u32 = 1;
     /// #     type Context = SummaryContext;
@@ -252,7 +251,6 @@ impl<A: Access, D: Document> FilesystemRepositoryBuilder<A, PathBuf, D> {
     /// #
     /// # impl Document for Summary {
     /// #     type DocumentType = ReportType;
-    /// #     type IngestionMode = &'static str;
     /// #     const DOCUMENT_TYPE: ReportType = ReportType::Summary;
     /// #     const DOCUMENT_TYPE_VERSION: u32 = 1;
     /// #     type Context = SummaryContext;

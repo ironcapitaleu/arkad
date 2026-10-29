@@ -23,7 +23,9 @@ use crate::implementations::repository::filesystem::error::{
 use crate::implementations::repository::filesystem::shared::document_key::DocumentKey;
 use crate::implementations::repository::filesystem::traits::access::CanWrite;
 use crate::implementations::repository::filesystem::traits::document::Document;
-use crate::implementations::repository::filesystem::{FilesystemRepository, check_content};
+use crate::implementations::repository::filesystem::{
+    FilesystemRepository, IngestionMode, check_content,
+};
 use crate::shared::Sha256Digest;
 use crate::traits::repository::WriteRepository;
 
@@ -174,7 +176,7 @@ struct StoredRun {
         dead_code,
         reason = "parsed only to check that the stored value is valid"
     )]
-    ingestion_mode: String,
+    ingestion_mode: IngestionMode,
 }
 
 /// Returns `true` if the stored metadata equals the new metadata outside the run fields, and the
@@ -796,7 +798,7 @@ mod tests {
         let backfill_document = sample_document_with_ingestion_mode("backfill");
         let metadata_path = repository.metadata_path(backfill_document.key());
 
-        let expected_result = "backfill".to_owned();
+        let expected_result = IngestionMode::Backfill;
 
         repository
             .persist(backfill_document)
@@ -808,9 +810,7 @@ mod tests {
             .expect(
                 "Given an existing writable root, persisting unchanged bytes should always succeed",
             );
-        let result = read_stored_metadata(&metadata_path)
-            .ingestion_mode()
-            .to_owned();
+        let result = read_stored_metadata(&metadata_path).ingestion_mode();
 
         assert_eq!(result, expected_result);
     }
@@ -845,7 +845,7 @@ mod tests {
     async fn should_replace_the_metadata_when_the_stored_ingestion_mode_is_invalid() {
         let expected_result = sample_metadata();
 
-        let result = persist_over_stored_metadata_field("ingestion_mode", 7.into()).await;
+        let result = persist_over_stored_metadata_field("ingestion_mode", "foo".into()).await;
 
         assert_eq!(result, expected_result);
     }

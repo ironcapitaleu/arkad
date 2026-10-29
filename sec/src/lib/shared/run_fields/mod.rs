@@ -3,10 +3,8 @@
 //! Provides [`RunFields`], the metadata fields that name the run that produced a stored document.
 
 use chrono::{DateTime, Utc};
-use storage::implementations::repository::filesystem::Producer;
+use storage::implementations::repository::filesystem::{IngestionMode, Producer};
 use uuid::Uuid;
-
-use crate::shared::ingestion_mode::IngestionMode;
 
 /// The metadata fields that name the run that produced a stored document.
 ///
