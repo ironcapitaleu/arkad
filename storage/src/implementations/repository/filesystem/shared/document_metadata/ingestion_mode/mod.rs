@@ -84,8 +84,18 @@ mod tests {
     }
 
     #[test]
+    fn should_serialize_the_display_text_for_the_backfill_ingestion_mode() {
+        let expected_result = serde_json::json!(IngestionMode::Backfill.to_string());
+
+        let result = serde_json::to_value(IngestionMode::Backfill)
+            .expect("Given a unit variant, serialization should always succeed");
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
     fn should_serialize_the_display_text_for_the_incremental_ingestion_mode() {
-        let expected_result = serde_json::json!("incremental");
+        let expected_result = serde_json::json!(IngestionMode::Incremental.to_string());
 
         let result = serde_json::to_value(IngestionMode::Incremental)
             .expect("Given a unit variant, serialization should always succeed");

@@ -5,8 +5,8 @@
 //!
 //! Each step changes the builder's type. [`build`](DocumentMetadataBuilder::build) exists only once
 //! the builder holds the document type and every required field, so metadata without one of them
-//! does not compile. The document type sets `document_type`, `document_type_version`, the
-//! context type, and the type of the ingestion mode.
+//! does not compile. The document type sets `document_type`, `document_type_version`, and the
+//! context type.
 
 use std::marker::PhantomData;
 

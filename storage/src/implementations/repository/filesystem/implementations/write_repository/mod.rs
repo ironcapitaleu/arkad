@@ -358,7 +358,9 @@ mod tests {
 
     use super::*;
     use crate::error::BackendError;
-    use crate::implementations::repository::filesystem::{DocumentMetadata, ReadWrite, Write};
+    use crate::implementations::repository::filesystem::{
+        DocumentMetadata, IngestionMode, ReadWrite, Write,
+    };
     use crate::tests::fixtures::sample_document::{
         SampleContext, SampleDocument, sample_document, sample_document_holding, sample_metadata,
     };
@@ -771,8 +773,8 @@ mod tests {
     }
 
     /// Returns the sample document with the given ingestion mode.
-    fn sample_document_with_ingestion_mode(ingestion_mode: &str) -> SampleDocument {
-        sample_document_with_metadata_field("ingestion_mode", ingestion_mode.into())
+    fn sample_document_with_ingestion_mode(ingestion_mode: IngestionMode) -> SampleDocument {
+        sample_document_with_metadata_field("ingestion_mode", ingestion_mode.to_string().into())
     }
 
     /// Returns the inode numbers of the metadata file and the document file.
@@ -795,7 +797,7 @@ mod tests {
      {
         let root = temporary_root();
         let repository = repository_at(root.path());
-        let backfill_document = sample_document_with_ingestion_mode("backfill");
+        let backfill_document = sample_document_with_ingestion_mode(IngestionMode::Backfill);
         let metadata_path = repository.metadata_path(backfill_document.key());
 
         let expected_result = IngestionMode::Backfill;
@@ -805,7 +807,9 @@ mod tests {
             .await
             .expect("Given an existing writable root, persisting a record should always succeed");
         repository
-            .persist(sample_document_with_ingestion_mode("incremental"))
+            .persist(sample_document_with_ingestion_mode(
+                IngestionMode::Incremental,
+            ))
             .await
             .expect(
                 "Given an existing writable root, persisting unchanged bytes should always succeed",
@@ -820,7 +824,7 @@ mod tests {
     async fn should_write_no_file_when_persisting_unchanged_bytes_with_another_ingestion_mode() {
         let root = temporary_root();
         let repository = repository_at(root.path());
-        let backfill_document = sample_document_with_ingestion_mode("backfill");
+        let backfill_document = sample_document_with_ingestion_mode(IngestionMode::Backfill);
         let metadata_path = repository.metadata_path(backfill_document.key());
         let document_path = repository.document_path(backfill_document.key());
         repository
@@ -831,7 +835,9 @@ mod tests {
         let expected_result = inodes(&metadata_path, &document_path);
 
         repository
-            .persist(sample_document_with_ingestion_mode("incremental"))
+            .persist(sample_document_with_ingestion_mode(
+                IngestionMode::Incremental,
+            ))
             .await
             .expect(
                 "Given an existing writable root, persisting unchanged bytes should always succeed",
