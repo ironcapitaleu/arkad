@@ -150,7 +150,9 @@ A ticket is finished when it is Done or its PR has merged. Every other ticket is
 Critical path: STA-335 → STA-337 → STA-339 → STA-340 → STA-341 → STA-342 → STA-343 → STA-344
 Unblocked now: STA-334, STA-335, STA-336
 
-STA-334 is off the critical path. Only STA-338 needs it, and STA-338 also waits on STA-336.
+STA-334 is off the critical path. Only STA-338 needs it, and STA-341 waits on both STA-338 and
+STA-340. STA-340 ends a chain of four open tickets, and STA-334 → STA-338 is two, so STA-334 has
+two steps of slack.
 ```
 
 The last line is optional. Add it when the successor's ticket sits off the critical path, so the
