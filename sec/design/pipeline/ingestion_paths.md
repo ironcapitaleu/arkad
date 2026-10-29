@@ -110,8 +110,13 @@ Extraction::incremental().submissions().cik(cik).sec_client(c).repository(r).bui
   `Extraction::incremental().notes()` does not compile.
 - Each `build()` returns the concrete SuperState, for example `ExtractNotesSuperState`. There is no
   generic SuperState.
-- The facade passes the ingestion mode to the SuperState. The store state writes it into the
-  metadata of each raw document. See [Raw Store](#raw-store).
+- The ingestion mode reaches the metadata of each raw document. See [Raw Store](#raw-store). While
+  `backfill()` is the only mode, `StoreNotesArchive` writes the mode `backfill` as a fixed value.
+  The facade passes the mode to the SuperState once `incremental()` exists (lead, 2026-10-29).
+- `Extraction::backfill()` creates one `execution_id` per run. Every SuperState built from the same
+  handle carries it. `Extraction::backfill().execution_id(id)` replaces it (lead, 2026-10-29).
+- The facade lives in `sec/src/lib/implementations/extraction/`. Only `backfill().notes()` exists
+  today (STA-343).
 - `companyfacts` stays outside the facade. It is a cross-check only. `StoreCompanyFacts` writes
   the mode `backfill`.
 
