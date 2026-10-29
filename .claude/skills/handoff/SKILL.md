@@ -70,7 +70,8 @@ package in scope.>
 
 # Roadmap
 
-<Only when the ticket belongs to an ordered set of tickets. One row per ticket in the set, in
+<Only when the ticket belongs to an ordered set of tickets: an epic (a Linear project), a project
+milestone, or the "Implementation Tickets" list of a design doc. One row per ticket in the set, in
 working order. Read the status of each ticket from Linear when you write the handoff. Mark the
 successor's ticket with ▶.>
 
@@ -117,14 +118,48 @@ apply, and any "never" from this session. State each as `must` or `never`.>
 <When and how to report back: report on completion or on a blocker it cannot resolve.>
 ```
 
+### Roadmap Example
+
+The backfill tickets of milestone "Data in Postgres", from the handoff of STA-334 on 2026-10-29.
+The statuses are a snapshot of that day. Read the live statuses from Linear for every new handoff.
+
+```markdown
+# Roadmap
+
+Project MVP Data, milestone "Data in Postgres". All tickets link to STA-328.
+
+| # | Ticket | Scope | Blocked by | Status |
+| - | ------ | ----- | ---------- | ------ |
+| 1 | STA-333 | rename to `ExtractCompanyFactsSuperState` | none | In Review (merged, #270) |
+| 2 | ▶ STA-334 | `ingestion_mode` run field | none | Backlog |
+| 3 | STA-335 | `NotesPeriod` | none | Backlog |
+| 4 | STA-337 | `FetchNotesFile` and builder | 335 | Backlog |
+| 5 | STA-336 | `SecFile` and `download_sec_file` | none | Backlog |
+| 6 | STA-338 | `RawNotesArchive` | 334, 336 | Backlog |
+| 7 | STA-339 | `ValidateNotesPeriod` and `PrepareNotesRequest` | 335, 337 | Backlog |
+| 8 | STA-340 | `DownloadNotesArchive` | 336, 339 | Backlog |
+| 9 | STA-341 | `StoreNotesArchive` | 338, 340 | Backlog |
+| 10 | STA-342 | `ExtractNotesSuperState` | 341 | Backlog |
+| 11 | STA-343 | `Extraction` facade | 342 | Backlog |
+| 12 | STA-344 | `notes_backfill` binary | 343 | Backlog |
+
+Critical path: STA-335 → STA-337 → STA-339 → STA-340 → STA-341 → STA-342 → STA-343 → STA-344
+Unblocked now: STA-334, STA-335, STA-336
+
+STA-334 is off the critical path. Only STA-338 needs it, and STA-338 also waits on STA-336.
+```
+
+The last line is optional. Add it when the successor's ticket sits off the critical path, so the
+successor knows how much slack it has.
+
 ## Procedure
 
 1. **Read the argument.** If the user gave no focus, ask the user once. Ask what the next session
    will do. Ask whether it ends at a branch, a merged PR, or a report.
 2. **Compile the document** from the conversation, following the template. Reference every artifact
    by path or URL. Do not paste file contents the successor can read itself.
-3. **Add the Roadmap** if the ticket belongs to an ordered set, such as a milestone or the
-   "Implementation Tickets" list of a design doc. Read every ticket's status and blockers from
+3. **Add the Roadmap** if the ticket belongs to an ordered set: an epic (a Linear project), a
+   project milestone, or the "Implementation Tickets" list of a design doc. See "Roadmap Example". Read every ticket's status and blockers from
    Linear at the time you write the handoff. Never copy a roadmap from an earlier handoff without
    this check. Recompute the critical path and the unblocked tickets from the fresh data.
 4. **Redact secrets.** Remove API keys, tokens, passwords, and personal data. Reference the
