@@ -249,11 +249,19 @@ bound memory. The run caps the Notes files in flight at 2, with `buffer_unordere
 Each file in flight holds up to 3 copies at its peak: the response body, the `RawDocument` bytes,
 and the stored file that `persist` reads to compare digests on a rerun. `RawDocument::from_file`
 takes the `SecNotesFileResponse` bytes by value, which removes the second copy. The largest file is 0.85 GB, so
-two files need about 4 to 5 GB (estimate, measure it with the `performance` skill).
+two files need about 4 to 5 GB (estimate). The measured peak for 2025q1 and 2024q1 (663 MB and 619
+MB) is 2,397,876 KB (release build, x86-64 Linux, 4 cores, 2026-10-29).
 
-Each period of the run is its own task. If two periods share one task, the SHA-256 of one file
-stops the body read of the other, because the hash does not yield. The download of that file then
-fails.
+Each SHA-256 of a file body runs on the blocking thread pool through
+`Sha256Digest::of_owned_async`. A hash takes 3.6 s for 620 MB, and the task polls other futures
+during it. This covers the digest in `SecNotesFileResponse::from_inner`, the content check in
+`persist` and `get`, and the digest check of a stored file on a rerun. `RawDocument::from_file`
+takes the digest of the response and does not hash the body again.
+
+The run gives each period its own task. This split was a workaround while the hash ran on the
+task: two periods in one task failed, because the hash of one file stopped the body read of the
+other. With the hash off the task, one shared task stored both files in one run. One run does not
+prove that the split is no longer needed. Whether the run keeps it is an open decision (STA-360).
 
 The output of `DownloadNotesArchive` holds the response in an `Arc`. The transition to
 `StoreNotesArchive` moves the `Arc` into the input of `StoreNotesArchive`, which holds it as

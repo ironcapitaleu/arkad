@@ -38,7 +38,8 @@ static TEMPORARY_FILE_COUNTER: AtomicU64 = AtomicU64::new(0);
 const MAX_TEMPORARY_FILE_ATTEMPTS: u32 = 16;
 
 #[async_trait]
-impl<A: CanWrite, D: Document> WriteRepository for FilesystemRepository<A, D> {
+// `D: 'static` lets `persist` move the record to the blocking thread pool for the hash.
+impl<A: CanWrite, D: Document + 'static> WriteRepository for FilesystemRepository<A, D> {
     type Record = D;
 
     /// Writes a document and its metadata under the root.
@@ -83,7 +84,9 @@ impl<A: CanWrite, D: Document> WriteRepository for FilesystemRepository<A, D> {
         let metadata = self
             .prepare_metadata(&record)
             .map_err(|error| WriteError::Backend(error.into()))?;
-        check_content(record.bytes(), record.metadata())
+        let (found_digest, RecordBytes(record)) =
+            Sha256Digest::of_owned_async(RecordBytes(record)).await;
+        check_content(record.bytes(), found_digest, record.metadata())
             .map_err(|reason| WriteError::failed_integrity_check(reason.to_string()))?;
         let key = record.key();
         let bytes = record.bytes();
@@ -91,6 +94,16 @@ impl<A: CanWrite, D: Document> WriteRepository for FilesystemRepository<A, D> {
         self.write_files(key, &metadata, bytes, digest)
             .await
             .map_err(|error| WriteError::Backend(error.into()))
+    }
+}
+
+/// A record seen as its bytes, so [`Sha256Digest::of_owned_async`] can take the record by value
+/// and return it without a copy of the bytes.
+struct RecordBytes<D>(D);
+
+impl<D: Document> AsRef<[u8]> for RecordBytes<D> {
+    fn as_ref(&self) -> &[u8] {
+        self.0.bytes()
     }
 }
 
@@ -205,9 +218,11 @@ async fn stored_pair_matches(
     if without_run_fields(stored) != without_run_fields(new) {
         return false;
     }
-    fs::read(document_path)
-        .await
-        .is_ok_and(|document| Sha256Digest::of(document) == *digest)
+    let Ok(document) = fs::read(document_path).await else {
+        return false;
+    };
+    let (found_digest, _) = Sha256Digest::of_owned_async(document).await;
+    found_digest == *digest
 }
 
 /// Removes `produced_at`, `execution_id`, and `ingestion_mode` from a metadata object.
@@ -353,6 +368,8 @@ fn temporary_path(target: &Path) -> PathBuf {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::atomic::AtomicBool;
+
     use pretty_assertions::{assert_eq, assert_ne};
     use tempfile::TempDir;
 
@@ -361,7 +378,9 @@ mod tests {
     use crate::implementations::repository::filesystem::{DocumentMetadata, ReadWrite, Write};
     use crate::tests::fixtures::sample_document::{
         SampleContext, SampleDocument, sample_document, sample_document_holding, sample_metadata,
+        sample_metadata_of,
     };
+    use crate::tests::fixtures::ticker::{LARGE_BODY_SIZE, count_ticks_until};
 
     /// Builds a repository with write access under the given root.
     fn repository_at(root: impl Into<PathBuf>) -> FilesystemRepository<Write, SampleDocument> {
@@ -915,6 +934,31 @@ mod tests {
         let expected_result = Err(WriteError::failed_integrity_check(reason.to_string()));
 
         let result = repository.persist(record).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_poll_another_future_when_persisting_a_large_record_hashes_its_bytes() {
+        let root = temporary_root();
+        let repository = repository_at(root.path());
+        let key = sample_document().key().clone();
+        let metadata = sample_metadata_of(&vec![1_u8; LARGE_BODY_SIZE], "2026-09-22T20:05:30Z");
+        // The digest differs, so `persist` returns after the hash and touches no file. Every tick
+        // then comes from the hash, not from file I/O.
+        let record = SampleDocument::from_parts(key, vec![0_u8; LARGE_BODY_SIZE], metadata);
+        let persist_is_done = AtomicBool::new(false);
+        let persist = async {
+            let outcome = repository.persist(record).await;
+            persist_is_done.store(true, Ordering::Relaxed);
+            outcome
+        };
+        let ticker = count_ticks_until(&persist_is_done);
+
+        let expected_result = true;
+
+        let (_, ticks) = tokio::join!(persist, ticker);
+        let result = ticks > 1;
 
         assert_eq!(result, expected_result);
     }

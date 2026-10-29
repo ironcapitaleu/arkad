@@ -353,12 +353,16 @@ impl<A, D> FilesystemRepository<A, D> {
 
 /// Checks that the bytes have the size and the SHA-256 digest the metadata names.
 ///
+/// Takes the digest of the bytes, not the bytes, so the caller hashes them with
+/// [`Sha256Digest::of_owned_async`] and keeps the hash off the async task.
+///
 /// # Errors
 ///
 /// Returns [`FailedFilesystemOperationReason::UnexpectedDocumentSize`] if the size differs, or
 /// [`FailedFilesystemOperationReason::UnexpectedDocumentDigest`] if the digest differs.
 fn check_content<C>(
     bytes: &[u8],
+    found_digest: Sha256Digest,
     metadata: &DocumentMetadata<C>,
 ) -> Result<(), FailedFilesystemOperationReason> {
     // A `usize` always fits in a `u64` on the platforms Rust supports.
@@ -369,7 +373,6 @@ fn check_content<C>(
             expected_size: metadata.size_in_bytes(),
         });
     }
-    let found_digest = Sha256Digest::of(bytes);
     if found_digest != *metadata.sha256() {
         return Err(FailedFilesystemOperationReason::UnexpectedDocumentDigest {
             found_digest,

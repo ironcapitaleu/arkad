@@ -19,6 +19,7 @@ use crate::implementations::repository::filesystem::shared::document_metadata::D
 use crate::implementations::repository::filesystem::traits::access::CanRead;
 use crate::implementations::repository::filesystem::traits::document::Document;
 use crate::implementations::repository::filesystem::{FilesystemRepository, check_content};
+use crate::shared::Sha256Digest;
 use crate::traits::repository::ReadRepository;
 
 #[async_trait]
@@ -87,8 +88,11 @@ impl<A: CanRead, D: Document> FilesystemRepository<A, D> {
             }
         };
 
+        // Hashes before the metadata exists, because the future cannot hold a metadata context
+        // that is not `Send` across an `await`.
+        let (found_digest, bytes) = Sha256Digest::of_owned_async(bytes).await;
         let metadata = self.read_metadata(&key).await?;
-        check_content(&bytes, &metadata)
+        check_content(&bytes, found_digest, &metadata)
             .map_err(|reason| FailedFilesystemOperation::new(reason, &document_path))?;
         Ok(Some(D::from_parts(key, bytes, metadata)))
     }

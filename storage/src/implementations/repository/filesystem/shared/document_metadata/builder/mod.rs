@@ -177,6 +177,32 @@ impl<D, M, P, R, I, C> DocumentMetadataBuilder<D, M, NoContent, P, R, I, C> {
             inputs: self.inputs,
         }
     }
+
+    /// Sets the size of the document from its bytes, and its SHA-256 digest from `sha256`.
+    ///
+    /// Does not hash the bytes. `sha256` must be the digest of `bytes`. `persist` rejects a record
+    /// whose digest differs.
+    #[must_use]
+    pub fn content_hashed(
+        self,
+        bytes: impl AsRef<[u8]>,
+        sha256: &Sha256Digest,
+    ) -> DocumentMetadataBuilder<D, M, Content, P, R, I, C> {
+        DocumentMetadataBuilder {
+            document_type: self.document_type,
+            media_type: self.media_type,
+            content: Content {
+                // A `usize` always fits in a `u64` on the platforms Rust supports.
+                size_in_bytes: bytes.as_ref().len() as u64,
+                sha256: sha256.clone(),
+            },
+            produced_at: self.produced_at,
+            run: self.run,
+            ingestion_mode: self.ingestion_mode,
+            context: self.context,
+            inputs: self.inputs,
+        }
+    }
 }
 
 impl<D, M, B, R, I, C> DocumentMetadataBuilder<D, M, B, NoProducedAt, R, I, C> {
@@ -654,6 +680,27 @@ mod tests {
             .document_type::<SampleDocument>()
             .media_type("application/json")
             .content(bytes)
+            .produced_at(produced_at())
+            .run(execution_id, producer)
+            .ingestion_mode(IngestionMode::Backfill)
+            .context(sample_context())
+            .build();
+        let result = (metadata.size_in_bytes(), metadata.sha256().clone());
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_keep_the_given_digest_when_setting_hashed_content() {
+        let digest_of_other_bytes = Sha256Digest::of(b"[]");
+        let (execution_id, producer) = sample_run();
+
+        let expected_result = (2, digest_of_other_bytes.clone());
+
+        let metadata = DocumentMetadata::builder()
+            .document_type::<SampleDocument>()
+            .media_type("application/json")
+            .content_hashed(b"{}", &digest_of_other_bytes)
             .produced_at(produced_at())
             .run(execution_id, producer)
             .ingestion_mode(IngestionMode::Backfill)
