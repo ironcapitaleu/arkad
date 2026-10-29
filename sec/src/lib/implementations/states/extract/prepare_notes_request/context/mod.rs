@@ -171,10 +171,10 @@ mod tests {
     use storage::WriteError;
 
     use super::*;
-    use crate::tests::fixtures::sample_write_repository::FakeWriteRepository;
+    use crate::tests::fixtures::sample_write_repository::FakeNotesRepository;
 
-    fn test_context() -> PrepareNotesRequestContext<FakeWriteRepository> {
-        PrepareNotesRequestContext::new(Uuid::nil(), FakeWriteRepository::new())
+    fn test_context() -> PrepareNotesRequestContext<FakeNotesRepository> {
+        PrepareNotesRequestContext::new(Uuid::nil(), FakeNotesRepository::new())
     }
 
     #[test]
@@ -195,7 +195,7 @@ mod tests {
     #[test]
     fn should_update_repository_when_update_contains_repository() {
         let mut context = test_context();
-        let rejecting = FakeWriteRepository::rejecting(WriteError::conflicting_write("Sample"));
+        let rejecting = FakeNotesRepository::rejecting(WriteError::conflicting_write("Sample"));
         let update = PrepareNotesRequestContextUpdater::builder()
             .repository(rejecting.clone())
             .build();
@@ -242,6 +242,6 @@ mod tests {
     }
     #[test]
     const fn should_implement_value_traits_for_prepare_notes_request_context() {
-        implements_value_traits::<PrepareNotesRequestContext<FakeWriteRepository>>();
+        implements_value_traits::<PrepareNotesRequestContext<FakeNotesRepository>>();
     }
 }

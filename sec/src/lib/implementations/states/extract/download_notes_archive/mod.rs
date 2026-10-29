@@ -27,7 +27,15 @@
 //!     .expect("Given a hardcoded published quarter, parsing should always succeed");
 //! let request = SecRequest::builder().notes_file().period(period).build();
 //! let input = DownloadNotesArchiveInput::new(request);
-//! let context = DownloadNotesArchiveContext::new(Uuid::new_v4(), (), SecClient::default());
+//! # use sec::shared::raw_document::RawDocument;
+//! # use sec::shared::raw_source::RawNotesArchive;
+//! # use storage::implementations::repository::filesystem::FilesystemRepository;
+//! # let repository = FilesystemRepository::builder()
+//! #     .writer()
+//! #     .document_type::<RawDocument<RawNotesArchive>>()
+//! #     .root("data")
+//! #     .build();
+//! let context = DownloadNotesArchiveContext::new(Uuid::new_v4(), repository, SecClient::default());
 //! let mut state = DownloadNotesArchive::new(input, context);
 //! state
 //!     .compute_output_data_async()
@@ -87,7 +95,15 @@ impl<R, C> DownloadNotesArchive<R, C> {
     /// let period = NotesPeriod::new("2024q1")
     ///     .expect("Given a hardcoded published quarter, parsing should always succeed");
     /// let input = DownloadNotesArchiveInput::new(SecRequest::builder().notes_file().period(period).build());
-    /// let context = DownloadNotesArchiveContext::new(Uuid::nil(), (), SecClient::default());
+    /// # use sec::shared::raw_document::RawDocument;
+    /// # use sec::shared::raw_source::RawNotesArchive;
+    /// # use storage::implementations::repository::filesystem::FilesystemRepository;
+    /// # let repository = FilesystemRepository::builder()
+    /// #     .writer()
+    /// #     .document_type::<RawDocument<RawNotesArchive>>()
+    /// #     .root("data")
+    /// #     .build();
+    /// let context = DownloadNotesArchiveContext::new(Uuid::nil(), repository, SecClient::default());
     /// let state = DownloadNotesArchive::new(input, context);
     ///
     /// let expected_result = false;
@@ -224,9 +240,9 @@ mod tests {
     use crate::shared::status_code::StatusCode;
     use crate::tests::fixtures::data::notes_archive::SAMPLE_NOTES_ZIP;
     use crate::tests::fixtures::sample_http_client::sample_sec_client::always_responding::AlwaysRespondingReadySecClient;
-    use crate::tests::fixtures::sample_write_repository::FakeWriteRepository;
+    use crate::tests::fixtures::sample_write_repository::FakeNotesRepository;
 
-    type TestState = DownloadNotesArchive<FakeWriteRepository, AlwaysRespondingReadySecClient>;
+    type TestState = DownloadNotesArchive<FakeNotesRepository, AlwaysRespondingReadySecClient>;
 
     fn test_state(status: u16, content_type: &str) -> TestState {
         let period = NotesPeriod::new("2024q1")
@@ -242,7 +258,7 @@ mod tests {
         );
         DownloadNotesArchive::new(
             DownloadNotesArchiveInput::new(request),
-            DownloadNotesArchiveContext::new(Uuid::nil(), FakeWriteRepository::new(), sec_client),
+            DownloadNotesArchiveContext::new(Uuid::nil(), FakeNotesRepository::new(), sec_client),
         )
     }
 
@@ -370,6 +386,6 @@ mod tests {
     }
     #[test]
     const fn should_implement_value_traits_for_download_notes_archive() {
-        implements_value_traits::<DownloadNotesArchive<FakeWriteRepository>>();
+        implements_value_traits::<DownloadNotesArchive<FakeNotesRepository>>();
     }
 }

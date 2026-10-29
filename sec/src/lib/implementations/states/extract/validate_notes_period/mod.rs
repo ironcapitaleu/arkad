@@ -18,7 +18,14 @@
 //!
 //! # #[tokio::main]
 //! # async fn main() {
-//! # let repository = ();
+//! # use sec::shared::raw_document::RawDocument;
+//! # use sec::shared::raw_source::RawNotesArchive;
+//! # use storage::implementations::repository::filesystem::FilesystemRepository;
+//! # let repository = FilesystemRepository::builder()
+//! #     .writer()
+//! #     .document_type::<RawDocument<RawNotesArchive>>()
+//! #     .root("data")
+//! #     .build();
 //! let input = ValidateNotesPeriodInput::new("2024q1");
 //! let context = ValidateNotesPeriodContext::new(Uuid::new_v4(), repository);
 //! let mut state = ValidateNotesPeriod::new(input, context);
@@ -83,7 +90,15 @@ impl<R> ValidateNotesPeriod<R> {
     /// use uuid::Uuid;
     ///
     /// let input = ValidateNotesPeriodInput::new("2024q1");
-    /// let context = ValidateNotesPeriodContext::new(Uuid::nil(), ());
+    /// # use sec::shared::raw_document::RawDocument;
+    /// # use sec::shared::raw_source::RawNotesArchive;
+    /// # use storage::implementations::repository::filesystem::FilesystemRepository;
+    /// # let repository = FilesystemRepository::builder()
+    /// #     .writer()
+    /// #     .document_type::<RawDocument<RawNotesArchive>>()
+    /// #     .root("data")
+    /// #     .build();
+    /// let context = ValidateNotesPeriodContext::new(Uuid::nil(), repository);
     /// let state = ValidateNotesPeriod::new(input, context);
     ///
     /// let expected_result = false;
@@ -204,12 +219,12 @@ mod tests {
 
     use super::*;
     use crate::shared::notes_period::{InvalidNotesPeriodReason, NotesPeriodError};
-    use crate::tests::fixtures::sample_write_repository::FakeWriteRepository;
+    use crate::tests::fixtures::sample_write_repository::FakeNotesRepository;
 
-    fn test_state(raw_period: &str) -> ValidateNotesPeriod<FakeWriteRepository> {
+    fn test_state(raw_period: &str) -> ValidateNotesPeriod<FakeNotesRepository> {
         ValidateNotesPeriod::new(
             ValidateNotesPeriodInput::new(raw_period),
-            ValidateNotesPeriodContext::new(Uuid::nil(), FakeWriteRepository::new()),
+            ValidateNotesPeriodContext::new(Uuid::nil(), FakeNotesRepository::new()),
         )
     }
 
@@ -338,6 +353,6 @@ mod tests {
     }
     #[test]
     const fn should_implement_value_traits_for_validate_notes_period() {
-        implements_value_traits::<ValidateNotesPeriod<FakeWriteRepository>>();
+        implements_value_traits::<ValidateNotesPeriod<FakeNotesRepository>>();
     }
 }

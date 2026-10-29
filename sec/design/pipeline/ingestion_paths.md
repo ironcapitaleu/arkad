@@ -139,8 +139,8 @@ A separate REFACTOR renames the existing `ExtractSuperState` to `ExtractCompanyF
 3. `DownloadNotesArchive` sends the request and reads the whole body into memory. It runs the
    transport checks of [Validation](#validation), layer 1. Its output holds the
    `SecNotesFileResponse` in an `Arc`, because the state traits require `Clone`.
-4. `StoreNotesArchive` writes the bytes as a `RawDocument<RawNotesArchive>` and outputs a
-   `NotesArchiveRef`.
+4. `StoreNotesArchive` takes the response out of its input, writes the bytes as a
+   `RawDocument<RawNotesArchive>`, and outputs a `NotesArchiveRef`.
 
 ### `NotesPeriod`
 
@@ -242,9 +242,12 @@ takes the `SecNotesFileResponse` bytes by value, which removes the second copy. 
 two files need about 4 to 5 GB (estimate, measure it with the `performance` skill).
 
 The output of `DownloadNotesArchive` holds the response in an `Arc`. The transition to
-`StoreNotesArchive` moves the output out of the state with `into_parts`. Then it takes the bytes
-with `Arc::try_unwrap` and `into_body`. The unwrap fails if a second clone of the output is alive.
-A transition must never keep a clone.
+`StoreNotesArchive` moves the `Arc` into the input of `StoreNotesArchive`, which holds it as
+`Option<Arc<SecNotesFileResponse>>`. The state takes the `Arc` out of the input and takes the
+bytes with `Arc::try_unwrap` and `into_body`. If a second clone of the `Arc` is alive, the unwrap
+fails, the `Arc` goes back into the input, and the state returns an error. A transition must
+never keep a clone. A failed write consumes the response, so a retry needs a new input from
+`DownloadNotesArchive`.
 
 ### Archive Metadata
 
@@ -603,7 +606,7 @@ raw store.
 pub struct NotesArchiveRef {
     period: NotesPeriod,
     key: DocumentKey,
-    size: u64,
+    size_in_bytes: u64,
     sha256: Sha256Digest,
 }
 
