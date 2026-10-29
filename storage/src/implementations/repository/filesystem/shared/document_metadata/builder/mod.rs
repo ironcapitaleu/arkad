@@ -183,10 +183,10 @@ impl<D, M, P, R, I, C> DocumentMetadataBuilder<D, M, NoContent, P, R, I, C> {
     /// Does not hash the bytes. `sha256` must be the digest of `bytes`. `persist` rejects a record
     /// whose digest differs.
     #[must_use]
-    pub fn content_with_digest(
+    pub fn content_hashed(
         self,
         bytes: impl AsRef<[u8]>,
-        sha256: Sha256Digest,
+        sha256: &Sha256Digest,
     ) -> DocumentMetadataBuilder<D, M, Content, P, R, I, C> {
         DocumentMetadataBuilder {
             document_type: self.document_type,
@@ -194,7 +194,7 @@ impl<D, M, P, R, I, C> DocumentMetadataBuilder<D, M, NoContent, P, R, I, C> {
             content: Content {
                 // A `usize` always fits in a `u64` on the platforms Rust supports.
                 size_in_bytes: bytes.as_ref().len() as u64,
-                sha256,
+                sha256: sha256.clone(),
             },
             produced_at: self.produced_at,
             run: self.run,
@@ -691,7 +691,7 @@ mod tests {
     }
 
     #[test]
-    fn should_keep_the_given_digest_when_setting_the_content_with_a_digest() {
+    fn should_keep_the_given_digest_when_setting_hashed_content() {
         let digest_of_other_bytes = Sha256Digest::of(b"[]");
         let (execution_id, producer) = sample_run();
 
@@ -700,7 +700,7 @@ mod tests {
         let metadata = DocumentMetadata::builder()
             .document_type::<SampleDocument>()
             .media_type("application/json")
-            .content_with_digest(b"{}", digest_of_other_bytes)
+            .content_hashed(b"{}", &digest_of_other_bytes)
             .produced_at(produced_at())
             .run(execution_id, producer)
             .ingestion_mode(IngestionMode::Backfill)
