@@ -92,7 +92,6 @@ impl<S: RawSource> RawDocument<S> {
     ///
     /// The bytes, the size, and the SHA-256 digest all come from [`SecResponse::raw_body`], so the
     /// document holds the body exactly as the SEC sent it. The media type comes from the response.
-    /// `run` names the run that fetched the file.
     ///
     /// # Examples
     ///
