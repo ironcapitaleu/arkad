@@ -14,8 +14,9 @@
 //! ## State Flow
 //!
 //! [`ValidateNotesPeriod`] → [`PrepareNotesRequest`] → [`DownloadNotesArchive`] →
-//! [`StoreNotesArchive`]. The stream ends after [`StoreNotesArchive`]. Its last item holds the
-//! [`NotesArchiveRef`](crate::shared::notes_archive_ref::NotesArchiveRef) in the output data.
+//! [`StoreNotesArchive`]. The stream ends after [`StoreNotesArchive`].
+//! [`ExtractNotesSuperState::run_to_archive`] runs the stream and returns the [`NotesArchiveRef`]
+//! of the stored file.
 //!
 //! ## Usage
 //!
@@ -50,9 +51,13 @@
 
 pub mod builder;
 
+use std::cmp::Ordering;
 use std::fmt::{self, Display, Formatter};
+use std::hash::{Hash, Hasher};
+use std::sync::{Arc, Mutex, PoisonError};
 
 use async_trait::async_trait;
+use futures_util::StreamExt;
 use serde::Serialize;
 use state_maschine::prelude::{StateMachine as SMStateMachine, Transition as SMTransition};
 use uuid::Uuid;
@@ -71,6 +76,8 @@ use crate::implementations::states::extract::store_notes_archive::StoreNotesArch
 use crate::implementations::states::extract::validate_notes_period::ValidateNotesPeriod;
 use crate::prelude::*;
 use crate::shared::http_client::implementations::sec_client::SecClient;
+use crate::shared::notes_archive_ref::NotesArchiveRef;
+use crate::traits::state_machine::stream::terminal_stream_with;
 
 /// Input and output data for the [`ExtractNotesSuperState`].
 ///
@@ -95,24 +102,67 @@ impl StateData for ExtractNotesSuperStateData {
 
 /// Context for the [`ExtractNotesSuperState`].
 ///
-/// Holds the SEC client of type `C` and the `execution_id`. The transition into
-/// [`DownloadNotesArchive`] hands a clone of the client to that state.
+/// Holds the SEC client of type `C`, the `execution_id`, and the slot for the stored archive. The
+/// transition into [`DownloadNotesArchive`] hands a clone of the client to that state.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ExtractNotesSuperStateContext<C> {
     pub(crate) sec_client: C,
     pub(crate) execution_id: Uuid,
+    pub(crate) archive_slot: ArchiveSlot,
 }
 
 impl<C> ExtractNotesSuperStateContext<C> {
     /// Creates a new [`ExtractNotesSuperStateContext`] from the SEC client and the
     /// `execution_id`.
     #[must_use]
-    pub const fn new(sec_client: C, execution_id: Uuid) -> Self {
+    pub fn new(sec_client: C, execution_id: Uuid) -> Self {
         Self {
             sec_client,
             execution_id,
+            archive_slot: ArchiveSlot::default(),
         }
     }
+}
+
+/// A shared slot that [`StoreNotesArchive`] fills with the [`NotesArchiveRef`] of the stored file.
+///
+/// Clones share one slot. Every slot compares equal and adds nothing to a hash, so the slot never
+/// changes how two contexts compare.
+#[derive(Debug, Clone, Default)]
+pub(crate) struct ArchiveSlot(Arc<Mutex<Option<NotesArchiveRef>>>);
+
+impl ArchiveSlot {
+    fn put(&self, archive: NotesArchiveRef) {
+        *self.0.lock().unwrap_or_else(PoisonError::into_inner) = Some(archive);
+    }
+
+    fn take(&self) -> Option<NotesArchiveRef> {
+        self.0.lock().unwrap_or_else(PoisonError::into_inner).take()
+    }
+}
+
+impl PartialEq for ArchiveSlot {
+    fn eq(&self, _other: &Self) -> bool {
+        true
+    }
+}
+
+impl Eq for ArchiveSlot {}
+
+impl PartialOrd for ArchiveSlot {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for ArchiveSlot {
+    fn cmp(&self, _other: &Self) -> Ordering {
+        Ordering::Equal
+    }
+}
+
+impl Hash for ArchiveSlot {
+    fn hash<H: Hasher>(&self, _state: &mut H) {}
 }
 
 impl<C: NotesFileClient> SMContext for ExtractNotesSuperStateContext<C> {
@@ -254,6 +304,32 @@ where
         let execution_id = self.context.execution_id;
         self.into_stream(execution_id)
     }
+
+    /// Runs the stream to its end and returns the [`NotesArchiveRef`] of the stored file.
+    ///
+    /// Calls `on_item` with each successful stream item, in stream order.
+    ///
+    /// # Errors
+    ///
+    /// Returns the [`StreamError`] of the first state that fails. The stream ends at that error.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the stream ends without an error before [`StoreNotesArchive`] computes its
+    /// output. The state flow rules this out.
+    pub async fn run_to_archive(
+        self,
+        mut on_item: impl FnMut(&StreamItem),
+    ) -> Result<NotesArchiveRef, StreamError> {
+        let archive_slot = self.context.archive_slot.clone();
+        let mut stream = self.into_run_stream();
+        while let Some(item) = stream.next().await {
+            on_item(&item?);
+        }
+        Ok(archive_slot.take().expect(
+            "Given a stream that ended without an error, StoreNotesArchive has always put the archive into the slot",
+        ))
+    }
 }
 
 impl<R: NotesRepository, C: NotesFileClient> NonTerminal
@@ -282,7 +358,12 @@ impl<R: NotesRepository + 'static, C: NotesFileClient + 'static> IntoStateMachin
     for ExtractNotesSuperState<StoreNotesArchive<R>, C>
 {
     fn into_stream(self, execution_id: Uuid) -> StateMachineStream {
-        terminal_stream(self, execution_id)
+        let archive_slot = self.context.archive_slot.clone();
+        terminal_stream_with(self, execution_id, move |state: &StoreNotesArchive<R>| {
+            if let Some(output) = state.output_data() {
+                archive_slot.put(output.archive.clone());
+            }
+        })
     }
 }
 
@@ -388,7 +469,6 @@ mod tests {
     use crate::implementations::states::extract::prepare_notes_request::constants::STATE_NAME as PREPARE_NOTES_REQUEST;
     use crate::implementations::states::extract::store_notes_archive::constants::STATE_NAME as STORE_NOTES_ARCHIVE;
     use crate::implementations::states::extract::validate_notes_period::constants::STATE_NAME as VALIDATE_NOTES_PERIOD;
-    use crate::shared::notes_archive_ref::NotesArchiveRef;
     use crate::shared::notes_period::NotesPeriod;
     use crate::shared::raw_document::RawDocument;
     use crate::shared::raw_source::RawNotesArchive;
@@ -643,6 +723,63 @@ mod tests {
             .filter_map(|item| async move { item.err().map(|error| error.execution_id) })
             .collect()
             .await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_return_the_notes_archive_ref_when_running_to_the_archive() {
+        let super_state = super_state("2024q1", FakeNotesRepository::new());
+        let period = NotesPeriod::new("2024q1")
+            .expect("Given a hardcoded published quarter, parsing should always succeed");
+        let key = DocumentKey::new("sec/notes/2024q1_notes.zip")
+            .expect("Given a hardcoded valid relative path, the key should always build");
+
+        let expected_result = Some(NotesArchiveRef::new(
+            period,
+            key,
+            SAMPLE_NOTES_ZIP.len() as u64,
+            Sha256Digest::of(SAMPLE_NOTES_ZIP),
+        ));
+
+        let result = super_state.run_to_archive(|_| {}).await.ok();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_return_the_error_of_the_failed_state_when_running_to_the_archive() {
+        let repository =
+            FakeNotesRepository::rejecting(WriteError::conflicting_write("Sample conflict"));
+        let super_state = super_state("2024q1", repository);
+
+        let expected_result = Some(STORE_NOTES_ARCHIVE.to_string());
+
+        let result = super_state
+            .run_to_archive(|_| {})
+            .await
+            .err()
+            .map(|error| error.state_name);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_hand_every_stream_item_to_the_caller_when_running_to_the_archive() {
+        let archive_run = super_state("2024q1", FakeNotesRepository::new());
+
+        let expected_result: Vec<(StreamEvent, String)> =
+            run_stream(super_state("2024q1", FakeNotesRepository::new()))
+                .await
+                .into_iter()
+                .map(|item| (item.event, item.state_name))
+                .collect();
+
+        let mut result = Vec::new();
+        archive_run
+            .run_to_archive(|item| result.push((item.event.clone(), item.state_name.clone())))
+            .await
+            .expect("Given a published period, the fake client, and a fake store, the run should always succeed");
 
         assert_eq!(result, expected_result);
     }

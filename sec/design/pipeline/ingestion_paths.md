@@ -147,6 +147,10 @@ A separate REFACTOR renames the existing `ExtractSuperState` to `ExtractCompanyF
 4. `StoreNotesArchive` takes the response out of its input, writes the bytes as a
    `RawDocument<RawNotesArchive>`, and outputs a `NotesArchiveRef`.
 
+`ExtractNotesSuperState::run_to_archive` runs the stream, hands each item to the caller, and
+returns the `NotesArchiveRef` as a typed value. The caller never parses the JSON of a stream item
+(lead, 2026-10-29).
+
 ### `NotesPeriod`
 
 `NotesPeriod` is a domain type in `sec/src/lib/shared/`. It holds either a quarter (year and
@@ -245,6 +249,9 @@ Each file in flight holds up to 3 copies at its peak: the response body, the `Ra
 and the stored file that `persist` reads to compare digests on a rerun. `RawDocument::from_file`
 takes the `SecNotesFileResponse` bytes by value, which removes the second copy. The largest file is 0.85 GB, so
 two files need about 4 to 5 GB (estimate, measure it with the `performance` skill).
+
+Each period of the run is its own task. If two periods share one task, the write of one file stops
+the body read of the other, and the SEC download of that file fails.
 
 The output of `DownloadNotesArchive` holds the response in an `Arc`. The transition to
 `StoreNotesArchive` moves the `Arc` into the input of `StoreNotesArchive`, which holds it as
@@ -351,7 +358,9 @@ quarantines the row or the filing, and the file goes on.
   `40-F` are kept. `8-K` and `10-KT` are dropped.
 - `SelectFilingDocuments`: the fallback rule without `_htm.xml`, a filing without `_lab.xml`, and a
   filing without an instance.
-- No test downloads from the SEC.
+- No state or SuperState test downloads from the SEC. The integration test of `notes_backfill`
+  downloads the two smallest Notes files, 2009q1 and 2009q2, as the other integration tests in
+  `sec/tests/` call live services (lead, 2026-10-29).
 
 ### Later Improvements
 

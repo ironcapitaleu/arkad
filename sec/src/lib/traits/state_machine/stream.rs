@@ -220,11 +220,30 @@ where
 ///
 /// The stream yields [`StreamEvent::StateStarted`] and computes the current state. It then yields
 /// [`StreamEvent::StateCompleted`], or a [`StreamError`] with [`StreamEvent::StateFailed`], and
-/// ends. Each terminal [`IntoStateMachineStream`] impl returns this stream.
+/// ends. Each terminal [`IntoStateMachineStream`] impl returns this stream, or the stream of
+/// `terminal_stream_with`.
 pub(crate) fn terminal_stream<SM, S>(sm: SM, execution_id: uuid::Uuid) -> StateMachineStream
 where
     SM: SMStateMachine<S> + Send + 'static,
     S: State + serde::Serialize + Send,
+{
+    terminal_stream_with(sm, execution_id, |_: &S| {})
+}
+
+/// Returns the stream of `terminal_stream`, which also calls `on_completed` with the computed
+/// state.
+///
+/// The stream calls `on_completed` just before it yields [`StreamEvent::StateCompleted`]. It never
+/// calls `on_completed` after a failure.
+pub(crate) fn terminal_stream_with<SM, S, F>(
+    sm: SM,
+    execution_id: uuid::Uuid,
+    on_completed: F,
+) -> StateMachineStream
+where
+    SM: SMStateMachine<S> + Send + 'static,
+    S: State + serde::Serialize + Send,
+    F: FnOnce(&S) + Send + 'static,
 {
     Box::pin(async_stream::stream! {
         let mut sm = sm;
@@ -247,6 +266,7 @@ where
         let data = state_data(sm.current_state());
         match result {
             Ok(()) => {
+                on_completed(sm.current_state());
                 yield Ok(StreamItem {
                     event: StreamEvent::StateCompleted,
                     state_name,
