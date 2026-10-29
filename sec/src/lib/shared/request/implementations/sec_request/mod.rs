@@ -1,6 +1,6 @@
 //! # SEC Request
 //!
-//! Provides the [`SecRequest`]. Given a request kind and its domain input (e.g. a CIK),
+//! Provides the [`SecRequest`]. Given a request kind and its domain input (e.g. a CIK or a Notes period),
 //! it assembles a fully-formed HTTP request — endpoint, method, and all — ready to dispatch.
 //! Built through an [`SecRequestBuilder`].
 //!
@@ -13,14 +13,14 @@ use reqwest::{Method, Request, Url};
 use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
 
-use crate::shared::{cik::Cik, request::SecRequest as SecRequestTrait};
+use crate::shared::{cik::Cik, notes_period::NotesPeriod, request::SecRequest as SecRequestTrait};
 
 pub mod builder;
 pub mod constants;
 
 pub use builder::SecRequestBuilder;
 
-use constants::{SEC_COMPANY_FACTS_URL_PREFIX, SEC_COMPANY_FACTS_URL_SUFFIX};
+use constants::{SEC_COMPANY_FACTS_URL_PREFIX, SEC_COMPANY_FACTS_URL_SUFFIX, SEC_NOTES_URL_PREFIX};
 
 /// A ready-to-send SEC API request.
 ///
@@ -72,17 +72,20 @@ impl SecRequest {
 
     /// Creates an [`SecRequest`] from a fully-formed [`SecRequestType`].
     pub(crate) fn from_request_type(request_type: SecRequestType) -> Self {
-        match request_type {
+        let url = match request_type {
             SecRequestType::FetchAllCompanyFacts { cik } => {
-                let url =
-                    format!("{SEC_COMPANY_FACTS_URL_PREFIX}{cik}{SEC_COMPANY_FACTS_URL_SUFFIX}");
-                let request = Request::new(
-                    Method::GET,
-                    Url::parse(&url).expect("Hardcoded URL should always be valid"),
-                );
-                Self { inner: request }
+                format!("{SEC_COMPANY_FACTS_URL_PREFIX}{cik}{SEC_COMPANY_FACTS_URL_SUFFIX}")
             }
-        }
+            SecRequestType::FetchNotesFile { period } => {
+                format!("{SEC_NOTES_URL_PREFIX}{}", period.file_name())
+            }
+        };
+        let request = Request::new(
+            Method::GET,
+            Url::parse(&url)
+                .expect("A hardcoded URL prefix joined with a validated input should always parse"),
+        );
+        Self { inner: request }
     }
 }
 
@@ -147,6 +150,11 @@ pub enum SecRequestType {
     FetchAllCompanyFacts {
         /// The CIK of the company to fetch.
         cik: Cik,
+    },
+    /// Fetch the SEC Financial Statement and Notes file of one period.
+    FetchNotesFile {
+        /// The period of the Notes file to fetch.
+        period: NotesPeriod,
     },
 }
 

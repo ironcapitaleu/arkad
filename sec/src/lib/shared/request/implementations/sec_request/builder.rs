@@ -23,8 +23,17 @@
 //!
 //! assert_eq!(result, expected_result);
 //! ```
+//!
+//! A Notes file request needs a period before `build()` exists:
+//!
+//! ```compile_fail,E0599
+//! use sec::shared::request::implementations::sec_request::SecRequest;
+//!
+//! let request = SecRequest::builder().notes_file().build();
+//! ```
 
 use crate::shared::cik::Cik;
+use crate::shared::notes_period::NotesPeriod;
 use crate::shared::request::implementations::sec_request::{SecRequest, SecRequestType};
 
 /// Typestate marker: no CIK has been set yet.
@@ -32,6 +41,12 @@ use crate::shared::request::implementations::sec_request::{SecRequest, SecReques
 /// While the builder is in this state, [`build`](AllCompanyFactsBuilder::build) is unavailable.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NoCik;
+
+/// Typestate marker: no Notes period has been set yet.
+///
+/// While the builder is in this state, [`build`](NotesFileBuilder::build) is unavailable.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NoPeriod;
 
 /// Entry point for building an [`SecRequest`].
 ///
@@ -51,6 +66,12 @@ impl SecRequestBuilder {
     #[must_use]
     pub const fn all_company_facts(self) -> AllCompanyFactsBuilder<NoCik> {
         AllCompanyFactsBuilder { cik: NoCik }
+    }
+
+    /// Selects the [`FetchNotesFile`](SecRequestType::FetchNotesFile) request kind.
+    #[must_use]
+    pub const fn notes_file(self) -> NotesFileBuilder<NoPeriod> {
+        NotesFileBuilder { period: NoPeriod }
     }
 }
 
@@ -102,12 +123,58 @@ impl AllCompanyFactsBuilder<Cik> {
     }
 }
 
+/// Typestate builder for the [`FetchNotesFile`](SecRequestType::FetchNotesFile) request.
+///
+/// The `P` type parameter tracks the period field's state: it starts as [`NoPeriod`] and becomes
+/// [`NotesPeriod`] once [`period`](Self::period) is called, which is what gates
+/// [`build`](Self::build).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NotesFileBuilder<P> {
+    period: P,
+}
+
+impl NotesFileBuilder<NoPeriod> {
+    /// Sets the Notes period, unlocking [`build`](NotesFileBuilder::build).
+    #[must_use]
+    pub const fn period(self, period: NotesPeriod) -> NotesFileBuilder<NotesPeriod> {
+        NotesFileBuilder { period }
+    }
+}
+
+impl NotesFileBuilder<NotesPeriod> {
+    /// Builds the [`SecRequest`]; available only once the Notes period is set.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use sec::shared::notes_period::NotesPeriod;
+    /// use sec::shared::request::implementations::sec_request::SecRequest;
+    ///
+    /// let period = NotesPeriod::new("2024q1").expect("A hardcoded valid period should always parse");
+    /// let request = SecRequest::builder().notes_file().period(period).build();
+    ///
+    /// let expected_result = "https://www.sec.gov/files/dera/data/financial-statement-notes-data-sets/2024q1_notes.zip";
+    ///
+    /// let result = request.inner.url().as_str();
+    ///
+    /// assert_eq!(result, expected_result);
+    /// ```
+    #[must_use]
+    pub fn build(self) -> SecRequest {
+        let request_type = SecRequestType::FetchNotesFile {
+            period: self.period,
+        };
+        SecRequest::from_request_type(request_type)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use pretty_assertions::assert_eq;
     use reqwest::{Method, Url};
 
     use crate::shared::cik::Cik;
+    use crate::shared::notes_period::NotesPeriod;
     use crate::shared::request::SecRequest as SecRequestTrait;
     use crate::shared::request::implementations::sec_request::SecRequest;
 
@@ -139,6 +206,70 @@ mod tests {
         let result = SecRequest::builder()
             .all_company_facts()
             .cik(cik)
+            .build()
+            .inner()
+            .method()
+            .clone();
+
+        assert_eq!(result, expected_result);
+    }
+
+    fn build_notes_file_url(period: &str) -> Url {
+        let period = NotesPeriod::new(period).expect("Hardcoded Notes period should be valid");
+        SecRequest::builder()
+            .notes_file()
+            .period(period)
+            .build()
+            .inner()
+            .url()
+            .clone()
+    }
+
+    #[test]
+    fn should_produce_correct_url_when_building_notes_file_request_for_a_quarter() {
+        let expected_result = Url::parse(
+            "https://www.sec.gov/files/dera/data/financial-statement-notes-data-sets/2024q1_notes.zip",
+        )
+        .expect("Hardcoded URL should always be valid");
+
+        let result = build_notes_file_url("2024q1");
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_produce_correct_url_when_building_notes_file_request_for_a_month() {
+        let expected_result = Url::parse(
+            "https://www.sec.gov/files/dera/data/financial-statement-notes-data-sets/2025_10_notes.zip",
+        )
+        .expect("Hardcoded URL should always be valid");
+
+        let result = build_notes_file_url("2025_10");
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_use_overridden_file_name_when_building_notes_file_request_for_2010q1() {
+        let expected_result = Url::parse(
+            "https://www.sec.gov/files/dera/data/financial-statement-notes-data-sets/2010q1_notes_1.zip",
+        )
+        .expect("Hardcoded URL should always be valid");
+
+        let result = build_notes_file_url("2010q1");
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_produce_get_method_when_building_notes_file_request() {
+        let period = NotesPeriod::new("2024q1").expect("Hardcoded Notes period should be valid");
+
+        let expected_result = Method::GET;
+
+        let result = SecRequest::builder()
+            .notes_file()
+            .period(period)
             .build()
             .inner()
             .method()
@@ -187,5 +318,25 @@ mod tests {
     #[test]
     const fn should_be_sync_for_all_company_facts_builder_with_cik() {
         implements_sync::<super::AllCompanyFactsBuilder<Cik>>();
+    }
+
+    #[test]
+    const fn should_be_send_for_notes_file_builder_without_period() {
+        implements_send::<super::NotesFileBuilder<super::NoPeriod>>();
+    }
+
+    #[test]
+    const fn should_be_sync_for_notes_file_builder_without_period() {
+        implements_sync::<super::NotesFileBuilder<super::NoPeriod>>();
+    }
+
+    #[test]
+    const fn should_be_send_for_notes_file_builder_with_period() {
+        implements_send::<super::NotesFileBuilder<NotesPeriod>>();
+    }
+
+    #[test]
+    const fn should_be_sync_for_notes_file_builder_with_period() {
+        implements_sync::<super::NotesFileBuilder<NotesPeriod>>();
     }
 }
