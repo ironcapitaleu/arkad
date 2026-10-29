@@ -257,10 +257,10 @@ The method is in
 
 `RawDocument::from_file` takes the `SecNotesFileResponse` bytes by value, so the response body
 and the `RawDocument` bytes are one copy. A rerun adds a second copy: the stored file that
-`persist` reads to compare digests. The measured peaks show about one copy of each body in flight
-on a first run, plus about 0.4 GB for the rest of the process. The largest file is 0.85 GB, so
-two of the largest files in flight need about 2.2 GB on a first run and about 3.8 GB on a rerun
-(estimates from the measured peaks). The findings document holds the measured peaks.
+`persist` reads to compare digests. The measured peaks confirm this: about one copy of each body
+in flight on a first run, plus about 0.4 GB for the rest of the process. The largest file is
+0.85 GB, so two of the largest files in flight need about 2.1 GB on a first run and about 3.8 GB on
+a rerun (estimates from the measured peaks). The findings document holds the measured peaks.
 
 Each SHA-256 of a file body runs on the blocking thread pool through
 `Sha256Digest::of_owned_async`, so the task polls other futures during the hash. This covers the
