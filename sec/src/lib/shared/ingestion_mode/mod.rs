@@ -1,10 +1,10 @@
 //! # Ingestion Mode
 //!
-//! Provides [`IngestionMode`], the mode of the run that creates a raw document.
+//! Provides [`IngestionMode`], the mode of the run that produced a stored document.
 
 use std::fmt::{self, Display, Formatter};
 
-/// The mode of the run that creates a raw document.
+/// The mode of the run that produced a stored document.
 ///
 /// Each variant's [`Display`] text is the `ingestion_mode` the store writes into a document's
 /// metadata. The [`From`] impl for [`String`] gives the same text, so a store state can pass the

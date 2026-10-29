@@ -9,7 +9,7 @@
 //! - [`document_type`]: Provides [`SecDocumentType`](document_type::SecDocumentType), the types of document the SEC state machines store.
 //! - [`document_storage`]: Provides [`FailedDocumentStorage`](document_storage::FailedDocumentStorage), the error for a document that the store did not keep.
 //! - [`http_client`]: Provides utilities for creating and managing SEC API clients, including user agent handling.
-//! - [`ingestion_mode`]: Provides [`IngestionMode`](ingestion_mode::IngestionMode), the mode of the run that creates a raw document.
+//! - [`ingestion_mode`]: Provides [`IngestionMode`](ingestion_mode::IngestionMode), the mode of the run that produced a stored document.
 //! - [`raw_document`]: Provides [`RawDocument`](raw_document::RawDocument), one SEC file as the store keeps it.
 //! - [`raw_source`]: Provides [`RawSource`](raw_source::RawSource), the trait that names the SEC file a raw document holds, and one implementation per file.
 //! - [`rate_limiter`]: Provides a leaky-bucket rate limiter for pacing outgoing SEC API requests.
