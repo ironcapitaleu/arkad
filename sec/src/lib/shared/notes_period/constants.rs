@@ -1,0 +1,29 @@
+//! # Notes Period Constants
+//!
+//! Range limits of the SEC Financial Statement and Notes files, and the file names that break the
+//! naming pattern.
+
+use chrono::Month;
+
+use crate::shared::financial::quarter::Quarter;
+
+/// The first year with a Notes file.
+pub const FIRST_YEAR: u16 = 2009;
+
+/// The year and quarter of the last quarterly Notes file.
+pub const LAST_QUARTER: (u16, Quarter) = (2025, Quarter::Q3);
+
+/// The year and month of the first monthly Notes file.
+pub const FIRST_MONTH: (u16, Month) = (2025, Month::October);
+
+/// The text after the period in every Notes file name that follows the pattern.
+pub const FILE_NAME_SUFFIX: &str = "_notes.zip";
+
+/// The periods whose linked file name breaks the pattern, and the linked file name.
+///
+/// The file name of the pattern also returns HTTP 200 for these periods, but with data from 2020.
+pub const FILE_NAME_OVERRIDES: [(&str, &str); 3] = [
+    ("2010q1", "2010q1_notes_1.zip"),
+    ("2010q2", "2010q2_notes_0.zip"),
+    ("2010q3", "2010q3_notes_0.zip"),
+];
