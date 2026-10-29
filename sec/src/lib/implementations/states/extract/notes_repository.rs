@@ -5,10 +5,36 @@
 use std::fmt::Debug;
 use std::hash::Hash;
 
-/// A repository that a Notes extract state context can hold.
+use storage::WriteRepository;
+
+use crate::shared::raw_document::RawDocument;
+use crate::shared::raw_source::RawNotesArchive;
+
+/// A [`WriteRepository`] of raw Notes archives that a Notes extract state context can hold.
 ///
 /// A state context must implement the value traits, so the repository must implement them too.
-// TODO(STA-341): Add the bound on the stored record.
-pub trait NotesRepository: Debug + Clone + Eq + Ord + Hash + Send + Sync + Unpin {}
+pub trait NotesRepository:
+    WriteRepository<Record = RawDocument<RawNotesArchive>>
+    + Debug
+    + Clone
+    + Eq
+    + Ord
+    + Hash
+    + Send
+    + Sync
+    + Unpin
+{
+}
 
-impl<R> NotesRepository for R where R: Debug + Clone + Eq + Ord + Hash + Send + Sync + Unpin {}
+impl<R> NotesRepository for R where
+    R: WriteRepository<Record = RawDocument<RawNotesArchive>>
+        + Debug
+        + Clone
+        + Eq
+        + Ord
+        + Hash
+        + Send
+        + Sync
+        + Unpin
+{
+}

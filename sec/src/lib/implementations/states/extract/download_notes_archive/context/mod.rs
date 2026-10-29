@@ -234,17 +234,17 @@ mod tests {
 
     use super::*;
     use crate::tests::fixtures::sample_http_client::sample_sec_client::always_responding::AlwaysRespondingReadySecClient;
-    use crate::tests::fixtures::sample_write_repository::FakeWriteRepository;
+    use crate::tests::fixtures::sample_write_repository::FakeNotesRepository;
 
     type TestContext =
-        DownloadNotesArchiveContext<FakeWriteRepository, AlwaysRespondingReadySecClient>;
+        DownloadNotesArchiveContext<FakeNotesRepository, AlwaysRespondingReadySecClient>;
 
     fn sec_client(status: u16) -> AlwaysRespondingReadySecClient {
         AlwaysRespondingReadySecClient::new(status, Vec::new(), Vec::new())
     }
 
     fn test_context() -> TestContext {
-        DownloadNotesArchiveContext::new(Uuid::nil(), FakeWriteRepository::new(), sec_client(200))
+        DownloadNotesArchiveContext::new(Uuid::nil(), FakeNotesRepository::new(), sec_client(200))
     }
 
     #[test]
@@ -265,7 +265,7 @@ mod tests {
     #[test]
     fn should_update_repository_when_update_contains_repository() {
         let mut context = test_context();
-        let rejecting = FakeWriteRepository::rejecting(WriteError::conflicting_write("Sample"));
+        let rejecting = FakeNotesRepository::rejecting(WriteError::conflicting_write("Sample"));
         let update = DownloadNotesArchiveContextUpdater::builder()
             .repository(rejecting.clone())
             .build();
@@ -327,6 +327,6 @@ mod tests {
     }
     #[test]
     const fn should_implement_value_traits_for_download_notes_archive_context() {
-        implements_value_traits::<DownloadNotesArchiveContext<FakeWriteRepository>>();
+        implements_value_traits::<DownloadNotesArchiveContext<FakeNotesRepository>>();
     }
 }

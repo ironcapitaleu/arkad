@@ -1,7 +1,7 @@
 //! # Fake Write Repository
 //!
-//! Provides [`FakeWriteRepository`], an in-memory [`WriteRepository`] of raw Company Facts
-//! documents.
+//! Provides [`FakeRawRepository`], an in-memory [`WriteRepository`] of raw documents of one
+//! source, and its aliases [`FakeWriteRepository`] and [`FakeNotesRepository`].
 
 use std::cmp::Ordering;
 use std::fmt;
@@ -14,25 +14,40 @@ use serde::{Serialize, Serializer};
 use storage::{WriteError, WriteRepository};
 
 use crate::shared::raw_document::RawDocument;
-use crate::shared::raw_source::RawCompanyFacts;
+use crate::shared::raw_source::{RawCompanyFacts, RawNotesArchive, RawSource};
 
 /// An in-memory [`WriteRepository`] that records each persisted document, or rejects each write.
 ///
 /// Clones share one record, so a test can keep a clone and read what a state persisted.
-#[derive(Debug, Clone, Default)]
-pub struct FakeWriteRepository {
-    persisted: Arc<Mutex<Vec<RawDocument<RawCompanyFacts>>>>,
+#[derive(Debug, Clone)]
+pub struct FakeRawRepository<S: RawSource> {
+    persisted: Arc<Mutex<Vec<RawDocument<S>>>>,
     rejection: Option<WriteError>,
 }
 
-impl FakeWriteRepository {
-    /// Creates a [`FakeWriteRepository`] that accepts every write.
+/// A [`FakeRawRepository`] of raw Company Facts documents.
+pub type FakeWriteRepository = FakeRawRepository<RawCompanyFacts>;
+
+/// A [`FakeRawRepository`] of raw Notes archives.
+pub type FakeNotesRepository = FakeRawRepository<RawNotesArchive>;
+
+impl<S: RawSource> Default for FakeRawRepository<S> {
+    fn default() -> Self {
+        Self {
+            persisted: Arc::default(),
+            rejection: None,
+        }
+    }
+}
+
+impl<S: RawSource> FakeRawRepository<S> {
+    /// Creates a [`FakeRawRepository`] that accepts every write.
     #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
 
-    /// Creates a [`FakeWriteRepository`] that rejects every write with the given error.
+    /// Creates a [`FakeRawRepository`] that rejects every write with the given error.
     #[must_use]
     pub fn rejecting(error: WriteError) -> Self {
         Self {
@@ -47,7 +62,7 @@ impl FakeWriteRepository {
     ///
     /// Panics if a previous panic poisoned the internal mutex.
     #[must_use]
-    pub fn persisted(&self) -> Vec<RawDocument<RawCompanyFacts>> {
+    pub fn persisted(&self) -> Vec<RawDocument<S>> {
         self.persisted
             .lock()
             .expect("No test panics while it holds the fake repository mutex")
@@ -56,7 +71,7 @@ impl FakeWriteRepository {
 }
 
 /// Formats as `Fake write repository`, or with `, rejecting writes with <error>` when it rejects.
-impl fmt::Display for FakeWriteRepository {
+impl<S: RawSource> fmt::Display for FakeRawRepository<S> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match &self.rejection {
             None => write!(f, "Fake write repository"),
@@ -66,7 +81,7 @@ impl fmt::Display for FakeWriteRepository {
 }
 
 /// Serializes as `{ "kind": "fake", "rejection": null }`, or with the rejection message.
-impl Serialize for FakeWriteRepository {
+impl<Source: RawSource> Serialize for FakeRawRepository<Source> {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         let mut state = serializer.serialize_struct("FakeWriteRepository", 2)?;
         state.serialize_field("kind", "fake")?;
@@ -79,8 +94,8 @@ impl Serialize for FakeWriteRepository {
 }
 
 #[async_trait]
-impl WriteRepository for FakeWriteRepository {
-    type Record = RawDocument<RawCompanyFacts>;
+impl<S: RawSource + Send + Sync> WriteRepository for FakeRawRepository<S> {
+    type Record = RawDocument<S>;
 
     async fn persist(&self, record: Self::Record) -> Result<(), WriteError> {
         if let Some(error) = &self.rejection {
@@ -97,27 +112,27 @@ impl WriteRepository for FakeWriteRepository {
 // Deviation: the shared record has no value semantics, so two fakes compare by their rejection
 // only. This satisfies the `Eq + Ord + Hash` bounds that a state context requires.
 
-impl PartialEq for FakeWriteRepository {
+impl<S: RawSource> PartialEq for FakeRawRepository<S> {
     fn eq(&self, other: &Self) -> bool {
         self.rejection == other.rejection
     }
 }
 
-impl Eq for FakeWriteRepository {}
+impl<S: RawSource> Eq for FakeRawRepository<S> {}
 
-impl PartialOrd for FakeWriteRepository {
+impl<S: RawSource> PartialOrd for FakeRawRepository<S> {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl Ord for FakeWriteRepository {
+impl<S: RawSource> Ord for FakeRawRepository<S> {
     fn cmp(&self, other: &Self) -> Ordering {
         self.rejection.cmp(&other.rejection)
     }
 }
 
-impl Hash for FakeWriteRepository {
+impl<S: RawSource> Hash for FakeRawRepository<S> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.rejection.hash(state);
     }

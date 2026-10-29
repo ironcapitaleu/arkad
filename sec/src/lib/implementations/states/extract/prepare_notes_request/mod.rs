@@ -21,7 +21,14 @@
 //!
 //! # #[tokio::main]
 //! # async fn main() {
-//! # let repository = ();
+//! # use sec::shared::raw_document::RawDocument;
+//! # use sec::shared::raw_source::RawNotesArchive;
+//! # use storage::implementations::repository::filesystem::FilesystemRepository;
+//! # let repository = FilesystemRepository::builder()
+//! #     .writer()
+//! #     .document_type::<RawDocument<RawNotesArchive>>()
+//! #     .root("data")
+//! #     .build();
 //! let period = NotesPeriod::new("2024q1")
 //!     .expect("Given a hardcoded published quarter, parsing should always succeed");
 //! let input = PrepareNotesRequestInput::new(period);
@@ -88,7 +95,15 @@ impl<R> PrepareNotesRequest<R> {
     /// let period = NotesPeriod::new("2024q1")
     ///     .expect("Given a hardcoded published quarter, parsing should always succeed");
     /// let input = PrepareNotesRequestInput::new(period);
-    /// let context = PrepareNotesRequestContext::new(Uuid::nil(), ());
+    /// # use sec::shared::raw_document::RawDocument;
+    /// # use sec::shared::raw_source::RawNotesArchive;
+    /// # use storage::implementations::repository::filesystem::FilesystemRepository;
+    /// # let repository = FilesystemRepository::builder()
+    /// #     .writer()
+    /// #     .document_type::<RawDocument<RawNotesArchive>>()
+    /// #     .root("data")
+    /// #     .build();
+    /// let context = PrepareNotesRequestContext::new(Uuid::nil(), repository);
     /// let state = PrepareNotesRequest::new(input, context);
     ///
     /// let expected_result = false;
@@ -211,17 +226,17 @@ mod tests {
 
     use super::*;
     use crate::shared::notes_period::NotesPeriod;
-    use crate::tests::fixtures::sample_write_repository::FakeWriteRepository;
+    use crate::tests::fixtures::sample_write_repository::FakeNotesRepository;
 
     fn notes_period(period: &str) -> NotesPeriod {
         NotesPeriod::new(period)
             .expect("Given a hardcoded published period, parsing should always succeed")
     }
 
-    fn test_state(period: &str) -> PrepareNotesRequest<FakeWriteRepository> {
+    fn test_state(period: &str) -> PrepareNotesRequest<FakeNotesRepository> {
         PrepareNotesRequest::new(
             PrepareNotesRequestInput::new(notes_period(period)),
-            PrepareNotesRequestContext::new(Uuid::nil(), FakeWriteRepository::new()),
+            PrepareNotesRequestContext::new(Uuid::nil(), FakeNotesRepository::new()),
         )
     }
 
@@ -297,6 +312,6 @@ mod tests {
     }
     #[test]
     const fn should_implement_value_traits_for_prepare_notes_request() {
-        implements_value_traits::<PrepareNotesRequest<FakeWriteRepository>>();
+        implements_value_traits::<PrepareNotesRequest<FakeNotesRepository>>();
     }
 }
