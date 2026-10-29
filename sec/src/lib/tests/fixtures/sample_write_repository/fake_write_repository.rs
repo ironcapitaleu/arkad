@@ -83,7 +83,7 @@ impl<S: RawSource> fmt::Display for FakeRawRepository<S> {
 /// Serializes as `{ "kind": "fake", "rejection": null }`, or with the rejection message.
 impl<Source: RawSource> Serialize for FakeRawRepository<Source> {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        let mut state = serializer.serialize_struct("FakeWriteRepository", 2)?;
+        let mut state = serializer.serialize_struct("FakeRawRepository", 2)?;
         state.serialize_field("kind", "fake")?;
         state.serialize_field(
             "rejection",

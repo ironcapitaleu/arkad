@@ -246,7 +246,8 @@ The output of `DownloadNotesArchive` holds the response in an `Arc`. The transit
 `Option<Arc<SecNotesFileResponse>>`. The state takes the `Arc` out of the input and takes the
 bytes with `Arc::try_unwrap` and `into_body`. If a second clone of the `Arc` is alive, the unwrap
 fails, the `Arc` goes back into the input, and the state returns an error. A transition must
-never keep a clone.
+never keep a clone. A failed write consumes the response, so a retry needs a new input from
+`DownloadNotesArchive`.
 
 ### Archive Metadata
 

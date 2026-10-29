@@ -21,6 +21,11 @@ pub struct StoreNotesArchiveContext<R> {
     /// The storage repository.
     pub repository: R,
     /// The maximum number of retries of the state.
+    ///
+    /// A retry after a failed write returns [`StateError::InvalidInput`], because the failed run
+    /// consumed the response. A retry needs a new input from `DownloadNotesArchive`.
+    ///
+    /// [`StateError::InvalidInput`]: crate::error::State::InvalidInput
     pub max_retries: u32,
 }
 

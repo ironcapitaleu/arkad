@@ -3,9 +3,6 @@
 //! Provides the [`StoreNotesArchive`] state, which writes one downloaded Notes file to the store
 //! and outputs a [`NotesArchiveRef`] to the stored file.
 //!
-//! The state takes the body out of the input without a copy, so the input holds no response
-//! after the state ran.
-//!
 //! ## Modules
 //!
 //! - [`constants`]: State metadata such as [`STATE_NAME`], and the [`NOTES_KEY_PREFIX`].
@@ -492,6 +489,19 @@ mod tests {
         )));
 
         let result = state.compute_output_data_async().await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_leave_the_input_without_a_response_when_the_repository_rejects_the_write() {
+        let write_error = WriteError::conflicting_write(CONFLICT_REASON);
+        let mut state = sample_state(FakeNotesRepository::rejecting(write_error));
+        let _ = state.compute_output_data_async().await;
+
+        let expected_result = true;
+
+        let result = state.input_data().response.is_none();
 
         assert_eq!(result, expected_result);
     }

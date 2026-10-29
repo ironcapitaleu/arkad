@@ -392,6 +392,20 @@ mod tests {
     }
 
     #[test]
+    fn should_display_the_response_url_and_digest_when_the_input_holds_a_response() {
+        let input = sample_input(b"PK");
+
+        let expected_result = format!(
+            "\tNotes Period: 2024q1\n\tRequested URL: https://www.sec.gov/files/dera/data/financial-statement-notes-data-sets/2024q1_notes.zip\n\tResponse: https://www.sec.gov/files/dera/data/financial-statement-notes-data-sets/2024q1_notes.zip, Body SHA-256: {}",
+            Sha256Digest::of(b"PK")
+        );
+
+        let result = input.to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
     fn should_display_none_as_the_response_when_the_state_took_the_response() {
         let mut input = sample_input(b"PK");
         input.response = None;
