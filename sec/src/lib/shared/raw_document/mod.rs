@@ -12,16 +12,13 @@
 
 use std::marker::PhantomData;
 
-use chrono::{DateTime, Utc};
-use storage::implementations::repository::filesystem::{
-    Document, DocumentKey, DocumentMetadata, Producer,
-};
-use uuid::Uuid;
+use storage::implementations::repository::filesystem::{Document, DocumentKey, DocumentMetadata};
 
 use crate::shared::document_type::SecDocumentType;
 use crate::shared::raw_source::RawSource;
 use crate::shared::response::SecResponse as SecResponseTrait;
 use crate::shared::response::implementations::sec_response::SecResponse;
+use crate::shared::run_fields::RunFields;
 use crate::shared::url::Url;
 use crate::shared::user_agent::UserAgent;
 
@@ -45,7 +42,7 @@ pub use raw_document_metadata_context::RawDocumentMetadataContext;
 /// use sec::shared::status_code::StatusCode;
 /// use sec::shared::user_agent::UserAgent;
 /// use storage::implementations::repository::filesystem::{
-///     Document, DocumentKey, DocumentMetadata, Producer,
+///     Document, DocumentKey, DocumentMetadata, IngestionMode, Producer,
 /// };
 /// use uuid::Uuid;
 ///
@@ -58,6 +55,7 @@ pub use raw_document_metadata_context::RawDocumentMetadataContext;
 ///     .content(bytes)
 ///     .produced_at(DateTime::<Utc>::UNIX_EPOCH)
 ///     .run(Uuid::nil(), Producer::new("Store Company Facts", "0.1.0", "63c1f59"))
+///     .ingestion_mode(IngestionMode::Backfill)
 ///     .context(RawDocumentMetadataContext {
 ///         requested_url: "https://data.sec.gov/api/xbrl/companyfacts/CIK0000320193.json"
 ///             .parse()
@@ -94,6 +92,7 @@ impl<S: RawSource> RawDocument<S> {
     ///
     /// The bytes, the size, and the SHA-256 digest all come from [`SecResponse::raw_body`], so the
     /// document holds the body exactly as the SEC sent it. The media type comes from the response.
+    /// `run` names the run that fetched the file.
     ///
     /// # Examples
     ///
@@ -107,10 +106,11 @@ impl<S: RawSource> RawDocument<S> {
     /// use sec::shared::raw_document::RawDocument;
     /// use sec::shared::raw_source::RawCompanyFacts;
     /// use sec::shared::response::implementations::sec_response::SecResponse;
+    /// use sec::shared::run_fields::RunFields;
     /// use sec::shared::status_code::StatusCode;
     /// use sec::shared::url::Url;
     /// use sec::shared::user_agent::UserAgent;
-    /// use storage::implementations::repository::filesystem::{Document, DocumentKey};
+    /// use storage::implementations::repository::filesystem::{Document, DocumentKey, IngestionMode};
     /// use uuid::Uuid;
     ///
     /// let url: Url = "https://data.sec.gov/api/xbrl/companyfacts/CIK0000320193.json"
@@ -134,9 +134,12 @@ impl<S: RawSource> RawDocument<S> {
     ///     &response,
     ///     &url,
     ///     &user_agent,
-    ///     DateTime::<Utc>::UNIX_EPOCH,
-    ///     Uuid::nil(),
-    ///     producer("Store Company Facts"),
+    ///     RunFields {
+    ///         produced_at: DateTime::<Utc>::UNIX_EPOCH,
+    ///         execution_id: Uuid::nil(),
+    ///         producer: producer("Store Company Facts"),
+    ///         ingestion_mode: IngestionMode::Backfill,
+    ///     },
     /// );
     ///
     /// let expected_result = b"{ \"price\": 1.50 }";
@@ -151,17 +154,16 @@ impl<S: RawSource> RawDocument<S> {
         response: &SecResponse,
         requested_url: &Url,
         user_agent: &UserAgent,
-        produced_at: DateTime<Utc>,
-        execution_id: Uuid,
-        producer: Producer,
+        run: RunFields,
     ) -> Self {
         let raw_body = response.raw_body();
         let metadata = DocumentMetadata::builder()
             .document_type::<Self>()
             .media_type(response.content_type().to_string())
             .content(raw_body)
-            .produced_at(produced_at)
-            .run(execution_id, producer)
+            .produced_at(run.produced_at)
+            .run(run.execution_id, run.producer)
+            .ingestion_mode(run.ingestion_mode)
             .context(RawDocumentMetadataContext::new(
                 response,
                 requested_url,
@@ -210,9 +212,13 @@ mod tests {
     use std::fmt::Debug;
     use std::hash::Hash;
 
+    use chrono::{DateTime, Utc};
     use pretty_assertions::assert_eq;
     use storage::ReadWriteRepository;
-    use storage::implementations::repository::filesystem::{FilesystemRepository, ReadWrite};
+    use storage::implementations::repository::filesystem::{
+        FilesystemRepository, IngestionMode, Producer, ReadWrite,
+    };
+    use uuid::Uuid;
 
     use super::*;
     use crate::shared::content_type::ContentType;
@@ -248,9 +254,12 @@ mod tests {
             &sample_response(),
             &sample_url(),
             &sample_user_agent(),
-            DateTime::<Utc>::UNIX_EPOCH,
-            Uuid::nil(),
-            Producer::new("Store Company Facts", "0.1.0", "63c1f59"),
+            RunFields {
+                produced_at: DateTime::<Utc>::UNIX_EPOCH,
+                execution_id: Uuid::nil(),
+                producer: Producer::new("Store Company Facts", "0.1.0", "63c1f59"),
+                ingestion_mode: IngestionMode::Backfill,
+            },
         )
     }
 
@@ -277,6 +286,7 @@ mod tests {
                 Uuid::nil(),
                 Producer::new("Store Company Facts", "0.1.0", "63c1f59"),
             )
+            .ingestion_mode(IngestionMode::Backfill)
             .context(RawDocumentMetadataContext {
                 requested_url: sample_url(),
                 final_url: sample_url(),
@@ -380,6 +390,7 @@ mod tests {
                 Uuid::from_u128(0x0b6f_3c1e_5d2a_4f7b_9c3e_8a1d_2b4c_6e8f),
                 Producer::new("Store Company Facts", "0.1.0", "63c1f59"),
             )
+            .ingestion_mode(IngestionMode::Backfill)
             .context(RawDocumentMetadataContext {
                 requested_url: sample_url(),
                 final_url: sample_url(),
@@ -397,6 +408,7 @@ mod tests {
             "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
             "produced_at": "2026-09-22T20:05:30Z",
             "execution_id": "0b6f3c1e-5d2a-4f7b-9c3e-8a1d2b4c6e8f",
+            "ingestion_mode": "backfill",
             "producer": {
                 "name": "Store Company Facts",
                 "crate_version": "0.1.0",

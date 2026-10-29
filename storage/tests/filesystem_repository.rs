@@ -16,7 +16,7 @@ use tempfile::TempDir;
 use uuid::Uuid;
 
 use storage::implementations::repository::filesystem::{
-    Document, DocumentKey, DocumentMetadata, FilesystemRepository, Producer,
+    Document, DocumentKey, DocumentMetadata, FilesystemRepository, IngestionMode, Producer,
 };
 use storage::{ReadRepository, WriteRepository};
 
@@ -80,6 +80,7 @@ fn sample_document() -> SampleDocument {
             Uuid::nil(),
             Producer::new("Sample State", "0.1.0", "63c1f59"),
         )
+        .ingestion_mode(IngestionMode::Backfill)
         .context(())
         .build();
 

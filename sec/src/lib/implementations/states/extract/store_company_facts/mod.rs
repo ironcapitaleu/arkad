@@ -25,7 +25,7 @@ use async_trait::async_trait;
 use chrono::Utc;
 use serde::Serialize;
 use state_maschine::prelude::State as SMState;
-use storage::implementations::repository::filesystem::DocumentKey;
+use storage::implementations::repository::filesystem::{DocumentKey, IngestionMode};
 
 use crate::error::State as StateError;
 use crate::error::state_machine::state::FailedDocumentWrite;
@@ -34,6 +34,7 @@ use crate::shared::cik::Cik;
 use crate::shared::document_storage::FailedDocumentStorage;
 use crate::shared::raw_document::RawDocument;
 use crate::shared::raw_source::RawCompanyFacts;
+use crate::shared::run_fields::RunFields;
 use crate::traits::state_machine::state::State;
 
 pub mod constants;
@@ -49,7 +50,8 @@ pub use data::StoreCompanyFactsOutput;
 ///
 /// Builds one [`RawDocument<RawCompanyFacts>`] with
 /// [`RawDocument::from_response`], writes it under the key `sec/companyfacts/CIK##########.json`
-/// through the repository of type `R`, and outputs that [`DocumentKey`].
+/// through the repository of type `R`, and outputs that [`DocumentKey`]. The metadata records the
+/// ingestion mode [`IngestionMode::Backfill`], because `companyfacts` runs as a backfill.
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
 pub struct StoreCompanyFacts<R> {
     input: StoreCompanyFactsInput,
@@ -104,9 +106,12 @@ impl<R: RawCompanyFactsRepository> State for StoreCompanyFacts<R> {
             &self.input.response,
             &self.input.requested_url,
             &self.input.user_agent,
-            Utc::now(),
-            self.context.execution_id,
-            producer(STATE_NAME),
+            RunFields {
+                produced_at: Utc::now(),
+                execution_id: self.context.execution_id,
+                producer: producer(STATE_NAME),
+                ingestion_mode: IngestionMode::Backfill,
+            },
         );
 
         let write = self
@@ -416,6 +421,17 @@ mod tests {
         let expected_result = EXECUTION_ID;
 
         let result = document.metadata().execution_id();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_persist_backfill_as_the_ingestion_mode_for_company_facts() {
+        let document = persisted_document().await;
+
+        let expected_result = IngestionMode::Backfill;
+
+        let result = document.metadata().ingestion_mode();
 
         assert_eq!(result, expected_result);
     }

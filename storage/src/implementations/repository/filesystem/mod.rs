@@ -49,8 +49,8 @@ pub use implementations::builder::{FilesystemRepositoryBuilder, NoAccess, NoRoot
 pub use implementations::constants::METADATA_SUFFIX;
 pub use shared::document_key::{DocumentKey, InvalidDocumentKey};
 pub use shared::document_metadata::{
-    DocumentMetadata, DocumentMetadataBuilder, InputDocument, METADATA_VERSION, NoDocumentType,
-    Producer,
+    DocumentMetadata, DocumentMetadataBuilder, IngestionMode, InputDocument, METADATA_VERSION,
+    NoDocumentType, Producer,
 };
 pub use traits::access::{Access, CanRead, CanWrite, Read, ReadWrite, Write};
 pub use traits::document::Document;
@@ -81,9 +81,10 @@ pub use traits::document::Document;
 /// [`FailedFilesystemOperationReason::InvalidKeySuffix`] before they read or write a file.
 ///
 /// The metadata names the size and the SHA-256 digest of its document. `get` and `persist` check
-/// both. If a new record differs from the stored pair only in valid `produced_at` and
-/// `execution_id` values, `persist` writes no file, so `produced_at` keeps naming the run that
-/// produced the bytes.
+/// both. The run fields are `produced_at`, `execution_id`, and `ingestion_mode`. If the stored
+/// run fields are present and valid, and a new record differs from the stored pair only in them,
+/// `persist` writes no file. The stored run fields then keep naming the run that produced the
+/// bytes.
 ///
 /// A write first writes both files to synced temporary files in the same directory. It then
 /// renames the metadata over its target, and the document over its target. A reader sees the old

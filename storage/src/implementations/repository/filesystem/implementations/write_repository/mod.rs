@@ -23,7 +23,9 @@ use crate::implementations::repository::filesystem::error::{
 use crate::implementations::repository::filesystem::shared::document_key::DocumentKey;
 use crate::implementations::repository::filesystem::traits::access::CanWrite;
 use crate::implementations::repository::filesystem::traits::document::Document;
-use crate::implementations::repository::filesystem::{FilesystemRepository, check_content};
+use crate::implementations::repository::filesystem::{
+    FilesystemRepository, IngestionMode, check_content,
+};
 use crate::shared::Sha256Digest;
 use crate::traits::repository::WriteRepository;
 
@@ -48,12 +50,17 @@ impl<A: CanWrite, D: Document> WriteRepository for FilesystemRepository<A, D> {
     ///    JSON.
     /// 3. The bytes have the size and the SHA-256 digest the metadata names.
     ///
-    /// Then `persist` checks that the root exists. If the stored metadata equals the new metadata
-    /// in every field except `produced_at` and `execution_id`, both stored run fields are valid, and
-    /// the stored document matches the digest of the new bytes, `persist` writes no file and returns `Ok(())`. The stored
-    /// `produced_at` and `execution_id` stay. In every other case, `persist` creates every
-    /// missing directory between the root and the document, and the new bytes and metadata replace
-    /// the old. This case covers a torn pair, whose metadata matches the new bytes but whose
+    /// Then `persist` checks that the root exists. `persist` writes no file and returns `Ok(())` if
+    /// all three conditions hold:
+    ///
+    /// 1. The stored metadata equals the new metadata outside the run fields `produced_at`,
+    ///    `execution_id`, and `ingestion_mode`.
+    /// 2. The stored metadata holds every run field, and each one is valid.
+    /// 3. The stored document matches the digest of the new bytes.
+    ///
+    /// The stored run fields then stay. In every other case, `persist` creates every missing
+    /// directory between the root and the document, and the new bytes and metadata replace the
+    /// old. This case covers a torn pair, whose metadata matches the new bytes but whose
     /// document does not.
     ///
     /// # Errors
@@ -165,13 +172,18 @@ struct StoredRun {
         reason = "parsed only to check that the stored value is valid"
     )]
     execution_id: Uuid,
+    #[expect(
+        dead_code,
+        reason = "parsed only to check that the stored value is valid"
+    )]
+    ingestion_mode: IngestionMode,
 }
 
 /// Returns `true` if the stored metadata equals the new metadata outside the run fields, and the
 /// stored document matches the digest.
 ///
-/// Returns `false` if a file is missing or unreadable, a stored run field is invalid, or another
-/// field differs, so the write repairs the pair.
+/// Returns `false` if a file is missing or unreadable, a stored run field is missing or invalid, or
+/// another field differs, so the write repairs the pair.
 async fn stored_pair_matches(
     metadata_path: &Path,
     metadata: &[u8],
@@ -198,11 +210,12 @@ async fn stored_pair_matches(
         .is_ok_and(|document| Sha256Digest::of(document) == *digest)
 }
 
-/// Removes `produced_at` and `execution_id` from a metadata object.
+/// Removes `produced_at`, `execution_id`, and `ingestion_mode` from a metadata object.
 fn without_run_fields(mut metadata: Value) -> Value {
     if let Some(fields) = metadata.as_object_mut() {
         fields.remove("produced_at");
         fields.remove("execution_id");
+        fields.remove("ingestion_mode");
     }
     metadata
 }
@@ -757,6 +770,90 @@ mod tests {
         assert_eq!(result, expected_result);
     }
 
+    /// Returns the sample document with the given ingestion mode.
+    fn sample_document_with_ingestion_mode(ingestion_mode: IngestionMode) -> SampleDocument {
+        sample_document_with_metadata_field("ingestion_mode", ingestion_mode.to_string().into())
+    }
+
+    /// Returns the inode numbers of the metadata file and the document file.
+    ///
+    /// A write renames a new file into place, so a rewritten file gets a new inode.
+    #[cfg(unix)]
+    fn inodes(metadata_path: &Path, document_path: &Path) -> (u64, u64) {
+        use std::os::unix::fs::MetadataExt;
+
+        let inode = |path: &Path| {
+            std::fs::metadata(path)
+                .expect("Given a persisted record, its files should always exist")
+                .ino()
+        };
+        (inode(metadata_path), inode(document_path))
+    }
+
+    #[tokio::test]
+    async fn should_keep_the_stored_ingestion_mode_when_persisting_unchanged_bytes_with_another_ingestion_mode()
+     {
+        let root = temporary_root();
+        let repository = repository_at(root.path());
+        let backfill_document = sample_document_with_ingestion_mode(IngestionMode::Backfill);
+        let metadata_path = repository.metadata_path(backfill_document.key());
+
+        let expected_result = IngestionMode::Backfill;
+
+        repository
+            .persist(backfill_document)
+            .await
+            .expect("Given an existing writable root, persisting a record should always succeed");
+        repository
+            .persist(sample_document_with_ingestion_mode(
+                IngestionMode::Incremental,
+            ))
+            .await
+            .expect(
+                "Given an existing writable root, persisting unchanged bytes should always succeed",
+            );
+        let result = read_stored_metadata(&metadata_path).ingestion_mode();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn should_write_no_file_when_persisting_unchanged_bytes_with_another_ingestion_mode() {
+        let root = temporary_root();
+        let repository = repository_at(root.path());
+        let backfill_document = sample_document_with_ingestion_mode(IngestionMode::Backfill);
+        let metadata_path = repository.metadata_path(backfill_document.key());
+        let document_path = repository.document_path(backfill_document.key());
+        repository
+            .persist(backfill_document)
+            .await
+            .expect("Given an existing writable root, persisting a record should always succeed");
+
+        let expected_result = inodes(&metadata_path, &document_path);
+
+        repository
+            .persist(sample_document_with_ingestion_mode(
+                IngestionMode::Incremental,
+            ))
+            .await
+            .expect(
+                "Given an existing writable root, persisting unchanged bytes should always succeed",
+            );
+        let result = inodes(&metadata_path, &document_path);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_replace_the_metadata_when_the_stored_ingestion_mode_is_invalid() {
+        let expected_result = sample_metadata();
+
+        let result = persist_over_stored_metadata_field("ingestion_mode", "foo".into()).await;
+
+        assert_eq!(result, expected_result);
+    }
+
     #[tokio::test]
     async fn should_replace_the_document_when_a_refetch_finds_a_torn_pair() {
         let root = temporary_root();
@@ -875,13 +972,21 @@ mod tests {
         field: &str,
         value: serde_json::Value,
     ) -> DocumentMetadata<SampleContext> {
+        persist_over_edited_stored_metadata(|stored| stored[field] = value).await
+    }
+
+    /// Persists the sample document, applies `edit` to its stored metadata, persists the document
+    /// again, and returns the stored metadata.
+    async fn persist_over_edited_stored_metadata(
+        edit: impl FnOnce(&mut serde_json::Value),
+    ) -> DocumentMetadata<SampleContext> {
         let root = temporary_root();
         let repository = repository_at(root.path());
         let record = sample_document();
         let metadata_path = repository.metadata_path(record.key());
         let mut stored = serde_json::to_value(record.metadata())
             .expect("Given metadata of owned fields, serialization should always succeed");
-        stored[field] = value;
+        edit(&mut stored);
         let stored_json = serde_json::to_vec(&stored)
             .expect("Given a JSON value, serialization should always succeed");
 
@@ -904,6 +1009,21 @@ mod tests {
         let expected_result = sample_metadata();
 
         let result = persist_over_stored_metadata_field("document_type_version", 0.into()).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_replace_the_metadata_when_the_stored_metadata_has_no_ingestion_mode() {
+        let expected_result = sample_metadata();
+
+        let result = persist_over_edited_stored_metadata(|stored| {
+            stored
+                .as_object_mut()
+                .expect("Given serialized metadata, the JSON value should always be an object")
+                .remove("ingestion_mode");
+        })
+        .await;
 
         assert_eq!(result, expected_result);
     }
