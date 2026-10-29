@@ -160,6 +160,12 @@ impl SecNotesFileResponse {
     pub const fn body_digest(&self) -> &Sha256Digest {
         &self.body_digest
     }
+
+    /// Consumes the response and returns the body bytes without a copy.
+    #[must_use]
+    pub fn into_body(self) -> Vec<u8> {
+        self.body
+    }
 }
 
 /// Checks that a response has status 200 and an `OctetStream` or `Zip` content type.
@@ -238,6 +244,23 @@ mod tests {
         )
         .expect("Given status 200, a ZIP and a matching length, building should always succeed");
         let result = response.body_digest().clone();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_the_body_unchanged_when_consuming_the_response() {
+        let response = SecNotesFileResponse::from_parts(
+            sample_url(),
+            headers("application/zip", None),
+            StatusCode::Ok,
+            BODY.to_vec(),
+        )
+        .expect("Given status 200 and a ZIP, building the response should always succeed");
+
+        let expected_result = BODY;
+
+        let result = response.into_body();
 
         assert_eq!(result, expected_result);
     }

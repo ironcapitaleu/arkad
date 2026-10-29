@@ -15,8 +15,9 @@ use std::marker::PhantomData;
 use storage::implementations::repository::filesystem::{Document, DocumentKey, DocumentMetadata};
 
 use crate::shared::document_type::SecDocumentType;
-use crate::shared::raw_source::RawSource;
+use crate::shared::raw_source::{RawNotesArchive, RawSource};
 use crate::shared::response::SecResponse as SecResponseTrait;
+use crate::shared::response::implementations::sec_notes_file_response::SecNotesFileResponse;
 use crate::shared::response::implementations::sec_response::SecResponse;
 use crate::shared::run_fields::RunFields;
 use crate::shared::url::Url;
@@ -174,6 +175,88 @@ impl<S: RawSource> RawDocument<S> {
     }
 }
 
+impl RawDocument<RawNotesArchive> {
+    /// Creates a new [`RawDocument`] from a Notes file response and the fetch that produced it.
+    ///
+    /// The document takes the body of `file` by value, so the bytes are not copied. The size and
+    /// the SHA-256 digest come from the same bytes. The media type is the content type the SEC
+    /// sent.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use std::collections::HashMap;
+    ///
+    /// use chrono::{DateTime, Utc};
+    /// use sec::shared::build_info::producer;
+    /// use sec::shared::headers::Headers;
+    /// use sec::shared::raw_document::RawDocument;
+    /// use sec::shared::response::implementations::sec_notes_file_response::SecNotesFileResponse;
+    /// use sec::shared::run_fields::RunFields;
+    /// use sec::shared::status_code::StatusCode;
+    /// use sec::shared::url::Url;
+    /// use sec::shared::user_agent::UserAgent;
+    /// use storage::implementations::repository::filesystem::{Document, DocumentKey, IngestionMode};
+    /// use uuid::Uuid;
+    ///
+    /// let url: Url = "https://www.sec.gov/files/dera/data/financial-statement-and-notes-data-sets/2024q1_notes.zip"
+    ///     .parse()
+    ///     .expect("A hardcoded valid URL string should always parse");
+    /// let headers = Headers::new(HashMap::from([(
+    ///     "content-type".to_string(),
+    ///     "application/zip".to_string(),
+    /// )]));
+    /// let file = SecNotesFileResponse::from_parts(url.clone(), headers, StatusCode::Ok, b"PK".to_vec())
+    ///     .expect("Given status 200 and a ZIP, building the response should always succeed");
+    /// let key = DocumentKey::new("sec/notes/2024q1_notes.zip")
+    ///     .expect("Given a valid relative path, the key should always build");
+    /// let user_agent = UserAgent::new("arkad contact@example.com")
+    ///     .expect("A hardcoded SEC-format string should always validate");
+    ///
+    /// let document = RawDocument::from_file(
+    ///     key,
+    ///     file,
+    ///     &url,
+    ///     &user_agent,
+    ///     RunFields {
+    ///         produced_at: DateTime::<Utc>::UNIX_EPOCH,
+    ///         execution_id: Uuid::nil(),
+    ///         producer: producer("Store Notes Archive"),
+    ///         ingestion_mode: IngestionMode::Backfill,
+    ///     },
+    /// );
+    ///
+    /// let expected_result = b"PK";
+    ///
+    /// let result = document.bytes();
+    ///
+    /// assert_eq!(result, expected_result);
+    /// ```
+    #[must_use]
+    pub fn from_file(
+        key: DocumentKey,
+        file: SecNotesFileResponse,
+        requested_url: &Url,
+        user_agent: &UserAgent,
+        run: RunFields,
+    ) -> Self {
+        let metadata = DocumentMetadata::builder()
+            .document_type::<Self>()
+            .media_type(file.content_type().to_string())
+            .content(file.body())
+            .produced_at(run.produced_at)
+            .run(run.execution_id, run.producer)
+            .ingestion_mode(run.ingestion_mode)
+            .context(RawDocumentMetadataContext::from_file(
+                &file,
+                requested_url,
+                user_agent,
+            ))
+            .build();
+        Self::from_parts(key, file.into_body(), metadata)
+    }
+}
+
 impl<S: RawSource> Document for RawDocument<S> {
     type DocumentType = SecDocumentType;
     const DOCUMENT_TYPE: SecDocumentType = S::DOCUMENT_TYPE;
@@ -214,10 +297,10 @@ mod tests {
 
     use chrono::{DateTime, Utc};
     use pretty_assertions::assert_eq;
-    use storage::ReadWriteRepository;
     use storage::implementations::repository::filesystem::{
         FilesystemRepository, IngestionMode, Producer, ReadWrite,
     };
+    use storage::{ReadRepository, ReadWriteRepository, WriteRepository};
     use uuid::Uuid;
 
     use super::*;
@@ -225,6 +308,7 @@ mod tests {
     use crate::shared::headers::Headers;
     use crate::shared::raw_source::RawCompanyFacts;
     use crate::shared::status_code::StatusCode;
+    use crate::tests::fixtures::data::notes_archive::SAMPLE_NOTES_ZIP;
 
     // Whitespace and a trailing zero that a parse and a reserialization drop.
     const SAMPLE_RAW_BODY: &[u8] = b"{ \"price\": 1.50 }";
@@ -507,6 +591,137 @@ mod tests {
         let expected_result = Uuid::nil();
 
         let result = document.metadata().execution_id();
+
+        assert_eq!(result, expected_result);
+    }
+
+    fn sample_notes_url() -> Url {
+        "https://www.sec.gov/files/dera/data/financial-statement-and-notes-data-sets/2024q1_notes.zip"
+            .parse()
+            .expect("A hardcoded valid URL string should always parse")
+    }
+
+    fn sample_notes_key() -> DocumentKey {
+        DocumentKey::new("sec/notes/2024q1_notes.zip")
+            .expect("Given a valid relative path, the key should always build")
+    }
+
+    fn sample_notes_file() -> SecNotesFileResponse {
+        SecNotesFileResponse::from_parts(
+            sample_notes_url(),
+            Headers::new(HashMap::from([(
+                "content-type".to_string(),
+                "application/octet-stream".to_string(),
+            )])),
+            StatusCode::Ok,
+            SAMPLE_NOTES_ZIP.to_vec(),
+        )
+        .expect("Given status 200 and an octet stream, building the response should always succeed")
+    }
+
+    fn sample_document_from_file() -> RawDocument<RawNotesArchive> {
+        RawDocument::from_file(
+            sample_notes_key(),
+            sample_notes_file(),
+            &sample_notes_url(),
+            &sample_user_agent(),
+            RunFields {
+                produced_at: DateTime::<Utc>::UNIX_EPOCH,
+                execution_id: Uuid::nil(),
+                producer: Producer::new("Store Notes Archive", "0.1.0", "63c1f59"),
+                ingestion_mode: IngestionMode::Incremental,
+            },
+        )
+    }
+
+    #[test]
+    fn should_hold_the_body_unchanged_when_building_a_document_from_a_file() {
+        let document = sample_document_from_file();
+
+        let expected_result = SAMPLE_NOTES_ZIP;
+
+        let result = document.bytes();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_take_the_size_from_the_body_when_building_a_document_from_a_file() {
+        let document = sample_document_from_file();
+
+        let expected_result = SAMPLE_NOTES_ZIP.len() as u64;
+
+        let result = document.metadata().size_in_bytes();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_match_the_digest_of_the_file_when_building_a_document_from_a_file() {
+        let document = sample_document_from_file();
+
+        let expected_result = sample_notes_file().body_digest().clone();
+
+        let result = document.metadata().sha256().clone();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_record_the_content_type_the_sec_sent_when_building_a_document_from_a_file() {
+        let document = sample_document_from_file();
+
+        let expected_result = "application/octet-stream";
+
+        let result = document.metadata().media_type();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_record_the_ingestion_mode_of_the_run_when_building_a_document_from_a_file() {
+        let document = sample_document_from_file();
+
+        let expected_result = IngestionMode::Incremental;
+
+        let result = document.metadata().ingestion_mode();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_store_the_raw_notes_archive_document_type_when_building_a_document_from_a_file() {
+        let document = sample_document_from_file();
+
+        let expected_result = "raw_notes_archive";
+
+        let result = document.metadata().document_type();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_read_back_the_same_document_when_storing_a_notes_zip_on_the_filesystem() {
+        let root = tempfile::TempDir::new().expect(
+            "Given a writable system temp directory, creating a directory in it should always succeed",
+        );
+        let repository = FilesystemRepository::builder()
+            .read_write()
+            .document_type::<RawDocument<RawNotesArchive>>()
+            .root(root.path())
+            .build();
+        let document = sample_document_from_file();
+        repository
+            .persist(document.clone())
+            .await
+            .expect("Given a fresh temp directory, persisting the document should always succeed");
+
+        let expected_result = Some(document);
+
+        let result = repository
+            .get(sample_notes_key())
+            .await
+            .expect("Given a document this test just stored, reading it should always succeed");
 
         assert_eq!(result, expected_result);
     }

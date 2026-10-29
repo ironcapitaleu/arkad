@@ -6,6 +6,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::shared::response::SecResponse as SecResponseTrait;
+use crate::shared::response::implementations::sec_notes_file_response::SecNotesFileResponse;
 use crate::shared::response::implementations::sec_response::SecResponse;
 use crate::shared::status_code::StatusCode;
 use crate::shared::url::Url;
@@ -41,6 +42,24 @@ impl RawDocumentMetadataContext {
             requested_url: requested_url.clone(),
             final_url: response.url().clone(),
             http_status: response.status_code(),
+            user_agent: user_agent.clone(),
+        }
+    }
+
+    /// Creates a new [`RawDocumentMetadataContext`] from a Notes file response, and the URL and
+    /// the `User-Agent` the fetch sent.
+    ///
+    /// The final URL comes from [`SecNotesFileResponse::url`].
+    #[must_use]
+    pub fn from_file(
+        file: &SecNotesFileResponse,
+        requested_url: &Url,
+        user_agent: &UserAgent,
+    ) -> Self {
+        Self {
+            requested_url: requested_url.clone(),
+            final_url: file.url().clone(),
+            http_status: file.status_code(),
             user_agent: user_agent.clone(),
         }
     }
@@ -155,6 +174,63 @@ mod tests {
             &sample_user_agent(),
         )
         .http_status;
+
+        assert_eq!(result, expected_result);
+    }
+
+    fn sample_redirected_notes_file() -> SecNotesFileResponse {
+        SecNotesFileResponse::from_parts(
+            sample_notes_final_url(),
+            Headers::new(HashMap::from([(
+                "content-type".to_string(),
+                "application/zip".to_string(),
+            )])),
+            StatusCode::Ok,
+            b"PK".to_vec(),
+        )
+        .expect("Given status 200 and a ZIP, building the response should always succeed")
+    }
+
+    fn sample_notes_requested_url() -> Url {
+        "https://www.sec.gov/files/dera/data/financial-statement-and-notes-data-sets/2024q1_notes.zip"
+            .parse()
+            .expect("A hardcoded valid URL string should always parse")
+    }
+
+    fn sample_notes_final_url() -> Url {
+        "https://www.sec.gov/files/dera/data/financial-statement-and-notes-data-sets/redirected/2024q1_notes.zip"
+            .parse()
+            .expect("A hardcoded valid URL string should always parse")
+    }
+
+    #[test]
+    fn should_put_the_requested_url_in_requested_url_when_creating_a_context_from_a_file() {
+        let file = sample_redirected_notes_file();
+
+        let expected_result = sample_notes_requested_url();
+
+        let result = RawDocumentMetadataContext::from_file(
+            &file,
+            &sample_notes_requested_url(),
+            &sample_user_agent(),
+        )
+        .requested_url;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_put_the_file_url_in_final_url_when_creating_a_context_from_a_file() {
+        let file = sample_redirected_notes_file();
+
+        let expected_result = sample_notes_final_url();
+
+        let result = RawDocumentMetadataContext::from_file(
+            &file,
+            &sample_notes_requested_url(),
+            &sample_user_agent(),
+        )
+        .final_url;
 
         assert_eq!(result, expected_result);
     }

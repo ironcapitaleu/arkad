@@ -12,7 +12,7 @@
 //! - [`sample_sec_super_state`]: A sample super-state wrapping [`sample_sec_state`].
 //! - [`sample_streaming_super_state`]: A multi-state super-state for streaming tests.
 //! - [`sample_write_repository`]: A fake repository that records or rejects raw documents.
-//! - [`data`]: Raw JSON fixtures (e.g. captured SEC responses).
+//! - [`data`]: Raw file fixtures (e.g. captured SEC responses).
 
 pub mod sample_http_client;
 pub mod sample_rate_limiter;
