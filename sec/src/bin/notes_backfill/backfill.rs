@@ -33,7 +33,7 @@ pub struct RunSummary(Vec<(String, PeriodOutcome)>);
 pub struct FailedBackfill {
     /// The number of periods that failed.
     pub failures: usize,
-    /// The number of periods of the run.
+    /// The number of periods in the run.
     pub periods: usize,
 }
 
@@ -51,6 +51,11 @@ impl RunSummary {
                 periods: self.0.len(),
             }),
         }
+    }
+
+    /// Returns the number of periods that stored their file.
+    pub fn success_count(&self) -> usize {
+        self.0.len() - self.failure_count()
     }
 
     /// Returns the number of periods that failed.

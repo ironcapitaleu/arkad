@@ -118,6 +118,17 @@ async fn should_return_failed_backfill_when_one_period_is_unpublished() {
 }
 
 #[tokio::test]
+async fn should_count_the_stored_periods_when_one_period_is_unpublished() {
+    let expected_result = 2;
+
+    let result = run_backfill(&["2009q1", UNPUBLISHED_PERIOD, "2009q2"])
+        .await
+        .success_count();
+
+    assert_eq!(result, expected_result);
+}
+
+#[tokio::test]
 async fn should_return_ok_when_every_period_is_stored() {
     let expected_result = Ok(());
 

@@ -23,21 +23,21 @@ use constants::NOTES_PERIODS;
 use sec_client::{USER_AGENT_ENV_VAR, default_user_agent_warning, sec_client, startup_error_cause};
 use storage_root::raw_notes_archive_writer;
 
-/// Top-level backfill events.
-enum BackfillEvent {
+/// Top-level batch events.
+enum BatchEvent {
     Complete,
     DefaultUserAgent,
     Failed,
     StartupFailed,
 }
 
-impl Display for BackfillEvent {
+impl Display for BatchEvent {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Complete => write!(f, "backfill_complete"),
-            Self::DefaultUserAgent => write!(f, "backfill_default_user_agent"),
-            Self::Failed => write!(f, "backfill_failed"),
-            Self::StartupFailed => write!(f, "backfill_startup_failed"),
+            Self::Complete => write!(f, "batch_complete"),
+            Self::DefaultUserAgent => write!(f, "batch_default_user_agent"),
+            Self::Failed => write!(f, "batch_failed"),
+            Self::StartupFailed => write!(f, "batch_startup_failed"),
         }
     }
 }
@@ -57,14 +57,14 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     let sec_client = sec_client().inspect_err(|error| {
         let cause = startup_error_cause(error.as_ref());
         tracing::error!(
-            event = %BackfillEvent::StartupFailed,
+            event = %BatchEvent::StartupFailed,
             message = %format!("Failed to build the SEC client, Caused by: {cause}"),
             context = %serde_json::json!({ "env_var": USER_AGENT_ENV_VAR }),
         );
     })?;
     if let Some(warning) = default_user_agent_warning(&sec_client) {
         tracing::warn!(
-            event = %BackfillEvent::DefaultUserAgent,
+            event = %BatchEvent::DefaultUserAgent,
             message = %warning,
             context = %serde_json::json!({ "env_var": USER_AGENT_ENV_VAR }),
         );
@@ -72,7 +72,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     let repository = raw_notes_archive_writer();
     fs::create_dir_all(repository.root()).inspect_err(|error| {
         tracing::error!(
-            event = %BackfillEvent::StartupFailed,
+            event = %BatchEvent::StartupFailed,
             message = %format!("Failed to create the storage root, Caused by: {error}"),
             context = %serde_json::json!({ "root": repository.root().display().to_string() }),
         );
@@ -117,7 +117,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
 
     let elapsed = start.elapsed();
     let failures = summary.failure_count();
-    let successes = NOTES_PERIODS.len() - failures;
+    let successes = summary.success_count();
     let context = serde_json::json!({
         "execution_id": execution_id,
         "successes": successes,
@@ -127,8 +127,8 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     });
     let message = format!("{successes} Notes files stored, {failures} failed in {elapsed:.2?}");
     summary.result().inspect_err(|_| {
-        tracing::error!(event = %BackfillEvent::Failed, message = %message, context = %context);
+        tracing::error!(event = %BatchEvent::Failed, message = %message, context = %context);
     })?;
-    tracing::info!(event = %BackfillEvent::Complete, message = %message, context = %context);
+    tracing::info!(event = %BatchEvent::Complete, message = %message, context = %context);
     Ok(())
 }
