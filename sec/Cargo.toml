@@ -56,6 +56,11 @@ name = "stream_etl"
 path = "src/bin/stream_etl/main.rs"
 required-features = ["tracing-logging"]
 
+[[bin]]
+name = "notes_backfill"
+path = "src/bin/notes_backfill/main.rs"
+required-features = ["tracing-logging"]
+
 [lints.rust]
 unsafe_code = "forbid"
 
