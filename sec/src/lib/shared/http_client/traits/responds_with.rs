@@ -3,9 +3,20 @@ use crate::shared::response::implementations::sec_response::{JsonBody, ResponseB
 
 /// An SEC endpoint that responds with a body of type [`RespondsWith::Body`].
 ///
-/// [`SecClient::execute_sec_request`](super::SecClient::execute_sec_request) reads this body
-/// type to choose the response type. The mapping lives on the client side, so `shared::request`
-/// does not depend on `shared::response`.
+/// The endpoint is the only link between a request and its response:
+///
+/// 1. A request carries its endpoint `E` as a type: [`SecRequest<E>`].
+/// 2. `E` names its body here, for example `NotesFile` responds with a [`ZipBody`].
+/// 3. [`SecClient::execute_sec_request`](super::SecClient::execute_sec_request) returns a
+///    `Response<E::Body>`, so the client builds and checks the body that `E` names.
+///
+/// So a `SecRequest<NotesFile>` always gives a response with a [`ZipBody`]. Code that expects a
+/// [`JsonBody`] from it does not compile.
+///
+/// This trait lives on the client side, so `shared::request` does not depend on
+/// `shared::response`.
+///
+/// [`SecRequest<E>`]: crate::shared::request::implementations::sec_request::SecRequest
 pub trait RespondsWith: RequestKind {
     /// The body of the response from this endpoint.
     type Body: ResponseBody;
