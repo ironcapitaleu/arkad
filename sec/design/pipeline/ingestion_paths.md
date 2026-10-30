@@ -490,7 +490,7 @@ This rule needs no list of SEC holidays.
 
 `StoreDailyIndex` writes the index as one `RawDocument<RawDailyIndex>` under
 `sec/daily-index/form.YYYYMMDD.idx`, with the ingestion mode `incremental`. It shares the
-constructor `RawDocument::from_file` with `StoreNotesArchive`, so the bytes are not copied.
+constructor `RawDocument::from_file` with `StoreNotesArchive`, so the state copies no bytes.
 Decided in STA-370:
 
 - The output holds the key and the index text as `bytes::Bytes`. The text shares the body buffer
@@ -499,8 +499,6 @@ Decided in STA-370:
 - The state reads the response from its input and does not take it. The index is tens of KB, so
   the input can keep it. A taken response would leave `None` behind, which means a day without
   filings, so a second run would skip the write.
-- The repository bound is `DailyIndexRepository`, the same as `NotesRepository` for
-  `RawDocument<RawDailyIndex>`.
 
 ### Filing Selection
 

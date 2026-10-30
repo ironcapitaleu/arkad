@@ -90,8 +90,6 @@ fn daily_index_key(date: IndexDate) -> DocumentKey {
 impl<R: DailyIndexRepository> State for StoreDailyIndex<R> {
     /// Writes the daily index to the repository and stores its key and text as output.
     ///
-    /// The output text shares the body buffer of the response, so the bytes are not copied.
-    ///
     /// # Errors
     ///
     /// Returns [`StateError::FailedDocumentWrite`] if the repository rejects the write.
@@ -425,8 +423,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_write_no_document_for_a_day_without_filings_even_if_the_repository_rejects_writes()
-     {
+    async fn should_succeed_for_a_day_without_filings_when_the_repository_rejects_writes() {
         let write_error = WriteError::conflicting_write(CONFLICT_REASON);
         let mut state = state_without_filings(FakeDailyIndexRepository::rejecting(write_error));
 
