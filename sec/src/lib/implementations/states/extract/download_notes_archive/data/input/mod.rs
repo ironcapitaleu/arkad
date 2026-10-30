@@ -10,14 +10,14 @@ use serde::Serialize;
 use state_maschine::prelude::StateData as SMStateData;
 
 use crate::error::State as StateError;
-use crate::shared::request::implementations::sec_request::SecRequest;
+use crate::shared::request::implementations::sec_request::{NotesFile, SecRequest};
 use crate::traits::state_machine::state::StateData;
 
 /// Input data for the [`DownloadNotesArchive`](super::super::DownloadNotesArchive) state.
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
 pub struct DownloadNotesArchiveInput {
     /// The request for the Notes file.
-    pub request: SecRequest,
+    pub request: SecRequest<NotesFile>,
 }
 
 impl DownloadNotesArchiveInput {
@@ -42,7 +42,7 @@ impl DownloadNotesArchiveInput {
     /// assert_eq!(result, expected_result);
     /// ```
     #[must_use]
-    pub const fn new(request: SecRequest) -> Self {
+    pub const fn new(request: SecRequest<NotesFile>) -> Self {
         Self { request }
     }
 }
@@ -88,7 +88,7 @@ impl fmt::Display for DownloadNotesArchiveInput {
 #[derive(Debug)]
 pub struct DownloadNotesArchiveInputUpdater {
     /// The new request.
-    pub request: Option<SecRequest>,
+    pub request: Option<SecRequest<NotesFile>>,
 }
 
 impl DownloadNotesArchiveInputUpdater {
@@ -102,7 +102,7 @@ impl DownloadNotesArchiveInputUpdater {
 /// Fluent builder for a [`DownloadNotesArchiveInputUpdater`].
 #[derive(Debug, Default)]
 pub struct DownloadNotesArchiveInputUpdaterBuilder {
-    request: Option<SecRequest>,
+    request: Option<SecRequest<NotesFile>>,
 }
 
 impl DownloadNotesArchiveInputUpdaterBuilder {
@@ -115,7 +115,7 @@ impl DownloadNotesArchiveInputUpdaterBuilder {
     /// Sets the request.
     #[must_use]
     #[allow(clippy::missing_const_for_fn)]
-    pub fn request(mut self, request: SecRequest) -> Self {
+    pub fn request(mut self, request: SecRequest<NotesFile>) -> Self {
         self.request = Some(request);
         self
     }
@@ -139,7 +139,7 @@ mod tests {
     use super::*;
     use crate::shared::notes_period::NotesPeriod;
 
-    fn notes_request(period: &str) -> SecRequest {
+    fn notes_request(period: &str) -> SecRequest<NotesFile> {
         let period = NotesPeriod::new(period)
             .expect("Given a hardcoded published period, parsing should always succeed");
         SecRequest::builder().notes_file().period(period).build()

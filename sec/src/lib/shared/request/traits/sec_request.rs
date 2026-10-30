@@ -3,6 +3,7 @@ use std::fmt::Debug;
 use async_trait::async_trait;
 
 use crate::shared::request::InnerRequest;
+use crate::shared::request::implementations::sec_request::RequestKind;
 
 /// The domain-level SEC request: builds a raw HTTP request from SEC concepts.
 ///
@@ -17,12 +18,15 @@ use crate::shared::request::InnerRequest;
 ///
 /// - `Inner`: The raw HTTP request this trait delegates to. Must implement [`InnerRequest`].
 /// - `RequestInput`: The input data from which the request is constructed.
+/// - `Kind`: The [`RequestKind`] of the request.
 #[async_trait]
 pub trait SecRequest: Send + Sync + Debug {
     /// The raw HTTP request this trait delegates to. Must implement [`InnerRequest`].
     type Inner: InnerRequest;
     /// The input data from which the request is constructed.
     type RequestInput;
+    /// The [`RequestKind`] of the request.
+    type Kind: RequestKind;
 
     /// Returns a reference to the underlying raw HTTP request.
     fn inner(&self) -> &Self::Inner;

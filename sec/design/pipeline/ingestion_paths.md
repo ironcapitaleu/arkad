@@ -192,6 +192,23 @@ error. A later improvement can compare the list with the SEC page.
   `FetchNotesFile { period: NotesPeriod }`.
 - The builder gets the same typestate pattern. `notes_file()` returns `NotesFileBuilder<NoPeriod>`.
   `.period(p)` returns `NotesFileBuilder<NotesPeriod>`. Only that type has `build()`.
+- The request carries its kind: `SecRequest<K: RequestKind = CompanyFacts>`. The kind names the
+  input and builds the `SecRequestType`:
+
+  ```rust
+  pub trait RequestKind {
+      type Input;
+      fn request_type(input: Self::Input) -> SecRequestType;
+  }
+  ```
+
+  - `CompanyFacts` has `Input = Cik`. `NotesFile` has `Input = NotesPeriod`.
+  - The builder sets the kind. `.all_company_facts().cik(c).build()` returns
+    `SecRequest<CompanyFacts>`, and `.notes_file().period(p).build()` returns `SecRequest<NotesFile>`.
+  - Generic code builds a request without the builder: `SecRequest::<K>::new(input)`, with
+    `input: K::Input`. A wrong input does not compile.
+  - The request knows nothing about responses. STA-382 adds the map from a kind to its body kind
+    in the client.
 
 ### Download
 
@@ -211,9 +228,11 @@ on the `SecClient` trait, so the trait fakes do not change:
 ```rust
 pub async fn download_sec_file(
     &self,
-    request: SecRequest,
+    request: SecRequest<NotesFile>,
 ) -> Result<SecResponse<ZipBody>, FailedSecRequest>;
 ```
+
+`execute_sec_request` takes a `SecRequest<CompanyFacts>`, so a Notes request does not compile there.
 
 `SecResponse<B>` holds the URL, the headers, the content type, the status code, the body, and the
 SHA-256 of the body. `ZipBody` accepts only status 200 and the content types `application/octet-stream`
