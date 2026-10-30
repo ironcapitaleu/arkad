@@ -32,6 +32,9 @@ const FORM_COLUMN_WIDTH: usize = 17;
 /// The format of the date filed field, as in `20261027`.
 const FILED_DATE_FORMAT: &str = "%Y%m%d";
 
+/// The length of the date filed field.
+const FILED_DATE_LENGTH: usize = 8;
+
 /// The extension of the file name field, as in `edgar/data/320193/0000320193-26-000106.txt`.
 const FILE_NAME_EXTENSION: &str = ".txt";
 
@@ -47,7 +50,7 @@ pub struct DailyIndexRow {
 
 /// Parses the text of an EDGAR daily index into one [`DailyIndexRow`] per row line.
 ///
-/// Skips every line up to the line of dashes, and skips blank lines after it. Accepts `\n` and
+/// Skips every line up to the first line that starts with `---`, and skips blank lines after it. Accepts `\n` and
 /// `\r\n` line endings.
 ///
 /// # Errors
@@ -151,12 +154,11 @@ impl DailyIndexRow {
         let cik = Cik::new(cik).map_err(|_| InvalidDailyIndexLineReason::InvalidCik {
             cik: cik.to_string(),
         })?;
-        let filed_date =
-            NaiveDate::parse_from_str(filed_date, FILED_DATE_FORMAT).map_err(|_| {
-                InvalidDailyIndexLineReason::InvalidFiledDate {
-                    filed_date: filed_date.to_string(),
-                }
-            })?;
+        let filed_date = filed_date_of(filed_date).ok_or_else(|| {
+            InvalidDailyIndexLineReason::InvalidFiledDate {
+                filed_date: filed_date.to_string(),
+            }
+        })?;
         let accession_number = accession_number_of(file_name).ok_or_else(|| {
             InvalidDailyIndexLineReason::InvalidFileName {
                 file_name: file_name.to_string(),
@@ -170,6 +172,19 @@ impl DailyIndexRow {
             accession_number,
         ))
     }
+}
+
+/// Returns the date of an 8-digit text such as `20261027`, or `None` if it has another shape.
+///
+/// Checks the length first, because `%Y%m%d` also accepts a 1-digit month or day, as in
+/// `2026102`.
+fn filed_date_of(text: &str) -> Option<NaiveDate> {
+    let is_filed_date_shape =
+        text.len() == FILED_DATE_LENGTH && text.bytes().all(|byte| byte.is_ascii_digit());
+
+    is_filed_date_shape
+        .then(|| NaiveDate::parse_from_str(text, FILED_DATE_FORMAT).ok())
+        .flatten()
 }
 
 /// Returns the accession number at the end of a file name such as
@@ -198,6 +213,9 @@ mod tests {
     use crate::tests::fixtures::data::daily_index::SAMPLE_DAILY_INDEX;
 
     const FILE_NAME: &str = "edgar/data/320193/0000320193-26-000106.txt";
+
+    /// The index of row 10 of the fixture, the second filer of a filing with two filers.
+    const SECOND_FILER_ROW_INDEX: usize = 9;
 
     /// Builds a row line with the column widths of a real daily index.
     fn row_line(form_text: &str, cik: &str, filed_date: &str, file_name: &str) -> String {
@@ -249,7 +267,7 @@ mod tests {
     fn should_return_second_filer_of_multi_filer_filing_for_sample_daily_index() {
         let expected_result = row("10-Q", "201533", "0000811156-26-000032");
 
-        let result = parse_sample_daily_index().swap_remove(9);
+        let result = parse_sample_daily_index().swap_remove(SECOND_FILER_ROW_INDEX);
 
         assert_eq!(result, expected_result);
     }
@@ -340,6 +358,31 @@ mod tests {
         });
 
         let result = parse_row_line(&row_line("10-K", "320193", "20261332", FILE_NAME));
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_invalid_filed_date_when_filed_date_has_seven_digits() {
+        let expected_result = invalid_second_line(InvalidDailyIndexLineReason::InvalidFiledDate {
+            filed_date: "2026102".to_string(),
+        });
+
+        let result = parse_row_line(&row_line("10-K", "320193", "2026102", FILE_NAME));
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_parse_row_when_company_name_overflows_its_column() {
+        let line = format!(
+            "{:<17}{} 320193 20261027 {FILE_NAME}",
+            "10-K",
+            "A".repeat(70)
+        );
+        let expected_result = Ok(vec![row("10-K", "320193", "0000320193-26-000106")]);
+
+        let result = parse_row_line(&line);
 
         assert_eq!(result, expected_result);
     }

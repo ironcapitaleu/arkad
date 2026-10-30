@@ -9,7 +9,7 @@ use serde::Serialize;
 use crate::shared::cik::Cik;
 use crate::shared::daily_index_row::DailyIndexRow;
 use crate::shared::financial::accession_number::AccessionNumber;
-use crate::shared::financial::form::{Form, ParsedForm, UnsupportedForm};
+use crate::shared::financial::form::{Form, ParsedForm, SELECTED_FORMS, UnsupportedForm};
 
 /// The filer, the accession number, the form, and the date filed of one filing to fetch.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
@@ -73,15 +73,17 @@ impl FilingRef {
 impl TryFrom<&DailyIndexRow> for FilingRef {
     type Error = UnsupportedForm;
 
-    /// Converts a row whose form is in [`SELECTED_FORMS`](crate::shared::financial::form::SELECTED_FORMS),
-    /// or an amendment of one.
+    /// Converts a row whose form is in [`SELECTED_FORMS`], or an amendment of one.
     ///
     /// # Errors
     ///
-    /// Returns an [`UnsupportedForm`] if [`Form::from_sec_str`] rejects the form text of the row.
-    /// Every [`Form`] variant is in `SELECTED_FORMS`, so this rejects every other form.
+    /// Returns an [`UnsupportedForm`] if [`Form::from_sec_str`] rejects the form text of the row,
+    /// or if its form is not in [`SELECTED_FORMS`].
     fn try_from(row: &DailyIndexRow) -> Result<Self, Self::Error> {
         let parsed_form = Form::from_sec_str(row.form_text())?;
+        if !SELECTED_FORMS.contains(&parsed_form.form()) {
+            return Err(UnsupportedForm::new(row.form_text()));
+        }
 
         Ok(Self::new(
             row.cik().clone(),
@@ -97,7 +99,6 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;
-    use crate::shared::financial::form::SELECTED_FORMS;
 
     const ACCESSION_NUMBER: &str = "0000320193-26-000106";
 
