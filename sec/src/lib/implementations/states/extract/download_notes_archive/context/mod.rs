@@ -10,10 +10,11 @@ use serde::Serialize;
 use state_maschine::prelude::Context as SMContext;
 use uuid::Uuid;
 
-use crate::implementations::states::extract::notes_repository::NotesRepository;
 use crate::shared::http_client::SecClient as SecClientTrait;
 use crate::shared::http_client::implementations::sec_client::SecClient;
 use crate::shared::notes_period::NotesPeriod;
+use crate::shared::raw_repository::RawRepository;
+use crate::shared::raw_source::RawNotesArchive;
 use crate::traits::state_machine::state::Context;
 
 /// Context for the [`DownloadNotesArchive`](super::DownloadNotesArchive) state.
@@ -69,13 +70,17 @@ impl<R, C> DownloadNotesArchiveContext<R, C> {
     }
 }
 
-impl<R: NotesRepository, C: SecClientTrait> Context for DownloadNotesArchiveContext<R, C> {
+impl<R: RawRepository<RawNotesArchive>, C: SecClientTrait> Context
+    for DownloadNotesArchiveContext<R, C>
+{
     fn max_retries(&self) -> u32 {
         self.max_retries
     }
 }
 
-impl<R: NotesRepository, C: SecClientTrait> SMContext for DownloadNotesArchiveContext<R, C> {
+impl<R: RawRepository<RawNotesArchive>, C: SecClientTrait> SMContext
+    for DownloadNotesArchiveContext<R, C>
+{
     type UpdateType = DownloadNotesArchiveContextUpdater<R, C>;
 
     fn context(&self) -> &Self {

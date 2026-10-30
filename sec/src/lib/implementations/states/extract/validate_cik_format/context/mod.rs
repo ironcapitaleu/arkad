@@ -45,9 +45,10 @@ use std::fmt;
 use serde::Serialize;
 use state_maschine::prelude::Context as SMContext;
 
-use crate::implementations::states::extract::store_company_facts::RawCompanyFactsRepository;
 use crate::shared::http_client::SecClient as SecClientTrait;
 use crate::shared::http_client::implementations::sec_client::SecClient;
+use crate::shared::raw_repository::RawRepository;
+use crate::shared::raw_source::RawCompanyFacts;
 use crate::traits::state_machine::state::Context;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
@@ -97,14 +98,18 @@ impl<R, C> ValidateCikFormatContext<R, C> {
     }
 }
 
-impl<R: RawCompanyFactsRepository, C: SecClientTrait> Context for ValidateCikFormatContext<R, C> {
+impl<R: RawRepository<RawCompanyFacts>, C: SecClientTrait> Context
+    for ValidateCikFormatContext<R, C>
+{
     /// Returns the maximum number of retries allowed for CIK validation.
     fn max_retries(&self) -> u32 {
         self.max_retries
     }
 }
 
-impl<R: RawCompanyFactsRepository, C: SecClientTrait> SMContext for ValidateCikFormatContext<R, C> {
+impl<R: RawRepository<RawCompanyFacts>, C: SecClientTrait> SMContext
+    for ValidateCikFormatContext<R, C>
+{
     type UpdateType = ValidateCikFormatContextUpdater<R, C>;
 
     /// Returns a reference to the current context.

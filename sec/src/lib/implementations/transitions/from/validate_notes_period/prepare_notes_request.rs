@@ -3,8 +3,9 @@
 //! Implements the [`TryFrom`] conversion producing a [`PrepareNotesRequest`] from a
 //! [`ValidateNotesPeriod`].
 //!
-//! It moves the validated [`NotesPeriod`](crate::shared::notes_period::NotesPeriod) from the output
-//! of the source state, and the `execution_id` and the storage repository from its context.
+//! It builds the state with the [`PrepareSecRequest`] builder from the validated
+//! [`NotesPeriod`](crate::shared::notes_period::NotesPeriod) in the output of the source state and
+//! the storage repository in its context. The `execution_id` stays in the state machine context.
 //!
 //! # Errors
 //!
@@ -13,14 +14,16 @@
 
 use crate::error::state_machine::transition;
 use crate::error::state_machine::transition::Transition as TransitionError;
-use crate::implementations::states::extract::prepare_notes_request::constants::STATE_NAME as PREPARE_NOTES_REQUEST;
-use crate::implementations::states::extract::prepare_notes_request::{
-    PrepareNotesRequest, PrepareNotesRequestContext, PrepareNotesRequestInput,
+use crate::implementations::states::extract::prepare_sec_request::{
+    PrepareNotesRequest, PrepareSecRequest,
 };
 use crate::implementations::states::extract::validate_notes_period::ValidateNotesPeriod;
 use crate::implementations::states::extract::validate_notes_period::constants::STATE_NAME as VALIDATE_NOTES_PERIOD;
+use crate::shared::raw_repository::RawRepository;
+use crate::shared::raw_source::RawNotesArchive;
+use crate::shared::request::implementations::sec_request::{NotesFile, RequestKind};
 
-impl<R> TryFrom<ValidateNotesPeriod<R>> for PrepareNotesRequest<R> {
+impl<R: RawRepository<RawNotesArchive>> TryFrom<ValidateNotesPeriod<R>> for PrepareNotesRequest<R> {
     type Error = TransitionError;
 
     /// Builds a [`PrepareNotesRequest`] from a computed [`ValidateNotesPeriod`].
@@ -31,13 +34,14 @@ impl<R> TryFrom<ValidateNotesPeriod<R>> for PrepareNotesRequest<R> {
     fn try_from(state: ValidateNotesPeriod<R>) -> Result<Self, TransitionError> {
         let (_input, output, context) = state.into_parts();
         let output_data = output.ok_or_else(|| {
-            transition::MissingOutput::new(VALIDATE_NOTES_PERIOD, PREPARE_NOTES_REQUEST)
+            transition::MissingOutput::new(VALIDATE_NOTES_PERIOD, NotesFile::PREPARE_STATE_NAME)
         })?;
 
-        let new_input = PrepareNotesRequestInput::new(output_data.notes_period);
-        let new_context = PrepareNotesRequestContext::new(context.execution_id, context.repository);
-
-        Ok(Self::new(new_input, new_context))
+        Ok(PrepareSecRequest::builder()
+            .notes_file()
+            .period(output_data.notes_period)
+            .repository(context.repository)
+            .build())
     }
 }
 
@@ -69,7 +73,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_move_period_execution_id_and_repository_when_source_has_output() {
+    async fn should_move_period_and_repository_when_source_has_output() {
         let mut state = validate_notes_period();
         state.compute_output_data_async().await.expect(
             "Given the hardcoded published quarter '2024q1', validation should always succeed",
@@ -77,10 +81,11 @@ mod tests {
 
         let period = NotesPeriod::new("2024q1")
             .expect("Given a hardcoded published quarter, parsing should always succeed");
-        let expected_result = Ok(PrepareNotesRequest::new(
-            PrepareNotesRequestInput::new(period),
-            PrepareNotesRequestContext::new(SAMPLE_EXECUTION_ID, rejecting_repository()),
-        ));
+        let expected_result = Ok(PrepareSecRequest::builder()
+            .notes_file()
+            .period(period)
+            .repository(rejecting_repository())
+            .build());
 
         let result = PrepareNotesRequest::try_from(state);
 
@@ -92,7 +97,7 @@ mod tests {
         let state = validate_notes_period();
 
         let expected_result = Err(TransitionError::MissingOutput(
-            transition::MissingOutput::new(VALIDATE_NOTES_PERIOD, PREPARE_NOTES_REQUEST),
+            transition::MissingOutput::new(VALIDATE_NOTES_PERIOD, "Prepare Notes Request"),
         ));
 
         let result = PrepareNotesRequest::try_from(state);

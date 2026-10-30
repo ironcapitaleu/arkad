@@ -2,8 +2,7 @@
 //!
 //! Provides the [`StoreCompanyFactsContext`] carried alongside the
 //! [`StoreCompanyFacts`](crate::implementations::states::extract::store_company_facts::StoreCompanyFacts)
-//! state, together with its updater, its builder, and the [`RawCompanyFactsRepository`] bound on
-//! the repository it holds.
+//! state, together with its updater and its builder.
 //!
 //! The context holds the [`Cik`] being processed, the `execution_id`, the repository that stores
 //! the document, and the retry budget.
@@ -13,47 +12,12 @@ use std::hash::Hash;
 
 use serde::Serialize;
 use state_maschine::prelude::Context as SMContext;
-use storage::WriteRepository;
 use uuid::Uuid;
 
 use crate::shared::cik::Cik;
-use crate::shared::raw_document::RawDocument;
+use crate::shared::raw_repository::RawRepository;
 use crate::shared::raw_source::RawCompanyFacts;
 use crate::traits::state_machine::state::Context;
-
-/// A [`WriteRepository`] of raw Company Facts documents that a state context can hold.
-///
-/// A state context must implement the value traits, `Serialize` and `Display`, so the repository
-/// must implement them too. Every type that meets the bounds implements this trait.
-pub trait RawCompanyFactsRepository:
-    WriteRepository<Record = RawDocument<RawCompanyFacts>>
-    + Debug
-    + Clone
-    + PartialEq
-    + Eq
-    + PartialOrd
-    + Ord
-    + Hash
-    + Unpin
-    + Serialize
-    + Display
-{
-}
-
-impl<R> RawCompanyFactsRepository for R where
-    R: WriteRepository<Record = RawDocument<RawCompanyFacts>>
-        + Debug
-        + Clone
-        + PartialEq
-        + Eq
-        + PartialOrd
-        + Ord
-        + Hash
-        + Unpin
-        + Serialize
-        + Display
-{
-}
 
 /// Context for the [`StoreCompanyFacts`](super::StoreCompanyFacts) state.
 ///
@@ -102,13 +66,13 @@ impl<R> StoreCompanyFactsContext<R> {
     }
 }
 
-impl<R: RawCompanyFactsRepository> Context for StoreCompanyFactsContext<R> {
+impl<R: RawRepository<RawCompanyFacts>> Context for StoreCompanyFactsContext<R> {
     fn max_retries(&self) -> u32 {
         self.max_retries
     }
 }
 
-impl<R: RawCompanyFactsRepository> SMContext for StoreCompanyFactsContext<R> {
+impl<R: RawRepository<RawCompanyFacts>> SMContext for StoreCompanyFactsContext<R> {
     type UpdateType = StoreCompanyFactsContextUpdater<R>;
 
     fn context(&self) -> &Self {
@@ -395,11 +359,5 @@ mod tests {
     #[test]
     const fn should_implement_context_for_store_company_facts_context() {
         implements_context::<StoreCompanyFactsContext<FakeWriteRepository>>();
-    }
-
-    const fn implements_raw_company_facts_repository<T: RawCompanyFactsRepository>() {}
-    #[test]
-    const fn should_implement_raw_company_facts_repository_for_fake_write_repository() {
-        implements_raw_company_facts_repository::<FakeWriteRepository>();
     }
 }
