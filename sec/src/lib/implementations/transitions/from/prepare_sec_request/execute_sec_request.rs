@@ -1,6 +1,6 @@
 //! # Transition: `PrepareSecRequest` → `ExecuteSecRequest`
 //!
-//! Implements the [`TryFrom`] conversion producing an [`ExecuteSecRequest`] from a
+//! Implements the [`TryFrom`] conversion producing an [`ExecuteCompanyFactsRequest`] from a
 //! [`PrepareSecRequest`].
 //!
 //! It moves the prepared client and request from the source state's output into the next state's
@@ -16,27 +16,30 @@ use crate::error::state_machine::transition;
 use crate::error::state_machine::transition::Transition as TransitionError;
 use crate::implementations::states::extract::execute_sec_request::constants::STATE_NAME as EXECUTE_SEC_REQUEST;
 use crate::implementations::states::extract::execute_sec_request::{
-    ExecuteSecRequest, ExecuteSecRequestContext, ExecuteSecRequestInput,
+    ExecuteCompanyFactsRequest, ExecuteSecRequestContext, ExecuteSecRequestInput,
 };
 use crate::implementations::states::extract::prepare_sec_request::constants::STATE_NAME as PREPARE_SEC_REQUEST;
 use crate::implementations::states::extract::prepare_sec_request::{
     PrepareSecRequest, PrepareSecRequestContext, PrepareSecRequestOutput,
 };
 use crate::shared::http_client::SecClient as SecClientTrait;
+use crate::shared::request::implementations::sec_request::CompanyFacts;
 
-impl<R> From<PrepareSecRequestContext<R>> for ExecuteSecRequestContext<R> {
+impl<R> From<PrepareSecRequestContext<R>> for ExecuteSecRequestContext<CompanyFacts, R> {
     fn from(context: PrepareSecRequestContext<R>) -> Self {
         Self::new(context.cik, context.repository)
     }
 }
 
-impl<C: SecClientTrait> From<PrepareSecRequestOutput<C>> for ExecuteSecRequestInput<C> {
+impl<C: SecClientTrait> From<PrepareSecRequestOutput<C>>
+    for ExecuteSecRequestInput<CompanyFacts, C>
+{
     fn from(output_data: PrepareSecRequestOutput<C>) -> Self {
         Self::new(output_data.client, output_data.request)
     }
 }
 
-impl<R, C: SecClientTrait> TryFrom<PrepareSecRequest<R, C>> for ExecuteSecRequest<R, C> {
+impl<R, C: SecClientTrait> TryFrom<PrepareSecRequest<R, C>> for ExecuteCompanyFactsRequest<R, C> {
     type Error = TransitionError;
 
     fn try_from(state: PrepareSecRequest<R, C>) -> Result<Self, TransitionError> {
@@ -45,8 +48,8 @@ impl<R, C: SecClientTrait> TryFrom<PrepareSecRequest<R, C>> for ExecuteSecReques
             transition::MissingOutput::new(PREPARE_SEC_REQUEST, EXECUTE_SEC_REQUEST)
         })?;
 
-        let new_context: ExecuteSecRequestContext<R> = context.into();
-        let new_input: ExecuteSecRequestInput<C> = output_data.into();
+        let new_context: ExecuteSecRequestContext<CompanyFacts, R> = context.into();
+        let new_input: ExecuteSecRequestInput<CompanyFacts, C> = output_data.into();
 
         Ok(Self::new(new_input, new_context))
     }
@@ -108,7 +111,7 @@ mod tests {
 
         let expected_result = true;
 
-        let result = ExecuteSecRequest::try_from(state).is_ok();
+        let result = ExecuteCompanyFactsRequest::try_from(state).is_ok();
 
         assert_eq!(result, expected_result);
     }
@@ -124,7 +127,7 @@ mod tests {
 
         let expected_result = true;
 
-        let result = ExecuteSecRequest::try_from(state).is_err();
+        let result = ExecuteCompanyFactsRequest::try_from(state).is_err();
 
         assert_eq!(result, expected_result);
     }

@@ -1,7 +1,7 @@
 //! # Transition: `ExecuteSecRequest` → `StoreCompanyFacts`
 //!
 //! Implements the [`TryFrom`] conversion producing a [`StoreCompanyFacts`] from an
-//! [`ExecuteSecRequest`] and the `execution_id`.
+//! [`ExecuteCompanyFactsRequest`] and the `execution_id`.
 //!
 //! It moves the response from the output of the source state, the requested URL from its
 //! [`SecRequest`], the `User-Agent` from its [`SecClient`], and the CIK and the storage repository
@@ -15,11 +15,13 @@
 //! request names a different CIK from its context
 //! ([`FailedContextConversion`](crate::error::state_machine::transition::FailedContextConversion)).
 
+use std::sync::Arc;
+
 use uuid::Uuid;
 
 use crate::error::state_machine::transition;
 use crate::error::state_machine::transition::Transition as TransitionError;
-use crate::implementations::states::extract::execute_sec_request::ExecuteSecRequest;
+use crate::implementations::states::extract::execute_sec_request::ExecuteCompanyFactsRequest;
 use crate::implementations::states::extract::execute_sec_request::constants::STATE_NAME as EXECUTE_SEC_REQUEST;
 use crate::implementations::states::extract::store_company_facts::constants::STATE_NAME as STORE_COMPANY_FACTS;
 use crate::implementations::states::extract::store_company_facts::{
@@ -31,10 +33,12 @@ use crate::shared::http_client::implementations::sec_client::SecClient;
 use crate::shared::request::implementations::sec_request::SecRequest;
 use crate::shared::url::Url;
 
-impl<R, C: SecClientTrait> TryFrom<(ExecuteSecRequest<R, C>, Uuid)> for StoreCompanyFacts<R> {
+impl<R, C: SecClientTrait> TryFrom<(ExecuteCompanyFactsRequest<R, C>, Uuid)>
+    for StoreCompanyFacts<R>
+{
     type Error = TransitionError;
 
-    /// Builds a [`StoreCompanyFacts`] from a computed [`ExecuteSecRequest`] and the `execution_id`.
+    /// Builds a [`StoreCompanyFacts`] from a computed [`ExecuteCompanyFactsRequest`] and the `execution_id`.
     ///
     /// # Errors
     ///
@@ -44,7 +48,7 @@ impl<R, C: SecClientTrait> TryFrom<(ExecuteSecRequest<R, C>, Uuid)> for StoreCom
     /// different CIK from its context. The stored key follows the context CIK, so a mismatch stores
     /// a response under the wrong company.
     fn try_from(
-        (state, execution_id): (ExecuteSecRequest<R, C>, Uuid),
+        (state, execution_id): (ExecuteCompanyFactsRequest<R, C>, Uuid),
     ) -> Result<Self, TransitionError> {
         let (input, output, context) = state.into_parts();
         let output_data = output.ok_or_else(|| {
@@ -53,13 +57,13 @@ impl<R, C: SecClientTrait> TryFrom<(ExecuteSecRequest<R, C>, Uuid)> for StoreCom
 
         let context_request = SecRequest::builder()
             .all_company_facts()
-            .cik(context.cik.clone())
+            .cik(context.request_input.clone())
             .build();
         if input.sec_request != context_request {
             let reason = format!(
                 "The request targets '{}', but the context names CIK '{}'",
                 input.sec_request.inner.url(),
-                context.cik
+                context.request_input
             );
             return Err(transition::FailedContextConversion::new(
                 EXECUTE_SEC_REQUEST,
@@ -71,10 +75,13 @@ impl<R, C: SecClientTrait> TryFrom<(ExecuteSecRequest<R, C>, Uuid)> for StoreCom
 
         let requested_url = Url::from(input.sec_request.inner.url().clone());
         let user_agent = input.sec_client.user_agent().clone();
-        let new_input =
-            StoreCompanyFactsInput::new(output_data.response, requested_url, user_agent);
+        let new_input = StoreCompanyFactsInput::new(
+            Arc::unwrap_or_clone(output_data.response),
+            requested_url,
+            user_agent,
+        );
         let new_context =
-            StoreCompanyFactsContext::new(context.cik, execution_id, context.repository);
+            StoreCompanyFactsContext::new(context.request_input, execution_id, context.repository);
 
         Ok(Self::new(new_input, new_context))
     }
@@ -97,6 +104,7 @@ mod tests {
     use crate::shared::headers::Headers;
     use crate::shared::http_client::implementations::reqwest_client::ReqwestClient;
     use crate::shared::http_client::implementations::sec_client::SecClient;
+    use crate::shared::request::implementations::sec_request::CompanyFacts;
     use crate::shared::response::implementations::sec_response::SecResponse;
     use crate::shared::status_code::StatusCode;
     use crate::shared::user_agent::UserAgent;
@@ -141,14 +149,16 @@ mod tests {
         .expect("Given the hardcoded JSON body '{}', building the response should always succeed")
     }
 
-    fn sample_context() -> ExecuteSecRequestContext<FakeWriteRepository> {
+    fn sample_context() -> ExecuteSecRequestContext<CompanyFacts, FakeWriteRepository> {
         ExecuteSecRequestContext::new(sample_cik(), rejecting_repository())
     }
 
-    fn execute_sec_request_without_output(cik: Cik) -> ExecuteSecRequest<FakeWriteRepository> {
+    fn execute_sec_request_without_output(
+        cik: Cik,
+    ) -> ExecuteCompanyFactsRequest<FakeWriteRepository> {
         let request = SecRequest::builder().all_company_facts().cik(cik).build();
         let input = ExecuteSecRequestInput::new(sec_client_with_other_user_agent(), request);
-        ExecuteSecRequest::new(input, sample_context())
+        ExecuteCompanyFactsRequest::new(input, sample_context())
     }
 
     fn store_company_facts() -> StoreCompanyFacts<FakeWriteRepository> {
