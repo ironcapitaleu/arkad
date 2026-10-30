@@ -4,6 +4,7 @@
 //! Statement and Notes file.
 
 use async_trait::async_trait;
+use bytes::Bytes;
 use storage::shared::Sha256Digest;
 
 use crate::shared::content_type::ContentType;
@@ -20,6 +21,8 @@ const CONTENT_LENGTH_HEADER: &str = "content-length";
 
 /// The bytes of a ZIP file, exactly as the server sent them.
 ///
+/// The body is a [`Bytes`], so [`ZipBody::to_bytes`] shares the buffer instead of copying it.
+///
 /// Accepts status 200 only, and the [`ContentType::OctetStream`] or [`ContentType::Zip`]
 /// content type. If the `Content-Length` header is present, the body has exactly that many bytes.
 ///
@@ -34,13 +37,13 @@ const CONTENT_LENGTH_HEADER: &str = "content-length";
 /// assert_clone::<SecResponse<ZipBody>>();
 /// ```
 #[derive(Debug)]
-pub struct ZipBody(Vec<u8>);
+pub struct ZipBody(Bytes);
 
 impl ZipBody {
-    /// Consumes the body and returns the bytes without a copy.
+    /// Returns the bytes as a [`Bytes`] that shares the buffer, so the call copies a pointer.
     #[must_use]
-    pub fn into_bytes(self) -> Vec<u8> {
-        self.0
+    pub fn to_bytes(&self) -> Bytes {
+        self.0.clone()
     }
 }
 
@@ -83,7 +86,7 @@ impl ResponseBody for ZipBody {
     ) -> Result<(Self, Sha256Digest), InvalidSecResponse> {
         check_content_length(headers, &raw_body)?;
         let body_digest = Sha256Digest::of(&raw_body);
-        Ok((Self(raw_body), body_digest))
+        Ok((Self(Bytes::from(raw_body)), body_digest))
     }
 
     /// Checks the body length, and hashes the body on the blocking thread pool with
@@ -99,7 +102,7 @@ impl ResponseBody for ZipBody {
     ) -> Result<(Self, Sha256Digest), InvalidSecResponse> {
         check_content_length(headers, &raw_body)?;
         let (body_digest, raw_body) = Sha256Digest::of_owned_async(raw_body).await;
-        Ok((Self(raw_body), body_digest))
+        Ok((Self(Bytes::from(raw_body)), body_digest))
     }
 
     fn content(&self) -> &Self::Content {

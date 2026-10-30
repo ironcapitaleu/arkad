@@ -17,6 +17,7 @@ tracing-subscriber = { version = "0.3", features = ["json"], optional = true }
 chrono = { version = "0.4", features = ["serde"] }
 async-stream = "0.3"
 async-trait = "0.1.88"
+bytes = "1.11.1"
 futures-core = "0.3"
 futures-util = "0.3"
 reqwest = { version = "0.13", features = ["json"] }

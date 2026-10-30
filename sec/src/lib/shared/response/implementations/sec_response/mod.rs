@@ -12,6 +12,7 @@ use std::collections::HashMap;
 use std::fmt::{self, Display, Formatter};
 
 use async_trait::async_trait;
+use bytes::Bytes;
 use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
 use storage::shared::Sha256Digest;
@@ -204,10 +205,11 @@ impl SecResponse<JsonBody> {
 }
 
 impl SecResponse<ZipBody> {
-    /// Consumes the response and returns the body bytes without a copy.
+    /// Returns the body bytes as a [`Bytes`] that shares the buffer, so the call copies a
+    /// pointer.
     #[must_use]
-    pub fn into_body(self) -> Vec<u8> {
-        self.body.into_bytes()
+    pub fn body_bytes(&self) -> Bytes {
+        self.body.to_bytes()
     }
 }
 
@@ -501,7 +503,7 @@ mod zip_tests {
         let response = SecResponse::<ZipBody>::from_inner(zip_inner_response(BODY.to_vec()))
             .await
             .expect("Given status 200 and a ZIP, building the response should always succeed");
-        let result = response.into_body();
+        let result = response.body_bytes();
 
         assert_eq!(result, expected_result);
     }
@@ -657,7 +659,7 @@ mod zip_tests {
 
         let expected_result = BODY;
 
-        let result = response.into_body();
+        let result = response.body_bytes();
 
         assert_eq!(result, expected_result);
     }

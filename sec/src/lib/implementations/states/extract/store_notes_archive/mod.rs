@@ -14,7 +14,6 @@
 //! - [`crate::shared::raw_document`]: The [`RawDocument`] type the state writes.
 
 use std::fmt;
-use std::sync::Arc;
 
 use async_trait::async_trait;
 use chrono::Utc;
@@ -30,7 +29,6 @@ use crate::shared::document_storage::FailedDocumentStorage;
 use crate::shared::notes_archive_ref::NotesArchiveRef;
 use crate::shared::notes_period::NotesPeriod;
 use crate::shared::raw_document::RawDocument;
-use crate::shared::response::implementations::sec_response::{SecResponse, ZipBody};
 use crate::shared::run_fields::RunFields;
 use crate::traits::state_machine::state::State;
 
@@ -78,22 +76,6 @@ impl<R> StoreNotesArchive<R> {
     ) {
         (self.input, self.output, self.context)
     }
-
-    /// Moves the response out of the input and out of its [`Arc`].
-    ///
-    /// If a clone of the [`Arc`] is alive, the response goes back into the input.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`StateError::InvalidInput`] if the input holds no response, or if a clone of the
-    /// [`Arc`] is alive.
-    fn take_response(&mut self) -> Result<SecResponse<ZipBody>, StateError> {
-        let response = self.input.response.take().ok_or(StateError::InvalidInput)?;
-        Arc::try_unwrap(response).map_err(|shared| {
-            self.input.response = Some(shared);
-            StateError::InvalidInput
-        })
-    }
 }
 
 /// Returns the key `sec/notes/<file name>` of the Notes file of a period.
@@ -106,20 +88,20 @@ fn notes_key(period: NotesPeriod) -> DocumentKey {
 impl<R: NotesRepository> State for StoreNotesArchive<R> {
     /// Writes the Notes file to the repository and stores a reference to it as output.
     ///
-    /// The input gives up its response even if the write fails.
+    /// The document shares the body buffer of the response, so a clone of the response can stay
+    /// alive. The input gives up its response even if the write fails.
     ///
     /// # Errors
     ///
-    /// - Returns [`StateError::InvalidInput`] if the input holds no response, or if a clone of the
-    ///   response is alive. The second case leaves the input unchanged.
+    /// - Returns [`StateError::InvalidInput`] if the input holds no response.
     /// - Returns [`StateError::FailedDocumentWrite`] if the repository rejects the write.
     async fn compute_output_data_async(&mut self) -> Result<(), StateError> {
-        let response = self.take_response()?;
+        let response = self.input.response.take().ok_or(StateError::InvalidInput)?;
         let period = self.input.notes_period;
         let key = notes_key(period);
         let document = RawDocument::from_file(
             key.clone(),
-            response,
+            &response,
             &self.input.requested_url,
             &self.input.user_agent,
             RunFields {
@@ -214,6 +196,7 @@ mod tests {
     use std::collections::HashMap;
     use std::os::unix::fs::MetadataExt;
     use std::path::Path;
+    use std::sync::Arc;
     use std::{fmt::Debug, hash::Hash};
 
     use pretty_assertions::assert_eq;
@@ -230,6 +213,7 @@ mod tests {
     use crate::shared::headers::Headers;
     use crate::shared::raw_source::RawNotesArchive;
     use crate::shared::response::SecResponse as SecResponseTrait;
+    use crate::shared::response::implementations::sec_response::{SecResponse, ZipBody};
     use crate::shared::status_code::StatusCode;
     use crate::shared::url::Url;
     use crate::shared::user_agent::UserAgent;
@@ -429,7 +413,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_return_invalid_input_when_a_clone_of_the_response_is_alive() {
+    async fn should_store_the_archive_when_a_clone_of_the_response_is_alive() {
         let response = sample_response();
         let _clone = Arc::clone(&response);
         let mut state = StoreNotesArchive::new(
@@ -437,30 +421,9 @@ mod tests {
             StoreNotesArchiveContext::new(Uuid::nil(), FakeNotesRepository::new()),
         );
 
-        let expected_result = Err(StateError::InvalidInput);
+        let expected_result = Ok(());
 
         let result = state.compute_output_data_async().await;
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[tokio::test]
-    async fn should_keep_the_response_in_the_input_when_a_clone_of_the_response_is_alive() {
-        let response = sample_response();
-        let clone = Arc::clone(&response);
-        let mut state = StoreNotesArchive::new(
-            sample_input(response),
-            StoreNotesArchiveContext::new(Uuid::nil(), FakeNotesRepository::new()),
-        );
-        let _ = state.compute_output_data_async().await;
-
-        let expected_result = true;
-
-        let result = state
-            .input_data()
-            .response
-            .as_ref()
-            .is_some_and(|response| Arc::ptr_eq(response, &clone));
 
         assert_eq!(result, expected_result);
     }

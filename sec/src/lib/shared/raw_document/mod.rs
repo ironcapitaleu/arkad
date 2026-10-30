@@ -12,6 +12,7 @@
 
 use std::marker::PhantomData;
 
+use bytes::Bytes;
 use storage::implementations::repository::filesystem::{Document, DocumentKey, DocumentMetadata};
 
 use crate::shared::document_type::SecDocumentType;
@@ -80,7 +81,7 @@ pub use raw_document_metadata_context::RawDocumentMetadataContext;
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct RawDocument<S: RawSource> {
     key: DocumentKey,
-    bytes: Vec<u8>,
+    bytes: Bytes,
     metadata: DocumentMetadata<RawDocumentMetadataContext>,
     // `fn() -> S` instead of `S`: the document holds no `S`, so it stays `Send`, `Sync`, and
     // `Unpin` for every `S`.
@@ -176,7 +177,7 @@ impl<S: RawSource> RawDocument<S> {
 impl RawDocument<RawNotesArchive> {
     /// Creates a new [`RawDocument`] from a Notes file response and the fetch that produced it.
     ///
-    /// The document takes the body of `file` by value, so the bytes are not copied. The size comes
+    /// The document shares the body buffer of `file`, so the bytes are not copied. The size comes
     /// from the body, and the SHA-256 digest is the body digest of `file`, so the body is not
     /// hashed again. The media type is the content type the SEC sent.
     ///
@@ -220,7 +221,7 @@ impl RawDocument<RawNotesArchive> {
     ///
     /// let document = RawDocument::from_file(
     ///     key,
-    ///     file,
+    ///     &file,
     ///     &url,
     ///     &user_agent,
     ///     RunFields {
@@ -240,7 +241,7 @@ impl RawDocument<RawNotesArchive> {
     #[must_use]
     pub fn from_file(
         key: DocumentKey,
-        file: SecResponse<ZipBody>,
+        file: &SecResponse<ZipBody>,
         requested_url: &Url,
         user_agent: &UserAgent,
         run: RunFields,
@@ -253,12 +254,12 @@ impl RawDocument<RawNotesArchive> {
             .run(run.execution_id, run.producer)
             .ingestion_mode(run.ingestion_mode)
             .context(RawDocumentMetadataContext::from_file(
-                &file,
+                file,
                 requested_url,
                 user_agent,
             ))
             .build();
-        Self::from_parts(key, file.into_body(), metadata)
+        Self::from_parts(key, file.body_bytes(), metadata)
     }
 }
 
@@ -282,12 +283,12 @@ impl<S: RawSource> Document for RawDocument<S> {
 
     fn from_parts(
         key: DocumentKey,
-        bytes: Vec<u8>,
+        bytes: impl Into<Bytes>,
         metadata: DocumentMetadata<RawDocumentMetadataContext>,
     ) -> Self {
         Self {
             key,
-            bytes,
+            bytes: bytes.into(),
             metadata,
             source: PhantomData,
         }
@@ -626,10 +627,10 @@ mod tests {
     }
 
     fn sample_document_from_file() -> RawDocument<RawNotesArchive> {
-        document_from_file(sample_notes_file())
+        document_from_file(&sample_notes_file())
     }
 
-    fn document_from_file(file: SecResponse<ZipBody>) -> RawDocument<RawNotesArchive> {
+    fn document_from_file(file: &SecResponse<ZipBody>) -> RawDocument<RawNotesArchive> {
         RawDocument::from_file(
             sample_notes_key(),
             file,
@@ -651,6 +652,30 @@ mod tests {
         let expected_result = SAMPLE_NOTES_ZIP;
 
         let result = document.bytes();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_share_the_body_of_the_file_when_building_a_document_from_a_file() {
+        let file = sample_notes_file();
+        let document = document_from_file(&file);
+
+        let expected_result = file.body().as_ptr();
+
+        let result = document.bytes().as_ptr();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_share_the_body_when_cloning_a_raw_document() {
+        let document = sample_document_from_file();
+        let clone = document.clone();
+
+        let expected_result = document.bytes().as_ptr();
+
+        let result = clone.bytes().as_ptr();
 
         assert_eq!(result, expected_result);
     }
@@ -685,7 +710,7 @@ mod tests {
 
         let expected_result = digest_of_other_bytes;
 
-        let result = document_from_file(file).metadata().sha256().clone();
+        let result = document_from_file(&file).metadata().sha256().clone();
 
         assert_eq!(result, expected_result);
     }
