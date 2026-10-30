@@ -3,8 +3,8 @@
 //! Implements the [`TryFrom`] conversion producing a [`DownloadNotesArchive`] from a
 //! [`PrepareNotesRequest`], an SEC client, and an `execution_id`.
 //!
-//! It moves the request from the output of the source state, and the Notes period and the storage
-//! repository from its context. The source state holds no client and no `execution_id`, so the
+//! It moves the request from the output of the source state, the Notes period from its input, and
+//! the storage repository from its context. The source state holds no client and no `execution_id`, so the
 //! caller passes the ones from the state machine context.
 //!
 //! The source state has the [`NotesFile`] kind. A prepared Company Facts request cannot become a Notes download, so this does not compile:
@@ -49,14 +49,14 @@ impl<R, C> TryFrom<(PrepareNotesRequest<R>, C, Uuid)> for DownloadNotesArchive<R
     fn try_from(
         (state, sec_client, execution_id): (PrepareNotesRequest<R>, C, Uuid),
     ) -> Result<Self, TransitionError> {
-        let (_input, output, context) = state.into_parts();
+        let (input, output, context) = state.into_parts();
         let output_data = output.ok_or_else(|| {
             transition::MissingOutput::new(NotesFile::PREPARE_STATE_NAME, DOWNLOAD_NOTES_ARCHIVE)
         })?;
 
         let new_input = DownloadNotesArchiveInput::new(output_data.request);
         let new_context = DownloadNotesArchiveContext::new(
-            context.request_input,
+            input.request_input,
             execution_id,
             context.repository,
             sec_client,
@@ -69,10 +69,13 @@ impl<R, C> TryFrom<(PrepareNotesRequest<R>, C, Uuid)> for DownloadNotesArchive<R
 #[cfg(test)]
 mod tests {
     use pretty_assertions::assert_eq;
+    use state_maschine::prelude::State as SMState;
     use storage::WriteError;
 
     use super::*;
-    use crate::implementations::states::extract::prepare_sec_request::PrepareSecRequest;
+    use crate::implementations::states::extract::prepare_sec_request::{
+        PrepareSecRequest, PrepareSecRequestContext, PrepareSecRequestInput,
+    };
     use crate::shared::notes_period::NotesPeriod;
     use crate::shared::request::implementations::sec_request::SecRequest;
     use crate::tests::fixtures::sample_http_client::sample_sec_client::always_responding::AlwaysRespondingSecClient;
@@ -126,6 +129,29 @@ mod tests {
         ));
 
         let result = DownloadNotesArchive::try_from((state, sec_client(), SAMPLE_EXECUTION_ID));
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_take_period_from_input_when_input_and_context_periods_differ() {
+        let input_period = NotesPeriod::new("2024q2")
+            .expect("Given a hardcoded published quarter, parsing should always succeed");
+        let mut state = PrepareSecRequest::new(
+            PrepareSecRequestInput::<NotesFile>::new(input_period),
+            PrepareSecRequestContext::new(sample_period(), rejecting_repository()),
+        );
+        state
+            .compute_output_data_async()
+            .await
+            .expect("Given a validated period, preparing the request should always succeed");
+
+        let expected_result = input_period;
+
+        let result = DownloadNotesArchive::try_from((state, sec_client(), SAMPLE_EXECUTION_ID))
+            .expect("Given a computed state, the transition should always succeed")
+            .context_data()
+            .notes_period;
 
         assert_eq!(result, expected_result);
     }

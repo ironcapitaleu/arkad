@@ -3,10 +3,10 @@
 //! Provides the [`PrepareSecRequest`] state, which builds the [`SecRequest`] of a request kind from
 //! its input.
 //!
-//! The kind `K` sets the input, for example the validated [`Cik`](crate::shared::cik::Cik) of
-//! [`CompanyFacts`], and the state name, for example "Prepare Notes Request" for [`NotesFile`]. The
-//! state builds the request with [`SecRequestTrait::new`], so it needs no
-//! code for a single kind. Preparation is local and synchronous: it makes no network call.
+//! The kind `K` sets the input and the state name. For example, [`NotesFile`] takes a
+//! [`NotesPeriod`](crate::shared::notes_period::NotesPeriod) and names its state "Prepare Notes
+//! Request". The state builds the request with [`SecRequestTrait::new`], so it needs no code for a
+//! single kind. Preparation is local and synchronous: it makes no network call.
 //!
 //! ## Modules
 //!
