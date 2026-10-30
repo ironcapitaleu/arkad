@@ -64,9 +64,7 @@ use uuid::Uuid;
 
 use crate::error::State as StateError;
 use crate::error::state_machine::transition::Transition as TransitionError;
-use crate::implementations::states::extract::download_notes_archive::{
-    DownloadNotesArchive, NotesFileClient,
-};
+use crate::implementations::states::extract::download_notes_archive::DownloadNotesArchive;
 use crate::implementations::states::extract::notes::builder::{
     ExtractNotesSuperStateBuilder, NoExecutionId, NoPeriod, NoRepository, NoSecClient,
 };
@@ -75,8 +73,11 @@ use crate::implementations::states::extract::prepare_notes_request::PrepareNotes
 use crate::implementations::states::extract::store_notes_archive::StoreNotesArchive;
 use crate::implementations::states::extract::validate_notes_period::ValidateNotesPeriod;
 use crate::prelude::*;
+use crate::shared::http_client::SecClient as SecClientTrait;
 use crate::shared::http_client::implementations::sec_client::SecClient;
+use crate::shared::http_client::implementations::sec_client::error::FailedSecRequest;
 use crate::shared::notes_archive_ref::NotesArchiveRef;
+use crate::shared::response::implementations::sec_response::{SecResponse, ZipBody};
 use crate::traits::state_machine::stream::terminal_stream_with;
 
 /// Input and output data for the [`ExtractNotesSuperState`].
@@ -165,7 +166,7 @@ impl Hash for ArchiveSlot {
     fn hash<H: Hasher>(&self, _state: &mut H) {}
 }
 
-impl<C: NotesFileClient> SMContext for ExtractNotesSuperStateContext<C> {
+impl<C: SecClientTrait> SMContext for ExtractNotesSuperStateContext<C> {
     type UpdateType = ();
     fn context(&self) -> &Self {
         self
@@ -173,7 +174,7 @@ impl<C: NotesFileClient> SMContext for ExtractNotesSuperStateContext<C> {
     fn update_context(&mut self, (): Self::UpdateType) {}
 }
 
-impl<C: NotesFileClient> Context for ExtractNotesSuperStateContext<C> {
+impl<C: SecClientTrait> Context for ExtractNotesSuperStateContext<C> {
     fn max_retries(&self) -> u32 {
         0
     }
@@ -185,14 +186,14 @@ impl<C: NotesFileClient> Context for ExtractNotesSuperStateContext<C> {
 /// `execution_id`. It moves through type-safe transitions: [`ValidateNotesPeriod`] →
 /// [`PrepareNotesRequest`] → [`DownloadNotesArchive`] → [`StoreNotesArchive`].
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct ExtractNotesSuperState<S: State, C: NotesFileClient = SecClient> {
+pub struct ExtractNotesSuperState<S: State, C: SecClientTrait = SecClient> {
     current_state: S,
     input: ExtractNotesSuperStateData,
     output: Option<ExtractNotesSuperStateData>,
     context: ExtractNotesSuperStateContext<C>,
 }
 
-impl<S: State, C: NotesFileClient> Display for ExtractNotesSuperState<S, C> {
+impl<S: State, C: SecClientTrait> Display for ExtractNotesSuperState<S, C> {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         write!(
             f,
@@ -202,7 +203,7 @@ impl<S: State, C: NotesFileClient> Display for ExtractNotesSuperState<S, C> {
     }
 }
 
-impl<S: State, C: NotesFileClient> SMState for ExtractNotesSuperState<S, C> {
+impl<S: State, C: SecClientTrait> SMState for ExtractNotesSuperState<S, C> {
     type InputData = ExtractNotesSuperStateData;
     type OutputData = ExtractNotesSuperStateData;
     type Context = ExtractNotesSuperStateContext<C>;
@@ -245,7 +246,7 @@ impl<S: State, C: NotesFileClient> SMState for ExtractNotesSuperState<S, C> {
 }
 
 #[async_trait]
-impl<S: State, C: NotesFileClient> State for ExtractNotesSuperState<S, C> {
+impl<S: State, C: SecClientTrait> State for ExtractNotesSuperState<S, C> {
     async fn compute_output_data_async(&mut self) -> Result<(), StateError> {
         self.current_state
             .compute_output_data_async()
@@ -254,7 +255,7 @@ impl<S: State, C: NotesFileClient> State for ExtractNotesSuperState<S, C> {
     }
 }
 
-impl<S: State, C: NotesFileClient> SMStateMachine<S> for ExtractNotesSuperState<S, C> {
+impl<S: State, C: SecClientTrait> SMStateMachine<S> for ExtractNotesSuperState<S, C> {
     fn current_state(&self) -> &S {
         &self.current_state
     }
@@ -275,11 +276,11 @@ impl<S: State, C: NotesFileClient> SMStateMachine<S> for ExtractNotesSuperState<
     }
 }
 
-impl<S: State, C: NotesFileClient> StateMachine<S> for ExtractNotesSuperState<S, C> {}
+impl<S: State, C: SecClientTrait> StateMachine<S> for ExtractNotesSuperState<S, C> {}
 
-impl<S: State, C: NotesFileClient> SMSuperState<S> for ExtractNotesSuperState<S, C> {}
+impl<S: State, C: SecClientTrait> SMSuperState<S> for ExtractNotesSuperState<S, C> {}
 
-impl<S: State, C: NotesFileClient> SuperState<S> for ExtractNotesSuperState<S, C> {}
+impl<S: State, C: SecClientTrait> SuperState<S> for ExtractNotesSuperState<S, C> {}
 
 impl<R: NotesRepository> ExtractNotesSuperState<ValidateNotesPeriod<R>> {
     /// Returns an [`ExtractNotesSuperStateBuilder`] that holds no field yet.
@@ -292,7 +293,7 @@ impl<R: NotesRepository> ExtractNotesSuperState<ValidateNotesPeriod<R>> {
 
 // --- Streaming ---
 
-impl<S: State, C: NotesFileClient> ExtractNotesSuperState<S, C>
+impl<S: State, C: SecClientTrait> ExtractNotesSuperState<S, C>
 where
     Self: IntoStateMachineStream,
 {
@@ -334,29 +335,33 @@ where
     }
 }
 
-impl<R: NotesRepository, C: NotesFileClient> NonTerminal
+impl<R: NotesRepository, C: SecClientTrait> NonTerminal
     for ExtractNotesSuperState<ValidateNotesPeriod<R>, C>
 {
     type Current = ValidateNotesPeriod<R>;
     type Next = PrepareNotesRequest<R>;
 }
 
-impl<R: NotesRepository, C: NotesFileClient> NonTerminal
-    for ExtractNotesSuperState<PrepareNotesRequest<R>, C>
+impl<R, C> NonTerminal for ExtractNotesSuperState<PrepareNotesRequest<R>, C>
+where
+    R: NotesRepository,
+    C: SecClientTrait<Response<ZipBody> = SecResponse<ZipBody>, Error = FailedSecRequest>,
 {
     type Current = PrepareNotesRequest<R>;
     type Next = DownloadNotesArchive<R, C>;
 }
 
-impl<R: NotesRepository, C: NotesFileClient> NonTerminal
-    for ExtractNotesSuperState<DownloadNotesArchive<R, C>, C>
+impl<R, C> NonTerminal for ExtractNotesSuperState<DownloadNotesArchive<R, C>, C>
+where
+    R: NotesRepository,
+    C: SecClientTrait<Response<ZipBody> = SecResponse<ZipBody>, Error = FailedSecRequest>,
 {
     type Current = DownloadNotesArchive<R, C>;
     type Next = StoreNotesArchive<R>;
 }
 
 /// Ends the stream after [`StoreNotesArchive`] writes the Notes file to the store.
-impl<R: NotesRepository + 'static, C: NotesFileClient + 'static> IntoStateMachineStream
+impl<R: NotesRepository + 'static, C: SecClientTrait + 'static> IntoStateMachineStream
     for ExtractNotesSuperState<StoreNotesArchive<R>, C>
 {
     fn into_stream(self, execution_id: Uuid) -> StateMachineStream {
@@ -371,7 +376,7 @@ impl<R: NotesRepository + 'static, C: NotesFileClient + 'static> IntoStateMachin
 
 // --- Transitions ---
 
-impl<R: NotesRepository, C: NotesFileClient>
+impl<R: NotesRepository, C: SecClientTrait>
     Transition<ValidateNotesPeriod<R>, PrepareNotesRequest<R>>
     for ExtractNotesSuperState<ValidateNotesPeriod<R>, C>
 {
@@ -385,7 +390,7 @@ impl<R: NotesRepository, C: NotesFileClient>
     }
 }
 
-impl<R: NotesRepository, C: NotesFileClient>
+impl<R: NotesRepository, C: SecClientTrait>
     SMTransition<ValidateNotesPeriod<R>, PrepareNotesRequest<R>>
     for ExtractNotesSuperState<ValidateNotesPeriod<R>, C>
 {
@@ -398,9 +403,11 @@ impl<R: NotesRepository, C: NotesFileClient>
     }
 }
 
-impl<R: NotesRepository, C: NotesFileClient>
-    Transition<PrepareNotesRequest<R>, DownloadNotesArchive<R, C>>
+impl<R, C> Transition<PrepareNotesRequest<R>, DownloadNotesArchive<R, C>>
     for ExtractNotesSuperState<PrepareNotesRequest<R>, C>
+where
+    R: NotesRepository,
+    C: SecClientTrait<Response<ZipBody> = SecResponse<ZipBody>, Error = FailedSecRequest>,
 {
     fn transition_to_next_state_sec(self) -> Result<Self::NewStateMachine, TransitionError> {
         let sec_client = self.context.sec_client.clone();
@@ -413,9 +420,11 @@ impl<R: NotesRepository, C: NotesFileClient>
     }
 }
 
-impl<R: NotesRepository, C: NotesFileClient>
-    SMTransition<PrepareNotesRequest<R>, DownloadNotesArchive<R, C>>
+impl<R, C> SMTransition<PrepareNotesRequest<R>, DownloadNotesArchive<R, C>>
     for ExtractNotesSuperState<PrepareNotesRequest<R>, C>
+where
+    R: NotesRepository,
+    C: SecClientTrait<Response<ZipBody> = SecResponse<ZipBody>, Error = FailedSecRequest>,
 {
     type NewStateMachine = ExtractNotesSuperState<DownloadNotesArchive<R, C>, C>;
 
@@ -426,9 +435,11 @@ impl<R: NotesRepository, C: NotesFileClient>
     }
 }
 
-impl<R: NotesRepository, C: NotesFileClient>
-    Transition<DownloadNotesArchive<R, C>, StoreNotesArchive<R>>
+impl<R, C> Transition<DownloadNotesArchive<R, C>, StoreNotesArchive<R>>
     for ExtractNotesSuperState<DownloadNotesArchive<R, C>, C>
+where
+    R: NotesRepository,
+    C: SecClientTrait<Response<ZipBody> = SecResponse<ZipBody>, Error = FailedSecRequest>,
 {
     fn transition_to_next_state_sec(self) -> Result<Self::NewStateMachine, TransitionError> {
         Ok(ExtractNotesSuperState {
@@ -440,9 +451,11 @@ impl<R: NotesRepository, C: NotesFileClient>
     }
 }
 
-impl<R: NotesRepository, C: NotesFileClient>
-    SMTransition<DownloadNotesArchive<R, C>, StoreNotesArchive<R>>
+impl<R, C> SMTransition<DownloadNotesArchive<R, C>, StoreNotesArchive<R>>
     for ExtractNotesSuperState<DownloadNotesArchive<R, C>, C>
+where
+    R: NotesRepository,
+    C: SecClientTrait<Response<ZipBody> = SecResponse<ZipBody>, Error = FailedSecRequest>,
 {
     type NewStateMachine = ExtractNotesSuperState<StoreNotesArchive<R>, C>;
 
@@ -475,15 +488,15 @@ mod tests {
     use crate::shared::raw_document::RawDocument;
     use crate::shared::raw_source::RawNotesArchive;
     use crate::tests::fixtures::data::notes_archive::SAMPLE_NOTES_ZIP;
-    use crate::tests::fixtures::sample_http_client::sample_sec_client::always_responding::AlwaysRespondingReadySecClient;
+    use crate::tests::fixtures::sample_http_client::sample_sec_client::always_responding::AlwaysRespondingSecClient;
     use crate::tests::fixtures::sample_write_repository::FakeNotesRepository;
 
     type NotesFilesystemRepository = FilesystemRepository<Write, RawDocument<RawNotesArchive>>;
 
     const SAMPLE_EXECUTION_ID: Uuid = Uuid::from_u128(7);
 
-    fn sec_client() -> AlwaysRespondingReadySecClient {
-        AlwaysRespondingReadySecClient::new(
+    fn sec_client() -> AlwaysRespondingSecClient {
+        AlwaysRespondingSecClient::new(
             200,
             vec![("content-type", "application/zip".to_string())],
             SAMPLE_NOTES_ZIP.to_vec(),
@@ -507,7 +520,7 @@ mod tests {
     fn super_state<R: NotesRepository>(
         raw_period: &str,
         repository: R,
-    ) -> ExtractNotesSuperState<ValidateNotesPeriod<R>, AlwaysRespondingReadySecClient> {
+    ) -> ExtractNotesSuperState<ValidateNotesPeriod<R>, AlwaysRespondingSecClient> {
         ExtractNotesSuperState::builder()
             .period(raw_period)
             .sec_client(sec_client())
@@ -518,7 +531,7 @@ mod tests {
 
     /// Runs the whole stream and returns its items, or panics on the first error.
     async fn run_stream<R: NotesRepository + 'static>(
-        super_state: ExtractNotesSuperState<ValidateNotesPeriod<R>, AlwaysRespondingReadySecClient>,
+        super_state: ExtractNotesSuperState<ValidateNotesPeriod<R>, AlwaysRespondingSecClient>,
     ) -> Vec<StreamItem> {
         super_state
             .into_run_stream()
@@ -533,8 +546,8 @@ mod tests {
 
     /// Drives the super-state from the builder to `DownloadNotesArchive` with a computed output.
     async fn downloaded_super_state() -> ExtractNotesSuperState<
-        DownloadNotesArchive<FakeNotesRepository, AlwaysRespondingReadySecClient>,
-        AlwaysRespondingReadySecClient,
+        DownloadNotesArchive<FakeNotesRepository, AlwaysRespondingSecClient>,
+        AlwaysRespondingSecClient,
     > {
         let mut validate = super_state("2024q1", FakeNotesRepository::new());
         validate
@@ -658,7 +671,7 @@ mod tests {
 
     /// Runs the whole stream and returns the state names of its errors.
     async fn failed_state_names<R: NotesRepository + 'static>(
-        super_state: ExtractNotesSuperState<ValidateNotesPeriod<R>, AlwaysRespondingReadySecClient>,
+        super_state: ExtractNotesSuperState<ValidateNotesPeriod<R>, AlwaysRespondingSecClient>,
     ) -> Vec<String> {
         super_state
             .into_run_stream()
@@ -671,11 +684,7 @@ mod tests {
     async fn should_end_the_stream_with_a_failed_download_when_the_notes_file_is_not_found() {
         let super_state = ExtractNotesSuperState::builder()
             .period("2024q1")
-            .sec_client(AlwaysRespondingReadySecClient::new(
-                404,
-                Vec::new(),
-                Vec::new(),
-            ))
+            .sec_client(AlwaysRespondingSecClient::new(404, Vec::new(), Vec::new()))
             .execution_id(SAMPLE_EXECUTION_ID)
             .repository(FakeNotesRepository::new())
             .build();

@@ -207,8 +207,8 @@ error. A later improvement can compare the list with the SEC page.
     `SecRequest<CompanyFacts>`, and `.notes_file().period(p).build()` returns `SecRequest<NotesFile>`.
   - Generic code builds a request without the builder: `SecRequest::<K>::new(input)`, with
     `input: K::Input`. A wrong input does not compile.
-  - The request knows nothing about responses. STA-382 adds the map from a kind to its body kind
-    in the client.
+  - The request knows nothing about responses. The client maps a kind to its body kind, see
+    "Download".
 
 ### Download
 
@@ -222,17 +222,25 @@ The run downloads the whole file, not HTTP range reads.
 The download goes through the existing layers: `SecRequest` → `SecClient` → `InnerClient`.
 `SecResponse<B>` is generic over its body kind `B`. The body kind sets the checks and stores the
 body. `SecResponse<JsonBody>`, the default, holds a Company Facts reply. `SecResponse<ZipBody>`
-holds a Notes file. The concrete `SecClient` gets a method next to `execute_sec_request`. It is not
-on the `SecClient` trait, so the trait fakes do not change:
+holds a Notes file.
+
+The `ExpectsBody` trait on the client side maps each request kind to its body kind, once for
+every client. `CompanyFacts` has `Body = JsonBody`, and `NotesFile` has `Body = ZipBody`. So
+`shared::request` does not depend on `shared::response`.
+
+The `SecClient` trait has one method for every kind. Its default body waits on the rate limiter,
+sends the request through the inner client, and builds the response:
 
 ```rust
-pub async fn download_sec_file(
+async fn execute_sec_request<K: ExpectsBody>(
     &self,
-    request: SecRequest<NotesFile>,
-) -> Result<SecResponse<ZipBody>, FailedSecRequest>;
+    request: SecRequest<K>,
+) -> Result<Self::Response<K::Body>, Self::Error>;
 ```
 
-`execute_sec_request` takes a `SecRequest<CompanyFacts>`, so a Notes request does not compile there.
+`Response<B>` is a generic associated type, so the trait names no `reqwest` or `http` type. The
+concrete `SecClient` sets `Response<B> = SecResponse<B>`. A Notes request gives a
+`SecResponse<ZipBody>`. Code that expects a `SecResponse<JsonBody>` from it does not compile.
 
 `SecResponse<B>` holds the URL, the headers, the content type, the status code, the body, and the
 SHA-256 of the body. `ZipBody` accepts only status 200 and the content types `application/octet-stream`
@@ -371,7 +379,7 @@ Four layers, each in the state that first sees the data. Layers 1 to 3 fail the 
 quarantines the row or the filing, and the file goes on.
 
 1. **Transport**, in `SecResponse<ZipBody>`, which `DownloadNotesArchive` gets from
-   `download_notes_file`, the generic body of `download_sec_file`: HTTP 200, a content type of `application/octet-stream` or
+   `SecClient::execute_sec_request`: HTTP 200, a content type of `application/octet-stream` or
    `application/zip`, and a byte count equal to `Content-Length` if the header is present.
 2. **Container**, in the first transform state: the bytes start with the ZIP signature `PK\x03\x04`,
    the ZIP index parses, all eight tables and `notes-metadata.json` are present, every member uses
@@ -522,8 +530,8 @@ Measured on one filing (`0000003545-26-000047`): the folder holds `alco-20260908
 `alco-20260908_lab.xml`, both served as `text/xml`. The `instance` column of `sub.tsv` uses the
 same names. The rule for older filings without inline XBRL is unverified.
 
-`DownloadFilingDocuments` fetches both files with a sibling of `SecClient::download_sec_file`
-that returns a response type for XML files. The files are
+`DownloadFilingDocuments` fetches both files with `SecClient::execute_sec_request`, through a
+request kind whose body kind holds an XML file. The files are
 small (2.8 KB and 22.8 KB for this filing), so the run caps filings by the rate limiter only.
 
 ### Company Data

@@ -5,50 +5,16 @@
 //! state, together with its updater and builder.
 
 use std::fmt;
-use std::fmt::Debug;
-use std::hash::Hash;
 
 use serde::Serialize;
 use state_maschine::prelude::Context as SMContext;
 use uuid::Uuid;
 
 use crate::implementations::states::extract::notes_repository::NotesRepository;
-use crate::shared::http_client::InnerClient;
 use crate::shared::http_client::SecClient as SecClientTrait;
 use crate::shared::http_client::implementations::sec_client::SecClient;
 use crate::shared::notes_period::NotesPeriod;
-use crate::shared::user_agent::UserAgent;
 use crate::traits::state_machine::state::Context;
-
-/// An SEC client that can download a Notes file and fits into a state context.
-///
-/// Its inner client sends `reqwest` requests.
-pub trait NotesFileClient:
-    SecClientTrait<
-        Inner: InnerClient<
-            Request = reqwest::Request,
-            Response = reqwest::Response,
-            Error = reqwest::Error,
-        >,
-    > + Debug
-    + Clone
-    + Eq
-    + Ord
-    + Hash
-    + Send
-    + Sync
-    + Unpin
-    + Serialize
-{
-    /// Returns the [`UserAgent`] that every request of the client carries.
-    fn user_agent(&self) -> &UserAgent;
-}
-
-impl NotesFileClient for SecClient {
-    fn user_agent(&self) -> &UserAgent {
-        Self::user_agent(self)
-    }
-}
 
 /// Context for the [`DownloadNotesArchive`](super::DownloadNotesArchive) state.
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
@@ -103,13 +69,13 @@ impl<R, C> DownloadNotesArchiveContext<R, C> {
     }
 }
 
-impl<R: NotesRepository, C: NotesFileClient> Context for DownloadNotesArchiveContext<R, C> {
+impl<R: NotesRepository, C: SecClientTrait> Context for DownloadNotesArchiveContext<R, C> {
     fn max_retries(&self) -> u32 {
         self.max_retries
     }
 }
 
-impl<R: NotesRepository, C: NotesFileClient> SMContext for DownloadNotesArchiveContext<R, C> {
+impl<R: NotesRepository, C: SecClientTrait> SMContext for DownloadNotesArchiveContext<R, C> {
     type UpdateType = DownloadNotesArchiveContextUpdater<R, C>;
 
     fn context(&self) -> &Self {
@@ -252,18 +218,20 @@ impl<R, C> Default for DownloadNotesArchiveContextUpdaterBuilder<R, C> {
 
 #[cfg(test)]
 mod tests {
+    use std::fmt::Debug;
+    use std::hash::Hash;
+
     use pretty_assertions::assert_eq;
     use storage::WriteError;
 
     use super::*;
-    use crate::tests::fixtures::sample_http_client::sample_sec_client::always_responding::AlwaysRespondingReadySecClient;
+    use crate::tests::fixtures::sample_http_client::sample_sec_client::always_responding::AlwaysRespondingSecClient;
     use crate::tests::fixtures::sample_write_repository::FakeNotesRepository;
 
-    type TestContext =
-        DownloadNotesArchiveContext<FakeNotesRepository, AlwaysRespondingReadySecClient>;
+    type TestContext = DownloadNotesArchiveContext<FakeNotesRepository, AlwaysRespondingSecClient>;
 
-    fn sec_client(status: u16) -> AlwaysRespondingReadySecClient {
-        AlwaysRespondingReadySecClient::new(status, Vec::new(), Vec::new())
+    fn sec_client(status: u16) -> AlwaysRespondingSecClient {
+        AlwaysRespondingSecClient::new(status, Vec::new(), Vec::new())
     }
 
     fn sample_period(raw_period: &str) -> NotesPeriod {

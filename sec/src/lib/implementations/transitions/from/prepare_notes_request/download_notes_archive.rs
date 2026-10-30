@@ -60,7 +60,7 @@ mod tests {
     };
     use crate::shared::notes_period::NotesPeriod;
     use crate::shared::request::implementations::sec_request::SecRequest;
-    use crate::tests::fixtures::sample_http_client::sample_sec_client::always_responding::AlwaysRespondingReadySecClient;
+    use crate::tests::fixtures::sample_http_client::sample_sec_client::always_responding::AlwaysRespondingSecClient;
     use crate::tests::fixtures::sample_write_repository::FakeNotesRepository;
     use crate::traits::state_machine::state::State;
 
@@ -75,8 +75,8 @@ mod tests {
         FakeNotesRepository::rejecting(WriteError::conflicting_write("Sample conflict"))
     }
 
-    fn sec_client() -> AlwaysRespondingReadySecClient {
-        AlwaysRespondingReadySecClient::new(404, Vec::new(), Vec::new())
+    fn sec_client() -> AlwaysRespondingSecClient {
+        AlwaysRespondingSecClient::new(404, Vec::new(), Vec::new())
     }
 
     fn prepare_notes_request() -> PrepareNotesRequest<FakeNotesRepository> {
