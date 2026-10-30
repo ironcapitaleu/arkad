@@ -1,10 +1,10 @@
 //! # State Errors
 //!
-//! Provides the [`State`] error covering failures inside a state's own logic: CIK validation
-//! and Notes period validation, SEC request execution, document writes, data completeness, and
-//! input/context/output handling.
+//! Provides the [`State`] error covering failures inside a state's own logic: CIK validation,
+//! Notes period validation, index date validation, SEC request execution, document writes, data
+//! completeness, and input/context/output handling.
 //!
-//! The richer variants ([`InvalidCikFormat`], [`InvalidNotesPeriod`], [`FailedRequestExecution`],
+//! The richer variants ([`InvalidCikFormat`], [`InvalidNotesPeriod`], [`InvalidIndexDate`], [`FailedRequestExecution`],
 //! [`FailedDocumentWrite`], [`IncompleteCompanyFacts`]) wrap a domain error with the failing state's name; the rest are
 //! plain markers. [`State`] is wrapped by [`StateMachine`](super::StateMachine) for propagation.
 //!
@@ -12,6 +12,7 @@
 //!
 //! - [`invalid_cik_format`]: The [`InvalidCikFormat`] error wrapping a CIK validation failure.
 //! - [`invalid_notes_period`]: The [`InvalidNotesPeriod`] error wrapping a Notes period validation failure.
+//! - [`invalid_index_date`]: The [`InvalidIndexDate`] error wrapping an index date validation failure.
 //! - [`failed_request_execution`]: The [`FailedRequestExecution`] error wrapping a failed SEC request.
 //! - [`failed_document_write`]: The [`FailedDocumentWrite`] error wrapping a rejected store write.
 //! - [`incomplete_company_facts`]: The [`IncompleteCompanyFacts`] error for a response missing required fields.
@@ -28,13 +29,15 @@ pub mod invalid_cik_format;
 pub use invalid_cik_format::InvalidCikFormat;
 pub mod invalid_notes_period;
 pub use invalid_notes_period::InvalidNotesPeriod;
+pub mod invalid_index_date;
+pub use invalid_index_date::InvalidIndexDate;
 
 #[non_exhaustive]
 #[derive(Debug, Error, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 /// Error occurring inside a state's own logic.
 ///
 /// Spans the ways a state can fail while computing its output: a wrapped domain error (invalid
-/// CIK, invalid Notes period, failed request, rejected write, incomplete facts) or a plain marker for invalid input, context, or a
+/// CIK, invalid Notes period, invalid index date, failed request, rejected write, incomplete facts) or a plain marker for invalid input, context, or a
 /// failed update/computation.
 pub enum State {
     /// Invalid Cik format.
@@ -44,6 +47,10 @@ pub enum State {
     /// Invalid Notes period.
     #[error("[StateError] A state level error occurred, Caused by: {0}")]
     InvalidNotesPeriod(#[source] InvalidNotesPeriod),
+
+    /// Invalid index date.
+    #[error("[StateError] A state level error occurred, Caused by: {0}")]
+    InvalidIndexDate(#[source] InvalidIndexDate),
 
     /// Indicates that an SEC request execution has failed.
     #[error("[StateError] A state level error occurred, Caused by: {0}")]
