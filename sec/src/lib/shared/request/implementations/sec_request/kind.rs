@@ -13,6 +13,7 @@ use std::hash::Hash;
 use serde::Serialize;
 
 use crate::shared::cik::Cik;
+use crate::shared::index_date::IndexDate;
 use crate::shared::notes_period::NotesPeriod;
 
 use super::SecRequestType;
@@ -61,6 +62,36 @@ impl RequestKind for NotesFile {
     }
 }
 
+/// The kind of a request that downloads the daily index of one date.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct DailyIndex;
+
+impl RequestKind for DailyIndex {
+    type Input = IndexDate;
+
+    const INPUT_NAME: &'static str = "index_date";
+
+    fn request_type(date: IndexDate) -> SecRequestType {
+        SecRequestType::FetchDailyIndex { date }
+    }
+}
+
+/// The kind of a request that fetches the listing of the daily-index folder of one quarter.
+///
+/// The input is any date of the quarter.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct DailyIndexListing;
+
+impl RequestKind for DailyIndexListing {
+    type Input = IndexDate;
+
+    const INPUT_NAME: &'static str = "index_date";
+
+    fn request_type(date: IndexDate) -> SecRequestType {
+        SecRequestType::FetchDailyIndexListing { date }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use pretty_assertions::assert_eq;
@@ -104,5 +135,15 @@ mod tests {
     #[test]
     const fn should_implement_auto_traits_for_notes_file() {
         implements_auto_traits::<NotesFile>();
+    }
+
+    #[test]
+    const fn should_implement_auto_traits_for_daily_index() {
+        implements_auto_traits::<super::DailyIndex>();
+    }
+
+    #[test]
+    const fn should_implement_auto_traits_for_daily_index_listing() {
+        implements_auto_traits::<super::DailyIndexListing>();
     }
 }
