@@ -599,6 +599,7 @@ mod tests {
     use crate::shared::headers::Headers;
     use crate::shared::http_client::implementations::sec_client::SecClient;
     use crate::shared::status_code::StatusCode;
+    use crate::tests::fixtures::sample_http_client::sample_sec_client::always_responding::AlwaysRespondingSecClient;
     use crate::tests::fixtures::sample_write_repository::FakeWriteRepository;
 
     #[test]
@@ -1200,6 +1201,37 @@ mod tests {
                 result = Some(error.execution_id);
             }
         }
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_complete_store_company_facts_when_streaming_a_run_with_a_fake_client() {
+        let sec_client = AlwaysRespondingSecClient::new(
+            200,
+            vec![("content-type", "application/json".to_string())],
+            br#"{"cik":1067983,"facts":{}}"#.to_vec(),
+        );
+        let super_state = ExtractCompanyFactsSuperState::builder()
+            .cik("1067983")
+            .sec_client(sec_client)
+            .execution_id(Uuid::from_u128(7))
+            .repository(FakeWriteRepository::new())
+            .build();
+
+        let expected_result = Some((StreamEvent::StateCompleted, STORE_COMPANY_FACTS.to_string()));
+
+        let result = super_state
+            .into_run_stream()
+            .map(|item| {
+                let item = item.expect(
+                    "Given a fake client that returns status 200 and a JSON body, every stream item should be a success",
+                );
+                (item.event, item.state_name)
+            })
+            .collect::<Vec<_>>()
+            .await
+            .pop();
 
         assert_eq!(result, expected_result);
     }

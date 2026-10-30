@@ -575,12 +575,7 @@ mod tests {
 
     #[tokio::test]
     async fn should_not_change_input_data_when_computing_output_data() {
-        let client = SecClient::default();
-        let cik = Cik::new("0001067983").expect("Hardcoded CIK should be valid");
-        let request = SecRequest::builder().all_company_facts().cik(cik).build();
-        let input = ExecuteSecRequestInput::new(client, request);
-        let context = ExecuteSecRequestContext::new(create_test_cik(), FakeWriteRepository::new());
-        let mut execute_state = ExecuteSecRequest::new(input, context);
+        let mut execute_state = create_fake_client_state(200);
 
         let expected_result = &execute_state.input_data().clone();
 
@@ -595,12 +590,7 @@ mod tests {
 
     #[tokio::test]
     async fn should_return_correct_output_data_when_computing_output_data() {
-        let client = SecClient::default();
-        let cik = Cik::new("0001067983").expect("Hardcoded CIK should be valid");
-        let request = SecRequest::builder().all_company_facts().cik(cik).build();
-        let input = ExecuteSecRequestInput::new(client, request);
-        let context = ExecuteSecRequestContext::new(create_test_cik(), FakeWriteRepository::new());
-        let mut execute_state = ExecuteSecRequest::new(input, context);
+        let mut execute_state = create_fake_client_state(200);
 
         execute_state
             .compute_output_data_async()
@@ -614,12 +604,7 @@ mod tests {
 
     #[tokio::test]
     async fn should_return_true_when_output_data_has_been_computed() {
-        let client = SecClient::default();
-        let cik = Cik::new("0001067983").expect("Hardcoded CIK should be valid");
-        let request = SecRequest::builder().all_company_facts().cik(cik).build();
-        let input = ExecuteSecRequestInput::new(client, request);
-        let context = ExecuteSecRequestContext::new(create_test_cik(), FakeWriteRepository::new());
-        let mut execute_state = ExecuteSecRequest::new(input, context);
+        let mut execute_state = create_fake_client_state(200);
 
         let expected_result = true;
 
@@ -634,12 +619,7 @@ mod tests {
 
     #[tokio::test]
     async fn should_succeed_when_valid_input_is_provided() {
-        let client = SecClient::default();
-        let cik = Cik::new("0001067983").expect("Hardcoded CIK should be valid");
-        let request = SecRequest::builder().all_company_facts().cik(cik).build();
-        let input = ExecuteSecRequestInput::new(client, request);
-        let context = ExecuteSecRequestContext::new(create_test_cik(), FakeWriteRepository::new());
-        let mut execute_state = ExecuteSecRequest::new(input, context);
+        let mut execute_state = create_fake_client_state(200);
 
         let expected_result = true;
         let result = execute_state.compute_output_data_async().await.is_ok();
