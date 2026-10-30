@@ -1,5 +1,5 @@
-use crate::shared::request::implementations::sec_request::{CompanyFacts, NotesFile, RequestKind};
-use crate::shared::response::implementations::sec_response::{JsonBody, ResponseBody, ZipBody};
+use crate::shared::request::implementations::sec_request::RequestKind;
+use crate::shared::response::implementations::sec_response::ResponseBody;
 
 /// An SEC endpoint that responds with a body of kind [`RespondsWith::Body`].
 ///
@@ -13,16 +13,12 @@ use crate::shared::response::implementations::sec_response::{JsonBody, ResponseB
 /// This trait lives on the client side, so `shared::request` does not depend on
 /// `shared::response`.
 ///
+/// The impls for each endpoint live in
+/// [`implementations::responds_with`](crate::shared::http_client::implementations::responds_with).
+///
 /// [`SecRequest<E>`]: crate::shared::request::implementations::sec_request::SecRequest
+/// [`ZipBody`]: crate::shared::response::implementations::sec_response::ZipBody
 pub trait RespondsWith: RequestKind {
     /// The body kind of the response from this endpoint.
     type Body: ResponseBody;
-}
-
-impl RespondsWith for CompanyFacts {
-    type Body = JsonBody;
-}
-
-impl RespondsWith for NotesFile {
-    type Body = ZipBody;
 }
