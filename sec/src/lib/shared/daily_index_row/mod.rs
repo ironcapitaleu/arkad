@@ -179,12 +179,11 @@ impl DailyIndexRow {
 /// Checks the length first, because `%Y%m%d` also accepts a 1-digit month or day, as in
 /// `2026102`.
 fn filed_date_of(text: &str) -> Option<NaiveDate> {
-    let is_filed_date_shape =
-        text.len() == FILED_DATE_LENGTH && text.bytes().all(|byte| byte.is_ascii_digit());
+    if text.len() != FILED_DATE_LENGTH || !text.bytes().all(|byte| byte.is_ascii_digit()) {
+        return None;
+    }
 
-    is_filed_date_shape
-        .then(|| NaiveDate::parse_from_str(text, FILED_DATE_FORMAT).ok())
-        .flatten()
+    NaiveDate::parse_from_str(text, FILED_DATE_FORMAT).ok()
 }
 
 /// Returns the accession number at the end of a file name such as
