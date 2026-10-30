@@ -58,10 +58,7 @@ pub trait SecClient: Debug + Clone + Eq + Ord + Hash + Send + Sync + Unpin + Ser
     fn user_agent(&self) -> &UserAgent;
 
     /// Executes an SEC request to the endpoint `E`, for example `CompanyFacts`, and returns a
-    /// response with the body kind of `E`.
-    ///
-    /// [`RespondsWith::Body`] names the body kind that `E` returns, so the endpoint alone ties a
-    /// request to its response.
+    /// response with the body kind of `E`. See [`RespondsWith`] for how `E` sets the response type.
     ///
     /// Waits on the rate limiter, sends the request through [`Self::inner`], and builds the
     /// response with [`SecResponseTrait::from_inner`].

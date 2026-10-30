@@ -207,8 +207,8 @@ error. A later improvement can compare the list with the SEC page.
     `SecRequest<CompanyFacts>`, and `.notes_file().period(p).build()` returns `SecRequest<NotesFile>`.
   - Generic code builds a request without the builder: `SecRequest::<K>::new(input)`, with
     `input: K::Input`. A wrong input does not compile.
-  - The request knows nothing about responses. The client maps a kind to its body kind, see
-    "Download".
+  - The request knows nothing about responses. The client maps each request kind, an SEC
+    endpoint, to its body kind, see "Download".
 
 ### Download
 
@@ -240,7 +240,8 @@ where
     E: RespondsWith;
 ```
 
-`E` is the SEC endpoint the request queries. The endpoint alone ties a request to its response.
+`E` is the SEC endpoint the request queries. `RespondsWith::Body` of `E` sets the response type,
+so the caller does not choose it.
 `Response<B>` is a generic associated type, so the trait names no `reqwest` or `http` type. The
 concrete `SecClient` sets `Response<B> = SecResponse<B>`. A Notes request gives a
 `SecResponse<ZipBody>`. Code that expects a `SecResponse<JsonBody>` from it does not compile.

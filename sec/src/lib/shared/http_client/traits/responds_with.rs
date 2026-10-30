@@ -10,9 +10,6 @@ use crate::shared::response::implementations::sec_response::{JsonBody, ResponseB
 /// 3. [`SecClient::execute_sec_request`](super::SecClient::execute_sec_request) returns a
 ///    `Response<E::Body>`, so the client builds and checks the body kind that `E` names.
 ///
-/// So a `SecRequest<NotesFile>` always gives a response with a [`ZipBody`]. Code that expects a
-/// [`JsonBody`] from it does not compile.
-///
 /// This trait lives on the client side, so `shared::request` does not depend on
 /// `shared::response`.
 ///
