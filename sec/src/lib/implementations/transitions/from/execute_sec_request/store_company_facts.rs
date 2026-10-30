@@ -25,12 +25,13 @@ use crate::implementations::states::extract::store_company_facts::constants::STA
 use crate::implementations::states::extract::store_company_facts::{
     StoreCompanyFacts, StoreCompanyFactsContext, StoreCompanyFactsInput,
 };
+use crate::shared::http_client::SecClient as SecClientTrait;
 #[cfg(doc)]
 use crate::shared::http_client::implementations::sec_client::SecClient;
 use crate::shared::request::implementations::sec_request::SecRequest;
 use crate::shared::url::Url;
 
-impl<R> TryFrom<(ExecuteSecRequest<R>, Uuid)> for StoreCompanyFacts<R> {
+impl<R, C: SecClientTrait> TryFrom<(ExecuteSecRequest<R, C>, Uuid)> for StoreCompanyFacts<R> {
     type Error = TransitionError;
 
     /// Builds a [`StoreCompanyFacts`] from a computed [`ExecuteSecRequest`] and the `execution_id`.
@@ -43,7 +44,7 @@ impl<R> TryFrom<(ExecuteSecRequest<R>, Uuid)> for StoreCompanyFacts<R> {
     /// different CIK from its context. The stored key follows the context CIK, so a mismatch stores
     /// a response under the wrong company.
     fn try_from(
-        (state, execution_id): (ExecuteSecRequest<R>, Uuid),
+        (state, execution_id): (ExecuteSecRequest<R, C>, Uuid),
     ) -> Result<Self, TransitionError> {
         let (input, output, context) = state.into_parts();
         let output_data = output.ok_or_else(|| {

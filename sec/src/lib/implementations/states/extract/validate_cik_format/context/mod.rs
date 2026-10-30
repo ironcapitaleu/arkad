@@ -46,6 +46,7 @@ use serde::Serialize;
 use state_maschine::prelude::Context as SMContext;
 
 use crate::implementations::states::extract::store_company_facts::RawCompanyFactsRepository;
+use crate::shared::http_client::SecClient as SecClientTrait;
 use crate::shared::http_client::implementations::sec_client::SecClient;
 use crate::traits::state_machine::state::Context;
 
@@ -54,21 +55,21 @@ use crate::traits::state_machine::state::Context;
 ///
 /// Holds the raw CIK under validation, the shared [`SecClient`], and the storage repository of
 /// the run. It also holds the retry budget.
-pub struct ValidateCikFormatContext<R> {
+pub struct ValidateCikFormatContext<R, C = SecClient> {
     /// The unvalidated CIK string provided for validation.
     pub raw_cik: String,
     /// The shared HTTP client for SEC API requests.
-    pub sec_client: SecClient,
+    pub sec_client: C,
     /// The storage repository.
     pub repository: R,
     /// Maximum number of times the state may be retried on failure.
     pub max_retries: u32,
 }
 
-impl<R> ValidateCikFormatContext<R> {
+impl<R, C> ValidateCikFormatContext<R, C> {
     /// Creates a new [`ValidateCikFormatContext`] from a raw CIK, a shared HTTP client, and the
     /// storage repository.
-    pub fn new(cik: impl Into<String>, sec_client: SecClient, repository: R) -> Self {
+    pub fn new(cik: impl Into<String>, sec_client: C, repository: R) -> Self {
         Self {
             raw_cik: cik.into(),
             sec_client,
@@ -85,7 +86,7 @@ impl<R> ValidateCikFormatContext<R> {
 
     /// Returns a reference to the HTTP client.
     #[must_use]
-    pub const fn sec_client(&self) -> &SecClient {
+    pub const fn sec_client(&self) -> &C {
         &self.sec_client
     }
 
@@ -96,15 +97,15 @@ impl<R> ValidateCikFormatContext<R> {
     }
 }
 
-impl<R: RawCompanyFactsRepository> Context for ValidateCikFormatContext<R> {
+impl<R: RawCompanyFactsRepository, C: SecClientTrait> Context for ValidateCikFormatContext<R, C> {
     /// Returns the maximum number of retries allowed for CIK validation.
     fn max_retries(&self) -> u32 {
         self.max_retries
     }
 }
 
-impl<R: RawCompanyFactsRepository> SMContext for ValidateCikFormatContext<R> {
-    type UpdateType = ValidateCikFormatContextUpdater<R>;
+impl<R: RawCompanyFactsRepository, C: SecClientTrait> SMContext for ValidateCikFormatContext<R, C> {
+    type UpdateType = ValidateCikFormatContextUpdater<R, C>;
 
     /// Returns a reference to the current context.
     fn context(&self) -> &Self {
@@ -130,7 +131,7 @@ impl<R: RawCompanyFactsRepository> SMContext for ValidateCikFormatContext<R> {
     }
 }
 
-impl<R> fmt::Display for ValidateCikFormatContext<R> {
+impl<R, C> fmt::Display for ValidateCikFormatContext<R, C> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "Unvalidated CIK: {}", self.raw_cik)
     }
@@ -140,33 +141,33 @@ impl<R> fmt::Display for ValidateCikFormatContext<R> {
 /// Updater for modifying [`ValidateCikFormatContext`].
 ///
 /// Fields set to `None` are left unchanged when the updater is applied.
-pub struct ValidateCikFormatContextUpdater<R> {
+pub struct ValidateCikFormatContextUpdater<R, C = SecClient> {
     /// Optional new raw CIK string value.
     pub raw_cik: Option<String>,
     /// Optional new HTTP client value.
-    pub sec_client: Option<SecClient>,
+    pub sec_client: Option<C>,
     /// Optional new value for the storage repository.
     pub repository: Option<R>,
     /// Optional new maximum retries value.
     pub max_retries: Option<u32>,
 }
 
-impl<R> ValidateCikFormatContextUpdater<R> {
+impl<R, C> ValidateCikFormatContextUpdater<R, C> {
     /// Creates a new builder for constructing [`ValidateCikFormatContextUpdater`] instances.
     #[must_use]
-    pub const fn builder() -> ValidateCikFormatContextUpdaterBuilder<R> {
+    pub const fn builder() -> ValidateCikFormatContextUpdaterBuilder<R, C> {
         ValidateCikFormatContextUpdaterBuilder::new()
     }
 }
 
 /// Fluent builder for a [`ValidateCikFormatContextUpdater`].
-pub struct ValidateCikFormatContextUpdaterBuilder<R> {
+pub struct ValidateCikFormatContextUpdaterBuilder<R, C = SecClient> {
     raw_cik: Option<String>,
-    sec_client: Option<SecClient>,
+    sec_client: Option<C>,
     repository: Option<R>,
     max_retries: Option<u32>,
 }
-impl<R> ValidateCikFormatContextUpdaterBuilder<R> {
+impl<R, C> ValidateCikFormatContextUpdaterBuilder<R, C> {
     /// Creates a new [`ValidateCikFormatContextUpdaterBuilder`] with all fields initialized to `None`.
     #[must_use]
     pub const fn new() -> Self {
@@ -188,7 +189,7 @@ impl<R> ValidateCikFormatContextUpdaterBuilder<R> {
 
     /// Sets the SEC client field.
     #[must_use]
-    pub fn sec_client(mut self, sec_client: SecClient) -> Self {
+    pub fn sec_client(mut self, sec_client: C) -> Self {
         self.sec_client = Some(sec_client);
         self
     }
@@ -209,7 +210,7 @@ impl<R> ValidateCikFormatContextUpdaterBuilder<R> {
 
     /// Builds the [`ValidateCikFormatContextUpdater`].
     #[must_use]
-    pub fn build(self) -> ValidateCikFormatContextUpdater<R> {
+    pub fn build(self) -> ValidateCikFormatContextUpdater<R, C> {
         ValidateCikFormatContextUpdater {
             raw_cik: self.raw_cik,
             sec_client: self.sec_client,
@@ -219,7 +220,7 @@ impl<R> ValidateCikFormatContextUpdaterBuilder<R> {
     }
 }
 
-impl<R> Default for ValidateCikFormatContextUpdaterBuilder<R> {
+impl<R, C> Default for ValidateCikFormatContextUpdaterBuilder<R, C> {
     /// Returns a new [`ValidateCikFormatContextUpdaterBuilder`] with all fields initialized to `None`.
     fn default() -> Self {
         Self::new()

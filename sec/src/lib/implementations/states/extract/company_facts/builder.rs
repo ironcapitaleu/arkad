@@ -19,7 +19,11 @@ use crate::implementations::states::extract::store_company_facts::RawCompanyFact
 use crate::implementations::states::extract::validate_cik_format::{
     ValidateCikFormat, ValidateCikFormatContext, ValidateCikFormatInput,
 };
+use crate::shared::http_client::SecClient as SecClientTrait;
+#[cfg(doc)]
 use crate::shared::http_client::implementations::sec_client::SecClient;
+use crate::shared::http_client::implementations::sec_client::error::FailedSecRequest;
+use crate::shared::response::implementations::sec_response::{JsonBody, SecResponse};
 
 /// Marks a builder that holds no CIK yet.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -98,12 +102,16 @@ impl<S, E, R> ExtractCompanyFactsSuperStateBuilder<NoCik, S, E, R> {
 }
 
 impl<C, E, R> ExtractCompanyFactsSuperStateBuilder<C, NoSecClient, E, R> {
-    /// Sets the [`SecClient`] that every state of the extract phase shares.
+    /// Sets the SEC client that every state of the extract phase shares.
+    ///
+    /// The client must return a [`SecResponse<JsonBody>`] and a [`FailedSecRequest`]. The output of
+    /// `ExecuteSecRequest` holds the response, and its error wraps the failure. [`SecClient`] meets
+    /// both.
     #[must_use]
-    pub fn sec_client(
-        self,
-        sec_client: SecClient,
-    ) -> ExtractCompanyFactsSuperStateBuilder<C, SecClient, E, R> {
+    pub fn sec_client<S>(self, sec_client: S) -> ExtractCompanyFactsSuperStateBuilder<C, S, E, R>
+    where
+        S: SecClientTrait<Response<JsonBody> = SecResponse<JsonBody>, Error = FailedSecRequest>,
+    {
         ExtractCompanyFactsSuperStateBuilder {
             cik: self.cik,
             sec_client,
@@ -142,8 +150,8 @@ impl<C, S, E, R> ExtractCompanyFactsSuperStateBuilder<C, S, E, NoRepository<R>> 
     }
 }
 
-impl<R: RawCompanyFactsRepository>
-    ExtractCompanyFactsSuperStateBuilder<String, SecClient, Uuid, R>
+impl<R: RawCompanyFactsRepository, S: SecClientTrait>
+    ExtractCompanyFactsSuperStateBuilder<String, S, Uuid, R>
 {
     /// Builds an [`ExtractCompanyFactsSuperState`] at [`ValidateCikFormat`] with the fields this
     /// builder holds.
@@ -172,7 +180,7 @@ impl<R: RawCompanyFactsRepository>
     ///     .build();
     /// ```
     #[must_use]
-    pub fn build(self) -> ExtractCompanyFactsSuperState<ValidateCikFormat<R>, R> {
+    pub fn build(self) -> ExtractCompanyFactsSuperState<ValidateCikFormat<R, S>, R, S> {
         let input_data = ValidateCikFormatInput::new(self.cik.clone());
         let state_context = ValidateCikFormatContext::new(
             self.cik,
@@ -202,6 +210,7 @@ mod tests {
 
     use super::*;
     use crate::shared::http_client::implementations::reqwest_client::ReqwestClient;
+    use crate::shared::http_client::implementations::sec_client::SecClient;
     use crate::shared::user_agent::UserAgent;
     use crate::tests::fixtures::sample_write_repository::FakeWriteRepository;
 

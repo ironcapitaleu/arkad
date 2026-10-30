@@ -20,11 +20,12 @@ use crate::implementations::states::extract::prepare_sec_request::{
 };
 use crate::implementations::states::extract::validate_cik_format::ValidateCikFormat;
 use crate::implementations::states::extract::validate_cik_format::constants::STATE_NAME as VALIDATE_CIK_FORMAT;
+use crate::shared::http_client::SecClient as SecClientTrait;
 
-impl<R> TryFrom<ValidateCikFormat<R>> for PrepareSecRequest<R> {
+impl<R, C: SecClientTrait> TryFrom<ValidateCikFormat<R, C>> for PrepareSecRequest<R, C> {
     type Error = TransitionError;
 
-    fn try_from(state: ValidateCikFormat<R>) -> Result<Self, TransitionError> {
+    fn try_from(state: ValidateCikFormat<R, C>) -> Result<Self, TransitionError> {
         let (_input, output, context) = state.into_parts();
         let output_data = output.ok_or_else(|| {
             transition::MissingOutput::new(VALIDATE_CIK_FORMAT, PREPARE_SEC_REQUEST)
