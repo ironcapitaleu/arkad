@@ -10,6 +10,7 @@
 
 use std::fmt;
 
+use bytes::Bytes;
 use chrono::{DateTime, Utc};
 use pretty_assertions::assert_eq;
 use tempfile::TempDir;
@@ -36,7 +37,7 @@ impl fmt::Display for SampleDocumentType {
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct SampleDocument {
     key: DocumentKey,
-    bytes: Vec<u8>,
+    bytes: Bytes,
     metadata: DocumentMetadata<()>,
 }
 
@@ -58,10 +59,14 @@ impl Document for SampleDocument {
         &self.metadata
     }
 
-    fn from_parts(key: DocumentKey, bytes: Vec<u8>, metadata: DocumentMetadata<()>) -> Self {
+    fn from_parts(
+        key: DocumentKey,
+        bytes: impl Into<Bytes>,
+        metadata: DocumentMetadata<()>,
+    ) -> Self {
         Self {
             key,
-            bytes,
+            bytes: bytes.into(),
             metadata,
         }
     }

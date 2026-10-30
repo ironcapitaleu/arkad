@@ -100,7 +100,7 @@ impl DocumentMetadata<NoContext> {
     /// #
     /// # struct Summary {
     /// #     key: DocumentKey,
-    /// #     bytes: Vec<u8>,
+    /// #     bytes: bytes::Bytes,
     /// #     metadata: DocumentMetadata<SummaryContext>,
     /// # }
     /// #
@@ -114,10 +114,10 @@ impl DocumentMetadata<NoContext> {
     /// #     fn metadata(&self) -> &DocumentMetadata<SummaryContext> { &self.metadata }
     /// #     fn from_parts(
     /// #         key: DocumentKey,
-    /// #         bytes: Vec<u8>,
+    /// #         bytes: impl Into<bytes::Bytes>,
     /// #         metadata: DocumentMetadata<SummaryContext>,
     /// #     ) -> Self {
-    /// #         Self { key, bytes, metadata }
+    /// #         Self { key, bytes: bytes.into(), metadata }
     /// #     }
     /// # }
     /// #

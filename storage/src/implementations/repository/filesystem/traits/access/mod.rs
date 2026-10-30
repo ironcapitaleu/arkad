@@ -44,7 +44,7 @@ mod sealed {
 /// #
 /// # struct Summary {
 /// #     key: DocumentKey,
-/// #     bytes: Vec<u8>,
+/// #     bytes: bytes::Bytes,
 /// #     metadata: DocumentMetadata<SummaryContext>,
 /// # }
 /// #
@@ -58,10 +58,10 @@ mod sealed {
 /// #     fn metadata(&self) -> &DocumentMetadata<SummaryContext> { &self.metadata }
 /// #     fn from_parts(
 /// #         key: DocumentKey,
-/// #         bytes: Vec<u8>,
+/// #         bytes: impl Into<bytes::Bytes>,
 /// #         metadata: DocumentMetadata<SummaryContext>,
 /// #     ) -> Self {
-/// #         Self { key, bytes, metadata }
+/// #         Self { key, bytes: bytes.into(), metadata }
 /// #     }
 /// # }
 /// #
@@ -109,7 +109,7 @@ pub struct Read;
 /// #
 /// # struct Summary {
 /// #     key: DocumentKey,
-/// #     bytes: Vec<u8>,
+/// #     bytes: bytes::Bytes,
 /// #     metadata: DocumentMetadata<SummaryContext>,
 /// # }
 /// #
@@ -123,10 +123,10 @@ pub struct Read;
 /// #     fn metadata(&self) -> &DocumentMetadata<SummaryContext> { &self.metadata }
 /// #     fn from_parts(
 /// #         key: DocumentKey,
-/// #         bytes: Vec<u8>,
+/// #         bytes: impl Into<bytes::Bytes>,
 /// #         metadata: DocumentMetadata<SummaryContext>,
 /// #     ) -> Self {
-/// #         Self { key, bytes, metadata }
+/// #         Self { key, bytes: bytes.into(), metadata }
 /// #     }
 /// # }
 /// #
@@ -199,7 +199,7 @@ pub trait CanRead: Access {}
 /// #
 /// # struct Summary {
 /// #     key: DocumentKey,
-/// #     bytes: Vec<u8>,
+/// #     bytes: bytes::Bytes,
 /// #     metadata: DocumentMetadata<SummaryContext>,
 /// # }
 /// #
@@ -213,10 +213,10 @@ pub trait CanRead: Access {}
 /// #     fn metadata(&self) -> &DocumentMetadata<SummaryContext> { &self.metadata }
 /// #     fn from_parts(
 /// #         key: DocumentKey,
-/// #         bytes: Vec<u8>,
+/// #         bytes: impl Into<bytes::Bytes>,
 /// #         metadata: DocumentMetadata<SummaryContext>,
 /// #     ) -> Self {
-/// #         Self { key, bytes, metadata }
+/// #         Self { key, bytes: bytes.into(), metadata }
 /// #     }
 /// # }
 /// #
