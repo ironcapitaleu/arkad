@@ -232,14 +232,15 @@ The `SecClient` trait has one method for every endpoint. Its default body waits 
 sends the request through the inner client, and builds the response:
 
 ```rust
-async fn execute_sec_request<Endpoint>(
+async fn execute_sec_request<E>(
     &self,
-    request: SecRequest<Endpoint>,
-) -> Result<Self::Response<Endpoint::Body>, Self::Error>
+    request: SecRequest<E>,
+) -> Result<Self::Response<E::Body>, Self::Error>
 where
-    Endpoint: RespondsWith;
+    E: RespondsWith;
 ```
 
+`E` is the SEC endpoint the request queries. The endpoint alone ties a request to its response.
 `Response<B>` is a generic associated type, so the trait names no `reqwest` or `http` type. The
 concrete `SecClient` sets `Response<B> = SecResponse<B>`. A Notes request gives a
 `SecResponse<ZipBody>`. Code that expects a `SecResponse<JsonBody>` from it does not compile.

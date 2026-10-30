@@ -35,7 +35,7 @@ pub trait SecClient: Debug + Clone + Eq + Ord + Hash + Send + Sync + Unpin + Ser
     /// The raw HTTP client this trait delegates to.
     ///
     /// The bound names the inner request of the default endpoint. Every endpoint builds the same
-    /// inner request type, so the default body can send any `SecRequest<Endpoint>`.
+    /// inner request type, so the default body can send any `SecRequest<E>`.
     type Inner: InnerClient<Request = <SecRequest as SecRequestTrait>::Inner, Error: Into<Self::Error>>;
     /// The rate limiter pacing outgoing requests. Must implement [`RateLimiter`].
     type Limiter: RateLimiter;
@@ -57,7 +57,10 @@ pub trait SecClient: Debug + Clone + Eq + Ord + Hash + Send + Sync + Unpin + Ser
     /// Returns the [`UserAgent`] that every request carries.
     fn user_agent(&self) -> &UserAgent;
 
-    /// Executes an SEC request to `Endpoint` and returns a response with the body of `Endpoint`.
+    /// Executes an SEC request to the endpoint `E` and returns a response with the body of `E`.
+    ///
+    /// `E` is the SEC endpoint the request queries, for example `CompanyFacts`. The endpoint alone
+    /// ties a request to its response: [`RespondsWith::Body`] names the body that `E` returns.
     ///
     /// Waits on the rate limiter, sends the request through [`Self::inner`], and builds the
     /// response with [`SecResponseTrait::from_inner`].
@@ -83,12 +86,12 @@ pub trait SecClient: Debug + Clone + Eq + Ord + Hash + Send + Sync + Unpin + Ser
     ///
     /// Returns `Self::Error` if the request fails at the network level or the response fails
     /// SEC validation.
-    async fn execute_sec_request<Endpoint>(
+    async fn execute_sec_request<E>(
         &self,
-        request: SecRequest<Endpoint>,
-    ) -> Result<Self::Response<Endpoint::Body>, Self::Error>
+        request: SecRequest<E>,
+    ) -> Result<Self::Response<E::Body>, Self::Error>
     where
-        Endpoint: RespondsWith,
+        E: RespondsWith,
     {
         self.rate_limiter().await_turn().await;
 
@@ -97,7 +100,7 @@ pub trait SecClient: Debug + Clone + Eq + Ord + Hash + Send + Sync + Unpin + Ser
             .execute_request(request.into_inner())
             .await
             .map_err(Into::into)?;
-        <Self::Response<Endpoint::Body> as SecResponseTrait>::from_inner(inner_response)
+        <Self::Response<E::Body> as SecResponseTrait>::from_inner(inner_response)
             .await
             .map_err(Into::into)
     }
