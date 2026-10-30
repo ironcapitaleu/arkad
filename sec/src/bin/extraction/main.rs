@@ -4,9 +4,7 @@ use sec::implementations::states::extract::company_facts::ExtractCompanyFactsSup
 use sec::implementations::states::extract::execute_sec_request::{
     ExecuteCompanyFactsRequest, ExecuteSecRequestContext, ExecuteSecRequestInput,
 };
-use sec::implementations::states::extract::prepare_sec_request::{
-    PrepareSecRequest, PrepareSecRequestContext, PrepareSecRequestInput,
-};
+use sec::implementations::states::extract::prepare_sec_request::PrepareSecRequest;
 use sec::implementations::states::extract::validate_cik_format::ValidateCikFormat;
 use uuid::Uuid;
 
@@ -61,24 +59,17 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
 
     println!("\n=======================================================");
     println!("Initial PrepareSecRequest state:");
-    let mut prepare_sec_request = PrepareSecRequest::new(
-        PrepareSecRequestInput::new(
+    let mut prepare_sec_request = PrepareSecRequest::builder()
+        .all_company_facts()
+        .cik(
             validate_cik_state
                 .output_data()
                 .expect("Should be valid")
                 .validated_cik
                 .clone(),
-            sec_client.clone(),
-        ),
-        PrepareSecRequestContext::new(
-            validate_cik_state
-                .output_data()
-                .expect("Should be valid")
-                .validated_cik
-                .clone(),
-            repository.clone(),
-        ),
-    );
+        )
+        .repository(repository.clone())
+        .build();
     println!("{:.500}", prepare_sec_request.to_string().as_str());
     prepare_sec_request
         .compute_output_data_async()
@@ -96,10 +87,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
         .clone();
 
     let mut execute_sec_request = ExecuteCompanyFactsRequest::new(
-        ExecuteSecRequestInput::new(
-            prepare_output.client().clone(),
-            prepare_output.request().clone(),
-        ),
+        ExecuteSecRequestInput::new(sec_client.clone(), prepare_output.request().clone()),
         ExecuteSecRequestContext::new(
             validate_cik_state
                 .output_data()

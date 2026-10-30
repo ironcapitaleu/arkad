@@ -1,15 +1,15 @@
 //! # Prepare SEC Request State
 //!
-//! Provides the [`PrepareSecRequest`] state, which builds the [`SecRequest`] targeting the
-//! SEC API endpoint for a validated CIK.
+//! Provides the [`PrepareSecRequest`] state, which builds the [`SecRequest`] of a request kind from
+//! its input.
 //!
-//! Taking a validated [`Cik`](crate::shared::cik::Cik) and the shared HTTP client, it
-//! assembles the company-facts request and pairs it with that client. Separating preparation
-//! from execution keeps request construction synchronous and independently testable, without
-//! touching the network.
+//! The kind `K` sets the input, for example the validated [`Cik`](crate::shared::cik::Cik) of
+//! [`CompanyFacts`]. The state builds the request with [`SecRequestTrait::new`], so it needs no
+//! code for a single kind. Preparation is local and synchronous: it makes no network call.
 //!
 //! ## Modules
 //!
+//! - [`builder`]: The typestate [`PrepareSecRequestBuilder`].
 //! - [`constants`]: State metadata such as [`STATE_NAME`].
 //! - [`context`]: The [`PrepareSecRequestContext`] carried alongside the state.
 //! - [`data`]: The [`PrepareSecRequestInput`] and [`PrepareSecRequestOutput`] data types.
@@ -20,12 +20,10 @@
 //! use sec::implementations::states::extract::prepare_sec_request::*;
 //! use sec::prelude::*;
 //! use sec::shared::cik::Cik;
-//! use sec::shared::http_client::implementations::sec_client::SecClient;
 //!
 //! # #[tokio::main]
 //! # async fn main() {
 //! let cik = Cik::new("1067983").expect("A hardcoded valid CIK should always parse");
-//! let input = PrepareSecRequestInput::new(cik.clone(), SecClient::default());
 //! # use sec::shared::raw_document::RawDocument;
 //! # use sec::shared::raw_source::RawCompanyFacts;
 //! # use storage::implementations::repository::filesystem::FilesystemRepository;
@@ -34,8 +32,11 @@
 //! #     .document_type::<RawDocument<RawCompanyFacts>>()
 //! #     .root("data")
 //! #     .build();
-//! let context = PrepareSecRequestContext::new(cik, repository);
-//! let mut state = PrepareSecRequest::new(input, context);
+//! let mut state = PrepareSecRequest::builder()
+//!     .all_company_facts()
+//!     .cik(cik)
+//!     .repository(repository)
+//!     .build();
 //! state
 //!     .compute_output_data_async()
 //!     .await
@@ -63,33 +64,36 @@ use state_maschine::prelude::State as SMState;
 
 use crate::error::State as StateError;
 use crate::implementations::states::extract::store_company_facts::RawCompanyFactsRepository;
-use crate::shared::http_client::SecClient as SecClientTrait;
-use crate::shared::http_client::implementations::sec_client::SecClient;
-use crate::shared::request::implementations::sec_request::SecRequest;
+use crate::shared::request::SecRequest as SecRequestTrait;
+use crate::shared::request::implementations::sec_request::{CompanyFacts, RequestKind, SecRequest};
 use crate::traits::state_machine::state::State;
 
+pub mod builder;
 pub mod constants;
 pub mod context;
 pub mod data;
 
+pub use builder::PrepareSecRequestBuilder;
 pub use constants::STATE_NAME;
 pub use context::PrepareSecRequestContext;
 pub use data::PrepareSecRequestInput;
 pub use data::PrepareSecRequestOutput;
 
-/// Builds the [`SecRequest`] for a validated CIK.
+/// Builds the [`SecRequest`] of the request kind `K` from its input.
 ///
-/// Takes a validated [`Cik`](crate::shared::cik::Cik) and the shared HTTP client and
-/// assembles a company-facts request targeting the matching SEC endpoint. The work is purely
-/// local: no network call is made here.
+/// The work is local: no network call is made here. The context holds the storage repository `R`.
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
-pub struct PrepareSecRequest<R, C = SecClient> {
-    input: PrepareSecRequestInput<C>,
-    context: PrepareSecRequestContext<R>,
-    output: Option<PrepareSecRequestOutput<C>>,
+#[serde(bound(serialize = "R: Serialize"))]
+pub struct PrepareSecRequest<K: RequestKind, R> {
+    input: PrepareSecRequestInput<K>,
+    context: PrepareSecRequestContext<K, R>,
+    output: Option<PrepareSecRequestOutput<K>>,
 }
 
-impl<R, C> PrepareSecRequest<R, C> {
+/// The [`PrepareSecRequest`] state of the Company Facts path.
+pub type PrepareCompanyFactsRequest<R> = PrepareSecRequest<CompanyFacts, R>;
+
+impl<K: RequestKind, R> PrepareSecRequest<K, R> {
     /// Creates a new [`PrepareSecRequest`] state from its input and context, with no output computed yet.
     ///
     /// # Examples
@@ -97,11 +101,11 @@ impl<R, C> PrepareSecRequest<R, C> {
     /// ```
     /// use sec::implementations::states::extract::prepare_sec_request::*;
     /// use sec::shared::cik::Cik;
-    /// use sec::shared::http_client::implementations::sec_client::SecClient;
+    /// use sec::shared::request::implementations::sec_request::CompanyFacts;
     /// use state_maschine::prelude::State as SMState;
     ///
     /// let cik = Cik::new("1067983").expect("A hardcoded valid CIK should always parse");
-    /// let input = PrepareSecRequestInput::new(cik.clone(), SecClient::default());
+    /// let input = PrepareSecRequestInput::<CompanyFacts>::new(cik.clone());
     /// # use sec::shared::raw_document::RawDocument;
     /// # use sec::shared::raw_source::RawCompanyFacts;
     /// # use storage::implementations::repository::filesystem::FilesystemRepository;
@@ -121,8 +125,8 @@ impl<R, C> PrepareSecRequest<R, C> {
     /// ```
     #[must_use]
     pub const fn new(
-        input: PrepareSecRequestInput<C>,
-        context: PrepareSecRequestContext<R>,
+        input: PrepareSecRequestInput<K>,
+        context: PrepareSecRequestContext<K, R>,
     ) -> Self {
         Self {
             input,
@@ -136,38 +140,34 @@ impl<R, C> PrepareSecRequest<R, C> {
     pub fn into_parts(
         self,
     ) -> (
-        PrepareSecRequestInput<C>,
-        Option<PrepareSecRequestOutput<C>>,
-        PrepareSecRequestContext<R>,
+        PrepareSecRequestInput<K>,
+        Option<PrepareSecRequestOutput<K>>,
+        PrepareSecRequestContext<K, R>,
     ) {
         (self.input, self.output, self.context)
     }
 }
 
 #[async_trait]
-impl<R: RawCompanyFactsRepository, C: SecClientTrait> State for PrepareSecRequest<R, C> {
-    /// Builds the company-facts [`SecRequest`] for the input CIK and stores it as output.
+impl<K: RequestKind, R: RawCompanyFactsRepository> State for PrepareSecRequest<K, R> {
+    /// Builds the [`SecRequest`] for the request input and stores it as output.
     ///
     /// # Errors
     ///
     /// Infallible in practice; the [`Result`] exists to satisfy the [`State`] contract.
     async fn compute_output_data_async(&mut self) -> Result<(), StateError> {
-        let sec_client = self.input.sec_client.clone();
-        let sec_request = SecRequest::builder()
-            .all_company_facts()
-            .cik(self.input.validated_cik.clone())
-            .build();
+        let sec_request = SecRequest::new(self.input.request_input.clone());
 
-        self.output = Some(PrepareSecRequestOutput::new(sec_client, sec_request));
+        self.output = Some(PrepareSecRequestOutput::new(sec_request));
 
         Ok(())
     }
 }
 
-impl<R: RawCompanyFactsRepository, C: SecClientTrait> SMState for PrepareSecRequest<R, C> {
-    type InputData = PrepareSecRequestInput<C>;
-    type OutputData = PrepareSecRequestOutput<C>;
-    type Context = PrepareSecRequestContext<R>;
+impl<K: RequestKind, R: RawCompanyFactsRepository> SMState for PrepareSecRequest<K, R> {
+    type InputData = PrepareSecRequestInput<K>;
+    type OutputData = PrepareSecRequestOutput<K>;
+    type Context = PrepareSecRequestContext<K, R>;
 
     /// Returns the human-readable name of this state.
     fn state_name(&self) -> impl ToString {
@@ -212,7 +212,7 @@ impl<R: RawCompanyFactsRepository, C: SecClientTrait> SMState for PrepareSecRequ
     }
 }
 
-impl<R: RawCompanyFactsRepository, C: SecClientTrait> fmt::Display for PrepareSecRequest<R, C> {
+impl<K: RequestKind, R: RawCompanyFactsRepository> fmt::Display for PrepareSecRequest<K, R> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
@@ -242,7 +242,6 @@ mod tests {
     use super::*;
     use crate::shared::cik::Cik;
     use crate::shared::cik::constants::BERKSHIRE_HATHAWAY_CIK_RAW;
-    use crate::shared::http_client::implementations::sec_client::SecClient;
     use crate::tests::fixtures::sample_write_repository::FakeWriteRepository;
     use crate::traits::state_machine::state::State;
 
@@ -250,16 +249,15 @@ mod tests {
         Cik::new(BERKSHIRE_HATHAWAY_CIK_RAW).expect("Hardcoded CIK should always be valid")
     }
 
-    fn create_test_input() -> PrepareSecRequestInput {
-        let sec_client = SecClient::default();
-        PrepareSecRequestInput::new(create_test_cik(), sec_client)
+    fn create_test_input() -> PrepareSecRequestInput<CompanyFacts> {
+        PrepareSecRequestInput::new(create_test_cik())
     }
 
-    fn create_test_context() -> PrepareSecRequestContext<FakeWriteRepository> {
+    fn create_test_context() -> PrepareSecRequestContext<CompanyFacts, FakeWriteRepository> {
         PrepareSecRequestContext::new(create_test_cik(), FakeWriteRepository::new())
     }
 
-    fn create_test_state() -> PrepareSecRequest<FakeWriteRepository> {
+    fn create_test_state() -> PrepareCompanyFactsRequest<FakeWriteRepository> {
         PrepareSecRequest::new(create_test_input(), create_test_context())
     }
 
@@ -309,8 +307,7 @@ mod tests {
     #[test]
     fn should_create_new_prepare_state_with_provided_input_and_context() {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
-        let sec_client = SecClient::default();
-        let input = PrepareSecRequestInput::new(cik, sec_client);
+        let input = PrepareSecRequestInput::new(cik);
         let context = create_test_context();
 
         let expected_input = input.clone();
@@ -327,7 +324,7 @@ mod tests {
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
     #[test]
     const fn should_implement_auto_traits_for_prepare_sec_request() {
-        implements_auto_traits::<PrepareSecRequest<FakeWriteRepository>>();
+        implements_auto_traits::<PrepareCompanyFactsRequest<FakeWriteRepository>>();
     }
 
     const fn implements_send<T: Send>() {}
@@ -335,72 +332,72 @@ mod tests {
 
     #[test]
     const fn should_implement_send_for_prepare_sec_request() {
-        implements_send::<PrepareSecRequest<FakeWriteRepository>>();
+        implements_send::<PrepareCompanyFactsRequest<FakeWriteRepository>>();
     }
 
     #[test]
     const fn should_implement_sync_for_prepare_sec_request() {
-        implements_sync::<PrepareSecRequest<FakeWriteRepository>>();
+        implements_sync::<PrepareCompanyFactsRequest<FakeWriteRepository>>();
     }
 
     #[test]
     const fn should_be_thread_safe_for_prepare_sec_request() {
-        implements_send::<PrepareSecRequest<FakeWriteRepository>>();
-        implements_sync::<PrepareSecRequest<FakeWriteRepository>>();
+        implements_send::<PrepareCompanyFactsRequest<FakeWriteRepository>>();
+        implements_sync::<PrepareCompanyFactsRequest<FakeWriteRepository>>();
     }
 
     const fn implements_sized<T: Sized>() {}
     #[test]
     const fn should_be_sized_for_prepare_sec_request() {
-        implements_sized::<PrepareSecRequest<FakeWriteRepository>>();
+        implements_sized::<PrepareCompanyFactsRequest<FakeWriteRepository>>();
     }
 
     const fn implements_hash<T: Hash>() {}
     #[test]
     const fn should_implement_hash_for_prepare_sec_request() {
-        implements_hash::<PrepareSecRequest<FakeWriteRepository>>();
+        implements_hash::<PrepareCompanyFactsRequest<FakeWriteRepository>>();
     }
 
     const fn implements_partial_eq<T: PartialEq>() {}
     #[test]
     const fn should_implement_partial_eq_for_prepare_sec_request() {
-        implements_partial_eq::<PrepareSecRequest<FakeWriteRepository>>();
+        implements_partial_eq::<PrepareCompanyFactsRequest<FakeWriteRepository>>();
     }
 
     const fn implements_eq<T: Eq>() {}
     #[test]
     const fn should_implement_eq_for_prepare_sec_request() {
-        implements_eq::<PrepareSecRequest<FakeWriteRepository>>();
+        implements_eq::<PrepareCompanyFactsRequest<FakeWriteRepository>>();
     }
 
     const fn implements_partial_ord<T: PartialOrd>() {}
     #[test]
     const fn should_implement_partial_ord_for_prepare_sec_request() {
-        implements_partial_ord::<PrepareSecRequest<FakeWriteRepository>>();
+        implements_partial_ord::<PrepareCompanyFactsRequest<FakeWriteRepository>>();
     }
 
     const fn implements_ord<T: Ord>() {}
     #[test]
     const fn should_implement_ord_for_prepare_sec_request() {
-        implements_ord::<PrepareSecRequest<FakeWriteRepository>>();
+        implements_ord::<PrepareCompanyFactsRequest<FakeWriteRepository>>();
     }
 
     const fn implements_debug<T: Debug>() {}
     #[test]
     const fn should_implement_debug_for_prepare_sec_request() {
-        implements_debug::<PrepareSecRequest<FakeWriteRepository>>();
+        implements_debug::<PrepareCompanyFactsRequest<FakeWriteRepository>>();
     }
 
     const fn implements_clone<T: Clone>() {}
     #[test]
     const fn should_implement_clone_for_prepare_sec_request() {
-        implements_clone::<PrepareSecRequest<FakeWriteRepository>>();
+        implements_clone::<PrepareCompanyFactsRequest<FakeWriteRepository>>();
     }
 
     const fn implements_unpin<T: Unpin>() {}
     #[test]
     const fn should_implement_unpin_for_prepare_sec_request() {
-        implements_unpin::<PrepareSecRequest<FakeWriteRepository>>();
+        implements_unpin::<PrepareCompanyFactsRequest<FakeWriteRepository>>();
     }
 
     #[test]
@@ -454,8 +451,7 @@ mod tests {
     #[tokio::test]
     async fn should_not_change_input_data_when_computing_output_data() {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
-        let sec_client = SecClient::default();
-        let input = PrepareSecRequestInput::new(cik, sec_client);
+        let input = PrepareSecRequestInput::new(cik);
         let context = create_test_context();
         let mut prepare_state = PrepareSecRequest::new(input, context);
 
@@ -473,8 +469,7 @@ mod tests {
     #[tokio::test]
     async fn should_return_correct_output_data_when_computing_output_data() {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
-        let sec_client = SecClient::default();
-        let input = PrepareSecRequestInput::new(cik, sec_client);
+        let input = PrepareSecRequestInput::new(cik);
         let context = create_test_context();
         let mut prepare_state = PrepareSecRequest::new(input, context);
 
@@ -498,8 +493,7 @@ mod tests {
     #[tokio::test]
     async fn should_return_true_when_output_data_has_been_computed() {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
-        let sec_client = SecClient::default();
-        let input = PrepareSecRequestInput::new(cik, sec_client);
+        let input = PrepareSecRequestInput::new(cik);
         let context = create_test_context();
         let mut prepare_state = PrepareSecRequest::new(input, context);
 

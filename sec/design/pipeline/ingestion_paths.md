@@ -81,8 +81,8 @@ flowchart TB
     SB -- "SubmissionsRef" --> TN
 ```
 
-Green states exist today. The Submissions path reuses `PrepareSecRequest` with a new `SecRequestType`
-variant. The Notes path builds its request in its own state, `PrepareNotesRequest`.
+Green states exist today. `PrepareSecRequest` is generic over the request kind, so the Submissions
+path reuses it with a new kind. The Notes path builds its request in its own state, `PrepareNotesRequest`.
 Yellow states are new.
 
 ### Ingestion Mode
@@ -542,7 +542,7 @@ small (2.8 KB and 22.8 KB for this filing), so the run caps filings by the rate 
 ### Company Data
 
 `ExtractSubmissionsSuperState` mirrors the `companyfacts` machine and reuses three of its states:
-`ValidateCikFormat`, `PrepareSecRequest` with a new variant `FetchSubmissions { cik }`, and
+`ValidateCikFormat`, `PrepareSecRequest` with a new kind for `FetchSubmissions { cik }`, and
 `ExecuteSecRequest`. A new `StoreSubmissions` writes the JSON.
 
 - URL: `https://data.sec.gov/submissions/CIK##########.json`. Measured: it holds `sic`,

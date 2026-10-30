@@ -19,7 +19,7 @@ Extract                          Transform                        Load (planned)
 Fetches raw SEC Company Facts JSON from the EDGAR API and writes it to the store. A stream of the super-state ends after StoreCompanyFacts:
 
 1. **ValidateCikFormat** -- Validates and normalizes CIK strings to 10-digit zero-padded format.
-2. **PrepareSecRequest** -- Creates the HTTP client and builds the SEC API request.
+2. **PrepareSecRequest** -- Builds the SEC API request for the validated CIK.
 3. **ExecuteSecRequest** -- Executes the HTTP request and returns the validated SEC response.
 4. **StoreCompanyFacts** -- Writes the raw body of the SEC response to the store and returns the key of the stored document. It is the last state of the stream.
 
