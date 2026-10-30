@@ -13,9 +13,6 @@ use crate::shared::response::implementations::sec_response::ResponseBody;
 /// This trait lives on the client side, so `shared::request` does not depend on
 /// `shared::response`.
 ///
-/// The impls for each endpoint live in
-/// [`implementations::responds_with`](crate::shared::http_client::implementations::responds_with).
-///
 /// [`SecRequest<E>`]: crate::shared::request::implementations::sec_request::SecRequest
 /// [`ZipBody`]: crate::shared::response::implementations::sec_response::ZipBody
 pub trait RespondsWith: RequestKind {
