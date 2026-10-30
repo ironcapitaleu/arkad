@@ -8,9 +8,6 @@
 //! [`build`](PrepareSecRequestBuilder::build) exists only once the builder holds the input of its
 //! kind and a repository. If the builder lacks either one, the call to `build` does not compile.
 //!
-//! The repository bound is the Company Facts one until STA-385, so the Notes file example below
-//! also uses a Company Facts repository.
-//!
 //! ## Usage
 //!
 //! ```
@@ -18,11 +15,11 @@
 //! use sec::shared::notes_period::NotesPeriod;
 //! use state_maschine::prelude::State as SMState;
 //! # use sec::shared::raw_document::RawDocument;
-//! # use sec::shared::raw_source::RawCompanyFacts;
+//! # use sec::shared::raw_source::RawNotesArchive;
 //! # use storage::implementations::repository::filesystem::FilesystemRepository;
 //! # let repository = FilesystemRepository::builder()
 //! #     .writer()
-//! #     .document_type::<RawDocument<RawCompanyFacts>>()
+//! #     .document_type::<RawDocument<RawNotesArchive>>()
 //! #     .root("data")
 //! #     .build();
 //!
@@ -74,7 +71,7 @@ use std::marker::PhantomData;
 use crate::implementations::states::extract::prepare_sec_request::{
     PrepareSecRequest, PrepareSecRequestContext, PrepareSecRequestInput,
 };
-use crate::implementations::states::extract::store_company_facts::RawCompanyFactsRepository;
+use crate::implementations::states::extract::state_repository::StateRepository;
 use crate::shared::cik::Cik;
 use crate::shared::notes_period::NotesPeriod;
 use crate::shared::request::implementations::sec_request::{CompanyFacts, NotesFile, RequestKind};
@@ -186,7 +183,7 @@ impl<K, I, R> PrepareSecRequestBuilder<K, I, NoRepository<R>> {
     }
 }
 
-impl<K: RequestKind, R: RawCompanyFactsRepository> PrepareSecRequestBuilder<K, K::Input, R> {
+impl<K: RequestKind, R: StateRepository> PrepareSecRequestBuilder<K, K::Input, R> {
     /// Builds a [`PrepareSecRequest`] with no output computed yet.
     ///
     /// # Examples

@@ -69,7 +69,7 @@ use crate::implementations::states::extract::notes::builder::{
     ExtractNotesSuperStateBuilder, NoExecutionId, NoPeriod, NoRepository, NoSecClient,
 };
 use crate::implementations::states::extract::notes_repository::NotesRepository;
-use crate::implementations::states::extract::prepare_notes_request::PrepareNotesRequest;
+use crate::implementations::states::extract::prepare_sec_request::PrepareNotesRequest;
 use crate::implementations::states::extract::store_notes_archive::StoreNotesArchive;
 use crate::implementations::states::extract::validate_notes_period::ValidateNotesPeriod;
 use crate::prelude::*;
@@ -104,7 +104,8 @@ impl StateData for ExtractNotesSuperStateData {
 /// Context for the [`ExtractNotesSuperState`].
 ///
 /// Holds the SEC client of type `C`, the `execution_id`, and the slot for the stored archive. The
-/// transition into [`DownloadNotesArchive`] hands a clone of the client to that state.
+/// transition into [`DownloadNotesArchive`] hands a clone of the client and the `execution_id` to
+/// that state.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ExtractNotesSuperStateContext<C> {
     pub(crate) sec_client: C,
@@ -413,8 +414,13 @@ where
 {
     fn transition_to_next_state_sec(self) -> Result<Self::NewStateMachine, TransitionError> {
         let sec_client = self.context.sec_client.clone();
+        let execution_id = self.context.execution_id;
         Ok(ExtractNotesSuperState {
-            current_state: DownloadNotesArchive::try_from((self.current_state, sec_client))?,
+            current_state: DownloadNotesArchive::try_from((
+                self.current_state,
+                sec_client,
+                execution_id,
+            ))?,
             input: ExtractNotesSuperStateData,
             output: None,
             context: self.context,
@@ -483,12 +489,12 @@ mod tests {
 
     use super::*;
     use crate::implementations::states::extract::download_notes_archive::constants::STATE_NAME as DOWNLOAD_NOTES_ARCHIVE;
-    use crate::implementations::states::extract::prepare_notes_request::constants::STATE_NAME as PREPARE_NOTES_REQUEST;
     use crate::implementations::states::extract::store_notes_archive::constants::STATE_NAME as STORE_NOTES_ARCHIVE;
     use crate::implementations::states::extract::validate_notes_period::constants::STATE_NAME as VALIDATE_NOTES_PERIOD;
     use crate::shared::notes_period::NotesPeriod;
     use crate::shared::raw_document::RawDocument;
     use crate::shared::raw_source::RawNotesArchive;
+    use crate::shared::request::implementations::sec_request::{NotesFile, RequestKind};
     use crate::tests::fixtures::data::notes_archive::SAMPLE_NOTES_ZIP;
     use crate::tests::fixtures::sample_http_client::sample_sec_client::always_responding::AlwaysRespondingSecClient;
     use crate::tests::fixtures::sample_write_repository::FakeNotesRepository;
@@ -496,6 +502,7 @@ mod tests {
     type NotesFilesystemRepository = FilesystemRepository<Write, RawDocument<RawNotesArchive>>;
 
     const SAMPLE_EXECUTION_ID: Uuid = Uuid::from_u128(7);
+    const PREPARE_NOTES_REQUEST: &str = NotesFile::PREPARE_STATE_NAME;
 
     fn sec_client() -> AlwaysRespondingSecClient {
         AlwaysRespondingSecClient::new(

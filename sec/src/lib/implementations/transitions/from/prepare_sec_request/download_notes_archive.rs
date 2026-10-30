@@ -1,16 +1,32 @@
 //! # Transition: `PrepareNotesRequest` → `DownloadNotesArchive`
 //!
 //! Implements the [`TryFrom`] conversion producing a [`DownloadNotesArchive`] from a
-//! [`PrepareNotesRequest`] and an SEC client.
+//! [`PrepareNotesRequest`], an SEC client, and an `execution_id`.
 //!
-//! It moves the request from the output of the source state, the Notes period from its input, and
-//! the `execution_id` and the storage repository from its context. The source state holds no
-//! client, so the caller passes the one from the state machine context.
+//! It moves the request from the output of the source state, and the Notes period and the storage
+//! repository from its context. The source state holds no client and no `execution_id`, so the
+//! caller passes the ones from the state machine context.
+//!
+//! The source state has the [`NotesFile`] kind. A prepared Company Facts request cannot become a Notes download, so this does not compile:
+//!
+//! ```compile_fail,E0277
+//! use sec::implementations::states::extract::download_notes_archive::DownloadNotesArchive;
+//! use sec::implementations::states::extract::prepare_sec_request::PrepareCompanyFactsRequest;
+//! use sec::shared::http_client::implementations::sec_client::SecClient;
+//! use uuid::Uuid;
+//!
+//! fn download_as_notes_file<R>(state: PrepareCompanyFactsRequest<R>) {
+//!     let _next =
+//!         DownloadNotesArchive::<R, SecClient>::try_from((state, SecClient::default(), Uuid::nil()));
+//! }
+//! ```
 //!
 //! # Errors
 //!
 //! Returns [`TransitionError`] (a [`MissingOutput`](crate::error::state_machine::transition::MissingOutput))
 //! when the source state has no computed output.
+
+use uuid::Uuid;
 
 use crate::error::state_machine::transition;
 use crate::error::state_machine::transition::Transition as TransitionError;
@@ -18,28 +34,30 @@ use crate::implementations::states::extract::download_notes_archive::constants::
 use crate::implementations::states::extract::download_notes_archive::{
     DownloadNotesArchive, DownloadNotesArchiveContext, DownloadNotesArchiveInput,
 };
-use crate::implementations::states::extract::prepare_notes_request::PrepareNotesRequest;
-use crate::implementations::states::extract::prepare_notes_request::constants::STATE_NAME as PREPARE_NOTES_REQUEST;
+use crate::implementations::states::extract::prepare_sec_request::PrepareNotesRequest;
+use crate::shared::request::implementations::sec_request::{NotesFile, RequestKind};
 
-impl<R, C> TryFrom<(PrepareNotesRequest<R>, C)> for DownloadNotesArchive<R, C> {
+impl<R, C> TryFrom<(PrepareNotesRequest<R>, C, Uuid)> for DownloadNotesArchive<R, C> {
     type Error = TransitionError;
 
-    /// Builds a [`DownloadNotesArchive`] from a computed [`PrepareNotesRequest`] and the client
-    /// that sends the download.
+    /// Builds a [`DownloadNotesArchive`] from a computed [`PrepareNotesRequest`], the client that
+    /// sends the download, and the `execution_id` of the run.
     ///
     /// # Errors
     ///
     /// Returns [`TransitionError::MissingOutput`] if `state` has no computed output.
-    fn try_from((state, sec_client): (PrepareNotesRequest<R>, C)) -> Result<Self, TransitionError> {
-        let (input, output, context) = state.into_parts();
+    fn try_from(
+        (state, sec_client, execution_id): (PrepareNotesRequest<R>, C, Uuid),
+    ) -> Result<Self, TransitionError> {
+        let (_input, output, context) = state.into_parts();
         let output_data = output.ok_or_else(|| {
-            transition::MissingOutput::new(PREPARE_NOTES_REQUEST, DOWNLOAD_NOTES_ARCHIVE)
+            transition::MissingOutput::new(NotesFile::PREPARE_STATE_NAME, DOWNLOAD_NOTES_ARCHIVE)
         })?;
 
         let new_input = DownloadNotesArchiveInput::new(output_data.request);
         let new_context = DownloadNotesArchiveContext::new(
-            input.notes_period,
-            context.execution_id,
+            context.request_input,
+            execution_id,
             context.repository,
             sec_client,
         );
@@ -52,12 +70,9 @@ impl<R, C> TryFrom<(PrepareNotesRequest<R>, C)> for DownloadNotesArchive<R, C> {
 mod tests {
     use pretty_assertions::assert_eq;
     use storage::WriteError;
-    use uuid::Uuid;
 
     use super::*;
-    use crate::implementations::states::extract::prepare_notes_request::{
-        PrepareNotesRequestContext, PrepareNotesRequestInput,
-    };
+    use crate::implementations::states::extract::prepare_sec_request::PrepareSecRequest;
     use crate::shared::notes_period::NotesPeriod;
     use crate::shared::request::implementations::sec_request::SecRequest;
     use crate::tests::fixtures::sample_http_client::sample_sec_client::always_responding::AlwaysRespondingSecClient;
@@ -80,10 +95,11 @@ mod tests {
     }
 
     fn prepare_notes_request() -> PrepareNotesRequest<FakeNotesRepository> {
-        PrepareNotesRequest::new(
-            PrepareNotesRequestInput::new(sample_period()),
-            PrepareNotesRequestContext::new(SAMPLE_EXECUTION_ID, rejecting_repository()),
-        )
+        PrepareSecRequest::builder()
+            .notes_file()
+            .period(sample_period())
+            .repository(rejecting_repository())
+            .build()
     }
 
     #[tokio::test]
@@ -109,7 +125,7 @@ mod tests {
             ),
         ));
 
-        let result = DownloadNotesArchive::try_from((state, sec_client()));
+        let result = DownloadNotesArchive::try_from((state, sec_client(), SAMPLE_EXECUTION_ID));
 
         assert_eq!(result, expected_result);
     }
@@ -119,10 +135,10 @@ mod tests {
         let state = prepare_notes_request();
 
         let expected_result = Err(TransitionError::MissingOutput(
-            transition::MissingOutput::new(PREPARE_NOTES_REQUEST, DOWNLOAD_NOTES_ARCHIVE),
+            transition::MissingOutput::new("Prepare Notes Request", DOWNLOAD_NOTES_ARCHIVE),
         ));
 
-        let result = DownloadNotesArchive::try_from((state, sec_client()));
+        let result = DownloadNotesArchive::try_from((state, sec_client(), SAMPLE_EXECUTION_ID));
 
         assert_eq!(result, expected_result);
     }

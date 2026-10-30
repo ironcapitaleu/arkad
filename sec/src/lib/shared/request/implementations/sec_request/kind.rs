@@ -29,6 +29,10 @@ pub trait RequestKind: Debug + Clone + Eq + Ord + Hash + Send + Sync + Unpin {
     /// The name of the input in serialized data, for example `cik`.
     const INPUT_NAME: &'static str;
 
+    /// The name of the state that prepares a request of this kind, for example
+    /// "Prepare Notes Request".
+    const PREPARE_STATE_NAME: &'static str;
+
     /// Builds the [`SecRequestType`] of this kind from its input.
     fn request_type(input: Self::Input) -> SecRequestType;
 }
@@ -41,6 +45,8 @@ impl RequestKind for CompanyFacts {
     type Input = Cik;
 
     const INPUT_NAME: &'static str = "cik";
+
+    const PREPARE_STATE_NAME: &'static str = "Prepare SEC Request";
 
     fn request_type(cik: Cik) -> SecRequestType {
         SecRequestType::FetchAllCompanyFacts { cik }
@@ -55,6 +61,8 @@ impl RequestKind for NotesFile {
     type Input = NotesPeriod;
 
     const INPUT_NAME: &'static str = "notes_period";
+
+    const PREPARE_STATE_NAME: &'static str = "Prepare Notes Request";
 
     fn request_type(period: NotesPeriod) -> SecRequestType {
         SecRequestType::FetchNotesFile { period }

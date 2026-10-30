@@ -4,13 +4,14 @@
 //! its input.
 //!
 //! The kind `K` sets the input, for example the validated [`Cik`](crate::shared::cik::Cik) of
-//! [`CompanyFacts`]. The state builds the request with [`SecRequestTrait::new`], so it needs no
+//! [`CompanyFacts`], and the state name, for example "Prepare Notes Request" for [`NotesFile`]. The
+//! state builds the request with [`SecRequestTrait::new`], so it needs no
 //! code for a single kind. Preparation is local and synchronous: it makes no network call.
 //!
 //! ## Modules
 //!
 //! - [`builder`]: The typestate [`PrepareSecRequestBuilder`].
-//! - [`constants`]: State metadata such as [`STATE_NAME`].
+//! - [`constants`]: The [`STATE_NAME`] of the [`CompanyFacts`] kind.
 //! - [`context`]: The [`PrepareSecRequestContext`] carried alongside the state.
 //! - [`data`]: The [`PrepareSecRequestInput`] and [`PrepareSecRequestOutput`] data types.
 //!
@@ -63,9 +64,11 @@ use serde::Serialize;
 use state_maschine::prelude::State as SMState;
 
 use crate::error::State as StateError;
-use crate::implementations::states::extract::store_company_facts::RawCompanyFactsRepository;
+use crate::implementations::states::extract::state_repository::StateRepository;
 use crate::shared::request::SecRequest as SecRequestTrait;
-use crate::shared::request::implementations::sec_request::{CompanyFacts, RequestKind, SecRequest};
+use crate::shared::request::implementations::sec_request::{
+    CompanyFacts, NotesFile, RequestKind, SecRequest,
+};
 use crate::traits::state_machine::state::State;
 
 pub mod builder;
@@ -94,6 +97,11 @@ pub struct PrepareSecRequest<K: RequestKind, R> {
 ///
 /// It is the same type under a shorter name, not a separate state.
 pub type PrepareCompanyFactsRequest<R> = PrepareSecRequest<CompanyFacts, R>;
+
+/// Alias of [`PrepareSecRequest`] for the [`NotesFile`] kind.
+///
+/// It is the same type under a shorter name, not a separate state.
+pub type PrepareNotesRequest<R> = PrepareSecRequest<NotesFile, R>;
 
 impl<K: RequestKind, R> PrepareSecRequest<K, R> {
     /// Creates a new [`PrepareSecRequest`] state from its input and context, with no output computed yet.
@@ -151,7 +159,7 @@ impl<K: RequestKind, R> PrepareSecRequest<K, R> {
 }
 
 #[async_trait]
-impl<K: RequestKind, R: RawCompanyFactsRepository> State for PrepareSecRequest<K, R> {
+impl<K: RequestKind, R: StateRepository> State for PrepareSecRequest<K, R> {
     /// Builds the [`SecRequest`] for the request input and stores it as output.
     ///
     /// # Errors
@@ -166,14 +174,14 @@ impl<K: RequestKind, R: RawCompanyFactsRepository> State for PrepareSecRequest<K
     }
 }
 
-impl<K: RequestKind, R: RawCompanyFactsRepository> SMState for PrepareSecRequest<K, R> {
+impl<K: RequestKind, R: StateRepository> SMState for PrepareSecRequest<K, R> {
     type InputData = PrepareSecRequestInput<K>;
     type OutputData = PrepareSecRequestOutput<K>;
     type Context = PrepareSecRequestContext<K, R>;
 
-    /// Returns the human-readable name of this state.
+    /// Returns the human-readable name of this state, which its kind sets.
     fn state_name(&self) -> impl ToString {
-        STATE_NAME
+        K::PREPARE_STATE_NAME
     }
 
     /// Blocking wrapper around [`compute_output_data_async`](crate::traits::state_machine::state::State::compute_output_data_async).
@@ -214,7 +222,7 @@ impl<K: RequestKind, R: RawCompanyFactsRepository> SMState for PrepareSecRequest
     }
 }
 
-impl<K: RequestKind, R: RawCompanyFactsRepository> fmt::Display for PrepareSecRequest<K, R> {
+impl<K: RequestKind, R: StateRepository> fmt::Display for PrepareSecRequest<K, R> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
@@ -245,7 +253,9 @@ mod tests {
     use crate::shared::cik::Cik;
     use crate::shared::cik::constants::BERKSHIRE_HATHAWAY_CIK_RAW;
     use crate::shared::notes_period::NotesPeriod;
-    use crate::tests::fixtures::sample_write_repository::FakeWriteRepository;
+    use crate::tests::fixtures::sample_write_repository::{
+        FakeNotesRepository, FakeWriteRepository,
+    };
     use crate::traits::state_machine::state::State;
 
     fn create_test_cik() -> Cik {
@@ -554,5 +564,53 @@ mod tests {
         let result = state.output_data();
 
         assert_eq!(result, expected_result);
+    }
+
+    fn create_test_notes_state() -> PrepareNotesRequest<FakeNotesRepository> {
+        let period = NotesPeriod::new("2024q1")
+            .expect("Given a published period, NotesPeriod creation should always succeed");
+        PrepareSecRequest::builder()
+            .notes_file()
+            .period(period)
+            .repository(FakeNotesRepository::new())
+            .build()
+    }
+
+    #[test]
+    fn should_return_prepare_notes_request_as_state_name_for_notes_file_kind() {
+        let state = create_test_notes_state();
+
+        let expected_result = "Prepare Notes Request";
+
+        let result = state.state_name().to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_return_notes_file_url_when_computing_output_for_notes_file_kind() {
+        let mut state = create_test_notes_state();
+
+        let expected_result = "https://www.sec.gov/files/dera/data/financial-statement-notes-data-sets/2024q1_notes.zip";
+
+        state
+            .compute_output_data_async()
+            .await
+            .expect("Request preparation should always succeed for a valid period");
+        let result = state
+            .output_data()
+            .expect("Given a computed state, the output should always be present")
+            .request
+            .inner
+            .url()
+            .as_str();
+
+        assert_eq!(result, expected_result);
+    }
+
+    const fn implements_state<T: State>() {}
+    #[test]
+    const fn should_implement_state_for_prepare_notes_request_with_notes_repository() {
+        implements_state::<PrepareNotesRequest<FakeNotesRepository>>();
     }
 }
