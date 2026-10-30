@@ -19,8 +19,10 @@
 //! - [`download_notes_archive`]: Downloads the Notes file of one request.
 //! - [`store_notes_archive`]: Writes the Notes file to the store.
 //! - [`validate_index_date`]: Validates the raw date of an EDGAR daily index.
+//! - [`download_daily_index`]: Downloads the daily index of one date, with the rule for a missing index.
 
 pub mod company_facts;
+pub mod download_daily_index;
 pub mod download_notes_archive;
 pub mod execute_sec_request;
 pub mod notes;

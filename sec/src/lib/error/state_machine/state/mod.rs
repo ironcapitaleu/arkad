@@ -1,12 +1,13 @@
 //! # State Errors
 //!
 //! Provides the [`State`] error covering failures inside a state's own logic: CIK validation,
-//! Notes period validation, index date validation, SEC request execution, document writes, data
-//! completeness, and input/context/output handling.
+//! Notes period validation, index date validation, SEC request execution, a missing daily index,
+//! document writes, data completeness, and input/context/output handling.
 //!
 //! The richer variants ([`InvalidCikFormat`], [`InvalidNotesPeriod`], [`InvalidIndexDate`], [`FailedRequestExecution`],
-//! [`FailedDocumentWrite`], [`IncompleteCompanyFacts`]) wrap a domain error with the failing state's name; the rest are
-//! plain markers. [`State`] is wrapped by [`StateMachine`](super::StateMachine) for propagation.
+//! [`FailedDocumentWrite`], [`IncompleteCompanyFacts`]) wrap a domain error with the failing state's name.
+//! [`MissingDailyIndex`] carries the failing state's name and the date. The rest are plain markers.
+//! [`State`] is wrapped by [`StateMachine`](super::StateMachine) for propagation.
 //!
 //! ## Modules
 //!
@@ -14,6 +15,7 @@
 //! - [`invalid_notes_period`]: The [`InvalidNotesPeriod`] error wrapping a Notes period validation failure.
 //! - [`invalid_index_date`]: The [`InvalidIndexDate`] error wrapping an index date validation failure.
 //! - [`failed_request_execution`]: The [`FailedRequestExecution`] error wrapping a failed SEC request.
+//! - [`missing_daily_index`]: The [`MissingDailyIndex`] error for a daily index the SEC did not send.
 //! - [`failed_document_write`]: The [`FailedDocumentWrite`] error wrapping a rejected store write.
 //! - [`incomplete_company_facts`]: The [`IncompleteCompanyFacts`] error for a response missing required fields.
 
@@ -31,6 +33,8 @@ pub mod invalid_notes_period;
 pub use invalid_notes_period::InvalidNotesPeriod;
 pub mod invalid_index_date;
 pub use invalid_index_date::InvalidIndexDate;
+pub mod missing_daily_index;
+pub use missing_daily_index::MissingDailyIndex;
 
 #[non_exhaustive]
 #[derive(Debug, Error, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
@@ -55,6 +59,11 @@ pub enum State {
     /// Indicates that an SEC request execution has failed.
     #[error("[StateError] A state level error occurred, Caused by: {0}")]
     FailedRequestExecution(#[source] FailedRequestExecution),
+
+    /// Indicates that the SEC sent no daily index of a date, and no quarter listing shows that
+    /// the day had no filings.
+    #[error("[StateError] A state level error occurred, Caused by: {0}")]
+    MissingDailyIndex(#[source] MissingDailyIndex),
 
     /// Indicates that the store rejected the write of a document.
     #[error("[StateError] A state level error occurred, Caused by: {0}")]

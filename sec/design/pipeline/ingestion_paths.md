@@ -408,8 +408,8 @@ quarantines the row or the filing, and the file goes on.
   states do today.
 - A fixture ZIP of a few KB with all ten members and one quoted field with a tab. It never holds
   real SEC data larger than a few rows.
-- `DownloadDailyIndex`: a 404 for a date that the quarter listing has passed gives an empty list. A
-  404 for any other date fails the run.
+- `DownloadDailyIndex`: a 403 or 404 for a date that a quarter listing has passed gives an empty
+  list. A 403 or 404 for any other date fails the run.
 - `SelectFilings`: two rows with one accession number give one `FilingRef`. `10-K/A`, `20-F`, and
   `40-F` are kept. `8-K` and `10-KT` are dropped.
 - `SelectFilingDocuments`: the fallback rule without `_htm.xml`, a filing without `_lab.xml`, and a
@@ -467,13 +467,22 @@ index then fills its gaps.
 Rows for the selected forms, measured: 77 on 2026-10-27, 197 on 2026-03-02, and 295 on
 2026-08-10. Other peak days are not measured.
 
-A day without filings, such as a weekend, has no index file, and the SEC returns 404. An index that
-the SEC has not yet published also returns 404. `DownloadDailyIndex` tells the two cases apart
-with the listing of the quarter, `daily-index/YYYY/QTRn/index.json`, which costs one request:
+A day without filings, such as a weekend, has no index file. An index that the SEC has not yet
+published has no file either. For both, the SEC returns 404, or 403 with an S3 `AccessDenied` body.
+The SEC returned 403 for the missing `form.20261025.idx` on 2026-10-30. `DownloadDailyIndex` tells
+the two cases apart with the listing of the quarter, `daily-index/YYYY/QTRn/index.json`, which
+costs one request, and a second one for the listing of the next quarter in the last case below:
 
+- If the SEC sends no listing (403 or 404), the listing has no dates, or it names the date, the
+  run fails with `MissingDailyIndex`, and Cloud Run retries it. The SEC also answers 403 when it
+  refuses a request, for example at its rate limit. A listed date means the file exists, so the
+  403 or 404 came from a refused request.
 - If the listing has an index for a later date, the day had no filings. The result is an empty
   list.
-- Otherwise, the run fails with `MissingDailyIndex`, and Cloud Run retries it.
+- Otherwise, once the next quarter has started, any index in its listing shows that the day had no
+  filings. This covers a quarter that ends on days without filings, such as 2024-03-30 and
+  2024-03-31. If the next quarter has not started, or its listing is empty or refused, the run
+  fails with `MissingDailyIndex`.
 
 This rule needs no list of SEC holidays.
 
