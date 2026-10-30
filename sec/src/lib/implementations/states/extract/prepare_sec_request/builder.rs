@@ -66,8 +66,8 @@
 //! let state = PrepareSecRequest::builder().all_company_facts().cik(cik).build();
 //! ```
 //!
-//! The repository must store the files of the kind, so a Notes file request with a Company Facts
-//! repository does not compile:
+//! The repository must store the raw source of the kind. So a Notes file request with a Company
+//! Facts repository does not compile:
 //!
 //! ```compile_fail,E0599
 //! use sec::implementations::states::extract::prepare_sec_request::PrepareSecRequest;
@@ -97,7 +97,9 @@ use crate::implementations::states::extract::prepare_sec_request::{
 use crate::shared::cik::Cik;
 use crate::shared::notes_period::NotesPeriod;
 use crate::shared::raw_repository::RawRepository;
-use crate::shared::request::implementations::sec_request::{CompanyFacts, NotesFile, RequestKind};
+use crate::shared::request::implementations::sec_request::{
+    CompanyFacts, NotesFile, RequestKind, StoredAs,
+};
 
 /// Marks a builder that has no request kind yet.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -206,7 +208,7 @@ impl<K, I, R> PrepareSecRequestBuilder<K, I, NoRepository<R>> {
     }
 }
 
-impl<K: RequestKind, R: RawRepository<K::Source>> PrepareSecRequestBuilder<K, K::Input, R> {
+impl<K: StoredAs, R: RawRepository<K::Source>> PrepareSecRequestBuilder<K, K::Input, R> {
     /// Builds a [`PrepareSecRequest`] with no output computed yet.
     ///
     /// # Examples

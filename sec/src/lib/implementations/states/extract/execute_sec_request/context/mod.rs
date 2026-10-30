@@ -51,7 +51,7 @@ use state_maschine::prelude::Context as SMContext;
 #[cfg(doc)]
 use crate::shared::cik::Cik;
 use crate::shared::raw_repository::RawRepository;
-use crate::shared::request::implementations::sec_request::RequestKind;
+use crate::shared::request::implementations::sec_request::{RequestKind, StoredAs};
 use crate::traits::state_machine::state::Context;
 
 /// Context for the [`ExecuteSecRequest`](super::ExecuteSecRequest) state.
@@ -104,13 +104,13 @@ impl<E: RequestKind, R: Serialize> Serialize for ExecuteSecRequestContext<E, R> 
     }
 }
 
-impl<E: RequestKind, R: RawRepository<E::Source>> Context for ExecuteSecRequestContext<E, R> {
+impl<E: StoredAs, R: RawRepository<E::Source>> Context for ExecuteSecRequestContext<E, R> {
     fn max_retries(&self) -> u32 {
         self.max_retries
     }
 }
 
-impl<E: RequestKind, R: RawRepository<E::Source>> SMContext for ExecuteSecRequestContext<E, R> {
+impl<E: StoredAs, R: RawRepository<E::Source>> SMContext for ExecuteSecRequestContext<E, R> {
     type UpdateType = ExecuteSecRequestContextUpdater<E, R>;
 
     fn context(&self) -> &Self {

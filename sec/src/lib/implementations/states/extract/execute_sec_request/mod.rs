@@ -65,7 +65,7 @@ use crate::shared::http_client::SecClient as SecClientTrait;
 use crate::shared::http_client::implementations::sec_client::SecClient;
 use crate::shared::http_client::implementations::sec_client::error::FailedSecRequest;
 use crate::shared::raw_repository::RawRepository;
-use crate::shared::request::implementations::sec_request::CompanyFacts;
+use crate::shared::request::implementations::sec_request::{CompanyFacts, StoredAs};
 use crate::shared::response::implementations::sec_response::SecResponse;
 use crate::traits::state_machine::state::State;
 
@@ -172,7 +172,7 @@ impl<E: RespondsWith, R, C> ExecuteSecRequest<E, R, C> {
 #[async_trait]
 impl<E, R, C> State for ExecuteSecRequest<E, R, C>
 where
-    E: RespondsWith,
+    E: RespondsWith + StoredAs,
     R: RawRepository<E::Source>,
     C: SecClientTrait<Response<E::Body> = SecResponse<E::Body>, Error = FailedSecRequest>,
 {
@@ -204,7 +204,7 @@ where
 
 impl<E, R, C> SMState for ExecuteSecRequest<E, R, C>
 where
-    E: RespondsWith,
+    E: RespondsWith + StoredAs,
     R: RawRepository<E::Source>,
     C: SecClientTrait<Response<E::Body> = SecResponse<E::Body>, Error = FailedSecRequest>,
 {
@@ -255,7 +255,7 @@ where
     }
 }
 
-impl<E: RespondsWith, R: RawRepository<E::Source>, C: SecClientTrait> fmt::Display
+impl<E: RespondsWith + StoredAs, R: RawRepository<E::Source>, C: SecClientTrait> fmt::Display
     for ExecuteSecRequest<E, R, C>
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

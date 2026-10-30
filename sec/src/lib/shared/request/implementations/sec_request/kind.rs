@@ -28,9 +28,6 @@ pub trait RequestKind: Debug + Clone + Eq + Ord + Hash + Send + Sync + Unpin {
     /// The domain input of the request, for example a [`Cik`].
     type Input: Debug + Display + Clone + Eq + Ord + Hash + Serialize + Send + Sync + Unpin;
 
-    /// The SEC file that the response to a request of this kind is stored as.
-    type Source: RawSource;
-
     /// The name of the input in serialized data, for example `cik`.
     const INPUT_NAME: &'static str;
 
@@ -48,7 +45,6 @@ pub struct CompanyFacts;
 
 impl RequestKind for CompanyFacts {
     type Input = Cik;
-    type Source = RawCompanyFacts;
 
     const INPUT_NAME: &'static str = "cik";
 
@@ -65,7 +61,6 @@ pub struct NotesFile;
 
 impl RequestKind for NotesFile {
     type Input = NotesPeriod;
-    type Source = RawNotesArchive;
 
     const INPUT_NAME: &'static str = "notes_period";
 
@@ -85,6 +80,8 @@ impl RequestKind for DailyIndex {
 
     const INPUT_NAME: &'static str = "index_date";
 
+    const PREPARE_STATE_NAME: &'static str = "Prepare Daily Index Request";
+
     fn request_type(date: IndexDate) -> SecRequestType {
         SecRequestType::FetchDailyIndex { date }
     }
@@ -101,9 +98,28 @@ impl RequestKind for DailyIndexListing {
 
     const INPUT_NAME: &'static str = "index_date";
 
+    const PREPARE_STATE_NAME: &'static str = "Prepare Daily Index Listing Request";
+
     fn request_type(date: IndexDate) -> SecRequestType {
         SecRequestType::FetchDailyIndexListing { date }
     }
+}
+
+/// A [`RequestKind`] whose response the store keeps as a raw document of one [`RawSource`].
+///
+/// A state that holds a repository bounds it by [`Self::Source`], so a repository of another
+/// source does not compile.
+pub trait StoredAs: RequestKind {
+    /// The source of the raw document that stores the response to a request of this kind.
+    type Source: RawSource;
+}
+
+impl StoredAs for CompanyFacts {
+    type Source = RawCompanyFacts;
+}
+
+impl StoredAs for NotesFile {
+    type Source = RawNotesArchive;
 }
 
 #[cfg(test)]
