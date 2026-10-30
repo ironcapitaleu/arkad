@@ -12,6 +12,7 @@
 //! - [`constants`]: The [`FIRST_INDEX_DATE`] and the quarter folders.
 //! - [`index_date_error`]: The [`IndexDateError`] returned when validation fails, and its
 //!   [`InvalidIndexDateReason`].
+//! - [`listing`]: The parser for the dates in the listing of a quarter folder.
 
 use std::fmt::{self, Display, Formatter};
 
@@ -22,6 +23,7 @@ use constants::QUARTER_FOLDERS;
 
 pub mod constants;
 pub mod index_date_error;
+pub mod listing;
 
 pub use constants::FIRST_INDEX_DATE;
 pub use index_date_error::{IndexDateError, InvalidIndexDateReason};
@@ -121,6 +123,19 @@ impl IndexDate {
     pub fn basic_format(&self) -> String {
         self.0.format("%Y%m%d").to_string()
     }
+
+    /// Returns the date as a [`NaiveDate`].
+    #[must_use]
+    pub const fn date(&self) -> NaiveDate {
+        self.0
+    }
+
+    /// Returns the first day of the next quarter, or `None` if that day is after the current UTC
+    /// date.
+    #[must_use]
+    pub fn first_day_of_next_quarter(&self) -> Option<Self> {
+        first_day_of_next_quarter(self.0, Utc::now().date_naive())
+    }
 }
 
 /// Validates a date string against `today`.
@@ -151,6 +166,17 @@ fn parse(date: &str) -> Option<NaiveDate> {
         return None;
     }
     NaiveDate::parse_from_str(date, "%Y-%m-%d").ok()
+}
+
+/// Returns the first day of the quarter after `date`, or `None` if that day is after `today`.
+fn first_day_of_next_quarter(date: NaiveDate, today: NaiveDate) -> Option<IndexDate> {
+    let next_quarter_month = date.month0() / 3 * 3 + 4;
+    let next_quarter_start = if next_quarter_month > 12 {
+        NaiveDate::from_ymd_opt(date.year() + 1, 1, 1)
+    } else {
+        NaiveDate::from_ymd_opt(date.year(), next_quarter_month, 1)
+    }?;
+    (next_quarter_start <= today).then_some(IndexDate(next_quarter_start))
 }
 
 impl Display for IndexDate {
@@ -215,6 +241,43 @@ mod tests {
     #[test]
     const fn should_implement_request_input_traits_for_index_date() {
         implements_request_input_traits::<IndexDate>();
+    }
+
+    #[test]
+    fn should_return_the_first_day_of_the_next_quarter_when_it_is_not_after_today() {
+        let expected_result = Some(index_date("2026-07-01"));
+
+        let result = first_day_of_next_quarter(index_date("2026-05-15").0, today());
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_january_first_of_the_next_year_for_a_date_in_qtr4() {
+        let expected_result = Some(index_date("2026-01-01"));
+
+        let result = first_day_of_next_quarter(index_date("2025-12-31").0, today());
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_the_first_day_of_the_next_quarter_when_it_is_today() {
+        let expected_result = Some(index_date("2026-10-01"));
+
+        let result =
+            first_day_of_next_quarter(index_date("2026-09-30").0, index_date("2026-10-01").0);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_none_when_the_next_quarter_starts_after_today() {
+        let expected_result = None;
+
+        let result = first_day_of_next_quarter(index_date("2026-10-27").0, today());
+
+        assert_eq!(result, expected_result);
     }
 
     #[test]

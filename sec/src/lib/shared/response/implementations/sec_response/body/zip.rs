@@ -1,7 +1,7 @@
 //! # ZIP Body
 //!
-//! Provides the [`ZipBody`], the body kind of a response to a request for one SEC Financial
-//! Statement and Notes file.
+//! Provides the [`ZipBody`], the body kind of a response that the store keeps as raw bytes. The
+//! body is one SEC Financial Statement and Notes file (a ZIP) or one daily index (text).
 
 use async_trait::async_trait;
 use bytes::Bytes;
@@ -19,7 +19,7 @@ use super::ResponseBody;
 /// The name of the header that states the body length in bytes.
 const CONTENT_LENGTH_HEADER: &str = "content-length";
 
-/// The bytes of a ZIP file, exactly as the server sent them.
+/// The bytes of a ZIP file or a daily index, exactly as the server sent them.
 ///
 /// Accepts status 200 only, and the [`ContentType::OctetStream`] or [`ContentType::Zip`]
 /// content type. If the `Content-Length` header is present, the body has exactly that many bytes.

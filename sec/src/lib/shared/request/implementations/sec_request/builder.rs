@@ -33,11 +33,27 @@
 //!     let _request = builder.build();
 //! }
 //! ```
+//!
+//! A daily-index request needs a date before `build()` exists:
+//!
+//! ```compile_fail,E0599
+//! use sec::shared::request::implementations::sec_request::DailyIndex;
+//! use sec::shared::request::implementations::sec_request::builder::{DailyIndexBuilder, NoDate};
+//!
+//! fn build_without_date(builder: DailyIndexBuilder<DailyIndex, NoDate>) {
+//!     let _request = builder.build();
+//! }
+//! ```
+
+use std::marker::PhantomData;
 
 use crate::shared::cik::Cik;
+use crate::shared::index_date::IndexDate;
 use crate::shared::notes_period::NotesPeriod;
 use crate::shared::request::SecRequest as SecRequestTrait;
-use crate::shared::request::implementations::sec_request::{CompanyFacts, NotesFile, SecRequest};
+use crate::shared::request::implementations::sec_request::{
+    CompanyFacts, DailyIndex, DailyIndexListing, NotesFile, RequestKind, SecRequest,
+};
 
 /// Typestate marker: no CIK has been set yet.
 ///
@@ -50,6 +66,12 @@ pub struct NoCik;
 /// While the builder is in this state, [`build`](NotesFileBuilder::build) is unavailable.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NoPeriod;
+
+/// Typestate marker: no index date has been set yet.
+///
+/// While the builder is in this state, [`build`](DailyIndexBuilder::build) is unavailable.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NoDate;
 
 /// Entry point for building an [`SecRequest`].
 ///
@@ -75,6 +97,18 @@ impl SecRequestBuilder {
     #[must_use]
     pub const fn notes_file(self) -> NotesFileBuilder<NoPeriod> {
         NotesFileBuilder { period: NoPeriod }
+    }
+
+    /// Selects the [`DailyIndex`] request kind.
+    #[must_use]
+    pub const fn daily_index(self) -> DailyIndexBuilder<DailyIndex, NoDate> {
+        DailyIndexBuilder::new()
+    }
+
+    /// Selects the [`DailyIndexListing`] request kind.
+    #[must_use]
+    pub const fn daily_index_listing(self) -> DailyIndexBuilder<DailyIndexListing, NoDate> {
+        DailyIndexBuilder::new()
     }
 }
 
@@ -166,15 +200,139 @@ impl NotesFileBuilder<NotesPeriod> {
     }
 }
 
+/// Typestate builder for the [`DailyIndex`] and [`DailyIndexListing`] requests.
+///
+/// `K` is the request kind. The `D` type parameter tracks the date. It starts as [`NoDate`].
+/// [`date`](Self::date) changes it to [`IndexDate`]. Only that type has [`build`](Self::build).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DailyIndexBuilder<K, D> {
+    kind: PhantomData<K>,
+    date: D,
+}
+
+impl<K> DailyIndexBuilder<K, NoDate> {
+    const fn new() -> Self {
+        Self {
+            kind: PhantomData,
+            date: NoDate,
+        }
+    }
+
+    /// Sets the index date, unlocking [`build`](DailyIndexBuilder::build).
+    #[must_use]
+    pub const fn date(self, date: IndexDate) -> DailyIndexBuilder<K, IndexDate> {
+        DailyIndexBuilder {
+            kind: PhantomData,
+            date,
+        }
+    }
+}
+
+impl<K: RequestKind<Input = IndexDate>> DailyIndexBuilder<K, IndexDate> {
+    /// Builds the [`SecRequest`]; available only once the index date is set.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use sec::shared::index_date::IndexDate;
+    /// use sec::shared::request::implementations::sec_request::SecRequest;
+    ///
+    /// let date = IndexDate::new("2026-10-27").expect("A hardcoded past date should always parse");
+    /// let request = SecRequest::builder().daily_index().date(date).build();
+    ///
+    /// let expected_result = "https://www.sec.gov/Archives/edgar/daily-index/2026/QTR4/form.20261027.idx";
+    ///
+    /// let result = request.inner.url().as_str();
+    ///
+    /// assert_eq!(result, expected_result);
+    /// ```
+    #[must_use]
+    pub fn build(self) -> SecRequest<K> {
+        SecRequest::new(self.date)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use pretty_assertions::assert_eq;
     use reqwest::{Method, Url};
 
     use crate::shared::cik::Cik;
+    use crate::shared::index_date::IndexDate;
     use crate::shared::notes_period::NotesPeriod;
     use crate::shared::request::SecRequest as SecRequestTrait;
     use crate::shared::request::implementations::sec_request::SecRequest;
+
+    fn index_date(date: &str) -> IndexDate {
+        IndexDate::new(date).expect(
+            "Given a hardcoded past date after 1998-05-18, validation should always succeed",
+        )
+    }
+
+    fn daily_index_url(date: &str) -> String {
+        SecRequest::builder()
+            .daily_index()
+            .date(index_date(date))
+            .build()
+            .inner()
+            .url()
+            .to_string()
+    }
+
+    #[test]
+    fn should_produce_qtr1_url_for_a_daily_index_request_in_march() {
+        let expected_result =
+            "https://www.sec.gov/Archives/edgar/daily-index/2026/QTR1/form.20260302.idx";
+
+        let result = daily_index_url("2026-03-02");
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_produce_qtr2_url_for_a_daily_index_request_in_april() {
+        let expected_result =
+            "https://www.sec.gov/Archives/edgar/daily-index/2026/QTR2/form.20260401.idx";
+
+        let result = daily_index_url("2026-04-01");
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_produce_qtr3_url_for_a_daily_index_request_in_september() {
+        let expected_result =
+            "https://www.sec.gov/Archives/edgar/daily-index/2026/QTR3/form.20260930.idx";
+
+        let result = daily_index_url("2026-09-30");
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_produce_qtr4_url_for_a_daily_index_request_in_october() {
+        let expected_result =
+            "https://www.sec.gov/Archives/edgar/daily-index/2026/QTR4/form.20261027.idx";
+
+        let result = daily_index_url("2026-10-27");
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_produce_the_quarter_listing_url_for_a_daily_index_listing_request() {
+        let expected_result = "https://www.sec.gov/Archives/edgar/daily-index/2026/QTR4/index.json";
+
+        let result = SecRequest::builder()
+            .daily_index_listing()
+            .date(index_date("2026-10-27"))
+            .build()
+            .inner()
+            .url()
+            .to_string();
+
+        assert_eq!(result, expected_result);
+    }
 
     #[test]
     fn should_produce_correct_url_when_building_fetch_all_company_facts_request() {
