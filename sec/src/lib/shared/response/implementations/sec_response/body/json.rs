@@ -1,6 +1,6 @@
 //! # JSON Body
 //!
-//! Provides the [`JsonBody`], the body kind of a SEC API response with a JSON body.
+//! Provides the [`JsonBody`], the body kind of an SEC API response with a JSON body.
 
 use async_trait::async_trait;
 use storage::shared::Sha256Digest;
