@@ -10,7 +10,8 @@ use serde::Serialize;
 use state_maschine::prelude::Context as SMContext;
 use uuid::Uuid;
 
-use crate::implementations::states::extract::daily_index_repository::DailyIndexRepository;
+use crate::shared::raw_repository::RawRepository;
+use crate::shared::raw_source::RawDailyIndex;
 use crate::traits::state_machine::state::Context;
 
 /// Context for the [`StoreDailyIndex`](super::StoreDailyIndex) state.
@@ -51,13 +52,13 @@ impl<R> StoreDailyIndexContext<R> {
     }
 }
 
-impl<R: DailyIndexRepository> Context for StoreDailyIndexContext<R> {
+impl<R: RawRepository<RawDailyIndex>> Context for StoreDailyIndexContext<R> {
     fn max_retries(&self) -> u32 {
         self.max_retries
     }
 }
 
-impl<R: DailyIndexRepository> SMContext for StoreDailyIndexContext<R> {
+impl<R: RawRepository<RawDailyIndex>> SMContext for StoreDailyIndexContext<R> {
     type UpdateType = StoreDailyIndexContextUpdater<R>;
 
     fn context(&self) -> &Self {

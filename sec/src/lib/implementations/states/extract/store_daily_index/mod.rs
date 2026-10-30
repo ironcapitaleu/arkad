@@ -21,7 +21,8 @@ use serde::Serialize;
 use state_maschine::prelude::State as SMState;
 
 use crate::error::State as StateError;
-use crate::implementations::states::extract::daily_index_repository::DailyIndexRepository;
+use crate::shared::raw_repository::RawRepository;
+use crate::shared::raw_source::RawDailyIndex;
 use crate::traits::state_machine::state::State;
 
 pub mod constants;
@@ -67,7 +68,7 @@ impl<R> StoreDailyIndex<R> {
 }
 
 #[async_trait]
-impl<R: DailyIndexRepository> State for StoreDailyIndex<R> {
+impl<R: RawRepository<RawDailyIndex>> State for StoreDailyIndex<R> {
     /// Panics until the store logic lands.
     ///
     /// # Panics
@@ -80,7 +81,7 @@ impl<R: DailyIndexRepository> State for StoreDailyIndex<R> {
     }
 }
 
-impl<R: DailyIndexRepository> SMState for StoreDailyIndex<R> {
+impl<R: RawRepository<RawDailyIndex>> SMState for StoreDailyIndex<R> {
     type InputData = StoreDailyIndexInput;
     type OutputData = StoreDailyIndexOutput;
     type Context = StoreDailyIndexContext<R>;
@@ -123,7 +124,7 @@ impl<R: DailyIndexRepository> SMState for StoreDailyIndex<R> {
     }
 }
 
-impl<R: DailyIndexRepository> fmt::Display for StoreDailyIndex<R> {
+impl<R: RawRepository<RawDailyIndex>> fmt::Display for StoreDailyIndex<R> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,

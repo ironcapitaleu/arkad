@@ -20,11 +20,8 @@
 //! - [`validate_index_date`]: Validates the raw date of an EDGAR daily index.
 //! - [`download_daily_index`]: Downloads the daily index of one date, with the rule for a missing index.
 //! - [`store_daily_index`]: Writes the daily index to the store.
-//! - [`daily_index_repository`]: The [`DailyIndexRepository`](daily_index_repository::DailyIndexRepository)
-//!   bound on the repository of the daily-index states.
 
 pub mod company_facts;
-pub mod daily_index_repository;
 pub mod download_daily_index;
 pub mod download_notes_archive;
 pub mod execute_sec_request;
