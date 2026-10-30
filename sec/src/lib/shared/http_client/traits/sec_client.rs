@@ -68,7 +68,7 @@ pub trait SecClient: Debug + Clone + Eq + Ord + Hash + Send + Sync + Unpin + Ser
     /// use sec::shared::http_client::SecClient as SecClientTrait;
     /// use sec::shared::http_client::implementations::sec_client::SecClient;
     /// use sec::shared::http_client::implementations::sec_client::error::FailedSecRequest;
-    /// use sec::shared::request::implementations::sec_request::{CompanyFacts, NotesFile, SecRequest};
+    /// use sec::shared::request::implementations::sec_request::{NotesFile, SecRequest};
     /// use sec::shared::response::implementations::sec_response::{JsonBody, SecResponse};
     ///
     /// async fn execute_notes_request(
