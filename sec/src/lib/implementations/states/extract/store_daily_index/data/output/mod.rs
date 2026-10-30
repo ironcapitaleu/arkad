@@ -172,7 +172,7 @@ mod tests {
     }
 
     #[test]
-    fn should_serialize_the_key_and_the_size_without_the_text() {
+    fn should_serialize_the_key_and_the_size_without_the_text_for_a_stored_daily_index() {
         let output = StoreDailyIndexOutput::new(stored_index(b"Form Type"));
 
         let expected_result = serde_json::json!({
@@ -215,6 +215,19 @@ mod tests {
             .build();
 
         let expected_result = &StoreDailyIndexOutput::new(stored_index(b"Form Type"));
+
+        SMStateData::update_state(&mut output, update);
+        let result = output.state();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_clear_the_index_when_update_marks_a_day_without_filings() {
+        let mut output = StoreDailyIndexOutput::new(stored_index(b"Form Type"));
+        let update = StoreDailyIndexOutputUpdater::builder().index(None).build();
+
+        let expected_result = &StoreDailyIndexOutput::without_filings();
 
         SMStateData::update_state(&mut output, update);
         let result = output.state();

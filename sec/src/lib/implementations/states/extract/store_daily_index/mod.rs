@@ -34,7 +34,7 @@ pub use data::{StoreDailyIndexInput, StoreDailyIndexOutput, StoredDailyIndex};
 
 /// Writes the downloaded daily index of one day to the store.
 ///
-/// The store logic follows in a later change. Until then, the state computes no output.
+/// The store logic follows in a later change. Until then, computing the output panics.
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
 pub struct StoreDailyIndex<R> {
     input: StoreDailyIndexInput,
@@ -68,9 +68,15 @@ impl<R> StoreDailyIndex<R> {
 
 #[async_trait]
 impl<R: DailyIndexRepository> State for StoreDailyIndex<R> {
-    /// Computes no output yet. The store logic follows in a later change.
+    /// Panics until the store logic lands.
+    ///
+    /// # Panics
+    ///
+    /// Always panics, so a machine that wires this state fails at the state, not at a later
+    /// transition.
     async fn compute_output_data_async(&mut self) -> Result<(), StateError> {
-        Ok(())
+        // Deviation: a stub that panics. Part 2 of STA-370 replaces it with the store logic.
+        unimplemented!("{STATE_NAME}: the store logic lands in part 2 of STA-370")
     }
 }
 
