@@ -102,7 +102,7 @@ adapter implements `ReadRepository` and `WriteRepository`, and gets the supertra
 ### Full Store — the `SecClient` Implementor Shape
 
 A store that offers both capabilities follows the `SecClient` implementor shape. `SecClient` binds
-`Response<B>` and `Error` on one concrete type. `execute_sec_request` ties them: it takes a
+`Response<B>` and `Error` on one concrete type. `execute_sec_request` ties them: it takes an
 `SecRequest<E>` and returns a `Response<E::Body>`. A full store does the same across the two capability traits. One
 concrete type implements both and binds `WriteRepository::Record` and `ReadRepository::Record` to the
 same domain type. `persist` takes that `Record`. `get` returns it. So a write reads back as the same

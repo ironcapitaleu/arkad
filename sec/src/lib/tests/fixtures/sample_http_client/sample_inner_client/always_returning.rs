@@ -6,7 +6,7 @@ use crate::tests::fixtures::sample_response::sample_inner_response::FakeInnerRes
 /// A fake HTTP client that takes a `reqwest::Request` and always returns a fixed
 /// [`FakeInnerResponse`] or a fixed error.
 ///
-/// Used for testing a [`SecClient`](crate::shared::http_client::SecClient) that returns a fake
+/// Used for testing an [`SecClient`](crate::shared::http_client::SecClient) that returns a fake
 /// response, without a network call.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct AlwaysReturningHttpClient {

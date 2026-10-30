@@ -1,6 +1,6 @@
 //! # Request Kinds
 //!
-//! Provides the [`RequestKind`] trait and the request kinds a [`SecRequest`](super::SecRequest)
+//! Provides the [`RequestKind`] trait and the request kinds an [`SecRequest`](super::SecRequest)
 //! can carry.
 //!
 //! The kind names the input of a request, so a wrong input is a compile error. The kind stays on
@@ -14,10 +14,10 @@ use crate::shared::notes_period::NotesPeriod;
 
 use super::SecRequestType;
 
-/// The kind of a [`SecRequest`](super::SecRequest): the input it needs and the
+/// The kind of an [`SecRequest`](super::SecRequest): the input it needs and the
 /// [`SecRequestType`] it builds from that input.
 ///
-/// A new kind implements this trait, adds a [`SecRequestType`] variant, and adds the URL of that
+/// A new kind implements this trait, adds an [`SecRequestType`] variant, and adds the URL of that
 /// variant in [`SecRequest::new`](crate::shared::request::SecRequest::new).
 pub trait RequestKind: Debug + Send + Sync {
     /// The domain input of the request, for example a [`Cik`].

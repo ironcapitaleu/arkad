@@ -206,7 +206,7 @@ this project.
 This is the core test, and it catches slop the checklist misses.
 
 A sentence must give the reader an instruction, a fact, a number, or a mechanism. "The API keeps
-the database close at hand" names a feeling. "`SecClient::fetch` returns the parsed filing or a
+the database close at hand" names a feeling. "`SecClient::fetch` returns the parsed filing or an
 `SecClientError`" names a mechanism.
 
 An evaluative adjective is not an instruction. "Keep the plan honest", "keep the backlog healthy",
