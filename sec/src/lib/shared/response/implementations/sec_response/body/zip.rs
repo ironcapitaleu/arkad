@@ -22,16 +22,21 @@ const CONTENT_LENGTH_HEADER: &str = "content-length";
 ///
 /// Accepts status 200 only, and the [`ContentType::OctetStream`] or [`ContentType::Zip`]
 /// content type. If the `Content-Length` header is present, the body has exactly that many bytes.
-#[derive(Debug, Clone)]
+///
+/// Not `Clone`: a Notes file can be about 1 GB, and the pipeline keeps one copy. So a
+/// `SecResponse<ZipBody>` is not `Clone` either:
+///
+/// ```compile_fail
+/// use sec::shared::response::implementations::sec_response::{SecResponse, ZipBody};
+///
+/// fn assert_clone<T: Clone>() {}
+///
+/// assert_clone::<SecResponse<ZipBody>>();
+/// ```
+#[derive(Debug)]
 pub struct ZipBody(Vec<u8>);
 
 impl ZipBody {
-    /// Returns the body bytes.
-    #[must_use]
-    pub fn as_bytes(&self) -> &[u8] {
-        &self.0
-    }
-
     /// Consumes the body and returns the bytes without a copy.
     #[must_use]
     pub fn into_bytes(self) -> Vec<u8> {

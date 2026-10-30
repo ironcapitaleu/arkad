@@ -24,12 +24,6 @@ pub struct JsonBody {
 }
 
 impl JsonBody {
-    /// Returns the parsed JSON value.
-    #[must_use]
-    pub const fn value(&self) -> &serde_json::Value {
-        &self.value
-    }
-
     /// Returns the body bytes exactly as the server sent them.
     #[must_use]
     pub fn raw(&self) -> &[u8] {

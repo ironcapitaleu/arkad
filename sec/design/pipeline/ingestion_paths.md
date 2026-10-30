@@ -215,8 +215,8 @@ pub async fn download_sec_file(
 ) -> Result<SecResponse<ZipBody>, FailedSecRequest>;
 ```
 
-Both kinds hold the URL, the headers, the content type, the status code, the body, and the SHA-256
-of the body. `ZipBody` accepts only status 200 and the content types `application/octet-stream`
+`SecResponse<B>` holds the URL, the headers, the content type, the status code, the body, and the
+SHA-256 of the body. `ZipBody` accepts only status 200 and the content types `application/octet-stream`
 and `application/zip`. If the `Content-Length` header is present, the byte count must match it.
 Each later file kind gets its own body kind, for example the XML files of the new-filing path.
 

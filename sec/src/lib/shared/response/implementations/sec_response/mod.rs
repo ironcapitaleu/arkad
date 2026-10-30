@@ -94,7 +94,8 @@ impl<B: ResponseBody> SecResponse<B> {
     /// Creates a [`SecResponse`] from its parts and the raw body bytes, after the same checks as
     /// the HTTP path.
     ///
-    /// The HTTP path runs the same checks, so a body gets the same digest on both paths.
+    /// The HTTP path runs the same checks and hashes the same bytes, so a body gets the same digest
+    /// on both paths.
     ///
     /// # Errors
     ///
@@ -406,6 +407,25 @@ mod tests {
         assert_eq!(result, expected_result);
     }
 
+    #[tokio::test]
+    async fn should_return_invalid_content_type_when_a_raw_response_for_a_json_body_is_a_zip() {
+        let inner = http::Response::builder()
+            .status(200)
+            .header("content-type", "application/zip")
+            .body(RAW_BODY.to_vec())
+            .expect("Given a valid status code and header names, building the response should always succeed");
+
+        let expected_result = Some(InvalidSecResponse::new(ErrorReason::InvalidContentType {
+            content_type: ContentType::Zip,
+        }));
+
+        let result = SecResponse::<JsonBody>::from_inner(reqwest::Response::from(inner))
+            .await
+            .err();
+
+        assert_eq!(result, expected_result);
+    }
+
     #[test]
     fn should_return_invalid_body_when_the_raw_body_is_not_json() {
         let details = serde_json::from_slice::<serde_json::Value>(b"not json")
@@ -499,6 +519,25 @@ mod zip_tests {
         let expected_result = Some(InvalidSecResponse::new(ErrorReason::InvalidContentLength {
             content_length: "4".to_string(),
             body_length: BODY.len(),
+        }));
+
+        let result = SecResponse::<ZipBody>::from_inner(reqwest::Response::from(response))
+            .await
+            .err();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_return_invalid_content_type_when_a_raw_response_for_a_zip_body_is_json() {
+        let response = http::Response::builder()
+            .status(200)
+            .header("content-type", "application/json")
+            .body(BODY.to_vec())
+            .expect("Given a valid status code and header names, building the response should always succeed");
+
+        let expected_result = Some(InvalidSecResponse::new(ErrorReason::InvalidContentType {
+            content_type: ContentType::Json,
         }));
 
         let result = SecResponse::<ZipBody>::from_inner(reqwest::Response::from(response))
@@ -675,14 +714,15 @@ mod zip_tests {
     }
 
     #[test]
-    fn should_return_invalid_content_type_when_the_content_type_header_is_missing() {
+    fn should_return_invalid_content_type_when_the_content_type_is_unknown() {
         let expected_result = Some(InvalidSecResponse::new(ErrorReason::InvalidContentType {
             content_type: ContentType::Unknown,
         }));
 
-        let result = zip_from_parts(
+        let result = SecResponse::<ZipBody>::from_parts(
             sample_url(),
             Headers::new(HashMap::new()),
+            ContentType::Unknown,
             StatusCode::Ok,
             BODY.to_vec(),
         )
