@@ -110,6 +110,15 @@ mod tests {
     }
 
     #[test]
+    fn should_ignore_a_name_whose_date_has_a_space() {
+        let expected_result: Vec<NaiveDate> = Vec::new();
+
+        let result = listed_index_dates(&listing(&["form.202610 2.idx"]));
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
     fn should_ignore_a_name_whose_date_does_not_exist() {
         let expected_result: Vec<NaiveDate> = Vec::new();
 

@@ -1,7 +1,7 @@
 //! # ZIP Body
 //!
-//! Provides the [`ZipBody`], the body kind of a response that the store keeps as raw bytes: one
-//! SEC Financial Statement and Notes file (a ZIP), or one daily index (text).
+//! Provides the [`ZipBody`], the body kind of a response that the store keeps as raw bytes. The
+//! body is one SEC Financial Statement and Notes file (a ZIP) or one daily index (text).
 
 use async_trait::async_trait;
 use bytes::Bytes;
