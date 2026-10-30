@@ -5,7 +5,7 @@
 //! ## Modules
 //!
 //! - [`inner`]: The [`InnerClient`] trait abstracting a concrete HTTP client.
-//! - [`responds_with`]: The [`RespondsWith`] trait that wires each request kind to its body kind.
+//! - [`responds_with`]: The [`RespondsWith`] trait that wires each SEC endpoint to its response body.
 //! - [`sec_client`]: The [`SecClient`] trait adding SEC request/response semantics on top.
 
 pub mod inner;

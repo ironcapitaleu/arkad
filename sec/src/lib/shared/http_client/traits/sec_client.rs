@@ -34,8 +34,8 @@ use super::RespondsWith;
 pub trait SecClient: Debug + Clone + Eq + Ord + Hash + Send + Sync + Unpin + Serialize {
     /// The raw HTTP client this trait delegates to.
     ///
-    /// The bound names the inner request of the default kind. Every kind builds the same inner
-    /// request type, so the default body can send any `SecRequest<K>`.
+    /// The bound names the inner request of the default endpoint. Every endpoint builds the same
+    /// inner request type, so the default body can send any `SecRequest<Endpoint>`.
     type Inner: InnerClient<Request = <SecRequest as SecRequestTrait>::Inner, Error: Into<Self::Error>>;
     /// The rate limiter pacing outgoing requests. Must implement [`RateLimiter`].
     type Limiter: RateLimiter;
@@ -57,7 +57,7 @@ pub trait SecClient: Debug + Clone + Eq + Ord + Hash + Send + Sync + Unpin + Ser
     /// Returns the [`UserAgent`] that every request carries.
     fn user_agent(&self) -> &UserAgent;
 
-    /// Executes an SEC request of kind `K` and returns a response with the body kind of `K`.
+    /// Executes an SEC request to `Endpoint` and returns a response with the body of `Endpoint`.
     ///
     /// Waits on the rate limiter, sends the request through [`Self::inner`], and builds the
     /// response with [`SecResponseTrait::from_inner`].
@@ -83,12 +83,12 @@ pub trait SecClient: Debug + Clone + Eq + Ord + Hash + Send + Sync + Unpin + Ser
     ///
     /// Returns `Self::Error` if the request fails at the network level or the response fails
     /// SEC validation.
-    async fn execute_sec_request<K>(
+    async fn execute_sec_request<Endpoint>(
         &self,
-        request: SecRequest<K>,
-    ) -> Result<Self::Response<K::Body>, Self::Error>
+        request: SecRequest<Endpoint>,
+    ) -> Result<Self::Response<Endpoint::Body>, Self::Error>
     where
-        K: RespondsWith,
+        Endpoint: RespondsWith,
     {
         self.rate_limiter().await_turn().await;
 
@@ -97,7 +97,7 @@ pub trait SecClient: Debug + Clone + Eq + Ord + Hash + Send + Sync + Unpin + Ser
             .execute_request(request.into_inner())
             .await
             .map_err(Into::into)?;
-        <Self::Response<K::Body> as SecResponseTrait>::from_inner(inner_response)
+        <Self::Response<Endpoint::Body> as SecResponseTrait>::from_inner(inner_response)
             .await
             .map_err(Into::into)
     }

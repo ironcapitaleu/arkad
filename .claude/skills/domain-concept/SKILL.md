@@ -200,12 +200,12 @@ pub trait SecClient: Debug + Clone + Eq + Ord + Hash + Send + Sync + Unpin + Ser
     fn rate_limiter(&self) -> &Self::Limiter;
     fn user_agent(&self) -> &UserAgent;
 
-    async fn execute_sec_request<K>(
+    async fn execute_sec_request<Endpoint>(
         &self,
-        request: SecRequest<K>,
-    ) -> Result<Self::Response<K::Body>, Self::Error>
+        request: SecRequest<Endpoint>,
+    ) -> Result<Self::Response<Endpoint::Body>, Self::Error>
     where
-        K: RespondsWith,
+        Endpoint: RespondsWith,
     {
         self.rate_limiter().await_turn().await;
 
@@ -214,7 +214,7 @@ pub trait SecClient: Debug + Clone + Eq + Ord + Hash + Send + Sync + Unpin + Ser
             .execute_request(request.into_inner())
             .await
             .map_err(Into::into)?;
-        <Self::Response<K::Body> as SecResponseTrait>::from_inner(inner_response)
+        <Self::Response<Endpoint::Body> as SecResponseTrait>::from_inner(inner_response)
             .await
             .map_err(Into::into)
     }
