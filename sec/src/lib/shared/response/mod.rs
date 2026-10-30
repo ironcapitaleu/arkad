@@ -4,7 +4,7 @@
 //!
 //! Split into two trait layers so the library is not bound to any one HTTP crate: an
 //! [`InnerResponse`] wraps a raw HTTP response, and an [`SecResponse`] validates it and exposes
-//! typed parts (URL, headers, status, content type, JSON body).
+//! typed parts (URL, headers, status, content type, body).
 //!
 //! ## Modules
 //!

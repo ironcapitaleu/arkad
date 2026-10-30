@@ -22,8 +22,7 @@ use crate::shared::http_client::SecClient as SecClientTrait;
 use crate::shared::rate_limiter::{RateLimiter, SecRateLimiter};
 use crate::shared::request::implementations::sec_request::SecRequest;
 use crate::shared::response::SecResponse as SecResponseTrait;
-use crate::shared::response::implementations::sec_notes_file_response::SecNotesFileResponse;
-use crate::shared::response::implementations::sec_response::SecResponse;
+use crate::shared::response::implementations::sec_response::{SecResponse, ZipBody};
 use crate::shared::user_agent::UserAgent;
 
 use self::error::FailedSecRequest;
@@ -88,18 +87,18 @@ impl SecClient {
         self.inner.user_agent()
     }
 
-    /// Downloads one Notes file and returns it as a [`SecNotesFileResponse`].
+    /// Downloads one Notes file and returns it as a [`SecResponse<ZipBody>`].
     ///
     /// Waits on the rate limiter, sends the request, and reads the whole body.
     ///
     /// # Errors
     ///
     /// Returns a [`FailedSecRequest`] if the request fails at the network level, or if the
-    /// response fails a check of [`SecNotesFileResponse::from_parts`].
+    /// response fails a check of [`SecResponse::from_parts`].
     pub async fn download_sec_file(
         &self,
         request: SecRequest,
-    ) -> Result<SecNotesFileResponse, FailedSecRequest> {
+    ) -> Result<SecResponse<ZipBody>, FailedSecRequest> {
         download_notes_file(self, request.into_inner()).await
     }
 }
@@ -116,11 +115,11 @@ impl SecClient {
 /// # Errors
 ///
 /// Returns a [`FailedSecRequest`] if the request fails at the network level, or if the
-/// response fails a check of [`SecNotesFileResponse::from_parts`].
+/// response fails a check of [`SecResponse::from_parts`].
 pub(crate) async fn download_notes_file<C>(
     client: &C,
     request: reqwest::Request,
-) -> Result<SecNotesFileResponse, FailedSecRequest>
+) -> Result<SecResponse<ZipBody>, FailedSecRequest>
 where
     C: SecClientTrait,
     C::Inner: InnerClient<
@@ -132,7 +131,7 @@ where
     client.rate_limiter().await_turn().await;
 
     let inner_response = client.inner().execute_request(request).await?;
-    let notes_file_response = SecNotesFileResponse::from_inner(inner_response).await?;
+    let notes_file_response = SecResponse::<ZipBody>::from_inner(inner_response).await?;
     Ok(notes_file_response)
 }
 
@@ -220,6 +219,7 @@ mod tests {
     use crate::shared::content_type::ContentType;
     use crate::shared::http_client::implementations::reqwest_client::ReqwestClient;
     use crate::shared::http_client::implementations::sec_client::error::FailedSecRequest;
+    use crate::shared::response::SecResponse as SecResponseTrait;
     use crate::shared::response::implementations::sec_response::error::{
         ErrorReason, InvalidSecResponse,
     };

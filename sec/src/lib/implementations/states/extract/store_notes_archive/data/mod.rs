@@ -5,7 +5,7 @@
 //!
 //! ## Modules
 //!
-//! - [`input`]: The [`StoreNotesArchiveInput`] holding the downloaded [`SecNotesFileResponse`](crate::shared::response::implementations::sec_notes_file_response::SecNotesFileResponse) and its [`NotesPeriod`](crate::shared::notes_period::NotesPeriod).
+//! - [`input`]: The [`StoreNotesArchiveInput`] holding the downloaded [`SecResponse<ZipBody>`](crate::shared::response::implementations::sec_response::SecResponse) and its [`NotesPeriod`](crate::shared::notes_period::NotesPeriod).
 //! - [`output`]: The [`StoreNotesArchiveOutput`] holding the [`NotesArchiveRef`](crate::shared::notes_archive_ref::NotesArchiveRef) of the stored file.
 
 pub mod input;

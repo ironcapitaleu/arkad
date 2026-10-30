@@ -7,7 +7,7 @@ use super::InnerResponse;
 /// The domain-level SEC response: validated, typed access to an HTTP response's parts.
 ///
 /// Sits above [`InnerResponse`], building from a raw response and exposing its URL, headers,
-/// status, content type, and JSON body as validated domain types. Existing as a trait keeps the
+/// status, content type, and body as validated domain types. Existing as a trait keeps the
 /// library decoupled from any HTTP crate and lets a fake response stand in for the network.
 ///
 /// # Associated Types
@@ -20,6 +20,7 @@ use super::InnerResponse;
 /// - `Headers`: The response's headers.
 /// - `StatusCode`: The response's HTTP status code.
 /// - `ContentType`: The response's content type.
+/// - `Body`: The view of the response body, for example a JSON value or a byte slice.
 /// - `Error`: The error type returned when the response cannot be read or validated.
 #[async_trait]
 pub trait SecResponse: Send + Sync + Debug + Sized {
@@ -37,6 +38,9 @@ pub trait SecResponse: Send + Sync + Debug + Sized {
 
     /// The response's content type.
     type ContentType;
+
+    /// The view of the response body.
+    type Body: ?Sized;
 
     /// The error type returned when the response cannot be read or validated.
     type Error;
@@ -62,8 +66,8 @@ pub trait SecResponse: Send + Sync + Debug + Sized {
     /// Returns the content type of the response.
     fn content_type(&self) -> Self::ContentType;
 
-    /// Returns a reference to the response body as a valid JSON value.
-    fn body(&self) -> &serde_json::Value;
+    /// Returns a reference to the validated response body.
+    fn body(&self) -> &Self::Body;
 }
 
 #[cfg(test)]

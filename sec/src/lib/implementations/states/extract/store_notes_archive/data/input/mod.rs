@@ -16,7 +16,8 @@ use storage::Sha256Digest;
 
 use crate::error::State as StateError;
 use crate::shared::notes_period::NotesPeriod;
-use crate::shared::response::implementations::sec_notes_file_response::SecNotesFileResponse;
+use crate::shared::response::SecResponse as SecResponseTrait;
+use crate::shared::response::implementations::sec_response::{SecResponse, ZipBody};
 use crate::shared::url::Url;
 use crate::shared::user_agent::UserAgent;
 use crate::traits::state_machine::state::StateData;
@@ -29,7 +30,7 @@ use crate::traits::state_machine::state::StateData;
 #[derive(Debug, Clone)]
 pub struct StoreNotesArchiveInput {
     /// The downloaded Notes file, or `None` after the state took it.
-    pub response: Option<Arc<SecNotesFileResponse>>,
+    pub response: Option<Arc<SecResponse<ZipBody>>>,
     /// The period of the Notes file.
     pub notes_period: NotesPeriod,
     /// The URL the download sent, before any redirects.
@@ -43,7 +44,7 @@ impl StoreNotesArchiveInput {
     /// URL and the `User-Agent` the download sent.
     #[must_use]
     pub const fn new(
-        response: Arc<SecNotesFileResponse>,
+        response: Arc<SecResponse<ZipBody>>,
         notes_period: NotesPeriod,
         requested_url: Url,
         user_agent: UserAgent,
@@ -61,7 +62,7 @@ impl StoreNotesArchiveInput {
         (
             self.response
                 .as_deref()
-                .map(SecNotesFileResponse::body_digest),
+                .map(SecResponse::<ZipBody>::body_digest),
             self.notes_period,
             &self.requested_url,
             &self.user_agent,
@@ -170,7 +171,7 @@ impl fmt::Display for StoreNotesArchiveInput {
 #[derive(Debug, Clone)]
 pub struct StoreNotesArchiveInputUpdater {
     /// The new downloaded Notes file.
-    pub response: Option<Arc<SecNotesFileResponse>>,
+    pub response: Option<Arc<SecResponse<ZipBody>>>,
     /// The new Notes period.
     pub notes_period: Option<NotesPeriod>,
     /// The new requested URL.
@@ -190,7 +191,7 @@ impl StoreNotesArchiveInputUpdater {
 /// Fluent builder for a [`StoreNotesArchiveInputUpdater`].
 #[derive(Debug, Default)]
 pub struct StoreNotesArchiveInputUpdaterBuilder {
-    response: Option<Arc<SecNotesFileResponse>>,
+    response: Option<Arc<SecResponse<ZipBody>>>,
     notes_period: Option<NotesPeriod>,
     requested_url: Option<Url>,
     user_agent: Option<UserAgent>,
@@ -211,7 +212,7 @@ impl StoreNotesArchiveInputUpdaterBuilder {
     /// Sets the downloaded Notes file.
     #[must_use]
     #[allow(clippy::missing_const_for_fn)]
-    pub fn response(mut self, response: Arc<SecNotesFileResponse>) -> Self {
+    pub fn response(mut self, response: Arc<SecResponse<ZipBody>>) -> Self {
         self.response = Some(response);
         self
     }
@@ -259,6 +260,7 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;
+    use crate::shared::content_type::ContentType;
     use crate::shared::headers::Headers;
     use crate::shared::status_code::StatusCode;
 
@@ -275,14 +277,15 @@ mod tests {
         .expect("Given a hardcoded valid URL prefix, parsing should always succeed")
     }
 
-    fn notes_file_response(body: &[u8]) -> Arc<SecNotesFileResponse> {
+    fn notes_file_response(body: &[u8]) -> Arc<SecResponse<ZipBody>> {
         let headers = Headers::new(HashMap::from([(
             "content-type".to_string(),
             "application/zip".to_string(),
         )]));
-        let response = SecNotesFileResponse::from_parts(
+        let response = SecResponse::<ZipBody>::from_parts(
             notes_url("2024q1_notes.zip"),
             headers,
+            ContentType::Zip,
             StatusCode::Ok,
             body.to_vec(),
         )

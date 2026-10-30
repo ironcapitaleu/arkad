@@ -16,6 +16,7 @@ impl SecResponse for FakeSecResponse {
     type Headers = String;
     type StatusCode = u16;
     type ContentType = String;
+    type Body = serde_json::Value;
     type Error = String;
 
     async fn from_inner(inner: Self::Inner) -> Result<Self, Self::Error> {
@@ -39,7 +40,7 @@ impl SecResponse for FakeSecResponse {
         self.inner.content_type.clone()
     }
 
-    fn body(&self) -> &serde_json::Value {
+    fn body(&self) -> &Self::Body {
         &self.body
     }
 }

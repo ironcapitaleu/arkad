@@ -14,7 +14,8 @@ use serde::{Serialize, Serializer};
 use state_maschine::prelude::StateData as SMStateData;
 
 use crate::error::State as StateError;
-use crate::shared::response::implementations::sec_notes_file_response::SecNotesFileResponse;
+use crate::shared::response::SecResponse as SecResponseTrait;
+use crate::shared::response::implementations::sec_response::{SecResponse, ZipBody};
 use crate::traits::state_machine::state::StateData;
 
 /// Output data of the [`DownloadNotesArchive`](super::super::DownloadNotesArchive) state.
@@ -25,13 +26,13 @@ use crate::traits::state_machine::state::StateData;
 #[derive(Debug, Clone)]
 pub struct DownloadNotesArchiveOutput {
     /// The downloaded Notes file.
-    pub response: Arc<SecNotesFileResponse>,
+    pub response: Arc<SecResponse<ZipBody>>,
 }
 
 impl DownloadNotesArchiveOutput {
     /// Creates a new [`DownloadNotesArchiveOutput`] from a downloaded Notes file.
     #[must_use]
-    pub fn new(response: SecNotesFileResponse) -> Self {
+    pub fn new(response: SecResponse<ZipBody>) -> Self {
         Self {
             response: Arc::new(response),
         }
@@ -121,7 +122,7 @@ impl fmt::Display for DownloadNotesArchiveOutput {
 #[derive(Debug, Clone)]
 pub struct DownloadNotesArchiveOutputUpdater {
     /// The new response.
-    pub response: Option<Arc<SecNotesFileResponse>>,
+    pub response: Option<Arc<SecResponse<ZipBody>>>,
 }
 
 impl DownloadNotesArchiveOutputUpdater {
@@ -135,7 +136,7 @@ impl DownloadNotesArchiveOutputUpdater {
 /// Fluent builder for a [`DownloadNotesArchiveOutputUpdater`].
 #[derive(Debug, Default)]
 pub struct DownloadNotesArchiveOutputUpdaterBuilder {
-    response: Option<Arc<SecNotesFileResponse>>,
+    response: Option<Arc<SecResponse<ZipBody>>>,
 }
 
 impl DownloadNotesArchiveOutputUpdaterBuilder {
@@ -148,7 +149,7 @@ impl DownloadNotesArchiveOutputUpdaterBuilder {
     /// Sets the response.
     #[must_use]
     #[allow(clippy::missing_const_for_fn)]
-    pub fn response(mut self, response: Arc<SecNotesFileResponse>) -> Self {
+    pub fn response(mut self, response: Arc<SecResponse<ZipBody>>) -> Self {
         self.response = Some(response);
         self
     }
@@ -171,11 +172,12 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;
+    use crate::shared::content_type::ContentType;
     use crate::shared::headers::Headers;
     use crate::shared::status_code::StatusCode;
     use crate::shared::url::Url;
 
-    fn notes_file_response(body: &[u8]) -> SecNotesFileResponse {
+    fn notes_file_response(body: &[u8]) -> SecResponse<ZipBody> {
         let url: Url = "https://www.sec.gov/files/dera/data/financial-statement-notes-data-sets/2024q1_notes.zip"
             .parse()
             .expect("Given a hardcoded valid URL, parsing should always succeed");
@@ -183,7 +185,14 @@ mod tests {
             "content-type".to_string(),
             "application/zip".to_string(),
         )]));
-        SecNotesFileResponse::from_parts(url, headers, StatusCode::Ok, body.to_vec()).expect(
+        SecResponse::<ZipBody>::from_parts(
+            url,
+            headers,
+            ContentType::Zip,
+            StatusCode::Ok,
+            body.to_vec(),
+        )
+        .expect(
             "Given status 200 and a ZIP content type, building the response should always succeed",
         )
     }

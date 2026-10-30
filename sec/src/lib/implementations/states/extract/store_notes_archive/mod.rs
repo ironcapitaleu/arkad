@@ -30,7 +30,7 @@ use crate::shared::document_storage::FailedDocumentStorage;
 use crate::shared::notes_archive_ref::NotesArchiveRef;
 use crate::shared::notes_period::NotesPeriod;
 use crate::shared::raw_document::RawDocument;
-use crate::shared::response::implementations::sec_notes_file_response::SecNotesFileResponse;
+use crate::shared::response::implementations::sec_response::{SecResponse, ZipBody};
 use crate::shared::run_fields::RunFields;
 use crate::traits::state_machine::state::State;
 
@@ -87,7 +87,7 @@ impl<R> StoreNotesArchive<R> {
     ///
     /// Returns [`StateError::InvalidInput`] if the input holds no response, or if a clone of the
     /// [`Arc`] is alive.
-    fn take_response(&mut self) -> Result<SecNotesFileResponse, StateError> {
+    fn take_response(&mut self) -> Result<SecResponse<ZipBody>, StateError> {
         let response = self.input.response.take().ok_or(StateError::InvalidInput)?;
         Arc::try_unwrap(response).map_err(|shared| {
             self.input.response = Some(shared);
@@ -225,9 +225,11 @@ mod tests {
     use uuid::Uuid;
 
     use super::*;
+    use crate::shared::content_type::ContentType;
     use crate::shared::document_storage::DocumentStorageErrorReason;
     use crate::shared::headers::Headers;
     use crate::shared::raw_source::RawNotesArchive;
+    use crate::shared::response::SecResponse as SecResponseTrait;
     use crate::shared::status_code::StatusCode;
     use crate::shared::url::Url;
     use crate::shared::user_agent::UserAgent;
@@ -248,7 +250,7 @@ mod tests {
             .expect("Given a hardcoded valid relative path, the key should always build")
     }
 
-    fn sample_response() -> Arc<SecNotesFileResponse> {
+    fn sample_response() -> Arc<SecResponse<ZipBody>> {
         let url: Url = "https://www.sec.gov/files/dera/data/financial-statement-notes-data-sets/2010q1_notes_1.zip"
             .parse()
             .expect("Given a hardcoded valid URL, parsing should always succeed");
@@ -256,9 +258,10 @@ mod tests {
             "content-type".to_string(),
             "application/zip".to_string(),
         )]));
-        let response = SecNotesFileResponse::from_parts(
+        let response = SecResponse::<ZipBody>::from_parts(
             url,
             headers,
+            ContentType::Zip,
             StatusCode::Ok,
             SAMPLE_NOTES_ZIP.to_vec(),
         )
@@ -268,7 +271,7 @@ mod tests {
         Arc::new(response)
     }
 
-    fn sample_input(response: Arc<SecNotesFileResponse>) -> StoreNotesArchiveInput {
+    fn sample_input(response: Arc<SecResponse<ZipBody>>) -> StoreNotesArchiveInput {
         let requested_url = response.url().clone();
         let user_agent = UserAgent::new("arkad contact@example.com")
             .expect("Given a hardcoded SEC-format user agent, validation should always succeed");
