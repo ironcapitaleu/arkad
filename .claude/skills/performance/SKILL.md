@@ -4,7 +4,7 @@ description: >
   Use when the user asks to "profile", "benchmark", "measure performance", "find the bottleneck",
   "check for a performance regression", "how much memory does X use", "why is X slow", or wants to
   measure CPU, memory, or wall-time cost of a binary, state, state machine, function, or struct layout.
-version: 0.2.0
+version: 0.3.0
 argument-hint: "[profile|benchmark] [component]"
 allowed-tools: [Read, Write, Edit, Bash, AskUserQuestion]
 ---
@@ -35,6 +35,7 @@ Read this table before you promise anything.
 | CPU profiling | Available. Uses `samply`, validated on a real workload |
 | Memory profiling | Partial. Peak resident memory only. No allocation-attribution tool adopted |
 | Wall-time measurement | Available, but rarely meaningful. See "Critical Invariants" |
+| Network throughput | Partial. The Notes download only, with curl and `notes_backfill`. See `references/profiling/network.md` |
 | Storage and I/O profiling | Not covered. No measurements exist |
 | Benchmarking | None. No framework, no benchmarks, no baseline store |
 | CI integration | None. Nothing runs in CI |
@@ -83,6 +84,8 @@ latency, not our code. Everything we own runs in under a millisecond.
    profile, and the known traps.
    - CPU: `references/profiling/cpu.md`
    - Memory: `references/profiling/memory.md`
+   - Network: `references/profiling/network.md`, what limits the Notes download. Its script is
+     `scripts/fif_experiment.py`
 3. Check your measurement setup before you trust the profile. If the code you wrote to drive the
    measurement differs from production, the profile describes that driver instead of the
    application. Confirm that the top frames make sense for the workload first.
