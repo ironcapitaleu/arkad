@@ -556,6 +556,12 @@ pub struct FilingRef {
 `TenQ` today. It gets the variants `TwentyF` and `FortyF`. `is_amendment` marks the `/A` forms, so
 amendments need no extra variants.
 
+`parse_daily_index` (`shared/daily_index_row`) reads the index into one `DailyIndexRow` per row:
+the form text, the CIK, the date filed, and the accession number from the file name. It reads the
+form from its 17-character column, and the last three fields from the end of the line. A malformed
+line returns `InvalidDailyIndexLine` with its line number. `FilingRef::try_from` converts a row
+whose form parses with `Form::from_sec_str`, and returns `UnsupportedForm` for any other form.
+
 ### Fetch of Each Filing
 
 One `ExtractFilingSuperState` runs per `FilingRef`. It sends three requests:

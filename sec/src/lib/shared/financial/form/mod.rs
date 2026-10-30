@@ -51,7 +51,8 @@ impl Form {
     /// Parses an SEC form text such as `"10-K"` or `"10-K/A"` into a [`ParsedForm`].
     ///
     /// A text with the `/A` suffix gives its base form, with [`ParsedForm::is_amendment`] true.
-    /// The text must have no leading or trailing whitespace.
+    /// A text with leading or trailing whitespace returns an [`UnsupportedForm`], so the caller must
+    /// trim it.
     ///
     /// # Errors
     ///
@@ -257,6 +258,15 @@ mod tests {
         let expected_result = Err(UnsupportedForm::new("10-K/A/A"));
 
         let result = Form::from_sec_str("10-K/A/A");
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_unsupported_form_when_sec_string_has_trailing_whitespace() {
+        let expected_result = Err(UnsupportedForm::new("10-K   "));
+
+        let result = Form::from_sec_str("10-K   ");
 
         assert_eq!(result, expected_result);
     }
