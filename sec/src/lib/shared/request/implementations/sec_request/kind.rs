@@ -99,7 +99,9 @@ mod tests {
     use crate::shared::cik::Cik;
     use crate::shared::notes_period::NotesPeriod;
 
-    use super::{CompanyFacts, NotesFile, RequestKind, SecRequestType};
+    use super::{
+        CompanyFacts, DailyIndex, DailyIndexListing, NotesFile, RequestKind, SecRequestType,
+    };
 
     #[test]
     fn should_return_fetch_all_company_facts_for_company_facts_kind() {
@@ -139,11 +141,11 @@ mod tests {
 
     #[test]
     const fn should_implement_auto_traits_for_daily_index() {
-        implements_auto_traits::<super::DailyIndex>();
+        implements_auto_traits::<DailyIndex>();
     }
 
     #[test]
     const fn should_implement_auto_traits_for_daily_index_listing() {
-        implements_auto_traits::<super::DailyIndexListing>();
+        implements_auto_traits::<DailyIndexListing>();
     }
 }

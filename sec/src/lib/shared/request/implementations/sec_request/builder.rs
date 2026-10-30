@@ -33,6 +33,17 @@
 //!     let _request = builder.build();
 //! }
 //! ```
+//!
+//! A daily-index request needs a date before `build()` exists:
+//!
+//! ```compile_fail,E0599
+//! use sec::shared::request::implementations::sec_request::DailyIndex;
+//! use sec::shared::request::implementations::sec_request::builder::{DailyIndexBuilder, NoDate};
+//!
+//! fn build_without_date(builder: DailyIndexBuilder<DailyIndex, NoDate>) {
+//!     let _request = builder.build();
+//! }
+//! ```
 
 use std::marker::PhantomData;
 

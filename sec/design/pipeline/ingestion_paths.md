@@ -222,10 +222,11 @@ The run downloads the whole file, not HTTP range reads.
 The download goes through the existing layers: `SecRequest` → `SecClient` → `InnerClient`.
 `SecResponse<B>` is generic over its body kind `B`. The body kind sets the checks and stores the
 body. `SecResponse<JsonBody>`, the default, holds a Company Facts reply. `SecResponse<ZipBody>`
-holds a Notes file.
+holds a Notes file or a daily index as raw bytes.
 
 The `RespondsWith` trait on the client side maps each SEC endpoint to its body kind, once for
-every client. `CompanyFacts` has `Body = JsonBody`, and `NotesFile` has `Body = ZipBody`. This
+every client. `CompanyFacts` and `DailyIndexListing` have `Body = JsonBody`. `NotesFile` and `DailyIndex` have
+`Body = ZipBody`. This
 keeps `shared::request` independent of `shared::response`.
 
 The `SecClient` trait has one method for every endpoint. Its default body waits on the rate limiter,
@@ -250,6 +251,8 @@ concrete `SecClient` sets `Response<B> = SecResponse<B>`. A Notes request gives 
 SHA-256 of the body. `ZipBody` accepts only status 200 and the content types `application/octet-stream`
 and `application/zip`. If the `Content-Length` header is present, the byte count must match it.
 Each later file kind gets its own body kind, for example the XML files of the new-filing path.
+The daily index is the exception: it reuses `ZipBody`, because the SEC sends it as
+`application/octet-stream` and the store keeps it as raw bytes. Decided in STA-369.
 
 ### Storage
 

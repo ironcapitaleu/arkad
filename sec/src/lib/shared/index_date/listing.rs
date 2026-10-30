@@ -5,7 +5,8 @@
 //!
 //! The listing has the shape `{"directory":{"item":[{"name":"form.20261027.idx",…},…]}}`. The
 //! parser reads the date of each name of the form `form.YYYYMMDD.idx`. It ignores every other
-//! name, for example `company.20261027.idx` and the 1998 name `form.981027.idx`.
+//! name, for example `company.20261027.idx`. It also ignores the two-digit-year name
+//! `form.981027.idx`, which the SEC listings of 1998 show beside `form.19981027.idx`.
 
 use chrono::NaiveDate;
 use serde_json::Value;
@@ -95,6 +96,15 @@ mod tests {
         let expected_result = vec![date(1998, 10, 27)];
 
         let result = listed_index_dates(&listing(&["form.981027.idx", "form.19981027.idx"]));
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_ignore_a_name_whose_date_has_seven_digits() {
+        let expected_result: Vec<NaiveDate> = Vec::new();
+
+        let result = listed_index_dates(&listing(&["form.2026102.idx"]));
 
         assert_eq!(result, expected_result);
     }
