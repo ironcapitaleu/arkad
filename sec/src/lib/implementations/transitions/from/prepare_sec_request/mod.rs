@@ -7,8 +7,5 @@
 //! ## Modules
 //!
 //! - [`execute_sec_request`]: Transition into the request-execution state.
-//! - [`download_notes_archive`]: Transition of the Notes kind into the state that downloads the
-//!   Notes file.
 
-pub mod download_notes_archive;
 pub mod execute_sec_request;

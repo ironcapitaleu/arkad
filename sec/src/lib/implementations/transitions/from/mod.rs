@@ -10,9 +10,7 @@
 //! - [`execute_sec_request`]: Transitions out of the request-execution state.
 //! - [`parse_company_facts`]: Transitions out of the Company Facts parsing state.
 //! - [`validate_notes_period`]: Transitions out of the Notes period validation state.
-//! - [`download_notes_archive`]: Transitions out of the Notes download state.
 
-pub mod download_notes_archive;
 pub mod execute_sec_request;
 pub mod parse_company_facts;
 pub mod prepare_sec_request;

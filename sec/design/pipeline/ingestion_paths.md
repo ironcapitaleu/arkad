@@ -56,7 +56,7 @@ flowchart TB
 
     subgraph BF["Backfill: ExtractNotesSuperState, one per Notes file"]
         direction LR
-        N1["ValidateNotesPeriod"]:::new --> N2["PrepareSecRequest"]:::reused --> N3["DownloadNotesArchive"]:::new --> N4["StoreNotesArchive"]:::new
+        N1["ValidateNotesPeriod"]:::new --> N2["PrepareSecRequest"]:::reused --> N3["ExecuteSecRequest"]:::reused --> N4["StoreNotesArchive"]:::new
     end
 
     subgraph DT["New filing: DetectFilingsSuperState, one per day"]
@@ -134,7 +134,7 @@ One state machine handles one Notes file. It mirrors the `companyfacts` machine:
 | The run loops over the `CIKS` list with `join_all` | The run loops over a list of Notes periods, with a cap on files in flight |
 | `ValidateCikFormat`: raw string → `Cik` | `ValidateNotesPeriod`: raw string → `NotesPeriod` |
 | `SecRequest::builder().all_company_facts().cik(cik).build()` | `SecRequest::builder().notes_file().period(period).build()` |
-| `ExecuteSecRequest` reads a JSON body | `DownloadNotesArchive` reads a binary body of up to 0.85 GB |
+| `ExecuteSecRequest` reads a JSON body | `ExecuteSecRequest<NotesFile, …>` reads a binary body of up to 0.85 GB |
 | `StoreCompanyFacts` writes `sec/companyfacts/CIK##########.json` | `StoreNotesArchive` writes `sec/notes/<file name>` |
 
 A separate REFACTOR renames the existing `ExtractSuperState` to `ExtractCompanyFactsSuperState`.
@@ -144,10 +144,12 @@ A separate REFACTOR renames the existing `ExtractSuperState` to `ExtractCompanyF
 1. `ValidateNotesPeriod` parses a raw string such as `2024q1` or `2025_10` into a `NotesPeriod`.
 2. `PrepareNotesRequest`, the alias of `PrepareSecRequest<NotesFile, R>`, builds
    `SecRequest::builder().notes_file().period(p).build()`. The transition into
-   `DownloadNotesArchive` takes the client and the `execution_id` from the super-state context.
-3. `DownloadNotesArchive` sends the request and reads the whole body into memory. It runs the
+   `ExecuteSecRequest` takes the client from the super-state context.
+3. `ExecuteSecRequest<NotesFile, R, C>` sends the request and reads the whole body into memory.
+   Its state name is "Download Notes Archive", from `NotesFile::EXECUTE_STATE_NAME`. It runs the
    transport checks of [Validation](#validation), layer 1. Its output holds the
-   `SecResponse<ZipBody>` in an `Arc`, because the state traits require `Clone`.
+   `SecResponse<ZipBody>` in an `Arc`, because the state traits require `Clone`. The transition
+   into `StoreNotesArchive` takes the `execution_id` from the super-state context.
 4. `StoreNotesArchive` takes the response out of its input, writes the bytes as a
    `RawDocument<RawNotesArchive>`, and outputs a `NotesArchiveRef`.
 
@@ -313,12 +315,12 @@ runs with one shared task passed, on the code before and after the hash moved of
 failure did not reproduce, and its cause is open. Whether the run keeps the split is an open
 decision (STA-360).
 
-The output of `DownloadNotesArchive` holds the response in an `Arc`. The transition to
+The output of `ExecuteSecRequest<NotesFile, …>` holds the response in an `Arc`. The transition to
 `StoreNotesArchive` moves the `Arc` into the input of `StoreNotesArchive`, which holds it as
 `Option<Arc<SecResponse<ZipBody>>>`. The state takes the `Arc` out of the input and builds the
 document from a borrow of the response. A second clone of the `Arc` does not stop the write, but
 it keeps the body buffer alive, so a transition must never keep one. A failed write consumes the
-response, so a retry needs a new input from `DownloadNotesArchive`.
+response, so a retry needs a new input from `ExecuteSecRequest<NotesFile, …>`.
 
 ### Archive Metadata
 
@@ -389,7 +391,7 @@ replaces old files: `2025q3_notes.zip` has a Last-Modified of 2026-10-07, and `2
 Four layers, each in the state that first sees the data. Layers 1 to 3 fail the file. Layer 4
 quarantines the row or the filing, and the file goes on.
 
-1. **Transport**, in `SecResponse<ZipBody>`, which `DownloadNotesArchive` gets from
+1. **Transport**, in `SecResponse<ZipBody>`, which `ExecuteSecRequest<NotesFile, …>` gets from
    `SecClient::execute_sec_request`: HTTP 200, a content type of `application/octet-stream` or
    `application/zip`, and a byte count equal to `Content-Length` if the header is present.
 2. **Container**, in the first transform state: the bytes start with the ZIP signature `PK\x03\x04`,

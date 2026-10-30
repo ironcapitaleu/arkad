@@ -4,9 +4,10 @@
 //! [`PrepareSecRequest`] and an SEC client, for every request kind `K`.
 //!
 //! It moves the prepared request from the output of the source state into the input of the next
-//! state, and carries the request input and the repository across in the context. The source state
-//! holds no client, so the caller passes the one from the state machine context. The `From` impl
-//! converts the context. The `TryFrom` is fallible because the source output may be absent.
+//! state. The context takes the request input from the source input, which built the request, and
+//! the repository from the source context. The source state holds no client, so the caller passes
+//! the one from the state machine context. The `TryFrom` is fallible because the source output may
+//! be absent.
 //!
 //! Both states have the same kind `K`. A prepared Company Facts request cannot become the
 //! execution of a Notes file request, so this does not compile:
@@ -29,7 +30,6 @@
 
 use crate::error::state_machine::transition;
 use crate::error::state_machine::transition::Transition as TransitionError;
-use crate::implementations::states::extract::execute_sec_request::constants::STATE_NAME as EXECUTE_SEC_REQUEST;
 use crate::implementations::states::extract::execute_sec_request::{
     ExecuteSecRequest, ExecuteSecRequestContext, ExecuteSecRequestInput,
 };
@@ -60,12 +60,13 @@ impl<K: RespondsWith, R, C: SecClientTrait> TryFrom<(PrepareSecRequest<K, R>, C)
     fn try_from(
         (state, sec_client): (PrepareSecRequest<K, R>, C),
     ) -> Result<Self, TransitionError> {
-        let (_input, output, context) = state.into_parts();
+        let (input, output, context) = state.into_parts();
         let output_data = output.ok_or_else(|| {
-            transition::MissingOutput::new(K::PREPARE_STATE_NAME, EXECUTE_SEC_REQUEST)
+            transition::MissingOutput::new(K::PREPARE_STATE_NAME, K::EXECUTE_STATE_NAME)
         })?;
 
-        let new_context: ExecuteSecRequestContext<K, R> = context.into();
+        // The request comes from the input, so the context takes its input from there too.
+        let new_context = ExecuteSecRequestContext::new(input.request_input, context.repository);
         let new_input = ExecuteSecRequestInput::new(sec_client, output_data.request);
 
         Ok(Self::new(new_input, new_context))
@@ -154,6 +155,32 @@ mod tests {
         let expected_result = true;
 
         let result = ExecuteCompanyFactsRequest::try_from((state, SecClient::default())).is_ok();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_take_cik_from_input_when_input_and_context_name_different_ciks() {
+        let input_cik = Cik::new("0001234567")
+            .expect("Hardcoded valid CIK string should always parse successfully");
+        let context_cik = Cik::new("0000320193")
+            .expect("Hardcoded valid CIK string should always parse successfully");
+        let mut state = PrepareCompanyFactsRequest::new(
+            PrepareSecRequestInput::new(input_cik.clone()),
+            PrepareSecRequestContext::new(context_cik, FakeWriteRepository::new()),
+        );
+        state
+            .compute_output_data_async()
+            .await
+            .expect("Valid state should always compute output data");
+
+        let expected_result = input_cik;
+
+        let result = ExecuteCompanyFactsRequest::try_from((state, SecClient::default()))
+            .expect("Given a computed state, the transition should always succeed")
+            .context_data()
+            .request_input
+            .clone();
 
         assert_eq!(result, expected_result);
     }
