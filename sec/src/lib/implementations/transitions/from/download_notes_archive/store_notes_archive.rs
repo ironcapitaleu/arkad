@@ -17,18 +17,17 @@
 
 use crate::error::state_machine::transition;
 use crate::error::state_machine::transition::Transition as TransitionError;
+use crate::implementations::states::extract::download_notes_archive::DownloadNotesArchive;
 use crate::implementations::states::extract::download_notes_archive::constants::STATE_NAME as DOWNLOAD_NOTES_ARCHIVE;
-use crate::implementations::states::extract::download_notes_archive::{
-    DownloadNotesArchive, NotesFileClient,
-};
 use crate::implementations::states::extract::store_notes_archive::constants::STATE_NAME as STORE_NOTES_ARCHIVE;
 use crate::implementations::states::extract::store_notes_archive::{
     StoreNotesArchive, StoreNotesArchiveContext, StoreNotesArchiveInput,
 };
+use crate::shared::http_client::SecClient as SecClientTrait;
 use crate::shared::request::implementations::sec_request::SecRequest;
 use crate::shared::url::Url;
 
-impl<R, C: NotesFileClient> TryFrom<DownloadNotesArchive<R, C>> for StoreNotesArchive<R> {
+impl<R, C: SecClientTrait> TryFrom<DownloadNotesArchive<R, C>> for StoreNotesArchive<R> {
     type Error = TransitionError;
 
     /// Builds a [`StoreNotesArchive`] from a computed [`DownloadNotesArchive`].
@@ -95,7 +94,7 @@ mod tests {
     use crate::shared::response::SecResponse as SecResponseTrait;
     use crate::shared::user_agent::UserAgent;
     use crate::tests::fixtures::data::notes_archive::SAMPLE_NOTES_ZIP;
-    use crate::tests::fixtures::sample_http_client::sample_sec_client::always_responding::AlwaysRespondingReadySecClient;
+    use crate::tests::fixtures::sample_http_client::sample_sec_client::always_responding::AlwaysRespondingSecClient;
     use crate::tests::fixtures::sample_write_repository::FakeNotesRepository;
 
     const SAMPLE_EXECUTION_ID: Uuid = Uuid::from_u128(7);
@@ -103,7 +102,7 @@ mod tests {
     const REQUESTED_URL: &str =
         "https://www.sec.gov/files/dera/data/financial-statement-notes-data-sets/2024q1_notes.zip";
 
-    type TestDownload = DownloadNotesArchive<FakeNotesRepository, AlwaysRespondingReadySecClient>;
+    type TestDownload = DownloadNotesArchive<FakeNotesRepository, AlwaysRespondingSecClient>;
 
     fn period(raw_period: &str) -> NotesPeriod {
         NotesPeriod::new(raw_period)
@@ -114,8 +113,8 @@ mod tests {
         FakeNotesRepository::rejecting(WriteError::conflicting_write("Sample conflict"))
     }
 
-    fn sec_client() -> AlwaysRespondingReadySecClient {
-        AlwaysRespondingReadySecClient::new(
+    fn sec_client() -> AlwaysRespondingSecClient {
+        AlwaysRespondingSecClient::new(
             200,
             vec![("content-type", "application/zip".to_string())],
             SAMPLE_NOTES_ZIP.to_vec(),

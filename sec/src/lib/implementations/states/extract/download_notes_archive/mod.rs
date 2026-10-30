@@ -61,7 +61,10 @@ use state_maschine::prelude::State as SMState;
 use crate::error::State as StateError;
 use crate::error::state_machine::state::FailedRequestExecution;
 use crate::implementations::states::extract::notes_repository::NotesRepository;
-use crate::shared::http_client::implementations::sec_client::{SecClient, download_notes_file};
+use crate::shared::http_client::SecClient as SecClientTrait;
+use crate::shared::http_client::implementations::sec_client::SecClient;
+use crate::shared::http_client::implementations::sec_client::error::FailedSecRequest;
+use crate::shared::response::implementations::sec_response::{SecResponse, ZipBody};
 use crate::traits::state_machine::state::State;
 
 pub mod constants;
@@ -69,7 +72,7 @@ pub mod context;
 pub mod data;
 
 pub use constants::STATE_NAME;
-pub use context::{DownloadNotesArchiveContext, NotesFileClient};
+pub use context::DownloadNotesArchiveContext;
 pub use data::DownloadNotesArchiveInput;
 pub use data::DownloadNotesArchiveOutput;
 
@@ -140,8 +143,15 @@ impl<R, C> DownloadNotesArchive<R, C> {
     }
 }
 
+// Deviation: the output holds a concrete `SecResponse<ZipBody>`, and `FailedRequestExecution`
+// wraps a `FailedSecRequest`. So the impls that compute the output pin the response and the error
+// of `C`. Other impls bind `C: SecClient` only.
 #[async_trait]
-impl<R: NotesRepository, C: NotesFileClient> State for DownloadNotesArchive<R, C> {
+impl<R, C> State for DownloadNotesArchive<R, C>
+where
+    R: NotesRepository,
+    C: SecClientTrait<Response<ZipBody> = SecResponse<ZipBody>, Error = FailedSecRequest>,
+{
     /// Downloads the Notes file of the input request and stores it as output.
     ///
     /// # Errors
@@ -153,8 +163,10 @@ impl<R: NotesRepository, C: NotesFileClient> State for DownloadNotesArchive<R, C
     /// - The content type is `application/zip` or `application/octet-stream`.
     /// - The body length equals `Content-Length`, if that header is present.
     async fn compute_output_data_async(&mut self) -> Result<(), StateError> {
-        let request = self.input.request.clone().into_inner();
-        let response = download_notes_file(&self.context.sec_client, request)
+        let response = self
+            .context
+            .sec_client
+            .execute_sec_request(self.input.request.clone())
             .await
             .map_err(|e| FailedRequestExecution::new(STATE_NAME, e))?;
         self.output = Some(DownloadNotesArchiveOutput::new(response));
@@ -162,7 +174,11 @@ impl<R: NotesRepository, C: NotesFileClient> State for DownloadNotesArchive<R, C
     }
 }
 
-impl<R: NotesRepository, C: NotesFileClient> SMState for DownloadNotesArchive<R, C> {
+impl<R, C> SMState for DownloadNotesArchive<R, C>
+where
+    R: NotesRepository,
+    C: SecClientTrait<Response<ZipBody> = SecResponse<ZipBody>, Error = FailedSecRequest>,
+{
     type InputData = DownloadNotesArchiveInput;
     type OutputData = DownloadNotesArchiveOutput;
     type Context = DownloadNotesArchiveContext<R, C>;
@@ -205,7 +221,7 @@ impl<R: NotesRepository, C: NotesFileClient> SMState for DownloadNotesArchive<R,
     }
 }
 
-impl<R: NotesRepository, C: NotesFileClient> fmt::Display for DownloadNotesArchive<R, C> {
+impl<R: NotesRepository, C: SecClientTrait> fmt::Display for DownloadNotesArchive<R, C> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
@@ -214,7 +230,7 @@ impl<R: NotesRepository, C: NotesFileClient> fmt::Display for DownloadNotesArchi
              Context:\n{}\n\
              Input Data:\n{}\n\
              Output Data:\n{}",
-            self.state_name().to_string(),
+            STATE_NAME,
             self.context,
             self.input,
             self.output.as_ref().map_or_else(
@@ -243,16 +259,16 @@ mod tests {
     };
     use crate::shared::status_code::StatusCode;
     use crate::tests::fixtures::data::notes_archive::SAMPLE_NOTES_ZIP;
-    use crate::tests::fixtures::sample_http_client::sample_sec_client::always_responding::AlwaysRespondingReadySecClient;
+    use crate::tests::fixtures::sample_http_client::sample_sec_client::always_responding::AlwaysRespondingSecClient;
     use crate::tests::fixtures::sample_write_repository::FakeNotesRepository;
 
-    type TestState = DownloadNotesArchive<FakeNotesRepository, AlwaysRespondingReadySecClient>;
+    type TestState = DownloadNotesArchive<FakeNotesRepository, AlwaysRespondingSecClient>;
 
     fn test_state(status: u16, content_type: &str) -> TestState {
         let period = NotesPeriod::new("2024q1")
             .expect("Given a hardcoded published quarter, parsing should always succeed");
         let request = SecRequest::builder().notes_file().period(period).build();
-        let sec_client = AlwaysRespondingReadySecClient::new(
+        let sec_client = AlwaysRespondingSecClient::new(
             status,
             vec![
                 ("content-type", content_type.to_string()),

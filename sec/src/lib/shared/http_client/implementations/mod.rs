@@ -5,7 +5,9 @@
 //! ## Modules
 //!
 //! - [`reqwest_client`]: Implements [`InnerClient`](super::traits::InnerClient) for [`reqwest::Client`] and provides the [`ReqwestClient`](reqwest_client::ReqwestClient), which keeps the [`UserAgent`](crate::shared::user_agent::UserAgent) it sends.
+//! - [`responds_with`]: The [`RespondsWith`](super::traits::RespondsWith) impl of each SEC endpoint.
 //! - [`sec_client`]: The [`SecClient`](sec_client::SecClient), the domain-level client orchestrating request execution.
 
 pub mod reqwest_client;
+pub mod responds_with;
 pub mod sec_client;

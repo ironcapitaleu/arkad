@@ -106,16 +106,14 @@ mod tests {
     use crate::shared::raw_document::RawDocument;
     use crate::shared::raw_source::RawNotesArchive;
     use crate::tests::fixtures::data::notes_archive::SAMPLE_NOTES_ZIP;
-    use crate::tests::fixtures::sample_http_client::sample_sec_client::always_responding::AlwaysRespondingReadySecClient;
+    use crate::tests::fixtures::sample_http_client::sample_sec_client::always_responding::AlwaysRespondingSecClient;
     use crate::tests::fixtures::sample_write_repository::FakeNotesRepository;
 
-    type NotesSuperState = ExtractNotesSuperState<
-        ValidateNotesPeriod<FakeNotesRepository>,
-        AlwaysRespondingReadySecClient,
-    >;
+    type NotesSuperState =
+        ExtractNotesSuperState<ValidateNotesPeriod<FakeNotesRepository>, AlwaysRespondingSecClient>;
 
-    fn sec_client() -> AlwaysRespondingReadySecClient {
-        AlwaysRespondingReadySecClient::new(
+    fn sec_client() -> AlwaysRespondingSecClient {
+        AlwaysRespondingSecClient::new(
             200,
             vec![("content-type", "application/zip".to_string())],
             SAMPLE_NOTES_ZIP.to_vec(),

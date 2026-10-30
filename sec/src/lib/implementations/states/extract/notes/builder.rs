@@ -11,7 +11,6 @@ use std::marker::PhantomData;
 
 use uuid::Uuid;
 
-use crate::implementations::states::extract::download_notes_archive::NotesFileClient;
 use crate::implementations::states::extract::notes::{
     ExtractNotesSuperState, ExtractNotesSuperStateContext, ExtractNotesSuperStateData,
 };
@@ -19,6 +18,9 @@ use crate::implementations::states::extract::notes_repository::NotesRepository;
 use crate::implementations::states::extract::validate_notes_period::{
     ValidateNotesPeriod, ValidateNotesPeriodContext, ValidateNotesPeriodInput,
 };
+use crate::shared::http_client::SecClient as SecClientTrait;
+use crate::shared::http_client::implementations::sec_client::error::FailedSecRequest;
+use crate::shared::response::implementations::sec_response::{SecResponse, ZipBody};
 
 /// Marks a builder that holds no period yet.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -100,11 +102,14 @@ impl<C, E, R> ExtractNotesSuperStateBuilder<NoPeriod, C, E, R> {
 
 impl<P, E, R> ExtractNotesSuperStateBuilder<P, NoSecClient, E, R> {
     /// Sets the SEC client that downloads the Notes file.
+    ///
+    /// The client must return a [`SecResponse<ZipBody>`] and a [`FailedSecRequest`]. The output of
+    /// `DownloadNotesArchive` holds the response, and its error wraps the failure.
     #[must_use]
-    pub fn sec_client<C: NotesFileClient>(
-        self,
-        sec_client: C,
-    ) -> ExtractNotesSuperStateBuilder<P, C, E, R> {
+    pub fn sec_client<C>(self, sec_client: C) -> ExtractNotesSuperStateBuilder<P, C, E, R>
+    where
+        C: SecClientTrait<Response<ZipBody> = SecResponse<ZipBody>, Error = FailedSecRequest>,
+    {
         ExtractNotesSuperStateBuilder {
             period: self.period,
             sec_client,
@@ -140,7 +145,7 @@ impl<P, C, E, R> ExtractNotesSuperStateBuilder<P, C, E, NoRepository<R>> {
     }
 }
 
-impl<C: NotesFileClient, R: NotesRepository> ExtractNotesSuperStateBuilder<String, C, Uuid, R> {
+impl<C: SecClientTrait, R: NotesRepository> ExtractNotesSuperStateBuilder<String, C, Uuid, R> {
     /// Builds an [`ExtractNotesSuperState`] at [`ValidateNotesPeriod`] with the fields this
     /// builder holds.
     ///
@@ -189,7 +194,7 @@ mod tests {
     use pretty_assertions::{assert_eq, assert_ne};
 
     use super::*;
-    use crate::tests::fixtures::sample_http_client::sample_sec_client::always_responding::AlwaysRespondingReadySecClient;
+    use crate::tests::fixtures::sample_http_client::sample_sec_client::always_responding::AlwaysRespondingSecClient;
     use crate::tests::fixtures::sample_write_repository::FakeNotesRepository;
 
     type EmptyBuilder = ExtractNotesSuperStateBuilder<
@@ -199,17 +204,15 @@ mod tests {
         NoRepository<FakeNotesRepository>,
     >;
 
-    fn sec_client() -> AlwaysRespondingReadySecClient {
-        AlwaysRespondingReadySecClient::new(404, Vec::new(), Vec::new())
+    fn sec_client() -> AlwaysRespondingSecClient {
+        AlwaysRespondingSecClient::new(404, Vec::new(), Vec::new())
     }
 
     fn expected_super_state(
         raw_period: &str,
         execution_id: Uuid,
-    ) -> ExtractNotesSuperState<
-        ValidateNotesPeriod<FakeNotesRepository>,
-        AlwaysRespondingReadySecClient,
-    > {
+    ) -> ExtractNotesSuperState<ValidateNotesPeriod<FakeNotesRepository>, AlwaysRespondingSecClient>
+    {
         ExtractNotesSuperState {
             current_state: ValidateNotesPeriod::new(
                 ValidateNotesPeriodInput::new(raw_period),
