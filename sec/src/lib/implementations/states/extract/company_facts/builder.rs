@@ -104,7 +104,7 @@ impl<S, E, R> ExtractCompanyFactsSuperStateBuilder<NoCik, S, E, R> {
 impl<C, E, R> ExtractCompanyFactsSuperStateBuilder<C, NoSecClient, E, R> {
     /// Sets the SEC client that every state of the extract phase shares.
     ///
-    /// The client must return a [`SecResponse<JsonBody>`] and a [`FailedSecRequest`]. The output of
+    /// The client must return an [`SecResponse<JsonBody>`] and a [`FailedSecRequest`]. The output of
     /// `ExecuteSecRequest` holds the response, and its error wraps the failure. [`SecClient`] meets
     /// both.
     #[must_use]
