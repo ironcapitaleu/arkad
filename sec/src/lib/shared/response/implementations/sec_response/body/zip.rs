@@ -26,7 +26,7 @@ const CONTENT_LENGTH_HEADER: &str = "content-length";
 /// Not `Clone`: a Notes file can be about 1 GB, and the pipeline keeps one copy. So a
 /// `SecResponse<ZipBody>` is not `Clone` either:
 ///
-/// ```compile_fail
+/// ```compile_fail,E0277
 /// use sec::shared::response::implementations::sec_response::{SecResponse, ZipBody};
 ///
 /// fn assert_clone<T: Clone>() {}
