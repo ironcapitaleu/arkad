@@ -20,7 +20,7 @@ use serde::{Serialize, Serializer};
 use crate::shared::http_client::InnerClient;
 use crate::shared::http_client::SecClient as SecClientTrait;
 use crate::shared::rate_limiter::{RateLimiter, SecRateLimiter};
-use crate::shared::request::implementations::sec_request::SecRequest;
+use crate::shared::request::implementations::sec_request::{CompanyFacts, NotesFile, SecRequest};
 use crate::shared::response::SecResponse as SecResponseTrait;
 use crate::shared::response::implementations::sec_response::{SecResponse, ZipBody};
 use crate::shared::user_agent::UserAgent;
@@ -55,6 +55,22 @@ static GLOBAL_RATE_LIMITER: OnceLock<SecRateLimiter> = OnceLock::new();
 /// The [`ReqwestClient`] holds the [`UserAgent`] that every request carries.
 /// [`SecClient::user_agent`] returns it, so other code reads the `User-Agent` from the client
 /// that sends it. Two clients are equal if they send the same `User-Agent`.
+///
+/// # Request Kinds
+///
+/// [`execute_sec_request`](SecClientTrait::execute_sec_request) takes a
+/// [`SecRequest<CompanyFacts>`], and [`download_sec_file`](SecClient::download_sec_file) takes a
+/// [`SecRequest<NotesFile>`]. A Notes request does not compile with `execute_sec_request`:
+///
+/// ```compile_fail,E0308
+/// use sec::shared::http_client::SecClient as SecClientTrait;
+/// use sec::shared::http_client::implementations::sec_client::SecClient;
+/// use sec::shared::request::implementations::sec_request::{NotesFile, SecRequest};
+///
+/// fn execute_notes_request(client: &SecClient, request: SecRequest<NotesFile>) {
+///     let _response = client.execute_sec_request(request);
+/// }
+/// ```
 #[derive(Debug, Clone)]
 pub struct SecClient {
     inner: ReqwestClient,
@@ -97,13 +113,13 @@ impl SecClient {
     /// response fails a check of [`SecResponse::from_parts`].
     pub async fn download_sec_file(
         &self,
-        request: SecRequest,
+        request: SecRequest<NotesFile>,
     ) -> Result<SecResponse<ZipBody>, FailedSecRequest> {
         download_notes_file(self, request.into_inner()).await
     }
 }
 
-// TODO(STA-347): Merge `download_sec_file` and this function into one generic
+// TODO(STA-382): Merge `download_sec_file` and this function into one generic
 // `execute_sec_request`, whose request kind decides the response type.
 
 /// Waits on the rate limiter of `client`, sends `request` through its inner client, and
@@ -183,7 +199,7 @@ impl Ord for SecClient {
 impl SecClientTrait for SecClient {
     type Inner = ReqwestClient;
     type Limiter = SecRateLimiter;
-    type Request = SecRequest;
+    type Request = SecRequest<CompanyFacts>;
     type Response = SecResponse;
     type Error = FailedSecRequest;
 

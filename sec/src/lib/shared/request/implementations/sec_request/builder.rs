@@ -8,6 +8,9 @@
 //! once every required field is set. This encodes the request's required inputs in the type
 //! system, so a missing or irrelevant field is a compile error rather than a runtime check.
 //!
+//! The builder sets the kind, so `build()` returns a [`SecRequest<CompanyFacts>`] or a
+//! [`SecRequest<NotesFile>`].
+//!
 //! ## Usage
 //!
 //! ```
@@ -36,7 +39,8 @@
 
 use crate::shared::cik::Cik;
 use crate::shared::notes_period::NotesPeriod;
-use crate::shared::request::implementations::sec_request::{SecRequest, SecRequestType};
+use crate::shared::request::SecRequest as SecRequestTrait;
+use crate::shared::request::implementations::sec_request::{CompanyFacts, NotesFile, SecRequest};
 
 /// Typestate marker: no CIK has been set yet.
 ///
@@ -64,13 +68,13 @@ impl SecRequestBuilder {
         Self
     }
 
-    /// Selects the [`FetchAllCompanyFacts`](SecRequestType::FetchAllCompanyFacts) request kind.
+    /// Selects the [`CompanyFacts`] request kind.
     #[must_use]
     pub const fn all_company_facts(self) -> AllCompanyFactsBuilder<NoCik> {
         AllCompanyFactsBuilder { cik: NoCik }
     }
 
-    /// Selects the [`FetchNotesFile`](SecRequestType::FetchNotesFile) request kind.
+    /// Selects the [`NotesFile`] request kind.
     #[must_use]
     pub const fn notes_file(self) -> NotesFileBuilder<NoPeriod> {
         NotesFileBuilder { period: NoPeriod }
@@ -83,7 +87,7 @@ impl Default for SecRequestBuilder {
     }
 }
 
-/// Typestate builder for the [`FetchAllCompanyFacts`](SecRequestType::FetchAllCompanyFacts) request.
+/// Typestate builder for the [`FetchAllCompanyFacts`](super::SecRequestType::FetchAllCompanyFacts) request.
 ///
 /// The `C` type parameter tracks the CIK. It starts as [`NoCik`]. [`cik`](Self::cik) changes it to
 /// [`Cik`]. Only that type has [`build`](Self::build).
@@ -119,13 +123,12 @@ impl AllCompanyFactsBuilder<Cik> {
     /// assert_eq!(result, expected_result);
     /// ```
     #[must_use]
-    pub fn build(self) -> SecRequest {
-        let request_type = SecRequestType::FetchAllCompanyFacts { cik: self.cik };
-        SecRequest::from_request_type(request_type)
+    pub fn build(self) -> SecRequest<CompanyFacts> {
+        SecRequest::new(self.cik)
     }
 }
 
-/// Typestate builder for the [`FetchNotesFile`](SecRequestType::FetchNotesFile) request.
+/// Typestate builder for the [`FetchNotesFile`](super::SecRequestType::FetchNotesFile) request.
 ///
 /// The `P` type parameter tracks the period. It starts as [`NoPeriod`]. [`period`](Self::period)
 /// changes it to [`NotesPeriod`]. Only that type has [`build`](Self::build).
@@ -161,11 +164,8 @@ impl NotesFileBuilder<NotesPeriod> {
     /// assert_eq!(result, expected_result);
     /// ```
     #[must_use]
-    pub fn build(self) -> SecRequest {
-        let request_type = SecRequestType::FetchNotesFile {
-            period: self.period,
-        };
-        SecRequest::from_request_type(request_type)
+    pub fn build(self) -> SecRequest<NotesFile> {
+        SecRequest::new(self.period)
     }
 }
 

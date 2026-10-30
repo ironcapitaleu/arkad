@@ -1,3 +1,4 @@
+use crate::shared::request::implementations::sec_request::CompanyFacts;
 use crate::shared::request::{InnerRequest, SecRequest};
 
 use crate::tests::fixtures::sample_request::sample_inner_request::fake_inner_request::{
@@ -12,6 +13,7 @@ pub struct FakeSecRequest {
 impl SecRequest for FakeSecRequest {
     type Inner = FakeInnerRequest;
     type RequestInput = FakeRequestInput;
+    type Kind = CompanyFacts;
 
     fn new(request_input: Self::RequestInput) -> Self {
         let method = FakeMethod::GET;
