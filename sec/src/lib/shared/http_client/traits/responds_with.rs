@@ -1,14 +1,14 @@
 use crate::shared::request::implementations::sec_request::{CompanyFacts, NotesFile, RequestKind};
 use crate::shared::response::implementations::sec_response::{JsonBody, ResponseBody, ZipBody};
 
-/// An SEC endpoint that responds with a body of type [`RespondsWith::Body`].
+/// An SEC endpoint that responds with a body of kind [`RespondsWith::Body`].
 ///
 /// The endpoint is the only link between a request and its response:
 ///
 /// 1. A request carries its endpoint `E` as a type: [`SecRequest<E>`].
-/// 2. `E` names its body here, for example `NotesFile` responds with a [`ZipBody`].
+/// 2. `E` names its body kind here, for example `NotesFile` responds with a [`ZipBody`].
 /// 3. [`SecClient::execute_sec_request`](super::SecClient::execute_sec_request) returns a
-///    `Response<E::Body>`, so the client builds and checks the body that `E` names.
+///    `Response<E::Body>`, so the client builds and checks the body kind that `E` names.
 ///
 /// So a `SecRequest<NotesFile>` always gives a response with a [`ZipBody`]. Code that expects a
 /// [`JsonBody`] from it does not compile.
@@ -18,7 +18,7 @@ use crate::shared::response::implementations::sec_response::{JsonBody, ResponseB
 ///
 /// [`SecRequest<E>`]: crate::shared::request::implementations::sec_request::SecRequest
 pub trait RespondsWith: RequestKind {
-    /// The body of the response from this endpoint.
+    /// The body kind of the response from this endpoint.
     type Body: ResponseBody;
 }
 

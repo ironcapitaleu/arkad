@@ -224,8 +224,8 @@ The download goes through the existing layers: `SecRequest` → `SecClient` → 
 body. `SecResponse<JsonBody>`, the default, holds a Company Facts reply. `SecResponse<ZipBody>`
 holds a Notes file.
 
-The `RespondsWith` trait on the client side maps each SEC endpoint to its response body, once
-for every client. `CompanyFacts` has `Body = JsonBody`, and `NotesFile` has `Body = ZipBody`. This
+The `RespondsWith` trait on the client side maps each SEC endpoint to its body kind, once for
+every client. `CompanyFacts` has `Body = JsonBody`, and `NotesFile` has `Body = ZipBody`. This
 keeps `shared::request` independent of `shared::response`.
 
 The `SecClient` trait has one method for every endpoint. Its default body waits on the rate limiter,
