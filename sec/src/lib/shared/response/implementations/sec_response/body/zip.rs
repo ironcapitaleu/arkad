@@ -21,13 +21,11 @@ const CONTENT_LENGTH_HEADER: &str = "content-length";
 
 /// The bytes of a ZIP file, exactly as the server sent them.
 ///
-/// The body is a [`Bytes`], so [`ZipBody::to_bytes`] shares the buffer instead of copying it.
-///
 /// Accepts status 200 only, and the [`ContentType::OctetStream`] or [`ContentType::Zip`]
 /// content type. If the `Content-Length` header is present, the body has exactly that many bytes.
 ///
-/// Not `Clone`: a Notes file can be about 1 GB, and the pipeline keeps one copy. So a
-/// `SecResponse<ZipBody>` is not `Clone` either:
+/// Not `Clone`: the pipeline gives each response one owner, so the buffer is freed when that
+/// owner drops it. So a `SecResponse<ZipBody>` is not `Clone` either:
 ///
 /// ```compile_fail,E0277
 /// use sec::shared::response::implementations::sec_response::{SecResponse, ZipBody};

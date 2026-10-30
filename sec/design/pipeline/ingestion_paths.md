@@ -286,9 +286,9 @@ The method is in
 [`network.md`](../../../.claude/skills/performance/references/profiling/network.md) of the
 `performance` skill.
 
-`ZipBody` and `RawDocument` hold the body as `bytes::Bytes`. `RawDocument::from_file` borrows the
-`SecResponse<ZipBody>` and shares its body buffer, so the response body and the `RawDocument` bytes
-are one copy. A clone of a `RawDocument` also shares the buffer. A rerun adds a second copy: the stored file that
+`ZipBody` and `RawDocument` hold the body as `bytes::Bytes`. `RawDocument::from_file` borrows
+the `SecResponse<ZipBody>` and shares its body buffer, so the response body and the `RawDocument`
+bytes are one copy. A clone of a `RawDocument` also shares the buffer. A rerun adds a second copy: the stored file that
 `persist` reads to compare digests. The measured peaks confirm this: about one copy of each body
 in flight on a first run, plus about 0.4 GB for the rest of the process. The largest file is
 0.85 GB, so two of the largest files in flight need about 2.1 GB on a first run and about 3.8 GB on

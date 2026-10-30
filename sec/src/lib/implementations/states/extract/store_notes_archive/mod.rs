@@ -88,8 +88,9 @@ fn notes_key(period: NotesPeriod) -> DocumentKey {
 impl<R: NotesRepository> State for StoreNotesArchive<R> {
     /// Writes the Notes file to the repository and stores a reference to it as output.
     ///
-    /// The document shares the body buffer of the response, so a clone of the response can stay
-    /// alive. The input gives up its response even if the write fails.
+    /// The write succeeds even if a clone of the response is alive. That clone keeps the body buffer
+    /// alive, so a transition must never keep one. The input gives up its response even if the
+    /// write fails.
     ///
     /// # Errors
     ///
