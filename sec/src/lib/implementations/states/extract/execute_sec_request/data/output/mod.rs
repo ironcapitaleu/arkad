@@ -66,10 +66,11 @@ impl<E: RespondsWith> ExecuteSecRequestOutput<E> {
     }
 }
 
-// Deviation: the traits below are written by hand. A derive adds the bound `E::Body: Clone` (and
-// `Hash`, `Ord`), and fails with "the trait bound `<E as RespondsWith>::Body: Clone` is not
-// satisfied", because `ZipBody` implements none of them. They compare the responses, which
-// `SecResponse` supports for every body kind.
+// Deviation: the traits below are written by hand. A derive bounds `E::Body` by each trait and
+// fails with "the trait bound `<E as RespondsWith>::Body: Clone` is not satisfied", because
+// `ZipBody` implements none of them. `Serialize` is hand-written because serde implements it for
+// `Arc` only with the `rc` feature. The impls compare the responses, which `SecResponse` supports
+// for every body kind.
 impl<E: RespondsWith> Clone for ExecuteSecRequestOutput<E> {
     fn clone(&self) -> Self {
         Self {
