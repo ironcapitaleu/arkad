@@ -240,6 +240,16 @@ impl<S: RawFileSource> RawDocument<S> {
     ///
     /// assert_eq!(result, expected_result);
     /// ```
+    ///
+    /// A JSON source such as [`RawCompanyFacts`](crate::shared::raw_source::RawCompanyFacts) has no
+    /// `from_file`:
+    ///
+    /// ```compile_fail,E0599
+    /// use sec::shared::raw_document::RawDocument;
+    /// use sec::shared::raw_source::RawCompanyFacts;
+    ///
+    /// let _ = RawDocument::<RawCompanyFacts>::from_file;
+    /// ```
     #[must_use]
     pub fn from_file(
         key: DocumentKey,
@@ -752,8 +762,10 @@ mod tests {
 
     #[test]
     fn should_store_the_raw_daily_index_document_type_when_building_a_daily_index_from_a_file() {
+        let key = DocumentKey::new("sec/daily-index/form.20261027.idx")
+            .expect("Given a hardcoded valid relative path, the key should always build");
         let document = RawDocument::<RawDailyIndex>::from_file(
-            sample_notes_key(),
+            key,
             &sample_notes_file(),
             &sample_notes_url(),
             &sample_user_agent(),
