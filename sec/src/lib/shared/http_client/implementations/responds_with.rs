@@ -1,7 +1,7 @@
 //! # Endpoint Bodies
 //!
-//! Implements [`RespondsWith`] for each SEC endpoint, so each request names the body kind of its
-//! response.
+//! Implements [`RespondsWith`] for each SEC endpoint, so each endpoint names the body kind of
+//! its response.
 
 use crate::shared::http_client::RespondsWith;
 use crate::shared::request::implementations::sec_request::{CompanyFacts, NotesFile};
