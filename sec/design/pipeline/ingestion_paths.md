@@ -489,6 +489,21 @@ costs one request, and a second one for the listing of the next quarter in the l
 
 This rule needs no list of SEC holidays.
 
+### Daily Index Storage
+
+`StoreDailyIndex` writes the index as one `RawDocument<RawDailyIndex>` under
+`sec/daily-index/form.YYYYMMDD.idx`, with the ingestion mode `incremental`. It builds the
+document with `RawDocument::from_file`, as `StoreNotesArchive` does. That constructor takes the body
+as `Bytes`, so the state copies no bytes.
+Decided in STA-370:
+
+- The output holds the key and the index text as `bytes::Bytes`. The text shares the body buffer
+  of the response. `SelectFilings` parses it.
+- For a day without filings, the state writes no file, and the output holds no index.
+- The state reads the response from its input and does not take it. The index is tens of KB, so
+  the input can keep it. A taken response would leave `None` behind, which means a day without
+  filings, so a second run would skip the write.
+
 ### Filing Selection
 
 `SelectFilings` keeps the rows whose form is 10-K, 10-Q, 20-F, or 40-F, or an amendment of one of
