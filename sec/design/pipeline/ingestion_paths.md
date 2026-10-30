@@ -243,8 +243,8 @@ where
 `E` is the SEC endpoint the request queries. `RespondsWith::Body` of `E` sets the response type,
 so the caller does not choose it.
 `Response<B>` is a generic associated type, so the trait names no `reqwest` or `http` type. The
-concrete `SecClient` sets `Response<B> = SecResponse<B>`. A Notes request gives a
-`SecResponse<ZipBody>`. Code that expects a `SecResponse<JsonBody>` from it does not compile.
+concrete `SecClient` sets `Response<B> = SecResponse<B>`. A Notes request gives an
+`SecResponse<ZipBody>`. Code that expects an `SecResponse<JsonBody>` from it does not compile.
 
 `SecResponse<B>` holds the URL, the headers, the content type, the status code, the body, and the
 SHA-256 of the body. `ZipBody` accepts only status 200 and the content types `application/octet-stream`

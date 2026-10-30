@@ -103,7 +103,7 @@ impl<C, E, R> ExtractNotesSuperStateBuilder<NoPeriod, C, E, R> {
 impl<P, E, R> ExtractNotesSuperStateBuilder<P, NoSecClient, E, R> {
     /// Sets the SEC client that downloads the Notes file.
     ///
-    /// The client must return a [`SecResponse<ZipBody>`] and a [`FailedSecRequest`]. The output of
+    /// The client must return an [`SecResponse<ZipBody>`] and a [`FailedSecRequest`]. The output of
     /// `DownloadNotesArchive` holds the response, and its error wraps the failure.
     #[must_use]
     pub fn sec_client<C>(self, sec_client: C) -> ExtractNotesSuperStateBuilder<P, C, E, R>

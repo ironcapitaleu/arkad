@@ -33,7 +33,7 @@ pub use body::{JsonBody, ResponseBody, ZipBody};
 
 /// A validated SEC API response with a body of kind `B`.
 ///
-/// Only ever constructed once the HTTP response clears the checks of `B`, so code holding a
+/// Only ever constructed once the HTTP response clears the checks of `B`, so code holding an
 /// `SecResponse` can trust them:
 ///
 /// - [`JsonBody`], the default: a 2xx status, a JSON content type, and a valid JSON body.
@@ -92,7 +92,7 @@ impl<B> Ord for SecResponse<B> {
 }
 
 impl<B: ResponseBody> SecResponse<B> {
-    /// Creates a [`SecResponse`] from its parts and the raw body bytes, after the same checks as
+    /// Creates an [`SecResponse`] from its parts and the raw body bytes, after the same checks as
     /// the HTTP path.
     ///
     /// The HTTP path runs the same checks and hashes the same bytes, so a body gets the same digest
@@ -577,7 +577,7 @@ mod zip_tests {
         assert_eq!(result, expected_result);
     }
 
-    /// Builds a [`SecResponse<ZipBody>`] with the content type of the `Content-Type` header.
+    /// Builds an [`SecResponse<ZipBody>`] with the content type of the `Content-Type` header.
     fn zip_from_parts(
         url: Url,
         headers: Headers,

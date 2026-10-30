@@ -25,7 +25,7 @@ const CONTENT_LENGTH_HEADER: &str = "content-length";
 /// content type. If the `Content-Length` header is present, the body has exactly that many bytes.
 ///
 /// Not `Clone`: the pipeline gives each response one owner. The buffer is freed when the owner
-/// and every [`Bytes`] from [`ZipBody::to_bytes`] drop. So a `SecResponse<ZipBody>` is not
+/// and every [`Bytes`] from [`ZipBody::to_bytes`] drop. So an `SecResponse<ZipBody>` is not
 /// `Clone` either:
 ///
 /// ```compile_fail,E0277
