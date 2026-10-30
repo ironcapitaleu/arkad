@@ -7,8 +7,9 @@
 //! not published yet. For both, it answers with 403 or 404. The state tells the two cases apart
 //! with the listing of the quarter folder, `daily-index/YYYY/QTRn/index.json`:
 //!
-//! - If a listing has an index for a later date, the day had no filings. The output has no
-//!   response.
+//! - If a listing has an index for a later date and does not list the date itself, the day had no
+//!   filings. The output has no response. A listed date means the file exists, so the 403 or 404
+//!   came from a refused request, for example at the SEC rate limit.
 //! - Otherwise, the state fails with [`MissingDailyIndex`], and a later run retries the date.
 //!
 //! The state reads the listing of the quarter of the date. If that listing has no later date, it
@@ -112,9 +113,11 @@ where
             .date(quarter)
             .build();
         match self.context.sec_client.execute_sec_request(request).await {
-            Ok(listing) => Ok(listed_index_dates(listing.body())
-                .into_iter()
-                .any(|listed| listed > date.date())),
+            Ok(listing) => {
+                let listed_dates = listed_index_dates(listing.body());
+                let is_date_listed = listed_dates.contains(&date.date());
+                Ok(!is_date_listed && listed_dates.iter().any(|listed| *listed > date.date()))
+            }
             Err(error) if is_absent(&error) => Ok(false),
             Err(error) => Err(FailedRequestExecution::new(STATE_NAME, error).into()),
         }
@@ -148,12 +151,23 @@ where
     ///
     /// # Errors
     ///
+    /// - Returns [`StateError::InvalidInput`] if the input request is not the request for the
+    ///   date of the context.
     /// - Returns [`StateError::MissingDailyIndex`] if the SEC answers 403 or 404 and no listing
-    ///   has an index for a later date.
+    ///   shows that the day had no filings.
     /// - Returns [`StateError::FailedRequestExecution`] if a request fails at the network level,
-    ///   or if a response fails a transport check for another reason.
+    ///   or if a response fails a check with a status other than 403 or 404.
     async fn compute_output_data_async(&mut self) -> Result<(), StateError> {
         let request = self.input.request.clone();
+        // The listing is read for the date of the context, so both must name the same date.
+        if request
+            != SecRequest::builder()
+                .daily_index()
+                .date(self.context.index_date)
+                .build()
+        {
+            return Err(StateError::InvalidInput);
+        }
         let output = match self.context.sec_client.execute_sec_request(request).await {
             Ok(response) => DownloadDailyIndexOutput::new(response),
             Err(error) if is_absent(&error) => {
@@ -407,6 +421,78 @@ mod tests {
         let expected_result = Err(MissingDailyIndex::new(STATE_NAME, index_date()).into());
 
         let result = computed_output(sec_client).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_return_missing_daily_index_when_the_index_is_403_and_the_listing_names_the_date()
+     {
+        let sec_client = RoutingSecClient::new()
+            .route(
+                INDEX_URL,
+                403,
+                "text/html",
+                b"Request Rate Threshold Exceeded",
+            )
+            .route(
+                QTR1_LISTING_URL,
+                200,
+                JSON,
+                &listing(&["form.20240330.idx", "form.20240401.idx"]),
+            );
+
+        let expected_result = Err(MissingDailyIndex::new(STATE_NAME, index_date()).into());
+
+        let result = computed_output(sec_client).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_return_missing_daily_index_when_the_index_and_both_listings_answer_403() {
+        let sec_client = RoutingSecClient::new()
+            .route(INDEX_URL, 403, "text/html", b"")
+            .route(QTR1_LISTING_URL, 403, "text/html", b"")
+            .route(QTR2_LISTING_URL, 403, "text/html", b"");
+
+        let expected_result = Err(MissingDailyIndex::new(STATE_NAME, index_date()).into());
+
+        let result = computed_output(sec_client).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_output_no_response_when_the_quarter_listing_is_absent_and_the_next_has_a_later_date()
+     {
+        let sec_client = RoutingSecClient::new().route(
+            QTR2_LISTING_URL,
+            200,
+            JSON,
+            &listing(&["form.20240401.idx"]),
+        );
+
+        let expected_result = Ok(Some(DownloadDailyIndexOutput::without_filings()));
+
+        let result = computed_output(sec_client).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_return_invalid_input_when_the_request_and_the_context_name_different_dates() {
+        let other_date = IndexDate::new("2024-04-02")
+            .expect("Given a hardcoded past date, validation should always succeed");
+        let request = SecRequest::builder().daily_index().date(other_date).build();
+        let mut state = DownloadDailyIndex::new(
+            DownloadDailyIndexInput::new(request),
+            DownloadDailyIndexContext::new(index_date(), RoutingSecClient::new()),
+        );
+
+        let expected_result = Err(StateError::InvalidInput);
+
+        let result = state.compute_output_data_async().await;
 
         assert_eq!(result, expected_result);
     }

@@ -15,7 +15,7 @@
 //! - [`invalid_notes_period`]: The [`InvalidNotesPeriod`] error wrapping a Notes period validation failure.
 //! - [`invalid_index_date`]: The [`InvalidIndexDate`] error wrapping an index date validation failure.
 //! - [`failed_request_execution`]: The [`FailedRequestExecution`] error wrapping a failed SEC request.
-//! - [`missing_daily_index`]: The [`MissingDailyIndex`] error for a daily index the SEC has not published.
+//! - [`missing_daily_index`]: The [`MissingDailyIndex`] error for a daily index the SEC did not send.
 //! - [`failed_document_write`]: The [`FailedDocumentWrite`] error wrapping a rejected store write.
 //! - [`incomplete_company_facts`]: The [`IncompleteCompanyFacts`] error for a response missing required fields.
 
@@ -60,11 +60,12 @@ pub enum State {
     #[error("[StateError] A state level error occurred, Caused by: {0}")]
     FailedRequestExecution(#[source] FailedRequestExecution),
 
-    /// Indicates that the store rejected the write of a document.
-    /// Indicates that the SEC has not published the daily index of a date.
+    /// Indicates that the SEC sent no daily index of a date, and no quarter listing shows that
+    /// the day had no filings.
     #[error("[StateError] A state level error occurred, Caused by: {0}")]
     MissingDailyIndex(#[source] MissingDailyIndex),
 
+    /// Indicates that the store rejected the write of a document.
     #[error("[StateError] A state level error occurred, Caused by: {0}")]
     FailedDocumentWrite(#[source] FailedDocumentWrite),
 

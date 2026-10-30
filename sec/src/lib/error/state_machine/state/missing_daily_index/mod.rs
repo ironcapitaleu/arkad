@@ -1,18 +1,18 @@
 //! # Missing Daily Index Error
 //!
-//! Provides the [`MissingDailyIndex`] error: the SEC has no daily index for a date, and no listing
-//! shows an index for a later date. So the SEC has not published the index yet.
+//! Provides the [`MissingDailyIndex`] error: the SEC sent no daily index of a date, and no quarter
+//! listing shows that the day had no filings. Two causes are known: the SEC has not published
+//! the index yet, or the SEC refused the request, for example with a rate-limit 403.
 
 use thiserror::Error;
 
 use super::State as StateError;
 use crate::shared::index_date::IndexDate;
 
-/// Error for a daily index that the SEC has not published yet, tagged with the state it occurred
-/// in.
+/// Error for a daily index that the SEC did not send, tagged with the state it occurred in.
 #[derive(Error, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[error(
-    "[MissingDailyIndex] Failure in State: '{state_name}', Reason: 'The SEC has not published the daily index of {index_date}'"
+    "[MissingDailyIndex] Failure in State: '{state_name}', Reason: 'The SEC sent no daily index of {index_date}, and no quarter listing shows that the day had no filings'"
 )]
 pub struct MissingDailyIndex {
     /// The name of the state where the error occurred.
@@ -62,7 +62,7 @@ mod tests {
 
     #[test]
     fn should_name_the_date_when_displayed() {
-        let expected_result = "[MissingDailyIndex] Failure in State: 'Download Daily Index', Reason: 'The SEC has not published the daily index of 2026-10-27'";
+        let expected_result = "[MissingDailyIndex] Failure in State: 'Download Daily Index', Reason: 'The SEC sent no daily index of 2026-10-27, and no quarter listing shows that the day had no filings'";
 
         let result = sample_error().to_string();
 

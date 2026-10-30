@@ -65,7 +65,7 @@ classDiagram
 
     class MissingDailyIndex{
         << struct >>
-        %% State-level leaf error for a daily index the SEC has not published
+        %% State-level leaf error for a daily index the SEC did not send
         +String state_name
         +IndexDate index_date
     }
