@@ -48,9 +48,9 @@ mod tests {
     use storage::implementations::repository::filesystem::{FilesystemRepository, Write};
 
     use super::*;
-    use crate::shared::raw_source::{RawCompanyFacts, RawNotesArchive};
+    use crate::shared::raw_source::{RawCompanyFacts, RawDailyIndex, RawNotesArchive};
     use crate::tests::fixtures::sample_write_repository::{
-        FakeNotesRepository, FakeWriteRepository,
+        FakeDailyIndexRepository, FakeNotesRepository, FakeWriteRepository,
     };
 
     const fn implements_raw_repository<S: RawSource, T: RawRepository<S>>() {}
@@ -71,5 +71,10 @@ mod tests {
     #[test]
     const fn should_implement_raw_repository_for_fake_notes_repository() {
         implements_raw_repository::<RawNotesArchive, FakeNotesRepository>();
+    }
+
+    #[test]
+    const fn should_implement_raw_repository_for_fake_daily_index_repository() {
+        implements_raw_repository::<RawDailyIndex, FakeDailyIndexRepository>();
     }
 }

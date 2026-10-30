@@ -16,7 +16,7 @@ use bytes::Bytes;
 use storage::implementations::repository::filesystem::{Document, DocumentKey, DocumentMetadata};
 
 use crate::shared::document_type::SecDocumentType;
-use crate::shared::raw_source::{RawNotesArchive, RawSource};
+use crate::shared::raw_source::{RawFileSource, RawSource};
 use crate::shared::response::SecResponse as SecResponseTrait;
 use crate::shared::response::implementations::sec_response::{SecResponse, ZipBody};
 use crate::shared::run_fields::RunFields;
@@ -174,8 +174,9 @@ impl<S: RawSource> RawDocument<S> {
     }
 }
 
-impl RawDocument<RawNotesArchive> {
-    /// Creates a new [`RawDocument`] from a Notes file response and the fetch that produced it.
+impl<S: RawFileSource> RawDocument<S> {
+    /// Creates a new [`RawDocument`] from a raw-bytes response, such as a Notes file or a daily
+    /// index, and the fetch that produced it.
     ///
     /// The document shares the body buffer of `file`, so the bytes are not copied. The size comes
     /// from the body, and the SHA-256 digest is the body digest of `file`, so the body is not
@@ -191,6 +192,7 @@ impl RawDocument<RawNotesArchive> {
     /// use sec::shared::content_type::ContentType;
     /// use sec::shared::headers::Headers;
     /// use sec::shared::raw_document::RawDocument;
+    /// use sec::shared::raw_source::RawNotesArchive;
     /// use sec::shared::response::implementations::sec_response::{SecResponse, ZipBody};
     /// use sec::shared::run_fields::RunFields;
     /// use sec::shared::status_code::StatusCode;
@@ -219,7 +221,7 @@ impl RawDocument<RawNotesArchive> {
     /// let user_agent = UserAgent::new("arkad contact@example.com")
     ///     .expect("A hardcoded SEC-format string should always validate");
     ///
-    /// let document = RawDocument::from_file(
+    /// let document = RawDocument::<RawNotesArchive>::from_file(
     ///     key,
     ///     &file,
     ///     &url,
@@ -237,6 +239,16 @@ impl RawDocument<RawNotesArchive> {
     /// let result = document.bytes();
     ///
     /// assert_eq!(result, expected_result);
+    /// ```
+    ///
+    /// A JSON source such as [`RawCompanyFacts`](crate::shared::raw_source::RawCompanyFacts) has no
+    /// `from_file`:
+    ///
+    /// ```compile_fail,E0599
+    /// use sec::shared::raw_document::RawDocument;
+    /// use sec::shared::raw_source::RawCompanyFacts;
+    ///
+    /// let _ = RawDocument::<RawCompanyFacts>::from_file;
     /// ```
     #[must_use]
     pub fn from_file(
@@ -312,7 +324,7 @@ mod tests {
     use super::*;
     use crate::shared::content_type::ContentType;
     use crate::shared::headers::Headers;
-    use crate::shared::raw_source::RawCompanyFacts;
+    use crate::shared::raw_source::{RawCompanyFacts, RawDailyIndex, RawNotesArchive};
     use crate::shared::status_code::StatusCode;
     use crate::tests::fixtures::data::notes_archive::SAMPLE_NOTES_ZIP;
 
@@ -742,6 +754,30 @@ mod tests {
         let document = sample_document_from_file();
 
         let expected_result = "raw_notes_archive";
+
+        let result = document.metadata().document_type();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_store_the_raw_daily_index_document_type_when_building_a_daily_index_from_a_file() {
+        let key = DocumentKey::new("sec/daily-index/form.20261027.idx")
+            .expect("Given a hardcoded valid relative path, the key should always build");
+        let document = RawDocument::<RawDailyIndex>::from_file(
+            key,
+            &sample_notes_file(),
+            &sample_notes_url(),
+            &sample_user_agent(),
+            RunFields {
+                produced_at: DateTime::<Utc>::UNIX_EPOCH,
+                execution_id: Uuid::nil(),
+                producer: Producer::new("Store Daily Index", "0.1.0", "63c1f59"),
+                ingestion_mode: IngestionMode::Incremental,
+            },
+        );
+
+        let expected_result = "raw_daily_index";
 
         let result = document.metadata().document_type();
 
