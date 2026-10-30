@@ -18,6 +18,7 @@
 //! - [`prepare_notes_request`]: Builds the request for the Notes file of one period.
 //! - [`download_notes_archive`]: Downloads the Notes file of one request.
 //! - [`store_notes_archive`]: Writes the Notes file to the store.
+//! - [`validate_index_date`]: Validates the raw date of an EDGAR daily index.
 
 pub mod company_facts;
 pub mod download_notes_archive;
@@ -29,4 +30,5 @@ pub mod prepare_sec_request;
 pub mod store_company_facts;
 pub mod store_notes_archive;
 pub mod validate_cik_format;
+pub mod validate_index_date;
 pub mod validate_notes_period;
