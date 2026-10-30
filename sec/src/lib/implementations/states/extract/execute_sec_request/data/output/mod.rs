@@ -4,7 +4,7 @@
 //! [`ExecuteSecRequest`](crate::implementations::states::extract::execute_sec_request::ExecuteSecRequest)
 //! state, along with its updater and builder.
 //!
-//! It wraps the [`SecResponse`] returned by the SEC API, which the transform phase consumes.
+//! It wraps the [`SecResponse`] returned by the SEC API.
 //! The dispatched client and request live in [`input`](super::input).
 //!
 //! ## See Also
