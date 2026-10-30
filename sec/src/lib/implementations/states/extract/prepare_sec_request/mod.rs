@@ -90,7 +90,9 @@ pub struct PrepareSecRequest<K: RequestKind, R> {
     output: Option<PrepareSecRequestOutput<K>>,
 }
 
-/// The [`PrepareSecRequest`] state of the Company Facts path.
+/// Alias of [`PrepareSecRequest`] for the [`CompanyFacts`] kind.
+///
+/// It is the same type under a shorter name, not a separate state.
 pub type PrepareCompanyFactsRequest<R> = PrepareSecRequest<CompanyFacts, R>;
 
 impl<K: RequestKind, R> PrepareSecRequest<K, R> {

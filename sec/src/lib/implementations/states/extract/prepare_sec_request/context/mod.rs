@@ -468,4 +468,15 @@ mod tests {
 
         assert_eq!(result, expected_result);
     }
+
+    #[test]
+    fn should_name_request_input_by_kind_when_displaying_company_facts_context() {
+        let context = create_test_context();
+
+        let expected_result = "Context Data:\ncik: 0001067983\nMax retries: 0";
+
+        let result = context.to_string();
+
+        assert_eq!(result, expected_result);
+    }
 }

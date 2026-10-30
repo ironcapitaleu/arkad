@@ -6,7 +6,10 @@
 //! Selecting a kind fixes the setter for its input: [`cik`](PrepareSecRequestBuilder::cik) for
 //! [`CompanyFacts`] and [`period`](PrepareSecRequestBuilder::period) for [`NotesFile`].
 //! [`build`](PrepareSecRequestBuilder::build) exists only once the builder holds the input of its
-//! kind and a repository, so a state without one of them does not compile.
+//! kind and a repository. If the builder lacks either one, the call to `build` does not compile.
+//!
+//! The repository bound is the Company Facts one until STA-385, so the Notes file example below
+//! also uses a Company Facts repository.
 //!
 //! ## Usage
 //!
@@ -17,7 +20,6 @@
 //! # use sec::shared::raw_document::RawDocument;
 //! # use sec::shared::raw_source::RawCompanyFacts;
 //! # use storage::implementations::repository::filesystem::FilesystemRepository;
-//! # // The repository bound is the Company Facts one until STA-385.
 //! # let repository = FilesystemRepository::builder()
 //! #     .writer()
 //! #     .document_type::<RawDocument<RawCompanyFacts>>()

@@ -391,4 +391,15 @@ mod tests {
 
         assert_eq!(result, expected_result);
     }
+
+    #[test]
+    fn should_name_request_input_by_kind_when_displaying_company_facts_input() {
+        let input = create_test_input();
+
+        let expected_result = "\tcik: 0001067983";
+
+        let result = input.to_string();
+
+        assert_eq!(result, expected_result);
+    }
 }
