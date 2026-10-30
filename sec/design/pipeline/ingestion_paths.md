@@ -643,7 +643,7 @@ for example the CIK.
 ## Raw Store
 
 All documents use `FilesystemRepository` and `RawDocument<S>`. Each source gets its own
-`RawSource` marker and `SecDocumentType` variant. Proposed for all rows except the first two:
+`RawSource` marker and `SecDocumentType` variant. Proposed for all rows except the first three:
 
 | Document | `RawSource` marker | Document type | Key |
 | -------- | ------------------ | ------------- | --- |
