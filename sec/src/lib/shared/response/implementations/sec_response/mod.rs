@@ -12,6 +12,7 @@ use std::collections::HashMap;
 use std::fmt::{self, Display, Formatter};
 
 use async_trait::async_trait;
+use bytes::Bytes;
 use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
 use storage::shared::Sha256Digest;
@@ -32,7 +33,7 @@ pub use body::{JsonBody, ResponseBody, ZipBody};
 
 /// A validated SEC API response with a body of kind `B`.
 ///
-/// Only ever constructed once the HTTP response clears the checks of `B`, so code holding a
+/// Only ever constructed once the HTTP response clears the checks of `B`, so code holding an
 /// `SecResponse` can trust them:
 ///
 /// - [`JsonBody`], the default: a 2xx status, a JSON content type, and a valid JSON body.
@@ -91,7 +92,7 @@ impl<B> Ord for SecResponse<B> {
 }
 
 impl<B: ResponseBody> SecResponse<B> {
-    /// Creates a [`SecResponse`] from its parts and the raw body bytes, after the same checks as
+    /// Creates an [`SecResponse`] from its parts and the raw body bytes, after the same checks as
     /// the HTTP path.
     ///
     /// The HTTP path runs the same checks and hashes the same bytes, so a body gets the same digest
@@ -204,10 +205,11 @@ impl SecResponse<JsonBody> {
 }
 
 impl SecResponse<ZipBody> {
-    /// Consumes the response and returns the body bytes without a copy.
+    /// Returns the body bytes as a [`Bytes`] that shares the buffer, so the call copies a
+    /// pointer.
     #[must_use]
-    pub fn into_body(self) -> Vec<u8> {
-        self.body.into_bytes()
+    pub fn body_bytes(&self) -> Bytes {
+        self.body.to_bytes()
     }
 }
 
@@ -501,7 +503,7 @@ mod zip_tests {
         let response = SecResponse::<ZipBody>::from_inner(zip_inner_response(BODY.to_vec()))
             .await
             .expect("Given status 200 and a ZIP, building the response should always succeed");
-        let result = response.into_body();
+        let result = response.body_bytes();
 
         assert_eq!(result, expected_result);
     }
@@ -575,7 +577,7 @@ mod zip_tests {
         assert_eq!(result, expected_result);
     }
 
-    /// Builds a [`SecResponse<ZipBody>`] with the content type of the `Content-Type` header.
+    /// Builds an [`SecResponse<ZipBody>`] with the content type of the `Content-Type` header.
     fn zip_from_parts(
         url: Url,
         headers: Headers,
@@ -657,7 +659,7 @@ mod zip_tests {
 
         let expected_result = BODY;
 
-        let result = response.into_body();
+        let result = response.body_bytes();
 
         assert_eq!(result, expected_result);
     }

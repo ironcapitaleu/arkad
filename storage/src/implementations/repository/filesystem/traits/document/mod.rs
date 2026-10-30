@@ -4,6 +4,7 @@
 
 use std::fmt;
 
+use bytes::Bytes;
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 
@@ -31,6 +32,7 @@ use crate::implementations::repository::filesystem::shared::document_metadata::D
 /// ```rust
 /// use std::fmt;
 ///
+/// use bytes::Bytes;
 /// use serde::{Deserialize, Serialize};
 /// use storage::implementations::repository::filesystem::{Document, DocumentKey, DocumentMetadata};
 ///
@@ -54,7 +56,7 @@ use crate::implementations::repository::filesystem::shared::document_metadata::D
 ///
 /// struct Summary {
 ///     key: DocumentKey,
-///     bytes: Vec<u8>,
+///     bytes: Bytes,
 ///     metadata: DocumentMetadata<SummaryContext>,
 /// }
 ///
@@ -78,10 +80,10 @@ use crate::implementations::repository::filesystem::shared::document_metadata::D
 ///
 ///     fn from_parts(
 ///         key: DocumentKey,
-///         bytes: Vec<u8>,
+///         bytes: impl Into<Bytes>,
 ///         metadata: DocumentMetadata<SummaryContext>,
 ///     ) -> Self {
-///         Self { key, bytes, metadata }
+///         Self { key, bytes: bytes.into(), metadata }
 ///     }
 /// }
 ///
@@ -123,9 +125,10 @@ pub trait Document: Send + Sized {
     /// Builds the document from its key, its bytes, and its metadata.
     ///
     /// The implementor keeps the parts as given and checks nothing, so building cannot fail.
+    /// A [`Bytes`] body moves in without a copy, and so does a `Vec<u8>` body.
     fn from_parts(
         key: DocumentKey,
-        bytes: Vec<u8>,
+        bytes: impl Into<Bytes>,
         metadata: DocumentMetadata<Self::Context>,
     ) -> Self;
 }

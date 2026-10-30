@@ -24,7 +24,7 @@ use super::RespondsWith;
 /// Each implementor chooses the concrete types filling these slots, which is what keeps the trait
 /// decoupled from any specific HTTP crate:
 ///
-/// - `Inner`: The raw HTTP client this trait delegates to. It sends the inner request of a
+/// - `Inner`: The raw HTTP client this trait delegates to. It sends the inner request of an
 ///   [`SecRequest`].
 /// - `Limiter`: The rate limiter pacing outgoing requests. Must implement [`RateLimiter`].
 /// - `Response<B>`: The SEC response with a body of kind `B`. It builds from the response of

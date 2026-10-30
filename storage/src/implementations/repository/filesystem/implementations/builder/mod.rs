@@ -192,7 +192,7 @@ impl<A: Access, D: Document> FilesystemRepositoryBuilder<A, PathBuf, D> {
     /// #
     /// # struct Summary {
     /// #     key: DocumentKey,
-    /// #     bytes: Vec<u8>,
+    /// #     bytes: bytes::Bytes,
     /// #     metadata: DocumentMetadata<SummaryContext>,
     /// # }
     /// #
@@ -206,10 +206,10 @@ impl<A: Access, D: Document> FilesystemRepositoryBuilder<A, PathBuf, D> {
     /// #     fn metadata(&self) -> &DocumentMetadata<SummaryContext> { &self.metadata }
     /// #     fn from_parts(
     /// #         key: DocumentKey,
-    /// #         bytes: Vec<u8>,
+    /// #         bytes: impl Into<bytes::Bytes>,
     /// #         metadata: DocumentMetadata<SummaryContext>,
     /// #     ) -> Self {
-    /// #         Self { key, bytes, metadata }
+    /// #         Self { key, bytes: bytes.into(), metadata }
     /// #     }
     /// # }
     /// #
@@ -245,7 +245,7 @@ impl<A: Access, D: Document> FilesystemRepositoryBuilder<A, PathBuf, D> {
     /// #
     /// # struct Summary {
     /// #     key: DocumentKey,
-    /// #     bytes: Vec<u8>,
+    /// #     bytes: bytes::Bytes,
     /// #     metadata: DocumentMetadata<SummaryContext>,
     /// # }
     /// #
@@ -259,10 +259,10 @@ impl<A: Access, D: Document> FilesystemRepositoryBuilder<A, PathBuf, D> {
     /// #     fn metadata(&self) -> &DocumentMetadata<SummaryContext> { &self.metadata }
     /// #     fn from_parts(
     /// #         key: DocumentKey,
-    /// #         bytes: Vec<u8>,
+    /// #         bytes: impl Into<bytes::Bytes>,
     /// #         metadata: DocumentMetadata<SummaryContext>,
     /// #     ) -> Self {
-    /// #         Self { key, bytes, metadata }
+    /// #         Self { key, bytes: bytes.into(), metadata }
     /// #     }
     /// # }
     /// #

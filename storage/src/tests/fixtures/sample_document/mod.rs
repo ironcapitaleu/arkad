@@ -5,6 +5,7 @@
 
 use std::fmt;
 
+use bytes::Bytes;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -41,7 +42,7 @@ pub struct SampleContext {
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct SampleDocument {
     key: DocumentKey,
-    bytes: Vec<u8>,
+    bytes: Bytes,
     metadata: DocumentMetadata<SampleContext>,
 }
 
@@ -65,12 +66,12 @@ impl Document for SampleDocument {
 
     fn from_parts(
         key: DocumentKey,
-        bytes: Vec<u8>,
+        bytes: impl Into<Bytes>,
         metadata: DocumentMetadata<SampleContext>,
     ) -> Self {
         Self {
             key,
-            bytes,
+            bytes: bytes.into(),
             metadata,
         }
     }

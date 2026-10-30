@@ -243,8 +243,8 @@ where
 `E` is the SEC endpoint the request queries. `RespondsWith::Body` of `E` sets the response type,
 so the caller does not choose it.
 `Response<B>` is a generic associated type, so the trait names no `reqwest` or `http` type. The
-concrete `SecClient` sets `Response<B> = SecResponse<B>`. A Notes request gives a
-`SecResponse<ZipBody>`. Code that expects a `SecResponse<JsonBody>` from it does not compile.
+concrete `SecClient` sets `Response<B> = SecResponse<B>`. A Notes request gives an
+`SecResponse<ZipBody>`. Code that expects an `SecResponse<JsonBody>` from it does not compile.
 
 `SecResponse<B>` holds the URL, the headers, the content type, the status code, the body, and the
 SHA-256 of the body. `ZipBody` accepts only status 200 and the content types `application/octet-stream`
@@ -286,12 +286,14 @@ The method is in
 [`network.md`](../../../.claude/skills/performance/references/profiling/network.md) of the
 `performance` skill.
 
-`RawDocument::from_file` takes the `SecResponse<ZipBody>` bytes by value, so the response body
-and the `RawDocument` bytes are one copy. A rerun adds a second copy: the stored file that
-`persist` reads to compare digests. The measured peaks confirm this: about one copy of each body
-in flight on a first run, plus about 0.4 GB for the rest of the process. The largest file is
-0.85 GB, so two of the largest files in flight need about 2.1 GB on a first run and about 3.8 GB on
-a rerun (estimates from the measured peaks). The findings document holds the measured peaks.
+`ZipBody` and `RawDocument` hold the body as `bytes::Bytes`. `RawDocument::from_file` borrows the
+`SecResponse<ZipBody>` and shares its body buffer, so the response body and the `RawDocument` bytes
+are one copy. A clone of a `RawDocument` also shares the buffer. A rerun adds a second copy: the
+stored file that `persist` reads to compare digests. The measured peaks confirm this: about one copy
+of each body in flight on a first run, plus about 0.4 GB for the rest of the process. The largest
+file is 0.85 GB, so two of the largest files in flight need about 2.1 GB on a first run and about
+3.8 GB on a rerun (estimates from the measured peaks). The findings document holds the measured
+peaks.
 
 Each SHA-256 of a file body runs on the blocking thread pool through
 `Sha256Digest::of_owned_async`, so the task polls other futures during the hash. This covers the
@@ -307,11 +309,10 @@ decision (STA-360).
 
 The output of `DownloadNotesArchive` holds the response in an `Arc`. The transition to
 `StoreNotesArchive` moves the `Arc` into the input of `StoreNotesArchive`, which holds it as
-`Option<Arc<SecResponse<ZipBody>>>`. The state takes the `Arc` out of the input and takes the
-bytes with `Arc::try_unwrap` and `into_body`. If a second clone of the `Arc` is alive, the unwrap
-fails, the `Arc` goes back into the input, and the state returns an error. A transition must
-never keep a clone. A failed write consumes the response, so a retry needs a new input from
-`DownloadNotesArchive`.
+`Option<Arc<SecResponse<ZipBody>>>`. The state takes the `Arc` out of the input and builds the
+document from a borrow of the response. A second clone of the `Arc` does not stop the write, but
+it keeps the body buffer alive, so a transition must never keep one. A failed write consumes the
+response, so a retry needs a new input from `DownloadNotesArchive`.
 
 ### Archive Metadata
 
@@ -730,7 +731,7 @@ Backfill:
 5. FEATURE: `SecResponse<ZipBody>` and the Notes request through
    `SecClient::execute_sec_request`, with the transport checks of layer 1.
 6. FEATURE: `RawNotesArchive`, its `SecDocumentType` variant, and the constructors of
-   `RawDocument` and `RawDocumentMetadataContext` from `SecNotesFileResponse`.
+   `RawDocument` and `RawDocumentMetadataContext` from `SecResponse<ZipBody>`.
 7. FEATURE: the states `ValidateNotesPeriod` and `PrepareNotesRequest`.
 8. FEATURE: the state `DownloadNotesArchive`.
 9. FEATURE: the state `StoreNotesArchive` and `NotesArchiveRef`.

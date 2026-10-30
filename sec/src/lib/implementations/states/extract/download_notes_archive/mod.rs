@@ -76,7 +76,7 @@ pub use context::DownloadNotesArchiveContext;
 pub use data::DownloadNotesArchiveInput;
 pub use data::DownloadNotesArchiveOutput;
 
-/// Downloads one Notes file and outputs it as a
+/// Downloads one Notes file and outputs it as an
 /// [`SecResponse<ZipBody>`](crate::shared::response::implementations::sec_response::SecResponse).
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
 pub struct DownloadNotesArchive<R, C = SecClient> {

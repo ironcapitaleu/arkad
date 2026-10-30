@@ -31,7 +31,7 @@ static GLOBAL_RATE_LIMITER: OnceLock<SecRateLimiter> = OnceLock::new();
 
 /// The default SEC API client, driving the full `SecRequest` → `SecResponse` cycle.
 ///
-/// Executes a validated request through a [`ReqwestClient`] and validates the reply into a
+/// Executes a validated request through a [`ReqwestClient`] and validates the reply into an
 /// [`SecResponse`].
 ///
 /// # Rate Limiting

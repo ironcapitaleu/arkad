@@ -1,6 +1,6 @@
 //! # Response Body Kinds
 //!
-//! Provides the [`ResponseBody`] trait and the body kinds a
+//! Provides the [`ResponseBody`] trait and the body kinds an
 //! [`SecResponse`](super::SecResponse) can hold.
 //!
 //! ## Modules
@@ -25,10 +25,10 @@ pub mod zip;
 pub use json::JsonBody;
 pub use zip::ZipBody;
 
-/// The body kind of a [`SecResponse`](super::SecResponse): the checks it runs and the body it
+/// The body kind of an [`SecResponse`](super::SecResponse): the checks it runs and the body it
 /// stores.
 ///
-/// A [`SecResponse`](super::SecResponse) calls
+/// An [`SecResponse`](super::SecResponse) calls
 /// [`check_status_and_content_type`](ResponseBody::check_status_and_content_type) before it
 /// reads the body, and then builds the body from the raw bytes.
 #[async_trait]

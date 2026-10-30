@@ -211,7 +211,7 @@ impl FilesystemRepository<NoAccess, NoDocumentType> {
     /// #
     /// # struct Summary {
     /// #     key: DocumentKey,
-    /// #     bytes: Vec<u8>,
+    /// #     bytes: bytes::Bytes,
     /// #     metadata: DocumentMetadata<SummaryContext>,
     /// # }
     /// #
@@ -225,10 +225,10 @@ impl FilesystemRepository<NoAccess, NoDocumentType> {
     /// #     fn metadata(&self) -> &DocumentMetadata<SummaryContext> { &self.metadata }
     /// #     fn from_parts(
     /// #         key: DocumentKey,
-    /// #         bytes: Vec<u8>,
+    /// #         bytes: impl Into<bytes::Bytes>,
     /// #         metadata: DocumentMetadata<SummaryContext>,
     /// #     ) -> Self {
-    /// #         Self { key, bytes, metadata }
+    /// #         Self { key, bytes: bytes.into(), metadata }
     /// #     }
     /// # }
     /// #
@@ -286,7 +286,7 @@ impl<A, D> FilesystemRepository<A, D> {
     /// #
     /// # struct Summary {
     /// #     key: DocumentKey,
-    /// #     bytes: Vec<u8>,
+    /// #     bytes: bytes::Bytes,
     /// #     metadata: DocumentMetadata<SummaryContext>,
     /// # }
     /// #
@@ -300,10 +300,10 @@ impl<A, D> FilesystemRepository<A, D> {
     /// #     fn metadata(&self) -> &DocumentMetadata<SummaryContext> { &self.metadata }
     /// #     fn from_parts(
     /// #         key: DocumentKey,
-    /// #         bytes: Vec<u8>,
+    /// #         bytes: impl Into<bytes::Bytes>,
     /// #         metadata: DocumentMetadata<SummaryContext>,
     /// #     ) -> Self {
-    /// #         Self { key, bytes, metadata }
+    /// #         Self { key, bytes: bytes.into(), metadata }
     /// #     }
     /// # }
     /// #
@@ -460,6 +460,7 @@ mod tests {
     use std::fmt::Debug;
     use std::hash::Hash;
 
+    use bytes::Bytes;
     use pretty_assertions::{assert_eq, assert_ne};
     use tempfile::TempDir;
 
@@ -485,7 +486,7 @@ mod tests {
     /// A document type that derives no trait, so a test can show that the repository needs none.
     struct BareDocument {
         key: DocumentKey,
-        bytes: Vec<u8>,
+        bytes: Bytes,
         metadata: DocumentMetadata<()>,
     }
 
@@ -507,10 +508,14 @@ mod tests {
             &self.metadata
         }
 
-        fn from_parts(key: DocumentKey, bytes: Vec<u8>, metadata: DocumentMetadata<()>) -> Self {
+        fn from_parts(
+            key: DocumentKey,
+            bytes: impl Into<Bytes>,
+            metadata: DocumentMetadata<()>,
+        ) -> Self {
             Self {
                 key,
-                bytes,
+                bytes: bytes.into(),
                 metadata,
             }
         }
