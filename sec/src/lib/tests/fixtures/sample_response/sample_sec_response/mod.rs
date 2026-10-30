@@ -1,3 +1,3 @@
-pub mod fake_sec_response;
+pub mod fake_json_sec_response;
 
-pub use fake_sec_response::FakeSecResponse;
+pub use fake_json_sec_response::FakeJsonSecResponse;
