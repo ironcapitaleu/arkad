@@ -6,7 +6,7 @@ use crate::shared::response::implementations::sec_response::{JsonBody, ResponseB
 /// The endpoint is the only link between a request and its response:
 ///
 /// 1. A request carries its endpoint `E` as a type: [`SecRequest<E>`].
-/// 2. `E` names its body kind here, for example `NotesFile` responds with a [`ZipBody`].
+/// 2. `E` names its body kind here. For example, `NotesFile` responds with a [`ZipBody`].
 /// 3. [`SecClient::execute_sec_request`](super::SecClient::execute_sec_request) returns a
 ///    `Response<E::Body>`, so the client builds and checks the body kind that `E` names.
 ///
