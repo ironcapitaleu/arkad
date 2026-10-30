@@ -63,6 +63,8 @@ use state_maschine::prelude::State as SMState;
 
 use crate::error::State as StateError;
 use crate::implementations::states::extract::store_company_facts::RawCompanyFactsRepository;
+use crate::shared::http_client::SecClient as SecClientTrait;
+use crate::shared::http_client::implementations::sec_client::SecClient;
 use crate::shared::request::implementations::sec_request::SecRequest;
 use crate::traits::state_machine::state::State;
 
@@ -81,13 +83,13 @@ pub use data::PrepareSecRequestOutput;
 /// assembles a company-facts request targeting the matching SEC endpoint. The work is purely
 /// local: no network call is made here.
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
-pub struct PrepareSecRequest<R> {
-    input: PrepareSecRequestInput,
+pub struct PrepareSecRequest<R, C = SecClient> {
+    input: PrepareSecRequestInput<C>,
     context: PrepareSecRequestContext<R>,
-    output: Option<PrepareSecRequestOutput>,
+    output: Option<PrepareSecRequestOutput<C>>,
 }
 
-impl<R> PrepareSecRequest<R> {
+impl<R, C> PrepareSecRequest<R, C> {
     /// Creates a new [`PrepareSecRequest`] state from its input and context, with no output computed yet.
     ///
     /// # Examples
@@ -118,7 +120,10 @@ impl<R> PrepareSecRequest<R> {
     /// assert_eq!(result, expected_result);
     /// ```
     #[must_use]
-    pub const fn new(input: PrepareSecRequestInput, context: PrepareSecRequestContext<R>) -> Self {
+    pub const fn new(
+        input: PrepareSecRequestInput<C>,
+        context: PrepareSecRequestContext<R>,
+    ) -> Self {
         Self {
             input,
             context,
@@ -131,8 +136,8 @@ impl<R> PrepareSecRequest<R> {
     pub fn into_parts(
         self,
     ) -> (
-        PrepareSecRequestInput,
-        Option<PrepareSecRequestOutput>,
+        PrepareSecRequestInput<C>,
+        Option<PrepareSecRequestOutput<C>>,
         PrepareSecRequestContext<R>,
     ) {
         (self.input, self.output, self.context)
@@ -140,7 +145,7 @@ impl<R> PrepareSecRequest<R> {
 }
 
 #[async_trait]
-impl<R: RawCompanyFactsRepository> State for PrepareSecRequest<R> {
+impl<R: RawCompanyFactsRepository, C: SecClientTrait> State for PrepareSecRequest<R, C> {
     /// Builds the company-facts [`SecRequest`] for the input CIK and stores it as output.
     ///
     /// # Errors
@@ -159,9 +164,9 @@ impl<R: RawCompanyFactsRepository> State for PrepareSecRequest<R> {
     }
 }
 
-impl<R: RawCompanyFactsRepository> SMState for PrepareSecRequest<R> {
-    type InputData = PrepareSecRequestInput;
-    type OutputData = PrepareSecRequestOutput;
+impl<R: RawCompanyFactsRepository, C: SecClientTrait> SMState for PrepareSecRequest<R, C> {
+    type InputData = PrepareSecRequestInput<C>;
+    type OutputData = PrepareSecRequestOutput<C>;
     type Context = PrepareSecRequestContext<R>;
 
     /// Returns the human-readable name of this state.
@@ -207,7 +212,7 @@ impl<R: RawCompanyFactsRepository> SMState for PrepareSecRequest<R> {
     }
 }
 
-impl<R: RawCompanyFactsRepository> fmt::Display for PrepareSecRequest<R> {
+impl<R: RawCompanyFactsRepository, C: SecClientTrait> fmt::Display for PrepareSecRequest<R, C> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
