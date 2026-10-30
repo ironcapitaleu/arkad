@@ -24,8 +24,9 @@ const CONTENT_LENGTH_HEADER: &str = "content-length";
 /// Accepts status 200 only, and the [`ContentType::OctetStream`] or [`ContentType::Zip`]
 /// content type. If the `Content-Length` header is present, the body has exactly that many bytes.
 ///
-/// Not `Clone`: the pipeline gives each response one owner, so the buffer is freed when that
-/// owner drops it. So a `SecResponse<ZipBody>` is not `Clone` either:
+/// Not `Clone`: the pipeline gives each response one owner. The buffer is freed when the owner
+/// and every [`Bytes`] from [`ZipBody::to_bytes`] drop. So a `SecResponse<ZipBody>` is not
+/// `Clone` either:
 ///
 /// ```compile_fail,E0277
 /// use sec::shared::response::implementations::sec_response::{SecResponse, ZipBody};
