@@ -16,7 +16,7 @@ pub mod form_error;
 
 pub use form_error::UnsupportedForm;
 
-/// The forms that both ingestion paths extract.
+/// The forms that both ingestion paths keep.
 pub const SELECTED_FORMS: [Form; 4] = [Form::TenK, Form::TenQ, Form::TwentyF, Form::FortyF];
 
 /// The suffix the SEC appends to the form text of an amendment, as in `10-K/A`.
@@ -51,6 +51,7 @@ impl Form {
     /// Parses an SEC form text such as `"10-K"` or `"10-K/A"` into a [`ParsedForm`].
     ///
     /// A text with the `/A` suffix gives its base form, with [`ParsedForm::is_amendment`] true.
+    /// The text must have no leading or trailing whitespace.
     ///
     /// # Errors
     ///

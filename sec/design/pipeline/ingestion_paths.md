@@ -511,7 +511,7 @@ mostly S-1, S-4, 6-K, and DEF 14A.
 One shared constant holds the form list. Each entry is a `Form` value, not a string:
 
 ```rust
-/// The forms that both ingestion paths extract.
+/// The forms that both ingestion paths keep.
 pub const SELECTED_FORMS: [Form; 4] = [Form::TenK, Form::TenQ, Form::TwentyF, Form::FortyF];
 ```
 

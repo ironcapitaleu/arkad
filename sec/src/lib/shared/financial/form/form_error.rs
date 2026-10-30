@@ -7,9 +7,7 @@ use thiserror::Error;
 /// Error indicating that an SEC form text is not one of the [`Form`](super::Form) variants or an
 /// amendment of one.
 #[derive(Debug, Error, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[error(
-    "[UnsupportedForm] SEC form '{form_text}' is not 10-K, 10-Q, 20-F, 40-F, or an amendment of one"
-)]
+#[error("[UnsupportedForm] SEC form '{form_text}' matches no Form variant or amendment of one")]
 pub struct UnsupportedForm {
     /// The form text that failed to parse.
     pub form_text: String,
@@ -34,7 +32,8 @@ mod tests {
     fn should_format_display_with_form_text_when_form_is_unsupported() {
         let error = UnsupportedForm::new("8-K");
 
-        let expected_result = "[UnsupportedForm] SEC form '8-K' is not 10-K, 10-Q, 20-F, 40-F, or an amendment of one";
+        let expected_result =
+            "[UnsupportedForm] SEC form '8-K' matches no Form variant or amendment of one";
 
         let result = error.to_string();
 
