@@ -200,11 +200,21 @@ pub trait SecClient: Debug + Clone + Eq + Ord + Hash + Send + Sync + Unpin + Ser
     fn rate_limiter(&self) -> &Self::Limiter;
     fn user_agent(&self) -> &UserAgent;
 
-    // The default body waits on the rate limiter, sends the request, and builds the response.
-    async fn execute_sec_request<K: ExpectsBody>(
+    async fn execute_sec_request<K: HasResponseBody>(
         &self,
         request: SecRequest<K>,
-    ) -> Result<Self::Response<K::Body>, Self::Error> { /* default */ }
+    ) -> Result<Self::Response<K::Body>, Self::Error> {
+        self.rate_limiter().await_turn().await;
+
+        let inner_response = self
+            .inner()
+            .execute_request(request.into_inner())
+            .await
+            .map_err(Into::into)?;
+        <Self::Response<K::Body> as SecResponseTrait>::from_inner(inner_response)
+            .await
+            .map_err(Into::into)
+    }
 }
 ```
 
