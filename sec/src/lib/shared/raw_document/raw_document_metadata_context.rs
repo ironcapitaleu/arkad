@@ -45,8 +45,8 @@ impl RawDocumentMetadataContext {
         }
     }
 
-    /// Creates a new [`RawDocumentMetadataContext`] from a Notes file response, and the URL and
-    /// the `User-Agent` the fetch sent.
+    /// Creates a new [`RawDocumentMetadataContext`] from a raw-bytes response, such as a Notes
+    /// file or a daily index, and the URL and the `User-Agent` the fetch sent.
     ///
     /// The final URL comes from [`SecResponse::url`](SecResponseTrait::url).
     #[must_use]

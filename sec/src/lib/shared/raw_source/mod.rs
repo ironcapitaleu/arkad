@@ -6,11 +6,12 @@
 //!
 //! ## Modules
 //!
-//! - [`traits`]: The [`RawSource`] contract.
+//! - [`traits`]: The [`RawSource`] contract, and [`RawFileSource`] for SEC files that arrive as
+//!   raw bytes.
 //! - [`implementations`]: One marker type per SEC file, such as [`RawCompanyFacts`].
 
 pub mod implementations;
 pub mod traits;
 
-pub use implementations::{RawCompanyFacts, RawNotesArchive};
-pub use traits::RawSource;
+pub use implementations::{RawCompanyFacts, RawDailyIndex, RawNotesArchive};
+pub use traits::{RawFileSource, RawSource};

@@ -12,6 +12,8 @@ use std::fmt::{self, Display, Formatter};
 pub enum SecDocumentType {
     /// The Company Facts JSON exactly as the SEC returned it.
     RawCompanyFacts,
+    /// The EDGAR daily index of one day exactly as the SEC returned it.
+    RawDailyIndex,
     /// One Financial Statement and Notes ZIP exactly as the SEC returned it.
     RawNotesArchive,
 }
@@ -20,6 +22,7 @@ impl Display for SecDocumentType {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match self {
             Self::RawCompanyFacts => write!(f, "raw_company_facts"),
+            Self::RawDailyIndex => write!(f, "raw_daily_index"),
             Self::RawNotesArchive => write!(f, "raw_notes_archive"),
         }
     }
@@ -54,6 +57,15 @@ mod tests {
         let expected_result = "raw_company_facts";
 
         let result = SecDocumentType::RawCompanyFacts.to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_display_raw_daily_index_for_the_raw_daily_index_document_type() {
+        let expected_result = "raw_daily_index";
+
+        let result = SecDocumentType::RawDailyIndex.to_string();
 
         assert_eq!(result, expected_result);
     }
