@@ -122,8 +122,8 @@ pub async fn run(
         let period = period.to_string();
         let on_item = Arc::clone(&on_item);
         let on_error = Arc::clone(&on_error);
-        // A task per period was a workaround while the hash ran on the task. The hash now runs in
-        // `spawn_blocking`, so keeping this split is an open decision (STA-360).
+        // STA-344 added a task per period after a stream cut-off. Its cause is open, so keeping
+        // this split is an open decision (STA-360).
         async move {
             let task = tokio::spawn(async move {
                 let outcome = super_state
