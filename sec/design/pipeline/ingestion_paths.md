@@ -144,7 +144,7 @@ A separate REFACTOR renames the existing `ExtractSuperState` to `ExtractCompanyF
 2. `PrepareNotesRequest` builds `SecRequest::builder().notes_file().period(p).build()`.
 3. `DownloadNotesArchive` sends the request and reads the whole body into memory. It runs the
    transport checks of [Validation](#validation), layer 1. Its output holds the
-   `SecNotesFileResponse` in an `Arc`, because the state traits require `Clone`.
+   `SecResponse<ZipBody>` in an `Arc`, because the state traits require `Clone`.
 4. `StoreNotesArchive` takes the response out of its input, writes the bytes as a
    `RawDocument<RawNotesArchive>`, and outputs a `NotesArchiveRef`.
 
@@ -203,27 +203,27 @@ The run downloads the whole file, not HTTP range reads.
 - A local file can seek, so the `zip` crate reads it directly.
 
 The download goes through the existing layers: `SecRequest` → `SecClient` → `InnerClient`.
-`SecResponse` parses its body as JSON, so it cannot hold a ZIP. The concrete `SecClient` gets a
-method next to `execute_sec_request`. It is not on the `SecClient` trait, so the trait fakes do
-not change:
+`SecResponse<B>` is generic over its body kind `B`. The body kind sets the checks and stores the
+body. `SecResponse<JsonBody>`, the default, holds a Company Facts reply. `SecResponse<ZipBody>`
+holds a Notes file. The concrete `SecClient` gets a method next to `execute_sec_request`. It is not
+on the `SecClient` trait, so the trait fakes do not change:
 
 ```rust
 pub async fn download_sec_file(
     &self,
     request: SecRequest,
-) -> Result<SecNotesFileResponse, FailedSecRequest>;
+) -> Result<SecResponse<ZipBody>, FailedSecRequest>;
 ```
 
-`SecNotesFileResponse` holds the URL, the headers, the content type, the status code, the bytes,
-and their SHA-256. It accepts only status 200 and the content types `application/octet-stream`
+`SecResponse<B>` holds the URL, the headers, the content type, the status code, the body, and the
+SHA-256 of the body. `ZipBody` accepts only status 200 and the content types `application/octet-stream`
 and `application/zip`. If the `Content-Length` header is present, the byte count must match it.
-Each later file kind gets its own response type, for example the XML files of the new-filing
-path.
+Each later file kind gets its own body kind, for example the XML files of the new-filing path.
 
 ### Storage
 
 - `StoreNotesArchive` reuses `FilesystemRepository` unchanged. `RawDocument` and
-  `RawDocumentMetadataContext` get a constructor from `SecNotesFileResponse`. The key is
+  `RawDocumentMetadataContext` get a constructor from `SecResponse<ZipBody>`. The key is
   `sec/notes/<file name>`, for example `sec/notes/2024q1_notes.zip`.
 - The repository writes temp files and renames them. If the stored pair matches the new bytes, it
   skips the write. If the bytes differ, the new bytes replace the old.
@@ -255,7 +255,7 @@ The method is in
 [`network.md`](../../../.claude/skills/performance/references/profiling/network.md) of the
 `performance` skill.
 
-`RawDocument::from_file` takes the `SecNotesFileResponse` bytes by value, so the response body
+`RawDocument::from_file` takes the `SecResponse<ZipBody>` bytes by value, so the response body
 and the `RawDocument` bytes are one copy. A rerun adds a second copy: the stored file that
 `persist` reads to compare digests. The measured peaks confirm this: about one copy of each body
 in flight on a first run, plus about 0.4 GB for the rest of the process. The largest file is
@@ -264,7 +264,7 @@ a rerun (estimates from the measured peaks). The findings document holds the mea
 
 Each SHA-256 of a file body runs on the blocking thread pool through
 `Sha256Digest::of_owned_async`, so the task polls other futures during the hash. This covers the
-digest in `SecNotesFileResponse::from_inner`, the content check in `persist` and `get`, and the
+digest in `SecResponse::<ZipBody>::from_inner`, the content check in `persist` and `get`, and the
 digest check of a stored file on a rerun. `RawDocument::from_file` takes the digest of the response
 and does not hash the body again.
 
@@ -276,7 +276,7 @@ decision (STA-360).
 
 The output of `DownloadNotesArchive` holds the response in an `Arc`. The transition to
 `StoreNotesArchive` moves the `Arc` into the input of `StoreNotesArchive`, which holds it as
-`Option<Arc<SecNotesFileResponse>>`. The state takes the `Arc` out of the input and takes the
+`Option<Arc<SecResponse<ZipBody>>>`. The state takes the `Arc` out of the input and takes the
 bytes with `Arc::try_unwrap` and `into_body`. If a second clone of the `Arc` is alive, the unwrap
 fails, the `Arc` goes back into the input, and the state returns an error. A transition must
 never keep a clone. A failed write consumes the response, so a retry needs a new input from
@@ -351,7 +351,7 @@ replaces old files: `2025q3_notes.zip` has a Last-Modified of 2026-10-07, and `2
 Four layers, each in the state that first sees the data. Layers 1 to 3 fail the file. Layer 4
 quarantines the row or the filing, and the file goes on.
 
-1. **Transport**, in `SecNotesFileResponse`, which `DownloadNotesArchive` gets from
+1. **Transport**, in `SecResponse<ZipBody>`, which `DownloadNotesArchive` gets from
    `download_notes_file`, the generic body of `download_sec_file`: HTTP 200, a content type of `application/octet-stream` or
    `application/zip`, and a byte count equal to `Content-Length` if the header is present.
 2. **Container**, in the first transform state: the bytes start with the ZIP signature `PK\x03\x04`,

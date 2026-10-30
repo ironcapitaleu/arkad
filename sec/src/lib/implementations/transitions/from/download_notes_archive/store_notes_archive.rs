@@ -92,7 +92,7 @@ mod tests {
     };
     use crate::prelude::*;
     use crate::shared::notes_period::NotesPeriod;
-    use crate::shared::response::implementations::sec_notes_file_response::SecNotesFileResponse;
+    use crate::shared::response::SecResponse as SecResponseTrait;
     use crate::shared::user_agent::UserAgent;
     use crate::tests::fixtures::data::notes_archive::SAMPLE_NOTES_ZIP;
     use crate::tests::fixtures::sample_http_client::sample_sec_client::always_responding::AlwaysRespondingReadySecClient;
@@ -173,7 +173,7 @@ mod tests {
             .input_data()
             .response
             .as_deref()
-            .map(SecNotesFileResponse::body);
+            .map(SecResponseTrait::body);
 
         assert_eq!(result, expected_result);
     }

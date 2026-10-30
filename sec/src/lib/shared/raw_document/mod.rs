@@ -17,8 +17,7 @@ use storage::implementations::repository::filesystem::{Document, DocumentKey, Do
 use crate::shared::document_type::SecDocumentType;
 use crate::shared::raw_source::{RawNotesArchive, RawSource};
 use crate::shared::response::SecResponse as SecResponseTrait;
-use crate::shared::response::implementations::sec_notes_file_response::SecNotesFileResponse;
-use crate::shared::response::implementations::sec_response::SecResponse;
+use crate::shared::response::implementations::sec_response::{SecResponse, ZipBody};
 use crate::shared::run_fields::RunFields;
 use crate::shared::url::Url;
 use crate::shared::user_agent::UserAgent;
@@ -188,9 +187,10 @@ impl RawDocument<RawNotesArchive> {
     ///
     /// use chrono::{DateTime, Utc};
     /// use sec::shared::build_info::producer;
+    /// use sec::shared::content_type::ContentType;
     /// use sec::shared::headers::Headers;
     /// use sec::shared::raw_document::RawDocument;
-    /// use sec::shared::response::implementations::sec_notes_file_response::SecNotesFileResponse;
+    /// use sec::shared::response::implementations::sec_response::{SecResponse, ZipBody};
     /// use sec::shared::run_fields::RunFields;
     /// use sec::shared::status_code::StatusCode;
     /// use sec::shared::url::Url;
@@ -205,7 +205,13 @@ impl RawDocument<RawNotesArchive> {
     ///     "content-type".to_string(),
     ///     "application/zip".to_string(),
     /// )]));
-    /// let file = SecNotesFileResponse::from_parts(url.clone(), headers, StatusCode::Ok, b"PK".to_vec())
+    /// let file = SecResponse::<ZipBody>::from_parts(
+    ///     url.clone(),
+    ///     headers,
+    ///     ContentType::Zip,
+    ///     StatusCode::Ok,
+    ///     b"PK".to_vec(),
+    /// )
     ///     .expect("Given status 200 and a ZIP, building the response should always succeed");
     /// let key = DocumentKey::new("sec/notes/2024q1_notes.zip")
     ///     .expect("Given a valid relative path, the key should always build");
@@ -234,7 +240,7 @@ impl RawDocument<RawNotesArchive> {
     #[must_use]
     pub fn from_file(
         key: DocumentKey,
-        file: SecNotesFileResponse,
+        file: SecResponse<ZipBody>,
         requested_url: &Url,
         user_agent: &UserAgent,
         run: RunFields,
@@ -605,13 +611,14 @@ mod tests {
             .expect("Given a valid relative path, the key should always build")
     }
 
-    fn sample_notes_file() -> SecNotesFileResponse {
-        SecNotesFileResponse::from_parts(
+    fn sample_notes_file() -> SecResponse<ZipBody> {
+        SecResponse::<ZipBody>::from_parts(
             sample_notes_url(),
             Headers::new(HashMap::from([(
                 "content-type".to_string(),
                 "application/octet-stream".to_string(),
             )])),
+            ContentType::OctetStream,
             StatusCode::Ok,
             SAMPLE_NOTES_ZIP.to_vec(),
         )
@@ -622,7 +629,7 @@ mod tests {
         document_from_file(sample_notes_file())
     }
 
-    fn document_from_file(file: SecNotesFileResponse) -> RawDocument<RawNotesArchive> {
+    fn document_from_file(file: SecResponse<ZipBody>) -> RawDocument<RawNotesArchive> {
         RawDocument::from_file(
             sample_notes_key(),
             file,

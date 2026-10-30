@@ -4,18 +4,19 @@ use super::super::sample_inner_response::FakeInnerResponse;
 use crate::shared::response::SecResponse;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct FakeSecResponse {
+pub struct FakeJsonSecResponse {
     pub inner: FakeInnerResponse,
     pub body: serde_json::Value,
 }
 
 #[async_trait]
-impl SecResponse for FakeSecResponse {
+impl SecResponse for FakeJsonSecResponse {
     type Inner = FakeInnerResponse;
     type Url = String;
     type Headers = String;
     type StatusCode = u16;
     type ContentType = String;
+    type Body = serde_json::Value;
     type Error = String;
 
     async fn from_inner(inner: Self::Inner) -> Result<Self, Self::Error> {
@@ -39,7 +40,7 @@ impl SecResponse for FakeSecResponse {
         self.inner.content_type.clone()
     }
 
-    fn body(&self) -> &serde_json::Value {
+    fn body(&self) -> &Self::Body {
         &self.body
     }
 }

@@ -15,8 +15,8 @@ use reqwest::{Method, Request};
 use sec::shared::content_type::ContentType;
 use sec::shared::http_client::InnerClient;
 use sec::shared::response::SecResponse as SecResponseTrait;
-use sec::shared::response::implementations::sec_response::SecResponse;
 use sec::shared::response::implementations::sec_response::error::ErrorReason;
+use sec::shared::response::implementations::sec_response::{JsonBody, SecResponse};
 use sec::shared::status_code::StatusCode;
 
 /// Creates a reqwest client for testing. Connection pooling is disabled
@@ -41,7 +41,7 @@ async fn should_create_sec_response_when_response_is_valid_json_with_success_sta
         .execute_request(request)
         .await
         .expect("A request to jsonplaceholder should always succeed");
-    let result = SecResponse::from_inner(response).await.is_ok();
+    let result = SecResponse::<JsonBody>::from_inner(response).await.is_ok();
 
     assert_eq!(result, expected_result);
 }
@@ -60,7 +60,7 @@ async fn should_return_json_content_type_when_sec_response_is_created_successful
 
     let expected_result = ContentType::Json;
 
-    let result = SecResponse::from_inner(response)
+    let result = SecResponse::<JsonBody>::from_inner(response)
         .await
         .expect("A valid JSON response with 200 status should create an SecResponse")
         .content_type();
@@ -82,7 +82,7 @@ async fn should_return_ok_status_code_when_sec_response_is_created_successfully(
 
     let expected_result = StatusCode::Ok;
 
-    let result = SecResponse::from_inner(response)
+    let result = SecResponse::<JsonBody>::from_inner(response)
         .await
         .expect("A valid JSON response with 200 status should create an SecResponse")
         .status_code();
@@ -106,7 +106,7 @@ async fn should_fail_with_invalid_status_code_when_response_is_not_success() {
         status_code: StatusCode::NotFound,
     };
 
-    let result = SecResponse::from_inner(response)
+    let result = SecResponse::<JsonBody>::from_inner(response)
         .await
         .expect_err("A 404 response should fail to create an SecResponse")
         .reason;
@@ -130,7 +130,7 @@ async fn should_fail_with_invalid_content_type_when_response_is_not_json() {
         content_type: ContentType::Html,
     };
 
-    let result = SecResponse::from_inner(response)
+    let result = SecResponse::<JsonBody>::from_inner(response)
         .await
         .expect_err("An HTML response should fail to create an SecResponse")
         .reason;

@@ -6,8 +6,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::shared::response::SecResponse as SecResponseTrait;
-use crate::shared::response::implementations::sec_notes_file_response::SecNotesFileResponse;
-use crate::shared::response::implementations::sec_response::SecResponse;
+use crate::shared::response::implementations::sec_response::{SecResponse, ZipBody};
 use crate::shared::status_code::StatusCode;
 use crate::shared::url::Url;
 use crate::shared::user_agent::UserAgent;
@@ -49,10 +48,10 @@ impl RawDocumentMetadataContext {
     /// Creates a new [`RawDocumentMetadataContext`] from a Notes file response, and the URL and
     /// the `User-Agent` the fetch sent.
     ///
-    /// The final URL comes from [`SecNotesFileResponse::url`].
+    /// The final URL comes from [`SecResponse::url`](SecResponseTrait::url).
     #[must_use]
     pub fn from_file(
-        file: &SecNotesFileResponse,
+        file: &SecResponse<ZipBody>,
         requested_url: &Url,
         user_agent: &UserAgent,
     ) -> Self {
@@ -178,13 +177,14 @@ mod tests {
         assert_eq!(result, expected_result);
     }
 
-    fn sample_redirected_notes_file() -> SecNotesFileResponse {
-        SecNotesFileResponse::from_parts(
+    fn sample_redirected_notes_file() -> SecResponse<ZipBody> {
+        SecResponse::<ZipBody>::from_parts(
             sample_notes_final_url(),
             Headers::new(HashMap::from([(
                 "content-type".to_string(),
                 "application/zip".to_string(),
             )])),
+            ContentType::Zip,
             StatusCode::Ok,
             b"PK".to_vec(),
         )

@@ -19,6 +19,7 @@
 //! use sec::shared::http_client::implementations::sec_client::SecClient;
 //! use sec::shared::notes_period::NotesPeriod;
 //! use sec::shared::request::implementations::sec_request::SecRequest;
+//! use sec::shared::response::SecResponse as SecResponseTrait;
 //! use uuid::Uuid;
 //!
 //! # #[tokio::main]
@@ -73,7 +74,7 @@ pub use data::DownloadNotesArchiveInput;
 pub use data::DownloadNotesArchiveOutput;
 
 /// Downloads one Notes file and outputs it as a
-/// [`SecNotesFileResponse`](crate::shared::response::implementations::sec_notes_file_response::SecNotesFileResponse).
+/// [`SecResponse<ZipBody>`](crate::shared::response::implementations::sec_response::SecResponse).
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
 pub struct DownloadNotesArchive<R, C = SecClient> {
     input: DownloadNotesArchiveInput,
@@ -236,6 +237,7 @@ mod tests {
     use crate::shared::http_client::implementations::sec_client::error::FailedSecRequest;
     use crate::shared::notes_period::NotesPeriod;
     use crate::shared::request::implementations::sec_request::SecRequest;
+    use crate::shared::response::SecResponse as SecResponseTrait;
     use crate::shared::response::implementations::sec_response::error::{
         ErrorReason, InvalidSecResponse,
     };
