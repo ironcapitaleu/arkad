@@ -24,6 +24,7 @@ classDiagram
         +InvalidCikFormat(InvalidCikFormat)
         +InvalidNotesPeriod(InvalidNotesPeriod)
         +FailedRequestExecution(FailedRequestExecution)
+        +MissingDailyIndex(MissingDailyIndex)
         +FailedDocumentWrite(FailedDocumentWrite)
         +IncompleteCompanyFacts(IncompleteCompanyFacts)
         +InvalidInput
@@ -60,6 +61,13 @@ classDiagram
         %% State-level wrapper for request execution errors
         +String state_name
         +FailedSecRequest domain_error
+    }
+
+    class MissingDailyIndex{
+        << struct >>
+        %% State-level leaf error for a daily index the SEC has not published
+        +String state_name
+        +IndexDate index_date
     }
 
     class FailedDocumentWrite{
@@ -193,6 +201,7 @@ classDiagram
     State <|-- InvalidCikFormat
     State <|-- InvalidNotesPeriod
     State <|-- FailedRequestExecution
+    State <|-- MissingDailyIndex
     State <|-- FailedDocumentWrite
     State <|-- IncompleteCompanyFacts
 
