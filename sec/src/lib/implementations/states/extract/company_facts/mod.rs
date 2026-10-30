@@ -318,7 +318,7 @@ impl<R: RawCompanyFactsRepository, C: SecClientTrait>
     }
 }
 
-// Deviation: `ExecuteSecRequest` computes a concrete `SecResponse<JsonBody>` and wraps a
+// Deviation: `ExecuteCompanyFactsRequest` computes an `SecResponse<JsonBody>` and wraps a
 // `FailedSecRequest`. So the impls that reach it pin the response and the error of `C`. See the
 // comment on `State for ExecuteSecRequest`.
 impl<R, C> ExtractCompanyFactsSuperState<ExecuteCompanyFactsRequest<R, C>, R, C>

@@ -4,8 +4,8 @@
 //! [`ExecuteSecRequest`](crate::implementations::states::extract::execute_sec_request::ExecuteSecRequest)
 //! state, together with its updater and builder.
 //!
-//! The context tracks the input of the request, for example a [`Cik`], the storage repository, and
-//! the retry budget.
+//! The context tracks three values: the request input (for example a [`Cik`]), the storage
+//! repository, and the retry budget.
 //!
 //! ## Usage
 //!
@@ -56,7 +56,7 @@ use crate::traits::state_machine::state::Context;
 
 /// Context for the [`ExecuteSecRequest`](super::ExecuteSecRequest) state.
 ///
-/// Tracks the input of the request of endpoint `E`, for example a [`Cik`], the storage
+/// Tracks three values: the request input of endpoint `E` (for example a [`Cik`]), the storage
 /// repository, and the retry budget.
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 pub struct ExecuteSecRequestContext<E: RequestKind, R> {

@@ -66,9 +66,10 @@ impl<E: RespondsWith> ExecuteSecRequestOutput<E> {
     }
 }
 
-// Deviation: the traits below are written by hand, because a derive would bound `E::Body`, and
-// `ZipBody` implements none of them. They compare the responses, which `SecResponse` supports for
-// every body kind.
+// Deviation: the traits below are written by hand. A derive adds the bound `E::Body: Clone` (and
+// `Hash`, `Ord`), and fails with "the trait bound `<E as RespondsWith>::Body: Clone` is not
+// satisfied", because `ZipBody` implements none of them. They compare the responses, which
+// `SecResponse` supports for every body kind.
 impl<E: RespondsWith> Clone for ExecuteSecRequestOutput<E> {
     fn clone(&self) -> Self {
         Self {
@@ -174,8 +175,8 @@ impl<E: RespondsWith> ExecuteSecRequestOutputUpdaterBuilder<E> {
 
     /// Sets the SEC response field.
     #[must_use]
-    pub fn response(mut self, response: Arc<SecResponse<E::Body>>) -> Self {
-        self.response = Some(response);
+    pub fn response(mut self, response: SecResponse<E::Body>) -> Self {
+        self.response = Some(Arc::new(response));
         self
     }
 
@@ -257,7 +258,7 @@ mod tests {
         let mut output_data = ExecuteSecRequestOutput::<CompanyFacts>::new(original_response);
 
         let updater = ExecuteSecRequestOutputUpdater::builder()
-            .response(Arc::new(new_response))
+            .response(new_response)
             .build();
 
         let expected_result = Ok(());

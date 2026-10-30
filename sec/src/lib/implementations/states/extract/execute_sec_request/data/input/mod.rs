@@ -31,7 +31,7 @@ use crate::traits::state_machine::state::StateData;
 pub struct ExecuteSecRequestInput<E: RequestKind, C = SecClient> {
     /// The prepared SEC client that will execute the HTTP request.
     pub sec_client: C,
-    /// The prepared SEC request targeting a specific CIK.
+    /// The prepared SEC request of endpoint `E`.
     pub sec_request: SecRequest<E>,
 }
 

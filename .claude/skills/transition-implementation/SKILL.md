@@ -32,11 +32,14 @@ Before implementing, verify:
 Use `into_parts()` to decompose the source state, extract what you need from its output and
 context, and assemble the target state.
 
-**Real example** (from `Extract<ExecuteSecRequest>` → `Transform<ParseCompanyFacts>`):
+**Real example** (from `Extract<ExecuteCompanyFactsRequest>` → `Transform<ParseCompanyFacts>`):
 
 ```rust
-impl<R: RawCompanyFactsRepository> Transition<ExecuteSecRequest<R>, ParseCompanyFacts>
-    for ExtractCompanyFactsSuperState<ExecuteSecRequest<R>, R>
+impl<R, C> Transition<ExecuteCompanyFactsRequest<R, C>, ParseCompanyFacts>
+    for ExtractCompanyFactsSuperState<ExecuteCompanyFactsRequest<R, C>, R, C>
+where
+    R: RawCompanyFactsRepository,
+    C: SecClientTrait<Response<JsonBody> = SecResponse<JsonBody>, Error = FailedSecRequest>,
 {
     fn transition_to_next_state_sec(self) -> Result<Self::NewStateMachine, TransitionError> {
         let inner_state = self.into_current_state();
@@ -47,7 +50,7 @@ impl<R: RawCompanyFactsRepository> Transition<ExecuteSecRequest<R>, ParseCompany
         })?;
 
         let sec_response = output_data.response;
-        let cik = context.cik;
+        let cik = context.request_input;
 
         Ok(TransformSuperState::<ParseCompanyFacts>::new(
             &sec_response,

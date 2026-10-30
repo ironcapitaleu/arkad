@@ -82,8 +82,8 @@ pub use data::ExecuteSecRequestOutput;
 ///
 /// Consumes the prepared SEC client `C`, by default [`SecClient`], and the
 /// [`SecRequest`](crate::shared::request::implementations::sec_request::SecRequest) of endpoint
-/// `E`. It performs the HTTP call and stores the resulting [`SecResponse`], whose body kind `E`
-/// sets.
+/// `E`. It performs the HTTP call and stores the resulting [`SecResponse`]. The endpoint `E` sets
+/// the body kind of the response.
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
 #[serde(bound(serialize = "R: Serialize, C: Serialize"))]
 pub struct ExecuteSecRequest<E: RespondsWith, R, C = SecClient> {
@@ -164,7 +164,7 @@ impl<E: RespondsWith, R, C> ExecuteSecRequest<E, R, C> {
     }
 }
 
-// Deviation: the output holds a concrete `SecResponse<E::Body>`, and `FailedRequestExecution`
+// Deviation: the output holds an `SecResponse<E::Body>`, and `FailedRequestExecution`
 // wraps a `FailedSecRequest`. So the impls that compute the output pin the response and the error
 // of `C`. Other impls bind `C: SecClient` only.
 #[async_trait]
@@ -285,7 +285,7 @@ mod tests {
     use crate::shared::cik::Cik;
     use crate::shared::http_client::implementations::sec_client::SecClient;
     use crate::shared::notes_period::NotesPeriod;
-    use crate::shared::request::implementations::sec_request::SecRequest;
+    use crate::shared::request::implementations::sec_request::{NotesFile, SecRequest};
     use crate::shared::response::SecResponse as SecResponseTrait;
     use crate::shared::response::implementations::sec_response::error::{
         ErrorReason, InvalidSecResponse,
@@ -335,12 +335,15 @@ mod tests {
         ExecuteSecRequest::new(input, context)
     }
 
-    #[tokio::test]
-    async fn should_output_the_zip_body_unchanged_when_the_fake_client_downloads_a_notes_file() {
+    /// Creates an `ExecuteSecRequest<NotesFile, …>` state whose fake client answers with `status`
+    /// and the ZIP fixture.
+    fn create_notes_file_state(
+        status: u16,
+    ) -> ExecuteSecRequest<NotesFile, FakeWriteRepository, AlwaysRespondingSecClient> {
         let period = NotesPeriod::new("2024q1")
             .expect("Given a hardcoded published quarter, parsing should always succeed");
         let client = AlwaysRespondingSecClient::new(
-            200,
+            status,
             vec![
                 ("content-type", "application/zip".to_string()),
                 ("content-length", SAMPLE_NOTES_ZIP.len().to_string()),
@@ -348,10 +351,15 @@ mod tests {
             SAMPLE_NOTES_ZIP.to_vec(),
         );
         let request = SecRequest::builder().notes_file().period(period).build();
-        let mut state = ExecuteSecRequest::new(
+        ExecuteSecRequest::new(
             ExecuteSecRequestInput::new(client, request),
             ExecuteSecRequestContext::new(period, FakeWriteRepository::new()),
-        );
+        )
+    }
+
+    #[tokio::test]
+    async fn should_output_the_zip_body_unchanged_when_the_fake_client_downloads_a_notes_file() {
+        let mut state = create_notes_file_state(200);
 
         let expected_result = Some(SAMPLE_NOTES_ZIP);
 
@@ -360,6 +368,24 @@ mod tests {
             .await
             .expect("Given status 200, a ZIP content type and a matching length, the download should always succeed");
         let result = state.output_data().map(|output| output.response().body());
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_return_failed_request_execution_when_the_fake_client_returns_status_404_for_a_notes_file()
+     {
+        let mut state = create_notes_file_state(404);
+
+        let expected_result: Result<(), StateError> = Err(FailedRequestExecution::new(
+            STATE_NAME,
+            FailedSecRequest::from(InvalidSecResponse::new(ErrorReason::InvalidStatusCode {
+                status_code: StatusCode::NotFound,
+            })),
+        )
+        .into());
+
+        let result = state.compute_output_data_async().await;
 
         assert_eq!(result, expected_result);
     }
