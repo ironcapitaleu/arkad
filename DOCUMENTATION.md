@@ -641,7 +641,7 @@ Intra-doc links follow the same direction as `use` statements — they point tow
 | Direction | Allowed? | Example |
 |-----------|----------|---------|
 | **Downward** (toward your dependencies) | Yes | `ValidateCikFormat` linking to [`ValidateCikFormatInput`] |
-| **Sideways** (toward siblings in the same module) | Yes | `PrepareSecRequestInput` linking to [`SecClient`] |
+| **Sideways** (toward siblings in the same module) | Yes | `ExecuteSecRequestInput` linking to [`SecClient`] |
 | **Upward** (toward things that depend on you) | No | `Cik` linking to a state that *uses* `Cik` |
 
 This principle applies to **prose as well as links**. Do not mention specific callers, consumers,

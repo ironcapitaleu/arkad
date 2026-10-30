@@ -15,7 +15,7 @@
 //!
 //! ## State Flow
 //!
-//! [`ValidateCikFormat`] → [`PrepareSecRequest`] → [`ExecuteCompanyFactsRequest`] → [`StoreCompanyFacts`].
+//! [`ValidateCikFormat`] → [`PrepareCompanyFactsRequest`] → [`ExecuteCompanyFactsRequest`] → [`StoreCompanyFacts`].
 //! The stream ends after [`StoreCompanyFacts`]. [`ExecuteCompanyFactsRequest`] can also transition straight
 //! into the transform phase.
 //!
@@ -69,7 +69,7 @@ use crate::implementations::states::extract::execute_sec_request::{
     ExecuteCompanyFactsRequest, ExecuteSecRequestContext, ExecuteSecRequestInput,
 };
 use crate::implementations::states::extract::prepare_sec_request::{
-    PrepareSecRequest, PrepareSecRequestContext, PrepareSecRequestInput,
+    PrepareCompanyFactsRequest, PrepareSecRequestContext, PrepareSecRequestInput,
 };
 use crate::implementations::states::extract::store_company_facts::{
     RawCompanyFactsRepository, StoreCompanyFacts, StoreCompanyFactsContext, StoreCompanyFactsInput,
@@ -158,7 +158,7 @@ impl<R: RawCompanyFactsRepository, C: SecClientTrait> Context
 /// Wraps the currently active extract state in its `S` type parameter and owns the shared SEC
 /// client of type `C`, the `execution_id`, and the storage repository `R`. It exposes the inner
 /// state through a unified state-machine interface. It moves the pipeline through type-safe transitions:
-/// [`ValidateCikFormat`] → [`PrepareSecRequest`] → [`ExecuteCompanyFactsRequest`] → [`StoreCompanyFacts`].
+/// [`ValidateCikFormat`] → [`PrepareCompanyFactsRequest`] → [`ExecuteCompanyFactsRequest`] → [`StoreCompanyFacts`].
 /// [`ExecuteCompanyFactsRequest`] can also transition straight into the transform phase. Encoding the active state in the type makes invalid
 /// transitions a compile error rather than a runtime check.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
@@ -297,16 +297,16 @@ impl<R: RawCompanyFactsRepository> ExtractCompanyFactsSuperState<ValidateCikForm
 }
 
 impl<R: RawCompanyFactsRepository, C: SecClientTrait>
-    ExtractCompanyFactsSuperState<PrepareSecRequest<R, C>, R, C>
+    ExtractCompanyFactsSuperState<PrepareCompanyFactsRequest<R>, R, C>
 {
     /// Creates the super-state positioned at the request-preparation state.
     #[must_use]
     pub fn new(validated_cik: Cik, sec_client: C, execution_id: Uuid, repository: R) -> Self {
-        let input_data = PrepareSecRequestInput::new(validated_cik.clone(), sec_client.clone());
+        let input_data = PrepareSecRequestInput::new(validated_cik.clone());
         let context = PrepareSecRequestContext::new(validated_cik, repository.clone());
 
         Self {
-            current_state: PrepareSecRequest::new(input_data, context),
+            current_state: PrepareCompanyFactsRequest::new(input_data, context),
             input: ExtractCompanyFactsSuperStateData,
             output: None,
             context: ExtractCompanyFactsSuperStateContext::new(
@@ -406,15 +406,15 @@ impl<R: RawCompanyFactsRepository, C: SecClientTrait> NonTerminal
     for ExtractCompanyFactsSuperState<ValidateCikFormat<R, C>, R, C>
 {
     type Current = ValidateCikFormat<R, C>;
-    type Next = PrepareSecRequest<R, C>;
+    type Next = PrepareCompanyFactsRequest<R>;
 }
 
-impl<R, C> NonTerminal for ExtractCompanyFactsSuperState<PrepareSecRequest<R, C>, R, C>
+impl<R, C> NonTerminal for ExtractCompanyFactsSuperState<PrepareCompanyFactsRequest<R>, R, C>
 where
     R: RawCompanyFactsRepository,
     C: SecClientTrait<Response<JsonBody> = SecResponse<JsonBody>, Error = FailedSecRequest>,
 {
-    type Current = PrepareSecRequest<R, C>;
+    type Current = PrepareCompanyFactsRequest<R>;
     type Next = ExecuteCompanyFactsRequest<R, C>;
 }
 
@@ -437,14 +437,14 @@ impl<R: RawCompanyFactsRepository + Send + 'static, C: SecClientTrait + 'static>
 }
 
 impl<R: RawCompanyFactsRepository, C: SecClientTrait>
-    Transition<ValidateCikFormat<R, C>, PrepareSecRequest<R, C>>
+    Transition<ValidateCikFormat<R, C>, PrepareCompanyFactsRequest<R>>
     for ExtractCompanyFactsSuperState<ValidateCikFormat<R, C>, R, C>
 {
     fn transition_to_next_state_sec(self) -> Result<Self::NewStateMachine, TransitionError> {
-        let next_state = PrepareSecRequest::try_from(self.current_state)?;
+        let next_state = PrepareCompanyFactsRequest::try_from(self.current_state)?;
 
         Ok(
-            ExtractCompanyFactsSuperState::<PrepareSecRequest<R, C>, R, C> {
+            ExtractCompanyFactsSuperState::<PrepareCompanyFactsRequest<R>, R, C> {
                 current_state: next_state,
                 input: ExtractCompanyFactsSuperStateData,
                 output: None,
@@ -454,14 +454,17 @@ impl<R: RawCompanyFactsRepository, C: SecClientTrait>
     }
 }
 
-impl<R, C> Transition<PrepareSecRequest<R, C>, ExecuteCompanyFactsRequest<R, C>>
-    for ExtractCompanyFactsSuperState<PrepareSecRequest<R, C>, R, C>
+impl<R, C> Transition<PrepareCompanyFactsRequest<R>, ExecuteCompanyFactsRequest<R, C>>
+    for ExtractCompanyFactsSuperState<PrepareCompanyFactsRequest<R>, R, C>
 where
     R: RawCompanyFactsRepository,
     C: SecClientTrait<Response<JsonBody> = SecResponse<JsonBody>, Error = FailedSecRequest>,
 {
     fn transition_to_next_state_sec(self) -> Result<Self::NewStateMachine, TransitionError> {
-        let next_state = ExecuteCompanyFactsRequest::try_from(self.current_state)?;
+        let next_state = ExecuteCompanyFactsRequest::try_from((
+            self.current_state,
+            self.context.sec_client.clone(),
+        ))?;
 
         Ok(
             ExtractCompanyFactsSuperState::<ExecuteCompanyFactsRequest<R, C>, R, C> {
@@ -474,8 +477,8 @@ where
     }
 }
 
-impl<R, C> SMTransition<PrepareSecRequest<R, C>, ExecuteCompanyFactsRequest<R, C>>
-    for ExtractCompanyFactsSuperState<PrepareSecRequest<R, C>, R, C>
+impl<R, C> SMTransition<PrepareCompanyFactsRequest<R>, ExecuteCompanyFactsRequest<R, C>>
+    for ExtractCompanyFactsSuperState<PrepareCompanyFactsRequest<R>, R, C>
 where
     R: RawCompanyFactsRepository,
     C: SecClientTrait<Response<JsonBody> = SecResponse<JsonBody>, Error = FailedSecRequest>,
@@ -491,10 +494,10 @@ where
 }
 
 impl<R: RawCompanyFactsRepository, C: SecClientTrait>
-    SMTransition<ValidateCikFormat<R, C>, PrepareSecRequest<R, C>>
+    SMTransition<ValidateCikFormat<R, C>, PrepareCompanyFactsRequest<R>>
     for ExtractCompanyFactsSuperState<ValidateCikFormat<R, C>, R, C>
 {
-    type NewStateMachine = ExtractCompanyFactsSuperState<PrepareSecRequest<R, C>, R, C>;
+    type NewStateMachine = ExtractCompanyFactsSuperState<PrepareCompanyFactsRequest<R>, R, C>;
 
     fn transition_to_next_state(self) -> Result<Self::NewStateMachine, &'static str> {
         // Placeholder implementation - use transition_to_next_state_sec() for actual functionality
@@ -632,7 +635,7 @@ mod tests {
     fn should_return_super_state_name_with_current_state_when_in_prepare_sec_request_state() {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should be valid");
         let sec_client = SecClient::default();
-        let super_state = ExtractCompanyFactsSuperState::<PrepareSecRequest<_>, _>::new(
+        let super_state = ExtractCompanyFactsSuperState::<PrepareCompanyFactsRequest<_>, _>::new(
             cik,
             sec_client,
             Uuid::nil(),
@@ -668,7 +671,7 @@ mod tests {
     fn should_access_current_prepare_sec_request_state_from_super_state() {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should be valid");
         let sec_client = SecClient::default();
-        let super_state = ExtractCompanyFactsSuperState::<PrepareSecRequest<_>, _>::new(
+        let super_state = ExtractCompanyFactsSuperState::<PrepareCompanyFactsRequest<_>, _>::new(
             cik,
             sec_client,
             Uuid::nil(),
@@ -726,7 +729,7 @@ mod tests {
     async fn should_fail_transition_from_prepare_sec_request_when_output_data_not_yet_computed() {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should be valid");
         let sec_client = SecClient::default();
-        let super_state = ExtractCompanyFactsSuperState::<PrepareSecRequest<_>, _>::new(
+        let super_state = ExtractCompanyFactsSuperState::<PrepareCompanyFactsRequest<_>, _>::new(
             cik,
             sec_client,
             Uuid::nil(),
@@ -821,7 +824,7 @@ mod tests {
     const fn should_implement_auto_traits_for_prepare_sec_request_super_state() {
         implements_auto_traits::<
             ExtractCompanyFactsSuperState<
-                PrepareSecRequest<FakeWriteRepository>,
+                PrepareCompanyFactsRequest<FakeWriteRepository>,
                 FakeWriteRepository,
             >,
         >();
@@ -860,13 +863,13 @@ mod tests {
     const fn should_be_thread_safe_for_prepare_sec_request_super_state() {
         implements_send::<
             ExtractCompanyFactsSuperState<
-                PrepareSecRequest<FakeWriteRepository>,
+                PrepareCompanyFactsRequest<FakeWriteRepository>,
                 FakeWriteRepository,
             >,
         >();
         implements_sync::<
             ExtractCompanyFactsSuperState<
-                PrepareSecRequest<FakeWriteRepository>,
+                PrepareCompanyFactsRequest<FakeWriteRepository>,
                 FakeWriteRepository,
             >,
         >();
@@ -903,7 +906,7 @@ mod tests {
     const fn should_implement_debug_for_prepare_sec_request_super_state() {
         implements_debug::<
             ExtractCompanyFactsSuperState<
-                PrepareSecRequest<FakeWriteRepository>,
+                PrepareCompanyFactsRequest<FakeWriteRepository>,
                 FakeWriteRepository,
             >,
         >();
@@ -934,7 +937,7 @@ mod tests {
     const fn should_implement_clone_for_prepare_sec_request_super_state() {
         implements_clone::<
             ExtractCompanyFactsSuperState<
-                PrepareSecRequest<FakeWriteRepository>,
+                PrepareCompanyFactsRequest<FakeWriteRepository>,
                 FakeWriteRepository,
             >,
         >();
@@ -965,7 +968,7 @@ mod tests {
     const fn should_implement_partial_eq_for_prepare_sec_request_super_state() {
         implements_partial_eq::<
             ExtractCompanyFactsSuperState<
-                PrepareSecRequest<FakeWriteRepository>,
+                PrepareCompanyFactsRequest<FakeWriteRepository>,
                 FakeWriteRepository,
             >,
         >();
@@ -996,7 +999,7 @@ mod tests {
     const fn should_implement_hash_for_prepare_sec_request_super_state() {
         implements_hash::<
             ExtractCompanyFactsSuperState<
-                PrepareSecRequest<FakeWriteRepository>,
+                PrepareCompanyFactsRequest<FakeWriteRepository>,
                 FakeWriteRepository,
             >,
         >();

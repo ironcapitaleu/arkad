@@ -1,10 +1,10 @@
 //! # Transition: `ValidateCikFormat` → `PrepareSecRequest`
 //!
-//! Implements the [`TryFrom`] conversion producing a [`PrepareSecRequest`] from a
+//! Implements the [`TryFrom`] conversion producing a [`PrepareCompanyFactsRequest`] from a
 //! [`ValidateCikFormat`].
 //!
 //! It takes the validated [`Cik`](crate::shared::cik::Cik) from the source state's output and the
-//! shared client from its context, and seeds the successor's input and context with them. The
+//! repository from its context, and seeds the successor's input and context with them. The
 //! conversion is fallible because the source state may not have computed its output yet.
 //!
 //! # Errors
@@ -16,13 +16,13 @@ use crate::error::state_machine::transition;
 use crate::error::state_machine::transition::Transition as TransitionError;
 use crate::implementations::states::extract::prepare_sec_request::constants::STATE_NAME as PREPARE_SEC_REQUEST;
 use crate::implementations::states::extract::prepare_sec_request::{
-    PrepareSecRequest, PrepareSecRequestContext, PrepareSecRequestInput,
+    PrepareCompanyFactsRequest, PrepareSecRequestContext, PrepareSecRequestInput,
 };
 use crate::implementations::states::extract::validate_cik_format::ValidateCikFormat;
 use crate::implementations::states::extract::validate_cik_format::constants::STATE_NAME as VALIDATE_CIK_FORMAT;
 use crate::shared::http_client::SecClient as SecClientTrait;
 
-impl<R, C: SecClientTrait> TryFrom<ValidateCikFormat<R, C>> for PrepareSecRequest<R, C> {
+impl<R, C: SecClientTrait> TryFrom<ValidateCikFormat<R, C>> for PrepareCompanyFactsRequest<R> {
     type Error = TransitionError;
 
     fn try_from(state: ValidateCikFormat<R, C>) -> Result<Self, TransitionError> {
@@ -33,7 +33,7 @@ impl<R, C: SecClientTrait> TryFrom<ValidateCikFormat<R, C>> for PrepareSecReques
 
         let new_context =
             PrepareSecRequestContext::new(output_data.validated_cik.clone(), context.repository);
-        let new_input = PrepareSecRequestInput::new(output_data.validated_cik, context.sec_client);
+        let new_input = PrepareSecRequestInput::new(output_data.validated_cik);
 
         Ok(Self::new(new_input, new_context))
     }
@@ -62,11 +62,8 @@ mod tests {
         let input = ValidateCikFormatInput {
             raw_cik: cik_string.into(),
         };
-        let context = ValidateCikFormatContext::new(
-            cik_string,
-            sec_client.clone(),
-            FakeWriteRepository::new(),
-        );
+        let context =
+            ValidateCikFormatContext::new(cik_string, sec_client, FakeWriteRepository::new());
         let mut state = ValidateCikFormat::new(input, context);
         state
             .compute_output_data_async()
@@ -77,10 +74,10 @@ mod tests {
             .expect("Hardcoded valid CIK string should always parse successfully");
         let expected_context =
             PrepareSecRequestContext::new(expected_cik.clone(), FakeWriteRepository::new());
-        let expected_input = PrepareSecRequestInput::new(expected_cik, sec_client);
-        let expected_result = PrepareSecRequest::new(expected_input, expected_context);
+        let expected_input = PrepareSecRequestInput::new(expected_cik);
+        let expected_result = PrepareCompanyFactsRequest::new(expected_input, expected_context);
 
-        let result = PrepareSecRequest::try_from(state)
+        let result = PrepareCompanyFactsRequest::try_from(state)
             .expect("State with computed output should always transition successfully");
 
         assert_eq!(result, expected_result);
@@ -99,7 +96,7 @@ mod tests {
 
         let expected_result = true;
 
-        let result = PrepareSecRequest::try_from(state).is_err();
+        let result = PrepareCompanyFactsRequest::try_from(state).is_err();
 
         assert_eq!(result, expected_result);
     }
@@ -131,7 +128,7 @@ mod tests {
         let expected_result =
             FakeWriteRepository::rejecting(WriteError::conflicting_write("Sample conflict"));
 
-        let result = PrepareSecRequest::try_from(state)
+        let result = PrepareCompanyFactsRequest::try_from(state)
             .expect("Given a state with output, the transition should always succeed")
             .context_data()
             .repository()

@@ -92,7 +92,9 @@ pub struct ExecuteSecRequest<E: RespondsWith, R, C = SecClient> {
     output: Option<ExecuteSecRequestOutput<E>>,
 }
 
-/// The [`ExecuteSecRequest`] state of the Company Facts path.
+/// Alias of [`ExecuteSecRequest`] for the [`CompanyFacts`] kind.
+///
+/// It is the same type under a shorter name, not a separate state.
 pub type ExecuteCompanyFactsRequest<R, C = SecClient> = ExecuteSecRequest<CompanyFacts, R, C>;
 
 impl<E: RespondsWith, R, C> ExecuteSecRequest<E, R, C> {
