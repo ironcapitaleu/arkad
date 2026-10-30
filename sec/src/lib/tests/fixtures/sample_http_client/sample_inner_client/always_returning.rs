@@ -4,14 +4,14 @@ use crate::shared::http_client::traits::InnerClient;
 use crate::tests::fixtures::sample_response::sample_inner_response::FakeInnerResponse;
 
 /// A fake HTTP client that takes a `reqwest::Request` and always returns a fixed
-/// [`FakeInnerResponse`].
+/// [`FakeInnerResponse`] or a fixed error.
 ///
 /// Used for testing a [`SecClient`](crate::shared::http_client::SecClient) that returns a fake
 /// response, without a network call.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct AlwaysReturningHttpClient {
-    /// The response of every request.
-    pub response: FakeInnerResponse,
+    /// The result of every request.
+    pub result: Result<FakeInnerResponse, String>,
 }
 
 #[async_trait]
@@ -24,6 +24,6 @@ impl InnerClient for AlwaysReturningHttpClient {
         &self,
         _request: Self::Request,
     ) -> Result<Self::Response, Self::Error> {
-        Ok(self.response.clone())
+        self.result.clone()
     }
 }

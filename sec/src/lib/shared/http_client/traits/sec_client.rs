@@ -33,6 +33,9 @@ use super::ExpectsBody;
 #[async_trait]
 pub trait SecClient: Debug + Clone + Eq + Ord + Hash + Send + Sync + Unpin + Serialize {
     /// The raw HTTP client this trait delegates to.
+    ///
+    /// The bound names the inner request of the default kind. Every kind builds the same inner
+    /// request type, so the default body can send any `SecRequest<K>`.
     type Inner: InnerClient<Request = <SecRequest as SecRequestTrait>::Inner, Error: Into<Self::Error>>;
     /// The rate limiter pacing outgoing requests. Must implement [`RateLimiter`].
     type Limiter: RateLimiter;
@@ -116,9 +119,10 @@ mod tests {
     use crate::shared::status_code::StatusCode;
     use crate::tests::fixtures::sample_http_client::sample_inner_client::AlwaysReturningHttpClient;
     use crate::tests::fixtures::sample_http_client::sample_sec_client::always_responding::AlwaysRespondingSecClient;
-    use crate::tests::fixtures::sample_http_client::sample_sec_client::always_succeeding::FakeSecClient;
+    use crate::tests::fixtures::sample_http_client::sample_sec_client::always_succeeding::{
+        FakeSecClient, fake_json_inner_response,
+    };
     use crate::tests::fixtures::sample_rate_limiter::counting::CountingRateLimiter;
-    use crate::tests::fixtures::sample_response::sample_inner_response::FakeInnerResponse;
 
     #[tokio::test]
     async fn should_return_the_fake_json_body_when_the_fake_sec_client_executes_a_company_facts_request()
@@ -142,16 +146,25 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn should_return_the_inner_error_when_the_inner_client_fails() {
+        let client = FakeSecClient::failing("Simulated network error");
+        let cik = Cik::new("1067983").expect(
+            "Given a hardcoded valid CIK, the creation of a CIK object should always succeed",
+        );
+        let request = SecRequest::builder().all_company_facts().cik(cik).build();
+
+        let expected_result = Some(String::from("Simulated network error"));
+
+        let result = client.execute_sec_request(request).await.err();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
     async fn should_return_expected_inner_client_for_fake_sec_client() {
         let fake_client = FakeSecClient::new();
         let expected_inner_client = AlwaysReturningHttpClient {
-            response: FakeInnerResponse::new(
-                String::from("https://example.com/"),
-                String::from("{\"key\": \"value\"}"),
-                String::new(),
-                200,
-                String::from("application/json"),
-            ),
+            result: Ok(fake_json_inner_response()),
         };
 
         let expected_result = &expected_inner_client;

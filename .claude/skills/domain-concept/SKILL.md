@@ -186,18 +186,25 @@ pub trait InnerClient: Send + Sync + Debug + Clone {
 
 ```rust
 #[async_trait]
-pub trait SecClient: Send + Sync + Debug {
-    type Inner: InnerClient;
-    type Response;
-    type Error;
-    type Request;
+pub trait SecClient: Debug + Clone + Eq + Ord + Hash + Send + Sync + Unpin + Serialize {
+    type Inner: InnerClient<Request = <SecRequest as SecRequestTrait>::Inner, Error: Into<Self::Error>>;
+    type Limiter: RateLimiter;
+    type Response<B: ResponseBody>: SecResponseTrait<
+            Inner = <Self::Inner as InnerClient>::Response,
+            Body = B::Content,
+            Error: Into<Self::Error>,
+        >;
+    type Error: Send;
 
     fn inner(&self) -> &Self::Inner;
+    fn rate_limiter(&self) -> &Self::Limiter;
+    fn user_agent(&self) -> &UserAgent;
 
-    async fn execute_sec_request(
+    // The default body waits on the rate limiter, sends the request, and builds the response.
+    async fn execute_sec_request<K: ExpectsBody>(
         &self,
-        request: Self::Request,
-    ) -> Result<Self::Response, Self::Error>;
+        request: SecRequest<K>,
+    ) -> Result<Self::Response<K::Body>, Self::Error> { /* default */ }
 }
 ```
 

@@ -342,6 +342,8 @@ impl<R: NotesRepository, C: SecClientTrait> NonTerminal
     type Next = PrepareNotesRequest<R>;
 }
 
+// Deviation: the impls that reach `DownloadNotesArchive` pin the response and the error of `C`.
+// See the comment on `State for DownloadNotesArchive`.
 impl<R, C> NonTerminal for ExtractNotesSuperState<PrepareNotesRequest<R>, C>
 where
     R: NotesRepository,

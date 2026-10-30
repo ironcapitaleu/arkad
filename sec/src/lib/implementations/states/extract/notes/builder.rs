@@ -19,6 +19,8 @@ use crate::implementations::states::extract::validate_notes_period::{
     ValidateNotesPeriod, ValidateNotesPeriodContext, ValidateNotesPeriodInput,
 };
 use crate::shared::http_client::SecClient as SecClientTrait;
+use crate::shared::http_client::implementations::sec_client::error::FailedSecRequest;
+use crate::shared::response::implementations::sec_response::{SecResponse, ZipBody};
 
 /// Marks a builder that holds no period yet.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -100,11 +102,14 @@ impl<C, E, R> ExtractNotesSuperStateBuilder<NoPeriod, C, E, R> {
 
 impl<P, E, R> ExtractNotesSuperStateBuilder<P, NoSecClient, E, R> {
     /// Sets the SEC client that downloads the Notes file.
+    ///
+    /// The client must return a [`SecResponse<ZipBody>`] and a [`FailedSecRequest`], as
+    /// `DownloadNotesArchive` stores them.
     #[must_use]
-    pub fn sec_client<C: SecClientTrait>(
-        self,
-        sec_client: C,
-    ) -> ExtractNotesSuperStateBuilder<P, C, E, R> {
+    pub fn sec_client<C>(self, sec_client: C) -> ExtractNotesSuperStateBuilder<P, C, E, R>
+    where
+        C: SecClientTrait<Response<ZipBody> = SecResponse<ZipBody>, Error = FailedSecRequest>,
+    {
         ExtractNotesSuperStateBuilder {
             period: self.period,
             sec_client,

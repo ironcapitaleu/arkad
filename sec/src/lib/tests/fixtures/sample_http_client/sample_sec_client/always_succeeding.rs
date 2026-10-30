@@ -8,7 +8,8 @@ use crate::tests::fixtures::sample_rate_limiter::always_ready::AlwaysReadyRateLi
 use crate::tests::fixtures::sample_response::sample_inner_response::FakeInnerResponse;
 use crate::tests::fixtures::sample_response::sample_sec_response::FakeSecResponse;
 
-/// Fake `SecClient` that always returns a [`FakeSecResponse`] with the body `{"key": "value"}`.
+/// Fake `SecClient` that returns a [`FakeSecResponse`] with the body `{"key": "value"}`, or the
+/// error of its inner client.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub struct FakeSecClient {
     #[serde(skip)]
@@ -25,23 +26,39 @@ impl Default for FakeSecClient {
 }
 
 impl FakeSecClient {
-    /// Creates a [`FakeSecClient`] with the default [`UserAgent`].
+    /// Creates a [`FakeSecClient`] with the default [`UserAgent`] whose inner client returns
+    /// [`fake_json_inner_response`].
     #[must_use]
     pub fn new() -> Self {
+        Self::with_inner_result(Ok(fake_json_inner_response()))
+    }
+
+    /// Creates a [`FakeSecClient`] whose inner client fails with `error`.
+    #[must_use]
+    pub fn failing(error: &str) -> Self {
+        Self::with_inner_result(Err(error.to_string()))
+    }
+
+    fn with_inner_result(result: Result<FakeInnerResponse, String>) -> Self {
         Self {
-            inner: AlwaysReturningHttpClient {
-                response: FakeInnerResponse::new(
-                    String::from("https://example.com/"),
-                    String::from("{\"key\": \"value\"}"),
-                    String::new(),
-                    200,
-                    String::from("application/json"),
-                ),
-            },
+            inner: AlwaysReturningHttpClient { result },
             rate_limiter: AlwaysReadyRateLimiter,
             user_agent: UserAgent::default(),
         }
     }
+}
+
+/// Returns the inner response of [`FakeSecClient::new`]: status 200 and the JSON body
+/// `{"key": "value"}`.
+#[must_use]
+pub fn fake_json_inner_response() -> FakeInnerResponse {
+    FakeInnerResponse::new(
+        String::from("https://example.com/"),
+        String::from("{\"key\": \"value\"}"),
+        String::new(),
+        200,
+        String::from("application/json"),
+    )
 }
 
 impl SecClient for FakeSecClient {

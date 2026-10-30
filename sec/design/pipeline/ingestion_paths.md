@@ -225,8 +225,8 @@ body. `SecResponse<JsonBody>`, the default, holds a Company Facts reply. `SecRes
 holds a Notes file.
 
 The `ExpectsBody` trait on the client side maps each request kind to its body kind, once for
-every client. `CompanyFacts` has `Body = JsonBody`, and `NotesFile` has `Body = ZipBody`. So
-`shared::request` does not depend on `shared::response`.
+every client. `CompanyFacts` has `Body = JsonBody`, and `NotesFile` has `Body = ZipBody`. This
+keeps `shared::request` independent of `shared::response`.
 
 The `SecClient` trait has one method for every kind. Its default body waits on the rate limiter,
 sends the request through the inner client, and builds the response:
@@ -723,8 +723,8 @@ Backfill:
    type `IngestionMode` (`storage`), left out of the comparison in `persist`.
 3. FEATURE: `NotesPeriod`, with the range checks and the file names with overrides.
 4. FEATURE: `SecRequestType::FetchNotesFile` and the builder `notes_file().period(p)`.
-5. FEATURE: `SecNotesFileResponse` and `SecClient::download_sec_file`, with the transport
-   checks of layer 1.
+5. FEATURE: `SecResponse<ZipBody>` and the Notes request through
+   `SecClient::execute_sec_request`, with the transport checks of layer 1.
 6. FEATURE: `RawNotesArchive`, its `SecDocumentType` variant, and the constructors of
    `RawDocument` and `RawDocumentMetadataContext` from `SecNotesFileResponse`.
 7. FEATURE: the states `ValidateNotesPeriod` and `PrepareNotesRequest`.
