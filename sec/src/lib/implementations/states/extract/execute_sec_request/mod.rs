@@ -3,9 +3,6 @@
 //! Provides the [`ExecuteSecRequest`] state, which sends the prepared request to the SEC API
 //! and captures the response.
 //!
-//! This state touches the network: it consumes the prepared client and request, performs the HTTP
-//! call, and produces a [`SecResponse`].
-//!
 //! ## Modules
 //!
 //! - [`constants`]: State metadata such as [`STATE_NAME`].
@@ -83,7 +80,7 @@ pub use data::ExecuteSecRequestOutput;
 ///
 /// Consumes the prepared SEC client `C`, by default [`SecClient`], and the
 /// [`SecRequest`](crate::shared::request::implementations::sec_request::SecRequest). It performs
-/// the HTTP call and stores the resulting [`SecResponse`]. Network failures surface here.
+/// the HTTP call and stores the resulting [`SecResponse`].
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
 pub struct ExecuteSecRequest<R, C = SecClient> {
     input: ExecuteSecRequestInput<C>,
