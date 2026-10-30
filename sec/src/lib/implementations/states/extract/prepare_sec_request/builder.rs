@@ -6,7 +6,7 @@
 //! Selecting a kind fixes the setter for its input: [`cik`](PrepareSecRequestBuilder::cik) for
 //! [`CompanyFacts`] and [`period`](PrepareSecRequestBuilder::period) for [`NotesFile`].
 //! [`build`](PrepareSecRequestBuilder::build) exists only once the builder holds the input of its
-//! kind, so a state without one does not compile.
+//! kind and a repository, so a state without one of them does not compile.
 //!
 //! ## Usage
 //!
@@ -17,6 +17,7 @@
 //! # use sec::shared::raw_document::RawDocument;
 //! # use sec::shared::raw_source::RawCompanyFacts;
 //! # use storage::implementations::repository::filesystem::FilesystemRepository;
+//! # // The repository bound is the Company Facts one until STA-385.
 //! # let repository = FilesystemRepository::builder()
 //! #     .writer()
 //! #     .document_type::<RawDocument<RawCompanyFacts>>()
@@ -55,12 +56,23 @@
 //!     .repository(repository)
 //!     .build();
 //! ```
+//!
+//! A builder without a repository has no `build` method either:
+//!
+//! ```compile_fail,E0599
+//! use sec::implementations::states::extract::prepare_sec_request::PrepareSecRequest;
+//! use sec::shared::cik::Cik;
+//!
+//! let cik = Cik::new("1067983").expect("A hardcoded valid CIK should always parse");
+//! let state = PrepareSecRequest::builder().all_company_facts().cik(cik).build();
+//! ```
 
 use std::marker::PhantomData;
 
 use crate::implementations::states::extract::prepare_sec_request::{
     PrepareSecRequest, PrepareSecRequestContext, PrepareSecRequestInput,
 };
+use crate::implementations::states::extract::store_company_facts::RawCompanyFactsRepository;
 use crate::shared::cik::Cik;
 use crate::shared::notes_period::NotesPeriod;
 use crate::shared::request::implementations::sec_request::{CompanyFacts, NotesFile, RequestKind};
@@ -172,7 +184,7 @@ impl<K, I, R> PrepareSecRequestBuilder<K, I, NoRepository<R>> {
     }
 }
 
-impl<K: RequestKind, R> PrepareSecRequestBuilder<K, K::Input, R> {
+impl<K: RequestKind, R: RawCompanyFactsRepository> PrepareSecRequestBuilder<K, K::Input, R> {
     /// Builds a [`PrepareSecRequest`] with no output computed yet.
     ///
     /// # Examples

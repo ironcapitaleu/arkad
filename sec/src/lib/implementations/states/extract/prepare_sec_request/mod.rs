@@ -81,7 +81,7 @@ pub use data::PrepareSecRequestOutput;
 
 /// Builds the [`SecRequest`] of the request kind `K` from its input.
 ///
-/// The work is local: no network call is made here. The context holds the storage repository `R`.
+/// The context holds the storage repository `R`.
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
 #[serde(bound(serialize = "R: Serialize"))]
 pub struct PrepareSecRequest<K: RequestKind, R> {
@@ -242,6 +242,7 @@ mod tests {
     use super::*;
     use crate::shared::cik::Cik;
     use crate::shared::cik::constants::BERKSHIRE_HATHAWAY_CIK_RAW;
+    use crate::shared::notes_period::NotesPeriod;
     use crate::tests::fixtures::sample_write_repository::FakeWriteRepository;
     use crate::traits::state_machine::state::State;
 
@@ -528,6 +529,27 @@ mod tests {
 
         state.compute_output_data();
         let result = state.has_output_data_been_computed();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_build_notes_file_request_when_computing_output_for_notes_file_kind() {
+        let period = NotesPeriod::new("2024q1")
+            .expect("Given a published period, NotesPeriod creation should always succeed");
+        let mut state = PrepareSecRequest::builder()
+            .notes_file()
+            .period(period)
+            .repository(FakeWriteRepository::new())
+            .build();
+
+        let expected_result = Some(&PrepareSecRequestOutput::new(SecRequest::new(period)));
+
+        state
+            .compute_output_data_async()
+            .await
+            .expect("Request preparation should always succeed for a valid period");
+        let result = state.output_data();
 
         assert_eq!(result, expected_result);
     }

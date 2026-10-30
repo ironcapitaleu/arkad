@@ -139,8 +139,10 @@ impl<K: RequestKind, R> fmt::Display for PrepareSecRequestContext<K, R> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "Context Data:\nRequest input: {}\nMax retries: {}",
-            self.request_input, self.max_retries
+            "Context Data:\n{}: {}\nMax retries: {}",
+            K::INPUT_NAME,
+            self.request_input,
+            self.max_retries
         )
     }
 }
@@ -237,7 +239,8 @@ mod tests {
     };
     use crate::shared::cik::Cik;
     use crate::shared::cik::constants::BERKSHIRE_HATHAWAY_CIK_RAW;
-    use crate::shared::request::implementations::sec_request::CompanyFacts;
+    use crate::shared::notes_period::NotesPeriod;
+    use crate::shared::request::implementations::sec_request::{CompanyFacts, NotesFile};
     use crate::tests::fixtures::sample_write_repository::FakeWriteRepository;
 
     fn create_test_context() -> PrepareSecRequestContext<CompanyFacts, FakeWriteRepository> {
@@ -436,6 +439,26 @@ mod tests {
 
         let expected_result = serde_json::json!({
             "cik": { "value": "0001067983" },
+            "repository": { "kind": "fake", "rejection": null },
+            "max_retries": 0,
+        });
+
+        let result = serde_json::to_value(context)
+            .expect("Given a context of domain types, serialization should always succeed");
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_write_request_input_under_notes_period_when_serializing_notes_file_context() {
+        let period = NotesPeriod::new("2024q1")
+            .expect("Given a published period, NotesPeriod creation should always succeed");
+        let context =
+            PrepareSecRequestContext::<NotesFile, _>::new(period, FakeWriteRepository::new());
+
+        let expected_result = serde_json::json!({
+            "notes_period": serde_json::to_value(period)
+                .expect("Given a domain type, serialization should always succeed"),
             "repository": { "kind": "fake", "rejection": null },
             "max_retries": 0,
         });

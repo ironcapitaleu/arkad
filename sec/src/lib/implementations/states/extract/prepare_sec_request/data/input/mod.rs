@@ -104,7 +104,7 @@ impl<K: RequestKind> SMStateData for PrepareSecRequestInput<K> {
 
 impl<K: RequestKind> fmt::Display for PrepareSecRequestInput<K> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "\tRequest input: {}", self.request_input)
+        write!(f, "\t{}: {}", K::INPUT_NAME, self.request_input)
     }
 }
 
@@ -173,7 +173,8 @@ mod tests {
     use super::{PrepareSecRequestInput, PrepareSecRequestInputUpdaterBuilder};
     use crate::shared::cik::Cik;
     use crate::shared::cik::constants::BERKSHIRE_HATHAWAY_CIK_RAW;
-    use crate::shared::request::implementations::sec_request::CompanyFacts;
+    use crate::shared::notes_period::NotesPeriod;
+    use crate::shared::request::implementations::sec_request::{CompanyFacts, NotesFile};
     use crate::traits::state_machine::state::StateData;
 
     fn create_test_input() -> PrepareSecRequestInput<CompanyFacts> {
@@ -360,5 +361,34 @@ mod tests {
     #[test]
     const fn should_implement_unpin_for_prepare_sec_request_input() {
         implements_unpin::<PrepareSecRequestInput<CompanyFacts>>();
+    }
+
+    #[test]
+    fn should_write_request_input_under_cik_when_serializing_company_facts_input() {
+        let input = create_test_input();
+
+        let expected_result = serde_json::json!({ "cik": { "value": "0001067983" } });
+
+        let result = serde_json::to_value(input)
+            .expect("Given an input of domain types, serialization should always succeed");
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_write_request_input_under_notes_period_when_serializing_notes_file_input() {
+        let period = NotesPeriod::new("2024q1")
+            .expect("Given a published period, NotesPeriod creation should always succeed");
+        let input = PrepareSecRequestInput::<NotesFile>::new(period);
+
+        let expected_result = serde_json::json!({
+            "notes_period": serde_json::to_value(period)
+                .expect("Given a domain type, serialization should always succeed"),
+        });
+
+        let result = serde_json::to_value(input)
+            .expect("Given an input of domain types, serialization should always succeed");
+
+        assert_eq!(result, expected_result);
     }
 }
