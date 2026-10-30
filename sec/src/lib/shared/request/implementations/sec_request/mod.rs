@@ -35,17 +35,6 @@ use constants::{SEC_COMPANY_FACTS_URL_PREFIX, SEC_COMPANY_FACTS_URL_SUFFIX, SEC_
 ///
 /// - [`CompanyFacts`], the default: built from a [`Cik`].
 /// - [`NotesFile`]: built from a [`NotesPeriod`].
-///
-/// The kind decides the input, so a request of one kind cannot be built from the input of another:
-///
-/// ```compile_fail,E0308
-/// use sec::shared::cik::Cik;
-/// use sec::shared::request::SecRequest as SecRequestTrait;
-/// use sec::shared::request::implementations::sec_request::{NotesFile, SecRequest};
-///
-/// let cik = Cik::new("1067983").expect("A hardcoded valid CIK should always parse");
-/// let _request = SecRequest::<NotesFile>::new(cik);
-/// ```
 #[derive(Debug)]
 pub struct SecRequest<K: RequestKind = CompanyFacts> {
     /// The raw HTTP request type this struct wraps.
@@ -106,6 +95,18 @@ impl<K: RequestKind> SecRequestTrait for SecRequest<K> {
     }
 
     /// Builds the request from the [`SecRequestType`] that `K` makes from `request_input`.
+    ///
+    /// The kind decides the input, so a request of one kind cannot be built from the input of
+    /// another:
+    ///
+    /// ```compile_fail,E0308
+    /// use sec::shared::cik::Cik;
+    /// use sec::shared::request::SecRequest as SecRequestTrait;
+    /// use sec::shared::request::implementations::sec_request::{NotesFile, SecRequest};
+    ///
+    /// let cik = Cik::new("1067983").expect("A hardcoded valid CIK should always parse");
+    /// let _request = SecRequest::<NotesFile>::new(cik);
+    /// ```
     fn new(request_input: Self::RequestInput) -> Self {
         let url = match K::request_type(request_input) {
             SecRequestType::FetchAllCompanyFacts { cik } => {
@@ -167,8 +168,9 @@ impl<K: RequestKind> Ord for SecRequest<K> {
 
 /// The high-level SEC request kinds that are supported.
 ///
-/// Each variant carries the domain inputs that request needs; building an [`SecRequest`] from it
-/// derives the correct endpoint URL and HTTP method.
+/// Each variant carries the domain inputs that request needs. A [`RequestKind`] builds the variant,
+/// and [`SecRequest::new`](crate::shared::request::SecRequest::new) derives the endpoint URL and
+/// HTTP method from it.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize)]
 #[non_exhaustive]
 pub enum SecRequestType {
@@ -249,27 +251,30 @@ mod tests {
     }
 
     #[test]
-    fn should_match_the_builder_when_generic_code_builds_a_company_facts_request() {
-        let cik = Cik::new("0001234567").expect("Hardcoded CIK should be valid");
+    fn should_build_the_company_facts_url_when_generic_code_builds_a_company_facts_request() {
+        let cik = Cik::new("0001234567")
+            .expect("Given a hardcoded 10-digit CIK, Cik creation should always succeed");
 
-        let expected_result = SecRequest::builder()
-            .all_company_facts()
-            .cik(cik.clone())
-            .build();
+        let expected_result =
+            Url::parse("https://data.sec.gov/api/xbrl/companyfacts/CIK0001234567.json")
+                .expect("Hardcoded URL should always be valid");
 
-        let result = build_for_kind::<CompanyFacts>(cik);
+        let result = build_for_kind::<CompanyFacts>(cik).inner().url().clone();
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
-    fn should_match_the_builder_when_generic_code_builds_a_notes_file_request() {
+    fn should_build_the_notes_url_when_generic_code_builds_a_notes_file_request() {
         let period = NotesPeriod::new("2024q1")
             .expect("Given a published period, NotesPeriod creation should always succeed");
 
-        let expected_result = SecRequest::builder().notes_file().period(period).build();
+        let expected_result = Url::parse(
+            "https://www.sec.gov/files/dera/data/financial-statement-notes-data-sets/2024q1_notes.zip",
+        )
+        .expect("Hardcoded URL should always be valid");
 
-        let result = build_for_kind::<NotesFile>(period);
+        let result = build_for_kind::<NotesFile>(period).inner().url().clone();
 
         assert_eq!(result, expected_result);
     }

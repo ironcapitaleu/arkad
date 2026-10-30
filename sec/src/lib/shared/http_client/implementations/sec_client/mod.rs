@@ -55,22 +55,6 @@ static GLOBAL_RATE_LIMITER: OnceLock<SecRateLimiter> = OnceLock::new();
 /// The [`ReqwestClient`] holds the [`UserAgent`] that every request carries.
 /// [`SecClient::user_agent`] returns it, so other code reads the `User-Agent` from the client
 /// that sends it. Two clients are equal if they send the same `User-Agent`.
-///
-/// # Request Kinds
-///
-/// [`execute_sec_request`](SecClientTrait::execute_sec_request) takes a
-/// [`SecRequest<CompanyFacts>`], and [`download_sec_file`](SecClient::download_sec_file) takes a
-/// [`SecRequest<NotesFile>`]. A Notes request does not compile with `execute_sec_request`:
-///
-/// ```compile_fail,E0308
-/// use sec::shared::http_client::SecClient as SecClientTrait;
-/// use sec::shared::http_client::implementations::sec_client::SecClient;
-/// use sec::shared::request::implementations::sec_request::{NotesFile, SecRequest};
-///
-/// fn execute_notes_request(client: &SecClient, request: SecRequest<NotesFile>) {
-///     let _response = client.execute_sec_request(request);
-/// }
-/// ```
 #[derive(Debug, Clone)]
 pub struct SecClient {
     inner: ReqwestClient,
@@ -211,6 +195,19 @@ impl SecClientTrait for SecClient {
         &self.rate_limiter
     }
 
+    /// Executes a Company Facts request and returns its JSON response.
+    ///
+    /// A Notes request does not compile here:
+    ///
+    /// ```compile_fail,E0308
+    /// use sec::shared::http_client::SecClient as SecClientTrait;
+    /// use sec::shared::http_client::implementations::sec_client::SecClient;
+    /// use sec::shared::request::implementations::sec_request::{NotesFile, SecRequest};
+    ///
+    /// fn execute_notes_request(client: &SecClient, request: SecRequest<NotesFile>) {
+    ///     let _response = client.execute_sec_request(request);
+    /// }
+    /// ```
     async fn execute_sec_request(
         &self,
         request: Self::Request,

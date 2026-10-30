@@ -17,8 +17,8 @@ use super::SecRequestType;
 /// The kind of a [`SecRequest`](super::SecRequest): the input it needs and the
 /// [`SecRequestType`] it builds from that input.
 ///
-/// A new kind implements this trait once and gets
-/// [`SecRequest::new`](crate::shared::request::SecRequest::new) for free.
+/// A new kind implements this trait, adds a [`SecRequestType`] variant, and adds the URL of that
+/// variant in [`SecRequest::new`](crate::shared::request::SecRequest::new).
 pub trait RequestKind: Debug + Send + Sync {
     /// The domain input of the request, for example a [`Cik`].
     type Input;
@@ -62,7 +62,8 @@ mod tests {
 
     #[test]
     fn should_return_fetch_all_company_facts_for_company_facts_kind() {
-        let cik = Cik::new("0001234567").expect("Hardcoded CIK should be valid");
+        let cik = Cik::new("0001234567")
+            .expect("Given a hardcoded 10-digit CIK, Cik creation should always succeed");
 
         let expected_result = SecRequestType::FetchAllCompanyFacts { cik: cik.clone() };
 

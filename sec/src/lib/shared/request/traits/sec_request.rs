@@ -18,7 +18,7 @@ use crate::shared::request::implementations::sec_request::RequestKind;
 ///
 /// - `Inner`: The raw HTTP request this trait delegates to. Must implement [`InnerRequest`].
 /// - `RequestInput`: The input data from which the request is constructed.
-/// - `Kind`: The [`RequestKind`] of the request, which lets a client accept requests by kind.
+/// - `Kind`: The [`RequestKind`] of the request.
 #[async_trait]
 pub trait SecRequest: Send + Sync + Debug {
     /// The raw HTTP request this trait delegates to. Must implement [`InnerRequest`].

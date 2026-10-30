@@ -207,7 +207,8 @@ error. A later improvement can compare the list with the SEC page.
     `SecRequest<CompanyFacts>`, and `.notes_file().period(p).build()` returns `SecRequest<NotesFile>`.
   - Generic code builds a request without the builder: `SecRequest::<K>::new(input)`, with
     `input: K::Input`. A wrong input does not compile.
-  - The request knows nothing about responses. The client maps each kind to its body kind.
+  - The request knows nothing about responses. STA-382 adds the map from a kind to its body kind
+    in the client.
 
 ### Download
 

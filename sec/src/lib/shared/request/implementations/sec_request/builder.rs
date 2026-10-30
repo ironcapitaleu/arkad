@@ -8,9 +8,6 @@
 //! once every required field is set. This encodes the request's required inputs in the type
 //! system, so a missing or irrelevant field is a compile error rather than a runtime check.
 //!
-//! The builder sets the kind, so `build()` returns a [`SecRequest<CompanyFacts>`] or a
-//! [`SecRequest<NotesFile>`].
-//!
 //! ## Usage
 //!
 //! ```
