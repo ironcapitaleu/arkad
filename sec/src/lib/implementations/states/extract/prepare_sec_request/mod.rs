@@ -64,7 +64,7 @@ use serde::Serialize;
 use state_maschine::prelude::State as SMState;
 
 use crate::error::State as StateError;
-use crate::implementations::states::extract::state_repository::StateRepository;
+use crate::shared::raw_repository::RawRepository;
 use crate::shared::request::SecRequest as SecRequestTrait;
 use crate::shared::request::implementations::sec_request::{
     CompanyFacts, NotesFile, RequestKind, SecRequest,
@@ -159,7 +159,7 @@ impl<K: RequestKind, R> PrepareSecRequest<K, R> {
 }
 
 #[async_trait]
-impl<K: RequestKind, R: StateRepository> State for PrepareSecRequest<K, R> {
+impl<K: RequestKind, R: RawRepository<K::Source>> State for PrepareSecRequest<K, R> {
     /// Builds the [`SecRequest`] for the request input and stores it as output.
     ///
     /// # Errors
@@ -174,7 +174,7 @@ impl<K: RequestKind, R: StateRepository> State for PrepareSecRequest<K, R> {
     }
 }
 
-impl<K: RequestKind, R: StateRepository> SMState for PrepareSecRequest<K, R> {
+impl<K: RequestKind, R: RawRepository<K::Source>> SMState for PrepareSecRequest<K, R> {
     type InputData = PrepareSecRequestInput<K>;
     type OutputData = PrepareSecRequestOutput<K>;
     type Context = PrepareSecRequestContext<K, R>;
@@ -222,7 +222,7 @@ impl<K: RequestKind, R: StateRepository> SMState for PrepareSecRequest<K, R> {
     }
 }
 
-impl<K: RequestKind, R: StateRepository> fmt::Display for PrepareSecRequest<K, R> {
+impl<K: RequestKind, R: RawRepository<K::Source>> fmt::Display for PrepareSecRequest<K, R> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
@@ -552,7 +552,7 @@ mod tests {
         let mut state = PrepareSecRequest::builder()
             .notes_file()
             .period(period)
-            .repository(FakeWriteRepository::new())
+            .repository(FakeNotesRepository::new())
             .build();
 
         let expected_result = Some(&PrepareSecRequestOutput::new(SecRequest::new(period)));

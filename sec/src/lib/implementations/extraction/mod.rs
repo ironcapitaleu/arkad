@@ -35,7 +35,8 @@ use crate::implementations::states::extract::notes::ExtractNotesSuperState;
 use crate::implementations::states::extract::notes::builder::{
     ExtractNotesSuperStateBuilder, NoPeriod, NoRepository, NoSecClient,
 };
-use crate::implementations::states::extract::notes_repository::NotesRepository;
+use crate::shared::raw_repository::RawRepository;
+use crate::shared::raw_source::RawNotesArchive;
 
 /// Builds the extract super-states by ingestion mode and source.
 ///
@@ -84,7 +85,7 @@ impl Backfill {
     ///
     /// The builder still needs a period, an SEC client, and a repository of type `R`.
     #[must_use]
-    pub fn notes<R: NotesRepository>(
+    pub fn notes<R: RawRepository<RawNotesArchive>>(
         &self,
     ) -> ExtractNotesSuperStateBuilder<NoPeriod, NoSecClient, Uuid, NoRepository<R>> {
         ExtractNotesSuperState::builder().execution_id(self.execution_id)

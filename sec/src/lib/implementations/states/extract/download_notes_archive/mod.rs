@@ -60,10 +60,11 @@ use state_maschine::prelude::State as SMState;
 
 use crate::error::State as StateError;
 use crate::error::state_machine::state::FailedRequestExecution;
-use crate::implementations::states::extract::notes_repository::NotesRepository;
 use crate::shared::http_client::SecClient as SecClientTrait;
 use crate::shared::http_client::implementations::sec_client::SecClient;
 use crate::shared::http_client::implementations::sec_client::error::FailedSecRequest;
+use crate::shared::raw_repository::RawRepository;
+use crate::shared::raw_source::RawNotesArchive;
 use crate::shared::response::implementations::sec_response::{SecResponse, ZipBody};
 use crate::traits::state_machine::state::State;
 
@@ -149,7 +150,7 @@ impl<R, C> DownloadNotesArchive<R, C> {
 #[async_trait]
 impl<R, C> State for DownloadNotesArchive<R, C>
 where
-    R: NotesRepository,
+    R: RawRepository<RawNotesArchive>,
     C: SecClientTrait<Response<ZipBody> = SecResponse<ZipBody>, Error = FailedSecRequest>,
 {
     /// Downloads the Notes file of the input request and stores it as output.
@@ -176,7 +177,7 @@ where
 
 impl<R, C> SMState for DownloadNotesArchive<R, C>
 where
-    R: NotesRepository,
+    R: RawRepository<RawNotesArchive>,
     C: SecClientTrait<Response<ZipBody> = SecResponse<ZipBody>, Error = FailedSecRequest>,
 {
     type InputData = DownloadNotesArchiveInput;
@@ -221,7 +222,9 @@ where
     }
 }
 
-impl<R: NotesRepository, C: SecClientTrait> fmt::Display for DownloadNotesArchive<R, C> {
+impl<R: RawRepository<RawNotesArchive>, C: SecClientTrait> fmt::Display
+    for DownloadNotesArchive<R, C>
+{
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,

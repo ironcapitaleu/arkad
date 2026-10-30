@@ -90,7 +90,9 @@ mod tests {
     use crate::shared::request::implementations::sec_request::{
         CompanyFacts, NotesFile, SecRequest,
     };
-    use crate::tests::fixtures::sample_write_repository::FakeWriteRepository;
+    use crate::tests::fixtures::sample_write_repository::{
+        FakeNotesRepository, FakeWriteRepository,
+    };
     use crate::traits::state_machine::state::State;
 
     #[test]
@@ -197,7 +199,7 @@ mod tests {
         let mut state = PrepareSecRequest::builder()
             .notes_file()
             .period(period)
-            .repository(FakeWriteRepository::new())
+            .repository(FakeNotesRepository::new())
             .build();
         state
             .compute_output_data_async()

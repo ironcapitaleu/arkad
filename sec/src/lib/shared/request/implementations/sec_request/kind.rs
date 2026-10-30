@@ -14,6 +14,7 @@ use serde::Serialize;
 
 use crate::shared::cik::Cik;
 use crate::shared::notes_period::NotesPeriod;
+use crate::shared::raw_source::{RawCompanyFacts, RawNotesArchive, RawSource};
 
 use super::SecRequestType;
 
@@ -25,6 +26,9 @@ use super::SecRequestType;
 pub trait RequestKind: Debug + Clone + Eq + Ord + Hash + Send + Sync + Unpin {
     /// The domain input of the request, for example a [`Cik`].
     type Input: Debug + Display + Clone + Eq + Ord + Hash + Serialize + Send + Sync + Unpin;
+
+    /// The SEC file that the response to a request of this kind is stored as.
+    type Source: RawSource;
 
     /// The name of the input in serialized data, for example `cik`.
     const INPUT_NAME: &'static str;
@@ -43,6 +47,7 @@ pub struct CompanyFacts;
 
 impl RequestKind for CompanyFacts {
     type Input = Cik;
+    type Source = RawCompanyFacts;
 
     const INPUT_NAME: &'static str = "cik";
 
@@ -59,6 +64,7 @@ pub struct NotesFile;
 
 impl RequestKind for NotesFile {
     type Input = NotesPeriod;
+    type Source = RawNotesArchive;
 
     const INPUT_NAME: &'static str = "notes_period";
 

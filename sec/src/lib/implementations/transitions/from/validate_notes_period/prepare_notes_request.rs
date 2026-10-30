@@ -17,12 +17,13 @@ use crate::error::state_machine::transition::Transition as TransitionError;
 use crate::implementations::states::extract::prepare_sec_request::{
     PrepareNotesRequest, PrepareSecRequest,
 };
-use crate::implementations::states::extract::state_repository::StateRepository;
 use crate::implementations::states::extract::validate_notes_period::ValidateNotesPeriod;
 use crate::implementations::states::extract::validate_notes_period::constants::STATE_NAME as VALIDATE_NOTES_PERIOD;
+use crate::shared::raw_repository::RawRepository;
+use crate::shared::raw_source::RawNotesArchive;
 use crate::shared::request::implementations::sec_request::{NotesFile, RequestKind};
 
-impl<R: StateRepository> TryFrom<ValidateNotesPeriod<R>> for PrepareNotesRequest<R> {
+impl<R: RawRepository<RawNotesArchive>> TryFrom<ValidateNotesPeriod<R>> for PrepareNotesRequest<R> {
     type Error = TransitionError;
 
     /// Builds a [`PrepareNotesRequest`] from a computed [`ValidateNotesPeriod`].

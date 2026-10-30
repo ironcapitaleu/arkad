@@ -10,7 +10,8 @@ use serde::Serialize;
 use state_maschine::prelude::Context as SMContext;
 use uuid::Uuid;
 
-use crate::implementations::states::extract::notes_repository::NotesRepository;
+use crate::shared::raw_repository::RawRepository;
+use crate::shared::raw_source::RawNotesArchive;
 use crate::traits::state_machine::state::Context;
 
 /// Context for the [`ValidateNotesPeriod`](super::ValidateNotesPeriod) state.
@@ -51,13 +52,13 @@ impl<R> ValidateNotesPeriodContext<R> {
     }
 }
 
-impl<R: NotesRepository> Context for ValidateNotesPeriodContext<R> {
+impl<R: RawRepository<RawNotesArchive>> Context for ValidateNotesPeriodContext<R> {
     fn max_retries(&self) -> u32 {
         self.max_retries
     }
 }
 
-impl<R: NotesRepository> SMContext for ValidateNotesPeriodContext<R> {
+impl<R: RawRepository<RawNotesArchive>> SMContext for ValidateNotesPeriodContext<R> {
     type UpdateType = ValidateNotesPeriodContextUpdater<R>;
 
     fn context(&self) -> &Self {
