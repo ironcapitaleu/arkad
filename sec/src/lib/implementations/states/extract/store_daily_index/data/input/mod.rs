@@ -26,7 +26,8 @@ use crate::traits::state_machine::state::StateData;
 ///
 /// The response is `None` if the day had no filings, as in
 /// [`DownloadDailyIndexOutput`](crate::implementations::states::extract::download_daily_index::DownloadDailyIndexOutput).
-/// Equality, ordering, and hashing use the SHA-256 digest of the body, not the bytes.
+/// Equality, ordering, and hashing compare the SHA-256 digest of the body, not its bytes, and the
+/// other fields.
 #[derive(Debug, Clone)]
 pub struct StoreDailyIndexInput {
     /// The downloaded daily index, or `None` if the day had no filings.

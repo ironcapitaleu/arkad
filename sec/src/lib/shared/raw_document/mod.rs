@@ -16,7 +16,7 @@ use bytes::Bytes;
 use storage::implementations::repository::filesystem::{Document, DocumentKey, DocumentMetadata};
 
 use crate::shared::document_type::SecDocumentType;
-use crate::shared::raw_source::RawSource;
+use crate::shared::raw_source::{RawFileSource, RawSource};
 use crate::shared::response::SecResponse as SecResponseTrait;
 use crate::shared::response::implementations::sec_response::{SecResponse, ZipBody};
 use crate::shared::run_fields::RunFields;
@@ -172,7 +172,9 @@ impl<S: RawSource> RawDocument<S> {
             .build();
         Self::from_parts(key, raw_body.to_vec(), metadata)
     }
+}
 
+impl<S: RawFileSource> RawDocument<S> {
     /// Creates a new [`RawDocument`] from a raw-bytes response, such as a Notes file or a daily
     /// index, and the fetch that produced it.
     ///
@@ -312,7 +314,7 @@ mod tests {
     use super::*;
     use crate::shared::content_type::ContentType;
     use crate::shared::headers::Headers;
-    use crate::shared::raw_source::{RawCompanyFacts, RawNotesArchive};
+    use crate::shared::raw_source::{RawCompanyFacts, RawDailyIndex, RawNotesArchive};
     use crate::shared::status_code::StatusCode;
     use crate::tests::fixtures::data::notes_archive::SAMPLE_NOTES_ZIP;
 
@@ -742,6 +744,28 @@ mod tests {
         let document = sample_document_from_file();
 
         let expected_result = "raw_notes_archive";
+
+        let result = document.metadata().document_type();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_store_the_raw_daily_index_document_type_when_building_a_daily_index_from_a_file() {
+        let document = RawDocument::<RawDailyIndex>::from_file(
+            sample_notes_key(),
+            &sample_notes_file(),
+            &sample_notes_url(),
+            &sample_user_agent(),
+            RunFields {
+                produced_at: DateTime::<Utc>::UNIX_EPOCH,
+                execution_id: Uuid::nil(),
+                producer: Producer::new("Store Daily Index", "0.1.0", "63c1f59"),
+                ingestion_mode: IngestionMode::Incremental,
+            },
+        );
+
+        let expected_result = "raw_daily_index";
 
         let result = document.metadata().document_type();
 

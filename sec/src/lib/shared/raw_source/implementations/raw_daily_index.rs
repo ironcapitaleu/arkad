@@ -3,7 +3,7 @@
 //! Provides [`RawDailyIndex`], the [`RawSource`] marker for the EDGAR daily index of one day.
 
 use crate::shared::document_type::SecDocumentType;
-use crate::shared::raw_source::traits::RawSource;
+use crate::shared::raw_source::traits::{RawFileSource, RawSource};
 
 /// Marks the EDGAR daily index `form.YYYYMMDD.idx` of one day, as the SEC returns it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -14,11 +14,19 @@ impl RawSource for RawDailyIndex {
     const DOCUMENT_TYPE_VERSION: u32 = 1;
 }
 
+impl RawFileSource for RawDailyIndex {}
+
 #[cfg(test)]
 mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;
+
+    const fn implements_raw_file_source<T: RawFileSource>() {}
+    #[test]
+    const fn should_implement_raw_file_source_for_raw_daily_index() {
+        implements_raw_file_source::<RawDailyIndex>();
+    }
 
     const fn implements_raw_source<T: RawSource>() {}
     #[test]
