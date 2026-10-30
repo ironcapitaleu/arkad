@@ -511,13 +511,15 @@ mostly S-1, S-4, 6-K, and DEF 14A.
 One shared constant holds the form list. Each entry is a `Form` value, not a string:
 
 ```rust
-/// The forms that both ingestion paths extract.
+/// The forms that both ingestion paths keep.
 pub const SELECTED_FORMS: [Form; 4] = [Form::TenK, Form::TenQ, Form::TwentyF, Form::FortyF];
 ```
 
 - `SelectFilings` and the transform of the backfill both read `SELECTED_FORMS`.
-- `Form::from_sec_str` parses the SEC form text. A form with `/A` matches its base form and sets
-  `is_amendment`.
+- `Form::from_sec_str` parses the SEC form text into a `ParsedForm`. A form with `/A` matches its
+  base form and sets `is_amendment`. Any other text returns an `UnsupportedForm` error.
+- The `companyfacts` cross-check still keeps only 10-K and 10-Q, with no amendments. STA-332
+  decides whether to widen it, and how to handle the facts that amendments duplicate.
 - To widen the list later, add a variant to `Form` and to `SELECTED_FORMS`. The raw store already
   holds all forms of the backfill in the Notes ZIPs, and the stored daily indexes list the skipped
   filings. So widening needs no new download of the Notes files.
