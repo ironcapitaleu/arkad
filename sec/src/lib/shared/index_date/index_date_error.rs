@@ -58,7 +58,7 @@ impl Display for InvalidIndexDateReason {
                 let first = FIRST_INDEX_DATE.format("%Y-%m-%d");
                 write!(
                     f,
-                    "The first daily index of the form form.YYYYMMDD.idx is {first}"
+                    "The first daily index named form.YYYYMMDD.idx is {first}"
                 )
             }
             Self::FutureIndexDate { today } => {
@@ -87,7 +87,7 @@ mod tests {
 
     #[test]
     fn should_format_display_with_the_first_index_date_when_reason_is_early_index_date() {
-        let expected_result = "The first daily index of the form form.YYYYMMDD.idx is 1998-05-18";
+        let expected_result = "The first daily index named form.YYYYMMDD.idx is 1998-05-18";
 
         let result = InvalidIndexDateReason::EarlyIndexDate.to_string();
 

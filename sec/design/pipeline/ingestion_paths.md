@@ -451,7 +451,7 @@ three date parts of the URL: the year, the quarter folder `QTR1` to `QTR4`, and 
 rejects two ranges of dates:
 
 - A date before 1998-05-18. Until 1998-05-17, the SEC named the daily index `form.YYMMDD.idx`.
-  Measured on 2026-10-30.
+  The SEC quarter listings showed this on 2026-10-30.
 - A date after the current UTC date. This rejects typos and dates in the future. It does not reject
   every date that the SEC has not yet published: the SEC dates the index in Eastern time and
   publishes it after the day ends. Such a date reaches the 404 rule below and fails with
