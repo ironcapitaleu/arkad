@@ -67,9 +67,10 @@ use state_maschine::prelude::State as SMState;
 
 use crate::error::State as StateError;
 use crate::error::state_machine::state::InvalidCikFormat;
-use crate::implementations::states::extract::store_company_facts::RawCompanyFactsRepository;
 use crate::shared::http_client::SecClient as SecClientTrait;
 use crate::shared::http_client::implementations::sec_client::SecClient;
+use crate::shared::raw_repository::RawRepository;
+use crate::shared::raw_source::RawCompanyFacts;
 use crate::traits::error::FromDomainError;
 use crate::traits::state_machine::state::State;
 
@@ -154,7 +155,7 @@ impl<R, C> ValidateCikFormat<R, C> {
 }
 
 #[async_trait]
-impl<R: RawCompanyFactsRepository, C: SecClientTrait> State for ValidateCikFormat<R, C> {
+impl<R: RawRepository<RawCompanyFacts>, C: SecClientTrait> State for ValidateCikFormat<R, C> {
     /// Validates the raw CIK and, on success, stores the normalized [`Cik`] as output.
     ///
     /// # Errors
@@ -182,7 +183,7 @@ impl<R: RawCompanyFactsRepository, C: SecClientTrait> State for ValidateCikForma
     }
 }
 
-impl<R: RawCompanyFactsRepository, C: SecClientTrait> SMState for ValidateCikFormat<R, C> {
+impl<R: RawRepository<RawCompanyFacts>, C: SecClientTrait> SMState for ValidateCikFormat<R, C> {
     type InputData = ValidateCikFormatInput;
     type OutputData = ValidateCikFormatOutput;
     type Context = ValidateCikFormatContext<R, C>;
@@ -229,7 +230,9 @@ impl<R: RawCompanyFactsRepository, C: SecClientTrait> SMState for ValidateCikFor
     }
 }
 
-impl<R: RawCompanyFactsRepository, C: SecClientTrait> fmt::Display for ValidateCikFormat<R, C> {
+impl<R: RawRepository<RawCompanyFacts>, C: SecClientTrait> fmt::Display
+    for ValidateCikFormat<R, C>
+{
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,

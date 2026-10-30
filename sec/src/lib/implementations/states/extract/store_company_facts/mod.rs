@@ -33,6 +33,7 @@ use crate::shared::build_info::producer;
 use crate::shared::cik::Cik;
 use crate::shared::document_storage::FailedDocumentStorage;
 use crate::shared::raw_document::RawDocument;
+use crate::shared::raw_repository::RawRepository;
 use crate::shared::raw_source::RawCompanyFacts;
 use crate::shared::run_fields::RunFields;
 use crate::traits::state_machine::state::State;
@@ -42,7 +43,7 @@ pub mod context;
 pub mod data;
 
 pub use constants::{COMPANY_FACTS_KEY_PREFIX, COMPANY_FACTS_KEY_SUFFIX, STATE_NAME};
-pub use context::{RawCompanyFactsRepository, StoreCompanyFactsContext};
+pub use context::StoreCompanyFactsContext;
 pub use data::StoreCompanyFactsInput;
 pub use data::StoreCompanyFactsOutput;
 
@@ -93,7 +94,7 @@ fn company_facts_key(cik: &Cik) -> DocumentKey {
 }
 
 #[async_trait]
-impl<R: RawCompanyFactsRepository> State for StoreCompanyFacts<R> {
+impl<R: RawRepository<RawCompanyFacts>> State for StoreCompanyFacts<R> {
     /// Writes the raw document to the repository and stores its key as output.
     ///
     /// # Errors
@@ -135,7 +136,7 @@ impl<R: RawCompanyFactsRepository> State for StoreCompanyFacts<R> {
     }
 }
 
-impl<R: RawCompanyFactsRepository> SMState for StoreCompanyFacts<R> {
+impl<R: RawRepository<RawCompanyFacts>> SMState for StoreCompanyFacts<R> {
     type InputData = StoreCompanyFactsInput;
     type OutputData = StoreCompanyFactsOutput;
     type Context = StoreCompanyFactsContext<R>;
@@ -183,7 +184,7 @@ impl<R: RawCompanyFactsRepository> SMState for StoreCompanyFacts<R> {
     }
 }
 
-impl<R: RawCompanyFactsRepository> fmt::Display for StoreCompanyFacts<R> {
+impl<R: RawRepository<RawCompanyFacts>> fmt::Display for StoreCompanyFacts<R> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,

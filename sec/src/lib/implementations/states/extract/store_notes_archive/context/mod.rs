@@ -10,7 +10,8 @@ use serde::Serialize;
 use state_maschine::prelude::Context as SMContext;
 use uuid::Uuid;
 
-use crate::implementations::states::extract::notes_repository::NotesRepository;
+use crate::shared::raw_repository::RawRepository;
+use crate::shared::raw_source::RawNotesArchive;
 use crate::traits::state_machine::state::Context;
 
 /// Context for the [`StoreNotesArchive`](super::StoreNotesArchive) state.
@@ -56,13 +57,13 @@ impl<R> StoreNotesArchiveContext<R> {
     }
 }
 
-impl<R: NotesRepository> Context for StoreNotesArchiveContext<R> {
+impl<R: RawRepository<RawNotesArchive>> Context for StoreNotesArchiveContext<R> {
     fn max_retries(&self) -> u32 {
         self.max_retries
     }
 }
 
-impl<R: NotesRepository> SMContext for StoreNotesArchiveContext<R> {
+impl<R: RawRepository<RawNotesArchive>> SMContext for StoreNotesArchiveContext<R> {
     type UpdateType = StoreNotesArchiveContextUpdater<R>;
 
     fn context(&self) -> &Self {

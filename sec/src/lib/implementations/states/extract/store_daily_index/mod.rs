@@ -23,11 +23,11 @@ use storage::implementations::repository::filesystem::{DocumentKey, IngestionMod
 
 use crate::error::State as StateError;
 use crate::error::state_machine::state::FailedDocumentWrite;
-use crate::implementations::states::extract::daily_index_repository::DailyIndexRepository;
 use crate::shared::build_info::producer;
 use crate::shared::document_storage::FailedDocumentStorage;
 use crate::shared::index_date::IndexDate;
 use crate::shared::raw_document::RawDocument;
+use crate::shared::raw_repository::RawRepository;
 use crate::shared::raw_source::RawDailyIndex;
 use crate::shared::run_fields::RunFields;
 use crate::traits::state_machine::state::State;
@@ -87,7 +87,7 @@ fn daily_index_key(date: IndexDate) -> DocumentKey {
 }
 
 #[async_trait]
-impl<R: DailyIndexRepository> State for StoreDailyIndex<R> {
+impl<R: RawRepository<RawDailyIndex>> State for StoreDailyIndex<R> {
     /// Writes the daily index to the repository and stores its key and text as output.
     ///
     /// # Errors
@@ -126,7 +126,7 @@ impl<R: DailyIndexRepository> State for StoreDailyIndex<R> {
     }
 }
 
-impl<R: DailyIndexRepository> SMState for StoreDailyIndex<R> {
+impl<R: RawRepository<RawDailyIndex>> SMState for StoreDailyIndex<R> {
     type InputData = StoreDailyIndexInput;
     type OutputData = StoreDailyIndexOutput;
     type Context = StoreDailyIndexContext<R>;
@@ -169,7 +169,7 @@ impl<R: DailyIndexRepository> SMState for StoreDailyIndex<R> {
     }
 }
 
-impl<R: DailyIndexRepository> fmt::Display for StoreDailyIndex<R> {
+impl<R: RawRepository<RawDailyIndex>> fmt::Display for StoreDailyIndex<R> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,

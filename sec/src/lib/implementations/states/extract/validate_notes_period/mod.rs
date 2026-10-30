@@ -54,8 +54,9 @@ use state_maschine::prelude::State as SMState;
 
 use crate::error::State as StateError;
 use crate::error::state_machine::state::InvalidNotesPeriod;
-use crate::implementations::states::extract::notes_repository::NotesRepository;
 use crate::shared::notes_period::NotesPeriod;
+use crate::shared::raw_repository::RawRepository;
+use crate::shared::raw_source::RawNotesArchive;
 use crate::traits::error::FromDomainError;
 use crate::traits::state_machine::state::State;
 
@@ -133,7 +134,7 @@ impl<R> ValidateNotesPeriod<R> {
 }
 
 #[async_trait]
-impl<R: NotesRepository> State for ValidateNotesPeriod<R> {
+impl<R: RawRepository<RawNotesArchive>> State for ValidateNotesPeriod<R> {
     /// Validates the raw period and stores the [`NotesPeriod`] as output.
     ///
     /// # Errors
@@ -147,7 +148,7 @@ impl<R: NotesRepository> State for ValidateNotesPeriod<R> {
     }
 }
 
-impl<R: NotesRepository> SMState for ValidateNotesPeriod<R> {
+impl<R: RawRepository<RawNotesArchive>> SMState for ValidateNotesPeriod<R> {
     type InputData = ValidateNotesPeriodInput;
     type OutputData = ValidateNotesPeriodOutput;
     type Context = ValidateNotesPeriodContext<R>;
@@ -190,7 +191,7 @@ impl<R: NotesRepository> SMState for ValidateNotesPeriod<R> {
     }
 }
 
-impl<R: NotesRepository> fmt::Display for ValidateNotesPeriod<R> {
+impl<R: RawRepository<RawNotesArchive>> fmt::Display for ValidateNotesPeriod<R> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,

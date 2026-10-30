@@ -14,12 +14,13 @@ use uuid::Uuid;
 use crate::implementations::states::extract::notes::{
     ExtractNotesSuperState, ExtractNotesSuperStateContext, ExtractNotesSuperStateData,
 };
-use crate::implementations::states::extract::notes_repository::NotesRepository;
 use crate::implementations::states::extract::validate_notes_period::{
     ValidateNotesPeriod, ValidateNotesPeriodContext, ValidateNotesPeriodInput,
 };
 use crate::shared::http_client::SecClient as SecClientTrait;
 use crate::shared::http_client::implementations::sec_client::error::FailedSecRequest;
+use crate::shared::raw_repository::RawRepository;
+use crate::shared::raw_source::RawNotesArchive;
 use crate::shared::response::implementations::sec_response::{SecResponse, ZipBody};
 
 /// Marks a builder that holds no period yet.
@@ -39,7 +40,7 @@ pub struct NoExecutionId;
 /// The marker carries `R`. The compiler infers `R` from the value passed to
 /// [`repository`](ExtractNotesSuperStateBuilder::repository).
 // Deviation: the derives bound `R` on each trait, although the marker holds no `R`. Every
-// `NotesRepository` implements these traits, so the bounds cost nothing here.
+// `RawRepository<RawNotesArchive>` implements these traits, so the bounds cost nothing here.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct NoRepository<R>(PhantomData<fn() -> R>);
 
@@ -145,7 +146,9 @@ impl<P, C, E, R> ExtractNotesSuperStateBuilder<P, C, E, NoRepository<R>> {
     }
 }
 
-impl<C: SecClientTrait, R: NotesRepository> ExtractNotesSuperStateBuilder<String, C, Uuid, R> {
+impl<C: SecClientTrait, R: RawRepository<RawNotesArchive>>
+    ExtractNotesSuperStateBuilder<String, C, Uuid, R>
+{
     /// Builds an [`ExtractNotesSuperState`] at [`ValidateNotesPeriod`] with the fields this
     /// builder holds.
     ///

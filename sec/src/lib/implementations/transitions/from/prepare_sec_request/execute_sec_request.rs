@@ -33,7 +33,6 @@ use crate::implementations::states::extract::execute_sec_request::constants::STA
 use crate::implementations::states::extract::execute_sec_request::{
     ExecuteSecRequest, ExecuteSecRequestContext, ExecuteSecRequestInput,
 };
-use crate::implementations::states::extract::prepare_sec_request::constants::STATE_NAME as PREPARE_SEC_REQUEST;
 use crate::implementations::states::extract::prepare_sec_request::{
     PrepareSecRequest, PrepareSecRequestContext,
 };
@@ -63,7 +62,7 @@ impl<K: RespondsWith, R, C: SecClientTrait> TryFrom<(PrepareSecRequest<K, R>, C)
     ) -> Result<Self, TransitionError> {
         let (_input, output, context) = state.into_parts();
         let output_data = output.ok_or_else(|| {
-            transition::MissingOutput::new(PREPARE_SEC_REQUEST, EXECUTE_SEC_REQUEST)
+            transition::MissingOutput::new(K::PREPARE_STATE_NAME, EXECUTE_SEC_REQUEST)
         })?;
 
         let new_context: ExecuteSecRequestContext<K, R> = context.into();
@@ -91,7 +90,9 @@ mod tests {
     use crate::shared::request::implementations::sec_request::{
         CompanyFacts, NotesFile, SecRequest,
     };
-    use crate::tests::fixtures::sample_write_repository::FakeWriteRepository;
+    use crate::tests::fixtures::sample_write_repository::{
+        FakeNotesRepository, FakeWriteRepository,
+    };
     use crate::traits::state_machine::state::State;
 
     #[test]
@@ -198,7 +199,7 @@ mod tests {
         let mut state = PrepareSecRequest::builder()
             .notes_file()
             .period(period)
-            .repository(FakeWriteRepository::new())
+            .repository(FakeNotesRepository::new())
             .build();
         state
             .compute_output_data_async()

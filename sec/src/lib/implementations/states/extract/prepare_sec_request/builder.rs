@@ -8,9 +8,6 @@
 //! [`build`](PrepareSecRequestBuilder::build) exists only once the builder holds the input of its
 //! kind and a repository. If the builder lacks either one, the call to `build` does not compile.
 //!
-//! The repository bound is the Company Facts one until STA-385, so the Notes file example below
-//! also uses a Company Facts repository.
-//!
 //! ## Usage
 //!
 //! ```
@@ -18,11 +15,11 @@
 //! use sec::shared::notes_period::NotesPeriod;
 //! use state_maschine::prelude::State as SMState;
 //! # use sec::shared::raw_document::RawDocument;
-//! # use sec::shared::raw_source::RawCompanyFacts;
+//! # use sec::shared::raw_source::RawNotesArchive;
 //! # use storage::implementations::repository::filesystem::FilesystemRepository;
 //! # let repository = FilesystemRepository::builder()
 //! #     .writer()
-//! #     .document_type::<RawDocument<RawCompanyFacts>>()
+//! #     .document_type::<RawDocument<RawNotesArchive>>()
 //! #     .root("data")
 //! #     .build();
 //!
@@ -68,16 +65,41 @@
 //! let cik = Cik::new("1067983").expect("A hardcoded valid CIK should always parse");
 //! let state = PrepareSecRequest::builder().all_company_facts().cik(cik).build();
 //! ```
+//!
+//! The repository must store the raw source of the kind. So a Notes file request with a Company
+//! Facts repository does not compile:
+//!
+//! ```compile_fail,E0599
+//! use sec::implementations::states::extract::prepare_sec_request::PrepareSecRequest;
+//! use sec::shared::notes_period::NotesPeriod;
+//! # use sec::shared::raw_document::RawDocument;
+//! # use sec::shared::raw_source::RawCompanyFacts;
+//! # use storage::implementations::repository::filesystem::FilesystemRepository;
+//! # let repository = FilesystemRepository::builder()
+//! #     .writer()
+//! #     .document_type::<RawDocument<RawCompanyFacts>>()
+//! #     .root("data")
+//! #     .build();
+//!
+//! let period = NotesPeriod::new("2024q1").expect("A hardcoded valid period should always parse");
+//! let state = PrepareSecRequest::builder()
+//!     .notes_file()
+//!     .period(period)
+//!     .repository(repository)
+//!     .build();
+//! ```
 
 use std::marker::PhantomData;
 
 use crate::implementations::states::extract::prepare_sec_request::{
     PrepareSecRequest, PrepareSecRequestContext, PrepareSecRequestInput,
 };
-use crate::implementations::states::extract::store_company_facts::RawCompanyFactsRepository;
 use crate::shared::cik::Cik;
 use crate::shared::notes_period::NotesPeriod;
-use crate::shared::request::implementations::sec_request::{CompanyFacts, NotesFile, RequestKind};
+use crate::shared::raw_repository::RawRepository;
+use crate::shared::request::implementations::sec_request::{
+    CompanyFacts, NotesFile, RequestKind, StoredAs,
+};
 
 /// Marks a builder that has no request kind yet.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -186,7 +208,7 @@ impl<K, I, R> PrepareSecRequestBuilder<K, I, NoRepository<R>> {
     }
 }
 
-impl<K: RequestKind, R: RawCompanyFactsRepository> PrepareSecRequestBuilder<K, K::Input, R> {
+impl<K: StoredAs, R: RawRepository<K::Source>> PrepareSecRequestBuilder<K, K::Input, R> {
     /// Builds a [`PrepareSecRequest`] with no output computed yet.
     ///
     /// # Examples
@@ -247,7 +269,9 @@ mod tests {
     use crate::shared::cik::constants::BERKSHIRE_HATHAWAY_CIK_RAW;
     use crate::shared::notes_period::NotesPeriod;
     use crate::shared::request::implementations::sec_request::NotesFile;
-    use crate::tests::fixtures::sample_write_repository::FakeWriteRepository;
+    use crate::tests::fixtures::sample_write_repository::{
+        FakeNotesRepository, FakeWriteRepository,
+    };
 
     #[test]
     fn should_build_company_facts_state_for_cik_and_repository() {
@@ -275,13 +299,13 @@ mod tests {
 
         let expected_result = PrepareSecRequest::<NotesFile, _>::new(
             PrepareSecRequestInput::new(period),
-            PrepareSecRequestContext::new(period, FakeWriteRepository::new()),
+            PrepareSecRequestContext::new(period, FakeNotesRepository::new()),
         );
 
         let result = PrepareSecRequest::builder()
             .notes_file()
             .period(period)
-            .repository(FakeWriteRepository::new())
+            .repository(FakeNotesRepository::new())
             .build();
 
         assert_eq!(result, expected_result);
