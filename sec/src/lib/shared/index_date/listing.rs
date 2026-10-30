@@ -69,7 +69,7 @@ mod tests {
     }
 
     #[test]
-    fn should_return_the_dates_of_all_form_indexes_in_listing_order() {
+    fn should_return_the_dates_in_listing_order_when_the_listing_has_form_indexes() {
         let expected_result = vec![date(2026, 10, 27), date(2026, 10, 28)];
 
         let result = listed_index_dates(&listing(&["form.20261027.idx", "form.20261028.idx"]));
@@ -78,7 +78,7 @@ mod tests {
     }
 
     #[test]
-    fn should_ignore_the_names_of_other_index_types() {
+    fn should_return_no_dates_when_the_listing_has_only_other_index_types() {
         let expected_result: Vec<NaiveDate> = Vec::new();
 
         let result = listed_index_dates(&listing(&[
@@ -92,7 +92,7 @@ mod tests {
     }
 
     #[test]
-    fn should_ignore_the_two_digit_year_name_of_1998() {
+    fn should_ignore_the_name_when_its_year_has_two_digits() {
         let expected_result = vec![date(1998, 10, 27)];
 
         let result = listed_index_dates(&listing(&["form.981027.idx", "form.19981027.idx"]));
@@ -101,7 +101,7 @@ mod tests {
     }
 
     #[test]
-    fn should_ignore_a_name_whose_date_has_seven_digits() {
+    fn should_ignore_the_name_when_its_date_has_seven_digits() {
         let expected_result: Vec<NaiveDate> = Vec::new();
 
         let result = listed_index_dates(&listing(&["form.2026102.idx"]));
@@ -110,7 +110,7 @@ mod tests {
     }
 
     #[test]
-    fn should_ignore_a_name_whose_date_has_a_space() {
+    fn should_ignore_the_name_when_its_date_has_a_space() {
         let expected_result: Vec<NaiveDate> = Vec::new();
 
         let result = listed_index_dates(&listing(&["form.202610 2.idx"]));
@@ -119,7 +119,7 @@ mod tests {
     }
 
     #[test]
-    fn should_ignore_a_name_whose_date_does_not_exist() {
+    fn should_ignore_the_name_when_its_date_does_not_exist() {
         let expected_result: Vec<NaiveDate> = Vec::new();
 
         let result = listed_index_dates(&listing(&["form.20260230.idx"]));
