@@ -15,4 +15,4 @@
 pub mod implementations;
 pub mod traits;
 
-pub use traits::{HasResponseBody, InnerClient, SecClient};
+pub use traits::{InnerClient, RespondsWith, SecClient};

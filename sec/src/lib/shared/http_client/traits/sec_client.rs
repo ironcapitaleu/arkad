@@ -12,7 +12,7 @@ use crate::shared::response::SecResponse as SecResponseTrait;
 use crate::shared::response::implementations::sec_response::ResponseBody;
 use crate::shared::user_agent::UserAgent;
 
-use super::HasResponseBody;
+use super::RespondsWith;
 
 /// The domain-level SEC HTTP client: executes an SEC request and returns an SEC response.
 ///
@@ -83,10 +83,13 @@ pub trait SecClient: Debug + Clone + Eq + Ord + Hash + Send + Sync + Unpin + Ser
     ///
     /// Returns `Self::Error` if the request fails at the network level or the response fails
     /// SEC validation.
-    async fn execute_sec_request<K: HasResponseBody>(
+    async fn execute_sec_request<K>(
         &self,
         request: SecRequest<K>,
-    ) -> Result<Self::Response<K::Body>, Self::Error> {
+    ) -> Result<Self::Response<K::Body>, Self::Error>
+    where
+        K: RespondsWith,
+    {
         self.rate_limiter().await_turn().await;
 
         let inner_response = self

@@ -224,7 +224,7 @@ The download goes through the existing layers: `SecRequest` → `SecClient` → 
 body. `SecResponse<JsonBody>`, the default, holds a Company Facts reply. `SecResponse<ZipBody>`
 holds a Notes file.
 
-The `HasResponseBody` trait on the client side maps each request kind to its body kind, once for
+The `RespondsWith` trait on the client side maps each request kind to its body kind, once for
 every client. `CompanyFacts` has `Body = JsonBody`, and `NotesFile` has `Body = ZipBody`. This
 keeps `shared::request` independent of `shared::response`.
 
@@ -232,10 +232,12 @@ The `SecClient` trait has one method for every kind. Its default body waits on t
 sends the request through the inner client, and builds the response:
 
 ```rust
-async fn execute_sec_request<K: HasResponseBody>(
+async fn execute_sec_request<K>(
     &self,
     request: SecRequest<K>,
-) -> Result<Self::Response<K::Body>, Self::Error>;
+) -> Result<Self::Response<K::Body>, Self::Error>
+where
+    K: RespondsWith;
 ```
 
 `Response<B>` is a generic associated type, so the trait names no `reqwest` or `http` type. The

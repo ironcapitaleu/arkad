@@ -200,10 +200,13 @@ pub trait SecClient: Debug + Clone + Eq + Ord + Hash + Send + Sync + Unpin + Ser
     fn rate_limiter(&self) -> &Self::Limiter;
     fn user_agent(&self) -> &UserAgent;
 
-    async fn execute_sec_request<K: HasResponseBody>(
+    async fn execute_sec_request<K>(
         &self,
         request: SecRequest<K>,
-    ) -> Result<Self::Response<K::Body>, Self::Error> {
+    ) -> Result<Self::Response<K::Body>, Self::Error>
+    where
+        K: RespondsWith,
+    {
         self.rate_limiter().await_turn().await;
 
         let inner_response = self
