@@ -9,25 +9,27 @@
 //!
 //! ## Modules
 //!
+//! - [`constants`]: The [`FIRST_INDEX_DATE`] and the quarter folders.
 //! - [`index_date_error`]: The [`IndexDateError`] returned when validation fails, and its
 //!   [`InvalidIndexDateReason`].
-
-pub mod index_date_error;
-
-pub use index_date_error::{IndexDateError, InvalidIndexDateReason};
 
 use std::fmt::{self, Display, Formatter};
 
 use chrono::{Datelike, NaiveDate, Utc};
 use serde::{Serialize, Serializer};
 
-/// The quarter folders of the daily index, in the order of the quarters.
-const QUARTER_FOLDERS: [&str; 4] = ["QTR1", "QTR2", "QTR3", "QTR4"];
+use constants::QUARTER_FOLDERS;
+
+pub mod constants;
+pub mod index_date_error;
+
+pub use constants::FIRST_INDEX_DATE;
+pub use index_date_error::{IndexDateError, InvalidIndexDateReason};
 
 /// The date of one EDGAR daily index.
 ///
-/// Values are only produced through [`IndexDate::new`] (or the [`TryFrom`] impl). The date is never
-/// after the current UTC date at the time of validation.
+/// Only [`IndexDate::new`] and the [`TryFrom`] impl create values. The date is never before
+/// [`FIRST_INDEX_DATE`], and never after the current UTC date at the time of validation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct IndexDate(NaiveDate);
 
@@ -39,8 +41,9 @@ impl IndexDate {
     /// # Errors
     ///
     /// Returns an [`IndexDateError`] if the input is not a calendar date of the form `YYYY-MM-DD`
-    /// ([`InvalidIndexDateReason::InvalidIndexDateFormat`]), or if the date is after today
-    /// ([`InvalidIndexDateReason::FutureIndexDate`]).
+    /// ([`InvalidIndexDateReason::InvalidIndexDateFormat`]), the date is before
+    /// [`FIRST_INDEX_DATE`] ([`InvalidIndexDateReason::EarlyIndexDate`]), or the date is after
+    /// today ([`InvalidIndexDateReason::FutureIndexDate`]).
     ///
     /// # Examples
     ///
@@ -125,6 +128,9 @@ fn validate(date: &str, today: NaiveDate) -> Result<IndexDate, IndexDateError> {
     let error = |reason| IndexDateError::new(reason, date);
     let parsed =
         parse(date.trim()).ok_or_else(|| error(InvalidIndexDateReason::InvalidIndexDateFormat))?;
+    if parsed < FIRST_INDEX_DATE {
+        return Err(error(InvalidIndexDateReason::EarlyIndexDate));
+    }
     if parsed > today {
         return Err(error(InvalidIndexDateReason::FutureIndexDate { today }));
     }
@@ -274,6 +280,7 @@ mod tests {
             "2026/10/27",
             "+026-10-27",
             "2026-10-27T00:00",
+            "２026-10-27",
             "2026-13-01",
             "2026-00-10",
             "2026-04-31",
@@ -284,6 +291,33 @@ mod tests {
             vec![Some(InvalidIndexDateReason::InvalidIndexDateFormat); malformed_dates.len()];
 
         let result: Vec<_> = malformed_dates.into_iter().map(rejection_reason).collect();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_accept_the_date_when_date_is_the_first_index_date() {
+        let expected_result = Ok(IndexDate(FIRST_INDEX_DATE));
+
+        let result = validate("1998-05-18", today());
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_reject_with_early_index_date_when_date_is_before_the_first_index_date() {
+        let expected_result = Some(InvalidIndexDateReason::EarlyIndexDate);
+
+        let result = rejection_reason("1998-05-17");
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_reject_with_early_index_date_when_year_is_0000() {
+        let expected_result = Some(InvalidIndexDateReason::EarlyIndexDate);
+
+        let result = rejection_reason("0000-01-01");
 
         assert_eq!(result, expected_result);
     }

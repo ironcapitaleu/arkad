@@ -446,9 +446,16 @@ Decided by the lead on 2026-10-28. To meet it, the job reads the EDGAR daily ind
 `DetectFilingsSuperState` runs `ValidateIndexDate` → `PrepareDailyIndexRequest` →
 `DownloadDailyIndex` → `StoreDailyIndex` → `SelectFilings`.
 
-`ValidateIndexDate` turns a raw `YYYY-MM-DD` string into an `IndexDate`. It rejects a date after
-the current UTC date. The `IndexDate` gives the three date parts of the URL: the year, the quarter
-folder `QTR1` to `QTR4`, and `YYYYMMDD`.
+`ValidateIndexDate` turns a raw `YYYY-MM-DD` string into an `IndexDate`. The `IndexDate` gives the
+three date parts of the URL: the year, the quarter folder `QTR1` to `QTR4`, and `YYYYMMDD`. The state
+rejects two ranges of dates:
+
+- A date before 1998-05-18. Until 1998-05-17, the SEC named the daily index `form.YYMMDD.idx`.
+  Measured on 2026-10-30.
+- A date after the current UTC date. This rejects typos and dates in the future. It does not reject
+  every date that the SEC has not yet published: the SEC dates the index in Eastern time and
+  publishes it after the day ends. Such a date reaches the 404 rule below and fails with
+  `MissingDailyIndex`, the same as a rerun that starts before the SEC publishes.
 
 The MVP has no requirement for a delay of minutes. The daily index needs no cursor, and a missed
 day needs only a rerun for that date. The feed can come later for a shorter delay, and the daily

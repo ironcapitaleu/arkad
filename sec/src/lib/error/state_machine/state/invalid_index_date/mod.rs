@@ -26,7 +26,7 @@ use super::State as StateError;
 use crate::shared::index_date::IndexDateError;
 use crate::traits::error::FromDomainError;
 
-/// Error representing a index date validation failure, tagged with the state it occurred in.
+/// Error for an index date validation failure, tagged with the state it occurred in.
 #[derive(Error, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[error("[InvalidIndexDate] Failure in State: '{state_name}', Caused by: {index_date_error}")]
 pub struct InvalidIndexDate {

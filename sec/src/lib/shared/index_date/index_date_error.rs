@@ -10,6 +10,8 @@ use std::fmt::{self, Display, Formatter};
 use chrono::NaiveDate;
 use thiserror::Error;
 
+use super::constants::FIRST_INDEX_DATE;
+
 /// Error indicating that a string could not be validated as an index date.
 #[derive(Debug, Error, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[error("[IndexDateError] Invalid index date, Reason: '{reason}', Input: '{invalid_date}'")]
@@ -36,6 +38,9 @@ impl IndexDateError {
 pub enum InvalidIndexDateReason {
     /// The input is not a calendar date of the form `YYYY-MM-DD`.
     InvalidIndexDateFormat,
+    /// The date is before [`FIRST_INDEX_DATE`], so its daily index has another name or does not
+    /// exist.
+    EarlyIndexDate,
     /// The date is after today, so the SEC has no daily index for it.
     FutureIndexDate {
         /// The current UTC date at the time of validation.
@@ -48,6 +53,13 @@ impl Display for InvalidIndexDateReason {
         match self {
             Self::InvalidIndexDateFormat => {
                 write!(f, "Expected a calendar date of the form YYYY-MM-DD")
+            }
+            Self::EarlyIndexDate => {
+                let first = FIRST_INDEX_DATE.format("%Y-%m-%d");
+                write!(
+                    f,
+                    "The first daily index of the form form.YYYYMMDD.idx is {first}"
+                )
             }
             Self::FutureIndexDate { today } => {
                 write!(f, "The date is after today, {}", today.format("%Y-%m-%d"))
@@ -69,6 +81,15 @@ mod tests {
         let expected_result = "[IndexDateError] Invalid index date, Reason: 'Expected a calendar date of the form YYYY-MM-DD', Input: '2026-1-2'";
 
         let result = error.to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_format_display_with_the_first_index_date_when_reason_is_early_index_date() {
+        let expected_result = "The first daily index of the form form.YYYYMMDD.idx is 1998-05-18";
+
+        let result = InvalidIndexDateReason::EarlyIndexDate.to_string();
 
         assert_eq!(result, expected_result);
     }
