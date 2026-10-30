@@ -56,7 +56,7 @@ flowchart TB
 
     subgraph BF["Backfill: ExtractNotesSuperState, one per Notes file"]
         direction LR
-        N1["ValidateNotesPeriod"]:::new --> N2["PrepareNotesRequest"]:::new --> N3["DownloadNotesArchive"]:::new --> N4["StoreNotesArchive"]:::new
+        N1["ValidateNotesPeriod"]:::new --> N2["PrepareSecRequest"]:::reused --> N3["DownloadNotesArchive"]:::new --> N4["StoreNotesArchive"]:::new
     end
 
     subgraph DT["New filing: DetectFilingsSuperState, one per day"]
@@ -81,8 +81,9 @@ flowchart TB
     SB -- "SubmissionsRef" --> TN
 ```
 
-Green states exist today. `PrepareSecRequest` is generic over the request kind, so the Submissions
-path reuses it with a new kind. The Notes path builds its request in its own state, `PrepareNotesRequest`.
+Green states exist today. `PrepareSecRequest` is generic over the request kind. The Notes path
+uses it with the `NotesFile` kind, under the alias `PrepareNotesRequest`. The Submissions path
+reuses it with a new kind.
 Yellow states are new.
 
 ### Ingestion Mode
@@ -141,7 +142,9 @@ A separate REFACTOR renames the existing `ExtractSuperState` to `ExtractCompanyF
 ### States
 
 1. `ValidateNotesPeriod` parses a raw string such as `2024q1` or `2025_10` into a `NotesPeriod`.
-2. `PrepareNotesRequest` builds `SecRequest::builder().notes_file().period(p).build()`.
+2. `PrepareNotesRequest`, the alias of `PrepareSecRequest<NotesFile, R>`, builds
+   `SecRequest::builder().notes_file().period(p).build()`. The transition into
+   `DownloadNotesArchive` takes the client and the `execution_id` from the super-state context.
 3. `DownloadNotesArchive` sends the request and reads the whole body into memory. It runs the
    transport checks of [Validation](#validation), layer 1. Its output holds the
    `SecResponse<ZipBody>` in an `Arc`, because the state traits require `Clone`.

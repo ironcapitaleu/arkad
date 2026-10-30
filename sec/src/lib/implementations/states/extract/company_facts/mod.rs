@@ -72,7 +72,7 @@ use crate::implementations::states::extract::prepare_sec_request::{
     PrepareCompanyFactsRequest, PrepareSecRequestContext, PrepareSecRequestInput,
 };
 use crate::implementations::states::extract::store_company_facts::{
-    RawCompanyFactsRepository, StoreCompanyFacts, StoreCompanyFactsContext, StoreCompanyFactsInput,
+    StoreCompanyFacts, StoreCompanyFactsContext, StoreCompanyFactsInput,
 };
 use crate::implementations::states::extract::validate_cik_format::ValidateCikFormat;
 use crate::implementations::states::transform::TransformSuperState;
@@ -83,6 +83,8 @@ use crate::shared::cik::Cik;
 use crate::shared::http_client::SecClient as SecClientTrait;
 use crate::shared::http_client::implementations::sec_client::SecClient;
 use crate::shared::http_client::implementations::sec_client::error::FailedSecRequest;
+use crate::shared::raw_repository::RawRepository;
+use crate::shared::raw_source::RawCompanyFacts;
 use crate::shared::request::implementations::sec_request::SecRequest;
 use crate::shared::response::implementations::sec_response::{JsonBody, SecResponse};
 use crate::shared::url::Url;
@@ -135,7 +137,7 @@ impl<R, C> ExtractCompanyFactsSuperStateContext<R, C> {
     }
 }
 
-impl<R: RawCompanyFactsRepository, C: SecClientTrait> SMContext
+impl<R: RawRepository<RawCompanyFacts>, C: SecClientTrait> SMContext
     for ExtractCompanyFactsSuperStateContext<R, C>
 {
     type UpdateType = ();
@@ -145,7 +147,7 @@ impl<R: RawCompanyFactsRepository, C: SecClientTrait> SMContext
     fn update_context(&mut self, (): Self::UpdateType) {}
 }
 
-impl<R: RawCompanyFactsRepository, C: SecClientTrait> Context
+impl<R: RawRepository<RawCompanyFacts>, C: SecClientTrait> Context
     for ExtractCompanyFactsSuperStateContext<R, C>
 {
     fn max_retries(&self) -> u32 {
@@ -164,7 +166,7 @@ impl<R: RawCompanyFactsRepository, C: SecClientTrait> Context
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub struct ExtractCompanyFactsSuperState<
     S: State,
-    R: RawCompanyFactsRepository,
+    R: RawRepository<RawCompanyFacts>,
     C: SecClientTrait = SecClient,
 > {
     current_state: S,
@@ -173,7 +175,7 @@ pub struct ExtractCompanyFactsSuperState<
     context: ExtractCompanyFactsSuperStateContext<R, C>,
 }
 
-impl<S: State, R: RawCompanyFactsRepository, C: SecClientTrait> Display
+impl<S: State, R: RawRepository<RawCompanyFacts>, C: SecClientTrait> Display
     for ExtractCompanyFactsSuperState<S, R, C>
 {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
@@ -185,7 +187,7 @@ impl<S: State, R: RawCompanyFactsRepository, C: SecClientTrait> Display
     }
 }
 
-impl<S: State, R: RawCompanyFactsRepository, C: SecClientTrait> SMState
+impl<S: State, R: RawRepository<RawCompanyFacts>, C: SecClientTrait> SMState
     for ExtractCompanyFactsSuperState<S, R, C>
 {
     type InputData = ExtractCompanyFactsSuperStateData;
@@ -237,7 +239,7 @@ impl<S: State, R: RawCompanyFactsRepository, C: SecClientTrait> SMState
 }
 
 #[async_trait]
-impl<S: State, R: RawCompanyFactsRepository, C: SecClientTrait> State
+impl<S: State, R: RawRepository<RawCompanyFacts>, C: SecClientTrait> State
     for ExtractCompanyFactsSuperState<S, R, C>
 {
     async fn compute_output_data_async(&mut self) -> Result<(), StateError> {
@@ -248,7 +250,7 @@ impl<S: State, R: RawCompanyFactsRepository, C: SecClientTrait> State
     }
 }
 
-impl<S: State, R: RawCompanyFactsRepository, C: SecClientTrait> SMStateMachine<S>
+impl<S: State, R: RawRepository<RawCompanyFacts>, C: SecClientTrait> SMStateMachine<S>
     for ExtractCompanyFactsSuperState<S, R, C>
 {
     fn current_state(&self) -> &S {
@@ -271,22 +273,22 @@ impl<S: State, R: RawCompanyFactsRepository, C: SecClientTrait> SMStateMachine<S
     }
 }
 
-impl<S: State, R: RawCompanyFactsRepository, C: SecClientTrait> StateMachine<S>
+impl<S: State, R: RawRepository<RawCompanyFacts>, C: SecClientTrait> StateMachine<S>
     for ExtractCompanyFactsSuperState<S, R, C>
 {
 }
 
-impl<S: State, R: RawCompanyFactsRepository, C: SecClientTrait> SMSuperState<S>
+impl<S: State, R: RawRepository<RawCompanyFacts>, C: SecClientTrait> SMSuperState<S>
     for ExtractCompanyFactsSuperState<S, R, C>
 {
 }
 
-impl<S: State, R: RawCompanyFactsRepository, C: SecClientTrait> SuperState<S>
+impl<S: State, R: RawRepository<RawCompanyFacts>, C: SecClientTrait> SuperState<S>
     for ExtractCompanyFactsSuperState<S, R, C>
 {
 }
 
-impl<R: RawCompanyFactsRepository> ExtractCompanyFactsSuperState<ValidateCikFormat<R>, R> {
+impl<R: RawRepository<RawCompanyFacts>> ExtractCompanyFactsSuperState<ValidateCikFormat<R>, R> {
     /// Returns an [`ExtractCompanyFactsSuperStateBuilder`] that holds no field yet.
     #[must_use]
     pub const fn builder()
@@ -296,7 +298,7 @@ impl<R: RawCompanyFactsRepository> ExtractCompanyFactsSuperState<ValidateCikForm
     }
 }
 
-impl<R: RawCompanyFactsRepository, C: SecClientTrait>
+impl<R: RawRepository<RawCompanyFacts>, C: SecClientTrait>
     ExtractCompanyFactsSuperState<PrepareCompanyFactsRequest<R>, R, C>
 {
     /// Creates the super-state positioned at the request-preparation state.
@@ -323,7 +325,7 @@ impl<R: RawCompanyFactsRepository, C: SecClientTrait>
 // comment on `State for ExecuteSecRequest`.
 impl<R, C> ExtractCompanyFactsSuperState<ExecuteCompanyFactsRequest<R, C>, R, C>
 where
-    R: RawCompanyFactsRepository,
+    R: RawRepository<RawCompanyFacts>,
     C: SecClientTrait<Response<JsonBody> = SecResponse<JsonBody>, Error = FailedSecRequest>,
 {
     /// Creates the super-state positioned at the request-execution state.
@@ -347,7 +349,7 @@ where
     }
 }
 
-impl<R: RawCompanyFactsRepository, C: SecClientTrait>
+impl<R: RawRepository<RawCompanyFacts>, C: SecClientTrait>
     ExtractCompanyFactsSuperState<StoreCompanyFacts<R>, R, C>
 {
     /// Creates the super-state positioned at the state that stores the Company Facts.
@@ -375,7 +377,7 @@ impl<R: RawCompanyFactsRepository, C: SecClientTrait>
     }
 }
 
-impl<S: State, R: RawCompanyFactsRepository, C: SecClientTrait>
+impl<S: State, R: RawRepository<RawCompanyFacts>, C: SecClientTrait>
     ExtractCompanyFactsSuperState<S, R, C>
 {
     /// Consumes the `SuperState` and returns the inner state.
@@ -387,7 +389,7 @@ impl<S: State, R: RawCompanyFactsRepository, C: SecClientTrait>
 
 // --- Streaming ---
 
-impl<S: State, R: RawCompanyFactsRepository, C: SecClientTrait>
+impl<S: State, R: RawRepository<RawCompanyFacts>, C: SecClientTrait>
     ExtractCompanyFactsSuperState<S, R, C>
 where
     Self: IntoStateMachineStream,
@@ -402,7 +404,7 @@ where
     }
 }
 
-impl<R: RawCompanyFactsRepository, C: SecClientTrait> NonTerminal
+impl<R: RawRepository<RawCompanyFacts>, C: SecClientTrait> NonTerminal
     for ExtractCompanyFactsSuperState<ValidateCikFormat<R, C>, R, C>
 {
     type Current = ValidateCikFormat<R, C>;
@@ -411,7 +413,7 @@ impl<R: RawCompanyFactsRepository, C: SecClientTrait> NonTerminal
 
 impl<R, C> NonTerminal for ExtractCompanyFactsSuperState<PrepareCompanyFactsRequest<R>, R, C>
 where
-    R: RawCompanyFactsRepository,
+    R: RawRepository<RawCompanyFacts>,
     C: SecClientTrait<Response<JsonBody> = SecResponse<JsonBody>, Error = FailedSecRequest>,
 {
     type Current = PrepareCompanyFactsRequest<R>;
@@ -420,7 +422,7 @@ where
 
 impl<R, C> NonTerminal for ExtractCompanyFactsSuperState<ExecuteCompanyFactsRequest<R, C>, R, C>
 where
-    R: RawCompanyFactsRepository,
+    R: RawRepository<RawCompanyFacts>,
     C: SecClientTrait<Response<JsonBody> = SecResponse<JsonBody>, Error = FailedSecRequest>,
 {
     type Current = ExecuteCompanyFactsRequest<R, C>;
@@ -428,7 +430,7 @@ where
 }
 
 /// Ends the stream after [`StoreCompanyFacts`] writes the response to the store.
-impl<R: RawCompanyFactsRepository + Send + 'static, C: SecClientTrait + 'static>
+impl<R: RawRepository<RawCompanyFacts> + Send + 'static, C: SecClientTrait + 'static>
     IntoStateMachineStream for ExtractCompanyFactsSuperState<StoreCompanyFacts<R>, R, C>
 {
     fn into_stream(self, execution_id: Uuid) -> StateMachineStream {
@@ -436,7 +438,7 @@ impl<R: RawCompanyFactsRepository + Send + 'static, C: SecClientTrait + 'static>
     }
 }
 
-impl<R: RawCompanyFactsRepository, C: SecClientTrait>
+impl<R: RawRepository<RawCompanyFacts>, C: SecClientTrait>
     Transition<ValidateCikFormat<R, C>, PrepareCompanyFactsRequest<R>>
     for ExtractCompanyFactsSuperState<ValidateCikFormat<R, C>, R, C>
 {
@@ -457,7 +459,7 @@ impl<R: RawCompanyFactsRepository, C: SecClientTrait>
 impl<R, C> Transition<PrepareCompanyFactsRequest<R>, ExecuteCompanyFactsRequest<R, C>>
     for ExtractCompanyFactsSuperState<PrepareCompanyFactsRequest<R>, R, C>
 where
-    R: RawCompanyFactsRepository,
+    R: RawRepository<RawCompanyFacts>,
     C: SecClientTrait<Response<JsonBody> = SecResponse<JsonBody>, Error = FailedSecRequest>,
 {
     fn transition_to_next_state_sec(self) -> Result<Self::NewStateMachine, TransitionError> {
@@ -480,7 +482,7 @@ where
 impl<R, C> SMTransition<PrepareCompanyFactsRequest<R>, ExecuteCompanyFactsRequest<R, C>>
     for ExtractCompanyFactsSuperState<PrepareCompanyFactsRequest<R>, R, C>
 where
-    R: RawCompanyFactsRepository,
+    R: RawRepository<RawCompanyFacts>,
     C: SecClientTrait<Response<JsonBody> = SecResponse<JsonBody>, Error = FailedSecRequest>,
 {
     type NewStateMachine = ExtractCompanyFactsSuperState<ExecuteCompanyFactsRequest<R, C>, R, C>;
@@ -493,7 +495,7 @@ where
     }
 }
 
-impl<R: RawCompanyFactsRepository, C: SecClientTrait>
+impl<R: RawRepository<RawCompanyFacts>, C: SecClientTrait>
     SMTransition<ValidateCikFormat<R, C>, PrepareCompanyFactsRequest<R>>
     for ExtractCompanyFactsSuperState<ValidateCikFormat<R, C>, R, C>
 {
@@ -512,7 +514,7 @@ impl<R: RawCompanyFactsRepository, C: SecClientTrait>
 impl<R, C> Transition<ExecuteCompanyFactsRequest<R, C>, ParseCompanyFacts>
     for ExtractCompanyFactsSuperState<ExecuteCompanyFactsRequest<R, C>, R, C>
 where
-    R: RawCompanyFactsRepository,
+    R: RawRepository<RawCompanyFacts>,
     C: SecClientTrait<Response<JsonBody> = SecResponse<JsonBody>, Error = FailedSecRequest>,
 {
     fn transition_to_next_state_sec(self) -> Result<Self::NewStateMachine, TransitionError> {
@@ -536,7 +538,7 @@ where
 impl<R, C> SMTransition<ExecuteCompanyFactsRequest<R, C>, ParseCompanyFacts>
     for ExtractCompanyFactsSuperState<ExecuteCompanyFactsRequest<R, C>, R, C>
 where
-    R: RawCompanyFactsRepository,
+    R: RawRepository<RawCompanyFacts>,
     C: SecClientTrait<Response<JsonBody> = SecResponse<JsonBody>, Error = FailedSecRequest>,
 {
     type NewStateMachine = TransformSuperState<ParseCompanyFacts>;
@@ -551,7 +553,7 @@ where
 impl<R, C> Transition<ExecuteCompanyFactsRequest<R, C>, StoreCompanyFacts<R>>
     for ExtractCompanyFactsSuperState<ExecuteCompanyFactsRequest<R, C>, R, C>
 where
-    R: RawCompanyFactsRepository,
+    R: RawRepository<RawCompanyFacts>,
     C: SecClientTrait<Response<JsonBody> = SecResponse<JsonBody>, Error = FailedSecRequest>,
 {
     fn transition_to_next_state_sec(self) -> Result<Self::NewStateMachine, TransitionError> {
@@ -572,7 +574,7 @@ where
 impl<R, C> SMTransition<ExecuteCompanyFactsRequest<R, C>, StoreCompanyFacts<R>>
     for ExtractCompanyFactsSuperState<ExecuteCompanyFactsRequest<R, C>, R, C>
 where
-    R: RawCompanyFactsRepository,
+    R: RawRepository<RawCompanyFacts>,
     C: SecClientTrait<Response<JsonBody> = SecResponse<JsonBody>, Error = FailedSecRequest>,
 {
     type NewStateMachine = ExtractCompanyFactsSuperState<StoreCompanyFacts<R>, R, C>;

@@ -60,12 +60,12 @@ use state_maschine::prelude::State as SMState;
 
 use crate::error::State as StateError;
 use crate::error::state_machine::state::failed_request_execution::FailedRequestExecution;
-use crate::implementations::states::extract::store_company_facts::RawCompanyFactsRepository;
 use crate::shared::http_client::RespondsWith;
 use crate::shared::http_client::SecClient as SecClientTrait;
 use crate::shared::http_client::implementations::sec_client::SecClient;
 use crate::shared::http_client::implementations::sec_client::error::FailedSecRequest;
-use crate::shared::request::implementations::sec_request::CompanyFacts;
+use crate::shared::raw_repository::RawRepository;
+use crate::shared::request::implementations::sec_request::{CompanyFacts, StoredAs};
 use crate::shared::response::implementations::sec_response::SecResponse;
 use crate::traits::state_machine::state::State;
 
@@ -172,8 +172,8 @@ impl<E: RespondsWith, R, C> ExecuteSecRequest<E, R, C> {
 #[async_trait]
 impl<E, R, C> State for ExecuteSecRequest<E, R, C>
 where
-    E: RespondsWith,
-    R: RawCompanyFactsRepository,
+    E: RespondsWith + StoredAs,
+    R: RawRepository<E::Source>,
     C: SecClientTrait<Response<E::Body> = SecResponse<E::Body>, Error = FailedSecRequest>,
 {
     /// Executes the prepared SEC request and stores the response as output.
@@ -204,8 +204,8 @@ where
 
 impl<E, R, C> SMState for ExecuteSecRequest<E, R, C>
 where
-    E: RespondsWith,
-    R: RawCompanyFactsRepository,
+    E: RespondsWith + StoredAs,
+    R: RawRepository<E::Source>,
     C: SecClientTrait<Response<E::Body> = SecResponse<E::Body>, Error = FailedSecRequest>,
 {
     type InputData = ExecuteSecRequestInput<E, C>;
@@ -255,7 +255,7 @@ where
     }
 }
 
-impl<E: RespondsWith, R: RawCompanyFactsRepository, C: SecClientTrait> fmt::Display
+impl<E: RespondsWith + StoredAs, R: RawRepository<E::Source>, C: SecClientTrait> fmt::Display
     for ExecuteSecRequest<E, R, C>
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -295,7 +295,9 @@ mod tests {
     use crate::shared::status_code::StatusCode;
     use crate::tests::fixtures::data::notes_archive::SAMPLE_NOTES_ZIP;
     use crate::tests::fixtures::sample_http_client::sample_sec_client::always_responding::AlwaysRespondingSecClient;
-    use crate::tests::fixtures::sample_write_repository::FakeWriteRepository;
+    use crate::tests::fixtures::sample_write_repository::{
+        FakeNotesRepository, FakeWriteRepository,
+    };
 
     const TEST_CIK: &str = "0001067983";
 
@@ -341,7 +343,7 @@ mod tests {
     /// and the ZIP fixture.
     fn create_notes_file_state(
         status: u16,
-    ) -> ExecuteSecRequest<NotesFile, FakeWriteRepository, AlwaysRespondingSecClient> {
+    ) -> ExecuteSecRequest<NotesFile, FakeNotesRepository, AlwaysRespondingSecClient> {
         let period = NotesPeriod::new("2024q1")
             .expect("Given a hardcoded published quarter, parsing should always succeed");
         let client = AlwaysRespondingSecClient::new(
@@ -355,7 +357,7 @@ mod tests {
         let request = SecRequest::builder().notes_file().period(period).build();
         ExecuteSecRequest::new(
             ExecuteSecRequestInput::new(client, request),
-            ExecuteSecRequestContext::new(period, FakeWriteRepository::new()),
+            ExecuteSecRequestContext::new(period, FakeNotesRepository::new()),
         )
     }
 

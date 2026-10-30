@@ -26,7 +26,7 @@ pub mod constants;
 pub mod kind;
 
 pub use builder::SecRequestBuilder;
-pub use kind::{CompanyFacts, DailyIndex, DailyIndexListing, NotesFile, RequestKind};
+pub use kind::{CompanyFacts, DailyIndex, DailyIndexListing, NotesFile, RequestKind, StoredAs};
 
 use constants::{
     SEC_COMPANY_FACTS_URL_PREFIX, SEC_COMPANY_FACTS_URL_SUFFIX, SEC_DAILY_INDEX_LISTING_FILE_NAME,

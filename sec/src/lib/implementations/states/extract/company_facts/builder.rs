@@ -15,7 +15,6 @@ use crate::implementations::states::extract::company_facts::{
     ExtractCompanyFactsSuperState, ExtractCompanyFactsSuperStateContext,
     ExtractCompanyFactsSuperStateData,
 };
-use crate::implementations::states::extract::store_company_facts::RawCompanyFactsRepository;
 use crate::implementations::states::extract::validate_cik_format::{
     ValidateCikFormat, ValidateCikFormatContext, ValidateCikFormatInput,
 };
@@ -23,6 +22,8 @@ use crate::shared::http_client::SecClient as SecClientTrait;
 #[cfg(doc)]
 use crate::shared::http_client::implementations::sec_client::SecClient;
 use crate::shared::http_client::implementations::sec_client::error::FailedSecRequest;
+use crate::shared::raw_repository::RawRepository;
+use crate::shared::raw_source::RawCompanyFacts;
 use crate::shared::response::implementations::sec_response::{JsonBody, SecResponse};
 
 /// Marks a builder that holds no CIK yet.
@@ -42,7 +43,7 @@ pub struct NoExecutionId;
 /// The marker carries `R`. The compiler infers `R` from the value passed to
 /// [`repository`](ExtractCompanyFactsSuperStateBuilder::repository).
 // Deviation: the derives bound `R` on each trait, although the marker holds no `R`. Every
-// `RawCompanyFactsRepository` implements these traits, so the bounds cost nothing here.
+// `RawRepository<RawCompanyFacts>` implements these traits, so the bounds cost nothing here.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct NoRepository<R>(PhantomData<fn() -> R>);
 
@@ -150,7 +151,7 @@ impl<C, S, E, R> ExtractCompanyFactsSuperStateBuilder<C, S, E, NoRepository<R>> 
     }
 }
 
-impl<R: RawCompanyFactsRepository, S: SecClientTrait>
+impl<R: RawRepository<RawCompanyFacts>, S: SecClientTrait>
     ExtractCompanyFactsSuperStateBuilder<String, S, Uuid, R>
 {
     /// Builds an [`ExtractCompanyFactsSuperState`] at [`ValidateCikFormat`] with the fields this

@@ -23,12 +23,13 @@ use storage::implementations::repository::filesystem::{Document, DocumentKey, In
 
 use crate::error::State as StateError;
 use crate::error::state_machine::state::FailedDocumentWrite;
-use crate::implementations::states::extract::notes_repository::NotesRepository;
 use crate::shared::build_info::producer;
 use crate::shared::document_storage::FailedDocumentStorage;
 use crate::shared::notes_archive_ref::NotesArchiveRef;
 use crate::shared::notes_period::NotesPeriod;
 use crate::shared::raw_document::RawDocument;
+use crate::shared::raw_repository::RawRepository;
+use crate::shared::raw_source::RawNotesArchive;
 use crate::shared::run_fields::RunFields;
 use crate::traits::state_machine::state::State;
 
@@ -85,7 +86,7 @@ fn notes_key(period: NotesPeriod) -> DocumentKey {
 }
 
 #[async_trait]
-impl<R: NotesRepository> State for StoreNotesArchive<R> {
+impl<R: RawRepository<RawNotesArchive>> State for StoreNotesArchive<R> {
     /// Writes the Notes file to the repository and stores a reference to it as output.
     ///
     /// The write succeeds even if a clone of the response is alive. That clone keeps the body buffer
@@ -129,7 +130,7 @@ impl<R: NotesRepository> State for StoreNotesArchive<R> {
     }
 }
 
-impl<R: NotesRepository> SMState for StoreNotesArchive<R> {
+impl<R: RawRepository<RawNotesArchive>> SMState for StoreNotesArchive<R> {
     type InputData = StoreNotesArchiveInput;
     type OutputData = StoreNotesArchiveOutput;
     type Context = StoreNotesArchiveContext<R>;
@@ -172,7 +173,7 @@ impl<R: NotesRepository> SMState for StoreNotesArchive<R> {
     }
 }
 
-impl<R: NotesRepository> fmt::Display for StoreNotesArchive<R> {
+impl<R: RawRepository<RawNotesArchive>> fmt::Display for StoreNotesArchive<R> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,

@@ -38,7 +38,7 @@ context, and assemble the target state.
 impl<R, C> Transition<ExecuteCompanyFactsRequest<R, C>, ParseCompanyFacts>
     for ExtractCompanyFactsSuperState<ExecuteCompanyFactsRequest<R, C>, R, C>
 where
-    R: RawCompanyFactsRepository,
+    R: RawRepository<RawCompanyFacts>,
     C: SecClientTrait<Response<JsonBody> = SecResponse<JsonBody>, Error = FailedSecRequest>,
 {
     fn transition_to_next_state_sec(self) -> Result<Self::NewStateMachine, TransitionError> {
