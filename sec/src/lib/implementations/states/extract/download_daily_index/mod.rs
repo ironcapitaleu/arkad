@@ -7,9 +7,10 @@
 //! not published yet. For both, it answers with 403 or 404. The state tells the two cases apart
 //! with the listing of the quarter folder, `daily-index/YYYY/QTRn/index.json`:
 //!
-//! - If the SEC refuses that listing, or the listing names the date, the state fails with
-//!   [`MissingDailyIndex`], and a later run retries the date. A listed date means the file exists,
-//!   so the 403 or 404 came from a refused request, for example at the SEC rate limit.
+//! - If the SEC sends no listing (403 or 404), the listing has no dates, or it names the date, the
+//!   state fails with [`MissingDailyIndex`], and a later run retries the date. A listed date means
+//!   the file exists, so the 403 or 404 came from a refused request, for example at the SEC rate
+//!   limit.
 //! - If the listing has a later date, the day had no filings. The output has no response.
 //! - Otherwise, once the next quarter has started, any index in its listing shows that the day had
 //!   no filings. This covers a quarter that ends on days without filings.
@@ -95,8 +96,13 @@ where
 {
     async fn has_later_index(&self) -> Result<bool, StateError> {
         let date = self.context.index_date;
-        // An absent listing of the quarter means a refused request, or a quarter with no index yet.
-        let Some(quarter_dates) = self.listed_dates(date).await? else {
+        // An absent or empty listing of the quarter means a refused request, a quarter with no index
+        // yet, or a listing in an unknown shape.
+        let Some(quarter_dates) = self
+            .listed_dates(date)
+            .await?
+            .filter(|dates| !dates.is_empty())
+        else {
             return Ok(false);
         };
         // A listed date means the file exists, so the 403 or 404 came from a refused request.
@@ -538,6 +544,43 @@ mod tests {
         let expected_result = Err(StateError::InvalidInput);
 
         let result = state.compute_output_data_async().await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_return_missing_daily_index_when_the_next_quarter_listing_is_empty() {
+        let sec_client = RoutingSecClient::new()
+            .route(
+                QTR1_LISTING_URL,
+                200,
+                JSON,
+                &listing(&["form.20240328.idx"]),
+            )
+            .route(QTR2_LISTING_URL, 200, JSON, &listing(&[]));
+
+        let expected_result = Err(MissingDailyIndex::new(STATE_NAME, index_date()).into());
+
+        let result = computed_output(sec_client).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_return_missing_daily_index_when_the_quarter_listing_has_no_dates() {
+        let sec_client = RoutingSecClient::new()
+            .route(INDEX_URL, 403, "text/html", b"")
+            .route(QTR1_LISTING_URL, 200, JSON, b"{}")
+            .route(
+                QTR2_LISTING_URL,
+                200,
+                JSON,
+                &listing(&["form.20240401.idx"]),
+            );
+
+        let expected_result = Err(MissingDailyIndex::new(STATE_NAME, index_date()).into());
+
+        let result = computed_output(sec_client).await;
 
         assert_eq!(result, expected_result);
     }

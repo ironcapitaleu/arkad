@@ -471,12 +471,12 @@ A day without filings, such as a weekend, has no index file. An index that the S
 published has no file either. For both, the SEC returns 404, or 403 with an S3 `AccessDenied` body.
 The SEC returned 403 for the missing `form.20261025.idx` on 2026-10-30. `DownloadDailyIndex` tells
 the two cases apart with the listing of the quarter, `daily-index/YYYY/QTRn/index.json`, which
-costs one request:
+costs one request, and a second one for the listing of the next quarter in the last case below:
 
-- If the SEC refuses that listing, or the listing names the date, the run fails with
-  `MissingDailyIndex`, and Cloud Run retries it. The SEC also answers 403 when it refuses a
-  request, for example at its rate limit. A listed date means the file exists, so the 403 or 404
-  came from a refused request.
+- If the SEC sends no listing (403 or 404), the listing has no dates, or it names the date, the
+  run fails with `MissingDailyIndex`, and Cloud Run retries it. The SEC also answers 403 when it
+  refuses a request, for example at its rate limit. A listed date means the file exists, so the
+  403 or 404 came from a refused request.
 - If the listing has an index for a later date, the day had no filings. The result is an empty
   list.
 - Otherwise, once the next quarter has started, any index in its listing shows that the day had no
