@@ -52,8 +52,8 @@ impl<K: RequestKind> Serialize for SecRequest<K> {
     }
 }
 
-// `builder` sits on the default kind only, so `SecRequest::builder()` needs no kind. The named
-// methods of the builder set the kind.
+// `builder` is on `SecRequest<CompanyFacts>` only, so `SecRequest::builder()` compiles without
+// naming a kind. The builder's kind methods set the kind.
 impl SecRequest {
     /// Creates a new [`SecRequestBuilder`] for constructing an [`SecRequest`].
     ///
