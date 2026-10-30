@@ -156,16 +156,6 @@ fn validate(date: &str, today: NaiveDate) -> Result<IndexDate, IndexDateError> {
 /// calendar date.
 ///
 /// Checks the shape first, because chrono also accepts a sign or a single-digit month or day.
-fn first_day_of_next_quarter(date: NaiveDate, today: NaiveDate) -> Option<IndexDate> {
-    let next_quarter_month = date.month0() / 3 * 3 + 4;
-    let next_quarter_start = if next_quarter_month > 12 {
-        NaiveDate::from_ymd_opt(date.year() + 1, 1, 1)
-    } else {
-        NaiveDate::from_ymd_opt(date.year(), next_quarter_month, 1)
-    }?;
-    (next_quarter_start <= today).then_some(IndexDate(next_quarter_start))
-}
-
 fn parse(date: &str) -> Option<NaiveDate> {
     let is_well_formed = date.len() == 10
         && date.bytes().enumerate().all(|(index, byte)| match index {
@@ -176,6 +166,17 @@ fn parse(date: &str) -> Option<NaiveDate> {
         return None;
     }
     NaiveDate::parse_from_str(date, "%Y-%m-%d").ok()
+}
+
+/// Returns the first day of the quarter after `date`, or `None` if that day is after `today`.
+fn first_day_of_next_quarter(date: NaiveDate, today: NaiveDate) -> Option<IndexDate> {
+    let next_quarter_month = date.month0() / 3 * 3 + 4;
+    let next_quarter_start = if next_quarter_month > 12 {
+        NaiveDate::from_ymd_opt(date.year() + 1, 1, 1)
+    } else {
+        NaiveDate::from_ymd_opt(date.year(), next_quarter_month, 1)
+    }?;
+    (next_quarter_start <= today).then_some(IndexDate(next_quarter_start))
 }
 
 impl Display for IndexDate {
@@ -256,6 +257,16 @@ mod tests {
         let expected_result = Some(index_date("2026-01-01"));
 
         let result = first_day_of_next_quarter(index_date("2025-12-31").0, today());
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_the_first_day_of_the_next_quarter_when_it_is_today() {
+        let expected_result = Some(index_date("2026-10-01"));
+
+        let result =
+            first_day_of_next_quarter(index_date("2026-09-30").0, index_date("2026-10-01").0);
 
         assert_eq!(result, expected_result);
     }
