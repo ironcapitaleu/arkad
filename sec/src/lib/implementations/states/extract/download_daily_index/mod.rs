@@ -7,14 +7,14 @@
 //! not published yet. For both, it answers with 403 or 404. The state tells the two cases apart
 //! with the listing of the quarter folder, `daily-index/YYYY/QTRn/index.json`:
 //!
-//! - If a listing has an index for a later date and does not list the date itself, the day had no
-//!   filings. The output has no response. A listed date means the file exists, so the 403 or 404
-//!   came from a refused request, for example at the SEC rate limit.
-//! - Otherwise, the state fails with [`MissingDailyIndex`], and a later run retries the date.
+//! - If the SEC refuses that listing, or the listing names the date, the state fails with
+//!   [`MissingDailyIndex`], and a later run retries the date. A listed date means the file exists,
+//!   so the 403 or 404 came from a refused request, for example at the SEC rate limit.
+//! - If the listing has a later date, the day had no filings. The output has no response.
+//! - Otherwise, once the next quarter has started, any index in its listing shows that the day had
+//!   no filings. This covers a quarter that ends on days without filings.
 //!
-//! The state reads the listing of the quarter of the date. If that listing has no later date, it
-//! also reads the listing of the next quarter, once that quarter has started. This covers a quarter
-//! that ends on days without filings. The rule needs no list of SEC holidays.
+//! The rule needs no list of SEC holidays.
 //!
 //! ## Modules
 //!
@@ -25,6 +25,7 @@
 use std::fmt;
 
 use async_trait::async_trait;
+use chrono::NaiveDate;
 use serde::Serialize;
 use state_maschine::prelude::State as SMState;
 
@@ -94,31 +95,36 @@ where
 {
     async fn has_later_index(&self) -> Result<bool, StateError> {
         let date = self.context.index_date;
-        if self.listing_has_index_after(date, date).await? {
+        // An absent listing of the quarter means a refused request, or a quarter with no index yet.
+        let Some(quarter_dates) = self.listed_dates(date).await? else {
+            return Ok(false);
+        };
+        // A listed date means the file exists, so the 403 or 404 came from a refused request.
+        if quarter_dates.contains(&date.date()) {
+            return Ok(false);
+        }
+        if quarter_dates.iter().any(|listed| *listed > date.date()) {
             return Ok(true);
         }
-        match date.first_day_of_next_quarter() {
-            Some(next_quarter) => self.listing_has_index_after(next_quarter, date).await,
-            None => Ok(false),
-        }
+        let Some(next_quarter) = date.first_day_of_next_quarter() else {
+            return Ok(false);
+        };
+        Ok(self
+            .listed_dates(next_quarter)
+            .await?
+            .is_some_and(|dates| !dates.is_empty()))
     }
 
-    async fn listing_has_index_after(
-        &self,
-        quarter: IndexDate,
-        date: IndexDate,
-    ) -> Result<bool, StateError> {
+    /// Returns the dates in the listing of the quarter of `quarter`, or `None` if the SEC answers
+    /// 403 or 404.
+    async fn listed_dates(&self, quarter: IndexDate) -> Result<Option<Vec<NaiveDate>>, StateError> {
         let request = SecRequest::builder()
             .daily_index_listing()
             .date(quarter)
             .build();
         match self.context.sec_client.execute_sec_request(request).await {
-            Ok(listing) => {
-                let listed_dates = listed_index_dates(listing.body());
-                let is_date_listed = listed_dates.contains(&date.date());
-                Ok(!is_date_listed && listed_dates.iter().any(|listed| *listed > date.date()))
-            }
-            Err(error) if is_absent(&error) => Ok(false),
+            Ok(listing) => Ok(Some(listed_index_dates(listing.body()))),
+            Err(error) if is_absent(&error) => Ok(None),
             Err(error) => Err(FailedRequestExecution::new(STATE_NAME, error).into()),
         }
     }
@@ -440,6 +446,12 @@ mod tests {
                 200,
                 JSON,
                 &listing(&["form.20240330.idx", "form.20240401.idx"]),
+            )
+            .route(
+                QTR2_LISTING_URL,
+                200,
+                JSON,
+                &listing(&["form.20240401.idx"]),
             );
 
         let expected_result = Err(MissingDailyIndex::new(STATE_NAME, index_date()).into());
@@ -464,16 +476,49 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_output_no_response_when_the_quarter_listing_is_absent_and_the_next_has_a_later_date()
+    async fn should_return_missing_daily_index_when_the_quarter_listing_names_the_date_and_the_next_has_a_later_date()
      {
-        let sec_client = RoutingSecClient::new().route(
-            QTR2_LISTING_URL,
-            200,
-            JSON,
-            &listing(&["form.20240401.idx"]),
-        );
+        let sec_client = RoutingSecClient::new()
+            .route(
+                INDEX_URL,
+                403,
+                "text/html",
+                b"Request Rate Threshold Exceeded",
+            )
+            .route(
+                QTR1_LISTING_URL,
+                200,
+                JSON,
+                &listing(&["form.20240330.idx"]),
+            )
+            .route(
+                QTR2_LISTING_URL,
+                200,
+                JSON,
+                &listing(&["form.20240401.idx"]),
+            );
 
-        let expected_result = Ok(Some(DownloadDailyIndexOutput::without_filings()));
+        let expected_result = Err(MissingDailyIndex::new(STATE_NAME, index_date()).into());
+
+        let result = computed_output(sec_client).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_return_missing_daily_index_when_the_quarter_listing_is_refused_and_the_next_has_a_later_date()
+     {
+        let sec_client = RoutingSecClient::new()
+            .route(INDEX_URL, 403, "text/html", b"")
+            .route(QTR1_LISTING_URL, 403, "text/html", b"")
+            .route(
+                QTR2_LISTING_URL,
+                200,
+                JSON,
+                &listing(&["form.20240401.idx"]),
+            );
+
+        let expected_result = Err(MissingDailyIndex::new(STATE_NAME, index_date()).into());
 
         let result = computed_output(sec_client).await;
 

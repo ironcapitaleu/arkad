@@ -473,16 +473,18 @@ The SEC returned 403 for the missing `form.20261025.idx` on 2026-10-30. `Downloa
 the two cases apart with the listing of the quarter, `daily-index/YYYY/QTRn/index.json`, which
 costs one request:
 
-- If the listing has an index for a later date and does not list the date itself, the day had
-  no filings. The result is an empty list.
-- If the listing has no later date and the next quarter has started, the state also reads the
-  listing of the next quarter. This covers a quarter that ends on days without filings, such as
-  2024-03-30 and 2024-03-31.
-- Otherwise, the run fails with `MissingDailyIndex`, and Cloud Run retries it.
+- If the SEC refuses that listing, or the listing names the date, the run fails with
+  `MissingDailyIndex`, and Cloud Run retries it. The SEC also answers 403 when it refuses a
+  request, for example at its rate limit. A listed date means the file exists, so the 403 or 404
+  came from a refused request.
+- If the listing has an index for a later date, the day had no filings. The result is an empty
+  list.
+- Otherwise, once the next quarter has started, any index in its listing shows that the day had no
+  filings. This covers a quarter that ends on days without filings, such as 2024-03-30 and
+  2024-03-31. If the next quarter has not started, or its listing is empty or refused, the run
+  fails with `MissingDailyIndex`.
 
-This rule needs no list of SEC holidays. The SEC also answers 403 when it refuses a request, for
-example at its rate limit. If the listing names the date, the file exists, so the state fails
-instead of giving an empty list. A refused listing request also makes the state fail.
+This rule needs no list of SEC holidays.
 
 ### Filing Selection
 
