@@ -20,23 +20,24 @@ use crate::error::State as StateError;
 use crate::shared::http_client::SecClient as SecClientTrait;
 use crate::shared::http_client::implementations::sec_client::SecClient;
 use crate::shared::request::SecRequest as SecRequestTrait;
-use crate::shared::request::implementations::sec_request::SecRequest;
+use crate::shared::request::implementations::sec_request::{RequestKind, SecRequest};
 use crate::traits::state_machine::state::StateData;
 
 /// Input data for the [`ExecuteSecRequest`](super::super::ExecuteSecRequest) state.
 ///
 /// Bundles the prepared [`SecClient`] and [`SecRequest`] needed to execute the request.
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
-pub struct ExecuteSecRequestInput<C = SecClient> {
+#[serde(bound(serialize = "C: Serialize"))]
+pub struct ExecuteSecRequestInput<E: RequestKind, C = SecClient> {
     /// The prepared SEC client that will execute the HTTP request.
     pub sec_client: C,
     /// The prepared SEC request targeting a specific CIK.
-    pub sec_request: SecRequest,
+    pub sec_request: SecRequest<E>,
 }
 
-impl<C> ExecuteSecRequestInput<C> {
+impl<E: RequestKind, C> ExecuteSecRequestInput<E, C> {
     /// Creates a new [`ExecuteSecRequestInput`] from an SEC client and an SEC request.
-    pub const fn new(sec_client: C, sec_request: SecRequest) -> Self {
+    pub const fn new(sec_client: C, sec_request: SecRequest<E>) -> Self {
         Self {
             sec_client,
             sec_request,
@@ -51,12 +52,12 @@ impl<C> ExecuteSecRequestInput<C> {
 
     /// Returns a reference to the SEC request.
     #[must_use]
-    pub const fn sec_request(&self) -> &SecRequest {
+    pub const fn sec_request(&self) -> &SecRequest<E> {
         &self.sec_request
     }
 }
 
-impl<C: SecClientTrait> StateData for ExecuteSecRequestInput<C> {
+impl<E: RequestKind, C: SecClientTrait> StateData for ExecuteSecRequestInput<E, C> {
     fn update_state(&mut self, updates: Self::UpdateType) -> Result<(), StateError> {
         if let Some(sec_client) = updates.sec_client {
             self.sec_client = sec_client;
@@ -68,8 +69,8 @@ impl<C: SecClientTrait> StateData for ExecuteSecRequestInput<C> {
     }
 }
 
-impl<C: SecClientTrait> SMStateData for ExecuteSecRequestInput<C> {
-    type UpdateType = ExecuteSecRequestInputUpdater<C>;
+impl<E: RequestKind, C: SecClientTrait> SMStateData for ExecuteSecRequestInput<E, C> {
+    type UpdateType = ExecuteSecRequestInputUpdater<E, C>;
 
     fn state(&self) -> &Self {
         self
@@ -86,7 +87,7 @@ impl<C: SecClientTrait> SMStateData for ExecuteSecRequestInput<C> {
     }
 }
 
-impl<C> fmt::Display for ExecuteSecRequestInput<C> {
+impl<E: RequestKind, C> fmt::Display for ExecuteSecRequestInput<E, C> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "SEC Request URL: {}", self.sec_request.url())
     }
@@ -96,28 +97,28 @@ impl<C> fmt::Display for ExecuteSecRequestInput<C> {
 ///
 /// Fields set to `None` are left unchanged when the updater is applied.
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
-pub struct ExecuteSecRequestInputUpdater<C = SecClient> {
+pub struct ExecuteSecRequestInputUpdater<E: RequestKind, C = SecClient> {
     /// Optional new value for the SEC client.
     pub sec_client: Option<C>,
     /// Optional new value for the SEC request.
-    pub sec_request: Option<SecRequest>,
+    pub sec_request: Option<SecRequest<E>>,
 }
 
-impl<C> ExecuteSecRequestInputUpdater<C> {
+impl<E: RequestKind, C> ExecuteSecRequestInputUpdater<E, C> {
     /// Creates a new builder for constructing [`ExecuteSecRequestInputUpdater`] instances.
     #[must_use]
-    pub const fn builder() -> ExecuteSecRequestInputUpdaterBuilder<C> {
+    pub const fn builder() -> ExecuteSecRequestInputUpdaterBuilder<E, C> {
         ExecuteSecRequestInputUpdaterBuilder::new()
     }
 }
 
 /// Fluent builder for an [`ExecuteSecRequestInputUpdater`].
-pub struct ExecuteSecRequestInputUpdaterBuilder<C = SecClient> {
+pub struct ExecuteSecRequestInputUpdaterBuilder<E: RequestKind, C = SecClient> {
     sec_client: Option<C>,
-    sec_request: Option<SecRequest>,
+    sec_request: Option<SecRequest<E>>,
 }
 
-impl<C> ExecuteSecRequestInputUpdaterBuilder<C> {
+impl<E: RequestKind, C> ExecuteSecRequestInputUpdaterBuilder<E, C> {
     /// Creates a new [`ExecuteSecRequestInputUpdaterBuilder`] with all fields initialized to `None`.
     #[must_use]
     pub const fn new() -> Self {
@@ -138,14 +139,14 @@ impl<C> ExecuteSecRequestInputUpdaterBuilder<C> {
     /// Sets the SEC request field.
     #[must_use]
     #[allow(clippy::missing_const_for_fn)]
-    pub fn sec_request(mut self, sec_request: SecRequest) -> Self {
+    pub fn sec_request(mut self, sec_request: SecRequest<E>) -> Self {
         self.sec_request = Some(sec_request);
         self
     }
 
     /// Builds the [`ExecuteSecRequestInputUpdater`].
     #[must_use]
-    pub fn build(self) -> ExecuteSecRequestInputUpdater<C> {
+    pub fn build(self) -> ExecuteSecRequestInputUpdater<E, C> {
         ExecuteSecRequestInputUpdater {
             sec_client: self.sec_client,
             sec_request: self.sec_request,
@@ -153,7 +154,7 @@ impl<C> ExecuteSecRequestInputUpdaterBuilder<C> {
     }
 }
 
-impl<C> Default for ExecuteSecRequestInputUpdaterBuilder<C> {
+impl<E: RequestKind, C> Default for ExecuteSecRequestInputUpdaterBuilder<E, C> {
     fn default() -> Self {
         Self::new()
     }
@@ -167,7 +168,7 @@ mod tests {
 
     use super::*;
     use crate::shared::cik::Cik;
-    use crate::shared::request::implementations::sec_request::SecRequest;
+    use crate::shared::request::implementations::sec_request::{CompanyFacts, SecRequest};
 
     #[test]
     fn should_create_new_input_data_with_provided_client_and_request() {
@@ -220,7 +221,7 @@ mod tests {
         let request = SecRequest::builder().all_company_facts().cik(cik).build();
         let mut input_data = ExecuteSecRequestInput::new(client, request);
 
-        let updater = ExecuteSecRequestInputUpdater::builder().build();
+        let updater = ExecuteSecRequestInputUpdater::<CompanyFacts>::builder().build();
 
         let expected_result = Ok(());
 
@@ -345,7 +346,7 @@ mod tests {
         let original_input_data = ExecuteSecRequestInput::new(client, request);
         let mut input_data = original_input_data.clone();
 
-        let updater = ExecuteSecRequestInputUpdater::builder().build();
+        let updater = ExecuteSecRequestInputUpdater::<CompanyFacts>::builder().build();
 
         let _ = StateData::update_state(&mut input_data, updater);
 
@@ -360,7 +361,7 @@ mod tests {
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
     #[test]
     const fn should_implement_auto_traits_for_execute_sec_request_input() {
-        implements_auto_traits::<ExecuteSecRequestInput>();
+        implements_auto_traits::<ExecuteSecRequestInput<CompanyFacts>>();
     }
 
     const fn implements_send<T: Send>() {}
@@ -368,71 +369,71 @@ mod tests {
 
     #[test]
     const fn should_implement_send_for_execute_sec_request_input() {
-        implements_send::<ExecuteSecRequestInput>();
+        implements_send::<ExecuteSecRequestInput<CompanyFacts>>();
     }
 
     #[test]
     const fn should_implement_sync_for_execute_sec_request_input() {
-        implements_sync::<ExecuteSecRequestInput>();
+        implements_sync::<ExecuteSecRequestInput<CompanyFacts>>();
     }
 
     #[test]
     const fn should_be_thread_safe_for_execute_sec_request_input() {
-        implements_send::<ExecuteSecRequestInput>();
-        implements_sync::<ExecuteSecRequestInput>();
+        implements_send::<ExecuteSecRequestInput<CompanyFacts>>();
+        implements_sync::<ExecuteSecRequestInput<CompanyFacts>>();
     }
 
     const fn implements_sized<T: Sized>() {}
     #[test]
     const fn should_be_sized_for_execute_sec_request_input() {
-        implements_sized::<ExecuteSecRequestInput>();
+        implements_sized::<ExecuteSecRequestInput<CompanyFacts>>();
     }
 
     const fn implements_hash<T: Hash>() {}
     #[test]
     const fn should_implement_hash_for_execute_sec_request_input() {
-        implements_hash::<ExecuteSecRequestInput>();
+        implements_hash::<ExecuteSecRequestInput<CompanyFacts>>();
     }
 
     const fn implements_partial_eq<T: PartialEq>() {}
     #[test]
     const fn should_implement_partial_eq_for_execute_sec_request_input() {
-        implements_partial_eq::<ExecuteSecRequestInput>();
+        implements_partial_eq::<ExecuteSecRequestInput<CompanyFacts>>();
     }
 
     const fn implements_eq<T: Eq>() {}
     #[test]
     const fn should_implement_eq_for_execute_sec_request_input() {
-        implements_eq::<ExecuteSecRequestInput>();
+        implements_eq::<ExecuteSecRequestInput<CompanyFacts>>();
     }
 
     const fn implements_partial_ord<T: PartialOrd>() {}
     #[test]
     const fn should_implement_partial_ord_for_execute_sec_request_input() {
-        implements_partial_ord::<ExecuteSecRequestInput>();
+        implements_partial_ord::<ExecuteSecRequestInput<CompanyFacts>>();
     }
 
     const fn implements_ord<T: Ord>() {}
     #[test]
     const fn should_implement_ord_for_execute_sec_request_input() {
-        implements_ord::<ExecuteSecRequestInput>();
+        implements_ord::<ExecuteSecRequestInput<CompanyFacts>>();
     }
 
     const fn implements_debug<T: Debug>() {}
     #[test]
     const fn should_implement_debug_for_execute_sec_request_input() {
-        implements_debug::<ExecuteSecRequestInput>();
+        implements_debug::<ExecuteSecRequestInput<CompanyFacts>>();
     }
 
     const fn implements_clone<T: Clone>() {}
     #[test]
     const fn should_implement_clone_for_execute_sec_request_input() {
-        implements_clone::<ExecuteSecRequestInput>();
+        implements_clone::<ExecuteSecRequestInput<CompanyFacts>>();
     }
 
     const fn implements_unpin<T: Unpin>() {}
     #[test]
     const fn should_implement_unpin_for_execute_sec_request_input() {
-        implements_unpin::<ExecuteSecRequestInput>();
+        implements_unpin::<ExecuteSecRequestInput<CompanyFacts>>();
     }
 }

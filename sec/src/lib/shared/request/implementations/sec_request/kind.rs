@@ -7,7 +7,10 @@
 //! the request after the build, so the client can tell a Company Facts request from a Notes
 //! request by its type.
 
-use std::fmt::Debug;
+use std::fmt::{Debug, Display};
+use std::hash::Hash;
+
+use serde::Serialize;
 
 use crate::shared::cik::Cik;
 use crate::shared::notes_period::NotesPeriod;
@@ -19,9 +22,12 @@ use super::SecRequestType;
 ///
 /// A new kind implements this trait, adds an [`SecRequestType`] variant, and adds the URL of that
 /// variant in [`SecRequest::new`](crate::shared::request::SecRequest::new).
-pub trait RequestKind: Debug + Send + Sync {
+pub trait RequestKind: Debug + Clone + Eq + Ord + Hash + Send + Sync + Unpin {
     /// The domain input of the request, for example a [`Cik`].
-    type Input;
+    type Input: Debug + Display + Clone + Eq + Ord + Hash + Serialize + Send + Sync + Unpin;
+
+    /// The name of the input in serialized data, for example `cik`.
+    const INPUT_NAME: &'static str;
 
     /// Builds the [`SecRequestType`] of this kind from its input.
     fn request_type(input: Self::Input) -> SecRequestType;
@@ -34,6 +40,8 @@ pub struct CompanyFacts;
 impl RequestKind for CompanyFacts {
     type Input = Cik;
 
+    const INPUT_NAME: &'static str = "cik";
+
     fn request_type(cik: Cik) -> SecRequestType {
         SecRequestType::FetchAllCompanyFacts { cik }
     }
@@ -45,6 +53,8 @@ pub struct NotesFile;
 
 impl RequestKind for NotesFile {
     type Input = NotesPeriod;
+
+    const INPUT_NAME: &'static str = "notes_period";
 
     fn request_type(period: NotesPeriod) -> SecRequestType {
         SecRequestType::FetchNotesFile { period }

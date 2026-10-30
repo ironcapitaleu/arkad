@@ -61,10 +61,12 @@ use state_maschine::prelude::State as SMState;
 use crate::error::State as StateError;
 use crate::error::state_machine::state::failed_request_execution::FailedRequestExecution;
 use crate::implementations::states::extract::store_company_facts::RawCompanyFactsRepository;
+use crate::shared::http_client::RespondsWith;
 use crate::shared::http_client::SecClient as SecClientTrait;
 use crate::shared::http_client::implementations::sec_client::SecClient;
 use crate::shared::http_client::implementations::sec_client::error::FailedSecRequest;
-use crate::shared::response::implementations::sec_response::{JsonBody, SecResponse};
+use crate::shared::request::implementations::sec_request::CompanyFacts;
+use crate::shared::response::implementations::sec_response::SecResponse;
 use crate::traits::state_machine::state::State;
 
 pub mod constants;
@@ -79,16 +81,21 @@ pub use data::ExecuteSecRequestOutput;
 /// Sends the prepared request to the SEC API and captures the response.
 ///
 /// Consumes the prepared SEC client `C`, by default [`SecClient`], and the
-/// [`SecRequest`](crate::shared::request::implementations::sec_request::SecRequest). It performs
-/// the HTTP call and stores the resulting [`SecResponse`].
+/// [`SecRequest`](crate::shared::request::implementations::sec_request::SecRequest) of endpoint
+/// `E`. It performs the HTTP call and stores the resulting [`SecResponse`], whose body kind `E`
+/// sets.
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
-pub struct ExecuteSecRequest<R, C = SecClient> {
-    input: ExecuteSecRequestInput<C>,
-    context: ExecuteSecRequestContext<R>,
-    output: Option<ExecuteSecRequestOutput>,
+#[serde(bound(serialize = "R: Serialize, C: Serialize"))]
+pub struct ExecuteSecRequest<E: RespondsWith, R, C = SecClient> {
+    input: ExecuteSecRequestInput<E, C>,
+    context: ExecuteSecRequestContext<E, R>,
+    output: Option<ExecuteSecRequestOutput<E>>,
 }
 
-impl<R, C> ExecuteSecRequest<R, C> {
+/// The [`ExecuteSecRequest`] state of the Company Facts path.
+pub type ExecuteCompanyFactsRequest<R, C = SecClient> = ExecuteSecRequest<CompanyFacts, R, C>;
+
+impl<E: RespondsWith, R, C> ExecuteSecRequest<E, R, C> {
     /// Creates a new [`ExecuteSecRequest`] state from its input and context, with no output computed yet.
     ///
     /// # Examples
@@ -122,8 +129,8 @@ impl<R, C> ExecuteSecRequest<R, C> {
     /// ```
     #[must_use]
     pub const fn new(
-        input: ExecuteSecRequestInput<C>,
-        context: ExecuteSecRequestContext<R>,
+        input: ExecuteSecRequestInput<E, C>,
+        context: ExecuteSecRequestContext<E, R>,
     ) -> Self {
         Self {
             input,
@@ -134,12 +141,16 @@ impl<R, C> ExecuteSecRequest<R, C> {
 
     /// Consumes the state and returns its input, optional output, and context.
     #[must_use]
+    #[expect(
+        clippy::type_complexity,
+        reason = "The tuple names the three parts of the state. An alias would hide them from the reader"
+    )]
     pub fn into_parts(
         self,
     ) -> (
-        ExecuteSecRequestInput<C>,
-        Option<ExecuteSecRequestOutput>,
-        ExecuteSecRequestContext<R>,
+        ExecuteSecRequestInput<E, C>,
+        Option<ExecuteSecRequestOutput<E>>,
+        ExecuteSecRequestContext<E, R>,
     ) {
         (self.input, self.output, self.context)
     }
@@ -147,20 +158,21 @@ impl<R, C> ExecuteSecRequest<R, C> {
     /// Returns the state with `output` set. Tests use it to skip the network call.
     #[cfg(test)]
     #[must_use]
-    pub(crate) fn with_output(mut self, output: ExecuteSecRequestOutput) -> Self {
+    pub(crate) fn with_output(mut self, output: ExecuteSecRequestOutput<E>) -> Self {
         self.output = Some(output);
         self
     }
 }
 
-// Deviation: the output holds a concrete `SecResponse<JsonBody>`, and `FailedRequestExecution`
+// Deviation: the output holds a concrete `SecResponse<E::Body>`, and `FailedRequestExecution`
 // wraps a `FailedSecRequest`. So the impls that compute the output pin the response and the error
 // of `C`. Other impls bind `C: SecClient` only.
 #[async_trait]
-impl<R, C> State for ExecuteSecRequest<R, C>
+impl<E, R, C> State for ExecuteSecRequest<E, R, C>
 where
+    E: RespondsWith,
     R: RawCompanyFactsRepository,
-    C: SecClientTrait<Response<JsonBody> = SecResponse<JsonBody>, Error = FailedSecRequest>,
+    C: SecClientTrait<Response<E::Body> = SecResponse<E::Body>, Error = FailedSecRequest>,
 {
     /// Executes the prepared SEC request and stores the response as output.
     ///
@@ -188,14 +200,15 @@ where
     }
 }
 
-impl<R, C> SMState for ExecuteSecRequest<R, C>
+impl<E, R, C> SMState for ExecuteSecRequest<E, R, C>
 where
+    E: RespondsWith,
     R: RawCompanyFactsRepository,
-    C: SecClientTrait<Response<JsonBody> = SecResponse<JsonBody>, Error = FailedSecRequest>,
+    C: SecClientTrait<Response<E::Body> = SecResponse<E::Body>, Error = FailedSecRequest>,
 {
-    type InputData = ExecuteSecRequestInput<C>;
-    type OutputData = ExecuteSecRequestOutput;
-    type Context = ExecuteSecRequestContext<R>;
+    type InputData = ExecuteSecRequestInput<E, C>;
+    type OutputData = ExecuteSecRequestOutput<E>;
+    type Context = ExecuteSecRequestContext<E, R>;
 
     /// Returns the human-readable name of this state.
     fn state_name(&self) -> impl ToString {
@@ -240,7 +253,9 @@ where
     }
 }
 
-impl<R: RawCompanyFactsRepository, C: SecClientTrait> fmt::Display for ExecuteSecRequest<R, C> {
+impl<E: RespondsWith, R: RawCompanyFactsRepository, C: SecClientTrait> fmt::Display
+    for ExecuteSecRequest<E, R, C>
+{
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
@@ -269,12 +284,14 @@ mod tests {
     use super::*;
     use crate::shared::cik::Cik;
     use crate::shared::http_client::implementations::sec_client::SecClient;
+    use crate::shared::notes_period::NotesPeriod;
     use crate::shared::request::implementations::sec_request::SecRequest;
     use crate::shared::response::SecResponse as SecResponseTrait;
     use crate::shared::response::implementations::sec_response::error::{
         ErrorReason, InvalidSecResponse,
     };
     use crate::shared::status_code::StatusCode;
+    use crate::tests::fixtures::data::notes_archive::SAMPLE_NOTES_ZIP;
     use crate::tests::fixtures::sample_http_client::sample_sec_client::always_responding::AlwaysRespondingSecClient;
     use crate::tests::fixtures::sample_write_repository::FakeWriteRepository;
 
@@ -285,7 +302,7 @@ mod tests {
     }
 
     /// Creates a baseline `ExecuteSecRequest` state for use in tests.
-    fn create_baseline_state() -> ExecuteSecRequest<FakeWriteRepository> {
+    fn create_baseline_state() -> ExecuteCompanyFactsRequest<FakeWriteRepository> {
         let cik = create_test_cik();
         let client = SecClient::default();
         let request = SecRequest::builder()
@@ -302,7 +319,7 @@ mod tests {
     /// Creates an `ExecuteSecRequest` state whose fake client answers with `status` and a JSON body.
     fn create_fake_client_state(
         status: u16,
-    ) -> ExecuteSecRequest<FakeWriteRepository, AlwaysRespondingSecClient> {
+    ) -> ExecuteCompanyFactsRequest<FakeWriteRepository, AlwaysRespondingSecClient> {
         let cik = create_test_cik();
         let client = AlwaysRespondingSecClient::new(
             status,
@@ -316,6 +333,35 @@ mod tests {
         let input = ExecuteSecRequestInput::new(client, request);
         let context = ExecuteSecRequestContext::new(cik, FakeWriteRepository::new());
         ExecuteSecRequest::new(input, context)
+    }
+
+    #[tokio::test]
+    async fn should_output_the_zip_body_unchanged_when_the_fake_client_downloads_a_notes_file() {
+        let period = NotesPeriod::new("2024q1")
+            .expect("Given a hardcoded published quarter, parsing should always succeed");
+        let client = AlwaysRespondingSecClient::new(
+            200,
+            vec![
+                ("content-type", "application/zip".to_string()),
+                ("content-length", SAMPLE_NOTES_ZIP.len().to_string()),
+            ],
+            SAMPLE_NOTES_ZIP.to_vec(),
+        );
+        let request = SecRequest::builder().notes_file().period(period).build();
+        let mut state = ExecuteSecRequest::new(
+            ExecuteSecRequestInput::new(client, request),
+            ExecuteSecRequestContext::new(period, FakeWriteRepository::new()),
+        );
+
+        let expected_result = Some(SAMPLE_NOTES_ZIP);
+
+        state
+            .compute_output_data_async()
+            .await
+            .expect("Given status 200, a ZIP content type and a matching length, the download should always succeed");
+        let result = state.output_data().map(|output| output.response().body());
+
+        assert_eq!(result, expected_result);
     }
 
     #[tokio::test]
@@ -434,7 +480,7 @@ mod tests {
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
     #[test]
     const fn should_implement_auto_traits_for_execute_sec_request() {
-        implements_auto_traits::<ExecuteSecRequest<FakeWriteRepository>>();
+        implements_auto_traits::<ExecuteCompanyFactsRequest<FakeWriteRepository>>();
     }
 
     const fn implements_send<T: Send>() {}
@@ -442,72 +488,72 @@ mod tests {
 
     #[test]
     const fn should_implement_send_for_execute_sec_request() {
-        implements_send::<ExecuteSecRequest<FakeWriteRepository>>();
+        implements_send::<ExecuteCompanyFactsRequest<FakeWriteRepository>>();
     }
 
     #[test]
     const fn should_implement_sync_for_execute_sec_request() {
-        implements_sync::<ExecuteSecRequest<FakeWriteRepository>>();
+        implements_sync::<ExecuteCompanyFactsRequest<FakeWriteRepository>>();
     }
 
     #[test]
     const fn should_be_thread_safe_for_execute_sec_request() {
-        implements_send::<ExecuteSecRequest<FakeWriteRepository>>();
-        implements_sync::<ExecuteSecRequest<FakeWriteRepository>>();
+        implements_send::<ExecuteCompanyFactsRequest<FakeWriteRepository>>();
+        implements_sync::<ExecuteCompanyFactsRequest<FakeWriteRepository>>();
     }
 
     const fn implements_sized<T: Sized>() {}
     #[test]
     const fn should_be_sized_for_execute_sec_request() {
-        implements_sized::<ExecuteSecRequest<FakeWriteRepository>>();
+        implements_sized::<ExecuteCompanyFactsRequest<FakeWriteRepository>>();
     }
 
     const fn implements_hash<T: Hash>() {}
     #[test]
     const fn should_implement_hash_for_execute_sec_request() {
-        implements_hash::<ExecuteSecRequest<FakeWriteRepository>>();
+        implements_hash::<ExecuteCompanyFactsRequest<FakeWriteRepository>>();
     }
 
     const fn implements_partial_eq<T: PartialEq>() {}
     #[test]
     const fn should_implement_partial_eq_for_execute_sec_request() {
-        implements_partial_eq::<ExecuteSecRequest<FakeWriteRepository>>();
+        implements_partial_eq::<ExecuteCompanyFactsRequest<FakeWriteRepository>>();
     }
 
     const fn implements_eq<T: Eq>() {}
     #[test]
     const fn should_implement_eq_for_execute_sec_request() {
-        implements_eq::<ExecuteSecRequest<FakeWriteRepository>>();
+        implements_eq::<ExecuteCompanyFactsRequest<FakeWriteRepository>>();
     }
 
     const fn implements_partial_ord<T: PartialOrd>() {}
     #[test]
     const fn should_implement_partial_ord_for_execute_sec_request() {
-        implements_partial_ord::<ExecuteSecRequest<FakeWriteRepository>>();
+        implements_partial_ord::<ExecuteCompanyFactsRequest<FakeWriteRepository>>();
     }
 
     const fn implements_ord<T: Ord>() {}
     #[test]
     const fn should_implement_ord_for_execute_sec_request() {
-        implements_ord::<ExecuteSecRequest<FakeWriteRepository>>();
+        implements_ord::<ExecuteCompanyFactsRequest<FakeWriteRepository>>();
     }
 
     const fn implements_debug<T: Debug>() {}
     #[test]
     const fn should_implement_debug_for_execute_sec_request() {
-        implements_debug::<ExecuteSecRequest<FakeWriteRepository>>();
+        implements_debug::<ExecuteCompanyFactsRequest<FakeWriteRepository>>();
     }
 
     const fn implements_clone<T: Clone>() {}
     #[test]
     const fn should_implement_clone_for_execute_sec_request() {
-        implements_clone::<ExecuteSecRequest<FakeWriteRepository>>();
+        implements_clone::<ExecuteCompanyFactsRequest<FakeWriteRepository>>();
     }
 
     const fn implements_unpin<T: Unpin>() {}
     #[test]
     const fn should_implement_unpin_for_execute_sec_request() {
-        implements_unpin::<ExecuteSecRequest<FakeWriteRepository>>();
+        implements_unpin::<ExecuteCompanyFactsRequest<FakeWriteRepository>>();
     }
 
     #[test]

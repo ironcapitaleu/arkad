@@ -4,13 +4,15 @@
 //! [`ExecuteSecRequest`](crate::implementations::states::extract::execute_sec_request::ExecuteSecRequest)
 //! state, together with its updater and builder.
 //!
-//! The context tracks the [`Cik`] being processed, the storage repository, and the retry budget.
+//! The context tracks the input of the request, for example a [`Cik`], the storage repository, and
+//! the retry budget.
 //!
 //! ## Usage
 //!
 //! ```rust
 //! use sec::implementations::states::extract::execute_sec_request::context::*;
 //! use sec::shared::cik::Cik;
+//! use sec::shared::request::implementations::sec_request::CompanyFacts;
 //! use state_maschine::prelude::*;
 //!
 //! let cik = Cik::new("1234567890").expect("A hardcoded valid CIK should always parse");
@@ -22,15 +24,15 @@
 //! #     .document_type::<RawDocument<RawCompanyFacts>>()
 //! #     .root("data")
 //! #     .build();
-//! let mut context = ExecuteSecRequestContext::new(cik, repository);
+//! let mut context = ExecuteSecRequestContext::<CompanyFacts, _>::new(cik, repository);
 //! let update = ExecuteSecRequestContextUpdater::builder()
-//!     .cik(Cik::new("0987654321").expect("A hardcoded valid CIK should always parse"))
+//!     .request_input(Cik::new("0987654321").expect("A hardcoded valid CIK should always parse"))
 //!     .build();
 //! context.update_context(update);
 //!
 //! let expected_result = "0987654321";
 //!
-//! let result = context.cik().to_string();
+//! let result = context.request_input().to_string();
 //!
 //! assert_eq!(result, expected_result);
 //! ```
@@ -42,42 +44,46 @@
 
 use std::fmt;
 
-use serde::Serialize;
+use serde::ser::SerializeStruct;
+use serde::{Serialize, Serializer};
 use state_maschine::prelude::Context as SMContext;
 
 use crate::implementations::states::extract::store_company_facts::RawCompanyFactsRepository;
+#[cfg(doc)]
 use crate::shared::cik::Cik;
+use crate::shared::request::implementations::sec_request::RequestKind;
 use crate::traits::state_machine::state::Context;
 
 /// Context for the [`ExecuteSecRequest`](super::ExecuteSecRequest) state.
 ///
-/// Tracks the [`Cik`] being processed, the storage repository, and the retry budget.
-#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
-pub struct ExecuteSecRequestContext<R> {
-    /// The Central Index Key (CIK) being processed in this execution context.
-    pub cik: Cik,
+/// Tracks the input of the request of endpoint `E`, for example a [`Cik`], the storage
+/// repository, and the retry budget.
+#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
+pub struct ExecuteSecRequestContext<E: RequestKind, R> {
+    /// The input of the request, for example the [`Cik`] of a Company Facts request.
+    pub request_input: E::Input,
     /// The storage repository.
     pub repository: R,
     /// Maximum number of times the state may be retried on failure.
     pub max_retries: u32,
 }
 
-impl<R> ExecuteSecRequestContext<R> {
-    /// Creates a new [`ExecuteSecRequestContext`] from a CIK and the storage repository, with the
-    /// retry budget at zero.
+impl<E: RequestKind, R> ExecuteSecRequestContext<E, R> {
+    /// Creates a new [`ExecuteSecRequestContext`] from the request input and the storage
+    /// repository, with the retry budget at zero.
     #[must_use]
-    pub const fn new(cik: Cik, repository: R) -> Self {
+    pub const fn new(request_input: E::Input, repository: R) -> Self {
         Self {
-            cik,
+            request_input,
             repository,
             max_retries: 0,
         }
     }
 
-    /// Returns a reference to the CIK being processed.
+    /// Returns a reference to the request input.
     #[must_use]
-    pub const fn cik(&self) -> &Cik {
-        &self.cik
+    pub const fn request_input(&self) -> &E::Input {
+        &self.request_input
     }
 
     /// Returns a reference to the storage repository.
@@ -87,22 +93,33 @@ impl<R> ExecuteSecRequestContext<R> {
     }
 }
 
-impl<R: RawCompanyFactsRepository> Context for ExecuteSecRequestContext<R> {
+/// Serializes the request input under the name its endpoint gives it, for example `cik`.
+impl<E: RequestKind, R: Serialize> Serialize for ExecuteSecRequestContext<E, R> {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let mut state = serializer.serialize_struct("ExecuteSecRequestContext", 3)?;
+        state.serialize_field(E::INPUT_NAME, &self.request_input)?;
+        state.serialize_field("repository", &self.repository)?;
+        state.serialize_field("max_retries", &self.max_retries)?;
+        state.end()
+    }
+}
+
+impl<E: RequestKind, R: RawCompanyFactsRepository> Context for ExecuteSecRequestContext<E, R> {
     fn max_retries(&self) -> u32 {
         self.max_retries
     }
 }
 
-impl<R: RawCompanyFactsRepository> SMContext for ExecuteSecRequestContext<R> {
-    type UpdateType = ExecuteSecRequestContextUpdater<R>;
+impl<E: RequestKind, R: RawCompanyFactsRepository> SMContext for ExecuteSecRequestContext<E, R> {
+    type UpdateType = ExecuteSecRequestContextUpdater<E, R>;
 
     fn context(&self) -> &Self {
         self
     }
 
     fn update_context(&mut self, updates: Self::UpdateType) {
-        if let Some(cik) = updates.cik {
-            self.cik = cik;
+        if let Some(request_input) = updates.request_input {
+            self.request_input = request_input;
         }
         if let Some(repository) = updates.repository {
             self.repository = repository;
@@ -113,9 +130,9 @@ impl<R: RawCompanyFactsRepository> SMContext for ExecuteSecRequestContext<R> {
     }
 }
 
-impl<R> fmt::Display for ExecuteSecRequestContext<R> {
+impl<E: RequestKind, R> fmt::Display for ExecuteSecRequestContext<E, R> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Context Data: {}", self.cik)
+        write!(f, "Context Data: {}", self.request_input)
     }
 }
 
@@ -123,46 +140,46 @@ impl<R> fmt::Display for ExecuteSecRequestContext<R> {
 ///
 /// Fields set to `None` are left unchanged when the updater is applied.
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
-pub struct ExecuteSecRequestContextUpdater<R> {
-    /// Optional new value for the CIK.
-    pub cik: Option<Cik>,
+pub struct ExecuteSecRequestContextUpdater<E: RequestKind, R> {
+    /// Optional new value for the request input.
+    pub request_input: Option<E::Input>,
     /// Optional new value for the storage repository.
     pub repository: Option<R>,
     /// Optional new value for the retry budget.
     pub max_retries: Option<u32>,
 }
 
-impl<R> ExecuteSecRequestContextUpdater<R> {
+impl<E: RequestKind, R> ExecuteSecRequestContextUpdater<E, R> {
     /// Creates a new builder for constructing [`ExecuteSecRequestContextUpdater`] instances.
     #[must_use]
-    pub const fn builder() -> ExecuteSecRequestContextUpdaterBuilder<R> {
+    pub const fn builder() -> ExecuteSecRequestContextUpdaterBuilder<E, R> {
         ExecuteSecRequestContextUpdaterBuilder::new()
     }
 }
 
 /// Fluent builder for an [`ExecuteSecRequestContextUpdater`].
-pub struct ExecuteSecRequestContextUpdaterBuilder<R> {
-    cik: Option<Cik>,
+pub struct ExecuteSecRequestContextUpdaterBuilder<E: RequestKind, R> {
+    request_input: Option<E::Input>,
     repository: Option<R>,
     max_retries: Option<u32>,
 }
 
-impl<R> ExecuteSecRequestContextUpdaterBuilder<R> {
+impl<E: RequestKind, R> ExecuteSecRequestContextUpdaterBuilder<E, R> {
     /// Creates a new [`ExecuteSecRequestContextUpdaterBuilder`] with all fields initialized to `None`.
     #[must_use]
     pub const fn new() -> Self {
         Self {
-            cik: None,
+            request_input: None,
             repository: None,
             max_retries: None,
         }
     }
 
-    /// Sets the CIK field.
+    /// Sets the request input field.
     #[must_use]
     #[allow(clippy::missing_const_for_fn)]
-    pub fn cik(mut self, cik: Cik) -> Self {
-        self.cik = Some(cik);
+    pub fn request_input(mut self, request_input: E::Input) -> Self {
+        self.request_input = Some(request_input);
         self
     }
 
@@ -183,16 +200,16 @@ impl<R> ExecuteSecRequestContextUpdaterBuilder<R> {
 
     /// Builds the [`ExecuteSecRequestContextUpdater`].
     #[must_use]
-    pub fn build(self) -> ExecuteSecRequestContextUpdater<R> {
+    pub fn build(self) -> ExecuteSecRequestContextUpdater<E, R> {
         ExecuteSecRequestContextUpdater {
-            cik: self.cik,
+            request_input: self.request_input,
             repository: self.repository,
             max_retries: self.max_retries,
         }
     }
 }
 
-impl<R> Default for ExecuteSecRequestContextUpdaterBuilder<R> {
+impl<E: RequestKind, R> Default for ExecuteSecRequestContextUpdaterBuilder<E, R> {
     fn default() -> Self {
         Self::new()
     }
@@ -208,30 +225,34 @@ mod tests {
 
     use super::*;
     use crate::shared::cik::Cik;
+    use crate::shared::notes_period::NotesPeriod;
+    use crate::shared::request::implementations::sec_request::{CompanyFacts, NotesFile};
     use crate::tests::fixtures::sample_write_repository::FakeWriteRepository;
+
+    type TestContext = ExecuteSecRequestContext<CompanyFacts, FakeWriteRepository>;
 
     #[test]
     fn should_set_cik_and_zero_max_retries_when_created_with_new() {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
 
-        let expected_result = ExecuteSecRequestContext {
-            cik: cik.clone(),
+        let expected_result = TestContext {
+            request_input: cik.clone(),
             repository: FakeWriteRepository::new(),
             max_retries: 0,
         };
 
-        let result = ExecuteSecRequestContext::new(cik, FakeWriteRepository::new());
+        let result = TestContext::new(cik, FakeWriteRepository::new());
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
-    fn should_return_cik_reference_when_accessing_cik() {
+    fn should_return_cik_reference_when_accessing_request_input() {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
-        let context = ExecuteSecRequestContext::new(cik.clone(), FakeWriteRepository::new());
+        let context = TestContext::new(cik.clone(), FakeWriteRepository::new());
 
         let expected_result = &cik;
-        let result = context.cik();
+        let result = context.request_input();
 
         assert_eq!(result, expected_result);
     }
@@ -239,7 +260,7 @@ mod tests {
     #[test]
     fn should_return_max_retries_when_accessing_max_retries() {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
-        let context = ExecuteSecRequestContext::new(cik, FakeWriteRepository::new());
+        let context = TestContext::new(cik, FakeWriteRepository::new());
 
         let expected_result = 0;
         let result = context.max_retries();
@@ -248,19 +269,19 @@ mod tests {
     }
 
     #[test]
-    fn should_update_cik_when_updater_contains_cik() {
+    fn should_update_cik_when_updater_contains_request_input() {
         let original_cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
         let new_cik = Cik::new("0987654321").expect("Hardcoded CIK should always be valid");
-        let mut context = ExecuteSecRequestContext::new(original_cik, FakeWriteRepository::new());
+        let mut context = TestContext::new(original_cik, FakeWriteRepository::new());
 
-        let updater = ExecuteSecRequestContextUpdater::builder()
-            .cik(new_cik.clone())
+        let updater = ExecuteSecRequestContextUpdater::<CompanyFacts, _>::builder()
+            .request_input(new_cik.clone())
             .build();
 
         let expected_result = &new_cik;
 
         context.update_context(updater);
-        let result = context.cik();
+        let result = context.request_input();
 
         assert_eq!(result, expected_result);
     }
@@ -268,10 +289,10 @@ mod tests {
     #[test]
     fn should_not_update_fields_when_updater_is_empty() {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
-        let mut context = ExecuteSecRequestContext::new(cik.clone(), FakeWriteRepository::new());
-        let updater = ExecuteSecRequestContextUpdater::builder().build();
+        let mut context = TestContext::new(cik.clone(), FakeWriteRepository::new());
+        let updater = ExecuteSecRequestContextUpdater::<CompanyFacts, _>::builder().build();
 
-        let expected_result = ExecuteSecRequestContext::new(cik, FakeWriteRepository::new());
+        let expected_result = TestContext::new(cik, FakeWriteRepository::new());
 
         context.update_context(updater);
         let result = context;
@@ -282,9 +303,9 @@ mod tests {
     #[test]
     fn should_update_max_retries_when_updater_contains_max_retries() {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
-        let mut context = ExecuteSecRequestContext::new(cik, FakeWriteRepository::new());
+        let mut context = TestContext::new(cik, FakeWriteRepository::new());
 
-        let updater = ExecuteSecRequestContextUpdater::builder()
+        let updater = ExecuteSecRequestContextUpdater::<CompanyFacts, _>::builder()
             .max_retries(5)
             .build();
 
@@ -299,7 +320,7 @@ mod tests {
     #[test]
     fn should_return_context_reference_when_accessing_context() {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
-        let context = ExecuteSecRequestContext::new(cik, FakeWriteRepository::new());
+        let context = TestContext::new(cik, FakeWriteRepository::new());
 
         let expected_result = &context;
         let result = context.context();
@@ -310,7 +331,7 @@ mod tests {
     #[test]
     fn should_display_context_information_when_formatted() {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
-        let context = ExecuteSecRequestContext::new(cik, FakeWriteRepository::new());
+        let context = TestContext::new(cik, FakeWriteRepository::new());
 
         let expected_result = "Context Data: 1234567890";
         let result = format!("{context}");
@@ -322,7 +343,7 @@ mod tests {
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
     #[test]
     const fn should_implement_auto_traits_for_execute_sec_request_context() {
-        implements_auto_traits::<ExecuteSecRequestContext<FakeWriteRepository>>();
+        implements_auto_traits::<TestContext>();
     }
 
     const fn implements_send<T: Send>() {}
@@ -330,77 +351,77 @@ mod tests {
 
     #[test]
     const fn should_implement_send_for_execute_sec_request_context() {
-        implements_send::<ExecuteSecRequestContext<FakeWriteRepository>>();
+        implements_send::<TestContext>();
     }
 
     #[test]
     const fn should_implement_sync_for_execute_sec_request_context() {
-        implements_sync::<ExecuteSecRequestContext<FakeWriteRepository>>();
+        implements_sync::<TestContext>();
     }
 
     #[test]
     const fn should_be_thread_safe_for_execute_sec_request_context() {
-        implements_send::<ExecuteSecRequestContext<FakeWriteRepository>>();
-        implements_sync::<ExecuteSecRequestContext<FakeWriteRepository>>();
+        implements_send::<TestContext>();
+        implements_sync::<TestContext>();
     }
 
     const fn implements_sized<T: Sized>() {}
     #[test]
     const fn should_be_sized_for_execute_sec_request_context() {
-        implements_sized::<ExecuteSecRequestContext<FakeWriteRepository>>();
+        implements_sized::<TestContext>();
     }
 
     const fn implements_hash<T: Hash>() {}
     #[test]
     const fn should_implement_hash_for_execute_sec_request_context() {
-        implements_hash::<ExecuteSecRequestContext<FakeWriteRepository>>();
+        implements_hash::<TestContext>();
     }
 
     const fn implements_partial_eq<T: PartialEq>() {}
     #[test]
     const fn should_implement_partial_eq_for_execute_sec_request_context() {
-        implements_partial_eq::<ExecuteSecRequestContext<FakeWriteRepository>>();
+        implements_partial_eq::<TestContext>();
     }
 
     const fn implements_eq<T: Eq>() {}
     #[test]
     const fn should_implement_eq_for_execute_sec_request_context() {
-        implements_eq::<ExecuteSecRequestContext<FakeWriteRepository>>();
+        implements_eq::<TestContext>();
     }
 
     const fn implements_partial_ord<T: PartialOrd>() {}
     #[test]
     const fn should_implement_partial_ord_for_execute_sec_request_context() {
-        implements_partial_ord::<ExecuteSecRequestContext<FakeWriteRepository>>();
+        implements_partial_ord::<TestContext>();
     }
 
     const fn implements_ord<T: Ord>() {}
     #[test]
     const fn should_implement_ord_for_execute_sec_request_context() {
-        implements_ord::<ExecuteSecRequestContext<FakeWriteRepository>>();
+        implements_ord::<TestContext>();
     }
 
     const fn implements_debug<T: Debug>() {}
     #[test]
     const fn should_implement_debug_for_execute_sec_request_context() {
-        implements_debug::<ExecuteSecRequestContext<FakeWriteRepository>>();
+        implements_debug::<TestContext>();
     }
 
     const fn implements_clone<T: Clone>() {}
     #[test]
     const fn should_implement_clone_for_execute_sec_request_context() {
-        implements_clone::<ExecuteSecRequestContext<FakeWriteRepository>>();
+        implements_clone::<TestContext>();
     }
 
     const fn implements_unpin<T: Unpin>() {}
     #[test]
     const fn should_implement_unpin_for_execute_sec_request_context() {
-        implements_unpin::<ExecuteSecRequestContext<FakeWriteRepository>>();
+        implements_unpin::<TestContext>();
     }
 
     #[test]
     fn should_return_repository_when_accessing_repository_of_execute_sec_request_context() {
-        let context = ExecuteSecRequestContext::new(
+        let context = TestContext::new(
             Cik::new("1234567890").expect("Hardcoded CIK should always be valid"),
             FakeWriteRepository::rejecting(WriteError::conflicting_write("Sample conflict")),
         );
@@ -415,11 +436,11 @@ mod tests {
 
     #[test]
     fn should_update_repository_when_updater_contains_repository_for_execute_sec_request_context() {
-        let mut context = ExecuteSecRequestContext::new(
+        let mut context = TestContext::new(
             Cik::new("1234567890").expect("Hardcoded CIK should always be valid"),
             FakeWriteRepository::new(),
         );
-        let update = ExecuteSecRequestContextUpdater::builder()
+        let update = ExecuteSecRequestContextUpdater::<CompanyFacts, _>::builder()
             .repository(FakeWriteRepository::rejecting(
                 WriteError::conflicting_write("Sample conflict"),
             ))
@@ -435,8 +456,27 @@ mod tests {
     }
 
     #[test]
+    fn should_name_the_request_input_notes_period_when_serializing_a_notes_file_context() {
+        let period = NotesPeriod::new("2024q1")
+            .expect("Given a hardcoded published quarter, parsing should always succeed");
+        let context =
+            ExecuteSecRequestContext::<NotesFile, _>::new(period, FakeWriteRepository::new());
+
+        let expected_result = serde_json::json!({
+            "notes_period": "2024q1",
+            "repository": { "kind": "fake", "rejection": null },
+            "max_retries": 0,
+        });
+
+        let result = serde_json::to_value(context)
+            .expect("Given a context of domain types, serialization should always succeed");
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
     fn should_include_the_repository_when_serializing_the_context() {
-        let context = ExecuteSecRequestContext::new(
+        let context = TestContext::new(
             Cik::new("1234567890").expect("Hardcoded CIK should always be valid"),
             FakeWriteRepository::new(),
         );
