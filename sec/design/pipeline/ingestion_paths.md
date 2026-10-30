@@ -731,7 +731,7 @@ Backfill:
 5. FEATURE: `SecResponse<ZipBody>` and the Notes request through
    `SecClient::execute_sec_request`, with the transport checks of layer 1.
 6. FEATURE: `RawNotesArchive`, its `SecDocumentType` variant, and the constructors of
-   `RawDocument` and `RawDocumentMetadataContext` from `SecNotesFileResponse`.
+   `RawDocument` and `RawDocumentMetadataContext` from `SecResponse<ZipBody>`.
 7. FEATURE: the states `ValidateNotesPeriod` and `PrepareNotesRequest`.
 8. FEATURE: the state `DownloadNotesArchive`.
 9. FEATURE: the state `StoreNotesArchive` and `NotesArchiveRef`.
