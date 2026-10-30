@@ -68,7 +68,7 @@ pub trait SecClient: Debug + Clone + Eq + Ord + Hash + Send + Sync + Unpin + Ser
     /// use sec::shared::http_client::SecClient as SecClientTrait;
     /// use sec::shared::http_client::implementations::sec_client::SecClient;
     /// use sec::shared::http_client::implementations::sec_client::error::FailedSecRequest;
-    /// use sec::shared::request::implementations::sec_request::{NotesFile, SecRequest};
+    /// use sec::shared::request::implementations::sec_request::{CompanyFacts, NotesFile, SecRequest};
     /// use sec::shared::response::implementations::sec_response::{JsonBody, SecResponse};
     ///
     /// async fn execute_notes_request(
@@ -111,7 +111,9 @@ mod tests {
     use crate::shared::http_client::implementations::sec_client::error::FailedSecRequest;
     use crate::shared::http_client::traits::SecClient;
     use crate::shared::notes_period::NotesPeriod;
-    use crate::shared::request::implementations::sec_request::{NotesFile, SecRequest};
+    use crate::shared::request::implementations::sec_request::{
+        CompanyFacts, NotesFile, SecRequest,
+    };
     use crate::shared::response::SecResponse as SecResponseTrait;
     use crate::shared::response::implementations::sec_response::error::{
         ErrorReason, InvalidSecResponse,
@@ -128,10 +130,7 @@ mod tests {
     async fn should_return_the_fake_json_body_when_the_fake_sec_client_executes_a_company_facts_request()
      {
         let client = FakeSecClient::new();
-        let cik = Cik::new("1067983").expect(
-            "Given a hardcoded valid CIK, the creation of a CIK object should always succeed",
-        );
-        let request = SecRequest::builder().all_company_facts().cik(cik).build();
+        let request = company_facts_request();
 
         let expected_result = serde_json::json!({ "key": "value" });
 
@@ -148,10 +147,7 @@ mod tests {
     #[tokio::test]
     async fn should_return_the_inner_error_when_the_inner_client_fails() {
         let client = FakeSecClient::failing("Simulated network error");
-        let cik = Cik::new("1067983").expect(
-            "Given a hardcoded valid CIK, the creation of a CIK object should always succeed",
-        );
-        let request = SecRequest::builder().all_company_facts().cik(cik).build();
+        let request = company_facts_request();
 
         let expected_result = Some(String::from("Simulated network error"));
 
@@ -175,6 +171,13 @@ mod tests {
     }
 
     const NOTES_FILE_BODY: &[u8] = b"PK\x03\x04 notes";
+
+    fn company_facts_request() -> SecRequest<CompanyFacts> {
+        let cik = Cik::new("1067983").expect(
+            "Given a hardcoded valid CIK, the creation of a CIK object should always succeed",
+        );
+        SecRequest::builder().all_company_facts().cik(cik).build()
+    }
 
     fn notes_file_request() -> SecRequest<NotesFile> {
         let period = NotesPeriod::new("2024q1")
