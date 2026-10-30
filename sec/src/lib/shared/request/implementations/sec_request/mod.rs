@@ -9,7 +9,8 @@
 //!
 //! - [`builder`]: The [`SecRequestBuilder`] for constructing requests fluently.
 //! - [`constants`]: The endpoint URL fragments.
-//! - [`kind`]: The [`RequestKind`] trait and the [`CompanyFacts`] and [`NotesFile`] kinds.
+//! - [`kind`]: The [`RequestKind`] trait and the [`CompanyFacts`], [`NotesFile`], [`DailyIndex`], and
+//!   [`DailyIndexListing`] kinds.
 
 use std::marker::PhantomData;
 
@@ -17,6 +18,7 @@ use reqwest::{Method, Request, Url};
 use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
 
+use crate::shared::index_date::IndexDate;
 use crate::shared::{cik::Cik, notes_period::NotesPeriod, request::SecRequest as SecRequestTrait};
 
 pub mod builder;
@@ -24,9 +26,12 @@ pub mod constants;
 pub mod kind;
 
 pub use builder::SecRequestBuilder;
-pub use kind::{CompanyFacts, NotesFile, RequestKind};
+pub use kind::{CompanyFacts, DailyIndex, DailyIndexListing, NotesFile, RequestKind};
 
-use constants::{SEC_COMPANY_FACTS_URL_PREFIX, SEC_COMPANY_FACTS_URL_SUFFIX, SEC_NOTES_URL_PREFIX};
+use constants::{
+    SEC_COMPANY_FACTS_URL_PREFIX, SEC_COMPANY_FACTS_URL_SUFFIX, SEC_DAILY_INDEX_LISTING_FILE_NAME,
+    SEC_DAILY_INDEX_URL_PREFIX, SEC_NOTES_URL_PREFIX,
+};
 
 /// A ready-to-send SEC API request of kind `K`.
 ///
@@ -36,6 +41,7 @@ use constants::{SEC_COMPANY_FACTS_URL_PREFIX, SEC_COMPANY_FACTS_URL_SUFFIX, SEC_
 ///
 /// - [`CompanyFacts`], the default: built from a [`Cik`].
 /// - [`NotesFile`]: built from a [`NotesPeriod`].
+/// - [`DailyIndex`] and [`DailyIndexListing`]: built from an [`IndexDate`].
 #[derive(Debug)]
 pub struct SecRequest<K: RequestKind = CompanyFacts> {
     /// The raw HTTP request type this struct wraps.
@@ -116,6 +122,17 @@ impl<K: RequestKind> SecRequestTrait for SecRequest<K> {
             SecRequestType::FetchNotesFile { period } => {
                 format!("{SEC_NOTES_URL_PREFIX}{}", period.file_name())
             }
+            SecRequestType::FetchDailyIndex { date } => format!(
+                "{SEC_DAILY_INDEX_URL_PREFIX}{}/{}/form.{}.idx",
+                date.year(),
+                date.quarter(),
+                date.basic_format()
+            ),
+            SecRequestType::FetchDailyIndexListing { date } => format!(
+                "{SEC_DAILY_INDEX_URL_PREFIX}{}/{}/{SEC_DAILY_INDEX_LISTING_FILE_NAME}",
+                date.year(),
+                date.quarter()
+            ),
         };
         let request = Request::new(
             Method::GET,
@@ -184,6 +201,16 @@ pub enum SecRequestType {
     FetchNotesFile {
         /// The period of the Notes file to fetch.
         period: NotesPeriod,
+    },
+    /// Fetch the daily index of one date.
+    FetchDailyIndex {
+        /// The date of the daily index to fetch.
+        date: IndexDate,
+    },
+    /// Fetch the listing of the daily-index folder of the quarter of a date.
+    FetchDailyIndexListing {
+        /// A date of the quarter whose listing to fetch.
+        date: IndexDate,
     },
 }
 
