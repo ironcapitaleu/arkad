@@ -139,10 +139,23 @@ fn build_period(entry: &serde_json::Value) -> Option<Period> {
     }
 }
 
+/// The forms whose facts this state keeps. Amendments are dropped.
+///
+/// Deviation: this is narrower than [`SELECTED_FORMS`](crate::shared::financial::form::SELECTED_FORMS).
+/// Widening it changes the Company Facts output and needs a rule for facts that amendments
+/// duplicate. STA-332 decides both.
+const COMPANY_FACTS_FORMS: [Form; 2] = [Form::TenK, Form::TenQ];
+
 /// Builds a [`FilingSource`] from an SEC observation JSON entry.
+///
+/// Returns `None` for a form outside [`COMPANY_FACTS_FORMS`] and for an amendment.
 fn build_filing_source(entry: &serde_json::Value) -> Option<FilingSource> {
     let accn = AccessionNumber::new(entry.get("accn")?.as_str()?);
-    let form = Form::from_sec_str(entry.get("form")?.as_str()?)?;
+    let parsed_form = Form::from_sec_str(entry.get("form")?.as_str()?).ok()?;
+    if parsed_form.is_amendment() || !COMPANY_FACTS_FORMS.contains(&parsed_form.form()) {
+        return None;
+    }
+    let form = parsed_form.form();
     let fy = FiscalYear::try_from(entry.get("fy")?.as_u64()?).ok()?;
     let fp = FiscalPeriod::from_sec_str(entry.get("fp")?.as_str()?)?;
     let filed = parse_date(entry.get("filed")?.as_str()?)?;
@@ -609,6 +622,54 @@ mod tests {
                 }
             }
         })
+    }
+
+    fn get_observation_entry_with_form(form: &str) -> serde_json::Value {
+        serde_json::json!({
+            "end": "2023-09-30",
+            "val": 1,
+            "accn": "0000320193-23-000106",
+            "fy": 2023,
+            "fp": "FY",
+            "form": form,
+            "filed": "2023-11-03"
+        })
+    }
+
+    #[test]
+    fn should_build_filing_source_when_form_is_10q() {
+        let entry = get_observation_entry_with_form("10-Q");
+
+        let result = build_filing_source(&entry);
+
+        assert!(result.is_some());
+    }
+
+    #[test]
+    fn should_drop_filing_source_when_form_is_10k_amendment() {
+        let entry = get_observation_entry_with_form("10-K/A");
+
+        let result = build_filing_source(&entry);
+
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn should_drop_filing_source_when_form_is_20f() {
+        let entry = get_observation_entry_with_form("20-F");
+
+        let result = build_filing_source(&entry);
+
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn should_drop_filing_source_when_form_is_40f() {
+        let entry = get_observation_entry_with_form("40-F");
+
+        let result = build_filing_source(&entry);
+
+        assert!(result.is_none());
     }
 
     #[test]
