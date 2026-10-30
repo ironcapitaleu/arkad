@@ -17,6 +17,7 @@ use serde::Serialize;
 use state_maschine::prelude::StateData as SMStateData;
 
 use crate::error::State as StateError;
+use crate::shared::http_client::SecClient as SecClientTrait;
 use crate::shared::http_client::implementations::sec_client::SecClient;
 use crate::shared::request::implementations::sec_request::SecRequest;
 use crate::traits::state_machine::state::StateData;
@@ -26,14 +27,14 @@ use crate::traits::state_machine::state::StateData;
 /// Pairs the prepared [`SecRequest`] with the [`SecClient`] that will execute it, so the
 /// next state can send the request without reconstructing either.
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
-pub struct PrepareSecRequestOutput {
+pub struct PrepareSecRequestOutput<C = SecClient> {
     /// The prepared SEC client for making HTTP requests.
-    pub client: SecClient,
+    pub client: C,
     /// The prepared SEC request targeting a specific CIK.
     pub request: SecRequest,
 }
 
-impl PrepareSecRequestOutput {
+impl<C> PrepareSecRequestOutput<C> {
     /// Creates a new [`PrepareSecRequestOutput`] from a prepared client and request.
     ///
     /// # Examples
@@ -54,13 +55,13 @@ impl PrepareSecRequestOutput {
     ///
     /// assert_eq!(result, expected_result);
     /// ```
-    pub const fn new(client: SecClient, request: SecRequest) -> Self {
+    pub const fn new(client: C, request: SecRequest) -> Self {
         Self { client, request }
     }
 
     /// Returns a reference to the prepared SEC client.
     #[must_use]
-    pub const fn client(&self) -> &SecClient {
+    pub const fn client(&self) -> &C {
         &self.client
     }
 
@@ -71,7 +72,7 @@ impl PrepareSecRequestOutput {
     }
 }
 
-impl StateData for PrepareSecRequestOutput {
+impl<C: SecClientTrait> StateData for PrepareSecRequestOutput<C> {
     /// Updates the state data using the provided updater.
     ///
     /// If `client` is `Some`, updates the SEC client; if `request` is `Some`, updates the SEC request;
@@ -86,8 +87,8 @@ impl StateData for PrepareSecRequestOutput {
         Ok(())
     }
 }
-impl SMStateData for PrepareSecRequestOutput {
-    type UpdateType = PrepareSecRequestOutputUpdater;
+impl<C: SecClientTrait> SMStateData for PrepareSecRequestOutput<C> {
+    type UpdateType = PrepareSecRequestOutputUpdater<C>;
 
     /// Returns a reference to the current state data, which represents the output data of this state.
     fn state(&self) -> &Self {
@@ -105,7 +106,7 @@ impl SMStateData for PrepareSecRequestOutput {
     }
 }
 
-impl fmt::Display for PrepareSecRequestOutput {
+impl<C> fmt::Display for PrepareSecRequestOutput<C> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "\tURL: {}", self.request.inner.url())
     }
@@ -115,28 +116,28 @@ impl fmt::Display for PrepareSecRequestOutput {
 ///
 /// Fields set to `None` are left unchanged when the updater is applied.
 #[derive(Debug)]
-pub struct PrepareSecRequestOutputUpdater {
+pub struct PrepareSecRequestOutputUpdater<C = SecClient> {
     /// Optional new value for the SEC client.
-    pub client: Option<SecClient>,
+    pub client: Option<C>,
     /// Optional new value for the SEC request.
     pub request: Option<SecRequest>,
 }
 
-impl PrepareSecRequestOutputUpdater {
+impl<C> PrepareSecRequestOutputUpdater<C> {
     /// Creates a new builder for constructing [`PrepareSecRequestOutputUpdater`] instances.
     #[must_use]
-    pub const fn builder() -> PrepareSecRequestOutputUpdaterBuilder {
+    pub const fn builder() -> PrepareSecRequestOutputUpdaterBuilder<C> {
         PrepareSecRequestOutputUpdaterBuilder::new()
     }
 }
 
 /// Fluent builder for a [`PrepareSecRequestOutputUpdater`].
-pub struct PrepareSecRequestOutputUpdaterBuilder {
-    client: Option<SecClient>,
+pub struct PrepareSecRequestOutputUpdaterBuilder<C = SecClient> {
+    client: Option<C>,
     request: Option<SecRequest>,
 }
 
-impl PrepareSecRequestOutputUpdaterBuilder {
+impl<C> PrepareSecRequestOutputUpdaterBuilder<C> {
     /// Creates a new [`PrepareSecRequestOutputUpdaterBuilder`] with all fields initialized to `None`.
     #[must_use]
     pub const fn new() -> Self {
@@ -149,7 +150,7 @@ impl PrepareSecRequestOutputUpdaterBuilder {
     /// Sets the SEC client field.
     #[must_use]
     #[allow(clippy::missing_const_for_fn)]
-    pub fn client(mut self, client: SecClient) -> Self {
+    pub fn client(mut self, client: C) -> Self {
         self.client = Some(client);
         self
     }
@@ -164,7 +165,7 @@ impl PrepareSecRequestOutputUpdaterBuilder {
 
     /// Builds the [`PrepareSecRequestOutputUpdater`] instance from the builder.
     #[must_use]
-    pub fn build(self) -> PrepareSecRequestOutputUpdater {
+    pub fn build(self) -> PrepareSecRequestOutputUpdater<C> {
         PrepareSecRequestOutputUpdater {
             client: self.client,
             request: self.request,
@@ -172,7 +173,7 @@ impl PrepareSecRequestOutputUpdaterBuilder {
     }
 }
 
-impl Default for PrepareSecRequestOutputUpdaterBuilder {
+impl<C> Default for PrepareSecRequestOutputUpdaterBuilder<C> {
     /// Returns a new [`PrepareSecRequestOutputUpdaterBuilder`] with all fields initialized to `None`.
     fn default() -> Self {
         Self::new()

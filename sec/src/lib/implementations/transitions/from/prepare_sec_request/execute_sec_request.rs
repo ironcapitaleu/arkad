@@ -22,6 +22,7 @@ use crate::implementations::states::extract::prepare_sec_request::constants::STA
 use crate::implementations::states::extract::prepare_sec_request::{
     PrepareSecRequest, PrepareSecRequestContext, PrepareSecRequestOutput,
 };
+use crate::shared::http_client::SecClient as SecClientTrait;
 
 impl<R> From<PrepareSecRequestContext<R>> for ExecuteSecRequestContext<R> {
     fn from(context: PrepareSecRequestContext<R>) -> Self {
@@ -29,23 +30,23 @@ impl<R> From<PrepareSecRequestContext<R>> for ExecuteSecRequestContext<R> {
     }
 }
 
-impl From<PrepareSecRequestOutput> for ExecuteSecRequestInput {
-    fn from(output_data: PrepareSecRequestOutput) -> Self {
+impl<C: SecClientTrait> From<PrepareSecRequestOutput<C>> for ExecuteSecRequestInput<C> {
+    fn from(output_data: PrepareSecRequestOutput<C>) -> Self {
         Self::new(output_data.client, output_data.request)
     }
 }
 
-impl<R> TryFrom<PrepareSecRequest<R>> for ExecuteSecRequest<R> {
+impl<R, C: SecClientTrait> TryFrom<PrepareSecRequest<R, C>> for ExecuteSecRequest<R, C> {
     type Error = TransitionError;
 
-    fn try_from(state: PrepareSecRequest<R>) -> Result<Self, TransitionError> {
+    fn try_from(state: PrepareSecRequest<R, C>) -> Result<Self, TransitionError> {
         let (_input, output, context) = state.into_parts();
         let output_data = output.ok_or_else(|| {
             transition::MissingOutput::new(PREPARE_SEC_REQUEST, EXECUTE_SEC_REQUEST)
         })?;
 
         let new_context: ExecuteSecRequestContext<R> = context.into();
-        let new_input: ExecuteSecRequestInput = output_data.into();
+        let new_input: ExecuteSecRequestInput<C> = output_data.into();
 
         Ok(Self::new(new_input, new_context))
     }

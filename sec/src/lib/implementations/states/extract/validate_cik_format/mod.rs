@@ -68,6 +68,8 @@ use state_maschine::prelude::State as SMState;
 use crate::error::State as StateError;
 use crate::error::state_machine::state::InvalidCikFormat;
 use crate::implementations::states::extract::store_company_facts::RawCompanyFactsRepository;
+use crate::shared::http_client::SecClient as SecClientTrait;
+use crate::shared::http_client::implementations::sec_client::SecClient;
 use crate::traits::error::FromDomainError;
 use crate::traits::state_machine::state::State;
 
@@ -92,13 +94,13 @@ use crate::shared::cik::Cik;
 ///
 /// Validation is **syntactic only**: a well-formed CIK that does not correspond to any
 /// real filer still passes. Existence is established later, when the SEC request is executed.
-pub struct ValidateCikFormat<R> {
+pub struct ValidateCikFormat<R, C = SecClient> {
     input: ValidateCikFormatInput,
-    context: ValidateCikFormatContext<R>,
+    context: ValidateCikFormatContext<R, C>,
     output: Option<ValidateCikFormatOutput>,
 }
 
-impl<R> ValidateCikFormat<R> {
+impl<R, C> ValidateCikFormat<R, C> {
     /// Creates a new [`ValidateCikFormat`] state from its input and context, with no output computed yet.
     ///
     /// # Examples
@@ -127,7 +129,10 @@ impl<R> ValidateCikFormat<R> {
     /// assert_eq!(result, expected_result);
     /// ```
     #[must_use]
-    pub const fn new(input: ValidateCikFormatInput, context: ValidateCikFormatContext<R>) -> Self {
+    pub const fn new(
+        input: ValidateCikFormatInput,
+        context: ValidateCikFormatContext<R, C>,
+    ) -> Self {
         Self {
             input,
             context,
@@ -142,14 +147,14 @@ impl<R> ValidateCikFormat<R> {
     ) -> (
         ValidateCikFormatInput,
         Option<ValidateCikFormatOutput>,
-        ValidateCikFormatContext<R>,
+        ValidateCikFormatContext<R, C>,
     ) {
         (self.input, self.output, self.context)
     }
 }
 
 #[async_trait]
-impl<R: RawCompanyFactsRepository> State for ValidateCikFormat<R> {
+impl<R: RawCompanyFactsRepository, C: SecClientTrait> State for ValidateCikFormat<R, C> {
     /// Validates the raw CIK and, on success, stores the normalized [`Cik`] as output.
     ///
     /// # Errors
@@ -177,10 +182,10 @@ impl<R: RawCompanyFactsRepository> State for ValidateCikFormat<R> {
     }
 }
 
-impl<R: RawCompanyFactsRepository> SMState for ValidateCikFormat<R> {
+impl<R: RawCompanyFactsRepository, C: SecClientTrait> SMState for ValidateCikFormat<R, C> {
     type InputData = ValidateCikFormatInput;
     type OutputData = ValidateCikFormatOutput;
-    type Context = ValidateCikFormatContext<R>;
+    type Context = ValidateCikFormatContext<R, C>;
 
     fn state_name(&self) -> impl ToString {
         STATE_NAME
@@ -224,7 +229,7 @@ impl<R: RawCompanyFactsRepository> SMState for ValidateCikFormat<R> {
     }
 }
 
-impl<R: RawCompanyFactsRepository> fmt::Display for ValidateCikFormat<R> {
+impl<R: RawCompanyFactsRepository, C: SecClientTrait> fmt::Display for ValidateCikFormat<R, C> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,

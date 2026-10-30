@@ -19,6 +19,7 @@ use state_maschine::prelude::StateData as SMStateData;
 
 use crate::error::State as StateError;
 use crate::shared::cik::Cik;
+use crate::shared::http_client::SecClient as SecClientTrait;
 use crate::shared::http_client::implementations::sec_client::SecClient;
 use crate::traits::state_machine::state::StateData;
 
@@ -26,14 +27,14 @@ use crate::traits::state_machine::state::StateData;
 ///
 /// Bundles the validated [`Cik`] and the shared [`SecClient`] needed to assemble a request.
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
-pub struct PrepareSecRequestInput {
+pub struct PrepareSecRequestInput<C = SecClient> {
     /// The validated CIK that will be used for the SEC API request.
     pub validated_cik: Cik,
     /// The shared HTTP client for SEC API requests.
-    pub sec_client: SecClient,
+    pub sec_client: C,
 }
 
-impl PrepareSecRequestInput {
+impl<C> PrepareSecRequestInput<C> {
     /// Creates a new [`PrepareSecRequestInput`] from a validated CIK and a shared HTTP client.
     ///
     /// # Examples
@@ -53,7 +54,7 @@ impl PrepareSecRequestInput {
     /// assert_eq!(result, expected_result);
     /// ```
     #[must_use]
-    pub const fn new(validated_cik: Cik, sec_client: SecClient) -> Self {
+    pub const fn new(validated_cik: Cik, sec_client: C) -> Self {
         Self {
             validated_cik,
             sec_client,
@@ -68,12 +69,12 @@ impl PrepareSecRequestInput {
 
     /// Returns a reference to the HTTP client.
     #[must_use]
-    pub const fn sec_client(&self) -> &SecClient {
+    pub const fn sec_client(&self) -> &C {
         &self.sec_client
     }
 }
 
-impl StateData for PrepareSecRequestInput {
+impl<C: SecClientTrait> StateData for PrepareSecRequestInput<C> {
     /// Updates the state data using the provided updater.
     ///
     /// Only fields set to `Some` in the updater are modified; others are left unchanged.
@@ -88,8 +89,8 @@ impl StateData for PrepareSecRequestInput {
     }
 }
 
-impl SMStateData for PrepareSecRequestInput {
-    type UpdateType = PrepareSecRequestInputUpdater;
+impl<C: SecClientTrait> SMStateData for PrepareSecRequestInput<C> {
+    type UpdateType = PrepareSecRequestInputUpdater<C>;
 
     /// Returns a reference to the current state data, which represents the input data of this state.
     fn state(&self) -> &Self {
@@ -107,7 +108,7 @@ impl SMStateData for PrepareSecRequestInput {
     }
 }
 
-impl fmt::Display for PrepareSecRequestInput {
+impl<C> fmt::Display for PrepareSecRequestInput<C> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "\tValidated CIK: {}", self.validated_cik)
     }
@@ -117,28 +118,28 @@ impl fmt::Display for PrepareSecRequestInput {
 ///
 /// Fields set to `None` are left unchanged when the updater is applied.
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
-pub struct PrepareSecRequestInputUpdater {
+pub struct PrepareSecRequestInputUpdater<C = SecClient> {
     /// Optional new value for the validated CIK.
     pub validated_cik: Option<Cik>,
     /// Optional new value for the HTTP client.
-    pub sec_client: Option<SecClient>,
+    pub sec_client: Option<C>,
 }
 
-impl PrepareSecRequestInputUpdater {
+impl<C> PrepareSecRequestInputUpdater<C> {
     /// Creates a new builder for constructing [`PrepareSecRequestInputUpdater`] instances.
     #[must_use]
-    pub const fn builder() -> PrepareSecRequestInputUpdaterBuilder {
+    pub const fn builder() -> PrepareSecRequestInputUpdaterBuilder<C> {
         PrepareSecRequestInputUpdaterBuilder::new()
     }
 }
 
 /// Fluent builder for a [`PrepareSecRequestInputUpdater`].
-pub struct PrepareSecRequestInputUpdaterBuilder {
+pub struct PrepareSecRequestInputUpdaterBuilder<C = SecClient> {
     pub validated_cik: Option<Cik>,
-    pub sec_client: Option<SecClient>,
+    pub sec_client: Option<C>,
 }
 
-impl PrepareSecRequestInputUpdaterBuilder {
+impl<C> PrepareSecRequestInputUpdaterBuilder<C> {
     /// Creates a new [`PrepareSecRequestInputUpdaterBuilder`] with all fields initialized to `None`.
     #[must_use]
     pub const fn new() -> Self {
@@ -159,14 +160,14 @@ impl PrepareSecRequestInputUpdaterBuilder {
     /// Sets the SEC client field.
     #[must_use]
     #[allow(clippy::missing_const_for_fn)]
-    pub fn sec_client(mut self, sec_client: SecClient) -> Self {
+    pub fn sec_client(mut self, sec_client: C) -> Self {
         self.sec_client = Some(sec_client);
         self
     }
 
     /// Builds the [`PrepareSecRequestInputUpdater`] instance from the builder.
     #[must_use]
-    pub fn build(self) -> PrepareSecRequestInputUpdater {
+    pub fn build(self) -> PrepareSecRequestInputUpdater<C> {
         PrepareSecRequestInputUpdater {
             validated_cik: self.validated_cik,
             sec_client: self.sec_client,
@@ -174,7 +175,7 @@ impl PrepareSecRequestInputUpdaterBuilder {
     }
 }
 
-impl Default for PrepareSecRequestInputUpdaterBuilder {
+impl<C> Default for PrepareSecRequestInputUpdaterBuilder<C> {
     /// Returns a new [`PrepareSecRequestInputUpdaterBuilder`] with all fields initialized to `None`.
     fn default() -> Self {
         Self::new()
