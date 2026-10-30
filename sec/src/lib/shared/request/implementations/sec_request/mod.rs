@@ -30,8 +30,9 @@ use constants::{SEC_COMPANY_FACTS_URL_PREFIX, SEC_COMPANY_FACTS_URL_SUFFIX, SEC_
 
 /// A ready-to-send SEC API request of kind `K`.
 ///
-/// Wraps a `reqwest::Request` built from a high-level [`SecRequestType`], guaranteeing the right endpoint URL and HTTP
-/// method for the chosen request kind. The kind stays on the type after the build:
+/// Wraps a `reqwest::Request` built from a high-level [`SecRequestType`].
+/// [`SecRequest::new`](crate::shared::request::SecRequest::new) sets the endpoint URL and HTTP
+/// method for the kind. The kind stays on the type after the build:
 ///
 /// - [`CompanyFacts`], the default: built from a [`Cik`].
 /// - [`NotesFile`]: built from a [`NotesPeriod`].
@@ -257,7 +258,7 @@ mod tests {
 
         let expected_result =
             Url::parse("https://data.sec.gov/api/xbrl/companyfacts/CIK0001234567.json")
-                .expect("Hardcoded URL should always be valid");
+                .expect("Given a hardcoded HTTPS URL literal, Url parsing should always succeed");
 
         let result = build_for_kind::<CompanyFacts>(cik).inner().url().clone();
 
@@ -272,7 +273,7 @@ mod tests {
         let expected_result = Url::parse(
             "https://www.sec.gov/files/dera/data/financial-statement-notes-data-sets/2024q1_notes.zip",
         )
-        .expect("Hardcoded URL should always be valid");
+        .expect("Given a hardcoded HTTPS URL literal, Url parsing should always succeed");
 
         let result = build_for_kind::<NotesFile>(period).inner().url().clone();
 
