@@ -489,8 +489,9 @@ This rule needs no list of SEC holidays.
 ### Daily Index Storage
 
 `StoreDailyIndex` writes the index as one `RawDocument<RawDailyIndex>` under
-`sec/daily-index/form.YYYYMMDD.idx`, with the ingestion mode `incremental`. It shares the
-constructor `RawDocument::from_file` with `StoreNotesArchive`, so the state copies no bytes.
+`sec/daily-index/form.YYYYMMDD.idx`, with the ingestion mode `incremental`. It builds the
+document with `RawDocument::from_file`, as `StoreNotesArchive` does. That constructor takes the body
+as `Bytes`, so the state copies no bytes.
 Decided in STA-370:
 
 - The output holds the key and the index text as `bytes::Bytes`. The text shares the body buffer
