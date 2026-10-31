@@ -221,9 +221,9 @@ impl<C: SecClientTrait, R: RawRepository<RawSubmissions>>
     ///     .build();
     /// ```
     #[must_use]
-    pub fn build(self) -> ExtractSubmissionsSuperState<ValidateCikFormat<C>, R, C> {
+    pub fn build(self) -> ExtractSubmissionsSuperState<ValidateCikFormat, R, C> {
         let input = ValidateCikFormatInput::new(self.cik.clone());
-        let state_context = ValidateCikFormatContext::new(self.cik, self.sec_client.clone());
+        let state_context = ValidateCikFormatContext::new(self.cik);
 
         ExtractSubmissionsSuperState {
             current_state: ValidateCikFormat::new(input, state_context),
@@ -260,7 +260,7 @@ mod tests {
     >;
 
     type TestSuperState = ExtractSubmissionsSuperState<
-        ValidateCikFormat<AlwaysRespondingSecClient>,
+        ValidateCikFormat,
         FakeSubmissionsRepository,
         AlwaysRespondingSecClient,
     >;
@@ -279,7 +279,7 @@ mod tests {
         ExtractSubmissionsSuperState {
             current_state: ValidateCikFormat::new(
                 ValidateCikFormatInput::new(raw_cik),
-                ValidateCikFormatContext::new(raw_cik, sec_client.clone()),
+                ValidateCikFormatContext::new(raw_cik),
             ),
             input: ExtractSubmissionsSuperStateData,
             output: None,

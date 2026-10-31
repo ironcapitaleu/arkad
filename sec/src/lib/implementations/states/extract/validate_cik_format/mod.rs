@@ -21,12 +21,11 @@
 //! ```rust
 //! use sec::implementations::states::extract::validate_cik_format::*;
 //! use sec::prelude::*;
-//! use sec::shared::http_client::implementations::sec_client::SecClient;
 //!
 //! # #[tokio::main]
 //! # async fn main() {
 //! let input = ValidateCikFormatInput::new("1234");
-//! let context = ValidateCikFormatContext::new("1234", SecClient::default());
+//! let context = ValidateCikFormatContext::new("1234");
 //! let mut state = ValidateCikFormat::new(input, context);
 //! state
 //!     .compute_output_data_async()
@@ -59,8 +58,6 @@ use state_maschine::prelude::State as SMState;
 
 use crate::error::State as StateError;
 use crate::error::state_machine::state::InvalidCikFormat;
-use crate::shared::http_client::SecClient as SecClientTrait;
-use crate::shared::http_client::implementations::sec_client::SecClient;
 use crate::traits::error::FromDomainError;
 use crate::traits::state_machine::state::State;
 
@@ -85,24 +82,23 @@ use crate::shared::cik::Cik;
 ///
 /// Validation is **syntactic only**: a well-formed CIK that does not correspond to any
 /// real filer still passes. Existence is established later, when the SEC request is executed.
-pub struct ValidateCikFormat<C = SecClient> {
+pub struct ValidateCikFormat {
     input: ValidateCikFormatInput,
-    context: ValidateCikFormatContext<C>,
+    context: ValidateCikFormatContext,
     output: Option<ValidateCikFormatOutput>,
 }
 
-impl<C> ValidateCikFormat<C> {
+impl ValidateCikFormat {
     /// Creates a new [`ValidateCikFormat`] state from its input and context, with no output computed yet.
     ///
     /// # Examples
     ///
     /// ```
     /// use sec::implementations::states::extract::validate_cik_format::*;
-    /// use sec::shared::http_client::implementations::sec_client::SecClient;
     /// use state_maschine::prelude::State as SMState;
     ///
     /// let input = ValidateCikFormatInput::new("1234");
-    /// let context = ValidateCikFormatContext::new("1234", SecClient::default());
+    /// let context = ValidateCikFormatContext::new("1234");
     /// let state = ValidateCikFormat::new(input, context);
     ///
     /// let expected_result = false;
@@ -112,7 +108,7 @@ impl<C> ValidateCikFormat<C> {
     /// assert_eq!(result, expected_result);
     /// ```
     #[must_use]
-    pub const fn new(input: ValidateCikFormatInput, context: ValidateCikFormatContext<C>) -> Self {
+    pub const fn new(input: ValidateCikFormatInput, context: ValidateCikFormatContext) -> Self {
         Self {
             input,
             context,
@@ -127,14 +123,14 @@ impl<C> ValidateCikFormat<C> {
     ) -> (
         ValidateCikFormatInput,
         Option<ValidateCikFormatOutput>,
-        ValidateCikFormatContext<C>,
+        ValidateCikFormatContext,
     ) {
         (self.input, self.output, self.context)
     }
 }
 
 #[async_trait]
-impl<C: SecClientTrait> State for ValidateCikFormat<C> {
+impl State for ValidateCikFormat {
     /// Validates the raw CIK and, on success, stores the normalized [`Cik`] as output.
     ///
     /// # Errors
@@ -162,10 +158,10 @@ impl<C: SecClientTrait> State for ValidateCikFormat<C> {
     }
 }
 
-impl<C: SecClientTrait> SMState for ValidateCikFormat<C> {
+impl SMState for ValidateCikFormat {
     type InputData = ValidateCikFormatInput;
     type OutputData = ValidateCikFormatOutput;
-    type Context = ValidateCikFormatContext<C>;
+    type Context = ValidateCikFormatContext;
 
     fn state_name(&self) -> impl ToString {
         STATE_NAME
@@ -209,7 +205,7 @@ impl<C: SecClientTrait> SMState for ValidateCikFormat<C> {
     }
 }
 
-impl<C: SecClientTrait> fmt::Display for ValidateCikFormat<C> {
+impl fmt::Display for ValidateCikFormat {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
@@ -238,11 +234,9 @@ mod tests {
 
     use super::*;
     use crate::shared::cik::constants::BERKSHIRE_HATHAWAY_CIK_RAW;
-    use crate::shared::http_client::implementations::sec_client::SecClient;
 
     fn test_context() -> ValidateCikFormatContext {
-        let sec_client = SecClient::default();
-        ValidateCikFormatContext::new(BERKSHIRE_HATHAWAY_CIK_RAW, sec_client)
+        ValidateCikFormatContext::new(BERKSHIRE_HATHAWAY_CIK_RAW)
     }
 
     fn test_input() -> ValidateCikFormatInput {
