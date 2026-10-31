@@ -95,7 +95,7 @@ impl RunSummary {
         }
     }
 
-    /// Returns the number of periods that have a stored file, downloaded or already stored.
+    /// Returns the number of periods that have a stored file, whatever their [`Fetch`].
     pub fn success_count(&self) -> usize {
         self.0.iter().filter(|(_, outcome)| outcome.is_ok()).count()
     }

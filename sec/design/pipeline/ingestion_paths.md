@@ -1132,8 +1132,8 @@ for example the CIK.
 A filing can reach the fact store by two paths: as rows in a Notes file, or as its instance XML.
 Which path delivers a filing depends on how the backfill was split. Three cases:
 
-- Notes files up to the newest posted month, then daily indexes from the last day of that month.
-  This is the plan.
+- Notes files up to the newest stored Notes month, then daily indexes from the last day of that
+  month. This is the plan. See rule 1 of [Cut-Over Between the Paths](#cut-over-between-the-paths).
 - A possible later split: daily indexes back to 2009, with no Notes file.
 - Both paths for the same filing: the overlap of one day in rule 1 of
   [Cut-Over Between the Paths](#cut-over-between-the-paths), or a backfill run after the

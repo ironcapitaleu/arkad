@@ -8,8 +8,10 @@
 //! - `www.sec.gov`: the Notes files of 2009q1 (28 KB) and 2009q2 (534 KB)
 
 // The binary is its own crate root, so this test compiles its loop as a private module. The test
-// reads only part of the summary, so the counts that only `main` reads would fire `dead_code`.
-#[expect(dead_code)]
+// reads only part of the summary. Rust 1.97 reports the counts that only `main` reads as
+// `dead_code`, and Rust 1.90 (CI) does not. So `expect` fails on one of them, and `allow` holds on
+// both.
+#[allow(dead_code)]
 #[path = "../src/bin/notes_backfill/backfill.rs"]
 mod backfill;
 
