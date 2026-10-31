@@ -137,8 +137,10 @@ def run_once(binary, files_in_flight, workdir, user_agent):
     downloads, failures, used = read_log(log)
     shutil.rmtree(data)
     log.unlink()
-    # A build without ARKAD_FILES_IN_FLIGHT ignores the variable and runs with its own value.
-    if used != files_in_flight:
+    # A build without ARKAD_FILES_IN_FLIGHT ignores the variable and logs no value, so `used` is
+    # "none". A run that dies before its batch event (an OOM kill) leaves `used` as None, and its
+    # row keeps the exit code.
+    if used is not None and used != files_in_flight:
         sys.exit(f"The binary ran with {used} files in flight, not {files_in_flight}. "
                  "Build a commit that reads ARKAD_FILES_IN_FLIGHT.")
     return {"files_in_flight": files_in_flight, "exit": os.waitstatus_to_exitcode(status),
@@ -155,7 +157,7 @@ def read_log(log):
         except (json.JSONDecodeError, TypeError):
             continue
         if event.get("event") in ("batch_complete", "batch_failed"):
-            used = context.get("files_in_flight")
+            used = context.get("files_in_flight", "none")
         if event.get("event") == "state_completed" and context.get("state") == "Execute SEC Request":
             downloads[context.get("period")] = context.get("event_duration_ms", 0) / 1000
         # `batch_failed` is the summary of the failed periods, not a failure of its own.
