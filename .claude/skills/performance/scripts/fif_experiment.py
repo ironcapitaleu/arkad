@@ -4,8 +4,8 @@
 Method and how to read the results: `../references/profiling/network.md`.
 
 1. A curl test: one Notes file alone, then the same files in parallel.
-2. A scratch worktree from `origin/main`, one release build per FILES_IN_FLIGHT value, and the
-   runs in the order 2, 3, 4, 4, 3, 2. Each run reports its duration, its peak resident memory
+2. A scratch worktree from `origin/main`, one release build, and the runs in the order 2, 3, 4,
+   4, 3, 2. Each run sets ARKAD_FILES_IN_FLIGHT to its value. Each run reports its duration, its peak resident memory
    (`os.wait4`), the download time of each file, and its failures.
 3. Cleanup: every download, the worktree, and the build directory.
 
@@ -45,8 +45,8 @@ def main():
         if not args.skip_curl:
             curl_test(args.periods, user_agent, workdir / "curl")
         if not args.skip_runs:
-            binaries = build_binaries(args, workdir)
-            rows = [run_once(binaries[n], n, workdir, user_agent) for n in args.order]
+            binary = build_binary(args, workdir)
+            rows = [run_once(binary, n, workdir, user_agent) for n in args.order]
             print_table(rows)
     finally:
         cleanup(args.repo, workdir)
@@ -59,7 +59,7 @@ def parse_args():
                         help="new scratch directory, created here and deleted at the end")
     parser.add_argument("--periods", nargs="+", default=DEFAULT_PERIODS)
     parser.add_argument("--order", nargs="+", type=int, default=DEFAULT_ORDER,
-                        help="FILES_IN_FLIGHT value of each run, in run order")
+                        help="ARKAD_FILES_IN_FLIGHT value of each run, in run order")
     parser.add_argument("--skip-curl", action="store_true")
     parser.add_argument("--skip-runs", action="store_true")
     return parser.parse_args()
@@ -94,20 +94,17 @@ def mb_per_s(total_bytes, seconds):
     return total_bytes / seconds / 1e6
 
 
-def build_binaries(args, workdir):
+def build_binary(args, workdir):
     tree, target = workdir / "tree", workdir / "target"
     git(args.repo, "fetch", "-q", "origin", "main")
     git(args.repo, "worktree", "add", "-q", "--detach", str(tree), "origin/main")
     set_periods(tree, args.periods)
-    binaries = {}
-    for value in sorted(set(args.order)):
-        set_files_in_flight(tree, value)
-        subprocess.run(
-            ["cargo", "build", "--release", "--features", "tracing-logging", "--bin", "notes_backfill"],
-            cwd=tree, env=dict(os.environ, CARGO_TARGET_DIR=str(target)), check=True)
-        binaries[value] = workdir / f"notes_backfill_fif{value}"
-        shutil.copy2(target / "release" / "notes_backfill", binaries[value])
-    return binaries
+    subprocess.run(
+        ["cargo", "build", "--release", "--features", "tracing-logging", "--bin", "notes_backfill"],
+        cwd=tree, env=dict(os.environ, CARGO_TARGET_DIR=str(target)), check=True)
+    binary = workdir / "notes_backfill"
+    shutil.copy2(target / "release" / "notes_backfill", binary)
+    return binary
 
 
 def set_periods(tree, periods):
@@ -115,12 +112,6 @@ def set_periods(tree, periods):
     listed = ", ".join(f'"{period}".to_string()' for period in periods)
     replace_once(path, r"let periods = notes_periods\(Utc::now\(\)\.date_naive\(\)\);",
                  f"let periods: Vec<String> = vec![{listed}];")
-
-
-def set_files_in_flight(tree, value):
-    path = tree / "sec/src/bin/notes_backfill/backfill.rs"
-    replace_once(path, r"pub const FILES_IN_FLIGHT: usize = \d+;",
-                 f"pub const FILES_IN_FLIGHT: usize = {value};")
 
 
 def replace_once(path, pattern, replacement):
@@ -134,7 +125,8 @@ def replace_once(path, pattern, replacement):
 def run_once(binary, files_in_flight, workdir, user_agent):
     data, log = workdir / "data", workdir / "run.jsonl"
     data.mkdir(parents=True, exist_ok=True)
-    env = dict(os.environ, ARKAD_STORAGE_ROOT=str(data), ARKAD_SEC_USER_AGENT=user_agent)
+    env = dict(os.environ, ARKAD_STORAGE_ROOT=str(data), ARKAD_SEC_USER_AGENT=user_agent,
+               ARKAD_FILES_IN_FLIGHT=str(files_in_flight))
     start = time.time()
     with open(log, "w") as out:
         process = subprocess.Popen([str(binary)], env=env, stdout=out, stderr=subprocess.STDOUT)
@@ -167,7 +159,7 @@ def read_log(log):
 
 
 def print_table(rows):
-    print("| FILES_IN_FLIGHT | Exit | Duration | Peak | Mean download per file "
+    print("| ARKAD_FILES_IN_FLIGHT | Exit | Duration | Peak | Mean download per file "
           "| Download per file | Failures |")
     print("| --- | --- | --- | --- | --- | --- | --- |")
     for row in rows:
@@ -180,7 +172,7 @@ def print_table(rows):
               f"| {row['peak_kb']:,} KB | {mean} | {per_file} | {len(row['failures'])} |")
     for row in rows:
         for failure in row["failures"]:
-            print(f"\nFailure, FILES_IN_FLIGHT {row['files_in_flight']}:\n{failure}")
+            print(f"\nFailure, ARKAD_FILES_IN_FLIGHT {row['files_in_flight']}:\n{failure}")
 
 
 def cleanup(repo, workdir):
