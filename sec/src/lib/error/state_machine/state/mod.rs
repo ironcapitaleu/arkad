@@ -16,7 +16,7 @@
 //! - [`invalid_index_date`]: The [`InvalidIndexDate`] error wrapping an index date validation failure.
 //! - [`invalid_daily_index`]: The [`InvalidDailyIndex`] error wrapping a daily index that does not parse.
 //! - [`failed_request_execution`]: The [`FailedRequestExecution`] error wrapping a failed SEC request.
-//! - [`failed_document_selection`]: The [`FailedDocumentSelection`] error for a folder index that does not parse, or names no single XBRL instance or label file.
+//! - [`failed_document_selection`]: The [`FailedDocumentSelection`] error for a folder index that names no single XBRL instance or label file.
 //! - [`missing_daily_index`]: The [`MissingDailyIndex`] error for a daily index the SEC did not send.
 //! - [`failed_document_write`]: The [`FailedDocumentWrite`] error wrapping a rejected store write.
 //! - [`incomplete_company_facts`]: The [`IncompleteCompanyFacts`] error for a response missing required fields.
@@ -75,8 +75,7 @@ pub enum State {
     #[error("[StateError] A state level error occurred, Caused by: {0}")]
     MissingDailyIndex(#[source] MissingDailyIndex),
 
-    /// Indicates that the folder index of a filing does not parse, or names no single XBRL
-    /// instance or label file.
+    /// Indicates that the folder index of a filing names no single XBRL instance or label file.
     #[error("[StateError] A state level error occurred, Caused by: {0}")]
     FailedDocumentSelection(#[source] FailedDocumentSelection),
 

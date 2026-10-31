@@ -10,8 +10,8 @@ use serde::Serialize;
 use state_maschine::prelude::StateData as SMStateData;
 
 use crate::error::State as StateError;
+use crate::shared::filing_documents::FolderIndex;
 use crate::shared::financial::accession_number::AccessionNumber;
-use crate::shared::response::implementations::sec_response::SecResponse;
 use crate::traits::state_machine::state::StateData;
 
 /// Input data for the [`SelectFilingDocuments`](super::super::SelectFilingDocuments) state.
@@ -19,16 +19,15 @@ use crate::traits::state_machine::state::StateData;
 pub struct SelectFilingDocumentsInput {
     /// The accession number of the filing, which an error names.
     pub accession_number: AccessionNumber,
-    /// The response to the [`FilingIndex`](crate::shared::request::implementations::sec_request::FilingIndex)
-    /// request: the folder index JSON of the filing.
-    pub folder_index: SecResponse,
+    /// The member names of the folder of the filing.
+    pub folder_index: FolderIndex,
 }
 
 impl SelectFilingDocumentsInput {
     /// Creates a new [`SelectFilingDocumentsInput`] from the accession number and the folder
-    /// index response of one filing.
+    /// index of one filing.
     #[must_use]
-    pub const fn new(accession_number: AccessionNumber, folder_index: SecResponse) -> Self {
+    pub const fn new(accession_number: AccessionNumber, folder_index: FolderIndex) -> Self {
         Self {
             accession_number,
             folder_index,
@@ -72,9 +71,9 @@ impl fmt::Display for SelectFilingDocumentsInput {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "\tFiling: {}, Folder Index Size: {} bytes",
+            "\tFiling: {}, Folder Members: {}",
             self.accession_number,
-            self.folder_index.raw_body().len()
+            self.folder_index.member_names().len()
         )
     }
 }
@@ -86,8 +85,8 @@ impl fmt::Display for SelectFilingDocumentsInput {
 pub struct SelectFilingDocumentsInputUpdater {
     /// The new accession number.
     pub accession_number: Option<AccessionNumber>,
-    /// The new folder index response.
-    pub folder_index: Option<SecResponse>,
+    /// The new folder index.
+    pub folder_index: Option<FolderIndex>,
 }
 
 impl SelectFilingDocumentsInputUpdater {
@@ -124,10 +123,10 @@ impl SelectFilingDocumentsInputUpdaterBuilder {
         self
     }
 
-    /// Sets the folder index response.
+    /// Sets the folder index.
     #[must_use]
     #[allow(clippy::missing_const_for_fn)]
-    pub fn folder_index(mut self, folder_index: SecResponse) -> Self {
+    pub fn folder_index(mut self, folder_index: FolderIndex) -> Self {
         self.updater.folder_index = Some(folder_index);
         self
     }
@@ -153,12 +152,10 @@ mod tests {
     use state_maschine::prelude::StateData as SMStateData;
 
     use super::*;
-    use crate::implementations::states::extract::select_filing_documents::tests::folder_index_response;
-
     fn test_input() -> SelectFilingDocumentsInput {
         SelectFilingDocumentsInput::new(
             AccessionNumber::new("0000003545-26-000047"),
-            folder_index_response(br#"{"directory": {"item": []}}"#),
+            FolderIndex::new(vec!["alco-20260908_htm.xml".to_string()]),
         )
     }
 
@@ -166,7 +163,7 @@ mod tests {
     fn should_display_the_accession_number_and_the_size_for_select_filing_documents_input() {
         let input = test_input();
 
-        let expected_result = "\tFiling: 0000003545-26-000047, Folder Index Size: 27 bytes";
+        let expected_result = "\tFiling: 0000003545-26-000047, Folder Members: 1";
 
         let result = input.to_string();
 
@@ -192,13 +189,13 @@ mod tests {
     fn should_update_folder_index_when_update_contains_folder_index() {
         let mut input = test_input();
         let update = SelectFilingDocumentsInputUpdater::builder()
-            .folder_index(folder_index_response(b"{}"))
+            .folder_index(FolderIndex::new(Vec::new()))
             .build();
 
-        let expected_result: &[u8] = b"{}";
+        let expected_result = &FolderIndex::new(Vec::new());
 
         SMStateData::update_state(&mut input, update);
-        let result = input.state().folder_index.raw_body();
+        let result = &input.state().folder_index;
 
         assert_eq!(result, expected_result);
     }

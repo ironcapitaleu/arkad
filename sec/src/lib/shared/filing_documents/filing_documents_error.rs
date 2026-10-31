@@ -1,8 +1,9 @@
 //! # Filing Documents Errors
 //!
-//! Provides the [`FilingDocumentsError`] returned by
-//! [`FilingDocuments::select`](super::FilingDocuments::select), and the [`FilingDocumentRole`]
-//! it names when a folder holds more than one candidate.
+//! Provides the [`InvalidFolderIndex`] returned when an `index.json` does not parse into a
+//! [`FolderIndex`](super::FolderIndex), the [`FilingDocumentsError`] returned by
+//! [`FolderIndex::select_documents`](super::FolderIndex::select_documents), and the
+//! [`FilingDocumentRole`] it names when a folder holds more than one candidate.
 
 use std::fmt::{self, Display, Formatter};
 
@@ -10,21 +11,18 @@ use thiserror::Error;
 
 use crate::shared::financial::accession_number::AccessionNumber;
 
-/// Error indicating that the folder index of a filing does not parse, or names no single XBRL
-/// instance or label file.
+/// Error indicating that the `index.json` of a filing folder does not parse.
+#[derive(Debug, Error, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[error("[InvalidFolderIndex] The folder index does not parse, Reason: '{reason}'")]
+pub struct InvalidFolderIndex {
+    /// The message of the JSON parser.
+    pub reason: String,
+}
+
+/// Error indicating that the folder index of a filing names no single XBRL instance or label file.
 #[non_exhaustive]
 #[derive(Debug, Error, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum FilingDocumentsError {
-    /// The folder index is not JSON with a `directory.item` list of members with a `name`.
-    #[error(
-        "[InvalidFolderIndex] The folder index of filing '{accession_number}' does not parse, Reason: '{reason}'"
-    )]
-    InvalidFolderIndex {
-        /// The accession number of the filing.
-        accession_number: AccessionNumber,
-        /// The message of the JSON parser.
-        reason: String,
-    },
     /// No member of the folder matches a rule for the XBRL instance.
     #[error(
         "[MissingXbrlInstance] The folder of filing '{accession_number}' holds no XBRL instance"
@@ -47,7 +45,8 @@ pub enum FilingDocumentsError {
     },
 }
 
-/// The role of a document that [`FilingDocuments::select`](super::FilingDocuments::select) picks.
+/// The role of a document that [`FolderIndex::select_documents`](super::FolderIndex::select_documents)
+/// picks.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum FilingDocumentRole {
     /// The XBRL instance, which holds the facts.
@@ -101,12 +100,11 @@ mod tests {
 
     #[test]
     fn should_quote_the_reason_when_invalid_folder_index_is_displayed() {
-        let error = FilingDocumentsError::InvalidFolderIndex {
-            accession_number: AccessionNumber::new("0000320193-17-000070"),
+        let error = InvalidFolderIndex {
             reason: "EOF while parsing a value at line 1 column 0".to_string(),
         };
 
-        let expected_result = "[InvalidFolderIndex] The folder index of filing '0000320193-17-000070' does not parse, Reason: 'EOF while parsing a value at line 1 column 0'";
+        let expected_result = "[InvalidFolderIndex] The folder index does not parse, Reason: 'EOF while parsing a value at line 1 column 0'";
 
         let result = error.to_string();
 

@@ -602,14 +602,18 @@ One `ExtractFilingSuperState` runs per `FilingRef`. It sends three requests:
 
 Decided in STA-371:
 
-- The rules live in `FilingDocuments::select` in `shared::filing_documents`. The state calls it.
-- Input: the accession number and the `SecResponse<JsonBody>` of the folder index. Output:
-  `FilingDocuments`, the instance name and an optional label file name.
+- `FolderIndex` in `shared::filing_documents` holds the member names of the folder.
+  `FolderIndex::try_from(&SecResponse)` parses the `index.json`. The transition from
+  `ExecuteSecRequest` calls it, so a body that does not parse fails there with
+  `FailedOutputConversion`, before `SelectFilingDocuments` runs.
+- `FolderIndex::select_documents` holds the rules. The state calls it.
+- Input: the accession number and the `FolderIndex`. Output: `FilingDocuments`, the instance
+  name and an optional label file name.
 - A rule that matches more than one member fails with `AmbiguousFilingDocument`. The state picks
   no member by chance.
 - The rules compare ASCII letters without case.
-- Every failure is `StateError::FailedDocumentSelection`, which wraps a `FilingDocumentsError`
-  with the accession number: `InvalidFolderIndex`, `MissingXbrlInstance`, or
+- A failed selection is `StateError::FailedDocumentSelection`, which wraps a
+  `FilingDocumentsError` with the accession number: `MissingXbrlInstance` or
   `AmbiguousFilingDocument`.
 
 Measured on one filing (`0000003545-26-000047`): the folder holds `alco-20260908_htm.xml` and

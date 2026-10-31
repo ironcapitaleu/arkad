@@ -1,8 +1,11 @@
 //! # Select Filing Documents State
 //!
-//! Provides the [`SelectFilingDocuments`] state, which reads the folder index of one filing and
-//! picks the file names of its XBRL instance and its label file. The rules are those of
-//! [`FilingDocuments::select`].
+//! Provides the [`SelectFilingDocuments`] state, which picks the file names of the XBRL instance
+//! and the label file of one filing from its folder index. The rules are those of
+//! [`FolderIndex::select_documents`](crate::shared::filing_documents::FolderIndex::select_documents).
+//!
+//! The transition into this state parses the response to the `FilingIndex` request with
+//! `FolderIndex::try_from`, so a body that does not parse fails before the state runs.
 //!
 //! ## Modules
 //!
@@ -13,29 +16,15 @@
 //! ## Usage
 //!
 //! ```rust
-//! use std::collections::HashMap;
-//!
 //! use sec::implementations::states::extract::select_filing_documents::*;
 //! use sec::prelude::*;
-//! use sec::shared::content_type::ContentType;
+//! use sec::shared::filing_documents::FolderIndex;
 //! use sec::shared::financial::accession_number::AccessionNumber;
-//! use sec::shared::headers::Headers;
-//! use sec::shared::response::implementations::sec_response::SecResponse;
-//! use sec::shared::status_code::StatusCode;
 //! use uuid::Uuid;
 //!
 //! # #[tokio::main]
 //! # async fn main() {
-//! let folder_index = SecResponse::from_parts(
-//!     "https://www.sec.gov/Archives/edgar/data/320193/000032019317000070/index.json"
-//!         .parse()
-//!         .expect("Given a hardcoded valid URL, parsing should always succeed"),
-//!     Headers::new(HashMap::new()),
-//!     ContentType::Json,
-//!     StatusCode::Ok,
-//!     br#"{"directory": {"item": [{"name": "aapl-20170930.xml"}]}}"#.to_vec(),
-//! )
-//! .expect("Given a valid JSON body, building the response should always succeed");
+//! let folder_index = FolderIndex::new(vec!["aapl-20170930.xml".to_string()]);
 //! let input =
 //!     SelectFilingDocumentsInput::new(AccessionNumber::new("0000320193-17-000070"), folder_index);
 //! let mut state = SelectFilingDocuments::new(input, SelectFilingDocumentsContext::new(Uuid::nil()));
@@ -64,7 +53,6 @@ use state_maschine::prelude::State as SMState;
 
 use crate::error::State as StateError;
 use crate::error::state_machine::state::FailedDocumentSelection;
-use crate::shared::filing_documents::FilingDocuments;
 use crate::traits::error::FromDomainError;
 use crate::traits::state_machine::state::State;
 
@@ -118,14 +106,15 @@ impl State for SelectFilingDocuments {
     ///
     /// # Errors
     ///
-    /// Returns [`StateError::FailedDocumentSelection`] if [`FilingDocuments::select`] fails. The
-    /// error names the accession number of the filing.
+    /// Returns [`StateError::FailedDocumentSelection`] if
+    /// [`FolderIndex::select_documents`](crate::shared::filing_documents::FolderIndex::select_documents)
+    /// fails. The error names the accession number of the filing.
     async fn compute_output_data_async(&mut self) -> Result<(), StateError> {
-        let documents = FilingDocuments::select(
-            &self.input.accession_number,
-            self.input.folder_index.raw_body(),
-        )
-        .map_err(|e| FailedDocumentSelection::from_domain_error(STATE_NAME, e))?;
+        let documents = self
+            .input
+            .folder_index
+            .select_documents(&self.input.accession_number)
+            .map_err(|e| FailedDocumentSelection::from_domain_error(STATE_NAME, e))?;
         self.output = Some(SelectFilingDocumentsOutput::new(documents));
         Ok(())
     }
@@ -195,44 +184,27 @@ impl fmt::Display for SelectFilingDocuments {
 }
 
 #[cfg(test)]
-pub(crate) mod tests {
-    use std::collections::HashMap;
+mod tests {
     use std::{fmt::Debug, hash::Hash};
 
     use pretty_assertions::assert_eq;
     use uuid::Uuid;
 
     use super::*;
-    use crate::shared::content_type::ContentType;
-    use crate::shared::filing_documents::FilingDocumentsError;
+    use crate::shared::filing_documents::{FilingDocuments, FilingDocumentsError, FolderIndex};
     use crate::shared::financial::accession_number::AccessionNumber;
-    use crate::shared::headers::Headers;
-    use crate::shared::response::implementations::sec_response::SecResponse;
-    use crate::shared::status_code::StatusCode;
     use crate::tests::fixtures::data::filing_index::INLINE_XBRL_FOLDER_INDEX;
 
-    /// Returns a `200 OK` JSON response with `body`, as the SEC sends a folder index.
-    pub fn folder_index_response(body: &[u8]) -> SecResponse {
-        SecResponse::from_parts(
-            "https://www.sec.gov/Archives/edgar/data/3545/000000354526000047/index.json"
-                .parse()
-                .expect("Given a hardcoded valid URL, parsing should always succeed"),
-            Headers::new(HashMap::new()),
-            ContentType::Json,
-            StatusCode::Ok,
-            body.to_vec(),
-        )
-        .expect("Given a valid JSON body, building the response should always succeed")
-    }
-
-    fn test_state(accession_number: &str, body: &[u8]) -> SelectFilingDocuments {
+    fn test_state(accession_number: &str, folder_index: FolderIndex) -> SelectFilingDocuments {
         SelectFilingDocuments::new(
-            SelectFilingDocumentsInput::new(
-                AccessionNumber::new(accession_number),
-                folder_index_response(body),
-            ),
+            SelectFilingDocumentsInput::new(AccessionNumber::new(accession_number), folder_index),
             SelectFilingDocumentsContext::new(Uuid::nil()),
         )
+    }
+
+    fn inline_xbrl_folder_index() -> FolderIndex {
+        FolderIndex::try_from(INLINE_XBRL_FOLDER_INDEX)
+            .expect("Given a folder index downloaded from the SEC, parsing should always succeed")
     }
 
     async fn computed_documents(state: &mut SelectFilingDocuments) -> FilingDocuments {
@@ -249,7 +221,7 @@ pub(crate) mod tests {
 
     #[test]
     fn should_return_state_name_for_select_filing_documents() {
-        let state = test_state("0000003545-26-000047", INLINE_XBRL_FOLDER_INDEX);
+        let state = test_state("0000003545-26-000047", inline_xbrl_folder_index());
 
         let expected_result = "Select Filing Documents";
 
@@ -260,7 +232,7 @@ pub(crate) mod tests {
 
     #[test]
     fn should_return_false_when_state_has_not_computed_the_output() {
-        let state = test_state("0000003545-26-000047", INLINE_XBRL_FOLDER_INDEX);
+        let state = test_state("0000003545-26-000047", inline_xbrl_folder_index());
 
         let expected_result = false;
 
@@ -271,7 +243,7 @@ pub(crate) mod tests {
 
     #[tokio::test]
     async fn should_output_the_htm_xml_instance_and_the_label_file_for_inline_xbrl_filing() {
-        let mut state = test_state("0000003545-26-000047", INLINE_XBRL_FOLDER_INDEX);
+        let mut state = test_state("0000003545-26-000047", inline_xbrl_folder_index());
 
         let expected_result = FilingDocuments::new(
             "alco-20260908_htm.xml",
@@ -286,7 +258,7 @@ pub(crate) mod tests {
     #[tokio::test]
     async fn should_return_failed_document_selection_naming_the_filing_when_the_folder_has_no_instance()
      {
-        let folder_index = br#"{"directory": {"item": [{"name": "FilingSummary.xml"}]}}"#;
+        let folder_index = FolderIndex::new(vec!["FilingSummary.xml".to_string()]);
         let mut state = test_state("0000003545-26-000047", folder_index);
 
         let expected_result = StateError::FailedDocumentSelection(FailedDocumentSelection::new(
@@ -306,7 +278,7 @@ pub(crate) mod tests {
 
     #[tokio::test]
     async fn should_leave_output_empty_when_the_folder_has_no_instance() {
-        let folder_index = br#"{"directory": {"item": []}}"#;
+        let folder_index = FolderIndex::new(Vec::new());
         let mut state = test_state("0000003545-26-000047", folder_index);
 
         let expected_result = None;
@@ -319,7 +291,7 @@ pub(crate) mod tests {
 
     #[tokio::test(flavor = "multi_thread")]
     async fn should_produce_output_when_calling_sync_compute_inside_tokio_runtime() {
-        let mut state = test_state("0000003545-26-000047", INLINE_XBRL_FOLDER_INDEX);
+        let mut state = test_state("0000003545-26-000047", inline_xbrl_folder_index());
 
         let expected_result = true;
 
@@ -331,7 +303,7 @@ pub(crate) mod tests {
 
     #[test]
     fn should_produce_output_when_calling_sync_compute_outside_tokio_runtime() {
-        let mut state = test_state("0000003545-26-000047", INLINE_XBRL_FOLDER_INDEX);
+        let mut state = test_state("0000003545-26-000047", inline_xbrl_folder_index());
 
         let expected_result = true;
 
@@ -344,7 +316,7 @@ pub(crate) mod tests {
     #[test]
     #[should_panic(expected = "compute_output_data failed")]
     fn should_panic_when_calling_sync_compute_with_folder_without_instance() {
-        let mut state = test_state("0000003545-26-000047", br#"{"directory": {"item": []}}"#);
+        let mut state = test_state("0000003545-26-000047", FolderIndex::new(Vec::new()));
 
         state.compute_output_data();
     }
