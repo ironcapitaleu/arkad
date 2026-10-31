@@ -111,10 +111,10 @@ def build_binaries(args, workdir):
 
 
 def set_periods(tree, periods):
-    path = tree / "sec/src/bin/notes_backfill/constants.rs"
-    listed = ", ".join(f'"{period}"' for period in periods)
-    replace_once(path, r"pub const NOTES_PERIODS: \[&str; \d+\] = \[.*?\];",
-                 f"pub const NOTES_PERIODS: [&str; {len(periods)}] = [{listed}];")
+    path = tree / "sec/src/bin/notes_backfill/main.rs"
+    listed = ", ".join(f'"{period}".to_string()' for period in periods)
+    replace_once(path, r"let periods = notes_periods\(Utc::now\(\)\.date_naive\(\)\);",
+                 f"let periods: Vec<String> = vec![{listed}];")
 
 
 def set_files_in_flight(tree, value):
