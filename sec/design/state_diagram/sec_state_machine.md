@@ -33,10 +33,11 @@ stateDiagram-v2
     %% `DetectFilings` SuperState, one per day
     [*] --> DetectFilings
     state DetectFilings {
-        ValidateIndexDate --> PrepareSecRequest
-        note right of PrepareSecRequest : Generic state with the DailyIndex kind
-        PrepareSecRequest --> DownloadDailyIndex
-        note right of DownloadDailyIndex : A day without filings gives no response, by the 404 rule
+        state "PrepareSecRequest" as PrepareDailyIndexRequest
+        ValidateIndexDate --> PrepareDailyIndexRequest
+        note right of PrepareDailyIndexRequest : Generic state with the DailyIndex kind
+        PrepareDailyIndexRequest --> DownloadDailyIndex
+        note right of DownloadDailyIndex : Gives no response if the index is 404 and the listing has a later date
         DownloadDailyIndex --> StoreDailyIndex
         note right of StoreDailyIndex : Writes no file for a day without filings
         StoreDailyIndex --> SelectFilings

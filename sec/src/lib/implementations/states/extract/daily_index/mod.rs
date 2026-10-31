@@ -540,6 +540,7 @@ mod tests {
 
     use chrono::NaiveDate;
     use pretty_assertions::assert_eq;
+    use storage::WriteError;
     use storage::implementations::repository::filesystem::{FilesystemRepository, Write};
     use tempfile::TempDir;
 
@@ -696,7 +697,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_store_no_file_when_the_day_has_no_filings() {
+    async fn should_leave_the_store_empty_when_the_day_has_no_filings() {
         let root = temporary_root();
         let super_state = super_state(
             "2026-10-25",
@@ -704,10 +705,13 @@ mod tests {
             filesystem_repository(root.path()),
         );
 
-        let expected_result = false;
+        let expected_result = true;
 
         filings(super_state).await;
-        let result = root.path().join("sec").exists();
+        let result = std::fs::read_dir(root.path())
+            .expect("Given a temp directory that exists for the whole test, reading it should always succeed")
+            .next()
+            .is_none();
 
         assert_eq!(result, expected_result);
     }
@@ -783,8 +787,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_fail_in_download_daily_index_when_the_index_is_missing_and_no_later_index_is_listed()
-     {
+    async fn should_fail_in_download_daily_index_when_the_index_and_the_listing_are_missing() {
         let super_state = super_state(
             "2026-10-27",
             RoutingSecClient::new(),
@@ -809,6 +812,64 @@ mod tests {
         let expected_result = Some(SELECT_FILINGS.to_string());
 
         let result = failed_state_name(super_state).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_fail_in_store_daily_index_when_the_repository_rejects_the_write() {
+        let repository =
+            FakeDailyIndexRepository::rejecting(WriteError::conflicting_write("Sample conflict"));
+        let super_state = super_state(
+            "2026-10-27",
+            sec_client(SAMPLE_DAILY_INDEX.as_bytes()),
+            repository,
+        );
+
+        let expected_result = Some(STORE_DAILY_INDEX.to_string());
+
+        let result = failed_state_name(super_state).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_tag_stream_with_execution_id_of_context_when_streaming_the_run() {
+        let super_state = super_state(
+            "2026-13-01",
+            RoutingSecClient::new(),
+            FakeDailyIndexRepository::new(),
+        );
+
+        let expected_result = vec![SAMPLE_EXECUTION_ID];
+
+        let result: Vec<Uuid> = super_state
+            .into_run_stream()
+            .filter_map(|item| async move { item.err().map(|error| error.execution_id) })
+            .collect()
+            .await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_return_the_filings_when_a_clone_empties_the_slot_it_was_built_with() {
+        let super_state = super_state(
+            "2026-10-27",
+            sec_client(SAMPLE_DAILY_INDEX.as_bytes()),
+            FakeDailyIndexRepository::new(),
+        );
+        let built_slot = super_state.context.filings_slot.clone();
+
+        let expected_result = Some(6);
+
+        let result = super_state
+            .run_to_filings(|_| {
+                built_slot.take();
+            })
+            .await
+            .ok()
+            .map(|filings| filings.len());
 
         assert_eq!(result, expected_result);
     }
