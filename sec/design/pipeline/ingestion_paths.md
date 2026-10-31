@@ -344,9 +344,9 @@ quarter) or a month (year and month).
 - `NotesPeriod::file_name()` returns the SEC file name. See [File Names](#file-names).
 - `NotesPeriod::all_through(date)` lists every period that ends in or before the month of
   `date`, in increasing order. `notes_backfill` calls it with today minus one month (STA-361).
-  Early in a month, the SEC has not posted the file of the last month yet. If the periods at the
-  end of the run get 403 or 404, the run counts them as unpublished, not as failed, and the next
-  run asks for them again. A 403 or 404 before a stored or failed period stays a failure.
+  Early in a month, the SEC has not posted the file of the last month yet. If the last period gets
+  403 or 404, the run counts it as unpublished, not as failed, and the next run asks for it again.
+  Every other 403 or 404 stays a failure, so a run that the SEC refuses in full fails.
 - Before each download, `notes_backfill` reads the stored file of the period. If the file passes
   the size and SHA-256 check, the run skips the download (STA-400). So a rerun downloads only the
   missing or corrupt files. A file that the SEC replaces after the run stored it stays old.

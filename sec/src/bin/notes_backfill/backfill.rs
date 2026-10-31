@@ -2,9 +2,9 @@
 //!
 //! Provides [`run`], which extracts one Notes file per period, and the [`RunSummary`] it returns.
 //!
-//! The SEC posts the file of a month some days into the next month. So the newest periods of a run
-//! can have no file yet. [`RunSummary`] counts the periods at the end of the run whose file is
-//! absent as unpublished, not as failed. The next run asks for them again.
+//! The SEC posts the file of a month some days into the next month. So the last period of a run
+//! can have no file yet. [`RunSummary`] counts it as unpublished, not as failed, if its file is
+//! absent. The next run asks for it again.
 //!
 //! Before it downloads a period, the run reads the stored file of the period. If the file passes
 //! the size and SHA-256 check, the run skips the download.
@@ -33,6 +33,12 @@ use thiserror::Error;
 ///
 /// The rate limiter limits requests per second, not files in memory, so this cap bounds memory.
 pub const FILES_IN_FLIGHT: usize = 2;
+
+/// The most periods at the end of a run that [`RunSummary`] counts as unpublished.
+///
+/// The run asks for periods up to last month, so only the last period can lack a file. The cap
+/// keeps a run in which the SEC refuses every request with 403 from counting as a success.
+pub const MAX_UNPUBLISHED: usize = 1;
 
 /// How the run got the stored file of a period.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -103,11 +109,13 @@ impl RunSummary {
         self.0.len() - self.success_count() - self.unpublished_count()
     }
 
-    /// Returns the number of periods at the end of the run whose file is absent.
+    /// Returns the number of periods at the end of the run whose file is absent, at most
+    /// [`MAX_UNPUBLISHED`].
     pub fn unpublished_count(&self) -> usize {
         self.0
             .iter()
             .rev()
+            .take(MAX_UNPUBLISHED)
             .take_while(|(_, outcome)| outcome.as_ref().is_err_and(is_absent_file))
             .count()
     }
@@ -250,6 +258,7 @@ mod tests {
     use sec::shared::headers::Headers;
     use sec::shared::http_client::implementations::reqwest_client::ReqwestClient;
     use sec::shared::http_client::implementations::sec_client::error::FailedSecRequest;
+    use sec::shared::notes_period::NotesPeriod;
     use sec::shared::response::implementations::sec_response::error::{
         ErrorReason, InvalidSecResponse,
     };
@@ -444,6 +453,15 @@ mod tests {
         (period.to_string(), Err(error))
     }
 
+    fn stored(period: &str) -> (String, PeriodOutcome) {
+        let notes_period = NotesPeriod::new(period)
+            .expect("Given a hardcoded published period, parsing should always succeed");
+        let key = DocumentKey::new(format!("sec/notes/{period}_notes.zip"))
+            .expect("Given a valid relative path, the key should always build");
+        let archive = NotesArchiveRef::new(notes_period, key, 2, Sha256Digest::of(b"PK"));
+        (period.to_string(), Ok((Fetch::Downloaded, archive)))
+    }
+
     fn answered(period: &str, status_code: StatusCode) -> (String, PeriodOutcome) {
         let response_error =
             InvalidSecResponse::new(ErrorReason::InvalidStatusCode { status_code });
@@ -458,13 +476,47 @@ mod tests {
     }
 
     #[test]
-    fn should_return_ok_when_only_the_last_periods_are_absent() {
+    fn should_return_ok_when_only_the_last_period_is_absent() {
         let summary = RunSummary(vec![
+            stored("2026_08"),
             answered("2026_09", StatusCode::NotFound),
-            answered("2026_10", StatusCode::Forbidden),
         ]);
 
         let expected_result = Ok(());
+
+        let result = summary.result();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_count_absent_periods_as_failed_when_more_than_the_last_period_is_absent() {
+        let summary = RunSummary(vec![
+            answered("2026_08", StatusCode::Forbidden),
+            answered("2026_09", StatusCode::Forbidden),
+        ]);
+
+        let expected_result = Err(FailedBackfill {
+            failures: 1,
+            periods: 2,
+        });
+
+        let result = summary.result();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_count_an_absent_period_as_failed_when_a_later_period_is_stored() {
+        let summary = RunSummary(vec![
+            answered("2026_08", StatusCode::NotFound),
+            stored("2026_09"),
+        ]);
+
+        let expected_result = Err(FailedBackfill {
+            failures: 1,
+            periods: 2,
+        });
 
         let result = summary.result();
 
