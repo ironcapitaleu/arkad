@@ -208,6 +208,7 @@ mod tests {
     use std::hash::Hash;
 
     use pretty_assertions::{assert_eq, assert_ne};
+    use storage::WriteError;
 
     use super::*;
     use crate::shared::http_client::implementations::reqwest_client::ReqwestClient;
@@ -284,7 +285,8 @@ mod tests {
         let cik = "1067983";
         let sec_client = sample_sec_client();
         let execution_id = Uuid::from_u128(7);
-        let repository = FakeWriteRepository::new();
+        let repository =
+            FakeWriteRepository::rejecting(WriteError::conflicting_write("Sample conflict"));
         let builder = ExtractCompanyFactsSuperState::builder()
             .cik(cik)
             .sec_client(sec_client.clone())
@@ -303,7 +305,8 @@ mod tests {
         let cik = "1067983";
         let sec_client = sample_sec_client();
         let execution_id = Uuid::from_u128(7);
-        let repository = FakeWriteRepository::new();
+        let repository =
+            FakeWriteRepository::rejecting(WriteError::conflicting_write("Sample conflict"));
         let builder = ExtractCompanyFactsSuperState::builder()
             .repository(repository.clone())
             .execution_id(execution_id)

@@ -195,6 +195,7 @@ mod tests {
     use std::hash::Hash;
 
     use pretty_assertions::{assert_eq, assert_ne};
+    use storage::WriteError;
 
     use super::*;
     use crate::tests::fixtures::sample_http_client::sample_sec_client::always_responding::AlwaysRespondingSecClient;
@@ -207,7 +208,7 @@ mod tests {
         NoRepository<FakeNotesRepository>,
     >;
 
-    fn sec_client() -> AlwaysRespondingSecClient {
+    fn sample_sec_client() -> AlwaysRespondingSecClient {
         AlwaysRespondingSecClient::new(404, Vec::new(), Vec::new())
     }
 
@@ -253,9 +254,10 @@ mod tests {
     #[test]
     fn should_build_a_super_state_at_validate_notes_period_when_setting_every_field() {
         let period = "2024q1";
-        let sec_client = sec_client();
+        let sec_client = sample_sec_client();
         let execution_id = Uuid::from_u128(7);
-        let repository = FakeNotesRepository::new();
+        let repository =
+            FakeNotesRepository::rejecting(WriteError::conflicting_write("Sample conflict"));
         let builder = ExtractNotesSuperState::builder()
             .period(period)
             .sec_client(sec_client.clone())
@@ -272,9 +274,10 @@ mod tests {
     #[test]
     fn should_build_the_same_super_state_when_setting_the_fields_in_reverse_order() {
         let period = "2024q1";
-        let sec_client = sec_client();
+        let sec_client = sample_sec_client();
         let execution_id = Uuid::from_u128(7);
-        let repository = FakeNotesRepository::new();
+        let repository =
+            FakeNotesRepository::rejecting(WriteError::conflicting_write("Sample conflict"));
         let builder = ExtractNotesSuperState::builder()
             .repository(repository.clone())
             .execution_id(execution_id)
