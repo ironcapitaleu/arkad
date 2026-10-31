@@ -158,7 +158,7 @@ def read_log(log):
             context = json.loads(event.get("context") or "{}")
         except (json.JSONDecodeError, TypeError):
             continue
-        if event.get("event") == "state_completed" and context.get("state") == "Download Notes Archive":
+        if event.get("event") == "state_completed" and context.get("state") == "Execute SEC Request":
             downloads[context.get("period")] = context.get("event_duration_ms", 0) / 1000
         # `batch_failed` is the summary of the failed periods, not a failure of its own.
         if event.get("level") == "ERROR" and event.get("event") != "batch_failed":
