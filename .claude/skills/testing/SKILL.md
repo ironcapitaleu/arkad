@@ -114,21 +114,21 @@ The second test has no Arrange step. It repeats the input, and nothing names it.
 
 ### Show the Expected Result
 
-Write `expected_result` as the value the test expects, so the reader sees the output at a glance. Do not compute it.
+Write `expected_result` as the value the test expects, so the reader sees the output without running code in their head. Do not compute it with `map`, `collect`, or a loop.
 
-The reason is the same as for the Arrange step. A `map`, `collect`, or loop in the Define step is a second Act step. The reader must run it in their head to learn what the test expects. A defect in that code can also match the same defect in the code under test.
+There are two reasons. The first is the same as for the Arrange step: readability. Computed code in the Define step is a second Act step. The second is correctness: a defect in that code can match the same defect in the code under test.
 
-In review, report a computed `expected_result` as a 🟣 nit. The rule applies to new and changed tests, and to doctests.
+In review, report a computed `expected_result` as a 🟣 nit. If the Define step calls the code under test, report it as 🔴: the test passes for the wrong reason. The rule applies to new and changed tests, and to doctests.
 
 Do this:
 
 ```rust
+let filed_date = date(2026, 10, 27);
+
 let expected_result = vec![
     filing_ref("1702744", "0001702744-26-000031", ParsedForm::new(Form::TenK, false), filed_date),
     filing_ref("2113605", "0001213900-26-112626", ParsedForm::new(Form::TwentyF, false), filed_date),
 ];
-
-let result = computed_filings(&mut state).await;
 ```
 
 Not this:
@@ -137,18 +137,15 @@ Not this:
 let expected_result = ["0001702744-26-000031", "0001213900-26-112626"]
     .map(AccessionNumber::new)
     .to_vec();
-
-let result: Vec<AccessionNumber> = computed_filings(&mut state)
-    .await
-    .iter()
-    .map(|filing| filing.accession_number().clone())
-    .collect();
 ```
 
-The second test maps strings in the Define step, and it compares a projection of the output, not the output.
+The second test computes `expected_result` from strings with `map`. The reader must run the map to see the value.
 
 - A constructor or a test helper call per value is allowed, as in `filing_ref(...)` or `Cik::new(...)`. It shows one value.
-- If the full value is too long to write, assert on a smaller part of the output. Write that part out in full.
+- A helper that returns the whole expected value, as in `fn expected_filings() -> Vec<FilingRef>`, hides it. Write the values in the test.
+- `format!` that inserts Arrange variables into a literal is allowed, as in the "Error type" template below. The inserted values must not come from the code under test.
+- If the full value is too long to write, assert on a smaller part of the output, and write that part out in full.
+- If the test checks that two paths agree, `expected_result` can be the output of the reference path. Name both paths in the test name, as in `..._when_running_to_the_archive`.
 
 ## Boilerplate Tests (apply to ALL domain types and state structs)
 
