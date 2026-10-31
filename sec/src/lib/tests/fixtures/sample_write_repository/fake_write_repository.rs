@@ -1,8 +1,8 @@
 //! # Fake Write Repository
 //!
 //! Provides [`FakeRawRepository`], an in-memory [`WriteRepository`] of raw documents of one
-//! source, and its aliases [`FakeWriteRepository`], [`FakeNotesRepository`], and
-//! [`FakeDailyIndexRepository`].
+//! source, and its aliases [`FakeWriteRepository`], [`FakeNotesRepository`],
+//! [`FakeDailyIndexRepository`], and [`FakeSubmissionsRepository`].
 
 use std::cmp::Ordering;
 use std::fmt;
@@ -15,7 +15,9 @@ use serde::{Serialize, Serializer};
 use storage::{WriteError, WriteRepository};
 
 use crate::shared::raw_document::RawDocument;
-use crate::shared::raw_source::{RawCompanyFacts, RawDailyIndex, RawNotesArchive, RawSource};
+use crate::shared::raw_source::{
+    RawCompanyFacts, RawDailyIndex, RawNotesArchive, RawSource, RawSubmissions,
+};
 
 /// An in-memory [`WriteRepository`] that records each persisted document, or rejects each write.
 ///
@@ -34,6 +36,9 @@ pub type FakeNotesRepository = FakeRawRepository<RawNotesArchive>;
 
 /// A [`FakeRawRepository`] of raw daily indexes.
 pub type FakeDailyIndexRepository = FakeRawRepository<RawDailyIndex>;
+
+/// A [`FakeRawRepository`] of raw `submissions` documents.
+pub type FakeSubmissionsRepository = FakeRawRepository<RawSubmissions>;
 
 impl<S: RawSource> Default for FakeRawRepository<S> {
     fn default() -> Self {

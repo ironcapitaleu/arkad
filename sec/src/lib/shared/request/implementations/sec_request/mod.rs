@@ -9,8 +9,8 @@
 //!
 //! - [`builder`]: The [`SecRequestBuilder`] for constructing requests fluently.
 //! - [`constants`]: The endpoint URL fragments.
-//! - [`kind`]: The [`RequestKind`] trait and the [`CompanyFacts`], [`NotesFile`], [`DailyIndex`], and
-//!   [`DailyIndexListing`] kinds.
+//! - [`kind`]: The [`RequestKind`] trait and the [`CompanyFacts`], [`NotesFile`], [`DailyIndex`],
+//!   [`DailyIndexListing`], and [`Submissions`] kinds.
 
 use std::marker::PhantomData;
 
@@ -26,11 +26,14 @@ pub mod constants;
 pub mod kind;
 
 pub use builder::SecRequestBuilder;
-pub use kind::{CompanyFacts, DailyIndex, DailyIndexListing, NotesFile, RequestKind, StoredAs};
+pub use kind::{
+    CompanyFacts, DailyIndex, DailyIndexListing, NotesFile, RequestKind, StoredAs, Submissions,
+};
 
 use constants::{
     SEC_COMPANY_FACTS_URL_PREFIX, SEC_COMPANY_FACTS_URL_SUFFIX, SEC_DAILY_INDEX_LISTING_FILE_NAME,
-    SEC_DAILY_INDEX_URL_PREFIX, SEC_NOTES_URL_PREFIX,
+    SEC_DAILY_INDEX_URL_PREFIX, SEC_NOTES_URL_PREFIX, SEC_SUBMISSIONS_URL_PREFIX,
+    SEC_SUBMISSIONS_URL_SUFFIX,
 };
 
 /// A ready-to-send SEC API request of kind `K`.
@@ -42,6 +45,7 @@ use constants::{
 /// - [`CompanyFacts`], the default: built from a [`Cik`].
 /// - [`NotesFile`]: built from a [`NotesPeriod`].
 /// - [`DailyIndex`] and [`DailyIndexListing`]: built from an [`IndexDate`].
+/// - [`Submissions`]: built from a [`Cik`].
 #[derive(Debug)]
 pub struct SecRequest<K: RequestKind = CompanyFacts> {
     /// The raw HTTP request type this struct wraps.
@@ -133,6 +137,9 @@ impl<K: RequestKind> SecRequestTrait for SecRequest<K> {
                 date.year(),
                 date.quarter()
             ),
+            SecRequestType::FetchSubmissions { cik } => {
+                format!("{SEC_SUBMISSIONS_URL_PREFIX}{cik}{SEC_SUBMISSIONS_URL_SUFFIX}")
+            }
         };
         let request = Request::new(
             Method::GET,
@@ -211,6 +218,11 @@ pub enum SecRequestType {
     FetchDailyIndexListing {
         /// A date of the quarter whose listing to fetch.
         date: IndexDate,
+    },
+    /// Fetch a company's `submissions` JSON (name, SIC code, tickers, and former names) by CIK.
+    FetchSubmissions {
+        /// The CIK of the company to fetch.
+        cik: Cik,
     },
 }
 
