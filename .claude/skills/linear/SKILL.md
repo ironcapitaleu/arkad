@@ -685,8 +685,9 @@ Guide the user from high-level to specific. Use `AskUserQuestion` to collect:
    - **Frontend** → FRONTEND (or SPIKE/REFACTOR/TEST if the work is research, restructuring, or testing)
    - **Database** → DATABASE (or SPIKE/DESIGN for research and schema-design work)
    - **Backend** → FEATURE, IMPLEMENTATION, REFACTOR, SPIKE, TEST, DESIGN
-   - **Cross-cutting** → DOCS, ONBOARDING, or Basic. A Basic ticket for maintenance work
-     (tooling, config, dependency bumps) takes the `CHORE` label.
+   - **Cross-cutting** → DOCS, ONBOARDING, IMPLEMENTATION, or Basic. A CI or CD pipeline
+     change is an `[IMPLEMENTATION]` ticket with the `CI/CD` label. A Basic ticket for other
+     maintenance work (tooling, config, dependency bumps) takes the `CHORE` label.
 3. **Title** — what is this issue about? (will be formatted as `[TYPE] Title`, or just `Title` for basic)
 4. **User story** — what do you want and why?
 5. **Priority** — options: Urgent (1), High (2), Medium (3), Low (4) — default High (2)
@@ -771,8 +772,8 @@ most one label from this group.
 | CHORE | `63695939-b849-4402-a293-2d54901e8aa2` | (none) |
 
 An `[IMPLEMENTATION]` ticket keeps its title prefix and takes the label from this group that fits
-the work, for example `CI/CD` for a pipeline change. If no label in the group fits, give it no type
-label. To check the current labels and groups, call `mcp__linear__list_issue_labels` with
+the work, for example `CI/CD` for a pipeline change. If no label in the group fits, give it no label
+from the group. To check the current labels and groups, call `mcp__linear__list_issue_labels` with
 `includeGroups: true`.
 
 ## Conventions
