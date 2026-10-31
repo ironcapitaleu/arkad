@@ -22,7 +22,7 @@
 //! use sec::shared::http_client::implementations::sec_client::SecClient;
 //! use uuid::Uuid;
 //!
-//! fn store_as_notes_file<R>(state: ExecuteCompanyFactsRequest<R, SecClient>, repository: R) {
+//! fn store_as_notes_file<R>(state: ExecuteCompanyFactsRequest<SecClient>, repository: R) {
 //!     let _next = StoreNotesArchive::<R>::try_from((state, Uuid::nil(), repository));
 //! }
 //! ```
@@ -51,7 +51,7 @@ use crate::shared::request::implementations::sec_request::NotesFile;
 use crate::shared::request::implementations::sec_request::SecRequest;
 use crate::shared::url::Url;
 
-impl<R, C: SecClientTrait> TryFrom<(ExecuteSecRequest<NotesFile, R, C>, Uuid, R)>
+impl<R, C: SecClientTrait> TryFrom<(ExecuteSecRequest<NotesFile, C>, Uuid, R)>
     for StoreNotesArchive<R>
 {
     type Error = TransitionError;
@@ -67,7 +67,7 @@ impl<R, C: SecClientTrait> TryFrom<(ExecuteSecRequest<NotesFile, R, C>, Uuid, R)
     /// different period from its context. The stored key follows the context period, so a
     /// mismatch stores a file under the wrong period.
     fn try_from(
-        (state, execution_id, repository): (ExecuteSecRequest<NotesFile, R, C>, Uuid, R),
+        (state, execution_id, repository): (ExecuteSecRequest<NotesFile, C>, Uuid, R),
     ) -> Result<Self, TransitionError> {
         let (input, output, context) = state.into_parts();
         let output_data = output.ok_or_else(|| {
@@ -121,7 +121,7 @@ mod tests {
     const REQUESTED_URL: &str =
         "https://www.sec.gov/files/dera/data/financial-statement-notes-data-sets/2024q1_notes.zip";
 
-    type TestExecute = ExecuteSecRequest<NotesFile, FakeNotesRepository, AlwaysRespondingSecClient>;
+    type TestExecute = ExecuteSecRequest<NotesFile, AlwaysRespondingSecClient>;
 
     fn period(raw_period: &str) -> NotesPeriod {
         NotesPeriod::new(raw_period)
@@ -147,7 +147,7 @@ mod tests {
             .build();
         ExecuteSecRequest::new(
             ExecuteSecRequestInput::new(sec_client(), request),
-            ExecuteSecRequestContext::new(period("2024q1"), FakeNotesRepository::new()),
+            ExecuteSecRequestContext::new(period("2024q1")),
         )
     }
 

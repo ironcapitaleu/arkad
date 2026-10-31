@@ -322,15 +322,15 @@ where
     C: SecClientTrait<Response<JsonBody> = SecResponse<JsonBody>, Error = FailedSecRequest>,
 {
     type Current = PrepareSecRequest<Submissions, R>;
-    type Next = ExecuteSecRequest<Submissions, R, C>;
+    type Next = ExecuteSecRequest<Submissions, C>;
 }
 
-impl<R, C> NonTerminal for ExtractSubmissionsSuperState<ExecuteSecRequest<Submissions, R, C>, R, C>
+impl<R, C> NonTerminal for ExtractSubmissionsSuperState<ExecuteSecRequest<Submissions, C>, R, C>
 where
     R: RawRepository<RawSubmissions>,
     C: SecClientTrait<Response<JsonBody> = SecResponse<JsonBody>, Error = FailedSecRequest>,
 {
-    type Current = ExecuteSecRequest<Submissions, R, C>;
+    type Current = ExecuteSecRequest<Submissions, C>;
     type Next = StoreSubmissions<R>;
 }
 
@@ -372,7 +372,7 @@ impl<R: RawRepository<RawSubmissions>, C: SecClientTrait>
     }
 }
 
-impl<R, C> Transition<PrepareSecRequest<Submissions, R>, ExecuteSecRequest<Submissions, R, C>>
+impl<R, C> Transition<PrepareSecRequest<Submissions, R>, ExecuteSecRequest<Submissions, C>>
     for ExtractSubmissionsSuperState<PrepareSecRequest<Submissions, R>, R, C>
 where
     R: RawRepository<RawSubmissions>,
@@ -389,13 +389,13 @@ where
     }
 }
 
-impl<R, C> SMTransition<PrepareSecRequest<Submissions, R>, ExecuteSecRequest<Submissions, R, C>>
+impl<R, C> SMTransition<PrepareSecRequest<Submissions, R>, ExecuteSecRequest<Submissions, C>>
     for ExtractSubmissionsSuperState<PrepareSecRequest<Submissions, R>, R, C>
 where
     R: RawRepository<RawSubmissions>,
     C: SecClientTrait<Response<JsonBody> = SecResponse<JsonBody>, Error = FailedSecRequest>,
 {
-    type NewStateMachine = ExtractSubmissionsSuperState<ExecuteSecRequest<Submissions, R, C>, R, C>;
+    type NewStateMachine = ExtractSubmissionsSuperState<ExecuteSecRequest<Submissions, C>, R, C>;
 
     fn transition_to_next_state(self) -> Result<Self::NewStateMachine, &'static str> {
         Err(
@@ -404,8 +404,8 @@ where
     }
 }
 
-impl<R, C> Transition<ExecuteSecRequest<Submissions, R, C>, StoreSubmissions<R>>
-    for ExtractSubmissionsSuperState<ExecuteSecRequest<Submissions, R, C>, R, C>
+impl<R, C> Transition<ExecuteSecRequest<Submissions, C>, StoreSubmissions<R>>
+    for ExtractSubmissionsSuperState<ExecuteSecRequest<Submissions, C>, R, C>
 where
     R: RawRepository<RawSubmissions>,
     C: SecClientTrait<Response<JsonBody> = SecResponse<JsonBody>, Error = FailedSecRequest>,
@@ -425,8 +425,8 @@ where
     }
 }
 
-impl<R, C> SMTransition<ExecuteSecRequest<Submissions, R, C>, StoreSubmissions<R>>
-    for ExtractSubmissionsSuperState<ExecuteSecRequest<Submissions, R, C>, R, C>
+impl<R, C> SMTransition<ExecuteSecRequest<Submissions, C>, StoreSubmissions<R>>
+    for ExtractSubmissionsSuperState<ExecuteSecRequest<Submissions, C>, R, C>
 where
     R: RawRepository<RawSubmissions>,
     C: SecClientTrait<Response<JsonBody> = SecResponse<JsonBody>, Error = FailedSecRequest>,

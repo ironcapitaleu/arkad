@@ -337,15 +337,15 @@ where
     C: SecClientTrait<Response<ZipBody> = SecResponse<ZipBody>, Error = FailedSecRequest>,
 {
     type Current = PrepareNotesRequest<R>;
-    type Next = ExecuteSecRequest<NotesFile, R, C>;
+    type Next = ExecuteSecRequest<NotesFile, C>;
 }
 
-impl<R, C> NonTerminal for ExtractNotesSuperState<ExecuteSecRequest<NotesFile, R, C>, R, C>
+impl<R, C> NonTerminal for ExtractNotesSuperState<ExecuteSecRequest<NotesFile, C>, R, C>
 where
     R: RawRepository<RawNotesArchive>,
     C: SecClientTrait<Response<ZipBody> = SecResponse<ZipBody>, Error = FailedSecRequest>,
 {
-    type Current = ExecuteSecRequest<NotesFile, R, C>;
+    type Current = ExecuteSecRequest<NotesFile, C>;
     type Next = StoreNotesArchive<R>;
 }
 
@@ -392,7 +392,7 @@ impl<R: RawRepository<RawNotesArchive>, C: SecClientTrait>
     }
 }
 
-impl<R, C> Transition<PrepareNotesRequest<R>, ExecuteSecRequest<NotesFile, R, C>>
+impl<R, C> Transition<PrepareNotesRequest<R>, ExecuteSecRequest<NotesFile, C>>
     for ExtractNotesSuperState<PrepareNotesRequest<R>, R, C>
 where
     R: RawRepository<RawNotesArchive>,
@@ -409,13 +409,13 @@ where
     }
 }
 
-impl<R, C> SMTransition<PrepareNotesRequest<R>, ExecuteSecRequest<NotesFile, R, C>>
+impl<R, C> SMTransition<PrepareNotesRequest<R>, ExecuteSecRequest<NotesFile, C>>
     for ExtractNotesSuperState<PrepareNotesRequest<R>, R, C>
 where
     R: RawRepository<RawNotesArchive>,
     C: SecClientTrait<Response<ZipBody> = SecResponse<ZipBody>, Error = FailedSecRequest>,
 {
-    type NewStateMachine = ExtractNotesSuperState<ExecuteSecRequest<NotesFile, R, C>, R, C>;
+    type NewStateMachine = ExtractNotesSuperState<ExecuteSecRequest<NotesFile, C>, R, C>;
 
     fn transition_to_next_state(self) -> Result<Self::NewStateMachine, &'static str> {
         Err(
@@ -424,8 +424,8 @@ where
     }
 }
 
-impl<R, C> Transition<ExecuteSecRequest<NotesFile, R, C>, StoreNotesArchive<R>>
-    for ExtractNotesSuperState<ExecuteSecRequest<NotesFile, R, C>, R, C>
+impl<R, C> Transition<ExecuteSecRequest<NotesFile, C>, StoreNotesArchive<R>>
+    for ExtractNotesSuperState<ExecuteSecRequest<NotesFile, C>, R, C>
 where
     R: RawRepository<RawNotesArchive>,
     C: SecClientTrait<Response<ZipBody> = SecResponse<ZipBody>, Error = FailedSecRequest>,
@@ -444,8 +444,8 @@ where
     }
 }
 
-impl<R, C> SMTransition<ExecuteSecRequest<NotesFile, R, C>, StoreNotesArchive<R>>
-    for ExtractNotesSuperState<ExecuteSecRequest<NotesFile, R, C>, R, C>
+impl<R, C> SMTransition<ExecuteSecRequest<NotesFile, C>, StoreNotesArchive<R>>
+    for ExtractNotesSuperState<ExecuteSecRequest<NotesFile, C>, R, C>
 where
     R: RawRepository<RawNotesArchive>,
     C: SecClientTrait<Response<ZipBody> = SecResponse<ZipBody>, Error = FailedSecRequest>,
@@ -539,7 +539,7 @@ mod tests {
 
     /// Drives the super-state from the builder to `ExecuteSecRequest` with a computed output.
     async fn downloaded_super_state() -> ExtractNotesSuperState<
-        ExecuteSecRequest<NotesFile, FakeNotesRepository, AlwaysRespondingSecClient>,
+        ExecuteSecRequest<NotesFile, AlwaysRespondingSecClient>,
         FakeNotesRepository,
         AlwaysRespondingSecClient,
     > {

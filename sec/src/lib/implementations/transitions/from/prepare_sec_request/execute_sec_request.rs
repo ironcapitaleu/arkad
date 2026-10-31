@@ -4,9 +4,9 @@
 //! [`PrepareSecRequest`] and an SEC client, for every request kind `K`.
 //!
 //! It moves the prepared request from the output of the source state into the input of the next
-//! state. The context takes the request input from the source input, which built the request, and
-//! the repository from the source context. The source state holds no client, so the caller passes
-//! the one from the state machine context. The `TryFrom` is fallible because the source output may
+//! state. The context takes the request input from the source input, which built the request. It
+//! drops the source context, because the next state holds no repository. The source state holds no
+//! client, so the caller passes the one from the state machine context. The `TryFrom` is fallible because the source output may
 //! be absent.
 //!
 //! Both states have the same kind `K`. A prepared Company Facts request cannot become the
@@ -19,7 +19,7 @@
 //! use sec::shared::request::implementations::sec_request::NotesFile;
 //!
 //! fn execute_as_notes_file<R>(state: PrepareCompanyFactsRequest<R>) {
-//!     let _next = ExecuteSecRequest::<NotesFile, R, SecClient>::try_from((state, SecClient::default()));
+//!     let _next = ExecuteSecRequest::<NotesFile, SecClient>::try_from((state, SecClient::default()));
 //! }
 //! ```
 //!
@@ -40,7 +40,7 @@ use crate::shared::http_client::RespondsWith;
 use crate::shared::http_client::SecClient as SecClientTrait;
 
 impl<K: RespondsWith, R, C: SecClientTrait> TryFrom<(PrepareSecRequest<K, R>, C)>
-    for ExecuteSecRequest<K, R, C>
+    for ExecuteSecRequest<K, C>
 {
     type Error = TransitionError;
 
@@ -53,13 +53,13 @@ impl<K: RespondsWith, R, C: SecClientTrait> TryFrom<(PrepareSecRequest<K, R>, C)
     fn try_from(
         (state, sec_client): (PrepareSecRequest<K, R>, C),
     ) -> Result<Self, TransitionError> {
-        let (input, output, context) = state.into_parts();
+        let (input, output, _context) = state.into_parts();
         let output_data = output.ok_or_else(|| {
             transition::MissingOutput::new(PREPARE_SEC_REQUEST, EXECUTE_SEC_REQUEST)
         })?;
 
         // The request comes from the input, so the context takes its input from there too.
-        let new_context = ExecuteSecRequestContext::new(input.request_input, context.repository);
+        let new_context = ExecuteSecRequestContext::new(input.request_input);
         let new_input = ExecuteSecRequestInput::new(sec_client, output_data.request);
 
         Ok(Self::new(new_input, new_context))
@@ -196,7 +196,7 @@ mod tests {
         ));
 
         let result =
-            ExecuteSecRequest::<NotesFile, _, SecClient>::try_from((state, client)).map(|_| ());
+            ExecuteSecRequest::<NotesFile, SecClient>::try_from((state, client)).map(|_| ());
 
         assert_eq!(result, expected_result);
     }
