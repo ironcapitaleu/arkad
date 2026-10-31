@@ -1,5 +1,6 @@
 mod backfill;
 mod constants;
+mod periods;
 // Each binary is its own crate root, so it cannot import another binary's modules. `#[path]`
 // compiles each shared file into this binary as a private module, so all binaries build the
 // client and the store the same way.
@@ -16,10 +17,11 @@ use std::fs;
 use std::io::stdout;
 use std::time::Instant;
 
+use chrono::Utc;
 use sec::implementations::extraction::Extraction;
 use tracing_subscriber::fmt::format::FmtSpan;
 
-use constants::NOTES_PERIODS;
+use periods::notes_periods;
 use sec_client::{USER_AGENT_ENV_VAR, default_user_agent_warning, sec_client, startup_error_cause};
 use storage_root::raw_notes_archive_writer;
 
@@ -80,11 +82,13 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     let backfill = Extraction::backfill();
     let execution_id = backfill.id().to_string();
     let item_execution_id = execution_id.clone();
+    let periods = notes_periods(Utc::now().date_naive());
+    let periods: Vec<&str> = periods.iter().map(String::as_str).collect();
     let start = Instant::now();
 
     let summary = backfill::run(
         backfill,
-        &NOTES_PERIODS,
+        &periods,
         &sec_client,
         &repository,
         move |period, item| {
@@ -101,16 +105,19 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
             );
         },
         |period, error| {
-            tracing::error!(
-                event = %error.event,
-                message = %error.source.to_string(),
-                context = %serde_json::json!({
-                    "execution_id": error.execution_id.to_string(),
-                    "period": period,
-                    "state": error.state_name,
-                    "data": error.data,
-                }),
-            );
+            let message = error.source.to_string();
+            let context = serde_json::json!({
+                "execution_id": error.execution_id.to_string(),
+                "period": period,
+                "state": error.state_name,
+                "data": error.data,
+            });
+            // The run summary decides whether an absent file counts as a failure.
+            if backfill::is_absent_file(error) {
+                tracing::warn!(event = %error.event, message = %message, context = %context);
+            } else {
+                tracing::error!(event = %error.event, message = %message, context = %context);
+            }
         },
     )
     .await;
@@ -118,14 +125,20 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     let elapsed = start.elapsed();
     let failures = summary.failure_count();
     let successes = summary.success_count();
+    let already_stored = summary.already_stored_count();
+    let unpublished = summary.unpublished_count();
     let context = serde_json::json!({
         "execution_id": execution_id,
         "successes": successes,
+        "already_stored": already_stored,
         "failures": failures,
+        "unpublished": unpublished,
         "duration_ms": elapsed.as_millis(),
         "periods": summary.entries(),
     });
-    let message = format!("{successes} Notes files stored, {failures} failed in {elapsed:.2?}");
+    let message = format!(
+        "{successes} Notes files stored ({already_stored} already stored), {failures} failed, {unpublished} unpublished in {elapsed:.2?}"
+    );
     summary.result().inspect_err(|_| {
         tracing::error!(event = %BatchEvent::Failed, message = %message, context = %context);
     })?;

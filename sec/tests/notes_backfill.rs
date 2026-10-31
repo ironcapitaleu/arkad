@@ -7,7 +7,11 @@
 //!
 //! - `www.sec.gov`: the Notes files of 2009q1 (28 KB) and 2009q2 (534 KB)
 
-// The binary is its own crate root, so this test compiles its loop as a private module.
+// The binary is its own crate root, so this test compiles its loop as a private module. The test
+// reads only part of the summary. Rust 1.97 reports the counts that only `main` reads as
+// `dead_code`, and Rust 1.90 (CI) does not. So `expect` fails on one of them, and `allow` holds on
+// both.
+#[allow(dead_code)]
 #[path = "../src/bin/notes_backfill/backfill.rs"]
 mod backfill;
 
@@ -65,12 +69,14 @@ async fn should_list_each_stored_file_with_its_size_and_sha256_when_backfilling_
     let expected_result = vec![
         json!({
             "period": "2009q1",
+            "status": "downloaded",
             "key": "sec/notes/2009q1_notes.zip",
             "size_in_bytes": 28_064,
             "sha256": "ebdbbe58d6908d2c9e2dcb5c547be1617040c3ee7dc9a287b2e49f197abd4b4f",
         }),
         json!({
             "period": "2009q2",
+            "status": "downloaded",
             "key": "sec/notes/2009q2_notes.zip",
             "size_in_bytes": 533_925,
             "sha256": "3ca835467d2eec762ca064b975ebf4d34add69bdd04d13fbd5bb82b304e852b6",
