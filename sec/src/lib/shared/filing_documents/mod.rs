@@ -5,8 +5,8 @@
 //!
 //! ## Modules
 //!
-//! - [`filing_documents_error`]: The [`FilingDocumentsError`] returned when no single document
-//!   matches a rule, and the [`FilingDocumentRole`] it names.
+//! - [`filing_documents_error`]: The [`FilingDocumentsError`] returned when the folder index does
+//!   not parse or no single document matches a rule, and the [`FilingDocumentRole`] it names.
 
 use serde::{Deserialize, Serialize};
 
@@ -369,7 +369,8 @@ mod tests {
 
         let result = FilingDocuments::select(&accession_number, index);
 
-        // The reason text belongs to `serde_json`, so the test checks the variant only.
+        // The reason text belongs to `serde_json`, so the test checks the variant and the accession
+        // number.
         assert!(matches!(
             result,
             Err(FilingDocumentsError::InvalidFolderIndex { accession_number, .. })
