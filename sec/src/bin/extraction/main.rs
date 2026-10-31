@@ -39,7 +39,6 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     let context =
         sec::implementations::states::extract::validate_cik_format::ValidateCikFormatContext::new(
             "1067983",
-            sec_client.clone(),
         );
     let mut validate_cik_state = ValidateCikFormat::new(input, context);
 

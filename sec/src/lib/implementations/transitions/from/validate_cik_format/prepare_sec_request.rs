@@ -14,9 +14,8 @@
 //! ```compile_fail,E0277
 //! use sec::implementations::states::extract::prepare_sec_request::PrepareNotesRequest;
 //! use sec::implementations::states::extract::validate_cik_format::ValidateCikFormat;
-//! use sec::shared::http_client::implementations::sec_client::SecClient;
 //!
-//! fn prepare_as_notes_file(state: ValidateCikFormat<SecClient>) {
+//! fn prepare_as_notes_file(state: ValidateCikFormat) {
 //!     let _next = PrepareNotesRequest::try_from(state);
 //! }
 //! ```
@@ -35,17 +34,15 @@ use crate::implementations::states::extract::prepare_sec_request::{
 use crate::implementations::states::extract::validate_cik_format::ValidateCikFormat;
 use crate::implementations::states::extract::validate_cik_format::constants::STATE_NAME as VALIDATE_CIK_FORMAT;
 use crate::shared::cik::Cik;
-use crate::shared::http_client::SecClient as SecClientTrait;
 use crate::shared::request::implementations::sec_request::RequestKind;
 
-impl<K, C> TryFrom<ValidateCikFormat<C>> for PrepareSecRequest<K>
+impl<K> TryFrom<ValidateCikFormat> for PrepareSecRequest<K>
 where
     K: RequestKind<Input = Cik>,
-    C: SecClientTrait,
 {
     type Error = TransitionError;
 
-    fn try_from(state: ValidateCikFormat<C>) -> Result<Self, TransitionError> {
+    fn try_from(state: ValidateCikFormat) -> Result<Self, TransitionError> {
         let (_input, output, _context) = state.into_parts();
         let output_data = output.ok_or_else(|| {
             transition::MissingOutput::new(VALIDATE_CIK_FORMAT, PREPARE_SEC_REQUEST)
@@ -69,18 +66,16 @@ mod tests {
     };
     use crate::shared::cik::Cik;
     use crate::shared::cik::constants::BERKSHIRE_HATHAWAY_CIK_RAW;
-    use crate::shared::http_client::implementations::sec_client::SecClient;
     use crate::shared::request::implementations::sec_request::Submissions;
     use crate::traits::state_machine::state::State;
 
     #[tokio::test]
     async fn should_transition_to_prepare_sec_request_when_validate_cik_format_has_output() {
         let cik_string = "0001234567";
-        let sec_client = SecClient::default();
         let input = ValidateCikFormatInput {
             raw_cik: cik_string.into(),
         };
-        let context = ValidateCikFormatContext::new(cik_string, sec_client);
+        let context = ValidateCikFormatContext::new(cik_string);
         let mut state = ValidateCikFormat::new(input, context);
         state
             .compute_output_data_async()
@@ -101,9 +96,8 @@ mod tests {
 
     #[test]
     fn should_return_error_when_validate_cik_format_has_no_output() {
-        let sec_client = SecClient::default();
         let input = ValidateCikFormatInput::new(BERKSHIRE_HATHAWAY_CIK_RAW);
-        let context = ValidateCikFormatContext::new(BERKSHIRE_HATHAWAY_CIK_RAW, sec_client);
+        let context = ValidateCikFormatContext::new(BERKSHIRE_HATHAWAY_CIK_RAW);
         let state = ValidateCikFormat::new(input, context);
 
         let expected_result = true;
@@ -117,8 +111,7 @@ mod tests {
     async fn should_transition_to_prepare_sec_request_of_submissions_kind_when_validate_cik_format_has_output()
      {
         let input = ValidateCikFormatInput::new(BERKSHIRE_HATHAWAY_CIK_RAW);
-        let context =
-            ValidateCikFormatContext::new(BERKSHIRE_HATHAWAY_CIK_RAW, SecClient::default());
+        let context = ValidateCikFormatContext::new(BERKSHIRE_HATHAWAY_CIK_RAW);
         let mut state = ValidateCikFormat::new(input, context);
         state
             .compute_output_data_async()

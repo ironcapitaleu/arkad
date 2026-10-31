@@ -277,10 +277,9 @@ The cases known today:
     super-state builders, whose `build()` keeps the bound `R: RawRepository<…>`. Step 3 moves it to
     `notes/builder.rs` as a `compile_fail,E0599` doctest that builds `ExtractNotesSuperState` with
     a Company Facts repository.
-- Step 4: the doctest at `validate_cik_format/prepare_sec_request.rs:14` writes
-  `ValidateCikFormat<R>`. Its `C` has a default, so after step 4 `R` binds to `C` and the doctest
-  still fails with E0277, but on the client bound. Step 4 rewrites it to
-  `ValidateCikFormat<SecClient>`.
+- Step 4: the doctest at `validate_cik_format/prepare_sec_request.rs:14` wrote
+  `ValidateCikFormat<R>`. Step 4 rewrote it to `ValidateCikFormat<SecClient>`. STA-386 later
+  removed `C`, so the doctest now names `ValidateCikFormat`.
 - The builders of `ValidateCikFormat` and `ValidateNotesPeriod` hold no `compile_fail` doctests.
 
 Each step updates the docs that its change makes false. Examples: the module docs of
