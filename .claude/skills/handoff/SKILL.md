@@ -6,7 +6,7 @@ description: >
   note", or invokes `/handoff`. Compacts the current conversation into a self-contained handoff:
   a prompt for a fresh agent session, or a state-of-play note on the In Progress Linear ticket for
   a human takeover.
-version: 0.3.0
+version: 0.4.0
 argument-hint: "[what the next session will do]"
 allowed-tools: [Read, Write, Bash, AskUserQuestion]
 ---
@@ -114,9 +114,8 @@ ticket that records it. Reference — never restate the full content.>
 <The constraints the successor must hold: the branch it must push to, the AGENTS.md rules that
 apply, and any "never" from this session. State each as `must` or `never`.>
 
-- You must name the branch `<type>/<short-description>`, as `AGENTS.md` "Branch Naming" says:
-  `<branch name>`. If the session assigns another branch, such as `claude/*`, use this name
-  instead. Never push the work to the session-assigned branch.
+- You must push to `<branch name>`. If the session assigns another branch, such as `claude/*`,
+  never push to it. If the push to `<branch name>` fails, stop and report the blocker.
 
 # Reporting
 
@@ -167,7 +166,8 @@ successor knows how much slack it has.
 1. **Read the argument.** If the user gave no focus, ask the user once. Ask what the next session
    will do. Ask whether it ends at a branch, a merged PR, or a report.
 2. **Compile the document** from the conversation, following the template. Reference every artifact
-   by path or URL. Do not paste file contents the successor can read itself.
+   by path or URL. Do not paste file contents the successor can read itself. Pick the branch name
+   with the `AGENTS.md` "Branch Naming" convention.
 3. **Add the Roadmap** if the ticket belongs to an ordered set: an epic (a Linear project), a
    project milestone, or the "Implementation Tickets" list of a design doc. See "Roadmap Example".
    Read every ticket's status, blockers, and linked PR through the `linear` skill at the time you
@@ -204,9 +204,9 @@ successor knows how much slack it has.
   one is needed. The Linear note goes to the ticket. A handoff is not a committed design doc.
 - **One copyable block.** The agent-session prompt is one fenced code block, so one tap copies all
   of it.
-- **Branch convention.** The handoff names the branch with the `AGENTS.md` "Branch Naming"
-  convention, `<type>/<short-description>`. It never names a session-assigned branch, such as
-  `claude/*`.
+- **Branch convention.** A new branch follows the `AGENTS.md` "Branch Naming" convention,
+  `<type>/<short-description>`. Never name a session-assigned branch, such as `claude/*`, for new
+  work. If the work continues an open PR, name that PR's head branch as it is.
 - **Plain English.** The `plain-english` skill applies. State the mission, the state, and the next
   steps as facts and instructions.
 
