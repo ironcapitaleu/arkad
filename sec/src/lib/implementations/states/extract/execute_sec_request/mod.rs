@@ -5,7 +5,7 @@
 //!
 //! ## Modules
 //!
-//! - [`constants`]: State metadata such as [`STATE_NAME`].
+//! - [`constants`]: The [`STATE_NAME`] of the [`CompanyFacts`] kind.
 //! - [`context`]: The [`ExecuteSecRequestContext`] carried alongside the state.
 //! - [`data`]: The [`ExecuteSecRequestInput`] and [`ExecuteSecRequestOutput`] data types.
 //!
@@ -214,7 +214,7 @@ where
 
     /// Returns the human-readable name of this state.
     fn state_name(&self) -> impl ToString {
-        STATE_NAME
+        E::EXECUTE_STATE_NAME
     }
 
     /// Blocking wrapper around [`compute_output_data_async`](crate::traits::state_machine::state::State::compute_output_data_async).
@@ -266,7 +266,7 @@ impl<E: RespondsWith + StoredAs, R: RawRepository<E::Source>, C: SecClientTrait>
              Context:\n{}\n\
              Input Data:\n{}\n\
              Output Data:\n{}",
-            STATE_NAME,
+            E::EXECUTE_STATE_NAME,
             self.context,
             self.input,
             self.output.as_ref().map_or_else(
@@ -285,6 +285,7 @@ mod tests {
 
     use super::*;
     use crate::shared::cik::Cik;
+    use crate::shared::content_type::ContentType;
     use crate::shared::http_client::implementations::sec_client::SecClient;
     use crate::shared::notes_period::NotesPeriod;
     use crate::shared::request::implementations::sec_request::{NotesFile, SecRequest};
@@ -344,12 +345,21 @@ mod tests {
     fn create_notes_file_state(
         status: u16,
     ) -> ExecuteSecRequest<NotesFile, FakeNotesRepository, AlwaysRespondingSecClient> {
+        create_notes_file_state_with_content_type(status, "application/zip")
+    }
+
+    /// Creates an `ExecuteSecRequest<NotesFile, …>` state whose fake client answers with `status`,
+    /// `content_type`, and the ZIP fixture.
+    fn create_notes_file_state_with_content_type(
+        status: u16,
+        content_type: &str,
+    ) -> ExecuteSecRequest<NotesFile, FakeNotesRepository, AlwaysRespondingSecClient> {
         let period = NotesPeriod::new("2024q1")
             .expect("Given a hardcoded published quarter, parsing should always succeed");
         let client = AlwaysRespondingSecClient::new(
             status,
             vec![
-                ("content-type", "application/zip".to_string()),
+                ("content-type", content_type.to_string()),
                 ("content-length", SAMPLE_NOTES_ZIP.len().to_string()),
             ],
             SAMPLE_NOTES_ZIP.to_vec(),
@@ -382,7 +392,7 @@ mod tests {
         let mut state = create_notes_file_state(404);
 
         let expected_result: Result<(), StateError> = Err(FailedRequestExecution::new(
-            STATE_NAME,
+            NotesFile::EXECUTE_STATE_NAME,
             FailedSecRequest::from(InvalidSecResponse::new(ErrorReason::InvalidStatusCode {
                 status_code: StatusCode::NotFound,
             })),
@@ -390,6 +400,82 @@ mod tests {
         .into());
 
         let result = state.compute_output_data_async().await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_succeed_when_the_content_type_of_a_notes_file_is_octet_stream() {
+        let mut state = create_notes_file_state_with_content_type(200, "application/octet-stream");
+
+        let expected_result = true;
+
+        let result = state.compute_output_data_async().await.is_ok();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_return_failed_request_execution_when_the_content_type_of_a_notes_file_is_html()
+    {
+        let mut state = create_notes_file_state_with_content_type(200, "text/html");
+
+        let expected_result: Result<(), StateError> = Err(FailedRequestExecution::new(
+            NotesFile::EXECUTE_STATE_NAME,
+            FailedSecRequest::from(InvalidSecResponse::new(ErrorReason::InvalidContentType {
+                content_type: ContentType::Html,
+            })),
+        )
+        .into());
+
+        let result = state.compute_output_data_async().await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_leave_the_output_empty_when_the_notes_file_is_not_found() {
+        let mut state = create_notes_file_state(404);
+
+        let expected_result = false;
+
+        let _ = state.compute_output_data_async().await;
+        let result = state.has_output_data_been_computed();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn should_produce_output_when_calling_sync_compute_inside_tokio_runtime() {
+        let mut state = create_notes_file_state(200);
+
+        let expected_result = true;
+
+        state.compute_output_data();
+        let result = state.has_output_data_been_computed();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_produce_output_when_calling_sync_compute_outside_tokio_runtime() {
+        let mut state = create_notes_file_state(200);
+
+        let expected_result = true;
+
+        state.compute_output_data();
+        let result = state.has_output_data_been_computed();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_name_of_notes_file_kind_when_in_execute_state_of_notes_file_kind() {
+        let state = create_notes_file_state(200);
+
+        let expected_result = "Download Notes Archive";
+
+        let result = state.state_name().to_string();
 
         assert_eq!(result, expected_result);
     }
@@ -578,6 +664,15 @@ mod tests {
     #[test]
     const fn should_implement_clone_for_execute_sec_request() {
         implements_clone::<ExecuteCompanyFactsRequest<FakeWriteRepository>>();
+    }
+
+    const fn implements_value_traits<
+        T: Sized + Send + Sync + Unpin + Clone + Debug + Hash + Eq + Ord,
+    >() {
+    }
+    #[test]
+    const fn should_implement_value_traits_for_execute_sec_request_of_notes_file_kind() {
+        implements_value_traits::<ExecuteSecRequest<NotesFile, FakeNotesRepository>>();
     }
 
     const fn implements_unpin<T: Unpin>() {}
