@@ -134,28 +134,34 @@ def run_once(binary, files_in_flight, workdir, user_agent):
     seconds = time.time() - start
     # ru_maxrss is in bytes on macOS and in KB on Linux.
     peak_kb = usage.ru_maxrss // 1024 if sys.platform == "darwin" else usage.ru_maxrss
-    downloads, failures = read_log(log)
+    downloads, failures, used = read_log(log)
     shutil.rmtree(data)
     log.unlink()
+    # A build without ARKAD_FILES_IN_FLIGHT ignores the variable and runs with its own value.
+    if used != files_in_flight:
+        sys.exit(f"The binary ran with {used} files in flight, not {files_in_flight}. "
+                 "Build a commit that reads ARKAD_FILES_IN_FLIGHT.")
     return {"files_in_flight": files_in_flight, "exit": os.waitstatus_to_exitcode(status),
             "seconds": seconds, "peak_kb": peak_kb, "downloads": downloads, "failures": failures}
 
 
 def read_log(log):
-    """Returns the download seconds per period and the error lines of one run."""
-    downloads, failures = {}, []
+    """Returns the download seconds per period, the error lines, and the files in flight of one run."""
+    downloads, failures, used = {}, [], None
     for line in log.read_text(errors="replace").splitlines():
         try:
             event = json.loads(line)
             context = json.loads(event.get("context") or "{}")
         except (json.JSONDecodeError, TypeError):
             continue
+        if event.get("event") in ("batch_complete", "batch_failed"):
+            used = context.get("files_in_flight")
         if event.get("event") == "state_completed" and context.get("state") == "Execute SEC Request":
             downloads[context.get("period")] = context.get("event_duration_ms", 0) / 1000
         # `batch_failed` is the summary of the failed periods, not a failure of its own.
         if event.get("level") == "ERROR" and event.get("event") != "batch_failed":
             failures.append(line)
-    return downloads, failures
+    return downloads, failures, used
 
 
 def print_table(rows):
