@@ -5,12 +5,13 @@
 //! ## Modules
 //!
 //! - [`fake_write_repository`]: The [`FakeRawRepository`] that records or rejects each write, and
-//!   its aliases [`FakeWriteRepository`], [`FakeNotesRepository`], [`FakeDailyIndexRepository`], and
-//!   [`FakeSubmissionsRepository`].
+//!   its aliases [`FakeWriteRepository`], [`FakeNotesRepository`], [`FakeDailyIndexRepository`],
+//!   [`FakeSubmissionsRepository`], [`FakeXbrlInstanceRepository`], and
+//!   [`FakeXbrlLabelsRepository`].
 
 pub mod fake_write_repository;
 
 pub use fake_write_repository::{
     FakeDailyIndexRepository, FakeNotesRepository, FakeRawRepository, FakeSubmissionsRepository,
-    FakeWriteRepository,
+    FakeWriteRepository, FakeXbrlInstanceRepository, FakeXbrlLabelsRepository,
 };
