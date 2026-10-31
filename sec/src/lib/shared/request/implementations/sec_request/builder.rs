@@ -269,63 +269,87 @@ mod tests {
         )
     }
 
-    fn daily_index_url(date: &str) -> String {
-        SecRequest::builder()
-            .daily_index()
-            .date(index_date(date))
-            .build()
-            .inner()
-            .url()
-            .to_string()
-    }
-
     #[test]
     fn should_produce_qtr1_url_for_a_daily_index_request_in_march() {
+        let date = index_date("2026-03-02");
+
         let expected_result =
             "https://www.sec.gov/Archives/edgar/daily-index/2026/QTR1/form.20260302.idx";
 
-        let result = daily_index_url("2026-03-02");
+        let result = SecRequest::builder()
+            .daily_index()
+            .date(date)
+            .build()
+            .inner()
+            .url()
+            .to_string();
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_produce_qtr2_url_for_a_daily_index_request_in_april() {
+        let date = index_date("2026-04-01");
+
         let expected_result =
             "https://www.sec.gov/Archives/edgar/daily-index/2026/QTR2/form.20260401.idx";
 
-        let result = daily_index_url("2026-04-01");
+        let result = SecRequest::builder()
+            .daily_index()
+            .date(date)
+            .build()
+            .inner()
+            .url()
+            .to_string();
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_produce_qtr3_url_for_a_daily_index_request_in_september() {
+        let date = index_date("2026-09-30");
+
         let expected_result =
             "https://www.sec.gov/Archives/edgar/daily-index/2026/QTR3/form.20260930.idx";
 
-        let result = daily_index_url("2026-09-30");
+        let result = SecRequest::builder()
+            .daily_index()
+            .date(date)
+            .build()
+            .inner()
+            .url()
+            .to_string();
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_produce_qtr4_url_for_a_daily_index_request_in_october() {
+        let date = index_date("2026-10-27");
+
         let expected_result =
             "https://www.sec.gov/Archives/edgar/daily-index/2026/QTR4/form.20261027.idx";
 
-        let result = daily_index_url("2026-10-27");
+        let result = SecRequest::builder()
+            .daily_index()
+            .date(date)
+            .build()
+            .inner()
+            .url()
+            .to_string();
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_produce_the_quarter_listing_url_for_a_daily_index_listing_request() {
+        let date = index_date("2026-10-27");
+
         let expected_result = "https://www.sec.gov/Archives/edgar/daily-index/2026/QTR4/index.json";
 
         let result = SecRequest::builder()
             .daily_index_listing()
-            .date(index_date("2026-10-27"))
+            .date(date)
             .build()
             .inner()
             .url()
@@ -370,50 +394,67 @@ mod tests {
         assert_eq!(result, expected_result);
     }
 
-    fn build_notes_file_url(period: &str) -> Url {
-        let period = NotesPeriod::new(period)
-            .expect("Given a published period, NotesPeriod creation should always succeed");
-        SecRequest::builder()
-            .notes_file()
-            .period(period)
-            .build()
-            .inner()
-            .url()
-            .clone()
+    fn notes_period(period: &str) -> NotesPeriod {
+        NotesPeriod::new(period)
+            .expect("Given a published period, NotesPeriod creation should always succeed")
     }
 
     #[test]
     fn should_produce_quarterly_url_for_notes_file_request() {
+        let period = notes_period("2024q1");
+
         let expected_result = Url::parse(
             "https://www.sec.gov/files/dera/data/financial-statement-notes-data-sets/2024q1_notes.zip",
         )
         .expect("Hardcoded URL should always be valid");
 
-        let result = build_notes_file_url("2024q1");
+        let result = SecRequest::builder()
+            .notes_file()
+            .period(period)
+            .build()
+            .inner()
+            .url()
+            .clone();
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_produce_monthly_url_for_notes_file_request() {
+        let period = notes_period("2025_10");
+
         let expected_result = Url::parse(
             "https://www.sec.gov/files/dera/data/financial-statement-notes-data-sets/2025_10_notes.zip",
         )
         .expect("Hardcoded URL should always be valid");
 
-        let result = build_notes_file_url("2025_10");
+        let result = SecRequest::builder()
+            .notes_file()
+            .period(period)
+            .build()
+            .inner()
+            .url()
+            .clone();
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_use_overridden_file_name_for_2010q1_notes_file_request() {
+        let period = notes_period("2010q1");
+
         let expected_result = Url::parse(
             "https://www.sec.gov/files/dera/data/financial-statement-notes-data-sets/2010q1_notes_1.zip",
         )
         .expect("Hardcoded URL should always be valid");
 
-        let result = build_notes_file_url("2010q1");
+        let result = SecRequest::builder()
+            .notes_file()
+            .period(period)
+            .build()
+            .inner()
+            .url()
+            .clone();
 
         assert_eq!(result, expected_result);
     }
