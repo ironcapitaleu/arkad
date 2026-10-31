@@ -20,11 +20,11 @@ Run both steps on the same machine, at the same time of day.
 
 1. **curl test.** Download one Notes file alone. Then download four Notes files in parallel. Note
    the total MB/s of each.
-2. **Files-in-flight runs.** Build `notes_backfill` from a scratch worktree of `origin/main`.
+2. **Files-in-flight runs.** Build `notes_backfill` once from a scratch worktree of `origin/main`.
    Replace the computed periods in `main.rs` with four large periods, one `tokio::spawn` per
-   period. Run it with
-   `FILES_IN_FLIGHT` 2, 3, and 4, two runs each, in the order 2, 3, 4, 4, 3, 2. The order spreads
-   the change in network speed over the day across all three values.
+   period. Run it with `ARKAD_FILES_IN_FLIGHT` set to 2, 3, and 4, two runs each, in the order 2,
+   3, 4, 4, 3, 2. The order spreads the change in network speed over the day across all three
+   values.
 
 For each run, record the total duration, the peak resident memory (`ru_maxrss` via `os.wait4`), the
 download time of each file from its `state_completed` event, and every failure. The script prints
@@ -47,7 +47,7 @@ the invariant in `SKILL.md` allows. Never assert against these numbers.
 - **The link is the limit** if four parallel curl downloads add up to about the speed of one alone.
   More files in flight then only make each file slower, and the total time stays the same.
 - **The SEC limits each stream** if each parallel stream gets about the speed of one alone. The total
-  then grows with the number of streams, and a higher `FILES_IN_FLIGHT` pays off.
+  then grows with the number of streams, and a higher `ARKAD_FILES_IN_FLIGHT` pays off.
 - **Our code is the limit** if `notes_backfill` stays well below the curl speed on the same machine.
   Profile the CPU next, with `cpu.md`.
 - **Memory** grows with each file in flight, because each one holds its body in memory. Read the
@@ -55,7 +55,8 @@ the invariant in `SKILL.md` allows. Never assert against these numbers.
 
 ## The Decision
 
-`notes_backfill` keeps `FILES_IN_FLIGHT = 2`. On 2026-10-29 the network was the limit in the cloud
+`notes_backfill` keeps the default of 2 files in flight (`DEFAULT_FILES_IN_FLIGHT`).
+`ARKAD_FILES_IN_FLIGHT` overrides it per machine, with no rebuild. On 2026-10-29 the network was the limit in the cloud
 container and on the lead's Mac, so more files in flight raised the memory and not the speed.
 Measure once on Cloud Run before you change the value. The design doc records the same decision in
 `sec/design/pipeline/ingestion_paths.md`, section "Memory and the Cap on Files in Flight".
