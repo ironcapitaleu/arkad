@@ -725,7 +725,7 @@ Use `mcp__linear__create_issue` with:
 - `title`: formatted as `[LABEL] Title` (or just `Title` for basic)
 - `description`: filled template
 - `priority`: user-selected (default 2)
-- `labelIds`: match the label to existing IDs (see Label IDs section). Omit if the label ID is not yet captured.
+- `labelIds`: match the label to existing IDs (see Label IDs section). Never pass the `IMPLEMENTATION` group. Omit if the label ID is not yet captured.
 
 ### Step 4: Confirm
 
@@ -748,20 +748,27 @@ Always confirm with the user before making changes.
 
 ## Label IDs
 
-| Label | ID |
-| --- | --- |
-| FEATURE | `c7fc7896-32b6-4c22-bcce-9f6cda3c935a` |
-| SPIKE | `12ddfaf0-6644-459a-bd71-1765b2f7b795` |
-| REFACTOR | `f4ab8267-331c-400a-8b54-4e6424b7f3e7` |
-| DOCS | `4ae80929-fd9a-4d24-9e05-1c896d374700` |
-| ONBOARDING | `339b3f41-9f48-4574-a958-ff76cf82795e` |
-| IMPLEMENTATION | `88330314-8dc6-43dc-b2bb-855ede6634c1` |
-| TEST | `6edf3100-c0cf-4f7a-8c41-3342d21f1b6d` |
-| DESIGN | `ea9940a6-9ba4-443f-8c78-1f2da9251eeb` |
-| CI/CD | `f4a7c5c2-347f-4900-9181-f2706c7f0662` |
-| FIX | `0e1e8146-791e-4ec2-a266-65ef6282db06` |
-| FRONTEND | `f4239270-e616-4f43-9db8-1fa284cbc147` |
-| DATABASE | `434537ba-1774-46cf-9803-a8870aa02a38` |
+`IMPLEMENTATION` is a label group, not a label. Linear refuses it on an issue. Its children are
+single-select, so an issue takes at most one of them.
+
+| Label | ID | Group |
+| --- | --- | --- |
+| FEATURE | `c7fc7896-32b6-4c22-bcce-9f6cda3c935a` | IMPLEMENTATION |
+| REFACTOR | `f4ab8267-331c-400a-8b54-4e6424b7f3e7` | IMPLEMENTATION |
+| TEST | `6edf3100-c0cf-4f7a-8c41-3342d21f1b6d` | IMPLEMENTATION |
+| FIX | `0e1e8146-791e-4ec2-a266-65ef6282db06` | IMPLEMENTATION |
+| CI/CD | `f4a7c5c2-347f-4900-9181-f2706c7f0662` | IMPLEMENTATION |
+| SPIKE | `12ddfaf0-6644-459a-bd71-1765b2f7b795` | / |
+| DOCS | `4ae80929-fd9a-4d24-9e05-1c896d374700` | / |
+| ONBOARDING | `339b3f41-9f48-4574-a958-ff76cf82795e` | / |
+| DESIGN | `ea9940a6-9ba4-443f-8c78-1f2da9251eeb` | / |
+| FRONTEND | `f4239270-e616-4f43-9db8-1fa284cbc147` | / |
+| DATABASE | `434537ba-1774-46cf-9803-a8870aa02a38` | / |
+| CHORE | `63695939-b849-4402-a293-2d54901e8aa2` | / |
+
+An `[IMPLEMENTATION]` ticket keeps its title prefix and takes the child label that fits the work,
+for example `CI/CD` for a pipeline change. If no child fits, give it no type label. To check the
+current labels and groups, call `list_issue_labels` with `includeGroups: true`.
 
 ## Conventions
 
