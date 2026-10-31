@@ -208,6 +208,7 @@ mod tests {
     use std::hash::Hash;
 
     use pretty_assertions::{assert_eq, assert_ne};
+    use storage::WriteError;
 
     use super::*;
     use crate::shared::http_client::implementations::reqwest_client::ReqwestClient;
@@ -235,9 +236,9 @@ mod tests {
         cik: &str,
         sec_client: SecClient,
         execution_id: Uuid,
+        repository: FakeWriteRepository,
     ) -> ExtractCompanyFactsSuperState<ValidateCikFormat<FakeWriteRepository>, FakeWriteRepository>
     {
-        let repository = FakeWriteRepository::new();
         let state_context =
             ValidateCikFormatContext::new(cik, sec_client.clone(), repository.clone());
 
@@ -281,14 +282,18 @@ mod tests {
 
     #[test]
     fn should_build_a_super_state_at_validate_cik_format_when_setting_every_field() {
+        let cik = "1067983";
+        let sec_client = sample_sec_client();
+        let execution_id = Uuid::from_u128(7);
+        let repository =
+            FakeWriteRepository::rejecting(WriteError::conflicting_write("Sample conflict"));
         let builder = ExtractCompanyFactsSuperState::builder()
-            .cik("1067983")
-            .sec_client(sample_sec_client())
-            .execution_id(Uuid::from_u128(7));
-        let repository = FakeWriteRepository::new();
+            .cik(cik)
+            .sec_client(sec_client.clone())
+            .execution_id(execution_id);
 
         let expected_result =
-            expected_super_state("1067983", sample_sec_client(), Uuid::from_u128(7));
+            expected_super_state(cik, sec_client, execution_id, repository.clone());
 
         let result = builder.repository(repository).build();
 
@@ -297,14 +302,17 @@ mod tests {
 
     #[test]
     fn should_build_the_same_super_state_when_setting_the_fields_in_reverse_order() {
-        let builder = ExtractCompanyFactsSuperState::builder()
-            .repository(FakeWriteRepository::new())
-            .execution_id(Uuid::from_u128(7))
-            .sec_client(sample_sec_client());
         let cik = "1067983";
+        let sec_client = sample_sec_client();
+        let execution_id = Uuid::from_u128(7);
+        let repository =
+            FakeWriteRepository::rejecting(WriteError::conflicting_write("Sample conflict"));
+        let builder = ExtractCompanyFactsSuperState::builder()
+            .repository(repository.clone())
+            .execution_id(execution_id)
+            .sec_client(sec_client.clone());
 
-        let expected_result =
-            expected_super_state("1067983", sample_sec_client(), Uuid::from_u128(7));
+        let expected_result = expected_super_state(cik, sec_client, execution_id, repository);
 
         let result = builder.cik(cik).build();
 

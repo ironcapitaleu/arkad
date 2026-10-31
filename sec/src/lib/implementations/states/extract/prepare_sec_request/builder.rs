@@ -261,6 +261,7 @@ impl<R> PrepareSecRequest<CompanyFacts, R> {
 #[cfg(test)]
 mod tests {
     use pretty_assertions::assert_eq;
+    use storage::WriteError;
 
     use crate::implementations::states::extract::prepare_sec_request::{
         PrepareSecRequest, PrepareSecRequestContext, PrepareSecRequestInput,
@@ -277,11 +278,12 @@ mod tests {
     fn should_build_company_facts_state_for_cik_and_repository() {
         let cik = Cik::new(BERKSHIRE_HATHAWAY_CIK_RAW)
             .expect("Given a hardcoded valid CIK, Cik creation should always succeed");
-        let repository = FakeWriteRepository::new();
+        let repository =
+            FakeWriteRepository::rejecting(WriteError::conflicting_write("Sample conflict"));
 
         let expected_result = PrepareSecRequest::new(
             PrepareSecRequestInput::new(cik.clone()),
-            PrepareSecRequestContext::new(cik.clone(), FakeWriteRepository::new()),
+            PrepareSecRequestContext::new(cik.clone(), repository.clone()),
         );
 
         let result = PrepareSecRequest::builder()
@@ -297,11 +299,12 @@ mod tests {
     fn should_build_notes_file_state_for_period_and_repository() {
         let period = NotesPeriod::new("2024q1")
             .expect("Given a published period, NotesPeriod creation should always succeed");
-        let repository = FakeNotesRepository::new();
+        let repository =
+            FakeNotesRepository::rejecting(WriteError::conflicting_write("Sample conflict"));
 
         let expected_result = PrepareSecRequest::<NotesFile, _>::new(
             PrepareSecRequestInput::new(period),
-            PrepareSecRequestContext::new(period, FakeNotesRepository::new()),
+            PrepareSecRequestContext::new(period, repository.clone()),
         );
 
         let result = PrepareSecRequest::builder()
@@ -317,12 +320,13 @@ mod tests {
     fn should_build_same_state_when_repository_is_set_before_kind() {
         let cik = Cik::new(BERKSHIRE_HATHAWAY_CIK_RAW)
             .expect("Given a hardcoded valid CIK, Cik creation should always succeed");
-        let repository = FakeWriteRepository::new();
+        let repository =
+            FakeWriteRepository::rejecting(WriteError::conflicting_write("Sample conflict"));
 
         let expected_result = PrepareSecRequest::builder()
             .all_company_facts()
             .cik(cik.clone())
-            .repository(FakeWriteRepository::new())
+            .repository(repository.clone())
             .build();
 
         let result = PrepareSecRequest::builder()
