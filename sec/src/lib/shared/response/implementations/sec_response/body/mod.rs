@@ -85,8 +85,8 @@ pub trait ResponseBody: Debug + Send + Sync + Sized {
 pub trait FileBody: ResponseBody<Content = [u8]> {
     /// Returns the bytes as a [`Bytes`] that shares the buffer, so the call copies a pointer.
     ///
-    /// The bytes must equal [`content`](ResponseBody::content), because the store hashes
-    /// `content` and writes these bytes.
+    /// The bytes must equal [`content`](ResponseBody::content), because the metadata describes
+    /// `content` and the store writes these bytes.
     #[must_use]
     fn to_bytes(&self) -> Bytes;
 }
