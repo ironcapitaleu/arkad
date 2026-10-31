@@ -120,178 +120,214 @@ mod tests {
 
     #[test]
     fn should_display_10k_when_form_is_ten_k() {
+        let form = Form::TenK;
+
         let expected_result = "10-K";
 
-        let result = Form::TenK.to_string();
+        let result = form.to_string();
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_display_10q_when_form_is_ten_q() {
+        let form = Form::TenQ;
+
         let expected_result = "10-Q";
 
-        let result = Form::TenQ.to_string();
+        let result = form.to_string();
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_display_20f_when_form_is_twenty_f() {
+        let form = Form::TwentyF;
+
         let expected_result = "20-F";
 
-        let result = Form::TwentyF.to_string();
+        let result = form.to_string();
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_display_40f_when_form_is_forty_f() {
+        let form = Form::FortyF;
+
         let expected_result = "40-F";
 
-        let result = Form::FortyF.to_string();
+        let result = form.to_string();
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_parse_ten_k_from_sec_string_when_input_is_10k() {
+        let sec_string = "10-K";
+
         let expected_result = Ok(ParsedForm::new(Form::TenK, false));
 
-        let result = Form::from_sec_str("10-K");
+        let result = Form::from_sec_str(sec_string);
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_parse_ten_q_from_sec_string_when_input_is_10q() {
+        let sec_string = "10-Q";
+
         let expected_result = Ok(ParsedForm::new(Form::TenQ, false));
 
-        let result = Form::from_sec_str("10-Q");
+        let result = Form::from_sec_str(sec_string);
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_parse_twenty_f_from_sec_string_when_input_is_20f() {
+        let sec_string = "20-F";
+
         let expected_result = Ok(ParsedForm::new(Form::TwentyF, false));
 
-        let result = Form::from_sec_str("20-F");
+        let result = Form::from_sec_str(sec_string);
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_parse_forty_f_from_sec_string_when_input_is_40f() {
+        let sec_string = "40-F";
+
         let expected_result = Ok(ParsedForm::new(Form::FortyF, false));
 
-        let result = Form::from_sec_str("40-F");
+        let result = Form::from_sec_str(sec_string);
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_parse_ten_k_amendment_from_sec_string_when_input_is_10k_a() {
+        let sec_string = "10-K/A";
+
         let expected_result = Ok(ParsedForm::new(Form::TenK, true));
 
-        let result = Form::from_sec_str("10-K/A");
+        let result = Form::from_sec_str(sec_string);
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_parse_ten_q_amendment_from_sec_string_when_input_is_10q_a() {
+        let sec_string = "10-Q/A";
+
         let expected_result = Ok(ParsedForm::new(Form::TenQ, true));
 
-        let result = Form::from_sec_str("10-Q/A");
+        let result = Form::from_sec_str(sec_string);
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_parse_twenty_f_amendment_from_sec_string_when_input_is_20f_a() {
+        let sec_string = "20-F/A";
+
         let expected_result = Ok(ParsedForm::new(Form::TwentyF, true));
 
-        let result = Form::from_sec_str("20-F/A");
+        let result = Form::from_sec_str(sec_string);
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_parse_forty_f_amendment_from_sec_string_when_input_is_40f_a() {
+        let sec_string = "40-F/A";
+
         let expected_result = Ok(ParsedForm::new(Form::FortyF, true));
 
-        let result = Form::from_sec_str("40-F/A");
+        let result = Form::from_sec_str(sec_string);
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_return_unsupported_form_when_sec_string_is_unknown_form() {
-        let expected_result = Err(UnsupportedForm::new("8-K"));
+        let sec_string = "8-K";
 
-        let result = Form::from_sec_str("8-K");
+        let expected_result = Err(UnsupportedForm::new(sec_string));
+
+        let result = Form::from_sec_str(sec_string);
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_return_unsupported_form_when_sec_string_is_amendment_of_unknown_form() {
-        let expected_result = Err(UnsupportedForm::new("8-K/A"));
+        let sec_string = "8-K/A";
 
-        let result = Form::from_sec_str("8-K/A");
+        let expected_result = Err(UnsupportedForm::new(sec_string));
+
+        let result = Form::from_sec_str(sec_string);
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_return_unsupported_form_when_sec_string_is_bare_amendment_suffix() {
-        let expected_result = Err(UnsupportedForm::new("/A"));
+        let sec_string = "/A";
 
-        let result = Form::from_sec_str("/A");
+        let expected_result = Err(UnsupportedForm::new(sec_string));
+
+        let result = Form::from_sec_str(sec_string);
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_return_unsupported_form_when_sec_string_has_amendment_suffix_twice() {
-        let expected_result = Err(UnsupportedForm::new("10-K/A/A"));
+        let sec_string = "10-K/A/A";
 
-        let result = Form::from_sec_str("10-K/A/A");
+        let expected_result = Err(UnsupportedForm::new(sec_string));
+
+        let result = Form::from_sec_str(sec_string);
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_return_unsupported_form_when_sec_string_has_trailing_whitespace() {
-        let form_text = "10-K   ";
+        let sec_string = "10-K   ";
 
-        let expected_result = Err(UnsupportedForm::new(form_text));
+        let expected_result = Err(UnsupportedForm::new(sec_string));
 
-        let result = Form::from_sec_str(form_text);
+        let result = Form::from_sec_str(sec_string);
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_return_unsupported_form_when_sec_string_is_lowercase() {
-        let expected_result = Err(UnsupportedForm::new("10-k"));
+        let sec_string = "10-k";
 
-        let result = Form::from_sec_str("10-k");
+        let expected_result = Err(UnsupportedForm::new(sec_string));
+
+        let result = Form::from_sec_str(sec_string);
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_parse_each_displayed_form_back_to_itself_for_selected_forms() {
+        let sec_strings: Vec<String> = SELECTED_FORMS.iter().map(ToString::to_string).collect();
+
         let expected_result: Vec<Result<ParsedForm, UnsupportedForm>> = SELECTED_FORMS
             .iter()
             .map(|form| Ok(ParsedForm::new(*form, false)))
             .collect();
 
-        let result: Vec<Result<ParsedForm, UnsupportedForm>> = SELECTED_FORMS
+        let result: Vec<Result<ParsedForm, UnsupportedForm>> = sec_strings
             .iter()
-            .map(|form| Form::from_sec_str(&form.to_string()))
+            .map(|sec_string| Form::from_sec_str(sec_string))
             .collect();
 
         assert_eq!(result, expected_result);
