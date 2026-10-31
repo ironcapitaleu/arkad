@@ -1,11 +1,24 @@
 //! # Transition: `ValidateCikFormat` → `PrepareSecRequest`
 //!
-//! Implements the [`TryFrom`] conversion producing a [`PrepareCompanyFactsRequest`] from a
-//! [`ValidateCikFormat`].
+//! Implements the [`TryFrom`] conversion producing a [`PrepareSecRequest`] from a
+//! [`ValidateCikFormat`], for every request kind `K` whose input is a [`Cik`]. These are
+//! [`CompanyFacts`](crate::shared::request::implementations::sec_request::CompanyFacts) and
+//! [`Submissions`](crate::shared::request::implementations::sec_request::Submissions).
 //!
-//! It takes the validated [`Cik`](crate::shared::cik::Cik) from the source state's output and the
-//! repository from its context, and seeds the successor's input and context with them. The
-//! conversion is fallible because the source state may not have computed its output yet.
+//! It takes the validated [`Cik`] from the source state's output and the repository from its
+//! context, and seeds the successor's input and context with them. The conversion is fallible
+//! because the source state may not have computed its output yet.
+//!
+//! A kind with another input cannot follow [`ValidateCikFormat`], so this does not compile:
+//!
+//! ```compile_fail,E0277
+//! use sec::implementations::states::extract::prepare_sec_request::PrepareNotesRequest;
+//! use sec::implementations::states::extract::validate_cik_format::ValidateCikFormat;
+//!
+//! fn prepare_as_notes_file<R>(state: ValidateCikFormat<R>) {
+//!     let _next = PrepareNotesRequest::<R>::try_from(state);
+//! }
+//! ```
 //!
 //! # Errors
 //!
@@ -16,13 +29,19 @@ use crate::error::state_machine::transition;
 use crate::error::state_machine::transition::Transition as TransitionError;
 use crate::implementations::states::extract::prepare_sec_request::constants::STATE_NAME as PREPARE_SEC_REQUEST;
 use crate::implementations::states::extract::prepare_sec_request::{
-    PrepareCompanyFactsRequest, PrepareSecRequestContext, PrepareSecRequestInput,
+    PrepareSecRequest, PrepareSecRequestContext, PrepareSecRequestInput,
 };
 use crate::implementations::states::extract::validate_cik_format::ValidateCikFormat;
 use crate::implementations::states::extract::validate_cik_format::constants::STATE_NAME as VALIDATE_CIK_FORMAT;
+use crate::shared::cik::Cik;
 use crate::shared::http_client::SecClient as SecClientTrait;
+use crate::shared::request::implementations::sec_request::RequestKind;
 
-impl<R, C: SecClientTrait> TryFrom<ValidateCikFormat<R, C>> for PrepareCompanyFactsRequest<R> {
+impl<K, R, C> TryFrom<ValidateCikFormat<R, C>> for PrepareSecRequest<K, R>
+where
+    K: RequestKind<Input = Cik>,
+    C: SecClientTrait,
+{
     type Error = TransitionError;
 
     fn try_from(state: ValidateCikFormat<R, C>) -> Result<Self, TransitionError> {
@@ -46,13 +65,17 @@ mod tests {
     use storage::WriteError;
 
     use super::*;
+    use crate::implementations::states::extract::prepare_sec_request::PrepareCompanyFactsRequest;
     use crate::implementations::states::extract::validate_cik_format::{
         ValidateCikFormat, ValidateCikFormatContext, ValidateCikFormatInput,
     };
     use crate::shared::cik::Cik;
     use crate::shared::cik::constants::BERKSHIRE_HATHAWAY_CIK_RAW;
     use crate::shared::http_client::implementations::sec_client::SecClient;
-    use crate::tests::fixtures::sample_write_repository::FakeWriteRepository;
+    use crate::shared::request::implementations::sec_request::Submissions;
+    use crate::tests::fixtures::sample_write_repository::{
+        FakeSubmissionsRepository, FakeWriteRepository,
+    };
     use crate::traits::state_machine::state::State;
 
     #[tokio::test]
@@ -133,6 +156,36 @@ mod tests {
             .context_data()
             .repository()
             .clone();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_transition_to_prepare_sec_request_of_submissions_kind_when_validate_cik_format_has_output()
+     {
+        let repository =
+            FakeSubmissionsRepository::rejecting(WriteError::conflicting_write("Sample conflict"));
+        let input = ValidateCikFormatInput::new(BERKSHIRE_HATHAWAY_CIK_RAW);
+        let context = ValidateCikFormatContext::new(
+            BERKSHIRE_HATHAWAY_CIK_RAW,
+            SecClient::default(),
+            repository.clone(),
+        );
+        let mut state = ValidateCikFormat::new(input, context);
+        state
+            .compute_output_data_async()
+            .await
+            .expect("Given a hardcoded valid CIK, validation should always succeed");
+
+        let expected_cik = Cik::new(BERKSHIRE_HATHAWAY_CIK_RAW)
+            .expect("Given a hardcoded valid CIK, parsing should always succeed");
+        let expected_result = PrepareSecRequest::<Submissions, _>::new(
+            PrepareSecRequestInput::new(expected_cik.clone()),
+            PrepareSecRequestContext::new(expected_cik, repository),
+        );
+
+        let result = PrepareSecRequest::<Submissions, _>::try_from(state)
+            .expect("Given a state with output, the transition should always succeed");
 
         assert_eq!(result, expected_result);
     }
