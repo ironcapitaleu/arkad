@@ -160,20 +160,19 @@ impl<K: RequestKind> SecRequestTrait for SecRequest<K> {
 /// Builds the folder-index URL of `filing`.
 ///
 /// [`AccessionNumber`](crate::shared::financial::accession_number::AccessionNumber) does not
-/// check its shape, so the accession number goes in as one percent-encoded path segment. A `/`,
-/// `?`, or `#` in it cannot move the request out of the folder of the filer.
+/// check its shape, so the URL takes only the ASCII digits of the accession number. No other
+/// character, such as `/`, `.`, `%`, or `#`, can reach the path.
 fn filing_index_url(filing: &FilingRef) -> String {
-    let mut url = Url::parse(SEC_FILING_INDEX_URL_PREFIX)
-        .expect("The hardcoded filing-index URL prefix should always parse");
-    url.path_segments_mut()
-        .expect("An https URL should always have path segments")
-        .pop_if_empty()
-        .extend([
-            unpadded_cik(filing.cik()),
-            &filing.accession_number().value().replace('-', ""),
-            SEC_FILING_INDEX_FILE_NAME,
-        ]);
-    url.into()
+    let accession_digits: String = filing
+        .accession_number()
+        .value()
+        .chars()
+        .filter(char::is_ascii_digit)
+        .collect();
+    format!(
+        "{SEC_FILING_INDEX_URL_PREFIX}{}/{accession_digits}/{SEC_FILING_INDEX_FILE_NAME}",
+        unpadded_cik(filing.cik())
+    )
 }
 
 /// Returns the CIK without its leading zeros, as the archive folders name it. All zeros give `0`.
@@ -269,7 +268,7 @@ mod tests {
     use pretty_assertions::assert_eq;
     use reqwest::{Method, Url};
 
-    use super::{CompanyFacts, NotesFile, RequestKind, SecRequest, filing_index_url, unpadded_cik};
+    use super::{CompanyFacts, FilingIndex, NotesFile, RequestKind, SecRequest, unpadded_cik};
     use crate::shared::filing_ref::FilingRef;
     use crate::shared::financial::accession_number::AccessionNumber;
     use crate::shared::financial::form::{Form, ParsedForm};
@@ -407,19 +406,22 @@ mod tests {
     }
 
     #[test]
-    fn should_keep_the_request_in_the_filer_folder_when_the_accession_number_holds_a_path() {
+    fn should_keep_the_request_in_the_filer_folder_when_the_accession_number_is_an_encoded_dot_segment() {
         let filing = FilingRef::new(
             Cik::new("320193").expect("Given a hardcoded valid CIK, parsing should always succeed"),
-            AccessionNumber::new("x/../../../y#z"),
+            AccessionNumber::new("%2e%2e"),
             ParsedForm::new(Form::TenK, false),
             NaiveDate::from_ymd_opt(2026, 9, 9)
                 .expect("Given a hardcoded calendar date, the date should always build"),
         );
 
-        let expected_result =
-            "https://www.sec.gov/Archives/edgar/data/320193/x%2F..%2F..%2F..%2Fy%23z/index.json";
+        let expected_result = "/Archives/edgar/data/320193/22/index.json";
 
-        let result = filing_index_url(&filing);
+        let result = SecRequest::<FilingIndex>::new(filing)
+            .inner()
+            .url()
+            .path()
+            .to_string();
 
         assert_eq!(result, expected_result);
     }
