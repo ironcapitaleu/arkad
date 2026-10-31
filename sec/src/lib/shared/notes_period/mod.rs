@@ -132,8 +132,7 @@ impl NotesPeriod {
                 |(_, file_name)| (*file_name).to_string(),
             )
     }
-    /// Returns every period whose Notes file ends in or before the month of `date`, in increasing
-    /// order.
+    /// Returns every period that ends in or before the month of `date`, in increasing order.
     ///
     /// Quarters run to 2025q3 and months start at `2025_10`. A quarter is in the list only once
     /// the month of `date` reaches its last month. The list is empty if `date` comes before 2009.
@@ -163,8 +162,8 @@ impl NotesPeriod {
         .collect()
     }
 
-    /// Returns the period whose Notes file ends in the month of `date`, or `None` if no file ends
-    /// in that month.
+    /// Returns the period that ends in the month of `date`, or `None` if no period ends in that
+    /// month.
     fn ending_in(date: NaiveDate) -> Option<Self> {
         let year = Year(u16::try_from(date.year()).ok()?);
         let month = Month(chrono::Month::try_from(u8::try_from(date.month()).ok()?).ok()?);

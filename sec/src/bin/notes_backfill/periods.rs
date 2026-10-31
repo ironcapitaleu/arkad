@@ -30,7 +30,7 @@ mod tests {
     }
 
     #[test]
-    fn should_list_every_period_from_2009q1_to_two_months_back_when_today_is_2026_11_01() {
+    fn should_list_every_period_from_2009q1_to_2026_09_when_today_is_2026_11_01() {
         let today = date(2026, 11, 1);
 
         let expected_result = vec![
