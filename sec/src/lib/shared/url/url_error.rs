@@ -64,4 +64,15 @@ mod tests {
 
         assert_eq!(result, expected_result);
     }
+
+    #[test]
+    fn should_format_display_as_expected_for_failed_to_parse_reason() {
+        let reason = InvalidUrlReason::FailedToParse;
+
+        let expected_result = "Input could not be parsed as a valid URL";
+
+        let result = reason.to_string();
+
+        assert_eq!(result, expected_result);
+    }
 }

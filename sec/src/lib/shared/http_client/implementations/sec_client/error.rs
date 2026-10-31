@@ -136,4 +136,35 @@ mod tests {
 
         assert_eq!(result, expected_result);
     }
+
+    #[test]
+    fn should_format_display_as_expected_for_failed_request_execution_reason() {
+        let reason = ErrorReason::FailedRequestExecution {
+            details: "connection refused".to_string(),
+        };
+
+        let expected_result =
+            "[FailedRequestExecution] HTTP request execution failed, Reason: 'connection refused'";
+
+        let result = reason.to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_format_display_as_expected_for_invalid_response_reason() {
+        let sec_response_error =
+            InvalidSecResponse::new(SecResponseErrorReason::InvalidContentType {
+                content_type: ContentType::Xml,
+            });
+        let reason = ErrorReason::InvalidResponse {
+            source: sec_response_error,
+        };
+
+        let expected_result = "[InvalidResponse] Response validation failed, Caused by: [InvalidSecResponse] Invalid SEC Response, Reason: 'Content type 'application/xml' is not accepted'";
+
+        let result = reason.to_string();
+
+        assert_eq!(result, expected_result);
+    }
 }

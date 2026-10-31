@@ -94,4 +94,26 @@ mod tests {
 
         assert_eq!(result, expected_result);
     }
+
+    #[test]
+    fn should_format_display_as_expected_for_max_length_exceeded_reason() {
+        let reason = InvalidCikReason::MaxLengthExceeded { cik_length: 15 };
+
+        let expected_result = "CIK cannot exceed 10 digits. Got: '15'";
+
+        let result = reason.to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_format_display_as_expected_for_contains_non_numeric_characters_reason() {
+        let reason = InvalidCikReason::ContainsNonNumericCharacters;
+
+        let expected_result = "CIK contains non-numeric characters";
+
+        let result = reason.to_string();
+
+        assert_eq!(result, expected_result);
+    }
 }

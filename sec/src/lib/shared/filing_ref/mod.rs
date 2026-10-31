@@ -158,10 +158,12 @@ mod tests {
             .map(|form| row(&form.to_string()))
             .collect();
 
-        let expected_result: Vec<Result<FilingRef, UnsupportedForm>> = SELECTED_FORMS
-            .iter()
-            .map(|form| Ok(filing_ref(*form, false)))
-            .collect();
+        let expected_result: Vec<Result<FilingRef, UnsupportedForm>> = vec![
+            Ok(filing_ref(Form::TenK, false)),
+            Ok(filing_ref(Form::TenQ, false)),
+            Ok(filing_ref(Form::TwentyF, false)),
+            Ok(filing_ref(Form::FortyF, false)),
+        ];
 
         let result: Vec<Result<FilingRef, UnsupportedForm>> =
             daily_index_rows.iter().map(FilingRef::try_from).collect();

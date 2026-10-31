@@ -102,4 +102,31 @@ mod tests {
 
         assert_eq!(result, expected_result);
     }
+
+    #[test]
+    fn should_format_display_as_expected_for_missing_header_reason() {
+        let reason = InvalidHeadersReason::MissingHeader {
+            header_name: "etag".to_string(),
+        };
+
+        let expected_result = "Required header 'etag' is missing";
+
+        let result = reason.to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_format_display_as_expected_for_invalid_header_reason() {
+        let reason = InvalidHeadersReason::InvalidHeader {
+            header_name: "content-type".to_string(),
+            value: "invalid".to_string(),
+        };
+
+        let expected_result = "Header 'content-type' has an invalid value: 'invalid'";
+
+        let result = reason.to_string();
+
+        assert_eq!(result, expected_result);
+    }
 }
