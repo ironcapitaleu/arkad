@@ -207,7 +207,9 @@ mod tests {
 
     fn expected_super_state(
         raw_date: &str,
+        sec_client: RoutingSecClient,
         execution_id: Uuid,
+        repository: FakeDailyIndexRepository,
     ) -> DetectFilingsSuperState<ValidateIndexDate, FakeDailyIndexRepository, RoutingSecClient>
     {
         DetectFilingsSuperState {
@@ -217,11 +219,7 @@ mod tests {
             ),
             input: DetectFilingsSuperStateData,
             output: None,
-            context: DetectFilingsSuperStateContext::new(
-                RoutingSecClient::new(),
-                execution_id,
-                FakeDailyIndexRepository::new(),
-            ),
+            context: DetectFilingsSuperStateContext::new(sec_client, execution_id, repository),
         }
     }
 
@@ -248,13 +246,17 @@ mod tests {
 
     #[test]
     fn should_build_a_super_state_at_validate_index_date_when_setting_every_field() {
-        let builder = DetectFilingsSuperState::builder()
-            .date("2026-10-27")
-            .sec_client(RoutingSecClient::new())
-            .execution_id(Uuid::from_u128(7));
+        let date = "2026-10-27";
+        let sec_client = RoutingSecClient::new();
+        let execution_id = Uuid::from_u128(7);
         let repository = FakeDailyIndexRepository::new();
+        let builder = DetectFilingsSuperState::builder()
+            .date(date)
+            .sec_client(sec_client.clone())
+            .execution_id(execution_id);
 
-        let expected_result = expected_super_state("2026-10-27", Uuid::from_u128(7));
+        let expected_result =
+            expected_super_state(date, sec_client, execution_id, repository.clone());
 
         let result = builder.repository(repository).build();
 
@@ -263,13 +265,16 @@ mod tests {
 
     #[test]
     fn should_build_the_same_super_state_when_setting_the_fields_in_reverse_order() {
-        let builder = DetectFilingsSuperState::builder()
-            .repository(FakeDailyIndexRepository::new())
-            .execution_id(Uuid::from_u128(7))
-            .sec_client(RoutingSecClient::new());
         let date = "2026-10-27";
+        let sec_client = RoutingSecClient::new();
+        let execution_id = Uuid::from_u128(7);
+        let repository = FakeDailyIndexRepository::new();
+        let builder = DetectFilingsSuperState::builder()
+            .repository(repository.clone())
+            .execution_id(execution_id)
+            .sec_client(sec_client.clone());
 
-        let expected_result = expected_super_state("2026-10-27", Uuid::from_u128(7));
+        let expected_result = expected_super_state(date, sec_client, execution_id, repository);
 
         let result = builder.date(date).build();
 
