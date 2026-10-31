@@ -41,22 +41,14 @@ impl FailedSecRequest {
         })
     }
 
-    /// Returns `true` if the SEC answered 403 or 404.
+    /// Returns `true` if the SEC answered 403 or 404, also for the file that an
+    /// [`ErrorReason::FailedFilingDocument`] names.
     ///
     /// For a file that does not exist, the SEC answers 404, or 403 with an S3 `AccessDenied` body,
     /// as observed on 2026-10-30. A 403 can also mean that the SEC refused the request.
     #[must_use]
-    pub const fn is_absent_file(&self) -> bool {
-        matches!(
-            &self.reason,
-            ErrorReason::InvalidResponse { source }
-                if matches!(
-                    source.reason,
-                    ResponseErrorReason::InvalidStatusCode {
-                        status_code: StatusCode::Forbidden | StatusCode::NotFound
-                    }
-                )
-        )
+    pub fn is_absent_file(&self) -> bool {
+        self.reason.is_absent_file()
     }
 }
 
@@ -81,6 +73,23 @@ pub enum ErrorReason {
         /// The reason the request for the file failed.
         source: Box<Self>,
     },
+}
+
+impl ErrorReason {
+    /// Returns `true` if the SEC answered 403 or 404, also under a
+    /// [`FailedFilingDocument`](Self::FailedFilingDocument).
+    fn is_absent_file(&self) -> bool {
+        match self {
+            Self::InvalidResponse { source } => matches!(
+                source.reason,
+                ResponseErrorReason::InvalidStatusCode {
+                    status_code: StatusCode::Forbidden | StatusCode::NotFound
+                }
+            ),
+            Self::FailedFilingDocument { source, .. } => source.is_absent_file(),
+            Self::FailedRequestExecution { .. } => false,
+        }
+    }
 }
 
 impl fmt::Display for ErrorReason {
@@ -147,6 +156,17 @@ mod tests {
         let expected_result = (true, true);
 
         let result = (forbidden.is_absent_file(), not_found.is_absent_file());
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_report_an_absent_file_when_a_filing_document_answers_404() {
+        let error = invalid_status_code(StatusCode::NotFound).for_file("alco-20260908_htm.xml");
+
+        let expected_result = true;
+
+        let result = error.is_absent_file();
 
         assert_eq!(result, expected_result);
     }

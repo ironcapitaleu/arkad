@@ -202,6 +202,24 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn should_return_failed_filing_document_naming_the_label_file_when_the_label_file_is_not_found()
+     {
+        let client = RoutingSecClient::new().route(INSTANCE_URL, 200, "text/xml", INSTANCE_BODY);
+        let request = document_set_request(Some(LABEL_FILE));
+
+        let expected_result = Some(
+            FailedSecRequest::from(InvalidSecResponse::new(ErrorReason::InvalidStatusCode {
+                status_code: StatusCode::NotFound,
+            }))
+            .for_file(LABEL_FILE),
+        );
+
+        let result = client.execute(request).await.err();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
     async fn should_skip_the_label_call_when_the_instance_call_fails() {
         let client = AlwaysRespondingSecClient::new(404, vec![], Vec::new())
             .with_rate_limiter(CountingRateLimiter::default());

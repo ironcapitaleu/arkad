@@ -1,10 +1,10 @@
 //! # Filing Documents
 //!
-//! Provides [`FilingDocuments`], the XBRL instance and the optional label file of one filing,
-//! [`FolderIndex`], the member names of the folder of the filing that they are picked from,
-//! [`FilingDocumentRef`], which names one file of that folder, [`FilingDocumentSetRef`], which
-//! names the instance and the label file together, and [`FilingDocumentResponses`], the responses
-//! for both files.
+//! Provides [`FilingDocuments`], the XBRL instance and the optional label file of one filing, and
+//! [`FolderIndex`], the member names of the filing folder.
+//!
+//! [`FilingDocumentRef`] names one file of that folder. [`FilingDocumentSetRef`] names the instance
+//! and the label file together. [`FilingDocumentResponses`] holds the responses for both files.
 //!
 //! ## Modules
 //!

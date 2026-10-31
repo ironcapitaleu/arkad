@@ -114,7 +114,7 @@ mod tests {
         let expected_result = vec!["instance", "labels"];
 
         let value = serde_json::to_value(&responses)
-            .expect("Given responses of strings and digests, serialization should always succeed");
+            .expect("Given responses with a URL, headers, and an XML body, serialization should always succeed");
         let result: Vec<&str> = value
             .as_object()
             .map(|fields| fields.keys().map(String::as_str).collect())
