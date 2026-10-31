@@ -67,4 +67,15 @@ mod tests {
 
         assert_eq!(result, expected_result);
     }
+
+    #[test]
+    fn should_format_display_as_expected_for_invalid_sec_format_reason() {
+        let reason = UserAgentErrorReason::InvalidSecFormat;
+
+        let expected_result = "The format required for the SEC API is invalid";
+
+        let result = reason.to_string();
+
+        assert_eq!(result, expected_result);
+    }
 }

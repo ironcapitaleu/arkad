@@ -165,4 +165,31 @@ mod tests {
 
         assert_eq!(result, expected_result);
     }
+
+    #[test]
+    fn should_format_display_as_expected_for_invalid_body_reason() {
+        let reason = ErrorReason::InvalidBody {
+            details: "expected value at line 1 column 1".to_string(),
+        };
+
+        let expected_result =
+            "Response body is not valid JSON: 'expected value at line 1 column 1'";
+
+        let result = reason.to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_format_display_as_expected_for_failed_body_read_reason() {
+        let reason = ErrorReason::FailedBodyRead {
+            details: "connection reset".to_string(),
+        };
+
+        let expected_result = "Failed to read response body: 'connection reset'";
+
+        let result = reason.to_string();
+
+        assert_eq!(result, expected_result);
+    }
 }
