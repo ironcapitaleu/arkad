@@ -14,7 +14,7 @@ use crate::shared::response::implementations::sec_response::error::{
 };
 use crate::shared::status_code::StatusCode;
 
-use super::{ResponseBody, check_content_length};
+use super::{ResponseBody, checked_bytes, checked_bytes_off_task};
 
 /// The bytes of a ZIP file or a daily index, exactly as the server sent them.
 ///
@@ -80,9 +80,8 @@ impl ResponseBody for ZipBody {
         headers: &Headers,
         raw_body: Vec<u8>,
     ) -> Result<(Self, Sha256Digest), InvalidSecResponse> {
-        check_content_length(headers, &raw_body)?;
-        let body_digest = Sha256Digest::of(&raw_body);
-        Ok((Self(Bytes::from(raw_body)), body_digest))
+        let (bytes, body_digest) = checked_bytes(headers, raw_body)?;
+        Ok((Self(bytes), body_digest))
     }
 
     /// Checks the body length, and hashes the body on the blocking thread pool with
@@ -96,9 +95,8 @@ impl ResponseBody for ZipBody {
         headers: &Headers,
         raw_body: Vec<u8>,
     ) -> Result<(Self, Sha256Digest), InvalidSecResponse> {
-        check_content_length(headers, &raw_body)?;
-        let (body_digest, raw_body) = Sha256Digest::of_owned_async(raw_body).await;
-        Ok((Self(Bytes::from(raw_body)), body_digest))
+        let (bytes, body_digest) = checked_bytes_off_task(headers, raw_body).await?;
+        Ok((Self(bytes), body_digest))
     }
 
     fn content(&self) -> &Self::Content {

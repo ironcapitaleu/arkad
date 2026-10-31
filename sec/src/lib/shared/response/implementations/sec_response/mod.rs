@@ -622,6 +622,56 @@ mod zip_tests {
         assert_eq!(result, expected_result);
     }
 
+    #[tokio::test]
+    async fn should_poll_another_future_when_hashing_a_large_read_xml_body() {
+        let headers = headers("text/xml", None);
+        let body = vec![0_u8; LARGE_BODY_SIZE];
+        let url = sample_url();
+        let build_is_done = AtomicBool::new(false);
+        // Starts after the body read, so every tick comes from the hash.
+        let build = async {
+            let outcome = SecResponse::<XmlBody>::from_read_body(
+                url,
+                headers,
+                ContentType::Xml,
+                StatusCode::Ok,
+                body,
+            )
+            .await;
+            build_is_done.store(true, Ordering::Relaxed);
+            outcome
+        };
+        let ticker = count_ticks_until(&build_is_done);
+
+        let expected_result = true;
+
+        let (_, ticks) = tokio::join!(build, ticker);
+        let result = ticks > 1;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_return_invalid_content_length_when_a_raw_xml_response_body_is_longer_than_the_header()
+     {
+        let http_response = http::Response::builder()
+            .status(200)
+            .header("content-type", "text/xml")
+            .header("content-length", "4")
+            .body(BODY.to_vec())
+            .expect("Given a valid status code and header names, building the response should always succeed");
+        let inner = reqwest::Response::from(http_response);
+
+        let expected_result = Some(InvalidSecResponse::new(ErrorReason::InvalidContentLength {
+            content_length: "4".to_string(),
+            body_length: BODY.len(),
+        }));
+
+        let result = SecResponse::<XmlBody>::from_inner(inner).await.err();
+
+        assert_eq!(result, expected_result);
+    }
+
     /// Builds an [`SecResponse<ZipBody>`] with the content type of the `Content-Type` header.
     fn zip_from_parts(
         url: Url,
