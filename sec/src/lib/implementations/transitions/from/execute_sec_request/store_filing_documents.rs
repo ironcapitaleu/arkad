@@ -4,9 +4,9 @@
 //! [`ExecuteSecRequest`] of the [`FilingDocumentSet`] kind, the `execution_id`, and the two
 //! storage repositories.
 //!
-//! It moves the [`Arc`](std::sync::Arc) of the responses from the output of the source state, the
-//! filing from its context, and the `User-Agent` from its client. It builds the URL of each file
-//! as its [`FilingDocument`] request does. It keeps no clone of the [`Arc`](std::sync::Arc). The
+//! It moves the [`Arc`](std::sync::Arc) of the responses from the output of the source state and
+//! keeps no clone of it. It copies the filing from its context and the `User-Agent` from its
+//! client. It builds the URL of each file as its [`FilingDocument`] request does. The
 //! `execution_id` and the repositories belong to the state machine run, so the caller passes the
 //! ones from the state machine context.
 //!
@@ -14,12 +14,17 @@
 //! filing documents store, so this does not compile:
 //!
 //! ```compile_fail,E0277
-//! use sec::implementations::states::extract::execute_sec_request::ExecuteNotesRequest;
+//! use sec::implementations::states::extract::execute_sec_request::ExecuteSecRequest;
 //! use sec::implementations::states::extract::store_filing_documents::StoreFilingDocuments;
 //! use sec::shared::http_client::implementations::sec_client::SecClient;
+//! use sec::shared::request::implementations::sec_request::NotesFile;
 //! use uuid::Uuid;
 //!
-//! fn store_as_filing_documents<I, L>(state: ExecuteNotesRequest<SecClient>, instances: I, labels: L) {
+//! fn store_as_filing_documents<I, L>(
+//!     state: ExecuteSecRequest<NotesFile, SecClient>,
+//!     instances: I,
+//!     labels: L,
+//! ) {
 //!     let _next = StoreFilingDocuments::<I, L>::try_from((state, Uuid::nil(), instances, labels));
 //! }
 //! ```
@@ -89,10 +94,10 @@ impl<I, L, C: SecClientTrait> TryFrom<(ExecuteSecRequest<FilingDocumentSet, C>, 
 
         let filing = context.request_input.filing();
         let documents = context.request_input.documents();
-        let instance_url = filing_document_url(filing, documents.instance());
+        let instance_url = requested_file_url(filing, documents.instance());
         let labels_url = documents
             .label_file()
-            .map(|label_file| filing_document_url(filing, label_file));
+            .map(|label_file| requested_file_url(filing, label_file));
         let new_input = StoreFilingDocumentsInput::new(
             output_data.response,
             filing.clone(),
@@ -108,7 +113,7 @@ impl<I, L, C: SecClientTrait> TryFrom<(ExecuteSecRequest<FilingDocumentSet, C>, 
 }
 
 /// Returns the URL that the [`FilingDocument`] request for `file_name` of `filing` sends.
-fn filing_document_url(filing: &FilingRef, file_name: &str) -> Url {
+fn requested_file_url(filing: &FilingRef, file_name: &str) -> Url {
     let request =
         SecRequest::<FilingDocument>::new(FilingDocumentRef::new(filing.clone(), file_name));
     Url::from(request.inner.url().clone())
@@ -300,7 +305,7 @@ mod tests {
             transition::FailedContextConversion::new(
                 EXECUTE_SEC_REQUEST,
                 STORE_FILING_DOCUMENTS,
-                "The request targets 'https://www.sec.gov/Archives/edgar/data/3545/000000354526000047/', but the context names documents '0000003545-26-000047 (Instance: alco-20260908_htm.xml, Label File: None)'",
+                "The request targets 'https://www.sec.gov/Archives/edgar/data/3545/000000354526000047/' for documents '0000003545-26-000047 (Instance: alco-20260908_htm.xml, Label File: alco-20260908_lab.xml)', but the context names documents '0000003545-26-000047 (Instance: alco-20260908_htm.xml, Label File: None)'",
             ),
         ));
 

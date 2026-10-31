@@ -19,8 +19,8 @@ use crate::shared::request::implementations::sec_request::{RequestKind, SecReque
 /// # Errors
 ///
 /// Returns [`TransitionError::FailedContextConversion`] from [`EXECUTE_SEC_REQUEST`] to
-/// `target_state_name` if the two requests differ. The reason names the requested URL, then
-/// `input_label` and `request_input`, for example `period '2024q1'`.
+/// `target_state_name` if the two requests differ. The reason names the requested URL and the
+/// input of the request, then `input_label` and `request_input`, for example `period '2024q1'`.
 pub(super) fn ensure_request_matches_input<K: RequestKind>(
     request: &SecRequest<K>,
     request_input: &K::Input,
@@ -32,8 +32,9 @@ pub(super) fn ensure_request_matches_input<K: RequestKind>(
         return Ok(());
     }
     let reason = format!(
-        "The request targets '{}', but the context names {input_label} '{request_input}'",
+        "The request targets '{}' for {input_label} '{}', but the context names {input_label} '{request_input}'",
         request.inner.url(),
+        request.input(),
     );
     Err(
         transition::FailedContextConversion::new(EXECUTE_SEC_REQUEST, target_state_name, reason)
@@ -80,7 +81,7 @@ mod tests {
             transition::FailedContextConversion::new(
                 EXECUTE_SEC_REQUEST,
                 TARGET_STATE_NAME,
-                "The request targets 'https://www.sec.gov/files/dera/data/financial-statement-notes-data-sets/2023q4_notes.zip', but the context names period '2024q1'",
+                "The request targets 'https://www.sec.gov/files/dera/data/financial-statement-notes-data-sets/2023q4_notes.zip' for period '2023q4', but the context names period '2024q1'",
             ),
         ));
 
@@ -103,7 +104,7 @@ mod tests {
             transition::FailedContextConversion::new(
                 EXECUTE_SEC_REQUEST,
                 TARGET_STATE_NAME,
-                "The request targets 'https://www.sec.gov/files/dera/data/financial-statement-notes-data-sets/2023q4_notes.zip', but the context names period '2024q1'",
+                "The request targets 'https://www.sec.gov/files/dera/data/financial-statement-notes-data-sets/2023q4_notes.zip' for period '2024q1', but the context names period '2024q1'",
             ),
         ));
 
