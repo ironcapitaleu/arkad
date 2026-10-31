@@ -488,13 +488,13 @@ mod tests {
     use tempfile::TempDir;
 
     use super::*;
+    use crate::implementations::states::extract::execute_sec_request::constants::STATE_NAME as EXECUTE_SEC_REQUEST;
+    use crate::implementations::states::extract::prepare_sec_request::constants::STATE_NAME as PREPARE_SEC_REQUEST;
     use crate::implementations::states::extract::store_notes_archive::constants::STATE_NAME as STORE_NOTES_ARCHIVE;
     use crate::implementations::states::extract::validate_notes_period::constants::STATE_NAME as VALIDATE_NOTES_PERIOD;
-    use crate::shared::http_client::RespondsWith;
     use crate::shared::notes_period::NotesPeriod;
     use crate::shared::raw_document::RawDocument;
     use crate::shared::raw_source::RawNotesArchive;
-    use crate::shared::request::implementations::sec_request::RequestKind;
     use crate::tests::fixtures::data::notes_archive::SAMPLE_NOTES_ZIP;
     use crate::tests::fixtures::sample_http_client::sample_sec_client::always_responding::AlwaysRespondingSecClient;
     use crate::tests::fixtures::sample_write_repository::FakeNotesRepository;
@@ -502,8 +502,6 @@ mod tests {
     type NotesFilesystemRepository = FilesystemRepository<Write, RawDocument<RawNotesArchive>>;
 
     const SAMPLE_EXECUTION_ID: Uuid = Uuid::from_u128(7);
-    const PREPARE_NOTES_REQUEST: &str = NotesFile::PREPARE_STATE_NAME;
-    const DOWNLOAD_NOTES_ARCHIVE: &str = NotesFile::EXECUTE_STATE_NAME;
 
     fn sec_client() -> AlwaysRespondingSecClient {
         AlwaysRespondingSecClient::new(
@@ -618,12 +616,12 @@ mod tests {
             (StreamEvent::StateStarted, VALIDATE_NOTES_PERIOD),
             (StreamEvent::StateCompleted, VALIDATE_NOTES_PERIOD),
             (StreamEvent::TransitionCompleted, VALIDATE_NOTES_PERIOD),
-            (StreamEvent::StateStarted, PREPARE_NOTES_REQUEST),
-            (StreamEvent::StateCompleted, PREPARE_NOTES_REQUEST),
-            (StreamEvent::TransitionCompleted, PREPARE_NOTES_REQUEST),
-            (StreamEvent::StateStarted, DOWNLOAD_NOTES_ARCHIVE),
-            (StreamEvent::StateCompleted, DOWNLOAD_NOTES_ARCHIVE),
-            (StreamEvent::TransitionCompleted, DOWNLOAD_NOTES_ARCHIVE),
+            (StreamEvent::StateStarted, PREPARE_SEC_REQUEST),
+            (StreamEvent::StateCompleted, PREPARE_SEC_REQUEST),
+            (StreamEvent::TransitionCompleted, PREPARE_SEC_REQUEST),
+            (StreamEvent::StateStarted, EXECUTE_SEC_REQUEST),
+            (StreamEvent::StateCompleted, EXECUTE_SEC_REQUEST),
+            (StreamEvent::TransitionCompleted, EXECUTE_SEC_REQUEST),
             (StreamEvent::StateStarted, STORE_NOTES_ARCHIVE),
             (StreamEvent::StateCompleted, STORE_NOTES_ARCHIVE),
         ];
@@ -633,6 +631,25 @@ mod tests {
             .iter()
             .map(|item| (item.event.clone(), item.state_name.as_str()))
             .collect();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_name_the_notes_period_in_the_data_of_the_execute_state_when_running_the_stream()
+    {
+        let super_state = super_state("2024q1", FakeNotesRepository::new());
+
+        let expected_result = Some(serde_json::json!("2024q1"));
+
+        let items = run_stream(super_state).await;
+        let result = items
+            .iter()
+            .find(|item| {
+                item.event == StreamEvent::StateCompleted && item.state_name == EXECUTE_SEC_REQUEST
+            })
+            .and_then(|item| item.data.pointer("/context/notes_period"))
+            .cloned();
 
         assert_eq!(result, expected_result);
     }
@@ -699,7 +716,7 @@ mod tests {
             .repository(FakeNotesRepository::new())
             .build();
 
-        let expected_result = vec![DOWNLOAD_NOTES_ARCHIVE.to_string()];
+        let expected_result = vec![EXECUTE_SEC_REQUEST.to_string()];
 
         let result = failed_state_names(super_state).await;
 
