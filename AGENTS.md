@@ -143,7 +143,7 @@ Use `thiserror` with `#[error("...")]` and `#[source]` for deriving `Display` an
 - Follow the **"Arrange, Define, Act, Assert"** pattern:
   - **Arrange**: Set up the test environment, and bind the input of the code under test to a named variable. In review, an inline input is a 🟣 nit (see the `testing` skill, "Arrange the Input")
   - **Define**: Define expected result (usually `expected_result`)
-    - Write the value out, so the reader sees the output without running code in their head. Do not compute it with `map`, `collect`, or a loop. In review, a computed expected result is a 🟣 nit, and a Define step that calls the code under test is a 🔴 (see the `testing` skill, "Show the Expected Result")
+    - Write the value out, so the reader sees the output without running code in their head. Do not compute it with `map`, `collect`, or a loop. In review, a computed expected result is a 🟣 nit (see the `testing` skill, "Show the Expected Result")
   - **Act**: Execute code under test, capture result (usually `result`)
     - Use `Result<T, E>` for error handling
   - **Assert**: Verify results

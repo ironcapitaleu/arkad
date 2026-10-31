@@ -118,7 +118,7 @@ Write `expected_result` as the value the test expects, so the reader sees the ou
 
 There are two reasons. The first is the same as for the Arrange step: readability. Computed code in the Define step is a second Act step. The second is correctness: a defect in that code can match the same defect in the code under test.
 
-In review, report a computed `expected_result` as a 🟣 nit. If the Define step calls the code under test, report it as 🔴: the test passes for the wrong reason. The rule applies to new and changed tests, and to doctests.
+In review, report a computed `expected_result` as a 🟣 nit. The rule applies to new and changed tests, and to doctests.
 
 Do this:
 
@@ -143,8 +143,7 @@ The second test computes `expected_result` from strings with `map`.
 
 - A constructor or a test helper call per value is allowed, as in `filing_ref(...)` or `Cik::new(...)`. It shows one value.
 - A helper that returns the whole expected value, as in `fn expected_filings() -> Vec<FilingRef>`, hides it. Write the values in the test.
-- "The code under test" is the function the Act line calls. Code that it calls is a dependency. A dependency in the Define step is allowed. The dependency then needs its own test with a written-out value.
-- `format!` that inserts Arrange variables into a literal is allowed, as in the "Error type" template below. The inserted text comes from a dependency, such as the `Display` of `reason`.
+- `format!` that inserts Arrange variables into a literal is allowed, as in the "Error type" template below.
 - If the full value is too long to write, assert on a smaller part of the output, and write that part out in full.
 - If the test checks that two paths agree, `expected_result` can be the output of the reference path. Name both paths in the test name, as in `should_hand_every_stream_item_to_the_caller_when_running_to_the_archive`.
 
