@@ -1176,7 +1176,7 @@ points to option 3, but does not decide this case. STA-331 decides.
 | Option | Rule | Same result across the cases? | Pro | Con |
 | ------ | ---- | ----------------------------- | --- | --- |
 | 1 | The sources agree, so `DO NOTHING` keeps one copy | Only for the 92.2% of facts that are identical in both sources | No extra rule | Fails on any difference |
-| 2 | A fixed precedence, for example instance over Notes, applied by an upsert | No, for the 7.8% of facts that differ in form | One copy per fact, order-free within a case | Drops the other copy. Against the STA-145 rule if `source_ref` names the source document |
+| 2 | A fixed precedence, for example instance over Notes, applied by an upsert | No, for the 7.8% of facts that differ in form | One copy per fact, order-free within a case | Drops the other copy. Picks the value at write time, while the STA-145 rule picks it at read time |
 | 3 | Both copies with their provenance, and reads pick one | No, for the 7.8% of facts that differ in form | Nothing is lost, fits the STA-145 rule | Every read needs the rule, and `source_ref` must name the source document |
 
 #### Measured Result
@@ -1200,25 +1200,30 @@ Linear document
 - **Instance selection.** 11 filings hold a second instance, the filing-fee exhibit. Notes leaves
   out its facts. The new-filing path must read only the instance that `sub.tsv` names.
 
-13,069 facts (7.8%) differ in form. Each difference is a loss on the Notes side. A fact can show
-more than one kind, so the counts add up to 13,074:
+13,069 facts (7.8%) differ in form. A fact can show more than one kind, so the counts add up to
+13,074. These kinds are losses on the Notes side:
 
 - Notes drops `/shares` from per-share units: 5,856 facts.
-- Notes drops or replaces non-ASCII characters in text: 6,527 facts. 11 more differ in a way the
-  comparison did not explain.
-- Notes drops footnotes that no statement page shows: 473 facts. 5 more differ in their footnote.
+- Notes drops or replaces non-ASCII characters in text: 6,527 facts.
+- Notes drops footnotes that no statement page shows: 473 facts.
 - Notes rounds to 4 decimal places: 139 facts.
-- Notes writes the same dimension pairs as a different string: 49 facts.
-- Two copies of one fact differ in `decimals`, and the pairing is ambiguous: 10 facts.
 - Notes reads an empty text fact as nil: 4 facts.
+
+These kinds are not losses, or the comparison cannot tell:
+
+- Notes writes the same dimension pairs as a different string: 49 facts.
+- Two copies of one fact differ in `decimals`, and the comparison pairs them in an ambiguous way: 10
+  facts.
+- The text differs in a way the comparison did not explain: 11 facts.
+- The footnotes differ in how Notes joins them: 5 facts.
 
 Recommendation, for STA-331 to decide: option 2, instance over Notes, applied by an upsert with a
 fixed rank. Two conditions apply:
 
 - The rank works only on a unique key. STA-331 must first widen the value key, so that the 395
   cases above hold one fact per key.
-- Today `source_ref` names the filing, so both copies have the same grain, and the upsert does not
-  collapse the grain. But option 2 picks the value at write time. The STA-145 freeze picks "which
+- Today `source_ref` names the filing, so both copies have the same grain, and the upsert keeps one
+  row per fact, as today. But option 2 picks the value at write time. The STA-145 freeze picks "which
   value wins" at read time. STA-331 must accept that change, or take option 3.
 
 A filing that only Notes delivered keeps the Notes form of its lossy facts.
