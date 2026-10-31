@@ -180,7 +180,8 @@ impl<S: RawFileSource> RawDocument<S> {
     ///
     /// The document shares the body buffer of `file`, so the bytes are not copied. The size comes
     /// from the body, and the SHA-256 digest is the body digest of `file`, so the body is not
-    /// hashed again. The media type is the content type the SEC sent.
+    /// hashed again. The media type is the [`ContentType`](crate::shared::content_type::ContentType)
+    /// of `file`, so `text/xml` is recorded as `application/xml`.
     ///
     /// # Examples
     ///
@@ -808,7 +809,7 @@ mod tests {
         .expect("Given status 200 and text/xml, building the response should always succeed")
     }
 
-    // Whitespace and an attribute order that a parse and a reserialization can change.
+    // Bytes a parse would change, so a shared buffer proves the store does not reserialize.
     const SAMPLE_INSTANCE_XML: &[u8] = b"<xbrl  b=\"2\" a=\"1\"></xbrl>";
 
     fn instance_document_from_file(file: &SecResponse<XmlBody>) -> RawDocument<RawXbrlInstance> {
@@ -842,7 +843,8 @@ mod tests {
 
     #[test]
     fn should_record_application_xml_as_the_media_type_when_building_a_document_from_an_xml_file() {
-        let document = instance_document_from_file(&sample_instance_file());
+        let file = sample_instance_file();
+        let document = instance_document_from_file(&file);
 
         let expected_result = "application/xml";
 

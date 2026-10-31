@@ -6,7 +6,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::shared::response::SecResponse as SecResponseTrait;
-use crate::shared::response::implementations::sec_response::{ResponseBody, SecResponse};
+use crate::shared::response::implementations::sec_response::{FileBody, SecResponse};
 use crate::shared::status_code::StatusCode;
 use crate::shared::url::Url;
 use crate::shared::user_agent::UserAgent;
@@ -50,7 +50,7 @@ impl RawDocumentMetadataContext {
     ///
     /// The final URL comes from [`SecResponse::url`](SecResponseTrait::url).
     #[must_use]
-    pub fn from_file<B: ResponseBody>(
+    pub fn from_file<B: FileBody>(
         file: &SecResponse<B>,
         requested_url: &Url,
         user_agent: &UserAgent,
