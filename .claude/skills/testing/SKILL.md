@@ -71,20 +71,22 @@ Based on this reasoning, suggest what tests to write/review and let the user con
 
 Bind the input of the code under test to a named variable, before `expected_result`. The Act line then calls the code on that variable.
 
-The reason is readability. The name says what the input is, and the Act line holds one thing: the call. Real code also passes named values, so the test reads like a caller.
+The reason is readability. The name says what the input is, and the Act line holds one thing: the call. In real code, a call usually takes named values, so the test reads like a caller.
 
-An inline input is not wrong. It is harder to read, because the reader parses the input and the call in one line.
+An inline input is not a defect. It is harder to read, because the reader parses the input and the call in one line. In review, report an inline input as a 🟣 nit.
+
+The rule applies to new and changed tests, and to doctests. STA-387 converts the existing tests.
 
 Do this:
 
 ```rust
 #[test]
 fn should_return_unsupported_form_when_sec_string_has_trailing_whitespace() {
-    let form_text = "10-K   ";
+    let sec_string = "10-K   ";
 
-    let expected_result = Err(UnsupportedForm::new(form_text));
+    let expected_result = Err(UnsupportedForm::new(sec_string));
 
-    let result = Form::from_sec_str(form_text);
+    let result = Form::from_sec_str(sec_string);
 
     assert_eq!(result, expected_result);
 }
@@ -106,7 +108,9 @@ fn should_return_unsupported_form_when_sec_string_has_trailing_whitespace() {
 The second test has no Arrange step. It repeats the input, and nothing names it.
 
 - If the input takes several steps to build, give each step its own variable, as in `let line = row_line(...);` and then `let text = format!("---\n{line}");`.
+- If the code under test takes no argument, the receiver is the input, as in `form.to_string()`. Bind the receiver to a name, as in `let form = Form::TenK;`.
 - Do not hide the call under test in a helper, such as `fn parse_sample() -> Vec<Row>`. The helper removes the Act step. Call the code under test in the Act line.
+- A fixture helper that builds the input, such as `test_input()`, is fine. Bind its result in the Arrange step.
 
 ## Boilerplate Tests (apply to ALL domain types and state structs)
 

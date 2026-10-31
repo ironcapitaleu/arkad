@@ -145,7 +145,8 @@ Module-level doc-tests make sense when **multiple items must be imported and com
 If the usage can be shown on a single function or constructor, prefer placing the doc-test there instead.
 
 Doc-tests follow the same **ADAA pattern** (Arrange, Define expected result, Act, Assert) used by
-unit tests. This keeps them readable, verifiable, and stylistically consistent with the rest of
+unit tests. The Arrange step binds the input to a named variable, as the `testing` skill says in
+"Arrange the Input". This keeps them readable, verifiable, and stylistically consistent with the rest of
 the codebase — a doc-test is still a test.
 
 **When to assert:** Assert when the constructor or method produces observable, verifiable output — a
