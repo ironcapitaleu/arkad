@@ -51,6 +51,7 @@ impl<R: RawRepository<RawDailyIndex>> TryFrom<(ValidateIndexDate, R)>
 #[cfg(test)]
 mod tests {
     use pretty_assertions::assert_eq;
+    use storage::WriteError;
     use uuid::Uuid;
 
     use super::*;
@@ -60,6 +61,10 @@ mod tests {
     use crate::shared::index_date::IndexDate;
     use crate::tests::fixtures::sample_write_repository::FakeDailyIndexRepository;
     use crate::traits::state_machine::state::State;
+
+    fn rejecting_repository() -> FakeDailyIndexRepository {
+        FakeDailyIndexRepository::rejecting(WriteError::conflicting_write("Sample conflict"))
+    }
 
     fn validate_index_date(raw_date: &str) -> ValidateIndexDate {
         ValidateIndexDate::new(
@@ -74,13 +79,13 @@ mod tests {
         state.compute_output_data_async().await.expect(
             "Given the hardcoded past weekday '2026-10-27', validation should always succeed",
         );
-        let repository = FakeDailyIndexRepository::new();
+        let repository = rejecting_repository();
         let index_date = IndexDate::new("2026-10-27")
             .expect("Given a hardcoded past date, validation should always succeed");
 
         let expected_result = Ok(PrepareSecRequest::new(
             PrepareSecRequestInput::new(index_date),
-            PrepareSecRequestContext::new(index_date, FakeDailyIndexRepository::new()),
+            PrepareSecRequestContext::new(index_date, rejecting_repository()),
         ));
 
         let result = PrepareSecRequest::<DailyIndex, _>::try_from((state, repository));
