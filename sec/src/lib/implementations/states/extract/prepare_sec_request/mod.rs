@@ -3,15 +3,16 @@
 //! Provides the [`PrepareSecRequest`] state, which builds the [`SecRequest`] of a request kind from
 //! its input.
 //!
-//! The kind `K` sets the input and the state name. For example, [`NotesFile`] takes a
-//! [`NotesPeriod`](crate::shared::notes_period::NotesPeriod) and names its state "Prepare Notes
-//! Request". The state builds the request with [`SecRequestTrait::new`], so it needs no code for a
-//! single kind. Preparation is local and synchronous: it makes no network call.
+//! The kind `K` sets the input. For example, [`NotesFile`] takes a
+//! [`NotesPeriod`](crate::shared::notes_period::NotesPeriod). The state name is the same for every
+//! kind. The stream data names the kind through its input field. The state builds the request with
+//! [`SecRequestTrait::new`], so it needs no code for a single
+//! kind. Preparation is local and synchronous: it makes no network call.
 //!
 //! ## Modules
 //!
 //! - [`builder`]: The typestate [`PrepareSecRequestBuilder`].
-//! - [`constants`]: The [`STATE_NAME`] of the [`CompanyFacts`] kind.
+//! - [`constants`]: State metadata such as [`STATE_NAME`].
 //! - [`context`]: The [`PrepareSecRequestContext`] carried alongside the state.
 //! - [`data`]: The [`PrepareSecRequestInput`] and [`PrepareSecRequestOutput`] data types.
 //!
@@ -179,9 +180,9 @@ impl<K: StoredAs, R: RawRepository<K::Source>> SMState for PrepareSecRequest<K, 
     type OutputData = PrepareSecRequestOutput<K>;
     type Context = PrepareSecRequestContext<K, R>;
 
-    /// Returns the human-readable name of this state, which its kind sets.
+    /// Returns the human-readable name of this state.
     fn state_name(&self) -> impl ToString {
-        K::PREPARE_STATE_NAME
+        STATE_NAME
     }
 
     /// Blocking wrapper around [`compute_output_data_async`](crate::traits::state_machine::state::State::compute_output_data_async).
@@ -577,10 +578,10 @@ mod tests {
     }
 
     #[test]
-    fn should_return_prepare_notes_request_as_state_name_for_notes_file_kind() {
+    fn should_return_prepare_sec_request_as_state_name_for_notes_file_kind() {
         let state = create_test_notes_state();
 
-        let expected_result = "Prepare Notes Request";
+        let expected_result = "Prepare SEC Request";
 
         let result = state.state_name().to_string();
 

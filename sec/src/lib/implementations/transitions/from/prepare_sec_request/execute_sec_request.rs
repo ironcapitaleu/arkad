@@ -30,10 +30,12 @@
 
 use crate::error::state_machine::transition;
 use crate::error::state_machine::transition::Transition as TransitionError;
+use crate::implementations::states::extract::execute_sec_request::constants::STATE_NAME as EXECUTE_SEC_REQUEST;
 use crate::implementations::states::extract::execute_sec_request::{
     ExecuteSecRequest, ExecuteSecRequestContext, ExecuteSecRequestInput,
 };
 use crate::implementations::states::extract::prepare_sec_request::PrepareSecRequest;
+use crate::implementations::states::extract::prepare_sec_request::constants::STATE_NAME as PREPARE_SEC_REQUEST;
 use crate::shared::http_client::RespondsWith;
 use crate::shared::http_client::SecClient as SecClientTrait;
 
@@ -53,7 +55,7 @@ impl<K: RespondsWith, R, C: SecClientTrait> TryFrom<(PrepareSecRequest<K, R>, C)
     ) -> Result<Self, TransitionError> {
         let (input, output, context) = state.into_parts();
         let output_data = output.ok_or_else(|| {
-            transition::MissingOutput::new(K::PREPARE_STATE_NAME, K::EXECUTE_STATE_NAME)
+            transition::MissingOutput::new(PREPARE_SEC_REQUEST, EXECUTE_SEC_REQUEST)
         })?;
 
         // The request comes from the input, so the context takes its input from there too.
@@ -78,9 +80,7 @@ mod tests {
     use crate::shared::http_client::implementations::sec_client::SecClient;
     use crate::shared::notes_period::NotesPeriod;
     use crate::shared::request::SecRequest as SecRequestTrait;
-    use crate::shared::request::implementations::sec_request::{
-        NotesFile, RequestKind, SecRequest,
-    };
+    use crate::shared::request::implementations::sec_request::{NotesFile, SecRequest};
     use crate::tests::fixtures::sample_write_repository::{
         FakeNotesRepository, FakeWriteRepository,
     };
@@ -190,10 +190,7 @@ mod tests {
             .build();
 
         let expected_result = Err(TransitionError::MissingOutput(
-            transition::MissingOutput::new(
-                NotesFile::PREPARE_STATE_NAME,
-                NotesFile::EXECUTE_STATE_NAME,
-            ),
+            transition::MissingOutput::new(PREPARE_SEC_REQUEST, EXECUTE_SEC_REQUEST),
         ));
 
         let result =
