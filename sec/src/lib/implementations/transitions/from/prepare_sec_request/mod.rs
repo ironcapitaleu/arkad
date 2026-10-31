@@ -7,5 +7,8 @@
 //! ## Modules
 //!
 //! - [`execute_sec_request`]: Transition into the request-execution state.
+//! - [`download_daily_index`]: Transition of the daily index kind into the state that downloads
+//!   the daily index.
 
+pub mod download_daily_index;
 pub mod execute_sec_request;
