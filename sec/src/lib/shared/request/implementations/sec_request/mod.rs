@@ -67,9 +67,10 @@ pub struct SecRequest<K: RequestKind = CompanyFacts> {
 
 impl<K: RequestKind> Serialize for SecRequest<K> {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        let mut state = serializer.serialize_struct("SecRequest", 2)?;
+        let mut state = serializer.serialize_struct("SecRequest", 3)?;
         state.serialize_field("url", self.inner.url().as_str())?;
         state.serialize_field("method", self.inner.method().as_str())?;
+        state.serialize_field(K::INPUT_NAME, &self.input)?;
         state.end()
     }
 }
@@ -304,12 +305,12 @@ pub enum SecRequestType {
 
 #[cfg(test)]
 mod tests {
+    use chrono::NaiveDate;
     use pretty_assertions::assert_eq;
     use reqwest::{Method, Url};
 
-    use chrono::NaiveDate;
-
-    use super::{CompanyFacts, FilingIndex, NotesFile, RequestKind, SecRequest};
+    use super::{CompanyFacts, FilingDocumentSet, FilingIndex, NotesFile, RequestKind, SecRequest};
+    use crate::shared::filing_documents::FilingDocuments;
     use crate::shared::filing_ref::FilingRef;
     use crate::shared::financial::accession_number::AccessionNumber;
     use crate::shared::financial::form::{Form, ParsedForm};
@@ -348,9 +349,38 @@ mod tests {
         assert_eq!(result, expected_result);
     }
 
+    fn document_set_request(instance: &str) -> SecRequest<FilingDocumentSet> {
+        let filing = FilingRef::new(
+            Cik::new("3545").expect("Given a hardcoded valid CIK, parsing should always succeed"),
+            AccessionNumber::new("0000003545-26-000047").expect(
+                "Given a hardcoded accession number of the right shape, creation should always succeed",
+            ),
+            ParsedForm::new(Form::TenQ, false),
+            NaiveDate::from_ymd_opt(2026, 9, 9)
+                .expect("Given a hardcoded calendar date, the date should always build"),
+        );
+        SecRequest::builder()
+            .filing_documents()
+            .filing_ref(filing)
+            .documents(FilingDocuments::new(instance, None))
+            .build()
+    }
+
+    #[test]
+    fn should_differ_when_two_filing_document_set_requests_share_the_folder_but_not_the_instance() {
+        let first = document_set_request("alco-20260908_htm.xml");
+        let second = document_set_request("alco-20260908.xml");
+
+        let expected_result = false;
+
+        let result = first == second;
+
+        assert_eq!(result, expected_result);
+    }
+
     #[test]
     fn should_order_filing_index_requests_by_the_ten_digit_cik_when_the_urls_sort_the_other_way() {
-        let apple = filing_index_request("320193", "0000320193-17-000070", Form::TenK);
+        let apple = filing_index_request("320193", "0001193125-17-000070", Form::TenK);
         let berkshire = filing_index_request("1067983", "0001067983-26-000001", Form::TenK);
 
         let expected_result = true;
@@ -397,13 +427,14 @@ mod tests {
     }
 
     #[test]
-    fn should_serialize_url_and_method_when_serialized_to_json() {
+    fn should_serialize_url_method_and_input_when_serialized_to_json() {
         let cik = Cik::new("0001234567").expect("Hardcoded CIK should be valid");
         let request = SecRequest::builder().all_company_facts().cik(cik).build();
 
         let expected_result = serde_json::json!({
             "url": "https://data.sec.gov/api/xbrl/companyfacts/CIK0001234567.json",
             "method": "GET",
+            "cik": { "value": "0001234567" },
         });
 
         let result = serde_json::to_value(&request).expect("SecRequest should serialize to JSON");
