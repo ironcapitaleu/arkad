@@ -9,10 +9,10 @@ use thiserror::Error;
 
 use crate::constants::{DEFAULT_FILES_IN_FLIGHT, FILES_IN_FLIGHT_ENV_VAR};
 
-/// The error of a value of [`FILES_IN_FLIGHT_ENV_VAR`] that is no positive integer.
+/// The error of a value of [`FILES_IN_FLIGHT_ENV_VAR`] that is not a positive integer.
 #[derive(Debug, Error, PartialEq, Eq)]
 #[error(
-    "[InvalidFilesInFlight] {FILES_IN_FLIGHT_ENV_VAR} must be a positive integer, Reason: '{value}'"
+    "[InvalidFilesInFlight] {FILES_IN_FLIGHT_ENV_VAR} value '{value}' is not a positive integer"
 )]
 pub struct InvalidFilesInFlight {
     /// The value as the environment gave it, with invalid Unicode replaced.
@@ -32,7 +32,6 @@ pub fn files_in_flight(value: Option<OsString>) -> Result<usize, InvalidFilesInF
     };
     let value = value.to_string_lossy();
     value
-        .trim()
         .parse::<usize>()
         .ok()
         .filter(|count| *count > 0)
@@ -94,11 +93,24 @@ mod tests {
     }
 
     #[test]
-    fn should_return_invalid_files_in_flight_when_the_variable_is_no_number() {
+    fn should_return_invalid_files_in_flight_when_the_variable_is_not_a_number() {
         let value = Some(OsString::from("many"));
 
         let expected_result = Err(InvalidFilesInFlight {
             value: "many".to_string(),
+        });
+
+        let result = files_in_flight(value);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_invalid_files_in_flight_when_the_variable_has_spaces() {
+        let value = Some(OsString::from(" 4 "));
+
+        let expected_result = Err(InvalidFilesInFlight {
+            value: " 4 ".to_string(),
         });
 
         let result = files_in_flight(value);
@@ -112,7 +124,8 @@ mod tests {
             value: "many".to_string(),
         };
 
-        let expected_result = "[InvalidFilesInFlight] ARKAD_FILES_IN_FLIGHT must be a positive integer, Reason: 'many'";
+        let expected_result =
+            "[InvalidFilesInFlight] ARKAD_FILES_IN_FLIGHT value 'many' is not a positive integer";
 
         let result = error.to_string();
 

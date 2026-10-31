@@ -22,6 +22,5 @@ pub const FILES_IN_FLIGHT_ENV_VAR: &str = "ARKAD_FILES_IN_FLIGHT";
 /// empty.
 ///
 /// The rate limiter limits requests per second, not files in memory, so this cap bounds memory.
-/// Each extra file costs about 0.6 GB. On 2026-10-29, more files in flight did not lower the total
-/// time in the cloud or on a Mac on Wi-Fi.
+/// See "Memory and the Cap on Files in Flight" in `sec/design/pipeline/ingestion_paths.md`.
 pub const DEFAULT_FILES_IN_FLIGHT: usize = 2;
