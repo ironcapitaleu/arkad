@@ -249,9 +249,11 @@ mod tests {
         raw.insert("x-custom".to_string(), "value".to_string());
         let headers = Headers::new(raw);
 
+        let header_name = "x-custom";
+
         let expected_result = Some("value");
 
-        let result = headers.get("x-custom");
+        let result = headers.get(header_name);
 
         assert_eq!(result, expected_result);
     }
@@ -261,9 +263,11 @@ mod tests {
         let raw = HashMap::new();
         let headers = Headers::new(raw);
 
+        let header_name = "nonexistent";
+
         let expected_result = None;
 
-        let result = headers.get("nonexistent");
+        let result = headers.get(header_name);
 
         assert_eq!(result, expected_result);
     }

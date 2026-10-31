@@ -45,9 +45,11 @@ impl FiscalPeriod {
     /// ```
     /// use sec::shared::financial::fiscal_period::FiscalPeriod;
     ///
+    /// let sec_string = "Q1";
+    ///
     /// let expected_result = Some(FiscalPeriod::Q1);
     ///
-    /// let result = FiscalPeriod::from_sec_str("Q1");
+    /// let result = FiscalPeriod::from_sec_str(sec_string);
     ///
     /// assert_eq!(result, expected_result);
     /// ```
@@ -72,27 +74,33 @@ mod tests {
 
     #[test]
     fn should_display_fy_when_fiscal_period_is_full_year() {
+        let fiscal_period = FiscalPeriod::Fy;
+
         let expected_result = "FY";
 
-        let result = FiscalPeriod::Fy.to_string();
+        let result = fiscal_period.to_string();
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_parse_q1_from_sec_string_when_input_is_q1() {
+        let sec_string = "Q1";
+
         let expected_result = Some(FiscalPeriod::Q1);
 
-        let result = FiscalPeriod::from_sec_str("Q1");
+        let result = FiscalPeriod::from_sec_str(sec_string);
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_return_none_when_sec_string_is_unknown_period() {
+        let sec_string = "H1";
+
         let expected_result = None;
 
-        let result = FiscalPeriod::from_sec_str("H1");
+        let result = FiscalPeriod::from_sec_str(sec_string);
 
         assert_eq!(result, expected_result);
     }

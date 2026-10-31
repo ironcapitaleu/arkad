@@ -86,18 +86,22 @@ mod tests {
 
     #[test]
     fn should_create_fiscal_year_from_u16() {
+        let year = 2023_u16;
+
         let expected_result = 2023;
 
-        let result = FiscalYear::from(2023_u16).value();
+        let result = FiscalYear::from(year).value();
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_create_fiscal_year_from_u32_when_value_fits_in_u16() {
+        let year = 2024_u32;
+
         let expected_result = 2024;
 
-        let result = FiscalYear::try_from(2024_u32)
+        let result = FiscalYear::try_from(year)
             .expect("2024 fits in u16")
             .value();
 
@@ -106,9 +110,11 @@ mod tests {
 
     #[test]
     fn should_create_fiscal_year_from_i32_when_value_is_positive_and_fits_in_u16() {
+        let year = 2025_i32;
+
         let expected_result = 2025;
 
-        let result = FiscalYear::try_from(2025_i32)
+        let result = FiscalYear::try_from(year)
             .expect("2025 fits in u16")
             .value();
 
@@ -117,18 +123,22 @@ mod tests {
 
     #[test]
     fn should_fail_to_create_fiscal_year_from_i32_when_value_is_negative() {
+        let year = -1_i32;
+
         let expected_result = true;
 
-        let result = FiscalYear::try_from(-1_i32).is_err();
+        let result = FiscalYear::try_from(year).is_err();
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_create_fiscal_year_from_u64_when_value_fits_in_u16() {
+        let year = 2023_u64;
+
         let expected_result = 2023;
 
-        let result = FiscalYear::try_from(2023_u64)
+        let result = FiscalYear::try_from(year)
             .expect("2023 fits in u16")
             .value();
 
@@ -137,9 +147,11 @@ mod tests {
 
     #[test]
     fn should_create_fiscal_year_from_i64_when_value_is_positive_and_fits_in_u16() {
+        let year = 2026_i64;
+
         let expected_result = 2026;
 
-        let result = FiscalYear::try_from(2026_i64)
+        let result = FiscalYear::try_from(year)
             .expect("2026 fits in u16")
             .value();
 
@@ -148,27 +160,33 @@ mod tests {
 
     #[test]
     fn should_fail_to_create_fiscal_year_from_u32_when_value_exceeds_u16() {
+        let year = 100_000_u32;
+
         let expected_result = true;
 
-        let result = FiscalYear::try_from(100_000_u32).is_err();
+        let result = FiscalYear::try_from(year).is_err();
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_fail_to_create_fiscal_year_from_u64_when_value_exceeds_u16() {
+        let year = 100_000_u64;
+
         let expected_result = true;
 
-        let result = FiscalYear::try_from(100_000_u64).is_err();
+        let result = FiscalYear::try_from(year).is_err();
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_fail_to_create_fiscal_year_from_i64_when_value_is_negative() {
+        let year = -2024_i64;
+
         let expected_result = true;
 
-        let result = FiscalYear::try_from(-2024_i64).is_err();
+        let result = FiscalYear::try_from(year).is_err();
 
         assert_eq!(result, expected_result);
     }
