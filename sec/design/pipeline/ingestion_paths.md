@@ -1050,15 +1050,15 @@ Rules:
    run reads one day.
 3. A missed day is a rerun for that date.
 4. A filing that reaches both paths changes nothing, because every write is idempotent.
-5. The cut-over has no gap only if the backfill stores the Notes month that holds the start date
-   of the new-filing path. The SEC posts a month in the first 8 days of the next month (see
-   [Notes ZIP Findings](#notes-zip-findings)). So a backfill run after that stores the month,
-   unless that period fails. To check, read the newest period with a `key` in the run summary.
+5. Rule 1 leaves no gap only if the backfill stored every period up to the newest stored Notes
+   month. To check, confirm that no period in the run summary reports a failure. If one does,
+   rerun the backfill. Then read the newest period with a `key` in the run summary. Do not rely on
+   the calendar: in three samples, the SEC posted a month in the first 8 days of the next month,
+   but it posted `2025_10` on 2025-12-01 (see [Notes ZIP Findings](#notes-zip-findings)).
 6. If a later backfill run stores newer months, those months overlap the new-filing path. Rule 4
    makes the overlap harmless.
-7. The start date of the new-filing path must be no later than the last day of the newest stored
-   Notes month. STA-378 decides how `daily_filings` picks its dates. That choice must keep this
-   rule.
+7. STA-378 decides how `daily_filings` picks its dates. Its start date must follow rule 1, after
+   the check of rule 5.
 
 Assumptions:
 
