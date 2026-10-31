@@ -5,8 +5,8 @@
 //!
 //! ## Modules
 //!
-//! - [`body`]: The [`ResponseBody`] trait and the [`JsonBody`], [`XmlBody`], and [`ZipBody`]
-//!   kinds.
+//! - [`body`]: The [`ResponseBody`] and [`FileBody`] traits and the [`JsonBody`], [`XmlBody`],
+//!   and [`ZipBody`] kinds.
 //! - [`error`]: The [`InvalidSecResponse`] error raised during validation.
 
 use std::collections::HashMap;
@@ -30,7 +30,7 @@ use self::error::{ErrorReason, InvalidSecResponse};
 pub mod body;
 pub mod error;
 
-pub use body::{JsonBody, ResponseBody, XmlBody, ZipBody};
+pub use body::{FileBody, JsonBody, ResponseBody, XmlBody, ZipBody};
 
 /// A validated SEC API response with a body of kind `B`.
 ///
@@ -207,7 +207,7 @@ impl SecResponse<JsonBody> {
     }
 }
 
-impl SecResponse<ZipBody> {
+impl<B: FileBody> SecResponse<B> {
     /// Returns the body bytes as a [`Bytes`] that shares the buffer, so the call copies a
     /// pointer.
     #[must_use]

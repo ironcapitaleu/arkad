@@ -4,7 +4,7 @@
 
 use crate::shared::raw_source::traits::RawSource;
 
-/// Marks a [`RawSource`] whose SEC response body is raw bytes, such as a ZIP or an `.idx` file.
+/// Marks a [`RawSource`] whose SEC response body is raw bytes, such as a ZIP, an `.idx` file, or an XML file.
 ///
 /// Gates [`RawDocument::from_file`](crate::shared::raw_document::RawDocument::from_file). A JSON
 /// source must not implement it.

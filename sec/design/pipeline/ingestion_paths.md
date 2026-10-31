@@ -1231,8 +1231,9 @@ A filing that only Notes delivered keeps the Notes form of its lossy facts.
 ## Raw Store
 
 All documents use `FilesystemRepository` and `RawDocument<S>`. Each source gets its own
-`RawSource` marker and `SecDocumentType` variant. Proposed for the XBRL instance and the label
-file. The other rows exist:
+`RawSource` marker and `SecDocumentType` variant. Every marker in this table exists. The XBRL
+instance and the label file arrive as `XmlBody`, and `RawDocument::from_file` builds their
+documents:
 
 | Document | `RawSource` marker | Document type | Key |
 | -------- | ------------------ | ------------- | --- |

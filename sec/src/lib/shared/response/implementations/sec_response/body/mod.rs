@@ -1,6 +1,6 @@
 //! # Response Body Kinds
 //!
-//! Provides the [`ResponseBody`] trait and the body kinds an
+//! Provides the [`ResponseBody`] and [`FileBody`] traits and the body kinds an
 //! [`SecResponse`](super::SecResponse) can hold.
 //!
 //! ## Modules
@@ -79,6 +79,12 @@ pub trait ResponseBody: Debug + Send + Sync + Sized {
 
     /// Returns the view of the body.
     fn content(&self) -> &Self::Content;
+}
+
+/// A [`ResponseBody`] that holds the bytes of one file, which the store keeps unchanged.
+pub trait FileBody: ResponseBody<Content = [u8]> {
+    /// Returns the bytes as a [`Bytes`] that shares the buffer, so the call copies a pointer.
+    fn to_bytes(&self) -> Bytes;
 }
 
 /// Checks that the body length matches the `Content-Length` header, if the header is present.
