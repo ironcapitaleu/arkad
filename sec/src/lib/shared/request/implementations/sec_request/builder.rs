@@ -48,11 +48,13 @@
 use std::marker::PhantomData;
 
 use crate::shared::cik::Cik;
+use crate::shared::filing_ref::FilingRef;
 use crate::shared::index_date::IndexDate;
 use crate::shared::notes_period::NotesPeriod;
 use crate::shared::request::SecRequest as SecRequestTrait;
 use crate::shared::request::implementations::sec_request::{
-    CompanyFacts, DailyIndex, DailyIndexListing, NotesFile, RequestKind, SecRequest, Submissions,
+    CompanyFacts, DailyIndex, DailyIndexListing, FilingIndex, NotesFile, RequestKind, SecRequest,
+    Submissions,
 };
 
 /// Typestate marker: no CIK has been set yet.
@@ -73,6 +75,12 @@ pub struct NoPeriod;
 /// While the builder is in this state, [`build`](DailyIndexBuilder::build) is unavailable.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NoDate;
+
+/// Typestate marker: no filing has been set yet.
+///
+/// While the builder is in this state, [`build`](FilingIndexBuilder::build) is unavailable.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NoFilingRef;
 
 /// Entry point for building an [`SecRequest`].
 ///
@@ -116,6 +124,14 @@ impl SecRequestBuilder {
     #[must_use]
     pub const fn submissions(self) -> SubmissionsBuilder<NoCik> {
         SubmissionsBuilder { cik: NoCik }
+    }
+
+    /// Selects the [`FilingIndex`] request kind.
+    #[must_use]
+    pub const fn filing_index(self) -> FilingIndexBuilder<NoFilingRef> {
+        FilingIndexBuilder {
+            filing: NoFilingRef,
+        }
     }
 }
 
@@ -204,6 +220,62 @@ impl SubmissionsBuilder<Cik> {
     #[must_use]
     pub fn build(self) -> SecRequest<Submissions> {
         SecRequest::new(self.cik)
+    }
+}
+
+/// Typestate builder for the [`FetchFilingIndex`](super::SecRequestType::FetchFilingIndex) request.
+///
+/// The `F` type parameter tracks the filing. It starts as [`NoFilingRef`].
+/// [`filing_ref`](Self::filing_ref) changes it to [`FilingRef`]. Only that type has
+/// [`build`](Self::build).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FilingIndexBuilder<F> {
+    filing: F,
+}
+
+impl FilingIndexBuilder<NoFilingRef> {
+    /// Sets the filing, unlocking [`build`](FilingIndexBuilder::build).
+    #[must_use]
+    #[allow(clippy::missing_const_for_fn)]
+    pub fn filing_ref(self, filing: FilingRef) -> FilingIndexBuilder<FilingRef> {
+        FilingIndexBuilder { filing }
+    }
+}
+
+impl FilingIndexBuilder<FilingRef> {
+    /// Builds the [`SecRequest`]; available only once the filing is set.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use chrono::NaiveDate;
+    /// use sec::shared::cik::Cik;
+    /// use sec::shared::filing_ref::FilingRef;
+    /// use sec::shared::financial::accession_number::AccessionNumber;
+    /// use sec::shared::financial::form::{Form, ParsedForm};
+    /// use sec::shared::request::implementations::sec_request::SecRequest;
+    ///
+    /// let cik = Cik::new("320193").expect("A hardcoded valid CIK should always parse");
+    /// let filed_date = NaiveDate::from_ymd_opt(2017, 11, 3)
+    ///     .expect("A hardcoded calendar date should always build");
+    /// let filing = FilingRef::new(
+    ///     cik,
+    ///     AccessionNumber::new("0000320193-17-000070"),
+    ///     ParsedForm::new(Form::TenK, false),
+    ///     filed_date,
+    /// );
+    /// let request = SecRequest::builder().filing_index().filing_ref(filing).build();
+    ///
+    /// let expected_result =
+    ///     "https://www.sec.gov/Archives/edgar/data/320193/000032019317000070/index.json";
+    ///
+    /// let result = request.inner.url().as_str();
+    ///
+    /// assert_eq!(result, expected_result);
+    /// ```
+    #[must_use]
+    pub fn build(self) -> SecRequest<FilingIndex> {
+        SecRequest::new(self.filing)
     }
 }
 
@@ -302,10 +374,14 @@ impl<K: RequestKind<Input = IndexDate>> DailyIndexBuilder<K, IndexDate> {
 
 #[cfg(test)]
 mod tests {
+    use chrono::NaiveDate;
     use pretty_assertions::assert_eq;
     use reqwest::{Method, Url};
 
     use crate::shared::cik::Cik;
+    use crate::shared::filing_ref::FilingRef;
+    use crate::shared::financial::accession_number::AccessionNumber;
+    use crate::shared::financial::form::{Form, ParsedForm};
     use crate::shared::index_date::IndexDate;
     use crate::shared::notes_period::NotesPeriod;
     use crate::shared::request::SecRequest as SecRequestTrait;
@@ -437,6 +513,33 @@ mod tests {
             .build()
             .inner()
             .method()
+            .clone();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_produce_unpadded_cik_and_undashed_accession_number_in_url_for_filing_index_request() {
+        let filing = FilingRef::new(
+            Cik::new("0000003545")
+                .expect("Given a hardcoded valid CIK, parsing should always succeed"),
+            AccessionNumber::new("0000003545-26-000047"),
+            ParsedForm::new(Form::TenQ, false),
+            NaiveDate::from_ymd_opt(2026, 9, 9)
+                .expect("Given a hardcoded calendar date, the date should always build"),
+        );
+
+        let expected_result = Url::parse(
+            "https://www.sec.gov/Archives/edgar/data/3545/000000354526000047/index.json",
+        )
+        .expect("Hardcoded URL should always be valid");
+
+        let result = SecRequest::builder()
+            .filing_index()
+            .filing_ref(filing)
+            .build()
+            .inner()
+            .url()
             .clone();
 
         assert_eq!(result, expected_result);

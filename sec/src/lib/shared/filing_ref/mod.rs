@@ -3,6 +3,8 @@
 //! Provides [`FilingRef`], which names one filing to fetch, and its conversion from a
 //! [`DailyIndexRow`].
 
+use std::fmt::{self, Display, Formatter};
+
 use chrono::NaiveDate;
 use serde::Serialize;
 
@@ -70,6 +72,13 @@ impl FilingRef {
     }
 }
 
+impl Display for FilingRef {
+    /// Writes the accession number, which names the filing on its own.
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        write!(f, "{}", self.accession_number)
+    }
+}
+
 impl TryFrom<&DailyIndexRow> for FilingRef {
     type Error = UnsupportedForm;
 
@@ -127,6 +136,17 @@ mod tests {
             ParsedForm::new(form, is_amendment),
             filed_date(),
         )
+    }
+
+    #[test]
+    fn should_display_the_accession_number_for_filing_ref() {
+        let filing = filing_ref(Form::TenK, false);
+
+        let expected_result = "0000320193-26-000106";
+
+        let result = filing.to_string();
+
+        assert_eq!(result, expected_result);
     }
 
     #[test]

@@ -10,7 +10,7 @@
 //! - [`builder`]: The [`SecRequestBuilder`] for constructing requests fluently.
 //! - [`constants`]: The endpoint URL fragments.
 //! - [`kind`]: The [`RequestKind`] trait and the [`CompanyFacts`], [`NotesFile`], [`DailyIndex`],
-//!   [`DailyIndexListing`], and [`Submissions`] kinds.
+//!   [`DailyIndexListing`], [`Submissions`], and [`FilingIndex`] kinds.
 
 use std::marker::PhantomData;
 
@@ -18,6 +18,7 @@ use reqwest::{Method, Request, Url};
 use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
 
+use crate::shared::filing_ref::FilingRef;
 use crate::shared::index_date::IndexDate;
 use crate::shared::{cik::Cik, notes_period::NotesPeriod, request::SecRequest as SecRequestTrait};
 
@@ -27,13 +28,14 @@ pub mod kind;
 
 pub use builder::SecRequestBuilder;
 pub use kind::{
-    CompanyFacts, DailyIndex, DailyIndexListing, NotesFile, RequestKind, StoredAs, Submissions,
+    CompanyFacts, DailyIndex, DailyIndexListing, FilingIndex, NotesFile, RequestKind, StoredAs,
+    Submissions,
 };
 
 use constants::{
     SEC_COMPANY_FACTS_URL_PREFIX, SEC_COMPANY_FACTS_URL_SUFFIX, SEC_DAILY_INDEX_LISTING_FILE_NAME,
-    SEC_DAILY_INDEX_URL_PREFIX, SEC_NOTES_URL_PREFIX, SEC_SUBMISSIONS_URL_PREFIX,
-    SEC_SUBMISSIONS_URL_SUFFIX,
+    SEC_DAILY_INDEX_URL_PREFIX, SEC_FILING_INDEX_FILE_NAME, SEC_FILING_INDEX_URL_PREFIX,
+    SEC_NOTES_URL_PREFIX, SEC_SUBMISSIONS_URL_PREFIX, SEC_SUBMISSIONS_URL_SUFFIX,
 };
 
 /// A ready-to-send SEC API request of kind `K`.
@@ -46,6 +48,7 @@ use constants::{
 /// - [`NotesFile`]: built from a [`NotesPeriod`].
 /// - [`DailyIndex`] and [`DailyIndexListing`]: built from an [`IndexDate`].
 /// - [`Submissions`]: built from a [`Cik`].
+/// - [`FilingIndex`]: built from a [`FilingRef`].
 #[derive(Debug)]
 pub struct SecRequest<K: RequestKind = CompanyFacts> {
     /// The raw HTTP request type this struct wraps.
@@ -140,6 +143,11 @@ impl<K: RequestKind> SecRequestTrait for SecRequest<K> {
             SecRequestType::FetchSubmissions { cik } => {
                 format!("{SEC_SUBMISSIONS_URL_PREFIX}{cik}{SEC_SUBMISSIONS_URL_SUFFIX}")
             }
+            SecRequestType::FetchFilingIndex { filing } => format!(
+                "{SEC_FILING_INDEX_URL_PREFIX}{}/{}/{SEC_FILING_INDEX_FILE_NAME}",
+                unpadded_cik(filing.cik()),
+                filing.accession_number().value().replace('-', "")
+            ),
         };
         let request = Request::new(
             Method::GET,
@@ -150,6 +158,14 @@ impl<K: RequestKind> SecRequestTrait for SecRequest<K> {
             inner: request,
             kind: PhantomData,
         }
+    }
+}
+
+/// Returns the CIK without its leading zeros, as the archive folders name it. All zeros give `0`.
+fn unpadded_cik(cik: &Cik) -> &str {
+    match cik.value().trim_start_matches('0') {
+        "" => "0",
+        digits => digits,
     }
 }
 
@@ -224,6 +240,12 @@ pub enum SecRequestType {
         /// The CIK of the company to fetch.
         cik: Cik,
     },
+    /// Fetch the folder index of one filing. The URL holds the CIK without its leading zeros, as
+    /// the archive serves the padded form only through a redirect.
+    FetchFilingIndex {
+        /// The filing whose folder index to fetch.
+        filing: FilingRef,
+    },
 }
 
 #[cfg(test)]
@@ -231,7 +253,7 @@ mod tests {
     use pretty_assertions::assert_eq;
     use reqwest::{Method, Url};
 
-    use super::{CompanyFacts, NotesFile, RequestKind, SecRequest};
+    use super::{CompanyFacts, NotesFile, RequestKind, SecRequest, unpadded_cik};
     use crate::shared::notes_period::NotesPeriod;
     use crate::shared::{cik::Cik, request::SecRequest as SecRequestTrait};
 
@@ -351,5 +373,17 @@ mod tests {
     #[test]
     const fn should_be_unpin_for_notes_file_sec_request() {
         implements_unpin::<SecRequest<NotesFile>>();
+    }
+
+    #[test]
+    fn should_return_zero_when_unpadding_an_all_zero_cik() {
+        let cik = Cik::new("0")
+            .expect("Given a hardcoded numeric CIK, Cik creation should always succeed");
+
+        let expected_result = "0";
+
+        let result = unpadded_cik(&cik);
+
+        assert_eq!(result, expected_result);
     }
 }

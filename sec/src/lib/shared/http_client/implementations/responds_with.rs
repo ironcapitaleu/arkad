@@ -5,7 +5,7 @@
 
 use crate::shared::http_client::RespondsWith;
 use crate::shared::request::implementations::sec_request::{
-    CompanyFacts, DailyIndex, DailyIndexListing, NotesFile, Submissions,
+    CompanyFacts, DailyIndex, DailyIndexListing, FilingIndex, NotesFile, Submissions,
 };
 use crate::shared::response::implementations::sec_response::{JsonBody, ZipBody};
 
@@ -29,5 +29,9 @@ impl RespondsWith for DailyIndexListing {
 }
 
 impl RespondsWith for Submissions {
+    type Body = JsonBody;
+}
+
+impl RespondsWith for FilingIndex {
     type Body = JsonBody;
 }
