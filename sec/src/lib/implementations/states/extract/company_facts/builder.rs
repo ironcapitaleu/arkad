@@ -285,11 +285,12 @@ mod tests {
             .cik("1067983")
             .sec_client(sample_sec_client())
             .execution_id(Uuid::from_u128(7));
+        let repository = FakeWriteRepository::new();
 
         let expected_result =
             expected_super_state("1067983", sample_sec_client(), Uuid::from_u128(7));
 
-        let result = builder.repository(FakeWriteRepository::new()).build();
+        let result = builder.repository(repository).build();
 
         assert_eq!(result, expected_result);
     }
@@ -300,21 +301,25 @@ mod tests {
             .repository(FakeWriteRepository::new())
             .execution_id(Uuid::from_u128(7))
             .sec_client(sample_sec_client());
+        let cik = "1067983";
 
         let expected_result =
             expected_super_state("1067983", sample_sec_client(), Uuid::from_u128(7));
 
-        let result = builder.cik("1067983").build();
+        let result = builder.cik(cik).build();
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_compare_unequal_when_two_builders_hold_different_ciks() {
+        let builder = ExtractCompanyFactsSuperState::<_, FakeWriteRepository>::builder();
+        let cik = "2";
+
         let expected_result =
             ExtractCompanyFactsSuperState::<_, FakeWriteRepository>::builder().cik("1");
 
-        let result = ExtractCompanyFactsSuperState::<_, FakeWriteRepository>::builder().cik("2");
+        let result = builder.cik(cik);
 
         assert_ne!(result, expected_result);
     }

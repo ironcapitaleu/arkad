@@ -127,12 +127,13 @@ mod tests {
 
     #[test]
     fn should_return_the_user_agent_it_was_built_from_when_created_from_a_builder() {
+        let builder = Client::builder();
         let user_agent = UserAgent::new("Sample Company contact@example.com")
             .expect("A hardcoded SEC-format string should always validate");
 
         let expected_result = user_agent.clone();
 
-        let result = ReqwestClient::from_builder(Client::builder(), user_agent)
+        let result = ReqwestClient::from_builder(builder, user_agent)
             .expect("Given a validated user agent, building the HTTP client fails only if the TLS backend cannot initialize")
             .user_agent()
             .clone();

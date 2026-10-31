@@ -326,9 +326,11 @@ mod tests {
 
     #[test]
     fn should_build_the_key_from_the_basic_format_of_the_index_date() {
+        let date = index_date();
+
         let expected_result = sample_key();
 
-        let result = daily_index_key(index_date());
+        let result = daily_index_key(date);
 
         assert_eq!(result, expected_result);
     }

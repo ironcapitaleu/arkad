@@ -132,15 +132,13 @@ mod tests {
     #[test]
     fn should_put_the_requested_url_in_requested_url_when_creating_a_context() {
         let response = sample_redirected_response();
+        let requested_url = sample_requested_url();
+        let user_agent = sample_user_agent();
 
         let expected_result = sample_requested_url();
 
-        let result = RawDocumentMetadataContext::new(
-            &response,
-            &sample_requested_url(),
-            &sample_user_agent(),
-        )
-        .requested_url;
+        let result =
+            RawDocumentMetadataContext::new(&response, &requested_url, &user_agent).requested_url;
 
         assert_eq!(result, expected_result);
     }
@@ -148,15 +146,13 @@ mod tests {
     #[test]
     fn should_put_the_response_url_in_final_url_when_creating_a_context() {
         let response = sample_redirected_response();
+        let requested_url = sample_requested_url();
+        let user_agent = sample_user_agent();
 
         let expected_result = response.url().clone();
 
-        let result = RawDocumentMetadataContext::new(
-            &response,
-            &sample_requested_url(),
-            &sample_user_agent(),
-        )
-        .final_url;
+        let result =
+            RawDocumentMetadataContext::new(&response, &requested_url, &user_agent).final_url;
 
         assert_eq!(result, expected_result);
     }
@@ -164,15 +160,13 @@ mod tests {
     #[test]
     fn should_take_the_status_from_the_response_when_creating_a_context() {
         let response = sample_redirected_response();
+        let requested_url = sample_requested_url();
+        let user_agent = sample_user_agent();
 
         let expected_result = response.status_code();
 
-        let result = RawDocumentMetadataContext::new(
-            &response,
-            &sample_requested_url(),
-            &sample_user_agent(),
-        )
-        .http_status;
+        let result =
+            RawDocumentMetadataContext::new(&response, &requested_url, &user_agent).http_status;
 
         assert_eq!(result, expected_result);
     }
@@ -206,15 +200,13 @@ mod tests {
     #[test]
     fn should_put_the_requested_url_in_requested_url_when_creating_a_context_from_a_file() {
         let file = sample_redirected_notes_file();
+        let requested_url = sample_notes_requested_url();
+        let user_agent = sample_user_agent();
 
         let expected_result = sample_notes_requested_url();
 
-        let result = RawDocumentMetadataContext::from_file(
-            &file,
-            &sample_notes_requested_url(),
-            &sample_user_agent(),
-        )
-        .requested_url;
+        let result =
+            RawDocumentMetadataContext::from_file(&file, &requested_url, &user_agent).requested_url;
 
         assert_eq!(result, expected_result);
     }
@@ -222,15 +214,13 @@ mod tests {
     #[test]
     fn should_put_the_file_url_in_final_url_when_creating_a_context_from_a_file() {
         let file = sample_redirected_notes_file();
+        let requested_url = sample_notes_requested_url();
+        let user_agent = sample_user_agent();
 
         let expected_result = sample_notes_final_url();
 
-        let result = RawDocumentMetadataContext::from_file(
-            &file,
-            &sample_notes_requested_url(),
-            &sample_user_agent(),
-        )
-        .final_url;
+        let result =
+            RawDocumentMetadataContext::from_file(&file, &requested_url, &user_agent).final_url;
 
         assert_eq!(result, expected_result);
     }

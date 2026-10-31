@@ -60,11 +60,11 @@ impl StatusCode {
     /// ```
     /// use sec::shared::status_code::StatusCode;
     ///
-    /// let status = StatusCode::from_u16(200);
+    /// let code = 200;
     ///
     /// let expected_result = StatusCode::Ok;
     ///
-    /// let result = status;
+    /// let result = StatusCode::from_u16(code);
     ///
     /// assert_eq!(result, expected_result);
     /// ```
