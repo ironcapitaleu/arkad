@@ -638,9 +638,10 @@ mod tests {
     #[tokio::test]
     async fn should_name_the_notes_period_in_the_data_of_the_execute_state_when_running_the_stream()
     {
-        let super_state = super_state("2024q1", FakeNotesRepository::new());
+        let notes_period = "2024q1";
+        let super_state = super_state(notes_period, FakeNotesRepository::new());
 
-        let expected_result = Some(serde_json::json!("2024q1"));
+        let expected_result = Some(serde_json::json!(notes_period));
 
         let items = run_stream(super_state).await;
         let result = items
