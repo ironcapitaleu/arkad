@@ -1,87 +1,73 @@
 //! # Store Company Facts State
 //!
-//! Provides the [`StoreCompanyFacts`] state, which writes the raw body of an SEC Company Facts
-//! response to the store and outputs the key of the stored document.
+//! Provides [`StoreCompanyFacts`], the [`StoreSecResponse`] state of the [`CompanyFacts`] kind,
+//! which writes the raw body of an SEC Company Facts response to the store and outputs the key of
+//! the stored document.
 //!
-//! The state writes through the [`WriteRepository`](storage::WriteRepository) port that its
-//! context holds, so it names no concrete backend. The document holds the body exactly as the SEC
-//! sent it, because a parse and a reserialization change whitespace, number format, and duplicate
-//! keys.
+//! The document holds the body exactly as the SEC sent it, because a parse and a reserialization
+//! change whitespace, number format, and duplicate keys.
 //!
 //! ## Modules
 //!
 //! - [`constants`]: State metadata such as [`STATE_NAME`], and the parts of the document key.
-//! - [`context`]: The [`StoreCompanyFactsContext`] carried alongside the state.
-//! - [`data`]: The [`StoreCompanyFactsInput`] and [`StoreCompanyFactsOutput`] data types.
+//! - [`data`]: The [`StoreCompanyFactsOutput`] data type.
 //!
 //! ## See Also
 //!
+//! - [`crate::implementations::states::extract::store_sec_response`]: The generic store state.
 //! - [`crate::shared::raw_document`]: The [`RawDocument`] type the state writes.
-//! - [`crate::traits::state_machine::state::State`]: The trait implemented by [`StoreCompanyFacts`].
 
-use std::fmt;
+use storage::implementations::repository::filesystem::DocumentKey;
 
-use async_trait::async_trait;
-use chrono::Utc;
-use serde::Serialize;
-use state_maschine::prelude::State as SMState;
-use storage::implementations::repository::filesystem::{DocumentKey, IngestionMode};
-
-use crate::error::State as StateError;
-use crate::error::state_machine::state::FailedDocumentWrite;
-use crate::shared::build_info::producer;
+use crate::implementations::states::extract::store_sec_response::{
+    StoreSecResponse, StoreSecResponseContext, StoreSecResponseInput,
+};
 use crate::shared::cik::Cik;
-use crate::shared::document_storage::FailedDocumentStorage;
 use crate::shared::raw_document::RawDocument;
-use crate::shared::raw_repository::RawRepository;
 use crate::shared::raw_source::RawCompanyFacts;
+use crate::shared::request::implementations::sec_request::{CompanyFacts, StoredAs};
+use crate::shared::response::implementations::sec_response::SecResponse;
 use crate::shared::run_fields::RunFields;
-use crate::traits::state_machine::state::State;
+use crate::shared::url::Url;
+use crate::shared::user_agent::UserAgent;
 
 pub mod constants;
-pub mod context;
 pub mod data;
 
 pub use constants::{COMPANY_FACTS_KEY_PREFIX, COMPANY_FACTS_KEY_SUFFIX, STATE_NAME};
-pub use context::StoreCompanyFactsContext;
-pub use data::StoreCompanyFactsInput;
 pub use data::StoreCompanyFactsOutput;
 
-/// Writes the raw body of an SEC Company Facts response to the store.
+/// The [`StoreSecResponse`] state of the [`CompanyFacts`] kind.
 ///
-/// Builds one [`RawDocument<RawCompanyFacts>`] with
-/// [`RawDocument::from_response`], writes it under the key `sec/companyfacts/CIK##########.json`
-/// through the repository of type `R`, and outputs that [`DocumentKey`]. The metadata records the
-/// ingestion mode [`IngestionMode::Backfill`], because `companyfacts` runs as a backfill.
-#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
-pub struct StoreCompanyFacts<R> {
-    input: StoreCompanyFactsInput,
-    context: StoreCompanyFactsContext<R>,
-    output: Option<StoreCompanyFactsOutput>,
-}
+/// It writes one [`RawDocument<RawCompanyFacts>`] under the key
+/// `sec/companyfacts/CIK##########.json` and outputs that [`DocumentKey`].
+pub type StoreCompanyFacts<R> = StoreSecResponse<CompanyFacts, R>;
 
-impl<R> StoreCompanyFacts<R> {
-    /// Creates a new [`StoreCompanyFacts`] state from its input and context, with no output
-    /// computed yet.
-    #[must_use]
-    pub const fn new(input: StoreCompanyFactsInput, context: StoreCompanyFactsContext<R>) -> Self {
-        Self {
-            input,
-            context,
-            output: None,
-        }
-    }
+/// The input of [`StoreCompanyFacts`].
+pub type StoreCompanyFactsInput = StoreSecResponseInput<CompanyFacts>;
 
-    /// Consumes the state and returns its input, optional output, and context.
-    #[must_use]
-    pub fn into_parts(
-        self,
-    ) -> (
-        StoreCompanyFactsInput,
-        Option<StoreCompanyFactsOutput>,
-        StoreCompanyFactsContext<R>,
-    ) {
-        (self.input, self.output, self.context)
+/// The context of [`StoreCompanyFacts`].
+pub type StoreCompanyFactsContext<R> = StoreSecResponseContext<CompanyFacts, R>;
+
+/// Builds the document with [`RawDocument::from_response`], which keeps the JSON body unchanged.
+impl StoredAs for CompanyFacts {
+    type Source = RawCompanyFacts;
+    type Output = StoreCompanyFactsOutput;
+
+    const STATE_NAME: &'static str = STATE_NAME;
+    const INPUT_LABEL: &'static str = "CIK";
+
+    fn store(
+        response: &SecResponse,
+        cik: &Cik,
+        requested_url: &Url,
+        user_agent: &UserAgent,
+        run: RunFields,
+    ) -> (RawDocument<RawCompanyFacts>, StoreCompanyFactsOutput) {
+        let key = company_facts_key(cik);
+        let document =
+            RawDocument::from_response(key.clone(), response, requested_url, user_agent, run);
+        (document, StoreCompanyFactsOutput::new(key))
     }
 }
 
@@ -93,132 +79,26 @@ fn company_facts_key(cik: &Cik) -> DocumentKey {
     .expect("Given a CIK of 10 digits, the relative key path should always be valid")
 }
 
-#[async_trait]
-impl<R: RawRepository<RawCompanyFacts>> State for StoreCompanyFacts<R> {
-    /// Writes the raw document to the repository and stores its key as output.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`StateError::FailedDocumentWrite`] when the repository rejects the write.
-    async fn compute_output_data_async(&mut self) -> Result<(), StateError> {
-        let key = company_facts_key(&self.context.cik);
-        let document = RawDocument::<RawCompanyFacts>::from_response(
-            key.clone(),
-            &self.input.response,
-            &self.input.requested_url,
-            &self.input.user_agent,
-            RunFields {
-                produced_at: Utc::now(),
-                execution_id: self.context.execution_id,
-                producer: producer(STATE_NAME),
-                ingestion_mode: IngestionMode::Backfill,
-            },
-        );
-
-        let write = self
-            .context
-            .repository
-            .persist(document)
-            .await
-            .map_err(FailedDocumentStorage::from);
-
-        match write {
-            Ok(()) => {
-                self.output = Some(StoreCompanyFactsOutput::new(key));
-                Ok(())
-            }
-            Err(e) => {
-                let e: StateError =
-                    FailedDocumentWrite::new(self.state_name().to_string(), e).into();
-                Err(e)
-            }
-        }
-    }
-}
-
-impl<R: RawRepository<RawCompanyFacts>> SMState for StoreCompanyFacts<R> {
-    type InputData = StoreCompanyFactsInput;
-    type OutputData = StoreCompanyFactsOutput;
-    type Context = StoreCompanyFactsContext<R>;
-
-    /// Returns the human-readable name of this state.
-    fn state_name(&self) -> impl ToString {
-        STATE_NAME
-    }
-
-    /// Blocking wrapper around [`compute_output_data_async`](crate::traits::state_machine::state::State::compute_output_data_async).
-    ///
-    /// Detects whether a tokio runtime is available and runs the async computation
-    /// synchronously. This allows SEC states to be used as regular `SMState` implementations.
-    ///
-    /// # Panics
-    /// - Panics if the async computation returns an error.
-    /// - Panics if called inside a `current_thread` runtime (`block_in_place`
-    ///   requires a multi-thread runtime). All binaries and tests in this project
-    ///   use `flavor = "multi_thread"`.
-    fn compute_output_data(&mut self) {
-        let result = if let Ok(handle) = tokio::runtime::Handle::try_current() {
-            tokio::task::block_in_place(|| handle.block_on(self.compute_output_data_async()))
-        } else {
-            tokio::runtime::Runtime::new()
-                .expect("Failed to create tokio runtime for blocking compute")
-                .block_on(self.compute_output_data_async())
-        };
-
-        if let Err(e) = result {
-            let state_err: StateError = e;
-            panic!("compute_output_data failed: {state_err}")
-        }
-    }
-
-    fn context_data(&self) -> &Self::Context {
-        &self.context
-    }
-
-    fn input_data(&self) -> &Self::InputData {
-        &self.input
-    }
-
-    fn output_data(&self) -> Option<&Self::OutputData> {
-        self.output.as_ref()
-    }
-}
-
-impl<R: RawRepository<RawCompanyFacts>> fmt::Display for StoreCompanyFacts<R> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "`{}` State Summary\n\
-             ---------------------------\n\
-             Context:\n{}\n\
-             Input Data:\n{}\n\
-             Output Data:\n{}",
-            self.state_name().to_string(),
-            self.context,
-            self.input,
-            self.output.as_ref().map_or_else(
-                || "\tNone".to_string(),
-                |output_data| format!("{output_data}")
-            )
-        )
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
     use std::{fmt::Debug, hash::Hash};
 
     use pretty_assertions::assert_eq;
+    use serde::Serialize;
+    use state_maschine::prelude::State as SMState;
     use storage::implementations::repository::filesystem::{
-        Document, FilesystemRepository, ReadWrite,
+        Document, FilesystemRepository, IngestionMode, ReadWrite,
     };
     use storage::{Sha256Digest, WriteError};
     use uuid::Uuid;
 
     use super::*;
+    use crate::error::State as StateError;
+    use crate::error::state_machine::state::FailedDocumentWrite;
+    use crate::shared::build_info::producer;
     use crate::shared::content_type::ContentType;
-    use crate::shared::document_storage::DocumentStorageErrorReason;
+    use crate::shared::document_storage::{DocumentStorageErrorReason, FailedDocumentStorage};
     use crate::shared::headers::Headers;
     use crate::shared::raw_document::RawDocumentMetadataContext;
     use crate::shared::response::implementations::sec_response::SecResponse;
@@ -226,6 +106,7 @@ mod tests {
     use crate::shared::url::Url;
     use crate::shared::user_agent::UserAgent;
     use crate::tests::fixtures::sample_write_repository::FakeWriteRepository;
+    use crate::traits::state_machine::state::State;
 
     // Whitespace and a trailing zero that a parse and a reserialization drop.
     const RAW_BODY: &[u8] = b"{ \"cik\": 1067983, \"price\": 1.50 }";
@@ -262,7 +143,12 @@ mod tests {
             RAW_BODY.to_vec(),
         )
         .expect("Given a hardcoded valid JSON body, building the response should always succeed");
-        StoreCompanyFactsInput::new(response, requested_url(), user_agent())
+        StoreCompanyFactsInput::new(
+            response,
+            requested_url(),
+            user_agent(),
+            IngestionMode::Backfill,
+        )
     }
 
     fn sample_state(repository: FakeWriteRepository) -> StoreCompanyFacts<FakeWriteRepository> {

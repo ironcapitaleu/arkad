@@ -56,6 +56,7 @@ use std::fmt::{self, Display, Formatter};
 use async_trait::async_trait;
 use serde::Serialize;
 use state_maschine::prelude::{StateMachine as SMStateMachine, Transition as SMTransition};
+use storage::implementations::repository::filesystem::IngestionMode;
 use uuid::Uuid;
 
 use crate::error::State as StateError;
@@ -365,7 +366,12 @@ impl<R: RawRepository<RawCompanyFacts>, C: SecClientTrait>
         execution_id: Uuid,
         repository: R,
     ) -> Self {
-        let input = StoreCompanyFactsInput::new(response, requested_url, user_agent);
+        let input = StoreCompanyFactsInput::new(
+            response,
+            requested_url,
+            user_agent,
+            IngestionMode::Backfill,
+        );
         let context = StoreCompanyFactsContext::new(cik, execution_id, repository.clone());
 
         Self {
@@ -560,6 +566,7 @@ where
         let next_state = StoreCompanyFacts::try_from((
             self.current_state,
             self.context.execution_id,
+            IngestionMode::Backfill,
             self.context.repository.clone(),
         ))?;
 

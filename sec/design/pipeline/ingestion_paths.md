@@ -53,15 +53,16 @@ loops over CIKs today. Fork and join replaces the loops later (STA-329).
 flowchart TB
     classDef reused fill:#d9ead3,stroke:#38761d
     classDef new fill:#fff2cc,stroke:#bf9000
+    classDef impl fill:#cfe2f3,stroke:#3d85c6
 
     subgraph CF["ExtractCompanyFactsSuperState (exists, renamed)"]
         direction LR
-        CF1["ValidateCikFormat"]:::reused --> CF2["PrepareSecRequest"]:::reused --> CF3["ExecuteSecRequest"]:::reused --> CF4["StoreCompanyFacts"]:::reused
+        CF1["ValidateCikFormat"]:::reused --> CF2["PrepareSecRequest"]:::reused --> CF3["ExecuteSecRequest"]:::reused --> CF4["StoreSecResponse&lt;CompanyFacts&gt;"]:::impl
     end
 
     subgraph BF["Backfill: ExtractNotesSuperState, one per Notes file"]
         direction LR
-        N1["ValidateNotesPeriod"]:::new --> N2["PrepareSecRequest"]:::reused --> N3["ExecuteSecRequest"]:::reused --> N4["StoreNotesArchive"]:::new
+        N1["ValidateNotesPeriod"]:::new --> N2["PrepareSecRequest"]:::reused --> N3["ExecuteSecRequest"]:::reused --> N4["StoreNotesArchive, later StoreSecResponse&lt;NotesFile&gt; (STA-384)"]:::new
     end
 
     subgraph DT["New filing: DetectFilingsSuperState, one per day"]
@@ -76,7 +77,7 @@ flowchart TB
 
     subgraph SB["Both paths: ExtractSubmissionsSuperState, one per company"]
         direction LR
-        S1["ValidateCikFormat"]:::reused --> S2["PrepareSecRequest"]:::reused --> S3["ExecuteSecRequest"]:::reused --> S4["StoreSubmissions"]:::new
+        S1["ValidateCikFormat"]:::reused --> S2["PrepareSecRequest"]:::reused --> S3["ExecuteSecRequest"]:::reused --> S4["StoreSubmissions, later StoreSecResponse&lt;Submissions&gt;"]:::new
     end
 
     BF -- "NotesArchiveRef" --> TB["Transform, backfill (STA-332)"]
@@ -90,6 +91,42 @@ Green states exist today. `PrepareSecRequest` is generic over the request kind. 
 uses it with the `NotesFile` kind, under the alias `PrepareNotesRequest`. The Submissions path
 reuses it with a new kind.
 Yellow states are new.
+Blue states are the generic `StoreSecResponse` state with one `StoredAs` impl of the kind. See
+[Store Step](#store-step).
+
+### Store Step
+
+`StoreSecResponse<E, R>` writes the response to a request of kind `E` as one raw document
+(STA-383). The kind implements `StoredAs` in `sec_request/kind.rs`:
+
+```rust
+pub trait StoredAs: HasResponse {
+    type Source: RawSource;
+    type Output: StateData + Display + Serialize;
+    const STATE_NAME: &'static str;
+    const INPUT_LABEL: &'static str;
+    fn store(response: &Self::Response, request_input: &Self::Input, requested_url: &Url,
+             user_agent: &UserAgent, run: RunFields) -> (RawDocument<Self::Source>, Self::Output);
+}
+```
+
+- The state bounds its repository by `RawRepository<E::Source>`. A repository of another source
+  does not compile.
+- `STATE_NAME` is the name in `state_name()`, in the stream, and in the producer of the document.
+- The context holds the request input, the `execution_id`, and the repository. The input holds the
+  response in an `Arc`, the requested URL, the `User-Agent`, and the ingestion mode. The run sets
+  the mode, because `submissions` runs in both modes.
+- One generic transition moves `ExecuteSecRequest<E, C>` into `StoreSecResponse<E, R>`. It takes
+  the `execution_id`, the ingestion mode, and the repository from the run.
+- `StoreCompanyFacts<R>` is an alias of `StoreSecResponse<CompanyFacts, R>`.
+
+| Store state | Kind | Status |
+| ----------- | ---- | ------ |
+| `StoreCompanyFacts` | `CompanyFacts` | `StoredAs` impl (STA-383) |
+| `StoreNotesArchive` | `NotesFile` | Own state. STA-384 moves it to a `StoredAs` impl. |
+| `StoreSubmissions` | `Submissions` | Own state. A follow-up moves it to a `StoredAs` impl. |
+| `StoreDailyIndex` | `DailyIndex` | Own state. Its input and output are `Option`s, because `DownloadDailyIndex` turns a 404 into `None`. A follow-up can give it its own transition into `StoreSecResponse<DailyIndex, R>`. |
+| `StoreFilingDocuments` | `FilingDocumentSet` | Own state. It writes two sources, and `StoredAs` names one. |
 
 ### Ingestion Mode
 
@@ -152,7 +189,7 @@ None of them reads it. Only the store states at the end of each machine read it.
 | Validate date → prepare | `transitions/from/validate_index_date/prepare_daily_index_request.rs:38` | Takes it from the super-state and puts it into the prepare context. |
 | Prepare → execute | `transitions/from/prepare_sec_request/execute_sec_request.rs:62` | Moves it from the prepare context into the execute context. |
 | Prepare → download | `transitions/from/prepare_sec_request/download_daily_index.rs:38` | Drops it. `DownloadDailyIndex` has no repository. |
-| Execute → store | `transitions/from/execute_sec_request/store_company_facts.rs:75`, `store_notes_archive.rs:92`, `store_submissions.rs:102` | Moves it from the execute context into the store context. |
+| Execute → store | `transitions/from/execute_sec_request/store_company_facts.rs:75` (now `store_sec_response.rs`), `store_notes_archive.rs:92`, `store_submissions.rs:102` | Moves it from the execute context into the store context. |
 | Download → store | `transitions/from/download_daily_index/store_daily_index.rs:42` | Takes it from the super-state. |
 | `ExtractCompanyFactsSuperStateContext` | `states/extract/company_facts/mod.rs:124` | Holds a second copy. No transition reads it. |
 | `DetectFilingsSuperStateContext` | `states/extract/daily_index/mod.rs:111` | Holds it and passes a clone to two transitions (lines 373 and 435). |
