@@ -324,6 +324,28 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn should_persist_the_ingestion_mode_of_the_input() {
+        let repository = FakeWriteRepository::new();
+        let (_, _, context) = sample_state(repository.clone()).into_parts();
+        let mut input = sample_input();
+        input.ingestion_mode = IngestionMode::Incremental;
+        let mut state = StoreCompanyFacts::new(input, context);
+        state
+            .compute_output_data_async()
+            .await
+            .expect("Given a fake repository that accepts every write, the state should succeed");
+
+        let expected_result = Some(IngestionMode::Incremental);
+
+        let result = repository
+            .persisted()
+            .pop()
+            .map(|document| document.metadata().ingestion_mode());
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
     async fn should_name_this_state_as_the_producer_of_the_document() {
         let document = persisted_document().await;
 

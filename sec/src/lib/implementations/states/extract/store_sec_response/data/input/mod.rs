@@ -409,6 +409,35 @@ mod tests {
         assert_eq!(result, expected_result);
     }
 
+    #[test]
+    fn should_serialize_every_field_when_serializing_the_input() {
+        let input = sample_input();
+
+        let expected_result = serde_json::json!({
+            "response": {
+                "url": "https://data.sec.gov/api/xbrl/companyfacts/CIK0001067983.json",
+                "headers": {
+                    "accept_encoding": null,
+                    "content_type": "Unknown",
+                    "date": null,
+                    "etag": null,
+                    "other": {},
+                },
+                "content_type": "application/json",
+                "status_code": "200",
+                "body_sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+            },
+            "requested_url": "https://data.sec.gov/api/xbrl/companyfacts/CIK0001067983.json",
+            "user_agent": "arkad contact@example.com",
+            "ingestion_mode": "backfill",
+        });
+
+        let result = serde_json::to_value(&input)
+            .expect("Given an input of domain types, serialization should always succeed");
+
+        assert_eq!(result, expected_result);
+    }
+
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
     #[test]
     const fn should_implement_auto_traits_for_store_company_facts_input() {

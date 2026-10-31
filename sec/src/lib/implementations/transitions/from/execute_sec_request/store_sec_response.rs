@@ -258,6 +258,27 @@ mod tests {
     }
 
     #[test]
+    fn should_take_ingestion_mode_from_run_when_source_has_output() {
+        let state = execute_sec_request_without_output(sample_cik())
+            .with_output(ExecuteSecRequestOutput::new(sample_response()));
+        let ingestion_mode = IngestionMode::Incremental;
+
+        let expected_result = IngestionMode::Incremental;
+
+        let result = StoreCompanyFacts::try_from((
+            state,
+            SAMPLE_EXECUTION_ID,
+            ingestion_mode,
+            rejecting_repository(),
+        ))
+        .expect("Given a source state with output, the transition should always succeed")
+        .input_data()
+        .ingestion_mode();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
     fn should_return_failed_context_conversion_when_request_names_another_cik() {
         let other_cik = Cik::new("320193")
             .expect("Given a hardcoded numeric CIK, its creation should always succeed");

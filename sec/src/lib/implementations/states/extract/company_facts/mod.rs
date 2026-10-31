@@ -350,6 +350,9 @@ where
     }
 }
 
+/// The ingestion mode of every Company Facts document. Company Facts runs as a backfill only.
+const INGESTION_MODE: IngestionMode = IngestionMode::Backfill;
+
 impl<R: RawRepository<RawCompanyFacts>, C: SecClientTrait>
     ExtractCompanyFactsSuperState<StoreCompanyFacts<R>, R, C>
 {
@@ -366,12 +369,8 @@ impl<R: RawRepository<RawCompanyFacts>, C: SecClientTrait>
         execution_id: Uuid,
         repository: R,
     ) -> Self {
-        let input = StoreCompanyFactsInput::new(
-            response,
-            requested_url,
-            user_agent,
-            IngestionMode::Backfill,
-        );
+        let input =
+            StoreCompanyFactsInput::new(response, requested_url, user_agent, INGESTION_MODE);
         let context = StoreCompanyFactsContext::new(cik, execution_id, repository.clone());
 
         Self {
@@ -566,7 +565,7 @@ where
         let next_state = StoreCompanyFacts::try_from((
             self.current_state,
             self.context.execution_id,
-            IngestionMode::Backfill,
+            INGESTION_MODE,
             self.context.repository.clone(),
         ))?;
 
@@ -1090,6 +1089,60 @@ mod tests {
         .current_state()
         .context_data()
         .execution_id();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_store_as_backfill_when_created_at_store_company_facts() {
+        let super_state =
+            store_company_facts_super_state(Uuid::from_u128(7), FakeWriteRepository::new());
+
+        let expected_result = IngestionMode::Backfill;
+
+        let result = super_state.current_state().input_data().ingestion_mode();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_store_as_backfill_when_transitioning_to_store_company_facts() {
+        let mut super_state = ExtractCompanyFactsSuperState::builder()
+            .cik("1067983")
+            .sec_client(SecClient::default())
+            .execution_id(Uuid::from_u128(7))
+            .repository(FakeWriteRepository::new())
+            .build();
+        super_state
+            .compute_output_data_async()
+            .await
+            .expect("Given a hardcoded valid CIK, validation should always succeed");
+        let mut super_state = super_state
+            .transition_to_next_state_sec()
+            .expect("Given a computed CIK validation, the transition should always succeed");
+        super_state
+            .compute_output_data_async()
+            .await
+            .expect("Given a validated CIK, preparing the request should always succeed");
+        let mut super_state = super_state
+            .transition_to_next_state_sec()
+            .expect("Given a prepared request, the transition should always succeed");
+        let executed = super_state
+            .current_state()
+            .clone()
+            .with_output(ExecuteSecRequestOutput::new(sample_response()));
+        *super_state.current_state_mut() = executed;
+
+        let expected_result = IngestionMode::Backfill;
+
+        let result = Transition::<
+            ExecuteCompanyFactsRequest,
+            StoreCompanyFacts<FakeWriteRepository>,
+        >::transition_to_next_state_sec(super_state)
+        .expect("Given a request with output, the transition should always succeed")
+        .current_state()
+        .input_data()
+        .ingestion_mode();
 
         assert_eq!(result, expected_result);
     }
