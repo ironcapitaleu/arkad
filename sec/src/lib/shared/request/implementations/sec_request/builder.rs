@@ -48,14 +48,14 @@
 use std::marker::PhantomData;
 
 use crate::shared::cik::Cik;
-use crate::shared::filing_documents::FilingDocumentRef;
+use crate::shared::filing_documents::{FilingDocumentRef, FilingDocumentSetRef, FilingDocuments};
 use crate::shared::filing_ref::FilingRef;
 use crate::shared::index_date::IndexDate;
 use crate::shared::notes_period::NotesPeriod;
 use crate::shared::request::SecRequest as SecRequestTrait;
 use crate::shared::request::implementations::sec_request::{
-    CompanyFacts, DailyIndex, DailyIndexListing, FilingDocument, FilingIndex, NotesFile,
-    RequestKind, SecRequest, Submissions,
+    CompanyFacts, DailyIndex, DailyIndexListing, FilingDocument, FilingDocumentSet, FilingIndex,
+    NotesFile, RequestKind, SecRequest, Submissions,
 };
 
 /// Typestate marker: no CIK has been set yet.
@@ -79,8 +79,8 @@ pub struct NoDate;
 
 /// Typestate marker: no filing has been set yet.
 ///
-/// While the builder is in this state, [`FilingIndexBuilder::build`] and
-/// [`FilingDocumentBuilder::build`] are unavailable.
+/// While the builder is in this state, [`FilingIndexBuilder::build`],
+/// [`FilingDocumentBuilder::build`], and [`FilingDocumentSetBuilder::build`] are unavailable.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NoFilingRef;
 
@@ -89,6 +89,12 @@ pub struct NoFilingRef;
 /// While the builder is in this state, [`build`](FilingDocumentBuilder::build) is unavailable.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NoFileName;
+
+/// Typestate marker: no filing documents have been set yet.
+///
+/// While the builder is in this state, [`build`](FilingDocumentSetBuilder::build) is unavailable.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NoDocuments;
 
 /// Entry point for building an [`SecRequest`].
 ///
@@ -148,6 +154,15 @@ impl SecRequestBuilder {
         FilingDocumentBuilder {
             filing: NoFilingRef,
             file_name: NoFileName,
+        }
+    }
+
+    /// Selects the [`FilingDocumentSet`] request kind.
+    #[must_use]
+    pub const fn filing_documents(self) -> FilingDocumentSetBuilder<NoFilingRef, NoDocuments> {
+        FilingDocumentSetBuilder {
+            filing: NoFilingRef,
+            documents: NoDocuments,
         }
     }
 }
@@ -373,6 +388,87 @@ impl FilingDocumentBuilder<FilingRef, String> {
     }
 }
 
+/// Typestate builder for the
+/// [`FetchFilingDocumentSet`](super::SecRequestType::FetchFilingDocumentSet) request.
+///
+/// The `F` type parameter tracks the filing and `D` tracks the documents. They start as
+/// [`NoFilingRef`] and [`NoDocuments`]. [`filing_ref`](Self::filing_ref) and
+/// [`documents`](Self::documents) change them to [`FilingRef`] and [`FilingDocuments`]. Only
+/// `FilingDocumentSetBuilder<FilingRef, FilingDocuments>` has [`build`](Self::build).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FilingDocumentSetBuilder<F, D> {
+    filing: F,
+    documents: D,
+}
+
+impl<D> FilingDocumentSetBuilder<NoFilingRef, D> {
+    /// Sets the filing.
+    #[must_use]
+    pub fn filing_ref(self, filing: FilingRef) -> FilingDocumentSetBuilder<FilingRef, D> {
+        FilingDocumentSetBuilder {
+            filing,
+            documents: self.documents,
+        }
+    }
+}
+
+impl<F> FilingDocumentSetBuilder<F, NoDocuments> {
+    /// Sets the instance and the label file picked from the folder of the filing.
+    #[must_use]
+    pub fn documents(
+        self,
+        documents: FilingDocuments,
+    ) -> FilingDocumentSetBuilder<F, FilingDocuments> {
+        FilingDocumentSetBuilder {
+            filing: self.filing,
+            documents,
+        }
+    }
+}
+
+impl FilingDocumentSetBuilder<FilingRef, FilingDocuments> {
+    /// Builds the [`SecRequest`]; available only once the filing and the documents are set.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use chrono::NaiveDate;
+    /// use sec::shared::cik::Cik;
+    /// use sec::shared::filing_documents::FilingDocuments;
+    /// use sec::shared::filing_ref::FilingRef;
+    /// use sec::shared::financial::accession_number::AccessionNumber;
+    /// use sec::shared::financial::form::{Form, ParsedForm};
+    /// use sec::shared::request::implementations::sec_request::SecRequest;
+    ///
+    /// let cik = Cik::new("320193").expect("A hardcoded valid CIK should always parse");
+    /// let filed_date = NaiveDate::from_ymd_opt(2017, 11, 3)
+    ///     .expect("A hardcoded calendar date should always build");
+    /// let filing = FilingRef::new(
+    ///     cik,
+    ///     AccessionNumber::new("0000320193-17-000070")
+    ///         .expect("Given a hardcoded accession number of the right shape, creation should always succeed"),
+    ///     ParsedForm::new(Form::TenK, false),
+    ///     filed_date,
+    /// );
+    /// let documents = FilingDocuments::new("aapl-20170930.xml", Some("aapl-20170930_lab.xml".to_string()));
+    /// let request = SecRequest::builder()
+    ///     .filing_documents()
+    ///     .filing_ref(filing)
+    ///     .documents(documents)
+    ///     .build();
+    ///
+    /// let expected_result = "https://www.sec.gov/Archives/edgar/data/320193/000032019317000070/";
+    ///
+    /// let result = request.inner.url().as_str();
+    ///
+    /// assert_eq!(result, expected_result);
+    /// ```
+    #[must_use]
+    pub fn build(self) -> SecRequest<FilingDocumentSet> {
+        SecRequest::new(FilingDocumentSetRef::new(self.filing, self.documents))
+    }
+}
+
 /// Typestate builder for the [`FetchNotesFile`](super::SecRequestType::FetchNotesFile) request.
 ///
 /// The `P` type parameter tracks the period. It starts as [`NoPeriod`]. [`period`](Self::period)
@@ -473,6 +569,7 @@ mod tests {
     use reqwest::{Method, Url};
 
     use crate::shared::cik::Cik;
+    use crate::shared::filing_documents::FilingDocuments;
     use crate::shared::filing_ref::FilingRef;
     use crate::shared::financial::accession_number::AccessionNumber;
     use crate::shared::financial::form::{Form, ParsedForm};
@@ -734,6 +831,27 @@ mod tests {
             .filing_document()
             .filing_ref(filing)
             .file_name(file_name)
+            .build()
+            .inner()
+            .url()
+            .clone();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_produce_the_folder_url_with_the_unpadded_cik_for_filing_document_set_request() {
+        let filing = alco_filing_ref();
+        let documents = FilingDocuments::new("alco-20260908_htm.xml", None);
+
+        let expected_result =
+            Url::parse("https://www.sec.gov/Archives/edgar/data/3545/000000354526000047/")
+                .expect("Hardcoded URL should always be valid");
+
+        let result = SecRequest::builder()
+            .filing_documents()
+            .filing_ref(filing)
+            .documents(documents)
             .build()
             .inner()
             .url()

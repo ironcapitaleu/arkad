@@ -976,8 +976,9 @@ The shape of design 5:
   `FilingDocuments` that `SelectFilingDocuments` picked. It builds `FetchFilingDocumentSet` with the
   URL of the filing folder. It has no `RespondsWith`, and its `HasResponse::Response` is
   `FilingDocumentResponses`.
-- Each new `Input` type implements `Display`, `Serialize`, `Ord`, and `Hash`, as
-  `RequestKind::Input` requires. STA-373 picks their names.
+- The `Input` of `FilingDocument` is `FilingDocumentRef`, and the `Input` of `FilingDocumentSet` is
+  `FilingDocumentSetRef`. Both live in `shared::filing_documents` and implement `Display`,
+  `Serialize`, `Ord`, and `Hash`, as `RequestKind::Input` requires.
 - `SecRequest<K>` keeps the input it was built from. The impl for `FilingDocumentSet` reads the file
   names from it. Equality, hashing, and ordering compare the input. For `FilingIndex`, this is
   stricter than the comparison of the URL today, because the URL does not hold the form, the

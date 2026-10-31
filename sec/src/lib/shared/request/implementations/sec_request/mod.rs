@@ -10,7 +10,8 @@
 //! - [`builder`]: The [`SecRequestBuilder`] for constructing requests fluently.
 //! - [`constants`]: The endpoint URL fragments.
 //! - [`kind`]: The [`RequestKind`] trait and the [`CompanyFacts`], [`NotesFile`], [`DailyIndex`],
-//!   [`DailyIndexListing`], [`Submissions`], [`FilingIndex`], and [`FilingDocument`] kinds.
+//!   [`DailyIndexListing`], [`Submissions`], [`FilingIndex`], [`FilingDocument`], and
+//!   [`FilingDocumentSet`] kinds.
 
 use std::marker::PhantomData;
 
@@ -18,7 +19,7 @@ use reqwest::{Method, Request, Url};
 use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
 
-use crate::shared::filing_documents::FilingDocumentRef;
+use crate::shared::filing_documents::{FilingDocumentRef, FilingDocumentSetRef};
 use crate::shared::filing_ref::FilingRef;
 use crate::shared::index_date::IndexDate;
 use crate::shared::{cik::Cik, notes_period::NotesPeriod, request::SecRequest as SecRequestTrait};
@@ -29,8 +30,8 @@ pub mod kind;
 
 pub use builder::SecRequestBuilder;
 pub use kind::{
-    CompanyFacts, DailyIndex, DailyIndexListing, FilingDocument, FilingIndex, NotesFile,
-    RequestKind, StoredAs, Submissions,
+    CompanyFacts, DailyIndex, DailyIndexListing, FilingDocument, FilingDocumentSet, FilingIndex,
+    NotesFile, RequestKind, StoredAs, Submissions,
 };
 
 use constants::{
@@ -51,10 +52,16 @@ use constants::{
 /// - [`Submissions`]: built from a [`Cik`].
 /// - [`FilingIndex`]: built from a [`FilingRef`].
 /// - [`FilingDocument`]: built from a [`FilingDocumentRef`].
+/// - [`FilingDocumentSet`]: built from a [`FilingDocumentSetRef`].
+///
+/// The request keeps the input it was built from. Equality, hashing, and ordering compare that
+/// input. For a [`FilingIndex`] request, the form, the amendment flag, and the date filed count,
+/// and the order follows the ten-digit [`Cik`].
 #[derive(Debug)]
 pub struct SecRequest<K: RequestKind = CompanyFacts> {
     /// The raw HTTP request type this struct wraps.
     pub inner: Request,
+    input: K::Input,
     kind: PhantomData<K>,
 }
 
@@ -99,6 +106,12 @@ impl<K: RequestKind> SecRequest<K> {
     pub fn into_inner(self) -> Request {
         self.inner
     }
+
+    /// Returns the input the request was built from.
+    #[must_use]
+    pub const fn input(&self) -> &K::Input {
+        &self.input
+    }
 }
 
 impl<K: RequestKind> SecRequestTrait for SecRequest<K> {
@@ -124,7 +137,7 @@ impl<K: RequestKind> SecRequestTrait for SecRequest<K> {
     /// let _request = SecRequest::<NotesFile>::new(cik);
     /// ```
     fn new(request_input: Self::RequestInput) -> Self {
-        let url = match K::request_type(request_input) {
+        let url = match K::request_type(request_input.clone()) {
             SecRequestType::FetchAllCompanyFacts { cik } => {
                 format!("{SEC_COMPANY_FACTS_URL_PREFIX}{cik}{SEC_COMPANY_FACTS_URL_SUFFIX}")
             }
@@ -149,6 +162,9 @@ impl<K: RequestKind> SecRequestTrait for SecRequest<K> {
                 format!("{}{SEC_FILING_INDEX_FILE_NAME}", filing_folder_url(&filing))
             }
             SecRequestType::FetchFilingDocument { document } => filing_document_url(&document),
+            SecRequestType::FetchFilingDocumentSet { documents } => {
+                filing_folder_url(documents.filing())
+            }
         };
         let request = Request::new(
             Method::GET,
@@ -157,6 +173,7 @@ impl<K: RequestKind> SecRequestTrait for SecRequest<K> {
         );
         Self {
             inner: request,
+            input: request_input,
             kind: PhantomData,
         }
     }
@@ -200,6 +217,7 @@ impl<K: RequestKind> Clone for SecRequest<K> {
                 .inner
                 .try_clone()
                 .expect("SEC requests have no streaming body, so cloning should always succeed"),
+            input: self.input.clone(),
             kind: PhantomData,
         }
     }
@@ -207,7 +225,7 @@ impl<K: RequestKind> Clone for SecRequest<K> {
 
 impl<K: RequestKind> PartialEq for SecRequest<K> {
     fn eq(&self, other: &Self) -> bool {
-        self.inner.url() == other.inner.url()
+        self.input == other.input
     }
 }
 
@@ -215,7 +233,7 @@ impl<K: RequestKind> Eq for SecRequest<K> {}
 
 impl<K: RequestKind> std::hash::Hash for SecRequest<K> {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.inner.url().hash(state);
+        self.input.hash(state);
     }
 }
 
@@ -227,7 +245,7 @@ impl<K: RequestKind> PartialOrd for SecRequest<K> {
 
 impl<K: RequestKind> Ord for SecRequest<K> {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.inner.url().cmp(other.inner.url())
+        self.input.cmp(&other.input)
     }
 }
 
@@ -276,6 +294,12 @@ pub enum SecRequestType {
         /// The file to fetch.
         document: FilingDocumentRef,
     },
+    /// Fetch the XBRL instance and the optional label file of a filing. The URL names the folder
+    /// of the filing, as in [`FetchFilingIndex`](Self::FetchFilingIndex).
+    FetchFilingDocumentSet {
+        /// The files to fetch.
+        documents: FilingDocumentSetRef,
+    },
 }
 
 #[cfg(test)]
@@ -283,9 +307,58 @@ mod tests {
     use pretty_assertions::assert_eq;
     use reqwest::{Method, Url};
 
-    use super::{CompanyFacts, NotesFile, RequestKind, SecRequest};
+    use chrono::NaiveDate;
+
+    use super::{CompanyFacts, FilingIndex, NotesFile, RequestKind, SecRequest};
+    use crate::shared::filing_ref::FilingRef;
+    use crate::shared::financial::accession_number::AccessionNumber;
+    use crate::shared::financial::form::{Form, ParsedForm};
     use crate::shared::notes_period::NotesPeriod;
     use crate::shared::{cik::Cik, request::SecRequest as SecRequestTrait};
+
+    fn filing_index_request(
+        cik: &str,
+        accession_number: &str,
+        form: Form,
+    ) -> SecRequest<FilingIndex> {
+        let filing = FilingRef::new(
+            Cik::new(cik).expect("Given a hardcoded valid CIK, parsing should always succeed"),
+            AccessionNumber::new(accession_number).expect(
+                "Given a hardcoded accession number of the right shape, creation should always succeed",
+            ),
+            ParsedForm::new(form, false),
+            NaiveDate::from_ymd_opt(2026, 9, 9)
+                .expect("Given a hardcoded calendar date, the date should always build"),
+        );
+        SecRequest::builder()
+            .filing_index()
+            .filing_ref(filing)
+            .build()
+    }
+
+    #[test]
+    fn should_differ_when_two_filing_index_requests_share_the_url_but_not_the_form() {
+        let ten_k = filing_index_request("3545", "0000003545-26-000047", Form::TenK);
+        let ten_q = filing_index_request("3545", "0000003545-26-000047", Form::TenQ);
+
+        let expected_result = false;
+
+        let result = ten_k == ten_q;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_order_filing_index_requests_by_the_ten_digit_cik_when_the_urls_sort_the_other_way() {
+        let apple = filing_index_request("320193", "0000320193-17-000070", Form::TenK);
+        let berkshire = filing_index_request("1067983", "0001067983-26-000001", Form::TenK);
+
+        let expected_result = true;
+
+        let result = apple < berkshire;
+
+        assert_eq!(result, expected_result);
+    }
 
     #[test]
     fn should_automatically_create_inner_request_method_when_specifying_sec_request_type() {
