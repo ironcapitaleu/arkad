@@ -3,8 +3,8 @@
 //! Provides [`DailyIndexRow`], one row of the EDGAR daily index `form.YYYYMMDD.idx`, and
 //! [`parse_daily_index`], which reads the text of a daily index into its rows.
 //!
-//! The daily index is fixed-width text. Header lines come first and end with a line of dashes.
-//! Each row after it holds a form, a company name, a CIK, a date filed, and a file name. The
+//! The daily index is fixed-width text. Header lines come first. The last header line starts with
+//! `---`. Each row after it holds a form, a company name, a CIK, a date filed, and a file name. The
 //! parser returns every row. `SelectFilings` picks the forms and keeps one row per accession
 //! number.
 //!
@@ -23,7 +23,7 @@ pub mod daily_index_error;
 
 pub use daily_index_error::{DailyIndexError, InvalidDailyIndexLineReason};
 
-/// The start of the line of dashes that ends the header.
+/// The start of the last header line, a line of dashes.
 const HEADER_END_PREFIX: &str = "---";
 
 /// The width of the form column. Form text can hold spaces, as in `DEF 14A`.
@@ -56,8 +56,10 @@ pub struct DailyIndexRow {
 /// # Errors
 ///
 /// Returns [`DailyIndexError::MissingDailyIndexHeader`] if no line starts with `---`.
+/// Returns [`DailyIndexError::InvalidDailyIndexCik`] with the line number and the
+/// [`CikError`](crate::shared::cik::CikError) for the first row line whose CIK fails validation.
 /// Returns [`DailyIndexError::InvalidDailyIndexLine`] with the line number for the first row line
-/// that is malformed.
+/// that is malformed in any other way.
 ///
 /// # Examples
 ///
@@ -84,14 +86,7 @@ pub fn parse_daily_index(text: &str) -> Result<Vec<DailyIndexRow>, DailyIndexErr
 
     lines
         .filter(|(_, line)| !line.trim().is_empty())
-        .map(|(index, line)| {
-            DailyIndexRow::from_line(line).map_err(|reason| {
-                DailyIndexError::InvalidDailyIndexLine {
-                    line_number: index + 1,
-                    reason,
-                }
-            })
-        })
+        .map(|(index, line)| DailyIndexRow::from_line(index + 1, line))
         .collect()
 }
 
@@ -138,31 +133,36 @@ impl DailyIndexRow {
 
     /// Parses one row line. Reads the form from its column, and the last three fields from the
     /// end of the line, so a company name that overflows its column still parses.
-    fn from_line(line: &str) -> Result<Self, InvalidDailyIndexLineReason> {
+    fn from_line(line_number: usize, line: &str) -> Result<Self, DailyIndexError> {
+        let invalid_line = |reason| DailyIndexError::InvalidDailyIndexLine {
+            line_number,
+            reason,
+        };
         let mut fields = line.split_whitespace().rev();
         let (Some(file_name), Some(filed_date), Some(cik), Some(_)) =
             (fields.next(), fields.next(), fields.next(), fields.next())
         else {
-            return Err(InvalidDailyIndexLineReason::MissingField);
+            return Err(invalid_line(InvalidDailyIndexLineReason::MissingField));
         };
         let form_text = line
             .get(..FORM_COLUMN_WIDTH)
             .map(str::trim)
             .filter(|form_text| !form_text.is_empty())
-            .ok_or(InvalidDailyIndexLineReason::MissingField)?;
+            .ok_or_else(|| invalid_line(InvalidDailyIndexLineReason::MissingField))?;
 
-        let cik = Cik::new(cik).map_err(|_| InvalidDailyIndexLineReason::InvalidCik {
-            cik: cik.to_string(),
+        let cik = Cik::new(cik).map_err(|source| DailyIndexError::InvalidDailyIndexCik {
+            line_number,
+            source,
         })?;
         let filed_date = filed_date_of(filed_date).ok_or_else(|| {
-            InvalidDailyIndexLineReason::InvalidFiledDate {
+            invalid_line(InvalidDailyIndexLineReason::InvalidFiledDate {
                 filed_date: filed_date.to_string(),
-            }
+            })
         })?;
         let accession_number = accession_number_of(file_name).ok_or_else(|| {
-            InvalidDailyIndexLineReason::InvalidFileName {
+            invalid_line(InvalidDailyIndexLineReason::InvalidFileName {
                 file_name: file_name.to_string(),
-            }
+            })
         })?;
 
         Ok(Self::new(
@@ -209,6 +209,7 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;
+    use crate::shared::cik::{CikError, InvalidCikReason};
     use crate::tests::fixtures::data::daily_index::SAMPLE_DAILY_INDEX;
 
     const FILE_NAME: &str = "edgar/data/320193/0000320193-26-000106.txt";
@@ -340,12 +341,28 @@ mod tests {
     }
 
     #[test]
-    fn should_return_invalid_cik_when_cik_is_not_a_number() {
-        let expected_result = invalid_second_line(InvalidDailyIndexLineReason::InvalidCik {
-            cik: "32O193".to_string(),
+    fn should_return_invalid_cik_with_cik_error_when_cik_is_not_a_number() {
+        let expected_result = Err(DailyIndexError::InvalidDailyIndexCik {
+            line_number: 2,
+            source: CikError::new(InvalidCikReason::ContainsNonNumericCharacters, "32O193"),
         });
 
         let result = parse_row_line(&row_line("10-K", "32O193", "20261027", FILE_NAME));
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_invalid_cik_with_cik_error_when_cik_has_eleven_digits() {
+        let expected_result = Err(DailyIndexError::InvalidDailyIndexCik {
+            line_number: 2,
+            source: CikError::new(
+                InvalidCikReason::MaxLengthExceeded { cik_length: 11 },
+                "12345678901",
+            ),
+        });
+
+        let result = parse_row_line(&row_line("10-K", "12345678901", "20261027", FILE_NAME));
 
         assert_eq!(result, expected_result);
     }

@@ -559,7 +559,8 @@ amendments need no extra variants.
 `parse_daily_index` (`shared/daily_index_row`) reads the index into one `DailyIndexRow` per row:
 the form text, the CIK, the date filed, and the accession number from the file name. It reads the
 form from its 17-character column, and the last three fields from the end of the line. A malformed
-line returns `InvalidDailyIndexLine` with its line number. `FilingRef::try_from` converts a row
+line returns `InvalidDailyIndexLine` with its line number. An invalid CIK returns
+`InvalidDailyIndexCik` with its line number and the `CikError` as its source. `FilingRef::try_from` converts a row
 whose form parses with `Form::from_sec_str` and is in `SELECTED_FORMS`, and returns
 `UnsupportedForm` for any other form.
 

@@ -8,6 +8,8 @@ use std::fmt::{self, Display, Formatter};
 
 use thiserror::Error;
 
+use crate::shared::cik::CikError;
+
 /// Error indicating that a daily index could not be parsed into rows.
 #[non_exhaustive]
 #[derive(Debug, Error, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -25,6 +27,17 @@ pub enum DailyIndexError {
         /// The reason why the line is malformed.
         reason: InvalidDailyIndexLineReason,
     },
+    /// The CIK field of a row line fails [`Cik`](crate::shared::cik::Cik) validation.
+    #[error(
+        "[InvalidDailyIndexCik] Line {line_number} of the daily index has an invalid CIK, Caused by: {source}"
+    )]
+    InvalidDailyIndexCik {
+        /// The number of the line in the whole text, counted from 1.
+        line_number: usize,
+        /// The error of the CIK validation.
+        #[source]
+        source: CikError,
+    },
 }
 
 /// Enum representing the reason why a line of a daily index is malformed.
@@ -33,11 +46,6 @@ pub enum DailyIndexError {
 pub enum InvalidDailyIndexLineReason {
     /// The line has fewer fields than a row.
     MissingField,
-    /// The CIK field is not a number of at most 10 digits.
-    InvalidCik {
-        /// The text of the CIK field.
-        cik: String,
-    },
     /// The date filed field is not a date of the form `YYYYMMDD`.
     InvalidFiledDate {
         /// The text of the date filed field.
@@ -57,9 +65,6 @@ impl Display for InvalidDailyIndexLineReason {
                 f,
                 "Expected a form, a company name, a CIK, a date filed, and a file name"
             ),
-            Self::InvalidCik { cik } => {
-                write!(f, "The CIK '{cik}' is not a number of at most 10 digits")
-            }
             Self::InvalidFiledDate { filed_date } => write!(
                 f,
                 "The date filed '{filed_date}' is not a date of the form YYYYMMDD"
@@ -74,9 +79,19 @@ impl Display for InvalidDailyIndexLineReason {
 
 #[cfg(test)]
 mod tests {
+    use std::error::Error;
+
     use pretty_assertions::assert_eq;
 
     use super::*;
+    use crate::shared::cik::InvalidCikReason;
+
+    fn invalid_cik_error() -> DailyIndexError {
+        DailyIndexError::InvalidDailyIndexCik {
+            line_number: 12,
+            source: CikError::new(InvalidCikReason::ContainsNonNumericCharacters, "12A"),
+        }
+    }
 
     #[test]
     fn should_format_display_when_header_is_missing() {
@@ -105,14 +120,27 @@ mod tests {
     }
 
     #[test]
-    fn should_format_display_with_cik_when_cik_is_invalid() {
-        let reason = InvalidDailyIndexLineReason::InvalidCik {
-            cik: "12A".to_string(),
-        };
+    fn should_chain_cik_error_after_caused_by_when_cik_is_invalid() {
+        let error = invalid_cik_error();
 
-        let expected_result = "The CIK '12A' is not a number of at most 10 digits";
+        let expected_result = format!(
+            "[InvalidDailyIndexCik] Line 12 of the daily index has an invalid CIK, Caused by: {}",
+            CikError::new(InvalidCikReason::ContainsNonNumericCharacters, "12A")
+        );
 
-        let result = reason.to_string();
+        let result = error.to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_expose_cik_error_as_source_when_cik_is_invalid() {
+        let error = invalid_cik_error();
+
+        let expected_result =
+            Some(CikError::new(InvalidCikReason::ContainsNonNumericCharacters, "12A").to_string());
+
+        let result = error.source().map(ToString::to_string);
 
         assert_eq!(result, expected_result);
     }
