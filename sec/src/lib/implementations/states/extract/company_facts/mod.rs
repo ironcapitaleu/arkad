@@ -405,9 +405,9 @@ where
 }
 
 impl<R: RawRepository<RawCompanyFacts>, C: SecClientTrait> NonTerminal
-    for ExtractCompanyFactsSuperState<ValidateCikFormat<C>, R, C>
+    for ExtractCompanyFactsSuperState<ValidateCikFormat, R, C>
 {
-    type Current = ValidateCikFormat<C>;
+    type Current = ValidateCikFormat;
     type Next = PrepareCompanyFactsRequest;
 }
 
@@ -439,8 +439,8 @@ impl<R: RawRepository<RawCompanyFacts> + Send + 'static, C: SecClientTrait + 'st
 }
 
 impl<R: RawRepository<RawCompanyFacts>, C: SecClientTrait>
-    Transition<ValidateCikFormat<C>, PrepareCompanyFactsRequest>
-    for ExtractCompanyFactsSuperState<ValidateCikFormat<C>, R, C>
+    Transition<ValidateCikFormat, PrepareCompanyFactsRequest>
+    for ExtractCompanyFactsSuperState<ValidateCikFormat, R, C>
 {
     fn transition_to_next_state_sec(self) -> Result<Self::NewStateMachine, TransitionError> {
         let next_state = PrepareCompanyFactsRequest::try_from(self.current_state)?;
@@ -496,8 +496,8 @@ where
 }
 
 impl<R: RawRepository<RawCompanyFacts>, C: SecClientTrait>
-    SMTransition<ValidateCikFormat<C>, PrepareCompanyFactsRequest>
-    for ExtractCompanyFactsSuperState<ValidateCikFormat<C>, R, C>
+    SMTransition<ValidateCikFormat, PrepareCompanyFactsRequest>
+    for ExtractCompanyFactsSuperState<ValidateCikFormat, R, C>
 {
     type NewStateMachine = ExtractCompanyFactsSuperState<PrepareCompanyFactsRequest, R, C>;
 
