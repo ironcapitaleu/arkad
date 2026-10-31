@@ -205,16 +205,12 @@ fn ambiguous(
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
-
     use pretty_assertions::assert_eq;
 
     use super::*;
-    use crate::shared::content_type::ContentType;
-    use crate::shared::headers::Headers;
-    use crate::shared::status_code::StatusCode;
     use crate::tests::fixtures::data::filing_index::{
-        INLINE_XBRL_FOLDER_INDEX, PLAIN_XBRL_FOLDER_INDEX,
+        INLINE_XBRL_FOLDER_INDEX, INLINE_XBRL_FOLDER_INDEX_URL, PLAIN_XBRL_FOLDER_INDEX,
+        PLAIN_XBRL_FOLDER_INDEX_URL, folder_index_response,
     };
 
     /// Returns a folder index whose members have the given names.
@@ -222,25 +218,8 @@ mod tests {
         FolderIndex::new(names.iter().map(|name| (*name).to_string()).collect())
     }
 
-    const FOLDER_INDEX_URL: &str =
-        "https://www.sec.gov/Archives/edgar/data/3545/000000354526000047/index.json";
-
-    /// Returns a `200 OK` JSON response with `body`, as the SEC sends a folder index.
-    fn response(body: &[u8]) -> SecResponse {
-        SecResponse::from_parts(
-            FOLDER_INDEX_URL
-                .parse()
-                .expect("Given a hardcoded valid URL, parsing should always succeed"),
-            Headers::new(HashMap::new()),
-            ContentType::Json,
-            StatusCode::Ok,
-            body.to_vec(),
-        )
-        .expect("Given a valid JSON body, building the response should always succeed")
-    }
-
-    fn parsed(json: &[u8]) -> FolderIndex {
-        FolderIndex::try_from(&response(json))
+    fn parsed(url: &str, json: &[u8]) -> FolderIndex {
+        FolderIndex::try_from(&folder_index_response(url, json))
             .expect("Given a folder index downloaded from the SEC, parsing should always succeed")
     }
 
@@ -253,7 +232,8 @@ mod tests {
             Some("alco-20260908_lab.xml".to_string()),
         ));
 
-        let result = parsed(INLINE_XBRL_FOLDER_INDEX).select_documents(&accession_number);
+        let result = parsed(INLINE_XBRL_FOLDER_INDEX_URL, INLINE_XBRL_FOLDER_INDEX)
+            .select_documents(&accession_number);
 
         assert_eq!(result, expected_result);
     }
@@ -267,7 +247,8 @@ mod tests {
             Some("aapl-20170930_lab.xml".to_string()),
         ));
 
-        let result = parsed(PLAIN_XBRL_FOLDER_INDEX).select_documents(&accession_number);
+        let result = parsed(PLAIN_XBRL_FOLDER_INDEX_URL, PLAIN_XBRL_FOLDER_INDEX)
+            .select_documents(&accession_number);
 
         assert_eq!(result, expected_result);
     }
@@ -390,7 +371,8 @@ mod tests {
 
     #[test]
     fn should_read_the_member_names_in_index_order_for_a_folder_index() {
-        let filing_index_response = response(
+        let filing_index_response = folder_index_response(
+            INLINE_XBRL_FOLDER_INDEX_URL,
             br#"{"directory": {"item": [{"name": "a_htm.xml", "size": "1"}, {"name": "b_lab.xml"}], "name": "/x"}}"#,
         );
 
@@ -406,11 +388,14 @@ mod tests {
 
     #[test]
     fn should_name_the_url_in_invalid_folder_index_when_the_json_has_no_directory() {
-        let filing_index_response = response(br#"{"item": []}"#);
+        let filing_index_response =
+            folder_index_response(INLINE_XBRL_FOLDER_INDEX_URL, br#"{"item": []}"#);
 
         let result = FolderIndex::try_from(&filing_index_response);
 
         // The reason text belongs to `serde_json`, so the test checks the variant and the URL.
-        assert!(matches!(result, Err(InvalidFolderIndex { url, .. }) if url == FOLDER_INDEX_URL));
+        assert!(
+            matches!(result, Err(InvalidFolderIndex { url, .. }) if url == INLINE_XBRL_FOLDER_INDEX_URL)
+        );
     }
 }
