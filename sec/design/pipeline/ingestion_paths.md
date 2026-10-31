@@ -1108,7 +1108,8 @@ Which path delivers a filing depends on how the backfill was split. Three cases:
   This is the plan.
 - A possible later split: daily indexes back to 2009, with no Notes file.
 - Both paths for the same filing: the overlap of one day in rule 1 of
-  [Cut-Over Between the Paths](#cut-over-between-the-paths), or a rerun.
+  [Cut-Over Between the Paths](#cut-over-between-the-paths), or a backfill run after the
+  new-filing path ran.
 
 The goal: the fact store holds the same facts in all three cases. Same means the same value key
 and the same value. Provenance (rule 5) differs between the cases by design.
@@ -1127,35 +1128,38 @@ Rules:
    [Idempotent Writes](#idempotent-writes)), so the first copy wins. If the sources differ for a
    fact, the store needs a rule that does not depend on arrival. The options are in the table
    below.
-5. **Provenance on every fact.** Each fact records its source (Notes or instance), the key and
-   SHA-256 of the raw document, the ingestion mode, and the parser version. The DoD of STA-331
-   lists these fields.
+5. **Provenance on every fact.** The DoD of STA-331 lists these fields: the ingestion path
+   (`ingestion_mode` in the raw metadata, `backfill` or `incremental`), the source document
+   (Notes file or instance, with its key and SHA-256), the `execution_id`, the load time, and the
+   parser version.
 6. **Transform replays from the raw store.** A change to a parser or a rule reruns transform. It
    does not need a new extract. Two limits apply today:
-   - A replay must replace the facts of the filing. With `DO NOTHING`, the store keeps the old
-     facts, so a parser fix never lands. STA-331 decides how a replay writes, for example a delete
-     and an insert of the filing in one transaction.
+   - A replay must replace the facts of the filing from the replayed source. With `DO NOTHING`,
+     the store keeps the old facts, so a parser fix never lands. STA-331 decides how a replay
+     writes. A delete and an insert of the filing and source in one transaction is one way. It
+     needs a delete on `FactStore`, which the STA-145 freeze does not have.
    - The raw store keeps only the latest version of a Notes file (see [Raw Store](#raw-store)),
      and the SEC replaces old files (assumption A4). So a replay of a Notes filing reads the
      latest version, which can differ from the first run.
 
-Rule 4 removes the order from the result. It does not remove the split. If one source has facts
-that the other lacks, the fact store differs between the cases under every option. Example: in the
-case "daily indexes only", a fact that only the Notes file has never exists. STA-402 measures how
-often this happens.
+Rule 4 removes the order from the result. It does not remove the split. If the sources differ for
+a fact in any way, the fact store differs between the cases under every option. Example: in the
+case "Notes only" the store holds the Notes value, and in the case "daily indexes only" it holds
+the instance value. Only agreement between the sources gives the same result in every case.
+STA-402 measures how often the sources differ.
 
 The fact store design already has a rule for two sources (STA-145, see
 `sec/design/data_model/storage_traits_design.md`, `FactStore::upsert`, and
 `hybrid_data_model.md` §2.1). It keys canonical facts by `source_ref` and never merges two sources
 into one row. "Which value wins" is a read-time choice. Today `source_ref` names the filing
 (`sec:accession`), so a Notes copy and an instance copy of the same filing share it. The freeze
-therefore points to option 3, but does not decide this case. STA-331 decides.
+points to option 3, but does not decide this case. STA-331 decides.
 
 | Option | Rule | Same result across the cases? | Pro | Con |
 | ------ | ---- | ----------------------------- | --- | --- |
 | 1 | The sources agree, so `DO NOTHING` keeps one copy | Yes, only if STA-402 finds no difference | No extra rule | Fails on any difference |
-| 2 | A fixed precedence, for example instance over Notes, applied by an upsert | No, for facts on one side only | One copy per fact, order-free | Merges two sources into one row, against the STA-145 freeze |
-| 3 | Both copies with their provenance, and reads pick one | No, for facts on one side only | Nothing is lost, fits the STA-145 freeze | Every read needs the rule, and `source_ref` must name the source document |
+| 2 | A fixed precedence, for example instance over Notes, applied by an upsert | No, for any difference between the sources | One copy per fact, order-free within a case | Drops the other copy. Against the STA-145 rule if `source_ref` names the source document |
+| 3 | Both copies with their provenance, and reads pick one | No, for any difference between the sources | Nothing is lost, fits the STA-145 rule | Every read needs the rule, and `source_ref` must name the source document |
 
 ## Raw Store
 
@@ -1321,3 +1325,6 @@ to fill gaps. Detection outputs only a `Vec<FilingRef>`, so the filing machine d
 
 Still open from the findings: GLEIF access, detail depth, the `-xbrl.zip` and the inline parser, and
 how the fact store treats amendments (STA-331).
+
+Still open from [Path Independence](#path-independence): the rule for a fact from two sources
+(STA-402, then STA-331), and how a replay writes (STA-331).
