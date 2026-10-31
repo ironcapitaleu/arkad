@@ -43,9 +43,11 @@ impl Quarter {
     /// ```
     /// use sec::shared::financial::quarter::Quarter;
     ///
+    /// let number = "3";
+    ///
     /// let expected_result = Some(Quarter::Q3);
     ///
-    /// let result = Quarter::from_number_str("3");
+    /// let result = Quarter::from_number_str(number);
     ///
     /// assert_eq!(result, expected_result);
     /// ```
@@ -69,27 +71,33 @@ mod tests {
 
     #[test]
     fn should_display_q1_when_quarter_is_q1() {
+        let quarter = Quarter::Q1;
+
         let expected_result = "Q1";
 
-        let result = Quarter::Q1.to_string();
+        let result = quarter.to_string();
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_parse_q3_from_number_string_when_input_is_3() {
+        let number = "3";
+
         let expected_result = Some(Quarter::Q3);
 
-        let result = Quarter::from_number_str("3");
+        let result = Quarter::from_number_str(number);
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_return_none_when_number_string_is_invalid() {
+        let number = "5";
+
         let expected_result = None;
 
-        let result = Quarter::from_number_str("5");
+        let result = Quarter::from_number_str(number);
 
         assert_eq!(result, expected_result);
     }

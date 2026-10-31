@@ -277,6 +277,7 @@ mod tests {
     fn should_build_company_facts_state_for_cik_and_repository() {
         let cik = Cik::new(BERKSHIRE_HATHAWAY_CIK_RAW)
             .expect("Given a hardcoded valid CIK, Cik creation should always succeed");
+        let repository = FakeWriteRepository::new();
 
         let expected_result = PrepareSecRequest::new(
             PrepareSecRequestInput::new(cik.clone()),
@@ -286,7 +287,7 @@ mod tests {
         let result = PrepareSecRequest::builder()
             .all_company_facts()
             .cik(cik)
-            .repository(FakeWriteRepository::new())
+            .repository(repository)
             .build();
 
         assert_eq!(result, expected_result);
@@ -296,6 +297,7 @@ mod tests {
     fn should_build_notes_file_state_for_period_and_repository() {
         let period = NotesPeriod::new("2024q1")
             .expect("Given a published period, NotesPeriod creation should always succeed");
+        let repository = FakeNotesRepository::new();
 
         let expected_result = PrepareSecRequest::<NotesFile, _>::new(
             PrepareSecRequestInput::new(period),
@@ -305,7 +307,7 @@ mod tests {
         let result = PrepareSecRequest::builder()
             .notes_file()
             .period(period)
-            .repository(FakeNotesRepository::new())
+            .repository(repository)
             .build();
 
         assert_eq!(result, expected_result);
@@ -315,6 +317,7 @@ mod tests {
     fn should_build_same_state_when_repository_is_set_before_kind() {
         let cik = Cik::new(BERKSHIRE_HATHAWAY_CIK_RAW)
             .expect("Given a hardcoded valid CIK, Cik creation should always succeed");
+        let repository = FakeWriteRepository::new();
 
         let expected_result = PrepareSecRequest::builder()
             .all_company_facts()
@@ -323,7 +326,7 @@ mod tests {
             .build();
 
         let result = PrepareSecRequest::builder()
-            .repository(FakeWriteRepository::new())
+            .repository(repository)
             .all_company_facts()
             .cik(cik)
             .build();
