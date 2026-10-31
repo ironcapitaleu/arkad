@@ -33,7 +33,7 @@
 //! let state = PrepareSecRequest::builder().all_company_facts().build();
 //! ```
 //!
-//! The state holds no storage repository. The super-state hands the repository to the store
+//! The state holds no storage repository. The super-state passes the repository to the store
 //! state, so the builder has no step for it:
 //!
 //! ```compile_fail,E0599

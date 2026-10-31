@@ -598,7 +598,7 @@ mod tests {
 
     const fn implements_state<T: State>() {}
     #[test]
-    const fn should_implement_state_for_prepare_notes_request_with_notes_repository() {
+    const fn should_implement_state_for_prepare_notes_request() {
         implements_state::<PrepareNotesRequest>();
     }
 }
