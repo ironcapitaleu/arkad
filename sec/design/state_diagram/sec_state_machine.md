@@ -30,6 +30,21 @@ stateDiagram-v2
 
     ExtractNotes --> [*]
 
+    %% `DetectFilings` SuperState, one per day
+    [*] --> DetectFilings
+    state DetectFilings {
+        ValidateIndexDate --> PrepareSecRequest
+        note right of PrepareSecRequest : Generic state with the DailyIndex kind
+        PrepareSecRequest --> DownloadDailyIndex
+        note right of DownloadDailyIndex : A day without filings gives no response, by the 404 rule
+        DownloadDailyIndex --> StoreDailyIndex
+        note right of StoreDailyIndex : Writes no file for a day without filings
+        StoreDailyIndex --> SelectFilings
+        note right of SelectFilings : The stream ends after this state with the FilingRef list
+    }
+
+    DetectFilings --> [*]
+
     %% `Transform` SuperState
     state Transform {
         ParseCompanyFacts --> CreateFinancialStatements

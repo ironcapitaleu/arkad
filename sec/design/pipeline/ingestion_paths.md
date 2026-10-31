@@ -451,8 +451,10 @@ Decided by the lead on 2026-10-28. To meet it, the job reads the EDGAR daily ind
 | Delay | The index of 2026-10-27 appeared at 02:16 UTC on 2026-10-28 | Minutes |
 | Format | Fixed-width text, `application/octet-stream` | Atom XML |
 
-`DetectFilingsSuperState` runs `ValidateIndexDate` → `PrepareDailyIndexRequest` →
-`DownloadDailyIndex` → `StoreDailyIndex` → `SelectFilings`.
+`DetectFilingsSuperState` runs `ValidateIndexDate` → `PrepareSecRequest<DailyIndex, R>` →
+`DownloadDailyIndex` → `StoreDailyIndex` → `SelectFilings`. Its context holds the repository,
+because `ValidateIndexDate` and `DownloadDailyIndex` hold none. `run_to_filings` returns the
+selected `FilingRef` list (STA-374).
 
 `ValidateIndexDate` turns a raw `YYYY-MM-DD` string into an `IndexDate`. The `IndexDate` gives the
 three date parts of the URL: the year, the quarter folder `QTR1` to `QTR4`, and `YYYYMMDD`. The state
