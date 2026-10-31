@@ -100,27 +100,33 @@ mod tests {
 
     #[test]
     fn should_format_display_with_both_forms_when_reason_is_invalid_format() {
+        let reason = InvalidNotesPeriodReason::InvalidNotesPeriodFormat;
+
         let expected_result = "Expected the form YYYYqN or YYYY_MM";
 
-        let result = InvalidNotesPeriodReason::InvalidNotesPeriodFormat.to_string();
+        let result = reason.to_string();
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_format_display_with_last_quarter_when_reason_is_unpublished_quarter() {
+        let reason = InvalidNotesPeriodReason::UnpublishedQuarter;
+
         let expected_result = "The last quarterly Notes file is 2025q3";
 
-        let result = InvalidNotesPeriodReason::UnpublishedQuarter.to_string();
+        let result = reason.to_string();
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_format_display_with_first_month_when_reason_is_unpublished_month() {
+        let reason = InvalidNotesPeriodReason::UnpublishedMonth;
+
         let expected_result = "The first monthly Notes file is 2025_10";
 
-        let result = InvalidNotesPeriodReason::UnpublishedMonth.to_string();
+        let result = reason.to_string();
 
         assert_eq!(result, expected_result);
     }

@@ -127,13 +127,15 @@ mod tests {
     #[tokio::test]
     async fn should_read_back_the_persisted_record_when_the_record_was_persisted() {
         let store = FakeReadWriteRepository::new();
+        let record = "CIK0001067983".to_string();
+        let position = 0;
         let expected_result = Some("CIK0001067983".to_string());
 
-        store.persist("CIK0001067983".to_string()).await.expect(
+        store.persist(record).await.expect(
             "Given a fake store that records every record, the persist should always succeed",
         );
         let result = store
-            .get(0)
+            .get(position)
             .await
             .expect("Given a record persisted at this position, the read should always succeed");
 
@@ -143,10 +145,11 @@ mod tests {
     #[tokio::test]
     async fn should_return_none_when_the_position_holds_no_record() {
         let store: FakeReadWriteRepository<String> = FakeReadWriteRepository::new();
+        let position = 0;
         let expected_result = None;
 
         let result = store
-            .get(0)
+            .get(position)
             .await
             .expect("Given an empty fake store, the read should always succeed");
 

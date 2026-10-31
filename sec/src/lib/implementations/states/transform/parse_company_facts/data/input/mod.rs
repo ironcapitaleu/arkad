@@ -286,10 +286,11 @@ mod tests {
         let json = serde_json::json!({"cik": 320_193});
         let compact_input =
             ParseCompanyFactsInput::new(json.clone(), Sha256Digest::of(br#"{"cik":320193}"#));
+        let spaced_body_digest = Sha256Digest::of(br#"{ "cik": 320193 }"#);
 
         let expected_result = compact_input;
 
-        let result = ParseCompanyFactsInput::new(json, Sha256Digest::of(br#"{ "cik": 320193 }"#));
+        let result = ParseCompanyFactsInput::new(json, spaced_body_digest);
 
         assert_ne!(result, expected_result);
     }

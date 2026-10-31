@@ -57,11 +57,13 @@ mod tests {
     #[test]
     fn should_pass_when_the_request_input_builds_the_request() {
         let request = SecRequest::<NotesFile>::new(period("2024q1"));
+        let request_input = period("2024q1");
+        let input_label = "period";
 
         let expected_result = Ok(());
 
         let result =
-            ensure_request_matches_input(&request, &period("2024q1"), "period", TARGET_STATE_NAME);
+            ensure_request_matches_input(&request, &request_input, input_label, TARGET_STATE_NAME);
 
         assert_eq!(result, expected_result);
     }
@@ -69,6 +71,8 @@ mod tests {
     #[test]
     fn should_return_failed_context_conversion_when_the_request_input_builds_another_request() {
         let request = SecRequest::<NotesFile>::new(period("2023q4"));
+        let request_input = period("2024q1");
+        let input_label = "period";
 
         let expected_result = Err(TransitionError::FailedContextConversion(
             transition::FailedContextConversion::new(
@@ -79,7 +83,7 @@ mod tests {
         ));
 
         let result =
-            ensure_request_matches_input(&request, &period("2024q1"), "period", TARGET_STATE_NAME);
+            ensure_request_matches_input(&request, &request_input, input_label, TARGET_STATE_NAME);
 
         assert_eq!(result, expected_result);
     }

@@ -200,18 +200,20 @@ mod tests {
 
     #[test]
     fn should_be_able_to_create_state_error_when_casting_from_specific_state_machine() {
-        let _result: State = StateMachine::State(State::InvalidInput)
+        let state_machine_error = StateMachine::State(State::InvalidInput);
+
+        let _result: State = state_machine_error
             .try_into()
             .expect("Should always be able to cast provided hardcoded `StateMachine` error into `State` error");
     }
 
     #[test]
     fn should_be_able_to_create_transition_error_when_casting_from_specific_state_machine() {
-        let _result: Transition = StateMachine::Transition(Transition::FailedContextConversion(
+        let state_machine_error = StateMachine::Transition(Transition::FailedContextConversion(
             transition::FailedContextConversion::new("StateA", "StateB", "Sample reason"),
-        ))
-        .try_into()
-        .expect("Should always be able to cast provided hardcoded `StateMachine` error into `Transition` error");
+        ));
+
+        let _result: Transition = state_machine_error.try_into().expect("Should always be able to cast provided hardcoded `StateMachine` error into `Transition` error");
     }
 
     #[test]
@@ -225,9 +227,11 @@ mod tests {
 
     #[test]
     fn should_be_able_to_cast_into_equivalent_state_machine_error_when_having_a_state_error() {
+        let state_error = State::InvalidInput;
+
         let expected_result = StateMachine::State(State::InvalidInput);
 
-        let result: StateMachine = State::InvalidInput.into();
+        let result: StateMachine = state_error.into();
 
         assert_eq!(result, expected_result);
     }
@@ -250,14 +254,15 @@ mod tests {
     #[test]
     #[should_panic(expected = "left == right")]
     fn should_be_failing_when_trying_to_compare_casting_result_from_different_enum_variant() {
+        let transition_error = Transition::FailedContextConversion(
+            transition::FailedContextConversion::new("StateX", "StateY", "Sample reason"),
+        );
+
         let expected_result = StateMachine::Transition(Transition::FailedOutputConversion(
             transition::FailedOutputConversion::new("StateA", "StateB", "Sample reason"),
         ));
 
-        let result: StateMachine = Transition::FailedContextConversion(
-            transition::FailedContextConversion::new("StateX", "StateY", "Sample reason"),
-        )
-        .into();
+        let result: StateMachine = transition_error.into();
 
         assert_eq!(result, expected_result);
     }

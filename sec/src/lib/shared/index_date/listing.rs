@@ -70,68 +70,82 @@ mod tests {
 
     #[test]
     fn should_return_the_dates_in_listing_order_when_the_listing_has_form_indexes() {
+        let listing = listing(&["form.20261027.idx", "form.20261028.idx"]);
+
         let expected_result = vec![date(2026, 10, 27), date(2026, 10, 28)];
 
-        let result = listed_index_dates(&listing(&["form.20261027.idx", "form.20261028.idx"]));
+        let result = listed_index_dates(&listing);
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_return_no_dates_when_the_listing_has_only_other_index_types() {
-        let expected_result: Vec<NaiveDate> = Vec::new();
-
-        let result = listed_index_dates(&listing(&[
+        let listing = listing(&[
             "company.20261027.idx",
             "master.20261027.idx",
             "crawler.20261027.idx",
             "sitemap.20261027.xml",
-        ]));
+        ]);
+
+        let expected_result: Vec<NaiveDate> = Vec::new();
+
+        let result = listed_index_dates(&listing);
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_ignore_the_name_when_its_year_has_two_digits() {
+        let listing = listing(&["form.981027.idx", "form.19981027.idx"]);
+
         let expected_result = vec![date(1998, 10, 27)];
 
-        let result = listed_index_dates(&listing(&["form.981027.idx", "form.19981027.idx"]));
+        let result = listed_index_dates(&listing);
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_ignore_the_name_when_its_date_has_seven_digits() {
+        let listing = listing(&["form.2026102.idx"]);
+
         let expected_result: Vec<NaiveDate> = Vec::new();
 
-        let result = listed_index_dates(&listing(&["form.2026102.idx"]));
+        let result = listed_index_dates(&listing);
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_ignore_the_name_when_its_date_has_a_space() {
+        let listing = listing(&["form.202610 2.idx"]);
+
         let expected_result: Vec<NaiveDate> = Vec::new();
 
-        let result = listed_index_dates(&listing(&["form.202610 2.idx"]));
+        let result = listed_index_dates(&listing);
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_ignore_the_name_when_its_date_does_not_exist() {
+        let listing = listing(&["form.20260230.idx"]);
+
         let expected_result: Vec<NaiveDate> = Vec::new();
 
-        let result = listed_index_dates(&listing(&["form.20260230.idx"]));
+        let result = listed_index_dates(&listing);
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_return_no_dates_when_the_listing_has_no_item_array() {
+        let listing = json!({ "directory": {} });
+
         let expected_result: Vec<NaiveDate> = Vec::new();
 
-        let result = listed_index_dates(&json!({ "directory": {} }));
+        let result = listed_index_dates(&listing);
 
         assert_eq!(result, expected_result);
     }

@@ -53,18 +53,22 @@ mod tests {
 
     #[test]
     fn should_convert_to_state_error_when_into_is_called() {
+        let missing_daily_index = sample_error();
+
         let expected_result = StateError::MissingDailyIndex(sample_error());
 
-        let result: StateError = sample_error().into();
+        let result: StateError = missing_daily_index.into();
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_name_the_date_when_displayed() {
+        let missing_daily_index = sample_error();
+
         let expected_result = "[MissingDailyIndex] Failure in State: 'Download Daily Index', Reason: 'The SEC sent no daily index of 2026-10-27, and no quarter listing shows that the day had no filings'";
 
-        let result = sample_error().to_string();
+        let result = missing_daily_index.to_string();
 
         assert_eq!(result, expected_result);
     }

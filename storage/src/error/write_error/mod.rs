@@ -7,7 +7,9 @@
 //! ```rust
 //! use storage::WriteError;
 //!
-//! let _err = WriteError::failed_integrity_check("SFAC-6 identity violated");
+//! let reason = "SFAC-6 identity violated";
+//!
+//! let _err = WriteError::failed_integrity_check(reason);
 //! ```
 
 use thiserror::Error;

@@ -53,9 +53,11 @@ impl Sha256Digest {
     /// ```rust
     /// use storage::shared::Sha256Digest;
     ///
+    /// let bytes = b"{}";
+    ///
     /// let expected_result = "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a";
     ///
-    /// let digest = Sha256Digest::of(b"{}");
+    /// let digest = Sha256Digest::of(bytes);
     /// let result = digest.as_str();
     ///
     /// assert_eq!(result, expected_result);
@@ -86,9 +88,11 @@ impl Sha256Digest {
     ///
     /// # #[tokio::main(flavor = "current_thread")]
     /// # async fn main() {
+    /// let bytes = b"{}".to_vec();
+    ///
     /// let expected_result = (Sha256Digest::of(b"{}"), b"{}".to_vec());
     ///
-    /// let result = Sha256Digest::of_owned_async(b"{}".to_vec()).await;
+    /// let result = Sha256Digest::of_owned_async(bytes).await;
     ///
     /// assert_eq!(result, expected_result);
     /// # }
@@ -130,9 +134,11 @@ impl FromStr for Sha256Digest {
     /// ```rust
     /// use storage::shared::Sha256Digest;
     ///
+    /// let digest_string = "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a";
+    ///
     /// let expected_result = Sha256Digest::of(b"{}");
     ///
-    /// let result: Sha256Digest = "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+    /// let result: Sha256Digest = digest_string
     ///     .parse()
     ///     .expect("Given the digest of '{}', parsing should always succeed");
     ///
@@ -248,9 +254,11 @@ mod tests {
 
     #[test]
     fn should_serialize_the_digest_as_its_hex_string() {
+        let digest = Sha256Digest::of(b"abc");
+
         let expected_result = format!("\"{DIGEST_OF_ABC}\"");
 
-        let result = serde_json::to_string(&Sha256Digest::of(b"abc"))
+        let result = serde_json::to_string(&digest)
             .expect("Given a digest of one string field, serialization should always succeed");
 
         assert_eq!(result, expected_result);
@@ -292,27 +300,33 @@ mod tests {
 
     #[test]
     fn should_display_the_known_digest_for_the_bytes_abc() {
+        let digest = Sha256Digest::of(b"abc");
+
         let expected_result = "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad";
 
-        let result = Sha256Digest::of(b"abc").to_string();
+        let result = digest.to_string();
 
         assert_eq!(result, expected_result);
     }
 
     #[tokio::test]
     async fn should_return_the_digest_of_the_bytes_when_hashing_on_the_blocking_thread_pool() {
+        let bytes = b"abc".to_vec();
+
         let expected_result = Sha256Digest::of(b"abc");
 
-        let (result, _) = Sha256Digest::of_owned_async(b"abc".to_vec()).await;
+        let (result, _) = Sha256Digest::of_owned_async(bytes).await;
 
         assert_eq!(result, expected_result);
     }
 
     #[tokio::test]
     async fn should_return_the_bytes_unchanged_when_hashing_on_the_blocking_thread_pool() {
+        let bytes = b"abc".to_vec();
+
         let expected_result = b"abc".to_vec();
 
-        let (_, result) = Sha256Digest::of_owned_async(b"abc".to_vec()).await;
+        let (_, result) = Sha256Digest::of_owned_async(bytes).await;
 
         assert_eq!(result, expected_result);
     }
@@ -337,18 +351,22 @@ mod tests {
 
     #[test]
     fn should_return_the_known_digest_for_empty_bytes() {
+        let bytes = b"";
+
         let expected_result = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
 
-        let result = sha256_hex(b"");
+        let result = sha256_hex(bytes);
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_return_the_known_digest_for_the_bytes_abc() {
+        let bytes = b"abc";
+
         let expected_result = "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad";
 
-        let result = sha256_hex(b"abc");
+        let result = sha256_hex(bytes);
 
         assert_eq!(result, expected_result);
     }

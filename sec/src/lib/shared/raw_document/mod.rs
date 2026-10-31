@@ -719,10 +719,11 @@ mod tests {
      {
         let digest_of_other_bytes = storage::Sha256Digest::of(b"[]");
         let file = sample_notes_file().with_body_digest(digest_of_other_bytes.clone());
+        let document = document_from_file(&file);
 
         let expected_result = digest_of_other_bytes;
 
-        let result = document_from_file(&file).metadata().sha256().clone();
+        let result = document.metadata().sha256().clone();
 
         assert_eq!(result, expected_result);
     }
@@ -799,11 +800,12 @@ mod tests {
             .persist(document.clone())
             .await
             .expect("Given a fresh temp directory, persisting the document should always succeed");
+        let key = sample_notes_key();
 
         let expected_result = Some(document);
 
         let result = repository
-            .get(sample_notes_key())
+            .get(key)
             .await
             .expect("Given a document this test just stored, reading it should always succeed");
 
