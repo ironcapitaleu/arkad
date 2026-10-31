@@ -50,7 +50,7 @@ impl RawDocumentMetadataContext {
     ///
     /// The final URL comes from [`SecResponse::url`](SecResponseTrait::url).
     ///
-    /// A JSON response has no `from_file`:
+    /// `from_file` does not accept a JSON response:
     ///
     /// ```compile_fail,E0277
     /// use sec::shared::raw_document::RawDocumentMetadataContext;
