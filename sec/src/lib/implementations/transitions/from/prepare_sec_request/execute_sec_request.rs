@@ -33,18 +33,9 @@ use crate::error::state_machine::transition::Transition as TransitionError;
 use crate::implementations::states::extract::execute_sec_request::{
     ExecuteSecRequest, ExecuteSecRequestContext, ExecuteSecRequestInput,
 };
-use crate::implementations::states::extract::prepare_sec_request::{
-    PrepareSecRequest, PrepareSecRequestContext,
-};
+use crate::implementations::states::extract::prepare_sec_request::PrepareSecRequest;
 use crate::shared::http_client::RespondsWith;
 use crate::shared::http_client::SecClient as SecClientTrait;
-use crate::shared::request::implementations::sec_request::RequestKind;
-
-impl<K: RequestKind, R> From<PrepareSecRequestContext<K, R>> for ExecuteSecRequestContext<K, R> {
-    fn from(context: PrepareSecRequestContext<K, R>) -> Self {
-        Self::new(context.request_input, context.repository)
-    }
-}
 
 impl<K: RespondsWith, R, C: SecClientTrait> TryFrom<(PrepareSecRequest<K, R>, C)>
     for ExecuteSecRequest<K, R, C>
@@ -77,40 +68,23 @@ impl<K: RespondsWith, R, C: SecClientTrait> TryFrom<(PrepareSecRequest<K, R>, C)
 mod tests {
     use pretty_assertions::assert_eq;
     use state_maschine::prelude::State as SMState;
-    use storage::WriteError;
 
     use super::*;
     use crate::implementations::states::extract::execute_sec_request::ExecuteCompanyFactsRequest;
     use crate::implementations::states::extract::prepare_sec_request::{
-        PrepareCompanyFactsRequest, PrepareSecRequestInput,
+        PrepareCompanyFactsRequest, PrepareSecRequestContext, PrepareSecRequestInput,
     };
     use crate::shared::cik::Cik;
     use crate::shared::http_client::implementations::sec_client::SecClient;
     use crate::shared::notes_period::NotesPeriod;
     use crate::shared::request::SecRequest as SecRequestTrait;
     use crate::shared::request::implementations::sec_request::{
-        CompanyFacts, NotesFile, SecRequest,
+        NotesFile, RequestKind, SecRequest,
     };
     use crate::tests::fixtures::sample_write_repository::{
         FakeNotesRepository, FakeWriteRepository,
     };
     use crate::traits::state_machine::state::State;
-
-    #[test]
-    fn should_convert_context_when_valid_context() {
-        let cik = Cik::new("0001234567")
-            .expect("Hardcoded valid CIK string should always parse successfully");
-        let context = PrepareSecRequestContext::<CompanyFacts, _>::new(
-            cik.clone(),
-            FakeWriteRepository::new(),
-        );
-
-        let expected_result = ExecuteSecRequestContext::new(cik, FakeWriteRepository::new());
-
-        let result = ExecuteSecRequestContext::from(context);
-
-        assert_eq!(result, expected_result);
-    }
 
     #[tokio::test]
     async fn should_move_request_and_client_into_input_when_prepare_sec_request_has_output() {
@@ -201,18 +175,26 @@ mod tests {
     }
 
     #[test]
-    fn should_carry_repository_when_converting_context() {
-        let cik = Cik::new("0001234567")
-            .expect("Hardcoded valid CIK string should always parse successfully");
-        let context = PrepareSecRequestContext::<CompanyFacts, _>::new(
-            cik,
-            FakeWriteRepository::rejecting(WriteError::conflicting_write("Sample conflict")),
-        );
+    fn should_return_missing_output_named_after_notes_file_kind_when_prepare_notes_request_has_no_output()
+     {
+        let period = NotesPeriod::new("2024q1")
+            .expect("Given a published period, NotesPeriod creation should always succeed");
+        let state = PrepareSecRequest::builder()
+            .notes_file()
+            .period(period)
+            .repository(FakeNotesRepository::new())
+            .build();
 
-        let expected_result =
-            FakeWriteRepository::rejecting(WriteError::conflicting_write("Sample conflict"));
+        let expected_result = Err(TransitionError::MissingOutput(
+            transition::MissingOutput::new(
+                NotesFile::PREPARE_STATE_NAME,
+                NotesFile::EXECUTE_STATE_NAME,
+            ),
+        ));
 
-        let result = ExecuteSecRequestContext::from(context).repository().clone();
+        let result =
+            ExecuteSecRequest::<NotesFile, _, SecClient>::try_from((state, SecClient::default()))
+                .map(|_| ());
 
         assert_eq!(result, expected_result);
     }

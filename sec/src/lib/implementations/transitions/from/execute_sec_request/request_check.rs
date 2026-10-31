@@ -19,8 +19,9 @@ use crate::shared::request::implementations::sec_request::SecRequest;
 ///
 /// Returns [`TransitionError::FailedContextConversion`] from
 /// [`E::EXECUTE_STATE_NAME`](RespondsWith::EXECUTE_STATE_NAME) to `target_state_name` if the two
-/// requests differ. The reason names the requested URL and `request_input` under `input_label`.
-pub fn ensure_request_matches_input<E: RespondsWith>(
+/// requests differ. The reason names the requested URL, then `input_label` and `request_input`,
+/// for example `period '2024q1'`.
+pub(super) fn ensure_request_matches_input<E: RespondsWith>(
     request: &SecRequest<E>,
     request_input: &E::Input,
     input_label: &str,
