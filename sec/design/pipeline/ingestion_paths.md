@@ -246,18 +246,33 @@ Step 2 adds the doctests of the DoD on `ExecuteSecRequest`. `FilingIndex` has `R
 `StoredAs` on `main`, so it is the kind that is only read:
 
 - A doctest shows that `ExecuteSecRequest<FilingIndex, SecClient>` implements `State`.
-- A `compile_fail` doctest builds
+- A `compile_fail,E0107` doctest builds
   `ExecuteSecRequestContext::<CompanyFacts, _>::new(cik, repository)`. The kind must be named,
   because Rust cannot infer it from `E::Input`. The module doctest at
-  `execute_sec_request/context/mod.rs:27` runs this line on `main` today. After step 2 it fails,
-  because the context has one type parameter and `new` takes no repository.
+  `execute_sec_request/context/mod.rs:27` builds the same context on `main` today. After step 2
+  the line fails, because the context has one type parameter and `new` takes no repository.
 
 The positive doctest guards the bound. A `compile_fail` doctest cannot show that a bound is absent,
 because a missing bound makes code compile, not fail. Step 3 adds the same pair for
-`PrepareSecRequest<FilingIndex>`. Its `compile_fail` doctest runs
-`PrepareSecRequest::builder().all_company_facts().cik(cik).repository(r)`, which names the kind
-and runs on `main` today in the module doctest of `prepare_sec_request/mod.rs`. Before each step
-lands, run the `compile_fail` body as a plain doctest on `main` to confirm that it compiles there.
+`PrepareSecRequest<FilingIndex>`. Its `compile_fail,E0599` doctest builds
+`PrepareSecRequest::builder().all_company_facts().cik(cik).repository(r)`. The module doctest of
+`prepare_sec_request/mod.rs:37-41` builds the same chain on `main` today. Before each step lands,
+compile the `compile_fail` body as a plain doctest on `main`. Then confirm the error code after the
+step.
+
+The steps also change `compile_fail` doctests that exist on `main`:
+
+- `prepare_sec_request/builder.rs` holds three `compile_fail,E0599` doctests. After step 3, the
+  one at `:42` fails because `.repository` is gone, not for the missing input it names. Step 3
+  drops `.repository(...)` from it. The ones at `:61` (no repository) and `:72` (the repository
+  must store the source of the kind) name properties that no longer exist. Step 3 deletes them.
+- The `compile_fail,E0277` doctests of the transitions name the old arity:
+  `prepare_sec_request/execute_sec_request.rs:15`, `validate_cik_format/prepare_sec_request.rs:14`,
+  `execute_sec_request/store_submissions.rs:18`, and `execute_sec_request/store_notes_archive.rs:19`.
+  After steps 2 to 4 they fail with E0107 instead, so the test run fails. Each step that changes an
+  arity updates these doctests to the new arity and keeps their property, the mismatch of kinds.
+- The builders of `ValidateCikFormat` and `ValidateNotesPeriod` hold no `compile_fail` doctests.
+  The super-state builders keep `.repository(...)`, so their doctests do not change.
 
 Each step updates the docs that its change makes false. Examples: the module docs of
 `notes/mod.rs` and `submissions/mod.rs` ("Each state holds its own clone of the storage
