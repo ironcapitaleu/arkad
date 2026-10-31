@@ -131,51 +131,62 @@ mod tests {
 
     #[test]
     fn should_convert_row_when_form_is_ten_k() {
+        let daily_index_row = row("10-K");
+
         let expected_result = Ok(filing_ref(Form::TenK, false));
 
-        let result = FilingRef::try_from(&row("10-K"));
+        let result = FilingRef::try_from(&daily_index_row);
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_set_amendment_when_form_is_ten_k_amendment() {
+        let daily_index_row = row("10-K/A");
+
         let expected_result = Ok(filing_ref(Form::TenK, true));
 
-        let result = FilingRef::try_from(&row("10-K/A"));
+        let result = FilingRef::try_from(&daily_index_row);
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_convert_row_for_each_selected_form() {
+        let daily_index_rows: Vec<DailyIndexRow> = SELECTED_FORMS
+            .iter()
+            .map(|form| row(&form.to_string()))
+            .collect();
+
         let expected_result: Vec<Result<FilingRef, UnsupportedForm>> = SELECTED_FORMS
             .iter()
             .map(|form| Ok(filing_ref(*form, false)))
             .collect();
 
-        let result: Vec<Result<FilingRef, UnsupportedForm>> = SELECTED_FORMS
-            .iter()
-            .map(|form| FilingRef::try_from(&row(&form.to_string())))
-            .collect();
+        let result: Vec<Result<FilingRef, UnsupportedForm>> =
+            daily_index_rows.iter().map(FilingRef::try_from).collect();
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_return_unsupported_form_when_form_is_eight_k() {
+        let daily_index_row = row("8-K");
+
         let expected_result = Err(UnsupportedForm::new("8-K"));
 
-        let result = FilingRef::try_from(&row("8-K"));
+        let result = FilingRef::try_from(&daily_index_row);
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_return_unsupported_form_when_form_text_has_two_words() {
+        let daily_index_row = row("DEF 14A");
+
         let expected_result = Err(UnsupportedForm::new("DEF 14A"));
 
-        let result = FilingRef::try_from(&row("DEF 14A"));
+        let result = FilingRef::try_from(&daily_index_row);
 
         assert_eq!(result, expected_result);
     }

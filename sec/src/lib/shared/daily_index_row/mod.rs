@@ -249,43 +249,50 @@ mod tests {
         })
     }
 
-    fn parse_sample_daily_index() -> Vec<DailyIndexRow> {
-        parse_daily_index(SAMPLE_DAILY_INDEX)
-            .expect("Given the stored fixture of a real index, parsing should always succeed")
-    }
-
     #[test]
     fn should_return_one_row_per_row_line_for_sample_daily_index() {
+        let text = SAMPLE_DAILY_INDEX;
+
         let expected_result = 19;
 
-        let result = parse_sample_daily_index().len();
+        let result = parse_daily_index(text)
+            .expect("Given the stored fixture of a real index, parsing should always succeed")
+            .len();
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_return_second_filer_of_multi_filer_filing_for_sample_daily_index() {
+        let text = SAMPLE_DAILY_INDEX;
+
         let expected_result = row("10-Q", "201533", "0000811156-26-000032");
 
-        let result = parse_sample_daily_index().swap_remove(SECOND_FILER_ROW_INDEX);
+        let result = parse_daily_index(text)
+            .expect("Given the stored fixture of a real index, parsing should always succeed")
+            .swap_remove(SECOND_FILER_ROW_INDEX);
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_return_no_rows_when_index_has_only_header() {
+        let text = "Form Type   Company Name\n---\n";
+
         let expected_result = Ok(vec![]);
 
-        let result = parse_daily_index("Form Type   Company Name\n---\n");
+        let result = parse_daily_index(text);
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_keep_inner_space_of_form_text_when_form_text_has_two_words() {
+        let line = row_line("DEF 14A", "320193", "20261027", FILE_NAME);
+
         let expected_result = Ok(vec![row("DEF 14A", "320193", "0000320193-26-000106")]);
 
-        let result = parse_row_line(&row_line("DEF 14A", "320193", "20261027", FILE_NAME));
+        let result = parse_row_line(&line);
 
         assert_eq!(result, expected_result);
     }
@@ -293,9 +300,11 @@ mod tests {
     #[test]
     fn should_parse_row_when_line_ends_with_crlf() {
         let line = row_line("10-K/A", "320193", "20261027", FILE_NAME);
+        let text = format!("---\r\n{line}\r\n");
+
         let expected_result = Ok(vec![row("10-K/A", "320193", "0000320193-26-000106")]);
 
-        let result = parse_daily_index(&format!("---\r\n{line}\r\n"));
+        let result = parse_daily_index(&text);
 
         assert_eq!(result, expected_result);
     }
@@ -303,57 +312,69 @@ mod tests {
     #[test]
     fn should_skip_blank_line_when_blank_line_follows_header() {
         let line = row_line("8-K", "320193", "20261027", FILE_NAME);
+        let text = format!("---\n \n{line}");
+
         let expected_result = Ok(vec![row("8-K", "320193", "0000320193-26-000106")]);
 
-        let result = parse_daily_index(&format!("---\n \n{line}"));
+        let result = parse_daily_index(&text);
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_return_missing_header_when_index_has_no_line_of_dashes() {
+        let line = row_line("10-K", "320193", "20261027", FILE_NAME);
+
         let expected_result = Err(DailyIndexError::MissingDailyIndexHeader);
 
-        let result = parse_daily_index(&row_line("10-K", "320193", "20261027", FILE_NAME));
+        let result = parse_daily_index(&line);
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_return_missing_field_with_line_number_when_line_has_too_few_fields() {
+        let text = "Description: Daily Index\n---\n10-K  320193  20261027";
+
         let expected_result = Err(DailyIndexError::InvalidDailyIndexLine {
             line_number: 3,
             reason: InvalidDailyIndexLineReason::MissingField,
         });
 
-        let result = parse_daily_index("Description: Daily Index\n---\n10-K  320193  20261027");
+        let result = parse_daily_index(text);
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_return_missing_field_when_form_column_is_blank() {
+        let line = row_line("", "320193", "20261027", FILE_NAME);
+
         let expected_result = invalid_second_line(InvalidDailyIndexLineReason::MissingField);
 
-        let result = parse_row_line(&row_line("", "320193", "20261027", FILE_NAME));
+        let result = parse_row_line(&line);
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_return_invalid_cik_with_cik_error_when_cik_is_not_a_number() {
+        let line = row_line("10-K", "32O193", "20261027", FILE_NAME);
+
         let expected_result = Err(DailyIndexError::InvalidDailyIndexCik {
             line_number: 2,
             source: CikError::new(InvalidCikReason::ContainsNonNumericCharacters, "32O193"),
         });
 
-        let result = parse_row_line(&row_line("10-K", "32O193", "20261027", FILE_NAME));
+        let result = parse_row_line(&line);
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_return_invalid_cik_with_cik_error_when_cik_has_eleven_digits() {
+        let line = row_line("10-K", "12345678901", "20261027", FILE_NAME);
+
         let expected_result = Err(DailyIndexError::InvalidDailyIndexCik {
             line_number: 2,
             source: CikError::new(
@@ -362,29 +383,33 @@ mod tests {
             ),
         });
 
-        let result = parse_row_line(&row_line("10-K", "12345678901", "20261027", FILE_NAME));
+        let result = parse_row_line(&line);
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_return_invalid_filed_date_when_filed_date_is_not_a_calendar_date() {
+        let line = row_line("10-K", "320193", "20261332", FILE_NAME);
+
         let expected_result = invalid_second_line(InvalidDailyIndexLineReason::InvalidFiledDate {
             filed_date: "20261332".to_string(),
         });
 
-        let result = parse_row_line(&row_line("10-K", "320193", "20261332", FILE_NAME));
+        let result = parse_row_line(&line);
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_return_invalid_filed_date_when_filed_date_has_seven_digits() {
+        let line = row_line("10-K", "320193", "2026102", FILE_NAME);
+
         let expected_result = invalid_second_line(InvalidDailyIndexLineReason::InvalidFiledDate {
             filed_date: "2026102".to_string(),
         });
 
-        let result = parse_row_line(&row_line("10-K", "320193", "2026102", FILE_NAME));
+        let result = parse_row_line(&line);
 
         assert_eq!(result, expected_result);
     }
@@ -396,6 +421,7 @@ mod tests {
             "10-K",
             "A".repeat(70)
         );
+
         let expected_result = Ok(vec![row("10-K", "320193", "0000320193-26-000106")]);
 
         let result = parse_row_line(&line);
@@ -406,11 +432,13 @@ mod tests {
     #[test]
     fn should_return_invalid_file_name_when_file_name_has_no_txt_extension() {
         let file_name = "edgar/data/320193/0000320193-26-000106.htm";
+        let line = row_line("10-K", "320193", "20261027", file_name);
+
         let expected_result = invalid_second_line(InvalidDailyIndexLineReason::InvalidFileName {
             file_name: file_name.to_string(),
         });
 
-        let result = parse_row_line(&row_line("10-K", "320193", "20261027", file_name));
+        let result = parse_row_line(&line);
 
         assert_eq!(result, expected_result);
     }
@@ -418,11 +446,13 @@ mod tests {
     #[test]
     fn should_return_invalid_file_name_when_accession_number_has_wrong_shape() {
         let file_name = "edgar/data/320193/000032019326000106.txt";
+        let line = row_line("10-K", "320193", "20261027", file_name);
+
         let expected_result = invalid_second_line(InvalidDailyIndexLineReason::InvalidFileName {
             file_name: file_name.to_string(),
         });
 
-        let result = parse_row_line(&row_line("10-K", "320193", "20261027", file_name));
+        let result = parse_row_line(&line);
 
         assert_eq!(result, expected_result);
     }
