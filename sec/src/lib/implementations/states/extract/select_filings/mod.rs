@@ -311,22 +311,46 @@ mod tests {
         let index_text = SAMPLE_DAILY_INDEX.to_string();
         let mut state = test_state(Some(index_text.into_bytes()));
 
-        let expected_result = [
-            "0001702744-26-000031",
-            "0001053507-26-000157",
-            "0001047127-26-000052",
-            "0000109563-26-000054",
-            "0000811156-26-000032",
-            "0001213900-26-112626",
-        ]
-        .map(AccessionNumber::new)
-        .to_vec();
+        let expected_result = vec![
+            filing_ref(
+                "1702744",
+                "0001702744-26-000031",
+                ParsedForm::new(Form::TenK, false),
+                date(2026, 10, 27),
+            ),
+            filing_ref(
+                "1053507",
+                "0001053507-26-000157",
+                ParsedForm::new(Form::TenQ, false),
+                date(2026, 10, 27),
+            ),
+            filing_ref(
+                "1047127",
+                "0001047127-26-000052",
+                ParsedForm::new(Form::TenQ, false),
+                date(2026, 10, 27),
+            ),
+            filing_ref(
+                "109563",
+                "0000109563-26-000054",
+                ParsedForm::new(Form::TenQ, false),
+                date(2026, 10, 27),
+            ),
+            filing_ref(
+                "811156",
+                "0000811156-26-000032",
+                ParsedForm::new(Form::TenQ, false),
+                date(2026, 10, 27),
+            ),
+            filing_ref(
+                "2113605",
+                "0001213900-26-112626",
+                ParsedForm::new(Form::TwentyF, false),
+                date(2026, 10, 27),
+            ),
+        ];
 
-        let result: Vec<AccessionNumber> = computed_filings(&mut state)
-            .await
-            .iter()
-            .map(|filing| filing.accession_number().clone())
-            .collect();
+        let result = computed_filings(&mut state).await;
 
         assert_eq!(result, expected_result);
     }
