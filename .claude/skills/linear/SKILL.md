@@ -7,7 +7,7 @@ description: >
   (creating, reading, updating, or searching issues).
 version: 0.1.0
 argument-hint: "[create|list|search|get|update] [details]"
-allowed-tools: [Read, Write, Edit, Bash, AskUserQuestion, mcp__linear__create_issue, mcp__linear__get_issue, mcp__linear__list_issues, mcp__linear__list_teams, mcp__linear__list_projects, mcp__linear__search_issues, mcp__linear__update_issue]
+allowed-tools: [Read, Write, Edit, Bash, AskUserQuestion, mcp__linear__create_issue, mcp__linear__get_issue, mcp__linear__list_issues, mcp__linear__list_teams, mcp__linear__list_projects, mcp__linear__search_issues, mcp__linear__update_issue, mcp__linear__list_issue_labels]
 ---
 
 # Linear Issue Management Skill
@@ -68,6 +68,9 @@ by a SPIKE link back to it for context.
 | DATABASE | `[DATABASE]` | High (2) |
 | DESIGN | `[DESIGN]` | High (2) |
 | (none) | (no prefix) | Varies |
+
+`IMPLEMENTATION` is a title prefix and a label group. Linear refuses the group as a label. See
+"Label IDs" for the label an `[IMPLEMENTATION]` ticket takes.
 
 ### Priority Scale
 
@@ -682,7 +685,8 @@ Guide the user from high-level to specific. Use `AskUserQuestion` to collect:
    - **Frontend** → FRONTEND (or SPIKE/REFACTOR/TEST if the work is research, restructuring, or testing)
    - **Database** → DATABASE (or SPIKE/DESIGN for research and schema-design work)
    - **Backend** → FEATURE, IMPLEMENTATION, REFACTOR, SPIKE, TEST, DESIGN
-   - **Cross-cutting** → DOCS, ONBOARDING, or Basic
+   - **Cross-cutting** → DOCS, ONBOARDING, or Basic. A Basic ticket for maintenance work
+     (tooling, config, dependency bumps) takes the `CHORE` label.
 3. **Title** — what is this issue about? (will be formatted as `[TYPE] Title`, or just `Title` for basic)
 4. **User story** — what do you want and why?
 5. **Priority** — options: Urgent (1), High (2), Medium (3), Low (4) — default High (2)
@@ -748,8 +752,8 @@ Always confirm with the user before making changes.
 
 ## Label IDs
 
-`IMPLEMENTATION` is a label group, not a label. Linear refuses it on an issue. Its children are
-single-select, so an issue takes at most one of them.
+`IMPLEMENTATION` is a label group, not a label. Linear refuses it on an issue. An issue takes at
+most one label from this group.
 
 | Label | ID | Group |
 | --- | --- | --- |
@@ -758,17 +762,18 @@ single-select, so an issue takes at most one of them.
 | TEST | `6edf3100-c0cf-4f7a-8c41-3342d21f1b6d` | IMPLEMENTATION |
 | FIX | `0e1e8146-791e-4ec2-a266-65ef6282db06` | IMPLEMENTATION |
 | CI/CD | `f4a7c5c2-347f-4900-9181-f2706c7f0662` | IMPLEMENTATION |
-| SPIKE | `12ddfaf0-6644-459a-bd71-1765b2f7b795` | / |
-| DOCS | `4ae80929-fd9a-4d24-9e05-1c896d374700` | / |
-| ONBOARDING | `339b3f41-9f48-4574-a958-ff76cf82795e` | / |
-| DESIGN | `ea9940a6-9ba4-443f-8c78-1f2da9251eeb` | / |
-| FRONTEND | `f4239270-e616-4f43-9db8-1fa284cbc147` | / |
-| DATABASE | `434537ba-1774-46cf-9803-a8870aa02a38` | / |
-| CHORE | `63695939-b849-4402-a293-2d54901e8aa2` | / |
+| SPIKE | `12ddfaf0-6644-459a-bd71-1765b2f7b795` | (none) |
+| DOCS | `4ae80929-fd9a-4d24-9e05-1c896d374700` | (none) |
+| ONBOARDING | `339b3f41-9f48-4574-a958-ff76cf82795e` | (none) |
+| DESIGN | `ea9940a6-9ba4-443f-8c78-1f2da9251eeb` | (none) |
+| FRONTEND | `f4239270-e616-4f43-9db8-1fa284cbc147` | (none) |
+| DATABASE | `434537ba-1774-46cf-9803-a8870aa02a38` | (none) |
+| CHORE | `63695939-b849-4402-a293-2d54901e8aa2` | (none) |
 
-An `[IMPLEMENTATION]` ticket keeps its title prefix and takes the child label that fits the work,
-for example `CI/CD` for a pipeline change. If no child fits, give it no type label. To check the
-current labels and groups, call `list_issue_labels` with `includeGroups: true`.
+An `[IMPLEMENTATION]` ticket keeps its title prefix and takes the label from this group that fits
+the work, for example `CI/CD` for a pipeline change. If no label in the group fits, give it no type
+label. To check the current labels and groups, call `mcp__linear__list_issue_labels` with
+`includeGroups: true`.
 
 ## Conventions
 
