@@ -13,5 +13,5 @@
 pub mod implementations;
 pub mod traits;
 
-pub use implementations::{RawCompanyFacts, RawDailyIndex, RawNotesArchive};
+pub use implementations::{RawCompanyFacts, RawDailyIndex, RawNotesArchive, RawSubmissions};
 pub use traits::{RawFileSource, RawSource};

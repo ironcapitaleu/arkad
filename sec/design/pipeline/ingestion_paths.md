@@ -226,12 +226,12 @@ The run downloads the whole file, not HTTP range reads.
 
 The download goes through the existing layers: `SecRequest` → `SecClient` → `InnerClient`.
 `SecResponse<B>` is generic over its body kind `B`. The body kind sets the checks and stores the
-body. `SecResponse<JsonBody>`, the default, holds a Company Facts reply. `SecResponse<ZipBody>`
+body. `SecResponse<JsonBody>`, the default, holds a Company Facts or a `submissions` reply. `SecResponse<ZipBody>`
 holds a Notes file or a daily index as raw bytes.
 
 The `RespondsWith` trait on the client side maps each SEC endpoint to its body kind, once for
-every client. `CompanyFacts` and `DailyIndexListing` have `Body = JsonBody`. `NotesFile` and `DailyIndex` have
-`Body = ZipBody`. This
+every client. `CompanyFacts`, `DailyIndexListing`, and `Submissions` have `Body = JsonBody`.
+`NotesFile` and `DailyIndex` have `Body = ZipBody`. This
 keeps `shared::request` independent of `shared::response`.
 
 The `SecClient` trait has one method for every endpoint. Its default body waits on the rate limiter,
@@ -595,8 +595,15 @@ small (2.8 KB and 22.8 KB for this filing), so the run caps filings by the rate 
 ### Company Data
 
 `ExtractSubmissionsSuperState` mirrors the `companyfacts` machine and reuses three of its states:
-`ValidateCikFormat`, `PrepareSecRequest` with a new kind for `FetchSubmissions { cik }`, and
-`ExecuteSecRequest`. A new `StoreSubmissions` writes the JSON.
+`ValidateCikFormat`, `PrepareSecRequest` with the kind `Submissions`, and `ExecuteSecRequest`. A
+new `StoreSubmissions` writes the JSON.
+
+- The kind `Submissions` has `Input = Cik`, builds `FetchSubmissions { cik }`, and has
+  `Body = JsonBody`. `SecRequest::builder().submissions().cik(cik).build()` builds the request.
+- `StoreSubmissions` writes one `RawDocument<RawSubmissions>` and outputs its key. Its repository
+  bound is `RawRepository<RawSubmissions>`.
+- Both paths run the machine, so the context of `StoreSubmissions` holds the ingestion mode. The
+  state writes that mode into the metadata. It does not fix one mode, as `StoreCompanyFacts` does.
 
 - URL: `https://data.sec.gov/submissions/CIK##########.json`. Measured: it holds `sic`,
   `sicDescription`, `name`, `tickers`, `exchanges`, `formerNames`, and the recent filings.
@@ -673,7 +680,8 @@ for example the CIK.
 ## Raw Store
 
 All documents use `FilesystemRepository` and `RawDocument<S>`. Each source gets its own
-`RawSource` marker and `SecDocumentType` variant. Proposed for all rows except the first three:
+`RawSource` marker and `SecDocumentType` variant. Proposed for the XBRL instance and the label
+file. The other rows exist:
 
 | Document | `RawSource` marker | Document type | Key |
 | -------- | ------------------ | ------------- | --- |

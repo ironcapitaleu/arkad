@@ -52,12 +52,13 @@ use crate::shared::index_date::IndexDate;
 use crate::shared::notes_period::NotesPeriod;
 use crate::shared::request::SecRequest as SecRequestTrait;
 use crate::shared::request::implementations::sec_request::{
-    CompanyFacts, DailyIndex, DailyIndexListing, NotesFile, RequestKind, SecRequest,
+    CompanyFacts, DailyIndex, DailyIndexListing, NotesFile, RequestKind, SecRequest, Submissions,
 };
 
 /// Typestate marker: no CIK has been set yet.
 ///
-/// While the builder is in this state, [`build`](AllCompanyFactsBuilder::build) is unavailable.
+/// While the builder is in this state, [`AllCompanyFactsBuilder::build`] and
+/// [`SubmissionsBuilder::build`] are unavailable.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NoCik;
 
@@ -110,6 +111,12 @@ impl SecRequestBuilder {
     pub const fn daily_index_listing(self) -> DailyIndexBuilder<DailyIndexListing, NoDate> {
         DailyIndexBuilder::new()
     }
+
+    /// Selects the [`Submissions`] request kind.
+    #[must_use]
+    pub const fn submissions(self) -> SubmissionsBuilder<NoCik> {
+        SubmissionsBuilder { cik: NoCik }
+    }
 }
 
 impl Default for SecRequestBuilder {
@@ -155,6 +162,47 @@ impl AllCompanyFactsBuilder<Cik> {
     /// ```
     #[must_use]
     pub fn build(self) -> SecRequest<CompanyFacts> {
+        SecRequest::new(self.cik)
+    }
+}
+
+/// Typestate builder for the [`FetchSubmissions`](super::SecRequestType::FetchSubmissions) request.
+///
+/// The `C` type parameter tracks the CIK. It starts as [`NoCik`]. [`cik`](Self::cik) changes it to
+/// [`Cik`]. Only that type has [`build`](Self::build).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SubmissionsBuilder<C> {
+    cik: C,
+}
+
+impl SubmissionsBuilder<NoCik> {
+    /// Sets the CIK, unlocking [`build`](SubmissionsBuilder::build).
+    #[must_use]
+    pub const fn cik(self, cik: Cik) -> SubmissionsBuilder<Cik> {
+        SubmissionsBuilder { cik }
+    }
+}
+
+impl SubmissionsBuilder<Cik> {
+    /// Builds the [`SecRequest`]; available only once the CIK is set.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use sec::shared::cik::Cik;
+    /// use sec::shared::request::implementations::sec_request::SecRequest;
+    ///
+    /// let cik = Cik::new("1067983").expect("A hardcoded valid CIK should always parse");
+    /// let request = SecRequest::builder().submissions().cik(cik).build();
+    ///
+    /// let expected_result = "https://data.sec.gov/submissions/CIK0001067983.json";
+    ///
+    /// let result = request.inner.url().as_str();
+    ///
+    /// assert_eq!(result, expected_result);
+    /// ```
+    #[must_use]
+    pub fn build(self) -> SecRequest<Submissions> {
         SecRequest::new(self.cik)
     }
 }
@@ -365,6 +413,25 @@ mod tests {
             .build()
             .inner()
             .method()
+            .clone();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_produce_correct_url_when_building_fetch_submissions_request() {
+        let cik = Cik::new("0001234567")
+            .expect("Given a hardcoded 10-digit CIK, Cik creation should always succeed");
+
+        let expected_result = Url::parse("https://data.sec.gov/submissions/CIK0001234567.json")
+            .expect("Hardcoded URL should always be valid");
+
+        let result = SecRequest::builder()
+            .submissions()
+            .cik(cik)
+            .build()
+            .inner()
+            .url()
             .clone();
 
         assert_eq!(result, expected_result);

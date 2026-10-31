@@ -15,7 +15,7 @@ use serde::Serialize;
 use crate::shared::cik::Cik;
 use crate::shared::index_date::IndexDate;
 use crate::shared::notes_period::NotesPeriod;
-use crate::shared::raw_source::{RawCompanyFacts, RawNotesArchive, RawSource};
+use crate::shared::raw_source::{RawCompanyFacts, RawNotesArchive, RawSource, RawSubmissions};
 
 use super::SecRequestType;
 
@@ -93,6 +93,20 @@ impl RequestKind for DailyIndexListing {
     }
 }
 
+/// The kind of a request that fetches the `submissions` JSON of one company.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct Submissions;
+
+impl RequestKind for Submissions {
+    type Input = Cik;
+
+    const INPUT_NAME: &'static str = "cik";
+
+    fn request_type(cik: Cik) -> SecRequestType {
+        SecRequestType::FetchSubmissions { cik }
+    }
+}
+
 /// A [`RequestKind`] whose response the store keeps as a raw document of one [`RawSource`].
 ///
 /// A state that holds a repository bounds it by [`Self::Source`], so a repository of another
@@ -110,6 +124,10 @@ impl StoredAs for NotesFile {
     type Source = RawNotesArchive;
 }
 
+impl StoredAs for Submissions {
+    type Source = RawSubmissions;
+}
+
 #[cfg(test)]
 mod tests {
     use pretty_assertions::assert_eq;
@@ -119,6 +137,7 @@ mod tests {
 
     use super::{
         CompanyFacts, DailyIndex, DailyIndexListing, NotesFile, RequestKind, SecRequestType,
+        Submissions,
     };
 
     #[test]
@@ -145,6 +164,18 @@ mod tests {
         assert_eq!(result, expected_result);
     }
 
+    #[test]
+    fn should_return_fetch_submissions_for_submissions_kind() {
+        let cik = Cik::new("0001234567")
+            .expect("Given a hardcoded 10-digit CIK, Cik creation should always succeed");
+
+        let expected_result = SecRequestType::FetchSubmissions { cik: cik.clone() };
+
+        let result = Submissions::request_type(cik);
+
+        assert_eq!(result, expected_result);
+    }
+
     const fn implements_auto_traits<T: Send + Sync + Unpin>() {}
 
     #[test]
@@ -165,5 +196,10 @@ mod tests {
     #[test]
     const fn should_implement_auto_traits_for_daily_index_listing() {
         implements_auto_traits::<DailyIndexListing>();
+    }
+
+    #[test]
+    const fn should_implement_auto_traits_for_submissions() {
+        implements_auto_traits::<Submissions>();
     }
 }
