@@ -809,7 +809,7 @@ filing documents then pass through the generic `PrepareSecRequest` and `ExecuteS
 request of the kind `FilingDocumentSet`. The lead accepted this design on 2026-10-31, together with
 the change to the types of `ExecuteSecRequest` that it needs.
 
-At commit `07d9476`, before STA-373, these places limited a request to one HTTP call. Paths start
+At commit `6af78fb`, before STA-373, these places limited a request to one HTTP call. Paths start
 at `sec/src/lib/`, and the line numbers refer to that commit.
 
 | Place | File and line | What it limits |
