@@ -64,13 +64,15 @@ use std::fmt;
 use async_trait::async_trait;
 use serde::Serialize;
 use state_maschine::prelude::State as SMState;
+use storage::WriteRepository;
 
 use crate::error::State as StateError;
 use crate::error::state_machine::state::InvalidCikFormat;
 use crate::shared::http_client::SecClient as SecClientTrait;
 use crate::shared::http_client::implementations::sec_client::SecClient;
+use crate::shared::raw_document::RawDocument;
 use crate::shared::raw_repository::RawRepository;
-use crate::shared::raw_source::RawCompanyFacts;
+use crate::shared::raw_source::RawSource;
 use crate::traits::error::FromDomainError;
 use crate::traits::state_machine::state::State;
 
@@ -155,7 +157,15 @@ impl<R, C> ValidateCikFormat<R, C> {
 }
 
 #[async_trait]
-impl<R: RawRepository<RawCompanyFacts>, C: SecClientTrait> State for ValidateCikFormat<R, C> {
+// The bound `WriteRepository<Record = RawDocument<S>>` repeats a supertrait of `RawRepository<S>`.
+// Rust needs it to infer `S` from `R`. So the state takes the repository of any raw source, for
+// example of Company Facts or of `submissions`.
+impl<S, R, C> State for ValidateCikFormat<R, C>
+where
+    S: RawSource,
+    R: RawRepository<S> + WriteRepository<Record = RawDocument<S>>,
+    C: SecClientTrait,
+{
     /// Validates the raw CIK and, on success, stores the normalized [`Cik`] as output.
     ///
     /// # Errors
@@ -183,7 +193,12 @@ impl<R: RawRepository<RawCompanyFacts>, C: SecClientTrait> State for ValidateCik
     }
 }
 
-impl<R: RawRepository<RawCompanyFacts>, C: SecClientTrait> SMState for ValidateCikFormat<R, C> {
+impl<S, R, C> SMState for ValidateCikFormat<R, C>
+where
+    S: RawSource,
+    R: RawRepository<S> + WriteRepository<Record = RawDocument<S>>,
+    C: SecClientTrait,
+{
     type InputData = ValidateCikFormatInput;
     type OutputData = ValidateCikFormatOutput;
     type Context = ValidateCikFormatContext<R, C>;
@@ -230,8 +245,11 @@ impl<R: RawRepository<RawCompanyFacts>, C: SecClientTrait> SMState for ValidateC
     }
 }
 
-impl<R: RawRepository<RawCompanyFacts>, C: SecClientTrait> fmt::Display
-    for ValidateCikFormat<R, C>
+impl<S, R, C> fmt::Display for ValidateCikFormat<R, C>
+where
+    S: RawSource,
+    R: RawRepository<S> + WriteRepository<Record = RawDocument<S>>,
+    C: SecClientTrait,
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(

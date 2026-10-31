@@ -44,11 +44,13 @@ use std::fmt;
 
 use serde::Serialize;
 use state_maschine::prelude::Context as SMContext;
+use storage::WriteRepository;
 
 use crate::shared::http_client::SecClient as SecClientTrait;
 use crate::shared::http_client::implementations::sec_client::SecClient;
+use crate::shared::raw_document::RawDocument;
 use crate::shared::raw_repository::RawRepository;
-use crate::shared::raw_source::RawCompanyFacts;
+use crate::shared::raw_source::RawSource;
 use crate::traits::state_machine::state::Context;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
@@ -98,8 +100,12 @@ impl<R, C> ValidateCikFormatContext<R, C> {
     }
 }
 
-impl<R: RawRepository<RawCompanyFacts>, C: SecClientTrait> Context
-    for ValidateCikFormatContext<R, C>
+// See the comment on `State for ValidateCikFormat` for the bound on `R`.
+impl<S, R, C> Context for ValidateCikFormatContext<R, C>
+where
+    S: RawSource,
+    R: RawRepository<S> + WriteRepository<Record = RawDocument<S>>,
+    C: SecClientTrait,
 {
     /// Returns the maximum number of retries allowed for CIK validation.
     fn max_retries(&self) -> u32 {
@@ -107,8 +113,11 @@ impl<R: RawRepository<RawCompanyFacts>, C: SecClientTrait> Context
     }
 }
 
-impl<R: RawRepository<RawCompanyFacts>, C: SecClientTrait> SMContext
-    for ValidateCikFormatContext<R, C>
+impl<S, R, C> SMContext for ValidateCikFormatContext<R, C>
+where
+    S: RawSource,
+    R: RawRepository<S> + WriteRepository<Record = RawDocument<S>>,
+    C: SecClientTrait,
 {
     type UpdateType = ValidateCikFormatContextUpdater<R, C>;
 
