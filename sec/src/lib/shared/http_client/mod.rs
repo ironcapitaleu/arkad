@@ -9,11 +9,12 @@
 //!
 //! ## Modules
 //!
-//! - [`traits`]: The [`InnerClient`], [`SecClient`], and [`RespondsWith`] contracts.
+//! - [`traits`]: The [`InnerClient`], [`SecClient`], [`RespondsWith`], [`HasResponse`], and
+//!   [`Executes`] contracts.
 //! - [`implementations`]: The `reqwest` binding, the default [`SecClient`], and the
 //!   [`RespondsWith`] impl of each SEC endpoint.
 
 pub mod implementations;
 pub mod traits;
 
-pub use traits::{InnerClient, RespondsWith, SecClient};
+pub use traits::{Executes, HasResponse, InnerClient, RespondsWith, SecClient};

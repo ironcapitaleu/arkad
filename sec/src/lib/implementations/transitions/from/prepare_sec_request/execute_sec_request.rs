@@ -35,10 +35,10 @@ use crate::implementations::states::extract::execute_sec_request::{
 };
 use crate::implementations::states::extract::prepare_sec_request::PrepareSecRequest;
 use crate::implementations::states::extract::prepare_sec_request::constants::STATE_NAME as PREPARE_SEC_REQUEST;
-use crate::shared::http_client::RespondsWith;
+use crate::shared::http_client::HasResponse;
 use crate::shared::http_client::SecClient as SecClientTrait;
 
-impl<K: RespondsWith, C: SecClientTrait> TryFrom<(PrepareSecRequest<K>, C)>
+impl<K: HasResponse, C: SecClientTrait> TryFrom<(PrepareSecRequest<K>, C)>
     for ExecuteSecRequest<K, C>
 {
     type Error = TransitionError;
