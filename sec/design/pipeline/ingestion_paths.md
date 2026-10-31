@@ -602,8 +602,8 @@ new `StoreSubmissions` writes the JSON.
   `Body = JsonBody`. `SecRequest::builder().submissions().cik(cik).build()` builds the request.
 - `StoreSubmissions` writes one `RawDocument<RawSubmissions>` and outputs its key. Its repository
   bound is `RawRepository<RawSubmissions>`.
-- Both paths run the machine, so the context of `StoreSubmissions` holds the ingestion mode. The
-  state writes that mode into the metadata. It does not fix one mode, as `StoreCompanyFacts` does.
+- Both paths run the machine, so the context of `StoreSubmissions` holds the ingestion mode, and
+  the state writes it into the metadata. `StoreCompanyFacts` always writes `backfill`.
 
 - URL: `https://data.sec.gov/submissions/CIK##########.json`. Measured: it holds `sic`,
   `sicDescription`, `name`, `tickers`, `exchanges`, `formerNames`, and the recent filings.
@@ -685,7 +685,7 @@ file. The other rows exist:
 
 | Document | `RawSource` marker | Document type | Key |
 | -------- | ------------------ | ------------- | --- |
-| Company Facts JSON | `RawCompanyFacts` | `raw_company_facts` | `sec/companyfacts/CIK##########.json` (exists) |
+| Company Facts JSON | `RawCompanyFacts` | `raw_company_facts` | `sec/companyfacts/CIK##########.json` |
 | Notes ZIP | `RawNotesArchive` | `raw_notes_archive` | `sec/notes/<file name>`, for example `sec/notes/2010q1_notes_1.zip` |
 | Daily index | `RawDailyIndex` | `raw_daily_index` | `sec/daily-index/form.YYYYMMDD.idx` |
 | XBRL instance | `RawXbrlInstance` | `raw_xbrl_instance` | `sec/filings/CIK##########/<accession>/instance.xml` |
@@ -816,8 +816,8 @@ New filing and company data:
 11. FEATURE: the state `DownloadFilingDocuments`.
 12. FEATURE: the state `StoreFilingDocuments` and `FilingDocumentsRef`.
 13. FEATURE: `ExtractFilingSuperState`, its transitions, and its builder.
-14. FEATURE: `StoreSubmissions` and `SubmissionsRef`.
-15. FEATURE: `ExtractSubmissionsSuperState`, its transitions, and its builder.
+14. FEATURE: `StoreSubmissions`.
+15. FEATURE: `ExtractSubmissionsSuperState`, `SubmissionsRef`, its transitions, and its builder.
 16. FEATURE: the facade calls `incremental()`, `daily_index()`, `filing()`, and `submissions()`.
 17. FEATURE: the binary `daily_filings`.
 18. FEATURE: the `submissions` run in `notes_backfill`.

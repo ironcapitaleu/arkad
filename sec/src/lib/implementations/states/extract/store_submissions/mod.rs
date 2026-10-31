@@ -453,13 +453,13 @@ mod tests {
             .ingestion_mode(IngestionMode::Backfill)
             .build();
         state.context.update_context(updater);
+
+        let expected_result = vec![IngestionMode::Backfill];
+
         state
             .compute_output_data_async()
             .await
             .expect("Given a fake repository that accepts every write, the state should succeed");
-
-        let expected_result = vec![IngestionMode::Backfill];
-
         let result: Vec<IngestionMode> = repository
             .persisted()
             .iter()
