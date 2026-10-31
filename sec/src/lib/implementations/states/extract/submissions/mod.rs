@@ -5,8 +5,8 @@
 //!
 //! The super-state owns the shared SEC client, the `execution_id`, the ingestion mode of the run,
 //! and the storage repository. The transition into [`StoreSubmissions`] passes a clone of the
-//! repository to the store state. Both ingestion paths run this machine, so the caller sets the mode, and
-//! the metadata of the stored document records it.
+//! repository to the store state. Both ingestion paths run this machine, so the caller sets the
+//! mode, and the metadata of the stored document records it.
 //!
 //! ## Modules
 //!
