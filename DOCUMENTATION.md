@@ -17,7 +17,6 @@ The document is organized as follows:
 - Write for a reader who understands Rust but is unfamiliar with this codebase.
 - Keep the first line short and self-contained as `rustdoc` uses it as a preview in module listings.
 - Use present tense, third-person: "Returns the validated CIK", not "This will return..." or "Return the CIK".
-- Describe what the item does now. Leave out what it no longer has, needs, or does, such as "The state needs no storage". Such a sentence makes sense only next to an older version, so it ties the doc to history. The commit message and the design docs keep that history.
 - Choose `a`/`an` by the **spoken sound**, not the first letter. "SEC" is read "ess-ee-see", so write "an SEC response", not "a SEC response".
 - Prefer clarity over terseness. A few extra words that remove ambiguity beat a tighter phrase that reads as jargon (e.g. "concepts that are missing inside a response" over "concepts missing from a response").
 - When tightening documentation that is already good, **blend** rather than replace: keep the established, well-worded opening and enrich it, instead of rewriting it wholesale.
@@ -681,7 +680,9 @@ now", "exists now", "built write-side first". A reader months on cannot tell whe
 already happened, and the code itself does not record the schedule. Let `#[non_exhaustive]` and the
 type system carry extensibility. State a deliberate boundary as a **timeless property** ("names no
 concrete backend"), not as a deferral ("backends are added in a later slice"). Ticket IDs and
-slice/PR numbers never appear in rustdoc.
+slice/PR numbers never appear in rustdoc. A sentence about what an item does not do is allowed when
+the reader can act on it ("makes no network call"). If its only reason is that an older version did
+it, delete it.
 
 | Prose | Problem | Instead |
 |-------|---------|---------|
@@ -689,6 +690,7 @@ slice/PR numbers never appear in rustdoc.
 | "the `Read` arm arrives with the read methods later" | Promises future code | (say nothing — `#[non_exhaustive]` covers it) |
 | "the tier traits are deferred to later slices" | Roadmap | "names no tiers and no concrete backend" |
 | "embeds into `WriteError` (and, later, `ReadError`)" | Future sibling | drop the future reference; state what the error represents (see positional rule below) |
+| "The state needs no storage" (an older version wrote to storage) | Contrasts with removed code | say what the state does, for example "Sends the request and outputs the response" |
 
 **Positional and consumption references** are the same mistake aimed at structure instead of time.
 Do not describe an item by **where it sits** in a hierarchy or **how it is consumed** — say what it
