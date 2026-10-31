@@ -114,6 +114,10 @@ ticket that records it. Reference — never restate the full content.>
 <The constraints the successor must hold: the branch it must push to, the AGENTS.md rules that
 apply, and any "never" from this session. State each as `must` or `never`.>
 
+- You must name the branch `<type>/<short-description>`, as `AGENTS.md` "Branch Naming" says:
+  `<branch name>`. If the session assigns another branch, such as `claude/*`, use this name
+  instead. Never push the work to the session-assigned branch.
+
 # Reporting
 
 <When and how to report back: report on completion or on a blocker it cannot resolve.>
@@ -200,6 +204,9 @@ successor knows how much slack it has.
   one is needed. The Linear note goes to the ticket. A handoff is not a committed design doc.
 - **One copyable block.** The agent-session prompt is one fenced code block, so one tap copies all
   of it.
+- **Branch convention.** The handoff names the branch with the `AGENTS.md` "Branch Naming"
+  convention, `<type>/<short-description>`. It never names a session-assigned branch, such as
+  `claude/*`.
 - **Plain English.** The `plain-english` skill applies. State the mission, the state, and the next
   steps as facts and instructions.
 
