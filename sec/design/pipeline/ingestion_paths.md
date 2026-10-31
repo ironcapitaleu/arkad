@@ -146,8 +146,8 @@ A separate REFACTOR renames the existing `ExtractSuperState` to `ExtractCompanyF
    `SecRequest::builder().notes_file().period(p).build()`. The transition into
    `ExecuteSecRequest` takes the client from the super-state context.
 3. `ExecuteSecRequest<NotesFile, R, C>` sends the request and reads the whole body into memory.
-   Its state name is "Download Notes Archive", from `NotesFile::EXECUTE_STATE_NAME`. It runs the
-   transport checks of [Validation](#validation), layer 1. Its output holds the
+   Its state name is "Execute SEC Request", as for every kind. The stream data names the kind
+   through the `notes_period` field of the context. It runs the transport checks of [Validation](#validation), layer 1. Its output holds the
    `SecResponse<ZipBody>` in an `Arc`, because the state traits require `Clone`. The transition
    into `StoreNotesArchive` takes the `execution_id` from the super-state context.
 4. `StoreNotesArchive` takes the response out of its input, writes the bytes as a

@@ -5,7 +5,7 @@
 //!
 //! ## Modules
 //!
-//! - [`constants`]: The [`STATE_NAME`] of the [`CompanyFacts`] kind.
+//! - [`constants`]: State metadata such as [`STATE_NAME`].
 //! - [`context`]: The [`ExecuteSecRequestContext`] carried alongside the state.
 //! - [`data`]: The [`ExecuteSecRequestInput`] and [`ExecuteSecRequestOutput`] data types.
 //!
@@ -214,7 +214,7 @@ where
 
     /// Returns the human-readable name of this state.
     fn state_name(&self) -> impl ToString {
-        E::EXECUTE_STATE_NAME
+        STATE_NAME
     }
 
     /// Blocking wrapper around [`compute_output_data_async`](crate::traits::state_machine::state::State::compute_output_data_async).
@@ -266,7 +266,7 @@ impl<E: RespondsWith + StoredAs, R: RawRepository<E::Source>, C: SecClientTrait>
              Context:\n{}\n\
              Input Data:\n{}\n\
              Output Data:\n{}",
-            E::EXECUTE_STATE_NAME,
+            STATE_NAME,
             self.context,
             self.input,
             self.output.as_ref().map_or_else(
@@ -392,7 +392,7 @@ mod tests {
         let mut state = create_notes_file_state(404);
 
         let expected_result: Result<(), StateError> = Err(FailedRequestExecution::new(
-            NotesFile::EXECUTE_STATE_NAME,
+            STATE_NAME,
             FailedSecRequest::from(InvalidSecResponse::new(ErrorReason::InvalidStatusCode {
                 status_code: StatusCode::NotFound,
             })),
@@ -421,7 +421,7 @@ mod tests {
         let mut state = create_notes_file_state_with_content_type(200, "text/html");
 
         let expected_result: Result<(), StateError> = Err(FailedRequestExecution::new(
-            NotesFile::EXECUTE_STATE_NAME,
+            STATE_NAME,
             FailedSecRequest::from(InvalidSecResponse::new(ErrorReason::InvalidContentType {
                 content_type: ContentType::Html,
             })),
@@ -470,10 +470,10 @@ mod tests {
     }
 
     #[test]
-    fn should_return_name_of_notes_file_kind_when_in_execute_state_of_notes_file_kind() {
+    fn should_return_execute_sec_request_as_state_name_for_notes_file_kind() {
         let state = create_notes_file_state(200);
 
-        let expected_result = "Download Notes Archive";
+        let expected_result = "Execute SEC Request";
 
         let result = state.state_name().to_string();
 
