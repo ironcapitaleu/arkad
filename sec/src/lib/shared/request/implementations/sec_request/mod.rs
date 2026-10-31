@@ -143,11 +143,7 @@ impl<K: RequestKind> SecRequestTrait for SecRequest<K> {
             SecRequestType::FetchSubmissions { cik } => {
                 format!("{SEC_SUBMISSIONS_URL_PREFIX}{cik}{SEC_SUBMISSIONS_URL_SUFFIX}")
             }
-            SecRequestType::FetchFilingIndex { filing } => format!(
-                "{SEC_FILING_INDEX_URL_PREFIX}{}/{}/{SEC_FILING_INDEX_FILE_NAME}",
-                unpadded_cik(filing.cik()),
-                filing.accession_number().value().replace('-', "")
-            ),
+            SecRequestType::FetchFilingIndex { filing } => filing_index_url(&filing),
         };
         let request = Request::new(
             Method::GET,
@@ -159,6 +155,25 @@ impl<K: RequestKind> SecRequestTrait for SecRequest<K> {
             kind: PhantomData,
         }
     }
+}
+
+/// Builds the folder-index URL of `filing`.
+///
+/// [`AccessionNumber`](crate::shared::financial::accession_number::AccessionNumber) does not
+/// check its shape, so the accession number goes in as one percent-encoded path segment. A `/`,
+/// `?`, or `#` in it cannot move the request out of the folder of the filer.
+fn filing_index_url(filing: &FilingRef) -> String {
+    let mut url = Url::parse(SEC_FILING_INDEX_URL_PREFIX)
+        .expect("The hardcoded filing-index URL prefix should always parse");
+    url.path_segments_mut()
+        .expect("An https URL should always have path segments")
+        .pop_if_empty()
+        .extend([
+            unpadded_cik(filing.cik()),
+            &filing.accession_number().value().replace('-', ""),
+            SEC_FILING_INDEX_FILE_NAME,
+        ]);
+    url.into()
 }
 
 /// Returns the CIK without its leading zeros, as the archive folders name it. All zeros give `0`.
@@ -250,10 +265,14 @@ pub enum SecRequestType {
 
 #[cfg(test)]
 mod tests {
+    use chrono::NaiveDate;
     use pretty_assertions::assert_eq;
     use reqwest::{Method, Url};
 
-    use super::{CompanyFacts, NotesFile, RequestKind, SecRequest, unpadded_cik};
+    use super::{CompanyFacts, NotesFile, RequestKind, SecRequest, filing_index_url, unpadded_cik};
+    use crate::shared::filing_ref::FilingRef;
+    use crate::shared::financial::accession_number::AccessionNumber;
+    use crate::shared::financial::form::{Form, ParsedForm};
     use crate::shared::notes_period::NotesPeriod;
     use crate::shared::{cik::Cik, request::SecRequest as SecRequestTrait};
 
@@ -383,6 +402,24 @@ mod tests {
         let expected_result = "0";
 
         let result = unpadded_cik(&cik);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_keep_the_request_in_the_filer_folder_when_the_accession_number_holds_a_path() {
+        let filing = FilingRef::new(
+            Cik::new("320193").expect("Given a hardcoded valid CIK, parsing should always succeed"),
+            AccessionNumber::new("x/../../../y#z"),
+            ParsedForm::new(Form::TenK, false),
+            NaiveDate::from_ymd_opt(2026, 9, 9)
+                .expect("Given a hardcoded calendar date, the date should always build"),
+        );
+
+        let expected_result =
+            "https://www.sec.gov/Archives/edgar/data/320193/x%2F..%2F..%2F..%2Fy%23z/index.json";
+
+        let result = filing_index_url(&filing);
 
         assert_eq!(result, expected_result);
     }

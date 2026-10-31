@@ -601,9 +601,7 @@ One `ExtractFilingSuperState` runs per `FilingRef`. It sends three requests:
 
 Measured on one filing (`0000003545-26-000047`): the folder holds `alco-20260908_htm.xml` and
 `alco-20260908_lab.xml`, both served as `text/xml`. The `instance` column of `sub.tsv` uses the
-same names. The fallback rule for filings without inline XBRL is measured on one filing
-(`0000320193-17-000070`, a 10-K of 2017): its folder holds `aapl-20170930.xml` and the four
-linkbases `_cal.xml`, `_def.xml`, `_lab.xml`, and `_pre.xml`.
+same names. The rule for older filings without inline XBRL is unverified.
 
 `DownloadFilingDocuments` fetches both files with `SecClient::execute_sec_request`, through a
 request kind whose body kind holds an XML file. The files are

@@ -236,8 +236,7 @@ pub struct FilingIndexBuilder<F> {
 impl FilingIndexBuilder<NoFilingRef> {
     /// Sets the filing, unlocking [`build`](FilingIndexBuilder::build).
     #[must_use]
-    #[allow(clippy::missing_const_for_fn)]
-    pub fn filing_ref(self, filing: FilingRef) -> FilingIndexBuilder<FilingRef> {
+    pub const fn filing_ref(self, filing: FilingRef) -> FilingIndexBuilder<FilingRef> {
         FilingIndexBuilder { filing }
     }
 }
@@ -531,6 +530,33 @@ mod tests {
 
         let expected_result = Url::parse(
             "https://www.sec.gov/Archives/edgar/data/3545/000000354526000047/index.json",
+        )
+        .expect("Hardcoded URL should always be valid");
+
+        let result = SecRequest::builder()
+            .filing_index()
+            .filing_ref(filing)
+            .build()
+            .inner()
+            .url()
+            .clone();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_take_the_filer_cik_not_the_accession_prefix_in_url_for_filing_index_request() {
+        let filing = FilingRef::new(
+            Cik::new("2113605")
+                .expect("Given a hardcoded valid CIK, parsing should always succeed"),
+            AccessionNumber::new("0001213900-26-112626"),
+            ParsedForm::new(Form::TwentyF, false),
+            NaiveDate::from_ymd_opt(2026, 10, 27)
+                .expect("Given a hardcoded calendar date, the date should always build"),
+        );
+
+        let expected_result = Url::parse(
+            "https://www.sec.gov/Archives/edgar/data/2113605/000121390026112626/index.json",
         )
         .expect("Hardcoded URL should always be valid");
 
