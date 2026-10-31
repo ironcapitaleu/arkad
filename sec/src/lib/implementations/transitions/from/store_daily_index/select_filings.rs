@@ -69,7 +69,7 @@ mod tests {
     const SAMPLE_EXECUTION_ID: Uuid = Uuid::from_u128(7);
     const INDEX_BODY: &[u8] = b"Form Type   Company Name\n10-K        SAMPLE CORP\n";
 
-    fn response() -> Arc<SecResponse<ZipBody>> {
+    fn sample_response() -> Arc<SecResponse<ZipBody>> {
         let url: Url = "https://www.sec.gov/Archives/edgar/daily-index/2026/QTR4/form.20261027.idx"
             .parse()
             .expect("Given a hardcoded valid URL, parsing should always succeed");
@@ -90,22 +90,24 @@ mod tests {
         Arc::new(response)
     }
 
-    fn store_daily_index() -> StoreDailyIndex<FakeDailyIndexRepository> {
-        let response = response();
-        let requested_url = response.url().clone();
+    /// Returns the state for 2026-10-27. A `response` of `None` marks a day without filings.
+    fn store_daily_index(
+        response: Option<Arc<SecResponse<ZipBody>>>,
+    ) -> StoreDailyIndex<FakeDailyIndexRepository> {
+        let requested_url = sample_response().url().clone();
         let index_date = IndexDate::new("2026-10-27")
             .expect("Given a hardcoded past date, validation should always succeed");
         let user_agent = UserAgent::new("arkad contact@example.com")
             .expect("Given a hardcoded SEC-format user agent, validation should always succeed");
         StoreDailyIndex::new(
-            StoreDailyIndexInput::new(Some(response), index_date, requested_url, user_agent),
+            StoreDailyIndexInput::new(response, index_date, requested_url, user_agent),
             StoreDailyIndexContext::new(SAMPLE_EXECUTION_ID, FakeDailyIndexRepository::new()),
         )
     }
 
     #[tokio::test]
     async fn should_move_stored_index_and_execution_id_when_source_has_output() {
-        let mut state = store_daily_index();
+        let mut state = store_daily_index(Some(sample_response()));
         state.compute_output_data_async().await.expect(
             "Given a fake repository that accepts every write, the store should always succeed",
         );
@@ -124,9 +126,27 @@ mod tests {
         assert_eq!(result, expected_result);
     }
 
+    #[tokio::test]
+    async fn should_move_no_index_when_the_day_has_no_filings() {
+        let mut state = store_daily_index(None);
+        state
+            .compute_output_data_async()
+            .await
+            .expect("Given no response, the store writes nothing and should always succeed");
+
+        let expected_result = Ok(SelectFilings::new(
+            SelectFilingsInput::new(None),
+            SelectFilingsContext::new(SAMPLE_EXECUTION_ID),
+        ));
+
+        let result = SelectFilings::try_from(state);
+
+        assert_eq!(result, expected_result);
+    }
+
     #[test]
     fn should_return_missing_output_when_source_has_no_output() {
-        let state = store_daily_index();
+        let state = store_daily_index(Some(sample_response()));
 
         let expected_result = Err(TransitionError::MissingOutput(
             transition::MissingOutput::new(STORE_DAILY_INDEX, SELECT_FILINGS),

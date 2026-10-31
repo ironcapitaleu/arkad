@@ -42,6 +42,8 @@ impl<R, C: SecClientTrait> TryFrom<(DownloadDailyIndex<C>, Uuid, R)> for StoreDa
         (state, execution_id, repository): (DownloadDailyIndex<C>, Uuid, R),
     ) -> Result<Self, TransitionError> {
         let (input, output, context) = state.into_parts();
+        // `DownloadDailyIndex` sets its output only after it checks that the request names the
+        // date of its context. So a source with output needs no `ensure_request_matches_input`.
         let output_data = output.ok_or_else(|| {
             transition::MissingOutput::new(DOWNLOAD_DAILY_INDEX, STORE_DAILY_INDEX)
         })?;
@@ -63,6 +65,7 @@ impl<R, C: SecClientTrait> TryFrom<(DownloadDailyIndex<C>, Uuid, R)> for StoreDa
 #[cfg(test)]
 mod tests {
     use pretty_assertions::assert_eq;
+    use storage::WriteError;
 
     use super::*;
     use crate::implementations::states::extract::download_daily_index::{
@@ -75,6 +78,10 @@ mod tests {
     use crate::shared::user_agent::UserAgent;
     use crate::tests::fixtures::sample_http_client::sample_sec_client::routing::RoutingSecClient;
     use crate::tests::fixtures::sample_write_repository::FakeDailyIndexRepository;
+
+    fn rejecting_repository() -> FakeDailyIndexRepository {
+        FakeDailyIndexRepository::rejecting(WriteError::conflicting_write("Sample conflict"))
+    }
 
     const SAMPLE_EXECUTION_ID: Uuid = Uuid::from_u128(7);
     const INDEX_URL: &str =
@@ -116,7 +123,7 @@ mod tests {
         state.compute_output_data_async().await.expect(
             "Given a routed index, or a 404 and a listing with a later date, the download should always succeed",
         );
-        StoreDailyIndex::try_from((state, SAMPLE_EXECUTION_ID, FakeDailyIndexRepository::new()))
+        StoreDailyIndex::try_from((state, SAMPLE_EXECUTION_ID, rejecting_repository()))
             .expect("Given a source state with output, the transition should always succeed")
     }
 
@@ -162,7 +169,7 @@ mod tests {
         let raw_date = "2026-10-27";
 
         let expected_result =
-            &StoreDailyIndexContext::new(SAMPLE_EXECUTION_ID, FakeDailyIndexRepository::new());
+            &StoreDailyIndexContext::new(SAMPLE_EXECUTION_ID, rejecting_repository());
 
         let state = store_daily_index(raw_date).await;
         let result = state.context_data();
