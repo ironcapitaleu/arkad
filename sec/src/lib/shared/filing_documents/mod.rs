@@ -8,13 +8,13 @@
 //! - [`filing_documents_error`]: The [`FilingDocumentsError`] returned when no single document
 //!   matches a rule, and the [`FilingDocumentRole`] it names.
 
-pub mod filing_documents_error;
-
-pub use filing_documents_error::{FilingDocumentRole, FilingDocumentsError};
-
 use serde::{Deserialize, Serialize};
 
 use crate::shared::financial::accession_number::AccessionNumber;
+
+pub mod filing_documents_error;
+
+pub use filing_documents_error::{FilingDocumentRole, FilingDocumentsError};
 
 /// The suffix of an XBRL instance extracted from an inline XBRL document.
 const INLINE_INSTANCE_SUFFIX: &str = "_htm.xml";
@@ -327,6 +327,22 @@ mod tests {
     }
 
     #[test]
+    fn should_return_ambiguous_filing_document_when_the_folder_has_two_htm_xml_members() {
+        let accession_number = AccessionNumber::new("0000003545-26-000047");
+        let index = folder_index(&["alco-20260908_htm.xml", "exhibit_htm.xml"]);
+
+        let expected_result = Err(FilingDocumentsError::AmbiguousFilingDocument {
+            accession_number: AccessionNumber::new("0000003545-26-000047"),
+            role: FilingDocumentRole::XbrlInstance,
+            candidate_count: 2,
+        });
+
+        let result = FilingDocuments::select(&accession_number, &index);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
     fn should_return_ambiguous_filing_document_when_the_folder_has_two_lab_xml_members() {
         let accession_number = AccessionNumber::new("0000003545-26-000047");
         let index = folder_index(&[
@@ -351,13 +367,13 @@ mod tests {
         let accession_number = AccessionNumber::new("0000003545-26-000047");
         let index = br#"{"item": []}"#;
 
-        let expected_result = Err(FilingDocumentsError::InvalidFolderIndex {
-            accession_number: AccessionNumber::new("0000003545-26-000047"),
-            reason: "missing field `directory` at line 1 column 12".to_string(),
-        });
-
         let result = FilingDocuments::select(&accession_number, index);
 
-        assert_eq!(result, expected_result);
+        // The reason text belongs to `serde_json`, so the test checks the variant only.
+        assert!(matches!(
+            result,
+            Err(FilingDocumentsError::InvalidFolderIndex { accession_number, .. })
+                if accession_number.value() == "0000003545-26-000047"
+        ));
     }
 }

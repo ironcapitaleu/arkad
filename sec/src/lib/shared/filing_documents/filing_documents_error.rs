@@ -10,7 +10,8 @@ use thiserror::Error;
 
 use crate::shared::financial::accession_number::AccessionNumber;
 
-/// Error indicating that the folder index of a filing names no single XBRL instance or label file.
+/// Error indicating that the folder index of a filing does not parse, or names no single XBRL
+/// instance or label file.
 #[non_exhaustive]
 #[derive(Debug, Error, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum FilingDocumentsError {

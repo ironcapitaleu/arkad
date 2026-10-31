@@ -28,8 +28,8 @@ use super::State as StateError;
 use crate::shared::filing_documents::FilingDocumentsError;
 use crate::traits::error::FromDomainError;
 
-/// Error for a folder index that names no single XBRL instance or label file, tagged with the
-/// state it occurred in.
+/// Error for a folder index that does not parse, or names no single XBRL instance or label file,
+/// tagged with the state it occurred in.
 #[derive(Error, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[error(
     "[FailedDocumentSelection] Failure in State: '{state_name}', Caused by: {filing_documents_error}"
