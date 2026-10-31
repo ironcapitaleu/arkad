@@ -20,6 +20,8 @@
   carries three decisions for the lead.
 - [Cut-Over Between the Paths](#cut-over-between-the-paths) and
   [Idempotent Writes](#idempotent-writes) list their assumptions. Check them first.
+- [Path Independence](#path-independence) is new and proposed. It states what transform must
+  guarantee when a filing can come from either path. STA-402 measures whether it holds.
 - [Raw Store](#raw-store), [Handover to Transform](#handover-to-transform),
   [Deployment](#deployment), and [Implementation Tickets](#implementation-tickets) are new and
   proposed.
@@ -1090,6 +1092,48 @@ So the order of Notes files, the order of days, a rerun, and an overlap do not c
 Open for STA-331: its draft keys the fact store by `company_id`. If `company_id` is a surrogate
 id, each write needs a lookup first, and this rule breaks. The id must come from the filing itself,
 for example the CIK.
+
+### Path Independence
+
+> **Proposed.** Requested by the lead on 2026-10-31. Input for STA-331 and STA-332. STA-402
+> measures whether it holds.
+
+A filing can reach the fact store by two paths: as rows in a Notes file, or as its instance XML.
+Which path delivers a filing depends on how the backfill was split. Three examples:
+
+- Notes files up to `2026_09`, then daily indexes from 2026-09-30.
+- Daily indexes back to 2009, with no Notes file.
+- Both paths for the same filing: the overlap of one day in rule 1 of
+  [Cut-Over Between the Paths](#cut-over-between-the-paths), or a rerun.
+
+The fact store must hold the same facts in all three cases. Rules:
+
+1. **The unit of transform is the filing, not the period or the day.** The Notes transform splits
+   a file into its filings by `adsh` in `sub.tsv`. From then on, a Notes filing and an instance
+   filing take the same steps.
+2. **Two parsers, one output.** A Notes parser and an instance parser each map their input to the
+   as-is facts of STA-331. Every step after the parser is shared and does not know the source.
+3. **Same filing, same facts.** For any filing in both sources, both parsers must give the same
+   facts on the value key of STA-331. A test compares both parsers on filings that are in both
+   sources.
+4. **Order never decides a value.** If rule 3 fails for a fact, the store applies a fixed rule
+   between the sources, or keeps both copies. The first copy to arrive never wins by arrival
+   alone. With `DO NOTHING` from [Idempotent Writes](#idempotent-writes), it would.
+5. **Provenance on every fact.** Each fact records its source (Notes or instance), the key and
+   SHA-256 of the raw document, the ingestion mode, and the parser version. STA-331 already
+   requires this.
+6. **Transform replays from the raw store.** The raw store keeps every Notes file and instance. A
+   change to a parser or a rule reruns transform. It does not need a new extract.
+
+Open, for STA-402 to measure: where the two sources differ for the same filing. Candidates are
+facts on one side only, values, units, `decimals`, dimensions, nil facts, footnotes, text blocks,
+and extension tags. The result picks between three options for rule 4:
+
+| Option | Rule | Pro | Con |
+| ------ | ---- | --- | --- |
+| 1 | The sources agree, so `DO NOTHING` keeps one copy | No extra rule | Holds only if STA-402 finds no difference |
+| 2 | A fixed precedence, for example instance over Notes, applied by an upsert | One copy per fact, order-free | A Notes copy can be replaced later |
+| 3 | Both copies with their provenance, and reads pick one | Nothing is lost | Every read needs the rule |
 
 ## Raw Store
 
