@@ -249,7 +249,7 @@ mod tests {
             transition::FailedContextConversion::new(
                 EXECUTE_SEC_REQUEST,
                 STORE_NOTES_ARCHIVE,
-                "The request targets 'https://www.sec.gov/files/dera/data/financial-statement-notes-data-sets/2025_10_notes.zip', but the context names period '2024q1'",
+                "The request targets 'https://www.sec.gov/files/dera/data/financial-statement-notes-data-sets/2025_10_notes.zip' for period '2025_10', but the context names period '2024q1'",
             ),
         ));
 

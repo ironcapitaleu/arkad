@@ -256,7 +256,7 @@ mod tests {
             transition::FailedContextConversion::new(
                 EXECUTE_SEC_REQUEST,
                 STORE_SUBMISSIONS,
-                "The request targets 'https://data.sec.gov/submissions/CIK0000320193.json', but the context names CIK '0001067983'",
+                "The request targets 'https://data.sec.gov/submissions/CIK0000320193.json' for CIK '0000320193', but the context names CIK '0001067983'",
             ),
         );
 
