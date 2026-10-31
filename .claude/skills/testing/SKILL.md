@@ -139,13 +139,14 @@ let expected_result = ["0001702744-26-000031", "0001213900-26-112626"]
     .to_vec();
 ```
 
-The second test computes `expected_result` from strings with `map`. The reader must run the map to see the value.
+The second test computes `expected_result` from strings with `map`.
 
 - A constructor or a test helper call per value is allowed, as in `filing_ref(...)` or `Cik::new(...)`. It shows one value.
 - A helper that returns the whole expected value, as in `fn expected_filings() -> Vec<FilingRef>`, hides it. Write the values in the test.
-- `format!` that inserts Arrange variables into a literal is allowed, as in the "Error type" template below. The inserted values must not come from the code under test.
+- "The code under test" is the function the Act line calls. Code that it calls is a dependency. A dependency in the Define step is allowed. The dependency then needs its own test with a written-out value.
+- `format!` that inserts Arrange variables into a literal is allowed, as in the "Error type" template below. The inserted text comes from a dependency, such as the `Display` of `reason`.
 - If the full value is too long to write, assert on a smaller part of the output, and write that part out in full.
-- If the test checks that two paths agree, `expected_result` can be the output of the reference path. Name both paths in the test name, as in `..._when_running_to_the_archive`.
+- If the test checks that two paths agree, `expected_result` can be the output of the reference path. Name both paths in the test name, as in `should_hand_every_stream_item_to_the_caller_when_running_to_the_archive`.
 
 ## Boilerplate Tests (apply to ALL domain types and state structs)
 
