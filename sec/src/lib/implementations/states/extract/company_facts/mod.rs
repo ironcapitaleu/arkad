@@ -113,8 +113,8 @@ impl StateData for ExtractCompanyFactsSuperStateData {
 
 /// Context for the [`ExtractCompanyFactsSuperState`].
 ///
-/// Holds the shared SEC client `C` handed down to each inner state, so the client is constructed
-/// once and reused across the whole extract phase. It also holds the `execution_id` and the storage
+/// Holds the shared SEC client `C`, so the client is constructed once and reused across the whole
+/// extract phase. It also holds the `execution_id` and the storage
 /// repository `R`. The transition into [`StoreCompanyFacts`] passes a clone of the repository to
 /// the store state.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
