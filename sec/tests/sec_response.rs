@@ -34,13 +34,13 @@ async fn should_create_sec_response_when_response_is_valid_json_with_success_sta
     let url = "https://jsonplaceholder.typicode.com/posts/1"; // Returns 200 OK with application/json content type and valid JSON body
     let request_url = reqwest::Url::parse(url).expect("The hardcoded URL should always be valid");
     let request = Request::new(Method::GET, request_url);
-
-    let expected_result = true;
-
     let response = client
         .execute_request(request)
         .await
         .expect("A request to jsonplaceholder should always succeed");
+
+    let expected_result = true;
+
     let result = SecResponse::<JsonBody>::from_inner(response).await.is_ok();
 
     assert_eq!(result, expected_result);
