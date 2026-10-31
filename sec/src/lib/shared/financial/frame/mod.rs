@@ -113,36 +113,44 @@ mod tests {
 
     #[test]
     fn should_parse_annual_duration_frame_when_input_is_cy2023() {
+        let frame_string = "CY2023";
+
         let expected_result = Some(Frame::new(2023, None, false));
 
-        let result = Frame::parse("CY2023");
+        let result = Frame::parse(frame_string);
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_parse_quarterly_instant_frame_when_input_is_cy2023q3i() {
+        let frame_string = "CY2023Q3I";
+
         let expected_result = Some(Frame::new(2023, Some(Quarter::Q3), true));
 
-        let result = Frame::parse("CY2023Q3I");
+        let result = Frame::parse(frame_string);
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_parse_quarterly_duration_frame_when_input_is_cy2023q1() {
+        let frame_string = "CY2023Q1";
+
         let expected_result = Some(Frame::new(2023, Some(Quarter::Q1), false));
 
-        let result = Frame::parse("CY2023Q1");
+        let result = Frame::parse(frame_string);
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_return_none_when_input_is_invalid_frame_string() {
+        let frame_string = "INVALID";
+
         let expected_result = None;
 
-        let result = Frame::parse("INVALID");
+        let result = Frame::parse(frame_string);
 
         assert_eq!(result, expected_result);
     }

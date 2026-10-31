@@ -21,7 +21,9 @@
 //! ```rust
 //! use storage::{ErrorKind, WriteError};
 //!
-//! let _err = ErrorKind::Write(WriteError::conflicting_write("duplicate accession number"));
+//! let write_error = WriteError::conflicting_write("duplicate accession number");
+//!
+//! let _err = ErrorKind::Write(write_error);
 //! ```
 
 use thiserror::Error;

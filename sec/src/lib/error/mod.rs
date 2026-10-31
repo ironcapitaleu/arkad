@@ -210,27 +210,27 @@ mod tests {
 
     #[test]
     fn should_be_able_to_create_state_machine_error_when_casting_from_specific_error_kind() {
-        let _result: StateMachine = ErrorKind::StateMachine(StateMachine::InvalidConfiguration)
-            .try_into()
-            .expect(
-                "Should always be able to cast hardcoded `ErrorKind` into `StateMachine` error",
-            );
+        let error_kind = ErrorKind::StateMachine(StateMachine::InvalidConfiguration);
+
+        let _result: StateMachine = error_kind.try_into().expect(
+            "Should always be able to cast hardcoded `ErrorKind` into `StateMachine` error",
+        );
     }
 
     #[test]
     fn should_be_able_to_create_state_error_when_casting_from_specific_error_kind_that_is_a_state()
     {
-        let _result: State = ErrorKind::StateMachine(StateMachine::State(State::InvalidInput))
-            .try_into()
-            .expect(
-                "Should always be able to cast provided hardcoded `ErrorKind` into `State` error",
-            );
+        let error_kind = ErrorKind::StateMachine(StateMachine::State(State::InvalidInput));
+
+        let _result: State = error_kind.try_into().expect(
+            "Should always be able to cast provided hardcoded `ErrorKind` into `State` error",
+        );
     }
 
     #[test]
     fn should_be_able_to_create_transition_error_when_casting_from_specific_error_kind_that_is_a_transition()
      {
-        let _result: Transition = ErrorKind::StateMachine(StateMachine::Transition(
+        let error_kind = ErrorKind::StateMachine(StateMachine::Transition(
             Transition::FailedOutputConversion(
                 crate::error::state_machine::transition::FailedOutputConversion::new(
                     "A",
@@ -238,9 +238,9 @@ mod tests {
                     "Sample reason",
                 ),
             ),
-        ))
-        .try_into()
-        .expect(
+        ));
+
+        let _result: Transition = error_kind.try_into().expect(
             "Should always be able to cast provided hardcoded `ErrorKind` into `Transition` error",
         );
     }
@@ -256,9 +256,11 @@ mod tests {
 
     #[test]
     fn should_be_able_to_cast_into_equivalent_error_kind_error_when_having_a_state_machine_error() {
+        let state_machine_error = StateMachine::InvalidConfiguration;
+
         let expected_result = ErrorKind::StateMachine(StateMachine::InvalidConfiguration);
 
-        let result: ErrorKind = StateMachine::InvalidConfiguration.into();
+        let result: ErrorKind = state_machine_error.into();
 
         assert_eq!(result, expected_result);
     }

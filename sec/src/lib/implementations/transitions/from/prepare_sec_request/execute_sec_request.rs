@@ -116,6 +116,7 @@ mod tests {
 
     #[tokio::test]
     async fn should_transition_to_execute_sec_request_when_prepare_sec_request_has_output() {
+        let client = SecClient::default();
         let cik = Cik::new("0001234567")
             .expect("Hardcoded valid CIK string should always parse successfully");
         let input = PrepareSecRequestInput::new(cik.clone());
@@ -128,13 +129,14 @@ mod tests {
 
         let expected_result = true;
 
-        let result = ExecuteCompanyFactsRequest::try_from((state, SecClient::default())).is_ok();
+        let result = ExecuteCompanyFactsRequest::try_from((state, client)).is_ok();
 
         assert_eq!(result, expected_result);
     }
 
     #[tokio::test]
     async fn should_take_cik_from_input_when_input_and_context_name_different_ciks() {
+        let client = SecClient::default();
         let input_cik = Cik::new("0001234567")
             .expect("Hardcoded valid CIK string should always parse successfully");
         let context_cik = Cik::new("0000320193")
@@ -150,7 +152,7 @@ mod tests {
 
         let expected_result = input_cik;
 
-        let result = ExecuteCompanyFactsRequest::try_from((state, SecClient::default()))
+        let result = ExecuteCompanyFactsRequest::try_from((state, client))
             .expect("Given a computed state, the transition should always succeed")
             .context_data()
             .request_input
@@ -161,6 +163,7 @@ mod tests {
 
     #[test]
     fn should_return_error_when_prepare_sec_request_has_no_output() {
+        let client = SecClient::default();
         let cik = Cik::new("0001234567")
             .expect("Hardcoded valid CIK string should always parse successfully");
         let input = PrepareSecRequestInput::new(cik.clone());
@@ -169,7 +172,7 @@ mod tests {
 
         let expected_result = true;
 
-        let result = ExecuteCompanyFactsRequest::try_from((state, SecClient::default())).is_err();
+        let result = ExecuteCompanyFactsRequest::try_from((state, client)).is_err();
 
         assert_eq!(result, expected_result);
     }
@@ -177,6 +180,7 @@ mod tests {
     #[test]
     fn should_return_missing_output_named_after_notes_file_kind_when_prepare_notes_request_has_no_output()
      {
+        let client = SecClient::default();
         let period = NotesPeriod::new("2024q1")
             .expect("Given a published period, NotesPeriod creation should always succeed");
         let state = PrepareSecRequest::builder()
@@ -190,8 +194,7 @@ mod tests {
         ));
 
         let result =
-            ExecuteSecRequest::<NotesFile, _, SecClient>::try_from((state, SecClient::default()))
-                .map(|_| ());
+            ExecuteSecRequest::<NotesFile, _, SecClient>::try_from((state, client)).map(|_| ());
 
         assert_eq!(result, expected_result);
     }

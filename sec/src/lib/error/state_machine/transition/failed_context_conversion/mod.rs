@@ -55,13 +55,17 @@ mod tests {
 
     #[test]
     fn should_create_error_with_state_names_and_reason_when_new_is_called() {
+        let source_state_name = "StateA";
+        let target_state_name = "StateB";
+        let reason = "Sample reason";
+
         let expected_result = FailedContextConversion {
             source_state_name: "StateA".to_string(),
             target_state_name: "StateB".to_string(),
             reason: "Sample reason".to_string(),
         };
 
-        let result = FailedContextConversion::new("StateA", "StateB", "Sample reason");
+        let result = FailedContextConversion::new(source_state_name, target_state_name, reason);
 
         assert_eq!(result, expected_result);
     }

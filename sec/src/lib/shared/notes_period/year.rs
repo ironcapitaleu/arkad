@@ -48,20 +48,25 @@ mod tests {
 
     #[test]
     fn should_return_none_when_number_has_a_sign() {
+        let number = "+202";
+
         let expected_result = None;
 
-        let result = Year::from_number_str("+202");
+        let result = Year::from_number_str(number);
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_return_none_when_number_has_letters() {
+        let four_letters = "Dumb";
+        let five_letters = "Dumbo";
+
         let expected_result = (None, None);
 
         let result = (
-            Year::from_number_str("Dumb"),
-            Year::from_number_str("Dumbo"),
+            Year::from_number_str(four_letters),
+            Year::from_number_str(five_letters),
         );
 
         assert_eq!(result, expected_result);
@@ -69,9 +74,11 @@ mod tests {
 
     #[test]
     fn should_display_the_four_digits_when_year_is_2009() {
+        let year = Year(2009);
+
         let expected_result = "2009";
 
-        let result = Year(2009).to_string();
+        let result = year.to_string();
 
         assert_eq!(result, expected_result);
     }

@@ -212,10 +212,11 @@ mod tests {
     #[tokio::test]
     async fn should_return_the_body_when_the_notes_file_download_succeeds() {
         let client = responding_client(200, "application/octet-stream", NOTES_FILE_BODY);
+        let request = notes_file_request();
 
         let expected_result = NOTES_FILE_BODY.to_vec();
 
-        let result = client.execute_sec_request(notes_file_request())
+        let result = client.execute_sec_request(request)
             .await
             .expect("Given status 200, an octet stream and a matching length, the download should always succeed")
             .body()
@@ -227,10 +228,11 @@ mod tests {
     #[tokio::test]
     async fn should_wait_on_the_rate_limiter_once_when_downloading_a_notes_file() {
         let client = responding_client(200, "application/zip", NOTES_FILE_BODY);
+        let request = notes_file_request();
 
         let expected_result = 1;
 
-        let _ = client.execute_sec_request(notes_file_request()).await;
+        let _ = client.execute_sec_request(request).await;
         let result = client.rate_limiter.turns.load(Ordering::SeqCst);
 
         assert_eq!(result, expected_result);
@@ -239,12 +241,13 @@ mod tests {
     #[tokio::test]
     async fn should_return_invalid_status_code_when_the_notes_file_is_not_found() {
         let client = responding_client(404, "application/octet-stream", NOTES_FILE_BODY);
+        let request = notes_file_request();
 
         let expected_result = Some(invalid_response(ErrorReason::InvalidStatusCode {
             status_code: StatusCode::NotFound,
         }));
 
-        let result = client.execute_sec_request(notes_file_request()).await.err();
+        let result = client.execute_sec_request(request).await.err();
 
         assert_eq!(result, expected_result);
     }
@@ -252,12 +255,13 @@ mod tests {
     #[tokio::test]
     async fn should_return_invalid_content_type_when_the_notes_file_is_html() {
         let client = responding_client(200, "text/html", NOTES_FILE_BODY);
+        let request = notes_file_request();
 
         let expected_result = Some(invalid_response(ErrorReason::InvalidContentType {
             content_type: ContentType::Html,
         }));
 
-        let result = client.execute_sec_request(notes_file_request()).await.err();
+        let result = client.execute_sec_request(request).await.err();
 
         assert_eq!(result, expected_result);
     }
@@ -265,13 +269,14 @@ mod tests {
     #[tokio::test]
     async fn should_return_invalid_content_length_when_the_notes_file_body_is_short() {
         let client = responding_client(200, "application/zip", &NOTES_FILE_BODY[..4]);
+        let request = notes_file_request();
 
         let expected_result = Some(invalid_response(ErrorReason::InvalidContentLength {
             content_length: NOTES_FILE_BODY.len().to_string(),
             body_length: 4,
         }));
 
-        let result = client.execute_sec_request(notes_file_request()).await.err();
+        let result = client.execute_sec_request(request).await.err();
 
         assert_eq!(result, expected_result);
     }

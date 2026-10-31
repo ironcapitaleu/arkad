@@ -61,9 +61,10 @@ mod tests {
     async fn should_return_ok_when_persisting_through_a_trait_object() {
         let repository: Box<dyn WriteRepository<Record = String>> =
             Box::new(FakeWriteRepository::new());
+        let record = "CIK0001067983".to_string();
         let expected_result = Ok(());
 
-        let result = repository.persist("CIK0001067983".to_string()).await;
+        let result = repository.persist(record).await;
 
         assert_eq!(result, expected_result);
     }

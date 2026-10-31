@@ -87,9 +87,11 @@ use crate::implementations::repository::filesystem::shared::document_metadata::D
 ///     }
 /// }
 ///
+/// let document_type = Summary::DOCUMENT_TYPE;
+///
 /// let expected_result = "summary";
 ///
-/// let result = Summary::DOCUMENT_TYPE.to_string();
+/// let result = document_type.to_string();
 ///
 /// assert_eq!(result, expected_result);
 /// ```

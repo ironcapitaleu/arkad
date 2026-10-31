@@ -49,45 +49,64 @@ mod tests {
 
     #[test]
     fn should_return_none_when_number_is_outside_01_to_12() {
+        let number_below_range = "00";
+        let number_above_range = "13";
+
         let expected_result = (None, None);
 
-        let result = (Month::from_number_str("00"), Month::from_number_str("13"));
+        let result = (
+            Month::from_number_str(number_below_range),
+            Month::from_number_str(number_above_range),
+        );
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_return_none_when_number_has_one_digit() {
+        let number = "1";
+
         let expected_result = None;
 
-        let result = Month::from_number_str("1");
+        let result = Month::from_number_str(number);
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_return_none_when_number_has_a_sign() {
+        let number = "+1";
+
         let expected_result = None;
 
-        let result = Month::from_number_str("+1");
+        let result = Month::from_number_str(number);
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_return_none_when_number_has_letters() {
+        let two_letters = "ab";
+        let three_letters = "abc";
+
         let expected_result = (None, None);
 
-        let result = (Month::from_number_str("ab"), Month::from_number_str("abc"));
+        let result = (
+            Month::from_number_str(two_letters),
+            Month::from_number_str(three_letters),
+        );
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_order_january_before_december_for_months() {
+        let january = Month(chrono::Month::January);
+        let december = Month(chrono::Month::December);
+
         let expected_result = true;
 
-        let result = Month(chrono::Month::January) < Month(chrono::Month::December);
+        let result = january < december;
 
         assert_eq!(result, expected_result);
     }

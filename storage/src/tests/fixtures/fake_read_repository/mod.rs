@@ -133,10 +133,11 @@ mod tests {
     async fn should_return_the_record_when_the_key_is_known() {
         let repository =
             FakeReadRepository::initialized(vec![("0000320193".to_string(), "Apple".to_string())]);
+        let key = "0000320193".to_string();
         let expected_result = Some("Apple".to_string());
 
         let result = repository
-            .get("0000320193".to_string())
+            .get(key)
             .await
             .expect("Given a key the fake was initialized with, the read should always succeed");
 
@@ -147,9 +148,10 @@ mod tests {
     async fn should_return_none_when_the_key_is_unknown() {
         let repository =
             FakeReadRepository::initialized(vec![("0000320193".to_string(), "Apple".to_string())]);
+        let key = "0001067983".to_string();
         let expected_result = None;
 
-        let result = repository.get("0001067983".to_string()).await.expect(
+        let result = repository.get(key).await.expect(
             "Given a fake that was not initialized to fail, the read should always succeed",
         );
 
@@ -161,9 +163,10 @@ mod tests {
         let error = ReadError::Backend(BackendError::unreachable_storage("timeout"));
         let repository: FakeReadRepository<String, String> =
             FakeReadRepository::failing(error.clone());
+        let key = "0000320193".to_string();
         let expected_result = error;
 
-        let result = repository.get("0000320193".to_string()).await.expect_err(
+        let result = repository.get(key).await.expect_err(
             "Given a fake initialized to fail, the read should always return that error",
         );
 

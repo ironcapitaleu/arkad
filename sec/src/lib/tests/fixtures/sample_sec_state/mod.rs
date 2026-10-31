@@ -29,10 +29,10 @@
 //!
 //!     let input = SampleSecStateInput::default();
 //!     let context = SampleSecStateContext::default();
+//!     let mut sample_state = SampleSecState::new(input, context);
 //!
 //!     let expected_result = "Hello World!";
 //!
-//!     let mut sample_state = SampleSecState::new(input, context);
 //!     sample_state.compute_output_data_async().await.unwrap();
 //!     let sample_output = sample_state.output_data().unwrap();
 //!     let result = &sample_output.output_data;
