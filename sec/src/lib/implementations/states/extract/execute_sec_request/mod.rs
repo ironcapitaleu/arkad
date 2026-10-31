@@ -38,7 +38,7 @@
 //! # }
 //! ```
 //!
-//! The state runs every kind that implements [`RespondsWith`], for example [`FilingIndex`]:
+//! The state runs every kind that implements [`HasResponse`], for example [`FilingIndex`]:
 //!
 //! ```rust
 //! use sec::implementations::states::extract::execute_sec_request::ExecuteSecRequest;
@@ -54,7 +54,7 @@
 //! ## See Also
 //!
 //! - [`crate::implementations::states::extract`]: Parent module describing the extraction flow.
-//! - [`crate::shared::response::implementations::sec_response::SecResponse`]: The response type produced by this state.
+//! - [`crate::shared::http_client::Executes`]: The client trait that runs the request.
 //! - [`crate::traits::state_machine::state::State`]: The trait implemented by [`ExecuteSecRequest`].
 
 use std::fmt;
@@ -65,14 +65,12 @@ use state_maschine::prelude::State as SMState;
 
 use crate::error::State as StateError;
 use crate::error::state_machine::state::failed_request_execution::FailedRequestExecution;
-use crate::shared::http_client::RespondsWith;
 use crate::shared::http_client::SecClient as SecClientTrait;
 use crate::shared::http_client::implementations::sec_client::SecClient;
-use crate::shared::http_client::implementations::sec_client::error::FailedSecRequest;
+use crate::shared::http_client::{Executes, HasResponse};
 use crate::shared::request::implementations::sec_request::CompanyFacts;
 #[cfg(doc)]
 use crate::shared::request::implementations::sec_request::FilingIndex;
-use crate::shared::response::implementations::sec_response::SecResponse;
 use crate::traits::state_machine::state::State;
 
 pub mod constants;
@@ -87,12 +85,12 @@ pub use data::ExecuteSecRequestOutput;
 /// Sends the prepared request to the SEC API and captures the response.
 ///
 /// Consumes the prepared SEC client `C`, by default [`SecClient`], and the
-/// [`SecRequest`](crate::shared::request::implementations::sec_request::SecRequest) of endpoint
-/// `E`. It performs the HTTP call and stores the resulting [`SecResponse`]. The endpoint `E` sets
-/// the body kind of the response.
+/// [`SecRequest`](crate::shared::request::implementations::sec_request::SecRequest) of kind `E`.
+/// It runs the request through [`Executes::execute`] and stores the [`HasResponse::Response`] of
+/// `E`.
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
 #[serde(bound(serialize = "C: Serialize"))]
-pub struct ExecuteSecRequest<E: RespondsWith, C = SecClient> {
+pub struct ExecuteSecRequest<E: HasResponse, C = SecClient> {
     input: ExecuteSecRequestInput<E, C>,
     context: ExecuteSecRequestContext<E>,
     output: Option<ExecuteSecRequestOutput<E>>,
@@ -103,7 +101,7 @@ pub struct ExecuteSecRequest<E: RespondsWith, C = SecClient> {
 /// It is the same type under a shorter name, not a separate state.
 pub type ExecuteCompanyFactsRequest<C = SecClient> = ExecuteSecRequest<CompanyFacts, C>;
 
-impl<E: RespondsWith, C> ExecuteSecRequest<E, C> {
+impl<E: HasResponse, C> ExecuteSecRequest<E, C> {
     /// Creates a new [`ExecuteSecRequest`] state from its input and context, with no output computed yet.
     ///
     /// # Examples
@@ -160,14 +158,11 @@ impl<E: RespondsWith, C> ExecuteSecRequest<E, C> {
     }
 }
 
-// Deviation: the output holds an `SecResponse<E::Body>`, and `FailedRequestExecution`
-// wraps a `FailedSecRequest`. So the impls that compute the output pin the response and the error
-// of `C`. Other impls bind `C: SecClient` only.
 #[async_trait]
 impl<E, C> State for ExecuteSecRequest<E, C>
 where
-    E: RespondsWith,
-    C: SecClientTrait<Response<E::Body> = SecResponse<E::Body>, Error = FailedSecRequest>,
+    E: HasResponse,
+    C: SecClientTrait + Executes<E>,
 {
     /// Executes the prepared SEC request and stores the response as output.
     ///
@@ -179,7 +174,7 @@ where
         let client = &self.input.sec_client;
         let request = &self.input.sec_request;
 
-        let result = client.execute_sec_request(request.clone()).await;
+        let result = client.execute(request.clone()).await;
 
         match result {
             Ok(response) => {
@@ -197,8 +192,8 @@ where
 
 impl<E, C> SMState for ExecuteSecRequest<E, C>
 where
-    E: RespondsWith,
-    C: SecClientTrait<Response<E::Body> = SecResponse<E::Body>, Error = FailedSecRequest>,
+    E: HasResponse,
+    C: SecClientTrait + Executes<E>,
 {
     type InputData = ExecuteSecRequestInput<E, C>;
     type OutputData = ExecuteSecRequestOutput<E>;
@@ -247,7 +242,7 @@ where
     }
 }
 
-impl<E: RespondsWith, C: SecClientTrait> fmt::Display for ExecuteSecRequest<E, C> {
+impl<E: HasResponse, C: SecClientTrait> fmt::Display for ExecuteSecRequest<E, C> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
@@ -277,6 +272,7 @@ mod tests {
     use crate::shared::cik::Cik;
     use crate::shared::content_type::ContentType;
     use crate::shared::http_client::implementations::sec_client::SecClient;
+    use crate::shared::http_client::implementations::sec_client::error::FailedSecRequest;
     use crate::shared::notes_period::NotesPeriod;
     use crate::shared::request::implementations::sec_request::{NotesFile, SecRequest};
     use crate::shared::response::SecResponse as SecResponseTrait;

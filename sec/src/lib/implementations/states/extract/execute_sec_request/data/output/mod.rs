@@ -4,7 +4,8 @@
 //! [`ExecuteSecRequest`](crate::implementations::states::extract::execute_sec_request::ExecuteSecRequest)
 //! state, along with its updater and builder.
 //!
-//! It wraps the [`SecResponse`] returned by the SEC API.
+//! It wraps the response of the request kind, for example an
+//! [`SecResponse`](crate::shared::response::implementations::sec_response::SecResponse).
 //! The dispatched client and request live in [`input`](super::input).
 //!
 //! ## See Also
@@ -22,18 +23,17 @@ use serde::{Serialize, Serializer};
 use state_maschine::prelude::StateData as SMStateData;
 
 use crate::error::State as StateError;
-use crate::shared::http_client::RespondsWith;
-use crate::shared::response::implementations::sec_response::SecResponse;
+use crate::shared::http_client::HasResponse;
 use crate::traits::state_machine::state::StateData;
 
 /// Output data of the [`ExecuteSecRequest`](super::super::ExecuteSecRequest) state.
 ///
-/// Wraps the [`SecResponse`] returned by the SEC API for endpoint `E`.
+/// Wraps the [`HasResponse::Response`] of the request kind `E`.
 ///
 /// The response sits in an [`Arc`], because a state output must be `Clone` and an
 /// `SecResponse<ZipBody>` is not. A clone of the output copies a pointer.
 ///
-/// The endpoint sets the body kind, so the output of a Notes request cannot hold a JSON response:
+/// The kind sets the response, so the output of a Notes request cannot hold a JSON response:
 ///
 /// ```compile_fail,E0308
 /// use sec::implementations::states::extract::execute_sec_request::ExecuteSecRequestOutput;
@@ -45,33 +45,32 @@ use crate::traits::state_machine::state::StateData;
 /// }
 /// ```
 #[derive(Debug)]
-pub struct ExecuteSecRequestOutput<E: RespondsWith> {
-    /// The SEC response received from the API endpoint.
-    pub response: Arc<SecResponse<E::Body>>,
+pub struct ExecuteSecRequestOutput<E: HasResponse> {
+    /// The response to the request.
+    pub response: Arc<E::Response>,
 }
 
-impl<E: RespondsWith> ExecuteSecRequestOutput<E> {
-    /// Creates a new [`ExecuteSecRequestOutput`] from an SEC response.
+impl<E: HasResponse> ExecuteSecRequestOutput<E> {
+    /// Creates a new [`ExecuteSecRequestOutput`] from the response to the request.
     #[must_use]
-    pub fn new(response: SecResponse<E::Body>) -> Self {
+    pub fn new(response: E::Response) -> Self {
         Self {
             response: Arc::new(response),
         }
     }
 
-    /// Returns a reference to the SEC response.
+    /// Returns a reference to the response.
     #[must_use]
-    pub fn response(&self) -> &SecResponse<E::Body> {
+    pub fn response(&self) -> &E::Response {
         &self.response
     }
 }
 
-// Deviation: the traits below are written by hand. A derive bounds `E::Body` by each trait and
-// fails with "the trait bound `<E as RespondsWith>::Body: Clone` is not satisfied", because
-// `ZipBody` implements none of them. `Serialize` is hand-written because serde implements it for
-// `Arc` only with the `rc` feature. The impls compare the responses, which `SecResponse` supports
-// for every body kind.
-impl<E: RespondsWith> Clone for ExecuteSecRequestOutput<E> {
+// Deviation: the traits below are written by hand. A derive bounds `E::Response` by `Clone` and
+// fails, because `SecResponse<ZipBody>` is not `Clone`. `Serialize` is hand-written because serde
+// implements it for `Arc` only with the `rc` feature. The other impls compare the responses, which
+// the bounds of `HasResponse::Response` allow.
+impl<E: HasResponse> Clone for ExecuteSecRequestOutput<E> {
     fn clone(&self) -> Self {
         Self {
             response: Arc::clone(&self.response),
@@ -79,34 +78,34 @@ impl<E: RespondsWith> Clone for ExecuteSecRequestOutput<E> {
     }
 }
 
-impl<E: RespondsWith> PartialEq for ExecuteSecRequestOutput<E> {
+impl<E: HasResponse> PartialEq for ExecuteSecRequestOutput<E> {
     fn eq(&self, other: &Self) -> bool {
         self.response == other.response
     }
 }
 
-impl<E: RespondsWith> Eq for ExecuteSecRequestOutput<E> {}
+impl<E: HasResponse> Eq for ExecuteSecRequestOutput<E> {}
 
-impl<E: RespondsWith> PartialOrd for ExecuteSecRequestOutput<E> {
+impl<E: HasResponse> PartialOrd for ExecuteSecRequestOutput<E> {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl<E: RespondsWith> Ord for ExecuteSecRequestOutput<E> {
+impl<E: HasResponse> Ord for ExecuteSecRequestOutput<E> {
     fn cmp(&self, other: &Self) -> Ordering {
         self.response.cmp(&other.response)
     }
 }
 
-impl<E: RespondsWith> Hash for ExecuteSecRequestOutput<E> {
+impl<E: HasResponse> Hash for ExecuteSecRequestOutput<E> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.response.hash(state);
     }
 }
 
 /// Serializes the response without its body bytes.
-impl<E: RespondsWith> Serialize for ExecuteSecRequestOutput<E> {
+impl<E: HasResponse> Serialize for ExecuteSecRequestOutput<E> {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         let mut state = serializer.serialize_struct("ExecuteSecRequestOutput", 1)?;
         state.serialize_field("response", self.response.as_ref())?;
@@ -114,7 +113,7 @@ impl<E: RespondsWith> Serialize for ExecuteSecRequestOutput<E> {
     }
 }
 
-impl<E: RespondsWith> StateData for ExecuteSecRequestOutput<E> {
+impl<E: HasResponse> StateData for ExecuteSecRequestOutput<E> {
     fn update_state(&mut self, updates: Self::UpdateType) -> Result<(), StateError> {
         if let Some(response) = updates.response {
             self.response = response;
@@ -122,7 +121,7 @@ impl<E: RespondsWith> StateData for ExecuteSecRequestOutput<E> {
         Ok(())
     }
 }
-impl<E: RespondsWith> SMStateData for ExecuteSecRequestOutput<E> {
+impl<E: HasResponse> SMStateData for ExecuteSecRequestOutput<E> {
     type UpdateType = ExecuteSecRequestOutputUpdater<E>;
 
     fn state(&self) -> &Self {
@@ -139,7 +138,7 @@ impl<E: RespondsWith> SMStateData for ExecuteSecRequestOutput<E> {
     }
 }
 
-impl<E: RespondsWith> fmt::Display for ExecuteSecRequestOutput<E> {
+impl<E: HasResponse> fmt::Display for ExecuteSecRequestOutput<E> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "\t{}", self.response)
     }
@@ -149,12 +148,12 @@ impl<E: RespondsWith> fmt::Display for ExecuteSecRequestOutput<E> {
 ///
 /// Fields set to `None` are left unchanged when the updater is applied.
 #[derive(Debug)]
-pub struct ExecuteSecRequestOutputUpdater<E: RespondsWith> {
-    /// Optional new value for the SEC response.
-    pub response: Option<Arc<SecResponse<E::Body>>>,
+pub struct ExecuteSecRequestOutputUpdater<E: HasResponse> {
+    /// Optional new value for the response.
+    pub response: Option<Arc<E::Response>>,
 }
 
-impl<E: RespondsWith> ExecuteSecRequestOutputUpdater<E> {
+impl<E: HasResponse> ExecuteSecRequestOutputUpdater<E> {
     /// Creates a new builder for constructing [`ExecuteSecRequestOutputUpdater`] instances.
     #[must_use]
     pub const fn builder() -> ExecuteSecRequestOutputUpdaterBuilder<E> {
@@ -163,20 +162,20 @@ impl<E: RespondsWith> ExecuteSecRequestOutputUpdater<E> {
 }
 
 /// Fluent builder for an [`ExecuteSecRequestOutputUpdater`].
-pub struct ExecuteSecRequestOutputUpdaterBuilder<E: RespondsWith> {
-    response: Option<Arc<SecResponse<E::Body>>>,
+pub struct ExecuteSecRequestOutputUpdaterBuilder<E: HasResponse> {
+    response: Option<Arc<E::Response>>,
 }
 
-impl<E: RespondsWith> ExecuteSecRequestOutputUpdaterBuilder<E> {
+impl<E: HasResponse> ExecuteSecRequestOutputUpdaterBuilder<E> {
     /// Creates a new [`ExecuteSecRequestOutputUpdaterBuilder`] with all fields initialized to `None`.
     #[must_use]
     pub const fn new() -> Self {
         Self { response: None }
     }
 
-    /// Sets the SEC response field.
+    /// Sets the response field.
     #[must_use]
-    pub fn response(mut self, response: SecResponse<E::Body>) -> Self {
+    pub fn response(mut self, response: E::Response) -> Self {
         self.response = Some(Arc::new(response));
         self
     }
@@ -190,7 +189,7 @@ impl<E: RespondsWith> ExecuteSecRequestOutputUpdaterBuilder<E> {
     }
 }
 
-impl<E: RespondsWith> Default for ExecuteSecRequestOutputUpdaterBuilder<E> {
+impl<E: HasResponse> Default for ExecuteSecRequestOutputUpdaterBuilder<E> {
     fn default() -> Self {
         Self::new()
     }
