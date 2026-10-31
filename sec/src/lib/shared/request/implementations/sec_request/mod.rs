@@ -10,7 +10,7 @@
 //! - [`builder`]: The [`SecRequestBuilder`] for constructing requests fluently.
 //! - [`constants`]: The endpoint URL fragments.
 //! - [`kind`]: The [`RequestKind`] trait and the [`CompanyFacts`], [`NotesFile`], [`DailyIndex`],
-//!   [`DailyIndexListing`], [`Submissions`], and [`FilingIndex`] kinds.
+//!   [`DailyIndexListing`], [`Submissions`], [`FilingIndex`], and [`FilingDocument`] kinds.
 
 use std::marker::PhantomData;
 
@@ -18,6 +18,7 @@ use reqwest::{Method, Request, Url};
 use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
 
+use crate::shared::filing_documents::FilingDocumentRef;
 use crate::shared::filing_ref::FilingRef;
 use crate::shared::index_date::IndexDate;
 use crate::shared::{cik::Cik, notes_period::NotesPeriod, request::SecRequest as SecRequestTrait};
@@ -28,13 +29,13 @@ pub mod kind;
 
 pub use builder::SecRequestBuilder;
 pub use kind::{
-    CompanyFacts, DailyIndex, DailyIndexListing, FilingIndex, NotesFile, RequestKind, StoredAs,
-    Submissions,
+    CompanyFacts, DailyIndex, DailyIndexListing, FilingDocument, FilingIndex, NotesFile,
+    RequestKind, StoredAs, Submissions,
 };
 
 use constants::{
     SEC_COMPANY_FACTS_URL_PREFIX, SEC_COMPANY_FACTS_URL_SUFFIX, SEC_DAILY_INDEX_LISTING_FILE_NAME,
-    SEC_DAILY_INDEX_URL_PREFIX, SEC_FILING_INDEX_FILE_NAME, SEC_FILING_INDEX_URL_PREFIX,
+    SEC_DAILY_INDEX_URL_PREFIX, SEC_FILING_FOLDER_URL_PREFIX, SEC_FILING_INDEX_FILE_NAME,
     SEC_NOTES_URL_PREFIX, SEC_SUBMISSIONS_URL_PREFIX, SEC_SUBMISSIONS_URL_SUFFIX,
 };
 
@@ -49,6 +50,7 @@ use constants::{
 /// - [`DailyIndex`] and [`DailyIndexListing`]: built from an [`IndexDate`].
 /// - [`Submissions`]: built from a [`Cik`].
 /// - [`FilingIndex`]: built from a [`FilingRef`].
+/// - [`FilingDocument`]: built from a [`FilingDocumentRef`].
 #[derive(Debug)]
 pub struct SecRequest<K: RequestKind = CompanyFacts> {
     /// The raw HTTP request type this struct wraps.
@@ -143,7 +145,10 @@ impl<K: RequestKind> SecRequestTrait for SecRequest<K> {
             SecRequestType::FetchSubmissions { cik } => {
                 format!("{SEC_SUBMISSIONS_URL_PREFIX}{cik}{SEC_SUBMISSIONS_URL_SUFFIX}")
             }
-            SecRequestType::FetchFilingIndex { filing } => filing_index_url(&filing),
+            SecRequestType::FetchFilingIndex { filing } => {
+                format!("{}{SEC_FILING_INDEX_FILE_NAME}", filing_folder_url(&filing))
+            }
+            SecRequestType::FetchFilingDocument { document } => filing_document_url(&document),
         };
         let request = Request::new(
             Method::GET,
@@ -157,10 +162,10 @@ impl<K: RequestKind> SecRequestTrait for SecRequest<K> {
     }
 }
 
-/// Builds the folder-index URL of `filing`.
+/// Builds the URL of the folder of `filing`, with a slash at the end.
 ///
 /// The URL takes only the ASCII digits of the accession number, so the dashes drop out.
-fn filing_index_url(filing: &FilingRef) -> String {
+fn filing_folder_url(filing: &FilingRef) -> String {
     let accession_digits: String = filing
         .accession_number()
         .value()
@@ -168,9 +173,24 @@ fn filing_index_url(filing: &FilingRef) -> String {
         .filter(char::is_ascii_digit)
         .collect();
     format!(
-        "{SEC_FILING_INDEX_URL_PREFIX}{}/{accession_digits}/{SEC_FILING_INDEX_FILE_NAME}",
+        "{SEC_FILING_FOLDER_URL_PREFIX}{}/{accession_digits}/",
         filing.cik().unpadded()
     )
+}
+
+/// Builds the URL of one file in the folder of a filing.
+///
+/// The file name becomes one path segment. A `/`, `?`, `#`, or `%` in it is percent-encoded, so
+/// the URL stays in the folder of the filing. A file name of `..` adds no segment, so the URL
+/// names the folder itself.
+fn filing_document_url(document: &FilingDocumentRef) -> String {
+    let mut url = Url::parse(&filing_folder_url(document.filing()))
+        .expect("A hardcoded URL prefix joined with a validated filing should always parse");
+    url.path_segments_mut()
+        .expect("An HTTPS URL always has path segments")
+        .pop_if_empty()
+        .push(document.file_name());
+    url.into()
 }
 
 impl<K: RequestKind> Clone for SecRequest<K> {
@@ -249,6 +269,12 @@ pub enum SecRequestType {
     FetchFilingIndex {
         /// The filing whose folder index to fetch.
         filing: FilingRef,
+    },
+    /// Fetch one file of the folder of a filing. The URL holds the CIK without its leading zeros,
+    /// as in [`FetchFilingIndex`](Self::FetchFilingIndex).
+    FetchFilingDocument {
+        /// The file to fetch.
+        document: FilingDocumentRef,
     },
 }
 

@@ -14,10 +14,7 @@ use crate::shared::response::implementations::sec_response::error::{
 };
 use crate::shared::status_code::StatusCode;
 
-use super::ResponseBody;
-
-/// The name of the header that states the body length in bytes.
-const CONTENT_LENGTH_HEADER: &str = "content-length";
+use super::{ResponseBody, checked_bytes, checked_bytes_off_task};
 
 /// The bytes of a ZIP file or a daily index, exactly as the server sent them.
 ///
@@ -83,9 +80,8 @@ impl ResponseBody for ZipBody {
         headers: &Headers,
         raw_body: Vec<u8>,
     ) -> Result<(Self, Sha256Digest), InvalidSecResponse> {
-        check_content_length(headers, &raw_body)?;
-        let body_digest = Sha256Digest::of(&raw_body);
-        Ok((Self(Bytes::from(raw_body)), body_digest))
+        let (bytes, body_digest) = checked_bytes(headers, raw_body)?;
+        Ok((Self(bytes), body_digest))
     }
 
     /// Checks the body length, and hashes the body on the blocking thread pool with
@@ -99,31 +95,11 @@ impl ResponseBody for ZipBody {
         headers: &Headers,
         raw_body: Vec<u8>,
     ) -> Result<(Self, Sha256Digest), InvalidSecResponse> {
-        check_content_length(headers, &raw_body)?;
-        let (body_digest, raw_body) = Sha256Digest::of_owned_async(raw_body).await;
-        Ok((Self(Bytes::from(raw_body)), body_digest))
+        let (bytes, body_digest) = checked_bytes_off_task(headers, raw_body).await?;
+        Ok((Self(bytes), body_digest))
     }
 
     fn content(&self) -> &Self::Content {
         &self.0
     }
-}
-
-/// Checks that the body length matches the `Content-Length` header, if the header is present.
-///
-/// # Errors
-///
-/// Returns an [`InvalidSecResponse`] with [`ErrorReason::InvalidContentLength`] if the header
-/// is not a number or does not match the body length.
-fn check_content_length(headers: &Headers, body: &[u8]) -> Result<(), InvalidSecResponse> {
-    let Some(content_length) = headers.get(CONTENT_LENGTH_HEADER) else {
-        return Ok(());
-    };
-    if content_length.trim().parse::<usize>() != Ok(body.len()) {
-        return Err(InvalidSecResponse::new(ErrorReason::InvalidContentLength {
-            content_length: content_length.to_string(),
-            body_length: body.len(),
-        }));
-    }
-    Ok(())
 }

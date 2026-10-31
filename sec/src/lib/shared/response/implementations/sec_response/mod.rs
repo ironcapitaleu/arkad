@@ -5,7 +5,8 @@
 //!
 //! ## Modules
 //!
-//! - [`body`]: The [`ResponseBody`] trait and the [`JsonBody`] and [`ZipBody`] kinds.
+//! - [`body`]: The [`ResponseBody`] trait and the [`JsonBody`], [`XmlBody`], and [`ZipBody`]
+//!   kinds.
 //! - [`error`]: The [`InvalidSecResponse`] error raised during validation.
 
 use std::collections::HashMap;
@@ -29,7 +30,7 @@ use self::error::{ErrorReason, InvalidSecResponse};
 pub mod body;
 pub mod error;
 
-pub use body::{JsonBody, ResponseBody, ZipBody};
+pub use body::{JsonBody, ResponseBody, XmlBody, ZipBody};
 
 /// A validated SEC API response with a body of kind `B`.
 ///
@@ -39,6 +40,8 @@ pub use body::{JsonBody, ResponseBody, ZipBody};
 /// - [`JsonBody`], the default: a 2xx status, a JSON content type, and a valid JSON body.
 /// - [`ZipBody`]: status 200, a ZIP or octet-stream content type, and a body that matches the
 ///   `Content-Length` header.
+/// - [`XmlBody`]: status 200, an XML content type, and a body that matches the `Content-Length`
+///   header.
 ///
 /// Built from a raw response via [`from_inner`](crate::shared::response::SecResponse::from_inner),
 /// or from parts via [`SecResponse::from_parts`]. Equality, ordering, and hashing use the URL,
@@ -104,8 +107,8 @@ impl<B: ResponseBody> SecResponse<B> {
     /// - [`ErrorReason::InvalidStatusCode`] if `B` does not accept the status code.
     /// - [`ErrorReason::InvalidContentType`] if `B` does not accept the content type.
     /// - [`ErrorReason::InvalidBody`] if the raw body of a [`JsonBody`] is not valid JSON.
-    /// - [`ErrorReason::InvalidContentLength`] if the raw body of a [`ZipBody`] does not match
-    ///   the `Content-Length` header.
+    /// - [`ErrorReason::InvalidContentLength`] if the raw body of a [`ZipBody`] or an
+    ///   [`XmlBody`] does not match the `Content-Length` header.
     ///
     /// # Examples
     ///
@@ -615,6 +618,56 @@ mod zip_tests {
 
         let (_, ticks) = tokio::join!(build, ticker);
         let result = ticks > 1;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_poll_another_future_when_hashing_a_large_read_xml_body() {
+        let headers = headers("text/xml", None);
+        let body = vec![0_u8; LARGE_BODY_SIZE];
+        let url = sample_url();
+        let build_is_done = AtomicBool::new(false);
+        // Starts after the body read, so every tick comes from the hash.
+        let build = async {
+            let outcome = SecResponse::<XmlBody>::from_read_body(
+                url,
+                headers,
+                ContentType::Xml,
+                StatusCode::Ok,
+                body,
+            )
+            .await;
+            build_is_done.store(true, Ordering::Relaxed);
+            outcome
+        };
+        let ticker = count_ticks_until(&build_is_done);
+
+        let expected_result = true;
+
+        let (_, ticks) = tokio::join!(build, ticker);
+        let result = ticks > 1;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_return_invalid_content_length_when_a_raw_xml_response_body_is_longer_than_the_header()
+     {
+        let http_response = http::Response::builder()
+            .status(200)
+            .header("content-type", "text/xml")
+            .header("content-length", "4")
+            .body(BODY.to_vec())
+            .expect("Given a valid status code and header names, building the response should always succeed");
+        let inner = reqwest::Response::from(http_response);
+
+        let expected_result = Some(InvalidSecResponse::new(ErrorReason::InvalidContentLength {
+            content_length: "4".to_string(),
+            body_length: BODY.len(),
+        }));
+
+        let result = SecResponse::<XmlBody>::from_inner(inner).await.err();
 
         assert_eq!(result, expected_result);
     }

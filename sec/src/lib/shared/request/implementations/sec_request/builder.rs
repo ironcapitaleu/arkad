@@ -48,13 +48,14 @@
 use std::marker::PhantomData;
 
 use crate::shared::cik::Cik;
+use crate::shared::filing_documents::FilingDocumentRef;
 use crate::shared::filing_ref::FilingRef;
 use crate::shared::index_date::IndexDate;
 use crate::shared::notes_period::NotesPeriod;
 use crate::shared::request::SecRequest as SecRequestTrait;
 use crate::shared::request::implementations::sec_request::{
-    CompanyFacts, DailyIndex, DailyIndexListing, FilingIndex, NotesFile, RequestKind, SecRequest,
-    Submissions,
+    CompanyFacts, DailyIndex, DailyIndexListing, FilingDocument, FilingIndex, NotesFile,
+    RequestKind, SecRequest, Submissions,
 };
 
 /// Typestate marker: no CIK has been set yet.
@@ -78,9 +79,16 @@ pub struct NoDate;
 
 /// Typestate marker: no filing has been set yet.
 ///
-/// While the builder is in this state, [`build`](FilingIndexBuilder::build) is unavailable.
+/// While the builder is in this state, [`FilingIndexBuilder::build`] and
+/// [`FilingDocumentBuilder::build`] are unavailable.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NoFilingRef;
+
+/// Typestate marker: no file name has been set yet.
+///
+/// While the builder is in this state, [`build`](FilingDocumentBuilder::build) is unavailable.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NoFileName;
 
 /// Entry point for building an [`SecRequest`].
 ///
@@ -131,6 +139,15 @@ impl SecRequestBuilder {
     pub const fn filing_index(self) -> FilingIndexBuilder<NoFilingRef> {
         FilingIndexBuilder {
             filing: NoFilingRef,
+        }
+    }
+
+    /// Selects the [`FilingDocument`] request kind.
+    #[must_use]
+    pub const fn filing_document(self) -> FilingDocumentBuilder<NoFilingRef, NoFileName> {
+        FilingDocumentBuilder {
+            filing: NoFilingRef,
+            file_name: NoFileName,
         }
     }
 }
@@ -276,6 +293,83 @@ impl FilingIndexBuilder<FilingRef> {
     #[must_use]
     pub fn build(self) -> SecRequest<FilingIndex> {
         SecRequest::new(self.filing)
+    }
+}
+
+/// Typestate builder for the [`FetchFilingDocument`](super::SecRequestType::FetchFilingDocument)
+/// request.
+///
+/// The `F` type parameter tracks the filing and `N` tracks the file name. They start as
+/// [`NoFilingRef`] and [`NoFileName`]. [`filing_ref`](Self::filing_ref) and
+/// [`file_name`](Self::file_name) change them to [`FilingRef`] and [`String`]. Only
+/// `FilingDocumentBuilder<FilingRef, String>` has [`build`](Self::build).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FilingDocumentBuilder<F, N> {
+    filing: F,
+    file_name: N,
+}
+
+impl<N> FilingDocumentBuilder<NoFilingRef, N> {
+    /// Sets the filing.
+    #[must_use]
+    pub fn filing_ref(self, filing: FilingRef) -> FilingDocumentBuilder<FilingRef, N> {
+        FilingDocumentBuilder {
+            filing,
+            file_name: self.file_name,
+        }
+    }
+}
+
+impl<F> FilingDocumentBuilder<F, NoFileName> {
+    /// Sets the name of the file in the folder of the filing.
+    #[must_use]
+    pub fn file_name(self, file_name: impl Into<String>) -> FilingDocumentBuilder<F, String> {
+        FilingDocumentBuilder {
+            filing: self.filing,
+            file_name: file_name.into(),
+        }
+    }
+}
+
+impl FilingDocumentBuilder<FilingRef, String> {
+    /// Builds the [`SecRequest`]; available only once the filing and the file name are set.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use chrono::NaiveDate;
+    /// use sec::shared::cik::Cik;
+    /// use sec::shared::filing_ref::FilingRef;
+    /// use sec::shared::financial::accession_number::AccessionNumber;
+    /// use sec::shared::financial::form::{Form, ParsedForm};
+    /// use sec::shared::request::implementations::sec_request::SecRequest;
+    ///
+    /// let cik = Cik::new("320193").expect("A hardcoded valid CIK should always parse");
+    /// let filed_date = NaiveDate::from_ymd_opt(2017, 11, 3)
+    ///     .expect("A hardcoded calendar date should always build");
+    /// let filing = FilingRef::new(
+    ///     cik,
+    ///     AccessionNumber::new("0000320193-17-000070")
+    ///         .expect("Given a hardcoded accession number of the right shape, creation should always succeed"),
+    ///     ParsedForm::new(Form::TenK, false),
+    ///     filed_date,
+    /// );
+    /// let request = SecRequest::builder()
+    ///     .filing_document()
+    ///     .filing_ref(filing)
+    ///     .file_name("aapl-20170930.xml")
+    ///     .build();
+    ///
+    /// let expected_result =
+    ///     "https://www.sec.gov/Archives/edgar/data/320193/000032019317000070/aapl-20170930.xml";
+    ///
+    /// let result = request.inner.url().as_str();
+    ///
+    /// assert_eq!(result, expected_result);
+    /// ```
+    #[must_use]
+    pub fn build(self) -> SecRequest<FilingDocument> {
+        SecRequest::new(FilingDocumentRef::new(self.filing, self.file_name))
     }
 }
 
@@ -564,6 +658,82 @@ mod tests {
         let result = SecRequest::builder()
             .filing_index()
             .filing_ref(filing)
+            .build()
+            .inner()
+            .url()
+            .clone();
+
+        assert_eq!(result, expected_result);
+    }
+
+    fn alco_filing_ref() -> FilingRef {
+        FilingRef::new(
+            Cik::new("0000003545")
+                .expect("Given a hardcoded valid CIK, parsing should always succeed"),
+            AccessionNumber::new("0000003545-26-000047").expect("Given a hardcoded accession number of the right shape, creation should always succeed"),
+            ParsedForm::new(Form::TenQ, false),
+            NaiveDate::from_ymd_opt(2026, 9, 9)
+                .expect("Given a hardcoded calendar date, the date should always build"),
+        )
+    }
+
+    #[test]
+    fn should_produce_unpadded_cik_and_undashed_accession_number_in_url_for_filing_document_request()
+     {
+        let filing = alco_filing_ref();
+
+        let expected_result = Url::parse(
+            "https://www.sec.gov/Archives/edgar/data/3545/000000354526000047/alco-20260908_htm.xml",
+        )
+        .expect("Hardcoded URL should always be valid");
+
+        let result = SecRequest::builder()
+            .filing_document()
+            .filing_ref(filing)
+            .file_name("alco-20260908_htm.xml")
+            .build()
+            .inner()
+            .url()
+            .clone();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_percent_encode_slash_question_mark_hash_and_percent_when_in_the_file_name() {
+        let filing = alco_filing_ref();
+        let file_name = "../a?b#c%d";
+
+        let expected_result = Url::parse(
+            "https://www.sec.gov/Archives/edgar/data/3545/000000354526000047/..%2Fa%3Fb%23c%25d",
+        )
+        .expect("Hardcoded URL should always be valid");
+
+        let result = SecRequest::builder()
+            .filing_document()
+            .filing_ref(filing)
+            .file_name(file_name)
+            .build()
+            .inner()
+            .url()
+            .clone();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_name_the_filing_folder_when_the_file_name_is_dot_dot() {
+        let filing = alco_filing_ref();
+        let file_name = "..";
+
+        let expected_result =
+            Url::parse("https://www.sec.gov/Archives/edgar/data/3545/000000354526000047")
+                .expect("Hardcoded URL should always be valid");
+
+        let result = SecRequest::builder()
+            .filing_document()
+            .filing_ref(filing)
+            .file_name(file_name)
             .build()
             .inner()
             .url()
