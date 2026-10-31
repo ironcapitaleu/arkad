@@ -803,9 +803,10 @@ The shape of design 5:
   `RequestKind::Input` requires. STA-373 picks their names.
 - `SecRequest<K>` keeps the input it was built from. The impl for `FilingDocumentSet` reads the file
   names from it. Equality, hashing, and ordering compare the input. For `FilingIndex`, this is
-  stricter than the comparison of the URL today, because the URL does not hold the form or the
-  date filed. The order of requests also changes: the URL compares the CIK as text, and `Cik`
-  compares it as a number. The request check in `request_check.rs` then also compares the form
+  stricter than the comparison of the URL today, because the URL does not hold the form, the
+  amendment flag, or the date filed. The order of requests also changes: the URL holds the CIK
+  without zeros in front, and `Cik` holds it with ten digits, so `Cik` puts the CIKs in numeric
+  order. The request check in `request_check.rs` then also compares the form, the amendment flag,
   and the date filed.
 - `XmlBody` checks status 200, the content type `text/xml` or `application/xml`, and the
   `Content-Length` header, as `ZipBody` does. Its content is `[u8]`.
