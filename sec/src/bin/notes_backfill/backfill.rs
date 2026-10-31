@@ -187,6 +187,26 @@ pub async fn stored_archive(
     }))
 }
 
+/// What the run does with a period, given the read of its stored file.
+#[derive(Debug, PartialEq, Eq)]
+pub enum Plan {
+    /// The stored file is intact, so the run skips the download.
+    Skip(NotesArchiveRef),
+    /// The run downloads the file and tags the period with this fetch.
+    Download(Fetch),
+}
+
+/// Returns the plan for a period from the read of its stored file.
+///
+/// A read error means the stored file is unreadable or corrupt, so the run replaces it.
+pub fn plan(read: Result<Option<NotesArchiveRef>, ReadError>) -> Plan {
+    match read {
+        Ok(Some(archive)) => Plan::Skip(archive),
+        Ok(None) => Plan::Download(Fetch::Downloaded),
+        Err(_) => Plan::Download(Fetch::Replaced),
+    }
+}
+
 /// Extracts the Notes file of each period in `periods` into `repository`.
 ///
 /// Every super-state comes from `backfill`, so all of them carry one `execution_id`. At most
@@ -229,10 +249,9 @@ pub async fn run(
         // this split is an open decision (STA-360).
         // The check runs inside the future, so `FILES_IN_FLIGHT` also caps the files it reads.
         async move {
-            let fetch = match stored_archive(&reader, &period).await {
-                Ok(Some(archive)) => return (index, period, Ok((Fetch::AlreadyStored, archive))),
-                Ok(None) => Fetch::Downloaded,
-                Err(_) => Fetch::Replaced,
+            let fetch = match plan(stored_archive(&reader, &period).await) {
+                Plan::Skip(archive) => return (index, period, Ok((Fetch::AlreadyStored, archive))),
+                Plan::Download(fetch) => fetch,
             };
             let task = tokio::spawn(async move {
                 let outcome = super_state
@@ -382,12 +401,15 @@ mod tests {
         .await
     }
 
+    /// Returns the archive of `period` with the bytes `PK`, under the key that `notes_key` gives.
+    fn archive_of(period: &str) -> NotesArchiveRef {
+        let period = NotesPeriod::new(period)
+            .expect("Given a hardcoded published period, parsing should always succeed");
+        NotesArchiveRef::new(period, notes_key(period), 2, Sha256Digest::of(b"PK"))
+    }
+
     fn sample_archive() -> NotesArchiveRef {
-        let period = NotesPeriod::new(STORED_PERIOD)
-            .expect("Given a hardcoded published quarter, parsing should always succeed");
-        let key = DocumentKey::new(STORED_KEY)
-            .expect("Given a valid relative path, the key should always build");
-        NotesArchiveRef::new(period, key, 2, Sha256Digest::of(b"PK"))
+        archive_of(STORED_PERIOD)
     }
 
     #[tokio::test]
@@ -421,7 +443,49 @@ mod tests {
 
         let expected_result = true;
 
-        let result = stored_archive(&reader(&root), STORED_PERIOD).await.is_err();
+        let result = matches!(
+            stored_archive(&reader(&root), STORED_PERIOD).await,
+            Err(ReadError::Backend(_))
+        );
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_plan_a_replacement_when_the_stored_file_fails_the_sha256_check() {
+        let root = temporary_root();
+        store_sample_file(&root).await;
+        corrupt_sample_file(&root);
+        let read = stored_archive(&reader(&root), STORED_PERIOD).await;
+
+        let expected_result = Plan::Download(Fetch::Replaced);
+
+        let result = plan(read);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_plan_a_download_when_the_store_holds_no_file_of_the_period() {
+        let root = temporary_root();
+        let read = stored_archive(&reader(&root), STORED_PERIOD).await;
+
+        let expected_result = Plan::Download(Fetch::Downloaded);
+
+        let result = plan(read);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_plan_a_skip_when_the_stored_file_is_intact() {
+        let root = temporary_root();
+        store_sample_file(&root).await;
+        let read = stored_archive(&reader(&root), STORED_PERIOD).await;
+
+        let expected_result = Plan::Skip(sample_archive());
+
+        let result = plan(read);
 
         assert_eq!(result, expected_result);
     }
@@ -473,12 +537,7 @@ mod tests {
     }
 
     fn stored_by(period: &str, fetch: Fetch) -> (String, PeriodOutcome) {
-        let notes_period = NotesPeriod::new(period)
-            .expect("Given a hardcoded published period, parsing should always succeed");
-        let key = DocumentKey::new(format!("sec/notes/{period}_notes.zip"))
-            .expect("Given a valid relative path, the key should always build");
-        let archive = NotesArchiveRef::new(notes_period, key, 2, Sha256Digest::of(b"PK"));
-        (period.to_string(), Ok((fetch, archive)))
+        (period.to_string(), Ok((fetch, archive_of(period))))
     }
 
     fn answered(period: &str, status_code: StatusCode) -> (String, PeriodOutcome) {

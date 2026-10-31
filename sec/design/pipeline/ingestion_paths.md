@@ -349,8 +349,8 @@ quarter) or a month (year and month).
   Every other 403 or 404 stays a failure, so a run that the SEC refuses in full fails.
 - Before each download, `notes_backfill` reads the stored file of the period. If the file passes
   the size and SHA-256 check, the run skips the download (STA-400). So a rerun downloads only the
-  missing or corrupt files. The run summary marks a corrupt file that it downloaded again as
-  `replaced`. A file that the SEC replaces after the run stored it stays old.
+  missing or corrupt files. The run summary marks a file that it could not read or verify, and
+  downloaded again, as `replaced`. A file that the SEC replaces after the run stored it stays old.
 - `sec::shared::financial::quarter::Quarter` (Q1 to Q4) holds the quarter part. The month part
   needs its own type.
 
