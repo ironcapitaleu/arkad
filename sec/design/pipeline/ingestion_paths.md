@@ -21,8 +21,8 @@
 - [Cut-Over Between the Paths](#cut-over-between-the-paths) and
   [Idempotent Writes](#idempotent-writes) list their assumptions. Check them first.
 - [Path Independence](#path-independence) is new and proposed. It states what transform must
-  guarantee when a filing can come from either path. STA-402 measured the sources and
-  recommends option 2. The lead decides.
+  guarantee when a filing can come from either path. [STA-402 measured the sources](#measured-result)
+  and recommends option 2. The lead decides.
 - [Raw Store](#raw-store), [Handover to Transform](#handover-to-transform),
   [Deployment](#deployment), and [Implementation Tickets](#implementation-tickets) are new and
   proposed.
@@ -1176,35 +1176,57 @@ points to option 3, but does not decide this case. STA-331 decides.
 | Option | Rule | Same result across the cases? | Pro | Con |
 | ------ | ---- | ----------------------------- | --- | --- |
 | 1 | The sources agree, so `DO NOTHING` keeps one copy | Only for the 92.2% of facts that are identical in both sources | No extra rule | Fails on any difference |
-| 2 | A fixed precedence, for example instance over Notes, applied by an upsert | No, for any difference between the sources | One copy per fact, order-free within a case | Drops the other copy. Against the STA-145 rule if `source_ref` names the source document |
-| 3 | Both copies with their provenance, and reads pick one | No, for any difference between the sources | Nothing is lost, fits the STA-145 rule | Every read needs the rule, and `source_ref` must name the source document |
+| 2 | A fixed precedence, for example instance over Notes, applied by an upsert | No, for the 7.8% of facts that differ in form | One copy per fact, order-free within a case | Drops the other copy. Picks the value at write time, while the STA-145 rule picks it at read time |
+| 3 | Both copies with their provenance, and reads pick one | No, for the 7.8% of facts that differ in form | Nothing is lost, fits the STA-145 rule | Every read needs the rule, and `source_ref` must name the source document |
 
 #### Measured Result
 
-STA-402 compared 622 filings in both sources on 2026-10-31: every filing of the last two days of
-`2026_09`, and a spread of forms from `2026_09` and `2026_03`. The findings are in the Linear
-document
+STA-402 compared 622 filings in both sources on 2026-10-31. The set holds every filing of the last
+two days of `2026_09`, and a spread of forms from `2026_09` and `2026_03`. The findings are in the
+Linear document
 [Notes Rows vs Instance XML: Findings](https://linear.app/state-machine/document/notes-rows-vs-instance-xml-findings-5d8b4e5d0abf).
 
-- **Same facts.** 168,528 instance facts pair one to one with Notes rows. No fact is on one side
-  only. So the split decides only the form of a value, never whether a fact exists.
+- **Same facts.** The 168,528 facts of the instance that `sub.tsv` names pair one to one with Notes
+  rows. None of these facts is on one side only. A second instance of the same filing is the
+  exception, see "Instance selection" below.
 - **No conflict.** No numeric value differs beyond the 4-decimal rounding of Notes. No text differs
-  in content.
-- **Losses on the Notes side.** 13,069 facts (7.8%) differ in form. Notes drops `/shares` from
-  per-share units (5,856 facts), rounds to 4 decimal places (139), drops non-ASCII characters from
-  text (6,527), and drops footnotes that no statement page shows (473).
+  in content, except 11 text facts that the comparison could not check. See the second list below.
 - **Key not unique.** In 395 cases, the provisional value key of STA-331 holds two instance facts
   of one filing with different values. So `DO NOTHING` on this key depends on order even with one
   source.
 - **Filing row.** Form and filed date agree in all 622 filings. `sub.tsv` rounds `period` to a
-  month end and `accepted` to a minute. `DocumentPeriodEndDate` equals the period of report in
-  579 of 579 filings.
+  month end and `accepted` to a minute. `DocumentPeriodEndDate` equals the period of report in all
+  579 filings that carry both.
 - **Instance selection.** 11 filings hold a second instance, the filing-fee exhibit. Notes leaves
   out its facts. The new-filing path must read only the instance that `sub.tsv` names.
 
+13,069 facts (7.8%) differ in form. A fact can show more than one kind, so the counts add up to
+13,074. These kinds are losses on the Notes side:
+
+- Notes drops `/shares` from per-share units: 5,856 facts.
+- Notes drops or replaces non-ASCII characters in text: 6,527 facts.
+- Notes drops footnotes that no statement page shows: 473 facts.
+- Notes rounds to 4 decimal places: 139 facts.
+- Notes reads an empty text fact as nil: 4 facts.
+
+These kinds are not losses, or the comparison cannot tell whether they are:
+
+- Notes writes the same dimension pairs as a different string: 49 facts.
+- Two copies of one fact have the same value but differ in `decimals`, and the comparison pairs
+  them in an ambiguous way: 10 facts.
+- The text differs in a way the comparison did not explain: 11 facts.
+- The footnotes differ in how Notes joins them: 5 facts.
+
 Recommendation, for STA-331 to decide: option 2, instance over Notes, applied by an upsert with a
-fixed rank. Today `source_ref` names the filing, so both copies have the same grain, and the upsert
-fits the STA-145 freeze. A filing that only Notes delivered keeps the Notes form of its lossy facts.
+fixed rank. Two conditions apply:
+
+- The rank works only on a unique key. STA-331 must first widen the value key, so that the 395
+  cases above hold one fact per key.
+- Today `source_ref` names the filing, so both copies have the same grain, and the upsert keeps one
+  row per fact. But option 2 picks the value at write time. The STA-145 freeze picks "which
+  value wins" at read time. STA-331 must accept that change, or take option 3.
+
+A filing that only Notes delivered keeps the Notes form of its lossy facts.
 
 ## Raw Store
 
