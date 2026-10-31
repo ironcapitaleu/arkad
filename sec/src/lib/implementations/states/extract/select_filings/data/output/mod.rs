@@ -95,32 +95,38 @@ impl SelectFilingsOutputUpdater {
 }
 
 /// Fluent builder for a [`SelectFilingsOutputUpdater`].
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct SelectFilingsOutputUpdaterBuilder {
-    filings: Option<Vec<FilingRef>>,
+    updater: SelectFilingsOutputUpdater,
 }
 
 impl SelectFilingsOutputUpdaterBuilder {
     /// Creates a [`SelectFilingsOutputUpdaterBuilder`] with no field set.
     #[must_use]
     pub const fn new() -> Self {
-        Self { filings: None }
+        Self {
+            updater: SelectFilingsOutputUpdater { filings: None },
+        }
     }
 
     /// Sets the selected filings.
     #[must_use]
     #[allow(clippy::missing_const_for_fn)]
     pub fn filings(mut self, filings: Vec<FilingRef>) -> Self {
-        self.filings = Some(filings);
+        self.updater.filings = Some(filings);
         self
     }
 
     /// Builds the [`SelectFilingsOutputUpdater`].
     #[must_use]
     pub fn build(self) -> SelectFilingsOutputUpdater {
-        SelectFilingsOutputUpdater {
-            filings: self.filings,
-        }
+        self.updater
+    }
+}
+
+impl Default for SelectFilingsOutputUpdaterBuilder {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

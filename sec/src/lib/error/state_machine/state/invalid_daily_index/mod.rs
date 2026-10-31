@@ -71,10 +71,9 @@ mod tests {
 
     #[test]
     fn should_convert_to_state_error_when_into_is_called() {
-        let invalid_daily_index = InvalidDailyIndex::from_domain_error(
-            "TestState",
-            DailyIndexError::MissingDailyIndexHeader,
-        );
+        let daily_index_error = DailyIndexError::MissingDailyIndexHeader;
+        let invalid_daily_index =
+            InvalidDailyIndex::from_domain_error("TestState", daily_index_error);
 
         let expected_result = StateError::InvalidDailyIndex(invalid_daily_index.clone());
 
@@ -85,10 +84,10 @@ mod tests {
 
     #[test]
     fn should_chain_daily_index_error_as_source_of_invalid_daily_index() {
-        let invalid_daily_index =
-            InvalidDailyIndex::new("TestState", DailyIndexError::MissingDailyIndexHeader);
+        let daily_index_error = DailyIndexError::MissingDailyIndexHeader;
+        let invalid_daily_index = InvalidDailyIndex::new("TestState", daily_index_error.clone());
 
-        let expected_result = Some(&DailyIndexError::MissingDailyIndexHeader);
+        let expected_result = Some(&daily_index_error);
 
         let result = std::error::Error::source(&invalid_daily_index)
             .and_then(|source| source.downcast_ref::<DailyIndexError>());
@@ -98,8 +97,8 @@ mod tests {
 
     #[test]
     fn should_format_the_error_chain_when_displayed() {
-        let invalid_daily_index =
-            InvalidDailyIndex::new("Select Filings", DailyIndexError::MissingDailyIndexHeader);
+        let daily_index_error = DailyIndexError::MissingDailyIndexHeader;
+        let invalid_daily_index = InvalidDailyIndex::new("Select Filings", daily_index_error);
 
         let expected_result = "[InvalidDailyIndex] Failure in State: 'Select Filings', Caused by: [MissingDailyIndexHeader] The daily index has no line that starts with '---' before its rows";
 

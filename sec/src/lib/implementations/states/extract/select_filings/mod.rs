@@ -225,6 +225,7 @@ mod tests {
     use super::*;
     use crate::implementations::states::extract::store_daily_index::StoredDailyIndex;
     use crate::shared::cik::Cik;
+    use crate::shared::daily_index_row::InvalidDailyIndexLineReason;
     use crate::shared::financial::accession_number::AccessionNumber;
     use crate::shared::financial::form::{Form, ParsedForm};
     use crate::tests::fixtures::data::daily_index::SAMPLE_DAILY_INDEX;
@@ -232,8 +233,8 @@ mod tests {
     /// The header of a hand-written daily index. The last line starts with `---`.
     const INDEX_HEADER: &str = "Form Type   Company Name\n---\n";
 
-    fn test_state(index_text: Option<String>) -> SelectFilings {
-        let index = index_text.map(|text| StoredDailyIndex {
+    fn test_state(index_bytes: Option<Vec<u8>>) -> SelectFilings {
+        let index = index_bytes.map(|text| StoredDailyIndex {
             key: DocumentKey::new("sec/daily-index/form.20261027.idx")
                 .expect("Given a hardcoded valid relative path, the key should always build"),
             text: Bytes::from(text),
@@ -308,7 +309,7 @@ mod tests {
     #[tokio::test]
     async fn should_keep_one_filing_per_accession_number_in_index_order_for_sample_daily_index() {
         let index_text = SAMPLE_DAILY_INDEX.to_string();
-        let mut state = test_state(Some(index_text));
+        let mut state = test_state(Some(index_text.into_bytes()));
 
         let expected_result = [
             "0001702744-26-000031",
@@ -333,7 +334,7 @@ mod tests {
     #[tokio::test]
     async fn should_keep_the_first_row_when_a_filing_has_two_filers() {
         let index_text = SAMPLE_DAILY_INDEX.to_string();
-        let mut state = test_state(Some(index_text));
+        let mut state = test_state(Some(index_text.into_bytes()));
         let shared_accession_number = AccessionNumber::new("0000811156-26-000032");
 
         let expected_result = vec![filing_ref(
@@ -355,15 +356,46 @@ mod tests {
     #[tokio::test]
     async fn should_drop_the_eight_k_row_for_sample_daily_index() {
         let index_text = SAMPLE_DAILY_INDEX.to_string();
-        let mut state = test_state(Some(index_text));
         let eight_k_accession_number = AccessionNumber::new("0001213900-26-112698");
+        let index_holds_eight_k = parse_daily_index(&index_text)
+            .expect("Given the real daily index fixture, parsing should always succeed")
+            .iter()
+            .any(|row| row.accession_number() == &eight_k_accession_number);
+        let mut state = test_state(Some(index_text.into_bytes()));
 
-        let expected_result = false;
+        let expected_result = (true, false);
 
-        let result = computed_filings(&mut state)
+        let output_holds_eight_k = computed_filings(&mut state)
             .await
             .iter()
             .any(|filing| filing.accession_number() == &eight_k_accession_number);
+        let result = (index_holds_eight_k, output_holds_eight_k);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_keep_the_filing_when_company_name_holds_a_byte_outside_utf8() {
+        let row_line = index_line("10-K", "320193", "0000320193-26-000106");
+        let (form_column, rest_of_line) = row_line.split_at(17);
+        // 0xC9 is the Latin-1 'É', which is not valid UTF-8.
+        let index_bytes = [
+            INDEX_HEADER.as_bytes(),
+            form_column.as_bytes(),
+            b"SOCI\xC9T\xC9 ",
+            rest_of_line.as_bytes(),
+        ]
+        .concat();
+        let mut state = test_state(Some(index_bytes));
+
+        let expected_result = vec![filing_ref(
+            "320193",
+            "0000320193-26-000106",
+            ParsedForm::new(Form::TenK, false),
+            date(2026, 10, 30),
+        )];
+
+        let result = computed_filings(&mut state).await;
 
         assert_eq!(result, expected_result);
     }
@@ -374,7 +406,7 @@ mod tests {
             "{INDEX_HEADER}{}",
             index_line("10-K/A", "320193", "0000320193-26-000106")
         );
-        let mut state = test_state(Some(index_text));
+        let mut state = test_state(Some(index_text.into_bytes()));
 
         let expected_result = vec![filing_ref(
             "320193",
@@ -395,7 +427,7 @@ mod tests {
             index_line("10-KT", "320193", "0000320193-26-000107"),
             index_line("40-F", "1000275", "0001000275-26-000012")
         );
-        let mut state = test_state(Some(index_text));
+        let mut state = test_state(Some(index_text.into_bytes()));
 
         let expected_result = vec![filing_ref(
             "1000275",
@@ -412,7 +444,7 @@ mod tests {
     #[tokio::test]
     async fn should_output_no_filings_when_index_has_no_rows() {
         let index_text = INDEX_HEADER.to_string();
-        let mut state = test_state(Some(index_text));
+        let mut state = test_state(Some(index_text.into_bytes()));
 
         let expected_result: Vec<FilingRef> = Vec::new();
 
@@ -435,7 +467,7 @@ mod tests {
     #[tokio::test]
     async fn should_return_invalid_daily_index_when_index_has_no_header() {
         let index_text = index_line("10-K", "320193", "0000320193-26-000106");
-        let mut state = test_state(Some(index_text));
+        let mut state = test_state(Some(index_text.into_bytes()));
 
         let expected_result = StateError::InvalidDailyIndex(InvalidDailyIndex::new(
             STATE_NAME,
@@ -450,9 +482,35 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn should_return_invalid_daily_index_when_a_row_has_an_invalid_filed_date() {
+        let index_text = format!(
+            "{INDEX_HEADER}{}",
+            index_line("10-K", "320193", "0000320193-26-000106").replace("20261030", "2026103")
+        );
+        let mut state = test_state(Some(index_text.into_bytes()));
+
+        let expected_result = StateError::InvalidDailyIndex(InvalidDailyIndex::new(
+            STATE_NAME,
+            DailyIndexError::InvalidDailyIndexLine {
+                line_number: 3,
+                reason: InvalidDailyIndexLineReason::InvalidFiledDate {
+                    filed_date: "2026103".to_string(),
+                },
+            },
+        ));
+
+        let result = state
+            .compute_output_data_async()
+            .await
+            .expect_err("Given a row with a 7-digit date filed, the selection should always fail");
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
     async fn should_leave_output_empty_when_index_has_no_header() {
         let index_text = index_line("10-K", "320193", "0000320193-26-000106");
-        let mut state = test_state(Some(index_text));
+        let mut state = test_state(Some(index_text.into_bytes()));
 
         let expected_result = None;
 
@@ -490,7 +548,7 @@ mod tests {
     #[should_panic(expected = "compute_output_data failed")]
     fn should_panic_when_calling_sync_compute_with_index_without_header() {
         let index_text = index_line("10-K", "320193", "0000320193-26-000106");
-        let mut state = test_state(Some(index_text));
+        let mut state = test_state(Some(index_text.into_bytes()));
 
         state.compute_output_data();
     }
