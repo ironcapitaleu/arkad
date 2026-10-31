@@ -10,7 +10,8 @@ use crate::implementations::states::extract::execute_sec_request::constants::STA
 use crate::shared::request::SecRequest as SecRequestTrait;
 use crate::shared::request::implementations::sec_request::{RequestKind, SecRequest};
 
-/// Checks that `request` is the request that `request_input` builds.
+/// Checks that `request` is the request that `request_input` builds: the same input and the same
+/// URL.
 ///
 /// The store transitions key the stored document by `request_input`, so a mismatch stores a
 /// response under the wrong key.
@@ -26,7 +27,8 @@ pub(super) fn ensure_request_matches_input<K: RequestKind>(
     input_label: &str,
     target_state_name: &str,
 ) -> Result<(), TransitionError> {
-    if *request == SecRequest::new(request_input.clone()) {
+    let expected_request = SecRequest::<K>::new(request_input.clone());
+    if *request == expected_request && request.inner.url() == expected_request.inner.url() {
         return Ok(());
     }
     let reason = format!(
@@ -71,6 +73,29 @@ mod tests {
     #[test]
     fn should_return_failed_context_conversion_when_the_request_input_builds_another_request() {
         let request = SecRequest::<NotesFile>::new(period("2023q4"));
+        let request_input = period("2024q1");
+        let input_label = "period";
+
+        let expected_result = Err(TransitionError::FailedContextConversion(
+            transition::FailedContextConversion::new(
+                EXECUTE_SEC_REQUEST,
+                TARGET_STATE_NAME,
+                "The request targets 'https://www.sec.gov/files/dera/data/financial-statement-notes-data-sets/2023q4_notes.zip', but the context names period '2024q1'",
+            ),
+        ));
+
+        let result =
+            ensure_request_matches_input(&request, &request_input, input_label, TARGET_STATE_NAME);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_failed_context_conversion_when_the_request_url_differs_from_its_input() {
+        let mut request = SecRequest::<NotesFile>::new(period("2024q1"));
+        *request.inner.url_mut() = "https://www.sec.gov/files/dera/data/financial-statement-notes-data-sets/2023q4_notes.zip"
+            .parse()
+            .expect("Given a hardcoded HTTPS URL literal, Url parsing should always succeed");
         let request_input = period("2024q1");
         let input_label = "period";
 

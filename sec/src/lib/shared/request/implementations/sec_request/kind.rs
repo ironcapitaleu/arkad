@@ -13,7 +13,7 @@ use std::hash::Hash;
 use serde::Serialize;
 
 use crate::shared::cik::Cik;
-use crate::shared::filing_documents::FilingDocumentRef;
+use crate::shared::filing_documents::{FilingDocumentRef, FilingDocumentSetRef};
 use crate::shared::filing_ref::FilingRef;
 use crate::shared::index_date::IndexDate;
 use crate::shared::notes_period::NotesPeriod;
@@ -139,6 +139,23 @@ impl RequestKind for FilingDocument {
     }
 }
 
+/// The kind of a request that downloads the XBRL instance and the optional label file of one
+/// filing.
+///
+/// The request URL names the folder of the filing.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct FilingDocumentSet;
+
+impl RequestKind for FilingDocumentSet {
+    type Input = FilingDocumentSetRef;
+
+    const INPUT_NAME: &'static str = "filing_document_set";
+
+    fn request_type(documents: FilingDocumentSetRef) -> SecRequestType {
+        SecRequestType::FetchFilingDocumentSet { documents }
+    }
+}
+
 /// A [`RequestKind`] whose response the store keeps as a raw document of one [`RawSource`].
 ///
 /// A state that holds a repository bounds it by [`Self::Source`], so a repository of another
@@ -171,7 +188,9 @@ mod tests {
 
     use crate::shared::cik::Cik;
     use crate::shared::document_type::SecDocumentType;
-    use crate::shared::filing_documents::FilingDocumentRef;
+    use crate::shared::filing_documents::{
+        FilingDocumentRef, FilingDocumentSetRef, FilingDocuments,
+    };
     use crate::shared::filing_ref::FilingRef;
     use crate::shared::financial::accession_number::AccessionNumber;
     use crate::shared::financial::form::{Form, ParsedForm};
@@ -179,8 +198,8 @@ mod tests {
     use crate::shared::raw_source::RawSource;
 
     use super::{
-        CompanyFacts, DailyIndex, DailyIndexListing, FilingDocument, FilingIndex, NotesFile,
-        RequestKind, SecRequestType, StoredAs, Submissions,
+        CompanyFacts, DailyIndex, DailyIndexListing, FilingDocument, FilingDocumentSet,
+        FilingIndex, NotesFile, RequestKind, SecRequestType, StoredAs, Submissions,
     };
 
     fn filing_ref() -> FilingRef {
@@ -256,6 +275,25 @@ mod tests {
     }
 
     #[test]
+    fn should_return_fetch_filing_document_set_for_filing_document_set_kind() {
+        let documents = FilingDocumentSetRef::new(
+            filing_ref(),
+            FilingDocuments::new("aapl-20170930.xml", None),
+        );
+
+        let expected_result = SecRequestType::FetchFilingDocumentSet {
+            documents: FilingDocumentSetRef::new(
+                filing_ref(),
+                FilingDocuments::new("aapl-20170930.xml", None),
+            ),
+        };
+
+        let result = FilingDocumentSet::request_type(documents);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
     fn should_store_raw_daily_index_documents_for_daily_index_kind() {
         let expected_result = SecDocumentType::RawDailyIndex;
 
@@ -308,5 +346,10 @@ mod tests {
     #[test]
     const fn should_implement_auto_traits_for_filing_document() {
         implements_auto_traits::<FilingDocument>();
+    }
+
+    #[test]
+    const fn should_implement_auto_traits_for_filing_document_set() {
+        implements_auto_traits::<FilingDocumentSet>();
     }
 }
