@@ -122,7 +122,7 @@ impl<K, E, M, R> ExtractSubmissionsSuperStateBuilder<K, NoSecClient, E, M, R> {
     /// Sets the SEC client that fetches the `submissions` JSON.
     ///
     /// The client must return an [`SecResponse<JsonBody>`] and a [`FailedSecRequest`]. The output
-    /// of `ExecuteSecRequest<Submissions>` holds the response, and its error wraps the failure.
+    /// of `ExecuteSecRequest<Submissions, …>` holds the response, and its error wraps the failure.
     #[must_use]
     pub fn sec_client<C>(self, sec_client: C) -> ExtractSubmissionsSuperStateBuilder<K, C, E, M, R>
     where

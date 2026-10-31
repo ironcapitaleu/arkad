@@ -28,8 +28,7 @@
 //! assert_eq!(result, expected_result);
 //! ```
 //!
-//! The context holds no storage repository. The super-state hands the repository to the store
-//! state, so this does not compile:
+//! The context holds no storage repository, so this does not compile:
 //!
 //! ```compile_fail,E0107
 //! use sec::implementations::states::extract::execute_sec_request::context::ExecuteSecRequestContext;

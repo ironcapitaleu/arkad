@@ -24,7 +24,7 @@ pub struct StoreNotesArchiveContext<R> {
     /// The maximum number of retries of the state.
     ///
     /// A retry after a failed write returns [`StateError::InvalidInput`], because the failed run
-    /// consumed the response. A retry needs a new input from `ExecuteSecRequest<NotesFile>`.
+    /// consumed the response. A retry needs a new input from `ExecuteSecRequest<NotesFile, …>`.
     ///
     /// [`StateError::InvalidInput`]: crate::error::State::InvalidInput
     pub max_retries: u32,

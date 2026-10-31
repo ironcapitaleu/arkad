@@ -126,13 +126,14 @@ Extraction::incremental().submissions().cik(cik).sec_client(c).repository(r).bui
 
 ### Repository in the Machines
 
-> **Status:** proposed in STA-398. Not yet accepted by the lead.
+> **Status:** accepted by the lead on 2026-10-31 (STA-398). The first paragraph and the table
+> describe `main` before STA-398. The code PRs of STA-398 change `main` step by step.
 
-`PrepareSecRequest<K, R>` and `ExecuteSecRequest<E, R, C>` bind `K: StoredAs` and
-`R: RawRepository<K::Source>`. Neither state reads the repository. STA-398 removes the bound and the
+Before STA-398, `PrepareSecRequest<K, R>` and `ExecuteSecRequest<E, R, C>` bound `K: StoredAs` and
+`R: RawRepository<K::Source>`. Neither state read the repository. STA-398 removes the bound and the
 parameter `R`, so a kind that is only read, such as `FilingIndex`, runs through both states.
 
-#### Why the Repository Sits in the States
+#### Why the Repository Sat in the States (Before STA-398)
 
 Paths start at `sec/src/lib/implementations/`. Each place in the table holds or moves the repository.
 None of them reads it. Only the store states at the end of each machine read it.
