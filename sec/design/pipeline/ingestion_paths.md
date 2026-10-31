@@ -274,8 +274,12 @@ The cases known today:
   `execute_sec_request/store_notes_archive.rs:19` call `try_from` without a repository. After step
   1 no `TryFrom` takes that tuple, so they fail for any kind. Step 1 adds the repository to their
   tuple.
-- Step 2: the doctest at `prepare_sec_request/execute_sec_request.rs:15` and the two store doctests
-  name `ExecuteSecRequest` with three parameters. Step 2 moves them to two.
+- Step 2: the doctest at `prepare_sec_request/execute_sec_request.rs:15` names `ExecuteSecRequest`
+  with three parameters, and the two store doctests name `ExecuteCompanyFactsRequest<R, SecClient>`.
+  Step 2 drops `R` from all three.
+- Step 3: the doctests at `prepare_sec_request/execute_sec_request.rs:21` and
+  `validate_cik_format/prepare_sec_request.rs:19` write `PrepareCompanyFactsRequest<R>` and
+  `PrepareNotesRequest::<R>`. These aliases lose `R`, so step 3 drops it from both.
 - Step 3: `prepare_sec_request/builder.rs` holds three `compile_fail,E0599` doctests.
   - `:42` (no input) then fails because `.repository` is gone. Step 3 drops `.repository(...)` and
     its hidden setup from it.
