@@ -80,9 +80,11 @@ mod tests {
     use crate::shared::http_client::implementations::sec_client::SecClient;
     use crate::shared::notes_period::NotesPeriod;
     use crate::shared::request::SecRequest as SecRequestTrait;
-    use crate::shared::request::implementations::sec_request::{NotesFile, SecRequest};
+    use crate::shared::request::implementations::sec_request::{
+        NotesFile, SecRequest, Submissions,
+    };
     use crate::tests::fixtures::sample_write_repository::{
-        FakeNotesRepository, FakeWriteRepository,
+        FakeNotesRepository, FakeSubmissionsRepository, FakeWriteRepository,
     };
     use crate::traits::state_machine::state::State;
 
@@ -217,6 +219,33 @@ mod tests {
 
         let expected_result =
             ExecuteSecRequestInput::<NotesFile, _>::new(client.clone(), SecRequest::new(period));
+
+        let result = ExecuteSecRequest::try_from((state, client))
+            .expect("Given a computed state, the transition should always succeed")
+            .input_data()
+            .clone();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_move_submissions_request_into_input_when_prepare_sec_request_is_of_submissions_kind()
+     {
+        let client = SecClient::default();
+        let cik = Cik::new("0001067983")
+            .expect("Hardcoded valid CIK string should always parse successfully");
+        let input = PrepareSecRequestInput::new(cik.clone());
+        let context = PrepareSecRequestContext::new(cik.clone(), FakeSubmissionsRepository::new());
+        let mut state = PrepareSecRequest::<Submissions, _>::new(input, context);
+        state
+            .compute_output_data_async()
+            .await
+            .expect("Request preparation should always succeed for a valid CIK");
+
+        let expected_result = ExecuteSecRequestInput::<Submissions, _>::new(
+            client.clone(),
+            SecRequest::builder().submissions().cik(cik).build(),
+        );
 
         let result = ExecuteSecRequest::try_from((state, client))
             .expect("Given a computed state, the transition should always succeed")
