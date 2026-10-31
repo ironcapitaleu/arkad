@@ -134,8 +134,8 @@ parameter `R`, so a kind that is only read, such as `FilingIndex`, runs through 
 
 #### Why the Repository Sits in the States
 
-Paths start at `sec/src/lib/implementations/`. Each row holds the repository or moves it. No row
-reads it, except the store states at the end of each machine.
+Paths start at `sec/src/lib/implementations/`. Each place in the table holds or moves the repository.
+None of them reads it. Only the store states at the end of each machine read it.
 
 | Place | File and line | What it does with the repository |
 | ----- | ------------- | -------------------------------- |
@@ -154,8 +154,10 @@ reads it, except the store states at the end of each machine.
 | `ExtractNotesSuperStateContext`, `ExtractSubmissionsSuperStateContext` | `states/extract/notes/mod.rs:109`, `states/extract/submissions/mod.rs:110` | Hold no repository. |
 
 So the only job of the repository in the validate, prepare, and execute states is to reach the store
-state. The daily index machine already skips these states: its super-state holds the repository and
-gives it to the store transition.
+state.
+
+The daily index machine does half of this. Its super-state holds the repository and gives it to
+`StoreDailyIndex`. It also puts a clone into `PrepareSecRequest`, which drops it at the download.
 
 #### Decision 1: Where the Repository Goes
 
@@ -173,16 +175,18 @@ Reasons:
 - The SEC client takes the same path since STA-352 and STA-353. The super-state context holds it,
   and the transition into `ExecuteSecRequest` takes a clone. STA-386 finishes this for the client.
   The repository then follows one rule with the client.
-- The daily index machine already works this way. The company facts super-state already holds a
-  copy.
+- The daily index machine already gives the repository to its store state this way. The company
+  facts super-state already holds a copy.
 - A state context holds only what the state reads. A store state reads the repository, so only the
   store contexts keep it.
 
 Cost for the existing machines:
 
 - `ExtractNotesSuperState<S, C>` and `ExtractSubmissionsSuperState<S, C>` get a parameter `R`, as
-  `<S, R, C>`. This matches `ExtractCompanyFactsSuperState` and `DetectFilingsSuperState`. Their
-  builders already take a repository, so callers do not change.
+  `<S, R, C>`. This matches `ExtractCompanyFactsSuperState` and `DetectFilingsSuperState`. Callers
+  that only call `builder()` do not change. Code that writes the type out changes: the `build()`
+  return types, `implementations/extraction/mod.rs:114`, the super-state tests, and about 20 impl
+  headers in each of `notes/mod.rs` and `submissions/mod.rs`.
 - The three execute → store transitions take `R` in their tuple. The super-state passes a clone.
 - Transition tests that assert "the repository moves from the source context" now assert that the
   repository moves from the tuple. Their expected values stay. Machine tests, builder tests, and
@@ -212,9 +216,12 @@ Proposed: drop it. STA-376 does not store `index.json`.
 
 - The lead chose to store it (option 2 of STA-376) because `FilingIndex` had to satisfy
   `StoredAs`. After STA-398 that reason is gone.
-- The audit trail stays without a stored copy. The folder of a filing does not change after the SEC
-  accepts it, so a new fetch of `index.json` gives the same member list. The metadata of each stored
-  document keeps the SEC file name in `requested_url`, so the result of the selection is on record.
+- The metadata of each stored document keeps the SEC file name in `requested_url`, so the result of
+  the selection is on record.
+- A new fetch of `index.json` gives the member list that the rules saw, if the folder did not change
+  after the SEC accepted the filing. This is an assumption, not measured. If the SEC edits a folder
+  later, for example to remove a document, the stored record does not show the old list.
+- The lead weighs this risk against the cost of the write.
 - Without the write, STA-376 needs no second store step, no new `RawSource`, and no super-state
   field that keeps the folder index response.
 
@@ -233,16 +240,25 @@ reviewable lines.
 3. `PrepareSecRequest<K>` and its context, updater, and builder lose `R` and `StoredAs`. The three
    transitions into it drop the repository. About 300 lines.
 4. `ValidateCikFormat` and `ValidateNotesPeriod` lose `R`. About 250 lines. If STA-386 lands first,
-   this PR rebases on it, because both edit `ValidateCikFormatContext`.
+   this PR merges `main` with it, because both edit `ValidateCikFormatContext`.
 
 Step 2 adds the doctests of the DoD on `ExecuteSecRequest`. `FilingIndex` has `RespondsWith` and no
 `StoredAs` on `main`, so it is the kind that is only read:
 
 - A doctest shows that `ExecuteSecRequest<FilingIndex, SecClient>` implements `State`.
-- A `compile_fail` doctest names `ExecuteSecRequest<FilingIndex, R, SecClient>` with three
-  parameters. It fails because the parameter `R` is gone.
+- A `compile_fail` doctest builds `ExecuteSecRequestContext::new(cik, repository)` for
+  `CompanyFacts`. It compiles on `main` and fails after step 2, because the context takes no
+  repository. So it fails only after the change, and it fails again if the repository returns.
 
-Step 3 adds the same pair for `PrepareSecRequest<FilingIndex>`.
+The positive doctest guards the bound. A `compile_fail` doctest cannot show that a bound is absent,
+because a missing bound makes code compile, not fail. Step 3 adds the same pair for
+`PrepareSecRequest<FilingIndex>`, with the builder step `.repository(r)` in the `compile_fail`
+doctest.
+
+Each step updates the docs that its change makes false. Examples: the module docs of
+`notes/mod.rs` and `submissions/mod.rs` ("Each state holds its own clone of the storage
+repository"), the context doc in `company_facts/mod.rs:116`, and the module docs of the transitions
+into the store states and into `ExecuteSecRequest`.
 
 ## Backfill Extract
 
@@ -943,7 +959,8 @@ Two items stay with STA-376:
 - `SelectFilingDocuments` holds the accession number, not the `FilingRef`. The transition into
   `PrepareSecRequest<FilingDocumentSet>` needs the `FilingRef`. The super-state or the context of
   `SelectFilingDocuments` carries it.
-- STA-376 decides where `index.json` is written. The generic states have fixed contexts, so they
+- STA-376 decides where `index.json` is written, if it is written. Decision 3 of
+  [Repository in the Machines](#repository-in-the-machines) proposes not to write it. The generic states have fixed contexts, so they
   cannot carry the folder index response. A write after the filing documents therefore needs the
   super-state to keep that response.
 
