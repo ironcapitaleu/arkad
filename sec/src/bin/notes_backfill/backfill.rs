@@ -3,8 +3,8 @@
 //! Provides [`run`], which extracts one Notes file per period, and the [`RunSummary`] it returns.
 //!
 //! The SEC posts the file of a month some days into the next month. So the last period of a run
-//! can have no file yet. [`RunSummary`] counts it as unpublished, not as failed, if its file is
-//! absent. The next run asks for it again.
+//! can have no file yet. If its file is absent, [`RunSummary`] counts it as unpublished, not as
+//! failed. The next run asks for it again.
 
 use std::panic;
 use std::sync::Arc;
