@@ -193,6 +193,7 @@ mod tests {
     use std::hash::Hash;
 
     use pretty_assertions::{assert_eq, assert_ne};
+    use storage::WriteError;
 
     use super::*;
     use crate::tests::fixtures::sample_http_client::sample_sec_client::routing::RoutingSecClient;
@@ -249,7 +250,8 @@ mod tests {
         let date = "2026-10-27";
         let sec_client = RoutingSecClient::new();
         let execution_id = Uuid::from_u128(7);
-        let repository = FakeDailyIndexRepository::new();
+        let repository =
+            FakeDailyIndexRepository::rejecting(WriteError::conflicting_write("Sample conflict"));
         let builder = DetectFilingsSuperState::builder()
             .date(date)
             .sec_client(sec_client.clone())
@@ -268,7 +270,8 @@ mod tests {
         let date = "2026-10-27";
         let sec_client = RoutingSecClient::new();
         let execution_id = Uuid::from_u128(7);
-        let repository = FakeDailyIndexRepository::new();
+        let repository =
+            FakeDailyIndexRepository::rejecting(WriteError::conflicting_write("Sample conflict"));
         let builder = DetectFilingsSuperState::builder()
             .repository(repository.clone())
             .execution_id(execution_id)
