@@ -349,8 +349,8 @@ quarter) or a month (year and month).
   Every other 403 or 404 stays a failure, so a run that the SEC refuses in full fails.
 - Before each download, `notes_backfill` reads the stored file of the period. If the file passes
   the size and SHA-256 check, the run skips the download (STA-400). So a rerun downloads only the
-  missing or corrupt files. The run summary marks a file that it could not read or verify, and
-  downloaded again, as `replaced`. A file that the SEC replaces after the run stored it stays old.
+  files that are missing or that the store cannot verify. The run summary marks a downloaded file
+  of the second kind as `replaced`. A file that the SEC replaces after the run stored it stays old.
 - `sec::shared::financial::quarter::Quarter` (Q1 to Q4) holds the quarter part. The month part
   needs its own type.
 
@@ -1055,18 +1055,19 @@ Rules:
    run reads one day.
 3. A missed day is a rerun for that date.
 4. A filing that reaches both paths changes nothing, because every write is idempotent.
-5. The cut-over has no gap only if the backfill stores the Notes month that holds the day before
-   the start date of the new-filing path. For the start date 2026-09-30, the backfill must store
-   `2026_09`. The SEC posted `2026_09` on 2026-10-07, so any backfill run on or after that day
-   stores it, unless the run reports a failure. To check, read the newest `downloaded` or
-   `already_stored` period in the run summary.
+5. The cut-over has no gap only if the backfill stores the Notes month that holds the start date
+   of the new-filing path. For the start date 2026-09-30, the backfill must store `2026_09`. The
+   SEC posted `2026_09` on 2026-10-07, so any backfill run on or after that day stores it, unless
+   the run reports a failure. To check, read the newest period in the run summary with the status
+   `downloaded`, `already_stored`, or `replaced`.
 6. If the backfill runs later and also stores newer months, such as `2026_10`, those months
    overlap the new-filing path. Rule 4 makes the overlap harmless.
 7. If the start date of the new-filing path moves, rule 5 moves with it: the start date must be no
    later than the last day of the newest stored Notes month. STA-378 decides how `daily_filings`
    picks its dates. That choice must keep this rule.
 8. A backfill run can repeat. It skips each stored file that passes the size and SHA-256 check
-   (STA-400), so a repeat downloads only the missing, corrupt, or newly posted files.
+   (STA-400), so a repeat downloads only the files that are missing or that the store cannot
+   verify.
 
 Assumptions:
 

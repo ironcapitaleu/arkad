@@ -3,8 +3,8 @@
 //! Provides [`run`], which extracts one Notes file per period, and the [`RunSummary`] it returns.
 //!
 //! The SEC posts the file of a month some days into the next month. So the last period of a run
-//! can have no file yet. [`RunSummary`] counts it as unpublished, not as failed, if its file is
-//! absent. The next run asks for it again.
+//! can have no file yet. If its file is absent, [`RunSummary`] counts it as unpublished, not as
+//! failed. The next run asks for it again.
 //!
 //! Before it downloads a period, the run reads the stored file of the period. If the file passes
 //! the size and SHA-256 check, the run skips the download.
@@ -465,10 +465,9 @@ mod tests {
         assert_eq!(result, expected_result);
     }
 
-    #[tokio::test]
-    async fn should_plan_a_download_when_the_store_holds_no_file_of_the_period() {
-        let root = temporary_root();
-        let read = stored_archive(&reader(&root), STORED_PERIOD).await;
+    #[test]
+    fn should_plan_a_download_when_the_store_holds_no_file_of_the_period() {
+        let read = Ok(None);
 
         let expected_result = Plan::Download(Fetch::Downloaded);
 
@@ -477,11 +476,9 @@ mod tests {
         assert_eq!(result, expected_result);
     }
 
-    #[tokio::test]
-    async fn should_plan_a_skip_when_the_stored_file_is_intact() {
-        let root = temporary_root();
-        store_sample_file(&root).await;
-        let read = stored_archive(&reader(&root), STORED_PERIOD).await;
+    #[test]
+    fn should_plan_a_skip_when_the_stored_file_is_intact() {
+        let read = Ok(Some(sample_archive()));
 
         let expected_result = Plan::Skip(sample_archive());
 
