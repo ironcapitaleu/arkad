@@ -326,17 +326,17 @@ impl<R: RawRepository<RawNotesArchive>, C: SecClientTrait> NonTerminal
     for ExtractNotesSuperState<ValidateNotesPeriod<R>, R, C>
 {
     type Current = ValidateNotesPeriod<R>;
-    type Next = PrepareNotesRequest<R>;
+    type Next = PrepareNotesRequest;
 }
 
 // Deviation: the impls that reach `ExecuteSecRequest` pin the response and the error of `C`.
 // See the comment on `State for ExecuteSecRequest`.
-impl<R, C> NonTerminal for ExtractNotesSuperState<PrepareNotesRequest<R>, R, C>
+impl<R, C> NonTerminal for ExtractNotesSuperState<PrepareNotesRequest, R, C>
 where
     R: RawRepository<RawNotesArchive>,
     C: SecClientTrait<Response<ZipBody> = SecResponse<ZipBody>, Error = FailedSecRequest>,
 {
-    type Current = PrepareNotesRequest<R>;
+    type Current = PrepareNotesRequest;
     type Next = ExecuteSecRequest<NotesFile, C>;
 }
 
@@ -366,7 +366,7 @@ impl<R: RawRepository<RawNotesArchive> + 'static, C: SecClientTrait + 'static>
 // --- Transitions ---
 
 impl<R: RawRepository<RawNotesArchive>, C: SecClientTrait>
-    Transition<ValidateNotesPeriod<R>, PrepareNotesRequest<R>>
+    Transition<ValidateNotesPeriod<R>, PrepareNotesRequest>
     for ExtractNotesSuperState<ValidateNotesPeriod<R>, R, C>
 {
     fn transition_to_next_state_sec(self) -> Result<Self::NewStateMachine, TransitionError> {
@@ -380,10 +380,10 @@ impl<R: RawRepository<RawNotesArchive>, C: SecClientTrait>
 }
 
 impl<R: RawRepository<RawNotesArchive>, C: SecClientTrait>
-    SMTransition<ValidateNotesPeriod<R>, PrepareNotesRequest<R>>
+    SMTransition<ValidateNotesPeriod<R>, PrepareNotesRequest>
     for ExtractNotesSuperState<ValidateNotesPeriod<R>, R, C>
 {
-    type NewStateMachine = ExtractNotesSuperState<PrepareNotesRequest<R>, R, C>;
+    type NewStateMachine = ExtractNotesSuperState<PrepareNotesRequest, R, C>;
 
     fn transition_to_next_state(self) -> Result<Self::NewStateMachine, &'static str> {
         Err(
@@ -392,8 +392,8 @@ impl<R: RawRepository<RawNotesArchive>, C: SecClientTrait>
     }
 }
 
-impl<R, C> Transition<PrepareNotesRequest<R>, ExecuteSecRequest<NotesFile, C>>
-    for ExtractNotesSuperState<PrepareNotesRequest<R>, R, C>
+impl<R, C> Transition<PrepareNotesRequest, ExecuteSecRequest<NotesFile, C>>
+    for ExtractNotesSuperState<PrepareNotesRequest, R, C>
 where
     R: RawRepository<RawNotesArchive>,
     C: SecClientTrait<Response<ZipBody> = SecResponse<ZipBody>, Error = FailedSecRequest>,
@@ -409,8 +409,8 @@ where
     }
 }
 
-impl<R, C> SMTransition<PrepareNotesRequest<R>, ExecuteSecRequest<NotesFile, C>>
-    for ExtractNotesSuperState<PrepareNotesRequest<R>, R, C>
+impl<R, C> SMTransition<PrepareNotesRequest, ExecuteSecRequest<NotesFile, C>>
+    for ExtractNotesSuperState<PrepareNotesRequest, R, C>
 where
     R: RawRepository<RawNotesArchive>,
     C: SecClientTrait<Response<ZipBody> = SecResponse<ZipBody>, Error = FailedSecRequest>,

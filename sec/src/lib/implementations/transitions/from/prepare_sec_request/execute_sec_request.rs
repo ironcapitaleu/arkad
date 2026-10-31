@@ -18,7 +18,7 @@
 //! use sec::shared::http_client::implementations::sec_client::SecClient;
 //! use sec::shared::request::implementations::sec_request::NotesFile;
 //!
-//! fn execute_as_notes_file<R>(state: PrepareCompanyFactsRequest<R>) {
+//! fn execute_as_notes_file(state: PrepareCompanyFactsRequest) {
 //!     let _next = ExecuteSecRequest::<NotesFile, SecClient>::try_from((state, SecClient::default()));
 //! }
 //! ```
@@ -39,7 +39,7 @@ use crate::implementations::states::extract::prepare_sec_request::constants::STA
 use crate::shared::http_client::RespondsWith;
 use crate::shared::http_client::SecClient as SecClientTrait;
 
-impl<K: RespondsWith, R, C: SecClientTrait> TryFrom<(PrepareSecRequest<K, R>, C)>
+impl<K: RespondsWith, C: SecClientTrait> TryFrom<(PrepareSecRequest<K>, C)>
     for ExecuteSecRequest<K, C>
 {
     type Error = TransitionError;
@@ -50,9 +50,7 @@ impl<K: RespondsWith, R, C: SecClientTrait> TryFrom<(PrepareSecRequest<K, R>, C)
     /// # Errors
     ///
     /// Returns [`TransitionError::MissingOutput`] if `state` has no computed output.
-    fn try_from(
-        (state, sec_client): (PrepareSecRequest<K, R>, C),
-    ) -> Result<Self, TransitionError> {
+    fn try_from((state, sec_client): (PrepareSecRequest<K>, C)) -> Result<Self, TransitionError> {
         let (input, output, _context) = state.into_parts();
         let output_data = output.ok_or_else(|| {
             transition::MissingOutput::new(PREPARE_SEC_REQUEST, EXECUTE_SEC_REQUEST)
@@ -83,9 +81,6 @@ mod tests {
     use crate::shared::request::implementations::sec_request::{
         NotesFile, SecRequest, Submissions,
     };
-    use crate::tests::fixtures::sample_write_repository::{
-        FakeNotesRepository, FakeSubmissionsRepository, FakeWriteRepository,
-    };
     use crate::traits::state_machine::state::State;
 
     #[tokio::test]
@@ -99,7 +94,7 @@ mod tests {
             .build();
         let mut state = PrepareCompanyFactsRequest::new(
             PrepareSecRequestInput::new(cik.clone()),
-            PrepareSecRequestContext::new(cik, FakeWriteRepository::new()),
+            PrepareSecRequestContext::new(cik),
         );
         state
             .compute_output_data_async()
@@ -122,7 +117,7 @@ mod tests {
         let cik = Cik::new("0001234567")
             .expect("Hardcoded valid CIK string should always parse successfully");
         let input = PrepareSecRequestInput::new(cik.clone());
-        let context = PrepareSecRequestContext::new(cik.clone(), FakeWriteRepository::new());
+        let context = PrepareSecRequestContext::new(cik.clone());
         let mut state = PrepareCompanyFactsRequest::new(input, context);
         state
             .compute_output_data_async()
@@ -145,7 +140,7 @@ mod tests {
             .expect("Hardcoded valid CIK string should always parse successfully");
         let mut state = PrepareCompanyFactsRequest::new(
             PrepareSecRequestInput::new(input_cik.clone()),
-            PrepareSecRequestContext::new(context_cik, FakeWriteRepository::new()),
+            PrepareSecRequestContext::new(context_cik),
         );
         state
             .compute_output_data_async()
@@ -169,7 +164,7 @@ mod tests {
         let cik = Cik::new("0001234567")
             .expect("Hardcoded valid CIK string should always parse successfully");
         let input = PrepareSecRequestInput::new(cik.clone());
-        let context = PrepareSecRequestContext::new(cik, FakeWriteRepository::new());
+        let context = PrepareSecRequestContext::new(cik);
         let state = PrepareCompanyFactsRequest::new(input, context);
 
         let expected_result = true;
@@ -188,7 +183,6 @@ mod tests {
         let state = PrepareSecRequest::builder()
             .notes_file()
             .period(period)
-            .repository(FakeNotesRepository::new())
             .build();
 
         let expected_result = Err(TransitionError::MissingOutput(
@@ -210,7 +204,6 @@ mod tests {
         let mut state = PrepareSecRequest::builder()
             .notes_file()
             .period(period)
-            .repository(FakeNotesRepository::new())
             .build();
         state
             .compute_output_data_async()
@@ -235,8 +228,8 @@ mod tests {
         let cik = Cik::new("0001067983")
             .expect("Hardcoded valid CIK string should always parse successfully");
         let input = PrepareSecRequestInput::new(cik.clone());
-        let context = PrepareSecRequestContext::new(cik.clone(), FakeSubmissionsRepository::new());
-        let mut state = PrepareSecRequest::<Submissions, _>::new(input, context);
+        let context = PrepareSecRequestContext::new(cik.clone());
+        let mut state = PrepareSecRequest::<Submissions>::new(input, context);
         state
             .compute_output_data_async()
             .await

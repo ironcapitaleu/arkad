@@ -1,4 +1,4 @@
-//! # Transition: `PrepareSecRequest<DailyIndex, R>` → `DownloadDailyIndex`
+//! # Transition: `PrepareSecRequest<DailyIndex>` → `DownloadDailyIndex`
 //!
 //! Implements the [`TryFrom`] conversion producing a [`DownloadDailyIndex`] from a
 //! [`PrepareSecRequest`] of the [`DailyIndex`] kind and an SEC client.
@@ -23,7 +23,7 @@ use crate::implementations::states::extract::prepare_sec_request::PrepareSecRequ
 use crate::implementations::states::extract::prepare_sec_request::constants::STATE_NAME as PREPARE_SEC_REQUEST;
 use crate::shared::request::implementations::sec_request::DailyIndex;
 
-impl<R, C> TryFrom<(PrepareSecRequest<DailyIndex, R>, C)> for DownloadDailyIndex<C> {
+impl<C> TryFrom<(PrepareSecRequest<DailyIndex>, C)> for DownloadDailyIndex<C> {
     type Error = TransitionError;
 
     /// Builds a [`DownloadDailyIndex`] from a computed [`PrepareSecRequest`] of the [`DailyIndex`]
@@ -33,7 +33,7 @@ impl<R, C> TryFrom<(PrepareSecRequest<DailyIndex, R>, C)> for DownloadDailyIndex
     ///
     /// Returns [`TransitionError::MissingOutput`] if `state` has no computed output.
     fn try_from(
-        (state, sec_client): (PrepareSecRequest<DailyIndex, R>, C),
+        (state, sec_client): (PrepareSecRequest<DailyIndex>, C),
     ) -> Result<Self, TransitionError> {
         let (input, output, _context) = state.into_parts();
         let output_data = output.ok_or_else(|| {
@@ -58,7 +58,6 @@ mod tests {
     use crate::shared::index_date::IndexDate;
     use crate::shared::request::implementations::sec_request::SecRequest;
     use crate::tests::fixtures::sample_http_client::sample_sec_client::routing::RoutingSecClient;
-    use crate::tests::fixtures::sample_write_repository::FakeDailyIndexRepository;
     use crate::traits::state_machine::state::State;
 
     fn index_date() -> IndexDate {
@@ -66,10 +65,10 @@ mod tests {
             .expect("Given a hardcoded past date, validation should always succeed")
     }
 
-    fn prepare_daily_index_request() -> PrepareSecRequest<DailyIndex, FakeDailyIndexRepository> {
+    fn prepare_daily_index_request() -> PrepareSecRequest<DailyIndex> {
         PrepareSecRequest::new(
             PrepareSecRequestInput::new(index_date()),
-            PrepareSecRequestContext::new(index_date(), FakeDailyIndexRepository::new()),
+            PrepareSecRequestContext::new(index_date()),
         )
     }
 

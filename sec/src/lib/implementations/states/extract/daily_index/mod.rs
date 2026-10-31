@@ -4,8 +4,8 @@
 //! writes it to the store, and selects the filings to fetch.
 //!
 //! The super-state owns the shared SEC client, the `execution_id`, and the storage repository.
-//! [`ValidateIndexDate`] and [`DownloadDailyIndex`] hold no repository, so the transitions into
-//! [`PrepareSecRequest`] and [`StoreDailyIndex`] take a clone from the super-state.
+//! No state before [`StoreDailyIndex`] holds a repository, so the transition into
+//! [`StoreDailyIndex`] takes a clone from the super-state.
 //!
 //! ## Modules
 //!
@@ -319,17 +319,17 @@ impl<R: RawRepository<RawDailyIndex>, C: SecClientTrait> NonTerminal
     for DetectFilingsSuperState<ValidateIndexDate, R, C>
 {
     type Current = ValidateIndexDate;
-    type Next = PrepareSecRequest<DailyIndex, R>;
+    type Next = PrepareSecRequest<DailyIndex>;
 }
 
 // Deviation: the impls that reach `DownloadDailyIndex` pin the response and the error of `C`,
 // as the `State` impl of `DownloadDailyIndex` does.
-impl<R, C> NonTerminal for DetectFilingsSuperState<PrepareSecRequest<DailyIndex, R>, R, C>
+impl<R, C> NonTerminal for DetectFilingsSuperState<PrepareSecRequest<DailyIndex>, R, C>
 where
     R: RawRepository<RawDailyIndex>,
     C: SecClientTrait<Response<ZipBody> = SecResponse<ZipBody>, Error = FailedSecRequest>,
 {
-    type Current = PrepareSecRequest<DailyIndex, R>;
+    type Current = PrepareSecRequest<DailyIndex>;
     type Next = DownloadDailyIndex<C>;
 }
 
@@ -366,13 +366,12 @@ impl<R: RawRepository<RawDailyIndex> + 'static, C: SecClientTrait + 'static> Int
 // --- Transitions ---
 
 impl<R: RawRepository<RawDailyIndex>, C: SecClientTrait>
-    Transition<ValidateIndexDate, PrepareSecRequest<DailyIndex, R>>
+    Transition<ValidateIndexDate, PrepareSecRequest<DailyIndex>>
     for DetectFilingsSuperState<ValidateIndexDate, R, C>
 {
     fn transition_to_next_state_sec(self) -> Result<Self::NewStateMachine, TransitionError> {
-        let repository = self.context.repository.clone();
         Ok(DetectFilingsSuperState {
-            current_state: PrepareSecRequest::try_from((self.current_state, repository))?,
+            current_state: PrepareSecRequest::try_from(self.current_state)?,
             input: DetectFilingsSuperStateData,
             output: None,
             context: self.context,
@@ -381,10 +380,10 @@ impl<R: RawRepository<RawDailyIndex>, C: SecClientTrait>
 }
 
 impl<R: RawRepository<RawDailyIndex>, C: SecClientTrait>
-    SMTransition<ValidateIndexDate, PrepareSecRequest<DailyIndex, R>>
+    SMTransition<ValidateIndexDate, PrepareSecRequest<DailyIndex>>
     for DetectFilingsSuperState<ValidateIndexDate, R, C>
 {
-    type NewStateMachine = DetectFilingsSuperState<PrepareSecRequest<DailyIndex, R>, R, C>;
+    type NewStateMachine = DetectFilingsSuperState<PrepareSecRequest<DailyIndex>, R, C>;
 
     fn transition_to_next_state(self) -> Result<Self::NewStateMachine, &'static str> {
         Err(
@@ -393,8 +392,8 @@ impl<R: RawRepository<RawDailyIndex>, C: SecClientTrait>
     }
 }
 
-impl<R, C> Transition<PrepareSecRequest<DailyIndex, R>, DownloadDailyIndex<C>>
-    for DetectFilingsSuperState<PrepareSecRequest<DailyIndex, R>, R, C>
+impl<R, C> Transition<PrepareSecRequest<DailyIndex>, DownloadDailyIndex<C>>
+    for DetectFilingsSuperState<PrepareSecRequest<DailyIndex>, R, C>
 where
     R: RawRepository<RawDailyIndex>,
     C: SecClientTrait<Response<ZipBody> = SecResponse<ZipBody>, Error = FailedSecRequest>,
@@ -410,8 +409,8 @@ where
     }
 }
 
-impl<R, C> SMTransition<PrepareSecRequest<DailyIndex, R>, DownloadDailyIndex<C>>
-    for DetectFilingsSuperState<PrepareSecRequest<DailyIndex, R>, R, C>
+impl<R, C> SMTransition<PrepareSecRequest<DailyIndex>, DownloadDailyIndex<C>>
+    for DetectFilingsSuperState<PrepareSecRequest<DailyIndex>, R, C>
 where
     R: RawRepository<RawDailyIndex>,
     C: SecClientTrait<Response<ZipBody> = SecResponse<ZipBody>, Error = FailedSecRequest>,
