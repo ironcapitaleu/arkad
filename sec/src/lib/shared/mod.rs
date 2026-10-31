@@ -9,6 +9,7 @@
 //! - [`daily_index_row`]: Provides [`DailyIndexRow`](daily_index_row::DailyIndexRow), one row of an EDGAR daily index, and the parser of the whole index.
 //! - [`document_type`]: Provides [`SecDocumentType`](document_type::SecDocumentType), the types of document the SEC state machines store.
 //! - [`document_storage`]: Provides [`FailedDocumentStorage`](document_storage::FailedDocumentStorage), the error for a document that the store did not keep.
+//! - [`filing_documents`]: Provides [`FilingDocuments`](filing_documents::FilingDocuments), the XBRL instance and the label file of one filing, picked from its folder index.
 //! - [`filing_ref`]: Provides [`FilingRef`](filing_ref::FilingRef), which names one filing to fetch.
 //! - [`http_client`]: Provides utilities for creating and managing SEC API clients, including user agent handling.
 //! - [`index_date`]: Provides [`IndexDate`](index_date::IndexDate), the date of one EDGAR daily index, and the parts of its URL.
@@ -37,6 +38,7 @@ pub mod content_type;
 pub mod daily_index_row;
 pub mod document_storage;
 pub mod document_type;
+pub mod filing_documents;
 pub mod filing_ref;
 pub mod financial;
 pub mod headers;
