@@ -126,8 +126,9 @@ Extraction::incremental().submissions().cik(cik).sec_client(c).repository(r).bui
 
 ### Repository in the Machines
 
-> **Status:** accepted by the lead on 2026-10-31 (STA-398). The first paragraph and the table
-> describe `main` before STA-398. The code PRs of STA-398 change `main` step by step.
+> **Status:** accepted by the lead on 2026-10-31 (STA-398), with all three decisions. The first
+> paragraph and the subsection "Why the Repository Sat in the States" describe `main` before
+> STA-398. The code PRs of STA-398 change `main` step by step.
 
 Before STA-398, `PrepareSecRequest<K, R>` and `ExecuteSecRequest<E, R, C>` bound `K: StoredAs` and
 `R: RawRepository<K::Source>`. Neither state read the repository. STA-398 removes the bound and the
@@ -195,7 +196,7 @@ Cost for the existing machines:
 
 #### Decision 2: Order with STA-373
 
-Proposed: STA-398 lands first, with the bounds of `main`. `ExecuteSecRequest<E, C>` binds
+Decided: STA-398 lands first, with the bounds of `main`. `ExecuteSecRequest<E, C>` binds
 `E: RespondsWith` and the pinned `C: SecClient<Response<E::Body> = SecResponse<E::Body>, Error =
 FailedSecRequest>`. STA-373 then swaps these bounds for `E: HasResponse` and `C: Executes<E>`.
 
@@ -213,7 +214,7 @@ for STA-398 in both orders.
 
 #### Decision 3: `RawFilingIndex`
 
-Proposed: drop it. STA-376 does not store `index.json`.
+Decided: drop it. STA-376 does not store `index.json`.
 
 - The lead chose to store it (option 2 of STA-376) because `FilingIndex` had to satisfy
   `StoredAs`. After STA-398 that reason is gone.
@@ -222,7 +223,7 @@ Proposed: drop it. STA-376 does not store `index.json`.
 - A new fetch of `index.json` gives the member list that the rules saw, if the folder did not change
   after the SEC accepted the filing. This is an assumption, not measured. If the SEC edits a folder
   later, for example to remove a document, the stored record does not show the old list.
-- The lead weighs this risk against the cost of the write.
+- The lead accepted this risk on 2026-10-31, against the cost of the write.
 - Without the write, STA-376 needs no second store step, no new `RawSource`, and no super-state
   field that keeps the folder index response.
 
