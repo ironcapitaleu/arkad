@@ -45,7 +45,6 @@ impl TryFrom<ValidateNotesPeriod> for PrepareNotesRequest {
 #[cfg(test)]
 mod tests {
     use pretty_assertions::assert_eq;
-
     use uuid::Uuid;
 
     use super::*;
@@ -53,7 +52,6 @@ mod tests {
         ValidateNotesPeriodContext, ValidateNotesPeriodInput,
     };
     use crate::shared::notes_period::NotesPeriod;
-
     use crate::traits::state_machine::state::State;
 
     const SAMPLE_EXECUTION_ID: Uuid = Uuid::from_u128(7);

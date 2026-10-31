@@ -71,7 +71,6 @@ mod tests {
     use crate::shared::cik::constants::BERKSHIRE_HATHAWAY_CIK_RAW;
     use crate::shared::http_client::implementations::sec_client::SecClient;
     use crate::shared::request::implementations::sec_request::Submissions;
-
     use crate::traits::state_machine::state::State;
 
     #[tokio::test]
