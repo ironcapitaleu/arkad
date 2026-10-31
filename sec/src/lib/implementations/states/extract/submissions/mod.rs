@@ -308,9 +308,9 @@ where
 }
 
 impl<R: RawRepository<RawSubmissions>, C: SecClientTrait> NonTerminal
-    for ExtractSubmissionsSuperState<ValidateCikFormat<C>, R, C>
+    for ExtractSubmissionsSuperState<ValidateCikFormat, R, C>
 {
-    type Current = ValidateCikFormat<C>;
+    type Current = ValidateCikFormat;
     type Next = PrepareSecRequest<Submissions>;
 }
 
@@ -346,8 +346,8 @@ impl<R: RawRepository<RawSubmissions> + 'static, C: SecClientTrait + 'static> In
 // --- Transitions ---
 
 impl<R: RawRepository<RawSubmissions>, C: SecClientTrait>
-    Transition<ValidateCikFormat<C>, PrepareSecRequest<Submissions>>
-    for ExtractSubmissionsSuperState<ValidateCikFormat<C>, R, C>
+    Transition<ValidateCikFormat, PrepareSecRequest<Submissions>>
+    for ExtractSubmissionsSuperState<ValidateCikFormat, R, C>
 {
     fn transition_to_next_state_sec(self) -> Result<Self::NewStateMachine, TransitionError> {
         Ok(ExtractSubmissionsSuperState {
@@ -360,8 +360,8 @@ impl<R: RawRepository<RawSubmissions>, C: SecClientTrait>
 }
 
 impl<R: RawRepository<RawSubmissions>, C: SecClientTrait>
-    SMTransition<ValidateCikFormat<C>, PrepareSecRequest<Submissions>>
-    for ExtractSubmissionsSuperState<ValidateCikFormat<C>, R, C>
+    SMTransition<ValidateCikFormat, PrepareSecRequest<Submissions>>
+    for ExtractSubmissionsSuperState<ValidateCikFormat, R, C>
 {
     type NewStateMachine = ExtractSubmissionsSuperState<PrepareSecRequest<Submissions>, R, C>;
 
@@ -493,11 +493,7 @@ mod tests {
         sec_client: AlwaysRespondingSecClient,
         ingestion_mode: IngestionMode,
         repository: R,
-    ) -> ExtractSubmissionsSuperState<
-        ValidateCikFormat<AlwaysRespondingSecClient>,
-        R,
-        AlwaysRespondingSecClient,
-    > {
+    ) -> ExtractSubmissionsSuperState<ValidateCikFormat, R, AlwaysRespondingSecClient> {
         ExtractSubmissionsSuperState::builder()
             .cik(raw_cik)
             .sec_client(sec_client)
@@ -509,11 +505,7 @@ mod tests {
 
     /// Runs the whole stream and returns its items, or panics on the first error.
     async fn run_stream<R: RawRepository<RawSubmissions> + 'static>(
-        super_state: ExtractSubmissionsSuperState<
-            ValidateCikFormat<AlwaysRespondingSecClient>,
-            R,
-            AlwaysRespondingSecClient,
-        >,
+        super_state: ExtractSubmissionsSuperState<ValidateCikFormat, R, AlwaysRespondingSecClient>,
     ) -> Vec<StreamItem> {
         super_state
             .into_run_stream()
@@ -528,11 +520,7 @@ mod tests {
 
     /// Runs the whole stream and returns the state names of its errors.
     async fn failed_state_names<R: RawRepository<RawSubmissions> + 'static>(
-        super_state: ExtractSubmissionsSuperState<
-            ValidateCikFormat<AlwaysRespondingSecClient>,
-            R,
-            AlwaysRespondingSecClient,
-        >,
+        super_state: ExtractSubmissionsSuperState<ValidateCikFormat, R, AlwaysRespondingSecClient>,
     ) -> Vec<String> {
         super_state
             .into_run_stream()

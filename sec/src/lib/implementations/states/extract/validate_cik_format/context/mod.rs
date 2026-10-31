@@ -4,16 +4,15 @@
 //! [`ValidateCikFormat`](crate::implementations::states::extract::validate_cik_format::ValidateCikFormat)
 //! state, together with its updater and builder.
 //!
-//! The context holds the raw CIK under validation, the shared [`SecClient`], and the retry budget.
+//! The context holds the raw CIK under validation and the retry budget.
 //!
 //! ## Usage
 //!
 //! ```rust
 //! use sec::implementations::states::extract::validate_cik_format::context::*;
-//! use sec::shared::http_client::implementations::sec_client::SecClient;
 //! use state_maschine::prelude::*;
 //!
-//! let mut context = ValidateCikFormatContext::new("1067983", SecClient::default());
+//! let mut context = ValidateCikFormatContext::new("1067983");
 //! let update = ValidateCikFormatContextUpdater::builder()
 //!     .cik("0000000001")
 //!     .build();
@@ -36,29 +35,24 @@ use std::fmt;
 use serde::Serialize;
 use state_maschine::prelude::Context as SMContext;
 
-use crate::shared::http_client::SecClient as SecClientTrait;
-use crate::shared::http_client::implementations::sec_client::SecClient;
 use crate::traits::state_machine::state::Context;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
 /// Context for the [`ValidateCikFormat`](super::ValidateCikFormat) state.
 ///
-/// Holds the raw CIK under validation and the shared [`SecClient`]. It also holds the retry budget.
-pub struct ValidateCikFormatContext<C = SecClient> {
+/// Holds the raw CIK under validation and the retry budget.
+pub struct ValidateCikFormatContext {
     /// The unvalidated CIK string provided for validation.
     pub raw_cik: String,
-    /// The shared HTTP client for SEC API requests.
-    pub sec_client: C,
     /// Maximum number of times the state may be retried on failure.
     pub max_retries: u32,
 }
 
-impl<C> ValidateCikFormatContext<C> {
-    /// Creates a new [`ValidateCikFormatContext`] from a raw CIK and a shared HTTP client.
-    pub fn new(cik: impl Into<String>, sec_client: C) -> Self {
+impl ValidateCikFormatContext {
+    /// Creates a new [`ValidateCikFormatContext`] from a raw CIK.
+    pub fn new(cik: impl Into<String>) -> Self {
         Self {
             raw_cik: cik.into(),
-            sec_client,
             max_retries: 0,
         }
     }
@@ -68,23 +62,17 @@ impl<C> ValidateCikFormatContext<C> {
     pub const fn cik(&self) -> &String {
         &self.raw_cik
     }
-
-    /// Returns a reference to the HTTP client.
-    #[must_use]
-    pub const fn sec_client(&self) -> &C {
-        &self.sec_client
-    }
 }
 
-impl<C: SecClientTrait> Context for ValidateCikFormatContext<C> {
+impl Context for ValidateCikFormatContext {
     /// Returns the maximum number of retries allowed for CIK validation.
     fn max_retries(&self) -> u32 {
         self.max_retries
     }
 }
 
-impl<C: SecClientTrait> SMContext for ValidateCikFormatContext<C> {
-    type UpdateType = ValidateCikFormatContextUpdater<C>;
+impl SMContext for ValidateCikFormatContext {
+    type UpdateType = ValidateCikFormatContextUpdater;
 
     /// Returns a reference to the current context.
     fn context(&self) -> &Self {
@@ -98,16 +86,13 @@ impl<C: SecClientTrait> SMContext for ValidateCikFormatContext<C> {
         if let Some(cik) = updates.raw_cik {
             self.raw_cik = cik;
         }
-        if let Some(sec_client) = updates.sec_client {
-            self.sec_client = sec_client;
-        }
         if let Some(max_retries) = updates.max_retries {
             self.max_retries = max_retries;
         }
     }
 }
 
-impl<C> fmt::Display for ValidateCikFormatContext<C> {
+impl fmt::Display for ValidateCikFormatContext {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "Unvalidated CIK: {}", self.raw_cik)
     }
@@ -117,36 +102,32 @@ impl<C> fmt::Display for ValidateCikFormatContext<C> {
 /// Updater for modifying [`ValidateCikFormatContext`].
 ///
 /// Fields set to `None` are left unchanged when the updater is applied.
-pub struct ValidateCikFormatContextUpdater<C = SecClient> {
+pub struct ValidateCikFormatContextUpdater {
     /// Optional new raw CIK string value.
     pub raw_cik: Option<String>,
-    /// Optional new HTTP client value.
-    pub sec_client: Option<C>,
     /// Optional new maximum retries value.
     pub max_retries: Option<u32>,
 }
 
-impl<C> ValidateCikFormatContextUpdater<C> {
+impl ValidateCikFormatContextUpdater {
     /// Creates a new builder for constructing [`ValidateCikFormatContextUpdater`] instances.
     #[must_use]
-    pub const fn builder() -> ValidateCikFormatContextUpdaterBuilder<C> {
+    pub const fn builder() -> ValidateCikFormatContextUpdaterBuilder {
         ValidateCikFormatContextUpdaterBuilder::new()
     }
 }
 
 /// Fluent builder for a [`ValidateCikFormatContextUpdater`].
-pub struct ValidateCikFormatContextUpdaterBuilder<C = SecClient> {
+pub struct ValidateCikFormatContextUpdaterBuilder {
     raw_cik: Option<String>,
-    sec_client: Option<C>,
     max_retries: Option<u32>,
 }
-impl<C> ValidateCikFormatContextUpdaterBuilder<C> {
+impl ValidateCikFormatContextUpdaterBuilder {
     /// Creates a new [`ValidateCikFormatContextUpdaterBuilder`] with all fields initialized to `None`.
     #[must_use]
     pub const fn new() -> Self {
         Self {
             raw_cik: None,
-            sec_client: None,
             max_retries: None,
         }
     }
@@ -159,13 +140,6 @@ impl<C> ValidateCikFormatContextUpdaterBuilder<C> {
         self
     }
 
-    /// Sets the SEC client field.
-    #[must_use]
-    pub fn sec_client(mut self, sec_client: C) -> Self {
-        self.sec_client = Some(sec_client);
-        self
-    }
-
     /// Sets the `max_retries` field.
     #[must_use]
     pub const fn max_retries(mut self, max_retries: u32) -> Self {
@@ -175,16 +149,15 @@ impl<C> ValidateCikFormatContextUpdaterBuilder<C> {
 
     /// Builds the [`ValidateCikFormatContextUpdater`].
     #[must_use]
-    pub fn build(self) -> ValidateCikFormatContextUpdater<C> {
+    pub fn build(self) -> ValidateCikFormatContextUpdater {
         ValidateCikFormatContextUpdater {
             raw_cik: self.raw_cik,
-            sec_client: self.sec_client,
             max_retries: self.max_retries,
         }
     }
 }
 
-impl<C> Default for ValidateCikFormatContextUpdaterBuilder<C> {
+impl Default for ValidateCikFormatContextUpdaterBuilder {
     /// Returns a new [`ValidateCikFormatContextUpdaterBuilder`] with all fields initialized to `None`.
     fn default() -> Self {
         Self::new()
@@ -203,11 +176,9 @@ mod tests {
         ValidateCikFormatContextUpdaterBuilder,
     };
     use crate::shared::cik::constants::BERKSHIRE_HATHAWAY_CIK_RAW;
-    use crate::shared::http_client::implementations::sec_client::SecClient;
 
     fn test_context() -> ValidateCikFormatContext {
-        let sec_client = SecClient::default();
-        ValidateCikFormatContext::new(BERKSHIRE_HATHAWAY_CIK_RAW, sec_client)
+        ValidateCikFormatContext::new(BERKSHIRE_HATHAWAY_CIK_RAW)
     }
 
     #[test]
@@ -223,8 +194,7 @@ mod tests {
 
     #[test]
     fn should_create_different_context_with_custom_data_when_using_new_as_constructor() {
-        let sec_client = SecClient::default();
-        let validation_context = &ValidateCikFormatContext::new("0000000000", sec_client);
+        let validation_context = &ValidateCikFormatContext::new("0000000000");
 
         let expected_result = &test_context();
 
@@ -240,8 +210,7 @@ mod tests {
             .cik("Updated CIK!")
             .build();
 
-        let sec_client = SecClient::default();
-        let expected_result = &ValidateCikFormatContext::new("Updated CIK!", sec_client);
+        let expected_result = &ValidateCikFormatContext::new("Updated CIK!");
 
         context.update_context(update);
         let result = context.context();
@@ -257,8 +226,7 @@ mod tests {
             .cik("Latest CIK Update!")
             .build();
 
-        let sec_client = SecClient::default();
-        let expected_result = &ValidateCikFormatContext::new("Latest CIK Update!", sec_client);
+        let expected_result = &ValidateCikFormatContext::new("Latest CIK Update!");
 
         context.update_context(update);
         let result = context.context();
