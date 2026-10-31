@@ -159,9 +159,7 @@ impl<K: RequestKind> SecRequestTrait for SecRequest<K> {
 
 /// Builds the folder-index URL of `filing`.
 ///
-/// [`AccessionNumber`](crate::shared::financial::accession_number::AccessionNumber) does not
-/// check its shape, so the URL takes only the ASCII digits of the accession number. No other
-/// character, such as `/`, `.`, `%`, or `#`, can reach the path.
+/// The URL takes only the ASCII digits of the accession number, so the dashes drop out.
 fn filing_index_url(filing: &FilingRef) -> String {
     let accession_digits: String = filing
         .accession_number()
@@ -256,14 +254,10 @@ pub enum SecRequestType {
 
 #[cfg(test)]
 mod tests {
-    use chrono::NaiveDate;
     use pretty_assertions::assert_eq;
     use reqwest::{Method, Url};
 
-    use super::{CompanyFacts, FilingIndex, NotesFile, RequestKind, SecRequest};
-    use crate::shared::filing_ref::FilingRef;
-    use crate::shared::financial::accession_number::AccessionNumber;
-    use crate::shared::financial::form::{Form, ParsedForm};
+    use super::{CompanyFacts, NotesFile, RequestKind, SecRequest};
     use crate::shared::notes_period::NotesPeriod;
     use crate::shared::{cik::Cik, request::SecRequest as SecRequestTrait};
 
@@ -383,26 +377,5 @@ mod tests {
     #[test]
     const fn should_be_unpin_for_notes_file_sec_request() {
         implements_unpin::<SecRequest<NotesFile>>();
-    }
-
-    #[test]
-    fn should_keep_the_request_in_the_filer_folder_for_an_encoded_dot_segment() {
-        let filing = FilingRef::new(
-            Cik::new("320193").expect("Given a hardcoded valid CIK, parsing should always succeed"),
-            AccessionNumber::new("%2e%2e"),
-            ParsedForm::new(Form::TenK, false),
-            NaiveDate::from_ymd_opt(2026, 9, 9)
-                .expect("Given a hardcoded calendar date, the date should always build"),
-        );
-
-        let expected_result = "/Archives/edgar/data/320193/22/index.json";
-
-        let result = SecRequest::<FilingIndex>::new(filing)
-            .inner()
-            .url()
-            .path()
-            .to_string();
-
-        assert_eq!(result, expected_result);
     }
 }

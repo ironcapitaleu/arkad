@@ -261,7 +261,7 @@ mod tests {
     ) -> FilingRef {
         FilingRef::new(
             Cik::new(cik).expect("Given a hardcoded valid CIK, parsing should always succeed"),
-            AccessionNumber::new(accession_number),
+            AccessionNumber::new(accession_number).expect("Given a hardcoded accession number of the right shape, creation should always succeed"),
             parsed_form,
             filed_date,
         )
@@ -359,7 +359,9 @@ mod tests {
     async fn should_keep_the_first_row_when_a_filing_has_two_filers() {
         let index_text = SAMPLE_DAILY_INDEX.to_string();
         let mut state = test_state(Some(index_text.into_bytes()));
-        let shared_accession_number = AccessionNumber::new("0000811156-26-000032");
+        let shared_accession_number = AccessionNumber::new("0000811156-26-000032").expect(
+            "Given a hardcoded accession number of the right shape, creation should always succeed",
+        );
 
         let expected_result = vec![filing_ref(
             "811156",
@@ -380,7 +382,9 @@ mod tests {
     #[tokio::test]
     async fn should_drop_the_eight_k_row_for_sample_daily_index() {
         let index_text = SAMPLE_DAILY_INDEX.to_string();
-        let eight_k_accession_number = AccessionNumber::new("0001213900-26-112698");
+        let eight_k_accession_number = AccessionNumber::new("0001213900-26-112698").expect(
+            "Given a hardcoded accession number of the right shape, creation should always succeed",
+        );
         let index_holds_eight_k = parse_daily_index(&index_text)
             .expect("Given the real daily index fixture, parsing should always succeed")
             .iter()

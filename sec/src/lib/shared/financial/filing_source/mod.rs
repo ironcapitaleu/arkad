@@ -42,7 +42,8 @@ impl FilingSource {
     ///
     /// let date = |y, m, d| NaiveDate::from_ymd_opt(y, m, d).expect("A hardcoded date is valid");
     /// let source = FilingSource::new(
-    ///     AccessionNumber::new("0000320193-23-000106"),
+    ///     AccessionNumber::new("0000320193-23-000106")
+    ///         .expect("Given a hardcoded accession number of the right shape, creation should always succeed"),
     ///     Form::TenK,
     ///     FiscalYear::from(2023_u16),
     ///     FiscalPeriod::Fy,
@@ -130,7 +131,7 @@ mod tests {
 
     fn create_test_filing_source() -> FilingSource {
         FilingSource::new(
-            AccessionNumber::new("0000320193-23-000106"),
+            AccessionNumber::new("0000320193-23-000106").expect("Given a hardcoded accession number of the right shape, creation should always succeed"),
             Form::TenK,
             FiscalYear::from(2023_u16),
             FiscalPeriod::Fy,
@@ -143,7 +144,9 @@ mod tests {
     fn should_return_accession_number_when_accessed() {
         let source = create_test_filing_source();
 
-        let expected_result = &AccessionNumber::new("0000320193-23-000106");
+        let expected_result = &AccessionNumber::new("0000320193-23-000106").expect(
+            "Given a hardcoded accession number of the right shape, creation should always succeed",
+        );
 
         let result = source.accession_number();
 

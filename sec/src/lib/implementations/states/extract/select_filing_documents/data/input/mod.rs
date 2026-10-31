@@ -154,7 +154,7 @@ mod tests {
     use super::*;
     fn test_input() -> SelectFilingDocumentsInput {
         SelectFilingDocumentsInput::new(
-            AccessionNumber::new("0000003545-26-000047"),
+            AccessionNumber::new("0000003545-26-000047").expect("Given a hardcoded accession number of the right shape, creation should always succeed"),
             FolderIndex::new(vec!["alco-20260908_htm.xml".to_string()]),
         )
     }
@@ -174,10 +174,12 @@ mod tests {
     fn should_update_accession_number_when_update_contains_accession_number() {
         let mut input = test_input();
         let update = SelectFilingDocumentsInputUpdater::builder()
-            .accession_number(AccessionNumber::new("0000320193-17-000070"))
+            .accession_number(AccessionNumber::new("0000320193-17-000070").expect("Given a hardcoded accession number of the right shape, creation should always succeed"))
             .build();
 
-        let expected_result = &AccessionNumber::new("0000320193-17-000070");
+        let expected_result = &AccessionNumber::new("0000320193-17-000070").expect(
+            "Given a hardcoded accession number of the right shape, creation should always succeed",
+        );
 
         SMStateData::update_state(&mut input, update);
         let result = &input.state().accession_number;

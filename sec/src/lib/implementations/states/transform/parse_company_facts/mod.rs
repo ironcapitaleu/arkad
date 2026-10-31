@@ -148,9 +148,10 @@ const COMPANY_FACTS_FORMS: [Form; 2] = [Form::TenK, Form::TenQ];
 
 /// Builds a [`FilingSource`] from an SEC observation JSON entry.
 ///
-/// Returns `None` for a form outside [`COMPANY_FACTS_FORMS`] and for an amendment.
+/// Returns `None` for a form outside [`COMPANY_FACTS_FORMS`], for an amendment, and for a
+/// missing or malformed field, such as an `accn` that [`AccessionNumber::new`] rejects.
 fn build_filing_source(entry: &serde_json::Value) -> Option<FilingSource> {
-    let accn = AccessionNumber::new(entry.get("accn")?.as_str()?);
+    let accn = AccessionNumber::new(entry.get("accn")?.as_str()?).ok()?;
     let parsed_form = Form::from_sec_str(entry.get("form")?.as_str()?).ok()?;
     if parsed_form.is_amendment() || !COMPANY_FACTS_FORMS.contains(&parsed_form.form()) {
         return None;
@@ -643,6 +644,16 @@ mod tests {
         let result = build_filing_source(&entry);
 
         assert!(result.is_some());
+    }
+
+    #[test]
+    fn should_drop_filing_source_when_accn_is_malformed() {
+        let mut entry = get_observation_entry_with_form("10-Q");
+        entry["accn"] = serde_json::json!("0000320193-23-00010");
+
+        let result = build_filing_source(&entry);
+
+        assert!(result.is_none());
     }
 
     #[test]

@@ -11,7 +11,8 @@
 //! use sec::shared::financial::accession_number::AccessionNumber;
 //!
 //! let filing_documents_error = FilingDocumentsError::MissingXbrlInstance {
-//!     accession_number: AccessionNumber::new("0000003545-26-000047"),
+//!     accession_number: AccessionNumber::new("0000003545-26-000047")
+//!         .expect("Given a hardcoded accession number of the right shape, creation should always succeed"),
 //! };
 //! let state_error = FailedDocumentSelection::new("Select Filing Documents", filing_documents_error);
 //!
@@ -80,7 +81,7 @@ mod tests {
 
     fn missing_xbrl_instance() -> FilingDocumentsError {
         FilingDocumentsError::MissingXbrlInstance {
-            accession_number: AccessionNumber::new("0000003545-26-000047"),
+            accession_number: AccessionNumber::new("0000003545-26-000047").expect("Given a hardcoded accession number of the right shape, creation should always succeed"),
         }
     }
 

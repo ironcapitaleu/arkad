@@ -49,7 +49,8 @@ impl Observation {
     ///     Period::Duration { start: date(2022, 10, 1), end: date(2023, 9, 30) },
     ///     Some(Frame::new(2023, None, false)),
     ///     FilingSource::new(
-    ///         AccessionNumber::new("0000320193-23-000106"),
+    ///         AccessionNumber::new("0000320193-23-000106")
+    ///             .expect("Given a hardcoded accession number of the right shape, creation should always succeed"),
     ///         Form::TenK,
     ///         FiscalYear::from(2023_u16),
     ///         FiscalPeriod::Fy,
@@ -145,7 +146,7 @@ mod tests {
             },
             Some(Frame::new(2023, None, false)),
             FilingSource::new(
-                AccessionNumber::new("0000320193-23-000106"),
+                AccessionNumber::new("0000320193-23-000106").expect("Given a hardcoded accession number of the right shape, creation should always succeed"),
                 Form::TenK,
                 FiscalYear::from(2023_u16),
                 FiscalPeriod::Fy,

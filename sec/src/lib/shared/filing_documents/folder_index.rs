@@ -69,7 +69,8 @@ impl FolderIndex {
     ///     "alco-20260908_htm.xml".to_string(),
     ///     "alco-20260908_lab.xml".to_string(),
     /// ]);
-    /// let accession_number = AccessionNumber::new("0000003545-26-000047");
+    /// let accession_number = AccessionNumber::new("0000003545-26-000047")
+    ///     .expect("Given a hardcoded accession number of the right shape, creation should always succeed");
     /// let documents = folder_index
     ///     .select_documents(&accession_number)
     ///     .expect("Given a folder with one inline instance, the selection should always succeed");
@@ -225,7 +226,9 @@ mod tests {
 
     #[test]
     fn should_pick_the_htm_xml_instance_and_the_label_file_for_inline_xbrl_filing() {
-        let accession_number = AccessionNumber::new("0000003545-26-000047");
+        let accession_number = AccessionNumber::new("0000003545-26-000047").expect(
+            "Given a hardcoded accession number of the right shape, creation should always succeed",
+        );
 
         let expected_result = Ok(FilingDocuments::new(
             "alco-20260908_htm.xml",
@@ -240,7 +243,9 @@ mod tests {
 
     #[test]
     fn should_pick_the_plain_xml_instance_when_the_folder_has_no_htm_xml_member() {
-        let accession_number = AccessionNumber::new("0000320193-17-000070");
+        let accession_number = AccessionNumber::new("0000320193-17-000070").expect(
+            "Given a hardcoded accession number of the right shape, creation should always succeed",
+        );
 
         let expected_result = Ok(FilingDocuments::new(
             "aapl-20170930.xml",
@@ -255,7 +260,9 @@ mod tests {
 
     #[test]
     fn should_prefer_the_htm_xml_instance_when_the_folder_also_has_a_plain_xml_member() {
-        let accession_number = AccessionNumber::new("0000003545-26-000047");
+        let accession_number = AccessionNumber::new("0000003545-26-000047").expect(
+            "Given a hardcoded accession number of the right shape, creation should always succeed",
+        );
         let index = folder_index(&["alco-20260908.xml", "alco-20260908_htm.xml"]);
 
         let expected_result = Ok(FilingDocuments::new("alco-20260908_htm.xml", None));
@@ -267,7 +274,9 @@ mod tests {
 
     #[test]
     fn should_pick_the_plain_xml_instance_when_the_member_names_are_upper_case() {
-        let accession_number = AccessionNumber::new("0000320193-17-000070");
+        let accession_number = AccessionNumber::new("0000320193-17-000070").expect(
+            "Given a hardcoded accession number of the right shape, creation should always succeed",
+        );
         let index = folder_index(&[
             "FILINGSUMMARY.XML",
             "AAPL-20170930.XML",
@@ -286,7 +295,9 @@ mod tests {
 
     #[test]
     fn should_return_no_label_file_when_the_folder_has_no_lab_xml_member() {
-        let accession_number = AccessionNumber::new("0000003545-26-000047");
+        let accession_number = AccessionNumber::new("0000003545-26-000047").expect(
+            "Given a hardcoded accession number of the right shape, creation should always succeed",
+        );
         let index = folder_index(&["alco-20260908_htm.xml", "alco-20260908_pre.xml"]);
 
         let expected_result = Ok(FilingDocuments::new("alco-20260908_htm.xml", None));
@@ -298,7 +309,9 @@ mod tests {
 
     #[test]
     fn should_return_missing_xbrl_instance_when_the_folder_has_only_linkbases_and_the_summary() {
-        let accession_number = AccessionNumber::new("0000003545-26-000047");
+        let accession_number = AccessionNumber::new("0000003545-26-000047").expect(
+            "Given a hardcoded accession number of the right shape, creation should always succeed",
+        );
         let index = folder_index(&[
             "FilingSummary.xml",
             "alco-20260908_cal.xml",
@@ -309,7 +322,7 @@ mod tests {
         ]);
 
         let expected_result = Err(FilingDocumentsError::MissingXbrlInstance {
-            accession_number: AccessionNumber::new("0000003545-26-000047"),
+            accession_number: AccessionNumber::new("0000003545-26-000047").expect("Given a hardcoded accession number of the right shape, creation should always succeed"),
         });
 
         let result = index.select_documents(&accession_number);
@@ -319,11 +332,13 @@ mod tests {
 
     #[test]
     fn should_return_ambiguous_filing_document_when_the_folder_has_two_plain_xml_members() {
-        let accession_number = AccessionNumber::new("0000320193-17-000070");
+        let accession_number = AccessionNumber::new("0000320193-17-000070").expect(
+            "Given a hardcoded accession number of the right shape, creation should always succeed",
+        );
         let index = folder_index(&["aapl-20170930.xml", "exhibit.xml"]);
 
         let expected_result = Err(FilingDocumentsError::AmbiguousFilingDocument {
-            accession_number: AccessionNumber::new("0000320193-17-000070"),
+            accession_number: AccessionNumber::new("0000320193-17-000070").expect("Given a hardcoded accession number of the right shape, creation should always succeed"),
             role: FilingDocumentRole::XbrlInstance,
             candidate_count: 2,
         });
@@ -335,11 +350,13 @@ mod tests {
 
     #[test]
     fn should_return_ambiguous_filing_document_when_the_folder_has_two_htm_xml_members() {
-        let accession_number = AccessionNumber::new("0000003545-26-000047");
+        let accession_number = AccessionNumber::new("0000003545-26-000047").expect(
+            "Given a hardcoded accession number of the right shape, creation should always succeed",
+        );
         let index = folder_index(&["alco-20260908_htm.xml", "exhibit_htm.xml"]);
 
         let expected_result = Err(FilingDocumentsError::AmbiguousFilingDocument {
-            accession_number: AccessionNumber::new("0000003545-26-000047"),
+            accession_number: AccessionNumber::new("0000003545-26-000047").expect("Given a hardcoded accession number of the right shape, creation should always succeed"),
             role: FilingDocumentRole::XbrlInstance,
             candidate_count: 2,
         });
@@ -351,7 +368,9 @@ mod tests {
 
     #[test]
     fn should_return_ambiguous_filing_document_when_the_folder_has_two_lab_xml_members() {
-        let accession_number = AccessionNumber::new("0000003545-26-000047");
+        let accession_number = AccessionNumber::new("0000003545-26-000047").expect(
+            "Given a hardcoded accession number of the right shape, creation should always succeed",
+        );
         let index = folder_index(&[
             "alco-20260908_htm.xml",
             "alco-20260908_lab.xml",
@@ -359,7 +378,7 @@ mod tests {
         ]);
 
         let expected_result = Err(FilingDocumentsError::AmbiguousFilingDocument {
-            accession_number: AccessionNumber::new("0000003545-26-000047"),
+            accession_number: AccessionNumber::new("0000003545-26-000047").expect("Given a hardcoded accession number of the right shape, creation should always succeed"),
             role: FilingDocumentRole::LabelFile,
             candidate_count: 2,
         });
