@@ -281,7 +281,7 @@ mod tests {
 
         let expected_result = PrepareSecRequest::new(
             PrepareSecRequestInput::new(cik.clone()),
-            PrepareSecRequestContext::new(cik.clone(), FakeWriteRepository::new()),
+            PrepareSecRequestContext::new(cik.clone(), repository.clone()),
         );
 
         let result = PrepareSecRequest::builder()
@@ -301,7 +301,7 @@ mod tests {
 
         let expected_result = PrepareSecRequest::<NotesFile, _>::new(
             PrepareSecRequestInput::new(period),
-            PrepareSecRequestContext::new(period, FakeNotesRepository::new()),
+            PrepareSecRequestContext::new(period, repository.clone()),
         );
 
         let result = PrepareSecRequest::builder()
@@ -322,7 +322,7 @@ mod tests {
         let expected_result = PrepareSecRequest::builder()
             .all_company_facts()
             .cik(cik.clone())
-            .repository(FakeWriteRepository::new())
+            .repository(repository.clone())
             .build();
 
         let result = PrepareSecRequest::builder()
