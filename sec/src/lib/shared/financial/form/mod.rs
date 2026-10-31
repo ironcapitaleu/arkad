@@ -296,11 +296,11 @@ mod tests {
 
     #[test]
     fn should_return_unsupported_form_when_sec_string_has_trailing_whitespace() {
-        let form_text = "10-K   ";
+        let sec_string = "10-K   ";
 
-        let expected_result = Err(UnsupportedForm::new(form_text));
+        let expected_result = Err(UnsupportedForm::new(sec_string));
 
-        let result = Form::from_sec_str(form_text);
+        let result = Form::from_sec_str(sec_string);
 
         assert_eq!(result, expected_result);
     }
