@@ -42,9 +42,11 @@ mod tests {
 
     #[test]
     fn should_name_the_state_when_building_a_producer() {
+        let state_name = "Store Company Facts";
+
         let expected_result = "Store Company Facts";
 
-        let producer = producer("Store Company Facts");
+        let producer = producer(state_name);
         let result = producer.name();
 
         assert_eq!(result, expected_result);
@@ -52,9 +54,11 @@ mod tests {
 
     #[test]
     fn should_take_the_crate_version_from_cargo_when_building_a_producer() {
+        let state_name = "Store Company Facts";
+
         let expected_result = env!("CARGO_PKG_VERSION");
 
-        let producer = producer("Store Company Facts");
+        let producer = producer(state_name);
         let result = producer.crate_version();
 
         assert_eq!(result, expected_result);
@@ -62,9 +66,11 @@ mod tests {
 
     #[test]
     fn should_take_the_commit_from_the_build_when_building_a_producer() {
+        let state_name = "Store Company Facts";
+
         let expected_result = GIT_COMMIT;
 
-        let producer = producer("Store Company Facts");
+        let producer = producer(state_name);
         let result = producer.commit();
 
         assert_eq!(result, expected_result);

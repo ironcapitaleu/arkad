@@ -60,6 +60,8 @@ async fn run_backfill(periods: &[&str]) -> RunSummary {
 #[tokio::test]
 async fn should_list_each_stored_file_with_its_size_and_sha256_when_backfilling_published_periods()
 {
+    let periods = ["2009q1", "2009q2"];
+
     let expected_result = vec![
         json!({
             "period": "2009q1",
@@ -75,20 +77,22 @@ async fn should_list_each_stored_file_with_its_size_and_sha256_when_backfilling_
         }),
     ];
 
-    let result = run_backfill(&["2009q1", "2009q2"]).await.entries();
+    let result = run_backfill(&periods).await.entries();
 
     assert_eq!(result, expected_result);
 }
 
 #[tokio::test]
 async fn should_store_the_other_periods_when_one_period_fails() {
+    let periods = ["2009q1", UNPUBLISHED_PERIOD, "2009q2"];
+
     let expected_result = vec![
         json!("sec/notes/2009q1_notes.zip"),
-        json!("Download Notes Archive"),
+        json!("Execute SEC Request"),
         json!("sec/notes/2009q2_notes.zip"),
     ];
 
-    let result: Vec<Value> = run_backfill(&["2009q1", UNPUBLISHED_PERIOD, "2009q2"])
+    let result: Vec<Value> = run_backfill(&periods)
         .await
         .entries()
         .into_iter()
@@ -105,34 +109,36 @@ async fn should_store_the_other_periods_when_one_period_fails() {
 
 #[tokio::test]
 async fn should_return_failed_backfill_when_one_period_is_unpublished() {
+    let periods = ["2009q1", UNPUBLISHED_PERIOD, "2009q2"];
+
     let expected_result = Err(FailedBackfill {
         failures: 1,
         periods: 3,
     });
 
-    let result = run_backfill(&["2009q1", UNPUBLISHED_PERIOD, "2009q2"])
-        .await
-        .result();
+    let result = run_backfill(&periods).await.result();
 
     assert_eq!(result, expected_result);
 }
 
 #[tokio::test]
 async fn should_count_the_stored_periods_when_one_period_is_unpublished() {
+    let periods = ["2009q1", UNPUBLISHED_PERIOD, "2009q2"];
+
     let expected_result = 2;
 
-    let result = run_backfill(&["2009q1", UNPUBLISHED_PERIOD, "2009q2"])
-        .await
-        .success_count();
+    let result = run_backfill(&periods).await.success_count();
 
     assert_eq!(result, expected_result);
 }
 
 #[tokio::test]
 async fn should_return_ok_when_every_period_is_stored() {
+    let periods = ["2009q1"];
+
     let expected_result = Ok(());
 
-    let result = run_backfill(&["2009q1"]).await.result();
+    let result = run_backfill(&periods).await.result();
 
     assert_eq!(result, expected_result);
 }

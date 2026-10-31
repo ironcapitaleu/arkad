@@ -14,6 +14,7 @@
 
 use crate::error::state_machine::transition;
 use crate::error::state_machine::transition::Transition as TransitionError;
+use crate::implementations::states::extract::prepare_sec_request::constants::STATE_NAME as PREPARE_SEC_REQUEST;
 use crate::implementations::states::extract::prepare_sec_request::{
     PrepareNotesRequest, PrepareSecRequest,
 };
@@ -21,7 +22,6 @@ use crate::implementations::states::extract::validate_notes_period::ValidateNote
 use crate::implementations::states::extract::validate_notes_period::constants::STATE_NAME as VALIDATE_NOTES_PERIOD;
 use crate::shared::raw_repository::RawRepository;
 use crate::shared::raw_source::RawNotesArchive;
-use crate::shared::request::implementations::sec_request::{NotesFile, RequestKind};
 
 impl<R: RawRepository<RawNotesArchive>> TryFrom<ValidateNotesPeriod<R>> for PrepareNotesRequest<R> {
     type Error = TransitionError;
@@ -34,7 +34,7 @@ impl<R: RawRepository<RawNotesArchive>> TryFrom<ValidateNotesPeriod<R>> for Prep
     fn try_from(state: ValidateNotesPeriod<R>) -> Result<Self, TransitionError> {
         let (_input, output, context) = state.into_parts();
         let output_data = output.ok_or_else(|| {
-            transition::MissingOutput::new(VALIDATE_NOTES_PERIOD, NotesFile::PREPARE_STATE_NAME)
+            transition::MissingOutput::new(VALIDATE_NOTES_PERIOD, PREPARE_SEC_REQUEST)
         })?;
 
         Ok(PrepareSecRequest::builder()
@@ -97,7 +97,7 @@ mod tests {
         let state = validate_notes_period();
 
         let expected_result = Err(TransitionError::MissingOutput(
-            transition::MissingOutput::new(VALIDATE_NOTES_PERIOD, "Prepare Notes Request"),
+            transition::MissingOutput::new(VALIDATE_NOTES_PERIOD, "Prepare SEC Request"),
         ));
 
         let result = PrepareNotesRequest::try_from(state);

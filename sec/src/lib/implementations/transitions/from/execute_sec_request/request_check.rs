@@ -6,9 +6,9 @@
 
 use crate::error::state_machine::transition;
 use crate::error::state_machine::transition::Transition as TransitionError;
-use crate::shared::http_client::RespondsWith;
+use crate::implementations::states::extract::execute_sec_request::constants::STATE_NAME as EXECUTE_SEC_REQUEST;
 use crate::shared::request::SecRequest as SecRequestTrait;
-use crate::shared::request::implementations::sec_request::SecRequest;
+use crate::shared::request::implementations::sec_request::{RequestKind, SecRequest};
 
 /// Checks that `request` is the request that `request_input` builds.
 ///
@@ -17,13 +17,12 @@ use crate::shared::request::implementations::sec_request::SecRequest;
 ///
 /// # Errors
 ///
-/// Returns [`TransitionError::FailedContextConversion`] from
-/// [`E::EXECUTE_STATE_NAME`](RespondsWith::EXECUTE_STATE_NAME) to `target_state_name` if the two
-/// requests differ. The reason names the requested URL, then `input_label` and `request_input`,
-/// for example `period '2024q1'`.
-pub(super) fn ensure_request_matches_input<E: RespondsWith>(
-    request: &SecRequest<E>,
-    request_input: &E::Input,
+/// Returns [`TransitionError::FailedContextConversion`] from [`EXECUTE_SEC_REQUEST`] to
+/// `target_state_name` if the two requests differ. The reason names the requested URL, then
+/// `input_label` and `request_input`, for example `period '2024q1'`.
+pub(super) fn ensure_request_matches_input<K: RequestKind>(
+    request: &SecRequest<K>,
+    request_input: &K::Input,
     input_label: &str,
     target_state_name: &str,
 ) -> Result<(), TransitionError> {
@@ -35,7 +34,7 @@ pub(super) fn ensure_request_matches_input<E: RespondsWith>(
         request.inner.url(),
     );
     Err(
-        transition::FailedContextConversion::new(E::EXECUTE_STATE_NAME, target_state_name, reason)
+        transition::FailedContextConversion::new(EXECUTE_SEC_REQUEST, target_state_name, reason)
             .into(),
     )
 }
@@ -58,11 +57,13 @@ mod tests {
     #[test]
     fn should_pass_when_the_request_input_builds_the_request() {
         let request = SecRequest::<NotesFile>::new(period("2024q1"));
+        let request_input = period("2024q1");
+        let input_label = "period";
 
         let expected_result = Ok(());
 
         let result =
-            ensure_request_matches_input(&request, &period("2024q1"), "period", TARGET_STATE_NAME);
+            ensure_request_matches_input(&request, &request_input, input_label, TARGET_STATE_NAME);
 
         assert_eq!(result, expected_result);
     }
@@ -70,17 +71,19 @@ mod tests {
     #[test]
     fn should_return_failed_context_conversion_when_the_request_input_builds_another_request() {
         let request = SecRequest::<NotesFile>::new(period("2023q4"));
+        let request_input = period("2024q1");
+        let input_label = "period";
 
         let expected_result = Err(TransitionError::FailedContextConversion(
             transition::FailedContextConversion::new(
-                NotesFile::EXECUTE_STATE_NAME,
+                EXECUTE_SEC_REQUEST,
                 TARGET_STATE_NAME,
                 "The request targets 'https://www.sec.gov/files/dera/data/financial-statement-notes-data-sets/2023q4_notes.zip', but the context names period '2024q1'",
             ),
         ));
 
         let result =
-            ensure_request_matches_input(&request, &period("2024q1"), "period", TARGET_STATE_NAME);
+            ensure_request_matches_input(&request, &request_input, input_label, TARGET_STATE_NAME);
 
         assert_eq!(result, expected_result);
     }
