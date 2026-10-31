@@ -11,6 +11,9 @@
 //! is [`NonTerminal`] and has a [`Transition`] to that successor, recursively streaming the
 //! successor too. Only terminal states (those with no [`NonTerminal`] impl) need a manual impl,
 //! and `terminal_stream` supplies its body.
+//!
+//! The module also holds `OutputSlot`, which the `on_completed` callback of a terminal state fills
+//! for the caller.
 
 use std::cmp::Ordering;
 use std::fmt;
@@ -755,12 +758,66 @@ mod tests {
         assert_eq!(result, expected_result);
     }
 
-    /// A value without `Clone`, so the slot must clone without `T: Clone`.
+    #[test]
+    fn should_return_the_last_value_when_put_twice() {
+        let slot = OutputSlot::default();
+        slot.put(7);
+        slot.put(8);
+
+        let expected_result = Some(8);
+
+        let result = slot.take();
+
+        assert_eq!(result, expected_result);
+    }
+
+    /// Hashes `value` with the standard hasher.
+    fn hash_of<T: Hash>(value: &T) -> u64 {
+        let mut hasher = std::collections::hash_map::DefaultHasher::new();
+        value.hash(&mut hasher);
+        std::hash::Hasher::finish(&hasher)
+    }
+
+    #[test]
+    fn should_hash_equal_when_two_slots_hold_different_values() {
+        let slot = OutputSlot::default();
+        slot.put(7);
+        let other = OutputSlot::default();
+        other.put(8);
+
+        let expected_result = hash_of(&other);
+
+        let result = hash_of(&slot);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_order_equal_when_two_slots_hold_different_values() {
+        let slot = OutputSlot::default();
+        slot.put(7);
+        let other = OutputSlot::default();
+        other.put(8);
+
+        let expected_result = std::cmp::Ordering::Equal;
+
+        let result = slot.cmp(&other);
+
+        assert_eq!(result, expected_result);
+    }
+
+    /// A value without `Clone` or `Default`, so the slot must implement both without these bounds.
     #[derive(Debug)]
-    struct NotClone;
+    struct Opaque;
 
     #[test]
     const fn should_implement_clone_for_output_slot_when_the_value_does_not() {
-        implements_clone::<OutputSlot<NotClone>>();
+        implements_clone::<OutputSlot<Opaque>>();
+    }
+
+    const fn implements_default<T: Default>() {}
+    #[test]
+    const fn should_implement_default_for_output_slot_when_the_value_does_not() {
+        implements_default::<OutputSlot<Opaque>>();
     }
 }
