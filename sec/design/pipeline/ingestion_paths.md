@@ -342,6 +342,10 @@ quarter) or a month (year and month).
 - Quarters run from 2009q1 to 2025q3. Months run from 2025_10 onward. Measured on the SEC page.
 - Construction rejects a quarter after 2025q3, a month before 2025_10, and a year before 2009.
 - `NotesPeriod::file_name()` returns the SEC file name. See [File Names](#file-names).
+- `NotesPeriod::all_through(date)` lists every period whose file ends in or before the month of
+  `date`, in increasing order. `notes_backfill` calls it with today minus two months (STA-361).
+  The SEC posts month M some days into month M+1, so the lag of two months never asks for an
+  unpublished file.
 - `sec::shared::financial::quarter::Quarter` (Q1 to Q4) holds the quarter part. The month part
   needs its own type.
 
