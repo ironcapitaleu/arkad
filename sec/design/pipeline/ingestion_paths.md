@@ -20,6 +20,8 @@
   decisions on 2026-10-31 (STA-398).
 - [Cut-Over Between the Paths](#cut-over-between-the-paths) and
   [Idempotent Writes](#idempotent-writes) list their assumptions. Check them first.
+- [Path Independence](#path-independence) is new and proposed. It states what transform must
+  guarantee when a filing can come from either path. STA-402 measures whether it holds.
 - [Raw Store](#raw-store), [Handover to Transform](#handover-to-transform),
   [Deployment](#deployment), and [Implementation Tickets](#implementation-tickets) are new and
   proposed.
@@ -341,6 +343,15 @@ quarter) or a month (year and month).
 - Quarters run from 2009q1 to 2025q3. Months run from 2025_10 onward. Measured on the SEC page.
 - Construction rejects a quarter after 2025q3, a month before 2025_10, and a year before 2009.
 - `NotesPeriod::file_name()` returns the SEC file name. See [File Names](#file-names).
+- `NotesPeriod::all_through(date)` lists every period that ends in or before the month of
+  `date`, in increasing order. `notes_backfill` calls it with today minus one month (STA-361).
+  Early in a month, the SEC has not posted the file of the last month yet. If the last period gets
+  403 or 404, the run counts it as unpublished, not as failed, and the next run asks for it again.
+  Every other 403 or 404 stays a failure, so a run that the SEC refuses in full fails.
+- Before each download, `notes_backfill` reads the stored file of the period. If the file passes
+  the size and SHA-256 check, the run skips the download (STA-400). So a rerun downloads only the
+  files that are missing or that the store cannot verify. If the store cannot verify a file, the
+  run summary marks the new download as `replaced`. A file that the SEC replaces after the run stored it stays old.
 - `sec::shared::financial::quarter::Quarter` (Q1 to Q4) holds the quarter part. The month part
   needs its own type.
 
@@ -1025,25 +1036,45 @@ new `StoreSubmissions` writes the JSON.
 
 ### Cut-Over Between the Paths
 
-The backfill runs once, by hand, up to the last published Notes file, `2026_09`. Decided by the
-lead on 2026-10-28. After that, the new-filing path catches each new filing. No step checks
+The backfill runs by hand, up to the last published Notes file. Decided by the lead on
+2026-10-28. After the backfill, the new-filing path catches each new filing. No step checks
 whether a company or a filing already exists. See [Idempotent Writes](#idempotent-writes).
+
+Since STA-361, the backfill computes its periods from today, so it can run on any date. It asks
+for every period up to last month. Early in a month, the SEC has not posted last month yet. The
+run then counts that period as unpublished and stores everything before it. So the newest stored
+Notes month depends on the day of the run, not on a fixed constant.
 
 Rules:
 
-1. The new-filing path starts at the daily index of 2026-09-30, one day before the end of the
-   last Notes file. The overlap of one day covers assumption A2 below.
+1. The new-filing path starts at the daily index of the last day of the newest stored Notes
+   month. That day is in both paths. The overlap of one day covers assumption A2 below.
 2. The first `daily_filings` run reads every day from the start date up to yesterday. Each later
    run reads one day.
 3. A missed day is a rerun for that date.
-4. A filing that reaches both paths changes nothing, because every write is idempotent.
+4. A filing that reaches both paths writes no duplicate row, because every write is idempotent.
+   Which copy holds the value is open. See [Path Independence](#path-independence).
+5. Rule 1 leaves no gap only if the backfill stored every period up to the newest stored Notes
+   month. To check, confirm that no entry in the run summary has a `failed_state`. If one does,
+   rerun the backfill (rule 8). Then read the newest period in the run summary with the status
+   `downloaded`, `already_stored`, or `replaced`. That period is the newest stored Notes month of
+   rule 1. Do not rely on the calendar. In three samples, the SEC posted a month in the first 8
+   days of the next month. But `2025_10_notes.zip` has a Last-Modified of 2025-12-01 (see
+   [Notes ZIP Findings](#notes-zip-findings)).
+6. If a later backfill run stores newer months, those months overlap the new-filing path. Rule 4
+   keeps the overlap free of duplicate rows.
+7. STA-378 decides how `daily_filings` picks its dates. Its start date must follow rule 1, after
+   the check of rule 5.
+8. A backfill run can repeat. It skips each stored file that passes the size and SHA-256 check
+   (STA-400), so a repeat downloads only the files that are missing or that the store cannot
+   verify.
 
 Assumptions:
 
 | Id | Assumption | Status | If it is false |
 | -- | ---------- | ------ | -------------- |
-| A1 | `2026_09` holds every filing of the selected forms with a filed date up to 2026-09-30 | Measured: its `sub.tsv` runs from 2026-09-01 to 2026-09-30 | A filing before 2026-09-30 is lost. To check, compare `sub.tsv` with the daily indexes of September. |
-| A2 | A filing after 5:30 PM Eastern on the last day of a month gets the next business day as its filed date, and the daily index of that day lists it | Unverified | The overlap of one day covers a filing on 2026-09-30. A longer gap needs a longer overlap. |
+| A1 | A monthly Notes file holds every filing of the selected forms with a filed date in that month | Measured for `2026_09`: its `sub.tsv` runs from 2026-09-01 to 2026-09-30 | A filing before the start date is lost. To check, compare `sub.tsv` with the daily indexes of that month. |
+| A2 | A filing after 5:30 PM Eastern on the last day of a month gets the next business day as its filed date, and the daily index of that day lists it | Unverified | The overlap of one day covers a filing on the last day of the month. A longer gap needs a longer overlap. |
 | A3 | The daily index lists every filing of its day, and the SEC does not change it after publication | Unverified | A late change is lost. A rerun of that date picks it up. |
 | A4 | The SEC replaces old Notes files after the backfill, for example `2025q3` on 2026-10-07 | Measured | The backfill does not pick up the change. An amendment reaches the new-filing path as its own filing (10-K/A, 10-Q/A). |
 | A5 | CIK and accession number never change and are never reused | Unverified, SEC practice | Idempotent writes on these keys merge two different things |
@@ -1082,11 +1113,78 @@ Rules:
   fact is keyed by its accession number and its value key (STA-331): `DO NOTHING`.
 - **One transaction per filing.** The load writes the company, then the filing, then its facts.
 
-So the order of Notes files, the order of days, a rerun, and an overlap do not change the result.
+So the order of Notes files, the order of days, a rerun, and an overlap do not create a duplicate.
+Today, if the two sources differ for a fact, the first copy wins. See
+[Path Independence](#path-independence).
 
 Open for STA-331: its draft keys the fact store by `company_id`. If `company_id` is a surrogate
 id, each write needs a lookup first, and this rule breaks. The id must come from the filing itself,
 for example the CIK.
+
+### Path Independence
+
+> **Proposed.** Requested by the lead on 2026-10-31. Input for STA-331 and STA-332. STA-402
+> measures whether it holds.
+
+A filing can reach the fact store by two paths: as rows in a Notes file, or as its instance XML.
+Which path delivers a filing depends on how the backfill was split. Three cases:
+
+- Notes files up to the newest stored Notes month, then daily indexes from the last day of that
+  month. This is the plan. See rule 1 of [Cut-Over Between the Paths](#cut-over-between-the-paths).
+- A possible later split: daily indexes back to 2009, with no Notes file.
+- Both paths for the same filing: the overlap of one day in rule 1 of
+  [Cut-Over Between the Paths](#cut-over-between-the-paths), or a backfill run after the
+  new-filing path ran.
+
+The goal: the fact store holds the same facts in all three cases. Same means the same value key
+and the same value. Provenance (rule 5) differs between the cases by design.
+
+Rules:
+
+1. **The unit of transform is the filing, not the period or the day.** The Notes transform splits
+   a file into its filings by `adsh` in `sub.tsv`. From then on, a Notes filing and an instance
+   filing take the same steps.
+2. **Two parsers, one output.** A Notes parser and an instance parser each map their input to the
+   as-is facts of STA-331. Every step after the parser is shared and does not know the source.
+3. **Same filing, same facts.** A test runs both parsers on filings that are in both sources. A
+   difference in parser logic fails the test. A difference in the source data is a finding for
+   rule 4, not a test failure.
+4. **Order never decides a value.** Today the fact write uses `DO NOTHING` (see
+   [Idempotent Writes](#idempotent-writes)), so the first copy wins. If the sources differ for a
+   fact, the store needs a rule that does not depend on arrival. The options are in the table
+   below.
+5. **Provenance on every fact.** The DoD of STA-331 lists these fields: the ingestion path
+   (`ingestion_mode` in the raw metadata, `backfill` or `incremental`), the source document
+   (Notes file or instance, with its key and SHA-256), the `execution_id`, the load time, and the
+   parser version.
+6. **Transform replays from the raw store.** A change to a parser or a rule reruns transform. It
+   does not need a new extract. Two limits apply today:
+   - A replay must replace the facts of the filing from the replayed source. With `DO NOTHING`,
+     the store keeps the old facts, so a parser fix never lands. STA-331 decides how a replay
+     writes. A delete and an insert of the filing and source in one transaction is one way. It
+     needs a delete on `FactStore`, which the STA-145 freeze does not have.
+   - The raw store keeps only the latest version of a Notes file (see [Raw Store](#raw-store)),
+     and the SEC replaces old files (assumption A4). So a replay of a Notes filing reads the
+     latest version, which can differ from the first run.
+
+Rule 4 removes the order from the result. It does not remove the split. If the sources differ for
+a fact in any way, the fact store differs between the cases under every option. Example: in the
+case "Notes only" the store holds the Notes value, and in the case "daily indexes only" it holds
+the instance value. Only agreement between the sources gives the same result in every case.
+STA-402 measures how often the sources differ.
+
+The fact store design already has a rule for two sources (STA-145, see
+`sec/design/data_model/storage_traits_design.md`, `FactStore::upsert`, and
+`hybrid_data_model.md` §2.1). It keys canonical facts by `source_ref` and never merges two sources
+into one row. "Which value wins" is a read-time choice. Today `source_ref` names the filing
+(`sec:accession`), so a Notes copy and an instance copy of the same filing share it. The freeze
+points to option 3, but does not decide this case. STA-331 decides.
+
+| Option | Rule | Same result across the cases? | Pro | Con |
+| ------ | ---- | ----------------------------- | --- | --- |
+| 1 | The sources agree, so `DO NOTHING` keeps one copy | Yes, only if STA-402 finds no difference | No extra rule | Fails on any difference |
+| 2 | A fixed precedence, for example instance over Notes, applied by an upsert | No, for any difference between the sources | One copy per fact, order-free within a case | Drops the other copy. Against the STA-145 rule if `source_ref` names the source document |
+| 3 | Both copies with their provenance, and reads pick one | No, for any difference between the sources | Nothing is lost, fits the STA-145 rule | Every read needs the rule, and `source_ref` must name the source document |
 
 ## Raw Store
 
@@ -1252,3 +1350,6 @@ to fill gaps. Detection outputs only a `Vec<FilingRef>`, so the filing machine d
 
 Still open from the findings: GLEIF access, detail depth, the `-xbrl.zip` and the inline parser, and
 how the fact store treats amendments (STA-331).
+
+Still open from [Path Independence](#path-independence): the rule for a fact from two sources
+(STA-402, then STA-331), and how a replay writes (STA-331).

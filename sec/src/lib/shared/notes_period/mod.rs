@@ -28,7 +28,9 @@ pub use quarter::Quarter;
 pub use year::Year;
 
 use std::fmt::{self, Display, Formatter};
+use std::iter;
 
+use chrono::{Datelike, Months, NaiveDate};
 use serde::{Serialize, Serializer};
 
 use constants::{FILE_NAME_SUFFIX, FIRST_MONTH, FIRST_YEAR, LAST_QUARTER};
@@ -129,6 +131,59 @@ impl NotesPeriod {
                 || format!("{period}{FILE_NAME_SUFFIX}"),
                 |(_, file_name)| (*file_name).to_string(),
             )
+    }
+    /// Returns every period that ends in or before the month of `date`, in increasing order.
+    ///
+    /// Quarters run to 2025q3 and months start at `2025_10`. A quarter is in the list only once
+    /// the month of `date` reaches its last month. The list is empty if `date` comes before 2009.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use chrono::NaiveDate;
+    /// use sec::shared::notes_period::NotesPeriod;
+    ///
+    /// let date = NaiveDate::from_ymd_opt(2009, 8, 31).expect("A hardcoded calendar date should always be valid");
+    ///
+    /// let expected_result = vec!["2009q1".to_string(), "2009q2".to_string()];
+    ///
+    /// let result: Vec<String> = NotesPeriod::all_through(date).iter().map(ToString::to_string).collect();
+    ///
+    /// assert_eq!(result, expected_result);
+    /// ```
+    #[must_use]
+    pub fn all_through(date: NaiveDate) -> Vec<Self> {
+        let first_month = NaiveDate::from_ymd_opt(i32::from(FIRST_YEAR.0), 1, 1);
+        iter::successors(first_month, |month| {
+            month.checked_add_months(Months::new(1))
+        })
+        .take_while(|month| *month <= date)
+        .filter_map(Self::ending_in)
+        .collect()
+    }
+
+    /// Returns the period that ends in the month of `date`, or `None` if no period ends in that
+    /// month.
+    fn ending_in(date: NaiveDate) -> Option<Self> {
+        let year = Year(u16::try_from(date.year()).ok()?);
+        let month = Month(chrono::Month::try_from(u8::try_from(date.month()).ok()?).ok()?);
+        if (year, month) >= FIRST_MONTH {
+            return Some(Self {
+                year,
+                part: PeriodPart::Month(month),
+            });
+        }
+        let quarter = match month.0 {
+            chrono::Month::March => Quarter::Q1,
+            chrono::Month::June => Quarter::Q2,
+            chrono::Month::September => Quarter::Q3,
+            chrono::Month::December => Quarter::Q4,
+            _ => return None,
+        };
+        ((year, quarter) <= LAST_QUARTER).then_some(Self {
+            year,
+            part: PeriodPart::Quarter(quarter),
+        })
     }
 }
 
@@ -500,5 +555,48 @@ mod tests {
             .collect();
 
         assert_eq!(result, expected_result);
+    }
+
+    fn date(year: i32, month: u32, day: u32) -> NaiveDate {
+        NaiveDate::from_ymd_opt(year, month, day)
+            .expect("Given a hardcoded calendar date, building it should always succeed")
+    }
+
+    fn period(period: &str) -> NotesPeriod {
+        NotesPeriod::new(period)
+            .expect("Given a hardcoded published period, parsing should always succeed")
+    }
+
+    #[test]
+    fn should_return_no_period_when_date_is_before_2009() {
+        let date = date(2008, 12, 31);
+
+        let expected_result: Vec<NotesPeriod> = vec![];
+
+        let result = NotesPeriod::all_through(date);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_end_at_the_last_full_quarter_when_date_is_inside_a_quarter() {
+        let date = date(2025, 8, 31);
+
+        let expected_result = [period("2025q1"), period("2025q2")];
+
+        let result = NotesPeriod::all_through(date);
+
+        assert!(result.ends_with(&expected_result));
+    }
+
+    #[test]
+    fn should_switch_from_quarters_to_months_when_date_is_after_2025q3() {
+        let date = date(2025, 10, 1);
+
+        let expected_result = [period("2025q2"), period("2025q3"), period("2025_10")];
+
+        let result = NotesPeriod::all_through(date);
+
+        assert!(result.ends_with(&expected_result));
     }
 }
