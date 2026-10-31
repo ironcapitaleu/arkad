@@ -406,7 +406,7 @@ mod tests {
     }
 
     #[test]
-    fn should_keep_the_request_in_the_filer_folder_when_the_accession_number_is_an_encoded_dot_segment() {
+    fn should_keep_the_request_in_the_filer_folder_for_an_encoded_dot_segment() {
         let filing = FilingRef::new(
             Cik::new("320193").expect("Given a hardcoded valid CIK, parsing should always succeed"),
             AccessionNumber::new("%2e%2e"),
