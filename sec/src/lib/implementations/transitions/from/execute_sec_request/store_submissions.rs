@@ -229,7 +229,8 @@ mod tests {
     }
 
     #[test]
-    fn should_take_execution_id_ingestion_mode_and_repository_from_run_when_source_has_output() {
+    fn should_take_cik_from_source_and_execution_id_ingestion_mode_and_repository_from_run_when_source_has_output()
+     {
         let state = store_submissions();
 
         let expected_result = &StoreSubmissionsContext::new(

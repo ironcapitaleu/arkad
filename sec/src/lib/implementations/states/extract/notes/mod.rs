@@ -103,9 +103,9 @@ impl StateData for ExtractNotesSuperStateData {
 /// Context for the [`ExtractNotesSuperState`].
 ///
 /// Holds the SEC client of type `C`, the `execution_id`, the storage repository `R`, and the slot
-/// for the stored archive. The transition into [`ExecuteSecRequest`] hands it a clone of the
-/// client. The transition into [`StoreNotesArchive`] hands it the `execution_id` and a clone of the
-/// repository.
+/// for the stored archive. The transition into [`ExecuteSecRequest`] passes a clone of the client to
+/// that state. The transition into [`StoreNotesArchive`] passes the `execution_id` and a clone of
+/// the repository to the store state.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ExtractNotesSuperStateContext<R, C> {
     pub(crate) sec_client: C,
