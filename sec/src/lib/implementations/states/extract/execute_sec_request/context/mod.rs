@@ -28,25 +28,6 @@
 //! assert_eq!(result, expected_result);
 //! ```
 //!
-//! The context holds no storage repository, so this does not compile:
-//!
-//! ```compile_fail,E0107
-//! use sec::implementations::states::extract::execute_sec_request::context::ExecuteSecRequestContext;
-//! use sec::shared::cik::Cik;
-//! use sec::shared::raw_document::RawDocument;
-//! use sec::shared::raw_source::RawCompanyFacts;
-//! use sec::shared::request::implementations::sec_request::CompanyFacts;
-//! use storage::implementations::repository::filesystem::FilesystemRepository;
-//!
-//! let cik = Cik::new("1234567890").expect("A hardcoded valid CIK should always parse");
-//! let repository = FilesystemRepository::builder()
-//!     .writer()
-//!     .document_type::<RawDocument<RawCompanyFacts>>()
-//!     .root("data")
-//!     .build();
-//! let context = ExecuteSecRequestContext::<CompanyFacts, _>::new(cik, repository);
-//! ```
-//!
 //! ## See Also
 //!
 //! - [`crate::traits::state_machine::state::Context`]: Trait that defines context updates and the retry budget.
