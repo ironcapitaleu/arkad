@@ -3,9 +3,8 @@
 //! Provides the [`DetectFilingsSuperState`], which downloads the EDGAR daily index of one date,
 //! writes it to the store, and selects the filings to fetch.
 //!
-//! The super-state owns the shared SEC client, the `execution_id`, and the storage repository.
-//! No state before [`StoreDailyIndex`] holds a repository, so the transition into
-//! [`StoreDailyIndex`] takes a clone from the super-state.
+//! The super-state owns the shared SEC client, the `execution_id`, and the storage repository. The
+//! transition into [`StoreDailyIndex`] passes a clone of the repository to the store state.
 //!
 //! ## Modules
 //!
