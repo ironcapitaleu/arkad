@@ -30,16 +30,7 @@ use storage::implementations::repository::filesystem::{
 use storage::traits::repository::ReadRepository;
 use thiserror::Error;
 
-/// The most Notes files that the run downloads at once.
-///
-/// The rate limiter limits requests per second, not files in memory, so this cap bounds memory.
-pub const FILES_IN_FLIGHT: usize = 2;
-
-/// The most periods at the end of a run that [`RunSummary`] counts as unpublished.
-///
-/// The run asks for periods up to last month, so only the last period can lack a file. The cap
-/// keeps a run in which the SEC refuses every request with 403 from counting as a success.
-pub const MAX_UNPUBLISHED: usize = 1;
+use crate::constants::MAX_UNPUBLISHED;
 
 /// How the run got the stored file of a period.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -210,7 +201,7 @@ pub fn plan(read: Result<Option<NotesArchiveRef>, ReadError>) -> Plan {
 /// Extracts the Notes file of each period in `periods` into `repository`.
 ///
 /// Every super-state comes from `backfill`, so all of them carry one `execution_id`. At most
-/// [`FILES_IN_FLIGHT`] periods run at once, each in its own task. A failed period does not stop
+/// `files_in_flight` periods run at once, each in its own task. A failed period does not stop
 /// the others. A period whose intact file `repository` already holds skips the download.
 ///
 /// Calls `on_item` with the period and each successful stream item, and `on_error` with the period
@@ -222,6 +213,7 @@ pub fn plan(read: Result<Option<NotesArchiveRef>, ReadError>) -> Plan {
 pub async fn run(
     backfill: Backfill,
     periods: &[&str],
+    files_in_flight: usize,
     sec_client: &SecClient,
     repository: &FilesystemRepository<Write, RawDocument<RawNotesArchive>>,
     on_item: impl Fn(&str, &StreamItem) + Send + Sync + 'static,
@@ -247,7 +239,7 @@ pub async fn run(
         let reader = reader.clone();
         // STA-344 added a task per period after a stream cut-off. Its cause is open, so keeping
         // this split is an open decision (STA-360).
-        // The check runs inside the future, so `FILES_IN_FLIGHT` also caps the files it reads.
+        // The check runs inside the future, so `files_in_flight` also caps the files it reads.
         async move {
             let fetch = match plan(stored_archive(&reader, &period).await) {
                 Plan::Skip(archive) => return (index, period, Ok((Fetch::AlreadyStored, archive))),
@@ -266,7 +258,7 @@ pub async fn run(
         }
     });
     let mut outcomes: Vec<_> = futures_util::stream::iter(extractions)
-        .buffer_unordered(FILES_IN_FLIGHT)
+        .buffer_unordered(files_in_flight)
         .collect()
         .await;
     outcomes.sort_by_key(|(index, _, _)| *index);
@@ -307,6 +299,7 @@ mod tests {
     use tempfile::TempDir;
 
     use super::*;
+    use crate::constants::DEFAULT_FILES_IN_FLIGHT;
 
     const STORED_PERIOD: &str = "2009q1";
     const STORED_KEY: &str = "sec/notes/2009q1_notes.zip";
@@ -393,6 +386,7 @@ mod tests {
         run(
             Extraction::backfill(),
             &[STORED_PERIOD],
+            DEFAULT_FILES_IN_FLIGHT,
             &offline_sec_client(),
             &writer(root),
             |_, _| {},

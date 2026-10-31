@@ -1,5 +1,6 @@
 mod backfill;
 mod constants;
+mod files_in_flight;
 mod periods;
 // Each binary is its own crate root, so it cannot import another binary's modules. `#[path]`
 // compiles each shared file into this binary as a private module, so all binaries build the
@@ -11,6 +12,7 @@ mod sec_client;
 #[path = "../shared/storage_root.rs"]
 mod storage_root;
 
+use std::env;
 use std::error::Error;
 use std::fmt::{self, Display, Formatter};
 use std::fs;
@@ -21,6 +23,8 @@ use chrono::Utc;
 use sec::implementations::extraction::Extraction;
 use tracing_subscriber::fmt::format::FmtSpan;
 
+use constants::FILES_IN_FLIGHT_ENV_VAR;
+use files_in_flight::{InvalidFilesInFlight, files_in_flight};
 use periods::notes_periods;
 use sec_client::{USER_AGENT_ENV_VAR, default_user_agent_warning, sec_client, startup_error_cause};
 use storage_root::raw_notes_archive_writer;
@@ -71,6 +75,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
             context = %serde_json::json!({ "env_var": USER_AGENT_ENV_VAR }),
         );
     }
+    let files_in_flight = files_in_flight_from_env()?;
     let repository = raw_notes_archive_writer();
     fs::create_dir_all(repository.root()).inspect_err(|error| {
         tracing::error!(
@@ -89,6 +94,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     let summary = backfill::run(
         backfill,
         &periods,
+        files_in_flight,
         &sec_client,
         &repository,
         move |period, item| {
@@ -129,6 +135,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     let unpublished = summary.unpublished_count();
     let context = serde_json::json!({
         "execution_id": execution_id,
+        "files_in_flight": files_in_flight,
         "successes": successes,
         "already_stored": already_stored,
         "failures": failures,
@@ -144,4 +151,15 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     })?;
     tracing::info!(event = %BatchEvent::Complete, message = %message, context = %context);
     Ok(())
+}
+
+/// Reads the number of Notes files in flight from `ARKAD_FILES_IN_FLIGHT`, and logs an invalid value.
+fn files_in_flight_from_env() -> Result<usize, InvalidFilesInFlight> {
+    files_in_flight(env::var_os(FILES_IN_FLIGHT_ENV_VAR)).inspect_err(|error| {
+        tracing::error!(
+            event = %BatchEvent::StartupFailed,
+            message = %error,
+            context = %serde_json::json!({ "env_var": FILES_IN_FLIGHT_ENV_VAR }),
+        );
+    })
 }

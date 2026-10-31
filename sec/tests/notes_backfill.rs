@@ -14,6 +14,11 @@
 #[allow(dead_code)]
 #[path = "../src/bin/notes_backfill/backfill.rs"]
 mod backfill;
+// `backfill.rs` reads its constants from `crate::constants`, so the test includes that file too.
+// The test reads only some of them, so the others would fire `dead_code`.
+#[allow(dead_code)]
+#[path = "../src/bin/notes_backfill/constants.rs"]
+mod constants;
 
 use pretty_assertions::assert_eq;
 use serde_json::{Value, json};
@@ -28,6 +33,7 @@ use sec::shared::raw_source::RawNotesArchive;
 use sec::shared::user_agent::UserAgent;
 
 use backfill::{FailedBackfill, RunSummary};
+use constants::DEFAULT_FILES_IN_FLIGHT;
 
 /// A month far after the last published file, so the SEC answers 404.
 const UNPUBLISHED_PERIOD: &str = "2099_01";
@@ -53,6 +59,7 @@ async fn run_backfill(periods: &[&str]) -> RunSummary {
     backfill::run(
         Extraction::backfill(),
         periods,
+        DEFAULT_FILES_IN_FLIGHT,
         &sec_client(),
         &repository,
         |_, _| {},

@@ -471,10 +471,12 @@ To check during implementation:
 ### Memory and the Cap on Files in Flight
 
 The rate limiter limits requests per second. It does not limit downloads in flight, so it does not
-bound memory. The run caps the Notes files in flight at 2, with `buffer_unordered(2)` instead of
-`join_all`.
+bound memory. The run caps the Notes files in flight, with `buffer_unordered` instead of
+`join_all`. The cap is 2 by default (`DEFAULT_FILES_IN_FLIGHT`). The environment variable
+`ARKAD_FILES_IN_FLIGHT` sets another positive integer per machine, with no rebuild (STA-404). An
+invalid value stops the run at startup.
 
-The cap stays at 2. Measured on 2026-10-29 in a cloud container (not Cloud Run) and on a Mac on
+The default stays at 2. Measured on 2026-10-29 in a cloud container (not Cloud Run) and on a Mac on
 Wi-Fi, the network limits the download. More files in flight make each file slower and raise the
 peak memory, but the total time stays the same. Measure once on Cloud Run before you change the
 cap. The numbers are in
@@ -1286,6 +1288,8 @@ Proposed for MVP Operations. Both paths run as Cloud Run jobs with the bucket mo
   exits with an error if any machine failed, and Cloud Run retries it. The retry is safe, because
   every write is idempotent.
 - `notes_backfill` runs the `submissions` machine for each distinct CIK after the Notes files.
+- `notes_backfill` reads `ARKAD_FILES_IN_FLIGHT` for the number of Notes files in flight. Unset, it
+  uses 2. STA-379 measures the value for Cloud Run.
 - Both jobs share the SEC client, the User-Agent, and the storage root through
   `sec/src/bin/shared/`.
 
