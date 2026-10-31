@@ -4,9 +4,9 @@
 //! company and writes it to the store.
 //!
 //! The super-state owns the shared SEC client, the `execution_id`, the ingestion mode of the run,
-//! and the storage repository. The transition into [`StoreSubmissions`] hands the store state a
-//! clone of the repository. Both ingestion paths run this machine, so the caller sets the mode, and
-//! the metadata of the stored document records it.
+//! and the storage repository. The transition into [`StoreSubmissions`] passes a clone of the
+//! repository to the store state. Both ingestion paths run this machine, so the caller sets the
+//! mode, and the metadata of the stored document records it.
 //!
 //! ## Modules
 //!
@@ -276,7 +276,7 @@ impl<S: State, R: RawRepository<RawSubmissions>, C: SecClientTrait> SuperState<S
 {
 }
 
-impl<R: RawRepository<RawSubmissions>> ExtractSubmissionsSuperState<ValidateCikFormat<R>, R> {
+impl<R: RawRepository<RawSubmissions>> ExtractSubmissionsSuperState<ValidateCikFormat, R> {
     /// Returns an [`ExtractSubmissionsSuperStateBuilder`] that holds no field yet.
     #[must_use]
     pub const fn builder() -> ExtractSubmissionsSuperStateBuilder<
@@ -308,9 +308,9 @@ where
 }
 
 impl<R: RawRepository<RawSubmissions>, C: SecClientTrait> NonTerminal
-    for ExtractSubmissionsSuperState<ValidateCikFormat<R, C>, R, C>
+    for ExtractSubmissionsSuperState<ValidateCikFormat<C>, R, C>
 {
-    type Current = ValidateCikFormat<R, C>;
+    type Current = ValidateCikFormat<C>;
     type Next = PrepareSecRequest<Submissions>;
 }
 
@@ -346,8 +346,8 @@ impl<R: RawRepository<RawSubmissions> + 'static, C: SecClientTrait + 'static> In
 // --- Transitions ---
 
 impl<R: RawRepository<RawSubmissions>, C: SecClientTrait>
-    Transition<ValidateCikFormat<R, C>, PrepareSecRequest<Submissions>>
-    for ExtractSubmissionsSuperState<ValidateCikFormat<R, C>, R, C>
+    Transition<ValidateCikFormat<C>, PrepareSecRequest<Submissions>>
+    for ExtractSubmissionsSuperState<ValidateCikFormat<C>, R, C>
 {
     fn transition_to_next_state_sec(self) -> Result<Self::NewStateMachine, TransitionError> {
         Ok(ExtractSubmissionsSuperState {
@@ -360,8 +360,8 @@ impl<R: RawRepository<RawSubmissions>, C: SecClientTrait>
 }
 
 impl<R: RawRepository<RawSubmissions>, C: SecClientTrait>
-    SMTransition<ValidateCikFormat<R, C>, PrepareSecRequest<Submissions>>
-    for ExtractSubmissionsSuperState<ValidateCikFormat<R, C>, R, C>
+    SMTransition<ValidateCikFormat<C>, PrepareSecRequest<Submissions>>
+    for ExtractSubmissionsSuperState<ValidateCikFormat<C>, R, C>
 {
     type NewStateMachine = ExtractSubmissionsSuperState<PrepareSecRequest<Submissions>, R, C>;
 
@@ -494,7 +494,7 @@ mod tests {
         ingestion_mode: IngestionMode,
         repository: R,
     ) -> ExtractSubmissionsSuperState<
-        ValidateCikFormat<R, AlwaysRespondingSecClient>,
+        ValidateCikFormat<AlwaysRespondingSecClient>,
         R,
         AlwaysRespondingSecClient,
     > {
@@ -510,7 +510,7 @@ mod tests {
     /// Runs the whole stream and returns its items, or panics on the first error.
     async fn run_stream<R: RawRepository<RawSubmissions> + 'static>(
         super_state: ExtractSubmissionsSuperState<
-            ValidateCikFormat<R, AlwaysRespondingSecClient>,
+            ValidateCikFormat<AlwaysRespondingSecClient>,
             R,
             AlwaysRespondingSecClient,
         >,
@@ -529,7 +529,7 @@ mod tests {
     /// Runs the whole stream and returns the state names of its errors.
     async fn failed_state_names<R: RawRepository<RawSubmissions> + 'static>(
         super_state: ExtractSubmissionsSuperState<
-            ValidateCikFormat<R, AlwaysRespondingSecClient>,
+            ValidateCikFormat<AlwaysRespondingSecClient>,
             R,
             AlwaysRespondingSecClient,
         >,

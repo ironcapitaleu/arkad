@@ -18,16 +18,8 @@
 //!
 //! # #[tokio::main]
 //! # async fn main() {
-//! # use sec::shared::raw_document::RawDocument;
-//! # use sec::shared::raw_source::RawNotesArchive;
-//! # use storage::implementations::repository::filesystem::FilesystemRepository;
-//! # let repository = FilesystemRepository::builder()
-//! #     .writer()
-//! #     .document_type::<RawDocument<RawNotesArchive>>()
-//! #     .root("data")
-//! #     .build();
 //! let input = ValidateNotesPeriodInput::new("2024q1");
-//! let context = ValidateNotesPeriodContext::new(Uuid::new_v4(), repository);
+//! let context = ValidateNotesPeriodContext::new(Uuid::new_v4());
 //! let mut state = ValidateNotesPeriod::new(input, context);
 //! state
 //!     .compute_output_data_async()
@@ -55,8 +47,6 @@ use state_maschine::prelude::State as SMState;
 use crate::error::State as StateError;
 use crate::error::state_machine::state::InvalidNotesPeriod;
 use crate::shared::notes_period::NotesPeriod;
-use crate::shared::raw_repository::RawRepository;
-use crate::shared::raw_source::RawNotesArchive;
 use crate::traits::error::FromDomainError;
 use crate::traits::state_machine::state::State;
 
@@ -74,13 +64,13 @@ pub use data::ValidateNotesPeriodOutput;
 /// The validation accepts only a period with a published Notes file, as [`NotesPeriod::new`]
 /// defines it.
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
-pub struct ValidateNotesPeriod<R> {
+pub struct ValidateNotesPeriod {
     input: ValidateNotesPeriodInput,
-    context: ValidateNotesPeriodContext<R>,
+    context: ValidateNotesPeriodContext,
     output: Option<ValidateNotesPeriodOutput>,
 }
 
-impl<R> ValidateNotesPeriod<R> {
+impl ValidateNotesPeriod {
     /// Creates a new [`ValidateNotesPeriod`] state with no output computed yet.
     ///
     /// # Examples
@@ -91,15 +81,7 @@ impl<R> ValidateNotesPeriod<R> {
     /// use uuid::Uuid;
     ///
     /// let input = ValidateNotesPeriodInput::new("2024q1");
-    /// # use sec::shared::raw_document::RawDocument;
-    /// # use sec::shared::raw_source::RawNotesArchive;
-    /// # use storage::implementations::repository::filesystem::FilesystemRepository;
-    /// # let repository = FilesystemRepository::builder()
-    /// #     .writer()
-    /// #     .document_type::<RawDocument<RawNotesArchive>>()
-    /// #     .root("data")
-    /// #     .build();
-    /// let context = ValidateNotesPeriodContext::new(Uuid::nil(), repository);
+    /// let context = ValidateNotesPeriodContext::new(Uuid::nil());
     /// let state = ValidateNotesPeriod::new(input, context);
     ///
     /// let expected_result = false;
@@ -109,10 +91,7 @@ impl<R> ValidateNotesPeriod<R> {
     /// assert_eq!(result, expected_result);
     /// ```
     #[must_use]
-    pub const fn new(
-        input: ValidateNotesPeriodInput,
-        context: ValidateNotesPeriodContext<R>,
-    ) -> Self {
+    pub const fn new(input: ValidateNotesPeriodInput, context: ValidateNotesPeriodContext) -> Self {
         Self {
             input,
             context,
@@ -127,14 +106,14 @@ impl<R> ValidateNotesPeriod<R> {
     ) -> (
         ValidateNotesPeriodInput,
         Option<ValidateNotesPeriodOutput>,
-        ValidateNotesPeriodContext<R>,
+        ValidateNotesPeriodContext,
     ) {
         (self.input, self.output, self.context)
     }
 }
 
 #[async_trait]
-impl<R: RawRepository<RawNotesArchive>> State for ValidateNotesPeriod<R> {
+impl State for ValidateNotesPeriod {
     /// Validates the raw period and stores the [`NotesPeriod`] as output.
     ///
     /// # Errors
@@ -148,10 +127,10 @@ impl<R: RawRepository<RawNotesArchive>> State for ValidateNotesPeriod<R> {
     }
 }
 
-impl<R: RawRepository<RawNotesArchive>> SMState for ValidateNotesPeriod<R> {
+impl SMState for ValidateNotesPeriod {
     type InputData = ValidateNotesPeriodInput;
     type OutputData = ValidateNotesPeriodOutput;
-    type Context = ValidateNotesPeriodContext<R>;
+    type Context = ValidateNotesPeriodContext;
 
     fn state_name(&self) -> impl ToString {
         STATE_NAME
@@ -191,7 +170,7 @@ impl<R: RawRepository<RawNotesArchive>> SMState for ValidateNotesPeriod<R> {
     }
 }
 
-impl<R: RawRepository<RawNotesArchive>> fmt::Display for ValidateNotesPeriod<R> {
+impl fmt::Display for ValidateNotesPeriod {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
@@ -220,12 +199,11 @@ mod tests {
 
     use super::*;
     use crate::shared::notes_period::{InvalidNotesPeriodReason, NotesPeriodError};
-    use crate::tests::fixtures::sample_write_repository::FakeNotesRepository;
 
-    fn test_state(raw_period: &str) -> ValidateNotesPeriod<FakeNotesRepository> {
+    fn test_state(raw_period: &str) -> ValidateNotesPeriod {
         ValidateNotesPeriod::new(
             ValidateNotesPeriodInput::new(raw_period),
-            ValidateNotesPeriodContext::new(Uuid::nil(), FakeNotesRepository::new()),
+            ValidateNotesPeriodContext::new(Uuid::nil()),
         )
     }
 
@@ -354,6 +332,6 @@ mod tests {
     }
     #[test]
     const fn should_implement_value_traits_for_validate_notes_period() {
-        implements_value_traits::<ValidateNotesPeriod<FakeNotesRepository>>();
+        implements_value_traits::<ValidateNotesPeriod>();
     }
 }

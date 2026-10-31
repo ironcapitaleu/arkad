@@ -4,7 +4,7 @@
 //! file and writes it to the store.
 //!
 //! The super-state owns the shared SEC client, the `execution_id`, and the storage repository. The
-//! transition into [`StoreNotesArchive`] hands the store state a clone of the repository.
+//! transition into [`StoreNotesArchive`] passes a clone of the repository to the store state.
 //!
 //! ## Modules
 //!
@@ -269,7 +269,7 @@ impl<S: State, R: RawRepository<RawNotesArchive>, C: SecClientTrait> SuperState<
 {
 }
 
-impl<R: RawRepository<RawNotesArchive>> ExtractNotesSuperState<ValidateNotesPeriod<R>, R> {
+impl<R: RawRepository<RawNotesArchive>> ExtractNotesSuperState<ValidateNotesPeriod, R> {
     /// Returns an [`ExtractNotesSuperStateBuilder`] that holds no field yet.
     #[must_use]
     pub const fn builder()
@@ -323,9 +323,9 @@ where
 }
 
 impl<R: RawRepository<RawNotesArchive>, C: SecClientTrait> NonTerminal
-    for ExtractNotesSuperState<ValidateNotesPeriod<R>, R, C>
+    for ExtractNotesSuperState<ValidateNotesPeriod, R, C>
 {
-    type Current = ValidateNotesPeriod<R>;
+    type Current = ValidateNotesPeriod;
     type Next = PrepareNotesRequest;
 }
 
@@ -366,8 +366,8 @@ impl<R: RawRepository<RawNotesArchive> + 'static, C: SecClientTrait + 'static>
 // --- Transitions ---
 
 impl<R: RawRepository<RawNotesArchive>, C: SecClientTrait>
-    Transition<ValidateNotesPeriod<R>, PrepareNotesRequest>
-    for ExtractNotesSuperState<ValidateNotesPeriod<R>, R, C>
+    Transition<ValidateNotesPeriod, PrepareNotesRequest>
+    for ExtractNotesSuperState<ValidateNotesPeriod, R, C>
 {
     fn transition_to_next_state_sec(self) -> Result<Self::NewStateMachine, TransitionError> {
         Ok(ExtractNotesSuperState {
@@ -380,8 +380,8 @@ impl<R: RawRepository<RawNotesArchive>, C: SecClientTrait>
 }
 
 impl<R: RawRepository<RawNotesArchive>, C: SecClientTrait>
-    SMTransition<ValidateNotesPeriod<R>, PrepareNotesRequest>
-    for ExtractNotesSuperState<ValidateNotesPeriod<R>, R, C>
+    SMTransition<ValidateNotesPeriod, PrepareNotesRequest>
+    for ExtractNotesSuperState<ValidateNotesPeriod, R, C>
 {
     type NewStateMachine = ExtractNotesSuperState<PrepareNotesRequest, R, C>;
 
@@ -513,7 +513,7 @@ mod tests {
     fn super_state<R: RawRepository<RawNotesArchive>>(
         raw_period: &str,
         repository: R,
-    ) -> ExtractNotesSuperState<ValidateNotesPeriod<R>, R, AlwaysRespondingSecClient> {
+    ) -> ExtractNotesSuperState<ValidateNotesPeriod, R, AlwaysRespondingSecClient> {
         ExtractNotesSuperState::builder()
             .period(raw_period)
             .sec_client(sec_client())
@@ -524,7 +524,7 @@ mod tests {
 
     /// Runs the whole stream and returns its items, or panics on the first error.
     async fn run_stream<R: RawRepository<RawNotesArchive> + 'static>(
-        super_state: ExtractNotesSuperState<ValidateNotesPeriod<R>, R, AlwaysRespondingSecClient>,
+        super_state: ExtractNotesSuperState<ValidateNotesPeriod, R, AlwaysRespondingSecClient>,
     ) -> Vec<StreamItem> {
         super_state
             .into_run_stream()
@@ -685,7 +685,7 @@ mod tests {
 
     /// Runs the whole stream and returns the state names of its errors.
     async fn failed_state_names<R: RawRepository<RawNotesArchive> + 'static>(
-        super_state: ExtractNotesSuperState<ValidateNotesPeriod<R>, R, AlwaysRespondingSecClient>,
+        super_state: ExtractNotesSuperState<ValidateNotesPeriod, R, AlwaysRespondingSecClient>,
     ) -> Vec<String> {
         super_state
             .into_run_stream()
