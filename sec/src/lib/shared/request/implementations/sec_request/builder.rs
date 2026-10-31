@@ -461,8 +461,7 @@ mod tests {
 
     #[test]
     fn should_produce_get_method_for_notes_file_request() {
-        let period = NotesPeriod::new("2024q1")
-            .expect("Given a published period, NotesPeriod creation should always succeed");
+        let period = notes_period("2024q1");
 
         let expected_result = Method::GET;
 
