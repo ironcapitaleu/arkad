@@ -15,7 +15,7 @@ use serde::Serialize;
 use crate::shared::cik::Cik;
 use crate::shared::index_date::IndexDate;
 use crate::shared::notes_period::NotesPeriod;
-use crate::shared::raw_source::{RawCompanyFacts, RawNotesArchive, RawSource};
+use crate::shared::raw_source::{RawCompanyFacts, RawDailyIndex, RawNotesArchive, RawSource};
 
 use super::SecRequestType;
 
@@ -122,15 +122,22 @@ impl StoredAs for NotesFile {
     type Source = RawNotesArchive;
 }
 
+impl StoredAs for DailyIndex {
+    type Source = RawDailyIndex;
+}
+
 #[cfg(test)]
 mod tests {
     use pretty_assertions::assert_eq;
 
     use crate::shared::cik::Cik;
+    use crate::shared::document_type::SecDocumentType;
     use crate::shared::notes_period::NotesPeriod;
+    use crate::shared::raw_source::RawSource;
 
     use super::{
         CompanyFacts, DailyIndex, DailyIndexListing, NotesFile, RequestKind, SecRequestType,
+        StoredAs,
     };
 
     #[test]
@@ -153,6 +160,15 @@ mod tests {
         let expected_result = SecRequestType::FetchNotesFile { period };
 
         let result = NotesFile::request_type(period);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_store_raw_daily_index_documents_for_daily_index_kind() {
+        let expected_result = SecDocumentType::RawDailyIndex;
+
+        let result = <DailyIndex as StoredAs>::Source::DOCUMENT_TYPE;
 
         assert_eq!(result, expected_result);
     }
