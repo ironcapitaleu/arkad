@@ -16,6 +16,8 @@
 - [New-Filing Extract](#new-filing-extract) is new and fully proposed. It needs the most scrutiny.
 - [Calling the Machines](#calling-the-machines) and the ingestion mode in the metadata are new and
   decided.
+- [Repository in the Machines](#repository-in-the-machines) is new and proposed in STA-398. It
+  carries three decisions for the lead.
 - [Cut-Over Between the Paths](#cut-over-between-the-paths) and
   [Idempotent Writes](#idempotent-writes) list their assumptions. Check them first.
 - [Raw Store](#raw-store), [Handover to Transform](#handover-to-transform),
@@ -121,6 +123,181 @@ Extraction::incremental().submissions().cik(cik).sec_client(c).repository(r).bui
   today (STA-343).
 - `companyfacts` stays outside the facade. It is a cross-check only. `StoreCompanyFacts` writes
   the mode `backfill`.
+
+### Repository in the Machines
+
+> **Status:** proposed in STA-398. Not yet accepted by the lead.
+
+`PrepareSecRequest<K, R>` and `ExecuteSecRequest<E, R, C>` bind `K: StoredAs` and
+`R: RawRepository<K::Source>`. Neither state reads the repository. STA-398 removes the bound and the
+parameter `R`, so a kind that is only read, such as `FilingIndex`, runs through both states.
+
+#### Why the Repository Sits in the States
+
+Paths start at `sec/src/lib/implementations/`. Each place in the table holds or moves the repository.
+None of them reads it. Only the store states at the end of each machine read it.
+
+| Place | File and line | What it does with the repository |
+| ----- | ------------- | -------------------------------- |
+| `PrepareSecRequestContext` | `states/extract/prepare_sec_request/context/mod.rs:66` | Holds it. The updater can replace it. |
+| `ExecuteSecRequestContext` | `states/extract/execute_sec_request/context/mod.rs:66` | Holds it. The updater can replace it. |
+| `ValidateCikFormatContext` | `states/extract/validate_cik_format/context/mod.rs:67` | Holds it for the company facts and submissions machines. |
+| `ValidateNotesPeriodContext` | `states/extract/validate_notes_period/context/mod.rs:23` | Holds it for the Notes machine. |
+| Validate → prepare | `transitions/from/validate_cik_format/prepare_sec_request.rs:54`, `transitions/from/validate_notes_period/prepare_notes_request.rs:43` | Moves it from the validate context into the prepare context. |
+| Validate date → prepare | `transitions/from/validate_index_date/prepare_daily_index_request.rs:38` | Takes it from the super-state and puts it into the prepare context. |
+| Prepare → execute | `transitions/from/prepare_sec_request/execute_sec_request.rs:62` | Moves it from the prepare context into the execute context. |
+| Prepare → download | `transitions/from/prepare_sec_request/download_daily_index.rs:38` | Drops it. `DownloadDailyIndex` has no repository. |
+| Execute → store | `transitions/from/execute_sec_request/store_company_facts.rs:75`, `store_notes_archive.rs:92`, `store_submissions.rs:102` | Moves it from the execute context into the store context. |
+| Download → store | `transitions/from/download_daily_index/store_daily_index.rs:42` | Takes it from the super-state. |
+| `ExtractCompanyFactsSuperStateContext` | `states/extract/company_facts/mod.rs:124` | Holds a second copy. No transition reads it. |
+| `DetectFilingsSuperStateContext` | `states/extract/daily_index/mod.rs:111` | Holds it and passes a clone to two transitions (lines 373 and 435). |
+| `ExtractNotesSuperStateContext`, `ExtractSubmissionsSuperStateContext` | `states/extract/notes/mod.rs:109`, `states/extract/submissions/mod.rs:110` | Hold no repository. |
+
+So the only job of the repository in the validate, prepare, and execute states is to reach the store
+state.
+
+The daily index machine does half of this. Its super-state holds the repository and gives it to
+`StoreDailyIndex`. It also puts a clone into `PrepareSecRequest`, which drops it at the download.
+
+#### Decision 1: Where the Repository Goes
+
+The super-state context holds the repository. The transition into the store state takes it from the
+super-state as a tuple member, as `StoreDailyIndex::try_from((state, execution_id, repository))`
+does today. The prepare, execute, and validate states hold no repository.
+
+The two options of the ticket are not exclusive. A transition is a function with no state, so it
+cannot keep the repository between two steps. Some value must own the repository from `build()` to
+the store step. The super-state is the only value that lives that long. The transition is the place
+that hands it over.
+
+Reasons:
+
+- The SEC client takes the same path since STA-352 and STA-353. The super-state context holds it,
+  and the transition into `ExecuteSecRequest` takes a clone. STA-386 finishes this for the client.
+  The repository then follows one rule with the client.
+- The daily index machine already gives the repository to its store state this way. The company
+  facts super-state already holds a copy.
+- A state context holds only what the state reads. A store state reads the repository, so only the
+  store contexts keep it.
+
+Cost for the existing machines:
+
+- `ExtractNotesSuperState<S, C>` and `ExtractSubmissionsSuperState<S, C>` get a parameter `R`, as
+  `<S, R, C>`. This matches `ExtractCompanyFactsSuperState` and `DetectFilingsSuperState`. Callers
+  that only call `builder()` do not change. Code that writes the type out changes: the `build()`
+  return types, `implementations/extraction/mod.rs:114`, the super-state tests, and about 20 impl
+  headers in each of `notes/mod.rs` and `submissions/mod.rs`.
+- The three execute → store transitions take `R` in their tuple. The super-state passes a clone.
+- Transition tests that assert "the repository moves from the source context" now assert that the
+  repository moves from the tuple. Their expected values stay. Machine tests, builder tests, and
+  state tests keep their assertions. Test setup that builds a context with a repository changes.
+
+#### Decision 2: Order with STA-373
+
+Proposed: STA-398 lands first, with the bounds of `main`. `ExecuteSecRequest<E, C>` binds
+`E: RespondsWith` and the pinned `C: SecClient<Response<E::Body> = SecResponse<E::Body>, Error =
+FailedSecRequest>`. STA-373 then swaps these bounds for `E: HasResponse` and `C: Executes<E>`.
+
+- STA-398 stays a removal. It adds no trait and needs no review of design 5 code.
+- `HasResponse` and `Executes<K>` belong to STA-373. Its Definition of Done lists them with their
+  tests and the kinds that use them.
+- The swap in STA-373 touches about ten lines of bounds: the `State`, `SMState`, and `Display` impls
+  of `ExecuteSecRequest`, and the transition from `PrepareSecRequest`.
+- The DoD of both tickets stays as written. The DoD of STA-373 already names `C: Executes<E>` and
+  `K: HasResponse` without `R`.
+
+The other order puts the two traits into STA-398 and moves part of STA-373 into a refactor ticket.
+That breaks the scope of both tickets and gives no gain on the critical path, because STA-373 waits
+for STA-398 in both orders.
+
+#### Decision 3: `RawFilingIndex`
+
+Proposed: drop it. STA-376 does not store `index.json`.
+
+- The lead chose to store it (option 2 of STA-376) because `FilingIndex` had to satisfy
+  `StoredAs`. After STA-398 that reason is gone.
+- The metadata of each stored document keeps the SEC file name in `requested_url`, so the result of
+  the selection is on record.
+- A new fetch of `index.json` gives the member list that the rules saw, if the folder did not change
+  after the SEC accepted the filing. This is an assumption, not measured. If the SEC edits a folder
+  later, for example to remove a document, the stored record does not show the old list.
+- The lead weighs this risk against the cost of the write.
+- Without the write, STA-376 needs no second store step, no new `RawSource`, and no super-state
+  field that keeps the folder index response.
+
+If the lead keeps the audit trail, STA-376 still decides where `index.json` is written. STA-398
+does not decide that.
+
+#### Plan for the Code
+
+Each step is one PR on a stack, and `main` compiles after each. Line counts are estimates of
+reviewable lines.
+
+1. The super-states own the repository. Notes and submissions get `R` in their context. The three
+   execute → store transitions take the repository from the tuple. About 200 lines.
+2. `ExecuteSecRequest<E, C>` and `ExecuteSecRequestContext<E>` lose `R` and `StoredAs`. The
+   transition from `PrepareSecRequest` drops the repository. About 250 lines.
+3. `PrepareSecRequest<K>` and its context, updater, and builder lose `R` and `StoredAs`. The three
+   transitions into it drop the repository. About 300 lines.
+4. `ValidateCikFormat` and `ValidateNotesPeriod` lose `R`. About 250 lines. If STA-386 lands first,
+   this PR merges `main` first, because both PRs edit `ValidateCikFormatContext`.
+
+Step 2 adds the doctests of the DoD on `ExecuteSecRequest`. `FilingIndex` has `RespondsWith` and no
+`StoredAs` on `main`, so it is the kind that is only read:
+
+- A doctest shows that `ExecuteSecRequest<FilingIndex, SecClient>` implements `State`.
+- A `compile_fail,E0107` doctest builds
+  `ExecuteSecRequestContext::<CompanyFacts, _>::new(cik, repository)`. The kind must be named,
+  because Rust cannot infer it from `E::Input`. The module doctest at
+  `execute_sec_request/context/mod.rs:27` builds the same context on `main` today. After step 2
+  the line fails, because the context has one type parameter and `new` takes no repository.
+
+The positive doctest guards the bound. A `compile_fail` doctest cannot show that a bound is absent,
+because a missing bound makes code compile, not fail. Step 3 adds the same pair for
+`PrepareSecRequest<FilingIndex>`. Its `compile_fail,E0599` doctest builds
+`PrepareSecRequest::builder().all_company_facts().cik(cik).repository(r)`. The module doctest of
+`prepare_sec_request/mod.rs:37-41` builds the same chain on `main` today. Before each step lands,
+compile the `compile_fail` body as a plain doctest on `main`. Then confirm the error code after the
+step.
+
+The steps also change `compile_fail` doctests that exist on `main`. A changed type or tuple can make
+such a doctest fail for another reason than the property it names, and it then stays green. A
+default type parameter, such as `C = SecClient`, can also absorb a dropped parameter, so the error
+code stays the same. So each step follows one rule:
+
+- For each `compile_fail` doctest that the step touches, make its kinds match and compile the body
+  as a plain doctest. It must compile. Then the guard fails only for its own property.
+
+The cases known today:
+
+- Step 1: the doctests at `execute_sec_request/store_submissions.rs:18` and
+  `execute_sec_request/store_notes_archive.rs:19` call `try_from` without a repository. After step
+  1 no `TryFrom` takes that tuple, so they fail for any kind. Step 1 adds the repository to their
+  tuple.
+- Step 2: the doctest at `prepare_sec_request/execute_sec_request.rs:15` names `ExecuteSecRequest`
+  with three parameters, and the two store doctests name `ExecuteCompanyFactsRequest<R, SecClient>`.
+  Step 2 drops `R` from all three.
+- Step 3: the doctests at `prepare_sec_request/execute_sec_request.rs:21` and
+  `validate_cik_format/prepare_sec_request.rs:19` write `PrepareCompanyFactsRequest<R>` and
+  `PrepareNotesRequest::<R>`. These aliases lose `R`, so step 3 drops it from both.
+- Step 3: `prepare_sec_request/builder.rs` holds three `compile_fail,E0599` doctests.
+  - `:42` (no input) then fails because `.repository` is gone. Step 3 drops `.repository(...)` and
+    its hidden setup from it.
+  - `:61` (no repository) names a property that no longer exists. Step 3 deletes it.
+  - `:72` (the repository must store the source of the kind) names a property that moves to the
+    super-state builders, whose `build()` keeps the bound `R: RawRepository<…>`. Step 3 moves it to
+    `notes/builder.rs` as a `compile_fail,E0599` doctest that builds `ExtractNotesSuperState` with
+    a Company Facts repository.
+- Step 4: the doctest at `validate_cik_format/prepare_sec_request.rs:14` writes
+  `ValidateCikFormat<R>`. Its `C` has a default, so after step 4 `R` binds to `C` and the doctest
+  still fails with E0277, but on the client bound. Step 4 rewrites it to
+  `ValidateCikFormat<SecClient>`.
+- The builders of `ValidateCikFormat` and `ValidateNotesPeriod` hold no `compile_fail` doctests.
+
+Each step updates the docs that its change makes false. Examples: the module docs of
+`notes/mod.rs` and `submissions/mod.rs` ("Each state holds its own clone of the storage
+repository"), the context doc in `company_facts/mod.rs:116`, and the module docs of the transitions
+into the store states and into `ExecuteSecRequest`.
 
 ## Backfill Extract
 
@@ -651,7 +828,7 @@ These places on `main` limit a request to one HTTP call. Paths start at `sec/src
 
 Both generic states also bind `K: StoredAs` (prepare line 163, execute line 175). A kind has one
 `StoredAs::Source`, but the two files go to two sources, `RawXbrlInstance` and `RawXbrlLabels`.
-STA-398 removes this bound.
+STA-398 removes this bound. See [Repository in the Machines](#repository-in-the-machines).
 
 STA-390 compares five designs:
 
@@ -821,7 +998,8 @@ Two items stay with STA-376:
 - `SelectFilingDocuments` holds the accession number, not the `FilingRef`. The transition into
   `PrepareSecRequest<FilingDocumentSet>` needs the `FilingRef`. The super-state or the context of
   `SelectFilingDocuments` carries it.
-- STA-376 decides where `index.json` is written. The generic states have fixed contexts, so they
+- STA-376 decides where `index.json` is written, if it is written. Decision 3 of
+  [Repository in the Machines](#repository-in-the-machines) proposes not to write it. The generic states have fixed contexts, so they
   cannot carry the folder index response. A write after the filing documents therefore needs the
   super-state to keep that response.
 
