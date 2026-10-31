@@ -240,20 +240,24 @@ reviewable lines.
 3. `PrepareSecRequest<K>` and its context, updater, and builder lose `R` and `StoredAs`. The three
    transitions into it drop the repository. About 300 lines.
 4. `ValidateCikFormat` and `ValidateNotesPeriod` lose `R`. About 250 lines. If STA-386 lands first,
-   this PR merges `main` with it, because both edit `ValidateCikFormatContext`.
+   this PR merges `main` first, because both PRs edit `ValidateCikFormatContext`.
 
 Step 2 adds the doctests of the DoD on `ExecuteSecRequest`. `FilingIndex` has `RespondsWith` and no
 `StoredAs` on `main`, so it is the kind that is only read:
 
 - A doctest shows that `ExecuteSecRequest<FilingIndex, SecClient>` implements `State`.
-- A `compile_fail` doctest builds `ExecuteSecRequestContext::new(cik, repository)` for
-  `CompanyFacts`. It compiles on `main` and fails after step 2, because the context takes no
-  repository. So it fails only after the change, and it fails again if the repository returns.
+- A `compile_fail` doctest builds
+  `ExecuteSecRequestContext::<CompanyFacts, _>::new(cik, repository)`. The kind must be named,
+  because Rust cannot infer it from `E::Input`. The module doctest at
+  `execute_sec_request/context/mod.rs:27` runs this line on `main` today. After step 2 it fails,
+  because the context has one type parameter and `new` takes no repository.
 
 The positive doctest guards the bound. A `compile_fail` doctest cannot show that a bound is absent,
 because a missing bound makes code compile, not fail. Step 3 adds the same pair for
-`PrepareSecRequest<FilingIndex>`, with the builder step `.repository(r)` in the `compile_fail`
-doctest.
+`PrepareSecRequest<FilingIndex>`. Its `compile_fail` doctest runs
+`PrepareSecRequest::builder().all_company_facts().cik(cik).repository(r)`, which names the kind
+and runs on `main` today in the module doctest of `prepare_sec_request/mod.rs`. Before each step
+lands, run the `compile_fail` body as a plain doctest on `main` to confirm that it compiles there.
 
 Each step updates the docs that its change makes false. Examples: the module docs of
 `notes/mod.rs` and `submissions/mod.rs` ("Each state holds its own clone of the storage
