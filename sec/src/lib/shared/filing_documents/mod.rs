@@ -1,13 +1,16 @@
 //! # Filing Documents
 //!
-//! Provides [`FilingDocuments`], the XBRL instance and the optional label file of one filing,
-//! [`FolderIndex`], the member names of the folder of the filing that they are picked from,
-//! [`FilingDocumentRef`], which names one file of that folder, and [`FilingDocumentSetRef`], which
-//! names the instance and the label file together.
+//! Provides [`FilingDocuments`], the XBRL instance and the optional label file of one filing, and
+//! [`FolderIndex`], the member names of the filing folder.
+//!
+//! [`FilingDocumentRef`] names one file of that folder. [`FilingDocumentSetRef`] names the instance
+//! and the label file together. [`FilingDocumentResponses`] holds the responses for both files.
 //!
 //! ## Modules
 //!
 //! - [`filing_document_ref`]: The [`FilingDocumentRef`], the input of a request for one file.
+//! - [`filing_document_responses`]: The [`FilingDocumentResponses`] for the instance and the
+//!   label file.
 //! - [`filing_document_set_ref`]: The [`FilingDocumentSetRef`], the input of a request for the
 //!   instance and the label file.
 //! - [`filing_documents_error`]: The [`InvalidFolderIndex`] returned when an `index.json` does not
@@ -18,11 +21,13 @@
 use serde::Serialize;
 
 pub mod filing_document_ref;
+pub mod filing_document_responses;
 pub mod filing_document_set_ref;
 pub mod filing_documents_error;
 pub mod folder_index;
 
 pub use filing_document_ref::FilingDocumentRef;
+pub use filing_document_responses::FilingDocumentResponses;
 pub use filing_document_set_ref::FilingDocumentSetRef;
 pub use filing_documents_error::{FilingDocumentRole, FilingDocumentsError, InvalidFolderIndex};
 pub use folder_index::FolderIndex;
