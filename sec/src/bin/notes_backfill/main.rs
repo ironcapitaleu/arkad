@@ -125,17 +125,19 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     let elapsed = start.elapsed();
     let failures = summary.failure_count();
     let successes = summary.success_count();
+    let already_stored = summary.already_stored_count();
     let unpublished = summary.unpublished_count();
     let context = serde_json::json!({
         "execution_id": execution_id,
         "successes": successes,
+        "already_stored": already_stored,
         "failures": failures,
         "unpublished": unpublished,
         "duration_ms": elapsed.as_millis(),
         "periods": summary.entries(),
     });
     let message = format!(
-        "{successes} Notes files stored, {failures} failed, {unpublished} unpublished in {elapsed:.2?}"
+        "{successes} Notes files stored ({already_stored} already stored), {failures} failed, {unpublished} unpublished in {elapsed:.2?}"
     );
     summary.result().inspect_err(|_| {
         tracing::error!(event = %BatchEvent::Failed, message = %message, context = %context);

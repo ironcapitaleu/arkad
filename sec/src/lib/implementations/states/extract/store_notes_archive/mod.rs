@@ -1,7 +1,8 @@
 //! # Store Notes Archive State
 //!
 //! Provides the [`StoreNotesArchive`] state, which writes one downloaded Notes file to the store
-//! and outputs a [`NotesArchiveRef`] to the stored file.
+//! and outputs a [`NotesArchiveRef`] to the stored file. [`notes_key`] gives the key of the file
+//! of a period.
 //!
 //! ## Modules
 //!
@@ -80,7 +81,27 @@ impl<R> StoreNotesArchive<R> {
 }
 
 /// Returns the key `sec/notes/<file name>` of the Notes file of a period.
-fn notes_key(period: NotesPeriod) -> DocumentKey {
+///
+/// # Panics
+///
+/// Never panics: an SEC file name holds no path separator, so the key path is always valid.
+///
+/// # Examples
+///
+/// ```
+/// use sec::implementations::states::extract::store_notes_archive::notes_key;
+/// use sec::shared::notes_period::NotesPeriod;
+///
+/// let period = NotesPeriod::new("2010q1").expect("A hardcoded published quarter should always parse");
+///
+/// let expected_result = "sec/notes/2010q1_notes_1.zip";
+///
+/// let result = notes_key(period).as_path().display().to_string();
+///
+/// assert_eq!(result, expected_result);
+/// ```
+#[must_use]
+pub fn notes_key(period: NotesPeriod) -> DocumentKey {
     DocumentKey::new(format!("{NOTES_KEY_PREFIX}{}", period.file_name()))
         .expect("Given an SEC file name without a path separator, the relative key path should always be valid")
 }

@@ -349,6 +349,10 @@ quarter) or a month (year and month).
   Early in a month, the SEC has not posted the file of the last month yet. If the last period gets
   403 or 404, the run counts it as unpublished, not as failed, and the next run asks for it again.
   Every other 403 or 404 stays a failure, so a run that the SEC refuses in full fails.
+- Before each download, `notes_backfill` reads the stored file of the period. If the file passes
+  the size and SHA-256 check, the run skips the download (STA-400). So a rerun downloads only the
+  files that are missing or that the store cannot verify. If the store cannot verify a file, the
+  run summary marks the new download as `replaced`. A file that the SEC replaces after the run stored it stays old.
 - `sec::shared::financial::quarter::Quarter` (Q1 to Q4) holds the quarter part. The month part
   needs its own type.
 
@@ -1054,15 +1058,19 @@ Rules:
 4. A filing that reaches both paths writes no duplicate row, because every write is idempotent.
    Which copy holds the value is open. See [Path Independence](#path-independence).
 5. Rule 1 leaves no gap only if the backfill stored every period up to the newest stored Notes
-   month. To check, confirm that no period in the run summary reports a failure. If one does,
-   rerun the backfill. Then read the newest period with a `key` in the run summary. That period is
-   the newest stored Notes month of rule 1. Do not rely on the calendar. In three samples, the SEC
-   posted a month in the first 8 days of the next month. But `2025_10_notes.zip` has a
-   Last-Modified of 2025-12-01 (see [Notes ZIP Findings](#notes-zip-findings)).
+   month. To check, confirm that no entry in the run summary has a `failed_state`. If one does,
+   rerun the backfill (rule 8). Then read the newest period in the run summary with the status
+   `downloaded`, `already_stored`, or `replaced`. That period is the newest stored Notes month of
+   rule 1. Do not rely on the calendar. In three samples, the SEC posted a month in the first 8
+   days of the next month. But `2025_10_notes.zip` has a Last-Modified of 2025-12-01 (see
+   [Notes ZIP Findings](#notes-zip-findings)).
 6. If a later backfill run stores newer months, those months overlap the new-filing path. Rule 4
    keeps the overlap free of duplicate rows.
 7. STA-378 decides how `daily_filings` picks its dates. Its start date must follow rule 1, after
    the check of rule 5.
+8. A backfill run can repeat. It skips each stored file that passes the size and SHA-256 check
+   (STA-400), so a repeat downloads only the files that are missing or that the store cannot
+   verify.
 
 Assumptions:
 
@@ -1124,8 +1132,8 @@ for example the CIK.
 A filing can reach the fact store by two paths: as rows in a Notes file, or as its instance XML.
 Which path delivers a filing depends on how the backfill was split. Three cases:
 
-- Notes files up to the newest posted month, then daily indexes from the last day of that month.
-  This is the plan.
+- Notes files up to the newest stored Notes month, then daily indexes from the last day of that
+  month. This is the plan. See rule 1 of [Cut-Over Between the Paths](#cut-over-between-the-paths).
 - A possible later split: daily indexes back to 2009, with no Notes file.
 - Both paths for the same filing: the overlap of one day in rule 1 of
   [Cut-Over Between the Paths](#cut-over-between-the-paths), or a backfill run after the
