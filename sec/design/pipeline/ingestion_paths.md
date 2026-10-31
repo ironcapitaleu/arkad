@@ -16,8 +16,8 @@
 - [New-Filing Extract](#new-filing-extract) is new and fully proposed. It needs the most scrutiny.
 - [Calling the Machines](#calling-the-machines) and the ingestion mode in the metadata are new and
   decided.
-- [Repository in the Machines](#repository-in-the-machines) is new and proposed in STA-398. It
-  carries three decisions for the lead.
+- [Repository in the Machines](#repository-in-the-machines) is new. The lead accepted its three
+  decisions on 2026-10-31 (STA-398).
 - [Cut-Over Between the Paths](#cut-over-between-the-paths) and
   [Idempotent Writes](#idempotent-writes) list their assumptions. Check them first.
 - [Raw Store](#raw-store), [Handover to Transform](#handover-to-transform),
@@ -226,9 +226,6 @@ Decided: drop it. STA-376 does not store `index.json`.
 - The lead accepted this risk on 2026-10-31, against the cost of the write.
 - Without the write, STA-376 needs no second store step, no new `RawSource`, and no super-state
   field that keeps the folder index response.
-
-If the lead keeps the audit trail, STA-376 still decides where `index.json` is written. STA-398
-does not decide that.
 
 #### Plan for the Code
 
