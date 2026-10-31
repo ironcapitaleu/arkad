@@ -825,9 +825,9 @@ These places on `main` limit a request to one HTTP call. Paths start at `sec/src
 | `ExecuteSecRequestOutput<E>` | `implementations/states/extract/execute_sec_request/data/output/mod.rs:48` | Holds one `Arc<SecResponse<E::Body>>`. |
 | `ensure_request_matches_input` | `implementations/transitions/from/execute_sec_request/request_check.rs:23` | Compares one URL (line 29), and names one URL in its error (line 34). |
 
-Both generic states also bind `K: StoredAs` (prepare line 163, execute line 175). A kind has one
-`StoredAs::Source`, but the two files go to two sources, `RawXbrlInstance` and `RawXbrlLabels`.
-STA-398 removes this bound. See [Repository in the Machines](#repository-in-the-machines).
+Before STA-398, both generic states also bound `K: StoredAs` (prepare line 163, execute line 175).
+A kind has one `StoredAs::Source`, but the two files go to two sources, `RawXbrlInstance` and
+`RawXbrlLabels`. STA-398 removes this bound. See [Repository in the Machines](#repository-in-the-machines).
 
 STA-390 compares five designs:
 
@@ -997,10 +997,8 @@ Two items stay with STA-376:
 - `SelectFilingDocuments` holds the accession number, not the `FilingRef`. The transition into
   `PrepareSecRequest<FilingDocumentSet>` needs the `FilingRef`. The super-state or the context of
   `SelectFilingDocuments` carries it.
-- STA-376 decides where `index.json` is written, if it is written. Decision 3 of
-  [Repository in the Machines](#repository-in-the-machines) proposes not to write it. The generic states have fixed contexts, so they
-  cannot carry the folder index response. A write after the filing documents therefore needs the
-  super-state to keep that response.
+- STA-376 does not write `index.json`. See Decision 3 of
+  [Repository in the Machines](#repository-in-the-machines).
 
 ### Company Data
 
