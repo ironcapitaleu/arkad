@@ -5,8 +5,8 @@
 //!
 //! It moves the prepared request from the output of the source state into the input of the next
 //! state. The context takes the request input from the source input, which built the request. The
-//! source state holds no client, so the caller passes the one from the state machine context. The `TryFrom` is fallible because the source output may
-//! be absent.
+//! source state holds no client, so the caller passes the one from the state machine context. The
+//! `TryFrom` is fallible because the source output may be absent.
 //!
 //! Both states have the same kind `K`. A prepared Company Facts request cannot become the
 //! execution of a Notes file request, so this does not compile:
