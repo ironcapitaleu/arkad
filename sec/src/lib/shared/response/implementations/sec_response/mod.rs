@@ -313,10 +313,20 @@ mod tests {
 
     #[test]
     fn should_keep_the_raw_body_unchanged_when_the_body_has_extra_whitespace() {
+        let url = sample_url();
+        let headers = Headers::new(HashMap::new());
+        let raw_body = RAW_BODY.to_vec();
+
         let expected_result = RAW_BODY;
 
-        let response = response_from_parts(RAW_BODY)
-            .expect("Given a valid JSON body, building the response should always succeed");
+        let response = SecResponse::<JsonBody>::from_parts(
+            url,
+            headers,
+            ContentType::Json,
+            StatusCode::Ok,
+            raw_body,
+        )
+        .expect("Given a valid JSON body, building the response should always succeed");
         let result = response.raw_body();
 
         assert_eq!(result, expected_result);
@@ -324,10 +334,20 @@ mod tests {
 
     #[test]
     fn should_digest_the_raw_body_when_building_from_parts() {
+        let url = sample_url();
+        let headers = Headers::new(HashMap::new());
+        let raw_body = RAW_BODY.to_vec();
+
         let expected_result = Sha256Digest::of(RAW_BODY);
 
-        let response = response_from_parts(RAW_BODY)
-            .expect("Given a valid JSON body, building the response should always succeed");
+        let response = SecResponse::<JsonBody>::from_parts(
+            url,
+            headers,
+            ContentType::Json,
+            StatusCode::Ok,
+            raw_body,
+        )
+        .expect("Given a valid JSON body, building the response should always succeed");
         let result = response.body_digest().clone();
 
         assert_eq!(result, expected_result);
@@ -335,16 +355,21 @@ mod tests {
 
     #[test]
     fn should_return_invalid_status_code_when_building_from_parts_with_a_404() {
+        let url = sample_url();
+        let headers = Headers::new(HashMap::new());
+        let status_code = StatusCode::NotFound;
+        let raw_body = RAW_BODY.to_vec();
+
         let expected_result = Err(InvalidSecResponse::new(ErrorReason::InvalidStatusCode {
-            status_code: StatusCode::NotFound,
+            status_code,
         }));
 
         let result = SecResponse::<JsonBody>::from_parts(
-            sample_url(),
-            Headers::new(HashMap::new()),
+            url,
+            headers,
             ContentType::Json,
-            StatusCode::NotFound,
-            RAW_BODY.to_vec(),
+            status_code,
+            raw_body,
         );
 
         assert_eq!(result, expected_result);
@@ -352,16 +377,21 @@ mod tests {
 
     #[test]
     fn should_return_invalid_content_type_when_building_from_parts_with_html() {
+        let url = sample_url();
+        let headers = Headers::new(HashMap::new());
+        let content_type = ContentType::Html;
+        let raw_body = RAW_BODY.to_vec();
+
         let expected_result = Err(InvalidSecResponse::new(ErrorReason::InvalidContentType {
-            content_type: ContentType::Html,
+            content_type: content_type.clone(),
         }));
 
         let result = SecResponse::<JsonBody>::from_parts(
-            sample_url(),
-            Headers::new(HashMap::new()),
-            ContentType::Html,
+            url,
+            headers,
+            content_type,
             StatusCode::Ok,
-            RAW_BODY.to_vec(),
+            raw_body,
         );
 
         assert_eq!(result, expected_result);
@@ -393,17 +423,18 @@ mod tests {
 
     #[tokio::test]
     async fn should_return_the_parsed_json_body_when_building_from_a_raw_response() {
-        let inner = http::Response::builder()
+        let http_response = http::Response::builder()
             .status(200)
             .header("content-type", "application/json")
             .body(RAW_BODY.to_vec())
             .expect("Given a valid status code and header names, building the response should always succeed");
+        let inner = reqwest::Response::from(http_response);
 
         let expected_result = serde_json::json!({ "price": 1.50 });
 
-        let response = SecResponse::<JsonBody>::from_inner(reqwest::Response::from(inner))
-            .await
-            .expect("Given status 200 and a valid JSON body, building the response should always succeed");
+        let response = SecResponse::<JsonBody>::from_inner(inner).await.expect(
+            "Given status 200 and a valid JSON body, building the response should always succeed",
+        );
         let result = response.body().clone();
 
         assert_eq!(result, expected_result);
@@ -411,26 +442,28 @@ mod tests {
 
     #[tokio::test]
     async fn should_return_invalid_content_type_when_a_raw_response_for_a_json_body_is_a_zip() {
-        let inner = http::Response::builder()
+        let http_response = http::Response::builder()
             .status(200)
             .header("content-type", "application/zip")
             .body(RAW_BODY.to_vec())
             .expect("Given a valid status code and header names, building the response should always succeed");
+        let inner = reqwest::Response::from(http_response);
 
         let expected_result = Some(InvalidSecResponse::new(ErrorReason::InvalidContentType {
             content_type: ContentType::Zip,
         }));
 
-        let result = SecResponse::<JsonBody>::from_inner(reqwest::Response::from(inner))
-            .await
-            .err();
+        let result = SecResponse::<JsonBody>::from_inner(inner).await.err();
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_return_invalid_body_when_the_raw_body_is_not_json() {
-        let details = serde_json::from_slice::<serde_json::Value>(b"not json")
+        let url = sample_url();
+        let headers = Headers::new(HashMap::new());
+        let raw_body = b"not json".to_vec();
+        let details = serde_json::from_slice::<serde_json::Value>(&raw_body)
             .expect_err("Given bytes that are not JSON, parsing should always fail")
             .to_string();
 
@@ -438,7 +471,13 @@ mod tests {
             details,
         }));
 
-        let result = response_from_parts(b"not json");
+        let result = SecResponse::<JsonBody>::from_parts(
+            url,
+            headers,
+            ContentType::Json,
+            StatusCode::Ok,
+            raw_body,
+        );
 
         assert_eq!(result, expected_result);
     }
@@ -486,9 +525,11 @@ mod zip_tests {
 
     #[tokio::test]
     async fn should_store_the_sha256_of_the_body_when_building_from_a_raw_response() {
+        let inner = zip_inner_response(BODY.to_vec());
+
         let expected_result = Sha256Digest::of(BODY);
 
-        let response = SecResponse::<ZipBody>::from_inner(zip_inner_response(BODY.to_vec()))
+        let response = SecResponse::<ZipBody>::from_inner(inner)
             .await
             .expect("Given status 200 and a ZIP, building the response should always succeed");
         let result = response.body_digest().clone();
@@ -498,9 +539,11 @@ mod zip_tests {
 
     #[tokio::test]
     async fn should_return_the_body_unchanged_when_building_from_a_raw_response() {
+        let inner = zip_inner_response(BODY.to_vec());
+
         let expected_result = BODY.to_vec();
 
-        let response = SecResponse::<ZipBody>::from_inner(zip_inner_response(BODY.to_vec()))
+        let response = SecResponse::<ZipBody>::from_inner(inner)
             .await
             .expect("Given status 200 and a ZIP, building the response should always succeed");
         let result = response.body_bytes();
@@ -511,40 +554,38 @@ mod zip_tests {
     #[tokio::test]
     async fn should_return_invalid_content_length_when_a_raw_response_body_is_longer_than_the_header()
      {
-        let response = http::Response::builder()
+        let http_response = http::Response::builder()
             .status(200)
             .header("content-type", "application/zip")
             .header("content-length", "4")
             .body(BODY.to_vec())
             .expect("Given a valid status code and header names, building the response should always succeed");
+        let inner = reqwest::Response::from(http_response);
 
         let expected_result = Some(InvalidSecResponse::new(ErrorReason::InvalidContentLength {
             content_length: "4".to_string(),
             body_length: BODY.len(),
         }));
 
-        let result = SecResponse::<ZipBody>::from_inner(reqwest::Response::from(response))
-            .await
-            .err();
+        let result = SecResponse::<ZipBody>::from_inner(inner).await.err();
 
         assert_eq!(result, expected_result);
     }
 
     #[tokio::test]
     async fn should_return_invalid_content_type_when_a_raw_response_for_a_zip_body_is_json() {
-        let response = http::Response::builder()
+        let http_response = http::Response::builder()
             .status(200)
             .header("content-type", "application/json")
             .body(BODY.to_vec())
             .expect("Given a valid status code and header names, building the response should always succeed");
+        let inner = reqwest::Response::from(http_response);
 
         let expected_result = Some(InvalidSecResponse::new(ErrorReason::InvalidContentType {
             content_type: ContentType::Json,
         }));
 
-        let result = SecResponse::<ZipBody>::from_inner(reqwest::Response::from(response))
-            .await
-            .err();
+        let result = SecResponse::<ZipBody>::from_inner(inner).await.err();
 
         assert_eq!(result, expected_result);
     }
@@ -553,11 +594,12 @@ mod zip_tests {
     async fn should_poll_another_future_when_hashing_a_large_read_body() {
         let headers = headers("application/zip", None);
         let body = vec![0_u8; LARGE_BODY_SIZE];
+        let url = sample_url();
         let build_is_done = AtomicBool::new(false);
         // Starts after the body read, so every tick comes from the hash.
         let build = async {
             let outcome = SecResponse::<ZipBody>::from_read_body(
-                sample_url(),
+                url,
                 headers,
                 ContentType::Zip,
                 StatusCode::Ok,
@@ -633,15 +675,18 @@ mod zip_tests {
 
     #[test]
     fn should_store_the_sha256_of_the_body_for_a_valid_notes_file() {
+        let url = sample_url();
+        let headers = headers("application/zip", Some(&BODY.len().to_string()));
+        let content_type = headers.content_type().clone();
+        let body = BODY.to_vec();
+
         let expected_result = Sha256Digest::of(BODY);
 
-        let response = zip_from_parts(
-            sample_url(),
-            headers("application/zip", Some(&BODY.len().to_string())),
-            StatusCode::Ok,
-            BODY.to_vec(),
-        )
-        .expect("Given status 200, a ZIP and a matching length, building should always succeed");
+        let response =
+            SecResponse::<ZipBody>::from_parts(url, headers, content_type, StatusCode::Ok, body)
+                .expect(
+                    "Given status 200, a ZIP and a matching length, building should always succeed",
+                );
         let result = response.body_digest().clone();
 
         assert_eq!(result, expected_result);
@@ -666,15 +711,16 @@ mod zip_tests {
 
     #[test]
     fn should_accept_the_body_when_the_content_length_header_is_absent() {
+        let url = sample_url();
+        let headers = headers("application/octet-stream", None);
+        let content_type = headers.content_type().clone();
+        let body = BODY.to_vec();
+
         let expected_result = BODY;
 
-        let response = zip_from_parts(
-            sample_url(),
-            headers("application/octet-stream", None),
-            StatusCode::Ok,
-            BODY.to_vec(),
-        )
-        .expect("Given status 200, an octet stream and no length header, building should always succeed");
+        let response =
+            SecResponse::<ZipBody>::from_parts(url, headers, content_type, StatusCode::Ok, body)
+                .expect("Given status 200, an octet stream and no length header, building should always succeed");
         let result = response.body();
 
         assert_eq!(result, expected_result);
@@ -682,71 +728,74 @@ mod zip_tests {
 
     #[test]
     fn should_return_invalid_status_code_when_the_status_is_206_partial_content() {
+        let url = sample_url();
+        let headers = headers("application/zip", None);
+        let content_type = headers.content_type().clone();
+        let status_code = StatusCode::Other(206);
+        let body = BODY.to_vec();
+
         let expected_result = Some(InvalidSecResponse::new(ErrorReason::InvalidStatusCode {
-            status_code: StatusCode::Other(206),
+            status_code,
         }));
 
-        let result = zip_from_parts(
-            sample_url(),
-            headers("application/zip", None),
-            StatusCode::Other(206),
-            BODY.to_vec(),
-        )
-        .err();
+        let result =
+            SecResponse::<ZipBody>::from_parts(url, headers, content_type, status_code, body).err();
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_return_invalid_content_length_when_the_header_is_not_a_number() {
+        let url = sample_url();
+        let headers = headers("application/zip", Some("eleven"));
+        let content_type = headers.content_type().clone();
+        let body = BODY.to_vec();
+
         let expected_result = Some(InvalidSecResponse::new(ErrorReason::InvalidContentLength {
             content_length: "eleven".to_string(),
             body_length: BODY.len(),
         }));
 
-        let result = zip_from_parts(
-            sample_url(),
-            headers("application/zip", Some("eleven")),
-            StatusCode::Ok,
-            BODY.to_vec(),
-        )
-        .err();
+        let result =
+            SecResponse::<ZipBody>::from_parts(url, headers, content_type, StatusCode::Ok, body)
+                .err();
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_return_invalid_content_type_when_the_content_type_is_unknown() {
+        let url = sample_url();
+        let headers = Headers::new(HashMap::new());
+        let content_type = ContentType::Unknown;
+        let body = BODY.to_vec();
+
         let expected_result = Some(InvalidSecResponse::new(ErrorReason::InvalidContentType {
-            content_type: ContentType::Unknown,
+            content_type: content_type.clone(),
         }));
 
-        let result = SecResponse::<ZipBody>::from_parts(
-            sample_url(),
-            Headers::new(HashMap::new()),
-            ContentType::Unknown,
-            StatusCode::Ok,
-            BODY.to_vec(),
-        )
-        .err();
+        let result =
+            SecResponse::<ZipBody>::from_parts(url, headers, content_type, StatusCode::Ok, body)
+                .err();
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_return_invalid_content_length_when_the_body_is_longer_than_the_header() {
+        let url = sample_url();
+        let headers = headers("application/zip", Some("4"));
+        let content_type = headers.content_type().clone();
+        let body = BODY.to_vec();
+
         let expected_result = Some(InvalidSecResponse::new(ErrorReason::InvalidContentLength {
             content_length: "4".to_string(),
             body_length: BODY.len(),
         }));
 
-        let result = zip_from_parts(
-            sample_url(),
-            headers("application/zip", Some("4")),
-            StatusCode::Ok,
-            BODY.to_vec(),
-        )
-        .err();
+        let result =
+            SecResponse::<ZipBody>::from_parts(url, headers, content_type, StatusCode::Ok, body)
+                .err();
 
         assert_eq!(result, expected_result);
     }
