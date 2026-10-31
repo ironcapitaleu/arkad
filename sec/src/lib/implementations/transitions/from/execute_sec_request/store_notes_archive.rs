@@ -40,11 +40,11 @@ use super::request_check::ensure_request_matches_input;
 use crate::error::state_machine::transition;
 use crate::error::state_machine::transition::Transition as TransitionError;
 use crate::implementations::states::extract::execute_sec_request::ExecuteSecRequest;
+use crate::implementations::states::extract::execute_sec_request::constants::STATE_NAME as EXECUTE_SEC_REQUEST;
 use crate::implementations::states::extract::store_notes_archive::constants::STATE_NAME as STORE_NOTES_ARCHIVE;
 use crate::implementations::states::extract::store_notes_archive::{
     StoreNotesArchive, StoreNotesArchiveContext, StoreNotesArchiveInput,
 };
-use crate::shared::http_client::RespondsWith;
 use crate::shared::http_client::SecClient as SecClientTrait;
 use crate::shared::request::implementations::sec_request::NotesFile;
 #[cfg(doc)]
@@ -71,7 +71,7 @@ impl<R, C: SecClientTrait> TryFrom<(ExecuteSecRequest<NotesFile, R, C>, Uuid)>
     ) -> Result<Self, TransitionError> {
         let (input, output, context) = state.into_parts();
         let output_data = output.ok_or_else(|| {
-            transition::MissingOutput::new(NotesFile::EXECUTE_STATE_NAME, STORE_NOTES_ARCHIVE)
+            transition::MissingOutput::new(EXECUTE_SEC_REQUEST, STORE_NOTES_ARCHIVE)
         })?;
 
         ensure_request_matches_input(
@@ -243,7 +243,7 @@ mod tests {
 
         let expected_result = Err(TransitionError::FailedContextConversion(
             transition::FailedContextConversion::new(
-                NotesFile::EXECUTE_STATE_NAME,
+                EXECUTE_SEC_REQUEST,
                 STORE_NOTES_ARCHIVE,
                 "The request targets 'https://www.sec.gov/files/dera/data/financial-statement-notes-data-sets/2025_10_notes.zip', but the context names period '2024q1'",
             ),
@@ -259,7 +259,7 @@ mod tests {
         let state = execute_without_output("2024q1");
 
         let expected_result = Err(TransitionError::MissingOutput(
-            transition::MissingOutput::new(NotesFile::EXECUTE_STATE_NAME, STORE_NOTES_ARCHIVE),
+            transition::MissingOutput::new(EXECUTE_SEC_REQUEST, STORE_NOTES_ARCHIVE),
         ));
 
         let result = StoreNotesArchive::try_from((state, SAMPLE_EXECUTION_ID));
