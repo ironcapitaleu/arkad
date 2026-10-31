@@ -13,6 +13,7 @@ use std::hash::Hash;
 use serde::Serialize;
 
 use crate::shared::cik::Cik;
+use crate::shared::filing_ref::FilingRef;
 use crate::shared::index_date::IndexDate;
 use crate::shared::notes_period::NotesPeriod;
 use crate::shared::raw_source::{
@@ -109,6 +110,20 @@ impl RequestKind for Submissions {
     }
 }
 
+/// The kind of a request that fetches the folder index of one filing.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct FilingIndex;
+
+impl RequestKind for FilingIndex {
+    type Input = FilingRef;
+
+    const INPUT_NAME: &'static str = "filing_ref";
+
+    fn request_type(filing: FilingRef) -> SecRequestType {
+        SecRequestType::FetchFilingIndex { filing }
+    }
+}
+
 /// A [`RequestKind`] whose response the store keeps as a raw document of one [`RawSource`].
 ///
 /// A state that holds a repository bounds it by [`Self::Source`], so a repository of another
@@ -136,17 +151,31 @@ impl StoredAs for Submissions {
 
 #[cfg(test)]
 mod tests {
+    use chrono::NaiveDate;
     use pretty_assertions::assert_eq;
 
     use crate::shared::cik::Cik;
     use crate::shared::document_type::SecDocumentType;
+    use crate::shared::filing_ref::FilingRef;
+    use crate::shared::financial::accession_number::AccessionNumber;
+    use crate::shared::financial::form::{Form, ParsedForm};
     use crate::shared::notes_period::NotesPeriod;
     use crate::shared::raw_source::RawSource;
 
     use super::{
-        CompanyFacts, DailyIndex, DailyIndexListing, NotesFile, RequestKind, SecRequestType,
-        StoredAs, Submissions,
+        CompanyFacts, DailyIndex, DailyIndexListing, FilingIndex, NotesFile, RequestKind,
+        SecRequestType, StoredAs, Submissions,
     };
+
+    fn filing_ref() -> FilingRef {
+        FilingRef::new(
+            Cik::new("320193").expect("Given a hardcoded valid CIK, parsing should always succeed"),
+            AccessionNumber::new("0000320193-17-000070"),
+            ParsedForm::new(Form::TenK, false),
+            NaiveDate::from_ymd_opt(2017, 11, 3)
+                .expect("Given a hardcoded calendar date, the date should always build"),
+        )
+    }
 
     #[test]
     fn should_return_fetch_all_company_facts_for_company_facts_kind() {
@@ -180,6 +209,19 @@ mod tests {
         let expected_result = SecRequestType::FetchSubmissions { cik: cik.clone() };
 
         let result = Submissions::request_type(cik);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_fetch_filing_index_for_filing_index_kind() {
+        let filing = filing_ref();
+
+        let expected_result = SecRequestType::FetchFilingIndex {
+            filing: filing_ref(),
+        };
+
+        let result = FilingIndex::request_type(filing);
 
         assert_eq!(result, expected_result);
     }
@@ -227,5 +269,10 @@ mod tests {
     #[test]
     const fn should_implement_auto_traits_for_submissions() {
         implements_auto_traits::<Submissions>();
+    }
+
+    #[test]
+    const fn should_implement_auto_traits_for_filing_index() {
+        implements_auto_traits::<FilingIndex>();
     }
 }
