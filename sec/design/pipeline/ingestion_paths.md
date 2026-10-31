@@ -343,8 +343,10 @@ quarter) or a month (year and month).
 - Construction rejects a quarter after 2025q3, a month before 2025_10, and a year before 2009.
 - `NotesPeriod::file_name()` returns the SEC file name. See [File Names](#file-names).
 - `NotesPeriod::all_through(date)` lists every period that ends in or before the month of
-  `date`, in increasing order. `notes_backfill` calls it with today minus two months (STA-361).
-  If the SEC posts a month after the end of the next month, that period fails with HTTP 404.
+  `date`, in increasing order. `notes_backfill` calls it with today minus one month (STA-361).
+  Early in a month, the SEC has not posted the file of the last month yet. If the periods at the
+  end of the run get 403 or 404, the run counts them as unpublished, not as failed, and the next
+  run asks for them again. A 403 or 404 before a stored or failed period stays a failure.
 - `sec::shared::financial::quarter::Quarter` (Q1 to Q4) holds the quarter part. The month part
   needs its own type.
 

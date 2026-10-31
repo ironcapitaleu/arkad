@@ -1,11 +1,16 @@
 //! # Backfill
 //!
 //! Provides [`run`], which extracts one Notes file per period, and the [`RunSummary`] it returns.
+//!
+//! The SEC posts the file of a month some days into the next month. So the newest periods of a run
+//! can have no file yet. [`RunSummary`] counts the periods at the end of the run whose file is
+//! absent as unpublished, not as failed. The next run asks for them again.
 
 use std::panic;
 use std::sync::Arc;
 
 use futures_util::StreamExt;
+use sec::error::{State as StateError, StateMachine};
 use sec::implementations::extraction::Backfill;
 use sec::prelude::{StreamError, StreamItem};
 use sec::shared::http_client::implementations::sec_client::SecClient;
@@ -27,6 +32,15 @@ pub type PeriodOutcome = Result<NotesArchiveRef, StreamError>;
 /// The outcome of every period of one run, in the order of the given periods.
 pub struct RunSummary(Vec<(String, PeriodOutcome)>);
 
+/// Returns `true` if `error` comes from an SEC answer of 403 or 404 for the Notes file.
+pub const fn is_absent_file(error: &StreamError) -> bool {
+    matches!(
+        &error.source,
+        StateMachine::State(StateError::FailedRequestExecution(failure))
+            if failure.domain_error().is_absent_file()
+    )
+}
+
 /// The error of a run in which at least one period failed.
 #[derive(Debug, Error, PartialEq, Eq)]
 #[error("[FailedBackfill] {failures} of {periods} Notes periods failed")]
@@ -38,7 +52,7 @@ pub struct FailedBackfill {
 }
 
 impl RunSummary {
-    /// Returns `Ok` if every period stored its file.
+    /// Returns `Ok` if every period stored its file or is unpublished.
     ///
     /// # Errors
     ///
@@ -55,25 +69,37 @@ impl RunSummary {
 
     /// Returns the number of periods that stored their file.
     pub fn success_count(&self) -> usize {
-        self.0.len() - self.failure_count()
+        self.0.iter().filter(|(_, outcome)| outcome.is_ok()).count()
     }
 
-    /// Returns the number of periods that failed.
+    /// Returns the number of periods that failed and are not unpublished.
     pub fn failure_count(&self) -> usize {
+        self.0.len() - self.success_count() - self.unpublished_count()
+    }
+
+    /// Returns the number of periods at the end of the run whose file is absent.
+    pub fn unpublished_count(&self) -> usize {
         self.0
             .iter()
-            .filter(|(_, outcome)| outcome.is_err())
+            .rev()
+            .take_while(|(_, outcome)| outcome.as_ref().is_err_and(is_absent_file))
             .count()
     }
 
     /// Returns one JSON entry per period.
     ///
-    /// A stored period lists its key, size, and SHA-256. A failed period lists the failed state and
-    /// the error.
+    /// A stored period lists its key, size, and SHA-256. An unpublished period says so. A failed
+    /// period lists the failed state and the error.
     pub fn entries(&self) -> Vec<Value> {
+        let first_unpublished = self.0.len() - self.unpublished_count();
         self.0
             .iter()
-            .map(|(period, outcome)| match outcome {
+            .enumerate()
+            .map(|(index, (period, outcome))| match outcome {
+                Err(_) if index >= first_unpublished => json!({
+                    "period": period,
+                    "status": "unpublished",
+                }),
                 Ok(archive) => json!({
                     "period": period,
                     "key": archive.key().as_path().display().to_string(),
@@ -147,4 +173,101 @@ pub async fn run(
             .map(|(_, period, outcome)| (period, outcome))
             .collect(),
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use pretty_assertions::assert_eq;
+    use sec::error::state_machine::state::FailedRequestExecution;
+    use sec::prelude::StreamEvent;
+    use sec::shared::http_client::implementations::sec_client::error::FailedSecRequest;
+    use sec::shared::response::implementations::sec_response::error::{
+        ErrorReason, InvalidSecResponse,
+    };
+    use sec::shared::status_code::StatusCode;
+
+    use super::*;
+
+    fn failed(period: &str, source: StateMachine) -> (String, PeriodOutcome) {
+        let error = StreamError {
+            event: StreamEvent::StateFailed,
+            execution_id: uuid::Uuid::nil(),
+            state_name: "Execute SEC Request".to_string(),
+            data: Value::Null,
+            source,
+        };
+        (period.to_string(), Err(error))
+    }
+
+    fn answered(period: &str, status_code: StatusCode) -> (String, PeriodOutcome) {
+        let response_error =
+            InvalidSecResponse::new(ErrorReason::InvalidStatusCode { status_code });
+        let failure = FailedRequestExecution::new(
+            "Execute SEC Request",
+            FailedSecRequest::from(response_error),
+        );
+        failed(
+            period,
+            StateMachine::State(StateError::FailedRequestExecution(failure)),
+        )
+    }
+
+    #[test]
+    fn should_return_ok_when_only_the_last_periods_are_absent() {
+        let summary = RunSummary(vec![
+            answered("2026_09", StatusCode::NotFound),
+            answered("2026_10", StatusCode::Forbidden),
+        ]);
+
+        let expected_result = Ok(());
+
+        let result = summary.result();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_count_an_absent_period_as_failed_when_a_later_period_failed_otherwise() {
+        let summary = RunSummary(vec![
+            answered("2026_09", StatusCode::NotFound),
+            failed("2026_10", StateMachine::InvalidConfiguration),
+        ]);
+
+        let expected_result = Err(FailedBackfill {
+            failures: 2,
+            periods: 2,
+        });
+
+        let result = summary.result();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_count_a_last_period_as_failed_when_the_sec_answers_500() {
+        let summary = RunSummary(vec![answered("2026_09", StatusCode::InternalServerError)]);
+
+        let expected_result = Err(FailedBackfill {
+            failures: 1,
+            periods: 1,
+        });
+
+        let result = summary.result();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_mark_the_last_absent_period_as_unpublished_when_listing_entries() {
+        let summary = RunSummary(vec![
+            failed("2026_08", StateMachine::InvalidConfiguration),
+            answered("2026_09", StatusCode::NotFound),
+        ]);
+
+        let expected_result = json!({ "period": "2026_09", "status": "unpublished" });
+
+        let result = summary.entries()[1].clone();
+
+        assert_eq!(result, expected_result);
+    }
 }

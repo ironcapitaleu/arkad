@@ -30,8 +30,8 @@ mod tests {
     }
 
     #[test]
-    fn should_list_every_period_from_2009q1_to_2026_09_when_today_is_2026_11_01() {
-        let today = date(2026, 11, 1);
+    fn should_list_every_period_from_2009q1_to_2026_09_when_today_is_2026_10_31() {
+        let today = date(2026, 10, 31);
 
         let expected_result = vec![
             "2009q1", "2009q2", "2009q3", "2009q4", "2010q1", "2010q2", "2010q3", "2010q4",
@@ -55,7 +55,7 @@ mod tests {
     fn should_end_in_the_previous_year_when_today_is_in_january() {
         let today = date(2027, 1, 31);
 
-        let expected_result = Some("2026_11".to_string());
+        let expected_result = Some("2026_12".to_string());
 
         let result = notes_periods(today).pop();
 

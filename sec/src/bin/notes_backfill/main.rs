@@ -105,16 +105,20 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
             );
         },
         |period, error| {
-            tracing::error!(
-                event = %error.event,
-                message = %error.source.to_string(),
-                context = %serde_json::json!({
-                    "execution_id": error.execution_id.to_string(),
-                    "period": period,
-                    "state": error.state_name,
-                    "data": error.data,
-                }),
-            );
+            let message = error.source.to_string();
+            let context = serde_json::json!({
+                "execution_id": error.execution_id.to_string(),
+                "period": period,
+                "state": error.state_name,
+                "data": error.data,
+            });
+            // An absent file is the expected answer for a month that the SEC has not posted yet.
+            // The run summary decides whether it counts as a failure.
+            if backfill::is_absent_file(error) {
+                tracing::warn!(event = %error.event, message = %message, context = %context);
+            } else {
+                tracing::error!(event = %error.event, message = %message, context = %context);
+            }
         },
     )
     .await;
@@ -122,14 +126,18 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     let elapsed = start.elapsed();
     let failures = summary.failure_count();
     let successes = summary.success_count();
+    let unpublished = summary.unpublished_count();
     let context = serde_json::json!({
         "execution_id": execution_id,
         "successes": successes,
         "failures": failures,
+        "unpublished": unpublished,
         "duration_ms": elapsed.as_millis(),
         "periods": summary.entries(),
     });
-    let message = format!("{successes} Notes files stored, {failures} failed in {elapsed:.2?}");
+    let message = format!(
+        "{successes} Notes files stored, {failures} failed, {unpublished} unpublished in {elapsed:.2?}"
+    );
     summary.result().inspect_err(|_| {
         tracing::error!(event = %BatchEvent::Failed, message = %message, context = %context);
     })?;
