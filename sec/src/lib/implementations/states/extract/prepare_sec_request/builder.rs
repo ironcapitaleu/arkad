@@ -32,28 +32,6 @@
 //!
 //! let state = PrepareSecRequest::builder().all_company_facts().build();
 //! ```
-//!
-//! The state holds no storage repository. The super-state passes the repository to the store
-//! state, so the builder has no step for it:
-//!
-//! ```compile_fail,E0599
-//! use sec::implementations::states::extract::prepare_sec_request::PrepareSecRequest;
-//! use sec::shared::cik::Cik;
-//! use sec::shared::raw_document::RawDocument;
-//! use sec::shared::raw_source::RawCompanyFacts;
-//! use storage::implementations::repository::filesystem::FilesystemRepository;
-//!
-//! let repository = FilesystemRepository::builder()
-//!     .writer()
-//!     .document_type::<RawDocument<RawCompanyFacts>>()
-//!     .root("data")
-//!     .build();
-//! let cik = Cik::new("1067983").expect("A hardcoded valid CIK should always parse");
-//! let state = PrepareSecRequest::builder()
-//!     .all_company_facts()
-//!     .cik(cik)
-//!     .repository(repository);
-//! ```
 
 use std::marker::PhantomData;
 

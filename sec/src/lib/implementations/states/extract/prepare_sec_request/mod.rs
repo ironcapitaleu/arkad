@@ -40,8 +40,7 @@
 //! # }
 //! ```
 //!
-//! The state needs no storage. A kind that is only read, such as [`FilingIndex`], has no
-//! [`StoredAs`] impl and still runs through the state:
+//! The state builds the request of every kind, for example [`FilingIndex`]:
 //!
 //! ```rust
 //! use sec::implementations::states::extract::prepare_sec_request::PrepareSecRequest;
@@ -67,11 +66,11 @@ use state_maschine::prelude::State as SMState;
 
 use crate::error::State as StateError;
 use crate::shared::request::SecRequest as SecRequestTrait;
+#[cfg(doc)]
+use crate::shared::request::implementations::sec_request::FilingIndex;
 use crate::shared::request::implementations::sec_request::{
     CompanyFacts, NotesFile, RequestKind, SecRequest,
 };
-#[cfg(doc)]
-use crate::shared::request::implementations::sec_request::{FilingIndex, StoredAs};
 use crate::traits::state_machine::state::State;
 
 pub mod builder;
