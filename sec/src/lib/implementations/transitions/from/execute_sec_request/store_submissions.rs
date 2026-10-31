@@ -9,6 +9,9 @@
 //! its context. The `execution_id` and the ingestion mode belong to the state machine run, so the
 //! caller passes the ones from the state machine context.
 //!
+//! [STA-383](https://linear.app/state-machine/issue/STA-383) replaces this transition and its
+//! Company Facts twin with the generic store state.
+//!
 //! The source state has the [`Submissions`] kind. An executed Company Facts request cannot become
 //! a `submissions` store, so this does not compile:
 //!

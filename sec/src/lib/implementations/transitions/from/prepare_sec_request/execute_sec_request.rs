@@ -234,10 +234,9 @@ mod tests {
         let client = SecClient::default();
         let cik = Cik::new("0001067983")
             .expect("Hardcoded valid CIK string should always parse successfully");
-        let mut state = PrepareSecRequest::<Submissions, _>::new(
-            PrepareSecRequestInput::new(cik.clone()),
-            PrepareSecRequestContext::new(cik.clone(), FakeSubmissionsRepository::new()),
-        );
+        let input = PrepareSecRequestInput::new(cik.clone());
+        let context = PrepareSecRequestContext::new(cik.clone(), FakeSubmissionsRepository::new());
+        let mut state = PrepareSecRequest::<Submissions, _>::new(input, context);
         state
             .compute_output_data_async()
             .await

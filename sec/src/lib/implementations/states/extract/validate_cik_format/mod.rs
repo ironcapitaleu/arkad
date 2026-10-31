@@ -158,8 +158,8 @@ impl<R, C> ValidateCikFormat<R, C> {
 
 #[async_trait]
 // The bound `WriteRepository<Record = RawDocument<S>>` repeats a supertrait of `RawRepository<S>`.
-// Rust needs it to infer `S` from `R`. So the state takes the repository of any raw source, for
-// example of Company Facts or of `submissions`.
+// Without it, `R` does not constrain `S`, and the impl fails with E0207. With it, the state takes
+// the repository of any raw source, for example of Company Facts or of Submissions.
 impl<S, R, C> State for ValidateCikFormat<R, C>
 where
     S: RawSource,
