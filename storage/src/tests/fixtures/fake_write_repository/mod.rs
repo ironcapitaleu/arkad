@@ -140,12 +140,14 @@ mod tests {
     #[tokio::test]
     async fn should_record_records_in_insertion_order_when_persist_is_called_repeatedly() {
         let repository = FakeWriteRepository::new();
+        let first_record = "first".to_string();
+        let second_record = "second".to_string();
         let expected_result = vec!["first".to_string(), "second".to_string()];
 
-        repository.persist("first".to_string()).await.expect(
+        repository.persist(first_record).await.expect(
             "Given a fake write repository, persisting the first record should always succeed",
         );
-        repository.persist("second".to_string()).await.expect(
+        repository.persist(second_record).await.expect(
             "Given a fake write repository, persisting the second record should always succeed",
         );
 

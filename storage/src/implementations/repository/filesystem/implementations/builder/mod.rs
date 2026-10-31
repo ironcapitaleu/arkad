@@ -346,14 +346,15 @@ mod tests {
         let builder = FilesystemRepository::builder()
             .document_type::<SampleDocument>()
             .reader();
+        let root = "/data/arkad";
 
         let expected_result: FilesystemRepository<_, SampleDocument> = FilesystemRepository {
-            root: PathBuf::from("/data/arkad"),
+            root: PathBuf::from(root),
             access: Read,
             document_type: PhantomData,
         };
 
-        let result = builder.root("/data/arkad").build();
+        let result = builder.root(root).build();
 
         assert_eq!(result, expected_result);
     }
@@ -363,14 +364,15 @@ mod tests {
         let builder = FilesystemRepository::builder()
             .document_type::<SampleDocument>()
             .writer();
+        let root = "/data/arkad";
 
         let expected_result: FilesystemRepository<_, SampleDocument> = FilesystemRepository {
-            root: PathBuf::from("/data/arkad"),
+            root: PathBuf::from(root),
             access: Write,
             document_type: PhantomData,
         };
 
-        let result = builder.root("/data/arkad").build();
+        let result = builder.root(root).build();
 
         assert_eq!(result, expected_result);
     }
@@ -380,14 +382,15 @@ mod tests {
         let builder = FilesystemRepository::builder()
             .document_type::<SampleDocument>()
             .read_write();
+        let root = "/data/arkad";
 
         let expected_result: FilesystemRepository<_, SampleDocument> = FilesystemRepository {
-            root: PathBuf::from("/data/arkad"),
+            root: PathBuf::from(root),
             access: ReadWrite,
             document_type: PhantomData,
         };
 
-        let result = builder.root("/data/arkad").build();
+        let result = builder.root(root).build();
 
         assert_eq!(result, expected_result);
     }

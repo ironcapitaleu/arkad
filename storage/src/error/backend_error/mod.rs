@@ -7,7 +7,9 @@
 //! ```rust
 //! use storage::BackendError;
 //!
-//! let _err = BackendError::unreachable_storage("connection reset");
+//! let reason = "connection reset";
+//!
+//! let _err = BackendError::unreachable_storage(reason);
 //! ```
 
 use thiserror::Error;
@@ -149,33 +151,39 @@ mod tests {
 
     #[test]
     fn should_build_unreachable_storage_variant_when_using_its_constructor() {
+        let reason = "connection reset";
+
         let expected_result = BackendError::UnreachableStorage {
-            reason: "connection reset".to_owned(),
+            reason: reason.to_owned(),
         };
 
-        let result = BackendError::unreachable_storage("connection reset");
+        let result = BackendError::unreachable_storage(reason);
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_build_failed_operation_variant_when_using_its_constructor() {
+        let reason = "constraint violation";
+
         let expected_result = BackendError::FailedOperation {
-            reason: "constraint violation".to_owned(),
+            reason: reason.to_owned(),
         };
 
-        let result = BackendError::failed_operation("constraint violation");
+        let result = BackendError::failed_operation(reason);
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_build_unauthorized_access_variant_when_using_its_constructor() {
+        let reason = "role lacks INSERT";
+
         let expected_result = BackendError::UnauthorizedAccess {
-            reason: "role lacks INSERT".to_owned(),
+            reason: reason.to_owned(),
         };
 
-        let result = BackendError::unauthorized_access("role lacks INSERT");
+        let result = BackendError::unauthorized_access(reason);
 
         assert_eq!(result, expected_result);
     }
