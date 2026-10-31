@@ -4,8 +4,7 @@
 //! [`ValidateCikFormat`](crate::implementations::states::extract::validate_cik_format::ValidateCikFormat)
 //! state, together with its updater and builder.
 //!
-//! The context holds the raw CIK under validation, the shared [`SecClient`], the storage
-//! repository, and the retry budget.
+//! The context holds the raw CIK under validation, the shared [`SecClient`], and the retry budget.
 //!
 //! ## Usage
 //!
@@ -14,15 +13,7 @@
 //! use sec::shared::http_client::implementations::sec_client::SecClient;
 //! use state_maschine::prelude::*;
 //!
-//! # use sec::shared::raw_document::RawDocument;
-//! # use sec::shared::raw_source::RawCompanyFacts;
-//! # use storage::implementations::repository::filesystem::FilesystemRepository;
-//! # let repository = FilesystemRepository::builder()
-//! #     .writer()
-//! #     .document_type::<RawDocument<RawCompanyFacts>>()
-//! #     .root("data")
-//! #     .build();
-//! let mut context = ValidateCikFormatContext::new("1067983", SecClient::default(), repository);
+//! let mut context = ValidateCikFormatContext::new("1067983", SecClient::default());
 //! let update = ValidateCikFormatContextUpdater::builder()
 //!     .cik("0000000001")
 //!     .build();
@@ -44,39 +35,30 @@ use std::fmt;
 
 use serde::Serialize;
 use state_maschine::prelude::Context as SMContext;
-use storage::WriteRepository;
 
 use crate::shared::http_client::SecClient as SecClientTrait;
 use crate::shared::http_client::implementations::sec_client::SecClient;
-use crate::shared::raw_document::RawDocument;
-use crate::shared::raw_repository::RawRepository;
-use crate::shared::raw_source::RawSource;
 use crate::traits::state_machine::state::Context;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
 /// Context for the [`ValidateCikFormat`](super::ValidateCikFormat) state.
 ///
-/// Holds the raw CIK under validation, the shared [`SecClient`], and the storage repository of
-/// the run. It also holds the retry budget.
-pub struct ValidateCikFormatContext<R, C = SecClient> {
+/// Holds the raw CIK under validation and the shared [`SecClient`]. It also holds the retry budget.
+pub struct ValidateCikFormatContext<C = SecClient> {
     /// The unvalidated CIK string provided for validation.
     pub raw_cik: String,
     /// The shared HTTP client for SEC API requests.
     pub sec_client: C,
-    /// The storage repository.
-    pub repository: R,
     /// Maximum number of times the state may be retried on failure.
     pub max_retries: u32,
 }
 
-impl<R, C> ValidateCikFormatContext<R, C> {
-    /// Creates a new [`ValidateCikFormatContext`] from a raw CIK, a shared HTTP client, and the
-    /// storage repository.
-    pub fn new(cik: impl Into<String>, sec_client: C, repository: R) -> Self {
+impl<C> ValidateCikFormatContext<C> {
+    /// Creates a new [`ValidateCikFormatContext`] from a raw CIK and a shared HTTP client.
+    pub fn new(cik: impl Into<String>, sec_client: C) -> Self {
         Self {
             raw_cik: cik.into(),
             sec_client,
-            repository,
             max_retries: 0,
         }
     }
@@ -92,34 +74,17 @@ impl<R, C> ValidateCikFormatContext<R, C> {
     pub const fn sec_client(&self) -> &C {
         &self.sec_client
     }
-
-    /// Returns a reference to the storage repository.
-    #[must_use]
-    pub const fn repository(&self) -> &R {
-        &self.repository
-    }
 }
 
-// See the comment on `State for ValidateCikFormat` for the bound on `R`.
-impl<S, R, C> Context for ValidateCikFormatContext<R, C>
-where
-    S: RawSource,
-    R: RawRepository<S> + WriteRepository<Record = RawDocument<S>>,
-    C: SecClientTrait,
-{
+impl<C: SecClientTrait> Context for ValidateCikFormatContext<C> {
     /// Returns the maximum number of retries allowed for CIK validation.
     fn max_retries(&self) -> u32 {
         self.max_retries
     }
 }
 
-impl<S, R, C> SMContext for ValidateCikFormatContext<R, C>
-where
-    S: RawSource,
-    R: RawRepository<S> + WriteRepository<Record = RawDocument<S>>,
-    C: SecClientTrait,
-{
-    type UpdateType = ValidateCikFormatContextUpdater<R, C>;
+impl<C: SecClientTrait> SMContext for ValidateCikFormatContext<C> {
+    type UpdateType = ValidateCikFormatContextUpdater<C>;
 
     /// Returns a reference to the current context.
     fn context(&self) -> &Self {
@@ -136,16 +101,13 @@ where
         if let Some(sec_client) = updates.sec_client {
             self.sec_client = sec_client;
         }
-        if let Some(repository) = updates.repository {
-            self.repository = repository;
-        }
         if let Some(max_retries) = updates.max_retries {
             self.max_retries = max_retries;
         }
     }
 }
 
-impl<R, C> fmt::Display for ValidateCikFormatContext<R, C> {
+impl<C> fmt::Display for ValidateCikFormatContext<C> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "Unvalidated CIK: {}", self.raw_cik)
     }
@@ -155,40 +117,36 @@ impl<R, C> fmt::Display for ValidateCikFormatContext<R, C> {
 /// Updater for modifying [`ValidateCikFormatContext`].
 ///
 /// Fields set to `None` are left unchanged when the updater is applied.
-pub struct ValidateCikFormatContextUpdater<R, C = SecClient> {
+pub struct ValidateCikFormatContextUpdater<C = SecClient> {
     /// Optional new raw CIK string value.
     pub raw_cik: Option<String>,
     /// Optional new HTTP client value.
     pub sec_client: Option<C>,
-    /// Optional new value for the storage repository.
-    pub repository: Option<R>,
     /// Optional new maximum retries value.
     pub max_retries: Option<u32>,
 }
 
-impl<R, C> ValidateCikFormatContextUpdater<R, C> {
+impl<C> ValidateCikFormatContextUpdater<C> {
     /// Creates a new builder for constructing [`ValidateCikFormatContextUpdater`] instances.
     #[must_use]
-    pub const fn builder() -> ValidateCikFormatContextUpdaterBuilder<R, C> {
+    pub const fn builder() -> ValidateCikFormatContextUpdaterBuilder<C> {
         ValidateCikFormatContextUpdaterBuilder::new()
     }
 }
 
 /// Fluent builder for a [`ValidateCikFormatContextUpdater`].
-pub struct ValidateCikFormatContextUpdaterBuilder<R, C = SecClient> {
+pub struct ValidateCikFormatContextUpdaterBuilder<C = SecClient> {
     raw_cik: Option<String>,
     sec_client: Option<C>,
-    repository: Option<R>,
     max_retries: Option<u32>,
 }
-impl<R, C> ValidateCikFormatContextUpdaterBuilder<R, C> {
+impl<C> ValidateCikFormatContextUpdaterBuilder<C> {
     /// Creates a new [`ValidateCikFormatContextUpdaterBuilder`] with all fields initialized to `None`.
     #[must_use]
     pub const fn new() -> Self {
         Self {
             raw_cik: None,
             sec_client: None,
-            repository: None,
             max_retries: None,
         }
     }
@@ -215,26 +173,18 @@ impl<R, C> ValidateCikFormatContextUpdaterBuilder<R, C> {
         self
     }
 
-    /// Sets the storage repository field.
-    #[must_use]
-    pub fn repository(mut self, repository: R) -> Self {
-        self.repository = Some(repository);
-        self
-    }
-
     /// Builds the [`ValidateCikFormatContextUpdater`].
     #[must_use]
-    pub fn build(self) -> ValidateCikFormatContextUpdater<R, C> {
+    pub fn build(self) -> ValidateCikFormatContextUpdater<C> {
         ValidateCikFormatContextUpdater {
             raw_cik: self.raw_cik,
             sec_client: self.sec_client,
-            repository: self.repository,
             max_retries: self.max_retries,
         }
     }
 }
 
-impl<R, C> Default for ValidateCikFormatContextUpdaterBuilder<R, C> {
+impl<C> Default for ValidateCikFormatContextUpdaterBuilder<C> {
     /// Returns a new [`ValidateCikFormatContextUpdaterBuilder`] with all fields initialized to `None`.
     fn default() -> Self {
         Self::new()
@@ -247,7 +197,6 @@ mod tests {
 
     use pretty_assertions::{assert_eq, assert_ne};
     use state_maschine::prelude::*;
-    use storage::WriteError;
 
     use super::{
         ValidateCikFormatContext, ValidateCikFormatContextUpdater,
@@ -255,16 +204,10 @@ mod tests {
     };
     use crate::shared::cik::constants::BERKSHIRE_HATHAWAY_CIK_RAW;
     use crate::shared::http_client::implementations::sec_client::SecClient;
-    use crate::shared::user_agent::constants::DEFAULT_SEC_USER_AGENT;
-    use crate::tests::fixtures::sample_write_repository::FakeWriteRepository;
 
-    fn test_context() -> ValidateCikFormatContext<FakeWriteRepository> {
+    fn test_context() -> ValidateCikFormatContext {
         let sec_client = SecClient::default();
-        ValidateCikFormatContext::new(
-            BERKSHIRE_HATHAWAY_CIK_RAW,
-            sec_client,
-            FakeWriteRepository::new(),
-        )
+        ValidateCikFormatContext::new(BERKSHIRE_HATHAWAY_CIK_RAW, sec_client)
     }
 
     #[test]
@@ -281,8 +224,7 @@ mod tests {
     #[test]
     fn should_create_different_context_with_custom_data_when_using_new_as_constructor() {
         let sec_client = SecClient::default();
-        let validation_context =
-            &ValidateCikFormatContext::new("0000000000", sec_client, FakeWriteRepository::new());
+        let validation_context = &ValidateCikFormatContext::new("0000000000", sec_client);
 
         let expected_result = &test_context();
 
@@ -299,8 +241,7 @@ mod tests {
             .build();
 
         let sec_client = SecClient::default();
-        let expected_result =
-            &ValidateCikFormatContext::new("Updated CIK!", sec_client, FakeWriteRepository::new());
+        let expected_result = &ValidateCikFormatContext::new("Updated CIK!", sec_client);
 
         context.update_context(update);
         let result = context.context();
@@ -317,11 +258,7 @@ mod tests {
             .build();
 
         let sec_client = SecClient::default();
-        let expected_result = &ValidateCikFormatContext::new(
-            "Latest CIK Update!",
-            sec_client,
-            FakeWriteRepository::new(),
-        );
+        let expected_result = &ValidateCikFormatContext::new("Latest CIK Update!", sec_client);
 
         context.update_context(update);
         let result = context.context();
@@ -375,7 +312,7 @@ mod tests {
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
     #[test]
     const fn should_implement_auto_traits_for_validate_cik_format_context() {
-        implements_auto_traits::<ValidateCikFormatContext<FakeWriteRepository>>();
+        implements_auto_traits::<ValidateCikFormatContext>();
     }
 
     const fn implements_send<T: Send>() {}
@@ -383,122 +320,71 @@ mod tests {
 
     #[test]
     const fn should_implement_send_for_validate_cik_format_context() {
-        implements_send::<ValidateCikFormatContext<FakeWriteRepository>>();
+        implements_send::<ValidateCikFormatContext>();
     }
 
     #[test]
     const fn should_implement_sync_for_validate_cik_format_context() {
-        implements_sync::<ValidateCikFormatContext<FakeWriteRepository>>();
+        implements_sync::<ValidateCikFormatContext>();
     }
 
     #[test]
     const fn should_be_thread_safe_for_validate_cik_format_context() {
-        implements_send::<ValidateCikFormatContext<FakeWriteRepository>>();
-        implements_sync::<ValidateCikFormatContext<FakeWriteRepository>>();
+        implements_send::<ValidateCikFormatContext>();
+        implements_sync::<ValidateCikFormatContext>();
     }
 
     const fn implements_sized<T: Sized>() {}
     #[test]
     const fn should_be_sized_for_validate_cik_format_context() {
-        implements_sized::<ValidateCikFormatContext<FakeWriteRepository>>();
+        implements_sized::<ValidateCikFormatContext>();
     }
 
     const fn implements_hash<T: Hash>() {}
     #[test]
     const fn should_implement_hash_for_validate_cik_format_context() {
-        implements_hash::<ValidateCikFormatContext<FakeWriteRepository>>();
+        implements_hash::<ValidateCikFormatContext>();
     }
 
     const fn implements_partial_eq<T: PartialEq>() {}
     #[test]
     const fn should_implement_partial_eq_for_validate_cik_format_context() {
-        implements_partial_eq::<ValidateCikFormatContext<FakeWriteRepository>>();
+        implements_partial_eq::<ValidateCikFormatContext>();
     }
 
     const fn implements_eq<T: Eq>() {}
     #[test]
     const fn should_implement_eq_for_validate_cik_format_context() {
-        implements_eq::<ValidateCikFormatContext<FakeWriteRepository>>();
+        implements_eq::<ValidateCikFormatContext>();
     }
 
     const fn implements_partial_ord<T: PartialOrd>() {}
     #[test]
     const fn should_implement_partial_ord_for_validate_cik_format_context() {
-        implements_partial_ord::<ValidateCikFormatContext<FakeWriteRepository>>();
+        implements_partial_ord::<ValidateCikFormatContext>();
     }
 
     const fn implements_ord<T: Ord>() {}
     #[test]
     const fn should_implement_ord_for_validate_cik_format_context() {
-        implements_ord::<ValidateCikFormatContext<FakeWriteRepository>>();
+        implements_ord::<ValidateCikFormatContext>();
     }
 
     const fn implements_debug<T: Debug>() {}
     #[test]
     const fn should_implement_debug_for_validate_cik_format_context() {
-        implements_debug::<ValidateCikFormatContext<FakeWriteRepository>>();
+        implements_debug::<ValidateCikFormatContext>();
     }
 
     const fn implements_clone<T: Clone>() {}
     #[test]
     const fn should_implement_clone_for_validate_cik_format_context() {
-        implements_clone::<ValidateCikFormatContext<FakeWriteRepository>>();
+        implements_clone::<ValidateCikFormatContext>();
     }
 
     const fn implements_unpin<T: Unpin>() {}
     #[test]
     const fn should_implement_unpin_for_validate_cik_format_context() {
-        implements_unpin::<ValidateCikFormatContext<FakeWriteRepository>>();
-    }
-
-    #[test]
-    fn should_return_repository_when_accessing_repository_of_validate_cik_format_context() {
-        let context = ValidateCikFormatContext::new(
-            BERKSHIRE_HATHAWAY_CIK_RAW,
-            SecClient::default(),
-            FakeWriteRepository::rejecting(WriteError::conflicting_write("Sample conflict")),
-        );
-
-        let expected_result =
-            &FakeWriteRepository::rejecting(WriteError::conflicting_write("Sample conflict"));
-
-        let result = context.repository();
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
-    fn should_update_repository_when_updater_contains_repository_for_validate_cik_format_context() {
-        let mut context = test_context();
-        let update = ValidateCikFormatContextUpdater::builder()
-            .repository(FakeWriteRepository::rejecting(
-                WriteError::conflicting_write("Sample conflict"),
-            ))
-            .build();
-
-        let expected_result =
-            &FakeWriteRepository::rejecting(WriteError::conflicting_write("Sample conflict"));
-
-        context.update_context(update);
-        let result = context.repository();
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
-    fn should_include_the_repository_when_serializing_the_context() {
-        let context = test_context();
-
-        let expected_result = serde_json::json!({
-            "raw_cik": BERKSHIRE_HATHAWAY_CIK_RAW,
-            "sec_client": { "user_agent": DEFAULT_SEC_USER_AGENT },
-            "repository": { "kind": "fake", "rejection": null },
-            "max_retries": 0,
-        });
-
-        let result = serde_json::to_value(context)
-            .expect("Given a context of domain types, serialization should always succeed");
-
-        assert_eq!(result, expected_result);
+        implements_unpin::<ValidateCikFormatContext>();
     }
 }

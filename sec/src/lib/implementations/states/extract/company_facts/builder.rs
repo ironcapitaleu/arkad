@@ -181,13 +181,9 @@ impl<R: RawRepository<RawCompanyFacts>, S: SecClientTrait>
     ///     .build();
     /// ```
     #[must_use]
-    pub fn build(self) -> ExtractCompanyFactsSuperState<ValidateCikFormat<R, S>, R, S> {
+    pub fn build(self) -> ExtractCompanyFactsSuperState<ValidateCikFormat<S>, R, S> {
         let input_data = ValidateCikFormatInput::new(self.cik.clone());
-        let state_context = ValidateCikFormatContext::new(
-            self.cik,
-            self.sec_client.clone(),
-            self.repository.clone(),
-        );
+        let state_context = ValidateCikFormatContext::new(self.cik, self.sec_client.clone());
 
         ExtractCompanyFactsSuperState {
             current_state: ValidateCikFormat::new(input_data, state_context),
@@ -237,10 +233,8 @@ mod tests {
         sec_client: SecClient,
         execution_id: Uuid,
         repository: FakeWriteRepository,
-    ) -> ExtractCompanyFactsSuperState<ValidateCikFormat<FakeWriteRepository>, FakeWriteRepository>
-    {
-        let state_context =
-            ValidateCikFormatContext::new(cik, sec_client.clone(), repository.clone());
+    ) -> ExtractCompanyFactsSuperState<ValidateCikFormat, FakeWriteRepository> {
+        let state_context = ValidateCikFormatContext::new(cik, sec_client.clone());
 
         ExtractCompanyFactsSuperState {
             current_state: ValidateCikFormat::new(ValidateCikFormatInput::new(cik), state_context),

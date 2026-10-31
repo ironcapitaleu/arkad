@@ -115,8 +115,8 @@ impl StateData for ExtractCompanyFactsSuperStateData {
 ///
 /// Holds the shared SEC client `C` handed down to each inner state, so the client is constructed
 /// once and reused across the whole extract phase. It also holds the `execution_id` and the storage
-/// repository `R`. The transition into [`StoreCompanyFacts`] hands the store state a clone of the
-/// repository.
+/// repository `R`. The transition into [`StoreCompanyFacts`] passes a clone of the repository to
+/// the store state.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub struct ExtractCompanyFactsSuperStateContext<R, C = SecClient> {
     pub(crate) sec_client: C,
@@ -288,7 +288,7 @@ impl<S: State, R: RawRepository<RawCompanyFacts>, C: SecClientTrait> SuperState<
 {
 }
 
-impl<R: RawRepository<RawCompanyFacts>> ExtractCompanyFactsSuperState<ValidateCikFormat<R>, R> {
+impl<R: RawRepository<RawCompanyFacts>> ExtractCompanyFactsSuperState<ValidateCikFormat, R> {
     /// Returns an [`ExtractCompanyFactsSuperStateBuilder`] that holds no field yet.
     #[must_use]
     pub const fn builder()
@@ -405,9 +405,9 @@ where
 }
 
 impl<R: RawRepository<RawCompanyFacts>, C: SecClientTrait> NonTerminal
-    for ExtractCompanyFactsSuperState<ValidateCikFormat<R, C>, R, C>
+    for ExtractCompanyFactsSuperState<ValidateCikFormat<C>, R, C>
 {
-    type Current = ValidateCikFormat<R, C>;
+    type Current = ValidateCikFormat<C>;
     type Next = PrepareCompanyFactsRequest;
 }
 
@@ -439,8 +439,8 @@ impl<R: RawRepository<RawCompanyFacts> + Send + 'static, C: SecClientTrait + 'st
 }
 
 impl<R: RawRepository<RawCompanyFacts>, C: SecClientTrait>
-    Transition<ValidateCikFormat<R, C>, PrepareCompanyFactsRequest>
-    for ExtractCompanyFactsSuperState<ValidateCikFormat<R, C>, R, C>
+    Transition<ValidateCikFormat<C>, PrepareCompanyFactsRequest>
+    for ExtractCompanyFactsSuperState<ValidateCikFormat<C>, R, C>
 {
     fn transition_to_next_state_sec(self) -> Result<Self::NewStateMachine, TransitionError> {
         let next_state = PrepareCompanyFactsRequest::try_from(self.current_state)?;
@@ -496,8 +496,8 @@ where
 }
 
 impl<R: RawRepository<RawCompanyFacts>, C: SecClientTrait>
-    SMTransition<ValidateCikFormat<R, C>, PrepareCompanyFactsRequest>
-    for ExtractCompanyFactsSuperState<ValidateCikFormat<R, C>, R, C>
+    SMTransition<ValidateCikFormat<C>, PrepareCompanyFactsRequest>
+    for ExtractCompanyFactsSuperState<ValidateCikFormat<C>, R, C>
 {
     type NewStateMachine = ExtractCompanyFactsSuperState<PrepareCompanyFactsRequest, R, C>;
 
@@ -818,10 +818,7 @@ mod tests {
     #[test]
     const fn should_implement_auto_traits_for_validate_cik_format_super_state() {
         implements_auto_traits::<
-            ExtractCompanyFactsSuperState<
-                ValidateCikFormat<FakeWriteRepository>,
-                FakeWriteRepository,
-            >,
+            ExtractCompanyFactsSuperState<ValidateCikFormat, FakeWriteRepository>,
         >();
     }
 
@@ -844,18 +841,8 @@ mod tests {
 
     #[test]
     const fn should_be_thread_safe_for_validate_cik_format_super_state() {
-        implements_send::<
-            ExtractCompanyFactsSuperState<
-                ValidateCikFormat<FakeWriteRepository>,
-                FakeWriteRepository,
-            >,
-        >();
-        implements_sync::<
-            ExtractCompanyFactsSuperState<
-                ValidateCikFormat<FakeWriteRepository>,
-                FakeWriteRepository,
-            >,
-        >();
+        implements_send::<ExtractCompanyFactsSuperState<ValidateCikFormat, FakeWriteRepository>>();
+        implements_sync::<ExtractCompanyFactsSuperState<ValidateCikFormat, FakeWriteRepository>>();
     }
 
     #[test]
@@ -881,12 +868,7 @@ mod tests {
     const fn implements_debug<T: Debug>() {}
     #[test]
     const fn should_implement_debug_for_validate_cik_format_super_state() {
-        implements_debug::<
-            ExtractCompanyFactsSuperState<
-                ValidateCikFormat<FakeWriteRepository>,
-                FakeWriteRepository,
-            >,
-        >();
+        implements_debug::<ExtractCompanyFactsSuperState<ValidateCikFormat, FakeWriteRepository>>();
     }
 
     #[test]
@@ -906,12 +888,7 @@ mod tests {
     const fn implements_clone<T: Clone>() {}
     #[test]
     const fn should_implement_clone_for_validate_cik_format_super_state() {
-        implements_clone::<
-            ExtractCompanyFactsSuperState<
-                ValidateCikFormat<FakeWriteRepository>,
-                FakeWriteRepository,
-            >,
-        >();
+        implements_clone::<ExtractCompanyFactsSuperState<ValidateCikFormat, FakeWriteRepository>>();
     }
 
     #[test]
@@ -932,10 +909,7 @@ mod tests {
     #[test]
     const fn should_implement_partial_eq_for_validate_cik_format_super_state() {
         implements_partial_eq::<
-            ExtractCompanyFactsSuperState<
-                ValidateCikFormat<FakeWriteRepository>,
-                FakeWriteRepository,
-            >,
+            ExtractCompanyFactsSuperState<ValidateCikFormat, FakeWriteRepository>,
         >();
     }
 
@@ -956,12 +930,7 @@ mod tests {
     const fn implements_hash<T: Hash>() {}
     #[test]
     const fn should_implement_hash_for_validate_cik_format_super_state() {
-        implements_hash::<
-            ExtractCompanyFactsSuperState<
-                ValidateCikFormat<FakeWriteRepository>,
-                FakeWriteRepository,
-            >,
-        >();
+        implements_hash::<ExtractCompanyFactsSuperState<ValidateCikFormat, FakeWriteRepository>>();
     }
 
     #[test]

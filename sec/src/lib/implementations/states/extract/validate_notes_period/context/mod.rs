@@ -10,22 +10,18 @@ use serde::Serialize;
 use state_maschine::prelude::Context as SMContext;
 use uuid::Uuid;
 
-use crate::shared::raw_repository::RawRepository;
-use crate::shared::raw_source::RawNotesArchive;
 use crate::traits::state_machine::state::Context;
 
 /// Context for the [`ValidateNotesPeriod`](super::ValidateNotesPeriod) state.
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
-pub struct ValidateNotesPeriodContext<R> {
+pub struct ValidateNotesPeriodContext {
     /// The ID of the run.
     pub execution_id: Uuid,
-    /// The storage repository.
-    pub repository: R,
     /// The maximum number of retries of the state.
     pub max_retries: u32,
 }
 
-impl<R> ValidateNotesPeriodContext<R> {
+impl ValidateNotesPeriodContext {
     /// Creates a new [`ValidateNotesPeriodContext`] with a retry budget of 0.
     ///
     /// # Examples
@@ -34,7 +30,7 @@ impl<R> ValidateNotesPeriodContext<R> {
     /// use sec::implementations::states::extract::validate_notes_period::ValidateNotesPeriodContext;
     /// use uuid::Uuid;
     ///
-    /// let context = ValidateNotesPeriodContext::new(Uuid::nil(), ());
+    /// let context = ValidateNotesPeriodContext::new(Uuid::nil());
     ///
     /// let expected_result = 0;
     ///
@@ -43,23 +39,22 @@ impl<R> ValidateNotesPeriodContext<R> {
     /// assert_eq!(result, expected_result);
     /// ```
     #[must_use]
-    pub const fn new(execution_id: Uuid, repository: R) -> Self {
+    pub const fn new(execution_id: Uuid) -> Self {
         Self {
             execution_id,
-            repository,
             max_retries: 0,
         }
     }
 }
 
-impl<R: RawRepository<RawNotesArchive>> Context for ValidateNotesPeriodContext<R> {
+impl Context for ValidateNotesPeriodContext {
     fn max_retries(&self) -> u32 {
         self.max_retries
     }
 }
 
-impl<R: RawRepository<RawNotesArchive>> SMContext for ValidateNotesPeriodContext<R> {
-    type UpdateType = ValidateNotesPeriodContextUpdater<R>;
+impl SMContext for ValidateNotesPeriodContext {
+    type UpdateType = ValidateNotesPeriodContextUpdater;
 
     fn context(&self) -> &Self {
         self
@@ -70,16 +65,13 @@ impl<R: RawRepository<RawNotesArchive>> SMContext for ValidateNotesPeriodContext
         if let Some(execution_id) = updates.execution_id {
             self.execution_id = execution_id;
         }
-        if let Some(repository) = updates.repository {
-            self.repository = repository;
-        }
         if let Some(max_retries) = updates.max_retries {
             self.max_retries = max_retries;
         }
     }
 }
 
-impl<R> fmt::Display for ValidateNotesPeriodContext<R> {
+impl fmt::Display for ValidateNotesPeriodContext {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "\tExecution ID: {}", self.execution_id)
     }
@@ -89,38 +81,34 @@ impl<R> fmt::Display for ValidateNotesPeriodContext<R> {
 ///
 /// Fields set to `None` stay unchanged when the updater is applied.
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
-pub struct ValidateNotesPeriodContextUpdater<R> {
+pub struct ValidateNotesPeriodContextUpdater {
     /// The new `execution_id`.
     pub execution_id: Option<Uuid>,
-    /// The new storage repository.
-    pub repository: Option<R>,
     /// The new retry budget.
     pub max_retries: Option<u32>,
 }
 
-impl<R> ValidateNotesPeriodContextUpdater<R> {
+impl ValidateNotesPeriodContextUpdater {
     /// Returns a [`ValidateNotesPeriodContextUpdaterBuilder`] with no field set.
     #[must_use]
-    pub const fn builder() -> ValidateNotesPeriodContextUpdaterBuilder<R> {
+    pub const fn builder() -> ValidateNotesPeriodContextUpdaterBuilder {
         ValidateNotesPeriodContextUpdaterBuilder::new()
     }
 }
 
 /// Fluent builder for a [`ValidateNotesPeriodContextUpdater`].
 #[derive(Debug)]
-pub struct ValidateNotesPeriodContextUpdaterBuilder<R> {
+pub struct ValidateNotesPeriodContextUpdaterBuilder {
     execution_id: Option<Uuid>,
-    repository: Option<R>,
     max_retries: Option<u32>,
 }
 
-impl<R> ValidateNotesPeriodContextUpdaterBuilder<R> {
+impl ValidateNotesPeriodContextUpdaterBuilder {
     /// Creates a [`ValidateNotesPeriodContextUpdaterBuilder`] with no field set.
     #[must_use]
     pub const fn new() -> Self {
         Self {
             execution_id: None,
-            repository: None,
             max_retries: None,
         }
     }
@@ -129,14 +117,6 @@ impl<R> ValidateNotesPeriodContextUpdaterBuilder<R> {
     #[must_use]
     pub const fn execution_id(mut self, execution_id: Uuid) -> Self {
         self.execution_id = Some(execution_id);
-        self
-    }
-
-    /// Sets the storage repository.
-    #[must_use]
-    #[allow(clippy::missing_const_for_fn)]
-    pub fn repository(mut self, repository: R) -> Self {
-        self.repository = Some(repository);
         self
     }
 
@@ -149,16 +129,15 @@ impl<R> ValidateNotesPeriodContextUpdaterBuilder<R> {
 
     /// Builds the [`ValidateNotesPeriodContextUpdater`].
     #[must_use]
-    pub fn build(self) -> ValidateNotesPeriodContextUpdater<R> {
+    pub const fn build(self) -> ValidateNotesPeriodContextUpdater {
         ValidateNotesPeriodContextUpdater {
             execution_id: self.execution_id,
-            repository: self.repository,
             max_retries: self.max_retries,
         }
     }
 }
 
-impl<R> Default for ValidateNotesPeriodContextUpdaterBuilder<R> {
+impl Default for ValidateNotesPeriodContextUpdaterBuilder {
     fn default() -> Self {
         Self::new()
     }
@@ -169,13 +148,11 @@ mod tests {
     use std::{fmt::Debug, hash::Hash};
 
     use pretty_assertions::assert_eq;
-    use storage::WriteError;
 
     use super::*;
-    use crate::tests::fixtures::sample_write_repository::FakeNotesRepository;
 
-    fn test_context() -> ValidateNotesPeriodContext<FakeNotesRepository> {
-        ValidateNotesPeriodContext::new(Uuid::nil(), FakeNotesRepository::new())
+    fn test_context() -> ValidateNotesPeriodContext {
+        ValidateNotesPeriodContext::new(Uuid::nil())
     }
 
     #[test]
@@ -189,22 +166,6 @@ mod tests {
 
         context.update_context(update);
         let result = context.execution_id;
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
-    fn should_update_repository_when_update_contains_repository() {
-        let mut context = test_context();
-        let rejecting = FakeNotesRepository::rejecting(WriteError::conflicting_write("Sample"));
-        let update = ValidateNotesPeriodContextUpdater::builder()
-            .repository(rejecting.clone())
-            .build();
-
-        let expected_result = rejecting;
-
-        context.update_context(update);
-        let result = context.repository;
 
         assert_eq!(result, expected_result);
     }
@@ -243,6 +204,6 @@ mod tests {
     }
     #[test]
     const fn should_implement_value_traits_for_validate_notes_period_context() {
-        implements_value_traits::<ValidateNotesPeriodContext<FakeNotesRepository>>();
+        implements_value_traits::<ValidateNotesPeriodContext>();
     }
 }

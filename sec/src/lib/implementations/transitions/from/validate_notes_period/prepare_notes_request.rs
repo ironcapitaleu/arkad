@@ -20,10 +20,8 @@ use crate::implementations::states::extract::prepare_sec_request::{
 };
 use crate::implementations::states::extract::validate_notes_period::ValidateNotesPeriod;
 use crate::implementations::states::extract::validate_notes_period::constants::STATE_NAME as VALIDATE_NOTES_PERIOD;
-use crate::shared::raw_repository::RawRepository;
-use crate::shared::raw_source::RawNotesArchive;
 
-impl<R: RawRepository<RawNotesArchive>> TryFrom<ValidateNotesPeriod<R>> for PrepareNotesRequest {
+impl TryFrom<ValidateNotesPeriod> for PrepareNotesRequest {
     type Error = TransitionError;
 
     /// Builds a [`PrepareNotesRequest`] from a computed [`ValidateNotesPeriod`].
@@ -31,7 +29,7 @@ impl<R: RawRepository<RawNotesArchive>> TryFrom<ValidateNotesPeriod<R>> for Prep
     /// # Errors
     ///
     /// Returns [`TransitionError::MissingOutput`] if `state` has no computed output.
-    fn try_from(state: ValidateNotesPeriod<R>) -> Result<Self, TransitionError> {
+    fn try_from(state: ValidateNotesPeriod) -> Result<Self, TransitionError> {
         let (_input, output, _context) = state.into_parts();
         let output_data = output.ok_or_else(|| {
             transition::MissingOutput::new(VALIDATE_NOTES_PERIOD, PREPARE_SEC_REQUEST)
@@ -47,7 +45,7 @@ impl<R: RawRepository<RawNotesArchive>> TryFrom<ValidateNotesPeriod<R>> for Prep
 #[cfg(test)]
 mod tests {
     use pretty_assertions::assert_eq;
-    use storage::WriteError;
+
     use uuid::Uuid;
 
     use super::*;
@@ -55,19 +53,15 @@ mod tests {
         ValidateNotesPeriodContext, ValidateNotesPeriodInput,
     };
     use crate::shared::notes_period::NotesPeriod;
-    use crate::tests::fixtures::sample_write_repository::FakeNotesRepository;
+
     use crate::traits::state_machine::state::State;
 
     const SAMPLE_EXECUTION_ID: Uuid = Uuid::from_u128(7);
 
-    fn rejecting_repository() -> FakeNotesRepository {
-        FakeNotesRepository::rejecting(WriteError::conflicting_write("Sample conflict"))
-    }
-
-    fn validate_notes_period() -> ValidateNotesPeriod<FakeNotesRepository> {
+    fn validate_notes_period() -> ValidateNotesPeriod {
         ValidateNotesPeriod::new(
             ValidateNotesPeriodInput::new("2024q1"),
-            ValidateNotesPeriodContext::new(SAMPLE_EXECUTION_ID, rejecting_repository()),
+            ValidateNotesPeriodContext::new(SAMPLE_EXECUTION_ID),
         )
     }
 
