@@ -13,8 +13,10 @@ use crate::shared::financial::accession_number::AccessionNumber;
 
 /// Error indicating that the `index.json` of a filing folder does not parse.
 #[derive(Debug, Error, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[error("[InvalidFolderIndex] The folder index does not parse, Reason: '{reason}'")]
+#[error("[InvalidFolderIndex] The folder index at '{url}' does not parse, Reason: '{reason}'")]
 pub struct InvalidFolderIndex {
+    /// The URL of the folder index, which names the CIK and the accession number.
+    pub url: String,
     /// The message of the JSON parser.
     pub reason: String,
 }
@@ -99,12 +101,14 @@ mod tests {
     }
 
     #[test]
-    fn should_quote_the_reason_when_invalid_folder_index_is_displayed() {
+    fn should_name_the_url_and_quote_the_reason_when_invalid_folder_index_is_displayed() {
         let error = InvalidFolderIndex {
+            url: "https://www.sec.gov/Archives/edgar/data/3545/000000354526000047/index.json"
+                .to_string(),
             reason: "EOF while parsing a value at line 1 column 0".to_string(),
         };
 
-        let expected_result = "[InvalidFolderIndex] The folder index does not parse, Reason: 'EOF while parsing a value at line 1 column 0'";
+        let expected_result = "[InvalidFolderIndex] The folder index at 'https://www.sec.gov/Archives/edgar/data/3545/000000354526000047/index.json' does not parse, Reason: 'EOF while parsing a value at line 1 column 0'";
 
         let result = error.to_string();
 

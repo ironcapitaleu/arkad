@@ -9,6 +9,7 @@ use crate::shared::filing_documents::{
     FilingDocumentRole, FilingDocuments, FilingDocumentsError, InvalidFolderIndex,
 };
 use crate::shared::financial::accession_number::AccessionNumber;
+use crate::shared::response::SecResponse as SecResponseTrait;
 use crate::shared::response::implementations::sec_response::SecResponse;
 
 /// The suffix of an XBRL instance extracted from an inline XBRL document.
@@ -122,20 +123,23 @@ impl FolderIndex {
     }
 }
 
-impl TryFrom<&[u8]> for FolderIndex {
+impl TryFrom<&SecResponse> for FolderIndex {
     type Error = InvalidFolderIndex;
 
-    /// Parses the `index.json` of a filing folder and keeps the `name` of each member of
-    /// `directory.item`.
+    /// Parses the body of the response to a
+    /// [`FilingIndex`](crate::shared::request::implementations::sec_request::FilingIndex) request
+    /// and keeps the `name` of each member of `directory.item`.
     ///
     /// # Errors
     ///
-    /// Returns an [`InvalidFolderIndex`] if the bytes are not JSON with a `directory.item` list
-    /// of members with a `name`.
-    fn try_from(json: &[u8]) -> Result<Self, Self::Error> {
-        let raw: RawFolderIndex = serde_json::from_slice(json).map_err(|e| InvalidFolderIndex {
-            reason: e.to_string(),
-        })?;
+    /// Returns an [`InvalidFolderIndex`] that names the URL of the response if the body is not
+    /// JSON with a `directory.item` list of members with a `name`.
+    fn try_from(response: &SecResponse) -> Result<Self, Self::Error> {
+        let raw: RawFolderIndex =
+            serde_json::from_slice(response.raw_body()).map_err(|e| InvalidFolderIndex {
+                url: response.url().to_string(),
+                reason: e.to_string(),
+            })?;
         Ok(Self::new(
             raw.directory
                 .item
@@ -143,20 +147,6 @@ impl TryFrom<&[u8]> for FolderIndex {
                 .map(|member| member.name)
                 .collect(),
         ))
-    }
-}
-
-impl TryFrom<&SecResponse> for FolderIndex {
-    type Error = InvalidFolderIndex;
-
-    /// Parses the body of the response to a
-    /// [`FilingIndex`](crate::shared::request::implementations::sec_request::FilingIndex) request.
-    ///
-    /// # Errors
-    ///
-    /// Returns an [`InvalidFolderIndex`] if the body is not a folder index.
-    fn try_from(response: &SecResponse) -> Result<Self, Self::Error> {
-        Self::try_from(response.raw_body())
     }
 }
 
@@ -232,8 +222,25 @@ mod tests {
         FolderIndex::new(names.iter().map(|name| (*name).to_string()).collect())
     }
 
+    const FOLDER_INDEX_URL: &str =
+        "https://www.sec.gov/Archives/edgar/data/3545/000000354526000047/index.json";
+
+    /// Returns a `200 OK` JSON response with `body`, as the SEC sends a folder index.
+    fn response(body: &[u8]) -> SecResponse {
+        SecResponse::from_parts(
+            FOLDER_INDEX_URL
+                .parse()
+                .expect("Given a hardcoded valid URL, parsing should always succeed"),
+            Headers::new(HashMap::new()),
+            ContentType::Json,
+            StatusCode::Ok,
+            body.to_vec(),
+        )
+        .expect("Given a valid JSON body, building the response should always succeed")
+    }
+
     fn parsed(json: &[u8]) -> FolderIndex {
-        FolderIndex::try_from(json)
+        FolderIndex::try_from(&response(json))
             .expect("Given a folder index downloaded from the SEC, parsing should always succeed")
     }
 
@@ -383,55 +390,27 @@ mod tests {
 
     #[test]
     fn should_read_the_member_names_in_index_order_for_a_folder_index() {
-        let json = br#"{"directory": {"item": [{"name": "a_htm.xml", "size": "1"}, {"name": "b_lab.xml"}], "name": "/x"}}"#;
+        let filing_index_response = response(
+            br#"{"directory": {"item": [{"name": "a_htm.xml", "size": "1"}, {"name": "b_lab.xml"}], "name": "/x"}}"#,
+        );
 
         let expected_result = Ok(FolderIndex::new(vec![
             "a_htm.xml".to_string(),
             "b_lab.xml".to_string(),
         ]));
 
-        let result = FolderIndex::try_from(&json[..]);
+        let result = FolderIndex::try_from(&filing_index_response);
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
-    fn should_read_the_member_names_from_the_body_of_a_filing_index_response() {
-        let response = SecResponse::from_parts(
-            "https://www.sec.gov/Archives/edgar/data/3545/000000354526000047/index.json"
-                .parse()
-                .expect("Given a hardcoded valid URL, parsing should always succeed"),
-            Headers::new(HashMap::new()),
-            ContentType::Json,
-            StatusCode::Ok,
-            br#"{"directory": {"item": [{"name": "alco-20260908_htm.xml"}]}}"#.to_vec(),
-        )
-        .expect("Given a valid JSON body, building the response should always succeed");
+    fn should_name_the_url_in_invalid_folder_index_when_the_json_has_no_directory() {
+        let filing_index_response = response(br#"{"item": []}"#);
 
-        let expected_result = Ok(FolderIndex::new(vec!["alco-20260908_htm.xml".to_string()]));
+        let result = FolderIndex::try_from(&filing_index_response);
 
-        let result = FolderIndex::try_from(&response);
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
-    fn should_return_invalid_folder_index_when_the_json_has_no_directory() {
-        let json = br#"{"item": []}"#;
-
-        let result = FolderIndex::try_from(&json[..]);
-
-        // The reason text belongs to `serde_json`, so the test checks the variant only.
-        assert!(matches!(result, Err(InvalidFolderIndex { .. })));
-    }
-
-    #[test]
-    fn should_return_invalid_folder_index_when_the_body_is_not_json() {
-        let body = b"<html>Too Many Requests</html>";
-
-        let result = FolderIndex::try_from(&body[..]);
-
-        // The reason text belongs to `serde_json`, so the test checks the variant only.
-        assert!(matches!(result, Err(InvalidFolderIndex { .. })));
+        // The reason text belongs to `serde_json`, so the test checks the variant and the URL.
+        assert!(matches!(result, Err(InvalidFolderIndex { url, .. }) if url == FOLDER_INDEX_URL));
     }
 }

@@ -605,7 +605,8 @@ Decided in STA-371:
 - `FolderIndex` in `shared::filing_documents` holds the member names of the folder.
   `FolderIndex::try_from(&SecResponse)` parses the `index.json`. The transition from
   `ExecuteSecRequest` calls it, so a body that does not parse fails there with
-  `FailedOutputConversion`, before `SelectFilingDocuments` runs.
+  `FailedOutputConversion`, before `SelectFilingDocuments` runs. Its `InvalidFolderIndex` names
+  the URL, which holds the CIK and the accession number.
 - `FolderIndex::select_documents` holds the rules. The state calls it.
 - Input: the accession number and the `FolderIndex`. Output: `FilingDocuments`, the instance
   name and an optional label file name.

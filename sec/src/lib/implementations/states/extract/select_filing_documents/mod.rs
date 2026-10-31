@@ -4,7 +4,7 @@
 //! and the label file of one filing from its folder index. The rules are those of
 //! [`FolderIndex::select_documents`](crate::shared::filing_documents::FolderIndex::select_documents).
 //!
-//! The transition into this state parses the response to the `FilingIndex` request with
+//! The transition into this state must parse the response to the `FilingIndex` request with
 //! `FolderIndex::try_from`, so a body that does not parse fails before the state runs.
 //!
 //! ## Modules
@@ -185,14 +185,19 @@ impl fmt::Display for SelectFilingDocuments {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
     use std::{fmt::Debug, hash::Hash};
 
     use pretty_assertions::assert_eq;
     use uuid::Uuid;
 
     use super::*;
+    use crate::shared::content_type::ContentType;
     use crate::shared::filing_documents::{FilingDocuments, FilingDocumentsError, FolderIndex};
     use crate::shared::financial::accession_number::AccessionNumber;
+    use crate::shared::headers::Headers;
+    use crate::shared::response::implementations::sec_response::SecResponse;
+    use crate::shared::status_code::StatusCode;
     use crate::tests::fixtures::data::filing_index::INLINE_XBRL_FOLDER_INDEX;
 
     fn test_state(accession_number: &str, folder_index: FolderIndex) -> SelectFilingDocuments {
@@ -202,8 +207,19 @@ mod tests {
         )
     }
 
+    /// Parses the fixture folder index of `0000003545-26-000047`, as the transition does.
     fn inline_xbrl_folder_index() -> FolderIndex {
-        FolderIndex::try_from(INLINE_XBRL_FOLDER_INDEX)
+        let response = SecResponse::from_parts(
+            "https://www.sec.gov/Archives/edgar/data/3545/000000354526000047/index.json"
+                .parse()
+                .expect("Given a hardcoded valid URL, parsing should always succeed"),
+            Headers::new(HashMap::new()),
+            ContentType::Json,
+            StatusCode::Ok,
+            INLINE_XBRL_FOLDER_INDEX.to_vec(),
+        )
+        .expect("Given the JSON fixture, building the response should always succeed");
+        FolderIndex::try_from(&response)
             .expect("Given a folder index downloaded from the SEC, parsing should always succeed")
     }
 
