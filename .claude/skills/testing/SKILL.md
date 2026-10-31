@@ -145,6 +145,7 @@ The second test computes `expected_result` from strings with `map`.
 - A helper that returns the whole expected value, as in `fn expected_filings() -> Vec<FilingRef>`, hides it. Write the values in the test.
 - `format!` that inserts Arrange variables into a literal is allowed, as in the "Error type" template below.
 - If the full value is too long to write, assert on a smaller part of the output, and write that part out in full.
+- If the expected value is long but you assert on all of it, you can name it in the Arrange step, as in `let periods_from_2009q1_to_2026_09 = vec![...];`. Then `expected_result` takes that name. The value must stay written out in the test. This needs no deviation comment.
 - If the test checks that two paths agree, `expected_result` can be the output of the reference path. Name both paths in the test name, as in `should_hand_every_stream_item_to_the_caller_when_running_to_the_archive`.
 
 ## Boilerplate Tests (apply to ALL domain types and state structs)
