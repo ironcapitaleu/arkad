@@ -234,6 +234,7 @@ mod tests {
     #[test]
     fn should_set_cik_and_zero_max_retries_when_created_with_new() {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
+        let repository = FakeWriteRepository::new();
 
         let expected_result = TestContext {
             request_input: cik.clone(),
@@ -241,7 +242,7 @@ mod tests {
             max_retries: 0,
         };
 
-        let result = TestContext::new(cik, FakeWriteRepository::new());
+        let result = TestContext::new(cik, repository);
 
         assert_eq!(result, expected_result);
     }

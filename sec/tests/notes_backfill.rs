@@ -84,7 +84,7 @@ async fn should_list_each_stored_file_with_its_size_and_sha256_when_backfilling_
 async fn should_store_the_other_periods_when_one_period_fails() {
     let expected_result = vec![
         json!("sec/notes/2009q1_notes.zip"),
-        json!("Download Notes Archive"),
+        json!("Execute SEC Request"),
         json!("sec/notes/2009q2_notes.zip"),
     ];
 
