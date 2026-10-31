@@ -692,6 +692,7 @@ mod tests {
 
     #[test]
     fn should_keep_the_given_digest_when_setting_hashed_content() {
+        let bytes = b"{}";
         let digest_of_other_bytes = Sha256Digest::of(b"[]");
         let (execution_id, producer) = sample_run();
 
@@ -700,7 +701,7 @@ mod tests {
         let metadata = DocumentMetadata::builder()
             .document_type::<SampleDocument>()
             .media_type("application/json")
-            .content_hashed(b"{}", &digest_of_other_bytes)
+            .content_hashed(bytes, &digest_of_other_bytes)
             .produced_at(produced_at())
             .run(execution_id, producer)
             .ingestion_mode(IngestionMode::Backfill)
@@ -754,6 +755,7 @@ mod tests {
 
     #[test]
     fn should_hold_the_ingestion_mode_when_setting_the_ingestion_mode() {
+        let ingestion_mode = IngestionMode::Backfill;
         let (execution_id, producer) = sample_run();
 
         let expected_result = IngestionMode::Backfill;
@@ -764,7 +766,7 @@ mod tests {
             .content(b"{}")
             .produced_at(produced_at())
             .run(execution_id, producer)
-            .ingestion_mode(IngestionMode::Backfill)
+            .ingestion_mode(ingestion_mode)
             .context(sample_context())
             .build();
         let result = metadata.ingestion_mode();

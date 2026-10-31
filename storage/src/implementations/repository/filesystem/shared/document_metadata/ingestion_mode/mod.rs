@@ -17,9 +17,11 @@ use serde::{Deserialize, Serialize};
 /// ```rust
 /// use storage::implementations::repository::filesystem::IngestionMode;
 ///
+/// let ingestion_mode = IngestionMode::Backfill;
+///
 /// let expected_result = "backfill";
 ///
-/// let result = IngestionMode::Backfill.to_string();
+/// let result = ingestion_mode.to_string();
 ///
 /// assert_eq!(result, expected_result);
 /// ```
@@ -67,27 +69,33 @@ mod tests {
 
     #[test]
     fn should_display_backfill_for_the_backfill_ingestion_mode() {
+        let ingestion_mode = IngestionMode::Backfill;
+
         let expected_result = "backfill";
 
-        let result = IngestionMode::Backfill.to_string();
+        let result = ingestion_mode.to_string();
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_display_incremental_for_the_incremental_ingestion_mode() {
+        let ingestion_mode = IngestionMode::Incremental;
+
         let expected_result = "incremental";
 
-        let result = IngestionMode::Incremental.to_string();
+        let result = ingestion_mode.to_string();
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_serialize_the_display_text_for_the_backfill_ingestion_mode() {
+        let ingestion_mode = IngestionMode::Backfill;
+
         let expected_result = serde_json::json!(IngestionMode::Backfill.to_string());
 
-        let result = serde_json::to_value(IngestionMode::Backfill)
+        let result = serde_json::to_value(ingestion_mode)
             .expect("Given a unit variant, serialization should always succeed");
 
         assert_eq!(result, expected_result);
@@ -95,9 +103,11 @@ mod tests {
 
     #[test]
     fn should_serialize_the_display_text_for_the_incremental_ingestion_mode() {
+        let ingestion_mode = IngestionMode::Incremental;
+
         let expected_result = serde_json::json!(IngestionMode::Incremental.to_string());
 
-        let result = serde_json::to_value(IngestionMode::Incremental)
+        let result = serde_json::to_value(ingestion_mode)
             .expect("Given a unit variant, serialization should always succeed");
 
         assert_eq!(result, expected_result);
@@ -105,9 +115,11 @@ mod tests {
 
     #[test]
     fn should_read_the_ingestion_mode_when_the_text_is_backfill() {
+        let json = "\"backfill\"";
+
         let expected_result = IngestionMode::Backfill;
 
-        let result: IngestionMode = serde_json::from_str("\"backfill\"")
+        let result: IngestionMode = serde_json::from_str(json)
             .expect("Given the text of a variant, deserialization should always succeed");
 
         assert_eq!(result, expected_result);
@@ -115,9 +127,11 @@ mod tests {
 
     #[test]
     fn should_fail_to_read_the_ingestion_mode_when_the_text_is_unknown() {
+        let json = "\"foo\"";
+
         let expected_result = true;
 
-        let result = serde_json::from_str::<IngestionMode>("\"foo\"").is_err();
+        let result = serde_json::from_str::<IngestionMode>(json).is_err();
 
         assert_eq!(result, expected_result);
     }

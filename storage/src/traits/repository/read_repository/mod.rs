@@ -73,10 +73,11 @@ mod tests {
         let repository: Box<dyn ReadRepository<Record = String, Key = String>> = Box::new(
             FakeReadRepository::initialized(vec![("0000320193".to_string(), "Apple".to_string())]),
         );
+        let key = "0000320193".to_string();
         let expected_result = Some("Apple".to_string());
 
         let result = repository
-            .get("0000320193".to_string())
+            .get(key)
             .await
             .expect("Given a key the fake was initialized with, the read should always succeed");
 

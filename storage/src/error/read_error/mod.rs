@@ -7,7 +7,9 @@
 //! ```rust
 //! use storage::ReadError;
 //!
-//! let _err = ReadError::missing_record("0000320193-24-000123");
+//! let identifier = "0000320193-24-000123";
+//!
+//! let _err = ReadError::missing_record(identifier);
 //! ```
 
 use thiserror::Error;
@@ -149,11 +151,13 @@ mod tests {
 
     #[test]
     fn should_build_missing_record_variant_when_using_its_constructor() {
+        let identifier = "0000320193-24-000123";
+
         let expected_result = ReadError::MissingRecord {
-            identifier: "0000320193-24-000123".to_owned(),
+            identifier: identifier.to_owned(),
         };
 
-        let result = ReadError::missing_record("0000320193-24-000123");
+        let result = ReadError::missing_record(identifier);
 
         assert_eq!(result, expected_result);
     }
