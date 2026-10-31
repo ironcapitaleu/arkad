@@ -12,6 +12,8 @@
 //! - [`notes`]: The [`ExtractNotesSuperState`](notes::ExtractNotesSuperState) and its builder.
 //! - [`daily_index`]: The [`DetectFilingsSuperState`](daily_index::DetectFilingsSuperState) and its
 //!   builder.
+//! - [`submissions`]: The [`ExtractSubmissionsSuperState`](submissions::ExtractSubmissionsSuperState)
+//!   and its builder.
 //! - [`validate_cik_format`]: Validates and normalizes the raw CIK.
 //! - [`prepare_sec_request`]: Builds the request targeting the SEC API endpoint.
 //! - [`execute_sec_request`]: Sends the request and captures the response.
@@ -37,6 +39,7 @@ pub mod store_company_facts;
 pub mod store_daily_index;
 pub mod store_notes_archive;
 pub mod store_submissions;
+pub mod submissions;
 pub mod validate_cik_format;
 pub mod validate_index_date;
 pub mod validate_notes_period;

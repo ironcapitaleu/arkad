@@ -46,6 +46,22 @@ stateDiagram-v2
 
     DetectFilings --> [*]
 
+    %% `ExtractSubmissions` SuperState, one per company, on both ingestion paths
+    [*] --> ExtractSubmissions
+    state ExtractSubmissions {
+        state "ValidateCikFormat" as ValidateSubmissionsCik
+        state "PrepareSecRequest" as PrepareSubmissionsRequest
+        state "ExecuteSecRequest" as ExecuteSubmissionsRequest
+        ValidateSubmissionsCik --> PrepareSubmissionsRequest
+        note right of PrepareSubmissionsRequest : Generic state with the Submissions kind
+        PrepareSubmissionsRequest --> ExecuteSubmissionsRequest
+        note right of ExecuteSubmissionsRequest : Generic state with the Submissions kind
+        ExecuteSubmissionsRequest --> StoreSubmissions
+        note right of StoreSubmissions : The stream ends after this state. The metadata records the ingestion mode
+    }
+
+    ExtractSubmissions --> [*]
+
     %% `Transform` SuperState
     state Transform {
         ParseCompanyFacts --> CreateFinancialStatements
