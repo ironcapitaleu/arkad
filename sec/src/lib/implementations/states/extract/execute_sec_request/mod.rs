@@ -39,7 +39,7 @@
 //! ```
 //!
 //! The state needs no storage. A kind that is only read, such as [`FilingIndex`], has no
-//! [`StoredAs`] impl and still runs through the state:
+//! [`StoredAs`] impl and still implements [`State`]:
 //!
 //! ```rust
 //! use sec::implementations::states::extract::execute_sec_request::ExecuteSecRequest;
@@ -328,7 +328,7 @@ mod tests {
         ExecuteSecRequest::new(input, context)
     }
 
-    /// Creates an `ExecuteSecRequest<NotesFile>` state whose fake client answers with `status`
+    /// Creates an `ExecuteSecRequest<NotesFile, …>` state whose fake client answers with `status`
     /// and the ZIP fixture.
     fn create_notes_file_state(
         status: u16,
@@ -336,7 +336,7 @@ mod tests {
         create_notes_file_state_with_content_type(status, "application/zip")
     }
 
-    /// Creates an `ExecuteSecRequest<NotesFile>` state whose fake client answers with `status`,
+    /// Creates an `ExecuteSecRequest<NotesFile, …>` state whose fake client answers with `status`,
     /// `content_type`, and the ZIP fixture.
     fn create_notes_file_state_with_content_type(
         status: u16,
