@@ -488,7 +488,7 @@ mod tests {
             .map(|month| format!("2025_{month}"))
             .chain((1..=9).map(|month| format!("2026_0{month}")));
 
-        let expected_result = MEASURED_FILE_NAMES.map(str::to_string).to_vec();
+        let expected_result = MEASURED_FILE_NAMES.to_vec();
 
         let result: Vec<String> = quarters
             .chain(months)
