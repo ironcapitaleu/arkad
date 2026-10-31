@@ -25,7 +25,7 @@ impl RateLimiter for CountingRateLimiter {
 
 // Deviation: a client needs `Eq`, `Ord`, and `Hash` to implement `SecClient`. The count changes
 // through `&self`, so every limiter compares equal and adds nothing to a hash. Same rule as
-// `ArchiveSlot`.
+// `OutputSlot`.
 
 impl PartialEq for CountingRateLimiter {
     fn eq(&self, _other: &Self) -> bool {

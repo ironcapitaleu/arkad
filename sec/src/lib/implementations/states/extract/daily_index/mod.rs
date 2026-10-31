@@ -50,10 +50,7 @@
 
 pub mod builder;
 
-use std::cmp::Ordering;
 use std::fmt::{self, Display, Formatter};
-use std::hash::{Hash, Hasher};
-use std::sync::{Arc, Mutex, PoisonError};
 
 use async_trait::async_trait;
 use futures_util::StreamExt;
@@ -80,7 +77,7 @@ use crate::shared::raw_repository::RawRepository;
 use crate::shared::raw_source::RawDailyIndex;
 use crate::shared::request::implementations::sec_request::DailyIndex;
 use crate::shared::response::implementations::sec_response::{SecResponse, ZipBody};
-use crate::traits::state_machine::stream::terminal_stream_with;
+use crate::traits::state_machine::stream::{OutputSlot, terminal_stream_with};
 
 /// Input and output data for the [`DetectFilingsSuperState`].
 ///
@@ -112,7 +109,7 @@ pub struct DetectFilingsSuperStateContext<R, C> {
     pub(crate) sec_client: C,
     pub(crate) execution_id: Uuid,
     pub(crate) repository: R,
-    pub(crate) filings_slot: FilingsSlot,
+    pub(crate) filings_slot: OutputSlot<Vec<FilingRef>>,
 }
 
 impl<R, C> DetectFilingsSuperStateContext<R, C> {
@@ -124,52 +121,9 @@ impl<R, C> DetectFilingsSuperStateContext<R, C> {
             sec_client,
             execution_id,
             repository,
-            filings_slot: FilingsSlot::default(),
+            filings_slot: OutputSlot::default(),
         }
     }
-}
-
-/// A shared slot that [`SelectFilings`] fills with the selected filings.
-///
-/// Clones share one slot. Every slot compares equal and adds nothing to a hash, so the slot never
-/// changes how two contexts compare.
-// Deviation: this copies `ArchiveSlot` of the notes machine with another value type. A generic
-// slot changes the notes machine, so it goes in its own PR.
-#[derive(Debug, Clone, Default)]
-pub(crate) struct FilingsSlot(Arc<Mutex<Option<Vec<FilingRef>>>>);
-
-impl FilingsSlot {
-    fn put(&self, filings: Vec<FilingRef>) {
-        *self.0.lock().unwrap_or_else(PoisonError::into_inner) = Some(filings);
-    }
-
-    fn take(&self) -> Option<Vec<FilingRef>> {
-        self.0.lock().unwrap_or_else(PoisonError::into_inner).take()
-    }
-}
-
-impl PartialEq for FilingsSlot {
-    fn eq(&self, _other: &Self) -> bool {
-        true
-    }
-}
-
-impl Eq for FilingsSlot {}
-
-impl PartialOrd for FilingsSlot {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl Ord for FilingsSlot {
-    fn cmp(&self, _other: &Self) -> Ordering {
-        Ordering::Equal
-    }
-}
-
-impl Hash for FilingsSlot {
-    fn hash<H: Hasher>(&self, _state: &mut H) {}
 }
 
 impl<R: RawRepository<RawDailyIndex>, C: SecClientTrait> SMContext
@@ -349,7 +303,7 @@ where
         mut self,
         mut on_item: impl FnMut(&StreamItem),
     ) -> Result<Vec<FilingRef>, StreamError> {
-        let filings_slot = FilingsSlot::default();
+        let filings_slot = OutputSlot::default();
         self.context.filings_slot = filings_slot.clone();
         let mut stream = self.into_run_stream();
         while let Some(item) = stream.next().await {

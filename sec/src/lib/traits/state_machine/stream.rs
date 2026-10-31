@@ -11,9 +11,15 @@
 //! is [`NonTerminal`] and has a [`Transition`] to that successor, recursively streaming the
 //! successor too. Only terminal states (those with no [`NonTerminal`] impl) need a manual impl,
 //! and `terminal_stream` supplies its body.
+//!
+//! The module also holds `OutputSlot`, which the `on_completed` callback of a terminal state fills
+//! for the caller.
 
+use std::cmp::Ordering;
 use std::fmt;
+use std::hash::{Hash, Hasher};
 use std::pin::Pin;
+use std::sync::{Arc, Mutex, PoisonError};
 
 use futures_core::Stream;
 
@@ -287,6 +293,64 @@ where
     })
 }
 
+/// A shared slot that the `on_completed` callback of `terminal_stream_with` fills with a value of
+/// type `T` for the caller.
+///
+/// Clones share one slot. Every slot compares equal and adds nothing to a hash, so a slot in a
+/// context never changes how two contexts compare.
+#[derive(Debug)]
+pub(crate) struct OutputSlot<T>(Arc<Mutex<Option<T>>>);
+
+impl<T> OutputSlot<T> {
+    /// Puts `value` into the slot, and replaces any value it held.
+    pub(crate) fn put(&self, value: T) {
+        *self.0.lock().unwrap_or_else(PoisonError::into_inner) = Some(value);
+    }
+
+    /// Takes the value out of the slot, and leaves the slot empty.
+    pub(crate) fn take(&self) -> Option<T> {
+        self.0.lock().unwrap_or_else(PoisonError::into_inner).take()
+    }
+}
+
+// Deviation: manual `Clone` and `Default` impls, because the derives would require `T: Clone` and
+// `T: Default`. A clone copies only the `Arc`.
+impl<T> Clone for OutputSlot<T> {
+    fn clone(&self) -> Self {
+        Self(Arc::clone(&self.0))
+    }
+}
+
+impl<T> Default for OutputSlot<T> {
+    fn default() -> Self {
+        Self(Arc::new(Mutex::new(None)))
+    }
+}
+
+impl<T> PartialEq for OutputSlot<T> {
+    fn eq(&self, _other: &Self) -> bool {
+        true
+    }
+}
+
+impl<T> Eq for OutputSlot<T> {}
+
+impl<T> PartialOrd for OutputSlot<T> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl<T> Ord for OutputSlot<T> {
+    fn cmp(&self, _other: &Self) -> Ordering {
+        Ordering::Equal
+    }
+}
+
+impl<T> Hash for OutputSlot<T> {
+    fn hash<H: Hasher>(&self, _state: &mut H) {}
+}
+
 /// Serializes `state` for a stream event, or describes why serialization failed.
 fn state_data<S: serde::Serialize>(state: &S) -> serde_json::Value {
     serde_json::to_value(state)
@@ -306,7 +370,7 @@ mod tests {
         SampleStreamingSuperState,
     };
 
-    use super::IntoStateMachineStream;
+    use super::{IntoStateMachineStream, OutputSlot};
 
     // --- Functional tests ---
 
@@ -650,5 +714,110 @@ mod tests {
     #[test]
     const fn should_implement_ord_for_terminal_streaming_super_state() {
         implements_ord::<SampleStreamingSuperState<SampleStateC>>();
+    }
+
+    // --- Output slot ---
+
+    #[test]
+    fn should_return_the_value_from_a_clone_when_the_other_clone_put_it() {
+        let slot = OutputSlot::default();
+        let clone = slot.clone();
+        clone.put(7);
+
+        let expected_result = Some(7);
+
+        let result = slot.take();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_none_when_the_value_was_already_taken() {
+        let slot = OutputSlot::default();
+        slot.put(7);
+        slot.take();
+
+        let expected_result = None;
+
+        let result = slot.take();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_compare_equal_when_two_slots_hold_different_values() {
+        let slot = OutputSlot::default();
+        slot.put(7);
+        let other = OutputSlot::default();
+        other.put(8);
+
+        let expected_result = other;
+
+        let result = slot;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_the_last_value_when_put_twice() {
+        let slot = OutputSlot::default();
+        slot.put(7);
+        slot.put(8);
+
+        let expected_result = Some(8);
+
+        let result = slot.take();
+
+        assert_eq!(result, expected_result);
+    }
+
+    /// Hashes `value` with the standard hasher.
+    fn hash_of<T: Hash>(value: &T) -> u64 {
+        let mut hasher = std::collections::hash_map::DefaultHasher::new();
+        value.hash(&mut hasher);
+        std::hash::Hasher::finish(&hasher)
+    }
+
+    #[test]
+    fn should_hash_equal_when_two_slots_hold_different_values() {
+        let slot = OutputSlot::default();
+        slot.put(7);
+        let other = OutputSlot::default();
+        other.put(8);
+
+        let expected_result = hash_of(&other);
+
+        let result = hash_of(&slot);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_order_equal_when_two_slots_hold_different_values() {
+        let slot = OutputSlot::default();
+        slot.put(7);
+        let other = OutputSlot::default();
+        other.put(8);
+
+        let expected_result = std::cmp::Ordering::Equal;
+
+        let result = slot.cmp(&other);
+
+        assert_eq!(result, expected_result);
+    }
+
+    /// A value without `Clone` or `Default`, so the slot must implement both without these bounds.
+    #[derive(Debug)]
+    struct Opaque;
+
+    #[test]
+    const fn should_implement_clone_for_output_slot_when_the_value_does_not() {
+        implements_clone::<OutputSlot<Opaque>>();
+    }
+
+    const fn implements_default<T: Default>() {}
+    #[test]
+    const fn should_implement_default_for_output_slot_when_the_value_does_not() {
+        implements_default::<OutputSlot<Opaque>>();
     }
 }
