@@ -12,18 +12,17 @@ use storage::implementations::repository::filesystem::DocumentKey;
 use crate::shared::filing_ref::FilingRef;
 
 /// The start of the key of every stored file of a filing, before the CIK.
-pub const FILING_KEY_PREFIX: &str = "sec/filings/CIK";
+const FILING_KEY_PREFIX: &str = "sec/filings/CIK";
 
 /// The file name of the stored XBRL instance of a filing.
-pub const INSTANCE_FILE_NAME: &str = "instance.xml";
+const INSTANCE_FILE_NAME: &str = "instance.xml";
 
 /// The file name of the stored label file of a filing.
-pub const LABELS_FILE_NAME: &str = "lab.xml";
+const LABELS_FILE_NAME: &str = "lab.xml";
 
 /// The filing, the key of its stored XBRL instance, and the key of its stored label file.
 ///
-/// A reader finds the bytes under the keys. `labels_key` is `None` if the filing has no label
-/// file.
+/// `labels_key` is `None` if the filing has no label file.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub struct FilingDocumentsRef {
     filing: FilingRef,
@@ -32,13 +31,14 @@ pub struct FilingDocumentsRef {
 }
 
 impl FilingDocumentsRef {
-    /// Creates a new [`FilingDocumentsRef`] from a filing and the keys of its stored files.
+    /// Creates a new [`FilingDocumentsRef`] for the stored files of a filing.
+    ///
+    /// The keys come from [`instance_key`] and [`labels_key`], so they always belong to `filing`.
+    /// `has_label_file` sets whether `labels_key` is `Some`.
     #[must_use]
-    pub const fn new(
-        filing: FilingRef,
-        instance_key: DocumentKey,
-        labels_key: Option<DocumentKey>,
-    ) -> Self {
+    pub fn new(filing: FilingRef, has_label_file: bool) -> Self {
+        let instance_key = instance_key(&filing);
+        let labels_key = has_label_file.then(|| labels_key(&filing));
         Self {
             filing,
             instance_key,
@@ -171,7 +171,8 @@ mod tests {
     }
 
     #[test]
-    fn should_build_the_padded_cik_and_dashed_accession_number_into_the_instance_key() {
+    fn should_build_the_instance_key_with_a_padded_cik_and_a_dashed_accession_number_for_a_filing()
+    {
         let filing = sample_filing();
 
         let expected_result = key("sec/filings/CIK0000003545/0000003545-26-000047/instance.xml");
@@ -182,7 +183,7 @@ mod tests {
     }
 
     #[test]
-    fn should_build_the_padded_cik_and_dashed_accession_number_into_the_labels_key() {
+    fn should_build_the_labels_key_with_a_padded_cik_and_a_dashed_accession_number_for_a_filing() {
         let filing = sample_filing();
 
         let expected_result = key("sec/filings/CIK0000003545/0000003545-26-000047/lab.xml");
@@ -194,12 +195,7 @@ mod tests {
 
     #[test]
     fn should_display_the_filing_and_both_keys_when_the_filing_has_a_label_file() {
-        let filing = sample_filing();
-        let documents = FilingDocumentsRef::new(
-            filing.clone(),
-            instance_key(&filing),
-            Some(labels_key(&filing)),
-        );
+        let documents = FilingDocumentsRef::new(sample_filing(), true);
 
         let expected_result = "Filing: 0000003545-26-000047, Instance: sec/filings/CIK0000003545/0000003545-26-000047/instance.xml, Labels: sec/filings/CIK0000003545/0000003545-26-000047/lab.xml";
 
@@ -210,8 +206,7 @@ mod tests {
 
     #[test]
     fn should_display_none_for_the_labels_when_the_filing_has_no_label_file() {
-        let filing = sample_filing();
-        let documents = FilingDocumentsRef::new(filing.clone(), instance_key(&filing), None);
+        let documents = FilingDocumentsRef::new(sample_filing(), false);
 
         let expected_result = "Filing: 0000003545-26-000047, Instance: sec/filings/CIK0000003545/0000003545-26-000047/instance.xml, Labels: None";
 
