@@ -630,7 +630,7 @@ and 22.8 KB for this filing), so the run caps filings by the rate limiter only.
 
 STA-390 proposes design 5: the client runs each request kind through its own implementation. The
 filing documents then pass through the generic `PrepareSecRequest` and `ExecuteSecRequest`, as one
-request of the kind `FilingDocuments`. The lead accepted this design on 2026-10-31, together with
+request of the kind `FilingDocumentSet`. The lead accepted this design on 2026-10-31, together with
 the change to the types of `ExecuteSecRequest` that it needs.
 
 These places on `main` limit a request to one HTTP call. Paths start at `sec/src/lib/`.
@@ -657,7 +657,7 @@ STA-390 compares five designs:
 
 1. **Execution on the request.** `RespondsWith` gets a default method `fetch`, and
    `execute_sec_request` calls `E::fetch`. The default sends one call. A new kind
-   `FilingDocuments` overrides `fetch` and sends one or two calls.
+   `FilingDocumentSet` overrides `fetch` and sends one or two calls.
 2. **Batch request.** `SecRequest<K>` holds a list of `reqwest::Request`.
    `execute_sec_request` sends the calls in order, and one response holds every reply.
 3. **Hook on the kind.** A trait `Executes` on the kind sets the output type of
@@ -665,7 +665,7 @@ STA-390 compares five designs:
 4. **Thin state.** A kind `FilingDocument` names one file. A new state `DownloadFilingDocuments`
    calls `execute_sec_request` for the instance, and once more if a label file exists.
 5. **Client generic over the kind.** The client implements `Executes<K>` for each kind. One blanket
-   impl covers every kind with one call. The kind `FilingDocuments` gets its own impl, which sends
+   impl covers every kind with one call. The kind `FilingDocumentSet` gets its own impl, which sends
    one or two calls.
 
 ```rust
@@ -681,7 +681,7 @@ pub trait RespondsWith: RequestKind {
         client.execute_one_call(request).await // the body of execute_sec_request today
     }
 }
-// `FilingDocuments` overrides `fetch`. `ExecuteSecRequest` pins the result to one
+// `FilingDocumentSet` overrides `fetch`. `ExecuteSecRequest` pins the result to one
 // `SecResponse<FilingFilesBody>`, so the URL and the status code describe the instance call only.
 
 // 2. Batch request.
@@ -714,14 +714,15 @@ async fn compute_output_data_async(&mut self) -> Result<(), StateError> {
 
 // 5. Client generic over the kind.
 pub trait HasResponse: RequestKind {
-    type Response: Debug + Send + Sync;
+    // The traits of a state output, because `ExecuteSecRequestOutput` holds the response.
+    type Response: Debug + Display + Eq + Ord + Hash + Serialize + Send + Sync;
 }
 
 impl<K: RespondsWith> HasResponse for K {
     type Response = SecResponse<K::Body>;
 }
 
-impl HasResponse for FilingDocuments {
+impl HasResponse for FilingDocumentSet {
     type Response = FilingDocumentResponses;
 }
 
@@ -730,12 +731,19 @@ pub trait Executes<K: HasResponse> {
     async fn execute(&self, request: SecRequest<K>) -> Result<K::Response, FailedSecRequest>;
 }
 
-// Every kind with one call, on every client: the body of `execute_sec_request` today.
-impl<C: SecClient, K: RespondsWith> Executes<K> for C { /* … */ }
+// Every kind with one call: the body of `execute_sec_request` today.
+impl<C, K> Executes<K> for C
+where
+    K: RespondsWith,
+    C: SecClient<Response<K::Body> = SecResponse<K::Body>, Error = FailedSecRequest>,
+{ /* … */ }
 
-// The filing documents, on every client: one call for the instance, and one more for the
-// label file if it exists. Each call goes through `execute_sec_request`.
-impl<C: SecClient> Executes<FilingDocuments> for C { /* … */ }
+// The filing documents: one call for the instance, and one more for the label file if it
+// exists. Each call goes through `execute_sec_request`.
+impl<C> Executes<FilingDocumentSet> for C
+where
+    C: SecClient<Response<XmlBody> = SecResponse<XmlBody>, Error = FailedSecRequest>,
+{ /* … */ }
 ```
 
 | Design | Files it touches | Cost for the existing kinds |
@@ -744,7 +752,7 @@ impl<C: SecClient> Executes<FilingDocuments> for C { /* … */ }
 | 2 | `sec_request/mod.rs`, `sec_client.rs`, `sec_response/`, `request_check.rs` | Every request holds a list of one. `Serialize`, `PartialEq`, and the request check change for all six kinds. |
 | 3 | `execute_sec_request/` with its output, the two store transitions, `responds_with.rs` | Each of the six kinds writes `type Output` and `execute`. |
 | 4 | New: the kind `FilingDocument`, `XmlBody`, the state `DownloadFilingDocuments`, one `StateError` variant | None. |
-| 5 | New: `HasResponse` and `Executes` under `shared/http_client/traits/`, the kinds `FilingDocument` and `FilingDocuments`, `XmlBody`, `FilingDocumentResponses`, one `ErrorReason` variant. Changed: `sec_request/mod.rs` (the request keeps its input), and the bounds and output of `ExecuteSecRequest` | None. The blanket impls cover the six kinds and the four clients, the three fakes included. |
+| 5 | New: `HasResponse` and `Executes` under `shared/http_client/traits/`, the kinds `FilingDocument` and `FilingDocumentSet`, `XmlBody`, `FilingDocumentResponses` with the traits of a state output, one `ErrorReason` variant. Changed: `sec_request/mod.rs` (the request keeps its input), the bounds and the output of `ExecuteSecRequest` with its updater, and the bound `K: RespondsWith` of the transition from `PrepareSecRequest` (`transitions/from/prepare_sec_request/execute_sec_request.rs:42`) | None. The blanket impls cover the six kinds and every client whose response is `SecResponse`: `SecClient`, `AlwaysRespondingSecClient`, and `RoutingSecClient`. `FakeSecClient` stays out, as it does for `ExecuteSecRequest` today. |
 
 | Question | 1. Execution on the request | 2. Batch request | 3. Hook on the kind | 4. Thin state | 5. Client generic over the kind |
 | -------- | --------------------------- | ---------------- | ------------------- | ------------- | ------------------------------- |
@@ -752,7 +760,7 @@ impl<C: SecClient> Executes<FilingDocuments> for C { /* … */ }
 | One rate-limiter turn for each call? | Yes, if `fetch` sends each file through the one-call path | Yes, one `await_turn` for each entry | Yes, inside `execute` | Yes, through `execute_sec_request` | Yes, through `execute_sec_request` |
 | Optional label file | `fetch` reads an `Option` from the request input | A list of one or two calls. The position marks the label file. | `execute` reads an `Option` | `match` on `FilingDocuments::label_file` | `match` on `FilingDocuments::label_file`, inside the impl |
 | Does an error name the file? | Only with a new `ErrorReason` variant | Only with a new `ErrorReason` variant | Only with a new error | Yes, with a new `StateError` variant | Yes, with a new `ErrorReason` variant |
-| Compiles on Rust 1.90? | Yes. A default method is stable. | Yes | Yes, but only because each kind writes its `Output` | Yes | Yes. The impls do not overlap, because `FilingDocuments` does not implement `RespondsWith`. |
+| Compiles on Rust 1.90? | Yes. A default method is stable. | Yes | Yes, but only because each kind writes its `Output` | Yes | Yes. The impls do not overlap, because `FilingDocumentSet` does not implement `RespondsWith`. |
 | Code of the six existing kinds stays the same? | Yes | The kind impls stay. The shared request code changes. | No | Yes | Yes |
 | Needs STA-398? | Yes, two sources for one kind | Yes, two sources for one kind | Yes, two sources for one kind | No. `FilingDocument` has no `StoredAs`. | Yes, two sources for one kind |
 | New state for each later kind with several calls? | No | No | No | Yes | No |
@@ -767,7 +775,7 @@ The proposal is design 5, for these reasons:
   (`ExecuteSecRequest`).
 - Each reply stays one `SecResponse`. Designs 1 and 2 put two replies into one `SecResponse` with
   the URL and the status code of one.
-- The existing kinds and the four clients need no new code.
+- The existing kinds and the clients need no new code.
 
 The costs:
 
@@ -775,30 +783,33 @@ The costs:
   in place of the pinned `SecResponse<E::Body>`. `ExecuteSecRequestOutput<E>` holds
   `Arc<E::Response>`. For the six existing kinds, `E::Response` is `SecResponse<E::Body>`, so their
   transitions keep their code.
-- STA-373 waits for STA-398, because `FilingDocuments` writes two documents to two sources.
+- STA-373 waits for STA-398, because `FilingDocumentSet` writes two documents to two sources.
 - Two new traits: `HasResponse` on the kind, and `Executes<K>` on the client. A new trait is needed
-  because only a trait impl can give one kind its own body. A generic `SecClient<K>` does the same
-  job, but then every `C: SecClient` bound takes a `K`, and each of the four clients writes the
-  impl for `FilingDocuments` again.
+  because only a trait impl can give one kind its own `execute`. A generic `SecClient<K>` does the
+  same job, but then every `C: SecClient` bound takes a `K`, and each client writes the impl for
+  `FilingDocumentSet` again.
 
 The shape of design 5:
 
 - `FilingDocument` is a kind for one file. Its `Input` holds the `FilingRef` and one file name. It
   builds `FetchFilingDocument` with the URL
   `https://www.sec.gov/Archives/edgar/data/<cik>/<accession without dashes>/<file name>`, with the
-  CIK from `Cik::unpadded`. It has `Body = XmlBody`. Only the impl for `FilingDocuments` uses it.
-- `FilingDocuments` is the kind that the machine runs. Its `Input` holds the `FilingRef` and the
-  `FilingDocuments` that `SelectFilingDocuments` picked. It builds `FetchFilingDocuments` with the
+  CIK from `Cik::unpadded`. It has `Body = XmlBody`. Only the impl for `FilingDocumentSet` uses it.
+- `FilingDocumentSet` is the kind that the machine runs. Its `Input` holds the `FilingRef` and the
+  `FilingDocuments` that `SelectFilingDocuments` picked. It builds `FetchFilingDocumentSet` with the
   URL of the filing folder. It has no `RespondsWith`, and its `HasResponse::Response` is
   `FilingDocumentResponses`.
 - Each new `Input` type implements `Display`, `Serialize`, `Ord`, and `Hash`, as
   `RequestKind::Input` requires. STA-373 picks their names.
-- `SecRequest<K>` keeps the input it was built from. The impl for `FilingDocuments` reads the file
-  names from it. Equality, hashing, and ordering compare the input. For the six existing kinds,
-  this gives the same result as the comparison of the URL today.
+- `SecRequest<K>` keeps the input it was built from. The impl for `FilingDocumentSet` reads the file
+  names from it. Equality, hashing, and ordering compare the input. For `FilingIndex`, this is
+  stricter than the comparison of the URL today, because the URL does not hold the form or the
+  date filed. The order of requests also changes: the URL compares the CIK as text, and `Cik`
+  compares it as a number. The request check in `request_check.rs` then also compares the form
+  and the date filed.
 - `XmlBody` checks status 200, the content type `text/xml` or `application/xml`, and the
   `Content-Length` header, as `ZipBody` does. Its content is `[u8]`.
-- The impl for `FilingDocuments` downloads the instance first. A failed instance call ends the
+- The impl for `FilingDocumentSet` downloads the instance first. A failed instance call ends the
   request before the label call. A new `ErrorReason` variant wraps the failure with the file name.
 - `StoreFilingDocuments` receives `FilingDocumentResponses`: `instance: SecResponse<XmlBody>` and
   `labels: Option<SecResponse<XmlBody>>`, behind the `Arc` of `ExecuteSecRequestOutput`. The
@@ -807,7 +818,7 @@ The shape of design 5:
 Two items stay with STA-376:
 
 - `SelectFilingDocuments` holds the accession number, not the `FilingRef`. The transition into
-  `PrepareSecRequest<FilingDocuments>` needs the `FilingRef`. The super-state or the context of
+  `PrepareSecRequest<FilingDocumentSet>` needs the `FilingRef`. The super-state or the context of
   `SelectFilingDocuments` carries it.
 - STA-376 decides where `index.json` is written. The generic states have fixed contexts, so they
   cannot carry the folder index response. A write after the filing documents therefore needs the
@@ -1026,7 +1037,7 @@ New filing and company data:
 1. FEATURE: the `Form` variants `TwentyF` and `FortyF`, the `/A` parse, and `SELECTED_FORMS`.
 2. FEATURE: `FilingRef` and the parser for `form.YYYYMMDD.idx`.
 3. FEATURE: the request variants `FetchDailyIndex`, `FetchDailyIndexListing`, `FetchFilingIndex`,
-   `FetchFilingDocument`, `FetchFilingDocuments`, and `FetchSubmissions`.
+   `FetchFilingDocument`, `FetchFilingDocumentSet`, and `FetchSubmissions`.
 4. FEATURE: `RawDailyIndex`, `RawXbrlInstance`, `RawXbrlLabels`, and `RawSubmissions`.
 5. FEATURE: the states `ValidateIndexDate` and `PrepareDailyIndexRequest`.
 6. FEATURE: the state `DownloadDailyIndex`, with the 404 rule.
@@ -1035,7 +1046,7 @@ New filing and company data:
 9. FEATURE: `DetectFilingsSuperState`, its transitions, and its builder.
 10. FEATURE: the states `PrepareFilingIndexRequest` and `SelectFilingDocuments`.
 11. FEATURE: the traits `HasResponse` and `Executes<K>`, `XmlBody`, and the kinds `FilingDocument`
-    and `FilingDocuments`.
+    and `FilingDocumentSet`.
 12. FEATURE: the state `StoreFilingDocuments` and `FilingDocumentsRef`.
 13. FEATURE: `ExtractFilingSuperState`, its transitions, and its builder.
 14. FEATURE: `StoreSubmissions`.
