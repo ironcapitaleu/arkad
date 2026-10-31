@@ -1190,7 +1190,7 @@ Linear document
   rows. None of these facts is on one side only. A second instance of the same filing is the
   exception, see "Instance selection" below.
 - **No conflict.** No numeric value differs beyond the 4-decimal rounding of Notes. No text differs
-  in content.
+  in content, except 11 text facts that the comparison could not check. See the second list below.
 - **Key not unique.** In 395 cases, the provisional value key of STA-331 holds two instance facts
   of one filing with different values. So `DO NOTHING` on this key depends on order even with one
   source.
@@ -1209,11 +1209,11 @@ Linear document
 - Notes rounds to 4 decimal places: 139 facts.
 - Notes reads an empty text fact as nil: 4 facts.
 
-These kinds are not losses, or the comparison cannot tell:
+These kinds are not losses, or the comparison cannot tell whether they are:
 
 - Notes writes the same dimension pairs as a different string: 49 facts.
-- Two copies of one fact differ in `decimals`, and the comparison pairs them in an ambiguous way: 10
-  facts.
+- Two copies of one fact have the same value but differ in `decimals`, and the comparison pairs
+  them in an ambiguous way: 10 facts.
 - The text differs in a way the comparison did not explain: 11 facts.
 - The footnotes differ in how Notes joins them: 5 facts.
 
@@ -1223,7 +1223,7 @@ fixed rank. Two conditions apply:
 - The rank works only on a unique key. STA-331 must first widen the value key, so that the 395
   cases above hold one fact per key.
 - Today `source_ref` names the filing, so both copies have the same grain, and the upsert keeps one
-  row per fact, as today. But option 2 picks the value at write time. The STA-145 freeze picks "which
+  row per fact. But option 2 picks the value at write time. The STA-145 freeze picks "which
   value wins" at read time. STA-331 must accept that change, or take option 3.
 
 A filing that only Notes delivered keeps the Notes form of its lossy facts.
