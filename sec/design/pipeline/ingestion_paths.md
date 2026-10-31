@@ -641,6 +641,9 @@ new `StoreSubmissions` writes the JSON.
   bound is `RawRepository<RawSubmissions>`.
 - Both paths run the machine, so the context of `StoreSubmissions` holds the ingestion mode, and
   the state writes it into the metadata. `StoreCompanyFacts` always writes `backfill`.
+- The builder of `ExtractSubmissionsSuperState` takes the ingestion mode, so a caller without the
+  facade can set it. The machine returns no `SubmissionsRef` yet. `SubmissionsRef` and a
+  `run_to_…` method come with the first caller that reads the stored key.
 
 - URL: `https://data.sec.gov/submissions/CIK##########.json`. Measured: it holds `sic`,
   `sicDescription`, `name`, `tickers`, `exchanges`, `formerNames`, and the recent filings.
@@ -854,7 +857,8 @@ New filing and company data:
 12. FEATURE: the state `StoreFilingDocuments` and `FilingDocumentsRef`.
 13. FEATURE: `ExtractFilingSuperState`, its transitions, and its builder.
 14. FEATURE: `StoreSubmissions`.
-15. FEATURE: `ExtractSubmissionsSuperState`, `SubmissionsRef`, its transitions, and its builder.
+15. FEATURE: `ExtractSubmissionsSuperState`, its transitions, and its builder. `SubmissionsRef`
+    and a `run_to_…` method come with the first caller that reads the stored key.
 16. FEATURE: the facade calls `incremental()`, `daily_index()`, `filing()`, and `submissions()`.
 17. FEATURE: the binary `daily_filings`.
 18. FEATURE: the `submissions` run in `notes_backfill`.

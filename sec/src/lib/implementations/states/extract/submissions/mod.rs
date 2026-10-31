@@ -455,6 +455,7 @@ mod tests {
     fn super_state<R: RawRepository<RawSubmissions>>(
         raw_cik: &str,
         sec_client: AlwaysRespondingSecClient,
+        ingestion_mode: IngestionMode,
         repository: R,
     ) -> ExtractSubmissionsSuperState<
         ValidateCikFormat<R, AlwaysRespondingSecClient>,
@@ -464,7 +465,7 @@ mod tests {
             .cik(raw_cik)
             .sec_client(sec_client)
             .execution_id(SAMPLE_EXECUTION_ID)
-            .ingestion_mode(IngestionMode::Incremental)
+            .ingestion_mode(ingestion_mode)
             .repository(repository)
             .build()
     }
@@ -507,7 +508,12 @@ mod tests {
         reason = "False positive: `state_name` returns `impl ToString`, which is a `String` here. Clippy flags `.to_string()` as a clone, but removing it does not compile"
     )]
     fn should_return_super_state_name_with_current_state_when_in_validate_cik_format_state() {
-        let super_state = super_state(SAMPLE_CIK, sec_client(), FakeSubmissionsRepository::new());
+        let super_state = super_state(
+            SAMPLE_CIK,
+            sec_client(),
+            IngestionMode::Incremental,
+            FakeSubmissionsRepository::new(),
+        );
 
         let expected_result = "Extract Submissions SuperState (Current: Validate CIK Format)";
 
@@ -519,7 +525,12 @@ mod tests {
     #[tokio::test]
     async fn should_store_the_json_fixture_under_sec_submissions_when_running_the_stream() {
         let root = temporary_root();
-        let super_state = super_state(SAMPLE_CIK, sec_client(), filesystem_repository(root.path()));
+        let super_state = super_state(
+            SAMPLE_CIK,
+            sec_client(),
+            IngestionMode::Incremental,
+            filesystem_repository(root.path()),
+        );
 
         let expected_result = SAMPLE_SUBMISSIONS_JSON.to_vec();
 
@@ -533,7 +544,12 @@ mod tests {
 
     #[tokio::test]
     async fn should_yield_the_events_of_every_state_in_order_when_running_the_stream() {
-        let super_state = super_state(SAMPLE_CIK, sec_client(), FakeSubmissionsRepository::new());
+        let super_state = super_state(
+            SAMPLE_CIK,
+            sec_client(),
+            IngestionMode::Incremental,
+            FakeSubmissionsRepository::new(),
+        );
 
         let expected_result = vec![
             (StreamEvent::StateStarted, VALIDATE_CIK_FORMAT),
@@ -560,10 +576,13 @@ mod tests {
 
     #[tokio::test]
     async fn should_record_the_ingestion_mode_of_the_builder_when_running_the_stream() {
+        // The other tests run with `Incremental`, so `Backfill` shows that the mode comes from
+        // the builder.
+        let ingestion_mode = IngestionMode::Backfill;
         let repository = FakeSubmissionsRepository::new();
-        let super_state = super_state(SAMPLE_CIK, sec_client(), repository.clone());
+        let super_state = super_state(SAMPLE_CIK, sec_client(), ingestion_mode, repository.clone());
 
-        let expected_result = vec![IngestionMode::Incremental];
+        let expected_result = vec![IngestionMode::Backfill];
 
         run_stream(super_state).await;
         let result: Vec<IngestionMode> = repository
@@ -577,7 +596,12 @@ mod tests {
 
     #[tokio::test]
     async fn should_end_the_stream_with_a_failed_validation_when_the_cik_is_not_numeric() {
-        let super_state = super_state("BRK-B", sec_client(), FakeSubmissionsRepository::new());
+        let super_state = super_state(
+            "BRK-B",
+            sec_client(),
+            IngestionMode::Incremental,
+            FakeSubmissionsRepository::new(),
+        );
 
         let expected_result = vec![VALIDATE_CIK_FORMAT.to_string()];
 
@@ -589,7 +613,12 @@ mod tests {
     #[tokio::test]
     async fn should_end_the_stream_with_a_failed_fetch_when_the_submissions_are_not_found() {
         let sec_client = AlwaysRespondingSecClient::new(404, Vec::new(), Vec::new());
-        let super_state = super_state(SAMPLE_CIK, sec_client, FakeSubmissionsRepository::new());
+        let super_state = super_state(
+            SAMPLE_CIK,
+            sec_client,
+            IngestionMode::Incremental,
+            FakeSubmissionsRepository::new(),
+        );
 
         let expected_result = vec![EXECUTE_SEC_REQUEST.to_string()];
 
@@ -602,7 +631,12 @@ mod tests {
     async fn should_end_the_stream_with_a_failed_store_when_the_repository_rejects_the_write() {
         let repository =
             FakeSubmissionsRepository::rejecting(WriteError::conflicting_write("Sample conflict"));
-        let super_state = super_state(SAMPLE_CIK, sec_client(), repository);
+        let super_state = super_state(
+            SAMPLE_CIK,
+            sec_client(),
+            IngestionMode::Incremental,
+            repository,
+        );
 
         let expected_result = vec![STORE_SUBMISSIONS.to_string()];
 
@@ -612,8 +646,14 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_tag_stream_with_execution_id_of_context_when_streaming_the_run() {
-        let super_state = super_state("BRK-B", sec_client(), FakeSubmissionsRepository::new());
+    async fn should_tag_the_error_with_the_execution_id_of_the_context_when_the_cik_is_not_numeric()
+    {
+        let super_state = super_state(
+            "BRK-B",
+            sec_client(),
+            IngestionMode::Incremental,
+            FakeSubmissionsRepository::new(),
+        );
 
         let expected_result = vec![SAMPLE_EXECUTION_ID];
 
