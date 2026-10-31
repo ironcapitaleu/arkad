@@ -307,6 +307,28 @@ mod tests {
     }
 
     #[test]
+    fn should_serialize_the_instance_without_its_body_for_store_filing_documents_input() {
+        let input = sample_input(b"<xbrl/>");
+
+        let expected_result = vec![
+            "body_sha256",
+            "content_type",
+            "headers",
+            "status_code",
+            "url",
+        ];
+
+        let value = serde_json::to_value(&input)
+            .expect("Given responses of strings and digests, serialization should always succeed");
+        let result: Vec<&str> = value["responses"]["instance"]
+            .as_object()
+            .map(|fields| fields.keys().map(String::as_str).collect())
+            .unwrap_or_default();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
     fn should_serialize_a_null_responses_field_when_the_state_took_the_responses() {
         let mut input = sample_input(b"<xbrl/>");
         input.responses = None;

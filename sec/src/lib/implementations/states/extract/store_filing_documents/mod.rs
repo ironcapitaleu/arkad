@@ -100,15 +100,25 @@ where
     /// Writes the instance, then the label file if the filing has one, and stores a reference to
     /// the stored files as output.
     ///
-    /// The input gives up its responses even if a write fails.
+    /// The input gives up its responses once they pass the checks, even if a write fails.
     ///
     /// # Errors
     ///
     /// - Returns [`StateError::InvalidInput`] if the input holds no responses, or if `labels_url`
     ///   is `Some` and the responses hold no label file, or the other way round. The state then
-    ///   writes nothing.
+    ///   writes nothing, and the input keeps its responses.
     /// - Returns [`StateError::FailedDocumentWrite`] if a repository rejects a write.
     async fn compute_output_data_async(&mut self) -> Result<(), StateError> {
+        let has_label_response = self
+            .input
+            .responses
+            .as_deref()
+            .ok_or(StateError::InvalidInput)?
+            .labels()
+            .is_some();
+        if has_label_response != self.input.labels_url.is_some() {
+            return Err(StateError::InvalidInput);
+        }
         let responses = self
             .input
             .responses
@@ -121,17 +131,19 @@ where
             producer: producer(STATE_NAME),
             ingestion_mode: IngestionMode::Incremental,
         };
-        let labels = match (responses.labels(), &self.input.labels_url) {
-            (Some(response), Some(labels_url)) => Some(RawDocument::<RawXbrlLabels>::from_file(
-                labels_key(filing),
-                response,
-                labels_url,
-                &self.input.user_agent,
-                run.clone(),
-            )),
-            (None, None) => None,
-            _ => return Err(StateError::InvalidInput),
-        };
+        let labels =
+            responses
+                .labels()
+                .zip(self.input.labels_url.as_ref())
+                .map(|(response, labels_url)| {
+                    RawDocument::<RawXbrlLabels>::from_file(
+                        labels_key(filing),
+                        response,
+                        labels_url,
+                        &self.input.user_agent,
+                        run.clone(),
+                    )
+                });
         let instance = RawDocument::<RawXbrlInstance>::from_file(
             instance_key(filing),
             responses.instance(),
@@ -270,6 +282,10 @@ mod tests {
         "https://www.sec.gov/Archives/edgar/data/3545/000000354526000047/alco-20260908_htm.xml";
     const LABELS_URL: &str =
         "https://www.sec.gov/Archives/edgar/data/3545/000000354526000047/alco-20260908_lab.xml";
+    const REDIRECTED_INSTANCE_URL: &str =
+        "https://www.sec.gov/Archives/edgar/data/3545/redirected/alco-20260908_htm.xml";
+    const REDIRECTED_LABELS_URL: &str =
+        "https://www.sec.gov/Archives/edgar/data/3545/redirected/alco-20260908_lab.xml";
     const INSTANCE_KEY: &str = "sec/filings/CIK0000003545/0000003545-26-000047/instance.xml";
     const LABELS_KEY: &str = "sec/filings/CIK0000003545/0000003545-26-000047/lab.xml";
     const INSTANCE_BODY: &[u8] = b"<xbrl>instance</xbrl>";
@@ -318,6 +334,17 @@ mod tests {
             xml_response(INSTANCE_URL, INSTANCE_BODY),
             has_label_file.then(|| xml_response(LABELS_URL, LABELS_BODY)),
         ))
+    }
+
+    /// Builds an input with a label file whose responses came from other URLs than the input
+    /// URLs, as after a redirect.
+    fn redirected_input() -> StoreFilingDocumentsInput {
+        let mut input = input(true, true);
+        input.responses = Some(Arc::new(FilingDocumentResponses::new(
+            xml_response(REDIRECTED_INSTANCE_URL, INSTANCE_BODY),
+            Some(xml_response(REDIRECTED_LABELS_URL, LABELS_BODY)),
+        )));
+        input
     }
 
     /// Builds an input whose responses hold a label file if `has_label_response`, and whose
@@ -541,7 +568,7 @@ mod tests {
     #[tokio::test]
     async fn should_record_the_sec_file_name_of_the_instance_in_the_requested_url() {
         let (_, instances, _) = store_on_fakes(
-            input(true, true),
+            redirected_input(),
             FakeXbrlInstanceRepository::new(),
             FakeXbrlLabelsRepository::new(),
         )
@@ -560,7 +587,7 @@ mod tests {
     #[tokio::test]
     async fn should_record_the_sec_file_name_of_the_label_file_in_the_requested_url() {
         let (_, _, labels) = store_on_fakes(
-            input(true, true),
+            redirected_input(),
             FakeXbrlInstanceRepository::new(),
             FakeXbrlLabelsRepository::new(),
         )
@@ -624,7 +651,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_write_no_instance_when_the_input_is_invalid() {
+    async fn should_write_no_instance_when_the_label_response_has_no_labels_url() {
         let mismatched_input = input(true, false);
         let (_, instances, _) = store_on_fakes(
             mismatched_input,
@@ -636,6 +663,39 @@ mod tests {
         let expected_result = 0;
 
         let result = instances.persisted().len();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_write_no_instance_when_the_labels_url_has_no_label_response() {
+        let mismatched_input = input(false, true);
+        let (_, instances, _) = store_on_fakes(
+            mismatched_input,
+            FakeXbrlInstanceRepository::new(),
+            FakeXbrlLabelsRepository::new(),
+        )
+        .await;
+
+        let expected_result = 0;
+
+        let result = instances.persisted().len();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_keep_the_responses_when_the_labels_url_has_no_label_response() {
+        let mut state = state(
+            input(false, true),
+            FakeXbrlInstanceRepository::new(),
+            FakeXbrlLabelsRepository::new(),
+        );
+        let _ = state.compute_output_data_async().await;
+
+        let expected_result = true;
+
+        let result = state.input_data().responses.is_some();
 
         assert_eq!(result, expected_result);
     }
