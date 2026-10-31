@@ -35,8 +35,8 @@ context, and assemble the target state.
 **Real example** (from `Extract<ExecuteCompanyFactsRequest>` → `Transform<ParseCompanyFacts>`):
 
 ```rust
-impl<R, C> Transition<ExecuteCompanyFactsRequest<R, C>, ParseCompanyFacts>
-    for ExtractCompanyFactsSuperState<ExecuteCompanyFactsRequest<R, C>, R, C>
+impl<R, C> Transition<ExecuteCompanyFactsRequest<C>, ParseCompanyFacts>
+    for ExtractCompanyFactsSuperState<ExecuteCompanyFactsRequest<C>, R, C>
 where
     R: RawRepository<RawCompanyFacts>,
     C: SecClientTrait<Response<JsonBody> = SecResponse<JsonBody>, Error = FailedSecRequest>,

@@ -22,7 +22,7 @@
 //! use storage::implementations::repository::filesystem::IngestionMode;
 //! use uuid::Uuid;
 //!
-//! fn store_as_submissions<R>(state: ExecuteCompanyFactsRequest<R, SecClient>, repository: R) {
+//! fn store_as_submissions<R>(state: ExecuteCompanyFactsRequest<SecClient>, repository: R) {
 //!     let _next =
 //!         StoreSubmissions::<R>::try_from((state, Uuid::nil(), IngestionMode::Backfill, repository));
 //! }
@@ -55,7 +55,7 @@ use crate::shared::request::implementations::sec_request::SecRequest;
 use crate::shared::request::implementations::sec_request::Submissions;
 use crate::shared::url::Url;
 
-impl<R, C: SecClientTrait> TryFrom<(ExecuteSecRequest<Submissions, R, C>, Uuid, IngestionMode, R)>
+impl<R, C: SecClientTrait> TryFrom<(ExecuteSecRequest<Submissions, C>, Uuid, IngestionMode, R)>
     for StoreSubmissions<R>
 {
     type Error = TransitionError;
@@ -72,7 +72,7 @@ impl<R, C: SecClientTrait> TryFrom<(ExecuteSecRequest<Submissions, R, C>, Uuid, 
     /// a response under the wrong company.
     fn try_from(
         (state, execution_id, ingestion_mode, repository): (
-            ExecuteSecRequest<Submissions, R, C>,
+            ExecuteSecRequest<Submissions, C>,
             Uuid,
             IngestionMode,
             R,
@@ -131,7 +131,7 @@ mod tests {
     use crate::shared::user_agent::UserAgent;
     use crate::tests::fixtures::sample_write_repository::FakeSubmissionsRepository;
 
-    type TestExecute = ExecuteSecRequest<Submissions, FakeSubmissionsRepository, SecClient>;
+    type TestExecute = ExecuteSecRequest<Submissions, SecClient>;
 
     const SAMPLE_EXECUTION_ID: Uuid = Uuid::from_u128(7);
 
@@ -179,7 +179,7 @@ mod tests {
     fn execute_sec_request_without_output(cik: Cik) -> TestExecute {
         let request = SecRequest::builder().submissions().cik(cik).build();
         let input = ExecuteSecRequestInput::new(sec_client_with_other_user_agent(), request);
-        let context = ExecuteSecRequestContext::new(sample_cik(), FakeSubmissionsRepository::new());
+        let context = ExecuteSecRequestContext::new(sample_cik());
         ExecuteSecRequest::new(input, context)
     }
 

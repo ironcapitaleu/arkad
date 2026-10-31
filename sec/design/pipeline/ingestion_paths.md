@@ -16,8 +16,8 @@
 - [New-Filing Extract](#new-filing-extract) is new and fully proposed. It needs the most scrutiny.
 - [Calling the Machines](#calling-the-machines) and the ingestion mode in the metadata are new and
   decided.
-- [Repository in the Machines](#repository-in-the-machines) is new and proposed in STA-398. It
-  carries three decisions for the lead.
+- [Repository in the Machines](#repository-in-the-machines) is new. The lead accepted its three
+  decisions on 2026-10-31 (STA-398).
 - [Cut-Over Between the Paths](#cut-over-between-the-paths) and
   [Idempotent Writes](#idempotent-writes) list their assumptions. Check them first.
 - [Path Independence](#path-independence) is new and proposed. It states what transform must
@@ -128,13 +128,15 @@ Extraction::incremental().submissions().cik(cik).sec_client(c).repository(r).bui
 
 ### Repository in the Machines
 
-> **Status:** proposed in STA-398. Not yet accepted by the lead.
+> **Status:** accepted by the lead on 2026-10-31 (STA-398), with all three decisions. The first
+> paragraph and the subsection "Why the Repository Sat in the States" describe `main` before
+> STA-398. The code PRs of STA-398 change `main` step by step.
 
-`PrepareSecRequest<K, R>` and `ExecuteSecRequest<E, R, C>` bind `K: StoredAs` and
-`R: RawRepository<K::Source>`. Neither state reads the repository. STA-398 removes the bound and the
+Before STA-398, `PrepareSecRequest<K, R>` and `ExecuteSecRequest<E, R, C>` bound `K: StoredAs` and
+`R: RawRepository<K::Source>`. Neither state read the repository. STA-398 removes the bound and the
 parameter `R`, so a kind that is only read, such as `FilingIndex`, runs through both states.
 
-#### Why the Repository Sits in the States
+#### Why the Repository Sat in the States (Before STA-398)
 
 Paths start at `sec/src/lib/implementations/`. Each place in the table holds or moves the repository.
 None of them reads it. Only the store states at the end of each machine read it.
@@ -196,7 +198,7 @@ Cost for the existing machines:
 
 #### Decision 2: Order with STA-373
 
-Proposed: STA-398 lands first, with the bounds of `main`. `ExecuteSecRequest<E, C>` binds
+Decided: STA-398 lands first, with the bounds of `main`. `ExecuteSecRequest<E, C>` binds
 `E: RespondsWith` and the pinned `C: SecClient<Response<E::Body> = SecResponse<E::Body>, Error =
 FailedSecRequest>`. STA-373 then swaps these bounds for `E: HasResponse` and `C: Executes<E>`.
 
@@ -214,7 +216,7 @@ for STA-398 in both orders.
 
 #### Decision 3: `RawFilingIndex`
 
-Proposed: drop it. STA-376 does not store `index.json`.
+Decided: drop it. STA-376 does not store `index.json`.
 
 - The lead chose to store it (option 2 of STA-376) because `FilingIndex` had to satisfy
   `StoredAs`. After STA-398 that reason is gone.
@@ -223,12 +225,9 @@ Proposed: drop it. STA-376 does not store `index.json`.
 - A new fetch of `index.json` gives the member list that the rules saw, if the folder did not change
   after the SEC accepted the filing. This is an assumption, not measured. If the SEC edits a folder
   later, for example to remove a document, the stored record does not show the old list.
-- The lead weighs this risk against the cost of the write.
+- The lead accepted this risk on 2026-10-31, against the cost of the write.
 - Without the write, STA-376 needs no second store step, no new `RawSource`, and no super-state
   field that keeps the folder index response.
-
-If the lead keeps the audit trail, STA-376 still decides where `index.json` is written. STA-398
-does not decide that.
 
 #### Plan for the Code
 
@@ -244,23 +243,10 @@ reviewable lines.
 4. `ValidateCikFormat` and `ValidateNotesPeriod` lose `R`. About 250 lines. If STA-386 lands first,
    this PR merges `main` first, because both PRs edit `ValidateCikFormatContext`.
 
-Step 2 adds the doctests of the DoD on `ExecuteSecRequest`. `FilingIndex` has `RespondsWith` and no
-`StoredAs` on `main`, so it is the kind that is only read:
-
-- A doctest shows that `ExecuteSecRequest<FilingIndex, SecClient>` implements `State`.
-- A `compile_fail,E0107` doctest builds
-  `ExecuteSecRequestContext::<CompanyFacts, _>::new(cik, repository)`. The kind must be named,
-  because Rust cannot infer it from `E::Input`. The module doctest at
-  `execute_sec_request/context/mod.rs:27` builds the same context on `main` today. After step 2
-  the line fails, because the context has one type parameter and `new` takes no repository.
-
-The positive doctest guards the bound. A `compile_fail` doctest cannot show that a bound is absent,
-because a missing bound makes code compile, not fail. Step 3 adds the same pair for
-`PrepareSecRequest<FilingIndex>`. Its `compile_fail,E0599` doctest builds
-`PrepareSecRequest::builder().all_company_facts().cik(cik).repository(r)`. The module doctest of
-`prepare_sec_request/mod.rs:37-41` builds the same chain on `main` today. Before each step lands,
-compile the `compile_fail` body as a plain doctest on `main`. Then confirm the error code after the
-step.
+Steps 2 and 3 each add a doctest that shows `FilingIndex` runs through the state:
+`ExecuteSecRequest<FilingIndex, SecClient>` and `PrepareSecRequest<FilingIndex>` implement `State`.
+This guards the bound. A doctest that only shows an old parameter is gone describes the past, so
+the steps add none (lead, 2026-10-31).
 
 The steps also change `compile_fail` doctests that exist on `main`. A changed type or tuple can make
 such a doctest fail for another reason than the property it names, and it then stays green. A
@@ -324,7 +310,7 @@ A separate REFACTOR renames the existing `ExtractSuperState` to `ExtractCompanyF
 2. `PrepareNotesRequest`, the alias of `PrepareSecRequest<NotesFile, R>`, builds
    `SecRequest::builder().notes_file().period(p).build()`. The transition into
    `ExecuteSecRequest` takes the client from the super-state context.
-3. `ExecuteSecRequest<NotesFile, R, C>` sends the request and reads the whole body into memory.
+3. `ExecuteSecRequest<NotesFile, C>` sends the request and reads the whole body into memory.
    Its state name is "Execute SEC Request", as for every kind. The stream data names the kind
    through the `notes_period` field of the context. It runs the transport checks of [Validation](#validation), layer 1. Its output holds the
    `SecResponse<ZipBody>` in an `Arc`, because the state traits require `Clone`. The transition
@@ -837,9 +823,9 @@ These places on `main` limit a request to one HTTP call. Paths start at `sec/src
 | `ExecuteSecRequestOutput<E>` | `implementations/states/extract/execute_sec_request/data/output/mod.rs:48` | Holds one `Arc<SecResponse<E::Body>>`. |
 | `ensure_request_matches_input` | `implementations/transitions/from/execute_sec_request/request_check.rs:23` | Compares one URL (line 29), and names one URL in its error (line 34). |
 
-Both generic states also bind `K: StoredAs` (prepare line 163, execute line 175). A kind has one
-`StoredAs::Source`, but the two files go to two sources, `RawXbrlInstance` and `RawXbrlLabels`.
-STA-398 removes this bound. See [Repository in the Machines](#repository-in-the-machines).
+Before STA-398, both generic states also bound `K: StoredAs` (prepare line 163, execute line 175).
+A kind has one `StoredAs::Source`, but the two files go to two sources, `RawXbrlInstance` and
+`RawXbrlLabels`. STA-398 removes this bound. See [Repository in the Machines](#repository-in-the-machines).
 
 STA-390 compares five designs:
 
@@ -1009,10 +995,8 @@ Two items stay with STA-376:
 - `SelectFilingDocuments` holds the accession number, not the `FilingRef`. The transition into
   `PrepareSecRequest<FilingDocumentSet>` needs the `FilingRef`. The super-state or the context of
   `SelectFilingDocuments` carries it.
-- STA-376 decides where `index.json` is written, if it is written. Decision 3 of
-  [Repository in the Machines](#repository-in-the-machines) proposes not to write it. The generic states have fixed contexts, so they
-  cannot carry the folder index response. A write after the filing documents therefore needs the
-  super-state to keep that response.
+- STA-376 does not write `index.json`. See Decision 3 of
+  [Repository in the Machines](#repository-in-the-machines).
 
 ### Company Data
 

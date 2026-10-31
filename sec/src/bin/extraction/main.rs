@@ -94,7 +94,6 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
                 .expect("Should be valid")
                 .validated_cik
                 .clone(),
-            repository.clone(),
         ),
     );
     println!("{:.500}", execute_sec_request.to_string().as_str());

@@ -323,7 +323,7 @@ impl<R: RawRepository<RawCompanyFacts>, C: SecClientTrait>
 // Deviation: `ExecuteCompanyFactsRequest` computes an `SecResponse<JsonBody>` and wraps a
 // `FailedSecRequest`. So the impls that reach it pin the response and the error of `C`. See the
 // comment on `State for ExecuteSecRequest`.
-impl<R, C> ExtractCompanyFactsSuperState<ExecuteCompanyFactsRequest<R, C>, R, C>
+impl<R, C> ExtractCompanyFactsSuperState<ExecuteCompanyFactsRequest<C>, R, C>
 where
     R: RawRepository<RawCompanyFacts>,
     C: SecClientTrait<Response<JsonBody> = SecResponse<JsonBody>, Error = FailedSecRequest>,
@@ -338,7 +338,7 @@ where
         repository: R,
     ) -> Self {
         let esr_input = ExecuteSecRequestInput::new(client.clone(), request);
-        let esr_context = ExecuteSecRequestContext::new(cik, repository.clone());
+        let esr_context = ExecuteSecRequestContext::new(cik);
 
         Self {
             current_state: ExecuteCompanyFactsRequest::new(esr_input, esr_context),
@@ -417,15 +417,15 @@ where
     C: SecClientTrait<Response<JsonBody> = SecResponse<JsonBody>, Error = FailedSecRequest>,
 {
     type Current = PrepareCompanyFactsRequest<R>;
-    type Next = ExecuteCompanyFactsRequest<R, C>;
+    type Next = ExecuteCompanyFactsRequest<C>;
 }
 
-impl<R, C> NonTerminal for ExtractCompanyFactsSuperState<ExecuteCompanyFactsRequest<R, C>, R, C>
+impl<R, C> NonTerminal for ExtractCompanyFactsSuperState<ExecuteCompanyFactsRequest<C>, R, C>
 where
     R: RawRepository<RawCompanyFacts>,
     C: SecClientTrait<Response<JsonBody> = SecResponse<JsonBody>, Error = FailedSecRequest>,
 {
-    type Current = ExecuteCompanyFactsRequest<R, C>;
+    type Current = ExecuteCompanyFactsRequest<C>;
     type Next = StoreCompanyFacts<R>;
 }
 
@@ -456,7 +456,7 @@ impl<R: RawRepository<RawCompanyFacts>, C: SecClientTrait>
     }
 }
 
-impl<R, C> Transition<PrepareCompanyFactsRequest<R>, ExecuteCompanyFactsRequest<R, C>>
+impl<R, C> Transition<PrepareCompanyFactsRequest<R>, ExecuteCompanyFactsRequest<C>>
     for ExtractCompanyFactsSuperState<PrepareCompanyFactsRequest<R>, R, C>
 where
     R: RawRepository<RawCompanyFacts>,
@@ -469,7 +469,7 @@ where
         ))?;
 
         Ok(
-            ExtractCompanyFactsSuperState::<ExecuteCompanyFactsRequest<R, C>, R, C> {
+            ExtractCompanyFactsSuperState::<ExecuteCompanyFactsRequest<C>, R, C> {
                 current_state: next_state,
                 input: ExtractCompanyFactsSuperStateData,
                 output: None,
@@ -479,13 +479,13 @@ where
     }
 }
 
-impl<R, C> SMTransition<PrepareCompanyFactsRequest<R>, ExecuteCompanyFactsRequest<R, C>>
+impl<R, C> SMTransition<PrepareCompanyFactsRequest<R>, ExecuteCompanyFactsRequest<C>>
     for ExtractCompanyFactsSuperState<PrepareCompanyFactsRequest<R>, R, C>
 where
     R: RawRepository<RawCompanyFacts>,
     C: SecClientTrait<Response<JsonBody> = SecResponse<JsonBody>, Error = FailedSecRequest>,
 {
-    type NewStateMachine = ExtractCompanyFactsSuperState<ExecuteCompanyFactsRequest<R, C>, R, C>;
+    type NewStateMachine = ExtractCompanyFactsSuperState<ExecuteCompanyFactsRequest<C>, R, C>;
 
     fn transition_to_next_state(self) -> Result<Self::NewStateMachine, &'static str> {
         // Placeholder implementation - use transition_to_next_state_sec() for actual functionality
@@ -511,8 +511,8 @@ impl<R: RawRepository<RawCompanyFacts>, C: SecClientTrait>
 
 // --- Cross-SuperState transition: Extract → Transform ---
 
-impl<R, C> Transition<ExecuteCompanyFactsRequest<R, C>, ParseCompanyFacts>
-    for ExtractCompanyFactsSuperState<ExecuteCompanyFactsRequest<R, C>, R, C>
+impl<R, C> Transition<ExecuteCompanyFactsRequest<C>, ParseCompanyFacts>
+    for ExtractCompanyFactsSuperState<ExecuteCompanyFactsRequest<C>, R, C>
 where
     R: RawRepository<RawCompanyFacts>,
     C: SecClientTrait<Response<JsonBody> = SecResponse<JsonBody>, Error = FailedSecRequest>,
@@ -535,8 +535,8 @@ where
     }
 }
 
-impl<R, C> SMTransition<ExecuteCompanyFactsRequest<R, C>, ParseCompanyFacts>
-    for ExtractCompanyFactsSuperState<ExecuteCompanyFactsRequest<R, C>, R, C>
+impl<R, C> SMTransition<ExecuteCompanyFactsRequest<C>, ParseCompanyFacts>
+    for ExtractCompanyFactsSuperState<ExecuteCompanyFactsRequest<C>, R, C>
 where
     R: RawRepository<RawCompanyFacts>,
     C: SecClientTrait<Response<JsonBody> = SecResponse<JsonBody>, Error = FailedSecRequest>,
@@ -550,8 +550,8 @@ where
     }
 }
 
-impl<R, C> Transition<ExecuteCompanyFactsRequest<R, C>, StoreCompanyFacts<R>>
-    for ExtractCompanyFactsSuperState<ExecuteCompanyFactsRequest<R, C>, R, C>
+impl<R, C> Transition<ExecuteCompanyFactsRequest<C>, StoreCompanyFacts<R>>
+    for ExtractCompanyFactsSuperState<ExecuteCompanyFactsRequest<C>, R, C>
 where
     R: RawRepository<RawCompanyFacts>,
     C: SecClientTrait<Response<JsonBody> = SecResponse<JsonBody>, Error = FailedSecRequest>,
@@ -574,8 +574,8 @@ where
     }
 }
 
-impl<R, C> SMTransition<ExecuteCompanyFactsRequest<R, C>, StoreCompanyFacts<R>>
-    for ExtractCompanyFactsSuperState<ExecuteCompanyFactsRequest<R, C>, R, C>
+impl<R, C> SMTransition<ExecuteCompanyFactsRequest<C>, StoreCompanyFacts<R>>
+    for ExtractCompanyFactsSuperState<ExecuteCompanyFactsRequest<C>, R, C>
 where
     R: RawRepository<RawCompanyFacts>,
     C: SecClientTrait<Response<JsonBody> = SecResponse<JsonBody>, Error = FailedSecRequest>,
@@ -838,10 +838,7 @@ mod tests {
     #[test]
     const fn should_implement_auto_traits_for_execute_sec_request_super_state() {
         implements_auto_traits::<
-            ExtractCompanyFactsSuperState<
-                ExecuteCompanyFactsRequest<FakeWriteRepository>,
-                FakeWriteRepository,
-            >,
+            ExtractCompanyFactsSuperState<ExecuteCompanyFactsRequest, FakeWriteRepository>,
         >();
     }
 
@@ -883,16 +880,10 @@ mod tests {
     #[test]
     const fn should_be_thread_safe_for_execute_sec_request_super_state() {
         implements_send::<
-            ExtractCompanyFactsSuperState<
-                ExecuteCompanyFactsRequest<FakeWriteRepository>,
-                FakeWriteRepository,
-            >,
+            ExtractCompanyFactsSuperState<ExecuteCompanyFactsRequest, FakeWriteRepository>,
         >();
         implements_sync::<
-            ExtractCompanyFactsSuperState<
-                ExecuteCompanyFactsRequest<FakeWriteRepository>,
-                FakeWriteRepository,
-            >,
+            ExtractCompanyFactsSuperState<ExecuteCompanyFactsRequest, FakeWriteRepository>,
         >();
     }
 
@@ -920,10 +911,7 @@ mod tests {
     #[test]
     const fn should_implement_debug_for_execute_sec_request_super_state() {
         implements_debug::<
-            ExtractCompanyFactsSuperState<
-                ExecuteCompanyFactsRequest<FakeWriteRepository>,
-                FakeWriteRepository,
-            >,
+            ExtractCompanyFactsSuperState<ExecuteCompanyFactsRequest, FakeWriteRepository>,
         >();
     }
 
@@ -951,10 +939,7 @@ mod tests {
     #[test]
     const fn should_implement_clone_for_execute_sec_request_super_state() {
         implements_clone::<
-            ExtractCompanyFactsSuperState<
-                ExecuteCompanyFactsRequest<FakeWriteRepository>,
-                FakeWriteRepository,
-            >,
+            ExtractCompanyFactsSuperState<ExecuteCompanyFactsRequest, FakeWriteRepository>,
         >();
     }
 
@@ -982,10 +967,7 @@ mod tests {
     #[test]
     const fn should_implement_partial_eq_for_execute_sec_request_super_state() {
         implements_partial_eq::<
-            ExtractCompanyFactsSuperState<
-                ExecuteCompanyFactsRequest<FakeWriteRepository>,
-                FakeWriteRepository,
-            >,
+            ExtractCompanyFactsSuperState<ExecuteCompanyFactsRequest, FakeWriteRepository>,
         >();
     }
 
@@ -1013,10 +995,7 @@ mod tests {
     #[test]
     const fn should_implement_hash_for_execute_sec_request_super_state() {
         implements_hash::<
-            ExtractCompanyFactsSuperState<
-                ExecuteCompanyFactsRequest<FakeWriteRepository>,
-                FakeWriteRepository,
-            >,
+            ExtractCompanyFactsSuperState<ExecuteCompanyFactsRequest, FakeWriteRepository>,
         >();
     }
 
@@ -1149,7 +1128,7 @@ mod tests {
         let expected_result = execution_id;
 
         let result = Transition::<
-            ExecuteCompanyFactsRequest<FakeWriteRepository>,
+            ExecuteCompanyFactsRequest,
             StoreCompanyFacts<FakeWriteRepository>,
         >::transition_to_next_state_sec(super_state)
         .expect("Given a request with output, the transition should always succeed")
@@ -1168,7 +1147,7 @@ mod tests {
             .all_company_facts()
             .cik(cik.clone())
             .build();
-        let super_state = ExtractCompanyFactsSuperState::<ExecuteCompanyFactsRequest<_>, _>::new(
+        let super_state = ExtractCompanyFactsSuperState::<ExecuteCompanyFactsRequest, _>::new(
             SecClient::default(),
             request,
             cik,
@@ -1182,7 +1161,7 @@ mod tests {
         ));
 
         let result = Transition::<
-            ExecuteCompanyFactsRequest<FakeWriteRepository>,
+            ExecuteCompanyFactsRequest,
             StoreCompanyFacts<FakeWriteRepository>,
         >::transition_to_next_state_sec(super_state)
         .expect_err("Given a request without output, the transition should always fail");
@@ -1258,10 +1237,7 @@ mod tests {
     #[test]
     const fn should_continue_to_store_company_facts_for_execute_sec_request_super_state() {
         continues_to::<
-            ExtractCompanyFactsSuperState<
-                ExecuteCompanyFactsRequest<FakeWriteRepository>,
-                FakeWriteRepository,
-            >,
+            ExtractCompanyFactsSuperState<ExecuteCompanyFactsRequest, FakeWriteRepository>,
             StoreCompanyFacts<FakeWriteRepository>,
         >();
     }

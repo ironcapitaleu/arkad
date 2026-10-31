@@ -35,7 +35,7 @@ use crate::shared::http_client::implementations::sec_client::SecClient;
 use crate::shared::request::implementations::sec_request::SecRequest;
 use crate::shared::url::Url;
 
-impl<R, C: SecClientTrait> TryFrom<(ExecuteCompanyFactsRequest<R, C>, Uuid, R)>
+impl<R, C: SecClientTrait> TryFrom<(ExecuteCompanyFactsRequest<C>, Uuid, R)>
     for StoreCompanyFacts<R>
 {
     type Error = TransitionError;
@@ -51,7 +51,7 @@ impl<R, C: SecClientTrait> TryFrom<(ExecuteCompanyFactsRequest<R, C>, Uuid, R)>
     /// different CIK from its context. The stored key follows the context CIK, so a mismatch stores
     /// a response under the wrong company.
     fn try_from(
-        (state, execution_id, repository): (ExecuteCompanyFactsRequest<R, C>, Uuid, R),
+        (state, execution_id, repository): (ExecuteCompanyFactsRequest<C>, Uuid, R),
     ) -> Result<Self, TransitionError> {
         let (input, output, context) = state.into_parts();
         let output_data = output.ok_or_else(|| {
@@ -141,13 +141,11 @@ mod tests {
         .expect("Given the hardcoded JSON body '{}', building the response should always succeed")
     }
 
-    fn sample_context() -> ExecuteSecRequestContext<CompanyFacts, FakeWriteRepository> {
-        ExecuteSecRequestContext::new(sample_cik(), FakeWriteRepository::new())
+    fn sample_context() -> ExecuteSecRequestContext<CompanyFacts> {
+        ExecuteSecRequestContext::new(sample_cik())
     }
 
-    fn execute_sec_request_without_output(
-        cik: Cik,
-    ) -> ExecuteCompanyFactsRequest<FakeWriteRepository> {
+    fn execute_sec_request_without_output(cik: Cik) -> ExecuteCompanyFactsRequest {
         let request = SecRequest::builder().all_company_facts().cik(cik).build();
         let input = ExecuteSecRequestInput::new(sec_client_with_other_user_agent(), request);
         ExecuteCompanyFactsRequest::new(input, sample_context())

@@ -23,15 +23,7 @@
 //! let cik = Cik::new("1067983").expect("A hardcoded valid CIK should always parse");
 //! let request = SecRequest::builder().all_company_facts().cik(cik.clone()).build();
 //! let input = ExecuteSecRequestInput::new(SecClient::default(), request);
-//! # use sec::shared::raw_document::RawDocument;
-//! # use sec::shared::raw_source::RawCompanyFacts;
-//! # use storage::implementations::repository::filesystem::FilesystemRepository;
-//! # let repository = FilesystemRepository::builder()
-//! #     .writer()
-//! #     .document_type::<RawDocument<RawCompanyFacts>>()
-//! #     .root("data")
-//! #     .build();
-//! let context = ExecuteSecRequestContext::new(cik, repository);
+//! let context = ExecuteSecRequestContext::new(cik);
 //!
 //! let mut state = ExecuteSecRequest::new(input, context);
 //! state
@@ -44,6 +36,19 @@
 //!     .expect("Output is present after a successful computation")
 //!     .response();
 //! # }
+//! ```
+//!
+//! The state runs every kind that implements [`RespondsWith`], for example [`FilingIndex`]:
+//!
+//! ```rust
+//! use sec::implementations::states::extract::execute_sec_request::ExecuteSecRequest;
+//! use sec::shared::http_client::implementations::sec_client::SecClient;
+//! use sec::shared::request::implementations::sec_request::FilingIndex;
+//! use sec::traits::state_machine::state::State;
+//!
+//! const fn implements_state<S: State>() {}
+//!
+//! implements_state::<ExecuteSecRequest<FilingIndex, SecClient>>();
 //! ```
 //!
 //! ## See Also
@@ -64,8 +69,9 @@ use crate::shared::http_client::RespondsWith;
 use crate::shared::http_client::SecClient as SecClientTrait;
 use crate::shared::http_client::implementations::sec_client::SecClient;
 use crate::shared::http_client::implementations::sec_client::error::FailedSecRequest;
-use crate::shared::raw_repository::RawRepository;
-use crate::shared::request::implementations::sec_request::{CompanyFacts, StoredAs};
+use crate::shared::request::implementations::sec_request::CompanyFacts;
+#[cfg(doc)]
+use crate::shared::request::implementations::sec_request::FilingIndex;
 use crate::shared::response::implementations::sec_response::SecResponse;
 use crate::traits::state_machine::state::State;
 
@@ -85,19 +91,19 @@ pub use data::ExecuteSecRequestOutput;
 /// `E`. It performs the HTTP call and stores the resulting [`SecResponse`]. The endpoint `E` sets
 /// the body kind of the response.
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
-#[serde(bound(serialize = "R: Serialize, C: Serialize"))]
-pub struct ExecuteSecRequest<E: RespondsWith, R, C = SecClient> {
+#[serde(bound(serialize = "C: Serialize"))]
+pub struct ExecuteSecRequest<E: RespondsWith, C = SecClient> {
     input: ExecuteSecRequestInput<E, C>,
-    context: ExecuteSecRequestContext<E, R>,
+    context: ExecuteSecRequestContext<E>,
     output: Option<ExecuteSecRequestOutput<E>>,
 }
 
 /// Alias of [`ExecuteSecRequest`] for the [`CompanyFacts`] kind.
 ///
 /// It is the same type under a shorter name, not a separate state.
-pub type ExecuteCompanyFactsRequest<R, C = SecClient> = ExecuteSecRequest<CompanyFacts, R, C>;
+pub type ExecuteCompanyFactsRequest<C = SecClient> = ExecuteSecRequest<CompanyFacts, C>;
 
-impl<E: RespondsWith, R, C> ExecuteSecRequest<E, R, C> {
+impl<E: RespondsWith, C> ExecuteSecRequest<E, C> {
     /// Creates a new [`ExecuteSecRequest`] state from its input and context, with no output computed yet.
     ///
     /// # Examples
@@ -112,15 +118,7 @@ impl<E: RespondsWith, R, C> ExecuteSecRequest<E, R, C> {
     /// let cik = Cik::new("1067983").expect("A hardcoded valid CIK should always parse");
     /// let request = SecRequest::builder().all_company_facts().cik(cik.clone()).build();
     /// let input = ExecuteSecRequestInput::new(SecClient::default(), request);
-    /// # use sec::shared::raw_document::RawDocument;
-    /// # use sec::shared::raw_source::RawCompanyFacts;
-    /// # use storage::implementations::repository::filesystem::FilesystemRepository;
-    /// # let repository = FilesystemRepository::builder()
-    /// #     .writer()
-    /// #     .document_type::<RawDocument<RawCompanyFacts>>()
-    /// #     .root("data")
-    /// #     .build();
-    /// let context = ExecuteSecRequestContext::new(cik, repository);
+    /// let context = ExecuteSecRequestContext::new(cik);
     /// let state = ExecuteSecRequest::new(input, context);
     ///
     /// let expected_result = false;
@@ -132,7 +130,7 @@ impl<E: RespondsWith, R, C> ExecuteSecRequest<E, R, C> {
     #[must_use]
     pub const fn new(
         input: ExecuteSecRequestInput<E, C>,
-        context: ExecuteSecRequestContext<E, R>,
+        context: ExecuteSecRequestContext<E>,
     ) -> Self {
         Self {
             input,
@@ -143,16 +141,12 @@ impl<E: RespondsWith, R, C> ExecuteSecRequest<E, R, C> {
 
     /// Consumes the state and returns its input, optional output, and context.
     #[must_use]
-    #[expect(
-        clippy::type_complexity,
-        reason = "The tuple names the three parts of the state. An alias would hide them from the reader"
-    )]
     pub fn into_parts(
         self,
     ) -> (
         ExecuteSecRequestInput<E, C>,
         Option<ExecuteSecRequestOutput<E>>,
-        ExecuteSecRequestContext<E, R>,
+        ExecuteSecRequestContext<E>,
     ) {
         (self.input, self.output, self.context)
     }
@@ -170,10 +164,9 @@ impl<E: RespondsWith, R, C> ExecuteSecRequest<E, R, C> {
 // wraps a `FailedSecRequest`. So the impls that compute the output pin the response and the error
 // of `C`. Other impls bind `C: SecClient` only.
 #[async_trait]
-impl<E, R, C> State for ExecuteSecRequest<E, R, C>
+impl<E, C> State for ExecuteSecRequest<E, C>
 where
-    E: RespondsWith + StoredAs,
-    R: RawRepository<E::Source>,
+    E: RespondsWith,
     C: SecClientTrait<Response<E::Body> = SecResponse<E::Body>, Error = FailedSecRequest>,
 {
     /// Executes the prepared SEC request and stores the response as output.
@@ -202,15 +195,14 @@ where
     }
 }
 
-impl<E, R, C> SMState for ExecuteSecRequest<E, R, C>
+impl<E, C> SMState for ExecuteSecRequest<E, C>
 where
-    E: RespondsWith + StoredAs,
-    R: RawRepository<E::Source>,
+    E: RespondsWith,
     C: SecClientTrait<Response<E::Body> = SecResponse<E::Body>, Error = FailedSecRequest>,
 {
     type InputData = ExecuteSecRequestInput<E, C>;
     type OutputData = ExecuteSecRequestOutput<E>;
-    type Context = ExecuteSecRequestContext<E, R>;
+    type Context = ExecuteSecRequestContext<E>;
 
     /// Returns the human-readable name of this state.
     fn state_name(&self) -> impl ToString {
@@ -255,9 +247,7 @@ where
     }
 }
 
-impl<E: RespondsWith + StoredAs, R: RawRepository<E::Source>, C: SecClientTrait> fmt::Display
-    for ExecuteSecRequest<E, R, C>
-{
+impl<E: RespondsWith, C: SecClientTrait> fmt::Display for ExecuteSecRequest<E, C> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
@@ -296,9 +286,6 @@ mod tests {
     use crate::shared::status_code::StatusCode;
     use crate::tests::fixtures::data::notes_archive::SAMPLE_NOTES_ZIP;
     use crate::tests::fixtures::sample_http_client::sample_sec_client::always_responding::AlwaysRespondingSecClient;
-    use crate::tests::fixtures::sample_write_repository::{
-        FakeNotesRepository, FakeWriteRepository,
-    };
 
     const TEST_CIK: &str = "0001067983";
 
@@ -307,7 +294,7 @@ mod tests {
     }
 
     /// Creates a baseline `ExecuteSecRequest` state for use in tests.
-    fn create_baseline_state() -> ExecuteCompanyFactsRequest<FakeWriteRepository> {
+    fn create_baseline_state() -> ExecuteCompanyFactsRequest {
         let cik = create_test_cik();
         let client = SecClient::default();
         let request = SecRequest::builder()
@@ -315,7 +302,7 @@ mod tests {
             .cik(cik.clone())
             .build();
         let input = ExecuteSecRequestInput::new(client, request);
-        let context = ExecuteSecRequestContext::new(cik, FakeWriteRepository::new());
+        let context = ExecuteSecRequestContext::new(cik);
         ExecuteSecRequest::new(input, context)
     }
 
@@ -324,7 +311,7 @@ mod tests {
     /// Creates an `ExecuteSecRequest` state whose fake client answers with `status` and a JSON body.
     fn create_fake_client_state(
         status: u16,
-    ) -> ExecuteCompanyFactsRequest<FakeWriteRepository, AlwaysRespondingSecClient> {
+    ) -> ExecuteCompanyFactsRequest<AlwaysRespondingSecClient> {
         let cik = create_test_cik();
         let client = AlwaysRespondingSecClient::new(
             status,
@@ -336,7 +323,7 @@ mod tests {
             .cik(cik.clone())
             .build();
         let input = ExecuteSecRequestInput::new(client, request);
-        let context = ExecuteSecRequestContext::new(cik, FakeWriteRepository::new());
+        let context = ExecuteSecRequestContext::new(cik);
         ExecuteSecRequest::new(input, context)
     }
 
@@ -344,7 +331,7 @@ mod tests {
     /// and the ZIP fixture.
     fn create_notes_file_state(
         status: u16,
-    ) -> ExecuteSecRequest<NotesFile, FakeNotesRepository, AlwaysRespondingSecClient> {
+    ) -> ExecuteSecRequest<NotesFile, AlwaysRespondingSecClient> {
         create_notes_file_state_with_content_type(status, "application/zip")
     }
 
@@ -353,7 +340,7 @@ mod tests {
     fn create_notes_file_state_with_content_type(
         status: u16,
         content_type: &str,
-    ) -> ExecuteSecRequest<NotesFile, FakeNotesRepository, AlwaysRespondingSecClient> {
+    ) -> ExecuteSecRequest<NotesFile, AlwaysRespondingSecClient> {
         let period = NotesPeriod::new("2024q1")
             .expect("Given a hardcoded published quarter, parsing should always succeed");
         let client = AlwaysRespondingSecClient::new(
@@ -367,7 +354,7 @@ mod tests {
         let request = SecRequest::builder().notes_file().period(period).build();
         ExecuteSecRequest::new(
             ExecuteSecRequestInput::new(client, request),
-            ExecuteSecRequestContext::new(period, FakeNotesRepository::new()),
+            ExecuteSecRequestContext::new(period),
         )
     }
 
@@ -566,7 +553,7 @@ mod tests {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should be valid");
         let request = SecRequest::builder().all_company_facts().cik(cik).build();
         let input = ExecuteSecRequestInput::new(client, request);
-        let context = ExecuteSecRequestContext::new(create_test_cik(), FakeWriteRepository::new());
+        let context = ExecuteSecRequestContext::new(create_test_cik());
 
         let expected_result = &context.clone();
 
@@ -582,7 +569,7 @@ mod tests {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should be valid");
         let request = SecRequest::builder().all_company_facts().cik(cik).build();
         let input = ExecuteSecRequestInput::new(client, request);
-        let context = ExecuteSecRequestContext::new(create_test_cik(), FakeWriteRepository::new());
+        let context = ExecuteSecRequestContext::new(create_test_cik());
 
         let expected_result = true;
 
@@ -596,7 +583,7 @@ mod tests {
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
     #[test]
     const fn should_implement_auto_traits_for_execute_sec_request() {
-        implements_auto_traits::<ExecuteCompanyFactsRequest<FakeWriteRepository>>();
+        implements_auto_traits::<ExecuteCompanyFactsRequest>();
     }
 
     const fn implements_send<T: Send>() {}
@@ -604,66 +591,66 @@ mod tests {
 
     #[test]
     const fn should_implement_send_for_execute_sec_request() {
-        implements_send::<ExecuteCompanyFactsRequest<FakeWriteRepository>>();
+        implements_send::<ExecuteCompanyFactsRequest>();
     }
 
     #[test]
     const fn should_implement_sync_for_execute_sec_request() {
-        implements_sync::<ExecuteCompanyFactsRequest<FakeWriteRepository>>();
+        implements_sync::<ExecuteCompanyFactsRequest>();
     }
 
     #[test]
     const fn should_be_thread_safe_for_execute_sec_request() {
-        implements_send::<ExecuteCompanyFactsRequest<FakeWriteRepository>>();
-        implements_sync::<ExecuteCompanyFactsRequest<FakeWriteRepository>>();
+        implements_send::<ExecuteCompanyFactsRequest>();
+        implements_sync::<ExecuteCompanyFactsRequest>();
     }
 
     const fn implements_sized<T: Sized>() {}
     #[test]
     const fn should_be_sized_for_execute_sec_request() {
-        implements_sized::<ExecuteCompanyFactsRequest<FakeWriteRepository>>();
+        implements_sized::<ExecuteCompanyFactsRequest>();
     }
 
     const fn implements_hash<T: Hash>() {}
     #[test]
     const fn should_implement_hash_for_execute_sec_request() {
-        implements_hash::<ExecuteCompanyFactsRequest<FakeWriteRepository>>();
+        implements_hash::<ExecuteCompanyFactsRequest>();
     }
 
     const fn implements_partial_eq<T: PartialEq>() {}
     #[test]
     const fn should_implement_partial_eq_for_execute_sec_request() {
-        implements_partial_eq::<ExecuteCompanyFactsRequest<FakeWriteRepository>>();
+        implements_partial_eq::<ExecuteCompanyFactsRequest>();
     }
 
     const fn implements_eq<T: Eq>() {}
     #[test]
     const fn should_implement_eq_for_execute_sec_request() {
-        implements_eq::<ExecuteCompanyFactsRequest<FakeWriteRepository>>();
+        implements_eq::<ExecuteCompanyFactsRequest>();
     }
 
     const fn implements_partial_ord<T: PartialOrd>() {}
     #[test]
     const fn should_implement_partial_ord_for_execute_sec_request() {
-        implements_partial_ord::<ExecuteCompanyFactsRequest<FakeWriteRepository>>();
+        implements_partial_ord::<ExecuteCompanyFactsRequest>();
     }
 
     const fn implements_ord<T: Ord>() {}
     #[test]
     const fn should_implement_ord_for_execute_sec_request() {
-        implements_ord::<ExecuteCompanyFactsRequest<FakeWriteRepository>>();
+        implements_ord::<ExecuteCompanyFactsRequest>();
     }
 
     const fn implements_debug<T: Debug>() {}
     #[test]
     const fn should_implement_debug_for_execute_sec_request() {
-        implements_debug::<ExecuteCompanyFactsRequest<FakeWriteRepository>>();
+        implements_debug::<ExecuteCompanyFactsRequest>();
     }
 
     const fn implements_clone<T: Clone>() {}
     #[test]
     const fn should_implement_clone_for_execute_sec_request() {
-        implements_clone::<ExecuteCompanyFactsRequest<FakeWriteRepository>>();
+        implements_clone::<ExecuteCompanyFactsRequest>();
     }
 
     const fn implements_value_traits<
@@ -672,13 +659,13 @@ mod tests {
     }
     #[test]
     const fn should_implement_value_traits_for_execute_sec_request_of_notes_file_kind() {
-        implements_value_traits::<ExecuteSecRequest<NotesFile, FakeNotesRepository>>();
+        implements_value_traits::<ExecuteSecRequest<NotesFile>>();
     }
 
     const fn implements_unpin<T: Unpin>() {}
     #[test]
     const fn should_implement_unpin_for_execute_sec_request() {
-        implements_unpin::<ExecuteCompanyFactsRequest<FakeWriteRepository>>();
+        implements_unpin::<ExecuteCompanyFactsRequest>();
     }
 
     #[test]
