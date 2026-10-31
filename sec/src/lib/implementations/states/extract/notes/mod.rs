@@ -51,10 +51,7 @@
 
 pub mod builder;
 
-use std::cmp::Ordering;
 use std::fmt::{self, Display, Formatter};
-use std::hash::{Hash, Hasher};
-use std::sync::{Arc, Mutex, PoisonError};
 
 use async_trait::async_trait;
 use futures_util::StreamExt;
@@ -80,7 +77,7 @@ use crate::shared::raw_repository::RawRepository;
 use crate::shared::raw_source::RawNotesArchive;
 use crate::shared::request::implementations::sec_request::NotesFile;
 use crate::shared::response::implementations::sec_response::{SecResponse, ZipBody};
-use crate::traits::state_machine::stream::terminal_stream_with;
+use crate::traits::state_machine::stream::{OutputSlot, terminal_stream_with};
 
 /// Input and output data for the [`ExtractNotesSuperState`].
 ///
@@ -112,7 +109,7 @@ impl StateData for ExtractNotesSuperStateData {
 pub struct ExtractNotesSuperStateContext<C> {
     pub(crate) sec_client: C,
     pub(crate) execution_id: Uuid,
-    pub(crate) archive_slot: ArchiveSlot,
+    pub(crate) archive_slot: OutputSlot<NotesArchiveRef>,
 }
 
 impl<C> ExtractNotesSuperStateContext<C> {
@@ -123,50 +120,9 @@ impl<C> ExtractNotesSuperStateContext<C> {
         Self {
             sec_client,
             execution_id,
-            archive_slot: ArchiveSlot::default(),
+            archive_slot: OutputSlot::default(),
         }
     }
-}
-
-/// A shared slot that [`StoreNotesArchive`] fills with the [`NotesArchiveRef`] of the stored file.
-///
-/// Clones share one slot. Every slot compares equal and adds nothing to a hash, so the slot never
-/// changes how two contexts compare.
-#[derive(Debug, Clone, Default)]
-pub(crate) struct ArchiveSlot(Arc<Mutex<Option<NotesArchiveRef>>>);
-
-impl ArchiveSlot {
-    fn put(&self, archive: NotesArchiveRef) {
-        *self.0.lock().unwrap_or_else(PoisonError::into_inner) = Some(archive);
-    }
-
-    fn take(&self) -> Option<NotesArchiveRef> {
-        self.0.lock().unwrap_or_else(PoisonError::into_inner).take()
-    }
-}
-
-impl PartialEq for ArchiveSlot {
-    fn eq(&self, _other: &Self) -> bool {
-        true
-    }
-}
-
-impl Eq for ArchiveSlot {}
-
-impl PartialOrd for ArchiveSlot {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl Ord for ArchiveSlot {
-    fn cmp(&self, _other: &Self) -> Ordering {
-        Ordering::Equal
-    }
-}
-
-impl Hash for ArchiveSlot {
-    fn hash<H: Hasher>(&self, _state: &mut H) {}
 }
 
 impl<C: SecClientTrait> SMContext for ExtractNotesSuperStateContext<C> {
@@ -326,7 +282,7 @@ where
         mut self,
         mut on_item: impl FnMut(&StreamItem),
     ) -> Result<NotesArchiveRef, StreamError> {
-        let archive_slot = ArchiveSlot::default();
+        let archive_slot = OutputSlot::default();
         self.context.archive_slot = archive_slot.clone();
         let mut stream = self.into_run_stream();
         while let Some(item) = stream.next().await {
