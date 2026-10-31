@@ -1050,9 +1050,10 @@ mod tests {
         assert_eq!(result, expected_result);
     }
 
-    #[tokio::test]
-    async fn should_carry_execution_id_of_builder_when_transitioning_to_store_company_facts() {
-        let execution_id = Uuid::from_u128(7);
+    /// Walks a fresh super-state to `ExecuteSecRequest` and gives that state a response.
+    async fn executed_super_state(
+        execution_id: Uuid,
+    ) -> ExtractCompanyFactsSuperState<ExecuteCompanyFactsRequest, FakeWriteRepository> {
         let mut super_state = ExtractCompanyFactsSuperState::builder()
             .cik("1067983")
             .sec_client(SecClient::default())
@@ -1078,6 +1079,13 @@ mod tests {
             .clone()
             .with_output(ExecuteSecRequestOutput::new(sample_response()));
         *super_state.current_state_mut() = executed;
+        super_state
+    }
+
+    #[tokio::test]
+    async fn should_carry_execution_id_of_builder_when_transitioning_to_store_company_facts() {
+        let execution_id = Uuid::from_u128(7);
+        let super_state = executed_super_state(execution_id).await;
 
         let expected_result = execution_id;
 
@@ -1107,31 +1115,7 @@ mod tests {
 
     #[tokio::test]
     async fn should_store_as_backfill_when_transitioning_to_store_company_facts() {
-        let mut super_state = ExtractCompanyFactsSuperState::builder()
-            .cik("1067983")
-            .sec_client(SecClient::default())
-            .execution_id(Uuid::from_u128(7))
-            .repository(FakeWriteRepository::new())
-            .build();
-        super_state
-            .compute_output_data_async()
-            .await
-            .expect("Given a hardcoded valid CIK, validation should always succeed");
-        let mut super_state = super_state
-            .transition_to_next_state_sec()
-            .expect("Given a computed CIK validation, the transition should always succeed");
-        super_state
-            .compute_output_data_async()
-            .await
-            .expect("Given a validated CIK, preparing the request should always succeed");
-        let mut super_state = super_state
-            .transition_to_next_state_sec()
-            .expect("Given a prepared request, the transition should always succeed");
-        let executed = super_state
-            .current_state()
-            .clone()
-            .with_output(ExecuteSecRequestOutput::new(sample_response()));
-        *super_state.current_state_mut() = executed;
+        let super_state = executed_super_state(Uuid::from_u128(7)).await;
 
         let expected_result = IngestionMode::Backfill;
 

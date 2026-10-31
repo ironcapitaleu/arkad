@@ -326,7 +326,9 @@ mod tests {
     #[tokio::test]
     async fn should_persist_the_ingestion_mode_of_the_input() {
         let repository = FakeWriteRepository::new();
-        let (_, _, context) = sample_state(repository.clone()).into_parts();
+        let cik = Cik::new("1067983")
+            .expect("Given a hardcoded numeric CIK, its creation should always succeed");
+        let context = StoreCompanyFactsContext::new(cik, EXECUTION_ID, repository.clone());
         let mut input = sample_input();
         input.ingestion_mode = IngestionMode::Incremental;
         let mut state = StoreCompanyFacts::new(input, context);
