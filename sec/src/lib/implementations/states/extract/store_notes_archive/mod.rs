@@ -84,7 +84,7 @@ impl<R> StoreNotesArchive<R> {
 ///
 /// # Panics
 ///
-/// Never in practice: an SEC file name holds no path separator, so the key path is always valid.
+/// Never panics: an SEC file name holds no path separator, so the key path is always valid.
 ///
 /// # Examples
 ///

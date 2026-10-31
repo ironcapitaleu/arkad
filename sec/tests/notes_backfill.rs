@@ -9,7 +9,7 @@
 
 // The binary is its own crate root, so this test compiles its loop as a private module. The test
 // reads only part of the summary, so the counts that only `main` reads would fire `dead_code`.
-#[allow(dead_code)]
+#[expect(dead_code)]
 #[path = "../src/bin/notes_backfill/backfill.rs"]
 mod backfill;
 

@@ -23,6 +23,7 @@ use sec::shared::notes_period::NotesPeriod;
 use sec::shared::raw_document::RawDocument;
 use sec::shared::raw_source::RawNotesArchive;
 use serde_json::{Value, json};
+use storage::ReadError;
 use storage::implementations::repository::filesystem::{
     Document, FilesystemRepository, Read, Write,
 };
@@ -47,6 +48,9 @@ pub enum Fetch {
     Downloaded,
     /// The store already held an intact file, so the run skipped the download.
     AlreadyStored,
+    /// The store held a file that it could not read or that failed the size or SHA-256 check, so
+    /// the run downloaded the file again.
+    Replaced,
 }
 
 /// The outcome of one period: the stored archive and how the run got it, or the error of the state
@@ -122,7 +126,8 @@ impl RunSummary {
 
     /// Returns one JSON entry per period.
     ///
-    /// A stored period lists its status (`downloaded` or `already_stored`), key, size, and SHA-256.
+    /// A stored period lists its status (`downloaded`, `already_stored`, or `replaced`), key, size,
+    /// and SHA-256.
     /// An unpublished period says so. A failed period lists the failed state and the error.
     pub fn entries(&self) -> Vec<Value> {
         let first_unpublished = self.0.len() - self.unpublished_count();
@@ -139,6 +144,7 @@ impl RunSummary {
                     "status": match fetch {
                         Fetch::Downloaded => "downloaded",
                         Fetch::AlreadyStored => "already_stored",
+                        Fetch::Replaced => "replaced",
                     },
                     "key": archive.key().as_path().display().to_string(),
                     "size_in_bytes": archive.size_in_bytes(),
@@ -154,24 +160,31 @@ impl RunSummary {
     }
 }
 
-/// Returns the stored archive of `period`, or `None` if `reader` holds no intact file of it.
+/// Returns the stored archive of `period`, or `None` if `reader` holds no file of it.
 ///
-/// A file that fails the size or SHA-256 check counts as absent, so the run downloads it again. An
-/// invalid period also returns `None`, so the run reports its validation error.
+/// An invalid period also returns `None`, so the run reports its validation error.
+///
+/// # Errors
+///
+/// Returns a [`ReadError`] if `reader` cannot read the stored file, or if the file fails the size
+/// or SHA-256 check.
 pub async fn stored_archive(
     reader: &FilesystemRepository<Read, RawDocument<RawNotesArchive>>,
     period: &str,
-) -> Option<NotesArchiveRef> {
-    let period = NotesPeriod::new(period).ok()?;
+) -> Result<Option<NotesArchiveRef>, ReadError> {
+    let Ok(period) = NotesPeriod::new(period) else {
+        return Ok(None);
+    };
     let key = notes_key(period);
-    let document = reader.get(key.clone()).await.ok()??;
-    let metadata = document.metadata();
-    Some(NotesArchiveRef::new(
-        period,
-        key,
-        metadata.size_in_bytes(),
-        metadata.sha256().clone(),
-    ))
+    Ok(reader.get(key.clone()).await?.map(|document| {
+        let metadata = document.metadata();
+        NotesArchiveRef::new(
+            period,
+            key,
+            metadata.size_in_bytes(),
+            metadata.sha256().clone(),
+        )
+    }))
 }
 
 /// Extracts the Notes file of each period in `periods` into `repository`.
@@ -216,14 +229,16 @@ pub async fn run(
         // this split is an open decision (STA-360).
         // The check runs inside the future, so `FILES_IN_FLIGHT` also caps the files it reads.
         async move {
-            if let Some(archive) = stored_archive(&reader, &period).await {
-                return (index, period, Ok((Fetch::AlreadyStored, archive)));
-            }
+            let fetch = match stored_archive(&reader, &period).await {
+                Ok(Some(archive)) => return (index, period, Ok((Fetch::AlreadyStored, archive))),
+                Ok(None) => Fetch::Downloaded,
+                Err(_) => Fetch::Replaced,
+            };
             let task = tokio::spawn(async move {
                 let outcome = super_state
                     .run_to_archive(|item| on_item(&period, item))
                     .await
-                    .map(|archive| (Fetch::Downloaded, archive))
+                    .map(|archive| (fetch, archive))
                     .inspect_err(|error| on_error(&period, error));
                 (index, period, outcome)
             });
@@ -380,7 +395,7 @@ mod tests {
         let root = temporary_root();
         store_sample_file(&root).await;
 
-        let expected_result = Some(sample_archive());
+        let expected_result = Ok(Some(sample_archive()));
 
         let result = stored_archive(&reader(&root), STORED_PERIOD).await;
 
@@ -391,7 +406,7 @@ mod tests {
     async fn should_return_none_when_the_store_holds_no_file_of_the_period() {
         let root = temporary_root();
 
-        let expected_result = None;
+        let expected_result = Ok(None);
 
         let result = stored_archive(&reader(&root), STORED_PERIOD).await;
 
@@ -399,14 +414,14 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_return_none_when_the_stored_file_fails_the_sha256_check() {
+    async fn should_return_a_read_error_when_the_stored_file_fails_the_sha256_check() {
         let root = temporary_root();
         store_sample_file(&root).await;
         corrupt_sample_file(&root);
 
-        let expected_result = None;
+        let expected_result = true;
 
-        let result = stored_archive(&reader(&root), STORED_PERIOD).await;
+        let result = stored_archive(&reader(&root), STORED_PERIOD).await.is_err();
 
         assert_eq!(result, expected_result);
     }
@@ -454,12 +469,16 @@ mod tests {
     }
 
     fn stored(period: &str) -> (String, PeriodOutcome) {
+        stored_by(period, Fetch::Downloaded)
+    }
+
+    fn stored_by(period: &str, fetch: Fetch) -> (String, PeriodOutcome) {
         let notes_period = NotesPeriod::new(period)
             .expect("Given a hardcoded published period, parsing should always succeed");
         let key = DocumentKey::new(format!("sec/notes/{period}_notes.zip"))
             .expect("Given a valid relative path, the key should always build");
         let archive = NotesArchiveRef::new(notes_period, key, 2, Sha256Digest::of(b"PK"));
-        (period.to_string(), Ok((Fetch::Downloaded, archive)))
+        (period.to_string(), Ok((fetch, archive)))
     }
 
     fn answered(period: &str, status_code: StatusCode) -> (String, PeriodOutcome) {
@@ -485,6 +504,44 @@ mod tests {
         let expected_result = Ok(());
 
         let result = summary.result();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_count_only_already_stored_periods_when_the_run_mixes_fetches() {
+        let summary = RunSummary(vec![
+            stored_by("2009q1", Fetch::AlreadyStored),
+            stored_by("2009q2", Fetch::Downloaded),
+            stored_by("2009q3", Fetch::Replaced),
+        ]);
+
+        let expected_result = 1;
+
+        let result = summary.already_stored_count();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_list_the_status_of_each_stored_period_when_listing_entries() {
+        let summary = RunSummary(vec![
+            stored_by("2009q1", Fetch::AlreadyStored),
+            stored_by("2009q2", Fetch::Downloaded),
+            stored_by("2009q3", Fetch::Replaced),
+        ]);
+
+        let expected_result = vec![
+            json!("already_stored"),
+            json!("downloaded"),
+            json!("replaced"),
+        ];
+
+        let result: Vec<Value> = summary
+            .entries()
+            .into_iter()
+            .map(|entry| entry["status"].clone())
+            .collect();
 
         assert_eq!(result, expected_result);
     }
