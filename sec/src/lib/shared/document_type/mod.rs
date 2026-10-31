@@ -16,6 +16,8 @@ pub enum SecDocumentType {
     RawDailyIndex,
     /// One Financial Statement and Notes ZIP exactly as the SEC returned it.
     RawNotesArchive,
+    /// The `submissions` JSON of one company exactly as the SEC returned it.
+    RawSubmissions,
 }
 
 impl Display for SecDocumentType {
@@ -24,6 +26,7 @@ impl Display for SecDocumentType {
             Self::RawCompanyFacts => write!(f, "raw_company_facts"),
             Self::RawDailyIndex => write!(f, "raw_daily_index"),
             Self::RawNotesArchive => write!(f, "raw_notes_archive"),
+            Self::RawSubmissions => write!(f, "raw_submissions"),
         }
     }
 }
@@ -79,6 +82,17 @@ mod tests {
         let document_type = SecDocumentType::RawNotesArchive;
 
         let expected_result = "raw_notes_archive";
+
+        let result = document_type.to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_display_raw_submissions_for_the_raw_submissions_document_type() {
+        let document_type = SecDocumentType::RawSubmissions;
+
+        let expected_result = "raw_submissions";
 
         let result = document_type.to_string();
 
