@@ -628,14 +628,14 @@ linkbases, so the rule picks `aapl-20170930.xml`.
 `DownloadFilingDocuments` fetches the instance, and the label file if one exists. The files are
 small (2.8 KB and 22.8 KB for this filing), so the run caps filings by the rate limiter only.
 
-Proposed in STA-390: a thin `DownloadFilingDocuments` state sends one
+STA-390 proposes a thin `DownloadFilingDocuments` state. It sends one
 `SecClient::execute_sec_request` for each file. The generic `ExecuteSecRequest` stays unchanged,
 and it does not run these downloads.
 
-One request means one HTTP call today. These places fix that rule on `main`. Paths start at
+One request means one HTTP call today. These places limit a request to one HTTP call on `main`. Paths start at
 `sec/src/lib/`.
 
-| Place | File and line | What it fixes |
+| Place | File and line | What it limits |
 | ----- | ------------- | ------------- |
 | `SecRequest<K>` | `shared/request/implementations/sec_request/mod.rs:53` | The field `inner` holds one `reqwest::Request`. `new` (line 124) builds one URL. `Serialize`, `PartialEq`, `Hash`, and `Ord` (lines 59 to 210) read that URL. |
 | `SecRequest` trait | `shared/request/traits/sec_request.rs:32` | `inner` returns one inner request. |
@@ -719,36 +719,39 @@ async fn compute_output_data_async(&mut self) -> Result<(), StateError> {
 | 1 | `responds_with.rs`, `sec_client.rs`, a composite body under `sec_response/body/`, a new `ErrorReason` variant | None in the kind impls. Every request passes through `E::fetch`. |
 | 2 | `sec_request/mod.rs`, `sec_client.rs`, `sec_response/`, `request_check.rs` | Every request holds a list of one. `Serialize`, `PartialEq`, and the request check change for all six kinds. |
 | 3 | `execute_sec_request/` with its output, the two store transitions, `responds_with.rs` | Each of the six kinds writes `type Output` and `execute`. |
-| 4 | New: the kind `FilingDocument`, `XmlBody`, the state, one `StateError` variant | None. |
+| 4 | New: the kind `FilingDocument` with its input type, the variant `FetchFilingDocument` and its URL in `sec_request/mod.rs`, `XmlBody`, the state, one `StateError` variant | None. |
 
 | Question | 1. Execution on the request | 2. Batch request | 3. Hook on the kind | 4. Thin state |
 | -------- | --------------------------- | ---------------- | ------------------- | ------------- |
 | `ExecuteSecRequest` unchanged? | Yes. The types under it change. | Yes, if one `SecResponse` holds the batch. Else its output changes. | No | Yes. It does not run the downloads. |
 | One rate-limiter turn for each call? | Yes, if `fetch` sends each file through the one-call path | Yes, one `await_turn` for each entry | Yes, inside `execute` | Yes, through `execute_sec_request` |
 | Optional label file | `fetch` reads an `Option` from the request input | A list of one or two calls. The position marks the label file. | `execute` reads an `Option` | `match` on `FilingDocuments::label_file` |
-| Does an error name the file? | Only with a new `ErrorReason` variant | Only with a new `ErrorReason` variant | Only with a new error | Yes. The state error holds the file name. |
+| Does an error name the file? | Only with a new `ErrorReason` variant | Only with a new `ErrorReason` variant | Only with a new error | Yes, with a new `StateError` variant. `FailedSecRequest` stays unchanged. |
 | Compiles on Rust 1.90? | Yes. A default method is stable. | Yes | Yes, but only because each kind writes its `Output`. A blanket impl conflicts with the impl of the new kind. | Yes |
-| Code of the five kinds stays the same? | Yes | The kind impls stay. The shared request code changes. | No | Yes |
+| Code of the six existing kinds stays the same? | Yes | The kind impls stay. The shared request code changes. | No | Yes |
 | Needs STA-398? | Yes, two sources for one kind | Yes, two sources for one kind | Yes, two sources for one kind | No. `FilingDocument` has no `StoredAs`. |
 
 The proposal is design 4, for these reasons:
 
-- It changes no shared type. Designs 1 and 2 keep the code of `ExecuteSecRequest`, but one
-  `SecResponse` then holds two replies with the URL and the status code of one.
+- It changes no shared type of the request layer, except the new `SecRequestType` variant
+  `FetchFilingDocument`, which every design needs. Designs 1 and 2 keep the code of
+  `ExecuteSecRequest`, but one `SecResponse` then holds two replies with the URL and the status
+  code of one.
 - An error names the failed file without a change to `FailedSecRequest`.
 - It does not wait for STA-398, because the state does not write.
 - It reuses the request layer: `SecRequest<K>`, `RespondsWith`, `SecClient::execute_sec_request`,
   and `SecResponse<B>`. Each file is one request, and each request is one HTTP call.
 
 The cost is one new state, with about 20 lines in `compute_output_data_async`, close to the lines
-of `ExecuteSecRequest`. Two runs of the generic pair do not fit either. The extract machines are
-typestates, so a transition leads to one state type. The optional label file needs a transition
+of `ExecuteSecRequest`. Two runs of `PrepareSecRequest` and `ExecuteSecRequest` do not work. The
+extract machines are typestates, so a transition leads to one state type. The optional label file needs a transition
 that leads to two.
 
 The shape of design 4:
 
-- The kind `FilingDocument` has `Input` = the `FilingRef` and one file name, builds
-  `FetchFilingDocument`, and has `Body = XmlBody`. The URL is
+- The kind `FilingDocument` has `Input` = a new type with the `FilingRef` and one file name. This
+  type implements `Display`, `Serialize`, `Ord`, and `Hash`, as `RequestKind::Input` requires.
+  STA-373 names it. The kind builds `FetchFilingDocument`, and has `Body = XmlBody`. The URL is
   `https://www.sec.gov/Archives/edgar/data/<cik>/<accession without dashes>/<file name>`, with the
   CIK from `Cik::unpadded`. The kind has no `StoredAs`.
 - `XmlBody` checks status 200, the content type `text/xml` or `application/xml`, and the
@@ -764,9 +767,10 @@ The shape of design 4:
   transition into `StoreNotesArchive` moves its one. The `FilingRef` comes from the input of
   `DownloadFilingDocuments`.
 
-This proposal does not decide where `index.json` is written. STA-376 decides that. A write
-before `SelectFilingDocuments`, by a `StoreFilingIndex` state or by the generic store of STA-383,
-keeps the folder index response out of `DownloadFilingDocuments`.
+This proposal assumes that `index.json` is written before `SelectFilingDocuments`, by a
+`StoreFilingIndex` state or by the generic store of STA-383. STA-376 decides that. If STA-376
+writes it with the filing documents, the input and the output of `DownloadFilingDocuments` also
+hold the folder index response.
 
 ### Company Data
 
