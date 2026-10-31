@@ -174,6 +174,7 @@ classDiagram
         %% `sec_client::error::ErrorReason`, renamed here for diagram uniqueness
         +FailedRequestExecution(String details)
         +InvalidResponse(InvalidSecResponse source)
+        +FailedFilingDocument(String file_name, SecClientErrorReason source)
     }
 
     class InvalidSecResponse{
@@ -222,5 +223,6 @@ classDiagram
     WriteError ..> FailedDocumentStorage : From
     FailedSecRequest --> SecClientErrorReason
     SecClientErrorReason --> InvalidSecResponse
+    SecClientErrorReason --> SecClientErrorReason : FailedFilingDocument
     InvalidSecResponse --> SecResponseErrorReason
 ```

@@ -989,7 +989,8 @@ The shape of design 5:
 - `XmlBody` checks status 200, the content type `text/xml` or `application/xml`, and the
   `Content-Length` header, as `ZipBody` does. Its content is `[u8]`.
 - The impl for `FilingDocumentSet` downloads the instance first. A failed instance call ends the
-  request before the label call. A new `ErrorReason` variant wraps the failure with the file name.
+  request before the label call. The `ErrorReason` variant `FailedFilingDocument` wraps the failure
+  with the file name.
 - `StoreFilingDocuments` receives `FilingDocumentResponses`: `instance: SecResponse<XmlBody>` and
   `labels: Option<SecResponse<XmlBody>>`, behind the `Arc` of `ExecuteSecRequestOutput`. The
   transition moves the `Arc`, as the transition into `StoreNotesArchive` moves its one.

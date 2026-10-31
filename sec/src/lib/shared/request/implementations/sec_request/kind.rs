@@ -142,7 +142,8 @@ impl RequestKind for FilingDocument {
 /// The kind of a request that downloads the XBRL instance and the optional label file of one
 /// filing.
 ///
-/// The request URL names the folder of the filing.
+/// The request URL names the folder of the filing. The client fetches each file as one
+/// [`FilingDocument`] request.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct FilingDocumentSet;
 

@@ -31,22 +31,24 @@ impl FailedSecRequest {
         Self { reason }
     }
 
-    /// Returns `true` if the SEC answered 403 or 404.
+    /// Wraps the reason of this error in [`ErrorReason::FailedFilingDocument`], which names the
+    /// file the request fetched.
+    #[must_use]
+    pub fn for_file(self, file_name: impl Into<String>) -> Self {
+        Self::new(ErrorReason::FailedFilingDocument {
+            file_name: file_name.into(),
+            source: Box::new(self.reason),
+        })
+    }
+
+    /// Returns `true` if the SEC answered 403 or 404, also for the file that an
+    /// [`ErrorReason::FailedFilingDocument`] names.
     ///
     /// For a file that does not exist, the SEC answers 404, or 403 with an S3 `AccessDenied` body,
     /// as observed on 2026-10-30. A 403 can also mean that the SEC refused the request.
     #[must_use]
-    pub const fn is_absent_file(&self) -> bool {
-        matches!(
-            &self.reason,
-            ErrorReason::InvalidResponse { source }
-                if matches!(
-                    source.reason,
-                    ResponseErrorReason::InvalidStatusCode {
-                        status_code: StatusCode::Forbidden | StatusCode::NotFound
-                    }
-                )
-        )
+    pub fn is_absent_file(&self) -> bool {
+        self.reason.is_absent_file()
     }
 }
 
@@ -64,6 +66,30 @@ pub enum ErrorReason {
         /// The underlying response-validation error.
         source: InvalidSecResponse,
     },
+    /// The request for one file of a filing failed.
+    FailedFilingDocument {
+        /// The name of the file in the folder of the filing.
+        file_name: String,
+        /// The reason the request for the file failed.
+        source: Box<Self>,
+    },
+}
+
+impl ErrorReason {
+    /// Returns `true` if the SEC answered 403 or 404, also under a
+    /// [`FailedFilingDocument`](Self::FailedFilingDocument).
+    fn is_absent_file(&self) -> bool {
+        match self {
+            Self::InvalidResponse { source } => matches!(
+                source.reason,
+                ResponseErrorReason::InvalidStatusCode {
+                    status_code: StatusCode::Forbidden | StatusCode::NotFound
+                }
+            ),
+            Self::FailedFilingDocument { source, .. } => source.is_absent_file(),
+            Self::FailedRequestExecution { .. } => false,
+        }
+    }
 }
 
 impl fmt::Display for ErrorReason {
@@ -79,6 +105,12 @@ impl fmt::Display for ErrorReason {
                 write!(
                     f,
                     "[InvalidResponse] Response validation failed, Caused by: {source}"
+                )
+            }
+            Self::FailedFilingDocument { file_name, source } => {
+                write!(
+                    f,
+                    "[FailedFilingDocument] Request for file '{file_name}' failed, Caused by: {source}"
                 )
             }
         }
@@ -124,6 +156,17 @@ mod tests {
         let expected_result = (true, true);
 
         let result = (forbidden.is_absent_file(), not_found.is_absent_file());
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_report_an_absent_file_when_a_filing_document_answers_404() {
+        let error = invalid_status_code(StatusCode::NotFound).for_file("alco-20260908_htm.xml");
+
+        let expected_result = true;
+
+        let result = error.is_absent_file();
 
         assert_eq!(result, expected_result);
     }
@@ -180,6 +223,17 @@ mod tests {
         let expected_result = format!("[FailedSecRequest] SEC request failed, Caused by: {reason}");
 
         let result = format!("{error}");
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_name_the_file_and_chain_the_cause_when_displaying_a_failed_filing_document() {
+        let error = invalid_status_code(StatusCode::NotFound).for_file("alco-20260908_htm.xml");
+
+        let expected_result = "[FailedSecRequest] SEC request failed, Caused by: [FailedFilingDocument] Request for file 'alco-20260908_htm.xml' failed, Caused by: [InvalidResponse] Response validation failed, Caused by: [InvalidSecResponse] Invalid SEC Response, Reason: 'Status code '404' is not accepted'";
+
+        let result = error.to_string();
 
         assert_eq!(result, expected_result);
     }

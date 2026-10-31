@@ -52,7 +52,7 @@ pub type PeriodOutcome = Result<(Fetch, NotesArchiveRef), StreamError>;
 pub struct RunSummary(Vec<(String, PeriodOutcome)>);
 
 /// Returns `true` if `error` comes from an SEC answer of 403 or 404 for the Notes file.
-pub const fn is_absent_file(error: &StreamError) -> bool {
+pub fn is_absent_file(error: &StreamError) -> bool {
     matches!(
         &error.source,
         StateMachine::State(StateError::FailedRequestExecution(failure))
