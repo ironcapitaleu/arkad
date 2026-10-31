@@ -1062,11 +1062,11 @@ Rules:
    `already_stored` period in the run summary.
 6. If the backfill runs later and also stores newer months, such as `2026_10`, those months
    overlap the new-filing path. Rule 4 makes the overlap harmless.
-7. A backfill run can repeat. It skips each stored file that passes the size and SHA-256 check
-   (STA-400), so a repeat downloads only the missing, corrupt, or newly posted files.
-8. If the start date of the new-filing path moves, rule 5 moves with it: the start date must be no
+7. If the start date of the new-filing path moves, rule 5 moves with it: the start date must be no
    later than the last day of the newest stored Notes month. STA-378 decides how `daily_filings`
    picks its dates. That choice must keep this rule.
+8. A backfill run can repeat. It skips each stored file that passes the size and SHA-256 check
+   (STA-400), so a repeat downloads only the missing, corrupt, or newly posted files.
 
 Assumptions:
 
