@@ -226,11 +226,12 @@ The run downloads the whole file, not HTTP range reads.
 
 The download goes through the existing layers: `SecRequest` → `SecClient` → `InnerClient`.
 `SecResponse<B>` is generic over its body kind `B`. The body kind sets the checks and stores the
-body. `SecResponse<JsonBody>`, the default, holds a Company Facts or a `submissions` reply. `SecResponse<ZipBody>`
-holds a Notes file or a daily index as raw bytes.
+body. `SecResponse<JsonBody>`, the default, holds a Company Facts, a `submissions`, or a filing
+folder index reply. `SecResponse<ZipBody>` holds a Notes file or a daily index as raw bytes.
 
 The `RespondsWith` trait on the client side maps each SEC endpoint to its body kind, once for
-every client. `CompanyFacts`, `DailyIndexListing`, and `Submissions` have `Body = JsonBody`.
+every client. `CompanyFacts`, `DailyIndexListing`, `Submissions`, and `FilingIndex` have
+`Body = JsonBody`.
 `NotesFile` and `DailyIndex` have `Body = ZipBody`. This
 keeps `shared::request` independent of `shared::response`.
 
@@ -585,7 +586,10 @@ Decided in STA-372:
 One `ExtractFilingSuperState` runs per `FilingRef`. It sends three requests:
 
 1. The folder index `https://www.sec.gov/Archives/edgar/data/<cik>/<accession without dashes>/index.json`.
-   This is JSON, so `ExecuteSecRequest` reads it unchanged.
+   This is JSON, so `ExecuteSecRequest` reads it unchanged. The kind `FilingIndex` has
+   `Input = FilingRef` and `Body = JsonBody`. The URL holds the CIK without leading zeros, as the
+   daily index writes it. `Cik::unpadded` gives this form. Measured: the padded form answers
+   with a redirect (301).
 2. The XBRL instance.
 3. The `_lab.xml` label file.
 
