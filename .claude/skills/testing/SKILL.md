@@ -5,7 +5,7 @@ description: >
   "write integration tests", "add boilerplate tests", "review testing strategy", "fix a bug",
   "address a review finding", or needs to write, review, or improve unit tests or integration tests
   for a module, component, package, or crate.
-version: 0.2.0
+version: 0.3.0
 argument-hint: "[module-or-file-path]"
 allowed-tools: [Read, Write, Edit, Bash, AskUserQuestion]
 ---
@@ -53,7 +53,7 @@ Based on this reasoning, suggest what tests to write/review and let the user con
 
 ## Conventions
 
-- **Pattern:** Arrange, Define, Act, Assert. The Arrange step binds the input to a named variable. See [Arrange the Input](#arrange-the-input).
+- **Pattern:** Arrange, Define, Act, Assert. The Arrange step binds the input to a named variable. See [Arrange the Input](#arrange-the-input). The Define step writes the expected value out. See [Show the Expected Result](#show-the-expected-result).
 - **Exactly ONE assertion per test function** (`assert_eq!`, `assert_ne!`, or `assert!(...)`). Exceptions: compile-time auto-trait checks (bounds enforced by compilation) and `#[should_panic]` tests (the panic is the assertion).
 - **Naming:** `when` names a condition. `for` names a subject. Pick the clause that fits what follows it.
   - A test with a real condition reads `should_<behavior>_when_<condition>`, as in `should_return_false_when_state_has_not_computed_the_output`.
@@ -111,6 +111,44 @@ The second test has no Arrange step. It repeats the input, and nothing names it.
 - The receiver is part of the input. If the code under test takes no argument, as in `form.to_string()`, bind the receiver, as in `let form = Form::TenK;`.
 - Do not hide the call under test in a helper, such as `fn parse_sample() -> Vec<Row>`. The helper removes the Act step. Call the code under test in the Act line.
 - A fixture helper that builds the input, such as `test_input()`, is allowed. Bind its result in the Arrange step.
+
+### Show the Expected Result
+
+Write `expected_result` as the value the test expects, so the reader sees the output at a glance. Do not compute it.
+
+The reason is the same as for the Arrange step. A `map`, `collect`, or loop in the Define step is a second Act step. The reader must run it in their head to learn what the test expects. A defect in that code can also match the same defect in the code under test.
+
+In review, report a computed `expected_result` as a 🟣 nit. The rule applies to new and changed tests, and to doctests.
+
+Do this:
+
+```rust
+let expected_result = vec![
+    filing_ref("1702744", "0001702744-26-000031", ParsedForm::new(Form::TenK, false), filed_date),
+    filing_ref("2113605", "0001213900-26-112626", ParsedForm::new(Form::TwentyF, false), filed_date),
+];
+
+let result = computed_filings(&mut state).await;
+```
+
+Not this:
+
+```rust
+let expected_result = ["0001702744-26-000031", "0001213900-26-112626"]
+    .map(AccessionNumber::new)
+    .to_vec();
+
+let result: Vec<AccessionNumber> = computed_filings(&mut state)
+    .await
+    .iter()
+    .map(|filing| filing.accession_number().clone())
+    .collect();
+```
+
+The second test maps strings in the Define step, and it compares a projection of the output, not the output.
+
+- A constructor or a test helper call per value is allowed, as in `filing_ref(...)` or `Cik::new(...)`. It shows one value.
+- If the full value is too long to write, assert on a smaller part of the output. Write that part out in full.
 
 ## Boilerplate Tests (apply to ALL domain types and state structs)
 
