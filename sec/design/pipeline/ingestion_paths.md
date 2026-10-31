@@ -1033,9 +1033,15 @@ new `StoreSubmissions` writes the JSON.
 
 ### Cut-Over Between the Paths
 
-The backfill runs once, by hand, up to the last published Notes file, `2026_09`. Decided by the
-lead on 2026-10-28. After that, the new-filing path catches each new filing. No step checks
-whether a company or a filing already exists. See [Idempotent Writes](#idempotent-writes).
+The backfill runs by hand, up to the last published Notes file. Decided by the lead on
+2026-10-28. On that day, the last file was `2026_09`. After the backfill, the new-filing path
+catches each new filing. No step checks whether a company or a filing already exists. See
+[Idempotent Writes](#idempotent-writes).
+
+Since STA-361, the backfill computes its periods from today, so it can run on any date. It asks
+for every period up to last month. Early in a month, the SEC has not posted last month yet. The
+run then counts that period as unpublished and stores everything before it. So the newest stored
+Notes month depends on the day of the run, not on a fixed constant.
 
 Rules:
 
@@ -1045,6 +1051,16 @@ Rules:
    run reads one day.
 3. A missed day is a rerun for that date.
 4. A filing that reaches both paths changes nothing, because every write is idempotent.
+5. The cut-over has no gap only if the backfill stores the Notes month that holds the day before
+   the start date of the new-filing path. For the start date 2026-09-30, the backfill must store
+   `2026_09`. The SEC posted `2026_09` on 2026-10-07, so any backfill run on or after that day
+   stores it, unless the run reports a failure. To check, read the newest `downloaded` or
+   `already_stored` period in the run summary.
+6. If the backfill runs later and also stores newer months, such as `2026_10`, those months
+   overlap the new-filing path. Rule 4 makes the overlap harmless.
+7. If the start date of the new-filing path moves, rule 5 moves with it: the start date must be no
+   later than the last day of the newest stored Notes month. STA-378 decides how `daily_filings`
+   picks its dates. That choice must keep this rule.
 
 Assumptions:
 
