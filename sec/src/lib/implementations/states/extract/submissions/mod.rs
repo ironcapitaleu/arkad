@@ -575,14 +575,30 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_record_the_ingestion_mode_of_the_builder_when_running_the_stream() {
-        // The other tests run with `Incremental`, so `Backfill` shows that the mode comes from
-        // the builder.
+    async fn should_record_the_backfill_mode_of_the_builder_when_running_the_stream() {
         let ingestion_mode = IngestionMode::Backfill;
         let repository = FakeSubmissionsRepository::new();
         let super_state = super_state(SAMPLE_CIK, sec_client(), ingestion_mode, repository.clone());
 
         let expected_result = vec![IngestionMode::Backfill];
+
+        run_stream(super_state).await;
+        let result: Vec<IngestionMode> = repository
+            .persisted()
+            .iter()
+            .map(|document| document.metadata().ingestion_mode())
+            .collect();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_record_the_incremental_mode_of_the_builder_when_running_the_stream() {
+        let ingestion_mode = IngestionMode::Incremental;
+        let repository = FakeSubmissionsRepository::new();
+        let super_state = super_state(SAMPLE_CIK, sec_client(), ingestion_mode, repository.clone());
+
+        let expected_result = vec![IngestionMode::Incremental];
 
         run_stream(super_state).await;
         let result: Vec<IngestionMode> = repository
