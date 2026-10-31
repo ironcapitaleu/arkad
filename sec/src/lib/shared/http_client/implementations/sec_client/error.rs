@@ -8,7 +8,10 @@ use std::fmt;
 
 use thiserror::Error;
 
-use crate::shared::response::implementations::sec_response::error::InvalidSecResponse;
+use crate::shared::response::implementations::sec_response::error::{
+    ErrorReason as ResponseErrorReason, InvalidSecResponse,
+};
+use crate::shared::status_code::StatusCode;
 
 /// Error indicating that an SEC request could not be completed successfully.
 ///
@@ -26,6 +29,24 @@ impl FailedSecRequest {
     #[must_use]
     pub const fn new(reason: ErrorReason) -> Self {
         Self { reason }
+    }
+
+    /// Returns `true` if the SEC answered 403 or 404.
+    ///
+    /// For a file that does not exist, the SEC answers 404, or 403 with an S3 `AccessDenied` body,
+    /// as observed on 2026-10-30. A 403 can also mean that the SEC refused the request.
+    #[must_use]
+    pub const fn is_absent_file(&self) -> bool {
+        matches!(
+            &self.reason,
+            ErrorReason::InvalidResponse { source }
+                if matches!(
+                    source.reason,
+                    ResponseErrorReason::InvalidStatusCode {
+                        status_code: StatusCode::Forbidden | StatusCode::NotFound
+                    }
+                )
+        )
     }
 }
 
@@ -88,6 +109,48 @@ mod tests {
     };
 
     use super::*;
+
+    fn invalid_status_code(status_code: StatusCode) -> FailedSecRequest {
+        FailedSecRequest::from(InvalidSecResponse::new(
+            SecResponseErrorReason::InvalidStatusCode { status_code },
+        ))
+    }
+
+    #[test]
+    fn should_report_an_absent_file_when_the_sec_answers_403_or_404() {
+        let forbidden = invalid_status_code(StatusCode::Forbidden);
+        let not_found = invalid_status_code(StatusCode::NotFound);
+
+        let expected_result = (true, true);
+
+        let result = (forbidden.is_absent_file(), not_found.is_absent_file());
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_report_no_absent_file_when_the_sec_answers_500() {
+        let error = invalid_status_code(StatusCode::InternalServerError);
+
+        let expected_result = false;
+
+        let result = error.is_absent_file();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_report_no_absent_file_when_the_request_fails_in_transport() {
+        let error = FailedSecRequest::new(ErrorReason::FailedRequestExecution {
+            details: "connection refused".to_string(),
+        });
+
+        let expected_result = false;
+
+        let result = error.is_absent_file();
+
+        assert_eq!(result, expected_result);
+    }
 
     #[test]
     fn should_format_display_as_expected_when_reason_is_failed_request_execution() {

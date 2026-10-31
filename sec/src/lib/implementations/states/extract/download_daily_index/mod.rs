@@ -34,16 +34,12 @@ use crate::error::State as StateError;
 use crate::error::state_machine::state::{FailedRequestExecution, MissingDailyIndex};
 use crate::shared::http_client::SecClient as SecClientTrait;
 use crate::shared::http_client::implementations::sec_client::SecClient;
-use crate::shared::http_client::implementations::sec_client::error::{
-    ErrorReason, FailedSecRequest,
-};
+use crate::shared::http_client::implementations::sec_client::error::FailedSecRequest;
 use crate::shared::index_date::IndexDate;
 use crate::shared::index_date::listing::listed_index_dates;
 use crate::shared::request::implementations::sec_request::SecRequest;
 use crate::shared::response::SecResponse as SecResponseTrait;
-use crate::shared::response::implementations::sec_response::error::ErrorReason as ResponseErrorReason;
 use crate::shared::response::implementations::sec_response::{SecResponse, ZipBody};
-use crate::shared::status_code::StatusCode;
 use crate::traits::state_machine::state::State;
 
 pub mod constants;
@@ -130,25 +126,10 @@ where
             .build();
         match self.context.sec_client.execute_sec_request(request).await {
             Ok(listing) => Ok(Some(listed_index_dates(listing.body()))),
-            Err(error) if is_absent(&error) => Ok(None),
+            Err(error) if error.is_absent_file() => Ok(None),
             Err(error) => Err(FailedRequestExecution::new(STATE_NAME, error).into()),
         }
     }
-}
-
-/// Returns `true` if the SEC answered 403 or 404. For a file that does not exist, the SEC answers
-/// 403 with an S3 `AccessDenied` body, as observed on 2026-10-30.
-const fn is_absent(error: &FailedSecRequest) -> bool {
-    matches!(
-        &error.reason,
-        ErrorReason::InvalidResponse { source }
-            if matches!(
-                source.reason,
-                ResponseErrorReason::InvalidStatusCode {
-                    status_code: StatusCode::Forbidden | StatusCode::NotFound
-                }
-            )
-    )
 }
 
 // Deviation: the output holds a concrete `SecResponse<ZipBody>`, and `FailedRequestExecution`
@@ -182,7 +163,7 @@ where
         }
         let output = match self.context.sec_client.execute_sec_request(request).await {
             Ok(response) => DownloadDailyIndexOutput::new(response),
-            Err(error) if is_absent(&error) => {
+            Err(error) if error.is_absent_file() => {
                 if !self.has_later_index().await? {
                     return Err(MissingDailyIndex::new(STATE_NAME, self.context.index_date).into());
                 }
@@ -268,7 +249,10 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;
-    use crate::shared::response::implementations::sec_response::error::InvalidSecResponse;
+    use crate::shared::response::implementations::sec_response::error::{
+        ErrorReason as ResponseErrorReason, InvalidSecResponse,
+    };
+    use crate::shared::status_code::StatusCode;
     use crate::tests::fixtures::sample_http_client::sample_sec_client::routing::RoutingSecClient;
 
     const INDEX_URL: &str =
