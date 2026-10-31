@@ -750,7 +750,7 @@ where
 | ------ | ---------------- | --------------------------- |
 | 1 | `responds_with.rs`, `sec_client.rs`, a composite body under `sec_response/body/`, a new `ErrorReason` variant | None in the kind impls. Every request passes through `E::fetch`. |
 | 2 | `sec_request/mod.rs`, `sec_client.rs`, `sec_response/`, `request_check.rs` | Every request holds a list of one. `Serialize`, `PartialEq`, and the request check change for all six kinds. |
-| 3 | `execute_sec_request/` with its output, the two store transitions, `responds_with.rs` | Each of the six kinds writes `type Output` and `execute`. |
+| 3 | `execute_sec_request/` with its output, the three store transitions, `responds_with.rs` | Each of the six kinds writes `type Output` and `execute`. |
 | 4 | New: the kind `FilingDocument`, `XmlBody`, the state `DownloadFilingDocuments`, one `StateError` variant | None. |
 | 5 | New: `HasResponse` and `Executes` under `shared/http_client/traits/`, the kinds `FilingDocument` and `FilingDocumentSet`, `XmlBody`, `FilingDocumentResponses` with the traits of a state output, one `ErrorReason` variant. Changed: `sec_request/mod.rs` (the request keeps its input), the bounds and the output of `ExecuteSecRequest` with its updater, and the bound `K: RespondsWith` of the transition from `PrepareSecRequest` (`transitions/from/prepare_sec_request/execute_sec_request.rs:42`) | None. The blanket impls cover the six kinds and every client whose response is `SecResponse`: `SecClient`, `AlwaysRespondingSecClient`, and `RoutingSecClient`. `FakeSecClient` stays out, as it does for `ExecuteSecRequest` today. |
 
@@ -804,9 +804,9 @@ The shape of design 5:
 - `SecRequest<K>` keeps the input it was built from. The impl for `FilingDocumentSet` reads the file
   names from it. Equality, hashing, and ordering compare the input. For `FilingIndex`, this is
   stricter than the comparison of the URL today, because the URL does not hold the form, the
-  amendment flag, or the date filed. The order of requests also changes: the URL holds the CIK
-  without zeros in front, and `Cik` holds it with ten digits, so `Cik` puts the CIKs in numeric
-  order. The request check in `request_check.rs` then also compares the form, the amendment flag,
+  amendment flag, or the date filed. The order of requests also changes. The URL holds the CIK
+  without zeros in front, so it sorts `"1067983"` before `"320193"`. `Cik` holds ten digits, so it
+  puts the CIKs in numeric order. The request check in `request_check.rs` then also compares the form, the amendment flag,
   and the date filed.
 - `XmlBody` checks status 200, the content type `text/xml` or `application/xml`, and the
   `Content-Length` header, as `ZipBody` does. Its content is `[u8]`.
