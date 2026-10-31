@@ -1231,8 +1231,9 @@ A filing that only Notes delivered keeps the Notes form of its lossy facts.
 ## Raw Store
 
 All documents use `FilesystemRepository` and `RawDocument<S>`. Each source gets its own
-`RawSource` marker and `SecDocumentType` variant. Proposed for the XBRL instance and the label
-file. The other rows exist:
+`RawSource` marker and `SecDocumentType` variant. Every marker in this table exists. The XBRL
+instance and the label file arrive as `XmlBody`, and `RawDocument::from_file` builds their
+documents:
 
 | Document | `RawSource` marker | Document type | Key |
 | -------- | ------------------ | ------------- | --- |
@@ -1249,8 +1250,9 @@ file. The other rows exist:
 - The daily index is stored so that detection can run again without the SEC.
 - A new fetch of `submissions` replaces the old file. The raw store holds the latest company data
   only. The same holds for a replaced Notes file.
-- The metadata records the content type that the SEC sent, for example `application/octet-stream`
-  for a Notes ZIP.
+- The metadata records the content type that the SEC sent, as `ContentType` names it. For example,
+  a Notes ZIP keeps `application/octet-stream`, and an XML file sent as `text/xml` gets
+  `application/xml`.
 
 ### Ingestion Mode in the Metadata
 

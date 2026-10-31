@@ -18,7 +18,7 @@ use storage::implementations::repository::filesystem::{Document, DocumentKey, Do
 use crate::shared::document_type::SecDocumentType;
 use crate::shared::raw_source::{RawFileSource, RawSource};
 use crate::shared::response::SecResponse as SecResponseTrait;
-use crate::shared::response::implementations::sec_response::{SecResponse, ZipBody};
+use crate::shared::response::implementations::sec_response::{FileBody, SecResponse};
 use crate::shared::run_fields::RunFields;
 use crate::shared::url::Url;
 use crate::shared::user_agent::UserAgent;
@@ -175,12 +175,13 @@ impl<S: RawSource> RawDocument<S> {
 }
 
 impl<S: RawFileSource> RawDocument<S> {
-    /// Creates a new [`RawDocument`] from a raw-bytes response, such as a Notes file or a daily
-    /// index, and the fetch that produced it.
+    /// Creates a new [`RawDocument`] from a raw-bytes response, such as a Notes file, a daily
+    /// index, or an XML file of a filing, and the fetch that produced it.
     ///
     /// The document shares the body buffer of `file`, so the bytes are not copied. The size comes
     /// from the body, and the SHA-256 digest is the body digest of `file`, so the body is not
-    /// hashed again. The media type is the content type the SEC sent.
+    /// hashed again. The media type is the [`ContentType`](crate::shared::content_type::ContentType)
+    /// of `file`, so `text/xml` is recorded as `application/xml`.
     ///
     /// # Examples
     ///
@@ -251,9 +252,9 @@ impl<S: RawFileSource> RawDocument<S> {
     /// let _ = RawDocument::<RawCompanyFacts>::from_file;
     /// ```
     #[must_use]
-    pub fn from_file(
+    pub fn from_file<B: FileBody>(
         key: DocumentKey,
-        file: &SecResponse<ZipBody>,
+        file: &SecResponse<B>,
         requested_url: &Url,
         user_agent: &UserAgent,
         run: RunFields,
@@ -324,7 +325,10 @@ mod tests {
     use super::*;
     use crate::shared::content_type::ContentType;
     use crate::shared::headers::Headers;
-    use crate::shared::raw_source::{RawCompanyFacts, RawDailyIndex, RawNotesArchive};
+    use crate::shared::raw_source::{
+        RawCompanyFacts, RawDailyIndex, RawNotesArchive, RawXbrlInstance,
+    };
+    use crate::shared::response::implementations::sec_response::{XmlBody, ZipBody};
     use crate::shared::status_code::StatusCode;
     use crate::tests::fixtures::data::notes_archive::SAMPLE_NOTES_ZIP;
 
@@ -781,6 +785,70 @@ mod tests {
         let expected_result = "raw_daily_index";
 
         let result = document.metadata().document_type();
+
+        assert_eq!(result, expected_result);
+    }
+
+    fn sample_instance_url() -> Url {
+        "https://www.sec.gov/Archives/edgar/data/3545/000000354526000047/alco-20260908_htm.xml"
+            .parse()
+            .expect("A hardcoded valid URL string should always parse")
+    }
+
+    fn sample_instance_file() -> SecResponse<XmlBody> {
+        SecResponse::<XmlBody>::from_parts(
+            sample_instance_url(),
+            Headers::new(HashMap::from([(
+                "content-type".to_string(),
+                "text/xml".to_string(),
+            )])),
+            ContentType::Xml,
+            StatusCode::Ok,
+            SAMPLE_INSTANCE_XML.to_vec(),
+        )
+        .expect("Given status 200 and text/xml, building the response should always succeed")
+    }
+
+    // Bytes a parse would change, so a shared buffer proves the store does not reserialize.
+    const SAMPLE_INSTANCE_XML: &[u8] = b"<xbrl  b=\"2\" a=\"1\"></xbrl>";
+
+    fn instance_document_from_file(file: &SecResponse<XmlBody>) -> RawDocument<RawXbrlInstance> {
+        let key = DocumentKey::new("sec/filings/CIK0000003545/0000003545-26-000047/instance.xml")
+            .expect("Given a hardcoded valid relative path, the key should always build");
+        RawDocument::from_file(
+            key,
+            file,
+            &sample_instance_url(),
+            &sample_user_agent(),
+            RunFields {
+                produced_at: DateTime::<Utc>::UNIX_EPOCH,
+                execution_id: Uuid::nil(),
+                producer: Producer::new("Store Filing Documents", "0.1.0", "63c1f59"),
+                ingestion_mode: IngestionMode::Incremental,
+            },
+        )
+    }
+
+    #[test]
+    fn should_share_the_body_of_the_file_when_building_a_document_from_an_xml_file() {
+        let file = sample_instance_file();
+        let document = instance_document_from_file(&file);
+
+        let expected_result = file.body().as_ptr();
+
+        let result = document.bytes().as_ptr();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_record_application_xml_as_the_media_type_when_building_a_document_from_an_xml_file() {
+        let file = sample_instance_file();
+        let document = instance_document_from_file(&file);
+
+        let expected_result = "application/xml";
+
+        let result = document.metadata().media_type();
 
         assert_eq!(result, expected_result);
     }

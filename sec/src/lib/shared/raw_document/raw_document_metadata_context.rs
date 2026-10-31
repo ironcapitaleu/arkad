@@ -6,7 +6,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::shared::response::SecResponse as SecResponseTrait;
-use crate::shared::response::implementations::sec_response::{SecResponse, ZipBody};
+use crate::shared::response::implementations::sec_response::{FileBody, SecResponse};
 use crate::shared::status_code::StatusCode;
 use crate::shared::url::Url;
 use crate::shared::user_agent::UserAgent;
@@ -46,12 +46,29 @@ impl RawDocumentMetadataContext {
     }
 
     /// Creates a new [`RawDocumentMetadataContext`] from a raw-bytes response, such as a Notes
-    /// file or a daily index, and the URL and the `User-Agent` the fetch sent.
+    /// file, a daily index, or an XML file of a filing, and the URL and the `User-Agent` the fetch sent.
     ///
     /// The final URL comes from [`SecResponse::url`](SecResponseTrait::url).
+    ///
+    /// `from_file` does not accept a JSON response:
+    ///
+    /// ```compile_fail,E0277
+    /// use sec::shared::raw_document::RawDocumentMetadataContext;
+    /// use sec::shared::response::implementations::sec_response::{JsonBody, SecResponse};
+    /// use sec::shared::url::Url;
+    /// use sec::shared::user_agent::UserAgent;
+    ///
+    /// fn context(
+    ///     response: &SecResponse<JsonBody>,
+    ///     url: &Url,
+    ///     user_agent: &UserAgent,
+    /// ) -> RawDocumentMetadataContext {
+    ///     RawDocumentMetadataContext::from_file(response, url, user_agent)
+    /// }
+    /// ```
     #[must_use]
-    pub fn from_file(
-        file: &SecResponse<ZipBody>,
+    pub fn from_file<B: FileBody>(
+        file: &SecResponse<B>,
         requested_url: &Url,
         user_agent: &UserAgent,
     ) -> Self {
@@ -75,6 +92,7 @@ mod tests {
     use super::*;
     use crate::shared::content_type::ContentType;
     use crate::shared::headers::Headers;
+    use crate::shared::response::implementations::sec_response::ZipBody;
     use crate::shared::user_agent::{UserAgentError, UserAgentErrorReason};
 
     fn sample_user_agent() -> UserAgent {

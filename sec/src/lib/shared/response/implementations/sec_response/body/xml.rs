@@ -14,7 +14,7 @@ use crate::shared::response::implementations::sec_response::error::{
 };
 use crate::shared::status_code::StatusCode;
 
-use super::{ResponseBody, checked_bytes, checked_bytes_off_task};
+use super::{FileBody, ResponseBody, checked_bytes, checked_bytes_off_task};
 
 /// The bytes of an XML file, exactly as the server sent them.
 ///
@@ -23,6 +23,12 @@ use super::{ResponseBody, checked_bytes, checked_bytes_off_task};
 /// many bytes.
 #[derive(Debug)]
 pub struct XmlBody(Bytes);
+
+impl FileBody for XmlBody {
+    fn to_bytes(&self) -> Bytes {
+        self.0.clone()
+    }
+}
 
 #[async_trait]
 impl ResponseBody for XmlBody {

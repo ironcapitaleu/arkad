@@ -14,7 +14,7 @@ use crate::shared::response::implementations::sec_response::error::{
 };
 use crate::shared::status_code::StatusCode;
 
-use super::{ResponseBody, checked_bytes, checked_bytes_off_task};
+use super::{FileBody, ResponseBody, checked_bytes, checked_bytes_off_task};
 
 /// The bytes of a ZIP file or a daily index, exactly as the server sent them.
 ///
@@ -22,7 +22,7 @@ use super::{ResponseBody, checked_bytes, checked_bytes_off_task};
 /// content type. If the `Content-Length` header is present, the body has exactly that many bytes.
 ///
 /// Not `Clone`: the pipeline gives each response one owner. The buffer is freed when the owner
-/// and every [`Bytes`] from [`ZipBody::to_bytes`] drop. So an `SecResponse<ZipBody>` is not
+/// and every [`Bytes`] from [`FileBody::to_bytes`] drop. So an `SecResponse<ZipBody>` is not
 /// `Clone` either:
 ///
 /// ```compile_fail,E0277
@@ -35,10 +35,8 @@ use super::{ResponseBody, checked_bytes, checked_bytes_off_task};
 #[derive(Debug)]
 pub struct ZipBody(Bytes);
 
-impl ZipBody {
-    /// Returns the bytes as a [`Bytes`] that shares the buffer, so the call copies a pointer.
-    #[must_use]
-    pub fn to_bytes(&self) -> Bytes {
+impl FileBody for ZipBody {
+    fn to_bytes(&self) -> Bytes {
         self.0.clone()
     }
 }

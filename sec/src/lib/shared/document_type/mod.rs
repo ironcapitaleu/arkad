@@ -18,6 +18,10 @@ pub enum SecDocumentType {
     RawNotesArchive,
     /// The `submissions` JSON of one company exactly as the SEC returned it.
     RawSubmissions,
+    /// The XBRL instance of one filing exactly as the SEC returned it.
+    RawXbrlInstance,
+    /// The `_lab.xml` label file of one filing exactly as the SEC returned it.
+    RawXbrlLabels,
 }
 
 impl Display for SecDocumentType {
@@ -27,6 +31,8 @@ impl Display for SecDocumentType {
             Self::RawDailyIndex => write!(f, "raw_daily_index"),
             Self::RawNotesArchive => write!(f, "raw_notes_archive"),
             Self::RawSubmissions => write!(f, "raw_submissions"),
+            Self::RawXbrlInstance => write!(f, "raw_xbrl_instance"),
+            Self::RawXbrlLabels => write!(f, "raw_xbrl_labels"),
         }
     }
 }
@@ -93,6 +99,28 @@ mod tests {
         let document_type = SecDocumentType::RawSubmissions;
 
         let expected_result = "raw_submissions";
+
+        let result = document_type.to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_display_raw_xbrl_instance_for_the_raw_xbrl_instance_document_type() {
+        let document_type = SecDocumentType::RawXbrlInstance;
+
+        let expected_result = "raw_xbrl_instance";
+
+        let result = document_type.to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_display_raw_xbrl_labels_for_the_raw_xbrl_labels_document_type() {
+        let document_type = SecDocumentType::RawXbrlLabels;
+
+        let expected_result = "raw_xbrl_labels";
 
         let result = document_type.to_string();
 
