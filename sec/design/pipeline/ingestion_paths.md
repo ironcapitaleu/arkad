@@ -566,6 +566,18 @@ malformed line returns `InvalidDailyIndexLine` with its line number. `FilingRef:
 a row whose form parses with `Form::from_sec_str` and is in `SELECTED_FORMS`, and returns
 `UnsupportedForm` for any other form.
 
+Decided in STA-372:
+
+- The input of `SelectFilings` is the `Option<StoredDailyIndex>` of the `StoreDailyIndex` output.
+  `None` gives an empty list.
+- The state reads the index bytes with `String::from_utf8_lossy`. Six real indexes from 2020 to
+  2026 hold no byte outside ASCII, so the call copies nothing. A replaced byte can only sit in a
+  company name, which the parser does not read.
+- The state keeps the rows that `FilingRef::try_from` accepts, and then the first row of each
+  accession number. It adds no second form filter.
+- An index that does not parse fails the state with `InvalidDailyIndex`, which wraps the
+  `DailyIndexError`. The state skips no line, because a skipped line drops filings without a trace.
+
 ### Fetch of Each Filing
 
 One `ExtractFilingSuperState` runs per `FilingRef`. It sends three requests:

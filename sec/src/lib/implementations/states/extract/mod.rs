@@ -19,6 +19,7 @@
 //! - [`validate_index_date`]: Validates the raw date of an EDGAR daily index.
 //! - [`download_daily_index`]: Downloads the daily index of one date, with the rule for a missing index.
 //! - [`store_daily_index`]: Writes the daily index to the store.
+//! - [`select_filings`]: Selects the filings to fetch from the daily index.
 //! - [`store_submissions`]: Writes the `submissions` JSON of one company to the store.
 
 pub mod company_facts;
@@ -26,6 +27,7 @@ pub mod download_daily_index;
 pub mod execute_sec_request;
 pub mod notes;
 pub mod prepare_sec_request;
+pub mod select_filings;
 pub mod store_company_facts;
 pub mod store_daily_index;
 pub mod store_notes_archive;
