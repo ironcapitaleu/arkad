@@ -1,10 +1,10 @@
 //! # State Errors
 //!
 //! Provides the [`State`] error covering failures inside a state's own logic: CIK validation,
-//! Notes period validation, index date validation, SEC request execution, a missing daily index,
+//! Notes period validation, index date validation, daily index parsing, SEC request execution, a missing daily index,
 //! document writes, data completeness, and input/context/output handling.
 //!
-//! The richer variants ([`InvalidCikFormat`], [`InvalidNotesPeriod`], [`InvalidIndexDate`], [`FailedRequestExecution`],
+//! The richer variants ([`InvalidCikFormat`], [`InvalidNotesPeriod`], [`InvalidIndexDate`], [`InvalidDailyIndex`], [`FailedRequestExecution`],
 //! [`FailedDocumentWrite`], [`IncompleteCompanyFacts`]) wrap a domain error with the failing state's name.
 //! [`MissingDailyIndex`] carries the failing state's name and the date. The rest are plain markers.
 //! [`State`] is wrapped by [`StateMachine`](super::StateMachine) for propagation.
@@ -14,6 +14,7 @@
 //! - [`invalid_cik_format`]: The [`InvalidCikFormat`] error wrapping a CIK validation failure.
 //! - [`invalid_notes_period`]: The [`InvalidNotesPeriod`] error wrapping a Notes period validation failure.
 //! - [`invalid_index_date`]: The [`InvalidIndexDate`] error wrapping an index date validation failure.
+//! - [`invalid_daily_index`]: The [`InvalidDailyIndex`] error wrapping a daily index that does not parse.
 //! - [`failed_request_execution`]: The [`FailedRequestExecution`] error wrapping a failed SEC request.
 //! - [`missing_daily_index`]: The [`MissingDailyIndex`] error for a daily index the SEC did not send.
 //! - [`failed_document_write`]: The [`FailedDocumentWrite`] error wrapping a rejected store write.
@@ -33,6 +34,8 @@ pub mod invalid_notes_period;
 pub use invalid_notes_period::InvalidNotesPeriod;
 pub mod invalid_index_date;
 pub use invalid_index_date::InvalidIndexDate;
+pub mod invalid_daily_index;
+pub use invalid_daily_index::InvalidDailyIndex;
 pub mod missing_daily_index;
 pub use missing_daily_index::MissingDailyIndex;
 
@@ -41,7 +44,7 @@ pub use missing_daily_index::MissingDailyIndex;
 /// Error occurring inside a state's own logic.
 ///
 /// Spans the ways a state can fail while computing its output: a wrapped domain error (invalid
-/// CIK, invalid Notes period, invalid index date, failed request, rejected write, incomplete facts) or a plain marker for invalid input, context, or a
+/// CIK, invalid Notes period, invalid index date, invalid daily index, failed request, rejected write, incomplete facts) or a plain marker for invalid input, context, or a
 /// failed update/computation.
 pub enum State {
     /// Invalid Cik format.
@@ -55,6 +58,10 @@ pub enum State {
     /// Invalid index date.
     #[error("[StateError] A state level error occurred, Caused by: {0}")]
     InvalidIndexDate(#[source] InvalidIndexDate),
+
+    /// Invalid daily index: the text of the index does not parse into rows.
+    #[error("[StateError] A state level error occurred, Caused by: {0}")]
+    InvalidDailyIndex(#[source] InvalidDailyIndex),
 
     /// Indicates that an SEC request execution has failed.
     #[error("[StateError] A state level error occurred, Caused by: {0}")]
