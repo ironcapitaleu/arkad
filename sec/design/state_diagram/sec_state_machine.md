@@ -23,7 +23,7 @@ stateDiagram-v2
         ValidateNotesPeriod --> PrepareNotesRequest
         PrepareNotesRequest --> ExecuteSecRequest
         note right of PrepareNotesRequest : Alias of PrepareSecRequest with the NotesFile kind
-        note right of ExecuteSecRequest : NotesFile kind, named Download Notes Archive in the stream
+        note right of ExecuteSecRequest : Generic state with the NotesFile kind
         ExecuteSecRequest --> StoreNotesArchive
         note right of StoreNotesArchive : The stream ends after this state with the NotesArchiveRef
     }
