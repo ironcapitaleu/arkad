@@ -105,9 +105,9 @@ impl StateData for ExtractSubmissionsSuperStateData {
 /// Context for the [`ExtractSubmissionsSuperState`].
 ///
 /// Holds the SEC client of type `C`, the `execution_id`, the ingestion mode, and the storage
-/// repository `R`. The transition into [`ExecuteSecRequest`] hands it a clone of the client. The
-/// transition into [`StoreSubmissions`] hands it the `execution_id`, the ingestion mode, and a clone
-/// of the repository.
+/// repository `R`. The transition into [`ExecuteSecRequest`] passes a clone of the client to that
+/// state. The transition into [`StoreSubmissions`] passes the `execution_id`, the ingestion mode,
+/// and a clone of the repository to the store state.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ExtractSubmissionsSuperStateContext<R, C> {
     pub(crate) sec_client: C,
