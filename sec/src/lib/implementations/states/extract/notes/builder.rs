@@ -175,6 +175,31 @@ impl<C: SecClientTrait, R: RawRepository<RawNotesArchive>>
     ///     .repository(repository)
     ///     .build();
     /// ```
+    ///
+    /// The repository must store the Notes archive. So a builder with a Company Facts repository has
+    /// no `build` method, and this does not compile:
+    ///
+    /// ```compile_fail,E0271,E0599
+    /// use sec::implementations::states::extract::notes::ExtractNotesSuperState;
+    /// use sec::shared::http_client::implementations::sec_client::SecClient;
+    /// use sec::shared::raw_document::RawDocument;
+    /// use sec::shared::raw_source::RawCompanyFacts;
+    /// use storage::implementations::repository::filesystem::FilesystemRepository;
+    /// use uuid::Uuid;
+    ///
+    /// let repository = FilesystemRepository::builder()
+    ///     .writer()
+    ///     .document_type::<RawDocument<RawCompanyFacts>>()
+    ///     .root("data")
+    ///     .build();
+    ///
+    /// let extract_state = ExtractNotesSuperState::builder()
+    ///     .period("2024q1")
+    ///     .sec_client(SecClient::default())
+    ///     .execution_id(Uuid::nil())
+    ///     .repository(repository)
+    ///     .build();
+    /// ```
     #[must_use]
     pub fn build(self) -> ExtractNotesSuperState<ValidateNotesPeriod<R>, R, C> {
         let input = ValidateNotesPeriodInput::new(self.period);

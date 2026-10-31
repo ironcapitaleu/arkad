@@ -311,17 +311,17 @@ impl<R: RawRepository<RawSubmissions>, C: SecClientTrait> NonTerminal
     for ExtractSubmissionsSuperState<ValidateCikFormat<R, C>, R, C>
 {
     type Current = ValidateCikFormat<R, C>;
-    type Next = PrepareSecRequest<Submissions, R>;
+    type Next = PrepareSecRequest<Submissions>;
 }
 
 // Deviation: the impls that reach `ExecuteSecRequest` pin the response and the error of `C`.
 // See the comment on `State for ExecuteSecRequest`.
-impl<R, C> NonTerminal for ExtractSubmissionsSuperState<PrepareSecRequest<Submissions, R>, R, C>
+impl<R, C> NonTerminal for ExtractSubmissionsSuperState<PrepareSecRequest<Submissions>, R, C>
 where
     R: RawRepository<RawSubmissions>,
     C: SecClientTrait<Response<JsonBody> = SecResponse<JsonBody>, Error = FailedSecRequest>,
 {
-    type Current = PrepareSecRequest<Submissions, R>;
+    type Current = PrepareSecRequest<Submissions>;
     type Next = ExecuteSecRequest<Submissions, C>;
 }
 
@@ -346,7 +346,7 @@ impl<R: RawRepository<RawSubmissions> + 'static, C: SecClientTrait + 'static> In
 // --- Transitions ---
 
 impl<R: RawRepository<RawSubmissions>, C: SecClientTrait>
-    Transition<ValidateCikFormat<R, C>, PrepareSecRequest<Submissions, R>>
+    Transition<ValidateCikFormat<R, C>, PrepareSecRequest<Submissions>>
     for ExtractSubmissionsSuperState<ValidateCikFormat<R, C>, R, C>
 {
     fn transition_to_next_state_sec(self) -> Result<Self::NewStateMachine, TransitionError> {
@@ -360,10 +360,10 @@ impl<R: RawRepository<RawSubmissions>, C: SecClientTrait>
 }
 
 impl<R: RawRepository<RawSubmissions>, C: SecClientTrait>
-    SMTransition<ValidateCikFormat<R, C>, PrepareSecRequest<Submissions, R>>
+    SMTransition<ValidateCikFormat<R, C>, PrepareSecRequest<Submissions>>
     for ExtractSubmissionsSuperState<ValidateCikFormat<R, C>, R, C>
 {
-    type NewStateMachine = ExtractSubmissionsSuperState<PrepareSecRequest<Submissions, R>, R, C>;
+    type NewStateMachine = ExtractSubmissionsSuperState<PrepareSecRequest<Submissions>, R, C>;
 
     fn transition_to_next_state(self) -> Result<Self::NewStateMachine, &'static str> {
         Err(
@@ -372,8 +372,8 @@ impl<R: RawRepository<RawSubmissions>, C: SecClientTrait>
     }
 }
 
-impl<R, C> Transition<PrepareSecRequest<Submissions, R>, ExecuteSecRequest<Submissions, C>>
-    for ExtractSubmissionsSuperState<PrepareSecRequest<Submissions, R>, R, C>
+impl<R, C> Transition<PrepareSecRequest<Submissions>, ExecuteSecRequest<Submissions, C>>
+    for ExtractSubmissionsSuperState<PrepareSecRequest<Submissions>, R, C>
 where
     R: RawRepository<RawSubmissions>,
     C: SecClientTrait<Response<JsonBody> = SecResponse<JsonBody>, Error = FailedSecRequest>,
@@ -389,8 +389,8 @@ where
     }
 }
 
-impl<R, C> SMTransition<PrepareSecRequest<Submissions, R>, ExecuteSecRequest<Submissions, C>>
-    for ExtractSubmissionsSuperState<PrepareSecRequest<Submissions, R>, R, C>
+impl<R, C> SMTransition<PrepareSecRequest<Submissions>, ExecuteSecRequest<Submissions, C>>
+    for ExtractSubmissionsSuperState<PrepareSecRequest<Submissions>, R, C>
 where
     R: RawRepository<RawSubmissions>,
     C: SecClientTrait<Response<JsonBody> = SecResponse<JsonBody>, Error = FailedSecRequest>,

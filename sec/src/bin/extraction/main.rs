@@ -68,7 +68,6 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
                 .validated_cik
                 .clone(),
         )
-        .repository(repository.clone())
         .build();
     println!("{:.500}", prepare_sec_request.to_string().as_str());
     prepare_sec_request

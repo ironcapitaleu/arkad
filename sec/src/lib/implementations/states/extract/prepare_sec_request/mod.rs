@@ -26,19 +26,7 @@
 //! # #[tokio::main]
 //! # async fn main() {
 //! let cik = Cik::new("1067983").expect("A hardcoded valid CIK should always parse");
-//! # use sec::shared::raw_document::RawDocument;
-//! # use sec::shared::raw_source::RawCompanyFacts;
-//! # use storage::implementations::repository::filesystem::FilesystemRepository;
-//! # let repository = FilesystemRepository::builder()
-//! #     .writer()
-//! #     .document_type::<RawDocument<RawCompanyFacts>>()
-//! #     .root("data")
-//! #     .build();
-//! let mut state = PrepareSecRequest::builder()
-//!     .all_company_facts()
-//!     .cik(cik)
-//!     .repository(repository)
-//!     .build();
+//! let mut state = PrepareSecRequest::builder().all_company_facts().cik(cik).build();
 //! state
 //!     .compute_output_data_async()
 //!     .await
@@ -50,6 +38,18 @@
 //!
 //! assert_eq!(result, expected_result);
 //! # }
+//! ```
+//!
+//! The state builds the request of every kind, for example [`FilingIndex`]:
+//!
+//! ```rust
+//! use sec::implementations::states::extract::prepare_sec_request::PrepareSecRequest;
+//! use sec::shared::request::implementations::sec_request::FilingIndex;
+//! use sec::traits::state_machine::state::State;
+//!
+//! const fn implements_state<S: State>() {}
+//!
+//! implements_state::<PrepareSecRequest<FilingIndex>>();
 //! ```
 //!
 //! ## See Also
@@ -65,10 +65,11 @@ use serde::Serialize;
 use state_maschine::prelude::State as SMState;
 
 use crate::error::State as StateError;
-use crate::shared::raw_repository::RawRepository;
 use crate::shared::request::SecRequest as SecRequestTrait;
+#[cfg(doc)]
+use crate::shared::request::implementations::sec_request::FilingIndex;
 use crate::shared::request::implementations::sec_request::{
-    CompanyFacts, NotesFile, RequestKind, SecRequest, StoredAs,
+    CompanyFacts, NotesFile, RequestKind, SecRequest,
 };
 use crate::traits::state_machine::state::State;
 
@@ -84,27 +85,25 @@ pub use data::PrepareSecRequestInput;
 pub use data::PrepareSecRequestOutput;
 
 /// Builds the [`SecRequest`] of the request kind `K` from its input.
-///
-/// The context holds the storage repository `R`.
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
-#[serde(bound(serialize = "R: Serialize"))]
-pub struct PrepareSecRequest<K: RequestKind, R> {
+#[serde(bound(serialize = ""))]
+pub struct PrepareSecRequest<K: RequestKind> {
     input: PrepareSecRequestInput<K>,
-    context: PrepareSecRequestContext<K, R>,
+    context: PrepareSecRequestContext<K>,
     output: Option<PrepareSecRequestOutput<K>>,
 }
 
 /// Alias of [`PrepareSecRequest`] for the [`CompanyFacts`] kind.
 ///
 /// It is the same type under a shorter name, not a separate state.
-pub type PrepareCompanyFactsRequest<R> = PrepareSecRequest<CompanyFacts, R>;
+pub type PrepareCompanyFactsRequest = PrepareSecRequest<CompanyFacts>;
 
 /// Alias of [`PrepareSecRequest`] for the [`NotesFile`] kind.
 ///
 /// It is the same type under a shorter name, not a separate state.
-pub type PrepareNotesRequest<R> = PrepareSecRequest<NotesFile, R>;
+pub type PrepareNotesRequest = PrepareSecRequest<NotesFile>;
 
-impl<K: RequestKind, R> PrepareSecRequest<K, R> {
+impl<K: RequestKind> PrepareSecRequest<K> {
     /// Creates a new [`PrepareSecRequest`] state from its input and context, with no output computed yet.
     ///
     /// # Examples
@@ -117,15 +116,7 @@ impl<K: RequestKind, R> PrepareSecRequest<K, R> {
     ///
     /// let cik = Cik::new("1067983").expect("A hardcoded valid CIK should always parse");
     /// let input = PrepareSecRequestInput::<CompanyFacts>::new(cik.clone());
-    /// # use sec::shared::raw_document::RawDocument;
-    /// # use sec::shared::raw_source::RawCompanyFacts;
-    /// # use storage::implementations::repository::filesystem::FilesystemRepository;
-    /// # let repository = FilesystemRepository::builder()
-    /// #     .writer()
-    /// #     .document_type::<RawDocument<RawCompanyFacts>>()
-    /// #     .root("data")
-    /// #     .build();
-    /// let context = PrepareSecRequestContext::new(cik, repository);
+    /// let context = PrepareSecRequestContext::new(cik);
     /// let state = PrepareSecRequest::new(input, context);
     ///
     /// let expected_result = false;
@@ -137,7 +128,7 @@ impl<K: RequestKind, R> PrepareSecRequest<K, R> {
     #[must_use]
     pub const fn new(
         input: PrepareSecRequestInput<K>,
-        context: PrepareSecRequestContext<K, R>,
+        context: PrepareSecRequestContext<K>,
     ) -> Self {
         Self {
             input,
@@ -153,14 +144,14 @@ impl<K: RequestKind, R> PrepareSecRequest<K, R> {
     ) -> (
         PrepareSecRequestInput<K>,
         Option<PrepareSecRequestOutput<K>>,
-        PrepareSecRequestContext<K, R>,
+        PrepareSecRequestContext<K>,
     ) {
         (self.input, self.output, self.context)
     }
 }
 
 #[async_trait]
-impl<K: StoredAs, R: RawRepository<K::Source>> State for PrepareSecRequest<K, R> {
+impl<K: RequestKind> State for PrepareSecRequest<K> {
     /// Builds the [`SecRequest`] for the request input and stores it as output.
     ///
     /// # Errors
@@ -175,10 +166,10 @@ impl<K: StoredAs, R: RawRepository<K::Source>> State for PrepareSecRequest<K, R>
     }
 }
 
-impl<K: StoredAs, R: RawRepository<K::Source>> SMState for PrepareSecRequest<K, R> {
+impl<K: RequestKind> SMState for PrepareSecRequest<K> {
     type InputData = PrepareSecRequestInput<K>;
     type OutputData = PrepareSecRequestOutput<K>;
-    type Context = PrepareSecRequestContext<K, R>;
+    type Context = PrepareSecRequestContext<K>;
 
     /// Returns the human-readable name of this state.
     fn state_name(&self) -> impl ToString {
@@ -223,7 +214,7 @@ impl<K: StoredAs, R: RawRepository<K::Source>> SMState for PrepareSecRequest<K, 
     }
 }
 
-impl<K: StoredAs, R: RawRepository<K::Source>> fmt::Display for PrepareSecRequest<K, R> {
+impl<K: RequestKind> fmt::Display for PrepareSecRequest<K> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
@@ -254,9 +245,6 @@ mod tests {
     use crate::shared::cik::Cik;
     use crate::shared::cik::constants::BERKSHIRE_HATHAWAY_CIK_RAW;
     use crate::shared::notes_period::NotesPeriod;
-    use crate::tests::fixtures::sample_write_repository::{
-        FakeNotesRepository, FakeWriteRepository,
-    };
     use crate::traits::state_machine::state::State;
 
     fn create_test_cik() -> Cik {
@@ -267,11 +255,11 @@ mod tests {
         PrepareSecRequestInput::new(create_test_cik())
     }
 
-    fn create_test_context() -> PrepareSecRequestContext<CompanyFacts, FakeWriteRepository> {
-        PrepareSecRequestContext::new(create_test_cik(), FakeWriteRepository::new())
+    fn create_test_context() -> PrepareSecRequestContext<CompanyFacts> {
+        PrepareSecRequestContext::new(create_test_cik())
     }
 
-    fn create_test_state() -> PrepareCompanyFactsRequest<FakeWriteRepository> {
+    fn create_test_state() -> PrepareCompanyFactsRequest {
         PrepareSecRequest::new(create_test_input(), create_test_context())
     }
 
@@ -338,7 +326,7 @@ mod tests {
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
     #[test]
     const fn should_implement_auto_traits_for_prepare_sec_request() {
-        implements_auto_traits::<PrepareCompanyFactsRequest<FakeWriteRepository>>();
+        implements_auto_traits::<PrepareCompanyFactsRequest>();
     }
 
     const fn implements_send<T: Send>() {}
@@ -346,72 +334,72 @@ mod tests {
 
     #[test]
     const fn should_implement_send_for_prepare_sec_request() {
-        implements_send::<PrepareCompanyFactsRequest<FakeWriteRepository>>();
+        implements_send::<PrepareCompanyFactsRequest>();
     }
 
     #[test]
     const fn should_implement_sync_for_prepare_sec_request() {
-        implements_sync::<PrepareCompanyFactsRequest<FakeWriteRepository>>();
+        implements_sync::<PrepareCompanyFactsRequest>();
     }
 
     #[test]
     const fn should_be_thread_safe_for_prepare_sec_request() {
-        implements_send::<PrepareCompanyFactsRequest<FakeWriteRepository>>();
-        implements_sync::<PrepareCompanyFactsRequest<FakeWriteRepository>>();
+        implements_send::<PrepareCompanyFactsRequest>();
+        implements_sync::<PrepareCompanyFactsRequest>();
     }
 
     const fn implements_sized<T: Sized>() {}
     #[test]
     const fn should_be_sized_for_prepare_sec_request() {
-        implements_sized::<PrepareCompanyFactsRequest<FakeWriteRepository>>();
+        implements_sized::<PrepareCompanyFactsRequest>();
     }
 
     const fn implements_hash<T: Hash>() {}
     #[test]
     const fn should_implement_hash_for_prepare_sec_request() {
-        implements_hash::<PrepareCompanyFactsRequest<FakeWriteRepository>>();
+        implements_hash::<PrepareCompanyFactsRequest>();
     }
 
     const fn implements_partial_eq<T: PartialEq>() {}
     #[test]
     const fn should_implement_partial_eq_for_prepare_sec_request() {
-        implements_partial_eq::<PrepareCompanyFactsRequest<FakeWriteRepository>>();
+        implements_partial_eq::<PrepareCompanyFactsRequest>();
     }
 
     const fn implements_eq<T: Eq>() {}
     #[test]
     const fn should_implement_eq_for_prepare_sec_request() {
-        implements_eq::<PrepareCompanyFactsRequest<FakeWriteRepository>>();
+        implements_eq::<PrepareCompanyFactsRequest>();
     }
 
     const fn implements_partial_ord<T: PartialOrd>() {}
     #[test]
     const fn should_implement_partial_ord_for_prepare_sec_request() {
-        implements_partial_ord::<PrepareCompanyFactsRequest<FakeWriteRepository>>();
+        implements_partial_ord::<PrepareCompanyFactsRequest>();
     }
 
     const fn implements_ord<T: Ord>() {}
     #[test]
     const fn should_implement_ord_for_prepare_sec_request() {
-        implements_ord::<PrepareCompanyFactsRequest<FakeWriteRepository>>();
+        implements_ord::<PrepareCompanyFactsRequest>();
     }
 
     const fn implements_debug<T: Debug>() {}
     #[test]
     const fn should_implement_debug_for_prepare_sec_request() {
-        implements_debug::<PrepareCompanyFactsRequest<FakeWriteRepository>>();
+        implements_debug::<PrepareCompanyFactsRequest>();
     }
 
     const fn implements_clone<T: Clone>() {}
     #[test]
     const fn should_implement_clone_for_prepare_sec_request() {
-        implements_clone::<PrepareCompanyFactsRequest<FakeWriteRepository>>();
+        implements_clone::<PrepareCompanyFactsRequest>();
     }
 
     const fn implements_unpin<T: Unpin>() {}
     #[test]
     const fn should_implement_unpin_for_prepare_sec_request() {
-        implements_unpin::<PrepareCompanyFactsRequest<FakeWriteRepository>>();
+        implements_unpin::<PrepareCompanyFactsRequest>();
     }
 
     #[test]
@@ -553,7 +541,6 @@ mod tests {
         let mut state = PrepareSecRequest::builder()
             .notes_file()
             .period(period)
-            .repository(FakeNotesRepository::new())
             .build();
 
         let expected_result = Some(&PrepareSecRequestOutput::new(SecRequest::new(period)));
@@ -567,13 +554,12 @@ mod tests {
         assert_eq!(result, expected_result);
     }
 
-    fn create_test_notes_state() -> PrepareNotesRequest<FakeNotesRepository> {
+    fn create_test_notes_state() -> PrepareNotesRequest {
         let period = NotesPeriod::new("2024q1")
             .expect("Given a published period, NotesPeriod creation should always succeed");
         PrepareSecRequest::builder()
             .notes_file()
             .period(period)
-            .repository(FakeNotesRepository::new())
             .build()
     }
 
@@ -611,7 +597,7 @@ mod tests {
 
     const fn implements_state<T: State>() {}
     #[test]
-    const fn should_implement_state_for_prepare_notes_request_with_notes_repository() {
-        implements_state::<PrepareNotesRequest<FakeNotesRepository>>();
+    const fn should_implement_state_for_prepare_notes_request() {
+        implements_state::<PrepareNotesRequest>();
     }
 }
