@@ -243,23 +243,10 @@ reviewable lines.
 4. `ValidateCikFormat` and `ValidateNotesPeriod` lose `R`. About 250 lines. If STA-386 lands first,
    this PR merges `main` first, because both PRs edit `ValidateCikFormatContext`.
 
-Step 2 adds the doctests of the DoD on `ExecuteSecRequest`. `FilingIndex` has `RespondsWith` and no
-`StoredAs` on `main`, so it is the kind that is only read:
-
-- A doctest shows that `ExecuteSecRequest<FilingIndex, SecClient>` implements `State`.
-- A `compile_fail,E0107` doctest builds
-  `ExecuteSecRequestContext::<CompanyFacts, _>::new(cik, repository)`. The kind must be named,
-  because Rust cannot infer it from `E::Input`. The module doctest at
-  `execute_sec_request/context/mod.rs:27` builds the same context on `main` today. After step 2
-  the line fails, because the context has one type parameter and `new` takes no repository.
-
-The positive doctest guards the bound. A `compile_fail` doctest cannot show that a bound is absent,
-because a missing bound makes code compile, not fail. Step 3 adds the same pair for
-`PrepareSecRequest<FilingIndex>`. Its `compile_fail,E0599` doctest builds
-`PrepareSecRequest::builder().all_company_facts().cik(cik).repository(r)`. The module doctest of
-`prepare_sec_request/mod.rs:37-41` builds the same chain on `main` today. Before each step lands,
-compile the `compile_fail` body as a plain doctest on `main`. Then confirm the error code after the
-step.
+Steps 2 and 3 each add a doctest that shows `FilingIndex` runs through the state:
+`ExecuteSecRequest<FilingIndex, SecClient>` and `PrepareSecRequest<FilingIndex>` implement `State`.
+This guards the bound. A doctest that only shows an old parameter is gone describes the past, so
+the steps add none (lead, 2026-10-31).
 
 The steps also change `compile_fail` doctests that exist on `main`. A changed type or tuple can make
 such a doctest fail for another reason than the property it names, and it then stays green. A
