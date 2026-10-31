@@ -318,14 +318,16 @@ mod tests {
 
     #[test]
     fn should_parse_each_displayed_form_back_to_itself_for_selected_forms() {
+        let sec_strings: Vec<String> = SELECTED_FORMS.iter().map(ToString::to_string).collect();
+
         let expected_result: Vec<Result<ParsedForm, UnsupportedForm>> = SELECTED_FORMS
             .iter()
             .map(|form| Ok(ParsedForm::new(*form, false)))
             .collect();
 
-        let result: Vec<Result<ParsedForm, UnsupportedForm>> = SELECTED_FORMS
+        let result: Vec<Result<ParsedForm, UnsupportedForm>> = sec_strings
             .iter()
-            .map(|form| Form::from_sec_str(&form.to_string()))
+            .map(|sec_string| Form::from_sec_str(sec_string))
             .collect();
 
         assert_eq!(result, expected_result);
