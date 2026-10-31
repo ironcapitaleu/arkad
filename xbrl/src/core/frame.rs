@@ -93,48 +93,56 @@ mod tests {
 
     #[test]
     fn should_parse_annual_frame_when_input_is_cy2024() {
+        let text = "CY2024";
+
         let expected_result = Some(Frame {
             year: 2024,
             quarter: None,
             instant: false,
         });
 
-        let result = Frame::parse("CY2024");
+        let result = Frame::parse(text);
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_parse_quarterly_frame_when_input_has_quarter() {
+        let text = "CY2024Q1";
+
         let expected_result = Some(Frame {
             year: 2024,
             quarter: Some(Quarter::Q1),
             instant: false,
         });
 
-        let result = Frame::parse("CY2024Q1");
+        let result = Frame::parse(text);
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_parse_instant_frame_when_input_ends_with_i() {
+        let text = "CY2024Q2I";
+
         let expected_result = Some(Frame {
             year: 2024,
             quarter: Some(Quarter::Q2),
             instant: true,
         });
 
-        let result = Frame::parse("CY2024Q2I");
+        let result = Frame::parse(text);
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_return_none_when_input_has_no_cy_prefix() {
+        let text = "2024Q1";
+
         let expected_result = None;
 
-        let result = Frame::parse("2024Q1");
+        let result = Frame::parse(text);
 
         assert_eq!(result, expected_result);
     }

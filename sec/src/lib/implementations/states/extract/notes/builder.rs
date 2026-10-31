@@ -254,10 +254,11 @@ mod tests {
             .period("2024q1")
             .sec_client(sec_client())
             .execution_id(Uuid::from_u128(7));
+        let repository = FakeNotesRepository::new();
 
         let expected_result = expected_super_state("2024q1", Uuid::from_u128(7));
 
-        let result = builder.repository(FakeNotesRepository::new()).build();
+        let result = builder.repository(repository).build();
 
         assert_eq!(result, expected_result);
     }
@@ -268,22 +269,25 @@ mod tests {
             .repository(FakeNotesRepository::new())
             .execution_id(Uuid::from_u128(7))
             .sec_client(sec_client());
+        let period = "2024q1";
 
         let expected_result = expected_super_state("2024q1", Uuid::from_u128(7));
 
-        let result = builder.period("2024q1").build();
+        let result = builder.period(period).build();
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_compare_unequal_when_two_builders_hold_different_periods() {
+        let builder = ExtractNotesSuperState::<ValidateNotesPeriod<FakeNotesRepository>>::builder();
+        let period = "2024q2";
+
         let expected_result =
             ExtractNotesSuperState::<ValidateNotesPeriod<FakeNotesRepository>>::builder()
                 .period("2024q1");
 
-        let result = ExtractNotesSuperState::<ValidateNotesPeriod<FakeNotesRepository>>::builder()
-            .period("2024q2");
+        let result = builder.period(period);
 
         assert_ne!(result, expected_result);
     }

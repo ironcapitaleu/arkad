@@ -247,9 +247,11 @@ mod tests {
 
     #[test]
     fn should_display_the_index_date_for_download_daily_index_context() {
+        let context = test_context();
+
         let expected_result = "\tIndex Date: 2026-10-27";
 
-        let result = test_context().to_string();
+        let result = context.to_string();
 
         assert_eq!(result, expected_result);
     }

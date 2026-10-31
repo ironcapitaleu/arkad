@@ -63,9 +63,11 @@ impl Form {
     /// ```
     /// use sec::shared::financial::form::{Form, ParsedForm};
     ///
+    /// let sec_string = "10-K/A";
+    ///
     /// let expected_result = Ok(ParsedForm::new(Form::TenK, true));
     ///
-    /// let result = Form::from_sec_str("10-K/A");
+    /// let result = Form::from_sec_str(sec_string);
     ///
     /// assert_eq!(result, expected_result);
     /// ```
