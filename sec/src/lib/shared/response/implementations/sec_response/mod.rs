@@ -5,7 +5,8 @@
 //!
 //! ## Modules
 //!
-//! - [`body`]: The [`ResponseBody`] trait and the [`JsonBody`] and [`ZipBody`] kinds.
+//! - [`body`]: The [`ResponseBody`] trait and the [`JsonBody`], [`XmlBody`], and [`ZipBody`]
+//!   kinds.
 //! - [`error`]: The [`InvalidSecResponse`] error raised during validation.
 
 use std::collections::HashMap;
@@ -29,7 +30,7 @@ use self::error::{ErrorReason, InvalidSecResponse};
 pub mod body;
 pub mod error;
 
-pub use body::{JsonBody, ResponseBody, ZipBody};
+pub use body::{JsonBody, ResponseBody, XmlBody, ZipBody};
 
 /// A validated SEC API response with a body of kind `B`.
 ///
@@ -39,6 +40,8 @@ pub use body::{JsonBody, ResponseBody, ZipBody};
 /// - [`JsonBody`], the default: a 2xx status, a JSON content type, and a valid JSON body.
 /// - [`ZipBody`]: status 200, a ZIP or octet-stream content type, and a body that matches the
 ///   `Content-Length` header.
+/// - [`XmlBody`]: status 200, an XML content type, and a body that matches the `Content-Length`
+///   header.
 ///
 /// Built from a raw response via [`from_inner`](crate::shared::response::SecResponse::from_inner),
 /// or from parts via [`SecResponse::from_parts`]. Equality, ordering, and hashing use the URL,
@@ -104,8 +107,8 @@ impl<B: ResponseBody> SecResponse<B> {
     /// - [`ErrorReason::InvalidStatusCode`] if `B` does not accept the status code.
     /// - [`ErrorReason::InvalidContentType`] if `B` does not accept the content type.
     /// - [`ErrorReason::InvalidBody`] if the raw body of a [`JsonBody`] is not valid JSON.
-    /// - [`ErrorReason::InvalidContentLength`] if the raw body of a [`ZipBody`] does not match
-    ///   the `Content-Length` header.
+    /// - [`ErrorReason::InvalidContentLength`] if the raw body of a [`ZipBody`] or an
+    ///   [`XmlBody`] does not match the `Content-Length` header.
     ///
     /// # Examples
     ///
