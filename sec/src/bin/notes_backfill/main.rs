@@ -112,8 +112,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
                 "state": error.state_name,
                 "data": error.data,
             });
-            // An absent file is the expected answer for a month that the SEC has not posted yet.
-            // The run summary decides whether it counts as a failure.
+            // The run summary decides whether an absent file counts as a failure.
             if backfill::is_absent_file(error) {
                 tracing::warn!(event = %error.event, message = %message, context = %context);
             } else {

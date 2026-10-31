@@ -1,6 +1,6 @@
 //! # Periods
 //!
-//! Provides [`notes_periods`], which lists the Notes periods that the backfill run downloads.
+//! Provides [`notes_periods`], which lists the Notes periods that the backfill run asks for.
 
 use chrono::{Months, NaiveDate};
 use sec::shared::notes_period::NotesPeriod;
