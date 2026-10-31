@@ -360,16 +360,22 @@ mod tests {
         let index_holds_eight_k = parse_daily_index(&index_text)
             .expect("Given the real daily index fixture, parsing should always succeed")
             .iter()
-            .any(|row| row.accession_number() == &eight_k_accession_number);
+            .any(|row| {
+                row.accession_number() == &eight_k_accession_number && row.form_text() == "8-K"
+            });
         let mut state = test_state(Some(index_text.into_bytes()));
 
-        let expected_result = (true, false);
+        let expected_result = (true, false, false);
 
-        let output_holds_eight_k = computed_filings(&mut state)
-            .await
+        let filings = computed_filings(&mut state).await;
+        let output_holds_eight_k = filings
             .iter()
             .any(|filing| filing.accession_number() == &eight_k_accession_number);
-        let result = (index_holds_eight_k, output_holds_eight_k);
+        let result = (
+            index_holds_eight_k,
+            filings.is_empty(),
+            output_holds_eight_k,
+        );
 
         assert_eq!(result, expected_result);
     }
