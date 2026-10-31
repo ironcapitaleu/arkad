@@ -1038,9 +1038,8 @@ new `StoreSubmissions` writes the JSON.
 ### Cut-Over Between the Paths
 
 The backfill runs by hand, up to the last published Notes file. Decided by the lead on
-2026-10-28. On that day, the last file was `2026_09`. After the backfill, the new-filing path
-catches each new filing. No step checks whether a company or a filing already exists. See
-[Idempotent Writes](#idempotent-writes).
+2026-10-28. After the backfill, the new-filing path catches each new filing. No step checks
+whether a company or a filing already exists. See [Idempotent Writes](#idempotent-writes).
 
 Since STA-361, the backfill computes its periods from today, so it can run on any date. It asks
 for every period up to last month. Early in a month, the SEC has not posted last month yet. The
@@ -1049,22 +1048,22 @@ Notes month depends on the day of the run, not on a fixed constant.
 
 Rules:
 
-1. The new-filing path starts at the daily index of 2026-09-30, one day before the end of the
-   last Notes file. The overlap of one day covers assumption A2 below.
+1. The new-filing path starts at the daily index of the last day of the newest stored Notes
+   month. That day is in both paths. The overlap of one day covers assumption A2 below.
 2. The first `daily_filings` run reads every day from the start date up to yesterday. Each later
    run reads one day.
 3. A missed day is a rerun for that date.
 4. A filing that reaches both paths changes nothing, because every write is idempotent.
 5. The cut-over has no gap only if the backfill stores the Notes month that holds the start date
-   of the new-filing path. For the start date 2026-09-30, the backfill must store `2026_09`. The
-   SEC posted `2026_09` on 2026-10-07, so any backfill run on or after that day stores it, unless
-   the run reports a failure. To check, read the newest period in the run summary with the status
+   of the new-filing path. The SEC posts a month in the first 8 days of the next month (see
+   [Notes ZIP Findings](#notes-zip-findings)). So a backfill run after that stores the month,
+   unless that period fails. To check, read the newest period in the run summary with the status
    `downloaded`, `already_stored`, or `replaced`.
-6. If the backfill runs later and also stores newer months, such as `2026_10`, those months
-   overlap the new-filing path. Rule 4 makes the overlap harmless.
-7. If the start date of the new-filing path moves, rule 5 moves with it: the start date must be no
-   later than the last day of the newest stored Notes month. STA-378 decides how `daily_filings`
-   picks its dates. That choice must keep this rule.
+6. If a later backfill run stores newer months, those months overlap the new-filing path. Rule 4
+   makes the overlap harmless.
+7. The start date of the new-filing path must be no later than the last day of the newest stored
+   Notes month. STA-378 decides how `daily_filings` picks its dates. That choice must keep this
+   rule.
 8. A backfill run can repeat. It skips each stored file that passes the size and SHA-256 check
    (STA-400), so a repeat downloads only the files that are missing or that the store cannot
    verify.
@@ -1073,8 +1072,8 @@ Assumptions:
 
 | Id | Assumption | Status | If it is false |
 | -- | ---------- | ------ | -------------- |
-| A1 | `2026_09` holds every filing of the selected forms with a filed date up to 2026-09-30 | Measured: its `sub.tsv` runs from 2026-09-01 to 2026-09-30 | A filing before 2026-09-30 is lost. To check, compare `sub.tsv` with the daily indexes of September. |
-| A2 | A filing after 5:30 PM Eastern on the last day of a month gets the next business day as its filed date, and the daily index of that day lists it | Unverified | The overlap of one day covers a filing on 2026-09-30. A longer gap needs a longer overlap. |
+| A1 | A monthly Notes file holds every filing of the selected forms with a filed date in that month | Measured for `2026_09`: its `sub.tsv` runs from 2026-09-01 to 2026-09-30 | A filing before the start date is lost. To check, compare `sub.tsv` with the daily indexes of that month. |
+| A2 | A filing after 5:30 PM Eastern on the last day of a month gets the next business day as its filed date, and the daily index of that day lists it | Unverified | The overlap of one day covers a filing on the last day of the month. A longer gap needs a longer overlap. |
 | A3 | The daily index lists every filing of its day, and the SEC does not change it after publication | Unverified | A late change is lost. A rerun of that date picks it up. |
 | A4 | The SEC replaces old Notes files after the backfill, for example `2025q3` on 2026-10-07 | Measured | The backfill does not pick up the change. An amendment reaches the new-filing path as its own filing (10-K/A, 10-Q/A). |
 | A5 | CIK and accession number never change and are never reused | Unverified, SEC practice | Idempotent writes on these keys merge two different things |
