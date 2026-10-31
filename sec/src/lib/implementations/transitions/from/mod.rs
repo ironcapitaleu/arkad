@@ -10,9 +10,15 @@
 //! - [`execute_sec_request`]: Transitions out of the request-execution state.
 //! - [`parse_company_facts`]: Transitions out of the Company Facts parsing state.
 //! - [`validate_notes_period`]: Transitions out of the Notes period validation state.
+//! - [`validate_index_date`]: Transitions out of the index date validation state.
+//! - [`download_daily_index`]: Transitions out of the daily index download state.
+//! - [`store_daily_index`]: Transitions out of the daily index store state.
 
+pub mod download_daily_index;
 pub mod execute_sec_request;
 pub mod parse_company_facts;
 pub mod prepare_sec_request;
+pub mod store_daily_index;
 pub mod validate_cik_format;
+pub mod validate_index_date;
 pub mod validate_notes_period;
