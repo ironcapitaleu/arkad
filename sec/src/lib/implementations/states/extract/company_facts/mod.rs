@@ -115,8 +115,8 @@ impl StateData for ExtractCompanyFactsSuperStateData {
 ///
 /// Holds the shared SEC client `C` handed down to each inner state, so the client is constructed
 /// once and reused across the whole extract phase. It also holds the `execution_id` and the storage
-/// repository `R`. Each inner state carries its own clone of the repository, and
-/// [`StoreCompanyFacts`] writes to that clone.
+/// repository `R`. The transition into [`StoreCompanyFacts`] hands the store state a clone of the
+/// repository.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub struct ExtractCompanyFactsSuperStateContext<R, C = SecClient> {
     pub(crate) sec_client: C,
@@ -557,8 +557,11 @@ where
     C: SecClientTrait<Response<JsonBody> = SecResponse<JsonBody>, Error = FailedSecRequest>,
 {
     fn transition_to_next_state_sec(self) -> Result<Self::NewStateMachine, TransitionError> {
-        let next_state =
-            StoreCompanyFacts::try_from((self.current_state, self.context.execution_id))?;
+        let next_state = StoreCompanyFacts::try_from((
+            self.current_state,
+            self.context.execution_id,
+            self.context.repository.clone(),
+        ))?;
 
         Ok(
             ExtractCompanyFactsSuperState::<StoreCompanyFacts<R>, R, C> {
