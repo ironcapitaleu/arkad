@@ -3,9 +3,10 @@
 //! Provides the [`ExtractSubmissionsSuperState`], which fetches the `submissions` JSON of one
 //! company and writes it to the store.
 //!
-//! The super-state owns the shared SEC client, the `execution_id`, and the ingestion mode of the
-//! run. Each state holds its own clone of the storage repository. Both ingestion paths run this
-//! machine, so the caller sets the mode, and the metadata of the stored document records it.
+//! The super-state owns the shared SEC client, the `execution_id`, the ingestion mode of the run,
+//! and the storage repository. The transition into [`StoreSubmissions`] hands the store state a
+//! clone of the repository. Both ingestion paths run this machine, so the caller sets the mode, and
+//! the metadata of the stored document records it.
 //!
 //! ## Modules
 //!
@@ -103,30 +104,40 @@ impl StateData for ExtractSubmissionsSuperStateData {
 
 /// Context for the [`ExtractSubmissionsSuperState`].
 ///
-/// Holds the SEC client of type `C`, the `execution_id`, and the ingestion mode. The transition
-/// into [`ExecuteSecRequest`] hands it a clone of the client. The transition into
-/// [`StoreSubmissions`] hands it the `execution_id` and the ingestion mode.
+/// Holds the SEC client of type `C`, the `execution_id`, the ingestion mode, and the storage
+/// repository `R`. The transition into [`ExecuteSecRequest`] hands it a clone of the client. The
+/// transition into [`StoreSubmissions`] hands it the `execution_id`, the ingestion mode, and a clone
+/// of the repository.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct ExtractSubmissionsSuperStateContext<C> {
+pub struct ExtractSubmissionsSuperStateContext<R, C> {
     pub(crate) sec_client: C,
     pub(crate) execution_id: Uuid,
     pub(crate) ingestion_mode: IngestionMode,
+    pub(crate) repository: R,
 }
 
-impl<C> ExtractSubmissionsSuperStateContext<C> {
+impl<R, C> ExtractSubmissionsSuperStateContext<R, C> {
     /// Creates a new [`ExtractSubmissionsSuperStateContext`] from the SEC client, the
-    /// `execution_id`, and the ingestion mode.
+    /// `execution_id`, the ingestion mode, and the storage repository.
     #[must_use]
-    pub const fn new(sec_client: C, execution_id: Uuid, ingestion_mode: IngestionMode) -> Self {
+    pub const fn new(
+        sec_client: C,
+        execution_id: Uuid,
+        ingestion_mode: IngestionMode,
+        repository: R,
+    ) -> Self {
         Self {
             sec_client,
             execution_id,
             ingestion_mode,
+            repository,
         }
     }
 }
 
-impl<C: SecClientTrait> SMContext for ExtractSubmissionsSuperStateContext<C> {
+impl<R: RawRepository<RawSubmissions>, C: SecClientTrait> SMContext
+    for ExtractSubmissionsSuperStateContext<R, C>
+{
     type UpdateType = ();
     fn context(&self) -> &Self {
         self
@@ -134,7 +145,9 @@ impl<C: SecClientTrait> SMContext for ExtractSubmissionsSuperStateContext<C> {
     fn update_context(&mut self, (): Self::UpdateType) {}
 }
 
-impl<C: SecClientTrait> Context for ExtractSubmissionsSuperStateContext<C> {
+impl<R: RawRepository<RawSubmissions>, C: SecClientTrait> Context
+    for ExtractSubmissionsSuperStateContext<R, C>
+{
     fn max_retries(&self) -> u32 {
         0
     }
@@ -143,17 +156,23 @@ impl<C: SecClientTrait> Context for ExtractSubmissionsSuperStateContext<C> {
 /// Hierarchical super-state that extracts the `submissions` JSON of one company.
 ///
 /// Wraps the active state in its `S` type parameter and owns the SEC client of type `C`, the
-/// `execution_id`, and the ingestion mode. It moves through type-safe transitions:
+/// `execution_id`, the ingestion mode, and the storage repository `R`. It moves through type-safe transitions:
 /// [`ValidateCikFormat`] → [`PrepareSecRequest`] → [`ExecuteSecRequest`] → [`StoreSubmissions`].
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct ExtractSubmissionsSuperState<S: State, C: SecClientTrait = SecClient> {
+pub struct ExtractSubmissionsSuperState<
+    S: State,
+    R: RawRepository<RawSubmissions>,
+    C: SecClientTrait = SecClient,
+> {
     current_state: S,
     input: ExtractSubmissionsSuperStateData,
     output: Option<ExtractSubmissionsSuperStateData>,
-    context: ExtractSubmissionsSuperStateContext<C>,
+    context: ExtractSubmissionsSuperStateContext<R, C>,
 }
 
-impl<S: State, C: SecClientTrait> Display for ExtractSubmissionsSuperState<S, C> {
+impl<S: State, R: RawRepository<RawSubmissions>, C: SecClientTrait> Display
+    for ExtractSubmissionsSuperState<S, R, C>
+{
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         write!(
             f,
@@ -163,10 +182,12 @@ impl<S: State, C: SecClientTrait> Display for ExtractSubmissionsSuperState<S, C>
     }
 }
 
-impl<S: State, C: SecClientTrait> SMState for ExtractSubmissionsSuperState<S, C> {
+impl<S: State, R: RawRepository<RawSubmissions>, C: SecClientTrait> SMState
+    for ExtractSubmissionsSuperState<S, R, C>
+{
     type InputData = ExtractSubmissionsSuperStateData;
     type OutputData = ExtractSubmissionsSuperStateData;
-    type Context = ExtractSubmissionsSuperStateContext<C>;
+    type Context = ExtractSubmissionsSuperStateContext<R, C>;
 
     fn state_name(&self) -> impl ToString {
         self.to_string()
@@ -206,7 +227,9 @@ impl<S: State, C: SecClientTrait> SMState for ExtractSubmissionsSuperState<S, C>
 }
 
 #[async_trait]
-impl<S: State, C: SecClientTrait> State for ExtractSubmissionsSuperState<S, C> {
+impl<S: State, R: RawRepository<RawSubmissions>, C: SecClientTrait> State
+    for ExtractSubmissionsSuperState<S, R, C>
+{
     async fn compute_output_data_async(&mut self) -> Result<(), StateError> {
         self.current_state
             .compute_output_data_async()
@@ -215,7 +238,9 @@ impl<S: State, C: SecClientTrait> State for ExtractSubmissionsSuperState<S, C> {
     }
 }
 
-impl<S: State, C: SecClientTrait> SMStateMachine<S> for ExtractSubmissionsSuperState<S, C> {
+impl<S: State, R: RawRepository<RawSubmissions>, C: SecClientTrait> SMStateMachine<S>
+    for ExtractSubmissionsSuperState<S, R, C>
+{
     fn current_state(&self) -> &S {
         &self.current_state
     }
@@ -236,13 +261,22 @@ impl<S: State, C: SecClientTrait> SMStateMachine<S> for ExtractSubmissionsSuperS
     }
 }
 
-impl<S: State, C: SecClientTrait> StateMachine<S> for ExtractSubmissionsSuperState<S, C> {}
+impl<S: State, R: RawRepository<RawSubmissions>, C: SecClientTrait> StateMachine<S>
+    for ExtractSubmissionsSuperState<S, R, C>
+{
+}
 
-impl<S: State, C: SecClientTrait> SMSuperState<S> for ExtractSubmissionsSuperState<S, C> {}
+impl<S: State, R: RawRepository<RawSubmissions>, C: SecClientTrait> SMSuperState<S>
+    for ExtractSubmissionsSuperState<S, R, C>
+{
+}
 
-impl<S: State, C: SecClientTrait> SuperState<S> for ExtractSubmissionsSuperState<S, C> {}
+impl<S: State, R: RawRepository<RawSubmissions>, C: SecClientTrait> SuperState<S>
+    for ExtractSubmissionsSuperState<S, R, C>
+{
+}
 
-impl<R: RawRepository<RawSubmissions>> ExtractSubmissionsSuperState<ValidateCikFormat<R>> {
+impl<R: RawRepository<RawSubmissions>> ExtractSubmissionsSuperState<ValidateCikFormat<R>, R> {
     /// Returns an [`ExtractSubmissionsSuperStateBuilder`] that holds no field yet.
     #[must_use]
     pub const fn builder() -> ExtractSubmissionsSuperStateBuilder<
@@ -258,7 +292,8 @@ impl<R: RawRepository<RawSubmissions>> ExtractSubmissionsSuperState<ValidateCikF
 
 // --- Streaming ---
 
-impl<S: State, C: SecClientTrait> ExtractSubmissionsSuperState<S, C>
+impl<S: State, R: RawRepository<RawSubmissions>, C: SecClientTrait>
+    ExtractSubmissionsSuperState<S, R, C>
 where
     Self: IntoStateMachineStream,
 {
@@ -273,7 +308,7 @@ where
 }
 
 impl<R: RawRepository<RawSubmissions>, C: SecClientTrait> NonTerminal
-    for ExtractSubmissionsSuperState<ValidateCikFormat<R, C>, C>
+    for ExtractSubmissionsSuperState<ValidateCikFormat<R, C>, R, C>
 {
     type Current = ValidateCikFormat<R, C>;
     type Next = PrepareSecRequest<Submissions, R>;
@@ -281,7 +316,7 @@ impl<R: RawRepository<RawSubmissions>, C: SecClientTrait> NonTerminal
 
 // Deviation: the impls that reach `ExecuteSecRequest` pin the response and the error of `C`.
 // See the comment on `State for ExecuteSecRequest`.
-impl<R, C> NonTerminal for ExtractSubmissionsSuperState<PrepareSecRequest<Submissions, R>, C>
+impl<R, C> NonTerminal for ExtractSubmissionsSuperState<PrepareSecRequest<Submissions, R>, R, C>
 where
     R: RawRepository<RawSubmissions>,
     C: SecClientTrait<Response<JsonBody> = SecResponse<JsonBody>, Error = FailedSecRequest>,
@@ -290,7 +325,7 @@ where
     type Next = ExecuteSecRequest<Submissions, R, C>;
 }
 
-impl<R, C> NonTerminal for ExtractSubmissionsSuperState<ExecuteSecRequest<Submissions, R, C>, C>
+impl<R, C> NonTerminal for ExtractSubmissionsSuperState<ExecuteSecRequest<Submissions, R, C>, R, C>
 where
     R: RawRepository<RawSubmissions>,
     C: SecClientTrait<Response<JsonBody> = SecResponse<JsonBody>, Error = FailedSecRequest>,
@@ -301,7 +336,7 @@ where
 
 /// Ends the stream after [`StoreSubmissions`] writes the `submissions` JSON to the store.
 impl<R: RawRepository<RawSubmissions> + 'static, C: SecClientTrait + 'static> IntoStateMachineStream
-    for ExtractSubmissionsSuperState<StoreSubmissions<R>, C>
+    for ExtractSubmissionsSuperState<StoreSubmissions<R>, R, C>
 {
     fn into_stream(self, execution_id: Uuid) -> StateMachineStream {
         terminal_stream(self, execution_id)
@@ -312,7 +347,7 @@ impl<R: RawRepository<RawSubmissions> + 'static, C: SecClientTrait + 'static> In
 
 impl<R: RawRepository<RawSubmissions>, C: SecClientTrait>
     Transition<ValidateCikFormat<R, C>, PrepareSecRequest<Submissions, R>>
-    for ExtractSubmissionsSuperState<ValidateCikFormat<R, C>, C>
+    for ExtractSubmissionsSuperState<ValidateCikFormat<R, C>, R, C>
 {
     fn transition_to_next_state_sec(self) -> Result<Self::NewStateMachine, TransitionError> {
         Ok(ExtractSubmissionsSuperState {
@@ -326,9 +361,9 @@ impl<R: RawRepository<RawSubmissions>, C: SecClientTrait>
 
 impl<R: RawRepository<RawSubmissions>, C: SecClientTrait>
     SMTransition<ValidateCikFormat<R, C>, PrepareSecRequest<Submissions, R>>
-    for ExtractSubmissionsSuperState<ValidateCikFormat<R, C>, C>
+    for ExtractSubmissionsSuperState<ValidateCikFormat<R, C>, R, C>
 {
-    type NewStateMachine = ExtractSubmissionsSuperState<PrepareSecRequest<Submissions, R>, C>;
+    type NewStateMachine = ExtractSubmissionsSuperState<PrepareSecRequest<Submissions, R>, R, C>;
 
     fn transition_to_next_state(self) -> Result<Self::NewStateMachine, &'static str> {
         Err(
@@ -338,7 +373,7 @@ impl<R: RawRepository<RawSubmissions>, C: SecClientTrait>
 }
 
 impl<R, C> Transition<PrepareSecRequest<Submissions, R>, ExecuteSecRequest<Submissions, R, C>>
-    for ExtractSubmissionsSuperState<PrepareSecRequest<Submissions, R>, C>
+    for ExtractSubmissionsSuperState<PrepareSecRequest<Submissions, R>, R, C>
 where
     R: RawRepository<RawSubmissions>,
     C: SecClientTrait<Response<JsonBody> = SecResponse<JsonBody>, Error = FailedSecRequest>,
@@ -355,12 +390,12 @@ where
 }
 
 impl<R, C> SMTransition<PrepareSecRequest<Submissions, R>, ExecuteSecRequest<Submissions, R, C>>
-    for ExtractSubmissionsSuperState<PrepareSecRequest<Submissions, R>, C>
+    for ExtractSubmissionsSuperState<PrepareSecRequest<Submissions, R>, R, C>
 where
     R: RawRepository<RawSubmissions>,
     C: SecClientTrait<Response<JsonBody> = SecResponse<JsonBody>, Error = FailedSecRequest>,
 {
-    type NewStateMachine = ExtractSubmissionsSuperState<ExecuteSecRequest<Submissions, R, C>, C>;
+    type NewStateMachine = ExtractSubmissionsSuperState<ExecuteSecRequest<Submissions, R, C>, R, C>;
 
     fn transition_to_next_state(self) -> Result<Self::NewStateMachine, &'static str> {
         Err(
@@ -370,7 +405,7 @@ where
 }
 
 impl<R, C> Transition<ExecuteSecRequest<Submissions, R, C>, StoreSubmissions<R>>
-    for ExtractSubmissionsSuperState<ExecuteSecRequest<Submissions, R, C>, C>
+    for ExtractSubmissionsSuperState<ExecuteSecRequest<Submissions, R, C>, R, C>
 where
     R: RawRepository<RawSubmissions>,
     C: SecClientTrait<Response<JsonBody> = SecResponse<JsonBody>, Error = FailedSecRequest>,
@@ -381,6 +416,7 @@ where
                 self.current_state,
                 self.context.execution_id,
                 self.context.ingestion_mode,
+                self.context.repository.clone(),
             ))?,
             input: ExtractSubmissionsSuperStateData,
             output: None,
@@ -390,12 +426,12 @@ where
 }
 
 impl<R, C> SMTransition<ExecuteSecRequest<Submissions, R, C>, StoreSubmissions<R>>
-    for ExtractSubmissionsSuperState<ExecuteSecRequest<Submissions, R, C>, C>
+    for ExtractSubmissionsSuperState<ExecuteSecRequest<Submissions, R, C>, R, C>
 where
     R: RawRepository<RawSubmissions>,
     C: SecClientTrait<Response<JsonBody> = SecResponse<JsonBody>, Error = FailedSecRequest>,
 {
-    type NewStateMachine = ExtractSubmissionsSuperState<StoreSubmissions<R>, C>;
+    type NewStateMachine = ExtractSubmissionsSuperState<StoreSubmissions<R>, R, C>;
 
     fn transition_to_next_state(self) -> Result<Self::NewStateMachine, &'static str> {
         Err(
@@ -459,6 +495,7 @@ mod tests {
         repository: R,
     ) -> ExtractSubmissionsSuperState<
         ValidateCikFormat<R, AlwaysRespondingSecClient>,
+        R,
         AlwaysRespondingSecClient,
     > {
         ExtractSubmissionsSuperState::builder()
@@ -474,6 +511,7 @@ mod tests {
     async fn run_stream<R: RawRepository<RawSubmissions> + 'static>(
         super_state: ExtractSubmissionsSuperState<
             ValidateCikFormat<R, AlwaysRespondingSecClient>,
+            R,
             AlwaysRespondingSecClient,
         >,
     ) -> Vec<StreamItem> {
@@ -492,6 +530,7 @@ mod tests {
     async fn failed_state_names<R: RawRepository<RawSubmissions> + 'static>(
         super_state: ExtractSubmissionsSuperState<
             ValidateCikFormat<R, AlwaysRespondingSecClient>,
+            R,
             AlwaysRespondingSecClient,
         >,
     ) -> Vec<String> {
@@ -686,7 +725,10 @@ mod tests {
     #[test]
     const fn should_implement_auto_traits_for_store_submissions_super_state() {
         implements_auto_traits::<
-            ExtractSubmissionsSuperState<StoreSubmissions<FakeSubmissionsRepository>>,
+            ExtractSubmissionsSuperState<
+                StoreSubmissions<FakeSubmissionsRepository>,
+                FakeSubmissionsRepository,
+            >,
         >();
     }
 }

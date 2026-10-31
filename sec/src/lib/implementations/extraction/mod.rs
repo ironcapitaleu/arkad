@@ -110,8 +110,11 @@ mod tests {
     use crate::tests::fixtures::sample_http_client::sample_sec_client::always_responding::AlwaysRespondingSecClient;
     use crate::tests::fixtures::sample_write_repository::FakeNotesRepository;
 
-    type NotesSuperState =
-        ExtractNotesSuperState<ValidateNotesPeriod<FakeNotesRepository>, AlwaysRespondingSecClient>;
+    type NotesSuperState = ExtractNotesSuperState<
+        ValidateNotesPeriod<FakeNotesRepository>,
+        FakeNotesRepository,
+        AlwaysRespondingSecClient,
+    >;
 
     fn sec_client() -> AlwaysRespondingSecClient {
         AlwaysRespondingSecClient::new(

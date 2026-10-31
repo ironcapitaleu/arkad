@@ -1,14 +1,14 @@
 //! # Transition: `ExecuteSecRequest` → `StoreNotesArchive`
 //!
 //! Implements the [`TryFrom`] conversion producing a [`StoreNotesArchive`] from an
-//! [`ExecuteSecRequest`] of the [`NotesFile`] kind and the `execution_id`.
+//! [`ExecuteSecRequest`] of the [`NotesFile`] kind, the `execution_id`, and the storage
+//! repository.
 //!
 //! It moves the [`Arc`](std::sync::Arc) of the response from the output of the source state, the
 //! requested URL from its [`SecRequest`], the `User-Agent` from its client, and the Notes period
-//! and the storage repository from its context. It keeps no clone of the
-//! [`Arc`](std::sync::Arc), so [`StoreNotesArchive`] can take the bytes out of it. The
-//! `execution_id` belongs to the state machine run, so the caller passes the one from the state
-//! machine context.
+//! from its context. It keeps no clone of the [`Arc`](std::sync::Arc), so [`StoreNotesArchive`]
+//! can take the bytes out of it. The `execution_id` and the repository belong to the state machine
+//! run, so the caller passes the ones from the state machine context.
 //!
 //! [STA-384](https://linear.app/state-machine/issue/STA-384) replaces this transition with the
 //! generic store state.
@@ -22,8 +22,8 @@
 //! use sec::shared::http_client::implementations::sec_client::SecClient;
 //! use uuid::Uuid;
 //!
-//! fn store_as_notes_file<R>(state: ExecuteCompanyFactsRequest<R, SecClient>) {
-//!     let _next = StoreNotesArchive::<R>::try_from((state, Uuid::nil()));
+//! fn store_as_notes_file<R>(state: ExecuteCompanyFactsRequest<R, SecClient>, repository: R) {
+//!     let _next = StoreNotesArchive::<R>::try_from((state, Uuid::nil(), repository));
 //! }
 //! ```
 //!
@@ -51,13 +51,13 @@ use crate::shared::request::implementations::sec_request::NotesFile;
 use crate::shared::request::implementations::sec_request::SecRequest;
 use crate::shared::url::Url;
 
-impl<R, C: SecClientTrait> TryFrom<(ExecuteSecRequest<NotesFile, R, C>, Uuid)>
+impl<R, C: SecClientTrait> TryFrom<(ExecuteSecRequest<NotesFile, R, C>, Uuid, R)>
     for StoreNotesArchive<R>
 {
     type Error = TransitionError;
 
     /// Builds a [`StoreNotesArchive`] from a computed [`ExecuteSecRequest`] of the [`NotesFile`]
-    /// kind and the `execution_id`.
+    /// kind, the `execution_id`, and the storage repository.
     ///
     /// # Errors
     ///
@@ -67,7 +67,7 @@ impl<R, C: SecClientTrait> TryFrom<(ExecuteSecRequest<NotesFile, R, C>, Uuid)>
     /// different period from its context. The stored key follows the context period, so a
     /// mismatch stores a file under the wrong period.
     fn try_from(
-        (state, execution_id): (ExecuteSecRequest<NotesFile, R, C>, Uuid),
+        (state, execution_id, repository): (ExecuteSecRequest<NotesFile, R, C>, Uuid, R),
     ) -> Result<Self, TransitionError> {
         let (input, output, context) = state.into_parts();
         let output_data = output.ok_or_else(|| {
@@ -89,7 +89,7 @@ impl<R, C: SecClientTrait> TryFrom<(ExecuteSecRequest<NotesFile, R, C>, Uuid)>
             requested_url,
             user_agent,
         );
-        let new_context = StoreNotesArchiveContext::new(execution_id, context.repository);
+        let new_context = StoreNotesArchiveContext::new(execution_id, repository);
 
         Ok(Self::new(new_input, new_context))
     }
@@ -147,7 +147,7 @@ mod tests {
             .build();
         ExecuteSecRequest::new(
             ExecuteSecRequestInput::new(sec_client(), request),
-            ExecuteSecRequestContext::new(period("2024q1"), rejecting_repository()),
+            ExecuteSecRequestContext::new(period("2024q1"), FakeNotesRepository::new()),
         )
     }
 
@@ -161,8 +161,12 @@ mod tests {
     }
 
     async fn store_notes_archive() -> StoreNotesArchive<FakeNotesRepository> {
-        StoreNotesArchive::try_from((execute_with_output("2024q1").await, SAMPLE_EXECUTION_ID))
-            .expect("Given a source state with output, the transition should always succeed")
+        StoreNotesArchive::try_from((
+            execute_with_output("2024q1").await,
+            SAMPLE_EXECUTION_ID,
+            rejecting_repository(),
+        ))
+        .expect("Given a source state with output, the transition should always succeed")
     }
 
     #[tokio::test]
@@ -226,7 +230,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_move_execution_id_and_repository_when_source_has_output() {
+    async fn should_take_execution_id_and_repository_from_run_when_source_has_output() {
         let state = store_notes_archive().await;
 
         let expected_result =
@@ -249,7 +253,8 @@ mod tests {
             ),
         ));
 
-        let result = StoreNotesArchive::try_from((state, SAMPLE_EXECUTION_ID));
+        let result =
+            StoreNotesArchive::try_from((state, SAMPLE_EXECUTION_ID, rejecting_repository()));
 
         assert_eq!(result, expected_result);
     }
@@ -262,7 +267,8 @@ mod tests {
             transition::MissingOutput::new(EXECUTE_SEC_REQUEST, STORE_NOTES_ARCHIVE),
         ));
 
-        let result = StoreNotesArchive::try_from((state, SAMPLE_EXECUTION_ID));
+        let result =
+            StoreNotesArchive::try_from((state, SAMPLE_EXECUTION_ID, rejecting_repository()));
 
         assert_eq!(result, expected_result);
     }

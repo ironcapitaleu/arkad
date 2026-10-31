@@ -221,10 +221,13 @@ impl<C: SecClientTrait, R: RawRepository<RawSubmissions>>
     ///     .build();
     /// ```
     #[must_use]
-    pub fn build(self) -> ExtractSubmissionsSuperState<ValidateCikFormat<R, C>, C> {
+    pub fn build(self) -> ExtractSubmissionsSuperState<ValidateCikFormat<R, C>, R, C> {
         let input = ValidateCikFormatInput::new(self.cik.clone());
-        let state_context =
-            ValidateCikFormatContext::new(self.cik, self.sec_client.clone(), self.repository);
+        let state_context = ValidateCikFormatContext::new(
+            self.cik,
+            self.sec_client.clone(),
+            self.repository.clone(),
+        );
 
         ExtractSubmissionsSuperState {
             current_state: ValidateCikFormat::new(input, state_context),
@@ -234,6 +237,7 @@ impl<C: SecClientTrait, R: RawRepository<RawSubmissions>>
                 self.sec_client,
                 self.execution_id,
                 self.ingestion_mode,
+                self.repository,
             ),
         }
     }
@@ -261,6 +265,7 @@ mod tests {
 
     type TestSuperState = ExtractSubmissionsSuperState<
         ValidateCikFormat<FakeSubmissionsRepository, AlwaysRespondingSecClient>,
+        FakeSubmissionsRepository,
         AlwaysRespondingSecClient,
     >;
 
@@ -278,7 +283,7 @@ mod tests {
         ExtractSubmissionsSuperState {
             current_state: ValidateCikFormat::new(
                 ValidateCikFormatInput::new(raw_cik),
-                ValidateCikFormatContext::new(raw_cik, sec_client.clone(), repository),
+                ValidateCikFormatContext::new(raw_cik, sec_client.clone(), repository.clone()),
             ),
             input: ExtractSubmissionsSuperStateData,
             output: None,
@@ -286,6 +291,7 @@ mod tests {
                 sec_client,
                 execution_id,
                 ingestion_mode,
+                repository,
             ),
         }
     }
@@ -362,13 +368,17 @@ mod tests {
 
     #[test]
     fn should_compare_unequal_when_two_builders_hold_different_ingestion_modes() {
-        let builder =
-            ExtractSubmissionsSuperState::<ValidateCikFormat<FakeSubmissionsRepository>>::builder();
+        let builder = ExtractSubmissionsSuperState::<
+            ValidateCikFormat<FakeSubmissionsRepository>,
+            FakeSubmissionsRepository,
+        >::builder();
         let ingestion_mode = IngestionMode::Incremental;
 
-        let expected_result =
-            ExtractSubmissionsSuperState::<ValidateCikFormat<FakeSubmissionsRepository>>::builder()
-                .ingestion_mode(IngestionMode::Backfill);
+        let expected_result = ExtractSubmissionsSuperState::<
+            ValidateCikFormat<FakeSubmissionsRepository>,
+            FakeSubmissionsRepository,
+        >::builder()
+        .ingestion_mode(IngestionMode::Backfill);
 
         let result = builder.ingestion_mode(ingestion_mode);
 

@@ -1,12 +1,12 @@
 //! # Transition: `ExecuteSecRequest` → `StoreSubmissions`
 //!
 //! Implements the [`TryFrom`] conversion producing a [`StoreSubmissions`] from an
-//! [`ExecuteSecRequest`] of the [`Submissions`] kind, the `execution_id`, and the
-//! [`IngestionMode`].
+//! [`ExecuteSecRequest`] of the [`Submissions`] kind, the `execution_id`, the [`IngestionMode`],
+//! and the storage repository.
 //!
 //! It moves the response from the output of the source state, the requested URL from its
-//! [`SecRequest`], the `User-Agent` from its client, and the CIK and the storage repository from
-//! its context. The `execution_id` and the ingestion mode belong to the state machine run, so the
+//! [`SecRequest`], the `User-Agent` from its client, and the CIK from its context. The
+//! `execution_id`, the ingestion mode, and the repository belong to the state machine run, so the
 //! caller passes the ones from the state machine context.
 //!
 //! [STA-383](https://linear.app/state-machine/issue/STA-383) replaces this transition and its
@@ -22,8 +22,9 @@
 //! use storage::implementations::repository::filesystem::IngestionMode;
 //! use uuid::Uuid;
 //!
-//! fn store_as_submissions<R>(state: ExecuteCompanyFactsRequest<R, SecClient>) {
-//!     let _next = StoreSubmissions::<R>::try_from((state, Uuid::nil(), IngestionMode::Backfill));
+//! fn store_as_submissions<R>(state: ExecuteCompanyFactsRequest<R, SecClient>, repository: R) {
+//!     let _next =
+//!         StoreSubmissions::<R>::try_from((state, Uuid::nil(), IngestionMode::Backfill, repository));
 //! }
 //! ```
 //!
@@ -54,13 +55,13 @@ use crate::shared::request::implementations::sec_request::SecRequest;
 use crate::shared::request::implementations::sec_request::Submissions;
 use crate::shared::url::Url;
 
-impl<R, C: SecClientTrait> TryFrom<(ExecuteSecRequest<Submissions, R, C>, Uuid, IngestionMode)>
+impl<R, C: SecClientTrait> TryFrom<(ExecuteSecRequest<Submissions, R, C>, Uuid, IngestionMode, R)>
     for StoreSubmissions<R>
 {
     type Error = TransitionError;
 
     /// Builds a [`StoreSubmissions`] from a computed [`ExecuteSecRequest`] of the [`Submissions`]
-    /// kind, the `execution_id`, and the ingestion mode.
+    /// kind, the `execution_id`, the ingestion mode, and the storage repository.
     ///
     /// # Errors
     ///
@@ -70,10 +71,11 @@ impl<R, C: SecClientTrait> TryFrom<(ExecuteSecRequest<Submissions, R, C>, Uuid, 
     /// different CIK from its context. The stored key follows the context CIK, so a mismatch stores
     /// a response under the wrong company.
     fn try_from(
-        (state, execution_id, ingestion_mode): (
+        (state, execution_id, ingestion_mode, repository): (
             ExecuteSecRequest<Submissions, R, C>,
             Uuid,
             IngestionMode,
+            R,
         ),
     ) -> Result<Self, TransitionError> {
         let (input, output, context) = state.into_parts();
@@ -99,7 +101,7 @@ impl<R, C: SecClientTrait> TryFrom<(ExecuteSecRequest<Submissions, R, C>, Uuid, 
             context.request_input,
             execution_id,
             ingestion_mode,
-            context.repository,
+            repository,
         );
 
         Ok(Self::new(new_input, new_context))
@@ -177,15 +179,20 @@ mod tests {
     fn execute_sec_request_without_output(cik: Cik) -> TestExecute {
         let request = SecRequest::builder().submissions().cik(cik).build();
         let input = ExecuteSecRequestInput::new(sec_client_with_other_user_agent(), request);
-        let context = ExecuteSecRequestContext::new(sample_cik(), rejecting_repository());
+        let context = ExecuteSecRequestContext::new(sample_cik(), FakeSubmissionsRepository::new());
         ExecuteSecRequest::new(input, context)
     }
 
     fn store_submissions() -> StoreSubmissions<FakeSubmissionsRepository> {
         let state = execute_sec_request_without_output(sample_cik())
             .with_output(ExecuteSecRequestOutput::new(sample_response()));
-        StoreSubmissions::try_from((state, SAMPLE_EXECUTION_ID, SAMPLE_INGESTION_MODE))
-            .expect("Given a source state with output, the transition should always succeed")
+        StoreSubmissions::try_from((
+            state,
+            SAMPLE_EXECUTION_ID,
+            SAMPLE_INGESTION_MODE,
+            rejecting_repository(),
+        ))
+        .expect("Given a source state with output, the transition should always succeed")
     }
 
     #[test]
@@ -222,7 +229,7 @@ mod tests {
     }
 
     #[test]
-    fn should_move_cik_execution_id_ingestion_mode_and_repository_when_source_has_output() {
+    fn should_take_execution_id_ingestion_mode_and_repository_from_run_when_source_has_output() {
         let state = store_submissions();
 
         let expected_result = &StoreSubmissionsContext::new(
@@ -252,9 +259,13 @@ mod tests {
             ),
         );
 
-        let result =
-            StoreSubmissions::try_from((state, SAMPLE_EXECUTION_ID, SAMPLE_INGESTION_MODE))
-                .expect_err("Given a request for another CIK, the transition should always fail");
+        let result = StoreSubmissions::try_from((
+            state,
+            SAMPLE_EXECUTION_ID,
+            SAMPLE_INGESTION_MODE,
+            rejecting_repository(),
+        ))
+        .expect_err("Given a request for another CIK, the transition should always fail");
 
         assert_eq!(result, expected_result);
     }
@@ -268,11 +279,13 @@ mod tests {
             STORE_SUBMISSIONS,
         ));
 
-        let result =
-            StoreSubmissions::try_from((state, SAMPLE_EXECUTION_ID, SAMPLE_INGESTION_MODE))
-                .expect_err(
-                    "Given a source state without output, the transition should always fail",
-                );
+        let result = StoreSubmissions::try_from((
+            state,
+            SAMPLE_EXECUTION_ID,
+            SAMPLE_INGESTION_MODE,
+            rejecting_repository(),
+        ))
+        .expect_err("Given a source state without output, the transition should always fail");
 
         assert_eq!(result, expected_result);
     }

@@ -176,15 +176,20 @@ impl<C: SecClientTrait, R: RawRepository<RawNotesArchive>>
     ///     .build();
     /// ```
     #[must_use]
-    pub fn build(self) -> ExtractNotesSuperState<ValidateNotesPeriod<R>, C> {
+    pub fn build(self) -> ExtractNotesSuperState<ValidateNotesPeriod<R>, R, C> {
         let input = ValidateNotesPeriodInput::new(self.period);
-        let state_context = ValidateNotesPeriodContext::new(self.execution_id, self.repository);
+        let state_context =
+            ValidateNotesPeriodContext::new(self.execution_id, self.repository.clone());
 
         ExtractNotesSuperState {
             current_state: ValidateNotesPeriod::new(input, state_context),
             input: ExtractNotesSuperStateData,
             output: None,
-            context: ExtractNotesSuperStateContext::new(self.sec_client, self.execution_id),
+            context: ExtractNotesSuperStateContext::new(
+                self.sec_client,
+                self.execution_id,
+                self.repository,
+            ),
         }
     }
 }
@@ -217,16 +222,19 @@ mod tests {
         sec_client: AlwaysRespondingSecClient,
         execution_id: Uuid,
         repository: FakeNotesRepository,
-    ) -> ExtractNotesSuperState<ValidateNotesPeriod<FakeNotesRepository>, AlwaysRespondingSecClient>
-    {
+    ) -> ExtractNotesSuperState<
+        ValidateNotesPeriod<FakeNotesRepository>,
+        FakeNotesRepository,
+        AlwaysRespondingSecClient,
+    > {
         ExtractNotesSuperState {
             current_state: ValidateNotesPeriod::new(
                 ValidateNotesPeriodInput::new(raw_period),
-                ValidateNotesPeriodContext::new(execution_id, repository),
+                ValidateNotesPeriodContext::new(execution_id, repository.clone()),
             ),
             input: ExtractNotesSuperStateData,
             output: None,
-            context: ExtractNotesSuperStateContext::new(sec_client, execution_id),
+            context: ExtractNotesSuperStateContext::new(sec_client, execution_id, repository),
         }
     }
 
@@ -292,12 +300,17 @@ mod tests {
 
     #[test]
     fn should_compare_unequal_when_two_builders_hold_different_periods() {
-        let builder = ExtractNotesSuperState::<ValidateNotesPeriod<FakeNotesRepository>>::builder();
+        let builder = ExtractNotesSuperState::<
+            ValidateNotesPeriod<FakeNotesRepository>,
+            FakeNotesRepository,
+        >::builder();
         let period = "2024q2";
 
-        let expected_result =
-            ExtractNotesSuperState::<ValidateNotesPeriod<FakeNotesRepository>>::builder()
-                .period("2024q1");
+        let expected_result = ExtractNotesSuperState::<
+            ValidateNotesPeriod<FakeNotesRepository>,
+            FakeNotesRepository,
+        >::builder()
+        .period("2024q1");
 
         let result = builder.period(period);
 
