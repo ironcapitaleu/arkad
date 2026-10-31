@@ -17,6 +17,7 @@ The document is organized as follows:
 - Write for a reader who understands Rust but is unfamiliar with this codebase.
 - Keep the first line short and self-contained as `rustdoc` uses it as a preview in module listings.
 - Use present tense, third-person: "Returns the validated CIK", not "This will return..." or "Return the CIK".
+- Describe what the item does now. Leave out what it no longer has, needs, or does, such as "The state needs no storage". Such a sentence makes sense only next to an older version, so it ties the doc to history. The commit message and the design docs keep that history.
 - Choose `a`/`an` by the **spoken sound**, not the first letter. "SEC" is read "ess-ee-see", so write "an SEC response", not "a SEC response".
 - Prefer clarity over terseness. A few extra words that remove ambiguity beat a tighter phrase that reads as jargon (e.g. "concepts that are missing inside a response" over "concepts missing from a response").
 - When tightening documentation that is already good, **blend** rather than replace: keep the established, well-worded opening and enrich it, instead of rewriting it wholesale.
