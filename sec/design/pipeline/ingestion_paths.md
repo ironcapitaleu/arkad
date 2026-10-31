@@ -599,9 +599,23 @@ One `ExtractFilingSuperState` runs per `FilingRef`. It sends three requests:
   the instance only, and `labels_key` is `None`.
 - If a filing has no instance, the machine fails with an error that names the accession number.
 
+Decided in STA-371:
+
+- The rules live in `FilingDocuments::select` in `shared::filing_documents`. The state calls it.
+- Input: the accession number and the `SecResponse<JsonBody>` of the folder index. Output:
+  `FilingDocuments`, the instance name and an optional label file name.
+- A rule that matches more than one member fails with `AmbiguousFilingDocument`. The state picks
+  no member by chance.
+- The rules compare ASCII letters without case.
+- Every failure is `StateError::FailedDocumentSelection`, which wraps a `FilingDocumentsError`
+  with the accession number: `InvalidFolderIndex`, `MissingXbrlInstance`, or
+  `AmbiguousFilingDocument`.
+
 Measured on one filing (`0000003545-26-000047`): the folder holds `alco-20260908_htm.xml` and
 `alco-20260908_lab.xml`, both served as `text/xml`. The `instance` column of `sub.tsv` uses the
-same names. The rule for older filings without inline XBRL is unverified.
+same names. The fallback rule is measured on one filing without inline XBRL
+(`0000320193-17-000070`, a 10-K of 2017). Its folder holds `aapl-20170930.xml` and four
+linkbases, so the rule picks `aapl-20170930.xml`.
 
 `DownloadFilingDocuments` fetches both files with `SecClient::execute_sec_request`, through a
 request kind whose body kind holds an XML file. The files are

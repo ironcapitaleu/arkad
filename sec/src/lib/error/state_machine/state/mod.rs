@@ -2,10 +2,10 @@
 //!
 //! Provides the [`State`] error covering failures inside a state's own logic: CIK validation,
 //! Notes period validation, index date validation, daily index parsing, SEC request execution, a missing daily index,
-//! document writes, data completeness, and input/context/output handling.
+//! the selection of filing documents, document writes, data completeness, and input/context/output handling.
 //!
 //! The richer variants ([`InvalidCikFormat`], [`InvalidNotesPeriod`], [`InvalidIndexDate`], [`InvalidDailyIndex`], [`FailedRequestExecution`],
-//! [`FailedDocumentWrite`], [`IncompleteCompanyFacts`]) wrap a domain error with the failing state's name.
+//! [`FailedDocumentSelection`], [`FailedDocumentWrite`], [`IncompleteCompanyFacts`]) wrap a domain error with the failing state's name.
 //! [`MissingDailyIndex`] carries the failing state's name and the date. The rest are plain markers.
 //! [`State`] is wrapped by [`StateMachine`](super::StateMachine) for propagation.
 //!
@@ -16,12 +16,15 @@
 //! - [`invalid_index_date`]: The [`InvalidIndexDate`] error wrapping an index date validation failure.
 //! - [`invalid_daily_index`]: The [`InvalidDailyIndex`] error wrapping a daily index that does not parse.
 //! - [`failed_request_execution`]: The [`FailedRequestExecution`] error wrapping a failed SEC request.
+//! - [`failed_document_selection`]: The [`FailedDocumentSelection`] error for a folder index that names no single XBRL instance or label file.
 //! - [`missing_daily_index`]: The [`MissingDailyIndex`] error for a daily index the SEC did not send.
 //! - [`failed_document_write`]: The [`FailedDocumentWrite`] error wrapping a rejected store write.
 //! - [`incomplete_company_facts`]: The [`IncompleteCompanyFacts`] error for a response missing required fields.
 
 use thiserror::Error;
 
+pub mod failed_document_selection;
+pub use failed_document_selection::FailedDocumentSelection;
 pub mod failed_document_write;
 pub use failed_document_write::FailedDocumentWrite;
 pub mod failed_request_execution;
@@ -44,7 +47,7 @@ pub use missing_daily_index::MissingDailyIndex;
 /// Error occurring inside a state's own logic.
 ///
 /// Spans the ways a state can fail while computing its output: a wrapped domain error (invalid
-/// CIK, invalid Notes period, invalid index date, invalid daily index, failed request, rejected write, incomplete facts) or a plain marker for invalid input, context, or a
+/// CIK, invalid Notes period, invalid index date, invalid daily index, failed request, failed document selection, rejected write, incomplete facts) or a plain marker for invalid input, context, or a
 /// failed update/computation.
 pub enum State {
     /// Invalid Cik format.
@@ -71,6 +74,10 @@ pub enum State {
     /// the day had no filings.
     #[error("[StateError] A state level error occurred, Caused by: {0}")]
     MissingDailyIndex(#[source] MissingDailyIndex),
+
+    /// Indicates that the folder index of a filing names no single XBRL instance or label file.
+    #[error("[StateError] A state level error occurred, Caused by: {0}")]
+    FailedDocumentSelection(#[source] FailedDocumentSelection),
 
     /// Indicates that the store rejected the write of a document.
     #[error("[StateError] A state level error occurred, Caused by: {0}")]
