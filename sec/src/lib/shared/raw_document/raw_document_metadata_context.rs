@@ -49,6 +49,23 @@ impl RawDocumentMetadataContext {
     /// file, a daily index, or an XML file of a filing, and the URL and the `User-Agent` the fetch sent.
     ///
     /// The final URL comes from [`SecResponse::url`](SecResponseTrait::url).
+    ///
+    /// A JSON response has no `from_file`:
+    ///
+    /// ```compile_fail,E0277
+    /// use sec::shared::raw_document::RawDocumentMetadataContext;
+    /// use sec::shared::response::implementations::sec_response::{JsonBody, SecResponse};
+    /// use sec::shared::url::Url;
+    /// use sec::shared::user_agent::UserAgent;
+    ///
+    /// fn context(
+    ///     response: &SecResponse<JsonBody>,
+    ///     url: &Url,
+    ///     user_agent: &UserAgent,
+    /// ) -> RawDocumentMetadataContext {
+    ///     RawDocumentMetadataContext::from_file(response, url, user_agent)
+    /// }
+    /// ```
     #[must_use]
     pub fn from_file<B: FileBody>(
         file: &SecResponse<B>,
