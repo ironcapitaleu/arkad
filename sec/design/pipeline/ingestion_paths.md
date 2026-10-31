@@ -260,19 +260,35 @@ because a missing bound makes code compile, not fail. Step 3 adds the same pair 
 compile the `compile_fail` body as a plain doctest on `main`. Then confirm the error code after the
 step.
 
-The steps also change `compile_fail` doctests that exist on `main`:
+The steps also change `compile_fail` doctests that exist on `main`. A changed type or tuple can make
+such a doctest fail for another reason than the property it names, and it then stays green. A
+default type parameter, such as `C = SecClient`, can also absorb a dropped parameter, so the error
+code stays the same. So each step follows one rule:
 
-- `prepare_sec_request/builder.rs` holds three `compile_fail,E0599` doctests. After step 3, the
-  one at `:42` fails because `.repository` is gone, not for the missing input it names. Step 3
-  drops `.repository(...)` from it. The ones at `:61` (no repository) and `:72` (the repository
-  must store the source of the kind) name properties that no longer exist. Step 3 deletes them.
-- The `compile_fail,E0277` doctests of the transitions name the old arity:
-  `prepare_sec_request/execute_sec_request.rs:15`, `validate_cik_format/prepare_sec_request.rs:14`,
-  `execute_sec_request/store_submissions.rs:18`, and `execute_sec_request/store_notes_archive.rs:19`.
-  After steps 2 to 4 they fail with E0107 instead, so the test run fails. Each step that changes an
-  arity updates these doctests to the new arity and keeps their property, the mismatch of kinds.
+- For each `compile_fail` doctest that the step touches, make its kinds match and compile the body
+  as a plain doctest. It must compile. Then the guard fails only for its own property.
+
+The cases known today:
+
+- Step 1: the doctests at `execute_sec_request/store_submissions.rs:18` and
+  `execute_sec_request/store_notes_archive.rs:19` call `try_from` without a repository. After step
+  1 no `TryFrom` takes that tuple, so they fail for any kind. Step 1 adds the repository to their
+  tuple.
+- Step 2: the doctest at `prepare_sec_request/execute_sec_request.rs:15` and the two store doctests
+  name `ExecuteSecRequest` with three parameters. Step 2 moves them to two.
+- Step 3: `prepare_sec_request/builder.rs` holds three `compile_fail,E0599` doctests.
+  - `:42` (no input) then fails because `.repository` is gone. Step 3 drops `.repository(...)` and
+    its hidden setup from it.
+  - `:61` (no repository) names a property that no longer exists. Step 3 deletes it.
+  - `:72` (the repository must store the source of the kind) names a property that moves to the
+    super-state builders, whose `build()` keeps the bound `R: RawRepository<…>`. Step 3 moves it to
+    `notes/builder.rs` as a `compile_fail,E0599` doctest that builds `ExtractNotesSuperState` with
+    a Company Facts repository.
+- Step 4: the doctest at `validate_cik_format/prepare_sec_request.rs:14` writes
+  `ValidateCikFormat<R>`. Its `C` has a default, so after step 4 `R` binds to `C` and the doctest
+  still fails with E0277, but on the client bound. Step 4 rewrites it to
+  `ValidateCikFormat<SecClient>`.
 - The builders of `ValidateCikFormat` and `ValidateNotesPeriod` hold no `compile_fail` doctests.
-  The super-state builders keep `.repository(...)`, so their doctests do not change.
 
 Each step updates the docs that its change makes false. Examples: the module docs of
 `notes/mod.rs` and `submissions/mod.rs` ("Each state holds its own clone of the storage
