@@ -38,8 +38,7 @@
 //! # }
 //! ```
 //!
-//! The state needs no storage. A kind that is only read, such as [`FilingIndex`], has no
-//! [`StoredAs`] impl and still implements [`State`]:
+//! The state runs every kind that implements [`RespondsWith`], for example [`FilingIndex`]:
 //!
 //! ```rust
 //! use sec::implementations::states::extract::execute_sec_request::ExecuteSecRequest;
@@ -72,7 +71,7 @@ use crate::shared::http_client::implementations::sec_client::SecClient;
 use crate::shared::http_client::implementations::sec_client::error::FailedSecRequest;
 use crate::shared::request::implementations::sec_request::CompanyFacts;
 #[cfg(doc)]
-use crate::shared::request::implementations::sec_request::{FilingIndex, StoredAs};
+use crate::shared::request::implementations::sec_request::FilingIndex;
 use crate::shared::response::implementations::sec_response::SecResponse;
 use crate::traits::state_machine::state::State;
 
