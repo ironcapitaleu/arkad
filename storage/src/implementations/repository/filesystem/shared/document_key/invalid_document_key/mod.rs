@@ -264,33 +264,39 @@ mod tests {
 
     #[test]
     fn should_build_contains_root_component_variant_when_using_its_constructor() {
+        let path = "/etc/passwd";
+
         let expected_result = InvalidDocumentKey::ContainsRootComponent {
-            path: PathBuf::from("/etc/passwd"),
+            path: PathBuf::from(path),
         };
 
-        let result = InvalidDocumentKey::contains_root_component("/etc/passwd");
+        let result = InvalidDocumentKey::contains_root_component(path);
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_build_contains_prefix_component_variant_when_using_its_constructor() {
+        let path = "C:x.json";
+
         let expected_result = InvalidDocumentKey::ContainsPrefixComponent {
-            path: PathBuf::from("C:x.json"),
+            path: PathBuf::from(path),
         };
 
-        let result = InvalidDocumentKey::contains_prefix_component("C:x.json");
+        let result = InvalidDocumentKey::contains_prefix_component(path);
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_build_contains_parent_component_variant_when_using_its_constructor() {
+        let path = "sec/../etc";
+
         let expected_result = InvalidDocumentKey::ContainsParentComponent {
-            path: PathBuf::from("sec/../etc"),
+            path: PathBuf::from(path),
         };
 
-        let result = InvalidDocumentKey::contains_parent_component("sec/../etc");
+        let result = InvalidDocumentKey::contains_parent_component(path);
 
         assert_eq!(result, expected_result);
     }
@@ -344,22 +350,26 @@ mod tests {
 
     #[test]
     fn should_build_contains_non_portable_component_variant_when_using_its_constructor() {
+        let path = "sec/a:b.json";
+
         let expected_result = InvalidDocumentKey::ContainsNonPortableComponent {
-            path: PathBuf::from("sec/a:b.json"),
+            path: PathBuf::from(path),
         };
 
-        let result = InvalidDocumentKey::contains_non_portable_component("sec/a:b.json");
+        let result = InvalidDocumentKey::contains_non_portable_component(path);
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_build_contains_non_utf8_component_variant_when_using_its_constructor() {
+        let path = "sec/\u{FFFD}.json";
+
         let expected_result = InvalidDocumentKey::ContainsNonUtf8Component {
-            path: PathBuf::from("sec/\u{FFFD}.json"),
+            path: PathBuf::from(path),
         };
 
-        let result = InvalidDocumentKey::contains_non_utf8_component("sec/\u{FFFD}.json");
+        let result = InvalidDocumentKey::contains_non_utf8_component(path);
 
         assert_eq!(result, expected_result);
     }

@@ -116,9 +116,11 @@ mod tests {
 
     #[test]
     fn should_create_from_domain_error_when_from_domain_error_is_called() {
+        let domain_error = sample_domain_error();
+
         let expected_result = FailedDocumentWrite::new(STATE_NAME, sample_domain_error());
 
-        let result = FailedDocumentWrite::from_domain_error(STATE_NAME, sample_domain_error());
+        let result = FailedDocumentWrite::from_domain_error(STATE_NAME, domain_error);
 
         assert_eq!(result, expected_result);
     }

@@ -39,9 +39,11 @@ impl Unit {
     /// ```
     /// use sec::shared::financial::unit::Unit;
     ///
+    /// let sec_string = "USD";
+    ///
     /// let expected_result = Some(Unit::Usd);
     ///
-    /// let result = Unit::from_sec_str("USD");
+    /// let result = Unit::from_sec_str(sec_string);
     ///
     /// assert_eq!(result, expected_result);
     /// ```
@@ -76,27 +78,33 @@ mod tests {
 
     #[test]
     fn should_parse_usd_from_sec_string_when_input_is_usd() {
+        let sec_string = "USD";
+
         let expected_result = Some(Unit::Usd);
 
-        let result = Unit::from_sec_str("USD");
+        let result = Unit::from_sec_str(sec_string);
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_parse_shares_from_sec_string_when_input_is_shares() {
+        let sec_string = "shares";
+
         let expected_result = Some(Unit::Shares);
 
-        let result = Unit::from_sec_str("shares");
+        let result = Unit::from_sec_str(sec_string);
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_return_none_when_sec_string_is_unknown() {
+        let sec_string = "unknown_unit";
+
         let expected_result = None;
 
-        let result = Unit::from_sec_str("unknown_unit");
+        let result = Unit::from_sec_str(sec_string);
 
         assert_eq!(result, expected_result);
     }

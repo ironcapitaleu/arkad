@@ -84,40 +84,48 @@ mod tests {
 
     #[test]
     fn should_return_default_user_agent_when_variable_is_unset() {
+        let value = None;
+
         let expected_result = Ok(UserAgent::default());
 
-        let result = user_agent(None);
+        let result = user_agent(value);
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_return_default_user_agent_when_variable_is_empty() {
+        let value = Some(OsString::new());
+
         let expected_result = Ok(UserAgent::default());
 
-        let result = user_agent(Some(OsString::new()));
+        let result = user_agent(value);
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_return_given_user_agent_when_variable_is_valid() {
+        let value = Some(OsString::from("Sample Company contact@example.com"));
+
         let expected_result = Ok(UserAgent::new("Sample Company contact@example.com")
             .expect("Given a hardcoded SEC-format string, validation should always succeed"));
 
-        let result = user_agent(Some(OsString::from("Sample Company contact@example.com")));
+        let result = user_agent(value);
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_return_user_agent_error_when_variable_is_invalid() {
+        let value = Some(OsString::from("not-a-user-agent"));
+
         let expected_result = Err(UserAgentError::new(
             UserAgentErrorReason::InvalidSecFormat,
             "not-a-user-agent",
         ));
 
-        let result = user_agent(Some(OsString::from("not-a-user-agent")));
+        let result = user_agent(value);
 
         assert_eq!(result, expected_result);
     }

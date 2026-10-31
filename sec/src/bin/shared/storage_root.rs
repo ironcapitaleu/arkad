@@ -79,18 +79,22 @@ mod tests {
 
     #[test]
     fn should_return_default_root_when_variable_is_unset() {
+        let value = None;
+
         let expected_result = PathBuf::from(DEFAULT_STORAGE_ROOT);
 
-        let result = storage_root(None);
+        let result = storage_root(value);
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_return_default_root_when_variable_is_empty() {
+        let value = Some(OsString::new());
+
         let expected_result = PathBuf::from(DEFAULT_STORAGE_ROOT);
 
-        let result = storage_root(Some(OsString::new()));
+        let result = storage_root(value);
 
         assert_eq!(result, expected_result);
     }
@@ -116,9 +120,11 @@ mod tests {
 
     #[test]
     fn should_return_given_root_when_variable_is_set() {
+        let value = Some(OsString::from("/var/lib/arkad"));
+
         let expected_result = PathBuf::from("/var/lib/arkad");
 
-        let result = storage_root(Some(OsString::from("/var/lib/arkad")));
+        let result = storage_root(value);
 
         assert_eq!(result, expected_result);
     }

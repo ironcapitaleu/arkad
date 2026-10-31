@@ -54,27 +54,33 @@ mod tests {
 
     #[test]
     fn should_display_raw_company_facts_for_the_raw_company_facts_document_type() {
+        let document_type = SecDocumentType::RawCompanyFacts;
+
         let expected_result = "raw_company_facts";
 
-        let result = SecDocumentType::RawCompanyFacts.to_string();
+        let result = document_type.to_string();
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_display_raw_daily_index_for_the_raw_daily_index_document_type() {
+        let document_type = SecDocumentType::RawDailyIndex;
+
         let expected_result = "raw_daily_index";
 
-        let result = SecDocumentType::RawDailyIndex.to_string();
+        let result = document_type.to_string();
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_display_raw_notes_archive_for_the_raw_notes_archive_document_type() {
+        let document_type = SecDocumentType::RawNotesArchive;
+
         let expected_result = "raw_notes_archive";
 
-        let result = SecDocumentType::RawNotesArchive.to_string();
+        let result = document_type.to_string();
 
         assert_eq!(result, expected_result);
     }

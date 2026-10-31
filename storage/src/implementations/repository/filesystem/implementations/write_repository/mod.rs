@@ -815,6 +815,7 @@ mod tests {
         let root = temporary_root();
         let repository = repository_at(root.path());
         let backfill_document = sample_document_with_ingestion_mode(IngestionMode::Backfill);
+        let incremental_document = sample_document_with_ingestion_mode(IngestionMode::Incremental);
         let metadata_path = repository.metadata_path(backfill_document.key());
 
         let expected_result = IngestionMode::Backfill;
@@ -823,14 +824,9 @@ mod tests {
             .persist(backfill_document)
             .await
             .expect("Given an existing writable root, persisting a record should always succeed");
-        repository
-            .persist(sample_document_with_ingestion_mode(
-                IngestionMode::Incremental,
-            ))
-            .await
-            .expect(
-                "Given an existing writable root, persisting unchanged bytes should always succeed",
-            );
+        repository.persist(incremental_document).await.expect(
+            "Given an existing writable root, persisting unchanged bytes should always succeed",
+        );
         let result = read_stored_metadata(&metadata_path).ingestion_mode();
 
         assert_eq!(result, expected_result);
@@ -842,6 +838,7 @@ mod tests {
         let root = temporary_root();
         let repository = repository_at(root.path());
         let backfill_document = sample_document_with_ingestion_mode(IngestionMode::Backfill);
+        let incremental_document = sample_document_with_ingestion_mode(IngestionMode::Incremental);
         let metadata_path = repository.metadata_path(backfill_document.key());
         let document_path = repository.document_path(backfill_document.key());
         repository
@@ -851,14 +848,9 @@ mod tests {
 
         let expected_result = inodes(&metadata_path, &document_path);
 
-        repository
-            .persist(sample_document_with_ingestion_mode(
-                IngestionMode::Incremental,
-            ))
-            .await
-            .expect(
-                "Given an existing writable root, persisting unchanged bytes should always succeed",
-            );
+        repository.persist(incremental_document).await.expect(
+            "Given an existing writable root, persisting unchanged bytes should always succeed",
+        );
         let result = inodes(&metadata_path, &document_path);
 
         assert_eq!(result, expected_result);
@@ -866,9 +858,12 @@ mod tests {
 
     #[tokio::test]
     async fn should_replace_the_metadata_when_the_stored_ingestion_mode_is_invalid() {
+        let field = "ingestion_mode";
+        let value = serde_json::Value::from("foo");
+
         let expected_result = sample_metadata();
 
-        let result = persist_over_stored_metadata_field("ingestion_mode", "foo".into()).await;
+        let result = persist_over_stored_metadata_field(field, value).await;
 
         assert_eq!(result, expected_result);
     }
@@ -1050,43 +1045,52 @@ mod tests {
     #[tokio::test]
     async fn should_replace_the_metadata_when_the_stored_metadata_holds_another_document_type_version()
      {
+        let field = "document_type_version";
+        let value = serde_json::Value::from(0);
+
         let expected_result = sample_metadata();
 
-        let result = persist_over_stored_metadata_field("document_type_version", 0.into()).await;
+        let result = persist_over_stored_metadata_field(field, value).await;
 
         assert_eq!(result, expected_result);
     }
 
     #[tokio::test]
     async fn should_replace_the_metadata_when_the_stored_metadata_has_no_ingestion_mode() {
-        let expected_result = sample_metadata();
-
-        let result = persist_over_edited_stored_metadata(|stored| {
+        let remove_ingestion_mode = |stored: &mut serde_json::Value| {
             stored
                 .as_object_mut()
                 .expect("Given serialized metadata, the JSON value should always be an object")
                 .remove("ingestion_mode");
-        })
-        .await;
+        };
+
+        let expected_result = sample_metadata();
+
+        let result = persist_over_edited_stored_metadata(remove_ingestion_mode).await;
 
         assert_eq!(result, expected_result);
     }
 
     #[tokio::test]
     async fn should_replace_the_metadata_when_the_stored_produced_at_is_invalid() {
+        let field = "produced_at";
+        let value = serde_json::Value::from("not a timestamp");
+
         let expected_result = sample_metadata();
 
-        let result =
-            persist_over_stored_metadata_field("produced_at", "not a timestamp".into()).await;
+        let result = persist_over_stored_metadata_field(field, value).await;
 
         assert_eq!(result, expected_result);
     }
 
     #[tokio::test]
     async fn should_replace_the_metadata_when_the_stored_execution_id_is_invalid() {
+        let field = "execution_id";
+        let value = serde_json::Value::from("not a uuid");
+
         let expected_result = sample_metadata();
 
-        let result = persist_over_stored_metadata_field("execution_id", "not a uuid".into()).await;
+        let result = persist_over_stored_metadata_field(field, value).await;
 
         assert_eq!(result, expected_result);
     }

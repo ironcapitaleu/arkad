@@ -27,11 +27,9 @@ impl InputDocument {
     ///
     /// let key = DocumentKey::new("sec/companyfacts/CIK0000320193.json")
     ///     .expect("Given a valid relative path, the key should always build");
+    /// let sha256 = storage::shared::Sha256Digest::of(b"{}");
     ///
-    /// let input = InputDocument::new(
-    ///     key.clone(),
-    ///     storage::shared::Sha256Digest::of(b"{}"),
-    /// );
+    /// let input = InputDocument::new(key.clone(), sha256);
     ///
     /// let expected_result = &key;
     ///

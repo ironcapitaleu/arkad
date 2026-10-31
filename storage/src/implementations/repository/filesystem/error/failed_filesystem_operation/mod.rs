@@ -71,6 +71,8 @@ impl FailedFilesystemOperation {
     ///     FailedFilesystemOperation, FailedFilesystemOperationReason, FilesystemOperation,
     /// };
     ///
+    /// let operation = FilesystemOperation::Read;
+    /// let path = "/data/arkad/x.json";
     /// let io_error = io::Error::from(io::ErrorKind::PermissionDenied);
     ///
     /// let expected_result = FailedFilesystemOperationReason::FailedIo {
@@ -78,11 +80,7 @@ impl FailedFilesystemOperation {
     ///     kind: io::ErrorKind::PermissionDenied,
     /// };
     ///
-    /// let error = FailedFilesystemOperation::from_io(
-    ///     FilesystemOperation::Read,
-    ///     "/data/arkad/x.json",
-    ///     &io_error,
-    /// );
+    /// let error = FailedFilesystemOperation::from_io(operation, path, &io_error);
     /// let result = error.reason;
     ///
     /// assert_eq!(result, expected_result);
@@ -306,8 +304,9 @@ mod tests {
 
     #[test]
     fn should_keep_the_operation_and_the_kind_when_building_from_an_io_error() {
-        let io_error = io::Error::from(io::ErrorKind::StorageFull);
+        let operation = FilesystemOperation::Write;
         let path = Path::new("/data/arkad/x.json");
+        let io_error = io::Error::from(io::ErrorKind::StorageFull);
 
         let expected_result = FailedFilesystemOperation {
             reason: FailedFilesystemOperationReason::FailedIo {
@@ -317,8 +316,7 @@ mod tests {
             path: PathBuf::from("/data/arkad/x.json"),
         };
 
-        let result =
-            FailedFilesystemOperation::from_io(FilesystemOperation::Write, path, &io_error);
+        let result = FailedFilesystemOperation::from_io(operation, path, &io_error);
 
         assert_eq!(result, expected_result);
     }

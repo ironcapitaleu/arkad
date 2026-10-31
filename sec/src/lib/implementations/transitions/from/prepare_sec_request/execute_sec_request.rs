@@ -30,10 +30,12 @@
 
 use crate::error::state_machine::transition;
 use crate::error::state_machine::transition::Transition as TransitionError;
+use crate::implementations::states::extract::execute_sec_request::constants::STATE_NAME as EXECUTE_SEC_REQUEST;
 use crate::implementations::states::extract::execute_sec_request::{
     ExecuteSecRequest, ExecuteSecRequestContext, ExecuteSecRequestInput,
 };
 use crate::implementations::states::extract::prepare_sec_request::PrepareSecRequest;
+use crate::implementations::states::extract::prepare_sec_request::constants::STATE_NAME as PREPARE_SEC_REQUEST;
 use crate::shared::http_client::RespondsWith;
 use crate::shared::http_client::SecClient as SecClientTrait;
 
@@ -53,7 +55,7 @@ impl<K: RespondsWith, R, C: SecClientTrait> TryFrom<(PrepareSecRequest<K, R>, C)
     ) -> Result<Self, TransitionError> {
         let (input, output, context) = state.into_parts();
         let output_data = output.ok_or_else(|| {
-            transition::MissingOutput::new(K::PREPARE_STATE_NAME, K::EXECUTE_STATE_NAME)
+            transition::MissingOutput::new(PREPARE_SEC_REQUEST, EXECUTE_SEC_REQUEST)
         })?;
 
         // The request comes from the input, so the context takes its input from there too.
@@ -78,9 +80,7 @@ mod tests {
     use crate::shared::http_client::implementations::sec_client::SecClient;
     use crate::shared::notes_period::NotesPeriod;
     use crate::shared::request::SecRequest as SecRequestTrait;
-    use crate::shared::request::implementations::sec_request::{
-        NotesFile, RequestKind, SecRequest,
-    };
+    use crate::shared::request::implementations::sec_request::{NotesFile, SecRequest};
     use crate::tests::fixtures::sample_write_repository::{
         FakeNotesRepository, FakeWriteRepository,
     };
@@ -116,6 +116,7 @@ mod tests {
 
     #[tokio::test]
     async fn should_transition_to_execute_sec_request_when_prepare_sec_request_has_output() {
+        let client = SecClient::default();
         let cik = Cik::new("0001234567")
             .expect("Hardcoded valid CIK string should always parse successfully");
         let input = PrepareSecRequestInput::new(cik.clone());
@@ -128,13 +129,14 @@ mod tests {
 
         let expected_result = true;
 
-        let result = ExecuteCompanyFactsRequest::try_from((state, SecClient::default())).is_ok();
+        let result = ExecuteCompanyFactsRequest::try_from((state, client)).is_ok();
 
         assert_eq!(result, expected_result);
     }
 
     #[tokio::test]
     async fn should_take_cik_from_input_when_input_and_context_name_different_ciks() {
+        let client = SecClient::default();
         let input_cik = Cik::new("0001234567")
             .expect("Hardcoded valid CIK string should always parse successfully");
         let context_cik = Cik::new("0000320193")
@@ -150,7 +152,7 @@ mod tests {
 
         let expected_result = input_cik;
 
-        let result = ExecuteCompanyFactsRequest::try_from((state, SecClient::default()))
+        let result = ExecuteCompanyFactsRequest::try_from((state, client))
             .expect("Given a computed state, the transition should always succeed")
             .context_data()
             .request_input
@@ -161,6 +163,7 @@ mod tests {
 
     #[test]
     fn should_return_error_when_prepare_sec_request_has_no_output() {
+        let client = SecClient::default();
         let cik = Cik::new("0001234567")
             .expect("Hardcoded valid CIK string should always parse successfully");
         let input = PrepareSecRequestInput::new(cik.clone());
@@ -169,7 +172,7 @@ mod tests {
 
         let expected_result = true;
 
-        let result = ExecuteCompanyFactsRequest::try_from((state, SecClient::default())).is_err();
+        let result = ExecuteCompanyFactsRequest::try_from((state, client)).is_err();
 
         assert_eq!(result, expected_result);
     }
@@ -177,6 +180,7 @@ mod tests {
     #[test]
     fn should_return_missing_output_named_after_notes_file_kind_when_prepare_notes_request_has_no_output()
      {
+        let client = SecClient::default();
         let period = NotesPeriod::new("2024q1")
             .expect("Given a published period, NotesPeriod creation should always succeed");
         let state = PrepareSecRequest::builder()
@@ -186,15 +190,11 @@ mod tests {
             .build();
 
         let expected_result = Err(TransitionError::MissingOutput(
-            transition::MissingOutput::new(
-                NotesFile::PREPARE_STATE_NAME,
-                NotesFile::EXECUTE_STATE_NAME,
-            ),
+            transition::MissingOutput::new(PREPARE_SEC_REQUEST, EXECUTE_SEC_REQUEST),
         ));
 
         let result =
-            ExecuteSecRequest::<NotesFile, _, SecClient>::try_from((state, SecClient::default()))
-                .map(|_| ());
+            ExecuteSecRequest::<NotesFile, _, SecClient>::try_from((state, client)).map(|_| ());
 
         assert_eq!(result, expected_result);
     }

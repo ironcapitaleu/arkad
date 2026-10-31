@@ -11,12 +11,11 @@
 //! };
 //!
 //! let missing = MissingFields::new(vec!["Revenue".to_string(), "Total Assets".to_string()]);
+//! let error = IncompleteCompanyFacts::new("Parse Company Facts", missing);
 //!
 //! let expected_result = 2;
 //!
-//! let result = IncompleteCompanyFacts::new("Parse Company Facts", missing)
-//!     .missing_fields()
-//!     .len();
+//! let result = error.missing_fields().len();
 //!
 //! assert_eq!(result, expected_result);
 //! ```

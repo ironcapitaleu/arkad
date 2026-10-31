@@ -87,9 +87,11 @@ mod tests {
 
     #[test]
     fn should_format_display_with_the_first_index_date_when_reason_is_early_index_date() {
+        let reason = InvalidIndexDateReason::EarlyIndexDate;
+
         let expected_result = "The first daily index named form.YYYYMMDD.idx is 1998-05-18";
 
-        let result = InvalidIndexDateReason::EarlyIndexDate.to_string();
+        let result = reason.to_string();
 
         assert_eq!(result, expected_result);
     }
@@ -98,10 +100,11 @@ mod tests {
     fn should_format_display_with_today_when_reason_is_future_index_date() {
         let today = NaiveDate::from_ymd_opt(2026, 1, 2)
             .expect("Given a hardcoded valid date, construction should always succeed");
+        let reason = InvalidIndexDateReason::FutureIndexDate { today };
 
         let expected_result = "The date is after today, 2026-01-02";
 
-        let result = InvalidIndexDateReason::FutureIndexDate { today }.to_string();
+        let result = reason.to_string();
 
         assert_eq!(result, expected_result);
     }
