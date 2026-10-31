@@ -5,7 +5,7 @@ description: >
   "write integration tests", "add boilerplate tests", "review testing strategy", "fix a bug",
   "address a review finding", or needs to write, review, or improve unit tests or integration tests
   for a module, component, package, or crate.
-version: 0.1.0
+version: 0.2.0
 argument-hint: "[module-or-file-path]"
 allowed-tools: [Read, Write, Edit, Bash, AskUserQuestion]
 ---
@@ -53,7 +53,7 @@ Based on this reasoning, suggest what tests to write/review and let the user con
 
 ## Conventions
 
-- **Pattern:** Arrange, Define, Act, Assert
+- **Pattern:** Arrange, Define, Act, Assert. The Arrange step binds the input to a named variable. See [Arrange the Input](#arrange-the-input).
 - **Exactly ONE assertion per test function** (`assert_eq!`, `assert_ne!`, or `assert!(...)`). Exceptions: compile-time auto-trait checks (bounds enforced by compilation) and `#[should_panic]` tests (the panic is the assertion).
 - **Naming:** `when` names a condition. `for` names a subject. Pick the clause that fits what follows it.
   - A test with a real condition reads `should_<behavior>_when_<condition>`, as in `should_return_false_when_state_has_not_computed_the_output`.
@@ -66,6 +66,47 @@ Based on this reasoning, suggest what tests to write/review and let the user con
 - **Assertions:** Use `pretty_assertions` (`assert_eq!`, `assert_ne!`)
 - **`.expect()` messages:** Explain WHY the operation should not fail in that context. Capitalize the first word. Do **NOT** end with a period
 - **No section-label comments:** Avoid `// Arrange` / `// Act` / `// Assert` markers — the structure speaks for itself
+
+### Arrange the Input
+
+Bind the input of the code under test to a named variable, before `expected_result`. The Act line then calls the code on that variable.
+
+The reason is readability. The name says what the input is, and the Act line holds one thing: the call. Real code also passes named values, so the test reads like a caller.
+
+An inline input is not wrong. It is harder to read, because the reader parses the input and the call in one line.
+
+Do this:
+
+```rust
+#[test]
+fn should_return_unsupported_form_when_sec_string_has_trailing_whitespace() {
+    let form_text = "10-K   ";
+
+    let expected_result = Err(UnsupportedForm::new(form_text));
+
+    let result = Form::from_sec_str(form_text);
+
+    assert_eq!(result, expected_result);
+}
+```
+
+Not this:
+
+```rust
+#[test]
+fn should_return_unsupported_form_when_sec_string_has_trailing_whitespace() {
+    let expected_result = Err(UnsupportedForm::new("10-K   "));
+
+    let result = Form::from_sec_str("10-K   ");
+
+    assert_eq!(result, expected_result);
+}
+```
+
+The second test has no Arrange step. It repeats the input, and nothing names it.
+
+- If the input takes several steps to build, give each step its own variable, as in `let line = row_line(...);` and then `let text = format!("---\n{line}");`.
+- Do not hide the call under test in a helper, such as `fn parse_sample() -> Vec<Row>`. The helper removes the Act step. Call the code under test in the Act line.
 
 ## Boilerplate Tests (apply to ALL domain types and state structs)
 

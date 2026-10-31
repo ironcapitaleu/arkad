@@ -141,7 +141,7 @@ Use `thiserror` with `#[error("...")]` and `#[source]` for deriving `Display` an
 - Include **doctests** where useful.
 - Use **pretty assertions** (via `pretty_assertions` crate).
 - Follow the **"Arrange, Define, Act, Assert"** pattern:
-  - **Arrange**: Set up the test environment
+  - **Arrange**: Set up the test environment, and bind the input of the code under test to a named variable (see the `testing` skill, "Arrange the Input")
   - **Define**: Define expected result (usually `expected_result`)
   - **Act**: Execute code under test, capture result (usually `result`)
     - Use `Result<T, E>` for error handling
