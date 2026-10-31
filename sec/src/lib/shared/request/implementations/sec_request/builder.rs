@@ -301,8 +301,8 @@ impl FilingIndexBuilder<FilingRef> {
 ///
 /// The `F` type parameter tracks the filing and `N` tracks the file name. They start as
 /// [`NoFilingRef`] and [`NoFileName`]. [`filing_ref`](Self::filing_ref) and
-/// [`file_name`](Self::file_name) change them to [`FilingRef`] and [`String`]. Only that type has
-/// [`build`](Self::build).
+/// [`file_name`](Self::file_name) change them to [`FilingRef`] and [`String`]. Only
+/// `FilingDocumentBuilder<FilingRef, String>` has [`build`](Self::build).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FilingDocumentBuilder<F, N> {
     filing: F,
@@ -700,18 +700,40 @@ mod tests {
     }
 
     #[test]
-    fn should_keep_the_url_in_the_filing_folder_when_the_file_name_holds_a_slash() {
+    fn should_percent_encode_slash_question_mark_hash_and_percent_when_in_the_file_name() {
         let filing = alco_filing_ref();
+        let file_name = "../a?b#c%d";
 
         let expected_result = Url::parse(
-            "https://www.sec.gov/Archives/edgar/data/3545/000000354526000047/..%2Findex.json",
+            "https://www.sec.gov/Archives/edgar/data/3545/000000354526000047/..%2Fa%3Fb%23c%25d",
         )
         .expect("Hardcoded URL should always be valid");
 
         let result = SecRequest::builder()
             .filing_document()
             .filing_ref(filing)
-            .file_name("../index.json")
+            .file_name(file_name)
+            .build()
+            .inner()
+            .url()
+            .clone();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_name_the_filing_folder_when_the_file_name_is_dot_dot() {
+        let filing = alco_filing_ref();
+        let file_name = "..";
+
+        let expected_result =
+            Url::parse("https://www.sec.gov/Archives/edgar/data/3545/000000354526000047")
+                .expect("Hardcoded URL should always be valid");
+
+        let result = SecRequest::builder()
+            .filing_document()
+            .filing_ref(filing)
+            .file_name(file_name)
             .build()
             .inner()
             .url()

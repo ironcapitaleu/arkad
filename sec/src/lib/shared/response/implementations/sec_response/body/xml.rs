@@ -66,8 +66,8 @@ impl ResponseBody for XmlBody {
         Ok((Self(Bytes::from(raw_body)), body_digest))
     }
 
-    /// Runs [`XmlBody::from_raw`] on the current task. A filing XML file has tens of kilobytes,
-    /// so the hash takes microseconds.
+    /// Checks the body length, and hashes the body on the blocking thread pool with
+    /// [`Sha256Digest::of_owned_async`], so the task polls other futures during the hash.
     ///
     /// # Errors
     ///
@@ -77,7 +77,9 @@ impl ResponseBody for XmlBody {
         headers: &Headers,
         raw_body: Vec<u8>,
     ) -> Result<(Self, Sha256Digest), InvalidSecResponse> {
-        Self::from_raw(headers, raw_body)
+        check_content_length(headers, &raw_body)?;
+        let (body_digest, raw_body) = Sha256Digest::of_owned_async(raw_body).await;
+        Ok((Self(Bytes::from(raw_body)), body_digest))
     }
 
     fn content(&self) -> &Self::Content {

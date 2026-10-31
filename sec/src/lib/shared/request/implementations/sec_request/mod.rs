@@ -181,7 +181,8 @@ fn filing_folder_url(filing: &FilingRef) -> String {
 /// Builds the URL of one file in the folder of a filing.
 ///
 /// The file name becomes one path segment. A `/`, `?`, `#`, or `%` in it is percent-encoded, so
-/// the URL cannot leave the folder of the filing.
+/// the URL stays in the folder of the filing. A file name of `.` or `..` adds no segment, so the
+/// URL names the folder itself.
 fn filing_document_url(document: &FilingDocumentRef) -> String {
     let mut url = Url::parse(&filing_folder_url(document.filing()))
         .expect("A hardcoded URL prefix joined with a validated filing should always parse");
