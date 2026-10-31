@@ -120,7 +120,6 @@ mod tests {
 
     use super::*;
     use crate::shared::cik::Cik;
-    use crate::shared::filing_documents_ref::{instance_key, labels_key};
     use crate::shared::filing_ref::FilingRef;
     use crate::shared::financial::accession_number::AccessionNumber;
     use crate::shared::financial::form::{Form, ParsedForm};
@@ -135,8 +134,7 @@ mod tests {
             NaiveDate::from_ymd_opt(2026, 9, 8)
                 .expect("Given a hardcoded calendar date, the date should always build"),
         );
-        let labels = has_label_file.then(|| labels_key(&filing));
-        FilingDocumentsRef::new(filing.clone(), instance_key(&filing), labels)
+        FilingDocumentsRef::new(filing, has_label_file)
     }
 
     #[test]

@@ -132,19 +132,14 @@ where
             (None, None) => None,
             _ => return Err(StateError::InvalidInput),
         };
-        let instance_key = instance_key(filing);
         let instance = RawDocument::<RawXbrlInstance>::from_file(
-            instance_key.clone(),
+            instance_key(filing),
             responses.instance(),
             &self.input.instance_url,
             &self.input.user_agent,
             run,
         );
-        let documents = FilingDocumentsRef::new(
-            filing.clone(),
-            instance_key,
-            labels.is_some().then(|| labels_key(filing)),
-        );
+        let documents = FilingDocumentsRef::new(filing.clone(), labels.is_some());
 
         self.context
             .instance_repository
@@ -450,17 +445,18 @@ mod tests {
         let (instances, labels) = filesystem_repositories(root.path());
         let mut state = state(input(true, true), instances, labels);
 
-        let expected_result = Some(&StoreFilingDocumentsOutput::new(FilingDocumentsRef::new(
-            filing(),
-            key(INSTANCE_KEY),
-            Some(key(LABELS_KEY)),
-        )));
+        let expected_result = Some((key(INSTANCE_KEY), Some(key(LABELS_KEY))));
 
         state
             .compute_output_data_async()
             .await
             .expect("Given a fresh writable temp directory, the store should always succeed");
-        let result = state.output_data();
+        let result = state.output_data().map(|output| {
+            (
+                output.documents.instance_key().clone(),
+                output.documents.labels_key().cloned(),
+            )
+        });
 
         assert_eq!(result, expected_result);
     }
@@ -471,17 +467,18 @@ mod tests {
         let (instances, labels) = filesystem_repositories(root.path());
         let mut state = state(input(false, false), instances, labels);
 
-        let expected_result = Some(&StoreFilingDocumentsOutput::new(FilingDocumentsRef::new(
-            filing(),
-            key(INSTANCE_KEY),
-            None,
-        )));
+        let expected_result = Some((key(INSTANCE_KEY), None));
 
         state
             .compute_output_data_async()
             .await
             .expect("Given a fresh writable temp directory, the store should always succeed");
-        let result = state.output_data();
+        let result = state.output_data().map(|output| {
+            (
+                output.documents.instance_key().clone(),
+                output.documents.labels_key().cloned(),
+            )
+        });
 
         assert_eq!(result, expected_result);
     }
