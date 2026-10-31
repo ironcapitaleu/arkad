@@ -994,6 +994,12 @@ The shape of design 5:
 - `StoreFilingDocuments` receives `FilingDocumentResponses`: `instance: SecResponse<XmlBody>` and
   `labels: Option<SecResponse<XmlBody>>`, behind the `Arc` of `ExecuteSecRequestOutput`. The
   transition moves the `Arc`, as the transition into `StoreNotesArchive` moves its one.
+- `StoreFilingDocuments<I, L>` holds two repositories, `I: RawRepository<RawXbrlInstance>` and
+  `L: RawRepository<RawXbrlLabels>`. A `WriteRepository` has one `Record` type, so one repository
+  cannot write both sources (STA-375).
+- The state writes the instance first, then the label file. If the label write fails, the
+  instance stays stored and the state returns `FailedDocumentWrite` with no output. A new run
+  stores the same instance bytes, which `persist` skips, and writes the label file.
 
 Two items stay with STA-376:
 
