@@ -77,6 +77,9 @@ impl Display for AccessionNumber {
     }
 }
 
+// Deviation: the `domain-concept` skill pairs a `{Type}Error` struct with an
+// `Invalid{Type}Reason` enum. The shape is the only rule here, so that enum would hold one
+// variant. A single leaf error says the same in fewer types.
 /// Error returned by [`AccessionNumber::new`] for an input that is not of the shape
 /// `##########-##-######`.
 #[derive(Debug, Error, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -159,10 +162,10 @@ mod tests {
 
     #[test]
     fn should_return_error_when_input_has_a_digit_in_a_dash_position() {
-        let input = "000032019301700000070";
+        let input = "0000320193017-000070";
 
         let expected_result = Err(InvalidAccessionNumber {
-            invalid_accession_number: "000032019301700000070".to_string(),
+            invalid_accession_number: "0000320193017-000070".to_string(),
         });
 
         let result = AccessionNumber::new(input);
