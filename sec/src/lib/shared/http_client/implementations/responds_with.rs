@@ -11,10 +11,14 @@ use crate::shared::response::implementations::sec_response::{JsonBody, ZipBody};
 
 impl RespondsWith for CompanyFacts {
     type Body = JsonBody;
+
+    const EXECUTE_STATE_NAME: &'static str = "Execute SEC Request";
 }
 
 impl RespondsWith for NotesFile {
     type Body = ZipBody;
+
+    const EXECUTE_STATE_NAME: &'static str = "Download Notes Archive";
 }
 
 // Deviation: the daily index is fixed-width text, not a ZIP. `ZipBody` is reused because it runs
@@ -22,8 +26,12 @@ impl RespondsWith for NotesFile {
 // keeps the body as raw bytes for the store.
 impl RespondsWith for DailyIndex {
     type Body = ZipBody;
+
+    const EXECUTE_STATE_NAME: &'static str = "Execute SEC Request";
 }
 
 impl RespondsWith for DailyIndexListing {
     type Body = JsonBody;
+
+    const EXECUTE_STATE_NAME: &'static str = "Execute SEC Request";
 }

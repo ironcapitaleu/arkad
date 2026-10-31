@@ -4,9 +4,10 @@
 //! [`PrepareSecRequest`] and an SEC client, for every request kind `K`.
 //!
 //! It moves the prepared request from the output of the source state into the input of the next
-//! state, and carries the request input and the repository across in the context. The source state
-//! holds no client, so the caller passes the one from the state machine context. The `From` impl
-//! converts the context. The `TryFrom` is fallible because the source output may be absent.
+//! state. The context takes the request input from the source input, which built the request, and
+//! the repository from the source context. The source state holds no client, so the caller passes
+//! the one from the state machine context. The `TryFrom` is fallible because the source output may
+//! be absent.
 //!
 //! Both states have the same kind `K`. A prepared Company Facts request cannot become the
 //! execution of a Notes file request, so this does not compile:
@@ -29,22 +30,12 @@
 
 use crate::error::state_machine::transition;
 use crate::error::state_machine::transition::Transition as TransitionError;
-use crate::implementations::states::extract::execute_sec_request::constants::STATE_NAME as EXECUTE_SEC_REQUEST;
 use crate::implementations::states::extract::execute_sec_request::{
     ExecuteSecRequest, ExecuteSecRequestContext, ExecuteSecRequestInput,
 };
-use crate::implementations::states::extract::prepare_sec_request::{
-    PrepareSecRequest, PrepareSecRequestContext,
-};
+use crate::implementations::states::extract::prepare_sec_request::PrepareSecRequest;
 use crate::shared::http_client::RespondsWith;
 use crate::shared::http_client::SecClient as SecClientTrait;
-use crate::shared::request::implementations::sec_request::RequestKind;
-
-impl<K: RequestKind, R> From<PrepareSecRequestContext<K, R>> for ExecuteSecRequestContext<K, R> {
-    fn from(context: PrepareSecRequestContext<K, R>) -> Self {
-        Self::new(context.request_input, context.repository)
-    }
-}
 
 impl<K: RespondsWith, R, C: SecClientTrait> TryFrom<(PrepareSecRequest<K, R>, C)>
     for ExecuteSecRequest<K, R, C>
@@ -60,12 +51,13 @@ impl<K: RespondsWith, R, C: SecClientTrait> TryFrom<(PrepareSecRequest<K, R>, C)
     fn try_from(
         (state, sec_client): (PrepareSecRequest<K, R>, C),
     ) -> Result<Self, TransitionError> {
-        let (_input, output, context) = state.into_parts();
+        let (input, output, context) = state.into_parts();
         let output_data = output.ok_or_else(|| {
-            transition::MissingOutput::new(K::PREPARE_STATE_NAME, EXECUTE_SEC_REQUEST)
+            transition::MissingOutput::new(K::PREPARE_STATE_NAME, K::EXECUTE_STATE_NAME)
         })?;
 
-        let new_context: ExecuteSecRequestContext<K, R> = context.into();
+        // The request comes from the input, so the context takes its input from there too.
+        let new_context = ExecuteSecRequestContext::new(input.request_input, context.repository);
         let new_input = ExecuteSecRequestInput::new(sec_client, output_data.request);
 
         Ok(Self::new(new_input, new_context))
@@ -76,40 +68,23 @@ impl<K: RespondsWith, R, C: SecClientTrait> TryFrom<(PrepareSecRequest<K, R>, C)
 mod tests {
     use pretty_assertions::assert_eq;
     use state_maschine::prelude::State as SMState;
-    use storage::WriteError;
 
     use super::*;
     use crate::implementations::states::extract::execute_sec_request::ExecuteCompanyFactsRequest;
     use crate::implementations::states::extract::prepare_sec_request::{
-        PrepareCompanyFactsRequest, PrepareSecRequestInput,
+        PrepareCompanyFactsRequest, PrepareSecRequestContext, PrepareSecRequestInput,
     };
     use crate::shared::cik::Cik;
     use crate::shared::http_client::implementations::sec_client::SecClient;
     use crate::shared::notes_period::NotesPeriod;
     use crate::shared::request::SecRequest as SecRequestTrait;
     use crate::shared::request::implementations::sec_request::{
-        CompanyFacts, NotesFile, SecRequest,
+        NotesFile, RequestKind, SecRequest,
     };
     use crate::tests::fixtures::sample_write_repository::{
         FakeNotesRepository, FakeWriteRepository,
     };
     use crate::traits::state_machine::state::State;
-
-    #[test]
-    fn should_convert_context_when_valid_context() {
-        let cik = Cik::new("0001234567")
-            .expect("Hardcoded valid CIK string should always parse successfully");
-        let context = PrepareSecRequestContext::<CompanyFacts, _>::new(
-            cik.clone(),
-            FakeWriteRepository::new(),
-        );
-
-        let expected_result = ExecuteSecRequestContext::new(cik, FakeWriteRepository::new());
-
-        let result = ExecuteSecRequestContext::from(context);
-
-        assert_eq!(result, expected_result);
-    }
 
     #[tokio::test]
     async fn should_move_request_and_client_into_input_when_prepare_sec_request_has_output() {
@@ -158,6 +133,32 @@ mod tests {
         assert_eq!(result, expected_result);
     }
 
+    #[tokio::test]
+    async fn should_take_cik_from_input_when_input_and_context_name_different_ciks() {
+        let input_cik = Cik::new("0001234567")
+            .expect("Hardcoded valid CIK string should always parse successfully");
+        let context_cik = Cik::new("0000320193")
+            .expect("Hardcoded valid CIK string should always parse successfully");
+        let mut state = PrepareCompanyFactsRequest::new(
+            PrepareSecRequestInput::new(input_cik.clone()),
+            PrepareSecRequestContext::new(context_cik, FakeWriteRepository::new()),
+        );
+        state
+            .compute_output_data_async()
+            .await
+            .expect("Valid state should always compute output data");
+
+        let expected_result = input_cik;
+
+        let result = ExecuteCompanyFactsRequest::try_from((state, SecClient::default()))
+            .expect("Given a computed state, the transition should always succeed")
+            .context_data()
+            .request_input
+            .clone();
+
+        assert_eq!(result, expected_result);
+    }
+
     #[test]
     fn should_return_error_when_prepare_sec_request_has_no_output() {
         let cik = Cik::new("0001234567")
@@ -174,18 +175,26 @@ mod tests {
     }
 
     #[test]
-    fn should_carry_repository_when_converting_context() {
-        let cik = Cik::new("0001234567")
-            .expect("Hardcoded valid CIK string should always parse successfully");
-        let context = PrepareSecRequestContext::<CompanyFacts, _>::new(
-            cik,
-            FakeWriteRepository::rejecting(WriteError::conflicting_write("Sample conflict")),
-        );
+    fn should_return_missing_output_named_after_notes_file_kind_when_prepare_notes_request_has_no_output()
+     {
+        let period = NotesPeriod::new("2024q1")
+            .expect("Given a published period, NotesPeriod creation should always succeed");
+        let state = PrepareSecRequest::builder()
+            .notes_file()
+            .period(period)
+            .repository(FakeNotesRepository::new())
+            .build();
 
-        let expected_result =
-            FakeWriteRepository::rejecting(WriteError::conflicting_write("Sample conflict"));
+        let expected_result = Err(TransitionError::MissingOutput(
+            transition::MissingOutput::new(
+                NotesFile::PREPARE_STATE_NAME,
+                NotesFile::EXECUTE_STATE_NAME,
+            ),
+        ));
 
-        let result = ExecuteSecRequestContext::from(context).repository().clone();
+        let result =
+            ExecuteSecRequest::<NotesFile, _, SecClient>::try_from((state, SecClient::default()))
+                .map(|_| ());
 
         assert_eq!(result, expected_result);
     }

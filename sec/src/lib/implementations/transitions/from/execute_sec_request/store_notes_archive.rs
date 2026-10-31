@@ -1,12 +1,31 @@
-//! # Transition: `DownloadNotesArchive` → `StoreNotesArchive`
+//! # Transition: `ExecuteSecRequest` → `StoreNotesArchive`
 //!
-//! Implements the [`TryFrom`] conversion producing a [`StoreNotesArchive`] from a
-//! [`DownloadNotesArchive`].
+//! Implements the [`TryFrom`] conversion producing a [`StoreNotesArchive`] from an
+//! [`ExecuteSecRequest`] of the [`NotesFile`] kind and the `execution_id`.
 //!
 //! It moves the [`Arc`](std::sync::Arc) of the response from the output of the source state, the
-//! requested URL from its [`SecRequest`], the `User-Agent` from its client, and the Notes period,
-//! the `execution_id`, and the storage repository from its context. It keeps no clone of the
-//! [`Arc`](std::sync::Arc), so [`StoreNotesArchive`] can take the bytes out of it.
+//! requested URL from its [`SecRequest`], the `User-Agent` from its client, and the Notes period
+//! and the storage repository from its context. It keeps no clone of the
+//! [`Arc`](std::sync::Arc), so [`StoreNotesArchive`] can take the bytes out of it. The
+//! `execution_id` belongs to the state machine run, so the caller passes the one from the state
+//! machine context.
+//!
+//! [STA-384](https://linear.app/state-machine/issue/STA-384) replaces this transition with the
+//! generic store state.
+//!
+//! The source state has the [`NotesFile`] kind. An executed Company Facts request cannot become a
+//! Notes store, so this does not compile:
+//!
+//! ```compile_fail,E0277
+//! use sec::implementations::states::extract::execute_sec_request::ExecuteCompanyFactsRequest;
+//! use sec::implementations::states::extract::store_notes_archive::StoreNotesArchive;
+//! use sec::shared::http_client::implementations::sec_client::SecClient;
+//! use uuid::Uuid;
+//!
+//! fn store_as_notes_file<R>(state: ExecuteCompanyFactsRequest<R, SecClient>) {
+//!     let _next = StoreNotesArchive::<R>::try_from((state, Uuid::nil()));
+//! }
+//! ```
 //!
 //! # Errors
 //!
@@ -15,22 +34,30 @@
 //! request names a different period from its context
 //! ([`FailedContextConversion`](crate::error::state_machine::transition::FailedContextConversion)).
 
+use uuid::Uuid;
+
+use super::request_check::ensure_request_matches_input;
 use crate::error::state_machine::transition;
 use crate::error::state_machine::transition::Transition as TransitionError;
-use crate::implementations::states::extract::download_notes_archive::DownloadNotesArchive;
-use crate::implementations::states::extract::download_notes_archive::constants::STATE_NAME as DOWNLOAD_NOTES_ARCHIVE;
+use crate::implementations::states::extract::execute_sec_request::ExecuteSecRequest;
 use crate::implementations::states::extract::store_notes_archive::constants::STATE_NAME as STORE_NOTES_ARCHIVE;
 use crate::implementations::states::extract::store_notes_archive::{
     StoreNotesArchive, StoreNotesArchiveContext, StoreNotesArchiveInput,
 };
+use crate::shared::http_client::RespondsWith;
 use crate::shared::http_client::SecClient as SecClientTrait;
+use crate::shared::request::implementations::sec_request::NotesFile;
+#[cfg(doc)]
 use crate::shared::request::implementations::sec_request::SecRequest;
 use crate::shared::url::Url;
 
-impl<R, C: SecClientTrait> TryFrom<DownloadNotesArchive<R, C>> for StoreNotesArchive<R> {
+impl<R, C: SecClientTrait> TryFrom<(ExecuteSecRequest<NotesFile, R, C>, Uuid)>
+    for StoreNotesArchive<R>
+{
     type Error = TransitionError;
 
-    /// Builds a [`StoreNotesArchive`] from a computed [`DownloadNotesArchive`].
+    /// Builds a [`StoreNotesArchive`] from a computed [`ExecuteSecRequest`] of the [`NotesFile`]
+    /// kind and the `execution_id`.
     ///
     /// # Errors
     ///
@@ -39,39 +66,30 @@ impl<R, C: SecClientTrait> TryFrom<DownloadNotesArchive<R, C>> for StoreNotesArc
     /// Returns [`TransitionError::FailedContextConversion`] if the request of `state` names a
     /// different period from its context. The stored key follows the context period, so a
     /// mismatch stores a file under the wrong period.
-    fn try_from(state: DownloadNotesArchive<R, C>) -> Result<Self, TransitionError> {
+    fn try_from(
+        (state, execution_id): (ExecuteSecRequest<NotesFile, R, C>, Uuid),
+    ) -> Result<Self, TransitionError> {
         let (input, output, context) = state.into_parts();
         let output_data = output.ok_or_else(|| {
-            transition::MissingOutput::new(DOWNLOAD_NOTES_ARCHIVE, STORE_NOTES_ARCHIVE)
+            transition::MissingOutput::new(NotesFile::EXECUTE_STATE_NAME, STORE_NOTES_ARCHIVE)
         })?;
 
-        let context_request = SecRequest::builder()
-            .notes_file()
-            .period(context.notes_period)
-            .build();
-        if input.request != context_request {
-            let reason = format!(
-                "The request targets '{}', but the context names period '{}'",
-                input.request.inner.url(),
-                context.notes_period
-            );
-            return Err(transition::FailedContextConversion::new(
-                DOWNLOAD_NOTES_ARCHIVE,
-                STORE_NOTES_ARCHIVE,
-                reason,
-            )
-            .into());
-        }
+        ensure_request_matches_input(
+            &input.sec_request,
+            &context.request_input,
+            "period",
+            STORE_NOTES_ARCHIVE,
+        )?;
 
-        let requested_url = Url::from(input.request.inner.url().clone());
-        let user_agent = context.sec_client.user_agent().clone();
+        let requested_url = Url::from(input.sec_request.inner.url().clone());
+        let user_agent = input.sec_client.user_agent().clone();
         let new_input = StoreNotesArchiveInput::new(
             output_data.response,
-            context.notes_period,
+            context.request_input,
             requested_url,
             user_agent,
         );
-        let new_context = StoreNotesArchiveContext::new(context.execution_id, context.repository);
+        let new_context = StoreNotesArchiveContext::new(execution_id, context.repository);
 
         Ok(Self::new(new_input, new_context))
     }
@@ -86,11 +104,12 @@ mod tests {
     use uuid::Uuid;
 
     use super::*;
-    use crate::implementations::states::extract::download_notes_archive::{
-        DownloadNotesArchiveContext, DownloadNotesArchiveInput,
+    use crate::implementations::states::extract::execute_sec_request::{
+        ExecuteSecRequestContext, ExecuteSecRequestInput,
     };
     use crate::prelude::*;
     use crate::shared::notes_period::NotesPeriod;
+    use crate::shared::request::implementations::sec_request::SecRequest;
     use crate::shared::response::SecResponse as SecResponseTrait;
     use crate::shared::user_agent::UserAgent;
     use crate::tests::fixtures::data::notes_archive::SAMPLE_NOTES_ZIP;
@@ -102,7 +121,7 @@ mod tests {
     const REQUESTED_URL: &str =
         "https://www.sec.gov/files/dera/data/financial-statement-notes-data-sets/2024q1_notes.zip";
 
-    type TestDownload = DownloadNotesArchive<FakeNotesRepository, AlwaysRespondingSecClient>;
+    type TestExecute = ExecuteSecRequest<NotesFile, FakeNotesRepository, AlwaysRespondingSecClient>;
 
     fn period(raw_period: &str) -> NotesPeriod {
         NotesPeriod::new(raw_period)
@@ -121,33 +140,28 @@ mod tests {
         )
     }
 
-    fn download_without_output(request_period: &str) -> TestDownload {
+    fn execute_without_output(request_period: &str) -> TestExecute {
         let request = SecRequest::builder()
             .notes_file()
             .period(period(request_period))
             .build();
-        DownloadNotesArchive::new(
-            DownloadNotesArchiveInput::new(request),
-            DownloadNotesArchiveContext::new(
-                period("2024q1"),
-                SAMPLE_EXECUTION_ID,
-                rejecting_repository(),
-                sec_client(),
-            ),
+        ExecuteSecRequest::new(
+            ExecuteSecRequestInput::new(sec_client(), request),
+            ExecuteSecRequestContext::new(period("2024q1"), rejecting_repository()),
         )
     }
 
-    async fn download_with_output(request_period: &str) -> TestDownload {
-        let mut state = download_without_output(request_period);
+    async fn execute_with_output(request_period: &str) -> TestExecute {
+        let mut state = execute_without_output(request_period);
         state
             .compute_output_data_async()
             .await
-            .expect("Given status 200, a ZIP content type, and the ZIP fixture, the download should always succeed");
+            .expect("Given status 200, a ZIP content type, and the ZIP fixture, the request should always succeed");
         state
     }
 
     async fn store_notes_archive() -> StoreNotesArchive<FakeNotesRepository> {
-        StoreNotesArchive::try_from(download_with_output("2024q1").await)
+        StoreNotesArchive::try_from((execute_with_output("2024q1").await, SAMPLE_EXECUTION_ID))
             .expect("Given a source state with output, the transition should always succeed")
     }
 
@@ -225,30 +239,30 @@ mod tests {
 
     #[tokio::test]
     async fn should_return_failed_context_conversion_when_request_names_another_period() {
-        let state = download_with_output("2025_10").await;
+        let state = execute_with_output("2025_10").await;
 
         let expected_result = Err(TransitionError::FailedContextConversion(
             transition::FailedContextConversion::new(
-                DOWNLOAD_NOTES_ARCHIVE,
+                NotesFile::EXECUTE_STATE_NAME,
                 STORE_NOTES_ARCHIVE,
                 "The request targets 'https://www.sec.gov/files/dera/data/financial-statement-notes-data-sets/2025_10_notes.zip', but the context names period '2024q1'",
             ),
         ));
 
-        let result = StoreNotesArchive::try_from(state);
+        let result = StoreNotesArchive::try_from((state, SAMPLE_EXECUTION_ID));
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_return_missing_output_when_source_has_no_output() {
-        let state = download_without_output("2024q1");
+        let state = execute_without_output("2024q1");
 
         let expected_result = Err(TransitionError::MissingOutput(
-            transition::MissingOutput::new(DOWNLOAD_NOTES_ARCHIVE, STORE_NOTES_ARCHIVE),
+            transition::MissingOutput::new(NotesFile::EXECUTE_STATE_NAME, STORE_NOTES_ARCHIVE),
         ));
 
-        let result = StoreNotesArchive::try_from(state);
+        let result = StoreNotesArchive::try_from((state, SAMPLE_EXECUTION_ID));
 
         assert_eq!(result, expected_result);
     }
