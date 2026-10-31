@@ -14,8 +14,10 @@ use crate::shared::cik::CikError;
 #[non_exhaustive]
 #[derive(Debug, Error, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum DailyIndexError {
-    /// The text has no line of dashes, so the parser cannot find where the rows start.
-    #[error("[MissingDailyIndexHeader] The daily index has no line of dashes before its rows")]
+    /// No line of the text starts with `---`, so the parser cannot find where the rows start.
+    #[error(
+        "[MissingDailyIndexHeader] The daily index has no line that starts with '---' before its rows"
+    )]
     MissingDailyIndexHeader,
     /// A row line does not hold a form, a CIK, a date filed, and a file name.
     #[error(
@@ -97,8 +99,7 @@ mod tests {
     fn should_format_display_when_header_is_missing() {
         let error = DailyIndexError::MissingDailyIndexHeader;
 
-        let expected_result =
-            "[MissingDailyIndexHeader] The daily index has no line of dashes before its rows";
+        let expected_result = "[MissingDailyIndexHeader] The daily index has no line that starts with '---' before its rows";
 
         let result = error.to_string();
 
@@ -137,10 +138,15 @@ mod tests {
     fn should_expose_cik_error_as_source_when_cik_is_invalid() {
         let error = invalid_cik_error();
 
-        let expected_result =
-            Some(CikError::new(InvalidCikReason::ContainsNonNumericCharacters, "12A").to_string());
+        let expected_result = Some(CikError::new(
+            InvalidCikReason::ContainsNonNumericCharacters,
+            "12A",
+        ));
 
-        let result = error.source().map(ToString::to_string);
+        let result = error
+            .source()
+            .and_then(|source| source.downcast_ref::<CikError>())
+            .cloned();
 
         assert_eq!(result, expected_result);
     }
