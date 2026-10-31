@@ -12,7 +12,9 @@ use super::{HasResponse, RespondsWith, SecClient};
 
 /// A client that runs a request of kind `K` and returns its [`HasResponse::Response`].
 ///
-/// The impl for a kind decides how many HTTP calls the request takes.
+/// The impl for a kind decides how many HTTP calls the request takes. A kind with its own impl
+/// must not implement [`RespondsWith`], or its impl overlaps the blanket impl for `RespondsWith`
+/// kinds.
 #[async_trait]
 pub trait Executes<K: HasResponse>: Send + Sync {
     /// Runs `request` and returns the response of its kind.
@@ -23,8 +25,8 @@ pub trait Executes<K: HasResponse>: Send + Sync {
     async fn execute(&self, request: SecRequest<K>) -> Result<K::Response, FailedSecRequest>;
 }
 
-/// A kind of one HTTP call runs through [`SecClient::execute_sec_request`], so it takes one
-/// rate-limiter turn.
+/// A kind that makes one HTTP call runs through [`SecClient::execute_sec_request`], so it takes
+/// one rate-limiter turn.
 #[async_trait]
 impl<C, K> Executes<K> for C
 where

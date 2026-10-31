@@ -19,12 +19,15 @@ use super::RespondsWith;
 /// The bounds are the traits of a state output, because
 /// [`ExecuteSecRequestOutput`](crate::implementations::states::extract::execute_sec_request::ExecuteSecRequestOutput)
 /// holds the response.
+///
+/// A kind with its own impl must not implement [`RespondsWith`], or its impl overlaps the blanket
+/// impl for `RespondsWith` kinds.
 pub trait HasResponse: RequestKind {
     /// The response to a request of this kind.
     type Response: Debug + Display + Eq + Ord + Hash + Serialize + Send + Sync;
 }
 
-/// A kind of one HTTP call responds with one [`SecResponse`] of its body kind.
+/// A kind that makes one HTTP call responds with one [`SecResponse`] of its body kind.
 impl<K: RespondsWith> HasResponse for K {
     type Response = SecResponse<K::Body>;
 }
