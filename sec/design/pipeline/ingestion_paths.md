@@ -586,7 +586,8 @@ One `ExtractFilingSuperState` runs per `FilingRef`. It sends three requests:
 1. The folder index `https://www.sec.gov/Archives/edgar/data/<cik>/<accession without dashes>/index.json`.
    This is JSON, so `ExecuteSecRequest` reads it unchanged. The kind `FilingIndex` has
    `Input = FilingRef` and `Body = JsonBody`. The URL holds the CIK without leading zeros, as the
-   daily index writes it. Measured: the padded form answers with a redirect (301).
+   daily index writes it. `Cik::unpadded` gives this form. Measured: the padded form answers
+   with a redirect (301).
 2. The XBRL instance.
 3. The `_lab.xml` label file.
 

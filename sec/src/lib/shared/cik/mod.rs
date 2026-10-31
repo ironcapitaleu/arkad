@@ -95,6 +95,30 @@ impl Cik {
         &self.value
     }
 
+    /// Returns the CIK without its leading zeros, as EDGAR archive paths and daily-index rows
+    /// write it. An all-zero CIK gives `0`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use sec::shared::cik::Cik;
+    ///
+    /// let cik = Cik::new("0000003545").expect("A hardcoded valid CIK should always parse");
+    ///
+    /// let expected_result = "3545";
+    ///
+    /// let result = cik.unpadded();
+    ///
+    /// assert_eq!(result, expected_result);
+    /// ```
+    #[must_use]
+    pub fn unpadded(&self) -> &str {
+        match self.value.trim_start_matches('0') {
+            "" => "0",
+            digits => digits,
+        }
+    }
+
     /// Returns `true` if the string is already exactly [`CIK_LENGTH`] digits, without normalizing.
     #[must_use]
     pub fn is_valid(cik: &str) -> bool {
@@ -140,6 +164,30 @@ mod tests {
 
     use super::Cik;
     use super::{CikError, InvalidCikReason};
+
+    #[test]
+    fn should_return_zero_when_unpadding_an_all_zero_cik() {
+        let cik = Cik::new("0")
+            .expect("Given a hardcoded numeric CIK, Cik creation should always succeed");
+
+        let expected_result = "0";
+
+        let result = cik.unpadded();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_keep_inner_zeros_when_unpadding_a_cik() {
+        let cik = Cik::new("0001000045")
+            .expect("Given a hardcoded 10-digit CIK, Cik creation should always succeed");
+
+        let expected_result = "1000045";
+
+        let result = cik.unpadded();
+
+        assert_eq!(result, expected_result);
+    }
 
     #[test]
     fn should_create_valid_cik_struct_when_numeric_string_with_ten_digits_is_passed() {

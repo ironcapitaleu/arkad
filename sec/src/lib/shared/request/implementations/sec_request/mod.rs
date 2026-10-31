@@ -171,16 +171,8 @@ fn filing_index_url(filing: &FilingRef) -> String {
         .collect();
     format!(
         "{SEC_FILING_INDEX_URL_PREFIX}{}/{accession_digits}/{SEC_FILING_INDEX_FILE_NAME}",
-        unpadded_cik(filing.cik())
+        filing.cik().unpadded()
     )
-}
-
-/// Returns the CIK without its leading zeros, as the archive folders name it. All zeros give `0`.
-fn unpadded_cik(cik: &Cik) -> &str {
-    match cik.value().trim_start_matches('0') {
-        "" => "0",
-        digits => digits,
-    }
 }
 
 impl<K: RequestKind> Clone for SecRequest<K> {
@@ -268,7 +260,7 @@ mod tests {
     use pretty_assertions::assert_eq;
     use reqwest::{Method, Url};
 
-    use super::{CompanyFacts, FilingIndex, NotesFile, RequestKind, SecRequest, unpadded_cik};
+    use super::{CompanyFacts, FilingIndex, NotesFile, RequestKind, SecRequest};
     use crate::shared::filing_ref::FilingRef;
     use crate::shared::financial::accession_number::AccessionNumber;
     use crate::shared::financial::form::{Form, ParsedForm};
@@ -391,18 +383,6 @@ mod tests {
     #[test]
     const fn should_be_unpin_for_notes_file_sec_request() {
         implements_unpin::<SecRequest<NotesFile>>();
-    }
-
-    #[test]
-    fn should_return_zero_when_unpadding_an_all_zero_cik() {
-        let cik = Cik::new("0")
-            .expect("Given a hardcoded numeric CIK, Cik creation should always succeed");
-
-        let expected_result = "0";
-
-        let result = unpadded_cik(&cik);
-
-        assert_eq!(result, expected_result);
     }
 
     #[test]
