@@ -25,9 +25,11 @@ impl Quarter {
     /// ```
     /// use sec::shared::notes_period::quarter::Quarter;
     ///
+    /// let number = "3";
+    ///
     /// let expected_result = Some(Quarter::Q3);
     ///
-    /// let result = Quarter::from_number_str("3");
+    /// let result = Quarter::from_number_str(number);
     ///
     /// assert_eq!(result, expected_result);
     /// ```
@@ -62,27 +64,34 @@ mod tests {
 
     #[test]
     fn should_display_the_lowercase_sec_form_when_quarter_is_q4() {
+        let quarter = Quarter::Q4;
+
         let expected_result = "q4";
 
-        let result = Quarter::Q4.to_string();
+        let result = quarter.to_string();
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_return_none_when_number_is_outside_1_to_4() {
+        let number = "5";
+
         let expected_result = None;
 
-        let result = Quarter::from_number_str("5");
+        let result = Quarter::from_number_str(number);
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_order_q1_before_q4_for_quarters() {
+        let first_quarter = Quarter::Q1;
+        let fourth_quarter = Quarter::Q4;
+
         let expected_result = true;
 
-        let result = Quarter::Q1 < Quarter::Q4;
+        let result = first_quarter < fourth_quarter;
 
         assert_eq!(result, expected_result);
     }

@@ -292,35 +292,42 @@ mod tests {
 
     #[test]
     fn should_parse_year_and_quarter_when_input_has_the_quarter_form() {
+        let period_string = "2024q1";
+
         let expected_result = Ok(NotesPeriod {
             year: Year(2024),
             part: PeriodPart::Quarter(Quarter::Q1),
         });
 
-        let result = NotesPeriod::new("2024q1");
+        let result = NotesPeriod::new(period_string);
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_parse_year_and_month_when_input_has_the_month_form() {
+        let period_string = "2025_10";
+
         let expected_result = Ok(NotesPeriod {
             year: Year(2025),
             part: PeriodPart::Month(Month(chrono::Month::October)),
         });
 
-        let result = NotesPeriod::new("2025_10");
+        let result = NotesPeriod::new(period_string);
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_accept_first_and_last_quarter_when_input_is_on_the_range_limits() {
+        let first_quarter_string = "2009q1";
+        let last_quarter_string = "2025q3";
+
         let expected_result = (true, true);
 
         let result = (
-            NotesPeriod::new("2009q1").is_ok(),
-            NotesPeriod::new("2025q3").is_ok(),
+            NotesPeriod::new(first_quarter_string).is_ok(),
+            NotesPeriod::new(last_quarter_string).is_ok(),
         );
 
         assert_eq!(result, expected_result);
@@ -328,63 +335,77 @@ mod tests {
 
     #[test]
     fn should_reject_with_unpublished_quarter_when_quarter_is_after_2025q3() {
+        let period_string = "2025q4";
+
         let expected_result = Some(InvalidNotesPeriodReason::UnpublishedQuarter);
 
-        let result = rejection_reason("2025q4");
+        let result = rejection_reason(period_string);
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_reject_with_unpublished_month_when_month_is_before_2025_10() {
+        let period_string = "2025_09";
+
         let expected_result = Some(InvalidNotesPeriodReason::UnpublishedMonth);
 
-        let result = rejection_reason("2025_09");
+        let result = rejection_reason(period_string);
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_reject_with_unpublished_year_when_year_is_before_2009() {
+        let period_string = "2008q4";
+
         let expected_result = Some(InvalidNotesPeriodReason::UnpublishedYear { year: Year(2008) });
 
-        let result = rejection_reason("2008q4");
+        let result = rejection_reason(period_string);
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_reject_with_unpublished_year_when_month_is_also_before_2025_10() {
+        let period_string = "2008_12";
+
         let expected_result = Some(InvalidNotesPeriodReason::UnpublishedYear { year: Year(2008) });
 
-        let result = rejection_reason("2008_12");
+        let result = rejection_reason(period_string);
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_accept_a_month_when_month_is_after_the_last_published_file() {
+        let period_string = "2099_12";
+
         let expected_result = true;
 
-        let result = NotesPeriod::new("2099_12").is_ok();
+        let result = NotesPeriod::new(period_string).is_ok();
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_parse_the_period_when_input_has_surrounding_whitespace() {
+        let period_string = " \t2024q1\n";
+
         let expected_result = NotesPeriod::new("2024q1");
 
-        let result = NotesPeriod::new(" \t2024q1\n");
+        let result = NotesPeriod::new(period_string);
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_parse_the_same_period_when_try_from_is_called() {
-        let expected_result = NotesPeriod::new("2025_10");
+        let period_string = "2025_10";
 
-        let result = NotesPeriod::try_from("2025_10");
+        let expected_result = NotesPeriod::new(period_string);
+
+        let result = NotesPeriod::try_from(period_string);
 
         assert_eq!(result, expected_result);
     }
