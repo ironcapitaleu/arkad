@@ -582,7 +582,7 @@ mod tests {
     fn filing_ref(cik: &str, accession_number: &str, form: Form) -> FilingRef {
         FilingRef::new(
             Cik::new(cik).expect("Given a hardcoded valid CIK, parsing should always succeed"),
-            AccessionNumber::new(accession_number),
+            AccessionNumber::new(accession_number).expect("Given a hardcoded accession number of the right shape, creation should always succeed"),
             ParsedForm::new(form, false),
             NaiveDate::from_ymd_opt(2026, 10, 27)
                 .expect("Given a hardcoded calendar date, the date should always build"),

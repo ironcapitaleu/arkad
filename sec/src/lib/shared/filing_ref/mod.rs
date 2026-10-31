@@ -125,14 +125,14 @@ mod tests {
             form_text.to_string(),
             cik(),
             filed_date(),
-            AccessionNumber::new(ACCESSION_NUMBER),
+            AccessionNumber::new(ACCESSION_NUMBER).expect("Given a hardcoded accession number of the right shape, creation should always succeed"),
         )
     }
 
     fn filing_ref(form: Form, is_amendment: bool) -> FilingRef {
         FilingRef::new(
             cik(),
-            AccessionNumber::new(ACCESSION_NUMBER),
+            AccessionNumber::new(ACCESSION_NUMBER).expect("Given a hardcoded accession number of the right shape, creation should always succeed"),
             ParsedForm::new(form, is_amendment),
             filed_date(),
         )

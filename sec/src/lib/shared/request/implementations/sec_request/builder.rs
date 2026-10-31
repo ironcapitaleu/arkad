@@ -259,7 +259,8 @@ impl FilingIndexBuilder<FilingRef> {
     ///     .expect("A hardcoded calendar date should always build");
     /// let filing = FilingRef::new(
     ///     cik,
-    ///     AccessionNumber::new("0000320193-17-000070"),
+    ///     AccessionNumber::new("0000320193-17-000070")
+    ///         .expect("Given a hardcoded accession number of the right shape, creation should always succeed"),
     ///     ParsedForm::new(Form::TenK, false),
     ///     filed_date,
     /// );
@@ -522,7 +523,7 @@ mod tests {
         let filing = FilingRef::new(
             Cik::new("0000003545")
                 .expect("Given a hardcoded valid CIK, parsing should always succeed"),
-            AccessionNumber::new("0000003545-26-000047"),
+            AccessionNumber::new("0000003545-26-000047").expect("Given a hardcoded accession number of the right shape, creation should always succeed"),
             ParsedForm::new(Form::TenQ, false),
             NaiveDate::from_ymd_opt(2026, 9, 9)
                 .expect("Given a hardcoded calendar date, the date should always build"),
@@ -549,7 +550,7 @@ mod tests {
         let filing = FilingRef::new(
             Cik::new("2113605")
                 .expect("Given a hardcoded valid CIK, parsing should always succeed"),
-            AccessionNumber::new("0001213900-26-112626"),
+            AccessionNumber::new("0001213900-26-112626").expect("Given a hardcoded accession number of the right shape, creation should always succeed"),
             ParsedForm::new(Form::TwentyF, false),
             NaiveDate::from_ymd_opt(2026, 10, 27)
                 .expect("Given a hardcoded calendar date, the date should always build"),

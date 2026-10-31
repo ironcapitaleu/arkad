@@ -75,7 +75,7 @@ mod tests {
     #[test]
     fn should_name_the_accession_number_when_missing_xbrl_instance_is_displayed() {
         let error = FilingDocumentsError::MissingXbrlInstance {
-            accession_number: AccessionNumber::new("0000320193-17-000070"),
+            accession_number: AccessionNumber::new("0000320193-17-000070").expect("Given a hardcoded accession number of the right shape, creation should always succeed"),
         };
 
         let expected_result = "[MissingXbrlInstance] The folder of filing '0000320193-17-000070' holds no XBRL instance";
@@ -88,7 +88,7 @@ mod tests {
     #[test]
     fn should_name_the_role_and_the_count_when_ambiguous_filing_document_is_displayed() {
         let error = FilingDocumentsError::AmbiguousFilingDocument {
-            accession_number: AccessionNumber::new("0000320193-17-000070"),
+            accession_number: AccessionNumber::new("0000320193-17-000070").expect("Given a hardcoded accession number of the right shape, creation should always succeed"),
             role: FilingDocumentRole::LabelFile,
             candidate_count: 2,
         };

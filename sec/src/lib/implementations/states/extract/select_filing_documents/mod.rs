@@ -25,8 +25,9 @@
 //! # #[tokio::main]
 //! # async fn main() {
 //! let folder_index = FolderIndex::new(vec!["aapl-20170930.xml".to_string()]);
-//! let input =
-//!     SelectFilingDocumentsInput::new(AccessionNumber::new("0000320193-17-000070"), folder_index);
+//! let accession_number = AccessionNumber::new("0000320193-17-000070")
+//!     .expect("Given a hardcoded accession number of the right shape, creation should always succeed");
+//! let input = SelectFilingDocumentsInput::new(accession_number, folder_index);
 //! let mut state = SelectFilingDocuments::new(input, SelectFilingDocumentsContext::new(Uuid::nil()));
 //! state
 //!     .compute_output_data_async()
@@ -199,7 +200,7 @@ mod tests {
 
     fn test_state(accession_number: &str, folder_index: FolderIndex) -> SelectFilingDocuments {
         SelectFilingDocuments::new(
-            SelectFilingDocumentsInput::new(AccessionNumber::new(accession_number), folder_index),
+            SelectFilingDocumentsInput::new(AccessionNumber::new(accession_number).expect("Given a hardcoded accession number of the right shape, creation should always succeed"), folder_index),
             SelectFilingDocumentsContext::new(Uuid::nil()),
         )
     }
@@ -269,7 +270,7 @@ mod tests {
         let expected_result = StateError::FailedDocumentSelection(FailedDocumentSelection::new(
             STATE_NAME,
             FilingDocumentsError::MissingXbrlInstance {
-                accession_number: AccessionNumber::new("0000003545-26-000047"),
+                accession_number: AccessionNumber::new("0000003545-26-000047").expect("Given a hardcoded accession number of the right shape, creation should always succeed"),
             },
         ));
 

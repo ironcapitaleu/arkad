@@ -193,15 +193,8 @@ fn accession_number_of(file_name: &str) -> Option<AccessionNumber> {
         .rsplit('/')
         .next()?
         .strip_suffix(FILE_NAME_EXTENSION)?;
-    let is_accession_shape = accession.len() == 20
-        && accession
-            .char_indices()
-            .all(|(index, character)| match index {
-                10 | 13 => character == '-',
-                _ => character.is_ascii_digit(),
-            });
 
-    is_accession_shape.then(|| AccessionNumber::new(accession))
+    AccessionNumber::new(accession).ok()
 }
 
 #[cfg(test)]
@@ -236,7 +229,7 @@ mod tests {
             Cik::new(cik).expect("Given a hardcoded valid CIK, parsing should always succeed"),
             NaiveDate::from_ymd_opt(2026, 10, 27)
                 .expect("Given a hardcoded calendar date, the date should always build"),
-            AccessionNumber::new(accession_number),
+            AccessionNumber::new(accession_number).expect("Given a hardcoded accession number of the right shape, creation should always succeed"),
         )
     }
 
