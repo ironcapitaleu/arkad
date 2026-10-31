@@ -6,6 +6,12 @@
 //!
 //! ## Modules
 //!
+//! - `request_check`: The check that the request matches the context, shared by the store
+//!   transitions.
 //! - [`store_company_facts`]: Transition into the state that stores the Company Facts.
+//! - [`store_notes_archive`]: Transition of the Notes kind into the state that stores the Notes
+//!   file.
 
+mod request_check;
 pub mod store_company_facts;
+pub mod store_notes_archive;

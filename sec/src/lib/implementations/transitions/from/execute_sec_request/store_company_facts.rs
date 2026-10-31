@@ -19,6 +19,7 @@ use std::sync::Arc;
 
 use uuid::Uuid;
 
+use super::request_check::ensure_request_matches_input;
 use crate::error::state_machine::transition;
 use crate::error::state_machine::transition::Transition as TransitionError;
 use crate::implementations::states::extract::execute_sec_request::ExecuteCompanyFactsRequest;
@@ -30,6 +31,7 @@ use crate::implementations::states::extract::store_company_facts::{
 use crate::shared::http_client::SecClient as SecClientTrait;
 #[cfg(doc)]
 use crate::shared::http_client::implementations::sec_client::SecClient;
+#[cfg(doc)]
 use crate::shared::request::implementations::sec_request::SecRequest;
 use crate::shared::url::Url;
 
@@ -55,23 +57,12 @@ impl<R, C: SecClientTrait> TryFrom<(ExecuteCompanyFactsRequest<R, C>, Uuid)>
             transition::MissingOutput::new(EXECUTE_SEC_REQUEST, STORE_COMPANY_FACTS)
         })?;
 
-        let context_request = SecRequest::builder()
-            .all_company_facts()
-            .cik(context.request_input.clone())
-            .build();
-        if input.sec_request != context_request {
-            let reason = format!(
-                "The request targets '{}', but the context names CIK '{}'",
-                input.sec_request.inner.url(),
-                context.request_input
-            );
-            return Err(transition::FailedContextConversion::new(
-                EXECUTE_SEC_REQUEST,
-                STORE_COMPANY_FACTS,
-                reason,
-            )
-            .into());
-        }
+        ensure_request_matches_input(
+            &input.sec_request,
+            &context.request_input,
+            "CIK",
+            STORE_COMPANY_FACTS,
+        )?;
 
         let requested_url = Url::from(input.sec_request.inner.url().clone());
         let user_agent = input.sec_client.user_agent().clone();
@@ -104,7 +95,7 @@ mod tests {
     use crate::shared::headers::Headers;
     use crate::shared::http_client::implementations::reqwest_client::ReqwestClient;
     use crate::shared::http_client::implementations::sec_client::SecClient;
-    use crate::shared::request::implementations::sec_request::CompanyFacts;
+    use crate::shared::request::implementations::sec_request::{CompanyFacts, SecRequest};
     use crate::shared::response::implementations::sec_response::SecResponse;
     use crate::shared::status_code::StatusCode;
     use crate::shared::user_agent::UserAgent;

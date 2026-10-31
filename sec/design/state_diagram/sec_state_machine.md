@@ -21,9 +21,10 @@ stateDiagram-v2
     [*] --> ExtractNotes
     state ExtractNotes {
         ValidateNotesPeriod --> PrepareNotesRequest
-        PrepareNotesRequest --> DownloadNotesArchive
+        PrepareNotesRequest --> ExecuteSecRequest
         note right of PrepareNotesRequest : Alias of PrepareSecRequest with the NotesFile kind
-        DownloadNotesArchive --> StoreNotesArchive
+        note right of ExecuteSecRequest : NotesFile kind, named Download Notes Archive in the stream
+        ExecuteSecRequest --> StoreNotesArchive
         note right of StoreNotesArchive : The stream ends after this state with the NotesArchiveRef
     }
 

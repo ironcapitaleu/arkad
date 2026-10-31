@@ -18,4 +18,8 @@ use crate::shared::response::implementations::sec_response::ResponseBody;
 pub trait RespondsWith: RequestKind {
     /// The body kind of the response from this endpoint.
     type Body: ResponseBody;
+
+    /// The name of the state that executes a request to this endpoint, for example
+    /// "Download Notes Archive".
+    const EXECUTE_STATE_NAME: &'static str;
 }
