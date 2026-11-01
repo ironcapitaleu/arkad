@@ -1,7 +1,7 @@
 //! # Run
 //!
-//! Provides the outcome of each date of a `daily_filings` run, the rules that sort an error into
-//! an outcome, and the [`RunSummary`] of the run.
+//! Provides [`run`], which runs the machines of each date of a `daily_filings` run, the outcome of
+//! each date, the rules that sort an error into an outcome, and the [`RunSummary`] of the run.
 //!
 //! A date is pending if its daily index does not exist yet and a later run reads the date again.
 //! A filing is unextractable if its folder holds no XBRL instance. Neither fails the run.
@@ -40,6 +40,8 @@ use uuid::Uuid;
 use crate::constants::{IN_FLIGHT, PENDING_DAYS};
 
 /// The SEC client that every machine of a run accepts.
+// Deviation: the bound names `SecClientTrait` once per response type, because Rust 1.90 rejects
+// two bindings of `Response` in one bound (E0719).
 pub trait DailyClient:
     SecClientTrait<Response<ZipBody> = SecResponse<ZipBody>, Error = FailedSecRequest>
     + SecClientTrait<Response<JsonBody> = SecResponse<JsonBody>>
@@ -62,6 +64,19 @@ type DailyIndexRepository = FilesystemRepository<Write, RawDocument<RawDailyInde
 type InstanceRepository = FilesystemRepository<Write, RawDocument<RawXbrlInstance>>;
 type LabelsRepository = FilesystemRepository<Write, RawDocument<RawXbrlLabels>>;
 type SubmissionsRepository = FilesystemRepository<Write, RawDocument<RawSubmissions>>;
+
+/// What an error that `run` reports means for the run, so the caller can pick the log level.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ErrorKind {
+    /// The SEC answered 503, and the machine runs again.
+    Retried,
+    /// The daily index does not exist yet, and a later run reads the date again.
+    Pending,
+    /// The folder of the filing holds no XBRL instance.
+    Unextractable,
+    /// The error fails the run.
+    Failed,
+}
 
 /// The outcome of one date.
 #[derive(Debug)]
@@ -297,8 +312,10 @@ pub struct Settings {
     pub retry_delays: Vec<Duration>,
 }
 
-/// Runs the new-filing path for each date of `dates`, in order, and returns the summary. The
-/// caller passes the dates oldest first, as `run_dates` returns them.
+/// Runs the new-filing path for each date of `dates`, in order, and returns the summary.
+///
+/// `dates` must be sorted oldest first, as `run_dates` returns them, because the pending rule
+/// never applies to the first date.
 ///
 /// For each date, it runs detection, then one filing machine per selected filing, then one
 /// `submissions` machine per distinct CIK of the selected filings. At most [`IN_FLIGHT`] filing
@@ -307,14 +324,14 @@ pub struct Settings {
 /// other machines or the other dates.
 ///
 /// Calls `on_item` with a JSON context and each successful stream item, and `on_error` with a
-/// JSON context and each error. The context holds the date, and the accession number or the CIK.
+/// JSON context, each error, and its [`ErrorKind`]. The context holds the date, and the accession number or the CIK.
 pub async fn run<C>(
     dates: &[NaiveDate],
     sec_client: &C,
     repositories: &Repositories,
     settings: &Settings,
     on_item: impl Fn(&Value, &StreamItem) + Send + Sync,
-    on_error: impl Fn(&Value, &StreamError) + Send + Sync,
+    on_error: impl Fn(&Value, &StreamError, ErrorKind) + Send + Sync,
 ) -> RunSummary
 where
     C: DailyClient,
@@ -341,8 +358,7 @@ where
             .repository(repositories.daily_index.clone())
             .build()
             .run_to_filings(|item| on_item(&context, item))
-            .await
-            .inspect_err(|error| on_error(&context, error));
+            .await;
         let outcome = match detection {
             Ok(filings) => {
                 let filing_outcomes = extract_filings(
@@ -371,9 +387,13 @@ where
                 }
             }
             Err(error) if is_pending(&error, date, first_date, settings.yesterday) => {
+                on_error(&context, &error, ErrorKind::Pending);
                 DateOutcome::Pending(error)
             }
-            Err(error) => DateOutcome::Failed(error),
+            Err(error) => {
+                on_error(&context, &error, ErrorKind::Failed);
+                DateOutcome::Failed(error)
+            }
         };
         outcomes.push((date, outcome));
     }
@@ -388,7 +408,7 @@ async fn extract_filings<C>(
     repositories: &Repositories,
     settings: &Settings,
     on_item: &(impl Fn(&Value, &StreamItem) + Sync),
-    on_error: &(impl Fn(&Value, &StreamError) + Sync),
+    on_error: &(impl Fn(&Value, &StreamError, ErrorKind) + Sync),
 ) -> Vec<FilingOutcome>
 where
     C: DailyClient,
@@ -416,10 +436,18 @@ where
                     .build()
                     .run_to_documents(|item| on_item(&context, item))
             },
-            |error| on_error(&context, error),
+            |error| on_error(&context, error, ErrorKind::Retried),
         )
         .await
-        .map(|_| ());
+        .map(|_| ())
+        .inspect_err(|error| {
+            let kind = if is_unextractable(error) {
+                ErrorKind::Unextractable
+            } else {
+                ErrorKind::Failed
+            };
+            on_error(&context, error, kind);
+        });
         FilingOutcome {
             accession_number: filing.accession_number().clone(),
             result,
@@ -440,7 +468,7 @@ async fn extract_companies<C>(
     repositories: &Repositories,
     settings: &Settings,
     on_item: &(impl Fn(&Value, &StreamItem) + Sync),
-    on_error: &(impl Fn(&Value, &StreamError) + Sync),
+    on_error: &(impl Fn(&Value, &StreamError, ErrorKind) + Sync),
 ) -> Vec<CompanyOutcome>
 where
     C: DailyClient,
@@ -468,9 +496,10 @@ where
                     .into_run_stream();
                 run_to_end(stream, |item| on_item(&context, item))
             },
-            |error| on_error(&context, error),
+            |error| on_error(&context, error, ErrorKind::Retried),
         )
-        .await;
+        .await
+        .inspect_err(|error| on_error(&context, error, ErrorKind::Failed));
         CompanyOutcome {
             cik: cik.clone(),
             result,
@@ -494,11 +523,12 @@ async fn run_to_end(
 }
 
 /// Runs `attempt` until it succeeds, fails with an error that is not a 503, or has used every
-/// wait of `retry_delays`. Calls `on_error` with each error.
+/// wait of `retry_delays`. Calls `on_retry` with each error after which `attempt` runs again, and
+/// returns the last error.
 async fn with_retry<T, F, Fut>(
     retry_delays: &[Duration],
     mut attempt: F,
-    on_error: impl Fn(&StreamError),
+    on_retry: impl Fn(&StreamError),
 ) -> Result<T, StreamError>
 where
     F: FnMut() -> Fut,
@@ -508,13 +538,13 @@ where
     loop {
         match attempt().await {
             Ok(value) => return Ok(value),
-            Err(error) => {
-                on_error(&error);
-                match delays.next() {
-                    Some(delay) if is_unavailable(&error) => tokio::time::sleep(*delay).await,
-                    _ => return Err(error),
+            Err(error) => match delays.next() {
+                Some(delay) if is_unavailable(&error) => {
+                    on_retry(&error);
+                    tokio::time::sleep(*delay).await;
                 }
-            }
+                _ => return Err(error),
+            },
         }
     }
 }

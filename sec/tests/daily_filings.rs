@@ -12,6 +12,7 @@ mod run;
 
 /// Runs the loop of `run.rs` offline, with a fake SEC client and stores in a temp dir.
 mod run_loop {
+    use std::sync::Mutex;
     use std::time::Duration;
 
     use chrono::NaiveDate;
@@ -103,23 +104,49 @@ mod run_loop {
         }
     }
 
-    /// Runs `dates` with yesterday on 2026-10-28 and no wait between attempts.
-    async fn run_offline(dates: &[NaiveDate], sec_client: &RoutingSecClient) -> RunSummary {
-        let root = temporary_root();
-        let settings = Settings {
+    fn settings() -> Settings {
+        Settings {
             execution_id: Uuid::nil(),
             yesterday: date("2026-10-28"),
             retry_delays: vec![Duration::ZERO, Duration::ZERO],
-        };
+        }
+    }
+
+    /// Runs `dates` with yesterday on 2026-10-28 and no wait between attempts.
+    async fn run_offline(dates: &[NaiveDate], sec_client: &RoutingSecClient) -> RunSummary {
+        let root = temporary_root();
         run(
             dates,
             sec_client,
             &repositories(&root),
-            &settings,
+            &settings(),
             |_, _| {},
-            |_, _| {},
+            |_, _, _| {},
         )
         .await
+    }
+
+    /// Runs `dates` as `run_offline` does, and returns the context and the kind of each error.
+    async fn reported_errors(dates: &[NaiveDate], sec_client: &RoutingSecClient) -> Vec<Value> {
+        let root = temporary_root();
+        let errors = Mutex::new(Vec::new());
+        run(
+            dates,
+            sec_client,
+            &repositories(&root),
+            &settings(),
+            |_, _| {},
+            |context, _, kind| {
+                errors
+                    .lock()
+                    .expect("Given a lock that no thread poisoned, locking should always succeed")
+                    .push(json!({ "context": context, "kind": format!("{kind:?}") }));
+            },
+        )
+        .await;
+        errors
+            .into_inner()
+            .expect("Given a lock that no thread poisoned, taking its value should always succeed")
     }
 
     /// Returns the detection outcome of each date, and for each date the counts of stored
@@ -291,6 +318,44 @@ mod run_loop {
         let expected_result = json!({ "companies": 1, "stored": 1, "failed": [] });
 
         let result = run_offline(&dates, &sec_client).await.entries()[0]["submissions"].clone();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_report_a_retried_and_a_failed_error_with_the_filing_when_a_503_is_followed_by_a_404()
+     {
+        let dates = [date("2026-10-26")];
+        let sec_client =
+            sec_client_with_folder(&[(503, "text/html", b""), (404, "text/html", b"")]);
+
+        let expected_result = vec![
+            json!({
+                "context": { "date": "2026-10-26", "accession_number": "0000003545-26-000047" },
+                "kind": "Retried",
+            }),
+            json!({
+                "context": { "date": "2026-10-26", "accession_number": "0000003545-26-000047" },
+                "kind": "Failed",
+            }),
+        ];
+
+        let result = reported_errors(&dates, &sec_client).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_report_pending_with_the_date_when_a_recent_index_is_missing() {
+        let dates = [date("2026-10-26"), date("2026-10-27")];
+        let sec_client = sec_client();
+
+        let expected_result = vec![json!({
+            "context": { "date": "2026-10-27" },
+            "kind": "Pending",
+        })];
+
+        let result = reported_errors(&dates, &sec_client).await;
 
         assert_eq!(result, expected_result);
     }
