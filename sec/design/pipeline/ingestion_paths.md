@@ -86,11 +86,12 @@ flowchart TB
     SB -- "SubmissionsRef" --> TN
 ```
 
-Green states exist today. They are generic over the request kind, and a path reuses them with its
-kind. Each kind implements the trait the state bounds: `RequestKind` for `PrepareSecRequest`,
-`RespondsWith` for `ExecuteSecRequest`, and `StoredAs` for `StoreSecResponse`. See
-[Store Step](#store-step). The Notes path uses `PrepareSecRequest` with the `NotesFile` kind,
-under the alias `PrepareNotesRequest`. The Submissions path reuses it with a new kind.
+Green states exist today. `PrepareSecRequest`, `ExecuteSecRequest`, and `StoreSecResponse` are
+generic over the request kind, and a path reuses them with its kind. Each kind implements the trait
+the state bounds: `RequestKind` for `PrepareSecRequest`, `RespondsWith` for `ExecuteSecRequest`,
+and `StoredAs` for `StoreSecResponse`. See [Store Step](#store-step). The Notes path uses
+`PrepareSecRequest` with the `NotesFile` kind, under the alias `PrepareNotesRequest`. The
+Submissions path reuses all three with a new kind.
 Yellow states are new.
 
 ### Store Step
