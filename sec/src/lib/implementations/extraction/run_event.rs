@@ -60,7 +60,7 @@ impl Display for ErrorKind {
 /// [`Display`] gives the values without keys, for example `2024q1` or `2026-10-26 CIK 0000003545`.
 /// [`Serialize`] gives an object with one key per value, for example `{"period": "2024q1"}` or
 /// `{"date": "2026-10-26", "cik": "0000003545"}`. The key `cik` of [`Unit::Cik`] holds the raw
-/// input, for example `320193`, and is not padded, so an invalid CIK still reaches the observer.
+/// input without padding, for example `320193`, so the observer also receives an invalid CIK.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 #[serde(rename_all = "snake_case")]
 #[non_exhaustive]

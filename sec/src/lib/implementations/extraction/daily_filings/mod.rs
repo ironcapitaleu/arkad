@@ -353,8 +353,8 @@ where
         DailyRunSummary(outcomes)
     }
 
-    /// Runs one filing machine per detected filing, at most the in-flight cap at once, in the
-    /// order of the filings. Each machine records the daily index of `detected` as the input of
+    /// Runs one filing machine per detected filing, at most [`in_flight`](Self::in_flight) at
+    /// once, in the order of the filings. Each machine records the daily index of `detected` as the input of
     /// its files.
     async fn extract_filings(
         &self,
@@ -405,8 +405,8 @@ where
             .await
     }
 
-    /// Runs one `submissions` machine per distinct CIK of `filings`, at most the in-flight cap at
-    /// once, in the order in which each CIK first appears.
+    /// Runs one `submissions` machine per distinct CIK of `filings`, at most
+    /// [`in_flight`](Self::in_flight) at once, in the order in which each CIK first appears.
     async fn extract_companies(
         &self,
         date: NaiveDate,
