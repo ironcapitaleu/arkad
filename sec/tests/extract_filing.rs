@@ -115,12 +115,12 @@ async fn should_return_the_filing_documents_ref_when_extracting_an_inline_xbrl_1
     let root = temporary_root();
     let filing = inline_xbrl_10q();
 
-    let expected_result = Some(FilingDocumentsRef::new(inline_xbrl_10q(), true));
+    let expected_result = Ok(FilingDocumentsRef::new(inline_xbrl_10q(), true));
 
     let result = super_state(filing, root.path())
         .run_to_documents(|_| {})
         .await
-        .ok();
+        .map_err(|error| error.to_string());
 
     assert_eq!(result, expected_result);
 }
@@ -185,17 +185,36 @@ async fn should_store_the_plain_xml_instance_when_the_filing_has_no_inline_xbrl(
 }
 
 #[tokio::test]
+async fn should_store_the_label_file_when_the_filing_has_no_inline_xbrl() {
+    let root = temporary_root();
+    let filing = plain_xbrl_10k();
+
+    let expected_result = (
+        930_710,
+        "3cac6dd367351df21e2d48c02e23c654a5052696a65ade6ce893b26bb259cc8d".to_string(),
+    );
+
+    super_state(filing, root.path())
+        .run_to_documents(|_| {})
+        .await
+        .expect("Given a published filing with a label file, the run should always succeed");
+    let result = stored_size_and_sha256(root.path(), PLAIN_XBRL_FOLDER, "lab.xml");
+
+    assert_eq!(result, expected_result);
+}
+
+#[tokio::test]
 async fn should_end_with_the_error_of_the_folder_index_request_when_the_filing_does_not_exist() {
     let root = temporary_root();
     let filing = filing_ref("3545", "0000003545-99-999999", Form::TenQ, (2026, 8, 10));
 
-    let expected_result = Some("Execute SEC Request".to_string());
+    let expected_result = Some(("Execute SEC Request".to_string(), "Problem occurred during internal state operations: '[StateError] A state level error occurred, Caused by: [FailedRequestExecution] Failure in State: 'Execute SEC Request', Caused by: [FailedSecRequest] SEC request failed, Caused by: [InvalidResponse] Response validation failed, Caused by: [InvalidSecResponse] Invalid SEC Response, Reason: 'Status code '404' is not accepted''".to_string()));
 
     let result = super_state(filing, root.path())
         .run_to_documents(|_| {})
         .await
         .err()
-        .map(|error| error.state_name);
+        .map(|error| (error.state_name, error.source.to_string()));
 
     assert_eq!(result, expected_result);
 }
