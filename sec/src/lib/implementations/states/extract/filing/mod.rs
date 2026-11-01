@@ -155,6 +155,12 @@ impl<I, L, C> ExtractFilingSuperStateContext<I, L, C> {
             inputs: Vec::new(),
         }
     }
+
+    /// Returns this context with the documents that the filing came from.
+    #[must_use]
+    pub fn with_inputs(self, inputs: Vec<InputDocument>) -> Self {
+        Self { inputs, ..self }
+    }
 }
 
 impl<I, L, C> SMContext for ExtractFilingSuperStateContext<I, L, C>

@@ -107,6 +107,9 @@ where
         if let Some(labels_repository) = updates.labels_repository {
             self.labels_repository = labels_repository;
         }
+        if let Some(inputs) = updates.inputs {
+            self.inputs = inputs;
+        }
         if let Some(max_retries) = updates.max_retries {
             self.max_retries = max_retries;
         }
@@ -130,6 +133,8 @@ pub struct StoreFilingDocumentsContextUpdater<I, L> {
     pub instance_repository: Option<I>,
     /// The new repository of the label files.
     pub labels_repository: Option<L>,
+    /// The new documents that the filing came from.
+    pub inputs: Option<Vec<InputDocument>>,
     /// The new retry budget.
     pub max_retries: Option<u32>,
 }
@@ -148,6 +153,7 @@ pub struct StoreFilingDocumentsContextUpdaterBuilder<I, L> {
     execution_id: Option<Uuid>,
     instance_repository: Option<I>,
     labels_repository: Option<L>,
+    inputs: Option<Vec<InputDocument>>,
     max_retries: Option<u32>,
 }
 
@@ -159,6 +165,7 @@ impl<I, L> StoreFilingDocumentsContextUpdaterBuilder<I, L> {
             execution_id: None,
             instance_repository: None,
             labels_repository: None,
+            inputs: None,
             max_retries: None,
         }
     }
@@ -186,6 +193,13 @@ impl<I, L> StoreFilingDocumentsContextUpdaterBuilder<I, L> {
         self
     }
 
+    /// Sets the documents that the filing came from.
+    #[must_use]
+    pub fn inputs(mut self, inputs: Vec<InputDocument>) -> Self {
+        self.inputs = Some(inputs);
+        self
+    }
+
     /// Sets the retry budget.
     #[must_use]
     pub const fn max_retries(mut self, max_retries: u32) -> Self {
@@ -200,6 +214,7 @@ impl<I, L> StoreFilingDocumentsContextUpdaterBuilder<I, L> {
             execution_id: self.execution_id,
             instance_repository: self.instance_repository,
             labels_repository: self.labels_repository,
+            inputs: self.inputs,
             max_retries: self.max_retries,
         }
     }
@@ -245,6 +260,28 @@ mod tests {
 
         context.update_context(update);
         let result = context.execution_id;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_update_inputs_when_update_contains_inputs() {
+        let mut context = test_context();
+        let inputs = vec![InputDocument::new(
+            storage::implementations::repository::filesystem::DocumentKey::new(
+                "sec/daily-index/form.20260909.idx",
+            )
+            .expect("Given a hardcoded valid relative path, the key should always build"),
+            storage::Sha256Digest::of(b"index"),
+        )];
+        let update = StoreFilingDocumentsContextUpdater::builder()
+            .inputs(inputs.clone())
+            .build();
+
+        let expected_result = inputs;
+
+        context.update_context(update);
+        let result = context.inputs;
 
         assert_eq!(result, expected_result);
     }

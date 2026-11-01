@@ -320,19 +320,18 @@ where
             PrepareSecRequestContext::new(self.filing_ref.clone()),
         );
 
-        let mut context = ExtractFilingSuperStateContext::new(
-            self.filing_ref,
-            self.sec_client,
-            self.execution_id,
-            self.instance_repository,
-            self.labels_repository,
-        );
-        context.inputs = self.inputs;
         ExtractFilingSuperState {
             current_state: entry_state,
             input: ExtractFilingSuperStateData,
             output: None,
-            context,
+            context: ExtractFilingSuperStateContext::new(
+                self.filing_ref,
+                self.sec_client,
+                self.execution_id,
+                self.instance_repository,
+                self.labels_repository,
+            )
+            .with_inputs(self.inputs),
         }
     }
 }

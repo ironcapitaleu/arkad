@@ -628,27 +628,53 @@ mod tests {
         assert_eq!(result, expected_result);
     }
 
-    #[tokio::test]
-    async fn should_record_the_inputs_in_the_instance_metadata_when_the_state_has_inputs() {
-        let inputs = vec![InputDocument::new(
+    fn sample_inputs() -> Vec<InputDocument> {
+        vec![InputDocument::new(
             DocumentKey::new("sec/daily-index/form.20260909.idx")
                 .expect("Given a hardcoded valid relative path, the key should always build"),
             storage::Sha256Digest::of(b"index"),
-        )];
+        )]
+    }
+
+    #[tokio::test]
+    async fn should_record_the_inputs_in_the_instance_metadata_when_the_state_has_inputs() {
         let instances = FakeXbrlInstanceRepository::new();
         let mut state = state(
             input(true, true),
             instances.clone(),
             FakeXbrlLabelsRepository::new(),
         )
-        .with_inputs(inputs.clone());
+        .with_inputs(sample_inputs());
+
+        let expected_result = Some(sample_inputs());
+
         state.compute_output_data_async().await.expect(
             "Given responses for both files and fake repositories, storing should always succeed",
         );
-
-        let expected_result = Some(inputs);
-
         let result = instances
+            .persisted()
+            .pop()
+            .map(|document| document.metadata().inputs().to_vec());
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_record_the_inputs_in_the_labels_metadata_when_the_state_has_inputs() {
+        let labels = FakeXbrlLabelsRepository::new();
+        let mut state = state(
+            input(true, true),
+            FakeXbrlInstanceRepository::new(),
+            labels.clone(),
+        )
+        .with_inputs(sample_inputs());
+
+        let expected_result = Some(sample_inputs());
+
+        state.compute_output_data_async().await.expect(
+            "Given responses for both files and fake repositories, storing should always succeed",
+        );
+        let result = labels
             .persisted()
             .pop()
             .map(|document| document.metadata().inputs().to_vec());

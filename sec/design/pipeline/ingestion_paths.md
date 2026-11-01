@@ -672,7 +672,8 @@ Decided by the lead on 2026-10-28. To meet it, the job reads the EDGAR daily ind
 `DetectFilingsSuperState` runs `ValidateIndexDate` → `PrepareSecRequest<DailyIndex>` →
 `DownloadDailyIndex` → `StoreDailyIndex` → `SelectFilings`. Its context holds the repository,
 because `ValidateIndexDate` and `DownloadDailyIndex` hold none. `run_to_filings` returns the
-selected `FilingRef` list (STA-374).
+selected `FilingRef` list (STA-374). `run_to_detected_filings` also returns the stored index as an
+`InputDocument`.
 
 `ValidateIndexDate` turns a raw `YYYY-MM-DD` string into an `IndexDate`. The `IndexDate` gives the
 three date parts of the URL: the year, the quarter folder `QTR1` to `QTR4`, and `YYYYMMDD`. The state
@@ -1201,11 +1202,12 @@ fail.
 
 All super-states of one run share one `execution_id`. For each date, in this order:
 
-1. `DetectFilingsSuperState` for the date. `run_to_filings` returns the selected `FilingRef`s. A
-   weekend or a holiday returns an empty list once a later index exists. Before that, the date is
-   pending (see [Window](#window)).
-2. One `ExtractFilingSuperState` for each `FilingRef`. `run_to_documents` returns the
-   `FilingDocumentsRef`. At most `IN_FLIGHT` machines run at once, a constant of 4. The global
+1. `DetectFilingsSuperState` for the date. `run_to_detected_filings` returns the selected
+   `FilingRef`s and the stored daily index as an `InputDocument`. A weekend or a holiday returns an
+   empty list and no index once a later index exists. Before that, the date is pending (see
+   [Window](#window)).
+2. One `ExtractFilingSuperState` for each `FilingRef`, with the daily index as its input.
+   `run_to_documents` returns the `FilingDocumentsRef`. At most `IN_FLIGHT` machines run at once, a constant of 4. The global
    rate limiter of `SecClient` caps the requests, so a value above 4 does not make the run faster.
 3. One `ExtractSubmissionsSuperState` for each distinct CIK of the selected filings, with the
    ingestion mode `incremental`, and the same cap of `IN_FLIGHT`. It runs for the CIK of a failed
