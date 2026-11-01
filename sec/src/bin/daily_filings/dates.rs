@@ -114,7 +114,7 @@ fn parse_date(
         Some(yesterday)
     } else if let Some(days) = value
         .strip_prefix(YESTERDAY)
-        .and_then(|v| v.strip_prefix('-'))
+        .and_then(|rest| rest.strip_prefix('-'))
     {
         days_before(yesterday, days)
     } else {
@@ -572,14 +572,14 @@ mod tests {
     }
 
     #[test]
-    fn should_return_invalid_date_when_yesterday_minus_goes_before_the_first_date() {
-        let from = Some(OsString::from("yesterday-18446744073709551615"));
+    fn should_return_invalid_date_when_yesterday_minus_goes_before_the_earliest_supported_date() {
+        let from = Some(OsString::from("yesterday-100000000"));
         let to = None;
         let now = noon_utc();
 
         let expected_result = Err(InvalidRunDates::InvalidDate {
             variable: "ARKAD_FROM",
-            value: "yesterday-18446744073709551615".to_string(),
+            value: "yesterday-100000000".to_string(),
         });
 
         let result = run_dates(from, to, now);
