@@ -392,6 +392,9 @@ mod tests {
     /// Runs the two steps of the pipeline over `2026_08` and `2026_09`, with one CIK per Notes
     /// file. Between the steps, `damage` changes the stored files under `root`, as a disk or
     /// another process can.
+    ///
+    /// It repeats the steps of `BackfillAll::run`, because the files must change between them.
+    /// The tests that call `run()` cover its wiring.
     async fn run_with_damaged_files(
         root: &TempDir,
         damage: impl FnOnce(&TempDir),

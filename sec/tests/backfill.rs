@@ -44,11 +44,11 @@ mod two_calls {
     const INDEX_URL_OF_2026_10_01: &str =
         "https://www.sec.gov/Archives/edgar/daily-index/2026/QTR4/form.20261001.idx";
     const SUBMISSIONS_URL_OF_320193: &str = "https://data.sec.gov/submissions/CIK0000320193.json";
-    /// The `sub.tsv` of the Notes file of `2026_09`, with one filing of CIK `320193`.
     /// A `sub.tsv` of `2026_09` with CIK `320193` and CIK `789019`. The client of [`sec_client`]
     /// has no `submissions` file of `789019`, so its machine fails with 404.
     const SUB_TSV_WITH_A_CIK_WITHOUT_SUBMISSIONS: &str =
         "adsh\tcik\n0000320193-26-000071\t320193\n0000789019-26-000072\t789019\n";
+    /// The `sub.tsv` of the Notes file of `2026_09`, with one filing of CIK `320193`.
     const SUB_TSV_OF_2026_09: &str = "adsh\tcik\tname\n0000320193-26-000071\t320193\tAPPLE INC\n";
     /// A daily index that lists no filing.
     const EMPTY_DAILY_INDEX: &[u8] = b"Form Type   Company Name   CIK   Date Filed  File Name

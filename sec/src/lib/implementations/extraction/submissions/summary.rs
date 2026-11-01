@@ -66,8 +66,6 @@ impl SubmissionsRunSummary {
     }
 
     /// Returns one JSON entry per failed CIK, with the failed state and the error.
-    ///
-    /// A run over many CIKs gives a short list, because the stored CIKs have no entry.
     #[must_use]
     pub fn failed_entries(&self) -> Vec<Value> {
         self.0
