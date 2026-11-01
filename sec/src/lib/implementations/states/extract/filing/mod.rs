@@ -1,6 +1,7 @@
 //! # Extract Filing Super-State
 //!
-//! Provides the [`ExtractFilingSuperState`] of one filing and its context.
+//! Provides the [`ExtractFilingSuperState`], which downloads the XBRL instance and the label file
+//! of one filing and writes them to the store.
 //!
 //! The super-state owns the [`FilingRef`], the shared SEC client, the `execution_id`, and the two
 //! storage repositories.
@@ -14,13 +15,66 @@
 //!
 //! [`PrepareSecRequest`] of the [`FilingIndex`] kind → [`ExecuteSecRequest`] →
 //! [`SelectFilingDocuments`] → [`PrepareSecRequest`] of the [`FilingDocumentSet`] kind →
-//! [`ExecuteSecRequest`] → [`StoreFilingDocuments`].
+//! [`ExecuteSecRequest`] → [`StoreFilingDocuments`]. The stream ends after [`StoreFilingDocuments`].
+//! [`ExtractFilingSuperState::run_to_documents`] runs the stream and returns the
+//! [`FilingDocumentsRef`] of the stored files.
+//!
+//! A failed request for the instance or the label file fails the filing. The super-state stores
+//! no file of a filing whose documents request failed.
+//!
+//! ## Usage
+//!
+//! ```no_run
+//! use chrono::NaiveDate;
+//! use sec::implementations::states::extract::filing::ExtractFilingSuperState;
+//! use sec::shared::cik::Cik;
+//! use sec::shared::filing_ref::FilingRef;
+//! use sec::shared::financial::accession_number::AccessionNumber;
+//! use sec::shared::financial::form::{Form, ParsedForm};
+//! use sec::shared::http_client::implementations::sec_client::SecClient;
+//! use sec::shared::raw_document::RawDocument;
+//! use sec::shared::raw_source::{RawXbrlInstance, RawXbrlLabels};
+//! use storage::implementations::repository::filesystem::FilesystemRepository;
+//! use uuid::Uuid;
+//!
+//! # #[tokio::main]
+//! # async fn main() {
+//! let filing_ref = FilingRef::new(
+//!     Cik::new("3545").expect("The CIK is valid"),
+//!     AccessionNumber::new("0000003545-26-000047").expect("The accession number is valid"),
+//!     ParsedForm::new(Form::TenQ, false),
+//!     NaiveDate::from_ymd_opt(2026, 9, 9).expect("The date exists"),
+//! );
+//! let instance_repository = FilesystemRepository::builder()
+//!     .writer()
+//!     .document_type::<RawDocument<RawXbrlInstance>>()
+//!     .root("data")
+//!     .build();
+//! let labels_repository = FilesystemRepository::builder()
+//!     .writer()
+//!     .document_type::<RawDocument<RawXbrlLabels>>()
+//!     .root("data")
+//!     .build();
+//! let extract_state = ExtractFilingSuperState::builder()
+//!     .filing_ref(filing_ref)
+//!     .sec_client(SecClient::default())
+//!     .execution_id(Uuid::new_v4())
+//!     .instance_repository(instance_repository)
+//!     .labels_repository(labels_repository)
+//!     .build();
+//! let documents = extract_state
+//!     .run_to_documents(|_item| {})
+//!     .await
+//!     .expect("The live SEC download should succeed");
+//! # }
+//! ```
 
 pub mod builder;
 
 use std::fmt::{self, Display, Formatter};
 
 use async_trait::async_trait;
+use futures_util::StreamExt;
 use serde::Serialize;
 use state_maschine::prelude::{StateMachine as SMStateMachine, Transition as SMTransition};
 use uuid::Uuid;
@@ -36,12 +90,14 @@ use crate::implementations::states::extract::prepare_sec_request::PrepareSecRequ
 use crate::implementations::states::extract::select_filing_documents::SelectFilingDocuments;
 use crate::implementations::states::extract::store_filing_documents::StoreFilingDocuments;
 use crate::prelude::*;
+use crate::shared::filing_documents_ref::FilingDocumentsRef;
 use crate::shared::filing_ref::FilingRef;
 use crate::shared::http_client::implementations::sec_client::SecClient;
 use crate::shared::http_client::{Executes, SecClient as SecClientTrait};
 use crate::shared::raw_repository::RawRepository;
 use crate::shared::raw_source::{RawXbrlInstance, RawXbrlLabels};
 use crate::shared::request::implementations::sec_request::{FilingDocumentSet, FilingIndex};
+use crate::traits::state_machine::stream::{OutputSlot, terminal_stream_with};
 
 /// Input and output data for the [`ExtractFilingSuperState`].
 ///
@@ -72,13 +128,14 @@ pub struct ExtractFilingSuperStateContext<I, L, C> {
     pub(crate) execution_id: Uuid,
     pub(crate) instance_repository: I,
     pub(crate) labels_repository: L,
+    pub(crate) documents_slot: OutputSlot<FilingDocumentsRef>,
 }
 
 impl<I, L, C> ExtractFilingSuperStateContext<I, L, C> {
     /// Creates a new [`ExtractFilingSuperStateContext`] from the [`FilingRef`], the SEC client,
     /// the `execution_id`, and the two storage repositories.
     #[must_use]
-    pub const fn new(
+    pub fn new(
         filing_ref: FilingRef,
         sec_client: C,
         execution_id: Uuid,
@@ -91,6 +148,7 @@ impl<I, L, C> ExtractFilingSuperStateContext<I, L, C> {
             execution_id,
             instance_repository,
             labels_repository,
+            documents_slot: OutputSlot::default(),
         }
     }
 }
@@ -287,6 +345,127 @@ where
     }
 }
 
+// --- Streaming ---
+
+impl<S, I, L, C> ExtractFilingSuperState<S, I, L, C>
+where
+    S: State,
+    I: RawRepository<RawXbrlInstance>,
+    L: RawRepository<RawXbrlLabels>,
+    C: SecClientTrait,
+    Self: IntoStateMachineStream,
+{
+    /// Returns the stream, tagged with the `execution_id` that the context holds.
+    ///
+    /// Use it instead of `into_stream`, so the stream and the stored documents name the same run.
+    #[must_use]
+    pub fn into_run_stream(self) -> StateMachineStream {
+        let execution_id = self.context.execution_id;
+        self.into_stream(execution_id)
+    }
+
+    /// Runs the stream to its end and returns the [`FilingDocumentsRef`] of the stored files.
+    ///
+    /// Calls `on_item` with each successful stream item, in stream order. Each call gets its own
+    /// slot for the documents, so clones of one super-state never share it.
+    ///
+    /// # Errors
+    ///
+    /// Returns the [`StreamError`] of the first state that fails. The stream ends at that error.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the stream ends without an error before [`StoreFilingDocuments`] computes its
+    /// output. The state flow rules this out.
+    pub async fn run_to_documents(
+        mut self,
+        mut on_item: impl FnMut(&StreamItem),
+    ) -> Result<FilingDocumentsRef, StreamError> {
+        let documents_slot = OutputSlot::default();
+        self.context.documents_slot = documents_slot.clone();
+        let mut stream = self.into_run_stream();
+        while let Some(item) = stream.next().await {
+            on_item(&item?);
+        }
+        Ok(documents_slot.take().expect(
+            "Given a stream that ended without an error, StoreFilingDocuments has always put the documents into the slot",
+        ))
+    }
+}
+
+impl<I, L, C> NonTerminal for ExtractFilingSuperState<PrepareSecRequest<FilingIndex>, I, L, C>
+where
+    I: RawRepository<RawXbrlInstance>,
+    L: RawRepository<RawXbrlLabels>,
+    C: SecClientTrait + Executes<FilingIndex>,
+{
+    type Current = PrepareSecRequest<FilingIndex>;
+    type Next = ExecuteSecRequest<FilingIndex, C>;
+}
+
+impl<I, L, C> NonTerminal for ExtractFilingSuperState<ExecuteSecRequest<FilingIndex, C>, I, L, C>
+where
+    I: RawRepository<RawXbrlInstance>,
+    L: RawRepository<RawXbrlLabels>,
+    C: SecClientTrait + Executes<FilingIndex>,
+{
+    type Current = ExecuteSecRequest<FilingIndex, C>;
+    type Next = SelectFilingDocuments;
+}
+
+impl<I, L, C> NonTerminal for ExtractFilingSuperState<SelectFilingDocuments, I, L, C>
+where
+    I: RawRepository<RawXbrlInstance>,
+    L: RawRepository<RawXbrlLabels>,
+    C: SecClientTrait,
+{
+    type Current = SelectFilingDocuments;
+    type Next = PrepareSecRequest<FilingDocumentSet>;
+}
+
+impl<I, L, C> NonTerminal for ExtractFilingSuperState<PrepareSecRequest<FilingDocumentSet>, I, L, C>
+where
+    I: RawRepository<RawXbrlInstance>,
+    L: RawRepository<RawXbrlLabels>,
+    C: SecClientTrait + Executes<FilingDocumentSet>,
+{
+    type Current = PrepareSecRequest<FilingDocumentSet>;
+    type Next = ExecuteSecRequest<FilingDocumentSet, C>;
+}
+
+impl<I, L, C> NonTerminal
+    for ExtractFilingSuperState<ExecuteSecRequest<FilingDocumentSet, C>, I, L, C>
+where
+    I: RawRepository<RawXbrlInstance>,
+    L: RawRepository<RawXbrlLabels>,
+    C: SecClientTrait + Executes<FilingDocumentSet>,
+{
+    type Current = ExecuteSecRequest<FilingDocumentSet, C>;
+    type Next = StoreFilingDocuments<I, L>;
+}
+
+/// Ends the stream after [`StoreFilingDocuments`] writes the files of the filing to the store.
+impl<I, L, C> IntoStateMachineStream
+    for ExtractFilingSuperState<StoreFilingDocuments<I, L>, I, L, C>
+where
+    I: RawRepository<RawXbrlInstance> + 'static,
+    L: RawRepository<RawXbrlLabels> + 'static,
+    C: SecClientTrait + 'static,
+{
+    fn into_stream(self, execution_id: Uuid) -> StateMachineStream {
+        let documents_slot = self.context.documents_slot.clone();
+        terminal_stream_with(
+            self,
+            execution_id,
+            move |state: &StoreFilingDocuments<I, L>| {
+                if let Some(output) = state.output_data() {
+                    documents_slot.put(output.documents.clone());
+                }
+            },
+        )
+    }
+}
+
 // --- Transitions ---
 
 impl<I, L, C> Transition<PrepareSecRequest<FilingIndex>, ExecuteSecRequest<FilingIndex, C>>
@@ -470,8 +649,12 @@ where
 
 #[cfg(test)]
 mod tests {
+    use std::path::Path;
+
     use chrono::NaiveDate;
     use pretty_assertions::assert_eq;
+    use storage::implementations::repository::filesystem::{FilesystemRepository, Write};
+    use tempfile::TempDir;
 
     use super::*;
     use crate::error::state_machine::transition;
@@ -480,11 +663,14 @@ mod tests {
     use crate::implementations::states::extract::prepare_sec_request::{
         PrepareSecRequestContext, PrepareSecRequestInput,
     };
+    use crate::implementations::states::extract::select_filing_documents::constants::STATE_NAME as SELECT_FILING_DOCUMENTS;
     use crate::implementations::states::extract::store_filing_documents::StoreFilingDocumentsContext;
+    use crate::implementations::states::extract::store_filing_documents::constants::STATE_NAME as STORE_FILING_DOCUMENTS;
     use crate::shared::cik::Cik;
     use crate::shared::filing_documents::{FilingDocumentSetRef, FilingDocuments, FolderIndex};
     use crate::shared::financial::accession_number::AccessionNumber;
     use crate::shared::financial::form::{Form, ParsedForm};
+    use crate::shared::raw_document::RawDocument;
     use crate::tests::fixtures::sample_http_client::sample_sec_client::routing::RoutingSecClient;
     use crate::tests::fixtures::sample_write_repository::{
         FakeXbrlInstanceRepository, FakeXbrlLabelsRepository,
@@ -507,6 +693,10 @@ mod tests {
     const LABEL_FILE_URL: &str =
         "https://www.sec.gov/Archives/edgar/data/3545/000000354526000047/alco-20260908_lab.xml";
     const FOLDER_INDEX: &[u8] = br#"{"directory":{"item":[{"name":"alco-20260908_htm.xml"},{"name":"alco-20260908_lab.xml"}]}}"#;
+    const FILING_FOLDER: &str = "sec/filings/CIK0000003545/0000003545-26-000047";
+
+    type InstanceFilesystemRepository = FilesystemRepository<Write, RawDocument<RawXbrlInstance>>;
+    type LabelsFilesystemRepository = FilesystemRepository<Write, RawDocument<RawXbrlLabels>>;
 
     fn sec_client() -> RoutingSecClient {
         RoutingSecClient::new()
@@ -591,6 +781,47 @@ mod tests {
             filing_ref(),
             FilingDocuments::new(INSTANCE, Some(LABEL_FILE.to_string())),
         )
+    }
+
+    fn temporary_root() -> TempDir {
+        TempDir::new().expect(
+            "Given a writable system temp directory, creating a directory in it should always succeed",
+        )
+    }
+
+    fn stored_super_state(
+        root: &Path,
+        sec_client: RoutingSecClient,
+    ) -> ExtractFilingSuperState<
+        PrepareSecRequest<FilingIndex>,
+        InstanceFilesystemRepository,
+        LabelsFilesystemRepository,
+        RoutingSecClient,
+    > {
+        ExtractFilingSuperState::builder()
+            .filing_ref(filing_ref())
+            .sec_client(sec_client)
+            .execution_id(EXECUTION_ID)
+            .instance_repository(
+                FilesystemRepository::builder()
+                    .writer()
+                    .document_type::<RawDocument<RawXbrlInstance>>()
+                    .root(root)
+                    .build(),
+            )
+            .labels_repository(
+                FilesystemRepository::builder()
+                    .writer()
+                    .document_type::<RawDocument<RawXbrlLabels>>()
+                    .root(root)
+                    .build(),
+            )
+            .build()
+    }
+
+    fn read_stored(root: &Path, file_name: &str) -> Vec<u8> {
+        std::fs::read(root.join(FILING_FOLDER).join(file_name))
+            .expect("Given a run that stored the file, reading it back should always succeed")
     }
 
     #[test]
@@ -703,6 +934,173 @@ mod tests {
         ));
 
         let result = super_state.transition_to_next_state_sec().map(|_| ());
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_store_the_served_instance_in_the_filing_folder_when_running_to_the_documents() {
+        let root = temporary_root();
+        let super_state = stored_super_state(root.path(), sec_client());
+
+        let expected_result = b"<xbrl/>".to_vec();
+
+        super_state
+            .run_to_documents(|_| {})
+            .await
+            .expect("Given a client that serves the folder index and both files, the run should always succeed");
+        let result = read_stored(root.path(), "instance.xml");
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_store_the_served_label_file_in_the_filing_folder_when_running_to_the_documents()
+    {
+        let root = temporary_root();
+        let super_state = stored_super_state(root.path(), sec_client());
+
+        let expected_result = b"<labels/>".to_vec();
+
+        super_state
+            .run_to_documents(|_| {})
+            .await
+            .expect("Given a client that serves the folder index and both files, the run should always succeed");
+        let result = read_stored(root.path(), "lab.xml");
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_return_the_filing_documents_ref_when_running_to_the_documents() {
+        let super_state = super_state();
+
+        let expected_result = Some(FilingDocumentsRef::new(filing_ref(), true));
+
+        let result = super_state.run_to_documents(|_| {}).await.ok();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_end_with_the_error_of_select_filing_documents_when_the_folder_has_no_instance()
+    {
+        let sec_client = RoutingSecClient::new().route(
+            FOLDER_INDEX_URL,
+            200,
+            "application/json",
+            br#"{"directory":{"item":[{"name":"alco-20260908_lab.xml"}]}}"#,
+        );
+        let super_state = ExtractFilingSuperState::builder()
+            .filing_ref(filing_ref())
+            .sec_client(sec_client)
+            .execution_id(EXECUTION_ID)
+            .instance_repository(FakeXbrlInstanceRepository::new())
+            .labels_repository(FakeXbrlLabelsRepository::new())
+            .build();
+
+        let expected_result = Some((SELECT_FILING_DOCUMENTS.to_string(), "Problem occurred during internal state operations: '[StateError] A state level error occurred, Caused by: [FailedDocumentSelection] Failure in State: 'Select Filing Documents', Caused by: [MissingXbrlInstance] The folder of filing '0000003545-26-000047' holds no XBRL instance'".to_string()));
+
+        let result = super_state
+            .run_to_documents(|_| {})
+            .await
+            .err()
+            .map(|error| (error.state_name, error.source.to_string()));
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_end_with_the_error_of_the_documents_request_when_the_label_file_request_fails()
+    {
+        let root = temporary_root();
+        let sec_client = RoutingSecClient::new()
+            .route(FOLDER_INDEX_URL, 200, "application/json", FOLDER_INDEX)
+            .route(INSTANCE_URL, 200, "text/xml", b"<xbrl/>");
+        let super_state = stored_super_state(root.path(), sec_client);
+
+        let expected_result = Some(EXECUTE_SEC_REQUEST.to_string());
+
+        let result = super_state
+            .run_to_documents(|_| {})
+            .await
+            .err()
+            .map(|error| error.state_name);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_store_no_instance_when_the_label_file_request_fails() {
+        let root = temporary_root();
+        let sec_client = RoutingSecClient::new()
+            .route(FOLDER_INDEX_URL, 200, "application/json", FOLDER_INDEX)
+            .route(INSTANCE_URL, 200, "text/xml", b"<xbrl/>");
+        let super_state = stored_super_state(root.path(), sec_client);
+
+        let expected_result = false;
+
+        let _ = super_state.run_to_documents(|_| {}).await;
+        let result = root
+            .path()
+            .join(FILING_FOLDER)
+            .join("instance.xml")
+            .exists();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_hand_the_events_of_every_state_in_order_to_the_caller_when_running_to_the_documents()
+     {
+        let super_state = super_state();
+
+        let expected_result = vec![
+            (StreamEvent::StateStarted, PREPARE_SEC_REQUEST),
+            (StreamEvent::StateCompleted, PREPARE_SEC_REQUEST),
+            (StreamEvent::TransitionCompleted, PREPARE_SEC_REQUEST),
+            (StreamEvent::StateStarted, EXECUTE_SEC_REQUEST),
+            (StreamEvent::StateCompleted, EXECUTE_SEC_REQUEST),
+            (StreamEvent::TransitionCompleted, EXECUTE_SEC_REQUEST),
+            (StreamEvent::StateStarted, SELECT_FILING_DOCUMENTS),
+            (StreamEvent::StateCompleted, SELECT_FILING_DOCUMENTS),
+            (StreamEvent::TransitionCompleted, SELECT_FILING_DOCUMENTS),
+            (StreamEvent::StateStarted, PREPARE_SEC_REQUEST),
+            (StreamEvent::StateCompleted, PREPARE_SEC_REQUEST),
+            (StreamEvent::TransitionCompleted, PREPARE_SEC_REQUEST),
+            (StreamEvent::StateStarted, EXECUTE_SEC_REQUEST),
+            (StreamEvent::StateCompleted, EXECUTE_SEC_REQUEST),
+            (StreamEvent::TransitionCompleted, EXECUTE_SEC_REQUEST),
+            (StreamEvent::StateStarted, STORE_FILING_DOCUMENTS),
+            (StreamEvent::StateCompleted, STORE_FILING_DOCUMENTS),
+        ];
+
+        let mut events = Vec::new();
+        super_state
+            .run_to_documents(|item| events.push((item.event.clone(), item.state_name.clone())))
+            .await
+            .expect("Given a client that serves the folder index and both files, the run should always succeed");
+        let result: Vec<(StreamEvent, &str)> = events
+            .iter()
+            .map(|(event, state_name)| (event.clone(), state_name.as_str()))
+            .collect();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_return_the_documents_when_a_clone_empties_the_slot_it_was_built_with() {
+        let super_state = super_state();
+        let built_slot = super_state.context.documents_slot.clone();
+
+        let expected_result = Some(FilingDocumentsRef::new(filing_ref(), true));
+
+        let result = super_state
+            .run_to_documents(|_| {
+                built_slot.take();
+            })
+            .await
+            .ok();
 
         assert_eq!(result, expected_result);
     }
