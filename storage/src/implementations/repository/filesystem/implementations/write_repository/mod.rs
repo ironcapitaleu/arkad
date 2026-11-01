@@ -24,7 +24,7 @@ use crate::implementations::repository::filesystem::shared::document_key::Docume
 use crate::implementations::repository::filesystem::traits::access::CanWrite;
 use crate::implementations::repository::filesystem::traits::document::Document;
 use crate::implementations::repository::filesystem::{
-    FilesystemRepository, IngestionMode, check_content,
+    FilesystemRepository, IngestionMode, Producer, check_content,
 };
 use crate::shared::Sha256Digest;
 use crate::traits::repository::WriteRepository;
@@ -55,11 +55,12 @@ impl<A: CanWrite, D: Document + 'static> WriteRepository for FilesystemRepositor
     /// all three conditions hold:
     ///
     /// 1. The stored metadata equals the new metadata outside the run fields `produced_at`,
-    ///    `execution_id`, and `ingestion_mode`.
+    ///    `execution_id`, `ingestion_mode`, and `producer`.
     /// 2. The stored metadata holds every run field, and each one is valid.
     /// 3. The stored document matches the digest of the new bytes.
     ///
-    /// The stored run fields then stay. In every other case, `persist` creates every missing
+    /// The stored run fields then stay. So the stored `producer` names the first build that wrote
+    /// the bytes, and a new build that writes the same bytes rewrites no file. In every other case, `persist` creates every missing
     /// directory between the root and the document, and the new bytes and metadata replace the
     /// old. This case covers a torn pair, whose metadata matches the new bytes but whose
     /// document does not.
@@ -190,6 +191,11 @@ struct StoredRun {
         reason = "parsed only to check that the stored value is valid"
     )]
     ingestion_mode: IngestionMode,
+    #[expect(
+        dead_code,
+        reason = "parsed only to check that the stored value is valid"
+    )]
+    producer: Producer,
 }
 
 /// Returns `true` if the stored metadata equals the new metadata outside the run fields, and the
@@ -225,12 +231,13 @@ async fn stored_pair_matches(
     found_digest == *digest
 }
 
-/// Removes `produced_at`, `execution_id`, and `ingestion_mode` from a metadata object.
+/// Removes `produced_at`, `execution_id`, `ingestion_mode`, and `producer` from a metadata object.
 fn without_run_fields(mut metadata: Value) -> Value {
     if let Some(fields) = metadata.as_object_mut() {
         fields.remove("produced_at");
         fields.remove("execution_id");
         fields.remove("ingestion_mode");
+        fields.remove("producer");
     }
     metadata
 }
@@ -852,6 +859,105 @@ mod tests {
             "Given an existing writable root, persisting unchanged bytes should always succeed",
         );
         let result = inodes(&metadata_path, &document_path);
+
+        assert_eq!(result, expected_result);
+    }
+
+    /// Returns `document` with `producer` in place of its producer.
+    fn with_producer(document: &SampleDocument, producer: &Producer) -> SampleDocument {
+        let mut metadata = serde_json::to_value(document.metadata())
+            .expect("Given metadata of owned fields, serialization should always succeed");
+        metadata["producer"] = serde_json::to_value(producer)
+            .expect("Given a producer of owned fields, serialization should always succeed");
+        let metadata = serde_json::from_value(metadata)
+            .expect("Given JSON with every field, deserialization should always succeed");
+        SampleDocument::from_parts(document.key().clone(), document.bytes().to_vec(), metadata)
+    }
+
+    fn next_build() -> Producer {
+        Producer::new("Sample State", "0.2.0", "9f2e4d1")
+    }
+
+    #[tokio::test]
+    async fn should_keep_the_stored_producer_when_persisting_unchanged_bytes_with_another_producer()
+    {
+        let root = temporary_root();
+        let repository = repository_at(root.path());
+        let first_document = sample_document();
+        let next_document = with_producer(&sample_document(), &next_build());
+        let metadata_path = repository.metadata_path(first_document.key());
+
+        let expected_result = first_document.metadata().producer().clone();
+
+        repository
+            .persist(first_document)
+            .await
+            .expect("Given an existing writable root, persisting a record should always succeed");
+        repository.persist(next_document).await.expect(
+            "Given an existing writable root, persisting unchanged bytes should always succeed",
+        );
+        let result = read_stored_metadata(&metadata_path).producer().clone();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn should_write_no_file_when_persisting_unchanged_bytes_with_another_producer() {
+        let root = temporary_root();
+        let repository = repository_at(root.path());
+        let first_document = sample_document();
+        let next_document = with_producer(&sample_document(), &next_build());
+        let metadata_path = repository.metadata_path(first_document.key());
+        let document_path = repository.document_path(first_document.key());
+        repository
+            .persist(first_document)
+            .await
+            .expect("Given an existing writable root, persisting a record should always succeed");
+
+        let expected_result = inodes(&metadata_path, &document_path);
+
+        repository.persist(next_document).await.expect(
+            "Given an existing writable root, persisting unchanged bytes should always succeed",
+        );
+        let result = inodes(&metadata_path, &document_path);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_store_the_new_producer_when_persisting_changed_bytes_with_another_producer() {
+        let root = temporary_root();
+        let repository = repository_at(root.path());
+        let first_document = sample_document();
+        let changed_document = with_producer(
+            &sample_document_holding(br#"{"cik":320193}"#, "2026-10-04T08:00:00Z"),
+            &next_build(),
+        );
+        let metadata_path = repository.metadata_path(first_document.key());
+
+        let expected_result = next_build();
+
+        repository
+            .persist(first_document)
+            .await
+            .expect("Given an existing writable root, persisting a record should always succeed");
+        repository.persist(changed_document).await.expect(
+            "Given an existing writable root, persisting changed bytes should always succeed",
+        );
+        let result = read_stored_metadata(&metadata_path).producer().clone();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_replace_the_metadata_when_the_stored_producer_is_invalid() {
+        let field = "producer";
+        let value = serde_json::Value::from("not a producer");
+
+        let expected_result = sample_metadata();
+
+        let result = persist_over_stored_metadata_field(field, value).await;
 
         assert_eq!(result, expected_result);
     }
