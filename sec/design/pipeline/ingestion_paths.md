@@ -1007,8 +1007,9 @@ Decided in STA-376:
   `PrepareSecRequest<FilingDocumentSet>` takes `(SelectFilingDocuments, FilingRef)`, and the
   super-state passes a clone of its `FilingRef`. `SelectFilingDocuments` keeps the accession
   number only, because its rules need nothing else.
-  - The super-state already takes the `FilingRef` as its input. It hands the SEC client, the
-    `execution_id`, and the repositories to its states in the same way.
+  - The builder takes the `FilingRef` and puts it in the context. The super-state hands the SEC
+    client, the `execution_id`, and the repositories to its states from the context in the same
+    way.
   - The transition compares the accession number of the `FilingRef` with the one of
     `SelectFilingDocuments`. A mismatch fails with `FailedContextConversion`, because the request
     URL follows the `FilingRef`.
