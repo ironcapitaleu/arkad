@@ -15,6 +15,7 @@ tracing = { version = "0.1", optional = true }
 tracing-appender = { version = "0.2", optional = true }
 tracing-subscriber = { version = "0.3", features = ["json"], optional = true }
 chrono = { version = "0.4", features = ["serde"] }
+chrono-tz = "0.10"
 async-stream = "0.3"
 async-trait = "0.1.88"
 bytes = "1.11.1"
