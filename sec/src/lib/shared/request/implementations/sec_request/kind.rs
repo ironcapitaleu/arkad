@@ -15,11 +15,15 @@ use serde::Serialize;
 use crate::shared::cik::Cik;
 use crate::shared::filing_documents::{FilingDocumentRef, FilingDocumentSetRef};
 use crate::shared::filing_ref::FilingRef;
+use crate::shared::http_client::HasResponse;
 use crate::shared::index_date::IndexDate;
 use crate::shared::notes_period::NotesPeriod;
-use crate::shared::raw_source::{
-    RawCompanyFacts, RawDailyIndex, RawNotesArchive, RawSource, RawSubmissions,
-};
+use crate::shared::raw_document::RawDocument;
+use crate::shared::raw_source::RawSource;
+use crate::shared::run_fields::RunFields;
+use crate::shared::url::Url;
+use crate::shared::user_agent::UserAgent;
+use crate::traits::state_machine::state::StateData;
 
 use super::SecRequestType;
 
@@ -157,29 +161,34 @@ impl RequestKind for FilingDocumentSet {
     }
 }
 
-/// A [`RequestKind`] whose response the store keeps as a raw document of one [`RawSource`].
+/// A request kind whose response the
+/// [`StoreSecResponse`](crate::implementations::states::extract::store_sec_response::StoreSecResponse)
+/// state keeps as a raw document of one [`RawSource`].
 ///
-/// A state that holds a repository bounds it by [`Self::Source`], so a repository of another
-/// source does not compile.
-pub trait StoredAs: RequestKind {
+/// The kind names what differs between two store steps: the source, the state name, and the
+/// document and output that [`Self::store`] builds. The state bounds its repository by
+/// [`Self::Source`], so a repository of another source does not compile.
+pub trait StoredAs: HasResponse {
     /// The source of the raw document that stores the response to a request of this kind.
     type Source: RawSource;
-}
 
-impl StoredAs for CompanyFacts {
-    type Source = RawCompanyFacts;
-}
+    /// The output of the store state, for example the key of the stored document.
+    type Output: StateData + Display + Serialize;
 
-impl StoredAs for NotesFile {
-    type Source = RawNotesArchive;
-}
+    /// The name of the store state. The stored document records it as its producer.
+    const STATE_NAME: &'static str;
 
-impl StoredAs for DailyIndex {
-    type Source = RawDailyIndex;
-}
+    /// The name of the request input in error messages, for example `CIK`.
+    const INPUT_LABEL: &'static str;
 
-impl StoredAs for Submissions {
-    type Source = RawSubmissions;
+    /// Builds the raw document to write and the output the state reports once the write succeeds.
+    fn store(
+        response: &Self::Response,
+        request_input: &Self::Input,
+        requested_url: &Url,
+        user_agent: &UserAgent,
+        run: RunFields,
+    ) -> (RawDocument<Self::Source>, Self::Output);
 }
 
 #[cfg(test)]
@@ -188,7 +197,6 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use crate::shared::cik::Cik;
-    use crate::shared::document_type::SecDocumentType;
     use crate::shared::filing_documents::{
         FilingDocumentRef, FilingDocumentSetRef, FilingDocuments,
     };
@@ -196,11 +204,10 @@ mod tests {
     use crate::shared::financial::accession_number::AccessionNumber;
     use crate::shared::financial::form::{Form, ParsedForm};
     use crate::shared::notes_period::NotesPeriod;
-    use crate::shared::raw_source::RawSource;
 
     use super::{
         CompanyFacts, DailyIndex, DailyIndexListing, FilingDocument, FilingDocumentSet,
-        FilingIndex, NotesFile, RequestKind, SecRequestType, StoredAs, Submissions,
+        FilingIndex, NotesFile, RequestKind, SecRequestType, Submissions,
     };
 
     fn filing_ref() -> FilingRef {
@@ -290,24 +297,6 @@ mod tests {
         };
 
         let result = FilingDocumentSet::request_type(documents);
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
-    fn should_store_raw_daily_index_documents_for_daily_index_kind() {
-        let expected_result = SecDocumentType::RawDailyIndex;
-
-        let result = <DailyIndex as StoredAs>::Source::DOCUMENT_TYPE;
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
-    fn should_store_raw_submissions_documents_for_submissions_kind() {
-        let expected_result = SecDocumentType::RawSubmissions;
-
-        let result = <Submissions as StoredAs>::Source::DOCUMENT_TYPE;
 
         assert_eq!(result, expected_result);
     }

@@ -9,8 +9,10 @@
 //! `execution_id`, the ingestion mode, and the repository belong to the state machine run, so the
 //! caller passes the ones from the state machine context.
 //!
-//! [STA-383](https://linear.app/state-machine/issue/STA-383) replaces this transition and its
-//! Company Facts twin with the generic store state.
+//! The generic transition into the
+//! [`StoreSecResponse`](crate::implementations::states::extract::store_sec_response::StoreSecResponse)
+//! state takes the same tuple. A follow-up of
+//! [STA-383](https://linear.app/state-machine/issue/STA-383) moves this kind onto it.
 //!
 //! The source state has the [`Submissions`] kind. An executed Company Facts request cannot become
 //! a `submissions` store, so this does not compile:
@@ -135,8 +137,8 @@ mod tests {
 
     const SAMPLE_EXECUTION_ID: Uuid = Uuid::from_u128(7);
 
-    // `StoreCompanyFacts` fixes `Backfill`, so `Incremental` shows that the mode comes from the
-    // caller.
+    // The Company Facts super-state fixes `Backfill`, so `Incremental` shows that the mode comes
+    // from the caller.
     const SAMPLE_INGESTION_MODE: IngestionMode = IngestionMode::Incremental;
 
     const REQUESTED_URL: &str = "https://data.sec.gov/submissions/CIK0001067983.json";

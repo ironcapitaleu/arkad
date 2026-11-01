@@ -1,18 +1,13 @@
 //! # Store Company Facts Data
 //!
-//! Groups the input and output data types for the
-//! [`StoreCompanyFacts`](super::StoreCompanyFacts) state.
-//!
-//! The state consumes an SEC response and the fetch that produced it, and produces the key of the
-//! stored document.
+//! Holds the output data type of the [`StoreCompanyFacts`](super::StoreCompanyFacts) state. The
+//! input data type is the generic
+//! [`StoreSecResponseInput`](crate::implementations::states::extract::store_sec_response::StoreSecResponseInput).
 //!
 //! ## Modules
 //!
-//! - [`input`]: The [`StoreCompanyFactsInput`] holding the response and the fetch details.
 //! - [`output`]: The [`StoreCompanyFactsOutput`] holding the key of the stored document.
 
-pub mod input;
 pub mod output;
 
-pub use input::StoreCompanyFactsInput;
 pub use output::StoreCompanyFactsOutput;
