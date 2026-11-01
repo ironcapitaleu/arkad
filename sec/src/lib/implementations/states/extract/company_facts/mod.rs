@@ -56,6 +56,7 @@ use std::fmt::{self, Display, Formatter};
 use async_trait::async_trait;
 use serde::Serialize;
 use state_maschine::prelude::{StateMachine as SMStateMachine, Transition as SMTransition};
+use storage::implementations::repository::filesystem::IngestionMode;
 use uuid::Uuid;
 
 use crate::error::State as StateError;
@@ -349,6 +350,9 @@ where
     }
 }
 
+/// The ingestion mode of every Company Facts document. Company Facts runs as a backfill only.
+const INGESTION_MODE: IngestionMode = IngestionMode::Backfill;
+
 impl<R: RawRepository<RawCompanyFacts>, C: SecClientTrait>
     ExtractCompanyFactsSuperState<StoreCompanyFacts<R>, R, C>
 {
@@ -365,7 +369,8 @@ impl<R: RawRepository<RawCompanyFacts>, C: SecClientTrait>
         execution_id: Uuid,
         repository: R,
     ) -> Self {
-        let input = StoreCompanyFactsInput::new(response, requested_url, user_agent);
+        let input =
+            StoreCompanyFactsInput::new(response, requested_url, user_agent, INGESTION_MODE);
         let context = StoreCompanyFactsContext::new(cik, execution_id, repository.clone());
 
         Self {
@@ -560,6 +565,7 @@ where
         let next_state = StoreCompanyFacts::try_from((
             self.current_state,
             self.context.execution_id,
+            INGESTION_MODE,
             self.context.repository.clone(),
         ))?;
 
@@ -1044,9 +1050,10 @@ mod tests {
         assert_eq!(result, expected_result);
     }
 
-    #[tokio::test]
-    async fn should_carry_execution_id_of_builder_when_transitioning_to_store_company_facts() {
-        let execution_id = Uuid::from_u128(7);
+    /// Walks a fresh super-state to `ExecuteSecRequest` and gives that state a response.
+    async fn executed_super_state(
+        execution_id: Uuid,
+    ) -> ExtractCompanyFactsSuperState<ExecuteCompanyFactsRequest, FakeWriteRepository> {
         let mut super_state = ExtractCompanyFactsSuperState::builder()
             .cik("1067983")
             .sec_client(SecClient::default())
@@ -1072,6 +1079,13 @@ mod tests {
             .clone()
             .with_output(ExecuteSecRequestOutput::new(sample_response()));
         *super_state.current_state_mut() = executed;
+        super_state
+    }
+
+    #[tokio::test]
+    async fn should_carry_execution_id_of_builder_when_transitioning_to_store_company_facts() {
+        let execution_id = Uuid::from_u128(7);
+        let super_state = executed_super_state(execution_id).await;
 
         let expected_result = execution_id;
 
@@ -1083,6 +1097,36 @@ mod tests {
         .current_state()
         .context_data()
         .execution_id();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_store_as_backfill_when_created_at_store_company_facts() {
+        let super_state =
+            store_company_facts_super_state(Uuid::from_u128(7), FakeWriteRepository::new());
+
+        let expected_result = IngestionMode::Backfill;
+
+        let result = super_state.current_state().input_data().ingestion_mode();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_store_as_backfill_when_transitioning_to_store_company_facts() {
+        let super_state = executed_super_state(Uuid::from_u128(7)).await;
+
+        let expected_result = IngestionMode::Backfill;
+
+        let result = Transition::<
+            ExecuteCompanyFactsRequest,
+            StoreCompanyFacts<FakeWriteRepository>,
+        >::transition_to_next_state_sec(super_state)
+        .expect("Given a request with output, the transition should always succeed")
+        .current_state()
+        .input_data()
+        .ingestion_mode();
 
         assert_eq!(result, expected_result);
     }
