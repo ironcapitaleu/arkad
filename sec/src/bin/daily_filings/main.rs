@@ -48,11 +48,12 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     let sec_client = startup_sec_client()?;
     let repositories = DailyFilingsRepositories {
         daily_index: raw_writer(),
+        filing_index: raw_writer(),
         instance: raw_writer(),
         labels: raw_writer(),
         submissions: raw_writer(),
     };
-    // All four writers share the root of `ARKAD_STORAGE_ROOT`, so one call creates it.
+    // All five writers share the root of `ARKAD_STORAGE_ROOT`, so one call creates it.
     startup_create_root(&repositories.daily_index)?;
     let incremental = Extraction::incremental();
     let execution_id = incremental.id();

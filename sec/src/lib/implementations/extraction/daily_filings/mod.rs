@@ -40,7 +40,9 @@ use crate::shared::http_client::Executes;
 use crate::shared::http_client::SecClient as SecClientTrait;
 use crate::shared::http_client::implementations::sec_client::error::FailedSecRequest;
 use crate::shared::raw_document::RawDocument;
-use crate::shared::raw_source::{RawDailyIndex, RawSubmissions, RawXbrlInstance, RawXbrlLabels};
+use crate::shared::raw_source::{
+    RawDailyIndex, RawFilingIndex, RawSubmissions, RawXbrlInstance, RawXbrlLabels,
+};
 use crate::shared::request::implementations::sec_request::{FilingDocumentSet, FilingIndex};
 use crate::shared::response::implementations::sec_response::{JsonBody, SecResponse, ZipBody};
 use summary::{
@@ -92,6 +94,7 @@ impl<C> DailyClient for C where
 }
 
 type DailyIndexRepository = FilesystemRepository<Write, RawDocument<RawDailyIndex>>;
+type FilingIndexRepository = FilesystemRepository<Write, RawDocument<RawFilingIndex>>;
 type InstanceRepository = FilesystemRepository<Write, RawDocument<RawXbrlInstance>>;
 type InstanceReader = FilesystemRepository<Read, RawDocument<RawXbrlInstance>>;
 type LabelsRepository = FilesystemRepository<Write, RawDocument<RawXbrlLabels>>;
@@ -102,6 +105,8 @@ type SubmissionsRepository = FilesystemRepository<Write, RawDocument<RawSubmissi
 pub struct DailyFilingsRepositories {
     /// The store of the daily indexes.
     pub daily_index: DailyIndexRepository,
+    /// The store of the folder indexes of the filings.
+    pub filing_index: FilingIndexRepository,
     /// The store of the XBRL instances.
     pub instance: InstanceRepository,
     /// The store of the label files.
@@ -255,7 +260,8 @@ impl<Y, R> DailyFilingsBuilder<Y, NoSecClient, R> {
 }
 
 impl<Y, C> DailyFilingsBuilder<Y, C, NoRepositories> {
-    /// Sets the stores of the daily indexes, the filing documents, and the `submissions` files.
+    /// Sets the stores of the daily indexes, the folder indexes and the documents of the filings,
+    /// and the `submissions` files.
     #[must_use]
     pub fn repositories(
         self,
@@ -301,6 +307,7 @@ where
     DetectFilingsSuperState<ValidateIndexDate, DailyIndexRepository, C>: IntoStateMachineStream,
     ExtractFilingSuperState<
         PrepareSecRequest<FilingIndex>,
+        FilingIndexRepository,
         InstanceRepository,
         LabelsRepository,
         C,
@@ -398,6 +405,7 @@ where
                         .filing()
                         .filing_ref(filing.clone())
                         .sec_client(self.sec_client.clone())
+                        .filing_index_repository(self.repositories.filing_index.clone())
                         .instance_repository(self.repositories.instance.clone())
                         .labels_repository(self.repositories.labels.clone())
                         .inputs(inputs.clone())

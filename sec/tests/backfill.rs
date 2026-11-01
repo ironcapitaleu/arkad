@@ -103,6 +103,11 @@ mod two_calls {
                     .document_type::<RawDocument<_>>()
                     .root(root.path())
                     .build(),
+                filing_index: FilesystemRepository::builder()
+                    .writer()
+                    .document_type::<RawDocument<_>>()
+                    .root(root.path())
+                    .build(),
                 instance: FilesystemRepository::builder()
                     .writer()
                     .document_type::<RawDocument<_>>()

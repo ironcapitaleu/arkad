@@ -111,6 +111,11 @@ mod run_loop {
                 .document_type::<RawDocument<_>>()
                 .root(root.path())
                 .build(),
+            filing_index: FilesystemRepository::builder()
+                .writer()
+                .document_type::<RawDocument<_>>()
+                .root(root.path())
+                .build(),
             instance: FilesystemRepository::builder()
                 .writer()
                 .document_type::<RawDocument<_>>()
@@ -797,6 +802,7 @@ mod live {
     fn repositories(root: &TempDir) -> DailyFilingsRepositories {
         DailyFilingsRepositories {
             daily_index: writer(root),
+            filing_index: writer(root),
             instance: writer(root),
             labels: writer(root),
             submissions: writer(root),

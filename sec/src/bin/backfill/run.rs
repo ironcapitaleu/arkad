@@ -25,7 +25,7 @@ use sec::implementations::states::extract::validate_notes_period::ValidateNotesP
 use sec::prelude::IntoStateMachineStream;
 use sec::shared::raw_document::RawDocument;
 use sec::shared::raw_source::{
-    RawDailyIndex, RawNotesArchive, RawSubmissions, RawXbrlInstance, RawXbrlLabels,
+    RawDailyIndex, RawFilingIndex, RawNotesArchive, RawSubmissions, RawXbrlInstance, RawXbrlLabels,
 };
 use sec::shared::request::implementations::sec_request::FilingIndex;
 use storage::implementations::repository::filesystem::{FilesystemRepository, Write};
@@ -84,6 +84,7 @@ where
     >: IntoStateMachineStream,
     ExtractFilingSuperState<
         PrepareSecRequest<FilingIndex>,
+        FilesystemRepository<Write, RawDocument<RawFilingIndex>>,
         FilesystemRepository<Write, RawDocument<RawXbrlInstance>>,
         FilesystemRepository<Write, RawDocument<RawXbrlLabels>>,
         C,

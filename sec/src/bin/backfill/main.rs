@@ -50,6 +50,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     startup_create_root(&notes_repository)?;
     let daily_repositories = DailyFilingsRepositories {
         daily_index: raw_writer(),
+        filing_index: raw_writer(),
         instance: raw_writer(),
         labels: raw_writer(),
         submissions: raw_writer(),

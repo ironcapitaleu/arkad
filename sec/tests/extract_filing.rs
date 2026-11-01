@@ -28,14 +28,16 @@ use sec::shared::financial::form::{Form, ParsedForm};
 use sec::shared::http_client::implementations::reqwest_client::ReqwestClient;
 use sec::shared::http_client::implementations::sec_client::SecClient;
 use sec::shared::raw_document::RawDocument;
-use sec::shared::raw_source::{RawXbrlInstance, RawXbrlLabels};
+use sec::shared::raw_source::{RawFilingIndex, RawXbrlInstance, RawXbrlLabels};
 use sec::shared::request::implementations::sec_request::FilingIndex;
 use sec::shared::user_agent::UserAgent;
 
+type FilingIndexRepository = FilesystemRepository<Write, RawDocument<RawFilingIndex>>;
 type InstanceRepository = FilesystemRepository<Write, RawDocument<RawXbrlInstance>>;
 type LabelsRepository = FilesystemRepository<Write, RawDocument<RawXbrlLabels>>;
 type FilingSuperState = ExtractFilingSuperState<
     PrepareSecRequest<FilingIndex>,
+    FilingIndexRepository,
     InstanceRepository,
     LabelsRepository,
     SecClient,
@@ -89,6 +91,13 @@ fn super_state(filing: FilingRef, root: &Path) -> FilingSuperState {
         .sec_client(sec_client())
         .execution_id(Uuid::new_v4())
         .ingestion_mode(IngestionMode::Incremental)
+        .filing_index_repository(
+            FilesystemRepository::builder()
+                .writer()
+                .document_type::<RawDocument<RawFilingIndex>>()
+                .root(root)
+                .build(),
+        )
         .instance_repository(
             FilesystemRepository::builder()
                 .writer()

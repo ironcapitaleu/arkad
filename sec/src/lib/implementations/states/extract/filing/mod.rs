@@ -1,10 +1,10 @@
 //! # Extract Filing Super-State
 //!
-//! Provides the [`ExtractFilingSuperState`], which downloads the XBRL instance and the label file
-//! of one filing and writes them to the store.
+//! Provides the [`ExtractFilingSuperState`], which downloads the folder index, the XBRL instance,
+//! and the label file of one filing and writes them to the store.
 //!
 //! The super-state owns the [`FilingRef`], the shared SEC client, the `execution_id`, the ingestion
-//! mode of the run, and the two storage repositories.
+//! mode of the run, and the three storage repositories.
 //!
 //! ## Modules
 //!
@@ -14,14 +14,16 @@
 //! ## State Flow
 //!
 //! [`PrepareSecRequest`] of the [`FilingIndex`] kind → [`ExecuteSecRequest`] of the
-//! [`FilingIndex`] kind → [`SelectFilingDocuments`] → [`PrepareSecRequest`] of the
+//! [`FilingIndex`] kind → [`StoreFilingIndex`] → [`SelectFilingDocuments`] → [`PrepareSecRequest`] of the
 //! [`FilingDocumentSet`] kind → [`ExecuteSecRequest`] of the [`FilingDocumentSet`] kind →
 //! [`StoreFilingDocuments`]. The stream ends after [`StoreFilingDocuments`].
 //! [`ExtractFilingSuperState::run_to_documents`] runs the stream and returns the
 //! [`FilingDocumentsRef`] of the stored files.
 //!
-//! A failed request for the instance or the label file fails the filing. The super-state stores
-//! no file of a filing whose documents request failed.
+//! [`StoreFilingIndex`] stores the folder index before the selection, so the store also holds the
+//! folder index of a filing whose folder has no XBRL instance. A failed request for the instance or
+//! the label file fails the filing. The super-state stores no instance or label file of a filing
+//! whose documents request failed.
 //!
 //! ## Usage
 //!
@@ -34,7 +36,7 @@
 //! use sec::shared::financial::form::{Form, ParsedForm};
 //! use sec::shared::http_client::implementations::sec_client::SecClient;
 //! use sec::shared::raw_document::RawDocument;
-//! use sec::shared::raw_source::{RawXbrlInstance, RawXbrlLabels};
+//! use sec::shared::raw_source::{RawFilingIndex, RawXbrlInstance, RawXbrlLabels};
 //! use storage::implementations::repository::filesystem::{FilesystemRepository, IngestionMode};
 //! use uuid::Uuid;
 //!
@@ -46,6 +48,11 @@
 //!     ParsedForm::new(Form::TenQ, false),
 //!     NaiveDate::from_ymd_opt(2026, 9, 9).expect("The date exists"),
 //! );
+//! let filing_index_repository = FilesystemRepository::builder()
+//!     .writer()
+//!     .document_type::<RawDocument<RawFilingIndex>>()
+//!     .root("data")
+//!     .build();
 //! let instance_repository = FilesystemRepository::builder()
 //!     .writer()
 //!     .document_type::<RawDocument<RawXbrlInstance>>()
@@ -61,6 +68,7 @@
 //!     .sec_client(SecClient::default())
 //!     .execution_id(Uuid::new_v4())
 //!     .ingestion_mode(IngestionMode::Incremental)
+//!     .filing_index_repository(filing_index_repository)
 //!     .instance_repository(instance_repository)
 //!     .labels_repository(labels_repository)
 //!     .build();
@@ -86,19 +94,20 @@ use crate::error::State as StateError;
 use crate::error::state_machine::transition::Transition as TransitionError;
 use crate::implementations::states::extract::execute_sec_request::ExecuteSecRequest;
 use crate::implementations::states::extract::filing::builder::{
-    ExtractFilingSuperStateBuilder, NoExecutionId, NoFilingRef, NoIngestionMode,
-    NoInstanceRepository, NoLabelsRepository, NoSecClient,
+    ExtractFilingSuperStateBuilder, NoExecutionId, NoFilingIndexRepository, NoFilingRef,
+    NoIngestionMode, NoInstanceRepository, NoLabelsRepository, NoSecClient,
 };
 use crate::implementations::states::extract::prepare_sec_request::PrepareSecRequest;
 use crate::implementations::states::extract::select_filing_documents::SelectFilingDocuments;
 use crate::implementations::states::extract::store_filing_documents::StoreFilingDocuments;
+use crate::implementations::states::extract::store_filing_index::StoreFilingIndex;
 use crate::prelude::*;
 use crate::shared::filing_documents_ref::FilingDocumentsRef;
 use crate::shared::filing_ref::FilingRef;
 use crate::shared::http_client::implementations::sec_client::SecClient;
 use crate::shared::http_client::{Executes, SecClient as SecClientTrait};
 use crate::shared::raw_repository::RawRepository;
-use crate::shared::raw_source::{RawXbrlInstance, RawXbrlLabels};
+use crate::shared::raw_source::{RawFilingIndex, RawXbrlInstance, RawXbrlLabels};
 use crate::shared::request::implementations::sec_request::{FilingDocumentSet, FilingIndex};
 use crate::traits::state_machine::stream::{OutputSlot, terminal_stream_with};
 
@@ -125,26 +134,28 @@ impl StateData for ExtractFilingSuperStateData {
 
 /// Context for the [`ExtractFilingSuperState`].
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct ExtractFilingSuperStateContext<I, L, C> {
+pub struct ExtractFilingSuperStateContext<X, I, L, C> {
     pub(crate) filing_ref: FilingRef,
     pub(crate) sec_client: C,
     pub(crate) execution_id: Uuid,
     pub(crate) ingestion_mode: IngestionMode,
+    pub(crate) filing_index_repository: X,
     pub(crate) instance_repository: I,
     pub(crate) labels_repository: L,
     pub(crate) documents_slot: OutputSlot<FilingDocumentsRef>,
     pub(crate) inputs: Vec<InputDocument>,
 }
 
-impl<I, L, C> ExtractFilingSuperStateContext<I, L, C> {
+impl<X, I, L, C> ExtractFilingSuperStateContext<X, I, L, C> {
     /// Creates a new [`ExtractFilingSuperStateContext`] from the [`FilingRef`], the SEC client,
-    /// the `execution_id`, the ingestion mode, and the two storage repositories.
+    /// the `execution_id`, the ingestion mode, and the three storage repositories.
     #[must_use]
     pub fn new(
         filing_ref: FilingRef,
         sec_client: C,
         execution_id: Uuid,
         ingestion_mode: IngestionMode,
+        filing_index_repository: X,
         instance_repository: I,
         labels_repository: L,
     ) -> Self {
@@ -153,6 +164,7 @@ impl<I, L, C> ExtractFilingSuperStateContext<I, L, C> {
             sec_client,
             execution_id,
             ingestion_mode,
+            filing_index_repository,
             instance_repository,
             labels_repository,
             documents_slot: OutputSlot::default(),
@@ -167,8 +179,9 @@ impl<I, L, C> ExtractFilingSuperStateContext<I, L, C> {
     }
 }
 
-impl<I, L, C> SMContext for ExtractFilingSuperStateContext<I, L, C>
+impl<X, I, L, C> SMContext for ExtractFilingSuperStateContext<X, I, L, C>
 where
+    X: RawRepository<RawFilingIndex>,
     I: RawRepository<RawXbrlInstance>,
     L: RawRepository<RawXbrlLabels>,
     C: SecClientTrait,
@@ -180,8 +193,9 @@ where
     fn update_context(&mut self, (): Self::UpdateType) {}
 }
 
-impl<I, L, C> Context for ExtractFilingSuperStateContext<I, L, C>
+impl<X, I, L, C> Context for ExtractFilingSuperStateContext<X, I, L, C>
 where
+    X: RawRepository<RawFilingIndex>,
     I: RawRepository<RawXbrlInstance>,
     L: RawRepository<RawXbrlLabels>,
     C: SecClientTrait,
@@ -197,6 +211,7 @@ where
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ExtractFilingSuperState<
     S: State,
+    X: RawRepository<RawFilingIndex>,
     I: RawRepository<RawXbrlInstance>,
     L: RawRepository<RawXbrlLabels>,
     C: SecClientTrait = SecClient,
@@ -204,12 +219,13 @@ pub struct ExtractFilingSuperState<
     current_state: S,
     input: ExtractFilingSuperStateData,
     output: Option<ExtractFilingSuperStateData>,
-    context: ExtractFilingSuperStateContext<I, L, C>,
+    context: ExtractFilingSuperStateContext<X, I, L, C>,
 }
 
-impl<S, I, L, C> Display for ExtractFilingSuperState<S, I, L, C>
+impl<S, X, I, L, C> Display for ExtractFilingSuperState<S, X, I, L, C>
 where
     S: State,
+    X: RawRepository<RawFilingIndex>,
     I: RawRepository<RawXbrlInstance>,
     L: RawRepository<RawXbrlLabels>,
     C: SecClientTrait,
@@ -223,16 +239,17 @@ where
     }
 }
 
-impl<S, I, L, C> SMState for ExtractFilingSuperState<S, I, L, C>
+impl<S, X, I, L, C> SMState for ExtractFilingSuperState<S, X, I, L, C>
 where
     S: State,
+    X: RawRepository<RawFilingIndex>,
     I: RawRepository<RawXbrlInstance>,
     L: RawRepository<RawXbrlLabels>,
     C: SecClientTrait,
 {
     type InputData = ExtractFilingSuperStateData;
     type OutputData = ExtractFilingSuperStateData;
-    type Context = ExtractFilingSuperStateContext<I, L, C>;
+    type Context = ExtractFilingSuperStateContext<X, I, L, C>;
 
     fn state_name(&self) -> impl ToString {
         self.to_string()
@@ -272,9 +289,10 @@ where
 }
 
 #[async_trait]
-impl<S, I, L, C> State for ExtractFilingSuperState<S, I, L, C>
+impl<S, X, I, L, C> State for ExtractFilingSuperState<S, X, I, L, C>
 where
     S: State,
+    X: RawRepository<RawFilingIndex>,
     I: RawRepository<RawXbrlInstance>,
     L: RawRepository<RawXbrlLabels>,
     C: SecClientTrait,
@@ -287,9 +305,10 @@ where
     }
 }
 
-impl<S, I, L, C> SMStateMachine<S> for ExtractFilingSuperState<S, I, L, C>
+impl<S, X, I, L, C> SMStateMachine<S> for ExtractFilingSuperState<S, X, I, L, C>
 where
     S: State,
+    X: RawRepository<RawFilingIndex>,
     I: RawRepository<RawXbrlInstance>,
     L: RawRepository<RawXbrlLabels>,
     C: SecClientTrait,
@@ -314,35 +333,39 @@ where
     }
 }
 
-impl<S, I, L, C> StateMachine<S> for ExtractFilingSuperState<S, I, L, C>
+impl<S, X, I, L, C> StateMachine<S> for ExtractFilingSuperState<S, X, I, L, C>
 where
     S: State,
+    X: RawRepository<RawFilingIndex>,
     I: RawRepository<RawXbrlInstance>,
     L: RawRepository<RawXbrlLabels>,
     C: SecClientTrait,
 {
 }
 
-impl<S, I, L, C> SMSuperState<S> for ExtractFilingSuperState<S, I, L, C>
+impl<S, X, I, L, C> SMSuperState<S> for ExtractFilingSuperState<S, X, I, L, C>
 where
     S: State,
+    X: RawRepository<RawFilingIndex>,
     I: RawRepository<RawXbrlInstance>,
     L: RawRepository<RawXbrlLabels>,
     C: SecClientTrait,
 {
 }
 
-impl<S, I, L, C> SuperState<S> for ExtractFilingSuperState<S, I, L, C>
+impl<S, X, I, L, C> SuperState<S> for ExtractFilingSuperState<S, X, I, L, C>
 where
     S: State,
+    X: RawRepository<RawFilingIndex>,
     I: RawRepository<RawXbrlInstance>,
     L: RawRepository<RawXbrlLabels>,
     C: SecClientTrait,
 {
 }
 
-impl<I, L> ExtractFilingSuperState<PrepareSecRequest<FilingIndex>, I, L>
+impl<X, I, L> ExtractFilingSuperState<PrepareSecRequest<FilingIndex>, X, I, L>
 where
+    X: RawRepository<RawFilingIndex>,
     I: RawRepository<RawXbrlInstance>,
     L: RawRepository<RawXbrlLabels>,
 {
@@ -353,6 +376,7 @@ where
         NoSecClient,
         NoExecutionId,
         NoIngestionMode,
+        NoFilingIndexRepository<X>,
         NoInstanceRepository<I>,
         NoLabelsRepository<L>,
     > {
@@ -362,9 +386,10 @@ where
 
 // --- Streaming ---
 
-impl<S, I, L, C> ExtractFilingSuperState<S, I, L, C>
+impl<S, X, I, L, C> ExtractFilingSuperState<S, X, I, L, C>
 where
     S: State,
+    X: RawRepository<RawFilingIndex>,
     I: RawRepository<RawXbrlInstance>,
     L: RawRepository<RawXbrlLabels>,
     C: SecClientTrait,
@@ -411,8 +436,9 @@ where
     }
 }
 
-impl<I, L, C> NonTerminal for ExtractFilingSuperState<PrepareSecRequest<FilingIndex>, I, L, C>
+impl<X, I, L, C> NonTerminal for ExtractFilingSuperState<PrepareSecRequest<FilingIndex>, X, I, L, C>
 where
+    X: RawRepository<RawFilingIndex>,
     I: RawRepository<RawXbrlInstance>,
     L: RawRepository<RawXbrlLabels>,
     C: SecClientTrait + Executes<FilingIndex>,
@@ -421,18 +447,32 @@ where
     type Next = ExecuteSecRequest<FilingIndex, C>;
 }
 
-impl<I, L, C> NonTerminal for ExtractFilingSuperState<ExecuteSecRequest<FilingIndex, C>, I, L, C>
+impl<X, I, L, C> NonTerminal
+    for ExtractFilingSuperState<ExecuteSecRequest<FilingIndex, C>, X, I, L, C>
 where
+    X: RawRepository<RawFilingIndex>,
     I: RawRepository<RawXbrlInstance>,
     L: RawRepository<RawXbrlLabels>,
     C: SecClientTrait + Executes<FilingIndex>,
 {
     type Current = ExecuteSecRequest<FilingIndex, C>;
+    type Next = StoreFilingIndex<X>;
+}
+
+impl<X, I, L, C> NonTerminal for ExtractFilingSuperState<StoreFilingIndex<X>, X, I, L, C>
+where
+    X: RawRepository<RawFilingIndex>,
+    I: RawRepository<RawXbrlInstance>,
+    L: RawRepository<RawXbrlLabels>,
+    C: SecClientTrait,
+{
+    type Current = StoreFilingIndex<X>;
     type Next = SelectFilingDocuments;
 }
 
-impl<I, L, C> NonTerminal for ExtractFilingSuperState<SelectFilingDocuments, I, L, C>
+impl<X, I, L, C> NonTerminal for ExtractFilingSuperState<SelectFilingDocuments, X, I, L, C>
 where
+    X: RawRepository<RawFilingIndex>,
     I: RawRepository<RawXbrlInstance>,
     L: RawRepository<RawXbrlLabels>,
     C: SecClientTrait,
@@ -441,8 +481,10 @@ where
     type Next = PrepareSecRequest<FilingDocumentSet>;
 }
 
-impl<I, L, C> NonTerminal for ExtractFilingSuperState<PrepareSecRequest<FilingDocumentSet>, I, L, C>
+impl<X, I, L, C> NonTerminal
+    for ExtractFilingSuperState<PrepareSecRequest<FilingDocumentSet>, X, I, L, C>
 where
+    X: RawRepository<RawFilingIndex>,
     I: RawRepository<RawXbrlInstance>,
     L: RawRepository<RawXbrlLabels>,
     C: SecClientTrait + Executes<FilingDocumentSet>,
@@ -451,9 +493,10 @@ where
     type Next = ExecuteSecRequest<FilingDocumentSet, C>;
 }
 
-impl<I, L, C> NonTerminal
-    for ExtractFilingSuperState<ExecuteSecRequest<FilingDocumentSet, C>, I, L, C>
+impl<X, I, L, C> NonTerminal
+    for ExtractFilingSuperState<ExecuteSecRequest<FilingDocumentSet, C>, X, I, L, C>
 where
+    X: RawRepository<RawFilingIndex>,
     I: RawRepository<RawXbrlInstance>,
     L: RawRepository<RawXbrlLabels>,
     C: SecClientTrait + Executes<FilingDocumentSet>,
@@ -463,9 +506,10 @@ where
 }
 
 /// Ends the stream after [`StoreFilingDocuments`] writes the files of the filing to the store.
-impl<I, L, C> IntoStateMachineStream
-    for ExtractFilingSuperState<StoreFilingDocuments<I, L>, I, L, C>
+impl<X, I, L, C> IntoStateMachineStream
+    for ExtractFilingSuperState<StoreFilingDocuments<I, L>, X, I, L, C>
 where
+    X: RawRepository<RawFilingIndex> + 'static,
     I: RawRepository<RawXbrlInstance> + 'static,
     L: RawRepository<RawXbrlLabels> + 'static,
     C: SecClientTrait + 'static,
@@ -486,9 +530,10 @@ where
 
 // --- Transitions ---
 
-impl<I, L, C> Transition<PrepareSecRequest<FilingIndex>, ExecuteSecRequest<FilingIndex, C>>
-    for ExtractFilingSuperState<PrepareSecRequest<FilingIndex>, I, L, C>
+impl<X, I, L, C> Transition<PrepareSecRequest<FilingIndex>, ExecuteSecRequest<FilingIndex, C>>
+    for ExtractFilingSuperState<PrepareSecRequest<FilingIndex>, X, I, L, C>
 where
+    X: RawRepository<RawFilingIndex>,
     I: RawRepository<RawXbrlInstance>,
     L: RawRepository<RawXbrlLabels>,
     C: SecClientTrait + Executes<FilingIndex>,
@@ -504,14 +549,15 @@ where
     }
 }
 
-impl<I, L, C> SMTransition<PrepareSecRequest<FilingIndex>, ExecuteSecRequest<FilingIndex, C>>
-    for ExtractFilingSuperState<PrepareSecRequest<FilingIndex>, I, L, C>
+impl<X, I, L, C> SMTransition<PrepareSecRequest<FilingIndex>, ExecuteSecRequest<FilingIndex, C>>
+    for ExtractFilingSuperState<PrepareSecRequest<FilingIndex>, X, I, L, C>
 where
+    X: RawRepository<RawFilingIndex>,
     I: RawRepository<RawXbrlInstance>,
     L: RawRepository<RawXbrlLabels>,
     C: SecClientTrait + Executes<FilingIndex>,
 {
-    type NewStateMachine = ExtractFilingSuperState<ExecuteSecRequest<FilingIndex, C>, I, L, C>;
+    type NewStateMachine = ExtractFilingSuperState<ExecuteSecRequest<FilingIndex, C>, X, I, L, C>;
 
     fn transition_to_next_state(self) -> Result<Self::NewStateMachine, &'static str> {
         Err(
@@ -520,12 +566,54 @@ where
     }
 }
 
-impl<I, L, C> Transition<ExecuteSecRequest<FilingIndex, C>, SelectFilingDocuments>
-    for ExtractFilingSuperState<ExecuteSecRequest<FilingIndex, C>, I, L, C>
+impl<X, I, L, C> Transition<ExecuteSecRequest<FilingIndex, C>, StoreFilingIndex<X>>
+    for ExtractFilingSuperState<ExecuteSecRequest<FilingIndex, C>, X, I, L, C>
 where
+    X: RawRepository<RawFilingIndex>,
     I: RawRepository<RawXbrlInstance>,
     L: RawRepository<RawXbrlLabels>,
     C: SecClientTrait + Executes<FilingIndex>,
+{
+    fn transition_to_next_state_sec(self) -> Result<Self::NewStateMachine, TransitionError> {
+        let repository = self.context.filing_index_repository.clone();
+        Ok(ExtractFilingSuperState {
+            current_state: StoreFilingIndex::try_from((
+                self.current_state,
+                self.context.execution_id,
+                self.context.ingestion_mode,
+                repository,
+            ))?,
+            input: ExtractFilingSuperStateData,
+            output: None,
+            context: self.context,
+        })
+    }
+}
+
+impl<X, I, L, C> SMTransition<ExecuteSecRequest<FilingIndex, C>, StoreFilingIndex<X>>
+    for ExtractFilingSuperState<ExecuteSecRequest<FilingIndex, C>, X, I, L, C>
+where
+    X: RawRepository<RawFilingIndex>,
+    I: RawRepository<RawXbrlInstance>,
+    L: RawRepository<RawXbrlLabels>,
+    C: SecClientTrait + Executes<FilingIndex>,
+{
+    type NewStateMachine = ExtractFilingSuperState<StoreFilingIndex<X>, X, I, L, C>;
+
+    fn transition_to_next_state(self) -> Result<Self::NewStateMachine, &'static str> {
+        Err(
+            "Use transition_to_next_state_sec() for SEC-specific transitions with rich error handling",
+        )
+    }
+}
+
+impl<X, I, L, C> Transition<StoreFilingIndex<X>, SelectFilingDocuments>
+    for ExtractFilingSuperState<StoreFilingIndex<X>, X, I, L, C>
+where
+    X: RawRepository<RawFilingIndex>,
+    I: RawRepository<RawXbrlInstance>,
+    L: RawRepository<RawXbrlLabels>,
+    C: SecClientTrait,
 {
     fn transition_to_next_state_sec(self) -> Result<Self::NewStateMachine, TransitionError> {
         Ok(ExtractFilingSuperState {
@@ -540,14 +628,15 @@ where
     }
 }
 
-impl<I, L, C> SMTransition<ExecuteSecRequest<FilingIndex, C>, SelectFilingDocuments>
-    for ExtractFilingSuperState<ExecuteSecRequest<FilingIndex, C>, I, L, C>
+impl<X, I, L, C> SMTransition<StoreFilingIndex<X>, SelectFilingDocuments>
+    for ExtractFilingSuperState<StoreFilingIndex<X>, X, I, L, C>
 where
+    X: RawRepository<RawFilingIndex>,
     I: RawRepository<RawXbrlInstance>,
     L: RawRepository<RawXbrlLabels>,
-    C: SecClientTrait + Executes<FilingIndex>,
+    C: SecClientTrait,
 {
-    type NewStateMachine = ExtractFilingSuperState<SelectFilingDocuments, I, L, C>;
+    type NewStateMachine = ExtractFilingSuperState<SelectFilingDocuments, X, I, L, C>;
 
     fn transition_to_next_state(self) -> Result<Self::NewStateMachine, &'static str> {
         Err(
@@ -556,9 +645,10 @@ where
     }
 }
 
-impl<I, L, C> Transition<SelectFilingDocuments, PrepareSecRequest<FilingDocumentSet>>
-    for ExtractFilingSuperState<SelectFilingDocuments, I, L, C>
+impl<X, I, L, C> Transition<SelectFilingDocuments, PrepareSecRequest<FilingDocumentSet>>
+    for ExtractFilingSuperState<SelectFilingDocuments, X, I, L, C>
 where
+    X: RawRepository<RawFilingIndex>,
     I: RawRepository<RawXbrlInstance>,
     L: RawRepository<RawXbrlLabels>,
     C: SecClientTrait,
@@ -574,14 +664,16 @@ where
     }
 }
 
-impl<I, L, C> SMTransition<SelectFilingDocuments, PrepareSecRequest<FilingDocumentSet>>
-    for ExtractFilingSuperState<SelectFilingDocuments, I, L, C>
+impl<X, I, L, C> SMTransition<SelectFilingDocuments, PrepareSecRequest<FilingDocumentSet>>
+    for ExtractFilingSuperState<SelectFilingDocuments, X, I, L, C>
 where
+    X: RawRepository<RawFilingIndex>,
     I: RawRepository<RawXbrlInstance>,
     L: RawRepository<RawXbrlLabels>,
     C: SecClientTrait,
 {
-    type NewStateMachine = ExtractFilingSuperState<PrepareSecRequest<FilingDocumentSet>, I, L, C>;
+    type NewStateMachine =
+        ExtractFilingSuperState<PrepareSecRequest<FilingDocumentSet>, X, I, L, C>;
 
     fn transition_to_next_state(self) -> Result<Self::NewStateMachine, &'static str> {
         Err(
@@ -590,10 +682,11 @@ where
     }
 }
 
-impl<I, L, C>
+impl<X, I, L, C>
     Transition<PrepareSecRequest<FilingDocumentSet>, ExecuteSecRequest<FilingDocumentSet, C>>
-    for ExtractFilingSuperState<PrepareSecRequest<FilingDocumentSet>, I, L, C>
+    for ExtractFilingSuperState<PrepareSecRequest<FilingDocumentSet>, X, I, L, C>
 where
+    X: RawRepository<RawFilingIndex>,
     I: RawRepository<RawXbrlInstance>,
     L: RawRepository<RawXbrlLabels>,
     C: SecClientTrait + Executes<FilingDocumentSet>,
@@ -609,16 +702,17 @@ where
     }
 }
 
-impl<I, L, C>
+impl<X, I, L, C>
     SMTransition<PrepareSecRequest<FilingDocumentSet>, ExecuteSecRequest<FilingDocumentSet, C>>
-    for ExtractFilingSuperState<PrepareSecRequest<FilingDocumentSet>, I, L, C>
+    for ExtractFilingSuperState<PrepareSecRequest<FilingDocumentSet>, X, I, L, C>
 where
+    X: RawRepository<RawFilingIndex>,
     I: RawRepository<RawXbrlInstance>,
     L: RawRepository<RawXbrlLabels>,
     C: SecClientTrait + Executes<FilingDocumentSet>,
 {
     type NewStateMachine =
-        ExtractFilingSuperState<ExecuteSecRequest<FilingDocumentSet, C>, I, L, C>;
+        ExtractFilingSuperState<ExecuteSecRequest<FilingDocumentSet, C>, X, I, L, C>;
 
     fn transition_to_next_state(self) -> Result<Self::NewStateMachine, &'static str> {
         Err(
@@ -627,9 +721,10 @@ where
     }
 }
 
-impl<I, L, C> Transition<ExecuteSecRequest<FilingDocumentSet, C>, StoreFilingDocuments<I, L>>
-    for ExtractFilingSuperState<ExecuteSecRequest<FilingDocumentSet, C>, I, L, C>
+impl<X, I, L, C> Transition<ExecuteSecRequest<FilingDocumentSet, C>, StoreFilingDocuments<I, L>>
+    for ExtractFilingSuperState<ExecuteSecRequest<FilingDocumentSet, C>, X, I, L, C>
 where
+    X: RawRepository<RawFilingIndex>,
     I: RawRepository<RawXbrlInstance>,
     L: RawRepository<RawXbrlLabels>,
     C: SecClientTrait + Executes<FilingDocumentSet>,
@@ -651,14 +746,15 @@ where
     }
 }
 
-impl<I, L, C> SMTransition<ExecuteSecRequest<FilingDocumentSet, C>, StoreFilingDocuments<I, L>>
-    for ExtractFilingSuperState<ExecuteSecRequest<FilingDocumentSet, C>, I, L, C>
+impl<X, I, L, C> SMTransition<ExecuteSecRequest<FilingDocumentSet, C>, StoreFilingDocuments<I, L>>
+    for ExtractFilingSuperState<ExecuteSecRequest<FilingDocumentSet, C>, X, I, L, C>
 where
+    X: RawRepository<RawFilingIndex>,
     I: RawRepository<RawXbrlInstance>,
     L: RawRepository<RawXbrlLabels>,
     C: SecClientTrait + Executes<FilingDocumentSet>,
 {
-    type NewStateMachine = ExtractFilingSuperState<StoreFilingDocuments<I, L>, I, L, C>;
+    type NewStateMachine = ExtractFilingSuperState<StoreFilingDocuments<I, L>, X, I, L, C>;
 
     fn transition_to_next_state(self) -> Result<Self::NewStateMachine, &'static str> {
         Err(
@@ -685,6 +781,7 @@ mod tests {
     };
     use crate::implementations::states::extract::select_filing_documents::constants::STATE_NAME as SELECT_FILING_DOCUMENTS;
     use crate::implementations::states::extract::store_filing_documents::constants::STATE_NAME as STORE_FILING_DOCUMENTS;
+    use crate::implementations::states::extract::store_filing_index::STATE_NAME as STORE_FILING_INDEX;
     use crate::shared::cik::Cik;
     use crate::shared::filing_documents::{FilingDocumentSetRef, FilingDocuments, FolderIndex};
     use crate::shared::financial::accession_number::AccessionNumber;
@@ -692,11 +789,12 @@ mod tests {
     use crate::shared::raw_document::RawDocument;
     use crate::tests::fixtures::sample_http_client::sample_sec_client::routing::RoutingSecClient;
     use crate::tests::fixtures::sample_write_repository::{
-        FakeXbrlInstanceRepository, FakeXbrlLabelsRepository,
+        FakeFilingIndexRepository, FakeXbrlInstanceRepository, FakeXbrlLabelsRepository,
     };
 
     type TestSuperState<S> = ExtractFilingSuperState<
         S,
+        FakeFilingIndexRepository,
         FakeXbrlInstanceRepository,
         FakeXbrlLabelsRepository,
         RoutingSecClient,
@@ -714,6 +812,7 @@ mod tests {
     const FOLDER_INDEX: &[u8] = br#"{"directory":{"item":[{"name":"alco-20260908_htm.xml"},{"name":"alco-20260908_lab.xml"}]}}"#;
     const FILING_FOLDER: &str = "sec/filings/CIK0000003545/0000003545-26-000047";
 
+    type FilingIndexFilesystemRepository = FilesystemRepository<Write, RawDocument<RawFilingIndex>>;
     type InstanceFilesystemRepository = FilesystemRepository<Write, RawDocument<RawXbrlInstance>>;
     type LabelsFilesystemRepository = FilesystemRepository<Write, RawDocument<RawXbrlLabels>>;
 
@@ -749,6 +848,7 @@ mod tests {
                 sec_client(),
                 EXECUTION_ID,
                 IngestionMode::Incremental,
+                FakeFilingIndexRepository::new(),
                 FakeXbrlInstanceRepository::new(),
                 FakeXbrlLabelsRepository::new(),
             ),
@@ -772,11 +872,19 @@ mod tests {
             .expect("Given a prepared folder index request, the transition should always succeed")
     }
 
-    async fn at_select() -> TestSuperState<SelectFilingDocuments> {
+    async fn at_folder_index_store() -> TestSuperState<StoreFilingIndex<FakeFilingIndexRepository>>
+    {
         computed(at_folder_index_execute().await)
             .await
             .transition_to_next_state_sec()
             .expect("Given a served folder index, the transition should always succeed")
+    }
+
+    async fn at_select() -> TestSuperState<SelectFilingDocuments> {
+        computed(at_folder_index_store().await)
+            .await
+            .transition_to_next_state_sec()
+            .expect("Given a stored folder index, the transition should always succeed")
     }
 
     async fn at_documents_prepare() -> TestSuperState<PrepareSecRequest<FilingDocumentSet>> {
@@ -814,6 +922,7 @@ mod tests {
         sec_client: RoutingSecClient,
     ) -> ExtractFilingSuperState<
         PrepareSecRequest<FilingIndex>,
+        FilingIndexFilesystemRepository,
         InstanceFilesystemRepository,
         LabelsFilesystemRepository,
         RoutingSecClient,
@@ -823,6 +932,13 @@ mod tests {
             .sec_client(sec_client)
             .execution_id(EXECUTION_ID)
             .ingestion_mode(IngestionMode::Incremental)
+            .filing_index_repository(
+                FilesystemRepository::builder()
+                    .writer()
+                    .document_type::<RawDocument<RawFilingIndex>>()
+                    .root(root)
+                    .build(),
+            )
             .instance_repository(
                 FilesystemRepository::builder()
                     .writer()
@@ -886,14 +1002,14 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_hand_the_served_folder_index_to_select_filing_documents_when_transitioning() {
-        let super_state = computed(at_folder_index_execute().await).await;
+    async fn should_hand_the_stored_folder_index_to_select_filing_documents_when_transitioning() {
+        let super_state = computed(at_folder_index_store().await).await;
 
         let expected_result = &FolderIndex::new(vec![INSTANCE.to_string(), LABEL_FILE.to_string()]);
 
         let select = super_state
             .transition_to_next_state_sec()
-            .expect("Given a served folder index, the transition should always succeed");
+            .expect("Given a stored folder index, the transition should always succeed");
         let result = &select.current_state().input_data().folder_index;
 
         assert_eq!(result, expected_result);
@@ -945,14 +1061,29 @@ mod tests {
     #[tokio::test]
     async fn should_pass_the_execution_id_of_the_context_to_select_filing_documents_when_transitioning()
      {
-        let super_state = computed(at_folder_index_execute().await).await;
+        let super_state = computed(at_folder_index_store().await).await;
 
         let expected_result = EXECUTION_ID;
 
         let select = super_state
             .transition_to_next_state_sec()
-            .expect("Given a served folder index, the transition should always succeed");
+            .expect("Given a stored folder index, the transition should always succeed");
         let result = select.current_state().context_data().execution_id;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_pass_the_execution_id_of_the_context_to_the_folder_index_store_when_transitioning()
+     {
+        let super_state = computed(at_folder_index_execute().await).await;
+
+        let expected_result = EXECUTION_ID;
+
+        let store = super_state
+            .transition_to_next_state_sec()
+            .expect("Given a served folder index, the transition should always succeed");
+        let result = store.current_state().context_data().execution_id;
 
         assert_eq!(result, expected_result);
     }
@@ -1004,6 +1135,44 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn should_store_the_served_folder_index_in_the_filing_folder_when_running_to_the_documents()
+     {
+        let root = temporary_root();
+        let super_state = stored_super_state(root.path(), sec_client());
+
+        let expected_result = FOLDER_INDEX.to_vec();
+
+        super_state
+            .run_to_documents(|_| {})
+            .await
+            .expect("Given a client that serves the folder index and both files, the run should always succeed");
+        let result = read_stored(root.path(), "index.json");
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_store_the_folder_index_when_the_folder_has_no_instance() {
+        let root = temporary_root();
+        let folder_index_without_instance: &[u8] =
+            br#"{"directory":{"item":[{"name":"alco-20260908_lab.xml"}]}}"#;
+        let sec_client = RoutingSecClient::new().route(
+            FOLDER_INDEX_URL,
+            200,
+            "application/json",
+            folder_index_without_instance,
+        );
+        let super_state = stored_super_state(root.path(), sec_client);
+
+        let expected_result = folder_index_without_instance.to_vec();
+
+        let _ = super_state.run_to_documents(|_| {}).await;
+        let result = read_stored(root.path(), "index.json");
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
     async fn should_return_the_filing_documents_ref_when_running_to_the_documents() {
         let super_state = super_state();
 
@@ -1028,6 +1197,7 @@ mod tests {
             .sec_client(sec_client)
             .execution_id(EXECUTION_ID)
             .ingestion_mode(IngestionMode::Incremental)
+            .filing_index_repository(FakeFilingIndexRepository::new())
             .instance_repository(FakeXbrlInstanceRepository::new())
             .labels_repository(FakeXbrlLabelsRepository::new())
             .build();
@@ -1072,7 +1242,7 @@ mod tests {
             .route(INSTANCE_URL, 200, "text/xml", b"<xbrl/>");
         let super_state = stored_super_state(root.path(), sec_client);
 
-        let expected_result = (5, false);
+        let expected_result = (6, false);
 
         let mut started_states = 0;
         let _ = super_state
@@ -1102,6 +1272,7 @@ mod tests {
             .sec_client(sec_client())
             .execution_id(EXECUTION_ID)
             .ingestion_mode(ingestion_mode)
+            .filing_index_repository(FakeFilingIndexRepository::new())
             .instance_repository(instance_repository.clone())
             .labels_repository(FakeXbrlLabelsRepository::new())
             .build();
@@ -1135,6 +1306,7 @@ mod tests {
             .sec_client(sec_client)
             .execution_id(EXECUTION_ID)
             .ingestion_mode(IngestionMode::Incremental)
+            .filing_index_repository(FakeFilingIndexRepository::new())
             .instance_repository(FakeXbrlInstanceRepository::new())
             .labels_repository(FakeXbrlLabelsRepository::new())
             .build();
@@ -1158,6 +1330,9 @@ mod tests {
             (StreamEvent::StateStarted, EXECUTE_SEC_REQUEST),
             (StreamEvent::StateCompleted, EXECUTE_SEC_REQUEST),
             (StreamEvent::TransitionCompleted, EXECUTE_SEC_REQUEST),
+            (StreamEvent::StateStarted, STORE_FILING_INDEX),
+            (StreamEvent::StateCompleted, STORE_FILING_INDEX),
+            (StreamEvent::TransitionCompleted, STORE_FILING_INDEX),
             (StreamEvent::StateStarted, SELECT_FILING_DOCUMENTS),
             (StreamEvent::StateCompleted, SELECT_FILING_DOCUMENTS),
             (StreamEvent::TransitionCompleted, SELECT_FILING_DOCUMENTS),
@@ -1211,6 +1386,7 @@ mod tests {
     const fn should_implement_auto_traits_for_extract_filing_super_state_context() {
         implements_auto_traits::<
             ExtractFilingSuperStateContext<
+                FakeFilingIndexRepository,
                 FakeXbrlInstanceRepository,
                 FakeXbrlLabelsRepository,
                 RoutingSecClient,
