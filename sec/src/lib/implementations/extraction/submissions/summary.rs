@@ -60,14 +60,32 @@ impl SubmissionsRunSummary {
             .iter()
             .map(|(cik, outcome)| match outcome {
                 Ok(()) => json!({ "cik": cik, "status": "stored" }),
-                Err(error) => json!({
-                    "cik": cik,
-                    "failed_state": error.state_name,
-                    "error": error.to_string(),
-                }),
+                Err(error) => failed_entry(cik, error),
             })
             .collect()
     }
+
+    /// Returns one JSON entry per failed CIK, with the failed state and the error.
+    ///
+    /// A run over many CIKs gives a short list, because the stored CIKs have no entry.
+    #[must_use]
+    pub fn failed_entries(&self) -> Vec<Value> {
+        self.0
+            .iter()
+            .filter_map(|(cik, outcome)| {
+                outcome.as_ref().err().map(|error| failed_entry(cik, error))
+            })
+            .collect()
+    }
+}
+
+/// Returns the JSON entry of the CIK `cik` that failed with `error`.
+fn failed_entry(cik: &str, error: &StreamError) -> Value {
+    json!({
+        "cik": cik,
+        "failed_state": error.state_name,
+        "error": error.to_string(),
+    })
 }
 
 #[cfg(test)]
@@ -130,6 +148,22 @@ mod tests {
         ];
 
         let result = summary.entries();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_list_only_the_failed_ciks_when_listing_failed_entries() {
+        let summary =
+            SubmissionsRunSummary(vec![stored("320193"), failed("ABC"), stored("1067983")]);
+
+        let expected_result = vec![json!({
+            "cik": "ABC",
+            "failed_state": "Validate CIK Format",
+            "error": "[StreamError][00000000-0000-0000-0000-000000000000] 'state_failed' in 'Validate CIK Format', Caused by: Invalid configuration of the state machine",
+        })];
+
+        let result = summary.failed_entries();
 
         assert_eq!(result, expected_result);
     }

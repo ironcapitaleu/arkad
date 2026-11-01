@@ -190,7 +190,9 @@ fn log_submissions_summary(execution_id: Uuid, summary: &AllRunSummary) {
         "failures": failures,
         "unreadable_files": unreadable,
         "files": summary.cik_read_entries(),
-        "ciks": submissions.entries(),
+        // Only the failed CIKs: an entry per CIK makes the line longer than the 256 KB that Cloud
+        // Logging accepts.
+        "failed_ciks": submissions.failed_entries(),
     });
     let message = format!(
         "{successes} submissions files stored, {failures} failed, {unreadable} Notes files unreadable"
