@@ -2,7 +2,7 @@
 //!
 //! Runs the tests of the modules of the `daily_filings` binary, the loop offline against a fake
 //! SEC, and one date live. The binary is its own crate root, so this test compiles its modules as
-//! private modules, as `notes_backfill.rs` does.
+//! private modules.
 //!
 //! ## External Dependencies
 //!

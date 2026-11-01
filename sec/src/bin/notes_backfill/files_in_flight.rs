@@ -5,9 +5,10 @@
 
 use std::ffi::OsString;
 
+use sec::implementations::extraction::DEFAULT_FILES_IN_FLIGHT;
 use thiserror::Error;
 
-use crate::constants::{DEFAULT_FILES_IN_FLIGHT, FILES_IN_FLIGHT_ENV_VAR};
+use crate::constants::FILES_IN_FLIGHT_ENV_VAR;
 
 /// The error of a value of [`FILES_IN_FLIGHT_ENV_VAR`] that is not a positive integer.
 #[derive(Debug, Error, PartialEq, Eq)]

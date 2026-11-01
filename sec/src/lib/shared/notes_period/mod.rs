@@ -132,6 +132,41 @@ impl NotesPeriod {
                 |(_, file_name)| (*file_name).to_string(),
             )
     }
+    /// Returns the last calendar day of the period: the last day of its quarter or of its month.
+    ///
+    /// # Panics
+    ///
+    /// Never panics: every year of a [`NotesPeriod`] fits a [`NaiveDate`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use chrono::NaiveDate;
+    /// use sec::shared::notes_period::NotesPeriod;
+    ///
+    /// let period = NotesPeriod::new("2024q1").expect("A hardcoded published quarter should always parse");
+    ///
+    /// let expected_result = NaiveDate::from_ymd_opt(2024, 3, 31);
+    ///
+    /// let result = Some(period.last_day());
+    ///
+    /// assert_eq!(result, expected_result);
+    /// ```
+    #[must_use]
+    pub fn last_day(&self) -> NaiveDate {
+        let last_month = match self.part {
+            PeriodPart::Quarter(Quarter::Q1) => 3,
+            PeriodPart::Quarter(Quarter::Q2) => 6,
+            PeriodPart::Quarter(Quarter::Q3) => 9,
+            PeriodPart::Quarter(Quarter::Q4) => 12,
+            PeriodPart::Month(month) => month.0.number_from_month(),
+        };
+        NaiveDate::from_ymd_opt(i32::from(self.year.0), last_month, 1)
+            .and_then(|first_day| first_day.checked_add_months(Months::new(1)))
+            .and_then(|first_day_of_next_month| first_day_of_next_month.pred_opt())
+            .expect("Given a year of at most 65535 and a month from 1 to 12, the last day of the month should always exist")
+    }
+
     /// Returns every period that ends in or before the month of `date`, in increasing order.
     ///
     /// Quarters run to 2025q3 and months start at `2025_10`. A quarter is in the list only once
@@ -598,5 +633,38 @@ mod tests {
         let result = NotesPeriod::all_through(date);
 
         assert!(result.ends_with(&expected_result));
+    }
+
+    #[test]
+    fn should_return_the_last_day_of_the_quarter_when_period_is_a_quarter() {
+        let period = period("2009q2");
+
+        let expected_result = date(2009, 6, 30);
+
+        let result = period.last_day();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_the_last_day_of_february_when_period_is_a_leap_year_february() {
+        let period = period("2028_02");
+
+        let expected_result = date(2028, 2, 29);
+
+        let result = period.last_day();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_the_last_day_of_the_year_when_period_is_a_december() {
+        let period = period("2025_12");
+
+        let expected_result = date(2025, 12, 31);
+
+        let result = period.last_day();
+
+        assert_eq!(result, expected_result);
     }
 }

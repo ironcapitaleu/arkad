@@ -5,9 +5,15 @@
 //! The first call picks the ingestion mode: [`Extraction::backfill`] or
 //! [`Extraction::incremental`]. The second call picks the source and returns the typestate builder
 //! of that source's super-state, with the run's `execution_id` and ingestion mode already set.
-//! Each [`build`] returns the concrete super-state.
+//! Each [`build`] returns the concrete super-state. The Notes source also runs a batch of periods
+//! with [`BackfillNotes::periods`].
 //!
-//! [`build`]: ExtractNotesSuperStateBuilder::build
+//! [`build`]: crate::implementations::states::extract::notes::builder::ExtractNotesSuperStateBuilder::build
+//!
+//! ## Modules
+//!
+//! - [`notes`]: The Notes source of a backfill run, and its batch run over many periods.
+//! - [`run_event`]: The events that a batch run passes to its observer.
 //!
 //! ## Usage
 //!
@@ -64,19 +70,22 @@ use crate::implementations::states::extract::filing::ExtractFilingSuperState;
 use crate::implementations::states::extract::filing::builder::{
     ExtractFilingSuperStateBuilder, NoFilingRef, NoInstanceRepository, NoLabelsRepository,
 };
-use crate::implementations::states::extract::notes::ExtractNotesSuperState;
-use crate::implementations::states::extract::notes::builder::{
-    ExtractNotesSuperStateBuilder, NoPeriod,
-};
 use crate::implementations::states::extract::submissions::ExtractSubmissionsSuperState;
 use crate::implementations::states::extract::submissions::builder::{
     ExtractSubmissionsSuperStateBuilder, NoCik,
 };
-use crate::implementations::states::extract::{daily_index, filing, notes, submissions};
+use crate::implementations::states::extract::{daily_index, filing, submissions};
 use crate::shared::raw_repository::RawRepository;
-use crate::shared::raw_source::{
-    RawDailyIndex, RawNotesArchive, RawSubmissions, RawXbrlInstance, RawXbrlLabels,
+use crate::shared::raw_source::{RawDailyIndex, RawSubmissions, RawXbrlInstance, RawXbrlLabels};
+
+pub mod notes;
+pub mod run_event;
+
+pub use notes::{
+    BackfillNotes, DEFAULT_FILES_IN_FLIGHT, FailedBackfill, MAX_UNPUBLISHED, MissingCutOverDate,
+    NotesBatchBuilder, NotesRunSummary,
 };
+pub use run_event::{ErrorKind, RunEvent, Unit};
 
 /// Builds the extract super-states by ingestion mode and source.
 ///
@@ -131,23 +140,12 @@ impl Backfill {
         self.execution_id
     }
 
-    /// Returns the builder of an [`ExtractNotesSuperState`] that holds the run's `execution_id`
-    /// and [`IngestionMode::Backfill`].
+    /// Returns the Notes source of the run.
     ///
-    /// The builder still needs a period, an SEC client, and a repository of type `R`.
+    /// Pick one period with [`BackfillNotes::period`] or many with [`BackfillNotes::periods`].
     #[must_use]
-    pub fn notes<R: RawRepository<RawNotesArchive>>(
-        &self,
-    ) -> ExtractNotesSuperStateBuilder<
-        NoPeriod,
-        notes::builder::NoSecClient,
-        Uuid,
-        IngestionMode,
-        notes::builder::NoRepository<R>,
-    > {
-        ExtractNotesSuperState::builder()
-            .execution_id(self.execution_id)
-            .ingestion_mode(IngestionMode::Backfill)
+    pub const fn notes(&self) -> BackfillNotes {
+        BackfillNotes::new(self.execution_id)
     }
 }
 
@@ -241,6 +239,7 @@ mod tests {
     use tempfile::TempDir;
 
     use super::*;
+    use crate::implementations::states::extract::notes::ExtractNotesSuperState;
     use crate::implementations::states::extract::validate_notes_period::ValidateNotesPeriod;
     use crate::shared::cik::Cik;
     use crate::shared::filing_ref::FilingRef;
@@ -248,6 +247,7 @@ mod tests {
     use crate::shared::financial::form::{Form, ParsedForm};
     use crate::shared::http_client::implementations::sec_client::SecClient;
     use crate::shared::raw_document::RawDocument;
+    use crate::shared::raw_source::RawNotesArchive;
     use crate::tests::fixtures::data::notes_archive::SAMPLE_NOTES_ZIP;
     use crate::tests::fixtures::data::submissions::SAMPLE_SUBMISSIONS_JSON;
     use crate::tests::fixtures::sample_http_client::sample_sec_client::always_responding::AlwaysRespondingSecClient;
