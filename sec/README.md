@@ -52,6 +52,10 @@ cargo run --features tracing-logging --bin stream_etl
 
 # Same pipeline under the legacy binary name; differs only in log field layout
 cargo run --features tracing-logging --bin stream_extract
+
+# New filings of each date from ARKAD_FROM to ARKAD_TO, days in New York. ARKAD_TO defaults to
+# yesterday. Each value is YYYY-MM-DD, yesterday, or yesterday-N.
+ARKAD_FROM=yesterday-3 cargo run --features tracing-logging --bin daily_filings
 ```
 
 Each binary builds a document store at startup. `ARKAD_STORAGE_ROOT` sets its root directory. If the variable is unset or empty, the root is `data`, relative to the working directory. The binary creates the root and its missing parents at startup. If it cannot, it stops at startup with an `io::Error`.

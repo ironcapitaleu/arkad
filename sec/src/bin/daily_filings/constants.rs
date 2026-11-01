@@ -3,6 +3,8 @@
 //! The names of the environment variables that set the dates of a run, the word that names
 //! yesterday, and the limits of a run.
 
+use std::time::Duration;
+
 /// The environment variable that sets the first date of the run. It is required.
 pub const FROM_ENV_VAR: &str = "ARKAD_FROM";
 
@@ -21,3 +23,10 @@ pub const PENDING_DAYS: u64 = 3;
 /// The number of filing machines, and of `submissions` machines, that run at once. The rate
 /// limiter of the SEC client caps the requests, so a higher value does not make a run faster.
 pub const IN_FLIGHT: usize = 4;
+
+/// The waits before the second and the third attempt of a machine that the SEC answered with 503.
+/// After the third attempt the machine fails.
+// Deviation: `Duration::from_mins` is not stable in Rust 1.90, the CI version, so the code writes
+// the minute in seconds. Rust 1.90 does not know the lint, hence `unknown_lints`.
+#[allow(unknown_lints, clippy::duration_suboptimal_units)]
+pub const RETRY_DELAYS: [Duration; 2] = [Duration::from_secs(10), Duration::from_secs(60)];

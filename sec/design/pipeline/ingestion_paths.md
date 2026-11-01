@@ -1238,8 +1238,8 @@ Each machine ends in one of four outcomes:
   failed. Cloud Run retries the job. The retry is safe, because every write is idempotent.
 - A filing comes from the SEC's own daily index, so its folder exists. The binary never treats a
   404 or a 503 for a filing as absent, and calls no `is_absent_file` on the filing path.
-- A filing or `submissions` machine that fails with a 503 runs again, up to `ATTEMPTS` (3) times in
-  all, after `RETRY_DELAYS` of 10 s and 60 s. The retry covers a 503 that lasts at most about 70 s. A longer
+- A filing or `submissions` machine that fails with a 503 runs again, up to 3 times in all, once
+  more after each of the `RETRY_DELAYS` of 10 s and 60 s. The retry covers a 503 that lasts at most about 70 s. A longer
   one fails the machine, and the Cloud Run retry of the job covers it. The retry lives in the
   binary's loop, not in `SecClient`, so the other paths keep their behavior.
 - A new check `FailedSecRequest::is_unavailable` finds a 503, next to `is_absent_file`. Like
@@ -1250,7 +1250,8 @@ Each machine ends in one of four outcomes:
 
 The run writes four raw document types under `ARKAD_STORAGE_ROOT`: `RawDailyIndex`,
 `RawXbrlInstance`, `RawXbrlLabels`, and `RawSubmissions`. `sec/src/bin/shared/storage_root.rs`
-gains one writer for each, and `create_root` becomes generic over the document type. Every
+gains a generic `raw_writer::<S>()` for any raw source, and `create_root` becomes generic over the
+document type. Every
 document carries the ingestion mode `incremental`: `StoreDailyIndex` and `StoreFilingDocuments`
 write it themselves, and the binary passes it to the `submissions` builder.
 
@@ -1274,7 +1275,7 @@ JSON logs with the five fields of `AGENTS.md`, as in `notes_backfill`:
 | `main.rs` | Logging, startup, the call of `run`, the summary, the exit code |
 | `dates.rs` | Parses `ARKAD_FROM` and `ARKAD_TO` against today in New York, and returns the dates |
 | `run.rs` | The loop over the dates and the three steps, the retry, and the `RunSummary` |
-| `constants.rs` | The variable names, `IN_FLIGHT`, `ATTEMPTS`, `RETRY_DELAYS`, and `PENDING_DAYS` |
+| `constants.rs` | The variable names, `IN_FLIGHT`, `RETRY_DELAYS`, and `PENDING_DAYS` |
 
 - `dates.rs` takes "now" as an argument, so its tests set the clock, for example 02:00 UTC.
 - `run` takes the retry delays and yesterday as arguments, so its tests pass zero delays and a
@@ -1317,9 +1318,9 @@ Three PRs, each at most 400 reviewable lines:
    and `sec/tests/daily_filings.rs`.
 2. The feature `test-fixtures` with the route of several responses, `FailedSecRequest::is_unavailable`,
    `run.rs` with the retry, the outcomes, the summary, and the offline tests, and the constants
-   `IN_FLIGHT`, `ATTEMPTS`, `RETRY_DELAYS`, and `PENDING_DAYS`.
-3. The four writers and the generic `create_root` in `storage_root.rs`, `main.rs` with the logs and
-   the exit code, the `[[bin]]` entry, and the live test.
+   `IN_FLIGHT` and `PENDING_DAYS`.
+3. The generic `raw_writer` and `create_root` in `storage_root.rs`, `RETRY_DELAYS`, `main.rs` with
+   the logs and the exit code, the `[[bin]]` entry, and the live test.
 
 ### Cut-Over Between the Paths
 

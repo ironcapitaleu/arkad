@@ -69,6 +69,11 @@ name = "notes_backfill"
 path = "src/bin/notes_backfill/main.rs"
 required-features = ["tracing-logging"]
 
+[[bin]]
+name = "daily_filings"
+path = "src/bin/daily_filings/main.rs"
+required-features = ["tracing-logging"]
+
 [lints.rust]
 unsafe_code = "forbid"
 
