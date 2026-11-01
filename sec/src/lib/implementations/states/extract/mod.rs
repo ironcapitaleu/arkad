@@ -17,7 +17,8 @@
 //! - [`validate_cik_format`]: Validates and normalizes the raw CIK.
 //! - [`prepare_sec_request`]: Builds the request targeting the SEC API endpoint.
 //! - [`execute_sec_request`]: Sends the request and captures the response.
-//! - [`store_company_facts`]: Writes the raw body of the response to the store.
+//! - [`store_sec_response`]: Writes the response to a request of any stored kind to the store.
+//! - [`store_company_facts`]: The store state of the Company Facts kind.
 //! - [`validate_notes_period`]: Validates the raw period of a Notes file.
 //! - [`store_notes_archive`]: Writes the Notes file to the store.
 //! - [`validate_index_date`]: Validates the raw date of an EDGAR daily index.
@@ -40,6 +41,7 @@ pub mod store_company_facts;
 pub mod store_daily_index;
 pub mod store_filing_documents;
 pub mod store_notes_archive;
+pub mod store_sec_response;
 pub mod store_submissions;
 pub mod submissions;
 pub mod validate_cik_format;
