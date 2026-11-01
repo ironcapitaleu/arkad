@@ -80,7 +80,7 @@ pub use data::StoreSecResponseInput;
 ///
 /// [`StoredAs::store`] builds the document and the output. The state writes the document through
 /// the repository of type `R` and keeps the output once the write succeeds. The metadata names
-/// [`StoredAs::STATE_NAME`] as the producer and records the ingestion mode of the input.
+/// [`StoredAs::STATE_NAME`] as the producer and records the ingestion mode of the context.
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
 #[serde(bound(serialize = "R: Serialize"))]
 pub struct StoreSecResponse<E: StoredAs, R> {
@@ -134,7 +134,7 @@ impl<E: StoredAs, R: RawRepository<E::Source>> State for StoreSecResponse<E, R> 
                 produced_at: Utc::now(),
                 execution_id: self.context.execution_id,
                 producer: producer(E::STATE_NAME),
-                ingestion_mode: self.input.ingestion_mode,
+                ingestion_mode: self.context.ingestion_mode,
             },
         );
 
