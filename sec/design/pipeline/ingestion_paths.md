@@ -1562,8 +1562,9 @@ state is `StoreFilingIndex`, the `StoreSecResponse` of the kind `FilingIndex`.
   [Raw Store](#raw-store)).
 - It names no input document. The generic `StoreSecResponse` state builds the document from the
   response and the request input only, and `StoredAs::store` takes no inputs. Adding them changes
-  every store kind, so it is out of scope for STA-413. The instance and the label file of the same
-  folder name the daily index, and the key links the folder index to them.
+  every store kind, so it is out of scope for STA-413. The `filed_date` in its metadata names the
+  date of the daily index that listed the filing. If the folder holds an instance, its `inputs`
+  also name that daily index.
 
 #### Logs and Summary
 
