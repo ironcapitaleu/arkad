@@ -55,8 +55,10 @@ stateDiagram-v2
         state "ExecuteSecRequest" as ExecuteFilingDocumentsRequest
         PrepareFilingIndexRequest --> ExecuteFilingIndexRequest
         note right of PrepareFilingIndexRequest : Generic state with the FilingIndex kind
-        ExecuteFilingIndexRequest --> SelectFilingDocuments
-        note right of ExecuteFilingIndexRequest : Generic state with the FilingIndex kind. The transition parses the index.json into a FolderIndex
+        ExecuteFilingIndexRequest --> StoreFilingIndex
+        note right of ExecuteFilingIndexRequest : Generic state with the FilingIndex kind
+        StoreFilingIndex --> SelectFilingDocuments
+        note right of StoreFilingIndex : StoreSecResponse with the FilingIndex kind. Stores the index.json for every fetched filing. The transition parses it into a FolderIndex
         SelectFilingDocuments --> PrepareFilingDocumentsRequest
         note right of SelectFilingDocuments : Fails if the folder holds no XBRL instance
         PrepareFilingDocumentsRequest --> ExecuteFilingDocumentsRequest

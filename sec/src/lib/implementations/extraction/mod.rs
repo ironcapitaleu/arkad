@@ -124,6 +124,7 @@
 //!
 //! let repositories = DailyFilingsRepositories {
 //!     daily_index: writer(),
+//!     filing_index: writer(),
 //!     instance: writer(),
 //!     labels: writer(),
 //!     submissions: writer(),
@@ -176,7 +177,8 @@ use crate::implementations::states::extract::daily_index::builder::{
 };
 use crate::implementations::states::extract::filing::ExtractFilingSuperState;
 use crate::implementations::states::extract::filing::builder::{
-    ExtractFilingSuperStateBuilder, NoFilingRef, NoInstanceRepository, NoLabelsRepository,
+    ExtractFilingSuperStateBuilder, NoFilingIndexRepository, NoFilingRef, NoInstanceRepository,
+    NoLabelsRepository,
 };
 use crate::implementations::states::extract::submissions::ExtractSubmissionsSuperState;
 use crate::implementations::states::extract::submissions::builder::{
@@ -184,7 +186,9 @@ use crate::implementations::states::extract::submissions::builder::{
 };
 use crate::implementations::states::extract::{daily_index, filing, submissions};
 use crate::shared::raw_repository::RawRepository;
-use crate::shared::raw_source::{RawDailyIndex, RawSubmissions, RawXbrlInstance, RawXbrlLabels};
+use crate::shared::raw_source::{
+    RawDailyIndex, RawFilingIndex, RawSubmissions, RawXbrlInstance, RawXbrlLabels,
+};
 
 pub mod company_facts;
 pub mod daily_filings;
@@ -318,16 +322,21 @@ impl Incremental {
 
     /// Returns the builder of an [`ExtractFilingSuperState`] for the run.
     ///
-    /// The builder still needs a filing, an SEC client, an instance repository of type `I`, and
-    /// a labels repository of type `L`.
+    /// The builder still needs a filing, an SEC client, a folder index repository of type `X`, an
+    /// instance repository of type `I`, and a labels repository of type `L`.
     #[must_use]
-    pub fn filing<I: RawRepository<RawXbrlInstance>, L: RawRepository<RawXbrlLabels>>(
+    pub fn filing<
+        X: RawRepository<RawFilingIndex>,
+        I: RawRepository<RawXbrlInstance>,
+        L: RawRepository<RawXbrlLabels>,
+    >(
         &self,
     ) -> ExtractFilingSuperStateBuilder<
         NoFilingRef,
         filing::builder::NoSecClient,
         Uuid,
         IngestionMode,
+        NoFilingIndexRepository<X>,
         NoInstanceRepository<I>,
         NoLabelsRepository<L>,
     > {
@@ -386,8 +395,8 @@ mod tests {
     use crate::tests::fixtures::data::submissions::SAMPLE_SUBMISSIONS_JSON;
     use crate::tests::fixtures::sample_http_client::sample_sec_client::always_responding::AlwaysRespondingSecClient;
     use crate::tests::fixtures::sample_write_repository::{
-        FakeDailyIndexRepository, FakeNotesRepository, FakeSubmissionsRepository,
-        FakeXbrlInstanceRepository, FakeXbrlLabelsRepository,
+        FakeDailyIndexRepository, FakeFilingIndexRepository, FakeNotesRepository,
+        FakeSubmissionsRepository, FakeXbrlInstanceRepository, FakeXbrlLabelsRepository,
     };
 
     type NotesSuperState =
@@ -593,6 +602,7 @@ mod tests {
             .sec_client(SecClient::default())
             .execution_id(Uuid::from_u128(7))
             .ingestion_mode(IngestionMode::Incremental)
+            .filing_index_repository(FakeFilingIndexRepository::new())
             .instance_repository(FakeXbrlInstanceRepository::new())
             .labels_repository(FakeXbrlLabelsRepository::new())
             .build();
@@ -601,6 +611,7 @@ mod tests {
             .filing()
             .filing_ref(filing)
             .sec_client(SecClient::default())
+            .filing_index_repository(FakeFilingIndexRepository::new())
             .instance_repository(FakeXbrlInstanceRepository::new())
             .labels_repository(FakeXbrlLabelsRepository::new())
             .build();

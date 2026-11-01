@@ -527,3 +527,91 @@ mod submissions_tests {
         assert_eq!(result, expected_result);
     }
 }
+
+#[cfg(test)]
+mod filing_index_tests {
+    use std::collections::HashMap;
+
+    use chrono::NaiveDate;
+    use pretty_assertions::assert_eq;
+
+    use super::*;
+    use crate::implementations::states::extract::execute_sec_request::{
+        ExecuteSecRequestContext, ExecuteSecRequestInput, ExecuteSecRequestOutput,
+    };
+    use crate::implementations::states::extract::store_filing_index::{
+        STATE_NAME as STORE_FILING_INDEX, StoreFilingIndex,
+    };
+    use crate::shared::cik::Cik;
+    use crate::shared::content_type::ContentType;
+    use crate::shared::filing_ref::FilingRef;
+    use crate::shared::financial::accession_number::AccessionNumber;
+    use crate::shared::financial::form::{Form, ParsedForm};
+    use crate::shared::headers::Headers;
+    use crate::shared::http_client::implementations::sec_client::SecClient;
+    use crate::shared::request::implementations::sec_request::{FilingIndex, SecRequest};
+    use crate::shared::response::implementations::sec_response::SecResponse;
+    use crate::shared::status_code::StatusCode;
+    use crate::tests::fixtures::sample_write_repository::FakeFilingIndexRepository;
+
+    const SAMPLE_EXECUTION_ID: Uuid = Uuid::from_u128(7);
+
+    const SAMPLE_INGESTION_MODE: IngestionMode = IngestionMode::Incremental;
+
+    fn filing(raw_accession_number: &str) -> FilingRef {
+        FilingRef::new(
+            Cik::new("3545").expect("Given a hardcoded valid CIK, parsing should always succeed"),
+            AccessionNumber::new(raw_accession_number).expect(
+                "Given a hardcoded accession number of the right shape, creation should always succeed",
+            ),
+            ParsedForm::new(Form::TenQ, false),
+            NaiveDate::from_ymd_opt(2026, 9, 9)
+                .expect("Given a hardcoded calendar date, the date should always build"),
+        )
+    }
+
+    fn sample_response() -> SecResponse {
+        let url: Url = "https://www.sec.gov/Archives/edgar/data/3545/000000354526000047/index.json"
+            .parse()
+            .expect("Given a hardcoded valid URL, parsing should always succeed");
+        SecResponse::from_parts(
+            url,
+            Headers::new(HashMap::new()),
+            ContentType::Json,
+            StatusCode::Ok,
+            b"{}".to_vec(),
+        )
+        .expect("Given the hardcoded JSON body '{}', building the response should always succeed")
+    }
+
+    #[test]
+    fn should_return_failed_context_conversion_when_request_names_another_filing() {
+        let request = SecRequest::builder()
+            .filing_index()
+            .filing_ref(filing("0000003545-26-000047"))
+            .build();
+        let state: ExecuteSecRequest<FilingIndex, SecClient> = ExecuteSecRequest::new(
+            ExecuteSecRequestInput::new(SecClient::default(), request),
+            ExecuteSecRequestContext::new(filing("0000003545-26-000048")),
+        )
+        .with_output(ExecuteSecRequestOutput::new(sample_response()));
+
+        let expected_result = TransitionError::FailedContextConversion(
+            transition::FailedContextConversion::new(
+                EXECUTE_SEC_REQUEST,
+                STORE_FILING_INDEX,
+                "The request targets 'https://www.sec.gov/Archives/edgar/data/3545/000000354526000047/index.json' for filing '0000003545-26-000047', but the context names filing '0000003545-26-000048'",
+            ),
+        );
+
+        let result = StoreFilingIndex::try_from((
+            state,
+            SAMPLE_EXECUTION_ID,
+            SAMPLE_INGESTION_MODE,
+            FakeFilingIndexRepository::new(),
+        ))
+        .expect_err("Given a request for another filing, the transition should always fail");
+
+        assert_eq!(result, expected_result);
+    }
+}

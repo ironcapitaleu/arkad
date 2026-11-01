@@ -72,7 +72,7 @@ flowchart TB
 
     subgraph FL["New filing: ExtractFilingSuperState, one per filing"]
         direction LR
-        F1["PrepareSecRequest"]:::reused --> F2["ExecuteSecRequest"]:::reused --> F3["SelectFilingDocuments"]:::new --> F4["PrepareSecRequest"]:::reused --> F6["ExecuteSecRequest"]:::reused --> F5["StoreFilingDocuments"]:::new
+        F1["PrepareSecRequest"]:::reused --> F2["ExecuteSecRequest"]:::reused --> F7["StoreFilingIndex"]:::reused --> F3["SelectFilingDocuments"]:::new --> F4["PrepareSecRequest"]:::reused --> F6["ExecuteSecRequest"]:::reused --> F5["StoreFilingDocuments"]:::new
     end
 
     subgraph SB["Both paths: ExtractSubmissionsSuperState, one per company"]
@@ -1086,7 +1086,8 @@ Decided in STA-371:
 
 - `FolderIndex` in `shared::filing_documents` holds the member names of the folder.
   `FolderIndex::try_from(&SecResponse)` parses the `index.json`. The transition from
-  `ExecuteSecRequest` calls it, so a body that does not parse fails there with
+  `StoreFilingIndex` calls it. Before STA-413, the transition from `ExecuteSecRequest` called it.
+  A body that does not parse fails in the transition from `StoreFilingIndex` with
   `FailedOutputConversion`, before `SelectFilingDocuments` runs. Its `InvalidFolderIndex` names
   the URL, which holds the CIK and the accession number.
 - `FolderIndex::select_documents` holds the rules. The state calls it.
@@ -1343,8 +1344,8 @@ Decided in STA-376:
 - The super-state holds the two repositories of `StoreFilingDocuments`. Its builder takes them
   with `.instance_repository(…)` and `.labels_repository(…)`, the parameter names of the
   transition into `StoreFilingDocuments`. A call to `build()` without both does not compile.
-- STA-376 does not write `index.json`. See Decision 3 of
-  [Repository in the Machines](#repository-in-the-machines).
+- STA-376 does not write `index.json`. STA-413 adds the write (see
+  [Unextractable Record](#unextractable-record)).
 
 ### Company Data
 
@@ -1529,17 +1530,23 @@ Each machine ends in one of four outcomes:
 
 #### Stores
 
-The run writes four raw document types under `ARKAD_STORAGE_ROOT`: `RawDailyIndex`,
-`RawXbrlInstance`, `RawXbrlLabels`, and `RawSubmissions`. `sec/src/bin/shared/storage_root.rs`
+The run writes five raw document types under `ARKAD_STORAGE_ROOT`: `RawDailyIndex`,
+`RawFilingIndex`, `RawXbrlInstance`, `RawXbrlLabels`, and `RawSubmissions`. `sec/src/bin/shared/storage_root.rs`
 gains a generic `raw_writer::<S>()` for any raw source, and `create_root` becomes generic over the
-document type. Every
-document carries the ingestion mode `incremental`: `StoreDailyIndex` and `StoreFilingDocuments`
-write it themselves, and the binary passes it to the `submissions` builder.
+document type. Every document carries the ingestion mode `incremental`. The `Incremental` handle
+passes it to the daily index, filing, and `submissions` builders. Each super-state hands it to
+its store states.
 
 #### Unextractable Record
 
 > **Status:** decided by the lead on 2026-11-01 (STA-413). It lands in three PRs: the source and
 > its store state, then the store step in the filing machine, then the skip.
+
+The filing machine runs `ExecuteSecRequest<FilingIndex>` → `StoreFilingIndex` →
+`SelectFilingDocuments`. The transition into `StoreFilingIndex` checks that the request names
+the filing of the context, as every `StoreSecResponse` transition does. The super-state holds a
+third repository, set with `.filing_index_repository(…)`, and `DailyFilingsRepositories` gains
+the field `filing_index`.
 
 The run stores the folder `index.json` of every filing it fetches as the raw source
 `RawFilingIndex`, under `sec/filings/CIK##########/<accession number>/index.json`. The store
