@@ -10,7 +10,9 @@
 //!   out of `ExecuteSecRequest`.
 //! - [`select_filing_documents`]: Transition of the folder index kind into the state that picks
 //!   the XBRL instance and the label file.
-//! - [`store_company_facts`]: Transition into the state that stores the Company Facts.
+//! - [`store_sec_response`]: Transition of every
+//!   [`StoredAs`](crate::shared::request::implementations::sec_request::StoredAs) kind into the
+//!   generic store state.
 //! - [`store_filing_documents`]: Transition of the filing documents kind into the state that
 //!   stores the XBRL instance and the label file.
 //! - [`store_notes_archive`]: Transition of the Notes kind into the state that stores the Notes
@@ -20,7 +22,7 @@
 
 mod request_check;
 pub mod select_filing_documents;
-pub mod store_company_facts;
 pub mod store_filing_documents;
 pub mod store_notes_archive;
+pub mod store_sec_response;
 pub mod store_submissions;
