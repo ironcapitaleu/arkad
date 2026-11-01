@@ -9,7 +9,7 @@
 //!
 //! - [`company_facts`]: The [`ExtractCompanyFactsSuperState`](company_facts::ExtractCompanyFactsSuperState)
 //!   and its builder.
-//! - [`filing`]: The [`ExtractFilingSuperState`](filing::ExtractFilingSuperState).
+//! - [`filing`]: The [`ExtractFilingSuperState`](filing::ExtractFilingSuperState) and its builder.
 //! - [`notes`]: The [`ExtractNotesSuperState`](notes::ExtractNotesSuperState) and its builder.
 //! - [`daily_index`]: The [`DetectFilingsSuperState`](daily_index::DetectFilingsSuperState) and its
 //!   builder.
