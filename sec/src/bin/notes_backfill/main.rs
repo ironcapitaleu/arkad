@@ -15,7 +15,6 @@ mod storage_root;
 use std::env;
 use std::error::Error;
 use std::fmt::{self, Display, Formatter};
-use std::fs;
 use std::io::stdout;
 use std::time::Instant;
 
@@ -27,7 +26,7 @@ use constants::FILES_IN_FLIGHT_ENV_VAR;
 use files_in_flight::{InvalidFilesInFlight, files_in_flight};
 use periods::notes_periods;
 use sec_client::{USER_AGENT_ENV_VAR, default_user_agent_warning, sec_client, startup_error_cause};
-use storage_root::raw_notes_archive_writer;
+use storage_root::{create_root, raw_notes_archive_writer};
 
 /// Top-level batch events.
 enum BatchEvent {
@@ -77,7 +76,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     }
     let files_in_flight = files_in_flight_from_env()?;
     let repository = raw_notes_archive_writer();
-    fs::create_dir_all(repository.root()).inspect_err(|error| {
+    create_root(&repository).inspect_err(|error| {
         tracing::error!(
             event = %BatchEvent::StartupFailed,
             message = %format!("Failed to create the storage root, Caused by: {error}"),

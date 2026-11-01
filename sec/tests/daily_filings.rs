@@ -140,6 +140,16 @@ mod run_loop {
         .await
     }
 
+    /// Reads the metadata file at `file` under `root` as JSON.
+    fn stored_metadata(root: &TempDir, file: &str) -> Value {
+        serde_json::from_slice(
+            &std::fs::read(root.path().join(file)).expect(
+                "Given a run that stored the document, its metadata file should always exist",
+            ),
+        )
+        .expect("Given a metadata file that the store wrote, it should always parse as JSON")
+    }
+
     /// Runs `dates` as `run_offline` does, and returns the context and the kind of each error.
     async fn reported_errors(dates: &[NaiveDate], sec_client: &RoutingSecClient) -> Vec<Value> {
         let root = temporary_root();
@@ -398,9 +408,7 @@ mod run_loop {
         let root = temporary_root();
         let dates = [date("2026-10-26")];
         let sec_client = sec_client();
-        let metadata_path = root
-            .path()
-            .join("sec/filings/CIK0000003545/0000003545-26-000047/instance.xml.meta.json");
+        let metadata_file = "sec/filings/CIK0000003545/0000003545-26-000047/instance.xml.meta.json";
 
         let expected_result = json!([{
             "key": "sec/daily-index/form.20261026.idx",
@@ -408,12 +416,30 @@ mod run_loop {
         }]);
 
         run_offline_in(&root, &dates, &sec_client).await;
-        let metadata: Value =
-            serde_json::from_slice(&std::fs::read(metadata_path).expect(
-                "Given a run that stored the filing, its metadata file should always exist",
-            ))
-            .expect("Given a metadata file that the store wrote, it should always parse as JSON");
-        let result = metadata["inputs"].clone();
+        let result = stored_metadata(&root, metadata_file)["inputs"].clone();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_record_the_incremental_ingestion_mode_for_every_document_type_of_a_run() {
+        let root = temporary_root();
+        let dates = [date("2026-10-26")];
+        let sec_client = sec_client();
+        let metadata_files = [
+            "sec/daily-index/form.20261026.idx.meta.json",
+            "sec/filings/CIK0000003545/0000003545-26-000047/instance.xml.meta.json",
+            "sec/filings/CIK0000003545/0000003545-26-000047/lab.xml.meta.json",
+            "sec/submissions/CIK0000003545.json.meta.json",
+        ];
+
+        let expected_result = json!(["incremental", "incremental", "incremental", "incremental"]);
+
+        run_offline_in(&root, &dates, &sec_client).await;
+        let result: Value = metadata_files
+            .iter()
+            .map(|file| stored_metadata(&root, file)["ingestion_mode"].clone())
+            .collect();
 
         assert_eq!(result, expected_result);
     }
