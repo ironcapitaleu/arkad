@@ -1823,8 +1823,8 @@ The metadata of each raw document records the ingestion mode of the run that cre
 `"ingestion_mode": "backfill"` or `"ingestion_mode": "incremental"`. Decided by the lead on
 2026-10-28, with this key name.
 
-- `ingestion_mode` is a run field in `DocumentMetadata`, next to `execution_id` and
-  `produced_at`. Its type is the enum `IngestionMode` in `storage`, so `storage` does not depend
+- `ingestion_mode` is a run field in `DocumentMetadata`, next to `execution_id`, `produced_at`,
+  and `producer`. Its type is the enum `IngestionMode` in `storage`, so `storage` does not depend
   on `sec`, and `sec` uses the same enum.
 - `ingestion_mode` is required. Metadata without a mode does not compile. A stored file without
   the field, with `null`, or with any text other than `backfill` or `incremental` fails to read.

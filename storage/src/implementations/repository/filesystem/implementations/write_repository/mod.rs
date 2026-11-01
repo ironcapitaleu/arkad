@@ -60,7 +60,7 @@ impl<A: CanWrite, D: Document + 'static> WriteRepository for FilesystemRepositor
     /// 3. The stored document matches the digest of the new bytes.
     ///
     /// The stored run fields then stay. So the stored `producer` names the first build that wrote
-    /// the bytes, and a new build that writes the same bytes rewrites no file. In every other case, `persist` creates every missing
+    /// the bytes. In every other case, `persist` creates every missing
     /// directory between the root and the document, and the new bytes and metadata replace the
     /// old. This case covers a torn pair, whose metadata matches the new bytes but whose
     /// document does not.
@@ -680,17 +680,25 @@ mod tests {
     ///
     /// Deserializing keeps any document type and document type version, so the result can hold a
     /// foreign document type.
-    fn sample_document_with_metadata_field(
+    /// Returns `document` with `value` in place of its metadata field `field`.
+    fn with_metadata_field(
+        document: &SampleDocument,
         field: &str,
         value: serde_json::Value,
     ) -> SampleDocument {
-        let document = sample_document();
         let mut stored = serde_json::to_value(document.metadata())
             .expect("Given metadata of owned fields, serialization should always succeed");
         stored[field] = value;
         let metadata = serde_json::from_value(stored)
             .expect("Given JSON with every field, deserialization should always succeed");
         SampleDocument::from_parts(document.key().clone(), document.bytes().to_vec(), metadata)
+    }
+
+    fn sample_document_with_metadata_field(
+        field: &str,
+        value: serde_json::Value,
+    ) -> SampleDocument {
+        with_metadata_field(&sample_document(), field, value)
     }
 
     #[tokio::test]
@@ -865,15 +873,12 @@ mod tests {
 
     /// Returns `document` with `producer` in place of its producer.
     fn with_producer(document: &SampleDocument, producer: &Producer) -> SampleDocument {
-        let mut metadata = serde_json::to_value(document.metadata())
-            .expect("Given metadata of owned fields, serialization should always succeed");
-        metadata["producer"] = serde_json::to_value(producer)
+        let producer = serde_json::to_value(producer)
             .expect("Given a producer of owned fields, serialization should always succeed");
-        let metadata = serde_json::from_value(metadata)
-            .expect("Given JSON with every field, deserialization should always succeed");
-        SampleDocument::from_parts(document.key().clone(), document.bytes().to_vec(), metadata)
+        with_metadata_field(document, "producer", producer)
     }
 
+    /// Returns a producer of a later build than the producer of [`sample_metadata`].
     fn next_build() -> Producer {
         Producer::new("Sample State", "0.2.0", "9f2e4d1")
     }
@@ -958,6 +963,22 @@ mod tests {
         let expected_result = sample_metadata();
 
         let result = persist_over_stored_metadata_field(field, value).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_replace_the_metadata_when_the_stored_metadata_has_no_producer() {
+        let remove_producer = |stored: &mut serde_json::Value| {
+            stored
+                .as_object_mut()
+                .expect("Given serialized metadata, the JSON value should always be an object")
+                .remove("producer");
+        };
+
+        let expected_result = sample_metadata();
+
+        let result = persist_over_edited_stored_metadata(remove_producer).await;
 
         assert_eq!(result, expected_result);
     }
