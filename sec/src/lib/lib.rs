@@ -26,5 +26,5 @@ pub mod shared;
 
 pub mod error;
 
-#[cfg(test)]
+#[cfg(any(test, feature = "test-fixtures"))]
 pub mod tests;

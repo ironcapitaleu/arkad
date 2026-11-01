@@ -861,8 +861,8 @@ folder answered 200 in the same minutes. The data cover one CIK and 16 minutes.
 - The machine fails at `ExecuteSecRequest` for both codes, with `InvalidSecResponse` and the code.
 - `FailedSecRequest::is_absent_file` counts 403 and 404 only. So a caller that skips absent files
   sees a missing folder as absent on one request and as a server failure on the next.
-- `daily_filings` retries a filing that fails with a 503 and never counts it as absent. See
-  [Daily Run](#daily-run).
+- `daily_filings` retries a filing that fails with a 503 and never counts it as absent. It finds
+  the 503 with `FailedSecRequest::is_unavailable`. See [Daily Run](#daily-run).
 - The live test in `sec/tests/extract_filing.rs` accepts both codes for a missing folder. Any
   other status code or a network error fails it.
 

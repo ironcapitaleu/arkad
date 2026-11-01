@@ -184,6 +184,9 @@ impl<R: RawStore, G: GraphStore, F: FactStore> Repository for SecRepository<R, G
 - **Promote trigger:** a *second* consumer needing the *same* fake → extract a `storage-testkit`
   crate (or `#[cfg(feature = "fakes")]`). Not before. (This reverses the older "feature-gated fakes
   in `storage`" note.)
+- **`sec` fixtures for binaries:** a binary's tests link the library built without `cfg(test)`. So
+  `sec` also compiles its fixtures under the `test-fixtures` feature, and names itself as a
+  dev-dependency with that feature (STA-378). Only test targets turn the feature on.
 
 ### Deferred to STA-139 (marked, not decided)
 

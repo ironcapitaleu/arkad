@@ -9,7 +9,7 @@
 //! - [`SampleSecStateInputUpdaterBuilder`]: Builder for constructing updater instances.
 //!
 //! ## Integration
-//! - Implements [`StateData`](crate::traits::state_machine::state::StateData) for compatibility with the state machine framework.
+//! - Implements [`StateData`] for compatibility with the state machine framework.
 //! - Used by [`SampleSecState`](../../mod.rs) to receive input data.
 //!
 //! ## See Also

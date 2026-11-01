@@ -50,7 +50,19 @@ impl FailedSecRequest {
     /// This method counts the 404 and leaves the 503 to the caller.
     #[must_use]
     pub fn is_absent_file(&self) -> bool {
-        self.reason.is_absent_file()
+        self.reason
+            .has_status(|status| matches!(status, StatusCode::Forbidden | StatusCode::NotFound))
+    }
+
+    /// Returns `true` if the SEC answered 503, also for the file that an
+    /// [`ErrorReason::FailedFilingDocument`] names.
+    ///
+    /// A 503 can mean a short outage, and the SEC also answers it for a filing folder that does
+    /// not exist. So a caller that retries a 503 needs a limit on its attempts.
+    #[must_use]
+    pub fn is_unavailable(&self) -> bool {
+        self.reason
+            .has_status(|status| matches!(status, StatusCode::ServiceUnavailable))
     }
 }
 
@@ -78,17 +90,15 @@ pub enum ErrorReason {
 }
 
 impl ErrorReason {
-    /// Returns `true` if the SEC answered 403 or 404, also under a
-    /// [`FailedFilingDocument`](Self::FailedFilingDocument).
-    fn is_absent_file(&self) -> bool {
+    /// Returns `true` if the SEC answered a status code for which `is_match` returns `true`, also
+    /// under a [`FailedFilingDocument`](Self::FailedFilingDocument).
+    fn has_status(&self, is_match: impl Fn(&StatusCode) -> bool) -> bool {
         match self {
             Self::InvalidResponse { source } => matches!(
-                source.reason,
-                ResponseErrorReason::InvalidStatusCode {
-                    status_code: StatusCode::Forbidden | StatusCode::NotFound
-                }
+                &source.reason,
+                ResponseErrorReason::InvalidStatusCode { status_code } if is_match(status_code)
             ),
-            Self::FailedFilingDocument { source, .. } => source.is_absent_file(),
+            Self::FailedFilingDocument { source, .. } => source.has_status(is_match),
             Self::FailedRequestExecution { .. } => false,
         }
     }
@@ -189,6 +199,64 @@ mod tests {
         let error = FailedSecRequest::new(ErrorReason::FailedRequestExecution {
             details: "connection refused".to_string(),
         });
+
+        let expected_result = false;
+
+        let result = error.is_absent_file();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_report_unavailable_when_the_sec_answers_503() {
+        let error = invalid_status_code(StatusCode::ServiceUnavailable);
+
+        let expected_result = true;
+
+        let result = error.is_unavailable();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_report_unavailable_when_a_filing_document_answers_503() {
+        let error =
+            invalid_status_code(StatusCode::ServiceUnavailable).for_file("alco-20260908_htm.xml");
+
+        let expected_result = true;
+
+        let result = error.is_unavailable();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_not_report_unavailable_when_the_sec_answers_404() {
+        let error = invalid_status_code(StatusCode::NotFound);
+
+        let expected_result = false;
+
+        let result = error.is_unavailable();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_not_report_unavailable_when_the_request_fails_in_transport() {
+        let error = FailedSecRequest::new(ErrorReason::FailedRequestExecution {
+            details: "connection refused".to_string(),
+        });
+
+        let expected_result = false;
+
+        let result = error.is_unavailable();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_report_no_absent_file_when_the_sec_answers_503() {
+        let error = invalid_status_code(StatusCode::ServiceUnavailable);
 
         let expected_result = false;
 
