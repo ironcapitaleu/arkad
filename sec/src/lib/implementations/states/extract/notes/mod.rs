@@ -647,6 +647,26 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn should_name_the_notes_period_in_the_context_of_the_store_state_when_running_the_stream()
+     {
+        let notes_period = "2024q1";
+        let super_state = super_state(notes_period, FakeNotesRepository::new());
+
+        let expected_result = Some(serde_json::json!(notes_period));
+
+        let items = run_stream(super_state).await;
+        let result = items
+            .iter()
+            .find(|item| {
+                item.event == StreamEvent::StateCompleted && item.state_name == STORE_NOTES_ARCHIVE
+            })
+            .and_then(|item| item.data.pointer("/context/notes_period"))
+            .cloned();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
     async fn should_end_the_stream_with_the_notes_archive_ref_when_running_the_stream() {
         let super_state = super_state("2024q1", FakeNotesRepository::new());
         let period = NotesPeriod::new("2024q1")
@@ -719,23 +739,6 @@ mod tests {
         let expected_result = vec![STORE_NOTES_ARCHIVE.to_string()];
 
         let result = failed_state_names(super_state).await;
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[tokio::test]
-    async fn should_name_the_notes_period_in_the_context_of_the_store_state_when_running_the_stream()
-     {
-        let notes_period = "2024q1";
-        let super_state = super_state(notes_period, FakeNotesRepository::new());
-
-        let expected_result = Some(serde_json::json!(notes_period));
-
-        let items = run_stream(super_state).await;
-        let result = items
-            .last()
-            .and_then(|item| item.data.pointer("/context/notes_period"))
-            .cloned();
 
         assert_eq!(result, expected_result);
     }
