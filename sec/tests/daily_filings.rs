@@ -61,6 +61,13 @@ mod run_loop {
             .route(SUBMISSIONS_URL, 200, "application/json", SUBMISSIONS)
     }
 
+    /// The index of 2026-10-26 with a second 10-Q of the same company.
+    const DAILY_INDEX_WITH_TWO_FILINGS: &[u8] = b"Form Type   Company Name   CIK   Date Filed  File Name
+---------------------------------------------------------------------
+10-Q             ALCO STORES INC                                               3545        20261026    edgar/data/3545/0000003545-26-000047.txt
+10-Q/A           ALCO STORES INC                                               3545        20261026    edgar/data/3545/0000003545-26-000048.txt
+";
+
     fn sec_client() -> RoutingSecClient {
         sec_client_with_folder(&[(200, "application/json", FOLDER_INDEX)])
     }
@@ -264,6 +271,26 @@ mod run_loop {
         });
 
         let result = run_offline(&dates, &sec_client).await.result();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_run_one_submissions_machine_when_two_filings_share_a_company() {
+        let dates = [date("2026-10-26")];
+        let sec_client = RoutingSecClient::new()
+            .route(
+                INDEX_URL,
+                200,
+                "application/octet-stream",
+                DAILY_INDEX_WITH_TWO_FILINGS,
+            )
+            .route(QTR4_LISTING_URL, 200, "application/json", QTR4_LISTING)
+            .route(SUBMISSIONS_URL, 200, "application/json", SUBMISSIONS);
+
+        let expected_result = json!({ "companies": 1, "stored": 1, "failed": [] });
+
+        let result = run_offline(&dates, &sec_client).await.entries()[0]["submissions"].clone();
 
         assert_eq!(result, expected_result);
     }

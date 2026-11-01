@@ -277,13 +277,13 @@ fn company_entries(companies: &[CompanyOutcome]) -> Value {
 #[derive(Debug, Clone)]
 pub struct Repositories {
     /// The store of the daily indexes.
-    pub daily_index: FilesystemRepository<Write, RawDocument<RawDailyIndex>>,
+    pub daily_index: DailyIndexRepository,
     /// The store of the XBRL instances.
-    pub instance: FilesystemRepository<Write, RawDocument<RawXbrlInstance>>,
+    pub instance: InstanceRepository,
     /// The store of the label files.
-    pub labels: FilesystemRepository<Write, RawDocument<RawXbrlLabels>>,
+    pub labels: LabelsRepository,
     /// The store of the `submissions` files.
-    pub submissions: FilesystemRepository<Write, RawDocument<RawSubmissions>>,
+    pub submissions: SubmissionsRepository,
 }
 
 /// The fixed inputs of one run.
@@ -297,7 +297,8 @@ pub struct Settings {
     pub retry_delays: Vec<Duration>,
 }
 
-/// Runs the new-filing path for each date of `dates`, oldest first, and returns the summary.
+/// Runs the new-filing path for each date of `dates`, in order, and returns the summary. The
+/// caller passes the dates oldest first, as `run_dates` returns them.
 ///
 /// For each date, it runs detection, then one filing machine per selected filing, then one
 /// `submissions` machine per distinct CIK of the selected filings. At most [`IN_FLIGHT`] filing
@@ -530,10 +531,18 @@ pub fn is_unavailable(error: &StreamError) -> bool {
 #[cfg(test)]
 mod tests {
     use pretty_assertions::assert_eq;
-    use sec::error::state_machine::state::{FailedDocumentSelection, MissingDailyIndex};
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    use sec::error::state_machine::state::{
+        FailedDocumentSelection, FailedRequestExecution, MissingDailyIndex,
+    };
     use sec::prelude::StreamEvent;
     use sec::shared::filing_documents::FilingDocumentRole;
     use sec::shared::index_date::IndexDate;
+    use sec::shared::response::implementations::sec_response::error::{
+        ErrorReason, InvalidSecResponse,
+    };
+    use sec::shared::status_code::StatusCode;
     use uuid::Uuid;
 
     use super::*;
@@ -598,6 +607,87 @@ mod tests {
             role: FilingDocumentRole::XbrlInstance,
             candidate_count: 2,
         })
+    }
+
+    fn request_error(status_code: StatusCode) -> StreamError {
+        let failure =
+            FailedSecRequest::from(InvalidSecResponse::new(ErrorReason::InvalidStatusCode {
+                status_code,
+            }));
+        stream_error(
+            "Execute SEC Request",
+            StateMachine::State(StateError::FailedRequestExecution(
+                FailedRequestExecution::new("Execute SEC Request", failure),
+            )),
+        )
+    }
+
+    /// Returns how many times `with_retry` runs an attempt that always fails with `error`.
+    async fn attempts_until_given_up(error: fn() -> StreamError) -> usize {
+        let attempts = AtomicUsize::new(0);
+        let retry_delays = [Duration::ZERO, Duration::ZERO];
+        let _ = with_retry(
+            &retry_delays,
+            || {
+                attempts.fetch_add(1, Ordering::SeqCst);
+                async move { Err::<(), _>(error()) }
+            },
+            |_| {},
+        )
+        .await;
+        attempts.load(Ordering::SeqCst)
+    }
+
+    fn unavailable() -> StreamError {
+        request_error(StatusCode::ServiceUnavailable)
+    }
+
+    fn not_found() -> StreamError {
+        request_error(StatusCode::NotFound)
+    }
+
+    #[test]
+    fn should_count_an_error_as_unavailable_when_the_sec_answers_503() {
+        let error = unavailable();
+
+        let expected_result = true;
+
+        let result = is_unavailable(&error);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_not_count_an_error_as_unavailable_when_the_sec_answers_404() {
+        let error = not_found();
+
+        let expected_result = false;
+
+        let result = is_unavailable(&error);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_try_once_more_per_retry_delay_when_every_attempt_gets_503() {
+        let error = unavailable;
+
+        let expected_result = 3;
+
+        let result = attempts_until_given_up(error).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_try_once_when_the_error_is_not_a_503() {
+        let error = not_found;
+
+        let expected_result = 1;
+
+        let result = attempts_until_given_up(error).await;
+
+        assert_eq!(result, expected_result);
     }
 
     fn configuration_error() -> StreamError {
