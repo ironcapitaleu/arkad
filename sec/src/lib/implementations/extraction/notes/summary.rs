@@ -13,7 +13,7 @@ use crate::shared::notes_archive_ref::NotesArchiveRef;
 
 /// How the run got the stored file of a period.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Fetch {
+pub(super) enum Fetch {
     /// The run downloaded and stored the file.
     Downloaded,
     /// The store already held an intact file, so the run skipped the download.
@@ -25,10 +25,10 @@ pub enum Fetch {
 
 /// The outcome of one period: the stored archive and how the run got it, or the error of the state
 /// that failed.
-pub type PeriodOutcome = Result<(Fetch, NotesArchiveRef), StreamError>;
+pub(super) type PeriodOutcome = Result<(Fetch, NotesArchiveRef), StreamError>;
 
 /// Returns `true` if `error` comes from an SEC answer of 403 or 404 for the Notes file.
-pub fn is_absent_file(error: &StreamError) -> bool {
+pub(super) fn is_absent_file(error: &StreamError) -> bool {
     matches!(
         &error.source,
         StateMachine::State(StateError::FailedRequestExecution(failure))

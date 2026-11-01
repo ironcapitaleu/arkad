@@ -37,6 +37,36 @@
 //!     .build();
 //! ```
 //!
+//! A batch runs many Notes periods and returns a summary. The observer gets each event as it
+//! happens:
+//!
+//! ```no_run
+//! # async fn example() {
+//! use sec::implementations::extraction::{Extraction, RunEvent};
+//! use sec::shared::http_client::implementations::sec_client::SecClient;
+//! use sec::shared::raw_document::RawDocument;
+//! use sec::shared::raw_source::RawNotesArchive;
+//! use storage::implementations::repository::filesystem::FilesystemRepository;
+//!
+//! let repository = FilesystemRepository::builder()
+//!     .writer()
+//!     .document_type::<RawDocument<RawNotesArchive>>()
+//!     .root("data")
+//!     .build();
+//! let summary = Extraction::backfill()
+//!     .notes()
+//!     .periods(["2009q1", "2009q2"])
+//!     .sec_client(SecClient::default())
+//!     .repository(repository)
+//!     .run(|unit, event| {
+//!         if let RunEvent::Error(error, kind) = event {
+//!             eprintln!("{unit}: {kind}: {error}");
+//!         }
+//!     })
+//!     .await;
+//! # }
+//! ```
+//!
 //! An incremental run builds the machines of the new-filing path:
 //!
 //! ```no_run

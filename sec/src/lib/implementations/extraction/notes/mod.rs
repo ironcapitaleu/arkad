@@ -10,10 +10,6 @@
 //!
 //! [`run`]: NotesBatchBuilder::run
 
-mod summary;
-
-pub use summary::{FailedBackfill, MissingCutOverDate, NotesRunSummary};
-
 use std::panic;
 use std::sync::Arc;
 
@@ -44,6 +40,10 @@ use crate::shared::response::implementations::sec_response::{SecResponse, ZipBod
 use crate::traits::state_machine::stream::IntoStateMachineStream;
 use summary::{Fetch, is_absent_file};
 
+mod summary;
+
+pub use summary::{FailedBackfill, MissingCutOverDate, NotesRunSummary};
+
 /// The number of Notes files that a batch run downloads at once without a call to
 /// [`NotesBatchBuilder::in_flight`].
 ///
@@ -53,8 +53,8 @@ pub const DEFAULT_FILES_IN_FLIGHT: usize = 2;
 
 /// The most periods at the end of a run that the run summary counts as unpublished.
 ///
-/// The caller asks for periods up to last month, so only the last period can lack a file. The cap
-/// keeps a run in which the SEC refuses every request with 403 from counting as a success.
+/// If the period list ends at last month, only the last period can lack a file. The cap keeps a
+/// run in which the SEC refuses every request with 403 from counting as a success.
 pub const MAX_UNPUBLISHED: usize = 1;
 
 /// The store that a batch run writes the Notes files to.
@@ -114,6 +114,29 @@ impl BackfillNotes {
 /// Set the client with [`sec_client`](Self::sec_client) and the store with
 /// [`repository`](Self::repository), in any order. [`in_flight`](Self::in_flight) is optional.
 /// Then call [`run`](Self::run).
+///
+/// Only a batch has `run`, and only one period has `build`. So `build` does not follow
+/// `periods`:
+///
+/// ```compile_fail,E0599
+/// use sec::implementations::extraction::Extraction;
+///
+/// let _state = Extraction::backfill().notes().periods(["2024q1"]).build();
+/// ```
+///
+/// And `run` does not follow `period`:
+///
+/// ```compile_fail,E0599
+/// use sec::implementations::extraction::Extraction;
+/// use sec::shared::raw_document::RawDocument;
+/// use sec::shared::raw_source::RawNotesArchive;
+/// use storage::implementations::repository::filesystem::{FilesystemRepository, Write};
+///
+/// let _run = Extraction::backfill()
+///     .notes()
+///     .period::<FilesystemRepository<Write, RawDocument<RawNotesArchive>>>("2024q1")
+///     .run(|_, _| {});
+/// ```
 #[derive(Debug, Clone)]
 pub struct NotesBatchBuilder<C, R> {
     notes: BackfillNotes,
@@ -179,7 +202,8 @@ where
     ///
     /// Calls `observer` with the period and each successful stream item, and with the period and
     /// the error of a failed period. An SEC answer of 403 or 404 gives [`ErrorKind::Absent`], and
-    /// every other error gives [`ErrorKind::Failed`].
+    /// every other error gives [`ErrorKind::Failed`]. A skipped period sends no event to the
+    /// observer.
     ///
     /// # Panics
     ///
@@ -576,8 +600,8 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_return_the_last_day_of_the_period_before_when_the_newest_period_is_unpublished()
-    {
+    async fn should_return_the_last_day_of_the_period_before_when_running_a_batch_whose_newest_period_is_unpublished()
+     {
         let root = temporary_root();
         let sec_client = sec_client_with_files_of(&["2025q3"]);
         let periods = ["2025q3", "2025_10"];
@@ -633,6 +657,84 @@ mod tests {
 
         run_batch(&root, sec_client, &periods, observer).await;
         let result = kinds.lock().expect(LOCK_EXPECT).clone();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_pass_the_failed_kind_to_the_observer_when_the_period_is_invalid() {
+        let root = temporary_root();
+        let sec_client = sec_client_with_files_of(&[]);
+        let periods = ["not_a_period"];
+        let kinds = Arc::new(Mutex::new(Vec::new()));
+        let observed_kinds = Arc::clone(&kinds);
+        let observer = move |_: &Unit, event: RunEvent<'_>| {
+            if let RunEvent::Error(_, kind) = event {
+                observed_kinds.lock().expect(LOCK_EXPECT).push(kind);
+            }
+        };
+
+        let expected_result = vec![ErrorKind::Failed];
+
+        run_batch(&root, sec_client, &periods, observer).await;
+        let result = kinds.lock().expect(LOCK_EXPECT).clone();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_call_the_observer_before_the_next_period_starts_when_one_period_runs_at_once() {
+        let root = temporary_root();
+        let sec_client = sec_client_with_files_of(&["2025q3", "2025_10"]);
+        let periods = ["2025q3", "2025_10"];
+        let later_file = root.path().join("sec/notes/2025_10_notes.zip");
+        let later_file_seen = Arc::new(Mutex::new(Vec::new()));
+        let seen_by_observer = Arc::clone(&later_file_seen);
+        let observer = move |unit: &Unit, _: RunEvent<'_>| {
+            if unit.to_string() == "2025q3" {
+                seen_by_observer
+                    .lock()
+                    .expect(LOCK_EXPECT)
+                    .push(later_file.exists());
+            }
+        };
+
+        let expected_result = false;
+
+        Extraction::backfill()
+            .notes()
+            .periods(periods)
+            .sec_client(sec_client)
+            .repository(writer(&root))
+            .in_flight(1)
+            .run(observer)
+            .await;
+        let result = later_file_seen
+            .lock()
+            .expect(LOCK_EXPECT)
+            .iter()
+            .any(|seen| *seen);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_store_every_period_when_in_flight_is_zero() {
+        let root = temporary_root();
+        let sec_client = sec_client_with_files_of(&["2025q3", "2025_10"]);
+        let periods = ["2025q3", "2025_10"];
+
+        let expected_result = 2;
+
+        let result = Extraction::backfill()
+            .notes()
+            .periods(periods)
+            .sec_client(sec_client)
+            .repository(writer(&root))
+            .in_flight(0)
+            .run(|_, _| {})
+            .await
+            .success_count();
 
         assert_eq!(result, expected_result);
     }

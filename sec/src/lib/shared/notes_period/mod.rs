@@ -146,9 +146,10 @@ impl NotesPeriod {
     ///
     /// let period = NotesPeriod::new("2024q1").expect("A hardcoded published quarter should always parse");
     ///
-    /// let expected_result = NaiveDate::from_ymd_opt(2024, 3, 31);
+    /// let expected_result =
+    ///     NaiveDate::from_ymd_opt(2024, 3, 31).expect("A hardcoded calendar date should always be valid");
     ///
-    /// let result = Some(period.last_day());
+    /// let result = period.last_day();
     ///
     /// assert_eq!(result, expected_result);
     /// ```

@@ -1544,8 +1544,8 @@ A binary links the library built without `cfg(test)`, so the fixtures of `sec`, 
 feature, and stays in `[dev-dependencies]` for the library's own unit tests. `RoutingSecClient`
 answers each URL with one fixed response. PR 2 adds a route that serves a list of responses in
 order, for the test of a 503 followed by a 200. `sec` names itself as a dev-dependency with the feature, so the integration tests enable
-it. `sec/tests/daily_filings.rs` includes the binary's modules through `#[path]`, as
-`sec/tests/notes_backfill.rs` does, so the `integration-tests` job of CI runs their tests.
+it. `sec/tests/daily_filings.rs` includes the binary's modules through `#[path]`, so the
+`integration-tests` job of CI runs their tests.
 
 - `dates.rs`: `yesterday` alone, `yesterday-3`, a range, one day, `ARKAD_FROM` unset, a value
   that does not parse, `yesterday-N` with a zero, a sign, or a leading zero, `ARKAD_FROM` after
@@ -1601,7 +1601,7 @@ Rules:
    month. To check, confirm that no entry in the run summary has a `failed_state`. If one does,
    rerun the backfill (rule 8). Then read the newest period in the run summary with the status
    `downloaded`, `already_stored`, or `replaced`. That period is the newest stored Notes month of
-   rule 1. Once the facade exists, `NotesRunSummary::cut_over_date()` does this check. It returns
+   rule 1. `NotesRunSummary::cut_over_date()` does this check (STA-414). It returns
    the last day of that month. It fails if a period failed or if no period is stored. See
    [Calling the Machines](#calling-the-machines). Do not rely on the calendar. In three samples, the SEC posted a month in the first 8
    days of the next month. But `2025_10_notes.zip` has a Last-Modified of 2025-12-01 (see
