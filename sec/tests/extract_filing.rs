@@ -203,18 +203,32 @@ async fn should_store_the_label_file_when_the_filing_has_no_inline_xbrl() {
     assert_eq!(result, expected_result);
 }
 
+/// The status codes the SEC answers for a filing folder that does not exist. Observed on
+/// 2026-11-01: the same URL got 404 on one request and 503 on the next.
+const MISSING_FOLDER_STATUS_CODES: [&str; 2] = ["Status code '404'", "Status code '503'"];
+
 #[tokio::test]
-async fn should_end_with_the_error_of_the_folder_index_request_when_the_filing_does_not_exist() {
+async fn should_end_with_a_missing_folder_status_of_the_folder_index_request_when_the_filing_does_not_exist()
+ {
     let root = temporary_root();
     let filing = filing_ref("3545", "0000003545-99-999999", Form::TenQ, (2026, 8, 10));
 
-    let expected_result = Some(("Execute SEC Request".to_string(), "Problem occurred during internal state operations: '[StateError] A state level error occurred, Caused by: [FailedRequestExecution] Failure in State: 'Execute SEC Request', Caused by: [FailedSecRequest] SEC request failed, Caused by: [InvalidResponse] Response validation failed, Caused by: [InvalidSecResponse] Invalid SEC Response, Reason: 'Status code '404' is not accepted''".to_string()));
+    let expected_result = Some(("Execute SEC Request".to_string(), true));
 
     let result = super_state(filing, root.path())
         .run_to_documents(|_| {})
         .await
         .err()
-        .map(|error| (error.state_name, error.source.to_string()));
+        .map(|error| {
+            let error_text = error.source.to_string();
+            (
+                error.state_name,
+                error_text.contains("[InvalidSecResponse] Invalid SEC Response")
+                    && MISSING_FOLDER_STATUS_CODES
+                        .iter()
+                        .any(|status| error_text.contains(status)),
+            )
+        });
 
     assert_eq!(result, expected_result);
 }
