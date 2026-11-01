@@ -6,8 +6,8 @@
 //!
 //! ## Modules
 //!
-//! - `request_check`: The check that the request matches the context, shared by the store
-//!   transitions.
+//! - `request_check`: The check that the request matches the context, shared by the transitions
+//!   out of `ExecuteSecRequest`.
 //! - [`select_filing_documents`]: Transition of the folder index kind into the state that picks
 //!   the XBRL instance and the label file.
 //! - [`store_company_facts`]: Transition into the state that stores the Company Facts.
