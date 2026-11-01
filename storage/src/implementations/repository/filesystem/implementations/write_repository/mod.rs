@@ -676,11 +676,10 @@ mod tests {
         assert_ne!(result, first_path);
     }
 
-    /// Returns the sample document with the given field of its metadata set to `value`.
+    /// Returns `document` with `value` in place of its metadata field `field`.
     ///
     /// Deserializing keeps any document type and document type version, so the result can hold a
     /// foreign document type.
-    /// Returns `document` with `value` in place of its metadata field `field`.
     fn with_metadata_field(
         document: &SampleDocument,
         field: &str,
@@ -694,6 +693,7 @@ mod tests {
         SampleDocument::from_parts(document.key().clone(), document.bytes().to_vec(), metadata)
     }
 
+    /// Returns the sample document with `value` in place of its metadata field `field`.
     fn sample_document_with_metadata_field(
         field: &str,
         value: serde_json::Value,
