@@ -23,8 +23,10 @@ use crate::shared::run_fields::RunFields;
 use crate::shared::url::Url;
 use crate::shared::user_agent::UserAgent;
 
+pub mod filing_fields;
 pub mod raw_document_metadata_context;
 
+pub use filing_fields::FilingFields;
 pub use raw_document_metadata_context::RawDocumentMetadataContext;
 
 /// One SEC file of the source `S`, the key naming it, and the metadata of the fetch that produced
@@ -67,6 +69,7 @@ pub use raw_document_metadata_context::RawDocumentMetadataContext;
 ///         http_status: StatusCode::Ok,
 ///         user_agent: UserAgent::new("arkad contact@example.com")
 ///             .expect("A hardcoded SEC-format string should always validate"),
+///         filing: None,
 ///     })
 ///     .build();
 ///
@@ -259,6 +262,99 @@ impl<S: RawFileSource> RawDocument<S> {
         user_agent: &UserAgent,
         run: RunFields,
     ) -> Self {
+        let context = RawDocumentMetadataContext::from_file(file, requested_url, user_agent);
+        Self::from_file_with_context(key, file, context, run)
+    }
+
+    /// Creates a [`RawDocument`] of one file of a filing, as [`from_file`](Self::from_file)
+    /// does, and records `filing` in the metadata context.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use std::collections::HashMap;
+    ///
+    /// use chrono::{DateTime, NaiveDate, Utc};
+    /// use sec::shared::build_info::producer;
+    /// use sec::shared::content_type::ContentType;
+    /// use sec::shared::headers::Headers;
+    /// use sec::shared::raw_document::{FilingFields, RawDocument};
+    /// use sec::shared::raw_source::RawXbrlInstance;
+    /// use sec::shared::response::implementations::sec_response::{SecResponse, XmlBody};
+    /// use sec::shared::run_fields::RunFields;
+    /// use sec::shared::status_code::StatusCode;
+    /// use sec::shared::url::Url;
+    /// use sec::shared::user_agent::UserAgent;
+    /// use storage::implementations::repository::filesystem::{Document, DocumentKey, IngestionMode};
+    /// use uuid::Uuid;
+    ///
+    /// let url: Url = "https://www.sec.gov/Archives/edgar/data/3545/000000354526000047/alco-20260908_htm.xml"
+    ///     .parse()
+    ///     .expect("A hardcoded valid URL string should always parse");
+    /// let headers = Headers::new(HashMap::from([(
+    ///     "content-type".to_string(),
+    ///     "text/xml".to_string(),
+    /// )]));
+    /// let file = SecResponse::<XmlBody>::from_parts(
+    ///     url.clone(),
+    ///     headers,
+    ///     ContentType::Xml,
+    ///     StatusCode::Ok,
+    ///     b"<xbrl/>".to_vec(),
+    /// )
+    ///     .expect("Given status 200 and an XML body, building the response should always succeed");
+    /// let key = DocumentKey::new("sec/filings/CIK0000003545/0000003545-26-000047/instance.xml")
+    ///     .expect("Given a valid relative path, the key should always build");
+    /// let user_agent = UserAgent::new("arkad contact@example.com")
+    ///     .expect("A hardcoded SEC-format string should always validate");
+    /// let filing = FilingFields {
+    ///     filed_date: NaiveDate::from_ymd_opt(2026, 9, 9)
+    ///         .expect("Given a hardcoded calendar date, the date should always build"),
+    ///     form: "10-Q".to_string(),
+    ///     is_amendment: false,
+    /// };
+    ///
+    /// let document = RawDocument::<RawXbrlInstance>::from_filing_file(
+    ///     key,
+    ///     &file,
+    ///     &url,
+    ///     &user_agent,
+    ///     RunFields {
+    ///         produced_at: DateTime::<Utc>::UNIX_EPOCH,
+    ///         execution_id: Uuid::nil(),
+    ///         producer: producer("Store Filing Documents"),
+    ///         ingestion_mode: IngestionMode::Incremental,
+    ///     },
+    ///     filing.clone(),
+    /// );
+    ///
+    /// let expected_result = Some(filing);
+    ///
+    /// let result = document.metadata().context().filing.clone();
+    ///
+    /// assert_eq!(result, expected_result);
+    /// ```
+    #[must_use]
+    pub fn from_filing_file<B: FileBody>(
+        key: DocumentKey,
+        file: &SecResponse<B>,
+        requested_url: &Url,
+        user_agent: &UserAgent,
+        run: RunFields,
+        filing: FilingFields,
+    ) -> Self {
+        let context = RawDocumentMetadataContext::from_file(file, requested_url, user_agent)
+            .with_filing(filing);
+        Self::from_file_with_context(key, file, context, run)
+    }
+
+    /// Creates a [`RawDocument`] of `file` with the metadata `context`.
+    fn from_file_with_context<B: FileBody>(
+        key: DocumentKey,
+        file: &SecResponse<B>,
+        context: RawDocumentMetadataContext,
+        run: RunFields,
+    ) -> Self {
         let metadata = DocumentMetadata::builder()
             .document_type::<Self>()
             .media_type(file.content_type().to_string())
@@ -266,11 +362,7 @@ impl<S: RawFileSource> RawDocument<S> {
             .produced_at(run.produced_at)
             .run(run.execution_id, run.producer)
             .ingestion_mode(run.ingestion_mode)
-            .context(RawDocumentMetadataContext::from_file(
-                file,
-                requested_url,
-                user_agent,
-            ))
+            .context(context)
             .build();
         Self::from_parts(key, file.body_bytes(), metadata)
     }
@@ -398,6 +490,7 @@ mod tests {
                 final_url: sample_url(),
                 http_status: StatusCode::Ok,
                 user_agent: sample_user_agent(),
+                filing: None,
             })
             .build();
         RawDocument::from_parts(key, b"{}".to_vec(), metadata)
@@ -475,6 +568,7 @@ mod tests {
             final_url: sample_url(),
             http_status: StatusCode::Ok,
             user_agent: sample_user_agent(),
+            filing: None,
         };
 
         let result = document.metadata().context().clone();
@@ -502,6 +596,7 @@ mod tests {
                 final_url: sample_url(),
                 http_status: StatusCode::Ok,
                 user_agent: sample_user_agent(),
+                filing: None,
             })
             .build();
 
@@ -588,6 +683,7 @@ mod tests {
             final_url: sample_redirected_url(),
             http_status: StatusCode::Ok,
             user_agent: sample_user_agent(),
+            filing: None,
         };
 
         let result = document.metadata().context().clone();

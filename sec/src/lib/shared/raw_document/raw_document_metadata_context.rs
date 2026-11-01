@@ -5,6 +5,7 @@
 
 use serde::{Deserialize, Serialize};
 
+use super::FilingFields;
 use crate::shared::response::SecResponse as SecResponseTrait;
 use crate::shared::response::implementations::sec_response::{FileBody, SecResponse};
 use crate::shared::status_code::StatusCode;
@@ -28,6 +29,10 @@ pub struct RawDocumentMetadataContext {
     pub http_status: StatusCode,
     /// The `User-Agent` the fetch sent.
     pub user_agent: UserAgent,
+    /// The filing the document belongs to, or `None` for a document that is not part of a filing.
+    /// A metadata file without the `filing` key reads as `None`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub filing: Option<FilingFields>,
 }
 
 impl RawDocumentMetadataContext {
@@ -42,6 +47,7 @@ impl RawDocumentMetadataContext {
             final_url: response.url().clone(),
             http_status: response.status_code(),
             user_agent: user_agent.clone(),
+            filing: None,
         }
     }
 
@@ -77,6 +83,16 @@ impl RawDocumentMetadataContext {
             final_url: file.url().clone(),
             http_status: file.status_code(),
             user_agent: user_agent.clone(),
+            filing: None,
+        }
+    }
+
+    /// Returns this context with the filing the document belongs to.
+    #[must_use]
+    pub fn with_filing(self, filing: FilingFields) -> Self {
+        Self {
+            filing: Some(filing),
+            ..self
         }
     }
 }
@@ -118,6 +134,7 @@ mod tests {
             final_url: sample_final_url(),
             http_status: StatusCode::Ok,
             user_agent: sample_user_agent(),
+            filing: None,
         }
     }
 
@@ -291,5 +308,59 @@ mod tests {
             .to_string();
 
         assert!(result.starts_with(&expected_result));
+    }
+
+    #[test]
+    fn should_read_no_filing_when_the_metadata_has_no_filing_field() {
+        let json = serde_json::json!({
+            "requested_url": "https://data.sec.gov/api/xbrl/companyfacts/CIK0000320193.json",
+            "final_url": "https://data.sec.gov/api/xbrl/companyfacts/redirected/CIK0000320193.json",
+            "http_status": 200,
+            "user_agent": "Sample Company contact@example.com",
+        });
+
+        let expected_result = sample_context();
+
+        let result: RawDocumentMetadataContext = serde_json::from_value(json)
+            .expect("Given the fields that metadata files held before the filing field, reading should always succeed");
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_write_no_filing_field_when_the_document_is_not_part_of_a_filing() {
+        let context = sample_context();
+
+        let expected_result = false;
+
+        let result = serde_json::to_value(&context)
+            .expect("Given a context of plain fields, writing JSON should always succeed")
+            .as_object()
+            .is_some_and(|fields| fields.contains_key("filing"));
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_write_the_filed_date_and_the_form_when_the_document_is_part_of_a_filing() {
+        let context = sample_context().with_filing(FilingFields {
+            filed_date: chrono::NaiveDate::from_ymd_opt(2025, 11, 28)
+                .expect("Given a hardcoded calendar date, the date should always build"),
+            form: "10-K".to_string(),
+            is_amendment: false,
+        });
+
+        let expected_result = Some(serde_json::json!({
+            "filed_date": "2025-11-28",
+            "form": "10-K",
+            "is_amendment": false,
+        }));
+
+        let result = serde_json::to_value(&context)
+            .expect("Given a context of plain fields, writing JSON should always succeed")
+            .get("filing")
+            .cloned();
+
+        assert_eq!(result, expected_result);
     }
 }

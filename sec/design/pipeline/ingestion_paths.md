@@ -1545,6 +1545,9 @@ documents:
 - The accession number in a key keeps its dashes, for example `0000003545-26-000047`.
 - The instance and the label file get fixed names, so transform finds them without a listing.
   The metadata keeps the SEC file name in `requested_url`.
+- The key of a filing's file names its CIK and accession number, not the day it was filed. So the
+  metadata `context` of the instance and the label file also holds `filing`: the `filed_date`, the
+  `form` (`10-Q`), and `is_amendment`. A metadata file without `filing` reads as no filing.
 - The daily index is stored so that detection can run again without the SEC.
 - A new fetch of `submissions` replaces the old file. The raw store holds the latest company data
   only. The same holds for a replaced Notes file.
