@@ -337,4 +337,153 @@ mod tests {
 
         assert_eq!(result, expected_result);
     }
+
+    /// Runs `PrepareSecRequest`, `ExecuteSecRequest`, and `StoreFilingDocuments` for one filing,
+    /// with a store under `root`.
+    mod end_to_end {
+        use std::path::Path;
+
+        use pretty_assertions::assert_eq;
+        use storage::implementations::repository::filesystem::{FilesystemRepository, Write};
+        use tempfile::TempDir;
+
+        use super::*;
+        use crate::error::State as StateError;
+        use crate::implementations::states::extract::prepare_sec_request::{
+            PrepareSecRequest, PrepareSecRequestContext, PrepareSecRequestInput,
+        };
+        use crate::shared::raw_document::RawDocument;
+        use crate::shared::raw_source::{RawXbrlInstance, RawXbrlLabels};
+
+        type InstanceRepository = FilesystemRepository<Write, RawDocument<RawXbrlInstance>>;
+        type LabelsRepository = FilesystemRepository<Write, RawDocument<RawXbrlLabels>>;
+
+        const FILING_FOLDER: &str = "sec/filings/CIK0000003545/0000003545-26-000047";
+
+        fn temporary_root() -> TempDir {
+            TempDir::new().expect(
+                "Given a writable system temp directory, creating a directory in it should always succeed",
+            )
+        }
+
+        fn instance_repository(root: &Path) -> InstanceRepository {
+            FilesystemRepository::builder()
+                .writer()
+                .document_type::<RawDocument<RawXbrlInstance>>()
+                .root(root)
+                .build()
+        }
+
+        fn labels_repository(root: &Path) -> LabelsRepository {
+            FilesystemRepository::builder()
+                .writer()
+                .document_type::<RawDocument<RawXbrlLabels>>()
+                .root(root)
+                .build()
+        }
+
+        async fn run(
+            sec_client: RoutingSecClient,
+            label_file: Option<&str>,
+            root: &Path,
+        ) -> Result<(), StateError> {
+            let documents = document_set(INSTANCE, label_file);
+            let mut prepare = PrepareSecRequest::<FilingDocumentSet>::new(
+                PrepareSecRequestInput::new(documents.clone()),
+                PrepareSecRequestContext::new(documents),
+            );
+            prepare.compute_output_data_async().await?;
+            let mut execute = TestExecute::try_from((prepare, sec_client))
+                .expect("Given a prepared request, the transition should always succeed");
+            execute.compute_output_data_async().await?;
+            let mut store = StoreFilingDocuments::try_from((
+                execute,
+                SAMPLE_EXECUTION_ID,
+                instance_repository(root),
+                labels_repository(root),
+            ))
+            .expect("Given an executed request, the transition should always succeed");
+            store.compute_output_data_async().await
+        }
+
+        fn read_stored(root: &Path, file_name: &str) -> Vec<u8> {
+            std::fs::read(root.join(FILING_FOLDER).join(file_name))
+                .expect("Given a run that stored the file, reading it back should always succeed")
+        }
+
+        #[tokio::test]
+        async fn should_store_the_served_instance_when_the_filing_has_a_label_file() {
+            let root = temporary_root();
+            let label_file = Some(LABEL_FILE);
+
+            let expected_result = b"<xbrl/>".to_vec();
+
+            run(sec_client(), label_file, root.path())
+                .await
+                .expect("Given a client that serves both files, the run should always succeed");
+            let result = read_stored(root.path(), "instance.xml");
+
+            assert_eq!(result, expected_result);
+        }
+
+        #[tokio::test]
+        async fn should_store_the_served_label_file_when_the_filing_has_a_label_file() {
+            let root = temporary_root();
+            let label_file = Some(LABEL_FILE);
+
+            let expected_result = b"<labels/>".to_vec();
+
+            run(sec_client(), label_file, root.path())
+                .await
+                .expect("Given a client that serves both files, the run should always succeed");
+            let result = read_stored(root.path(), "lab.xml");
+
+            assert_eq!(result, expected_result);
+        }
+
+        #[tokio::test]
+        async fn should_store_the_instance_when_the_filing_has_no_label_file() {
+            let root = temporary_root();
+            let label_file = None;
+
+            let expected_result = b"<xbrl/>".to_vec();
+
+            run(sec_client(), label_file, root.path())
+                .await
+                .expect("Given a client that serves the instance, the run should always succeed");
+            let result = read_stored(root.path(), "instance.xml");
+
+            assert_eq!(result, expected_result);
+        }
+
+        #[tokio::test]
+        async fn should_store_no_label_file_when_the_filing_has_no_label_file() {
+            let root = temporary_root();
+            let label_file = None;
+
+            let expected_result = false;
+
+            run(sec_client(), label_file, root.path())
+                .await
+                .expect("Given a client that serves the instance, the run should always succeed");
+            let result = root.path().join(FILING_FOLDER).join("lab.xml").exists();
+
+            assert_eq!(result, expected_result);
+        }
+
+        #[tokio::test]
+        async fn should_fail_the_run_when_the_label_file_request_fails() {
+            let root = temporary_root();
+            let sec_client =
+                RoutingSecClient::new().route(INSTANCE_URL, 200, "text/xml", b"<xbrl/>");
+
+            let expected_result = Err("[StateError] A state level error occurred, Caused by: [FailedRequestExecution] Failure in State: 'Execute SEC Request', Caused by: [FailedSecRequest] SEC request failed, Caused by: [FailedFilingDocument] Request for file 'alco-20260908_lab.xml' failed, Caused by: [InvalidResponse] Response validation failed, Caused by: [InvalidSecResponse] Invalid SEC Response, Reason: 'Status code '404' is not accepted'".to_string());
+
+            let result = run(sec_client, Some(LABEL_FILE), root.path())
+                .await
+                .map_err(|e| e.to_string());
+
+            assert_eq!(result, expected_result);
+        }
+    }
 }
