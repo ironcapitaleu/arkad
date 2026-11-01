@@ -57,6 +57,7 @@ use async_trait::async_trait;
 use futures_util::StreamExt;
 use serde::Serialize;
 use state_maschine::prelude::{StateMachine as SMStateMachine, Transition as SMTransition};
+use storage::implementations::repository::filesystem::IngestionMode;
 use uuid::Uuid;
 
 use crate::error::State as StateError;
@@ -363,6 +364,9 @@ impl<R: RawRepository<RawNotesArchive> + 'static, C: SecClientTrait + 'static>
     }
 }
 
+/// The ingestion mode of every Notes document. Notes runs as a backfill only.
+const INGESTION_MODE: IngestionMode = IngestionMode::Backfill;
+
 // --- Transitions ---
 
 impl<R: RawRepository<RawNotesArchive>, C: SecClientTrait>
@@ -435,6 +439,7 @@ where
             current_state: StoreNotesArchive::try_from((
                 self.current_state,
                 self.context.execution_id,
+                INGESTION_MODE,
                 self.context.repository.clone(),
             ))?,
             input: ExtractNotesSuperStateData,
@@ -642,6 +647,26 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn should_name_the_notes_period_in_the_context_of_the_store_state_when_running_the_stream()
+     {
+        let notes_period = "2024q1";
+        let super_state = super_state(notes_period, FakeNotesRepository::new());
+
+        let expected_result = Some(serde_json::json!(notes_period));
+
+        let items = run_stream(super_state).await;
+        let result = items
+            .iter()
+            .find(|item| {
+                item.event == StreamEvent::StateCompleted && item.state_name == STORE_NOTES_ARCHIVE
+            })
+            .and_then(|item| item.data.pointer("/context/notes_period"))
+            .cloned();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
     async fn should_end_the_stream_with_the_notes_archive_ref_when_running_the_stream() {
         let super_state = super_state("2024q1", FakeNotesRepository::new());
         let period = NotesPeriod::new("2024q1")
@@ -668,17 +693,12 @@ mod tests {
     {
         let download = downloaded_super_state().await;
 
-        let expected_result = Some(1);
+        let expected_result = 1;
 
         let store = download
             .transition_to_next_state_sec()
             .expect("Given a computed download, the transition should always succeed");
-        let result = store
-            .current_state()
-            .input_data()
-            .response
-            .as_ref()
-            .map(Arc::strong_count);
+        let result = Arc::strong_count(&store.current_state().input_data().response);
 
         assert_eq!(result, expected_result);
     }
@@ -724,15 +744,17 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_serialize_a_null_response_when_store_notes_archive_took_the_body() {
-        let super_state = super_state("2024q1", FakeNotesRepository::new());
+    async fn should_store_as_backfill_when_transitioning_to_store_notes_archive() {
+        let download = downloaded_super_state().await;
 
-        let expected_result = Some(serde_json::Value::Null);
+        let expected_result = IngestionMode::Backfill;
 
-        let items = run_stream(super_state).await;
-        let result = items
-            .last()
-            .and_then(|item| item.data.pointer("/input/response").cloned());
+        let result = download
+            .transition_to_next_state_sec()
+            .expect("Given a computed download, the transition should always succeed")
+            .current_state()
+            .context_data()
+            .ingestion_mode();
 
         assert_eq!(result, expected_result);
     }

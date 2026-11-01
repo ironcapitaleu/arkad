@@ -1,82 +1,77 @@
 //! # Store Notes Archive State
 //!
-//! Provides the [`StoreNotesArchive`] state, which writes one downloaded Notes file to the store
-//! and outputs a [`NotesArchiveRef`] to the stored file. [`notes_key`] gives the key of the file
-//! of a period.
+//! Provides [`StoreNotesArchive`], the [`StoreSecResponse`] state of the [`NotesFile`] kind, which
+//! writes one downloaded Notes file to the store and outputs a [`NotesArchiveRef`] to the stored
+//! file. [`notes_key`] gives the key of the file of a period.
 //!
 //! ## Modules
 //!
 //! - [`constants`]: State metadata such as [`STATE_NAME`], and the [`NOTES_KEY_PREFIX`].
-//! - [`context`]: The [`StoreNotesArchiveContext`] carried alongside the state.
-//! - [`data`]: The [`StoreNotesArchiveInput`] and [`StoreNotesArchiveOutput`] data types.
+//! - [`data`]: The [`StoreNotesArchiveOutput`] data type.
 //!
 //! ## See Also
 //!
+//! - [`crate::implementations::states::extract::store_sec_response`]: The generic store state.
 //! - [`crate::shared::raw_document`]: The [`RawDocument`] type the state writes.
 
-use std::fmt;
+use storage::implementations::repository::filesystem::{Document, DocumentKey};
 
-use async_trait::async_trait;
-use chrono::Utc;
-use serde::Serialize;
-use state_maschine::prelude::State as SMState;
-use storage::implementations::repository::filesystem::{Document, DocumentKey, IngestionMode};
-
-use crate::error::State as StateError;
-use crate::error::state_machine::state::FailedDocumentWrite;
-use crate::shared::build_info::producer;
-use crate::shared::document_storage::FailedDocumentStorage;
+use crate::implementations::states::extract::store_sec_response::{
+    StoreSecResponse, StoreSecResponseContext, StoreSecResponseInput,
+};
 use crate::shared::notes_archive_ref::NotesArchiveRef;
 use crate::shared::notes_period::NotesPeriod;
 use crate::shared::raw_document::RawDocument;
-use crate::shared::raw_repository::RawRepository;
 use crate::shared::raw_source::RawNotesArchive;
+use crate::shared::request::implementations::sec_request::{NotesFile, StoredAs};
+use crate::shared::response::implementations::sec_response::{SecResponse, ZipBody};
 use crate::shared::run_fields::RunFields;
-use crate::traits::state_machine::state::State;
+use crate::shared::url::Url;
+use crate::shared::user_agent::UserAgent;
 
 pub mod constants;
-pub mod context;
 pub mod data;
 
 pub use constants::{NOTES_KEY_PREFIX, STATE_NAME};
-pub use context::StoreNotesArchiveContext;
-pub use data::StoreNotesArchiveInput;
 pub use data::StoreNotesArchiveOutput;
 
-/// Writes one downloaded Notes file to the store.
+/// The [`StoreSecResponse`] state of the [`NotesFile`] kind.
 ///
-/// Builds one [`RawDocument<RawNotesArchive>`](crate::shared::raw_source::RawNotesArchive) with
-/// [`RawDocument::from_file`], writes it under the key `sec/notes/<file name>` through the
-/// repository of type `R`, and outputs a [`NotesArchiveRef`]. The metadata records the ingestion
-/// mode [`IngestionMode::Backfill`].
-#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
-pub struct StoreNotesArchive<R> {
-    input: StoreNotesArchiveInput,
-    context: StoreNotesArchiveContext<R>,
-    output: Option<StoreNotesArchiveOutput>,
-}
+/// It writes one [`RawDocument<RawNotesArchive>`] under the key `sec/notes/<file name>` and
+/// outputs a [`NotesArchiveRef`] to it.
+pub type StoreNotesArchive<R> = StoreSecResponse<NotesFile, R>;
 
-impl<R> StoreNotesArchive<R> {
-    /// Creates a new [`StoreNotesArchive`] state with no output computed yet.
-    #[must_use]
-    pub const fn new(input: StoreNotesArchiveInput, context: StoreNotesArchiveContext<R>) -> Self {
-        Self {
-            input,
-            context,
-            output: None,
-        }
-    }
+/// The input of [`StoreNotesArchive`].
+pub type StoreNotesArchiveInput = StoreSecResponseInput<NotesFile>;
 
-    /// Consumes the state and returns its input, optional output, and context.
-    #[must_use]
-    pub fn into_parts(
-        self,
-    ) -> (
-        StoreNotesArchiveInput,
-        Option<StoreNotesArchiveOutput>,
-        StoreNotesArchiveContext<R>,
-    ) {
-        (self.input, self.output, self.context)
+/// The context of [`StoreNotesArchive`].
+pub type StoreNotesArchiveContext<R> = StoreSecResponseContext<NotesFile, R>;
+
+/// Builds the document with [`RawDocument::from_file`], which keeps the ZIP bytes unchanged.
+impl StoredAs for NotesFile {
+    type Source = RawNotesArchive;
+    type Output = StoreNotesArchiveOutput;
+
+    const STATE_NAME: &'static str = STATE_NAME;
+    const INPUT_LABEL: &'static str = "period";
+
+    fn store(
+        response: &SecResponse<ZipBody>,
+        period: &NotesPeriod,
+        requested_url: &Url,
+        user_agent: &UserAgent,
+        run: RunFields,
+    ) -> (RawDocument<RawNotesArchive>, StoreNotesArchiveOutput) {
+        let key = notes_key(*period);
+        let document =
+            RawDocument::from_file(key.clone(), response, requested_url, user_agent, run);
+        let archive = NotesArchiveRef::new(
+            *period,
+            key,
+            document.metadata().size_in_bytes(),
+            document.metadata().sha256().clone(),
+        );
+        (document, StoreNotesArchiveOutput::new(archive))
     }
 }
 
@@ -106,114 +101,6 @@ pub fn notes_key(period: NotesPeriod) -> DocumentKey {
         .expect("Given an SEC file name without a path separator, the relative key path should always be valid")
 }
 
-#[async_trait]
-impl<R: RawRepository<RawNotesArchive>> State for StoreNotesArchive<R> {
-    /// Writes the Notes file to the repository and stores a reference to it as output.
-    ///
-    /// The write succeeds even if a clone of the response is alive. That clone keeps the body buffer
-    /// alive, so a transition must never keep one. The input gives up its response even if the
-    /// write fails.
-    ///
-    /// # Errors
-    ///
-    /// - Returns [`StateError::InvalidInput`] if the input holds no response.
-    /// - Returns [`StateError::FailedDocumentWrite`] if the repository rejects the write.
-    async fn compute_output_data_async(&mut self) -> Result<(), StateError> {
-        let response = self.input.response.take().ok_or(StateError::InvalidInput)?;
-        let period = self.input.notes_period;
-        let key = notes_key(period);
-        let document = RawDocument::from_file(
-            key.clone(),
-            &response,
-            &self.input.requested_url,
-            &self.input.user_agent,
-            RunFields {
-                produced_at: Utc::now(),
-                execution_id: self.context.execution_id,
-                producer: producer(STATE_NAME),
-                ingestion_mode: IngestionMode::Backfill,
-            },
-        );
-        let archive = NotesArchiveRef::new(
-            period,
-            key,
-            document.metadata().size_in_bytes(),
-            document.metadata().sha256().clone(),
-        );
-
-        self.context
-            .repository
-            .persist(document)
-            .await
-            .map_err(|e| FailedDocumentWrite::new(STATE_NAME, FailedDocumentStorage::from(e)))?;
-        self.output = Some(StoreNotesArchiveOutput::new(archive));
-        Ok(())
-    }
-}
-
-impl<R: RawRepository<RawNotesArchive>> SMState for StoreNotesArchive<R> {
-    type InputData = StoreNotesArchiveInput;
-    type OutputData = StoreNotesArchiveOutput;
-    type Context = StoreNotesArchiveContext<R>;
-
-    fn state_name(&self) -> impl ToString {
-        STATE_NAME
-    }
-
-    /// Blocking wrapper around [`compute_output_data_async`](crate::traits::state_machine::state::State::compute_output_data_async).
-    ///
-    /// # Panics
-    ///
-    /// - Panics if the async computation returns an error.
-    /// - Panics if called inside a `current_thread` runtime, because `block_in_place` requires a
-    ///   multi-thread runtime.
-    fn compute_output_data(&mut self) {
-        let result = if let Ok(handle) = tokio::runtime::Handle::try_current() {
-            tokio::task::block_in_place(|| handle.block_on(self.compute_output_data_async()))
-        } else {
-            tokio::runtime::Runtime::new()
-                .expect("Failed to create tokio runtime for blocking compute")
-                .block_on(self.compute_output_data_async())
-        };
-
-        if let Err(e) = result {
-            panic!("compute_output_data failed: {e}")
-        }
-    }
-
-    fn context_data(&self) -> &Self::Context {
-        &self.context
-    }
-
-    fn input_data(&self) -> &Self::InputData {
-        &self.input
-    }
-
-    fn output_data(&self) -> Option<&Self::OutputData> {
-        self.output.as_ref()
-    }
-}
-
-impl<R: RawRepository<RawNotesArchive>> fmt::Display for StoreNotesArchive<R> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "`{}` State Summary\n\
-             ---------------------------\n\
-             Context:\n{}\n\
-             Input Data:\n{}\n\
-             Output Data:\n{}",
-            self.state_name().to_string(),
-            self.context,
-            self.input,
-            self.output.as_ref().map_or_else(
-                || "\tNone".to_string(),
-                |output_data| format!("{output_data}")
-            )
-        )
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
@@ -223,25 +110,25 @@ mod tests {
     use std::{fmt::Debug, hash::Hash};
 
     use pretty_assertions::assert_eq;
+    use state_maschine::prelude::State as SMState;
     use storage::implementations::repository::filesystem::{
-        FilesystemRepository, METADATA_SUFFIX, ReadWrite,
+        FilesystemRepository, IngestionMode, METADATA_SUFFIX, ReadWrite,
     };
     use storage::{Sha256Digest, WriteError};
     use tempfile::TempDir;
     use uuid::Uuid;
 
     use super::*;
+    use crate::error::State as StateError;
+    use crate::error::state_machine::state::FailedDocumentWrite;
     use crate::shared::content_type::ContentType;
-    use crate::shared::document_storage::DocumentStorageErrorReason;
+    use crate::shared::document_storage::{DocumentStorageErrorReason, FailedDocumentStorage};
     use crate::shared::headers::Headers;
-    use crate::shared::raw_source::RawNotesArchive;
     use crate::shared::response::SecResponse as SecResponseTrait;
-    use crate::shared::response::implementations::sec_response::{SecResponse, ZipBody};
     use crate::shared::status_code::StatusCode;
-    use crate::shared::url::Url;
-    use crate::shared::user_agent::UserAgent;
     use crate::tests::fixtures::data::notes_archive::SAMPLE_NOTES_ZIP;
     use crate::tests::fixtures::sample_write_repository::FakeNotesRepository;
+    use crate::traits::state_machine::state::State;
 
     type NotesFilesystemRepository = FilesystemRepository<ReadWrite, RawDocument<RawNotesArchive>>;
 
@@ -282,13 +169,20 @@ mod tests {
         let requested_url = response.url().clone();
         let user_agent = UserAgent::new("arkad contact@example.com")
             .expect("Given a hardcoded SEC-format user agent, validation should always succeed");
-        StoreNotesArchiveInput::new(response, notes_period(), requested_url, user_agent)
+        StoreNotesArchiveInput::new(response, requested_url, user_agent)
+    }
+
+    fn sample_context<R>(
+        ingestion_mode: IngestionMode,
+        repository: R,
+    ) -> StoreNotesArchiveContext<R> {
+        StoreNotesArchiveContext::new(notes_period(), Uuid::nil(), ingestion_mode, repository)
     }
 
     fn sample_state<R>(repository: R) -> StoreNotesArchive<R> {
         StoreNotesArchive::new(
             sample_input(sample_response()),
-            StoreNotesArchiveContext::new(Uuid::nil(), repository),
+            sample_context(IngestionMode::Backfill, repository),
         )
     }
 
@@ -421,16 +315,23 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_leave_the_input_without_a_response_when_the_store_succeeds() {
-        let mut state = sample_state(FakeNotesRepository::new());
+    async fn should_record_the_ingestion_mode_of_the_context_for_notes_archives() {
+        let repository = FakeNotesRepository::new();
+        let mut state = StoreNotesArchive::new(
+            sample_input(sample_response()),
+            sample_context(IngestionMode::Incremental, repository.clone()),
+        );
         state
             .compute_output_data_async()
             .await
             .expect("Given a fake repository that accepts every write, the state should succeed");
 
-        let expected_result = true;
+        let expected_result = Some(IngestionMode::Incremental);
 
-        let result = state.input_data().response.is_none();
+        let result = repository
+            .persisted()
+            .pop()
+            .map(|document| document.metadata().ingestion_mode());
 
         assert_eq!(result, expected_result);
     }
@@ -441,25 +342,10 @@ mod tests {
         let _clone = Arc::clone(&response);
         let mut state = StoreNotesArchive::new(
             sample_input(response),
-            StoreNotesArchiveContext::new(Uuid::nil(), FakeNotesRepository::new()),
+            sample_context(IngestionMode::Backfill, FakeNotesRepository::new()),
         );
 
         let expected_result = Ok(());
-
-        let result = state.compute_output_data_async().await;
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[tokio::test]
-    async fn should_return_invalid_input_when_the_input_holds_no_response() {
-        let mut state = sample_state(FakeNotesRepository::new());
-        state
-            .compute_output_data_async()
-            .await
-            .expect("Given a fake repository that accepts every write, the state should succeed");
-
-        let expected_result = Err(StateError::InvalidInput);
 
         let result = state.compute_output_data_async().await;
 
@@ -479,19 +365,6 @@ mod tests {
         )));
 
         let result = state.compute_output_data_async().await;
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[tokio::test]
-    async fn should_leave_the_input_without_a_response_when_the_repository_rejects_the_write() {
-        let write_error = WriteError::conflicting_write(CONFLICT_REASON);
-        let mut state = sample_state(FakeNotesRepository::rejecting(write_error));
-        let _ = state.compute_output_data_async().await;
-
-        let expected_result = true;
-
-        let result = state.input_data().response.is_none();
 
         assert_eq!(result, expected_result);
     }
