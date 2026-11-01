@@ -23,7 +23,7 @@ pub(super) struct CikRead {
 /// Notes file, or a `submissions` CIK failed.
 #[derive(Debug, Error, PartialEq, Eq)]
 #[error(
-    "[FailedAllBackfill] {failed_periods} of {periods} Notes periods, {unreadable_files} of {stored_files} stored Notes files, and {failed_ciks} of {ciks} submissions CIKs failed"
+    "[FailedAllBackfill] Failed: {failed_periods} of {periods} Notes periods, {unreadable_files} of {stored_files} stored Notes files, {failed_ciks} of {ciks} submissions CIKs"
 )]
 pub struct FailedAllBackfill {
     /// The number of Notes periods that failed. An unpublished period does not count.
@@ -138,7 +138,7 @@ mod tests {
             ciks: 6587,
         };
 
-        let expected_result = "[FailedAllBackfill] 0 of 2 Notes periods, 1 of 2 stored Notes files, and 3 of 6587 submissions CIKs failed";
+        let expected_result = "[FailedAllBackfill] Failed: 0 of 2 Notes periods, 1 of 2 stored Notes files, 3 of 6587 submissions CIKs";
 
         let result = error.to_string();
 

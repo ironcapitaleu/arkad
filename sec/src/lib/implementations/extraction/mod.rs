@@ -6,11 +6,10 @@
 //! [`Extraction::incremental`]. The second call picks the source and returns the typestate builder
 //! of that source's super-state, with the run's `execution_id` and ingestion mode already set.
 //! Each [`build`] returns the concrete super-state. The Notes source also runs a batch of periods
-//! with [`BackfillNotes::periods`], the Company Facts and the `submissions` sources a batch of
-//! CIKs with [`BackfillCompanyFacts::ciks`] and [`BackfillSubmissions::ciks`], and the new-filing
-//! path runs many dates with
-//! [`Incremental::daily_filings`]. [`Backfill::all`] runs the Notes periods, then the
-//! `submissions` file of each CIK of the stored Notes files.
+//! with [`BackfillNotes::periods`]. The Company Facts and the `submissions` sources run a batch of
+//! CIKs with [`BackfillCompanyFacts::ciks`] and [`BackfillSubmissions::ciks`]. The new-filing path
+//! runs many dates with [`Incremental::daily_filings`]. [`Backfill::all`] runs the Notes periods,
+//! then the `submissions` file of each CIK of the stored Notes files.
 //!
 //! [`build`]: crate::implementations::states::extract::notes::builder::ExtractNotesSuperStateBuilder::build
 //!
@@ -209,7 +208,7 @@ pub use all::{
     FailedAllBackfill, FailedCikRead,
 };
 pub use company_facts::{
-    BackfillCompanyFacts, CompanyFactsBatchBuilder, CompanyFactsRunSummary, DEFAULT_CIKS_IN_FLIGHT,
+    BackfillCompanyFacts, CompanyFactsBatchBuilder, CompanyFactsRunSummary,
     FailedCompanyFactsBackfill,
 };
 pub use daily_filings::{
@@ -225,6 +224,10 @@ pub use run_event::{ErrorKind, RunEvent, Unit};
 pub use submissions::{
     BackfillSubmissions, FailedSubmissionsBackfill, SubmissionsBatchBuilder, SubmissionsRunSummary,
 };
+
+/// The number of CIKs that a Company Facts or a `submissions` batch run extracts at once without a
+/// call to `in_flight`.
+pub const DEFAULT_CIKS_IN_FLIGHT: usize = 4;
 
 /// Builds the extract super-states by ingestion mode and source.
 ///

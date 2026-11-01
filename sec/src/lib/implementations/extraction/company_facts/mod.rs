@@ -15,6 +15,7 @@ use futures_util::StreamExt;
 use storage::implementations::repository::filesystem::IngestionMode;
 use uuid::Uuid;
 
+use super::DEFAULT_CIKS_IN_FLIGHT;
 use super::run_event::{RunEvent, Unit, drain};
 use crate::implementations::states::extract::company_facts::ExtractCompanyFactsSuperState;
 use crate::implementations::states::extract::company_facts::builder::{
@@ -31,10 +32,6 @@ use crate::traits::state_machine::stream::IntoStateMachineStream;
 mod summary;
 
 pub use summary::{CompanyFactsRunSummary, FailedCompanyFactsBackfill};
-
-/// The number of CIKs that a Company Facts or a `submissions` batch run extracts at once without a
-/// call to `in_flight`.
-pub const DEFAULT_CIKS_IN_FLIGHT: usize = 4;
 
 /// The Company Facts source of a backfill run, before the choice of one CIK or many.
 ///
