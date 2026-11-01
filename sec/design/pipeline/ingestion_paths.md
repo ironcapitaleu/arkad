@@ -254,8 +254,8 @@ observer: impl Fn(&Unit, RunEvent<'_>) + Send + Sync + 'static
   `Failed`. `main` picks the log level from the kind, and logs every kind but `Failed` as `warn`.
 - `Absent` marks a Notes file that the SEC answers with 403 or 404. The observer cannot know
   yet whether the file is unpublished, because the periods run out of order. The summary decides
-  at the end: an absent period at the end of the run is unpublished, any other absent period
-  fails the run. So `result()`, not the kind, decides the exit code.
+  at the end of the run, by the order of the period list. If the newest period is absent, it is
+  unpublished (at most `MAX_UNPUBLISHED`, 1). Any other absent period fails the run. So `result()`, not the kind, decides the exit code.
 - Each source has its own summary type, with `result()` and `entries()`, as the binaries have
   today.
 - The summary of `all()` also has `cut_over_date()`. It returns the last day of the newest stored
@@ -400,8 +400,8 @@ summary.result()?;
 
 #### Deprecated Binaries
 
-A Notes-only copy of `notes_backfill` and `stream_extract` move to `sec/examples/`, with a header
-comment that marks them deprecated. CI runs `cargo clippy --workspace --all-targets
+A Notes-only copy of `notes_backfill` moves to `sec/examples/` in ticket 6, and `stream_extract`
+follows in ticket 7 (STA-358). Each gets a header comment that marks it deprecated. CI runs `cargo clippy --workspace --all-targets
 --all-features`, which compiles the examples, so the build keeps them on the current facade.
 `cargo test` in CI does not build them. They are the reference for a run of one source against the live SEC. The hermetic
 integration tests of the facade go in `sec/tests/`, with the fake SEC clients of `sec::tests`.
