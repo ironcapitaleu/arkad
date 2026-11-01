@@ -27,7 +27,8 @@ mod two_calls {
         DailyFilingsRepositories, Extraction, FailedBackfill, MissingCutOverDate, RunEvent, Unit,
     };
     use sec::shared::raw_document::RawDocument;
-    use sec::tests::fixtures::data::notes_archive::SAMPLE_NOTES_ZIP;
+    use sec::tests::fixtures::data::notes_archive::notes_zip;
+    use sec::tests::fixtures::data::submissions::SAMPLE_SUBMISSIONS_JSON;
     use sec::tests::fixtures::sample_http_client::sample_sec_client::routing::RoutingSecClient;
     use serde_json::{Value, json};
     use storage::implementations::repository::filesystem::FilesystemRepository;
@@ -42,6 +43,9 @@ mod two_calls {
         "https://www.sec.gov/Archives/edgar/daily-index/2026/QTR3/form.20260930.idx";
     const INDEX_URL_OF_2026_10_01: &str =
         "https://www.sec.gov/Archives/edgar/daily-index/2026/QTR4/form.20261001.idx";
+    const SUBMISSIONS_URL_OF_320193: &str = "https://data.sec.gov/submissions/CIK0000320193.json";
+    /// The `sub.tsv` of the Notes file of `2026_09`, with one filing of CIK `320193`.
+    const SUB_TSV_OF_2026_09: &str = "adsh\tcik\tname\n0000320193-26-000071\t320193\tAPPLE INC\n";
     /// A daily index that lists no filing.
     const EMPTY_DAILY_INDEX: &[u8] = b"Form Type   Company Name   CIK   Date Filed  File Name
 ---------------------------------------------------------------------
@@ -59,15 +63,27 @@ mod two_calls {
         )
     }
 
-    /// Returns a client that serves the Notes file of `2026_09` and an empty daily index of
-    /// 2026-09-30 and of 2026-10-01. Every other URL answers 404.
+    /// Returns a client that serves the Notes file of `2026_09`, the `submissions` file of CIK
+    /// `320193`, and an empty daily index of 2026-09-30 and of 2026-10-01. Every other URL answers
+    /// 404.
     fn sec_client() -> RoutingSecClient {
+        sec_client_with_sub_tsv(SUB_TSV_OF_2026_09)
+    }
+
+    /// Returns the client of [`sec_client`], with a Notes file of `2026_09` that holds `sub_tsv`.
+    fn sec_client_with_sub_tsv(sub_tsv: &str) -> RoutingSecClient {
         RoutingSecClient::new()
             .route(
                 &format!("{NOTES_URL}2026_09_notes.zip"),
                 200,
                 "application/zip",
-                SAMPLE_NOTES_ZIP,
+                &notes_zip(sub_tsv),
+            )
+            .route(
+                SUBMISSIONS_URL_OF_320193,
+                200,
+                "application/json",
+                SAMPLE_SUBMISSIONS_JSON,
             )
             .route(
                 INDEX_URL_OF_2026_09_30,
@@ -134,20 +150,37 @@ mod two_calls {
         run(inputs, |_, _| {}, |_| {}).await
     }
 
-    /// Runs `inputs`, and returns each unit of an event that is not a Notes period, in order.
-    async fn catch_up_units(inputs: BackfillInputs<RoutingSecClient>) -> Vec<String> {
-        let units = Arc::new(Mutex::new(Vec::new()));
+    /// Runs `inputs`, and returns the unit of each event that `is_kept` keeps, in order. A unit
+    /// with many events in a row appears once.
+    async fn units_of(
+        inputs: BackfillInputs<RoutingSecClient>,
+        is_kept: impl Fn(&Unit) -> bool + Send + Sync + 'static,
+    ) -> Vec<String> {
+        let units = Arc::new(Mutex::new(Vec::<String>::new()));
         let observed_units = Arc::clone(&units);
         let observer = move |unit: &Unit, _: RunEvent<'_>| {
-            if !matches!(unit, Unit::Period(_)) {
-                observed_units
-                    .lock()
-                    .expect(LOCK_EXPECT)
-                    .push(unit.to_string());
+            if !is_kept(unit) {
+                return;
+            }
+            let mut units = observed_units.lock().expect(LOCK_EXPECT);
+            let unit = unit.to_string();
+            if units.last() != Some(&unit) {
+                units.push(unit);
             }
         };
         let _ = run(inputs, observer, |_| {}).await;
         units.lock().expect(LOCK_EXPECT).clone()
+    }
+
+    /// Runs `inputs`, and returns each unit of the catch-up, in order.
+    async fn catch_up_units(inputs: BackfillInputs<RoutingSecClient>) -> Vec<String> {
+        units_of(inputs, |unit| {
+            matches!(
+                unit,
+                Unit::Date(_) | Unit::Filing { .. } | Unit::Company { .. }
+            )
+        })
+        .await
     }
 
     /// Reads the metadata file at `file` under `root` as JSON.
@@ -203,6 +236,55 @@ mod two_calls {
             .iter()
             .map(|file| stored_metadata(&root, file)["execution_id"].clone())
             .collect();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_store_the_submissions_of_the_notes_ciks_before_the_catch_up_when_both_calls_run()
+     {
+        let root = temporary_root();
+        let inputs = inputs(&root, &["2026_09"]);
+
+        let expected_result = vec![
+            "320193".to_string(),
+            "2026-09-30".to_string(),
+            "2026-10-01".to_string(),
+        ];
+
+        let result = units_of(inputs, |unit| !matches!(unit, Unit::Period(_))).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_run_every_catch_up_date_when_a_submissions_cik_fails() {
+        let root = temporary_root();
+        let mut inputs = inputs(&root, &["2026_09"]);
+        inputs.sec_client = sec_client_with_sub_tsv(
+            "adsh\tcik\n0000320193-26-000071\t320193\n0000789019-26-000072\t789019\n",
+        );
+
+        let expected_result = vec!["2026-09-30".to_string(), "2026-10-01".to_string()];
+
+        let result = catch_up_units(inputs).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_record_the_backfill_mode_for_the_submissions_file_when_both_calls_run() {
+        let root = temporary_root();
+        let inputs = inputs(&root, &["2026_09"]);
+
+        let expected_result = json!("backfill");
+
+        run_quietly(inputs)
+            .await
+            .expect("Given a stored Notes period and no failed period, the cut-over date should always exist");
+        let result =
+            stored_metadata(&root, "sec/submissions/CIK0000320193.json.meta.json")["ingestion_mode"]
+                .clone();
 
         assert_eq!(result, expected_result);
     }

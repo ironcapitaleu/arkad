@@ -3,16 +3,17 @@
 //! Provides [`run`], which makes the two facade calls of one `backfill` run, and
 //! [`dates_between`], which lists the dates of its catch-up.
 //!
-//! The first call stores the Notes periods. The second call, the catch-up, reads each daily index
-//! from the cut-over date to yesterday. See "Cut-Over Between the Paths" in
+//! The first call stores the Notes periods and the `submissions` file of each CIK of the stored
+//! Notes files. The second call, the catch-up, reads each daily index from the cut-over date to
+//! yesterday. See "Cut-Over Between the Paths" in
 //! `sec/design/pipeline/ingestion_paths.md`.
 
 use std::sync::Arc;
 
 use chrono::NaiveDate;
 use sec::implementations::extraction::{
-    Backfill, DailyClient, DailyFilingsRepositories, DailyRunSummary, Extraction,
-    MissingCutOverDate, NotesRunSummary, RunEvent, Unit,
+    AllRunSummary, Backfill, BackfillRepositories, DailyClient, DailyFilingsRepositories,
+    DailyRunSummary, Extraction, MissingCutOverDate, RunEvent, Unit,
 };
 use sec::implementations::states::extract::daily_index::DetectFilingsSuperState;
 use sec::implementations::states::extract::filing::ExtractFilingSuperState;
@@ -47,7 +48,8 @@ pub struct BackfillInputs<C> {
     pub sec_client: C,
     /// The store of the Notes files.
     pub notes_repository: NotesWriter,
-    /// The stores of the catch-up.
+    /// The stores of the catch-up. The first call also writes to its store of the `submissions`
+    /// files.
     pub daily_repositories: DailyFilingsRepositories,
 }
 
@@ -59,10 +61,11 @@ pub struct CatchUp {
     pub summary: DailyRunSummary,
 }
 
-/// Stores the Notes periods of `inputs`, then reads each date from the cut-over date to
-/// yesterday, and returns the catch-up.
+/// Stores the Notes periods of `inputs` and the `submissions` file of each of their CIKs, then
+/// reads each date from the cut-over date to yesterday, and returns the catch-up.
 ///
-/// Calls `on_past` with the Notes summary before the catch-up starts. Passes every event of both
+/// Calls `on_past` with the summary of the first call before the catch-up starts. A failed CIK or
+/// an unreadable Notes file does not stop the catch-up. Passes every event of both
 /// calls to `observer`. The catch-up runs even if it has no date, and then its summary is empty.
 ///
 /// # Errors
@@ -72,7 +75,7 @@ pub struct CatchUp {
 pub async fn run<C>(
     inputs: BackfillInputs<C>,
     observer: impl Fn(&Unit, RunEvent<'_>) + Send + Sync + 'static,
-    on_past: impl FnOnce(&NotesRunSummary),
+    on_past: impl FnOnce(&AllRunSummary),
 ) -> Result<CatchUp, MissingCutOverDate>
 where
     C: DailyClient,
@@ -97,12 +100,16 @@ where
 {
     let observer = Arc::new(observer);
     let past_observer = Arc::clone(&observer);
+    let repositories = BackfillRepositories {
+        notes: inputs.notes_repository,
+        submissions: inputs.daily_repositories.submissions.clone(),
+    };
     let past = inputs
         .backfill
-        .notes()
+        .all()
         .periods(inputs.periods)
         .sec_client(inputs.sec_client.clone())
-        .repository(inputs.notes_repository)
+        .repositories(repositories)
         .in_flight(inputs.files_in_flight)
         .run(move |unit, event| past_observer(unit, event))
         .await;
