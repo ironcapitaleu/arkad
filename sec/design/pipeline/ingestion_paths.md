@@ -1533,9 +1533,8 @@ JSON logs with the five fields of `AGENTS.md`, as in `notes_backfill`:
 | `extraction/daily_filings/summary.rs` (library) | The `DailyRunSummary` and the rules for pending, unextractable, and 503 |
 
 - `dates.rs` takes "now" as an argument, so its tests set the clock, for example 02:00 UTC.
-- `run` takes the retry delays and yesterday as arguments, so its tests pass zero delays and a
-  fixed date.
-- `run` is generic over the SEC client, so its tests pass a fake client.
+- The builder takes `retry_delays` and `yesterday`, and it is generic over the SEC client. So the
+  tests pass zero delays, a fixed date, and a fake client.
 
 #### Tests
 

@@ -453,6 +453,71 @@ mod run_loop {
     }
 
     #[tokio::test]
+    async fn should_run_each_date_once_oldest_first_when_the_dates_are_unsorted_and_repeated() {
+        let dates = [date("2026-10-27"), date("2026-10-26"), date("2026-10-27")];
+        let sec_client = sec_client();
+
+        let expected_result = json!(["2026-10-26", "2026-10-27"]);
+
+        let result: Value = run_offline(&dates, &sec_client)
+            .await
+            .entries()
+            .iter()
+            .map(|entry| entry["date"].clone())
+            .collect();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_run_one_filing_at_a_time_when_in_flight_is_one() {
+        let root = temporary_root();
+        let dates = [date("2026-10-26")];
+        let sec_client = RoutingSecClient::new()
+            .route(
+                INDEX_URL,
+                200,
+                "application/octet-stream",
+                DAILY_INDEX_WITH_TWO_FILINGS,
+            )
+            .route(QTR4_LISTING_URL, 200, "application/json", QTR4_LISTING)
+            .route(FOLDER_INDEX_URL, 200, "application/json", FOLDER_INDEX)
+            .route(INSTANCE_URL, 200, "text/xml", b"<xbrl/>")
+            .route(LABEL_FILE_URL, 200, "text/xml", b"<labels/>")
+            .route(SUBMISSIONS_URL, 200, "application/json", SUBMISSIONS);
+        let filing_events = Arc::new(Mutex::new(Vec::new()));
+        let observed_filings = Arc::clone(&filing_events);
+        let observer = move |unit: &Unit, _: RunEvent<'_>| {
+            if let Unit::Filing {
+                accession_number, ..
+            } = unit
+            {
+                observed_filings
+                    .lock()
+                    .expect(LOCK_EXPECT)
+                    .push(accession_number.to_string());
+            }
+        };
+
+        let expected_result = vec!["0000003545-26-000047", "0000003545-26-000048"];
+
+        Extraction::incremental()
+            .daily_filings()
+            .dates(dates)
+            .yesterday(date("2026-10-28"))
+            .sec_client(sec_client)
+            .repositories(repositories(&root))
+            .retry_delays([Duration::ZERO, Duration::ZERO])
+            .in_flight(1)
+            .run(observer)
+            .await;
+        let mut result = filing_events.lock().expect(LOCK_EXPECT).clone();
+        result.dedup();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
     async fn should_report_every_event_of_a_date_before_the_next_date_starts() {
         let dates = [date("2026-10-26"), date("2026-10-27")];
         let sec_client = sec_client();
@@ -461,7 +526,7 @@ mod run_loop {
         let observer = move |unit: &Unit, _: RunEvent<'_>| {
             let unit_date = match unit {
                 Unit::Date(date) | Unit::Filing { date, .. } | Unit::Company { date, .. } => *date,
-                Unit::Period(_) => NaiveDate::MIN,
+                _ => NaiveDate::MIN,
             };
             observed_dates.lock().expect(LOCK_EXPECT).push(unit_date);
         };

@@ -442,6 +442,20 @@ pub(super) mod tests {
     }
 
     #[test]
+    fn should_count_a_missing_index_as_pending_when_yesterday_is_the_minimum_date() {
+        let run_date = NaiveDate::MIN;
+        let error = missing_daily_index("2026-10-31");
+        let first_date = date("2026-10-28");
+        let yesterday = NaiveDate::MIN;
+
+        let expected_result = true;
+
+        let result = is_pending(&error, run_date, first_date, yesterday);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
     fn should_count_a_filing_as_unextractable_when_its_folder_holds_no_instance() {
         let error = missing_instance();
 

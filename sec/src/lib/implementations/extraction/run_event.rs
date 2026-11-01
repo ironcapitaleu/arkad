@@ -57,10 +57,12 @@ impl Display for ErrorKind {
 
 /// The unit of a batch run that an event belongs to.
 ///
-/// [`Display`] gives the bare value, for example `2024q1`. [`Serialize`] gives an object with one
-/// key per value, for example `{"period": "2024q1"}` or `{"date": "2026-10-26", "cik": "0000003545"}`.
+/// [`Display`] gives the values without keys, for example `2024q1` or `2026-10-26 CIK 0000003545`.
+/// [`Serialize`] gives an object with one key per value, for example `{"period": "2024q1"}` or
+/// `{"date": "2026-10-26", "cik": "0000003545"}`.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 #[serde(rename_all = "snake_case")]
+#[non_exhaustive]
 pub enum Unit {
     /// A Notes period, for example `2024q1` or `2025_10`.
     Period(String),

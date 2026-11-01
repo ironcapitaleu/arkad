@@ -7,9 +7,6 @@
 //! dates in order, one date at a time. For each date, the run detects the filings, then extracts
 //! each filing, then the `submissions` file of each company.
 //!
-//! A date is pending if its daily index does not exist yet and a later run reads the date again.
-//! A filing is unextractable if its folder holds no XBRL instance. Neither fails the run.
-//!
 //! [`run`]: DailyFilingsBuilder::run
 
 use std::future::Future;
@@ -131,18 +128,21 @@ impl IncrementalDailyFilings {
         Self { incremental }
     }
 
-    /// Returns the builder of a run over `dates`, which must be sorted oldest first.
+    /// Returns the builder of a run over `dates`. The run reads them oldest first, once each.
     ///
-    /// The pending rule never applies to the first date, so the order matters. The builder still
-    /// needs yesterday, an SEC client, and the stores.
+    /// The pending rule never applies to the oldest date. The builder still needs yesterday, an
+    /// SEC client, and the stores.
     #[must_use]
     pub fn dates(
         self,
         dates: impl IntoIterator<Item = NaiveDate>,
     ) -> DailyFilingsBuilder<NoYesterday, NoSecClient, NoRepositories> {
+        let mut dates: Vec<NaiveDate> = dates.into_iter().collect();
+        dates.sort_unstable();
+        dates.dedup();
         DailyFilingsBuilder {
             incremental: self.incremental,
-            dates: dates.into_iter().collect(),
+            dates,
             yesterday: NoYesterday,
             sec_client: NoSecClient,
             repositories: NoRepositories,
@@ -172,6 +172,22 @@ impl IncrementalDailyFilings {
 ///     .yesterday(yesterday)
 ///     .sec_client(SecClient::default())
 ///     .run(|_, _| {});
+/// ```
+///
+/// `run` needs the SEC client:
+///
+/// ```compile_fail,E0599
+/// use chrono::NaiveDate;
+/// use sec::implementations::extraction::{DailyFilingsRepositories, Extraction};
+///
+/// fn run_without_sec_client(repositories: DailyFilingsRepositories) {
+///     let _run = Extraction::incremental()
+///         .daily_filings()
+///         .dates([NaiveDate::MIN])
+///         .yesterday(NaiveDate::MIN)
+///         .repositories(repositories)
+///         .run(|_, _| {});
+/// }
 /// ```
 ///
 /// And `run` needs yesterday:
@@ -291,8 +307,8 @@ where
     ///
     /// The dates run one after another, never at once. For each date, the run runs detection,
     /// then one filing machine per selected filing, then one `submissions` machine per distinct
-    /// CIK of the selected filings. At most the in-flight cap of filing or `submissions` machines
-    /// run at once. A filing or `submissions` machine that the SEC answers with 503 runs again
+    /// CIK of the selected filings. At most [`in_flight`](Self::in_flight) filing machines run at
+    /// once, and the same for `submissions` machines. A filing or `submissions` machine that the SEC answers with 503 runs again
     /// after each retry delay. A failure does not stop the other machines or the other dates.
     ///
     /// Calls `observer` with the unit and each successful stream item, and with the unit, each
