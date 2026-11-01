@@ -1,14 +1,14 @@
 //! # Transition: `ExecuteSecRequest` → `StoreFilingDocuments`
 //!
 //! Implements the [`TryFrom`] conversion producing a [`StoreFilingDocuments`] from an
-//! [`ExecuteSecRequest`] of the [`FilingDocumentSet`] kind, the `execution_id`, and the two
-//! storage repositories.
+//! [`ExecuteSecRequest`] of the [`FilingDocumentSet`] kind, the `execution_id`, the ingestion mode,
+//! and the two storage repositories.
 //!
 //! It moves the [`Arc`](std::sync::Arc) of the responses from the output of the source state and
 //! keeps no clone of it. It copies the filing from its context and the `User-Agent` from its
 //! client. It builds the URL of each file as its [`FilingDocument`] request does. The
-//! `execution_id` and the repositories belong to the state machine run, so the caller passes the
-//! ones from the state machine context.
+//! `execution_id`, the ingestion mode, and the repositories belong to the state machine run, so the
+//! caller passes the ones from the state machine context.
 //!
 //! The source state has the [`FilingDocumentSet`] kind. An executed Notes request cannot become a
 //! filing documents store, so this does not compile:
@@ -18,6 +18,7 @@
 //! use sec::implementations::states::extract::store_filing_documents::StoreFilingDocuments;
 //! use sec::shared::http_client::implementations::sec_client::SecClient;
 //! use sec::shared::request::implementations::sec_request::NotesFile;
+//! use storage::implementations::repository::filesystem::IngestionMode;
 //! use uuid::Uuid;
 //!
 //! fn store_as_filing_documents<I, L>(
@@ -25,7 +26,13 @@
 //!     instances: I,
 //!     labels: L,
 //! ) {
-//!     let _next = StoreFilingDocuments::<I, L>::try_from((state, Uuid::nil(), instances, labels));
+//!     let _next = StoreFilingDocuments::<I, L>::try_from((
+//!         state,
+//!         Uuid::nil(),
+//!         IngestionMode::Incremental,
+//!         instances,
+//!         labels,
+//!     ));
 //! }
 //! ```
 //!
@@ -36,6 +43,7 @@
 //! request names other documents than its context
 //! ([`FailedContextConversion`](crate::error::state_machine::transition::FailedContextConversion)).
 
+use storage::implementations::repository::filesystem::IngestionMode;
 use uuid::Uuid;
 
 use super::request_check::ensure_request_matches_input;
@@ -56,14 +64,20 @@ use crate::shared::request::implementations::sec_request::{
 };
 use crate::shared::url::Url;
 
-impl<I, L, C: SecClientTrait> TryFrom<(ExecuteSecRequest<FilingDocumentSet, C>, Uuid, I, L)>
-    for StoreFilingDocuments<I, L>
+impl<I, L, C: SecClientTrait>
+    TryFrom<(
+        ExecuteSecRequest<FilingDocumentSet, C>,
+        Uuid,
+        IngestionMode,
+        I,
+        L,
+    )> for StoreFilingDocuments<I, L>
 {
     type Error = TransitionError;
 
     /// Builds a [`StoreFilingDocuments`] from a computed [`ExecuteSecRequest`] of the
-    /// [`FilingDocumentSet`] kind, the `execution_id`, the repository of the instances, and the
-    /// repository of the label files.
+    /// [`FilingDocumentSet`] kind, the `execution_id`, the ingestion mode, the repository of the
+    /// instances, and the repository of the label files.
     ///
     /// # Errors
     ///
@@ -73,9 +87,10 @@ impl<I, L, C: SecClientTrait> TryFrom<(ExecuteSecRequest<FilingDocumentSet, C>, 
     /// documents than its context. The keys and the URLs follow the context, so a mismatch
     /// stores a file under the wrong filing.
     fn try_from(
-        (state, execution_id, instance_repository, labels_repository): (
+        (state, execution_id, ingestion_mode, instance_repository, labels_repository): (
             ExecuteSecRequest<FilingDocumentSet, C>,
             Uuid,
+            IngestionMode,
             I,
             L,
         ),
@@ -105,8 +120,12 @@ impl<I, L, C: SecClientTrait> TryFrom<(ExecuteSecRequest<FilingDocumentSet, C>, 
             labels_url,
             input.sec_client.user_agent().clone(),
         );
-        let new_context =
-            StoreFilingDocumentsContext::new(execution_id, instance_repository, labels_repository);
+        let new_context = StoreFilingDocumentsContext::new(
+            execution_id,
+            ingestion_mode,
+            instance_repository,
+            labels_repository,
+        );
 
         Ok(Self::new(new_input, new_context))
     }
@@ -205,6 +224,7 @@ mod tests {
         StoreFilingDocuments::try_from((
             execute_with_output(documents.clone(), documents).await,
             SAMPLE_EXECUTION_ID,
+            IngestionMode::Backfill,
             FakeXbrlInstanceRepository::new(),
             FakeXbrlLabelsRepository::new(),
         ))
@@ -279,11 +299,13 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_take_execution_id_and_repositories_from_run_when_source_has_output() {
+    async fn should_take_execution_id_ingestion_mode_and_repositories_from_run_when_source_has_output()
+     {
         let state = store(Some(LABEL_FILE)).await;
 
         let expected_result = &StoreFilingDocumentsContext::new(
             SAMPLE_EXECUTION_ID,
+            IngestionMode::Backfill,
             FakeXbrlInstanceRepository::new(),
             FakeXbrlLabelsRepository::new(),
         );
@@ -312,6 +334,7 @@ mod tests {
         let result = TestStore::try_from((
             state,
             SAMPLE_EXECUTION_ID,
+            IngestionMode::Backfill,
             FakeXbrlInstanceRepository::new(),
             FakeXbrlLabelsRepository::new(),
         ));
@@ -331,6 +354,7 @@ mod tests {
         let result = TestStore::try_from((
             state,
             SAMPLE_EXECUTION_ID,
+            IngestionMode::Backfill,
             FakeXbrlInstanceRepository::new(),
             FakeXbrlLabelsRepository::new(),
         ));
@@ -400,6 +424,7 @@ mod tests {
             let mut store = StoreFilingDocuments::try_from((
                 execute,
                 SAMPLE_EXECUTION_ID,
+                IngestionMode::Incremental,
                 instance_repository(root),
                 labels_repository(root),
             ))

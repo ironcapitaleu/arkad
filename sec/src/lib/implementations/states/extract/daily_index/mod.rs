@@ -3,8 +3,9 @@
 //! Provides the [`DetectFilingsSuperState`], which downloads the EDGAR daily index of one date,
 //! writes it to the store, and selects the filings to fetch.
 //!
-//! The super-state owns the shared SEC client, the `execution_id`, and the storage repository. The
-//! transition into [`StoreDailyIndex`] passes a clone of the repository to the store state.
+//! The super-state owns the shared SEC client, the `execution_id`, the ingestion mode of the run,
+//! and the storage repository. The transition into [`StoreDailyIndex`] passes the mode and a clone
+//! of the repository to the store state.
 //!
 //! ## Modules
 //!
@@ -24,7 +25,7 @@
 //! use sec::shared::http_client::implementations::sec_client::SecClient;
 //! use sec::shared::raw_document::RawDocument;
 //! use sec::shared::raw_source::RawDailyIndex;
-//! use storage::implementations::repository::filesystem::FilesystemRepository;
+//! use storage::implementations::repository::filesystem::{FilesystemRepository, IngestionMode};
 //! use uuid::Uuid;
 //!
 //! # #[tokio::main]
@@ -38,6 +39,7 @@
 //!     .date("2026-10-27")
 //!     .sec_client(SecClient::default())
 //!     .execution_id(Uuid::new_v4())
+//!     .ingestion_mode(IngestionMode::Incremental)
 //!     .repository(repository)
 //!     .build();
 //! let filings = detect_state
@@ -55,13 +57,14 @@ use async_trait::async_trait;
 use futures_util::StreamExt;
 use serde::Serialize;
 use state_maschine::prelude::{StateMachine as SMStateMachine, Transition as SMTransition};
-use storage::implementations::repository::filesystem::InputDocument;
+use storage::implementations::repository::filesystem::{IngestionMode, InputDocument};
 use uuid::Uuid;
 
 use crate::error::State as StateError;
 use crate::error::state_machine::transition::Transition as TransitionError;
 use crate::implementations::states::extract::daily_index::builder::{
-    DetectFilingsSuperStateBuilder, NoDate, NoExecutionId, NoRepository, NoSecClient,
+    DetectFilingsSuperStateBuilder, NoDate, NoExecutionId, NoIngestionMode, NoRepository,
+    NoSecClient,
 };
 use crate::implementations::states::extract::download_daily_index::DownloadDailyIndex;
 use crate::implementations::states::extract::prepare_sec_request::PrepareSecRequest;
@@ -113,24 +116,31 @@ pub struct DetectedFilings {
 
 /// Context for the [`DetectFilingsSuperState`].
 ///
-/// Holds the SEC client of type `C`, the `execution_id`, the repository of type `R`, and the slot
-/// for the selected filings.
+/// Holds the SEC client of type `C`, the `execution_id`, the ingestion mode, the repository of type
+/// `R`, and the slot for the selected filings.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct DetectFilingsSuperStateContext<R, C> {
     pub(crate) sec_client: C,
     pub(crate) execution_id: Uuid,
+    pub(crate) ingestion_mode: IngestionMode,
     pub(crate) repository: R,
     pub(crate) filings_slot: OutputSlot<DetectedFilings>,
 }
 
 impl<R, C> DetectFilingsSuperStateContext<R, C> {
     /// Creates a new [`DetectFilingsSuperStateContext`] from the SEC client, the `execution_id`,
-    /// and the repository.
+    /// the ingestion mode, and the repository.
     #[must_use]
-    pub fn new(sec_client: C, execution_id: Uuid, repository: R) -> Self {
+    pub fn new(
+        sec_client: C,
+        execution_id: Uuid,
+        ingestion_mode: IngestionMode,
+        repository: R,
+    ) -> Self {
         Self {
             sec_client,
             execution_id,
+            ingestion_mode,
             repository,
             filings_slot: OutputSlot::default(),
         }
@@ -276,8 +286,13 @@ impl<S: State, R: RawRepository<RawDailyIndex>, C: SecClientTrait> SuperState<S>
 impl<R: RawRepository<RawDailyIndex>> DetectFilingsSuperState<ValidateIndexDate, R> {
     /// Returns a [`DetectFilingsSuperStateBuilder`] that holds no field yet.
     #[must_use]
-    pub const fn builder()
-    -> DetectFilingsSuperStateBuilder<NoDate, NoSecClient, NoExecutionId, NoRepository<R>> {
+    pub const fn builder() -> DetectFilingsSuperStateBuilder<
+        NoDate,
+        NoSecClient,
+        NoExecutionId,
+        NoIngestionMode,
+        NoRepository<R>,
+    > {
         DetectFilingsSuperStateBuilder::new()
     }
 }
@@ -474,6 +489,7 @@ where
             current_state: StoreDailyIndex::try_from((
                 self.current_state,
                 self.context.execution_id,
+                self.context.ingestion_mode,
                 repository,
             ))?,
             input: DetectFilingsSuperStateData,
@@ -532,7 +548,7 @@ mod tests {
     use chrono::NaiveDate;
     use pretty_assertions::assert_eq;
     use storage::WriteError;
-    use storage::implementations::repository::filesystem::{FilesystemRepository, Write};
+    use storage::implementations::repository::filesystem::{Document, FilesystemRepository, Write};
     use tempfile::TempDir;
 
     use super::*;
@@ -589,6 +605,7 @@ mod tests {
             .date(raw_date)
             .sec_client(sec_client)
             .execution_id(SAMPLE_EXECUTION_ID)
+            .ingestion_mode(IngestionMode::Incremental)
             .repository(repository)
             .build()
     }
@@ -660,6 +677,30 @@ mod tests {
         let result = std::fs::read(root.path().join("sec/daily-index/form.20261027.idx")).expect(
             "Given a run that completed without an error, the stored file should always exist",
         );
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_record_the_ingestion_mode_of_the_builder_when_storing_the_index() {
+        let ingestion_mode = IngestionMode::Backfill;
+        let repository = FakeDailyIndexRepository::new();
+        let super_state = DetectFilingsSuperState::builder()
+            .date("2026-10-27")
+            .sec_client(sec_client(SAMPLE_DAILY_INDEX.as_bytes()))
+            .execution_id(SAMPLE_EXECUTION_ID)
+            .ingestion_mode(ingestion_mode)
+            .repository(repository.clone())
+            .build();
+
+        let expected_result = vec![IngestionMode::Backfill];
+
+        filings(super_state).await;
+        let result: Vec<IngestionMode> = repository
+            .persisted()
+            .iter()
+            .map(|document| document.metadata().ingestion_mode())
+            .collect();
 
         assert_eq!(result, expected_result);
     }

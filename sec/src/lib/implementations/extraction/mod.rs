@@ -29,6 +29,7 @@
 //!     .build();
 //! ```
 
+use storage::implementations::repository::filesystem::IngestionMode;
 use uuid::Uuid;
 
 use crate::implementations::states::extract::notes::ExtractNotesSuperState;
@@ -81,14 +82,18 @@ impl Backfill {
         self.execution_id
     }
 
-    /// Returns the builder of an [`ExtractNotesSuperState`] that holds the run's `execution_id`.
+    /// Returns the builder of an [`ExtractNotesSuperState`] that holds the run's `execution_id`
+    /// and [`IngestionMode::Backfill`].
     ///
     /// The builder still needs a period, an SEC client, and a repository of type `R`.
     #[must_use]
     pub fn notes<R: RawRepository<RawNotesArchive>>(
         &self,
-    ) -> ExtractNotesSuperStateBuilder<NoPeriod, NoSecClient, Uuid, NoRepository<R>> {
-        ExtractNotesSuperState::builder().execution_id(self.execution_id)
+    ) -> ExtractNotesSuperStateBuilder<NoPeriod, NoSecClient, Uuid, IngestionMode, NoRepository<R>>
+    {
+        ExtractNotesSuperState::builder()
+            .execution_id(self.execution_id)
+            .ingestion_mode(IngestionMode::Backfill)
     }
 }
 
@@ -183,6 +188,7 @@ mod tests {
             .period("2024q1")
             .sec_client(sec_client())
             .execution_id(Uuid::from_u128(7))
+            .ingestion_mode(IngestionMode::Backfill)
             .repository(FakeNotesRepository::new())
             .build();
 

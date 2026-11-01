@@ -8,7 +8,7 @@ use std::fmt;
 
 use serde::Serialize;
 use state_maschine::prelude::Context as SMContext;
-use storage::implementations::repository::filesystem::InputDocument;
+use storage::implementations::repository::filesystem::{IngestionMode, InputDocument};
 use uuid::Uuid;
 
 use crate::shared::raw_repository::RawRepository;
@@ -23,6 +23,8 @@ use crate::traits::state_machine::state::Context;
 pub struct StoreFilingDocumentsContext<I, L> {
     /// The ID of the run.
     pub execution_id: Uuid,
+    /// The ingestion mode of the run. The metadata of the stored documents records it.
+    pub ingestion_mode: IngestionMode,
     /// The repository of the XBRL instances.
     pub instance_repository: I,
     /// The repository of the label files.
@@ -47,9 +49,10 @@ impl<I, L> StoreFilingDocumentsContext<I, L> {
     ///
     /// ```
     /// use sec::implementations::states::extract::store_filing_documents::StoreFilingDocumentsContext;
+    /// use storage::implementations::repository::filesystem::IngestionMode;
     /// use uuid::Uuid;
     ///
-    /// let context = StoreFilingDocumentsContext::new(Uuid::nil(), (), ());
+    /// let context = StoreFilingDocumentsContext::new(Uuid::nil(), IngestionMode::Incremental, (), ());
     ///
     /// let expected_result = 0;
     ///
@@ -58,9 +61,15 @@ impl<I, L> StoreFilingDocumentsContext<I, L> {
     /// assert_eq!(result, expected_result);
     /// ```
     #[must_use]
-    pub const fn new(execution_id: Uuid, instance_repository: I, labels_repository: L) -> Self {
+    pub const fn new(
+        execution_id: Uuid,
+        ingestion_mode: IngestionMode,
+        instance_repository: I,
+        labels_repository: L,
+    ) -> Self {
         Self {
             execution_id,
+            ingestion_mode,
             instance_repository,
             labels_repository,
             inputs: Vec::new(),
@@ -110,6 +119,9 @@ where
         if let Some(inputs) = updates.inputs {
             self.inputs = inputs;
         }
+        if let Some(ingestion_mode) = updates.ingestion_mode {
+            self.ingestion_mode = ingestion_mode;
+        }
         if let Some(max_retries) = updates.max_retries {
             self.max_retries = max_retries;
         }
@@ -135,6 +147,8 @@ pub struct StoreFilingDocumentsContextUpdater<I, L> {
     pub labels_repository: Option<L>,
     /// The new documents that the filing came from.
     pub inputs: Option<Vec<InputDocument>>,
+    /// The new ingestion mode.
+    pub ingestion_mode: Option<IngestionMode>,
     /// The new retry budget.
     pub max_retries: Option<u32>,
 }
@@ -154,6 +168,7 @@ pub struct StoreFilingDocumentsContextUpdaterBuilder<I, L> {
     instance_repository: Option<I>,
     labels_repository: Option<L>,
     inputs: Option<Vec<InputDocument>>,
+    ingestion_mode: Option<IngestionMode>,
     max_retries: Option<u32>,
 }
 
@@ -166,6 +181,7 @@ impl<I, L> StoreFilingDocumentsContextUpdaterBuilder<I, L> {
             instance_repository: None,
             labels_repository: None,
             inputs: None,
+            ingestion_mode: None,
             max_retries: None,
         }
     }
@@ -200,6 +216,13 @@ impl<I, L> StoreFilingDocumentsContextUpdaterBuilder<I, L> {
         self
     }
 
+    /// Sets the ingestion mode.
+    #[must_use]
+    pub const fn ingestion_mode(mut self, ingestion_mode: IngestionMode) -> Self {
+        self.ingestion_mode = Some(ingestion_mode);
+        self
+    }
+
     /// Sets the retry budget.
     #[must_use]
     pub const fn max_retries(mut self, max_retries: u32) -> Self {
@@ -215,6 +238,7 @@ impl<I, L> StoreFilingDocumentsContextUpdaterBuilder<I, L> {
             instance_repository: self.instance_repository,
             labels_repository: self.labels_repository,
             inputs: self.inputs,
+            ingestion_mode: self.ingestion_mode,
             max_retries: self.max_retries,
         }
     }
@@ -244,6 +268,7 @@ mod tests {
     fn test_context() -> TestContext {
         StoreFilingDocumentsContext::new(
             Uuid::nil(),
+            IngestionMode::Incremental,
             FakeXbrlInstanceRepository::new(),
             FakeXbrlLabelsRepository::new(),
         )
@@ -316,6 +341,21 @@ mod tests {
 
         context.update_context(update);
         let result = context.labels_repository;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_update_ingestion_mode_when_update_contains_ingestion_mode() {
+        let mut context = test_context();
+        let update = StoreFilingDocumentsContextUpdater::builder()
+            .ingestion_mode(IngestionMode::Backfill)
+            .build();
+
+        let expected_result = IngestionMode::Backfill;
+
+        context.update_context(update);
+        let result = context.ingestion_mode;
 
         assert_eq!(result, expected_result);
     }

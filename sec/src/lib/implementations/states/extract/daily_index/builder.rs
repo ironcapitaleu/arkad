@@ -4,11 +4,12 @@
 //! entry state [`ValidateIndexDate`].
 //!
 //! Each setter changes the builder's type. [`build`](DetectFilingsSuperStateBuilder::build) exists
-//! only once the builder holds a date, an SEC client, an `execution_id`, and a repository, so a
-//! super-state without one of them does not compile.
+//! only once the builder holds a date, an SEC client, an `execution_id`, an ingestion mode, and a
+//! repository, so a super-state without one of them does not compile.
 
 use std::marker::PhantomData;
 
+use storage::implementations::repository::filesystem::IngestionMode;
 use uuid::Uuid;
 
 use crate::implementations::states::extract::daily_index::{
@@ -34,6 +35,10 @@ pub struct NoSecClient;
 /// Marks a builder that holds no `execution_id` yet.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct NoExecutionId;
+
+/// Marks a builder that holds no ingestion mode yet.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct NoIngestionMode;
 
 /// Marks a builder that holds no repository of type `R` yet.
 ///
@@ -61,49 +66,64 @@ impl<R> Default for NoRepository<R> {
 /// Builds a [`DetectFilingsSuperState`] at its entry state [`ValidateIndexDate`].
 ///
 /// Set the raw date with [`date`](Self::date), the client with [`sec_client`](Self::sec_client),
-/// the run identifier with [`execution_id`](Self::execution_id), and the store with
-/// [`repository`](Self::repository), in any order. Then call [`build`](Self::build).
+/// the run identifier with [`execution_id`](Self::execution_id), the mode of the run with
+/// [`ingestion_mode`](Self::ingestion_mode), and the store with [`repository`](Self::repository),
+/// in any order. Then call [`build`](Self::build).
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct DetectFilingsSuperStateBuilder<D, C, E, R> {
+pub struct DetectFilingsSuperStateBuilder<D, C, E, M, R> {
     date: D,
     sec_client: C,
     execution_id: E,
+    ingestion_mode: M,
     repository: R,
 }
 
-impl<R> DetectFilingsSuperStateBuilder<NoDate, NoSecClient, NoExecutionId, NoRepository<R>> {
+impl<R>
+    DetectFilingsSuperStateBuilder<
+        NoDate,
+        NoSecClient,
+        NoExecutionId,
+        NoIngestionMode,
+        NoRepository<R>,
+    >
+{
     /// Creates a new [`DetectFilingsSuperStateBuilder`] that holds no field.
     pub(crate) const fn new() -> Self {
         Self {
             date: NoDate,
             sec_client: NoSecClient,
             execution_id: NoExecutionId,
+            ingestion_mode: NoIngestionMode,
             repository: NoRepository::new(),
         }
     }
 }
 
-impl<C, E, R> DetectFilingsSuperStateBuilder<NoDate, C, E, R> {
+impl<C, E, M, R> DetectFilingsSuperStateBuilder<NoDate, C, E, M, R> {
     /// Sets the raw date, for example `2026-10-27`. The built super-state validates it in
     /// [`ValidateIndexDate`].
     #[must_use]
-    pub fn date(self, date: impl Into<String>) -> DetectFilingsSuperStateBuilder<String, C, E, R> {
+    pub fn date(
+        self,
+        date: impl Into<String>,
+    ) -> DetectFilingsSuperStateBuilder<String, C, E, M, R> {
         DetectFilingsSuperStateBuilder {
             date: date.into(),
             sec_client: self.sec_client,
             execution_id: self.execution_id,
+            ingestion_mode: self.ingestion_mode,
             repository: self.repository,
         }
     }
 }
 
-impl<D, E, R> DetectFilingsSuperStateBuilder<D, NoSecClient, E, R> {
+impl<D, E, M, R> DetectFilingsSuperStateBuilder<D, NoSecClient, E, M, R> {
     /// Sets the SEC client that downloads the daily index and the quarter listings.
     ///
     /// The client must return an [`SecResponse<ZipBody>`] and a [`FailedSecRequest`], as
     /// `DownloadDailyIndex` requires.
     #[must_use]
-    pub fn sec_client<C>(self, sec_client: C) -> DetectFilingsSuperStateBuilder<D, C, E, R>
+    pub fn sec_client<C>(self, sec_client: C) -> DetectFilingsSuperStateBuilder<D, C, E, M, R>
     where
         C: SecClientTrait<Response<ZipBody> = SecResponse<ZipBody>, Error = FailedSecRequest>,
     {
@@ -111,63 +131,92 @@ impl<D, E, R> DetectFilingsSuperStateBuilder<D, NoSecClient, E, R> {
             date: self.date,
             sec_client,
             execution_id: self.execution_id,
+            ingestion_mode: self.ingestion_mode,
             repository: self.repository,
         }
     }
 }
 
-impl<D, C, R> DetectFilingsSuperStateBuilder<D, C, NoExecutionId, R> {
+impl<D, C, M, R> DetectFilingsSuperStateBuilder<D, C, NoExecutionId, M, R> {
     /// Sets the `execution_id` that tags the stream and the stored document of the run.
     #[must_use]
-    pub fn execution_id(self, execution_id: Uuid) -> DetectFilingsSuperStateBuilder<D, C, Uuid, R> {
+    pub fn execution_id(
+        self,
+        execution_id: Uuid,
+    ) -> DetectFilingsSuperStateBuilder<D, C, Uuid, M, R> {
         DetectFilingsSuperStateBuilder {
             date: self.date,
             sec_client: self.sec_client,
             execution_id,
+            ingestion_mode: self.ingestion_mode,
             repository: self.repository,
         }
     }
 }
 
-impl<D, C, E, R> DetectFilingsSuperStateBuilder<D, C, E, NoRepository<R>> {
-    /// Sets the repository that stores the daily index.
+impl<D, C, E, R> DetectFilingsSuperStateBuilder<D, C, E, NoIngestionMode, R> {
+    /// Sets the ingestion mode of the run. The metadata of the stored document records it.
+    ///
+    /// The new-filing path passes [`IngestionMode::Incremental`].
     #[must_use]
-    pub fn repository(self, repository: R) -> DetectFilingsSuperStateBuilder<D, C, E, R> {
+    pub fn ingestion_mode(
+        self,
+        ingestion_mode: IngestionMode,
+    ) -> DetectFilingsSuperStateBuilder<D, C, E, IngestionMode, R> {
         DetectFilingsSuperStateBuilder {
             date: self.date,
             sec_client: self.sec_client,
             execution_id: self.execution_id,
+            ingestion_mode,
+            repository: self.repository,
+        }
+    }
+}
+
+impl<D, C, E, M, R> DetectFilingsSuperStateBuilder<D, C, E, M, NoRepository<R>> {
+    /// Sets the repository that stores the daily index.
+    #[must_use]
+    pub fn repository(self, repository: R) -> DetectFilingsSuperStateBuilder<D, C, E, M, R> {
+        DetectFilingsSuperStateBuilder {
+            date: self.date,
+            sec_client: self.sec_client,
+            execution_id: self.execution_id,
+            ingestion_mode: self.ingestion_mode,
             repository,
         }
     }
 }
 
 impl<C: SecClientTrait, R: RawRepository<RawDailyIndex>>
-    DetectFilingsSuperStateBuilder<String, C, Uuid, R>
+    DetectFilingsSuperStateBuilder<String, C, Uuid, IngestionMode, R>
 {
     /// Builds a [`DetectFilingsSuperState`] at [`ValidateIndexDate`] with the fields this builder
     /// holds.
     ///
     /// # Examples
     ///
-    /// A builder without a repository has no `build` method, so this does not compile:
+    /// A builder without an ingestion mode has no `build` method, so this does not compile:
     ///
     /// ```compile_fail,E0599
     /// use sec::implementations::states::extract::daily_index::DetectFilingsSuperState;
     /// use sec::shared::http_client::implementations::sec_client::SecClient;
     /// use sec::shared::raw_document::RawDocument;
     /// use sec::shared::raw_source::RawDailyIndex;
-    /// use storage::implementations::repository::filesystem::{FilesystemRepository, Write};
+    /// use storage::implementations::repository::filesystem::FilesystemRepository;
     /// use uuid::Uuid;
     ///
-    /// let detect_state = DetectFilingsSuperState::<
-    ///     _,
-    ///     FilesystemRepository<Write, RawDocument<RawDailyIndex>>,
-    /// >::builder()
-    /// .date("2026-10-27")
-    /// .sec_client(SecClient::default())
-    /// .execution_id(Uuid::new_v4())
-    /// .build();
+    /// let repository = FilesystemRepository::builder()
+    ///     .writer()
+    ///     .document_type::<RawDocument<RawDailyIndex>>()
+    ///     .root("data")
+    ///     .build();
+    ///
+    /// let detect_state = DetectFilingsSuperState::builder()
+    ///     .date("2026-10-27")
+    ///     .sec_client(SecClient::default())
+    ///     .execution_id(Uuid::nil())
+    ///     .repository(repository)
+    ///     .build();
     /// ```
     #[must_use]
     pub fn build(self) -> DetectFilingsSuperState<ValidateIndexDate, R, C> {
@@ -181,6 +230,7 @@ impl<C: SecClientTrait, R: RawRepository<RawDailyIndex>>
             context: DetectFilingsSuperStateContext::new(
                 self.sec_client,
                 self.execution_id,
+                self.ingestion_mode,
                 self.repository,
             ),
         }
@@ -203,6 +253,7 @@ mod tests {
         NoDate,
         NoSecClient,
         NoExecutionId,
+        NoIngestionMode,
         NoRepository<FakeDailyIndexRepository>,
     >;
 
@@ -210,6 +261,7 @@ mod tests {
         raw_date: &str,
         sec_client: RoutingSecClient,
         execution_id: Uuid,
+        ingestion_mode: IngestionMode,
         repository: FakeDailyIndexRepository,
     ) -> DetectFilingsSuperState<ValidateIndexDate, FakeDailyIndexRepository, RoutingSecClient>
     {
@@ -220,7 +272,12 @@ mod tests {
             ),
             input: DetectFilingsSuperStateData,
             output: None,
-            context: DetectFilingsSuperStateContext::new(sec_client, execution_id, repository),
+            context: DetectFilingsSuperStateContext::new(
+                sec_client,
+                execution_id,
+                ingestion_mode,
+                repository,
+            ),
         }
     }
 
@@ -250,15 +307,22 @@ mod tests {
         let date = "2026-10-27";
         let sec_client = RoutingSecClient::new();
         let execution_id = Uuid::from_u128(7);
+        let ingestion_mode = IngestionMode::Incremental;
         let repository =
             FakeDailyIndexRepository::rejecting(WriteError::conflicting_write("Sample conflict"));
         let builder = DetectFilingsSuperState::builder()
             .date(date)
             .sec_client(sec_client.clone())
-            .execution_id(execution_id);
+            .execution_id(execution_id)
+            .ingestion_mode(ingestion_mode);
 
-        let expected_result =
-            expected_super_state(date, sec_client, execution_id, repository.clone());
+        let expected_result = expected_super_state(
+            date,
+            sec_client,
+            execution_id,
+            ingestion_mode,
+            repository.clone(),
+        );
 
         let result = builder.repository(repository).build();
 
@@ -270,14 +334,17 @@ mod tests {
         let date = "2026-10-27";
         let sec_client = RoutingSecClient::new();
         let execution_id = Uuid::from_u128(7);
+        let ingestion_mode = IngestionMode::Incremental;
         let repository =
             FakeDailyIndexRepository::rejecting(WriteError::conflicting_write("Sample conflict"));
         let builder = DetectFilingsSuperState::builder()
             .repository(repository.clone())
+            .ingestion_mode(ingestion_mode)
             .execution_id(execution_id)
             .sec_client(sec_client.clone());
 
-        let expected_result = expected_super_state(date, sec_client, execution_id, repository);
+        let expected_result =
+            expected_super_state(date, sec_client, execution_id, ingestion_mode, repository);
 
         let result = builder.date(date).build();
 

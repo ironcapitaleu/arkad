@@ -3,8 +3,8 @@
 //! Provides the [`ExtractFilingSuperState`], which downloads the XBRL instance and the label file
 //! of one filing and writes them to the store.
 //!
-//! The super-state owns the [`FilingRef`], the shared SEC client, the `execution_id`, and the two
-//! storage repositories.
+//! The super-state owns the [`FilingRef`], the shared SEC client, the `execution_id`, the ingestion
+//! mode of the run, and the two storage repositories.
 //!
 //! ## Modules
 //!
@@ -35,7 +35,7 @@
 //! use sec::shared::http_client::implementations::sec_client::SecClient;
 //! use sec::shared::raw_document::RawDocument;
 //! use sec::shared::raw_source::{RawXbrlInstance, RawXbrlLabels};
-//! use storage::implementations::repository::filesystem::FilesystemRepository;
+//! use storage::implementations::repository::filesystem::{FilesystemRepository, IngestionMode};
 //! use uuid::Uuid;
 //!
 //! # #[tokio::main]
@@ -60,6 +60,7 @@
 //!     .filing_ref(filing_ref)
 //!     .sec_client(SecClient::default())
 //!     .execution_id(Uuid::new_v4())
+//!     .ingestion_mode(IngestionMode::Incremental)
 //!     .instance_repository(instance_repository)
 //!     .labels_repository(labels_repository)
 //!     .build();
@@ -78,15 +79,15 @@ use async_trait::async_trait;
 use futures_util::StreamExt;
 use serde::Serialize;
 use state_maschine::prelude::{StateMachine as SMStateMachine, Transition as SMTransition};
-use storage::implementations::repository::filesystem::InputDocument;
+use storage::implementations::repository::filesystem::{IngestionMode, InputDocument};
 use uuid::Uuid;
 
 use crate::error::State as StateError;
 use crate::error::state_machine::transition::Transition as TransitionError;
 use crate::implementations::states::extract::execute_sec_request::ExecuteSecRequest;
 use crate::implementations::states::extract::filing::builder::{
-    ExtractFilingSuperStateBuilder, NoExecutionId, NoFilingRef, NoInstanceRepository,
-    NoLabelsRepository, NoSecClient,
+    ExtractFilingSuperStateBuilder, NoExecutionId, NoFilingRef, NoIngestionMode,
+    NoInstanceRepository, NoLabelsRepository, NoSecClient,
 };
 use crate::implementations::states::extract::prepare_sec_request::PrepareSecRequest;
 use crate::implementations::states::extract::select_filing_documents::SelectFilingDocuments;
@@ -128,6 +129,7 @@ pub struct ExtractFilingSuperStateContext<I, L, C> {
     pub(crate) filing_ref: FilingRef,
     pub(crate) sec_client: C,
     pub(crate) execution_id: Uuid,
+    pub(crate) ingestion_mode: IngestionMode,
     pub(crate) instance_repository: I,
     pub(crate) labels_repository: L,
     pub(crate) documents_slot: OutputSlot<FilingDocumentsRef>,
@@ -136,12 +138,13 @@ pub struct ExtractFilingSuperStateContext<I, L, C> {
 
 impl<I, L, C> ExtractFilingSuperStateContext<I, L, C> {
     /// Creates a new [`ExtractFilingSuperStateContext`] from the [`FilingRef`], the SEC client,
-    /// the `execution_id`, and the two storage repositories.
+    /// the `execution_id`, the ingestion mode, and the two storage repositories.
     #[must_use]
     pub fn new(
         filing_ref: FilingRef,
         sec_client: C,
         execution_id: Uuid,
+        ingestion_mode: IngestionMode,
         instance_repository: I,
         labels_repository: L,
     ) -> Self {
@@ -149,6 +152,7 @@ impl<I, L, C> ExtractFilingSuperStateContext<I, L, C> {
             filing_ref,
             sec_client,
             execution_id,
+            ingestion_mode,
             instance_repository,
             labels_repository,
             documents_slot: OutputSlot::default(),
@@ -348,6 +352,7 @@ where
         NoFilingRef,
         NoSecClient,
         NoExecutionId,
+        NoIngestionMode,
         NoInstanceRepository<I>,
         NoLabelsRepository<L>,
     > {
@@ -634,6 +639,7 @@ where
             current_state: StoreFilingDocuments::try_from((
                 self.current_state,
                 self.context.execution_id,
+                self.context.ingestion_mode,
                 self.context.instance_repository.clone(),
                 self.context.labels_repository.clone(),
             ))?
@@ -667,7 +673,7 @@ mod tests {
 
     use chrono::NaiveDate;
     use pretty_assertions::assert_eq;
-    use storage::implementations::repository::filesystem::{FilesystemRepository, Write};
+    use storage::implementations::repository::filesystem::{Document, FilesystemRepository, Write};
     use tempfile::TempDir;
 
     use super::*;
@@ -742,6 +748,7 @@ mod tests {
                 filing_ref(),
                 sec_client(),
                 EXECUTION_ID,
+                IngestionMode::Incremental,
                 FakeXbrlInstanceRepository::new(),
                 FakeXbrlLabelsRepository::new(),
             ),
@@ -815,6 +822,7 @@ mod tests {
             .filing_ref(filing_ref())
             .sec_client(sec_client)
             .execution_id(EXECUTION_ID)
+            .ingestion_mode(IngestionMode::Incremental)
             .instance_repository(
                 FilesystemRepository::builder()
                     .writer()
@@ -1019,6 +1027,7 @@ mod tests {
             .filing_ref(filing_ref())
             .sec_client(sec_client)
             .execution_id(EXECUTION_ID)
+            .ingestion_mode(IngestionMode::Incremental)
             .instance_repository(FakeXbrlInstanceRepository::new())
             .labels_repository(FakeXbrlLabelsRepository::new())
             .build();
@@ -1085,6 +1094,33 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn should_record_the_ingestion_mode_of_the_builder_when_storing_the_instance() {
+        let ingestion_mode = IngestionMode::Backfill;
+        let instance_repository = FakeXbrlInstanceRepository::new();
+        let super_state = ExtractFilingSuperState::builder()
+            .filing_ref(filing_ref())
+            .sec_client(sec_client())
+            .execution_id(EXECUTION_ID)
+            .ingestion_mode(ingestion_mode)
+            .instance_repository(instance_repository.clone())
+            .labels_repository(FakeXbrlLabelsRepository::new())
+            .build();
+
+        let expected_result = vec![IngestionMode::Backfill];
+
+        super_state.run_to_documents(|_| {}).await.expect(
+            "Given a client that serves the folder index and both files, the run should always succeed",
+        );
+        let result: Vec<IngestionMode> = instance_repository
+            .persisted()
+            .iter()
+            .map(|document| document.metadata().ingestion_mode())
+            .collect();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
     async fn should_return_a_ref_without_label_file_when_the_folder_has_no_label_file() {
         let sec_client = RoutingSecClient::new()
             .route(
@@ -1098,6 +1134,7 @@ mod tests {
             .filing_ref(filing_ref())
             .sec_client(sec_client)
             .execution_id(EXECUTION_ID)
+            .ingestion_mode(IngestionMode::Incremental)
             .instance_repository(FakeXbrlInstanceRepository::new())
             .labels_repository(FakeXbrlLabelsRepository::new())
             .build();

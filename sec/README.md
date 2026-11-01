@@ -23,13 +23,14 @@ Fetches raw SEC Company Facts JSON from the EDGAR API and writes it to the store
 3. **ExecuteSecRequest** -- Executes the HTTP request and returns the validated SEC response.
 4. **StoreCompanyFacts** -- Writes the raw body of the SEC response to the store and returns the key of the stored document. It is the last state of the stream.
 
-Build the super-state at its entry state with `ExtractCompanyFactsSuperState::builder()`. Set every field by name, in any order. `build()` exists only once the builder holds all four fields, so a `build()` call with a missing field does not compile:
+Build the super-state at its entry state with `ExtractCompanyFactsSuperState::builder()`. Set every field by name, in any order. `build()` exists only once the builder holds all five fields, so a `build()` call with a missing field does not compile:
 
 ```rust,ignore
 let extract_state = ExtractCompanyFactsSuperState::builder()
     .cik("1067983")
     .sec_client(sec_client)
     .execution_id(Uuid::new_v4())
+    .ingestion_mode(IngestionMode::Backfill)
     .repository(repository)
     .build();
 ```
