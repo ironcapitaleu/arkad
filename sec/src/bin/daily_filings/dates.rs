@@ -108,15 +108,14 @@ fn parse_date(
     if value == YESTERDAY {
         return Ok(yesterday);
     }
-    let invalid_date = || InvalidRunDates::InvalidDate {
-        variable,
-        value: value.to_string(),
-    };
-    // `%m` and `%d` also read one digit, so the length check keeps the form to `YYYY-MM-DD`.
-    if value.len() != "YYYY-MM-DD".len() {
-        return Err(invalid_date());
-    }
-    NaiveDate::parse_from_str(value, "%Y-%m-%d").map_err(|_| invalid_date())
+    // `%m` and `%d` also read one digit, so the date must print back to the same text.
+    NaiveDate::parse_from_str(value, "%Y-%m-%d")
+        .ok()
+        .filter(|date| date.format("%Y-%m-%d").to_string() == value)
+        .ok_or_else(|| InvalidRunDates::InvalidDate {
+            variable,
+            value: value.to_string(),
+        })
 }
 
 #[cfg(test)]
@@ -285,7 +284,7 @@ mod tests {
     }
 
     #[test]
-    fn should_return_last_date_not_past_when_to_is_today_in_new_york() {
+    fn should_return_invalid_last_date_when_to_is_today_in_new_york() {
         let from = Some(OsString::from("2026-10-31"));
         let to = Some(OsString::from("2026-11-01"));
         let now = noon_utc();
@@ -301,7 +300,7 @@ mod tests {
     }
 
     #[test]
-    fn should_return_first_date_after_last_date_when_from_is_after_to() {
+    fn should_return_invalid_date_order_when_from_is_after_to() {
         let from = Some(OsString::from("2026-10-20"));
         let to = Some(OsString::from("2026-10-19"));
         let now = noon_utc();
@@ -317,7 +316,7 @@ mod tests {
     }
 
     #[test]
-    fn should_return_first_date_after_last_date_when_from_is_today_and_to_is_unset() {
+    fn should_return_invalid_date_order_when_from_is_today_and_to_is_unset() {
         let from = Some(OsString::from("2026-11-01"));
         let to = None;
         let now = noon_utc();
@@ -398,6 +397,22 @@ mod tests {
         let expected_result = Err(InvalidRunDates::InvalidDate {
             variable: "ARKAD_FROM",
             value: "2026-1-5".to_string(),
+        });
+
+        let result = run_dates(from, to, now);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_invalid_date_when_the_year_has_a_sign() {
+        let from = Some(OsString::from("+2026-1-05"));
+        let to = None;
+        let now = noon_utc();
+
+        let expected_result = Err(InvalidRunDates::InvalidDate {
+            variable: "ARKAD_FROM",
+            value: "+2026-1-05".to_string(),
         });
 
         let result = run_dates(from, to, now);
