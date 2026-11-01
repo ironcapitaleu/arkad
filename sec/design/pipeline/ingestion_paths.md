@@ -140,9 +140,9 @@ two values. Decided by the lead on 2026-10-29.
 
 ### Calling the Machines
 
-> **Status:** accepted on 2026-11-01 (STA-399). STA-363 builds it. The facade, its two calls for
-> mode and source, and one `execution_id` per handle are older decisions of the lead (2026-10-28
-> and 2026-10-29).
+> **Status:** accepted on 2026-11-01 (STA-399). STA-363, STA-414, STA-415, and STA-416 build it.
+> The facade, its two calls for mode and source, and one `execution_id` per handle are older
+> decisions of the lead (2026-10-28 and 2026-10-29).
 
 #### Goal
 
@@ -263,7 +263,8 @@ observer: impl Fn(&Unit, RunEvent<'_>) + Send + Sync + 'static
   into the catch-up. It also fails if no Notes period is stored, for example when every period is
   unpublished. The summary of `all()` passes it on. A failed `submissions` CIK does not block the
   catch-up, but it fails `result()`. See [Cut-Over Between the Paths](#cut-over-between-the-paths).
-  So `backfill` needs only `notes()` until `all()` exists (decision of 2026-11-01).
+  So the binary `backfill` can run on `notes()` alone until `all()` exists (decision of
+  2026-11-01).
 - The callback replaces a returned event stream. A stream gives the same timing, but each `main`
   then needs its own loop.
 
@@ -275,7 +276,7 @@ values.
 | Source | Rules in the facade | Values from `main` |
 | ------ | ------------------- | ------------------ |
 | `all()` | the rules of `notes()`, distinct CIKs, `cut_over_date()` | periods, cap |
-| `notes()` | skip of an intact stored file, task per period, unpublished at the end | periods, cap |
+| `notes()` | skip of an intact stored file, task per period, unpublished at the end, `cut_over_date()` | periods, cap |
 | `company_facts()` | none | CIKs, cap |
 | `submissions()` | none | CIKs, cap |
 | `daily_filings()` | 503 retry, pending, unextractable, `AmbiguousFilingDocument` fails the run | dates, `yesterday`, cap, retry waits |
@@ -1360,8 +1361,9 @@ Decided in STA-376:
 > window of 4 days with pending dates, and the split of failures are decided in STA-378. The rest
 > waits for review.
 
-`daily_filings` runs the new-filing path for a range of dates. It builds each super-state with its
-own builder, not through the facade (lead, 2026-10-31). STA-363 moves it onto the facade later.
+`daily_filings` runs the new-filing path for a range of dates. It builds each super-state through
+`Extraction::incremental()` (STA-363). The run loop moves into the facade with item 4 of the
+facade list (STA-415).
 
 #### Dates
 
@@ -1386,7 +1388,7 @@ or `yesterday-N`, the day `N` days before yesterday (`N` at least 1).
 | Use | Setting |
 | --- | ------- |
 | Daily scheduled job | `ARKAD_FROM=yesterday-3`, so each run reads the last 4 days (see [Window](#window)) |
-| First catch-up | After STA-363, the second call of `backfill` (see [Calling the Machines](#calling-the-machines)). Before: `ARKAD_FROM` and `ARKAD_TO` in ranges of at most 7 days, from the start date of cut-over rule 1, or one run with a longer task timeout (see below) |
+| First catch-up | After STA-416, the second call of `backfill` (see [Calling the Machines](#calling-the-machines)). Before: `ARKAD_FROM` and `ARKAD_TO` in ranges of at most 7 days, from the start date of cut-over rule 1, or one run with a longer task timeout (see below) |
 | Rerun one past day | `ARKAD_FROM=2026-10-15`, `ARKAD_TO=2026-10-15` |
 | Rerun a past week | `ARKAD_FROM=2026-10-13`, `ARKAD_TO=2026-10-19` |
 
@@ -1589,7 +1591,7 @@ Rules:
 1. The new-filing path starts at the daily index of the last day of the newest stored Notes
    month. That day is in both paths. The overlap of one day covers assumption A2 below.
 2. The first run reads every day from the start date up to yesterday. Once the facade exists
-   (STA-363), the binary `backfill` does this in its second call. Each later run of
+   (STA-416), the binary `backfill` does this in its second call. Each later run of
    `daily_filings` reads the last 4 days (`ARKAD_FROM=yesterday-3`). See [Window](#window).
 3. If the run missed a day older than the window, rerun that date.
 4. A filing that reaches both paths writes no duplicate row, because every write is idempotent.
@@ -1958,16 +1960,16 @@ Moved code does not count toward the 400 lines.
 1. REFACTOR: each super-state builder takes `.ingestion_mode(m)`, and `Backfill::notes()` passes
    `IngestionMode::Backfill`. The mode constants go away (STA-363).
 2. FEATURE: `RunEvent`, `ErrorKind`, the capped loop, and `backfill().notes().periods(…).run()`.
-   `backfill.rs` moves from `notes_backfill` into the facade, and `sec/tests/notes_backfill.rs`
-   calls the facade (STA-363).
+   `NotesRunSummary` has `cut_over_date()`. `backfill.rs` moves from `notes_backfill` into the
+   facade, and `sec/tests/notes_backfill.rs` calls the facade (STA-414).
 3. FEATURE: the handle `Incremental` with `daily_index()`, `filing()`, and `submissions()` for one
    unit (STA-363).
 4. FEATURE: `incremental().daily_filings().dates(…).run()`. `run.rs` moves from `daily_filings`
-   into the facade. `daily_filings` and `sec/tests/daily_filings.rs` call it (STA-363).
-5. FEATURE: `backfill().submissions().ciks(…).run()` and the pipeline `backfill().all()` with
-   `cut_over_date()` (STA-377).
+   into the facade. `daily_filings` and `sec/tests/daily_filings.rs` call it (STA-415).
+5. FEATURE: `backfill().submissions().ciks(…).run()` and the pipeline `backfill().all()`, which
+   passes on `cut_over_date()` (STA-377, parked until STA-417 decides the source of company data).
 6. FEATURE: the binary `backfill` with its two calls. A Notes-only copy of `notes_backfill` moves
-   to `sec/examples/` as deprecated, with its `#[path]` changes and `[[example]]` entry (STA-363).
+   to `sec/examples/` as deprecated, with its `#[path]` changes and `[[example]]` entry (STA-416).
 7. FEATURE: `backfill().company_facts()`. `stream_extract` runs on it and moves to
    `sec/examples/`, with the `Dockerfile` and `README.md` (STA-358).
 

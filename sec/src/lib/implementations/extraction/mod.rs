@@ -30,6 +30,28 @@
 //!     .repository(repository)
 //!     .build();
 //! ```
+//!
+//! An incremental run builds the machines of the new-filing path:
+//!
+//! ```no_run
+//! use sec::implementations::extraction::Extraction;
+//! use sec::shared::http_client::implementations::sec_client::SecClient;
+//! use sec::shared::raw_document::RawDocument;
+//! use sec::shared::raw_source::RawDailyIndex;
+//! use storage::implementations::repository::filesystem::FilesystemRepository;
+//!
+//! let repository = FilesystemRepository::builder()
+//!     .writer()
+//!     .document_type::<RawDocument<RawDailyIndex>>()
+//!     .root("data")
+//!     .build();
+//! let detection = Extraction::incremental()
+//!     .daily_index()
+//!     .date("2026-09-09")
+//!     .sec_client(SecClient::default())
+//!     .repository(repository)
+//!     .build();
+//! ```
 
 use storage::implementations::repository::filesystem::IngestionMode;
 use uuid::Uuid;
@@ -89,7 +111,8 @@ impl Extraction {
 
 /// Builds the super-states of one backfill run.
 ///
-/// Every super-state built from the same handle carries the handle's `execution_id`.
+/// Every super-state built from the same handle carries the handle's `execution_id` and
+/// [`IngestionMode::Backfill`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Backfill {
     execution_id: Uuid,
@@ -406,9 +429,10 @@ mod tests {
     fn should_set_the_execution_id_and_the_incremental_mode_when_building_a_daily_index_super_state()
      {
         let incremental = Extraction::incremental().execution_id(Uuid::from_u128(7));
+        let date = "2026-09-09";
 
         let expected_result = DetectFilingsSuperState::builder()
-            .date("2026-09-09")
+            .date(date)
             .sec_client(SecClient::default())
             .execution_id(Uuid::from_u128(7))
             .ingestion_mode(IngestionMode::Incremental)
@@ -417,7 +441,7 @@ mod tests {
 
         let result = incremental
             .daily_index()
-            .date("2026-09-09")
+            .date(date)
             .sec_client(SecClient::default())
             .repository(FakeDailyIndexRepository::new())
             .build();
@@ -428,9 +452,10 @@ mod tests {
     #[test]
     fn should_set_the_execution_id_and_the_incremental_mode_when_building_a_filing_super_state() {
         let incremental = Extraction::incremental().execution_id(Uuid::from_u128(7));
+        let filing = filing_ref();
 
         let expected_result = ExtractFilingSuperState::builder()
-            .filing_ref(filing_ref())
+            .filing_ref(filing.clone())
             .sec_client(SecClient::default())
             .execution_id(Uuid::from_u128(7))
             .ingestion_mode(IngestionMode::Incremental)
@@ -440,7 +465,7 @@ mod tests {
 
         let result = incremental
             .filing()
-            .filing_ref(filing_ref())
+            .filing_ref(filing)
             .sec_client(SecClient::default())
             .instance_repository(FakeXbrlInstanceRepository::new())
             .labels_repository(FakeXbrlLabelsRepository::new())
@@ -453,9 +478,10 @@ mod tests {
     fn should_set_the_execution_id_and_the_incremental_mode_when_building_a_submissions_super_state()
      {
         let incremental = Extraction::incremental().execution_id(Uuid::from_u128(7));
+        let cik = "1067983";
 
         let expected_result = ExtractSubmissionsSuperState::builder()
-            .cik("1067983")
+            .cik(cik)
             .sec_client(SecClient::default())
             .execution_id(Uuid::from_u128(7))
             .ingestion_mode(IngestionMode::Incremental)
@@ -464,7 +490,7 @@ mod tests {
 
         let result = incremental
             .submissions()
-            .cik("1067983")
+            .cik(cik)
             .sec_client(SecClient::default())
             .repository(FakeSubmissionsRepository::new())
             .build();
