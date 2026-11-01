@@ -1142,7 +1142,7 @@ or `yesterday-N`, the day `N` days before yesterday (`N` at least 1).
 
 The task timeout of the job is 30 minutes. A filing takes at least 3 requests, and its company 1
 more. The rate limiter allows one request each 110 ms. In 2024q1 the selection kept about 90
-filings per business day, and 295 on one day. So 40 business days take about 26 minutes at the
+filings per business day. The busiest day measured, 2026-08-10, had 295. So 40 business days take about 26 minutes at the
 rate limit alone. A timeout makes Cloud Run rerun the same range, which times out again. So a
 catch-up runs in ranges of at most 7 days, or as one execution with a longer task timeout
 (`gcloud run jobs execute --task-timeout`).
@@ -1154,17 +1154,24 @@ Detection knows that a date without a daily index was a closed day only once a l
 `MissingDailyIndex`. A run that reads only yesterday would fail every Sunday and Monday, and on the
 day after each holiday.
 
-So the scheduled run reads a window of 4 days, yesterday and the 3 days before it. Each date gets 4
-tries:
+So the scheduled run reads a window of 4 days, yesterday and the 3 days before it. Each date is
+read in 4 runs:
 
 - A date whose index exists is processed.
 - A date without an index, but with a later index, counts as empty.
-- A date from 2 days before yesterday through yesterday that fails with `MissingDailyIndex` is
-  **pending**. It is logged as `warn` and does not set the error exit code. A later run reads it
-  again. `PENDING_DAYS` (3) in `constants.rs` holds the number of such dates.
-- An older date that fails with `MissingDailyIndex` fails the run. For the scheduled run, that is
-  3 days before yesterday, the oldest date of the window. No later run reads that date, so it must
-  not leave the window without an alert.
+- A date that fails with `MissingDailyIndex` is **pending** if both hold: it is not the first date
+  of the run, and it is from 2 days before yesterday through yesterday. A pending date is logged
+  as `warn` and does not set the error exit code. A later run reads it again. `PENDING_DAYS` (3) in
+  `constants.rs` holds the number of dates that can be pending.
+- Every other date that fails with `MissingDailyIndex` fails the run. For the scheduled run, the
+  first date is 3 days before yesterday, the date's last run. No later run reads that date, so it
+  must not leave the window without an alert.
+
+The first date of a run is never pending, so the rule does not depend on the size of the window.
+If an operator shortens the window to `yesterday-2`, its first date fails when it has no index. The
+error is a false alarm on some Mondays, but no date leaves the window without an alert. The same
+holds for a run of one exact date (`ARKAD_FROM` and `ARKAD_TO` set to that date): a missing index
+always fails it.
 
 The size is 4 because the longest regular closure is 3 days, a weekend with a Monday holiday. The
 closed days stay in the window until the next business day's index exists:
@@ -1174,8 +1181,8 @@ closed days stay in the window until the next business day's index exists:
 | Tue after a Monday holiday | Fri to Mon | Fri processed, Sat to Mon pending |
 | Wed | Sat to Tue | Tue processed, Sat to Mon count as empty |
 
-On Wednesday, Sat is 3 days before yesterday, its last try. It counts as empty, so the run does
-not fail.
+On Wednesday, Sat is the first date, in its last run. It counts as empty, so the run does not
+fail.
 
 - A closure of 4 or more days, such as Sat 22 to Tue 25 December 2018, fails one run. The operator
   checks the SEC notice of the closure. Nothing is lost, because closed days have no filings.
@@ -1186,8 +1193,7 @@ not fail.
 - Each run reads up to 3 dates again. A peak day takes about 9 minutes at the rate limit, so a
   window of 4 days fits in the task timeout. Every write is idempotent, so a second read writes no
   duplicate row.
-- The rule depends only on the date, not on `ARKAD_FROM`. A rerun of dates older than 2 days
-  before yesterday has no pending dates: a date without an index fails, as before.
+- A rerun of dates older than `yesterday-2` has no pending dates. A date without an index fails.
 
 #### One Date
 
@@ -1212,9 +1218,9 @@ Each machine ends in one of four outcomes:
 | Outcome | When | Log | Exit code |
 | ------- | ---- | --- | --------- |
 | stored | the machine stored its documents | `info` | no effect |
-| pending | detection fails with `MissingDailyIndex` on a date from 2 days before yesterday through yesterday | `warn` | no effect |
+| pending | detection fails with `MissingDailyIndex` on a date from `yesterday-2` through yesterday that is not the first date of the run | `warn` | no effect |
 | unextractable | `SelectFilingDocuments` fails with `MissingXbrlInstance`: the folder has no XBRL instance | `warn` | no effect |
-| failed | every other error: a request, a parse, a store, a detection, `AmbiguousFilingDocument`, `MissingDailyIndex` on an older date | `error` | error |
+| failed | every other error: a request, a parse, a store, a detection, `AmbiguousFilingDocument`, `MissingDailyIndex` on any other date | `error` | error |
 
 - An unextractable filing is a property of the filing, not a fault of the code. It fails the same
   way on every attempt, so a Cloud Run retry cannot fix it. The summary lists it with its error.
@@ -1226,8 +1232,8 @@ Each machine ends in one of four outcomes:
 - A failed or pending detection skips the filings of that date. The run goes on with the next
   date.
 - A failed filing or `submissions` machine goes into the summary as failed. The run goes on.
-- The binary exits with an error if any machine failed. Cloud Run retries the job. The retry is
-  safe, because every write is idempotent.
+- The binary exits with an error if any machine failed. Pending and unextractable do not count as
+  failed. Cloud Run retries the job. The retry is safe, because every write is idempotent.
 - A filing comes from the SEC's own daily index, so its folder exists. The binary never treats a
   404 or a 503 for a filing as absent, and calls no `is_absent_file` on the filing path.
 - A filing or `submissions` machine that fails with a 503 runs again, up to `ATTEMPTS` (3) times in
@@ -1252,9 +1258,10 @@ JSON logs with the five fields of `AGENTS.md`, as in `notes_backfill`:
 
 - one line per stream item and per error, with the date, the accession number or the CIK, and the
   `execution_id` in `context`;
-- one summary line at the end of the run. It holds one entry per date: the selected filings, and
-  the stored, unextractable, and failed filings and `submissions` files, each failure with its
-  failed state.
+- one summary line at the end of the run. It holds one entry per date: the outcome of detection
+  (processed, empty, pending, or failed), the selected filings, and the stored, unextractable, and
+  failed filings and `submissions` files, each failure with its failed state. A pending date and a
+  closed day both select no filings, so only the detection outcome tells them apart.
 
 #### Module Layout
 
@@ -1277,7 +1284,9 @@ JSON logs with the five fields of `AGENTS.md`, as in `notes_backfill`:
 A binary links the library built without `cfg(test)`, so the fixtures of `sec`, such as
 `RoutingSecClient`, are out of its reach. A new feature `test-fixtures` of `sec` exposes
 `sec::tests::fixtures`. The dependency `http`, which the fixtures use, becomes optional under that
-feature. `sec` names itself as a dev-dependency with the feature, so the integration tests enable
+feature, and stays in `[dev-dependencies]` for the library's own unit tests. `RoutingSecClient`
+answers each URL with one fixed response. PR 2 adds a route that serves a list of responses in
+order, for the test of a 503 followed by a 200. `sec` names itself as a dev-dependency with the feature, so the integration tests enable
 it. `sec/tests/daily_filings.rs` includes the binary's modules through `#[path]`, as
 `sec/tests/notes_backfill.rs` does, so the `integration-tests` job of CI runs their tests.
 
@@ -1289,8 +1298,9 @@ it. `sec/tests/daily_filings.rs` includes the binary's modules through `#[path]`
   filings and a weekend day without; a 503 that clears on the second attempt; a 503 on every
   attempt, which fails the filing and still runs the `submissions` machine; a folder without an
   instance, which is unextractable and leaves the exit code alone; a folder with two instances,
-  which fails; a missing index on yesterday, which is pending and leaves the exit code alone;
-  a missing index 3 days before yesterday, which fails; the ingestion mode `incremental`
+  which fails; a missing index on `yesterday-2`, not the first date, which is pending and leaves
+  the exit code alone; a missing index on `yesterday-3`, the first date, which fails; a missing
+  index on yesterday as the only date of the run, which fails; the ingestion mode `incremental`
   in the metadata of each of the four document types.
 - Live against `www.sec.gov`, in `sec/tests/daily_filings.rs`, as `sec/tests/extract_filing.rs`
   does: one past weekday, which stores the daily index, at least one filing, and its
@@ -1300,10 +1310,11 @@ it. `sec/tests/daily_filings.rs` includes the binary's modules through `#[path]`
 
 Three PRs, each at most 400 reviewable lines:
 
-1. `dates.rs` and `constants.rs` with their tests, the dependency `chrono-tz`, and
-   `sec/tests/daily_filings.rs`.
-2. The feature `test-fixtures`, `FailedSecRequest::is_unavailable`, and `run.rs` with the retry,
-   the outcomes, the summary, and the offline tests.
+1. `dates.rs` with its tests, `constants.rs` with the variable names, the dependency `chrono-tz`,
+   and `sec/tests/daily_filings.rs`.
+2. The feature `test-fixtures` with the route of several responses, `FailedSecRequest::is_unavailable`,
+   `run.rs` with the retry, the outcomes, the summary, and the offline tests, and the constants
+   `IN_FLIGHT`, `ATTEMPTS`, `RETRY_DELAYS`, and `PENDING_DAYS`.
 3. The four writers and the generic `create_root` in `storage_root.rs`, `main.rs` with the logs and
    the exit code, the `[[bin]]` entry, and the live test.
 
@@ -1325,7 +1336,7 @@ Rules:
 2. The first `daily_filings` run reads every day from the start date up to yesterday
    (`ARKAD_FROM` set to the start date). Each later run reads the last 4 days
    (`ARKAD_FROM=yesterday-3`). See [Window](#window).
-3. A day older than the window that was missed is a rerun for that date.
+3. If the run missed a day older than the window, rerun that date.
 4. A filing that reaches both paths writes no duplicate row, because every write is idempotent.
    Which copy holds the value is open. See [Path Independence](#path-independence).
 5. Rule 1 leaves no gap only if the backfill stored every period up to the newest stored Notes
@@ -1606,11 +1617,13 @@ Proposed for MVP Operations. Both paths run as Cloud Run jobs with the bucket mo
 - `daily_filings` runs the three new-filing machines in order: detection, then one filing machine
   per `FilingRef`, then one `submissions` machine per distinct CIK.
 - MVP Operations needs two alerts for `daily_filings`. One fires on an execution that fails after
-  all Cloud Run retries. Its logs name the failed dates, for a rerun. A date that is still
-  pending on its last try fails the run too, so it raises this alert. The other fires when no execution succeeds in 36 hours, because the
-  binary cannot notice a day on which Cloud Scheduler did not start it.
+  all Cloud Run retries. Its logs name the failed dates, for a rerun. A date without an index in
+  its last run in the window fails the run too, so it raises this alert. The other fires when no
+  execution succeeds in 36 hours, because the binary cannot notice a day on which Cloud Scheduler
+  did not start it.
 - If one machine fails, the job logs the failure and runs the other machines. At the end, the job
-  exits with an error if any machine failed, and Cloud Run retries it. The retry is safe, because
+  exits with an error if any machine failed, and Cloud Run retries it. Pending and unextractable
+  do not count as failed. The retry is safe, because
   every write is idempotent.
 - `notes_backfill` runs the `submissions` machine for each distinct CIK after the Notes files.
 - `notes_backfill` reads `ARKAD_FILES_IN_FLIGHT` for the number of Notes files in flight. Unset, it
