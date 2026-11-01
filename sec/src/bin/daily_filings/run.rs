@@ -41,22 +41,18 @@ use crate::constants::{IN_FLIGHT, PENDING_DAYS};
 
 /// The SEC client that every machine of a run accepts.
 pub trait DailyClient:
-    SecClientTrait<
-        Response<ZipBody> = SecResponse<ZipBody>,
-        Response<JsonBody> = SecResponse<JsonBody>,
-        Error = FailedSecRequest,
-    > + Executes<FilingIndex>
+    SecClientTrait<Response<ZipBody> = SecResponse<ZipBody>, Error = FailedSecRequest>
+    + SecClientTrait<Response<JsonBody> = SecResponse<JsonBody>>
+    + Executes<FilingIndex>
     + Executes<FilingDocumentSet>
     + 'static
 {
 }
 
 impl<C> DailyClient for C where
-    C: SecClientTrait<
-            Response<ZipBody> = SecResponse<ZipBody>,
-            Response<JsonBody> = SecResponse<JsonBody>,
-            Error = FailedSecRequest,
-        > + Executes<FilingIndex>
+    C: SecClientTrait<Response<ZipBody> = SecResponse<ZipBody>, Error = FailedSecRequest>
+        + SecClientTrait<Response<JsonBody> = SecResponse<JsonBody>>
+        + Executes<FilingIndex>
         + Executes<FilingDocumentSet>
         + 'static
 {
@@ -316,8 +312,8 @@ pub async fn run<C>(
     sec_client: &C,
     repositories: &Repositories,
     settings: &Settings,
-    on_item: impl Fn(&Value, &StreamItem),
-    on_error: impl Fn(&Value, &StreamError),
+    on_item: impl Fn(&Value, &StreamItem) + Send + Sync,
+    on_error: impl Fn(&Value, &StreamError) + Send + Sync,
 ) -> RunSummary
 where
     C: DailyClient,
@@ -390,8 +386,8 @@ async fn extract_filings<C>(
     sec_client: &C,
     repositories: &Repositories,
     settings: &Settings,
-    on_item: &impl Fn(&Value, &StreamItem),
-    on_error: &impl Fn(&Value, &StreamError),
+    on_item: &(impl Fn(&Value, &StreamItem) + Sync),
+    on_error: &(impl Fn(&Value, &StreamError) + Sync),
 ) -> Vec<FilingOutcome>
 where
     C: DailyClient,
@@ -442,8 +438,8 @@ async fn extract_companies<C>(
     sec_client: &C,
     repositories: &Repositories,
     settings: &Settings,
-    on_item: &impl Fn(&Value, &StreamItem),
-    on_error: &impl Fn(&Value, &StreamError),
+    on_item: &(impl Fn(&Value, &StreamItem) + Sync),
+    on_error: &(impl Fn(&Value, &StreamError) + Sync),
 ) -> Vec<CompanyOutcome>
 where
     C: DailyClient,
