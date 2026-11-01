@@ -13,3 +13,7 @@ pub const TO_ENV_VAR: &str = "ARKAD_TO";
 /// The value of [`FROM_ENV_VAR`] or [`TO_ENV_VAR`] that names yesterday in New York. Followed by
 /// `-N`, it names the day `N` days before yesterday.
 pub const YESTERDAY: &str = "yesterday";
+
+/// The number of dates, yesterday and the days before it, whose missing daily index counts as
+/// pending. A pending date does not fail the run, because a later run reads it again.
+pub const PENDING_DAYS: u64 = 3;
