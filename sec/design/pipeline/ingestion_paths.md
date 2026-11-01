@@ -861,7 +861,8 @@ folder answered 200 in the same minutes. The data cover one CIK and 16 minutes.
 - The machine fails at `ExecuteSecRequest` for both codes, with `InvalidSecResponse` and the code.
 - `FailedSecRequest::is_absent_file` counts 403 and 404 only. So a caller that skips absent files
   sees a missing folder as absent on one request and as a server failure on the next.
-- STA-378 decides how the `daily_filings` binary treats a 503 for the folder index.
+- `daily_filings` retries a filing that fails with a 503 and never counts it as absent. See
+  [Daily Run](#daily-run).
 - The live test in `sec/tests/extract_filing.rs` accepts both codes for a missing folder. Any
   other status code or a network error fails it.
 
@@ -1103,6 +1104,121 @@ Decided in STA-376:
   total over all files is not measured. `sub.tsv` already holds the SIC code and the name at
   filing time, so the backfill needs `submissions` only for the current company data.
 
+### Daily Run
+
+> **Status:** proposed for STA-378 on 2026-11-01. The dates, the time zone, and the 503 rule are
+> decided in STA-378. The rest waits for review.
+
+`daily_filings` runs the new-filing path for a range of dates. It builds each super-state with its
+own builder, not through the facade (lead, 2026-10-31). STA-363 moves it onto the facade later.
+
+#### Dates
+
+Two environment variables set the range. Each takes a date (`YYYY-MM-DD`) or the word `yesterday`.
+
+| Variable | Required | Unset |
+| -------- | -------- | ----- |
+| `ARKAD_FROM` | yes | Startup fails |
+| `ARKAD_TO` | no | `yesterday` |
+
+- The run reads every date from `ARKAD_FROM` through `ARKAD_TO`, both included, oldest first.
+- All dates are Eastern time (`America/New_York`). The SEC's days are Eastern, and it publishes a
+  daily index only after that day ends. At 02:00 UTC on 2 November it is still 1 November in New
+  York. So `yesterday` is the day before today in New York, never in UTC.
+- Startup fails, with an error that names both variables, if `ARKAD_FROM` is unset, a value does
+  not parse, `ARKAD_FROM` is after `ARKAD_TO`, or `ARKAD_TO` is today or later.
+- The binary reads no stored document to pick its dates. Resume from the store comes with the
+  facade (STA-363) and the repository listing (STA-403).
+
+| Use | Setting |
+| --- | ------- |
+| Daily scheduled job | `ARKAD_FROM=yesterday` |
+| First catch-up | `ARKAD_FROM=` the start date of cut-over rule 1 |
+| Rerun one past day | `ARKAD_FROM=2026-10-15`, `ARKAD_TO=2026-10-15` |
+| Rerun a past week | `ARKAD_FROM=2026-10-13`, `ARKAD_TO=2026-10-19` |
+
+#### One Date
+
+All super-states of one run share one `execution_id`. For each date, in this order:
+
+1. `DetectFilingsSuperState` for the date. `run_to_filings` returns the selected `FilingRef`s. A
+   weekend or a holiday returns an empty list (the 404 rule of [Detection](#detection)).
+2. One `ExtractFilingSuperState` for each `FilingRef`. `run_to_documents` returns the
+   `FilingDocumentsRef`. At most `FILINGS_IN_FLIGHT` filings run at once, a constant of 4. The
+   global rate limiter of `SecClient` caps the requests, so a higher value buys nothing.
+3. One `ExtractSubmissionsSuperState` for each distinct CIK of the selected filings, with the
+   ingestion mode `incremental`. It runs for the CIK of a failed filing too, because the company
+   data does not depend on the filing.
+
+The dates run one after another, so a summary line belongs to one date.
+
+#### Failures
+
+- A failed detection fails its date. The run skips the filings of that date and goes on with the
+  next date. A daily index that the SEC has not published yet fails this way.
+- A failed filing or `submissions` machine goes into the summary as failed. The run goes on.
+- The binary exits with an error if anything failed. Cloud Run retries the job. The retry is safe,
+  because every write is idempotent.
+- A filing comes from the SEC's own daily index, so its folder exists. The binary never treats a
+  404 or a 503 for a filing as absent, and calls no `is_absent_file` on the filing path.
+- A filing machine that fails with a 503 runs again, up to `FILING_ATTEMPTS` (3) times in all, after
+  1 s and 2 s. The SEC answers a missing folder with 404 or 503 (see
+  [Fetch of Each Filing](#fetch-of-each-filing)), and a 503 can also mean a short outage. The retry
+  lives in the binary's loop, not in `SecClient`, so the other paths keep their behavior. A new
+  check `FailedSecRequest::is_unavailable` tells a 503 apart, next to `is_absent_file`.
+
+#### Stores
+
+The run writes four raw document types under `ARKAD_STORAGE_ROOT`: `RawDailyIndex`,
+`RawXbrlInstance`, `RawXbrlLabels`, and `RawSubmissions`. `sec/src/bin/shared/storage_root.rs`
+gains one writer for each. Every document carries the ingestion mode `incremental`:
+`StoreDailyIndex` and `StoreFilingDocuments` write it themselves, and the binary passes it to the
+`submissions` builder.
+
+#### Logs and Summary
+
+JSON logs with the five fields of `AGENTS.md`, as in `notes_backfill`:
+
+- one line per stream item and per error, with the date, the accession number or the CIK, and the
+  `execution_id` in `context`;
+- one summary line at the end, with one entry per date: the selected filings, the stored filings,
+  the failed filings with their failed state, and the stored and failed `submissions` files.
+
+#### Module Layout
+
+`sec/src/bin/daily_filings/`, built like `notes_backfill`:
+
+| File | Holds |
+| ---- | ----- |
+| `main.rs` | Logging, startup, the call of `run`, the summary, the exit code |
+| `dates.rs` | Parses `ARKAD_FROM` and `ARKAD_TO` against today in New York, and returns the dates |
+| `run.rs` | The loop over the dates and the three steps, the retry, and the `RunSummary` |
+| `constants.rs` | The variable names, `FILINGS_IN_FLIGHT`, `FILING_ATTEMPTS`, and the retry delays |
+
+`dates.rs` takes "now" as an argument, so its tests set the clock, for example 02:00 UTC.
+
+#### Tests
+
+- `dates.rs`: `yesterday` alone, a range, one day, `ARKAD_FROM` unset, a value that does not
+  parse, `ARKAD_FROM` after `ARKAD_TO`, `ARKAD_TO` of today or later, and 02:00 UTC, which gives
+  the New York date of the day before.
+- `run.rs`, offline with `RoutingSecClient` and a temp-dir store: two dates, a weekday with
+  filings and a weekend day without; a 503 that clears on the second attempt; a 503 on every
+  attempt, which fails the filing and still runs the `submissions` machine; the ingestion mode
+  `incremental` in the metadata of each of the four document types.
+- `sec/tests/daily_filings.rs`, live against `www.sec.gov`, as `sec/tests/extract_filing.rs`
+  does: one past weekday, which stores the daily index, at least one filing, and its
+  `submissions` file.
+
+#### Delivery
+
+Three PRs, each at most 400 reviewable lines:
+
+1. `dates.rs` with its tests, and the four writers in `storage_root.rs`.
+2. `FailedSecRequest::is_unavailable`, and `run.rs` with the retry, the summary, and the offline
+   tests.
+3. `main.rs` with the logs and the exit code, and the live test.
+
 ### Cut-Over Between the Paths
 
 The backfill runs by hand, up to the last published Notes file. Decided by the lead on
@@ -1118,8 +1234,9 @@ Rules:
 
 1. The new-filing path starts at the daily index of the last day of the newest stored Notes
    month. That day is in both paths. The overlap of one day covers assumption A2 below.
-2. The first `daily_filings` run reads every day from the start date up to yesterday. Each later
-   run reads one day.
+2. The first `daily_filings` run reads every day from the start date up to yesterday
+   (`ARKAD_FROM` set to the start date). Each later run reads one day (`ARKAD_FROM=yesterday`).
+   See [Daily Run](#daily-run).
 3. A missed day is a rerun for that date.
 4. A filing that reaches both paths writes no duplicate row, because every write is idempotent.
    Which copy holds the value is open. See [Path Independence](#path-independence).
@@ -1132,8 +1249,9 @@ Rules:
    [Notes ZIP Findings](#notes-zip-findings)).
 6. If a later backfill run stores newer months, those months overlap the new-filing path. Rule 4
    keeps the overlap free of duplicate rows.
-7. STA-378 decides how `daily_filings` picks its dates. Its start date must follow rule 1, after
-   the check of rule 5.
+7. The operator sets the first `ARKAD_FROM` of `daily_filings` by rule 1, after the check of
+   rule 5. The binary reads no stored document, so it cannot check this rule itself. The check
+   comes with the repository listing (STA-403) and the facade (STA-363).
 8. A backfill run can repeat. It skips each stored file that passes the size and SHA-256 check
    (STA-400), so a repeat downloads only the files that are missing or that the store cannot
    verify.
@@ -1394,11 +1512,13 @@ Proposed for MVP Operations. Both paths run as Cloud Run jobs with the bucket mo
 | Backfill | `notes_backfill` | By hand, once. Rerun by hand. | 6 to 8 GiB memory, task timeout of 1 hour |
 | New filing | `daily_filings` | Cloud Scheduler, once a day at 07:13 UTC | 1 GiB memory, task timeout of 30 minutes |
 
-- `daily_filings` reads a start date and an end date from environment variables. If they are
-  unset, the job reads yesterday in Eastern time. The first run and a rerun for missed days set
-  them.
+- The scheduled `daily_filings` job sets `ARKAD_FROM=yesterday`. The first run and a rerun set
+  `ARKAD_FROM`, and `ARKAD_TO` if needed, to dates. Without `ARKAD_FROM` the job fails at startup.
+  All dates are Eastern time. See [Daily Run](#daily-run).
 - `daily_filings` runs the three new-filing machines in order: detection, then one filing machine
   per `FilingRef`, then one `submissions` machine per distinct CIK.
+- If Cloud Scheduler does not start the job on some day, the binary cannot notice. MVP Operations
+  needs an alert, for example "no successful `daily_filings` execution in 36 hours".
 - If one machine fails, the job logs the failure and runs the other machines. At the end, the job
   exits with an error if any machine failed, and Cloud Run retries it. The retry is safe, because
   every write is idempotent.
