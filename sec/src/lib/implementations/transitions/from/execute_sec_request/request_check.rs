@@ -1,8 +1,8 @@
 //! # Request Check
 //!
-//! Provides [`ensure_request_matches_input`], which the store transitions call before they build
-//! the storage key from the context of an
-//! [`ExecuteSecRequest`](crate::implementations::states::extract::execute_sec_request::ExecuteSecRequest).
+//! Provides [`ensure_request_matches_input`], which the transitions out of an
+//! [`ExecuteSecRequest`](crate::implementations::states::extract::execute_sec_request::ExecuteSecRequest)
+//! call before they read its context.
 
 use crate::error::state_machine::transition;
 use crate::error::state_machine::transition::Transition as TransitionError;
@@ -13,8 +13,8 @@ use crate::shared::request::implementations::sec_request::{RequestKind, SecReque
 /// Checks that `request` is the request that `request_input` builds: the same input and the same
 /// URL.
 ///
-/// The store transitions key the stored document by `request_input`, so a mismatch stores a
-/// response under the wrong key.
+/// The transitions out of `ExecuteSecRequest` read `request_input`, not the request. A mismatch
+/// stores a response under the wrong key, or names the wrong filing for a folder index.
 ///
 /// # Errors
 ///
