@@ -600,8 +600,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_return_the_last_day_of_the_period_before_when_running_a_batch_whose_newest_period_is_unpublished()
-     {
+    async fn should_return_the_last_day_of_the_older_period_when_a_batch_ends_unpublished() {
         let root = temporary_root();
         let sec_client = sec_client_with_files_of(&["2025q3"]);
         let periods = ["2025q3", "2025_10"];
@@ -699,7 +698,7 @@ mod tests {
             }
         };
 
-        let expected_result = false;
+        let expected_result = (false, false);
 
         Extraction::backfill()
             .notes()
@@ -709,11 +708,25 @@ mod tests {
             .in_flight(1)
             .run(observer)
             .await;
-        let result = later_file_seen
-            .lock()
-            .expect(LOCK_EXPECT)
-            .iter()
-            .any(|seen| *seen);
+        let result = {
+            let seen = later_file_seen.lock().expect(LOCK_EXPECT);
+            (seen.is_empty(), seen.contains(&true))
+        };
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_count_zero_as_one_when_setting_in_flight() {
+        let in_flight = 0;
+
+        let expected_result = 1;
+
+        let result = Extraction::backfill()
+            .notes()
+            .periods(["2025q3"])
+            .in_flight(in_flight)
+            .in_flight;
 
         assert_eq!(result, expected_result);
     }
