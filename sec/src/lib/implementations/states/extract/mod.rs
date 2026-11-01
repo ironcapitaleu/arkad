@@ -9,6 +9,7 @@
 //!
 //! - [`company_facts`]: The [`ExtractCompanyFactsSuperState`](company_facts::ExtractCompanyFactsSuperState)
 //!   and its builder.
+//! - [`filing`]: The [`ExtractFilingSuperState`](filing::ExtractFilingSuperState).
 //! - [`notes`]: The [`ExtractNotesSuperState`](notes::ExtractNotesSuperState) and its builder.
 //! - [`daily_index`]: The [`DetectFilingsSuperState`](daily_index::DetectFilingsSuperState) and its
 //!   builder.
@@ -33,6 +34,7 @@ pub mod company_facts;
 pub mod daily_index;
 pub mod download_daily_index;
 pub mod execute_sec_request;
+pub mod filing;
 pub mod notes;
 pub mod prepare_sec_request;
 pub mod select_filing_documents;
