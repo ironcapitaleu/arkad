@@ -231,7 +231,7 @@ mod tests {
     }
 
     #[test]
-    fn should_report_not_unavailable_when_the_sec_answers_404() {
+    fn should_not_report_unavailable_when_the_sec_answers_404() {
         let error = invalid_status_code(StatusCode::NotFound);
 
         let expected_result = false;
@@ -242,7 +242,7 @@ mod tests {
     }
 
     #[test]
-    fn should_report_not_unavailable_when_the_request_fails_in_transport() {
+    fn should_not_report_unavailable_when_the_request_fails_in_transport() {
         let error = FailedSecRequest::new(ErrorReason::FailedRequestExecution {
             details: "connection refused".to_string(),
         });

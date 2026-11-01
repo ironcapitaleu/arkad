@@ -13,7 +13,8 @@ use crate::tests::fixtures::sample_rate_limiter::always_ready::AlwaysReadyRateLi
 /// A fake SEC client that answers each URL with its own fixed response, or with its own list of
 /// responses in order.
 ///
-/// A URL without a route gets an empty 404 response. The rate limiter never waits.
+/// A URL without a route, or with an empty list, gets an empty 404 response. Each URL has its own
+/// count of requests, and clones share the counts. The rate limiter never waits.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub struct RoutingSecClient {
     /// The inner client that routes every request.
@@ -54,14 +55,8 @@ impl RoutingSecClient {
 
     /// Adds a route that answers `url` with `status`, `content_type`, and `body`.
     #[must_use]
-    pub fn route(mut self, url: &str, status: u16, content_type: &str, body: &[u8]) -> Self {
-        let responder = AlwaysRespondingHttpClient {
-            status,
-            headers: vec![("content-type", content_type.to_string())],
-            body: body.to_vec(),
-        };
-        self.inner.routes.push((url.to_string(), vec![responder]));
-        self
+    pub fn route(self, url: &str, status: u16, content_type: &str, body: &[u8]) -> Self {
+        self.route_sequence(url, &[(status, content_type, body)])
     }
 
     /// Adds a route that answers the requests to `url` with `responses` in order. Each response
@@ -105,7 +100,11 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;
+    use crate::shared::cik::Cik;
     use crate::shared::http_client::traits::InnerClient;
+    use crate::shared::request::implementations::sec_request::SecRequest;
+
+    const COMPANY_FACTS_URL: &str = "https://data.sec.gov/api/xbrl/companyfacts/CIK0001067983.json";
 
     const URL: &str = "https://www.sec.gov/Archives/edgar/data/3545/000000354526000047/index.json";
 
@@ -166,6 +165,48 @@ mod tests {
         let expected_result = vec![200];
 
         let result = statuses(&clone.inner, 1).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_count_the_requests_per_url_when_two_urls_have_a_sequence() {
+        let client = unavailable_then_ok().route_sequence(
+            COMPANY_FACTS_URL,
+            &[(503, "text/html", b""), (200, "application/json", b"{}")],
+        );
+        statuses(&client.inner, 1).await;
+        let other_url = reqwest::Url::parse(COMPANY_FACTS_URL)
+            .expect("Given a hardcoded valid URL, parsing should always succeed");
+        let other_request = reqwest::Request::new(reqwest::Method::GET, other_url);
+
+        let expected_result = 503;
+
+        let result = client
+            .inner
+            .execute_request(other_request)
+            .await
+            .expect("Given a fake client that builds every response locally, the request should always succeed")
+            .status()
+            .as_u16();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_return_an_unavailable_error_when_the_sec_client_gets_a_503() {
+        let client = RoutingSecClient::new().route(COMPANY_FACTS_URL, 503, "text/html", b"");
+        let cik = Cik::new("1067983").expect(
+            "Given a hardcoded valid CIK, the creation of a CIK object should always succeed",
+        );
+        let request = SecRequest::builder().all_company_facts().cik(cik).build();
+
+        let expected_result = true;
+
+        let result = client
+            .execute_sec_request(request)
+            .await
+            .is_err_and(|error| error.is_unavailable());
 
         assert_eq!(result, expected_result);
     }
