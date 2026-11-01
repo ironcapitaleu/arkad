@@ -39,6 +39,9 @@ pub trait RequestKind: Debug + Clone + Eq + Ord + Hash + Send + Sync + Unpin {
     /// The name of the input in serialized data, for example `cik`.
     const INPUT_NAME: &'static str;
 
+    /// The name of the input in error messages, for example `CIK`.
+    const INPUT_LABEL: &'static str;
+
     /// Builds the [`SecRequestType`] of this kind from its input.
     fn request_type(input: Self::Input) -> SecRequestType;
 }
@@ -51,6 +54,7 @@ impl RequestKind for CompanyFacts {
     type Input = Cik;
 
     const INPUT_NAME: &'static str = "cik";
+    const INPUT_LABEL: &'static str = "CIK";
 
     fn request_type(cik: Cik) -> SecRequestType {
         SecRequestType::FetchAllCompanyFacts { cik }
@@ -65,6 +69,7 @@ impl RequestKind for NotesFile {
     type Input = NotesPeriod;
 
     const INPUT_NAME: &'static str = "notes_period";
+    const INPUT_LABEL: &'static str = "period";
 
     fn request_type(period: NotesPeriod) -> SecRequestType {
         SecRequestType::FetchNotesFile { period }
@@ -79,6 +84,7 @@ impl RequestKind for DailyIndex {
     type Input = IndexDate;
 
     const INPUT_NAME: &'static str = "index_date";
+    const INPUT_LABEL: &'static str = "date";
 
     fn request_type(date: IndexDate) -> SecRequestType {
         SecRequestType::FetchDailyIndex { date }
@@ -95,6 +101,7 @@ impl RequestKind for DailyIndexListing {
     type Input = IndexDate;
 
     const INPUT_NAME: &'static str = "index_date";
+    const INPUT_LABEL: &'static str = "date";
 
     fn request_type(date: IndexDate) -> SecRequestType {
         SecRequestType::FetchDailyIndexListing { date }
@@ -109,6 +116,7 @@ impl RequestKind for Submissions {
     type Input = Cik;
 
     const INPUT_NAME: &'static str = "cik";
+    const INPUT_LABEL: &'static str = "CIK";
 
     fn request_type(cik: Cik) -> SecRequestType {
         SecRequestType::FetchSubmissions { cik }
@@ -123,6 +131,7 @@ impl RequestKind for FilingIndex {
     type Input = FilingRef;
 
     const INPUT_NAME: &'static str = "filing_ref";
+    const INPUT_LABEL: &'static str = "filing";
 
     fn request_type(filing: FilingRef) -> SecRequestType {
         SecRequestType::FetchFilingIndex { filing }
@@ -137,6 +146,7 @@ impl RequestKind for FilingDocument {
     type Input = FilingDocumentRef;
 
     const INPUT_NAME: &'static str = "filing_document";
+    const INPUT_LABEL: &'static str = "document";
 
     fn request_type(document: FilingDocumentRef) -> SecRequestType {
         SecRequestType::FetchFilingDocument { document }
@@ -155,6 +165,7 @@ impl RequestKind for FilingDocumentSet {
     type Input = FilingDocumentSetRef;
 
     const INPUT_NAME: &'static str = "filing_document_set";
+    const INPUT_LABEL: &'static str = "documents";
 
     fn request_type(documents: FilingDocumentSetRef) -> SecRequestType {
         SecRequestType::FetchFilingDocumentSet { documents }
@@ -177,9 +188,6 @@ pub trait StoredAs: HasResponse {
 
     /// The name of the store state. The stored document records it as its producer.
     const STATE_NAME: &'static str;
-
-    /// The name of the request input in error messages, for example `CIK`.
-    const INPUT_LABEL: &'static str;
 
     /// Builds the raw document to write and the output the state reports once the write succeeds.
     fn store(

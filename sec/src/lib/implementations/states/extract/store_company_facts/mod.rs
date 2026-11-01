@@ -55,7 +55,6 @@ impl StoredAs for CompanyFacts {
     type Output = StoreCompanyFactsOutput;
 
     const STATE_NAME: &'static str = STATE_NAME;
-    const INPUT_LABEL: &'static str = "CIK";
 
     fn store(
         response: &SecResponse,

@@ -53,7 +53,6 @@ impl StoredAs for NotesFile {
     type Output = StoreNotesArchiveOutput;
 
     const STATE_NAME: &'static str = STATE_NAME;
-    const INPUT_LABEL: &'static str = "period";
 
     fn store(
         response: &SecResponse<ZipBody>,

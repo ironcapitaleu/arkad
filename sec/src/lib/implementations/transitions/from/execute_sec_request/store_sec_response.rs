@@ -81,12 +81,7 @@ impl<E: StoredAs, R, C: SecClientTrait> TryFrom<(ExecuteSecRequest<E, C>, Uuid, 
         let output_data = output
             .ok_or_else(|| transition::MissingOutput::new(EXECUTE_SEC_REQUEST, E::STATE_NAME))?;
 
-        ensure_request_matches_input(
-            &input.sec_request,
-            &context.request_input,
-            E::INPUT_LABEL,
-            E::STATE_NAME,
-        )?;
+        ensure_request_matches_input(&input.sec_request, &context.request_input, E::STATE_NAME)?;
 
         let requested_url = Url::from(input.sec_request.inner.url().clone());
         let user_agent = input.sec_client.user_agent().clone();

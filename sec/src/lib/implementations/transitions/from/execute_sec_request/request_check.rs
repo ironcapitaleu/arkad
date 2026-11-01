@@ -20,18 +20,18 @@ use crate::shared::request::implementations::sec_request::{RequestKind, SecReque
 ///
 /// Returns [`TransitionError::FailedContextConversion`] from [`EXECUTE_SEC_REQUEST`] to
 /// `target_state_name` if the two requests differ. The reason names the requested URL, the input
-/// of the request, and `request_input`, each input after `input_label`, for example
-/// `period '2024q1'`.
+/// of the request, and `request_input`, each input after the
+/// [`INPUT_LABEL`](RequestKind::INPUT_LABEL) of `K`, for example `period '2024q1'`.
 pub(super) fn ensure_request_matches_input<K: RequestKind>(
     request: &SecRequest<K>,
     request_input: &K::Input,
-    input_label: &str,
     target_state_name: &str,
 ) -> Result<(), TransitionError> {
     let expected_request = SecRequest::<K>::new(request_input.clone());
     if *request == expected_request && request.inner.url() == expected_request.inner.url() {
         return Ok(());
     }
+    let input_label = K::INPUT_LABEL;
     let reason = format!(
         "The request targets '{}' for {input_label} '{}', but the context names {input_label} '{request_input}'",
         request.inner.url(),
@@ -62,12 +62,10 @@ mod tests {
     fn should_pass_when_the_request_input_builds_the_request() {
         let request = SecRequest::<NotesFile>::new(period("2024q1"));
         let request_input = period("2024q1");
-        let input_label = "period";
 
         let expected_result = Ok(());
 
-        let result =
-            ensure_request_matches_input(&request, &request_input, input_label, TARGET_STATE_NAME);
+        let result = ensure_request_matches_input(&request, &request_input, TARGET_STATE_NAME);
 
         assert_eq!(result, expected_result);
     }
@@ -76,7 +74,6 @@ mod tests {
     fn should_return_failed_context_conversion_when_the_request_input_builds_another_request() {
         let request = SecRequest::<NotesFile>::new(period("2023q4"));
         let request_input = period("2024q1");
-        let input_label = "period";
 
         let expected_result = Err(TransitionError::FailedContextConversion(
             transition::FailedContextConversion::new(
@@ -86,8 +83,7 @@ mod tests {
             ),
         ));
 
-        let result =
-            ensure_request_matches_input(&request, &request_input, input_label, TARGET_STATE_NAME);
+        let result = ensure_request_matches_input(&request, &request_input, TARGET_STATE_NAME);
 
         assert_eq!(result, expected_result);
     }
@@ -99,7 +95,6 @@ mod tests {
             .parse()
             .expect("Given a hardcoded HTTPS URL literal, Url parsing should always succeed");
         let request_input = period("2024q1");
-        let input_label = "period";
 
         let expected_result = Err(TransitionError::FailedContextConversion(
             transition::FailedContextConversion::new(
@@ -109,8 +104,7 @@ mod tests {
             ),
         ));
 
-        let result =
-            ensure_request_matches_input(&request, &request_input, input_label, TARGET_STATE_NAME);
+        let result = ensure_request_matches_input(&request, &request_input, TARGET_STATE_NAME);
 
         assert_eq!(result, expected_result);
     }
