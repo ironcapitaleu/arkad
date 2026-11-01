@@ -13,9 +13,10 @@
 //!
 //! ## State Flow
 //!
-//! [`PrepareSecRequest`] of the [`FilingIndex`] kind → [`ExecuteSecRequest`] →
-//! [`SelectFilingDocuments`] → [`PrepareSecRequest`] of the [`FilingDocumentSet`] kind →
-//! [`ExecuteSecRequest`] → [`StoreFilingDocuments`]. The stream ends after [`StoreFilingDocuments`].
+//! [`PrepareSecRequest`] of the [`FilingIndex`] kind → [`ExecuteSecRequest`] of the
+//! [`FilingIndex`] kind → [`SelectFilingDocuments`] → [`PrepareSecRequest`] of the
+//! [`FilingDocumentSet`] kind → [`ExecuteSecRequest`] of the [`FilingDocumentSet`] kind →
+//! [`StoreFilingDocuments`]. The stream ends after [`StoreFilingDocuments`].
 //! [`ExtractFilingSuperState::run_to_documents`] runs the stream and returns the
 //! [`FilingDocumentsRef`] of the stored files.
 //!
@@ -664,7 +665,6 @@ mod tests {
         PrepareSecRequestContext, PrepareSecRequestInput,
     };
     use crate::implementations::states::extract::select_filing_documents::constants::STATE_NAME as SELECT_FILING_DOCUMENTS;
-    use crate::implementations::states::extract::store_filing_documents::StoreFilingDocumentsContext;
     use crate::implementations::states::extract::store_filing_documents::constants::STATE_NAME as STORE_FILING_DOCUMENTS;
     use crate::shared::cik::Cik;
     use crate::shared::filing_documents::{FilingDocumentSetRef, FilingDocuments, FolderIndex};
@@ -908,19 +908,30 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_pass_the_execution_id_and_both_repositories_to_the_store_when_transitioning() {
+    async fn should_pass_the_execution_id_of_the_context_to_the_store_when_transitioning() {
         let super_state = computed(at_documents_execute().await).await;
 
-        let expected_result = &StoreFilingDocumentsContext::new(
-            EXECUTION_ID,
-            FakeXbrlInstanceRepository::new(),
-            FakeXbrlLabelsRepository::new(),
-        );
+        let expected_result = EXECUTION_ID;
 
         let store = super_state
             .transition_to_next_state_sec()
             .expect("Given served documents, the transition should always succeed");
-        let result = store.current_state().context_data();
+        let result = store.current_state().context_data().execution_id;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_pass_the_execution_id_of_the_context_to_select_filing_documents_when_transitioning()
+     {
+        let super_state = computed(at_folder_index_execute().await).await;
+
+        let expected_result = EXECUTION_ID;
+
+        let select = super_state
+            .transition_to_next_state_sec()
+            .expect("Given a served folder index, the transition should always succeed");
+        let result = select.current_state().context_data().execution_id;
 
         assert_eq!(result, expected_result);
     }
