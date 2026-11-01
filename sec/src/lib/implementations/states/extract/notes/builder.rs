@@ -4,11 +4,12 @@
 //! entry state [`ValidateNotesPeriod`].
 //!
 //! Each setter changes the builder's type. [`build`](ExtractNotesSuperStateBuilder::build) exists
-//! only once the builder holds a period, an SEC client, an `execution_id`, and a repository, so a
-//! super-state without one of them does not compile.
+//! only once the builder holds a period, an SEC client, an `execution_id`, an ingestion mode, and a
+//! repository, so a super-state without one of them does not compile.
 
 use std::marker::PhantomData;
 
+use storage::implementations::repository::filesystem::IngestionMode;
 use uuid::Uuid;
 
 use crate::implementations::states::extract::notes::{
@@ -34,6 +35,10 @@ pub struct NoSecClient;
 /// Marks a builder that holds no `execution_id` yet.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct NoExecutionId;
+
+/// Marks a builder that holds no ingestion mode yet.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct NoIngestionMode;
 
 /// Marks a builder that holds no repository of type `R` yet.
 ///
@@ -62,52 +67,63 @@ impl<R> Default for NoRepository<R> {
 ///
 /// Set the raw period with [`period`](Self::period), the client with
 /// [`sec_client`](Self::sec_client), the run identifier with [`execution_id`](Self::execution_id),
-/// and the store with [`repository`](Self::repository), in any order. Then call
-/// [`build`](Self::build).
+/// the mode of the run with [`ingestion_mode`](Self::ingestion_mode), and the store with
+/// [`repository`](Self::repository), in any order. Then call [`build`](Self::build).
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct ExtractNotesSuperStateBuilder<P, C, E, R> {
+pub struct ExtractNotesSuperStateBuilder<P, C, E, M, R> {
     period: P,
     sec_client: C,
     execution_id: E,
+    ingestion_mode: M,
     repository: R,
 }
 
-impl<R> ExtractNotesSuperStateBuilder<NoPeriod, NoSecClient, NoExecutionId, NoRepository<R>> {
+impl<R>
+    ExtractNotesSuperStateBuilder<
+        NoPeriod,
+        NoSecClient,
+        NoExecutionId,
+        NoIngestionMode,
+        NoRepository<R>,
+    >
+{
     /// Creates a new [`ExtractNotesSuperStateBuilder`] that holds no field.
     pub(crate) const fn new() -> Self {
         Self {
             period: NoPeriod,
             sec_client: NoSecClient,
             execution_id: NoExecutionId,
+            ingestion_mode: NoIngestionMode,
             repository: NoRepository::new(),
         }
     }
 }
 
-impl<C, E, R> ExtractNotesSuperStateBuilder<NoPeriod, C, E, R> {
+impl<C, E, M, R> ExtractNotesSuperStateBuilder<NoPeriod, C, E, M, R> {
     /// Sets the raw period, for example `2024q1`. The built super-state validates it in
     /// [`ValidateNotesPeriod`].
     #[must_use]
     pub fn period(
         self,
         period: impl Into<String>,
-    ) -> ExtractNotesSuperStateBuilder<String, C, E, R> {
+    ) -> ExtractNotesSuperStateBuilder<String, C, E, M, R> {
         ExtractNotesSuperStateBuilder {
             period: period.into(),
             sec_client: self.sec_client,
             execution_id: self.execution_id,
+            ingestion_mode: self.ingestion_mode,
             repository: self.repository,
         }
     }
 }
 
-impl<P, E, R> ExtractNotesSuperStateBuilder<P, NoSecClient, E, R> {
+impl<P, E, M, R> ExtractNotesSuperStateBuilder<P, NoSecClient, E, M, R> {
     /// Sets the SEC client that downloads the Notes file.
     ///
     /// The client must return an [`SecResponse<ZipBody>`] and a [`FailedSecRequest`]. The output of
     /// `ExecuteSecRequest<NotesFile, …>` holds the response, and its error wraps the failure.
     #[must_use]
-    pub fn sec_client<C>(self, sec_client: C) -> ExtractNotesSuperStateBuilder<P, C, E, R>
+    pub fn sec_client<C>(self, sec_client: C) -> ExtractNotesSuperStateBuilder<P, C, E, M, R>
     where
         C: SecClientTrait<Response<ZipBody> = SecResponse<ZipBody>, Error = FailedSecRequest>,
     {
@@ -115,46 +131,71 @@ impl<P, E, R> ExtractNotesSuperStateBuilder<P, NoSecClient, E, R> {
             period: self.period,
             sec_client,
             execution_id: self.execution_id,
+            ingestion_mode: self.ingestion_mode,
             repository: self.repository,
         }
     }
 }
 
-impl<P, C, R> ExtractNotesSuperStateBuilder<P, C, NoExecutionId, R> {
+impl<P, C, M, R> ExtractNotesSuperStateBuilder<P, C, NoExecutionId, M, R> {
     /// Sets the `execution_id` that tags the stream and the stored document of the run.
     #[must_use]
-    pub fn execution_id(self, execution_id: Uuid) -> ExtractNotesSuperStateBuilder<P, C, Uuid, R> {
+    pub fn execution_id(
+        self,
+        execution_id: Uuid,
+    ) -> ExtractNotesSuperStateBuilder<P, C, Uuid, M, R> {
         ExtractNotesSuperStateBuilder {
             period: self.period,
             sec_client: self.sec_client,
             execution_id,
+            ingestion_mode: self.ingestion_mode,
             repository: self.repository,
         }
     }
 }
 
-impl<P, C, E, R> ExtractNotesSuperStateBuilder<P, C, E, NoRepository<R>> {
-    /// Sets the repository that stores the Notes file.
+impl<P, C, E, R> ExtractNotesSuperStateBuilder<P, C, E, NoIngestionMode, R> {
+    /// Sets the ingestion mode of the run. The metadata of the stored document records it.
+    ///
+    /// The backfill passes [`IngestionMode::Backfill`].
     #[must_use]
-    pub fn repository(self, repository: R) -> ExtractNotesSuperStateBuilder<P, C, E, R> {
+    pub fn ingestion_mode(
+        self,
+        ingestion_mode: IngestionMode,
+    ) -> ExtractNotesSuperStateBuilder<P, C, E, IngestionMode, R> {
         ExtractNotesSuperStateBuilder {
             period: self.period,
             sec_client: self.sec_client,
             execution_id: self.execution_id,
+            ingestion_mode,
+            repository: self.repository,
+        }
+    }
+}
+
+impl<P, C, E, M, R> ExtractNotesSuperStateBuilder<P, C, E, M, NoRepository<R>> {
+    /// Sets the repository that stores the Notes file.
+    #[must_use]
+    pub fn repository(self, repository: R) -> ExtractNotesSuperStateBuilder<P, C, E, M, R> {
+        ExtractNotesSuperStateBuilder {
+            period: self.period,
+            sec_client: self.sec_client,
+            execution_id: self.execution_id,
+            ingestion_mode: self.ingestion_mode,
             repository,
         }
     }
 }
 
 impl<C: SecClientTrait, R: RawRepository<RawNotesArchive>>
-    ExtractNotesSuperStateBuilder<String, C, Uuid, R>
+    ExtractNotesSuperStateBuilder<String, C, Uuid, IngestionMode, R>
 {
     /// Builds an [`ExtractNotesSuperState`] at [`ValidateNotesPeriod`] with the fields this
     /// builder holds.
     ///
     /// # Examples
     ///
-    /// A builder without an `execution_id` has no `build` method, so this does not compile:
+    /// A builder without an ingestion mode has no `build` method, so this does not compile:
     ///
     /// ```compile_fail,E0599
     /// use sec::implementations::states::extract::notes::ExtractNotesSuperState;
@@ -162,6 +203,7 @@ impl<C: SecClientTrait, R: RawRepository<RawNotesArchive>>
     /// use sec::shared::raw_document::RawDocument;
     /// use sec::shared::raw_source::RawNotesArchive;
     /// use storage::implementations::repository::filesystem::FilesystemRepository;
+    /// use uuid::Uuid;
     ///
     /// let repository = FilesystemRepository::builder()
     ///     .writer()
@@ -172,6 +214,7 @@ impl<C: SecClientTrait, R: RawRepository<RawNotesArchive>>
     /// let extract_state = ExtractNotesSuperState::builder()
     ///     .period("2024q1")
     ///     .sec_client(SecClient::default())
+    ///     .execution_id(Uuid::nil())
     ///     .repository(repository)
     ///     .build();
     /// ```
@@ -184,7 +227,7 @@ impl<C: SecClientTrait, R: RawRepository<RawNotesArchive>>
     /// use sec::shared::http_client::implementations::sec_client::SecClient;
     /// use sec::shared::raw_document::RawDocument;
     /// use sec::shared::raw_source::RawCompanyFacts;
-    /// use storage::implementations::repository::filesystem::FilesystemRepository;
+    /// use storage::implementations::repository::filesystem::{FilesystemRepository, IngestionMode};
     /// use uuid::Uuid;
     ///
     /// let repository = FilesystemRepository::builder()
@@ -197,6 +240,7 @@ impl<C: SecClientTrait, R: RawRepository<RawNotesArchive>>
     ///     .period("2024q1")
     ///     .sec_client(SecClient::default())
     ///     .execution_id(Uuid::nil())
+    ///     .ingestion_mode(IngestionMode::Backfill)
     ///     .repository(repository)
     ///     .build();
     /// ```
@@ -212,6 +256,7 @@ impl<C: SecClientTrait, R: RawRepository<RawNotesArchive>>
             context: ExtractNotesSuperStateContext::new(
                 self.sec_client,
                 self.execution_id,
+                self.ingestion_mode,
                 self.repository,
             ),
         }
@@ -234,6 +279,7 @@ mod tests {
         NoPeriod,
         NoSecClient,
         NoExecutionId,
+        NoIngestionMode,
         NoRepository<FakeNotesRepository>,
     >;
 
@@ -245,6 +291,7 @@ mod tests {
         raw_period: &str,
         sec_client: AlwaysRespondingSecClient,
         execution_id: Uuid,
+        ingestion_mode: IngestionMode,
         repository: FakeNotesRepository,
     ) -> ExtractNotesSuperState<ValidateNotesPeriod, FakeNotesRepository, AlwaysRespondingSecClient>
     {
@@ -255,7 +302,12 @@ mod tests {
             ),
             input: ExtractNotesSuperStateData,
             output: None,
-            context: ExtractNotesSuperStateContext::new(sec_client, execution_id, repository),
+            context: ExtractNotesSuperStateContext::new(
+                sec_client,
+                execution_id,
+                ingestion_mode,
+                repository,
+            ),
         }
     }
 
@@ -285,15 +337,22 @@ mod tests {
         let period = "2024q1";
         let sec_client = sample_sec_client();
         let execution_id = Uuid::from_u128(7);
+        let ingestion_mode = IngestionMode::Backfill;
         let repository =
             FakeNotesRepository::rejecting(WriteError::conflicting_write("Sample conflict"));
         let builder = ExtractNotesSuperState::builder()
             .period(period)
             .sec_client(sec_client.clone())
-            .execution_id(execution_id);
+            .execution_id(execution_id)
+            .ingestion_mode(ingestion_mode);
 
-        let expected_result =
-            expected_super_state(period, sec_client, execution_id, repository.clone());
+        let expected_result = expected_super_state(
+            period,
+            sec_client,
+            execution_id,
+            ingestion_mode,
+            repository.clone(),
+        );
 
         let result = builder.repository(repository).build();
 
@@ -305,14 +364,17 @@ mod tests {
         let period = "2024q1";
         let sec_client = sample_sec_client();
         let execution_id = Uuid::from_u128(7);
+        let ingestion_mode = IngestionMode::Backfill;
         let repository =
             FakeNotesRepository::rejecting(WriteError::conflicting_write("Sample conflict"));
         let builder = ExtractNotesSuperState::builder()
             .repository(repository.clone())
+            .ingestion_mode(ingestion_mode)
             .execution_id(execution_id)
             .sec_client(sec_client.clone());
 
-        let expected_result = expected_super_state(period, sec_client, execution_id, repository);
+        let expected_result =
+            expected_super_state(period, sec_client, execution_id, ingestion_mode, repository);
 
         let result = builder.period(period).build();
 

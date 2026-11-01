@@ -4,12 +4,12 @@
 //! entry state, the [`PrepareSecRequest`] of the [`FilingIndex`] kind.
 //!
 //! Each setter changes the builder's type. [`build`](ExtractFilingSuperStateBuilder::build) exists
-//! only once the builder holds a [`FilingRef`], an SEC client, an `execution_id`, and both
-//! repositories, so a super-state without one of them does not compile.
+//! only once the builder holds a [`FilingRef`], an SEC client, an `execution_id`, an ingestion
+//! mode, and both repositories, so a super-state without one of them does not compile.
 
 use std::marker::PhantomData;
 
-use storage::implementations::repository::filesystem::InputDocument;
+use storage::implementations::repository::filesystem::{IngestionMode, InputDocument};
 use uuid::Uuid;
 
 use crate::implementations::states::extract::filing::{
@@ -35,6 +35,10 @@ pub struct NoSecClient;
 /// Marks a builder that holds no `execution_id` yet.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct NoExecutionId;
+
+/// Marks a builder that holds no ingestion mode yet.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct NoIngestionMode;
 
 /// Marks a builder that holds no repository of type `I` for the instance yet.
 ///
@@ -87,13 +91,15 @@ impl<L> Default for NoLabelsRepository<L> {
 ///
 /// Set the filing with [`filing_ref`](Self::filing_ref), the client with
 /// [`sec_client`](Self::sec_client), the run identifier with [`execution_id`](Self::execution_id),
-/// and the stores with [`instance_repository`](Self::instance_repository) and
+/// the mode of the run with [`ingestion_mode`](Self::ingestion_mode), and the stores with
+/// [`instance_repository`](Self::instance_repository) and
 /// [`labels_repository`](Self::labels_repository), in any order. Then call [`build`](Self::build).
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct ExtractFilingSuperStateBuilder<F, C, E, I, L> {
+pub struct ExtractFilingSuperStateBuilder<F, C, E, M, I, L> {
     filing_ref: F,
     sec_client: C,
     execution_id: E,
+    ingestion_mode: M,
     instance_repository: I,
     labels_repository: L,
     inputs: Vec<InputDocument>,
@@ -104,6 +110,7 @@ impl<I, L>
         NoFilingRef,
         NoSecClient,
         NoExecutionId,
+        NoIngestionMode,
         NoInstanceRepository<I>,
         NoLabelsRepository<L>,
     >
@@ -114,6 +121,7 @@ impl<I, L>
             filing_ref: NoFilingRef,
             sec_client: NoSecClient,
             execution_id: NoExecutionId,
+            ingestion_mode: NoIngestionMode,
             instance_repository: NoInstanceRepository::new(),
             labels_repository: NoLabelsRepository::new(),
             inputs: Vec::new(),
@@ -121,17 +129,18 @@ impl<I, L>
     }
 }
 
-impl<C, E, I, L> ExtractFilingSuperStateBuilder<NoFilingRef, C, E, I, L> {
+impl<C, E, M, I, L> ExtractFilingSuperStateBuilder<NoFilingRef, C, E, M, I, L> {
     /// Sets the filing whose documents the super-state downloads.
     #[must_use]
     pub fn filing_ref(
         self,
         filing_ref: FilingRef,
-    ) -> ExtractFilingSuperStateBuilder<FilingRef, C, E, I, L> {
+    ) -> ExtractFilingSuperStateBuilder<FilingRef, C, E, M, I, L> {
         ExtractFilingSuperStateBuilder {
             filing_ref,
             sec_client: self.sec_client,
             execution_id: self.execution_id,
+            ingestion_mode: self.ingestion_mode,
             instance_repository: self.instance_repository,
             labels_repository: self.labels_repository,
             inputs: self.inputs,
@@ -139,10 +148,10 @@ impl<C, E, I, L> ExtractFilingSuperStateBuilder<NoFilingRef, C, E, I, L> {
     }
 }
 
-impl<F, E, I, L> ExtractFilingSuperStateBuilder<F, NoSecClient, E, I, L> {
+impl<F, E, M, I, L> ExtractFilingSuperStateBuilder<F, NoSecClient, E, M, I, L> {
     /// Sets the SEC client that downloads the folder index and the filing documents.
     #[must_use]
-    pub fn sec_client<C>(self, sec_client: C) -> ExtractFilingSuperStateBuilder<F, C, E, I, L>
+    pub fn sec_client<C>(self, sec_client: C) -> ExtractFilingSuperStateBuilder<F, C, E, M, I, L>
     where
         C: SecClientTrait + Executes<FilingIndex> + Executes<FilingDocumentSet>,
     {
@@ -150,6 +159,7 @@ impl<F, E, I, L> ExtractFilingSuperStateBuilder<F, NoSecClient, E, I, L> {
             filing_ref: self.filing_ref,
             sec_client,
             execution_id: self.execution_id,
+            ingestion_mode: self.ingestion_mode,
             instance_repository: self.instance_repository,
             labels_repository: self.labels_repository,
             inputs: self.inputs,
@@ -157,17 +167,18 @@ impl<F, E, I, L> ExtractFilingSuperStateBuilder<F, NoSecClient, E, I, L> {
     }
 }
 
-impl<F, C, I, L> ExtractFilingSuperStateBuilder<F, C, NoExecutionId, I, L> {
+impl<F, C, M, I, L> ExtractFilingSuperStateBuilder<F, C, NoExecutionId, M, I, L> {
     /// Sets the `execution_id` that tags the stream and the stored documents of the run.
     #[must_use]
     pub fn execution_id(
         self,
         execution_id: Uuid,
-    ) -> ExtractFilingSuperStateBuilder<F, C, Uuid, I, L> {
+    ) -> ExtractFilingSuperStateBuilder<F, C, Uuid, M, I, L> {
         ExtractFilingSuperStateBuilder {
             filing_ref: self.filing_ref,
             sec_client: self.sec_client,
             execution_id,
+            ingestion_mode: self.ingestion_mode,
             instance_repository: self.instance_repository,
             labels_repository: self.labels_repository,
             inputs: self.inputs,
@@ -175,17 +186,39 @@ impl<F, C, I, L> ExtractFilingSuperStateBuilder<F, C, NoExecutionId, I, L> {
     }
 }
 
-impl<F, C, E, I, L> ExtractFilingSuperStateBuilder<F, C, E, NoInstanceRepository<I>, L> {
+impl<F, C, E, I, L> ExtractFilingSuperStateBuilder<F, C, E, NoIngestionMode, I, L> {
+    /// Sets the ingestion mode of the run. The metadata of the stored documents records it.
+    ///
+    /// The new-filing path passes [`IngestionMode::Incremental`].
+    #[must_use]
+    pub fn ingestion_mode(
+        self,
+        ingestion_mode: IngestionMode,
+    ) -> ExtractFilingSuperStateBuilder<F, C, E, IngestionMode, I, L> {
+        ExtractFilingSuperStateBuilder {
+            filing_ref: self.filing_ref,
+            sec_client: self.sec_client,
+            execution_id: self.execution_id,
+            ingestion_mode,
+            instance_repository: self.instance_repository,
+            labels_repository: self.labels_repository,
+            inputs: self.inputs,
+        }
+    }
+}
+
+impl<F, C, E, M, I, L> ExtractFilingSuperStateBuilder<F, C, E, M, NoInstanceRepository<I>, L> {
     /// Sets the repository that stores the XBRL instance.
     #[must_use]
     pub fn instance_repository(
         self,
         instance_repository: I,
-    ) -> ExtractFilingSuperStateBuilder<F, C, E, I, L> {
+    ) -> ExtractFilingSuperStateBuilder<F, C, E, M, I, L> {
         ExtractFilingSuperStateBuilder {
             filing_ref: self.filing_ref,
             sec_client: self.sec_client,
             execution_id: self.execution_id,
+            ingestion_mode: self.ingestion_mode,
             instance_repository,
             labels_repository: self.labels_repository,
             inputs: self.inputs,
@@ -193,17 +226,18 @@ impl<F, C, E, I, L> ExtractFilingSuperStateBuilder<F, C, E, NoInstanceRepository
     }
 }
 
-impl<F, C, E, I, L> ExtractFilingSuperStateBuilder<F, C, E, I, NoLabelsRepository<L>> {
+impl<F, C, E, M, I, L> ExtractFilingSuperStateBuilder<F, C, E, M, I, NoLabelsRepository<L>> {
     /// Sets the repository that stores the label file.
     #[must_use]
     pub fn labels_repository(
         self,
         labels_repository: L,
-    ) -> ExtractFilingSuperStateBuilder<F, C, E, I, L> {
+    ) -> ExtractFilingSuperStateBuilder<F, C, E, M, I, L> {
         ExtractFilingSuperStateBuilder {
             filing_ref: self.filing_ref,
             sec_client: self.sec_client,
             execution_id: self.execution_id,
+            ingestion_mode: self.ingestion_mode,
             instance_repository: self.instance_repository,
             labels_repository,
             inputs: self.inputs,
@@ -211,7 +245,7 @@ impl<F, C, E, I, L> ExtractFilingSuperStateBuilder<F, C, E, I, NoLabelsRepositor
     }
 }
 
-impl<F, C, E, I, L> ExtractFilingSuperStateBuilder<F, C, E, I, L> {
+impl<F, C, E, M, I, L> ExtractFilingSuperStateBuilder<F, C, E, M, I, L> {
     /// Sets the documents that the filing came from, for example the daily index that listed it.
     /// The metadata of each stored file records them as inputs. Without this call, it records
     /// none.
@@ -221,7 +255,7 @@ impl<F, C, E, I, L> ExtractFilingSuperStateBuilder<F, C, E, I, L> {
     }
 }
 
-impl<C, I, L> ExtractFilingSuperStateBuilder<FilingRef, C, Uuid, I, L>
+impl<C, I, L> ExtractFilingSuperStateBuilder<FilingRef, C, Uuid, IngestionMode, I, L>
 where
     C: SecClientTrait,
     I: RawRepository<RawXbrlInstance>,
@@ -232,50 +266,9 @@ where
     ///
     /// # Examples
     ///
-    /// A builder without a labels repository has no `build` method, so this does not compile:
+    /// A builder without an ingestion mode has no `build` method, so this does not compile:
     ///
     /// ```compile_fail,E0599
-    /// use chrono::NaiveDate;
-    /// use sec::implementations::states::extract::filing::ExtractFilingSuperState;
-    /// use sec::shared::cik::Cik;
-    /// use sec::shared::filing_ref::FilingRef;
-    /// use sec::shared::financial::accession_number::AccessionNumber;
-    /// use sec::shared::financial::form::{Form, ParsedForm};
-    /// use sec::shared::http_client::implementations::sec_client::SecClient;
-    /// use sec::shared::raw_document::RawDocument;
-    /// use sec::shared::raw_source::{RawXbrlInstance, RawXbrlLabels};
-    /// use storage::implementations::repository::filesystem::FilesystemRepository;
-    /// use uuid::Uuid;
-    ///
-    /// let filing_ref = FilingRef::new(
-    ///     Cik::new("3545").expect("The CIK is valid"),
-    ///     AccessionNumber::new("0000003545-26-000047").expect("The accession number is valid"),
-    ///     ParsedForm::new(Form::TenQ, false),
-    ///     NaiveDate::from_ymd_opt(2026, 9, 9).expect("The date exists"),
-    /// );
-    /// let instance_repository = FilesystemRepository::builder()
-    ///     .writer()
-    ///     .document_type::<RawDocument<RawXbrlInstance>>()
-    ///     .root("data")
-    ///     .build();
-    /// let _labels_repository = FilesystemRepository::builder()
-    ///     .writer()
-    ///     .document_type::<RawDocument<RawXbrlLabels>>()
-    ///     .root("data")
-    ///     .build();
-    ///
-    /// let extract_state = ExtractFilingSuperState::builder()
-    ///     .filing_ref(filing_ref)
-    ///     .sec_client(SecClient::default())
-    ///     .execution_id(Uuid::nil())
-    ///     .instance_repository(instance_repository)
-    ///     .build();
-    /// ```
-    ///
-    /// Each repository must store its own source. So a builder with the two repositories swapped
-    /// has no `build` method, and this does not compile:
-    ///
-    /// ```compile_fail,E0271,E0599
     /// use chrono::NaiveDate;
     /// use sec::implementations::states::extract::filing::ExtractFilingSuperState;
     /// use sec::shared::cik::Cik;
@@ -309,6 +302,49 @@ where
     ///     .filing_ref(filing_ref)
     ///     .sec_client(SecClient::default())
     ///     .execution_id(Uuid::nil())
+    ///     .instance_repository(instance_repository)
+    ///     .labels_repository(labels_repository)
+    ///     .build();
+    /// ```
+    ///
+    /// Each repository must store its own source. So a builder with the two repositories swapped
+    /// has no `build` method, and this does not compile:
+    ///
+    /// ```compile_fail,E0271,E0599
+    /// use chrono::NaiveDate;
+    /// use sec::implementations::states::extract::filing::ExtractFilingSuperState;
+    /// use sec::shared::cik::Cik;
+    /// use sec::shared::filing_ref::FilingRef;
+    /// use sec::shared::financial::accession_number::AccessionNumber;
+    /// use sec::shared::financial::form::{Form, ParsedForm};
+    /// use sec::shared::http_client::implementations::sec_client::SecClient;
+    /// use sec::shared::raw_document::RawDocument;
+    /// use sec::shared::raw_source::{RawXbrlInstance, RawXbrlLabels};
+    /// use storage::implementations::repository::filesystem::{FilesystemRepository, IngestionMode};
+    /// use uuid::Uuid;
+    ///
+    /// let filing_ref = FilingRef::new(
+    ///     Cik::new("3545").expect("The CIK is valid"),
+    ///     AccessionNumber::new("0000003545-26-000047").expect("The accession number is valid"),
+    ///     ParsedForm::new(Form::TenQ, false),
+    ///     NaiveDate::from_ymd_opt(2026, 9, 9).expect("The date exists"),
+    /// );
+    /// let instance_repository = FilesystemRepository::builder()
+    ///     .writer()
+    ///     .document_type::<RawDocument<RawXbrlInstance>>()
+    ///     .root("data")
+    ///     .build();
+    /// let labels_repository = FilesystemRepository::builder()
+    ///     .writer()
+    ///     .document_type::<RawDocument<RawXbrlLabels>>()
+    ///     .root("data")
+    ///     .build();
+    ///
+    /// let extract_state = ExtractFilingSuperState::builder()
+    ///     .filing_ref(filing_ref)
+    ///     .sec_client(SecClient::default())
+    ///     .execution_id(Uuid::nil())
+    ///     .ingestion_mode(IngestionMode::Incremental)
     ///     .instance_repository(labels_repository)
     ///     .labels_repository(instance_repository)
     ///     .build();
@@ -328,6 +364,7 @@ where
                 self.filing_ref,
                 self.sec_client,
                 self.execution_id,
+                self.ingestion_mode,
                 self.instance_repository,
                 self.labels_repository,
             )
@@ -358,6 +395,7 @@ mod tests {
         NoFilingRef,
         NoSecClient,
         NoExecutionId,
+        NoIngestionMode,
         NoInstanceRepository<FakeXbrlInstanceRepository>,
         NoLabelsRepository<FakeXbrlLabelsRepository>,
     >;
@@ -403,6 +441,7 @@ mod tests {
                 filing_ref(),
                 sec_client(),
                 EXECUTION_ID,
+                IngestionMode::Incremental,
                 instance_repository(),
                 FakeXbrlLabelsRepository::new(),
             ),
@@ -436,6 +475,7 @@ mod tests {
             .filing_ref(filing_ref())
             .sec_client(sec_client())
             .execution_id(EXECUTION_ID)
+            .ingestion_mode(IngestionMode::Incremental)
             .instance_repository(instance_repository());
 
         let expected_result = expected_super_state();
@@ -460,6 +500,7 @@ mod tests {
             .filing_ref(filing_ref())
             .sec_client(sec_client())
             .execution_id(EXECUTION_ID)
+            .ingestion_mode(IngestionMode::Incremental)
             .instance_repository(instance_repository())
             .labels_repository(FakeXbrlLabelsRepository::new());
 
@@ -475,6 +516,7 @@ mod tests {
         let builder = ExtractFilingSuperState::builder()
             .labels_repository(FakeXbrlLabelsRepository::new())
             .instance_repository(instance_repository())
+            .ingestion_mode(IngestionMode::Incremental)
             .execution_id(EXECUTION_ID)
             .sec_client(sec_client());
 

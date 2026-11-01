@@ -12,7 +12,9 @@ use std::path::Path;
 use chrono::NaiveDate;
 use pretty_assertions::assert_eq;
 use storage::Sha256Digest;
-use storage::implementations::repository::filesystem::{FilesystemRepository, Write};
+use storage::implementations::repository::filesystem::{
+    FilesystemRepository, IngestionMode, Write,
+};
 use tempfile::TempDir;
 use uuid::Uuid;
 
@@ -86,6 +88,7 @@ fn super_state(filing: FilingRef, root: &Path) -> FilingSuperState {
         .filing_ref(filing)
         .sec_client(sec_client())
         .execution_id(Uuid::new_v4())
+        .ingestion_mode(IngestionMode::Incremental)
         .instance_repository(
             FilesystemRepository::builder()
                 .writer()

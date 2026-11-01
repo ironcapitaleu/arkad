@@ -6,6 +6,7 @@ use sec::implementations::states::extract::execute_sec_request::{
 };
 use sec::implementations::states::extract::prepare_sec_request::PrepareSecRequest;
 use sec::implementations::states::extract::validate_cik_format::ValidateCikFormat;
+use storage::implementations::repository::filesystem::IngestionMode;
 use uuid::Uuid;
 
 use sec::prelude::*;
@@ -109,6 +110,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
         .cik("1067983")
         .sec_client(sec_client)
         .execution_id(Uuid::new_v4())
+        .ingestion_mode(IngestionMode::Backfill)
         .repository(repository)
         .build();
 

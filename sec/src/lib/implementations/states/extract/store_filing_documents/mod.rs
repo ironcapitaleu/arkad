@@ -20,7 +20,7 @@ use chrono::Utc;
 use serde::Serialize;
 use state_maschine::prelude::State as SMState;
 use storage::WriteError;
-use storage::implementations::repository::filesystem::{IngestionMode, InputDocument};
+use storage::implementations::repository::filesystem::InputDocument;
 
 use crate::error::State as StateError;
 use crate::error::state_machine::state::FailedDocumentWrite;
@@ -48,8 +48,8 @@ pub use data::StoreFilingDocumentsOutput;
 /// the filing has a label file, a [`RawDocument<RawXbrlLabels>`](crate::shared::raw_source::RawXbrlLabels)
 /// with [`RawDocument::from_filing_file`]. Writes them under the keys of
 /// [`instance_key`] and [`labels_key`] through the repositories of type `I` and `L`, and outputs a
-/// [`FilingDocumentsRef`]. The metadata records the ingestion mode [`IngestionMode::Incremental`]
-/// and the filing as [`FilingFields`].
+/// [`FilingDocumentsRef`]. The metadata records the ingestion mode of the context and the filing
+/// as [`FilingFields`].
 ///
 /// The instance is written first. If the label write fails, the instance stays stored and the
 /// state has no output. A new run stores the same instance bytes, which the repository skips.
@@ -140,7 +140,7 @@ where
             produced_at: Utc::now(),
             execution_id: self.context.execution_id,
             producer: producer(STATE_NAME),
-            ingestion_mode: IngestionMode::Incremental,
+            ingestion_mode: self.context.ingestion_mode,
         };
         let labels =
             responses
@@ -266,7 +266,7 @@ mod tests {
     use chrono::NaiveDate;
     use pretty_assertions::assert_eq;
     use storage::implementations::repository::filesystem::{
-        Document, DocumentKey, FilesystemRepository, ReadWrite,
+        Document, DocumentKey, FilesystemRepository, IngestionMode, ReadWrite,
     };
     use tempfile::TempDir;
     use uuid::Uuid;
@@ -393,7 +393,12 @@ mod tests {
     ) -> StoreFilingDocuments<I, L> {
         StoreFilingDocuments::new(
             input,
-            StoreFilingDocumentsContext::new(Uuid::nil(), instance_repository, labels_repository),
+            StoreFilingDocumentsContext::new(
+                Uuid::nil(),
+                IngestionMode::Incremental,
+                instance_repository,
+                labels_repository,
+            ),
         )
     }
 

@@ -3,8 +3,10 @@
 //! Provides the [`ExtractNotesSuperState`], which downloads one SEC Financial Statement and Notes
 //! file and writes it to the store.
 //!
-//! The super-state owns the shared SEC client, the `execution_id`, and the storage repository. The
-//! transition into [`StoreNotesArchive`] passes a clone of the repository to the store state.
+//! The super-state owns the shared SEC client, the `execution_id`, the ingestion mode of the run,
+//! and the storage repository. The transition into [`StoreNotesArchive`] passes a clone of the
+//! repository to the store state. The caller sets the mode, and the metadata of the stored document
+//! records it.
 //!
 //! ## Modules
 //!
@@ -26,7 +28,7 @@
 //! use sec::shared::http_client::implementations::sec_client::SecClient;
 //! use sec::shared::raw_document::RawDocument;
 //! use sec::shared::raw_source::RawNotesArchive;
-//! use storage::implementations::repository::filesystem::FilesystemRepository;
+//! use storage::implementations::repository::filesystem::{FilesystemRepository, IngestionMode};
 //! use uuid::Uuid;
 //!
 //! # #[tokio::main]
@@ -40,6 +42,7 @@
 //!     .period("2024q1")
 //!     .sec_client(SecClient::default())
 //!     .execution_id(Uuid::new_v4())
+//!     .ingestion_mode(IngestionMode::Backfill)
 //!     .repository(repository)
 //!     .build();
 //! let mut stream = extract_state.into_run_stream();
@@ -64,7 +67,8 @@ use crate::error::State as StateError;
 use crate::error::state_machine::transition::Transition as TransitionError;
 use crate::implementations::states::extract::execute_sec_request::ExecuteSecRequest;
 use crate::implementations::states::extract::notes::builder::{
-    ExtractNotesSuperStateBuilder, NoExecutionId, NoPeriod, NoRepository, NoSecClient,
+    ExtractNotesSuperStateBuilder, NoExecutionId, NoIngestionMode, NoPeriod, NoRepository,
+    NoSecClient,
 };
 use crate::implementations::states::extract::prepare_sec_request::PrepareNotesRequest;
 use crate::implementations::states::extract::store_notes_archive::StoreNotesArchive;
@@ -103,26 +107,33 @@ impl StateData for ExtractNotesSuperStateData {
 
 /// Context for the [`ExtractNotesSuperState`].
 ///
-/// Holds the SEC client of type `C`, the `execution_id`, the storage repository `R`, and the slot
-/// for the stored archive. The transition into [`ExecuteSecRequest`] passes a clone of the client to
-/// that state. The transition into [`StoreNotesArchive`] passes the `execution_id` and a clone of
-/// the repository to the store state.
+/// Holds the SEC client of type `C`, the `execution_id`, the ingestion mode, the storage repository
+/// `R`, and the slot for the stored archive. The transition into [`ExecuteSecRequest`] passes a
+/// clone of the client to that state. The transition into [`StoreNotesArchive`] passes the
+/// `execution_id`, the ingestion mode, and a clone of the repository to the store state.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ExtractNotesSuperStateContext<R, C> {
     pub(crate) sec_client: C,
     pub(crate) execution_id: Uuid,
+    pub(crate) ingestion_mode: IngestionMode,
     pub(crate) repository: R,
     pub(crate) archive_slot: OutputSlot<NotesArchiveRef>,
 }
 
 impl<R, C> ExtractNotesSuperStateContext<R, C> {
     /// Creates a new [`ExtractNotesSuperStateContext`] from the SEC client, the `execution_id`,
-    /// and the storage repository.
+    /// the ingestion mode, and the storage repository.
     #[must_use]
-    pub fn new(sec_client: C, execution_id: Uuid, repository: R) -> Self {
+    pub fn new(
+        sec_client: C,
+        execution_id: Uuid,
+        ingestion_mode: IngestionMode,
+        repository: R,
+    ) -> Self {
         Self {
             sec_client,
             execution_id,
+            ingestion_mode,
             repository,
             archive_slot: OutputSlot::default(),
         }
@@ -273,8 +284,13 @@ impl<S: State, R: RawRepository<RawNotesArchive>, C: SecClientTrait> SuperState<
 impl<R: RawRepository<RawNotesArchive>> ExtractNotesSuperState<ValidateNotesPeriod, R> {
     /// Returns an [`ExtractNotesSuperStateBuilder`] that holds no field yet.
     #[must_use]
-    pub const fn builder()
-    -> ExtractNotesSuperStateBuilder<NoPeriod, NoSecClient, NoExecutionId, NoRepository<R>> {
+    pub const fn builder() -> ExtractNotesSuperStateBuilder<
+        NoPeriod,
+        NoSecClient,
+        NoExecutionId,
+        NoIngestionMode,
+        NoRepository<R>,
+    > {
         ExtractNotesSuperStateBuilder::new()
     }
 }
@@ -364,9 +380,6 @@ impl<R: RawRepository<RawNotesArchive> + 'static, C: SecClientTrait + 'static>
     }
 }
 
-/// The ingestion mode of every Notes document. Notes runs as a backfill only.
-const INGESTION_MODE: IngestionMode = IngestionMode::Backfill;
-
 // --- Transitions ---
 
 impl<R: RawRepository<RawNotesArchive>, C: SecClientTrait>
@@ -439,7 +452,7 @@ where
             current_state: StoreNotesArchive::try_from((
                 self.current_state,
                 self.context.execution_id,
-                INGESTION_MODE,
+                self.context.ingestion_mode,
                 self.context.repository.clone(),
             ))?,
             input: ExtractNotesSuperStateData,
@@ -519,10 +532,19 @@ mod tests {
         raw_period: &str,
         repository: R,
     ) -> ExtractNotesSuperState<ValidateNotesPeriod, R, AlwaysRespondingSecClient> {
+        super_state_in_mode(raw_period, IngestionMode::Backfill, repository)
+    }
+
+    fn super_state_in_mode<R: RawRepository<RawNotesArchive>>(
+        raw_period: &str,
+        ingestion_mode: IngestionMode,
+        repository: R,
+    ) -> ExtractNotesSuperState<ValidateNotesPeriod, R, AlwaysRespondingSecClient> {
         ExtractNotesSuperState::builder()
             .period(raw_period)
             .sec_client(sec_client())
             .execution_id(SAMPLE_EXECUTION_ID)
+            .ingestion_mode(ingestion_mode)
             .repository(repository)
             .build()
     }
@@ -543,12 +565,15 @@ mod tests {
     }
 
     /// Drives the super-state from the builder to `ExecuteSecRequest` with a computed output.
-    async fn downloaded_super_state() -> ExtractNotesSuperState<
+    async fn downloaded_super_state(
+        ingestion_mode: IngestionMode,
+    ) -> ExtractNotesSuperState<
         ExecuteSecRequest<NotesFile, AlwaysRespondingSecClient>,
         FakeNotesRepository,
         AlwaysRespondingSecClient,
     > {
-        let mut validate = super_state("2024q1", FakeNotesRepository::new());
+        let mut validate =
+            super_state_in_mode("2024q1", ingestion_mode, FakeNotesRepository::new());
         validate
             .compute_output_data_async()
             .await
@@ -691,7 +716,7 @@ mod tests {
     #[tokio::test]
     async fn should_hand_store_notes_archive_the_only_reference_to_the_response_when_transitioning()
     {
-        let download = downloaded_super_state().await;
+        let download = downloaded_super_state(IngestionMode::Backfill).await;
 
         let expected_result = 1;
 
@@ -720,6 +745,7 @@ mod tests {
             .period("2024q1")
             .sec_client(AlwaysRespondingSecClient::new(404, Vec::new(), Vec::new()))
             .execution_id(SAMPLE_EXECUTION_ID)
+            .ingestion_mode(IngestionMode::Backfill)
             .repository(FakeNotesRepository::new())
             .build();
 
@@ -744,10 +770,11 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_store_as_backfill_when_transitioning_to_store_notes_archive() {
-        let download = downloaded_super_state().await;
+    async fn should_store_the_ingestion_mode_of_the_builder_when_transitioning_to_store_notes_archive()
+     {
+        let download = downloaded_super_state(IngestionMode::Incremental).await;
 
-        let expected_result = IngestionMode::Backfill;
+        let expected_result = IngestionMode::Incremental;
 
         let result = download
             .transition_to_next_state_sec()

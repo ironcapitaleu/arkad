@@ -8,6 +8,7 @@ use std::fmt;
 
 use serde::Serialize;
 use state_maschine::prelude::Context as SMContext;
+use storage::implementations::repository::filesystem::IngestionMode;
 use uuid::Uuid;
 
 use crate::shared::raw_repository::RawRepository;
@@ -19,6 +20,8 @@ use crate::traits::state_machine::state::Context;
 pub struct StoreDailyIndexContext<R> {
     /// The ID of the run.
     pub execution_id: Uuid,
+    /// The ingestion mode of the run. The metadata of the stored document records it.
+    pub ingestion_mode: IngestionMode,
     /// The storage repository.
     pub repository: R,
     /// The maximum number of retries of the state.
@@ -32,9 +35,10 @@ impl<R> StoreDailyIndexContext<R> {
     ///
     /// ```
     /// use sec::implementations::states::extract::store_daily_index::StoreDailyIndexContext;
+    /// use storage::implementations::repository::filesystem::IngestionMode;
     /// use uuid::Uuid;
     ///
-    /// let context = StoreDailyIndexContext::new(Uuid::nil(), ());
+    /// let context = StoreDailyIndexContext::new(Uuid::nil(), IngestionMode::Incremental, ());
     ///
     /// let expected_result = 0;
     ///
@@ -43,9 +47,10 @@ impl<R> StoreDailyIndexContext<R> {
     /// assert_eq!(result, expected_result);
     /// ```
     #[must_use]
-    pub const fn new(execution_id: Uuid, repository: R) -> Self {
+    pub const fn new(execution_id: Uuid, ingestion_mode: IngestionMode, repository: R) -> Self {
         Self {
             execution_id,
+            ingestion_mode,
             repository,
             max_retries: 0,
         }
@@ -175,7 +180,11 @@ mod tests {
     use crate::tests::fixtures::sample_write_repository::FakeDailyIndexRepository;
 
     fn test_context() -> StoreDailyIndexContext<FakeDailyIndexRepository> {
-        StoreDailyIndexContext::new(Uuid::nil(), FakeDailyIndexRepository::new())
+        StoreDailyIndexContext::new(
+            Uuid::nil(),
+            IngestionMode::Incremental,
+            FakeDailyIndexRepository::new(),
+        )
     }
 
     #[test]

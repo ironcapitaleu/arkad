@@ -4,11 +4,12 @@
 //! [`ExtractCompanyFactsSuperState`] at its entry state [`ValidateCikFormat`].
 //!
 //! Each setter changes the builder's type. [`build`](ExtractCompanyFactsSuperStateBuilder::build)
-//! exists only once the builder holds a CIK, an [`SecClient`], an `execution_id`, and a repository,
-//! so a super-state without one of them does not compile.
+//! exists only once the builder holds a CIK, an [`SecClient`], an `execution_id`, an ingestion
+//! mode, and a repository, so a super-state without one of them does not compile.
 
 use std::marker::PhantomData;
 
+use storage::implementations::repository::filesystem::IngestionMode;
 use uuid::Uuid;
 
 use crate::implementations::states::extract::company_facts::{
@@ -38,6 +39,10 @@ pub struct NoSecClient;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct NoExecutionId;
 
+/// Marks a builder that holds no ingestion mode yet.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct NoIngestionMode;
+
 /// Marks a builder that holds no repository of type `R` yet.
 ///
 /// The marker carries `R`. The compiler infers `R` from the value passed to
@@ -64,52 +69,64 @@ impl<R> Default for NoRepository<R> {
 /// Builds an [`ExtractCompanyFactsSuperState`] at its entry state [`ValidateCikFormat`].
 ///
 /// Set the raw CIK with [`cik`](Self::cik), the client with [`sec_client`](Self::sec_client), the
-/// run identifier with [`execution_id`](Self::execution_id), and the store with
-/// [`repository`](Self::repository), in any order. Then call [`build`](Self::build).
+/// run identifier with [`execution_id`](Self::execution_id), the mode of the run with
+/// [`ingestion_mode`](Self::ingestion_mode), and the store with [`repository`](Self::repository),
+/// in any order. Then call [`build`](Self::build).
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct ExtractCompanyFactsSuperStateBuilder<C, S, E, R> {
+pub struct ExtractCompanyFactsSuperStateBuilder<C, S, E, M, R> {
     cik: C,
     sec_client: S,
     execution_id: E,
+    ingestion_mode: M,
     repository: R,
 }
 
-impl<R> ExtractCompanyFactsSuperStateBuilder<NoCik, NoSecClient, NoExecutionId, NoRepository<R>> {
+impl<R>
+    ExtractCompanyFactsSuperStateBuilder<
+        NoCik,
+        NoSecClient,
+        NoExecutionId,
+        NoIngestionMode,
+        NoRepository<R>,
+    >
+{
     /// Creates a new [`ExtractCompanyFactsSuperStateBuilder`] that holds no field.
     pub(crate) const fn new() -> Self {
         Self {
             cik: NoCik,
             sec_client: NoSecClient,
             execution_id: NoExecutionId,
+            ingestion_mode: NoIngestionMode,
             repository: NoRepository::new(),
         }
     }
 }
 
-impl<S, E, R> ExtractCompanyFactsSuperStateBuilder<NoCik, S, E, R> {
+impl<S, E, M, R> ExtractCompanyFactsSuperStateBuilder<NoCik, S, E, M, R> {
     /// Sets the raw CIK. The built super-state validates it in [`ValidateCikFormat`].
     #[must_use]
     pub fn cik(
         self,
         cik: impl Into<String>,
-    ) -> ExtractCompanyFactsSuperStateBuilder<String, S, E, R> {
+    ) -> ExtractCompanyFactsSuperStateBuilder<String, S, E, M, R> {
         ExtractCompanyFactsSuperStateBuilder {
             cik: cik.into(),
             sec_client: self.sec_client,
             execution_id: self.execution_id,
+            ingestion_mode: self.ingestion_mode,
             repository: self.repository,
         }
     }
 }
 
-impl<C, E, R> ExtractCompanyFactsSuperStateBuilder<C, NoSecClient, E, R> {
+impl<C, E, M, R> ExtractCompanyFactsSuperStateBuilder<C, NoSecClient, E, M, R> {
     /// Sets the SEC client that every state of the extract phase shares.
     ///
     /// The client must return an [`SecResponse<JsonBody>`] and a [`FailedSecRequest`]. The output of
     /// `ExecuteSecRequest` holds the response, and its error wraps the failure. [`SecClient`] meets
     /// both.
     #[must_use]
-    pub fn sec_client<S>(self, sec_client: S) -> ExtractCompanyFactsSuperStateBuilder<C, S, E, R>
+    pub fn sec_client<S>(self, sec_client: S) -> ExtractCompanyFactsSuperStateBuilder<C, S, E, M, R>
     where
         S: SecClientTrait<Response<JsonBody> = SecResponse<JsonBody>, Error = FailedSecRequest>,
     {
@@ -117,49 +134,71 @@ impl<C, E, R> ExtractCompanyFactsSuperStateBuilder<C, NoSecClient, E, R> {
             cik: self.cik,
             sec_client,
             execution_id: self.execution_id,
+            ingestion_mode: self.ingestion_mode,
             repository: self.repository,
         }
     }
 }
 
-impl<C, S, R> ExtractCompanyFactsSuperStateBuilder<C, S, NoExecutionId, R> {
+impl<C, S, M, R> ExtractCompanyFactsSuperStateBuilder<C, S, NoExecutionId, M, R> {
     /// Sets the `execution_id` that tags the stream and the stored document of the run.
     #[must_use]
     pub fn execution_id(
         self,
         execution_id: Uuid,
-    ) -> ExtractCompanyFactsSuperStateBuilder<C, S, Uuid, R> {
+    ) -> ExtractCompanyFactsSuperStateBuilder<C, S, Uuid, M, R> {
         ExtractCompanyFactsSuperStateBuilder {
             cik: self.cik,
             sec_client: self.sec_client,
             execution_id,
+            ingestion_mode: self.ingestion_mode,
             repository: self.repository,
         }
     }
 }
 
-impl<C, S, E, R> ExtractCompanyFactsSuperStateBuilder<C, S, E, NoRepository<R>> {
-    /// Sets the repository that stores the raw Company Facts.
+impl<C, S, E, R> ExtractCompanyFactsSuperStateBuilder<C, S, E, NoIngestionMode, R> {
+    /// Sets the ingestion mode of the run. The metadata of the stored document records it.
+    ///
+    /// The backfill passes [`IngestionMode::Backfill`].
     #[must_use]
-    pub fn repository(self, repository: R) -> ExtractCompanyFactsSuperStateBuilder<C, S, E, R> {
+    pub fn ingestion_mode(
+        self,
+        ingestion_mode: IngestionMode,
+    ) -> ExtractCompanyFactsSuperStateBuilder<C, S, E, IngestionMode, R> {
         ExtractCompanyFactsSuperStateBuilder {
             cik: self.cik,
             sec_client: self.sec_client,
             execution_id: self.execution_id,
+            ingestion_mode,
+            repository: self.repository,
+        }
+    }
+}
+
+impl<C, S, E, M, R> ExtractCompanyFactsSuperStateBuilder<C, S, E, M, NoRepository<R>> {
+    /// Sets the repository that stores the raw Company Facts.
+    #[must_use]
+    pub fn repository(self, repository: R) -> ExtractCompanyFactsSuperStateBuilder<C, S, E, M, R> {
+        ExtractCompanyFactsSuperStateBuilder {
+            cik: self.cik,
+            sec_client: self.sec_client,
+            execution_id: self.execution_id,
+            ingestion_mode: self.ingestion_mode,
             repository,
         }
     }
 }
 
 impl<R: RawRepository<RawCompanyFacts>, S: SecClientTrait>
-    ExtractCompanyFactsSuperStateBuilder<String, S, Uuid, R>
+    ExtractCompanyFactsSuperStateBuilder<String, S, Uuid, IngestionMode, R>
 {
     /// Builds an [`ExtractCompanyFactsSuperState`] at [`ValidateCikFormat`] with the fields this
     /// builder holds.
     ///
     /// # Examples
     ///
-    /// A builder without an `execution_id` has no `build` method, so this does not compile:
+    /// A builder without an ingestion mode has no `build` method, so this does not compile:
     ///
     /// ```compile_fail,E0599
     /// use sec::implementations::states::extract::company_facts::ExtractCompanyFactsSuperState;
@@ -167,6 +206,7 @@ impl<R: RawRepository<RawCompanyFacts>, S: SecClientTrait>
     /// use sec::shared::raw_document::RawDocument;
     /// use sec::shared::raw_source::RawCompanyFacts;
     /// use storage::implementations::repository::filesystem::FilesystemRepository;
+    /// use uuid::Uuid;
     ///
     /// let repository = FilesystemRepository::builder()
     ///     .writer()
@@ -177,6 +217,7 @@ impl<R: RawRepository<RawCompanyFacts>, S: SecClientTrait>
     /// let extract_state = ExtractCompanyFactsSuperState::builder()
     ///     .cik("1067983")
     ///     .sec_client(SecClient::default())
+    ///     .execution_id(Uuid::nil())
     ///     .repository(repository)
     ///     .build();
     /// ```
@@ -192,6 +233,7 @@ impl<R: RawRepository<RawCompanyFacts>, S: SecClientTrait>
             context: ExtractCompanyFactsSuperStateContext::new(
                 self.sec_client,
                 self.execution_id,
+                self.ingestion_mode,
                 self.repository,
             ),
         }
@@ -216,6 +258,7 @@ mod tests {
         NoCik,
         NoSecClient,
         NoExecutionId,
+        NoIngestionMode,
         NoRepository<FakeWriteRepository>,
     >;
 
@@ -232,6 +275,7 @@ mod tests {
         cik: &str,
         sec_client: SecClient,
         execution_id: Uuid,
+        ingestion_mode: IngestionMode,
         repository: FakeWriteRepository,
     ) -> ExtractCompanyFactsSuperState<ValidateCikFormat, FakeWriteRepository> {
         let state_context = ValidateCikFormatContext::new(cik);
@@ -243,6 +287,7 @@ mod tests {
             context: ExtractCompanyFactsSuperStateContext::new(
                 sec_client,
                 execution_id,
+                ingestion_mode,
                 repository,
             ),
         }
@@ -279,15 +324,22 @@ mod tests {
         let cik = "1067983";
         let sec_client = sample_sec_client();
         let execution_id = Uuid::from_u128(7);
+        let ingestion_mode = IngestionMode::Backfill;
         let repository =
             FakeWriteRepository::rejecting(WriteError::conflicting_write("Sample conflict"));
         let builder = ExtractCompanyFactsSuperState::builder()
             .cik(cik)
             .sec_client(sec_client.clone())
-            .execution_id(execution_id);
+            .execution_id(execution_id)
+            .ingestion_mode(ingestion_mode);
 
-        let expected_result =
-            expected_super_state(cik, sec_client, execution_id, repository.clone());
+        let expected_result = expected_super_state(
+            cik,
+            sec_client,
+            execution_id,
+            ingestion_mode,
+            repository.clone(),
+        );
 
         let result = builder.repository(repository).build();
 
@@ -299,14 +351,17 @@ mod tests {
         let cik = "1067983";
         let sec_client = sample_sec_client();
         let execution_id = Uuid::from_u128(7);
+        let ingestion_mode = IngestionMode::Backfill;
         let repository =
             FakeWriteRepository::rejecting(WriteError::conflicting_write("Sample conflict"));
         let builder = ExtractCompanyFactsSuperState::builder()
             .repository(repository.clone())
+            .ingestion_mode(ingestion_mode)
             .execution_id(execution_id)
             .sec_client(sec_client.clone());
 
-        let expected_result = expected_super_state(cik, sec_client, execution_id, repository);
+        let expected_result =
+            expected_super_state(cik, sec_client, execution_id, ingestion_mode, repository);
 
         let result = builder.cik(cik).build();
 

@@ -5,8 +5,9 @@
 //!
 //! Extraction turns a raw CIK string into a fetched SEC response and writes that response to the
 //! store, through four ordered states. The super-state owns the shared HTTP client, the
-//! `execution_id`, and the storage repository. It also owns the type-safe transitions between the
-//! states, so callers advance the pipeline without managing each state by hand.
+//! `execution_id`, the ingestion mode of the run, and the storage repository. It also owns the
+//! type-safe transitions between the states, so callers advance the pipeline without managing each
+//! state by hand. The caller sets the mode, and the metadata of the stored document records it.
 //!
 //! ## Modules
 //!
@@ -27,7 +28,7 @@
 //! use sec::shared::http_client::implementations::sec_client::SecClient;
 //! use sec::shared::raw_document::RawDocument;
 //! use sec::shared::raw_source::RawCompanyFacts;
-//! use storage::implementations::repository::filesystem::FilesystemRepository;
+//! use storage::implementations::repository::filesystem::{FilesystemRepository, IngestionMode};
 //! use uuid::Uuid;
 //!
 //! # #[tokio::main]
@@ -41,6 +42,7 @@
 //!     .cik("1234567890")
 //!     .sec_client(SecClient::default())
 //!     .execution_id(Uuid::new_v4())
+//!     .ingestion_mode(IngestionMode::Backfill)
 //!     .repository(repository)
 //!     .build();
 //! extract_state.compute_output_data_async().await?;
@@ -63,7 +65,8 @@ use crate::error::State as StateError;
 use crate::error::state_machine::transition;
 use crate::error::state_machine::transition::Transition as TransitionError;
 use crate::implementations::states::extract::company_facts::builder::{
-    ExtractCompanyFactsSuperStateBuilder, NoCik, NoExecutionId, NoRepository, NoSecClient,
+    ExtractCompanyFactsSuperStateBuilder, NoCik, NoExecutionId, NoIngestionMode, NoRepository,
+    NoSecClient,
 };
 use crate::implementations::states::extract::execute_sec_request::constants::STATE_NAME as EXECUTE_SEC_REQUEST;
 use crate::implementations::states::extract::execute_sec_request::{
@@ -115,24 +118,31 @@ impl StateData for ExtractCompanyFactsSuperStateData {
 /// Context for the [`ExtractCompanyFactsSuperState`].
 ///
 /// Holds the shared SEC client `C`, so the client is constructed once and reused across the whole
-/// extract phase. It also holds the `execution_id` and the storage
-/// repository `R`. The transition into [`StoreCompanyFacts`] passes a clone of the repository to
-/// the store state.
+/// extract phase. It also holds the `execution_id`, the ingestion mode, and the storage repository
+/// `R`. The transition into [`StoreCompanyFacts`] passes the `execution_id`, the ingestion mode,
+/// and a clone of the repository to the store state.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub struct ExtractCompanyFactsSuperStateContext<R, C = SecClient> {
     pub(crate) sec_client: C,
     pub(crate) execution_id: Uuid,
+    pub(crate) ingestion_mode: IngestionMode,
     pub(crate) repository: R,
 }
 
 impl<R, C> ExtractCompanyFactsSuperStateContext<R, C> {
     /// Creates a new [`ExtractCompanyFactsSuperStateContext`] from the shared HTTP client, the
-    /// `execution_id`, and the storage repository.
+    /// `execution_id`, the ingestion mode, and the storage repository.
     #[must_use]
-    pub const fn new(sec_client: C, execution_id: Uuid, repository: R) -> Self {
+    pub const fn new(
+        sec_client: C,
+        execution_id: Uuid,
+        ingestion_mode: IngestionMode,
+        repository: R,
+    ) -> Self {
         Self {
             sec_client,
             execution_id,
+            ingestion_mode,
             repository,
         }
     }
@@ -292,9 +302,13 @@ impl<S: State, R: RawRepository<RawCompanyFacts>, C: SecClientTrait> SuperState<
 impl<R: RawRepository<RawCompanyFacts>> ExtractCompanyFactsSuperState<ValidateCikFormat, R> {
     /// Returns an [`ExtractCompanyFactsSuperStateBuilder`] that holds no field yet.
     #[must_use]
-    pub const fn builder()
-    -> ExtractCompanyFactsSuperStateBuilder<NoCik, NoSecClient, NoExecutionId, NoRepository<R>>
-    {
+    pub const fn builder() -> ExtractCompanyFactsSuperStateBuilder<
+        NoCik,
+        NoSecClient,
+        NoExecutionId,
+        NoIngestionMode,
+        NoRepository<R>,
+    > {
         ExtractCompanyFactsSuperStateBuilder::new()
     }
 }
@@ -304,7 +318,13 @@ impl<R: RawRepository<RawCompanyFacts>, C: SecClientTrait>
 {
     /// Creates the super-state positioned at the request-preparation state.
     #[must_use]
-    pub fn new(validated_cik: Cik, sec_client: C, execution_id: Uuid, repository: R) -> Self {
+    pub fn new(
+        validated_cik: Cik,
+        sec_client: C,
+        execution_id: Uuid,
+        ingestion_mode: IngestionMode,
+        repository: R,
+    ) -> Self {
         let input_data = PrepareSecRequestInput::new(validated_cik.clone());
         let context = PrepareSecRequestContext::new(validated_cik);
 
@@ -315,6 +335,7 @@ impl<R: RawRepository<RawCompanyFacts>, C: SecClientTrait>
             context: ExtractCompanyFactsSuperStateContext::new(
                 sec_client,
                 execution_id,
+                ingestion_mode,
                 repository,
             ),
         }
@@ -336,6 +357,7 @@ where
         request: SecRequest,
         cik: Cik,
         execution_id: Uuid,
+        ingestion_mode: IngestionMode,
         repository: R,
     ) -> Self {
         let esr_input = ExecuteSecRequestInput::new(client.clone(), request);
@@ -345,21 +367,27 @@ where
             current_state: ExecuteCompanyFactsRequest::new(esr_input, esr_context),
             input: ExtractCompanyFactsSuperStateData,
             output: None,
-            context: ExtractCompanyFactsSuperStateContext::new(client, execution_id, repository),
+            context: ExtractCompanyFactsSuperStateContext::new(
+                client,
+                execution_id,
+                ingestion_mode,
+                repository,
+            ),
         }
     }
 }
-
-/// The ingestion mode of every Company Facts document. Company Facts runs as a backfill only.
-const INGESTION_MODE: IngestionMode = IngestionMode::Backfill;
 
 impl<R: RawRepository<RawCompanyFacts>, C: SecClientTrait>
     ExtractCompanyFactsSuperState<StoreCompanyFacts<R>, R, C>
 {
     /// Creates the super-state positioned at the state that stores the Company Facts.
     ///
-    /// The metadata of the stored document records `execution_id`.
+    /// The metadata of the stored document records `execution_id` and `ingestion_mode`.
     #[must_use]
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "The store state needs each value, and the sibling constructors take plain arguments"
+    )]
     pub fn new(
         client: C,
         response: SecResponse,
@@ -367,17 +395,23 @@ impl<R: RawRepository<RawCompanyFacts>, C: SecClientTrait>
         user_agent: UserAgent,
         cik: Cik,
         execution_id: Uuid,
+        ingestion_mode: IngestionMode,
         repository: R,
     ) -> Self {
         let input = StoreCompanyFactsInput::new(response, requested_url, user_agent);
         let context =
-            StoreCompanyFactsContext::new(cik, execution_id, INGESTION_MODE, repository.clone());
+            StoreCompanyFactsContext::new(cik, execution_id, ingestion_mode, repository.clone());
 
         Self {
             current_state: StoreCompanyFacts::new(input, context),
             input: ExtractCompanyFactsSuperStateData,
             output: None,
-            context: ExtractCompanyFactsSuperStateContext::new(client, execution_id, repository),
+            context: ExtractCompanyFactsSuperStateContext::new(
+                client,
+                execution_id,
+                ingestion_mode,
+                repository,
+            ),
         }
     }
 }
@@ -565,7 +599,7 @@ where
         let next_state = StoreCompanyFacts::try_from((
             self.current_state,
             self.context.execution_id,
-            INGESTION_MODE,
+            self.context.ingestion_mode,
             self.context.repository.clone(),
         ))?;
 
@@ -628,6 +662,7 @@ mod tests {
             .cik(input_cik)
             .sec_client(sec_client)
             .execution_id(Uuid::nil())
+            .ingestion_mode(IngestionMode::Backfill)
             .repository(FakeWriteRepository::new())
             .build();
 
@@ -650,6 +685,7 @@ mod tests {
             cik,
             sec_client,
             Uuid::nil(),
+            IngestionMode::Backfill,
             FakeWriteRepository::new(),
         );
 
@@ -668,6 +704,7 @@ mod tests {
             .cik(input_cik)
             .sec_client(sec_client)
             .execution_id(Uuid::nil())
+            .ingestion_mode(IngestionMode::Backfill)
             .repository(FakeWriteRepository::new())
             .build();
 
@@ -686,6 +723,7 @@ mod tests {
             cik,
             sec_client,
             Uuid::nil(),
+            IngestionMode::Backfill,
             FakeWriteRepository::new(),
         );
 
@@ -708,6 +746,7 @@ mod tests {
             .cik(input_cik)
             .sec_client(sec_client)
             .execution_id(Uuid::nil())
+            .ingestion_mode(IngestionMode::Backfill)
             .repository(FakeWriteRepository::new())
             .build();
 
@@ -744,6 +783,7 @@ mod tests {
             cik,
             sec_client,
             Uuid::nil(),
+            IngestionMode::Backfill,
             FakeWriteRepository::new(),
         );
 
@@ -761,6 +801,7 @@ mod tests {
             .cik(input_cik)
             .sec_client(sec_client)
             .execution_id(Uuid::nil())
+            .ingestion_mode(IngestionMode::Backfill)
             .repository(FakeWriteRepository::new())
             .build();
 
@@ -783,6 +824,7 @@ mod tests {
             .cik(input_cik)
             .sec_client(sec_client)
             .execution_id(Uuid::nil())
+            .ingestion_mode(IngestionMode::Backfill)
             .repository(FakeWriteRepository::new())
             .build();
 
@@ -810,6 +852,7 @@ mod tests {
             .cik(input_cik)
             .sec_client(sec_client)
             .execution_id(Uuid::nil())
+            .ingestion_mode(IngestionMode::Backfill)
             .repository(FakeWriteRepository::new())
             .build();
 
@@ -972,6 +1015,7 @@ mod tests {
 
     fn store_company_facts_super_state(
         execution_id: Uuid,
+        ingestion_mode: IngestionMode,
         repository: FakeWriteRepository,
     ) -> ExtractCompanyFactsSuperState<StoreCompanyFacts<FakeWriteRepository>, FakeWriteRepository>
     {
@@ -988,6 +1032,7 @@ mod tests {
             user_agent,
             cik,
             execution_id,
+            ingestion_mode,
             repository,
         )
     }
@@ -995,8 +1040,11 @@ mod tests {
     #[tokio::test]
     async fn should_record_the_execution_id_of_the_constructor_when_storing_company_facts() {
         let execution_id = Uuid::from_u128(7);
-        let mut super_state =
-            store_company_facts_super_state(execution_id, FakeWriteRepository::new());
+        let mut super_state = store_company_facts_super_state(
+            execution_id,
+            IngestionMode::Backfill,
+            FakeWriteRepository::new(),
+        );
         let repository = super_state
             .current_state()
             .context_data()
@@ -1025,6 +1073,7 @@ mod tests {
             .cik("1067983")
             .sec_client(SecClient::default())
             .execution_id(execution_id)
+            .ingestion_mode(IngestionMode::Backfill)
             .repository(FakeWriteRepository::new())
             .build();
         super_state
@@ -1053,11 +1102,13 @@ mod tests {
     /// Walks a fresh super-state to `ExecuteSecRequest` and gives that state a response.
     async fn executed_super_state(
         execution_id: Uuid,
+        ingestion_mode: IngestionMode,
     ) -> ExtractCompanyFactsSuperState<ExecuteCompanyFactsRequest, FakeWriteRepository> {
         let mut super_state = ExtractCompanyFactsSuperState::builder()
             .cik("1067983")
             .sec_client(SecClient::default())
             .execution_id(execution_id)
+            .ingestion_mode(ingestion_mode)
             .repository(FakeWriteRepository::new())
             .build();
         super_state
@@ -1085,7 +1136,7 @@ mod tests {
     #[tokio::test]
     async fn should_carry_execution_id_of_builder_when_transitioning_to_store_company_facts() {
         let execution_id = Uuid::from_u128(7);
-        let super_state = executed_super_state(execution_id).await;
+        let super_state = executed_super_state(execution_id, IngestionMode::Backfill).await;
 
         let expected_result = execution_id;
 
@@ -1102,11 +1153,14 @@ mod tests {
     }
 
     #[test]
-    fn should_store_as_backfill_when_created_at_store_company_facts() {
-        let super_state =
-            store_company_facts_super_state(Uuid::from_u128(7), FakeWriteRepository::new());
+    fn should_store_the_ingestion_mode_of_the_constructor_when_created_at_store_company_facts() {
+        let super_state = store_company_facts_super_state(
+            Uuid::from_u128(7),
+            IngestionMode::Incremental,
+            FakeWriteRepository::new(),
+        );
 
-        let expected_result = IngestionMode::Backfill;
+        let expected_result = IngestionMode::Incremental;
 
         let result = super_state.current_state().context_data().ingestion_mode();
 
@@ -1114,10 +1168,11 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_store_as_backfill_when_transitioning_to_store_company_facts() {
-        let super_state = executed_super_state(Uuid::from_u128(7)).await;
+    async fn should_carry_ingestion_mode_of_builder_when_transitioning_to_store_company_facts() {
+        let super_state =
+            executed_super_state(Uuid::from_u128(7), IngestionMode::Incremental).await;
 
-        let expected_result = IngestionMode::Backfill;
+        let expected_result = IngestionMode::Incremental;
 
         let result = Transition::<
             ExecuteCompanyFactsRequest,
@@ -1144,6 +1199,7 @@ mod tests {
             request,
             cik,
             Uuid::nil(),
+            IngestionMode::Backfill,
             FakeWriteRepository::new(),
         );
 
@@ -1168,6 +1224,7 @@ mod tests {
             .cik("ABC")
             .sec_client(SecClient::default())
             .execution_id(execution_id)
+            .ingestion_mode(IngestionMode::Backfill)
             .repository(FakeWriteRepository::new())
             .build();
         let mut stream = super_state.into_run_stream();
@@ -1185,6 +1242,34 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn should_record_the_ingestion_mode_of_the_builder_when_streaming_a_run() {
+        let ingestion_mode = IngestionMode::Incremental;
+        let repository = FakeWriteRepository::new();
+        let super_state = ExtractCompanyFactsSuperState::builder()
+            .cik("1067983")
+            .sec_client(AlwaysRespondingSecClient::new(
+                200,
+                vec![("content-type", "application/json".to_string())],
+                br#"{"cik":1067983,"facts":{}}"#.to_vec(),
+            ))
+            .execution_id(Uuid::from_u128(7))
+            .ingestion_mode(ingestion_mode)
+            .repository(repository.clone())
+            .build();
+
+        let expected_result = vec![IngestionMode::Incremental];
+
+        super_state.into_run_stream().collect::<Vec<_>>().await;
+        let result: Vec<IngestionMode> = repository
+            .persisted()
+            .iter()
+            .map(|document| document.metadata().ingestion_mode())
+            .collect();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
     async fn should_complete_store_company_facts_when_streaming_a_run_with_a_fake_client() {
         let sec_client = AlwaysRespondingSecClient::new(
             200,
@@ -1195,6 +1280,7 @@ mod tests {
             .cik("1067983")
             .sec_client(sec_client)
             .execution_id(Uuid::from_u128(7))
+            .ingestion_mode(IngestionMode::Backfill)
             .repository(FakeWriteRepository::new())
             .build();
 
@@ -1237,7 +1323,11 @@ mod tests {
     #[tokio::test]
     async fn should_end_the_stream_after_store_company_facts_completes() {
         let execution_id = Uuid::from_u128(7);
-        let super_state = store_company_facts_super_state(execution_id, FakeWriteRepository::new());
+        let super_state = store_company_facts_super_state(
+            execution_id,
+            IngestionMode::Backfill,
+            FakeWriteRepository::new(),
+        );
 
         let expected_result = vec![
             (StreamEvent::StateStarted, STORE_COMPANY_FACTS.to_string()),
@@ -1261,7 +1351,11 @@ mod tests {
     #[tokio::test]
     async fn should_write_one_document_when_streaming_store_company_facts() {
         let execution_id = Uuid::from_u128(7);
-        let super_state = store_company_facts_super_state(execution_id, FakeWriteRepository::new());
+        let super_state = store_company_facts_super_state(
+            execution_id,
+            IngestionMode::Backfill,
+            FakeWriteRepository::new(),
+        );
         let repository = super_state
             .current_state()
             .context_data()
@@ -1280,6 +1374,7 @@ mod tests {
     async fn should_end_the_stream_with_state_failed_when_the_store_rejects_the_write() {
         let super_state = store_company_facts_super_state(
             Uuid::from_u128(7),
+            IngestionMode::Backfill,
             FakeWriteRepository::rejecting(WriteError::conflicting_write("Sample conflict")),
         );
 

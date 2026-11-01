@@ -6,7 +6,9 @@ use sec::prelude::*;
 use sec::shared::http_client::implementations::sec_client::SecClient;
 use sec::shared::raw_document::RawDocument;
 use sec::shared::raw_source::RawCompanyFacts;
-use storage::implementations::repository::filesystem::{FilesystemRepository, Write};
+use storage::implementations::repository::filesystem::{
+    FilesystemRepository, IngestionMode, Write,
+};
 use uuid::Uuid;
 
 /// The storage repository that stores the raw Company Facts of each run.
@@ -111,6 +113,7 @@ impl Pipeline {
             .cik(self.raw_cik)
             .sec_client(self.sec_client)
             .execution_id(execution_id)
+            .ingestion_mode(IngestionMode::Backfill)
             .repository(self.repository)
             .build();
         let mut stream = pin!(state.into_run_stream());

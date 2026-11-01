@@ -19,7 +19,7 @@ use async_trait::async_trait;
 use chrono::Utc;
 use serde::Serialize;
 use state_maschine::prelude::State as SMState;
-use storage::implementations::repository::filesystem::{Document, DocumentKey, IngestionMode};
+use storage::implementations::repository::filesystem::{Document, DocumentKey};
 
 use crate::error::State as StateError;
 use crate::error::state_machine::state::FailedDocumentWrite;
@@ -44,8 +44,8 @@ pub use data::{StoreDailyIndexInput, StoreDailyIndexOutput, StoredDailyIndex};
 ///
 /// Builds one [`RawDocument<RawDailyIndex>`] with [`RawDocument::from_file`], writes it under the
 /// key `sec/daily-index/form.YYYYMMDD.idx` through the repository of type `R`, and outputs the key
-/// and the text. The metadata records the ingestion mode [`IngestionMode::Incremental`]. For a day
-/// without filings, the state writes nothing and outputs no index.
+/// and the text. The metadata records the ingestion mode of the context. For a day without filings,
+/// the state writes nothing and outputs no index.
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
 pub struct StoreDailyIndex<R> {
     input: StoreDailyIndexInput,
@@ -108,7 +108,7 @@ impl<R: RawRepository<RawDailyIndex>> State for StoreDailyIndex<R> {
                 produced_at: Utc::now(),
                 execution_id: self.context.execution_id,
                 producer: producer(STATE_NAME),
-                ingestion_mode: IngestionMode::Incremental,
+                ingestion_mode: self.context.ingestion_mode,
             },
         );
         let index = StoredDailyIndex {
@@ -201,7 +201,7 @@ mod tests {
     use pretty_assertions::assert_eq;
     use storage::WriteError;
     use storage::implementations::repository::filesystem::{
-        Document, FilesystemRepository, ReadWrite,
+        Document, FilesystemRepository, IngestionMode, ReadWrite,
     };
     use tempfile::TempDir;
     use uuid::Uuid;
@@ -268,14 +268,14 @@ mod tests {
     fn sample_state<R>(repository: R) -> StoreDailyIndex<R> {
         StoreDailyIndex::new(
             sample_input(Some(sample_response())),
-            StoreDailyIndexContext::new(Uuid::nil(), repository),
+            StoreDailyIndexContext::new(Uuid::nil(), IngestionMode::Incremental, repository),
         )
     }
 
     fn state_without_filings<R>(repository: R) -> StoreDailyIndex<R> {
         StoreDailyIndex::new(
             sample_input(None),
-            StoreDailyIndexContext::new(Uuid::nil(), repository),
+            StoreDailyIndexContext::new(Uuid::nil(), IngestionMode::Incremental, repository),
         )
     }
 

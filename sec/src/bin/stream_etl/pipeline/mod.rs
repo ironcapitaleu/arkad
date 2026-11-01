@@ -9,6 +9,7 @@ use futures_util::StreamExt;
 use sec::implementations::states::extract::company_facts::ExtractCompanyFactsSuperState;
 use sec::prelude::*;
 use sec::shared::http_client::implementations::sec_client::SecClient;
+use storage::implementations::repository::filesystem::IngestionMode;
 use uuid::Uuid;
 
 use crate::storage_root::RawCompanyFactsWriter;
@@ -49,6 +50,7 @@ impl Pipeline {
             .cik(self.raw_cik)
             .sec_client(self.sec_client)
             .execution_id(execution_id)
+            .ingestion_mode(IngestionMode::Backfill)
             .repository(self.repository)
             .build();
         state.into_run_stream()

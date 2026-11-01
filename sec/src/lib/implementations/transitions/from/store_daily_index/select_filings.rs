@@ -48,7 +48,7 @@ mod tests {
 
     use bytes::Bytes;
     use pretty_assertions::assert_eq;
-    use storage::implementations::repository::filesystem::DocumentKey;
+    use storage::implementations::repository::filesystem::{DocumentKey, IngestionMode};
     use uuid::Uuid;
 
     use super::*;
@@ -101,7 +101,11 @@ mod tests {
             .expect("Given a hardcoded SEC-format user agent, validation should always succeed");
         StoreDailyIndex::new(
             StoreDailyIndexInput::new(response, index_date, requested_url, user_agent),
-            StoreDailyIndexContext::new(SAMPLE_EXECUTION_ID, FakeDailyIndexRepository::new()),
+            StoreDailyIndexContext::new(
+                SAMPLE_EXECUTION_ID,
+                IngestionMode::Incremental,
+                FakeDailyIndexRepository::new(),
+            ),
         )
     }
 

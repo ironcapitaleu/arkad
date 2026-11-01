@@ -1,19 +1,20 @@
 //! # Transition: `DownloadDailyIndex` → `StoreDailyIndex`
 //!
 //! Implements the [`TryFrom`] conversion producing a [`StoreDailyIndex`] from a
-//! [`DownloadDailyIndex`], the `execution_id`, and the storage repository.
+//! [`DownloadDailyIndex`], the `execution_id`, the ingestion mode, and the storage repository.
 //!
 //! It moves the [`Arc`](std::sync::Arc) of the response from the output of the source state, the
 //! requested URL from its [`SecRequest`], the `User-Agent` from its client, and the date from its
 //! context. A day without filings has no response, and the next state gets `None`. The source
-//! state holds neither the `execution_id` nor a repository, so the caller passes the ones from the
-//! state machine context.
+//! state holds no `execution_id`, no ingestion mode, and no repository, so the caller passes the
+//! ones from the state machine context.
 //!
 //! # Errors
 //!
 //! Returns [`TransitionError`] (a [`MissingOutput`](crate::error::state_machine::transition::MissingOutput))
 //! when the source state has no computed output.
 
+use storage::implementations::repository::filesystem::IngestionMode;
 use uuid::Uuid;
 
 use crate::error::state_machine::transition;
@@ -29,17 +30,24 @@ use crate::shared::http_client::SecClient as SecClientTrait;
 use crate::shared::request::implementations::sec_request::SecRequest;
 use crate::shared::url::Url;
 
-impl<R, C: SecClientTrait> TryFrom<(DownloadDailyIndex<C>, Uuid, R)> for StoreDailyIndex<R> {
+impl<R, C: SecClientTrait> TryFrom<(DownloadDailyIndex<C>, Uuid, IngestionMode, R)>
+    for StoreDailyIndex<R>
+{
     type Error = TransitionError;
 
     /// Builds a [`StoreDailyIndex`] from a computed [`DownloadDailyIndex`], the `execution_id`,
-    /// and the storage repository.
+    /// the ingestion mode, and the storage repository.
     ///
     /// # Errors
     ///
     /// Returns [`TransitionError::MissingOutput`] if `state` has no computed output.
     fn try_from(
-        (state, execution_id, repository): (DownloadDailyIndex<C>, Uuid, R),
+        (state, execution_id, ingestion_mode, repository): (
+            DownloadDailyIndex<C>,
+            Uuid,
+            IngestionMode,
+            R,
+        ),
     ) -> Result<Self, TransitionError> {
         let (input, output, context) = state.into_parts();
         // `DownloadDailyIndex` sets its output only after it checks that the request names the
@@ -56,7 +64,7 @@ impl<R, C: SecClientTrait> TryFrom<(DownloadDailyIndex<C>, Uuid, R)> for StoreDa
             requested_url,
             user_agent,
         );
-        let new_context = StoreDailyIndexContext::new(execution_id, repository);
+        let new_context = StoreDailyIndexContext::new(execution_id, ingestion_mode, repository);
 
         Ok(Self::new(new_input, new_context))
     }
@@ -123,8 +131,13 @@ mod tests {
         state.compute_output_data_async().await.expect(
             "Given a routed index, or a 404 and a listing with a later date, the download should always succeed",
         );
-        StoreDailyIndex::try_from((state, SAMPLE_EXECUTION_ID, rejecting_repository()))
-            .expect("Given a source state with output, the transition should always succeed")
+        StoreDailyIndex::try_from((
+            state,
+            SAMPLE_EXECUTION_ID,
+            IngestionMode::Backfill,
+            rejecting_repository(),
+        ))
+        .expect("Given a source state with output, the transition should always succeed")
     }
 
     #[tokio::test]
@@ -165,11 +178,14 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_take_execution_id_and_repository_when_source_has_output() {
+    async fn should_take_execution_id_ingestion_mode_and_repository_when_source_has_output() {
         let raw_date = "2026-10-27";
 
-        let expected_result =
-            &StoreDailyIndexContext::new(SAMPLE_EXECUTION_ID, rejecting_repository());
+        let expected_result = &StoreDailyIndexContext::new(
+            SAMPLE_EXECUTION_ID,
+            IngestionMode::Backfill,
+            rejecting_repository(),
+        );
 
         let state = store_daily_index(raw_date).await;
         let result = state.context_data();
@@ -188,6 +204,7 @@ mod tests {
         let result = StoreDailyIndex::try_from((
             state,
             SAMPLE_EXECUTION_ID,
+            IngestionMode::Backfill,
             FakeDailyIndexRepository::new(),
         ));
 
