@@ -31,6 +31,9 @@ regex = "1"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 url = "2"
+# Reads the `sub.tsv` entry of a stored Notes file. Only the pure-Rust deflate backend, because the
+# Notes files hold deflated entries.
+zip = { version = "9.2.1", default-features = false, features = ["deflate-flate2-zlib-rs"] }
 # Only the `test-fixtures` feature uses it.
 http = { version = "1", optional = true }
 

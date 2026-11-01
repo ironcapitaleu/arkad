@@ -9,9 +9,10 @@
 use std::fmt::{self, Display, Formatter};
 
 use chrono::NaiveDate;
+use futures_util::StreamExt;
 use serde::{Serialize, Serializer};
 
-use crate::prelude::{StreamError, StreamItem};
+use crate::prelude::{StateMachineStream, StreamError, StreamItem};
 use crate::shared::cik::Cik;
 use crate::shared::financial::accession_number::AccessionNumber;
 
@@ -67,7 +68,7 @@ impl Display for ErrorKind {
 pub enum Unit {
     /// A Notes period, for example `2024q1` or `2025_10`.
     Period(String),
-    /// A raw CIK of the Company Facts source, for example `320193`.
+    /// A raw CIK of the Company Facts or the `submissions` source, for example `320193`.
     Cik(String),
     /// A date of the new-filing path, and the detection of its filings.
     Date(NaiveDate),
@@ -111,6 +112,28 @@ fn serialize_display<S: Serializer>(
     serializer: S,
 ) -> Result<S::Ok, S::Error> {
     serializer.collect_str(value)
+}
+
+/// Reads `stream` to its end and passes each event to `observer`.
+///
+/// # Errors
+///
+/// Returns the [`StreamError`] of the state that failed. The read stops at that error.
+pub(super) async fn drain(
+    mut stream: StateMachineStream,
+    unit: &Unit,
+    observer: &(impl Fn(&Unit, RunEvent<'_>) + Sync),
+) -> Result<(), StreamError> {
+    while let Some(item) = stream.next().await {
+        match item {
+            Ok(item) => observer(unit, RunEvent::Item(&item)),
+            Err(error) => {
+                observer(unit, RunEvent::Error(&error, ErrorKind::Failed));
+                return Err(error);
+            }
+        }
+    }
+    Ok(())
 }
 
 #[cfg(test)]

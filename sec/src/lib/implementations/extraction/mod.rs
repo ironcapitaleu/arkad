@@ -6,19 +6,24 @@
 //! [`Extraction::incremental`]. The second call picks the source and returns the typestate builder
 //! of that source's super-state, with the run's `execution_id` and ingestion mode already set.
 //! Each [`build`] returns the concrete super-state. The Notes source also runs a batch of periods
-//! with [`BackfillNotes::periods`], the Company Facts source a batch of CIKs with
-//! [`BackfillCompanyFacts::ciks`], and the new-filing path runs many dates with
-//! [`Incremental::daily_filings`].
+//! with [`BackfillNotes::periods`]. The Company Facts and the `submissions` sources run a batch of
+//! CIKs with [`BackfillCompanyFacts::ciks`] and [`BackfillSubmissions::ciks`]. The new-filing path
+//! runs many dates with [`Incremental::daily_filings`]. [`Backfill::all`] runs the Notes periods,
+//! then the `submissions` file of each CIK of the stored Notes files.
 //!
 //! [`build`]: crate::implementations::states::extract::notes::builder::ExtractNotesSuperStateBuilder::build
 //!
 //! ## Modules
 //!
+//! - [`all`]: The pipeline of a backfill run: the Notes periods, then the `submissions` file of
+//!   each distinct CIK of the stored Notes files.
 //! - [`company_facts`]: The Company Facts source of a backfill run, and its batch run over many
 //!   CIKs.
 //! - [`daily_filings`]: The new-filing path of an incremental run over many dates.
 //! - [`notes`]: The Notes source of a backfill run, and its batch run over many periods.
 //! - [`run_event`]: The events that a batch run passes to its observer.
+//! - [`submissions`]: The `submissions` source of a backfill run, and its batch run over many
+//!   CIKs.
 //!
 //! ## Usage
 //!
@@ -181,22 +186,29 @@ use crate::implementations::states::extract::filing::builder::{
     NoLabelsRepository,
 };
 use crate::implementations::states::extract::submissions::ExtractSubmissionsSuperState;
+use crate::implementations::states::extract::submissions::builder as submissions_builder;
 use crate::implementations::states::extract::submissions::builder::{
     ExtractSubmissionsSuperStateBuilder, NoCik,
 };
-use crate::implementations::states::extract::{daily_index, filing, submissions};
+use crate::implementations::states::extract::{daily_index, filing};
 use crate::shared::raw_repository::RawRepository;
 use crate::shared::raw_source::{
     RawDailyIndex, RawFilingIndex, RawSubmissions, RawXbrlInstance, RawXbrlLabels,
 };
 
+pub mod all;
 pub mod company_facts;
 pub mod daily_filings;
 pub mod notes;
 pub mod run_event;
+pub mod submissions;
 
+pub use all::{
+    AllBatchBuilder, AllRunSummary, BackfillAll, BackfillClient, BackfillRepositories,
+    FailedAllBackfill, FailedCikRead,
+};
 pub use company_facts::{
-    BackfillCompanyFacts, CompanyFactsBatchBuilder, CompanyFactsRunSummary, DEFAULT_CIKS_IN_FLIGHT,
+    BackfillCompanyFacts, CompanyFactsBatchBuilder, CompanyFactsRunSummary,
     FailedCompanyFactsBackfill,
 };
 pub use daily_filings::{
@@ -209,6 +221,13 @@ pub use notes::{
     NotesBatchBuilder, NotesRunSummary,
 };
 pub use run_event::{ErrorKind, RunEvent, Unit};
+pub use submissions::{
+    BackfillSubmissions, FailedSubmissionsBackfill, SubmissionsBatchBuilder, SubmissionsRunSummary,
+};
+
+/// The number of CIKs that a Company Facts or a `submissions` batch run extracts at once without a
+/// call to `in_flight`.
+pub const DEFAULT_CIKS_IN_FLIGHT: usize = 4;
 
 /// Builds the extract super-states by ingestion mode and source.
 ///
@@ -277,6 +296,21 @@ impl Backfill {
     #[must_use]
     pub const fn company_facts(&self) -> BackfillCompanyFacts {
         BackfillCompanyFacts::new(self.execution_id)
+    }
+
+    /// Returns the `submissions` source of the run.
+    ///
+    /// Pick one CIK with [`BackfillSubmissions::cik`] or many with [`BackfillSubmissions::ciks`].
+    #[must_use]
+    pub const fn submissions(&self) -> BackfillSubmissions {
+        BackfillSubmissions::new(self.execution_id)
+    }
+
+    /// Returns the pipeline of the run over every source. Pick the Notes periods with
+    /// [`BackfillAll::periods`].
+    #[must_use]
+    pub const fn all(&self) -> BackfillAll {
+        BackfillAll::new(*self)
     }
 }
 
@@ -353,10 +387,10 @@ impl Incremental {
         &self,
     ) -> ExtractSubmissionsSuperStateBuilder<
         NoCik,
-        submissions::builder::NoSecClient,
+        submissions_builder::NoSecClient,
         Uuid,
         IngestionMode,
-        submissions::builder::NoRepository<R>,
+        submissions_builder::NoRepository<R>,
     > {
         ExtractSubmissionsSuperState::builder()
             .execution_id(self.execution_id)

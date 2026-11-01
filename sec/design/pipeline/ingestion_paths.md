@@ -162,7 +162,7 @@ Two binaries run the facade:
 
 | Binary | Facade calls | Run |
 | ------ | ------------ | --- |
-| `backfill` | `backfill().notes()` (`all()` after STA-377), then `incremental().daily_filings()` from the cut-over date to yesterday | By hand, once. Rerun by hand. |
+| `backfill` | `backfill().notes()`, then `incremental().daily_filings()` from the cut-over date to yesterday. It does not call `all()` (decision of 2026-11-01) | By hand, once. Rerun by hand. |
 | `daily_filings` | `incremental().daily_filings()` over the last days | Cloud Scheduler, once a day |
 
 So one run of `backfill` extracts everything up to yesterday, and it sets the cut-over date
@@ -226,7 +226,11 @@ Extraction::incremental()
   because the pending rule depends on the order. Without the call, the source uses its default:
   2 for Notes, 4 for the others. The rate limiter of the SEC client still caps the requests.
 - `all()` and `daily_filings()` are the two pipelines. `all()` runs `notes()` over the periods,
-  then `submissions()` over the distinct CIKs of the stored Notes files (STA-377).
+  then `submissions()` over the distinct CIKs of the stored Notes files (STA-377). It reads the
+  column `cik` of `sub.tsv` from each stored Notes file, one file at a time, so at most one file
+  is in memory. It runs `submissions()` even if a Notes period failed, over the CIKs of the
+  periods that the store holds. A Notes file that it cannot read fails `result()`, as a failed
+  CIK does, and the other files and CIKs still run.
 - The units of `daily_filings()` are the dates. Per date, the facade runs
   `DetectFilingsSuperState` once, one `ExtractFilingSuperState` per selected filing, and one
   `ExtractSubmissionsSuperState` per distinct CIK. The chain is code in the facade, not a fork of
@@ -269,8 +273,8 @@ observer: impl Fn(&Unit, RunEvent<'_>) + Send + Sync + 'static
   unpublished. Its error `MissingCutOverDate` names the case: `FailedBackfill` or
   `MissingStoredPeriod`. The summary of `all()` passes it on. A failed `submissions` CIK does not block the
   catch-up, but it fails `result()`. See [Cut-Over Between the Paths](#cut-over-between-the-paths).
-  So the binary `backfill` can run on `notes()` alone until `all()` exists (decision of
-  2026-11-01).
+  The binary `backfill` calls `notes()`, not `all()` (decision of 2026-11-01). `all()` is there
+  for a run that needs the `submissions` file of every company in the Notes files.
 - The callback replaces a returned event stream. A stream gives the same timing, but each `main`
   then needs its own loop.
 
@@ -281,7 +285,7 @@ values.
 
 | Source | Rules in the facade | Values from `main` |
 | ------ | ------------------- | ------------------ |
-| `all()` | the rules of `notes()`, distinct CIKs, `cut_over_date()` | periods, cap |
+| `all()` | the rules of `notes()`, distinct CIKs of the stored periods, one Notes file in memory, `cut_over_date()` | periods, cap |
 | `notes()` | skip of an intact stored file, task per period, unpublished at the end, `cut_over_date()` | periods, cap |
 | `company_facts()` | none | CIKs, cap |
 | `submissions()` | none | CIKs, cap |
@@ -329,17 +333,19 @@ flowchart LR
     DF["daily_filings (binary)"]
     EX["stream_extract (deprecated example)"]
     subgraph facade["Extraction"]
-        ALL["backfill().all()<br/>(notes() until item 5 lands)"]
+        NOTES["backfill().notes()"]
+        ALL["backfill().all()<br/>(no binary calls it)"]
         DFS["incremental().daily_filings()"]
         CF["backfill().company_facts()"]
     end
-    BF -->|"1. run"| ALL
-    ALL -->|"cut_over_date()"| BF
+    BF -->|"1. run"| NOTES
+    NOTES -->|"cut_over_date()"| BF
     BF -->|"2. run from the cut-over date"| DFS
     DF -->|"run over the last days"| DFS
     EX -->|run| CF
-    ALL -->|"1. per period"| ENS[ExtractNotesSuperState]
-    ALL -->|"2. per CIK, all() only"| ESS[ExtractSubmissionsSuperState]
+    ALL -->|"1. runs notes()"| NOTES
+    NOTES -->|per period| ENS[ExtractNotesSuperState]
+    ALL -->|"2. per CIK of the stored Notes files"| ESS[ExtractSubmissionsSuperState]
     DFS -->|"1. per date"| DET[DetectFilingsSuperState]
     DFS -->|"2. per filing"| EFS[ExtractFilingSuperState]
     DFS -->|"3. per CIK"| ESS
@@ -355,10 +361,10 @@ Startup, the logger, and the summary log stay as today. The run becomes one or t
 let now = Utc::now();
 let backfill = Extraction::backfill();
 let past = backfill
-    .all() // backfill().notes() until item 5 of the facade list lands
+    .notes() // `all()` adds the `submissions` step. The binary does not call it.
     .periods(notes_periods(now.date_naive()))
     .sec_client(sec_client.clone())
-    .repositories(repositories.clone())
+    .repository(notes_repository)
     .in_flight(files_in_flight_from_env()?)
     .run(log_event)
     .await;
@@ -395,12 +401,7 @@ summary.result()?;
 - Both calls of `backfill` carry one `execution_id`, so the logs and the metadata name one run.
   Each document still records its own mode: `backfill` for the Notes files, `incremental` for the
   daily indexes and filings.
-- A CIK in the overlap gets its `submissions` file twice, once per call. If the SEC body is the
-  same, `persist` skips the second write, and the file keeps the mode `backfill`. If the body
-  changed, the second fetch replaces the file (see [Raw Store](#raw-store)), and the file records
-  the mode `incremental`.
-- `backfill` exits with an error if a CIK of `all()` failed or if the catch-up failed. It checks
-  `past.result()` after the catch-up, so a failed CIK does not stop the catch-up.
+- `backfill` exits with an error if a Notes period or the catch-up failed.
 - `dates_between` and `run_dates` stay in the binaries, because they read time and the environment.
 
 #### Deprecated Binaries
@@ -1366,7 +1367,9 @@ Decided in STA-376:
 - URL: `https://data.sec.gov/submissions/CIK##########.json`. Measured: it holds `sic`,
   `sicDescription`, `name`, `tickers`, `exchanges`, `formerNames`, and the recent filings.
 - New-filing path: one run per distinct CIK of the day's filings.
-- Backfill: one run per distinct CIK in all Notes files. 2024q1 alone has 6,587 companies. The
+- Backfill: one run per distinct CIK in all Notes files, through `backfill().all()`, which reads
+  the CIKs from the column `cik` of `sub.tsv`. The binary `backfill` does not call `all()`
+  (decision of 2026-11-01). 2024q1 alone has 6,587 companies. The
   total over all files is not measured. `sub.tsv` already holds the SIC code and the name at
   filing time, so the backfill needs `submissions` only for the current company data.
 
@@ -1974,8 +1977,10 @@ Proposed for MVP Operations. Both paths run as Cloud Run jobs with the bucket mo
   exits with an error if any machine failed, and Cloud Run retries it. Pending and unextractable
   do not count as failed. The retry is safe, because
   every write is idempotent.
-- Once `all()` lands (STA-377), `backfill` runs the `submissions` machine for each distinct CIK
-  after the Notes files.
+- `backfill` does not run the `submissions` machine for the Notes companies (decision of
+  2026-11-01). `backfill().all()` does, if a later run needs it. It reads every stored Notes file
+  in full, one at a time, and fetches one `submissions` file per distinct CIK, an estimated
+  10,000 to 25,000 requests.
 - `backfill` reads `ARKAD_FILES_IN_FLIGHT` for the number of Notes files in flight. Unset, it
   uses 2. STA-379 measures the value for Cloud Run.
 - Both jobs share the SEC client, the User-Agent, and the storage root through
@@ -2042,9 +2047,9 @@ Moved code does not count toward the 400 lines.
 4. FEATURE: `incremental().daily_filings().dates(…).run()`. `run.rs` moves from `daily_filings`
    into the facade. `daily_filings` and `sec/tests/daily_filings.rs` call it (STA-415).
 5. FEATURE: `backfill().submissions().ciks(…).run()` and the pipeline `backfill().all()`, which
-   passes on `cut_over_date()` (STA-377, parked until STA-417 decides the source of company data).
-6. FEATURE: the binary `backfill` with its two calls. Its first call is `backfill().notes()` until
-   item 5 lands, then `backfill().all()`. A Notes-only copy of `notes_backfill` moves
+   passes on `cut_over_date()`. The CIKs come from `sub.tsv` of each stored Notes file (STA-377).
+6. FEATURE: the binary `backfill` with its two calls. Its first call is `backfill().notes()`. It
+   does not call `all()` of item 5 (decision of 2026-11-01). A Notes-only copy of `notes_backfill` moves
    to `sec/examples/` as deprecated, with its `#[path]` changes and `[[example]]` entry (STA-416).
 7. FEATURE: `backfill().company_facts()`. `stream_extract` runs on it and moves to
    `sec/examples/`, with the `Dockerfile` and `README.md` (STA-358).
