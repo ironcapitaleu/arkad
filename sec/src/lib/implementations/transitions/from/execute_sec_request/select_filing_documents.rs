@@ -57,7 +57,6 @@ impl<C> TryFrom<(ExecuteSecRequest<FilingIndex, C>, Uuid)> for SelectFilingDocum
         ensure_request_matches_input(
             &input.sec_request,
             &context.request_input,
-            "filing",
             SELECT_FILING_DOCUMENTS,
         )?;
 

@@ -103,7 +103,6 @@ impl<I, L, C: SecClientTrait>
         ensure_request_matches_input(
             &input.sec_request,
             &context.request_input,
-            "documents",
             STORE_FILING_DOCUMENTS,
         )?;
 

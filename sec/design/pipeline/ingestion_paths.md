@@ -106,7 +106,6 @@ pub trait StoredAs: HasResponse {
     type Source: RawSource;
     type Output: StateData + Display + Serialize;
     const STATE_NAME: &'static str;
-    const INPUT_LABEL: &'static str;
     fn store(response: &Self::Response, request_input: &Self::Input, requested_url: &Url,
              user_agent: &UserAgent, run: RunFields) -> (RawDocument<Self::Source>, Self::Output);
 }
@@ -115,6 +114,8 @@ pub trait StoredAs: HasResponse {
 - The state bounds its repository by `RawRepository<E::Source>`. A repository of another source
   does not compile.
 - `STATE_NAME` is the name in `state_name()`, in the stream, and in the producer of the document.
+- The label of the request input in error messages, for example `CIK`, is
+  `RequestKind::INPUT_LABEL`, next to `INPUT_NAME`. Every request check reads it (STA-418).
 - The context holds the request input, the `execution_id`, the ingestion mode, and the repository.
   The input holds the response in an `Arc`, the requested URL, and the `User-Agent`. The run sets
   the mode, because `submissions` runs in both modes. STA-384 moved the mode into the context.

@@ -55,7 +55,6 @@ impl StoredAs for Submissions {
     type Output = StoreSubmissionsOutput;
 
     const STATE_NAME: &'static str = STATE_NAME;
-    const INPUT_LABEL: &'static str = "CIK";
 
     fn store(
         response: &SecResponse,
