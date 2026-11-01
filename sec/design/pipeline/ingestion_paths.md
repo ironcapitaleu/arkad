@@ -1573,6 +1573,36 @@ state is `StoreFilingIndex`, the `StoreSecResponse` of the kind `FilingIndex`.
   date of the daily index that listed the filing. If the folder holds an instance, its `inputs`
   also name that daily index.
 
+#### Unextractable Record
+
+> **Status:** decided by the lead on 2026-11-01 (STA-413). It lands in three PRs: the source and
+> its store state, then the store step in the filing machine, then the skip.
+
+The run stores the folder `index.json` of every filing it fetches as the raw source
+`RawFilingIndex`, under `sec/filings/CIK##########/<accession number>/index.json`. The store
+state is `StoreFilingIndex`, the `StoreSecResponse` of the kind `FilingIndex`.
+
+- It is an SEC file, so it fits the raw layer. A marker document or a ledger per date is a file we
+  create, not an SEC file, so it does not belong in the raw layer.
+- The run learns whether a folder holds an instance only from this file, so the store comes
+  before `SelectFilingDocuments`. That is why every fetched filing stores it, not only an
+  unextractable one. The file adds no request and a few KB per filing.
+- Before any request for a filing, the run then checks the store in this order:
+  1. An intact instance: the filing counts as already stored.
+  2. A stored `index.json` and no instance: the run reruns the selection on the stored file. If
+     the selection fails with `MissingXbrlInstance`, the filing counts as unextractable with no
+     request. Otherwise an earlier run failed after the folder request, and the run fetches the
+     filing.
+  3. Nothing stored: the run fetches the filing.
+- The document keeps the body as the SEC sent it, through `RawDocument::from_filing_response`.
+  Its metadata names the filing, as the instance and the label file do (see
+  [Raw Store](#raw-store)).
+- It names no input document. The generic `StoreSecResponse` state builds the document from the
+  response and the request input only, and `StoredAs::store` takes no inputs. Adding them changes
+  every store kind, so it is out of scope for STA-413. The `filed_date` in its metadata names the
+  date of the daily index that listed the filing. If the folder holds an instance, its `inputs`
+  also name that daily index.
+
 #### Logs and Summary
 
 JSON logs with the five fields of `AGENTS.md`, as in `backfill`:
