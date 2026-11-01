@@ -275,6 +275,7 @@ mod run_loop {
             "selected": 1,
             "stored": 0,
             "already_stored": 1,
+            "skipped_unextractable": 0,
             "unextractable": [],
             "failed": [],
         });
@@ -306,6 +307,7 @@ mod run_loop {
             "selected": 1,
             "stored": 1,
             "already_stored": 0,
+            "skipped_unextractable": 0,
             "unextractable": [],
             "failed": [],
         });
@@ -323,11 +325,109 @@ mod run_loop {
             "selected": 1,
             "stored": 1,
             "already_stored": 0,
+            "skipped_unextractable": 0,
             "unextractable": [],
             "failed": [],
         });
 
         let result = second_run_after_overwriting_the_instance(bytes).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    /// A folder with a label file and no XBRL instance, so its filing is unextractable.
+    const FOLDER_INDEX_WITHOUT_INSTANCE: &[u8] =
+        br#"{"directory":{"item":[{"name":"alco-20260908_lab.xml"}]}}"#;
+
+    /// Returns a client that serves the index of 2026-10-26 with two filings of one company: the
+    /// 10-Q with its files, and the 10-Q/A, whose folder holds no XBRL instance.
+    fn sec_client_with_an_unextractable_filing() -> RoutingSecClient {
+        RoutingSecClient::new()
+            .route(
+                INDEX_URL,
+                200,
+                "application/octet-stream",
+                DAILY_INDEX_WITH_TWO_FILINGS,
+            )
+            .route(QTR4_LISTING_URL, 200, "application/json", QTR4_LISTING)
+            .route(FOLDER_INDEX_URL, 200, "application/json", FOLDER_INDEX)
+            .route(INSTANCE_URL, 200, "text/xml", b"<xbrl/>")
+            .route(LABEL_FILE_URL, 200, "text/xml", b"<labels/>")
+            .route(SUBMISSIONS_URL, 200, "application/json", SUBMISSIONS)
+            .route(
+                SECOND_FOLDER_INDEX_URL,
+                200,
+                "application/json",
+                FOLDER_INDEX_WITHOUT_INSTANCE,
+            )
+    }
+
+    /// Runs 2026-10-26 twice in one store, with a new client of
+    /// `sec_client_with_an_unextractable_filing` each time. Returns the second client and the
+    /// summary of the second run.
+    async fn second_run_of_a_date_with_an_unextractable_filing()
+    -> (RoutingSecClient, DailyRunSummary) {
+        let root = temporary_root();
+        let dates = [date("2026-10-26")];
+        let _ = run_offline_in(&root, &dates, &sec_client_with_an_unextractable_filing()).await;
+        let second_client = sec_client_with_an_unextractable_filing();
+        let summary = run_offline_in(&root, &dates, &second_client).await;
+        (second_client, summary)
+    }
+
+    #[tokio::test]
+    async fn should_request_no_folder_again_when_a_date_with_an_unextractable_filing_runs_again() {
+        let (second_client, _) = second_run_of_a_date_with_an_unextractable_filing().await;
+
+        let expected_result =
+            BTreeMap::from([(INDEX_URL.to_string(), 1), (SUBMISSIONS_URL.to_string(), 1)]);
+
+        let result = second_client.inner.request_counts.per_url();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_list_the_unextractable_filing_as_skipped_when_its_date_runs_again() {
+        let (_, summary) = second_run_of_a_date_with_an_unextractable_filing().await;
+
+        let expected_result = json!({
+            "selected": 2,
+            "stored": 0,
+            "already_stored": 1,
+            "skipped_unextractable": 1,
+            "unextractable": [],
+            "failed": [],
+        });
+
+        let result = summary.entries()[0]["filings"].clone();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_fetch_the_filing_again_when_its_stored_folder_index_lists_an_instance() {
+        let root = temporary_root();
+        let dates = [date("2026-10-26")];
+        // The first run stores the folder index, then gets 404 for the instance.
+        let client_without_instance = RoutingSecClient::new()
+            .route(INDEX_URL, 200, "application/octet-stream", DAILY_INDEX)
+            .route(QTR4_LISTING_URL, 200, "application/json", QTR4_LISTING)
+            .route(FOLDER_INDEX_URL, 200, "application/json", FOLDER_INDEX)
+            .route(SUBMISSIONS_URL, 200, "application/json", SUBMISSIONS);
+        let _ = run_offline_in(&root, &dates, &client_without_instance).await;
+
+        let expected_result = json!({
+            "selected": 1,
+            "stored": 1,
+            "already_stored": 0,
+            "skipped_unextractable": 0,
+            "unextractable": [],
+            "failed": [],
+        });
+
+        let result =
+            run_offline_in(&root, &dates, &sec_client()).await.entries()[0]["filings"].clone();
 
         assert_eq!(result, expected_result);
     }
