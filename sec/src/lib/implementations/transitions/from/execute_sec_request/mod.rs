@@ -13,13 +13,10 @@
 //!   generic store state.
 //! - [`store_filing_documents`]: Transition of the filing documents kind into the state that
 //!   stores the XBRL instance and the label file.
-//! - [`store_notes_archive`]: Transition of the Notes kind into the state that stores the Notes
-//!   file.
 //! - [`store_submissions`]: Transition of the Submissions kind into the state that stores the
 //!   `submissions` JSON.
 
 mod request_check;
 pub mod store_filing_documents;
-pub mod store_notes_archive;
 pub mod store_sec_response;
 pub mod store_submissions;

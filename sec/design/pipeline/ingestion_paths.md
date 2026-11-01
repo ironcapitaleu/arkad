@@ -62,7 +62,7 @@ flowchart TB
 
     subgraph BF["Backfill: ExtractNotesSuperState, one per Notes file"]
         direction LR
-        N1["ValidateNotesPeriod"]:::new --> N2["PrepareSecRequest"]:::reused --> N3["ExecuteSecRequest"]:::reused --> N4["StoreNotesArchive, later StoreSecResponse&lt;NotesFile&gt; (STA-384)"]:::new
+        N1["ValidateNotesPeriod"]:::new --> N2["PrepareSecRequest"]:::reused --> N3["ExecuteSecRequest"]:::reused --> N4["StoreSecResponse&lt;NotesFile&gt;"]:::impl
     end
 
     subgraph DT["New filing: DetectFilingsSuperState, one per day"]
@@ -98,7 +98,7 @@ Blue states are the generic `StoreSecResponse` state with one `StoredAs` impl of
 
 `StoreSecResponse<E, R>` writes the response to a request of kind `E` as one raw document
 (STA-383). `sec_request/kind.rs` defines `StoredAs`. Each kind implements it in its store module,
-for example `store_company_facts/mod.rs`:
+for example `store_company_facts/mod.rs` and `store_notes_archive/mod.rs`:
 
 ```rust
 pub trait StoredAs: HasResponse {
@@ -114,17 +114,18 @@ pub trait StoredAs: HasResponse {
 - The state bounds its repository by `RawRepository<E::Source>`. A repository of another source
   does not compile.
 - `STATE_NAME` is the name in `state_name()`, in the stream, and in the producer of the document.
-- The context holds the request input, the `execution_id`, and the repository. The input holds the
-  response in an `Arc`, the requested URL, the `User-Agent`, and the ingestion mode. The run sets
-  the mode, because `submissions` runs in both modes.
+- The context holds the request input, the `execution_id`, the ingestion mode, and the repository.
+  The input holds the response in an `Arc`, the requested URL, and the `User-Agent`. The run sets
+  the mode, because `submissions` runs in both modes (STA-384).
 - One generic transition moves `ExecuteSecRequest<E, C>` into `StoreSecResponse<E, R>`. It takes
   the `execution_id`, the ingestion mode, and the repository from the run.
 - `StoreCompanyFacts<R>` is an alias of `StoreSecResponse<CompanyFacts, R>`.
+  `StoreNotesArchive<R>` is an alias of `StoreSecResponse<NotesFile, R>`.
 
 | Store state | Kind | Status |
 | ----------- | ---- | ------ |
 | `StoreCompanyFacts` | `CompanyFacts` | `StoredAs` impl (STA-383) |
-| `StoreNotesArchive` | `NotesFile` | Own state. STA-384 moves it to a `StoredAs` impl. |
+| `StoreNotesArchive` | `NotesFile` | `StoredAs` impl (STA-384) |
 | `StoreSubmissions` | `Submissions` | Own state. A follow-up moves it to a `StoredAs` impl. |
 | `StoreDailyIndex` | `DailyIndex` | Own state. Its input and output are `Option`s, because `DownloadDailyIndex` turns a 404 into `None`. A follow-up can give it its own transition into `StoreSecResponse<DailyIndex, R>`. |
 | `StoreFilingDocuments` | `FilingDocumentSet` | Own state. It writes two sources, and `StoredAs` names one. |
@@ -155,7 +156,7 @@ Extraction::incremental().submissions().cik(cik).sec_client(c).repository(r).bui
 - Each `build()` returns the concrete SuperState, for example `ExtractNotesSuperState`. There is no
   generic SuperState.
 - The ingestion mode reaches the metadata of each raw document. See [Raw Store](#raw-store). While
-  `backfill()` is the only mode, `StoreNotesArchive` writes the mode `backfill` as a fixed value.
+  `backfill()` is the only mode, `ExtractNotesSuperState` passes the mode `backfill` from one constant.
   The facade passes the mode to the SuperState once `incremental()` exists (lead, 2026-10-29).
 - `Extraction::backfill()` creates one `execution_id` per run. Every SuperState built from the same
   handle carries it. `Extraction::backfill().execution_id(id)` replaces it (lead, 2026-10-29).
@@ -353,8 +354,8 @@ A separate REFACTOR renames the existing `ExtractSuperState` to `ExtractCompanyF
    through the `notes_period` field of the context. It runs the transport checks of [Validation](#validation), layer 1. Its output holds the
    `SecResponse<ZipBody>` in an `Arc`, because the state traits require `Clone`. The transition
    into `StoreNotesArchive` takes the `execution_id` from the super-state context.
-4. `StoreNotesArchive` takes the response out of its input, writes the bytes as a
-   `RawDocument<RawNotesArchive>`, and outputs a `NotesArchiveRef`.
+4. `StoreNotesArchive`, the alias of `StoreSecResponse<NotesFile, R>`, writes the bytes as a
+   `RawDocument<RawNotesArchive>` and outputs a `NotesArchiveRef`.
 
 `ExtractNotesSuperState::run_to_archive` runs the stream, hands each item to the caller, and
 returns the `NotesArchiveRef` as a typed value. The caller never parses the JSON of a stream item
@@ -531,11 +532,9 @@ failure did not reproduce, and its cause is open. Whether the run keeps the spli
 decision (STA-360).
 
 The output of `ExecuteSecRequest<NotesFile, …>` holds the response in an `Arc`. The transition to
-`StoreNotesArchive` moves the `Arc` into the input of `StoreNotesArchive`, which holds it as
-`Option<Arc<SecResponse<ZipBody>>>`. The state takes the `Arc` out of the input and builds the
+`StoreNotesArchive` moves the `Arc` into the input of `StoreNotesArchive`. The state builds the
 document from a borrow of the response. A second clone of the `Arc` does not stop the write, but
-it keeps the body buffer alive, so a transition must never keep one. A failed write consumes the
-response, so a retry needs a new input from `ExecuteSecRequest<NotesFile, …>`.
+it keeps the body buffer alive, so a transition must never keep one.
 
 ### Archive Metadata
 

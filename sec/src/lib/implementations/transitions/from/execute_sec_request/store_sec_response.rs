@@ -323,3 +323,99 @@ mod tests {
         assert_eq!(result, expected_result);
     }
 }
+
+#[cfg(test)]
+mod notes_tests {
+    use pretty_assertions::assert_eq;
+    use storage::WriteError;
+
+    use super::*;
+    use crate::implementations::states::extract::execute_sec_request::{
+        ExecuteSecRequestContext, ExecuteSecRequestInput,
+    };
+    use crate::implementations::states::extract::store_notes_archive::StoreNotesArchive;
+    use crate::implementations::states::extract::store_notes_archive::constants::STATE_NAME as STORE_NOTES_ARCHIVE;
+    use crate::prelude::*;
+    use crate::shared::notes_period::NotesPeriod;
+    use crate::shared::request::implementations::sec_request::{NotesFile, SecRequest};
+    use crate::tests::fixtures::data::notes_archive::SAMPLE_NOTES_ZIP;
+    use crate::tests::fixtures::sample_http_client::sample_sec_client::always_responding::AlwaysRespondingSecClient;
+    use crate::tests::fixtures::sample_write_repository::FakeNotesRepository;
+
+    const SAMPLE_EXECUTION_ID: Uuid = Uuid::from_u128(7);
+
+    type TestExecute = ExecuteSecRequest<NotesFile, AlwaysRespondingSecClient>;
+
+    fn period(raw_period: &str) -> NotesPeriod {
+        NotesPeriod::new(raw_period)
+            .expect("Given a hardcoded published period, parsing should always succeed")
+    }
+
+    fn rejecting_repository() -> FakeNotesRepository {
+        FakeNotesRepository::rejecting(WriteError::conflicting_write("Sample conflict"))
+    }
+
+    /// Returns a computed download of `request_period` whose context names the period `2024q1`.
+    async fn execute_with_output(request_period: &str) -> TestExecute {
+        let sec_client = AlwaysRespondingSecClient::new(
+            200,
+            vec![("content-type", "application/zip".to_string())],
+            SAMPLE_NOTES_ZIP.to_vec(),
+        );
+        let request = SecRequest::builder()
+            .notes_file()
+            .period(period(request_period))
+            .build();
+        let mut state = ExecuteSecRequest::new(
+            ExecuteSecRequestInput::new(sec_client, request),
+            ExecuteSecRequestContext::new(period("2024q1")),
+        );
+        state
+            .compute_output_data_async()
+            .await
+            .expect("Given status 200, a ZIP content type, and the ZIP fixture, the request should always succeed");
+        state
+    }
+
+    #[tokio::test]
+    async fn should_move_notes_period_into_context_when_source_has_output() {
+        let state = execute_with_output("2024q1").await;
+
+        let expected_result = period("2024q1");
+
+        let result = *StoreNotesArchive::try_from((
+            state,
+            SAMPLE_EXECUTION_ID,
+            IngestionMode::Backfill,
+            rejecting_repository(),
+        ))
+        .expect("Given a source state with output, the transition should always succeed")
+        .context_data()
+        .request_input();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_return_failed_context_conversion_when_request_names_another_period() {
+        let state = execute_with_output("2025_10").await;
+
+        let expected_result = TransitionError::FailedContextConversion(
+            transition::FailedContextConversion::new(
+                EXECUTE_SEC_REQUEST,
+                STORE_NOTES_ARCHIVE,
+                "The request targets 'https://www.sec.gov/files/dera/data/financial-statement-notes-data-sets/2025_10_notes.zip' for period '2025_10', but the context names period '2024q1'",
+            ),
+        );
+
+        let result = StoreNotesArchive::try_from((
+            state,
+            SAMPLE_EXECUTION_ID,
+            IngestionMode::Backfill,
+            rejecting_repository(),
+        ))
+        .expect_err("Given a request for another period, the transition should always fail");
+
+        assert_eq!(result, expected_result);
+    }
+}
