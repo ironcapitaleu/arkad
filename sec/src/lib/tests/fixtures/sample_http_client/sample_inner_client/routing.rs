@@ -1,5 +1,5 @@
 use std::cmp::Ordering;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::hash::{Hash, Hasher};
 use std::sync::{Arc, Mutex};
 
@@ -73,6 +73,21 @@ impl RequestCounts {
         drop(counts);
         earlier
     }
+
+    /// Returns each URL that received a request, with its number of requests, sorted by URL.
+    ///
+    /// # Panics
+    ///
+    /// Panics if another thread panicked while it held the lock.
+    #[must_use]
+    pub fn per_url(&self) -> BTreeMap<String, usize> {
+        self.0
+            .lock()
+            .expect("Given a lock that no thread poisoned, locking should always succeed")
+            .iter()
+            .map(|(url, count)| (url.clone(), *count))
+            .collect()
+    }
 }
 
 impl PartialEq for RequestCounts {
@@ -129,6 +144,20 @@ mod tests {
         let expected_result = 0;
 
         let result = counts.increment(OTHER_URL);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_the_requests_per_url_when_two_urls_were_counted() {
+        let counts = RequestCounts::default();
+        let _ = counts.increment(URL);
+        let _ = counts.increment(URL);
+        let _ = counts.increment(OTHER_URL);
+
+        let expected_result = BTreeMap::from([(OTHER_URL.to_string(), 1), (URL.to_string(), 2)]);
+
+        let result = counts.per_url();
 
         assert_eq!(result, expected_result);
     }

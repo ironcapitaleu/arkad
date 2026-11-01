@@ -34,13 +34,23 @@ pub(super) enum DateOutcome {
     Failed(StreamError),
 }
 
-/// The outcome of one filing: stored, or the error of the state that failed.
+/// How the run got the stored documents of a filing.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum Fetch {
+    /// The run downloaded and stored the documents.
+    Downloaded,
+    /// The store already held an intact instance, so the run sent no request for the filing.
+    AlreadyStored,
+}
+
+/// The outcome of one filing: how the run got its documents, or the error of the state that
+/// failed.
 #[derive(Debug)]
 pub(super) struct FilingOutcome {
     /// The accession number of the filing.
     pub(super) accession_number: AccessionNumber,
-    /// `Ok` if the run stored the documents of the filing.
-    pub(super) result: Result<(), StreamError>,
+    /// `Ok` if the store holds the documents of the filing after the run.
+    pub(super) result: Result<Fetch, StreamError>,
 }
 
 /// The outcome of the `submissions` file of one company.
@@ -155,8 +165,10 @@ impl DailyRunSummary {
     /// Returns one JSON entry per date.
     ///
     /// Each entry names the date and the outcome of detection: `processed`, `empty` (no filing
-    /// selected), `pending`, or `failed`. A processed date lists the counts of selected and stored
-    /// filings and `submissions` files, and each unextractable or failed one with its error.
+    /// selected), `pending`, or `failed`. A processed date lists the counts of selected, stored,
+    /// and already stored filings, the counts of `submissions` files, and each unextractable or
+    /// failed one with its error. A stored filing is one the run downloaded. An already stored
+    /// filing is one the store held before the run, so the run sent no request for it.
     #[must_use]
     pub fn entries(&self) -> Vec<Value> {
         self.0
@@ -200,9 +212,16 @@ fn filing_entries(filings: &[FilingOutcome]) -> Value {
             })
             .collect()
     };
+    let fetched_by = |fetch: Fetch| {
+        filings
+            .iter()
+            .filter(|filing| filing.result.as_ref().is_ok_and(|found| *found == fetch))
+            .count()
+    };
     json!({
         "selected": filings.len(),
-        "stored": filings.iter().filter(|filing| filing.result.is_ok()).count(),
+        "stored": fetched_by(Fetch::Downloaded),
+        "already_stored": fetched_by(Fetch::AlreadyStored),
         "unextractable": errors(true),
         "failed": errors(false),
     })
@@ -367,7 +386,7 @@ pub(super) mod tests {
     }
 
     fn processed(
-        filing_results: Vec<Result<(), StreamError>>,
+        filing_results: Vec<Result<Fetch, StreamError>>,
         company_results: Vec<Result<(), StreamError>>,
     ) -> DateOutcome {
         DateOutcome::Processed {
@@ -504,6 +523,7 @@ pub(super) mod tests {
             "filings": {
                 "selected": 1,
                 "stored": 0,
+                "already_stored": 0,
                 "unextractable": [],
                 "failed": [{
                     "accession_number": "0000003545-26-000047",
@@ -532,7 +552,10 @@ pub(super) mod tests {
         let summary = DailyRunSummary(vec![
             (
                 date("2026-10-30"),
-                processed(vec![Ok(()), Err(missing_instance())], vec![Ok(())]),
+                processed(
+                    vec![Ok(Fetch::Downloaded), Err(missing_instance())],
+                    vec![Ok(())],
+                ),
             ),
             (
                 date("2026-10-31"),
@@ -595,7 +618,13 @@ pub(super) mod tests {
         let expected_result = vec![json!({
             "date": "2026-10-31",
             "detection": "empty",
-            "filings": { "selected": 0, "stored": 0, "unextractable": [], "failed": [] },
+            "filings": {
+                "selected": 0,
+                "stored": 0,
+                "already_stored": 0,
+                "unextractable": [],
+                "failed": [],
+            },
             "submissions": { "companies": 0, "stored": 0, "failed": [] },
         })];
 
@@ -608,7 +637,10 @@ pub(super) mod tests {
     fn should_list_an_unextractable_filing_apart_from_the_failed_ones_when_a_date_is_processed() {
         let summary = DailyRunSummary(vec![(
             date("2026-10-30"),
-            processed(vec![Ok(()), Err(missing_instance())], vec![Ok(())]),
+            processed(
+                vec![Ok(Fetch::Downloaded), Err(missing_instance())],
+                vec![Ok(())],
+            ),
         )]);
 
         let expected_result = vec![json!({
@@ -617,6 +649,7 @@ pub(super) mod tests {
             "filings": {
                 "selected": 2,
                 "stored": 1,
+                "already_stored": 0,
                 "unextractable": [{
                     "accession_number": "0000003545-26-000047",
                     "failed_state": "Select Filing Documents",
@@ -628,6 +661,30 @@ pub(super) mod tests {
         })];
 
         let result = summary.entries();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_count_an_already_stored_filing_apart_from_a_downloaded_one_when_a_date_is_processed()
+    {
+        let summary = DailyRunSummary(vec![(
+            date("2026-10-30"),
+            processed(
+                vec![Ok(Fetch::AlreadyStored), Ok(Fetch::Downloaded)],
+                vec![Ok(())],
+            ),
+        )]);
+
+        let expected_result = json!({
+            "selected": 2,
+            "stored": 1,
+            "already_stored": 1,
+            "unextractable": [],
+            "failed": [],
+        });
+
+        let result = summary.entries()[0]["filings"].clone();
 
         assert_eq!(result, expected_result);
     }

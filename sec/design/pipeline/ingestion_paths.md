@@ -1316,9 +1316,11 @@ The shape of design 5:
 - `StoreFilingDocuments<I, L>` holds two repositories, `I: RawRepository<RawXbrlInstance>` and
   `L: RawRepository<RawXbrlLabels>`. A `WriteRepository` has one `Record` type, so one repository
   cannot write both sources (STA-375).
-- The state writes the instance first, then the label file. If the label write fails, the
-  instance stays stored and the state returns `FailedDocumentWrite` with no output. A new run
-  stores the same instance bytes, which `persist` skips, and writes the label file.
+- The state writes the label file first, then the instance. If the label write fails, the state
+  writes no instance and returns `FailedDocumentWrite` with no output. If the instance write
+  fails, the label file stays stored. A new run stores the same label bytes, which `persist`
+  skips, and writes the instance. So a stored instance means that every file of the filing is
+  stored, and the `daily_filings` run can skip a filing by its instance key (STA-413).
 
 Decided in STA-376:
 
@@ -1398,8 +1400,8 @@ or `yesterday-N`, the day `N` days before yesterday (`N` at least 1).
 | Rerun one past day | `ARKAD_FROM=2026-10-15`, `ARKAD_TO=2026-10-15` |
 | Rerun a past week | `ARKAD_FROM=2026-10-13`, `ARKAD_TO=2026-10-19` |
 
-The task timeout of the job is 30 minutes. A filing takes at least 3 requests, and its company 1
-more. The rate limiter allows one request each 110 ms. In 2024q1 the selection kept about 90
+The task timeout of the job is 30 minutes. A new filing takes at least 3 requests, and its company
+1 more. A filing whose instance the store holds takes none (see [One Date](#one-date)). The rate limiter allows one request each 110 ms. In 2024q1 the selection kept about 90
 filings per business day. The busiest day measured, 2026-08-10, had 295. So 40 business days take about 26 minutes at the
 rate limit alone. A timeout makes Cloud Run rerun the same range, which times out again. So a
 catch-up runs in ranges of at most 7 days, or as one execution with a longer task timeout
@@ -1448,9 +1450,14 @@ fail.
   that date with `ARKAD_FROM` and `ARKAD_TO`.
 - `MissingDailyIndex` also covers a refused request, such as a rate-limit 403. Such a date is
   pending too, and the next run reads it again.
-- Each run reads up to 3 dates again. A peak day takes about 9 minutes at the rate limit, so a
-  window of 4 days fits in the task timeout. Every write is idempotent, so a second read writes no
-  duplicate row.
+- Each run reads up to 3 dates again. A second read of a date sends 1 request for the daily
+  index, 1 per company for `submissions`, and 1 per unextractable filing for its folder. It sends
+  none for a filing whose instance the store holds (STA-413). A peak day of 295 filings takes about
+  9 minutes at the rate limit when new, and under 1 minute when read again. So a window of 4 days
+  fits in the task timeout. Every write is idempotent, so a second read writes no duplicate row.
+- An unextractable filing stores nothing, so each read of its date fetches its folder again. A
+  record of the unextractable filing, so that a later run skips it too, is the open part of
+  STA-413.
 - A rerun of dates older than `yesterday-2` has no pending dates. A date without an index fails.
 - Later: STA-403 replaces the window with a bookmark, the last date that finished, read from the
   store. A run then reads from the bookmark plus 1 through yesterday, and reads no date again.
@@ -1463,7 +1470,14 @@ All super-states of one run share one `execution_id`. For each date, in this ord
    `FilingRef`s and the stored daily index as an `InputDocument`. A weekend or a holiday returns an
    empty list and no index once a later index exists. Before that, the date is pending (see
    [Window](#window)).
-2. One `ExtractFilingSuperState` for each `FilingRef`, with the daily index as its input.
+2. For each `FilingRef`, the run first reads the key of its stored instance with
+   `ReadRepository::get`. The key follows from the `FilingRef` alone
+   (`shared/filing_documents_ref/mod.rs`). If the store holds the instance and it passes the size
+   and SHA-256 check, the filing counts as already stored and sends no request. A read error,
+   such as a size or digest mismatch, fetches the filing again, as in STA-400. The read is by key,
+   not by a listing, which belongs to STA-403.
+   One `ExtractFilingSuperState` runs for each other `FilingRef`, with the daily index as its
+   input.
    `run_to_documents` returns the `FilingDocumentsRef`. At most `in_flight(n)` machines run at once, by default `DEFAULT_MACHINES_IN_FLIGHT` (4). The global
    rate limiter of `SecClient` caps the requests, so a value above 4 does not make the run faster.
 3. One `ExtractSubmissionsSuperState` for each distinct CIK of the selected filings, with the
@@ -1479,6 +1493,7 @@ Each machine ends in one of four outcomes:
 | Outcome | When | Log | Exit code |
 | ------- | ---- | --- | --------- |
 | stored | the machine stored its documents | `info` | no effect |
+| already stored | the store held the intact instance before the run, so no machine ran | none | no effect |
 | pending | detection fails with `MissingDailyIndex` on a date from `yesterday-2` through yesterday that is not the first date of the run | `warn` | no effect |
 | unextractable | `SelectFilingDocuments` fails with `MissingXbrlInstance`: the folder has no XBRL instance | `warn` | no effect |
 | failed | every other error: a request, a parse, a store, a detection, `AmbiguousFilingDocument`, `MissingDailyIndex` on any other date | `error` | error |
@@ -1521,8 +1536,8 @@ JSON logs with the five fields of `AGENTS.md`, as in `notes_backfill`:
 - one line per stream item and per error, with the date, the accession number or the CIK, and the
   `execution_id` in `context`;
 - one summary line at the end of the run. It holds one entry per date: the outcome of detection
-  (processed, empty, pending, or failed), the selected filings, and the stored, unextractable, and
-  failed filings and `submissions` files, each failure with its failed state. A pending date and a
+  (processed, empty, pending, or failed), the selected filings, and the stored, already stored,
+  unextractable, and failed filings and `submissions` files, each failure with its failed state. A pending date and a
   closed day both select no filings, so only the detection outcome tells them apart.
 
 #### Module Layout
@@ -1564,7 +1579,10 @@ it. `sec/tests/daily_filings.rs` includes `dates.rs` and `constants.rs` through 
   first date passes, which is pending and leaves
   the exit code alone; a missing index on `yesterday-3`, the first date, which fails; a missing
   index on yesterday as the only date of the run, which fails; the ingestion mode `incremental`
-  in the metadata of each of the four document types.
+  in the metadata of each of the four document types; one date run twice on one store, whose
+  second run sends only the requests for the daily index and `submissions` and lists the filing
+  as already stored; a stored instance that fails the SHA-256 check, which the second run fetches
+  again (STA-413).
 - Live against `www.sec.gov`, in `sec/tests/daily_filings.rs`, as `sec/tests/extract_filing.rs`
   does: one past weekday, which stores the daily index, at least one filing, and its
   `submissions` file.
@@ -1615,8 +1633,8 @@ Rules:
    keeps the overlap free of duplicate rows.
 7. The operator sets the first `ARKAD_FROM` of `daily_filings` by rule 1, after the check of
    rule 5. Once the facade exists, the binary `backfill` passes `cut_over_date()` to its second
-   call, so no operator sets the start date. `daily_filings` reads no stored document, so it
-   cannot check this rule itself. The check from the store comes with the repository listing
+   call, so no operator sets the start date. `daily_filings` reads no stored document to pick its
+   dates, so it cannot check this rule itself. The check from the store comes with the repository listing
    (STA-403).
 8. A backfill run can repeat. It skips each stored file that passes the size and SHA-256 check
    (STA-400), so a repeat downloads only the files that are missing or that the store cannot
@@ -1980,10 +1998,10 @@ Moved code does not count toward the 400 lines.
 7. FEATURE: `backfill().company_facts()`. `stream_extract` runs on it and moves to
    `sec/examples/`, with the `Dockerfile` and `README.md` (STA-358).
 
-Potential follow-up, no ticket yet: `daily_filings()` skips the download of a filing whose documents the
-store already holds, as `notes()` skips an intact stored Notes file (STA-400). A rerun of
-`backfill` then downloads only the missing filings. The check reads the stored instance by its
-key per accession number, or uses the repository listing (STA-403).
+`daily_filings()` skips a filing whose intact instance the store already holds, before any request,
+as `notes()` skips an intact stored Notes file (STA-400). The check reads the stored instance by
+its key per accession number (STA-413). A rerun of `backfill` then downloads only the missing
+filings.
 
 MVP Operations owns the Cloud Run jobs and the schedule. These tickets are not in this list.
 
