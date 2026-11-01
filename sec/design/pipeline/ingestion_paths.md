@@ -164,9 +164,9 @@ Two binaries run the facade:
 | `daily_filings` | `incremental().daily_filings()` over the last days | Cloud Scheduler, once a day |
 
 So one run of `backfill` extracts everything up to yesterday, and it sets the cut-over date
-itself. `daily_filings` then keeps the store current. `notes_backfill` becomes `backfill`.
-`stream_extract` and the Notes-only `notes_backfill` stay as deprecated examples. See
-[Deprecated Binaries](#deprecated-binaries).
+itself. `daily_filings` then keeps the store current. The binary `backfill` replaces
+`notes_backfill`. A Notes-only copy of `notes_backfill`, and `stream_extract`, move to
+`sec/examples/` as deprecated examples. See [Deprecated Binaries](#deprecated-binaries).
 
 #### What the Binaries Run Today
 
@@ -217,8 +217,11 @@ Extraction::incremental()
 - A source takes either one unit (`period`, `cik`, `date`, `filing_ref`) and ends in `build()`, or
   many units (`periods`, `ciks`, `dates`) and ends in `run()`. The typestate builder offers
   `build()` only after one unit and `run()` only after many.
-- `in_flight(n)` caps the units that run at once. Without the call, the source uses its default:
-  2 for Notes, 4 for the others. The rate limiter of the SEC client still caps the requests.
+- `in_flight(n)` caps the machines that run at once. In a batch, these are the units. In a
+  pipeline, these are the machines inside one step: the periods or CIKs of `all()`, or the
+  filings or CIKs of one date. `daily_filings()` runs its dates in order, because the pending
+  rule depends on the order. Without the call, the source uses its default: 2 for Notes, 4 for
+  the others. The rate limiter of the SEC client still caps the requests.
 - `all()` and `daily_filings()` are the two pipelines. `all()` runs `notes()` over the periods,
   then `submissions()` over the distinct CIKs of the stored Notes files (STA-377).
 - The units of `daily_filings()` are the dates. Per date, the facade runs
@@ -251,8 +254,9 @@ observer: impl Fn(&Unit, RunEvent<'_>) + Send + Sync + 'static
 - Each source has its own summary type, with `result()` and `entries()`, as the binaries have
   today.
 - The summary of `all()` also has `cut_over_date()`. It returns the last day of the newest stored
-  Notes month. If a period failed, it returns the error of `result()`, so a gap can never pass
-  into the catch-up. See [Cut-Over Between the Paths](#cut-over-between-the-paths).
+  Notes month. It fails only if a Notes period failed, so a gap can never pass into the
+  catch-up. A failed `submissions` CIK does not block the catch-up, but it fails `result()`. See
+  [Cut-Over Between the Paths](#cut-over-between-the-paths).
 - The callback replaces a returned event stream. A stream gives the same timing, but each `main`
   then needs its own loop, and a slow reader stalls the run.
 
@@ -359,6 +363,7 @@ let recent = Extraction::incremental()
     .run(log_event)
     .await;
 log_summary(&recent);
+past.result()?;
 recent.result()?;
 
 // daily_filings
@@ -379,8 +384,12 @@ summary.result()?;
 - Both calls of `backfill` carry one `execution_id`, so the logs and the metadata name one run.
   Each document still records its own mode: `backfill` for the Notes files, `incremental` for the
   daily indexes and filings.
-- A CIK in the overlap gets its `submissions` file twice, once per call. The write is idempotent,
-  so the second write is skipped.
+- A CIK in the overlap gets its `submissions` file twice, once per call. If the SEC body is the
+  same, `persist` skips the second write, and the file keeps the mode `backfill`. If the body
+  changed, the second fetch replaces the file (see [Raw Store](#raw-store)), and the file records
+  the mode `incremental`.
+- `backfill` exits with an error if a CIK of `all()` failed or if the catch-up failed. It checks
+  `past.result()` after the catch-up, so a failed CIK does not stop the catch-up.
 - `dates_between` and `run_dates` stay in the binaries, because they read time and the environment.
 
 #### Deprecated Binaries
@@ -389,6 +398,11 @@ summary.result()?;
 that marks them deprecated. `cargo test` builds the examples, so the build keeps them on the
 current facade. They are the reference for a run of one source against the live SEC. The hermetic
 integration tests of the facade go in `sec/tests/`, with the fake SEC clients of `sec::tests`.
+
+- The examples load `sec_client.rs` and `storage_root.rs` through `#[path]`. From `sec/examples/`,
+  the paths change, and the dependencies of the examples move to `[dev-dependencies]`.
+- `extraction`, a demo of `ExtractCompanyFactsSuperState`, and `stream_etl`, which also runs
+  transform, stay outside the facade. STA-358 decides about `extraction`.
 ### Repository in the Machines
 
 > **Status:** accepted by the lead on 2026-10-31 (STA-398), with all three decisions. The first
@@ -1853,7 +1867,8 @@ Proposed for MVP Operations. Both paths run as Cloud Run jobs with the bucket mo
 - The catch-up of `backfill` reads 30 to 60 days, from the cut-over date to yesterday. A peak day
   takes about 9 minutes, so 60 days take at most 9 hours. Hence the timeout of 12 hours (estimate).
   A rerun downloads each filing of those days again, because `daily_filings()` has no skip of
-  stored files. Every write is idempotent, so the rerun is safe.
+  stored files. Every write is idempotent, so the rerun is safe. A later ticket can add the skip.
+  See [Implementation Tickets](#implementation-tickets).
 - The scheduled `daily_filings` job sets `ARKAD_FROM=yesterday-3`. The first run and a rerun set
   `ARKAD_FROM`, and `ARKAD_TO` if needed, to dates. Without `ARKAD_FROM` the job fails at startup.
   All dates are Eastern time. See [Daily Run](#daily-run).
@@ -1921,7 +1936,8 @@ New filing and company data:
 17. FEATURE: the binary `daily_filings`.
 18. FEATURE: the `submissions` run in `notes_backfill`.
 
-Facade, after [Calling the Machines](#calling-the-machines) (STA-399). It replaces item 16 above.
+Facade, after [Calling the Machines](#calling-the-machines) (STA-399). It replaces items 16 and 18
+above.
 Moved code does not count toward the 400 lines.
 
 1. REFACTOR: each super-state builder takes `.ingestion_mode(m)`, and `Backfill::notes()` passes
@@ -1934,9 +1950,15 @@ Moved code does not count toward the 400 lines.
    into the facade, and `daily_filings` calls it (STA-363).
 5. FEATURE: `backfill().submissions().ciks(…).run()` and the pipeline `backfill().all()` with
    `cut_over_date()` (STA-377).
-6. FEATURE: the binary `backfill` with its two calls. `notes_backfill` and `stream_extract` move to
-   `sec/examples/` as deprecated (STA-363).
+6. FEATURE: the binary `backfill` with its two calls. A Notes-only copy of `notes_backfill`, and
+   `stream_extract`, move to `sec/examples/` as deprecated, with their `#[path]` and
+   `[dev-dependencies]` changes (STA-363).
 7. FEATURE: `backfill().company_facts()`, and the example `stream_extract` on the facade (STA-358).
+
+Later, potential follow-up: `daily_filings()` skips the download of a filing whose documents the
+store already holds, as `notes()` skips an intact stored Notes file (STA-400). A rerun of
+`backfill` then downloads only the missing filings. The check reads the stored instance by its
+key per accession number, or uses the repository listing (STA-403). No ticket yet.
 
 MVP Operations owns the Cloud Run jobs and the schedule. These tickets are not in this list.
 
