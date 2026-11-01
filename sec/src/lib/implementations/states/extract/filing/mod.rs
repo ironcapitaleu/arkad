@@ -5,6 +5,13 @@
 //!
 //! The super-state owns the [`FilingRef`], the shared SEC client, the `execution_id`, and the two
 //! storage repositories.
+//!
+//! ## Modules
+//!
+//! - [`builder`]: Builds the [`ExtractFilingSuperState`] at its entry state, the
+//!   [`PrepareSecRequest`] of the [`FilingIndex`] kind.
+
+pub mod builder;
 
 use std::fmt::{self, Display, Formatter};
 
@@ -14,12 +21,18 @@ use state_maschine::prelude::StateMachine as SMStateMachine;
 use uuid::Uuid;
 
 use crate::error::State as StateError;
+use crate::implementations::states::extract::filing::builder::{
+    ExtractFilingSuperStateBuilder, NoExecutionId, NoFilingRef, NoInstanceRepository,
+    NoLabelsRepository, NoSecClient,
+};
+use crate::implementations::states::extract::prepare_sec_request::PrepareSecRequest;
 use crate::prelude::*;
 use crate::shared::filing_ref::FilingRef;
 use crate::shared::http_client::SecClient as SecClientTrait;
 use crate::shared::http_client::implementations::sec_client::SecClient;
 use crate::shared::raw_repository::RawRepository;
 use crate::shared::raw_source::{RawXbrlInstance, RawXbrlLabels};
+use crate::shared::request::implementations::sec_request::FilingIndex;
 
 /// Input and output data for the [`ExtractFilingSuperState`].
 ///
@@ -251,6 +264,24 @@ where
 {
 }
 
+impl<I, L> ExtractFilingSuperState<PrepareSecRequest<FilingIndex>, I, L>
+where
+    I: RawRepository<RawXbrlInstance>,
+    L: RawRepository<RawXbrlLabels>,
+{
+    /// Returns an [`ExtractFilingSuperStateBuilder`] that holds no field yet.
+    #[must_use]
+    pub const fn builder() -> ExtractFilingSuperStateBuilder<
+        NoFilingRef,
+        NoSecClient,
+        NoExecutionId,
+        NoInstanceRepository<I>,
+        NoLabelsRepository<L>,
+    > {
+        ExtractFilingSuperStateBuilder::new()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use chrono::NaiveDate;
@@ -258,12 +289,11 @@ mod tests {
 
     use super::*;
     use crate::implementations::states::extract::prepare_sec_request::{
-        PrepareSecRequest, PrepareSecRequestContext, PrepareSecRequestInput,
+        PrepareSecRequestContext, PrepareSecRequestInput,
     };
     use crate::shared::cik::Cik;
     use crate::shared::financial::accession_number::AccessionNumber;
     use crate::shared::financial::form::{Form, ParsedForm};
-    use crate::shared::request::implementations::sec_request::FilingIndex;
     use crate::tests::fixtures::sample_http_client::sample_sec_client::routing::RoutingSecClient;
     use crate::tests::fixtures::sample_write_repository::{
         FakeXbrlInstanceRepository, FakeXbrlLabelsRepository,
