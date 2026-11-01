@@ -13,6 +13,7 @@ use std::time::Duration;
 use chrono::{Days, NaiveDate};
 use futures_util::StreamExt;
 use sec::error::{State as StateError, StateMachine};
+use sec::implementations::extraction::Extraction;
 use sec::implementations::states::extract::daily_index::{
     DetectFilingsSuperState, DetectedFilings,
 };
@@ -35,7 +36,7 @@ use sec::shared::request::implementations::sec_request::{FilingDocumentSet, Fili
 use sec::shared::response::implementations::sec_response::{JsonBody, SecResponse, ZipBody};
 use serde_json::{Value, json};
 use storage::implementations::repository::filesystem::{
-    FilesystemRepository, IngestionMode, InputDocument, Write,
+    FilesystemRepository, InputDocument, Write,
 };
 use thiserror::Error;
 use uuid::Uuid;
@@ -366,11 +367,11 @@ where
     let mut outcomes = Vec::with_capacity(dates.len());
     for &date in dates {
         let context = json!({ "date": date.to_string() });
-        let detection = DetectFilingsSuperState::builder()
+        let detection = Extraction::incremental()
+            .execution_id(settings.execution_id)
+            .daily_index()
             .date(date.to_string())
             .sec_client(sec_client.clone())
-            .execution_id(settings.execution_id)
-            .ingestion_mode(IngestionMode::Incremental)
             .repository(repositories.daily_index.clone())
             .build()
             .run_to_detected_filings(|item| on_item(&context, item))
@@ -446,11 +447,11 @@ where
         let result = with_retry(
             &settings.retry_delays,
             || {
-                ExtractFilingSuperState::builder()
+                Extraction::incremental()
+                    .execution_id(settings.execution_id)
+                    .filing()
                     .filing_ref(filing.clone())
                     .sec_client(sec_client.clone())
-                    .execution_id(settings.execution_id)
-                    .ingestion_mode(IngestionMode::Incremental)
                     .instance_repository(repositories.instance.clone())
                     .labels_repository(repositories.labels.clone())
                     .inputs(inputs.clone())
@@ -507,11 +508,11 @@ where
         let result = with_retry(
             &settings.retry_delays,
             || {
-                let stream = ExtractSubmissionsSuperState::builder()
+                let stream = Extraction::incremental()
+                    .execution_id(settings.execution_id)
+                    .submissions()
                     .cik(cik.to_string())
                     .sec_client(sec_client.clone())
-                    .execution_id(settings.execution_id)
-                    .ingestion_mode(IngestionMode::Incremental)
                     .repository(repositories.submissions.clone())
                     .build()
                     .into_run_stream();
