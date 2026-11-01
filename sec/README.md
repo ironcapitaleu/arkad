@@ -55,6 +55,13 @@ cargo run --features tracing-logging --bin stream_etl
 # facade. It exits with an error if a CIK failed.
 cargo run --features tracing-logging --example stream_extract
 
+# First load: every Notes period up to last month, then the new filings of each date from the
+# cut-over date to yesterday. It exits with an error if a period, a date, or a filing failed.
+cargo run --features tracing-logging --bin backfill
+
+# Deprecated example: the Notes periods alone, as the binary notes_backfill ran them.
+cargo run --features tracing-logging --example notes_backfill
+
 # New filings of each date from ARKAD_FROM to ARKAD_TO, days in New York. ARKAD_TO defaults to
 # yesterday. Each value is YYYY-MM-DD, yesterday, or yesterday-N.
 ARKAD_FROM=yesterday-3 cargo run --features tracing-logging --bin daily_filings

@@ -172,8 +172,8 @@ example. `stream_extract` is there already. See [Deprecated Binaries](#deprecate
 
 #### What the Binaries and the Example Run Today
 
-| | `notes_backfill` | `stream_extract` | `daily_filings` |
-| - | ---------------- | ---------------- | --------------- |
+| | `notes_backfill` (example) | `stream_extract` | `daily_filings` |
+| - | -------------------------- | ---------------- | --------------- |
 | Unit | Notes period | CIK of a fixed list | date, then filing, then CIK |
 | Loop | `buffer_unordered`, sorted by index after | `buffer_unordered`, sorted by index after (facade, STA-358) | dates in order, `buffered` per date |
 | Cap | `ARKAD_FILES_IN_FLIGHT`, default 2 | all CIKs (`in_flight(CIKS.len())`), facade default 4 | `DEFAULT_MACHINES_IN_FLIGHT` = 4 (facade, STA-415) |
@@ -339,7 +339,7 @@ flowchart LR
     DF -->|"run over the last days"| DFS
     EX -->|run| CF
     ALL -->|"1. per period"| ENS[ExtractNotesSuperState]
-    ALL -->|"2. per CIK"| ESS[ExtractSubmissionsSuperState]
+    ALL -->|"2. per CIK, all() only"| ESS[ExtractSubmissionsSuperState]
     DFS -->|"1. per date"| DET[DetectFilingsSuperState]
     DFS -->|"2. per filing"| EFS[ExtractFilingSuperState]
     DFS -->|"3. per CIK"| ESS
@@ -405,8 +405,8 @@ summary.result()?;
 
 #### Deprecated Binaries
 
-A Notes-only copy of `notes_backfill` moves to `sec/examples/` in ticket 6. `stream_extract` is
-there already (ticket 7, STA-358). Each gets a header comment that marks it deprecated. CI runs `cargo clippy --workspace --all-targets
+A Notes-only copy of `notes_backfill` is in `sec/examples/` (ticket 6, STA-416). `stream_extract` is
+there too (ticket 7, STA-358). Each gets a header comment that marks it deprecated. CI runs `cargo clippy --workspace --all-targets
 --all-features`, which compiles the examples, so the build keeps them on the current facade.
 `cargo test` in CI does not build them. They are the reference for a run of one source against the live SEC. The hermetic
 integration tests of the facade go in `sec/tests/`, with the fake SEC clients of `sec::tests`.
@@ -1596,8 +1596,8 @@ Rules:
 
 1. The new-filing path starts at the daily index of the last day of the newest stored Notes
    month. That day is in both paths. The overlap of one day covers assumption A2 below.
-2. The first run reads every day from the start date up to yesterday. Once the facade exists
-   (STA-416), the binary `backfill` does this in its second call. Each later run of
+2. The first run reads every day from the start date up to yesterday. The binary `backfill` runs
+   the first load: the Notes periods, then this catch-up in its second call (STA-416). Each later run of
    `daily_filings` reads the last 4 days (`ARKAD_FROM=yesterday-3`). See [Window](#window).
 3. If the run missed a day older than the window, rerun that date.
 4. A filing that reaches both paths writes no duplicate row, because every write is idempotent.
@@ -1614,8 +1614,8 @@ Rules:
 6. If a later backfill run stores newer months, those months overlap the new-filing path. Rule 4
    keeps the overlap free of duplicate rows.
 7. The operator sets the first `ARKAD_FROM` of `daily_filings` by rule 1, after the check of
-   rule 5. Once the facade exists, the binary `backfill` passes `cut_over_date()` to its second
-   call, so no operator sets the start date. `daily_filings` reads no stored document, so it
+   rule 5. The binary `backfill` passes `cut_over_date()` to its second call, so no operator sets
+   the start date. `daily_filings` reads no stored document, so it
    cannot check this rule itself. The check from the store comes with the repository listing
    (STA-403).
 8. A backfill run can repeat. It skips each stored file that passes the size and SHA-256 check
@@ -1882,7 +1882,7 @@ Proposed for MVP Operations. Both paths run as Cloud Run jobs with the bucket mo
 
 | Path | Binary | Trigger | Size (estimate) |
 | ---- | ------ | ------- | --------------- |
-| Backfill | `notes_backfill`, later `backfill` | By hand, once. Rerun by hand. | 6 to 8 GiB memory, task timeout of 1 hour. With the catch-up of `backfill`, 12 hours |
+| Backfill | `backfill` | By hand, once. Rerun by hand. | 6 to 8 GiB memory, task timeout of 1 hour. With the catch-up of `backfill`, 12 hours |
 | New filing | `daily_filings` | Cloud Scheduler, once a day at 07:13 UTC | 1 GiB memory, task timeout of 30 minutes |
 
 - The catch-up of `backfill` reads 30 to 60 days, from the cut-over date to yesterday. At the
@@ -1906,8 +1906,9 @@ Proposed for MVP Operations. Both paths run as Cloud Run jobs with the bucket mo
   exits with an error if any machine failed, and Cloud Run retries it. Pending and unextractable
   do not count as failed. The retry is safe, because
   every write is idempotent.
-- `notes_backfill` runs the `submissions` machine for each distinct CIK after the Notes files.
-- `notes_backfill` reads `ARKAD_FILES_IN_FLIGHT` for the number of Notes files in flight. Unset, it
+- Once `all()` lands (STA-377), `backfill` runs the `submissions` machine for each distinct CIK
+  after the Notes files.
+- `backfill` reads `ARKAD_FILES_IN_FLIGHT` for the number of Notes files in flight. Unset, it
   uses 2. STA-379 measures the value for Cloud Run.
 - Both jobs share the SEC client, the User-Agent, and the storage root through
   `sec/src/bin/shared/`.
