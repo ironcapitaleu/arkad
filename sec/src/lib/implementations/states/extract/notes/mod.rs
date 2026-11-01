@@ -673,14 +673,12 @@ mod tests {
     {
         let download = downloaded_super_state().await;
 
-        let expected_result = Some(1);
+        let expected_result = 1;
 
         let store = download
             .transition_to_next_state_sec()
             .expect("Given a computed download, the transition should always succeed");
-        let result = Some(Arc::strong_count(
-            &store.current_state().input_data().response,
-        ));
+        let result = Arc::strong_count(&store.current_state().input_data().response);
 
         assert_eq!(result, expected_result);
     }
@@ -721,6 +719,23 @@ mod tests {
         let expected_result = vec![STORE_NOTES_ARCHIVE.to_string()];
 
         let result = failed_state_names(super_state).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_name_the_notes_period_in_the_context_of_the_store_state_when_running_the_stream()
+     {
+        let notes_period = "2024q1";
+        let super_state = super_state(notes_period, FakeNotesRepository::new());
+
+        let expected_result = Some(serde_json::json!(notes_period));
+
+        let items = run_stream(super_state).await;
+        let result = items
+            .last()
+            .and_then(|item| item.data.pointer("/context/notes_period"))
+            .cloned();
 
         assert_eq!(result, expected_result);
     }

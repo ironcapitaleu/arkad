@@ -116,7 +116,7 @@ pub trait StoredAs: HasResponse {
 - `STATE_NAME` is the name in `state_name()`, in the stream, and in the producer of the document.
 - The context holds the request input, the `execution_id`, the ingestion mode, and the repository.
   The input holds the response in an `Arc`, the requested URL, and the `User-Agent`. The run sets
-  the mode, because `submissions` runs in both modes (STA-384).
+  the mode, because `submissions` runs in both modes. STA-384 moved the mode into the context.
 - One generic transition moves `ExecuteSecRequest<E, C>` into `StoreSecResponse<E, R>`. It takes
   the `execution_id`, the ingestion mode, and the repository from the run.
 - `StoreCompanyFacts<R>` is an alias of `StoreSecResponse<CompanyFacts, R>`.

@@ -320,7 +320,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_persist_the_ingestion_mode_of_the_context() {
+    async fn should_persist_the_ingestion_mode_of_the_context_when_the_context_names_incremental() {
         let repository = FakeWriteRepository::new();
         let cik = Cik::new("1067983")
             .expect("Given a hardcoded numeric CIK, its creation should always succeed");
