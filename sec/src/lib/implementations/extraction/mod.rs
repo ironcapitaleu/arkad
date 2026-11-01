@@ -9,12 +9,15 @@
 //! with [`BackfillNotes::periods`], the Company Facts and the `submissions` sources a batch of
 //! CIKs with [`BackfillCompanyFacts::ciks`] and [`BackfillSubmissions::ciks`], and the new-filing
 //! path runs many dates with
-//! [`Incremental::daily_filings`].
+//! [`Incremental::daily_filings`]. [`Backfill::all`] runs the Notes periods, then the
+//! `submissions` file of each CIK of the stored Notes files.
 //!
 //! [`build`]: crate::implementations::states::extract::notes::builder::ExtractNotesSuperStateBuilder::build
 //!
 //! ## Modules
 //!
+//! - [`all`]: The pipeline of a backfill run: the Notes periods, then the `submissions` file of
+//!   each distinct CIK of the stored Notes files.
 //! - [`company_facts`]: The Company Facts source of a backfill run, and its batch run over many
 //!   CIKs.
 //! - [`daily_filings`]: The new-filing path of an incremental run over many dates.
@@ -194,12 +197,17 @@ use crate::shared::raw_source::{
     RawDailyIndex, RawFilingIndex, RawSubmissions, RawXbrlInstance, RawXbrlLabels,
 };
 
+pub mod all;
 pub mod company_facts;
 pub mod daily_filings;
 pub mod notes;
 pub mod run_event;
 pub mod submissions;
 
+pub use all::{
+    AllBatchBuilder, AllRunSummary, BackfillAll, BackfillClient, BackfillRepositories,
+    FailedAllBackfill, FailedCikRead,
+};
 pub use company_facts::{
     BackfillCompanyFacts, CompanyFactsBatchBuilder, CompanyFactsRunSummary, DEFAULT_CIKS_IN_FLIGHT,
     FailedCompanyFactsBackfill,
@@ -293,6 +301,13 @@ impl Backfill {
     #[must_use]
     pub const fn submissions(&self) -> BackfillSubmissions {
         BackfillSubmissions::new(self.execution_id)
+    }
+
+    /// Returns the pipeline of the run over every source. Pick the Notes periods with
+    /// [`BackfillAll::periods`].
+    #[must_use]
+    pub const fn all(&self) -> BackfillAll {
+        BackfillAll::new(*self)
     }
 }
 

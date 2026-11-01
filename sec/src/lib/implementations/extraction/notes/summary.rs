@@ -92,13 +92,19 @@ impl NotesRunSummary {
     /// no period has a stored file.
     pub fn cut_over_date(&self) -> Result<NaiveDate, MissingCutOverDate> {
         self.result()?;
-        self.0
-            .iter()
-            .filter_map(|(_, outcome)| outcome.as_ref().ok())
-            .map(|(_, archive)| archive.period())
+        self.stored_archives()
+            .map(NotesArchiveRef::period)
             .max()
             .map(|period| period.last_day())
             .ok_or(MissingCutOverDate::MissingStoredPeriod)
+    }
+
+    /// Returns the stored file of each period that has one, in the order of the given periods.
+    pub fn stored_archives(&self) -> impl Iterator<Item = &NotesArchiveRef> {
+        self.0
+            .iter()
+            .filter_map(|(_, outcome)| outcome.as_ref().ok())
+            .map(|(_, archive)| archive)
     }
 
     /// Returns the number of periods that have a stored file, whether downloaded, already stored, or replaced.
