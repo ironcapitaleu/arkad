@@ -215,19 +215,7 @@ where
             .in_flight(self.in_flight)
             .run(move |unit, event| notes_observer(unit, event))
             .await;
-        let mut ciks = BTreeSet::new();
-        let mut cik_reads = Vec::new();
-        for archive in notes.stored_archives() {
-            let read = ciks_of_stored_archive(&reader, archive).await;
-            cik_reads.push(CikRead {
-                period: archive.period().to_string(),
-                result: read.map(|archive_ciks| {
-                    let count = archive_ciks.len();
-                    ciks.extend(archive_ciks);
-                    count
-                }),
-            });
-        }
+        let (ciks, cik_reads) = read_ciks(&reader, notes.stored_archives()).await;
         let submissions = self
             .backfill
             .submissions()
@@ -242,6 +230,30 @@ where
             submissions,
         }
     }
+}
+
+/// Reads the CIKs of each stored Notes file of `archives`, one file at a time, and returns the
+/// distinct CIKs of all files and the read of each file.
+///
+/// A file that cannot be read gives a failed [`CikRead`] and does not stop the other files.
+async fn read_ciks<'a>(
+    reader: &NotesReader,
+    archives: impl IntoIterator<Item = &'a NotesArchiveRef>,
+) -> (BTreeSet<String>, Vec<CikRead>) {
+    let mut ciks = BTreeSet::new();
+    let mut cik_reads = Vec::new();
+    for archive in archives {
+        let read = ciks_of_stored_archive(reader, archive).await;
+        cik_reads.push(CikRead {
+            period: archive.period().to_string(),
+            result: read.map(|archive_ciks| {
+                let count = archive_ciks.len();
+                ciks.extend(archive_ciks);
+                count
+            }),
+        });
+    }
+    (ciks, cik_reads)
 }
 
 /// Returns the distinct CIKs of the stored Notes file of `archive`.
@@ -373,6 +385,64 @@ mod tests {
             .collect();
         names.sort();
         names
+    }
+
+    const AUGUST_FILE: &str = "sec/notes/2026_08_notes.zip";
+
+    /// Runs the two steps of the pipeline over `2026_08` and `2026_09`, with one CIK per Notes
+    /// file. Between the steps, `damage` changes the stored files under `root`, as a disk or
+    /// another process can.
+    async fn run_with_damaged_files(
+        root: &TempDir,
+        damage: impl FnOnce(&TempDir),
+    ) -> AllRunSummary {
+        let august = notes_zip("adsh\tcik\n0001067983-26-000002\t1067983\n");
+        let september = notes_zip("adsh\tcik\n0000320193-26-000003\t320193\n");
+        let sec_client = sec_client(
+            &[("2026_08", &august), ("2026_09", &september)],
+            &["0000320193", "0001067983"],
+        );
+        let repositories = repositories(root);
+        let reader = FilesystemRepository::builder()
+            .reader()
+            .document_type::<RawDocument<RawNotesArchive>>()
+            .root(root.path())
+            .build();
+        let notes = Extraction::backfill()
+            .notes()
+            .periods(["2026_08", "2026_09"])
+            .sec_client(sec_client.clone())
+            .repository(repositories.notes)
+            .run(|_, _| {})
+            .await;
+        damage(root);
+        let (ciks, cik_reads) = read_ciks(&reader, notes.stored_archives()).await;
+        let submissions = Extraction::backfill()
+            .submissions()
+            .ciks(ciks)
+            .sec_client(sec_client)
+            .repository(repositories.submissions)
+            .run(|_, _| {})
+            .await;
+        AllRunSummary {
+            notes,
+            cik_reads,
+            submissions,
+        }
+    }
+
+    /// Deletes the stored Notes file of `2026_08` and its metadata.
+    fn delete_august_file(root: &TempDir) {
+        for file in [AUGUST_FILE.to_string(), format!("{AUGUST_FILE}.meta.json")] {
+            std::fs::remove_file(root.path().join(file))
+                .expect("Given a run that stored the file, deleting it should always succeed");
+        }
+    }
+
+    /// Replaces the stored Notes file of `2026_08` with other bytes, so the SHA-256 check fails.
+    fn corrupt_august_file(root: &TempDir) {
+        std::fs::write(root.path().join(AUGUST_FILE), b"PK")
+            .expect("Given a run that stored the file, overwriting it should always succeed");
     }
 
     fn date(year: i32, month: u32, day: u32) -> NaiveDate {
@@ -525,6 +595,100 @@ mod tests {
 
         run_all(&root, sec_client, &["2026_08", "2026_09"]).await;
         let result = stored_submissions_files(&root);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_read_the_other_file_when_a_stored_notes_file_is_missing() {
+        let root = temporary_root();
+
+        let expected_result = vec![
+            json!({
+                "period": "2026_08",
+                "error": "[FailedCikRead] Failed to read the stored Notes file, Reason: 'the store holds no file under its key'",
+            }),
+            json!({ "period": "2026_09", "ciks": 1 }),
+        ];
+
+        let result = run_with_damaged_files(&root, delete_august_file)
+            .await
+            .cik_read_entries();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_return_failed_all_backfill_when_a_stored_notes_file_is_missing() {
+        let root = temporary_root();
+
+        let expected_result = Err(FailedAllBackfill {
+            failed_periods: 0,
+            periods: 2,
+            unreadable_files: 1,
+            stored_files: 2,
+            failed_ciks: 0,
+            ciks: 1,
+        });
+
+        let result = run_with_damaged_files(&root, delete_august_file)
+            .await
+            .result();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_read_the_other_file_when_a_stored_notes_file_fails_the_sha256_check() {
+        let root = temporary_root();
+
+        let expected_result = (true, json!({ "period": "2026_09", "ciks": 1 }));
+
+        let entries = run_with_damaged_files(&root, corrupt_august_file)
+            .await
+            .cik_read_entries();
+        let result = (
+            entries[0]["error"].as_str().is_some_and(|error| {
+                error.starts_with(
+                    "[FailedCikRead] Failed to read the stored Notes file, Caused by: ",
+                )
+            }),
+            entries[1].clone(),
+        );
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_return_failed_all_backfill_when_a_stored_notes_file_fails_the_sha256_check() {
+        let root = temporary_root();
+
+        let expected_result = Err(FailedAllBackfill {
+            failed_periods: 0,
+            periods: 2,
+            unreadable_files: 1,
+            stored_files: 2,
+            failed_ciks: 0,
+            ciks: 1,
+        });
+
+        let result = run_with_damaged_files(&root, corrupt_august_file)
+            .await
+            .result();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_return_the_cut_over_date_of_the_notes_step_when_a_stored_notes_file_fails_the_sha256_check()
+     {
+        let root = temporary_root();
+
+        let expected_result = Ok(date(2026, 9, 30));
+
+        let result = run_with_damaged_files(&root, corrupt_august_file)
+            .await
+            .cut_over_date();
 
         assert_eq!(result, expected_result);
     }
