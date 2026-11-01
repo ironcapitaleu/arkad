@@ -43,7 +43,7 @@ pub(super) enum Fetch {
     AlreadyStored,
     /// The store held a folder index that lists no XBRL instance, so the run sent no request for
     /// the filing. The filing is unextractable, as an earlier run found.
-    KnownUnextractable,
+    SkippedUnextractable,
 }
 
 /// The outcome of one filing: how the run got its documents, or the error of the state that
@@ -114,11 +114,16 @@ pub(super) const fn is_unextractable(error: &StreamError) -> bool {
     matches!(
         &error.source,
         StateMachine::State(StateError::FailedDocumentSelection(failure))
-            if matches!(
-                failure.filing_documents_error,
-                FilingDocumentsError::MissingXbrlInstance { .. }
-            )
+            if is_missing_instance(&failure.filing_documents_error)
     )
+}
+
+/// Returns `true` if the selection failed because the folder holds no XBRL instance.
+///
+/// [`is_unextractable`] and the skip from a stored folder index share this rule, so a filing that
+/// one run reports as unextractable is the one that a later run skips.
+pub(super) const fn is_missing_instance(error: &FilingDocumentsError) -> bool {
+    matches!(error, FilingDocumentsError::MissingXbrlInstance { .. })
 }
 
 impl DailyRunSummary {
@@ -226,7 +231,7 @@ fn filing_entries(filings: &[FilingOutcome]) -> Value {
         "selected": filings.len(),
         "stored": fetched_by(Fetch::Downloaded),
         "already_stored": fetched_by(Fetch::AlreadyStored),
-        "skipped_unextractable": fetched_by(Fetch::KnownUnextractable),
+        "skipped_unextractable": fetched_by(Fetch::SkippedUnextractable),
         "unextractable": errors(true),
         "failed": errors(false),
     })
@@ -704,7 +709,7 @@ pub(super) mod tests {
         let summary = DailyRunSummary(vec![(
             date("2026-10-30"),
             processed(
-                vec![Ok(Fetch::KnownUnextractable), Ok(Fetch::Downloaded)],
+                vec![Ok(Fetch::SkippedUnextractable), Ok(Fetch::Downloaded)],
                 vec![Ok(())],
             ),
         )]);

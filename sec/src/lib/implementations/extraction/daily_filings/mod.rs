@@ -34,7 +34,7 @@ use crate::implementations::states::extract::validate_cik_format::ValidateCikFor
 use crate::implementations::states::extract::validate_index_date::ValidateIndexDate;
 use crate::prelude::{IntoStateMachineStream, StateMachineStream, StreamError, StreamItem};
 use crate::shared::cik::Cik;
-use crate::shared::filing_documents::{FilingDocumentsError, FolderIndex};
+use crate::shared::filing_documents::FolderIndex;
 use crate::shared::filing_documents_ref::{filing_index_key, instance_key};
 use crate::shared::filing_ref::FilingRef;
 use crate::shared::http_client::Executes;
@@ -47,7 +47,8 @@ use crate::shared::raw_source::{
 use crate::shared::request::implementations::sec_request::{FilingDocumentSet, FilingIndex};
 use crate::shared::response::implementations::sec_response::{JsonBody, SecResponse, ZipBody};
 use summary::{
-    CompanyOutcome, DateOutcome, Fetch, FilingOutcome, is_pending, is_unavailable, is_unextractable,
+    CompanyOutcome, DateOutcome, Fetch, FilingOutcome, is_missing_instance, is_pending,
+    is_unavailable, is_unextractable,
 };
 
 mod summary;
@@ -374,8 +375,7 @@ where
     /// its files.
     ///
     /// A filing runs no machine if its stored instance passes the size and SHA-256 check, or if
-    /// its stored folder index lists no XBRL instance. A stored file that fails the check, or that
-    /// the store cannot read, counts as not stored, so the machine runs.
+    /// its stored folder index lists no XBRL instance (see [`StoreReaders::skip`]).
     async fn extract_filings(
         &self,
         date: NaiveDate,
@@ -512,21 +512,20 @@ impl StoreReaders {
         let Ok(Some(folder_index)) = self.filing_index.get(filing_index_key(filing)).await else {
             return None;
         };
-        lists_no_instance(folder_index.bytes(), filing).then_some(Fetch::KnownUnextractable)
+        lists_no_instance(folder_index.bytes(), filing).then_some(Fetch::SkippedUnextractable)
     }
 }
 
-/// Returns `true` if `folder_index` parses and the selection of `filing` fails with
-/// [`FilingDocumentsError::MissingXbrlInstance`].
+/// Returns `true` if `folder_index` parses and the selection of `filing` fails because the folder
+/// holds no XBRL instance.
 ///
 /// A folder index that lists an instance means an earlier run failed after the folder request,
-/// so the run fetches the filing.
+/// so the run fetches the filing. A folder index that does not parse also returns `false`.
 fn lists_no_instance(folder_index: &[u8], filing: &FilingRef) -> bool {
     FolderIndex::from_json(folder_index).is_ok_and(|index| {
-        matches!(
-            index.select_documents(filing.accession_number()),
-            Err(FilingDocumentsError::MissingXbrlInstance { .. })
-        )
+        index
+            .select_documents(filing.accession_number())
+            .is_err_and(|error| is_missing_instance(&error))
     })
 }
 
@@ -577,6 +576,8 @@ mod tests {
     use super::summary::tests::{not_found, unavailable};
     use super::*;
     use crate::implementations::extraction::Extraction;
+    use crate::shared::financial::accession_number::AccessionNumber;
+    use crate::shared::financial::form::{Form, ParsedForm};
 
     /// Returns how many times `with_retry` runs an attempt that always fails with `error`.
     async fn attempts_until_given_up(error: fn() -> StreamError) -> usize {
@@ -612,6 +613,62 @@ mod tests {
         let expected_result = 1;
 
         let result = attempts_until_given_up(error).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    fn sample_filing() -> FilingRef {
+        FilingRef::new(
+            Cik::new("3545").expect("Given a hardcoded valid CIK, parsing should always succeed"),
+            AccessionNumber::new("0000003545-26-000047").expect(
+                "Given a hardcoded accession number of the right shape, creation should always succeed",
+            ),
+            ParsedForm::new(Form::TenQ, false),
+            NaiveDate::from_ymd_opt(2026, 9, 8)
+                .expect("Given a hardcoded calendar date, the date should always build"),
+        )
+    }
+
+    #[test]
+    fn should_list_no_instance_when_the_stored_folder_index_holds_only_a_label_file() {
+        let folder_index = br#"{"directory":{"item":[{"name":"alco-20260908_lab.xml"}]}}"#;
+
+        let expected_result = true;
+
+        let result = lists_no_instance(folder_index, &sample_filing());
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_not_list_no_instance_when_the_stored_folder_index_is_not_json() {
+        let folder_index = b"<html>";
+
+        let expected_result = false;
+
+        let result = lists_no_instance(folder_index, &sample_filing());
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_not_list_no_instance_when_the_stored_folder_index_holds_two_instances() {
+        let folder_index = br#"{"directory":{"item":[{"name":"a-20260908_htm.xml"},{"name":"b-20260908_htm.xml"}]}}"#;
+
+        let expected_result = false;
+
+        let result = lists_no_instance(folder_index, &sample_filing());
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_not_list_no_instance_when_the_stored_folder_index_holds_an_instance() {
+        let folder_index = br#"{"directory":{"item":[{"name":"alco-20260908_htm.xml"}]}}"#;
+
+        let expected_result = false;
+
+        let result = lists_no_instance(folder_index, &sample_filing());
 
         assert_eq!(result, expected_result);
     }

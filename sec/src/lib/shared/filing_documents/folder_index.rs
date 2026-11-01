@@ -122,6 +122,24 @@ impl FolderIndex {
             _ => Err(candidates.len()),
         }
     }
+
+    /// Parses the body of an `index.json`, for example a stored copy, and keeps the `name` of
+    /// each member of `directory.item`.
+    ///
+    /// # Errors
+    ///
+    /// Returns the [`serde_json::Error`] if `body` is not JSON with a `directory.item` list of
+    /// members with a `name`.
+    pub(crate) fn from_json(body: &[u8]) -> Result<Self, serde_json::Error> {
+        let raw: RawFolderIndex = serde_json::from_slice(body)?;
+        Ok(Self::new(
+            raw.directory
+                .item
+                .into_iter()
+                .map(|member| member.name)
+                .collect(),
+        ))
+    }
 }
 
 impl TryFrom<&SecResponse> for FolderIndex {
@@ -140,26 +158,6 @@ impl TryFrom<&SecResponse> for FolderIndex {
             url: response.url().to_string(),
             reason: e.to_string(),
         })
-    }
-}
-
-impl FolderIndex {
-    /// Parses the body of an `index.json`, for example a stored copy, and keeps the `name` of
-    /// each member of `directory.item`.
-    ///
-    /// # Errors
-    ///
-    /// Returns the [`serde_json::Error`] if `body` is not JSON with a `directory.item` list of
-    /// members with a `name`.
-    pub(crate) fn from_json(body: &[u8]) -> Result<Self, serde_json::Error> {
-        let raw: RawFolderIndex = serde_json::from_slice(body)?;
-        Ok(Self::new(
-            raw.directory
-                .item
-                .into_iter()
-                .map(|member| member.name)
-                .collect(),
-        ))
     }
 }
 
