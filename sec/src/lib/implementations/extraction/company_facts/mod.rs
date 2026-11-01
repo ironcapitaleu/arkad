@@ -15,13 +15,12 @@ use futures_util::StreamExt;
 use storage::implementations::repository::filesystem::IngestionMode;
 use uuid::Uuid;
 
-use super::run_event::{ErrorKind, RunEvent, Unit};
+use super::run_event::{RunEvent, Unit, drain};
 use crate::implementations::states::extract::company_facts::ExtractCompanyFactsSuperState;
 use crate::implementations::states::extract::company_facts::builder::{
     ExtractCompanyFactsSuperStateBuilder, NoRepository, NoSecClient,
 };
 use crate::implementations::states::extract::validate_cik_format::ValidateCikFormat;
-use crate::prelude::{StateMachineStream, StreamError};
 use crate::shared::http_client::SecClient as SecClientTrait;
 use crate::shared::http_client::implementations::sec_client::error::FailedSecRequest;
 use crate::shared::raw_repository::RawRepository;
@@ -33,8 +32,8 @@ mod summary;
 
 pub use summary::{CompanyFactsRunSummary, FailedCompanyFactsBackfill};
 
-/// The number of CIKs that a batch run extracts at once without a call to
-/// [`CompanyFactsBatchBuilder::in_flight`].
+/// The number of CIKs that a Company Facts or a `submissions` batch run extracts at once without a
+/// call to `in_flight`.
 pub const DEFAULT_CIKS_IN_FLIGHT: usize = 4;
 
 /// The Company Facts source of a backfill run, before the choice of one CIK or many.
@@ -188,7 +187,8 @@ where
     /// At most [`in_flight`](Self::in_flight) CIKs run at once. A failed CIK does not stop the others.
     ///
     /// Calls `observer` with the CIK and each successful stream item, and with the CIK and the
-    /// error of a failed CIK. Every error gives [`ErrorKind::Failed`].
+    /// error of a failed CIK. Every error gives
+    /// [`ErrorKind::Failed`](super::ErrorKind::Failed).
     pub async fn run(
         self,
         observer: impl Fn(&Unit, RunEvent<'_>) + Send + Sync + 'static,
@@ -222,28 +222,6 @@ where
     }
 }
 
-/// Reads `stream` to its end and passes each event to `observer`.
-///
-/// # Errors
-///
-/// Returns the [`StreamError`] of the state that failed. The read stops at that error.
-async fn drain(
-    mut stream: StateMachineStream,
-    unit: &Unit,
-    observer: &(impl Fn(&Unit, RunEvent<'_>) + Sync),
-) -> Result<(), StreamError> {
-    while let Some(item) = stream.next().await {
-        match item {
-            Ok(item) => observer(unit, RunEvent::Item(&item)),
-            Err(error) => {
-                observer(unit, RunEvent::Error(&error, ErrorKind::Failed));
-                return Err(error);
-            }
-        }
-    }
-    Ok(())
-}
-
 #[cfg(test)]
 mod tests {
     use std::pin::pin;
@@ -255,7 +233,7 @@ mod tests {
     use storage::implementations::repository::filesystem::Document;
 
     use super::*;
-    use crate::implementations::extraction::Extraction;
+    use crate::implementations::extraction::{ErrorKind, Extraction};
     use crate::tests::fixtures::sample_http_client::sample_sec_client::always_responding::AlwaysRespondingSecClient;
     use crate::tests::fixtures::sample_rate_limiter::HoldingRateLimiter;
     use crate::tests::fixtures::sample_write_repository::FakeWriteRepository;
