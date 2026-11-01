@@ -338,10 +338,9 @@ mod tests {
         assert_eq!(result, expected_result);
     }
 
-    /// Runs `PrepareSecRequest`, `ExecuteSecRequest`, and `StoreFilingDocuments` for one filing,
-    /// and stores the files in a temp dir.
-    // Deviation: this end-to-end test lives here, not in `tests/`, because `RoutingSecClient` is a
-    // `#[cfg(test)]` fixture of this crate.
+    /// Runs `PrepareSecRequest`, `ExecuteSecRequest`, and `StoreFilingDocuments` for one filing
+    /// with the `RoutingSecClient` fixture, which serves the files from memory, and stores the
+    /// files in a temp dir. The tests run offline.
     mod end_to_end {
         use std::path::Path;
 
