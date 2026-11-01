@@ -6,16 +6,66 @@
 //! A date is pending if its daily index does not exist yet and a later run reads the date again.
 //! A filing is unextractable if its folder holds no XBRL instance. Neither fails the run.
 
+use std::future::Future;
+use std::time::Duration;
+
 use chrono::{Days, NaiveDate};
+use futures_util::StreamExt;
 use sec::error::{State as StateError, StateMachine};
-use sec::prelude::StreamError;
+use sec::implementations::states::extract::daily_index::DetectFilingsSuperState;
+use sec::implementations::states::extract::filing::ExtractFilingSuperState;
+use sec::implementations::states::extract::prepare_sec_request::PrepareSecRequest;
+use sec::implementations::states::extract::submissions::ExtractSubmissionsSuperState;
+use sec::implementations::states::extract::validate_cik_format::ValidateCikFormat;
+use sec::implementations::states::extract::validate_index_date::ValidateIndexDate;
+use sec::prelude::{IntoStateMachineStream, StateMachineStream, StreamError, StreamItem};
 use sec::shared::cik::Cik;
 use sec::shared::filing_documents::FilingDocumentsError;
+use sec::shared::filing_ref::FilingRef;
 use sec::shared::financial::accession_number::AccessionNumber;
+use sec::shared::http_client::Executes;
+use sec::shared::http_client::SecClient as SecClientTrait;
+use sec::shared::http_client::implementations::sec_client::error::FailedSecRequest;
+use sec::shared::raw_document::RawDocument;
+use sec::shared::raw_source::{RawDailyIndex, RawSubmissions, RawXbrlInstance, RawXbrlLabels};
+use sec::shared::request::implementations::sec_request::{FilingDocumentSet, FilingIndex};
+use sec::shared::response::implementations::sec_response::{JsonBody, SecResponse, ZipBody};
 use serde_json::{Value, json};
+use storage::implementations::repository::filesystem::{
+    FilesystemRepository, IngestionMode, Write,
+};
 use thiserror::Error;
+use uuid::Uuid;
 
-use crate::constants::PENDING_DAYS;
+use crate::constants::{IN_FLIGHT, PENDING_DAYS};
+
+/// The SEC client that every machine of a run accepts.
+pub trait DailyClient:
+    SecClientTrait<
+        Response<ZipBody> = SecResponse<ZipBody>,
+        Response<JsonBody> = SecResponse<JsonBody>,
+        Error = FailedSecRequest,
+    > + Executes<FilingIndex>
+    + Executes<FilingDocumentSet>
+    + 'static
+{
+}
+
+impl<C> DailyClient for C where
+    C: SecClientTrait<
+            Response<ZipBody> = SecResponse<ZipBody>,
+            Response<JsonBody> = SecResponse<JsonBody>,
+            Error = FailedSecRequest,
+        > + Executes<FilingIndex>
+        + Executes<FilingDocumentSet>
+        + 'static
+{
+}
+
+type DailyIndexRepository = FilesystemRepository<Write, RawDocument<RawDailyIndex>>;
+type InstanceRepository = FilesystemRepository<Write, RawDocument<RawXbrlInstance>>;
+type LabelsRepository = FilesystemRepository<Write, RawDocument<RawXbrlLabels>>;
+type SubmissionsRepository = FilesystemRepository<Write, RawDocument<RawSubmissions>>;
 
 /// The outcome of one date.
 #[derive(Debug)]
@@ -225,6 +275,260 @@ fn company_entries(companies: &[CompanyOutcome]) -> Value {
         "stored": companies.iter().filter(|company| company.result.is_ok()).count(),
         "failed": failed,
     })
+}
+
+/// The stores that one run writes to.
+#[derive(Debug, Clone)]
+pub struct Repositories {
+    /// The store of the daily indexes.
+    pub daily_index: FilesystemRepository<Write, RawDocument<RawDailyIndex>>,
+    /// The store of the XBRL instances.
+    pub instance: FilesystemRepository<Write, RawDocument<RawXbrlInstance>>,
+    /// The store of the label files.
+    pub labels: FilesystemRepository<Write, RawDocument<RawXbrlLabels>>,
+    /// The store of the `submissions` files.
+    pub submissions: FilesystemRepository<Write, RawDocument<RawSubmissions>>,
+}
+
+/// The fixed inputs of one run.
+#[derive(Debug, Clone)]
+pub struct Settings {
+    /// The ID that every machine of the run carries.
+    pub execution_id: Uuid,
+    /// Yesterday in New York, for the pending rule.
+    pub yesterday: NaiveDate,
+    /// The waits before each new attempt of a machine that the SEC answered with 503.
+    pub retry_delays: Vec<Duration>,
+}
+
+/// Runs the new-filing path for each date of `dates`, oldest first, and returns the summary.
+///
+/// For each date, it runs detection, then one filing machine per selected filing, then one
+/// `submissions` machine per distinct CIK of the selected filings. At most [`IN_FLIGHT`] filing
+/// or `submissions` machines run at once. A filing or `submissions` machine that the SEC answers
+/// with 503 runs again after each wait of [`Settings::retry_delays`]. A failure does not stop the
+/// other machines or the other dates.
+///
+/// Calls `on_item` with a JSON context and each successful stream item, and `on_error` with a
+/// JSON context and each error. The context holds the date, and the accession number or the CIK.
+pub async fn run<C>(
+    dates: &[NaiveDate],
+    sec_client: &C,
+    repositories: &Repositories,
+    settings: &Settings,
+    on_item: impl Fn(&Value, &StreamItem),
+    on_error: impl Fn(&Value, &StreamError),
+) -> RunSummary
+where
+    C: DailyClient,
+    DetectFilingsSuperState<ValidateIndexDate, DailyIndexRepository, C>: IntoStateMachineStream,
+    ExtractFilingSuperState<
+        PrepareSecRequest<FilingIndex>,
+        InstanceRepository,
+        LabelsRepository,
+        C,
+    >: IntoStateMachineStream,
+    ExtractSubmissionsSuperState<ValidateCikFormat, SubmissionsRepository, C>:
+        IntoStateMachineStream,
+{
+    let Some(&first_date) = dates.first() else {
+        return RunSummary(Vec::new());
+    };
+    let mut outcomes = Vec::with_capacity(dates.len());
+    for &date in dates {
+        let context = json!({ "date": date.to_string() });
+        let detection = DetectFilingsSuperState::builder()
+            .date(date.to_string())
+            .sec_client(sec_client.clone())
+            .execution_id(settings.execution_id)
+            .repository(repositories.daily_index.clone())
+            .build()
+            .run_to_filings(|item| on_item(&context, item))
+            .await
+            .inspect_err(|error| on_error(&context, error));
+        let outcome = match detection {
+            Ok(filings) => {
+                let filing_outcomes = extract_filings(
+                    date,
+                    &filings,
+                    sec_client,
+                    repositories,
+                    settings,
+                    &on_item,
+                    &on_error,
+                )
+                .await;
+                let company_outcomes = extract_companies(
+                    date,
+                    &filings,
+                    sec_client,
+                    repositories,
+                    settings,
+                    &on_item,
+                    &on_error,
+                )
+                .await;
+                DateOutcome::Processed {
+                    filings: filing_outcomes,
+                    companies: company_outcomes,
+                }
+            }
+            Err(error) if is_pending(&error, date, first_date, settings.yesterday) => {
+                DateOutcome::Pending(error)
+            }
+            Err(error) => DateOutcome::Failed(error),
+        };
+        outcomes.push((date, outcome));
+    }
+    RunSummary(outcomes)
+}
+
+/// Runs one filing machine per filing, at most [`IN_FLIGHT`] at once, in the order of `filings`.
+async fn extract_filings<C>(
+    date: NaiveDate,
+    filings: &[FilingRef],
+    sec_client: &C,
+    repositories: &Repositories,
+    settings: &Settings,
+    on_item: &impl Fn(&Value, &StreamItem),
+    on_error: &impl Fn(&Value, &StreamError),
+) -> Vec<FilingOutcome>
+where
+    C: DailyClient,
+    ExtractFilingSuperState<
+        PrepareSecRequest<FilingIndex>,
+        InstanceRepository,
+        LabelsRepository,
+        C,
+    >: IntoStateMachineStream,
+{
+    let extractions = filings.iter().map(|filing| async move {
+        let context = json!({
+            "date": date.to_string(),
+            "accession_number": filing.accession_number().to_string(),
+        });
+        let result = with_retry(
+            &settings.retry_delays,
+            || {
+                ExtractFilingSuperState::builder()
+                    .filing_ref(filing.clone())
+                    .sec_client(sec_client.clone())
+                    .execution_id(settings.execution_id)
+                    .instance_repository(repositories.instance.clone())
+                    .labels_repository(repositories.labels.clone())
+                    .build()
+                    .run_to_documents(|item| on_item(&context, item))
+            },
+            |error| on_error(&context, error),
+        )
+        .await
+        .map(|_| ());
+        FilingOutcome {
+            accession_number: filing.accession_number().clone(),
+            result,
+        }
+    });
+    futures_util::stream::iter(extractions)
+        .buffered(IN_FLIGHT)
+        .collect()
+        .await
+}
+
+/// Runs one `submissions` machine per distinct CIK of `filings`, at most [`IN_FLIGHT`] at once,
+/// in the order in which each CIK first appears.
+async fn extract_companies<C>(
+    date: NaiveDate,
+    filings: &[FilingRef],
+    sec_client: &C,
+    repositories: &Repositories,
+    settings: &Settings,
+    on_item: &impl Fn(&Value, &StreamItem),
+    on_error: &impl Fn(&Value, &StreamError),
+) -> Vec<CompanyOutcome>
+where
+    C: DailyClient,
+    ExtractSubmissionsSuperState<ValidateCikFormat, SubmissionsRepository, C>:
+        IntoStateMachineStream,
+{
+    let mut ciks: Vec<&Cik> = Vec::new();
+    for filing in filings {
+        if !ciks.contains(&filing.cik()) {
+            ciks.push(filing.cik());
+        }
+    }
+    let extractions = ciks.into_iter().map(|cik| async move {
+        let context = json!({ "date": date.to_string(), "cik": cik.to_string() });
+        let result = with_retry(
+            &settings.retry_delays,
+            || {
+                let stream = ExtractSubmissionsSuperState::builder()
+                    .cik(cik.to_string())
+                    .sec_client(sec_client.clone())
+                    .execution_id(settings.execution_id)
+                    .ingestion_mode(IngestionMode::Incremental)
+                    .repository(repositories.submissions.clone())
+                    .build()
+                    .into_run_stream();
+                run_to_end(stream, |item| on_item(&context, item))
+            },
+            |error| on_error(&context, error),
+        )
+        .await;
+        CompanyOutcome {
+            cik: cik.clone(),
+            result,
+        }
+    });
+    futures_util::stream::iter(extractions)
+        .buffered(IN_FLIGHT)
+        .collect()
+        .await
+}
+
+/// Runs `stream` to its end, and returns the first error.
+async fn run_to_end(
+    mut stream: StateMachineStream,
+    on_item: impl Fn(&StreamItem),
+) -> Result<(), StreamError> {
+    while let Some(item) = stream.next().await {
+        on_item(&item?);
+    }
+    Ok(())
+}
+
+/// Runs `attempt` until it succeeds, fails with an error that is not a 503, or has used every
+/// wait of `retry_delays`. Calls `on_error` with each error.
+async fn with_retry<T, F, Fut>(
+    retry_delays: &[Duration],
+    mut attempt: F,
+    on_error: impl Fn(&StreamError),
+) -> Result<T, StreamError>
+where
+    F: FnMut() -> Fut,
+    Fut: Future<Output = Result<T, StreamError>>,
+{
+    let mut delays = retry_delays.iter();
+    loop {
+        match attempt().await {
+            Ok(value) => return Ok(value),
+            Err(error) => {
+                on_error(&error);
+                match delays.next() {
+                    Some(delay) if is_unavailable(&error) => tokio::time::sleep(*delay).await,
+                    _ => return Err(error),
+                }
+            }
+        }
+    }
+}
+
+/// Returns `true` if the SEC answered 503 to a request of the machine.
+pub fn is_unavailable(error: &StreamError) -> bool {
+    matches!(
+        &error.source,
+        StateMachine::State(StateError::FailedRequestExecution(failure))
+            if failure.domain_error().is_unavailable()
+    )
 }
 
 #[cfg(test)]
