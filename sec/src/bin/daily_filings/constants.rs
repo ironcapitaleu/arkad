@@ -1,7 +1,7 @@
 //! # Constants
 //!
-//! The names of the environment variables that set the dates of a run, and the word that names
-//! yesterday.
+//! The names of the environment variables that set the dates of a run, the word that names
+//! yesterday, and the limits of a run.
 
 /// The environment variable that sets the first date of the run. It is required.
 pub const FROM_ENV_VAR: &str = "ARKAD_FROM";
@@ -17,3 +17,7 @@ pub const YESTERDAY: &str = "yesterday";
 /// The number of dates, yesterday and the days before it, whose missing daily index counts as
 /// pending. A pending date does not fail the run, because a later run reads it again.
 pub const PENDING_DAYS: u64 = 3;
+
+/// The number of filing machines, and of `submissions` machines, that run at once. The rate
+/// limiter of the SEC client caps the requests, so a higher value does not make a run faster.
+pub const IN_FLIGHT: usize = 4;
