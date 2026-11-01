@@ -2,7 +2,8 @@
 //!
 //! Provides the [`FilingDocumentsRef`] type, which names the stored XBRL instance and label file
 //! of one filing without holding their bytes. [`instance_key`] and [`labels_key`] give the keys of
-//! the two files of a filing.
+//! the two files of a filing, and [`filing_index_key`] gives the key of its stored folder
+//! `index.json`.
 
 use std::fmt::{self, Display, Formatter};
 
@@ -19,6 +20,9 @@ const INSTANCE_FILE_NAME: &str = "instance.xml";
 
 /// The file name of the stored label file of a filing.
 const LABELS_FILE_NAME: &str = "lab.xml";
+
+/// The file name of the stored folder `index.json` of a filing.
+const FILING_INDEX_FILE_NAME: &str = "index.json";
 
 /// The filing, the key of its stored XBRL instance, and the key of its stored label file.
 ///
@@ -130,6 +134,18 @@ pub fn labels_key(filing: &FilingRef) -> DocumentKey {
     filing_file_key(filing, LABELS_FILE_NAME)
 }
 
+/// Returns the key `sec/filings/CIK##########/<accession number>/index.json` of the folder
+/// `index.json` of a filing.
+///
+/// # Panics
+///
+/// Never panics: a CIK of 10 digits and an accession number of digits and dashes hold no path
+/// separator, so the key path is always valid.
+#[must_use]
+pub fn filing_index_key(filing: &FilingRef) -> DocumentKey {
+    filing_file_key(filing, FILING_INDEX_FILE_NAME)
+}
+
 /// Returns the key `sec/filings/CIK##########/<accession number>/<file name>`.
 fn filing_file_key(filing: &FilingRef, file_name: &str) -> DocumentKey {
     DocumentKey::new(format!(
@@ -178,6 +194,18 @@ mod tests {
         let expected_result = key("sec/filings/CIK0000003545/0000003545-26-000047/instance.xml");
 
         let result = instance_key(&filing);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_build_the_filing_index_key_with_a_padded_cik_and_a_dashed_accession_number_for_a_filing()
+     {
+        let filing = sample_filing();
+
+        let expected_result = key("sec/filings/CIK0000003545/0000003545-26-000047/index.json");
+
+        let result = filing_index_key(&filing);
 
         assert_eq!(result, expected_result);
     }

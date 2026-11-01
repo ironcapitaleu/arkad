@@ -161,6 +161,97 @@ impl<S: RawSource> RawDocument<S> {
         user_agent: &UserAgent,
         run: RunFields,
     ) -> Self {
+        let context = RawDocumentMetadataContext::new(response, requested_url, user_agent);
+        Self::from_response_with_context(key, response, context, run)
+    }
+
+    /// Creates a new [`RawDocument`] from an SEC response of one filing, such as its folder
+    /// `index.json`, and the fetch that produced it.
+    ///
+    /// It works as [`RawDocument::from_response`], and the metadata context also names `filing`.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use std::collections::HashMap;
+    ///
+    /// use chrono::{DateTime, NaiveDate, Utc};
+    /// use sec::shared::build_info::producer;
+    /// use sec::shared::content_type::ContentType;
+    /// use sec::shared::headers::Headers;
+    /// use sec::shared::raw_document::{FilingFields, RawDocument};
+    /// use sec::shared::raw_source::RawFilingIndex;
+    /// use sec::shared::response::implementations::sec_response::SecResponse;
+    /// use sec::shared::run_fields::RunFields;
+    /// use sec::shared::status_code::StatusCode;
+    /// use sec::shared::url::Url;
+    /// use sec::shared::user_agent::UserAgent;
+    /// use storage::implementations::repository::filesystem::{Document, DocumentKey, IngestionMode};
+    /// use uuid::Uuid;
+    ///
+    /// let url: Url = "https://www.sec.gov/Archives/edgar/data/3545/000000354526000047/index.json"
+    ///     .parse()
+    ///     .expect("A hardcoded valid URL string should always parse");
+    /// let response = SecResponse::from_parts(
+    ///     url.clone(),
+    ///     Headers::new(HashMap::new()),
+    ///     ContentType::Json,
+    ///     StatusCode::Ok,
+    ///     br#"{"directory":{"item":[]}}"#.to_vec(),
+    /// )
+    /// .expect("Given a valid JSON body, building the response should always succeed");
+    /// let key = DocumentKey::new("sec/filings/CIK0000003545/0000003545-26-000047/index.json")
+    ///     .expect("Given a valid relative path, the key should always build");
+    /// let user_agent = UserAgent::new("arkad contact@example.com")
+    ///     .expect("A hardcoded SEC-format string should always validate");
+    /// let filing = FilingFields {
+    ///     filed_date: NaiveDate::from_ymd_opt(2026, 9, 9)
+    ///         .expect("Given a hardcoded calendar date, the date should always build"),
+    ///     form: "10-Q".to_string(),
+    ///     is_amendment: false,
+    /// };
+    ///
+    /// let document = RawDocument::<RawFilingIndex>::from_filing_response(
+    ///     key,
+    ///     &response,
+    ///     &url,
+    ///     &user_agent,
+    ///     RunFields {
+    ///         produced_at: DateTime::<Utc>::UNIX_EPOCH,
+    ///         execution_id: Uuid::nil(),
+    ///         producer: producer("Store Filing Index"),
+    ///         ingestion_mode: IngestionMode::Incremental,
+    ///     },
+    ///     filing.clone(),
+    /// );
+    ///
+    /// let expected_result = Some(filing);
+    ///
+    /// let result = document.metadata().context().filing.clone();
+    ///
+    /// assert_eq!(result, expected_result);
+    /// ```
+    #[must_use]
+    pub fn from_filing_response(
+        key: DocumentKey,
+        response: &SecResponse,
+        requested_url: &Url,
+        user_agent: &UserAgent,
+        run: RunFields,
+        filing: FilingFields,
+    ) -> Self {
+        let context = RawDocumentMetadataContext::new(response, requested_url, user_agent)
+            .with_filing(filing);
+        Self::from_response_with_context(key, response, context, run)
+    }
+
+    /// Creates a [`RawDocument`] of the raw body of `response` with the metadata `context`.
+    fn from_response_with_context(
+        key: DocumentKey,
+        response: &SecResponse,
+        context: RawDocumentMetadataContext,
+        run: RunFields,
+    ) -> Self {
         let raw_body = response.raw_body();
         let metadata = DocumentMetadata::builder()
             .document_type::<Self>()
@@ -169,11 +260,7 @@ impl<S: RawSource> RawDocument<S> {
             .produced_at(run.produced_at)
             .run(run.execution_id, run.producer)
             .ingestion_mode(run.ingestion_mode)
-            .context(RawDocumentMetadataContext::new(
-                response,
-                requested_url,
-                user_agent,
-            ))
+            .context(context)
             .build();
         Self::from_parts(key, raw_body.to_vec(), metadata)
     }

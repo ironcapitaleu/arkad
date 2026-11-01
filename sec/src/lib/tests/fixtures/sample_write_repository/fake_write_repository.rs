@@ -2,7 +2,7 @@
 //!
 //! Provides [`FakeRawRepository`], an in-memory [`WriteRepository`] of raw documents of one
 //! source, and its aliases [`FakeWriteRepository`], [`FakeNotesRepository`],
-//! [`FakeDailyIndexRepository`], [`FakeSubmissionsRepository`], [`FakeXbrlInstanceRepository`], and
+//! [`FakeDailyIndexRepository`], [`FakeFilingIndexRepository`], [`FakeSubmissionsRepository`], [`FakeXbrlInstanceRepository`], and
 //! [`FakeXbrlLabelsRepository`].
 
 use std::cmp::Ordering;
@@ -17,8 +17,8 @@ use storage::{WriteError, WriteRepository};
 
 use crate::shared::raw_document::RawDocument;
 use crate::shared::raw_source::{
-    RawCompanyFacts, RawDailyIndex, RawNotesArchive, RawSource, RawSubmissions, RawXbrlInstance,
-    RawXbrlLabels,
+    RawCompanyFacts, RawDailyIndex, RawFilingIndex, RawNotesArchive, RawSource, RawSubmissions,
+    RawXbrlInstance, RawXbrlLabels,
 };
 
 /// An in-memory [`WriteRepository`] that records each persisted document, or rejects each write.
@@ -38,6 +38,9 @@ pub type FakeNotesRepository = FakeRawRepository<RawNotesArchive>;
 
 /// A [`FakeRawRepository`] of raw daily indexes.
 pub type FakeDailyIndexRepository = FakeRawRepository<RawDailyIndex>;
+
+/// A [`FakeRawRepository`] of raw folder indexes of filings.
+pub type FakeFilingIndexRepository = FakeRawRepository<RawFilingIndex>;
 
 /// A [`FakeRawRepository`] of raw `submissions` documents.
 pub type FakeSubmissionsRepository = FakeRawRepository<RawSubmissions>;
