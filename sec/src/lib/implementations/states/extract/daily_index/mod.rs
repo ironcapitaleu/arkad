@@ -5,8 +5,7 @@
 //!
 //! The super-state owns the shared SEC client, the `execution_id`, the ingestion mode of the run,
 //! and the storage repository. The transition into [`StoreDailyIndex`] passes the mode and a clone
-//! of the repository to the store state. The caller sets the mode, and the metadata of the stored
-//! index records it.
+//! of the repository to the store state.
 //!
 //! ## Modules
 //!

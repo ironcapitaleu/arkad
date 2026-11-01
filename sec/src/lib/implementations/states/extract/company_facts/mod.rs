@@ -7,7 +7,7 @@
 //! store, through four ordered states. The super-state owns the shared HTTP client, the
 //! `execution_id`, the ingestion mode of the run, and the storage repository. It also owns the
 //! type-safe transitions between the states, so callers advance the pipeline without managing each
-//! state by hand. The caller sets the mode, and the metadata of the stored document records it.
+//! state by hand.
 //!
 //! ## Modules
 //!
@@ -1168,9 +1168,47 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_carry_ingestion_mode_of_builder_when_transitioning_to_store_company_facts() {
+    async fn should_store_the_ingestion_mode_of_the_builder_when_transitioning_to_store_company_facts()
+     {
         let super_state =
             executed_super_state(Uuid::from_u128(7), IngestionMode::Incremental).await;
+
+        let expected_result = IngestionMode::Incremental;
+
+        let result = Transition::<
+            ExecuteCompanyFactsRequest,
+            StoreCompanyFacts<FakeWriteRepository>,
+        >::transition_to_next_state_sec(super_state)
+        .expect("Given a request with output, the transition should always succeed")
+        .current_state()
+        .context_data()
+        .ingestion_mode();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_store_the_ingestion_mode_of_the_constructor_when_created_at_execute_company_facts_request()
+     {
+        let cik = Cik::new("1067983")
+            .expect("Given a hardcoded numeric CIK, its creation should always succeed");
+        let request = SecRequest::builder()
+            .all_company_facts()
+            .cik(cik.clone())
+            .build();
+        let mut super_state = ExtractCompanyFactsSuperState::<ExecuteCompanyFactsRequest, _>::new(
+            SecClient::default(),
+            request,
+            cik,
+            Uuid::nil(),
+            IngestionMode::Incremental,
+            FakeWriteRepository::new(),
+        );
+        let executed = super_state
+            .current_state()
+            .clone()
+            .with_output(ExecuteSecRequestOutput::new(sample_response()));
+        *super_state.current_state_mut() = executed;
 
         let expected_result = IngestionMode::Incremental;
 

@@ -375,11 +375,22 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_record_incremental_as_the_ingestion_mode_for_daily_indexes() {
-        let expected_result = Some(IngestionMode::Incremental);
+    async fn should_record_the_ingestion_mode_of_the_context_for_daily_indexes() {
+        let repository = FakeDailyIndexRepository::new();
+        let mut state = StoreDailyIndex::new(
+            sample_input(Some(sample_response())),
+            StoreDailyIndexContext::new(Uuid::nil(), IngestionMode::Backfill, repository.clone()),
+        );
 
-        let result = persisted_document()
+        let expected_result = Some(IngestionMode::Backfill);
+
+        state
+            .compute_output_data_async()
             .await
+            .expect("Given a fake repository that accepts every write, the state should succeed");
+        let result = repository
+            .persisted()
+            .pop()
             .map(|document| document.metadata().ingestion_mode());
 
         assert_eq!(result, expected_result);

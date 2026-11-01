@@ -577,16 +577,24 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_record_incremental_as_the_ingestion_mode_for_filing_documents() {
-        let (_, instances, _) = store_on_fakes(
+    async fn should_record_the_ingestion_mode_of_the_context_for_filing_documents() {
+        let instances = FakeXbrlInstanceRepository::new();
+        let mut state = StoreFilingDocuments::new(
             input(true, true),
-            FakeXbrlInstanceRepository::new(),
-            FakeXbrlLabelsRepository::new(),
-        )
-        .await;
+            StoreFilingDocumentsContext::new(
+                Uuid::nil(),
+                IngestionMode::Backfill,
+                instances.clone(),
+                FakeXbrlLabelsRepository::new(),
+            ),
+        );
 
-        let expected_result = Some(IngestionMode::Incremental);
+        let expected_result = Some(IngestionMode::Backfill);
 
+        state
+            .compute_output_data_async()
+            .await
+            .expect("Given fake repositories that accept every write, the state should succeed");
         let result = instances
             .persisted()
             .pop()

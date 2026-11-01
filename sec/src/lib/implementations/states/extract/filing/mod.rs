@@ -4,8 +4,7 @@
 //! of one filing and writes them to the store.
 //!
 //! The super-state owns the [`FilingRef`], the shared SEC client, the `execution_id`, the ingestion
-//! mode of the run, and the two storage repositories. The caller sets the mode, and the metadata of
-//! the stored documents records it.
+//! mode of the run, and the two storage repositories.
 //!
 //! ## Modules
 //!
