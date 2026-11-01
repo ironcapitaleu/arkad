@@ -554,6 +554,10 @@ mod filing_index_tests {
     use crate::shared::status_code::StatusCode;
     use crate::tests::fixtures::sample_write_repository::FakeFilingIndexRepository;
 
+    const SAMPLE_EXECUTION_ID: Uuid = Uuid::from_u128(7);
+
+    const SAMPLE_INGESTION_MODE: IngestionMode = IngestionMode::Incremental;
+
     fn filing(raw_accession_number: &str) -> FilingRef {
         FilingRef::new(
             Cik::new("3545").expect("Given a hardcoded valid CIK, parsing should always succeed"),
@@ -602,8 +606,8 @@ mod filing_index_tests {
 
         let result = StoreFilingIndex::try_from((
             state,
-            Uuid::from_u128(7),
-            IngestionMode::Incremental,
+            SAMPLE_EXECUTION_ID,
+            SAMPLE_INGESTION_MODE,
             FakeFilingIndexRepository::new(),
         ))
         .expect_err("Given a request for another filing, the transition should always fail");
