@@ -1458,7 +1458,7 @@ fail.
   fits in the task timeout. Every write is idempotent, so a second read writes no duplicate row.
 - An unextractable filing stores nothing, so each read of its date fetches its folder again. A
   record of the unextractable filing, so that a later run skips it too, is the open part of
-  STA-413.
+  STA-413 (see [Unextractable Record](#unextractable-record)).
 - A rerun of dates older than `yesterday-2` has no pending dates. A date without an index fails.
 - Later: STA-403 replaces the window with a bookmark, the last date that finished, read from the
   store. A run then reads from the bookmark plus 1 through yesterday, and reads no date again.
@@ -1529,6 +1529,31 @@ gains a generic `raw_writer::<S>()` for any raw source, and `create_root` become
 document type. Every
 document carries the ingestion mode `incremental`: `StoreDailyIndex` and `StoreFilingDocuments`
 write it themselves, and the binary passes it to the `submissions` builder.
+
+#### Unextractable Record
+
+> **Status:** decided by the lead on 2026-11-01 (STA-413). It lands in three PRs: the source and
+> its store state, then the store step in the filing machine, then the skip.
+
+The run stores the folder `index.json` of every filing it fetches as the raw source
+`RawFilingIndex`, under `sec/filings/CIK##########/<accession number>/index.json`. The store
+state is `StoreFilingIndex`, the `StoreSecResponse` of the kind `FilingIndex`.
+
+- It is an SEC file, so it fits the raw layer. A marker document or a ledger per date would be a
+  record of our own.
+- The run learns whether a folder holds an instance only from this file, so the store comes
+  before `SelectFilingDocuments`. That is why every fetched filing stores it, not only an
+  unextractable one. The file adds no request and a few KB per filing.
+- Before any request for a filing, the run then checks the store in this order:
+  1. An intact instance: the filing counts as already stored.
+  2. A stored `index.json` and no instance: the run reruns the selection on the stored file. If
+     the selection fails with `MissingXbrlInstance`, the filing counts as unextractable with no
+     request. Otherwise an earlier run failed after the folder request, and the run fetches the
+     filing.
+  3. Nothing stored: the run fetches the filing.
+- The document keeps the body as the SEC sent it, through `RawDocument::from_response`. Its
+  metadata names no filing and no input document. The key already names the CIK and the accession
+  number.
 
 #### Logs and Summary
 

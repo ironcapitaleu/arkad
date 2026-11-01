@@ -27,6 +27,7 @@
 //! - [`store_daily_index`]: Writes the daily index to the store.
 //! - [`select_filing_documents`]: Selects the XBRL instance and the label file of one filing from its folder index.
 //! - [`select_filings`]: Selects the filings to fetch from the daily index.
+//! - [`store_filing_index`]: Writes the folder `index.json` of one filing to the store.
 //! - [`store_submissions`]: Writes the `submissions` JSON of one company to the store.
 //! - [`store_filing_documents`]: Writes the XBRL instance and the label file of one filing to the store.
 
@@ -42,6 +43,7 @@ pub mod select_filings;
 pub mod store_company_facts;
 pub mod store_daily_index;
 pub mod store_filing_documents;
+pub mod store_filing_index;
 pub mod store_notes_archive;
 pub mod store_sec_response;
 pub mod store_submissions;
