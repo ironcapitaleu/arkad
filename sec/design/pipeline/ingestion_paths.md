@@ -170,13 +170,13 @@ itself. `daily_filings` then keeps the store current. The binary `backfill` repl
 `notes_backfill`. A Notes-only copy of `notes_backfill` moves to `sec/examples/` as a deprecated
 example. `stream_extract` is there already. See [Deprecated Binaries](#deprecated-binaries).
 
-#### What the Binaries Run Today
+#### What the Binaries and the Example Run Today
 
 | | `notes_backfill` | `stream_extract` | `daily_filings` |
 | - | ---------------- | ---------------- | --------------- |
 | Unit | Notes period | CIK of a fixed list | date, then filing, then CIK |
 | Loop | `buffer_unordered`, sorted by index after | `buffer_unordered`, sorted by index after (facade, STA-358) | dates in order, `buffered` per date |
-| Cap | `ARKAD_FILES_IN_FLIGHT`, default 2 | default 4 | `IN_FLIGHT` = 4 |
+| Cap | `ARKAD_FILES_IN_FLIGHT`, default 2 | all CIKs (`in_flight(CIKS.len())`), facade default 4 | `IN_FLIGHT` = 4 |
 | Task per unit | `tokio::spawn` (STA-344, open in STA-360) | no | no |
 | Rules | skip of an intact stored file, unpublished at the end | none | 503 retry, pending, unextractable |
 | Summary | `NotesRunSummary`, `FailedBackfill` (facade, STA-414) | `CompanyFactsRunSummary`, `FailedCompanyFactsBackfill` (facade, STA-358) | `RunSummary`, `FailedDailyRun` |
