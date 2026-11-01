@@ -1381,7 +1381,7 @@ New filing and company data:
 7. FEATURE: the state `StoreDailyIndex`.
 8. FEATURE: the state `SelectFilings`.
 9. FEATURE: `DetectFilingsSuperState`, its transitions, and its builder.
-10. FEATURE: the states `PrepareFilingIndexRequest` and `SelectFilingDocuments`.
+10. FEATURE: the kind `FilingIndex` and the state `SelectFilingDocuments`.
 11. FEATURE: the traits `HasResponse` and `Executes<K>`, `XmlBody`, and the kinds `FilingDocument`
     and `FilingDocumentSet`.
 12. FEATURE: the state `StoreFilingDocuments` and `FilingDocumentsRef`.
