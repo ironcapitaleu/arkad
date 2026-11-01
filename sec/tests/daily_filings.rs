@@ -13,6 +13,8 @@
 mod constants;
 #[path = "../src/bin/daily_filings/dates.rs"]
 mod dates;
+#[path = "../src/bin/shared/yesterday.rs"]
+mod yesterday;
 
 /// Runs the facade offline, with a fake SEC client and stores in a temp dir.
 mod run_loop {
@@ -74,6 +76,23 @@ mod run_loop {
 10-Q             ALCO STORES INC                                               3545        20261026    edgar/data/3545/0000003545-26-000047.txt
 10-Q/A           ALCO STORES INC                                               3545        20261026    edgar/data/3545/0000003545-26-000048.txt
 ";
+
+    /// The folder and the files of the 10-Q/A of [`DAILY_INDEX_WITH_TWO_FILINGS`].
+    const SECOND_FOLDER_INDEX_URL: &str =
+        "https://www.sec.gov/Archives/edgar/data/3545/000000354526000048/index.json";
+    const SECOND_INSTANCE_URL: &str =
+        "https://www.sec.gov/Archives/edgar/data/3545/000000354526000048/alco-20260908_htm.xml";
+    const SECOND_LABEL_FILE_URL: &str =
+        "https://www.sec.gov/Archives/edgar/data/3545/000000354526000048/alco-20260908_lab.xml";
+
+    /// The index of 2026-10-26 with a 10-Q of each of two companies.
+    const DAILY_INDEX_WITH_TWO_COMPANIES: &[u8] = b"Form Type   Company Name   CIK   Date Filed  File Name
+---------------------------------------------------------------------
+10-Q             ALCO STORES INC                                               3545        20261026    edgar/data/3545/0000003545-26-000047.txt
+10-Q             APPLE INC                                                     320193      20261026    edgar/data/320193/0000320193-26-000001.txt
+";
+    const SECOND_SUBMISSIONS_URL: &str = "https://data.sec.gov/submissions/CIK0000320193.json";
+    const SECOND_SUBMISSIONS: &[u8] = br#"{"cik":"320193","name":"APPLE INC","filings":{"recent":{"accessionNumber":["0000320193-26-000001"],"filingDate":["2026-10-26"],"form":["10-Q"]}}}"#;
 
     fn sec_client() -> RoutingSecClient {
         sec_client_with_folder(&[(200, "application/json", FOLDER_INDEX)])
@@ -575,6 +594,14 @@ mod run_loop {
             .route(FOLDER_INDEX_URL, 200, "application/json", FOLDER_INDEX)
             .route(INSTANCE_URL, 200, "text/xml", b"<xbrl/>")
             .route(LABEL_FILE_URL, 200, "text/xml", b"<labels/>")
+            .route(
+                SECOND_FOLDER_INDEX_URL,
+                200,
+                "application/json",
+                FOLDER_INDEX,
+            )
+            .route(SECOND_INSTANCE_URL, 200, "text/xml", b"<xbrl/>")
+            .route(SECOND_LABEL_FILE_URL, 200, "text/xml", b"<labels/>")
             .route(SUBMISSIONS_URL, 200, "application/json", SUBMISSIONS);
         let filing_events = Arc::new(Mutex::new(Vec::new()));
         let observed_filings = Arc::clone(&filing_events);
@@ -603,6 +630,54 @@ mod run_loop {
             .run(observer)
             .await;
         let mut result = filing_events.lock().expect(LOCK_EXPECT).clone();
+        result.dedup();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_run_one_submissions_machine_at_a_time_when_in_flight_is_one() {
+        let root = temporary_root();
+        let dates = [date("2026-10-26")];
+        let sec_client = RoutingSecClient::new()
+            .route(
+                INDEX_URL,
+                200,
+                "application/octet-stream",
+                DAILY_INDEX_WITH_TWO_COMPANIES,
+            )
+            .route(QTR4_LISTING_URL, 200, "application/json", QTR4_LISTING)
+            .route(SUBMISSIONS_URL, 200, "application/json", SUBMISSIONS)
+            .route(
+                SECOND_SUBMISSIONS_URL,
+                200,
+                "application/json",
+                SECOND_SUBMISSIONS,
+            );
+        let company_events = Arc::new(Mutex::new(Vec::new()));
+        let observed_companies = Arc::clone(&company_events);
+        let observer = move |unit: &Unit, _: RunEvent<'_>| {
+            if let Unit::Company { cik, .. } = unit {
+                observed_companies
+                    .lock()
+                    .expect(LOCK_EXPECT)
+                    .push(cik.to_string());
+            }
+        };
+
+        let expected_result = vec!["0000003545", "0000320193"];
+
+        Extraction::incremental()
+            .daily_filings()
+            .dates(dates)
+            .yesterday(date("2026-10-28"))
+            .sec_client(sec_client)
+            .repositories(repositories(&root))
+            .retry_delays([Duration::ZERO, Duration::ZERO])
+            .in_flight(1)
+            .run(observer)
+            .await;
+        let mut result = company_events.lock().expect(LOCK_EXPECT).clone();
         result.dedup();
 
         assert_eq!(result, expected_result);
@@ -697,7 +772,7 @@ mod live {
     use storage::implementations::repository::filesystem::{FilesystemRepository, Write};
     use tempfile::TempDir;
 
-    use crate::dates::new_york_yesterday;
+    use crate::yesterday::new_york_yesterday;
 
     /// A past weekday with few filings, so the test stays short: the Friday after Thanksgiving
     /// 2025. A run of it took 10 s on 2026-11-01.

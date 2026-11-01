@@ -20,7 +20,7 @@ Run both steps on the same machine, at the same time of day.
 
 1. **curl test.** Download one Notes file alone. Then download four Notes files in parallel. Note
    the total MB/s of each.
-2. **Files-in-flight runs.** Build `notes_backfill` once from a scratch worktree of `origin/main`.
+2. **Files-in-flight runs.** Build the example `notes_backfill` once from a scratch worktree of `origin/main`.
    Replace the computed periods in `main.rs` with four large periods, one `tokio::spawn` per
    period. Run it with `ARKAD_FILES_IN_FLIGHT` set to 2, 3, and 4, two runs each, in the order 2,
    3, 4, 4, 3, 2. The order spreads the change in network speed over the day across all three

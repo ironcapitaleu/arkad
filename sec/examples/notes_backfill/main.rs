@@ -1,14 +1,22 @@
-mod constants;
+//! Deprecated example: extracts every Notes period up to last month.
+//!
+//! It runs `Extraction::backfill().notes()` against the live SEC and stores each file under
+//! `ARKAD_STORAGE_ROOT`. The binary `backfill` replaces it. See "Deprecated Binaries" in
+//! `sec/design/pipeline/ingestion_paths.md`.
+//!
+//! Run it with `cargo run -p sec --features tracing-logging --example notes_backfill`.
+
+// Each example is its own crate root, so it cannot import a binary's modules. `#[path]` compiles
+// each shared file into this example as a private module, as the binaries do.
+#[path = "../../src/bin/shared/files_in_flight.rs"]
 mod files_in_flight;
+#[path = "../../src/bin/shared/notes_periods.rs"]
 mod periods;
-// Each binary is its own crate root, so it cannot import another binary's modules. `#[path]`
-// compiles each shared file into this binary as a private module, so all binaries build the
-// client and the store the same way.
-#[path = "../shared/sec_client.rs"]
+#[path = "../../src/bin/shared/sec_client.rs"]
 mod sec_client;
-// This binary uses only the Notes writer, so the Company Facts items would fire `dead_code`.
+// This example uses only the Notes writer, so the Company Facts items would fire `dead_code`.
 #[allow(dead_code)]
-#[path = "../shared/storage_root.rs"]
+#[path = "../../src/bin/shared/storage_root.rs"]
 mod storage_root;
 
 use std::env;
@@ -21,12 +29,12 @@ use chrono::Utc;
 use sec::implementations::extraction::{ErrorKind, Extraction, RunEvent};
 use tracing_subscriber::fmt::format::FmtSpan;
 
-use constants::FILES_IN_FLIGHT_ENV_VAR;
-use files_in_flight::{InvalidFilesInFlight, files_in_flight};
+use files_in_flight::{FILES_IN_FLIGHT_ENV_VAR, InvalidFilesInFlight, files_in_flight};
 use periods::notes_periods;
 use sec_client::{USER_AGENT_ENV_VAR, default_user_agent_warning, sec_client, startup_error_cause};
 use storage_root::{create_root, raw_notes_archive_writer};
 
+// This deprecated example stays frozen, so it keeps its own copy of the log code in `batch_log.rs`.
 /// Top-level batch events.
 enum BatchEvent {
     Complete,

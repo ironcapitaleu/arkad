@@ -8,7 +8,8 @@ use std::ffi::OsString;
 use sec::implementations::extraction::DEFAULT_FILES_IN_FLIGHT;
 use thiserror::Error;
 
-use crate::constants::FILES_IN_FLIGHT_ENV_VAR;
+/// The environment variable that sets the number of Notes files that the run downloads at once.
+pub const FILES_IN_FLIGHT_ENV_VAR: &str = "ARKAD_FILES_IN_FLIGHT";
 
 /// The error of a value of [`FILES_IN_FLIGHT_ENV_VAR`] that is not a positive integer.
 #[derive(Debug, Error, PartialEq, Eq)]

@@ -1,11 +1,15 @@
-//! # Periods
+//! # Notes Periods
 //!
 //! Provides [`notes_periods`], which lists the Notes periods that the backfill run asks for.
 
 use chrono::{Months, NaiveDate};
 use sec::shared::notes_period::NotesPeriod;
 
-use crate::constants::PUBLICATION_LAG_MONTHS;
+/// The number of months between today and the last Notes period that the run asks for.
+///
+/// The SEC posts the file of month M during month M+1. On 2026-10-29, the SEC had posted
+/// `2026_09`.
+pub const PUBLICATION_LAG_MONTHS: u32 = 1;
 
 /// Returns every Notes period from 2009q1 to the month [`PUBLICATION_LAG_MONTHS`] before `today`,
 /// in increasing order.

@@ -1,6 +1,6 @@
 //! # `notes_backfill` Integration Tests
 //!
-//! Runs the Notes batch run of the `Extraction` facade, which the `notes_backfill` binary calls,
+//! Runs the Notes batch run of the `Extraction` facade, which the binary `backfill` calls first,
 //! over the two smallest Notes files, and checks the run summary.
 //!
 //! ## External Dependencies

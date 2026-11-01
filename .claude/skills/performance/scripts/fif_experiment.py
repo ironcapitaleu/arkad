@@ -100,15 +100,15 @@ def build_binary(args, workdir):
     git(args.repo, "worktree", "add", "-q", "--detach", str(tree), "origin/main")
     set_periods(tree, args.periods)
     subprocess.run(
-        ["cargo", "build", "--release", "--features", "tracing-logging", "--bin", "notes_backfill"],
+        ["cargo", "build", "--release", "--features", "tracing-logging", "--example", "notes_backfill"],
         cwd=tree, env=dict(os.environ, CARGO_TARGET_DIR=str(target)), check=True)
     binary = workdir / "notes_backfill"
-    shutil.copy2(target / "release" / "notes_backfill", binary)
+    shutil.copy2(target / "release" / "examples" / "notes_backfill", binary)
     return binary
 
 
 def set_periods(tree, periods):
-    path = tree / "sec/src/bin/notes_backfill/main.rs"
+    path = tree / "sec/examples/notes_backfill/main.rs"
     listed = ", ".join(f'"{period}".to_string()' for period in periods)
     replace_once(path, r"let periods = notes_periods\(Utc::now\(\)\.date_naive\(\)\);",
                  f"let periods: Vec<String> = vec![{listed}];")
