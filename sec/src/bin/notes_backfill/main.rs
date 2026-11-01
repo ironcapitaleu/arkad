@@ -7,8 +7,7 @@ mod periods;
 // client and the store the same way.
 #[path = "../shared/sec_client.rs"]
 mod sec_client;
-// This binary uses only the Notes writer and `create_root`, so the Company Facts items would fire
-// `dead_code`.
+// This binary uses only the Notes writer, so the Company Facts items would fire `dead_code`.
 #[allow(dead_code)]
 #[path = "../shared/storage_root.rs"]
 mod storage_root;
