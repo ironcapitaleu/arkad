@@ -1,7 +1,6 @@
 //! # Extract Filing Super-State
 //!
-//! Provides the [`ExtractFilingSuperState`], which downloads the XBRL instance and the label file
-//! of one filing and writes them to the store.
+//! Provides the [`ExtractFilingSuperState`] of one filing and its context.
 //!
 //! The super-state owns the [`FilingRef`], the shared SEC client, the `execution_id`, and the two
 //! storage repositories.
@@ -43,9 +42,6 @@ impl StateData for ExtractFilingSuperStateData {
 }
 
 /// Context for the [`ExtractFilingSuperState`].
-///
-/// Holds the [`FilingRef`], the SEC client of type `C`, the `execution_id`, the repository `I`
-/// of the instance, and the repository `L` of the label file.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ExtractFilingSuperStateContext<I, L, C> {
     pub(crate) filing_ref: FilingRef,
@@ -102,8 +98,7 @@ where
 
 /// Hierarchical super-state that extracts the XBRL instance and the label file of one filing.
 ///
-/// Wraps the active state in its `S` type parameter. Its context holds the [`FilingRef`], the SEC
-/// client of type `C`, the `execution_id`, and the repositories `I` and `L`.
+/// Wraps the active state in its `S` type parameter.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ExtractFilingSuperState<
     S: State,
@@ -336,5 +331,21 @@ mod tests {
     #[test]
     const fn should_implement_auto_traits_for_extract_filing_super_state() {
         implements_auto_traits::<TestSuperState<PrepareSecRequest<FilingIndex>>>();
+    }
+
+    #[test]
+    const fn should_implement_auto_traits_for_extract_filing_super_state_context() {
+        implements_auto_traits::<
+            ExtractFilingSuperStateContext<
+                FakeXbrlInstanceRepository,
+                FakeXbrlLabelsRepository,
+                RoutingSecClient,
+            >,
+        >();
+    }
+
+    #[test]
+    const fn should_implement_auto_traits_for_extract_filing_super_state_data() {
+        implements_auto_traits::<ExtractFilingSuperStateData>();
     }
 }
