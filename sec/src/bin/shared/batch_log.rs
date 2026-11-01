@@ -35,9 +35,9 @@ pub enum BatchEvent {
     DefaultUserAgent,
     Failed,
     StartupFailed,
-    /// One step of a run with many steps ended with no failure.
+    /// One facade call of a run with two calls ended with no failure.
     StepComplete,
-    /// One step of a run with many steps ended with a failure.
+    /// One facade call of a run with two calls ended with a failure.
     StepFailed,
 }
 

@@ -25,8 +25,7 @@ use std::time::{Duration, Instant};
 
 use chrono::Utc;
 use sec::implementations::extraction::{
-    AllRunSummary, DailyFilingsRepositories, Extraction, FailedAllBackfill, NotesRunSummary,
-    RunEvent,
+    DailyFilingsRepositories, Extraction, NotesRunSummary, RunEvent,
 };
 use uuid::Uuid;
 
@@ -71,7 +70,6 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     };
     let start = Instant::now();
     let catch_up_start = Cell::new(start);
-    let mut past_result: Result<(), FailedAllBackfill> = Ok(());
 
     let catch_up = run(
         inputs,
@@ -80,9 +78,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
             RunEvent::Error(error, kind) => log_error(execution_id, unit, error, kind),
         },
         |past| {
-            log_notes_summary(execution_id, files_in_flight, past.notes(), start.elapsed());
-            log_submissions_summary(execution_id, past);
-            past_result = past.result();
+            log_notes_summary(execution_id, files_in_flight, past, start.elapsed());
             catch_up_start.set(Instant::now());
         },
     )
@@ -109,39 +105,23 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
         &message,
         &context,
     );
-    // A failed Notes period already stopped the run at `cut_over_date()`. So here only a failed CIK,
-    // an unreadable Notes file, or the catch-up can fail.
-    let failures: Vec<String> = [
-        past_result.err().map(|error| error.to_string()),
-        catch_up
-            .summary
-            .result()
-            .err()
-            .map(|error| error.to_string()),
-    ]
-    .into_iter()
-    .flatten()
-    .collect();
-    if !failures.is_empty() {
-        let message = failures.join(", ");
+    // `cut_over_date()` already failed on a failed Notes period, so only the catch-up can fail here.
+    catch_up.summary.result().inspect_err(|error| {
         tracing::error!(
             event = %BatchEvent::Failed,
-            message = %message,
+            message = %error,
             context = %serde_json::json!({ "execution_id": execution_id.to_string() }),
         );
-        return Err(message.into());
-    }
+    })?;
     tracing::info!(
         event = %BatchEvent::Complete,
-        message = %format!("Ran the Notes periods, the submissions of their CIKs, and every date up to {yesterday} in {:.2?}", start.elapsed()),
+        message = %format!("Ran the Notes periods and every date up to {yesterday} in {:.2?}", start.elapsed()),
         context = %serde_json::json!({ "execution_id": execution_id.to_string() }),
     );
     Ok(())
 }
 
 /// Logs the summary of the Notes periods, before the catch-up starts.
-///
-/// `elapsed` is the time of the first call, so it includes the `submissions` step.
 fn log_notes_summary(
     execution_id: Uuid,
     files_in_flight: usize,
@@ -168,41 +148,6 @@ fn log_notes_summary(
     );
     log_summary(
         &summary.result(),
-        BatchEvent::StepComplete,
-        BatchEvent::StepFailed,
-        &message,
-        &context,
-    );
-}
-
-/// Logs the summary of the `submissions` step, before the catch-up starts.
-///
-/// The step fails if a CIK failed or if a stored Notes file is unreadable.
-fn log_submissions_summary(execution_id: Uuid, summary: &AllRunSummary) {
-    let submissions = summary.submissions();
-    let successes = submissions.success_count();
-    let failures = submissions.failure_count();
-    let unreadable = summary.unreadable_file_count();
-    let context = serde_json::json!({
-        "execution_id": execution_id.to_string(),
-        "step": "submissions",
-        "successes": successes,
-        "failures": failures,
-        "unreadable_files": unreadable,
-        "files": summary.cik_read_entries(),
-        // Only the failed CIKs: an entry per CIK makes the line longer than the 256 KB that Cloud
-        // Logging accepts.
-        "failed_ciks": submissions.failed_entries(),
-    });
-    let message = format!(
-        "{successes} submissions files stored, {failures} failed, {unreadable} Notes files unreadable"
-    );
-    let result = match summary.result() {
-        Err(error) if failures + unreadable > 0 => Err(error),
-        _ => Ok(()),
-    };
-    log_summary(
-        &result,
         BatchEvent::StepComplete,
         BatchEvent::StepFailed,
         &message,

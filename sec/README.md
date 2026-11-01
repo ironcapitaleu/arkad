@@ -55,9 +55,8 @@ cargo run --features tracing-logging --bin stream_etl
 # facade. It exits with an error if a CIK failed.
 cargo run --features tracing-logging --example stream_extract
 
-# First load: every Notes period up to last month and the submissions file of each CIK of the
-# stored Notes files, then the new filings of each date from the cut-over date to yesterday. It
-# exits with an error if a period, a CIK, a date, or a filing failed.
+# First load: every Notes period up to last month, then the new filings of each date from the
+# cut-over date to yesterday. It exits with an error if a period, a date, or a filing failed.
 cargo run --features tracing-logging --bin backfill
 
 # Deprecated example: the Notes periods alone, as the binary notes_backfill ran them.
