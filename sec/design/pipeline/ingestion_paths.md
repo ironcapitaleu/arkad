@@ -841,6 +841,17 @@ linkbases, so the rule picks `aapl-20170930.xml`.
 The machine fetches the instance, and the label file if one exists. The files are small (2.8 KB
 and 22.8 KB for this filing), so the run caps filings by the rate limiter only.
 
+For a filing folder that does not exist, the SEC answers 404 or 503 to the request for its
+`index.json`. Measured on 2026-11-01 for three missing folders of CIK 3545: the same URL got 503
+on one request and 404 on the next, in a sequence of eight requests over one minute. An existing
+folder answered 200 in the same minute.
+
+- The machine fails at `ExecuteSecRequest` for both codes, with `InvalidSecResponse` and the code.
+- `FailedSecRequest::is_absent_file` counts 403 and 404 only. So a caller that skips absent files
+  sees a missing folder as absent on one request and as a server failure on the next.
+- The live test in `sec/tests/extract_filing.rs` accepts both codes for a missing folder. A 403, a
+  429, or a network error fails it.
+
 STA-390 proposes design 5: the client runs each request kind through its own implementation. The
 filing documents then pass through the generic `PrepareSecRequest` and `ExecuteSecRequest`, as one
 request of the kind `FilingDocumentSet`. The lead accepted this design on 2026-10-31, together with
