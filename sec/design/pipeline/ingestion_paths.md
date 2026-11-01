@@ -735,8 +735,9 @@ The daily index is the exception: it reuses `ZipBody`, because the SEC sends it 
   `sec/notes/<file name>`, for example `sec/notes/2024q1_notes.zip`.
 - The repository writes temp files and renames them. If the stored pair matches the new bytes, it
   skips the write. If the bytes differ, the new bytes replace the old.
-- The comparison includes the `Producer` with its git commit. So a rerun after a new deploy
-  rewrites every file, 27.7 GB for the backfill, even if the bytes are equal.
+- The comparison leaves out the `Producer` with its git commit (STA-419). So a rerun after a new
+  deploy skips every file whose bytes are equal, instead of rewriting 27.7 GB for the backfill.
+  The stored `producer` names the first build that wrote the bytes.
 - The files live on the Cloud Storage bucket mounted into the Cloud Run job. The states read the
   ZIP from there.
 - Storing all 79 files takes 27.7 GB, under $1 a month (estimate).
@@ -1822,8 +1823,8 @@ The metadata of each raw document records the ingestion mode of the run that cre
 `"ingestion_mode": "backfill"` or `"ingestion_mode": "incremental"`. Decided by the lead on
 2026-10-28, with this key name.
 
-- `ingestion_mode` is a run field in `DocumentMetadata`, next to `execution_id` and
-  `produced_at`. Its type is the enum `IngestionMode` in `storage`, so `storage` does not depend
+- `ingestion_mode` is a run field in `DocumentMetadata`, next to `execution_id`, `produced_at`,
+  and `producer`. Its type is the enum `IngestionMode` in `storage`, so `storage` does not depend
   on `sec`, and `sec` uses the same enum.
 - `ingestion_mode` is required. Metadata without a mode does not compile. A stored file without
   the field, with `null`, or with any text other than `backfill` or `incremental` fails to read.
@@ -1831,8 +1832,8 @@ The metadata of each raw document records the ingestion mode of the run that cre
 - `companyfacts` runs as a backfill, so `StoreCompanyFacts` writes `backfill`.
 - `METADATA_VERSION` stays 1 until the MVP. Files written before the MVP do not need to stay
   readable.
-- `persist` leaves `ingestion_mode` out of the comparison, as it does with `execution_id` and
-  `produced_at`. If a run stores the same bytes again, the write is skipped and the stored run
+- `persist` leaves `ingestion_mode` out of the comparison, as it does with `execution_id`,
+  `produced_at`, and `producer`. If a run stores the same bytes again, the write is skipped and the stored run
   fields stay. A stored file without a valid mode fails the check of the run fields, so `persist`
   rewrites it.
 - So the metadata names the run that created the document. `submissions` serves both modes. If
