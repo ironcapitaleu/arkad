@@ -143,18 +143,14 @@ mod tests {
             RAW_BODY.to_vec(),
         )
         .expect("Given a hardcoded valid JSON body, building the response should always succeed");
-        StoreCompanyFactsInput::new(
-            response,
-            requested_url(),
-            user_agent(),
-            IngestionMode::Backfill,
-        )
+        StoreCompanyFactsInput::new(response, requested_url(), user_agent())
     }
 
     fn sample_state(repository: FakeWriteRepository) -> StoreCompanyFacts<FakeWriteRepository> {
         let cik = Cik::new("1067983")
             .expect("Given a hardcoded numeric CIK, its creation should always succeed");
-        let context = StoreCompanyFactsContext::new(cik, EXECUTION_ID, repository);
+        let context =
+            StoreCompanyFactsContext::new(cik, EXECUTION_ID, IngestionMode::Backfill, repository);
         StoreCompanyFacts::new(sample_input(), context)
     }
 
@@ -324,14 +320,17 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_persist_the_ingestion_mode_of_the_input() {
+    async fn should_persist_the_ingestion_mode_of_the_context() {
         let repository = FakeWriteRepository::new();
         let cik = Cik::new("1067983")
             .expect("Given a hardcoded numeric CIK, its creation should always succeed");
-        let context = StoreCompanyFactsContext::new(cik, EXECUTION_ID, repository.clone());
-        let mut input = sample_input();
-        input.ingestion_mode = IngestionMode::Incremental;
-        let mut state = StoreCompanyFacts::new(input, context);
+        let context = StoreCompanyFactsContext::new(
+            cik,
+            EXECUTION_ID,
+            IngestionMode::Incremental,
+            repository.clone(),
+        );
+        let mut state = StoreCompanyFacts::new(sample_input(), context);
         state
             .compute_output_data_async()
             .await

@@ -369,9 +369,9 @@ impl<R: RawRepository<RawCompanyFacts>, C: SecClientTrait>
         execution_id: Uuid,
         repository: R,
     ) -> Self {
-        let input =
-            StoreCompanyFactsInput::new(response, requested_url, user_agent, INGESTION_MODE);
-        let context = StoreCompanyFactsContext::new(cik, execution_id, repository.clone());
+        let input = StoreCompanyFactsInput::new(response, requested_url, user_agent);
+        let context =
+            StoreCompanyFactsContext::new(cik, execution_id, INGESTION_MODE, repository.clone());
 
         Self {
             current_state: StoreCompanyFacts::new(input, context),
@@ -1108,7 +1108,7 @@ mod tests {
 
         let expected_result = IngestionMode::Backfill;
 
-        let result = super_state.current_state().input_data().ingestion_mode();
+        let result = super_state.current_state().context_data().ingestion_mode();
 
         assert_eq!(result, expected_result);
     }
@@ -1125,7 +1125,7 @@ mod tests {
         >::transition_to_next_state_sec(super_state)
         .expect("Given a request with output, the transition should always succeed")
         .current_state()
-        .input_data()
+        .context_data()
         .ingestion_mode();
 
         assert_eq!(result, expected_result);

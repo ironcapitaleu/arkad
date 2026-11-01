@@ -90,14 +90,13 @@ impl<E: StoredAs, R, C: SecClientTrait> TryFrom<(ExecuteSecRequest<E, C>, Uuid, 
 
         let requested_url = Url::from(input.sec_request.inner.url().clone());
         let user_agent = input.sec_client.user_agent().clone();
-        let new_input = StoreSecResponseInput::new(
-            output_data.response,
-            requested_url,
-            user_agent,
+        let new_input = StoreSecResponseInput::new(output_data.response, requested_url, user_agent);
+        let new_context = StoreSecResponseContext::new(
+            context.request_input,
+            execution_id,
             ingestion_mode,
+            repository,
         );
-        let new_context =
-            StoreSecResponseContext::new(context.request_input, execution_id, repository);
 
         Ok(Self::new(new_input, new_context))
     }
@@ -272,7 +271,7 @@ mod tests {
             rejecting_repository(),
         ))
         .expect("Given a source state with output, the transition should always succeed")
-        .input_data()
+        .context_data()
         .ingestion_mode();
 
         assert_eq!(result, expected_result);
