@@ -5,7 +5,7 @@
 //! ## Modules
 //!
 //! - [`sample_http_client`]: Fake HTTP and SEC clients.
-//! - [`sample_rate_limiter`]: A fake rate limiter that never blocks.
+//! - [`sample_rate_limiter`]: Fake rate limiters that never block, count turns, or hold callers.
 //! - [`sample_request`]: Fake inner and SEC requests.
 //! - [`sample_response`]: Fake inner and SEC responses.
 //! - [`sample_sec_state`]: A minimal sample [`State`](crate::traits::state_machine::state::State).

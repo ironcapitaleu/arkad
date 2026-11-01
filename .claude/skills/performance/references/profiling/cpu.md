@@ -39,9 +39,9 @@ against EDGAR, so the run takes at least 52 seconds at the 110 ms pacing gate. T
 exploratory exception that the invariant in `SKILL.md` allows. Profile with this command. Never
 assert a number that came from it.
 
-`--features tracing-logging` is required. Both `stream_etl` and `stream_extract` declare
-`required-features = ["tracing-logging"]` in `sec/Cargo.toml`, and cargo refuses to build either
-binary without the flag. The `extraction` binary has no such requirement.
+`--features tracing-logging` is required. The binary `stream_etl` and the example `stream_extract`
+declare `required-features = ["tracing-logging"]` in `sec/Cargo.toml`, and cargo refuses to build
+either without the flag. The `extraction` binary has no such requirement.
 
 `samply record` opens a local Firefox Profiler window when the process exits. To capture without that
 window, run `samply record --save-only -o profile.json <cmd>`. Then run `samply load profile.json`

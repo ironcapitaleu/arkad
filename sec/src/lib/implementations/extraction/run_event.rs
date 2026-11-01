@@ -66,6 +66,8 @@ impl Display for ErrorKind {
 pub enum Unit {
     /// A Notes period, for example `2024q1` or `2025_10`.
     Period(String),
+    /// A raw CIK of the Company Facts source, for example `320193`.
+    Cik(String),
     /// A date of the new-filing path, and the detection of its filings.
     Date(NaiveDate),
     /// A filing of a date of the new-filing path.
@@ -97,6 +99,7 @@ impl Display for Unit {
                 accession_number,
             } => write!(f, "{date} {accession_number}"),
             Self::Company { date, cik } => write!(f, "{date} CIK {cik}"),
+            Self::Cik(cik) => write!(f, "{cik}"),
         }
     }
 }
@@ -201,6 +204,29 @@ mod tests {
         let unit = Unit::Period("2024q1".to_string());
 
         let expected_result = serde_json::json!({ "period": "2024q1" });
+
+        let result = serde_json::to_value(&unit)
+            .expect("Given a unit of plain strings, serialization should always succeed");
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_display_the_bare_cik_when_the_unit_is_a_cik() {
+        let unit = Unit::Cik("320193".to_string());
+
+        let expected_result = "320193";
+
+        let result = unit.to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_serialize_an_object_with_the_cik_key_when_the_unit_is_a_cik() {
+        let unit = Unit::Cik("320193".to_string());
+
+        let expected_result = serde_json::json!({ "cik": "320193" });
 
         let result = serde_json::to_value(&unit)
             .expect("Given a unit of plain strings, serialization should always succeed");

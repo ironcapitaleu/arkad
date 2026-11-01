@@ -6,13 +6,16 @@
 //! [`Extraction::incremental`]. The second call picks the source and returns the typestate builder
 //! of that source's super-state, with the run's `execution_id` and ingestion mode already set.
 //! Each [`build`] returns the concrete super-state. The Notes source also runs a batch of periods
-//! with [`BackfillNotes::periods`], and the new-filing path runs many dates with
+//! with [`BackfillNotes::periods`], the Company Facts source a batch of CIKs with
+//! [`BackfillCompanyFacts::ciks`], and the new-filing path runs many dates with
 //! [`Incremental::daily_filings`].
 //!
 //! [`build`]: crate::implementations::states::extract::notes::builder::ExtractNotesSuperStateBuilder::build
 //!
 //! ## Modules
 //!
+//! - [`company_facts`]: The Company Facts source of a backfill run, and its batch run over many
+//!   CIKs.
 //! - [`daily_filings`]: The new-filing path of an incremental run over many dates.
 //! - [`notes`]: The Notes source of a backfill run, and its batch run over many periods.
 //! - [`run_event`]: The events that a batch run passes to its observer.
@@ -58,6 +61,36 @@
 //! let summary = Extraction::backfill()
 //!     .notes()
 //!     .periods(["2009q1", "2009q2"])
+//!     .sec_client(SecClient::default())
+//!     .repository(repository)
+//!     .run(|unit, event| {
+//!         if let RunEvent::Error(error, kind) = event {
+//!             eprintln!("{unit}: {kind}: {error}");
+//!         }
+//!     })
+//!     .await;
+//! # }
+//! ```
+//!
+//! A batch over many CIKs stores the `companyfacts` JSON of each CIK:
+//!
+//! ```no_run
+//! # async fn example() {
+//! use sec::implementations::extraction::{Extraction, RunEvent};
+//! use sec::shared::http_client::implementations::sec_client::SecClient;
+//! use sec::shared::raw_document::RawDocument;
+//! use sec::shared::raw_source::RawCompanyFacts;
+//! use storage::implementations::repository::filesystem::FilesystemRepository;
+//!
+//! let repository = FilesystemRepository::builder()
+//!     .writer()
+//!     .document_type::<RawDocument<RawCompanyFacts>>()
+//!     .root("data")
+//!     .build();
+//! let ciks = ["320193", "1067983"];
+//! let summary = Extraction::backfill()
+//!     .company_facts()
+//!     .ciks(ciks)
 //!     .sec_client(SecClient::default())
 //!     .repository(repository)
 //!     .run(|unit, event| {
@@ -153,10 +186,15 @@ use crate::implementations::states::extract::{daily_index, filing, submissions};
 use crate::shared::raw_repository::RawRepository;
 use crate::shared::raw_source::{RawDailyIndex, RawSubmissions, RawXbrlInstance, RawXbrlLabels};
 
+pub mod company_facts;
 pub mod daily_filings;
 pub mod notes;
 pub mod run_event;
 
+pub use company_facts::{
+    BackfillCompanyFacts, CompanyFactsBatchBuilder, CompanyFactsRunSummary, DEFAULT_CIKS_IN_FLIGHT,
+    FailedCompanyFactsBackfill,
+};
 pub use daily_filings::{
     DEFAULT_MACHINES_IN_FLIGHT, DEFAULT_RETRY_DELAYS, DailyClient, DailyFilingsBuilder,
     DailyFilingsRepositories, DailyRunSummary, FailedDailyRun, IncrementalDailyFilings,
@@ -227,6 +265,14 @@ impl Backfill {
     #[must_use]
     pub const fn notes(&self) -> BackfillNotes {
         BackfillNotes::new(self.execution_id)
+    }
+
+    /// Returns the Company Facts source of the run.
+    ///
+    /// Pick one CIK with [`BackfillCompanyFacts::cik`] or many with [`BackfillCompanyFacts::ciks`].
+    #[must_use]
+    pub const fn company_facts(&self) -> BackfillCompanyFacts {
+        BackfillCompanyFacts::new(self.execution_id)
     }
 }
 

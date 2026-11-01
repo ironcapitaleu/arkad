@@ -67,7 +67,7 @@ only with the stated limit. **No** means the number will mislead you.
 
 | Component | CPU | Memory | Wall-time |
 | --- | --- | --- | --- |
-| **Binary** (`stream_etl`, `stream_extract`) | Yes. samply on the whole run | Yes. Peak resident memory | Caution. The rate-limiter constant dominates, not our code |
+| **Binary** (`stream_etl`, the example `stream_extract`) | Yes. samply on the whole run | Yes. Peak resident memory | Caution. The rate-limiter constant dominates, not our code |
 | **StateMachine or SuperState** | Yes | Caution. Needs a client-injection seam to run without network | No. Gate-bound, so it measures config and the internet |
 | **State** (single) | Yes, if the state is pure and does no I/O | Caution. Only through the enclosing run | No. Sub-millisecond, below any noise floor |
 | **Function or method** | Yes. This is the common case | Caution. Same limit as a state | No. Sub-millisecond |
