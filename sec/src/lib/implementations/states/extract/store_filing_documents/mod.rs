@@ -20,7 +20,7 @@ use chrono::Utc;
 use serde::Serialize;
 use state_maschine::prelude::State as SMState;
 use storage::WriteError;
-use storage::implementations::repository::filesystem::IngestionMode;
+use storage::implementations::repository::filesystem::{IngestionMode, InputDocument};
 
 use crate::error::State as StateError;
 use crate::error::state_machine::state::FailedDocumentWrite;
@@ -71,6 +71,16 @@ impl<I, L> StoreFilingDocuments<I, L> {
             input,
             context,
             output: None,
+        }
+    }
+
+    /// Returns this state with the documents that the filing came from, which the metadata of
+    /// the stored files records as inputs.
+    #[must_use]
+    pub fn with_inputs(self, inputs: Vec<InputDocument>) -> Self {
+        Self {
+            context: self.context.with_inputs(inputs),
+            ..self
         }
     }
 
@@ -144,6 +154,7 @@ where
                         &self.input.user_agent,
                         run.clone(),
                         FilingFields::from(filing),
+                        self.context.inputs.clone(),
                     )
                 });
         let instance = RawDocument::<RawXbrlInstance>::from_filing_file(
@@ -153,6 +164,7 @@ where
             &self.input.user_agent,
             run,
             FilingFields::from(filing),
+            self.context.inputs.clone(),
         );
         let documents = FilingDocumentsRef::new(filing.clone(), labels.is_some());
 
@@ -612,6 +624,34 @@ mod tests {
             .persisted()
             .pop()
             .map(|document| document.metadata().context().requested_url.clone());
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_record_the_inputs_in_the_instance_metadata_when_the_state_has_inputs() {
+        let inputs = vec![InputDocument::new(
+            DocumentKey::new("sec/daily-index/form.20260909.idx")
+                .expect("Given a hardcoded valid relative path, the key should always build"),
+            storage::Sha256Digest::of(b"index"),
+        )];
+        let instances = FakeXbrlInstanceRepository::new();
+        let mut state = state(
+            input(true, true),
+            instances.clone(),
+            FakeXbrlLabelsRepository::new(),
+        )
+        .with_inputs(inputs.clone());
+        state.compute_output_data_async().await.expect(
+            "Given responses for both files and fake repositories, storing should always succeed",
+        );
+
+        let expected_result = Some(inputs);
+
+        let result = instances
+            .persisted()
+            .pop()
+            .map(|document| document.metadata().inputs().to_vec());
 
         assert_eq!(result, expected_result);
     }

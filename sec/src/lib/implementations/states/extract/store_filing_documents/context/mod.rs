@@ -8,6 +8,7 @@ use std::fmt;
 
 use serde::Serialize;
 use state_maschine::prelude::Context as SMContext;
+use storage::implementations::repository::filesystem::InputDocument;
 use uuid::Uuid;
 
 use crate::shared::raw_repository::RawRepository;
@@ -26,6 +27,9 @@ pub struct StoreFilingDocumentsContext<I, L> {
     pub instance_repository: I,
     /// The repository of the label files.
     pub labels_repository: L,
+    /// The documents that the filing came from, for the metadata of the stored files. Empty by
+    /// default.
+    pub inputs: Vec<InputDocument>,
     /// The maximum number of retries of the state.
     ///
     /// A retry after a failed write returns [`StateError::InvalidInput`], because the failed run
@@ -59,8 +63,15 @@ impl<I, L> StoreFilingDocumentsContext<I, L> {
             execution_id,
             instance_repository,
             labels_repository,
+            inputs: Vec::new(),
             max_retries: 0,
         }
+    }
+
+    /// Returns this context with the documents that the filing came from.
+    #[must_use]
+    pub fn with_inputs(self, inputs: Vec<InputDocument>) -> Self {
+        Self { inputs, ..self }
     }
 }
 

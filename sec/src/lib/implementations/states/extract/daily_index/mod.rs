@@ -55,6 +55,7 @@ use async_trait::async_trait;
 use futures_util::StreamExt;
 use serde::Serialize;
 use state_maschine::prelude::{StateMachine as SMStateMachine, Transition as SMTransition};
+use storage::implementations::repository::filesystem::InputDocument;
 use uuid::Uuid;
 
 use crate::error::State as StateError;
@@ -65,7 +66,9 @@ use crate::implementations::states::extract::daily_index::builder::{
 use crate::implementations::states::extract::download_daily_index::DownloadDailyIndex;
 use crate::implementations::states::extract::prepare_sec_request::PrepareSecRequest;
 use crate::implementations::states::extract::select_filings::SelectFilings;
-use crate::implementations::states::extract::store_daily_index::StoreDailyIndex;
+use crate::implementations::states::extract::store_daily_index::{
+    StoreDailyIndex, StoredDailyIndex,
+};
 use crate::implementations::states::extract::validate_index_date::ValidateIndexDate;
 use crate::prelude::*;
 use crate::shared::filing_ref::FilingRef;
@@ -99,6 +102,15 @@ impl StateData for DetectFilingsSuperStateData {
     }
 }
 
+/// The filings that detection selected, and the stored daily index they came from.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct DetectedFilings {
+    /// The selected filings, one per accession number, in index order.
+    pub filings: Vec<FilingRef>,
+    /// The stored daily index as an [`InputDocument`], or `None` if the day had no filings.
+    pub index: Option<InputDocument>,
+}
+
 /// Context for the [`DetectFilingsSuperState`].
 ///
 /// Holds the SEC client of type `C`, the `execution_id`, the repository of type `R`, and the slot
@@ -108,7 +120,7 @@ pub struct DetectFilingsSuperStateContext<R, C> {
     pub(crate) sec_client: C,
     pub(crate) execution_id: Uuid,
     pub(crate) repository: R,
-    pub(crate) filings_slot: OutputSlot<Vec<FilingRef>>,
+    pub(crate) filings_slot: OutputSlot<DetectedFilings>,
 }
 
 impl<R, C> DetectFilingsSuperStateContext<R, C> {
@@ -299,9 +311,29 @@ where
     /// Panics if the stream ends without an error before [`SelectFilings`] computes its output.
     /// The state flow rules this out.
     pub async fn run_to_filings(
+        self,
+        on_item: impl FnMut(&StreamItem),
+    ) -> Result<Vec<FilingRef>, StreamError> {
+        self.run_to_detected_filings(on_item)
+            .await
+            .map(|detected| detected.filings)
+    }
+
+    /// Runs the stream to its end, as [`run_to_filings`](Self::run_to_filings) does, and returns
+    /// the selected filings with the stored daily index they came from.
+    ///
+    /// # Errors
+    ///
+    /// Returns the [`StreamError`] of the first state that fails. The stream ends at that error.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the stream ends without an error before [`SelectFilings`] computes its output.
+    /// The state flow rules this out.
+    pub async fn run_to_detected_filings(
         mut self,
         mut on_item: impl FnMut(&StreamItem),
-    ) -> Result<Vec<FilingRef>, StreamError> {
+    ) -> Result<DetectedFilings, StreamError> {
         let filings_slot = OutputSlot::default();
         self.context.filings_slot = filings_slot.clone();
         let mut stream = self.into_run_stream();
@@ -356,7 +388,14 @@ impl<R: RawRepository<RawDailyIndex> + 'static, C: SecClientTrait + 'static> Int
         let filings_slot = self.context.filings_slot.clone();
         terminal_stream_with(self, execution_id, move |state: &SelectFilings| {
             if let Some(output) = state.output_data() {
-                filings_slot.put(output.filings.clone());
+                filings_slot.put(DetectedFilings {
+                    filings: output.filings.clone(),
+                    index: state
+                        .input_data()
+                        .index
+                        .as_ref()
+                        .map(StoredDailyIndex::input_document),
+                });
             }
         })
     }
@@ -621,6 +660,52 @@ mod tests {
         let result = std::fs::read(root.path().join("sec/daily-index/form.20261027.idx")).expect(
             "Given a run that completed without an error, the stored file should always exist",
         );
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_return_the_stored_index_as_an_input_when_the_day_has_filings() {
+        let root = temporary_root();
+        let super_state = super_state(
+            "2026-10-27",
+            sec_client(SAMPLE_DAILY_INDEX.as_bytes()),
+            filesystem_repository(root.path()),
+        );
+
+        let expected_result = Some(InputDocument::new(
+            storage::implementations::repository::filesystem::DocumentKey::new(
+                "sec/daily-index/form.20261027.idx",
+            )
+            .expect("Given a hardcoded valid relative path, the key should always build"),
+            storage::Sha256Digest::of(SAMPLE_DAILY_INDEX.as_bytes()),
+        ));
+
+        let result = super_state
+            .run_to_detected_filings(|_| {})
+            .await
+            .expect("Given a past date, the fake client, and a writable store, the run should always succeed")
+            .index;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_return_no_index_when_the_day_has_no_filings() {
+        let root = temporary_root();
+        let super_state = super_state(
+            "2026-10-26",
+            sec_client(SAMPLE_DAILY_INDEX.as_bytes()),
+            filesystem_repository(root.path()),
+        );
+
+        let expected_result = None;
+
+        let result = super_state
+            .run_to_detected_filings(|_| {})
+            .await
+            .expect("Given a closed day before a listed index, the run should always succeed")
+            .index;
 
         assert_eq!(result, expected_result);
     }

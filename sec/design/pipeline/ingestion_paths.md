@@ -1548,6 +1548,9 @@ documents:
 - The key of a filing's file names its CIK and accession number, not the day it was filed. So the
   metadata `context` of the instance and the label file also holds `filing`: the `filed_date`, the
   `form` (`10-Q`), and `is_amendment`. A metadata file without `filing` reads as no filing.
+- The `inputs` of the instance and the label file name the daily index that listed the filing,
+  with its key and SHA-256, so each filing points back to its index. A filing machine built
+  without inputs records none.
 - The daily index is stored so that detection can run again without the SEC.
 - A new fetch of `submissions` replaces the old file. The raw store holds the latest company data
   only. The same holds for a replaced Notes file.

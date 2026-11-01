@@ -19,7 +19,7 @@ use async_trait::async_trait;
 use chrono::Utc;
 use serde::Serialize;
 use state_maschine::prelude::State as SMState;
-use storage::implementations::repository::filesystem::{DocumentKey, IngestionMode};
+use storage::implementations::repository::filesystem::{Document, DocumentKey, IngestionMode};
 
 use crate::error::State as StateError;
 use crate::error::state_machine::state::FailedDocumentWrite;
@@ -113,6 +113,7 @@ impl<R: RawRepository<RawDailyIndex>> State for StoreDailyIndex<R> {
         );
         let index = StoredDailyIndex {
             key,
+            sha256: document.metadata().sha256().clone(),
             text: response.body_bytes(),
         };
 
@@ -342,6 +343,7 @@ mod tests {
 
         let expected_result = Some(&StoreDailyIndexOutput::new(StoredDailyIndex {
             key: sample_key(),
+            sha256: storage::Sha256Digest::of(SAMPLE_INDEX),
             text: Bytes::from_static(SAMPLE_INDEX),
         }));
 
