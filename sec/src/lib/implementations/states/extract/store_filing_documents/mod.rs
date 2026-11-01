@@ -660,6 +660,25 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn should_record_no_inputs_in_the_instance_metadata_when_the_state_has_none() {
+        let (_, instances, _) = store_on_fakes(
+            input(true, true),
+            FakeXbrlInstanceRepository::new(),
+            FakeXbrlLabelsRepository::new(),
+        )
+        .await;
+
+        let expected_result = Some(Vec::<InputDocument>::new());
+
+        let result = instances
+            .persisted()
+            .pop()
+            .map(|document| document.metadata().inputs().to_vec());
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
     async fn should_record_the_inputs_in_the_labels_metadata_when_the_state_has_inputs() {
         let labels = FakeXbrlLabelsRepository::new();
         let mut state = state(
