@@ -560,9 +560,9 @@ pub fn is_unavailable(error: &StreamError) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use pretty_assertions::assert_eq;
     use std::sync::atomic::{AtomicUsize, Ordering};
 
+    use pretty_assertions::assert_eq;
     use sec::error::state_machine::state::{
         FailedDocumentSelection, FailedRequestExecution, MissingDailyIndex,
     };

@@ -62,7 +62,7 @@ mod run_loop {
             .route(SUBMISSIONS_URL, 200, "application/json", SUBMISSIONS)
     }
 
-    /// The index of 2026-10-26 with a second 10-Q of the same company.
+    /// The index of 2026-10-26 with a 10-Q and a 10-Q/A of the same company.
     const DAILY_INDEX_WITH_TWO_FILINGS: &[u8] = b"Form Type   Company Name   CIK   Date Filed  File Name
 ---------------------------------------------------------------------
 10-Q             ALCO STORES INC                                               3545        20261026    edgar/data/3545/0000003545-26-000047.txt
@@ -353,6 +353,25 @@ mod run_loop {
         let expected_result = vec![json!({
             "context": { "date": "2026-10-27" },
             "kind": "Pending",
+        })];
+
+        let result = reported_errors(&dates, &sec_client).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_report_unextractable_with_the_filing_when_the_folder_has_no_instance() {
+        let dates = [date("2026-10-26")];
+        let sec_client = sec_client_with_folder(&[(
+            200,
+            "application/json",
+            br#"{"directory":{"item":[{"name":"alco-20260908.htm"}]}}"#,
+        )]);
+
+        let expected_result = vec![json!({
+            "context": { "date": "2026-10-26", "accession_number": "0000003545-26-000047" },
+            "kind": "Unextractable",
         })];
 
         let result = reported_errors(&dates, &sec_client).await;
