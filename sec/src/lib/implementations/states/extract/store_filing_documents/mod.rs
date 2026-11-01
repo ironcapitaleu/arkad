@@ -108,8 +108,11 @@ where
     I: RawRepository<RawXbrlInstance>,
     L: RawRepository<RawXbrlLabels>,
 {
-    /// Writes the instance, then the label file if the filing has one, and stores a reference to
+    /// Writes the label file if the filing has one, then the instance, and stores a reference to
     /// the stored files as output.
+    ///
+    /// The instance goes last, so a stored instance means that every file of the filing is
+    /// stored. The `daily_filings` run skips a filing whose instance the store holds.
     ///
     /// The input gives up its responses once they pass the checks, even if a write fails.
     ///
@@ -168,11 +171,6 @@ where
         );
         let documents = FilingDocumentsRef::new(filing.clone(), labels.is_some());
 
-        self.context
-            .instance_repository
-            .persist(instance)
-            .await
-            .map_err(failed_write)?;
         if let Some(labels) = labels {
             self.context
                 .labels_repository
@@ -180,6 +178,11 @@ where
                 .await
                 .map_err(failed_write)?;
         }
+        self.context
+            .instance_repository
+            .persist(instance)
+            .await
+            .map_err(failed_write)?;
         self.output = Some(StoreFilingDocumentsOutput::new(documents));
         Ok(())
     }
@@ -888,23 +891,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_write_no_label_file_when_the_instance_repository_rejects_the_write() {
-        let (_, _, labels) = store_on_fakes(
-            input(true, true),
-            FakeXbrlInstanceRepository::rejecting(rejecting_write()),
-            FakeXbrlLabelsRepository::new(),
-        )
-        .await;
-
-        let expected_result = 0;
-
-        let result = labels.persisted().len();
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[tokio::test]
-    async fn should_keep_the_stored_instance_when_the_labels_repository_rejects_the_write() {
+    async fn should_write_no_instance_when_the_labels_repository_rejects_the_write() {
         let (_, instances, _) = store_on_fakes(
             input(true, true),
             FakeXbrlInstanceRepository::new(),
@@ -912,9 +899,25 @@ mod tests {
         )
         .await;
 
-        let expected_result = vec![key(INSTANCE_KEY)];
+        let expected_result = 0;
 
-        let result: Vec<DocumentKey> = instances
+        let result = instances.persisted().len();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_keep_the_stored_label_file_when_the_instance_repository_rejects_the_write() {
+        let (_, _, labels) = store_on_fakes(
+            input(true, true),
+            FakeXbrlInstanceRepository::rejecting(rejecting_write()),
+            FakeXbrlLabelsRepository::new(),
+        )
+        .await;
+
+        let expected_result = vec![key(LABELS_KEY)];
+
+        let result: Vec<DocumentKey> = labels
             .persisted()
             .iter()
             .map(|document| document.key().clone())

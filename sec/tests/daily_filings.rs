@@ -18,6 +18,7 @@ mod yesterday;
 
 /// Runs the facade offline, with a fake SEC client and stores in a temp dir.
 mod run_loop {
+    use std::collections::BTreeMap;
     use std::sync::{Arc, Mutex};
     use std::time::Duration;
 
@@ -232,6 +233,96 @@ mod run_loop {
         })];
 
         let result = outcomes(&run_offline(&dates, &sec_client).await);
+
+        assert_eq!(result, expected_result);
+    }
+
+    /// The stored XBRL instance of the 10-Q of 2026-10-26, under the storage root.
+    const STORED_INSTANCE: &str = "sec/filings/CIK0000003545/0000003545-26-000047/instance.xml";
+
+    /// Runs 2026-10-26 once with `sec_client()` in `root`, so the store holds its filing.
+    async fn store_first_run(root: &TempDir) {
+        let _ = run_offline_in(root, &[date("2026-10-26")], &sec_client()).await;
+    }
+
+    #[tokio::test]
+    async fn should_request_only_the_daily_index_and_submissions_when_a_stored_date_runs_again() {
+        let root = temporary_root();
+        store_first_run(&root).await;
+        let second_client = sec_client();
+        let _ = run_offline_in(&root, &[date("2026-10-26")], &second_client).await;
+
+        let expected_result =
+            BTreeMap::from([(INDEX_URL.to_string(), 1), (SUBMISSIONS_URL.to_string(), 1)]);
+
+        let result = second_client.inner.request_counts.per_url();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_list_the_filing_as_already_stored_when_a_stored_date_runs_again() {
+        let root = temporary_root();
+        store_first_run(&root).await;
+        let summary = run_offline_in(&root, &[date("2026-10-26")], &sec_client()).await;
+
+        let expected_result = json!({
+            "selected": 1,
+            "stored": 0,
+            "already_stored": 1,
+            "unextractable": [],
+            "failed": [],
+        });
+
+        let result = summary.entries()[0]["filings"].clone();
+
+        assert_eq!(result, expected_result);
+    }
+
+    /// Runs 2026-10-26 twice in one store, and overwrites the stored instance with `bytes` between
+    /// the runs. Returns the filing counts of the second run.
+    async fn second_run_after_overwriting_the_instance(bytes: &[u8]) -> Value {
+        let root = temporary_root();
+        store_first_run(&root).await;
+        std::fs::write(root.path().join(STORED_INSTANCE), bytes).expect(
+            "Given an instance that the first run stored, overwriting it should always succeed",
+        );
+        let summary = run_offline_in(&root, &[date("2026-10-26")], &sec_client()).await;
+        summary.entries()[0]["filings"].clone()
+    }
+
+    #[tokio::test]
+    async fn should_fetch_the_filing_again_when_the_stored_instance_fails_the_sha256_check() {
+        // The same 7 bytes as the stored `<xbrl/>`, so the size check passes and the SHA-256 check
+        // fails.
+        let bytes = b"<xbrX/>";
+
+        let expected_result = json!({
+            "selected": 1,
+            "stored": 1,
+            "already_stored": 0,
+            "unextractable": [],
+            "failed": [],
+        });
+
+        let result = second_run_after_overwriting_the_instance(bytes).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_fetch_the_filing_again_when_the_stored_instance_fails_the_size_check() {
+        let bytes = b"<xbrl-corrupt/>";
+
+        let expected_result = json!({
+            "selected": 1,
+            "stored": 1,
+            "already_stored": 0,
+            "unextractable": [],
+            "failed": [],
+        });
+
+        let result = second_run_after_overwriting_the_instance(bytes).await;
 
         assert_eq!(result, expected_result);
     }

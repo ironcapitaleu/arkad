@@ -196,8 +196,8 @@ where
 {
     /// Extracts the Notes file of each period into the repository and returns the summary.
     ///
-    /// At most the in-flight cap of periods run at once, each in its own task. A failed period
-    /// does not stop the others. A period whose intact file the repository already holds skips
+    /// At most [`in_flight`](Self::in_flight) periods run at once, each in its own task. A failed
+    /// period does not stop the others. A period whose intact file the repository already holds skips
     /// the download.
     ///
     /// Calls `observer` with the period and each successful stream item, and with the period and

@@ -5,7 +5,9 @@
 //!
 //! [`IncrementalDailyFilings::dates`] returns a [`DailyFilingsBuilder`], whose [`run`] runs the
 //! dates in order, one date at a time. For each date, the run detects the filings, then extracts
-//! each filing, then the `submissions` file of each company.
+//! each filing, then the `submissions` file of each company. Before it sends a request for a
+//! filing, the run reads the stored XBRL instance of the filing. If the instance passes the size
+//! and SHA-256 check, the run skips the filing.
 //!
 //! [`run`]: DailyFilingsBuilder::run
 
@@ -15,8 +17,9 @@ use std::time::Duration;
 use chrono::NaiveDate;
 use futures_util::StreamExt;
 use storage::implementations::repository::filesystem::{
-    FilesystemRepository, InputDocument, Write,
+    FilesystemRepository, InputDocument, Read, Write,
 };
+use storage::traits::repository::ReadRepository;
 
 use super::Incremental;
 use super::run_event::{ErrorKind, RunEvent, Unit};
@@ -31,6 +34,7 @@ use crate::implementations::states::extract::validate_cik_format::ValidateCikFor
 use crate::implementations::states::extract::validate_index_date::ValidateIndexDate;
 use crate::prelude::{IntoStateMachineStream, StateMachineStream, StreamError, StreamItem};
 use crate::shared::cik::Cik;
+use crate::shared::filing_documents_ref::instance_key;
 use crate::shared::filing_ref::FilingRef;
 use crate::shared::http_client::Executes;
 use crate::shared::http_client::SecClient as SecClientTrait;
@@ -40,7 +44,7 @@ use crate::shared::raw_source::{RawDailyIndex, RawSubmissions, RawXbrlInstance, 
 use crate::shared::request::implementations::sec_request::{FilingDocumentSet, FilingIndex};
 use crate::shared::response::implementations::sec_response::{JsonBody, SecResponse, ZipBody};
 use summary::{
-    CompanyOutcome, DateOutcome, FilingOutcome, is_pending, is_unavailable, is_unextractable,
+    CompanyOutcome, DateOutcome, Fetch, FilingOutcome, is_pending, is_unavailable, is_unextractable,
 };
 
 mod summary;
@@ -89,6 +93,7 @@ impl<C> DailyClient for C where
 
 type DailyIndexRepository = FilesystemRepository<Write, RawDocument<RawDailyIndex>>;
 type InstanceRepository = FilesystemRepository<Write, RawDocument<RawXbrlInstance>>;
+type InstanceReader = FilesystemRepository<Read, RawDocument<RawXbrlInstance>>;
 type LabelsRepository = FilesystemRepository<Write, RawDocument<RawXbrlLabels>>;
 type SubmissionsRepository = FilesystemRepository<Write, RawDocument<RawSubmissions>>;
 
@@ -306,13 +311,15 @@ where
     /// Runs the new-filing path for each date, in order, and returns the summary.
     ///
     /// The dates run one after another, never at once. For each date, the run runs detection,
-    /// then one filing machine per selected filing, then one `submissions` machine per distinct
-    /// CIK of the selected filings. At most [`in_flight`](Self::in_flight) filing machines run at
-    /// once, and the same for `submissions` machines. A filing or `submissions` machine that the SEC answers with 503 runs again
-    /// after each retry delay. A failure does not stop the other machines or the other dates.
+    /// then one filing machine per selected filing that the store does not hold, then one
+    /// `submissions` machine per distinct CIK of the selected filings. At most
+    /// [`in_flight`](Self::in_flight) filing machines run at once, and the same for `submissions`
+    /// machines. A filing or `submissions` machine that the SEC answers with 503 runs again after
+    /// each retry delay. A failure does not stop the other machines or the other dates.
     ///
     /// Calls `observer` with the unit and each successful stream item, and with the unit, each
-    /// error, and its [`ErrorKind`]. The unit is the date, the filing, or the company.
+    /// error, and its [`ErrorKind`]. The unit is the date, the filing, or the company. A filing
+    /// that the store holds sends no event to the observer.
     pub async fn run(
         self,
         observer: impl Fn(&Unit, RunEvent<'_>) + Send + Sync + 'static,
@@ -353,9 +360,13 @@ where
         DailyRunSummary(outcomes)
     }
 
-    /// Runs one filing machine per detected filing, at most the in-flight cap at once, in the
-    /// order of the filings. Each machine records the daily index of `detected` as the input of
+    /// Runs one filing machine per detected filing, at most [`in_flight`](Self::in_flight) at
+    /// once, in the order of the filings. Each machine records the daily index of `detected` as the input of
     /// its files.
+    ///
+    /// A filing whose stored instance passes the size and SHA-256 check runs no machine. A
+    /// stored instance that fails the check, or that the store cannot read, runs the machine
+    /// again.
     async fn extract_filings(
         &self,
         date: NaiveDate,
@@ -364,7 +375,18 @@ where
     ) -> Vec<FilingOutcome> {
         let inputs: Vec<InputDocument> = detected.index.iter().cloned().collect();
         let inputs = &inputs;
+        let reader = &FilesystemRepository::builder()
+            .reader()
+            .document_type::<RawDocument<RawXbrlInstance>>()
+            .root(self.repositories.instance.root())
+            .build();
         let extractions = detected.filings.iter().map(|filing| async move {
+            if holds_instance(reader, filing).await {
+                return FilingOutcome {
+                    accession_number: filing.accession_number().clone(),
+                    result: Ok(Fetch::AlreadyStored),
+                };
+            }
             let unit = Unit::Filing {
                 date,
                 accession_number: filing.accession_number().clone(),
@@ -385,7 +407,7 @@ where
                 |error| observer(&unit, RunEvent::Error(error, ErrorKind::Retried)),
             )
             .await
-            .map(|_| ())
+            .map(|_| Fetch::Downloaded)
             .inspect_err(|error| {
                 let kind = if is_unextractable(error) {
                     ErrorKind::Unextractable
@@ -405,8 +427,8 @@ where
             .await
     }
 
-    /// Runs one `submissions` machine per distinct CIK of `filings`, at most the in-flight cap at
-    /// once, in the order in which each CIK first appears.
+    /// Runs one `submissions` machine per distinct CIK of `filings`, at most
+    /// [`in_flight`](Self::in_flight) at once, in the order in which each CIK first appears.
     async fn extract_companies(
         &self,
         date: NaiveDate,
@@ -451,6 +473,14 @@ where
             .collect()
             .await
     }
+}
+
+/// Returns `true` if `reader` holds the XBRL instance of `filing`, and the instance passes the
+/// size and SHA-256 check.
+///
+/// A read error returns `false`, so the run fetches the filing again.
+async fn holds_instance(reader: &InstanceReader, filing: &FilingRef) -> bool {
+    matches!(reader.get(instance_key(filing)).await, Ok(Some(_)))
 }
 
 /// Runs `stream` to its end, and returns the first error.
