@@ -76,7 +76,7 @@ flowchart TB
 
     subgraph SB["Both paths: ExtractSubmissionsSuperState, one per company"]
         direction LR
-        S1["ValidateCikFormat"]:::reused --> S2["PrepareSecRequest"]:::reused --> S3["ExecuteSecRequest"]:::reused --> S4["StoreSubmissions, later StoreSecResponse&lt;Submissions&gt;"]:::new
+        S1["ValidateCikFormat"]:::reused --> S2["PrepareSecRequest"]:::reused --> S3["ExecuteSecRequest"]:::reused --> S4["StoreSecResponse&lt;Submissions&gt;"]:::reused
     end
 
     BF -- "NotesArchiveRef" --> TB["Transform, backfill (STA-332)"]
@@ -91,7 +91,7 @@ generic over the request kind, and a path reuses them with its kind. Each kind i
 the state bounds: `RequestKind` for `PrepareSecRequest`, `RespondsWith` for `ExecuteSecRequest`,
 and `StoredAs` for `StoreSecResponse`. See [Store Step](#store-step). The Notes path uses
 `PrepareSecRequest` with the `NotesFile` kind, under the alias `PrepareNotesRequest`. The
-Submissions path reuses `PrepareSecRequest` and `ExecuteSecRequest` with a new kind.
+Submissions path reuses all three with the `Submissions` kind.
 Yellow states are new.
 
 ### Store Step
@@ -121,12 +121,13 @@ pub trait StoredAs: HasResponse {
   the `execution_id`, the ingestion mode, and the repository from the run.
 - `StoreCompanyFacts<R>` is an alias of `StoreSecResponse<CompanyFacts, R>`.
   `StoreNotesArchive<R>` is an alias of `StoreSecResponse<NotesFile, R>`.
+  `StoreSubmissions<R>` is an alias of `StoreSecResponse<Submissions, R>`.
 
 | Store state | Kind | Status |
 | ----------- | ---- | ------ |
 | `StoreCompanyFacts` | `CompanyFacts` | `StoredAs` impl (STA-383) |
 | `StoreNotesArchive` | `NotesFile` | `StoredAs` impl (STA-384) |
-| `StoreSubmissions` | `Submissions` | Own state. A follow-up moves it to a `StoredAs` impl. |
+| `StoreSubmissions` | `Submissions` | `StoredAs` impl (STA-408) |
 | `StoreDailyIndex` | `DailyIndex` | Own state. Its input and output are `Option`s, because `DownloadDailyIndex` turns a 404 into `None`. A follow-up can give it its own transition into `StoreSecResponse<DailyIndex, R>`. |
 | `StoreFilingDocuments` | `FilingDocumentSet` | Own state. It writes two sources, and `StoredAs` names one. |
 
@@ -191,7 +192,7 @@ None of them reads it. Only the store states at the end of each machine read it.
 | Validate date → prepare | `transitions/from/validate_index_date/prepare_daily_index_request.rs:38` | Takes it from the super-state and puts it into the prepare context. |
 | Prepare → execute | `transitions/from/prepare_sec_request/execute_sec_request.rs:62` | Moves it from the prepare context into the execute context. |
 | Prepare → download | `transitions/from/prepare_sec_request/download_daily_index.rs:38` | Drops it. `DownloadDailyIndex` has no repository. |
-| Execute → store | `transitions/from/execute_sec_request/store_sec_response.rs:94`, `store_submissions.rs:102` | Moves it from the execute context into the store context. |
+| Execute → store | `transitions/from/execute_sec_request/store_sec_response.rs:94` | Moves it from the execute context into the store context. |
 | Download → store | `transitions/from/download_daily_index/store_daily_index.rs:42` | Takes it from the super-state. |
 | `ExtractCompanyFactsSuperStateContext` | `states/extract/company_facts/mod.rs:124` | Holds a second copy. No transition reads it. |
 | `DetectFilingsSuperStateContext` | `states/extract/daily_index/mod.rs:111` | Holds it and passes a clone to two transitions (lines 373 and 435). |
@@ -1049,8 +1050,8 @@ Two items stay with STA-376:
 ### Company Data
 
 `ExtractSubmissionsSuperState` mirrors the `companyfacts` machine and reuses three of its states:
-`ValidateCikFormat`, `PrepareSecRequest` with the kind `Submissions`, and `ExecuteSecRequest`. A
-new `StoreSubmissions` writes the JSON.
+`ValidateCikFormat`, `PrepareSecRequest` with the kind `Submissions`, and `ExecuteSecRequest`.
+`StoreSubmissions`, the alias of `StoreSecResponse<Submissions, R>`, writes the JSON.
 
 - The kind `Submissions` has `Input = Cik`, builds `FetchSubmissions { cik }`, and has
   `Body = JsonBody`. `SecRequest::builder().submissions().cik(cik).build()` builds the request.
