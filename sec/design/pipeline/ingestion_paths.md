@@ -259,8 +259,8 @@ observer: impl Fn(&Unit, RunEvent<'_>) + Send + Sync + 'static
 - Each source has its own summary type, with `result()` and `entries()`, as the binaries have
   today.
 - The summary of `all()` also has `cut_over_date()`. It returns the last day of the newest stored
-  Notes month. It fails only if a Notes period failed, so a gap can never pass into the
-  catch-up. A failed `submissions` CIK does not block the catch-up, but it fails `result()`. See
+  Notes month. It fails if a Notes period failed, so a gap can never pass into the catch-up. It
+  also fails if no Notes period is stored, for example when every period is unpublished. A failed `submissions` CIK does not block the catch-up, but it fails `result()`. See
   [Cut-Over Between the Paths](#cut-over-between-the-paths).
 - The callback replaces a returned event stream. A stream gives the same timing, but each `main`
   then needs its own loop.
@@ -407,7 +407,9 @@ comment that marks them deprecated. CI runs `cargo clippy --workspace --all-targ
 integration tests of the facade go in `sec/tests/`, with the fake SEC clients of `sec::tests`.
 
 - The examples load `sec_client.rs` and `storage_root.rs` through `#[path]`. From `sec/examples/`,
-  the paths change, and the dependencies of the examples move to `[dev-dependencies]`.
+  the paths change. Each example gets an `[[example]]` entry with
+  `required-features = ["tracing-logging"]`, as the binaries have today. The logger crates stay
+  optional dependencies behind that feature, because `backfill` and `daily_filings` need them.
 - The `Dockerfile` builds and runs `stream_extract`, and `README.md` documents it. So
   `stream_extract` stays a binary until STA-358 moves it, with the `Dockerfile` and `README.md`.
 - `sec/tests/notes_backfill.rs` and `sec/tests/daily_filings.rs` load `backfill.rs` and `run.rs`
@@ -1965,14 +1967,14 @@ Moved code does not count toward the 400 lines.
 5. FEATURE: `backfill().submissions().ciks(…).run()` and the pipeline `backfill().all()` with
    `cut_over_date()` (STA-377).
 6. FEATURE: the binary `backfill` with its two calls. A Notes-only copy of `notes_backfill` moves
-   to `sec/examples/` as deprecated, with its `#[path]` and `[dev-dependencies]` changes (STA-363).
+   to `sec/examples/` as deprecated, with its `#[path]` changes and `[[example]]` entry (STA-363).
 7. FEATURE: `backfill().company_facts()`. `stream_extract` runs on it and moves to
    `sec/examples/`, with the `Dockerfile` and `README.md` (STA-358).
 
-Later, potential follow-up: `daily_filings()` skips the download of a filing whose documents the
+Potential follow-up, no ticket yet: `daily_filings()` skips the download of a filing whose documents the
 store already holds, as `notes()` skips an intact stored Notes file (STA-400). A rerun of
 `backfill` then downloads only the missing filings. The check reads the stored instance by its
-key per accession number, or uses the repository listing (STA-403). No ticket yet.
+key per accession number, or uses the repository listing (STA-403).
 
 MVP Operations owns the Cloud Run jobs and the schedule. These tickets are not in this list.
 
