@@ -1533,9 +1533,9 @@ Each machine ends in one of four outcomes:
 The run writes five raw document types under `ARKAD_STORAGE_ROOT`: `RawDailyIndex`,
 `RawFilingIndex`, `RawXbrlInstance`, `RawXbrlLabels`, and `RawSubmissions`. `sec/src/bin/shared/storage_root.rs`
 gains a generic `raw_writer::<S>()` for any raw source, and `create_root` becomes generic over the
-document type. Every
-document carries the ingestion mode `incremental`: `StoreDailyIndex` and `StoreFilingDocuments`
-write it themselves, and the binary passes it to the `submissions` builder.
+document type. Every document carries the ingestion mode `incremental`. `StoreDailyIndex` and
+`StoreFilingDocuments` write it themselves. The binary passes it to the `submissions` builder,
+and the filing builder passes it to `StoreFilingIndex`.
 
 #### Unextractable Record
 
