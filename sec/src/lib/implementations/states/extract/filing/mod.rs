@@ -9,6 +9,12 @@
 //!
 //! - [`builder`]: Builds the [`ExtractFilingSuperState`] at its entry state, the
 //!   [`PrepareSecRequest`] of the [`FilingIndex`] kind.
+//!
+//! ## State Flow
+//!
+//! [`PrepareSecRequest`] of the [`FilingIndex`] kind → [`ExecuteSecRequest`] →
+//! [`SelectFilingDocuments`] → [`PrepareSecRequest`] of the [`FilingDocumentSet`] kind →
+//! [`ExecuteSecRequest`] → [`StoreFilingDocuments`].
 
 pub mod builder;
 
@@ -16,22 +22,26 @@ use std::fmt::{self, Display, Formatter};
 
 use async_trait::async_trait;
 use serde::Serialize;
-use state_maschine::prelude::StateMachine as SMStateMachine;
+use state_maschine::prelude::{StateMachine as SMStateMachine, Transition as SMTransition};
 use uuid::Uuid;
 
 use crate::error::State as StateError;
+use crate::error::state_machine::transition::Transition as TransitionError;
+use crate::implementations::states::extract::execute_sec_request::ExecuteSecRequest;
 use crate::implementations::states::extract::filing::builder::{
     ExtractFilingSuperStateBuilder, NoExecutionId, NoFilingRef, NoInstanceRepository,
     NoLabelsRepository, NoSecClient,
 };
 use crate::implementations::states::extract::prepare_sec_request::PrepareSecRequest;
+use crate::implementations::states::extract::select_filing_documents::SelectFilingDocuments;
+use crate::implementations::states::extract::store_filing_documents::StoreFilingDocuments;
 use crate::prelude::*;
 use crate::shared::filing_ref::FilingRef;
-use crate::shared::http_client::SecClient as SecClientTrait;
 use crate::shared::http_client::implementations::sec_client::SecClient;
+use crate::shared::http_client::{Executes, SecClient as SecClientTrait};
 use crate::shared::raw_repository::RawRepository;
 use crate::shared::raw_source::{RawXbrlInstance, RawXbrlLabels};
-use crate::shared::request::implementations::sec_request::FilingIndex;
+use crate::shared::request::implementations::sec_request::{FilingDocumentSet, FilingIndex};
 
 /// Input and output data for the [`ExtractFilingSuperState`].
 ///
@@ -277,16 +287,202 @@ where
     }
 }
 
+// --- Transitions ---
+
+impl<I, L, C> Transition<PrepareSecRequest<FilingIndex>, ExecuteSecRequest<FilingIndex, C>>
+    for ExtractFilingSuperState<PrepareSecRequest<FilingIndex>, I, L, C>
+where
+    I: RawRepository<RawXbrlInstance>,
+    L: RawRepository<RawXbrlLabels>,
+    C: SecClientTrait + Executes<FilingIndex>,
+{
+    fn transition_to_next_state_sec(self) -> Result<Self::NewStateMachine, TransitionError> {
+        let sec_client = self.context.sec_client.clone();
+        Ok(ExtractFilingSuperState {
+            current_state: ExecuteSecRequest::try_from((self.current_state, sec_client))?,
+            input: ExtractFilingSuperStateData,
+            output: None,
+            context: self.context,
+        })
+    }
+}
+
+impl<I, L, C> SMTransition<PrepareSecRequest<FilingIndex>, ExecuteSecRequest<FilingIndex, C>>
+    for ExtractFilingSuperState<PrepareSecRequest<FilingIndex>, I, L, C>
+where
+    I: RawRepository<RawXbrlInstance>,
+    L: RawRepository<RawXbrlLabels>,
+    C: SecClientTrait + Executes<FilingIndex>,
+{
+    type NewStateMachine = ExtractFilingSuperState<ExecuteSecRequest<FilingIndex, C>, I, L, C>;
+
+    fn transition_to_next_state(self) -> Result<Self::NewStateMachine, &'static str> {
+        Err(
+            "Use transition_to_next_state_sec() for SEC-specific transitions with rich error handling",
+        )
+    }
+}
+
+impl<I, L, C> Transition<ExecuteSecRequest<FilingIndex, C>, SelectFilingDocuments>
+    for ExtractFilingSuperState<ExecuteSecRequest<FilingIndex, C>, I, L, C>
+where
+    I: RawRepository<RawXbrlInstance>,
+    L: RawRepository<RawXbrlLabels>,
+    C: SecClientTrait + Executes<FilingIndex>,
+{
+    fn transition_to_next_state_sec(self) -> Result<Self::NewStateMachine, TransitionError> {
+        Ok(ExtractFilingSuperState {
+            current_state: SelectFilingDocuments::try_from((
+                self.current_state,
+                self.context.execution_id,
+            ))?,
+            input: ExtractFilingSuperStateData,
+            output: None,
+            context: self.context,
+        })
+    }
+}
+
+impl<I, L, C> SMTransition<ExecuteSecRequest<FilingIndex, C>, SelectFilingDocuments>
+    for ExtractFilingSuperState<ExecuteSecRequest<FilingIndex, C>, I, L, C>
+where
+    I: RawRepository<RawXbrlInstance>,
+    L: RawRepository<RawXbrlLabels>,
+    C: SecClientTrait + Executes<FilingIndex>,
+{
+    type NewStateMachine = ExtractFilingSuperState<SelectFilingDocuments, I, L, C>;
+
+    fn transition_to_next_state(self) -> Result<Self::NewStateMachine, &'static str> {
+        Err(
+            "Use transition_to_next_state_sec() for SEC-specific transitions with rich error handling",
+        )
+    }
+}
+
+impl<I, L, C> Transition<SelectFilingDocuments, PrepareSecRequest<FilingDocumentSet>>
+    for ExtractFilingSuperState<SelectFilingDocuments, I, L, C>
+where
+    I: RawRepository<RawXbrlInstance>,
+    L: RawRepository<RawXbrlLabels>,
+    C: SecClientTrait,
+{
+    fn transition_to_next_state_sec(self) -> Result<Self::NewStateMachine, TransitionError> {
+        let filing_ref = self.context.filing_ref.clone();
+        Ok(ExtractFilingSuperState {
+            current_state: PrepareSecRequest::try_from((self.current_state, filing_ref))?,
+            input: ExtractFilingSuperStateData,
+            output: None,
+            context: self.context,
+        })
+    }
+}
+
+impl<I, L, C> SMTransition<SelectFilingDocuments, PrepareSecRequest<FilingDocumentSet>>
+    for ExtractFilingSuperState<SelectFilingDocuments, I, L, C>
+where
+    I: RawRepository<RawXbrlInstance>,
+    L: RawRepository<RawXbrlLabels>,
+    C: SecClientTrait,
+{
+    type NewStateMachine = ExtractFilingSuperState<PrepareSecRequest<FilingDocumentSet>, I, L, C>;
+
+    fn transition_to_next_state(self) -> Result<Self::NewStateMachine, &'static str> {
+        Err(
+            "Use transition_to_next_state_sec() for SEC-specific transitions with rich error handling",
+        )
+    }
+}
+
+impl<I, L, C>
+    Transition<PrepareSecRequest<FilingDocumentSet>, ExecuteSecRequest<FilingDocumentSet, C>>
+    for ExtractFilingSuperState<PrepareSecRequest<FilingDocumentSet>, I, L, C>
+where
+    I: RawRepository<RawXbrlInstance>,
+    L: RawRepository<RawXbrlLabels>,
+    C: SecClientTrait + Executes<FilingDocumentSet>,
+{
+    fn transition_to_next_state_sec(self) -> Result<Self::NewStateMachine, TransitionError> {
+        let sec_client = self.context.sec_client.clone();
+        Ok(ExtractFilingSuperState {
+            current_state: ExecuteSecRequest::try_from((self.current_state, sec_client))?,
+            input: ExtractFilingSuperStateData,
+            output: None,
+            context: self.context,
+        })
+    }
+}
+
+impl<I, L, C>
+    SMTransition<PrepareSecRequest<FilingDocumentSet>, ExecuteSecRequest<FilingDocumentSet, C>>
+    for ExtractFilingSuperState<PrepareSecRequest<FilingDocumentSet>, I, L, C>
+where
+    I: RawRepository<RawXbrlInstance>,
+    L: RawRepository<RawXbrlLabels>,
+    C: SecClientTrait + Executes<FilingDocumentSet>,
+{
+    type NewStateMachine =
+        ExtractFilingSuperState<ExecuteSecRequest<FilingDocumentSet, C>, I, L, C>;
+
+    fn transition_to_next_state(self) -> Result<Self::NewStateMachine, &'static str> {
+        Err(
+            "Use transition_to_next_state_sec() for SEC-specific transitions with rich error handling",
+        )
+    }
+}
+
+impl<I, L, C> Transition<ExecuteSecRequest<FilingDocumentSet, C>, StoreFilingDocuments<I, L>>
+    for ExtractFilingSuperState<ExecuteSecRequest<FilingDocumentSet, C>, I, L, C>
+where
+    I: RawRepository<RawXbrlInstance>,
+    L: RawRepository<RawXbrlLabels>,
+    C: SecClientTrait + Executes<FilingDocumentSet>,
+{
+    fn transition_to_next_state_sec(self) -> Result<Self::NewStateMachine, TransitionError> {
+        Ok(ExtractFilingSuperState {
+            current_state: StoreFilingDocuments::try_from((
+                self.current_state,
+                self.context.execution_id,
+                self.context.instance_repository.clone(),
+                self.context.labels_repository.clone(),
+            ))?,
+            input: ExtractFilingSuperStateData,
+            output: None,
+            context: self.context,
+        })
+    }
+}
+
+impl<I, L, C> SMTransition<ExecuteSecRequest<FilingDocumentSet, C>, StoreFilingDocuments<I, L>>
+    for ExtractFilingSuperState<ExecuteSecRequest<FilingDocumentSet, C>, I, L, C>
+where
+    I: RawRepository<RawXbrlInstance>,
+    L: RawRepository<RawXbrlLabels>,
+    C: SecClientTrait + Executes<FilingDocumentSet>,
+{
+    type NewStateMachine = ExtractFilingSuperState<StoreFilingDocuments<I, L>, I, L, C>;
+
+    fn transition_to_next_state(self) -> Result<Self::NewStateMachine, &'static str> {
+        Err(
+            "Use transition_to_next_state_sec() for SEC-specific transitions with rich error handling",
+        )
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use chrono::NaiveDate;
     use pretty_assertions::assert_eq;
 
     use super::*;
+    use crate::error::state_machine::transition;
+    use crate::implementations::states::extract::execute_sec_request::constants::STATE_NAME as EXECUTE_SEC_REQUEST;
+    use crate::implementations::states::extract::prepare_sec_request::constants::STATE_NAME as PREPARE_SEC_REQUEST;
     use crate::implementations::states::extract::prepare_sec_request::{
         PrepareSecRequestContext, PrepareSecRequestInput,
     };
+    use crate::implementations::states::extract::store_filing_documents::StoreFilingDocumentsContext;
     use crate::shared::cik::Cik;
+    use crate::shared::filing_documents::{FilingDocumentSetRef, FilingDocuments, FolderIndex};
     use crate::shared::financial::accession_number::AccessionNumber;
     use crate::shared::financial::form::{Form, ParsedForm};
     use crate::tests::fixtures::sample_http_client::sample_sec_client::routing::RoutingSecClient;
@@ -300,6 +496,24 @@ mod tests {
         FakeXbrlLabelsRepository,
         RoutingSecClient,
     >;
+
+    const EXECUTION_ID: Uuid = Uuid::from_u128(7);
+    const INSTANCE: &str = "alco-20260908_htm.xml";
+    const LABEL_FILE: &str = "alco-20260908_lab.xml";
+    const FOLDER_INDEX_URL: &str =
+        "https://www.sec.gov/Archives/edgar/data/3545/000000354526000047/index.json";
+    const INSTANCE_URL: &str =
+        "https://www.sec.gov/Archives/edgar/data/3545/000000354526000047/alco-20260908_htm.xml";
+    const LABEL_FILE_URL: &str =
+        "https://www.sec.gov/Archives/edgar/data/3545/000000354526000047/alco-20260908_lab.xml";
+    const FOLDER_INDEX: &[u8] = br#"{"directory":{"item":[{"name":"alco-20260908_htm.xml"},{"name":"alco-20260908_lab.xml"}]}}"#;
+
+    fn sec_client() -> RoutingSecClient {
+        RoutingSecClient::new()
+            .route(FOLDER_INDEX_URL, 200, "application/json", FOLDER_INDEX)
+            .route(INSTANCE_URL, 200, "text/xml", b"<xbrl/>")
+            .route(LABEL_FILE_URL, 200, "text/xml", b"<labels/>")
+    }
 
     fn filing_ref() -> FilingRef {
         FilingRef::new(
@@ -323,12 +537,60 @@ mod tests {
             output: None,
             context: ExtractFilingSuperStateContext::new(
                 filing_ref(),
-                RoutingSecClient::new(),
-                Uuid::from_u128(7),
+                sec_client(),
+                EXECUTION_ID,
                 FakeXbrlInstanceRepository::new(),
                 FakeXbrlLabelsRepository::new(),
             ),
         }
+    }
+
+    async fn computed<T: State>(mut state: T) -> T {
+        let computation: Result<(), StateError> =
+            state.compute_output_data_async().await.map_err(Into::into);
+        computation.expect(
+            "Given a client that serves the folder index and both files, every state should succeed",
+        );
+        state
+    }
+
+    async fn at_folder_index_execute()
+    -> TestSuperState<ExecuteSecRequest<FilingIndex, RoutingSecClient>> {
+        computed(super_state())
+            .await
+            .transition_to_next_state_sec()
+            .expect("Given a prepared folder index request, the transition should always succeed")
+    }
+
+    async fn at_select() -> TestSuperState<SelectFilingDocuments> {
+        computed(at_folder_index_execute().await)
+            .await
+            .transition_to_next_state_sec()
+            .expect("Given a served folder index, the transition should always succeed")
+    }
+
+    async fn at_documents_prepare() -> TestSuperState<PrepareSecRequest<FilingDocumentSet>> {
+        computed(at_select().await)
+            .await
+            .transition_to_next_state_sec()
+            .expect(
+                "Given selected documents of the same filing, the transition should always succeed",
+            )
+    }
+
+    async fn at_documents_execute()
+    -> TestSuperState<ExecuteSecRequest<FilingDocumentSet, RoutingSecClient>> {
+        computed(at_documents_prepare().await)
+            .await
+            .transition_to_next_state_sec()
+            .expect("Given a prepared documents request, the transition should always succeed")
+    }
+
+    fn selected_documents() -> FilingDocumentSetRef {
+        FilingDocumentSetRef::new(
+            filing_ref(),
+            FilingDocuments::new(INSTANCE, Some(LABEL_FILE.to_string())),
+        )
     }
 
     #[test]
@@ -353,6 +615,94 @@ mod tests {
         let expected_result = 0;
 
         let result = super_state.context_data().max_retries();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_request_the_folder_index_of_the_filing_when_leaving_the_entry_state() {
+        let super_state = computed(super_state()).await;
+
+        let expected_result = &filing_ref();
+
+        let execute = super_state
+            .transition_to_next_state_sec()
+            .expect("Given a prepared folder index request, the transition should always succeed");
+        let result = &execute.current_state().context_data().request_input;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_hand_the_served_folder_index_to_select_filing_documents_when_transitioning() {
+        let super_state = computed(at_folder_index_execute().await).await;
+
+        let expected_result = &FolderIndex::new(vec![INSTANCE.to_string(), LABEL_FILE.to_string()]);
+
+        let select = super_state
+            .transition_to_next_state_sec()
+            .expect("Given a served folder index, the transition should always succeed");
+        let result = &select.current_state().input_data().folder_index;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_join_the_filing_ref_of_the_context_and_the_selected_documents_when_transitioning()
+     {
+        let super_state = computed(at_select().await).await;
+
+        let expected_result = &selected_documents();
+
+        let prepare = super_state.transition_to_next_state_sec().expect(
+            "Given selected documents of the same filing, the transition should always succeed",
+        );
+        let result = prepare.current_state().input_data().request_input();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_request_the_selected_documents_when_leaving_the_documents_prepare_state() {
+        let super_state = computed(at_documents_prepare().await).await;
+
+        let expected_result = &selected_documents();
+
+        let execute = super_state
+            .transition_to_next_state_sec()
+            .expect("Given a prepared documents request, the transition should always succeed");
+        let result = &execute.current_state().context_data().request_input;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_pass_the_execution_id_and_both_repositories_to_the_store_when_transitioning() {
+        let super_state = computed(at_documents_execute().await).await;
+
+        let expected_result = &StoreFilingDocumentsContext::new(
+            EXECUTION_ID,
+            FakeXbrlInstanceRepository::new(),
+            FakeXbrlLabelsRepository::new(),
+        );
+
+        let store = super_state
+            .transition_to_next_state_sec()
+            .expect("Given served documents, the transition should always succeed");
+        let result = store.current_state().context_data();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_missing_output_when_leaving_the_entry_state_without_output() {
+        let super_state = super_state();
+
+        let expected_result = Err(TransitionError::MissingOutput(
+            transition::MissingOutput::new(PREPARE_SEC_REQUEST, EXECUTE_SEC_REQUEST),
+        ));
+
+        let result = super_state.transition_to_next_state_sec().map(|_| ());
 
         assert_eq!(result, expected_result);
     }
