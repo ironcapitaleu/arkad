@@ -45,7 +45,9 @@ impl FailedSecRequest {
     /// [`ErrorReason::FailedFilingDocument`] names.
     ///
     /// For a file that does not exist, the SEC answers 404, or 403 with an S3 `AccessDenied` body,
-    /// as observed on 2026-10-30. A 403 can also mean that the SEC refused the request.
+    /// as observed on 2026-10-30. A 403 can also mean that the SEC refused the request. For a
+    /// filing folder that does not exist, the SEC answers 404 or 503, as observed on 2026-11-01.
+    /// This method counts the 404 and leaves the 503 to the caller.
     #[must_use]
     pub fn is_absent_file(&self) -> bool {
         self.reason.is_absent_file()
