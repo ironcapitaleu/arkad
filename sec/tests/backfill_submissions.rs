@@ -10,7 +10,10 @@
 //!     .sec_client(sec_client)
 //!     .repository(repository)
 //!     .build();
-//! drain(state.into_run_stream()).await?;
+//! let mut stream = state.into_run_stream();
+//! while let Some(item) = stream.next().await {
+//!     item?;
+//! }
 //! ```
 //!
 //! ## External Dependencies

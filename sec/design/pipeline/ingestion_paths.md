@@ -333,11 +333,11 @@ flowchart LR
     DF["daily_filings (binary)"]
     EX["stream_extract (deprecated example)"]
     subgraph facade["Extraction"]
+        NOTES["backfill().notes()"]
         ALL["backfill().all()<br/>(no binary calls it)"]
         DFS["incremental().daily_filings()"]
         CF["backfill().company_facts()"]
     end
-    NOTES["backfill().notes()"]
     BF -->|"1. run"| NOTES
     NOTES -->|"cut_over_date()"| BF
     BF -->|"2. run from the cut-over date"| DFS
@@ -364,7 +364,7 @@ let past = backfill
     .notes() // `all()` adds the `submissions` step. The binary does not call it.
     .periods(notes_periods(now.date_naive()))
     .sec_client(sec_client.clone())
-    .repositories(repositories.clone())
+    .repository(notes_repository)
     .in_flight(files_in_flight_from_env()?)
     .run(log_event)
     .await;
@@ -401,12 +401,7 @@ summary.result()?;
 - Both calls of `backfill` carry one `execution_id`, so the logs and the metadata name one run.
   Each document still records its own mode: `backfill` for the Notes files, `incremental` for the
   daily indexes and filings.
-- With `all()`, a CIK in the overlap gets its `submissions` file twice, once per call. If the SEC body is the
-  same, `persist` skips the second write, and the file keeps the mode `backfill`. If the body
-  changed, the second fetch replaces the file (see [Raw Store](#raw-store)), and the file records
-  the mode `incremental`.
-- `backfill` exits with an error if a Notes period or the catch-up failed. A run on `all()` would
-  check `past.result()` after the catch-up, so a failed CIK does not stop the catch-up.
+- `backfill` exits with an error if a Notes period or the catch-up failed.
 - `dates_between` and `run_dates` stay in the binaries, because they read time and the environment.
 
 #### Deprecated Binaries
