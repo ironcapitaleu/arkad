@@ -1292,6 +1292,34 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn should_record_the_ingestion_mode_of_the_builder_when_storing_the_folder_index() {
+        let ingestion_mode = IngestionMode::Backfill;
+        let filing_index_repository = FakeFilingIndexRepository::new();
+        let super_state = ExtractFilingSuperState::builder()
+            .filing_ref(filing_ref())
+            .sec_client(sec_client())
+            .execution_id(EXECUTION_ID)
+            .ingestion_mode(ingestion_mode)
+            .filing_index_repository(filing_index_repository.clone())
+            .instance_repository(FakeXbrlInstanceRepository::new())
+            .labels_repository(FakeXbrlLabelsRepository::new())
+            .build();
+
+        let expected_result = vec![IngestionMode::Backfill];
+
+        super_state.run_to_documents(|_| {}).await.expect(
+            "Given a client that serves the folder index and both files, the run should always succeed",
+        );
+        let result: Vec<IngestionMode> = filing_index_repository
+            .persisted()
+            .iter()
+            .map(|document| document.metadata().ingestion_mode())
+            .collect();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
     async fn should_return_a_ref_without_label_file_when_the_folder_has_no_label_file() {
         let sec_client = RoutingSecClient::new()
             .route(

@@ -115,7 +115,8 @@ impl<L> Default for NoLabelsRepository<L> {
 /// Set the filing with [`filing_ref`](Self::filing_ref), the client with
 /// [`sec_client`](Self::sec_client), the run identifier with [`execution_id`](Self::execution_id),
 /// the mode of the run with [`ingestion_mode`](Self::ingestion_mode), and the stores with
-/// [`instance_repository`](Self::instance_repository) and
+/// [`filing_index_repository`](Self::filing_index_repository),
+/// [`instance_repository`](Self::instance_repository), and
 /// [`labels_repository`](Self::labels_repository), in any order. Then call [`build`](Self::build).
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ExtractFilingSuperStateBuilder<F, C, E, M, X, I, L> {
