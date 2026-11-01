@@ -214,8 +214,7 @@ where
     ///
     /// # Examples
     ///
-    /// A builder without a label file repository has no `build` method, so this does not
-    /// compile:
+    /// A builder without a labels repository has no `build` method, so this does not compile:
     ///
     /// ```compile_fail,E0599
     /// use chrono::NaiveDate;
@@ -252,6 +251,48 @@ where
     ///     .sec_client(SecClient::default())
     ///     .execution_id(Uuid::nil())
     ///     .instance_repository(instance_repository)
+    ///     .build();
+    /// ```
+    ///
+    /// Each repository must store its own source. So a builder with the two repositories swapped
+    /// has no `build` method, and this does not compile:
+    ///
+    /// ```compile_fail,E0271,E0599
+    /// use chrono::NaiveDate;
+    /// use sec::implementations::states::extract::filing::ExtractFilingSuperState;
+    /// use sec::shared::cik::Cik;
+    /// use sec::shared::filing_ref::FilingRef;
+    /// use sec::shared::financial::accession_number::AccessionNumber;
+    /// use sec::shared::financial::form::{Form, ParsedForm};
+    /// use sec::shared::http_client::implementations::sec_client::SecClient;
+    /// use sec::shared::raw_document::RawDocument;
+    /// use sec::shared::raw_source::{RawXbrlInstance, RawXbrlLabels};
+    /// use storage::implementations::repository::filesystem::FilesystemRepository;
+    /// use uuid::Uuid;
+    ///
+    /// let filing_ref = FilingRef::new(
+    ///     Cik::new("3545").expect("The CIK is valid"),
+    ///     AccessionNumber::new("0000003545-26-000047").expect("The accession number is valid"),
+    ///     ParsedForm::new(Form::TenQ, false),
+    ///     NaiveDate::from_ymd_opt(2026, 9, 9).expect("The date exists"),
+    /// );
+    /// let instance_repository = FilesystemRepository::builder()
+    ///     .writer()
+    ///     .document_type::<RawDocument<RawXbrlInstance>>()
+    ///     .root("data")
+    ///     .build();
+    /// let labels_repository = FilesystemRepository::builder()
+    ///     .writer()
+    ///     .document_type::<RawDocument<RawXbrlLabels>>()
+    ///     .root("data")
+    ///     .build();
+    ///
+    /// let extract_state = ExtractFilingSuperState::builder()
+    ///     .filing_ref(filing_ref)
+    ///     .sec_client(SecClient::default())
+    ///     .execution_id(Uuid::nil())
+    ///     .instance_repository(labels_repository)
+    ///     .labels_repository(instance_repository)
     ///     .build();
     /// ```
     #[must_use]
