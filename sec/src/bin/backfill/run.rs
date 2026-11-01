@@ -51,18 +51,16 @@ pub struct BackfillInputs<C> {
     pub daily_repositories: DailyFilingsRepositories,
 }
 
-/// The summaries of both calls of one `backfill` run.
-pub struct BackfillSummaries {
-    /// The summary of the Notes periods.
-    pub past: NotesRunSummary,
+/// The catch-up of one `backfill` run, the second call.
+pub struct CatchUp {
     /// The dates of the catch-up, from the cut-over date to yesterday.
     pub dates: Vec<NaiveDate>,
     /// The summary of the catch-up.
-    pub recent: DailyRunSummary,
+    pub summary: DailyRunSummary,
 }
 
 /// Stores the Notes periods of `inputs`, then reads each date from the cut-over date to
-/// yesterday, and returns both summaries.
+/// yesterday, and returns the catch-up.
 ///
 /// Calls `on_past` with the Notes summary before the catch-up starts. Passes every event of both
 /// calls to `observer`. The catch-up runs even if it has no date, and then its summary is empty.
@@ -75,7 +73,7 @@ pub async fn run<C>(
     inputs: BackfillInputs<C>,
     observer: impl Fn(&Unit, RunEvent<'_>) + Send + Sync + 'static,
     on_past: impl FnOnce(&NotesRunSummary),
-) -> Result<BackfillSummaries, MissingCutOverDate>
+) -> Result<CatchUp, MissingCutOverDate>
 where
     C: DailyClient,
     ExtractNotesSuperState<ValidateNotesPeriod, NotesWriter, C>: IntoStateMachineStream,
@@ -118,10 +116,9 @@ where
         .repositories(inputs.daily_repositories)
         .run(move |unit, event| observer(unit, event))
         .await;
-    Ok(BackfillSummaries {
-        past,
+    Ok(CatchUp {
         dates,
-        recent,
+        summary: recent,
     })
 }
 

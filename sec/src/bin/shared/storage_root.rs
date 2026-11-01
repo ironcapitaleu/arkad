@@ -23,7 +23,7 @@ pub const DEFAULT_STORAGE_ROOT: &str = "data";
 pub type RawCompanyFactsWriter = FilesystemRepository<Write, RawDocument<RawCompanyFacts>>;
 
 /// The storage repository that stores the Notes files of each run.
-// Only `notes_backfill` uses the Notes items. The other binaries include this file, so `dead_code`
+// Only `backfill` and the example `notes_backfill` use the Notes items. The other binaries include this file, so `dead_code`
 // would fire there.
 #[allow(dead_code)]
 pub type RawNotesArchiveWriter = FilesystemRepository<Write, RawDocument<RawNotesArchive>>;

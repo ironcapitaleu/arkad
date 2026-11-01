@@ -34,6 +34,7 @@ use periods::notes_periods;
 use sec_client::{USER_AGENT_ENV_VAR, default_user_agent_warning, sec_client, startup_error_cause};
 use storage_root::{create_root, raw_notes_archive_writer};
 
+// This deprecated example stays frozen, so it keeps its own copy of the log code in `batch_log.rs`.
 /// Top-level batch events.
 enum BatchEvent {
     Complete,

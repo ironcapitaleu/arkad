@@ -162,28 +162,28 @@ Two binaries run the facade:
 
 | Binary | Facade calls | Run |
 | ------ | ------------ | --- |
-| `backfill` | `backfill().all()`, then `incremental().daily_filings()` from the cut-over date to yesterday | By hand, once. Rerun by hand. |
+| `backfill` | `backfill().notes()` (`all()` after STA-377), then `incremental().daily_filings()` from the cut-over date to yesterday | By hand, once. Rerun by hand. |
 | `daily_filings` | `incremental().daily_filings()` over the last days | Cloud Scheduler, once a day |
 
 So one run of `backfill` extracts everything up to yesterday, and it sets the cut-over date
-itself. `daily_filings` then keeps the store current. The binary `backfill` replaces
-`notes_backfill`. A Notes-only copy of `notes_backfill` moves to `sec/examples/` as a deprecated
-example. `stream_extract` is there already. See [Deprecated Binaries](#deprecated-binaries).
+itself. `daily_filings` then keeps the store current. The binary `backfill` replaced
+`notes_backfill` (STA-416). A Notes-only copy of `notes_backfill` moved to `sec/examples/` as a
+deprecated example, next to `stream_extract`. See [Deprecated Binaries](#deprecated-binaries).
 
 #### What the Binaries and the Example Run Today
 
-| | `notes_backfill` (example) | `stream_extract` | `daily_filings` |
-| - | -------------------------- | ---------------- | --------------- |
-| Unit | Notes period | CIK of a fixed list | date, then filing, then CIK |
-| Loop | `buffer_unordered`, sorted by index after | `buffer_unordered`, sorted by index after (facade, STA-358) | dates in order, `buffered` per date |
-| Cap | `ARKAD_FILES_IN_FLIGHT`, default 2 | all CIKs (`in_flight(CIKS.len())`), facade default 4 | `DEFAULT_MACHINES_IN_FLIGHT` = 4 (facade, STA-415) |
-| Task per unit | `tokio::spawn` (STA-344, open in STA-360) | no | no |
-| Rules | skip of an intact stored file, unpublished at the end | none | 503 retry, pending, unextractable |
-| Summary | `NotesRunSummary`, `FailedBackfill` (facade, STA-414) | `CompanyFactsRunSummary`, `FailedCompanyFactsBackfill` (facade, STA-358) | `DailyRunSummary`, `FailedDailyRun` (facade, STA-415) |
-| Logging | observer with `RunEvent` and `ErrorKind` (facade, STA-414) | observer with `RunEvent` and `ErrorKind` (facade, STA-358) | observer with `RunEvent` and `ErrorKind` (facade, STA-415) |
-| Exit | error if a period failed | error if a CIK failed | error if a date, filing, or CIK failed |
+| | `backfill` | `notes_backfill` (example) | `stream_extract` | `daily_filings` |
+| - | ---------- | -------------------------- | ---------------- | --------------- |
+| Unit | Notes period, then as `daily_filings` from the cut-over date (STA-416) | Notes period | CIK of a fixed list | date, then filing, then CIK |
+| Loop | as `notes_backfill`, then as `daily_filings` | `buffer_unordered`, sorted by index after | `buffer_unordered`, sorted by index after (facade, STA-358) | dates in order, `buffered` per date |
+| Cap | `ARKAD_FILES_IN_FLIGHT`, default 2, then `DEFAULT_MACHINES_IN_FLIGHT` = 4 | `ARKAD_FILES_IN_FLIGHT`, default 2 | all CIKs (`in_flight(CIKS.len())`), facade default 4 | `DEFAULT_MACHINES_IN_FLIGHT` = 4 (facade, STA-415) |
+| Task per unit | as `notes_backfill`, then no | `tokio::spawn` (STA-344, open in STA-360) | no | no |
+| Rules | the rules of both, and no catch-up without `cut_over_date()` | skip of an intact stored file, unpublished at the end | none | 503 retry, pending, unextractable |
+| Summary | `NotesRunSummary`, then `DailyRunSummary` | `NotesRunSummary`, `FailedBackfill` (facade, STA-414) | `CompanyFactsRunSummary`, `FailedCompanyFactsBackfill` (facade, STA-358) | `DailyRunSummary`, `FailedDailyRun` (facade, STA-415) |
+| Logging | one observer for both calls, one summary per call | observer with `RunEvent` and `ErrorKind` (facade, STA-414) | observer with `RunEvent` and `ErrorKind` (facade, STA-358) | observer with `RunEvent` and `ErrorKind` (facade, STA-415) |
+| Exit | error if a period, a date, a filing, or a CIK failed, or if no period is stored | error if a period failed | error if a CIK failed | error if a date, filing, or CIK failed |
 
-Common to all three: the logger, the SEC client and its User-Agent warning, `create_root`, one
+Common to all four: the logger, the SEC client and its User-Agent warning, `create_root`, one
 `execution_id`, a capped loop over units, one outcome per unit, a summary, and an exit code from
 the summary. Specific to one binary: the environment variables, and the rules in the row "Rules".
 The facade takes the common loop and the rules. The environment stays in `main`.
@@ -629,11 +629,11 @@ quarter) or a month (year and month).
 - Construction rejects a quarter after 2025q3, a month before 2025_10, and a year before 2009.
 - `NotesPeriod::file_name()` returns the SEC file name. See [File Names](#file-names).
 - `NotesPeriod::all_through(date)` lists every period that ends in or before the month of
-  `date`, in increasing order. `notes_backfill` calls it with today minus one month (STA-361).
+  `date`, in increasing order. `backfill` calls it with today minus one month (STA-361).
   Early in a month, the SEC has not posted the file of the last month yet. If the last period gets
   403 or 404, the run counts it as unpublished, not as failed, and the next run asks for it again.
   Every other 403 or 404 stays a failure, so a run that the SEC refuses in full fails.
-- Before each download, `notes_backfill` reads the stored file of the period. If the file passes
+- Before each download, `backfill` reads the stored file of the period. If the file passes
   the size and SHA-256 check, the run skips the download (STA-400). So a rerun downloads only the
   files that are missing or that the store cannot verify. If the store cannot verify a file, the
   run summary marks the new download as `replaced`. A file that the SEC replaces after the run stored it stays old.
@@ -893,7 +893,7 @@ quarantines the row or the filing, and the file goes on.
   `40-F` are kept. `8-K` and `10-KT` are dropped.
 - `SelectFilingDocuments`: the fallback rule without `_htm.xml`, a filing without `_lab.xml`, and a
   filing without an instance.
-- No state or SuperState test downloads from the SEC. The integration test of `notes_backfill`
+- No state or SuperState test downloads from the SEC. The integration test `sec/tests/notes_backfill.rs`
   downloads the two smallest Notes files, 2009q1 and 2009q2, as the other integration tests in
   `sec/tests/` call live services (lead, 2026-10-29).
 
@@ -1516,7 +1516,7 @@ write it themselves, and the binary passes it to the `submissions` builder.
 
 #### Logs and Summary
 
-JSON logs with the five fields of `AGENTS.md`, as in `notes_backfill`:
+JSON logs with the five fields of `AGENTS.md`, as in `backfill`:
 
 - one line per stream item and per error, with the date, the accession number or the CIK, and the
   `execution_id` in `context`;
@@ -1527,7 +1527,7 @@ JSON logs with the five fields of `AGENTS.md`, as in `notes_backfill`:
 
 #### Module Layout
 
-`sec/src/bin/daily_filings/` and the facade, built like `notes_backfill`:
+`sec/src/bin/daily_filings/` and the facade, built like the old binary `notes_backfill`:
 
 | File | Holds |
 | ---- | ----- |

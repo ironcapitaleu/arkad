@@ -12,7 +12,7 @@
 mod files_in_flight;
 #[path = "../src/bin/shared/notes_periods.rs"]
 mod notes_periods;
-// The tests read only the summary of the catch-up, so the other fields would fire `dead_code`.
+// The tests read only the summary of the catch-up, so its dates would fire `dead_code`.
 #[allow(dead_code)]
 #[path = "../src/bin/backfill/run.rs"]
 mod run;
@@ -34,7 +34,7 @@ mod two_calls {
     use tempfile::TempDir;
     use uuid::Uuid;
 
-    use crate::run::{BackfillInputs, BackfillSummaries, run};
+    use crate::run::{BackfillInputs, CatchUp, run};
 
     const NOTES_URL: &str =
         "https://www.sec.gov/files/dera/data/financial-statement-notes-data-sets/";
@@ -125,8 +125,24 @@ mod two_calls {
     /// Runs `inputs` without an observer.
     async fn run_quietly(
         inputs: BackfillInputs<RoutingSecClient>,
-    ) -> Result<BackfillSummaries, MissingCutOverDate> {
+    ) -> Result<CatchUp, MissingCutOverDate> {
         run(inputs, |_, _| {}, |_| {}).await
+    }
+
+    /// Runs `inputs`, and returns each unit of an event that is not a Notes period, in order.
+    async fn catch_up_units(inputs: BackfillInputs<RoutingSecClient>) -> Vec<String> {
+        let units = Arc::new(Mutex::new(Vec::new()));
+        let observed_units = Arc::clone(&units);
+        let observer = move |unit: &Unit, _: RunEvent<'_>| {
+            if !matches!(unit, Unit::Period(_)) {
+                observed_units
+                    .lock()
+                    .expect(LOCK_EXPECT)
+                    .push(unit.to_string());
+            }
+        };
+        let _ = run(inputs, observer, |_| {}).await;
+        units.lock().expect(LOCK_EXPECT).clone()
     }
 
     /// Reads the metadata file at `file` under `root` as JSON.
@@ -147,11 +163,11 @@ mod two_calls {
 
         let expected_result = json!(["2026-09-30", "2026-10-01"]);
 
-        let summaries = run_quietly(inputs)
+        let catch_up = run_quietly(inputs)
             .await
             .expect("Given a stored Notes period and no failed period, the cut-over date should always exist");
-        let result: Value = summaries
-            .recent
+        let result: Value = catch_up
+            .summary
             .entries()
             .iter()
             .map(|entry| entry["date"].clone())
@@ -205,21 +221,34 @@ mod two_calls {
     async fn should_run_no_catch_up_date_when_a_notes_period_fails() {
         let root = temporary_root();
         let inputs = inputs(&root, &["2026_08", "2026_09"]);
-        let catch_up_units = Arc::new(Mutex::new(Vec::new()));
-        let observed_units = Arc::clone(&catch_up_units);
-        let observer = move |unit: &Unit, _: RunEvent<'_>| {
-            if !matches!(unit, Unit::Period(_)) {
-                observed_units
-                    .lock()
-                    .expect(LOCK_EXPECT)
-                    .push(unit.to_string());
-            }
-        };
 
         let expected_result: Vec<String> = Vec::new();
 
-        let _ = run(inputs, observer, |_| {}).await;
-        let result = catch_up_units.lock().expect(LOCK_EXPECT).clone();
+        let result = catch_up_units(inputs).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_return_missing_stored_period_when_no_notes_period_is_stored() {
+        let root = temporary_root();
+        let inputs = inputs(&root, &["2026_10"]);
+
+        let expected_result = Err(MissingCutOverDate::MissingStoredPeriod);
+
+        let result = run_quietly(inputs).await.map(|_| ());
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_run_no_catch_up_date_when_no_notes_period_is_stored() {
+        let root = temporary_root();
+        let inputs = inputs(&root, &["2026_10"]);
+
+        let expected_result: Vec<String> = Vec::new();
+
+        let result = catch_up_units(inputs).await;
 
         assert_eq!(result, expected_result);
     }

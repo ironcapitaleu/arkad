@@ -70,7 +70,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     let start = Instant::now();
     let catch_up_start = Cell::new(start);
 
-    let summaries = run(
+    let catch_up = run(
         inputs,
         move |unit, event| match event {
             RunEvent::Item(item) => log_item(execution_id, unit, item),
@@ -92,20 +92,26 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
 
     let (message, mut context) = daily_summary(
         execution_id,
-        &summaries.dates,
-        &summaries.recent,
+        &catch_up.dates,
+        &catch_up.summary,
         catch_up_start.get().elapsed(),
     );
     context["step"] = serde_json::json!("catch_up");
     log_summary(
-        &summaries.recent.result(),
+        &catch_up.summary.result(),
         BatchEvent::StepComplete,
         BatchEvent::StepFailed,
         &message,
         &context,
     );
-    summaries.past.result()?;
-    summaries.recent.result()?;
+    // `cut_over_date()` already failed on a failed Notes period, so only the catch-up can fail here.
+    catch_up.summary.result().inspect_err(|error| {
+        tracing::error!(
+            event = %BatchEvent::Failed,
+            message = %error,
+            context = %serde_json::json!({ "execution_id": execution_id.to_string() }),
+        );
+    })?;
     tracing::info!(
         event = %BatchEvent::Complete,
         message = %format!("Ran the Notes periods and every date up to {yesterday} in {:.2?}", start.elapsed()),
