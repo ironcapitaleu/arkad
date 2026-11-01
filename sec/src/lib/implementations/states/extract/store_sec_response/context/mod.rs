@@ -5,13 +5,14 @@
 //! state, together with its updater and its builder.
 //!
 //! The context holds the request input that names the stored document, the `execution_id`, the
-//! repository that stores the document, and the retry budget.
+//! [`IngestionMode`] of the run, the repository that stores the document, and the retry budget.
 
 use std::fmt::{self, Display};
 
 use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
 use state_maschine::prelude::Context as SMContext;
+use storage::implementations::repository::filesystem::IngestionMode;
 use uuid::Uuid;
 
 #[cfg(doc)]
@@ -23,14 +24,17 @@ use crate::traits::state_machine::state::Context;
 /// Context for the [`StoreSecResponse`](super::StoreSecResponse) state.
 ///
 /// Holds the request input of kind `E` that names the stored document, for example a [`Cik`], the
-/// `execution_id` that the metadata records, and the repository of type `R` that stores the
-/// document.
+/// `execution_id` and the [`IngestionMode`] that the metadata records, and the repository of type
+/// `R` that stores the document. The mode belongs to the run, because one kind can run as a
+/// backfill and as an incremental fetch.
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 pub struct StoreSecResponseContext<E: RequestKind, R> {
     /// The input of the request, for example the [`Cik`] of a Company Facts request.
     pub request_input: E::Input,
     /// The id of the run. The metadata of the stored document records it.
     pub execution_id: Uuid,
+    /// The ingestion mode of the run. The metadata of the stored document records it.
+    pub ingestion_mode: IngestionMode,
     /// The repository that stores the document.
     pub repository: R,
     /// Maximum number of times the state may be retried on failure.
@@ -40,10 +44,16 @@ pub struct StoreSecResponseContext<E: RequestKind, R> {
 impl<E: RequestKind, R> StoreSecResponseContext<E, R> {
     /// Creates a new [`StoreSecResponseContext`] with the retry budget at zero.
     #[must_use]
-    pub const fn new(request_input: E::Input, execution_id: Uuid, repository: R) -> Self {
+    pub const fn new(
+        request_input: E::Input,
+        execution_id: Uuid,
+        ingestion_mode: IngestionMode,
+        repository: R,
+    ) -> Self {
         Self {
             request_input,
             execution_id,
+            ingestion_mode,
             repository,
             max_retries: 0,
         }
@@ -61,6 +71,12 @@ impl<E: RequestKind, R> StoreSecResponseContext<E, R> {
         self.execution_id
     }
 
+    /// Returns the ingestion mode of the run.
+    #[must_use]
+    pub const fn ingestion_mode(&self) -> IngestionMode {
+        self.ingestion_mode
+    }
+
     /// Returns a reference to the repository that stores the document.
     #[must_use]
     pub const fn repository(&self) -> &R {
@@ -71,9 +87,10 @@ impl<E: RequestKind, R> StoreSecResponseContext<E, R> {
 /// Serializes the request input under the name its kind gives it, for example `cik`.
 impl<E: RequestKind, R: Serialize> Serialize for StoreSecResponseContext<E, R> {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        let mut state = serializer.serialize_struct("StoreSecResponseContext", 4)?;
+        let mut state = serializer.serialize_struct("StoreSecResponseContext", 5)?;
         state.serialize_field(E::INPUT_NAME, &self.request_input)?;
         state.serialize_field("execution_id", &self.execution_id)?;
+        state.serialize_field("ingestion_mode", &self.ingestion_mode)?;
         state.serialize_field("repository", &self.repository)?;
         state.serialize_field("max_retries", &self.max_retries)?;
         state.end()
@@ -99,6 +116,9 @@ impl<E: StoredAs, R: RawRepository<E::Source>> SMContext for StoreSecResponseCon
         }
         if let Some(execution_id) = updates.execution_id {
             self.execution_id = execution_id;
+        }
+        if let Some(ingestion_mode) = updates.ingestion_mode {
+            self.ingestion_mode = ingestion_mode;
         }
         if let Some(repository) = updates.repository {
             self.repository = repository;
@@ -128,6 +148,8 @@ pub struct StoreSecResponseContextUpdater<E: RequestKind, R> {
     pub request_input: Option<E::Input>,
     /// Optional new value for the id of the run.
     pub execution_id: Option<Uuid>,
+    /// Optional new value for the ingestion mode.
+    pub ingestion_mode: Option<IngestionMode>,
     /// Optional new value for the repository.
     pub repository: Option<R>,
     /// Optional new value for the retry budget.
@@ -146,6 +168,7 @@ impl<E: RequestKind, R> StoreSecResponseContextUpdater<E, R> {
 pub struct StoreSecResponseContextUpdaterBuilder<E: RequestKind, R> {
     request_input: Option<E::Input>,
     execution_id: Option<Uuid>,
+    ingestion_mode: Option<IngestionMode>,
     repository: Option<R>,
     max_retries: Option<u32>,
 }
@@ -158,6 +181,7 @@ impl<E: RequestKind, R> StoreSecResponseContextUpdaterBuilder<E, R> {
         Self {
             request_input: None,
             execution_id: None,
+            ingestion_mode: None,
             repository: None,
             max_retries: None,
         }
@@ -176,6 +200,14 @@ impl<E: RequestKind, R> StoreSecResponseContextUpdaterBuilder<E, R> {
     #[allow(clippy::missing_const_for_fn)]
     pub fn execution_id(mut self, execution_id: Uuid) -> Self {
         self.execution_id = Some(execution_id);
+        self
+    }
+
+    /// Sets the ingestion mode field.
+    #[must_use]
+    #[allow(clippy::missing_const_for_fn)]
+    pub fn ingestion_mode(mut self, ingestion_mode: IngestionMode) -> Self {
+        self.ingestion_mode = Some(ingestion_mode);
         self
     }
 
@@ -201,6 +233,7 @@ impl<E: RequestKind, R> StoreSecResponseContextUpdaterBuilder<E, R> {
         StoreSecResponseContextUpdater {
             request_input: self.request_input,
             execution_id: self.execution_id,
+            ingestion_mode: self.ingestion_mode,
             repository: self.repository,
             max_retries: self.max_retries,
         }
@@ -232,6 +265,7 @@ mod tests {
         StoreCompanyFactsContext::new(
             sample_cik("1067983"),
             Uuid::nil(),
+            IngestionMode::Backfill,
             FakeWriteRepository::new(),
         )
     }
@@ -292,6 +326,22 @@ mod tests {
     }
 
     #[test]
+    fn should_update_ingestion_mode_when_updater_contains_ingestion_mode() {
+        let mut context = sample_context();
+        let updater =
+            StoreSecResponseContextUpdater::<CompanyFacts, FakeWriteRepository>::builder()
+                .ingestion_mode(IngestionMode::Incremental)
+                .build();
+
+        let expected_result = IngestionMode::Incremental;
+
+        context.update_context(updater);
+        let result = context.ingestion_mode();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
     fn should_update_repository_when_updater_contains_repository() {
         let mut context = sample_context();
         let repository = FakeWriteRepository::rejecting(WriteError::conflicting_write("taken"));
@@ -345,6 +395,7 @@ mod tests {
         let expected_result = serde_json::json!({
             "cik": { "value": "0001067983" },
             "execution_id": "00000000-0000-0000-0000-000000000000",
+            "ingestion_mode": "backfill",
             "repository": { "kind": "fake", "rejection": null },
             "max_retries": 0,
         });
