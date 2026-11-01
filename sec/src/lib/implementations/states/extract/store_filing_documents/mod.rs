@@ -46,9 +46,10 @@ pub use data::StoreFilingDocumentsOutput;
 ///
 /// Builds a [`RawDocument<RawXbrlInstance>`](crate::shared::raw_source::RawXbrlInstance) and, if
 /// the filing has a label file, a [`RawDocument<RawXbrlLabels>`](crate::shared::raw_source::RawXbrlLabels)
-/// with [`RawDocument::from_file`]. Writes them under the keys of
+/// with [`RawDocument::from_filing_file`]. Writes them under the keys of
 /// [`instance_key`] and [`labels_key`] through the repositories of type `I` and `L`, and outputs a
-/// [`FilingDocumentsRef`]. The metadata records the ingestion mode [`IngestionMode::Incremental`].
+/// [`FilingDocumentsRef`]. The metadata records the ingestion mode [`IngestionMode::Incremental`]
+/// and the filing as [`FilingFields`].
 ///
 /// The instance is written first. If the label write fails, the instance stays stored and the
 /// state has no output. A new run stores the same instance bytes, which the repository skips.
@@ -349,6 +350,16 @@ mod tests {
         input
     }
 
+    /// Returns the filing fields of [`filing`].
+    fn expected_filing_fields() -> FilingFields {
+        FilingFields {
+            filed_date: NaiveDate::from_ymd_opt(2026, 9, 9)
+                .expect("Given a hardcoded calendar date, the date should always build"),
+            form: "10-Q".to_string(),
+            is_amendment: false,
+        }
+    }
+
     /// Builds an input whose responses hold a label file if `has_label_response`, and whose
     /// `labels_url` is set if `has_labels_url`.
     fn input(has_label_response: bool, has_labels_url: bool) -> StoreFilingDocumentsInput {
@@ -605,17 +616,8 @@ mod tests {
         assert_eq!(result, expected_result);
     }
 
-    fn expected_filing_fields() -> FilingFields {
-        FilingFields {
-            filed_date: NaiveDate::from_ymd_opt(2026, 9, 9)
-                .expect("Given a hardcoded calendar date, the date should always build"),
-            form: "10-Q".to_string(),
-            is_amendment: false,
-        }
-    }
-
     #[tokio::test]
-    async fn should_record_the_filed_date_and_the_form_in_the_instance_metadata() {
+    async fn should_record_the_filed_date_and_the_form_for_the_instance_metadata() {
         let (_, instances, _) = store_on_fakes(
             input(true, true),
             FakeXbrlInstanceRepository::new(),
@@ -634,7 +636,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_record_the_filed_date_and_the_form_in_the_labels_metadata() {
+    async fn should_record_the_filed_date_and_the_form_for_the_labels_metadata() {
         let (_, _, labels) = store_on_fakes(
             input(true, true),
             FakeXbrlInstanceRepository::new(),

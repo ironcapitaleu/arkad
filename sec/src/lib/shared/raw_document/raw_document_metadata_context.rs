@@ -30,7 +30,7 @@ pub struct RawDocumentMetadataContext {
     /// The `User-Agent` the fetch sent.
     pub user_agent: UserAgent,
     /// The filing the document belongs to, or `None` for a document that is not part of a filing.
-    /// A metadata file written before this field reads as `None`.
+    /// A metadata file without the `filing` key reads as `None`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub filing: Option<FilingFields>,
 }
@@ -337,6 +337,29 @@ mod tests {
             .expect("Given a context of plain fields, writing JSON should always succeed")
             .as_object()
             .is_some_and(|fields| fields.contains_key("filing"));
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_write_the_filed_date_and_the_form_when_the_document_is_part_of_a_filing() {
+        let context = sample_context().with_filing(FilingFields {
+            filed_date: chrono::NaiveDate::from_ymd_opt(2025, 11, 28)
+                .expect("Given a hardcoded calendar date, the date should always build"),
+            form: "10-K".to_string(),
+            is_amendment: false,
+        });
+
+        let expected_result = Some(serde_json::json!({
+            "filed_date": "2025-11-28",
+            "form": "10-K",
+            "is_amendment": false,
+        }));
+
+        let result = serde_json::to_value(&context)
+            .expect("Given a context of plain fields, writing JSON should always succeed")
+            .get("filing")
+            .cloned();
 
         assert_eq!(result, expected_result);
     }

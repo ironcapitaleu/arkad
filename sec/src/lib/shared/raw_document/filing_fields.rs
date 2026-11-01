@@ -8,9 +8,6 @@ use serde::{Deserialize, Serialize};
 use crate::shared::filing_ref::FilingRef;
 
 /// The filing a raw document belongs to: its filed date and its form.
-///
-/// Only the documents of a filing, the XBRL instance and the label file, carry these fields. The
-/// folder of a filing names its CIK and accession number, but not the day it was filed.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct FilingFields {
     /// The filed date of the filing in the daily index.
