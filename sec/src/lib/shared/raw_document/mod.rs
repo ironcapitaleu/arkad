@@ -13,7 +13,9 @@
 use std::marker::PhantomData;
 
 use bytes::Bytes;
-use storage::implementations::repository::filesystem::{Document, DocumentKey, DocumentMetadata};
+use storage::implementations::repository::filesystem::{
+    Document, DocumentKey, DocumentMetadata, InputDocument,
+};
 
 use crate::shared::document_type::SecDocumentType;
 use crate::shared::raw_source::{RawFileSource, RawSource};
@@ -263,11 +265,12 @@ impl<S: RawFileSource> RawDocument<S> {
         run: RunFields,
     ) -> Self {
         let context = RawDocumentMetadataContext::from_file(file, requested_url, user_agent);
-        Self::from_file_with_context(key, file, context, run)
+        Self::from_file_with_context(key, file, context, run, Vec::new())
     }
 
     /// Creates a [`RawDocument`] of one file of a filing, as [`from_file`](Self::from_file)
-    /// does, and records `filing` in the metadata context.
+    /// does, records `filing` in the metadata context, and records `inputs` as the documents the
+    /// filing came from.
     ///
     /// # Examples
     ///
@@ -326,6 +329,7 @@ impl<S: RawFileSource> RawDocument<S> {
     ///         ingestion_mode: IngestionMode::Incremental,
     ///     },
     ///     filing.clone(),
+    ///     Vec::new(),
     /// );
     ///
     /// let expected_result = Some(filing);
@@ -342,18 +346,20 @@ impl<S: RawFileSource> RawDocument<S> {
         user_agent: &UserAgent,
         run: RunFields,
         filing: FilingFields,
+        inputs: Vec<InputDocument>,
     ) -> Self {
         let context = RawDocumentMetadataContext::from_file(file, requested_url, user_agent)
             .with_filing(filing);
-        Self::from_file_with_context(key, file, context, run)
+        Self::from_file_with_context(key, file, context, run, inputs)
     }
 
-    /// Creates a [`RawDocument`] of `file` with the metadata `context`.
+    /// Creates a [`RawDocument`] of `file` with the metadata `context` and `inputs`.
     fn from_file_with_context<B: FileBody>(
         key: DocumentKey,
         file: &SecResponse<B>,
         context: RawDocumentMetadataContext,
         run: RunFields,
+        inputs: Vec<InputDocument>,
     ) -> Self {
         let metadata = DocumentMetadata::builder()
             .document_type::<Self>()
@@ -363,6 +369,7 @@ impl<S: RawFileSource> RawDocument<S> {
             .run(run.execution_id, run.producer)
             .ingestion_mode(run.ingestion_mode)
             .context(context)
+            .inputs(inputs)
             .build();
         Self::from_parts(key, file.body_bytes(), metadata)
     }

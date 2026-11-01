@@ -9,6 +9,7 @@
 
 use std::marker::PhantomData;
 
+use storage::implementations::repository::filesystem::InputDocument;
 use uuid::Uuid;
 
 use crate::implementations::states::extract::filing::{
@@ -95,6 +96,7 @@ pub struct ExtractFilingSuperStateBuilder<F, C, E, I, L> {
     execution_id: E,
     instance_repository: I,
     labels_repository: L,
+    inputs: Vec<InputDocument>,
 }
 
 impl<I, L>
@@ -114,6 +116,7 @@ impl<I, L>
             execution_id: NoExecutionId,
             instance_repository: NoInstanceRepository::new(),
             labels_repository: NoLabelsRepository::new(),
+            inputs: Vec::new(),
         }
     }
 }
@@ -131,6 +134,7 @@ impl<C, E, I, L> ExtractFilingSuperStateBuilder<NoFilingRef, C, E, I, L> {
             execution_id: self.execution_id,
             instance_repository: self.instance_repository,
             labels_repository: self.labels_repository,
+            inputs: self.inputs,
         }
     }
 }
@@ -148,6 +152,7 @@ impl<F, E, I, L> ExtractFilingSuperStateBuilder<F, NoSecClient, E, I, L> {
             execution_id: self.execution_id,
             instance_repository: self.instance_repository,
             labels_repository: self.labels_repository,
+            inputs: self.inputs,
         }
     }
 }
@@ -165,6 +170,7 @@ impl<F, C, I, L> ExtractFilingSuperStateBuilder<F, C, NoExecutionId, I, L> {
             execution_id,
             instance_repository: self.instance_repository,
             labels_repository: self.labels_repository,
+            inputs: self.inputs,
         }
     }
 }
@@ -182,6 +188,7 @@ impl<F, C, E, I, L> ExtractFilingSuperStateBuilder<F, C, E, NoInstanceRepository
             execution_id: self.execution_id,
             instance_repository,
             labels_repository: self.labels_repository,
+            inputs: self.inputs,
         }
     }
 }
@@ -199,7 +206,18 @@ impl<F, C, E, I, L> ExtractFilingSuperStateBuilder<F, C, E, I, NoLabelsRepositor
             execution_id: self.execution_id,
             instance_repository: self.instance_repository,
             labels_repository,
+            inputs: self.inputs,
         }
+    }
+}
+
+impl<F, C, E, I, L> ExtractFilingSuperStateBuilder<F, C, E, I, L> {
+    /// Sets the documents that the filing came from, for example the daily index that listed it.
+    /// The metadata of each stored file records them as inputs. Without this call, it records
+    /// none.
+    #[must_use]
+    pub fn inputs(self, inputs: Vec<InputDocument>) -> Self {
+        Self { inputs, ..self }
     }
 }
 
@@ -312,7 +330,8 @@ where
                 self.execution_id,
                 self.instance_repository,
                 self.labels_repository,
-            ),
+            )
+            .with_inputs(self.inputs),
         }
     }
 }
@@ -405,9 +424,9 @@ mod tests {
         implements_value_traits::<EmptyBuilder>();
     }
 
-    const fn holds_no_field(_: EmptyBuilder) {}
+    fn holds_no_field(_: EmptyBuilder) {}
     #[test]
-    const fn should_hold_no_field_when_starting_a_builder() {
+    fn should_hold_no_field_when_starting_a_builder() {
         holds_no_field(ExtractFilingSuperState::builder());
     }
 
@@ -424,6 +443,29 @@ mod tests {
         let result = builder
             .labels_repository(FakeXbrlLabelsRepository::new())
             .build();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_carry_the_inputs_into_the_context_when_they_are_set() {
+        let inputs = vec![InputDocument::new(
+            storage::implementations::repository::filesystem::DocumentKey::new(
+                "sec/daily-index/form.20260909.idx",
+            )
+            .expect("Given a hardcoded valid relative path, the key should always build"),
+            storage::Sha256Digest::of(b"index"),
+        )];
+        let builder = ExtractFilingSuperState::builder()
+            .filing_ref(filing_ref())
+            .sec_client(sec_client())
+            .execution_id(EXECUTION_ID)
+            .instance_repository(instance_repository())
+            .labels_repository(FakeXbrlLabelsRepository::new());
+
+        let expected_result = inputs.clone();
+
+        let result = builder.inputs(inputs).build().context.inputs;
 
         assert_eq!(result, expected_result);
     }

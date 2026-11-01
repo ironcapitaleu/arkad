@@ -13,7 +13,9 @@ use std::time::Duration;
 use chrono::{Days, NaiveDate};
 use futures_util::StreamExt;
 use sec::error::{State as StateError, StateMachine};
-use sec::implementations::states::extract::daily_index::DetectFilingsSuperState;
+use sec::implementations::states::extract::daily_index::{
+    DetectFilingsSuperState, DetectedFilings,
+};
 use sec::implementations::states::extract::filing::ExtractFilingSuperState;
 use sec::implementations::states::extract::prepare_sec_request::PrepareSecRequest;
 use sec::implementations::states::extract::submissions::ExtractSubmissionsSuperState;
@@ -33,7 +35,7 @@ use sec::shared::request::implementations::sec_request::{FilingDocumentSet, Fili
 use sec::shared::response::implementations::sec_response::{JsonBody, SecResponse, ZipBody};
 use serde_json::{Value, json};
 use storage::implementations::repository::filesystem::{
-    FilesystemRepository, IngestionMode, Write,
+    FilesystemRepository, IngestionMode, InputDocument, Write,
 };
 use thiserror::Error;
 use uuid::Uuid;
@@ -370,13 +372,13 @@ where
             .execution_id(settings.execution_id)
             .repository(repositories.daily_index.clone())
             .build()
-            .run_to_filings(|item| on_item(&context, item))
+            .run_to_detected_filings(|item| on_item(&context, item))
             .await;
         let outcome = match detection {
-            Ok(filings) => {
+            Ok(detected) => {
                 let filing_outcomes = extract_filings(
                     date,
-                    &filings,
+                    &detected,
                     sec_client,
                     repositories,
                     settings,
@@ -386,7 +388,7 @@ where
                 .await;
                 let company_outcomes = extract_companies(
                     date,
-                    &filings,
+                    &detected.filings,
                     sec_client,
                     repositories,
                     settings,
@@ -413,10 +415,11 @@ where
     RunSummary(outcomes)
 }
 
-/// Runs one filing machine per filing, at most [`IN_FLIGHT`] at once, in the order of `filings`.
+/// Runs one filing machine per detected filing, at most [`IN_FLIGHT`] at once, in the order of
+/// the filings. Each machine records the daily index of `detected` as the input of its files.
 async fn extract_filings<C>(
     date: NaiveDate,
-    filings: &[FilingRef],
+    detected: &DetectedFilings,
     sec_client: &C,
     repositories: &Repositories,
     settings: &Settings,
@@ -432,7 +435,9 @@ where
         C,
     >: IntoStateMachineStream,
 {
-    let extractions = filings.iter().map(|filing| async move {
+    let inputs: Vec<InputDocument> = detected.index.iter().cloned().collect();
+    let inputs = &inputs;
+    let extractions = detected.filings.iter().map(|filing| async move {
         let context = json!({
             "date": date.to_string(),
             "accession_number": filing.accession_number().to_string(),
@@ -446,6 +451,7 @@ where
                     .execution_id(settings.execution_id)
                     .instance_repository(repositories.instance.clone())
                     .labels_repository(repositories.labels.clone())
+                    .inputs(inputs.clone())
                     .build()
                     .run_to_documents(|item| on_item(&context, item))
             },

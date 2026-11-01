@@ -120,11 +120,19 @@ mod run_loop {
 
     /// Runs `dates` with yesterday on 2026-10-28 and no wait between attempts.
     async fn run_offline(dates: &[NaiveDate], sec_client: &RoutingSecClient) -> RunSummary {
-        let root = temporary_root();
+        run_offline_in(&temporary_root(), dates, sec_client).await
+    }
+
+    /// Runs `dates` as `run_offline` does, with the stores under `root`.
+    async fn run_offline_in(
+        root: &TempDir,
+        dates: &[NaiveDate],
+        sec_client: &RoutingSecClient,
+    ) -> RunSummary {
         run(
             dates,
             sec_client,
-            &repositories(&root),
+            &repositories(root),
             &settings(),
             |_, _| {},
             |_, _, _| {},
@@ -381,6 +389,31 @@ mod run_loop {
         })];
 
         let result = reported_errors(&dates, &sec_client).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_name_the_daily_index_as_the_input_of_a_stored_filing() {
+        let root = temporary_root();
+        let dates = [date("2026-10-26")];
+        let sec_client = sec_client();
+        let metadata_path = root
+            .path()
+            .join("sec/filings/CIK0000003545/0000003545-26-000047/instance.xml.meta.json");
+
+        let expected_result = json!([{
+            "key": "sec/daily-index/form.20261026.idx",
+            "sha256": "83ca0d88935c90c2780df7f3e0ff306903d79779102d891ccb17146987888964",
+        }]);
+
+        run_offline_in(&root, &dates, &sec_client).await;
+        let metadata: Value =
+            serde_json::from_slice(&std::fs::read(metadata_path).expect(
+                "Given a run that stored the filing, its metadata file should always exist",
+            ))
+            .expect("Given a metadata file that the store wrote, it should always parse as JSON");
+        let result = metadata["inputs"].clone();
 
         assert_eq!(result, expected_result);
     }

@@ -237,6 +237,7 @@ mod tests {
         let index = index_bytes.map(|text| StoredDailyIndex {
             key: DocumentKey::new("sec/daily-index/form.20261027.idx")
                 .expect("Given a hardcoded valid relative path, the key should always build"),
+            sha256: storage::Sha256Digest::of(&text),
             text: Bytes::from(text),
         });
         SelectFilings::new(

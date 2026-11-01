@@ -10,12 +10,13 @@ use bytes::Bytes;
 use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
 use state_maschine::prelude::StateData as SMStateData;
-use storage::implementations::repository::filesystem::DocumentKey;
+use storage::Sha256Digest;
+use storage::implementations::repository::filesystem::{DocumentKey, InputDocument};
 
 use crate::error::State as StateError;
 use crate::traits::state_machine::state::StateData;
 
-/// The key and the text of one stored daily index.
+/// The key, the SHA-256, and the text of one stored daily index.
 ///
 /// The text shares the body buffer of the downloaded response, so it holds the bytes exactly as
 /// the SEC sent them.
@@ -23,8 +24,18 @@ use crate::traits::state_machine::state::StateData;
 pub struct StoredDailyIndex {
     /// The key the index is stored under.
     pub key: DocumentKey,
+    /// The SHA-256 digest of the stored bytes.
+    pub sha256: Sha256Digest,
     /// The text of the index, as the SEC sent it.
     pub text: Bytes,
+}
+
+impl StoredDailyIndex {
+    /// Returns the index as an [`InputDocument`], for the metadata of a document made from it.
+    #[must_use]
+    pub fn input_document(&self) -> InputDocument {
+        InputDocument::new(self.key.clone(), self.sha256.clone())
+    }
 }
 
 /// Serializes the key and the size of the text, without the text.
@@ -167,6 +178,7 @@ mod tests {
         StoredDailyIndex {
             key: DocumentKey::new("sec/daily-index/form.20261027.idx")
                 .expect("Given a hardcoded valid relative path, the key should always build"),
+            sha256: storage::Sha256Digest::of(text),
             text: Bytes::from_static(text),
         }
     }

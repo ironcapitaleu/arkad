@@ -78,6 +78,7 @@ use async_trait::async_trait;
 use futures_util::StreamExt;
 use serde::Serialize;
 use state_maschine::prelude::{StateMachine as SMStateMachine, Transition as SMTransition};
+use storage::implementations::repository::filesystem::InputDocument;
 use uuid::Uuid;
 
 use crate::error::State as StateError;
@@ -130,6 +131,7 @@ pub struct ExtractFilingSuperStateContext<I, L, C> {
     pub(crate) instance_repository: I,
     pub(crate) labels_repository: L,
     pub(crate) documents_slot: OutputSlot<FilingDocumentsRef>,
+    pub(crate) inputs: Vec<InputDocument>,
 }
 
 impl<I, L, C> ExtractFilingSuperStateContext<I, L, C> {
@@ -150,7 +152,14 @@ impl<I, L, C> ExtractFilingSuperStateContext<I, L, C> {
             instance_repository,
             labels_repository,
             documents_slot: OutputSlot::default(),
+            inputs: Vec::new(),
         }
+    }
+
+    /// Returns this context with the documents that the filing came from.
+    #[must_use]
+    pub fn with_inputs(self, inputs: Vec<InputDocument>) -> Self {
+        Self { inputs, ..self }
     }
 }
 
@@ -627,7 +636,8 @@ where
                 self.context.execution_id,
                 self.context.instance_repository.clone(),
                 self.context.labels_repository.clone(),
-            ))?,
+            ))?
+            .with_inputs(self.context.inputs.clone()),
             input: ExtractFilingSuperStateData,
             output: None,
             context: self.context,

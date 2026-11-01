@@ -116,6 +116,7 @@ mod tests {
             SelectFilingsInput::new(Some(StoredDailyIndex {
                 key: DocumentKey::new("sec/daily-index/form.20261027.idx")
                     .expect("Given a hardcoded valid relative path, the key should always build"),
+                sha256: storage::Sha256Digest::of(INDEX_BODY),
                 text: Bytes::from_static(INDEX_BODY),
             })),
             SelectFilingsContext::new(SAMPLE_EXECUTION_ID),
