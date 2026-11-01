@@ -178,7 +178,7 @@ deprecated example, next to `stream_extract`. See [Deprecated Binaries](#depreca
 | Loop | as `notes_backfill`, then one Notes file at a time and `buffer_unordered` over the CIKs, then as `daily_filings` | `buffer_unordered`, sorted by index after | `buffer_unordered`, sorted by index after (facade, STA-358) | dates in order, `buffered` per date |
 | Cap | `ARKAD_FILES_IN_FLIGHT`, default 2, then `DEFAULT_CIKS_IN_FLIGHT` = 4, then `DEFAULT_MACHINES_IN_FLIGHT` = 4 | `ARKAD_FILES_IN_FLIGHT`, default 2 | all CIKs (`in_flight(CIKS.len())`), facade default 4 | `DEFAULT_MACHINES_IN_FLIGHT` = 4 (facade, STA-415) |
 | Task per unit | as `notes_backfill`, then no | `tokio::spawn` (STA-344, open in STA-360) | no | no |
-| Rules | the rules of both, and no catch-up without `cut_over_date()` | skip of an intact stored file, unpublished at the end | none | 503 retry, pending, unextractable |
+| Rules | the rules of both, and no catch-up without `cut_over_date()`. A failed CIK or an unreadable Notes file does not block the catch-up | skip of an intact stored file, unpublished at the end | none | 503 retry, pending, unextractable |
 | Summary | `AllRunSummary` (`NotesRunSummary` and `SubmissionsRunSummary`), then `DailyRunSummary` | `NotesRunSummary`, `FailedBackfill` (facade, STA-414) | `CompanyFactsRunSummary`, `FailedCompanyFactsBackfill` (facade, STA-358) | `DailyRunSummary`, `FailedDailyRun` (facade, STA-415) |
 | Logging | one observer for both calls, one summary per step: `notes`, `submissions`, `catch_up` | observer with `RunEvent` and `ErrorKind` (facade, STA-414) | observer with `RunEvent` and `ErrorKind` (facade, STA-358) | observer with `RunEvent` and `ErrorKind` (facade, STA-415) |
 | Exit | error if a period, a stored Notes file, a date, a filing, or a CIK failed, or if no period is stored | error if a period failed | error if a CIK failed | error if a date, filing, or CIK failed |
@@ -1979,6 +1979,8 @@ Proposed for MVP Operations. Both paths run as Cloud Run jobs with the bucket mo
   every write is idempotent.
 - `backfill` runs the `submissions` machine for each distinct CIK of the stored Notes files,
   after the Notes files (STA-377). It reads one stored Notes file at a time.
+- Each rerun of `backfill` reads every stored Notes file in full, with the SHA-256 check, and
+  fetches every `submissions` file again.
 - `backfill` reads `ARKAD_FILES_IN_FLIGHT` for the number of Notes files in flight. Unset, it
   uses 2. STA-379 measures the value for Cloud Run.
 - Both jobs share the SEC client, the User-Agent, and the storage root through
