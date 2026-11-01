@@ -98,3 +98,51 @@ impl Ord for RequestCounts {
 impl Hash for RequestCounts {
     fn hash<H: Hasher>(&self, _state: &mut H) {}
 }
+
+#[cfg(test)]
+mod tests {
+    use pretty_assertions::assert_eq;
+
+    use super::*;
+
+    const URL: &str = "https://www.sec.gov/Archives/edgar/data/3545/000000354526000047/index.json";
+    const OTHER_URL: &str = "https://data.sec.gov/api/xbrl/companyfacts/CIK0001067983.json";
+
+    #[test]
+    fn should_return_the_number_of_earlier_requests_when_a_url_is_counted() {
+        let counts = RequestCounts::default();
+        let _ = counts.increment(URL);
+        let _ = counts.increment(URL);
+
+        let expected_result = 2;
+
+        let result = counts.increment(URL);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_start_at_zero_when_another_url_was_counted() {
+        let counts = RequestCounts::default();
+        let _ = counts.increment(URL);
+
+        let expected_result = 0;
+
+        let result = counts.increment(OTHER_URL);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_compare_equal_when_the_counts_differ() {
+        let counts = RequestCounts::default();
+        let other_counts = RequestCounts::default();
+        let _ = counts.increment(URL);
+
+        let expected_result = true;
+
+        let result = counts == other_counts;
+
+        assert_eq!(result, expected_result);
+    }
+}
