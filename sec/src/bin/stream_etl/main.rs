@@ -13,6 +13,7 @@ use std::io::stdout;
 use std::time::Instant;
 
 use pipeline::Pipeline;
+use sec::implementations::extraction::Extraction;
 use tracing_subscriber::fmt::format::FmtSpan;
 
 use sec_client::{USER_AGENT_ENV_VAR, default_user_agent_warning, sec_client, startup_error_cause};
@@ -73,6 +74,8 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
             root = %repository.root().display(),
         );
     })?;
+    // One handle, so every CIK of the run carries the same `execution_id`.
+    let backfill = Extraction::backfill();
     let start = Instant::now();
 
     // Concurrency is intentionally unbounded: the 10 req/s cap is enforced by a process-global
@@ -85,7 +88,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
             .sec_client(sec_client.clone())
             .repository(repository.clone())
             .build()
-            .run()
+            .run(&backfill)
     });
     let results: Vec<_> = futures_util::future::join_all(pipelines).await;
 

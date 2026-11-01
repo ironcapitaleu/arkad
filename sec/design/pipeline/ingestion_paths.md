@@ -47,8 +47,8 @@ The pipeline extracts only `companyfacts` today. `ExtractCompanyFactsSuperState`
 ## Extraction Overview
 
 Each path has its own extract SuperStates. One machine handles one unit of work: one Notes file,
-one filing, or one company. A binary loops over the units with `join_all`, as `stream_extract`
-loops over CIKs today. Fork and join replaces the loops later (STA-329).
+one filing, or one company. The facade loops over the units of a batch with a capped loop. See
+[Calling the Machines](#calling-the-machines). Fork and join replaces the loops later (STA-329).
 
 ```mermaid
 flowchart TB
@@ -141,7 +141,8 @@ two values. Decided by the lead on 2026-10-29.
 
 ### Calling the Machines
 
-> **Status:** accepted on 2026-11-01 (STA-399). STA-363, STA-414, STA-415, and STA-416 build it.
+> **Status:** accepted on 2026-11-01 (STA-399). STA-363, STA-414, STA-415, STA-416, and STA-358
+> build it.
 > The facade, its two calls for mode and source, and one `execution_id` per handle are older
 > decisions of the lead (2026-10-28 and 2026-10-29).
 
@@ -166,7 +167,7 @@ Two binaries run the facade:
 
 So one run of `backfill` extracts everything up to yesterday, and it sets the cut-over date
 itself. `daily_filings` then keeps the store current. The binary `backfill` replaces
-`notes_backfill`. A Notes-only copy of `notes_backfill`, and later `stream_extract`, move to
+`notes_backfill`. A Notes-only copy of `notes_backfill` and `stream_extract` move to
 `sec/examples/` as deprecated examples. See [Deprecated Binaries](#deprecated-binaries).
 
 #### What the Binaries Run Today
@@ -174,13 +175,13 @@ itself. `daily_filings` then keeps the store current. The binary `backfill` repl
 | | `notes_backfill` | `stream_extract` | `daily_filings` |
 | - | ---------------- | ---------------- | --------------- |
 | Unit | Notes period | CIK of a fixed list | date, then filing, then CIK |
-| Loop | `buffer_unordered`, sorted by index after | `join_all` | dates in order, `buffered` per date |
-| Cap | `ARKAD_FILES_IN_FLIGHT`, default 2 | none, the rate limiter only | `IN_FLIGHT` = 4 |
+| Loop | `buffer_unordered`, sorted by index after | `buffer_unordered`, sorted by index after (facade, STA-358) | dates in order, `buffered` per date |
+| Cap | `ARKAD_FILES_IN_FLIGHT`, default 2 | default 4 | `IN_FLIGHT` = 4 |
 | Task per unit | `tokio::spawn` (STA-344, open in STA-360) | no | no |
 | Rules | skip of an intact stored file, unpublished at the end | none | 503 retry, pending, unextractable |
-| Summary | `NotesRunSummary`, `FailedBackfill` (facade, STA-414) | counts only | `RunSummary`, `FailedDailyRun` |
-| Logging | observer with `RunEvent` and `ErrorKind` (facade, STA-414) | inside its local `Extraction::run` | `on_item` and `on_error` with `ErrorKind` |
-| Exit | error if a period failed | always success | error if a date, filing, or CIK failed |
+| Summary | `NotesRunSummary`, `FailedBackfill` (facade, STA-414) | `CompanyFactsRunSummary`, `FailedCompanyFactsBackfill` (facade, STA-358) | `RunSummary`, `FailedDailyRun` |
+| Logging | observer with `RunEvent` and `ErrorKind` (facade, STA-414) | observer with `RunEvent` and `ErrorKind` (facade, STA-358) | `on_item` and `on_error` with `ErrorKind` |
+| Exit | error if a period failed | error if a CIK failed | error if a date, filing, or CIK failed |
 
 Common to all three: the logger, the SEC client and its User-Agent warning, `create_root`, one
 `execution_id`, a capped loop over units, one outcome per unit, a summary, and an exit code from
@@ -232,6 +233,9 @@ Extraction::incremental()
   one machine.
 - `incremental()` also offers `daily_index()`, `filing()`, and `submissions()` for one unit.
   `backfill()` offers `notes()`, `company_facts()`, and `submissions()`.
+- `companyfacts` goes through the facade: `backfill().company_facts()` takes `cik(c)` for one
+  unit or `ciks(cs)` for a batch. Every error of a CIK is `ErrorKind::Failed`, and the unit is
+  `Unit::Cik`.
 - `run()` is `async` and returns the summary of the source, not a `Result`. A failed unit does not
   stop the others. `main` calls `summary.result()` for the exit code.
 
@@ -404,7 +408,7 @@ summary.result()?;
 #### Deprecated Binaries
 
 A Notes-only copy of `notes_backfill` moves to `sec/examples/` in ticket 6, and `stream_extract`
-follows in ticket 7 (STA-358). Each gets a header comment that marks it deprecated. CI runs `cargo clippy --workspace --all-targets
+moved in ticket 7 (STA-358). Each gets a header comment that marks it deprecated. CI runs `cargo clippy --workspace --all-targets
 --all-features`, which compiles the examples, so the build keeps them on the current facade.
 `cargo test` in CI does not build them. They are the reference for a run of one source against the live SEC. The hermetic
 integration tests of the facade go in `sec/tests/`, with the fake SEC clients of `sec::tests`.
@@ -413,12 +417,13 @@ integration tests of the facade go in `sec/tests/`, with the fake SEC clients of
   the paths change. Each example gets an `[[example]]` entry with
   `required-features = ["tracing-logging"]`, as the binaries have today. The logger crates stay
   optional dependencies behind that feature, because `backfill` and `daily_filings` need them.
-- The `Dockerfile` builds and runs `stream_extract`, and `README.md` documents it. So
-  `stream_extract` stays a binary until STA-358 moves it, with the `Dockerfile` and `README.md`.
+- The `Dockerfile` builds the example `stream_extract` with `--example` and runs it, and
+  `sec/README.md` documents it.
 - `sec/tests/notes_backfill.rs` calls the facade (STA-414). `sec/tests/daily_filings.rs` loads
   `run.rs` through `#[path]`. When the facade takes this code, the test calls the facade instead.
-- `extraction`, a demo of `ExtractCompanyFactsSuperState`, and `stream_etl`, which also runs
-  transform, stay outside the facade. STA-358 decides about `extraction`.
+- `stream_etl` builds its machines with `backfill().company_facts().cik(c)`, from one handle per
+  run (decision of the lead, 2026-10-29). It keeps its own loop and its own logs.
+- `extraction`, a demo of `ExtractCompanyFactsSuperState`, stays as it is, outside the facade.
 ### Repository in the Machines
 
 > **Status:** accepted by the lead on 2026-10-31 (STA-398), with all three decisions. The first

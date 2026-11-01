@@ -6,11 +6,9 @@ use std::pin::pin;
 use std::time::Instant;
 
 use futures_util::StreamExt;
-use sec::implementations::states::extract::company_facts::ExtractCompanyFactsSuperState;
+use sec::implementations::extraction::Backfill;
 use sec::prelude::*;
 use sec::shared::http_client::implementations::sec_client::SecClient;
-use storage::implementations::repository::filesystem::IngestionMode;
-use uuid::Uuid;
 
 use crate::storage_root::RawCompanyFactsWriter;
 use builder::{NoCik, NoClient, NoRepository, PipelineBuilder};
@@ -43,24 +41,24 @@ impl Pipeline {
         PipelineBuilder::new()
     }
 
-    /// Creates a stream that drives the extract pipeline.
+    /// Creates a stream that drives the extract pipeline, with the `execution_id` of `backfill`.
     #[must_use]
-    pub fn into_stream(self, execution_id: Uuid) -> StateMachineStream {
-        let state = ExtractCompanyFactsSuperState::builder()
+    pub fn into_stream(self, backfill: &Backfill) -> StateMachineStream {
+        let state = backfill
+            .company_facts()
             .cik(self.raw_cik)
             .sec_client(self.sec_client)
-            .execution_id(execution_id)
-            .ingestion_mode(IngestionMode::Backfill)
             .repository(self.repository)
             .build();
         state.into_run_stream()
     }
 
-    pub async fn run(self) -> Result<(), StreamError> {
+    /// Runs the pipeline as part of the run of `backfill`, and logs each event.
+    pub async fn run(self, backfill: &Backfill) -> Result<(), StreamError> {
         let cik = self.raw_cik.clone();
-        let execution_id = Uuid::new_v4();
+        let execution_id = backfill.id();
         let pipeline_start = Instant::now();
-        let mut stream = pin!(self.into_stream(execution_id));
+        let mut stream = pin!(self.into_stream(backfill));
 
         let mut stream_error: Option<StreamError> = None;
         while let Some(result) = stream.next().await {

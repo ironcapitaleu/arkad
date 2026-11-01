@@ -51,8 +51,9 @@ cargo run --bin extraction
 # Extract pipeline for all S&P 500 CIKs. Stores each response under ARKAD_STORAGE_ROOT
 cargo run --features tracing-logging --bin stream_etl
 
-# Same pipeline under the legacy binary name; differs only in log field layout
-cargo run --features tracing-logging --bin stream_extract
+# Deprecated example: the same CIKs through the Extraction facade. It exits with an error if a CIK
+# failed.
+cargo run --features tracing-logging --example stream_extract
 
 # New filings of each date from ARKAD_FROM to ARKAD_TO, days in New York. ARKAD_TO defaults to
 # yesterday. Each value is YYYY-MM-DD, yesterday, or yesterday-N.
@@ -65,13 +66,13 @@ Each binary also builds an `SecClient` at startup. `ARKAD_SEC_USER_AGENT` sets t
 
 ### Container Image
 
-The `Dockerfile` at the repository root builds an image that runs `stream_extract`. Build it from the repository root:
+The `Dockerfile` at the repository root builds the example `stream_extract` and an image that runs it. Build it from the repository root:
 
 ```sh
 docker build -t arkad-extract .
 ```
 
-The binary runs as user `arkad` (uid and gid `10001`) in `/home/arkad`. The image sets no storage root, so the root is `/home/arkad/data` inside the container. Removing the container deletes the documents. To keep them, mount a volume and set `ARKAD_STORAGE_ROOT` to its path. The container user must be able to write to the volume. For a bind mount, run the container as the host user:
+The example runs as user `arkad` (uid and gid `10001`) in `/home/arkad`. The image sets no storage root, so the root is `/home/arkad/data` inside the container. Removing the container deletes the documents. To keep them, mount a volume and set `ARKAD_STORAGE_ROOT` to its path. The container user must be able to write to the volume. For a bind mount, run the container as the host user:
 
 ```sh
 mkdir -p data
