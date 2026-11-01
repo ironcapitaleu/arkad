@@ -235,8 +235,8 @@ mod tests {
     const CONFLICT_REASON: &str =
         "A document already exists under sec/submissions/CIK0001067983.json";
 
-    // The mode of the new-filing path. `StoreCompanyFacts` fixes `Backfill`, so a context of
-    // `Incremental` shows that this state reads the mode from its context.
+    // The mode of the new-filing path. The Company Facts super-state fixes `Backfill`, so a
+    // context of `Incremental` shows that this state reads the mode from its context.
     const INGESTION_MODE: IngestionMode = IngestionMode::Incremental;
 
     const EXECUTION_ID: Uuid = Uuid::from_u128(0x0b6f_3c1e_5d2a_4f7b_9c3e_8a1d_2b4c_6e8f);

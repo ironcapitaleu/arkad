@@ -1,32 +1,34 @@
-//! # Store Company Facts Context
+//! # Store SEC Response Context
 //!
-//! Provides the [`StoreCompanyFactsContext`] carried alongside the
-//! [`StoreCompanyFacts`](crate::implementations::states::extract::store_company_facts::StoreCompanyFacts)
+//! Provides the [`StoreSecResponseContext`] carried alongside the
+//! [`StoreSecResponse`](crate::implementations::states::extract::store_sec_response::StoreSecResponse)
 //! state, together with its updater and its builder.
 //!
-//! The context holds the [`Cik`] being processed, the `execution_id`, the repository that stores
-//! the document, and the retry budget.
+//! The context holds the request input that names the stored document, the `execution_id`, the
+//! repository that stores the document, and the retry budget.
 
-use std::fmt::{self, Debug, Display};
-use std::hash::Hash;
+use std::fmt::{self, Display};
 
-use serde::Serialize;
+use serde::ser::SerializeStruct;
+use serde::{Serialize, Serializer};
 use state_maschine::prelude::Context as SMContext;
 use uuid::Uuid;
 
+#[cfg(doc)]
 use crate::shared::cik::Cik;
 use crate::shared::raw_repository::RawRepository;
-use crate::shared::raw_source::RawCompanyFacts;
+use crate::shared::request::implementations::sec_request::{RequestKind, StoredAs};
 use crate::traits::state_machine::state::Context;
 
-/// Context for the [`StoreCompanyFacts`](super::StoreCompanyFacts) state.
+/// Context for the [`StoreSecResponse`](super::StoreSecResponse) state.
 ///
-/// Holds the [`Cik`] that names the stored document, the `execution_id` that the metadata records,
-/// and the repository that stores the document.
-#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
-pub struct StoreCompanyFactsContext<R> {
-    /// The Central Index Key (CIK) of the company whose facts the state stores.
-    pub cik: Cik,
+/// Holds the request input of kind `E` that names the stored document, for example a [`Cik`], the
+/// `execution_id` that the metadata records, and the repository of type `R` that stores the
+/// document.
+#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
+pub struct StoreSecResponseContext<E: RequestKind, R> {
+    /// The input of the request, for example the [`Cik`] of a Company Facts request.
+    pub request_input: E::Input,
     /// The id of the run. The metadata of the stored document records it.
     pub execution_id: Uuid,
     /// The repository that stores the document.
@@ -35,22 +37,22 @@ pub struct StoreCompanyFactsContext<R> {
     pub max_retries: u32,
 }
 
-impl<R> StoreCompanyFactsContext<R> {
-    /// Creates a new [`StoreCompanyFactsContext`] with the retry budget at zero.
+impl<E: RequestKind, R> StoreSecResponseContext<E, R> {
+    /// Creates a new [`StoreSecResponseContext`] with the retry budget at zero.
     #[must_use]
-    pub const fn new(cik: Cik, execution_id: Uuid, repository: R) -> Self {
+    pub const fn new(request_input: E::Input, execution_id: Uuid, repository: R) -> Self {
         Self {
-            cik,
+            request_input,
             execution_id,
             repository,
             max_retries: 0,
         }
     }
 
-    /// Returns a reference to the CIK being processed.
+    /// Returns a reference to the request input.
     #[must_use]
-    pub const fn cik(&self) -> &Cik {
-        &self.cik
+    pub const fn request_input(&self) -> &E::Input {
+        &self.request_input
     }
 
     /// Returns the id of the run.
@@ -66,22 +68,34 @@ impl<R> StoreCompanyFactsContext<R> {
     }
 }
 
-impl<R: RawRepository<RawCompanyFacts>> Context for StoreCompanyFactsContext<R> {
+/// Serializes the request input under the name its kind gives it, for example `cik`.
+impl<E: RequestKind, R: Serialize> Serialize for StoreSecResponseContext<E, R> {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let mut state = serializer.serialize_struct("StoreSecResponseContext", 4)?;
+        state.serialize_field(E::INPUT_NAME, &self.request_input)?;
+        state.serialize_field("execution_id", &self.execution_id)?;
+        state.serialize_field("repository", &self.repository)?;
+        state.serialize_field("max_retries", &self.max_retries)?;
+        state.end()
+    }
+}
+
+impl<E: StoredAs, R: RawRepository<E::Source>> Context for StoreSecResponseContext<E, R> {
     fn max_retries(&self) -> u32 {
         self.max_retries
     }
 }
 
-impl<R: RawRepository<RawCompanyFacts>> SMContext for StoreCompanyFactsContext<R> {
-    type UpdateType = StoreCompanyFactsContextUpdater<R>;
+impl<E: StoredAs, R: RawRepository<E::Source>> SMContext for StoreSecResponseContext<E, R> {
+    type UpdateType = StoreSecResponseContextUpdater<E, R>;
 
     fn context(&self) -> &Self {
         self
     }
 
     fn update_context(&mut self, updates: Self::UpdateType) {
-        if let Some(cik) = updates.cik {
-            self.cik = cik;
+        if let Some(request_input) = updates.request_input {
+            self.request_input = request_input;
         }
         if let Some(execution_id) = updates.execution_id {
             self.execution_id = execution_id;
@@ -95,23 +109,23 @@ impl<R: RawRepository<RawCompanyFacts>> SMContext for StoreCompanyFactsContext<R
     }
 }
 
-impl<R: Display> fmt::Display for StoreCompanyFactsContext<R> {
+impl<E: RequestKind, R: Display> fmt::Display for StoreSecResponseContext<E, R> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
             "Context Data: {}, Execution ID: {}, Repository: {}",
-            self.cik, self.execution_id, self.repository
+            self.request_input, self.execution_id, self.repository
         )
     }
 }
 
-/// Updater for modifying [`StoreCompanyFactsContext`].
+/// Updater for modifying [`StoreSecResponseContext`].
 ///
 /// Fields set to `None` are left unchanged when the updater is applied.
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
-pub struct StoreCompanyFactsContextUpdater<R> {
-    /// Optional new value for the CIK.
-    pub cik: Option<Cik>,
+pub struct StoreSecResponseContextUpdater<E: RequestKind, R> {
+    /// Optional new value for the request input.
+    pub request_input: Option<E::Input>,
     /// Optional new value for the id of the run.
     pub execution_id: Option<Uuid>,
     /// Optional new value for the repository.
@@ -120,51 +134,54 @@ pub struct StoreCompanyFactsContextUpdater<R> {
     pub max_retries: Option<u32>,
 }
 
-impl<R> StoreCompanyFactsContextUpdater<R> {
-    /// Creates a new builder for constructing [`StoreCompanyFactsContextUpdater`] instances.
+impl<E: RequestKind, R> StoreSecResponseContextUpdater<E, R> {
+    /// Creates a new builder for constructing [`StoreSecResponseContextUpdater`] instances.
     #[must_use]
-    pub const fn builder() -> StoreCompanyFactsContextUpdaterBuilder<R> {
-        StoreCompanyFactsContextUpdaterBuilder::new()
+    pub const fn builder() -> StoreSecResponseContextUpdaterBuilder<E, R> {
+        StoreSecResponseContextUpdaterBuilder::new()
     }
 }
 
-/// Fluent builder for a [`StoreCompanyFactsContextUpdater`].
-pub struct StoreCompanyFactsContextUpdaterBuilder<R> {
-    cik: Option<Cik>,
+/// Fluent builder for a [`StoreSecResponseContextUpdater`].
+pub struct StoreSecResponseContextUpdaterBuilder<E: RequestKind, R> {
+    request_input: Option<E::Input>,
     execution_id: Option<Uuid>,
     repository: Option<R>,
     max_retries: Option<u32>,
 }
 
-impl<R> StoreCompanyFactsContextUpdaterBuilder<R> {
-    /// Creates a new [`StoreCompanyFactsContextUpdaterBuilder`] with all fields initialized to
+impl<E: RequestKind, R> StoreSecResponseContextUpdaterBuilder<E, R> {
+    /// Creates a new [`StoreSecResponseContextUpdaterBuilder`] with all fields initialized to
     /// `None`.
     #[must_use]
     pub const fn new() -> Self {
         Self {
-            cik: None,
+            request_input: None,
             execution_id: None,
             repository: None,
             max_retries: None,
         }
     }
 
-    /// Sets the CIK field.
+    /// Sets the request input field.
     #[must_use]
-    pub fn cik(mut self, cik: Cik) -> Self {
-        self.cik = Some(cik);
+    #[allow(clippy::missing_const_for_fn)]
+    pub fn request_input(mut self, request_input: E::Input) -> Self {
+        self.request_input = Some(request_input);
         self
     }
 
     /// Sets the `execution_id` field.
     #[must_use]
-    pub const fn execution_id(mut self, execution_id: Uuid) -> Self {
+    #[allow(clippy::missing_const_for_fn)]
+    pub fn execution_id(mut self, execution_id: Uuid) -> Self {
         self.execution_id = Some(execution_id);
         self
     }
 
     /// Sets the repository field.
     #[must_use]
+    #[allow(clippy::missing_const_for_fn)]
     pub fn repository(mut self, repository: R) -> Self {
         self.repository = Some(repository);
         self
@@ -172,16 +189,17 @@ impl<R> StoreCompanyFactsContextUpdaterBuilder<R> {
 
     /// Sets the `max_retries` field.
     #[must_use]
-    pub const fn max_retries(mut self, max_retries: u32) -> Self {
+    #[allow(clippy::missing_const_for_fn)]
+    pub fn max_retries(mut self, max_retries: u32) -> Self {
         self.max_retries = Some(max_retries);
         self
     }
 
-    /// Builds the [`StoreCompanyFactsContextUpdater`].
+    /// Builds the [`StoreSecResponseContextUpdater`].
     #[must_use]
-    pub fn build(self) -> StoreCompanyFactsContextUpdater<R> {
-        StoreCompanyFactsContextUpdater {
-            cik: self.cik,
+    pub fn build(self) -> StoreSecResponseContextUpdater<E, R> {
+        StoreSecResponseContextUpdater {
+            request_input: self.request_input,
             execution_id: self.execution_id,
             repository: self.repository,
             max_retries: self.max_retries,
@@ -189,7 +207,7 @@ impl<R> StoreCompanyFactsContextUpdaterBuilder<R> {
     }
 }
 
-impl<R> Default for StoreCompanyFactsContextUpdaterBuilder<R> {
+impl<E: RequestKind, R> Default for StoreSecResponseContextUpdaterBuilder<E, R> {
     fn default() -> Self {
         Self::new()
     }
@@ -201,6 +219,9 @@ mod tests {
     use storage::WriteError;
 
     use super::*;
+    use crate::implementations::states::extract::store_company_facts::StoreCompanyFactsContext;
+    use crate::shared::cik::Cik;
+    use crate::shared::request::implementations::sec_request::CompanyFacts;
     use crate::tests::fixtures::sample_write_repository::FakeWriteRepository;
 
     fn sample_cik(cik: &str) -> Cik {
@@ -238,16 +259,17 @@ mod tests {
     }
 
     #[test]
-    fn should_update_cik_when_updater_contains_cik() {
+    fn should_update_request_input_when_updater_contains_request_input() {
         let mut context = sample_context();
-        let updater = StoreCompanyFactsContextUpdater::builder()
-            .cik(sample_cik("320193"))
-            .build();
+        let updater =
+            StoreSecResponseContextUpdater::<CompanyFacts, FakeWriteRepository>::builder()
+                .request_input(sample_cik("320193"))
+                .build();
 
         let expected_result = &sample_cik("320193");
 
         context.update_context(updater);
-        let result = context.cik();
+        let result = context.request_input();
 
         assert_eq!(result, expected_result);
     }
@@ -256,9 +278,10 @@ mod tests {
     fn should_update_execution_id_when_updater_contains_execution_id() {
         let mut context = sample_context();
         let execution_id = Uuid::from_u128(1);
-        let updater = StoreCompanyFactsContextUpdater::builder()
-            .execution_id(execution_id)
-            .build();
+        let updater =
+            StoreSecResponseContextUpdater::<CompanyFacts, FakeWriteRepository>::builder()
+                .execution_id(execution_id)
+                .build();
 
         let expected_result = execution_id;
 
@@ -272,9 +295,10 @@ mod tests {
     fn should_update_repository_when_updater_contains_repository() {
         let mut context = sample_context();
         let repository = FakeWriteRepository::rejecting(WriteError::conflicting_write("taken"));
-        let updater = StoreCompanyFactsContextUpdater::builder()
-            .repository(repository.clone())
-            .build();
+        let updater =
+            StoreSecResponseContextUpdater::<CompanyFacts, FakeWriteRepository>::builder()
+                .repository(repository.clone())
+                .build();
 
         let expected_result = &repository;
 
@@ -287,9 +311,10 @@ mod tests {
     #[test]
     fn should_update_max_retries_when_updater_contains_max_retries() {
         let mut context = sample_context();
-        let updater = StoreCompanyFactsContextUpdater::builder()
-            .max_retries(5)
-            .build();
+        let updater =
+            StoreSecResponseContextUpdater::<CompanyFacts, FakeWriteRepository>::builder()
+                .max_retries(5)
+                .build();
 
         let expected_result = 5;
 
@@ -302,7 +327,8 @@ mod tests {
     #[test]
     fn should_leave_context_unchanged_when_updater_is_empty() {
         let mut context = sample_context();
-        let updater = StoreCompanyFactsContextUpdater::builder().build();
+        let updater =
+            StoreSecResponseContextUpdater::<CompanyFacts, FakeWriteRepository>::builder().build();
 
         let expected_result = sample_context();
 
