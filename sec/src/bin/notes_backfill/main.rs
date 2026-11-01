@@ -1,4 +1,3 @@
-mod backfill;
 mod constants;
 mod files_in_flight;
 mod periods;
@@ -19,7 +18,7 @@ use std::io::stdout;
 use std::time::Instant;
 
 use chrono::Utc;
-use sec::implementations::extraction::Extraction;
+use sec::implementations::extraction::{ErrorKind, Extraction, RunEvent};
 use tracing_subscriber::fmt::format::FmtSpan;
 
 use constants::FILES_IN_FLIGHT_ENV_VAR;
@@ -85,47 +84,47 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     })?;
     let backfill = Extraction::backfill();
     let execution_id = backfill.id().to_string();
-    let item_execution_id = execution_id.clone();
+    let event_execution_id = execution_id.clone();
     let periods = notes_periods(Utc::now().date_naive());
-    let periods: Vec<&str> = periods.iter().map(String::as_str).collect();
     let start = Instant::now();
 
-    let summary = backfill::run(
-        backfill,
-        &periods,
-        files_in_flight,
-        &sec_client,
-        &repository,
-        move |period, item| {
-            tracing::info!(
-                event = %item.event,
-                message = %format!("{}: '{}'", item.event, item.state_name),
-                context = %serde_json::json!({
-                    "execution_id": item_execution_id,
-                    "period": period,
-                    "state": item.state_name,
-                    "event_duration_ms": item.event_duration.as_millis(),
-                    "data": item.data,
-                }),
-            );
-        },
-        |period, error| {
-            let message = error.source.to_string();
-            let context = serde_json::json!({
-                "execution_id": error.execution_id.to_string(),
-                "period": period,
-                "state": error.state_name,
-                "data": error.data,
-            });
-            // The run summary decides whether an absent file counts as a failure.
-            if backfill::is_absent_file(error) {
-                tracing::warn!(event = %error.event, message = %message, context = %context);
-            } else {
-                tracing::error!(event = %error.event, message = %message, context = %context);
+    let summary = backfill
+        .notes()
+        .periods(periods)
+        .sec_client(sec_client)
+        .repository(repository)
+        .in_flight(files_in_flight)
+        .run(move |unit, event| match event {
+            RunEvent::Item(item) => {
+                tracing::info!(
+                    event = %item.event,
+                    message = %format!("{}: '{}'", item.event, item.state_name),
+                    context = %serde_json::json!({
+                        "execution_id": event_execution_id,
+                        "period": unit.to_string(),
+                        "state": item.state_name,
+                        "event_duration_ms": item.event_duration.as_millis(),
+                        "data": item.data,
+                    }),
+                );
             }
-        },
-    )
-    .await;
+            RunEvent::Error(error, kind) => {
+                let message = error.source.to_string();
+                let context = serde_json::json!({
+                    "execution_id": error.execution_id.to_string(),
+                    "period": unit.to_string(),
+                    "state": error.state_name,
+                    "data": error.data,
+                });
+                // The run summary decides whether an absent file counts as a failure.
+                if kind == ErrorKind::Failed {
+                    tracing::error!(event = %error.event, message = %message, context = %context);
+                } else {
+                    tracing::warn!(event = %error.event, message = %message, context = %context);
+                }
+            }
+        })
+        .await;
 
     let elapsed = start.elapsed();
     let failures = summary.failure_count();

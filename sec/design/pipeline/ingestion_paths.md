@@ -178,8 +178,8 @@ itself. `daily_filings` then keeps the store current. The binary `backfill` repl
 | Cap | `ARKAD_FILES_IN_FLIGHT`, default 2 | none, the rate limiter only | `IN_FLIGHT` = 4 |
 | Task per unit | `tokio::spawn` (STA-344, open in STA-360) | no | no |
 | Rules | skip of an intact stored file, unpublished at the end | none | 503 retry, pending, unextractable |
-| Summary | `RunSummary`, `FailedBackfill` | counts only | `RunSummary`, `FailedDailyRun` |
-| Logging | `on_item` and `on_error` callbacks | inside its local `Extraction::run` | `on_item` and `on_error` with `ErrorKind` |
+| Summary | `NotesRunSummary`, `FailedBackfill` (facade, STA-414) | counts only | `RunSummary`, `FailedDailyRun` |
+| Logging | observer with `RunEvent` and `ErrorKind` (facade, STA-414) | inside its local `Extraction::run` | `on_item` and `on_error` with `ErrorKind` |
 | Exit | error if a period failed | always success | error if a date, filing, or CIK failed |
 
 Common to all three: the logger, the SEC client and its User-Agent warning, `create_root`, one
@@ -262,7 +262,8 @@ observer: impl Fn(&Unit, RunEvent<'_>) + Send + Sync + 'static
 - `NotesRunSummary`, the summary of `notes()`, also has `cut_over_date()`. It returns the last day
   of the newest stored Notes month. It fails if a Notes period failed, so a gap can never pass
   into the catch-up. It also fails if no Notes period is stored, for example when every period is
-  unpublished. The summary of `all()` passes it on. A failed `submissions` CIK does not block the
+  unpublished. Its error `MissingCutOverDate` names the case: `FailedBackfill` or
+  `MissingStoredPeriod`. The summary of `all()` passes it on. A failed `submissions` CIK does not block the
   catch-up, but it fails `result()`. See [Cut-Over Between the Paths](#cut-over-between-the-paths).
   So the binary `backfill` can run on `notes()` alone until `all()` exists (decision of
   2026-11-01).
@@ -414,8 +415,8 @@ integration tests of the facade go in `sec/tests/`, with the fake SEC clients of
   optional dependencies behind that feature, because `backfill` and `daily_filings` need them.
 - The `Dockerfile` builds and runs `stream_extract`, and `README.md` documents it. So
   `stream_extract` stays a binary until STA-358 moves it, with the `Dockerfile` and `README.md`.
-- `sec/tests/notes_backfill.rs` and `sec/tests/daily_filings.rs` load `backfill.rs` and `run.rs`
-  through `#[path]`. When the facade takes this code, these tests call the facade instead.
+- `sec/tests/notes_backfill.rs` calls the facade (STA-414). `sec/tests/daily_filings.rs` loads
+  `run.rs` through `#[path]`. When the facade takes this code, the test calls the facade instead.
 - `extraction`, a demo of `ExtractCompanyFactsSuperState`, and `stream_etl`, which also runs
   transform, stay outside the facade. STA-358 decides about `extraction`.
 ### Repository in the Machines
@@ -1545,8 +1546,8 @@ A binary links the library built without `cfg(test)`, so the fixtures of `sec`, 
 feature, and stays in `[dev-dependencies]` for the library's own unit tests. `RoutingSecClient`
 answers each URL with one fixed response. PR 2 adds a route that serves a list of responses in
 order, for the test of a 503 followed by a 200. `sec` names itself as a dev-dependency with the feature, so the integration tests enable
-it. `sec/tests/daily_filings.rs` includes the binary's modules through `#[path]`, as
-`sec/tests/notes_backfill.rs` does, so the `integration-tests` job of CI runs their tests.
+it. `sec/tests/daily_filings.rs` includes the binary's modules through `#[path]`, so the
+`integration-tests` job of CI runs their tests.
 
 - `dates.rs`: `yesterday` alone, `yesterday-3`, a range, one day, `ARKAD_FROM` unset, a value
   that does not parse, `yesterday-N` with a zero, a sign, or a leading zero, `ARKAD_FROM` after
@@ -1602,7 +1603,7 @@ Rules:
    month. To check, confirm that no entry in the run summary has a `failed_state`. If one does,
    rerun the backfill (rule 8). Then read the newest period in the run summary with the status
    `downloaded`, `already_stored`, or `replaced`. That period is the newest stored Notes month of
-   rule 1. Once the facade exists, `NotesRunSummary::cut_over_date()` does this check. It returns
+   rule 1. `NotesRunSummary::cut_over_date()` does this check (STA-414). It returns
    the last day of that month. It fails if a period failed or if no period is stored. See
    [Calling the Machines](#calling-the-machines). Do not rely on the calendar. In three samples, the SEC posted a month in the first 8
    days of the next month. But `2025_10_notes.zip` has a Last-Modified of 2025-12-01 (see

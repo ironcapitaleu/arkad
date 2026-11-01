@@ -1,39 +1,23 @@
 //! # `notes_backfill` Integration Tests
 //!
-//! Runs the backfill loop of the `notes_backfill` binary over the two smallest Notes files, and
-//! checks the run summary.
+//! Runs the Notes batch run of the `Extraction` facade, which the `notes_backfill` binary calls,
+//! over the two smallest Notes files, and checks the run summary.
 //!
 //! ## External Dependencies
 //!
 //! - `www.sec.gov`: the Notes files of 2009q1 (28 KB) and 2009q2 (534 KB)
-
-// The binary is its own crate root, so this test compiles its loop as a private module. The test
-// reads only part of the summary. Rust 1.97 reports the counts that only `main` reads as
-// `dead_code`, and Rust 1.90 (CI) does not. So `expect` fails on one of them, and `allow` holds on
-// both.
-#[allow(dead_code)]
-#[path = "../src/bin/notes_backfill/backfill.rs"]
-mod backfill;
-// `backfill.rs` reads its constants from `crate::constants`, so the test includes that file too.
-// The test reads only some of them, so the others would fire `dead_code`.
-#[allow(dead_code)]
-#[path = "../src/bin/notes_backfill/constants.rs"]
-mod constants;
 
 use pretty_assertions::assert_eq;
 use serde_json::{Value, json};
 use storage::implementations::repository::filesystem::FilesystemRepository;
 use tempfile::TempDir;
 
-use sec::implementations::extraction::Extraction;
+use sec::implementations::extraction::{Extraction, FailedBackfill, NotesRunSummary};
 use sec::shared::http_client::implementations::reqwest_client::ReqwestClient;
 use sec::shared::http_client::implementations::sec_client::SecClient;
 use sec::shared::raw_document::RawDocument;
 use sec::shared::raw_source::RawNotesArchive;
 use sec::shared::user_agent::UserAgent;
-
-use backfill::{FailedBackfill, RunSummary};
-use constants::DEFAULT_FILES_IN_FLIGHT;
 
 /// A month far after the last published file, so the SEC answers 404.
 const UNPUBLISHED_PERIOD: &str = "2099_01";
@@ -46,8 +30,8 @@ fn sec_client() -> SecClient {
     SecClient::new(http_client)
 }
 
-/// Runs the backfill loop over `periods` into a new temporary root.
-async fn run_backfill(periods: &[&str]) -> RunSummary {
+/// Runs the Notes batch over `periods` into a new temporary root.
+async fn run_backfill(periods: &[&str]) -> NotesRunSummary {
     let root = TempDir::new().expect(
         "Given a writable system temp directory, creating a directory in it should always succeed",
     );
@@ -56,16 +40,13 @@ async fn run_backfill(periods: &[&str]) -> RunSummary {
         .document_type::<RawDocument<RawNotesArchive>>()
         .root(root.path())
         .build();
-    backfill::run(
-        Extraction::backfill(),
-        periods,
-        DEFAULT_FILES_IN_FLIGHT,
-        &sec_client(),
-        &repository,
-        |_, _| {},
-        |_, _| {},
-    )
-    .await
+    Extraction::backfill()
+        .notes()
+        .periods(periods.iter().copied())
+        .sec_client(sec_client())
+        .repository(repository)
+        .run(|_, _| {})
+        .await
 }
 
 #[tokio::test]
