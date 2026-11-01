@@ -260,14 +260,23 @@ mod run_loop {
         assert_eq!(result, expected_result);
     }
 
-    #[tokio::test]
-    async fn should_fetch_the_filing_again_when_the_stored_instance_fails_the_sha256_check() {
+    /// Runs 2026-10-26 twice in one store, and overwrites the stored instance with `bytes` between
+    /// the runs. Returns the filing counts of the second run.
+    async fn second_run_after_overwriting_the_instance(bytes: &[u8]) -> Value {
         let root = temporary_root();
         store_first_run(&root).await;
-        std::fs::write(root.path().join(STORED_INSTANCE), b"<xbrl-corrupt/>").expect(
+        std::fs::write(root.path().join(STORED_INSTANCE), bytes).expect(
             "Given an instance that the first run stored, overwriting it should always succeed",
         );
         let summary = run_offline_in(&root, &[date("2026-10-26")], &sec_client()).await;
+        summary.entries()[0]["filings"].clone()
+    }
+
+    #[tokio::test]
+    async fn should_fetch_the_filing_again_when_the_stored_instance_fails_the_sha256_check() {
+        // The same 7 bytes as the stored `<xbrl/>`, so the size check passes and the SHA-256 check
+        // fails.
+        let bytes = b"<xbrX/>";
 
         let expected_result = json!({
             "selected": 1,
@@ -277,7 +286,24 @@ mod run_loop {
             "failed": [],
         });
 
-        let result = summary.entries()[0]["filings"].clone();
+        let result = second_run_after_overwriting_the_instance(bytes).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_fetch_the_filing_again_when_the_stored_instance_fails_the_size_check() {
+        let bytes = b"<xbrl-corrupt/>";
+
+        let expected_result = json!({
+            "selected": 1,
+            "stored": 1,
+            "already_stored": 0,
+            "unextractable": [],
+            "failed": [],
+        });
+
+        let result = second_run_after_overwriting_the_instance(bytes).await;
 
         assert_eq!(result, expected_result);
     }

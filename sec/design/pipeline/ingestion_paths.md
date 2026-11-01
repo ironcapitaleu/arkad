@@ -1401,7 +1401,8 @@ or `yesterday-N`, the day `N` days before yesterday (`N` at least 1).
 | Rerun a past week | `ARKAD_FROM=2026-10-13`, `ARKAD_TO=2026-10-19` |
 
 The task timeout of the job is 30 minutes. A new filing takes at least 3 requests, and its company
-1 more. A filing whose instance the store holds takes none (see [One Date](#one-date)). The rate limiter allows one request each 110 ms. In 2024q1 the selection kept about 90
+1 more. A filing whose instance the store holds takes none (see [One Date](#one-date)). The rate
+limiter allows one request each 110 ms. In 2024q1 the selection kept about 90
 filings per business day. The busiest day measured, 2026-08-10, had 295. So 40 business days take about 26 minutes at the
 rate limit alone. A timeout makes Cloud Run rerun the same range, which times out again. So a
 catch-up runs in ranges of at most 7 days, or as one execution with a longer task timeout
@@ -1476,8 +1477,8 @@ All super-states of one run share one `execution_id`. For each date, in this ord
    and SHA-256 check, the filing counts as already stored and sends no request. A read error,
    such as a size or digest mismatch, fetches the filing again, as in STA-400. The read is by key,
    not by a listing, which belongs to STA-403.
-   One `ExtractFilingSuperState` runs for each other `FilingRef`, with the daily index as its
-   input.
+   One `ExtractFilingSuperState` runs for each `FilingRef` whose instance the store does not
+   hold, with the daily index as its input.
    `run_to_documents` returns the `FilingDocumentsRef`. At most `in_flight(n)` machines run at once, by default `DEFAULT_MACHINES_IN_FLIGHT` (4). The global
    rate limiter of `SecClient` caps the requests, so a value above 4 does not make the run faster.
 3. One `ExtractSubmissionsSuperState` for each distinct CIK of the selected filings, with the
@@ -1581,8 +1582,8 @@ it. `sec/tests/daily_filings.rs` includes `dates.rs` and `constants.rs` through 
   index on yesterday as the only date of the run, which fails; the ingestion mode `incremental`
   in the metadata of each of the four document types; one date run twice on one store, whose
   second run sends only the requests for the daily index and `submissions` and lists the filing
-  as already stored; a stored instance that fails the SHA-256 check, which the second run fetches
-  again (STA-413).
+  as already stored; a stored instance that fails the size check, and one of the same size that
+  fails the SHA-256 check, both of which the second run fetches again (STA-413).
 - Live against `www.sec.gov`, in `sec/tests/daily_filings.rs`, as `sec/tests/extract_filing.rs`
   does: one past weekday, which stores the daily index, at least one filing, and its
   `submissions` file.
