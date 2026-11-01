@@ -1087,7 +1087,7 @@ Decided in STA-371:
 - `FolderIndex` in `shared::filing_documents` holds the member names of the folder.
   `FolderIndex::try_from(&SecResponse)` parses the `index.json`. The transition from
   `StoreFilingIndex` calls it. Before STA-413, the transition from `ExecuteSecRequest` called it.
-  A body that does not parse fails there with
+  A body that does not parse fails in the transition from `StoreFilingIndex` with
   `FailedOutputConversion`, before `SelectFilingDocuments` runs. Its `InvalidFolderIndex` names
   the URL, which holds the CIK and the accession number.
 - `FolderIndex::select_documents` holds the rules. The state calls it.
@@ -1569,8 +1569,9 @@ state is `StoreFilingIndex`, the `StoreSecResponse` of the kind `FilingIndex`.
   [Raw Store](#raw-store)).
 - It names no input document. The generic `StoreSecResponse` state builds the document from the
   response and the request input only, and `StoredAs::store` takes no inputs. Adding them changes
-  every store kind, so it is out of scope for STA-413. The instance and the label file of the same
-  folder name the daily index, and the key links the folder index to them.
+  every store kind, so it is out of scope for STA-413. The `filed_date` in its metadata names the
+  date of the daily index that listed the filing. If the folder holds an instance, its `inputs`
+  also name that daily index.
 
 #### Logs and Summary
 
