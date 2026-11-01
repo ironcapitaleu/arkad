@@ -1551,8 +1551,8 @@ The run stores the folder `index.json` of every filing it fetches as the raw sou
 `RawFilingIndex`, under `sec/filings/CIK##########/<accession number>/index.json`. The store
 state is `StoreFilingIndex`, the `StoreSecResponse` of the kind `FilingIndex`.
 
-- It is an SEC file, so it fits the raw layer. A marker document or a ledger per date would be a
-  record of our own.
+- It is an SEC file, so it fits the raw layer. A marker document or a ledger per date is a file we
+  create, not an SEC file, so it does not belong in the raw layer.
 - The run learns whether a folder holds an instance only from this file, so the store comes
   before `SelectFilingDocuments`. That is why every fetched filing stores it, not only an
   unextractable one. The file adds no request and a few KB per filing.
@@ -1563,9 +1563,9 @@ state is `StoreFilingIndex`, the `StoreSecResponse` of the kind `FilingIndex`.
      request. Otherwise an earlier run failed after the folder request, and the run fetches the
      filing.
   3. Nothing stored: the run fetches the filing.
-- The document keeps the body as the SEC sent it, through `RawDocument::from_response`. Its
-  metadata names no filing and no input document. The key already names the CIK and the accession
-  number.
+- The document keeps the body as the SEC sent it, through `RawDocument::from_filing_response`.
+  Its metadata names the filing, as the instance and the label file do (see
+  [Raw Store](#raw-store)). It names no input document.
 
 #### Logs and Summary
 
@@ -1859,6 +1859,7 @@ documents:
 | Daily index | `RawDailyIndex` | `raw_daily_index` | `sec/daily-index/form.YYYYMMDD.idx` |
 | XBRL instance | `RawXbrlInstance` | `raw_xbrl_instance` | `sec/filings/CIK##########/<accession>/instance.xml` |
 | Label file | `RawXbrlLabels` | `raw_xbrl_labels` | `sec/filings/CIK##########/<accession>/lab.xml` |
+| Folder index | `RawFilingIndex` | `raw_filing_index` | `sec/filings/CIK##########/<accession>/index.json` |
 | `submissions` JSON | `RawSubmissions` | `raw_submissions` | `sec/submissions/CIK##########.json` |
 
 - The accession number in a key keeps its dashes, for example `0000003545-26-000047`.

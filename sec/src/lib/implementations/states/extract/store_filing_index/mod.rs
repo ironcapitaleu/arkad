@@ -1,8 +1,8 @@
 //! # Store Filing Index State
 //!
-//! Provides [`StoreFilingIndex`], the [`StoreSecResponse`] state of the [`FilingIndex`] kind,
-//! which writes the raw body of the folder `index.json` of one filing to the store and outputs
-//! the key of the stored document.
+//! Provides [`StoreFilingIndex`], the [`StoreSecResponse`] state of the [`FilingIndex`] kind. It
+//! writes the raw folder `index.json` of one filing to the store and outputs the key of the stored
+//! document.
 //!
 //! The document holds the body exactly as the SEC sent it. It lists the files of the folder, so a
 //! later run can tell from the store whether the folder holds an XBRL instance.
@@ -22,7 +22,7 @@ use crate::implementations::states::extract::store_sec_response::{
 };
 use crate::shared::filing_documents_ref::filing_index_key;
 use crate::shared::filing_ref::FilingRef;
-use crate::shared::raw_document::RawDocument;
+use crate::shared::raw_document::{FilingFields, RawDocument};
 use crate::shared::raw_source::RawFilingIndex;
 use crate::shared::request::implementations::sec_request::{FilingIndex, StoredAs};
 use crate::shared::response::implementations::sec_response::SecResponse;
@@ -48,7 +48,8 @@ pub type StoreFilingIndexInput = StoreSecResponseInput<FilingIndex>;
 /// The context of [`StoreFilingIndex`].
 pub type StoreFilingIndexContext<R> = StoreSecResponseContext<FilingIndex, R>;
 
-/// Builds the document with [`RawDocument::from_response`], which keeps the JSON body unchanged.
+/// Builds the document with [`RawDocument::from_filing_response`], which keeps the JSON body
+/// unchanged and names the filing in the metadata.
 impl StoredAs for FilingIndex {
     type Source = RawFilingIndex;
     type Output = StoreFilingIndexOutput;
@@ -63,8 +64,14 @@ impl StoredAs for FilingIndex {
         run: RunFields,
     ) -> (RawDocument<RawFilingIndex>, StoreFilingIndexOutput) {
         let key = filing_index_key(filing);
-        let document =
-            RawDocument::from_response(key.clone(), response, requested_url, user_agent, run);
+        let document = RawDocument::from_filing_response(
+            key.clone(),
+            response,
+            requested_url,
+            user_agent,
+            run,
+            FilingFields::from(filing),
+        );
         (document, StoreFilingIndexOutput::new(key))
     }
 }
@@ -98,8 +105,7 @@ mod tests {
     const RAW_BODY: &[u8] =
         b"{ \"directory\": { \"item\": [{ \"name\": \"alco-20260908_htm.xml\" }] } }";
 
-    // The mode of the new-filing path. A context of `Incremental` shows that this state reads the
-    // mode from its context.
+    // The mode of the new-filing path.
     const INGESTION_MODE: IngestionMode = IngestionMode::Incremental;
 
     const EXECUTION_ID: Uuid = Uuid::from_u128(0x0b6f_3c1e_5d2a_4f7b_9c3e_8a1d_2b4c_6e8f);
@@ -134,11 +140,8 @@ mod tests {
         StoreFilingIndexInput::new(response, requested_url(), user_agent())
     }
 
-    fn sample_state_in_mode(
-        ingestion_mode: IngestionMode,
-        repository: FakeFilingIndexRepository,
-    ) -> StoreFilingIndex<FakeFilingIndexRepository> {
-        let filing = FilingRef::new(
+    fn filing() -> FilingRef {
+        FilingRef::new(
             Cik::new("3545").expect("Given a hardcoded valid CIK, parsing should always succeed"),
             AccessionNumber::new("0000003545-26-000047").expect(
                 "Given a hardcoded accession number of the right shape, creation should always succeed",
@@ -146,16 +149,15 @@ mod tests {
             ParsedForm::new(Form::TenQ, false),
             NaiveDate::from_ymd_opt(2026, 9, 8)
                 .expect("Given a hardcoded calendar date, the date should always build"),
-        );
-        let context =
-            StoreFilingIndexContext::new(filing, EXECUTION_ID, ingestion_mode, repository);
-        StoreFilingIndex::new(sample_input(), context)
+        )
     }
 
     fn sample_state(
         repository: FakeFilingIndexRepository,
     ) -> StoreFilingIndex<FakeFilingIndexRepository> {
-        sample_state_in_mode(INGESTION_MODE, repository)
+        let context =
+            StoreFilingIndexContext::new(filing(), EXECUTION_ID, INGESTION_MODE, repository);
+        StoreFilingIndex::new(sample_input(), context)
     }
 
     /// Runs the state against an accepting fake and returns the one document it persisted.
@@ -204,6 +206,22 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn should_persist_one_document_when_the_write_succeeds() {
+        let repository = FakeFilingIndexRepository::new();
+        let mut state = sample_state(repository.clone());
+
+        let expected_result = 1;
+
+        state
+            .compute_output_data_async()
+            .await
+            .expect("Given a fake repository that accepts every write, the state should succeed");
+        let result = repository.persisted().len();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
     async fn should_persist_the_document_under_the_filing_index_key() {
         let document = persisted_document().await;
 
@@ -226,7 +244,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_persist_the_context_of_the_fetch_when_the_response_was_redirected() {
+    async fn should_persist_the_fetch_and_the_filing_when_the_response_was_redirected() {
         let document = persisted_document().await;
 
         let expected_result = &RawDocumentMetadataContext {
@@ -234,7 +252,7 @@ mod tests {
             final_url: redirected_url(),
             http_status: StatusCode::Ok,
             user_agent: user_agent(),
-            filing: None,
+            filing: Some(FilingFields::from(&filing())),
         };
 
         let result = document.metadata().context();
