@@ -6,6 +6,9 @@
 //! Every date is a day in New York (`America/New_York`). The SEC's days are Eastern, and it
 //! publishes the daily index of a day only after that day ends there. At 02:00 UTC on 2 November it
 //! is still 1 November in New York, so [`YESTERDAY`] is 31 October.
+//!
+//! `yesterday-N` names the day `N` days before yesterday. The scheduled run sets
+//! `ARKAD_FROM=yesterday-3`, so each run reads the last 4 days.
 
 use std::ffi::OsString;
 
@@ -20,12 +23,12 @@ use crate::constants::{FROM_ENV_VAR, TO_ENV_VAR, YESTERDAY};
 pub enum InvalidRunDates {
     /// [`FROM_ENV_VAR`] is unset or empty.
     #[error(
-        "[MissingStartDate] {FROM_ENV_VAR} is unset or empty, set {FROM_ENV_VAR} and optionally {TO_ENV_VAR} to a date (YYYY-MM-DD) or '{YESTERDAY}'"
+        "[MissingStartDate] {FROM_ENV_VAR} is unset or empty, set {FROM_ENV_VAR} and optionally {TO_ENV_VAR} to a date (YYYY-MM-DD), '{YESTERDAY}' or '{YESTERDAY}-N'"
     )]
     MissingStartDate,
-    /// A value is neither a date in the form `YYYY-MM-DD` nor [`YESTERDAY`].
+    /// A value is neither a date in the form `YYYY-MM-DD`, nor [`YESTERDAY`], nor `yesterday-N`.
     #[error(
-        "[InvalidDate] {variable} value '{value}' is not a date (YYYY-MM-DD) or '{YESTERDAY}', set {FROM_ENV_VAR} and {TO_ENV_VAR} in that form"
+        "[InvalidDate] {variable} value '{value}' is not a date (YYYY-MM-DD), '{YESTERDAY}' or '{YESTERDAY}-N', set {FROM_ENV_VAR} and {TO_ENV_VAR} in that form"
     )]
     InvalidDate {
         /// The variable that holds the value.
@@ -56,14 +59,15 @@ pub enum InvalidRunDates {
 /// Returns every date from `from` through `to`, oldest first, for the values of [`FROM_ENV_VAR`]
 /// and [`TO_ENV_VAR`] at the time `now`.
 ///
-/// Each value is a date in the form `YYYY-MM-DD` or [`YESTERDAY`], the day before today in New
-/// York. An unset or empty `to` means [`YESTERDAY`].
+/// Each value is a date in the form `YYYY-MM-DD`, [`YESTERDAY`] (the day before today in New
+/// York), or `yesterday-N` (`N` days before yesterday, `N` at least 1). An unset or empty `to`
+/// means [`YESTERDAY`].
 ///
 /// # Errors
 ///
 /// Returns an [`InvalidRunDates`]:
 /// - [`InvalidRunDates::MissingStartDate`] if `from` is unset or empty.
-/// - [`InvalidRunDates::InvalidDate`] if a value is neither a date nor [`YESTERDAY`].
+/// - [`InvalidRunDates::InvalidDate`] if a value is none of the three forms.
 /// - [`InvalidRunDates::InvalidLastDate`] if the last date is today or later in New York.
 /// - [`InvalidRunDates::InvalidDateOrder`] if the first date comes after the last date.
 pub fn run_dates(
@@ -99,23 +103,46 @@ fn non_empty(value: Option<OsString>) -> Option<String> {
         .map(|value| value.to_string_lossy().into_owned())
 }
 
-/// Parses `value` of `variable` as a date in the form `YYYY-MM-DD` or as [`YESTERDAY`].
+/// Parses `value` of `variable` as a date in the form `YYYY-MM-DD`, as [`YESTERDAY`], or as
+/// `yesterday-N`.
 fn parse_date(
     variable: &'static str,
     value: &str,
     yesterday: NaiveDate,
 ) -> Result<NaiveDate, InvalidRunDates> {
-    if value == YESTERDAY {
-        return Ok(yesterday);
-    }
-    // `%m` and `%d` also read one digit, so the date must print back to the same text.
+    let date = if value == YESTERDAY {
+        Some(yesterday)
+    } else if let Some(days) = value
+        .strip_prefix(YESTERDAY)
+        .and_then(|v| v.strip_prefix('-'))
+    {
+        days_before(yesterday, days)
+    } else {
+        calendar_date(value)
+    };
+    date.ok_or_else(|| InvalidRunDates::InvalidDate {
+        variable,
+        value: value.to_string(),
+    })
+}
+
+/// Returns the date `days` days before `yesterday`, or `None` if `days` is not a whole number of
+/// at least 1 written without a sign or a leading zero.
+fn days_before(yesterday: NaiveDate, days: &str) -> Option<NaiveDate> {
+    // `u64` also reads a `+` and leading zeros, so the number must print back to the same text.
+    days.parse::<u64>()
+        .ok()
+        .filter(|count| *count >= 1 && count.to_string() == days)
+        .and_then(|count| yesterday.checked_sub_days(Days::new(count)))
+}
+
+/// Returns the date written as `YYYY-MM-DD`, or `None` if `value` is not in that exact form.
+fn calendar_date(value: &str) -> Option<NaiveDate> {
+    // `%Y` also reads a sign, and `%m` and `%d` also read one digit, so the date must print back
+    // to the same text.
     NaiveDate::parse_from_str(value, "%Y-%m-%d")
         .ok()
         .filter(|date| date.format("%Y-%m-%d").to_string() == value)
-        .ok_or_else(|| InvalidRunDates::InvalidDate {
-            variable,
-            value: value.to_string(),
-        })
 }
 
 #[cfg(test)]
@@ -335,7 +362,7 @@ mod tests {
     fn should_name_both_variables_when_the_start_date_is_missing() {
         let error = InvalidRunDates::MissingStartDate;
 
-        let expected_result = "[MissingStartDate] ARKAD_FROM is unset or empty, set ARKAD_FROM and optionally ARKAD_TO to a date (YYYY-MM-DD) or 'yesterday'";
+        let expected_result = "[MissingStartDate] ARKAD_FROM is unset or empty, set ARKAD_FROM and optionally ARKAD_TO to a date (YYYY-MM-DD), 'yesterday' or 'yesterday-N'";
 
         let result = error.to_string();
 
@@ -349,7 +376,7 @@ mod tests {
             value: "today".to_string(),
         };
 
-        let expected_result = "[InvalidDate] ARKAD_TO value 'today' is not a date (YYYY-MM-DD) or 'yesterday', set ARKAD_FROM and ARKAD_TO in that form";
+        let expected_result = "[InvalidDate] ARKAD_TO value 'today' is not a date (YYYY-MM-DD), 'yesterday' or 'yesterday-N', set ARKAD_FROM and ARKAD_TO in that form";
 
         let result = error.to_string();
 
@@ -406,6 +433,7 @@ mod tests {
 
     #[test]
     fn should_return_invalid_date_when_the_year_has_a_sign() {
+        // The one-digit month keeps the text at 10 characters, so a length check does not catch it.
         let from = Some(OsString::from("+2026-1-05"));
         let to = None;
         let now = noon_utc();
@@ -444,6 +472,117 @@ mod tests {
         let expected_result = "[InvalidDateOrder] ARKAD_FROM date '2026-11-01' comes after the last date '2026-10-31'";
 
         let result = error.to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_the_last_four_days_when_from_is_yesterday_minus_three() {
+        let from = Some(OsString::from("yesterday-3"));
+        let to = None;
+        let now = noon_utc();
+
+        let expected_result = Ok(vec![
+            date("2026-10-28"),
+            date("2026-10-29"),
+            date("2026-10-30"),
+            date("2026-10-31"),
+        ]);
+
+        let result = run_dates(from, to, now);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_the_day_before_yesterday_when_to_is_yesterday_minus_one() {
+        let from = Some(OsString::from("2026-10-30"));
+        let to = Some(OsString::from("yesterday-1"));
+        let now = noon_utc();
+
+        let expected_result = Ok(vec![date("2026-10-30")]);
+
+        let result = run_dates(from, to, now);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_invalid_date_when_yesterday_minus_has_zero_days() {
+        let from = Some(OsString::from("yesterday-0"));
+        let to = None;
+        let now = noon_utc();
+
+        let expected_result = Err(InvalidRunDates::InvalidDate {
+            variable: "ARKAD_FROM",
+            value: "yesterday-0".to_string(),
+        });
+
+        let result = run_dates(from, to, now);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_invalid_date_when_yesterday_minus_has_a_leading_zero() {
+        let from = Some(OsString::from("yesterday-03"));
+        let to = None;
+        let now = noon_utc();
+
+        let expected_result = Err(InvalidRunDates::InvalidDate {
+            variable: "ARKAD_FROM",
+            value: "yesterday-03".to_string(),
+        });
+
+        let result = run_dates(from, to, now);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_invalid_date_when_yesterday_minus_has_a_sign() {
+        let from = Some(OsString::from("yesterday-+3"));
+        let to = None;
+        let now = noon_utc();
+
+        let expected_result = Err(InvalidRunDates::InvalidDate {
+            variable: "ARKAD_FROM",
+            value: "yesterday-+3".to_string(),
+        });
+
+        let result = run_dates(from, to, now);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_invalid_date_when_yesterday_minus_has_no_number() {
+        let from = Some(OsString::from("yesterday-"));
+        let to = None;
+        let now = noon_utc();
+
+        let expected_result = Err(InvalidRunDates::InvalidDate {
+            variable: "ARKAD_FROM",
+            value: "yesterday-".to_string(),
+        });
+
+        let result = run_dates(from, to, now);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_invalid_date_when_yesterday_minus_goes_before_the_first_date() {
+        let from = Some(OsString::from("yesterday-18446744073709551615"));
+        let to = None;
+        let now = noon_utc();
+
+        let expected_result = Err(InvalidRunDates::InvalidDate {
+            variable: "ARKAD_FROM",
+            value: "yesterday-18446744073709551615".to_string(),
+        });
+
+        let result = run_dates(from, to, now);
 
         assert_eq!(result, expected_result);
     }

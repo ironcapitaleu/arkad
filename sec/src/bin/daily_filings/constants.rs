@@ -10,5 +10,6 @@ pub const FROM_ENV_VAR: &str = "ARKAD_FROM";
 /// yesterday.
 pub const TO_ENV_VAR: &str = "ARKAD_TO";
 
-/// The value of [`FROM_ENV_VAR`] or [`TO_ENV_VAR`] that names yesterday in New York.
+/// The value of [`FROM_ENV_VAR`] or [`TO_ENV_VAR`] that names yesterday in New York. Followed by
+/// `-N`, it names the day `N` days before yesterday.
 pub const YESTERDAY: &str = "yesterday";
