@@ -76,9 +76,7 @@ pub fn run_dates(
     now: DateTime<Utc>,
 ) -> Result<Vec<NaiveDate>, InvalidRunDates> {
     let today = now.with_timezone(&New_York).date_naive();
-    let yesterday = today
-        .checked_sub_days(Days::new(1))
-        .expect("Given a date of the current era, the day before it always exists");
+    let yesterday = new_york_yesterday(now);
 
     let from = non_empty(from).ok_or(InvalidRunDates::MissingStartDate)?;
     let from = parse_date(FROM_ENV_VAR, &from, yesterday)?;
@@ -94,6 +92,14 @@ pub fn run_dates(
         return Err(InvalidRunDates::InvalidDateOrder { from, to });
     }
     Ok(from.iter_days().take_while(|date| *date <= to).collect())
+}
+
+/// Returns the day before today in New York at the time `now`.
+pub fn new_york_yesterday(now: DateTime<Utc>) -> NaiveDate {
+    now.with_timezone(&New_York)
+        .date_naive()
+        .checked_sub_days(Days::new(1))
+        .expect("Given a date of the current era, the day before it always exists")
 }
 
 /// Returns the value as a string, or `None` if it is unset or empty.

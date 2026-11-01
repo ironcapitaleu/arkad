@@ -1,7 +1,7 @@
 //! # Storage Root
 //!
-//! Provides the [`RawCompanyFactsWriter`] and the [`RawNotesArchiveWriter`] that a binary builds at
-//! startup, and the rule that picks their root directory.
+//! Provides the [`RawCompanyFactsWriter`], the [`RawNotesArchiveWriter`], and a writer of any raw
+//! source that a binary builds at startup, and the rule that picks their root directory.
 
 use std::env;
 use std::ffi::OsString;
@@ -10,7 +10,7 @@ use std::io;
 use std::path::PathBuf;
 
 use sec::shared::raw_document::RawDocument;
-use sec::shared::raw_source::{RawCompanyFacts, RawNotesArchive};
+use sec::shared::raw_source::{RawCompanyFacts, RawNotesArchive, RawSource};
 use storage::implementations::repository::filesystem::{FilesystemRepository, Write};
 
 /// The environment variable that names the root directory of the document store.
@@ -53,6 +53,21 @@ pub fn raw_notes_archive_writer() -> RawNotesArchiveWriter {
         .build()
 }
 
+/// Builds a writer of the raw source `S` for the root that `ARKAD_STORAGE_ROOT` names.
+///
+/// If the variable is unset or empty, the root is [`DEFAULT_STORAGE_ROOT`]. Building touches no
+/// disk.
+// Only `daily_filings` uses it. The other binaries include this file, so `dead_code` would fire
+// there.
+#[allow(dead_code)]
+pub fn raw_writer<S: RawSource>() -> FilesystemRepository<Write, RawDocument<S>> {
+    FilesystemRepository::builder()
+        .writer()
+        .document_type::<RawDocument<S>>()
+        .root(storage_root(env::var_os(STORAGE_ROOT_ENV_VAR)))
+        .build()
+}
+
 /// Creates the root directory of `repository`, with every missing parent.
 ///
 /// The repository does not create its root, so a write under a missing root fails.
@@ -60,7 +75,7 @@ pub fn raw_notes_archive_writer() -> RawNotesArchiveWriter {
 /// # Errors
 ///
 /// Returns [`io::Error`] if the directory cannot be created.
-pub fn create_root(repository: &RawCompanyFactsWriter) -> io::Result<()> {
+pub fn create_root<D>(repository: &FilesystemRepository<Write, D>) -> io::Result<()> {
     fs::create_dir_all(repository.root())
 }
 

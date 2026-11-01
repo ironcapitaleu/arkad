@@ -1,7 +1,13 @@
 //! # `daily_filings` Tests
 //!
-//! Runs the tests of the modules of the `daily_filings` binary. The binary is its own crate root,
-//! so this test compiles its modules as private modules, as `notes_backfill.rs` does.
+//! Runs the tests of the modules of the `daily_filings` binary, the loop offline against a fake
+//! SEC, and one date live. The binary is its own crate root, so this test compiles its modules as
+//! private modules, as `notes_backfill.rs` does.
+//!
+//! ## External Dependencies
+//!
+//! - `www.sec.gov` and `data.sec.gov`: the daily index of [`live::DATE`], and the folders and the
+//!   `submissions` files of its filings
 
 #[path = "../src/bin/daily_filings/constants.rs"]
 mod constants;
@@ -375,6 +381,99 @@ mod run_loop {
         })];
 
         let result = reported_errors(&dates, &sec_client).await;
+
+        assert_eq!(result, expected_result);
+    }
+}
+
+/// Runs the loop of `run.rs` for one past date against the live SEC, as the binary does.
+mod live {
+    use chrono::{NaiveDate, Utc};
+    use pretty_assertions::assert_eq;
+    use sec::shared::http_client::implementations::reqwest_client::ReqwestClient;
+    use sec::shared::http_client::implementations::sec_client::SecClient;
+    use sec::shared::raw_document::RawDocument;
+    use sec::shared::user_agent::UserAgent;
+    use serde_json::json;
+    use storage::implementations::repository::filesystem::FilesystemRepository;
+    use tempfile::TempDir;
+    use uuid::Uuid;
+
+    use crate::constants::RETRY_DELAYS;
+    use crate::dates::new_york_yesterday;
+    use crate::run::{Repositories, Settings, run};
+
+    /// A past weekday with few filings, so the test stays short: the Friday after Thanksgiving
+    /// 2025. A run of it took 10 s on 2026-11-01.
+    pub const DATE: &str = "2025-11-28";
+
+    fn sec_client() -> SecClient {
+        let user_agent = UserAgent::new("ArkadTest admin@example.com")
+            .expect("A hardcoded SEC-format string should always validate");
+        let http_client = ReqwestClient::new(user_agent)
+            .expect("Given a validated user agent, building the HTTP client fails only if the TLS backend cannot initialize");
+        SecClient::new(http_client)
+    }
+
+    fn repositories(root: &TempDir) -> Repositories {
+        Repositories {
+            daily_index: FilesystemRepository::builder()
+                .writer()
+                .document_type::<RawDocument<_>>()
+                .root(root.path())
+                .build(),
+            instance: FilesystemRepository::builder()
+                .writer()
+                .document_type::<RawDocument<_>>()
+                .root(root.path())
+                .build(),
+            labels: FilesystemRepository::builder()
+                .writer()
+                .document_type::<RawDocument<_>>()
+                .root(root.path())
+                .build(),
+            submissions: FilesystemRepository::builder()
+                .writer()
+                .document_type::<RawDocument<_>>()
+                .root(root.path())
+                .build(),
+        }
+    }
+
+    #[tokio::test]
+    async fn should_store_filings_and_submissions_files_when_a_past_weekday_runs_live() {
+        let root = TempDir::new().expect(
+            "Given a writable system temp directory, creating a directory in it should always succeed",
+        );
+        let date = NaiveDate::parse_from_str(DATE, "%Y-%m-%d")
+            .expect("Given a hardcoded valid date, parsing should always succeed");
+        let settings = Settings {
+            execution_id: Uuid::new_v4(),
+            yesterday: new_york_yesterday(Utc::now()),
+            retry_delays: RETRY_DELAYS.to_vec(),
+        };
+
+        let expected_result = json!({
+            "detection": "processed",
+            "stored_a_filing": true,
+            "stored_a_submissions_file": true,
+        });
+
+        let summary = run(
+            &[date],
+            &sec_client(),
+            &repositories(&root),
+            &settings,
+            |_, _| {},
+            |_, _, _| {},
+        )
+        .await;
+        let entry = &summary.entries()[0];
+        let result = json!({
+            "detection": entry["detection"],
+            "stored_a_filing": entry["filings"]["stored"].as_u64() > Some(0),
+            "stored_a_submissions_file": entry["submissions"]["stored"].as_u64() > Some(0),
+        });
 
         assert_eq!(result, expected_result);
     }
