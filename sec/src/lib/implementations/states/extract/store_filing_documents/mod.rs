@@ -27,7 +27,7 @@ use crate::error::state_machine::state::FailedDocumentWrite;
 use crate::shared::build_info::producer;
 use crate::shared::document_storage::FailedDocumentStorage;
 use crate::shared::filing_documents_ref::{FilingDocumentsRef, instance_key, labels_key};
-use crate::shared::raw_document::RawDocument;
+use crate::shared::raw_document::{FilingFields, RawDocument};
 use crate::shared::raw_repository::RawRepository;
 use crate::shared::raw_source::{RawXbrlInstance, RawXbrlLabels};
 use crate::shared::run_fields::RunFields;
@@ -136,20 +136,22 @@ where
                 .labels()
                 .zip(self.input.labels_url.as_ref())
                 .map(|(response, labels_url)| {
-                    RawDocument::<RawXbrlLabels>::from_file(
+                    RawDocument::<RawXbrlLabels>::from_filing_file(
                         labels_key(filing),
                         response,
                         labels_url,
                         &self.input.user_agent,
                         run.clone(),
+                        FilingFields::from(filing),
                     )
                 });
-        let instance = RawDocument::<RawXbrlInstance>::from_file(
+        let instance = RawDocument::<RawXbrlInstance>::from_filing_file(
             instance_key(filing),
             responses.instance(),
             &self.input.instance_url,
             &self.input.user_agent,
             run,
+            FilingFields::from(filing),
         );
         let documents = FilingDocumentsRef::new(filing.clone(), labels.is_some());
 
@@ -599,6 +601,53 @@ mod tests {
             .persisted()
             .pop()
             .map(|document| document.metadata().context().requested_url.clone());
+
+        assert_eq!(result, expected_result);
+    }
+
+    fn expected_filing_fields() -> FilingFields {
+        FilingFields {
+            filed_date: NaiveDate::from_ymd_opt(2026, 9, 9)
+                .expect("Given a hardcoded calendar date, the date should always build"),
+            form: "10-Q".to_string(),
+            is_amendment: false,
+        }
+    }
+
+    #[tokio::test]
+    async fn should_record_the_filed_date_and_the_form_in_the_instance_metadata() {
+        let (_, instances, _) = store_on_fakes(
+            input(true, true),
+            FakeXbrlInstanceRepository::new(),
+            FakeXbrlLabelsRepository::new(),
+        )
+        .await;
+
+        let expected_result = Some(expected_filing_fields());
+
+        let result = instances
+            .persisted()
+            .pop()
+            .and_then(|document| document.metadata().context().filing.clone());
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_record_the_filed_date_and_the_form_in_the_labels_metadata() {
+        let (_, _, labels) = store_on_fakes(
+            input(true, true),
+            FakeXbrlInstanceRepository::new(),
+            FakeXbrlLabelsRepository::new(),
+        )
+        .await;
+
+        let expected_result = Some(expected_filing_fields());
+
+        let result = labels
+            .persisted()
+            .pop()
+            .and_then(|document| document.metadata().context().filing.clone());
 
         assert_eq!(result, expected_result);
     }

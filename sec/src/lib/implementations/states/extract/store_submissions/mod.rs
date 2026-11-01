@@ -299,6 +299,7 @@ mod tests {
             final_url: redirected_url(),
             http_status: StatusCode::Ok,
             user_agent: user_agent(),
+            filing: None,
         };
 
         let result = document.metadata().context();
