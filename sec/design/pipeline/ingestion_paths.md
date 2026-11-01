@@ -1107,7 +1107,8 @@ Decided in STA-376:
 ### Daily Run
 
 > **Status:** proposed for STA-378 on 2026-11-01. The dates, the time zone, and the 503 rule are
-> decided in STA-378. The rest waits for review.
+> decided in STA-378. The split of failures into failed and unextractable waits for the lead. The
+> rest waits for review.
 
 `daily_filings` runs the new-filing path for a range of dates. It builds each super-state with its
 own builder, not through the facade (lead, 2026-10-31). STA-363 moves it onto the facade later.
@@ -1122,20 +1123,28 @@ Two environment variables set the range. Each takes a date (`YYYY-MM-DD`) or the
 | `ARKAD_TO` | no | `yesterday` |
 
 - The run reads every date from `ARKAD_FROM` through `ARKAD_TO`, both included, oldest first.
-- All dates are Eastern time (`America/New_York`). The SEC's days are Eastern, and it publishes a
-  daily index only after that day ends. At 02:00 UTC on 2 November it is still 1 November in New
-  York. So `yesterday` is the day before today in New York, never in UTC.
-- Startup fails, with an error that names both variables, if `ARKAD_FROM` is unset, a value does
-  not parse, `ARKAD_FROM` is after `ARKAD_TO`, or `ARKAD_TO` is today or later.
+- All dates are Eastern time (`America/New_York`). The SEC dates its filings in Eastern time, and
+  it publishes a daily index only after that day ends. At 02:00 UTC on 2 November it is still 1
+  November in New York. So `yesterday` is the day before today in New York, never in UTC.
+- The dependency `chrono-tz` gives the New York time zone with its daylight-saving rules.
+- If `ARKAD_FROM` is unset, a value does not parse, `ARKAD_FROM` is after `ARKAD_TO`, or
+  `ARKAD_TO` is today or later, startup fails. The error names the variables.
 - The binary reads no stored document to pick its dates. Resume from the store comes with the
   facade (STA-363) and the repository listing (STA-403).
 
 | Use | Setting |
 | --- | ------- |
 | Daily scheduled job | `ARKAD_FROM=yesterday` |
-| First catch-up | `ARKAD_FROM=` the start date of cut-over rule 1 |
+| First catch-up | `ARKAD_FROM` and `ARKAD_TO` in ranges of at most 7 days, from the start date of cut-over rule 1. Or one run with a longer task timeout (see below) |
 | Rerun one past day | `ARKAD_FROM=2026-10-15`, `ARKAD_TO=2026-10-15` |
 | Rerun a past week | `ARKAD_FROM=2026-10-13`, `ARKAD_TO=2026-10-19` |
+
+The task timeout of the job is 30 minutes. A filing takes at least 3 requests, and its company 1
+more. The rate limiter allows one request each 110 ms. In 2024q1 the selection kept about 90
+filings per business day, and 295 on one day. So 40 business days take about 26 minutes at the
+rate limit alone. A timeout makes Cloud Run rerun the same range, which times out again. So a
+catch-up runs in ranges of at most 7 days, or as one execution with a longer task timeout
+(`gcloud run jobs execute --task-timeout`).
 
 #### One Date
 
@@ -1144,36 +1153,50 @@ All super-states of one run share one `execution_id`. For each date, in this ord
 1. `DetectFilingsSuperState` for the date. `run_to_filings` returns the selected `FilingRef`s. A
    weekend or a holiday returns an empty list (the 404 rule of [Detection](#detection)).
 2. One `ExtractFilingSuperState` for each `FilingRef`. `run_to_documents` returns the
-   `FilingDocumentsRef`. At most `FILINGS_IN_FLIGHT` filings run at once, a constant of 4. The
-   global rate limiter of `SecClient` caps the requests, so a higher value buys nothing.
+   `FilingDocumentsRef`. At most `IN_FLIGHT` machines run at once, a constant of 4. The global
+   rate limiter of `SecClient` caps the requests, so a value above 4 does not make the run faster.
 3. One `ExtractSubmissionsSuperState` for each distinct CIK of the selected filings, with the
-   ingestion mode `incremental`. It runs for the CIK of a failed filing too, because the company
-   data does not depend on the filing.
+   ingestion mode `incremental`, and the same cap of `IN_FLIGHT`. It runs for the CIK of a failed
+   filing too, because the company data does not depend on the filing.
 
-The dates run one after another, so a summary line belongs to one date.
+The dates run one after another, so each entry of the summary belongs to one date.
 
 #### Failures
 
+Each machine ends in one of three outcomes:
+
+| Outcome | When | Log | Exit code |
+| ------- | ---- | --- | --------- |
+| stored | the machine stored its documents | `info` | no effect |
+| unextractable | `SelectFilingDocuments` fails: the folder has no XBRL instance, or more than one member matches a rule | `warn` | no effect |
+| failed | every other error: a request, a parse, a store, a detection | `error` | error |
+
+- An unextractable filing fails the same way on every attempt, so a Cloud Run retry cannot fix it.
+  The summary lists it with its error. It does not set the error exit code, so it does not make
+  Cloud Run rerun the date. This changes the STA-378 rule "exits with an error if anything failed"
+  for this one case.
 - A failed detection fails its date. The run skips the filings of that date and goes on with the
   next date. A daily index that the SEC has not published yet fails this way.
 - A failed filing or `submissions` machine goes into the summary as failed. The run goes on.
-- The binary exits with an error if anything failed. Cloud Run retries the job. The retry is safe,
-  because every write is idempotent.
+- The binary exits with an error if any machine failed. Cloud Run retries the job. The retry is
+  safe, because every write is idempotent.
 - A filing comes from the SEC's own daily index, so its folder exists. The binary never treats a
   404 or a 503 for a filing as absent, and calls no `is_absent_file` on the filing path.
-- A filing machine that fails with a 503 runs again, up to `FILING_ATTEMPTS` (3) times in all, after
-  1 s and 2 s. The SEC answers a missing folder with 404 or 503 (see
-  [Fetch of Each Filing](#fetch-of-each-filing)), and a 503 can also mean a short outage. The retry
-  lives in the binary's loop, not in `SecClient`, so the other paths keep their behavior. A new
-  check `FailedSecRequest::is_unavailable` tells a 503 apart, next to `is_absent_file`.
+- A filing or `submissions` machine that fails with a 503 runs again, up to `ATTEMPTS` (3) times in
+  all, after `RETRY_DELAYS` of 10 s and 60 s. The retry covers a short outage of the SEC. A longer
+  one fails the machine, and the Cloud Run retry of the job covers it. The retry lives in the
+  binary's loop, not in `SecClient`, so the other paths keep their behavior.
+- A new check `FailedSecRequest::is_unavailable` finds a 503, next to `is_absent_file`. Like
+  `is_absent_file`, it looks through `FailedFilingDocument`, so a 503 for the instance or the label
+  file counts too.
 
 #### Stores
 
 The run writes four raw document types under `ARKAD_STORAGE_ROOT`: `RawDailyIndex`,
 `RawXbrlInstance`, `RawXbrlLabels`, and `RawSubmissions`. `sec/src/bin/shared/storage_root.rs`
-gains one writer for each. Every document carries the ingestion mode `incremental`:
-`StoreDailyIndex` and `StoreFilingDocuments` write it themselves, and the binary passes it to the
-`submissions` builder.
+gains one writer for each, and `create_root` becomes generic over the document type. Every
+document carries the ingestion mode `incremental`: `StoreDailyIndex` and `StoreFilingDocuments`
+write it themselves, and the binary passes it to the `submissions` builder.
 
 #### Logs and Summary
 
@@ -1181,8 +1204,9 @@ JSON logs with the five fields of `AGENTS.md`, as in `notes_backfill`:
 
 - one line per stream item and per error, with the date, the accession number or the CIK, and the
   `execution_id` in `context`;
-- one summary line at the end, with one entry per date: the selected filings, the stored filings,
-  the failed filings with their failed state, and the stored and failed `submissions` files.
+- one summary line at the end of the run. It holds one entry per date: the selected filings, and
+  the stored, unextractable, and failed filings and `submissions` files, each failure with its
+  failed state.
 
 #### Module Layout
 
@@ -1193,20 +1217,30 @@ JSON logs with the five fields of `AGENTS.md`, as in `notes_backfill`:
 | `main.rs` | Logging, startup, the call of `run`, the summary, the exit code |
 | `dates.rs` | Parses `ARKAD_FROM` and `ARKAD_TO` against today in New York, and returns the dates |
 | `run.rs` | The loop over the dates and the three steps, the retry, and the `RunSummary` |
-| `constants.rs` | The variable names, `FILINGS_IN_FLIGHT`, `FILING_ATTEMPTS`, and the retry delays |
+| `constants.rs` | The variable names, `IN_FLIGHT`, `ATTEMPTS`, and `RETRY_DELAYS` |
 
-`dates.rs` takes "now" as an argument, so its tests set the clock, for example 02:00 UTC.
+- `dates.rs` takes "now" as an argument, so its tests set the clock, for example 02:00 UTC.
+- `run` takes the retry delays as an argument, so its tests pass zero delays.
+- `run` is generic over the SEC client, so its tests pass a fake client.
 
 #### Tests
+
+A binary links the library built without `cfg(test)`, so the fixtures of `sec`, such as
+`RoutingSecClient`, are out of its reach. A new feature `test-fixtures` of `sec` exposes
+`sec::tests::fixtures`. The dependency `http`, which the fixtures use, becomes optional under that
+feature. `sec` names itself as a dev-dependency with the feature, so the integration tests enable
+it. `sec/tests/daily_filings.rs` includes the binary's modules through `#[path]`, as
+`sec/tests/notes_backfill.rs` does, so the `integration-tests` job of CI runs their tests.
 
 - `dates.rs`: `yesterday` alone, a range, one day, `ARKAD_FROM` unset, a value that does not
   parse, `ARKAD_FROM` after `ARKAD_TO`, `ARKAD_TO` of today or later, and 02:00 UTC, which gives
   the New York date of the day before.
 - `run.rs`, offline with `RoutingSecClient` and a temp-dir store: two dates, a weekday with
   filings and a weekend day without; a 503 that clears on the second attempt; a 503 on every
-  attempt, which fails the filing and still runs the `submissions` machine; the ingestion mode
-  `incremental` in the metadata of each of the four document types.
-- `sec/tests/daily_filings.rs`, live against `www.sec.gov`, as `sec/tests/extract_filing.rs`
+  attempt, which fails the filing and still runs the `submissions` machine; a folder without an
+  instance, which is unextractable and leaves the exit code alone; the ingestion mode `incremental`
+  in the metadata of each of the four document types.
+- Live against `www.sec.gov`, in `sec/tests/daily_filings.rs`, as `sec/tests/extract_filing.rs`
   does: one past weekday, which stores the daily index, at least one filing, and its
   `submissions` file.
 
@@ -1214,10 +1248,12 @@ JSON logs with the five fields of `AGENTS.md`, as in `notes_backfill`:
 
 Three PRs, each at most 400 reviewable lines:
 
-1. `dates.rs` with its tests, and the four writers in `storage_root.rs`.
-2. `FailedSecRequest::is_unavailable`, and `run.rs` with the retry, the summary, and the offline
-   tests.
-3. `main.rs` with the logs and the exit code, and the live test.
+1. `dates.rs` and `constants.rs` with their tests, the dependency `chrono-tz`, and
+   `sec/tests/daily_filings.rs`.
+2. The feature `test-fixtures`, `FailedSecRequest::is_unavailable`, and `run.rs` with the retry,
+   the outcomes, the summary, and the offline tests.
+3. The four writers and the generic `create_root` in `storage_root.rs`, `main.rs` with the logs and
+   the exit code, the `[[bin]]` entry, and the live test.
 
 ### Cut-Over Between the Paths
 
@@ -1517,8 +1553,10 @@ Proposed for MVP Operations. Both paths run as Cloud Run jobs with the bucket mo
   All dates are Eastern time. See [Daily Run](#daily-run).
 - `daily_filings` runs the three new-filing machines in order: detection, then one filing machine
   per `FilingRef`, then one `submissions` machine per distinct CIK.
-- If Cloud Scheduler does not start the job on some day, the binary cannot notice. MVP Operations
-  needs an alert, for example "no successful `daily_filings` execution in 36 hours".
+- MVP Operations needs two alerts for `daily_filings`. One fires on an execution that fails after
+  all Cloud Run retries, because the next day's run reads only its own date. Its logs name the
+  failed dates, for a rerun. The other fires when no execution succeeds in 36 hours, because the
+  binary cannot notice a day on which Cloud Scheduler did not start it.
 - If one machine fails, the job logs the failure and runs the other machines. At the end, the job
   exits with an error if any machine failed, and Cloud Run retries it. The retry is safe, because
   every write is idempotent.
