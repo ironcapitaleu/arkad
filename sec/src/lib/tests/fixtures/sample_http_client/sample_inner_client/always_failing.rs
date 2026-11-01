@@ -4,7 +4,7 @@ use crate::shared::http_client::traits::InnerClient;
 
 /// A fake HTTP client implementation that always returns a fixed error response.
 ///
-/// This client is used for testing the error response handling in the [`HttpClient`] trait implementation by simulating a predefined error scenario.
+/// This client is used for testing the error response handling in the [`InnerClient`] trait implementation by simulating a predefined error scenario.
 #[derive(Debug, Clone)]
 pub struct AlwaysFailingHttpClient;
 

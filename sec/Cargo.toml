@@ -30,13 +30,18 @@ regex = "1"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 url = "2"
+http = { version = "1", optional = true }
 
 [features]
 tracing-logging = ["tracing", "tracing-appender", "tracing-subscriber"]
+test-fixtures = ["http"]
 
 [dev-dependencies]
 http = "1"
 pretty_assertions = "1"
+# The integration tests use the fixtures of `sec`, which only this feature exposes outside of
+# `cfg(test)`.
+sec = { path = ".", features = ["test-fixtures"] }
 tempfile = "3"
 
 [lib]

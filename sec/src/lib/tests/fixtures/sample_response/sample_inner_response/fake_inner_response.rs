@@ -13,7 +13,7 @@ pub struct FakeInnerResponse {
 
 impl FakeInnerResponse {
     #[must_use]
-    pub fn new(
+    pub const fn new(
         url: String,
         body: String,
         headers: String,
