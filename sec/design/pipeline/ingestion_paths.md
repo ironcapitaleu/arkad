@@ -525,6 +525,11 @@ Decided: drop it. STA-376 does not store `index.json`.
 - Without the write, STA-376 needs no second store step, no new `RawSource`, and no super-state
   field that keeps the folder index response.
 
+Reversed by the lead on 2026-11-01 (STA-413): the run stores `index.json` as `RawFilingIndex`. A
+filing without an XBRL instance stores nothing else, so each run fetched its folder again. The
+stored folder index lets a later run skip it with no request. See
+[Unextractable Record](#unextractable-record).
+
 #### Plan for the Code
 
 Each step is one PR on a stack, and `main` compiles after each. Line counts are estimates of
