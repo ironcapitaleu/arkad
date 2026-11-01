@@ -339,7 +339,9 @@ mod tests {
     }
 
     /// Runs `PrepareSecRequest`, `ExecuteSecRequest`, and `StoreFilingDocuments` for one filing,
-    /// with a store under `root`.
+    /// and stores the files in a temp dir.
+    // Deviation: this end-to-end test lives here, not in `tests/`, because `RoutingSecClient` is a
+    // `#[cfg(test)]` fixture of this crate.
     mod end_to_end {
         use std::path::Path;
 
