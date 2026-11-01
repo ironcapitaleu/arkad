@@ -4,8 +4,7 @@
 //! [`StoreSecResponse`](crate::implementations::states::extract::store_sec_response::StoreSecResponse)
 //! state, along with its updater and builder.
 //!
-//! It carries the response to store, the URL and the [`UserAgent`] the fetch sent, and the
-//! [`IngestionMode`] of the run.
+//! It carries the response to store and the URL and the [`UserAgent`] the fetch sent.
 
 use std::fmt;
 use std::sync::Arc;
@@ -13,7 +12,6 @@ use std::sync::Arc;
 use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
 use state_maschine::prelude::StateData as SMStateData;
-use storage::implementations::repository::filesystem::IngestionMode;
 
 use crate::error::State as StateError;
 use crate::shared::http_client::HasResponse;
@@ -24,8 +22,7 @@ use crate::traits::state_machine::state::StateData;
 /// Input data for the [`StoreSecResponse`](super::super::StoreSecResponse) state.
 ///
 /// Bundles the response to a request of kind `E` with the URL and the [`UserAgent`] the fetch
-/// sent, which the response does not record. The [`IngestionMode`] comes from the run, because one
-/// kind can run as a backfill and as an incremental fetch.
+/// sent, which the response does not record.
 ///
 /// The response sits in an [`Arc`], so the transition from
 /// [`ExecuteSecRequest`](crate::implementations::states::extract::execute_sec_request::ExecuteSecRequest)
@@ -38,13 +35,11 @@ pub struct StoreSecResponseInput<E: HasResponse> {
     pub requested_url: Url,
     /// The `User-Agent` the fetch sent.
     pub user_agent: UserAgent,
-    /// The ingestion mode that the metadata of the stored document records.
-    pub ingestion_mode: IngestionMode,
 }
 
 impl<E: HasResponse> StoreSecResponseInput<E> {
-    /// Creates a new [`StoreSecResponseInput`] from a response, the URL and the `User-Agent` the
-    /// fetch sent, and the ingestion mode of the run.
+    /// Creates a new [`StoreSecResponseInput`] from a response and the URL and the `User-Agent`
+    /// the fetch sent.
     ///
     /// The response is either owned or already in an [`Arc`].
     #[must_use]
@@ -52,13 +47,11 @@ impl<E: HasResponse> StoreSecResponseInput<E> {
         response: impl Into<Arc<E::Response>>,
         requested_url: Url,
         user_agent: UserAgent,
-        ingestion_mode: IngestionMode,
     ) -> Self {
         Self {
             response: response.into(),
             requested_url,
             user_agent,
-            ingestion_mode,
         }
     }
 
@@ -79,12 +72,6 @@ impl<E: HasResponse> StoreSecResponseInput<E> {
     pub const fn user_agent(&self) -> &UserAgent {
         &self.user_agent
     }
-
-    /// Returns the ingestion mode of the run.
-    #[must_use]
-    pub const fn ingestion_mode(&self) -> IngestionMode {
-        self.ingestion_mode
-    }
 }
 
 // A derive bounds `E::Response: Clone`, but cloning the `Arc` needs no such bound.
@@ -94,7 +81,6 @@ impl<E: HasResponse> Clone for StoreSecResponseInput<E> {
             response: Arc::clone(&self.response),
             requested_url: self.requested_url.clone(),
             user_agent: self.user_agent.clone(),
-            ingestion_mode: self.ingestion_mode,
         }
     }
 }
@@ -103,11 +89,10 @@ impl<E: HasResponse> Clone for StoreSecResponseInput<E> {
 // response behind it.
 impl<E: HasResponse> Serialize for StoreSecResponseInput<E> {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        let mut state = serializer.serialize_struct("StoreSecResponseInput", 4)?;
+        let mut state = serializer.serialize_struct("StoreSecResponseInput", 3)?;
         state.serialize_field("response", self.response.as_ref())?;
         state.serialize_field("requested_url", &self.requested_url)?;
         state.serialize_field("user_agent", &self.user_agent)?;
-        state.serialize_field("ingestion_mode", &self.ingestion_mode)?;
         state.end()
     }
 }
@@ -122,9 +107,6 @@ impl<E: HasResponse> StateData for StoreSecResponseInput<E> {
         }
         if let Some(user_agent) = updates.user_agent {
             self.user_agent = user_agent;
-        }
-        if let Some(ingestion_mode) = updates.ingestion_mode {
-            self.ingestion_mode = ingestion_mode;
         }
         Ok(())
     }
@@ -169,8 +151,6 @@ pub struct StoreSecResponseInputUpdater<E: HasResponse> {
     pub requested_url: Option<Url>,
     /// Optional new value for the `User-Agent`.
     pub user_agent: Option<UserAgent>,
-    /// Optional new value for the ingestion mode.
-    pub ingestion_mode: Option<IngestionMode>,
 }
 
 // A derive bounds `E::Response: Clone`, but cloning the `Arc` needs no such bound.
@@ -180,7 +160,6 @@ impl<E: HasResponse> Clone for StoreSecResponseInputUpdater<E> {
             response: self.response.clone(),
             requested_url: self.requested_url.clone(),
             user_agent: self.user_agent.clone(),
-            ingestion_mode: self.ingestion_mode,
         }
     }
 }
@@ -198,7 +177,6 @@ pub struct StoreSecResponseInputUpdaterBuilder<E: HasResponse> {
     response: Option<Arc<E::Response>>,
     requested_url: Option<Url>,
     user_agent: Option<UserAgent>,
-    ingestion_mode: Option<IngestionMode>,
 }
 
 impl<E: HasResponse> StoreSecResponseInputUpdaterBuilder<E> {
@@ -209,7 +187,6 @@ impl<E: HasResponse> StoreSecResponseInputUpdaterBuilder<E> {
             response: None,
             requested_url: None,
             user_agent: None,
-            ingestion_mode: None,
         }
     }
 
@@ -234,14 +211,6 @@ impl<E: HasResponse> StoreSecResponseInputUpdaterBuilder<E> {
         self
     }
 
-    /// Sets the ingestion mode field.
-    #[must_use]
-    #[allow(clippy::missing_const_for_fn)]
-    pub fn ingestion_mode(mut self, ingestion_mode: IngestionMode) -> Self {
-        self.ingestion_mode = Some(ingestion_mode);
-        self
-    }
-
     /// Builds the [`StoreSecResponseInputUpdater`].
     #[must_use]
     pub fn build(self) -> StoreSecResponseInputUpdater<E> {
@@ -249,7 +218,6 @@ impl<E: HasResponse> StoreSecResponseInputUpdaterBuilder<E> {
             response: self.response,
             requested_url: self.requested_url,
             user_agent: self.user_agent,
-            ingestion_mode: self.ingestion_mode,
         }
     }
 }
@@ -302,7 +270,6 @@ mod tests {
             sample_response(b"{}"),
             sample_url("CIK0001067983.json"),
             sample_user_agent("arkad"),
-            IngestionMode::Backfill,
         )
     }
 
@@ -369,22 +336,6 @@ mod tests {
     }
 
     #[test]
-    fn should_update_ingestion_mode_when_updater_contains_ingestion_mode() {
-        let mut input = sample_input();
-        let updater = StoreSecResponseInputUpdater::<CompanyFacts>::builder()
-            .ingestion_mode(IngestionMode::Incremental)
-            .build();
-
-        let expected_result = IngestionMode::Incremental;
-
-        StateData::update_state(&mut input, updater)
-            .expect("Given a non-empty update, updating the input should always succeed");
-        let result = input.ingestion_mode();
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
     fn should_leave_input_unchanged_when_updater_is_empty() {
         let mut input = sample_input();
         let updater = StoreSecResponseInputUpdater::<CompanyFacts>::builder().build();
@@ -429,7 +380,6 @@ mod tests {
             },
             "requested_url": "https://data.sec.gov/api/xbrl/companyfacts/CIK0001067983.json",
             "user_agent": "arkad contact@example.com",
-            "ingestion_mode": "backfill",
         });
 
         let result = serde_json::to_value(&input)
