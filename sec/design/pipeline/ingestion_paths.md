@@ -525,8 +525,9 @@ Decided: drop it. STA-376 does not store `index.json`.
 - Without the write, STA-376 needs no second store step, no new `RawSource`, and no super-state
   field that keeps the folder index response.
 
-Reversed by the lead on 2026-11-01 (STA-413): the run stores `index.json` as `RawFilingIndex`. A
-filing without an XBRL instance stores nothing else, so each run fetched its folder again. The
+Reversed by the lead on 2026-11-01 (STA-413): the run stores `index.json` as `RawFilingIndex`.
+Before this change, a filing without an XBRL instance stored nothing, so each run fetched its
+folder again. The
 stored folder index lets a later run skip it with no request. See
 [Unextractable Record](#unextractable-record).
 
@@ -1558,7 +1559,11 @@ state is `StoreFilingIndex`, the `StoreSecResponse` of the kind `FilingIndex`.
   3. Nothing stored: the run fetches the filing.
 - The document keeps the body as the SEC sent it, through `RawDocument::from_filing_response`.
   Its metadata names the filing, as the instance and the label file do (see
-  [Raw Store](#raw-store)). It names no input document.
+  [Raw Store](#raw-store)).
+- It names no input document. The generic `StoreSecResponse` state builds the document from the
+  response and the request input only, and `StoredAs::store` takes no inputs. Adding them changes
+  every store kind, so it is out of scope for STA-413. The instance and the label file of the same
+  folder name the daily index, and the key links the folder index to them.
 
 #### Logs and Summary
 
@@ -1859,11 +1864,13 @@ documents:
 - The instance and the label file get fixed names, so transform finds them without a listing.
   The metadata keeps the SEC file name in `requested_url`.
 - The key of a filing's file names its CIK and accession number, not the day it was filed. So the
-  metadata `context` of the instance and the label file also holds `filing`: the `filed_date`, the
-  `form` (`10-Q`), and `is_amendment`. A metadata file without `filing` reads as no filing.
+  metadata `context` of the instance, the label file, and the folder index also holds `filing`:
+  the `filed_date`, the `form` (`10-Q`), and `is_amendment`. A metadata file without `filing`
+  reads as no filing.
 - The `inputs` of the instance and the label file name the daily index that listed the filing,
   with its key and SHA-256, so each filing points back to its index. A filing machine built
-  without inputs records none.
+  without inputs records none. The folder index names no input (see
+  [Unextractable Record](#unextractable-record)).
 - The daily index is stored so that detection can run again without the SEC.
 - A new fetch of `submissions` replaces the old file. The raw store holds the latest company data
   only. The same holds for a replaced Notes file.
