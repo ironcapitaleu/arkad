@@ -56,13 +56,13 @@ stateDiagram-v2
         PrepareFilingIndexRequest --> ExecuteFilingIndexRequest
         note right of PrepareFilingIndexRequest : Generic state with the FilingIndex kind
         ExecuteFilingIndexRequest --> SelectFilingDocuments
-        note right of ExecuteFilingIndexRequest : The transition parses the index.json into a FolderIndex
+        note right of ExecuteFilingIndexRequest : Generic state with the FilingIndex kind. The transition parses the index.json into a FolderIndex
         SelectFilingDocuments --> PrepareFilingDocumentsRequest
         note right of SelectFilingDocuments : Fails if the folder holds no XBRL instance
         PrepareFilingDocumentsRequest --> ExecuteFilingDocumentsRequest
         note right of PrepareFilingDocumentsRequest : Generic state with the FilingDocumentSet kind. The transition takes the FilingRef from the super-state
         ExecuteFilingDocumentsRequest --> StoreFilingDocuments
-        note right of ExecuteFilingDocumentsRequest : Fetches the instance, then the label file if one exists. A failed file fails the filing
+        note right of ExecuteFilingDocumentsRequest : Generic state with the FilingDocumentSet kind. Fetches the instance, then the label file if one exists. A failed file fails the filing
         note right of StoreFilingDocuments : The stream ends after this state with the FilingDocumentsRef
     }
 

@@ -356,6 +356,9 @@ where
     C: SecClientTrait,
     Self: IntoStateMachineStream,
 {
+    // Deviation: `into_run_stream` and `run_to_documents` repeat the run loop of
+    // `ExtractNotesSuperState`. STA-384 changes that super-state now, so a shared helper waits for
+    // a later PR.
     /// Returns the stream, tagged with the `execution_id` that the context holds.
     ///
     /// Use it instead of `into_stream`, so the stream and the stored documents name the same run.
@@ -1030,33 +1033,68 @@ mod tests {
             .route(INSTANCE_URL, 200, "text/xml", b"<xbrl/>");
         let super_state = stored_super_state(root.path(), sec_client);
 
-        let expected_result = Some(EXECUTE_SEC_REQUEST.to_string());
+        let expected_result = Some((EXECUTE_SEC_REQUEST.to_string(), "Problem occurred during internal state operations: '[StateError] A state level error occurred, Caused by: [FailedRequestExecution] Failure in State: 'Execute SEC Request', Caused by: [FailedSecRequest] SEC request failed, Caused by: [FailedFilingDocument] Request for file 'alco-20260908_lab.xml' failed, Caused by: [InvalidResponse] Response validation failed, Caused by: [InvalidSecResponse] Invalid SEC Response, Reason: 'Status code '404' is not accepted''".to_string()));
 
         let result = super_state
             .run_to_documents(|_| {})
             .await
             .err()
-            .map(|error| error.state_name);
+            .map(|error| (error.state_name, error.source.to_string()));
 
         assert_eq!(result, expected_result);
     }
 
     #[tokio::test]
-    async fn should_store_no_instance_when_the_label_file_request_fails() {
+    async fn should_store_no_instance_after_starting_the_documents_request_when_the_label_file_request_fails()
+     {
         let root = temporary_root();
         let sec_client = RoutingSecClient::new()
             .route(FOLDER_INDEX_URL, 200, "application/json", FOLDER_INDEX)
             .route(INSTANCE_URL, 200, "text/xml", b"<xbrl/>");
         let super_state = stored_super_state(root.path(), sec_client);
 
-        let expected_result = false;
+        let expected_result = (5, false);
 
-        let _ = super_state.run_to_documents(|_| {}).await;
-        let result = root
-            .path()
-            .join(FILING_FOLDER)
-            .join("instance.xml")
-            .exists();
+        let mut started_states = 0;
+        let _ = super_state
+            .run_to_documents(|item| {
+                if item.event == StreamEvent::StateStarted {
+                    started_states += 1;
+                }
+            })
+            .await;
+        let result = (
+            started_states,
+            root.path()
+                .join(FILING_FOLDER)
+                .join("instance.xml")
+                .exists(),
+        );
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_return_a_ref_without_label_file_when_the_folder_has_no_label_file() {
+        let sec_client = RoutingSecClient::new()
+            .route(
+                FOLDER_INDEX_URL,
+                200,
+                "application/json",
+                br#"{"directory":{"item":[{"name":"alco-20260908_htm.xml"}]}}"#,
+            )
+            .route(INSTANCE_URL, 200, "text/xml", b"<xbrl/>");
+        let super_state = ExtractFilingSuperState::builder()
+            .filing_ref(filing_ref())
+            .sec_client(sec_client)
+            .execution_id(EXECUTION_ID)
+            .instance_repository(FakeXbrlInstanceRepository::new())
+            .labels_repository(FakeXbrlLabelsRepository::new())
+            .build();
+
+        let expected_result = Some(FilingDocumentsRef::new(filing_ref(), false));
+
+        let result = super_state.run_to_documents(|_| {}).await.ok();
 
         assert_eq!(result, expected_result);
     }
