@@ -1,8 +1,8 @@
 //! # `daily_filings` Tests
 //!
-//! Runs the tests of the modules of the `daily_filings` binary, the loop offline against a fake
-//! SEC, and one date live. The binary is its own crate root, so this test compiles its modules as
-//! private modules.
+//! Runs the tests of the modules of the `daily_filings` binary, and the run of the `Extraction`
+//! facade that the binary calls: offline against a fake SEC, and for one date live. The binary is
+//! its own crate root, so this test compiles its modules as private modules.
 //!
 //! ## External Dependencies
 //!
@@ -13,24 +13,23 @@
 mod constants;
 #[path = "../src/bin/daily_filings/dates.rs"]
 mod dates;
-#[path = "../src/bin/daily_filings/run.rs"]
-mod run;
 
-/// Runs the loop of `run.rs` offline, with a fake SEC client and stores in a temp dir.
+/// Runs the facade offline, with a fake SEC client and stores in a temp dir.
 mod run_loop {
-    use std::sync::Mutex;
+    use std::sync::{Arc, Mutex};
     use std::time::Duration;
 
     use chrono::NaiveDate;
     use pretty_assertions::assert_eq;
+    use sec::implementations::extraction::{
+        DailyFilingsRepositories, DailyRunSummary, Extraction, FailedDailyRun, RunEvent, Unit,
+    };
     use sec::shared::raw_document::RawDocument;
     use sec::tests::fixtures::sample_http_client::sample_sec_client::routing::RoutingSecClient;
     use serde_json::{Value, json};
     use storage::implementations::repository::filesystem::FilesystemRepository;
     use tempfile::TempDir;
     use uuid::Uuid;
-
-    use crate::run::{FailedDailyRun, Repositories, RunSummary, Settings, run};
 
     const INDEX_URL: &str =
         "https://www.sec.gov/Archives/edgar/daily-index/2026/QTR4/form.20261026.idx";
@@ -85,8 +84,8 @@ mod run_loop {
         )
     }
 
-    fn repositories(root: &TempDir) -> Repositories {
-        Repositories {
+    fn repositories(root: &TempDir) -> DailyFilingsRepositories {
+        DailyFilingsRepositories {
             daily_index: FilesystemRepository::builder()
                 .writer()
                 .document_type::<RawDocument<_>>()
@@ -110,35 +109,41 @@ mod run_loop {
         }
     }
 
-    fn settings() -> Settings {
-        Settings {
-            execution_id: Uuid::nil(),
-            yesterday: date("2026-10-28"),
-            retry_delays: vec![Duration::ZERO, Duration::ZERO],
-        }
+    /// Runs `dates` with the stores under `root`, yesterday on 2026-10-28, and no wait between
+    /// attempts, and passes each event to `observer`.
+    async fn run_observed(
+        root: &TempDir,
+        dates: &[NaiveDate],
+        sec_client: &RoutingSecClient,
+        observer: impl Fn(&Unit, RunEvent<'_>) + Send + Sync + 'static,
+    ) -> DailyRunSummary {
+        Extraction::incremental()
+            .execution_id(Uuid::from_u128(7))
+            .daily_filings()
+            .dates(dates.iter().copied())
+            .yesterday(date("2026-10-28"))
+            .sec_client(sec_client.clone())
+            .repositories(repositories(root))
+            .retry_delays([Duration::ZERO, Duration::ZERO])
+            .run(observer)
+            .await
     }
 
-    /// Runs `dates` with yesterday on 2026-10-28 and no wait between attempts.
-    async fn run_offline(dates: &[NaiveDate], sec_client: &RoutingSecClient) -> RunSummary {
+    /// Runs `dates` as `run_observed` does, without an observer, in a new temp dir.
+    async fn run_offline(dates: &[NaiveDate], sec_client: &RoutingSecClient) -> DailyRunSummary {
         run_offline_in(&temporary_root(), dates, sec_client).await
     }
 
-    /// Runs `dates` as `run_offline` does, with the stores under `root`.
+    /// Runs `dates` as `run_observed` does, without an observer.
     async fn run_offline_in(
         root: &TempDir,
         dates: &[NaiveDate],
         sec_client: &RoutingSecClient,
-    ) -> RunSummary {
-        run(
-            dates,
-            sec_client,
-            &repositories(root),
-            &settings(),
-            |_, _| {},
-            |_, _, _| {},
-        )
-        .await
+    ) -> DailyRunSummary {
+        run_observed(root, dates, sec_client, |_, _| {}).await
     }
+
+    const LOCK_EXPECT: &str = "Given an observer that never panics while it holds the lock, the lock should never be poisoned";
 
     /// Reads the metadata file at `file` under `root` as JSON.
     fn stored_metadata(root: &TempDir, file: &str) -> Value {
@@ -150,32 +155,35 @@ mod run_loop {
         .expect("Given a metadata file that the store wrote, it should always parse as JSON")
     }
 
-    /// Runs `dates` as `run_offline` does, and returns the context and the kind of each error.
+    /// Runs `dates` as `run_offline` does, and returns the unit and the kind of each error.
     async fn reported_errors(dates: &[NaiveDate], sec_client: &RoutingSecClient) -> Vec<Value> {
-        let root = temporary_root();
-        let errors = Mutex::new(Vec::new());
-        run(
-            dates,
-            sec_client,
-            &repositories(&root),
-            &settings(),
-            |_, _| {},
-            |context, _, kind| {
-                errors
+        run_reporting_errors(dates, sec_client).await.0
+    }
+
+    /// Runs `dates` as `run_offline` does, and returns the unit and the kind of each error, and
+    /// the summary.
+    async fn run_reporting_errors(
+        dates: &[NaiveDate],
+        sec_client: &RoutingSecClient,
+    ) -> (Vec<Value>, DailyRunSummary) {
+        let errors = Arc::new(Mutex::new(Vec::new()));
+        let observed_errors = Arc::clone(&errors);
+        let summary = run_observed(&temporary_root(), dates, sec_client, move |unit, event| {
+            if let RunEvent::Error(_, kind) = event {
+                observed_errors
                     .lock()
-                    .expect("Given a lock that no thread poisoned, locking should always succeed")
-                    .push(json!({ "context": context, "kind": kind.to_string() }));
-            },
-        )
+                    .expect(LOCK_EXPECT)
+                    .push(json!({ "context": unit, "kind": kind.to_string() }));
+            }
+        })
         .await;
-        errors
-            .into_inner()
-            .expect("Given a lock that no thread poisoned, taking its value should always succeed")
+        let errors = errors.lock().expect(LOCK_EXPECT).clone();
+        (errors, summary)
     }
 
     /// Returns the detection outcome of each date, and for each date the counts of stored
     /// filings, unextractable filings, failed filings, and stored `submissions` files.
-    fn outcomes(summary: &RunSummary) -> Vec<Value> {
+    fn outcomes(summary: &DailyRunSummary) -> Vec<Value> {
         summary
             .entries()
             .iter()
@@ -443,12 +451,152 @@ mod run_loop {
 
         assert_eq!(result, expected_result);
     }
+
+    #[tokio::test]
+    async fn should_run_each_date_once_oldest_first_when_the_dates_are_unsorted_and_repeated() {
+        let dates = [date("2026-10-27"), date("2026-10-26"), date("2026-10-27")];
+        let sec_client = sec_client();
+
+        let expected_result = json!(["2026-10-26", "2026-10-27"]);
+
+        let result: Value = run_offline(&dates, &sec_client)
+            .await
+            .entries()
+            .iter()
+            .map(|entry| entry["date"].clone())
+            .collect();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_run_one_filing_at_a_time_when_in_flight_is_one() {
+        let root = temporary_root();
+        let dates = [date("2026-10-26")];
+        let sec_client = RoutingSecClient::new()
+            .route(
+                INDEX_URL,
+                200,
+                "application/octet-stream",
+                DAILY_INDEX_WITH_TWO_FILINGS,
+            )
+            .route(QTR4_LISTING_URL, 200, "application/json", QTR4_LISTING)
+            .route(FOLDER_INDEX_URL, 200, "application/json", FOLDER_INDEX)
+            .route(INSTANCE_URL, 200, "text/xml", b"<xbrl/>")
+            .route(LABEL_FILE_URL, 200, "text/xml", b"<labels/>")
+            .route(SUBMISSIONS_URL, 200, "application/json", SUBMISSIONS);
+        let filing_events = Arc::new(Mutex::new(Vec::new()));
+        let observed_filings = Arc::clone(&filing_events);
+        let observer = move |unit: &Unit, _: RunEvent<'_>| {
+            if let Unit::Filing {
+                accession_number, ..
+            } = unit
+            {
+                observed_filings
+                    .lock()
+                    .expect(LOCK_EXPECT)
+                    .push(accession_number.to_string());
+            }
+        };
+
+        let expected_result = vec!["0000003545-26-000047", "0000003545-26-000048"];
+
+        Extraction::incremental()
+            .daily_filings()
+            .dates(dates)
+            .yesterday(date("2026-10-28"))
+            .sec_client(sec_client)
+            .repositories(repositories(&root))
+            .retry_delays([Duration::ZERO, Duration::ZERO])
+            .in_flight(1)
+            .run(observer)
+            .await;
+        let mut result = filing_events.lock().expect(LOCK_EXPECT).clone();
+        result.dedup();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_report_every_event_of_a_date_before_the_next_date_starts() {
+        let dates = [date("2026-10-26"), date("2026-10-27")];
+        let sec_client = sec_client();
+        let event_dates = Arc::new(Mutex::new(Vec::new()));
+        let observed_dates = Arc::clone(&event_dates);
+        let observer = move |unit: &Unit, _: RunEvent<'_>| {
+            let unit_date = match unit {
+                Unit::Date(date) | Unit::Filing { date, .. } | Unit::Company { date, .. } => *date,
+                _ => NaiveDate::MIN,
+            };
+            observed_dates.lock().expect(LOCK_EXPECT).push(unit_date);
+        };
+
+        let expected_result = vec![date("2026-10-26"), date("2026-10-27")];
+
+        run_observed(&temporary_root(), &dates, &sec_client, observer).await;
+        let mut result = event_dates.lock().expect(LOCK_EXPECT).clone();
+        result.dedup();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_record_one_execution_id_for_every_document_type_of_a_run() {
+        let root = temporary_root();
+        let dates = [date("2026-10-26")];
+        let sec_client = sec_client();
+        let metadata_files = [
+            "sec/daily-index/form.20261026.idx.meta.json",
+            "sec/filings/CIK0000003545/0000003545-26-000047/instance.xml.meta.json",
+            "sec/filings/CIK0000003545/0000003545-26-000047/lab.xml.meta.json",
+            "sec/submissions/CIK0000003545.json.meta.json",
+        ];
+
+        let expected_result = json!([
+            "00000000-0000-0000-0000-000000000007",
+            "00000000-0000-0000-0000-000000000007",
+            "00000000-0000-0000-0000-000000000007",
+            "00000000-0000-0000-0000-000000000007",
+        ]);
+
+        run_offline_in(&root, &dates, &sec_client).await;
+        let result: Value = metadata_files
+            .iter()
+            .map(|file| stored_metadata(&root, file)["execution_id"].clone())
+            .collect();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_report_a_retried_error_and_store_the_filing_when_a_503_is_followed_by_a_200() {
+        let dates = [date("2026-10-26")];
+        let sec_client = sec_client_with_folder(&[
+            (503, "text/html", b""),
+            (200, "application/json", FOLDER_INDEX),
+        ]);
+
+        let expected_result = json!({
+            "errors": [{
+                "context": { "date": "2026-10-26", "accession_number": "0000003545-26-000047" },
+                "kind": "retried",
+            }],
+            "stored": 1,
+        });
+
+        let (errors, summary) = run_reporting_errors(&dates, &sec_client).await;
+        let result =
+            json!({ "errors": errors, "stored": summary.entries()[0]["filings"]["stored"] });
+
+        assert_eq!(result, expected_result);
+    }
 }
 
-/// Runs the loop of `run.rs` for one past date against the live SEC, as the binary does.
+/// Runs the facade for one past date against the live SEC, as the binary does.
 mod live {
     use chrono::{NaiveDate, Utc};
     use pretty_assertions::assert_eq;
+    use sec::implementations::extraction::{DailyFilingsRepositories, Extraction};
     use sec::shared::http_client::implementations::reqwest_client::ReqwestClient;
     use sec::shared::http_client::implementations::sec_client::SecClient;
     use sec::shared::raw_document::RawDocument;
@@ -457,11 +605,8 @@ mod live {
     use serde_json::json;
     use storage::implementations::repository::filesystem::{FilesystemRepository, Write};
     use tempfile::TempDir;
-    use uuid::Uuid;
 
-    use crate::constants::RETRY_DELAYS;
     use crate::dates::new_york_yesterday;
-    use crate::run::{Repositories, Settings, run};
 
     /// A past weekday with few filings, so the test stays short: the Friday after Thanksgiving
     /// 2025. A run of it took 10 s on 2026-11-01.
@@ -483,8 +628,8 @@ mod live {
             .build()
     }
 
-    fn repositories(root: &TempDir) -> Repositories {
-        Repositories {
+    fn repositories(root: &TempDir) -> DailyFilingsRepositories {
+        DailyFilingsRepositories {
             daily_index: writer(root),
             instance: writer(root),
             labels: writer(root),
@@ -499,11 +644,6 @@ mod live {
         );
         let date = NaiveDate::parse_from_str(DATE, "%Y-%m-%d")
             .expect("Given a hardcoded valid date, parsing should always succeed");
-        let settings = Settings {
-            execution_id: Uuid::new_v4(),
-            yesterday: new_york_yesterday(Utc::now()),
-            retry_delays: RETRY_DELAYS.to_vec(),
-        };
 
         let expected_result = json!({
             "detection": "processed",
@@ -511,15 +651,14 @@ mod live {
             "stored_a_submissions_file": true,
         });
 
-        let summary = run(
-            &[date],
-            &sec_client(),
-            &repositories(&root),
-            &settings,
-            |_, _| {},
-            |_, _, _| {},
-        )
-        .await;
+        let summary = Extraction::incremental()
+            .daily_filings()
+            .dates([date])
+            .yesterday(new_york_yesterday(Utc::now()))
+            .sec_client(sec_client())
+            .repositories(repositories(&root))
+            .run(|_, _| {})
+            .await;
         let entry = &summary.entries()[0];
         let result = json!({
             "detection": entry["detection"],

@@ -1,6 +1,5 @@
 mod constants;
 mod dates;
-mod run;
 // Each binary is its own crate root, so it cannot import another binary's modules. `#[path]`
 // compiles each shared file into this binary as a private module, so all binaries build the
 // client and the store the same way.
@@ -19,14 +18,15 @@ use std::io::stdout;
 use std::time::Instant;
 
 use chrono::Utc;
+use sec::implementations::extraction::{
+    DailyFilingsRepositories, ErrorKind, Extraction, RunEvent, Unit,
+};
 use sec::prelude::{StreamError, StreamItem};
-use serde_json::Value;
 use tracing_subscriber::fmt::format::FmtSpan;
 use uuid::Uuid;
 
-use constants::{FROM_ENV_VAR, RETRY_DELAYS, TO_ENV_VAR};
+use constants::{FROM_ENV_VAR, TO_ENV_VAR};
 use dates::{new_york_yesterday, run_dates};
-use run::{ErrorKind, Repositories, Settings};
 use sec_client::{USER_AGENT_ENV_VAR, default_user_agent_warning, sec_client, startup_error_cause};
 use storage_root::{create_root, raw_writer};
 
@@ -86,7 +86,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
             context = %serde_json::json!({ "env_var": USER_AGENT_ENV_VAR }),
         );
     }
-    let repositories = Repositories {
+    let repositories = DailyFilingsRepositories {
         daily_index: raw_writer(),
         instance: raw_writer(),
         labels: raw_writer(),
@@ -102,23 +102,21 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
             }),
         );
     })?;
-    let execution_id = Uuid::new_v4();
-    let settings = Settings {
-        execution_id,
-        yesterday: new_york_yesterday(now),
-        retry_delays: RETRY_DELAYS.to_vec(),
-    };
+    let incremental = Extraction::incremental();
+    let execution_id = incremental.id();
     let start = Instant::now();
 
-    let summary = run::run(
-        &dates,
-        &sec_client,
-        &repositories,
-        &settings,
-        move |context, item| log_item(execution_id, context, item),
-        move |context, error, kind| log_error(execution_id, context, error, kind),
-    )
-    .await;
+    let summary = incremental
+        .daily_filings()
+        .dates(dates.iter().copied())
+        .yesterday(new_york_yesterday(now))
+        .sec_client(sec_client)
+        .repositories(repositories)
+        .run(move |unit, event| match event {
+            RunEvent::Item(item) => log_item(execution_id, unit, item),
+            RunEvent::Error(error, kind) => log_error(execution_id, unit, error, kind),
+        })
+        .await;
 
     let elapsed = start.elapsed();
     let context = serde_json::json!({
@@ -136,14 +134,14 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     Ok(())
 }
 
-/// Logs one successful stream item of the machine that `context` names.
-fn log_item(execution_id: Uuid, context: &Value, item: &StreamItem) {
+/// Logs one successful stream item of the machine of `unit`.
+fn log_item(execution_id: Uuid, unit: &Unit, item: &StreamItem) {
     tracing::info!(
         event = %item.event,
         message = %format!("{}: '{}'", item.event, item.state_name),
         context = %serde_json::json!({
             "execution_id": execution_id.to_string(),
-            "run": context,
+            "run": unit,
             "state": item.state_name,
             "event_duration_ms": item.event_duration.as_millis(),
             "data": item.data,
@@ -151,15 +149,15 @@ fn log_item(execution_id: Uuid, context: &Value, item: &StreamItem) {
     );
 }
 
-/// Logs one error of the machine that `context` names, at `error` level only if it fails the run.
+/// Logs one error of the machine of `unit`, at `error` level only if it fails the run.
 ///
 /// The other kinds are expected on a healthy run: a 503 that a retry fixes, a daily index that the
 /// SEC has not published yet, and a filing without an XBRL instance. They are `warn`.
-fn log_error(execution_id: Uuid, context: &Value, error: &StreamError, kind: ErrorKind) {
+fn log_error(execution_id: Uuid, unit: &Unit, error: &StreamError, kind: ErrorKind) {
     let message = error.source.to_string();
     let context = serde_json::json!({
         "execution_id": execution_id.to_string(),
-        "run": context,
+        "run": unit,
         "kind": kind.to_string(),
         "state": error.state_name,
         "data": error.data,
