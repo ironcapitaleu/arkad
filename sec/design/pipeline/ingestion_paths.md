@@ -254,14 +254,16 @@ observer: impl Fn(&Unit, RunEvent<'_>) + Send + Sync + 'static
   `Failed`. `main` picks the log level from the kind, and logs every kind but `Failed` as `warn`.
 - `Absent` marks a Notes file that the SEC answers with 403 or 404. The observer cannot know
   yet whether the file is unpublished, because the periods run out of order. The summary decides
-  at the end of the run, by the order of the period list. If the newest period is absent, it is
-  unpublished (at most `MAX_UNPUBLISHED`, 1). Any other absent period fails the run. So `result()`, not the kind, decides the exit code.
+  at the end of the run, by the order of the period list. The absent periods at the end of the
+  list are unpublished, at most `MAX_UNPUBLISHED` (1). Any other absent period fails the run. So `result()`, not the kind, decides the exit code.
 - Each source has its own summary type, with `result()` and `entries()`, as the binaries have
   today.
-- The summary of `all()` also has `cut_over_date()`. It returns the last day of the newest stored
-  Notes month. It fails if a Notes period failed, so a gap can never pass into the catch-up. It
-  also fails if no Notes period is stored, for example when every period is unpublished. A failed `submissions` CIK does not block the catch-up, but it fails `result()`. See
-  [Cut-Over Between the Paths](#cut-over-between-the-paths).
+- `NotesRunSummary`, the summary of `notes()`, also has `cut_over_date()`. It returns the last day
+  of the newest stored Notes month. It fails if a Notes period failed, so a gap can never pass
+  into the catch-up. It also fails if no Notes period is stored, for example when every period is
+  unpublished. The summary of `all()` passes it on. A failed `submissions` CIK does not block the
+  catch-up, but it fails `result()`. See [Cut-Over Between the Paths](#cut-over-between-the-paths).
+  So `backfill` needs only `notes()` until `all()` exists (decision of 2026-11-01).
 - The callback replaces a returned event stream. A stream gives the same timing, but each `main`
   then needs its own loop.
 
@@ -285,12 +287,10 @@ so a test can fix it.
 #### Ingestion Mode
 
 The handle sets the mode. `Backfill` passes `IngestionMode::Backfill` and `Incremental` passes
-`IngestionMode::Incremental` to the builder of each super-state. The constant `INGESTION_MODE` in
-`notes/mod.rs` and `company_facts/mod.rs`, and the fixed mode in `StoreDailyIndex` and
-`StoreFilingDocuments`, go away. The builders of `ExtractNotesSuperState`,
-`ExtractCompanyFactsSuperState`, `DetectFilingsSuperState`, and `ExtractFilingSuperState` take
-`.ingestion_mode(m)` and pass it on, as the builder of `ExtractSubmissionsSuperState` does today.
-So only the facade picks a mode, and a caller without the facade must name one.
+`IngestionMode::Incremental` to the builder of each super-state. Each extract builder takes
+`.ingestion_mode(m)` and passes it on to its store state (STA-363, ironcapitaleu/arkad#382). No
+super-state or store state fixes a mode itself. So only the facade picks a mode, and a caller
+without the facade must name one.
 
 #### Two Handles, No Type Parameters
 
@@ -1598,8 +1598,8 @@ Rules:
    month. To check, confirm that no entry in the run summary has a `failed_state`. If one does,
    rerun the backfill (rule 8). Then read the newest period in the run summary with the status
    `downloaded`, `already_stored`, or `replaced`. That period is the newest stored Notes month of
-   rule 1. Once the facade exists (STA-363), `cut_over_date()` of the backfill summary does this
-   check. It returns the last day of that month, or the error of the run if a period failed. See
+   rule 1. Once the facade exists, `NotesRunSummary::cut_over_date()` does this check. It returns
+   the last day of that month. It fails if a period failed or if no period is stored. See
    [Calling the Machines](#calling-the-machines). Do not rely on the calendar. In three samples, the SEC posted a month in the first 8
    days of the next month. But `2025_10_notes.zip` has a Last-Modified of 2025-12-01 (see
    [Notes ZIP Findings](#notes-zip-findings)).
