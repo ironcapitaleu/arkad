@@ -357,8 +357,8 @@ where
     Self: IntoStateMachineStream,
 {
     // Deviation: `into_run_stream` and `run_to_documents` repeat the run loop of
-    // `ExtractNotesSuperState`. STA-384 changes that super-state now, so a shared helper waits for
-    // a later PR.
+    // `ExtractNotesSuperState`. A shared helper in `stream.rs` changes that super-state too, so it
+    // gets its own PR.
     /// Returns the stream, tagged with the `execution_id` that the context holds.
     ///
     /// Use it instead of `into_stream`, so the stream and the stored documents name the same run.
