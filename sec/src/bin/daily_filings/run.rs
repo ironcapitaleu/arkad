@@ -6,6 +6,7 @@
 //! A date is pending if its daily index does not exist yet and a later run reads the date again.
 //! A filing is unextractable if its folder holds no XBRL instance. Neither fails the run.
 
+use std::fmt::{self, Display, Formatter};
 use std::future::Future;
 use std::time::Duration;
 
@@ -76,6 +77,18 @@ pub enum ErrorKind {
     Unextractable,
     /// The error fails the run.
     Failed,
+}
+
+impl Display for ErrorKind {
+    /// Writes the kind in lowercase, as the run summary writes its outcomes.
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.write_str(match self {
+            Self::Retried => "retried",
+            Self::Pending => "pending",
+            Self::Unextractable => "unextractable",
+            Self::Failed => "failed",
+        })
+    }
 }
 
 /// The outcome of one date.
@@ -674,6 +687,22 @@ mod tests {
 
     fn not_found() -> StreamError {
         request_error(StatusCode::NotFound)
+    }
+
+    #[test]
+    fn should_write_each_kind_in_lowercase_when_displayed() {
+        let kinds = [
+            ErrorKind::Retried,
+            ErrorKind::Pending,
+            ErrorKind::Unextractable,
+            ErrorKind::Failed,
+        ];
+
+        let expected_result = vec!["retried", "pending", "unextractable", "failed"];
+
+        let result: Vec<String> = kinds.iter().map(ToString::to_string).collect();
+
+        assert_eq!(result, expected_result);
     }
 
     #[test]

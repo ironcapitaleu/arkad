@@ -128,7 +128,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
         "duration_ms": elapsed.as_millis(),
         "dates": summary.entries(),
     });
-    let message = format!("Read {} dates in {elapsed:.2?}", dates.len());
+    let message = format!("Ran {} dates in {elapsed:.2?}", dates.len());
     summary.result().inspect_err(|error| {
         tracing::error!(event = %BatchEvent::Failed, message = %format!("{message}, {error}"), context = %context);
     })?;
@@ -160,7 +160,7 @@ fn log_error(execution_id: Uuid, context: &Value, error: &StreamError, kind: Err
     let context = serde_json::json!({
         "execution_id": execution_id.to_string(),
         "run": context,
-        "kind": format!("{kind:?}"),
+        "kind": kind.to_string(),
         "state": error.state_name,
         "data": error.data,
     });

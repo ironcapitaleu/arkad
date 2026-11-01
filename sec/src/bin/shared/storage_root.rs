@@ -33,11 +33,7 @@ pub type RawNotesArchiveWriter = FilesystemRepository<Write, RawDocument<RawNote
 /// If the variable is unset or empty, the root is [`DEFAULT_STORAGE_ROOT`]. Building touches no
 /// disk.
 pub fn raw_company_facts_writer() -> RawCompanyFactsWriter {
-    FilesystemRepository::builder()
-        .writer()
-        .document_type::<RawDocument<RawCompanyFacts>>()
-        .root(storage_root(env::var_os(STORAGE_ROOT_ENV_VAR)))
-        .build()
+    raw_writer()
 }
 
 /// Builds the [`RawNotesArchiveWriter`] for the root that `ARKAD_STORAGE_ROOT` names.
@@ -46,20 +42,13 @@ pub fn raw_company_facts_writer() -> RawCompanyFactsWriter {
 /// disk.
 #[allow(dead_code)]
 pub fn raw_notes_archive_writer() -> RawNotesArchiveWriter {
-    FilesystemRepository::builder()
-        .writer()
-        .document_type::<RawDocument<RawNotesArchive>>()
-        .root(storage_root(env::var_os(STORAGE_ROOT_ENV_VAR)))
-        .build()
+    raw_writer()
 }
 
 /// Builds a writer of the raw source `S` for the root that `ARKAD_STORAGE_ROOT` names.
 ///
 /// If the variable is unset or empty, the root is [`DEFAULT_STORAGE_ROOT`]. Building touches no
 /// disk.
-// Only `daily_filings` uses it. The other binaries include this file, so `dead_code` would fire
-// there.
-#[allow(dead_code)]
 pub fn raw_writer<S: RawSource>() -> FilesystemRepository<Write, RawDocument<S>> {
     FilesystemRepository::builder()
         .writer()

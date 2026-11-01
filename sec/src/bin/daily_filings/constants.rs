@@ -26,7 +26,7 @@ pub const IN_FLIGHT: usize = 4;
 
 /// The waits before the second and the third attempt of a machine that the SEC answered with 503.
 /// After the third attempt the machine fails.
-// Deviation: `Duration::from_mins` is not stable in Rust 1.90, the CI version, so the minute is
-// written in seconds. Rust 1.90 does not know the lint, hence `unknown_lints`.
+// Deviation: `Duration::from_mins` is not stable in Rust 1.90, the CI version, so the code writes
+// the minute in seconds. Rust 1.90 does not know the lint, hence `unknown_lints`.
 #[allow(unknown_lints, clippy::duration_suboptimal_units)]
 pub const RETRY_DELAYS: [Duration; 2] = [Duration::from_secs(10), Duration::from_secs(60)];

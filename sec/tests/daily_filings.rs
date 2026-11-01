@@ -146,7 +146,7 @@ mod run_loop {
                 errors
                     .lock()
                     .expect("Given a lock that no thread poisoned, locking should always succeed")
-                    .push(json!({ "context": context, "kind": format!("{kind:?}") }));
+                    .push(json!({ "context": context, "kind": kind.to_string() }));
             },
         )
         .await;
@@ -338,11 +338,11 @@ mod run_loop {
         let expected_result = vec![
             json!({
                 "context": { "date": "2026-10-26", "accession_number": "0000003545-26-000047" },
-                "kind": "Retried",
+                "kind": "retried",
             }),
             json!({
                 "context": { "date": "2026-10-26", "accession_number": "0000003545-26-000047" },
-                "kind": "Failed",
+                "kind": "failed",
             }),
         ];
 
@@ -358,7 +358,7 @@ mod run_loop {
 
         let expected_result = vec![json!({
             "context": { "date": "2026-10-27" },
-            "kind": "Pending",
+            "kind": "pending",
         })];
 
         let result = reported_errors(&dates, &sec_client).await;
@@ -377,7 +377,7 @@ mod run_loop {
 
         let expected_result = vec![json!({
             "context": { "date": "2026-10-26", "accession_number": "0000003545-26-000047" },
-            "kind": "Unextractable",
+            "kind": "unextractable",
         })];
 
         let result = reported_errors(&dates, &sec_client).await;
@@ -393,9 +393,10 @@ mod live {
     use sec::shared::http_client::implementations::reqwest_client::ReqwestClient;
     use sec::shared::http_client::implementations::sec_client::SecClient;
     use sec::shared::raw_document::RawDocument;
+    use sec::shared::raw_source::RawSource;
     use sec::shared::user_agent::UserAgent;
     use serde_json::json;
-    use storage::implementations::repository::filesystem::FilesystemRepository;
+    use storage::implementations::repository::filesystem::{FilesystemRepository, Write};
     use tempfile::TempDir;
     use uuid::Uuid;
 
@@ -415,28 +416,20 @@ mod live {
         SecClient::new(http_client)
     }
 
+    fn writer<S: RawSource>(root: &TempDir) -> FilesystemRepository<Write, RawDocument<S>> {
+        FilesystemRepository::builder()
+            .writer()
+            .document_type::<RawDocument<S>>()
+            .root(root.path())
+            .build()
+    }
+
     fn repositories(root: &TempDir) -> Repositories {
         Repositories {
-            daily_index: FilesystemRepository::builder()
-                .writer()
-                .document_type::<RawDocument<_>>()
-                .root(root.path())
-                .build(),
-            instance: FilesystemRepository::builder()
-                .writer()
-                .document_type::<RawDocument<_>>()
-                .root(root.path())
-                .build(),
-            labels: FilesystemRepository::builder()
-                .writer()
-                .document_type::<RawDocument<_>>()
-                .root(root.path())
-                .build(),
-            submissions: FilesystemRepository::builder()
-                .writer()
-                .document_type::<RawDocument<_>>()
-                .root(root.path())
-                .build(),
+            daily_index: writer(root),
+            instance: writer(root),
+            labels: writer(root),
+            submissions: writer(root),
         }
     }
 

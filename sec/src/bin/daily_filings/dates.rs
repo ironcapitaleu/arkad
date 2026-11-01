@@ -390,6 +390,20 @@ mod tests {
     }
 
     #[test]
+    fn should_return_the_new_york_yesterday_when_utc_is_already_the_next_day() {
+        // 23:00 on 31 October in New York (UTC-4). In UTC it is already 1 November.
+        let now = DateTime::parse_from_rfc3339("2026-11-01T03:00:00Z")
+            .expect("Given a hardcoded RFC 3339 time, parsing should always succeed")
+            .with_timezone(&Utc);
+
+        let expected_result = date("2026-10-30");
+
+        let result = new_york_yesterday(now);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
     fn should_use_summer_time_in_new_york_when_the_date_is_in_july() {
         let from = Some(OsString::from("yesterday"));
         let to = None;
