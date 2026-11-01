@@ -7,3 +7,5 @@
 mod constants;
 #[path = "../src/bin/daily_filings/dates.rs"]
 mod dates;
+#[path = "../src/bin/daily_filings/run.rs"]
+mod run;
