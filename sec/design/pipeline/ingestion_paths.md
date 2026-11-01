@@ -1194,7 +1194,7 @@ fail.
   window of 4 days fits in the task timeout. Every write is idempotent, so a second read writes no
   duplicate row.
 - A rerun of dates older than `yesterday-2` has no pending dates. A date without an index fails.
-- Later: STA-409 replaces the window with a bookmark, the last date that finished, read from the
+- Later: STA-403 replaces the window with a bookmark, the last date that finished, read from the
   store. A run then reads from the bookmark plus 1 through yesterday, and reads no date again.
 
 #### One Date
