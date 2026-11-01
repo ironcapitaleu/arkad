@@ -566,7 +566,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_record_the_sec_file_name_of_the_instance_in_the_requested_url() {
+    async fn should_record_the_sent_instance_url_when_the_response_came_from_a_redirect() {
         let (_, instances, _) = store_on_fakes(
             redirected_input(),
             FakeXbrlInstanceRepository::new(),
@@ -585,7 +585,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_record_the_sec_file_name_of_the_label_file_in_the_requested_url() {
+    async fn should_record_the_sent_labels_url_when_the_response_came_from_a_redirect() {
         let (_, _, labels) = store_on_fakes(
             redirected_input(),
             FakeXbrlInstanceRepository::new(),
@@ -691,10 +691,10 @@ mod tests {
             FakeXbrlInstanceRepository::new(),
             FakeXbrlLabelsRepository::new(),
         );
-        let _ = state.compute_output_data_async().await;
 
         let expected_result = true;
 
+        let _ = state.compute_output_data_async().await;
         let result = state.input_data().responses.is_some();
 
         assert_eq!(result, expected_result);

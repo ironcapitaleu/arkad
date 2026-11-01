@@ -71,7 +71,7 @@ flowchart TB
 
     subgraph FL["New filing: ExtractFilingSuperState, one per filing"]
         direction LR
-        F1["PrepareFilingIndexRequest"]:::new --> F2["ExecuteSecRequest"]:::reused --> F3["SelectFilingDocuments"]:::new --> F4["PrepareSecRequest"]:::reused --> F6["ExecuteSecRequest"]:::reused --> F5["StoreFilingDocuments"]:::new
+        F1["PrepareSecRequest"]:::reused --> F2["ExecuteSecRequest"]:::reused --> F3["SelectFilingDocuments"]:::new --> F4["PrepareSecRequest"]:::reused --> F6["ExecuteSecRequest"]:::reused --> F5["StoreFilingDocuments"]:::new
     end
 
     subgraph SB["Both paths: ExtractSubmissionsSuperState, one per company"]
@@ -147,7 +147,7 @@ asks for the inputs of that source:
 Extraction::backfill().notes().period(p).sec_client(c).repository(r).build()
 Extraction::backfill().submissions().cik(cik).sec_client(c).repository(r).build()
 Extraction::incremental().daily_index().date(d).sec_client(c).repository(r).build()
-Extraction::incremental().filing().filing_ref(f).sec_client(c).repository(r).build()
+Extraction::incremental().filing().filing_ref(f).sec_client(c).instance_repository(i).labels_repository(l).build()
 Extraction::incremental().submissions().cik(cik).sec_client(c).repository(r).build()
 ```
 
@@ -1042,11 +1042,21 @@ The shape of design 5:
   instance stays stored and the state returns `FailedDocumentWrite` with no output. A new run
   stores the same instance bytes, which `persist` skips, and writes the label file.
 
-Two items stay with STA-376:
+Decided in STA-376:
 
-- `SelectFilingDocuments` holds the accession number, not the `FilingRef`. The transition into
-  `PrepareSecRequest<FilingDocumentSet>` needs the `FilingRef`. The super-state or the context of
-  `SelectFilingDocuments` carries it.
+- The context of `ExtractFilingSuperState` holds the `FilingRef`. The transition into
+  `PrepareSecRequest<FilingDocumentSet>` takes `(SelectFilingDocuments, FilingRef)`, and the
+  super-state passes a clone of its `FilingRef`. `SelectFilingDocuments` keeps the accession
+  number only, because its rules need nothing else.
+  - The builder takes the `FilingRef` and puts it in the context. The super-state hands the SEC
+    client, the `execution_id`, and the repositories to its states from the context in the same
+    way.
+  - The transition compares the accession number of the `FilingRef` with the one of
+    `SelectFilingDocuments`. A mismatch fails with `FailedContextConversion`, because the request
+    URL follows the `FilingRef`.
+- The super-state holds the two repositories of `StoreFilingDocuments`. Its builder takes them
+  with `.instance_repository(…)` and `.labels_repository(…)`, the parameter names of the
+  transition into `StoreFilingDocuments`. A call to `build()` without both does not compile.
 - STA-376 does not write `index.json`. See Decision 3 of
   [Repository in the Machines](#repository-in-the-machines).
 
@@ -1413,7 +1423,7 @@ New filing and company data:
 7. FEATURE: the state `StoreDailyIndex`.
 8. FEATURE: the state `SelectFilings`.
 9. FEATURE: `DetectFilingsSuperState`, its transitions, and its builder.
-10. FEATURE: the states `PrepareFilingIndexRequest` and `SelectFilingDocuments`.
+10. FEATURE: the kind `FilingIndex` and the state `SelectFilingDocuments`.
 11. FEATURE: the traits `HasResponse` and `Executes<K>`, `XmlBody`, and the kinds `FilingDocument`
     and `FilingDocumentSet`.
 12. FEATURE: the state `StoreFilingDocuments` and `FilingDocumentsRef`.
