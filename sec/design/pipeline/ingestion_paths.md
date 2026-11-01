@@ -175,11 +175,11 @@ itself. `daily_filings` then keeps the store current. The binary `backfill` repl
 | - | ---------------- | ---------------- | --------------- |
 | Unit | Notes period | CIK of a fixed list | date, then filing, then CIK |
 | Loop | `buffer_unordered`, sorted by index after | `join_all` | dates in order, `buffered` per date |
-| Cap | `ARKAD_FILES_IN_FLIGHT`, default 2 | none, the rate limiter only | `IN_FLIGHT` = 4 |
+| Cap | `ARKAD_FILES_IN_FLIGHT`, default 2 | none, the rate limiter only | `DEFAULT_MACHINES_IN_FLIGHT` = 4 (facade, STA-415) |
 | Task per unit | `tokio::spawn` (STA-344, open in STA-360) | no | no |
 | Rules | skip of an intact stored file, unpublished at the end | none | 503 retry, pending, unextractable |
-| Summary | `NotesRunSummary`, `FailedBackfill` (facade, STA-414) | counts only | `RunSummary`, `FailedDailyRun` |
-| Logging | observer with `RunEvent` and `ErrorKind` (facade, STA-414) | inside its local `Extraction::run` | `on_item` and `on_error` with `ErrorKind` |
+| Summary | `NotesRunSummary`, `FailedBackfill` (facade, STA-414) | counts only | `DailyRunSummary`, `FailedDailyRun` (facade, STA-415) |
+| Logging | observer with `RunEvent` and `ErrorKind` (facade, STA-414) | inside its local `Extraction::run` | observer with `RunEvent` and `ErrorKind` (facade, STA-415) |
 | Exit | error if a period failed | always success | error if a date, filing, or CIK failed |
 
 Common to all three: the logger, the SEC client and its User-Agent warning, `create_root`, one
@@ -368,7 +368,6 @@ let recent = Extraction::incremental()
     .yesterday(yesterday)
     .sec_client(sec_client)
     .repositories(repositories)
-    .retry_delays(RETRY_DELAYS)
     .run(log_event)
     .await;
 log_summary(&recent);
@@ -383,7 +382,6 @@ let summary = Extraction::incremental()
     .yesterday(new_york_yesterday(now))
     .sec_client(sec_client)
     .repositories(repositories)
-    .retry_delays(RETRY_DELAYS)
     .run(log_event)
     .await;
 log_summary(&summary);
@@ -415,8 +413,8 @@ integration tests of the facade go in `sec/tests/`, with the fake SEC clients of
   optional dependencies behind that feature, because `backfill` and `daily_filings` need them.
 - The `Dockerfile` builds and runs `stream_extract`, and `README.md` documents it. So
   `stream_extract` stays a binary until STA-358 moves it, with the `Dockerfile` and `README.md`.
-- `sec/tests/notes_backfill.rs` calls the facade (STA-414). `sec/tests/daily_filings.rs` loads
-  `run.rs` through `#[path]`. When the facade takes this code, the test calls the facade instead.
+- `sec/tests/notes_backfill.rs` calls the facade (STA-414). `sec/tests/daily_filings.rs` calls
+  the facade too (STA-415).
 - `extraction`, a demo of `ExtractCompanyFactsSuperState`, and `stream_etl`, which also runs
   transform, stay outside the facade. STA-358 decides about `extraction`.
 ### Repository in the Machines
@@ -1365,8 +1363,8 @@ Decided in STA-376:
 > waits for review.
 
 `daily_filings` runs the new-filing path for a range of dates. It builds each super-state through
-`Extraction::incremental()` (STA-363). The run loop moves into the facade with item 4 of the
-facade list (STA-415).
+`Extraction::incremental()` (STA-363). The run loop is in the facade:
+`Extraction::incremental().daily_filings()` (STA-415).
 
 #### Dates
 
@@ -1417,7 +1415,7 @@ read in 4 runs:
 - A date that fails with `MissingDailyIndex` is **pending** if both hold: it is not the first date
   of the run, and it is from `yesterday-2` through yesterday. A pending date is logged
   as `warn` and does not set the error exit code. A later run reads it again. `PENDING_DAYS` (3) in
-  `constants.rs` holds the number of dates that can be pending.
+  the facade holds the number of dates that can be pending.
 - Every other date that fails with `MissingDailyIndex` fails the run. For the scheduled run, the
   first date is `yesterday-3`, and this run is its last. No later run reads that date, so it must
   not leave the window without an alert.
@@ -1461,10 +1459,10 @@ All super-states of one run share one `execution_id`. For each date, in this ord
    empty list and no index once a later index exists. Before that, the date is pending (see
    [Window](#window)).
 2. One `ExtractFilingSuperState` for each `FilingRef`, with the daily index as its input.
-   `run_to_documents` returns the `FilingDocumentsRef`. At most `IN_FLIGHT` machines run at once, a constant of 4. The global
+   `run_to_documents` returns the `FilingDocumentsRef`. At most `in_flight(n)` machines run at once, by default `DEFAULT_MACHINES_IN_FLIGHT` (4). The global
    rate limiter of `SecClient` caps the requests, so a value above 4 does not make the run faster.
 3. One `ExtractSubmissionsSuperState` for each distinct CIK of the selected filings, with the
-   ingestion mode `incremental`, and the same cap of `IN_FLIGHT`. It runs for the CIK of a failed
+   ingestion mode `incremental`, and the same cap. It runs for the CIK of a failed
    filing too, because the company data does not depend on the filing.
 
 The dates run one after another, so each entry of the summary belongs to one date.
@@ -1495,9 +1493,9 @@ Each machine ends in one of four outcomes:
 - A filing comes from the SEC's own daily index, so its folder exists. The binary never treats a
   404 or a 503 for a filing as absent, and calls no `is_absent_file` on the filing path.
 - A filing or `submissions` machine that fails with a 503 runs again, up to 3 times in all, once
-  more after each of the `RETRY_DELAYS` of 10 s and 60 s. The retry covers a 503 that lasts at most about 70 s. A longer
+  more after each of the `DEFAULT_RETRY_DELAYS` of 10 s and 60 s. The retry covers a 503 that lasts at most about 70 s. A longer
   one fails the machine, and the Cloud Run retry of the job covers it. The retry lives in the
-  binary's loop, not in `SecClient`, so the other paths keep their behavior.
+  run loop of the facade, not in `SecClient`, so the other paths keep their behavior.
 - A new check `FailedSecRequest::is_unavailable` finds a 503, next to `is_absent_file`. Like
   `is_absent_file`, it looks through `FailedFilingDocument`, so a 503 for the instance or the label
   file counts too.
@@ -1524,14 +1522,15 @@ JSON logs with the five fields of `AGENTS.md`, as in `notes_backfill`:
 
 #### Module Layout
 
-`sec/src/bin/daily_filings/`, built like `notes_backfill`:
+`sec/src/bin/daily_filings/` and the facade, built like `notes_backfill`:
 
 | File | Holds |
 | ---- | ----- |
-| `main.rs` | Logging, startup, the call of `run`, the summary, the exit code |
+| `main.rs` | Logging, startup, the call of the facade, the summary, the exit code |
 | `dates.rs` | Parses `ARKAD_FROM` and `ARKAD_TO` against today in New York, and returns the dates |
-| `run.rs` | The loop over the dates and the three steps, the retry, and the `RunSummary` |
-| `constants.rs` | The variable names, `IN_FLIGHT`, `RETRY_DELAYS`, and `PENDING_DAYS` |
+| `constants.rs` | The variable names |
+| `extraction/daily_filings/mod.rs` (library) | The builder, the loop over the dates and the three steps, the retry, and the defaults |
+| `extraction/daily_filings/summary.rs` (library) | The `DailyRunSummary` and the rules for pending, unextractable, and 503 |
 
 - `dates.rs` takes "now" as an argument, so its tests set the clock, for example 02:00 UTC.
 - `run` takes the retry delays and yesterday as arguments, so its tests pass zero delays and a
@@ -1546,14 +1545,14 @@ A binary links the library built without `cfg(test)`, so the fixtures of `sec`, 
 feature, and stays in `[dev-dependencies]` for the library's own unit tests. `RoutingSecClient`
 answers each URL with one fixed response. PR 2 adds a route that serves a list of responses in
 order, for the test of a 503 followed by a 200. `sec` names itself as a dev-dependency with the feature, so the integration tests enable
-it. `sec/tests/daily_filings.rs` includes the binary's modules through `#[path]`, so the
-`integration-tests` job of CI runs their tests.
+it. `sec/tests/daily_filings.rs` includes `dates.rs` and `constants.rs` through `#[path]`, so the
+`integration-tests` job of CI runs their tests. It runs the facade offline and live.
 
 - `dates.rs`: `yesterday` alone, `yesterday-3`, a range, one day, `ARKAD_FROM` unset, a value
   that does not parse, `yesterday-N` with a zero, a sign, or a leading zero, `ARKAD_FROM` after
   `ARKAD_TO`, `ARKAD_TO` of today or later, and 02:00 UTC, which gives the New York date of the
   day before.
-- `run.rs`, offline with `RoutingSecClient` and a temp-dir store: two dates, a weekday with
+- The facade, offline with `RoutingSecClient` and a temp-dir store: two dates, a weekday with
   filings and a weekend day without; a 503 that clears on the second attempt; a 503 on every
   attempt, which fails the filing and still runs the `submissions` machine; a folder without an
   instance, which is unextractable and leaves the exit code alone; a folder with two instances,
