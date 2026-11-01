@@ -20,7 +20,8 @@ use crate::constants::PENDING_DAYS;
 /// The outcome of one date.
 #[derive(Debug)]
 pub enum DateOutcome {
-    /// Detection returned the selected filings, and the run extracted each one and its company.
+    /// Detection returned the selected filings, and the run tried to extract each one and its
+    /// company.
     Processed {
         /// The outcome of each selected filing.
         filings: Vec<FilingOutcome>,
@@ -57,7 +58,9 @@ pub struct RunSummary(pub Vec<(NaiveDate, DateOutcome)>);
 
 /// The error of a run in which at least one date, filing, or `submissions` file failed.
 #[derive(Debug, Error, PartialEq, Eq)]
-#[error("[FailedDailyRun] {failures} failures in {dates} dates")]
+#[error(
+    "[FailedDailyRun] A run of {dates} dates has {failures} failed dates, filings, or submissions files"
+)]
 pub struct FailedDailyRun {
     /// The number of failed dates, filings, and `submissions` files.
     pub failures: usize,
@@ -69,8 +72,9 @@ pub struct FailedDailyRun {
 /// yet, and a later run reads `date` again.
 ///
 /// That holds if `error` is a `MissingDailyIndex`, `date` is not `first_date`, and `date` is one
-/// of the [`PENDING_DAYS`] days that end with `yesterday`. A run never reads its first date again,
-/// so a missing index there fails the run.
+/// of the [`PENDING_DAYS`] days that end with `yesterday`. The first date of a run can be its last
+/// read, for example `yesterday-3` in the scheduled run, so a missing index there fails the run.
+/// This keeps the rule safe whatever window the job sets.
 pub fn is_pending(
     error: &StreamError,
     date: NaiveDate,
@@ -121,7 +125,7 @@ impl RunSummary {
     }
 
     /// Returns the number of failed dates, filings, and `submissions` files.
-    pub fn failure_count(&self) -> usize {
+    fn failure_count(&self) -> usize {
         self.0
             .iter()
             .map(|(_, outcome)| match outcome {
@@ -321,52 +325,56 @@ mod tests {
 
     #[test]
     fn should_count_a_missing_index_as_pending_when_the_date_is_two_days_before_yesterday() {
+        let run_date = date("2026-10-29");
         let error = missing_daily_index("2026-10-29");
         let first_date = date("2026-10-28");
         let yesterday = date("2026-10-31");
 
         let expected_result = true;
 
-        let result = is_pending(&error, date("2026-10-29"), first_date, yesterday);
+        let result = is_pending(&error, run_date, first_date, yesterday);
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_not_count_a_missing_index_as_pending_when_the_date_is_three_days_before_yesterday() {
+        let run_date = date("2026-10-28");
         let error = missing_daily_index("2026-10-28");
         let first_date = date("2026-10-27");
         let yesterday = date("2026-10-31");
 
         let expected_result = false;
 
-        let result = is_pending(&error, date("2026-10-28"), first_date, yesterday);
+        let result = is_pending(&error, run_date, first_date, yesterday);
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_not_count_a_missing_index_as_pending_when_the_date_is_the_first_date() {
+        let run_date = date("2026-10-31");
         let error = missing_daily_index("2026-10-31");
         let first_date = date("2026-10-31");
         let yesterday = date("2026-10-31");
 
         let expected_result = false;
 
-        let result = is_pending(&error, date("2026-10-31"), first_date, yesterday);
+        let result = is_pending(&error, run_date, first_date, yesterday);
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_not_count_another_detection_error_as_pending_when_the_date_is_yesterday() {
+        let run_date = date("2026-10-31");
         let error = configuration_error();
         let first_date = date("2026-10-28");
         let yesterday = date("2026-10-31");
 
         let expected_result = false;
 
-        let result = is_pending(&error, date("2026-10-31"), first_date, yesterday);
+        let result = is_pending(&error, run_date, first_date, yesterday);
 
         assert_eq!(result, expected_result);
     }
@@ -389,6 +397,56 @@ mod tests {
         let expected_result = false;
 
         let result = is_unextractable(&error);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_not_count_a_filing_as_unextractable_when_another_error_failed_it() {
+        let error = configuration_error();
+
+        let expected_result = false;
+
+        let result = is_unextractable(&error);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_list_each_failed_filing_and_submissions_file_when_a_date_is_processed() {
+        let summary = RunSummary(vec![(
+            date("2026-10-30"),
+            processed(
+                vec![Err(ambiguous_instance())],
+                vec![Err(configuration_error())],
+            ),
+        )]);
+
+        let expected_result = vec![json!({
+            "date": "2026-10-30",
+            "detection": "processed",
+            "filings": {
+                "selected": 1,
+                "stored": 0,
+                "unextractable": [],
+                "failed": [{
+                    "accession_number": "0000003545-26-000047",
+                    "failed_state": "Select Filing Documents",
+                    "error": "[StreamError][00000000-0000-0000-0000-000000000000] 'state_failed' in 'Select Filing Documents', Caused by: Problem occurred during internal state operations: '[StateError] A state level error occurred, Caused by: [FailedDocumentSelection] Failure in State: 'Select Filing Documents', Caused by: [AmbiguousFilingDocument] The folder of filing '0000003545-26-000047' holds 2 candidates for the XBRL instance'",
+                }],
+            },
+            "submissions": {
+                "companies": 1,
+                "stored": 0,
+                "failed": [{
+                    "cik": "0000003545",
+                    "failed_state": "Validate CIK Format",
+                    "error": "[StreamError][00000000-0000-0000-0000-000000000000] 'state_failed' in 'Validate CIK Format', Caused by: Invalid configuration of the state machine",
+                }],
+            },
+        })];
+
+        let result = summary.entries();
 
         assert_eq!(result, expected_result);
     }
@@ -446,7 +504,8 @@ mod tests {
             dates: 2,
         };
 
-        let expected_result = "[FailedDailyRun] 3 failures in 2 dates";
+        let expected_result =
+            "[FailedDailyRun] A run of 2 dates has 3 failed dates, filings, or submissions files";
 
         let result = error.to_string();
 
