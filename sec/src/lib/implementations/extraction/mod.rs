@@ -6,8 +6,9 @@
 //! [`Extraction::incremental`]. The second call picks the source and returns the typestate builder
 //! of that source's super-state, with the run's `execution_id` and ingestion mode already set.
 //! Each [`build`] returns the concrete super-state. The Notes source also runs a batch of periods
-//! with [`BackfillNotes::periods`], and the Company Facts source a batch of CIKs with
-//! [`BackfillCompanyFacts::ciks`].
+//! with [`BackfillNotes::periods`], the Company Facts source a batch of CIKs with
+//! [`BackfillCompanyFacts::ciks`], and the new-filing path runs many dates with
+//! [`Incremental::daily_filings`].
 //!
 //! [`build`]: crate::implementations::states::extract::notes::builder::ExtractNotesSuperStateBuilder::build
 //!
@@ -15,6 +16,7 @@
 //!
 //! - [`company_facts`]: The Company Facts source of a backfill run, and its batch run over many
 //!   CIKs.
+//! - [`daily_filings`]: The new-filing path of an incremental run over many dates.
 //! - [`notes`]: The Notes source of a backfill run, and its batch run over many periods.
 //! - [`run_event`]: The events that a batch run passes to its observer.
 //!
@@ -100,6 +102,49 @@
 //! # }
 //! ```
 //!
+//! The new-filing path runs the dates in order. For each date, it detects the filings, then
+//! extracts each filing and the `submissions` file of each company:
+//!
+//! ```no_run
+//! # async fn example() {
+//! use chrono::NaiveDate;
+//! use sec::implementations::extraction::{DailyFilingsRepositories, Extraction, RunEvent};
+//! use sec::shared::http_client::implementations::sec_client::SecClient;
+//! use sec::shared::raw_document::RawDocument;
+//! use sec::shared::raw_source::RawSource;
+//! use storage::implementations::repository::filesystem::{FilesystemRepository, Write};
+//!
+//! fn writer<S: RawSource>() -> FilesystemRepository<Write, RawDocument<S>> {
+//!     FilesystemRepository::builder()
+//!         .writer()
+//!         .document_type::<RawDocument<S>>()
+//!         .root("data")
+//!         .build()
+//! }
+//!
+//! let repositories = DailyFilingsRepositories {
+//!     daily_index: writer(),
+//!     instance: writer(),
+//!     labels: writer(),
+//!     submissions: writer(),
+//! };
+//! let yesterday = NaiveDate::from_ymd_opt(2026, 10, 31).expect("a valid date");
+//! let dates = vec![NaiveDate::from_ymd_opt(2026, 10, 28).expect("a valid date"), yesterday];
+//! let summary = Extraction::incremental()
+//!     .daily_filings()
+//!     .dates(dates)
+//!     .yesterday(yesterday)
+//!     .sec_client(SecClient::default())
+//!     .repositories(repositories)
+//!     .run(|unit, event| {
+//!         if let RunEvent::Error(error, kind) = event {
+//!             eprintln!("{unit}: {kind}: {error}");
+//!         }
+//!     })
+//!     .await;
+//! # }
+//! ```
+//!
 //! An incremental run builds the machines of the new-filing path:
 //!
 //! ```no_run
@@ -142,12 +187,18 @@ use crate::shared::raw_repository::RawRepository;
 use crate::shared::raw_source::{RawDailyIndex, RawSubmissions, RawXbrlInstance, RawXbrlLabels};
 
 pub mod company_facts;
+pub mod daily_filings;
 pub mod notes;
 pub mod run_event;
 
 pub use company_facts::{
     BackfillCompanyFacts, CompanyFactsBatchBuilder, CompanyFactsRunSummary, DEFAULT_CIKS_IN_FLIGHT,
     FailedCompanyFactsBackfill,
+};
+pub use daily_filings::{
+    DEFAULT_MACHINES_IN_FLIGHT, DEFAULT_RETRY_DELAYS, DailyClient, DailyFilingsBuilder,
+    DailyFilingsRepositories, DailyRunSummary, FailedDailyRun, IncrementalDailyFilings,
+    PENDING_DAYS,
 };
 pub use notes::{
     BackfillNotes, DEFAULT_FILES_IN_FLIGHT, FailedBackfill, MAX_UNPUBLISHED, MissingCutOverDate,
@@ -301,6 +352,13 @@ impl Incremental {
         ExtractSubmissionsSuperState::builder()
             .execution_id(self.execution_id)
             .ingestion_mode(IngestionMode::Incremental)
+    }
+
+    /// Returns the new-filing path of the run. Pick the dates with
+    /// [`IncrementalDailyFilings::dates`].
+    #[must_use]
+    pub const fn daily_filings(&self) -> IncrementalDailyFilings {
+        IncrementalDailyFilings::new(*self)
     }
 }
 
