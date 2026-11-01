@@ -53,16 +53,15 @@ loops over CIKs today. Fork and join replaces the loops later (STA-329).
 flowchart TB
     classDef reused fill:#d9ead3,stroke:#38761d
     classDef new fill:#fff2cc,stroke:#bf9000
-    classDef impl fill:#cfe2f3,stroke:#3d85c6
 
     subgraph CF["ExtractCompanyFactsSuperState (exists, renamed)"]
         direction LR
-        CF1["ValidateCikFormat"]:::reused --> CF2["PrepareSecRequest"]:::reused --> CF3["ExecuteSecRequest"]:::reused --> CF4["StoreSecResponse&lt;CompanyFacts&gt;"]:::impl
+        CF1["ValidateCikFormat"]:::reused --> CF2["PrepareSecRequest"]:::reused --> CF3["ExecuteSecRequest"]:::reused --> CF4["StoreSecResponse&lt;CompanyFacts&gt;"]:::reused
     end
 
     subgraph BF["Backfill: ExtractNotesSuperState, one per Notes file"]
         direction LR
-        N1["ValidateNotesPeriod"]:::new --> N2["PrepareSecRequest"]:::reused --> N3["ExecuteSecRequest"]:::reused --> N4["StoreSecResponse&lt;NotesFile&gt;"]:::impl
+        N1["ValidateNotesPeriod"]:::new --> N2["PrepareSecRequest"]:::reused --> N3["ExecuteSecRequest"]:::reused --> N4["StoreSecResponse&lt;NotesFile&gt;"]:::reused
     end
 
     subgraph DT["New filing: DetectFilingsSuperState, one per day"]
@@ -87,12 +86,12 @@ flowchart TB
     SB -- "SubmissionsRef" --> TN
 ```
 
-Green states exist today. `PrepareSecRequest` is generic over the request kind. The Notes path
-uses it with the `NotesFile` kind, under the alias `PrepareNotesRequest`. The Submissions path
-reuses it with a new kind.
+Green states exist today. They are generic over the request kind, and a path reuses them with its
+kind. Each kind implements the trait the state bounds: `RequestKind` for `PrepareSecRequest`,
+`RespondsWith` for `ExecuteSecRequest`, and `StoredAs` for `StoreSecResponse`. See
+[Store Step](#store-step). The Notes path uses `PrepareSecRequest` with the `NotesFile` kind,
+under the alias `PrepareNotesRequest`. The Submissions path reuses it with a new kind.
 Yellow states are new.
-Blue states are the generic `StoreSecResponse` state with one `StoredAs` impl of the kind. See
-[Store Step](#store-step).
 
 ### Store Step
 
