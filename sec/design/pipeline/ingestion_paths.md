@@ -1160,18 +1160,18 @@ read in 4 runs:
 - A date whose index exists is processed.
 - A date without an index, but with a later index, counts as empty.
 - A date that fails with `MissingDailyIndex` is **pending** if both hold: it is not the first date
-  of the run, and it is from 2 days before yesterday through yesterday. A pending date is logged
+  of the run, and it is from `yesterday-2` through yesterday. A pending date is logged
   as `warn` and does not set the error exit code. A later run reads it again. `PENDING_DAYS` (3) in
   `constants.rs` holds the number of dates that can be pending.
 - Every other date that fails with `MissingDailyIndex` fails the run. For the scheduled run, the
-  first date is 3 days before yesterday, the date's last run. No later run reads that date, so it
-  must not leave the window without an alert.
+  first date is `yesterday-3`, and this run is its last. No later run reads that date, so it must
+  not leave the window without an alert.
 
 The first date of a run is never pending, so the rule does not depend on the size of the window.
-If an operator shortens the window to `yesterday-2`, its first date fails when it has no index. The
-error is a false alarm on some Mondays, but no date leaves the window without an alert. The same
-holds for a run of one exact date (`ARKAD_FROM` and `ARKAD_TO` set to that date): a missing index
-always fails it.
+If an operator shortens the window to `yesterday-2`, its first date fails when it has no index and
+no later index exists. That is a false alarm on the Tuesday after a Monday holiday, but no date
+leaves the window without an alert. The same holds for a run of one exact date (`ARKAD_FROM` and
+`ARKAD_TO` set to that date): `MissingDailyIndex` always fails it.
 
 The size is 4 because the longest regular closure is 3 days, a weekend with a Monday holiday. The
 closed days stay in the window until the next business day's index exists:
@@ -1237,7 +1237,7 @@ Each machine ends in one of four outcomes:
 - A filing comes from the SEC's own daily index, so its folder exists. The binary never treats a
   404 or a 503 for a filing as absent, and calls no `is_absent_file` on the filing path.
 - A filing or `submissions` machine that fails with a 503 runs again, up to `ATTEMPTS` (3) times in
-  all, after `RETRY_DELAYS` of 10 s and 60 s. The retry covers a short outage of the SEC. A longer
+  all, after `RETRY_DELAYS` of 10 s and 60 s. The retry covers a 503 that lasts at most about 70 s. A longer
   one fails the machine, and the Cloud Run retry of the job covers it. The retry lives in the
   binary's loop, not in `SecClient`, so the other paths keep their behavior.
 - A new check `FailedSecRequest::is_unavailable` finds a 503, next to `is_absent_file`. Like
@@ -1298,7 +1298,8 @@ it. `sec/tests/daily_filings.rs` includes the binary's modules through `#[path]`
   filings and a weekend day without; a 503 that clears on the second attempt; a 503 on every
   attempt, which fails the filing and still runs the `submissions` machine; a folder without an
   instance, which is unextractable and leaves the exit code alone; a folder with two instances,
-  which fails; a missing index on `yesterday-2`, not the first date, which is pending and leaves
+  which fails; a missing index on `yesterday-2`, not the first date, with an index on `yesterday-3` so that the
+  first date passes, which is pending and leaves
   the exit code alone; a missing index on `yesterday-3`, the first date, which fails; a missing
   index on yesterday as the only date of the run, which fails; the ingestion mode `incremental`
   in the metadata of each of the four document types.
@@ -1364,6 +1365,7 @@ Assumptions:
 | A3 | The daily index lists every filing of its day, and the SEC does not change it after publication | Unverified | A late change is lost. A rerun of that date picks it up. |
 | A4 | The SEC replaces old Notes files after the backfill, for example `2025q3` on 2026-10-07 | Measured | The backfill does not pick up the change. An amendment reaches the new-filing path as its own filing (10-K/A, 10-Q/A). |
 | A5 | CIK and accession number never change and are never reused | Unverified, SEC practice | Idempotent writes on these keys merge two different things |
+| A6 | The SEC publishes the daily indexes in date order | Unverified | The 404 rule counts a date as empty once a later index exists. An index published after a later one is lost with no alert. A rerun of that date picks it up. |
 
 ### Idempotent Writes
 
