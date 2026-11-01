@@ -323,7 +323,7 @@ flowchart LR
     DF["daily_filings (binary)"]
     EX["stream_extract (deprecated example)"]
     subgraph facade["Extraction"]
-        ALL["backfill().all()"]
+        ALL["backfill().all()<br/>(notes() until item 5 lands)"]
         DFS["incremental().daily_filings()"]
         CF["backfill().company_facts()"]
     end
@@ -349,7 +349,7 @@ Startup, the logger, and the summary log stay as today. The run becomes one or t
 let now = Utc::now();
 let backfill = Extraction::backfill();
 let past = backfill
-    .all()
+    .all() // backfill().notes() until item 5 of the facade list lands
     .periods(notes_periods(now.date_naive()))
     .sec_client(sec_client.clone())
     .repositories(repositories.clone())
@@ -1968,7 +1968,8 @@ Moved code does not count toward the 400 lines.
    into the facade. `daily_filings` and `sec/tests/daily_filings.rs` call it (STA-415).
 5. FEATURE: `backfill().submissions().ciks(…).run()` and the pipeline `backfill().all()`, which
    passes on `cut_over_date()` (STA-377, parked until STA-417 decides the source of company data).
-6. FEATURE: the binary `backfill` with its two calls. A Notes-only copy of `notes_backfill` moves
+6. FEATURE: the binary `backfill` with its two calls. Its first call is `backfill().notes()` until
+   item 5 lands, then `backfill().all()`. A Notes-only copy of `notes_backfill` moves
    to `sec/examples/` as deprecated, with its `#[path]` changes and `[[example]]` entry (STA-416).
 7. FEATURE: `backfill().company_facts()`. `stream_extract` runs on it and moves to
    `sec/examples/`, with the `Dockerfile` and `README.md` (STA-358).
