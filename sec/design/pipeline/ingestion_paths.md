@@ -91,7 +91,7 @@ generic over the request kind, and a path reuses them with its kind. Each kind i
 the state bounds: `RequestKind` for `PrepareSecRequest`, `RespondsWith` for `ExecuteSecRequest`,
 and `StoredAs` for `StoreSecResponse`. See [Store Step](#store-step). The Notes path uses
 `PrepareSecRequest` with the `NotesFile` kind, under the alias `PrepareNotesRequest`. The
-Submissions path reuses all three with a new kind.
+Submissions path reuses `PrepareSecRequest` and `ExecuteSecRequest` with a new kind.
 Yellow states are new.
 
 ### Store Step
@@ -191,7 +191,7 @@ None of them reads it. Only the store states at the end of each machine read it.
 | Validate date → prepare | `transitions/from/validate_index_date/prepare_daily_index_request.rs:38` | Takes it from the super-state and puts it into the prepare context. |
 | Prepare → execute | `transitions/from/prepare_sec_request/execute_sec_request.rs:62` | Moves it from the prepare context into the execute context. |
 | Prepare → download | `transitions/from/prepare_sec_request/download_daily_index.rs:38` | Drops it. `DownloadDailyIndex` has no repository. |
-| Execute → store | `transitions/from/execute_sec_request/store_sec_response.rs:100`, `store_notes_archive.rs:92`, `store_submissions.rs:102` | Moves it from the execute context into the store context. |
+| Execute → store | `transitions/from/execute_sec_request/store_sec_response.rs:94`, `store_submissions.rs:102` | Moves it from the execute context into the store context. |
 | Download → store | `transitions/from/download_daily_index/store_daily_index.rs:42` | Takes it from the super-state. |
 | `ExtractCompanyFactsSuperStateContext` | `states/extract/company_facts/mod.rs:124` | Holds a second copy. No transition reads it. |
 | `DetectFilingsSuperStateContext` | `states/extract/daily_index/mod.rs:111` | Holds it and passes a clone to two transitions (lines 373 and 435). |
