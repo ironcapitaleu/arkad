@@ -61,6 +61,9 @@ impl<C> TryFrom<(ExecuteSecRequest<FilingIndex, C>, Uuid)> for SelectFilingDocum
             SELECT_FILING_DOCUMENTS,
         )?;
 
+        // Deviation: the reason holds the text of the inner error, so the chain nests one
+        // `Reason:` in another, not `Caused by:`. The lead decided this form in STA-371, and
+        // `FailedOutputConversion` carries no source.
         let folder_index = FolderIndex::try_from(output_data.response()).map_err(|e| {
             transition::FailedOutputConversion::new(
                 EXECUTE_SEC_REQUEST,
@@ -155,27 +158,25 @@ mod tests {
         state
     }
 
-    async fn select(folder_index_body: &[u8]) -> Result<SelectFilingDocuments, TransitionError> {
-        let state = execute_with_output(
+    async fn computed_source(folder_index_body: &[u8]) -> TestExecute {
+        execute_with_output(
             folder_index_body,
             filing(ACCESSION_NUMBER),
             filing(ACCESSION_NUMBER),
         )
-        .await;
-        SelectFilingDocuments::try_from((state, SAMPLE_EXECUTION_ID))
+        .await
     }
 
     #[tokio::test]
     async fn should_parse_the_response_into_the_folder_index_when_source_has_output() {
-        let folder_index_body = FOLDER_INDEX;
+        let state = computed_source(FOLDER_INDEX).await;
 
         let expected_result = FolderIndex::new(vec![
             "alco-20260908_htm.xml".to_string(),
             "alco-20260908_lab.xml".to_string(),
         ]);
 
-        let result = select(folder_index_body)
-            .await
+        let result = SelectFilingDocuments::try_from((state, SAMPLE_EXECUTION_ID))
             .expect(
                 "Given a source state with a folder index, the transition should always succeed",
             )
@@ -188,12 +189,11 @@ mod tests {
 
     #[tokio::test]
     async fn should_take_the_accession_number_from_the_context_when_source_has_output() {
-        let folder_index_body = FOLDER_INDEX;
+        let state = computed_source(FOLDER_INDEX).await;
 
         let expected_result = accession_number(ACCESSION_NUMBER);
 
-        let result = select(folder_index_body)
-            .await
+        let result = SelectFilingDocuments::try_from((state, SAMPLE_EXECUTION_ID))
             .expect(
                 "Given a source state with a folder index, the transition should always succeed",
             )
@@ -206,12 +206,11 @@ mod tests {
 
     #[tokio::test]
     async fn should_take_the_execution_id_from_the_run_when_source_has_output() {
-        let folder_index_body = FOLDER_INDEX;
+        let state = computed_source(FOLDER_INDEX).await;
 
         let expected_result = SelectFilingDocumentsContext::new(SAMPLE_EXECUTION_ID);
 
-        let result = select(folder_index_body)
-            .await
+        let result = SelectFilingDocuments::try_from((state, SAMPLE_EXECUTION_ID))
             .expect(
                 "Given a source state with a folder index, the transition should always succeed",
             )
@@ -224,7 +223,7 @@ mod tests {
     #[tokio::test]
     async fn should_return_failed_output_conversion_naming_the_url_when_the_body_has_no_directory()
     {
-        let folder_index_body = b"{}";
+        let state = computed_source(b"{}").await;
 
         let expected_result = Err(TransitionError::FailedOutputConversion(
             transition::FailedOutputConversion::new(
@@ -234,7 +233,7 @@ mod tests {
             ),
         ));
 
-        let result = select(folder_index_body).await;
+        let result = SelectFilingDocuments::try_from((state, SAMPLE_EXECUTION_ID));
 
         assert_eq!(result, expected_result);
     }
