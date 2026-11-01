@@ -167,8 +167,8 @@ Two binaries run the facade:
 
 So one run of `backfill` extracts everything up to yesterday, and it sets the cut-over date
 itself. `daily_filings` then keeps the store current. The binary `backfill` replaces
-`notes_backfill`. A Notes-only copy of `notes_backfill` and `stream_extract` move to
-`sec/examples/` as deprecated examples. See [Deprecated Binaries](#deprecated-binaries).
+`notes_backfill`. A Notes-only copy of `notes_backfill` moves to `sec/examples/` as a deprecated
+example. `stream_extract` is there already. See [Deprecated Binaries](#deprecated-binaries).
 
 #### What the Binaries Run Today
 
@@ -407,8 +407,8 @@ summary.result()?;
 
 #### Deprecated Binaries
 
-A Notes-only copy of `notes_backfill` moves to `sec/examples/` in ticket 6, and `stream_extract`
-moved in ticket 7 (STA-358). Each gets a header comment that marks it deprecated. CI runs `cargo clippy --workspace --all-targets
+A Notes-only copy of `notes_backfill` moves to `sec/examples/` in ticket 6. `stream_extract` is
+there already (ticket 7, STA-358). Each gets a header comment that marks it deprecated. CI runs `cargo clippy --workspace --all-targets
 --all-features`, which compiles the examples, so the build keeps them on the current facade.
 `cargo test` in CI does not build them. They are the reference for a run of one source against the live SEC. The hermetic
 integration tests of the facade go in `sec/tests/`, with the fake SEC clients of `sec::tests`.

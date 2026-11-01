@@ -51,8 +51,8 @@ cargo run --bin extraction
 # Extract pipeline for all S&P 500 CIKs. Stores each response under ARKAD_STORAGE_ROOT
 cargo run --features tracing-logging --bin stream_etl
 
-# Deprecated example: the same CIKs through the Extraction facade. It exits with an error if a CIK
-# failed.
+# Deprecated example: the CIKs of stream_etl without its two test CIKs, through the Extraction
+# facade. It exits with an error if a CIK failed.
 cargo run --features tracing-logging --example stream_extract
 
 # New filings of each date from ARKAD_FROM to ARKAD_TO, days in New York. ARKAD_TO defaults to
@@ -71,6 +71,8 @@ The `Dockerfile` at the repository root builds the example `stream_extract` and 
 ```sh
 docker build -t arkad-extract .
 ```
+
+The image exits with an error if a CIK failed, so a job with retries runs all CIKs again.
 
 The example runs as user `arkad` (uid and gid `10001`) in `/home/arkad`. The image sets no storage root, so the root is `/home/arkad/data` inside the container. Removing the container deletes the documents. To keep them, mount a volume and set `ARKAD_STORAGE_ROOT` to its path. The container user must be able to write to the volume. For a bind mount, run the container as the host user:
 

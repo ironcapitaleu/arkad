@@ -73,7 +73,8 @@ impl BackfillCompanyFacts {
             .cik(cik)
     }
 
-    /// Returns the builder of a batch run over `ciks`, in the order of the list.
+    /// Returns the builder of a batch run over `ciks`. The summary lists the CIKs in the order of
+    /// the list.
     ///
     /// The builder still needs an SEC client and a repository of type `R`.
     #[must_use]
@@ -184,7 +185,7 @@ where
 {
     /// Extracts the Company Facts of each CIK into the repository and returns the summary.
     ///
-    /// At most the in-flight cap of CIKs run at once. A failed CIK does not stop the others.
+    /// At most [`in_flight`](Self::in_flight) CIKs run at once. A failed CIK does not stop the others.
     ///
     /// Calls `observer` with the CIK and each successful stream item, and with the CIK and the
     /// error of a failed CIK. Every error gives [`ErrorKind::Failed`].
@@ -245,7 +246,9 @@ async fn drain(
 
 #[cfg(test)]
 mod tests {
+    use std::pin::pin;
     use std::sync::Mutex;
+    use std::sync::atomic::Ordering;
 
     use pretty_assertions::assert_eq;
     use serde_json::{Value, json};
@@ -254,6 +257,7 @@ mod tests {
     use super::*;
     use crate::implementations::extraction::Extraction;
     use crate::tests::fixtures::sample_http_client::sample_sec_client::always_responding::AlwaysRespondingSecClient;
+    use crate::tests::fixtures::sample_rate_limiter::HoldingRateLimiter;
     use crate::tests::fixtures::sample_write_repository::FakeWriteRepository;
 
     const LOCK_EXPECT: &str = "Given an observer that never panics while it holds the lock, the lock should never be poisoned";
@@ -400,12 +404,18 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_list_the_entries_in_the_order_of_the_ciks_when_running_a_batch() {
+    async fn should_list_the_entries_in_the_order_of_the_ciks_when_the_first_cik_finishes_last() {
         let ciks = ["320193", "ABC", "1067983"];
+        let sec_client = sec_client().with_rate_limiter(HoldingRateLimiter::first_turn_yields(16));
 
         let expected_result = vec![json!("320193"), json!("ABC"), json!("1067983")];
 
-        let result: Vec<Value> = run_batch(FakeWriteRepository::new(), &ciks, |_, _| {})
+        let result: Vec<Value> = Extraction::backfill()
+            .company_facts()
+            .ciks(ciks)
+            .sec_client(sec_client)
+            .repository(FakeWriteRepository::new())
+            .run(|_, _| {})
             .await
             .entries()
             .into_iter()
@@ -455,6 +465,30 @@ mod tests {
         let mut result = units.lock().expect(LOCK_EXPECT).clone();
         result.sort();
         result.dedup();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_start_at_most_in_flight_ciks_when_the_ciks_wait_for_their_turn() {
+        let ciks = ["320193", "1067983", "789019"];
+        let rate_limiter = HoldingRateLimiter::forever();
+        let turns = Arc::clone(&rate_limiter.turns);
+        let sec_client = sec_client().with_rate_limiter(rate_limiter);
+        let mut run = pin!(
+            Extraction::backfill()
+                .company_facts()
+                .ciks(ciks)
+                .sec_client(sec_client)
+                .repository(FakeWriteRepository::new())
+                .in_flight(2)
+                .run(|_, _| {})
+        );
+
+        let expected_result = 2;
+
+        let _pending = futures_util::poll!(run.as_mut());
+        let result = turns.load(Ordering::SeqCst);
 
         assert_eq!(result, expected_result);
     }

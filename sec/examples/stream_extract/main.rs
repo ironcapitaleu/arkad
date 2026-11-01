@@ -83,8 +83,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
         );
     })?;
     let backfill = Extraction::backfill();
-    let execution_id = backfill.id().to_string();
-    let event_execution_id = execution_id.clone();
+    let execution_id = backfill.id();
     let start = Instant::now();
 
     let summary = backfill
@@ -92,6 +91,8 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
         .ciks(CIKS)
         .sec_client(sec_client)
         .repository(repository)
+        // All CIKs at once, as before the facade. The rate limiter of the client caps the requests.
+        .in_flight(CIKS.len())
         .run(move |unit, event| match event {
             RunEvent::Item(item) => {
                 tracing::info!(
@@ -99,7 +100,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
                     message = %format!("{}: '{}'", item.event, item.state_name),
                     event_duration_ms = item.event_duration.as_millis(),
                     context = %serde_json::json!({
-                        "execution_id": event_execution_id,
+                        "execution_id": execution_id.to_string(),
                         "cik": unit.to_string(),
                         "state": item.state_name,
                         "data": item.data,
@@ -126,7 +127,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     let failures = summary.failure_count();
     let message = format!("{successes} succeeded, {failures} failed in {elapsed:.2?}");
     let context = serde_json::json!({
-        "execution_id": execution_id,
+        "execution_id": execution_id.to_string(),
         "successes": successes,
         "failures": failures,
         "duration_ms": elapsed.as_millis(),
