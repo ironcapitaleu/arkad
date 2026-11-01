@@ -302,7 +302,8 @@ The cases known today:
 - Step 1: the doctests at `execute_sec_request/store_submissions.rs:18` and
   `execute_sec_request/store_notes_archive.rs:19` call `try_from` without a repository. After step
   1 no `TryFrom` takes that tuple, so they fail for any kind. Step 1 adds the repository to their
-  tuple.
+  tuple. STA-384 and STA-408 later deleted both files. The doctest at
+  `execute_sec_request/store_sec_response.rs:15` now guards the kind of every store transition.
 - Step 2: the doctest at `prepare_sec_request/execute_sec_request.rs:15` names `ExecuteSecRequest`
   with three parameters, and the two store doctests name `ExecuteCompanyFactsRequest<R, SecClient>`.
   Step 2 drops `R` from all three.
