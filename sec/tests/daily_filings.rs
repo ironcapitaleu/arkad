@@ -417,6 +417,42 @@ mod run_loop {
 
         assert_eq!(result, expected_result);
     }
+
+    #[tokio::test]
+    async fn should_record_the_incremental_ingestion_mode_for_every_document_type_of_a_run() {
+        let root = temporary_root();
+        let dates = [date("2026-10-26")];
+        let sec_client = sec_client();
+        let metadata_files = [
+            "sec/daily-index/form.20261026.idx.meta.json",
+            "sec/filings/CIK0000003545/0000003545-26-000047/instance.xml.meta.json",
+            "sec/filings/CIK0000003545/0000003545-26-000047/lab.xml.meta.json",
+            "sec/submissions/CIK0000003545.json.meta.json",
+        ];
+
+        let expected_result = vec!["incremental", "incremental", "incremental", "incremental"];
+
+        run_offline_in(&root, &dates, &sec_client).await;
+        let result: Vec<String> = metadata_files
+            .iter()
+            .map(|file| {
+                let metadata: Value = serde_json::from_slice(
+                    &std::fs::read(root.path().join(file)).expect(
+                        "Given a run that stored the date, each metadata file should always exist",
+                    ),
+                )
+                .expect(
+                    "Given a metadata file that the store wrote, it should always parse as JSON",
+                );
+                metadata["ingestion_mode"]
+                    .as_str()
+                    .unwrap_or_default()
+                    .to_string()
+            })
+            .collect();
+
+        assert_eq!(result, expected_result);
+    }
 }
 
 /// Runs the loop of `run.rs` for one past date against the live SEC, as the binary does.
