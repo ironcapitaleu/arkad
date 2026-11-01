@@ -1408,7 +1408,7 @@ or `yesterday-N`, the day `N` days before yesterday (`N` at least 1).
 | Rerun a past week | `ARKAD_FROM=2026-10-13`, `ARKAD_TO=2026-10-19` |
 
 The task timeout of the job is 30 minutes. A new filing takes at least 3 requests, and its company
-1 more. A filing whose instance the store holds takes none (see [One Date](#one-date)). The rate
+1 more. A filing that the store lets the run skip takes none (see [One Date](#one-date)). The rate
 limiter allows one request each 110 ms. In 2024q1 the selection kept about 90
 filings per business day. The busiest day measured, 2026-08-10, had 295. So 40 business days take about 26 minutes at the
 rate limit alone. A timeout makes Cloud Run rerun the same range, which times out again. So a
@@ -1459,13 +1459,11 @@ fail.
 - `MissingDailyIndex` also covers a refused request, such as a rate-limit 403. Such a date is
   pending too, and the next run reads it again.
 - Each run reads up to 3 dates again. A second read of a date sends 1 request for the daily
-  index, 1 per company for `submissions`, and 1 per unextractable filing for its folder. It sends
-  none for a filing whose instance the store holds (STA-413). A peak day of 295 filings takes about
-  9 minutes at the rate limit when new, and under 1 minute when read again. So a window of 4 days
-  fits in the task timeout. Every write is idempotent, so a second read writes no duplicate row.
-- An unextractable filing stores nothing, so each read of its date fetches its folder again. A
-  record of the unextractable filing, so that a later run skips it too, is the open part of
-  STA-413 (see [Unextractable Record](#unextractable-record)).
+  index and 1 per company for `submissions`. It sends none for a filing whose instance the store
+  holds, nor for an unextractable filing whose folder index the store holds (STA-413, see
+  [Unextractable Record](#unextractable-record)). A peak day of 295 filings takes about 9 minutes
+  at the rate limit when new, and under 1 minute when read again. So a window of 4 days fits in
+  the task timeout. Every write is idempotent, so a second read writes no duplicate row.
 - A rerun of dates older than `yesterday-2` has no pending dates. A date without an index fails.
 - Later: STA-403 replaces the window with a bookmark, the last date that finished, read from the
   store. A run then reads from the bookmark plus 1 through yesterday, and reads no date again.
@@ -1478,14 +1476,15 @@ All super-states of one run share one `execution_id`. For each date, in this ord
    `FilingRef`s and the stored daily index as an `InputDocument`. A weekend or a holiday returns an
    empty list and no index once a later index exists. Before that, the date is pending (see
    [Window](#window)).
-2. For each `FilingRef`, the run first reads the key of its stored instance with
-   `ReadRepository::get`. The key follows from the `FilingRef` alone
+2. For each `FilingRef`, the run first reads the store with `ReadRepository::get`, in the order of
+   [Unextractable Record](#unextractable-record). The keys follow from the `FilingRef` alone
    (`shared/filing_documents_ref/mod.rs`). If the store holds the instance and it passes the size
-   and SHA-256 check, the filing counts as already stored and sends no request. A read error,
-   such as a size or digest mismatch, fetches the filing again, as in STA-400. The read is by key,
-   not by a listing, which belongs to STA-403.
-   One `ExtractFilingSuperState` runs for each `FilingRef` whose instance the store does not
-   hold, with the daily index as its input.
+   and SHA-256 check, the filing counts as already stored. If the store holds a folder index that
+   lists no instance, the filing counts as skipped unextractable. Neither sends a request. A read
+   error, such as a size or digest mismatch, counts as not stored, so the run fetches the filing
+   again, as in STA-400. The reads are by key, not by a listing, which belongs to STA-403.
+   One `ExtractFilingSuperState` runs for each other `FilingRef`, with the daily index as its
+   input.
    `run_to_documents` returns the `FilingDocumentsRef`. At most `in_flight(n)` machines run at once, by default `DEFAULT_MACHINES_IN_FLIGHT` (4). The global
    rate limiter of `SecClient` caps the requests, so a value above 4 does not make the run faster.
 3. One `ExtractSubmissionsSuperState` for each distinct CIK of the selected filings, with the
@@ -1502,6 +1501,7 @@ Each machine ends in one of four outcomes:
 | ------- | ---- | --- | --------- |
 | stored | the machine stored its documents | `info` | no effect |
 | already stored | the store held the intact instance before the run, so no machine ran | none | no effect |
+| skipped unextractable | the store held a folder index without an XBRL instance, so no machine ran | none | no effect |
 | pending | detection fails with `MissingDailyIndex` on a date from `yesterday-2` through yesterday that is not the first date of the run | `warn` | no effect |
 | unextractable | `SelectFilingDocuments` fails with `MissingXbrlInstance`: the folder has no XBRL instance | `warn` | no effect |
 | failed | every other error: a request, a parse, a store, a detection, `AmbiguousFilingDocument`, `MissingDailyIndex` on any other date | `error` | error |
@@ -1539,7 +1539,7 @@ its store states.
 
 #### Unextractable Record
 
-> **Status:** decided by the lead on 2026-11-01 (STA-413). It lands in three PRs: the source and
+> **Status:** decided by the lead on 2026-11-01 (STA-413) and built in three PRs: the source and
 > its store state, then the store step in the filing machine, then the skip.
 
 The filing machine runs `ExecuteSecRequest<FilingIndex>` → `StoreFilingIndex` →
@@ -1581,7 +1581,7 @@ JSON logs with the five fields of `AGENTS.md`, as in `backfill`:
   `execution_id` in `context`;
 - one summary line at the end of the run. It holds one entry per date: the outcome of detection
   (processed, empty, pending, or failed), the selected filings, and the stored, already stored,
-  unextractable, and failed filings and `submissions` files, each failure with its failed state. A pending date and a
+  skipped unextractable, unextractable, and failed filings and `submissions` files, each failure with its failed state. A pending date and a
   closed day both select no filings, so only the detection outcome tells them apart.
 
 #### Module Layout
@@ -1626,7 +1626,10 @@ it. `sec/tests/daily_filings.rs` includes `dates.rs` and `constants.rs` through 
   in the metadata of each of the four document types; one date run twice on one store, whose
   second run sends only the requests for the daily index and `submissions` and lists the filing
   as already stored; a stored instance that fails the size check, and one of the same size that
-  fails the SHA-256 check, both of which the second run fetches again (STA-413).
+  fails the SHA-256 check, both of which the second run fetches again; one date with an
+  unextractable filing run twice, whose second run sends no folder request and lists the filing
+  as skipped unextractable; and a stored folder index that lists an instance the store does not
+  hold, which the second run fetches again (STA-413).
 - Live against `www.sec.gov`, in `sec/tests/daily_filings.rs`, as `sec/tests/extract_filing.rs`
   does: one past weekday, which stores the daily index, at least one filing, and its
   `submissions` file.

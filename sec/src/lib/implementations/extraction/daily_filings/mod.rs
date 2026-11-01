@@ -6,8 +6,8 @@
 //! [`IncrementalDailyFilings::dates`] returns a [`DailyFilingsBuilder`], whose [`run`] runs the
 //! dates in order, one date at a time. For each date, the run detects the filings, then extracts
 //! each filing, then the `submissions` file of each company. Before it sends a request for a
-//! filing, the run reads the stored XBRL instance of the filing. If the instance passes the size
-//! and SHA-256 check, the run skips the filing.
+//! filing, the run reads the store. It skips a filing whose stored XBRL instance passes the size
+//! and SHA-256 check, and a filing whose stored folder index lists no XBRL instance.
 //!
 //! [`run`]: DailyFilingsBuilder::run
 
@@ -17,7 +17,7 @@ use std::time::Duration;
 use chrono::NaiveDate;
 use futures_util::StreamExt;
 use storage::implementations::repository::filesystem::{
-    FilesystemRepository, InputDocument, Read, Write,
+    Document, FilesystemRepository, InputDocument, Read, Write,
 };
 use storage::traits::repository::ReadRepository;
 
@@ -34,7 +34,8 @@ use crate::implementations::states::extract::validate_cik_format::ValidateCikFor
 use crate::implementations::states::extract::validate_index_date::ValidateIndexDate;
 use crate::prelude::{IntoStateMachineStream, StateMachineStream, StreamError, StreamItem};
 use crate::shared::cik::Cik;
-use crate::shared::filing_documents_ref::instance_key;
+use crate::shared::filing_documents::FolderIndex;
+use crate::shared::filing_documents_ref::{filing_index_key, instance_key};
 use crate::shared::filing_ref::FilingRef;
 use crate::shared::http_client::Executes;
 use crate::shared::http_client::SecClient as SecClientTrait;
@@ -46,7 +47,8 @@ use crate::shared::raw_source::{
 use crate::shared::request::implementations::sec_request::{FilingDocumentSet, FilingIndex};
 use crate::shared::response::implementations::sec_response::{JsonBody, SecResponse, ZipBody};
 use summary::{
-    CompanyOutcome, DateOutcome, Fetch, FilingOutcome, is_pending, is_unavailable, is_unextractable,
+    CompanyOutcome, DateOutcome, Fetch, FilingOutcome, is_missing_instance, is_pending,
+    is_unavailable, is_unextractable,
 };
 
 mod summary;
@@ -97,6 +99,7 @@ type DailyIndexRepository = FilesystemRepository<Write, RawDocument<RawDailyInde
 type FilingIndexRepository = FilesystemRepository<Write, RawDocument<RawFilingIndex>>;
 type InstanceRepository = FilesystemRepository<Write, RawDocument<RawXbrlInstance>>;
 type InstanceReader = FilesystemRepository<Read, RawDocument<RawXbrlInstance>>;
+type FilingIndexReader = FilesystemRepository<Read, RawDocument<RawFilingIndex>>;
 type LabelsRepository = FilesystemRepository<Write, RawDocument<RawXbrlLabels>>;
 type SubmissionsRepository = FilesystemRepository<Write, RawDocument<RawSubmissions>>;
 
@@ -318,15 +321,15 @@ where
     /// Runs the new-filing path for each date, in order, and returns the summary.
     ///
     /// The dates run one after another, never at once. For each date, the run runs detection,
-    /// then one filing machine per selected filing that the store does not hold, then one
+    /// then one filing machine per selected filing that the store cannot skip, then one
     /// `submissions` machine per distinct CIK of the selected filings. At most
     /// [`in_flight`](Self::in_flight) filing machines run at once, and the same for `submissions`
     /// machines. A filing or `submissions` machine that the SEC answers with 503 runs again after
     /// each retry delay. A failure does not stop the other machines or the other dates.
     ///
     /// Calls `observer` with the unit and each successful stream item, and with the unit, each
-    /// error, and its [`ErrorKind`]. The unit is the date, the filing, or the company. A filing
-    /// that the store holds sends no event to the observer.
+    /// error, and its [`ErrorKind`]. The unit is the date, the filing, or the company. A skipped
+    /// filing sends no event to the observer.
     pub async fn run(
         self,
         observer: impl Fn(&Unit, RunEvent<'_>) + Send + Sync + 'static,
@@ -371,9 +374,8 @@ where
     /// once, in the order of the filings. Each machine records the daily index of `detected` as the input of
     /// its files.
     ///
-    /// A filing whose stored instance passes the size and SHA-256 check runs no machine. A
-    /// stored instance that fails the check, or that the store cannot read, runs the machine
-    /// again.
+    /// A filing runs no machine if its stored instance passes the size and SHA-256 check, or if
+    /// its stored folder index lists no XBRL instance (see [`StoreReaders::skip`]).
     async fn extract_filings(
         &self,
         date: NaiveDate,
@@ -382,16 +384,23 @@ where
     ) -> Vec<FilingOutcome> {
         let inputs: Vec<InputDocument> = detected.index.iter().cloned().collect();
         let inputs = &inputs;
-        let reader = &FilesystemRepository::builder()
-            .reader()
-            .document_type::<RawDocument<RawXbrlInstance>>()
-            .root(self.repositories.instance.root())
-            .build();
+        let readers = &StoreReaders {
+            instance: FilesystemRepository::builder()
+                .reader()
+                .document_type::<RawDocument<RawXbrlInstance>>()
+                .root(self.repositories.instance.root())
+                .build(),
+            filing_index: FilesystemRepository::builder()
+                .reader()
+                .document_type::<RawDocument<RawFilingIndex>>()
+                .root(self.repositories.filing_index.root())
+                .build(),
+        };
         let extractions = detected.filings.iter().map(|filing| async move {
-            if holds_instance(reader, filing).await {
+            if let Some(skip) = readers.skip(filing).await {
                 return FilingOutcome {
                     accession_number: filing.accession_number().clone(),
-                    result: Ok(Fetch::AlreadyStored),
+                    result: Ok(skip),
                 };
             }
             let unit = Unit::Filing {
@@ -483,12 +492,41 @@ where
     }
 }
 
-/// Returns `true` if `reader` holds the XBRL instance of `filing`, and the instance passes the
-/// size and SHA-256 check.
+/// The readers of the stored files that let the run skip a filing before any request.
+struct StoreReaders {
+    instance: InstanceReader,
+    filing_index: FilingIndexReader,
+}
+
+impl StoreReaders {
+    /// Returns how the run skips `filing`, or `None` if the run must fetch it.
+    ///
+    /// The run skips a filing whose stored instance passes the size and SHA-256 check. It also
+    /// skips a filing whose stored folder index lists no XBRL instance, by the rules of
+    /// [`FolderIndex::select_documents`]. A read error counts as not stored, so the run fetches
+    /// the filing again.
+    async fn skip(&self, filing: &FilingRef) -> Option<Fetch> {
+        if matches!(self.instance.get(instance_key(filing)).await, Ok(Some(_))) {
+            return Some(Fetch::AlreadyStored);
+        }
+        let Ok(Some(folder_index)) = self.filing_index.get(filing_index_key(filing)).await else {
+            return None;
+        };
+        lists_no_instance(folder_index.bytes(), filing).then_some(Fetch::SkippedUnextractable)
+    }
+}
+
+/// Returns `true` if `folder_index` parses and the selection of `filing` fails because the folder
+/// holds no XBRL instance.
 ///
-/// A read error returns `false`, so the run fetches the filing again.
-async fn holds_instance(reader: &InstanceReader, filing: &FilingRef) -> bool {
-    matches!(reader.get(instance_key(filing)).await, Ok(Some(_)))
+/// A folder index that lists an instance means an earlier run failed after the folder request,
+/// so the run fetches the filing. A folder index that does not parse also returns `false`.
+fn lists_no_instance(folder_index: &[u8], filing: &FilingRef) -> bool {
+    FolderIndex::from_json(folder_index).is_ok_and(|index| {
+        index
+            .select_documents(filing.accession_number())
+            .is_err_and(|error| is_missing_instance(&error))
+    })
 }
 
 /// Runs `stream` to its end, and returns the first error.
@@ -538,6 +576,8 @@ mod tests {
     use super::summary::tests::{not_found, unavailable};
     use super::*;
     use crate::implementations::extraction::Extraction;
+    use crate::shared::financial::accession_number::AccessionNumber;
+    use crate::shared::financial::form::{Form, ParsedForm};
 
     /// Returns how many times `with_retry` runs an attempt that always fails with `error`.
     async fn attempts_until_given_up(error: fn() -> StreamError) -> usize {
@@ -573,6 +613,62 @@ mod tests {
         let expected_result = 1;
 
         let result = attempts_until_given_up(error).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    fn sample_filing() -> FilingRef {
+        FilingRef::new(
+            Cik::new("3545").expect("Given a hardcoded valid CIK, parsing should always succeed"),
+            AccessionNumber::new("0000003545-26-000047").expect(
+                "Given a hardcoded accession number of the right shape, creation should always succeed",
+            ),
+            ParsedForm::new(Form::TenQ, false),
+            NaiveDate::from_ymd_opt(2026, 9, 8)
+                .expect("Given a hardcoded calendar date, the date should always build"),
+        )
+    }
+
+    #[test]
+    fn should_list_no_instance_when_the_stored_folder_index_holds_only_a_label_file() {
+        let folder_index = br#"{"directory":{"item":[{"name":"alco-20260908_lab.xml"}]}}"#;
+
+        let expected_result = true;
+
+        let result = lists_no_instance(folder_index, &sample_filing());
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_not_list_no_instance_when_the_stored_folder_index_is_not_json() {
+        let folder_index = b"<html>";
+
+        let expected_result = false;
+
+        let result = lists_no_instance(folder_index, &sample_filing());
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_not_list_no_instance_when_the_stored_folder_index_holds_two_instances() {
+        let folder_index = br#"{"directory":{"item":[{"name":"a-20260908_htm.xml"},{"name":"b-20260908_htm.xml"}]}}"#;
+
+        let expected_result = false;
+
+        let result = lists_no_instance(folder_index, &sample_filing());
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_not_list_no_instance_when_the_stored_folder_index_holds_an_instance() {
+        let folder_index = br#"{"directory":{"item":[{"name":"alco-20260908_htm.xml"}]}}"#;
+
+        let expected_result = false;
+
+        let result = lists_no_instance(folder_index, &sample_filing());
 
         assert_eq!(result, expected_result);
     }
