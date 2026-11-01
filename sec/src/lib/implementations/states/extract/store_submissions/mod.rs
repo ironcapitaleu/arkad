@@ -1,87 +1,73 @@
 //! # Store Submissions State
 //!
-//! Provides the [`StoreSubmissions`] state, which writes the raw body of an SEC `submissions`
-//! response to the store and outputs the key of the stored document.
+//! Provides [`StoreSubmissions`], the [`StoreSecResponse`] state of the [`Submissions`] kind,
+//! which writes the raw body of an SEC `submissions` response to the store and outputs the key of
+//! the stored document.
 //!
-//! The state writes through the [`WriteRepository`](storage::WriteRepository) port that its
-//! context holds, so it names no concrete backend. The document holds the body exactly as the SEC
-//! sent it, because a parse and a reserialization change whitespace, number format, and duplicate
-//! keys.
+//! The document holds the body exactly as the SEC sent it, because a parse and a reserialization
+//! change whitespace, number format, and duplicate keys.
 //!
 //! ## Modules
 //!
 //! - [`constants`]: State metadata such as [`STATE_NAME`], and the parts of the document key.
-//! - [`context`]: The [`StoreSubmissionsContext`] carried alongside the state.
-//! - [`data`]: The [`StoreSubmissionsInput`] and [`StoreSubmissionsOutput`] data types.
+//! - [`data`]: The [`StoreSubmissionsOutput`] data type.
 //!
 //! ## See Also
 //!
+//! - [`crate::implementations::states::extract::store_sec_response`]: The generic store state.
 //! - [`crate::shared::raw_document`]: The [`RawDocument`] type the state writes.
-//! - [`crate::traits::state_machine::state::State`]: The trait implemented by [`StoreSubmissions`].
 
-use std::fmt;
-
-use async_trait::async_trait;
-use chrono::Utc;
-use serde::Serialize;
-use state_maschine::prelude::State as SMState;
 use storage::implementations::repository::filesystem::DocumentKey;
 
-use crate::error::State as StateError;
-use crate::error::state_machine::state::FailedDocumentWrite;
-use crate::shared::build_info::producer;
+use crate::implementations::states::extract::store_sec_response::{
+    StoreSecResponse, StoreSecResponseContext, StoreSecResponseInput,
+};
 use crate::shared::cik::Cik;
-use crate::shared::document_storage::FailedDocumentStorage;
 use crate::shared::raw_document::RawDocument;
-use crate::shared::raw_repository::RawRepository;
 use crate::shared::raw_source::RawSubmissions;
+use crate::shared::request::implementations::sec_request::{StoredAs, Submissions};
+use crate::shared::response::implementations::sec_response::SecResponse;
 use crate::shared::run_fields::RunFields;
-use crate::traits::state_machine::state::State;
+use crate::shared::url::Url;
+use crate::shared::user_agent::UserAgent;
 
 pub mod constants;
-pub mod context;
 pub mod data;
 
 pub use constants::{STATE_NAME, SUBMISSIONS_KEY_PREFIX, SUBMISSIONS_KEY_SUFFIX};
-pub use context::StoreSubmissionsContext;
-pub use data::StoreSubmissionsInput;
 pub use data::StoreSubmissionsOutput;
 
-/// Writes the raw body of an SEC `submissions` response to the store.
+/// The [`StoreSecResponse`] state of the [`Submissions`] kind.
 ///
-/// Builds one [`RawDocument<RawSubmissions>`] with
-/// [`RawDocument::from_response`], writes it under the key `sec/submissions/CIK##########.json`
-/// through the repository of type `R`, and outputs that [`DocumentKey`]. The metadata records the
-/// ingestion mode of [`StoreSubmissionsContext::ingestion_mode`].
-#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
-pub struct StoreSubmissions<R> {
-    input: StoreSubmissionsInput,
-    context: StoreSubmissionsContext<R>,
-    output: Option<StoreSubmissionsOutput>,
-}
+/// It writes one [`RawDocument<RawSubmissions>`] under the key
+/// `sec/submissions/CIK##########.json` and outputs that [`DocumentKey`].
+pub type StoreSubmissions<R> = StoreSecResponse<Submissions, R>;
 
-impl<R> StoreSubmissions<R> {
-    /// Creates a new [`StoreSubmissions`] state from its input and context, with no output
-    /// computed yet.
-    #[must_use]
-    pub const fn new(input: StoreSubmissionsInput, context: StoreSubmissionsContext<R>) -> Self {
-        Self {
-            input,
-            context,
-            output: None,
-        }
-    }
+/// The input of [`StoreSubmissions`].
+pub type StoreSubmissionsInput = StoreSecResponseInput<Submissions>;
 
-    /// Consumes the state and returns its input, optional output, and context.
-    #[must_use]
-    pub fn into_parts(
-        self,
-    ) -> (
-        StoreSubmissionsInput,
-        Option<StoreSubmissionsOutput>,
-        StoreSubmissionsContext<R>,
-    ) {
-        (self.input, self.output, self.context)
+/// The context of [`StoreSubmissions`].
+pub type StoreSubmissionsContext<R> = StoreSecResponseContext<Submissions, R>;
+
+/// Builds the document with [`RawDocument::from_response`], which keeps the JSON body unchanged.
+impl StoredAs for Submissions {
+    type Source = RawSubmissions;
+    type Output = StoreSubmissionsOutput;
+
+    const STATE_NAME: &'static str = STATE_NAME;
+    const INPUT_LABEL: &'static str = "CIK";
+
+    fn store(
+        response: &SecResponse,
+        cik: &Cik,
+        requested_url: &Url,
+        user_agent: &UserAgent,
+        run: RunFields,
+    ) -> (RawDocument<RawSubmissions>, StoreSubmissionsOutput) {
+        let key = submissions_key(cik);
+        let document =
+            RawDocument::from_response(key.clone(), response, requested_url, user_agent, run);
+        (document, StoreSubmissionsOutput::new(key))
     }
 }
 
@@ -93,141 +79,31 @@ fn submissions_key(cik: &Cik) -> DocumentKey {
     .expect("Given a CIK of 10 digits, the relative key path should always be valid")
 }
 
-#[async_trait]
-impl<R: RawRepository<RawSubmissions>> State for StoreSubmissions<R> {
-    /// Writes the raw document to the repository and stores its key as output.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`StateError::FailedDocumentWrite`] when the repository rejects the write.
-    async fn compute_output_data_async(&mut self) -> Result<(), StateError> {
-        let key = submissions_key(&self.context.cik);
-        let document = RawDocument::<RawSubmissions>::from_response(
-            key.clone(),
-            &self.input.response,
-            &self.input.requested_url,
-            &self.input.user_agent,
-            RunFields {
-                produced_at: Utc::now(),
-                execution_id: self.context.execution_id,
-                producer: producer(STATE_NAME),
-                ingestion_mode: self.context.ingestion_mode,
-            },
-        );
-
-        let write = self
-            .context
-            .repository
-            .persist(document)
-            .await
-            .map_err(FailedDocumentStorage::from);
-
-        match write {
-            Ok(()) => {
-                self.output = Some(StoreSubmissionsOutput::new(key));
-                Ok(())
-            }
-            Err(e) => {
-                let e: StateError =
-                    FailedDocumentWrite::new(self.state_name().to_string(), e).into();
-                Err(e)
-            }
-        }
-    }
-}
-
-impl<R: RawRepository<RawSubmissions>> SMState for StoreSubmissions<R> {
-    type InputData = StoreSubmissionsInput;
-    type OutputData = StoreSubmissionsOutput;
-    type Context = StoreSubmissionsContext<R>;
-
-    /// Returns the human-readable name of this state.
-    fn state_name(&self) -> impl ToString {
-        STATE_NAME
-    }
-
-    /// Blocking wrapper around [`compute_output_data_async`](crate::traits::state_machine::state::State::compute_output_data_async).
-    ///
-    /// Detects whether a tokio runtime is available and runs the async computation
-    /// synchronously. This allows SEC states to be used as regular `SMState` implementations.
-    ///
-    /// # Panics
-    /// - Panics if the async computation returns an error.
-    /// - Panics if called inside a `current_thread` runtime (`block_in_place`
-    ///   requires a multi-thread runtime). All binaries and tests in this project
-    ///   use `flavor = "multi_thread"`.
-    fn compute_output_data(&mut self) {
-        let result = if let Ok(handle) = tokio::runtime::Handle::try_current() {
-            tokio::task::block_in_place(|| handle.block_on(self.compute_output_data_async()))
-        } else {
-            tokio::runtime::Runtime::new()
-                .expect("Failed to create tokio runtime for blocking compute")
-                .block_on(self.compute_output_data_async())
-        };
-
-        if let Err(e) = result {
-            let state_err: StateError = e;
-            panic!("compute_output_data failed: {state_err}")
-        }
-    }
-
-    fn context_data(&self) -> &Self::Context {
-        &self.context
-    }
-
-    fn input_data(&self) -> &Self::InputData {
-        &self.input
-    }
-
-    fn output_data(&self) -> Option<&Self::OutputData> {
-        self.output.as_ref()
-    }
-}
-
-impl<R: RawRepository<RawSubmissions>> fmt::Display for StoreSubmissions<R> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "`{}` State Summary\n\
-             ---------------------------\n\
-             Context:\n{}\n\
-             Input Data:\n{}\n\
-             Output Data:\n{}",
-            self.state_name().to_string(),
-            self.context,
-            self.input,
-            self.output.as_ref().map_or_else(
-                || "\tNone".to_string(),
-                |output_data| format!("{output_data}")
-            )
-        )
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
     use std::{fmt::Debug, hash::Hash};
 
     use pretty_assertions::assert_eq;
-    use state_maschine::prelude::Context as SMContext;
+    use serde::Serialize;
+    use state_maschine::prelude::State as SMState;
     use storage::implementations::repository::filesystem::{
         Document, FilesystemRepository, IngestionMode, ReadWrite,
     };
     use storage::{Sha256Digest, WriteError};
     use uuid::Uuid;
 
-    use super::context::StoreSubmissionsContextUpdater;
     use super::*;
+    use crate::error::State as StateError;
+    use crate::error::state_machine::state::FailedDocumentWrite;
+    use crate::shared::build_info::producer;
     use crate::shared::content_type::ContentType;
-    use crate::shared::document_storage::DocumentStorageErrorReason;
+    use crate::shared::document_storage::{DocumentStorageErrorReason, FailedDocumentStorage};
     use crate::shared::headers::Headers;
     use crate::shared::raw_document::RawDocumentMetadataContext;
-    use crate::shared::response::implementations::sec_response::SecResponse;
     use crate::shared::status_code::StatusCode;
-    use crate::shared::url::Url;
-    use crate::shared::user_agent::UserAgent;
     use crate::tests::fixtures::sample_write_repository::FakeSubmissionsRepository;
+    use crate::traits::state_machine::state::State;
 
     // Extra whitespace that a parse and a reserialization drop.
     const RAW_BODY: &[u8] = b"{ \"cik\": \"0001067983\",  \"name\": \"BERKSHIRE HATHAWAY INC\" }";
@@ -271,13 +147,20 @@ mod tests {
         StoreSubmissionsInput::new(response, requested_url(), user_agent())
     }
 
-    fn sample_state(
+    fn sample_state_in_mode(
+        ingestion_mode: IngestionMode,
         repository: FakeSubmissionsRepository,
     ) -> StoreSubmissions<FakeSubmissionsRepository> {
         let cik = Cik::new("1067983")
             .expect("Given a hardcoded numeric CIK, its creation should always succeed");
-        let context = StoreSubmissionsContext::new(cik, EXECUTION_ID, INGESTION_MODE, repository);
+        let context = StoreSubmissionsContext::new(cik, EXECUTION_ID, ingestion_mode, repository);
         StoreSubmissions::new(sample_input(), context)
+    }
+
+    fn sample_state(
+        repository: FakeSubmissionsRepository,
+    ) -> StoreSubmissions<FakeSubmissionsRepository> {
+        sample_state_in_mode(INGESTION_MODE, repository)
     }
 
     /// Runs the state against an accepting fake and returns the one document it persisted.
@@ -448,11 +331,7 @@ mod tests {
     #[tokio::test]
     async fn should_persist_backfill_as_the_ingestion_mode_when_the_context_names_backfill() {
         let repository = FakeSubmissionsRepository::new();
-        let mut state = sample_state(repository.clone());
-        let updater = StoreSubmissionsContextUpdater::builder()
-            .ingestion_mode(IngestionMode::Backfill)
-            .build();
-        state.context.update_context(updater);
+        let mut state = sample_state_in_mode(IngestionMode::Backfill, repository.clone());
 
         let expected_result = vec![IngestionMode::Backfill];
 

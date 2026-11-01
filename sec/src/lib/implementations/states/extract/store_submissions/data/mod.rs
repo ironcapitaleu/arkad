@@ -1,18 +1,14 @@
 //! # Store Submissions Data
 //!
-//! Groups the input and output data types for the
-//! [`StoreSubmissions`](super::StoreSubmissions) state.
+//! Groups the output data type of the [`StoreSubmissions`](super::StoreSubmissions) state.
 //!
-//! The state consumes an SEC response and the fetch that produced it, and produces the key of the
-//! stored document.
+//! The input data type is the generic
+//! [`StoreSecResponseInput`](crate::implementations::states::extract::store_sec_response::StoreSecResponseInput).
 //!
 //! ## Modules
 //!
-//! - [`input`]: The [`StoreSubmissionsInput`] holding the response and the fetch details.
 //! - [`output`]: The [`StoreSubmissionsOutput`] holding the key of the stored document.
 
-pub mod input;
 pub mod output;
 
-pub use input::StoreSubmissionsInput;
 pub use output::StoreSubmissionsOutput;

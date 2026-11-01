@@ -419,3 +419,116 @@ mod notes_tests {
         assert_eq!(result, expected_result);
     }
 }
+
+#[cfg(test)]
+mod submissions_tests {
+    use std::collections::HashMap;
+
+    use pretty_assertions::assert_eq;
+    use storage::WriteError;
+
+    use super::*;
+    use crate::implementations::states::extract::execute_sec_request::{
+        ExecuteSecRequestContext, ExecuteSecRequestInput, ExecuteSecRequestOutput,
+    };
+    use crate::implementations::states::extract::store_submissions::constants::STATE_NAME as STORE_SUBMISSIONS;
+    use crate::implementations::states::extract::store_submissions::{
+        StoreSubmissions, StoreSubmissionsContext,
+    };
+    use crate::prelude::*;
+    use crate::shared::cik::Cik;
+    use crate::shared::content_type::ContentType;
+    use crate::shared::headers::Headers;
+    use crate::shared::http_client::implementations::sec_client::SecClient;
+    use crate::shared::request::implementations::sec_request::{SecRequest, Submissions};
+    use crate::shared::response::implementations::sec_response::SecResponse;
+    use crate::shared::status_code::StatusCode;
+    use crate::tests::fixtures::sample_write_repository::FakeSubmissionsRepository;
+
+    const SAMPLE_EXECUTION_ID: Uuid = Uuid::from_u128(7);
+
+    // The Company Facts super-state fixes `Backfill`, so `Incremental` shows that the mode comes
+    // from the caller.
+    const SAMPLE_INGESTION_MODE: IngestionMode = IngestionMode::Incremental;
+
+    fn sample_cik() -> Cik {
+        Cik::new("1067983")
+            .expect("Given a hardcoded numeric CIK, its creation should always succeed")
+    }
+
+    fn rejecting_repository() -> FakeSubmissionsRepository {
+        FakeSubmissionsRepository::rejecting(WriteError::conflicting_write("Sample conflict"))
+    }
+
+    fn sample_response() -> SecResponse {
+        let url: Url = "https://data.sec.gov/redirected/CIK0001067983.json"
+            .parse()
+            .expect("Given a hardcoded valid URL, parsing should always succeed");
+        SecResponse::from_parts(
+            url,
+            Headers::new(HashMap::new()),
+            ContentType::Json,
+            StatusCode::Ok,
+            b"{}".to_vec(),
+        )
+        .expect("Given the hardcoded JSON body '{}', building the response should always succeed")
+    }
+
+    /// Returns a computed request for `cik` whose context names the CIK `1067983`.
+    fn execute_with_output(cik: Cik) -> ExecuteSecRequest<Submissions, SecClient> {
+        let request = SecRequest::builder().submissions().cik(cik).build();
+        let input = ExecuteSecRequestInput::new(SecClient::default(), request);
+        ExecuteSecRequest::new(input, ExecuteSecRequestContext::new(sample_cik()))
+            .with_output(ExecuteSecRequestOutput::new(sample_response()))
+    }
+
+    #[test]
+    fn should_take_cik_from_source_and_execution_id_ingestion_mode_and_repository_from_run_when_source_has_output()
+     {
+        let state = execute_with_output(sample_cik());
+
+        let expected_result = StoreSubmissionsContext::new(
+            sample_cik(),
+            SAMPLE_EXECUTION_ID,
+            SAMPLE_INGESTION_MODE,
+            rejecting_repository(),
+        );
+
+        let result = StoreSubmissions::try_from((
+            state,
+            SAMPLE_EXECUTION_ID,
+            SAMPLE_INGESTION_MODE,
+            rejecting_repository(),
+        ))
+        .expect("Given a source state with output, the transition should always succeed")
+        .context_data()
+        .clone();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_failed_context_conversion_when_request_names_another_cik() {
+        let other_cik = Cik::new("320193")
+            .expect("Given a hardcoded numeric CIK, its creation should always succeed");
+        let state = execute_with_output(other_cik);
+
+        let expected_result = TransitionError::FailedContextConversion(
+            transition::FailedContextConversion::new(
+                EXECUTE_SEC_REQUEST,
+                STORE_SUBMISSIONS,
+                "The request targets 'https://data.sec.gov/submissions/CIK0000320193.json' for CIK '0000320193', but the context names CIK '0001067983'",
+            ),
+        );
+
+        let result = StoreSubmissions::try_from((
+            state,
+            SAMPLE_EXECUTION_ID,
+            SAMPLE_INGESTION_MODE,
+            rejecting_repository(),
+        ))
+        .expect_err("Given a request for another CIK, the transition should always fail");
+
+        assert_eq!(result, expected_result);
+    }
+}
