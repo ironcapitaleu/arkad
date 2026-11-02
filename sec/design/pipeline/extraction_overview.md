@@ -261,7 +261,7 @@ endpoint. Sizes are bodies without gzip, measured on 2026-11-02 unless the table
 | Folder index | `www.sec.gov/Archives/edgar/data/<cik>/<accession>/index.json` | Accession number | The files of one filing: name, size, last-modified | `FilingIndex` | `backfill`, part 2, and `daily_filings` | Yes | 8 KB for a 10-Q with 86 files |
 | XBRL instance | `www.sec.gov/Archives/edgar/data/<cik>/<accession>/<name>_htm.xml` | Accession number and file name | All values of one filing, with dimensions | `FilingDocumentSet` | `backfill`, part 2, and `daily_filings` | Yes | 3.9 MB for one 10-Q. 2.8 KB for one small filer |
 | Label file | `www.sec.gov/Archives/edgar/data/<cik>/<accession>/<name>_lab.xml` | Accession number and file name | The labels the company gave to its concepts | `FilingDocumentSet` | `backfill`, part 2, and `daily_filings` | Yes | 0.88 MB for the same 10-Q |
-| `submissions` | `data.sec.gov/submissions/CIK##########.json` | CIK | Name, SIC and its description, tickers, exchanges, former names, EIN, LEI, fiscal year end, addresses. The last 1,000 filings with form, dates, and XBRL flags | `Submissions` | `backfill`, part 2, and `daily_filings`: one per company of the day | Yes | 164 KB for CIK 320193 |
+| `submissions` | `data.sec.gov/submissions/CIK##########.json` | CIK | Name, SIC and its description, tickers, exchanges, former names, EIN, fiscal year end, addresses. It has an `lei` field, but the field was `null` for all 5 companies checked on 2026-11-02, among them JPMorgan Chase and Goldman Sachs. The last 1,000 filings with form, dates, and XBRL flags | `Submissions` | `backfill`, part 2, and `daily_filings`: one per company of the day | Yes | 164 KB for CIK 320193 |
 | Company Facts | `data.sec.gov/api/xbrl/companyfacts/CIK##########.json` | CIK | All values of all filings of one company, without dimensions. The entity name | `CompanyFacts` | Only `stream_etl` and the `extraction` demo | Yes, when called | 3.8 MB for CIK 320193 |
 | Full index | `www.sec.gov/Archives/edgar/full-index/YYYY/QTRn/form.idx` and `xbrl.idx` | Quarter | One row per filing of the quarter: form, company name, CIK, date filed, path. `xbrl.idx` lists only filings with XBRL | None | No | No | `form.idx` for 2026 Q3: 47.2 MB, or 4.8 MB as `form.gz`. `xbrl.idx`: 5.1 MB |
 
@@ -282,7 +282,8 @@ Several endpoints offer the same kind of data. The pipeline picks one source for
 | Company name | Daily index, `sub.tsv`, `submissions`, Company Facts | Not decided | Every source has it |
 | SIC code | `sub.tsv` (at filing time), `submissions` (current) | Not decided | The two can differ for one company |
 | Tickers and exchanges | `submissions` only | `submissions` | No other endpoint has them |
-| Former names, LEI, fiscal year end | `submissions` only | `submissions` | No other endpoint has them |
+| Former names, fiscal year end | `submissions` only | `submissions` | No other endpoint has them |
+| LEI | None in practice | None | `submissions` has the field, but it was empty for all 5 companies checked |
 
 `submissions` also lets a check reconcile one company against its stored filings. So the pipeline
 keeps it for now.
