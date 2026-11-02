@@ -1,5 +1,8 @@
 # Ingestion Paths: Extraction
 
+> **Overview:** [`extraction_overview.md`](extraction_overview.md) describes the extraction step as
+> the code runs it today. This document holds the decisions and the measurements behind it.
+
 > **Status:** draft for review, STA-328. Round 1 of 3. Round 2 designs the SEC fact model and the
 > fact store (STA-331). Round 3 designs transform for both paths (STA-332).
 >
@@ -946,7 +949,7 @@ rejects two ranges of dates:
   The SEC quarter listings showed this on 2026-10-30.
 - A date after the current UTC date. This rejects typos and dates in the future. It does not reject
   every date that the SEC has not yet published: the SEC dates the index in Eastern time and
-  publishes it after the day ends. Such a date reaches the 404 rule below and fails with
+  publishes it in the evening of that day or later. Such a date reaches the 404 rule below and fails with
   `MissingDailyIndex`, the same as a rerun that starts before the SEC publishes.
 
 The MVP has no requirement for a delay of minutes. The daily index needs no cursor, and a missed
@@ -1395,7 +1398,7 @@ or `yesterday-N`, the day `N` days before yesterday (`N` at least 1).
 
 - The run reads every date from `ARKAD_FROM` through `ARKAD_TO`, both included, oldest first.
 - All dates are Eastern time (`America/New_York`). The SEC dates its filings in Eastern time, and
-  it publishes a daily index only after that day ends. At 02:00 UTC on 2 November it is still 1
+  it publishes a daily index in the evening of that day or later. At 02:00 UTC on 2 November it is still 1
   November in New York. So `yesterday` is the day before today in New York, never in UTC.
 - The dependency `chrono-tz` gives the New York time zone with its daylight-saving rules.
 - If `ARKAD_FROM` is unset, a value does not parse, `ARKAD_FROM` is after `ARKAD_TO`, or
