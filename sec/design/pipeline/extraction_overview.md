@@ -283,7 +283,7 @@ Several endpoints offer the same kind of data. The pipeline picks one source for
 | SIC code | `sub.tsv` (at filing time), `submissions` (current) | Not decided | The two can differ for one company |
 | Tickers and exchanges | `submissions` only | `submissions` | No other endpoint has them |
 | Former names, fiscal year end | `submissions` only | `submissions` | No other endpoint has them |
-| LEI | None in practice | None | `submissions` has the field, but it was empty for all 5 companies checked |
+| LEI | None found | None. GLEIF is the planned source | `submissions` has the field, but it was `null` for all 5 companies checked |
 
 `submissions` also lets a check reconcile one company against its stored filings. So the pipeline
 keeps it for now.
