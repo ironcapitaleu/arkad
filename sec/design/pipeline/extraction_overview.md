@@ -411,7 +411,8 @@ flowchart TB
     C --> D
 ```
 
-All machines of one run share one `execution_id`. The dates run one after another.
+All machines of one run share one `execution_id`. The dates run one after another. A `submissions`
+request that the SEC answers with 503 retries the same way as a filing.
 
 ## Guarantees: Before and After a Run
 
@@ -513,9 +514,9 @@ Every request goes through one rate limiter per process. It allows one request e
 | One Notes file | 1 | 25 s for `2024q1` (619 MB) | 0.62 GB | Measured on 2026-10-28, [Download](ingestion_paths.md#download) |
 | One new filing | 3, plus 1 for its company | | 4.8 MB for one 10-Q. 25 KB for one small filer | Code, and measured on 2026-11-02 |
 | One date, about 90 filings | About 360 | About 40 s at the rate limit | About 1 MB of daily index, plus the filings | Estimate from 90 filings per business day in `2024q1` |
-| One peak date, 295 filings | About 1,200 | About 2 minutes at the rate limit alone. [Window](ingestion_paths.md#window) estimates 9 minutes. Under 1 minute on a reread. The 30-minute timeout holds under both estimates | Not measured | Estimate |
+| One peak date, 295 filings | About 1,200 | About 2 minutes at the rate limit alone. [Window](ingestion_paths.md#window) estimates 9 minutes. Under 1 minute on a reread | Not measured | Estimate |
 | `backfill`, part 2, 40 business days | About 14,000 | About 26 minutes at the rate limit | Not measured | Estimate, [Dates](ingestion_paths.md#dates) |
-| `daily_filings`, 4 dates | 1 new date plus 3 rereads | Under 10 minutes on a peak day | About 4.6 MB of daily indexes | Estimate |
+| `daily_filings`, 4 dates | 1 new date plus 3 rereads | Under 10 minutes on a peak day, inside the 30-minute timeout under both estimates | About 4.6 MB of daily indexes | Estimate |
 
 The selected rows per day were 77 on 2026-10-27, 197 on 2026-03-02, and 295 on 2026-08-10
 (measured). The bytes per day are not measured. One 10-Q of a large filer is 1,000 times larger
@@ -595,7 +596,8 @@ each gap through the facade calls that exist. A weekly job in the same container
 | The window covers 4 days | A pause longer than 4 days needs a hand-set `ARKAD_FROM` |
 | One daily index per day in the catch-up | A long catch-up sends one request per day. The full index needs one per quarter |
 | No `submissions` for companies that appear only in the Notes files | The store has no tickers for those companies |
-| No gzip | Each JSON and index file transfers 6 to 14 times more bytes than with gzip, measured on three files |
+| No gzip | The three measured files (Company Facts, `submissions`, the daily index) transfer 6 to 14 times more bytes than with gzip |
+| One run of `daily_filings` has a 30-minute timeout | A hand-set `ARKAD_FROM` more than about 40 business days back does not fit in one run |
 | A replaced daily index | The `inputs` SHA-256 of each stored instance that it listed names bytes the store no longer holds |
 | The filing skip checks only the instance | A missing or broken `lab.xml` beside an intact instance is never fetched again |
 
