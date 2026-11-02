@@ -8,7 +8,7 @@ again. Two paths fill the store. The backfill reads the Notes files of the past,
 reads the new filings of each day. This document describes both paths as the code on `main` runs
 them today. The decisions behind them are in [`ingestion_paths.md`](ingestion_paths.md).
 
-## What: the Step in One Picture
+## What: The Step in One Picture
 
 Extraction has two parts. Each part has its own SEC sources:
 
@@ -79,7 +79,7 @@ The dashed box marks an endpoint with working code that no production run calls.
 | Backfill of history (Notes files from 2009 to last month) | Yes | `backfill` binary, part 1, on demand | No container image runs it yet |
 | Catch-up from the cut-over date to yesterday | Yes | `backfill` binary, part 2, on demand | One daily index per day. The quarterly full index needs fewer requests |
 | New filings each day | Yes | `daily_filings` binary with `ARKAD_FROM=yesterday-3` | No container image and no schedule yet |
-| Company data (`submissions`) | Partly | Part 2 of `backfill` and `daily_filings`: one file per company of the day | No run stores `submissions` for a company that appears only in the Notes files |
+| Company data (`submissions`) | Partly | Part 2 of `backfill` and `daily_filings`: one file per company of the day | No run stores `submissions` for a company that appears only in the Notes files. The facade has `backfill().submissions()` and `backfill().all()` for this. Only a binary is missing |
 | Company Facts | No, but the code exists | Only `stream_etl` (469 S&P 500 companies) and the `extraction` demo call it | Company Facts drops every value with a dimension |
 | Rerun without duplicate work | Yes | A run skips each stored file that passes its size and SHA-256 check | The daily index and `submissions` are fetched again on each run |
 | Continue after a long pause | Partly | A hand-set `ARKAD_FROM` | The scheduled window covers 4 days |
@@ -88,9 +88,9 @@ The dashed box marks an endpoint with working code that no production run calls.
 | Removals at the SEC | No | None | Proposed as a recorded event. The store never deletes a file |
 | History of changed files | No | The store keeps one version per key | Needs an append-only store |
 | Run as of a past date D | No | The periods and the catch-up always end at today | See [Configurability and Time Travel](#configurability-and-time-travel) |
-| Compressed transfer | No | The client does not ask the SEC for gzip | gzip cuts the bytes of JSON and index files by about 10 times. Stored bytes stay the same |
+| Compressed transfer | No | The client does not ask the SEC for gzip | Measured with gzip: Company Facts 3.8 MB to 272 KB, `submissions` 164 KB to 28 KB, the daily index 1.16 MB to 101 KB. Stored bytes stay the same |
 
-## Why: the Goal
+## Why: The Goal
 
 After extraction, the pipeline depends on no third party. The raw store holds every input of
 transform. Transform, replay, and checks run with no network access.
@@ -106,7 +106,7 @@ needs no new download.
 
 ## Who: Binaries and Facade Calls
 
-Every binary builds its machines through the `Extraction` facade
+Every binary except the `extraction` demo builds its machines through the `Extraction` facade
 (`sec/src/lib/implementations/extraction/`). `Extraction::backfill()` starts a backfill run, and
 `Extraction::incremental()` starts an incremental run. Each call creates a new `execution_id`. The
 facade writes the ingestion mode, `backfill` or `incremental`, into the metadata of each document.
@@ -122,10 +122,10 @@ Two deprecated examples in `sec/examples/` still compile: `notes_backfill` (repl
 and `stream_extract` (Company Facts). The `Dockerfile` builds and runs `stream_extract`. No
 container image holds `backfill` or `daily_filings` yet.
 
-`backfill().all()` exists in the facade. It reads the CIKs of every stored Notes file and stores
-`submissions` for each of them. No binary calls it.
+`backfill().all()` exists in the facade. It runs the Notes periods, then stores `submissions` for
+each CIK of the stored Notes files. No binary calls it.
 
-## Where: the Raw Store
+## Where: The Raw Store
 
 All files go to a `FilesystemRepository` under `ARKAD_STORAGE_ROOT`. Each document has a metadata
 file beside it, with the suffix `.meta.json`.
@@ -183,13 +183,10 @@ folder index, the Notes file, `submissions`, and Company Facts name no input.
 
 1. The write repository compares the new metadata with the stored metadata, without the four run
    fields. It also compares the SHA-256 of the stored document.
-2. If both match, the write is skipped. The stored run fields stay, so they name the first run
+2. If both match, the repository skips the write. The stored run fields stay, so they name the first run
    that stored these bytes.
 3. Otherwise, the repository writes both files to temporary files, then renames the metadata into
    place, then the document. A document on disk always has its metadata.
-
-`inputs` stays in the comparison on purpose. A filing listed by a changed daily index gets new
-metadata.
 
 So a key holds one version. If the bytes change, the new bytes replace the old ones.
 
@@ -231,7 +228,8 @@ the same `execution_id` as part 1, with the ingestion mode `incremental`.
 ### The Daily Run and Its Window
 
 All dates are days in New York (`America/New_York`). The SEC publishes the daily index of a day
-after that day ends there. The daily index of 2026-10-27 appeared at 02:16 UTC on 2026-10-28.
+in the evening of that day or later. The daily index of 2026-10-27 appeared at 22:16 New York time
+(02:16 UTC on 2026-10-28).
 
 The scheduled run sets `ARKAD_FROM=yesterday-3`, so it reads 4 days: yesterday and the 3 days
 before it.
@@ -286,8 +284,8 @@ Several endpoints offer the same kind of data. The pipeline picks one source for
 | Tickers and exchanges | `submissions` only | `submissions` | No other endpoint has them |
 | Former names, LEI, fiscal year end | `submissions` only | `submissions` | No other endpoint has them |
 
-`submissions` is the only source of tickers and exchanges. It also lets a check reconcile one
-company against its stored filings. So the pipeline keeps it for now.
+`submissions` also lets a check reconcile one company against its stored filings. So the pipeline
+keeps it for now.
 
 ### Endpoint by Endpoint
 
@@ -404,6 +402,8 @@ flowchart TB
     R -- "folder index without instance" --> S2["Unextractable,<br/>no request"]:::skip
     R -- "nothing" --> X["Fetch and store index.json,<br/>select files, fetch and store<br/>instance and label file"]:::step
     X -- "503" --> RT["Retry after 10 s, then 60 s"]:::fail
+    RT -- "retry" --> X
+    RT -- "third attempt fails" --> C
     S1 --> C["For each distinct CIK, at most 4 at once:<br/>fetch and store submissions"]:::step
     S2 --> C
     X --> C
@@ -442,9 +442,9 @@ A rerun with the same dates sends requests only for work that is not done:
 | Document | Rerun behaviour |
 | -------- | --------------- |
 | Notes file | Skipped if the stored file passes the size and SHA-256 check. No request |
-| Daily index | Fetched again. The write is skipped if the bytes are equal |
+| Daily index | Fetched again. The repository skips the write if the bytes are equal |
 | Filing | Skipped if the stored instance passes the check, or if the stored folder index lists no instance. No request |
-| `submissions` | Fetched again. The write is skipped if the bytes are equal, and replaces the file otherwise |
+| `submissions` | Fetched again. The repository skips the write if the bytes are equal, and replaces the file otherwise |
 
 A skipped write keeps the run fields of the first run. So `execution_id` and `produced_at` name
 the run that first stored the bytes.
@@ -452,7 +452,8 @@ the run that first stored the bytes.
 ### After a Later Run
 
 - A later `backfill` stores the new Notes months. Their filings are already in the store as
-  instances, so the overlap grows. No row is duplicated, because transform writes by natural key.
+  instances, so the overlap grows. Extraction stores both forms. Transform does not exist yet, and
+  [Composition and Parity](#composition-and-parity) states the rule it needs.
 - A Notes file that the SEC replaced is not fetched again, because the stored file passes its
   check. The store keeps the old version.
 - A changed `submissions` file replaces the old one. The old version is lost.
@@ -512,7 +513,7 @@ Every request goes through one rate limiter per process. It allows one request e
 | One Notes file | 1 | 25 s for `2024q1` (619 MB) | 0.62 GB | Measured on 2026-10-28, [Download](ingestion_paths.md#download) |
 | One new filing | 3, plus 1 for its company | | 4.8 MB for one 10-Q. 25 KB for one small filer | Code, and measured on 2026-11-02 |
 | One date, about 90 filings | About 360 | About 40 s at the rate limit | About 1 MB of daily index, plus the filings | Estimate from 90 filings per business day in `2024q1` |
-| One peak date, 295 filings | About 1,200 | About 2 minutes at the rate limit alone. [Window](ingestion_paths.md#window) estimates 9 minutes. Under 1 minute on a reread | Not measured | Estimate |
+| One peak date, 295 filings | About 1,200 | About 2 minutes at the rate limit alone. [Window](ingestion_paths.md#window) estimates 9 minutes. Under 1 minute on a reread. The 30-minute timeout holds under both estimates | Not measured | Estimate |
 | `backfill`, part 2, 40 business days | About 14,000 | About 26 minutes at the rate limit | Not measured | Estimate, [Dates](ingestion_paths.md#dates) |
 | `daily_filings`, 4 dates | 1 new date plus 3 rereads | Under 10 minutes on a peak day | About 4.6 MB of daily indexes | Estimate |
 
@@ -594,7 +595,9 @@ each gap through the facade calls that exist. A weekly job in the same container
 | The window covers 4 days | A pause longer than 4 days needs a hand-set `ARKAD_FROM` |
 | One daily index per day in the catch-up | A long catch-up sends one request per day. The full index needs one per quarter |
 | No `submissions` for companies that appear only in the Notes files | The store has no tickers for those companies |
-| No gzip | Each JSON and index file transfers about 10 times more bytes than needed |
+| No gzip | Each JSON and index file transfers 6 to 14 times more bytes than with gzip, measured on three files |
+| A replaced daily index | The `inputs` SHA-256 of each stored instance that it listed names bytes the store no longer holds |
+| The filing skip checks only the instance | A missing or broken `lab.xml` beside an intact instance is never fetched again |
 
 ## See Also
 
