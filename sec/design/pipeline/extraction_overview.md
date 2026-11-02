@@ -597,7 +597,7 @@ each gap through the facade calls that exist. A weekly job in the same container
 | One daily index per day in the catch-up | A long catch-up sends one request per day. The full index needs one per quarter |
 | No `submissions` for companies that appear only in the Notes files | The store has no tickers for those companies |
 | No gzip | The three measured files (Company Facts, `submissions`, the daily index) transfer 6 to 14 times more bytes than with gzip |
-| One run of `daily_filings` has a 30-minute timeout | A hand-set `ARKAD_FROM` more than about 40 business days back does not fit in one run |
+| One run of `daily_filings` has a 30-minute timeout | A hand-set `ARKAD_FROM` fits in one run for about 10 business days by the [Window](ingestion_paths.md#window) estimate, or about 40 at the rate limit alone. Neither is measured |
 | A replaced daily index | The `inputs` SHA-256 of each stored instance that it listed names bytes the store no longer holds |
 | The filing skip checks only the instance | A missing or broken `lab.xml` beside an intact instance is never fetched again |
 
