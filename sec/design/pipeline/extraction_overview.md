@@ -508,16 +508,40 @@ later.
 Every request goes through one rate limiter per process. It allows one request each 110 ms, about
 9 per second. The SEC limit is 10 per second.
 
-| Run | Requests | Time | Bytes | Source |
-| --- | -------- | ---- | ----- | ------ |
-| `backfill`, part 1, empty store | 79 | 14 minutes, about 32 MB/s | 27.7 GB | MVP decision spike, and [Download](ingestion_paths.md#download) |
-| `backfill`, part 1, rerun | 0 | Reads every stored file once for the check | 0 | Code |
-| One Notes file | 1 | 25 s for `2024q1` (619 MB) | 0.62 GB | Measured on 2026-10-28, [Download](ingestion_paths.md#download) |
-| One new filing | 3, plus 1 for its company | | 4.8 MB for one 10-Q. 25 KB for one small filer | Code, and measured on 2026-11-02 |
-| One date, about 90 filings | About 360 | About 40 s at the rate limit | About 1 MB of daily index, plus the filings | Estimate from 90 filings per business day in `2024q1` |
-| One peak date, 295 filings | About 1,200 | About 2 minutes at the rate limit alone. [Window](ingestion_paths.md#window) estimates 9 minutes. Under 1 minute on a reread | Not measured | Estimate |
-| `backfill`, part 2, 40 business days | About 14,000 | About 26 minutes at the rate limit | Not measured | Estimate, [Dates](ingestion_paths.md#dates) |
-| `daily_filings`, 4 dates | 1 new date plus 3 rereads | Under 10 minutes on a peak day, inside the 30-minute timeout under both estimates | About 4.6 MB of daily indexes | Estimate |
+Two limits set the run time. Small files hit the rate limit first. Large files, the Notes ZIPs and
+the instances of large filers, hit the network first. So a time measured on one machine does not
+hold on another. Each time below names where it was measured.
+
+### Measurement Environments
+
+| Environment | Network | Hardware | Bottleneck | Used for |
+| ----------- | ------- | -------- | ---------- | -------- |
+| Cloud container | About 23 to 25 MB/s to the SEC, through the container's proxy | Intel Xeon at 2.10 GHz, 4 cores, x86-64 Linux | The network. The run reaches the curl speed. CPU, memory, and the rate limit are not the limit | The MVP decision spike (2026-10-16), the files-in-flight runs (2026-10-29), and the endpoint sizes of this document (2026-11-02) |
+| The lead's Mac | About 90 to 95 MB/s to the SEC, on Wi-Fi | Not recorded | The network, most likely the Wi-Fi or the network adapter. Four parallel curl streams reached about 102 MB/s, about the same as one | The files-in-flight runs (2026-10-29) |
+| Cloud Run | Not measured | Not measured | Not measured | Nothing yet. The planned jobs run here |
+
+The numbers of 2026-10-29 are in
+[notes_backfill Network and Stream Cut-Off: Findings](https://linear.app/state-machine/document/notes-backfill-network-and-stream-cut-off-findings-2238f0c1e060).
+Sizes and request counts do not depend on the environment. Times do.
+
+### Requests, Time, and Bytes
+
+| Run | Requests | Time | Bytes | Bottleneck | Where and source |
+| --- | -------- | ---- | ----- | ---------- | ---------------- |
+| `backfill`, part 1, empty store | 79 | 14 minutes (about 32 MB/s) in the cloud container. Estimate: 20 to 25 minutes in the cloud container at 23 to 25 MB/s, 5 to 8 minutes on the lead's Mac | 27.7 GB | Network | Cloud container, MVP decision spike. Estimates from the findings of 2026-10-29 |
+| `backfill`, part 1, rerun | 0 | Reads every stored file once for the check: about 0.43 s of hashing per 619 MB | 0 | Disk read and SHA-256, about 1.4 GB/s per core | Code. Hash time measured in the cloud container |
+| 4 Notes files, 2.15 GB, 2 in flight | 4 | 95 to 107 s in the cloud container, 23.6 to 25.2 s on the lead's Mac | 2.15 GB | Network. More files in flight do not lower the total time | Findings of 2026-10-29 |
+| One Notes file | 1 | 25 s for `2024q1` (619 MB) | 0.62 GB | Network | [Download](ingestion_paths.md#download), 2026-10-28. Environment not recorded. The speed, about 25 MB/s, matches the cloud container |
+| One new filing | 3, plus 1 for its company | Not measured | 4.8 MB for one 10-Q. 25 KB for one small filer | Rate limit for a small filer. Network for a large filer in the cloud container | Code. Sizes measured in the cloud container on 2026-11-02 |
+| One date, about 90 filings | About 360 | About 40 s at the rate limit alone | About 1 MB of daily index, plus the filings | Rate limit, if every download ends within 110 ms | Estimate from 90 filings per business day in `2024q1` |
+| One peak date, 295 filings | About 1,200 | About 2 minutes at the rate limit alone. [Window](ingestion_paths.md#window) estimates 9 minutes. Under 1 minute on a reread | Not measured | Rate limit or network, not measured | Estimate |
+| `backfill`, part 2, 40 business days | About 14,000 | About 26 minutes at the rate limit alone | Not measured | Rate limit, if every download ends within 110 ms | Estimate, [Dates](ingestion_paths.md#dates) |
+| `daily_filings`, 4 dates | 1 new date plus 3 rereads | Under 10 minutes on a peak day, inside the 30-minute timeout under both estimates | About 4.6 MB of daily indexes | Rate limit or network, not measured | Estimate |
+
+The estimates "at the rate limit alone" assume that each download ends before the rate limiter
+releases the next request. A 3.9 MB instance takes about 0.16 s at 25 MB/s, longer than the 110 ms
+between requests. So on the cloud container, a day of large filers runs slower than the rate limit
+alone. This can explain the gap between 2 and 9 minutes, but it is not measured.
 
 The selected rows per day were 77 on 2026-10-27, 197 on 2026-03-02, and 295 on 2026-08-10
 (measured). The bytes per day are not measured. One 10-Q of a large filer is 1,000 times larger
