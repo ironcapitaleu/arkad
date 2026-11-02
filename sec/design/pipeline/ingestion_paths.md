@@ -1,5 +1,8 @@
 # Ingestion Paths: Extraction
 
+> **Overview:** [`extraction_overview.md`](extraction_overview.md) describes the extraction step as
+> the code runs it today. This document holds the decisions and the measurements behind it.
+
 > **Status:** draft for review, STA-328. Round 1 of 3. Round 2 designs the SEC fact model and the
 > fact store (STA-331). Round 3 designs transform for both paths (STA-332).
 >
