@@ -508,15 +508,16 @@ later.
 Every request goes through one rate limiter per process. It allows one request each 110 ms, about
 9 per second. The SEC limit is 10 per second.
 
-Two limits set the run time. The filing documents hit the rate limit first, even the instances of
-large filers. The Notes ZIPs, up to 0.85 GB each, hit the network first. So the time of a Notes
-file measured on one machine does not hold on another. Each time below names where it was measured.
+Two limits set the run time. By the arithmetic below, the filing documents hit the rate limit
+first, even the instances of large filers. This is not measured. The Notes ZIPs, up to 0.85 GB
+each, hit the network first. So the time of a Notes file measured on one machine does not hold on
+another. Each time below names where it was measured.
 
 ### Measurement Environments
 
 | Environment | Network | Hardware | Bottleneck | Used for |
 | ----------- | ------- | -------- | ---------- | -------- |
-| Cloud container | About 23 to 25 MB/s to the SEC on 2026-10-29, through the container's proxy. The spike of 2026-10-16 reached about 32 MB/s | Intel Xeon at 2.10 GHz, 4 cores, x86-64 Linux | The network. The run reaches the curl speed. CPU, memory, and the rate limit are not the limit | The MVP decision spike (2026-10-16), the files-in-flight runs (2026-10-29), and the endpoint sizes of this document (2026-11-02) |
+| Cloud container | About 23 to 25 MB/s to the SEC on 2026-10-29, through the container's proxy. The spike of 2026-10-16 reached about 32 MB/s | Intel Xeon at 2.10 GHz, 4 cores, x86-64 Linux | The network for the Notes files. The run reaches the curl speed. CPU, memory, and the rate limit are not the limit for them | The MVP decision spike (2026-10-16), the files-in-flight runs (2026-10-29), and the endpoint sizes of this document (2026-11-02) |
 | The lead's Mac | About 90 to 95 MB/s to the SEC, on Wi-Fi | Not recorded | The network, most likely the Wi-Fi or the network adapter. Four parallel curl streams reached about 102 MB/s, about the same as one | The files-in-flight runs (2026-10-29) |
 | Cloud Run | Not measured | Not measured | Not measured | Nothing yet. The planned jobs run here |
 
