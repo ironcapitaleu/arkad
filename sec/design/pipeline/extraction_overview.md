@@ -596,6 +596,7 @@ each gap through the facade calls that exist. A weekly job in the same container
 | The window covers 4 days | A pause longer than 4 days needs a hand-set `ARKAD_FROM` |
 | One daily index per day in the catch-up | A long catch-up sends one request per day. The full index needs one per quarter |
 | No `submissions` for companies that appear only in the Notes files | The store has no tickers for those companies |
+| `backfill().all()` and the `backfill` binary each cover a different part | `all()` runs the Notes periods and `submissions`, but no catch-up. The binary runs the Notes periods and the catch-up, but no `submissions` for the companies in the Notes files. Neither runs all three |
 | No gzip | The three measured files (Company Facts, `submissions`, the daily index) transfer 6 to 14 times more bytes than with gzip |
 | One run of `daily_filings` has a 30-minute timeout | A hand-set `ARKAD_FROM` fits in one run for about 10 business days by the [Window](ingestion_paths.md#window) estimate, or about 40 at the rate limit alone. Neither is measured |
 | A replaced daily index | The `inputs` SHA-256 of each stored instance that it listed names bytes the store no longer holds |
