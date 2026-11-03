@@ -8,6 +8,7 @@ use std::fmt;
 
 use thiserror::Error;
 
+use crate::shared::http_client::implementations::reqwest_client::error_details;
 use crate::shared::response::implementations::sec_response::error::{
     ErrorReason as ResponseErrorReason, InvalidSecResponse,
 };
@@ -132,7 +133,7 @@ impl fmt::Display for ErrorReason {
 impl From<reqwest::Error> for FailedSecRequest {
     fn from(e: reqwest::Error) -> Self {
         Self::new(ErrorReason::FailedRequestExecution {
-            details: e.to_string(),
+            details: error_details(&e),
         })
     }
 }
@@ -145,6 +146,8 @@ impl From<InvalidSecResponse> for FailedSecRequest {
 
 #[cfg(test)]
 mod tests {
+    use std::time::Duration;
+
     use pretty_assertions::assert_eq;
 
     use crate::shared::content_type::ContentType;
@@ -153,6 +156,30 @@ mod tests {
     };
 
     use super::*;
+    use crate::tests::stalled_server::stalled_server;
+
+    #[tokio::test]
+    async fn should_say_timed_out_when_the_request_times_out() {
+        let address = stalled_server(b"").await;
+        let client = reqwest::Client::builder()
+            .read_timeout(Duration::from_millis(500))
+            .no_proxy()
+            .build()
+            .expect("A builder with only a read timeout and no proxy always builds");
+        let error = client
+            .get(format!("http://{address}/"))
+            .send()
+            .await
+            .expect_err("The server never answers, so the read timeout always ends the request");
+
+        let expected_result = true;
+
+        let result = FailedSecRequest::from(error)
+            .to_string()
+            .ends_with(", timed out'");
+
+        assert_eq!(result, expected_result);
+    }
 
     fn invalid_status_code(status_code: StatusCode) -> FailedSecRequest {
         FailedSecRequest::from(InvalidSecResponse::new(

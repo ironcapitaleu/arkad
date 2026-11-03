@@ -24,14 +24,30 @@ pub const CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
 /// The longest wait for the next bytes of a response, before the request fails.
 ///
 /// The wait starts with the request and starts again after each read of the body. So it limits
-/// the wait between two reads, not the whole download. A total timeout does not fit, because one
-/// Notes file is up to 0.85 GB, which takes about 35 s at 25 MB/s. 60 s lets the SEC pause under
-/// load, and a stalled connection still fails long before the job timeout. The value is a
-/// proposal and is not measured.
+/// the wait between two reads, not the whole download. A total timeout does not fit, because it
+/// must allow for the slowest download. The largest Notes file is 0.85 GB, and it takes about
+/// 80 s with 2 files in flight. 60 s lets the SEC pause under load, and a stalled connection
+/// still fails long before the job timeout. The value is a proposal and is not measured.
 // Deviation: `Duration::from_mins` is not stable in Rust 1.90, the CI version, so the code writes
 // the value in seconds. Rust 1.90 does not know the lint, hence `unknown_lints`.
 #[allow(unknown_lints, clippy::duration_suboptimal_units)]
 pub const READ_TIMEOUT: Duration = Duration::from_secs(60);
+
+/// The timeouts that [`ReqwestClient::new`] sets.
+///
+/// Named fields keep the two values of the same type from being swapped.
+const TIMEOUTS: Timeouts = Timeouts {
+    connect: CONNECT_TIMEOUT,
+    read: READ_TIMEOUT,
+};
+
+/// The connect timeout and the read timeout of a client.
+struct Timeouts {
+    /// The longest wait to open a connection.
+    connect: Duration,
+    /// The longest wait for the next bytes of a response.
+    read: Duration,
+}
 
 #[async_trait]
 impl InnerClient for Client {
@@ -87,7 +103,7 @@ impl ReqwestClient {
     /// assert_eq!(result, expected_result);
     /// ```
     pub fn new(user_agent: UserAgent) -> Result<Self, ReqwestError> {
-        Self::from_builder(timed_builder(CONNECT_TIMEOUT, READ_TIMEOUT), user_agent)
+        Self::from_builder(timed_builder(&TIMEOUTS), user_agent)
     }
 
     /// Builds the client from `builder` and sets `user_agent` as its `User-Agent` header.
@@ -114,11 +130,23 @@ impl ReqwestClient {
     }
 }
 
-/// Returns a [`ClientBuilder`] with `connect_timeout` and `read_timeout` set.
-fn timed_builder(connect_timeout: Duration, read_timeout: Duration) -> ClientBuilder {
+/// Returns a [`ClientBuilder`] with both `timeouts` set.
+fn timed_builder(timeouts: &Timeouts) -> ClientBuilder {
     Client::builder()
-        .connect_timeout(connect_timeout)
-        .read_timeout(read_timeout)
+        .connect_timeout(timeouts.connect)
+        .read_timeout(timeouts.read)
+}
+
+/// Returns the message of `error`, and says so if the request timed out.
+///
+/// The [`Display`](std::fmt::Display) of a [`reqwest::Error`] names the URL but not the cause, so
+/// a timeout reads the same as a reset connection.
+pub(crate) fn error_details(error: &ReqwestError) -> String {
+    if error.is_timeout() {
+        format!("{error}, timed out")
+    } else {
+        error.to_string()
+    }
 }
 
 #[async_trait]
@@ -137,30 +165,21 @@ impl InnerClient for ReqwestClient {
 
 #[cfg(test)]
 mod tests {
-    use std::future;
-
     use pretty_assertions::assert_eq;
-    use tokio::net::TcpListener;
     use tokio::time;
 
     use super::*;
+    use crate::tests::stalled_server::stalled_server;
 
     #[tokio::test]
     async fn should_return_a_timeout_error_when_the_server_sends_no_response() {
-        let listener = TcpListener::bind("127.0.0.1:0")
-            .await
-            .expect("Port 0 on the loopback interface lets the OS pick a free port, so binding always succeeds");
-        let address = listener
-            .local_addr()
-            .expect("A bound listener always has a local address");
-        tokio::spawn(async move {
-            // The server holds the connection open and never answers.
-            let _connection = listener.accept().await;
-            future::pending::<()>().await;
-        });
-        let read_timeout = Duration::from_millis(500);
+        let address = stalled_server(b"").await;
+        let timeouts = Timeouts {
+            connect: CONNECT_TIMEOUT,
+            read: Duration::from_millis(500),
+        };
         let guard = Duration::from_secs(5);
-        let builder = timed_builder(CONNECT_TIMEOUT, read_timeout).no_proxy();
+        let builder = timed_builder(&timeouts).no_proxy();
         let user_agent = UserAgent::new("Sample Company contact@example.com")
             .expect("A hardcoded SEC-format string should always validate");
         let client = ReqwestClient::from_builder(builder, user_agent)
@@ -176,6 +195,41 @@ mod tests {
         let result = time::timeout(guard, client.execute_request(request))
             .await
             .is_ok_and(|response| response.is_err_and(|error| error.is_timeout()));
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_say_timed_out_in_the_error_details_when_the_request_times_out() {
+        let address = stalled_server(b"").await;
+        let client = Client::builder()
+            .read_timeout(Duration::from_millis(500))
+            .no_proxy()
+            .build()
+            .expect("A builder with only a read timeout and no proxy always builds");
+        let error = client
+            .get(format!("http://{address}/"))
+            .send()
+            .await
+            .expect_err("The server never answers, so the read timeout always ends the request");
+
+        let expected_result = true;
+
+        let result = error_details(&error).ends_with(", timed out");
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_the_message_of_the_error_when_the_request_does_not_time_out() {
+        let error = Client::new()
+            .get("not a url")
+            .build()
+            .expect_err("A string with no scheme is never a valid URL");
+
+        let expected_result = error.to_string();
+
+        let result = error_details(&error);
 
         assert_eq!(result, expected_result);
     }

@@ -20,6 +20,7 @@ use storage::shared::Sha256Digest;
 
 use crate::shared::content_type::ContentType;
 use crate::shared::headers::Headers;
+use crate::shared::http_client::implementations::reqwest_client::error_details;
 use crate::shared::status_code::StatusCode;
 use crate::shared::url::Url;
 
@@ -262,7 +263,7 @@ impl<B: ResponseBody> SecResponseTrait for SecResponse<B> {
 
         let raw_body = inner.bytes().await.map_err(|e| {
             InvalidSecResponse::new(ErrorReason::FailedBodyRead {
-                details: e.to_string(),
+                details: error_details(&e),
             })
         })?;
 
@@ -292,9 +293,41 @@ impl<B: ResponseBody> SecResponseTrait for SecResponse<B> {
 
 #[cfg(test)]
 mod tests {
+    use std::time::Duration;
+
     use pretty_assertions::assert_eq;
 
     use super::*;
+    use crate::tests::stalled_server::stalled_server;
+
+    /// A response head that promises a body of 100 bytes and sends none of it.
+    const STALLED_HEAD: &[u8] =
+        b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 100\r\n\r\n";
+
+    #[tokio::test]
+    async fn should_say_timed_out_when_the_body_read_times_out() {
+        let address = stalled_server(STALLED_HEAD).await;
+        let client = reqwest::Client::builder()
+            .read_timeout(Duration::from_millis(500))
+            .no_proxy()
+            .build()
+            .expect("A builder with only a read timeout and no proxy always builds");
+        let response = client
+            .get(format!("http://{address}/"))
+            .send()
+            .await
+            .expect("The server sends a full response head, so the request always gets a response");
+
+        let expected_result = true;
+
+        let result = SecResponse::<JsonBody>::from_inner(response)
+            .await
+            .expect_err("The server never sends the body, so the read timeout always ends the read")
+            .to_string()
+            .contains(", timed out'");
+
+        assert_eq!(result, expected_result);
+    }
 
     const RAW_BODY: &[u8] = b"{ \"price\":   1.50 }";
 

@@ -6,5 +6,9 @@
 //! ## Modules
 //!
 //! - [`fixtures`]: Reusable sample states, clients, requests, and responses.
+//! - `stalled_server`: A local TCP server that stops sending. It compiles under `#[cfg(test)]`
+//!   only.
 
 pub mod fixtures;
+#[cfg(test)]
+pub mod stalled_server;

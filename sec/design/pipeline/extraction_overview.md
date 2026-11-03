@@ -581,9 +581,12 @@ them.
 | `CONNECT_TIMEOUT` | 10 s | The wait to open a connection |
 | `READ_TIMEOUT` | 60 s | The wait for the next bytes of a response. It starts again after each read of the body |
 
-There is no total timeout, because one Notes file takes about 35 s at 25 MB/s. Both values are
-proposals and are not measured. A timeout fails the request with `FailedRequestExecution`, or with
-`FailedBodyRead` while the body is read. No layer retries it yet.
+There is no total timeout. A total timeout must allow for the slowest download. The largest Notes
+file is 0.85 GB, and it takes about 80 s with 2 files in flight (estimate from the 4-file run).
+Both values are proposals and are not measured.
+
+A timeout fails the request with `FailedRequestExecution`, or with `FailedBodyRead` while the body
+is read. The error message then ends with `timed out`. No layer retries it yet.
 
 ### Can a Run Rebuild the State as of a Date D?
 
