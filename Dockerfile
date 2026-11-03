@@ -4,21 +4,26 @@
 #   docker build --target backfill -t arkad-backfill .
 #   docker build --target daily-filings -t arkad-daily-filings .
 #
-# The binaries are static musl binaries, linked by zig through `cargo zigbuild`.
+# The binaries are static musl binaries for x86_64, linked by zig through `cargo zigbuild`.
+# Every stage pins `linux/amd64`, so an arm64 host builds the same image as CI and Cloud Run.
 # See `docs/adr/0002-static-binaries.md`.
 
 # The runtime base holds the CA certificates, `/etc/passwd`, and `/tmp`, and has no shell.
-FROM gcr.io/distroless/static-debian13 AS distroless
+FROM --platform=linux/amd64 gcr.io/distroless/static-debian13 AS distroless
 
 # The build stage compiles both binaries in one call. Both targets share its cache.
 # `cargo-zigbuild` 0.24.0 needs a newer Rust than the CI toolchain 1.90.
-FROM rust:1.97-trixie AS build
+FROM --platform=linux/amd64 rust:1.97-trixie AS build
 ARG ZIGLANG_VERSION=0.17.0
+# The SHA-256 of the manylinux x86_64 wheel of `ziglang` ${ZIGLANG_VERSION}, from the PyPI JSON API.
+# Change it together with ZIGLANG_VERSION.
+ARG ZIGLANG_SHA256=97079827064a7492cce5541ceb438ae8003ce1e54e399676da2d62fb7a5dc08b
 ARG CARGO_ZIGBUILD_VERSION=0.24.0
 # zig comes from the `ziglang` wheel on PyPI. The image has no pip, so the wheel is unpacked as a zip.
 RUN wheel_url="$(curl -fsSL "https://pypi.org/pypi/ziglang/${ZIGLANG_VERSION}/json" \
         | python3 -c 'import json, sys; print(next(u["url"] for u in json.load(sys.stdin)["urls"] if "manylinux" in u["filename"] and "x86_64" in u["filename"]))')" \
     && curl -fsSL "$wheel_url" -o /tmp/ziglang.whl \
+    && echo "${ZIGLANG_SHA256}  /tmp/ziglang.whl" | sha256sum -c - \
     && python3 -m zipfile -e /tmp/ziglang.whl /opt/ \
     && rm /tmp/ziglang.whl \
     && chmod +x /opt/ziglang/zig \

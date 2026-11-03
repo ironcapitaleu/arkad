@@ -1962,7 +1962,7 @@ binaries once as static musl binaries. Each final stage holds one binary on
 | Image | Build | Entrypoint |
 | ----- | ----- | ---------- |
 | `backfill` | `docker build --target backfill .` | `/usr/local/bin/backfill` |
-| `daily_filings` | `docker build --target daily-filings .` | `/usr/local/bin/daily_filings` |
+| `daily-filings` | `docker build --target daily-filings .` | `/usr/local/bin/daily_filings` |
 
 | Path | Binary | Trigger | Size (estimate) |
 | ---- | ------ | ------- | --------------- |
