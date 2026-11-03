@@ -585,8 +585,8 @@ There is no total timeout. A total timeout must allow for the slowest download. 
 file is 0.85 GB, and it takes about 80 s with 2 files in flight (estimate from the 4-file run).
 Both values are proposals and are not measured.
 
-A timeout fails the request with `FailedRequestExecution`, or with `FailedBodyRead` while the body
-is read. The details of that error then end with `timed out`. No layer retries it yet.
+A timeout fails the request with `TimedOutRequest`, or with `TimedOutBodyRead` while the body is
+read. `FailedSecRequest::is_timed_out` returns `true` for both. No layer retries it yet.
 
 ### Can a Run Rebuild the State as of a Date D?
 

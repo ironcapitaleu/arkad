@@ -52,6 +52,11 @@ pub enum ErrorReason {
         /// A description of the read failure.
         details: String,
     },
+    /// The next bytes of the body did not arrive within the read timeout of the client.
+    TimedOutBodyRead {
+        /// A description of the read that timed out.
+        details: String,
+    },
     /// The body length does not match the `Content-Length` header.
     InvalidContentLength {
         /// The `Content-Length` header value as received.
@@ -75,6 +80,9 @@ impl fmt::Display for ErrorReason {
             }
             Self::FailedBodyRead { details } => {
                 write!(f, "Failed to read response body: '{details}'")
+            }
+            Self::TimedOutBodyRead { details } => {
+                write!(f, "Timed out reading response body: '{details}'")
             }
             Self::InvalidContentLength {
                 content_length,
@@ -187,6 +195,19 @@ mod tests {
         };
 
         let expected_result = "Failed to read response body: 'connection reset'";
+
+        let result = reason.to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_format_display_as_expected_for_timed_out_body_read_reason() {
+        let reason = ErrorReason::TimedOutBodyRead {
+            details: "error decoding response body".to_string(),
+        };
+
+        let expected_result = "Timed out reading response body: 'error decoding response body'";
 
         let result = reason.to_string();
 

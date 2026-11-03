@@ -8,7 +8,6 @@ use std::fmt;
 
 use thiserror::Error;
 
-use crate::shared::http_client::implementations::reqwest_client::error_details;
 use crate::shared::response::implementations::sec_response::error::{
     ErrorReason as ResponseErrorReason, InvalidSecResponse,
 };
@@ -65,15 +64,28 @@ impl FailedSecRequest {
         self.reason
             .has_status(|status| matches!(status, StatusCode::ServiceUnavailable))
     }
+
+    /// Returns `true` if the request or the read of its body timed out, also for the file that an
+    /// [`ErrorReason::FailedFilingDocument`] names.
+    #[must_use]
+    pub fn is_timed_out(&self) -> bool {
+        self.reason.is_timed_out()
+    }
 }
 
 /// Enum representing the reason why an SEC request failed.
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ErrorReason {
-    /// The request failed at the transport level (network error, timeout, etc.).
+    /// The request failed at the transport level, for example on a reset connection.
     FailedRequestExecution {
         /// A human-readable description of the transport failure.
+        details: String,
+    },
+    /// The request did not connect, or the response did not start, within the timeout of the
+    /// client.
+    TimedOutRequest {
+        /// A human-readable description of the request that timed out.
         details: String,
     },
     /// The response was received but did not meet SEC validity requirements.
@@ -100,6 +112,19 @@ impl ErrorReason {
                 ResponseErrorReason::InvalidStatusCode { status_code } if is_match(status_code)
             ),
             Self::FailedFilingDocument { source, .. } => source.has_status(is_match),
+            Self::FailedRequestExecution { .. } | Self::TimedOutRequest { .. } => false,
+        }
+    }
+
+    /// Returns `true` if the request or the read of its body timed out, also under a
+    /// [`FailedFilingDocument`](Self::FailedFilingDocument).
+    fn is_timed_out(&self) -> bool {
+        match self {
+            Self::TimedOutRequest { .. } => true,
+            Self::InvalidResponse { source } => {
+                matches!(source.reason, ResponseErrorReason::TimedOutBodyRead { .. })
+            }
+            Self::FailedFilingDocument { source, .. } => source.is_timed_out(),
             Self::FailedRequestExecution { .. } => false,
         }
     }
@@ -112,6 +137,12 @@ impl fmt::Display for ErrorReason {
                 write!(
                     f,
                     "[FailedRequestExecution] HTTP request execution failed, Reason: '{details}'"
+                )
+            }
+            Self::TimedOutRequest { details } => {
+                write!(
+                    f,
+                    "[TimedOutRequest] HTTP request timed out, Reason: '{details}'"
                 )
             }
             Self::InvalidResponse { source } => {
@@ -132,9 +163,13 @@ impl fmt::Display for ErrorReason {
 
 impl From<reqwest::Error> for FailedSecRequest {
     fn from(e: reqwest::Error) -> Self {
-        Self::new(ErrorReason::FailedRequestExecution {
-            details: error_details(&e),
-        })
+        let details = e.to_string();
+        let reason = if e.is_timeout() {
+            ErrorReason::TimedOutRequest { details }
+        } else {
+            ErrorReason::FailedRequestExecution { details }
+        };
+        Self::new(reason)
     }
 }
 
@@ -157,7 +192,7 @@ mod tests {
     use crate::tests::stalled_server::{impatient_client, stalled_server};
 
     #[tokio::test]
-    async fn should_say_timed_out_when_the_request_times_out() {
+    async fn should_return_a_timed_out_request_when_the_request_times_out() {
         let address = stalled_server(b"").await;
         let client = impatient_client();
         let error = client
@@ -168,9 +203,95 @@ mod tests {
 
         let expected_result = true;
 
-        let result = FailedSecRequest::from(error)
-            .to_string()
-            .ends_with(", timed out'");
+        let result = matches!(
+            FailedSecRequest::from(error).reason,
+            ErrorReason::TimedOutRequest { .. }
+        );
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_a_failed_request_execution_when_the_request_fails_without_a_timeout() {
+        let error = reqwest::Client::new()
+            .get("not a url")
+            .build()
+            .expect_err("A string with no scheme is never a valid URL");
+
+        let expected_result = true;
+
+        let result = matches!(
+            FailedSecRequest::from(error).reason,
+            ErrorReason::FailedRequestExecution { .. }
+        );
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_format_display_as_expected_when_reason_is_timed_out_request() {
+        let reason = ErrorReason::TimedOutRequest {
+            details: "error sending request for url (https://www.sec.gov/)".to_string(),
+        };
+
+        let expected_result = "[TimedOutRequest] HTTP request timed out, Reason: 'error sending request for url (https://www.sec.gov/)'";
+
+        let result = reason.to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_report_timed_out_when_the_request_timed_out() {
+        let error = FailedSecRequest::new(ErrorReason::TimedOutRequest {
+            details: "error sending request".to_string(),
+        });
+
+        let expected_result = true;
+
+        let result = error.is_timed_out();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_report_timed_out_when_the_body_read_timed_out() {
+        let error = FailedSecRequest::from(InvalidSecResponse::new(
+            SecResponseErrorReason::TimedOutBodyRead {
+                details: "error decoding response body".to_string(),
+            },
+        ));
+
+        let expected_result = true;
+
+        let result = error.is_timed_out();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_report_timed_out_when_a_filing_document_timed_out() {
+        let error = FailedSecRequest::new(ErrorReason::TimedOutRequest {
+            details: "error sending request".to_string(),
+        })
+        .for_file("alco-20260908_htm.xml");
+
+        let expected_result = true;
+
+        let result = error.is_timed_out();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_report_not_timed_out_when_the_request_fails_without_a_timeout() {
+        let error = FailedSecRequest::new(ErrorReason::FailedRequestExecution {
+            details: "connection refused".to_string(),
+        });
+
+        let expected_result = false;
+
+        let result = error.is_timed_out();
 
         assert_eq!(result, expected_result);
     }

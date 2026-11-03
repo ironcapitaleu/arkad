@@ -137,18 +137,6 @@ fn timed_builder(timeouts: &Timeouts) -> ClientBuilder {
         .read_timeout(timeouts.read)
 }
 
-/// Returns the message of `error`, and says so if the request timed out.
-///
-/// The [`Display`](std::fmt::Display) of a [`reqwest::Error`] names the URL but not the cause, so
-/// a timeout reads the same as a reset connection.
-pub(crate) fn error_details(error: &ReqwestError) -> String {
-    if error.is_timeout() {
-        format!("{error}, timed out")
-    } else {
-        error.to_string()
-    }
-}
-
 #[async_trait]
 impl InnerClient for ReqwestClient {
     /// The [`reqwest::Request`] type.
@@ -169,7 +157,7 @@ mod tests {
     use tokio::time;
 
     use super::*;
-    use crate::tests::stalled_server::{impatient_client, stalled_server};
+    use crate::tests::stalled_server::stalled_server;
 
     #[tokio::test]
     async fn should_return_a_timeout_error_when_the_server_sends_no_response() {
@@ -195,37 +183,6 @@ mod tests {
         let result = time::timeout(guard, client.execute_request(request))
             .await
             .is_ok_and(|response| response.is_err_and(|error| error.is_timeout()));
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[tokio::test]
-    async fn should_say_timed_out_in_the_error_details_when_the_request_times_out() {
-        let address = stalled_server(b"").await;
-        let client = impatient_client();
-        let error = client
-            .get(format!("http://{address}/"))
-            .send()
-            .await
-            .expect_err("The server never answers, so the read timeout always ends the request");
-
-        let expected_result = true;
-
-        let result = error_details(&error).ends_with(", timed out");
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
-    fn should_return_the_message_of_the_error_when_the_request_does_not_time_out() {
-        let error = Client::new()
-            .get("not a url")
-            .build()
-            .expect_err("A string with no scheme is never a valid URL");
-
-        let expected_result = error.to_string();
-
-        let result = error_details(&error);
 
         assert_eq!(result, expected_result);
     }

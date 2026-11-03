@@ -20,7 +20,6 @@ use storage::shared::Sha256Digest;
 
 use crate::shared::content_type::ContentType;
 use crate::shared::headers::Headers;
-use crate::shared::http_client::implementations::reqwest_client::error_details;
 use crate::shared::status_code::StatusCode;
 use crate::shared::url::Url;
 
@@ -262,8 +261,11 @@ impl<B: ResponseBody> SecResponseTrait for SecResponse<B> {
         B::check_status_and_content_type(status_code, &content_type)?;
 
         let raw_body = inner.bytes().await.map_err(|e| {
-            InvalidSecResponse::new(ErrorReason::FailedBodyRead {
-                details: error_details(&e),
+            let details = e.to_string();
+            InvalidSecResponse::new(if e.is_timeout() {
+                ErrorReason::TimedOutBodyRead { details }
+            } else {
+                ErrorReason::FailedBodyRead { details }
             })
         })?;
 
@@ -303,7 +305,7 @@ mod tests {
         b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 100\r\n\r\n";
 
     #[tokio::test]
-    async fn should_say_timed_out_when_the_body_read_times_out() {
+    async fn should_return_a_timed_out_body_read_when_the_body_read_times_out() {
         let address = stalled_server(STALLED_HEAD).await;
         let client = impatient_client();
         let response = client
@@ -314,11 +316,15 @@ mod tests {
 
         let expected_result = true;
 
-        let result = SecResponse::<JsonBody>::from_inner(response)
-            .await
-            .expect_err("The server never sends the body, so the read timeout always ends the read")
-            .to_string()
-            .contains(", timed out'");
+        let result = matches!(
+            SecResponse::<JsonBody>::from_inner(response)
+                .await
+                .expect_err(
+                    "The server never sends the body, so the read timeout always ends the read"
+                )
+                .reason,
+            ErrorReason::TimedOutBodyRead { .. }
+        );
 
         assert_eq!(result, expected_result);
     }
