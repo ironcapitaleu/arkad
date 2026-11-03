@@ -37,11 +37,11 @@ binary removes this coupling.
    compiles every binary in one call, and one final stage per binary, for example
    `--target backfill`. Each image holds only its own binary, and its entrypoint runs that binary.
    The repository has one `Dockerfile`.
-4. **Every image runs as user `10001:10001`.** The build stage writes `passwd` and `group` entries
-   for `arkad` (uid and gid 10001) and copies them into the image, so `HOME` is `/home/arkad` and
-   `getent group 10001` returns `arkad`. `/home/arkad` is owned by that user. The image does not use
-   the distroless user `nonroot` (65532), so the uid stays the same as in the current image and its
-   container CI check.
+4. **Every image runs as user `10001:10001`.** The `/etc/passwd` and `/etc/group` of the image hold
+   the distroless entries plus `arkad` (uid and gid 10001), with the home `/home/arkad`. That user
+   owns `/home/arkad`. The image does not use the distroless user `nonroot` (65532), so the uid
+   stays the same as in the current image. The container CI check reads these files from the
+   exported file system, because the image has no shell. STA-431 changes the check.
 5. **Fallback:** if a binary cannot build static, it uses `gcr.io/distroless/cc-debian13` with a
    glibc build on a `trixie` build stage. The PR that takes the fallback names the reason.
 
