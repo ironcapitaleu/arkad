@@ -21,8 +21,9 @@ Two facts of the code make a static build possible:
   so no binary reads `/usr/share/zoneinfo`. Log timestamps are UTC.
 
 A dynamic glibc binary must match the glibc of its runtime image. A binary built on Ubuntu 24.04
-(glibc 2.38) does not start on `debian:bookworm-slim` (glibc 2.36). A static binary removes this
-coupling.
+(glibc 2.39) needs `GLIBC_2.38` and does not start on `debian:bookworm-slim` (glibc 2.36). A build
+stage on the same Debian release avoids this, but couples the build to the runtime. A static
+binary removes this coupling.
 
 ## Decision
 
@@ -36,7 +37,11 @@ coupling.
    compiles every binary in one call, and one final stage per binary, for example
    `--target backfill`. Each image holds only its own binary, and its entrypoint runs that binary.
    The repository has one `Dockerfile`.
-4. **Every image runs as user `10001:10001`**, with `/home/arkad` owned by that user.
+4. **Every image runs as user `10001:10001`.** The build stage writes `passwd` and `group` entries
+   for `arkad` (uid and gid 10001) and copies them into the image, so `HOME` is `/home/arkad` and
+   `getent group 10001` returns `arkad`. `/home/arkad` is owned by that user. The image does not use
+   the distroless user `nonroot` (65532), so the uid stays the same as in the current image and its
+   container CI check.
 5. **Fallback:** if a binary cannot build static, it uses `gcr.io/distroless/cc-debian13` with a
    glibc build on a `trixie` build stage. The PR that takes the fallback names the reason.
 
@@ -50,7 +55,7 @@ The live run was `daily_filings` for 2026-10-25 against the SEC.
 
 | Option | Runtime base | Binaries | Pull size | Local size | Live run |
 | ------ | ------------ | -------- | --------- | ---------- | -------- |
-| A | `debian:bookworm-slim` | glibc | 34.7 MB | 136 MB | Failed: the host build needs glibc 2.38, and bookworm has 2.36 |
+| A | `debian:bookworm-slim` | glibc, built on the host | 34.7 MB | 136 MB | Failed: the host binary needs `GLIBC_2.38`, and bookworm has 2.36. A bookworm build stage avoids this, but couples build and runtime |
 | B | `gcr.io/distroless/cc-debian13` | glibc | 17.1 MB | 65 MB | Passed, 1.00 s |
 | **C** | **`gcr.io/distroless/static-debian13`** | **static musl, zig** | **7.4 MB** | **28.3 MB** | **Passed, 0.35 s** |
 | D | `scratch` | static musl, zig | 6.6 MB | 22 MB | Passed, 0.49 s |
@@ -72,17 +77,18 @@ handles the large-file path.
   config and the exported file system instead.
 - A dependency that links OpenSSL or `native-tls`, or that needs a system library at runtime,
   breaks the build. A new dependency must use `rustls` for TLS.
-- Data that distroless does not ship, such as time zone files, must be compiled into the binary.
+- A binary compiles in the data it needs, such as time zones, and reads no data file of the image.
+  `distroless/static` ships `tzdata`, but no binary depends on it.
 - musl has a slower allocator than glibc. The full `backfill` run of STA-422 measures memory and
   runtime. If either suffers, the binaries add `mimalloc`.
 - A cold build installs zig and `cargo-zigbuild` first, about 1 min 44 s of 4 min 11 s on
   2026-11-01. A builder image with both tools removes that step.
-- Until [STA-431](https://linear.app/state-machine/issue/STA-431) merges, the root `Dockerfile`
+- Until the PR of [STA-431](https://linear.app/state-machine/issue/STA-431) merges, the root `Dockerfile`
   does not follow this ADR.
 
 ## Open Questions
 
-- A CI check that fails when a dependency pulls in `openssl-sys` or `native-tls`. Not built yet.
+- A CI check that fails when a dependency adds `openssl-sys` or `native-tls`. Not built yet.
 - An `aarch64` target, if Cloud Run moves to Arm machines. Not needed today.
 
 ## Sources

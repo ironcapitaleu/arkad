@@ -227,12 +227,12 @@ records the decision, the measured options, and the fallback.
 - **TLS goes through `rustls`.** Never add a dependency that links OpenSSL or `native-tls`, or that
   needs a system library at runtime. If you add a dependency, run `cargo tree -i openssl-sys`. It
   must find no package.
-- **Compile data in.** Distroless has no shell and no time zone files. If a binary needs such data,
-  compile it in, as `chrono-tz` does.
+- **Compile data in.** Distroless has no shell. If a binary needs data such as time zones, compile
+  it in, as `chrono-tz` does, so the binary does not depend on the files of the image.
 - **Fallback:** if a binary cannot build static, use `gcr.io/distroless/cc-debian13` with a glibc
   build on a `trixie` stage, and name the reason in the PR.
 
-The root `Dockerfile` follows these rules once STA-431 merges.
+The root `Dockerfile` follows these rules once the PR of STA-431 merges. That PR deletes this line.
 
 ---
 
