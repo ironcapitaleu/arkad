@@ -293,12 +293,10 @@ impl<B: ResponseBody> SecResponseTrait for SecResponse<B> {
 
 #[cfg(test)]
 mod tests {
-    use std::time::Duration;
-
     use pretty_assertions::assert_eq;
 
     use super::*;
-    use crate::tests::stalled_server::stalled_server;
+    use crate::tests::stalled_server::{impatient_client, stalled_server};
 
     /// A response head that promises a body of 100 bytes and sends none of it.
     const STALLED_HEAD: &[u8] =
@@ -307,11 +305,7 @@ mod tests {
     #[tokio::test]
     async fn should_say_timed_out_when_the_body_read_times_out() {
         let address = stalled_server(STALLED_HEAD).await;
-        let client = reqwest::Client::builder()
-            .read_timeout(Duration::from_millis(500))
-            .no_proxy()
-            .build()
-            .expect("A builder with only a read timeout and no proxy always builds");
+        let client = impatient_client();
         let response = client
             .get(format!("http://{address}/"))
             .send()

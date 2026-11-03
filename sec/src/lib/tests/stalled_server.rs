@@ -1,9 +1,11 @@
 //! # Stalled Server
 //!
-//! Provides a local TCP server that stops sending, for the tests of the request timeouts.
+//! Provides a local TCP server that stops sending, and a client that gives up on it, for the tests
+//! of the request timeouts.
 
 use std::future;
 use std::net::SocketAddr;
+use std::time::Duration;
 
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
@@ -26,7 +28,8 @@ pub async fn stalled_server(response_head: &'static [u8]) -> SocketAddr {
         .expect("A bound listener always has a local address");
     tokio::spawn(async move {
         if let Ok((mut connection, _)) = listener.accept().await {
-            // One read takes the whole request, because a test request is a few hundred bytes.
+            // One read is enough. If the request arrives in parts, the head goes out early, and the
+            // test still times out.
             let mut request = [0; 4096];
             let _ = connection.read(&mut request).await;
             let _ = connection.write_all(response_head).await;
@@ -34,4 +37,19 @@ pub async fn stalled_server(response_head: &'static [u8]) -> SocketAddr {
         }
     });
     address
+}
+
+/// Returns a client that gives up on a response after 500 ms, and uses no proxy.
+///
+/// # Panics
+///
+/// Panics if `reqwest` cannot build the client, for example when the TLS backend fails to
+/// initialize.
+#[must_use]
+pub fn impatient_client() -> reqwest::Client {
+    reqwest::Client::builder()
+        .read_timeout(Duration::from_millis(500))
+        .no_proxy()
+        .build()
+        .expect("A builder with only a read timeout and no proxy fails only if the TLS backend cannot initialize")
 }

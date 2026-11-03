@@ -34,14 +34,14 @@ pub const CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
 pub const READ_TIMEOUT: Duration = Duration::from_secs(60);
 
 /// The timeouts that [`ReqwestClient::new`] sets.
-///
-/// Named fields keep the two values of the same type from being swapped.
 const TIMEOUTS: Timeouts = Timeouts {
     connect: CONNECT_TIMEOUT,
     read: READ_TIMEOUT,
 };
 
 /// The connect timeout and the read timeout of a client.
+///
+/// Named fields keep the two values of the same type from being swapped.
 struct Timeouts {
     /// The longest wait to open a connection.
     connect: Duration,
@@ -169,7 +169,7 @@ mod tests {
     use tokio::time;
 
     use super::*;
-    use crate::tests::stalled_server::stalled_server;
+    use crate::tests::stalled_server::{impatient_client, stalled_server};
 
     #[tokio::test]
     async fn should_return_a_timeout_error_when_the_server_sends_no_response() {
@@ -202,11 +202,7 @@ mod tests {
     #[tokio::test]
     async fn should_say_timed_out_in_the_error_details_when_the_request_times_out() {
         let address = stalled_server(b"").await;
-        let client = Client::builder()
-            .read_timeout(Duration::from_millis(500))
-            .no_proxy()
-            .build()
-            .expect("A builder with only a read timeout and no proxy always builds");
+        let client = impatient_client();
         let error = client
             .get(format!("http://{address}/"))
             .send()
