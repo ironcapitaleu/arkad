@@ -283,7 +283,7 @@ Several endpoints offer the same kind of data. The pipeline picks one source for
 | SIC code | `sub.tsv` (at filing time), `submissions` (current) | `sub.tsv` before the cut-over, `submissions` after it | The XBRL instance has no SIC. The SIC from `submissions` is the SIC on the day of the fetch. `daily_filings` fetches one day after the filing, and the catch-up of `backfill` fetches later |
 | Tickers and exchanges | `txt.tsv` in the Notes ZIP and the XBRL instance (`dei:TradingSymbol`, `dei:SecurityExchangeName`), `submissions` | `txt.tsv` before the cut-over, the XBRL instance after it | Each filing keeps the ticker and exchange as filed |
 | Former names | `sub.tsv` (one former name), `submissions` (all) | The names as filed, in the order of the filings | A change of name shows as a new name in a later filing |
-| Fiscal year end | XBRL instance (`dei:CurrentFiscalYearEndDate`), `submissions` | Not decided | The screener does not use it yet |
+| Fiscal year end | `sub.tsv` (`fye`), XBRL instance (`dei:CurrentFiscalYearEndDate`), `submissions` | `sub.tsv` before the cut-over, the XBRL instance after it | Each filing keeps the fiscal year end as filed, so a change of the fiscal year shows in a later filing. `submissions` has only the current value |
 | LEI | None found | None. GLEIF is the planned source | `submissions` has the field, but it was `null` for all 5 companies checked |
 
 Every value keeps its source. The metadata of each stored document names its URL, its SHA-256,

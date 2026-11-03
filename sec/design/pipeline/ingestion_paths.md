@@ -1386,6 +1386,7 @@ Decided by the lead (STA-417, 2026-11-01 and 2026-11-03):
   | Name | `sub.tsv` `name` | XBRL instance, `dei:EntityRegistrantName` |
   | SIC | `sub.tsv` `sic` | `submissions` `sic`, current on the day of the fetch |
   | Former names | The names as filed, in the order of the filings | Same |
+  | Fiscal year end | `sub.tsv` `fye` (`MMDD`) | XBRL instance, `dei:CurrentFiscalYearEndDate` (`--MM-DD`) |
 
 - `submissions` stays in the daily path permanently. The XBRL instance has no SIC, and the filing
   header `<accession>.hdr.sgml` costs the same request per filing and needs a new request kind.
