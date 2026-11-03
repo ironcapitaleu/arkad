@@ -279,14 +279,18 @@ Several endpoints offer the same kind of data. The pipeline picks one source for
 | Labels of a company | Label file, `tag.tsv` in the Notes ZIP | Both, one per path | Each path stores the labels of its own source |
 | List of filings | Daily index, full index, `sub.tsv` in the Notes ZIP, `submissions` | Daily index after the cut-over, `sub.tsv` before it | One request per day lists every filing of the day |
 | Filed date and form | Daily index, full index, `sub.tsv`, `submissions` | The daily index, written into the metadata of each filing | The run reads it from the row that selected the filing |
-| Company name | Daily index, `sub.tsv`, `submissions`, Company Facts | Not decided | Every source has it |
-| SIC code | `sub.tsv` (at filing time), `submissions` (current) | Not decided | The two can differ for one company |
-| Tickers and exchanges | `submissions` only | `submissions` | No other endpoint has them |
-| Former names, fiscal year end | `submissions` only | `submissions` | No other endpoint has them |
+| Company name | Daily index, `sub.tsv`, XBRL instance (`dei:EntityRegistrantName`), `submissions`, Company Facts | `sub.tsv` before the cut-over, the XBRL instance after it | Each filing keeps the name as filed |
+| SIC code | `sub.tsv` (at filing time), `submissions` (current) | `sub.tsv` before the cut-over, `submissions` after it | The XBRL instance has no SIC. `submissions` is fetched one day after the filing, so its SIC is the SIC of that day |
+| Tickers and exchanges | `txt.tsv` in the Notes ZIP and the XBRL instance (`dei:TradingSymbol`, `dei:SecurityExchangeName`), `submissions` | `txt.tsv` before the cut-over, the XBRL instance after it | Each filing keeps the ticker and exchange as filed |
+| Former names | `sub.tsv` (one former name), `submissions` (all) | The names as filed, in the order of the filings | A change of name shows as a new name in a later filing |
+| Fiscal year end | XBRL instance (`dei:CurrentFiscalYearEndDate`), `submissions` | Not decided | The screener does not use it yet |
 | LEI | None found | None. GLEIF is the planned source | `submissions` has the field, but it was `null` for all 5 companies checked |
 
-`submissions` also lets a check reconcile one company against its stored filings. So the pipeline
-keeps it for now.
+Every value keeps its source. The metadata of each stored document names its URL, its SHA-256,
+and the time of the write, so a value downstream can be traced to the document it came from.
+
+`submissions` stays in the daily path. It is the only source of the SIC of a new filing. It also
+lets a check reconcile one company against its stored filings.
 
 ### Endpoint by Endpoint
 
@@ -621,7 +625,7 @@ each gap through the facade calls that exist. A weekly job in the same container
 | No full-store check and no reconciliation | A missing or broken file stays unnoticed until a run reads its key |
 | The window covers 4 days | A pause longer than 4 days needs a hand-set `ARKAD_FROM` |
 | One daily index per day in the catch-up | A long catch-up sends one request per day. The full index needs one per quarter |
-| `backfill().all()` and the `backfill` binary each cover a different part | `all()` runs the Notes periods and `submissions`, but no catch-up. The binary runs the Notes periods and the catch-up, but no `submissions` for the companies that appear only in the Notes files. So the store has no tickers for those companies |
+| `backfill().all()` and the `backfill` binary each cover a different part | `all()` runs the Notes periods and `submissions`, but no catch-up. The binary runs the Notes periods and the catch-up, but no `submissions` for the companies that appear only in the Notes files. These companies have their ticker, name, and SIC as filed in the Notes files. They get no current data from `submissions` until they file again, and the screener needs none |
 | No gzip | The three measured files (Company Facts, `submissions`, the daily index) transfer 6 to 14 times more bytes than with gzip |
 | One run of `daily_filings` has a 30-minute timeout | A hand-set `ARKAD_FROM` fits in one run for about 10 business days by the [Window](ingestion_paths.md#window) estimate, or about 40 at the rate limit alone. Neither is measured |
 | A replaced daily index | The `inputs` SHA-256 of each stored instance that it listed names bytes the store no longer holds |

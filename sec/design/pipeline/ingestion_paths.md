@@ -1370,11 +1370,34 @@ Decided in STA-376:
 - URL: `https://data.sec.gov/submissions/CIK##########.json`. Measured: it holds `sic`,
   `sicDescription`, `name`, `tickers`, `exchanges`, `formerNames`, and the recent filings.
 - New-filing path: one run per distinct CIK of the day's filings.
-- Backfill: one run per distinct CIK in all Notes files, through `backfill().all()`, which reads
-  the CIKs from the column `cik` of `sub.tsv`. The binary `backfill` does not call `all()`
-  (decision of 2026-11-01). 2024q1 alone has 6,587 companies. The
-  total over all files is not measured. `sub.tsv` already holds the SIC code and the name at
-  filing time, so the backfill needs `submissions` only for the current company data.
+- Backfill: no run for the companies of the Notes files (STA-417, decided on 2026-11-03).
+  `backfill().all()` still runs one per distinct CIK of the stored Notes files, and no binary
+  calls it. STA-435 removes this step.
+- Single company: `backfill().submissions().cik(cik)` with `build()` reconciles one company.
+
+Decided by the lead (STA-417, 2026-11-01 and 2026-11-03):
+
+- The screener takes the ticker, the exchange, the name, and the SIC as filed, per filing.
+  Delisted or acquired companies need no current data. No current ticker map for now.
+- Source of each attribute:
+
+  | Attribute | Notes path (before the cut-over) | New-filing path |
+  | --------- | -------------------------------- | --------------- |
+  | Ticker, exchange | `txt.tsv` (`dei:TradingSymbol`, `dei:SecurityExchangeName`) | XBRL instance, same tags |
+  | Name | `sub.tsv` `name` | XBRL instance, `dei:EntityRegistrantName` |
+  | SIC | `sub.tsv` `sic` | `submissions` `sic`, current on the day of the fetch |
+  | Former names | The names as filed, in the order of the filings | Same |
+
+- `submissions` stays in the daily path for good. The XBRL instance has no SIC, and the filing
+  header `<accession>.hdr.sgml` costs the same request per filing and needs a new request kind.
+- `ExtractSubmissionsSuperState`, `StoreSubmissions`, and the kind `Submissions` stay.
+- Every value downstream names its source document, its SHA-256, and the time of retrieval.
+  A replaced `submissions` file loses its old bytes until the raw store keeps every version
+  (STA-428).
+- The companies of the Notes files get no `submissions` in the backfill. An active company files at
+  least each quarter, so the daily path fetches its `submissions` within about 3 months. The other
+  option cost about 7,000 or more requests once (2024q1 alone has 6,587 companies), about 13 to
+  27 minutes.
 
 ### Daily Run
 
