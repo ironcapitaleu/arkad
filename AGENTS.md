@@ -213,6 +213,29 @@ All logs must be JSON with exactly **five required fields**:
 
 ---
 
+## Deployment
+
+Every binary that runs in a container is a static binary. [ADR 0002](docs/adr/0002-static-binaries.md)
+records the decision, the measured options, and the fallback.
+
+- **Build** with `cargo zigbuild --release --locked --target x86_64-unknown-linux-musl`. zig is
+  the linker.
+- **Run** on `gcr.io/distroless/static-debian13`, as user `10001:10001`.
+- **One container runs one binary.** The root `Dockerfile` has one shared build stage and one final
+  stage per binary (`--target <binary>`). Never add a second `Dockerfile`. Never put two binaries
+  into one image.
+- **TLS goes through `rustls`.** Never add a dependency that links OpenSSL or `native-tls`, or that
+  needs a system library at runtime. If you add a dependency, run `cargo tree -i openssl-sys`. It
+  must find no package.
+- **Compile data in.** Distroless has no shell and no time zone files. If a binary needs such data,
+  compile it in, as `chrono-tz` does.
+- **Fallback:** if a binary cannot build static, use `gcr.io/distroless/cc-debian13` with a glibc
+  build on a `trixie` stage, and name the reason in the PR.
+
+The root `Dockerfile` follows these rules once STA-431 merges.
+
+---
+
 ## Commit Guidelines
 
 ```sh
