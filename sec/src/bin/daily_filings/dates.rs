@@ -3,9 +3,9 @@
 //! Provides [`run_dates`], which turns the values of [`FROM_ENV_VAR`] and [`TO_ENV_VAR`] into the
 //! dates of one run.
 //!
-//! Every date is a day in New York (`America/New_York`). The SEC's days are Eastern, and it
-//! publishes the daily index of a day only after that day ends there. At 02:00 UTC on 2 November it
-//! is still 1 November in New York, so [`YESTERDAY`] is 31 October.
+//! Every date is a day in New York (`America/New_York`). The SEC's days are Eastern. It publishes
+//! the daily index of a day in the evening of that day or later. At 02:00 UTC on 2 November it is
+//! still 1 November in New York, so [`YESTERDAY`] is 31 October.
 //!
 //! `yesterday-N` names the day `N` days before yesterday. The scheduled run sets
 //! `ARKAD_FROM=yesterday-3`, so each run reads the last 4 days.
@@ -37,9 +37,9 @@ pub enum InvalidRunDates {
         /// The value as the environment gave it, with invalid Unicode replaced.
         value: String,
     },
-    /// The last date is today or later in New York, so its daily index does not exist yet.
+    /// The last date is today or later in New York, so its daily index can be missing.
     #[error(
-        "[InvalidLastDate] {TO_ENV_VAR} date '{to}' is not before today '{today}' in New York, the SEC publishes a daily index only after its day ends"
+        "[InvalidLastDate] {TO_ENV_VAR} date '{to}' is not before today '{today}' in New York, the SEC publishes the daily index of a day in the evening of that day or later"
     )]
     InvalidLastDate {
         /// The last date of the run.
@@ -454,7 +454,7 @@ mod tests {
             today: date("2026-11-01"),
         };
 
-        let expected_result = "[InvalidLastDate] ARKAD_TO date '2026-11-01' is not before today '2026-11-01' in New York, the SEC publishes a daily index only after its day ends";
+        let expected_result = "[InvalidLastDate] ARKAD_TO date '2026-11-01' is not before today '2026-11-01' in New York, the SEC publishes the daily index of a day in the evening of that day or later";
 
         let result = error.to_string();
 

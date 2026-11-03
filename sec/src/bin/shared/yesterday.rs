@@ -1,9 +1,9 @@
 //! # Yesterday
 //!
-//! Provides [`new_york_yesterday`], the last date whose daily index the SEC can have published.
+//! Provides [`new_york_yesterday`], the day before today in New York (`America/New_York`).
 //!
-//! The SEC's days are Eastern, and it publishes the daily index of a day only after that day ends
-//! in New York (`America/New_York`).
+//! The SEC's days are Eastern. It publishes the daily index of a day in the evening of that day or
+//! later, so the index of today can be missing until the evening.
 
 use chrono::{DateTime, Days, NaiveDate, Utc};
 use chrono_tz::America::New_York;
