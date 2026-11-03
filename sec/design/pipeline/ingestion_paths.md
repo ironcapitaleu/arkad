@@ -1396,8 +1396,8 @@ Decided by the lead (STA-417, 2026-11-01 and 2026-11-03):
 - The companies of the Notes files get no `submissions` in the backfill. A 10-K filer files at
   least each quarter, so the daily path fetches its `submissions` within about 3 months. A 20-F or
   40-F filer files once a year, so the fetch can take up to 12 months. A backfill run of
-  `submissions` costs at least 7,000 requests (2024q1 alone has 6,587 companies), about 13 to
-  27 minutes.
+  `submissions` costs one request per company, more than 6,587 (the companies of 2024q1 alone),
+  so more than 12 minutes at 110 ms per request.
 
 ### Daily Run
 
