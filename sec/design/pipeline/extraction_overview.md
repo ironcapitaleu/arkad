@@ -76,9 +76,9 @@ The dashed box marks an endpoint with working code that no production run calls.
 
 | Capability | Today | How | Notes |
 | ---------- | ----- | --- | ----- |
-| Backfill of history (Notes files from 2009 to last month) | Yes | `backfill` binary, part 1, on demand | No container image runs it yet |
+| Backfill of history (Notes files from 2009 to last month) | Yes | `backfill` binary, part 1, on demand | The `backfill` image exists. No Cloud Run job runs it yet |
 | Catch-up from the cut-over date to yesterday | Yes | `backfill` binary, part 2, on demand | One daily index per day. The quarterly full index needs fewer requests |
-| New filings each day | Yes | `daily_filings` binary with `ARKAD_FROM=yesterday-3` | No container image and no schedule yet |
+| New filings each day | Yes | `daily_filings` binary with `ARKAD_FROM=yesterday-3` | The `daily-filings` image exists. No schedule yet |
 | Company data (`submissions`) | Partly | Part 2 of `backfill` and `daily_filings`: one file per company of the day | No run stores `submissions` for a company that appears only in the Notes files. The facade has `backfill().submissions()` and `backfill().all()` for this. Only a binary is missing |
 | Company Facts | No, but the code exists | Only `stream_etl` (469 S&P 500 companies) and the `extraction` demo call it | Company Facts drops every value with a dimension |
 | Rerun without duplicate work | Yes | A run skips each stored file that passes its size and SHA-256 check | The daily index and `submissions` are fetched again on each run |
@@ -119,8 +119,8 @@ facade writes the ingestion mode, `backfill` or `incremental`, into the metadata
 | `extraction` | None. It runs the Company Facts states one by one for CIK 1067983 | An operator, as a demo | Company Facts |
 
 Two deprecated examples in `sec/examples/` still compile: `notes_backfill` (replaced by `backfill`)
-and `stream_extract` (Company Facts). The `Dockerfile` builds and runs `stream_extract`. No
-container image holds `backfill` or `daily_filings` yet.
+and `stream_extract` (Company Facts). The `Dockerfile` builds one image for `backfill` and one
+for `daily_filings`. No image holds an example.
 
 `backfill().all()` exists in the facade. It runs the Notes periods, then stores `submissions` for
 each CIK of the stored Notes files. No binary calls it.
@@ -550,8 +550,8 @@ than the instance of a small filer, so a day can range from tens to hundreds of 
 
 Where the runs execute: on any machine with a mounted store. The plan is a Cloud Run job per
 binary with the bucket mounted: `backfill` on demand with 6 to 8 GiB of memory, and `daily_filings`
-once a day with 1 GiB and a timeout of 30 minutes. These sizes are estimates. No container image
-exists for either binary yet.
+once a day with 1 GiB and a timeout of 30 minutes. These sizes are estimates. The `Dockerfile`
+builds one image per binary. No Cloud Run job exists yet.
 
 ## Configurability and Time Travel
 
@@ -615,7 +615,7 @@ each gap through the facade calls that exist. A weekly job in the same container
 
 | Gap | Effect today |
 | --- | ------------ |
-| No container image for `backfill` and `daily_filings` | The `Dockerfile` builds the deprecated `stream_extract`. No scheduled run exists |
+| No Cloud Run job for `backfill` and `daily_filings` | Both images exist, but no job runs them and no scheduled run exists |
 | One version per key | A changed `submissions` file or daily index replaces the old one. A replaced Notes file is never fetched again |
 | No end date for `backfill` | No run rebuilds the state as of a past date |
 | No full-store check and no reconciliation | A missing or broken file stays unnoticed until a run reads its key |

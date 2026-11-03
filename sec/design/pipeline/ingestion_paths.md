@@ -419,8 +419,8 @@ integration tests of the facade go in `sec/tests/`, with the fake SEC clients of
   the paths change. Each example gets an `[[example]]` entry with
   `required-features = ["tracing-logging"]`, as the binaries have today. The logger crates stay
   optional dependencies behind that feature, because `backfill` and `daily_filings` need them.
-- The `Dockerfile` builds the example `stream_extract` with `--example` and runs it, and
-  `sec/README.md` documents it.
+- No container image holds an example. The `Dockerfile` builds only `backfill` and
+  `daily_filings` (STA-431).
 - `sec/tests/notes_backfill.rs` calls the facade (STA-414). `sec/tests/daily_filings.rs` calls
   the facade too (STA-415).
 - `stream_etl` builds its machines with `backfill().company_facts().cik(c)`, from one handle per
@@ -1951,8 +1951,18 @@ pub struct SubmissionsRef {
 
 ## Deployment
 
-Proposed for MVP Operations. Both paths run as Cloud Run jobs with the bucket mounted, as
-`stream_extract` does. Neither path needs a service.
+Proposed for MVP Operations. Both paths run as Cloud Run jobs with the bucket mounted. Neither
+path needs a service.
+
+The root `Dockerfile` builds one image per binary (STA-431), as
+[ADR 0002](../../../docs/adr/0002-static-binaries.md) decides. A shared build stage compiles both
+binaries once as static musl binaries. Each final stage holds one binary on
+`gcr.io/distroless/static-debian13` and runs it as user `arkad` (`10001:10001`).
+
+| Image | Build | Entrypoint |
+| ----- | ----- | ---------- |
+| `backfill` | `docker build --target backfill .` | `/usr/local/bin/backfill` |
+| `daily-filings` | `docker build --target daily-filings .` | `/usr/local/bin/daily_filings` |
 
 | Path | Binary | Trigger | Size (estimate) |
 | ---- | ------ | ------- | --------------- |

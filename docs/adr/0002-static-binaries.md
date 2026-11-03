@@ -83,8 +83,6 @@ handles the large-file path.
   runtime. If either suffers, the binaries add `mimalloc`.
 - A cold build installs zig and `cargo-zigbuild` first, about 1 min 44 s of 4 min 11 s on
   2026-11-01. A builder image with both tools removes that step.
-- Until the PR of [STA-431](https://linear.app/state-machine/issue/STA-431) merges, the root `Dockerfile`
-  does not follow this ADR.
 
 ## Open Questions
 
