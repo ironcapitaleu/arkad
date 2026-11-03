@@ -284,6 +284,17 @@ mod tests {
     }
 
     #[test]
+    fn should_report_not_timed_out_when_the_sec_answers_an_error_status() {
+        let error = invalid_status_code(StatusCode::NotFound);
+
+        let expected_result = false;
+
+        let result = error.is_timed_out();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
     fn should_report_not_timed_out_when_the_request_fails_without_a_timeout() {
         let error = FailedSecRequest::new(ErrorReason::FailedRequestExecution {
             details: "connection refused".to_string(),

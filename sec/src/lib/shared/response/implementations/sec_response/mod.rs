@@ -298,11 +298,34 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;
-    use crate::tests::stalled_server::{impatient_client, stalled_server};
+    use crate::tests::stalled_server::{closing_server, impatient_client, stalled_server};
 
     /// A response head that promises a body of 100 bytes and sends none of it.
     const STALLED_HEAD: &[u8] =
         b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 100\r\n\r\n";
+
+    #[tokio::test]
+    async fn should_return_a_failed_body_read_when_the_connection_closes_in_the_body() {
+        let address = closing_server(STALLED_HEAD).await;
+        let client = impatient_client();
+        let response = client
+            .get(format!("http://{address}/"))
+            .send()
+            .await
+            .expect("The server sends a full response head, so the request always gets a response");
+
+        let expected_result = true;
+
+        let result = matches!(
+            SecResponse::<JsonBody>::from_inner(response)
+                .await
+                .expect_err("The server closes before the promised body, so the read always fails")
+                .reason,
+            ErrorReason::FailedBodyRead { .. }
+        );
+
+        assert_eq!(result, expected_result);
+    }
 
     #[tokio::test]
     async fn should_return_a_timed_out_body_read_when_the_body_read_times_out() {
