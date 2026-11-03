@@ -90,8 +90,8 @@ jobs:
           exit "$failed"
 
       # Each binary must start on the static base. A dynamic binary fails there before its first log.
-      # `daily_filings` without ARKAD_FROM stops at startup. `backfill` gets no network, so it
-      # creates its storage root, starts its first state, and makes no SEC request.
+      # `daily_filings` without ARKAD_FROM stops at startup. `backfill` creates its storage root
+      # and starts its first state. It gets no network, so it makes no SEC request.
       - name: Check Startup
         run: |
           failed=0

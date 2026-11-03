@@ -232,8 +232,6 @@ records the decision, the measured options, and the fallback.
 - **Fallback:** if a binary cannot build static, use `gcr.io/distroless/cc-debian13` with a glibc
   build on a `trixie` stage, and name the reason in the PR.
 
-The root `Dockerfile` follows these rules once the PR of STA-431 merges. That PR deletes this line.
-
 ---
 
 ## Commit Guidelines
