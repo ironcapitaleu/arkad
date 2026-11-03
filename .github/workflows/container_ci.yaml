@@ -90,8 +90,8 @@ jobs:
           exit "$failed"
 
       # Each binary must start on the static base. A dynamic binary fails there before its first log.
-      # `daily_filings` without ARKAD_FROM stops at startup. `backfill` gets no network, so it logs
-      # its startup and makes no SEC request.
+      # `daily_filings` without ARKAD_FROM stops at startup. `backfill` gets no network, so it
+      # creates its storage root, starts its first state, and makes no SEC request.
       - name: Check Startup
         run: |
           failed=0
@@ -104,8 +104,8 @@ jobs:
           sleep 5
           backfill_log="$(docker logs "$container" 2>&1)"
           docker rm --force "$container" > /dev/null
-          if ! echo "$backfill_log" | grep -q '"event":"batch_default_user_agent"'; then
-            echo "::error::arkad-backfill did not log batch_default_user_agent: $backfill_log"
+          if ! echo "$backfill_log" | grep -q '"event":"state_started"'; then
+            echo "::error::arkad-backfill did not start its first state: $backfill_log"
             failed=1
           fi
           exit "$failed"
