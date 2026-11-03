@@ -40,8 +40,9 @@ binary removes this coupling.
 4. **Every image runs as user `10001:10001`.** The `/etc/passwd` and `/etc/group` of the image hold
    the distroless entries plus `arkad` (uid and gid 10001), with the home `/home/arkad`. That user
    owns `/home/arkad`. The image does not use the distroless user `nonroot` (65532), so the uid
-   stays the same as in the current image. The container CI check reads these files from the
-   exported file system, because the image has no shell. STA-431 changes the check.
+   stays the same as in the current image. After STA-431, the container CI check reads the user
+   from the image config and these files from the exported file system, because the image has no
+   shell.
 5. **Fallback:** if a binary cannot build static, it uses `gcr.io/distroless/cc-debian13` with a
    glibc build on a `trixie` build stage. The PR that takes the fallback names the reason.
 
