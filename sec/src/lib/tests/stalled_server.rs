@@ -8,7 +8,7 @@ use std::net::SocketAddr;
 use std::time::Duration;
 
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::net::TcpListener;
+use tokio::net::{TcpListener, TcpStream};
 
 /// Starts a server that accepts one connection, reads the request, writes `response_head`, and then
 /// sends nothing.
@@ -54,10 +54,7 @@ async fn serve_once(response_head: &'static [u8], after_head: AfterHead) -> Sock
         .expect("A bound listener always has a local address");
     tokio::spawn(async move {
         if let Ok((mut connection, _)) = listener.accept().await {
-            // One read is enough. If the request arrives in parts, the head goes out early, and the
-            // test still times out.
-            let mut request = [0; 4096];
-            let _ = connection.read(&mut request).await;
+            read_request_head(&mut connection).await;
             let _ = connection.write_all(response_head).await;
             if matches!(after_head, AfterHead::HoldOpen) {
                 future::pending::<()>().await;
@@ -65,6 +62,21 @@ async fn serve_once(response_head: &'static [u8], after_head: AfterHead) -> Sock
         }
     });
     address
+}
+
+/// Reads from `connection` until the blank line that ends the request head, or until it closes.
+///
+/// A test request has no body. So the server has read the whole request when the head ends, and a
+/// close after the answer sends no reset.
+async fn read_request_head(connection: &mut TcpStream) {
+    let mut request = Vec::new();
+    let mut chunk = [0; 1024];
+    while !request.ends_with(b"\r\n\r\n") {
+        match connection.read(&mut chunk).await {
+            Ok(0) | Err(_) => return,
+            Ok(read) => request.extend_from_slice(&chunk[..read]),
+        }
+    }
 }
 
 /// Returns a client that gives up on a response after 500 ms, and uses no proxy.
