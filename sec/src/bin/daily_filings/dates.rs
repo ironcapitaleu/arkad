@@ -4,8 +4,9 @@
 //! dates of one run.
 //!
 //! Every date is a day in New York (`America/New_York`). The SEC's days are Eastern. It publishes
-//! the daily index of a day in the evening of that day or later. At 02:00 UTC on 2 November it is
-//! still 1 November in New York, so [`YESTERDAY`] is 31 October.
+//! the daily index of a day in the evening of that day or later, so the index of today can be
+//! missing. At 02:00 UTC on 2 November it is still 1 November in New York, so [`YESTERDAY`] is
+//! 31 October.
 //!
 //! `yesterday-N` names the day `N` days before yesterday. The scheduled run sets
 //! `ARKAD_FROM=yesterday-3`, so each run reads the last 4 days.
@@ -39,7 +40,7 @@ pub enum InvalidRunDates {
     },
     /// The last date is today or later in New York, so its daily index can be missing.
     #[error(
-        "[InvalidLastDate] {TO_ENV_VAR} date '{to}' is not before today '{today}' in New York, the SEC publishes the daily index of a day in the evening of that day or later"
+        "[InvalidLastDate] {TO_ENV_VAR} date '{to}' is not before today '{today}' in New York, the daily index of today can be missing, because the SEC publishes it in the evening or later"
     )]
     InvalidLastDate {
         /// The last date of the run.
@@ -454,7 +455,7 @@ mod tests {
             today: date("2026-11-01"),
         };
 
-        let expected_result = "[InvalidLastDate] ARKAD_TO date '2026-11-01' is not before today '2026-11-01' in New York, the SEC publishes the daily index of a day in the evening of that day or later";
+        let expected_result = "[InvalidLastDate] ARKAD_TO date '2026-11-01' is not before today '2026-11-01' in New York, the daily index of today can be missing, because the SEC publishes it in the evening or later";
 
         let result = error.to_string();
 
