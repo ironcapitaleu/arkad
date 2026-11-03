@@ -1381,8 +1381,10 @@ Decided by the lead (STA-417, 2026-11-01 and 2026-11-03):
   for now.
 - The two sources of the fiscal year end differ for a 52/53-week year. Apple has `0930` in
   `sub.tsv` for fiscal 2025, `--09-27` in the instance of the same 10-K, and `--09-26` in a 10-Q
-  of fiscal 2026. A day that moves is not a change of the fiscal year. The transform (STA-425)
-  sets the rule to compare the two.
+  of fiscal 2026. A year that ends in the first days of a month rounds to the month before, so
+  the month can differ too: Costco has `0831` in `sub.tsv` and `--09-01` in the instance of its
+  10-K of fiscal 2024. A day or month that moves this way is not a change of the fiscal year.
+  The transform (STA-425) sets the rule to compare the two.
 - Source of each attribute:
 
   | Attribute | Notes path (before the cut-over) | New-filing path |
