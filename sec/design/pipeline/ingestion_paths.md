@@ -1957,7 +1957,7 @@ path needs a service.
 The root `Dockerfile` builds one image per binary (STA-431), as
 [ADR 0002](../../../docs/adr/0002-static-binaries.md) decides. A shared build stage compiles both
 binaries once as static musl binaries. Each final stage holds one binary on
-`gcr.io/distroless/static-debian13` and runs it as user `10001:10001`.
+`gcr.io/distroless/static-debian13` and runs it as user `arkad` (`10001:10001`).
 
 | Image | Build | Entrypoint |
 | ----- | ----- | ---------- |

@@ -7,6 +7,9 @@
 # The binaries are static musl binaries, linked by zig through `cargo zigbuild`.
 # See `docs/adr/0002-static-binaries.md`.
 
+# The runtime base holds the CA certificates, `/etc/passwd`, and `/tmp`, and has no shell.
+FROM gcr.io/distroless/static-debian13 AS distroless
+
 # The build stage compiles both binaries in one call. Both targets share its cache.
 # `cargo-zigbuild` 0.24.0 needs a newer Rust than the CI toolchain 1.90.
 FROM rust:1.97-trixie AS build
@@ -28,9 +31,14 @@ RUN cargo zigbuild --release --locked -p sec --features tracing-logging \
         --bin backfill --bin daily_filings --target x86_64-unknown-linux-musl
 # An empty home directory to copy with its owner into the runtime stage.
 RUN mkdir -p /out/home/arkad
+# The distroless `passwd` and `group` plus the user and group `arkad` (10001), so `HOME` is
+# `/home/arkad`. The images do not use the distroless user `nonroot` (65532).
+COPY --from=distroless /etc/passwd /etc/group /out/etc/
+RUN echo 'arkad:x:10001:10001:arkad:/home/arkad:/sbin/nologin' >> /out/etc/passwd \
+    && echo 'arkad:x:10001:' >> /out/etc/group
 
-# The runtime base holds the CA certificates, `/etc/passwd`, and `/tmp`, and has no shell.
-FROM gcr.io/distroless/static-debian13 AS runtime
+FROM distroless AS runtime
+COPY --from=build /out/etc/passwd /out/etc/group /etc/
 # Without `--chown`, root owns `/home/arkad`, and user 10001 cannot create the storage root `data`.
 COPY --from=build --chown=10001:10001 /out/home/arkad /home/arkad
 USER 10001:10001

@@ -59,7 +59,8 @@ jobs:
           docker build --load --target daily-filings -t arkad-daily-filings .
 
       # The images have no shell, so the check reads the image config and the exported file system.
-      # Each image must run as uid and gid 10001, user 10001 must own `/home/arkad`, and
+      # Each image must run as uid and gid 10001, `/etc/passwd` and `/etc/group` must name `arkad`
+      # for 10001 with the home `/home/arkad`, user 10001 must own `/home/arkad`, and
       # `/usr/local/bin` must hold only the binary of the image, which is also its entrypoint.
       - name: Check Images
         run: |
@@ -77,8 +78,12 @@ jobs:
             check "$image user" "10001:10001" "$(docker image inspect --format '{{.Config.User}}' "$image")"
             check "$image entrypoint" "[/usr/local/bin/$binary]" "$(docker image inspect --format '{{.Config.Entrypoint}}' "$image")"
             container="$(docker create "$image")"
+            root="$(mktemp -d)"
+            docker export "$container" | tar -xf - -C "$root" etc/passwd etc/group
             listing="$(docker export "$container" | tar --numeric-owner -tvf -)"
             docker rm "$container" > /dev/null
+            check "$image passwd entry of 10001" "arkad:x:10001:10001:arkad:/home/arkad:/sbin/nologin" "$(awk -F: '$3 == "10001"' "$root/etc/passwd")"
+            check "$image group entry of 10001" "arkad:x:10001:" "$(awk -F: '$3 == "10001"' "$root/etc/group")"
             check "$image owner of /home/arkad" "10001/10001" "$(echo "$listing" | awk '$6 == "home/arkad/" { print $2 }')"
             check "$image files in /usr/local/bin" "usr/local/bin/$binary" "$(echo "$listing" | awk '$6 ~ "^usr/local/bin/." { print $6 }')"
           done

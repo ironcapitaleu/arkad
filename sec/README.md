@@ -84,7 +84,7 @@ docker build --target daily-filings -t arkad-daily-filings .
 
 Each binary exits with an error if a part of its run failed, so a job with retries runs it again. Every write is idempotent.
 
-Each image runs as uid and gid `10001` in `/home/arkad`. The image has no shell. It sets no storage root, so the root is `/home/arkad/data` inside the container. Removing the container deletes the documents. To keep them, mount a volume and set `ARKAD_STORAGE_ROOT` to its path. The container user must be able to write to the volume. For a bind mount, run the container as the host user:
+Each image runs as user `arkad` (uid and gid `10001`) in `/home/arkad`. The image has no shell. It sets no storage root, so the root is `/home/arkad/data` inside the container. Removing the container deletes the documents. To keep them, mount a volume and set `ARKAD_STORAGE_ROOT` to its path. The container user must be able to write to the volume. For a bind mount, run the container as the host user:
 
 ```sh
 mkdir -p data
