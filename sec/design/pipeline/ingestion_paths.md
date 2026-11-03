@@ -1376,8 +1376,13 @@ Decided in STA-376:
 
 Decided by the lead (STA-417, 2026-11-01 and 2026-11-03):
 
-- The screener takes the ticker, the exchange, the name, and the SIC as filed, per filing.
-  Delisted or acquired companies need no current data. No current ticker map for now.
+- The screener takes the ticker, the exchange, the name, the SIC, and the fiscal year end as
+  filed, per filing. Delisted or acquired companies need no current data. No current ticker map
+  for now.
+- The two sources of the fiscal year end differ for a 52/53-week year. Apple has `0930` in
+  `sub.tsv` for fiscal 2025, `--09-27` in the instance of the same 10-K, and `--09-26` in a 10-Q
+  of fiscal 2026. A day that moves is not a change of the fiscal year. The transform (STA-425)
+  sets the rule to compare the two.
 - Source of each attribute:
 
   | Attribute | Notes path (before the cut-over) | New-filing path |
@@ -1386,7 +1391,7 @@ Decided by the lead (STA-417, 2026-11-01 and 2026-11-03):
   | Name | `sub.tsv` `name` | XBRL instance, `dei:EntityRegistrantName` |
   | SIC | `sub.tsv` `sic` | `submissions` `sic`, current on the day of the fetch |
   | Former names | The names as filed, in the order of the filings | Same |
-  | Fiscal year end | `sub.tsv` `fye` (`MMDD`) | XBRL instance, `dei:CurrentFiscalYearEndDate` (`--MM-DD`) |
+  | Fiscal year end | `sub.tsv` `fye` (`MMDD`, rounded to the nearest month end) | XBRL instance, `dei:CurrentFiscalYearEndDate` (`--MM-DD`, the real day) |
 
 - `submissions` stays in the daily path permanently. The XBRL instance has no SIC, and the filing
   header `<accession>.hdr.sgml` costs the same request per filing and needs a new request kind.
