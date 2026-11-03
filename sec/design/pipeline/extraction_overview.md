@@ -572,6 +572,19 @@ builds one image per binary. No Cloud Run job exists yet.
 The facade also takes the number of machines in flight and the retry delays. No binary exposes
 them.
 
+### Request Timeouts
+
+`ReqwestClient::new` sets two timeouts on the HTTP client of every binary. No variable changes them.
+
+| Timeout | Value | Limits |
+| ------- | ----- | ------ |
+| `CONNECT_TIMEOUT` | 10 s | The wait to open a connection |
+| `READ_TIMEOUT` | 60 s | The wait for the next bytes of a response. It starts again after each read of the body |
+
+There is no total timeout, because one Notes file takes about 35 s at 25 MB/s. Both values are
+proposals and are not measured. A timeout fails the request with `FailedRequestExecution`, or with
+`FailedBodyRead` while the body is read. No layer retries it yet.
+
 ### Can a Run Rebuild the State as of a Date D?
 
 No. A "state as of date D" means every Notes file up to D, then the cut-over, then the daily path
