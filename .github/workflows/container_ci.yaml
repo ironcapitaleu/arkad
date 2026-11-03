@@ -52,18 +52,37 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build Image
-        run: docker build --load -t arkad-extract .
-
-      # The image must run as uid and gid 10001, and the `arkad` group must own gid 10001.
-      - name: Check Image User
+      # The second build reuses the cached build stage, so the binaries compile once.
+      - name: Build Images
         run: |
-          expected="10001 10001 10001:10001 arkad"
-          result="$(docker run --rm --entrypoint sh arkad-extract -c 'echo "$(id -u) $(id -g) $(stat -c %u:%g /home/arkad) $(getent group 10001 | cut -d: -f1)"')"
-          if [ "$result" != "$expected" ]; then
-            echo "::error::Expected '$expected', got '$result'"
-            exit 1
-          fi
+          docker build --load --target backfill -t arkad-backfill .
+          docker build --load --target daily-filings -t arkad-daily-filings .
+
+      # The images have no shell, so the check reads the image config and the exported file system.
+      # Each image must run as uid and gid 10001, user 10001 must own `/home/arkad`, and
+      # `/usr/local/bin` must hold only the binary of the image, which is also its entrypoint.
+      - name: Check Images
+        run: |
+          failed=0
+          check() {
+            local name="$1" expected="$2" result="$3"
+            if [ "$result" != "$expected" ]; then
+              echo "::error::$name: expected '$expected', got '$result'"
+              failed=1
+            fi
+          }
+          for pair in arkad-backfill:backfill arkad-daily-filings:daily_filings; do
+            image="${pair%%:*}"
+            binary="${pair#*:}"
+            check "$image user" "10001:10001" "$(docker image inspect --format '{{.Config.User}}' "$image")"
+            check "$image entrypoint" "[/usr/local/bin/$binary]" "$(docker image inspect --format '{{.Config.Entrypoint}}' "$image")"
+            container="$(docker create "$image")"
+            listing="$(docker export "$container" | tar --numeric-owner -tvf -)"
+            docker rm "$container" > /dev/null
+            check "$image owner of /home/arkad" "10001/10001" "$(echo "$listing" | awk '$6 == "home/arkad/" { print $2 }')"
+            check "$image files in /usr/local/bin" "usr/local/bin/$binary" "$(echo "$listing" | awk '$6 ~ "^usr/local/bin/." { print $6 }')"
+          done
+          exit "$failed"
 
 #      - name: Build and Push Docker Image
 #        uses: docker/build-push-action@v6

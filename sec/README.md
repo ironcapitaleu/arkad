@@ -71,17 +71,20 @@ Each binary builds a document store at startup. `ARKAD_STORAGE_ROOT` sets its ro
 
 Each binary also builds an `SecClient` at startup. `ARKAD_SEC_USER_AGENT` sets the `User-Agent` of every SEC request. The SEC requires the form `Company Name email@domain.com`, for example `ARKAD_SEC_USER_AGENT="Acme Corp ops@acme.com"`. If the variable is unset or empty, the client sends the default `UserAgent`, which is `Test Company contact@test.com`. The binary then warns at startup, because the SEC can throttle a placeholder `User-Agent`. If the value is not valid UTF-8 or does not have this form, the binary stops at startup with a `UserAgentError`. If the value holds a character that an HTTP header cannot carry, it stops with a `reqwest` error.
 
-### Container Image
+### Container Images
 
-The `Dockerfile` at the repository root builds the example `stream_extract` and an image that runs it. Build it from the repository root:
+The `Dockerfile` at the repository root builds one image per binary: `backfill` and `daily_filings`. A shared build stage compiles both binaries once, as static musl binaries with `cargo zigbuild`. Each final stage holds one binary on `gcr.io/distroless/static-debian13`, and its entrypoint runs that binary. No image holds an example. [ADR 0002](../docs/adr/0002-static-binaries.md) records the decision.
+
+Build each image from the repository root:
 
 ```sh
-docker build -t arkad-extract .
+docker build --target backfill -t arkad-backfill .
+docker build --target daily-filings -t arkad-daily-filings .
 ```
 
-The image exits with an error if a CIK failed, so a job with retries runs all CIKs again.
+Each binary exits with an error if a part of its run failed, so a job with retries runs it again. Every write is idempotent.
 
-The example runs as user `arkad` (uid and gid `10001`) in `/home/arkad`. The image sets no storage root, so the root is `/home/arkad/data` inside the container. Removing the container deletes the documents. To keep them, mount a volume and set `ARKAD_STORAGE_ROOT` to its path. The container user must be able to write to the volume. For a bind mount, run the container as the host user:
+Each image runs as uid and gid `10001` in `/home/arkad`. The image has no shell. It sets no storage root, so the root is `/home/arkad/data` inside the container. Removing the container deletes the documents. To keep them, mount a volume and set `ARKAD_STORAGE_ROOT` to its path. The container user must be able to write to the volume. For a bind mount, run the container as the host user:
 
 ```sh
 mkdir -p data
@@ -89,9 +92,12 @@ docker run --rm \
   --user "$(id -u):$(id -g)" \
   -e ARKAD_SEC_USER_AGENT="Acme Corp ops@acme.com" \
   -e ARKAD_STORAGE_ROOT=/mnt/arkad \
+  -e ARKAD_FROM=yesterday-3 \
   -v "$PWD/data:/mnt/arkad" \
-  arkad-extract
+  arkad-daily-filings
 ```
+
+`daily_filings` needs `ARKAD_FROM`. Without it, the image stops at startup with `MissingStartDate`. To run `backfill`, leave out `ARKAD_FROM` and run `arkad-backfill`.
 
 On rootless Docker or Podman, leave out `--user`. Container root maps to the host user there.
 

@@ -1,7 +1,7 @@
 //! Deprecated example: extracts the `companyfacts` JSON of a fixed list of S&P 500 CIKs.
 //!
 //! It runs `Extraction::backfill().company_facts()` against the live SEC and stores each response
-//! under `ARKAD_STORAGE_ROOT`. The `Dockerfile` builds and runs it. See "Deprecated Binaries" in
+//! under `ARKAD_STORAGE_ROOT`. No container image holds it. See "Deprecated Binaries" in
 //! `sec/design/pipeline/ingestion_paths.md`.
 //!
 //! Run it with `cargo run -p sec --features tracing-logging --example stream_extract`.
