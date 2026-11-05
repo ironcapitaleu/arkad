@@ -7,7 +7,7 @@ use async_trait::async_trait;
 
 use crate::shared::http_client::traits::InnerClient;
 
-use super::AlwaysRespondingHttpClient;
+use super::{AlwaysRespondingHttpClient, Delivery};
 
 /// A fake HTTP client that answers each URL with its own list of responses.
 ///
@@ -36,6 +36,7 @@ impl InnerClient for RoutingHttpClient {
             status: 404,
             headers: Vec::new(),
             body: Vec::new(),
+            delivery: Delivery::Full,
         };
         let responder = self
             .routes

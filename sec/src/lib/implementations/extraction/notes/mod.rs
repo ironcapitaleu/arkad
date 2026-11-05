@@ -12,6 +12,7 @@
 
 use std::panic;
 use std::sync::Arc;
+use std::time::Duration;
 
 use futures_util::StreamExt;
 use storage::ReadError;
@@ -21,6 +22,7 @@ use storage::implementations::repository::filesystem::{
 use storage::traits::repository::ReadRepository;
 use uuid::Uuid;
 
+use super::retry::{DEFAULT_RETRY_DELAYS, with_retry};
 use super::run_event::{ErrorKind, RunEvent, Unit};
 use crate::implementations::states::extract::notes::ExtractNotesSuperState;
 use crate::implementations::states::extract::notes::builder::{
@@ -105,6 +107,7 @@ impl BackfillNotes {
             sec_client: NoSecClient,
             repository: NoRepository::new(),
             in_flight: DEFAULT_FILES_IN_FLIGHT,
+            retry_delays: DEFAULT_RETRY_DELAYS.to_vec(),
         }
     }
 }
@@ -144,6 +147,7 @@ pub struct NotesBatchBuilder<C, R> {
     sec_client: C,
     repository: R,
     in_flight: usize,
+    retry_delays: Vec<Duration>,
 }
 
 impl<R> NotesBatchBuilder<NoSecClient, R> {
@@ -159,6 +163,7 @@ impl<R> NotesBatchBuilder<NoSecClient, R> {
             sec_client,
             repository: self.repository,
             in_flight: self.in_flight,
+            retry_delays: self.retry_delays,
         }
     }
 }
@@ -173,6 +178,7 @@ impl<C> NotesBatchBuilder<C, NoRepository<NotesWriter>> {
             sec_client: self.sec_client,
             repository,
             in_flight: self.in_flight,
+            retry_delays: self.retry_delays,
         }
     }
 }
@@ -187,6 +193,16 @@ impl<C, R> NotesBatchBuilder<C, R> {
             ..self
         }
     }
+
+    /// Sets the waits before each new attempt of a period that failed with a transient SEC
+    /// failure. The default is [`DEFAULT_RETRY_DELAYS`].
+    #[must_use]
+    pub fn retry_delays(self, retry_delays: impl IntoIterator<Item = Duration>) -> Self {
+        Self {
+            retry_delays: retry_delays.into_iter().collect(),
+            ..self
+        }
+    }
 }
 
 impl<C> NotesBatchBuilder<C, NotesWriter>
@@ -196,13 +212,15 @@ where
 {
     /// Extracts the Notes file of each period into the repository and returns the summary.
     ///
-    /// At most [`in_flight`](Self::in_flight) periods run at once, each in its own task. A failed
-    /// period does not stop the others. A period whose intact file the repository already holds skips
-    /// the download.
+    /// At most [`in_flight`](Self::in_flight) periods run at once, each in its own task. A period
+    /// that fails with a transient SEC failure runs again after each retry delay, and downloads the
+    /// whole file again. A failed period does not stop the others. A period whose intact file the
+    /// repository already holds skips the download.
     ///
     /// Calls `observer` with the period and each successful stream item, and with the period and
-    /// the error of a failed period. An SEC answer of 403 or 404 gives [`ErrorKind::Absent`], and
-    /// every other error gives [`ErrorKind::Failed`]. A skipped period sends no event to the
+    /// each error. An error after which the period runs again gives [`ErrorKind::Retried`]. Of the
+    /// last error, an SEC answer of 403 or 404 gives [`ErrorKind::Absent`], and every other error
+    /// gives [`ErrorKind::Failed`]. A skipped period sends no event to the
     /// observer.
     ///
     /// # Panics
@@ -219,12 +237,10 @@ where
             .root(self.repository.root())
             .build();
         let extractions = self.periods.into_iter().enumerate().map(|(index, period)| {
-            let super_state = self
-                .notes
-                .period(period.as_str())
-                .sec_client(self.sec_client.clone())
-                .repository(self.repository.clone())
-                .build();
+            let notes = self.notes;
+            let sec_client = self.sec_client.clone();
+            let repository = self.repository.clone();
+            let retry_delays = self.retry_delays.clone();
             let observer = Arc::clone(&observer);
             let reader = reader.clone();
             // STA-344 added a task per period after a stream cut-off. Its cause is open, so keeping
@@ -239,13 +255,23 @@ where
                 };
                 let task = tokio::spawn(async move {
                     let unit = Unit::Period(period.clone());
-                    let outcome = super_state
-                        .run_to_archive(|item| observer(&unit, RunEvent::Item(item)))
-                        .await
-                        .map(|archive| (fetch, archive))
-                        .inspect_err(|error| {
-                            observer(&unit, RunEvent::Error(error, error_kind(error)));
-                        });
+                    let outcome = with_retry(
+                        &retry_delays,
+                        || {
+                            notes
+                                .period(period.as_str())
+                                .sec_client(sec_client.clone())
+                                .repository(repository.clone())
+                                .build()
+                                .run_to_archive(|item| observer(&unit, RunEvent::Item(item)))
+                        },
+                        |error| observer(&unit, RunEvent::Error(error, ErrorKind::Retried)),
+                    )
+                    .await
+                    .map(|archive| (fetch, archive))
+                    .inspect_err(|error| {
+                        observer(&unit, RunEvent::Error(error, error_kind(error)));
+                    });
                     (index, period, outcome)
                 });
                 task.await

@@ -11,7 +11,6 @@
 //!
 //! [`run`]: DailyFilingsBuilder::run
 
-use std::future::Future;
 use std::time::Duration;
 
 use chrono::NaiveDate;
@@ -22,6 +21,7 @@ use storage::implementations::repository::filesystem::{
 use storage::traits::repository::ReadRepository;
 
 use super::Incremental;
+use super::retry::{DEFAULT_RETRY_DELAYS, with_retry};
 use super::run_event::{ErrorKind, RunEvent, Unit};
 use crate::implementations::states::extract::daily_index::builder::NoSecClient;
 use crate::implementations::states::extract::daily_index::{
@@ -35,7 +35,7 @@ use crate::implementations::states::extract::validate_index_date::ValidateIndexD
 use crate::prelude::{IntoStateMachineStream, StateMachineStream, StreamError, StreamItem};
 use crate::shared::cik::Cik;
 use crate::shared::filing_documents::FolderIndex;
-use crate::shared::filing_documents_ref::{filing_index_key, instance_key};
+use crate::shared::filing_documents_ref::{filing_index_key, instance_key, labels_key};
 use crate::shared::filing_ref::FilingRef;
 use crate::shared::http_client::Executes;
 use crate::shared::http_client::SecClient as SecClientTrait;
@@ -48,7 +48,7 @@ use crate::shared::request::implementations::sec_request::{FilingDocumentSet, Fi
 use crate::shared::response::implementations::sec_response::{JsonBody, SecResponse, ZipBody};
 use summary::{
     CompanyOutcome, DateOutcome, Fetch, FilingOutcome, is_missing_instance, is_pending,
-    is_unavailable, is_unextractable,
+    is_unextractable,
 };
 
 mod summary;
@@ -61,14 +61,6 @@ pub use summary::{DailyRunSummary, FailedDailyRun};
 /// The rate limiter of the SEC client caps the requests, so a higher value does not make a run
 /// faster.
 pub const DEFAULT_MACHINES_IN_FLIGHT: usize = 4;
-
-/// The waits before the second and the third attempt of a machine that the SEC answered with 503,
-/// without a call to [`DailyFilingsBuilder::retry_delays`]. After the third attempt the machine
-/// fails.
-// Deviation: `Duration::from_mins` is not stable in Rust 1.90, the CI version, so the code writes
-// the minute in seconds. Rust 1.90 does not know the lint, hence `unknown_lints`.
-#[allow(unknown_lints, clippy::duration_suboptimal_units)]
-pub const DEFAULT_RETRY_DELAYS: [Duration; 2] = [Duration::from_secs(10), Duration::from_secs(60)];
 
 /// The number of dates, yesterday and the days before it, whose missing daily index counts as
 /// pending. A pending date does not fail the run, because a later run reads it again.
@@ -101,6 +93,7 @@ type InstanceRepository = FilesystemRepository<Write, RawDocument<RawXbrlInstanc
 type InstanceReader = FilesystemRepository<Read, RawDocument<RawXbrlInstance>>;
 type FilingIndexReader = FilesystemRepository<Read, RawDocument<RawFilingIndex>>;
 type LabelsRepository = FilesystemRepository<Write, RawDocument<RawXbrlLabels>>;
+type LabelsReader = FilesystemRepository<Read, RawDocument<RawXbrlLabels>>;
 type SubmissionsRepository = FilesystemRepository<Write, RawDocument<RawSubmissions>>;
 
 /// The stores that one run writes to.
@@ -293,8 +286,8 @@ impl<Y, C, R> DailyFilingsBuilder<Y, C, R> {
         }
     }
 
-    /// Sets the waits before each new attempt of a machine that the SEC answered with 503. The
-    /// default is [`DEFAULT_RETRY_DELAYS`].
+    /// Sets the waits before each new attempt of a machine that failed with a transient SEC
+    /// failure. The default is [`DEFAULT_RETRY_DELAYS`].
     #[must_use]
     pub fn retry_delays(self, retry_delays: impl IntoIterator<Item = Duration>) -> Self {
         Self {
@@ -324,8 +317,9 @@ where
     /// then one filing machine per selected filing that the store cannot skip, then one
     /// `submissions` machine per distinct CIK of the selected filings. At most
     /// [`in_flight`](Self::in_flight) filing machines run at once, and the same for `submissions`
-    /// machines. A filing or `submissions` machine that the SEC answers with 503 runs again after
-    /// each retry delay. A failure does not stop the other machines or the other dates.
+    /// machines. The detection of a date, a filing machine, and a `submissions` machine that fail
+    /// with a transient SEC failure run again after each retry delay. A failure does not stop the
+    /// other machines or the other dates.
     ///
     /// Calls `observer` with the unit and each successful stream item, and with the unit, each
     /// error, and its [`ErrorKind`]. The unit is the date, the filing, or the company. A skipped
@@ -340,15 +334,20 @@ where
         let mut outcomes = Vec::with_capacity(self.dates.len());
         for &date in &self.dates {
             let unit = Unit::Date(date);
-            let detection = self
-                .incremental
-                .daily_index()
-                .date(date.to_string())
-                .sec_client(self.sec_client.clone())
-                .repository(self.repositories.daily_index.clone())
-                .build()
-                .run_to_detected_filings(|item| observer(&unit, RunEvent::Item(item)))
-                .await;
+            let detection = with_retry(
+                &self.retry_delays,
+                || {
+                    self.incremental
+                        .daily_index()
+                        .date(date.to_string())
+                        .sec_client(self.sec_client.clone())
+                        .repository(self.repositories.daily_index.clone())
+                        .build()
+                        .run_to_detected_filings(|item| observer(&unit, RunEvent::Item(item)))
+                },
+                |error| observer(&unit, RunEvent::Error(error, ErrorKind::Retried)),
+            )
+            .await;
             let outcome = match detection {
                 Ok(detected) => DateOutcome::Processed {
                     filings: self.extract_filings(date, &detected, &observer).await,
@@ -374,8 +373,9 @@ where
     /// once, in the order of the filings. Each machine records the daily index of `detected` as the input of
     /// its files.
     ///
-    /// A filing runs no machine if its stored instance passes the size and SHA-256 check, or if
-    /// its stored folder index lists no XBRL instance (see [`StoreReaders::skip`]).
+    /// A filing runs no machine if its stored instance passes the size and SHA-256 check and its
+    /// label file passes it or is not listed, or if its stored folder index lists no XBRL instance
+    /// (see [`StoreReaders::skip`]).
     async fn extract_filings(
         &self,
         date: NaiveDate,
@@ -389,6 +389,11 @@ where
                 .reader()
                 .document_type::<RawDocument<RawXbrlInstance>>()
                 .root(self.repositories.instance.root())
+                .build(),
+            labels: FilesystemRepository::builder()
+                .reader()
+                .document_type::<RawDocument<RawXbrlLabels>>()
+                .root(self.repositories.labels.root())
                 .build(),
             filing_index: FilesystemRepository::builder()
                 .reader()
@@ -495,25 +500,59 @@ where
 /// The readers of the stored files that let the run skip a filing before any request.
 struct StoreReaders {
     instance: InstanceReader,
+    labels: LabelsReader,
     filing_index: FilingIndexReader,
 }
 
 impl StoreReaders {
     /// Returns how the run skips `filing`, or `None` if the run must fetch it.
     ///
-    /// The run skips a filing whose stored instance passes the size and SHA-256 check. It also
-    /// skips a filing whose stored folder index lists no XBRL instance, by the rules of
-    /// [`FolderIndex::select_documents`]. A read error counts as not stored, so the run fetches
-    /// the filing again.
+    /// The run skips a filing whose stored instance passes the size and SHA-256 check, if its
+    /// stored label file passes the same check or its stored folder index lists no label file.
+    /// It also skips a filing whose stored folder index lists no XBRL instance. Both folder rules
+    /// are those of [`FolderIndex::select_documents`]. A read error counts as not stored, so the
+    /// run fetches the filing again.
     async fn skip(&self, filing: &FilingRef) -> Option<Fetch> {
         if matches!(self.instance.get(instance_key(filing)).await, Ok(Some(_))) {
-            return Some(Fetch::AlreadyStored);
+            return self
+                .has_intact_labels(filing)
+                .await
+                .then_some(Fetch::AlreadyStored);
         }
-        let Ok(Some(folder_index)) = self.filing_index.get(filing_index_key(filing)).await else {
-            return None;
-        };
+        let folder_index = self.folder_index(filing).await?;
         lists_no_instance(folder_index.bytes(), filing).then_some(Fetch::SkippedUnextractable)
     }
+
+    /// Returns `true` if the stored label file of `filing` passes the size and SHA-256 check, or
+    /// if its stored folder index lists no label file.
+    async fn has_intact_labels(&self, filing: &FilingRef) -> bool {
+        if matches!(self.labels.get(labels_key(filing)).await, Ok(Some(_))) {
+            return true;
+        }
+        self.folder_index(filing)
+            .await
+            .is_some_and(|folder_index| lists_no_label_file(folder_index.bytes(), filing))
+    }
+
+    /// Returns the stored folder index of `filing`, or `None` if the store holds none or the
+    /// read fails.
+    async fn folder_index(&self, filing: &FilingRef) -> Option<RawDocument<RawFilingIndex>> {
+        self.filing_index
+            .get(filing_index_key(filing))
+            .await
+            .ok()
+            .flatten()
+    }
+}
+
+/// Returns `true` if `folder_index` parses, and the selection of `filing` succeeds with no label
+/// file.
+fn lists_no_label_file(folder_index: &[u8], filing: &FilingRef) -> bool {
+    FolderIndex::from_json(folder_index).is_ok_and(|index| {
+        index
+            .select_documents(filing.accession_number())
+            .is_ok_and(|documents| documents.label_file().is_none())
+    })
 }
 
 /// Returns `true` if `folder_index` parses and the selection of `filing` fails because the folder
@@ -540,82 +579,14 @@ async fn run_to_end(
     Ok(())
 }
 
-/// Runs `attempt` until it succeeds, fails with an error that is not a 503, or has used every
-/// wait of `retry_delays`. Calls `on_retry` with each error after which `attempt` runs again, and
-/// returns the last error.
-async fn with_retry<T, F, Fut>(
-    retry_delays: &[Duration],
-    mut attempt: F,
-    on_retry: impl Fn(&StreamError),
-) -> Result<T, StreamError>
-where
-    F: FnMut() -> Fut,
-    Fut: Future<Output = Result<T, StreamError>>,
-{
-    let mut delays = retry_delays.iter();
-    loop {
-        match attempt().await {
-            Ok(value) => return Ok(value),
-            Err(error) => match delays.next() {
-                Some(delay) if is_unavailable(&error) => {
-                    on_retry(&error);
-                    tokio::time::sleep(*delay).await;
-                }
-                _ => return Err(error),
-            },
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
-    use std::sync::atomic::{AtomicUsize, Ordering};
-
     use pretty_assertions::assert_eq;
 
-    use super::summary::tests::{not_found, unavailable};
     use super::*;
     use crate::implementations::extraction::Extraction;
     use crate::shared::financial::accession_number::AccessionNumber;
     use crate::shared::financial::form::{Form, ParsedForm};
-
-    /// Returns how many times `with_retry` runs an attempt that always fails with `error`.
-    async fn attempts_until_given_up(error: fn() -> StreamError) -> usize {
-        let attempts = AtomicUsize::new(0);
-        let retry_delays = [Duration::ZERO, Duration::ZERO];
-        let _ = with_retry(
-            &retry_delays,
-            || {
-                attempts.fetch_add(1, Ordering::SeqCst);
-                async move { Err::<(), _>(error()) }
-            },
-            |_| {},
-        )
-        .await;
-        attempts.load(Ordering::SeqCst)
-    }
-
-    #[tokio::test]
-    async fn should_try_once_more_per_retry_delay_when_every_attempt_gets_503() {
-        let error = unavailable;
-
-        let expected_result = 3;
-
-        let result = attempts_until_given_up(error).await;
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[tokio::test]
-    async fn should_try_once_when_the_error_is_not_a_503() {
-        let error = not_found;
-
-        let expected_result = 1;
-
-        let result = attempts_until_given_up(error).await;
-
-        assert_eq!(result, expected_result);
-    }
 
     fn sample_filing() -> FilingRef {
         FilingRef::new(
