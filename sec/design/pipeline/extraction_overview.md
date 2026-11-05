@@ -403,7 +403,7 @@ flowchart TB
     DI -- "no, no later index" --> P["Pending or failed,<br/>by the window rules"]:::fail
     SD --> F["For each filing, at most 4 at once"]:::step
     F --> R{"In the store?"}
-    R -- "intact instance and label file" --> S1["Already stored,<br/>no request"]:::skip
+    R -- "intact instance, label file intact or not listed" --> S1["Already stored,<br/>no request"]:::skip
     R -- "folder index without instance" --> S2["Unextractable,<br/>no request"]:::skip
     R -- "nothing" --> X["Fetch and store index.json,<br/>select files, fetch and store<br/>instance and label file"]:::step
     X -- "503" --> RT["Retry after 10 s, then 60 s"]:::fail
@@ -449,7 +449,7 @@ A rerun with the same dates sends requests only for work that is not done:
 | -------- | --------------- |
 | Notes file | Skipped if the stored file passes the size and SHA-256 check. No request |
 | Daily index | Fetched again. The repository skips the write if the bytes are equal |
-| Filing | Skipped if the stored instance passes the check, and either the stored label file passes it or the stored folder index lists no label file. Also skipped if the stored folder index lists no instance. No request |
+| Filing | Skipped if the stored instance passes the check and the stored label file passes it or is not listed. Also skipped if the stored folder index lists no instance. No request |
 | `submissions` | Fetched again. The repository skips the write if the bytes are equal, and replaces the file otherwise |
 
 A skipped write keeps the run fields of the first run. So `execution_id` and `produced_at` name

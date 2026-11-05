@@ -2100,8 +2100,8 @@ Moved code does not count toward the 400 lines.
 7. FEATURE: `backfill().company_facts()`. `stream_extract` runs on it and moves to
    `sec/examples/`, with the `Dockerfile` and `README.md` (STA-358).
 
-`daily_filings()` skips a filing whose intact instance and label file the store already holds,
-before any request, as `notes()` skips an intact stored Notes file (STA-400). The check reads the
+`daily_filings()` skips a filing whose intact instance the store already holds, with an intact or
+unlisted label file, before any request, as `notes()` skips an intact stored Notes file (STA-400). The check reads the
 stored files by their keys per accession number (STA-413). A rerun of `backfill` then downloads
 only the missing filings.
 

@@ -288,15 +288,41 @@ mod run_loop {
     /// The stored label file of the 10-Q of 2026-10-26, under the storage root.
     const STORED_LABEL_FILE: &str = "sec/filings/CIK0000003545/0000003545-26-000047/lab.xml";
 
+    /// The stored folder index of the 10-Q of 2026-10-26, under the storage root.
+    const STORED_FOLDER_INDEX: &str = "sec/filings/CIK0000003545/0000003545-26-000047/index.json";
+
+    /// Runs 2026-10-26 twice in one store, and calls `change` with the storage root between the
+    /// runs. Returns the filing counts of the second run.
+    async fn second_run_after(change: impl FnOnce(&std::path::Path)) -> Value {
+        let root = temporary_root();
+        store_first_run(&root).await;
+        change(root.path());
+        let summary = run_offline_in(&root, &[date("2026-10-26")], &sec_client()).await;
+        summary.entries()[0]["filings"].clone()
+    }
+
     /// Runs 2026-10-26 twice in one store, and overwrites the stored `file` with `bytes` between
     /// the runs. Returns the filing counts of the second run.
     async fn second_run_after_overwriting(file: &str, bytes: &[u8]) -> Value {
-        let root = temporary_root();
-        store_first_run(&root).await;
-        std::fs::write(root.path().join(file), bytes)
-            .expect("Given a file that the first run stored, overwriting it should always succeed");
-        let summary = run_offline_in(&root, &[date("2026-10-26")], &sec_client()).await;
-        summary.entries()[0]["filings"].clone()
+        second_run_after(|root| {
+            std::fs::write(root.join(file), bytes).expect(
+                "Given a file that the first run stored, overwriting it should always succeed",
+            );
+        })
+        .await
+    }
+
+    /// Runs 2026-10-26 twice in one store, and removes each stored file of `files` between the
+    /// runs. Returns the filing counts of the second run.
+    async fn second_run_after_removing(files: &[&str]) -> Value {
+        second_run_after(|root| {
+            for file in files {
+                std::fs::remove_file(root.join(file)).expect(
+                    "Given a file that the first run stored, removing it should always succeed",
+                );
+            }
+        })
+        .await
     }
 
     #[tokio::test]
@@ -359,11 +385,7 @@ mod run_loop {
 
     #[tokio::test]
     async fn should_fetch_the_filing_again_when_the_stored_label_file_is_missing() {
-        let root = temporary_root();
-        store_first_run(&root).await;
-        std::fs::remove_file(root.path().join(STORED_LABEL_FILE)).expect(
-            "Given a label file that the first run stored, removing it should always succeed",
-        );
+        let files = [STORED_LABEL_FILE];
 
         let expected_result = json!({
             "selected": 1,
@@ -374,10 +396,26 @@ mod run_loop {
             "failed": [],
         });
 
-        let result = run_offline_in(&root, &[date("2026-10-26")], &sec_client())
-            .await
-            .entries()[0]["filings"]
-            .clone();
+        let result = second_run_after_removing(&files).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_fetch_the_filing_again_when_the_stored_label_file_and_folder_index_are_missing()
+    {
+        let files = [STORED_LABEL_FILE, STORED_FOLDER_INDEX];
+
+        let expected_result = json!({
+            "selected": 1,
+            "stored": 1,
+            "already_stored": 0,
+            "skipped_unextractable": 0,
+            "unextractable": [],
+            "failed": [],
+        });
+
+        let result = second_run_after_removing(&files).await;
 
         assert_eq!(result, expected_result);
     }

@@ -375,8 +375,9 @@ where
     /// once, in the order of the filings. Each machine records the daily index of `detected` as the input of
     /// its files.
     ///
-    /// A filing runs no machine if its stored instance and label file pass the size and SHA-256
-    /// check, or if its stored folder index lists no XBRL instance (see [`StoreReaders::skip`]).
+    /// A filing runs no machine if its stored instance passes the size and SHA-256 check and its
+    /// label file passes it or is not listed, or if its stored folder index lists no XBRL instance
+    /// (see [`StoreReaders::skip`]).
     async fn extract_filings(
         &self,
         date: NaiveDate,
