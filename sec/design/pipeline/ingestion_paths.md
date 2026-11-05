@@ -2100,10 +2100,10 @@ Moved code does not count toward the 400 lines.
 7. FEATURE: `backfill().company_facts()`. `stream_extract` runs on it and moves to
    `sec/examples/`, with the `Dockerfile` and `README.md` (STA-358).
 
-`daily_filings()` skips a filing whose intact instance the store already holds, with an intact or
-unlisted label file, before any request, as `notes()` skips an intact stored Notes file (STA-400). The check reads the
-stored files by their keys per accession number (STA-413). A rerun of `backfill` then downloads
-only the missing filings.
+`daily_filings()` skips a filing before any request if the store holds its intact instance and
+its label file is intact or not listed. `notes()` skips an intact stored Notes file the same way
+(STA-400). The check reads the stored files by their keys per accession number (STA-413). A rerun
+of `backfill` then downloads only the missing filings.
 
 MVP Operations owns the Cloud Run jobs and the schedule. These tickets are not in this list.
 
