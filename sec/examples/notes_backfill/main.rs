@@ -10,6 +10,8 @@
 // each shared file into this example as a private module, as the binaries do.
 #[path = "../../src/bin/shared/files_in_flight.rs"]
 mod files_in_flight;
+#[path = "../../src/bin/shared/json_log.rs"]
+mod json_log;
 #[path = "../../src/bin/shared/notes_periods.rs"]
 mod periods;
 #[path = "../../src/bin/shared/sec_client.rs"]
@@ -22,14 +24,14 @@ mod storage_root;
 use std::env;
 use std::error::Error;
 use std::fmt::{self, Display, Formatter};
-use std::io::stdout;
+use std::process::ExitCode;
 use std::time::Instant;
 
 use chrono::Utc;
 use sec::implementations::extraction::{ErrorKind, Extraction, RunEvent};
-use tracing_subscriber::fmt::format::FmtSpan;
 
 use files_in_flight::{FILES_IN_FLIGHT_ENV_VAR, InvalidFilesInFlight, files_in_flight};
+use json_log::init_logger;
 use periods::notes_periods;
 use sec_client::{USER_AGENT_ENV_VAR, default_user_agent_warning, sec_client, startup_error_cause};
 use storage_root::{create_root, raw_notes_archive_writer};
@@ -55,22 +57,30 @@ impl Display for BatchEvent {
 }
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
-    let (non_blocking, _guard) = tracing_appender::non_blocking(stdout());
-    tracing_subscriber::fmt()
-        .json()
-        .with_span_events(FmtSpan::NONE)
-        .with_target(false)
-        .with_current_span(false)
-        .flatten_event(true)
-        .with_writer(non_blocking)
-        .init();
+async fn main() -> ExitCode {
+    let _guard = init_logger();
+    // Each failure is logged where it happens. An error returned from `main` would print a second
+    // line in `Debug` form, which is not JSON.
+    if run_example().await.is_ok() {
+        ExitCode::SUCCESS
+    } else {
+        ExitCode::FAILURE
+    }
+}
 
+/// Runs the example, and logs each failure before it returns the error.
+///
+/// # Errors
+///
+/// Returns the first error that stops the example.
+async fn run_example() -> Result<(), Box<dyn Error + Send + Sync>> {
     let sec_client = sec_client().inspect_err(|error| {
         let cause = startup_error_cause(error.as_ref());
         tracing::error!(
             event = %BatchEvent::StartupFailed,
-            message = %format!("Failed to build the SEC client, Caused by: {cause}"),
+            message = %format!(
+                "[FailedSecClientCreation] Failed to build the SEC client, Caused by: {cause}"
+            ),
             context = %serde_json::json!({ "env_var": USER_AGENT_ENV_VAR }),
         );
     })?;
@@ -86,7 +96,9 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     create_root(&repository).inspect_err(|error| {
         tracing::error!(
             event = %BatchEvent::StartupFailed,
-            message = %format!("Failed to create the storage root, Caused by: {error}"),
+            message = %format!(
+                "[FailedStorageRootCreation] Failed to create the storage root, Reason: '{error}'"
+            ),
             context = %serde_json::json!({ "root": repository.root().display().to_string() }),
         );
     })?;

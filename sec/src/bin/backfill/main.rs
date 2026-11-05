@@ -6,6 +6,8 @@ mod run;
 mod batch_log;
 #[path = "../shared/files_in_flight.rs"]
 mod files_in_flight;
+#[path = "../shared/json_log.rs"]
+mod json_log;
 #[path = "../shared/notes_periods.rs"]
 mod notes_periods;
 #[path = "../shared/sec_client.rs"]
@@ -21,6 +23,7 @@ mod yesterday;
 use std::cell::Cell;
 use std::env;
 use std::error::Error;
+use std::process::ExitCode;
 use std::time::{Duration, Instant};
 
 use chrono::Utc;
@@ -30,19 +33,37 @@ use sec::implementations::extraction::{
 use uuid::Uuid;
 
 use batch_log::{
-    BatchEvent, daily_summary, init_logger, log_error, log_item, log_summary, startup_create_root,
+    BatchEvent, daily_summary, log_error, log_item, log_summary, startup_create_root,
     startup_sec_client,
 };
 use files_in_flight::{FILES_IN_FLIGHT_ENV_VAR, InvalidFilesInFlight, files_in_flight};
+use json_log::init_logger;
 use notes_periods::notes_periods;
 use run::{BackfillInputs, run};
 use storage_root::{raw_notes_archive_writer, raw_writer};
 use yesterday::new_york_yesterday;
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
+async fn main() -> ExitCode {
     let _guard = init_logger();
+    // Each failure is logged where it happens. An error returned from `main` would print a second
+    // line in `Debug` form, which is not JSON.
+    if run_batch().await.is_ok() {
+        ExitCode::SUCCESS
+    } else {
+        ExitCode::FAILURE
+    }
+}
 
+/// Runs the batch, and logs each failure before it returns the error.
+///
+/// # Errors
+///
+/// Returns the first error that stops the batch.
+// `main` awaits this future on its own thread, so the future never needs `Send`. The `Cell` of the
+// catch-up start is not `Sync`.
+#[expect(clippy::future_not_send)]
+async fn run_batch() -> Result<(), Box<dyn Error + Send + Sync>> {
     let sec_client = startup_sec_client()?;
     let files_in_flight = files_in_flight_from_env()?;
     let notes_repository = raw_notes_archive_writer();

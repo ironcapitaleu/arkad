@@ -2,6 +2,8 @@ mod pipeline;
 // Each binary is its own crate root, so it cannot import another binary's modules. `#[path]`
 // compiles each shared file into this binary as a private module, so all binaries build the
 // client and the store the same way.
+#[path = "../shared/json_log.rs"]
+mod json_log;
 #[path = "../shared/sec_client.rs"]
 mod sec_client;
 #[path = "../shared/storage_root.rs"]
@@ -9,13 +11,13 @@ mod storage_root;
 
 use std::error::Error;
 use std::fmt::{self, Display, Formatter};
-use std::io::stdout;
+use std::process::ExitCode;
 use std::time::Instant;
 
 use pipeline::Pipeline;
 use sec::implementations::extraction::Extraction;
-use tracing_subscriber::fmt::format::FmtSpan;
 
+use json_log::init_logger;
 use sec_client::{USER_AGENT_ENV_VAR, default_user_agent_warning, sec_client, startup_error_cause};
 use storage_root::{create_root, raw_company_facts_writer};
 
@@ -39,39 +41,48 @@ impl Display for BatchEvent {
 }
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
-    // Initialize non-blocking JSON structured logging
-    let (non_blocking, _guard) = tracing_appender::non_blocking(stdout());
-    tracing_subscriber::fmt()
-        .json()
-        .with_span_events(FmtSpan::NONE)
-        .with_target(false)
-        .with_current_span(false)
-        .flatten_event(true)
-        .with_writer(non_blocking)
-        .init();
+async fn main() -> ExitCode {
+    let _guard = init_logger();
+    // Each failure is logged where it happens. An error returned from `main` would print a second
+    // line in `Debug` form, which is not JSON.
+    if run_batch().await.is_ok() {
+        ExitCode::SUCCESS
+    } else {
+        ExitCode::FAILURE
+    }
+}
 
+/// Runs the batch, and logs each failure before it returns the error.
+///
+/// # Errors
+///
+/// Returns the first error that stops the batch.
+async fn run_batch() -> Result<(), Box<dyn Error + Send + Sync>> {
     let sec_client = sec_client().inspect_err(|error| {
         let cause = startup_error_cause(error.as_ref());
         tracing::error!(
             event = %BatchEvent::StartupFailed,
-            message = %format!("Failed to build the SEC client, Caused by: {cause}"),
-            env_var = USER_AGENT_ENV_VAR,
+            message = %format!(
+                "[FailedSecClientCreation] Failed to build the SEC client, Caused by: {cause}"
+            ),
+            context = %serde_json::json!({ "env_var": USER_AGENT_ENV_VAR }),
         );
     })?;
     if let Some(warning) = default_user_agent_warning(&sec_client) {
         tracing::warn!(
             event = %BatchEvent::DefaultUserAgent,
             message = %warning,
-            env_var = USER_AGENT_ENV_VAR,
+            context = %serde_json::json!({ "env_var": USER_AGENT_ENV_VAR }),
         );
     }
     let repository = raw_company_facts_writer();
     create_root(&repository).inspect_err(|error| {
         tracing::error!(
             event = %BatchEvent::StartupFailed,
-            message = %format!("Failed to create the storage root, Caused by: {error}"),
-            root = %repository.root().display(),
+            message = %format!(
+                "[FailedStorageRootCreation] Failed to create the storage root, Reason: '{error}'"
+            ),
+            context = %serde_json::json!({ "root": repository.root().display().to_string() }),
         );
     })?;
     // One handle, so every CIK of the run carries the same `execution_id`.
@@ -106,9 +117,11 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     tracing::info!(
         event = %BatchEvent::Complete,
         message = %format!("{successes} succeeded, {failures} failed in {elapsed:.2?}"),
-        successes = successes,
-        failures = failures,
-        duration_ms = elapsed.as_millis(),
+        context = %serde_json::json!({
+            "successes": successes,
+            "failures": failures,
+            "duration_ms": elapsed.as_millis(),
+        }),
     );
 
     Ok(())
