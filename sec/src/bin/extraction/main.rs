@@ -7,6 +7,7 @@ use sec::implementations::states::extract::execute_sec_request::{
 };
 use sec::implementations::states::extract::prepare_sec_request::PrepareSecRequest;
 use sec::implementations::states::extract::validate_cik_format::ValidateCikFormat;
+use serde::Serialize;
 use storage::implementations::repository::filesystem::IngestionMode;
 use uuid::Uuid;
 
@@ -27,8 +28,8 @@ mod storage_root;
 // Let this be here for testing purposes. Will be removed later.
 #[allow(clippy::too_many_lines)]
 async fn main() -> ExitCode {
-    // Each startup failure is logged as JSON. An error returned from `main` would print a second
-    // line in `Debug` form, which is not JSON.
+    // `main` logs each startup failure as JSON. A `main` that returns an error prints a second line
+    // in `Debug` form, which is not JSON.
     let sec_client = match sec_client() {
         Ok(sec_client) => sec_client,
         Err(error) => {
@@ -216,12 +217,62 @@ async fn main() -> ExitCode {
 ///
 /// This binary builds without `tracing`, so it cannot use that logger.
 fn log_line(level: &str, event: &str, message: &str, context: &serde_json::Value) {
-    let line = serde_json::json!({
-        "level": level,
-        "timestamp": Utc::now().to_rfc3339_opts(SecondsFormat::Micros, true),
-        "event": event,
-        "message": message,
-        "context": context,
-    });
-    println!("{line}");
+    let timestamp = Utc::now().to_rfc3339_opts(SecondsFormat::Micros, true);
+    println!(
+        "{}",
+        format_line(level, &timestamp, event, message, context)
+    );
+}
+
+/// Returns one log line as JSON text, with its fields in the order of the other binaries.
+fn format_line(
+    level: &str,
+    timestamp: &str,
+    event: &str,
+    message: &str,
+    context: &serde_json::Value,
+) -> String {
+    let line = LogLine {
+        level,
+        timestamp,
+        event,
+        message,
+        context,
+    };
+    serde_json::to_string(&line)
+        .expect("Given a struct of strings and a JSON value, serialization should always succeed")
+}
+
+/// One log line. Serde writes the fields in the order of their declaration.
+#[derive(Serialize)]
+struct LogLine<'line> {
+    level: &'line str,
+    timestamp: &'line str,
+    event: &'line str,
+    message: &'line str,
+    context: &'line serde_json::Value,
+}
+
+#[cfg(test)]
+mod tests {
+    use pretty_assertions::assert_eq;
+
+    use super::*;
+
+    #[test]
+    fn should_write_the_five_fields_in_order_when_a_line_is_formatted() {
+        let context = serde_json::json!({ "root": "/data" });
+
+        let expected_result = r#"{"level":"error","timestamp":"2026-11-05T19:00:00.000000Z","event":"batch_startup_failed","message":"[FailedStorageRootCreation] Failed","context":{"root":"/data"}}"#;
+
+        let result = format_line(
+            "error",
+            "2026-11-05T19:00:00.000000Z",
+            "batch_startup_failed",
+            "[FailedStorageRootCreation] Failed",
+            &context,
+        );
+
+        assert_eq!(result, expected_result);
+    }
 }
