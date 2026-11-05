@@ -5,7 +5,7 @@ pub mod always_succeeding;
 pub mod routing;
 
 pub use always_failing::AlwaysFailingHttpClient;
-pub use always_responding::AlwaysRespondingHttpClient;
+pub use always_responding::{AlwaysRespondingHttpClient, Delivery};
 pub use always_returning::AlwaysReturningHttpClient;
 pub use always_succeeding::AlwaysSucceedingHttpClient;
 pub use routing::RoutingHttpClient;

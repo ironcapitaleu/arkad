@@ -22,8 +22,17 @@ pub struct AlwaysRespondingHttpClient {
     pub headers: Vec<(&'static str, String)>,
     /// The body of every response.
     pub body: Vec<u8>,
-    /// If `true`, the body stops before its first byte, as on a reset connection.
-    pub cuts_body: bool,
+    /// How every response delivers its body.
+    pub delivery: Delivery,
+}
+
+/// How a fake response delivers its body.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum Delivery {
+    /// The response sends the whole body.
+    Full,
+    /// The body stops before its first byte, as on a reset connection.
+    StopsEarly,
 }
 
 #[async_trait]
@@ -39,10 +48,9 @@ impl InnerClient for AlwaysRespondingHttpClient {
         for (name, value) in &self.headers {
             builder = builder.header(*name, value);
         }
-        let body = if self.cuts_body {
-            reqwest::Body::wrap(CutBody)
-        } else {
-            reqwest::Body::from(self.body.clone())
+        let body = match self.delivery {
+            Delivery::Full => reqwest::Body::from(self.body.clone()),
+            Delivery::StopsEarly => reqwest::Body::wrap(StoppedBody),
         };
         let response = builder
             .body(body)
@@ -50,10 +58,11 @@ impl InnerClient for AlwaysRespondingHttpClient {
         Ok(reqwest::Response::from(response))
     }
 }
-/// A response body whose first read fails with a reset connection.
-struct CutBody;
 
-impl Body for CutBody {
+/// A response body whose first read fails with a reset connection.
+struct StoppedBody;
+
+impl Body for StoppedBody {
     type Data = Bytes;
     type Error = io::Error;
 

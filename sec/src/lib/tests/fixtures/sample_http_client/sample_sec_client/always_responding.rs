@@ -7,7 +7,9 @@ use crate::shared::http_client::implementations::sec_client::error::FailedSecReq
 use crate::shared::rate_limiter::RateLimiter;
 use crate::shared::response::implementations::sec_response::{ResponseBody, SecResponse};
 use crate::shared::user_agent::UserAgent;
-use crate::tests::fixtures::sample_http_client::sample_inner_client::AlwaysRespondingHttpClient;
+use crate::tests::fixtures::sample_http_client::sample_inner_client::{
+    AlwaysRespondingHttpClient, Delivery,
+};
 use crate::tests::fixtures::sample_rate_limiter::always_ready::AlwaysReadyRateLimiter;
 
 /// A fake SEC client whose inner client always returns a `reqwest::Response` built from fixed
@@ -43,7 +45,7 @@ impl AlwaysRespondingSecClient {
                 status,
                 headers,
                 body,
-                cuts_body: false,
+                delivery: Delivery::Full,
             },
             rate_limiter: AlwaysReadyRateLimiter,
             user_agent: UserAgent::new("Fake Notes Client fake@example.com").expect(

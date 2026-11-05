@@ -6,7 +6,7 @@ use crate::shared::response::implementations::sec_response::{ResponseBody, SecRe
 use crate::shared::user_agent::UserAgent;
 use crate::tests::fixtures::sample_http_client::sample_inner_client::routing::RequestCounts;
 use crate::tests::fixtures::sample_http_client::sample_inner_client::{
-    AlwaysRespondingHttpClient, RoutingHttpClient,
+    AlwaysRespondingHttpClient, Delivery, RoutingHttpClient,
 };
 use crate::tests::fixtures::sample_rate_limiter::always_ready::AlwaysReadyRateLimiter;
 
@@ -69,7 +69,7 @@ impl RoutingSecClient {
                 status: *status,
                 headers: vec![("content-type", (*content_type).to_string())],
                 body: body.to_vec(),
-                cuts_body: false,
+                delivery: Delivery::Full,
             })
             .collect();
         self.inner.routes.push((url.to_string(), responders));
@@ -84,10 +84,10 @@ impl RoutingSecClient {
             status: 200,
             headers: vec![("content-type", content_type.to_string())],
             body: body.to_vec(),
-            cuts_body: false,
+            delivery: Delivery::Full,
         };
         let cut = AlwaysRespondingHttpClient {
-            cuts_body: true,
+            delivery: Delivery::StopsEarly,
             ..full.clone()
         };
         self.inner.routes.push((url.to_string(), vec![cut, full]));
