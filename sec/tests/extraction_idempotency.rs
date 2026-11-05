@@ -1,4 +1,4 @@
-//! # Store Rerun Tests
+//! # Extraction Idempotency Tests
 //!
 //! Runs a facade call twice on the same inputs in one store, and compares the whole store after
 //! each run. An equal manifest proves that the second run wrote no file.
@@ -96,6 +96,7 @@ fn keys(manifest: Manifest) -> Vec<String> {
     manifest.into_keys().collect()
 }
 
+/// Returns a new empty temp directory for one store.
 fn temporary_root() -> TempDir {
     TempDir::new().expect(
         "Given a writable system temp directory, creating a directory in it should always succeed",
@@ -108,15 +109,18 @@ mod daily_filings {
 
     use chrono::NaiveDate;
     use pretty_assertions::assert_eq;
-    use sec::implementations::extraction::{DailyFilingsRepositories, Extraction};
+    use sec::implementations::extraction::{DailyFilingsRepositories, DailyRunSummary, Extraction};
     use sec::shared::raw_document::RawDocument;
     use sec::tests::fixtures::sample_http_client::sample_sec_client::routing::RoutingSecClient;
+    use serde_json::json;
     use storage::implementations::repository::filesystem::FilesystemRepository;
     use tempfile::TempDir;
     use uuid::Uuid;
 
     use super::{FIRST_EXECUTION_ID, SECOND_EXECUTION_ID, keys, manifest, temporary_root};
 
+    // The routes repeat those of `daily_filings.rs` on purpose. This file reads on its own, and
+    // a change to the fixture there cannot change what this file proves.
     const INDEX_URL: &str =
         "https://www.sec.gov/Archives/edgar/daily-index/2026/QTR4/form.20261026.idx";
     const DAILY_INDEX: &[u8] = b"Form Type   Company Name   CIK   Date Filed  File Name
@@ -179,9 +183,10 @@ mod daily_filings {
         }
     }
 
-    /// Runs 2026-10-26 with the run `execution_id` into `root`, with yesterday on 2026-10-28.
-    async fn run(root: &TempDir, execution_id: Uuid) {
-        let _ = Extraction::incremental()
+    /// Runs the date 2026-10-26 into `root` with `execution_id`. The run treats 2026-10-28 as
+    /// yesterday.
+    async fn run(root: &TempDir, execution_id: Uuid) -> DailyRunSummary {
+        Extraction::incremental()
             .execution_id(execution_id)
             .daily_filings()
             .dates([date("2026-10-26")])
@@ -190,13 +195,13 @@ mod daily_filings {
             .repositories(repositories(root))
             .retry_delays([Duration::ZERO, Duration::ZERO])
             .run(|_, _| {})
-            .await;
+            .await
     }
 
     #[tokio::test]
     async fn should_store_every_document_of_the_date_when_the_first_run_ends() {
         let root = temporary_root();
-        run(&root, FIRST_EXECUTION_ID).await;
+        let _ = run(&root, FIRST_EXECUTION_ID).await;
 
         let expected_result = vec![
             "sec/daily-index/form.20261026.idx",
@@ -212,14 +217,33 @@ mod daily_filings {
     }
 
     #[tokio::test]
+    async fn should_list_the_filing_as_already_stored_when_the_same_date_runs_again() {
+        let root = temporary_root();
+        let _ = run(&root, FIRST_EXECUTION_ID).await;
+
+        let expected_result = json!({
+            "selected": 1,
+            "stored": 0,
+            "already_stored": 1,
+            "skipped_unextractable": 0,
+            "unextractable": [],
+            "failed": [],
+        });
+
+        let result = run(&root, SECOND_EXECUTION_ID).await.entries()[0]["filings"].clone();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
     async fn should_leave_the_store_unchanged_when_the_same_date_runs_again() {
         let root = temporary_root();
-        run(&root, FIRST_EXECUTION_ID).await;
+        let _ = run(&root, FIRST_EXECUTION_ID).await;
         let first_manifest = manifest(root.path());
 
         let expected_result = first_manifest;
 
-        run(&root, SECOND_EXECUTION_ID).await;
+        let _ = run(&root, SECOND_EXECUTION_ID).await;
         let result = manifest(root.path());
 
         assert_eq!(result, expected_result);
@@ -229,7 +253,7 @@ mod daily_filings {
 /// Runs the Notes backfill of one period with a fake SEC.
 mod notes {
     use pretty_assertions::assert_eq;
-    use sec::implementations::extraction::Extraction;
+    use sec::implementations::extraction::{Extraction, NotesRunSummary};
     use sec::shared::raw_document::RawDocument;
     use sec::tests::fixtures::data::notes_archive::SAMPLE_NOTES_ZIP;
     use sec::tests::fixtures::sample_http_client::sample_sec_client::routing::RoutingSecClient;
@@ -249,8 +273,8 @@ mod notes {
     }
 
     /// Runs the Notes backfill of [`PERIOD`] with the run `execution_id` into `root`.
-    async fn run(root: &TempDir, execution_id: Uuid) {
-        let _ = Extraction::backfill()
+    async fn run(root: &TempDir, execution_id: Uuid) -> NotesRunSummary {
+        Extraction::backfill()
             .execution_id(execution_id)
             .notes()
             .periods([PERIOD])
@@ -263,13 +287,13 @@ mod notes {
                     .build(),
             )
             .run(|_, _| {})
-            .await;
+            .await
     }
 
     #[tokio::test]
     async fn should_store_the_notes_file_of_the_period_when_the_first_run_ends() {
         let root = temporary_root();
-        run(&root, FIRST_EXECUTION_ID).await;
+        let _ = run(&root, FIRST_EXECUTION_ID).await;
 
         let expected_result = vec!["sec/notes/2026_09_notes.zip"];
 
@@ -279,14 +303,26 @@ mod notes {
     }
 
     #[tokio::test]
+    async fn should_count_the_period_as_already_stored_when_the_same_period_runs_again() {
+        let root = temporary_root();
+        let _ = run(&root, FIRST_EXECUTION_ID).await;
+
+        let expected_result = 1;
+
+        let result = run(&root, SECOND_EXECUTION_ID).await.already_stored_count();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
     async fn should_leave_the_store_unchanged_when_the_same_period_runs_again() {
         let root = temporary_root();
-        run(&root, FIRST_EXECUTION_ID).await;
+        let _ = run(&root, FIRST_EXECUTION_ID).await;
         let first_manifest = manifest(root.path());
 
         let expected_result = first_manifest;
 
-        run(&root, SECOND_EXECUTION_ID).await;
+        let _ = run(&root, SECOND_EXECUTION_ID).await;
         let result = manifest(root.path());
 
         assert_eq!(result, expected_result);
