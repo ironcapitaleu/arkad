@@ -11,6 +11,7 @@ use tracing_appender::non_blocking::WorkerGuard;
 use tracing_subscriber::fmt::format::FmtSpan;
 
 /// The events of the `api` binary, written into the `event` field of a log.
+#[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ApiEvent {
     /// The listener is bound and the API serves requests.
