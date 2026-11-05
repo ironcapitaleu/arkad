@@ -40,7 +40,7 @@ The MVP decisions (STA-284) chose these SEC sources:
 | ------ | ---- | --- |
 | Financial Statement and Notes files | Backfill | All values of all filings since 2009, with dimensions |
 | XBRL instance and `_lab.xml` of each filing | New filing | The values and the company labels of one new filing |
-| `submissions` JSON | Both | Company data: name, SIC code, tickers, former names |
+| `submissions` JSON | New filing | The SIC code of each new filing. The name, tickers, and former names come from the filings (see [Company Data](#company-data)) |
 | `companyfacts` JSON | Neither | Cross-check only. It drops every value with a dimension. |
 
 The pipeline extracts only `companyfacts` today. `ExtractCompanyFactsSuperState` runs
@@ -1370,11 +1370,39 @@ Decided in STA-376:
 - URL: `https://data.sec.gov/submissions/CIK##########.json`. Measured: it holds `sic`,
   `sicDescription`, `name`, `tickers`, `exchanges`, `formerNames`, and the recent filings.
 - New-filing path: one run per distinct CIK of the day's filings.
-- Backfill: one run per distinct CIK in all Notes files, through `backfill().all()`, which reads
-  the CIKs from the column `cik` of `sub.tsv`. The binary `backfill` does not call `all()`
-  (decision of 2026-11-01). 2024q1 alone has 6,587 companies. The
-  total over all files is not measured. `sub.tsv` already holds the SIC code and the name at
-  filing time, so the backfill needs `submissions` only for the current company data.
+- Backfill: no run (see the decisions below). `backfill().all()` still runs `submissions` once
+  per distinct CIK of the stored Notes files, and no binary calls it. STA-435 removes this step.
+- Single company: `backfill().submissions().cik(cik)` with `build()` reconciles one company.
+
+Decided by the lead (STA-417, 2026-11-01 and 2026-11-03):
+
+- The screener takes the ticker, the exchange, the name, the SIC, and the fiscal year end as
+  filed, per filing. Delisted or acquired companies need no current data. No current ticker map
+  for now.
+- The transform (STA-425) sets the rule to compare the two sources of the fiscal year end. A
+  day or month that moves through the rounding of `sub.tsv` is not a change of the fiscal year.
+  See [Overlap of the Data](extraction_overview.md#overlap-of-the-data).
+- Source of each attribute:
+
+  | Attribute | Notes path (before the cut-over) | New-filing path |
+  | --------- | -------------------------------- | --------------- |
+  | Ticker, exchange | `txt.tsv` (`dei:TradingSymbol`, `dei:SecurityExchangeName`) | XBRL instance, same tags |
+  | Name | `sub.tsv` `name` | XBRL instance, `dei:EntityRegistrantName` |
+  | SIC | `sub.tsv` `sic` | `submissions` `sic`, current on the day of the fetch |
+  | Former names | The names as filed, in the order of the filings | Same |
+  | Fiscal year end | `sub.tsv` `fye` (`MMDD`, rounded to the nearest month end) | XBRL instance, `dei:CurrentFiscalYearEndDate` (`--MM-DD`, the real day) |
+
+- `submissions` stays in the daily path permanently. The XBRL instance has no SIC, and the filing
+  header `<accession>.hdr.sgml` costs the same request per filing and needs a new request kind.
+- `ExtractSubmissionsSuperState`, `StoreSubmissions`, and the kind `Submissions` stay.
+- Every value downstream names its source document, its SHA-256, and the time of the write.
+  A replaced `submissions` file loses its old bytes until the raw store keeps every version
+  (STA-428).
+- The companies of the Notes files get no `submissions` in the backfill. A 10-K filer files at
+  least each quarter, so the daily path fetches its `submissions` within about 3 months. A 20-F or
+  40-F filer files once a year, so the fetch can take up to 12 months. A backfill run of
+  `submissions` costs one request per company, more than 6,587 (the companies of 2024q1 alone),
+  so more than 12 minutes at 110 ms per request.
 
 ### Daily Run
 
