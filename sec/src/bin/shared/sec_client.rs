@@ -41,8 +41,8 @@ pub fn default_user_agent_warning(sec_client: &SecClient) -> Option<String> {
 ///
 /// The [`UserAgentError`] display holds the raw value, which can hold an email. For that error,
 /// the cause leaves out the value.
-// The binaries call this. The tests include this file without calling it, so `dead_code` would
-// fire there.
+// Only the stream binaries call this. `extraction` includes this file without calling it, so
+// `dead_code` would fire there.
 #[allow(dead_code)]
 pub fn startup_error_cause(error: &(dyn Error + Send + Sync + 'static)) -> String {
     error.downcast_ref::<UserAgentError>().map_or_else(

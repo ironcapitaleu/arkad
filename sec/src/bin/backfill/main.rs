@@ -46,7 +46,7 @@ use yesterday::new_york_yesterday;
 #[tokio::main]
 async fn main() -> ExitCode {
     let _guard = init_logger();
-    // Each failure is logged where it happens. An error returned from `main` would print a second
+    // `run_batch` logs each failure where it happens. A `main` that returns an error prints a second
     // line in `Debug` form, which is not JSON.
     if run_batch().await.is_ok() {
         ExitCode::SUCCESS

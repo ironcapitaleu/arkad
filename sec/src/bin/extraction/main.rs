@@ -1,6 +1,5 @@
-use std::process::ExitCode;
+use std::error::Error;
 
-use chrono::{SecondsFormat, Utc};
 use sec::implementations::states::extract::company_facts::ExtractCompanyFactsSuperState;
 use sec::implementations::states::extract::execute_sec_request::{
     ExecuteCompanyFactsRequest, ExecuteSecRequestContext, ExecuteSecRequestInput,
@@ -12,7 +11,7 @@ use uuid::Uuid;
 
 use sec::prelude::*;
 
-use sec_client::{USER_AGENT_ENV_VAR, default_user_agent_warning, sec_client, startup_error_cause};
+use sec_client::{default_user_agent_warning, sec_client};
 use storage_root::{create_root, raw_company_facts_writer};
 
 // Each binary is its own crate root, so it cannot import another binary's modules. `#[path]`
@@ -26,44 +25,13 @@ mod storage_root;
 #[tokio::main]
 // Let this be here for testing purposes. Will be removed later.
 #[allow(clippy::too_many_lines)]
-async fn main() -> ExitCode {
-    // Each startup failure is logged as JSON. An error returned from `main` would print a second
-    // line in `Debug` form, which is not JSON.
-    let sec_client = match sec_client() {
-        Ok(sec_client) => sec_client,
-        Err(error) => {
-            let cause = startup_error_cause(error.as_ref());
-            log_line(
-                "error",
-                "batch_startup_failed",
-                &format!(
-                    "[FailedSecClientCreation] Failed to build the SEC client, Caused by: {cause}"
-                ),
-                &serde_json::json!({ "env_var": USER_AGENT_ENV_VAR }),
-            );
-            return ExitCode::FAILURE;
-        }
-    };
+async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
+    let sec_client = sec_client()?;
     if let Some(warning) = default_user_agent_warning(&sec_client) {
-        log_line(
-            "warn",
-            "batch_default_user_agent",
-            &warning,
-            &serde_json::json!({ "env_var": USER_AGENT_ENV_VAR }),
-        );
+        eprintln!("Warning: {warning}");
     }
     let repository = raw_company_facts_writer();
-    if let Err(error) = create_root(&repository) {
-        log_line(
-            "error",
-            "batch_startup_failed",
-            &format!(
-                "[FailedStorageRootCreation] Failed to create the storage root, Reason: '{error}'"
-            ),
-            &serde_json::json!({ "root": repository.root().display().to_string() }),
-        );
-        return ExitCode::FAILURE;
-    }
+    create_root(&repository)?;
 
     let input =
         sec::implementations::states::extract::validate_cik_format::ValidateCikFormatInput::new(
@@ -209,19 +177,5 @@ async fn main() -> ExitCode {
 
     println!("{execute_output}");
 
-    ExitCode::SUCCESS
-}
-
-/// Writes one log line to stdout, with the five fields of the JSON logger of the other binaries.
-///
-/// This binary builds without `tracing`, so it cannot use that logger.
-fn log_line(level: &str, event: &str, message: &str, context: &serde_json::Value) {
-    let line = serde_json::json!({
-        "level": level,
-        "timestamp": Utc::now().to_rfc3339_opts(SecondsFormat::Micros, true),
-        "event": event,
-        "message": message,
-        "context": context,
-    });
-    println!("{line}");
+    Ok(())
 }

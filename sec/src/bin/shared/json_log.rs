@@ -1,12 +1,12 @@
 //! # JSON Log
 //!
 //! Provides the JSON logger of a binary. Each line has the five fields `level`, `timestamp`,
-//! `event`, `message`, and `context`, in this order. `level` is lowercase, and `context` is a JSON
-//! object.
+//! `event`, `message`, and `context`. `level` is lowercase, and `context` is a JSON object.
 //!
 //! A call records `event`, `message`, and `context = %serde_json::json!({ … })`. `tracing` 0.1
 //! records no nested value, so `context` reaches the logger as text, and [`JsonLog`] parses it
-//! back into an object. Every other field of the call goes into `context` under its own name.
+//! back into an object. Every other field of the call goes into `context` under its own name. If two
+//! fields give the same key, the first one recorded wins.
 
 use std::fmt;
 use std::io::stdout;
@@ -94,16 +94,20 @@ impl LogFields {
             "event" => self.event = text,
             "message" => self.message = text,
             "context" => match serde_json::from_str(&text) {
-                Ok(Value::Object(entries)) => self.context.extend(entries),
+                Ok(Value::Object(entries)) => {
+                    for (key, value) in entries {
+                        self.context.entry(key).or_insert(value);
+                    }
+                }
                 _ => self.record_value(field, Value::String(text)),
             },
             _ => self.record_value(field, Value::String(text)),
         }
     }
 
-    /// Stores `value` in `context` under the name of `field`.
+    /// Stores `value` in `context` under the name of `field`, unless `context` holds that key.
     fn record_value(&mut self, field: &Field, value: Value) {
-        self.context.insert(field.name().to_owned(), value);
+        self.context.entry(field.name()).or_insert(value);
     }
 }
 
@@ -136,6 +140,12 @@ impl Visit for LogFields {
 
     fn record_u64(&mut self, field: &Field, value: u64) {
         self.record_value(field, Value::from(value));
+    }
+
+    fn record_i128(&mut self, field: &Field, value: i128) {
+        let value =
+            i64::try_from(value).map_or_else(|_| Value::from(value.to_string()), Value::from);
+        self.record_value(field, value);
     }
 
     fn record_u128(&mut self, field: &Field, value: u128) {

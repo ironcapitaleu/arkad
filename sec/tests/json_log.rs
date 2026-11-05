@@ -164,3 +164,47 @@ fn should_write_implicit_message_when_event_has_a_format_string() {
 
     assert_eq!(result["message"], expected_result);
 }
+
+#[test]
+fn should_keep_the_json_type_of_each_value_when_fields_are_typed() {
+    let error = std::io::Error::other("disk full");
+    let error: &(dyn std::error::Error + 'static) = &error;
+    let large: u128 = u128::from(u64::MAX) + 1;
+    let negative: i128 = -5;
+
+    let expected_result = json!({
+        "error": "disk full",
+        "dry_run": true,
+        "ratio": 0.5,
+        "large": "18446744073709551616",
+        "negative": -5,
+    });
+
+    let result = first_line(|| {
+        tracing::info!(
+            event = "batch_complete",
+            message = "Done",
+            error = error,
+            dry_run = true,
+            ratio = 0.5,
+            large = large,
+            negative = negative,
+        );
+    });
+
+    assert_eq!(result["context"], expected_result);
+}
+
+#[test]
+fn should_keep_the_first_value_when_a_flat_field_and_context_share_a_key() {
+    let flat_cik = "0000320193";
+    let context = json!({ "cik": "0001067983" });
+
+    let expected_result = json!({ "cik": "0000320193" });
+
+    let result = first_line(|| {
+        tracing::info!(event = "e", message = "m", cik = %flat_cik, context = %context);
+    });
+
+    assert_eq!(result["context"], expected_result);
+}
