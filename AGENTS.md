@@ -6,6 +6,8 @@
 
 ### Code Quality
 
+- The Rust version comes from **`rust-toolchain.toml`** at the root. CI and the `Dockerfile` build
+  stage use the same version.
 - Code must be **properly formatted** (`rustfmt`).
 - Dependencies must be **free of known security vulnerabilities** (`cargo audit`).
 - Documentation must **build without warnings** (`RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --document-private-items --workspace`).

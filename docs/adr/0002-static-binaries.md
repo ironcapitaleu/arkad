@@ -46,7 +46,7 @@ binary removes this coupling.
    glibc build on a `trixie` build stage. The PR that takes the fallback names the reason.
 
 The pinned tool versions of the first build are zig 0.17.0 and `cargo-zigbuild` 0.24.0, on
-`rust:1.97-trixie`. `cargo-zigbuild` 0.24.0 needs a newer Rust than the CI toolchain 1.90.
+`rust:1.97-trixie`. The build stage now uses the Rust version of `rust-toolchain.toml`.
 
 ## Options Considered
 
