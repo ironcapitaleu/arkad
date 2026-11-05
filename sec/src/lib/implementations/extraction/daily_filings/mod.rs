@@ -35,7 +35,7 @@ use crate::implementations::states::extract::validate_index_date::ValidateIndexD
 use crate::prelude::{IntoStateMachineStream, StateMachineStream, StreamError, StreamItem};
 use crate::shared::cik::Cik;
 use crate::shared::filing_documents::FolderIndex;
-use crate::shared::filing_documents_ref::{filing_index_key, instance_key};
+use crate::shared::filing_documents_ref::{filing_index_key, instance_key, labels_key};
 use crate::shared::filing_ref::FilingRef;
 use crate::shared::http_client::Executes;
 use crate::shared::http_client::SecClient as SecClientTrait;
@@ -101,6 +101,7 @@ type InstanceRepository = FilesystemRepository<Write, RawDocument<RawXbrlInstanc
 type InstanceReader = FilesystemRepository<Read, RawDocument<RawXbrlInstance>>;
 type FilingIndexReader = FilesystemRepository<Read, RawDocument<RawFilingIndex>>;
 type LabelsRepository = FilesystemRepository<Write, RawDocument<RawXbrlLabels>>;
+type LabelsReader = FilesystemRepository<Read, RawDocument<RawXbrlLabels>>;
 type SubmissionsRepository = FilesystemRepository<Write, RawDocument<RawSubmissions>>;
 
 /// The stores that one run writes to.
@@ -374,8 +375,9 @@ where
     /// once, in the order of the filings. Each machine records the daily index of `detected` as the input of
     /// its files.
     ///
-    /// A filing runs no machine if its stored instance passes the size and SHA-256 check, or if
-    /// its stored folder index lists no XBRL instance (see [`StoreReaders::skip`]).
+    /// A filing runs no machine if its stored instance passes the size and SHA-256 check and its
+    /// label file passes it or is not listed, or if its stored folder index lists no XBRL instance
+    /// (see [`StoreReaders::skip`]).
     async fn extract_filings(
         &self,
         date: NaiveDate,
@@ -389,6 +391,11 @@ where
                 .reader()
                 .document_type::<RawDocument<RawXbrlInstance>>()
                 .root(self.repositories.instance.root())
+                .build(),
+            labels: FilesystemRepository::builder()
+                .reader()
+                .document_type::<RawDocument<RawXbrlLabels>>()
+                .root(self.repositories.labels.root())
                 .build(),
             filing_index: FilesystemRepository::builder()
                 .reader()
@@ -495,25 +502,59 @@ where
 /// The readers of the stored files that let the run skip a filing before any request.
 struct StoreReaders {
     instance: InstanceReader,
+    labels: LabelsReader,
     filing_index: FilingIndexReader,
 }
 
 impl StoreReaders {
     /// Returns how the run skips `filing`, or `None` if the run must fetch it.
     ///
-    /// The run skips a filing whose stored instance passes the size and SHA-256 check. It also
-    /// skips a filing whose stored folder index lists no XBRL instance, by the rules of
-    /// [`FolderIndex::select_documents`]. A read error counts as not stored, so the run fetches
-    /// the filing again.
+    /// The run skips a filing whose stored instance passes the size and SHA-256 check, if its
+    /// stored label file passes the same check or its stored folder index lists no label file.
+    /// It also skips a filing whose stored folder index lists no XBRL instance. Both folder rules
+    /// are those of [`FolderIndex::select_documents`]. A read error counts as not stored, so the
+    /// run fetches the filing again.
     async fn skip(&self, filing: &FilingRef) -> Option<Fetch> {
         if matches!(self.instance.get(instance_key(filing)).await, Ok(Some(_))) {
-            return Some(Fetch::AlreadyStored);
+            return self
+                .has_intact_labels(filing)
+                .await
+                .then_some(Fetch::AlreadyStored);
         }
-        let Ok(Some(folder_index)) = self.filing_index.get(filing_index_key(filing)).await else {
-            return None;
-        };
+        let folder_index = self.folder_index(filing).await?;
         lists_no_instance(folder_index.bytes(), filing).then_some(Fetch::SkippedUnextractable)
     }
+
+    /// Returns `true` if the stored label file of `filing` passes the size and SHA-256 check, or
+    /// if its stored folder index lists no label file.
+    async fn has_intact_labels(&self, filing: &FilingRef) -> bool {
+        if matches!(self.labels.get(labels_key(filing)).await, Ok(Some(_))) {
+            return true;
+        }
+        self.folder_index(filing)
+            .await
+            .is_some_and(|folder_index| lists_no_label_file(folder_index.bytes(), filing))
+    }
+
+    /// Returns the stored folder index of `filing`, or `None` if the store holds none or the
+    /// read fails.
+    async fn folder_index(&self, filing: &FilingRef) -> Option<RawDocument<RawFilingIndex>> {
+        self.filing_index
+            .get(filing_index_key(filing))
+            .await
+            .ok()
+            .flatten()
+    }
+}
+
+/// Returns `true` if `folder_index` parses, and the selection of `filing` succeeds with no label
+/// file.
+fn lists_no_label_file(folder_index: &[u8], filing: &FilingRef) -> bool {
+    FolderIndex::from_json(folder_index).is_ok_and(|index| {
+        index
+            .select_documents(filing.accession_number())
+            .is_ok_and(|documents| documents.label_file().is_none())
+    })
 }
 
 /// Returns `true` if `folder_index` parses and the selection of `filing` fails because the folder

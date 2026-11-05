@@ -1330,8 +1330,10 @@ The shape of design 5:
 - The state writes the label file first, then the instance. If the label write fails, the state
   writes no instance and returns `FailedDocumentWrite` with no output. If the instance write
   fails, the label file stays stored. A new run stores the same label bytes, which `persist`
-  skips, and writes the instance. So a stored instance means that every file of the filing is
-  stored, and the `daily_filings` run can skip a filing by its instance key (STA-413).
+  skips, and writes the instance. So a stored instance means that every file of the filing was
+  stored, and the `daily_filings` run can skip a filing by its instance key (STA-413). A label
+  file can still go missing or break later, so the skip also checks the label file (see
+  [One Date](#one-date)).
 
 Decided in STA-376:
 
@@ -1512,8 +1514,9 @@ All super-states of one run share one `execution_id`. For each date, in this ord
    [Window](#window)).
 2. For each `FilingRef`, the run first reads the store with `ReadRepository::get`, in the order of
    [Unextractable Record](#unextractable-record). The keys follow from the `FilingRef` alone
-   (`shared/filing_documents_ref/mod.rs`). If the store holds the instance and it passes the size
-   and SHA-256 check, the filing counts as already stored. If the store holds a folder index that
+   (`shared/filing_documents_ref/mod.rs`). The filing counts as already stored if the stored
+   instance passes the size and SHA-256 check, and either the stored label file passes the same
+   check or the stored folder index lists no label file. If the store holds a folder index that
    lists no instance, the filing counts as skipped unextractable. Neither sends a request. A read
    error, such as a size or digest mismatch, counts as not stored, so the run fetches the filing
    again, as in STA-400. The reads are by key, not by a listing, which belongs to STA-403.
@@ -1662,8 +1665,10 @@ it. `sec/tests/daily_filings.rs` includes `dates.rs` and `constants.rs` through 
   as already stored; a stored instance that fails the size check, and one of the same size that
   fails the SHA-256 check, both of which the second run fetches again; one date with an
   unextractable filing run twice, whose second run sends no folder request and lists the filing
-  as skipped unextractable; and a stored folder index that lists an instance the store does not
-  hold, which the second run fetches again (STA-413).
+  as skipped unextractable; a stored folder index that lists an instance the store does not
+  hold, which the second run fetches again (STA-413); a stored label file that is missing, and
+  one that fails the SHA-256 check, both of which the second run fetches again; and a filing
+  without a label file, whose second run sends no folder request.
 - Live against `www.sec.gov`, in `sec/tests/daily_filings.rs`, as `sec/tests/extract_filing.rs`
   does: one past weekday, which stores the daily index, at least one filing, and its
   `submissions` file.
@@ -2095,10 +2100,10 @@ Moved code does not count toward the 400 lines.
 7. FEATURE: `backfill().company_facts()`. `stream_extract` runs on it and moves to
    `sec/examples/`, with the `Dockerfile` and `README.md` (STA-358).
 
-`daily_filings()` skips a filing whose intact instance the store already holds, before any request,
-as `notes()` skips an intact stored Notes file (STA-400). The check reads the stored instance by
-its key per accession number (STA-413). A rerun of `backfill` then downloads only the missing
-filings.
+`daily_filings()` skips a filing before any request if the store holds its intact instance and
+its label file is intact or not listed. `notes()` skips an intact stored Notes file the same way
+(STA-400). The check reads the stored files by their keys per accession number (STA-413). A rerun
+of `backfill` then downloads only the missing filings.
 
 MVP Operations owns the Cloud Run jobs and the schedule. These tickets are not in this list.
 
