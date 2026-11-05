@@ -1,17 +1,19 @@
-use std::error::Error;
+use std::process::ExitCode;
 
+use chrono::{SecondsFormat, Utc};
 use sec::implementations::states::extract::company_facts::ExtractCompanyFactsSuperState;
 use sec::implementations::states::extract::execute_sec_request::{
     ExecuteCompanyFactsRequest, ExecuteSecRequestContext, ExecuteSecRequestInput,
 };
 use sec::implementations::states::extract::prepare_sec_request::PrepareSecRequest;
 use sec::implementations::states::extract::validate_cik_format::ValidateCikFormat;
+use serde::Serialize;
 use storage::implementations::repository::filesystem::IngestionMode;
 use uuid::Uuid;
 
 use sec::prelude::*;
 
-use sec_client::{default_user_agent_warning, sec_client};
+use sec_client::{USER_AGENT_ENV_VAR, default_user_agent_warning, sec_client, startup_error_cause};
 use storage_root::{create_root, raw_company_facts_writer};
 
 // Each binary is its own crate root, so it cannot import another binary's modules. `#[path]`
@@ -25,13 +27,44 @@ mod storage_root;
 #[tokio::main]
 // Let this be here for testing purposes. Will be removed later.
 #[allow(clippy::too_many_lines)]
-async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
-    let sec_client = sec_client()?;
+async fn main() -> ExitCode {
+    // `main` logs each startup failure as JSON. A `main` that returns an error prints a second line
+    // in `Debug` form, which is not JSON.
+    let sec_client = match sec_client() {
+        Ok(sec_client) => sec_client,
+        Err(error) => {
+            let cause = startup_error_cause(error.as_ref());
+            log_line(
+                "error",
+                "batch_startup_failed",
+                &format!(
+                    "[FailedSecClientCreation] Failed to build the SEC client, Caused by: {cause}"
+                ),
+                &serde_json::json!({ "env_var": USER_AGENT_ENV_VAR }),
+            );
+            return ExitCode::FAILURE;
+        }
+    };
     if let Some(warning) = default_user_agent_warning(&sec_client) {
-        eprintln!("Warning: {warning}");
+        log_line(
+            "warn",
+            "batch_default_user_agent",
+            &warning,
+            &serde_json::json!({ "env_var": USER_AGENT_ENV_VAR }),
+        );
     }
     let repository = raw_company_facts_writer();
-    create_root(&repository)?;
+    if let Err(error) = create_root(&repository) {
+        log_line(
+            "error",
+            "batch_startup_failed",
+            &format!(
+                "[FailedStorageRootCreation] Failed to create the storage root, Reason: '{error}'"
+            ),
+            &serde_json::json!({ "root": repository.root().display().to_string() }),
+        );
+        return ExitCode::FAILURE;
+    }
 
     let input =
         sec::implementations::states::extract::validate_cik_format::ValidateCikFormatInput::new(
@@ -177,5 +210,69 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
 
     println!("{execute_output}");
 
-    Ok(())
+    ExitCode::SUCCESS
+}
+
+/// Writes one log line to stdout, with the five fields of the JSON logger of the other binaries.
+///
+/// This binary builds without `tracing`, so it cannot use that logger.
+fn log_line(level: &str, event: &str, message: &str, context: &serde_json::Value) {
+    let timestamp = Utc::now().to_rfc3339_opts(SecondsFormat::Micros, true);
+    println!(
+        "{}",
+        format_line(level, &timestamp, event, message, context)
+    );
+}
+
+/// Returns one log line as JSON text, with its fields in the order of the other binaries.
+fn format_line(
+    level: &str,
+    timestamp: &str,
+    event: &str,
+    message: &str,
+    context: &serde_json::Value,
+) -> String {
+    let line = LogLine {
+        level,
+        timestamp,
+        event,
+        message,
+        context,
+    };
+    serde_json::to_string(&line)
+        .expect("Given a struct of strings and a JSON value, serialization should always succeed")
+}
+
+/// One log line. Serde writes the fields in the order of their declaration.
+#[derive(Serialize)]
+struct LogLine<'line> {
+    level: &'line str,
+    timestamp: &'line str,
+    event: &'line str,
+    message: &'line str,
+    context: &'line serde_json::Value,
+}
+
+#[cfg(test)]
+mod tests {
+    use pretty_assertions::assert_eq;
+
+    use super::*;
+
+    #[test]
+    fn should_write_the_five_fields_in_order_when_a_line_is_formatted() {
+        let context = serde_json::json!({ "root": "/data" });
+
+        let expected_result = r#"{"level":"error","timestamp":"2026-11-05T19:00:00.000000Z","event":"batch_startup_failed","message":"[FailedStorageRootCreation] Failed","context":{"root":"/data"}}"#;
+
+        let result = format_line(
+            "error",
+            "2026-11-05T19:00:00.000000Z",
+            "batch_startup_failed",
+            "[FailedStorageRootCreation] Failed",
+            &context,
+        );
+
+        assert_eq!(result, expected_result);
+    }
 }
