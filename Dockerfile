@@ -12,8 +12,8 @@
 FROM --platform=linux/amd64 gcr.io/distroless/static-debian13 AS distroless
 
 # The build stage compiles both binaries in one call. Both targets share its cache.
-# `cargo-zigbuild` 0.24.0 needs a newer Rust than the CI toolchain 1.90.
-FROM --platform=linux/amd64 rust:1.97-trixie AS build
+# The tag names the version of `rust-toolchain.toml`. CI fails if the two differ.
+FROM --platform=linux/amd64 rust:1.99.1-trixie AS build
 ARG ZIGLANG_VERSION=0.17.0
 # The SHA-256 of the manylinux x86_64 wheel of `ziglang` ${ZIGLANG_VERSION}, from the PyPI JSON API.
 # Change it together with ZIGLANG_VERSION.

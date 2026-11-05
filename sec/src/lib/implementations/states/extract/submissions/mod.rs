@@ -300,7 +300,6 @@ where
     /// Returns the stream, tagged with the `execution_id` that the context holds.
     ///
     /// Use it instead of `into_stream`, so the stream and the stored document name the same run.
-    #[must_use]
     pub fn into_run_stream(self) -> StateMachineStream {
         let execution_id = self.context.execution_id;
         self.into_stream(execution_id)

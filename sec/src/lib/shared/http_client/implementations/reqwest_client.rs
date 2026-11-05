@@ -28,10 +28,7 @@ pub const CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
 /// must allow for the slowest download. The largest Notes file is 0.85 GB, and it takes about
 /// 80 s with 2 files in flight. 60 s lets the SEC pause under load, and a stalled connection
 /// still fails long before the job timeout. The value is a proposal and is not measured.
-// Deviation: `Duration::from_mins` is not stable in Rust 1.90, the CI version, so the code writes
-// the value in seconds. Rust 1.90 does not know the lint, hence `unknown_lints`.
-#[allow(unknown_lints, clippy::duration_suboptimal_units)]
-pub const READ_TIMEOUT: Duration = Duration::from_secs(60);
+pub const READ_TIMEOUT: Duration = Duration::from_mins(1);
 
 /// The timeouts that [`ReqwestClient::new`] sets.
 const TIMEOUTS: Timeouts = Timeouts {

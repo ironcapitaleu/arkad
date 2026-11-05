@@ -93,7 +93,7 @@ pub struct StreamError {
     pub data: serde_json::Value,
     /// The underlying state machine error.
     #[source]
-    pub source: crate::error::StateMachine,
+    pub source: Box<crate::error::StateMachine>,
 }
 
 /// A boxed, `Send`-able stream of state machine execution results.
@@ -174,7 +174,7 @@ where
                     data: serde_json::to_value(sm.current_state()).unwrap_or_else(|e| {
                         serde_json::json!({ "serialization_error": e.to_string() })
                     }),
-                    source: sm_error,
+                    source: Box::new(sm_error),
                 });
                 return;
             }
@@ -213,7 +213,7 @@ where
                         execution_id,
                         state_name: from_name,
                         data: serde_json::Value::Null,
-                        source: e.into(),
+                        source: Box::new(e.into()),
                     });
                     return;
                 }
@@ -286,7 +286,7 @@ where
                     execution_id,
                     state_name,
                     data,
-                    source: error.into(),
+                    source: Box::new(error.into()),
                 });
             }
         }

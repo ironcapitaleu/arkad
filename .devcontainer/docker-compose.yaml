@@ -2,7 +2,7 @@ version: '3'
 services:
   # default rust alpine image for development
   rust_environment:
-    image: rust:1.77-alpine3.19
+    image: rust:1.99.1-alpine3.23
   
   # custom rust alpine image with zig installed, for development, for aarch64 (ARM-based)
   rust_zig_aarch64:

@@ -54,19 +54,21 @@ type NotesReader = FilesystemRepository<Read, RawDocument<RawNotesArchive>>;
 type SubmissionsWriter = FilesystemRepository<Write, RawDocument<RawSubmissions>>;
 
 /// The SEC client that both steps of the pipeline accept.
-// Deviation: the bound names `SecClientTrait` once per response type, because Rust 1.90 rejects
-// two bindings of `Response` in one bound (E0719).
 pub trait BackfillClient:
-    SecClientTrait<Response<ZipBody> = SecResponse<ZipBody>, Error = FailedSecRequest>
-    + SecClientTrait<Response<JsonBody> = SecResponse<JsonBody>>
-    + 'static
+    SecClientTrait<
+        Response<ZipBody> = SecResponse<ZipBody>,
+        Response<JsonBody> = SecResponse<JsonBody>,
+        Error = FailedSecRequest,
+    > + 'static
 {
 }
 
 impl<C> BackfillClient for C where
-    C: SecClientTrait<Response<ZipBody> = SecResponse<ZipBody>, Error = FailedSecRequest>
-        + SecClientTrait<Response<JsonBody> = SecResponse<JsonBody>>
-        + 'static
+    C: SecClientTrait<
+            Response<ZipBody> = SecResponse<ZipBody>,
+            Response<JsonBody> = SecResponse<JsonBody>,
+            Error = FailedSecRequest,
+        > + 'static
 {
 }
 

@@ -101,7 +101,7 @@ pub(super) fn is_pending(
     date != first_date
         && is_recent
         && matches!(
-            &error.source,
+            &*error.source,
             StateMachine::State(StateError::MissingDailyIndex(_))
         )
 }
@@ -112,7 +112,7 @@ pub(super) fn is_pending(
 /// with more than one candidate fails the run, because it shows a gap in the selection rules.
 pub(super) const fn is_unextractable(error: &StreamError) -> bool {
     matches!(
-        &error.source,
+        &*error.source,
         StateMachine::State(StateError::FailedDocumentSelection(failure))
             if is_missing_instance(&failure.filing_documents_error)
     )
@@ -293,7 +293,7 @@ mod tests {
             execution_id: Uuid::nil(),
             state_name: state_name.to_string(),
             data: Value::Null,
-            source,
+            source: Box::new(source),
         }
     }
 

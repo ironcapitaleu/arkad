@@ -149,8 +149,10 @@ mod tests {
         let domain_error = create_baseline_domain_error();
         let failed_request_execution = FailedRequestExecution::new(state_name, domain_error);
 
-        let result = failed_request_execution.to_string();
+        let expected_result = false;
 
-        assert!(!result.is_empty());
+        let result = matches!(failed_request_execution.to_string().as_str(), "");
+
+        assert_eq!(result, expected_result);
     }
 }
