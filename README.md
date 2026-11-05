@@ -389,6 +389,7 @@ classDiagram
         << enum >>
         %% `sec_client::error::ErrorReason`, renamed here for diagram uniqueness
         +FailedRequestExecution(String details)
+        +TimedOutRequest(String details)
         +InvalidResponse(InvalidSecResponse source)
     }
 
@@ -405,6 +406,7 @@ classDiagram
         +InvalidContentType(ContentType content_type)
         +InvalidBody(String details)
         +FailedBodyRead(String details)
+        +TimedOutBodyRead(String details)
     }
 
     %% Error hierarchy relationships

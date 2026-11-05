@@ -48,6 +48,8 @@ pretty_assertions = "1"
 # exposes them outside of `cfg(test)`.
 sec = { path = ".", features = ["test-fixtures"] }
 tempfile = "3"
+# The tests of the request timeouts run local TCP servers, and limit how long they wait.
+tokio = { version = "1.52.3", features = ["io-util", "net", "time"] }
 
 [lib]
 name = "sec"

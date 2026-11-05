@@ -5,6 +5,6 @@
 //!
 //! ## Modules
 //!
-//! - [`fixtures`]: Reusable sample states, clients, requests, and responses.
+//! - [`fixtures`]: Reusable sample states, clients, requests, responses, and servers.
 
 pub mod fixtures;
