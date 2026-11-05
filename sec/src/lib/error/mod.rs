@@ -43,14 +43,11 @@ pub enum ErrorKind {
 }
 
 impl Display for ErrorKind {
+    /// Prints a wrapped [`StateMachine`] error as it is, so this layer adds no segment to the
+    /// error chain.
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match self {
-            Self::StateMachine(state_machine) => {
-                write!(
-                    f,
-                    "Problem occurred during state machine execution: '{state_machine}'"
-                )
-            }
+            Self::StateMachine(state_machine) => write!(f, "{state_machine}"),
             Self::DowncastNotPossible => {
                 write!(
                     f,
