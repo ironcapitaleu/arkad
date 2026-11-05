@@ -88,7 +88,7 @@ mod tests {
             execution_id: uuid::Uuid::nil(),
             state_name: "Validate CIK Format".to_string(),
             data: Value::Null,
-            source: StateMachine::InvalidConfiguration,
+            source: Box::new(StateMachine::InvalidConfiguration),
         };
         (cik.to_string(), Err(error))
     }

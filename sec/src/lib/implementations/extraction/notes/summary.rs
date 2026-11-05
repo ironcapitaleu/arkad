@@ -30,7 +30,7 @@ pub(super) type PeriodOutcome = Result<(Fetch, NotesArchiveRef), StreamError>;
 /// Returns `true` if `error` comes from an SEC answer of 403 or 404 for the Notes file.
 pub(super) fn is_absent_file(error: &StreamError) -> bool {
     matches!(
-        &error.source,
+        &*error.source,
         StateMachine::State(StateError::FailedRequestExecution(failure))
             if failure.domain_error().is_absent_file()
     )
@@ -211,7 +211,7 @@ mod tests {
             execution_id: uuid::Uuid::nil(),
             state_name: "Execute SEC Request".to_string(),
             data: Value::Null,
-            source,
+            source: Box::new(source),
         };
         (period.to_string(), Err(error))
     }

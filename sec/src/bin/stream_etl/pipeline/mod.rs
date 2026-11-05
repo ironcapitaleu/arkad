@@ -42,7 +42,6 @@ impl Pipeline {
     }
 
     /// Creates a stream that drives the extract pipeline, with the `execution_id` of `backfill`.
-    #[must_use]
     pub fn into_stream(self, backfill: &Backfill) -> StateMachineStream {
         let state = backfill
             .company_facts()

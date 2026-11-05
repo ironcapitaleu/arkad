@@ -13,10 +13,7 @@ use crate::prelude::StreamError;
 
 /// The waits before the second and the third attempt of a machine that failed with a transient
 /// SEC failure, without a call to `retry_delays`. After the third attempt the machine fails.
-// Deviation: `Duration::from_mins` is not stable in Rust 1.90, the CI version, so the code writes
-// the minute in seconds. Rust 1.90 does not know the lint, hence `unknown_lints`.
-#[allow(unknown_lints, clippy::duration_suboptimal_units)]
-pub const DEFAULT_RETRY_DELAYS: [Duration; 2] = [Duration::from_secs(10), Duration::from_secs(60)];
+pub const DEFAULT_RETRY_DELAYS: [Duration; 2] = [Duration::from_secs(10), Duration::from_mins(1)];
 
 /// Runs `attempt` until it succeeds, fails with an error that is not transient, or has used every
 /// wait of `retry_delays`. Calls `on_retry` with each error after which `attempt` runs again, and
@@ -52,7 +49,7 @@ where
 /// Every other state error, such as a folder without an XBRL instance, is permanent.
 pub(super) fn is_transient(error: &StreamError) -> bool {
     matches!(
-        &error.source,
+        &*error.source,
         StateMachine::State(StateError::FailedRequestExecution(failure))
             if failure.domain_error().is_transient()
     )
@@ -83,7 +80,7 @@ mod tests {
             execution_id: Uuid::nil(),
             state_name: state_name.to_string(),
             data: Value::Null,
-            source,
+            source: Box::new(source),
         }
     }
 
