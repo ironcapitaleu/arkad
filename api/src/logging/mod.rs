@@ -55,10 +55,43 @@ mod tests {
     use super::*;
 
     #[test]
+    fn should_write_snake_case_name_for_started_event() {
+        let event = ApiEvent::Started;
+
+        let expected_result = "api_started";
+
+        let result = event.to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
     fn should_write_snake_case_name_for_startup_failed_event() {
         let event = ApiEvent::StartupFailed;
 
         let expected_result = "api_startup_failed";
+
+        let result = event.to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_write_snake_case_name_for_failed_event() {
+        let event = ApiEvent::Failed;
+
+        let expected_result = "api_failed";
+
+        let result = event.to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_write_snake_case_name_for_stopped_event() {
+        let event = ApiEvent::Stopped;
+
+        let expected_result = "api_stopped";
 
         let result = event.to_string();
 

@@ -23,8 +23,7 @@ pub enum ConfigError {
     InvalidEnvVar {
         /// The name of the variable.
         name: String,
-        /// Why the value is not usable. It never repeats the value, because a variable added later
-        /// can hold a secret.
+        /// Why the value is not usable.
         reason: String,
     },
 }
@@ -37,11 +36,21 @@ impl ConfigError {
     }
 
     /// Creates a [`ConfigError::InvalidEnvVar`] for the variable `name`.
+    ///
+    /// `reason` must not contain the value, because a variable can hold a secret.
     #[must_use]
     pub fn invalid_env_var(name: impl Into<String>, reason: impl Into<String>) -> Self {
         Self::InvalidEnvVar {
             name: name.into(),
             reason: reason.into(),
+        }
+    }
+
+    /// Returns the name of the environment variable that failed.
+    #[must_use]
+    pub fn name(&self) -> &str {
+        match self {
+            Self::MissingEnvVar { name } | Self::InvalidEnvVar { name, .. } => name,
         }
     }
 }
@@ -57,6 +66,17 @@ mod tests {
     #[test]
     const fn should_implement_auto_traits_for_config_error() {
         implements_auto_traits::<ConfigError>();
+    }
+
+    #[test]
+    fn should_return_the_variable_name_for_invalid_env_var() {
+        let error = ConfigError::invalid_env_var("PORT", "invalid digit found in string");
+
+        let expected_result = "PORT";
+
+        let result = error.name();
+
+        assert_eq!(result, expected_result);
     }
 
     #[test]

@@ -2,7 +2,7 @@
 //!
 //! Provides the axum router, the configuration, and the logger of the `api` binary.
 //!
-//! The binary serves the read-only `/v1` API for company fundamentals. This library holds
+//! The binary serves the HTTP API for company fundamentals. This library holds
 //! everything except the start of the process, so integration tests can call the router without a
 //! network socket.
 //!

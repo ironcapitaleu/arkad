@@ -1,11 +1,11 @@
 //! # API Binary
 //!
-//! Starts the `/v1` API: reads the configuration, binds the listener on `$PORT`, and serves the
+//! Starts the API: reads the configuration, binds the listener on `$PORT`, and serves the
 //! router until a shutdown signal arrives.
 
 use std::process::ExitCode;
 
-use api::config::{Config, PORT_ENV_VAR};
+use api::config::Config;
 use api::logging::{ApiEvent, init_logger};
 use serde_json::json;
 use tokio::net::TcpListener;
@@ -21,7 +21,7 @@ async fn main() -> ExitCode {
             tracing::error!(
                 event = %ApiEvent::StartupFailed,
                 message = %format!("Failed to read the configuration, Caused by: {error}"),
-                context = %json!({ "env_var": PORT_ENV_VAR }),
+                context = %json!({ "env_var": error.name() }),
             );
             return ExitCode::FAILURE;
         }

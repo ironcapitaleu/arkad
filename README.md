@@ -24,7 +24,7 @@ The persistence layer: backend-agnostic `ReadRepository` and `WriteRepository` t
 
 ### `api`
 
-The HTTP API: an axum binary that serves the read-only `/v1` API for company fundamentals. It listens on `$PORT` and answers `GET /health` for uptime checks. Start it with `PORT=8080 cargo run -p api`.
+An axum binary for company fundamentals. It listens on `$PORT` and answers `GET /health` for uptime checks. Start it with `PORT=8080 cargo run -p api`.
 
 ## Design
 

@@ -91,6 +91,37 @@ mod tests {
     }
 
     #[test]
+    fn should_fail_with_invalid_env_var_when_port_is_above_65535() {
+        let lookup = lookup_port(Some("65536"));
+
+        let expected_result = Err(ConfigError::invalid_env_var(
+            "PORT",
+            "number too large to fit in target type",
+        ));
+
+        let result = Config::from_lookup(lookup);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn should_fail_with_invalid_env_var_when_port_is_not_utf8() {
+        use std::os::unix::ffi::OsStringExt;
+
+        let value = Some(OsString::from_vec(vec![0x38, 0xFF]));
+
+        let expected_result = Err(ConfigError::invalid_env_var(
+            "PORT",
+            "the value is not valid UTF-8",
+        ));
+
+        let result = parse_port(value);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
     fn should_fail_with_missing_env_var_when_port_is_unset() {
         let lookup = lookup_port(None);
 
