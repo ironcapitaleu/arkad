@@ -314,13 +314,12 @@ mod tests {
             .await
             .expect("The server sends a full response head, so the request always gets a response");
 
+        let expected_result = true;
+
         let reason = SecResponse::<JsonBody>::from_inner(response)
             .await
             .expect_err("The server closes before the promised body, so the read always fails")
             .reason;
-
-        let expected_result = true;
-
         let result = matches!(reason, ErrorReason::FailedBodyRead { .. });
 
         assert_eq!(result, expected_result);
@@ -336,13 +335,12 @@ mod tests {
             .await
             .expect("The server sends a full response head, so the request always gets a response");
 
+        let expected_result = true;
+
         let reason = SecResponse::<JsonBody>::from_inner(response)
             .await
             .expect_err("The server never sends the body, so the read timeout always ends the read")
             .reason;
-
-        let expected_result = true;
-
         let result = matches!(reason, ErrorReason::TimedOutBodyRead { .. });
 
         assert_eq!(result, expected_result);

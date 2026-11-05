@@ -177,10 +177,10 @@ mod tests {
             .get(format!("http://{address}/"))
             .build()
             .expect("A URL built from a bound socket address always parses");
-        let guarded_response = time::timeout(guard, client.execute_request(request)).await;
 
         let expected_result = true;
 
+        let guarded_response = time::timeout(guard, client.execute_request(request)).await;
         let result = matches!(guarded_response, Ok(Err(ref error)) if error.is_timeout());
 
         assert_eq!(result, expected_result);

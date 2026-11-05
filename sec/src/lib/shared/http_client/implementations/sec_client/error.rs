@@ -200,10 +200,10 @@ mod tests {
             .send()
             .await
             .expect_err("The server never answers, so the read timeout always ends the request");
-        let reason = FailedSecRequest::from(error).reason;
 
         let expected_result = true;
 
+        let reason = FailedSecRequest::from(error).reason;
         let result = matches!(reason, ErrorReason::TimedOutRequest { .. });
 
         assert_eq!(result, expected_result);
@@ -215,10 +215,10 @@ mod tests {
             .get("not a url")
             .build()
             .expect_err("A string with no scheme is never a valid URL");
-        let reason = FailedSecRequest::from(error).reason;
 
         let expected_result = true;
 
+        let reason = FailedSecRequest::from(error).reason;
         let result = matches!(reason, ErrorReason::FailedRequestExecution { .. });
 
         assert_eq!(result, expected_result);
