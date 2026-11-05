@@ -206,4 +206,51 @@ mod tests {
 
         assert_eq!(result, expected_result);
     }
+
+    #[test]
+    fn should_quote_the_reason_when_state_error_is_invalid_context() {
+        let error = State::InvalidContext;
+
+        let expected_result = "[StateError] A state level error occurred, Reason: 'Invalid context data provided to state'";
+
+        let result = error.to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_quote_the_reason_when_state_error_is_failed_output_computation() {
+        let error = State::FailedOutputComputation;
+
+        let expected_result =
+            "[StateError] A state level error occurred, Reason: 'Failed to compute output data'";
+
+        let result = error.to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_quote_the_reason_when_state_error_is_state_data_update_failed() {
+        let error = State::StateDataUpdateFailed;
+
+        let expected_result =
+            "[StateError] A state level error occurred, Reason: 'Failed to update state data'";
+
+        let result = error.to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_quote_the_reason_when_state_error_is_context_update_failed() {
+        let error = State::ContextUpdateFailed;
+
+        let expected_result =
+            "[StateError] A state level error occurred, Reason: 'Failed to update context data'";
+
+        let result = error.to_string();
+
+        assert_eq!(result, expected_result);
+    }
 }
