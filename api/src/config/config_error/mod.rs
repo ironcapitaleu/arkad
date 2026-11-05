@@ -69,6 +69,17 @@ mod tests {
     }
 
     #[test]
+    fn should_return_the_variable_name_for_missing_env_var() {
+        let error = ConfigError::missing_env_var("PORT");
+
+        let expected_result = "PORT";
+
+        let result = error.name();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
     fn should_return_the_variable_name_for_invalid_env_var() {
         let error = ConfigError::invalid_env_var("PORT", "invalid digit found in string");
 

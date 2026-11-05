@@ -66,7 +66,7 @@ async fn main() -> ExitCode {
     ExitCode::SUCCESS
 }
 
-/// Completes on `Ctrl+C` or on `SIGTERM`, which Cloud Run sends before it stops a container.
+/// Completes on `Ctrl+C` or on `SIGTERM`.
 async fn shutdown_signal() {
     let mut terminate = signal(SignalKind::terminate())
         .expect("Given a Unix process with a Tokio runtime, registering the SIGTERM handler should always succeed");

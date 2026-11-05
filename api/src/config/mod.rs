@@ -15,7 +15,7 @@ pub mod config_error;
 
 pub use config_error::ConfigError;
 
-/// The environment variable that holds the port. Cloud Run sets it for every container.
+/// The environment variable that holds the port.
 pub const PORT_ENV_VAR: &str = "PORT";
 
 /// The configuration of the `api` binary.
@@ -47,8 +47,6 @@ impl Config {
 
     /// Returns the address the API binds to. It covers every IPv4 interface and uses
     /// [`Config::port`].
-    ///
-    /// Cloud Run sends traffic to the container's interface, not to `localhost`.
     #[must_use]
     pub fn socket_addr(&self) -> SocketAddr {
         SocketAddr::from((Ipv4Addr::UNSPECIFIED, self.port.get()))
