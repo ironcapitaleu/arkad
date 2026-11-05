@@ -6,7 +6,7 @@ use crate::shared::response::implementations::sec_response::{ResponseBody, SecRe
 use crate::shared::user_agent::UserAgent;
 use crate::tests::fixtures::sample_http_client::sample_inner_client::routing::RequestCounts;
 use crate::tests::fixtures::sample_http_client::sample_inner_client::{
-    AlwaysRespondingHttpClient, RoutingHttpClient,
+    AlwaysRespondingHttpClient, Delivery, RoutingHttpClient,
 };
 use crate::tests::fixtures::sample_rate_limiter::always_ready::AlwaysReadyRateLimiter;
 
@@ -69,7 +69,7 @@ impl RoutingSecClient {
                 status: *status,
                 headers: vec![("content-type", (*content_type).to_string())],
                 body: body.to_vec(),
-                cuts_body: false,
+                delivery: Delivery::Full,
             })
             .collect();
         self.inner.routes.push((url.to_string(), responders));
@@ -79,18 +79,20 @@ impl RoutingSecClient {
     /// Adds a route that answers the first request to `url` with a status of 200 and a body that
     /// stops early, and every later request with `content_type` and `body`.
     #[must_use]
-    pub fn route_cut_body_once(mut self, url: &str, content_type: &str, body: &[u8]) -> Self {
+    pub fn route_stopped_body_once(mut self, url: &str, content_type: &str, body: &[u8]) -> Self {
         let full = AlwaysRespondingHttpClient {
             status: 200,
             headers: vec![("content-type", content_type.to_string())],
             body: body.to_vec(),
-            cuts_body: false,
+            delivery: Delivery::Full,
         };
-        let cut = AlwaysRespondingHttpClient {
-            cuts_body: true,
+        let stopped = AlwaysRespondingHttpClient {
+            delivery: Delivery::StopsEarly,
             ..full.clone()
         };
-        self.inner.routes.push((url.to_string(), vec![cut, full]));
+        self.inner
+            .routes
+            .push((url.to_string(), vec![stopped, full]));
         self
     }
 }
