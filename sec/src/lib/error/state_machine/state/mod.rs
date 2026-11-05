@@ -89,26 +89,26 @@ pub enum State {
 
     /// Indicates that input data of a `State` is invalid and cannot be used to compute the output data.
     #[error(
-        "[StateError] A state level error occurred, Reason: Invalid input data provided to state"
+        "[StateError] A state level error occurred, Reason: 'Invalid input data provided to state'"
     )]
     InvalidInput,
 
     /// Indicates that context of a `State` is invalid and cannot be used to compute the output data.
     #[error(
-        "[StateError] A state level error occurred, Reason: Invalid context data provided to state"
+        "[StateError] A state level error occurred, Reason: 'Invalid context data provided to state'"
     )]
     InvalidContext,
 
     /// Indicates that the output computation of a `State` has failed.
-    #[error("[StateError] A state level error occurred, Reason: Failed to compute output data")]
+    #[error("[StateError] A state level error occurred, Reason: 'Failed to compute output data'")]
     FailedOutputComputation,
 
     /// Indicates a failure during the update of the internal `StateData` of the `State`.
-    #[error("[StateError] A state level error occurred, Reason: Failed to update state data")]
+    #[error("[StateError] A state level error occurred, Reason: 'Failed to update state data'")]
     StateDataUpdateFailed,
 
     /// Indicates a failure during the update of the `ContextData` of the `State`.
-    #[error("[StateError] A state level error occurred, Reason: Failed to update context data")]
+    #[error("[StateError] A state level error occurred, Reason: 'Failed to update context data'")]
     ContextUpdateFailed,
 }
 

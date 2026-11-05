@@ -264,7 +264,7 @@ mod tests {
     fn should_display_only_the_inner_error_when_state_machine_wraps_a_state_error() {
         let state_machine = StateMachine::State(State::InvalidInput);
 
-        let expected_result = "[StateError] A state level error occurred, Reason: Invalid input data provided to state";
+        let expected_result = "[StateError] A state level error occurred, Reason: 'Invalid input data provided to state'";
 
         let result = state_machine.to_string();
 
@@ -277,7 +277,7 @@ mod tests {
             transition::MissingOutput::new("Validate CIK Format", "Prepare SEC Request"),
         ));
 
-        let expected_result = "[TransitionError] A transition error occurred, Caused by: [MissingOutput] Failure during transition from 'Validate CIK Format', Reason: Output data has not been computed before transitioning to 'Prepare SEC Request'";
+        let expected_result = "[TransitionError] A transition error occurred, Caused by: [MissingOutput] Failure during transition from 'Validate CIK Format' to 'Prepare SEC Request', Reason: 'Output data has not been computed'";
 
         let result = state_machine.to_string();
 
