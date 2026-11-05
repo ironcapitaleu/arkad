@@ -453,7 +453,7 @@ impl From<FailedFilesystemOperation> for BackendError {
                 |cause| Self::FailedOperation { cause }
             }
         };
-        variant(BackendCause::FailedFilesystemOperation(error))
+        variant(BackendCause::FailedFilesystemOperation(Box::new(error)))
     }
 }
 
@@ -727,7 +727,7 @@ mod tests {
         );
 
         let expected_result = BackendError::UnreachableStorage {
-            cause: BackendCause::FailedFilesystemOperation(error.clone()),
+            cause: BackendCause::FailedFilesystemOperation(Box::new(error.clone())),
         };
 
         let result = BackendError::from(error);
@@ -743,7 +743,7 @@ mod tests {
         );
 
         let expected_result = BackendError::UnreachableStorage {
-            cause: BackendCause::FailedFilesystemOperation(error.clone()),
+            cause: BackendCause::FailedFilesystemOperation(Box::new(error.clone())),
         };
 
         let result = BackendError::from(error);
@@ -761,7 +761,7 @@ mod tests {
         );
 
         let expected_result = BackendError::UnreachableStorage {
-            cause: BackendCause::FailedFilesystemOperation(error.clone()),
+            cause: BackendCause::FailedFilesystemOperation(Box::new(error.clone())),
         };
 
         let result = BackendError::from(error);
@@ -779,7 +779,7 @@ mod tests {
         );
 
         let expected_result = BackendError::UnauthorizedAccess {
-            cause: BackendCause::FailedFilesystemOperation(error.clone()),
+            cause: BackendCause::FailedFilesystemOperation(Box::new(error.clone())),
         };
 
         let result = BackendError::from(error);
@@ -797,7 +797,7 @@ mod tests {
         );
 
         let expected_result = BackendError::FailedOperation {
-            cause: BackendCause::FailedFilesystemOperation(error.clone()),
+            cause: BackendCause::FailedFilesystemOperation(Box::new(error.clone())),
         };
 
         let result = BackendError::from(error);
@@ -813,7 +813,7 @@ mod tests {
         );
 
         let expected_result = BackendError::FailedOperation {
-            cause: BackendCause::FailedFilesystemOperation(error.clone()),
+            cause: BackendCause::FailedFilesystemOperation(Box::new(error.clone())),
         };
 
         let result = BackendError::from(error);
@@ -829,7 +829,7 @@ mod tests {
         );
 
         let expected_result = BackendError::FailedOperation {
-            cause: BackendCause::FailedFilesystemOperation(error.clone()),
+            cause: BackendCause::FailedFilesystemOperation(Box::new(error.clone())),
         };
 
         let result = BackendError::from(error);
@@ -930,7 +930,7 @@ mod tests {
         );
 
         let expected_result = BackendError::FailedOperation {
-            cause: BackendCause::FailedFilesystemOperation(error.clone()),
+            cause: BackendCause::FailedFilesystemOperation(Box::new(error.clone())),
         };
 
         let result = BackendError::from(error);
@@ -960,12 +960,47 @@ mod tests {
             FailedFilesystemOperation::from_io(FilesystemOperation::Write, path, &io_error);
         let backend_error = BackendError::from(filesystem_error);
 
-        let expected_result = Some(
-            "[FailedFilesystemOperation] Filesystem operation failed, Reason: 'Failed to write, no storage space', Path: 'data/sec/notes/2026_09_notes.zip'"
-                .to_owned(),
+        let expected_result = Some(FailedFilesystemOperation::new(
+            FailedFilesystemOperationReason::FailedIo {
+                operation: FilesystemOperation::Write,
+                kind: io::ErrorKind::StorageFull,
+            },
+            "data/sec/notes/2026_09_notes.zip",
+        ));
+
+        let result = std::error::Error::source(&backend_error)
+            .and_then(|source| source.downcast_ref::<FailedFilesystemOperation>())
+            .cloned();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_print_the_filesystem_error_after_caused_by_when_the_root_is_missing() {
+        let filesystem_error = FailedFilesystemOperation::new(
+            FailedFilesystemOperationReason::MissingRoot,
+            "/data/arkad",
         );
 
-        let result = std::error::Error::source(&backend_error).map(ToString::to_string);
+        let expected_result = "[UnreachableStorage] Storage backend is not reachable, Caused by: [FailedFilesystemOperation] Filesystem operation failed, Reason: 'Root directory does not exist', Path: '/data/arkad'";
+
+        let result = BackendError::from(filesystem_error).to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_print_the_filesystem_error_after_caused_by_when_permission_is_denied() {
+        let io_error = io::Error::from(io::ErrorKind::PermissionDenied);
+        let filesystem_error = FailedFilesystemOperation::from_io(
+            FilesystemOperation::Read,
+            "/data/arkad/x.json",
+            &io_error,
+        );
+
+        let expected_result = "[UnauthorizedAccess] Storage backend denied access, Caused by: [FailedFilesystemOperation] Filesystem operation failed, Reason: 'Failed to read, permission denied', Path: '/data/arkad/x.json'";
+
+        let result = BackendError::from(filesystem_error).to_string();
 
         assert_eq!(result, expected_result);
     }

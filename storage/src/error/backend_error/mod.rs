@@ -1,6 +1,7 @@
 //! # Backend Error
 //!
-//! Provides [`BackendError`], the error raised when the storage backend cannot serve a request.
+//! Provides [`BackendError`], the error raised when the storage backend cannot serve a request,
+//! and its [`BackendCause`].
 //!
 //! ## Usage
 //!
@@ -53,8 +54,8 @@ pub enum BackendCause {
     Reason(String),
 
     /// A filesystem error. It is the next link of the error chain and prints as
-    /// `, Caused by: …`.
-    FailedFilesystemOperation(FailedFilesystemOperation),
+    /// `, Caused by: …`. The box keeps [`BackendError`] as small as a reason does.
+    FailedFilesystemOperation(Box<FailedFilesystemOperation>),
 }
 
 impl BackendError {
@@ -95,26 +96,15 @@ impl BackendError {
 
 impl Display for BackendError {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::UnreachableStorage { cause } => {
-                write!(
-                    f,
-                    "[UnreachableStorage] Storage backend is not reachable{cause}"
-                )
+        let description = match self {
+            Self::UnreachableStorage { .. } => {
+                "[UnreachableStorage] Storage backend is not reachable"
             }
-            Self::FailedOperation { cause } => {
-                write!(
-                    f,
-                    "[FailedOperation] Storage backend operation failed{cause}"
-                )
-            }
-            Self::UnauthorizedAccess { cause } => {
-                write!(
-                    f,
-                    "[UnauthorizedAccess] Storage backend denied access{cause}"
-                )
-            }
-        }
+            Self::FailedOperation { .. } => "[FailedOperation] Storage backend operation failed",
+            Self::UnauthorizedAccess { .. } => "[UnauthorizedAccess] Storage backend denied access",
+        };
+        f.write_str(description)?;
+        self.cause().write_suffix(f)
     }
 }
 
@@ -123,14 +113,14 @@ impl Error for BackendError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match self.cause() {
             BackendCause::Reason(_) => None,
-            BackendCause::FailedFilesystemOperation(error) => Some(error),
+            BackendCause::FailedFilesystemOperation(error) => Some(error.as_ref()),
         }
     }
 }
 
-impl Display for BackendCause {
-    /// Prints the segment that follows the description of a [`BackendError`].
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+impl BackendCause {
+    /// Writes the segment that follows the description of a [`BackendError`].
+    fn write_suffix(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             Self::Reason(reason) => write!(f, ", Reason: '{reason}'"),
             Self::FailedFilesystemOperation(error) => write!(f, ", Caused by: {error}"),
@@ -290,6 +280,40 @@ mod tests {
             "[UnauthorizedAccess] Storage backend denied access, Reason: 'role lacks INSERT'";
 
         let result = error.to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_no_source_when_backend_error_holds_a_reason() {
+        let backend_error = BackendError::failed_operation("disk full");
+
+        let expected_result = true;
+
+        let result = Error::source(&backend_error).is_none();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_the_reason_as_cause_when_backend_error_is_built_from_a_reason() {
+        let reason = "connection reset";
+        let backend_error = BackendError::unreachable_storage(reason);
+
+        let expected_result = &BackendCause::Reason("connection reset".to_owned());
+
+        let result = backend_error.cause();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_have_the_size_of_a_reason_for_backend_error() {
+        let size_of_a_reason = std::mem::size_of::<String>();
+
+        let expected_result = size_of_a_reason + std::mem::size_of::<usize>();
+
+        let result = std::mem::size_of::<BackendError>();
 
         assert_eq!(result, expected_result);
     }
