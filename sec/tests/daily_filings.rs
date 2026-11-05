@@ -285,14 +285,16 @@ mod run_loop {
         assert_eq!(result, expected_result);
     }
 
-    /// Runs 2026-10-26 twice in one store, and overwrites the stored instance with `bytes` between
+    /// The stored label file of the 10-Q of 2026-10-26, under the storage root.
+    const STORED_LABEL_FILE: &str = "sec/filings/CIK0000003545/0000003545-26-000047/lab.xml";
+
+    /// Runs 2026-10-26 twice in one store, and overwrites the stored `file` with `bytes` between
     /// the runs. Returns the filing counts of the second run.
-    async fn second_run_after_overwriting_the_instance(bytes: &[u8]) -> Value {
+    async fn second_run_after_overwriting(file: &str, bytes: &[u8]) -> Value {
         let root = temporary_root();
         store_first_run(&root).await;
-        std::fs::write(root.path().join(STORED_INSTANCE), bytes).expect(
-            "Given an instance that the first run stored, overwriting it should always succeed",
-        );
+        std::fs::write(root.path().join(file), bytes)
+            .expect("Given a file that the first run stored, overwriting it should always succeed");
         let summary = run_offline_in(&root, &[date("2026-10-26")], &sec_client()).await;
         summary.entries()[0]["filings"].clone()
     }
@@ -312,7 +314,7 @@ mod run_loop {
             "failed": [],
         });
 
-        let result = second_run_after_overwriting_the_instance(bytes).await;
+        let result = second_run_after_overwriting(STORED_INSTANCE, bytes).await;
 
         assert_eq!(result, expected_result);
     }
@@ -330,7 +332,74 @@ mod run_loop {
             "failed": [],
         });
 
-        let result = second_run_after_overwriting_the_instance(bytes).await;
+        let result = second_run_after_overwriting(STORED_INSTANCE, bytes).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_fetch_the_filing_again_when_the_stored_label_file_fails_the_sha256_check() {
+        // The same 9 bytes as the stored `<labels/>`, so the size check passes and the SHA-256
+        // check fails.
+        let bytes = b"<labelX/>";
+
+        let expected_result = json!({
+            "selected": 1,
+            "stored": 1,
+            "already_stored": 0,
+            "skipped_unextractable": 0,
+            "unextractable": [],
+            "failed": [],
+        });
+
+        let result = second_run_after_overwriting(STORED_LABEL_FILE, bytes).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_fetch_the_filing_again_when_the_stored_label_file_is_missing() {
+        let root = temporary_root();
+        store_first_run(&root).await;
+        std::fs::remove_file(root.path().join(STORED_LABEL_FILE)).expect(
+            "Given a label file that the first run stored, removing it should always succeed",
+        );
+
+        let expected_result = json!({
+            "selected": 1,
+            "stored": 1,
+            "already_stored": 0,
+            "skipped_unextractable": 0,
+            "unextractable": [],
+            "failed": [],
+        });
+
+        let result = run_offline_in(&root, &[date("2026-10-26")], &sec_client())
+            .await
+            .entries()[0]["filings"]
+            .clone();
+
+        assert_eq!(result, expected_result);
+    }
+
+    /// A folder with an XBRL instance and no label file.
+    const FOLDER_INDEX_WITHOUT_LABEL_FILE: &[u8] =
+        br#"{"directory":{"item":[{"name":"alco-20260908_htm.xml"}]}}"#;
+
+    #[tokio::test]
+    async fn should_request_only_the_daily_index_and_submissions_when_a_stored_filing_without_a_label_file_runs_again()
+     {
+        let root = temporary_root();
+        let dates = [date("2026-10-26")];
+        let folder = [(200, "application/json", FOLDER_INDEX_WITHOUT_LABEL_FILE)];
+        let _ = run_offline_in(&root, &dates, &sec_client_with_folder(&folder)).await;
+        let second_client = sec_client_with_folder(&folder);
+        let _ = run_offline_in(&root, &dates, &second_client).await;
+
+        let expected_result =
+            BTreeMap::from([(INDEX_URL.to_string(), 1), (SUBMISSIONS_URL.to_string(), 1)]);
+
+        let result = second_client.inner.request_counts.per_url();
 
         assert_eq!(result, expected_result);
     }
