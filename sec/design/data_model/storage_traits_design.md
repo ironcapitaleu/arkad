@@ -61,7 +61,7 @@ storage/
     ├── error/                 # sec-style hierarchy (module-per-level)
     │   ├── mod.rs             # ErrorKind (union) + From/TryFrom + DowncastNotPossible
     │   ├── write_error/mod.rs # WriteError
-    │   ├── backend_error/mod.rs # BackendError (is_retryable)
+    │   ├── backend_error/mod.rs # BackendError, BackendCause (is_retryable planned)
     │   └── read_error/mod.rs  # ReadError  (added with the STA-139 read methods)
     └── store/
         ├── mod.rs
@@ -121,7 +121,7 @@ error/
   exception: its `Display` and `Error` are written by hand, because its `source()` depends on its
   `BackendCause`. **Rich leaves get their
   own module** and are wrapped (`Read(ReadError)`-style). Same split as sec's `State::InvalidInput`
-  (inline) vs `State::InvalidCikFormat(_)` (module). Today's causes are all markers → inline.
+  (inline) vs `State::InvalidCikFormat(_)` (module). Today's `WriteError` and `ReadError` causes are all markers → inline.
 - **Upcast** = `From<Inner> for Outer` — infallible, `?`-able: `MissingReadPermission → ReadError →
   ErrorKind`. So a read method returns `ReadError` and anything `Into<ReadError>` flows in via `?`.
 - **Downcast** = `TryFrom<Outer> for Inner`, `type Error = ErrorKind`, returns
@@ -148,7 +148,7 @@ A `BackendCause` holds either that reason or a wrapped error. A wrapped error pr
 `Caused by:`, and `source()` returns it. The filesystem backend wraps its `FailedFilesystemOperation`.
 This **drops the earlier `Backend::type Error` associated error** — the value-type decision keeps
 backend errors as values, so the associated type was buying flexibility we don't use.
-`ErrorKind` (the union) is what the **shared consumers** take — the retry decorator (`is_retryable()`)
+`ErrorKind` (the union) is what the **shared consumers** take — the retry decorator (`is_retryable()`, planned)
 and the `sec` seam (`State::FailedPersistence(ErrorKind)`) — reached by the `From` upcast.
 
 **Grows with the methods.** Today only write methods exist → build `ErrorKind` + `WriteError` +
@@ -900,9 +900,8 @@ These are *not* part of the frozen v1 — they wait for a concrete consumer, by 
   Error`** (stores return the classes directly; the value-type/`reason`-string decision already
   flattened rich detail, making the associated error moot). Built write-side first; `ReadError`
   arrives with the STA-139 read methods.
-- **(2026-11-05) — `BackendError` wraps a value-type cause.** The variants are now
-  `UnreachableStorage`, `FailedOperation`, and `UnauthorizedAccess`, and `is_retryable()` does not
-  exist. Each variant holds a `BackendCause`: a `reason` string, or a wrapped
+- **(2026-11-05) — `BackendError` wraps a value-type cause.** Each variant now holds a
+  `BackendCause` in place of `reason`: a `reason` string, or a wrapped
   `FailedFilesystemOperation`. A wrapped error prints after `Caused by:` with no quotes, and
   `source()` returns it. Only a value-type error can become a `BackendCause` variant. A Postgres
   backend flattens `sqlx::Error` to a `reason`, as above.

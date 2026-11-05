@@ -19,8 +19,9 @@ use std::fmt::{self, Display, Formatter};
 use crate::implementations::repository::filesystem::FailedFilesystemOperation;
 
 #[non_exhaustive]
-// `Display` and `Error` are written by hand, not derived with `thiserror`: `source()` returns the
-// wrapped error only when the cause holds one, and `thiserror` cannot compute a source.
+// `Display` and `Error` are written by hand, not derived with `thiserror`: `thiserror` cannot pick
+// a source by matching on a field, and `source()` returns the wrapped error only when the cause
+// holds one.
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 /// Error occurring at the storage backend.
 ///
@@ -308,10 +309,8 @@ mod tests {
     }
 
     #[test]
-    fn should_have_the_size_of_a_reason_for_backend_error() {
-        let size_of_a_reason = std::mem::size_of::<String>();
-
-        let expected_result = size_of_a_reason + std::mem::size_of::<usize>();
+    fn should_stay_32_bytes_for_backend_error() {
+        let expected_result = 32;
 
         let result = std::mem::size_of::<BackendError>();
 
