@@ -728,7 +728,7 @@ mod tests {
     async fn should_fail_the_notes_period_when_the_body_stops_early_and_all_gets_no_retry_delays() {
         let root = temporary_root();
         let september = notes_zip("adsh\tcik\n0000320193-26-000003\t320193\n");
-        let sec_client = RoutingSecClient::new().route_cut_body_once(
+        let sec_client = RoutingSecClient::new().route_stopped_body_once(
             &format!("{NOTES_URL}2026_09_notes.zip"),
             "application/zip",
             &september,

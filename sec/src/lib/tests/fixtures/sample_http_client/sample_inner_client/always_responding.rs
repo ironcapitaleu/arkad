@@ -22,7 +22,7 @@ pub struct AlwaysRespondingHttpClient {
     pub headers: Vec<(&'static str, String)>,
     /// The body of every response.
     pub body: Vec<u8>,
-    /// How every response delivers its body.
+    /// Whether every response sends its whole body or stops early.
     pub delivery: Delivery,
 }
 

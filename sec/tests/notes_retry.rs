@@ -27,8 +27,8 @@ const LOCK_EXPECT: &str = "Given an observer that never panics while it holds th
 
 /// Returns a client whose first body for the Notes file of [`PERIOD`] stops early, and whose
 /// later answers send the whole file.
-fn sec_client_with_a_cut_body() -> RoutingSecClient {
-    RoutingSecClient::new().route_cut_body_once(NOTES_URL, "application/zip", SAMPLE_NOTES_ZIP)
+fn sec_client_with_a_stopped_body() -> RoutingSecClient {
+    RoutingSecClient::new().route_stopped_body_once(NOTES_URL, "application/zip", SAMPLE_NOTES_ZIP)
 }
 
 /// Runs the Notes batch over [`PERIOD`] into a new temporary root, with no wait between
@@ -57,7 +57,7 @@ async fn run_observed(
 
 #[tokio::test]
 async fn should_store_the_file_when_the_first_body_stops_early() {
-    let sec_client = sec_client_with_a_cut_body();
+    let sec_client = sec_client_with_a_stopped_body();
 
     let expected_result = 1;
 
@@ -68,7 +68,7 @@ async fn should_store_the_file_when_the_first_body_stops_early() {
 
 #[tokio::test]
 async fn should_report_one_retried_error_when_the_first_body_stops_early() {
-    let sec_client = sec_client_with_a_cut_body();
+    let sec_client = sec_client_with_a_stopped_body();
     let kinds = Arc::new(Mutex::new(Vec::new()));
     let observed_kinds = Arc::clone(&kinds);
 

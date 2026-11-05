@@ -79,18 +79,20 @@ impl RoutingSecClient {
     /// Adds a route that answers the first request to `url` with a status of 200 and a body that
     /// stops early, and every later request with `content_type` and `body`.
     #[must_use]
-    pub fn route_cut_body_once(mut self, url: &str, content_type: &str, body: &[u8]) -> Self {
+    pub fn route_stopped_body_once(mut self, url: &str, content_type: &str, body: &[u8]) -> Self {
         let full = AlwaysRespondingHttpClient {
             status: 200,
             headers: vec![("content-type", content_type.to_string())],
             body: body.to_vec(),
             delivery: Delivery::Full,
         };
-        let cut = AlwaysRespondingHttpClient {
+        let stopped = AlwaysRespondingHttpClient {
             delivery: Delivery::StopsEarly,
             ..full.clone()
         };
-        self.inner.routes.push((url.to_string(), vec![cut, full]));
+        self.inner
+            .routes
+            .push((url.to_string(), vec![stopped, full]));
         self
     }
 }
