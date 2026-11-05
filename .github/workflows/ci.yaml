@@ -27,7 +27,10 @@ jobs:
       id: toolchain
       run: echo "version=$(sed -n 's/^channel = "\(.*\)"$/\1/p' rust-toolchain.toml)" >> "$GITHUB_OUTPUT"
     - name: Rust Version Check
-      run: grep -q "^FROM .* rust:${{ steps.toolchain.outputs.version }}-trixie AS build$" Dockerfile
+      run: |
+        version='${{ steps.toolchain.outputs.version }}'
+        grep -q "^FROM .* rust:${version//./\\.}-trixie AS build$" Dockerfile \
+          || { echo "The Dockerfile build stage does not use rust:${version}-trixie"; exit 1; }
     - uses: dtolnay/rust-toolchain@v1
       with:
         toolchain: ${{ steps.toolchain.outputs.version }}

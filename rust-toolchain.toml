@@ -1,6 +1,6 @@
 # The Rust version of every local run, agent session, CI job, and image build.
-# Change the version on purpose, in a PR of its own, and change the `rust:` tag of the
-# `Dockerfile` build stage to the same version.
+# Change the version in a PR of its own. Change the `rust:` tags of the `Dockerfile` build stage
+# and of `.devcontainer` to the same version.
 [toolchain]
 channel = "1.99.1"
 components = ["clippy", "rustfmt"]
