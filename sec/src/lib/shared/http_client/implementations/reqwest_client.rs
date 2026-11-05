@@ -157,7 +157,7 @@ mod tests {
     use tokio::time;
 
     use super::*;
-    use crate::tests::stalled_server::stalled_server;
+    use crate::tests::fixtures::sample_server::stalled_server;
 
     #[tokio::test]
     async fn should_return_a_timeout_error_when_the_server_sends_no_response() {
@@ -177,12 +177,11 @@ mod tests {
             .get(format!("http://{address}/"))
             .build()
             .expect("A URL built from a bound socket address always parses");
+        let guarded_response = time::timeout(guard, client.execute_request(request)).await;
 
         let expected_result = true;
 
-        let result = time::timeout(guard, client.execute_request(request))
-            .await
-            .is_ok_and(|response| response.is_err_and(|error| error.is_timeout()));
+        let result = matches!(guarded_response, Ok(Err(ref error)) if error.is_timeout());
 
         assert_eq!(result, expected_result);
     }

@@ -189,7 +189,7 @@ mod tests {
     };
 
     use super::*;
-    use crate::tests::stalled_server::{impatient_client, stalled_server};
+    use crate::tests::fixtures::sample_server::{impatient_client, stalled_server};
 
     #[tokio::test]
     async fn should_return_a_timed_out_request_when_the_request_times_out() {
@@ -200,13 +200,11 @@ mod tests {
             .send()
             .await
             .expect_err("The server never answers, so the read timeout always ends the request");
+        let reason = FailedSecRequest::from(error).reason;
 
         let expected_result = true;
 
-        let result = matches!(
-            FailedSecRequest::from(error).reason,
-            ErrorReason::TimedOutRequest { .. }
-        );
+        let result = matches!(reason, ErrorReason::TimedOutRequest { .. });
 
         assert_eq!(result, expected_result);
     }
@@ -217,13 +215,11 @@ mod tests {
             .get("not a url")
             .build()
             .expect_err("A string with no scheme is never a valid URL");
+        let reason = FailedSecRequest::from(error).reason;
 
         let expected_result = true;
 
-        let result = matches!(
-            FailedSecRequest::from(error).reason,
-            ErrorReason::FailedRequestExecution { .. }
-        );
+        let result = matches!(reason, ErrorReason::FailedRequestExecution { .. });
 
         assert_eq!(result, expected_result);
     }

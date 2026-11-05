@@ -1,4 +1,4 @@
-//! # Stalled Server
+//! # Sample Server
 //!
 //! Provides local TCP servers that stop sending or close the connection, and a client that gives up
 //! on them, for the tests of the request timeouts.

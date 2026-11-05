@@ -298,7 +298,7 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;
-    use crate::tests::stalled_server::{closing_server, impatient_client, stalled_server};
+    use crate::tests::fixtures::sample_server::{closing_server, impatient_client, stalled_server};
 
     /// A response head that promises a body of 100 bytes and sends none of it.
     const STALLED_HEAD: &[u8] =
@@ -314,15 +314,14 @@ mod tests {
             .await
             .expect("The server sends a full response head, so the request always gets a response");
 
+        let reason = SecResponse::<JsonBody>::from_inner(response)
+            .await
+            .expect_err("The server closes before the promised body, so the read always fails")
+            .reason;
+
         let expected_result = true;
 
-        let result = matches!(
-            SecResponse::<JsonBody>::from_inner(response)
-                .await
-                .expect_err("The server closes before the promised body, so the read always fails")
-                .reason,
-            ErrorReason::FailedBodyRead { .. }
-        );
+        let result = matches!(reason, ErrorReason::FailedBodyRead { .. });
 
         assert_eq!(result, expected_result);
     }
@@ -337,17 +336,14 @@ mod tests {
             .await
             .expect("The server sends a full response head, so the request always gets a response");
 
+        let reason = SecResponse::<JsonBody>::from_inner(response)
+            .await
+            .expect_err("The server never sends the body, so the read timeout always ends the read")
+            .reason;
+
         let expected_result = true;
 
-        let result = matches!(
-            SecResponse::<JsonBody>::from_inner(response)
-                .await
-                .expect_err(
-                    "The server never sends the body, so the read timeout always ends the read"
-                )
-                .reason,
-            ErrorReason::TimedOutBodyRead { .. }
-        );
+        let result = matches!(reason, ErrorReason::TimedOutBodyRead { .. });
 
         assert_eq!(result, expected_result);
     }
