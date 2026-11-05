@@ -398,6 +398,10 @@ flowchart TB
     classDef fail fill:#f8cecc,stroke:#b85450
 
     D["Next date of the run"]:::step --> DI{"Daily index<br/>exists?"}
+    DI -- "transient failure" --> RD["Retry after 10 s, then 60 s"]:::fail
+    RD -- "retry" --> DI
+    RD -- "third attempt fails" --> FD["Date failed"]:::fail
+    FD --> D
     DI -- "yes" --> SD["Store the daily index<br/>select the filings"]:::step
     DI -- "no, a later index exists" --> E["No filings"]:::skip
     DI -- "no, no later index" --> P["Pending or failed,<br/>by the window rules"]:::fail
@@ -406,7 +410,7 @@ flowchart TB
     R -- "intact instance, label file intact or not listed" --> S1["Already stored,<br/>no request"]:::skip
     R -- "folder index without instance" --> S2["Unextractable,<br/>no request"]:::skip
     R -- "nothing" --> X["Fetch and store index.json,<br/>select files, fetch and store<br/>instance and label file"]:::step
-    X -- "503" --> RT["Retry after 10 s, then 60 s"]:::fail
+    X -- "transient failure" --> RT["Retry after 10 s, then 60 s"]:::fail
     RT -- "retry" --> X
     RT -- "third attempt fails" --> C
     S1 --> C["For each distinct CIK, at most 4 at once:<br/>fetch and store submissions"]:::step
@@ -417,7 +421,10 @@ flowchart TB
 ```
 
 All machines of one run share one `execution_id`. The dates run one after another. A `submissions`
-request that the SEC answers with 503 retries the same way as a filing.
+machine and the detection of a date retry the same way as a filing. A transient failure is a
+502, a 503, a 504, a 429, a failed or timed-out request, or a failed or timed-out read of the
+body. A Notes
+period of `backfill` retries too, and downloads the whole file again.
 
 ## Guarantees: Before and After a Run
 
@@ -586,7 +593,8 @@ file is 0.85 GB, and it takes about 80 s with 2 files in flight (estimate from t
 Both values are proposals and are not measured.
 
 A timeout fails the request with `TimedOutRequest`, or with `TimedOutBodyRead` while the body is
-read. `FailedSecRequest::is_timed_out` returns `true` for both. No layer retries it yet.
+read. `FailedSecRequest::is_timed_out` returns `true` for both. The run retries a timeout as a
+transient failure (see [One Daily Run](#one-daily-run)).
 
 ### Can a Run Rebuild the State as of a Date D?
 

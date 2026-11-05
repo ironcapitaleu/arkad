@@ -556,6 +556,54 @@ mod run_loop {
         assert_eq!(result, expected_result);
     }
 
+    /// Returns `sec_client()` with a daily index that answers 503 once, then the index.
+    fn sec_client_with_an_unavailable_index_once() -> RoutingSecClient {
+        RoutingSecClient::new()
+            .route_sequence(
+                INDEX_URL,
+                &[
+                    (503, "text/html", b""),
+                    (200, "application/octet-stream", DAILY_INDEX),
+                ],
+            )
+            .route(QTR4_LISTING_URL, 200, "application/json", QTR4_LISTING)
+            .route(FOLDER_INDEX_URL, 200, "application/json", FOLDER_INDEX)
+            .route(INSTANCE_URL, 200, "text/xml", b"<xbrl/>")
+            .route(LABEL_FILE_URL, 200, "text/xml", b"<labels/>")
+            .route(SUBMISSIONS_URL, 200, "application/json", SUBMISSIONS)
+    }
+
+    #[tokio::test]
+    async fn should_process_the_date_when_the_daily_index_answers_503_once() {
+        let dates = [date("2026-10-26")];
+        let sec_client = sec_client_with_an_unavailable_index_once();
+
+        let expected_result = vec![json!({
+            "detection": "processed",
+            "stored": 1,
+            "unextractable": 0,
+            "failed": 0,
+            "submissions_stored": 1,
+        })];
+
+        let result = outcomes(&run_offline(&dates, &sec_client).await);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_report_a_retried_error_with_the_date_when_the_daily_index_answers_503_once() {
+        let dates = [date("2026-10-26")];
+        let sec_client = sec_client_with_an_unavailable_index_once();
+
+        let expected_result =
+            vec![json!({ "context": { "date": "2026-10-26" }, "kind": "retried" })];
+
+        let result = reported_errors(&dates, &sec_client).await;
+
+        assert_eq!(result, expected_result);
+    }
+
     #[tokio::test]
     async fn should_store_the_filing_when_the_sec_answers_503_once() {
         let dates = [date("2026-10-26")];

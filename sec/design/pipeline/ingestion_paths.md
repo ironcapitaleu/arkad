@@ -181,7 +181,7 @@ deprecated example, next to `stream_extract`. See [Deprecated Binaries](#depreca
 | Loop | as `notes_backfill`, then as `daily_filings` | `buffer_unordered`, sorted by index after | `buffer_unordered`, sorted by index after (facade, STA-358) | dates in order, `buffered` per date |
 | Cap | `ARKAD_FILES_IN_FLIGHT`, default 2, then `DEFAULT_MACHINES_IN_FLIGHT` = 4 | `ARKAD_FILES_IN_FLIGHT`, default 2 | all CIKs (`in_flight(CIKS.len())`), facade default 4 | `DEFAULT_MACHINES_IN_FLIGHT` = 4 (facade, STA-415) |
 | Task per unit | as `notes_backfill`, then no | `tokio::spawn` (STA-344, open in STA-360) | no | no |
-| Rules | the rules of both, and no catch-up without `cut_over_date()` | skip of an intact stored file, unpublished at the end | none | 503 retry, pending, unextractable |
+| Rules | the rules of both, and no catch-up without `cut_over_date()` | skip of an intact stored file, transient retry, unpublished at the end | none | transient retry, pending, unextractable |
 | Summary | `NotesRunSummary`, then `DailyRunSummary` | `NotesRunSummary`, `FailedBackfill` (facade, STA-414) | `CompanyFactsRunSummary`, `FailedCompanyFactsBackfill` (facade, STA-358) | `DailyRunSummary`, `FailedDailyRun` (facade, STA-415) |
 | Logging | one observer for both calls, one summary per call | observer with `RunEvent` and `ErrorKind` (facade, STA-414) | observer with `RunEvent` and `ErrorKind` (facade, STA-358) | observer with `RunEvent` and `ErrorKind` (facade, STA-415) |
 | Exit | error if a period, a date, a filing, or a CIK failed, or if no period is stored | error if a period failed | error if a CIK failed | error if a date, filing, or CIK failed |
@@ -289,10 +289,10 @@ values.
 | Source | Rules in the facade | Values from `main` |
 | ------ | ------------------- | ------------------ |
 | `all()` | the rules of `notes()`, distinct CIKs of the stored periods, one Notes file in memory, `cut_over_date()` | periods, cap |
-| `notes()` | skip of an intact stored file, task per period, unpublished at the end, `cut_over_date()` | periods, cap |
+| `notes()` | skip of an intact stored file, task per period, transient retry, unpublished at the end, `cut_over_date()` | periods, cap, retry waits |
 | `company_facts()` | none | CIKs, cap |
 | `submissions()` | none | CIKs, cap |
-| `daily_filings()` | 503 retry, pending, unextractable, `AmbiguousFilingDocument` fails the run | dates, `yesterday`, cap, retry waits |
+| `daily_filings()` | transient retry, pending, unextractable, `AmbiguousFilingDocument` fails the run | dates, `yesterday`, cap, retry waits |
 
 The rules of `daily_filings` from STA-378 stay as they are. `ARKAD_FROM` and `ARKAD_TO` stay in
 `main`, in Eastern time. The window of 4 days stays an operator setting. `yesterday` is an input,
@@ -1130,7 +1130,7 @@ folder answered 200 in the same minutes. The data cover one CIK and 16 minutes.
 - `FailedSecRequest::is_absent_file` counts 403 and 404 only. So a caller that skips absent files
   sees a missing folder as absent on one request and as a server failure on the next.
 - `daily_filings` retries a filing that fails with a 503 and never counts it as absent. It finds
-  the 503 with `FailedSecRequest::is_unavailable`. See [Daily Run](#daily-run).
+  the 503 with `FailedSecRequest::is_transient`. See [Daily Run](#daily-run).
 - The live test in `sec/tests/extract_filing.rs` accepts both codes for a missing folder. Any
   other status code or a network error fails it.
 
@@ -1557,13 +1557,17 @@ Each machine ends in one of four outcomes:
   failed. Cloud Run retries the job. The retry is safe, because every write is idempotent.
 - A filing comes from the SEC's own daily index, so its folder exists. The binary never treats a
   404 or a 503 for a filing as absent, and calls no `is_absent_file` on the filing path.
-- A filing or `submissions` machine that fails with a 503 runs again, up to 3 times in all, once
-  more after each of the `DEFAULT_RETRY_DELAYS` of 10 s and 60 s. The retry covers a 503 that lasts at most about 70 s. A longer
-  one fails the machine, and the Cloud Run retry of the job covers it. The retry lives in the
-  run loop of the facade, not in `SecClient`, so the other paths keep their behavior.
-- A new check `FailedSecRequest::is_unavailable` finds a 503, next to `is_absent_file`. Like
-  `is_absent_file`, it looks through `FailedFilingDocument`, so a 503 for the instance or the label
-  file counts too.
+- The detection of a date, a filing machine, and a `submissions` machine that fail with a
+  transient SEC failure run again, up to 3 times in all, once more after each of the
+  `DEFAULT_RETRY_DELAYS` of 10 s and 60 s. A Notes period of `backfill().notes()` does the same.
+  The retry covers a failure that lasts at most about 70 s. A longer one fails the machine, and
+  the Cloud Run retry of the job covers it. The retry lives in `extraction/retry.rs` of the
+  facade, not in `SecClient`. The `submissions` and Company Facts runs outside `daily_filings`
+  do not retry.
+- `FailedSecRequest::is_transient` decides which failures are transient: a 502, a 503, a 504, a
+  429, a failed or timed-out request, and a failed or timed-out read of the body. Every other status, an
+  invalid body, and a selection error are permanent. Like `is_absent_file`, it looks through
+  `FailedFilingDocument`, so a 503 for the instance or the label file counts too.
 
 #### Stores
 
@@ -1630,8 +1634,9 @@ JSON logs with the five fields of `AGENTS.md`, as in `backfill`:
 | `main.rs` | Logging, startup, the call of the facade, the summary, the exit code |
 | `dates.rs` | Parses `ARKAD_FROM` and `ARKAD_TO` against today in New York, and returns the dates |
 | `constants.rs` | The variable names |
-| `extraction/daily_filings/mod.rs` (library) | The builder, the loop over the dates and the three steps, the retry, and the defaults |
-| `extraction/daily_filings/summary.rs` (library) | The `DailyRunSummary` and the rules for pending, unextractable, and 503 |
+| `extraction/daily_filings/mod.rs` (library) | The builder, the loop over the dates and the three steps, and the defaults |
+| `extraction/daily_filings/summary.rs` (library) | The `DailyRunSummary` and the rules for pending and unextractable |
+| `extraction/retry.rs` (library) | The retry of a machine after a transient SEC failure, and `DEFAULT_RETRY_DELAYS` |
 
 - `dates.rs` takes "now" as an argument, so its tests set the clock, for example 02:00 UTC.
 - The builder takes `retry_delays` and `yesterday`, and it is generic over the SEC client. So the

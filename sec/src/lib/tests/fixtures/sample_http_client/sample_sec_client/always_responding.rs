@@ -43,6 +43,7 @@ impl AlwaysRespondingSecClient {
                 status,
                 headers,
                 body,
+                cuts_body: false,
             },
             rate_limiter: AlwaysReadyRateLimiter,
             user_agent: UserAgent::new("Fake Notes Client fake@example.com").expect(

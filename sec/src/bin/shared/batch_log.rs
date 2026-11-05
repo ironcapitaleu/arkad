@@ -124,9 +124,9 @@ pub fn log_item(execution_id: Uuid, unit: &Unit, item: &StreamItem) {
 
 /// Logs one error of the machine of `unit`, at `error` level only if it fails the run.
 ///
-/// The other kinds are expected on a healthy run: a 503 that a retry fixes, a daily index that the
-/// SEC has not published yet, a filing without an XBRL instance, and a Notes file that the SEC has
-/// not posted yet. They are `warn`.
+/// The other kinds are expected on a healthy run: a transient SEC failure that a retry fixes, a
+/// daily index that the SEC has not published yet, a filing without an XBRL instance, and a Notes
+/// file that the SEC has not posted yet. They are `warn`.
 pub fn log_error(execution_id: Uuid, unit: &Unit, error: &StreamError, kind: ErrorKind) {
     let message = error.source.to_string();
     let context = serde_json::json!({

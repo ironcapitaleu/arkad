@@ -1596,6 +1596,7 @@ dependencies = [
  "futures-util",
  "governor",
  "http",
+ "http-body",
  "pretty_assertions",
  "regex",
  "reqwest",

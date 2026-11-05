@@ -1,4 +1,10 @@
+use std::io;
+use std::pin::Pin;
+use std::task::{Context, Poll};
+
 use async_trait::async_trait;
+use bytes::Bytes;
+use http_body::{Body, Frame};
 use reqwest::ResponseBuilderExt;
 
 use crate::shared::http_client::traits::InnerClient;
@@ -16,6 +22,8 @@ pub struct AlwaysRespondingHttpClient {
     pub headers: Vec<(&'static str, String)>,
     /// The body of every response.
     pub body: Vec<u8>,
+    /// If `true`, the body stops before its first byte, as on a reset connection.
+    pub cuts_body: bool,
 }
 
 #[async_trait]
@@ -31,9 +39,28 @@ impl InnerClient for AlwaysRespondingHttpClient {
         for (name, value) in &self.headers {
             builder = builder.header(*name, value);
         }
+        let body = if self.cuts_body {
+            reqwest::Body::wrap(CutBody)
+        } else {
+            reqwest::Body::from(self.body.clone())
+        };
         let response = builder
-            .body(self.body.clone())
+            .body(body)
             .expect("Given a valid status code and header names, building the response should always succeed");
         Ok(reqwest::Response::from(response))
+    }
+}
+/// A response body whose first read fails with a reset connection.
+struct CutBody;
+
+impl Body for CutBody {
+    type Data = Bytes;
+    type Error = io::Error;
+
+    fn poll_frame(
+        self: Pin<&mut Self>,
+        _context: &mut Context<'_>,
+    ) -> Poll<Option<Result<Frame<Self::Data>, Self::Error>>> {
+        Poll::Ready(Some(Err(io::Error::from(io::ErrorKind::ConnectionReset))))
     }
 }

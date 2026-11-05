@@ -31,7 +31,7 @@ pub enum RunEvent<'a> {
 /// the exit code.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ErrorKind {
-    /// The SEC answered 503, and the machine runs again.
+    /// The machine failed with a transient SEC failure, and runs again.
     Retried,
     /// The daily index does not exist yet, and a later run reads the date again.
     Pending,

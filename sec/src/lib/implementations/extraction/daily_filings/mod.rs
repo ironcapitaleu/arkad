@@ -11,7 +11,6 @@
 //!
 //! [`run`]: DailyFilingsBuilder::run
 
-use std::future::Future;
 use std::time::Duration;
 
 use chrono::NaiveDate;
@@ -22,6 +21,7 @@ use storage::implementations::repository::filesystem::{
 use storage::traits::repository::ReadRepository;
 
 use super::Incremental;
+use super::retry::{DEFAULT_RETRY_DELAYS, with_retry};
 use super::run_event::{ErrorKind, RunEvent, Unit};
 use crate::implementations::states::extract::daily_index::builder::NoSecClient;
 use crate::implementations::states::extract::daily_index::{
@@ -48,7 +48,7 @@ use crate::shared::request::implementations::sec_request::{FilingDocumentSet, Fi
 use crate::shared::response::implementations::sec_response::{JsonBody, SecResponse, ZipBody};
 use summary::{
     CompanyOutcome, DateOutcome, Fetch, FilingOutcome, is_missing_instance, is_pending,
-    is_unavailable, is_unextractable,
+    is_unextractable,
 };
 
 mod summary;
@@ -61,14 +61,6 @@ pub use summary::{DailyRunSummary, FailedDailyRun};
 /// The rate limiter of the SEC client caps the requests, so a higher value does not make a run
 /// faster.
 pub const DEFAULT_MACHINES_IN_FLIGHT: usize = 4;
-
-/// The waits before the second and the third attempt of a machine that the SEC answered with 503,
-/// without a call to [`DailyFilingsBuilder::retry_delays`]. After the third attempt the machine
-/// fails.
-// Deviation: `Duration::from_mins` is not stable in Rust 1.90, the CI version, so the code writes
-// the minute in seconds. Rust 1.90 does not know the lint, hence `unknown_lints`.
-#[allow(unknown_lints, clippy::duration_suboptimal_units)]
-pub const DEFAULT_RETRY_DELAYS: [Duration; 2] = [Duration::from_secs(10), Duration::from_secs(60)];
 
 /// The number of dates, yesterday and the days before it, whose missing daily index counts as
 /// pending. A pending date does not fail the run, because a later run reads it again.
@@ -294,8 +286,8 @@ impl<Y, C, R> DailyFilingsBuilder<Y, C, R> {
         }
     }
 
-    /// Sets the waits before each new attempt of a machine that the SEC answered with 503. The
-    /// default is [`DEFAULT_RETRY_DELAYS`].
+    /// Sets the waits before each new attempt of a machine that failed with a transient SEC
+    /// failure. The default is [`DEFAULT_RETRY_DELAYS`].
     #[must_use]
     pub fn retry_delays(self, retry_delays: impl IntoIterator<Item = Duration>) -> Self {
         Self {
@@ -325,8 +317,9 @@ where
     /// then one filing machine per selected filing that the store cannot skip, then one
     /// `submissions` machine per distinct CIK of the selected filings. At most
     /// [`in_flight`](Self::in_flight) filing machines run at once, and the same for `submissions`
-    /// machines. A filing or `submissions` machine that the SEC answers with 503 runs again after
-    /// each retry delay. A failure does not stop the other machines or the other dates.
+    /// machines. The detection of a date, a filing machine, and a `submissions` machine that fail
+    /// with a transient SEC failure run again after each retry delay. A failure does not stop the
+    /// other machines or the other dates.
     ///
     /// Calls `observer` with the unit and each successful stream item, and with the unit, each
     /// error, and its [`ErrorKind`]. The unit is the date, the filing, or the company. A skipped
@@ -341,15 +334,20 @@ where
         let mut outcomes = Vec::with_capacity(self.dates.len());
         for &date in &self.dates {
             let unit = Unit::Date(date);
-            let detection = self
-                .incremental
-                .daily_index()
-                .date(date.to_string())
-                .sec_client(self.sec_client.clone())
-                .repository(self.repositories.daily_index.clone())
-                .build()
-                .run_to_detected_filings(|item| observer(&unit, RunEvent::Item(item)))
-                .await;
+            let detection = with_retry(
+                &self.retry_delays,
+                || {
+                    self.incremental
+                        .daily_index()
+                        .date(date.to_string())
+                        .sec_client(self.sec_client.clone())
+                        .repository(self.repositories.daily_index.clone())
+                        .build()
+                        .run_to_detected_filings(|item| observer(&unit, RunEvent::Item(item)))
+                },
+                |error| observer(&unit, RunEvent::Error(error, ErrorKind::Retried)),
+            )
+            .await;
             let outcome = match detection {
                 Ok(detected) => DateOutcome::Processed {
                     filings: self.extract_filings(date, &detected, &observer).await,
@@ -581,82 +579,14 @@ async fn run_to_end(
     Ok(())
 }
 
-/// Runs `attempt` until it succeeds, fails with an error that is not a 503, or has used every
-/// wait of `retry_delays`. Calls `on_retry` with each error after which `attempt` runs again, and
-/// returns the last error.
-async fn with_retry<T, F, Fut>(
-    retry_delays: &[Duration],
-    mut attempt: F,
-    on_retry: impl Fn(&StreamError),
-) -> Result<T, StreamError>
-where
-    F: FnMut() -> Fut,
-    Fut: Future<Output = Result<T, StreamError>>,
-{
-    let mut delays = retry_delays.iter();
-    loop {
-        match attempt().await {
-            Ok(value) => return Ok(value),
-            Err(error) => match delays.next() {
-                Some(delay) if is_unavailable(&error) => {
-                    on_retry(&error);
-                    tokio::time::sleep(*delay).await;
-                }
-                _ => return Err(error),
-            },
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
-    use std::sync::atomic::{AtomicUsize, Ordering};
-
     use pretty_assertions::assert_eq;
 
-    use super::summary::tests::{not_found, unavailable};
     use super::*;
     use crate::implementations::extraction::Extraction;
     use crate::shared::financial::accession_number::AccessionNumber;
     use crate::shared::financial::form::{Form, ParsedForm};
-
-    /// Returns how many times `with_retry` runs an attempt that always fails with `error`.
-    async fn attempts_until_given_up(error: fn() -> StreamError) -> usize {
-        let attempts = AtomicUsize::new(0);
-        let retry_delays = [Duration::ZERO, Duration::ZERO];
-        let _ = with_retry(
-            &retry_delays,
-            || {
-                attempts.fetch_add(1, Ordering::SeqCst);
-                async move { Err::<(), _>(error()) }
-            },
-            |_| {},
-        )
-        .await;
-        attempts.load(Ordering::SeqCst)
-    }
-
-    #[tokio::test]
-    async fn should_try_once_more_per_retry_delay_when_every_attempt_gets_503() {
-        let error = unavailable;
-
-        let expected_result = 3;
-
-        let result = attempts_until_given_up(error).await;
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[tokio::test]
-    async fn should_try_once_when_the_error_is_not_a_503() {
-        let error = not_found;
-
-        let expected_result = 1;
-
-        let result = attempts_until_given_up(error).await;
-
-        assert_eq!(result, expected_result);
-    }
 
     fn sample_filing() -> FilingRef {
         FilingRef::new(
