@@ -64,7 +64,7 @@ impl FromDomainError<FailedSecRequest> for FailedRequestExecution {
 
 #[cfg(test)]
 mod tests {
-    use pretty_assertions::{assert_eq, assert_ne};
+    use pretty_assertions::assert_eq;
 
     use super::*;
     use crate::shared::http_client::implementations::sec_client::error::ErrorReason;
@@ -149,8 +149,10 @@ mod tests {
         let domain_error = create_baseline_domain_error();
         let failed_request_execution = FailedRequestExecution::new(state_name, domain_error);
 
-        let result = failed_request_execution.to_string();
+        let expected_result = false;
 
-        assert_ne!(result, "");
+        let result = matches!(failed_request_execution.to_string().as_str(), "");
+
+        assert_eq!(result, expected_result);
     }
 }
