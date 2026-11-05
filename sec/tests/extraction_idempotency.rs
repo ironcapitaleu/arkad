@@ -217,20 +217,25 @@ mod daily_filings {
     }
 
     #[tokio::test]
-    async fn should_list_the_filing_as_already_stored_when_the_same_date_runs_again() {
+    async fn should_skip_the_filing_and_fail_nothing_when_the_same_date_runs_again() {
         let root = temporary_root();
         let _ = run(&root, FIRST_EXECUTION_ID).await;
 
         let expected_result = json!({
-            "selected": 1,
-            "stored": 0,
-            "already_stored": 1,
-            "skipped_unextractable": 0,
-            "unextractable": [],
-            "failed": [],
+            "date": "2026-10-26",
+            "detection": "processed",
+            "filings": {
+                "selected": 1,
+                "stored": 0,
+                "already_stored": 1,
+                "skipped_unextractable": 0,
+                "unextractable": [],
+                "failed": [],
+            },
+            "submissions": { "companies": 1, "stored": 1, "failed": [] },
         });
 
-        let result = run(&root, SECOND_EXECUTION_ID).await.entries()[0]["filings"].clone();
+        let result = run(&root, SECOND_EXECUTION_ID).await.entries()[0].clone();
 
         assert_eq!(result, expected_result);
     }
@@ -272,7 +277,7 @@ mod notes {
         RoutingSecClient::new().route(NOTES_URL, 200, "application/zip", SAMPLE_NOTES_ZIP)
     }
 
-    /// Runs the Notes backfill of [`PERIOD`] with the run `execution_id` into `root`.
+    /// Runs the Notes backfill of [`PERIOD`] into `root` with `execution_id`.
     async fn run(root: &TempDir, execution_id: Uuid) -> NotesRunSummary {
         Extraction::backfill()
             .execution_id(execution_id)
