@@ -1,5 +1,8 @@
 # Ingestion Paths: Extraction
 
+> **Overview:** [`extraction_overview.md`](extraction_overview.md) describes the extraction step as
+> the code runs it today. This document holds the decisions and the measurements behind it.
+
 > **Status:** draft for review, STA-328. Round 1 of 3. Round 2 designs the SEC fact model and the
 > fact store (STA-331). Round 3 designs transform for both paths (STA-332).
 >
@@ -37,7 +40,7 @@ The MVP decisions (STA-284) chose these SEC sources:
 | ------ | ---- | --- |
 | Financial Statement and Notes files | Backfill | All values of all filings since 2009, with dimensions |
 | XBRL instance and `_lab.xml` of each filing | New filing | The values and the company labels of one new filing |
-| `submissions` JSON | Both | Company data: name, SIC code, tickers, former names |
+| `submissions` JSON | New filing | The SIC code of each new filing. The name, tickers, and former names come from the filings (see [Company Data](#company-data)) |
 | `companyfacts` JSON | Neither | Cross-check only. It drops every value with a dimension. |
 
 The pipeline extracts only `companyfacts` today. `ExtractCompanyFactsSuperState` runs
@@ -416,8 +419,8 @@ integration tests of the facade go in `sec/tests/`, with the fake SEC clients of
   the paths change. Each example gets an `[[example]]` entry with
   `required-features = ["tracing-logging"]`, as the binaries have today. The logger crates stay
   optional dependencies behind that feature, because `backfill` and `daily_filings` need them.
-- The `Dockerfile` builds the example `stream_extract` with `--example` and runs it, and
-  `sec/README.md` documents it.
+- No container image holds an example. The `Dockerfile` builds only `backfill` and
+  `daily_filings` (STA-431).
 - `sec/tests/notes_backfill.rs` calls the facade (STA-414). `sec/tests/daily_filings.rs` calls
   the facade too (STA-415).
 - `stream_etl` builds its machines with `backfill().company_facts().cik(c)`, from one handle per
@@ -946,7 +949,7 @@ rejects two ranges of dates:
   The SEC quarter listings showed this on 2026-10-30.
 - A date after the current UTC date. This rejects typos and dates in the future. It does not reject
   every date that the SEC has not yet published: the SEC dates the index in Eastern time and
-  publishes it after the day ends. Such a date reaches the 404 rule below and fails with
+  publishes it in the evening of that day or later. Such a date reaches the 404 rule below and fails with
   `MissingDailyIndex`, the same as a rerun that starts before the SEC publishes.
 
 The MVP has no requirement for a delay of minutes. The daily index needs no cursor, and a missed
@@ -1367,11 +1370,39 @@ Decided in STA-376:
 - URL: `https://data.sec.gov/submissions/CIK##########.json`. Measured: it holds `sic`,
   `sicDescription`, `name`, `tickers`, `exchanges`, `formerNames`, and the recent filings.
 - New-filing path: one run per distinct CIK of the day's filings.
-- Backfill: one run per distinct CIK in all Notes files, through `backfill().all()`, which reads
-  the CIKs from the column `cik` of `sub.tsv`. The binary `backfill` does not call `all()`
-  (decision of 2026-11-01). 2024q1 alone has 6,587 companies. The
-  total over all files is not measured. `sub.tsv` already holds the SIC code and the name at
-  filing time, so the backfill needs `submissions` only for the current company data.
+- Backfill: no run (see the decisions below). `backfill().all()` still runs `submissions` once
+  per distinct CIK of the stored Notes files, and no binary calls it. STA-435 removes this step.
+- Single company: `backfill().submissions().cik(cik)` with `build()` reconciles one company.
+
+Decided by the lead (STA-417, 2026-11-01 and 2026-11-03):
+
+- The screener takes the ticker, the exchange, the name, the SIC, and the fiscal year end as
+  filed, per filing. Delisted or acquired companies need no current data. No current ticker map
+  for now.
+- The transform (STA-425) sets the rule to compare the two sources of the fiscal year end. A
+  day or month that moves through the rounding of `sub.tsv` is not a change of the fiscal year.
+  See [Overlap of the Data](extraction_overview.md#overlap-of-the-data).
+- Source of each attribute:
+
+  | Attribute | Notes path (before the cut-over) | New-filing path |
+  | --------- | -------------------------------- | --------------- |
+  | Ticker, exchange | `txt.tsv` (`dei:TradingSymbol`, `dei:SecurityExchangeName`) | XBRL instance, same tags |
+  | Name | `sub.tsv` `name` | XBRL instance, `dei:EntityRegistrantName` |
+  | SIC | `sub.tsv` `sic` | `submissions` `sic`, current on the day of the fetch |
+  | Former names | The names as filed, in the order of the filings | Same |
+  | Fiscal year end | `sub.tsv` `fye` (`MMDD`, rounded to the nearest month end) | XBRL instance, `dei:CurrentFiscalYearEndDate` (`--MM-DD`, the real day) |
+
+- `submissions` stays in the daily path permanently. The XBRL instance has no SIC, and the filing
+  header `<accession>.hdr.sgml` costs the same request per filing and needs a new request kind.
+- `ExtractSubmissionsSuperState`, `StoreSubmissions`, and the kind `Submissions` stay.
+- Every value downstream names its source document, its SHA-256, and the time of the write.
+  A replaced `submissions` file loses its old bytes until the raw store keeps every version
+  (STA-428).
+- The companies of the Notes files get no `submissions` in the backfill. A 10-K filer files at
+  least each quarter, so the daily path fetches its `submissions` within about 3 months. A 20-F or
+  40-F filer files once a year, so the fetch can take up to 12 months. A backfill run of
+  `submissions` costs one request per company, more than 6,587 (the companies of 2024q1 alone),
+  so more than 12 minutes at 110 ms per request.
 
 ### Daily Run
 
@@ -1395,7 +1426,7 @@ or `yesterday-N`, the day `N` days before yesterday (`N` at least 1).
 
 - The run reads every date from `ARKAD_FROM` through `ARKAD_TO`, both included, oldest first.
 - All dates are Eastern time (`America/New_York`). The SEC dates its filings in Eastern time, and
-  it publishes a daily index only after that day ends. At 02:00 UTC on 2 November it is still 1
+  it publishes a daily index in the evening of that day or later. At 02:00 UTC on 2 November it is still 1
   November in New York. So `yesterday` is the day before today in New York, never in UTC.
 - The dependency `chrono-tz` gives the New York time zone with its daylight-saving rules.
 - If `ARKAD_FROM` is unset, a value does not parse, `ARKAD_FROM` is after `ARKAD_TO`, or
@@ -1948,8 +1979,18 @@ pub struct SubmissionsRef {
 
 ## Deployment
 
-Proposed for MVP Operations. Both paths run as Cloud Run jobs with the bucket mounted, as
-`stream_extract` does. Neither path needs a service.
+Proposed for MVP Operations. Both paths run as Cloud Run jobs with the bucket mounted. Neither
+path needs a service.
+
+The root `Dockerfile` builds one image per binary (STA-431), as
+[ADR 0002](../../../docs/adr/0002-static-binaries.md) decides. A shared build stage compiles both
+binaries once as static musl binaries. Each final stage holds one binary on
+`gcr.io/distroless/static-debian13` and runs it as user `arkad` (`10001:10001`).
+
+| Image | Build | Entrypoint |
+| ----- | ----- | ---------- |
+| `backfill` | `docker build --target backfill .` | `/usr/local/bin/backfill` |
+| `daily-filings` | `docker build --target daily-filings .` | `/usr/local/bin/daily_filings` |
 
 | Path | Binary | Trigger | Size (estimate) |
 | ---- | ------ | ------- | --------------- |
