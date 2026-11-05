@@ -105,7 +105,8 @@ error/
   mod.rs                → ErrorKind    { Read(ReadError), Write(WriteError), DowncastNotPossible }
   read_error/mod.rs     → ReadError    { MissingRecord, Backend(BackendError), … }   ← arrives with the read methods (STA-139)
   write_error/mod.rs    → WriteError   { ConflictingWrite{reason}, FailedIntegrityCheck{reason}, Backend(BackendError) }
-  backend_error/mod.rs  → BackendError { Unavailable{reason}, Failed{reason} }        ← is_retryable() lives here
+  backend_error/mod.rs  → BackendError { UnreachableStorage{cause}, FailedOperation{cause}, UnauthorizedAccess{cause} }
+                          // cause: BackendCause { Reason(String), FailedFilesystemOperation(…) }
   // a RICH leaf gets its own module (e.g. missing_read_permission/), exactly as sec splits `invalid_cik_format`
 ```
 
@@ -138,7 +139,9 @@ async fn query(&self, …)                 -> Result<_,  ReadError>;    // never
 ```
 
 The store methods return the classes **directly** (`append -> Result<(), WriteError>`); the Postgres
-impl maps `sqlx::Error → WriteError::Backend(BackendError::Failed { reason })` at its own boundary.
+impl maps `sqlx::Error → WriteError::Backend(BackendError::failed_operation(reason))` at its own boundary.
+A `BackendCause` holds either that reason or a wrapped error. A wrapped error prints after
+`Caused by:`, and `source()` returns it. The filesystem backend wraps its `FailedFilesystemOperation`.
 This **drops the earlier `Backend::type Error` associated error** — the value-type decision already
 flattened rich detail to `reason`, so the associated type was buying flexibility we don't use.
 `ErrorKind` (the union) is what the **shared consumers** take — the retry decorator (`is_retryable()`)

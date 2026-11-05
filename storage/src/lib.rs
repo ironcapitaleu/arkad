@@ -39,7 +39,7 @@ pub mod implementations;
 pub mod shared;
 pub mod traits;
 
-pub use error::{BackendError, ErrorKind, ReadError, WriteError};
+pub use error::{BackendCause, BackendError, ErrorKind, ReadError, WriteError};
 pub use shared::{InvalidSha256Digest, Sha256Digest};
 pub use traits::repository::{ReadRepository, ReadWriteRepository, WriteRepository};
 
