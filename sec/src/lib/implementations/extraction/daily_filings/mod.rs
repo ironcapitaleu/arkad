@@ -67,21 +67,23 @@ pub const DEFAULT_MACHINES_IN_FLIGHT: usize = 4;
 pub const PENDING_DAYS: u64 = 3;
 
 /// The SEC client that every machine of a run accepts.
-// Deviation: the bound names `SecClientTrait` once per response type, because Rust 1.90 rejects
-// two bindings of `Response` in one bound (E0719).
 pub trait DailyClient:
-    SecClientTrait<Response<ZipBody> = SecResponse<ZipBody>, Error = FailedSecRequest>
-    + SecClientTrait<Response<JsonBody> = SecResponse<JsonBody>>
-    + Executes<FilingIndex>
+    SecClientTrait<
+        Response<ZipBody> = SecResponse<ZipBody>,
+        Response<JsonBody> = SecResponse<JsonBody>,
+        Error = FailedSecRequest,
+    > + Executes<FilingIndex>
     + Executes<FilingDocumentSet>
     + 'static
 {
 }
 
 impl<C> DailyClient for C where
-    C: SecClientTrait<Response<ZipBody> = SecResponse<ZipBody>, Error = FailedSecRequest>
-        + SecClientTrait<Response<JsonBody> = SecResponse<JsonBody>>
-        + Executes<FilingIndex>
+    C: SecClientTrait<
+            Response<ZipBody> = SecResponse<ZipBody>,
+            Response<JsonBody> = SecResponse<JsonBody>,
+            Error = FailedSecRequest,
+        > + Executes<FilingIndex>
         + Executes<FilingDocumentSet>
         + 'static
 {
