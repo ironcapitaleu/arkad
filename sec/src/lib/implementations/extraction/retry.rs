@@ -21,8 +21,6 @@ pub const DEFAULT_RETRY_DELAYS: [Duration; 2] = [Duration::from_secs(10), Durati
 /// Runs `attempt` until it succeeds, fails with an error that is not transient, or has used every
 /// wait of `retry_delays`. Calls `on_retry` with each error after which `attempt` runs again, and
 /// returns the last error.
-///
-/// [`is_transient`] decides which errors are transient.
 pub(super) async fn with_retry<T, F, Fut>(
     retry_delays: &[Duration],
     mut attempt: F,

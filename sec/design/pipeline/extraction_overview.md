@@ -398,6 +398,10 @@ flowchart TB
     classDef fail fill:#f8cecc,stroke:#b85450
 
     D["Next date of the run"]:::step --> DI{"Daily index<br/>exists?"}
+    DI -- "transient failure" --> RD["Retry after 10 s, then 60 s"]:::fail
+    RD -- "retry" --> DI
+    RD -- "third attempt fails" --> FD["Date failed"]:::fail
+    FD --> D
     DI -- "yes" --> SD["Store the daily index<br/>select the filings"]:::step
     DI -- "no, a later index exists" --> E["No filings"]:::skip
     DI -- "no, no later index" --> P["Pending or failed,<br/>by the window rules"]:::fail
@@ -418,7 +422,8 @@ flowchart TB
 
 All machines of one run share one `execution_id`. The dates run one after another. A `submissions`
 machine and the detection of a date retry the same way as a filing. A transient failure is a
-503, a 429, a failed or timed-out request, or a failed or timed-out read of the body. A Notes
+502, a 503, a 504, a 429, a failed or timed-out request, or a failed or timed-out read of the
+body. A Notes
 period of `backfill` retries too, and downloads the whole file again.
 
 ## Guarantees: Before and After a Run

@@ -22,7 +22,7 @@ pub struct AlwaysRespondingHttpClient {
     pub headers: Vec<(&'static str, String)>,
     /// The body of every response.
     pub body: Vec<u8>,
-    /// If `true`, the body breaks off before its first byte, as on a reset connection.
+    /// If `true`, the body stops before its first byte, as on a reset connection.
     pub cuts_body: bool,
 }
 

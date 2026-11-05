@@ -12,6 +12,7 @@
 
 use std::collections::BTreeSet;
 use std::sync::Arc;
+use std::time::Duration;
 
 use storage::ReadError;
 use storage::implementations::repository::filesystem::{
@@ -22,6 +23,7 @@ use thiserror::Error;
 
 use super::Backfill;
 use super::daily_filings::NoRepositories;
+use super::retry::DEFAULT_RETRY_DELAYS;
 use super::run_event::{RunEvent, Unit};
 use crate::implementations::states::extract::notes::ExtractNotesSuperState;
 use crate::implementations::states::extract::notes::builder::NoSecClient;
@@ -107,6 +109,7 @@ impl BackfillAll {
             sec_client: NoSecClient,
             repositories: NoRepositories,
             in_flight: super::DEFAULT_FILES_IN_FLIGHT,
+            retry_delays: DEFAULT_RETRY_DELAYS.to_vec(),
         }
     }
 }
@@ -114,8 +117,8 @@ impl BackfillAll {
 /// Builds and runs the pipeline of a backfill run over many Notes periods.
 ///
 /// Set the client with [`sec_client`](Self::sec_client) and the stores with
-/// [`repositories`](Self::repositories), in any order. [`in_flight`](Self::in_flight) is optional.
-/// Then call [`run`](Self::run).
+/// [`repositories`](Self::repositories), in any order. [`in_flight`](Self::in_flight) and
+/// [`retry_delays`](Self::retry_delays) are optional. Then call [`run`](Self::run).
 #[derive(Debug, Clone)]
 pub struct AllBatchBuilder<C, R> {
     backfill: Backfill,
@@ -123,6 +126,7 @@ pub struct AllBatchBuilder<C, R> {
     sec_client: C,
     repositories: R,
     in_flight: usize,
+    retry_delays: Vec<Duration>,
 }
 
 impl<R> AllBatchBuilder<NoSecClient, R> {
@@ -135,6 +139,7 @@ impl<R> AllBatchBuilder<NoSecClient, R> {
             sec_client,
             repositories: self.repositories,
             in_flight: self.in_flight,
+            retry_delays: self.retry_delays,
         }
     }
 }
@@ -152,6 +157,7 @@ impl<C> AllBatchBuilder<C, NoRepositories> {
             sec_client: self.sec_client,
             repositories,
             in_flight: self.in_flight,
+            retry_delays: self.retry_delays,
         }
     }
 }
@@ -166,6 +172,16 @@ impl<C, R> AllBatchBuilder<C, R> {
     pub fn in_flight(self, in_flight: usize) -> Self {
         Self {
             in_flight: in_flight.max(1),
+            ..self
+        }
+    }
+
+    /// Sets the waits before each new attempt of a Notes period that failed with a transient SEC
+    /// failure. The default is [`DEFAULT_RETRY_DELAYS`].
+    #[must_use]
+    pub fn retry_delays(self, retry_delays: impl IntoIterator<Item = Duration>) -> Self {
+        Self {
+            retry_delays: retry_delays.into_iter().collect(),
             ..self
         }
     }
@@ -213,6 +229,7 @@ where
             .sec_client(self.sec_client.clone())
             .repository(self.repositories.notes)
             .in_flight(self.in_flight)
+            .retry_delays(self.retry_delays)
             .run(move |unit, event| notes_observer(unit, event))
             .await;
         let (ciks, cik_reads) = read_ciks(&reader, notes.stored_archives()).await;

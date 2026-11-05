@@ -1561,8 +1561,8 @@ Each machine ends in one of four outcomes:
   the Cloud Run retry of the job covers it. The retry lives in `extraction/retry.rs` of the
   facade, not in `SecClient`. The `submissions` and Company Facts runs outside `daily_filings`
   do not retry.
-- `FailedSecRequest::is_transient` decides which failures are transient: a 503, a 429, a failed
-  or timed-out request, and a failed or timed-out read of the body. Every other status, an
+- `FailedSecRequest::is_transient` decides which failures are transient: a 502, a 503, a 504, a
+  429, a failed or timed-out request, and a failed or timed-out read of the body. Every other status, an
   invalid body, and a selection error are permanent. Like `is_absent_file`, it looks through
   `FailedFilingDocument`, so a 503 for the instance or the label file counts too.
 

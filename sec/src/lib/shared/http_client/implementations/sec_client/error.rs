@@ -75,8 +75,8 @@ impl FailedSecRequest {
     /// Returns `true` if a new attempt of the same request can succeed, also for the file that an
     /// [`ErrorReason::FailedFilingDocument`] names.
     ///
-    /// The transient failures are a 503, a 429, a failed or timed-out request, and a failed or
-    /// timed-out read of the body. Every other status and an invalid body are permanent.
+    /// The transient failures are a 502, a 503, a 504, a 429, a failed or timed-out request, and a
+    /// failed or timed-out read of the body. Every other status and an invalid body are permanent.
     #[must_use]
     pub fn is_transient(&self) -> bool {
         self.reason.is_transient()
@@ -147,7 +147,9 @@ impl ErrorReason {
             Self::InvalidResponse { source } => matches!(
                 source.reason,
                 ResponseErrorReason::InvalidStatusCode {
-                    status_code: StatusCode::ServiceUnavailable | StatusCode::TooManyRequests
+                    status_code: StatusCode::ServiceUnavailable
+                        | StatusCode::TooManyRequests
+                        | StatusCode::Other(502 | 504)
                 } | ResponseErrorReason::FailedBodyRead { .. }
                     | ResponseErrorReason::TimedOutBodyRead { .. }
             ),
@@ -413,6 +415,39 @@ mod tests {
             invalid_status_code(StatusCode::ServiceUnavailable).for_file("alco-20260908_htm.xml");
 
         let expected_result = true;
+
+        let result = error.is_transient();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_report_transient_when_the_sec_answers_502() {
+        let error = invalid_status_code(StatusCode::from_u16(502));
+
+        let expected_result = true;
+
+        let result = error.is_transient();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_report_transient_when_the_sec_answers_504() {
+        let error = invalid_status_code(StatusCode::from_u16(504));
+
+        let expected_result = true;
+
+        let result = error.is_transient();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_report_not_transient_when_a_filing_document_gets_404() {
+        let error = invalid_status_code(StatusCode::NotFound).for_file("alco-20260908_htm.xml");
+
+        let expected_result = false;
 
         let result = error.is_transient();
 

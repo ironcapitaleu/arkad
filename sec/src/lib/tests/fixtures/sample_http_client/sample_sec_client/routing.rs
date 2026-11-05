@@ -77,7 +77,7 @@ impl RoutingSecClient {
     }
 
     /// Adds a route that answers the first request to `url` with a status of 200 and a body that
-    /// breaks off, and every later request with `content_type` and `body`.
+    /// stops early, and every later request with `content_type` and `body`.
     #[must_use]
     pub fn route_cut_body_once(mut self, url: &str, content_type: &str, body: &[u8]) -> Self {
         let full = AlwaysRespondingHttpClient {

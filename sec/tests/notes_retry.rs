@@ -1,7 +1,7 @@
 //! # Notes Retry Integration Tests
 //!
 //! Runs the Notes batch run of the `Extraction` facade offline, with a fake SEC client whose first
-//! answer breaks off in the body, and checks that the run downloads the file again.
+//! body stops early, and checks that the run downloads the file again.
 //!
 //! ## External Dependencies
 //!
@@ -25,8 +25,8 @@ const NOTES_URL: &str =
     "https://www.sec.gov/files/dera/data/financial-statement-notes-data-sets/2026_09_notes.zip";
 const LOCK_EXPECT: &str = "Given an observer that never panics while it holds the lock, the lock should never be poisoned";
 
-/// Returns a client whose first answer for the Notes file of [`PERIOD`] breaks off in the body,
-/// and whose later answers send the whole file.
+/// Returns a client whose first body for the Notes file of [`PERIOD`] stops early, and whose
+/// later answers send the whole file.
 fn sec_client_with_a_cut_body() -> RoutingSecClient {
     RoutingSecClient::new().route_cut_body_once(NOTES_URL, "application/zip", SAMPLE_NOTES_ZIP)
 }
@@ -56,7 +56,7 @@ async fn run_observed(
 }
 
 #[tokio::test]
-async fn should_store_the_file_when_the_first_answer_breaks_off_in_the_body() {
+async fn should_store_the_file_when_the_first_body_stops_early() {
     let sec_client = sec_client_with_a_cut_body();
 
     let expected_result = 1;
@@ -67,7 +67,7 @@ async fn should_store_the_file_when_the_first_answer_breaks_off_in_the_body() {
 }
 
 #[tokio::test]
-async fn should_report_one_retried_error_when_the_first_answer_breaks_off_in_the_body() {
+async fn should_report_one_retried_error_when_the_first_body_stops_early() {
     let sec_client = sec_client_with_a_cut_body();
     let kinds = Arc::new(Mutex::new(Vec::new()));
     let observed_kinds = Arc::clone(&kinds);
