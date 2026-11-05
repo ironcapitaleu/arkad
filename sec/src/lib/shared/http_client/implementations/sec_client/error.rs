@@ -71,6 +71,16 @@ impl FailedSecRequest {
     pub fn is_timed_out(&self) -> bool {
         self.reason.is_timed_out()
     }
+
+    /// Returns `true` if a new attempt of the same request can succeed, also for the file that an
+    /// [`ErrorReason::FailedFilingDocument`] names.
+    ///
+    /// The transient failures are a 503, a 429, a failed or timed-out request, and a failed or
+    /// timed-out read of the body. Every other status and an invalid body are permanent.
+    #[must_use]
+    pub fn is_transient(&self) -> bool {
+        self.reason.is_transient()
+    }
 }
 
 /// Enum representing the reason why an SEC request failed.
@@ -126,6 +136,22 @@ impl ErrorReason {
             }
             Self::FailedFilingDocument { source, .. } => source.is_timed_out(),
             Self::FailedRequestExecution { .. } => false,
+        }
+    }
+
+    /// Returns `true` if a new attempt of the same request can succeed, also under a
+    /// [`FailedFilingDocument`](Self::FailedFilingDocument).
+    fn is_transient(&self) -> bool {
+        match self {
+            Self::FailedRequestExecution { .. } | Self::TimedOutRequest { .. } => true,
+            Self::InvalidResponse { source } => matches!(
+                source.reason,
+                ResponseErrorReason::InvalidStatusCode {
+                    status_code: StatusCode::ServiceUnavailable | StatusCode::TooManyRequests
+                } | ResponseErrorReason::FailedBodyRead { .. }
+                    | ResponseErrorReason::TimedOutBodyRead { .. }
+            ),
+            Self::FailedFilingDocument { source, .. } => source.is_transient(),
         }
     }
 }
@@ -299,6 +325,142 @@ mod tests {
         let expected_result = false;
 
         let result = error.is_timed_out();
+
+        assert_eq!(result, expected_result);
+    }
+
+    fn invalid_response(reason: SecResponseErrorReason) -> FailedSecRequest {
+        FailedSecRequest::from(InvalidSecResponse::new(reason))
+    }
+
+    #[test]
+    fn should_report_transient_when_the_sec_answers_503() {
+        let error = invalid_status_code(StatusCode::ServiceUnavailable);
+
+        let expected_result = true;
+
+        let result = error.is_transient();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_report_transient_when_the_sec_answers_429() {
+        let error = invalid_status_code(StatusCode::TooManyRequests);
+
+        let expected_result = true;
+
+        let result = error.is_transient();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_report_transient_when_the_request_fails_in_transport() {
+        let error = FailedSecRequest::new(ErrorReason::FailedRequestExecution {
+            details: "connection reset".to_string(),
+        });
+
+        let expected_result = true;
+
+        let result = error.is_transient();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_report_transient_when_the_request_times_out() {
+        let error = FailedSecRequest::new(ErrorReason::TimedOutRequest {
+            details: "error sending request".to_string(),
+        });
+
+        let expected_result = true;
+
+        let result = error.is_transient();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_report_transient_when_the_body_read_fails() {
+        let error = invalid_response(SecResponseErrorReason::FailedBodyRead {
+            details: "connection reset".to_string(),
+        });
+
+        let expected_result = true;
+
+        let result = error.is_transient();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_report_transient_when_the_body_read_times_out() {
+        let error = invalid_response(SecResponseErrorReason::TimedOutBodyRead {
+            details: "error decoding response body".to_string(),
+        });
+
+        let expected_result = true;
+
+        let result = error.is_transient();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_report_transient_when_a_filing_document_gets_503() {
+        let error =
+            invalid_status_code(StatusCode::ServiceUnavailable).for_file("alco-20260908_htm.xml");
+
+        let expected_result = true;
+
+        let result = error.is_transient();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_report_not_transient_when_the_sec_answers_404() {
+        let error = invalid_status_code(StatusCode::NotFound);
+
+        let expected_result = false;
+
+        let result = error.is_transient();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_report_not_transient_when_the_sec_answers_403() {
+        let error = invalid_status_code(StatusCode::Forbidden);
+
+        let expected_result = false;
+
+        let result = error.is_transient();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_report_not_transient_when_the_sec_answers_500() {
+        let error = invalid_status_code(StatusCode::InternalServerError);
+
+        let expected_result = false;
+
+        let result = error.is_transient();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_report_not_transient_when_the_body_does_not_parse() {
+        let error = invalid_response(SecResponseErrorReason::InvalidBody {
+            details: "expected value at line 1 column 1".to_string(),
+        });
+
+        let expected_result = false;
+
+        let result = error.is_transient();
 
         assert_eq!(result, expected_result);
     }

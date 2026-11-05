@@ -21,6 +21,8 @@
 //!   CIKs.
 //! - [`daily_filings`]: The new-filing path of an incremental run over many dates.
 //! - [`notes`]: The Notes source of a backfill run, and its batch run over many periods.
+//! - `retry`: The run-level retry of a machine after a transient SEC failure, with
+//!   [`DEFAULT_RETRY_DELAYS`].
 //! - [`run_event`]: The events that a batch run passes to its observer.
 //! - [`submissions`]: The `submissions` source of a backfill run, and its batch run over many
 //!   CIKs.
@@ -200,6 +202,7 @@ pub mod all;
 pub mod company_facts;
 pub mod daily_filings;
 pub mod notes;
+mod retry;
 pub mod run_event;
 pub mod submissions;
 
@@ -212,14 +215,14 @@ pub use company_facts::{
     FailedCompanyFactsBackfill,
 };
 pub use daily_filings::{
-    DEFAULT_MACHINES_IN_FLIGHT, DEFAULT_RETRY_DELAYS, DailyClient, DailyFilingsBuilder,
-    DailyFilingsRepositories, DailyRunSummary, FailedDailyRun, IncrementalDailyFilings,
-    PENDING_DAYS,
+    DEFAULT_MACHINES_IN_FLIGHT, DailyClient, DailyFilingsBuilder, DailyFilingsRepositories,
+    DailyRunSummary, FailedDailyRun, IncrementalDailyFilings, PENDING_DAYS,
 };
 pub use notes::{
     BackfillNotes, DEFAULT_FILES_IN_FLIGHT, FailedBackfill, MAX_UNPUBLISHED, MissingCutOverDate,
     NotesBatchBuilder, NotesRunSummary,
 };
+pub use retry::DEFAULT_RETRY_DELAYS;
 pub use run_event::{ErrorKind, RunEvent, Unit};
 pub use submissions::{
     BackfillSubmissions, FailedSubmissionsBackfill, SubmissionsBatchBuilder, SubmissionsRunSummary,

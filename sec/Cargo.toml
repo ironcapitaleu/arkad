@@ -34,15 +34,17 @@ url = "2"
 # Reads the `sub.tsv` entry of a stored Notes file. Only the pure-Rust deflate backend, because the
 # Notes files hold deflated entries.
 zip = { version = "9.2.1", default-features = false, features = ["deflate-flate2-zlib-rs"] }
-# Only the `test-fixtures` feature uses it.
+# Only the `test-fixtures` feature uses them.
 http = { version = "1", optional = true }
+http-body = { version = "1", optional = true }
 
 [features]
 tracing-logging = ["tracing", "tracing-appender", "tracing-subscriber"]
-test-fixtures = ["http"]
+test-fixtures = ["http", "http-body"]
 
 [dev-dependencies]
 http = "1"
+http-body = "1"
 pretty_assertions = "1"
 # The tests of the binaries and the integration tests use the fixtures of `sec`. Only this feature
 # exposes them outside of `cfg(test)`.

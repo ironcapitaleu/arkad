@@ -36,6 +36,7 @@ impl InnerClient for RoutingHttpClient {
             status: 404,
             headers: Vec::new(),
             body: Vec::new(),
+            cuts_body: false,
         };
         let responder = self
             .routes

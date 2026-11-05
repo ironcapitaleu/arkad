@@ -258,31 +258,15 @@ fn company_entries(companies: &[CompanyOutcome]) -> Value {
     })
 }
 
-/// Returns `true` if the SEC answered 503 to a request of the machine.
-pub(super) fn is_unavailable(error: &StreamError) -> bool {
-    matches!(
-        &error.source,
-        StateMachine::State(StateError::FailedRequestExecution(failure))
-            if failure.domain_error().is_unavailable()
-    )
-}
-
 #[cfg(test)]
-pub(super) mod tests {
+mod tests {
     use pretty_assertions::assert_eq;
     use uuid::Uuid;
 
-    use crate::error::state_machine::state::{
-        FailedDocumentSelection, FailedRequestExecution, MissingDailyIndex,
-    };
+    use crate::error::state_machine::state::{FailedDocumentSelection, MissingDailyIndex};
     use crate::prelude::StreamEvent;
     use crate::shared::filing_documents::FilingDocumentRole;
-    use crate::shared::http_client::implementations::sec_client::error::FailedSecRequest;
     use crate::shared::index_date::IndexDate;
-    use crate::shared::response::implementations::sec_response::error::{
-        ErrorReason, InvalidSecResponse,
-    };
-    use crate::shared::status_code::StatusCode;
 
     use super::*;
 
@@ -346,49 +330,6 @@ pub(super) mod tests {
             role: FilingDocumentRole::XbrlInstance,
             candidate_count: 2,
         })
-    }
-
-    fn request_error(status_code: StatusCode) -> StreamError {
-        let failure =
-            FailedSecRequest::from(InvalidSecResponse::new(ErrorReason::InvalidStatusCode {
-                status_code,
-            }));
-        stream_error(
-            "Execute SEC Request",
-            StateMachine::State(StateError::FailedRequestExecution(
-                FailedRequestExecution::new("Execute SEC Request", failure),
-            )),
-        )
-    }
-
-    pub(in super::super) fn unavailable() -> StreamError {
-        request_error(StatusCode::ServiceUnavailable)
-    }
-
-    pub(in super::super) fn not_found() -> StreamError {
-        request_error(StatusCode::NotFound)
-    }
-
-    #[test]
-    fn should_count_an_error_as_unavailable_when_the_sec_answers_503() {
-        let error = unavailable();
-
-        let expected_result = true;
-
-        let result = is_unavailable(&error);
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
-    fn should_not_count_an_error_as_unavailable_when_the_sec_answers_404() {
-        let error = not_found();
-
-        let expected_result = false;
-
-        let result = is_unavailable(&error);
-
-        assert_eq!(result, expected_result);
     }
 
     fn configuration_error() -> StreamError {
