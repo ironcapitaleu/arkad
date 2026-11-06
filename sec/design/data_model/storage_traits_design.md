@@ -321,14 +321,18 @@ replaces or deletes a version.
   by default. The Notes context compares `last_modified` (see
   [How a Notes Run Learns of a Replaced File](#how-a-notes-run-learns-of-a-replaced-file)). Equal
   bytes with a new `last_modified` add a version.
+- If the stored context does not parse into `D::Context`, `persist` adds a version. It does not
+  return an error. This covers a stored version written under an older layout of the context.
 - The metadata is written last, so it marks a complete version. A reader lists only the
   `.meta.json` files. A document without its metadata is a leftover of a killed run. The
   integrity check finds it.
 - This reverses the order of today, where the metadata is renamed first. Today a reader opens the
   document by its key, so a document must never exist without its metadata. With versions, a
   reader finds a version by its metadata.
-- The version name holds the SHA-256. So a rename onto an existing name writes the same bytes,
-  and no version can change.
+- If the version name exists before step 3, `persist` returns `Ok` and writes nothing. The
+  name holds the SHA-256, so the stored version has the same bytes, and no version changes. A
+  new `last_modified` with the same bytes and the same microsecond is lost, and the next run
+  adds it.
 - On the mounted bucket a rename is a copy, then a delete. The copy creates the target object in
   one step, so a reader never sees a half-written version. A crash between the copy and the delete
   leaves a temporary file, which the integrity check removes.
@@ -380,7 +384,8 @@ The SEC does not tell a client that it replaced a file. The run must ask.
 
 - Every answer for a Notes file carries `Last-Modified` (measured). `Headers` does not read it
   today. `last_modified` is a new field of the metadata `context` of a Notes file, and holds this
-  value.
+  value. Its type is `Option<DateTime<Utc>>` with `#[serde(default)]`, so a stored context
+  without the field parses as `None`.
 - Before a run skips a stored Notes file, it sends one `HEAD` request for the file. The run keeps
   the latest stored version if one of these holds:
   - The version has `last_modified`, and it equals `Last-Modified` of the answer.
@@ -485,7 +490,8 @@ No ticket exists yet for items 1 to 4. Each fits the PR budget of about 200 line
 2. **Write and read the latest version.** `persist` adds a version, as in [Write](#write).
    `get(key)` returns the latest version. Tests: equal bytes skip, new bytes add a version, A then
    B then A gives three versions, metadata after the document, a change of `user_agent` alone
-   adds no version. Adds `Document::is_same_version` with the default `true`. Update "How a Write Works" in
+   adds no version, a stored context that does not parse adds a version, an existing version name
+   is not written again. Adds `Document::is_same_version` with the default `true`. Update "How a Write Works" in
    `extraction_overview.md`, "Raw Store" in `ingestion_paths.md`, and the rustdoc of
    `FilesystemRepository` and `persist`. Needs item 1.
 3. **Read a chosen version.** `VersionSelector` and `VersionedReadRepository` for the filesystem
