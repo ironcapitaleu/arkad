@@ -312,8 +312,10 @@ mod tests {
         let missing_output = MissingOutput::new("Validate CIK Format", "Prepare SEC Request");
         let error = StateMachine::Transition(Transition::MissingOutput(missing_output));
 
-        let result = Error::source(&error);
+        let expected_result: Option<String> = None;
 
-        assert!(result.is_none());
+        let result = Error::source(&error).map(ToString::to_string);
+
+        assert_eq!(result, expected_result);
     }
 }
