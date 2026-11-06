@@ -401,7 +401,6 @@ where
     /// Returns the stream, tagged with the `execution_id` that the context holds.
     ///
     /// Use it instead of `into_stream`, so the stream and the stored documents name the same run.
-    #[must_use]
     pub fn into_run_stream(self) -> StateMachineStream {
         let execution_id = self.context.execution_id;
         self.into_stream(execution_id)
@@ -1202,7 +1201,7 @@ mod tests {
             .labels_repository(FakeXbrlLabelsRepository::new())
             .build();
 
-        let expected_result = Some((SELECT_FILING_DOCUMENTS.to_string(), "Problem occurred during internal state operations: '[StateError] A state level error occurred, Caused by: [FailedDocumentSelection] Failure in State: 'Select Filing Documents', Caused by: [MissingXbrlInstance] The folder of filing '0000003545-26-000047' holds no XBRL instance'".to_string()));
+        let expected_result = Some((SELECT_FILING_DOCUMENTS.to_string(), "[StateError] A state level error occurred, Caused by: [FailedDocumentSelection] Failure in State: 'Select Filing Documents', Caused by: [MissingXbrlInstance] The folder of filing '0000003545-26-000047' holds no XBRL instance".to_string()));
 
         let result = super_state
             .run_to_documents(|_| {})
@@ -1222,7 +1221,7 @@ mod tests {
             .route(INSTANCE_URL, 200, "text/xml", b"<xbrl/>");
         let super_state = stored_super_state(root.path(), sec_client);
 
-        let expected_result = Some((EXECUTE_SEC_REQUEST.to_string(), "Problem occurred during internal state operations: '[StateError] A state level error occurred, Caused by: [FailedRequestExecution] Failure in State: 'Execute SEC Request', Caused by: [FailedSecRequest] SEC request failed, Caused by: [FailedFilingDocument] Request for file 'alco-20260908_lab.xml' failed, Caused by: [InvalidResponse] Response validation failed, Caused by: [InvalidSecResponse] Invalid SEC Response, Reason: 'Status code '404' is not accepted''".to_string()));
+        let expected_result = Some((EXECUTE_SEC_REQUEST.to_string(), "[StateError] A state level error occurred, Caused by: [FailedRequestExecution] Failure in State: 'Execute SEC Request', Caused by: [FailedSecRequest] SEC request failed, Caused by: [FailedFilingDocument] Request for file 'alco-20260908_lab.xml' failed, Caused by: [InvalidResponse] Response validation failed, Caused by: [InvalidSecResponse] Invalid SEC Response, Reason: 'Status code '404' is not accepted'".to_string()));
 
         let result = super_state
             .run_to_documents(|_| {})

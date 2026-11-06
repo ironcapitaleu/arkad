@@ -47,8 +47,8 @@ http = "1"
 http-body = "1"
 pretty_assertions = "1"
 # The tests of the binaries and the integration tests use the fixtures of `sec`. Only this feature
-# exposes them outside of `cfg(test)`.
-sec = { path = ".", features = ["test-fixtures"] }
+# exposes them outside of `cfg(test)`. The test of the JSON logger needs `tracing-logging`.
+sec = { path = ".", features = ["test-fixtures", "tracing-logging"] }
 tempfile = "3"
 # The tests of the request timeouts run local TCP servers, and limit how long they wait.
 tokio = { version = "1.52.3", features = ["io-util", "net", "time"] }

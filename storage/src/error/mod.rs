@@ -32,7 +32,7 @@ pub mod backend_error;
 pub mod read_error;
 pub mod write_error;
 
-pub use backend_error::BackendError;
+pub use backend_error::{BackendCause, BackendError};
 pub use read_error::ReadError;
 pub use write_error::WriteError;
 

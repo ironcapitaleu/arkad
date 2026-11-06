@@ -13,7 +13,7 @@ mod files_in_flight;
 #[path = "../src/bin/shared/notes_periods.rs"]
 mod notes_periods;
 // The tests read only the summary of the catch-up, so its dates would fire `dead_code`.
-#[allow(dead_code)]
+#[expect(dead_code)]
 #[path = "../src/bin/backfill/run.rs"]
 mod run;
 

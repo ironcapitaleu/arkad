@@ -1,13 +1,11 @@
 //! # Batch Log
 //!
-//! Provides the JSON logger of a batch binary, its startup steps that log their failure, and the
-//! observer and summary logs of a facade run.
-//!
-//! Every log has the five fields `level`, `timestamp`, `event`, `message`, and `context`.
+//! Provides the startup steps of a batch binary that log their failure, and the observer and
+//! summary logs of a facade run. Each call records its context as a JSON object, for the logger in
+//! `json_log.rs`.
 
 use std::error::Error;
 use std::fmt::{self, Display, Formatter};
-use std::io::stdout;
 use std::time::Duration;
 
 use chrono::NaiveDate;
@@ -16,8 +14,6 @@ use sec::prelude::{StreamError, StreamItem};
 use sec::shared::http_client::implementations::sec_client::SecClient;
 use serde_json::Value;
 use storage::implementations::repository::filesystem::{FilesystemRepository, Write};
-use tracing_appender::non_blocking::WorkerGuard;
-use tracing_subscriber::fmt::format::FmtSpan;
 use uuid::Uuid;
 
 use crate::sec_client::{
@@ -54,20 +50,6 @@ impl Display for BatchEvent {
     }
 }
 
-/// Starts the JSON logger on stdout. The logger writes until the returned guard drops.
-pub fn init_logger() -> WorkerGuard {
-    let (non_blocking, guard) = tracing_appender::non_blocking(stdout());
-    tracing_subscriber::fmt()
-        .json()
-        .with_span_events(FmtSpan::NONE)
-        .with_target(false)
-        .with_current_span(false)
-        .flatten_event(true)
-        .with_writer(non_blocking)
-        .init();
-    guard
-}
-
 /// Builds the SEC client of the run, logs a failure, and warns about the default `User-Agent`.
 ///
 /// # Errors
@@ -78,7 +60,9 @@ pub fn startup_sec_client() -> Result<SecClient, Box<dyn Error + Send + Sync>> {
         let cause = startup_error_cause(error.as_ref());
         tracing::error!(
             event = %BatchEvent::StartupFailed,
-            message = %format!("Failed to build the SEC client, Caused by: {cause}"),
+            message = %format!(
+                "[FailedSecClientCreation] Failed to build the SEC client, Caused by: {cause}"
+            ),
             context = %serde_json::json!({ "env_var": USER_AGENT_ENV_VAR }),
         );
     })?;
@@ -101,7 +85,9 @@ pub fn startup_create_root<D>(repository: &FilesystemRepository<Write, D>) -> st
     create_root(repository).inspect_err(|error| {
         tracing::error!(
             event = %BatchEvent::StartupFailed,
-            message = %format!("Failed to create the storage root, Caused by: {error}"),
+            message = %format!(
+                "[FailedStorageRootCreation] Failed to create the storage root, Reason: '{error}'"
+            ),
             context = %serde_json::json!({ "root": repository.root().display().to_string() }),
         );
     })
