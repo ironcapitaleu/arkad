@@ -14,7 +14,7 @@ use crate::traits::error::FromDomainError;
 /// Wraps a domain-level [`FailedDocumentStorage`] together with the failing state's name, so a
 /// storage failure carries state context as it propagates up the error hierarchy.
 #[derive(Error, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[error("[FailedDocumentWrite] Failure in State: '{state_name}', Caused by: {domain_error}")]
+#[error("[FailedDocumentWrite] Failed to store the document, Caused by: {domain_error}")]
 pub struct FailedDocumentWrite {
     /// The name of the state where the error occurred.
     pub state_name: String,
@@ -129,7 +129,7 @@ mod tests {
     fn should_chain_the_storage_error_after_caused_by_when_displayed() {
         let error = FailedDocumentWrite::new(STATE_NAME, sample_domain_error());
 
-        let expected_result = "[FailedDocumentWrite] Failure in State: 'Store Company Facts', Caused by: [FailedDocumentStorage] Document storage failed, Caused by: [ConflictingWrite] Document conflicts with a stored document, Reason: 'A document already exists under sec/companyfacts/CIK0001067983.json'";
+        let expected_result = "[FailedDocumentWrite] Failed to store the document, Caused by: [ConflictingWrite] Document conflicts with a stored document, Reason: 'A document already exists under sec/companyfacts/CIK0001067983.json'";
 
         let result = error.to_string();
 

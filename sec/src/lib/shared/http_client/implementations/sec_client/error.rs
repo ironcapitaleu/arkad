@@ -17,8 +17,11 @@ use crate::shared::status_code::StatusCode;
 ///
 /// Wraps the [`ErrorReason`] distinguishing a transport-level failure from a response that arrived
 /// but failed SEC validation.
+///
+/// Passes through: prints the inner error as it is, because this layer adds no fact.
+/// The [`ErrorReason`] is no error type, so `source()` returns `None`.
 #[derive(Debug, Error, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[error("[FailedSecRequest] SEC request failed, Caused by: {reason}")]
+#[error("{reason}")]
 pub struct FailedSecRequest {
     /// The reason why the SEC request failed.
     pub reason: ErrorReason,
@@ -99,6 +102,8 @@ pub enum ErrorReason {
         details: String,
     },
     /// The response was received but did not meet SEC validity requirements.
+    ///
+    /// Passes through: prints the inner error as it is, because this layer adds no fact.
     InvalidResponse {
         /// The underlying response-validation error.
         source: InvalidSecResponse,
@@ -173,12 +178,7 @@ impl fmt::Display for ErrorReason {
                     "[TimedOutRequest] HTTP request timed out, Reason: '{details}'"
                 )
             }
-            Self::InvalidResponse { source } => {
-                write!(
-                    f,
-                    "[InvalidResponse] Response validation failed, Caused by: {source}"
-                )
-            }
+            Self::InvalidResponse { source } => write!(f, "{source}"),
             Self::FailedFilingDocument { file_name, source } => {
                 write!(
                     f,
@@ -612,13 +612,14 @@ mod tests {
     }
 
     #[test]
-    fn should_format_display_as_expected_when_reason_is_failed_request_execution() {
+    fn should_print_the_reason_as_it_is_when_reason_is_failed_request_execution() {
         let reason = ErrorReason::FailedRequestExecution {
             details: "connection refused".to_string(),
         };
-        let error = FailedSecRequest::new(reason.clone());
+        let error = FailedSecRequest::new(reason);
 
-        let expected_result = format!("[FailedSecRequest] SEC request failed, Caused by: {reason}");
+        let expected_result =
+            "[FailedRequestExecution] HTTP request execution failed, Reason: 'connection refused'";
 
         let result = format!("{error}");
 
@@ -626,7 +627,7 @@ mod tests {
     }
 
     #[test]
-    fn should_format_display_as_expected_when_reason_is_invalid_response() {
+    fn should_print_the_reason_as_it_is_when_reason_is_invalid_response() {
         let sec_response_error =
             InvalidSecResponse::new(SecResponseErrorReason::InvalidContentType {
                 content_type: ContentType::Xml,
@@ -634,9 +635,9 @@ mod tests {
         let reason = ErrorReason::InvalidResponse {
             source: sec_response_error,
         };
-        let error = FailedSecRequest::new(reason.clone());
+        let error = FailedSecRequest::new(reason);
 
-        let expected_result = format!("[FailedSecRequest] SEC request failed, Caused by: {reason}");
+        let expected_result = "[InvalidSecResponse] Invalid SEC Response, Reason: 'Content type 'application/xml' is not accepted'";
 
         let result = format!("{error}");
 
@@ -647,7 +648,7 @@ mod tests {
     fn should_name_the_file_and_chain_the_cause_when_displaying_a_failed_filing_document() {
         let error = invalid_status_code(StatusCode::NotFound).for_file("alco-20260908_htm.xml");
 
-        let expected_result = "[FailedSecRequest] SEC request failed, Caused by: [FailedFilingDocument] Request for file 'alco-20260908_htm.xml' failed, Caused by: [InvalidResponse] Response validation failed, Caused by: [InvalidSecResponse] Invalid SEC Response, Reason: 'Status code '404' is not accepted'";
+        let expected_result = "[FailedFilingDocument] Request for file 'alco-20260908_htm.xml' failed, Caused by: [InvalidSecResponse] Invalid SEC Response, Reason: 'Status code '404' is not accepted'";
 
         let result = error.to_string();
 
@@ -685,7 +686,7 @@ mod tests {
     }
 
     #[test]
-    fn should_format_display_as_expected_for_invalid_response_reason() {
+    fn should_print_the_response_error_as_it_is_for_invalid_response_reason() {
         let sec_response_error =
             InvalidSecResponse::new(SecResponseErrorReason::InvalidContentType {
                 content_type: ContentType::Xml,
@@ -694,7 +695,7 @@ mod tests {
             source: sec_response_error,
         };
 
-        let expected_result = "[InvalidResponse] Response validation failed, Caused by: [InvalidSecResponse] Invalid SEC Response, Reason: 'Content type 'application/xml' is not accepted'";
+        let expected_result = "[InvalidSecResponse] Invalid SEC Response, Reason: 'Content type 'application/xml' is not accepted'";
 
         let result = reason.to_string();
 

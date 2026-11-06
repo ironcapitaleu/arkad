@@ -27,7 +27,7 @@ use crate::traits::error::FromDomainError;
 
 /// Error for a daily index that does not parse, tagged with the state it occurred in.
 #[derive(Error, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[error("[InvalidDailyIndex] Failure in State: '{state_name}', Caused by: {daily_index_error}")]
+#[error("[InvalidDailyIndex] Failed to parse the daily index, Caused by: {daily_index_error}")]
 pub struct InvalidDailyIndex {
     /// The name of the state where the error occurred.
     pub state_name: String,
@@ -100,7 +100,7 @@ mod tests {
         let daily_index_error = DailyIndexError::MissingDailyIndexHeader;
         let invalid_daily_index = InvalidDailyIndex::new("Select Filings", daily_index_error);
 
-        let expected_result = "[InvalidDailyIndex] Failure in State: 'Select Filings', Caused by: [MissingDailyIndexHeader] The daily index has no line that starts with '---' before its rows";
+        let expected_result = "[InvalidDailyIndex] Failed to parse the daily index, Caused by: [MissingDailyIndexHeader] The daily index has no line that starts with '---' before its rows";
 
         let result = invalid_daily_index.to_string();
 

@@ -14,8 +14,11 @@ use thiserror::Error;
 /// Error indicating that the store did not keep a document.
 ///
 /// Wraps the [`DocumentStorageErrorReason`] that tells a rejected write from a failed backend.
+///
+/// Passes through: prints the inner error as it is, because this layer adds no fact.
+/// The [`DocumentStorageErrorReason`] is no error type, so `source()` returns `None`.
 #[derive(Debug, Error, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[error("[FailedDocumentStorage] Document storage failed, Caused by: {reason}")]
+#[error("{reason}")]
 pub struct FailedDocumentStorage {
     /// The reason why the store did not keep the document.
     pub reason: DocumentStorageErrorReason,
@@ -44,11 +47,18 @@ pub enum DocumentStorageErrorReason {
         details: String,
     },
     /// The storage backend failed or could not be reached.
+    ///
+    /// Passes through: prints the inner error as it is, because this layer adds no fact.
+    /// It holds the backend error as text, because no `sec` error type holds a `storage` type. So
+    /// `source()` cannot reach the backend error.
     FailedBackend {
         /// The message of the backend error.
         details: String,
     },
     /// The store failed in a way that no other variant names.
+    ///
+    /// Passes through: prints the inner error as it is, because this layer adds no fact.
+    /// It holds the store error as text, so `source()` cannot reach the store error.
     Other {
         /// The message of the store error.
         details: String,
@@ -66,13 +76,7 @@ impl fmt::Display for DocumentStorageErrorReason {
                 f,
                 "[FailedIntegrityCheck] Document breaks an integrity rule of the store, Reason: '{details}'"
             ),
-            Self::FailedBackend { details } => {
-                write!(
-                    f,
-                    "[FailedBackend] Storage backend failed, Caused by: {details}"
-                )
-            }
-            Self::Other { details } => write!(f, "[Other] Store failed, Caused by: {details}"),
+            Self::FailedBackend { details } | Self::Other { details } => f.write_str(details),
         }
     }
 }
@@ -159,12 +163,12 @@ mod tests {
     }
 
     #[test]
-    fn should_chain_the_reason_after_caused_by_when_displayed() {
+    fn should_print_the_reason_as_it_is_when_displayed() {
         let error = FailedDocumentStorage::new(DocumentStorageErrorReason::ConflictingWrite {
             details: CONFLICT_REASON.to_string(),
         });
 
-        let expected_result = "[FailedDocumentStorage] Document storage failed, Caused by: [ConflictingWrite] Document conflicts with a stored document, Reason: 'A document already exists under sec/companyfacts/CIK0001067983.json'";
+        let expected_result = "[ConflictingWrite] Document conflicts with a stored document, Reason: 'A document already exists under sec/companyfacts/CIK0001067983.json'";
 
         let result = error.to_string();
 
@@ -198,13 +202,14 @@ mod tests {
     }
 
     #[test]
-    fn should_chain_the_backend_message_after_caused_by_for_failed_backend() {
+    fn should_print_the_backend_message_as_it_is_for_failed_backend() {
         let reason = DocumentStorageErrorReason::FailedBackend {
             details: "[FailedOperation] Storage backend operation failed, Reason: 'disk full'"
                 .to_string(),
         };
 
-        let expected_result = "[FailedBackend] Storage backend failed, Caused by: [FailedOperation] Storage backend operation failed, Reason: 'disk full'";
+        let expected_result =
+            "[FailedOperation] Storage backend operation failed, Reason: 'disk full'";
 
         let result = reason.to_string();
 
@@ -212,12 +217,12 @@ mod tests {
     }
 
     #[test]
-    fn should_chain_the_store_message_after_caused_by_for_other() {
+    fn should_print_the_store_message_as_it_is_for_other() {
         let reason = DocumentStorageErrorReason::Other {
             details: "[StoreClosed] Store is closed".to_string(),
         };
 
-        let expected_result = "[Other] Store failed, Caused by: [StoreClosed] Store is closed";
+        let expected_result = "[StoreClosed] Store is closed";
 
         let result = reason.to_string();
 

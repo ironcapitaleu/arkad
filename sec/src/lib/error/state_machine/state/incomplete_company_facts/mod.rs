@@ -78,7 +78,7 @@ impl fmt::Display for MissingFields {
 /// the failing state's name and the list of missing concepts.
 #[derive(Error, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[error(
-    "[IncompleteCompanyFacts] SEC response is missing expected data fields in State: '{state_name}', Reason: 'Missing fields: {missing_fields}'"
+    "[IncompleteCompanyFacts] SEC response is missing expected data fields, Reason: 'Missing fields: {missing_fields}'"
 )]
 pub struct IncompleteCompanyFacts {
     state_name: String,

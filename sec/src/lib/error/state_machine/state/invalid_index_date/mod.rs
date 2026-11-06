@@ -28,7 +28,7 @@ use crate::traits::error::FromDomainError;
 
 /// Error for an index date validation failure, tagged with the state it occurred in.
 #[derive(Error, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[error("[InvalidIndexDate] Failure in State: '{state_name}', Caused by: {index_date_error}")]
+#[error("[InvalidIndexDate] Failed to validate the index date, Caused by: {index_date_error}")]
 pub struct InvalidIndexDate {
     /// The name of the state where the error occurred.
     pub state_name: String,
@@ -121,7 +121,7 @@ mod tests {
         let invalid_index_date =
             InvalidIndexDate::new("Validate Index Date", sample_index_date_error());
 
-        let expected_result = "[InvalidIndexDate] Failure in State: 'Validate Index Date', Caused by: [IndexDateError] Invalid index date, Reason: 'Expected a calendar date of the form YYYY-MM-DD', Input: '2026-1-2'";
+        let expected_result = "[InvalidIndexDate] Failed to validate the index date, Caused by: [IndexDateError] Invalid index date, Reason: 'Expected a calendar date of the form YYYY-MM-DD', Input: '2026-1-2'";
 
         let result = invalid_index_date.to_string();
 

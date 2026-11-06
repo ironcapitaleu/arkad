@@ -14,7 +14,7 @@ use crate::traits::error::FromDomainError;
 /// Wraps a domain-level [`FailedSecRequest`] together with the failing state's name, so a
 /// transport-level failure carries state context as it propagates up the error hierarchy.
 #[derive(Error, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[error("[FailedRequestExecution] Failure in State: '{state_name}', Caused by: {domain_error}")]
+#[error("[FailedRequestExecution] Failed to execute the SEC request, Caused by: {domain_error}")]
 pub struct FailedRequestExecution {
     /// The name of the state where the error occurred.
     pub state_name: String,
