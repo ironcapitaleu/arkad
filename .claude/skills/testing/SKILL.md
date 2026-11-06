@@ -54,7 +54,7 @@ Based on this reasoning, suggest what tests to write/review and let the user con
 ## Conventions
 
 - **Pattern:** Arrange, Define, Act, Assert. The Arrange step binds the input to a named variable. See [Arrange the Input](#arrange-the-input). The Define step writes the expected value out. See [Show the Expected Result](#show-the-expected-result).
-- **Exactly ONE assertion per test function** (`assert_eq!`, `assert_ne!`, or `assert!(...)`). Exceptions: compile-time auto-trait checks (bounds enforced by compilation), tests that check only that an operation completes (the `.expect(...)` is the check), and `#[should_panic]` tests (the panic is the assertion). See [Compare the Value](#compare-the-value).
+- **Exactly ONE assertion per test function** (`assert_eq!`, `assert_ne!`, or `assert!(...)`). Exceptions: compile-time tests, such as auto-trait checks (bounds enforced by compilation), tests that check only that an operation completes (the `.expect(...)` is the check), and `#[should_panic]` tests (the panic is the assertion). See [Compare the Value](#compare-the-value).
 - **Naming:** `when` names a condition. `for` names a subject. Pick the clause that fits what follows it.
   - A test with a real condition reads `should_<behavior>_when_<condition>`, as in `should_return_false_when_state_has_not_computed_the_output`.
   - A test named after its subject reads `should_<behavior>_for_<subject>`, as in `should_store_company_facts_for_sp500_companies`.
@@ -152,7 +152,7 @@ The second test computes `expected_result` from strings with `map`.
 
 If a test checks a value, end it with `assert_eq!(result, expected_result)`. Do not hide the value in a check inside `assert!`, as in `assert!(result.is_none())` or `assert!(result.is_err())`. A failing `assert_eq!` prints both values. A failing `assert!` prints only the condition.
 
-Three kinds of test check no value, so they need no `assert_eq!`:
+Three kinds of test check no value, so they need no assertion:
 
 - A compile-time test, such as `implements_auto_traits::<MyType>()`. It passes if it compiles.
 - A test that checks only that an operation completes. The `.expect(...)` on the operation is the check, and its message says why the operation cannot fail.
