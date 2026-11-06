@@ -180,7 +180,7 @@ Use `thiserror` with `#[error("...")]` and `#[source]` for deriving `Display` an
     - Use `Result<T, E>` for error handling
   - **Assert**: Verify results
     - Use `assert_eq!`, `assert_ne!`, or `assert!(condition)`
-    - Compare the value with `assert_eq!(result, expected_result)`. In review, an `assert!` on a check of the result, as in `assert!(result.is_none())`, is a 🟣 nit (see the `testing` skill, "Compare the Value")
+    - If the test checks a value, compare it with `assert_eq!(result, expected_result)`. Compile-time tests, tests that check only that an operation completes, and `#[should_panic]` tests need no `assert_eq!`. In review, an `assert!` on a check of the result, as in `assert!(result.is_none())`, is a 🟣 nit (see the `testing` skill, "Compare the Value")
     - **IMPORTANT**: Write **EXACTLY ONE** assertion per test function (`assert_eq!`, `assert_ne!`, or `assert!(...)`)
 - Unit tests go in the same file as the code under a `#[cfg(test)]` module.
 - Test function names are `snake_case`. `when` names a condition, `for` names a subject.

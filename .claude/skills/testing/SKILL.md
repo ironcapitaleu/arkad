@@ -150,7 +150,13 @@ The second test computes `expected_result` from strings with `map`.
 
 ### Compare the Value
 
-End the test with `assert_eq!(result, expected_result)`. Do not hide the value in a check inside `assert!`, as in `assert!(result.is_none())` or `assert!(result.is_err())`. A failing `assert_eq!` prints both values. A failing `assert!` prints only the condition.
+If a test checks a value, end it with `assert_eq!(result, expected_result)`. Do not hide the value in a check inside `assert!`, as in `assert!(result.is_none())` or `assert!(result.is_err())`. A failing `assert_eq!` prints both values. A failing `assert!` prints only the condition.
+
+Three kinds of test check no value, so they need no `assert_eq!`:
+
+- A compile-time test, such as `implements_auto_traits::<MyType>()`. It passes if it compiles.
+- A test that checks only that an operation completes. The `.expect(...)` on the operation is the check, and its message says why the operation cannot fail.
+- A test that checks a panic, with `#[should_panic(expected = "...")]`.
 
 - If the result is an `Option` or a `Result`, write the expected value out: `None`, `Some(...)`, `Ok(...)`, or `Err(...)`. If the expected value is `None`, write `None`. Never compare `is_none()` with a `bool`.
 - If only the error matters, compare `.err()` with `Some(...)` of the written-out error, or with `None` for success.
