@@ -132,6 +132,9 @@ impl fmt::Display for InvalidConceptReason {
 }
 ```
 
+This error is a leaf. It prints a `Reason:` and the input, and wraps no other error. If a type
+wraps it and adds no fact, that type passes it through. See `AGENTS.md` ("Error Display Format").
+
 #### Phase 3: Tests
 
 - Auto-trait tests (Send, Sync, Unpin, Sized, Clone, Debug, Hash, Eq, Ord, PartialEq, PartialOrd)
