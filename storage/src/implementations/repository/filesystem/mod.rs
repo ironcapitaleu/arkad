@@ -726,11 +726,9 @@ mod tests {
             "/data/arkad",
         );
 
-        let expected_result = BackendError::UnreachableStorage {
-            cause: BackendCause::FailedFilesystemOperation(Box::new(error.clone())),
-        };
+        let expected_result = "[UnreachableStorage] Storage backend is not reachable, Caused by: [FailedFilesystemOperation] Filesystem operation failed, Reason: 'Root directory does not exist', Path: '/data/arkad'";
 
-        let result = BackendError::from(error);
+        let result = BackendError::from(error).to_string();
 
         assert_eq!(result, expected_result);
     }
@@ -742,11 +740,9 @@ mod tests {
             "/data/arkad",
         );
 
-        let expected_result = BackendError::UnreachableStorage {
-            cause: BackendCause::FailedFilesystemOperation(Box::new(error.clone())),
-        };
+        let expected_result = "[UnreachableStorage] Storage backend is not reachable, Caused by: [FailedFilesystemOperation] Filesystem operation failed, Reason: 'Root is not a directory', Path: '/data/arkad'";
 
-        let result = BackendError::from(error);
+        let result = BackendError::from(error).to_string();
 
         assert_eq!(result, expected_result);
     }
@@ -760,11 +756,9 @@ mod tests {
             &io_error,
         );
 
-        let expected_result = BackendError::UnreachableStorage {
-            cause: BackendCause::FailedFilesystemOperation(Box::new(error.clone())),
-        };
+        let expected_result = "[UnreachableStorage] Storage backend is not reachable, Caused by: [FailedFilesystemOperation] Filesystem operation failed, Reason: 'Failed to create file, entity not found', Path: '/data/arkad/x.json'";
 
-        let result = BackendError::from(error);
+        let result = BackendError::from(error).to_string();
 
         assert_eq!(result, expected_result);
     }
@@ -778,11 +772,9 @@ mod tests {
             &io_error,
         );
 
-        let expected_result = BackendError::UnauthorizedAccess {
-            cause: BackendCause::FailedFilesystemOperation(Box::new(error.clone())),
-        };
+        let expected_result = "[UnauthorizedAccess] Storage backend denied access, Caused by: [FailedFilesystemOperation] Filesystem operation failed, Reason: 'Failed to read, permission denied', Path: '/data/arkad/x.json'";
 
-        let result = BackendError::from(error);
+        let result = BackendError::from(error).to_string();
 
         assert_eq!(result, expected_result);
     }
@@ -796,11 +788,9 @@ mod tests {
             &io_error,
         );
 
-        let expected_result = BackendError::FailedOperation {
-            cause: BackendCause::FailedFilesystemOperation(Box::new(error.clone())),
-        };
+        let expected_result = "[FailedOperation] Storage backend operation failed, Caused by: [FailedFilesystemOperation] Filesystem operation failed, Reason: 'Failed to write, no storage space', Path: '/data/arkad/x.json'";
 
-        let result = BackendError::from(error);
+        let result = BackendError::from(error).to_string();
 
         assert_eq!(result, expected_result);
     }
@@ -812,11 +802,9 @@ mod tests {
             "/data/arkad/x.json.meta.json",
         );
 
-        let expected_result = BackendError::FailedOperation {
-            cause: BackendCause::FailedFilesystemOperation(Box::new(error.clone())),
-        };
+        let expected_result = "[FailedOperation] Storage backend operation failed, Caused by: [FailedFilesystemOperation] Filesystem operation failed, Reason: 'Metadata file does not exist', Path: '/data/arkad/x.json.meta.json'";
 
-        let result = BackendError::from(error);
+        let result = BackendError::from(error).to_string();
 
         assert_eq!(result, expected_result);
     }
@@ -828,11 +816,9 @@ mod tests {
             "/data/arkad/x.json.meta.json",
         );
 
-        let expected_result = BackendError::FailedOperation {
-            cause: BackendCause::FailedFilesystemOperation(Box::new(error.clone())),
-        };
+        let expected_result = "[FailedOperation] Storage backend operation failed, Caused by: [FailedFilesystemOperation] Filesystem operation failed, Reason: 'Key ends in '.meta.json', the suffix of a metadata file', Path: '/data/arkad/x.json.meta.json'";
 
-        let result = BackendError::from(error);
+        let result = BackendError::from(error).to_string();
 
         assert_eq!(result, expected_result);
     }
@@ -929,11 +915,9 @@ mod tests {
             "/data/arkad/x.json.meta.json",
         );
 
-        let expected_result = BackendError::FailedOperation {
-            cause: BackendCause::FailedFilesystemOperation(Box::new(error.clone())),
-        };
+        let expected_result = "[FailedOperation] Storage backend operation failed, Caused by: [FailedFilesystemOperation] Filesystem operation failed, Reason: 'Metadata holds document type 'other_document' version 1, expected document type 'sample_document' version 1', Path: '/data/arkad/x.json.meta.json'";
 
-        let result = BackendError::from(error);
+        let result = BackendError::from(error).to_string();
 
         assert_eq!(result, expected_result);
     }
@@ -971,36 +955,6 @@ mod tests {
         let result = std::error::Error::source(&backend_error)
             .and_then(|source| source.downcast_ref::<FailedFilesystemOperation>())
             .cloned();
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
-    fn should_print_the_filesystem_error_after_caused_by_when_the_root_is_missing() {
-        let filesystem_error = FailedFilesystemOperation::new(
-            FailedFilesystemOperationReason::MissingRoot,
-            "/data/arkad",
-        );
-
-        let expected_result = "[UnreachableStorage] Storage backend is not reachable, Caused by: [FailedFilesystemOperation] Filesystem operation failed, Reason: 'Root directory does not exist', Path: '/data/arkad'";
-
-        let result = BackendError::from(filesystem_error).to_string();
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
-    fn should_print_the_filesystem_error_after_caused_by_when_permission_is_denied() {
-        let io_error = io::Error::from(io::ErrorKind::PermissionDenied);
-        let filesystem_error = FailedFilesystemOperation::from_io(
-            FilesystemOperation::Read,
-            "/data/arkad/x.json",
-            &io_error,
-        );
-
-        let expected_result = "[UnauthorizedAccess] Storage backend denied access, Caused by: [FailedFilesystemOperation] Filesystem operation failed, Reason: 'Failed to read, permission denied', Path: '/data/arkad/x.json'";
-
-        let result = BackendError::from(filesystem_error).to_string();
 
         assert_eq!(result, expected_result);
     }
