@@ -597,8 +597,8 @@ Passes through: prints the inner error as it is, because this layer adds no fact
 - Put the sentence on the variant, or on the type if the whole type passes through. If a type
   passes through for only some causes, put it on the variant of the cause.
 - Put it after the what-sentence. Do not change its words.
-- If the inner error is an error type, `source()` must forward to the source of the inner error,
-  as `#[error(transparent)]` does.
+- If the inner error is an error type, `source()` must return the source of the inner error, as
+  `#[error(transparent)]` does.
 - If the layer holds its inner error as text, `source()` cannot reach that error. Write the
   sentence anyway. Add one sentence that names the boundary.
 
