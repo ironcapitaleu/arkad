@@ -317,6 +317,7 @@ Uses `thiserror` with `#[error("...")]` and `#[source]` chaining. Follows the sa
 - `Caused by:` to chain to the next error (no quotes around inner errors)
 - `Reason:` for leaf errors with free-form descriptions (quoted)
 - No periods between segments — commas separate description from `Caused by:` / `Reason:`
+- A layer prints a segment only if it adds a fact: an action, an object, a cause, or an ID. `ErrorKind::Xbrl`, `XbrlErrorKind::FailedParsing`, and `XbrlErrorKind::FailedValidation` add none, so they pass through with `#[error(transparent)]`. The leaf names the failure.
 
 ### Error Hierarchy
 
@@ -346,17 +347,17 @@ ErrorKind
 ```rust
 #[derive(Debug, thiserror::Error)]
 pub enum ErrorKind {
-    #[error("[Xbrl] {0}")]
-    Xbrl(#[source] XbrlErrorKind),
+    #[error(transparent)]
+    Xbrl(XbrlErrorKind),
 }
 
 #[derive(Debug, thiserror::Error)]
 pub enum XbrlErrorKind {
-    #[error("[FailedParsing] Caused by: {0}")]
-    FailedParsing(#[source] ParseErrorKind),
+    #[error(transparent)]
+    FailedParsing(ParseErrorKind),
 
-    #[error("[FailedValidation] Caused by: {0}")]
-    FailedValidation(#[source] ValidationErrorKind),
+    #[error(transparent)]
+    FailedValidation(ValidationErrorKind),
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -434,9 +435,9 @@ impl Invariant {
 ### Example Error Chains
 
 ```
-[Xbrl] [FailedValidation] Caused by: [InconsistentIdentity] Invariant 'BalanceSheetIdentity' violated, left=500000000, right=490000000
+[InconsistentIdentity] Invariant 'BalanceSheetIdentity' violated, left=500000000, right=490000000
 
-[Xbrl] [FailedValidation] Caused by: [ImpreciseRollup] Roll-up mismatch for 'Assets', reported=500000000, computed=499998000, Reason: 'Deviation of 0.0004% exceeds threshold of 0.0000%'
+[ImpreciseRollup] Roll-up mismatch for 'Assets', reported=500000000, computed=499998000, Reason: 'Deviation of 0.0004% exceeds threshold of 0.0000%'
 ```
 
 ---

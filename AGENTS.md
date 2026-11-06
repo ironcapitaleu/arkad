@@ -122,11 +122,34 @@ Error messages follow a consistent chaining convention:
 
 No periods between segments — commas separate the description from `Caused by:` or `Reason:`. Every error segment must have a `[BracketedName]` prefix.
 
-**Example chain:**
+Quotes go around the free text after `Reason:`. A wrapped error after `Caused by:` never takes quotes.
+
+**Every segment adds a fact.** A layer prints a segment only if the segment adds a fact: an action,
+an object, a cause, or an ID. A layer that adds no fact passes its inner error through:
+
+- Mark the variant `#[error(transparent)]`. This forwards `Display` and `source()` to the inner error.
+- If `thiserror` cannot express the layer, write `Display` and `source()` by hand that do the same.
+- Keep the type, its derives, and its `From` and `TryFrom` conversions. Only the text changes.
+- Give the layer the docstring sentence that `DOCUMENTATION.md` ("Pass-Through Errors") requires.
+
+A pass-through layer prints no segment, so every segment that prints still has a `[BracketedName]`
+prefix. `source()` skips the layer too, so a caller that walks `source()` meets each segment once.
+
+A wrapping error names its action, for example "Failed to store the document". It does not repeat
+a fact that an outer segment prints. For example, `StreamError` prints the state name, so a state
+error does not print it again.
+
+**Example chain** (one segment per line here, one line in the log):
 
 ```text
-[StateError] A state level error occurred, Caused by: [FailedRequestExecution] Failure in State: 'Execute SEC Request', Caused by: [FailedSecRequest] SEC request failed, Caused by: [InvalidResponse] Response validation failed, Caused by: [InvalidSecResponse] Invalid SEC Response, Reason: 'Status code '404' is not accepted'
+[StreamError][…] 'state_failed' in 'Store Notes Archive',
+Caused by: [FailedDocumentWrite] Failed to store the document,
+Caused by: [FailedFilesystemOperation] Filesystem operation failed, Reason: 'Failed to write, no storage space', Path: '…'
 ```
+
+Five layers in this chain add no fact, so they pass through and print no segment: `StateMachine` and
+`StateError` above `FailedDocumentWrite`, and `FailedDocumentStorage`, its `FailedBackend` reason,
+and `BackendError` below it.
 
 Use `thiserror` with `#[error("...")]` and `#[source]` for deriving `Display` and `Error` on error types.
 

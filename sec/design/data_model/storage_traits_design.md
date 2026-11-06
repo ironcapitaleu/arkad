@@ -117,6 +117,10 @@ error/
   wrapped error that is itself a value type (`Clone`, `Eq`, `Hash`, `Ord`). This is exactly what lets
   each level be *contained in* the level above it. An error that is not a value type, such as
   `sqlx::Error`, is flattened to a `reason` string at the conversion boundary.
+- **Pass-through layers print no segment.** `ErrorKind::Read`, `ErrorKind::Write`,
+  `ReadError::Backend`, and `WriteError::Backend` add no fact, so they use `#[error(transparent)]`.
+  A `BackendError` with a wrapped cause passes it through. A `BackendError` with a reason stays a
+  leaf. See `AGENTS.md` ("Error Display Format").
 - **Markers stay inline** on the enum with `#[error("[…] …, Reason: '…'")]`. `BackendError` is the
   exception: its `Display` and `Error` are written by hand, because its `source()` depends on its
   `BackendCause`. **Rich leaves get their
@@ -144,8 +148,8 @@ async fn query(&self, …)                 -> Result<_,  ReadError>;    // never
 
 The store methods return the classes **directly** (`append -> Result<(), WriteError>`); the Postgres
 impl maps `sqlx::Error → WriteError::Backend(BackendError::failed_operation(reason))` at its own boundary.
-A `BackendCause` holds either that reason or a wrapped error. A wrapped error prints after
-`Caused by:`, and `source()` returns it. The filesystem backend wraps its `FailedFilesystemOperation`.
+A `BackendCause` holds either that reason or a wrapped error. A `BackendError` with a wrapped error
+passes it through: it prints the wrapped error as it is, and `source()` forwards to it. The filesystem backend wraps its `FailedFilesystemOperation`.
 This **drops the earlier `Backend::type Error` associated error** — the value-type decision keeps
 backend errors as values, so the associated type was buying flexibility we don't use.
 `ErrorKind` (the union) is what the **shared consumers** take — the retry decorator (`is_retryable()`, planned)
@@ -905,3 +909,7 @@ These are *not* part of the frozen v1 — they wait for a concrete consumer, by 
   `FailedFilesystemOperation`. A wrapped error prints after `Caused by:` with no quotes, and
   `source()` returns it. Only a value-type error can become a `BackendCause` variant. A Postgres
   backend flattens `sqlx::Error` to a `reason`, as above.
+- **(2026-11-06) — pass-through layers.** A layer that adds no fact prints no segment.
+  `ErrorKind::Read`, `ErrorKind::Write`, `ReadError::Backend`, and `WriteError::Backend` use
+  `#[error(transparent)]`. A `BackendError` with a wrapped cause passes it through. A
+  `BackendError` with a reason stays a leaf.

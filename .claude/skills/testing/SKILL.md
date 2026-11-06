@@ -364,12 +364,33 @@ fn should_format_display_as_expected_when_reason_is_too_long() {
     let reason = InvalidCikReason::MaxLengthExceeded {
         cik_length: invalid_cik.len(),
     };
-    let cik_error = CikError::new(reason.clone(), invalid_cik);
+    let cik_error = CikError::new(reason, invalid_cik);
 
-    let expected_result =
-        format!("[CikError] Invalid CIK, Reason: '{reason}', Input: '{invalid_cik}'");
+    let expected_result = "[CikError] Invalid CIK, Reason: 'CIK cannot exceed 10 digits. Got: '15'', Input: '123456789012345'";
 
-    let result = format!("{cik_error}");
+    let result = cik_error.to_string();
+
+    assert_eq!(result, expected_result);
+}
+```
+
+### Error chain — verify the printed chain
+
+Assert the full chain, from the outermost error to the leaf, as one literal. A layer that passes
+through prints no segment, so the literal shows which layers add a fact. See `AGENTS.md` ("Error
+Display Format").
+
+```rust
+#[test]
+fn should_print_only_the_segments_that_add_a_fact_when_a_store_write_fails() {
+    let error = StateError::FailedDocumentWrite(FailedDocumentWrite::new(
+        "Store Notes Archive",
+        FailedDocumentStorage::from(WriteError::conflicting_write("Key 'a.json' is taken")),
+    ));
+
+    let expected_result = "[FailedDocumentWrite] Failed to store the document, Caused by: [ConflictingWrite] Document conflicts with a stored document, Reason: 'Key 'a.json' is taken'";
+
+    let result = error.to_string();
 
     assert_eq!(result, expected_result);
 }
