@@ -48,23 +48,16 @@ pub enum StateMachine {
 }
 
 impl Display for StateMachine {
+    /// Prints a wrapped [`State`] or [`Transition`] error as it is. Each one starts with its own
+    /// bracketed name, so this layer adds no segment to the error chain.
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match self {
-            Self::State(state) => {
-                write!(
-                    f,
-                    "Problem occurred during internal state operations: '{state}'"
-                )
-            }
-            Self::Transition(transition) => {
-                write!(
-                    f,
-                    "Problem occurred during state transition: '{transition}'"
-                )
-            }
-            Self::InvalidConfiguration => {
-                write!(f, "Invalid configuration of the state machine")
-            }
+            Self::State(state) => write!(f, "{state}"),
+            Self::Transition(transition) => write!(f, "{transition}"),
+            Self::InvalidConfiguration => write!(
+                f,
+                "[InvalidConfiguration] Invalid configuration of the state machine"
+            ),
         }
     }
 }
@@ -263,6 +256,41 @@ mod tests {
         ));
 
         let result: StateMachine = transition_error.into();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_display_only_the_inner_error_when_state_machine_wraps_a_state_error() {
+        let state_machine = StateMachine::State(State::InvalidInput);
+
+        let expected_result = "[StateError] A state level error occurred, Reason: 'Invalid input data provided to state'";
+
+        let result = state_machine.to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_display_only_the_inner_error_when_state_machine_wraps_a_transition_error() {
+        let state_machine = StateMachine::Transition(Transition::MissingOutput(
+            transition::MissingOutput::new("Validate CIK Format", "Prepare SEC Request"),
+        ));
+
+        let expected_result = "[TransitionError] A transition error occurred, Caused by: [MissingOutput] Failure during transition from 'Validate CIK Format' to 'Prepare SEC Request', Reason: 'Output data has not been computed'";
+
+        let result = state_machine.to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_start_with_a_bracketed_name_when_state_machine_is_invalid_configuration() {
+        let state_machine = StateMachine::InvalidConfiguration;
+
+        let expected_result = "[InvalidConfiguration] Invalid configuration of the state machine";
+
+        let result = state_machine.to_string();
 
         assert_eq!(result, expected_result);
     }

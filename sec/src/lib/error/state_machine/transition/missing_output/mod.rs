@@ -27,7 +27,7 @@ use super::Transition as TransitionError;
 /// reaching for, so the failure pinpoints exactly where the pipeline stalled.
 #[derive(Error, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[error(
-    "[MissingOutput] Failure during transition from '{source_state_name}', Reason: Output data has not been computed before transitioning to '{target_state_name}'"
+    "[MissingOutput] Failure during transition from '{source_state_name}' to '{target_state_name}', Reason: 'Output data has not been computed'"
 )]
 pub struct MissingOutput {
     /// The name of the source state that has not computed its output data.
@@ -108,7 +108,7 @@ mod tests {
     fn should_display_proper_error_message_when_formatted() {
         let error = MissingOutput::new("ValidateCikFormat", "PrepareSecRequest");
 
-        let expected_result = "[MissingOutput] Failure during transition from 'ValidateCikFormat', Reason: Output data has not been computed before transitioning to 'PrepareSecRequest'";
+        let expected_result = "[MissingOutput] Failure during transition from 'ValidateCikFormat' to 'PrepareSecRequest', Reason: 'Output data has not been computed'";
 
         let result = format!("{error}");
 

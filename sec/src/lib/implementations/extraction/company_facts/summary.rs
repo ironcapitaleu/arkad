@@ -138,7 +138,7 @@ mod tests {
             json!({
                 "cik": "ABC",
                 "failed_state": "Validate CIK Format",
-                "error": "[StreamError][00000000-0000-0000-0000-000000000000] 'state_failed' in 'Validate CIK Format', Caused by: Invalid configuration of the state machine",
+                "error": "[StreamError][00000000-0000-0000-0000-000000000000] 'state_failed' in 'Validate CIK Format', Caused by: [InvalidConfiguration] Invalid configuration of the state machine",
             }),
             json!({ "cik": "320193", "status": "stored" }),
         ];

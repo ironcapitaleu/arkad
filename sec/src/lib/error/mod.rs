@@ -45,18 +45,11 @@ pub enum ErrorKind {
 impl Display for ErrorKind {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match self {
-            Self::StateMachine(state_machine) => {
-                write!(
-                    f,
-                    "Problem occurred during state machine execution: '{state_machine}'"
-                )
-            }
-            Self::DowncastNotPossible => {
-                write!(
-                    f,
-                    "Failed to downcast error of type `ErrorKind` into more specific error."
-                )
-            }
+            Self::StateMachine(state_machine) => write!(f, "{state_machine}"),
+            Self::DowncastNotPossible => write!(
+                f,
+                "[DowncastNotPossible] Failed to downcast error into a more specific type"
+            ),
         }
     }
 }
@@ -261,6 +254,29 @@ mod tests {
         let expected_result = ErrorKind::StateMachine(StateMachine::InvalidConfiguration);
 
         let result: ErrorKind = state_machine_error.into();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_display_only_the_inner_error_when_error_kind_wraps_a_state_machine_error() {
+        let error_kind = ErrorKind::StateMachine(StateMachine::InvalidConfiguration);
+
+        let expected_result = "[InvalidConfiguration] Invalid configuration of the state machine";
+
+        let result = error_kind.to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_start_with_a_bracketed_name_when_error_kind_is_downcast_not_possible() {
+        let error_kind = ErrorKind::DowncastNotPossible;
+
+        let expected_result =
+            "[DowncastNotPossible] Failed to downcast error into a more specific type";
+
+        let result = error_kind.to_string();
 
         assert_eq!(result, expected_result);
     }
