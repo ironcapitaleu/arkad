@@ -204,11 +204,279 @@ impl<R: RawStore, G: GraphStore, F: FactStore> Repository for SecRepository<R, G
 ### Deferred to STA-139 (marked, not decided)
 
 1. **Read surface** (`scan` / `completeness` / `ownership_tree` / `query`) + the CQRS read/write split.
+   [Raw Store Versions](#raw-store-versions) records how versions relate to `scan`.
 2. **`RawStore` genericity** (`type Item`?) — raw is the one regulator-specific tier.
 3. **`completeness` placement** — straddles graph structure and fact presence.
 4. **Retry / DLQ** — a `RetryingRepository` decorator (reads `is_retryable()`); reconciliation for
    post-raw projection gaps; a DLQ only for poison (non-retryable) records; all at the driver level,
    never in the state machine.
+
+---
+
+## Raw Store Versions
+
+> **Status: proposed (2026-11-06).** The owner decides the choice between versions in the key and
+> bucket object versioning before any feature work starts. See
+> [Bucket Versioning or Versions in the Key](#bucket-versioning-or-versions-in-the-key).
+
+The raw store is append and replay, as the frozen design says. The filesystem repository does not
+keep this promise today:
+
+- If the bytes under a key change, `persist` replaces the document and its `.meta.json`. Only
+  identical bytes keep the stored file.
+- `submissions` loses its old version with each new filing of the company. A daily index loses
+  its old version if the SEC edits it after publication.
+- The `inputs` of an instance and a label file name the daily index by key and SHA-256. After a
+  replaced index, that SHA-256 names bytes the store no longer holds.
+- A Notes run skips a stored file that passes its own size and SHA-256 check. So it never fetches
+  a file that the SEC replaced.
+
+Filing documents (the folder `index.json`, the instance, the label file) do not change at the SEC.
+They keep one version under the same rules as every other document.
+
+### Terms
+
+- A **version** is one document and its metadata, stored once and never changed.
+- The **version id** is the `produced_at` of the version and the SHA-256 of its bytes.
+- The **latest version** of a key is the version with the greatest `produced_at`.
+- The **version as of T** is the version with the greatest `produced_at` at or before T.
+
+`produced_at` is the time of the write that stored the version. It is not the time of the fetch,
+and it is not the time the SEC published the file. So "as of T" means "what the store held
+at T".
+
+### Key Scheme
+
+Every version of a key lives in one folder beside the key, named `<key>.versions/`:
+
+```text
+sec/submissions/CIK0000320193.json.versions/
+├── 20261103T071412345678Z-3f2a…c901            # the document
+├── 20261103T071412345678Z-3f2a…c901.meta.json  # its metadata
+├── 20261106T071305000123Z-9be0…41d7
+└── 20261106T071305000123Z-9be0…41d7.meta.json
+```
+
+- The file name is the version id: `produced_at` in UTC to the microsecond, a `-`, and the 64
+  hex digits of the SHA-256.
+- The name sorts by `produced_at`, so a reader orders the versions from the names alone. The
+  metadata holds the full `produced_at`. If two names share the time, the SHA-256 orders them.
+- Nothing is stored at `<key>` itself. The key stays the identity that callers use.
+- `check_key` rejects a key with a component that ends in `.versions`, as it rejects a key that
+  ends in `.meta.json` today. So no key can name a file inside a folder of versions.
+- A temporary file keeps today's name, `.<name>.<pid>.<counter>.tmp`. A reader skips every name
+  that starts with `.`.
+
+The `produced_at` in the name is needed for a key whose bytes change back. If the SEC sends bytes
+A, then B, then A again, the store holds three versions, and the latest is the second A. A name
+made of the SHA-256 alone gives A one path, so the third write finds A stored and keeps B as the
+latest.
+
+### Latest Version: the Newest Entry
+
+A reader finds the latest version as the newest entry of the folder. There is no pointer and no
+copy.
+
+| Option | Write | Read of the latest | Failure after a crash | Space |
+| ------ | ----- | ------------------ | --------------------- | ----- |
+| Newest entry of the folder (chosen) | Add the version | List the folder, take the last name | None. A version without its metadata is invisible | One copy |
+| Pointer file at `<key>` | Add the version, then replace the pointer | Read the pointer, then the version | The pointer names the old version until a rerun | One copy |
+| Copy at `<key>` | Add the version, then replace the copy | Read `<key>` as today | The copy and the newest version differ. The copy has the non-atomic pair of today | Two copies |
+
+- The chosen option has no file that changes in place. So the store is append-only in fact, not
+  only by rule.
+- The cost is one listing of the folder per read. On the filesystem this is one `read_dir`. On
+  the mounted bucket it is one list request with the folder as prefix. A key holds a few versions
+  at most, so the listing is small.
+- A copy at `<key>` keeps `get(key)` unchanged, but it doubles 27.7 GB of Notes files, and it
+  keeps the replace of today.
+
+### Write
+
+`persist` adds a version when the bytes differ from the latest version. It never replaces or
+deletes a version.
+
+1. List the folder of the key. Take the latest version.
+2. If its SHA-256 equals the SHA-256 of the new bytes, skip the write. The stored metadata stays,
+   so `produced_at` names the first write of these bytes.
+3. Otherwise, write the document to a temporary file, then rename it to its version name.
+4. Write the metadata to a temporary file, then rename it to `<version name>.meta.json`.
+
+- The SHA-256 of the bytes alone decides. A change of the request context, for example a new
+  `user_agent`, adds no version. Otherwise a change of the User-Agent stores every Notes file
+  again on its next fetch.
+- The metadata is written last, so it marks a complete version. A reader lists only the
+  `.meta.json` files. A document without its metadata is a leftover of a killed run. The
+  integrity check finds it.
+- This reverses the order of today, where the metadata is renamed first. Today a reader opens the
+  document by its key, so a document must never exist without its metadata. With versions, a
+  reader finds a version by its metadata.
+- The version name holds the SHA-256. So a rename onto an existing name writes the same bytes,
+  and no version can change.
+- On the mounted bucket a rename is a copy, then a delete. The copy creates the target object in
+  one step, so a reader never sees a half-written version. A crash between the copy and the delete
+  leaves a temporary file, which the integrity check removes.
+- Two runs that write different bytes at the same time add two versions. Both stay, and the
+  later `produced_at` is the latest. No write is lost.
+- Two runs that write the same bytes at the same time can add two versions with one SHA-256.
+  Both stay. A reader by SHA-256 takes the earlier one.
+
+### Read
+
+`ReadRepository::get(key)` keeps its signature and returns the latest version. Callers of today
+do not change.
+
+A new capability trait reads a chosen version:
+
+```rust
+pub enum VersionSelector {
+    /// The version with the greatest `produced_at`.
+    Latest,
+    /// The version with the greatest `produced_at` at or before the time.
+    AsOf(DateTime<Utc>),
+    /// The earliest version whose bytes have this SHA-256.
+    Sha256(Sha256Digest),
+}
+
+#[async_trait]
+pub trait VersionedReadRepository: ReadRepository {
+    async fn get_version(
+        &self,
+        key: Self::Key,
+        selector: VersionSelector,
+    ) -> Result<Option<Self::Record>, ReadError>;
+}
+```
+
+- `get(key)` equals `get_version(key, VersionSelector::Latest)`.
+- `AsOf(T)` gives what the store held at T. A run "as of date D" reads with T at the end of D.
+- `Sha256(digest)` resolves an `inputs` entry to the exact bytes it names. So an instance points
+  to the daily index it came from, even after the SEC replaced that index.
+- A selector that matches no version returns `Ok(None)`, as `get` does for a missing key.
+- A separate trait keeps a store that reads by key small. A store with one version per key does
+  not implement it.
+
+### How a Notes Run Learns of a Replaced File
+
+The SEC does not tell a client that it replaced a file. The run must ask.
+
+- Every SEC answer carries `Last-Modified`. The metadata `context` of a Notes file stores it as
+  `last_modified`.
+- Before a run skips a stored Notes file, it sends one `HEAD` request for the file. If
+  `Last-Modified` or `Content-Length` differs from the stored values, the run downloads the file
+  again.
+- If the new bytes differ, `persist` adds a version. The run summary marks the period as
+  `refreshed`.
+- The cost is one `HEAD` per stored file and run: about 80 requests, under 10 seconds at the rate
+  limit.
+- A full download to compare the SHA-256 costs 27.7 GB per run, so it is not an option.
+
+`submissions` and the daily index need no such check. Each run fetches them again, and `persist`
+adds a version when the bytes differ. A daily index outside the window of 4 days is not fetched
+again. The reconciliation of the integrity check covers it.
+
+Known limit: if the SEC changes `Last-Modified` but not the bytes, `persist` skips the write, and
+the stored `last_modified` stays old. Each later run then downloads that file again. The refresh
+ticket measures this on the replaced file `2025q3`. If it happens, that ticket adds a fix, for
+example an append-only record of each `HEAD` answer.
+
+### Versions, the Listing, and `RawStore`
+
+- **Listing.** The listing of a repository is a stream of metadata. It gives one entry per
+  version, not one per key. An entry already holds the key, `produced_at`, and the SHA-256, so the
+  version id needs no new field. A filter `as_of: Option<DateTime<Utc>>` keeps, for each key, the
+  version as of that time. Without the filter, the stream holds every version.
+- **`RawStore::append`.** `persist` with versions is the append of the frozen design. The raw tier
+  never replaces a record. Equal bytes are a no-op.
+- **`RawStore::scan`.** A scan is a listing plus a read of each entry with
+  `VersionSelector::Sha256`. A scan with `as_of` set replays the store as it was at that time.
+  `scan` stays deferred with the rest of the read side. Versions and the listing give it what it
+  needs.
+- **Integrity check.** A valid older version is a version whose metadata and document both exist
+  and match. An orphan is a document without metadata, metadata without a document, or a
+  temporary file. A version is never an orphan because a newer version exists.
+- **Repair.** The repair mode of the integrity check writes through `persist`. So a repair adds a
+  version and never replaces one.
+
+### Bucket Versioning or Versions in the Key
+
+The raw store is a Cloud Storage bucket, mounted into the Cloud Run jobs. Cloud Storage can keep
+old versions by itself: with object versioning on, an overwrite keeps the old object as a
+noncurrent generation.
+
+| Point | Versions in the key (proposed) | Bucket object versioning |
+| ----- | ------------------------------ | ------------------------ |
+| Code | New layout for `persist` and `get`, a new read trait, a migration | None for writes. Reads of old versions need the Cloud Storage API |
+| Read through the mount | Every version is a file | The mount shows only the live generation |
+| Local filesystem and tests | Same behavior as the bucket | No versions, so tests cannot cover them |
+| Read as of T | List the folder, compare names | List generations, compare their creation time |
+| Read by SHA-256 | Compare names | Cloud Storage keeps MD5 and CRC32C, not SHA-256. Each generation of the metadata must be read |
+| Document with its metadata | One version name for both files | Two objects with separate generations. A pair is matched by time |
+| Temporary files | Removed, gone | Each delete of a temporary file leaves a noncurrent generation. A lifecycle rule must remove them |
+| Risk of loss | A version is a plain file. Only a delete removes it | One wrong lifecycle rule on noncurrent generations removes history |
+| Other backends | Same key scheme in an object store. A table key in Postgres | Tied to Cloud Storage |
+| Storage cost | The bytes of each version | The bytes of each generation, plus the temporary files until the lifecycle rule runs |
+
+Recommendation: versions in the key. Bucket versioning saves the write code but moves every read
+of an old version off the mount and off the filesystem tests. It also cannot resolve an `inputs`
+entry by SHA-256 without reading each generation.
+
+### Storage Cost
+
+The numbers are estimates. The list price of Cloud Storage Standard is about $0.02 per GB and
+month.
+
+| Source | New versions | Growth per year |
+| ------ | ------------ | --------------- |
+| `submissions` | One per fetch with a new filing. About 6,500 companies with about 5 fetches a year, at about 100 KB each | About 3 GB |
+| Daily index | Only when the SEC edits an index inside the window | Under 1 MB |
+| Notes files | One per file the SEC replaces. Two known cases so far, `2010q1` and `2025q3` | At most 0.85 GB per replaced file, the largest Notes file |
+| Filing documents | None | None |
+| Company Facts | One per run and changed company | One full copy per run, if run |
+
+Without Company Facts, this is under $1 a month after the first year. Company Facts is the only
+source whose growth depends on how often a run fetches it.
+
+### Migration
+
+The store of today holds one pair per key at `<key>` and `<key>.meta.json`. A one-time migration
+moves each pair into `<key>.versions/`, under the version id from its stored `produced_at` and
+SHA-256.
+
+- The migration checks the size and the SHA-256 of each pair before the move. A pair that fails
+  the check stays in place and goes into the report.
+- It is idempotent. A second run finds no pair at `<key>` and moves nothing.
+- It runs once before the new write and read code reaches a binary. The code reads only the new
+  layout.
+- On the filesystem a move is a rename. On the mounted bucket it is a copy and a delete per
+  object, about 2 requests per file.
+
+### Feature Tickets That Follow
+
+No ticket exists yet for items 1 to 4. Each fits the PR budget of about 200 lines of code.
+
+1. **Version layout.** The version id, the folder name, and the name parser. `check_key` rejects
+   a component that ends in `.versions`. Pure functions with unit tests, no change of behavior.
+2. **Write and read the latest version.** `persist` adds a version, as in [Write](#write).
+   `get(key)` returns the latest version. Tests: equal bytes skip, new bytes add a version, A then
+   B then A gives three versions, metadata after the document. Update "How a Write Works" in
+   `extraction_overview.md` and "Raw Store" in `ingestion_paths.md`. Needs item 1.
+3. **Read a chosen version.** `VersionSelector` and `VersionedReadRepository` for the filesystem
+   repository. Tests: `AsOf` before the first version gives `None`, `AsOf` between two versions,
+   `Sha256` of an older version. Needs item 2.
+4. **Migration.** A one-time tool that moves each stored pair into its version folder, with a
+   report and a dry run. Needs item 1. It runs before item 2 reaches a binary.
+
+Existing tickets that change:
+
+- **Refresh of replaced Notes files.** Takes the check of
+  [How a Notes Run Learns of a Replaced File](#how-a-notes-run-learns-of-a-replaced-file), and
+  measures the known limit. Needs item 2.
+- **Listing of a repository.** Lists one entry per version and adds the filter `as_of`, as in
+  [Versions, the Listing, and `RawStore`](#versions-the-listing-and-rawstore).
+- **Backfill as of a date.** Reads with `VersionSelector::AsOf` for a replay of what the store held
+  on D. Needs item 3.
+- **Integrity check and reconciliation.** Uses the orphan rule and the repair rule above.
 
 ---
 
