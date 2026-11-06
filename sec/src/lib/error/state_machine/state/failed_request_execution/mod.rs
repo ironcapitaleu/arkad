@@ -155,4 +155,19 @@ mod tests {
 
         assert_eq!(result, expected_result);
     }
+
+    #[test]
+    fn should_print_distinct_names_when_a_transport_failure_is_displayed() {
+        let state_name = "Execute SEC Request";
+        let reason = ErrorReason::FailedRequestExecution {
+            details: "connection refused".to_string(),
+        };
+        let error = FailedRequestExecution::new(state_name, FailedSecRequest::new(reason));
+
+        let expected_result = "[FailedRequestExecution] Failed to execute the SEC request, Caused by: [FailedHttpRequest] Failed to send the HTTP request, Reason: 'connection refused'";
+
+        let result = error.to_string();
+
+        assert_eq!(result, expected_result);
+    }
 }
