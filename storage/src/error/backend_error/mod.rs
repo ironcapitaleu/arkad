@@ -20,15 +20,12 @@ use crate::implementations::repository::filesystem::FailedFilesystemOperation;
 
 #[non_exhaustive]
 // `Display` and `Error` are written by hand, not derived with `thiserror`: `thiserror` cannot
-// pass through by matching on a field, and only a wrapped cause passes through.
+// choose `transparent` per value of a field. Only a wrapped cause passes through.
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 /// Error occurring at the storage backend.
 ///
 /// Separates the different kinds of backend failures so a caller can tell them apart. Each kind
 /// holds a [`BackendCause`]: a free-form reason, or the error it wraps.
-///
-/// With a reason, the error is a leaf and prints its kind and the reason. With a wrapped error, it
-/// passes the wrapped error through.
 pub enum BackendError {
     /// The backend cannot be reached (connection drop, timeout, host down).
     UnreachableStorage {

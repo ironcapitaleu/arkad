@@ -220,13 +220,11 @@ mod tests {
     }
 
     #[test]
-    fn should_forward_source_to_the_backend_error_when_read_error_wraps_backend() {
+    fn should_return_no_source_when_read_error_wraps_backend() {
         let error = ReadError::Backend(BackendError::unreachable_storage("timeout"));
 
-        let expected_result = true;
+        let result = std::error::Error::source(&error);
 
-        let result = std::error::Error::source(&error).is_none();
-
-        assert_eq!(result, expected_result);
+        assert!(result.is_none());
     }
 }

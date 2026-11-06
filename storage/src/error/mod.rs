@@ -367,26 +367,22 @@ mod tests {
     }
 
     #[test]
-    fn should_forward_source_to_the_read_error_when_error_kind_wraps_read() {
+    fn should_return_no_source_when_error_kind_wraps_read() {
         let error_kind = ErrorKind::Read(ReadError::missing_record("0000320193-24-000123"));
 
-        let expected_result = true;
+        let result = std::error::Error::source(&error_kind);
 
-        let result = std::error::Error::source(&error_kind).is_none();
-
-        assert_eq!(result, expected_result);
+        assert!(result.is_none());
     }
 
     #[test]
-    fn should_forward_source_to_the_write_error_when_error_kind_wraps_write() {
+    fn should_return_no_source_when_error_kind_wraps_write() {
         let error_kind = ErrorKind::Write(WriteError::failed_integrity_check(
             "SFAC-6 identity violated",
         ));
 
-        let expected_result = true;
+        let result = std::error::Error::source(&error_kind);
 
-        let result = std::error::Error::source(&error_kind).is_none();
-
-        assert_eq!(result, expected_result);
+        assert!(result.is_none());
     }
 }

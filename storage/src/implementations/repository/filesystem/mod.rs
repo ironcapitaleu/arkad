@@ -994,6 +994,20 @@ mod tests {
     }
 
     #[test]
+    fn should_print_the_filesystem_error_as_it_is_when_access_is_denied() {
+        let path = "/data/arkad/x.json";
+        let io_error = io::Error::from(io::ErrorKind::PermissionDenied);
+        let filesystem_error =
+            FailedFilesystemOperation::from_io(FilesystemOperation::Read, path, &io_error);
+
+        let expected_result = "[FailedFilesystemOperation] Filesystem operation failed, Reason: 'Failed to read, permission denied', Path: '/data/arkad/x.json'";
+
+        let result = BackendError::from(filesystem_error).to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
     fn should_print_only_the_filesystem_error_when_a_write_fails_for_a_full_disk() {
         let path = "data/sec/notes/.2026_09_notes.zip.58467.153.tmp";
         let io_error = io::Error::from(io::ErrorKind::StorageFull);
@@ -1009,17 +1023,15 @@ mod tests {
     }
 
     #[test]
-    fn should_forward_source_to_the_filesystem_error_when_backend_error_wraps_it() {
+    fn should_return_no_source_when_backend_error_wraps_a_filesystem_error() {
         let path = "data/sec/notes/2026_09_notes.zip";
         let io_error = io::Error::from(io::ErrorKind::StorageFull);
         let filesystem_error =
             FailedFilesystemOperation::from_io(FilesystemOperation::Write, path, &io_error);
         let backend_error = BackendError::from(filesystem_error);
 
-        let expected_result = true;
+        let result = std::error::Error::source(&backend_error);
 
-        let result = std::error::Error::source(&backend_error).is_none();
-
-        assert_eq!(result, expected_result);
+        assert!(result.is_none());
     }
 }
