@@ -170,14 +170,14 @@ mod tests {
         let client = client_with_both_files();
         let request = document_set_request(None);
 
-        let expected_result = true;
+        let expected_result = None;
 
         let result = client
             .execute(request)
             .await
             .expect("Given the instance served as text/xml, the request should always succeed")
             .labels()
-            .is_none();
+            .map(|labels| labels.body().to_vec());
 
         assert_eq!(result, expected_result);
     }

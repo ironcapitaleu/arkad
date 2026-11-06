@@ -322,9 +322,11 @@ mod tests {
     fn should_return_error_when_top_level_key_is_missing() {
         let json = json!({"cik": 123, "entityName": "Test"});
 
-        let expected_result = true;
+        let expected_result = Some(ParseErrorKind::MissingTopLevelKey {
+            key: "facts".to_string(),
+        });
 
-        let result = parse(&json).is_err();
+        let result = parse(&json).err();
 
         assert_eq!(result, expected_result);
     }

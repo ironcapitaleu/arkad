@@ -291,6 +291,7 @@ mod tests {
             .compute_output_data_async()
             .await
             .expect_err("Given a date in year 9999, validation should always fail");
+        // The reason holds today's date, so the test checks only the variant.
         let result = matches!(
             error,
             StateError::InvalidIndexDate(InvalidIndexDate {

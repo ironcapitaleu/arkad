@@ -353,6 +353,7 @@ mod tests {
             .expect_err("Given a user agent without an email, deserialization should always fail")
             .to_string();
 
+        // `serde_json` appends the line and column after the message, so the test checks the start.
         assert!(result.starts_with(&expected_result));
     }
 }

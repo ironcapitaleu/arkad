@@ -60,6 +60,7 @@ mod tests {
     use storage::shared::Sha256Digest;
 
     use super::*;
+    use crate::error::state_machine::transition::MissingOutput;
     use crate::implementations::states::transform::parse_company_facts::ParseCompanyFactsInput;
     use crate::shared::cik::Cik;
     use crate::shared::financial::company_data::CompanyData;
@@ -110,9 +111,12 @@ mod tests {
     fn should_return_error_when_parse_company_facts_has_no_output() {
         let state = get_baseline_parse_state_without_output();
 
-        let expected_result = true;
+        let expected_result = Some(TransitionError::MissingOutput(MissingOutput::new(
+            "Parse Company Facts",
+            "Create Financial Statements",
+        )));
 
-        let result = CreateFinancialStatements::try_from(state).is_err();
+        let result = CreateFinancialStatements::try_from(state).err();
 
         assert_eq!(result, expected_result);
     }

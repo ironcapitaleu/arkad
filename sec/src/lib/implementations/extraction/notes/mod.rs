@@ -510,6 +510,7 @@ mod tests {
 
         let expected_result = true;
 
+        // The backend error holds the path of the temporary root, so the test checks only the variant.
         let result = matches!(
             stored_archive(&reader(&root), STORED_PERIOD).await,
             Err(ReadError::Backend(_))

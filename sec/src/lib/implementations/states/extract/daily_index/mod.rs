@@ -782,13 +782,12 @@ mod tests {
             filesystem_repository(root.path()),
         );
 
-        let expected_result = true;
+        let expected_result = 0;
 
         filings(super_state).await;
         let result = std::fs::read_dir(root.path())
             .expect("Given a temp directory that exists for the whole test, reading it should always succeed")
-            .next()
-            .is_none();
+            .count();
 
         assert_eq!(result, expected_result);
     }

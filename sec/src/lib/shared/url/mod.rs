@@ -126,9 +126,9 @@ mod tests {
     fn should_create_url_when_input_is_valid_https_url_slice() {
         let valid_url = "https://data.sec.gov/submissions/CIK0001067983.json";
 
-        let expected_result = true;
+        let expected_result = None;
 
-        let result = Url::from_str(valid_url).is_ok();
+        let result = Url::from_str(valid_url).err();
 
         assert_eq!(result, expected_result);
     }
@@ -189,9 +189,9 @@ mod tests {
     fn should_create_url_when_input_is_valid_http_url() {
         let unvalidated_url = "http://example.com";
 
-        let expected_result = true;
+        let expected_result = None;
 
-        let result = Url::from_str(unvalidated_url).is_ok();
+        let result = Url::from_str(unvalidated_url).err();
 
         assert_eq!(result, expected_result);
     }
@@ -213,9 +213,9 @@ mod tests {
     fn should_create_url_from_owned_string_when_input_is_valid() {
         let unvalidated_url = String::from("https://data.sec.gov/submissions/CIK0001067983.json");
 
-        let expected_result = true;
+        let expected_result = None;
 
-        let result = Url::from_string(unvalidated_url).is_ok();
+        let result = Url::from_string(unvalidated_url).err();
 
         assert_eq!(result, expected_result);
     }
@@ -302,6 +302,7 @@ mod tests {
             .expect_err("Given a string that is not a URL, deserialization should always fail")
             .to_string();
 
+        // `serde_json` appends the line and column after the message, so the test checks the start.
         assert!(result.starts_with(&expected_result));
     }
 }

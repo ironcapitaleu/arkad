@@ -320,6 +320,7 @@ mod tests {
             .await
             .expect_err("The server closes before the promised body, so the read always fails")
             .reason;
+        // The details come from `reqwest`, so the test checks only the variant.
         let result = matches!(reason, ErrorReason::FailedBodyRead { .. });
 
         assert_eq!(result, expected_result);
@@ -341,6 +342,7 @@ mod tests {
             .await
             .expect_err("The server never sends the body, so the read timeout always ends the read")
             .reason;
+        // The details come from `reqwest`, so the test checks only the variant.
         let result = matches!(reason, ErrorReason::TimedOutBodyRead { .. });
 
         assert_eq!(result, expected_result);
