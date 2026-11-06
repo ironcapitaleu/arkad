@@ -329,6 +329,17 @@ Before:
 After:
 > `[InvalidSecResponse] Invalid SEC response, Reason: 'expected a JSON object, got an array'`
 
+**Error chain**
+
+Before:
+> `[StateError] A state level error occurred, Caused by: [FailedDocumentWrite] Failure in State: 'Store Notes Archive', Caused by: [FailedDocumentStorage] Document storage failed, Caused by: [ConflictingWrite] Document conflicts with a stored document, Reason: 'Key 'a.json' is taken'`
+
+After:
+> `[FailedDocumentWrite] Failed to store the document, Caused by: [ConflictingWrite] Document conflicts with a stored document, Reason: 'Key 'a.json' is taken'`
+
+Each segment adds a fact. A layer that adds none prints nothing. See `AGENTS.md` ("Error Display
+Format").
+
 ## Limits
 
 - These rules fix the form of a text, not its substance. A hollow paragraph rewritten under them

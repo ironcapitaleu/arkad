@@ -225,17 +225,30 @@ Final checks:
 
 ## Domain Error Pattern
 
+A variant prints a segment only if it adds a fact: an action, an object, a cause, or an ID. A
+variant that adds no fact passes its inner error through with `#[error(transparent)]`. See
+`AGENTS.md` ("Error Display Format") and `DOCUMENTATION.md` ("Pass-Through Errors").
+
+A wrapping variant names its action. It does not print the state name, because `StreamError`
+prints it.
+
 ```rust
 #[derive(Debug, Error, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 pub enum MyDomainError {
     #[error("[InvalidFoo] Foo validation failed, Reason: '{reason}'")]
     InvalidFoo { reason: String },
 
-    #[error("[FailedBarRequest] Bar request failed, Caused by: {source}")]
+    #[error("[FailedBarRequest] Failed to request the bar, Caused by: {source}")]
     FailedBarRequest {
         #[source]
         source: InnerError,
     },
+
+    /// An error from the bar client.
+    ///
+    /// Passes through: prints the inner error as it is, because this layer adds no fact.
+    #[error(transparent)]
+    Client(ClientError),
 }
 
 impl From<MyDomainError> for StateError {
