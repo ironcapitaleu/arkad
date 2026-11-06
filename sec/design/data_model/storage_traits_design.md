@@ -911,7 +911,8 @@ These are *not* part of the frozen v1 — they wait for a concrete consumer, by 
   `FailedFilesystemOperation`. A wrapped error prints after `Caused by:` with no quotes, and
   `source()` returns it. Only a value-type error can become a `BackendCause` variant. A Postgres
   backend flattens `sqlx::Error` to a `reason`, as above.
-- **(2026-11-06) — pass-through layers.** A layer that adds no fact prints no segment.
+- **(2026-11-06) — pass-through layers (supersedes the print and `source()` rule of 2026-11-05).**
+  A layer that adds no fact prints no segment.
   `ErrorKind::Read`, `ErrorKind::Write`, `ReadError::Backend`, and `WriteError::Backend` use
   `#[error(transparent)]`. A `BackendError` with a wrapped cause passes it through. A
   `BackendError` with a reason stays a leaf.
