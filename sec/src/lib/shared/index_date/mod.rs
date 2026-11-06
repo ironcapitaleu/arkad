@@ -416,9 +416,9 @@ mod tests {
     fn should_accept_february_29_when_year_is_a_leap_year() {
         let date_string = "2024-02-29";
 
-        let expected_result = true;
+        let expected_result = None;
 
-        let result = validate(date_string, today()).is_ok();
+        let result = validate(date_string, today()).err();
 
         assert_eq!(result, expected_result);
     }

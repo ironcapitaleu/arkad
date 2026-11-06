@@ -181,9 +181,9 @@ mod tests {
         let concept =
             &crate::shared::financial::concept_definition::constants::REQUIRED_CONCEPTS[0];
 
-        let expected_result = true;
+        let expected_result = None;
 
-        let result = company_data.get_fact(concept).is_none();
+        let result = company_data.get_fact(concept);
 
         assert_eq!(result, expected_result);
     }

@@ -81,9 +81,11 @@ mod tests {
         let is_full_hash =
             GIT_COMMIT.len() == 40 && GIT_COMMIT.chars().all(|c| c.is_ascii_hexdigit());
 
+        let expected_result = true;
+
         let result = is_full_hash || GIT_COMMIT == "unknown";
 
-        assert!(result);
+        assert_eq!(result, expected_result);
     }
 
     #[test]

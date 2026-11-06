@@ -119,9 +119,9 @@ impl<K: RequestKind> PrepareSecRequest<K> {
     /// let context = PrepareSecRequestContext::new(cik);
     /// let state = PrepareSecRequest::new(input, context);
     ///
-    /// let expected_result = false;
+    /// let expected_result = None;
     ///
-    /// let result = state.output_data().is_some();
+    /// let result = state.output_data();
     ///
     /// assert_eq!(result, expected_result);
     /// ```
@@ -327,11 +327,11 @@ mod tests {
         let input = PrepareSecRequestInput::new(cik);
         let context = create_test_context();
 
-        let expected_result = true;
+        let state = PrepareSecRequest::new(input, context);
 
-        let result = PrepareSecRequest::new(input, context)
-            .output_data()
-            .is_none();
+        let expected_result = None;
+
+        let result = state.output_data();
 
         assert_eq!(result, expected_result);
     }

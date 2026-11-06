@@ -119,7 +119,10 @@ fn should_fail_transition_when_source_output_not_computed() {
     let source = create_source_with_input_and_context();
     let super_state = SuperState { current_state: source, /* ... */ };
 
-    let expected_result = Some(/* the expected error, written out */);
+    let expected_result = Some(TransitionError::MissingOutput(MissingOutput::new(
+        "Source State",
+        "Target State",
+    )));
 
     let result = super_state.transition_to_next_state_sec().err();
 

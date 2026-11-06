@@ -39,9 +39,9 @@ async fn should_create_sec_response_when_response_is_valid_json_with_success_sta
         .await
         .expect("A request to jsonplaceholder should always succeed");
 
-    let expected_result = true;
+    let expected_result = None;
 
-    let result = SecResponse::<JsonBody>::from_inner(response).await.is_ok();
+    let result = SecResponse::<JsonBody>::from_inner(response).await.err();
 
     assert_eq!(result, expected_result);
 }

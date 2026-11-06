@@ -75,9 +75,9 @@ impl CreateFinancialStatements {
     /// let context = CreateFinancialStatementsContext::new(cik);
     /// let state = CreateFinancialStatements::new(input, context);
     ///
-    /// let expected_result = false;
+    /// let expected_result = None;
     ///
-    /// let result = state.output_data().is_some();
+    /// let result = state.output_data();
     ///
     /// assert_eq!(result, expected_result);
     /// ```

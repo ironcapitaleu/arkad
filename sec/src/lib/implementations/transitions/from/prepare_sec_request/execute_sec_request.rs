@@ -69,6 +69,7 @@ mod tests {
     use state_maschine::prelude::State as SMState;
 
     use super::*;
+    use crate::error::state_machine::transition::MissingOutput;
     use crate::implementations::states::extract::execute_sec_request::ExecuteCompanyFactsRequest;
     use crate::implementations::states::extract::prepare_sec_request::{
         PrepareCompanyFactsRequest, PrepareSecRequestContext, PrepareSecRequestInput,
@@ -123,9 +124,9 @@ mod tests {
             .await
             .expect("Valid state should always compute output data");
 
-        let expected_result = true;
+        let expected_result = None;
 
-        let result = ExecuteCompanyFactsRequest::try_from((state, client)).is_ok();
+        let result = ExecuteCompanyFactsRequest::try_from((state, client)).err();
 
         assert_eq!(result, expected_result);
     }
@@ -166,9 +167,12 @@ mod tests {
         let context = PrepareSecRequestContext::new(cik);
         let state = PrepareCompanyFactsRequest::new(input, context);
 
-        let expected_result = true;
+        let expected_result = Some(TransitionError::MissingOutput(MissingOutput::new(
+            "Prepare SEC Request",
+            "Execute SEC Request",
+        )));
 
-        let result = ExecuteCompanyFactsRequest::try_from((state, client)).is_err();
+        let result = ExecuteCompanyFactsRequest::try_from((state, client)).err();
 
         assert_eq!(result, expected_result);
     }

@@ -92,9 +92,9 @@ impl ParseCompanyFacts {
     /// let context = ParseCompanyFactsContext::new(cik);
     /// let state = ParseCompanyFacts::new(input, context);
     ///
-    /// let expected_result = false;
+    /// let expected_result = None;
     ///
-    /// let result = state.output_data().is_some();
+    /// let result = state.output_data();
     ///
     /// assert_eq!(result, expected_result);
     /// ```
@@ -821,9 +821,26 @@ mod tests {
         let context = test_context();
         let mut parse_state = ParseCompanyFacts::new(input, context);
 
-        let expected_result = true;
+        let expected_result = Some(StateError::IncompleteCompanyFacts(
+            IncompleteCompanyFacts::new(
+                "Parse Company Facts",
+                MissingFields::new(vec![
+                    "Revenue".to_string(),
+                    "Operating Income".to_string(),
+                    "Income Tax".to_string(),
+                    "Net Income".to_string(),
+                    "Total Assets".to_string(),
+                    "Total Liabilities".to_string(),
+                    "Stockholders' Equity".to_string(),
+                    "Cash from Operations".to_string(),
+                    "Cash from Investing".to_string(),
+                    "Cash from Financing".to_string(),
+                    "Shares Outstanding".to_string(),
+                ]),
+            ),
+        ));
 
-        let result = parse_state.compute_output_data_async().await.is_err();
+        let result = parse_state.compute_output_data_async().await.err();
 
         assert_eq!(result, expected_result);
     }
@@ -855,9 +872,9 @@ mod tests {
         let context = test_context();
         let mut parse_state = ParseCompanyFacts::new(input, context);
 
-        let expected_result = true;
+        let expected_result = Some(StateError::FailedOutputComputation);
 
-        let result = parse_state.compute_output_data_async().await.is_err();
+        let result = parse_state.compute_output_data_async().await.err();
 
         assert_eq!(result, expected_result);
     }

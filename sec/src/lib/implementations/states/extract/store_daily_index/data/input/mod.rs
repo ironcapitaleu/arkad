@@ -389,10 +389,10 @@ mod tests {
             .response(None)
             .build();
 
-        let expected_result = true;
+        let expected_result = None;
 
         SMStateData::update_state(&mut input, update);
-        let result = input.response.is_none();
+        let result = input.response;
 
         assert_eq!(result, expected_result);
     }

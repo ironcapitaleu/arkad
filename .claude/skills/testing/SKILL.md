@@ -152,9 +152,11 @@ The second test computes `expected_result` from strings with `map`.
 
 End the test with `assert_eq!(result, expected_result)`. Do not hide the value in a check inside `assert!`, as in `assert!(result.is_none())` or `assert!(result.is_err())`. A failing `assert_eq!` prints both values. A failing `assert!` prints only the condition.
 
-- If the result is an `Option` or a `Result`, write the expected value out: `None`, `Some(...)`, `Ok(...)`, or `Err(...)`.
-- If the value is too hard to write out, compare the check with a `bool`: `let expected_result = true;` and then `let result = state.output_data().is_some();`.
-- Use `assert!(condition)` only for a condition that has no value to compare, such as `elapsed < limit`.
+- If the result is an `Option` or a `Result`, write the expected value out: `None`, `Some(...)`, `Ok(...)`, or `Err(...)`. If the expected value is `None`, write `None`. Never compare `is_none()` with a `bool`.
+- If only the error matters, compare `.err()` with `Some(...)` of the written-out error, or with `None` for success.
+- Compare a check with a `bool` (`let expected_result = true;`) only in two cases. The value has no `PartialEq` or no public constructor, as with `serde_json::Error` and `TryFromIntError`. Or the test checks only that a large value is present, and its name says so.
+- If part of the value is not stable, such as the position that `serde_json` appends to an error, compare the stable part with `starts_with`, `ends_with`, or `matches!`. Say in a comment which part the test leaves out.
+- Use `assert!(condition)` only for these partial matches and for a condition that has no value to compare, such as `elapsed < limit`.
 
 In review, report an `assert!` on a check of the result as a 🟣 nit.
 

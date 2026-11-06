@@ -284,9 +284,9 @@ mod tests {
     fn should_return_no_source_when_backend_error_holds_a_reason() {
         let backend_error = BackendError::failed_operation("disk full");
 
-        let expected_result = true;
+        let expected_result = None;
 
-        let result = Error::source(&backend_error).is_none();
+        let result = Error::source(&backend_error).map(ToString::to_string);
 
         assert_eq!(result, expected_result);
     }

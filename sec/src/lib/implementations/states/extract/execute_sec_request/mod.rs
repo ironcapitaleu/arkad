@@ -119,9 +119,9 @@ impl<E: HasResponse, C> ExecuteSecRequest<E, C> {
     /// let context = ExecuteSecRequestContext::new(cik);
     /// let state = ExecuteSecRequest::new(input, context);
     ///
-    /// let expected_result = false;
+    /// let expected_result = None;
     ///
-    /// let result = state.output_data().is_some();
+    /// let result = state.output_data();
     ///
     /// assert_eq!(result, expected_result);
     /// ```
@@ -391,9 +391,9 @@ mod tests {
     async fn should_succeed_when_the_content_type_of_a_notes_file_is_octet_stream() {
         let mut state = create_notes_file_state_with_content_type(200, "application/octet-stream");
 
-        let expected_result = true;
+        let expected_result = None;
 
-        let result = state.compute_output_data_async().await.is_ok();
+        let result = state.compute_output_data_async().await.err();
 
         assert_eq!(result, expected_result);
     }
@@ -567,10 +567,10 @@ mod tests {
         let input = ExecuteSecRequestInput::new(client, request);
         let context = ExecuteSecRequestContext::new(create_test_cik());
 
-        let expected_result = true;
+        let expected_result = None;
 
         let state = ExecuteSecRequest::new(input, context);
-        let result = state.output_data().is_none(); // We check if output data is None, since it should not be set before computation
+        let result = state.output_data();
 
         assert_eq!(result, expected_result);
     }
@@ -738,7 +738,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_return_correct_output_data_when_computing_output_data() {
+    async fn should_store_output_data_when_computing_output_data() {
         let mut execute_state = create_fake_client_state(200);
 
         let expected_result = true;
@@ -771,8 +771,8 @@ mod tests {
     async fn should_succeed_when_valid_input_is_provided() {
         let mut execute_state = create_fake_client_state(200);
 
-        let expected_result = true;
-        let result = execute_state.compute_output_data_async().await.is_ok();
+        let expected_result = None;
+        let result = execute_state.compute_output_data_async().await.err();
 
         assert_eq!(result, expected_result);
     }
