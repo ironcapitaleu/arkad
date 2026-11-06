@@ -1030,8 +1030,10 @@ mod tests {
             FailedFilesystemOperation::from_io(FilesystemOperation::Write, path, &io_error);
         let backend_error = BackendError::from(filesystem_error);
 
-        let result = std::error::Error::source(&backend_error);
+        let expected_result: Option<String> = None;
 
-        assert!(result.is_none());
+        let result = std::error::Error::source(&backend_error).map(ToString::to_string);
+
+        assert_eq!(result, expected_result);
     }
 }

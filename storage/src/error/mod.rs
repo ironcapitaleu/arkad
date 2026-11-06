@@ -370,9 +370,11 @@ mod tests {
     fn should_return_no_source_when_error_kind_wraps_read() {
         let error_kind = ErrorKind::Read(ReadError::missing_record("0000320193-24-000123"));
 
-        let result = std::error::Error::source(&error_kind);
+        let expected_result: Option<String> = None;
 
-        assert!(result.is_none());
+        let result = std::error::Error::source(&error_kind).map(ToString::to_string);
+
+        assert_eq!(result, expected_result);
     }
 
     #[test]
@@ -381,8 +383,10 @@ mod tests {
             "SFAC-6 identity violated",
         ));
 
-        let result = std::error::Error::source(&error_kind);
+        let expected_result: Option<String> = None;
 
-        assert!(result.is_none());
+        let result = std::error::Error::source(&error_kind).map(ToString::to_string);
+
+        assert_eq!(result, expected_result);
     }
 }

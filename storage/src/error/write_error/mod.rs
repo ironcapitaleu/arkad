@@ -237,8 +237,10 @@ mod tests {
     fn should_return_no_source_when_write_error_wraps_backend() {
         let error = WriteError::Backend(BackendError::unreachable_storage("timeout"));
 
-        let result = std::error::Error::source(&error);
+        let expected_result: Option<String> = None;
 
-        assert!(result.is_none());
+        let result = std::error::Error::source(&error).map(ToString::to_string);
+
+        assert_eq!(result, expected_result);
     }
 }
