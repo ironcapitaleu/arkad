@@ -502,7 +502,7 @@ mod tests {
             let sec_client =
                 RoutingSecClient::new().route(INSTANCE_URL, 200, "text/xml", b"<xbrl/>");
 
-            let expected_result = Err("[StateError] A state level error occurred, Caused by: [FailedRequestExecution] Failed to execute the SEC request, Caused by: [FailedFilingDocument] Request for file 'alco-20260908_lab.xml' failed, Caused by: [InvalidSecResponse] Invalid SEC Response, Reason: 'Status code '404' is not accepted'".to_string());
+            let expected_result = Err("[FailedRequestExecution] Failed to execute the SEC request, Caused by: [FailedFilingDocument] Request for file 'alco-20260908_lab.xml' failed, Caused by: [InvalidSecResponse] Invalid SEC Response, Reason: 'Status code '404' is not accepted'".to_string());
 
             let result = run(sec_client, Some(LABEL_FILE), root.path())
                 .await

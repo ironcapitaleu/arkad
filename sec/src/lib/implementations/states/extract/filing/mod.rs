@@ -1201,7 +1201,7 @@ mod tests {
             .labels_repository(FakeXbrlLabelsRepository::new())
             .build();
 
-        let expected_result = Some((SELECT_FILING_DOCUMENTS.to_string(), "[StateError] A state level error occurred, Caused by: [FailedDocumentSelection] Failed to select the filing documents, Caused by: [MissingXbrlInstance] The folder of filing '0000003545-26-000047' holds no XBRL instance".to_string()));
+        let expected_result = Some((SELECT_FILING_DOCUMENTS.to_string(), "[FailedDocumentSelection] Failed to select the filing documents, Caused by: [MissingXbrlInstance] The folder of filing '0000003545-26-000047' holds no XBRL instance".to_string()));
 
         let result = super_state
             .run_to_documents(|_| {})
@@ -1221,7 +1221,7 @@ mod tests {
             .route(INSTANCE_URL, 200, "text/xml", b"<xbrl/>");
         let super_state = stored_super_state(root.path(), sec_client);
 
-        let expected_result = Some((EXECUTE_SEC_REQUEST.to_string(), "[StateError] A state level error occurred, Caused by: [FailedRequestExecution] Failed to execute the SEC request, Caused by: [FailedFilingDocument] Request for file 'alco-20260908_lab.xml' failed, Caused by: [InvalidSecResponse] Invalid SEC Response, Reason: 'Status code '404' is not accepted'".to_string()));
+        let expected_result = Some((EXECUTE_SEC_REQUEST.to_string(), "[FailedRequestExecution] Failed to execute the SEC request, Caused by: [FailedFilingDocument] Request for file 'alco-20260908_lab.xml' failed, Caused by: [InvalidSecResponse] Invalid SEC Response, Reason: 'Status code '404' is not accepted'".to_string()));
 
         let result = super_state
             .run_to_documents(|_| {})

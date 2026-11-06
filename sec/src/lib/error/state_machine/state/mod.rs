@@ -51,41 +51,59 @@ pub use missing_daily_index::MissingDailyIndex;
 /// failed update/computation.
 pub enum State {
     /// Invalid Cik format.
-    #[error("[StateError] A state level error occurred, Caused by: {0}")]
-    InvalidCikFormat(#[source] InvalidCikFormat),
+    ///
+    /// Passes through: prints the inner error as it is, because this layer adds no fact.
+    #[error(transparent)]
+    InvalidCikFormat(InvalidCikFormat),
 
     /// Invalid Notes period.
-    #[error("[StateError] A state level error occurred, Caused by: {0}")]
-    InvalidNotesPeriod(#[source] InvalidNotesPeriod),
+    ///
+    /// Passes through: prints the inner error as it is, because this layer adds no fact.
+    #[error(transparent)]
+    InvalidNotesPeriod(InvalidNotesPeriod),
 
     /// Invalid index date.
-    #[error("[StateError] A state level error occurred, Caused by: {0}")]
-    InvalidIndexDate(#[source] InvalidIndexDate),
+    ///
+    /// Passes through: prints the inner error as it is, because this layer adds no fact.
+    #[error(transparent)]
+    InvalidIndexDate(InvalidIndexDate),
 
     /// Invalid daily index: the text of the index does not parse into rows.
-    #[error("[StateError] A state level error occurred, Caused by: {0}")]
-    InvalidDailyIndex(#[source] InvalidDailyIndex),
+    ///
+    /// Passes through: prints the inner error as it is, because this layer adds no fact.
+    #[error(transparent)]
+    InvalidDailyIndex(InvalidDailyIndex),
 
     /// Indicates that an SEC request execution has failed.
-    #[error("[StateError] A state level error occurred, Caused by: {0}")]
-    FailedRequestExecution(#[source] FailedRequestExecution),
+    ///
+    /// Passes through: prints the inner error as it is, because this layer adds no fact.
+    #[error(transparent)]
+    FailedRequestExecution(FailedRequestExecution),
 
     /// Indicates that the SEC sent no daily index of a date, and no quarter listing shows that
     /// the day had no filings.
-    #[error("[StateError] A state level error occurred, Caused by: {0}")]
-    MissingDailyIndex(#[source] MissingDailyIndex),
+    ///
+    /// Passes through: prints the inner error as it is, because this layer adds no fact.
+    #[error(transparent)]
+    MissingDailyIndex(MissingDailyIndex),
 
     /// Indicates that the folder index of a filing names no single XBRL instance or label file.
-    #[error("[StateError] A state level error occurred, Caused by: {0}")]
-    FailedDocumentSelection(#[source] FailedDocumentSelection),
+    ///
+    /// Passes through: prints the inner error as it is, because this layer adds no fact.
+    #[error(transparent)]
+    FailedDocumentSelection(FailedDocumentSelection),
 
     /// Indicates that the store rejected the write of a document.
-    #[error("[StateError] A state level error occurred, Caused by: {0}")]
-    FailedDocumentWrite(#[source] FailedDocumentWrite),
+    ///
+    /// Passes through: prints the inner error as it is, because this layer adds no fact.
+    #[error(transparent)]
+    FailedDocumentWrite(FailedDocumentWrite),
 
     /// Indicates that the SEC Company Facts response is missing expected data fields.
-    #[error("[StateError] A state level error occurred, Caused by: {0}")]
-    IncompleteCompanyFacts(#[source] IncompleteCompanyFacts),
+    ///
+    /// Passes through: prints the inner error as it is, because this layer adds no fact.
+    #[error(transparent)]
+    IncompleteCompanyFacts(IncompleteCompanyFacts),
 
     /// Indicates that input data of a `State` is invalid and cannot be used to compute the output data.
     #[error(
