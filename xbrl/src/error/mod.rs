@@ -162,4 +162,18 @@ mod tests {
 
         assert!(result.is_none());
     }
+
+    #[test]
+    fn should_return_no_source_when_error_kind_wraps_a_leaf_validation_error() {
+        let validation_error = ValidationErrorKind::InconsistentIdentity {
+            invariant: Invariant::BalanceSheetIdentity,
+            left_value: 500_000_000,
+            right_value: 490_000_000,
+        };
+        let error = ErrorKind::from(validation_error);
+
+        let result = Error::source(&error);
+
+        assert!(result.is_none());
+    }
 }

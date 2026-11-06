@@ -312,9 +312,9 @@ Rule: **our math must be exact, their math gets a tolerance.**
 
 ## 4) Error Handling
 
-Uses `thiserror` with `#[error("...")]` and `#[source]` chaining. Follows the same conventions as the `sec` crate:
-- `[BracketedName]` prefix on every error segment
-- `Caused by:` to chain to the next error (no quotes around inner errors)
+Uses `thiserror` with `#[error("...")]`. Follows the same conventions as the `sec` crate:
+- `[BracketedName]` prefix on every printed segment
+- `Caused by:` chains to an inner error, with no quotes around it. No xbrl layer uses it today.
 - `Reason:` for leaf errors with free-form descriptions (quoted)
 - No periods between segments — commas separate description from `Caused by:` / `Reason:`
 - A layer prints a segment only if it adds a fact: an action, an object, a cause, or an ID. `ErrorKind::Xbrl`, `XbrlErrorKind::FailedParsing`, and `XbrlErrorKind::FailedValidation` add none, so they pass through with `#[error(transparent)]`. The leaf names the failure. To tell parsing from validation, match on the variant.
@@ -432,7 +432,7 @@ impl Invariant {
 }
 ```
 
-### Example Error Chains
+### Example Error Output
 
 ```
 [InconsistentIdentity] Invariant 'BalanceSheetIdentity' violated, left=500000000, right=490000000
