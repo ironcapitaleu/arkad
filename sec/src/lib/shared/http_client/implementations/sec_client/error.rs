@@ -19,7 +19,7 @@ use crate::shared::status_code::StatusCode;
 /// but failed SEC validation.
 ///
 /// Passes through: prints the inner error as it is, because this layer adds no fact.
-/// The [`ErrorReason`] is no error type, so `source()` returns `None`.
+/// [`ErrorReason`] is not an error type, so `source()` returns `None`.
 #[derive(Debug, Error, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[error("{reason}")]
 pub struct FailedSecRequest {
@@ -104,6 +104,7 @@ pub enum ErrorReason {
     /// The response was received but did not meet SEC validity requirements.
     ///
     /// Passes through: prints the inner error as it is, because this layer adds no fact.
+    /// [`ErrorReason`] is not an error type, so `source()` cannot reach the response error.
     InvalidResponse {
         /// The underlying response-validation error.
         source: InvalidSecResponse,
@@ -166,10 +167,12 @@ impl ErrorReason {
 impl fmt::Display for ErrorReason {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
+            // Deviation: the bracketed name differs from the variant name. The state error
+            // `FailedRequestExecution` wraps this reason, and one name twice in a chain reads as a loop.
             Self::FailedRequestExecution { details } => {
                 write!(
                     f,
-                    "[FailedRequestExecution] HTTP request execution failed, Reason: '{details}'"
+                    "[FailedHttpRequest] Failed to send the HTTP request, Reason: '{details}'"
                 )
             }
             Self::TimedOutRequest { details } => {
@@ -619,7 +622,7 @@ mod tests {
         let error = FailedSecRequest::new(reason);
 
         let expected_result =
-            "[FailedRequestExecution] HTTP request execution failed, Reason: 'connection refused'";
+            "[FailedHttpRequest] Failed to send the HTTP request, Reason: 'connection refused'";
 
         let result = format!("{error}");
 
@@ -678,7 +681,7 @@ mod tests {
         };
 
         let expected_result =
-            "[FailedRequestExecution] HTTP request execution failed, Reason: 'connection refused'";
+            "[FailedHttpRequest] Failed to send the HTTP request, Reason: 'connection refused'";
 
         let result = reason.to_string();
 

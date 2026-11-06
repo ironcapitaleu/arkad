@@ -175,4 +175,17 @@ mod tests {
 
         assert_eq!(result, expected_result);
     }
+
+    #[test]
+    fn should_name_the_missing_fields_without_the_state_name_when_displayed() {
+        let state_name = "Validate Company Facts";
+        let missing_fields = MissingFields::new(vec!["Revenue".to_string(), "Assets".to_string()]);
+        let error = IncompleteCompanyFacts::new(state_name, missing_fields);
+
+        let expected_result = "[IncompleteCompanyFacts] SEC response is missing expected data fields, Reason: 'Missing fields: [\"Revenue\", \"Assets\"]'";
+
+        let result = error.to_string();
+
+        assert_eq!(result, expected_result);
+    }
 }

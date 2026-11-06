@@ -147,4 +147,17 @@ mod tests {
 
         assert_eq!(result, expected_result);
     }
+
+    #[test]
+    fn should_name_the_action_and_chain_the_cik_error_when_displayed() {
+        let state_name = "Validate CIK Format";
+        let cik_error = CikError::new(InvalidCikReason::ContainsNonNumericCharacters, "12A45");
+        let invalid_cik_format = InvalidCikFormat::new(state_name, cik_error);
+
+        let expected_result = "[InvalidCikFormat] Failed to validate the CIK, Caused by: [CikError] Invalid CIK, Reason: 'CIK contains non-numeric characters', Input: '12A45'";
+
+        let result = invalid_cik_format.to_string();
+
+        assert_eq!(result, expected_result);
+    }
 }

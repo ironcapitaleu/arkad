@@ -16,7 +16,7 @@ use thiserror::Error;
 /// Wraps the [`DocumentStorageErrorReason`] that tells a rejected write from a failed backend.
 ///
 /// Passes through: prints the inner error as it is, because this layer adds no fact.
-/// The [`DocumentStorageErrorReason`] is no error type, so `source()` returns `None`.
+/// [`DocumentStorageErrorReason`] is not an error type, so `source()` returns `None`.
 #[derive(Debug, Error, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[error("{reason}")]
 pub struct FailedDocumentStorage {
