@@ -1,0 +1,51 @@
+[package]
+name = "api"
+version = "0.1.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+description = "An axum service for company fundamentals."
+repository = "https://github.com/ironcapitaleu/arkad"
+categories = ["web-programming::http-server"]
+keywords = ["api", "axum", "http", "fundamentals"]
+readme = "../README.md"
+
+[dependencies]
+# Every default feature except `tower-log`. It turns on the `log` feature of `tracing` for the whole
+# workspace, which makes every `tracing` macro of `sec` count as more complex for clippy.
+axum = { version = "0.8.9", default-features = false, features = [
+    "form",
+    "http1",
+    "json",
+    "matched-path",
+    "original-uri",
+    "query",
+    "tokio",
+    "tracing",
+] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+thiserror = "2"
+tokio = { version = "1.52.3", features = ["macros", "net", "rt-multi-thread", "signal"] }
+tracing = "0.1"
+tracing-appender = "0.2"
+tracing-subscriber = { version = "0.3", features = ["json"] }
+
+[dev-dependencies]
+http-body-util = "0.1"
+pretty_assertions = "1"
+tower = { version = "0.5", features = ["util"] }
+
+[lib]
+name = "api"
+path = "src/lib.rs"
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+cargo = "deny"
+all = "deny"
+pedantic = { level = "deny", priority = -1 }
+nursery = { level = "deny", priority = -1 }
+module_name_repetitions = { level = "allow", priority = 1 }
+multiple_crate_versions = { level = "allow", priority = 1 }
