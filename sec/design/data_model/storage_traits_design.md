@@ -215,8 +215,8 @@ impl<R: RawStore, G: GraphStore, F: FactStore> Repository for SecRepository<R, G
 
 ## Raw Store Versions
 
-> **Status: proposed (2026-11-06).** The owner decides the choice between versions in the key and
-> bucket object versioning before any feature work starts. See
+> **Status: proposed (2026-11-06).** The owner chooses between versions in the key and bucket
+> object versioning before feature work starts. See
 > [Bucket Versioning or Versions in the Key](#bucket-versioning-or-versions-in-the-key).
 
 The raw store is append and replay, as the frozen design says. The filesystem repository does not
@@ -238,12 +238,21 @@ They keep one version under the same rules as every other document.
 
 - A **version** is one document and its metadata, stored once and never changed.
 - The **version id** is the `produced_at` of the version and the SHA-256 of its bytes.
-- The **latest version** of a key is the version with the greatest `produced_at`.
-- The **version as of T** is the version with the greatest `produced_at` at or before T.
+- The **latest version** of a key is the last version in the order of the version ids.
+- The **version as of T** is the last version, in the same order, whose `produced_at` is at or
+  before T.
 
-`produced_at` is the time of the write that stored the version. It is not the time of the fetch,
-and it is not the time the SEC published the file. So "as of T" means "what the store held
-at T".
+The version ids sort by `produced_at`, truncated to the microsecond. If two ids share the time, the
+SHA-256 orders them.
+
+`produced_at` is set when the store state starts, before the write. It is not the time the SEC
+published the file. So "as of T" means "the versions whose store state started at or before T".
+This equals "what the store held at T" when one run at a time writes a key.
+
+If two runs write one key at the same time, a run that starts earlier and writes later adds a
+version that sorts before the version of the other run. The latest version is then the bytes of
+the run that started last, not the bytes written last. In the MVP, only a catch-up of `backfill`
+that overlaps a run of `daily_filings` writes one key from two runs.
 
 ### Key Scheme
 
@@ -302,9 +311,12 @@ deletes a version.
 3. Otherwise, write the document to a temporary file, then rename it to its version name.
 4. Write the metadata to a temporary file, then rename it to `<version name>.meta.json`.
 
-- The SHA-256 of the bytes alone decides. A change of the request context, for example a new
+- The SHA-256 of the bytes decides. A change of the request context, for example a new
   `user_agent`, adds no version. Otherwise a change of the User-Agent stores every Notes file
   again on its next fetch.
+- One exception: for a Notes file, `persist` also compares `last_modified` (see
+  [How a Notes Run Learns of a Replaced File](#how-a-notes-run-learns-of-a-replaced-file)). Equal
+  bytes with a new `last_modified` add a version.
 - The metadata is written last, so it marks a complete version. A reader lists only the
   `.meta.json` files. A document without its metadata is a leftover of a killed run. The
   integrity check finds it.
@@ -317,7 +329,7 @@ deletes a version.
   one step, so a reader never sees a half-written version. A crash between the copy and the delete
   leaves a temporary file, which the integrity check removes.
 - Two runs that write different bytes at the same time add two versions. Both stay, and the
-  later `produced_at` is the latest. No write is lost.
+  later `produced_at` is the latest (see [Terms](#terms)). No write is lost.
 - Two runs that write the same bytes at the same time can add two versions with one SHA-256.
   Both stay. A reader by SHA-256 takes the earlier one.
 
@@ -360,13 +372,18 @@ pub trait VersionedReadRepository: ReadRepository {
 
 The SEC does not tell a client that it replaced a file. The run must ask.
 
-- Every SEC answer carries `Last-Modified`. The metadata `context` of a Notes file stores it as
-  `last_modified`.
-- Before a run skips a stored Notes file, it sends one `HEAD` request for the file. If
-  `Last-Modified` or `Content-Length` differs from the stored values, the run downloads the file
-  again.
-- If the new bytes differ, `persist` adds a version. The run summary marks the period as
-  `refreshed`.
+- Every answer for a Notes file carries `Last-Modified` (measured). `Headers` does not read it
+  today. `last_modified` is a new field of the metadata `context` of a Notes file, and holds this
+  value.
+- Before a run skips a stored Notes file, it sends one `HEAD` request for the file. The run keeps
+  the latest stored version if one of these holds:
+  - The version has `last_modified`, and it equals `Last-Modified` of the answer.
+  - The version has no `last_modified`, because it was stored before this field existed. Its
+    `bytes` equal `Content-Length`, and its `produced_at` is later than `Last-Modified`. So the
+    run fetched the file after the last change at the SEC.
+- Otherwise the run downloads the file again. `persist` compares the SHA-256 and `last_modified`
+  with the latest version, and adds a version if either differs. The run summary marks the
+  period as `refreshed`.
 - The cost is one `HEAD` per stored file and run: about 80 requests, under 10 seconds at the rate
   limit.
 - A full download to compare the SHA-256 costs 27.7 GB per run, so it is not an option.
@@ -375,10 +392,10 @@ The SEC does not tell a client that it replaced a file. The run must ask.
 adds a version when the bytes differ. A daily index outside the window of 4 days is not fetched
 again. The reconciliation of the integrity check covers it.
 
-Known limit: if the SEC changes `Last-Modified` but not the bytes, `persist` skips the write, and
-the stored `last_modified` stays old. Each later run then downloads that file again. The refresh
-ticket measures this on the replaced file `2025q3`. If it happens, that ticket adds a fix, for
-example an append-only record of each `HEAD` answer.
+If the SEC changes `Last-Modified` but not the bytes, the new version holds the same bytes as the
+version before it. This costs one copy of the file, at most 0.85 GB. Without `last_modified` in the
+comparison, `persist` skips the write, the stored value stays old, and every later run downloads
+the file again.
 
 ### Versions, the Listing, and `RawStore`
 
@@ -394,7 +411,7 @@ example an append-only record of each `HEAD` answer.
   needs.
 - **Integrity check.** A valid older version is a version whose metadata and document both exist
   and match. An orphan is a document without metadata, metadata without a document, or a
-  temporary file. A version is never an orphan because a newer version exists.
+  temporary file. A newer version does not make an older version an orphan.
 - **Repair.** The repair mode of the integrity check writes through `persist`. So a repair adds a
   version and never replaces one.
 
@@ -430,7 +447,7 @@ month.
 | ------ | ------------ | --------------- |
 | `submissions` | One per fetch with a new filing. About 6,500 companies with about 5 fetches a year, at about 100 KB each | About 3 GB |
 | Daily index | Only when the SEC edits an index inside the window | Under 1 MB |
-| Notes files | One per file the SEC replaces. Two known cases so far, `2010q1` and `2025q3` | At most 0.85 GB per replaced file, the largest Notes file |
+| Notes files | One per file the SEC replaces. Two known cases so far, `2024q1` and `2025q3` | At most 0.85 GB per replaced file, the largest Notes file |
 | Filing documents | None | None |
 | Company Facts | One per run and changed company | One full copy per run, if run |
 
@@ -460,7 +477,8 @@ No ticket exists yet for items 1 to 4. Each fits the PR budget of about 200 line
 2. **Write and read the latest version.** `persist` adds a version, as in [Write](#write).
    `get(key)` returns the latest version. Tests: equal bytes skip, new bytes add a version, A then
    B then A gives three versions, metadata after the document. Update "How a Write Works" in
-   `extraction_overview.md` and "Raw Store" in `ingestion_paths.md`. Needs item 1.
+   `extraction_overview.md`, "Raw Store" in `ingestion_paths.md`, and the rustdoc of
+   `FilesystemRepository` and `persist`. Needs item 1.
 3. **Read a chosen version.** `VersionSelector` and `VersionedReadRepository` for the filesystem
    repository. Tests: `AsOf` before the first version gives `None`, `AsOf` between two versions,
    `Sha256` of an older version. Needs item 2.
@@ -470,8 +488,10 @@ No ticket exists yet for items 1 to 4. Each fits the PR budget of about 200 line
 Existing tickets that change:
 
 - **Refresh of replaced Notes files.** Takes the check of
-  [How a Notes Run Learns of a Replaced File](#how-a-notes-run-learns-of-a-replaced-file), and
-  measures the known limit. Needs item 2.
+  [How a Notes Run Learns of a Replaced File](#how-a-notes-run-learns-of-a-replaced-file).
+  `Headers` reads `Last-Modified`. Tests: a stored version without `last_modified` whose bytes did
+  not change is not downloaded again, and equal bytes with a new `Last-Modified` add one version.
+  Needs item 2.
 - **Listing of a repository.** Lists one entry per version and adds the filter `as_of`, as in
   [Versions, the Listing, and `RawStore`](#versions-the-listing-and-rawstore).
 - **Backfill as of a date.** Reads with `VersionSelector::AsOf` for a replay of what the store held
