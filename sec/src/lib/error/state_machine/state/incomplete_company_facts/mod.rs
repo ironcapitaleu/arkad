@@ -78,7 +78,7 @@ impl fmt::Display for MissingFields {
 /// the failing state's name and the list of missing concepts.
 #[derive(Error, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[error(
-    "[IncompleteCompanyFacts] SEC response is missing expected data fields in State: '{state_name}', Reason: 'Missing fields: {missing_fields}'"
+    "[IncompleteCompanyFacts] SEC response is missing expected data fields, Reason: 'Missing fields: {missing_fields}'"
 )]
 pub struct IncompleteCompanyFacts {
     state_name: String,
@@ -172,6 +172,19 @@ mod tests {
         let expected_result = StateError::IncompleteCompanyFacts(error.clone());
 
         let result: StateError = error.into();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_name_the_missing_fields_without_the_state_name_when_displayed() {
+        let state_name = "Validate Company Facts";
+        let missing_fields = MissingFields::new(vec!["Revenue".to_string(), "Assets".to_string()]);
+        let error = IncompleteCompanyFacts::new(state_name, missing_fields);
+
+        let expected_result = "[IncompleteCompanyFacts] SEC response is missing expected data fields, Reason: 'Missing fields: [\"Revenue\", \"Assets\"]'";
+
+        let result = error.to_string();
 
         assert_eq!(result, expected_result);
     }

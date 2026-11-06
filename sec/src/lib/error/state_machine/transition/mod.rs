@@ -41,16 +41,22 @@ pub use missing_output::MissingOutput;
 /// a concrete sub-error.
 pub enum Transition {
     /// The source state had not computed its output before the transition.
-    #[error("[TransitionError] A transition error occurred, Caused by: {0}")]
-    MissingOutput(#[source] MissingOutput),
+    ///
+    /// Passes through: prints the inner error as it is, because this layer adds no fact.
+    #[error(transparent)]
+    MissingOutput(MissingOutput),
 
     /// The source state's output could not be converted into the destination state's input.
-    #[error("[TransitionError] A transition error occurred, Caused by: {0}")]
-    FailedOutputConversion(#[source] FailedOutputConversion),
+    ///
+    /// Passes through: prints the inner error as it is, because this layer adds no fact.
+    #[error(transparent)]
+    FailedOutputConversion(FailedOutputConversion),
 
     /// The source state's context could not be converted into the destination state's context.
-    #[error("[TransitionError] A transition error occurred, Caused by: {0}")]
-    FailedContextConversion(#[source] FailedContextConversion),
+    ///
+    /// Passes through: prints the inner error as it is, because this layer adds no fact.
+    #[error(transparent)]
+    FailedContextConversion(FailedContextConversion),
 }
 
 #[cfg(test)]
