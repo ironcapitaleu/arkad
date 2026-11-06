@@ -641,9 +641,20 @@ mod tests {
     fn should_build_filing_source_when_form_is_10q() {
         let entry = get_observation_entry_with_form("10-Q");
 
+        let expected_result = Some(FilingSource::new(
+            AccessionNumber::new("0000320193-23-000106").expect(
+                "Given a hardcoded accession number of the right shape, creation should always succeed",
+            ),
+            Form::TenQ,
+            FiscalYear::from(2023_u16),
+            FiscalPeriod::Fy,
+            NaiveDate::from_ymd_opt(2023, 11, 3).expect("Hardcoded date should always be valid"),
+            NaiveDate::from_ymd_opt(2023, 9, 30).expect("Hardcoded date should always be valid"),
+        ));
+
         let result = build_filing_source(&entry);
 
-        assert!(result.is_some());
+        assert_eq!(result, expected_result);
     }
 
     #[test]
@@ -651,36 +662,44 @@ mod tests {
         let mut entry = get_observation_entry_with_form("10-Q");
         entry["accn"] = serde_json::json!("0000320193-23-00010");
 
+        let expected_result = None;
+
         let result = build_filing_source(&entry);
 
-        assert!(result.is_none());
+        assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_drop_filing_source_when_form_is_10k_amendment() {
         let entry = get_observation_entry_with_form("10-K/A");
 
+        let expected_result = None;
+
         let result = build_filing_source(&entry);
 
-        assert!(result.is_none());
+        assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_drop_filing_source_when_form_is_20f() {
         let entry = get_observation_entry_with_form("20-F");
 
+        let expected_result = None;
+
         let result = build_filing_source(&entry);
 
-        assert!(result.is_none());
+        assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_drop_filing_source_when_form_is_40f() {
         let entry = get_observation_entry_with_form("40-F");
 
+        let expected_result = None;
+
         let result = build_filing_source(&entry);
 
-        assert!(result.is_none());
+        assert_eq!(result, expected_result);
     }
 
     #[test]

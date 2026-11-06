@@ -148,6 +148,37 @@ The second test computes `expected_result` from strings with `map`.
 - If the expected value is long but you assert on all of it, you can name it in the Arrange step, as in `let periods_from_2009q1_to_2026_09 = vec![...];`. Then `expected_result` takes that name. The value must stay written out in the test. This needs no deviation comment.
 - If the test checks that two paths agree, `expected_result` can be the output of the reference path. Name both paths in the test name, as in `should_hand_every_stream_item_to_the_caller_when_running_to_the_archive`.
 
+### Compare the Value
+
+End the test with `assert_eq!(result, expected_result)`. Do not hide the value in a check inside `assert!`, as in `assert!(result.is_none())` or `assert!(result.is_err())`. A failing `assert_eq!` prints both values. A failing `assert!` prints only the condition.
+
+- If the result is an `Option` or a `Result`, write the expected value out: `None`, `Some(...)`, `Ok(...)`, or `Err(...)`.
+- If the value is too hard to write out, compare the check with a `bool`: `let expected_result = true;` and then `let result = state.output_data().is_some();`.
+- Use `assert!(condition)` only for a condition that has no value to compare, such as `elapsed < limit`.
+
+In review, report an `assert!` on a check of the result as a 🟣 nit.
+
+Do this:
+
+```rust
+let expected_result = Err(CikError {
+    invalid_cik: "12345abcde".to_string(),
+    reason: InvalidCikReason::ContainsNonNumericCharacters,
+});
+
+let result = Cik::new(cik_str);
+
+assert_eq!(result, expected_result);
+```
+
+Not this:
+
+```rust
+let result = Cik::new(cik_str);
+
+assert!(result.is_err());
+```
+
 ## Boilerplate Tests (apply to ALL domain types and state structs)
 
 Every domain type and state struct should include compile-time trait compliance tests (auto traits like `Send`/`Sync`/`Unpin` and derived traits like `Debug`, `Clone`, `PartialEq`, `Eq`, `Hash`, `Ord` where applicable):
@@ -319,9 +350,11 @@ fn test_context() -> ExecuteSecRequestContext {
 async fn should_compute_output_data_when_client_succeeds() {
     let mut state = ExecuteSecRequest::new(test_input(), test_context());
 
+    let expected_result = Ok(());
+
     let result = state.compute_output_data_async().await;
 
-    assert!(result.is_ok());
+    assert_eq!(result, expected_result);
 }
 ```
 
@@ -346,12 +379,14 @@ fn should_create_valid_cik_struct_when_numeric_string_with_ten_digits_is_passed(
 fn should_fail_when_given_cik_str_that_contains_non_numeric_chars() {
     let cik_str = "12345abcde";
 
+    let expected_result = Err(CikError {
+        invalid_cik: "12345abcde".to_string(),
+        reason: InvalidCikReason::ContainsNonNumericCharacters,
+    });
+
     let result = Cik::new(cik_str);
 
-    assert!(
-        result.is_err(),
-        "CIK creation with non-numeric chars in hardcoded value should fail."
-    );
+    assert_eq!(result, expected_result);
 }
 ```
 

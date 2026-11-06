@@ -319,7 +319,21 @@ mod tests {
 
         assert_eq!(result.input_data(), &expected_input);
         assert_eq!(result.context_data(), &expected_context);
-        assert!(result.output_data().is_none());
+    }
+
+    #[test]
+    fn should_have_no_output_data_when_created() {
+        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
+        let input = PrepareSecRequestInput::new(cik);
+        let context = create_test_context();
+
+        let expected_result = true;
+
+        let result = PrepareSecRequest::new(input, context)
+            .output_data()
+            .is_none();
+
+        assert_eq!(result, expected_result);
     }
 
     // Trait implementation tests

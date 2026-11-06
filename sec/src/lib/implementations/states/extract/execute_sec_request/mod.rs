@@ -741,14 +741,15 @@ mod tests {
     async fn should_return_correct_output_data_when_computing_output_data() {
         let mut execute_state = create_fake_client_state(200);
 
+        let expected_result = true;
+
         execute_state
             .compute_output_data_async()
             .await
             .expect("Valid state should always compute output data");
+        let result = execute_state.output_data().is_some();
 
-        let result = execute_state.output_data();
-
-        assert!(result.is_some());
+        assert_eq!(result, expected_result);
     }
 
     #[tokio::test]
