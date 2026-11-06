@@ -585,6 +585,31 @@ Each error variant answers:
 - **When** — Under what condition is this variant produced?
 - **What** — What do the named fields carry? (for struct variants)
 
+### Pass-Through Errors
+
+A pass-through layer prints no segment of its own (see `AGENTS.md`, "Error Display Format"). Its doc
+must carry this sentence, word for word, so `grep` finds every pass-through layer:
+
+```text
+Passes through: prints the inner error as it is, because this layer adds no fact.
+```
+
+- Put the sentence on the variant, or on the type if the whole type passes through. If a type
+  passes through for only some causes, put it on the variant of the cause.
+- Put it after the what-sentence. Do not change its words.
+- If the inner error is an error type, `source()` must return the source of the inner error, as
+  `#[error(transparent)]` does.
+- If the layer holds its inner error as text, `source()` cannot reach that error. Write the
+  sentence anyway. Add one sentence that names the boundary.
+
+```rust
+/// An error from a failed write.
+///
+/// Passes through: prints the inner error as it is, because this layer adds no fact.
+#[error(transparent)]
+Write(WriteError),
+```
+
 ### `# Errors` Section on Functions
 
 Functions returning `Result` must list possible error variants, answering *"When can this fail and with what?"*:

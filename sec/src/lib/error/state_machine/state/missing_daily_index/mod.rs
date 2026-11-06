@@ -12,7 +12,7 @@ use crate::shared::index_date::IndexDate;
 /// Error for a daily index that the SEC did not send, tagged with the state it occurred in.
 #[derive(Error, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[error(
-    "[MissingDailyIndex] Failure in State: '{state_name}', Reason: 'The SEC sent no daily index of {index_date}, and no quarter listing shows that the day had no filings'"
+    "[MissingDailyIndex] Daily index is missing, Reason: 'The SEC sent no daily index of {index_date}, and no quarter listing shows that the day had no filings'"
 )]
 pub struct MissingDailyIndex {
     /// The name of the state where the error occurred.
@@ -66,7 +66,7 @@ mod tests {
     fn should_name_the_date_when_displayed() {
         let missing_daily_index = sample_error();
 
-        let expected_result = "[MissingDailyIndex] Failure in State: 'Download Daily Index', Reason: 'The SEC sent no daily index of 2026-10-27, and no quarter listing shows that the day had no filings'";
+        let expected_result = "[MissingDailyIndex] Daily index is missing, Reason: 'The SEC sent no daily index of 2026-10-27, and no quarter listing shows that the day had no filings'";
 
         let result = missing_daily_index.to_string();
 

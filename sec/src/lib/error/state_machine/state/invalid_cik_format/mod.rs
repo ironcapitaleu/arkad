@@ -30,7 +30,7 @@ use crate::traits::error::FromDomainError;
 /// Wraps a domain-level [`CikError`] together with additional information about the state in which
 /// the error occurred, making it suitable for use in state machine error handling.
 #[derive(Error, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[error("[InvalidCikFormat] Failure in State: '{state_name}', Caused by: {cik_error}")]
+#[error("[InvalidCikFormat] Failed to validate the CIK, Caused by: {cik_error}")]
 pub struct InvalidCikFormat {
     /// The name of the state where the error occurred.
     pub state_name: String,
@@ -144,6 +144,19 @@ mod tests {
 
         let result = std::error::Error::source(&invalid_cik_format)
             .and_then(|source| source.downcast_ref::<CikError>());
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_name_the_action_and_chain_the_cik_error_when_displayed() {
+        let state_name = "Validate CIK Format";
+        let cik_error = CikError::new(InvalidCikReason::ContainsNonNumericCharacters, "12A45");
+        let invalid_cik_format = InvalidCikFormat::new(state_name, cik_error);
+
+        let expected_result = "[InvalidCikFormat] Failed to validate the CIK, Caused by: [CikError] Invalid CIK, Reason: 'CIK contains non-numeric characters', Input: '12A45'";
+
+        let result = invalid_cik_format.to_string();
 
         assert_eq!(result, expected_result);
     }

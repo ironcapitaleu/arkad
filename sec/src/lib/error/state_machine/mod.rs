@@ -25,12 +25,12 @@ pub mod transition;
 pub use state::State;
 pub use transition::Transition;
 
+use thiserror::Error;
+
 use super::ErrorKind;
-use std::error::Error;
-use std::fmt::{self, Display, Formatter};
 
 #[non_exhaustive]
-#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
+#[derive(Debug, Error, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 /// Error occurring at the state machine level.
 ///
 /// Groups the three ways execution can fail: a misconfigured machine, a failure inside a state,
@@ -38,31 +38,21 @@ use std::fmt::{self, Display, Formatter};
 /// errors respectively.
 pub enum StateMachine {
     /// Invalid configuration of the state machine.
+    #[error("[InvalidConfiguration] Invalid configuration of the state machine")]
     InvalidConfiguration,
 
     /// A failure occurred inside a state.
+    ///
+    /// Passes through: prints the inner error as it is, because this layer adds no fact.
+    #[error(transparent)]
     State(State),
 
     /// A failure occurred while transitioning between states.
+    ///
+    /// Passes through: prints the inner error as it is, because this layer adds no fact.
+    #[error(transparent)]
     Transition(Transition),
 }
-
-impl Display for StateMachine {
-    /// Prints a wrapped [`State`] or [`Transition`] error as it is. Each one starts with its own
-    /// bracketed name, so this layer adds no segment to the error chain.
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        match self {
-            Self::State(state) => write!(f, "{state}"),
-            Self::Transition(transition) => write!(f, "{transition}"),
-            Self::InvalidConfiguration => write!(
-                f,
-                "[InvalidConfiguration] Invalid configuration of the state machine"
-            ),
-        }
-    }
-}
-
-impl Error for StateMachine {}
 
 impl From<State> for StateMachine {
     fn from(error: State) -> Self {
@@ -106,11 +96,15 @@ impl TryFrom<StateMachine> for Transition {
 
 #[cfg(test)]
 mod tests {
+    use std::error::Error;
     use std::{fmt::Debug, hash::Hash};
 
     use pretty_assertions::assert_eq;
 
+    use super::state::InvalidCikFormat;
+    use super::transition::MissingOutput;
     use super::*;
+    use crate::shared::cik::{CikError, InvalidCikReason};
 
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
     #[test]
@@ -277,7 +271,7 @@ mod tests {
             transition::MissingOutput::new("Validate CIK Format", "Prepare SEC Request"),
         ));
 
-        let expected_result = "[TransitionError] A transition error occurred, Caused by: [MissingOutput] Failure during transition from 'Validate CIK Format' to 'Prepare SEC Request', Reason: 'Output data has not been computed'";
+        let expected_result = "[MissingOutput] Failure during transition from 'Validate CIK Format' to 'Prepare SEC Request', Reason: 'Output data has not been computed'";
 
         let result = state_machine.to_string();
 
@@ -291,6 +285,36 @@ mod tests {
         let expected_result = "[InvalidConfiguration] Invalid configuration of the state machine";
 
         let result = state_machine.to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_forward_source_to_the_domain_error_when_state_machine_wraps_a_state_error() {
+        let cik_error = CikError::new(InvalidCikReason::ContainsNonNumericCharacters, "12345abcde");
+        let error = StateMachine::State(State::InvalidCikFormat(InvalidCikFormat::new(
+            "Validate CIK Format",
+            cik_error,
+        )));
+
+        let expected_result = Some(
+            "[CikError] Invalid CIK, Reason: 'CIK contains non-numeric characters', Input: '12345abcde'"
+                .to_string(),
+        );
+
+        let result = Error::source(&error).map(ToString::to_string);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_no_source_when_state_machine_wraps_a_leaf_transition_error() {
+        let missing_output = MissingOutput::new("Validate CIK Format", "Prepare SEC Request");
+        let error = StateMachine::Transition(Transition::MissingOutput(missing_output));
+
+        let expected_result: Option<String> = None;
+
+        let result = Error::source(&error).map(ToString::to_string);
 
         assert_eq!(result, expected_result);
     }

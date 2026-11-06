@@ -33,7 +33,7 @@ use crate::traits::error::FromDomainError;
 /// state it occurred in.
 #[derive(Error, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[error(
-    "[FailedDocumentSelection] Failure in State: '{state_name}', Caused by: {filing_documents_error}"
+    "[FailedDocumentSelection] Failed to select the filing documents, Caused by: {filing_documents_error}"
 )]
 pub struct FailedDocumentSelection {
     /// The name of the state where the error occurred.
@@ -116,7 +116,7 @@ mod tests {
         let failed_document_selection =
             FailedDocumentSelection::new("Select Filing Documents", missing_xbrl_instance());
 
-        let expected_result = "[FailedDocumentSelection] Failure in State: 'Select Filing Documents', Caused by: [MissingXbrlInstance] The folder of filing '0000003545-26-000047' holds no XBRL instance";
+        let expected_result = "[FailedDocumentSelection] Failed to select the filing documents, Caused by: [MissingXbrlInstance] The folder of filing '0000003545-26-000047' holds no XBRL instance";
 
         let result = failed_document_selection.to_string();
 
