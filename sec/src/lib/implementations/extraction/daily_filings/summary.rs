@@ -480,7 +480,7 @@ mod tests {
                 "failed": [{
                     "accession_number": "0000003545-26-000047",
                     "failed_state": "Select Filing Documents",
-                    "error": "[StreamError][00000000-0000-0000-0000-000000000000] 'state_failed' in 'Select Filing Documents', Caused by: [StateError] A state level error occurred, Caused by: [FailedDocumentSelection] Failure in State: 'Select Filing Documents', Caused by: [AmbiguousFilingDocument] The folder of filing '0000003545-26-000047' holds 2 candidates for the XBRL instance",
+                    "error": "[StreamError][00000000-0000-0000-0000-000000000000] 'state_failed' in 'Select Filing Documents', Caused by: [FailedDocumentSelection] Failure in State: 'Select Filing Documents', Caused by: [AmbiguousFilingDocument] The folder of filing '0000003545-26-000047' holds 2 candidates for the XBRL instance",
                 }],
             },
             "submissions": {
@@ -607,7 +607,7 @@ mod tests {
                 "unextractable": [{
                     "accession_number": "0000003545-26-000047",
                     "failed_state": "Select Filing Documents",
-                    "error": "[StreamError][00000000-0000-0000-0000-000000000000] 'state_failed' in 'Select Filing Documents', Caused by: [StateError] A state level error occurred, Caused by: [FailedDocumentSelection] Failure in State: 'Select Filing Documents', Caused by: [MissingXbrlInstance] The folder of filing '0000003545-26-000047' holds no XBRL instance",
+                    "error": "[StreamError][00000000-0000-0000-0000-000000000000] 'state_failed' in 'Select Filing Documents', Caused by: [FailedDocumentSelection] Failure in State: 'Select Filing Documents', Caused by: [MissingXbrlInstance] The folder of filing '0000003545-26-000047' holds no XBRL instance",
                 }],
                 "failed": [],
             },
@@ -679,7 +679,7 @@ mod tests {
         let expected_result = vec![json!({
             "date": "2026-10-31",
             "detection": "pending",
-            "error": "[StreamError][00000000-0000-0000-0000-000000000000] 'state_failed' in 'Download Daily Index', Caused by: [StateError] A state level error occurred, Caused by: [MissingDailyIndex] Failure in State: 'Download Daily Index', Reason: 'The SEC sent no daily index of 2026-10-31, and no quarter listing shows that the day had no filings'",
+            "error": "[StreamError][00000000-0000-0000-0000-000000000000] 'state_failed' in 'Download Daily Index', Caused by: [MissingDailyIndex] Failure in State: 'Download Daily Index', Reason: 'The SEC sent no daily index of 2026-10-31, and no quarter listing shows that the day had no filings'",
         })];
 
         let result = summary.entries();

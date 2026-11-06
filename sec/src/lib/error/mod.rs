@@ -21,40 +21,29 @@
 
 pub mod state_machine;
 
-use std::error::Error;
-use std::fmt::{self, Display, Formatter};
+use thiserror::Error;
 
 pub use state_machine::StateMachine;
 pub use state_machine::state::State;
 pub use state_machine::transition::Transition;
 
 #[non_exhaustive]
-#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
+#[derive(Debug, Error, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 /// The top-level error type for the SEC state machine library.
 ///
 /// The outermost layer of the error hierarchy: it wraps every more specific error so callers can
 /// propagate one type, and supports downward extraction to [`State`]/[`Transition`] via [`TryFrom`].
 pub enum ErrorKind {
     /// An error originating from state machine execution.
+    ///
+    /// Passes through: prints the inner error as it is, because this layer adds no fact.
+    #[error(transparent)]
     StateMachine(StateMachine),
 
     /// A [`TryFrom`] downcast to a more specific error type did not match the held variant.
+    #[error("[DowncastNotPossible] Failed to downcast error into a more specific type")]
     DowncastNotPossible,
 }
-
-impl Display for ErrorKind {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        match self {
-            Self::StateMachine(state_machine) => write!(f, "{state_machine}"),
-            Self::DowncastNotPossible => write!(
-                f,
-                "[DowncastNotPossible] Failed to downcast error into a more specific type"
-            ),
-        }
-    }
-}
-
-impl Error for ErrorKind {}
 
 impl From<StateMachine> for ErrorKind {
     fn from(error: StateMachine) -> Self {
@@ -116,11 +105,14 @@ impl TryFrom<ErrorKind> for Transition {
 
 #[cfg(test)]
 mod tests {
+    use std::error::Error;
     use std::{fmt::Debug, hash::Hash};
 
     use pretty_assertions::assert_eq;
 
+    use super::state_machine::state::InvalidCikFormat;
     use super::*;
+    use crate::shared::cik::{CikError, InvalidCikReason};
 
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
     #[test]
@@ -277,6 +269,23 @@ mod tests {
             "[DowncastNotPossible] Failed to downcast error into a more specific type";
 
         let result = error_kind.to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_forward_source_to_the_domain_error_when_error_kind_wraps_a_state_error() {
+        let cik_error = CikError::new(InvalidCikReason::ContainsNonNumericCharacters, "12345abcde");
+        let error = ErrorKind::StateMachine(StateMachine::State(State::InvalidCikFormat(
+            InvalidCikFormat::new("Validate CIK Format", cik_error),
+        )));
+
+        let expected_result = Some(
+            "[CikError] Invalid CIK, Reason: 'CIK contains non-numeric characters', Input: '12345abcde'"
+                .to_string(),
+        );
+
+        let result = Error::source(&error).map(ToString::to_string);
 
         assert_eq!(result, expected_result);
     }
