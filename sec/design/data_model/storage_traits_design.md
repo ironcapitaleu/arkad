@@ -61,7 +61,7 @@ storage/
     ├── error/                 # sec-style hierarchy (module-per-level)
     │   ├── mod.rs             # ErrorKind (union) + From/TryFrom + DowncastNotPossible
     │   ├── write_error/mod.rs # WriteError
-    │   ├── backend_error/mod.rs # BackendError (is_retryable)
+    │   ├── backend_error/mod.rs # BackendError, BackendCause (is_retryable planned)
     │   └── read_error/mod.rs  # ReadError  (added with the STA-139 read methods)
     └── store/
         ├── mod.rs
@@ -105,18 +105,23 @@ error/
   mod.rs                → ErrorKind    { Read(ReadError), Write(WriteError), DowncastNotPossible }
   read_error/mod.rs     → ReadError    { MissingRecord, Backend(BackendError), … }   ← arrives with the read methods (STA-139)
   write_error/mod.rs    → WriteError   { ConflictingWrite{reason}, FailedIntegrityCheck{reason}, Backend(BackendError) }
-  backend_error/mod.rs  → BackendError { Unavailable{reason}, Failed{reason} }        ← is_retryable() lives here
+  backend_error/mod.rs  → BackendError { UnreachableStorage{cause}, FailedOperation{cause}, UnauthorizedAccess{cause} }
+                          // cause: BackendCause { Reason(String), FailedFilesystemOperation(…) }
   // a RICH leaf gets its own module (e.g. missing_read_permission/), exactly as sec splits `invalid_cik_format`
 ```
 
 **Per-level conventions — identical to sec:**
 
 - `#[non_exhaustive]` + `#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]`. **Value
-  type** — no `Box<dyn Error>`; rich detail is flattened to a `reason` string at the conversion
-  boundary. This is exactly what lets each level be *contained in* the level above it.
-- **Markers stay inline** on the enum with `#[error("[…] …, Reason: '…'")]`; **rich leaves get their
+  type** — no `Box<dyn Error>`. A backend error holds a `BackendCause`: a `reason` string, or a
+  wrapped error that is itself a value type (`Clone`, `Eq`, `Hash`, `Ord`). This is exactly what lets
+  each level be *contained in* the level above it. An error that is not a value type, such as
+  `sqlx::Error`, is flattened to a `reason` string at the conversion boundary.
+- **Markers stay inline** on the enum with `#[error("[…] …, Reason: '…'")]`. `BackendError` is the
+  exception: its `Display` and `Error` are written by hand, because its `source()` depends on its
+  `BackendCause`. **Rich leaves get their
   own module** and are wrapped (`Read(ReadError)`-style). Same split as sec's `State::InvalidInput`
-  (inline) vs `State::InvalidCikFormat(_)` (module). Today's causes are all markers → inline.
+  (inline) vs `State::InvalidCikFormat(_)` (module). Today's `WriteError` and `ReadError` causes are all markers → inline.
 - **Upcast** = `From<Inner> for Outer` — infallible, `?`-able: `MissingReadPermission → ReadError →
   ErrorKind`. So a read method returns `ReadError` and anything `Into<ReadError>` flows in via `?`.
 - **Downcast** = `TryFrom<Outer> for Inner`, `type Error = ErrorKind`, returns
@@ -138,10 +143,12 @@ async fn query(&self, …)                 -> Result<_,  ReadError>;    // never
 ```
 
 The store methods return the classes **directly** (`append -> Result<(), WriteError>`); the Postgres
-impl maps `sqlx::Error → WriteError::Backend(BackendError::Failed { reason })` at its own boundary.
-This **drops the earlier `Backend::type Error` associated error** — the value-type decision already
-flattened rich detail to `reason`, so the associated type was buying flexibility we don't use.
-`ErrorKind` (the union) is what the **shared consumers** take — the retry decorator (`is_retryable()`)
+impl maps `sqlx::Error → WriteError::Backend(BackendError::failed_operation(reason))` at its own boundary.
+A `BackendCause` holds either that reason or a wrapped error. A wrapped error prints after
+`Caused by:`, and `source()` returns it. The filesystem backend wraps its `FailedFilesystemOperation`.
+This **drops the earlier `Backend::type Error` associated error** — the value-type decision keeps
+backend errors as values, so the associated type was buying flexibility we don't use.
+`ErrorKind` (the union) is what the **shared consumers** take — the retry decorator (`is_retryable()`, planned)
 and the `sec` seam (`State::FailedPersistence(ErrorKind)`) — reached by the `From` upcast.
 
 **Grows with the methods.** Today only write methods exist → build `ErrorKind` + `WriteError` +
@@ -893,3 +900,8 @@ These are *not* part of the frozen v1 — they wait for a concrete consumer, by 
   Error`** (stores return the classes directly; the value-type/`reason`-string decision already
   flattened rich detail, making the associated error moot). Built write-side first; `ReadError`
   arrives with the STA-139 read methods.
+- **(2026-11-05) — `BackendError` wraps a value-type cause.** Each variant now holds a
+  `BackendCause` in place of `reason`: a `reason` string, or a wrapped
+  `FailedFilesystemOperation`. A wrapped error prints after `Caused by:` with no quotes, and
+  `source()` returns it. Only a value-type error can become a `BackendCause` variant. A Postgres
+  backend flattens `sqlx::Error` to a `reason`, as above.

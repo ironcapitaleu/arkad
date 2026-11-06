@@ -1,6 +1,7 @@
 //! # Backend Error
 //!
-//! Provides [`BackendError`], the error raised when the storage backend cannot serve a request.
+//! Provides [`BackendError`], the error raised when the storage backend cannot serve a request,
+//! and its [`BackendCause`].
 //!
 //! ## Usage
 //!
@@ -12,34 +13,50 @@
 //! let _err = BackendError::unreachable_storage(reason);
 //! ```
 
-use thiserror::Error;
+use std::error::Error;
+use std::fmt::{self, Display, Formatter};
+
+use crate::implementations::repository::filesystem::FailedFilesystemOperation;
 
 #[non_exhaustive]
-#[derive(Debug, Error, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
+// `Display` and `Error` are written by hand, not derived with `thiserror`: `thiserror` cannot pick
+// a source by matching on a field, and `source()` returns the wrapped error only when the cause
+// holds one.
+#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 /// Error occurring at the storage backend.
 ///
-/// Separates the different kinds of backend failures so a caller can tell them apart.
+/// Separates the different kinds of backend failures so a caller can tell them apart. Each kind
+/// holds a [`BackendCause`]: a free-form reason, or the error it wraps.
 pub enum BackendError {
     /// The backend cannot be reached (connection drop, timeout, host down).
-    #[error("[UnreachableStorage] Storage backend is not reachable, Reason: '{reason}'")]
     UnreachableStorage {
-        /// Human-readable explanation of why the backend cannot be reached.
-        reason: String,
+        /// Why the backend cannot be reached.
+        cause: BackendCause,
     },
 
     /// The backend rejected or aborted the operation.
-    #[error("[FailedOperation] Storage backend operation failed, Reason: '{reason}'")]
     FailedOperation {
-        /// Human-readable explanation of the failure.
-        reason: String,
+        /// Why the operation failed.
+        cause: BackendCause,
     },
 
     /// The backend refused the request because the caller lacks permission.
-    #[error("[UnauthorizedAccess] Storage backend denied access, Reason: '{reason}'")]
     UnauthorizedAccess {
-        /// Human-readable explanation of why access was denied.
-        reason: String,
+        /// Why access was denied.
+        cause: BackendCause,
     },
+}
+
+/// The cause of a [`BackendError`].
+#[non_exhaustive]
+#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
+pub enum BackendCause {
+    /// A free-form explanation. It ends the error chain and prints as `, Reason: '…'`.
+    Reason(String),
+
+    /// A filesystem error. It is the next link of the error chain and prints as
+    /// `, Caused by: …`. The box keeps [`BackendError`] as small as a reason does.
+    FailedFilesystemOperation(Box<FailedFilesystemOperation>),
 }
 
 impl BackendError {
@@ -47,7 +64,7 @@ impl BackendError {
     #[must_use]
     pub fn unreachable_storage(reason: impl Into<String>) -> Self {
         Self::UnreachableStorage {
-            reason: reason.into(),
+            cause: BackendCause::Reason(reason.into()),
         }
     }
 
@@ -55,7 +72,7 @@ impl BackendError {
     #[must_use]
     pub fn failed_operation(reason: impl Into<String>) -> Self {
         Self::FailedOperation {
-            reason: reason.into(),
+            cause: BackendCause::Reason(reason.into()),
         }
     }
 
@@ -63,7 +80,51 @@ impl BackendError {
     #[must_use]
     pub fn unauthorized_access(reason: impl Into<String>) -> Self {
         Self::UnauthorizedAccess {
-            reason: reason.into(),
+            cause: BackendCause::Reason(reason.into()),
+        }
+    }
+
+    /// Returns the cause of this error.
+    #[must_use]
+    pub const fn cause(&self) -> &BackendCause {
+        match self {
+            Self::UnreachableStorage { cause }
+            | Self::FailedOperation { cause }
+            | Self::UnauthorizedAccess { cause } => cause,
+        }
+    }
+}
+
+impl Display for BackendError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        let description = match self {
+            Self::UnreachableStorage { .. } => {
+                "[UnreachableStorage] Storage backend is not reachable"
+            }
+            Self::FailedOperation { .. } => "[FailedOperation] Storage backend operation failed",
+            Self::UnauthorizedAccess { .. } => "[UnauthorizedAccess] Storage backend denied access",
+        };
+        f.write_str(description)?;
+        self.cause().write_suffix(f)
+    }
+}
+
+impl Error for BackendError {
+    /// Returns the wrapped error, or `None` if the cause is a free-form reason.
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        match self.cause() {
+            BackendCause::Reason(_) => None,
+            BackendCause::FailedFilesystemOperation(error) => Some(error.as_ref()),
+        }
+    }
+}
+
+impl BackendCause {
+    /// Writes the segment that follows the description of a [`BackendError`].
+    fn write_suffix(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Reason(reason) => write!(f, ", Reason: '{reason}'"),
+            Self::FailedFilesystemOperation(error) => write!(f, ", Caused by: {error}"),
         }
     }
 }
@@ -154,7 +215,7 @@ mod tests {
         let reason = "connection reset";
 
         let expected_result = BackendError::UnreachableStorage {
-            reason: reason.to_owned(),
+            cause: BackendCause::Reason(reason.to_owned()),
         };
 
         let result = BackendError::unreachable_storage(reason);
@@ -167,7 +228,7 @@ mod tests {
         let reason = "constraint violation";
 
         let expected_result = BackendError::FailedOperation {
-            reason: reason.to_owned(),
+            cause: BackendCause::Reason(reason.to_owned()),
         };
 
         let result = BackendError::failed_operation(reason);
@@ -180,7 +241,7 @@ mod tests {
         let reason = "role lacks INSERT";
 
         let expected_result = BackendError::UnauthorizedAccess {
-            reason: reason.to_owned(),
+            cause: BackendCause::Reason(reason.to_owned()),
         };
 
         let result = BackendError::unauthorized_access(reason);
@@ -220,6 +281,38 @@ mod tests {
             "[UnauthorizedAccess] Storage backend denied access, Reason: 'role lacks INSERT'";
 
         let result = error.to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_no_source_when_backend_error_holds_a_reason() {
+        let backend_error = BackendError::failed_operation("disk full");
+
+        let expected_result = true;
+
+        let result = Error::source(&backend_error).is_none();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_the_reason_as_cause_when_backend_error_is_built_from_a_reason() {
+        let reason = "connection reset";
+        let backend_error = BackendError::unreachable_storage(reason);
+
+        let expected_result = &BackendCause::Reason("connection reset".to_owned());
+
+        let result = backend_error.cause();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_stay_32_bytes_for_backend_error() {
+        let expected_result = 32;
+
+        let result = std::mem::size_of::<BackendError>();
 
         assert_eq!(result, expected_result);
     }
