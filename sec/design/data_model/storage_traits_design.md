@@ -249,8 +249,8 @@ SHA-256 orders them.
 published the file. So "as of T" means "the versions whose store state started at or before T".
 This equals "what the store held at T" when one run at a time writes a key.
 
-If two runs write one key at the same time, a run that starts earlier and writes later adds a
-version that sorts before the version of the other run. The latest version is then the bytes of
+Two runs can write one key at the same time. If one run starts earlier and writes later, its
+version sorts before the version of the other run. The latest version is then the bytes of
 the run that started last, not the bytes written last. In the MVP, only a catch-up of `backfill`
 that overlaps a run of `daily_filings` writes one key from two runs.
 
@@ -302,19 +302,23 @@ copy.
 
 ### Write
 
-`persist` adds a version when the bytes differ from the latest version. It never replaces or
-deletes a version.
+`persist` adds a version when the new document does not match the latest version. It never
+replaces or deletes a version.
 
 1. List the folder of the key. Take the latest version.
-2. If its SHA-256 equals the SHA-256 of the new bytes, skip the write. The stored metadata stays,
-   so `produced_at` names the first write of these bytes.
+2. If its SHA-256 equals the SHA-256 of the new bytes, and the document type finds the same
+   version (see below), skip the write. The stored metadata stays, so `produced_at` names the
+   first write of these bytes.
 3. Otherwise, write the document to a temporary file, then rename it to its version name.
 4. Write the metadata to a temporary file, then rename it to `<version name>.meta.json`.
 
 - The SHA-256 of the bytes decides. A change of the request context, for example a new
   `user_agent`, adds no version. Otherwise a change of the User-Agent stores every Notes file
   again on its next fetch.
-- One exception: for a Notes file, `persist` also compares `last_modified` (see
+- One exception: a document type can name context fields that also make a new version. The
+  `storage` crate sees the context as an opaque type, so the rule sits on the `Document` trait:
+  `fn is_same_version(new: &Self::Context, stored: &Self::Context) -> bool`, which returns `true`
+  by default. The Notes context compares `last_modified` (see
   [How a Notes Run Learns of a Replaced File](#how-a-notes-run-learns-of-a-replaced-file)). Equal
   bytes with a new `last_modified` add a version.
 - The metadata is written last, so it marks a complete version. A reader lists only the
@@ -342,9 +346,10 @@ A new capability trait reads a chosen version:
 
 ```rust
 pub enum VersionSelector {
-    /// The version with the greatest `produced_at`.
+    /// The last version in the order of the version ids.
     Latest,
-    /// The version with the greatest `produced_at` at or before the time.
+    /// The last version, in the order of the version ids, whose `produced_at` is at or before
+    /// the time.
     AsOf(DateTime<Utc>),
     /// The earliest version whose bytes have this SHA-256.
     Sha256(Sha256Digest),
@@ -361,7 +366,8 @@ pub trait VersionedReadRepository: ReadRepository {
 ```
 
 - `get(key)` equals `get_version(key, VersionSelector::Latest)`.
-- `AsOf(T)` gives what the store held at T. A run "as of date D" reads with T at the end of D.
+- `AsOf(T)` gives the version as of T, as defined in [Terms](#terms). A run "as of date D"
+  reads with T at the end of D.
 - `Sha256(digest)` resolves an `inputs` entry to the exact bytes it names. So an instance points
   to the daily index it came from, even after the SEC replaced that index.
 - A selector that matches no version returns `Ok(None)`, as `get` does for a missing key.
@@ -379,17 +385,19 @@ The SEC does not tell a client that it replaced a file. The run must ask.
   the latest stored version if one of these holds:
   - The version has `last_modified`, and it equals `Last-Modified` of the answer.
   - The version has no `last_modified`, because it was stored before this field existed. Its
-    `bytes` equal `Content-Length`, and its `produced_at` is later than `Last-Modified`. So the
-    run fetched the file after the last change at the SEC.
-- Otherwise the run downloads the file again. `persist` compares the SHA-256 and `last_modified`
-  with the latest version, and adds a version if either differs. The run summary marks the
+    `bytes` equal `Content-Length`, and its `produced_at` is at least 1 day later than
+    `Last-Modified`. So the run fetched the file after the last change at the SEC, with a margin
+    longer than one download. If the margin is shorter, the run downloads the file once, and the
+    new version gets `last_modified`.
+- Otherwise the run downloads the file again. `persist` adds a version if the SHA-256 or
+  `last_modified` differs from the latest version. The run summary marks the
   period as `refreshed`.
 - The cost is one `HEAD` per stored file and run: about 80 requests, under 10 seconds at the rate
   limit.
 - A full download to compare the SHA-256 costs 27.7 GB per run, so it is not an option.
 
 `submissions` and the daily index need no such check. Each run fetches them again, and `persist`
-adds a version when the bytes differ. A daily index outside the window of 4 days is not fetched
+adds a version when the bytes differ from the latest version. A daily index outside the window of 4 days is not fetched
 again. The reconciliation of the integrity check covers it.
 
 If the SEC changes `Last-Modified` but not the bytes, the new version holds the same bytes as the
@@ -404,9 +412,9 @@ the file again.
   version id needs no new field. A filter `as_of: Option<DateTime<Utc>>` keeps, for each key, the
   version as of that time. Without the filter, the stream holds every version.
 - **`RawStore::append`.** `persist` with versions is the append of the frozen design. The raw tier
-  never replaces a record. Equal bytes are a no-op.
+  never replaces a record. A write that matches the latest version is a no-op.
 - **`RawStore::scan`.** A scan is a listing plus a read of each entry with
-  `VersionSelector::Sha256`. A scan with `as_of` set replays the store as it was at that time.
+  `VersionSelector::Sha256`. A scan with `as_of` set replays the versions as of that time, as defined in [Terms](#terms).
   `scan` stays deferred with the rest of the read side. Versions and the listing give it what it
   needs.
 - **Integrity check.** A valid older version is a version whose metadata and document both exist
@@ -447,7 +455,7 @@ month.
 | ------ | ------------ | --------------- |
 | `submissions` | One per fetch with a new filing. About 6,500 companies with about 5 fetches a year, at about 100 KB each | About 3 GB |
 | Daily index | Only when the SEC edits an index inside the window | Under 1 MB |
-| Notes files | One per file the SEC replaces. Two known cases so far, `2024q1` and `2025q3` | At most 0.85 GB per replaced file, the largest Notes file |
+| Notes files | One per file the SEC replaces or whose `Last-Modified` changes. Two known cases so far, `2024q1` and `2025q3` | At most 0.85 GB per replaced file, the largest Notes file |
 | Filing documents | None | None |
 | Company Facts | One per run and changed company | One full copy per run, if run |
 
@@ -476,7 +484,8 @@ No ticket exists yet for items 1 to 4. Each fits the PR budget of about 200 line
    a component that ends in `.versions`. Pure functions with unit tests, no change of behavior.
 2. **Write and read the latest version.** `persist` adds a version, as in [Write](#write).
    `get(key)` returns the latest version. Tests: equal bytes skip, new bytes add a version, A then
-   B then A gives three versions, metadata after the document. Update "How a Write Works" in
+   B then A gives three versions, metadata after the document, a change of `user_agent` alone
+   adds no version. Adds `Document::is_same_version` with the default `true`. Update "How a Write Works" in
    `extraction_overview.md`, "Raw Store" in `ingestion_paths.md`, and the rustdoc of
    `FilesystemRepository` and `persist`. Needs item 1.
 3. **Read a chosen version.** `VersionSelector` and `VersionedReadRepository` for the filesystem
@@ -490,12 +499,13 @@ Existing tickets that change:
 - **Refresh of replaced Notes files.** Takes the check of
   [How a Notes Run Learns of a Replaced File](#how-a-notes-run-learns-of-a-replaced-file).
   `Headers` reads `Last-Modified`. Tests: a stored version without `last_modified` whose bytes did
-  not change is not downloaded again, and equal bytes with a new `Last-Modified` add one version.
-  Needs item 2.
+  not change is not downloaded again, a version without `last_modified` whose `produced_at` is
+  less than 1 day after `Last-Modified` is downloaded again, and equal bytes with a new
+  `Last-Modified` add one version. The Notes context implements `is_same_version`. Needs item 2.
 - **Listing of a repository.** Lists one entry per version and adds the filter `as_of`, as in
   [Versions, the Listing, and `RawStore`](#versions-the-listing-and-rawstore).
-- **Backfill as of a date.** Reads with `VersionSelector::AsOf` for a replay of what the store held
-  on D. Needs item 3.
+- **Backfill as of a date.** Reads with `VersionSelector::AsOf` for a replay of the versions as of
+  D. Needs item 3.
 - **Integrity check and reconciliation.** Uses the orphan rule and the repair rule above.
 
 ---
