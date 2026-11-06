@@ -158,9 +158,11 @@ mod tests {
         };
         let error = ErrorKind::from(parse_error);
 
-        let result = Error::source(&error);
+        let expected_result: Option<String> = None;
 
-        assert!(result.is_none());
+        let result = Error::source(&error).map(ToString::to_string);
+
+        assert_eq!(result, expected_result);
     }
 
     #[test]
@@ -172,8 +174,10 @@ mod tests {
         };
         let error = ErrorKind::from(validation_error);
 
-        let result = Error::source(&error);
+        let expected_result: Option<String> = None;
 
-        assert!(result.is_none());
+        let result = Error::source(&error).map(ToString::to_string);
+
+        assert_eq!(result, expected_result);
     }
 }
