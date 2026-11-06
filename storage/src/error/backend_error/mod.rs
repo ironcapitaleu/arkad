@@ -19,14 +19,16 @@ use std::fmt::{self, Display, Formatter};
 use crate::implementations::repository::filesystem::FailedFilesystemOperation;
 
 #[non_exhaustive]
-// `Display` and `Error` are written by hand, not derived with `thiserror`: `thiserror` cannot pick
-// a source by matching on a field, and `source()` returns the wrapped error only when the cause
-// holds one.
+// `Display` and `Error` are written by hand, not derived with `thiserror`: `thiserror` cannot
+// pass through by matching on a field, and only a wrapped cause passes through.
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 /// Error occurring at the storage backend.
 ///
 /// Separates the different kinds of backend failures so a caller can tell them apart. Each kind
 /// holds a [`BackendCause`]: a free-form reason, or the error it wraps.
+///
+/// With a reason, the error is a leaf and prints its kind and the reason. With a wrapped error, it
+/// passes the wrapped error through.
 pub enum BackendError {
     /// The backend cannot be reached (connection drop, timeout, host down).
     UnreachableStorage {
@@ -54,8 +56,11 @@ pub enum BackendCause {
     /// A free-form explanation. It ends the error chain and prints as `, Reason: '…'`.
     Reason(String),
 
-    /// A filesystem error. It is the next link of the error chain and prints as
-    /// `, Caused by: …`. The box keeps [`BackendError`] as small as a reason does.
+    /// A filesystem error.
+    ///
+    /// Passes through: prints the inner error as it is, because this layer adds no fact.
+    ///
+    /// The box keeps [`BackendError`] as small as a reason does.
     FailedFilesystemOperation(Box<FailedFilesystemOperation>),
 }
 
@@ -97,6 +102,10 @@ impl BackendError {
 
 impl Display for BackendError {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        let reason = match self.cause() {
+            BackendCause::Reason(reason) => reason,
+            BackendCause::FailedFilesystemOperation(error) => return error.fmt(f),
+        };
         let description = match self {
             Self::UnreachableStorage { .. } => {
                 "[UnreachableStorage] Storage backend is not reachable"
@@ -104,27 +113,16 @@ impl Display for BackendError {
             Self::FailedOperation { .. } => "[FailedOperation] Storage backend operation failed",
             Self::UnauthorizedAccess { .. } => "[UnauthorizedAccess] Storage backend denied access",
         };
-        f.write_str(description)?;
-        self.cause().write_suffix(f)
+        write!(f, "{description}, Reason: '{reason}'")
     }
 }
 
 impl Error for BackendError {
-    /// Returns the wrapped error, or `None` if the cause is a free-form reason.
+    /// Returns the source of the wrapped error, or `None` if the cause is a free-form reason.
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match self.cause() {
             BackendCause::Reason(_) => None,
-            BackendCause::FailedFilesystemOperation(error) => Some(error.as_ref()),
-        }
-    }
-}
-
-impl BackendCause {
-    /// Writes the segment that follows the description of a [`BackendError`].
-    fn write_suffix(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Reason(reason) => write!(f, ", Reason: '{reason}'"),
-            Self::FailedFilesystemOperation(error) => write!(f, ", Caused by: {error}"),
+            BackendCause::FailedFilesystemOperation(error) => error.source(),
         }
     }
 }

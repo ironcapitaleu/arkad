@@ -31,8 +31,10 @@ pub enum ReadError {
     },
 
     /// The read failed at the storage backend.
-    #[error("[BackendError] Storage backend error occurred, Caused by: {0}")]
-    Backend(#[source] BackendError),
+    ///
+    /// Passes through: prints the inner error as it is, because this layer adds no fact.
+    #[error(transparent)]
+    Backend(BackendError),
 }
 
 impl ReadError {
@@ -206,10 +208,11 @@ mod tests {
     }
 
     #[test]
-    fn should_chain_backend_display_after_caused_by_when_read_error_wraps_backend() {
+    fn should_print_the_backend_error_as_it_is_when_read_error_wraps_backend() {
         let error = ReadError::Backend(BackendError::failed_operation("statement timeout"));
 
-        let expected_result = "[BackendError] Storage backend error occurred, Caused by: [FailedOperation] Storage backend operation failed, Reason: 'statement timeout'";
+        let expected_result =
+            "[FailedOperation] Storage backend operation failed, Reason: 'statement timeout'";
 
         let result = error.to_string();
 
@@ -217,14 +220,12 @@ mod tests {
     }
 
     #[test]
-    fn should_expose_backend_error_as_source_when_read_error_wraps_backend() {
-        let backend_error = BackendError::unreachable_storage("timeout");
-        let error = ReadError::Backend(backend_error.clone());
+    fn should_forward_source_to_the_backend_error_when_read_error_wraps_backend() {
+        let error = ReadError::Backend(BackendError::unreachable_storage("timeout"));
 
-        let expected_result = Some(&backend_error);
+        let expected_result = true;
 
-        let result = std::error::Error::source(&error)
-            .and_then(|source| source.downcast_ref::<BackendError>());
+        let result = std::error::Error::source(&error).is_none();
 
         assert_eq!(result, expected_result);
     }
