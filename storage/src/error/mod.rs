@@ -45,12 +45,16 @@ pub use write_error::WriteError;
 /// not match.
 pub enum ErrorKind {
     /// An error originating from a read operation.
-    #[error("[FailedRead] Problem occurred during a read operation, Caused by: {0}")]
-    Read(#[source] ReadError),
+    ///
+    /// Passes through: prints the inner error as it is, because this layer adds no fact.
+    #[error(transparent)]
+    Read(ReadError),
 
     /// An error originating from a write operation.
-    #[error("[FailedWrite] Problem occurred during a write operation, Caused by: {0}")]
-    Write(#[source] WriteError),
+    ///
+    /// Passes through: prints the inner error as it is, because this layer adds no fact.
+    #[error(transparent)]
+    Write(WriteError),
 
     /// A [`TryFrom`] downcast to a more specific error type did not match the held variant.
     #[error("[DowncastNotPossible] Failed to downcast error into a more specific type")]
@@ -328,10 +332,10 @@ mod tests {
     }
 
     #[test]
-    fn should_chain_read_display_after_caused_by_when_error_kind_wraps_read() {
+    fn should_print_the_read_error_as_it_is_when_error_kind_wraps_read() {
         let error_kind = ErrorKind::Read(ReadError::missing_record("0000320193-24-000123"));
 
-        let expected_result = "[FailedRead] Problem occurred during a read operation, Caused by: [MissingRecord] Requested record '0000320193-24-000123' not found";
+        let expected_result = "[MissingRecord] Requested record '0000320193-24-000123' not found";
 
         let result = error_kind.to_string();
 
@@ -339,10 +343,11 @@ mod tests {
     }
 
     #[test]
-    fn should_chain_write_display_after_caused_by_when_error_kind_wraps_write() {
+    fn should_print_the_write_error_as_it_is_when_error_kind_wraps_write() {
         let error_kind = ErrorKind::Write(WriteError::conflicting_write("duplicate accession"));
 
-        let expected_result = "[FailedWrite] Problem occurred during a write operation, Caused by: [ConflictingWrite] Write conflicts with existing data, Reason: 'duplicate accession'";
+        let expected_result =
+            "[ConflictingWrite] Write conflicts with existing data, Reason: 'duplicate accession'";
 
         let result = error_kind.to_string();
 
@@ -362,27 +367,25 @@ mod tests {
     }
 
     #[test]
-    fn should_expose_read_error_as_source_when_error_kind_wraps_read() {
-        let read_error = ReadError::missing_record("0000320193-24-000123");
-        let error_kind = ErrorKind::Read(read_error.clone());
+    fn should_return_no_source_when_error_kind_wraps_read() {
+        let error_kind = ErrorKind::Read(ReadError::missing_record("0000320193-24-000123"));
 
-        let expected_result = Some(&read_error);
+        let expected_result: Option<String> = None;
 
-        let result = std::error::Error::source(&error_kind)
-            .and_then(|source| source.downcast_ref::<ReadError>());
+        let result = std::error::Error::source(&error_kind).map(ToString::to_string);
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
-    fn should_expose_write_error_as_source_when_error_kind_wraps_write() {
-        let write_error = WriteError::failed_integrity_check("SFAC-6 identity violated");
-        let error_kind = ErrorKind::Write(write_error.clone());
+    fn should_return_no_source_when_error_kind_wraps_write() {
+        let error_kind = ErrorKind::Write(WriteError::failed_integrity_check(
+            "SFAC-6 identity violated",
+        ));
 
-        let expected_result = Some(&write_error);
+        let expected_result: Option<String> = None;
 
-        let result = std::error::Error::source(&error_kind)
-            .and_then(|source| source.downcast_ref::<WriteError>());
+        let result = std::error::Error::source(&error_kind).map(ToString::to_string);
 
         assert_eq!(result, expected_result);
     }
