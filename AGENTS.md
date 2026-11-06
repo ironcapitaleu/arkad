@@ -181,7 +181,7 @@ Use `thiserror` with `#[error("...")]` and `#[source]` for deriving `Display` an
   - **Assert**: Verify results
     - Use `assert_eq!`, `assert_ne!`, or `assert!(condition)`
     - If the test checks a value, compare it with `assert_eq!(result, expected_result)`. Compile-time tests, tests that check only that an operation completes, and `#[should_panic]` tests need no `assert_eq!`. In review, an `assert!` on a check of the result, as in `assert!(result.is_none())`, is a 🟣 nit (see the `testing` skill, "Compare the Value")
-    - **IMPORTANT**: Write **EXACTLY ONE** assertion per test function (`assert_eq!`, `assert_ne!`, or `assert!(...)`)
+    - **IMPORTANT**: Write **EXACTLY ONE** assertion per test function (`assert_eq!`, `assert_ne!`, or `assert!(...)`). The three kinds of test in the `testing` skill, "Compare the Value", need none
 - Unit tests go in the same file as the code under a `#[cfg(test)]` module.
 - Test function names are `snake_case`. `when` names a condition, `for` names a subject.
   - A test with a real condition reads `should_<behavior>_when_<condition>`.
@@ -557,7 +557,7 @@ conclusion), then a code block with the fix. End the review by naming the commit
 - Confirm sufficient test coverage
 - Suggest missing edge cases or error condition tests
 - Verify tests follow **"Arrange, Define, Act, Assert"** pattern
-- Verify each test has **EXACTLY ONE** `assert!(...)` statement
+- Verify each test has **EXACTLY ONE** assertion, except the three kinds of test in the `testing` skill, "Compare the Value"
 - Unit tests in same file; integration tests in `tests/` directory
 
 ### What NOT to Do

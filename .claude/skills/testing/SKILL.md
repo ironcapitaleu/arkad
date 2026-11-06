@@ -54,7 +54,7 @@ Based on this reasoning, suggest what tests to write/review and let the user con
 ## Conventions
 
 - **Pattern:** Arrange, Define, Act, Assert. The Arrange step binds the input to a named variable. See [Arrange the Input](#arrange-the-input). The Define step writes the expected value out. See [Show the Expected Result](#show-the-expected-result).
-- **Exactly ONE assertion per test function** (`assert_eq!`, `assert_ne!`, or `assert!(...)`). Exceptions: compile-time auto-trait checks (bounds enforced by compilation) and `#[should_panic]` tests (the panic is the assertion).
+- **Exactly ONE assertion per test function** (`assert_eq!`, `assert_ne!`, or `assert!(...)`). Exceptions: compile-time auto-trait checks (bounds enforced by compilation), tests that check only that an operation completes (the `.expect(...)` is the check), and `#[should_panic]` tests (the panic is the assertion). See [Compare the Value](#compare-the-value).
 - **Naming:** `when` names a condition. `for` names a subject. Pick the clause that fits what follows it.
   - A test with a real condition reads `should_<behavior>_when_<condition>`, as in `should_return_false_when_state_has_not_computed_the_output`.
   - A test named after its subject reads `should_<behavior>_for_<subject>`, as in `should_store_company_facts_for_sp500_companies`.
@@ -157,6 +157,8 @@ Three kinds of test check no value, so they need no `assert_eq!`:
 - A compile-time test, such as `implements_auto_traits::<MyType>()`. It passes if it compiles.
 - A test that checks only that an operation completes. The `.expect(...)` on the operation is the check, and its message says why the operation cannot fail.
 - A test that checks a panic, with `#[should_panic(expected = "...")]`.
+
+For a test that checks a value, follow these rules:
 
 - If the result is an `Option` or a `Result`, write the expected value out: `None`, `Some(...)`, `Ok(...)`, or `Err(...)`. If the expected value is `None`, write `None`. Never compare `is_none()` with a `bool`.
 - If only the error matters, compare `.err()` with `Some(...)` of the written-out error, or with `None` for success.
