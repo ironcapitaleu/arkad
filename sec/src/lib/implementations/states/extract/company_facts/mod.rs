@@ -639,6 +639,8 @@ mod tests {
     use storage::implementations::repository::filesystem::Document;
 
     use super::*;
+    use crate::error::Transition as TransitionError;
+    use crate::error::state_machine::transition::MissingOutput;
     use crate::implementations::states::extract::execute_sec_request::ExecuteSecRequestOutput;
     use crate::implementations::states::extract::store_company_facts::constants::STATE_NAME as STORE_COMPANY_FACTS;
     use crate::shared::cik::Cik;
@@ -786,8 +788,11 @@ mod tests {
             FakeWriteRepository::new(),
         );
 
-        let expected_result = true;
-        let result = super_state.transition_to_next_state_sec().is_err();
+        let expected_result = Some(TransitionError::MissingOutput(MissingOutput::new(
+            "Prepare SEC Request",
+            "Execute SEC Request",
+        )));
+        let result = super_state.transition_to_next_state_sec().err();
 
         assert_eq!(result, expected_result);
     }
@@ -855,9 +860,12 @@ mod tests {
             .repository(FakeWriteRepository::new())
             .build();
 
-        let expected_result = true;
+        let expected_result = Some(TransitionError::MissingOutput(MissingOutput::new(
+            "Validate CIK Format",
+            "Prepare SEC Request",
+        )));
 
-        let result = super_state.transition_to_next_state_sec().is_err();
+        let result = super_state.transition_to_next_state_sec().err();
 
         assert_eq!(result, expected_result);
     }

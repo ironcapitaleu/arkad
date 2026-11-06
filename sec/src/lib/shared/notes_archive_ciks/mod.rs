@@ -43,6 +43,7 @@ pub const CIK_COLUMN: &str = "cik";
 ///
 /// let expected_result = true;
 ///
+/// // The reason holds the message of the `zip` crate, so the example checks only the variant.
 /// let result = matches!(
 ///     distinct_ciks_of_notes_archive(archive),
 ///     Err(InvalidNotesArchive {
@@ -261,6 +262,7 @@ mod tests {
 
         let expected_result = true;
 
+        // The reason holds the message of the `zip` crate, so the test checks only the variant.
         let result = matches!(
             distinct_ciks_of_notes_archive(&archive),
             Err(InvalidNotesArchive {
@@ -303,6 +305,7 @@ mod tests {
 
         let expected_result = true;
 
+        // The reason holds the message of the `zip` crate, so the test checks only the variant.
         let result = matches!(
             distinct_ciks_of_notes_archive(archive),
             Err(InvalidNotesArchive {

@@ -205,6 +205,7 @@ mod tests {
             .expect_err("Given a key with a parent component, deserialization should always fail")
             .to_string();
 
+        // `serde_json` appends the line and column after the message, so the test checks the start.
         assert!(result.starts_with(expected_result));
     }
 
@@ -214,6 +215,7 @@ mod tests {
 
         let expected_result = true;
 
+        // `serde_json` appends the line and column after the message, so the test checks the start.
         let result = serde_json::from_str::<InputDocument>(json)
             .is_err_and(|error| error.to_string().starts_with("[InvalidSha256Digest]"));
 

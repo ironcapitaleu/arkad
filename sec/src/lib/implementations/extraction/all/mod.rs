@@ -669,6 +669,7 @@ mod tests {
         let entries = run_with_damaged_files(&root, corrupt_august_file)
             .await
             .cik_read_entries();
+        // The rest of the error holds the path of the temporary root, so the test checks its start.
         let result = (
             entries[0]["error"].as_str().is_some_and(|error| {
                 error.starts_with(

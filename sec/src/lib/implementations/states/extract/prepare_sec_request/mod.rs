@@ -22,6 +22,7 @@
 //! use sec::implementations::states::extract::prepare_sec_request::*;
 //! use sec::prelude::*;
 //! use sec::shared::cik::Cik;
+//! use sec::shared::request::SecRequest as _;
 //!
 //! # #[tokio::main]
 //! # async fn main() {
@@ -32,9 +33,12 @@
 //!     .await
 //!     .expect("Request preparation is infallible for a valid CIK");
 //!
-//! let expected_result = true;
+//! let expected_result =
+//!     Some("https://data.sec.gov/api/xbrl/companyfacts/CIK0001067983.json".to_string());
 //!
-//! let result = state.output_data().is_some();
+//! let result = state
+//!     .output_data()
+//!     .map(|output| output.request().url().to_string());
 //!
 //! assert_eq!(result, expected_result);
 //! # }
@@ -119,9 +123,9 @@ impl<K: RequestKind> PrepareSecRequest<K> {
     /// let context = PrepareSecRequestContext::new(cik);
     /// let state = PrepareSecRequest::new(input, context);
     ///
-    /// let expected_result = false;
+    /// let expected_result = None;
     ///
-    /// let result = state.output_data().is_some();
+    /// let result = state.output_data();
     ///
     /// assert_eq!(result, expected_result);
     /// ```
@@ -319,7 +323,21 @@ mod tests {
 
         assert_eq!(result.input_data(), &expected_input);
         assert_eq!(result.context_data(), &expected_context);
-        assert!(result.output_data().is_none());
+    }
+
+    #[test]
+    fn should_have_no_output_data_when_created() {
+        let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
+        let input = PrepareSecRequestInput::new(cik);
+        let context = create_test_context();
+
+        let state = PrepareSecRequest::new(input, context);
+
+        let expected_result = None;
+
+        let result = state.output_data();
+
+        assert_eq!(result, expected_result);
     }
 
     // Trait implementation tests

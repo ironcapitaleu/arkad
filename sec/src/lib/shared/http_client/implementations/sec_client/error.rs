@@ -235,6 +235,7 @@ mod tests {
         let expected_result = true;
 
         let reason = FailedSecRequest::from(error).reason;
+        // The details come from `reqwest`, so the test checks only the variant.
         let result = matches!(reason, ErrorReason::TimedOutRequest { .. });
 
         assert_eq!(result, expected_result);
@@ -250,6 +251,7 @@ mod tests {
         let expected_result = true;
 
         let reason = FailedSecRequest::from(error).reason;
+        // The details come from `reqwest`, so the test checks only the variant.
         let result = matches!(reason, ErrorReason::FailedRequestExecution { .. });
 
         assert_eq!(result, expected_result);

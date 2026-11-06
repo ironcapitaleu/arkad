@@ -33,7 +33,7 @@ mod tests {
     use crate::{
         prelude::*,
         tests::fixtures::{
-            sample_sec_state::SampleSecState,
+            sample_sec_state::{SampleSecState, SampleSecStateOutput},
             sample_sec_super_state::{
                 SampleSecSuperState, SampleSecSuperStateContext, SampleSecSuperStateData,
             },
@@ -70,17 +70,43 @@ mod tests {
     async fn should_compute_output_for_inner_state_when_calling_compute_on_super_state() {
         let mut super_state = SampleSecSuperState::<SampleSecState>::new();
 
-        // The super state's output is not computed, but the inner state's is.
-        assert!(super_state.output_data().is_none());
-        assert!(super_state.current_state().output_data().is_none());
+        let expected_result = Some(&SampleSecStateOutput {
+            output_data: "Hello World!".to_string(),
+        });
 
         super_state
             .compute_output_data_async()
             .await
             .expect("Valid test state should compute output successfully");
+        let result = super_state.current_state().output_data();
 
-        assert!(super_state.output_data().is_none()); // Super state output is still None
-        assert!(super_state.current_state().output_data().is_some()); // Inner state has output
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_hold_no_output_for_inner_state_when_super_state_is_created() {
+        let super_state = SampleSecSuperState::<SampleSecState>::new();
+
+        let expected_result = None;
+
+        let result = super_state.current_state().output_data();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_keep_super_state_output_empty_when_calling_compute_on_super_state() {
+        let mut super_state = SampleSecSuperState::<SampleSecState>::new();
+
+        let expected_result = None;
+
+        super_state
+            .compute_output_data_async()
+            .await
+            .expect("Valid test state should compute output successfully");
+        let result = super_state.output_data();
+
+        assert_eq!(result, expected_result);
     }
 
     #[test]

@@ -305,6 +305,8 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;
+    use crate::error::Transition as TransitionError;
+    use crate::error::state_machine::transition::MissingOutput;
     use crate::shared::cik::Cik;
     use crate::shared::content_type::ContentType;
     use crate::shared::financial::company_data::CompanyData;
@@ -413,8 +415,11 @@ mod tests {
         let response = test_sec_response(&serde_json::json!({}));
         let super_state = TransformSuperState::<ParseCompanyFacts>::new(&response, test_cik());
 
-        let expected_result = true;
-        let result = super_state.transition_to_next_state_sec().is_err();
+        let expected_result = Some(TransitionError::MissingOutput(MissingOutput::new(
+            "Parse Company Facts",
+            "Create Financial Statements",
+        )));
+        let result = super_state.transition_to_next_state_sec().err();
 
         assert_eq!(result, expected_result);
     }

@@ -60,6 +60,7 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;
+    use crate::error::state_machine::transition::MissingOutput;
     use crate::implementations::states::extract::prepare_sec_request::PrepareCompanyFactsRequest;
     use crate::implementations::states::extract::validate_cik_format::{
         ValidateCikFormat, ValidateCikFormatContext, ValidateCikFormatInput,
@@ -100,9 +101,12 @@ mod tests {
         let context = ValidateCikFormatContext::new(BERKSHIRE_HATHAWAY_CIK_RAW);
         let state = ValidateCikFormat::new(input, context);
 
-        let expected_result = true;
+        let expected_result = Some(TransitionError::MissingOutput(MissingOutput::new(
+            "Validate CIK Format",
+            "Prepare SEC Request",
+        )));
 
-        let result = PrepareCompanyFactsRequest::try_from(state).is_err();
+        let result = PrepareCompanyFactsRequest::try_from(state).err();
 
         assert_eq!(result, expected_result);
     }

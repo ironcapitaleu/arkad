@@ -300,49 +300,77 @@ mod tests {
     fn should_return_true_when_checking_is_informational_on_continue() {
         let status = StatusCode::Continue;
 
-        assert!(status.is_informational());
+        let expected_result = true;
+
+        let result = status.is_informational();
+
+        assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_return_true_when_checking_is_success_on_ok() {
         let status = StatusCode::Ok;
 
-        assert!(status.is_success());
+        let expected_result = true;
+
+        let result = status.is_success();
+
+        assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_return_true_when_checking_is_success_on_other_success_code() {
         let status = StatusCode::Other(204);
 
-        assert!(status.is_success());
+        let expected_result = true;
+
+        let result = status.is_success();
+
+        assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_return_false_when_checking_is_success_on_client_error() {
         let status = StatusCode::NotFound;
 
-        assert!(!status.is_success());
+        let expected_result = false;
+
+        let result = status.is_success();
+
+        assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_return_true_when_checking_is_redirection_on_moved_permanently() {
         let status = StatusCode::MovedPermanently;
 
-        assert!(status.is_redirection());
+        let expected_result = true;
+
+        let result = status.is_redirection();
+
+        assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_return_true_when_checking_is_client_error_on_too_many_requests() {
         let status = StatusCode::TooManyRequests;
 
-        assert!(status.is_client_error());
+        let expected_result = true;
+
+        let result = status.is_client_error();
+
+        assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_return_true_when_checking_is_server_error_on_service_unavailable() {
         let status = StatusCode::ServiceUnavailable;
 
-        assert!(status.is_server_error());
+        let expected_result = true;
+
+        let result = status.is_server_error();
+
+        assert_eq!(result, expected_result);
     }
 
     #[test]

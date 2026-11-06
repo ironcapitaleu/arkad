@@ -205,34 +205,42 @@ mod tests {
     fn should_fail_when_given_cik_str_that_contains_non_numeric_chars() {
         let cik_str = "12345abcde";
 
+        let expected_result = Err(CikError {
+            invalid_cik: "12345abcde".to_string(),
+            reason: InvalidCikReason::ContainsNonNumericCharacters,
+        });
+
         let result = Cik::new(cik_str);
 
-        assert!(
-            result.is_err(),
-            "CIK creation with non-numeric chars in hardcoded value should fail."
-        );
+        assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_fail_when_given_cik_str_that_is_longer_than_ten_chars_after_trimming() {
         let cik_str = "12345678901";
 
+        let expected_result = Err(CikError {
+            invalid_cik: "12345678901".to_string(),
+            reason: InvalidCikReason::MaxLengthExceeded { cik_length: 11 },
+        });
+
         let result = Cik::new(cik_str);
-        assert!(
-            result.is_err(),
-            "CIK creation with more than 10 chars after trimming in hardcoded value should fail."
-        );
+
+        assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_fail_when_given_cik_str_that_is_longer_than_ten_chars_and_contains_a_alpha_char() {
         let cik_str = "1234567890a";
 
+        let expected_result = Err(CikError {
+            invalid_cik: "1234567890a".to_string(),
+            reason: InvalidCikReason::ContainsNonNumericCharacters,
+        });
+
         let result = Cik::new(cik_str);
-        assert!(
-            result.is_err(),
-            "CIK creation with more than 10 chars and containing a letter in hardcoded value should fail."
-        );
+
+        assert_eq!(result, expected_result);
     }
 
     #[test]

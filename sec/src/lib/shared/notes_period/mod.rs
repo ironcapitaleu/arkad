@@ -472,9 +472,9 @@ mod tests {
     fn should_accept_a_month_when_month_is_after_the_last_published_file() {
         let period_string = "2099_12";
 
-        let expected_result = true;
+        let expected_result = None;
 
-        let result = NotesPeriod::new(period_string).is_ok();
+        let result = NotesPeriod::new(period_string).err();
 
         assert_eq!(result, expected_result);
     }
@@ -622,6 +622,7 @@ mod tests {
 
         let result = NotesPeriod::all_through(date);
 
+        // The full list starts at 2009q1, so the test checks its last periods.
         assert!(result.ends_with(&expected_result));
     }
 
@@ -633,6 +634,7 @@ mod tests {
 
         let result = NotesPeriod::all_through(date);
 
+        // The full list starts at 2009q1, so the test checks its last periods.
         assert!(result.ends_with(&expected_result));
     }
 

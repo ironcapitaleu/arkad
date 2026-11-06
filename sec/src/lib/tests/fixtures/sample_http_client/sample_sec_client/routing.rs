@@ -224,6 +224,7 @@ mod tests {
 
         let expected_result = true;
 
+        // The error holds the whole response, so the test checks only that the SEC answered 503.
         let result = client
             .execute_sec_request(request)
             .await

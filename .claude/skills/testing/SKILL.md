@@ -54,7 +54,7 @@ Based on this reasoning, suggest what tests to write/review and let the user con
 ## Conventions
 
 - **Pattern:** Arrange, Define, Act, Assert. The Arrange step binds the input to a named variable. See [Arrange the Input](#arrange-the-input). The Define step writes the expected value out. See [Show the Expected Result](#show-the-expected-result).
-- **Exactly ONE assertion per test function** (`assert_eq!`, `assert_ne!`, or `assert!(...)`). Exceptions: compile-time auto-trait checks (bounds enforced by compilation) and `#[should_panic]` tests (the panic is the assertion).
+- **Exactly ONE assertion per test function** (`assert_eq!`, `assert_ne!`, or `assert!(...)`). Exceptions: compile-time tests, such as auto-trait checks (bounds enforced by compilation), tests that check only that an operation completes (the `.expect(...)` is the check), and `#[should_panic]` tests (the panic is the assertion). See [Compare the Value](#compare-the-value).
 - **Naming:** `when` names a condition. `for` names a subject. Pick the clause that fits what follows it.
   - A test with a real condition reads `should_<behavior>_when_<condition>`, as in `should_return_false_when_state_has_not_computed_the_output`.
   - A test named after its subject reads `should_<behavior>_for_<subject>`, as in `should_store_company_facts_for_sp500_companies`.
@@ -147,6 +147,49 @@ The second test computes `expected_result` from strings with `map`.
 - If the full value is too long to write, assert on a smaller part of the output, and write that part out in full.
 - If the expected value is long but you assert on all of it, you can name it in the Arrange step, as in `let periods_from_2009q1_to_2026_09 = vec![...];`. Then `expected_result` takes that name. The value must stay written out in the test. This needs no deviation comment.
 - If the test checks that two paths agree, `expected_result` can be the output of the reference path. Name both paths in the test name, as in `should_hand_every_stream_item_to_the_caller_when_running_to_the_archive`.
+
+### Compare the Value
+
+If a test checks a value, end it with `assert_eq!(result, expected_result)`. Do not hide the value in a check inside `assert!`, as in `assert!(result.is_none())` or `assert!(result.is_err())`. A failing `assert_eq!` prints both values. A failing `assert!` prints only the condition.
+
+Three kinds of test check no value, so they need no assertion:
+
+- A compile-time test, such as `implements_auto_traits::<MyType>()`. It passes if it compiles.
+- A test that checks only that an operation completes. The `.expect(...)` on the operation is the check, and its message says why the operation cannot fail.
+- A test that checks a panic, with `#[should_panic(expected = "...")]`.
+
+For a test that checks a value, follow these rules:
+
+- If the result is an `Option` or a `Result`, write the expected value out: `None`, `Some(...)`, `Ok(...)`, or `Err(...)`. If the expected value is `None`, write `None`. Never compare `is_none()` with a `bool`.
+- If only the error matters, compare `.err()` with `Some(...)` of the written-out error, or with `None` for success.
+- Compare a check with a `bool` (`let expected_result = true;`) in two cases only:
+  - The value has no `PartialEq` or no public constructor, as with `serde_json::Error` and `TryFromIntError`.
+  - The value takes more than 10 lines to write out, the test checks only that it is present, and its name says so.
+- If part of the value is not stable, such as the position that `serde_json` appends to an error, compare the stable part with `starts_with`, `ends_with`, or `matches!`. Say in a comment which part the test leaves out.
+- Use `assert!(condition)` only for these partial matches and for a condition that has no value to compare, such as `elapsed < limit`.
+
+In review, report an `assert!` on a check of the result as a 🟣 nit.
+
+Do this:
+
+```rust
+let expected_result = Err(CikError {
+    invalid_cik: "12345abcde".to_string(),
+    reason: InvalidCikReason::ContainsNonNumericCharacters,
+});
+
+let result = Cik::new(cik_str);
+
+assert_eq!(result, expected_result);
+```
+
+Not this:
+
+```rust
+let result = Cik::new(cik_str);
+
+assert!(result.is_err());
+```
 
 ## Boilerplate Tests (apply to ALL domain types and state structs)
 
@@ -319,9 +362,11 @@ fn test_context() -> ExecuteSecRequestContext {
 async fn should_compute_output_data_when_client_succeeds() {
     let mut state = ExecuteSecRequest::new(test_input(), test_context());
 
+    let expected_result = Ok(());
+
     let result = state.compute_output_data_async().await;
 
-    assert!(result.is_ok());
+    assert_eq!(result, expected_result);
 }
 ```
 
@@ -346,12 +391,14 @@ fn should_create_valid_cik_struct_when_numeric_string_with_ten_digits_is_passed(
 fn should_fail_when_given_cik_str_that_contains_non_numeric_chars() {
     let cik_str = "12345abcde";
 
+    let expected_result = Err(CikError {
+        invalid_cik: "12345abcde".to_string(),
+        reason: InvalidCikReason::ContainsNonNumericCharacters,
+    });
+
     let result = Cik::new(cik_str);
 
-    assert!(
-        result.is_err(),
-        "CIK creation with non-numeric chars in hardcoded value should fail."
-    );
+    assert_eq!(result, expected_result);
 }
 ```
 

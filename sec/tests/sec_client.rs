@@ -44,9 +44,9 @@ async fn should_return_sec_response_when_executing_valid_sec_request() {
     let cik = Cik::new("1067983").expect("A hardcoded CIK should always be valid");
     let request = SecRequest::builder().all_company_facts().cik(cik).build();
 
-    let expected_result = true;
+    let expected_result = None;
 
-    let result = client.execute_sec_request(request).await.is_ok();
+    let result = client.execute_sec_request(request).await.err();
 
     assert_eq!(result, expected_result);
 }

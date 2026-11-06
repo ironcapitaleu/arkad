@@ -404,9 +404,9 @@ mod tests {
     fn should_have_no_output_for_inner_state_before_compute_on_super_state() {
         let sm = SampleStreamingSuperState::<SampleStateA>::new();
 
-        let expected_result = true;
+        let expected_result = None;
 
-        let result = sm.current_state().output_data().is_none();
+        let result = sm.current_state().output_data();
 
         assert_eq!(result, expected_result);
     }
@@ -418,9 +418,9 @@ mod tests {
             .await
             .expect("Hardcoded fixture state should always compute output successfully");
 
-        let expected_result = true;
+        let expected_result = Some(&SampleStreamingData);
 
-        let result = sm.current_state().output_data().is_some();
+        let result = sm.current_state().output_data();
 
         assert_eq!(result, expected_result);
     }
