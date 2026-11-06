@@ -36,6 +36,8 @@ pub use state_machine::transition::Transition;
 /// propagate one type, and supports downward extraction to [`State`]/[`Transition`] via [`TryFrom`].
 pub enum ErrorKind {
     /// An error originating from state machine execution.
+    ///
+    /// Passes through: prints the inner error as it is, because this layer adds no fact.
     StateMachine(StateMachine),
 
     /// A [`TryFrom`] downcast to a more specific error type did not match the held variant.
@@ -54,7 +56,15 @@ impl Display for ErrorKind {
     }
 }
 
-impl Error for ErrorKind {}
+impl Error for ErrorKind {
+    /// Forwards to the source of a wrapped [`StateMachine`] error, as `#[error(transparent)]` does.
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        match self {
+            Self::StateMachine(state_machine) => state_machine.source(),
+            Self::DowncastNotPossible => None,
+        }
+    }
+}
 
 impl From<StateMachine> for ErrorKind {
     fn from(error: StateMachine) -> Self {
@@ -277,6 +287,26 @@ mod tests {
             "[DowncastNotPossible] Failed to downcast error into a more specific type";
 
         let result = error_kind.to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_forward_source_to_the_domain_error_when_error_kind_wraps_a_state_error() {
+        let cik_error = crate::shared::cik::CikError::new(
+            crate::shared::cik::InvalidCikReason::ContainsNonNumericCharacters,
+            "12345abcde",
+        );
+        let error = ErrorKind::StateMachine(StateMachine::State(State::InvalidCikFormat(
+            state_machine::state::InvalidCikFormat::new("Validate CIK Format", cik_error),
+        )));
+
+        let expected_result = Some(
+            "[CikError] Invalid CIK, Reason: 'CIK contains non-numeric characters', Input: '12345abcde'"
+                .to_string(),
+        );
+
+        let result = Error::source(&error).map(ToString::to_string);
 
         assert_eq!(result, expected_result);
     }

@@ -820,4 +820,31 @@ mod tests {
     const fn should_implement_default_for_output_slot_when_the_value_does_not() {
         implements_default::<OutputSlot<Opaque>>();
     }
+
+    #[test]
+    fn should_print_only_the_segments_that_add_a_fact_when_a_state_fails() {
+        let cik_error = crate::shared::cik::CikError::new(
+            crate::shared::cik::InvalidCikReason::ContainsNonNumericCharacters,
+            "12345abcde",
+        );
+        let state_error = crate::error::State::InvalidCikFormat(
+            crate::error::state_machine::state::InvalidCikFormat::new(
+                "Validate CIK Format",
+                cik_error,
+            ),
+        );
+        let error = super::StreamError {
+            event: super::StreamEvent::StateFailed,
+            execution_id: uuid::Uuid::nil(),
+            state_name: "Validate CIK Format".to_string(),
+            data: serde_json::Value::Null,
+            source: Box::new(crate::error::StateMachine::State(state_error)),
+        };
+
+        let expected_result = "[StreamError][00000000-0000-0000-0000-000000000000] 'state_failed' in 'Validate CIK Format', Caused by: [InvalidCikFormat] Failure in State: 'Validate CIK Format', Caused by: [CikError] Invalid CIK, Reason: 'CIK contains non-numeric characters', Input: '12345abcde'";
+
+        let result = error.to_string();
+
+        assert_eq!(result, expected_result);
+    }
 }
