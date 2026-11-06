@@ -418,9 +418,9 @@ mod tests {
             .await
             .expect("Hardcoded fixture state should always compute output successfully");
 
-        let expected_result = true;
+        let expected_result = Some(&SampleStreamingData);
 
-        let result = sm.current_state().output_data().is_some();
+        let result = sm.current_state().output_data();
 
         assert_eq!(result, expected_result);
     }

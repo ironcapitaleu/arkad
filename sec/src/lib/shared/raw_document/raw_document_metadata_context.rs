@@ -332,12 +332,12 @@ mod tests {
     fn should_write_no_filing_field_when_the_document_is_not_part_of_a_filing() {
         let context = sample_context();
 
-        let expected_result = false;
+        let expected_result = None;
 
         let result = serde_json::to_value(&context)
             .expect("Given a context of plain fields, writing JSON should always succeed")
-            .as_object()
-            .is_some_and(|fields| fields.contains_key("filing"));
+            .get("filing")
+            .cloned();
 
         assert_eq!(result, expected_result);
     }

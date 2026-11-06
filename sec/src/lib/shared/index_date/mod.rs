@@ -344,6 +344,7 @@ mod tests {
 
         let expected_result = true;
 
+        // The reason holds today's date, so the test checks only the variant.
         let result = matches!(
             IndexDate::new(date_string).map_err(|error| error.reason),
             Err(InvalidIndexDateReason::FutureIndexDate { .. })

@@ -154,7 +154,9 @@ End the test with `assert_eq!(result, expected_result)`. Do not hide the value i
 
 - If the result is an `Option` or a `Result`, write the expected value out: `None`, `Some(...)`, `Ok(...)`, or `Err(...)`. If the expected value is `None`, write `None`. Never compare `is_none()` with a `bool`.
 - If only the error matters, compare `.err()` with `Some(...)` of the written-out error, or with `None` for success.
-- Compare a check with a `bool` (`let expected_result = true;`) only in two cases. The value has no `PartialEq` or no public constructor, as with `serde_json::Error` and `TryFromIntError`. Or the test checks only that a large value is present, and its name says so.
+- Compare a check with a `bool` (`let expected_result = true;`) in two cases only:
+  - The value has no `PartialEq` or no public constructor, as with `serde_json::Error` and `TryFromIntError`.
+  - The value takes more than 10 lines to write out, the test checks only that it is present, and its name says so.
 - If part of the value is not stable, such as the position that `serde_json` appends to an error, compare the stable part with `starts_with`, `ends_with`, or `matches!`. Say in a comment which part the test leaves out.
 - Use `assert!(condition)` only for these partial matches and for a condition that has no value to compare, such as `elapsed < limit`.
 

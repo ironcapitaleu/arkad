@@ -33,7 +33,7 @@ mod tests {
     use crate::{
         prelude::*,
         tests::fixtures::{
-            sample_sec_state::SampleSecState,
+            sample_sec_state::{SampleSecState, SampleSecStateOutput},
             sample_sec_super_state::{
                 SampleSecSuperState, SampleSecSuperStateContext, SampleSecSuperStateData,
             },
@@ -70,13 +70,15 @@ mod tests {
     async fn should_compute_output_for_inner_state_when_calling_compute_on_super_state() {
         let mut super_state = SampleSecSuperState::<SampleSecState>::new();
 
-        let expected_result = true;
+        let expected_result = Some(&SampleSecStateOutput {
+            output_data: "Hello World!".to_string(),
+        });
 
         super_state
             .compute_output_data_async()
             .await
             .expect("Valid test state should compute output successfully");
-        let result = super_state.current_state().output_data().is_some();
+        let result = super_state.current_state().output_data();
 
         assert_eq!(result, expected_result);
     }

@@ -22,6 +22,7 @@
 //! use sec::implementations::states::extract::prepare_sec_request::*;
 //! use sec::prelude::*;
 //! use sec::shared::cik::Cik;
+//! use sec::shared::request::SecRequest as _;
 //!
 //! # #[tokio::main]
 //! # async fn main() {
@@ -32,9 +33,12 @@
 //!     .await
 //!     .expect("Request preparation is infallible for a valid CIK");
 //!
-//! let expected_result = true;
+//! let expected_result =
+//!     Some("https://data.sec.gov/api/xbrl/companyfacts/CIK0001067983.json".to_string());
 //!
-//! let result = state.output_data().is_some();
+//! let result = state
+//!     .output_data()
+//!     .map(|output| output.request().url().to_string());
 //!
 //! assert_eq!(result, expected_result);
 //! # }
