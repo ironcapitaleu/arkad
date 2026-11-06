@@ -383,9 +383,11 @@ Display Format").
 ```rust
 #[test]
 fn should_print_only_the_segments_that_add_a_fact_when_a_store_write_fails() {
+    let state_name = "Store Notes Archive";
+    let write_error = WriteError::conflicting_write("Key 'a.json' is taken");
     let error = StateError::FailedDocumentWrite(FailedDocumentWrite::new(
-        "Store Notes Archive",
-        FailedDocumentStorage::from(WriteError::conflicting_write("Key 'a.json' is taken")),
+        state_name,
+        FailedDocumentStorage::from(write_error),
     ));
 
     let expected_result = "[FailedDocumentWrite] Failed to store the document, Caused by: [ConflictingWrite] Document conflicts with a stored document, Reason: 'Key 'a.json' is taken'";

@@ -129,11 +129,17 @@ an object, a cause, or an ID. A layer that adds no fact passes its inner error t
 
 - Mark the variant `#[error(transparent)]`. This forwards `Display` and `source()` to the inner error.
 - If `thiserror` cannot express the layer, write `Display` and `source()` by hand that do the same.
-- Keep the type, its derives, and its `From` and `TryFrom` conversions. Only the text changes.
+- Keep the type, its derives, and its `From` and `TryFrom` conversions. `Display` and `source()`
+  change. Rewrite each test that downcasts `source()` to the inner type.
 - Give the layer the docstring sentence that `DOCUMENTATION.md` ("Pass-Through Errors") requires.
 
 A pass-through layer prints no segment, so every segment that prints still has a `[BracketedName]`
-prefix. `source()` skips the layer too, so a caller that walks `source()` meets each segment once.
+prefix. A caller that walks `source()` meets each printed segment once. The walk meets the layer in
+place of its inner error, so a downcast of `source()` to the inner type does not match. To reach the
+inner type, match on the layer.
+
+A layer with a kind, such as `BackendError`, passes a wrapped error through only if the text of the
+wrapped error already names that kind. Otherwise the kind is a fact, and the layer prints it.
 
 A wrapping error names its action, for example "Failed to store the document". It does not repeat
 a fact that an outer segment prints. For example, `StreamError` prints the state name, so a state
