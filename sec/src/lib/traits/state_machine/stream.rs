@@ -841,7 +841,7 @@ mod tests {
             source: Box::new(crate::error::StateMachine::State(state_error)),
         };
 
-        let expected_result = "[StreamError][00000000-0000-0000-0000-000000000000] 'state_failed' in 'Validate CIK Format', Caused by: [InvalidCikFormat] Failure in State: 'Validate CIK Format', Caused by: [CikError] Invalid CIK, Reason: 'CIK contains non-numeric characters', Input: '12345abcde'";
+        let expected_result = "[StreamError][00000000-0000-0000-0000-000000000000] 'state_failed' in 'Validate CIK Format', Caused by: [InvalidCikFormat] Failed to validate the CIK, Caused by: [CikError] Invalid CIK, Reason: 'CIK contains non-numeric characters', Input: '12345abcde'";
 
         let result = error.to_string();
 

@@ -28,7 +28,9 @@ use crate::traits::error::FromDomainError;
 
 /// Error representing a Notes period validation failure, tagged with the state it occurred in.
 #[derive(Error, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[error("[InvalidNotesPeriod] Failure in State: '{state_name}', Caused by: {notes_period_error}")]
+#[error(
+    "[InvalidNotesPeriod] Failed to validate the Notes period, Caused by: {notes_period_error}"
+)]
 pub struct InvalidNotesPeriod {
     /// The name of the state where the error occurred.
     pub state_name: String,
@@ -122,7 +124,7 @@ mod tests {
         let invalid_notes_period =
             InvalidNotesPeriod::new("Validate Notes Period", sample_notes_period_error());
 
-        let expected_result = "[InvalidNotesPeriod] Failure in State: 'Validate Notes Period', Caused by: [NotesPeriodError] Invalid Notes period, Reason: 'Expected the form YYYYqN or YYYY_MM', Input: '2024'";
+        let expected_result = "[InvalidNotesPeriod] Failed to validate the Notes period, Caused by: [NotesPeriodError] Invalid Notes period, Reason: 'Expected the form YYYYqN or YYYY_MM', Input: '2024'";
 
         let result = invalid_notes_period.to_string();
 
