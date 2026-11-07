@@ -84,7 +84,7 @@ pub struct NotesFileListing;
 impl RequestKind for NotesFileListing {
     type Input = NotesDataSetsPage;
 
-    const INPUT_NAME: &'static str = "page";
+    const INPUT_NAME: &'static str = "notes_data_sets_page";
     const INPUT_LABEL: &'static str = "page";
 
     fn request_type(page: NotesDataSetsPage) -> SecRequestType {
