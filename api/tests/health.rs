@@ -54,3 +54,17 @@ async fn should_answer_status_ok_body_for_health_request() {
 
     assert_eq!(result, expected_result);
 }
+
+#[tokio::test]
+async fn should_answer_a_request_id_that_starts_with_req_for_health_request() {
+    let expected_result = Some("req_");
+
+    let response = get_health().await;
+    let result = response
+        .headers()
+        .get("x-request-id")
+        .and_then(|value| value.to_str().ok())
+        .and_then(|text| text.get(..4));
+
+    assert_eq!(result, expected_result);
+}
