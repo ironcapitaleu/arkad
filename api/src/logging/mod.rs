@@ -9,8 +9,7 @@
 //! back into an object. Every other field of the call goes into `context` under its own name. If two
 //! fields give the same key, the first one recorded wins.
 //!
-//! The logger is a copy of `sec/src/bin/shared/json_log.rs`, because the binaries of `sec` include
-//! that file by path and `api` cannot depend on it.
+//! The logger is a copy of `sec/src/bin/shared/json_log.rs`. If you change it, change that file.
 
 use std::fmt::{self, Display, Formatter};
 use std::io::stdout;
