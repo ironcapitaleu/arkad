@@ -198,7 +198,7 @@ flowchart LR
     classDef daily fill:#fff2cc,stroke:#bf9000
     classDef cut fill:#f8cecc,stroke:#b85450
 
-    Q["Notes quarters<br/>2009q1 … 2025q3"]:::notes --> M["Notes months<br/>2025_10 … last month"]:::notes
+    Q["Notes files<br/>listed on the SEC page"]:::notes --> M["Cut at last month"]:::notes
     M --> C["Cut-over date<br/>last day of the newest<br/>stored Notes month"]:::cut
     C --> K["backfill, part 2<br/>daily indexes from the<br/>cut-over date to yesterday"]:::daily
     K --> W["daily_filings, each day<br/>yesterday-3 to yesterday"]:::daily
@@ -206,10 +206,10 @@ flowchart LR
 
 ### Backfill, Part 1: Notes Files
 
-- The periods run from `2009q1` to `2025q3` as quarters, then from `2025_10` as months.
-- The run asks for every period up to last month. On 2026-10-31 this is 79 periods.
-- Early in a month the SEC has not yet published last month. The run then counts that period as
-  unpublished, and stores everything before it.
+- The run reads its periods from the SEC data-sets page: the quarters, then the months that the SEC
+  has not merged into a quarter yet.
+- The run asks for every listed period up to last month. On 2026-11-07 this is 80 periods.
+- Early in a month the page does not list last month yet, so the run stops at the month before.
 - The run skips each period whose stored file passes the size and SHA-256 check.
 
 ### The Cut-Over Date

@@ -32,6 +32,7 @@ use std::time::Instant;
 use chrono::Utc;
 use sec::implementations::extraction::{ErrorKind, Extraction, RunEvent};
 use sec::shared::http_client::implementations::sec_client::SecClient;
+use sec::shared::notes_data_sets_page::NotesDataSetsPage;
 use sec::shared::notes_file_list::{NotesFileList, NotesFileListError};
 
 use files_in_flight::{FILES_IN_FLIGHT_ENV_VAR, InvalidFilesInFlight, files_in_flight};
@@ -82,7 +83,7 @@ async fn notes_files(sec_client: &SecClient) -> Result<NotesFileList, NotesFileL
         tracing::error!(
             event = %BatchEvent::StartupFailed,
             message = %error,
-            context = %serde_json::json!({}),
+            context = %serde_json::json!({ "page": NotesDataSetsPage.to_string() }),
         );
     })
 }

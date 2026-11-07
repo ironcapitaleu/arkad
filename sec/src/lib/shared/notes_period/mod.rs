@@ -40,8 +40,8 @@ use constants::{FILE_NAME_SUFFIX, FIRST_YEAR};
 /// The period of one SEC Financial Statement and Notes file: a quarter or a month of a year.
 ///
 /// Values are only produced through [`NotesPeriod::new`] (or the [`TryFrom`] impl). A period has
-/// no upper limit, so a period after the latest published file also parses. Whether the SEC
-/// publishes a file for a period is a fact of the SEC page, not of this type.
+/// no upper limit, so a period after the latest published file also parses. The type does not
+/// check whether the SEC publishes a file for the period. The SEC page says that.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct NotesPeriod {
     year: Year,
@@ -453,11 +453,11 @@ mod tests {
     }
 
     #[test]
-    fn should_order_last_quarter_before_first_month_for_notes_periods() {
+    fn should_order_a_quarter_before_a_month_of_a_later_quarter_for_notes_periods() {
         let last_quarter = NotesPeriod::new("2025q3")
-            .expect("Given the last published quarter, parsing should always succeed");
+            .expect("Given a hardcoded valid period, parsing should always succeed");
         let first_month = NotesPeriod::new("2025_10")
-            .expect("Given the first published month, parsing should always succeed");
+            .expect("Given a hardcoded valid period, parsing should always succeed");
 
         let expected_result = true;
 

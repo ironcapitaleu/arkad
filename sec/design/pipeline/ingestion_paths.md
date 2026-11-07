@@ -644,9 +644,10 @@ quarter) or a month (year and month).
 - `NotesFileList::fetch` reads the page once per run, through the shared SEC client and its rate
   limit. The request kind is `NotesFileListing`, and the body is `HtmlBody`. The parser reads each
   link into a period and a file name, in increasing order of period. It fails if the request
-  fails, if the page links no Notes file, if a link holds no valid period, or if the page links two
-  files for one period. Each error names the page or the link. A wrong list is worse than a
-  failed run, so the parser never returns an empty list.
+  fails, if the page links no Notes file, if a link into the folder names no Notes file, if a link
+  holds no valid period, or if the page links two files for one period. Each error names the page
+  or the link. The parser never returns an empty list. A failed run is safer than a run with a
+  wrong list.
 - `notes_periods(files, today)` in `sec/src/bin/shared/notes_periods.rs` keeps every listed period
   that ends in or before the month before today, in increasing order. A monthly file that the
   store holds but the page no longer lists is not requested. Its quarter covers the same filings,

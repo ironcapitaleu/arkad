@@ -5,7 +5,8 @@
 //!
 //! About a year after a quarter ends, the SEC merges the three monthly files of the quarter into
 //! one quarterly file and removes the monthly files. The page lists the files that exist now.
-//! Each listed period must pass [`NotesPeriod::new`].
+//! Each listed period must pass [`NotesPeriod::new`], which checks only the form and the year. So
+//! the list follows each merge.
 //!
 //! ## Modules
 //!

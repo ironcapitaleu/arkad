@@ -17,8 +17,7 @@ pub const FILE_NAME_SUFFIX: &str = "_notes.zip";
 /// version of the file, last modified on 2020-12-22.
 ///
 /// The request URL and the store key take the file name from this list, so the keys of stored
-/// files stay the same. The `backfill` run compares this list with the links of the SEC page, and
-/// warns about each link whose file name differs.
+/// files stay the same.
 pub const FILE_NAME_OVERRIDES: [(&str, &str); 3] = [
     ("2010q1", "2010q1_notes_1.zip"),
     ("2010q2", "2010q2_notes_0.zip"),

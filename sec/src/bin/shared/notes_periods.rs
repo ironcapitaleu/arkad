@@ -125,6 +125,30 @@ mod tests {
     }
 
     #[test]
+    fn should_end_in_the_previous_year_when_today_is_in_january() {
+        let files = page_with(&["2026_12_notes.zip", "2027_01_notes.zip"]);
+        let today = date(2027, 1, 31);
+
+        let expected_result = vec!["2026_12"];
+
+        let result = notes_periods(&files, today);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_leave_out_a_quarter_when_it_ends_after_last_month() {
+        let files = page_with(&["2027q1_notes.zip"]);
+        let today = date(2027, 3, 15);
+
+        let expected_result: Vec<String> = Vec::new();
+
+        let result = notes_periods(&files, today);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
     fn should_find_no_renamed_file_for_the_stored_page_of_2026_11_07() {
         let files = stored_page();
 
