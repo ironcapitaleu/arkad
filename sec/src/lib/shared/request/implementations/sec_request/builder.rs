@@ -123,8 +123,7 @@ impl SecRequestBuilder {
         NotesFileBuilder { period: NoPeriod }
     }
 
-    /// Selects the [`NotesFileListing`] request kind. Its input is fixed, so the builder needs no
-    /// field.
+    /// Selects the [`NotesFileListing`] request kind.
     #[must_use]
     pub const fn notes_file_listing(self) -> NotesFileListingBuilder {
         NotesFileListingBuilder
@@ -976,6 +975,17 @@ mod tests {
             .inner()
             .url()
             .clone();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_produce_get_method_for_notes_file_listing_request() {
+        let builder = SecRequest::builder().notes_file_listing();
+
+        let expected_result = Method::GET;
+
+        let result = builder.build().inner().method().clone();
 
         assert_eq!(result, expected_result);
     }
