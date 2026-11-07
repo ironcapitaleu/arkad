@@ -15,7 +15,7 @@ use std::env;
 use std::fs;
 
 use axum::body::Body;
-use axum::http::Request;
+use axum::http::{Request, header};
 use http_body_util::BodyExt;
 use pretty_assertions::assert_eq;
 use serde_json::Value;
@@ -24,25 +24,27 @@ use tower::ServiceExt;
 const COMMITTED_SPEC_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/openapi.json");
 
 fn generated_spec() -> String {
-    let spec = api::openapi()
-        .to_pretty_json()
-        .expect("Given a spec of maps, lists, and strings, serializing it should always succeed");
+    let spec = api::openapi().to_pretty_json().expect(
+        "Given a spec of JSON values with string keys, serializing it should always succeed",
+    );
     format!("{spec}\n")
 }
 
 #[test]
 fn should_match_the_committed_spec_for_generated_spec() {
-    let generated = generated_spec();
     if env::var_os("UPDATE_OPENAPI").is_some() {
-        fs::write(COMMITTED_SPEC_PATH, &generated)
+        fs::write(COMMITTED_SPEC_PATH, generated_spec())
             .expect("Given the writable crate folder, writing the spec should always succeed");
     }
-
-    let expected_result = fs::read_to_string(COMMITTED_SPEC_PATH).expect(
+    let committed_spec = fs::read_to_string(COMMITTED_SPEC_PATH).expect(
         "Given the committed api/openapi.json, reading it should always succeed. Write it with UPDATE_OPENAPI=1",
     );
 
-    let result = generated;
+    let expected_result = committed_spec.trim_end();
+
+    let result = api::openapi().to_pretty_json().expect(
+        "Given a spec of JSON values with string keys, serializing it should always succeed",
+    );
 
     assert_eq!(result, expected_result);
 }
@@ -97,6 +99,26 @@ async fn should_serve_the_generated_spec_for_openapi_json_request() {
         .to_bytes();
     let result: Value = serde_json::from_slice(&body)
         .expect("Given the body of the spec handler, parsing it should always succeed");
+
+    assert_eq!(result, expected_result);
+}
+
+#[tokio::test]
+async fn should_answer_json_content_type_for_openapi_json_request() {
+    let request = Request::get("/v1/openapi.json")
+        .body(Body::empty())
+        .expect("Given a hardcoded method and path, building the request should always succeed");
+
+    let expected_result = Some("application/json");
+
+    let response = api::router()
+        .oneshot(request)
+        .await
+        .expect("Given the router's infallible service, calling it should always succeed");
+    let result = response
+        .headers()
+        .get(header::CONTENT_TYPE)
+        .and_then(|value| value.to_str().ok());
 
     assert_eq!(result, expected_result);
 }

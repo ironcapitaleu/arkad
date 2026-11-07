@@ -9,10 +9,7 @@ use axum::http::header::CONTENT_TYPE;
 use axum::response::IntoResponse;
 use utoipa::openapi::OpenApi;
 
-/// The path of the spec.
-pub const OPENAPI_JSON_PATH: &str = "/v1/openapi.json";
-
-/// The spec as pretty-printed JSON text, which the router serves at [`OPENAPI_JSON_PATH`].
+/// The spec as pretty-printed JSON text, which the router serves at `GET /v1/openapi.json`.
 ///
 /// The router adds it to every request as an extension. A clone shares the text and copies none
 /// of it.
@@ -24,8 +21,8 @@ impl SpecJson {
     ///
     /// # Panics
     ///
-    /// Panics if `serde_json` fails to serialize the spec. The spec holds only maps, lists, and
-    /// strings, so serialization does not fail.
+    /// Panics if `serde_json` fails to serialize the spec. The spec holds only JSON values with
+    /// string keys, so serialization does not fail.
     ///
     /// # Examples
     ///
@@ -43,7 +40,7 @@ impl SpecJson {
     #[must_use]
     pub fn new(spec: &OpenApi) -> Self {
         let text = spec.to_pretty_json().expect(
-            "Given a spec of maps, lists, and strings, serializing it should always succeed",
+            "Given a spec of JSON values with string keys, serializing it should always succeed",
         );
         Self(Bytes::from(text))
     }

@@ -9,7 +9,7 @@ use utoipa::ToSchema;
 use xbrl::core::elements::CanonicalElement;
 use xbrl::us_gaap::mappings::{OPTIONAL_CONCEPTS, REQUIRED_CONCEPTS};
 
-/// One canonical concept that the `concept` parameter of `/v1` accepts.
+/// One canonical concept that `xbrl` maps from US-GAAP.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, ToSchema)]
 pub struct Concept {
     /// The stable identifier of the concept.
@@ -72,7 +72,7 @@ impl ConceptList {
     path = "/concepts",
     tag = "concepts",
     responses(
-        (status = 200, description = "Every concept that the `concept` parameter accepts", body = ConceptList),
+        (status = 200, description = "Every concept that `xbrl` maps from US-GAAP", body = ConceptList),
     ),
 )]
 // axum requires an async handler. This one has nothing to await.
