@@ -642,16 +642,18 @@ quarter) or a month (year and month).
   the last 10 quarters. Within 24 months, the date does not tell whether a quarter is merged. On
   2026-11-07 the SEC published
   80 files: the quarters 2009q1 to 2025q3, and the months 2025_10 to 2026_10.
-- `published_periods(sec_client, through)` in `sec/src/lib/implementations/extraction/notes/`
-  asks the SEC which form exists. A quarter up to `LAST_MERGED_QUARTER` (2025q3), or one that
+- `published_periods(sec_client, through, retry_delays, on_retry)` in
+  `sec/src/lib/implementations/extraction/notes/` asks the SEC which form exists. A quarter up to `LAST_MERGED_QUARTER` (2025q3), or one that
   ended 24 months or more before `through`, counts as merged. For every later quarter, it sends one
   `HEAD` request for the quarterly file (`NotesFileProbe`), at most 8 per run. On 200, the list
   holds the quarter. On 404, it holds the three months. A transient failure, such as 503, gets the
-  retries of the downloads. Any other answer, 403 included, fails the run with `FailedNotesProbe`,
-  because a 403 can mean that the SEC refused the request. The months
-  of the quarter that has not ended follow, up to the month of `through`.
-- `notes_periods(sec_client, today)` in `sec/src/bin/shared/notes_periods.rs` calls it with the
-  month before today. A monthly file that the store holds but whose quarter the SEC has merged is
+  retries of the downloads (`retry_while` in `extraction/retry.rs`), and `on_retry` gets the
+  quarter and the error. Any other answer, 403 included, fails the run with `FailedNotesProbe`,
+  because a 403 can mean that the SEC refused the request (`FailedSecRequest::is_not_found` counts
+  only 404). The months of the quarter that has not ended follow, up to the month of `through`.
+- `notes_periods(sec_client, today, on_retry)` in `sec/src/bin/shared/notes_periods.rs` calls it
+  with the month before today and `DEFAULT_RETRY_DELAYS`. `backfill` logs each retry as
+  `batch_notes_probe_retried`, with the quarter. A monthly file that the store holds but whose quarter the SEC has merged is
   not requested. Its quarter covers the same filings, and the transform loads each filing once by
   accession number.
 - `NotesPeriod::file_name()` returns the SEC file name. See [File Names](#file-names).
@@ -704,6 +706,8 @@ overrides. The run reads no page, so it cannot find a new name by itself.
   ```rust
   pub trait RequestKind {
       type Input;
+      /// `GET` by default. `NotesFileProbe` sets `HEAD`.
+      const METHOD: Method = Method::GET;
       fn request_type(input: Self::Input) -> SecRequestType;
   }
   ```
@@ -1661,7 +1665,7 @@ JSON logs with the five fields of `AGENTS.md`, as in `backfill`:
 | `constants.rs` | The variable names |
 | `extraction/daily_filings/mod.rs` (library) | The builder, the loop over the dates and the three steps, and the defaults |
 | `extraction/daily_filings/summary.rs` (library) | The `DailyRunSummary` and the rules for pending and unextractable |
-| `extraction/retry.rs` (library) | The retry of a machine after a transient SEC failure, and `DEFAULT_RETRY_DELAYS` |
+| `extraction/retry.rs` (library) | The retry of a machine after a transient SEC failure, `retry_while` (the same loop for any error type, used by the Notes `HEAD` request), and `DEFAULT_RETRY_DELAYS` |
 
 - `dates.rs` takes "now" as an argument, so its tests set the clock, for example 02:00 UTC.
 - The builder takes `retry_delays` and `yesterday`, and it is generic over the SEC client. So the
