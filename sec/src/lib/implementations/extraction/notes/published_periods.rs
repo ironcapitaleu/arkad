@@ -6,8 +6,10 @@
 //! About a year after a quarter ends, the SEC merges the three monthly files of the quarter into
 //! one quarterly file and removes the monthly files (assumption A4 in
 //! `sec/design/pipeline/ingestion_paths.md`). The merge came 367 to 458 days after the quarter end
-//! in the last 10 quarters, so a rule based on the date is not safe. So the run asks the SEC with a
-//! `HEAD` request whether each recent quarterly file exists.
+//! in the last 10 quarters. Within 24 months, the date does not tell whether a quarter is merged,
+//! so the run asks the SEC with a `HEAD` request.
+
+use std::time::Duration;
 
 use chrono::{Datelike, Months, NaiveDate};
 use thiserror::Error;
@@ -51,15 +53,18 @@ pub struct FailedNotesProbe {
 /// holds the three months of the quarter instead. The months of a quarter that has not ended by
 /// `through` follow, up to the month of `through`.
 ///
-/// The list is empty if `through` comes before 2009.
+/// A request that fails with a transient SEC failure runs again after each wait of
+/// `retry_delays`, as the downloads do. The list is empty if `through` comes before 2009.
 ///
 /// # Errors
 ///
-/// Returns a [`FailedNotesProbe`] if a request fails with any answer other than 200 or 404. A 403
-/// can mean that the SEC refused the request, so it does not count as a missing file.
+/// Returns a [`FailedNotesProbe`] if a request fails with any answer other than 200 or 404, after
+/// the retries for a transient failure. A 403 can mean that the SEC refused the request, so it does
+/// not count as a missing file.
 pub async fn published_periods<C>(
     sec_client: &C,
     through: NaiveDate,
+    retry_delays: &[Duration],
 ) -> Result<Vec<NotesPeriod>, FailedNotesProbe>
 where
     C: SecClientTrait<Response<ZipHeadBody> = SecResponse<ZipHeadBody>, Error = FailedSecRequest>,
@@ -78,7 +83,9 @@ where
                 continue;
             }
             let quarter = period(&format!("{year}q{quarter}"));
-            if is_merged(quarter, through) || is_published(sec_client, quarter).await? {
+            if is_merged(quarter, through)
+                || is_published(sec_client, quarter, retry_delays).await?
+            {
                 periods.push(quarter);
             } else {
                 periods.extend(months.map(|(year, month)| period(&format!("{year}_{month:02}"))));
@@ -97,26 +104,39 @@ fn is_merged(quarter: NotesPeriod, through: NaiveDate) -> bool {
             .is_some_and(|merged| merged <= through)
 }
 
-/// Asks the SEC whether the Notes file of `quarter` exists.
+/// Asks the SEC whether the Notes file of `quarter` exists, and asks again after each wait of
+/// `retry_delays` while the request fails with a transient SEC failure.
 ///
 /// # Errors
 ///
-/// Returns a [`FailedNotesProbe`] if the request fails with any answer other than 404.
-async fn is_published<C>(sec_client: &C, quarter: NotesPeriod) -> Result<bool, FailedNotesProbe>
+/// Returns a [`FailedNotesProbe`] if the last request fails with any answer other than 404.
+async fn is_published<C>(
+    sec_client: &C,
+    quarter: NotesPeriod,
+    retry_delays: &[Duration],
+) -> Result<bool, FailedNotesProbe>
 where
     C: SecClientTrait<Response<ZipHeadBody> = SecResponse<ZipHeadBody>, Error = FailedSecRequest>,
 {
-    let request = SecRequest::builder()
-        .notes_file_probe()
-        .period(quarter)
-        .build();
-    match sec_client.execute_sec_request(request).await {
-        Ok(_) => Ok(true),
-        Err(error) if error.is_not_found() => Ok(false),
-        Err(source) => Err(FailedNotesProbe {
-            period: quarter,
-            source,
-        }),
+    let mut delays = retry_delays.iter();
+    loop {
+        let request = SecRequest::builder()
+            .notes_file_probe()
+            .period(quarter)
+            .build();
+        match sec_client.execute_sec_request(request).await {
+            Ok(_) => return Ok(true),
+            Err(error) if error.is_not_found() => return Ok(false),
+            Err(source) => match delays.next() {
+                Some(delay) if source.is_transient() => tokio::time::sleep(*delay).await,
+                _ => {
+                    return Err(FailedNotesProbe {
+                        period: quarter,
+                        source,
+                    });
+                }
+            },
+        }
     }
 }
 
@@ -157,8 +177,11 @@ mod tests {
             })
     }
 
+    /// No wait between two attempts, so a test with a retry takes no time.
+    const NO_WAIT: [Duration; 1] = [Duration::ZERO];
+
     async fn periods_from(sec_client: &RoutingSecClient, through: NaiveDate) -> Vec<String> {
-        published_periods(sec_client, through)
+        published_periods(sec_client, through, &NO_WAIT)
             .await
             .expect("Given a client that answers only 200 or 404, the list should always build")
             .iter()
@@ -210,7 +233,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_end_in_the_previous_year_when_through_is_in_december() {
+    async fn should_list_the_months_of_a_quarter_when_through_is_its_last_month() {
         let sec_client = sec_with_quarters(&[]);
         let through = date(2026, 12, 31);
 
@@ -250,10 +273,28 @@ mod tests {
 
         let expected_result = Some("[FailedNotesProbe] Failed to ask whether the Notes file of '2025q4' exists, Caused by: [InvalidSecResponse] Invalid SEC Response, Reason: 'Status code '403' is not accepted'".to_string());
 
-        let result = published_periods(&sec_client, through)
+        let result = published_periods(&sec_client, through, &NO_WAIT)
             .await
             .err()
             .map(|error| error.to_string());
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_list_the_quarter_when_the_sec_answers_503_and_then_200() {
+        let sec_client = RoutingSecClient::new().route_sequence(
+            &format!("{NOTES_URL}2025q4_notes.zip"),
+            &[
+                (503, "text/html", b""),
+                (200, "application/octet-stream", b""),
+            ],
+        );
+        let through = date(2025, 12, 31);
+
+        let expected_result = vec!["2025q3".to_string(), "2025q4".to_string()];
+
+        let result = periods_from(&sec_client, through).await.split_off(66);
 
         assert_eq!(result, expected_result);
     }

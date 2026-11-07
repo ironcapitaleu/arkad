@@ -3,7 +3,7 @@
 //! Provides [`notes_periods`], which lists the Notes periods that the backfill run asks for.
 
 use chrono::{Months, NaiveDate};
-use sec::implementations::extraction::{FailedNotesProbe, published_periods};
+use sec::implementations::extraction::{DEFAULT_RETRY_DELAYS, FailedNotesProbe, published_periods};
 use sec::shared::http_client::SecClient as SecClientTrait;
 use sec::shared::http_client::implementations::sec_client::error::FailedSecRequest;
 use sec::shared::response::implementations::sec_response::{SecResponse, ZipHeadBody};
@@ -30,11 +30,13 @@ where
     let Some(last_month) = today.checked_sub_months(Months::new(PUBLICATION_LAG_MONTHS)) else {
         return Ok(Vec::new());
     };
-    Ok(published_periods(sec_client, last_month)
-        .await?
-        .iter()
-        .map(ToString::to_string)
-        .collect())
+    Ok(
+        published_periods(sec_client, last_month, &DEFAULT_RETRY_DELAYS)
+            .await?
+            .iter()
+            .map(ToString::to_string)
+            .collect(),
+    )
 }
 
 #[cfg(test)]

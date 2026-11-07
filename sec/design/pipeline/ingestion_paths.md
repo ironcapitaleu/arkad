@@ -639,16 +639,17 @@ quarter) or a month (year and month).
   file also parses. The type does not know which periods the SEC publishes.
 - About a year after a quarter ends, the SEC merges its three monthly files into one quarterly file
   and removes the months (assumption A4). The merge came 367 to 458 days after the quarter end in
-  the last 10 quarters, so a rule based on the date is not safe. On 2026-11-07 the SEC published
+  the last 10 quarters. Within 24 months, the date does not tell whether a quarter is merged. On
+  2026-11-07 the SEC published
   80 files: the quarters 2009q1 to 2025q3, and the months 2025_10 to 2026_10.
 - `published_periods(sec_client, through)` in `sec/src/lib/implementations/extraction/notes/`
   asks the SEC which form exists. A quarter up to `LAST_MERGED_QUARTER` (2025q3), or one that
   ended 24 months or more before `through`, counts as merged. For every later quarter, it sends one
   `HEAD` request for the quarterly file (`NotesFileProbe`), at most 8 per run. On 200, the list
-  holds the quarter. On 404, it holds the three months. Any other answer, 403 included, fails the
-  run with `FailedNotesProbe`, because a 403 can mean that the SEC refused the request. The months
+  holds the quarter. On 404, it holds the three months. A transient failure, such as 503, gets the
+  retries of the downloads. Any other answer, 403 included, fails the run with `FailedNotesProbe`,
+  because a 403 can mean that the SEC refused the request. The months
   of the quarter that has not ended follow, up to the month of `through`.
-- The run parses no HTML page. The project does not scrape.
 - `notes_periods(sec_client, today)` in `sec/src/bin/shared/notes_periods.rs` calls it with the
   month before today. A monthly file that the store holds but whose quarter the SEC has merged is
   not requested. Its quarter covers the same filings, and the transform loads each filing once by
@@ -1762,7 +1763,7 @@ Assumptions:
 | A1 | A monthly Notes file holds every filing of the selected forms with a filed date in that month | Measured for `2026_09`: its `sub.tsv` runs from 2026-09-01 to 2026-09-30 | A filing before the start date is lost. To check, compare `sub.tsv` with the daily indexes of that month. |
 | A2 | A filing after 5:30 PM Eastern on the last day of a month gets the next business day as its filed date, and the daily index of that day lists it | Unverified | The overlap of one day covers a filing on the last day of the month. A longer gap needs a longer overlap. |
 | A3 | The daily index lists every filing of its day, and the SEC does not change it after publication | Unverified | A late change is lost. A rerun of that date picks it up. |
-| A4 | About a year after a quarter ends, the SEC merges the monthly Notes files of that quarter into one quarterly file. It removes the monthly files. Example: `2025q3` on 2026-10-07. The SEC also corrects old files about once a year, for example 2010q1 to 2013q4 in September 2024 | Measured on 2026-11-07 with `Last-Modified` of the 80 files listed on the SEC data-sets page that day, and the notes on that page. A `HEAD` of the merged monthly files `2025_07` to `2025_09` returns 404 | `backfill` sends a `HEAD` request for each quarterly file after 2025q3 that ended less than 24 months ago. After the merge of 2025q4, the request answers 200, so the run asks for `2025q4` and skips the stored months `2025_10` to `2025_12`. The merge came 367 to 458 days after the quarter end in the last 10 quarters, so a rule based on the date is not safe. If the SEC stops merging, every request answers 404 and the run keeps the months. If a merge ever takes more than 24 months, the run asks for a quarter that does not exist yet and fails, which shows the case. A run does not fetch a corrected file again. An amendment reaches the new-filing path as its own filing (10-K/A, 10-Q/A). |
+| A4 | About a year after a quarter ends, the SEC merges the monthly Notes files of that quarter into one quarterly file. It removes the monthly files. Example: `2025q3` on 2026-10-07. The SEC also corrects old files about once a year, for example 2010q1 to 2013q4 in September 2024 | Measured on 2026-11-07 with `Last-Modified` of the 80 files listed on the SEC data-sets page that day, and the notes on that page. A `HEAD` of the merged monthly files `2025_07` to `2025_09` returns 404 | `backfill` sends a `HEAD` request for each quarterly file after 2025q3 that ended less than 24 months ago. After the merge of 2025q4, the request answers 200, so the run asks for `2025q4` and skips the stored months `2025_10` to `2025_12`. The merge came 367 to 458 days after the quarter end in the last 10 quarters. Within 24 months, the date does not tell whether a quarter is merged. If the SEC stops merging, every request answers 404 and the run keeps the months for 24 months. After that, the run counts the quarter as merged, asks for a file that does not exist, and fails. A merge that takes more than 24 months fails the same way, which shows the case. A run does not fetch a corrected file again. An amendment reaches the new-filing path as its own filing (10-K/A, 10-Q/A). |
 | A5 | CIK and accession number never change and are never reused | Unverified, SEC practice | Idempotent writes on these keys merge two different things |
 | A6 | The SEC publishes the daily indexes in date order | Unverified | The 404 rule counts a date as empty once a later index exists. An index published after a later one is lost with no alert. A rerun of that date picks it up. |
 
