@@ -19,6 +19,16 @@
   - Doctests
 - Every bug fix ships with a regression test that fails on the old code (see the `testing` skill, "Regression Tests").
 
+### No Scraping
+
+Never parse an HTML page for people to get data, and never add a dependency that does. A page for
+people changes its layout without notice, and code that parses it fails or returns wrong data.
+Inline XBRL is not such a page: its data has tags under a published standard.
+
+Get data from a machine-readable source: a JSON or XML API, a file listing such as `index.json`, or
+the files themselves. To learn whether a file exists, send a `HEAD` request for its URL. If no such
+source exists, ask the lead before you write code.
+
 ### Codebase-Wide Propagation
 
 When making a change that applies to multiple places (renaming a pattern, replacing a dependency,
