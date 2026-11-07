@@ -7,6 +7,7 @@ use axum::http::StatusCode;
 use axum::http::header::CONTENT_TYPE;
 use axum::response::{IntoResponse, Response};
 use serde::Serialize;
+use utoipa::ToSchema;
 
 use super::ApiError;
 
@@ -17,20 +18,26 @@ pub const PROBLEM_CONTENT_TYPE: &str = "application/problem+json";
 pub const PROBLEM_TYPE_PREFIX: &str = "/errors/";
 
 /// The body of an error response, as RFC 9457 defines it, with the fields `code` and `request_id`.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, ToSchema)]
 pub struct Problem {
     /// A URI reference that names the kind of error, for example `/errors/not_found`.
     #[serde(rename = "type")]
+    #[schema(rename = "type", example = "/errors/not_found")]
     pub problem_type: String,
     /// A short summary for people. It can change, so a program must check `code`.
+    #[schema(example = "Not found")]
     pub title: String,
     /// The HTTP status of the response.
+    #[schema(example = 404)]
     pub status: u16,
     /// An explanation of the failure for people.
+    #[schema(example = "The path does not exist.")]
     pub detail: String,
     /// The stable code that a client program checks.
+    #[schema(example = "not_found")]
     pub code: String,
     /// The ID of the request. The `X-Request-Id` header carries the same value.
+    #[schema(example = "req_019a5f3c7e2b7d4e8f1a2b3c4d5e6f70")]
     pub request_id: String,
 }
 

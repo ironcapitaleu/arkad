@@ -1,0 +1,157 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "api",
+    "description": "An axum service for company fundamentals.",
+    "license": {
+      "name": "MIT OR Apache-2.0",
+      "identifier": "MIT OR Apache-2.0"
+    },
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/v1/concepts": {
+      "get": {
+        "tags": [
+          "concepts"
+        ],
+        "summary": "Answers `GET /v1/concepts` with every concept that `xbrl` maps from US-GAAP.",
+        "operationId": "list_concepts",
+        "responses": {
+          "200": {
+            "description": "Every concept that the `concept` parameter accepts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConceptList"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/openapi.json": {
+      "get": {
+        "tags": [
+          "openapi"
+        ],
+        "summary": "Answers `GET /v1/openapi.json` with the spec of `/v1`.",
+        "operationId": "openapi_json",
+        "responses": {
+          "200": {
+            "description": "The spec of `/v1`, in OpenAPI 3.1",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Concept": {
+        "type": "object",
+        "description": "One canonical concept that the `concept` parameter of `/v1` accepts.",
+        "required": [
+          "concept",
+          "name"
+        ],
+        "properties": {
+          "concept": {
+            "type": "string",
+            "description": "The stable identifier of the concept.",
+            "example": "net_income"
+          },
+          "name": {
+            "type": "string",
+            "description": "The name of the concept for people.",
+            "example": "Net Income"
+          }
+        }
+      },
+      "ConceptList": {
+        "type": "object",
+        "description": "The body of a `GET /v1/concepts` response.",
+        "required": [
+          "data",
+          "next_cursor",
+          "as_of"
+        ],
+        "properties": {
+          "as_of": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The time of the response, RFC 3339 in UTC.",
+            "example": "2026-10-30T06:00:00Z"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Concept"
+            },
+            "description": "Every concept that `xbrl` maps from US-GAAP, the required concepts first."
+          },
+          "next_cursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The cursor of the next page. Always `null`, because the list fits on one page."
+          }
+        }
+      },
+      "Problem": {
+        "type": "object",
+        "description": "The body of an error response, as RFC 9457 defines it, with the fields `code` and `request_id`.",
+        "required": [
+          "type",
+          "title",
+          "status",
+          "detail",
+          "code",
+          "request_id"
+        ],
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "The stable code that a client program checks.",
+            "example": "not_found"
+          },
+          "detail": {
+            "type": "string",
+            "description": "An explanation of the failure for people.",
+            "example": "The path does not exist."
+          },
+          "request_id": {
+            "type": "string",
+            "description": "The ID of the request. The `X-Request-Id` header carries the same value.",
+            "example": "req_019a5f3c7e2b7d4e8f1a2b3c4d5e6f70"
+          },
+          "status": {
+            "type": "integer",
+            "format": "int32",
+            "description": "The HTTP status of the response.",
+            "example": 404,
+            "minimum": 0
+          },
+          "title": {
+            "type": "string",
+            "description": "A short summary for people. It can change, so a program must check `code`.",
+            "example": "Not found"
+          },
+          "type": {
+            "type": "string",
+            "description": "A URI reference that names the kind of error, for example `/errors/not_found`.",
+            "example": "/errors/not_found"
+          }
+        }
+      }
+    }
+  }
+}
