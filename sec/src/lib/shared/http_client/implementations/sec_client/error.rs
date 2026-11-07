@@ -57,6 +57,18 @@ impl FailedSecRequest {
             .has_status(|status| matches!(status, StatusCode::Forbidden | StatusCode::NotFound))
     }
 
+    /// Returns `true` if the SEC answered 404, also for the file that an
+    /// [`ErrorReason::FailedFilingDocument`] names.
+    ///
+    /// Unlike [`is_absent_file`](Self::is_absent_file), a 403 does not count. Under
+    /// `/files/dera/`, the SEC answers 404 for a file that does not exist, as observed on
+    /// 2026-11-07. There a 403 means that the SEC refused the request.
+    #[must_use]
+    pub fn is_not_found(&self) -> bool {
+        self.reason
+            .has_status(|status| *status == StatusCode::NotFound)
+    }
+
     /// Returns `true` if the SEC answered 503, also for the file that an
     /// [`ErrorReason::FailedFilingDocument`] names.
     ///
@@ -519,6 +531,18 @@ mod tests {
         let expected_result = (true, true);
 
         let result = (forbidden.is_absent_file(), not_found.is_absent_file());
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_report_not_found_only_when_the_sec_answers_404() {
+        let forbidden = invalid_status_code(StatusCode::Forbidden);
+        let not_found = invalid_status_code(StatusCode::NotFound);
+
+        let expected_result = (false, true);
+
+        let result = (forbidden.is_not_found(), not_found.is_not_found());
 
         assert_eq!(result, expected_result);
     }
