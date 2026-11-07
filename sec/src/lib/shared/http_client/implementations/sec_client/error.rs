@@ -536,7 +536,7 @@ mod tests {
     }
 
     #[test]
-    fn should_report_not_found_for_404_and_not_for_403() {
+    fn should_report_not_found_only_when_the_sec_answers_404() {
         let forbidden = invalid_status_code(StatusCode::Forbidden);
         let not_found = invalid_status_code(StatusCode::NotFound);
 

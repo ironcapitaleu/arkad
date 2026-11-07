@@ -70,7 +70,7 @@ async fn should_succeed_when_probing_a_published_notes_file() {
 }
 
 #[tokio::test]
-async fn should_return_an_absent_file_when_probing_an_unpublished_month() {
+async fn should_report_not_found_when_probing_an_unpublished_month() {
     let client = sec_client();
     let period = NotesPeriod::new("2099_12").expect("A hardcoded period should always be valid");
     let request = SecRequest::builder()
@@ -84,7 +84,7 @@ async fn should_return_an_absent_file_when_probing_an_unpublished_month() {
         .execute_sec_request(request)
         .await
         .err()
-        .map(|error| error.is_absent_file());
+        .map(|error| error.is_not_found());
 
     assert_eq!(result, expected_result);
 }
