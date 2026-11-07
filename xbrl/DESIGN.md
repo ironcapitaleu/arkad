@@ -11,7 +11,7 @@ The crate has a core and taxonomy plug-ins:
 - **The core** holds the fact model, dedup, chronology checks, provenance, and confidence levels.
   It knows nothing about US GAAP. It defines the `Taxonomy` trait and resolves facts through that
   trait only.
-- **A plug-in** implements `Taxonomy` for one taxonomy family. `us_gaap` is the first plug-in.
+- **A plug-in** implements `Taxonomy` for one taxonomy, for example US GAAP. `us_gaap` is the first plug-in.
   `ifrs` follows for ESEF and DART. A large plug-in can move into its own crate, for example
   `xbrl-ifrs`.
 
@@ -36,7 +36,7 @@ xbrl/
   taxonomy/us-gaap/2026/   <- vendored FASB files and a MANIFEST with the SHA-256 of each file
   src/
     core/
-      concept.rs           <- ConceptName, Namespace (open)
+      concept.rs           <- ConceptName, NamespaceFamily, Namespace (parser input)
       fact.rs              <- AsIsFact, FactKey, FactValue, Decimals, Dimensions
       filing.rs            <- Filing, FilingId, EntityId
       unit.rs              <- Unit (open: numerator and denominator measures)
@@ -116,7 +116,7 @@ These places in today's code assume the SEC or US GAAP. The design replaces each
 
 | Today | Assumption | Replacement |
 | ----- | ---------- | ----------- |
-| `core::Namespace` | Closed enum of 6 SEC namespaces | Open `Namespace { prefix, uri }`. Each plug-in declares the namespace families it owns |
+| `core::Namespace` | Closed enum of 6 SEC namespaces | Open `NamespaceFamily` on each concept. `Namespace { prefix, uri }` stays a parser input. Each plug-in declares the families it owns |
 | `core::Unit` | Closed enum of 4 US units | Open `Unit` of numerator and denominator measures, for example `iso4217:EUR` |
 | `core::RawObservation` | Value is `i64`, no dimensions, no `decimals` | `AsIsFact` |
 | `core::Provenance` | SEC accession number and forms | `Filing` with an open `FilingId` |
@@ -274,8 +274,9 @@ Alternatives:
 
 ### Namespace
 
-`Namespace` is an open value type: a prefix and a URI. Every filer adds its own extension
-namespace, so no closed set exists. The URI is the identity, as XBRL defines it.
+`Namespace` is an open value type: a prefix and a URI, as an instance declares it. Every filer adds
+its own extension namespace, so no closed set exists. The URI is the identity, as XBRL defines it.
+`Namespace` is a parser input only. Each fact holds a family and a version instead.
 
 Each US GAAP release has its own URI, for example `http://fasb.org/us-gaap/2017-01-31` and
 `http://fasb.org/us-gaap/2026`. So a plug-in cannot own one URI. It owns a namespace family:
@@ -286,9 +287,21 @@ Each US GAAP release has its own URI, for example `http://fasb.org/us-gaap/2017-
   and `element()` match on the family and the local name, so one plug-in resolves the concepts of
   every release.
 - The Notes data set has no URI. Its `tag` table gives the prefix and a `version`, for example
-  `us-gaap/2017`. The Notes parser maps the pair to the same family and the same
-  `taxonomy_version`.
-- An extension namespace is a family of its own, with no plug-in.
+  `us-gaap/2017`.
+
+The split of a URI into a family and a version:
+
+- Each plug-in declares, per family, the URI pattern and where the release sits in it, for example
+  `http://fasb.org/us-gaap/{release}` and `https://xbrl.ifrs.org/taxonomy/{release}/ifrs-full`.
+  It also declares the `version` prefix that the Notes data set uses for the family.
+- The parser asks the registry to split each URI, or each Notes `version`. The plug-ins own the
+  patterns, and the core owns the lookup.
+- `taxonomy_version` holds the family and the year of the release, for example `us-gaap/2017`,
+  whether the URI says `2017-01-31` or `2017`. This is the form of the Notes `tag` table, so both
+  sources give the same value key.
+- A URI that no plug-in claims is an extension. Its family is the filing ID, and so is its
+  `taxonomy_version`. The Notes data set gives the accession number as the `version` of an
+  extension tag, so both sources agree. EDGAR keeps local names unique within one filing.
 
 An enum per plug-in was the alternative. It makes the fact type generic, and an extension concept
 has no plug-in at all.
@@ -383,7 +396,7 @@ How option C gets the reference data of a retired element:
 - **Labels in more languages.** `ElementReference` holds the English standard label. Other
   languages stay out of the MVP.
 
-The open `Namespace` and `Unit` cover new namespaces and currencies. No new core type is needed.
+The open `NamespaceFamily` and `Unit` cover new namespaces and currencies. No new core type is needed.
 
 ---
 
@@ -466,7 +479,7 @@ section 4.
   collisions, 266 are one period with two precisions, which are copies. 129 are two exact periods
   with the same end and length, which can be two facts. `core/dedup/more-precise@1` handles both
   cases, see "Dedup Rules".
-- `taxonomy_version` adds no uniqueness, because the filing fixes the version of each namespace. It
+- `taxonomy_version` adds no uniqueness, because the filing fixes the version of each family. It
   stays in the key because the Notes data set gives it on every row, and the draft key of the fact
   store design names it.
 - The key names the fields only. The fact store design decides the write rule, whether the source
