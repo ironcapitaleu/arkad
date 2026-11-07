@@ -14,6 +14,7 @@ use std::time::Duration;
 use chrono::{Datelike, Months, NaiveDate};
 use thiserror::Error;
 
+use super::super::retry::retry_while;
 use crate::shared::http_client::SecClient as SecClientTrait;
 use crate::shared::http_client::implementations::sec_client::error::FailedSecRequest;
 use crate::shared::notes_period::NotesPeriod;
@@ -54,7 +55,8 @@ pub struct FailedNotesProbe {
 /// `through` follow, up to the month of `through`.
 ///
 /// A request that fails with a transient SEC failure runs again after each wait of
-/// `retry_delays`, as the downloads do. The list is empty if `through` comes before 2009.
+/// `retry_delays`, as the downloads do, and `on_retry` gets the quarter and the error. The list is
+/// empty if `through` comes before 2009.
 ///
 /// # Errors
 ///
@@ -65,6 +67,7 @@ pub async fn published_periods<C>(
     sec_client: &C,
     through: NaiveDate,
     retry_delays: &[Duration],
+    on_retry: impl Fn(NotesPeriod, &FailedSecRequest) + Send + Sync,
 ) -> Result<Vec<NotesPeriod>, FailedNotesProbe>
 where
     C: SecClientTrait<Response<ZipHeadBody> = SecResponse<ZipHeadBody>, Error = FailedSecRequest>,
@@ -84,7 +87,7 @@ where
             }
             let quarter = period(&format!("{year}q{quarter}"));
             if is_merged(quarter, through)
-                || is_published(sec_client, quarter, retry_delays).await?
+                || is_published(sec_client, quarter, retry_delays, &on_retry).await?
             {
                 periods.push(quarter);
             } else {
@@ -104,8 +107,8 @@ fn is_merged(quarter: NotesPeriod, through: NaiveDate) -> bool {
             .is_some_and(|merged| merged <= through)
 }
 
-/// Asks the SEC whether the Notes file of `quarter` exists, and asks again after each wait of
-/// `retry_delays` while the request fails with a transient SEC failure.
+/// Asks the SEC whether the Notes file of `quarter` exists. A request that fails with a transient
+/// SEC failure runs again after each wait of `retry_delays`, and `on_retry` gets its error.
 ///
 /// # Errors
 ///
@@ -114,29 +117,31 @@ async fn is_published<C>(
     sec_client: &C,
     quarter: NotesPeriod,
     retry_delays: &[Duration],
+    on_retry: &(impl Fn(NotesPeriod, &FailedSecRequest) + Sync),
 ) -> Result<bool, FailedNotesProbe>
 where
     C: SecClientTrait<Response<ZipHeadBody> = SecResponse<ZipHeadBody>, Error = FailedSecRequest>,
 {
-    let mut delays = retry_delays.iter();
-    loop {
-        let request = SecRequest::builder()
-            .notes_file_probe()
-            .period(quarter)
-            .build();
-        match sec_client.execute_sec_request(request).await {
-            Ok(_) => return Ok(true),
-            Err(error) if error.is_not_found() => return Ok(false),
-            Err(source) => match delays.next() {
-                Some(delay) if source.is_transient() => tokio::time::sleep(*delay).await,
-                _ => {
-                    return Err(FailedNotesProbe {
-                        period: quarter,
-                        source,
-                    });
-                }
-            },
-        }
+    let answer = retry_while(
+        retry_delays,
+        || {
+            let request = SecRequest::builder()
+                .notes_file_probe()
+                .period(quarter)
+                .build();
+            sec_client.execute_sec_request(request)
+        },
+        FailedSecRequest::is_transient,
+        |error| on_retry(quarter, error),
+    )
+    .await;
+    match answer {
+        Ok(_) => Ok(true),
+        Err(error) if error.is_not_found() => Ok(false),
+        Err(source) => Err(FailedNotesProbe {
+            period: quarter,
+            source,
+        }),
     }
 }
 
@@ -181,7 +186,7 @@ mod tests {
     const NO_WAIT: [Duration; 1] = [Duration::ZERO];
 
     async fn periods_from(sec_client: &RoutingSecClient, through: NaiveDate) -> Vec<String> {
-        published_periods(sec_client, through, &NO_WAIT)
+        published_periods(sec_client, through, &NO_WAIT, |_, _| {})
             .await
             .expect("Given a client that answers only 200 or 404, the list should always build")
             .iter()
@@ -273,7 +278,7 @@ mod tests {
 
         let expected_result = Some("[FailedNotesProbe] Failed to ask whether the Notes file of '2025q4' exists, Caused by: [InvalidSecResponse] Invalid SEC Response, Reason: 'Status code '403' is not accepted'".to_string());
 
-        let result = published_periods(&sec_client, through, &NO_WAIT)
+        let result = published_periods(&sec_client, through, &NO_WAIT, |_, _| {})
             .await
             .err()
             .map(|error| error.to_string());
@@ -295,6 +300,77 @@ mod tests {
         let expected_result = vec!["2025q3".to_string(), "2025q4".to_string()];
 
         let result = periods_from(&sec_client, through).await.split_off(66);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_return_failed_notes_probe_without_a_retry_when_the_sec_answers_403_and_then_200()
+     {
+        let sec_client = RoutingSecClient::new().route_sequence(
+            &format!("{NOTES_URL}2025q4_notes.zip"),
+            &[
+                (403, "text/html", b""),
+                (200, "application/octet-stream", b""),
+            ],
+        );
+        let through = date(2025, 12, 31);
+
+        let expected_result = Some("[FailedNotesProbe] Failed to ask whether the Notes file of '2025q4' exists, Caused by: [InvalidSecResponse] Invalid SEC Response, Reason: 'Status code '403' is not accepted'".to_string());
+
+        let result = published_periods(&sec_client, through, &NO_WAIT, |_, _| {})
+            .await
+            .err()
+            .map(|error| error.to_string());
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_return_failed_notes_probe_when_the_sec_answers_503_after_every_retry() {
+        let sec_client = RoutingSecClient::new().route(
+            &format!("{NOTES_URL}2025q4_notes.zip"),
+            503,
+            "text/html",
+            b"",
+        );
+        let through = date(2025, 12, 31);
+
+        let expected_result = Some("[FailedNotesProbe] Failed to ask whether the Notes file of '2025q4' exists, Caused by: [InvalidSecResponse] Invalid SEC Response, Reason: 'Status code '503' is not accepted'".to_string());
+
+        let result = published_periods(&sec_client, through, &NO_WAIT, |_, _| {})
+            .await
+            .err()
+            .map(|error| error.to_string());
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_report_the_quarter_of_each_retry_when_the_sec_answers_503_and_then_200() {
+        let sec_client = RoutingSecClient::new().route_sequence(
+            &format!("{NOTES_URL}2025q4_notes.zip"),
+            &[
+                (503, "text/html", b""),
+                (200, "application/octet-stream", b""),
+            ],
+        );
+        let through = date(2025, 12, 31);
+        let retried = std::sync::Mutex::new(Vec::new());
+
+        let expected_result = vec!["2025q4".to_string()];
+
+        published_periods(&sec_client, through, &NO_WAIT, |quarter, _| {
+            retried
+                .lock()
+                .expect("Given a callback that never panics, the lock should never be poisoned")
+                .push(quarter.to_string());
+        })
+        .await
+        .expect("Given a 503 and then a 200, the list should build after one retry");
+        let result = retried
+            .into_inner()
+            .expect("Given a callback that never panics, the lock should never be poisoned");
 
         assert_eq!(result, expected_result);
     }

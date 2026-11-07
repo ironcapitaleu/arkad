@@ -6,6 +6,7 @@ use chrono::{Months, NaiveDate};
 use sec::implementations::extraction::{DEFAULT_RETRY_DELAYS, FailedNotesProbe, published_periods};
 use sec::shared::http_client::SecClient as SecClientTrait;
 use sec::shared::http_client::implementations::sec_client::error::FailedSecRequest;
+use sec::shared::notes_period::NotesPeriod;
 use sec::shared::response::implementations::sec_response::{SecResponse, ZipHeadBody};
 
 /// The number of months between today and the last Notes period that the run asks for.
@@ -17,12 +18,15 @@ pub const PUBLICATION_LAG_MONTHS: u32 = 1;
 /// Returns every published Notes period from 2009q1 to the month [`PUBLICATION_LAG_MONTHS`] before
 /// `today`, in increasing order. See [`published_periods`].
 ///
+/// Calls `on_retry` with the quarter and the error of each request that runs again.
+///
 /// # Errors
 ///
 /// Returns the [`FailedNotesProbe`] of [`published_periods`].
 pub async fn notes_periods<C>(
     sec_client: &C,
     today: NaiveDate,
+    on_retry: impl Fn(NotesPeriod, &FailedSecRequest) + Send + Sync,
 ) -> Result<Vec<String>, FailedNotesProbe>
 where
     C: SecClientTrait<Response<ZipHeadBody> = SecResponse<ZipHeadBody>, Error = FailedSecRequest>,
@@ -31,7 +35,7 @@ where
         return Ok(Vec::new());
     };
     Ok(
-        published_periods(sec_client, last_month, &DEFAULT_RETRY_DELAYS)
+        published_periods(sec_client, last_month, &DEFAULT_RETRY_DELAYS, on_retry)
             .await?
             .iter()
             .map(ToString::to_string)
@@ -58,7 +62,7 @@ mod tests {
 
         let expected_result = Some("2026_10".to_string());
 
-        let result = notes_periods(&sec_client, today)
+        let result = notes_periods(&sec_client, today, |_, _| {})
             .await
             .expect("Given a client that answers 404 to each request, the list should always build")
             .pop();
@@ -73,7 +77,7 @@ mod tests {
 
         let expected_result = Some("2026_12".to_string());
 
-        let result = notes_periods(&sec_client, today)
+        let result = notes_periods(&sec_client, today, |_, _| {})
             .await
             .expect("Given a client that answers 404 to each request, the list should always build")
             .pop();

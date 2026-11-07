@@ -31,6 +31,8 @@ use sec::implementations::extraction::{
     DailyFilingsRepositories, Extraction, FailedNotesProbe, NotesRunSummary, RunEvent,
 };
 use sec::shared::http_client::implementations::sec_client::SecClient;
+use sec::shared::http_client::implementations::sec_client::error::FailedSecRequest;
+use sec::shared::notes_period::NotesPeriod;
 use uuid::Uuid;
 
 use batch_log::{
@@ -178,7 +180,7 @@ fn log_notes_summary(
     );
 }
 
-/// Lists the Notes periods of the run, and logs a failure.
+/// Lists the Notes periods of the run, and logs each retry and a failure.
 ///
 /// # Errors
 ///
@@ -187,13 +189,22 @@ async fn notes_periods_of_run(
     sec_client: &SecClient,
     today: NaiveDate,
 ) -> Result<Vec<String>, FailedNotesProbe> {
-    notes_periods(sec_client, today).await.inspect_err(|error| {
-        tracing::error!(
-            event = %BatchEvent::StartupFailed,
+    let on_retry = |quarter: NotesPeriod, error: &FailedSecRequest| {
+        tracing::warn!(
+            event = %BatchEvent::NotesProbeRetried,
             message = %error,
-            context = %serde_json::json!({ "period": error.period.to_string() }),
+            context = %serde_json::json!({ "period": quarter.to_string() }),
         );
-    })
+    };
+    notes_periods(sec_client, today, on_retry)
+        .await
+        .inspect_err(|error| {
+            tracing::error!(
+                event = %BatchEvent::StartupFailed,
+                message = %error,
+                context = %serde_json::json!({ "period": error.period.to_string() }),
+            );
+        })
 }
 
 /// Reads the number of Notes files in flight from `ARKAD_FILES_IN_FLIGHT`, and logs an invalid value.

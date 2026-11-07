@@ -2,6 +2,7 @@
 //!
 //! Provides the run-level retry of the facade: [`with_retry`] runs a whole machine again after a
 //! transient SEC failure, and [`DEFAULT_RETRY_DELAYS`] sets the waits between the attempts.
+//! [`retry_while`] is the same loop for any error type.
 //!
 //! A rerun of a whole machine is safe, because a write with equal bytes changes nothing.
 
@@ -20,12 +21,28 @@ pub const DEFAULT_RETRY_DELAYS: [Duration; 2] = [Duration::from_secs(10), Durati
 /// returns the last error.
 pub(super) async fn with_retry<T, F, Fut>(
     retry_delays: &[Duration],
-    mut attempt: F,
+    attempt: F,
     on_retry: impl Fn(&StreamError),
 ) -> Result<T, StreamError>
 where
     F: FnMut() -> Fut,
     Fut: Future<Output = Result<T, StreamError>>,
+{
+    retry_while(retry_delays, attempt, is_transient, on_retry).await
+}
+
+/// Runs `attempt` until it succeeds, fails with an error for which `is_transient` returns `false`,
+/// or has used every wait of `retry_delays`. Calls `on_retry` with each error after which
+/// `attempt` runs again, and returns the last error.
+pub(super) async fn retry_while<T, E, F, Fut>(
+    retry_delays: &[Duration],
+    mut attempt: F,
+    is_transient: impl Fn(&E) -> bool,
+    on_retry: impl Fn(&E),
+) -> Result<T, E>
+where
+    F: FnMut() -> Fut,
+    Fut: Future<Output = Result<T, E>>,
 {
     let mut delays = retry_delays.iter();
     loop {
