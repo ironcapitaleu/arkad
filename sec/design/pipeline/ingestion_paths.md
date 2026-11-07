@@ -698,7 +698,7 @@ overrides. The run reads no page, so it cannot find a new name by itself.
 
 - `SecRequestType` gets two variants next to `FetchAllCompanyFacts { cik }`:
   `FetchNotesFile { period: NotesPeriod }` and `ProbeNotesFile { period: NotesPeriod }`. The
-  probe has the URL of the Notes file and sends `HEAD`, see "Download".
+  probe has the URL of the Notes file and sends `HEAD`. See "Download".
 - The builder gets the same typestate pattern. `notes_file()` returns `NotesFileBuilder<NoPeriod>`,
   and `notes_file_probe()` returns `NotesFileBuilder<NoPeriod, NotesFileProbe>`. `.period(p)` sets
   the period. Only a builder with a period has `build()`.
@@ -714,9 +714,10 @@ overrides. The run reads no page, so it cannot find a new name by itself.
   }
   ```
 
-  - `CompanyFacts` has `Input = Cik`. `NotesFile` has `Input = NotesPeriod`.
+  - `CompanyFacts` has `Input = Cik`. `NotesFile` and `NotesFileProbe` have `Input = NotesPeriod`.
   - The builder sets the kind. `.all_company_facts().cik(c).build()` returns
-    `SecRequest<CompanyFacts>`, and `.notes_file().period(p).build()` returns `SecRequest<NotesFile>`.
+    `SecRequest<CompanyFacts>`, `.notes_file().period(p).build()` returns `SecRequest<NotesFile>`,
+    and `.notes_file_probe().period(p).build()` returns `SecRequest<NotesFileProbe>`.
   - Generic code builds a request without the builder: `SecRequest::<K>::new(input)`, with
     `input: K::Input`. A wrong input does not compile.
   - The request knows nothing about responses. The client maps each request kind, an SEC
