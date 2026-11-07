@@ -55,7 +55,7 @@ use crate::shared::notes_period::NotesPeriod;
 use crate::shared::request::SecRequest as SecRequestTrait;
 use crate::shared::request::implementations::sec_request::{
     CompanyFacts, DailyIndex, DailyIndexListing, FilingDocument, FilingDocumentSet, FilingIndex,
-    NotesFile, RequestKind, SecRequest, Submissions,
+    NotesFile, NotesFileProbe, RequestKind, SecRequest, Submissions,
 };
 
 /// Typestate marker: no CIK has been set yet.
@@ -119,7 +119,19 @@ impl SecRequestBuilder {
     /// Selects the [`NotesFile`] request kind.
     #[must_use]
     pub const fn notes_file(self) -> NotesFileBuilder<NoPeriod> {
-        NotesFileBuilder { period: NoPeriod }
+        NotesFileBuilder {
+            kind: PhantomData,
+            period: NoPeriod,
+        }
+    }
+
+    /// Selects the [`NotesFileProbe`] request kind.
+    #[must_use]
+    pub const fn notes_file_probe(self) -> NotesFileBuilder<NoPeriod, NotesFileProbe> {
+        NotesFileBuilder {
+            kind: PhantomData,
+            period: NoPeriod,
+        }
     }
 
     /// Selects the [`DailyIndex`] request kind.
@@ -469,24 +481,29 @@ impl FilingDocumentSetBuilder<FilingRef, FilingDocuments> {
     }
 }
 
-/// Typestate builder for the [`FetchNotesFile`](super::SecRequestType::FetchNotesFile) request.
+/// Typestate builder for the [`NotesFile`] and [`NotesFileProbe`] requests.
 ///
-/// The `P` type parameter tracks the period. It starts as [`NoPeriod`]. [`period`](Self::period)
-/// changes it to [`NotesPeriod`]. Only that type has [`build`](Self::build).
+/// `K` is the request kind, [`NotesFile`] by default. The `P` type parameter tracks the period. It
+/// starts as [`NoPeriod`]. [`period`](Self::period) changes it to [`NotesPeriod`]. Only that type
+/// has [`build`](Self::build).
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct NotesFileBuilder<P> {
+pub struct NotesFileBuilder<P, K = NotesFile> {
+    kind: PhantomData<K>,
     period: P,
 }
 
-impl NotesFileBuilder<NoPeriod> {
+impl<K> NotesFileBuilder<NoPeriod, K> {
     /// Sets the Notes period, unlocking [`build`](NotesFileBuilder::build).
     #[must_use]
-    pub const fn period(self, period: NotesPeriod) -> NotesFileBuilder<NotesPeriod> {
-        NotesFileBuilder { period }
+    pub const fn period(self, period: NotesPeriod) -> NotesFileBuilder<NotesPeriod, K> {
+        NotesFileBuilder {
+            kind: PhantomData,
+            period,
+        }
     }
 }
 
-impl NotesFileBuilder<NotesPeriod> {
+impl<K: RequestKind<Input = NotesPeriod>> NotesFileBuilder<NotesPeriod, K> {
     /// Builds the [`SecRequest`]; available only once the Notes period is set.
     ///
     /// # Examples
@@ -505,7 +522,7 @@ impl NotesFileBuilder<NotesPeriod> {
     /// assert_eq!(result, expected_result);
     /// ```
     #[must_use]
-    pub fn build(self) -> SecRequest<NotesFile> {
+    pub fn build(self) -> SecRequest<K> {
         SecRequest::new(self.period)
     }
 }
@@ -940,6 +957,38 @@ mod tests {
             .inner()
             .url()
             .clone();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_produce_head_method_for_notes_file_probe_request() {
+        let period = notes_period("2025q3");
+
+        let expected_result = Method::HEAD;
+
+        let result = SecRequest::builder()
+            .notes_file_probe()
+            .period(period)
+            .build()
+            .inner()
+            .method()
+            .clone();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_use_the_notes_file_url_for_notes_file_probe_request() {
+        let period = notes_period("2010q1");
+
+        let expected_result = "https://www.sec.gov/files/dera/data/financial-statement-notes-data-sets/2010q1_notes_1.zip";
+
+        let request = SecRequest::builder()
+            .notes_file_probe()
+            .period(period)
+            .build();
+        let result = request.inner().url().as_str();
 
         assert_eq!(result, expected_result);
     }
