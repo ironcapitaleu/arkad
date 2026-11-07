@@ -8,9 +8,11 @@
 //! - `data.sec.gov` — Live SEC EDGAR API (JSON company filings)
 //! - `www.sec.gov` — Live Notes files, asked for with `HEAD` requests
 
+use chrono::{Datelike, Months, NaiveDate, Utc};
 use pretty_assertions::assert_eq;
 use serde_json::Value;
 
+use sec::implementations::extraction::notes::published_periods::MERGE_WAIT_MONTHS;
 use sec::shared::cik::Cik;
 use sec::shared::content_type::ContentType;
 use sec::shared::http_client::SecClient as SecClientTrait;
@@ -28,6 +30,27 @@ use sec::shared::user_agent::UserAgent;
 
 const BERKSHIRE_FIXTURE: &str =
     include_str!("../src/lib/tests/fixtures/data/raw_input/CIK0001067983.json");
+
+/// The age in months after which the SEC has merged the monthly Notes files of every quarter so
+/// far. The slowest merge measured took 458 days, about 15 months.
+const MERGED_AFTER_MONTHS: u32 = 16;
+
+// The probed quarter is up to 3 months older than `MERGED_AFTER_MONTHS`. It must stay younger than
+// the age at which `published_periods` stops asking, or the test gives no early warning.
+const _: () = assert!(MERGED_AFTER_MONTHS + 3 < MERGE_WAIT_MONTHS);
+
+/// Returns the last quarter that ended before the quarter of `date`.
+fn quarter_before(date: NaiveDate) -> NotesPeriod {
+    let quarter = (date.month() - 1) / 3;
+    let (year, quarter) = if quarter == 0 {
+        (date.year() - 1, 4)
+    } else {
+        (date.year(), quarter)
+    };
+    NotesPeriod::new(&format!("{year}q{quarter}")).expect(
+        "Given a year from 2009 on and a quarter from 1 to 4, parsing should always succeed",
+    )
+}
 
 /// Creates an `SecClient` for testing, with connection pooling off. The tests do not reuse
 /// connections.
@@ -60,6 +83,28 @@ async fn should_succeed_when_probing_a_published_notes_file() {
     let request = SecRequest::builder()
         .notes_file_probe()
         .period(period)
+        .build();
+
+    let expected_result = None;
+
+    let result = client.execute_sec_request(request).await.err();
+
+    assert_eq!(result, expected_result);
+}
+
+// Early warning for `MERGE_WAIT_MONTHS` in `published_periods`: if the SEC stops merging, or merges
+// later, this test fails months before a backfill run counts a missing quarter as merged.
+#[tokio::test]
+async fn should_find_the_quarterly_file_of_the_last_quarter_that_ended_16_months_or_more_ago() {
+    let client = sec_client();
+    let months_ago = Utc::now()
+        .date_naive()
+        .checked_sub_months(Months::new(MERGED_AFTER_MONTHS))
+        .expect("Given a date in this century, subtracting 16 months stays inside the range of NaiveDate");
+    let quarter = quarter_before(months_ago);
+    let request = SecRequest::builder()
+        .notes_file_probe()
+        .period(quarter)
         .build();
 
     let expected_result = None;
