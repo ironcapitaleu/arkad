@@ -112,7 +112,7 @@ async fn should_answer_json_content_type_for_openapi_json_request() {
 
     let expected_result = Some("application/json");
 
-    let response = api::router()
+    let response = api::router(InternalDocs::Disabled)
         .oneshot(request)
         .await
         .expect("Given the router's infallible service, calling it should always succeed");

@@ -24,12 +24,11 @@ pub const PORT_ENV_VAR: &str = "PORT";
 pub const INTERNAL_DOCS_ENABLED_ENV_VAR: &str = "INTERNAL_DOCS_ENABLED";
 
 /// Whether the router serves the Swagger UI at `/internal/docs`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum InternalDocs {
     /// The router serves the page.
     Enabled,
     /// The router does not serve the page, so `/internal/docs` answers `404`.
-    #[default]
     Disabled,
 }
 
