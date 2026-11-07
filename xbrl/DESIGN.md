@@ -391,7 +391,7 @@ section 4.
 | ---------- | --------------------- | --------------------- |
 | Month-end date and quarters | Yes | No: 395 keys hold two values |
 | Exact start and end | No: Notes misses the exact start in 29,761 of 100,303 durations | No: 266 keys differ only in `decimals` |
-| Exact end, quarters, copy rank (chosen) | Yes: Notes `ddate` with `datp` gives the exact end, and `iprx` is the copy rank | Yes, by construction: the rank numbers the copies |
+| Exact end, quarters, copy rank (chosen) | Yes: Notes `ddate` with `datp` gives the exact end, and the parser numbers the copies in `iprx` order | Yes, by construction: the parser numbers the copies (see "Decisions for the Transform Design") |
 
 - The instance parser computes `copy_rank` in the order of the SEC for `iprx`: higher precision
   first, then the distance of the end to a month end, then the distance of the length to a full
@@ -715,8 +715,8 @@ Parsers:
 - How the instance parser picks the main instance and skips the filing-fee exhibit.
 - How each parser fills the value key: the exact end from `ddate` and `datp`, the copy rank from
   `iprx` or the SEC order, dimension pairs without prefixes, and the legal entity axis from `coreg`.
-- How the Notes parser restores `/shares` on per-share units and drops rows that are equal in key
-  and value, such as the rows that the filing-fee exhibit repeats.
+- How the Notes parser restores `/shares` on per-share units and drops rows that are equal in value
+  and in every key field except `copy_rank`, before it numbers the copies, such as the rows that the filing-fee exhibit repeats.
 - How each parser numbers the copies of one key. The parser assigns `copy_rank` itself, in the
   `iprx` order where Notes gives it. If two rows still share a key and differ in value, for
   example after the parser strips dimension prefixes, the second row gets the next free rank. So
