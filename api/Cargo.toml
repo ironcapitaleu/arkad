@@ -22,13 +22,14 @@ axum = { version = "0.8.9", default-features = false, features = [
     "tokio",
     "tracing",
 ] }
+chrono = "0.4"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 thiserror = "2"
 tokio = { version = "1.52.3", features = ["macros", "net", "rt-multi-thread", "signal"] }
 tracing = "0.1"
 tracing-appender = "0.2"
-tracing-subscriber = { version = "0.3", features = ["json"] }
+tracing-subscriber = "0.3"
 
 [dev-dependencies]
 http-body-util = "0.1"

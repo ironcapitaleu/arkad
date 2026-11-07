@@ -20,7 +20,9 @@ async fn main() -> ExitCode {
         Err(error) => {
             tracing::error!(
                 event = %ApiEvent::StartupFailed,
-                message = %format!("Failed to read the configuration, Caused by: {error}"),
+                message = %format!(
+                    "[FailedConfigRead] Failed to read the configuration, Caused by: {error}"
+                ),
                 context = %json!({ "env_var": error.name() }),
             );
             return ExitCode::FAILURE;
@@ -33,7 +35,9 @@ async fn main() -> ExitCode {
         Err(error) => {
             tracing::error!(
                 event = %ApiEvent::StartupFailed,
-                message = %format!("Failed to bind the listener, Caused by: {error}"),
+                message = %format!(
+                    "[FailedListenerBinding] Failed to bind the listener, Reason: '{error}'"
+                ),
                 context = %json!({ "address": address.to_string() }),
             );
             return ExitCode::FAILURE;
@@ -52,7 +56,7 @@ async fn main() -> ExitCode {
     {
         tracing::error!(
             event = %ApiEvent::Failed,
-            message = %format!("The API stopped with an error, Caused by: {error}"),
+            message = %format!("[FailedServing] Failed to serve requests, Reason: '{error}'"),
             context = %json!({ "address": address.to_string() }),
         );
         return ExitCode::FAILURE;
