@@ -28,7 +28,10 @@ use std::process::ExitCode;
 use std::time::Instant;
 
 use chrono::Utc;
-use sec::implementations::extraction::{ErrorKind, Extraction, RunEvent};
+use sec::implementations::extraction::{ErrorKind, Extraction, FailedNotesProbe, RunEvent};
+use sec::shared::http_client::implementations::sec_client::SecClient;
+use sec::shared::http_client::implementations::sec_client::error::FailedSecRequest;
+use sec::shared::notes_period::NotesPeriod;
 
 use files_in_flight::{FILES_IN_FLIGHT_ENV_VAR, InvalidFilesInFlight, files_in_flight};
 use json_log::init_logger;
@@ -42,6 +45,7 @@ enum BatchEvent {
     Complete,
     DefaultUserAgent,
     Failed,
+    NotesProbeRetried,
     StartupFailed,
 }
 
@@ -51,6 +55,7 @@ impl Display for BatchEvent {
             Self::Complete => write!(f, "batch_complete"),
             Self::DefaultUserAgent => write!(f, "batch_default_user_agent"),
             Self::Failed => write!(f, "batch_failed"),
+            Self::NotesProbeRetried => write!(f, "batch_notes_probe_retried"),
             Self::StartupFailed => write!(f, "batch_startup_failed"),
         }
     }
@@ -66,6 +71,30 @@ async fn main() -> ExitCode {
     } else {
         ExitCode::FAILURE
     }
+}
+
+/// Lists the Notes periods of the run, and logs each retry and a failure.
+///
+/// # Errors
+///
+/// Returns the [`FailedNotesProbe`] of [`notes_periods`].
+async fn notes_periods_of_run(sec_client: &SecClient) -> Result<Vec<String>, FailedNotesProbe> {
+    let on_retry = |quarter: NotesPeriod, error: &FailedSecRequest| {
+        tracing::warn!(
+            event = %BatchEvent::NotesProbeRetried,
+            message = %error,
+            context = %serde_json::json!({ "period": quarter.to_string() }),
+        );
+    };
+    notes_periods(sec_client, Utc::now().date_naive(), on_retry)
+        .await
+        .inspect_err(|error| {
+            tracing::error!(
+                event = %BatchEvent::StartupFailed,
+                message = %error,
+                context = %serde_json::json!({ "period": error.period.to_string() }),
+            );
+        })
 }
 
 /// Runs the example, and logs each failure before it returns the error.
@@ -105,7 +134,7 @@ async fn run_example() -> Result<(), Box<dyn Error + Send + Sync>> {
     let backfill = Extraction::backfill();
     let execution_id = backfill.id().to_string();
     let event_execution_id = execution_id.clone();
-    let periods = notes_periods(Utc::now().date_naive());
+    let periods = notes_periods_of_run(&sec_client).await?;
     let start = Instant::now();
 
     let summary = backfill

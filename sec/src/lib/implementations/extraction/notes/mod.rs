@@ -42,8 +42,10 @@ use crate::shared::response::implementations::sec_response::{SecResponse, ZipBod
 use crate::traits::state_machine::stream::IntoStateMachineStream;
 use summary::{Fetch, is_absent_file};
 
+pub mod published_periods;
 mod summary;
 
+pub use published_periods::{FailedNotesProbe, published_periods};
 pub use summary::{FailedBackfill, MissingCutOverDate, NotesRunSummary};
 
 /// The number of Notes files that a batch run downloads at once without a call to

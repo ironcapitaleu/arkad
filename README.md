@@ -365,8 +365,6 @@ classDiagram
         %% Why a string failed Notes period validation
         +InvalidNotesPeriodFormat
         +UnpublishedYear(year: Year)
-        +UnpublishedQuarter
-        +UnpublishedMonth
     }
 
     class CikError{
