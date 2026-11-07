@@ -5,10 +5,10 @@
 //!
 //! ## Modules
 //!
-//! - [`html`]: The [`HtmlBody`], the bytes of an HTML page.
 //! - [`json`]: The [`JsonBody`], a parsed JSON body with its raw bytes.
 //! - [`xml`]: The [`XmlBody`], the bytes of an XML file.
 //! - [`zip`]: The [`ZipBody`], the bytes of a ZIP file.
+//! - [`zip_head`]: The [`ZipHeadBody`], the empty answer to a `HEAD` request for a ZIP file.
 
 use std::fmt::Debug;
 
@@ -22,15 +22,15 @@ use crate::shared::status_code::StatusCode;
 
 use super::error::{ErrorReason, InvalidSecResponse};
 
-pub mod html;
 pub mod json;
 pub mod xml;
 pub mod zip;
+pub mod zip_head;
 
-pub use html::HtmlBody;
 pub use json::JsonBody;
 pub use xml::XmlBody;
 pub use zip::ZipBody;
+pub use zip_head::ZipHeadBody;
 
 /// The name of the header that states the body length in bytes.
 const CONTENT_LENGTH_HEADER: &str = "content-length";

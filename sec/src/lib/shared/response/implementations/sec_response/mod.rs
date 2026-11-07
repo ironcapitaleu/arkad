@@ -5,8 +5,8 @@
 //!
 //! ## Modules
 //!
-//! - [`body`]: The [`ResponseBody`] and [`FileBody`] traits and the [`HtmlBody`], [`JsonBody`],
-//!   [`XmlBody`], and [`ZipBody`] kinds.
+//! - [`body`]: The [`ResponseBody`] and [`FileBody`] traits and the [`JsonBody`], [`XmlBody`],
+//!   [`ZipBody`], and [`ZipHeadBody`] kinds.
 //! - [`error`]: The [`InvalidSecResponse`] error raised during validation.
 
 use std::collections::HashMap;
@@ -30,7 +30,7 @@ use self::error::{ErrorReason, InvalidSecResponse};
 pub mod body;
 pub mod error;
 
-pub use body::{FileBody, HtmlBody, JsonBody, ResponseBody, XmlBody, ZipBody};
+pub use body::{FileBody, JsonBody, ResponseBody, XmlBody, ZipBody, ZipHeadBody};
 
 /// A validated SEC API response with a body of kind `B`.
 ///
@@ -42,6 +42,8 @@ pub use body::{FileBody, HtmlBody, JsonBody, ResponseBody, XmlBody, ZipBody};
 ///   `Content-Length` header.
 /// - [`XmlBody`]: status 200, an XML content type, and a body that matches the `Content-Length`
 ///   header.
+/// - [`ZipHeadBody`]: the checks of [`ZipBody`] on the answer to a `HEAD` request, which has no
+///   body.
 ///
 /// Built from a raw response via [`from_inner`](crate::shared::response::SecResponse::from_inner),
 /// or from parts via [`SecResponse::from_parts`]. Equality, ordering, and hashing use the URL,

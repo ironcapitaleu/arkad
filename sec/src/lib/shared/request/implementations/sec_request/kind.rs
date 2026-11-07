@@ -17,7 +17,6 @@ use crate::shared::filing_documents::{FilingDocumentRef, FilingDocumentSetRef};
 use crate::shared::filing_ref::FilingRef;
 use crate::shared::http_client::HasResponse;
 use crate::shared::index_date::IndexDate;
-use crate::shared::notes_data_sets_page::NotesDataSetsPage;
 use crate::shared::notes_period::NotesPeriod;
 use crate::shared::raw_document::RawDocument;
 use crate::shared::raw_source::RawSource;
@@ -77,18 +76,20 @@ impl RequestKind for NotesFile {
     }
 }
 
-/// The kind of a request that fetches the SEC page that links every current Notes file.
+/// The kind of a `HEAD` request that asks whether the Notes file of one period exists.
+///
+/// The request has the URL of a [`NotesFile`] request, and downloads no file.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct NotesFileListing;
+pub struct NotesFileProbe;
 
-impl RequestKind for NotesFileListing {
-    type Input = NotesDataSetsPage;
+impl RequestKind for NotesFileProbe {
+    type Input = NotesPeriod;
 
-    const INPUT_NAME: &'static str = "notes_data_sets_page";
-    const INPUT_LABEL: &'static str = "page";
+    const INPUT_NAME: &'static str = "notes_period";
+    const INPUT_LABEL: &'static str = "period";
 
-    fn request_type(page: NotesDataSetsPage) -> SecRequestType {
-        SecRequestType::FetchNotesFileListing { page }
+    fn request_type(period: NotesPeriod) -> SecRequestType {
+        SecRequestType::ProbeNotesFile { period }
     }
 }
 
@@ -231,9 +232,8 @@ mod tests {
 
     use super::{
         CompanyFacts, DailyIndex, DailyIndexListing, FilingDocument, FilingDocumentSet,
-        FilingIndex, NotesFile, NotesFileListing, RequestKind, SecRequestType, Submissions,
+        FilingIndex, NotesFile, NotesFileProbe, RequestKind, SecRequestType, Submissions,
     };
-    use crate::shared::notes_data_sets_page::NotesDataSetsPage;
 
     fn filing_ref() -> FilingRef {
         FilingRef::new(
@@ -270,12 +270,13 @@ mod tests {
     }
 
     #[test]
-    fn should_return_fetch_notes_file_listing_for_notes_file_listing_kind() {
-        let page = NotesDataSetsPage;
+    fn should_return_probe_notes_file_for_notes_file_probe_kind() {
+        let period = NotesPeriod::new("2025q3")
+            .expect("Given a valid period, NotesPeriod creation should always succeed");
 
-        let expected_result = SecRequestType::FetchNotesFileListing { page };
+        let expected_result = SecRequestType::ProbeNotesFile { period };
 
-        let result = NotesFileListing::request_type(page);
+        let result = NotesFileProbe::request_type(period);
 
         assert_eq!(result, expected_result);
     }
@@ -360,8 +361,8 @@ mod tests {
     }
 
     #[test]
-    const fn should_implement_auto_traits_for_notes_file_listing() {
-        implements_auto_traits::<NotesFileListing>();
+    const fn should_implement_auto_traits_for_notes_file_probe() {
+        implements_auto_traits::<NotesFileProbe>();
     }
 
     #[test]

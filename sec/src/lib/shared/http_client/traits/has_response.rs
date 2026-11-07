@@ -35,10 +35,10 @@ impl<K: RespondsWith> HasResponse for K {
 #[cfg(test)]
 mod tests {
     use crate::shared::request::implementations::sec_request::{
-        CompanyFacts, FilingDocument, NotesFile, NotesFileListing,
+        CompanyFacts, FilingDocument, NotesFile, NotesFileProbe,
     };
     use crate::shared::response::implementations::sec_response::{
-        HtmlBody, JsonBody, SecResponse, XmlBody, ZipBody,
+        JsonBody, SecResponse, XmlBody, ZipBody, ZipHeadBody,
     };
 
     use super::HasResponse;
@@ -56,8 +56,8 @@ mod tests {
     }
 
     #[test]
-    const fn should_respond_with_an_html_sec_response_for_notes_file_listing() {
-        responds_with::<NotesFileListing, SecResponse<HtmlBody>>();
+    const fn should_respond_with_a_zip_head_sec_response_for_notes_file_probe() {
+        responds_with::<NotesFileProbe, SecResponse<ZipHeadBody>>();
     }
 
     #[test]

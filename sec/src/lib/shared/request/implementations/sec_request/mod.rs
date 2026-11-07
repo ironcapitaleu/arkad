@@ -10,7 +10,8 @@
 //! - [`builder`]: The [`SecRequestBuilder`] for constructing requests fluently.
 //! - [`constants`]: The endpoint URL fragments.
 //! - [`kind`]: The [`RequestKind`] trait and the [`CompanyFacts`], [`NotesFile`],
-//!   [`NotesFileListing`], [`DailyIndex`], [`DailyIndexListing`], [`Submissions`], [`FilingIndex`], [`FilingDocument`], and
+//!   [`NotesFileProbe`], [`DailyIndex`],
+//!   [`DailyIndexListing`], [`Submissions`], [`FilingIndex`], [`FilingDocument`], and
 //!   [`FilingDocumentSet`] kinds.
 
 use std::marker::PhantomData;
@@ -22,7 +23,6 @@ use serde::{Serialize, Serializer};
 use crate::shared::filing_documents::{FilingDocumentRef, FilingDocumentSetRef};
 use crate::shared::filing_ref::FilingRef;
 use crate::shared::index_date::IndexDate;
-use crate::shared::notes_data_sets_page::NotesDataSetsPage;
 use crate::shared::{cik::Cik, notes_period::NotesPeriod, request::SecRequest as SecRequestTrait};
 
 pub mod builder;
@@ -32,14 +32,13 @@ pub mod kind;
 pub use builder::SecRequestBuilder;
 pub use kind::{
     CompanyFacts, DailyIndex, DailyIndexListing, FilingDocument, FilingDocumentSet, FilingIndex,
-    NotesFile, NotesFileListing, RequestKind, StoredAs, Submissions,
+    NotesFile, NotesFileProbe, RequestKind, StoredAs, Submissions,
 };
 
 use constants::{
     SEC_COMPANY_FACTS_URL_PREFIX, SEC_COMPANY_FACTS_URL_SUFFIX, SEC_DAILY_INDEX_LISTING_FILE_NAME,
     SEC_DAILY_INDEX_URL_PREFIX, SEC_FILING_FOLDER_URL_PREFIX, SEC_FILING_INDEX_FILE_NAME,
-    SEC_NOTES_DATA_SETS_PAGE_URL, SEC_NOTES_URL_PREFIX, SEC_SUBMISSIONS_URL_PREFIX,
-    SEC_SUBMISSIONS_URL_SUFFIX,
+    SEC_NOTES_URL_PREFIX, SEC_SUBMISSIONS_URL_PREFIX, SEC_SUBMISSIONS_URL_SUFFIX,
 };
 
 /// A ready-to-send SEC API request of kind `K`.
@@ -50,7 +49,8 @@ use constants::{
 ///
 /// - [`CompanyFacts`], the default: built from a [`Cik`].
 /// - [`NotesFile`]: built from a [`NotesPeriod`].
-/// - [`NotesFileListing`]: built from the [`NotesDataSetsPage`].
+/// - [`NotesFileProbe`]: built from a [`NotesPeriod`]. It is a `HEAD` request. Every other kind
+///   is a `GET` request.
 /// - [`DailyIndex`] and [`DailyIndexListing`]: built from an [`IndexDate`].
 /// - [`Submissions`]: built from a [`Cik`].
 /// - [`FilingIndex`]: built from a [`FilingRef`].
@@ -141,15 +141,19 @@ impl<K: RequestKind> SecRequestTrait for SecRequest<K> {
     /// let _request = SecRequest::<NotesFile>::new(cik);
     /// ```
     fn new(request_input: Self::RequestInput) -> Self {
-        let url = match K::request_type(request_input.clone()) {
+        let request_type = K::request_type(request_input.clone());
+        let method = if matches!(request_type, SecRequestType::ProbeNotesFile { .. }) {
+            Method::HEAD
+        } else {
+            Method::GET
+        };
+        let url = match request_type {
             SecRequestType::FetchAllCompanyFacts { cik } => {
                 format!("{SEC_COMPANY_FACTS_URL_PREFIX}{cik}{SEC_COMPANY_FACTS_URL_SUFFIX}")
             }
-            SecRequestType::FetchNotesFile { period } => {
+            SecRequestType::FetchNotesFile { period }
+            | SecRequestType::ProbeNotesFile { period } => {
                 format!("{SEC_NOTES_URL_PREFIX}{}", period.file_name())
-            }
-            SecRequestType::FetchNotesFileListing { page: _ } => {
-                SEC_NOTES_DATA_SETS_PAGE_URL.to_string()
             }
             SecRequestType::FetchDailyIndex { date } => format!(
                 "{SEC_DAILY_INDEX_URL_PREFIX}{}/{}/form.{}.idx",
@@ -174,7 +178,7 @@ impl<K: RequestKind> SecRequestTrait for SecRequest<K> {
             }
         };
         let request = Request::new(
-            Method::GET,
+            method,
             Url::parse(&url)
                 .expect("A hardcoded URL prefix joined with a validated input should always parse"),
         );
@@ -274,10 +278,10 @@ pub enum SecRequestType {
         /// The period of the Notes file to fetch.
         period: NotesPeriod,
     },
-    /// Fetch the SEC page that links every current Notes file.
-    FetchNotesFileListing {
-        /// The page to fetch.
-        page: NotesDataSetsPage,
+    /// Ask with a `HEAD` request whether the Notes file of one period exists.
+    ProbeNotesFile {
+        /// The period of the Notes file to ask for.
+        period: NotesPeriod,
     },
     /// Fetch the daily index of one date.
     FetchDailyIndex {

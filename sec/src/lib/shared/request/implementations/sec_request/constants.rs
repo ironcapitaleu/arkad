@@ -2,8 +2,8 @@
 //!
 //! URL fragments for SEC endpoints. The company-facts and submissions URLs put a CIK between their
 //! prefix and suffix.
-//! The Notes URL puts a Notes file name after its prefix. The Notes data-sets page URL is fixed.
-//! The daily-index URLs put the year and the quarter folder after their prefix. The filing-folder URL puts the CIK and the accession number
+//! The Notes URL puts a Notes file name after its prefix. The daily-index URLs put the year and the
+//! quarter folder after their prefix. The filing-folder URL puts the CIK and the accession number
 //! after its prefix.
 
 /// The company-facts URL prefix, placed before the CIK.
@@ -21,10 +21,6 @@ pub const SEC_SUBMISSIONS_URL_SUFFIX: &str = ".json";
 /// The Notes URL prefix, placed before the file name of a Notes file.
 pub const SEC_NOTES_URL_PREFIX: &str =
     "https://www.sec.gov/files/dera/data/financial-statement-notes-data-sets/";
-
-/// The URL of the SEC page that links every current Notes file.
-pub const SEC_NOTES_DATA_SETS_PAGE_URL: &str =
-    "https://www.sec.gov/data-research/sec-markets-data/financial-statement-notes-data-sets";
 
 /// The daily-index URL prefix, placed before `YYYY/QTRn/`.
 pub const SEC_DAILY_INDEX_URL_PREFIX: &str = "https://www.sec.gov/Archives/edgar/daily-index/";
