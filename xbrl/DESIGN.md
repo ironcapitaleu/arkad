@@ -670,27 +670,31 @@ machine. This section gives the proposed shape and lists what the transform desi
 
 ```mermaid
 flowchart LR
-  RAW[Raw document] --> PN[Parse Notes filing]
-  RAW --> PI[Parse instance filing]
+  NF[Notes file] --> SP[Split by filing] --> PN[Parse Notes filing]
+  IX[Instance document] --> PI[Parse instance filing]
   PN -- "into(): AsIsFact, Filing" --> SF[Standardize filing]
   PI -- "into(): AsIsFact, Filing" --> SF
   PN --> AS[(Silver: as-is)]
   PI --> AS
-  SF -- "candidates, Conflict findings" --> CS[(Silver: candidates)]
+  AS -. replay .-> SF
+  SF -- "candidates, blocked ones included, Conflict findings" --> CS[(Silver: candidates)]
   CS --> SE[Standardize series]
+  AS -- "Filing: forms, fiscal year end" --> SE
   SE --> ST[(Silver: standardized, findings)]
 ```
 
-- **One state per step, one filing per run.** A parse state reads one raw document and outputs
-  `Vec<AsIsFact>` and one `Filing`. The standardize state takes that output as its input.
+- **One state per step, one filing per run.** A parse state outputs `Vec<AsIsFact>` and one
+  `Filing`. The instance parser reads one instance document. The Notes parser reads one filing
+  that a split step cut from a Notes file. The standardize state takes the parse output as its
+  input.
 - **The transition only moves data.** `From<ParseOutput> for StandardizeInput` hands over the as-is
   facts, as the existing transitions of the `sec` crate do. Parsing and resolution run in
   `compute_output_data` of their state, because they can fail and they return findings. `From`
   cannot fail.
 - **As-is is an output of its own.** The parse output goes to the as-is layer before
   standardization starts. A replay of a rule starts from the as-is layer and needs no parse.
-- **The registry comes in through the context.** The standardize state reads its plug-ins from a
-  static registry. The state does not name a taxonomy.
+- **The registry comes in through the context.** The context of the standardize state holds a
+  `&'static Registry`. The state does not name a taxonomy, and a test can pass a fake registry.
 
 The order of "Dedup Rules" splits the work at the filing boundary:
 
@@ -710,7 +714,12 @@ Parsers:
 - How the instance parser picks the main instance and skips the filing-fee exhibit.
 - How each parser fills the value key: the exact end from `ddate` and `datp`, the copy rank from
   `iprx` or the SEC order, dimension pairs without prefixes, and the legal entity axis from `coreg`.
-- How the Notes parser restores `/shares` on per-share units and drops duplicate rows.
+- How the Notes parser restores `/shares` on per-share units and drops rows that are equal in key,
+  value, and `iprx`, such as the rows that the filing-fee exhibit repeats. Rows that differ in
+  rank stay, for `core/dedup/more-precise@1`.
+- Which source wins if one filing comes in on both paths, and whether the standardize filing
+  state runs once per filing or once per source. Both runs share one `FilingId`, so step 3 has no
+  tie-break between them.
 - A test that runs both parsers on filings in both sources and compares their as-is facts.
 
 States and errors:
@@ -718,12 +727,14 @@ States and errors:
 - The names of the states, their inputs, outputs, and contexts, and the super-state around them.
 - The error types of each state, in the format of `AGENTS.md`, "Error Display Format".
 - Where the ingestion provenance joins each as-is fact.
+- The state that loads as-is facts from silver for a replay.
 
 Series step:
 
-- Whether the series step runs as a state per entity, as a batch over silver, or in gold.
+- Whether the series step runs as a state per entity or as a batch over silver.
 - Which filings trigger a new run of the series step for an entity.
-- Where the `Conflict`, `Gap`, `Overlap`, and `Restatement` findings are stored.
+- The storage in the diagram is a proposal. The silver layer design fixes the datasets, including
+  where the `Conflict`, `Gap`, `Overlap`, and `Restatement` findings live.
 
 ---
 
