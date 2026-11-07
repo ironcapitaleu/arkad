@@ -9,8 +9,8 @@
 //!
 //! - [`builder`]: The [`SecRequestBuilder`] for constructing requests fluently.
 //! - [`constants`]: The endpoint URL fragments.
-//! - [`kind`]: The [`RequestKind`] trait and the [`CompanyFacts`], [`NotesFile`], [`DailyIndex`],
-//!   [`DailyIndexListing`], [`Submissions`], [`FilingIndex`], [`FilingDocument`], and
+//! - [`kind`]: The [`RequestKind`] trait and the [`CompanyFacts`], [`NotesFile`],
+//!   [`NotesFileListing`], [`DailyIndex`], [`DailyIndexListing`], [`Submissions`], [`FilingIndex`], [`FilingDocument`], and
 //!   [`FilingDocumentSet`] kinds.
 
 use std::marker::PhantomData;
@@ -22,6 +22,7 @@ use serde::{Serialize, Serializer};
 use crate::shared::filing_documents::{FilingDocumentRef, FilingDocumentSetRef};
 use crate::shared::filing_ref::FilingRef;
 use crate::shared::index_date::IndexDate;
+use crate::shared::notes_data_sets_page::NotesDataSetsPage;
 use crate::shared::{cik::Cik, notes_period::NotesPeriod, request::SecRequest as SecRequestTrait};
 
 pub mod builder;
@@ -31,13 +32,14 @@ pub mod kind;
 pub use builder::SecRequestBuilder;
 pub use kind::{
     CompanyFacts, DailyIndex, DailyIndexListing, FilingDocument, FilingDocumentSet, FilingIndex,
-    NotesFile, RequestKind, StoredAs, Submissions,
+    NotesFile, NotesFileListing, RequestKind, StoredAs, Submissions,
 };
 
 use constants::{
     SEC_COMPANY_FACTS_URL_PREFIX, SEC_COMPANY_FACTS_URL_SUFFIX, SEC_DAILY_INDEX_LISTING_FILE_NAME,
     SEC_DAILY_INDEX_URL_PREFIX, SEC_FILING_FOLDER_URL_PREFIX, SEC_FILING_INDEX_FILE_NAME,
-    SEC_NOTES_URL_PREFIX, SEC_SUBMISSIONS_URL_PREFIX, SEC_SUBMISSIONS_URL_SUFFIX,
+    SEC_NOTES_DATA_SETS_PAGE_URL, SEC_NOTES_URL_PREFIX, SEC_SUBMISSIONS_URL_PREFIX,
+    SEC_SUBMISSIONS_URL_SUFFIX,
 };
 
 /// A ready-to-send SEC API request of kind `K`.
@@ -48,6 +50,7 @@ use constants::{
 ///
 /// - [`CompanyFacts`], the default: built from a [`Cik`].
 /// - [`NotesFile`]: built from a [`NotesPeriod`].
+/// - [`NotesFileListing`]: built from the [`NotesDataSetsPage`].
 /// - [`DailyIndex`] and [`DailyIndexListing`]: built from an [`IndexDate`].
 /// - [`Submissions`]: built from a [`Cik`].
 /// - [`FilingIndex`]: built from a [`FilingRef`].
@@ -144,6 +147,9 @@ impl<K: RequestKind> SecRequestTrait for SecRequest<K> {
             }
             SecRequestType::FetchNotesFile { period } => {
                 format!("{SEC_NOTES_URL_PREFIX}{}", period.file_name())
+            }
+            SecRequestType::FetchNotesFileListing { page: _ } => {
+                SEC_NOTES_DATA_SETS_PAGE_URL.to_string()
             }
             SecRequestType::FetchDailyIndex { date } => format!(
                 "{SEC_DAILY_INDEX_URL_PREFIX}{}/{}/form.{}.idx",
@@ -267,6 +273,11 @@ pub enum SecRequestType {
     FetchNotesFile {
         /// The period of the Notes file to fetch.
         period: NotesPeriod,
+    },
+    /// Fetch the SEC page that links every current Notes file.
+    FetchNotesFileListing {
+        /// The page to fetch.
+        page: NotesDataSetsPage,
     },
     /// Fetch the daily index of one date.
     FetchDailyIndex {

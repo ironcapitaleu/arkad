@@ -51,11 +51,12 @@ use crate::shared::cik::Cik;
 use crate::shared::filing_documents::{FilingDocumentRef, FilingDocumentSetRef, FilingDocuments};
 use crate::shared::filing_ref::FilingRef;
 use crate::shared::index_date::IndexDate;
+use crate::shared::notes_data_sets_page::NotesDataSetsPage;
 use crate::shared::notes_period::NotesPeriod;
 use crate::shared::request::SecRequest as SecRequestTrait;
 use crate::shared::request::implementations::sec_request::{
     CompanyFacts, DailyIndex, DailyIndexListing, FilingDocument, FilingDocumentSet, FilingIndex,
-    NotesFile, RequestKind, SecRequest, Submissions,
+    NotesFile, NotesFileListing, RequestKind, SecRequest, Submissions,
 };
 
 /// Typestate marker: no CIK has been set yet.
@@ -120,6 +121,13 @@ impl SecRequestBuilder {
     #[must_use]
     pub const fn notes_file(self) -> NotesFileBuilder<NoPeriod> {
         NotesFileBuilder { period: NoPeriod }
+    }
+
+    /// Selects the [`NotesFileListing`] request kind. Its input is fixed, so the builder needs no
+    /// field.
+    #[must_use]
+    pub const fn notes_file_listing(self) -> NotesFileListingBuilder {
+        NotesFileListingBuilder
     }
 
     /// Selects the [`DailyIndex`] request kind.
@@ -507,6 +515,34 @@ impl NotesFileBuilder<NotesPeriod> {
     #[must_use]
     pub fn build(self) -> SecRequest<NotesFile> {
         SecRequest::new(self.period)
+    }
+}
+
+/// Builder for the [`NotesFileListing`] request. The request has one fixed input, so
+/// [`build`](Self::build) is always available.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NotesFileListingBuilder;
+
+impl NotesFileListingBuilder {
+    /// Builds the [`SecRequest`] for the [`NotesDataSetsPage`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use sec::shared::request::implementations::sec_request::SecRequest;
+    ///
+    /// let request = SecRequest::builder().notes_file_listing().build();
+    ///
+    /// let expected_result =
+    ///     "https://www.sec.gov/data-research/sec-markets-data/financial-statement-notes-data-sets";
+    ///
+    /// let result = request.inner.url().as_str();
+    ///
+    /// assert_eq!(result, expected_result);
+    /// ```
+    #[must_use]
+    pub fn build(self) -> SecRequest<NotesFileListing> {
+        SecRequest::new(NotesDataSetsPage)
     }
 }
 

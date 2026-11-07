@@ -6,6 +6,7 @@
 //! ## External Dependencies
 //!
 //! - `data.sec.gov` — Live SEC EDGAR API (JSON company filings)
+//! - `www.sec.gov` — Live SEC page that links the Notes files (HTML)
 
 use pretty_assertions::assert_eq;
 use serde_json::Value;
@@ -47,6 +48,22 @@ async fn should_return_sec_response_when_executing_valid_sec_request() {
     let expected_result = None;
 
     let result = client.execute_sec_request(request).await.err();
+
+    assert_eq!(result, expected_result);
+}
+
+#[tokio::test]
+async fn should_return_html_content_type_when_fetching_the_notes_data_sets_page() {
+    let client = sec_client();
+    let request = SecRequest::builder().notes_file_listing().build();
+
+    let expected_result = ContentType::Html;
+
+    let response = client
+        .execute_sec_request(request)
+        .await
+        .expect("Given the live SEC page that links the Notes files, the request should succeed");
+    let result = response.content_type();
 
     assert_eq!(result, expected_result);
 }

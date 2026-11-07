@@ -5,8 +5,8 @@
 //!
 //! ## Modules
 //!
-//! - [`body`]: The [`ResponseBody`] and [`FileBody`] traits and the [`JsonBody`], [`XmlBody`],
-//!   and [`ZipBody`] kinds.
+//! - [`body`]: The [`ResponseBody`] and [`FileBody`] traits and the [`HtmlBody`], [`JsonBody`],
+//!   [`XmlBody`], and [`ZipBody`] kinds.
 //! - [`error`]: The [`InvalidSecResponse`] error raised during validation.
 
 use std::collections::HashMap;
@@ -30,7 +30,7 @@ use self::error::{ErrorReason, InvalidSecResponse};
 pub mod body;
 pub mod error;
 
-pub use body::{FileBody, JsonBody, ResponseBody, XmlBody, ZipBody};
+pub use body::{FileBody, HtmlBody, JsonBody, ResponseBody, XmlBody, ZipBody};
 
 /// A validated SEC API response with a body of kind `B`.
 ///

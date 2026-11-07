@@ -5,6 +5,7 @@
 //!
 //! ## Modules
 //!
+//! - [`html`]: The [`HtmlBody`], the bytes of an HTML page.
 //! - [`json`]: The [`JsonBody`], a parsed JSON body with its raw bytes.
 //! - [`xml`]: The [`XmlBody`], the bytes of an XML file.
 //! - [`zip`]: The [`ZipBody`], the bytes of a ZIP file.
@@ -21,10 +22,12 @@ use crate::shared::status_code::StatusCode;
 
 use super::error::{ErrorReason, InvalidSecResponse};
 
+pub mod html;
 pub mod json;
 pub mod xml;
 pub mod zip;
 
+pub use html::HtmlBody;
 pub use json::JsonBody;
 pub use xml::XmlBody;
 pub use zip::ZipBody;
