@@ -422,10 +422,10 @@ bloat is the reactive, expensive path.
 
 **Open the PR without asking.** This rule is the explicit standing permission of the owner. If a
 task changes the repository, commit the work and push the branch. If the branch has no open PR,
-open one against `main`. Do not wait for a request, and do not ask first. If the branch has an open
-PR, push to it and open no new PR. Then run the `pr-iterate` skill until a review finds nothing
-new, and report to the owner. A CI job that an `@claude` comment starts runs no `pr-iterate`: it
-pushes and reports in its own comment. A person reviews and merges. An agent never merges.
+open one against `main`. If the branch has an open PR, push to it and open no new PR. Then run the
+`pr-iterate` skill until a review finds nothing new, and report to the owner. A CI job that an
+`@claude` comment starts runs no `pr-iterate`: it pushes and reports in its own comment. A person
+reviews and merges. An agent never merges.
 
 Open a PR only when the task changes files in the repository. A ticket whose output lives outside
 the repository gets no PR. For example, a SPIKE that ends in a Linear document reports its findings

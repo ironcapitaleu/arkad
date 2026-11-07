@@ -56,10 +56,7 @@ session, or in third-person status voice for a Linear comment. Use this template
 # Mission
 
 <One or two sentences. The exact outcome the new session must reach. From the user's argument.
-For work that changes the repository, the outcome is an open PR against `main` that a review finds
-nothing new in. The successor opens the PR without asking (AGENTS.md, "Pull Request Creation").
-For work whose output lives outside the repository, such as a SPIKE that ends in a Linear document,
-the outcome is that document and a report. No PR.>
+Use the end from Procedure step 1: an open PR, a branch, a document, or a report.>
 
 # Context
 
