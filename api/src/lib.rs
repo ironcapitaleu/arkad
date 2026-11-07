@@ -38,7 +38,7 @@ pub fn router() -> Router {
         .route("/health", get(health::health))
         .merge(v1)
         .fallback(error::not_found)
-        .layer(from_fn(error::render_problem))
+        .layer(from_fn(middleware::problem::render_problem))
         .layer(from_fn(middleware::request_id::assign_request_id))
 }
 

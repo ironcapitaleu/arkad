@@ -1,22 +1,18 @@
 //! # Error
 //!
-//! Provides the [`ApiError`] that a client sees and the middleware that renders it as a
-//! [`Problem`] body.
+//! Provides the [`ApiError`] that a client sees and its [`Problem`] body.
 //!
-//! A handler answers with an [`ApiError`]. The [`render_problem`] middleware writes the body,
-//! because the body carries the [`RequestId`] of the request, and only the request holds it.
+//! A handler answers with an [`ApiError`]. The
+//! [`render_problem`](crate::middleware::problem::render_problem) middleware writes the body,
+//! because the body carries the ID of the request, and only the request holds it.
 //!
 //! ## Modules
 //!
 //! - [`problem`]: The RFC 9457 [`Problem`] body of an error response.
 
-use axum::extract::Request;
 use axum::http::StatusCode;
-use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
 use thiserror::Error;
-
-use crate::middleware::request_id::RequestId;
 
 pub mod problem;
 
@@ -68,8 +64,9 @@ impl ApiError {
 impl IntoResponse for ApiError {
     /// Answers with the status of the error and an empty body.
     ///
-    /// The response carries the error in its extensions. [`render_problem`] replaces the response
-    /// with the [`Problem`] body.
+    /// The response carries the error in its extensions.
+    /// [`render_problem`](crate::middleware::problem::render_problem) replaces the response with
+    /// the [`Problem`] body.
     fn into_response(self) -> Response {
         let mut response = self.status().into_response();
         response.extensions_mut().insert(self);
@@ -82,21 +79,6 @@ impl IntoResponse for ApiError {
 #[allow(clippy::unused_async)]
 pub async fn not_found() -> ApiError {
     ApiError::NotFound
-}
-
-/// Replaces the response of an [`ApiError`] with its [`Problem`] body.
-///
-/// The middleware reads the [`RequestId`] from the request extensions. If the request holds no
-/// [`RequestId`], the middleware passes the response on unchanged.
-pub async fn render_problem(request: Request, next: Next) -> Response {
-    let request_id = request.extensions().get::<RequestId>().cloned();
-    let response = next.run(request).await;
-    match (response.extensions().get::<ApiError>(), request_id) {
-        (Some(&error), Some(request_id)) => {
-            Problem::new(error, request_id.as_str()).into_response()
-        }
-        _ => response,
-    }
 }
 
 #[cfg(test)]
