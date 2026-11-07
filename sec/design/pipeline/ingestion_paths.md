@@ -365,7 +365,7 @@ let now = Utc::now();
 let backfill = Extraction::backfill();
 let past = backfill
     .notes() // `all()` adds the `submissions` step. The binary does not call it.
-    .periods(notes_periods(now.date_naive()))
+    .periods(notes_periods(&NotesFileList::fetch(&sec_client).await?, now.date_naive()))
     .sec_client(sec_client.clone())
     .repository(notes_repository)
     .in_flight(files_in_flight_from_env()?)
@@ -635,15 +635,27 @@ returns the `NotesArchiveRef` as a typed value. The caller never parses the JSON
 `NotesPeriod` is a domain type in `sec/src/lib/shared/`. It holds either a quarter (year and
 quarter) or a month (year and month).
 
-- Quarters run from 2009q1 to 2025q3. Months run from 2025_10 onward. Measured on the SEC page.
-- Construction rejects a quarter after 2025q3, a month before 2025_10, and a year before 2009.
-  The bounds move each time the SEC merges a quarter (assumption A4).
+- Construction rejects a year before 2009 and nothing else. A quarter or a month after the newest
+  file also parses. The type does not know which periods the SEC publishes.
+- The SEC page "Financial Statement and Notes Data Sets" says which periods exist now. On
+  2026-11-07 it linked 80 files: the quarters 2009q1 to 2025q3, and the months 2025_10 to 2026_10.
+  About a year after a quarter ends, the SEC merges its three months into one quarterly file and
+  removes the months (assumption A4). The page follows each merge, so the run reads it.
+- `NotesFileList::fetch` reads the page once per run, through the shared SEC client and its rate
+  limit. The request kind is `NotesFileListing`, and the body is `HtmlBody`. The parser reads each
+  link into a period and a file name, in increasing order of period. It fails if the request
+  fails, if the page links no Notes file, if a link holds no valid period, or if the page links two
+  files for one period. Each error names the page or the link. A wrong list is worse than a
+  failed run, so the parser never returns an empty list.
+- `notes_periods(files, today)` in `sec/src/bin/shared/notes_periods.rs` keeps every listed period
+  that ends in or before the month before today, in increasing order. A monthly file that the
+  store holds but the page no longer lists is not requested. Its quarter covers the same filings,
+  and the transform loads each filing once by accession number.
 - `NotesPeriod::file_name()` returns the SEC file name. See [File Names](#file-names).
-- `NotesPeriod::all_through(date)` lists every period that ends in or before the month of
-  `date`, in increasing order. `backfill` calls it with today minus one month (STA-361).
-  Early in a month, the SEC has not posted the file of the last month yet. If the last period gets
-  403 or 404, the run counts it as unpublished, not as failed, and the next run asks for it again.
-  Every other 403 or 404 stays a failure, so a run that the SEC refuses in full fails.
+- The page lists only published files. The run still counts a 403 or 404 of the last period as
+  unpublished, not as failed, and the next run asks for it again. This covers a file that the page
+  lists before the download works. Every other 403 or 404 stays a failure, so a run that the SEC
+  refuses in full fails.
 - Before each download, `backfill` reads the stored file of the period. If the file passes
   the size and SHA-256 check, the run skips the download (STA-400). So a rerun downloads only the
   files that are missing or that the store cannot verify. If the store cannot verify a file, the
@@ -671,8 +683,15 @@ Both names return HTTP 200, so the pattern downloads an old version of the data 
 So `NotesPeriod::file_name()` reads a table of overrides in `constants.rs`. A unit test
 asserts all 79 names against the list measured on 2026-10-28.
 
-Risk: if the SEC adds a suffix to another file, the run downloads the old version without an
-error. A later improvement can compare the list with the SEC page.
+The request URL and the store key both use `NotesPeriod::file_name()`, so the keys of stored files
+stay the same. `backfill` compares each link of the page with `NotesPeriod::file_name()`. For each
+link whose file name differs, it logs the warning `batch_renamed_notes_file` with both names, and
+still requests the name of `file_name()`. An operator then adds the link to the overrides. The page
+of 2026-11-07 gives no warning.
+
+Risk: a renamed file reaches the store only after an operator updates the overrides. Until then,
+the run downloads the file of the pattern: an old version if both names return 200, or a failure
+if the pattern name returns 404.
 
 ### Request
 
@@ -895,7 +914,9 @@ quarantines the row or the filing, and the file goes on.
 
 ### Tests
 
-- Unit tests for `NotesPeriod`: the range limits, the parse of both forms, and all 79 file names.
+- Unit tests for `NotesPeriod`: the first year, the parse of both forms, and all 79 file names.
+- Unit tests for `NotesFileList`: the stored page of 2026-11-07 gives 80 files from 2009q1 to
+  2026_10, and `2010q1` maps to `2010q1_notes_1.zip`. A page without a Notes link fails.
 - Unit tests for the builder: the URL of a quarterly file, a monthly file, and an override.
 - State tests with a fake `SecClient` that returns a small ZIP fixture, as the `companyfacts`
   states do today.
@@ -1700,10 +1721,9 @@ The backfill runs by hand, up to the last published Notes file. Decided by the l
 2026-10-28. After the backfill, the new-filing path catches each new filing. No step checks
 whether a company or a filing already exists. See [Idempotent Writes](#idempotent-writes).
 
-Since STA-361, the backfill computes its periods from today, so it can run on any date. It asks
-for every period up to last month. Early in a month, the SEC has not posted last month yet. The
-run then counts that period as unpublished and stores everything before it. So the newest stored
-Notes month depends on the day of the run, not on a fixed constant.
+The backfill reads its periods from the SEC page and cuts them at last month, so it can run on any
+date. Early in a month, the page does not list last month yet, so the run stops at the month
+before. So the newest stored Notes month depends on the day of the run, not on a fixed constant.
 
 Rules:
 
@@ -1742,7 +1762,7 @@ Assumptions:
 | A1 | A monthly Notes file holds every filing of the selected forms with a filed date in that month | Measured for `2026_09`: its `sub.tsv` runs from 2026-09-01 to 2026-09-30 | A filing before the start date is lost. To check, compare `sub.tsv` with the daily indexes of that month. |
 | A2 | A filing after 5:30 PM Eastern on the last day of a month gets the next business day as its filed date, and the daily index of that day lists it | Unverified | The overlap of one day covers a filing on the last day of the month. A longer gap needs a longer overlap. |
 | A3 | The daily index lists every filing of its day, and the SEC does not change it after publication | Unverified | A late change is lost. A rerun of that date picks it up. |
-| A4 | About a year after a quarter ends, the SEC merges the monthly Notes files of that quarter into one quarterly file. It removes the monthly files. Example: `2025q3` on 2026-10-07. The SEC also corrects old files about once a year, for example 2010q1 to 2013q4 in September 2024 | Measured on 2026-11-07 with `Last-Modified` of the 80 files listed on the SEC data-sets page that day, and the notes on that page. A `HEAD` of the merged monthly files `2025_07` to `2025_09` returns 404 | `NotesPeriod` fixes the last quarter at 2025q3 and the first month at 2025_10. After the merge of 2025q4, a run never asks for `2025q4`. The monthly files `2025_10` to `2025_12` then return 404 and fail a run that has not stored them. The bounds must move with each merge. If the SEC stops merging, the bounds stay correct. A run does not fetch a corrected file again. An amendment reaches the new-filing path as its own filing (10-K/A, 10-Q/A). |
+| A4 | About a year after a quarter ends, the SEC merges the monthly Notes files of that quarter into one quarterly file. It removes the monthly files. Example: `2025q3` on 2026-10-07. The SEC also corrects old files about once a year, for example 2010q1 to 2013q4 in September 2024 | Measured on 2026-11-07 with `Last-Modified` of the 80 files listed on the SEC data-sets page that day, and the notes on that page. A `HEAD` of the merged monthly files `2025_07` to `2025_09` returns 404 | `backfill` reads its periods from the SEC data-sets page, not from fixed bounds. After the merge of 2025q4, the page lists `2025q4` and no longer lists `2025_10` to `2025_12`, so the run asks for the quarter and skips the stored months. The merge came 367 to 458 days after the quarter end in the last 10 quarters, so a rule based on the date is not safe. If the SEC stops merging, the page still lists the right files. A run does not fetch a corrected file again. An amendment reaches the new-filing path as its own filing (10-K/A, 10-Q/A). |
 | A5 | CIK and accession number never change and are never reused | Unverified, SEC practice | Idempotent writes on these keys merge two different things |
 | A6 | The SEC publishes the daily indexes in date order | Unverified | The 404 rule counts a date as empty once a later index exists. An index published after a later one is lost with no alert. A rerun of that date picks it up. |
 

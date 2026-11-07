@@ -30,6 +30,9 @@ use chrono::Utc;
 use sec::implementations::extraction::{
     DailyFilingsRepositories, Extraction, NotesRunSummary, RunEvent,
 };
+use sec::shared::http_client::implementations::sec_client::SecClient;
+use sec::shared::notes_data_sets_page::NotesDataSetsPage;
+use sec::shared::notes_file_list::{NotesFileList, NotesFileListError};
 use uuid::Uuid;
 
 use batch_log::{
@@ -38,7 +41,7 @@ use batch_log::{
 };
 use files_in_flight::{FILES_IN_FLIGHT_ENV_VAR, InvalidFilesInFlight, files_in_flight};
 use json_log::init_logger;
-use notes_periods::notes_periods;
+use notes_periods::{notes_periods, renamed_files};
 use run::{BackfillInputs, run};
 use storage_root::{raw_notes_archive_writer, raw_writer};
 use yesterday::new_york_yesterday;
@@ -66,6 +69,7 @@ async fn main() -> ExitCode {
 async fn run_batch() -> Result<(), Box<dyn Error + Send + Sync>> {
     let sec_client = startup_sec_client()?;
     let files_in_flight = files_in_flight_from_env()?;
+    let notes_files = notes_files(&sec_client).await?;
     let notes_repository = raw_notes_archive_writer();
     // Every writer shares the root of `ARKAD_STORAGE_ROOT`, so one call creates it.
     startup_create_root(&notes_repository)?;
@@ -82,7 +86,7 @@ async fn run_batch() -> Result<(), Box<dyn Error + Send + Sync>> {
     let yesterday = new_york_yesterday(now);
     let inputs = BackfillInputs {
         backfill,
-        periods: notes_periods(now.date_naive()),
+        periods: notes_periods(&notes_files, now.date_naive()),
         files_in_flight,
         yesterday,
         sec_client,
@@ -174,6 +178,39 @@ fn log_notes_summary(
         &message,
         &context,
     );
+}
+
+/// Reads the Notes files from the SEC page, logs a failure, and warns about each renamed file.
+///
+/// # Errors
+///
+/// Returns the [`NotesFileListError`] of [`NotesFileList::fetch`].
+async fn notes_files(sec_client: &SecClient) -> Result<NotesFileList, NotesFileListError> {
+    let notes_files = NotesFileList::fetch(sec_client)
+        .await
+        .inspect_err(|error| {
+            tracing::error!(
+                event = %BatchEvent::StartupFailed,
+                message = %error,
+                context = %serde_json::json!({ "page": NotesDataSetsPage.to_string() }),
+            );
+        })?;
+    for file in renamed_files(&notes_files) {
+        tracing::warn!(
+            event = %BatchEvent::RenamedNotesFile,
+            message = %format!(
+                "The SEC page links '{}', but the run requests '{}'",
+                file.file_name(),
+                file.period().file_name()
+            ),
+            context = %serde_json::json!({
+                "period": file.period().to_string(),
+                "linked_file_name": file.file_name(),
+                "requested_file_name": file.period().file_name(),
+            }),
+        );
+    }
+    Ok(notes_files)
 }
 
 /// Reads the number of Notes files in flight from `ARKAD_FILES_IN_FLIGHT`, and logs an invalid value.

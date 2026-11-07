@@ -2,13 +2,16 @@
 //!
 //! Provides the [`NotesPeriod`] type for the period of one SEC Financial Statement and Notes file.
 //!
-//! The SEC publishes one Notes file per quarter from 2009q1 to 2025q3, and one per month from
-//! `2025_10` on. A [`NotesPeriod`] holds only a period in that range, and gives the SEC file name of
-//! the period.
+//! The SEC publishes one Notes file per quarter from 2009q1 on. For the latest quarters, it
+//! publishes one file per month instead, and about a year after the quarter ends it merges the
+//! three monthly files into one quarterly file. A [`NotesPeriod`] holds a quarter or a month from
+//! 2009 on, and gives the SEC file name of the period. The SEC page that links the Notes files
+//! says which periods exist now, see
+//! [`NotesFileList`](crate::shared::notes_file_list::NotesFileList).
 //!
 //! ## Modules
 //!
-//! - [`constants`]: The range limits and the [`FILE_NAME_OVERRIDES`].
+//! - [`constants`]: The first year and the [`FILE_NAME_OVERRIDES`].
 //! - [`notes_period_error`]: The [`NotesPeriodError`] returned when validation fails, and its
 //!   [`InvalidNotesPeriodReason`].
 //! - [`month`]: The [`Month`] type for a month of a calendar year.
@@ -28,18 +31,17 @@ pub use quarter::Quarter;
 pub use year::Year;
 
 use std::fmt::{self, Display, Formatter};
-use std::iter;
 
-use chrono::{Datelike, Months, NaiveDate};
+use chrono::{Months, NaiveDate};
 use serde::{Serialize, Serializer};
 
-use constants::{FILE_NAME_SUFFIX, FIRST_MONTH, FIRST_YEAR, LAST_QUARTER};
+use constants::{FILE_NAME_SUFFIX, FIRST_YEAR};
 
 /// The period of one SEC Financial Statement and Notes file: a quarter or a month of a year.
 ///
-/// Values are only produced through [`NotesPeriod::new`] (or the [`TryFrom`] impl). Every quarter
-/// has a published Notes file. Months have no upper limit, so a month after the latest published
-/// file also parses.
+/// Values are only produced through [`NotesPeriod::new`] (or the [`TryFrom`] impl). A period has
+/// no upper limit, so a period after the latest published file also parses. Whether the SEC
+/// publishes a file for a period is a fact of the SEC page, not of this type.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct NotesPeriod {
     year: Year,
@@ -63,13 +65,8 @@ impl NotesPeriod {
     /// # Errors
     ///
     /// Returns a [`NotesPeriodError`] if the input matches neither form
-    /// ([`InvalidNotesPeriodReason::InvalidNotesPeriodFormat`]), the year comes before 2009
-    /// ([`InvalidNotesPeriodReason::UnpublishedYear`]), the quarter comes after 2025q3
-    /// ([`InvalidNotesPeriodReason::UnpublishedQuarter`]), or the month comes before `2025_10`
-    /// ([`InvalidNotesPeriodReason::UnpublishedMonth`]).
-    ///
-    /// The year check runs first, so `2008_12` returns
-    /// [`InvalidNotesPeriodReason::UnpublishedYear`], not `UnpublishedMonth`.
+    /// ([`InvalidNotesPeriodReason::InvalidNotesPeriodFormat`]), or the year comes before 2009
+    /// ([`InvalidNotesPeriodReason::UnpublishedYear`]).
     ///
     /// # Examples
     ///
@@ -92,15 +89,7 @@ impl NotesPeriod {
         if year < FIRST_YEAR {
             return Err(error(InvalidNotesPeriodReason::UnpublishedYear { year }));
         }
-        match part {
-            PeriodPart::Quarter(quarter) if (year, quarter) > LAST_QUARTER => {
-                Err(error(InvalidNotesPeriodReason::UnpublishedQuarter))
-            }
-            PeriodPart::Month(month) if (year, month) < FIRST_MONTH => {
-                Err(error(InvalidNotesPeriodReason::UnpublishedMonth))
-            }
-            _ => Ok(Self { year, part }),
-        }
+        Ok(Self { year, part })
     }
 
     /// Returns the name of the SEC file that holds the Notes of this period.
@@ -166,60 +155,6 @@ impl NotesPeriod {
             .and_then(|first_day| first_day.checked_add_months(Months::new(1)))
             .and_then(|first_day_of_next_month| first_day_of_next_month.pred_opt())
             .expect("Given a year of at most 65535 and a month from 1 to 12, the last day of the month should always exist")
-    }
-
-    /// Returns every period that ends in or before the month of `date`, in increasing order.
-    ///
-    /// Quarters run to 2025q3 and months start at `2025_10`. A quarter is in the list only once
-    /// the month of `date` reaches its last month. The list is empty if `date` comes before 2009.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use chrono::NaiveDate;
-    /// use sec::shared::notes_period::NotesPeriod;
-    ///
-    /// let date = NaiveDate::from_ymd_opt(2009, 8, 31).expect("A hardcoded calendar date should always be valid");
-    ///
-    /// let expected_result = vec!["2009q1".to_string(), "2009q2".to_string()];
-    ///
-    /// let result: Vec<String> = NotesPeriod::all_through(date).iter().map(ToString::to_string).collect();
-    ///
-    /// assert_eq!(result, expected_result);
-    /// ```
-    #[must_use]
-    pub fn all_through(date: NaiveDate) -> Vec<Self> {
-        let first_month = NaiveDate::from_ymd_opt(i32::from(FIRST_YEAR.0), 1, 1);
-        iter::successors(first_month, |month| {
-            month.checked_add_months(Months::new(1))
-        })
-        .take_while(|month| *month <= date)
-        .filter_map(Self::ending_in)
-        .collect()
-    }
-
-    /// Returns the period that ends in the month of `date`, or `None` if no period ends in that
-    /// month.
-    fn ending_in(date: NaiveDate) -> Option<Self> {
-        let year = Year(u16::try_from(date.year()).ok()?);
-        let month = Month(chrono::Month::try_from(u8::try_from(date.month()).ok()?).ok()?);
-        if (year, month) >= FIRST_MONTH {
-            return Some(Self {
-                year,
-                part: PeriodPart::Month(month),
-            });
-        }
-        let quarter = match month.0 {
-            chrono::Month::March => Quarter::Q1,
-            chrono::Month::June => Quarter::Q2,
-            chrono::Month::September => Quarter::Q3,
-            chrono::Month::December => Quarter::Q4,
-            _ => return None,
-        };
-        ((year, quarter) <= LAST_QUARTER).then_some(Self {
-            year,
-            part: PeriodPart::Quarter(quarter),
-        })
     }
 }
 
@@ -410,25 +345,23 @@ mod tests {
     }
 
     #[test]
-    fn should_accept_first_and_last_quarter_when_input_is_on_the_range_limits() {
-        let first_quarter_string = "2009q1";
-        let last_quarter_string = "2025q3";
+    fn should_accept_the_first_quarter_when_input_is_2009q1() {
+        let period_string = "2009q1";
 
-        let expected_result = (true, true);
+        let expected_result = None;
 
-        let result = (
-            NotesPeriod::new(first_quarter_string).is_ok(),
-            NotesPeriod::new(last_quarter_string).is_ok(),
-        );
+        let result = rejection_reason(period_string);
 
         assert_eq!(result, expected_result);
     }
 
+    // The SEC merges the months of 2025q4 into one quarterly file in about January 2027. A fixed
+    // last quarter of 2025q3 rejected that file.
     #[test]
-    fn should_reject_with_unpublished_quarter_when_quarter_is_after_2025q3() {
+    fn should_accept_a_quarter_when_quarter_is_after_2025q3() {
         let period_string = "2025q4";
 
-        let expected_result = Some(InvalidNotesPeriodReason::UnpublishedQuarter);
+        let expected_result = None;
 
         let result = rejection_reason(period_string);
 
@@ -436,10 +369,10 @@ mod tests {
     }
 
     #[test]
-    fn should_reject_with_unpublished_month_when_month_is_before_2025_10() {
+    fn should_accept_a_month_when_month_is_before_2025_10() {
         let period_string = "2025_09";
 
-        let expected_result = Some(InvalidNotesPeriodReason::UnpublishedMonth);
+        let expected_result = None;
 
         let result = rejection_reason(period_string);
 
@@ -458,7 +391,7 @@ mod tests {
     }
 
     #[test]
-    fn should_reject_with_unpublished_year_when_month_is_also_before_2025_10() {
+    fn should_reject_with_unpublished_year_when_period_is_a_month_before_2009() {
         let period_string = "2008_12";
 
         let expected_result = Some(InvalidNotesPeriodReason::UnpublishedYear { year: Year(2008) });
@@ -601,41 +534,6 @@ mod tests {
     fn period(period: &str) -> NotesPeriod {
         NotesPeriod::new(period)
             .expect("Given a hardcoded published period, parsing should always succeed")
-    }
-
-    #[test]
-    fn should_return_no_period_when_date_is_before_2009() {
-        let date = date(2008, 12, 31);
-
-        let expected_result: Vec<NotesPeriod> = vec![];
-
-        let result = NotesPeriod::all_through(date);
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
-    fn should_end_at_the_last_full_quarter_when_date_is_inside_a_quarter() {
-        let date = date(2025, 8, 31);
-
-        let expected_result = [period("2025q1"), period("2025q2")];
-
-        let result = NotesPeriod::all_through(date);
-
-        // The full list starts at 2009q1, so the test checks its last periods.
-        assert!(result.ends_with(&expected_result));
-    }
-
-    #[test]
-    fn should_switch_from_quarters_to_months_when_date_is_after_2025q3() {
-        let date = date(2025, 10, 1);
-
-        let expected_result = [period("2025q2"), period("2025q3"), period("2025_10")];
-
-        let result = NotesPeriod::all_through(date);
-
-        // The full list starts at 2009q1, so the test checks its last periods.
-        assert!(result.ends_with(&expected_result));
     }
 
     #[test]

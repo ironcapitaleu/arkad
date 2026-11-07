@@ -12,6 +12,8 @@
 mod files_in_flight;
 #[path = "../../src/bin/shared/json_log.rs"]
 mod json_log;
+// The example does not warn about renamed files, so `renamed_files` would fire `dead_code`.
+#[allow(dead_code)]
 #[path = "../../src/bin/shared/notes_periods.rs"]
 mod periods;
 #[path = "../../src/bin/shared/sec_client.rs"]
@@ -29,6 +31,8 @@ use std::time::Instant;
 
 use chrono::Utc;
 use sec::implementations::extraction::{ErrorKind, Extraction, RunEvent};
+use sec::shared::http_client::implementations::sec_client::SecClient;
+use sec::shared::notes_file_list::{NotesFileList, NotesFileListError};
 
 use files_in_flight::{FILES_IN_FLIGHT_ENV_VAR, InvalidFilesInFlight, files_in_flight};
 use json_log::init_logger;
@@ -68,6 +72,21 @@ async fn main() -> ExitCode {
     }
 }
 
+/// Reads the Notes files from the SEC page, and logs a failure.
+///
+/// # Errors
+///
+/// Returns the [`NotesFileListError`] of [`NotesFileList::fetch`].
+async fn notes_files(sec_client: &SecClient) -> Result<NotesFileList, NotesFileListError> {
+    NotesFileList::fetch(sec_client).await.inspect_err(|error| {
+        tracing::error!(
+            event = %BatchEvent::StartupFailed,
+            message = %error,
+            context = %serde_json::json!({}),
+        );
+    })
+}
+
 /// Runs the example, and logs each failure before it returns the error.
 ///
 /// # Errors
@@ -105,7 +124,8 @@ async fn run_example() -> Result<(), Box<dyn Error + Send + Sync>> {
     let backfill = Extraction::backfill();
     let execution_id = backfill.id().to_string();
     let event_execution_id = execution_id.clone();
-    let periods = notes_periods(Utc::now().date_naive());
+    let notes_files = notes_files(&sec_client).await?;
+    let periods = notes_periods(&notes_files, Utc::now().date_naive());
     let start = Instant::now();
 
     let summary = backfill
