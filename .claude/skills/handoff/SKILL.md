@@ -57,7 +57,9 @@ session, or in third-person status voice for a Linear comment. Use this template
 
 <One or two sentences. The exact outcome the new session must reach. From the user's argument.
 For work that changes the repository, the outcome is an open PR against `main` that a review finds
-nothing new in. The successor opens the PR without asking (AGENTS.md, "Pull Request Creation").>
+nothing new in. The successor opens the PR without asking (AGENTS.md, "Pull Request Creation").
+For work whose output lives outside the repository, such as a SPIKE that ends in a Linear document,
+the outcome is that document and a report. No PR.>
 
 # Context
 
@@ -118,7 +120,8 @@ apply, and any "never" from this session. State each as `must` or `never`.>
 
 - You must push to `<branch name>`. If the session assigns another branch, such as `claude/*`,
   never push to it. If the push to `<branch name>` fails, stop and report the blocker.
-- You must open the PR against `main` without asking, then run `pr-iterate`. Never merge it.
+- If the work changes the repository, you must open the PR against `main` without asking, then run
+  `pr-iterate`. Never merge it. If the work changes no file in the repository, open no PR.
 
 # Reporting
 
@@ -168,8 +171,9 @@ successor knows how much slack it has.
 
 1. **Read the argument.** If the user gave no focus, ask the user once. Ask what the next session
    will do. For work that changes the repository, the default end is an open PR that a review finds
-   nothing new in. A person then reviews and merges it. Ask only if the user wants a different end,
-   such as a branch or a report.
+   nothing new in. A person then reviews and merges it. For work whose output lives outside the
+   repository, such as a SPIKE that ends in a Linear document, the end is that document and a
+   report, with no PR. Ask only if the user wants a different end.
 2. **Compile the document** from the conversation, following the template. Reference every artifact
    by path or URL. Do not paste file contents the successor can read itself. Pick the branch name
    with the `AGENTS.md` "Branch Naming" convention.

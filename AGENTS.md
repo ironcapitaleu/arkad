@@ -425,6 +425,10 @@ task changes the repository, commit the work, push the branch, and open a PR aga
 wait for a request, and do not ask first. Then run the `pr-iterate` skill until a review finds
 nothing new, and report to the owner. A person reviews and merges. An agent never merges.
 
+Open a PR only when the task changes files in the repository. A ticket whose output lives outside
+the repository gets no PR. For example, a SPIKE that ends in a Linear document reports its findings
+there.
+
 When creating a pull request, always use the repository's PR template located at
 `.github/pull_request_template.md`. Fill in all sections:
 
