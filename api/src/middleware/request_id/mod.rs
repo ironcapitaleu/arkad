@@ -100,10 +100,11 @@ mod tests {
     #[test]
     fn should_differ_between_two_generated_request_ids() {
         let first = RequestId::generate();
-        let second = RequestId::generate();
 
-        let result = first;
+        let expected_result = first;
 
-        assert_ne!(result, second);
+        let result = RequestId::generate();
+
+        assert_ne!(result, expected_result);
     }
 }
