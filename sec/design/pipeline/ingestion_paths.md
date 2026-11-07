@@ -1741,7 +1741,7 @@ Assumptions:
 | A1 | A monthly Notes file holds every filing of the selected forms with a filed date in that month | Measured for `2026_09`: its `sub.tsv` runs from 2026-09-01 to 2026-09-30 | A filing before the start date is lost. To check, compare `sub.tsv` with the daily indexes of that month. |
 | A2 | A filing after 5:30 PM Eastern on the last day of a month gets the next business day as its filed date, and the daily index of that day lists it | Unverified | The overlap of one day covers a filing on the last day of the month. A longer gap needs a longer overlap. |
 | A3 | The daily index lists every filing of its day, and the SEC does not change it after publication | Unverified | A late change is lost. A rerun of that date picks it up. |
-| A4 | About a year after a quarter ends, the SEC merges the monthly Notes files of that quarter into one quarterly file and removes the monthly files, for example `2025q3` on 2026-10-07. The SEC also corrects old files about once a year, for example 2010q1 to 2013q4 in September 2024 | Measured on 2026-11-07 with `Last-Modified` of the 80 files listed on the SEC data-sets page that day, and the notes on that page | `NotesPeriod` fixes the last quarter at 2025q3 and the first month at 2025_10. After the merge of 2025q4, a run never asks for `2025q4`, and `2025_10` to `2025_12` return 404 and fail a run that has not stored them. The bounds must move with each merge. If the SEC stops merging, the bounds stay correct. A run does not fetch a corrected file again. An amendment reaches the new-filing path as its own filing (10-K/A, 10-Q/A). |
+| A4 | About a year after a quarter ends, the SEC merges the monthly Notes files of that quarter into one quarterly file. It removes the monthly files. Example: `2025q3` on 2026-10-07. The SEC also corrects old files about once a year, for example 2010q1 to 2013q4 in September 2024 | Measured on 2026-11-07 with `Last-Modified` of the 80 files listed on the SEC data-sets page that day, and the notes on that page. A `HEAD` of the merged monthly files `2025_07` to `2025_09` returns 404 | `NotesPeriod` fixes the last quarter at 2025q3 and the first month at 2025_10. After the merge of 2025q4, a run never asks for `2025q4`. The monthly files `2025_10` to `2025_12` then return 404 and fail a run that has not stored them. The bounds must move with each merge. If the SEC stops merging, the bounds stay correct. A run does not fetch a corrected file again. An amendment reaches the new-filing path as its own filing (10-K/A, 10-Q/A). |
 | A5 | CIK and accession number never change and are never reused | Unverified, SEC practice | Idempotent writes on these keys merge two different things |
 | A6 | The SEC publishes the daily indexes in date order | Unverified | The 404 rule counts a date as empty once a later index exists. An index published after a later one is lost with no alert. A rerun of that date picks it up. |
 
@@ -1829,9 +1829,10 @@ Rules:
      the store keeps the old facts, so a parser fix never lands. STA-331 decides how a replay
      writes. A delete and an insert of the filing and source in one transaction is one way. It
      needs a delete on `FactStore`, which the STA-145 freeze does not have.
-   - The raw store keeps only the latest version of a Notes file (see [Raw Store](#raw-store)),
-     and the SEC replaces old files (assumption A4). So a replay of a Notes filing reads the
-     latest version, which can differ from the first run.
+   - The raw store keeps only the latest version of a Notes file (see [Raw Store](#raw-store)).
+     A rerun keeps a stored file that passes its check, so a replay reads the bytes of the first
+     run. If the store cannot verify the file, the run downloads the current SEC version and marks
+     it `replaced`, and a replay reads that version.
 
 Rule 4 removes the order from the result. It does not remove the split. If the sources differ for
 a fact in any way, the fact store differs between the cases under every option. Example: in the
