@@ -22,7 +22,7 @@ pub const PROBLEM_TYPE_PREFIX: &str = "/errors/";
 pub struct Problem {
     /// A URI reference that names the kind of error, for example `/errors/not_found`.
     #[serde(rename = "type")]
-    #[schema(rename = "type", example = "/errors/not_found")]
+    #[schema(example = "/errors/not_found")]
     pub problem_type: String,
     /// A short summary for people. It can change, so a program must check `code`.
     #[schema(example = "Not found")]
