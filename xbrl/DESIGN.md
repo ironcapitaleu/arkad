@@ -588,14 +588,13 @@ The as-is layer keeps every copy of every fact. The standardized layer applies t
 
 | Rule ID | Scope | Rule |
 | ------- | ----- | ---- |
-| `core/dedup/more-precise@1` | Facts of one filing with the same value key except `copy_rank`, whose values agree within the precision of the less precise copy | Take `copy_rank` 0, the copy with the highest precision |
+| `core/dedup/more-precise@1` | Facts of one filing with the same value key except `copy_rank`, whose values agree with rank 0 (see "Agreement of copies") | Take `copy_rank` 0 |
 | `core/dedup/newest-filing@1` | One standard concept across filings: the same entity, standard concept, exact period end, length in quarters, unit, and dimensions | Take the value of the filing with the latest `filed`, then the latest `accepted` if both filings have it, then the highest filing ID. The filing ID gives a fixed order, not a time order |
 
-If two ranks of one key disagree beyond that precision, they are two facts.
-`core/dedup/more-precise@1` keeps both and returns a `Conflict` finding to chronology. The standard
-concept then has no value for that entity and period. Step 3 does not fall back to an older
-filing, because the newer filing can hold the restatement.
+Agreement of copies:
 
+- Every rank must agree with rank 0 within the precision of the less precise of the two. Only the
+  pairs with rank 0 count, so the result does not depend on the order of the checks.
 - If either copy has no `decimals`, as with `sec_api` facts, the values agree only if they are
   equal.
 - For `sec_api` facts, rank 0 is the first copy in the JSON, not the most precise one.
@@ -608,6 +607,19 @@ and a length in quarters, as in the value key, because the Notes data set has no
 3. `core/dedup/newest-filing@1` across filings, on the standard concept. A newer filing wins over
    the alias order, so a restatement under a renamed concept wins.
 4. Tiers 3 and 4 on the values that remain.
+
+**Conflict.** If one rank disagrees with rank 0, the ranks are two or more facts.
+`core/dedup/more-precise@1` keeps all ranks and returns a `Conflict` finding to chronology. The
+finding names the as-is concept, and the standard concept if a plug-in maps it.
+
+- If tiers 1 and 2 would pick the conflicting concept, that filing gives no candidate for the
+  standard concept. A conflict on a lower alias, or on a concept no plug-in maps, blocks nothing.
+- If that filing is the newest one with the period, step 3 takes no value. It does not fall back
+  to an older filing, because the newer filing can hold the restatement. Step 4 derives no value
+  for the blocked concept.
+- A conflict in an older filing blocks nothing, because step 3 takes the newer filing.
+
+Other cases:
 
 - An amendment is filed later than its original, so `core/dedup/newest-filing@1` covers it.
 - A point-in-time read "as of D" applies the same two rules to the filings accepted (or filed) on
