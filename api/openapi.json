@@ -19,7 +19,7 @@
         "operationId": "list_concepts",
         "responses": {
           "200": {
-            "description": "Every concept that the `concept` parameter accepts",
+            "description": "Every concept that `xbrl` maps from US-GAAP",
             "content": {
               "application/json": {
                 "schema": {
@@ -57,7 +57,7 @@
     "schemas": {
       "Concept": {
         "type": "object",
-        "description": "One canonical concept that the `concept` parameter of `/v1` accepts.",
+        "description": "One canonical concept that `xbrl` maps from US-GAAP.",
         "required": [
           "concept",
           "name"
