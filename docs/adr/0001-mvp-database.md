@@ -51,7 +51,7 @@ in one Postgres database. Here `ingest` follows the mixed-engine contract of
   `ingest` is a hybrid implementation. It appends the raw record, then runs the graph and fact
   writes as impl-private helpers on one `PgTransaction`, as the co-located rule of
   `storage_traits_design.md` describes. It does not compose `GraphStore::upsert` and
-  `FactStore::upsert`, because each of those commits on its own.
+  `FactStore::append`, because each of those commits on its own.
 - The graph and fact writes are idempotent projections of the raw record.
 - The §8 reconciliation job replays every projection that failed after the raw write.
 

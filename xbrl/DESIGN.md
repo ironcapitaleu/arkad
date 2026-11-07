@@ -461,7 +461,8 @@ AsIsFact {
   join keys from Notes or the instance. The as-is store loads only the Notes data set and the
   instance XML. The SEC JSON APIs feed today's `sec` pipeline only.
 - The ingestion provenance (ingestion mode, source document and its SHA-256, execution ID, load
-  time, parser version) is not on `AsIsFact`. The fact store design stores it next to the fact.
+  time, parser version) is not on `AsIsFact`. The fact store stores it next to the fact, see
+  [`as_is_fact_store.md`](../sec/design/data_model/as_is_fact_store.md).
   `IngestionMode` lives in `storage`, and `xbrl` does not depend on `storage`.
 
 ### Value Key
@@ -495,8 +496,8 @@ section 4.
 - `taxonomy_version` adds no uniqueness, because the filing fixes the version of each family. It
   stays in the key because the Notes data set gives it on every row, and the draft key of the fact
   store design names it.
-- The key names the fields only. The fact store design decides the write rule, whether the source
-  document joins the grain, and the rule for a fact from two sources.
+- The key names the fields only. [`as_is_fact_store.md`](../sec/design/data_model/as_is_fact_store.md) decides the write rule, whether the source document joins
+  the grain, and the rule for a fact from two sources.
 
 ### `Filing`
 
@@ -813,8 +814,8 @@ Parsers:
   `iprx` order where Notes gives it. If two rows still share a key and differ in value, for
   example after the parser strips dimension prefixes, the second row gets the next free rank. So
   the key stays unique, and `core/dedup/more-precise@1` compares the rows.
-- Which source wins if one filing comes in on both paths, and whether the standardize filing
-  state runs once per filing or once per source. Both runs share one `FilingId`, so step 3 has no
+- Whether the standardize filing state runs once per filing or once per source. A read of the
+  fact store takes the instance over Notes for a filing, see [`as_is_fact_store.md`](../sec/design/data_model/as_is_fact_store.md), "One Filing From Two Sources". Both runs share one `FilingId`, so step 3 has no
   tie-break between them.
 - A test that runs both parsers on filings in both sources and compares their as-is facts.
 

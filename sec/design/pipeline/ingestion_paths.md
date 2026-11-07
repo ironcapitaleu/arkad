@@ -1776,8 +1776,8 @@ Assumptions:
 
 ### Idempotent Writes
 
-> **Input for STA-331.** Decided as a direction by the lead on 2026-10-28. The fact store design
-> (round 2) fixes the schema.
+> Decided as a direction by the lead on 2026-10-28. The fact store design, [`as_is_fact_store.md`](../data_model/as_is_fact_store.md), fixes the
+> schema.
 
 An upsert is one statement that inserts a row, or updates it if a row with the same key exists. In
 Postgres, it is `INSERT … ON CONFLICT (key) DO UPDATE` or `DO NOTHING`. The database makes the
@@ -1792,7 +1792,7 @@ ON CONFLICT (cik) DO UPDATE
 ```
 
 `excluded` is the row that the statement tried to insert. The table name and the columns are an
-example. STA-331 fixes the schema.
+example. [`as_is_fact_store.md`](../data_model/as_is_fact_store.md) has the schema sketch.
 
 Rules:
 
@@ -1805,16 +1805,18 @@ Rules:
   company data with older data.
 - **Filings** are keyed by accession number: `ON CONFLICT (accession_number) DO NOTHING`.
 - **Facts** hold the CIK and the accession number directly, not a surrogate id from a lookup. A
-  fact is keyed by its accession number and its value key (STA-331): `DO NOTHING`.
+  fact is keyed by its load ID and its value key: `DO NOTHING`. The load ID names the filing, the
+  source document, and the parser version. See [`as_is_fact_store.md`](../data_model/as_is_fact_store.md), "Write Rule".
+- **A filing reaches the fact store as a load.** The load row is the filing of the fact store,
+  keyed by the load ID: `DO NOTHING`.
 - **One transaction per filing.** The load writes the company, then the filing, then its facts.
 
 So the order of Notes files, the order of days, a rerun, and an overlap do not create a duplicate.
-Today, if the two sources differ for a fact, the first copy wins. See
-[Path Independence](#path-independence).
+A copy of a fact from the other source is a separate load, so neither copy wins at write time.
+See [Path Independence](#path-independence).
 
-Open for STA-331: its draft keys the fact store by `company_id`. If `company_id` is a surrogate
-id, each write needs a lookup first, and this rule breaks. The id must come from the filing itself,
-for example the CIK.
+The fact store keys each fact by the `EntityId` of its filing, the CIK for the SEC. A write needs
+no lookup. See [`as_is_fact_store.md`](../data_model/as_is_fact_store.md).
 
 ### Path Independence
 
@@ -1844,20 +1846,17 @@ Rules:
 3. **Same filing, same facts.** A test runs both parsers on filings that are in both sources. A
    difference in parser logic fails the test. A difference in the source data is a finding for
    rule 4, not a test failure.
-4. **Order never decides a value.** Today the fact write uses `DO NOTHING` (see
-   [Idempotent Writes](#idempotent-writes)), so the first copy wins. If the sources differ for a
-   fact, the store needs a rule that does not depend on arrival. The options are in the table
-   below.
+4. **Order never decides a value.** The fact store keeps the load of each source. A read takes
+   the instance load of a filing over its Notes load, so arrival never decides. Option 3 in the
+   table below, decided in [`as_is_fact_store.md`](../data_model/as_is_fact_store.md).
 5. **Provenance on every fact.** The DoD of STA-331 lists these fields: the ingestion path
    (`ingestion_mode` in the raw metadata, `backfill` or `incremental`), the source document
    (Notes file or instance, with its key and SHA-256), the `execution_id`, the load time, and the
    parser version.
 6. **Transform replays from the raw store.** A change to a parser or a rule reruns transform. It
    does not need a new extract. Two limits apply today:
-   - A replay must replace the facts of the filing from the replayed source. With `DO NOTHING`,
-     the store keeps the old facts, so a parser fix never lands. STA-331 decides how a replay
-     writes. A delete and an insert of the filing and source in one transaction is one way. It
-     needs a delete on `FactStore`, which the STA-145 freeze does not have.
+   - A replay after a parser fix has a new parser version, so it appends a new load. A read takes
+     the newest load, and `FactStore` needs no delete. See [`as_is_fact_store.md`](../data_model/as_is_fact_store.md), "Replay After a Parser Fix".
    - The raw store keeps only the latest version of a Notes file (see [Raw Store](#raw-store)).
      A rerun keeps a stored file that passes its check, so a replay reads the bytes of the first
      run. If the store cannot verify the file, the run downloads the current SEC version and marks
@@ -1874,7 +1873,8 @@ The fact store design already has a rule for two sources (STA-145, see
 `hybrid_data_model.md` §2.1). It keys canonical facts by `source_ref` and never merges two sources
 into one row. "Which value wins" is a read-time choice. Today `source_ref` names the filing
 (`sec:accession`), so a Notes copy and an instance copy of the same filing share it. The freeze
-points to option 3, but does not decide this case. STA-331 decides.
+points to option 3, but does not decide this case. [`as_is_fact_store.md`](../data_model/as_is_fact_store.md) takes option 3. The load ID names the
+source document, so the two copies no longer share a grain.
 
 | Option | Rule | Same result across the cases? | Pro | Con |
 | ------ | ---- | ----------------------------- | --- | --- |
@@ -1920,14 +1920,16 @@ These kinds are not losses, or the comparison cannot tell whether they are:
 - The text differs in a way the comparison did not explain: 11 facts.
 - The footnotes differ in how Notes joins them: 5 facts.
 
-Recommendation, for STA-331 to decide: option 2, instance over Notes, applied by an upsert with a
-fixed rank. Two conditions apply:
+Recommendation of the comparison: option 2, instance over Notes, applied by an upsert with a
+fixed rank. Two conditions applied:
 
-- The rank works only on a unique key. STA-331 must first widen the value key, so that the 395
-  cases above hold one fact per key.
-- Today `source_ref` names the filing, so both copies have the same grain, and the upsert keeps one
-  row per fact. But option 2 picks the value at write time. The STA-145 freeze picks "which
-  value wins" at read time. STA-331 must accept that change, or take option 3.
+- The rank works only on a unique key. The value key of `xbrl/DESIGN.md` adds `copy_rank`, so the
+  395 cases above hold one fact per key.
+- Option 2 picks the value at write time. `storage_traits_design.md` picks "which value wins" at
+  read time.
+
+Decided in [`as_is_fact_store.md`](../data_model/as_is_fact_store.md): option 3 with the same preference, instance over Notes, applied by a read. The
+store keeps every copy, so it does not drop the Notes copy at write time.
 
 A filing that only Notes delivered keeps the Notes form of its lossy facts.
 
@@ -1987,7 +1989,8 @@ The metadata of each raw document records the ingestion mode of the run that cre
   rewrites it.
 - So the metadata names the run that created the document. `submissions` serves both modes. If
   `ingestion_mode` were part of the comparison, each run in the other mode would rewrite the file.
-- Transform copies the mode onto each fact (STA-331).
+- Transform copies the mode of the source document onto each load of facts. See [`as_is_fact_store.md`](../data_model/as_is_fact_store.md), "Ingestion
+  Mode of a Load".
 
 ## Handover to Transform
 
@@ -2158,8 +2161,7 @@ Decided by the lead on 2026-10-28:
 A later SLA under one hour polls the latest-filings feed every 15 minutes and keeps the daily index
 to fill gaps. Detection outputs only a `Vec<FilingRef>`, so the filing machine does not change.
 
-Still open from the findings: GLEIF access, detail depth, the `-xbrl.zip` and the inline parser, and
-how the fact store treats amendments (STA-331).
+Still open from the findings: GLEIF access, detail depth, the `-xbrl.zip` and the inline parser.
 
-Still open from [Path Independence](#path-independence): the rule for a fact from two sources
-(STA-402 recommends option 2, STA-331 decides), and how a replay writes (STA-331).
+Decided in [`as_is_fact_store.md`](../data_model/as_is_fact_store.md): the fact store keeps an amendment next to its original, a read takes the instance
+load of a filing over its Notes load, and a replay appends a new load.
