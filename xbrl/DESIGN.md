@@ -73,8 +73,10 @@ flowchart LR
       A[AsIsFact, Filing]
       T[trait Taxonomy]
       R[Registry]
-      RES[Resolve: tiers 1 to 4]
-      D[Dedup rules]
+      D1[Dedup: more-precise per filing]
+      RES[Resolve: tiers 1 and 2 per filing]
+      D2[Dedup: newest-filing across filings]
+      DER[Derive: tiers 3 and 4]
       V[Validate: SFAC 6]
       C[Chronology]
       S[StandardizedFact]
@@ -91,7 +93,8 @@ flowchart LR
   U -. implements .-> T
   F -. implements .-> T
   T --> R --> RES
-  A --> RES --> D --> S
+  A --> D1 --> RES --> D2 --> DER --> S
+  T --> DER
   S --> V
   S --> C
 ```
@@ -108,7 +111,7 @@ Rules of the layout:
 
 ### Types That Change
 
-Five places in today's code assume the SEC or US GAAP. The design replaces each one:
+These places in today's code assume the SEC or US GAAP. The design replaces each one:
 
 | Today | Assumption | Replacement |
 | ----- | ---------- | ----------- |
@@ -116,6 +119,11 @@ Five places in today's code assume the SEC or US GAAP. The design replaces each 
 | `core::Unit` | Closed enum of 4 US units | Open `Unit` of numerator and denominator measures, for example `iso4217:EUR` |
 | `core::RawObservation` | Value is `i64`, no dimensions, no `decimals` | `AsIsFact` |
 | `core::Provenance` | SEC accession number and forms | `Filing` with an open `FilingId` |
+| `core::Form` | Closed enum of 4 SEC forms | Open text on `Filing`, with `is_amendment` |
+| `core::AccessionNumber` | SEC filing ID | Text inside `FilingId`, for example `sec:<accession>` |
+| `core::FiscalPeriod` | `FY` and `Q1` to `Q3` only | Open text on `Filing`, as filed. ESEF filers report half years |
+| `core::Frame`, `core::Quarter` | Field of the SEC JSON APIs | Move to `sec_api`. No rule uses them |
+| `core::EntityName` | One current name | A company attribute on `Filing`, as filed |
 | Company Facts constants in `us_gaap::mappings` | Keys of one SEC JSON API | Move to `sec_api` |
 
 ---
@@ -174,7 +182,7 @@ enum CanonicalElement {
     // --- SFAC 6 Level 1 (root invariants) ---
     Assets, Liabilities, Equity,
     Revenue, Expenses, Gains, Losses, NetIncome,
-    ComprehensiveIncome,
+    OtherComprehensiveIncome, ComprehensiveIncome,
     OperatingCashFlow, InvestingCashFlow, FinancingCashFlow,
 
     // --- Level 2: Balance Sheet sub-elements ---
@@ -212,8 +220,8 @@ the aliases of its plug-in. Example: `us-gaap:Revenues` and `ifrs-full:Revenue` 
   skill.
 - A taxonomy concept with no faithful match stays an as-is fact. It never maps to the nearest
   element.
-- Two different concepts never map to the same element for the same entity, period, and
-  dimensions.
+- For one entity, period, and dimensions, at most one concept fills each element. The alias
+  order picks it.
 
 ---
 
@@ -339,7 +347,7 @@ AsIsFact {
     filing:            FilingId          // "sec:0000320193-26-000001"
     entity:            EntityId          // XBRL entity identifier: scheme and id (CIK, LEI)
     concept:           ConceptName       // namespace and local name
-    taxonomy_version:  TaxonomyVersion   // "us-gaap/2026", or the filing for an extension concept
+    taxonomy_version:  Option<TaxonomyVersion> // "us-gaap/2026", the filing for an extension, None from sec_api
     period:            Period            // Instant(end) | Duration(start: Option, end)
     unit:              Option<Unit>      // None for text
     dimensions:        Dimensions        // sorted axis and member pairs, legal entity axis included
@@ -356,6 +364,10 @@ AsIsFact {
   data set gives `accepted` to the minute. The new-filing path gives `filed` only.
 - `FilingId` uses the same text as `source_ref` in the storage design, for example
   `sec:<accession>`.
+- `sec_api` gives no taxonomy version and no `iprx`, because the SEC JSON APIs carry neither. It
+  writes `taxonomy_version` as `None`, and `copy_rank` in the order of the JSON. So its keys never
+  join keys from Notes or the instance. The as-is store loads only the Notes data set and the
+  instance XML. The SEC JSON APIs feed today's `sec` pipeline only.
 - The ingestion provenance (ingestion mode, source document and its SHA-256, execution ID, load
   time, parser version) is not on `AsIsFact`. The fact store design stores it next to the fact.
   `IngestionMode` lives in `storage`, and `xbrl` does not depend on `storage`.
@@ -369,18 +381,28 @@ The value key of an as-is fact:
 
 The key has two requirements. It gives the same value for a Notes row and an instance fact of the
 same filing. It is unique within one filing. The measurement of 2026-10-31 on 622 filings in both
-sources (`sec/design/pipeline/ingestion_paths.md`, "Measured Result") decides the fields:
+sources decides the fields. The summary is in `sec/design/pipeline/ingestion_paths.md`, "Measured
+Result". The figures below and the `iprx` order come from its
+[findings](https://linear.app/state-machine/document/notes-rows-vs-instance-xml-findings-5d8b4e5d0abf),
+section 4.
 
 | Key option | Same in both sources? | Unique in one filing? |
 | ---------- | --------------------- | --------------------- |
 | Month-end date and quarters | Yes | No: 395 keys hold two values |
 | Exact start and end | No: Notes misses the exact start in 29,761 of 100,303 durations | No: 266 keys differ only in `decimals` |
-| Exact end, quarters, copy rank (chosen) | Yes: Notes `ddate` with `datp` gives the exact end, and `iprx` is the copy rank | Yes: the rank numbers the copies |
+| Exact end, quarters, copy rank (chosen) | Yes: Notes `ddate` with `datp` gives the exact end, and `iprx` is the copy rank | Yes, by construction: the rank numbers the copies |
 
 - The instance parser computes `copy_rank` in the order of the SEC for `iprx`: higher precision
   first, then the distance of the end to a month end, then the distance of the length to a full
   quarter. A test on filings in both sources checks that the two ranks agree.
 - The exact start stays on the fact when the source has it. It is not part of the key.
+- The rank makes the key unique, but it does not make two ranks one fact. Of the 395 measured
+  collisions, 266 are one period with two precisions, which are copies. 129 are two exact periods
+  with the same end and length, which can be two facts. `core/dedup/more-precise@1` handles both
+  cases, see "Dedup Rules".
+- `taxonomy_version` adds no uniqueness, because the filing fixes the version of each namespace. It
+  stays in the key because the Notes data set gives it on every row, and the draft key of the fact
+  store design names it.
 - The key names the fields only. The fact store design decides the write rule, whether the source
   document joins the grain, and the rule for a fact from two sources.
 
@@ -440,7 +462,7 @@ StandardizedFact {
     rule:        RuleId            // "us-gaap/alias/revenue@1"
     release:     TaxonomyRelease   // ID and checksum
     inputs:      Vec<FactKey>      // the value keys of the as-is facts it came from
-    restated:    bool              // an earlier filing reported another value
+    restated:    bool              // a later filing replaced the value, or an input, with another value
 }
 ```
 
@@ -448,7 +470,7 @@ StandardizedFact {
   the as-is facts.
 - `inputs` replaces `source: Vec<Provenance>`. The input facts name their filings.
 - The release and its checksum are on every fact, so a fact proves its release without a join. In a
-  Parquet column, one value per release costs almost nothing after dictionary encoding.
+  Parquet column, dictionary encoding stores one entry per release.
 - The label, data type, and balance of an element are not on the fact. They live once per release
   in a reference table, from `Taxonomy::elements()`.
 
@@ -512,9 +534,10 @@ year. `core/period/q4-from-fy@1` derives Q4 = FY − 9-month YTD, which is the s
 FY − Q1 − Q2 − Q3. The YTD form also works for the cash flow statement, which a 10-Q reports as
 year-to-date only. The result has confidence `Derived`.
 
-- Both inputs come from one fiscal year, after dedup.
-- If the FY value is a restatement and the YTD value is not, the result mixes two versions. The
-  rule then sets `restated`, and chronology reports it.
+- The rule applies only to monetary duration concepts with no per-share unit. EPS, share counts,
+  and ratios get no Q4 derivation, because they do not add over periods.
+- Both inputs come from one fiscal year, after `core/dedup/newest-filing@1`.
+- If a later filing restated an input, the rule sets `restated`, and chronology reports it.
 - A separate level for period derivations was the alternative. It changes every consumer filter,
   and its order against `Derived` and `Computed` is not clear. The rule ID already tells the two
   apart.
@@ -530,7 +553,7 @@ Check:  Operating CF + Investing CF + Financing CF ≈ ΔCash
 ```
 
 A validation failure with all Tier 1 values = the company filed inconsistent data.
-A validation failure with Tier 3 values = your derivation logic has a bug.
+A validation failure with Tier 3 or 4 values = your derivation logic has a bug.
 
 ### The Key Insight
 
@@ -560,13 +583,24 @@ Mode 2 = Validate         (verify all edges hold)
 
 ### Dedup Rules
 
-The as-is layer keeps every copy of every fact. The standardized layer applies two rules, in this
-order:
+The as-is layer keeps every copy of every fact. The standardized layer applies two rules:
 
 | Rule ID | Scope | Rule |
 | ------- | ----- | ---- |
-| `core/dedup/more-precise@1` | Copies of one fact in one filing: the same value key except `copy_rank` | Take `copy_rank` 0, the copy with the highest precision |
-| `core/dedup/newest-filing@1` | One fact across filings: the same entity, concept, period, unit, and dimensions | Take the value of the filing with the latest `accepted`, then the latest `filed`, then the highest filing ID |
+| `core/dedup/more-precise@1` | Facts of one filing with the same value key except `copy_rank`, whose values agree within the precision of the less precise copy | Take `copy_rank` 0, the copy with the highest precision |
+| `core/dedup/newest-filing@1` | One standard concept across filings: the same entity, standard concept, period, unit, and dimensions | Take the value of the filing with the latest `filed`, then the latest `accepted` if both filings have it, then the highest filing ID |
+
+If two ranks of one key disagree beyond that precision, they are two facts.
+`core/dedup/more-precise@1` keeps both, and chronology reports a `Conflict` finding. Resolution
+then takes neither of them.
+
+The order of resolution and dedup, per entity and period:
+
+1. `core/dedup/more-precise@1` on the as-is facts of each filing.
+2. Tiers 1 and 2 on each filing: at most one candidate per standard concept and filing.
+3. `core/dedup/newest-filing@1` across filings, on the standard concept. A newer filing wins over
+   the alias order, so a restatement under a renamed concept wins.
+4. Tiers 3 and 4 on the values that remain.
 
 - An amendment is filed later than its original, so `core/dedup/newest-filing@1` covers it.
 - A point-in-time read "as of D" applies the same two rules to the filings accepted (or filed) on
@@ -596,7 +630,7 @@ It never fails.
   delisting makes no gap.
 - **A change of fiscal year** shows as a new fiscal year end in `Filing`. A gap or a short period
   next to it gets the reason `FiscalYearChange`.
-- **A finding** has a kind (`Gap`, `Overlap`, `Restatement`), the entity, the concept, the periods,
+- **A finding** has a kind (`Gap`, `Overlap`, `Restatement`, `Conflict`), the entity, the concept, the periods,
   and a reason if one is known. The check returns the findings next to the series. A finding is
   not an error type.
 
@@ -621,7 +655,7 @@ Specific checks include:
 
 ### Precision Threshold
 
-For values computed by the resolution engine (Tier 2/3 derivations), precision must be exactly 100% — our math must be exact.
+For values computed by the resolution engine (Tiers 3 and 4), precision must be exactly 100% — our math must be exact.
 
 When cross-checking a company's own reported values (e.g., their reported `Assets` vs the sum of their reported `AssetsCurrent + AssetsNoncurrent`), allow a small tolerance. Companies report in thousands or millions, introducing ±1 rounding differences. Threshold: ±0.1% of the parent value.
 
@@ -787,7 +821,7 @@ impl Invariant {
 SFAC 6 gives top-level identities. A useful financial dataset needs the breakdown beneath them.
 
 **Level 1 — SFAC 6 backbone:**
-Assets, Liabilities, Equity, Revenue, Expenses, Net Income, Operating CF, Investing CF, Financing CF
+Assets, Liabilities, Equity, Revenue, Expenses, Gains, Losses, Net Income, Other Comprehensive Income, Comprehensive Income, Operating CF, Investing CF, Financing CF
 
 **Level 2 — Key sub-elements:**
 
@@ -819,7 +853,7 @@ Cash Flow:
 
 These are all standard base taxonomy concepts. The same FASB calculation linkbase defines how they sum into the SFAC 6 parents. The SEC JSON API reports them — verified with Apple and Alphabet data.
 
-The model stays the same — just more nodes in the graph. Each sub-element gets the same tiered resolution (direct -> synonym -> derived).
+The model stays the same — just more nodes in the graph. Each sub-element gets the same tiered resolution (exact -> synonym -> derived -> computed).
 
 ---
 
@@ -827,7 +861,7 @@ The model stays the same — just more nodes in the graph. Each sub-element gets
 
 ### Resolved
 
-**Fact sets** — One entity and one period form one fact set. The parser emits as-is facts. Resolution groups them into fact sets after dedup and fills one standardized fact per standard concept.
+**Fact sets** — One entity and one period form one fact set. The parser emits as-is facts. Resolution groups them into fact sets in the order of "Dedup Rules" and fills one standardized fact per standard concept.
 
 **Roll-ups** — Not a parsing concern. The parser emits flat as-is facts. The tree structure is in `xbrl::us_gaap::taxonomy` and applied during resolution.
 
