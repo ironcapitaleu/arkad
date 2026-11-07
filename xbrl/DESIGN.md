@@ -307,37 +307,51 @@ file fails at run time).
   presentation, and definition linkbases of three statement groups (classified balance sheet,
   income statement, indirect cash flow).
 - Missing for the reference data: the element schema `us-gaap-2026.xsd` (data type, balance,
-  period type), the other statement groups, and the `dei` and `srt` taxonomies.
+  period type), the FASB list of retired elements with the schemas it needs (see "Releases Over
+  Time"), the other statement groups, and the `dei` and `srt` taxonomies.
 - The crate cannot build from the skill folder. The files move to `xbrl/taxonomy/us-gaap/2026/`.
 
 ### Releases Over Time
 
-A taxonomy changes in two ways, and the design handles each one apart:
+A taxonomy changes in two ways, and the design handles each one separately:
 
 - **Renamed or retired concepts.** The as-is fact keeps the concept and the `taxonomy_version` of
   its filing. The alias lists of a plug-in map the old and the new names to one standard concept,
   so an alias list spans releases. Our own concept set does not change with a release.
 - **A new release each year.** It gets its own folder, `xbrl/taxonomy/us-gaap/<year>/`. The
   generator rebuilds the tables, the PR shows the changed arcs and labels, and the release ID and
-  checksum change. A rule whose result changes gets a new version. The standardized layer is built
-  again from the as-is layer, with no new download and no new parse.
+  checksum change. A new release changes the release ID on each fact, not the rule version. A rule
+  version goes up only when we change the rule itself. The standardized layer is built again from
+  the as-is layer, with no new download and no new parse.
 
 Which release resolves an old filing (decided by the owner on 2026-11-07):
 
 | Option | Pro | Con |
 | ------ | --- | --- |
 | A. The newest release only | One set of tables | Retired concepts have no reference data. Old filings use today's tree |
-| B. Every release, picked by the `taxonomy_version` of the filing | Exact for every filing | About 15 releases to vendor and generate |
+| B. Every release, picked by the `taxonomy_version` of the filing | Exact for every filing | 18 yearly releases (2009 to 2026) to vendor and generate |
 | C. The newest release, plus the FASB list of retired elements (chosen for the MVP) | Retired concepts get their reference data | Old filings use today's tree |
 
 - B and C differ only in tier 4, the sums along the calculation tree. Tiers 1 to 3 do not use the
   tree.
 - Where a tree changed, mostly with a new standard such as revenue in 2018 or leases in 2019, the
-  newest tree names concepts that an old filing does not use. So C mostly gives no tier 4 value for
-  that filing, and rarely a wrong one.
+  newest tree names concepts that an old filing does not use. So C gives no tier 4 value for most
+  such filings. The share of wrong values is not measured.
 - The difference is not measured. Measure it once the transform produces standardized facts. If it
   matters, move to B. B adds release folders and needs no change to the design, because each fact
   names its release.
+
+How option C gets the reference data of a retired element:
+
+- The FASB list of retired elements names each element and the release that retired it.
+- The data type, balance, and period type of a retired element come from the element schema of
+  the last release that defined it. Only these schemas are vendored, not their trees.
+- The list and the schemas sit in `xbrl/taxonomy/us-gaap/2026/retired/`, so the `MANIFEST` and the
+  checksum of the release cover them.
+- `elements()` returns the elements of the release and the retired elements. Each
+  `ElementReference` names the release it comes from.
+- Which fields the FASB list holds is not checked yet. The ticket that vendors the release checks
+  it.
 
 ### `us_gaap`
 
@@ -391,9 +405,14 @@ AsIsFact {
 ```
 
 - `Period` says whether a fact is an instant or a duration, so no separate period type field
-  exists. A duration holds its length in quarters, because the Notes data set gives the length
-  but often no exact start. The element reference data holds the period type that the taxonomy
-  declares. Validation checks that the two agree.
+  exists.
+- A duration holds its length in quarters, because the Notes data set gives the length but often
+  no exact start. The instance parser computes it as `round(days(end - start) / 91.3125)`, the
+  rule that matched `qtrs` on the 622 filings of the Notes against instance comparison. If `start`
+  is set, the constructor of `Period` computes `quarters` from it, so the two cannot disagree.
+- The element reference data holds the period type that the taxonomy declares. If the plug-in has
+  reference data for the concept, validation compares the two. A mismatch gives a finding and
+  keeps the fact. A concept with no reference data, such as an extension concept, skips the check.
 - `filed` and `accepted` are on every fact, because a point-in-time read filters on them. The Notes
   data set gives `accepted` to the minute. The new-filing path gives `filed` only.
 - `FilingId` uses the same text as `source_ref` in the storage design, for example
@@ -1005,7 +1024,7 @@ The model stays the same — just more nodes in the graph. Each sub-element gets
 
 **Roll-ups** — Not a parsing concern. The parser emits flat as-is facts. The tree structure is in `xbrl::us_gaap::taxonomy` and applied during resolution.
 
-**Period vs point-in-time** — Solved at parse time by the `Period` type. Every as-is fact carries `Instant(date)` or `Duration(start, end)`.
+**Period vs point-in-time** — Solved at parse time by the `Period` type. Every as-is fact carries `Instant { end }` or `Duration { start: Option, end, quarters }`.
 
 **Member aggregations / segments** — The SEC JSON APIs serve only consolidated, undimensioned facts of standard taxonomies. The Notes data set and the instance XML carry dimensions and extension concepts. `AsIsFact` holds both, so one fact model covers every source. The standardized layer uses facts with no dimensions in the MVP.
 
