@@ -94,6 +94,7 @@ flowchart LR
   F -. implements .-> T
   T --> R --> RES
   A --> D1 --> RES --> D2 --> DER --> S
+  D1 -. Conflict .-> C
   T --> DER
   S --> V
   S --> C
@@ -462,7 +463,7 @@ StandardizedFact {
     rule:        RuleId            // "us-gaap/alias/revenue@1"
     release:     TaxonomyRelease   // ID and checksum
     inputs:      Vec<FactKey>      // the value keys of the as-is facts it came from
-    restated:    bool              // a later filing replaced the value, or an input, with another value
+    restated:    bool              // an earlier filing reported another value for this value or an input
 }
 ```
 
@@ -537,7 +538,7 @@ year-to-date only. The result has confidence `Derived`.
 - The rule applies only to monetary duration concepts with no per-share unit. EPS, share counts,
   and ratios get no Q4 derivation, because they do not add over periods.
 - Both inputs come from one fiscal year, after `core/dedup/newest-filing@1`.
-- If a later filing restated an input, the rule sets `restated`, and chronology reports it.
+- If an input has `restated`, the Q4 value has `restated` too, and chronology reports it.
 - A separate level for period derivations was the alternative. It changes every consumer filter,
   and its order against `Derived` and `Computed` is not clear. The rule ID already tells the two
   apart.
@@ -588,13 +589,19 @@ The as-is layer keeps every copy of every fact. The standardized layer applies t
 | Rule ID | Scope | Rule |
 | ------- | ----- | ---- |
 | `core/dedup/more-precise@1` | Facts of one filing with the same value key except `copy_rank`, whose values agree within the precision of the less precise copy | Take `copy_rank` 0, the copy with the highest precision |
-| `core/dedup/newest-filing@1` | One standard concept across filings: the same entity, standard concept, period, unit, and dimensions | Take the value of the filing with the latest `filed`, then the latest `accepted` if both filings have it, then the highest filing ID |
+| `core/dedup/newest-filing@1` | One standard concept across filings: the same entity, standard concept, exact period end, length in quarters, unit, and dimensions | Take the value of the filing with the latest `filed`, then the latest `accepted` if both filings have it, then the highest filing ID. The filing ID gives a fixed order, not a time order |
 
 If two ranks of one key disagree beyond that precision, they are two facts.
-`core/dedup/more-precise@1` keeps both, and chronology reports a `Conflict` finding. Resolution
-then takes neither of them.
+`core/dedup/more-precise@1` keeps both and returns a `Conflict` finding to chronology. The standard
+concept then has no value for that entity and period. Step 3 does not fall back to an older
+filing, because the newer filing can hold the restatement.
 
-The order of resolution and dedup, per entity and period:
+- If either copy has no `decimals`, as with `sec_api` facts, the values agree only if they are
+  equal.
+- For `sec_api` facts, rank 0 is the first copy in the JSON, not the most precise one.
+
+The order of resolution and dedup, per entity and period. A period here is an exact period end
+and a length in quarters, as in the value key, because the Notes data set has no exact start:
 
 1. `core/dedup/more-precise@1` on the as-is facts of each filing.
 2. Tiers 1 and 2 on each filing: at most one candidate per standard concept and filing.
