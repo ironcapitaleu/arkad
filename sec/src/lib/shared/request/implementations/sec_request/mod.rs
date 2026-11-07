@@ -10,13 +10,12 @@
 //! - [`builder`]: The [`SecRequestBuilder`] for constructing requests fluently.
 //! - [`constants`]: The endpoint URL fragments.
 //! - [`kind`]: The [`RequestKind`] trait and the [`CompanyFacts`], [`NotesFile`],
-//!   [`NotesFileProbe`], [`DailyIndex`],
-//!   [`DailyIndexListing`], [`Submissions`], [`FilingIndex`], [`FilingDocument`], and
-//!   [`FilingDocumentSet`] kinds.
+//!   [`NotesFileProbe`], [`DailyIndex`], [`DailyIndexListing`], [`Submissions`], [`FilingIndex`],
+//!   [`FilingDocument`], and [`FilingDocumentSet`] kinds.
 
 use std::marker::PhantomData;
 
-use reqwest::{Method, Request, Url};
+use reqwest::{Request, Url};
 use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
 
@@ -49,8 +48,8 @@ use constants::{
 ///
 /// - [`CompanyFacts`], the default: built from a [`Cik`].
 /// - [`NotesFile`]: built from a [`NotesPeriod`].
-/// - [`NotesFileProbe`]: built from a [`NotesPeriod`]. It is a `HEAD` request. Every other kind
-///   is a `GET` request.
+/// - [`NotesFileProbe`]: built from a [`NotesPeriod`]. It is a `HEAD` request, set by
+///   [`RequestKind::METHOD`]. Every other kind is a `GET` request.
 /// - [`DailyIndex`] and [`DailyIndexListing`]: built from an [`IndexDate`].
 /// - [`Submissions`]: built from a [`Cik`].
 /// - [`FilingIndex`]: built from a [`FilingRef`].
@@ -141,13 +140,7 @@ impl<K: RequestKind> SecRequestTrait for SecRequest<K> {
     /// let _request = SecRequest::<NotesFile>::new(cik);
     /// ```
     fn new(request_input: Self::RequestInput) -> Self {
-        let request_type = K::request_type(request_input.clone());
-        let method = if matches!(request_type, SecRequestType::ProbeNotesFile { .. }) {
-            Method::HEAD
-        } else {
-            Method::GET
-        };
-        let url = match request_type {
+        let url = match K::request_type(request_input.clone()) {
             SecRequestType::FetchAllCompanyFacts { cik } => {
                 format!("{SEC_COMPANY_FACTS_URL_PREFIX}{cik}{SEC_COMPANY_FACTS_URL_SUFFIX}")
             }
@@ -178,7 +171,7 @@ impl<K: RequestKind> SecRequestTrait for SecRequest<K> {
             }
         };
         let request = Request::new(
-            method,
+            K::METHOD,
             Url::parse(&url)
                 .expect("A hardcoded URL prefix joined with a validated input should always parse"),
         );

@@ -733,7 +733,8 @@ The `RespondsWith` trait on the client side maps each SEC endpoint to its body k
 every client. `CompanyFacts`, `DailyIndexListing`, `Submissions`, and `FilingIndex` have
 `Body = JsonBody`.
 `NotesFile` and `DailyIndex` have `Body = ZipBody`. `NotesFileProbe` sends a `HEAD` request
-to the URL of a Notes file and has `Body = ZipHeadBody`: the checks of `ZipBody`, and no body. This
+to the URL of a Notes file and has `Body = ZipHeadBody`. `ZipHeadBody` checks the status and the
+content type like `ZipBody`, and skips the length check. This
 keeps `shared::request` independent of `shared::response`.
 
 The `SecClient` trait has one method for every endpoint. Its default body waits on the rate limiter,
