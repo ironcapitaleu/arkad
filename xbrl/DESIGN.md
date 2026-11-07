@@ -661,6 +661,72 @@ It never fails.
 
 ---
 
+## 4a) Transform Integration
+
+The `xbrl` crate holds the types and the rules. The transform runs them as states of the state
+machine. This section gives the proposed shape and lists what the transform design must decide.
+
+### Proposed Shape
+
+```mermaid
+flowchart LR
+  RAW[Raw document] --> PN[Parse Notes filing]
+  RAW --> PI[Parse instance filing]
+  PN -- "into(): AsIsFact, Filing" --> SF[Standardize filing]
+  PI -- "into(): AsIsFact, Filing" --> SF
+  PN --> AS[(Silver: as-is)]
+  PI --> AS
+  SF -- "candidates, Conflict findings" --> CS[(Silver: candidates)]
+  CS --> SE[Standardize series]
+  SE --> ST[(Silver: standardized, findings)]
+```
+
+- **One state per step, one filing per run.** A parse state reads one raw document and outputs
+  `Vec<AsIsFact>` and one `Filing`. The standardize state takes that output as its input.
+- **The transition only moves data.** `From<ParseOutput> for StandardizeInput` hands over the as-is
+  facts, as the existing transitions of the `sec` crate do. Parsing and resolution run in
+  `compute_output_data` of their state, because they can fail and they return findings. `From`
+  cannot fail.
+- **As-is is an output of its own.** The parse output goes to the as-is layer before
+  standardization starts. A replay of a rule starts from the as-is layer and needs no parse.
+- **The registry comes in through the context.** The standardize state reads its plug-ins from a
+  static registry. The state does not name a taxonomy.
+
+The order of "Dedup Rules" splits the work at the filing boundary:
+
+| Steps | Needs | Runs in |
+| ----- | ----- | ------- |
+| 1. `core/dedup/more-precise@1`, 2. tiers 1 and 2 | One filing | The standardize filing state |
+| 3. `core/dedup/newest-filing@1`, 4. tiers 3 and 4, chronology | Every filing of one entity | A series step over the stored candidates |
+
+So the standardize filing state outputs candidates, not final standardized facts.
+
+### Decisions for the Transform Design
+
+Parsers:
+
+- How the Notes parser splits a Notes file into filings, and how it streams a file larger than
+  the memory of one task.
+- How the instance parser picks the main instance and skips the filing-fee exhibit.
+- How each parser fills the value key: the exact end from `ddate` and `datp`, the copy rank from
+  `iprx` or the SEC order, dimension pairs without prefixes, and the legal entity axis from `coreg`.
+- How the Notes parser restores `/shares` on per-share units and drops duplicate rows.
+- A test that runs both parsers on filings in both sources and compares their as-is facts.
+
+States and errors:
+
+- The names of the states, their inputs, outputs, and contexts, and the super-state around them.
+- The error types of each state, in the format of `AGENTS.md`, "Error Display Format".
+- Where the ingestion provenance joins each as-is fact.
+
+Series step:
+
+- Whether the series step runs as a state per entity, as a batch over silver, or in gold.
+- Which filings trigger a new run of the series step for an entity.
+- Where the `Conflict`, `Gap`, `Overlap`, and `Restatement` findings are stored.
+
+---
+
 ## 5) Validation
 
 Data quality checks to validate that parsed data makes sense.
