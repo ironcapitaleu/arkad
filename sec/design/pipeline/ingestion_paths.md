@@ -648,9 +648,9 @@ quarter) or a month (year and month).
   `HEAD` request for the quarterly file (`NotesFileProbe`), at most 8 per run. On 200, the list
   holds the quarter. On 404, it holds the three months. A transient failure, such as 503, gets the
   retries of the downloads (`retry_while` in `extraction/retry.rs`), and `on_retry` gets the
-  quarter and the error. Any other answer, 403 included, fails the run with `FailedNotesProbe`,
-  because a 403 can mean that the SEC refused the request (`FailedSecRequest::is_not_found` counts
-  only 404). The months of the quarter that has not ended follow, up to the month of `through`.
+  quarter and the error. Any other answer, 403 included, fails the run with `FailedNotesProbe`. A
+  403 can mean that the SEC refused the request, so `FailedSecRequest::is_not_found` counts only
+  404. The months of the quarter that has not ended follow, up to the month of `through`.
 - `notes_periods(sec_client, today, on_retry)` in `sec/src/bin/shared/notes_periods.rs` calls it
   with the month before today and `DEFAULT_RETRY_DELAYS`. `backfill` logs each retry as
   `batch_notes_probe_retried`, with the quarter. A monthly file that the store holds but whose quarter the SEC has merged is
@@ -696,10 +696,12 @@ overrides. The run reads no page, so it cannot find a new name by itself.
 
 ### Request
 
-- `SecRequestType` gets a second variant next to `FetchAllCompanyFacts { cik }`:
-  `FetchNotesFile { period: NotesPeriod }`.
-- The builder gets the same typestate pattern. `notes_file()` returns `NotesFileBuilder<NoPeriod>`.
-  `.period(p)` returns `NotesFileBuilder<NotesPeriod>`. Only that type has `build()`.
+- `SecRequestType` gets two variants next to `FetchAllCompanyFacts { cik }`:
+  `FetchNotesFile { period: NotesPeriod }` and `ProbeNotesFile { period: NotesPeriod }`. The
+  probe has the URL of the Notes file and sends `HEAD`. See "Download".
+- The builder gets the same typestate pattern. `notes_file()` returns `NotesFileBuilder<NoPeriod>`,
+  and `notes_file_probe()` returns `NotesFileBuilder<NoPeriod, NotesFileProbe>`. `.period(p)` sets
+  the period. Only a builder with a period has `build()`.
 - The request carries its kind: `SecRequest<K: RequestKind = CompanyFacts>`. The kind names the
   input and builds the `SecRequestType`:
 
@@ -712,9 +714,10 @@ overrides. The run reads no page, so it cannot find a new name by itself.
   }
   ```
 
-  - `CompanyFacts` has `Input = Cik`. `NotesFile` has `Input = NotesPeriod`.
+  - `CompanyFacts` has `Input = Cik`. `NotesFile` and `NotesFileProbe` have `Input = NotesPeriod`.
   - The builder sets the kind. `.all_company_facts().cik(c).build()` returns
-    `SecRequest<CompanyFacts>`, and `.notes_file().period(p).build()` returns `SecRequest<NotesFile>`.
+    `SecRequest<CompanyFacts>`, `.notes_file().period(p).build()` returns `SecRequest<NotesFile>`,
+    and `.notes_file_probe().period(p).build()` returns `SecRequest<NotesFileProbe>`.
   - Generic code builds a request without the builder: `SecRequest::<K>::new(input)`, with
     `input: K::Input`. A wrong input does not compile.
   - The request knows nothing about responses. The client maps each request kind, an SEC
