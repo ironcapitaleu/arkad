@@ -5,9 +5,9 @@
 //! The SEC publishes one Notes file per quarter from 2009q1 on. For the latest quarters, it
 //! publishes one file per month instead, and about a year after the quarter ends it merges the
 //! three monthly files into one quarterly file. A [`NotesPeriod`] holds a quarter or a month from
-//! 2009 on, and gives the SEC file name of the period. The SEC page that links the Notes files
-//! says which periods exist now, see
-//! [`NotesFileList`](crate::shared::notes_file_list::NotesFileList).
+//! 2009 on, and gives the SEC file name of the period.
+//! [`published_periods`](fn@crate::implementations::extraction::published_periods) asks the SEC
+//! which periods exist now.
 //!
 //! ## Modules
 //!
@@ -41,7 +41,7 @@ use constants::{FILE_NAME_SUFFIX, FIRST_YEAR};
 ///
 /// Values are only produced through [`NotesPeriod::new`] (or the [`TryFrom`] impl). A period has
 /// no upper limit, so a period after the latest published file also parses. The type does not
-/// check whether the SEC publishes a file for the period. The SEC page says that.
+/// check whether the SEC publishes a file for the period.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct NotesPeriod {
     year: Year,

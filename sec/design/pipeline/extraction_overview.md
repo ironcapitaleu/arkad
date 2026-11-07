@@ -198,7 +198,7 @@ flowchart LR
     classDef daily fill:#fff2cc,stroke:#bf9000
     classDef cut fill:#f8cecc,stroke:#b85450
 
-    Q["Notes files<br/>listed on the SEC page"]:::notes --> M["Cut at last month"]:::notes
+    Q["Notes quarters<br/>HEAD request for each recent one"]:::notes --> M["Notes months<br/>up to last month"]:::notes
     M --> C["Cut-over date<br/>last day of the newest<br/>stored Notes month"]:::cut
     C --> K["backfill, part 2<br/>daily indexes from the<br/>cut-over date to yesterday"]:::daily
     K --> W["daily_filings, each day<br/>yesterday-3 to yesterday"]:::daily
@@ -206,10 +206,11 @@ flowchart LR
 
 ### Backfill, Part 1: Notes Files
 
-- The run reads its periods from the SEC data-sets page: the quarters, then the months that the SEC
-  has not merged into a quarter yet.
-- The run asks for every listed period up to last month. On 2026-11-07 this is 80 periods.
-- Early in a month the page does not list last month yet, so the run stops at the month before.
+- The run asks the SEC with a `HEAD` request whether each recent quarterly file exists. The list
+  holds the quarters, then the months that the SEC has not merged into a quarter yet.
+- The run asks for every period up to last month. On 2026-11-07 this is 80 periods.
+- Early in a month the SEC has not posted last month yet. The run then counts that period as
+  unpublished, and stores everything before it.
 - The run skips each period whose stored file passes the size and SHA-256 check.
 
 ### The Cut-Over Date
@@ -296,8 +297,8 @@ lets a check reconcile one company against its stored filings.
 
 #### Notes ZIP
 
-1. Key: a `NotesPeriod`, for example `2024q1` or `2025_10`. The period list comes from the SEC
-   data-sets page, cut at last month.
+1. Key: a `NotesPeriod`, for example `2024q1` or `2025_10`. The period list comes from a `HEAD`
+   request for each recent quarter, cut at last month.
 2. Request: one GET for the whole file. At most 2 files download at once, set by
    `ARKAD_FILES_IN_FLIGHT`.
 3. Response: a ZIP with ten members: eight tables (`sub`, `tag`, `dim`, `num`, `txt`, `ren`, `pre`,
@@ -629,7 +630,7 @@ A full check has two parts:
 
 | Source | SEC list | Requests |
 | ------ | -------- | -------- |
-| Notes files | The SEC data-sets page, plus a header-only request per file for its size and last-modified date. This finds files the SEC replaced | About 80 |
+| Notes files | A `HEAD` request per expected file for its size and last-modified date. This finds files the SEC replaced | About 80 |
 | Daily indexes | The quarter listing `index.json` | 1 per quarter |
 | Filings after the cut-over | The full index `form.idx` against the stored accession numbers | 1 per quarter |
 | `submissions` | The CIKs of the stored filings against the stored `submissions` files | 0 |

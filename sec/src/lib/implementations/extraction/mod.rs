@@ -219,8 +219,8 @@ pub use daily_filings::{
     DailyRunSummary, FailedDailyRun, IncrementalDailyFilings, PENDING_DAYS,
 };
 pub use notes::{
-    BackfillNotes, DEFAULT_FILES_IN_FLIGHT, FailedBackfill, MAX_UNPUBLISHED, MissingCutOverDate,
-    NotesBatchBuilder, NotesRunSummary,
+    BackfillNotes, DEFAULT_FILES_IN_FLIGHT, FailedBackfill, FailedNotesProbe, MAX_UNPUBLISHED,
+    MissingCutOverDate, NotesBatchBuilder, NotesRunSummary, published_periods,
 };
 pub use retry::DEFAULT_RETRY_DELAYS;
 pub use run_event::{ErrorKind, RunEvent, Unit};
