@@ -310,6 +310,35 @@ file fails at run time).
   period type), the other statement groups, and the `dei` and `srt` taxonomies.
 - The crate cannot build from the skill folder. The files move to `xbrl/taxonomy/us-gaap/2026/`.
 
+### Releases Over Time
+
+A taxonomy changes in two ways, and the design handles each one apart:
+
+- **Renamed or retired concepts.** The as-is fact keeps the concept and the `taxonomy_version` of
+  its filing. The alias lists of a plug-in map the old and the new names to one standard concept,
+  so an alias list spans releases. Our own concept set does not change with a release.
+- **A new release each year.** It gets its own folder, `xbrl/taxonomy/us-gaap/<year>/`. The
+  generator rebuilds the tables, the PR shows the changed arcs and labels, and the release ID and
+  checksum change. A rule whose result changes gets a new version. The standardized layer is built
+  again from the as-is layer, with no new download and no new parse.
+
+Which release resolves an old filing (decided by the owner on 2026-11-07):
+
+| Option | Pro | Con |
+| ------ | --- | --- |
+| A. The newest release only | One set of tables | Retired concepts have no reference data. Old filings use today's tree |
+| B. Every release, picked by the `taxonomy_version` of the filing | Exact for every filing | About 15 releases to vendor and generate |
+| C. The newest release, plus the FASB list of retired elements (chosen for the MVP) | Retired concepts get their reference data | Old filings use today's tree |
+
+- B and C differ only in tier 4, the sums along the calculation tree. Tiers 1 to 3 do not use the
+  tree.
+- Where a tree changed, mostly with a new standard such as revenue in 2018 or leases in 2019, the
+  newest tree names concepts that an old filing does not use. So C mostly gives no tier 4 value for
+  that filing, and rarely a wrong one.
+- The difference is not measured. Measure it once the transform produces standardized facts. If it
+  matters, move to B. B adds release folders and needs no change to the design, because each fact
+  names its release.
+
 ### `us_gaap`
 
 - Owns the namespaces `us-gaap` and `srt`. For the MVP it also owns `dei`.
