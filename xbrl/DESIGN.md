@@ -378,7 +378,7 @@ AsIsFact {
     entity:            EntityId          // XBRL entity identifier: scheme and id (CIK, LEI)
     concept:           ConceptName       // namespace and local name
     taxonomy_version:  Option<TaxonomyVersion> // "us-gaap/2026", the filing for an extension, None from sec_api
-    period:            Period            // Instant(end) | Duration(start: Option, end)
+    period:            Period            // Instant { end } | Duration { start: Option, end, quarters }
     unit:              Option<Unit>      // None for text
     dimensions:        Dimensions        // sorted axis and member pairs, legal entity axis included
     value:             FactValue         // Numeric(Decimal) | Text(String) | Nil
@@ -390,6 +390,10 @@ AsIsFact {
 }
 ```
 
+- `Period` says whether a fact is an instant or a duration, so no separate period type field
+  exists. A duration holds its length in quarters, because the Notes data set gives the length
+  but often no exact start. The element reference data holds the period type that the taxonomy
+  declares. Validation checks that the two agree.
 - `filed` and `accepted` are on every fact, because a point-in-time read filters on them. The Notes
   data set gives `accepted` to the minute. The new-filing path gives `filed` only.
 - `FilingId` uses the same text as `source_ref` in the storage design, for example
@@ -438,7 +442,8 @@ section 4.
 
 ### `Filing`
 
-One `Filing` per filing: `FilingId`, `EntityId`, form as open text (`10-K/A`), `is_amendment`,
+`Filing` is a struct, and `FilingId` is a value type that holds a source and an ID, for example
+`sec:0000320193-26-000001`. Neither is a trait. One `Filing` per filing: `FilingId`, `EntityId`, form as open text (`10-K/A`), `is_amendment`,
 `filed`, `accepted`, the period of report, the fiscal year and period as filed, and the company
 attributes as filed: name, SIC, ticker, exchange, fiscal year end. A later filing with another
 value is a change over time, not a conflict.
