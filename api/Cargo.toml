@@ -32,6 +32,7 @@ tracing-appender = "0.2"
 tracing-subscriber = "0.3"
 utoipa = "6"
 utoipa-axum = "0.3"
+utoipa-swagger-ui = { version = "10", features = ["axum", "vendored"] }
 uuid = { version = "1.23.2", features = ["v7"] }
 xbrl = { version = "0.1.0", path = "../xbrl" }
 

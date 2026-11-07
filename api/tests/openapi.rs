@@ -14,6 +14,7 @@
 use std::env;
 use std::fs;
 
+use api::config::InternalDocs;
 use axum::body::Body;
 use axum::http::Request;
 use http_body_util::BodyExt;
@@ -85,7 +86,7 @@ async fn should_serve_the_generated_spec_for_openapi_json_request() {
     let expected_result: Value = serde_json::from_str(&generated_spec())
         .expect("Given the JSON text of the spec, parsing it should always succeed");
 
-    let response = api::router()
+    let response = api::router(InternalDocs::Disabled)
         .oneshot(request)
         .await
         .expect("Given the router's infallible service, calling it should always succeed");

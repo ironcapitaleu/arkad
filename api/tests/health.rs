@@ -1,3 +1,4 @@
+use api::config::InternalDocs;
 use axum::body::Body;
 use axum::http::{Request, StatusCode, header};
 use axum::response::Response;
@@ -10,7 +11,7 @@ async fn get_health() -> Response {
     let request = Request::get("/health")
         .body(Body::empty())
         .expect("Given a hardcoded method and path, building the request should always succeed");
-    api::router()
+    api::router(InternalDocs::Disabled)
         .oneshot(request)
         .await
         .expect("Given the router's infallible service, calling it should always succeed")
