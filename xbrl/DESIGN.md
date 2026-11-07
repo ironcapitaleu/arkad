@@ -612,12 +612,14 @@ and a length in quarters, as in the value key, because the Notes data set has no
 `core/dedup/more-precise@1` keeps all ranks and returns a `Conflict` finding to chronology. The
 finding names the as-is concept, and the standard concept if a plug-in maps it.
 
-- If tiers 1 and 2 would pick the conflicting concept, that filing gives no candidate for the
-  standard concept. A conflict on a lower alias, or on a concept no plug-in maps, blocks nothing.
-- If that filing is the newest one with the period, step 3 takes no value. It does not fall back
-  to an older filing, because the newer filing can hold the restatement. Step 4 derives no value
-  for the blocked concept.
-- A conflict in an older filing blocks nothing, because step 3 takes the newer filing.
+- If tiers 1 and 2 would pick the conflicting concept, that filing gives a blocked candidate for
+  the standard concept. A conflict on a lower alias, or on a concept no plug-in maps, blocks
+  nothing.
+- Step 3 ranks a blocked candidate with the others. If it wins, the standard concept has no value
+  for that entity and period. Step 3 does not fall back to an older filing, because the newer
+  filing can hold the restatement. Step 4 derives no value for the blocked concept.
+- If a newer filing has a candidate for the standard concept, that candidate wins, and the older
+  conflict blocks nothing.
 
 Other cases:
 
@@ -649,9 +651,11 @@ It never fails.
   delisting makes no gap.
 - **A change of fiscal year** shows as a new fiscal year end in `Filing`. A gap or a short period
   next to it gets the reason `FiscalYearChange`.
-- **A finding** has a kind (`Gap`, `Overlap`, `Restatement`, `Conflict`), the entity, the concept, the periods,
-  and a reason if one is known. The check returns the findings next to the series. A finding is
+- **A finding** has a kind (`Gap`, `Overlap`, `Restatement`, `Conflict`), the entity, the
+  concept or concepts (see "Conflict"), the periods, and a reason if one is known. A finding is
   not an error type.
+- **Report:** chronology returns its own findings next to the series, together with the
+  `Restatement` and `Conflict` findings of the dedup rules.
 
 ---
 
