@@ -654,8 +654,10 @@ It never fails.
 - **A finding** has a kind (`Gap`, `Overlap`, `Restatement`, `Conflict`), the entity, the
   concept or concepts (see "Conflict"), the periods, and a reason if one is known. A finding is
   not an error type.
-- **Report:** chronology returns its own findings next to the series, together with the
-  `Restatement` and `Conflict` findings of the dedup rules.
+- **Report:** chronology returns its own `Gap`, `Overlap`, and `Restatement` findings next to the
+  series, together with the `Conflict` findings of `core/dedup/more-precise@1`. Chronology derives
+  `Restatement` from the `restated` flag of `StandardizedFact`.
+- **A blocked period** (see "Conflict") has no value, so it is a gap with the reason `Conflict`.
 
 ---
 
