@@ -10,6 +10,7 @@
 use std::fmt::{Debug, Display};
 use std::hash::Hash;
 
+use reqwest::Method;
 use serde::Serialize;
 
 use crate::shared::cik::Cik;
@@ -31,10 +32,14 @@ use super::SecRequestType;
 /// [`SecRequestType`] it builds from that input.
 ///
 /// A new kind implements this trait, adds an [`SecRequestType`] variant, and adds the URL of that
-/// variant in [`SecRequest::new`](crate::shared::request::SecRequest::new).
+/// variant in [`SecRequest::new`](crate::shared::request::SecRequest::new). A kind that does not
+/// send `GET` sets [`METHOD`](Self::METHOD).
 pub trait RequestKind: Debug + Clone + Eq + Ord + Hash + Send + Sync + Unpin {
     /// The domain input of the request, for example a [`Cik`].
     type Input: Debug + Display + Clone + Eq + Ord + Hash + Serialize + Send + Sync + Unpin;
+
+    /// The HTTP method of the request. The default is `GET`.
+    const METHOD: Method = Method::GET;
 
     /// The name of the input in serialized data, for example `cik`.
     const INPUT_NAME: &'static str;
@@ -73,6 +78,25 @@ impl RequestKind for NotesFile {
 
     fn request_type(period: NotesPeriod) -> SecRequestType {
         SecRequestType::FetchNotesFile { period }
+    }
+}
+
+/// The kind of a `HEAD` request that asks whether the Notes file of one period exists.
+///
+/// The request has the URL of a [`NotesFile`] request, and downloads no file.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct NotesFileProbe;
+
+impl RequestKind for NotesFileProbe {
+    type Input = NotesPeriod;
+
+    const METHOD: Method = Method::HEAD;
+
+    const INPUT_NAME: &'static str = "notes_period";
+    const INPUT_LABEL: &'static str = "period";
+
+    fn request_type(period: NotesPeriod) -> SecRequestType {
+        SecRequestType::ProbeNotesFile { period }
     }
 }
 
@@ -215,7 +239,7 @@ mod tests {
 
     use super::{
         CompanyFacts, DailyIndex, DailyIndexListing, FilingDocument, FilingDocumentSet,
-        FilingIndex, NotesFile, RequestKind, SecRequestType, Submissions,
+        FilingIndex, NotesFile, NotesFileProbe, RequestKind, SecRequestType, Submissions,
     };
 
     fn filing_ref() -> FilingRef {
@@ -248,6 +272,27 @@ mod tests {
         let expected_result = SecRequestType::FetchNotesFile { period };
 
         let result = NotesFile::request_type(period);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_probe_notes_file_for_notes_file_probe_kind() {
+        let period = NotesPeriod::new("2025q3")
+            .expect("Given a valid period, NotesPeriod creation should always succeed");
+
+        let expected_result = SecRequestType::ProbeNotesFile { period };
+
+        let result = NotesFileProbe::request_type(period);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_keep_get_as_the_method_for_company_facts_kind() {
+        let expected_result = reqwest::Method::GET;
+
+        let result = <CompanyFacts as RequestKind>::METHOD;
 
         assert_eq!(result, expected_result);
     }
@@ -329,6 +374,11 @@ mod tests {
     #[test]
     const fn should_implement_auto_traits_for_daily_index_listing() {
         implements_auto_traits::<DailyIndexListing>();
+    }
+
+    #[test]
+    const fn should_implement_auto_traits_for_notes_file_probe() {
+        implements_auto_traits::<NotesFileProbe>();
     }
 
     #[test]

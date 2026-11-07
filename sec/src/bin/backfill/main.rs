@@ -26,10 +26,13 @@ use std::error::Error;
 use std::process::ExitCode;
 use std::time::{Duration, Instant};
 
-use chrono::Utc;
+use chrono::{NaiveDate, Utc};
 use sec::implementations::extraction::{
-    DailyFilingsRepositories, Extraction, NotesRunSummary, RunEvent,
+    DailyFilingsRepositories, Extraction, FailedNotesProbe, NotesRunSummary, RunEvent,
 };
+use sec::shared::http_client::implementations::sec_client::SecClient;
+use sec::shared::http_client::implementations::sec_client::error::FailedSecRequest;
+use sec::shared::notes_period::NotesPeriod;
 use uuid::Uuid;
 
 use batch_log::{
@@ -80,9 +83,10 @@ async fn run_batch() -> Result<(), Box<dyn Error + Send + Sync>> {
     let execution_id = backfill.id();
     let now = Utc::now();
     let yesterday = new_york_yesterday(now);
+    let periods = notes_periods_of_run(&sec_client, now.date_naive()).await?;
     let inputs = BackfillInputs {
         backfill,
-        periods: notes_periods(now.date_naive()),
+        periods,
         files_in_flight,
         yesterday,
         sec_client,
@@ -174,6 +178,33 @@ fn log_notes_summary(
         &message,
         &context,
     );
+}
+
+/// Lists the Notes periods of the run, and logs each retry and a failure.
+///
+/// # Errors
+///
+/// Returns the [`FailedNotesProbe`] of [`notes_periods`].
+async fn notes_periods_of_run(
+    sec_client: &SecClient,
+    today: NaiveDate,
+) -> Result<Vec<String>, FailedNotesProbe> {
+    let on_retry = |quarter: NotesPeriod, error: &FailedSecRequest| {
+        tracing::warn!(
+            event = %BatchEvent::NotesProbeRetried,
+            message = %error,
+            context = %serde_json::json!({ "period": quarter.to_string() }),
+        );
+    };
+    notes_periods(sec_client, today, on_retry)
+        .await
+        .inspect_err(|error| {
+            tracing::error!(
+                event = %BatchEvent::StartupFailed,
+                message = %error,
+                context = %serde_json::json!({ "period": error.period.to_string() }),
+            );
+        })
 }
 
 /// Reads the number of Notes files in flight from `ARKAD_FILES_IN_FLIGHT`, and logs an invalid value.
