@@ -296,7 +296,8 @@ lets a check reconcile one company against its stored filings.
 
 #### Notes ZIP
 
-1. Key: a `NotesPeriod`, for example `2024q1` or `2025_10`. The period list comes from today.
+1. Key: a `NotesPeriod`, for example `2024q1` or `2025_10`. The period list comes from the SEC
+   data-sets page, cut at last month.
 2. Request: one GET for the whole file. At most 2 files download at once, set by
    `ARKAD_FILES_IN_FLIGHT`.
 3. Response: a ZIP with ten members: eight tables (`sub`, `tag`, `dim`, `num`, `txt`, `ren`, `pre`,

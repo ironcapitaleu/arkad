@@ -454,14 +454,14 @@ mod tests {
 
     #[test]
     fn should_order_a_quarter_before_a_month_of_a_later_quarter_for_notes_periods() {
-        let last_quarter = NotesPeriod::new("2025q3")
+        let quarter = NotesPeriod::new("2025q3")
             .expect("Given a hardcoded valid period, parsing should always succeed");
-        let first_month = NotesPeriod::new("2025_10")
+        let month = NotesPeriod::new("2025_10")
             .expect("Given a hardcoded valid period, parsing should always succeed");
 
         let expected_result = true;
 
-        let result = last_quarter < first_month;
+        let result = quarter < month;
 
         assert_eq!(result, expected_result);
     }
