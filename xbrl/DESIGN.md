@@ -116,7 +116,7 @@ These places in today's code assume the SEC or US GAAP. The design replaces each
 
 | Today | Assumption | Replacement |
 | ----- | ---------- | ----------- |
-| `core::Namespace` | Closed enum of 6 SEC namespaces | Open `Namespace { prefix, uri }`. Each plug-in declares the namespaces it owns |
+| `core::Namespace` | Closed enum of 6 SEC namespaces | Open `Namespace { prefix, uri }`. Each plug-in declares the namespace families it owns |
 | `core::Unit` | Closed enum of 4 US units | Open `Unit` of numerator and denominator measures, for example `iso4217:EUR` |
 | `core::RawObservation` | Value is `i64`, no dimensions, no `decimals` | `AsIsFact` |
 | `core::Provenance` | SEC accession number and forms | `Filing` with an open `FilingId` |
@@ -235,17 +235,18 @@ compiled into the binary.
 
 ```rust
 pub trait Taxonomy: Send + Sync {
-    /// The release that every rule of this plug-in comes from, for example `us-gaap/2026`.
+    /// The release that the tables of this plug-in come from, for example `us-gaap/2026`.
     fn release(&self) -> &TaxonomyRelease;
-    /// The namespaces this plug-in resolves, for example `us-gaap` and `srt`.
-    fn namespaces(&self) -> &[Namespace];
+    /// The namespace families this plug-in resolves, for example `us-gaap` and `srt`.
+    fn families(&self) -> &[NamespaceFamily];
     /// Per standard concept, the taxonomy concepts in priority order, each with its rule ID.
     fn aliases(&self) -> &[ConceptAliases];
     /// The parent, child, and weight arcs of the calculation linkbase.
     fn calculation_tree(&self) -> &CalculationTree;
     /// The reference data of one element: label, data type, balance, period type.
     fn element(&self, concept: &ConceptName) -> Option<&ElementReference>;
-    /// The reference data of every element of the release.
+    /// The reference data of every element of the release, and of every retired element.
+    /// Each `ElementReference` names the release it comes from.
     fn elements(&self) -> &[ElementReference];
 }
 
@@ -259,9 +260,9 @@ SFAC 6 identities and period identities are not part of the trait. They are core
 for every taxonomy.
 
 **Registry.** The core holds a slice of `&'static dyn Taxonomy`. It routes each as-is fact to the
-plug-in that owns the namespace of its concept. A filing can mix namespaces, for example a 20-F
-with `ifrs-full` and `dei`, so the routing works per fact. The registry rejects two plug-ins that
-claim the same namespace. A test checks this.
+plug-in that owns the namespace family of its concept. A filing can mix families, for example a
+20-F with `ifrs-full` and `dei`, so the routing works per fact. The registry rejects two plug-ins
+that claim the same family. A test checks this.
 
 Alternatives:
 
@@ -274,9 +275,20 @@ Alternatives:
 ### Namespace
 
 `Namespace` is an open value type: a prefix and a URI. Every filer adds its own extension
-namespace, so no closed set exists. The URI is the identity, as XBRL defines it. The prefix is for
-display and for the Notes data set, which has no URI. A concept is a `ConceptName`: a namespace and
-a local name.
+namespace, so no closed set exists. The URI is the identity, as XBRL defines it.
+
+Each US GAAP release has its own URI, for example `http://fasb.org/us-gaap/2017-01-31` and
+`http://fasb.org/us-gaap/2026`. So a plug-in cannot own one URI. It owns a namespace family:
+
+- A `NamespaceFamily` is the part of the URI without the release, for example `us-gaap` for every
+  `http://fasb.org/us-gaap/<date>` URI. The release part goes to `taxonomy_version`.
+- A `ConceptName` is a family and a local name. The registry routes on the family. The alias lists
+  and `element()` match on the family and the local name, so one plug-in resolves the concepts of
+  every release.
+- The Notes data set has no URI. Its `tag` table gives the prefix and a `version`, for example
+  `us-gaap/2017`. The Notes parser maps the pair to the same family and the same
+  `taxonomy_version`.
+- An extension namespace is a family of its own, with no plug-in.
 
 An enum per plug-in was the alternative. It makes the fact type generic, and an extension concept
 has no plug-in at all.
@@ -343,11 +355,12 @@ Which release resolves an old filing (decided by the owner on 2026-11-07):
 
 How option C gets the reference data of a retired element:
 
-- The FASB list of retired elements names each element and the release that retired it.
+- The FASB list of retired elements is expected to name each element and the release that
+  retired it.
 - The data type, balance, and period type of a retired element come from the element schema of
   the last release that defined it. Only these schemas are vendored, not their trees.
 - The list and the schemas sit in `xbrl/taxonomy/us-gaap/2026/retired/`, so the `MANIFEST` and the
-  checksum of the release cover them.
+  checksum of the release cover them. Each release folder holds its own `retired/`.
 - `elements()` returns the elements of the release and the retired elements. Each
   `ElementReference` names the release it comes from.
 - Which fields the FASB list holds is not checked yet. The ticket that vendors the release checks
@@ -355,7 +368,7 @@ How option C gets the reference data of a retired element:
 
 ### `us_gaap`
 
-- Owns the namespaces `us-gaap` and `srt`. For the MVP it also owns `dei`.
+- Owns the namespace families `us-gaap` and `srt`. For the MVP it also owns `dei`.
 - Brings the alias lists of `mappings.rs`, the calculation tree of the 2026 release, and the
   element reference data.
 
@@ -390,7 +403,7 @@ resolved to standard concepts yet.
 AsIsFact {
     filing:            FilingId          // "sec:0000320193-26-000001"
     entity:            EntityId          // XBRL entity identifier: scheme and id (CIK, LEI)
-    concept:           ConceptName       // namespace and local name
+    concept:           ConceptName       // namespace family and local name
     taxonomy_version:  Option<TaxonomyVersion> // "us-gaap/2026", the filing for an extension, None from sec_api
     period:            Period            // Instant { end } | Duration { start: Option, end, quarters }
     unit:              Option<Unit>      // None for text
@@ -471,7 +484,7 @@ value is a change over time, not a conflict.
 
 **Period type** — The SEC JSON doesn't explicitly label instant vs duration, but you can distinguish them: if a data point has only `end` (no `start`), it's an instant (balance sheet). If it has both `start` and `end`, it's duration (income statement, cash flow). The `frame` field also encodes this — frames ending in `I` are instants. This distinction is critical because it maps directly to which financial statement a fact belongs to.
 
-**Namespaces** — A parser keeps every namespace it finds: `us-gaap`, `dei`, `srt`, `ifrs-full`, and the extension namespace of the filer. Resolution routes each fact to the plug-in that owns its namespace. A fact in a namespace that no plug-in owns stays an as-is fact.
+**Namespaces** — A parser keeps every namespace it finds: `us-gaap`, `dei`, `srt`, `ifrs-full`, and the extension namespace of the filer. Resolution routes each fact to the plug-in that owns its namespace family (see "Namespace"). A fact in a family that no plug-in owns stays an as-is fact.
 
 **Amendments and restatements** — The parser emits every value of every filing, including an amendment and the comparatives of a later filing. Dedup is a concern of the standardized layer, not of parsing.
 
@@ -541,8 +554,8 @@ A `RuleId` has the form `<owner>/<kind>/<name>@<version>`:
 - `core/period/q4-from-fy@1`: a period identity.
 - `core/dedup/newest-filing@1`: a dedup rule.
 
-The version goes up when the result of the rule changes. A core rule carries the release of the
-plug-in that resolved the concept.
+The version goes up when we change the rule itself. A new release changes the release on the fact,
+not the version. A core rule carries the release of the plug-in that resolved the concept.
 
 ### Three Layers
 
