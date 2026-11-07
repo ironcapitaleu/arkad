@@ -654,8 +654,9 @@ quarter) or a month (year and month).
 - `notes_periods(sec_client, today, on_retry)` in `sec/src/bin/shared/notes_periods.rs` calls it
   with the month before today and `DEFAULT_RETRY_DELAYS`. `backfill` logs each retry as
   `batch_notes_probe_retried`, with the quarter. A monthly file that the store holds but whose quarter the SEC has merged is
-  not requested. Its quarter covers the same filings, and the transform loads each filing once by
-  accession number.
+  not requested. Its quarter covers the same filings. The transform loads a filing once per source
+  file and parser version, so the merged file adds a second Notes load. See
+  [`as_is_fact_store.md`](../data_model/as_is_fact_store.md), "Corrected Notes File".
 - `NotesPeriod::file_name()` returns the SEC file name. See [File Names](#file-names).
 - Early in a month, the SEC has not posted the file of the last month yet. If the last period gets
   403 or 404, the run counts it as unpublished, not as failed, and the next run asks for it again.
@@ -1921,7 +1922,7 @@ These kinds are not losses, or the comparison cannot tell whether they are:
 - The footnotes differ in how Notes joins them: 5 facts.
 
 Recommendation of the comparison: option 2, instance over Notes, applied by an upsert with a
-fixed rank. Two conditions applied:
+fixed rank. The recommendation had two conditions:
 
 - The rank works only on a unique key. The value key of `xbrl/DESIGN.md` adds `copy_rank`, so the
   395 cases above hold one fact per key.

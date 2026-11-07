@@ -39,7 +39,7 @@ rationale (read the mapping in the status note above).
 xbrl            domain vocab: CompanyId, AsIsFact, Filing, FactSet, CanonicalFact, FiscalYear
   ▲
 storage         PORTS only: Repository · Backend · RawStore/GraphStore/FactStore · ErrorKind
-  ▲  ▲            (deps: xbrl, async-trait, futures, thiserror — NO sqlx)
+  ▲  ▲            (deps: xbrl, async-trait, chrono, futures, sha2, thiserror, uuid — NO sqlx)
   │  │
   │  storage-postgres   Postgres impls of the 3 ports + PostgresSecRepository (one tx, strong contract)
   │   ▲
@@ -341,7 +341,7 @@ reach for the pattern — is fully honored either way.
 > | --- | --- | --- |
 > | `Repository::ingest` | write (live) | **yes** — the ETL write path |
 > | `RawStore::append` / `scan` | write / replay | **yes** — replay feeds rebuilds |
-> | `GraphStore::upsert`, `FactStore::upsert` | write | **yes** |
+> | `GraphStore::upsert`, `FactStore::upsert` (now `FactStore::append`, see [`as_is_fact_store.md`](./as_is_fact_store.md)) | write | **yes** |
 > | `GraphStore::completeness` / `ownership_tree`, `FactStore::query` | read | frozen signature; **fakes only** — Postgres `todo!()` until a read consumer exists |
 > | `Storage::backend` | identity | **yes** (trivial) |
 
@@ -821,9 +821,10 @@ signatures above; recorded here so the reasoning survives.
 - **`FactStore` write/read split — CLOSED: one trait now.** The future Postgres-landing +
   Iceberg-scan split (§12b.3) stays hidden behind it; callers never learn there are two engines.
 - **Restatement invariant — CLOSED: upsert-by-full-grain.** Superseded on 2026-11-07 by
-  [`as_is_fact_store.md`](./as_is_fact_store.md): the full grain is the load ID plus the value key, and the write appends a load. `FactStore::upsert` keys on the full
-  grain incl. `source_ref`; a 10-K/A coexists with the original, "which value wins" is a read-time
-  selection. Frozen as a doc-comment on the method so no impl collapses the grain.
+  [`as_is_fact_store.md`](./as_is_fact_store.md): the full grain is the load ID plus the value key,
+  and the write appends a load. A 10-K/A still coexists with the original, and "which value wins"
+  is still a read. Before that date, `FactStore::upsert` keyed on the full grain incl. `source_ref`,
+  frozen as a doc-comment on the method.
 - **Identity on the ingest DTO — CLOSED.** Because `xbrl::FactSet` carries no `CompanyId`, the
   resolved identity lives on `IngestionUnit.company` and is passed to `FactStore::upsert(company, …)`.
   Superseded on 2026-11-07: each as-is fact carries the `EntityId` of its filing, so
