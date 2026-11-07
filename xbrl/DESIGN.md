@@ -693,8 +693,9 @@ flowchart LR
   cannot fail.
 - **As-is is an output of its own.** The parse output goes to the as-is layer before
   standardization starts. A replay of a rule starts from the as-is layer and needs no parse.
-- **The registry comes in through the context.** The context of the standardize state holds a
-  `&'static Registry`. The state does not name a taxonomy, and a test can pass a fake registry.
+- **The registry comes in through the context.** The context of the standardize state holds the
+  registry. The state does not name a taxonomy, and a test can pass a fake registry. The
+  transform design picks the lifetime.
 
 The order of "Dedup Rules" splits the work at the filing boundary:
 
@@ -709,14 +710,17 @@ So the standardize filing state outputs candidates, not final standardized facts
 
 Parsers:
 
-- How the Notes parser splits a Notes file into filings, and how it streams a file larger than
-  the memory of one task.
+- How the split step cuts a Notes file into filings, and how it streams a file larger than the
+  memory of one task.
 - How the instance parser picks the main instance and skips the filing-fee exhibit.
 - How each parser fills the value key: the exact end from `ddate` and `datp`, the copy rank from
   `iprx` or the SEC order, dimension pairs without prefixes, and the legal entity axis from `coreg`.
-- How the Notes parser restores `/shares` on per-share units and drops rows that are equal in key,
-  value, and `iprx`, such as the rows that the filing-fee exhibit repeats. Rows that differ in
-  rank stay, for `core/dedup/more-precise@1`.
+- How the Notes parser restores `/shares` on per-share units and drops rows that are equal in key
+  and value, such as the rows that the filing-fee exhibit repeats.
+- How each parser numbers the copies of one key. The parser assigns `copy_rank` itself, in the
+  `iprx` order where Notes gives it. If two rows still share a key and differ in value, for
+  example after the parser strips dimension prefixes, the second row gets the next free rank. So
+  the key stays unique, and `core/dedup/more-precise@1` compares the rows.
 - Which source wins if one filing comes in on both paths, and whether the standardize filing
   state runs once per filing or once per source. Both runs share one `FilingId`, so step 3 has no
   tie-break between them.
