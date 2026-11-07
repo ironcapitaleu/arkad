@@ -420,6 +420,11 @@ bloat is the reactive, expensive path.
 
 ## Pull Request Creation
 
+**Open the PR without asking.** This rule is the explicit standing permission of the owner. If a
+task changes the repository, commit the work, push the branch, and open a PR against `main`. Do not
+wait for a request, and do not ask first. Then run the `pr-iterate` skill until a review finds
+nothing new, and report to the owner. A person reviews and merges. An agent never merges.
+
 When creating a pull request, always use the repository's PR template located at
 `.github/pull_request_template.md`. Fill in all sections:
 

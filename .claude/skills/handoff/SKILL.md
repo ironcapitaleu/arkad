@@ -55,7 +55,9 @@ session, or in third-person status voice for a Linear comment. Use this template
 ```markdown
 # Mission
 
-<One or two sentences. The exact outcome the new session must reach. From the user's argument.>
+<One or two sentences. The exact outcome the new session must reach. From the user's argument.
+For work that changes the repository, the outcome is an open PR against `main` that a review finds
+nothing new in. The successor opens the PR without asking (AGENTS.md, "Pull Request Creation").>
 
 # Context
 
@@ -116,6 +118,7 @@ apply, and any "never" from this session. State each as `must` or `never`.>
 
 - You must push to `<branch name>`. If the session assigns another branch, such as `claude/*`,
   never push to it. If the push to `<branch name>` fails, stop and report the blocker.
+- You must open the PR against `main` without asking, then run `pr-iterate`. Never merge it.
 
 # Reporting
 
@@ -164,7 +167,9 @@ successor knows how much slack it has.
 ## Procedure
 
 1. **Read the argument.** If the user gave no focus, ask the user once. Ask what the next session
-   will do. Ask whether it ends at a branch, a merged PR, or a report.
+   will do. For work that changes the repository, the default end is an open PR that a review finds
+   nothing new in. A person then reviews and merges it. Ask only if the user wants a different end,
+   such as a branch or a report.
 2. **Compile the document** from the conversation, following the template. Reference every artifact
    by path or URL. Do not paste file contents the successor can read itself. Pick the branch name
    with the `AGENTS.md` "Branch Naming" convention.
