@@ -121,8 +121,9 @@ apply, and any "never" from this session. State each as `must` or `never`.>
 - <If the work changes the repository:> You must push to `<branch name>`. If the session assigns
   another branch, such as `claude/*`, never push to it. If the push to `<branch name>` fails, stop
   and report the blocker.
-- <If the end is a PR:> You must open the PR against `main` without asking, then run `pr-iterate`.
-  If "In flight" names an open PR for the branch, push to it and open no new PR. Never merge it.
+- <If the end is a PR:> If "In flight" names an open PR for the branch, push to it and open no new
+  PR. Otherwise, you must open the PR against `main` without asking. Then run `pr-iterate`. Never
+  merge it.
   <If the end is a document, a branch, or a report:> Open no PR.
 
 # Reporting
