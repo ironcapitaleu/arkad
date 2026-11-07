@@ -237,8 +237,9 @@ compiled into the binary.
 pub trait Taxonomy: Send + Sync {
     /// The release that the tables of this plug-in come from, for example `us-gaap/2026`.
     fn release(&self) -> &TaxonomyRelease;
-    /// The namespace families this plug-in resolves, for example `us-gaap` and `srt`.
-    fn families(&self) -> &[NamespaceFamily];
+    /// Every family this plug-in declares: its URI patterns, its Notes `version` prefix, and
+    /// whether the plug-in resolves its facts.
+    fn families(&self) -> &[FamilyDeclaration];
     /// Per standard concept, the taxonomy concepts in priority order, each with its rule ID.
     fn aliases(&self) -> &[ConceptAliases];
     /// The parent, child, and weight arcs of the calculation linkbase.
@@ -262,7 +263,8 @@ for every taxonomy.
 **Registry.** The core holds a slice of `&'static dyn Taxonomy`. It routes each as-is fact to the
 plug-in that owns the namespace family of its concept. A filing can mix families, for example a
 20-F with `ifrs-full` and `dei`, so the routing works per fact. The registry rejects two plug-ins
-that claim the same family. A test checks this.
+that resolve the same family. Two plug-ins can both declare a family they do not resolve, for
+example `country` for a 10-K and a 20-F, if their patterns agree. A test checks both rules.
 
 Alternatives:
 
@@ -303,13 +305,15 @@ The split of a URI into a family and a version:
 - `taxonomy_version` holds the family and the year of the release, for example `us-gaap/2017`,
   whether the URI says `2017-01-31` or `2017`. This is the form of the Notes `tag` table, so both
   sources give the same value key.
-- A URI that no plug-in declares is an extension. Its family is the filing ID, and so is its
-  `taxonomy_version`. In the Notes data set, a `version` equal to the accession number marks an
-  extension tag. The parser adds the `sec:` prefix, so both sources write the same filing ID.
-- A Notes `version` that is neither a declared prefix nor the accession number fails the row with
-  a finding.
-- The readme of the Notes data set says that EDGAR keeps local names unique within one filing. So
-  the filing ID is enough as the family of all extension concepts of a filing.
+- A URI that the schema of the filing defines is an extension. Its family is the filing ID, and so
+  is its `taxonomy_version`. In the Notes data set, a `version` equal to the accession number marks
+  an extension tag. The parser adds the `sec:` prefix, so both sources write the same filing ID.
+- A URI or a Notes `version` that is neither declared nor an extension keeps its fact. The full URI
+  or `version` becomes the family and the version, and the parser returns a finding. So a new SEC
+  taxonomy shows up as a finding in both sources, and the as-is layer keeps every fact.
+- The `tag` table of the Notes data set has the key `tag` and `version`, and an extension tag has
+  the accession number as its `version`. So the filing ID is enough as the family of all extension
+  concepts of a filing.
 
 An enum per plug-in was the alternative. It makes the fact type generic, and an extension concept
 has no plug-in at all.
@@ -389,7 +393,8 @@ How option C gets the reference data of a retired element:
 
 ### `us_gaap`
 
-- Owns the namespace families `us-gaap` and `srt`. For the MVP it also owns `dei`.
+- Owns the namespace families `us-gaap` and `srt`. For the MVP it also owns `dei`. It declares,
+  without resolving, the other SEC taxonomies, for example `ecd`, `country`, and `currency`.
 - Brings the alias lists of `mappings.rs`, the calculation tree of the 2026 release, and the
   element reference data.
 
