@@ -30,11 +30,11 @@ pub enum NotesFileListError {
     },
     /// A link into the folder of the Notes files does not name a Notes file.
     #[error(
-        "[UnexpectedNotesFileName] The page links '{file_name}', which is not a Notes file name"
+        "[UnexpectedNotesFileName] The page links '{link_path}', which is not a Notes file name"
     )]
     UnexpectedNotesFileName {
-        /// The rest of the link after the folder.
-        file_name: String,
+        /// The text of the link after the folder, which names no Notes file.
+        link_path: String,
     },
     /// The name of a linked file does not start with a valid Notes period.
     #[error(
@@ -92,6 +92,19 @@ mod tests {
         };
 
         let expected_result = "[InvalidNotesFileLink] Failed to read the period of the linked file '2025q5_notes.zip', Caused by: [NotesPeriodError] Invalid Notes period, Reason: 'Expected the form YYYYqN or YYYY_MM', Input: '2025q5'";
+
+        let result = error.to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_name_the_link_when_a_link_names_no_notes_file() {
+        let error = NotesFileListError::UnexpectedNotesFileName {
+            link_path: "2024q1_notes.zip?v=2".to_string(),
+        };
+
+        let expected_result = "[UnexpectedNotesFileName] The page links '2024q1_notes.zip?v=2', which is not a Notes file name";
 
         let result = error.to_string();
 

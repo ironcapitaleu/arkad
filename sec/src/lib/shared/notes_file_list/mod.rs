@@ -33,7 +33,7 @@ pub use notes_file_list_error::NotesFileListError;
 /// The match is wide on purpose. A link of an unknown form fails [`NotesFileList::parse`], so it
 /// cannot drop out of the list.
 static NOTES_FOLDER_LINK: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r#"href=["']?(?:https?://(?:www\.)?sec\.gov)?/files/dera/data/financial-statement-notes-data-sets/([^"'\s>]+)"#)
+    Regex::new(r#"(?i)href\s*=\s*["']?(?:(?:https?:)?//(?:www\.)?sec\.gov)?/files/dera/data/financial-statement-notes-data-sets/([^"'\s>]+)"#)
         .expect("A hardcoded regular expression should always compile")
 });
 
@@ -159,7 +159,7 @@ fn listed_file(file_name: &str) -> Result<ListedNotesFile, NotesFileListError> {
         .captures(file_name)
         .and_then(|name| name.get(1))
         .ok_or_else(|| NotesFileListError::UnexpectedNotesFileName {
-            file_name: file_name.to_string(),
+            link_path: file_name.to_string(),
         })?;
     NotesPeriod::new(period.as_str())
         .map(|period| ListedNotesFile {
@@ -310,10 +310,36 @@ mod tests {
         let page = [link("2009q1_notes.zip"), link("2024q1_notes.zip?v=2")].concat();
 
         let expected_result = Err(NotesFileListError::UnexpectedNotesFileName {
-            file_name: "2024q1_notes.zip?v=2".to_string(),
+            link_path: "2024q1_notes.zip?v=2".to_string(),
         });
 
         let result = NotesFileList::parse(&page);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_read_the_file_name_when_the_link_has_an_http_host_without_www() {
+        let page = r#"<a href="http://sec.gov/files/dera/data/financial-statement-notes-data-sets/2009q1_notes.zip">"#;
+
+        let expected_result = vec!["2009q1_notes.zip"];
+
+        let list = NotesFileList::parse(page)
+            .expect("Given one valid link with an http host, parsing should always succeed");
+        let result = file_names(&list);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_read_the_file_name_when_the_link_is_upper_case_and_protocol_relative() {
+        let page = r#"<A HREF = "//www.sec.gov/files/dera/data/financial-statement-notes-data-sets/2009q1_notes.zip">"#;
+
+        let expected_result = vec!["2009q1_notes.zip"];
+
+        let list = NotesFileList::parse(page)
+            .expect("Given one valid protocol-relative link, parsing should always succeed");
+        let result = file_names(&list);
 
         assert_eq!(result, expected_result);
     }
