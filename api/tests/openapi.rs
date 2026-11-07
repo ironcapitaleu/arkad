@@ -19,7 +19,7 @@ use axum::body::Body;
 use axum::http::{Request, header};
 use http_body_util::BodyExt;
 use pretty_assertions::assert_eq;
-use serde_json::Value;
+use serde_json::{Value, json};
 use tower::ServiceExt;
 
 const COMMITTED_SPEC_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/openapi.json");
@@ -52,29 +52,19 @@ fn should_match_the_committed_spec_for_generated_spec() {
 
 #[test]
 fn should_declare_openapi_3_1_for_generated_spec() {
-    let spec: Value = serde_json::from_str(&generated_spec())
-        .expect("Given the JSON text of the spec, parsing it should always succeed");
+    let expected_result = json!("3.1.0");
 
-    let expected_result = Some("3.1.0");
-
-    let result = spec["openapi"].as_str();
+    let result = serde_json::to_value(api::openapi().openapi)
+        .expect("Given an OpenAPI version, serializing it should always succeed");
 
     assert_eq!(result, expected_result);
 }
 
 #[test]
 fn should_list_only_the_v1_paths_for_generated_spec() {
-    let spec: Value = serde_json::from_str(&generated_spec())
-        .expect("Given the JSON text of the spec, parsing it should always succeed");
-
     let expected_result = vec!["/v1/concepts", "/v1/openapi.json"];
 
-    let result: Vec<&str> = spec["paths"]
-        .as_object()
-        .expect("Given a spec, its paths should always be a JSON object")
-        .keys()
-        .map(String::as_str)
-        .collect();
+    let result: Vec<String> = api::openapi().paths.paths.into_keys().collect();
 
     assert_eq!(result, expected_result);
 }
