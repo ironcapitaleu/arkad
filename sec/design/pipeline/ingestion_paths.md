@@ -1992,7 +1992,7 @@ The metadata of each raw document records the ingestion mode of the run that cre
 ## Handover to Transform
 
 Each extract machine outputs a small reference, not the bytes. Transform reads the bytes from the
-raw store.
+raw store. It writes its output to the silver layer, see [`silver_layer.md`](silver_layer.md).
 
 ```rust
 /// Backfill: one stored Notes file.
