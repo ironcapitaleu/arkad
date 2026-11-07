@@ -6,6 +6,7 @@
 //! ## External Dependencies
 //!
 //! - `data.sec.gov` — Live SEC EDGAR API (JSON company filings)
+//! - `www.sec.gov` — Live Notes files, asked for with `HEAD` requests
 
 use pretty_assertions::assert_eq;
 use serde_json::Value;
@@ -16,6 +17,7 @@ use sec::shared::http_client::SecClient as SecClientTrait;
 use sec::shared::http_client::implementations::reqwest_client::ReqwestClient;
 use sec::shared::http_client::implementations::sec_client::SecClient;
 use sec::shared::http_client::implementations::sec_client::error::ErrorReason;
+use sec::shared::notes_period::NotesPeriod;
 use sec::shared::request::implementations::sec_request::SecRequest;
 use sec::shared::response::SecResponse as SecResponseTrait;
 use sec::shared::response::implementations::sec_response::error::{
@@ -47,6 +49,42 @@ async fn should_return_sec_response_when_executing_valid_sec_request() {
     let expected_result = None;
 
     let result = client.execute_sec_request(request).await.err();
+
+    assert_eq!(result, expected_result);
+}
+
+#[tokio::test]
+async fn should_succeed_when_probing_a_published_notes_file() {
+    let client = sec_client();
+    let period = NotesPeriod::new("2025q3").expect("A hardcoded period should always be valid");
+    let request = SecRequest::builder()
+        .notes_file_probe()
+        .period(period)
+        .build();
+
+    let expected_result = None;
+
+    let result = client.execute_sec_request(request).await.err();
+
+    assert_eq!(result, expected_result);
+}
+
+#[tokio::test]
+async fn should_return_an_absent_file_when_probing_an_unpublished_month() {
+    let client = sec_client();
+    let period = NotesPeriod::new("2099_12").expect("A hardcoded period should always be valid");
+    let request = SecRequest::builder()
+        .notes_file_probe()
+        .period(period)
+        .build();
+
+    let expected_result = Some(true);
+
+    let result = client
+        .execute_sec_request(request)
+        .await
+        .err()
+        .map(|error| error.is_absent_file());
 
     assert_eq!(result, expected_result);
 }

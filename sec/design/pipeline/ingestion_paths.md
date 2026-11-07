@@ -715,7 +715,8 @@ folder index reply. `SecResponse<ZipBody>` holds a Notes file or a daily index a
 The `RespondsWith` trait on the client side maps each SEC endpoint to its body kind, once for
 every client. `CompanyFacts`, `DailyIndexListing`, `Submissions`, and `FilingIndex` have
 `Body = JsonBody`.
-`NotesFile` and `DailyIndex` have `Body = ZipBody`. This
+`NotesFile` and `DailyIndex` have `Body = ZipBody`. `NotesFileProbe` sends a `HEAD` request
+to the URL of a Notes file and has `Body = ZipHeadBody`: the checks of `ZipBody`, and no body. This
 keeps `shared::request` independent of `shared::response`.
 
 The `SecClient` trait has one method for every endpoint. Its default body waits on the rate limiter,

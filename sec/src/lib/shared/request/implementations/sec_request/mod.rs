@@ -9,7 +9,8 @@
 //!
 //! - [`builder`]: The [`SecRequestBuilder`] for constructing requests fluently.
 //! - [`constants`]: The endpoint URL fragments.
-//! - [`kind`]: The [`RequestKind`] trait and the [`CompanyFacts`], [`NotesFile`], [`DailyIndex`],
+//! - [`kind`]: The [`RequestKind`] trait and the [`CompanyFacts`], [`NotesFile`],
+//!   [`NotesFileProbe`], [`DailyIndex`],
 //!   [`DailyIndexListing`], [`Submissions`], [`FilingIndex`], [`FilingDocument`], and
 //!   [`FilingDocumentSet`] kinds.
 
@@ -31,7 +32,7 @@ pub mod kind;
 pub use builder::SecRequestBuilder;
 pub use kind::{
     CompanyFacts, DailyIndex, DailyIndexListing, FilingDocument, FilingDocumentSet, FilingIndex,
-    NotesFile, RequestKind, StoredAs, Submissions,
+    NotesFile, NotesFileProbe, RequestKind, StoredAs, Submissions,
 };
 
 use constants::{
@@ -48,6 +49,8 @@ use constants::{
 ///
 /// - [`CompanyFacts`], the default: built from a [`Cik`].
 /// - [`NotesFile`]: built from a [`NotesPeriod`].
+/// - [`NotesFileProbe`]: built from a [`NotesPeriod`]. It is a `HEAD` request. Every other kind
+///   is a `GET` request.
 /// - [`DailyIndex`] and [`DailyIndexListing`]: built from an [`IndexDate`].
 /// - [`Submissions`]: built from a [`Cik`].
 /// - [`FilingIndex`]: built from a [`FilingRef`].
@@ -138,11 +141,18 @@ impl<K: RequestKind> SecRequestTrait for SecRequest<K> {
     /// let _request = SecRequest::<NotesFile>::new(cik);
     /// ```
     fn new(request_input: Self::RequestInput) -> Self {
-        let url = match K::request_type(request_input.clone()) {
+        let request_type = K::request_type(request_input.clone());
+        let method = if matches!(request_type, SecRequestType::ProbeNotesFile { .. }) {
+            Method::HEAD
+        } else {
+            Method::GET
+        };
+        let url = match request_type {
             SecRequestType::FetchAllCompanyFacts { cik } => {
                 format!("{SEC_COMPANY_FACTS_URL_PREFIX}{cik}{SEC_COMPANY_FACTS_URL_SUFFIX}")
             }
-            SecRequestType::FetchNotesFile { period } => {
+            SecRequestType::FetchNotesFile { period }
+            | SecRequestType::ProbeNotesFile { period } => {
                 format!("{SEC_NOTES_URL_PREFIX}{}", period.file_name())
             }
             SecRequestType::FetchDailyIndex { date } => format!(
@@ -168,7 +178,7 @@ impl<K: RequestKind> SecRequestTrait for SecRequest<K> {
             }
         };
         let request = Request::new(
-            Method::GET,
+            method,
             Url::parse(&url)
                 .expect("A hardcoded URL prefix joined with a validated input should always parse"),
         );
@@ -266,6 +276,11 @@ pub enum SecRequestType {
     /// Fetch the SEC Financial Statement and Notes file of one period.
     FetchNotesFile {
         /// The period of the Notes file to fetch.
+        period: NotesPeriod,
+    },
+    /// Ask with a `HEAD` request whether the Notes file of one period exists.
+    ProbeNotesFile {
+        /// The period of the Notes file to ask for.
         period: NotesPeriod,
     },
     /// Fetch the daily index of one date.

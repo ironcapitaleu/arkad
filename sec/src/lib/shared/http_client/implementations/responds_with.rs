@@ -6,9 +6,11 @@
 use crate::shared::http_client::RespondsWith;
 use crate::shared::request::implementations::sec_request::{
     CompanyFacts, DailyIndex, DailyIndexListing, FilingDocument, FilingIndex, NotesFile,
-    Submissions,
+    NotesFileProbe, Submissions,
 };
-use crate::shared::response::implementations::sec_response::{JsonBody, XmlBody, ZipBody};
+use crate::shared::response::implementations::sec_response::{
+    JsonBody, XmlBody, ZipBody, ZipHeadBody,
+};
 
 impl RespondsWith for CompanyFacts {
     type Body = JsonBody;
@@ -16,6 +18,10 @@ impl RespondsWith for CompanyFacts {
 
 impl RespondsWith for NotesFile {
     type Body = ZipBody;
+}
+
+impl RespondsWith for NotesFileProbe {
+    type Body = ZipHeadBody;
 }
 
 // Deviation: the daily index is fixed-width text, not a ZIP. `ZipBody` is reused because it runs

@@ -76,6 +76,23 @@ impl RequestKind for NotesFile {
     }
 }
 
+/// The kind of a `HEAD` request that asks whether the Notes file of one period exists.
+///
+/// The request has the URL of a [`NotesFile`] request, and downloads no file.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct NotesFileProbe;
+
+impl RequestKind for NotesFileProbe {
+    type Input = NotesPeriod;
+
+    const INPUT_NAME: &'static str = "notes_period";
+    const INPUT_LABEL: &'static str = "period";
+
+    fn request_type(period: NotesPeriod) -> SecRequestType {
+        SecRequestType::ProbeNotesFile { period }
+    }
+}
+
 /// The kind of a request that downloads the daily index of one date.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct DailyIndex;
@@ -215,7 +232,7 @@ mod tests {
 
     use super::{
         CompanyFacts, DailyIndex, DailyIndexListing, FilingDocument, FilingDocumentSet,
-        FilingIndex, NotesFile, RequestKind, SecRequestType, Submissions,
+        FilingIndex, NotesFile, NotesFileProbe, RequestKind, SecRequestType, Submissions,
     };
 
     fn filing_ref() -> FilingRef {
@@ -248,6 +265,18 @@ mod tests {
         let expected_result = SecRequestType::FetchNotesFile { period };
 
         let result = NotesFile::request_type(period);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_probe_notes_file_for_notes_file_probe_kind() {
+        let period = NotesPeriod::new("2025q3")
+            .expect("Given a valid period, NotesPeriod creation should always succeed");
+
+        let expected_result = SecRequestType::ProbeNotesFile { period };
+
+        let result = NotesFileProbe::request_type(period);
 
         assert_eq!(result, expected_result);
     }
@@ -329,6 +358,11 @@ mod tests {
     #[test]
     const fn should_implement_auto_traits_for_daily_index_listing() {
         implements_auto_traits::<DailyIndexListing>();
+    }
+
+    #[test]
+    const fn should_implement_auto_traits_for_notes_file_probe() {
+        implements_auto_traits::<NotesFileProbe>();
     }
 
     #[test]
