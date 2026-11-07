@@ -7,11 +7,11 @@ use pretty_assertions::assert_eq;
 use serde_json::{Value, json};
 use tower::ServiceExt;
 
-async fn get(path: &str, internal_docs: InternalDocs) -> Response {
+async fn get(path: &str) -> Response {
     let request = Request::get(path)
         .body(Body::empty())
         .expect("Given a hardcoded method and path, building the request should always succeed");
-    api::router(internal_docs)
+    api::router(InternalDocs::Disabled)
         .oneshot(request)
         .await
         .expect("Given the router's infallible service, calling it should always succeed")
@@ -30,7 +30,7 @@ async fn should_answer_404_when_v1_path_is_unknown() {
 
     let expected_result = StatusCode::NOT_FOUND;
 
-    let result = get(path, InternalDocs::Disabled).await.status();
+    let result = get(path).await.status();
 
     assert_eq!(result, expected_result);
 }
@@ -41,7 +41,7 @@ async fn should_answer_problem_json_content_type_when_v1_path_is_unknown() {
 
     let expected_result = Some("application/problem+json");
 
-    let response = get(path, InternalDocs::Disabled).await;
+    let response = get(path).await;
     let result = header_text(&response, header::CONTENT_TYPE.as_str());
 
     assert_eq!(result, expected_result);
@@ -51,7 +51,7 @@ async fn should_answer_problem_json_content_type_when_v1_path_is_unknown() {
 async fn should_answer_not_found_problem_with_the_request_id_of_the_header_when_v1_path_is_unknown()
 {
     let path = "/v1/unknown";
-    let response = get(path, InternalDocs::Disabled).await;
+    let response = get(path).await;
     let request_id = header_text(&response, "x-request-id")
         .expect("Given the request ID middleware, every response should always carry X-Request-Id")
         .to_owned();
