@@ -28,6 +28,14 @@ pub enum NotesFileListError {
         /// The page without a Notes file link.
         page: NotesDataSetsPage,
     },
+    /// A link into the folder of the Notes files does not name a Notes file.
+    #[error(
+        "[UnexpectedNotesFileName] The page links '{file_name}', which is not a Notes file name"
+    )]
+    UnexpectedNotesFileName {
+        /// The rest of the link after the folder.
+        file_name: String,
+    },
     /// The name of a linked file does not start with a valid Notes period.
     #[error(
         "[InvalidNotesFileLink] Failed to read the period of the linked file '{file_name}', Caused by: {source}"
@@ -84,6 +92,22 @@ mod tests {
         };
 
         let expected_result = "[InvalidNotesFileLink] Failed to read the period of the linked file '2025q5_notes.zip', Caused by: [NotesPeriodError] Invalid Notes period, Reason: 'Expected the form YYYYqN or YYYY_MM', Input: '2025q5'";
+
+        let result = error.to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_name_both_files_when_a_period_has_two_file_names() {
+        let error = NotesFileListError::AmbiguousNotesPeriod {
+            period: NotesPeriod::new("2010q1")
+                .expect("Given a hardcoded valid quarter, parsing should always succeed"),
+            first_file_name: "2010q1_notes.zip".to_string(),
+            second_file_name: "2010q1_notes_1.zip".to_string(),
+        };
+
+        let expected_result = "[AmbiguousNotesPeriod] The page links two files for the period '2010q1': '2010q1_notes.zip' and '2010q1_notes_1.zip'";
 
         let result = error.to_string();
 

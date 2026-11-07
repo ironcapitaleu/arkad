@@ -4,8 +4,8 @@
 //! Data Sets" links, and [`ListedNotesFile`], one of them.
 //!
 //! About a year after a quarter ends, the SEC merges the three monthly files of the quarter into
-//! one quarterly file and removes the monthly files. The page lists the files that exist now, so
-//! the list follows each merge.
+//! one quarterly file and removes the monthly files. The page lists the files that exist now.
+//! Each listed period must pass [`NotesPeriod::new`].
 //!
 //! ## Modules
 //!
@@ -28,14 +28,20 @@ pub mod notes_file_list_error;
 
 pub use notes_file_list_error::NotesFileListError;
 
-/// Matches a link to a ZIP file in the folder of the Notes files, and captures the file name.
-static NOTES_FILE_LINK: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r#"href="(?:https://www\.sec\.gov)?/files/dera/data/financial-statement-notes-data-sets/([^"/?#]+\.zip)""#)
+/// Matches any link into the folder of the Notes files, and captures the rest of the link.
+///
+/// The match is wide on purpose. A link of an unknown form fails [`NotesFileList::parse`], so it
+/// cannot drop out of the list.
+static NOTES_FOLDER_LINK: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r#"href=["']?(?:https?://(?:www\.)?sec\.gov)?/files/dera/data/financial-statement-notes-data-sets/([^"'\s>]+)"#)
         .expect("A hardcoded regular expression should always compile")
 });
 
-/// The text in a Notes file name that ends the period, for example in `2010q1_notes_1.zip`.
-const PERIOD_END: &str = "_notes";
+/// Matches the name of a Notes file, for example `2010q1_notes_1.zip`, and captures the period.
+static NOTES_FILE_NAME: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"^([0-9a-z_]+?)_notes(?:_[0-9]+)?\.zip$")
+        .expect("A hardcoded regular expression should always compile")
+});
 
 /// One Notes file that the page links: its period and the file name of the link.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -52,6 +58,8 @@ impl ListedNotesFile {
     }
 
     /// Returns the file name of the link, for example `2010q1_notes_1.zip`.
+    ///
+    /// The name can differ from [`NotesPeriod::file_name`]. The page is the source of this name.
     #[must_use]
     pub fn file_name(&self) -> &str {
         &self.file_name
@@ -86,11 +94,14 @@ impl NotesFileList {
 
     /// Parses the HTML of the page into the list of linked Notes files.
     ///
-    /// The period of a file is the part of its name before `_notes`.
+    /// Every link into the folder of the Notes files must name a Notes file of the form
+    /// `<period>_notes.zip` or `<period>_notes_<number>.zip`.
     ///
     /// # Errors
     ///
     /// - Returns [`NotesFileListError::MissingNotesFileLink`] if the page links no Notes file.
+    /// - Returns [`NotesFileListError::UnexpectedNotesFileName`] if a link into the folder does
+    ///   not name a Notes file.
     /// - Returns [`NotesFileListError::InvalidNotesFileLink`] if the name of a linked file does
     ///   not start with a valid Notes period.
     /// - Returns [`NotesFileListError::AmbiguousNotesPeriod`] if the page links two different
@@ -111,7 +122,7 @@ impl NotesFileList {
     /// assert_eq!(result, expected_result);
     /// ```
     pub fn parse(page: &str) -> Result<Self, NotesFileListError> {
-        let mut files = NOTES_FILE_LINK
+        let mut files = NOTES_FOLDER_LINK
             .captures_iter(page)
             .map(|link| listed_file(&link[1]))
             .collect::<Result<Vec<_>, _>>()?;
@@ -144,10 +155,13 @@ impl NotesFileList {
 
 /// Builds the [`ListedNotesFile`] of one linked file name.
 fn listed_file(file_name: &str) -> Result<ListedNotesFile, NotesFileListError> {
-    let period = file_name
-        .split_once(PERIOD_END)
-        .map_or(file_name, |(period, _)| period);
-    NotesPeriod::new(period)
+    let period = NOTES_FILE_NAME
+        .captures(file_name)
+        .and_then(|name| name.get(1))
+        .ok_or_else(|| NotesFileListError::UnexpectedNotesFileName {
+            file_name: file_name.to_string(),
+        })?;
+    NotesPeriod::new(period.as_str())
         .map(|period| ListedNotesFile {
             period,
             file_name: file_name.to_string(),
@@ -286,6 +300,33 @@ mod tests {
 
         let list = NotesFileList::parse(&page)
             .expect("Given one valid Notes link, parsing should always succeed");
+        let result = file_names(&list);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_unexpected_notes_file_name_when_a_link_has_a_query() {
+        let page = [link("2009q1_notes.zip"), link("2024q1_notes.zip?v=2")].concat();
+
+        let expected_result = Err(NotesFileListError::UnexpectedNotesFileName {
+            file_name: "2024q1_notes.zip?v=2".to_string(),
+        });
+
+        let result = NotesFileList::parse(&page);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_read_the_file_name_when_the_link_has_single_quotes() {
+        let page =
+            "<a href='/files/dera/data/financial-statement-notes-data-sets/2009q1_notes.zip'>";
+
+        let expected_result = vec!["2009q1_notes.zip"];
+
+        let list = NotesFileList::parse(page)
+            .expect("Given one valid link in single quotes, parsing should always succeed");
         let result = file_names(&list);
 
         assert_eq!(result, expected_result);
