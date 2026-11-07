@@ -7,6 +7,8 @@
 //! records no nested value, so `context` reaches the logger as text, and [`JsonLog`] parses it
 //! back into an object. Every other field of the call goes into `context` under its own name. If two
 //! fields give the same key, the first one recorded wins.
+//!
+//! `api/src/logging/mod.rs` holds a copy of this logger. If you change this file, change the copy.
 
 use std::fmt;
 use std::io::stdout;
