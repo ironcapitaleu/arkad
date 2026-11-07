@@ -27,7 +27,7 @@ The persistence layer: backend-agnostic `ReadRepository` and `WriteRepository` t
 An axum binary for company fundamentals. It listens on `$PORT` and answers `GET /health` for uptime checks. Start it with `PORT=8080 cargo run -p api`.
 
 - Every response carries an `X-Request-Id` header.
-- An error response is an RFC 9457 problem body, sent as `application/problem+json`. A path that no route matches answers `404` with the code `not_found`.
+- A path that no route matches answers `404` with an RFC 9457 problem body, sent as `application/problem+json`, with the code `not_found`.
 
 ## Design
 
