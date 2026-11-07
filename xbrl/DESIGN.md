@@ -291,17 +291,25 @@ Each US GAAP release has its own URI, for example `http://fasb.org/us-gaap/2017-
 
 The split of a URI into a family and a version:
 
-- Each plug-in declares, per family, the URI pattern and where the release sits in it, for example
-  `http://fasb.org/us-gaap/{release}` and `https://xbrl.ifrs.org/taxonomy/{release}/ifrs-full`.
-  It also declares the `version` prefix that the Notes data set uses for the family.
+- Each plug-in declares, per family, one or more URI patterns and where the release sits in each,
+  for example `http://fasb.org/us-gaap/{release}` and
+  `https://xbrl.ifrs.org/taxonomy/{release}/ifrs-full`. It also declares the `version` prefix that
+  the Notes data set uses for the family.
+- A plug-in can also declare a family that it does not resolve. The split then works, and the
+  registry routes no fact of that family to a plug-in. `us_gaap` declares the other SEC taxonomies
+  this way, for example `ecd`, `country`, and `currency`.
 - The parser asks the registry to split each URI, or each Notes `version`. The plug-ins own the
   patterns, and the core owns the lookup.
 - `taxonomy_version` holds the family and the year of the release, for example `us-gaap/2017`,
   whether the URI says `2017-01-31` or `2017`. This is the form of the Notes `tag` table, so both
   sources give the same value key.
-- A URI that no plug-in claims is an extension. Its family is the filing ID, and so is its
-  `taxonomy_version`. The Notes data set gives the accession number as the `version` of an
-  extension tag, so both sources agree. EDGAR keeps local names unique within one filing.
+- A URI that no plug-in declares is an extension. Its family is the filing ID, and so is its
+  `taxonomy_version`. In the Notes data set, a `version` equal to the accession number marks an
+  extension tag. The parser adds the `sec:` prefix, so both sources write the same filing ID.
+- A Notes `version` that is neither a declared prefix nor the accession number fails the row with
+  a finding.
+- The readme of the Notes data set says that EDGAR keeps local names unique within one filing. So
+  the filing ID is enough as the family of all extension concepts of a filing.
 
 An enum per plug-in was the alternative. It makes the fact type generic, and an extension concept
 has no plug-in at all.
