@@ -218,6 +218,11 @@ impl<R: RawStore, G: GraphStore, F: FactStore> Repository for SecRepository<R, G
 > **Status: proposed (2026-11-06).** The owner chooses between versions in the key and bucket
 > object versioning before feature work starts. See
 > [Bucket Versioning or Versions in the Key](#bucket-versioning-or-versions-in-the-key).
+>
+> **Open (2026-11-07):** [Time Axes](#time-axes) shows that point-in-time facts do not need raw
+> versions. A smaller option is open for the owner: keep `<key>` as the latest version, and copy
+> the old pair into `<key>.versions/` before a replace. This needs no migration and no new read
+> trait.
 
 The raw store is append and replay, as the frozen design says. The filesystem repository does not
 keep this promise today:
@@ -253,6 +258,29 @@ Two runs can write one key at the same time. If one run starts earlier and write
 version sorts before the version of the other run. The latest version is then the bytes of
 the run that started last, not the bytes written last. In the MVP, only a catch-up of `backfill`
 that overlaps a run of `daily_filings` writes one key from two runs.
+
+### Time Axes
+
+Three times answer three different questions:
+
+| Time | Source | Question it answers | History |
+| ---- | ------ | ------------------- | ------- |
+| Filing acceptance time | `accepted` in `sub.tsv` of a Notes file, `filed_date` of a filing | What was public on day D? | Back to 2009, the first Notes file |
+| `produced_at` | The store state | What did our store hold on day D? | From the rollout of versions |
+| SEC `Last-Modified` | The answer header of a file | When did the SEC last change this file? | From the rollout of `last_modified` |
+
+- Point-in-time facts ("the facts of a company as public on day D") use the filing acceptance
+  time. A filing never changes after the SEC accepts it. So the read takes, for each company,
+  concept, and period, the value from the latest filing accepted on or before D. An amendment or
+  a later 10-K that restates a prior period counts from its own acceptance time.
+- This read needs no raw versions. It needs the fact store to keep every filing of a fact, as the
+  frozen `FactStore::upsert` rule already requires, and the acceptance time on each fact. The
+  fact store design decides both.
+- The new-filing path stores the filed date only. A time to the minute needs the acceptance time
+  from `submissions`.
+- A processing correction by the SEC changes values without a new filing. A point-in-time read of
+  an old date then gives the corrected value, not the wrong value that was public before.
+- Raw versions answer the second question: audit, and a replay of what a past run saw.
 
 ### Key Scheme
 
@@ -319,7 +347,7 @@ replaces or deletes a version.
   `storage` crate sees the context as an opaque type, so the rule sits on the `Document` trait:
   `fn is_same_version(new: &Self::Context, stored: &Self::Context) -> bool`, which returns `true`
   by default. The Notes context compares `last_modified` (see
-  [How a Notes Run Learns of a Replaced File](#how-a-notes-run-learns-of-a-replaced-file)). Equal
+  [How a Run Learns of a Changed SEC File](#how-a-run-learns-of-a-changed-sec-file)). Equal
   bytes with a new `last_modified` add a version.
 - If the stored context does not parse into `D::Context`, `persist` adds a version. It does not
   return an error. This covers a stored version written under an older layout of the context.
@@ -378,37 +406,86 @@ pub trait VersionedReadRepository: ReadRepository {
 - A separate trait keeps a store that reads by key small. A store with one version per key does
   not implement it.
 
-### How a Notes Run Learns of a Replaced File
+### How a Run Learns of a Changed SEC File
 
-The SEC does not tell a client that it replaced a file. The run must ask.
+The SEC does not tell a client that it changed a file. A weekly refresh job asks, once per source.
+It is part of the integrity check and reconciliation job, not of `backfill` or `daily_filings`.
+Neither of those runs sends an extra request.
+
+| Source | Fetched again today | Gap | Weekly refresh |
+| ------ | ------------------- | --- | -------------- |
+| Notes files | Never | A changed file is never fetched | One `HEAD` per file, about 80 requests |
+| Daily index | For the 4 days of the window | An SEC edit after day 4 is never seen | Fetch every index of the current and the last quarter, about 130 files of tens of KB |
+| `submissions` | Only on a day the company files a selected form | A change of name, ticker, or SIC without such a filing stays unseen for months | Fetch every stored company, about 6,500 requests, about 12 minutes at the rate limit |
+| Filing documents | Never | None, the SEC does not change them | None. A removal becomes an event of the integrity check |
+
+For the daily index and `submissions`, the refresh fetches the file, and `persist` adds a version
+only if the bytes differ from the latest version.
+
+For a Notes file, a full download to compare the SHA-256 costs 27.7 GB per run, so the refresh
+compares `Last-Modified` first:
 
 - Every answer for a Notes file carries `Last-Modified` (measured). `Headers` does not read it
   today. `last_modified` is a new field of the metadata `context` of a Notes file, and holds this
   value. Its type is `Option<DateTime<Utc>>` with `#[serde(default)]`, so a stored context
   without the field parses as `None`.
-- Before a run skips a stored Notes file, it sends one `HEAD` request for the file. The run keeps
-  the latest stored version if one of these holds:
+- The refresh keeps the latest stored version if one of these holds:
   - The version has `last_modified`, and it equals `Last-Modified` of the answer.
   - The version has no `last_modified`, because it was stored before this field existed. Its
     `bytes` equal `Content-Length`, and its `produced_at` is at least 1 day later than
     `Last-Modified`. So the run fetched the file after the last change at the SEC, with a margin
-    longer than one download. If the margin is shorter, the run downloads the file once, and the
-    new version gets `last_modified`.
-- Otherwise the run downloads the file again. `persist` adds a version if the SHA-256 or
-  `last_modified` differs from the latest version. The run summary marks the
-  period as `refreshed`.
-- The cost is one `HEAD` per stored file and run: about 80 requests, under 10 seconds at the rate
-  limit.
-- A full download to compare the SHA-256 costs 27.7 GB per run, so it is not an option.
-
-`submissions` and the daily index need no such check. Each run fetches them again, and `persist`
-adds a version when the bytes differ from the latest version. A daily index outside the window of 4 days is not fetched
-again. The reconciliation of the integrity check covers it.
+    longer than one download. If the margin is shorter, the refresh downloads the file once, and
+    the new version gets `last_modified`.
+- Otherwise the refresh downloads the file again. `persist` adds a version if the SHA-256 or
+  `last_modified` differs from the latest version. The report marks the period as `refreshed`.
 
 If the SEC changes `Last-Modified` but not the bytes, the new version holds the same bytes as the
 version before it. This costs one copy of the file, at most 0.85 GB. Without `last_modified` in the
-comparison, `persist` skips the write, the stored value stays old, and every later run downloads
-the file again.
+comparison, `persist` skips the write, the stored value stays old, and every later refresh
+downloads the file again.
+
+### How Often the SEC Changes a Notes File
+
+Measured on 2026-11-07 with one `HEAD` per file for all 80 Notes files, and the notes on the SEC
+data-sets page. The archive of past versions on the Wayback Machine was not reachable, so a
+version that the SEC replaced again is not visible.
+
+**Merge of monthly files.** The SEC page says: "Effective March 2024, monthly data sets will be
+consolidated into quarterly files after a year." The quarterly files show this:
+
+| Quarter | `Last-Modified` | Days after the quarter end |
+| ------- | --------------- | -------------------------- |
+| 2020q4 to 2023q1 | 2024-04-04 | One batch when the rule started |
+| 2023q2 | 2024-07-05 | 370 |
+| 2023q3 | 2024-10-07 | 372 |
+| 2023q4 | 2025-01-10 | 375 |
+| 2024q2 | 2025-07-03 | 367 |
+| 2024q4 | 2026-01-08 | 372 |
+| 2025q1 | 2026-04-07 | 371 |
+| 2025q2 | 2026-07-10 | 374 |
+| 2025q3 | 2026-10-07 | 371 |
+
+- A merge is not a new version of a key. The monthly keys disappear at the SEC, and a quarterly
+  key appears. The store keeps the monthly files and adds the quarterly file, so one filing sits
+  in both. Transform loads each filing once by its accession number, so the copy is harmless.
+- `2024q1` (2025-07-03, 458 days) is the one quarter outside the pattern. It is a late merge or a
+  real replace. The measurement cannot tell.
+
+**Corrections.** The SEC page and `Last-Modified` name these changes of content:
+
+| Date | Files | Cause |
+| ---- | ----- | ----- |
+| 2020-12-22 | 2009 to 2020q3 | Processing fixes applied to old files |
+| 2020-12-29 | 2017q1 | Not named |
+| 2021-01-12 | 2020q1 | Not named |
+| 2021-06-15 | 2019q1 | Dimension metadata of 67 rows in `num.tsv` |
+| 2024-04-01 | 2011q1 to 2013q4 | Null `iprx` fields |
+| 2024-09-26 | 2010q1 to 2013q4 | Null `durp`, `datp`, `dcml` fields. 2010q1 to 2010q3 got new file names |
+
+- About 6 batches in 6 years. Each is a processing fix, not new information.
+- Two corrections of one file are months apart, for example 2011q1 to 2013q4 in April and in
+  September 2024. A weekly refresh sees each of them. 2017q1 can have changed twice within 7 days.
+  The measurement cannot tell.
 
 ### Versions, the Listing, and `RawStore`
 
@@ -460,7 +537,7 @@ month.
 | ------ | ------------ | --------------- |
 | `submissions` | One per fetch with a new filing. About 6,500 companies with about 5 fetches a year, at about 100 KB each | About 3 GB |
 | Daily index | Only when the SEC edits an index inside the window | Under 1 MB |
-| Notes files | One per file the SEC replaces or whose `Last-Modified` changes. Two known cases so far, `2024q1` and `2025q3` | At most 0.85 GB per replaced file, the largest Notes file |
+| Notes files | One per file the SEC corrects or whose `Last-Modified` changes. About one batch a year, see [How Often the SEC Changes a Notes File](#how-often-the-sec-changes-a-notes-file) | Up to the size of the corrected files. The batch of 2024-09-26 covered 16 files, about 4.5 GB |
 | Filing documents | None | None |
 | Company Facts | One per run and changed company | One full copy per run, if run |
 
@@ -502,8 +579,9 @@ No ticket exists yet for items 1 to 4. Each fits the PR budget of about 200 line
 
 Existing tickets that change:
 
-- **Refresh of replaced Notes files.** Takes the check of
-  [How a Notes Run Learns of a Replaced File](#how-a-notes-run-learns-of-a-replaced-file).
+- **Refresh of replaced Notes files.** Becomes the weekly refresh of
+  [How a Run Learns of a Changed SEC File](#how-a-run-learns-of-a-changed-sec-file), for all
+  sources, inside the integrity check job.
   `Headers` reads `Last-Modified`. Tests: a stored version without `last_modified` whose bytes did
   not change is not downloaded again, a version without `last_modified` whose `produced_at` is
   less than 1 day after `Last-Modified` is downloaded again, and equal bytes with a new
@@ -511,7 +589,10 @@ Existing tickets that change:
 - **Listing of a repository.** Lists one entry per version and adds the filter `as_of`, as in
   [Versions, the Listing, and `RawStore`](#versions-the-listing-and-rawstore).
 - **Backfill as of a date.** Reads with `VersionSelector::AsOf` for a replay of the versions as of
-  D. Needs item 3.
+  D. Needs item 3. A point-in-time read of the facts does not need this ticket, see
+  [Time Axes](#time-axes).
+- **Fact store design.** Stores the acceptance time on each fact, and defines the point-in-time
+  read of [Time Axes](#time-axes).
 - **Integrity check and reconciliation.** Uses the orphan rule and the repair rule above.
 
 ---

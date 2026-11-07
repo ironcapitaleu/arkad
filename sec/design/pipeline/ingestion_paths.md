@@ -866,9 +866,10 @@ into the next file. The Last-Modified dates of recent monthly files:
 | `2026_08_notes.zip` | 2026-09-08 |
 | `2026_09_notes.zip` | 2026-10-07 |
 
-A monthly file appears in the first 8 days of the next month, from three samples. The SEC also
-replaces old files: `2025q3_notes.zip` has a Last-Modified of 2026-10-07, and `2024q1_notes.zip` of
-2025-07-03. So a rerun of the backfill can download different bytes for the same period.
+A monthly file appears in the first 8 days of the next month, from three samples. About a year
+later, the SEC merges the monthly files of a quarter into one quarterly file, for example
+`2025q3_notes.zip` on 2026-10-07. The SEC also corrects old files about once a year (assumption
+A4). So a rerun of the backfill can download different bytes for the same period.
 
 ### Validation
 
@@ -1738,7 +1739,7 @@ Assumptions:
 | A1 | A monthly Notes file holds every filing of the selected forms with a filed date in that month | Measured for `2026_09`: its `sub.tsv` runs from 2026-09-01 to 2026-09-30 | A filing before the start date is lost. To check, compare `sub.tsv` with the daily indexes of that month. |
 | A2 | A filing after 5:30 PM Eastern on the last day of a month gets the next business day as its filed date, and the daily index of that day lists it | Unverified | The overlap of one day covers a filing on the last day of the month. A longer gap needs a longer overlap. |
 | A3 | The daily index lists every filing of its day, and the SEC does not change it after publication | Unverified | A late change is lost. A rerun of that date picks it up. |
-| A4 | The SEC replaces old Notes files after the backfill, for example `2025q3` on 2026-10-07 | Measured | The backfill does not pick up the change. An amendment reaches the new-filing path as its own filing (10-K/A, 10-Q/A). |
+| A4 | The SEC merges the monthly Notes files of a quarter into a quarterly file about a year later, and corrects old files about once a year | Measured on 2026-11-07, see [How Often the SEC Changes a Notes File](../data_model/storage_traits_design.md#how-often-the-sec-changes-a-notes-file) | A merge adds a new key, so the backfill fetches it. A correction is not picked up. An amendment reaches the new-filing path as its own filing (10-K/A, 10-Q/A). |
 | A5 | CIK and accession number never change and are never reused | Unverified, SEC practice | Idempotent writes on these keys merge two different things |
 | A6 | The SEC publishes the daily indexes in date order | Unverified | The 404 rule counts a date as empty once a later index exists. An index published after a later one is lost with no alert. A rerun of that date picks it up. |
 
