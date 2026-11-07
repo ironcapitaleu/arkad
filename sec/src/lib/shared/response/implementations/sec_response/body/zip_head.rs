@@ -35,7 +35,7 @@ impl ResponseBody for ZipHeadBody {
         ZipBody::check_status_and_content_type(status_code, content_type)
     }
 
-    /// Drops the raw body and hashes it.
+    /// Hashes the raw body and drops it.
     ///
     /// # Errors
     ///

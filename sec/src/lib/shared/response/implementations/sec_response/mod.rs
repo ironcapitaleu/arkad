@@ -42,8 +42,8 @@ pub use body::{FileBody, JsonBody, ResponseBody, XmlBody, ZipBody, ZipHeadBody};
 ///   `Content-Length` header.
 /// - [`XmlBody`]: status 200, an XML content type, and a body that matches the `Content-Length`
 ///   header.
-/// - [`ZipHeadBody`]: the checks of [`ZipBody`] on the answer to a `HEAD` request, which has no
-///   body.
+/// - [`ZipHeadBody`]: status 200 and a ZIP or octet-stream content type. The answer to a `HEAD`
+///   request has no body, so it has no length check.
 ///
 /// Built from a raw response via [`from_inner`](crate::shared::response::SecResponse::from_inner),
 /// or from parts via [`SecResponse::from_parts`]. Equality, ordering, and hashing use the URL,
