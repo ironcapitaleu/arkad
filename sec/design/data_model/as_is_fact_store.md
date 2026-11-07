@@ -36,7 +36,7 @@ Types and Parsing"). This store keeps them as they are.
 | Port | `FactStore::append(&FactLoad)` replaces `FactStore::upsert(&CompanyId, &FactSet)` | [The `FactStore` Port](#the-factstore-port) |
 | Physical tier | Open until the silver layer design lands. A Postgres sketch is below | [Where Facts Live](#where-facts-live) |
 
-**Keep point-in-time open.** The design meets the standing rule as follows:
+**Keep point-in-time open.** The design keeps it open with five rules:
 
 - Every fact keeps `filed`, and `accepted` where the source gives it.
 - No write changes or deletes a row.
@@ -136,11 +136,12 @@ SourceDocument {
     key:           DocumentKey      // the key in the raw store
     sha256:        Sha256Digest     // of the stored bytes
     requested_url: Option<String>   // the SEC URL, from the raw metadata
+    fetched_at:    DateTime<Utc>    // produced_at of the raw metadata
 }
 ```
 
-- **The load ID** is a UUID v5 of four fields: the filing ID, the source format, the SHA-256 of the
-  source, and the parser version. Any run computes the same ID from the same inputs, so a write
+- **The load ID** is a UUID v5 of five fields: the filing ID, the source format, the SHA-256 of the
+  source, the parser name, and the parser version. Any run computes the same ID from the same inputs, so a write
   needs no lookup. See [Load ID Encoding](#load-id-encoding).
 - **The ingestion provenance sits next to each fact.** Each row holds the load ID, and the load ID
   names one provenance. It is not on `AsIsFact`, because `IngestionMode` lives in `storage`.
@@ -157,6 +158,9 @@ SourceDocument {
   ticker comes from `dei:TradingSymbol` in the instance or in Notes. A mutable input, such as
   `submissions`, stays out of the load. Otherwise a rerun reads new values under the same load ID,
   and `DO NOTHING` drops them.
+- **An instance load has no SIC.** The instance has no SIC, and `submissions` stays out of the
+  load. A read that needs the SIC takes it from the Notes load of the same filing, if one exists.
+  The SIC of a new filing comes from the company data of `ingestion_paths.md`, "Company Data".
 
 ### Load ID Encoding
 
@@ -172,7 +176,7 @@ load_id = uuid_v5(10fdd0ae-f445-43df-9355-01cb3344601e,
 - `source_format` is `notes` or `instance`. `hex(sha256)` is 64 lowercase hex digits.
 - `parser_version` is the semantic version as text, for example `0.3.0`.
 - A fixed test vector in the `storage` crate pins the encoding.
-- The table also holds a `UNIQUE` constraint on the four fields. If an encoding drifts, the write
+- The table also holds a `UNIQUE` constraint on the five fields. If an encoding drifts, the write
   fails on that constraint. It never adds a silent second load.
 
 ### Write Rule
@@ -207,7 +211,6 @@ latest `loaded_at`. See [Reads](#reads).
   does not take it.
 - To roll back a parser, release its old code under a new, higher version. A rerun of the old
   version adds nothing, because its load exists.
-
 - No write deletes a fact, so `FactStore` needs no delete.
 - If a parser changes its output and keeps its version, the replay changes nothing. A test must
   catch this case. See [Feature Tickets](#feature-tickets).
@@ -221,6 +224,11 @@ latest `loaded_at`. See [Reads](#reads).
 The SEC corrects old Notes files about once a year (`ingestion_paths.md`, assumption A4). A
 corrected file has a new SHA-256. A load of it is a new load, and the old load stays. So the store
 keeps the old values after the raw store replaces the file.
+
+Two Notes loads of one filing can have the same parser version: a corrected file and the old one,
+or a monthly file and the quarterly file that merges it. The read then takes the source document
+that extraction fetched last, by `fetched_at` of the source. A replay does not change `fetched_at`,
+so the order of the replay does not decide. The file fetched last is the newest version of the SEC.
 
 The store does not decide when a corrected file gets loaded. Today the backfill does not fetch a
 stored file again. Extraction owns the detection. See [Open Points](#open-points).
@@ -242,7 +250,7 @@ units, the text, and the footnotes that Notes loses. A filing that only Notes de
 Notes form of these facts.
 
 This is option 3 of `ingestion_paths.md`, "Path Independence": both copies with their provenance,
-and a read picks one. The order of arrival never decides a value. The comparison of the two sources
+and a read picks one. The order in which loads arrive never decides a value. The comparison of the two sources
 recommended option 2, the same preference applied at write time. Option 2 drops the Notes copy,
 and the store keeps every copy, so the preference moves to the read.
 
@@ -266,7 +274,7 @@ The store answers three reads. Their signatures wait for the read methods of `st
 
 | Read | Rule |
 | ---- | ---- |
-| Current facts | Per filing, take one load: the instance load over the Notes load, then the highest parser version, then the newest `loaded_at`, then the highest load ID |
+| Current facts | Per filing, take one load: the instance load over the Notes load, then the highest parser version, then the source document fetched last, then the highest load ID |
 | As of filed date D | The current facts of the filings with `filed` on or before D |
 | As known at time T | The same rule as current facts, over the loads with `loaded_at` on or before T |
 
@@ -313,7 +321,7 @@ neutral to the tier. A load maps to both tiers without a change to the model:
 
 ```sql
 CREATE TABLE fact_loads (
-    load_id          uuid        PRIMARY KEY,  -- UUID v5 of the four load fields
+    load_id          uuid        PRIMARY KEY,  -- UUID v5 of the five load fields
     filing_id        text        NOT NULL,     -- 'sec:0000320193-26-000001'
     source_format    text        NOT NULL CHECK (source_format IN ('notes', 'instance')),
     source_sha256    bytea       NOT NULL,
@@ -322,6 +330,7 @@ CREATE TABLE fact_loads (
     ingestion_mode   text        NOT NULL CHECK (ingestion_mode IN ('backfill', 'incremental')),
     source_key       text        NOT NULL,
     source_url       text,
+    source_fetched_at timestamptz NOT NULL,
     execution_id     uuid        NOT NULL,
     loaded_at        timestamptz NOT NULL,
     -- Filing, as this source reads it
@@ -339,7 +348,8 @@ CREATE TABLE fact_loads (
     ticker           text,
     exchange         text,
     fiscal_year_end  text,
-    UNIQUE (filing_id, source_format, source_sha256, parser_name, parser_version)
+    UNIQUE (filing_id, source_format, source_sha256, parser_name, parser_version),
+    CHECK (array_length(parser_version, 1) = 3 AND array_position(parser_version, NULL) IS NULL)
 );
 
 CREATE TABLE as_is_facts (
@@ -372,14 +382,15 @@ CREATE TABLE as_is_facts (
 );
 
 CREATE INDEX ON as_is_facts (entity_scheme, entity_id, concept_family, concept_name, period_end);
-CREATE INDEX ON fact_loads (filing_id, source_format, loaded_at);
+CREATE INDEX ON fact_loads (filing_id, (source_format = 'instance') DESC, parser_version DESC,
+                            source_fetched_at DESC, load_id DESC);
 
 -- Current facts: one load per filing, see "Reads".
 CREATE VIEW current_fact_loads AS
 SELECT DISTINCT ON (filing_id) *
 FROM fact_loads
-ORDER BY filing_id, (source_format = 'instance') DESC, parser_version DESC, loaded_at DESC,
-         load_id DESC;
+ORDER BY filing_id, (source_format = 'instance') DESC, parser_version DESC,
+         source_fetched_at DESC, load_id DESC;
 ```
 
 - `UNIQUE NULLS NOT DISTINCT` needs Postgres 15. Supabase runs Postgres 15 or later.
@@ -447,6 +458,7 @@ flowchart LR
 | The ingestion mode of a standardized output that joins loads of mixed modes | The transform design |
 | The signatures of the three reads | The read methods of `storage`, when the screener needs them |
 | The acceptance time on the new-filing path, from a machine-readable source | Extraction |
+| The SIC as filed on the new-filing path. Today it comes from `submissions`, which is not as filed | Extraction |
 
 ## Feature Tickets
 
@@ -463,4 +475,5 @@ flowchart LR
    Postgres store, inside the transaction of ADR 0001. Starts after the silver layer design
    confirms the tier.
 5. **Current-fact read.** The read of current facts and the read as of a filed date, with tests for
-   both sources, a replay, an amendment, and an older parser version with a newer `loaded_at`.
+   both sources, a replay, an amendment, an older parser version with a newer `loaded_at`, and two
+   Notes files of one filing with the same parser version.

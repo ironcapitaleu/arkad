@@ -505,7 +505,8 @@ section 4.
 `sec:0000320193-26-000001`. Neither is a trait. One `Filing` per filing: `FilingId`, `EntityId`, form as open text (`10-K/A`), `is_amendment`,
 `filed`, `accepted`, the period of report, the fiscal year and period as filed, and the company
 attributes as filed: name, SIC, ticker, exchange, fiscal year end. A later filing with another
-value is a change over time, not a conflict.
+value is a change over time, not a conflict. The instance has no SIC, so a `Filing` from the
+instance has none. See `sec/design/data_model/as_is_fact_store.md`, "Loads".
 
 ### Key Design Decisions
 
