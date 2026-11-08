@@ -643,7 +643,7 @@ These follow the decisions above. Each is one PR within the review budget.
    dependency, and `FakeListRepository` in the test fixtures. Tests: object safety, the order of
    the fake, an error item that does not end the stream, a store with one key type that
    implements `ReadListRepository` and passes a key from `list_keys` to `get`, and a
-   `compile_fail` doctest for a store whose two keys differ.
+   `compile_fail,E0271` doctest for a store whose two keys differ.
 2. **`ListRepository` for `FilesystemRepository`.** `KeyPrefix`, `ListedDocument`,
    `StoredDocument`, and the walk with the byte order. `FilesystemOperation::ListDirectory`. Tests
    for each row of the orphan table, for the order of `a-b` before `a/`, and for a listing that
