@@ -97,10 +97,12 @@ mod tests {
         repository: &R,
         filter: <R as ListRepository>::Filter,
     ) -> Option<<R as ReadRepository>::Record> {
-        let mut keys = collect(repository.list_keys(filter)).await;
+        let keys = collect(repository.list_keys(filter)).await;
         let first_key = keys
-            .remove(0)
-            .expect("Given a fake seeded with one entry, the first listed key should always exist");
+            .into_iter()
+            .next()
+            .expect("Given a fake seeded with one entry, the listing should always yield a key")
+            .expect("Given a fake whose items are all entries, the listed key should always be Ok");
         repository
             .get(first_key)
             .await

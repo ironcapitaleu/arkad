@@ -18,7 +18,7 @@
 //! - [`implementations`]: The concrete backends, one module per storage medium.
 //! - [`shared`]: The types that the backends and the callers of the crate both use, such as the
 //!   [`Sha256Digest`].
-//! - [`traits`]: The traits for reading, writing, and listing records.
+//! - [`traits`]: The traits for reading and writing records, and for listing documents.
 //!
 //! ## Usage
 //!

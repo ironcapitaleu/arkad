@@ -17,8 +17,10 @@ use crate::traits::repository::{ListRepository, ReadRepository};
 ///
 /// Implements [`ListRepository`] and [`ReadRepository`] with one key type, so it is a
 /// [`ReadListRepository`](crate::ReadListRepository). Each seeded item is a key with an entry or
-/// with an error. Both listings yield the items sorted by the bytes of the key text, and yield an
-/// error item at the place of its key. The filter `()` selects every item.
+/// with an error, as a document whose metadata does not parse. Both listings yield the items sorted
+/// by the bytes of the key text. [`list_keys`](ListRepository::list_keys) yields every key, and
+/// [`list`](ListRepository::list) and [`get`](ReadRepository::get) yield the error of an error
+/// item. The filter `()` selects every item.
 #[derive(Debug)]
 pub struct FakeListRepository<Key, Ent> {
     items: Vec<(Key, Result<Ent, ReadError>)>,
@@ -55,9 +57,9 @@ where
     type Filter = ();
 
     fn list_keys(&self, _filter: ()) -> BoxStream<'_, Result<Key, ReadError>> {
-        Box::pin(IteratorStream(self.items.iter().map(|(key, item)| {
-            item.as_ref().map(|_| key.clone()).map_err(Clone::clone)
-        })))
+        Box::pin(IteratorStream(
+            self.items.iter().map(|(key, _)| Ok(key.clone())),
+        ))
     }
 
     fn list(&self, _filter: ()) -> BoxStream<'_, Result<Ent, ReadError>> {
@@ -165,14 +167,11 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_yield_the_error_in_list_keys_when_an_item_is_an_error() {
+    async fn should_list_the_key_when_the_item_is_an_error() {
         let error = ReadError::Backend(BackendError::unreachable_storage("timeout"));
-        let items = vec![
-            ("a".to_string(), Err(error.clone())),
-            ("b".to_string(), Ok(2)),
-        ];
+        let items = vec![("a".to_string(), Err(error)), ("b".to_string(), Ok(2))];
         let repository = FakeListRepository::with_items(items);
-        let expected_result = vec![Err(error), Ok("b".to_string())];
+        let expected_result = vec![Ok("a".to_string()), Ok("b".to_string())];
 
         let result = collect(repository.list_keys(())).await;
 
@@ -189,6 +188,32 @@ mod tests {
             .get(key)
             .await
             .expect("Given a key seeded with an entry, the read should always succeed");
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_return_none_when_reading_a_key_that_was_not_seeded() {
+        let repository = FakeListRepository::seeded(vec![("a".to_string(), 1_u64)]);
+        let key = "b".to_string();
+        let expected_result = Ok(None);
+
+        let result = repository.get(key).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_return_the_error_when_reading_a_key_seeded_with_an_error() {
+        let error = ReadError::Backend(BackendError::unreachable_storage("timeout"));
+        let repository = FakeListRepository::<String, u64>::with_items(vec![(
+            "a".to_string(),
+            Err(error.clone()),
+        )]);
+        let key = "a".to_string();
+        let expected_result = Err(error);
+
+        let result = repository.get(key).await;
 
         assert_eq!(result, expected_result);
     }

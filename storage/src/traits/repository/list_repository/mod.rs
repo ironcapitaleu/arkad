@@ -19,12 +19,19 @@ use crate::error::ReadError;
 /// - **Order**: the stream yields the documents sorted by the UTF-8 bytes of the key text, with `/`
 ///   between the components. So the key `a-b` comes before `a/x`, because `-` is byte 0x2D and `/`
 ///   is byte 0x2F.
-/// - **Error items**: an error about one path is one `Err` item, and the stream continues after
-///   it. An error that stops the whole listing, such as a missing root, is the last item.
+/// - **Once**: a key appears at most once in one listing.
+/// - **Error items**: an error about one document is one `Err` item, and the stream continues
+///   after it. An error that stops the whole listing is the last item.
 ///
 /// A trait object sets all three associated types, as in
 /// `Box<dyn ListRepository<Key = K, Entry = E, Filter = F>>`. A trait object that leaves one out
-/// fails with E0191.
+/// fails with E0191:
+///
+/// ```compile_fail,E0191
+/// use storage::ListRepository;
+///
+/// fn takes_a_lister(_lister: Box<dyn ListRepository<Key = String, Entry = u64>>) {}
+/// ```
 ///
 /// # Associated Types
 ///
@@ -43,21 +50,21 @@ pub trait ListRepository: Send + Sync {
 
     /// Lists the key of each stored document that the filter selects.
     ///
-    /// Reads no file. So a backend that keeps the document type in the metadata yields the keys of
-    /// every type, and the caller keeps the keys it needs.
+    /// Reads no metadata. So a store that keeps the document type in the metadata yields the keys
+    /// of every type, and the caller keeps the keys it needs.
     ///
     /// # Errors
     ///
-    /// Yields a [`ReadError`] item if the store cannot list a path.
+    /// Yields a [`ReadError`] item if the store cannot list a document.
     fn list_keys(&self, filter: Self::Filter) -> BoxStream<'_, Result<Self::Key, ReadError>>;
 
     /// Lists each stored document that the filter selects, with its metadata.
     ///
-    /// Reads the metadata, never a document.
+    /// Reads the metadata, never the bytes of a document.
     ///
     /// # Errors
     ///
-    /// Yields a [`ReadError`] item if the store cannot list a path or read its metadata.
+    /// Yields a [`ReadError`] item if the store cannot list a document or read its metadata.
     fn list(&self, filter: Self::Filter) -> BoxStream<'_, Result<Self::Entry, ReadError>>;
 }
 
