@@ -113,7 +113,9 @@ Decisions:
    caller writes `<R as ReadRepository>::Key`. The bound makes the two keys one type, so either
    path names it. `ReadWriteRepository` differs here: it leaves its two `Record` types separate.
    For the same ambiguity, `dyn ReadListRepository<Key = …>` does not compile, so the helper has no
-   trait object. `dyn ListRepository<Key = …>` compiles.
+   trait object. `dyn ListRepository<Key = …, Entry = …, Filter = …>` compiles. Leaving out
+   `Entry` or `Filter` fails with E0191. A store whose two keys differ gets no
+   `ReadListRepository`: the bound fails with E0271.
 5. **Two methods.** `list_keys` reads only directory entries, so it costs one listing call per
    directory. `list` also reads each metadata file, one read per document. The cut-over check and
    the daily run need only keys. Replay and the integrity check need the metadata.
@@ -639,8 +641,9 @@ These follow the decisions above. Each is one PR within the review budget.
 1. **`ListRepository` trait and its fake.** The trait in `storage/src/traits/repository/`, the
    `ReadListRepository` helper with its blanket impl, their exports, the `futures-core`
    dependency, and `FakeListRepository` in the test fixtures. Tests: object safety, the order of
-   the fake, an error item that does not end the stream, and a store with one key type that
-   implements `ReadListRepository`.
+   the fake, an error item that does not end the stream, a store with one key type that
+   implements `ReadListRepository` and passes a key from `list_keys` to `get`, and a
+   `compile_fail` doctest for a store whose two keys differ.
 2. **`ListRepository` for `FilesystemRepository`.** `KeyPrefix`, `ListedDocument`,
    `StoredDocument`, and the walk with the byte order. `FilesystemOperation::ListDirectory`. Tests
    for each row of the orphan table, for the order of `a-b` before `a/`, and for a listing that
