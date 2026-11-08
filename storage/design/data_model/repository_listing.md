@@ -336,14 +336,14 @@ with `/` between the components.
 A sorted stream costs one sort per directory. It gives deterministic tests, a deterministic replay,
 and a merge with another sorted list, such as the rows of the full index sorted by key.
 
-Within one call, the stream fetches the pages of the backend as it needs them. A listing resumes
-from a cursor: each `Filter` type carries `start_after: Option<Key>`. The filesystem `KeyPrefix`
-holds the prefix and the cursor, and `KeyPrefix::starting_after` sets it. The caller keeps the last
+Within one call, the stream fetches the pages of the backend as it needs them. A `Filter` type that
+supports resuming carries a cursor. The filesystem `KeyPrefix` holds the prefix and the cursor, and
+`KeyPrefix::starting_after` sets it. The caller keeps the last
 key it finished as its cursor. The sort order makes "after key K" exact:
 
 - GCS supports it with `startOffset`. That parameter includes K, so the backend drops K.
-- The filesystem walk skips each file whose key sorts at or before K. It skips each directory whose
-  keys all sort before K, and does not read it.
+- The filesystem walk skips each file whose key sorts at or before K. Below the prefix, it skips each
+  directory whose keys all sort before K, and does not read it.
 
 ### What a Listing Sees During a Write
 

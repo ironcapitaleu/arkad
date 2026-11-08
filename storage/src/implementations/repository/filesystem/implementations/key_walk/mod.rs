@@ -46,8 +46,8 @@ impl<A, D> FilesystemRepository<A, D> {
     /// [`DocumentKey`] can hold, such as a name that is not valid UTF-8. The walk follows a
     /// symbolic link in the path of the prefix itself.
     ///
-    /// If the prefix carries a cursor, the walk yields only the keys that sort after it. It does
-    /// not read a directory whose keys all sort before the cursor.
+    /// If the prefix carries a cursor, the walk yields only the keys that sort after it. Below the
+    /// prefix, it does not read a directory whose keys all sort before the cursor.
     ///
     /// # Errors
     ///
@@ -782,9 +782,12 @@ mod tests {
     fn should_place_the_directory_before_the_cursor_when_all_its_keys_sort_before_it() {
         let directory = Name::Directory("a".to_owned());
 
+        let cursor = "b/x";
+        let directory_text = "";
+
         let expected_result = CursorPosition::Before;
 
-        let result = cursor_position("b/x", &directory, "");
+        let result = cursor_position(cursor, &directory, directory_text);
 
         assert_eq!(result, expected_result);
     }
@@ -793,9 +796,12 @@ mod tests {
     fn should_place_the_directory_on_the_path_when_the_cursor_sits_below_it() {
         let directory = Name::Directory("x".to_owned());
 
+        let cursor = "a/x/y";
+        let directory_text = "a";
+
         let expected_result = CursorPosition::OnPath;
 
-        let result = cursor_position("a/x/y", &directory, "a");
+        let result = cursor_position(cursor, &directory, directory_text);
 
         assert_eq!(result, expected_result);
     }
@@ -807,9 +813,12 @@ mod tests {
             has_document: true,
         };
 
+        let cursor = "a/b";
+        let directory_text = "a";
+
         let expected_result = CursorPosition::After;
 
-        let result = cursor_position("a/b", &key, "a");
+        let result = cursor_position(cursor, &key, directory_text);
 
         assert_eq!(result, expected_result);
     }
@@ -821,9 +830,12 @@ mod tests {
             has_document: true,
         };
 
+        let cursor = "a/b";
+        let directory_text = "a";
+
         let expected_result = CursorPosition::Before;
 
-        let result = cursor_position("a/b", &key, "a");
+        let result = cursor_position(cursor, &key, directory_text);
 
         assert_eq!(result, expected_result);
     }
