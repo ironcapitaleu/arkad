@@ -654,8 +654,8 @@ quarter) or a month (year and month).
 - `notes_periods(sec_client, today, on_retry)` in `sec/src/bin/shared/notes_periods.rs` calls it
   with the month before today and `DEFAULT_RETRY_DELAYS`. `backfill` logs each retry as
   `batch_notes_probe_retried`, with the quarter. A monthly file that the store holds but whose quarter the SEC has merged is
-  not requested. Its quarter covers the same filings, so silver holds the filing in both files. A
-  read takes the quarterly file. See [`as_is_fact_store.md`](../data_model/as_is_fact_store.md), "Current Facts".
+  not requested. Its quarter covers the same filings, so silver holds such a filing in both files.
+  A read takes the quarterly file, see [`silver_layer.md`](silver_layer.md#current-facts), "Current Facts".
 - `NotesPeriod::file_name()` returns the SEC file name. See [File Names](#file-names).
 - Early in a month, the SEC has not posted the file of the last month yet. If the last period gets
   403 or 404, the run counts it as unpublished, not as failed, and the next run asks for it again.
@@ -1801,8 +1801,8 @@ Assumptions:
 
 ### Idempotent Writes
 
-> Decided as a direction by the lead on 2026-10-28. Silver holds the facts first, see [`as_is_fact_store.md`](../data_model/as_is_fact_store.md). A
-> later gold design fixes the gold schema and its write rule.
+> **Input for STA-331.** Decided as a direction by the lead on 2026-10-28. The fact store design
+> (round 2) fixes the schema.
 
 An upsert is one statement that inserts a row, or updates it if a row with the same key exists. In
 Postgres, it is `INSERT … ON CONFLICT (key) DO UPDATE` or `DO NOTHING`. The database makes the
@@ -1817,7 +1817,7 @@ ON CONFLICT (cik) DO UPDATE
 ```
 
 `excluded` is the row that the statement tried to insert. The table name and the columns are an
-example. A later gold design fixes the schema.
+example. STA-331 fixes the schema.
 
 Rules:
 
@@ -1830,16 +1830,16 @@ Rules:
   company data with older data.
 - **Filings** are keyed by accession number: `ON CONFLICT (accession_number) DO NOTHING`.
 - **Facts** hold the CIK and the accession number directly, not a surrogate id from a lookup. A
-  fact is keyed by its accession number and its value key. `DO NOTHING` keeps old facts after a
-  replay, so the write rule of the gold fact tier is open for a later gold design.
+  fact is keyed by its accession number and its value key (STA-331): `DO NOTHING`.
 - **One transaction per filing.** The load writes the company, then the filing, then its facts.
 
 So the order of Notes files, the order of days, a rerun, and an overlap do not create a duplicate.
 Silver keeps the copy of each source, and a read takes one source per filing. See
 [Path Independence](#path-independence).
 
-The fact store keys each fact by the `EntityId` of its filing, the CIK for the SEC. A write needs
-no lookup. See [`as_is_fact_store.md`](../data_model/as_is_fact_store.md).
+Each as-is fact carries the `EntityId` of its filing, the CIK for the SEC, so a write needs no
+lookup. The write rule of the gold fact tier is open for a later gold design: `DO NOTHING` keeps old
+facts after a replay.
 
 ### Path Independence
 
@@ -1869,17 +1869,16 @@ Rules:
 3. **Same filing, same facts.** A test runs both parsers on filings that are in both sources. A
    difference in parser logic fails the test. A difference in the source data is a finding for
    rule 4, not a test failure.
-4. **Order never decides a value.** Silver keeps the rows of each source. A read takes the
-   instance over Notes for a filing, so arrival never decides. Option 3 in the table below,
-   decided in [`as_is_fact_store.md`](../data_model/as_is_fact_store.md).
+4. **Order never decides a value.** Silver keeps the rows of each source, and a read takes the
+   instance over Notes for a filing. This is option 3 in the table below. See [`silver_layer.md`](silver_layer.md#current-facts), "Current Facts".
 5. **Provenance on every fact.** The DoD of STA-331 lists these fields: the ingestion path
    (`ingestion_mode` in the raw metadata, `backfill` or `incremental`), the source document
    (Notes file or instance, with its key and SHA-256), the `execution_id`, the load time, and the
    parser version.
 6. **Transform replays from the raw store.** A change to a parser or a rule reruns transform. It
    does not need a new extract. Two limits apply today:
-   - A replay adds a new silver unit next to the old one. How gold replaces the facts of a
-     replayed filing is open for a later gold design.
+   - A replay adds a new silver unit next to the old one, and a read takes the current unit. How
+     gold replaces the facts of a replayed filing is open for a later gold design.
    - The raw store keeps only the latest version of a Notes file (see [Raw Store](#raw-store)).
      A rerun keeps a stored file that passes its check, so a replay reads the bytes of the first
      run. If the store cannot verify the file, the run downloads the current SEC version and marks
@@ -1896,8 +1895,7 @@ The fact store design already has a rule for two sources (STA-145, see
 `hybrid_data_model.md` §2.1). It keys canonical facts by `source_ref` and never merges two sources
 into one row. "Which value wins" is a read-time choice. Today `source_ref` names the filing
 (`sec:accession`), so a Notes copy and an instance copy of the same filing share it. The freeze
-points to option 3, but does not decide this case. [`as_is_fact_store.md`](../data_model/as_is_fact_store.md) takes option 3. Silver keeps a row per
-source, with the source document on each row.
+points to option 3, but does not decide this case. Silver takes option 3, see [`silver_layer.md`](silver_layer.md#current-facts), "Current Facts".
 
 | Option | Rule | Same result across the cases? | Pro | Con |
 | ------ | ---- | ----------------------------- | --- | --- |
@@ -1944,15 +1942,16 @@ These kinds are not losses, or the comparison cannot tell whether they are:
 - The footnotes differ in how Notes joins them: 5 facts.
 
 Recommendation of the comparison: option 2, instance over Notes, applied by an upsert with a
-fixed rank. The recommendation had two conditions:
+fixed rank. Two conditions applied:
 
-- The rank works only on a unique key. The value key of `xbrl/DESIGN.md` adds `copy_rank`, so the
-  395 cases above hold one fact per key.
-- Option 2 picks the value at write time. `storage_traits_design.md` picks "which value wins" at
-  read time.
+- The rank works only on a unique key. STA-331 must first widen the value key, so that the 395
+  cases above hold one fact per key.
+- Today `source_ref` names the filing, so both copies have the same grain, and the upsert keeps one
+  row per fact. But option 2 picks the value at write time. The STA-145 freeze picks "which
+  value wins" at read time. STA-331 must accept that change, or take option 3.
 
-Decided in [`as_is_fact_store.md`](../data_model/as_is_fact_store.md): option 3 with the same preference, instance over Notes, applied by a read. Silver
-keeps every copy, so the Notes copy is not dropped at write time.
+Decided in [`silver_layer.md`](silver_layer.md#current-facts), "Current Facts": option 3 with the same preference, instance over Notes, applied by a
+read. Silver keeps every copy, so the Notes copy is not dropped at write time.
 
 A filing that only Notes delivered keeps the Notes form of its lossy facts.
 
@@ -2012,8 +2011,8 @@ The metadata of each raw document records the ingestion mode of the run that cre
   rewrites it.
 - So the metadata names the run that created the document. `submissions` serves both modes. If
   `ingestion_mode` were part of the comparison, each run in the other mode would rewrite the file.
-- Transform copies the mode of the source document onto each as-is row. See [`as_is_fact_store.md`](../data_model/as_is_fact_store.md), "Ingestion
-  Mode".
+- Transform copies the mode of the source document onto each as-is row (`silver_layer.md`,
+  "Provenance").
 
 ## Handover to Transform
 
@@ -2186,5 +2185,5 @@ to fill gaps. Detection outputs only a `Vec<FilingRef>`, so the filing machine d
 
 Still open from the findings: GLEIF access, detail depth, the `-xbrl.zip` and the inline parser.
 
-Decided in [`as_is_fact_store.md`](../data_model/as_is_fact_store.md): the fact store keeps an amendment next to its original, a read takes the instance
-over Notes for a filing, and silver keeps every replay. The gold write rule is open.
+Decided in [`silver_layer.md`](silver_layer.md#current-facts), "Current Facts": silver keeps an amendment next to its original, and a read takes the
+instance over Notes for a filing. How gold writes a replay is open for a later gold design.
