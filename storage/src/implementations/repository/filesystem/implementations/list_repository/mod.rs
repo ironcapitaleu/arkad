@@ -264,3 +264,384 @@ async fn modified_at(path: &Path) -> Result<DateTime<Utc>, FailedFilesystemOpera
     let modified = metadata.modified().map_err(inspect_error)?;
     Ok(DateTime::<Utc>::from(modified))
 }
+
+#[cfg(test)]
+mod tests {
+    use std::path::PathBuf;
+
+    use pretty_assertions::assert_eq;
+    use tempfile::TempDir;
+
+    use super::*;
+    use crate::implementations::repository::filesystem::error::FailedFilesystemOperationReason;
+    use crate::implementations::repository::filesystem::{METADATA_SUFFIX, ReadWrite};
+    use crate::tests::fixtures::fake_list_repository::collect;
+    use crate::tests::fixtures::sample_document::{
+        SampleContext, SampleDocument, sample_metadata_of,
+    };
+    use crate::traits::repository::WriteRepository;
+
+    const PRODUCED_AT: &str = "2026-09-22T20:05:30Z";
+
+    fn repository_at(root: impl Into<PathBuf>) -> FilesystemRepository<ReadWrite, SampleDocument> {
+        FilesystemRepository::builder()
+            .read_write()
+            .document_type::<SampleDocument>()
+            .root(root)
+            .build()
+    }
+
+    fn temporary_root() -> TempDir {
+        TempDir::new().expect(
+            "Given a writable system temp directory, creating a directory in it should always succeed",
+        )
+    }
+
+    fn key(path: &str) -> DocumentKey {
+        DocumentKey::new(path)
+            .expect("Given a valid hardcoded relative path, the key should always build")
+    }
+
+    /// Writes a `{}` document under the key through `persist`.
+    async fn persist_at(repository: &FilesystemRepository<ReadWrite, SampleDocument>, path: &str) {
+        let record = SampleDocument::from_parts(
+            key(path),
+            b"{}".to_vec(),
+            sample_metadata_of(b"{}", PRODUCED_AT),
+        );
+        repository
+            .persist(record)
+            .await
+            .expect("Given a writable temp root, persisting a document should always succeed");
+    }
+
+    /// Writes the given text as a file under the root, with its parent directories.
+    fn write_file(root: &Path, path: &str, text: &str) {
+        let path = root.join(path);
+        let directory = path
+            .parent()
+            .expect("Given a path under a root, the path should always have a parent");
+        std::fs::create_dir_all(directory).expect(
+            "Given a writable temp directory, creating subdirectories should always succeed",
+        );
+        std::fs::write(&path, text)
+            .expect("Given an existing directory, writing a file should always succeed");
+    }
+
+    /// Returns the JSON of the sample metadata with one field replaced.
+    fn metadata_json_with(field: &str, value: serde_json::Value) -> String {
+        let mut metadata = serde_json::to_value(sample_metadata_of(b"{}", PRODUCED_AT))
+            .expect("Given metadata of owned fields, serialization should always succeed");
+        metadata[field] = value;
+        metadata.to_string()
+    }
+
+    /// Reduces an entry to its key and its document file, the parts a test can know in advance.
+    fn key_and_document(
+        item: Result<ListedDocument<SampleContext>, ReadError>,
+    ) -> Result<(DocumentKey, StoredDocument), ReadError> {
+        item.map(|entry| (entry.key().clone(), entry.document()))
+    }
+
+    async fn list_key_and_document(
+        repository: &FilesystemRepository<ReadWrite, SampleDocument>,
+        prefix: KeyPrefix,
+    ) -> Vec<Result<(DocumentKey, StoredDocument), ReadError>> {
+        collect(repository.list(prefix))
+            .await
+            .into_iter()
+            .map(key_and_document)
+            .collect()
+    }
+
+    fn read_error(reason: FailedFilesystemOperationReason, path: PathBuf) -> ReadError {
+        ReadError::Backend(BackendError::from(FailedFilesystemOperation::new(
+            reason, path,
+        )))
+    }
+
+    const fn implements_list_repository<T: ListRepository>() {}
+    #[test]
+    const fn should_implement_list_repository_for_filesystem_repository() {
+        implements_list_repository::<FilesystemRepository<ReadWrite, SampleDocument>>();
+    }
+
+    #[tokio::test]
+    async fn should_yield_the_entry_as_present_when_the_document_and_its_metadata_exist() {
+        let root = temporary_root();
+        let repository = repository_at(root.path());
+        persist_at(&repository, "sec/x.json").await;
+        let prefix = KeyPrefix::root();
+
+        let expected_result = vec![Ok((
+            key("sec/x.json"),
+            StoredDocument::Present { size_in_bytes: 2 },
+        ))];
+
+        let result = list_key_and_document(&repository, prefix).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_yield_the_stored_metadata_when_listing_a_document() {
+        let root = temporary_root();
+        let repository = repository_at(root.path());
+        persist_at(&repository, "sec/x.json").await;
+        let prefix = KeyPrefix::root();
+
+        let expected_result = vec![Some(sample_metadata_of(b"{}", PRODUCED_AT))];
+
+        let result: Vec<_> = collect(repository.list(prefix))
+            .await
+            .into_iter()
+            .map(|item| item.ok().map(|entry| entry.metadata().clone()))
+            .collect();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_yield_the_entry_as_missing_when_only_the_metadata_exists() {
+        let root = temporary_root();
+        let repository = repository_at(root.path());
+        persist_at(&repository, "sec/x.json").await;
+        std::fs::remove_file(root.path().join("sec/x.json"))
+            .expect("Given a persisted document, removing its file should always succeed");
+        let prefix = KeyPrefix::root();
+
+        let expected_result = vec![Ok((key("sec/x.json"), StoredDocument::Missing))];
+
+        let result = list_key_and_document(&repository, prefix).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_yield_nothing_when_a_document_has_no_metadata() {
+        let root = temporary_root();
+        write_file(root.path(), "sec/x.json", "{}");
+        let repository = repository_at(root.path());
+        let prefix = KeyPrefix::root();
+
+        let expected_result: Vec<Result<(DocumentKey, StoredDocument), ReadError>> = vec![];
+
+        let result = list_key_and_document(&repository, prefix).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_yield_nothing_when_the_directory_holds_only_temporary_files_of_a_write() {
+        let root = temporary_root();
+        let metadata_json = serde_json::to_string(&sample_metadata_of(b"{}", PRODUCED_AT))
+            .expect("Given metadata of owned fields, serialization should always succeed");
+        write_file(root.path(), "sec/.x.json.4242.0.tmp", "{}");
+        write_file(
+            root.path(),
+            "sec/.x.json.meta.json.4242.1.tmp",
+            &metadata_json,
+        );
+        let repository = repository_at(root.path());
+        let prefix = KeyPrefix::root();
+
+        let expected_result: Vec<Result<(DocumentKey, StoredDocument), ReadError>> = vec![];
+
+        let result = list_key_and_document(&repository, prefix).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_skip_the_entry_when_the_metadata_holds_another_document_type() {
+        let root = temporary_root();
+        let metadata_json = metadata_json_with("document_type", "other_document".into());
+        write_file(root.path(), "sec/x.json", "{}");
+        write_file(
+            root.path(),
+            &format!("sec/x.json{METADATA_SUFFIX}"),
+            &metadata_json,
+        );
+        let repository = repository_at(root.path());
+        let prefix = KeyPrefix::root();
+
+        let expected_result: Vec<Result<(DocumentKey, StoredDocument), ReadError>> = vec![];
+
+        let result = list_key_and_document(&repository, prefix).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_yield_an_error_when_the_metadata_holds_another_version_of_the_document_type() {
+        let root = temporary_root();
+        let metadata_json = metadata_json_with("document_type_version", 2.into());
+        write_file(root.path(), "sec/x.json", "{}");
+        write_file(
+            root.path(),
+            &format!("sec/x.json{METADATA_SUFFIX}"),
+            &metadata_json,
+        );
+        let repository = repository_at(root.path());
+        let prefix = KeyPrefix::root();
+
+        let expected_result = vec![Err(read_error(
+            FailedFilesystemOperationReason::UnexpectedDocumentType {
+                found_document_type: "sample_document".to_owned(),
+                found_document_type_version: 2,
+                expected_document_type: "sample_document".to_owned(),
+                expected_document_type_version: 1,
+            },
+            root.path().join(format!("sec/x.json{METADATA_SUFFIX}")),
+        ))];
+
+        let result = list_key_and_document(&repository, prefix).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_yield_an_error_and_continue_when_the_metadata_does_not_parse() {
+        let root = temporary_root();
+        let repository = repository_at(root.path());
+        write_file(root.path(), "sec/a.json", "{}");
+        write_file(root.path(), &format!("sec/a.json{METADATA_SUFFIX}"), "{");
+        persist_at(&repository, "sec/b.json").await;
+        let prefix = KeyPrefix::root();
+
+        let expected_result = vec![
+            Err(read_error(
+                FailedFilesystemOperationReason::InvalidMetadata { line: 1, column: 1 },
+                root.path().join(format!("sec/a.json{METADATA_SUFFIX}")),
+            )),
+            Ok((
+                key("sec/b.json"),
+                StoredDocument::Present { size_in_bytes: 2 },
+            )),
+        ];
+
+        let result = list_key_and_document(&repository, prefix).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_yield_one_error_and_end_when_the_root_is_missing() {
+        let root = temporary_root();
+        let missing_root = root.path().join("missing");
+        let repository = repository_at(&missing_root);
+        let prefix = KeyPrefix::root();
+
+        let expected_result = vec![Err(read_error(
+            FailedFilesystemOperationReason::MissingRoot,
+            missing_root.clone(),
+        ))];
+
+        let result = list_key_and_document(&repository, prefix).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_yield_the_entries_in_key_order_when_more_reads_than_the_bound_run() {
+        let root = temporary_root();
+        let repository = repository_at(root.path());
+        let paths = [
+            "a-b", "a/x", "c01", "c02", "c03", "c04", "c05", "c06", "c07", "c08", "c09", "c10",
+            "c11", "c12", "c13", "c14", "c15", "c16", "c17", "c18",
+        ];
+        for path in paths {
+            persist_at(&repository, path).await;
+        }
+        let prefix = KeyPrefix::root();
+
+        let expected_result = vec![
+            key("a-b"),
+            key("a/x"),
+            key("c01"),
+            key("c02"),
+            key("c03"),
+            key("c04"),
+            key("c05"),
+            key("c06"),
+            key("c07"),
+            key("c08"),
+            key("c09"),
+            key("c10"),
+            key("c11"),
+            key("c12"),
+            key("c13"),
+            key("c14"),
+            key("c15"),
+            key("c16"),
+            key("c17"),
+            key("c18"),
+        ];
+
+        let result: Vec<DocumentKey> = collect(repository.list(prefix))
+            .await
+            .into_iter()
+            .filter_map(|item| item.ok().map(|entry| entry.key().clone()))
+            .collect();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_list_the_keys_of_every_document_type_when_both_files_exist() {
+        let root = temporary_root();
+        let repository = repository_at(root.path());
+        persist_at(&repository, "sec/a.json").await;
+        let other_type_json = metadata_json_with("document_type", "other_document".into());
+        write_file(root.path(), "sec/b.json", "{}");
+        write_file(
+            root.path(),
+            &format!("sec/b.json{METADATA_SUFFIX}"),
+            &other_type_json,
+        );
+        persist_at(&repository, "sec/c.json").await;
+        std::fs::remove_file(root.path().join("sec/c.json"))
+            .expect("Given a persisted document, removing its file should always succeed");
+        let prefix = KeyPrefix::root();
+
+        let expected_result = vec![Ok(key("sec/a.json")), Ok(key("sec/b.json"))];
+
+        let result = collect(repository.list_keys(prefix)).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_yield_each_completed_document_once_when_a_write_runs_during_the_listing() {
+        let root = temporary_root();
+        let repository = repository_at(root.path());
+        let completed = ["sec/b/01", "sec/b/02", "sec/b/03", "sec/b/04", "sec/b/05"];
+        for path in completed {
+            persist_at(&repository, path).await;
+        }
+        let new_paths = ["sec/a/01", "sec/a/02", "sec/b/00", "sec/b/06", "sec/c/01"];
+        let writes = async {
+            for path in new_paths {
+                persist_at(&repository, path).await;
+            }
+        };
+        let prefix = KeyPrefix::root();
+
+        let expected_result = vec![
+            key("sec/b/01"),
+            key("sec/b/02"),
+            key("sec/b/03"),
+            key("sec/b/04"),
+            key("sec/b/05"),
+        ];
+
+        let (listing, ()) = tokio::join!(collect(repository.list(prefix)), writes);
+        let result: Vec<DocumentKey> = listing
+            .into_iter()
+            .filter_map(|item| item.ok().map(|entry| entry.key().clone()))
+            .filter(|listed| completed.iter().any(|path| *listed == key(path)))
+            .collect();
+
+        assert_eq!(result, expected_result);
+    }
+}
