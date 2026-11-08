@@ -1,8 +1,8 @@
 //! # Notes Fixture
 //!
-//! Reads and parses the `sub`, `num`, `txt`, `dim`, and `tag` rows of the 10-Q `0001628280-26-068246` from
-//! `tests/fixtures/notes/`. The files keep the header and the rows as the SEC wrote them. None of
-//! the rows holds a quoted field, so each line splits on tabs.
+//! Reads and parses the `sub`, `num`, `txt`, `dim`, and `tag` rows of the 10-Q
+//! `0001628280-26-068246` from `tests/fixtures/notes/`. The files keep the header and the rows as
+//! the SEC wrote them. None of the rows holds a quoted field, so each line splits on tabs.
 
 use std::collections::HashMap;
 use std::fs;

@@ -3,9 +3,9 @@
 //! Runs [`xbrl::adapter::edgar::notes::parse`] and [`xbrl::adapter::edgar::instance::parse`] on one
 //! real filing in both sources, the 10-Q `0001628280-26-068246`, and compares their as-is facts.
 //!
-//! The Notes data set loses some content on the way from the instance. The comparison allows these
-//! losses. The readme of the Notes data set (`readme.htm` in each Notes ZIP) documents three, and
-//! `sec/design/pipeline/ingestion_paths.md`, "Measured Result", measured three:
+//! The Notes data set loses some content on the way from the instance. The comparison allows the
+//! losses below. "readme" is `readme.htm` in each Notes ZIP. "Measured Result" is the section of
+//! `sec/design/pipeline/ingestion_paths.md`.
 //!
 //! - Notes rounds a number to 4 decimals (readme and "Measured Result").
 //! - Notes drops non-ASCII characters ("Measured Result").
@@ -53,6 +53,12 @@ const REFERENCE_START: char = '&';
 /// The end of a character reference in a text block.
 const REFERENCE_END: char = ';';
 
+/// The character before the number of a numeric character reference, as in `&#8217;`.
+const REFERENCE_NUMBER_SIGN: char = '#';
+
+/// The most characters between `&` and `;` of a character reference that the comparison skips.
+const REFERENCE_MAX_CHARACTERS: usize = 10;
+
 fn sorted_keys(facts: &[AsIsFact]) -> Vec<FactKey> {
     let mut keys: Vec<FactKey> = facts.iter().map(AsIsFact::key).collect();
     keys.sort();
@@ -68,20 +74,37 @@ fn as_notes_text(text: &str) -> String {
 /// Returns the ASCII letters and digits of the text, without its tags and character references.
 ///
 /// Notes removes the markup of a text block, and the spaces between tags vary. The letters and
-/// digits stay, so they show whether both sides hold the same content.
+/// digits stay, so they show whether both sides hold the same content. A `<` with no `>` after it
+/// starts no tag, so the letters after it stay.
 fn letters_and_digits(text: &str) -> String {
     let mut result = String::with_capacity(text.len());
-    let mut skip_until = None;
-    for character in text.chars() {
-        match skip_until {
-            Some(end) if character == end => skip_until = None,
-            None if character == TAG_START => skip_until = Some(TAG_END),
-            None if character == REFERENCE_START => skip_until = Some(REFERENCE_END),
-            None if character.is_ascii_alphanumeric() => result.push(character),
+    let mut rest = text;
+    while let Some(character) = rest.chars().next() {
+        rest = &rest[character.len_utf8()..];
+        match character {
+            TAG_START => rest = rest.split_once(TAG_END).map_or(rest, |(_, after)| after),
+            REFERENCE_START => rest = after_reference(rest),
+            _ if character.is_ascii_alphanumeric() => result.push(character),
             _ => {}
         }
     }
     result
+}
+
+/// Returns the text after a character reference, or the whole text if it starts with none. A bare
+/// `&`, as in `R&D`, starts no reference, so the letters after it stay.
+fn after_reference(text: &str) -> &str {
+    match text.split_once(REFERENCE_END) {
+        Some((name, after))
+            if (1..=REFERENCE_MAX_CHARACTERS).contains(&name.chars().count())
+                && name.chars().all(|character| {
+                    character == REFERENCE_NUMBER_SIGN || character.is_ascii_alphanumeric()
+                }) =>
+        {
+            after
+        }
+        _ => text,
+    }
 }
 
 /// Returns `true` if the instance value equals the Notes value after the Notes losses.
