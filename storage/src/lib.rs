@@ -5,7 +5,8 @@
 //! implement those traits.
 //!
 //! [`ReadRepository`] reads a record by key. [`WriteRepository`] persists a record.
-//! [`ReadWriteRepository`] names a store that does both. A component depends on the trait for the
+//! [`ReadWriteRepository`] names a store that does both. [`ListRepository`] lists the documents a
+//! store holds, and [`ReadListRepository`] names a store that reads and lists with one key type. A component depends on the trait for the
 //! access it needs, so a write from a read-only caller does not compile.
 //!
 //! The traits are expressed in domain types and name no concrete database or backend. Each backend
@@ -17,7 +18,7 @@
 //! - [`implementations`]: The concrete backends, one module per storage medium.
 //! - [`shared`]: The types that the backends and the callers of the crate both use, such as the
 //!   [`Sha256Digest`].
-//! - [`traits`]: The traits for reading and writing records.
+//! - [`traits`]: The traits for reading and writing records, and for listing documents.
 //!
 //! ## Usage
 //!
@@ -41,7 +42,9 @@ pub mod traits;
 
 pub use error::{BackendCause, BackendError, ErrorKind, ReadError, WriteError};
 pub use shared::{InvalidSha256Digest, Sha256Digest};
-pub use traits::repository::{ReadRepository, ReadWriteRepository, WriteRepository};
+pub use traits::repository::{
+    ListRepository, ReadListRepository, ReadRepository, ReadWriteRepository, WriteRepository,
+};
 
 #[cfg(test)]
 pub mod tests;
