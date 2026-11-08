@@ -1,12 +1,13 @@
 # Silver Layer
 
-> **Status:** proposed, for review by the lead. Inputs: the contract types and the transform
+> **Status:** the table layout (plain Parquet with the `silver_files` list) was decided by the owner
+> on 2026-11-08. The rest is proposed, for review by the lead. Inputs: the contract types and the transform
 > integration of [`xbrl/DESIGN.md`](../../../xbrl/DESIGN.md), the raw store of
 > [`ingestion_paths.md`](ingestion_paths.md), and the extraction of
 > [`extraction_overview.md`](extraction_overview.md).
 >
 > **Marks:** "Measured" means checked on 2026-11-07 against a downloaded SEC file. "Estimate" means
-> not measured. Every other statement is a proposal.
+> not measured. "Decided" names a decision of the owner. Every other statement is a proposal.
 
 Silver is the processed layer between the raw store (bronze) and Postgres (gold). This document
 fixes what silver holds, in which format and layout, how provenance and time reach each row, and how
@@ -16,8 +17,8 @@ the transform fills it.
 
 - [Layers](#layers) and [Fixed Inputs](#fixed-inputs) give the frame. Read them first.
 - [Datasets](#datasets) is the data model. It carries the most decisions.
-- [Format and Table Layout](#format-and-table-layout) holds the choice of plain Parquet with a file
-  list over a table format with snapshots, decided on 2026-11-08, and the triggers to switch.
+- [Format and Table Layout](#format-and-table-layout) holds the decision of 2026-11-08 for plain
+  Parquet with a file list, and the triggers to switch to a table format.
 - [Units, Paths, and Replays](#units-paths-and-replays) and [Provenance](#provenance) describe how a
   write and a replay work. Check them against the open choices of the fact store design.
 - [Time and Duplicates](#time-and-duplicates) holds the read rules and the rule for company
