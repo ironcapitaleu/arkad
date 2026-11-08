@@ -7,8 +7,9 @@
 //!
 //! Each file comes from `https://data.sec.gov/api/xbrl/companyfacts/CIK##########.json`,
 //! downloaded on 2026-11-08. The full files are 3 to 8 MB each, so each file keeps only the `dei`
-//! facts and the `us-gaap` concepts that `concepts.txt` lists. Every kept fact is as the SEC sends
-//! it, with its full history. To refresh a file, download it again and run:
+//! facts and the `us-gaap` concepts that `concepts.txt` lists. The list is the same for all four
+//! files, so a file can lack some of its concepts. Every kept fact is as the SEC sends it, with its
+//! full history. To refresh a file, download it again and run:
 //!
 //! ```text
 //! jq -c --rawfile c concepts.txt '($c|split("\n")|map(select(length>0))) as $keep
@@ -16,17 +17,20 @@
 //!   | with_entries(select(.key as $k | $keep|index($k))))}' raw.json > CIK##########.json
 //! ```
 //!
-//! The Berkshire Hathaway file in the `sec` crate covers a conglomerate with an insurance arm.
+//! A conglomerate with an insurance arm is in
+//! `sec/src/lib/tests/fixtures/data/raw_input/CIK0001067983.json` (Berkshire Hathaway).
 
 /// Company Facts of `JPMorgan` Chase, a bank.
 ///
-/// It reports no `OperatingIncomeLoss`. It tags both `Revenues` and `RevenuesNetOfInterestExpense`
-/// for the same years, with different values.
+/// It reports no `OperatingIncomeLoss`. It tags total net revenue as both `Revenues` and
+/// `RevenuesNetOfInterestExpense`, with the same value in each filing. A value for one period
+/// differs between filings where a later filing restates it.
 pub const JPMORGAN_CHASE: &str = include_str!("CIK0000019617.json");
 
 /// Company Facts of Progressive, a property and casualty insurer.
 ///
-/// It reports no `OperatingIncomeLoss`. Its main revenue line is `PremiumsEarnedNet`.
+/// It reports no `OperatingIncomeLoss`. It tags `PremiumsEarnedNet` only in filings from fiscal
+/// year 2024 on, next to a `Revenues` total with full history.
 pub const PROGRESSIVE: &str = include_str!("CIK0000080661.json");
 
 /// Company Facts of Walmart, whose fiscal year ends on January 31.
@@ -158,6 +162,53 @@ mod tests {
             .filter(|fact| fact["form"] == "10-K" && fact["fy"] == 2025 && fact["fp"] == "FY")
             .filter_map(|fact| fact["end"].as_str())
             .max();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_have_revenues_net_of_interest_expense_for_the_jpmorgan_chase_fixture() {
+        let fixture = JPMORGAN_CHASE;
+
+        let expected_result = true;
+
+        let result = has_us_gaap_concept(fixture, "RevenuesNetOfInterestExpense");
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_have_premiums_earned_for_the_progressive_fixture() {
+        let fixture = PROGRESSIVE;
+
+        let expected_result = true;
+
+        let result = has_us_gaap_concept(fixture, "PremiumsEarnedNet");
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_have_profit_loss_for_the_simon_property_group_fixture() {
+        let fixture = SIMON_PROPERTY_GROUP;
+
+        let expected_result = true;
+
+        let result = has_us_gaap_concept(fixture, "ProfitLoss");
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_keep_every_concept_the_absence_tests_check_for_the_trim_list() {
+        let concepts = include_str!("concepts.txt");
+
+        let expected_result = vec!["Liabilities", "NetIncomeLoss", "OperatingIncomeLoss"];
+
+        let result: Vec<&str> = concepts
+            .lines()
+            .filter(|line| ["Liabilities", "NetIncomeLoss", "OperatingIncomeLoss"].contains(line))
+            .collect();
 
         assert_eq!(result, expected_result);
     }
