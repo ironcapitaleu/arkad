@@ -8,8 +8,8 @@
 //! ## Modules
 //!
 //! - [`company_facts`]: The Company Facts API.
-//! - [`company_concept`]: The Company Concept API. Placeholder.
-//! - [`frames`]: The Frames API. Placeholder.
+//! - [`company_concept`]: The Company Concept API.
+//! - [`frames`]: The Frames API.
 //! - [`frame`]: The `frame` field of a data point.
 //! - [`quarter`]: The calendar quarter of a frame.
 
