@@ -315,7 +315,7 @@ mod tests {
     }
 
     #[test]
-    fn should_return_invalid_xml_when_prefix_has_no_namespace() {
+    fn should_return_invalid_xml_when_prefix_is_unbound() {
         let text = "<xs:schema />";
 
         let expected_result = Some(
@@ -325,6 +325,26 @@ mod tests {
         );
 
         let result = concepts(Path::new(PATH), text)
+            .err()
+            .map(|error| error.to_string());
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_name_the_line_of_the_declaration_when_period_type_is_missing() {
+        let text = schema(
+            "\n<xs:element name='Assets' substitutionGroup='xbrli:item' \
+             type='xbrli:monetaryItemType' />",
+        );
+
+        let expected_result = Some(
+            "[MissingAttribute] Required attribute 'periodType' not found on element 'element', \
+             Line: '2', Path: 'us-gaap-2026.xsd'"
+                .to_string(),
+        );
+
+        let result = concepts(Path::new(PATH), &text)
             .err()
             .map(|error| error.to_string());
 
