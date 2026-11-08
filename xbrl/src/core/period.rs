@@ -53,6 +53,12 @@ impl fmt::Display for Period {
     }
 }
 
+/// A quarter is `QUARTER_NUMERATOR / QUARTER_DENOMINATOR` days, that is 91.3125 days.
+const QUARTER_NUMERATOR: i64 = 1461;
+
+/// The denominator of the length of a quarter in days. See [`QUARTER_NUMERATOR`].
+const QUARTER_DENOMINATOR: i64 = 16;
+
 /// A span of time: an exact end, a length in quarters, and the exact start if the source gives it.
 ///
 /// The Notes data set gives the length but often no exact start. So the length is a field, and the
@@ -108,7 +114,7 @@ impl Duration {
         }
         // 91.3125 days are 1461/16 days, so `round(days / 91.3125)` is `round(16 * days / 1461)`.
         // 1461 is odd, so the fraction never lies halfway, and integer division rounds exactly.
-        let quarters = (16 * days + 730) / 1461;
+        let quarters = (QUARTER_DENOMINATOR * days + QUARTER_NUMERATOR / 2) / QUARTER_NUMERATOR;
         let quarters = u16::try_from(quarters).map_err(|_| {
             InvalidValue::new(
                 Self::TYPE_NAME,
@@ -132,6 +138,17 @@ impl Duration {
             end,
             quarters,
         }
+    }
+
+    /// Returns how far the length lies from its whole number of quarters, in sixteenths of a day:
+    /// `|16 * days - 1461 * quarters|`. Returns `None` if the source gives no exact start.
+    ///
+    /// The SEC orders the copies of one key by this distance, so a 91-day quarter comes before a
+    /// 121-day period that also rounds to 1 quarter.
+    #[must_use]
+    pub fn distance_to_full_quarters(&self) -> Option<i64> {
+        let days = (self.end - self.start?).num_days();
+        Some((QUARTER_DENOMINATOR * days - QUARTER_NUMERATOR * i64::from(self.quarters)).abs())
     }
 
     /// Returns the exact start, if the source gives it.
@@ -182,6 +199,29 @@ mod tests {
     #[test]
     const fn should_implement_auto_traits_for_duration() {
         implements_auto_traits::<Duration>();
+    }
+
+    #[test]
+    fn should_give_the_distance_to_a_full_quarter_when_the_duration_has_a_start() {
+        let duration = Duration::from_dates(date(2026, 6, 1), date(2026, 9, 30))
+            .expect("Given an end after the start, the creation should always succeed");
+
+        let expected_result = Some(475);
+
+        let result = duration.distance_to_full_quarters();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_no_distance_to_a_full_quarter_when_the_duration_has_no_start() {
+        let duration = Duration::from_end_and_quarters(date(2026, 9, 30), 1);
+
+        let expected_result = None;
+
+        let result = duration.distance_to_full_quarters();
+
+        assert_eq!(result, expected_result);
     }
 
     #[test]

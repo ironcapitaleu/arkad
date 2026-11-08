@@ -12,17 +12,20 @@
 //!
 //! - [`row`]: The row types of the Notes tables, and the map of each column into a core type.
 
-use std::collections::{BTreeSet, HashMap, HashSet};
+use std::collections::{HashMap, HashSet};
 use std::fmt;
 
 use self::row::{DimRow, NumRow, SubRow, TagRow, TxtRow};
-use crate::core::concept::{ConceptName, NamespaceFamily};
+use crate::adapter::edgar::as_is::{
+    Candidate, number_copies, undeclared_families, unsplit_namespace,
+};
+use crate::core::concept::ConceptName;
 use crate::core::fact::{
-    AsIsFact, Context, Decimals, Dimensions, FactKey, FactValue, FilingSource, TaxonomyVersion,
+    AsIsFact, Context, Decimals, Dimensions, FactValue, FilingSource, TaxonomyVersion,
 };
 use crate::core::filing::Filing;
 use crate::core::finding::Finding;
-use crate::core::invalid_value::{InvalidValue, InvalidValueReason};
+use crate::core::invalid_value::InvalidValue;
 use crate::core::period::Period;
 use crate::core::taxonomy::registry::Registry;
 use crate::core::unit::Unit;
@@ -108,8 +111,13 @@ pub fn parse(rows: &NotesFiling, registry: &Registry<'_>) -> Result<NotesFacts, 
             Err(reason) => findings.push(parser.unmapped(row, reason)),
         }
     }
-    let facts = number_copies(candidates, &parser, &mut findings);
-    findings.extend(parser.undeclared_families(&facts));
+    let (facts, overflow) = number_copies(candidates);
+    findings.extend(
+        overflow
+            .into_iter()
+            .map(|(row, reason)| parser.unmapped(row, reason)),
+    );
+    findings.extend(undeclared_families(&filing.id, registry, &facts));
     Ok(NotesFacts {
         facts,
         filing,
@@ -125,14 +133,11 @@ struct Parser<'a> {
     per_share: HashSet<(&'a str, &'a str)>,
 }
 
-struct Candidate<'a> {
-    row: &'a dyn FactRow,
-    copy_index: u32,
-    fact: AsIsFact,
-}
-
 impl Parser<'_> {
-    fn candidate<'r>(&self, row: &'r dyn FactRow) -> Result<Candidate<'r>, InvalidValue> {
+    fn candidate<'r>(
+        &self,
+        row: &'r dyn FactRow,
+    ) -> Result<Candidate<u32, &'r dyn FactRow>, InvalidValue> {
         let (concept, taxonomy_version) = self.concept(row)?;
         let per_share = self.per_share.contains(&(row.tag(), row.version()));
         let (unit, value, decimals) = row.content(per_share)?;
@@ -156,8 +161,8 @@ impl Parser<'_> {
             footnotes: row.footnotes(),
         };
         Ok(Candidate {
+            order: row.copy_index()?,
             row,
-            copy_index: row.copy_index()?,
             fact,
         })
     }
@@ -165,17 +170,7 @@ impl Parser<'_> {
     fn concept(&self, row: &dyn FactRow) -> Result<(ConceptName, TaxonomyVersion), InvalidValue> {
         let (family, version) = match self.registry.split_notes_version(row.version()) {
             Some(split) => split,
-            None if row.version() == self.adsh => {
-                let filing_id = self.filing.id.to_string();
-                (
-                    NamespaceFamily::new(filing_id.clone())?,
-                    TaxonomyVersion::new(filing_id)?,
-                )
-            }
-            None => (
-                NamespaceFamily::new(row.version())?,
-                TaxonomyVersion::new(row.version())?,
-            ),
+            None => unsplit_namespace(row.version(), row.version() == self.adsh, &self.filing.id)?,
         };
         Ok((ConceptName::new(family, row.tag())?, version))
     }
@@ -187,66 +182,6 @@ impl Parser<'_> {
             reason,
         }
     }
-
-    fn undeclared_families(&self, facts: &[AsIsFact]) -> Vec<Finding> {
-        let extension = self.filing.id.to_string();
-        let families: BTreeSet<&NamespaceFamily> = facts
-            .iter()
-            .map(|fact| fact.concept.family())
-            .filter(|family| {
-                family.as_str() != extension && self.registry.declaration(family).is_none()
-            })
-            .collect();
-        families
-            .into_iter()
-            .map(|family| Finding::UndeclaredFamily {
-                filing: self.filing.id.clone(),
-                family: family.clone(),
-            })
-            .collect()
-    }
-}
-
-/// Drops the rows that repeat a fact, and numbers the copies of each key in `iprx` order.
-fn number_copies(
-    mut candidates: Vec<Candidate<'_>>,
-    parser: &Parser<'_>,
-    findings: &mut Vec<Finding>,
-) -> Vec<AsIsFact> {
-    let mut order: Vec<usize> = (0..candidates.len()).collect();
-    order.sort_by_key(|&index| candidates[index].copy_index);
-    let mut copies: HashMap<FactKey, Vec<usize>> = HashMap::new();
-    let mut kept = vec![false; candidates.len()];
-    for index in order {
-        let fact = &candidates[index].fact;
-        let earlier = copies.entry(fact.key()).or_default();
-        if earlier.iter().any(|&other| {
-            candidates[other].fact.value == fact.value
-                && candidates[other].fact.decimals == fact.decimals
-        }) {
-            continue;
-        }
-        match u16::try_from(earlier.len()) {
-            Ok(rank) => {
-                earlier.push(index);
-                candidates[index].fact.copy_rank = rank;
-                kept[index] = true;
-            }
-            Err(_) => findings.push(parser.unmapped(
-                candidates[index].row,
-                InvalidValue::new(
-                    COPY_RANK_TYPE_NAME,
-                    InvalidValueReason::OutOfRange,
-                    earlier.len().to_string(),
-                ),
-            )),
-        }
-    }
-    candidates
-        .into_iter()
-        .zip(kept)
-        .filter_map(|(candidate, kept)| kept.then_some(candidate.fact))
-        .collect()
 }
 
 /// A `num` or `txt` row. Both tables share the key columns of a fact. The content differs.
@@ -325,9 +260,6 @@ impl FactRow for TxtRow {
     }
 }
 
-/// The type name that [`InvalidValue`] names when a key has more copies than `copy_rank` holds.
-const COPY_RANK_TYPE_NAME: &str = "copy_rank";
-
 #[cfg(test)]
 mod tests {
     use pretty_assertions::assert_eq;
@@ -336,6 +268,7 @@ mod tests {
     use crate::core::concept::NamespaceFamily;
     use crate::core::fact::FactValue;
     use crate::core::filing::FilingId;
+    use crate::core::invalid_value::InvalidValueReason;
     use crate::tests::fixtures::sample_taxonomy::{FakeTaxonomy, declaration, plugin};
 
     const ADSH: &str = "0000000001-26-000001";
