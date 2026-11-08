@@ -8,112 +8,22 @@
 //!
 //! None. The fixture lives in `tests/fixtures/instance/0001628280-26-068246/`.
 
-use std::fs;
-use std::path::PathBuf;
-
 use bigdecimal::BigDecimal;
 use chrono::NaiveDate;
 use pretty_assertions::assert_eq;
-use xbrl::adapter::edgar::instance::{InstanceFacts, InstanceFiling, parse};
-use xbrl::core::concept::{ConceptName, NamespaceFamily};
 use xbrl::core::entity_name::EntityName;
 use xbrl::core::fact::FactValue;
-use xbrl::core::filing::{CompanyAttributes, EntityId, Filing, FilingId, Ticker};
+use xbrl::core::filing::{CompanyAttributes, EntityId, Filing, Ticker};
 use xbrl::core::fiscal_period::FiscalPeriod;
 use xbrl::core::fiscal_year::FiscalYear;
 use xbrl::core::form::Form;
-use xbrl::core::release::{Sha256, TaxonomyRelease, TaxonomyReleaseId};
-use xbrl::core::taxonomy::Taxonomy;
-use xbrl::core::taxonomy::family::{FamilyDeclaration, UriPattern};
-use xbrl::core::taxonomy::reference::{CalculationTree, ConceptAliases, ElementReference};
-use xbrl::core::taxonomy::registry::Registry;
 
-struct FakeUsGaap {
-    release: TaxonomyRelease,
-    families: Vec<FamilyDeclaration>,
-    tree: CalculationTree,
-}
+use self::instance_fixture::{filed, filing_id, parse_fixture};
 
-impl Taxonomy for FakeUsGaap {
-    fn release(&self) -> &TaxonomyRelease {
-        &self.release
-    }
-
-    fn families(&self) -> &[FamilyDeclaration] {
-        &self.families
-    }
-
-    fn aliases(&self) -> &[ConceptAliases] {
-        &[]
-    }
-
-    fn calculation_tree(&self) -> &CalculationTree {
-        &self.tree
-    }
-
-    fn element(&self, _concept: &ConceptName) -> Option<&ElementReference> {
-        None
-    }
-
-    fn elements(&self) -> &[ElementReference] {
-        &[]
-    }
-}
-
-fn declaration(name: &str, pattern: &str) -> FamilyDeclaration {
-    let family = NamespaceFamily::new(name)
-        .expect("Given a hardcoded family without whitespace, the creation should always succeed");
-    let pattern = UriPattern::new(pattern).expect(
-        "Given a hardcoded pattern with one placeholder, the creation should always succeed",
-    );
-    FamilyDeclaration::new(family, vec![pattern], name, true)
-        .expect("Given a hardcoded declaration, the creation should always succeed")
-}
-
-fn us_gaap() -> FakeUsGaap {
-    FakeUsGaap {
-        release: TaxonomyRelease {
-            id: TaxonomyReleaseId::new("us-gaap/2026").expect(
-                "Given a hardcoded release ID with a year, the creation should always succeed",
-            ),
-            checksum: Sha256::new([0; 32]),
-        },
-        families: vec![
-            declaration("us-gaap", "http://fasb.org/us-gaap/{release}"),
-            declaration("dei", "http://xbrl.sec.gov/dei/{release}"),
-            declaration("srt", "http://fasb.org/srt/{release}"),
-            declaration("ecd", "http://xbrl.sec.gov/ecd/{release}"),
-        ],
-        tree: CalculationTree::default(),
-    }
-}
-
-fn filing_id() -> FilingId {
-    FilingId::new("sec", "0001628280-26-068246")
-        .expect("Given a hardcoded source and ID, the creation should always succeed")
-}
-
-const fn filed() -> NaiveDate {
-    NaiveDate::from_ymd_opt(2026, 10, 29)
-        .expect("Given a hardcoded valid date, the creation should always succeed")
-}
-
-fn parse_fixture() -> InstanceFacts {
-    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("tests/fixtures/instance/0001628280-26-068246/fdxf-20260930_htm.xml");
-    let document = fs::read_to_string(path)
-        .expect("Given a fixture file in the repository, the read should always succeed");
-    let plugin = us_gaap();
-    let registry = Registry::new(vec![&plugin])
-        .expect("Given one plug-in with four families, the creation should always succeed");
-    let input = InstanceFiling {
-        document: &document,
-        id: filing_id(),
-        filed: filed(),
-    };
-    parse(&input, &registry)
-        .expect("Given the instance document of a real filing, the parse should always succeed")
-}
+#[path = "support/instance_fixture.rs"]
+mod instance_fixture;
+#[path = "support/taxonomy.rs"]
+mod taxonomy;
 
 #[test]
 fn should_keep_every_fact_except_the_repeated_copies_for_a_real_filing() {

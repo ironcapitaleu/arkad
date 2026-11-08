@@ -2,187 +2,30 @@
 //!
 //! Runs [`xbrl::adapter::edgar::notes::parse`] on the `num` and `txt` rows of one real filing of the Notes file
 //! `2026_10_notes.zip`: the 10-Q `0001628280-26-068246` of `FEDEX FREIGHT HOLDING COMPANY, INC.`. The
-//! fixture files keep the header and the rows of the filing as the SEC wrote them. None of the rows
-//! holds a quoted field, so the test splits each line on tabs.
+//! fixture files keep the header and the rows of the filing as the SEC wrote them.
 //!
 //! ## External Dependencies
 //!
 //! None. The fixture lives in `tests/fixtures/notes/0001628280-26-068246/`.
 
-use std::collections::HashMap;
-use std::fs;
-use std::path::PathBuf;
-
 use chrono::{NaiveDate, TimeZone, Utc};
 use pretty_assertions::assert_eq;
-use xbrl::adapter::edgar::notes::row::{DimRow, NumRow, SubRow, TagRow, TxtRow};
-use xbrl::adapter::edgar::notes::{NotesFiling, parse};
-use xbrl::core::concept::{ConceptName, NamespaceFamily};
+use xbrl::adapter::edgar::notes::parse;
 use xbrl::core::entity_name::EntityName;
 use xbrl::core::fact::FactValue;
 use xbrl::core::filing::{CompanyAttributes, EntityId, Filing, FilingId, IndustryCode};
 use xbrl::core::fiscal_period::FiscalPeriod;
 use xbrl::core::fiscal_year::FiscalYear;
 use xbrl::core::form::Form;
-use xbrl::core::release::{Sha256, TaxonomyRelease, TaxonomyReleaseId};
-use xbrl::core::taxonomy::Taxonomy;
-use xbrl::core::taxonomy::family::{FamilyDeclaration, UriPattern};
-use xbrl::core::taxonomy::reference::{CalculationTree, ConceptAliases, ElementReference};
 use xbrl::core::taxonomy::registry::Registry;
 
-struct FakeUsGaap {
-    release: TaxonomyRelease,
-    families: Vec<FamilyDeclaration>,
-    tree: CalculationTree,
-}
+use self::notes_fixture::notes_filing;
+use self::taxonomy::us_gaap;
 
-impl Taxonomy for FakeUsGaap {
-    fn release(&self) -> &TaxonomyRelease {
-        &self.release
-    }
-
-    fn families(&self) -> &[FamilyDeclaration] {
-        &self.families
-    }
-
-    fn aliases(&self) -> &[ConceptAliases] {
-        &[]
-    }
-
-    fn calculation_tree(&self) -> &CalculationTree {
-        &self.tree
-    }
-
-    fn element(&self, _concept: &ConceptName) -> Option<&ElementReference> {
-        None
-    }
-
-    fn elements(&self) -> &[ElementReference] {
-        &[]
-    }
-}
-
-fn declaration(name: &str, pattern: &str) -> FamilyDeclaration {
-    let family = NamespaceFamily::new(name)
-        .expect("Given a hardcoded family without whitespace, the creation should always succeed");
-    let pattern = UriPattern::new(pattern).expect(
-        "Given a hardcoded pattern with one placeholder, the creation should always succeed",
-    );
-    FamilyDeclaration::new(family, vec![pattern], name, true)
-        .expect("Given a hardcoded declaration, the creation should always succeed")
-}
-
-fn us_gaap() -> FakeUsGaap {
-    FakeUsGaap {
-        release: TaxonomyRelease {
-            id: TaxonomyReleaseId::new("us-gaap/2026").expect(
-                "Given a hardcoded release ID with a year, the creation should always succeed",
-            ),
-            checksum: Sha256::new([0; 32]),
-        },
-        families: vec![
-            declaration("us-gaap", "http://fasb.org/us-gaap/{release}"),
-            declaration("dei", "http://xbrl.sec.gov/dei/{release}"),
-            declaration("srt", "http://fasb.org/srt/{release}"),
-            declaration("ecd", "http://xbrl.sec.gov/ecd/{release}"),
-        ],
-        tree: CalculationTree::default(),
-    }
-}
-
-fn table(name: &str) -> Vec<HashMap<String, String>> {
-    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("tests/fixtures/notes/0001628280-26-068246")
-        .join(name);
-    let text = fs::read_to_string(path)
-        .expect("Given a fixture file in the repository, the read should always succeed");
-    let mut lines = text.lines();
-    let header: Vec<&str> = lines
-        .next()
-        .expect("Given a fixture file with a header, the first line should always exist")
-        .split('\t')
-        .collect();
-    lines
-        .map(|line| {
-            header
-                .iter()
-                .zip(line.split('\t'))
-                .map(|(column, field)| ((*column).to_owned(), field.to_owned()))
-                .collect()
-        })
-        .collect()
-}
-
-fn notes_filing() -> NotesFiling {
-    let field = |row: &HashMap<String, String>, column: &str| row[column].clone();
-    let sub = &table("sub.tsv")[0];
-    NotesFiling {
-        sub: SubRow {
-            adsh: field(sub, "adsh"),
-            cik: field(sub, "cik"),
-            name: field(sub, "name"),
-            sic: field(sub, "sic"),
-            fye: field(sub, "fye"),
-            form: field(sub, "form"),
-            period: field(sub, "period"),
-            fy: field(sub, "fy"),
-            fp: field(sub, "fp"),
-            filed: field(sub, "filed"),
-            accepted: field(sub, "accepted"),
-        },
-        num: table("num.tsv")
-            .iter()
-            .map(|row| NumRow {
-                tag: field(row, "tag"),
-                version: field(row, "version"),
-                ddate: field(row, "ddate"),
-                qtrs: field(row, "qtrs"),
-                uom: field(row, "uom"),
-                dimh: field(row, "dimh"),
-                iprx: field(row, "iprx"),
-                value: field(row, "value"),
-                footnote: field(row, "footnote"),
-                coreg: field(row, "coreg"),
-                durp: field(row, "durp"),
-                datp: field(row, "datp"),
-                dcml: field(row, "dcml"),
-            })
-            .collect(),
-        txt: table("txt.tsv")
-            .iter()
-            .map(|row| TxtRow {
-                tag: field(row, "tag"),
-                version: field(row, "version"),
-                ddate: field(row, "ddate"),
-                qtrs: field(row, "qtrs"),
-                dimh: field(row, "dimh"),
-                iprx: field(row, "iprx"),
-                value: field(row, "value"),
-                srclen: field(row, "srclen"),
-                footnote: field(row, "footnote"),
-                coreg: field(row, "coreg"),
-                durp: field(row, "durp"),
-                datp: field(row, "datp"),
-            })
-            .collect(),
-        dim: table("dim.tsv")
-            .iter()
-            .map(|row| DimRow {
-                dimh: field(row, "dimhash"),
-                segments: field(row, "segments"),
-                segt: field(row, "segt"),
-            })
-            .collect(),
-        tag: table("tag.tsv")
-            .iter()
-            .map(|row| TagRow {
-                tag: field(row, "tag"),
-                version: field(row, "version"),
-                datatype: field(row, "datatype"),
-            })
-            .collect(),
-    }
-}
+#[path = "support/notes_fixture.rs"]
+mod notes_fixture;
+#[path = "support/taxonomy.rs"]
+mod taxonomy;
 
 #[test]
 fn should_keep_every_row_except_the_repeated_copies_for_a_real_filing() {
