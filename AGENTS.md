@@ -43,10 +43,10 @@ covers the framework traits, such as `State` and `Transition`, the client traits
 `SecClient` and `RateLimiter`, and the storage ports, such as `ReadRepository`. Before you change
 such a trait, check whether a new trait or impl can hold the change.
 
-- Add a new capability as its own trait next to the existing traits. A subtrait forces each
-  implementor of the new trait to implement the existing trait too.
+- Add a new capability as its own trait next to the existing traits.
 - Make the new trait a subtrait only if every type with the new capability must also have the
-  existing one. For example, every `HasResponse` is a `RequestKind`, so `HasResponse` is a
+  existing capability. A type that has both today does not count. A subtrait forces each
+  implementor of the new trait to implement the existing trait too. For example, every `HasResponse` is a `RequestKind`, so `HasResponse` is a
   subtrait of `RequestKind`. A store can list without reading, so `ListRepository` is not a
   subtrait of `ReadRepository`.
 - A marker trait that only combines existing traits, such as `ReadWriteRepository`, is an
@@ -566,9 +566,9 @@ conclusion), then a code block with the fix. End the review by naming the commit
 - Flag duplicated code
 - Functions should be focused and not overly long
 - Follow single responsibility principle
-- Follow the **Open-Closed Principle** (see "Open-Closed Principle"). A 🟡 finding is a change that
-  modifies a public trait that other code implements, where an extension can hold the change. A
-  subtrait whose implementors need not have the parent capability is also a 🟡 finding.
+- Follow the **Open-Closed Principle** (see "Open-Closed Principle"). A 🟡 finding is a change to a
+  public trait that other code implements, where an extension can hold the change. A subtrait whose
+  implementors can lack the existing capability is also a 🟡 finding.
 - Avoid side effects in functions
 - Naming must follow **Ottinger's Naming Rules** (reveal intent, be pronounceable, avoid encodings)
 - Code must follow the **Step-Down Rule** (higher-level concepts first, details later)
