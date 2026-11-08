@@ -13,14 +13,19 @@
 //! - [`row`]: The row types of the Notes tables, and the map of each column into a core type.
 
 use std::collections::{BTreeSet, HashMap, HashSet};
+use std::fmt;
 
-use self::row::{DimRow, NumRow, SubRow, TagRow};
+use self::row::{DimRow, NumRow, SubRow, TagRow, TxtRow};
 use crate::core::concept::{ConceptName, NamespaceFamily};
-use crate::core::fact::{AsIsFact, Context, FactKey, FilingSource, TaxonomyVersion};
+use crate::core::fact::{
+    AsIsFact, Context, Decimals, Dimensions, FactKey, FactValue, FilingSource, TaxonomyVersion,
+};
 use crate::core::filing::Filing;
 use crate::core::finding::Finding;
 use crate::core::invalid_value::{InvalidValue, InvalidValueReason};
+use crate::core::period::Period;
 use crate::core::taxonomy::registry::Registry;
+use crate::core::unit::Unit;
 use crate::error::parsing::ParseErrorKind;
 
 pub mod row;
@@ -32,8 +37,10 @@ pub struct NotesFiling {
     pub sub: SubRow,
     /// The `num` rows of the filing.
     pub num: Vec<NumRow>,
-    /// The `dim` rows that the `num` rows name through `dimh`. The row of `0x00000000`, which has no
-    /// pairs, is one of them.
+    /// The `txt` rows of the filing.
+    pub txt: Vec<TxtRow>,
+    /// The `dim` rows that the `num` and `txt` rows name through `dimh`. The row of `0x00000000`,
+    /// which has no pairs, is one of them.
     pub dim: Vec<DimRow>,
     /// The `tag` rows that the `num` rows name through `tag` and `version`.
     pub tag: Vec<TagRow>,
@@ -42,7 +49,8 @@ pub struct NotesFiling {
 /// The as-is facts, the filing, and the findings of one Notes filing.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NotesFacts {
-    /// One fact per `num` row, in the order of the rows, without the rows that repeat a fact.
+    /// One fact per `num` row, then one per `txt` row, in the order of the rows, without the rows
+    /// that repeat a fact.
     pub facts: Vec<AsIsFact>,
     /// The filing, from the `sub` row.
     pub filing: Filing,
@@ -52,7 +60,7 @@ pub struct NotesFacts {
 
 /// Parses the rows of one Notes filing into as-is facts, one filing, and findings.
 ///
-/// - The registry splits `num.version` into a family and a taxonomy version. A `version` equal to
+/// - The registry splits the `version` of each row into a family and a taxonomy version. A `version` equal to
 ///   the accession number marks an extension: its family and version are the filing ID. Any other
 ///   `version` keeps its fact with the full `version` as family and version, and gives one
 ///   [`Finding::UndeclaredFamily`].
@@ -89,7 +97,12 @@ pub fn parse(rows: &NotesFiling, registry: &Registry<'_>) -> Result<NotesFacts, 
     };
     let mut findings = Vec::new();
     let mut candidates = Vec::new();
-    for row in &rows.num {
+    let fact_rows = rows
+        .num
+        .iter()
+        .map(|row| row as &dyn FactRow)
+        .chain(rows.txt.iter().map(|row| row as &dyn FactRow));
+    for row in fact_rows {
         match parser.candidate(row) {
             Ok(candidate) => candidates.push(candidate),
             Err(reason) => findings.push(parser.unmapped(row, reason)),
@@ -113,17 +126,16 @@ struct Parser<'a> {
 }
 
 struct Candidate<'a> {
-    row: &'a NumRow,
+    row: &'a dyn FactRow,
     copy_index: u32,
     fact: AsIsFact,
 }
 
 impl Parser<'_> {
-    fn candidate<'r>(&self, row: &'r NumRow) -> Result<Candidate<'r>, InvalidValue> {
+    fn candidate<'r>(&self, row: &'r dyn FactRow) -> Result<Candidate<'r>, InvalidValue> {
         let (concept, taxonomy_version) = self.concept(row)?;
-        let per_share = self
-            .per_share
-            .contains(&(row.tag.as_str(), row.version.as_str()));
+        let per_share = self.per_share.contains(&(row.tag(), row.version()));
+        let (unit, value, decimals) = row.content(per_share)?;
         let fact = AsIsFact {
             source: FilingSource {
                 filing: self.filing.id.clone(),
@@ -137,9 +149,9 @@ impl Parser<'_> {
             },
             concept,
             taxonomy_version: Some(taxonomy_version),
-            unit: Some(row.unit(per_share)?),
-            value: row.value()?,
-            decimals: row.decimals()?,
+            unit,
+            value,
+            decimals,
             copy_rank: 0,
             footnotes: row.footnotes(),
         };
@@ -150,10 +162,10 @@ impl Parser<'_> {
         })
     }
 
-    fn concept(&self, row: &NumRow) -> Result<(ConceptName, TaxonomyVersion), InvalidValue> {
-        let (family, version) = match self.registry.split_notes_version(&row.version) {
+    fn concept(&self, row: &dyn FactRow) -> Result<(ConceptName, TaxonomyVersion), InvalidValue> {
+        let (family, version) = match self.registry.split_notes_version(row.version()) {
             Some(split) => split,
-            None if row.version == self.adsh => {
+            None if row.version() == self.adsh => {
                 let filing_id = self.filing.id.to_string();
                 (
                     NamespaceFamily::new(filing_id.clone())?,
@@ -161,14 +173,14 @@ impl Parser<'_> {
                 )
             }
             None => (
-                NamespaceFamily::new(row.version.clone())?,
-                TaxonomyVersion::new(row.version.clone())?,
+                NamespaceFamily::new(row.version())?,
+                TaxonomyVersion::new(row.version())?,
             ),
         };
-        Ok((ConceptName::new(family, row.tag.clone())?, version))
+        Ok((ConceptName::new(family, row.tag())?, version))
     }
 
-    fn unmapped(&self, row: &NumRow, reason: InvalidValue) -> Finding {
+    fn unmapped(&self, row: &dyn FactRow, reason: InvalidValue) -> Finding {
         Finding::UnmappedRow {
             filing: self.filing.id.clone(),
             row: row.to_string(),
@@ -225,7 +237,7 @@ fn number_copies(
                 InvalidValue::new(
                     COPY_RANK_TYPE_NAME,
                     InvalidValueReason::OutOfRange,
-                    candidates[index].row.iprx.clone(),
+                    earlier.len().to_string(),
                 ),
             )),
         }
@@ -235,6 +247,82 @@ fn number_copies(
         .zip(kept)
         .filter_map(|(candidate, kept)| kept.then_some(candidate.fact))
         .collect()
+}
+
+/// A `num` or `txt` row. Both tables share the key columns of a fact. The content differs.
+trait FactRow: fmt::Display {
+    fn tag(&self) -> &str;
+    fn version(&self) -> &str;
+    fn period(&self) -> Result<Period, InvalidValue>;
+    fn dimensions(&self, dims: &HashMap<&str, &DimRow>) -> Result<Dimensions, InvalidValue>;
+    fn copy_index(&self) -> Result<u32, InvalidValue>;
+    fn footnotes(&self) -> Vec<String>;
+    /// Returns the unit, the value, and the precision.
+    fn content(&self, per_share: bool) -> Result<Content, InvalidValue>;
+}
+
+/// The unit, the value, and the precision of a fact.
+type Content = (Option<Unit>, FactValue, Option<Decimals>);
+
+impl FactRow for NumRow {
+    fn tag(&self) -> &str {
+        &self.tag
+    }
+
+    fn version(&self) -> &str {
+        &self.version
+    }
+
+    fn period(&self) -> Result<Period, InvalidValue> {
+        self.period()
+    }
+
+    fn dimensions(&self, dims: &HashMap<&str, &DimRow>) -> Result<Dimensions, InvalidValue> {
+        self.dimensions(dims)
+    }
+
+    fn copy_index(&self) -> Result<u32, InvalidValue> {
+        self.copy_index()
+    }
+
+    fn footnotes(&self) -> Vec<String> {
+        self.footnotes()
+    }
+
+    fn content(&self, per_share: bool) -> Result<Content, InvalidValue> {
+        Ok((Some(self.unit(per_share)?), self.value()?, self.decimals()?))
+    }
+}
+
+impl FactRow for TxtRow {
+    fn tag(&self) -> &str {
+        &self.tag
+    }
+
+    fn version(&self) -> &str {
+        &self.version
+    }
+
+    fn period(&self) -> Result<Period, InvalidValue> {
+        self.period()
+    }
+
+    fn dimensions(&self, dims: &HashMap<&str, &DimRow>) -> Result<Dimensions, InvalidValue> {
+        self.dimensions(dims)
+    }
+
+    fn copy_index(&self) -> Result<u32, InvalidValue> {
+        self.copy_index()
+    }
+
+    fn footnotes(&self) -> Vec<String> {
+        self.footnotes()
+    }
+
+    /// A text fact has no unit and no precision.
+    fn content(&self, _per_share: bool) -> Result<Content, InvalidValue> {
+        Ok((None, self.value(), None))
+    }
 }
 
 /// The type name that [`InvalidValue`] names when a key has more copies than `copy_rank` holds.
@@ -290,6 +378,7 @@ mod tests {
                 ..SubRow::default()
             },
             num,
+            txt: vec![],
             dim: vec![DimRow {
                 dimh: "0x00000000".to_owned(),
                 segments: String::new(),
@@ -519,6 +608,77 @@ mod tests {
         let notes_facts = parse(&rows, &registry)
             .expect("Given a valid sub row, the parse should always succeed");
         let result = (notes_facts.facts.len(), notes_facts.findings);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_a_text_fact_with_no_unit_and_no_decimals_when_a_txt_row_is_mapped() {
+        let txt = TxtRow {
+            tag: "DocumentType".to_owned(),
+            version: "dei/2026".to_owned(),
+            ddate: "20260930".to_owned(),
+            qtrs: "1".to_owned(),
+            dimh: "0x00000000".to_owned(),
+            iprx: "0".to_owned(),
+            value: "10-Q".to_owned(),
+            srclen: "4".to_owned(),
+            durp: "0.0".to_owned(),
+            datp: "0.0".to_owned(),
+            ..TxtRow::default()
+        };
+        let rows = NotesFiling {
+            txt: vec![txt],
+            ..notes_filing(vec![])
+        };
+        let plugin = us_gaap();
+        let registry = registry(&plugin);
+
+        let expected_result = vec![(None, FactValue::Text("10-Q".to_owned()), None)];
+
+        let result: Vec<_> = parse(&rows, &registry)
+            .expect("Given a valid sub row, the parse should always succeed")
+            .facts
+            .into_iter()
+            .map(|fact| (fact.unit, fact.value, fact.decimals))
+            .collect();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_name_the_txt_table_in_the_finding_when_a_txt_row_has_no_dim_row() {
+        let txt = TxtRow {
+            tag: "DocumentType".to_owned(),
+            version: "dei/2026".to_owned(),
+            ddate: "20260930".to_owned(),
+            qtrs: "1".to_owned(),
+            dimh: "0xff".to_owned(),
+            iprx: "0".to_owned(),
+            durp: "0.0".to_owned(),
+            datp: "0.0".to_owned(),
+            ..TxtRow::default()
+        };
+        let rows = NotesFiling {
+            txt: vec![txt],
+            ..notes_filing(vec![])
+        };
+        let plugin = us_gaap();
+        let registry = registry(&plugin);
+
+        let expected_result = vec![Finding::UnmappedRow {
+            filing: filing_id(),
+            row: "txt.tsv DocumentType dei/2026 20260930 1 0xff 0".to_owned(),
+            reason: InvalidValue::new(
+                "TxtRow",
+                InvalidValueReason::NoMatchingRow("dim.tsv"),
+                "0xff",
+            ),
+        }];
+
+        let result = parse(&rows, &registry)
+            .expect("Given a valid sub row, the parse should always succeed")
+            .findings;
 
         assert_eq!(result, expected_result);
     }

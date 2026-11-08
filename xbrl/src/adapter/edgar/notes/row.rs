@@ -38,6 +38,12 @@ pub const DIM_TABLE: &str = "dim.tsv";
 /// The name of the table of the `num` rows.
 pub const NUM_TABLE: &str = "num.tsv";
 
+/// The name of the table of the `txt` rows.
+pub const TXT_TABLE: &str = "txt.tsv";
+
+/// The `srclen` of a nil text value.
+pub const NIL_SOURCE_LENGTH: &str = "0";
+
 /// The `dcml` of an exact value.
 pub const INFINITE_DCML: &str = "32767";
 
@@ -49,6 +55,9 @@ pub const PER_SHARE_DATA_TYPE: &str = "perShare";
 
 /// The measure that `num.uom` drops from a per-share unit.
 pub const SHARES_MEASURE: &str = "shares";
+
+/// The field of a `dim` row that the SEC cuts to 1024 characters.
+pub const SEGMENTS_FIELD: &str = "dim.segments";
 
 /// The `segt` of a `dim` row whose `segments` the SEC cut to 1024 characters.
 pub const TRUNCATED_SEGMENTS: &str = "1";
@@ -215,36 +224,15 @@ impl NumRow {
     /// # Errors
     ///
     /// Returns [`InvalidValue`] if `ddate` is not a date, `datp` is not a whole number of days,
-    /// `qtrs` is not a number of 16 bits, or `durp` is not a number.
+    /// `qtrs` is not a number of 16 bits, or `qtrs` is 0 and `durp` is not a number.
     pub fn period(&self) -> Result<Period, InvalidValue> {
-        let ddate = date(Self::TYPE_NAME, &self.ddate)?;
-        let end = ddate
-            .checked_sub_signed(self.datp_days()?)
-            .ok_or_else(|| Self::invalid(InvalidValueReason::OutOfRange, &self.datp))?;
-        let quarters: u16 = self
-            .qtrs
-            .parse()
-            .map_err(|_| Self::invalid(InvalidValueReason::NotANumber, &self.qtrs))?;
-        let durp = BigDecimal::from_str(&self.durp)
-            .map_err(|_| Self::invalid(InvalidValueReason::NotANumber, &self.durp))?;
-        Ok(if quarters == 0 && durp.is_zero() {
-            Period::Instant { end }
-        } else {
-            Period::Duration(Duration::from_end_and_quarters(end, quarters))
-        })
-    }
-
-    fn datp_days(&self) -> Result<TimeDelta, InvalidValue> {
-        let whole = match self.datp.split_once(DECIMAL_POINT) {
-            Some((whole, fraction)) if fraction.trim_end_matches(ZERO_DIGIT).is_empty() => whole,
-            Some(_) => return Err(Self::invalid(InvalidValueReason::NotANumber, &self.datp)),
-            None => &self.datp,
-        };
-        let days: i64 = whole
-            .parse()
-            .map_err(|_| Self::invalid(InvalidValueReason::NotANumber, &self.datp))?;
-        TimeDelta::try_days(days)
-            .ok_or_else(|| Self::invalid(InvalidValueReason::OutOfRange, &self.datp))
+        period(
+            Self::TYPE_NAME,
+            &self.ddate,
+            &self.qtrs,
+            &self.durp,
+            &self.datp,
+        )
     }
 
     /// Returns the unit, with `/shares` restored if the tag is a per-share tag and `uom` divides by
@@ -297,19 +285,13 @@ impl NumRow {
     ///
     /// Returns [`InvalidValue`] if `iprx` is not a number of 32 bits.
     pub fn copy_index(&self) -> Result<u32, InvalidValue> {
-        self.iprx
-            .parse()
-            .map_err(|_| Self::invalid(InvalidValueReason::NotANumber, &self.iprx))
+        copy_index(Self::TYPE_NAME, &self.iprx)
     }
 
     /// Returns the footnote as a list with one entry, or an empty list.
     #[must_use]
     pub fn footnotes(&self) -> Vec<String> {
-        if self.footnote.is_empty() {
-            Vec::new()
-        } else {
-            vec![self.footnote.clone()]
-        }
+        footnotes(&self.footnote)
     }
 
     /// Returns the dimensions: the pairs of the `dim` row that `dimh` names, and the legal entity
@@ -320,15 +302,7 @@ impl NumRow {
     /// Returns [`InvalidValue`] if no `dim` row has the key `dimh`, a pair has no `=`, or two pairs
     /// name one axis.
     pub fn dimensions(&self, dims: &HashMap<&str, &DimRow>) -> Result<Dimensions, InvalidValue> {
-        let dim = dims.get(self.dimh.as_str()).ok_or_else(|| {
-            Self::invalid(InvalidValueReason::NoMatchingRow(DIM_TABLE), &self.dimh)
-        })?;
-        let mut pairs = dim.pairs()?;
-        let coreg_pair = (LEGAL_ENTITY_AXIS, self.coreg.as_str());
-        if !self.coreg.is_empty() && !pairs.contains(&coreg_pair) {
-            pairs.push(coreg_pair);
-        }
-        Dimensions::new(pairs)
+        dimensions(Self::TYPE_NAME, &self.dimh, &self.coreg, dims)
     }
 
     fn invalid(reason: InvalidValueReason, input: &str) -> InvalidValue {
@@ -346,6 +320,110 @@ impl fmt::Display for NumRow {
             &self.ddate,
             &self.qtrs,
             &self.uom,
+            &self.dimh,
+            &self.iprx,
+        ];
+        write!(f, "{}", fields.join(FIELD_SEPARATOR))
+    }
+}
+
+/// A row of `txt.tsv`: one text value of one filing, with the columns the parser needs.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct TxtRow {
+    /// The local name of the concept, for example `AccountingPoliciesTextBlock`.
+    pub tag: String,
+    /// The taxonomy version, for example `us-gaap/2026`, or the accession number for an extension.
+    pub version: String,
+    /// The end date, rounded to a month end, as `YYYYMMDD`.
+    pub ddate: String,
+    /// The length in quarters. `0` for an instant or a duration under about 45 days.
+    pub qtrs: String,
+    /// The hash of the dimensions, the key of a `dim` row.
+    pub dimh: String,
+    /// The index of the copy among rows with one primary key.
+    pub iprx: String,
+    /// The text with its whitespace collapsed and its markup removed.
+    pub value: String,
+    /// The number of bytes of the value in the source. `0` for a nil fact.
+    pub srclen: String,
+    /// The footnote text. Empty if there is none.
+    pub footnote: String,
+    /// The member of the legal entity axis. Empty for the registrant.
+    pub coreg: String,
+    /// `qtrs` minus the length of the fact in quarters, as in `-0.317808`. `0.0` for an instant.
+    pub durp: String,
+    /// The days from the exact end to `ddate`, as in `-15.0`.
+    pub datp: String,
+}
+
+impl TxtRow {
+    /// The type name that [`InvalidValue`] names when a field breaks a rule.
+    const TYPE_NAME: &'static str = "TxtRow";
+
+    /// Returns the period, by the rules of [`NumRow::period`].
+    ///
+    /// # Errors
+    ///
+    /// Returns [`InvalidValue`] if `ddate`, `qtrs`, `durp`, or `datp` breaks a rule of
+    /// [`NumRow::period`].
+    pub fn period(&self) -> Result<Period, InvalidValue> {
+        period(
+            Self::TYPE_NAME,
+            &self.ddate,
+            &self.qtrs,
+            &self.durp,
+            &self.datp,
+        )
+    }
+
+    /// Returns the value: nil if `srclen` is `0`, else the text, which can be empty.
+    ///
+    /// The SEC removes markup from a text block, so a value can be empty although the source had
+    /// bytes. Only `srclen` tells a nil fact from an empty text.
+    #[must_use]
+    pub fn value(&self) -> FactValue {
+        if self.value.is_empty() && self.srclen == NIL_SOURCE_LENGTH {
+            FactValue::Nil
+        } else {
+            FactValue::Text(self.value.clone())
+        }
+    }
+
+    /// Returns the copy index `iprx`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`InvalidValue`] if `iprx` is not a number of 32 bits.
+    pub fn copy_index(&self) -> Result<u32, InvalidValue> {
+        copy_index(Self::TYPE_NAME, &self.iprx)
+    }
+
+    /// Returns the footnote as a list with one entry, or an empty list.
+    #[must_use]
+    pub fn footnotes(&self) -> Vec<String> {
+        footnotes(&self.footnote)
+    }
+
+    /// Returns the dimensions, by the rules of [`NumRow::dimensions`].
+    ///
+    /// # Errors
+    ///
+    /// Returns [`InvalidValue`] if no `dim` row has the key `dimh`, a pair has no `=`, or two pairs
+    /// name one axis.
+    pub fn dimensions(&self, dims: &HashMap<&str, &DimRow>) -> Result<Dimensions, InvalidValue> {
+        dimensions(Self::TYPE_NAME, &self.dimh, &self.coreg, dims)
+    }
+}
+
+impl fmt::Display for TxtRow {
+    /// Writes the table and the primary key of the row, without `adsh`.
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let fields = [
+            TXT_TABLE,
+            &self.tag,
+            &self.version,
+            &self.ddate,
+            &self.qtrs,
             &self.dimh,
             &self.iprx,
         ];
@@ -383,7 +461,7 @@ impl DimRow {
         if self.segt == TRUNCATED_SEGMENTS {
             return Err(InvalidValue::new(
                 Self::TYPE_NAME,
-                InvalidValueReason::Truncated,
+                InvalidValueReason::Truncated(SEGMENTS_FIELD),
                 &self.dimh,
             ));
         }
@@ -422,6 +500,78 @@ impl TagRow {
     pub fn is_per_share(&self) -> bool {
         self.datatype == PER_SHARE_DATA_TYPE
     }
+}
+
+fn period(
+    type_name: &'static str,
+    ddate: &str,
+    qtrs: &str,
+    durp: &str,
+    datp: &str,
+) -> Result<Period, InvalidValue> {
+    let invalid = |reason, input: &str| InvalidValue::new(type_name, reason, input);
+    let end = date(type_name, ddate)?
+        .checked_sub_signed(datp_days(type_name, datp)?)
+        .ok_or_else(|| invalid(InvalidValueReason::OutOfRange, datp))?;
+    let quarters: u16 = qtrs
+        .parse()
+        .map_err(|_| invalid(InvalidValueReason::NotANumber, qtrs))?;
+    let is_instant = quarters == 0
+        && BigDecimal::from_str(durp)
+            .map_err(|_| invalid(InvalidValueReason::NotANumber, durp))?
+            .is_zero();
+    Ok(if is_instant {
+        Period::Instant { end }
+    } else {
+        Period::Duration(Duration::from_end_and_quarters(end, quarters))
+    })
+}
+
+fn datp_days(type_name: &'static str, datp: &str) -> Result<TimeDelta, InvalidValue> {
+    let invalid = |reason| InvalidValue::new(type_name, reason, datp);
+    let whole = match datp.split_once(DECIMAL_POINT) {
+        Some((whole, fraction)) if fraction.trim_end_matches(ZERO_DIGIT).is_empty() => whole,
+        Some(_) => return Err(invalid(InvalidValueReason::NotANumber)),
+        None => datp,
+    };
+    let days: i64 = whole
+        .parse()
+        .map_err(|_| invalid(InvalidValueReason::NotANumber))?;
+    TimeDelta::try_days(days).ok_or_else(|| invalid(InvalidValueReason::OutOfRange))
+}
+
+fn copy_index(type_name: &'static str, iprx: &str) -> Result<u32, InvalidValue> {
+    iprx.parse()
+        .map_err(|_| InvalidValue::new(type_name, InvalidValueReason::NotANumber, iprx))
+}
+
+fn footnotes(footnote: &str) -> Vec<String> {
+    if footnote.is_empty() {
+        Vec::new()
+    } else {
+        vec![footnote.to_owned()]
+    }
+}
+
+fn dimensions(
+    type_name: &'static str,
+    dimh: &str,
+    coreg: &str,
+    dim_rows: &HashMap<&str, &DimRow>,
+) -> Result<Dimensions, InvalidValue> {
+    let dim = dim_rows.get(dimh).ok_or_else(|| {
+        InvalidValue::new(
+            type_name,
+            InvalidValueReason::NoMatchingRow(DIM_TABLE),
+            dimh,
+        )
+    })?;
+    let mut pairs = dim.pairs()?;
+    let coreg_pair = (LEGAL_ENTITY_AXIS, coreg);
+    if !coreg.is_empty() && !pairs.contains(&coreg_pair) {
+        pairs.push(coreg_pair);
+    }
+    Dimensions::new(pairs)
 }
 
 fn date(type_name: &'static str, text: &str) -> Result<NaiveDate, InvalidValue> {
@@ -578,7 +728,7 @@ mod tests {
 
         let expected_result = Err(InvalidValue::new(
             "DimRow",
-            InvalidValueReason::Truncated,
+            InvalidValueReason::Truncated("dim.segments"),
             "0x06",
         ));
 
@@ -676,6 +826,24 @@ mod tests {
         let expected_result = Ok(Period::Duration(Duration::from_end_and_quarters(
             date(2025, 6, 30),
             0,
+        )));
+
+        let result = row.period();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_a_duration_without_reading_durp_when_qtrs_is_not_zero() {
+        let row = NumRow {
+            qtrs: "4".to_owned(),
+            durp: String::new(),
+            ..num_row()
+        };
+
+        let expected_result = Ok(Period::Duration(Duration::from_end_and_quarters(
+            date(2026, 9, 30),
+            4,
         )));
 
         let result = row.period();
@@ -796,6 +964,39 @@ mod tests {
         ));
 
         let result = row.dimensions(&dims);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    const fn should_implement_auto_traits_for_txt_row() {
+        implements_auto_traits::<TxtRow>();
+    }
+
+    #[test]
+    fn should_give_nil_when_the_text_is_empty_and_the_source_had_no_bytes() {
+        let row = TxtRow {
+            srclen: "0".to_owned(),
+            ..TxtRow::default()
+        };
+
+        let expected_result = FactValue::Nil;
+
+        let result = row.value();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_an_empty_text_when_the_text_is_empty_and_the_source_had_bytes() {
+        let row = TxtRow {
+            srclen: "37".to_owned(),
+            ..TxtRow::default()
+        };
+
+        let expected_result = FactValue::Text(String::new());
+
+        let result = row.value();
 
         assert_eq!(result, expected_result);
     }
