@@ -322,9 +322,9 @@ as a dynamic fork per filing. The facade does not wait for STA-329.
 #### Room for the Bookmark and the Full Index
 
 `dates(ds)` takes the dates as input. Today `main` reads them from `ARKAD_FROM` and `ARKAD_TO`.
-STA-403, items 5 and 6, can give the dates from a bookmark in the store, or replace the dates with
-the full index minus the stored filings. Both change only the input of the source, not the shape
-of the facade.
+The listing design replaces the dates with the full index minus the stored filings (see
+[`repository_listing.md`](../../../storage/design/data_model/repository_listing.md), "Bookmark or
+Full Index"). This changes only the input of the source, not the shape of the facade.
 
 #### Diagram
 
@@ -1558,8 +1558,10 @@ fail.
   at the rate limit when new, and under 1 minute when read again. So a window of 4 days fits in
   the task timeout. Every write is idempotent, so a second read writes no duplicate row.
 - A rerun of dates older than `yesterday-2` has no pending dates. A date without an index fails.
-- Later: STA-403 replaces the window with a bookmark, the last date that finished, read from the
-  store. A run then reads from the bookmark plus 1 through yesterday, and reads no date again.
+- Later: the full index of the quarter minus the stored filings replaces the window. A run then
+  needs no window and no pending dates. See
+  [`repository_listing.md`](../../../storage/design/data_model/repository_listing.md), "Bookmark or
+  Full Index".
 
 #### One Date
 
