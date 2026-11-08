@@ -65,14 +65,14 @@ The value key of `xbrl/DESIGN.md`, "Value Key", fits `as_is_facts` without chang
 - In silver, the key is unique within one filing and one unit. A filing on both paths has one set
   of rows per source, and a replay adds a set in a new unit.
 - `taxonomy_version` is never empty for a Notes or instance fact. Notes and the instance both give it. Only
-  `sec_api` facts lack it, and the store does not load `sec_api` facts.
+  `sec_api` facts lack it, and silver does not load `sec_api` facts.
 - `unit` is empty for a text fact. The key treats two empty units as equal.
 
 ### Fields and the Parse Rules
 
 The segment findings of 2026-10-18 measured seven rules that make a Notes row equal to an instance
 fact. The table shows where each rule lands in the as-is row. Some rules change, because the
-store keeps every value and leaves dedup to the standardized layer.
+silver keeps every value and leaves dedup to the standardized layer.
 
 | # | Rule in the findings | In the as-is row |
 | - | -------------------- | ---------------- |
