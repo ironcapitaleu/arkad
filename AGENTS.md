@@ -42,9 +42,9 @@ A port is a trait that an adapter implements, such as `ReadRepository`. A port i
 and closed for modification. Before you change an existing port, check whether a new trait or impl
 can hold the change.
 
-- Add a new capability as its own trait next to the existing ports. Do not make the new capability
-  a subtrait of an existing port. A subtrait forces each implementor of the new trait to implement
-  the existing port too.
+- Add a new capability as its own trait next to the existing ports. If the new trait does not call
+  the items of an existing port, do not make it a subtrait of that port. A subtrait forces each
+  implementor of the new trait to implement the port too.
 - A marker trait that only combines existing ports, such as `ReadWriteRepository`, is an
   extension. It is allowed.
 - Do not move items out of an existing port to make room for a new trait.
@@ -560,9 +560,9 @@ conclusion), then a code block with the fix. End the review by naming the commit
 - Flag duplicated code
 - Functions should be focused and not overly long
 - Follow single responsibility principle
-- Follow the **Open-Closed Principle**: a change that modifies an existing port where an extension
-  can carry it, or a new capability made a subtrait of an existing port, is a 🟡 finding (see
-  "Open-Closed Principle")
+- Follow the **Open-Closed Principle** (see "Open-Closed Principle"). A 🟡 finding is a change that
+  modifies a port where an extension can hold it. A new capability made a subtrait of a port it does
+  not call is also a 🟡 finding.
 - Avoid side effects in functions
 - Naming must follow **Ottinger's Naming Rules** (reveal intent, be pronounceable, avoid encodings)
 - Code must follow the **Step-Down Rule** (higher-level concepts first, details later)
