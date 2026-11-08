@@ -62,17 +62,27 @@ pub fn more_precise(facts: &[AsIsFact]) -> Copies<'_> {
     copies
 }
 
+/// The standardized facts of one entity after [`newest_filing`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Series {
+    /// One fact per series key whose newest candidate reports a value, sorted by series key.
+    pub facts: Vec<StandardizedFact>,
+    /// The series keys whose newest candidate is blocked, sorted. Tiers 3 and 4 derive no value for
+    /// them.
+    pub blocked: Vec<SeriesKey>,
+}
+
 /// Applies `core/dedup/newest-filing@1` to the candidates of one entity.
 ///
 /// The rule groups the candidates by [`SeriesKey`] and takes the candidate of the newest filing:
 /// the latest `filed`, then the latest `accepted`, then the highest filing ID. A filing with an
 /// `accepted` time ranks above a filing of the same day without one, so the order is total.
 ///
-/// If the newest candidate is blocked, the series key gets no fact. The rule does not fall back to
+/// If the newest candidate is blocked, the series key gets no fact and goes to [`Series::blocked`]. The rule does not fall back to
 /// an older filing, because the newer filing can hold the restatement. A fact has `restated` if an
 /// older filing reports a value that disagrees with it.
 #[must_use]
-pub fn newest_filing(candidates: &[Candidate]) -> Vec<StandardizedFact> {
+pub fn newest_filing(candidates: &[Candidate]) -> Series {
     let mut series: BTreeMap<SeriesKey, Vec<&Candidate>> = BTreeMap::new();
     for candidate in candidates {
         series
@@ -80,10 +90,17 @@ pub fn newest_filing(candidates: &[Candidate]) -> Vec<StandardizedFact> {
             .or_default()
             .push(candidate);
     }
-    series
-        .into_values()
-        .filter_map(|group| standardize(&group))
-        .collect()
+    let mut result = Series {
+        facts: Vec::new(),
+        blocked: Vec::new(),
+    };
+    for (key, group) in series {
+        match standardize(&group) {
+            Some(fact) => result.facts.push(fact),
+            None => result.blocked.push(key),
+        }
+    }
+    result
 }
 
 /// Applies `core/dedup/newest-filing@1` to the candidates of the filings known at `as_of`.
@@ -91,10 +108,7 @@ pub fn newest_filing(candidates: &[Candidate]) -> Vec<StandardizedFact> {
 /// A filing is known if it was accepted at or before `as_of`. A filing without an `accepted` time
 /// is known if it was filed on or before the date of `as_of`.
 #[must_use]
-pub fn newest_filing_as_of(
-    candidates: &[Candidate],
-    as_of: DateTime<Utc>,
-) -> Vec<StandardizedFact> {
+pub fn newest_filing_as_of(candidates: &[Candidate], as_of: DateTime<Utc>) -> Series {
     let known: Vec<Candidate> = candidates
         .iter()
         .filter(|candidate| is_known_at(&candidate.source, as_of))
@@ -103,6 +117,7 @@ pub fn newest_filing_as_of(
     newest_filing(&known)
 }
 
+/// Returns the fact of the newest candidate, or `None` if that candidate is blocked.
 fn standardize(group: &[&Candidate]) -> Option<StandardizedFact> {
     let newest = group
         .iter()
@@ -206,6 +221,11 @@ mod tests {
     }
 
     #[test]
+    const fn should_implement_auto_traits_for_series() {
+        implements_auto_traits::<Series>();
+    }
+
+    #[test]
     fn should_keep_rank_zero_when_a_rank_agrees_within_the_less_precise_decimals() {
         let filing = source("0000320193-24-000123", date(2024, 11, 1));
         let rounded = fact(&filing, "Revenues", "68000000");
@@ -294,6 +314,7 @@ mod tests {
         let expected_result = vec![BigDecimal::from(110)];
 
         let result: Vec<BigDecimal> = newest_filing(&candidates)
+            .facts
             .into_iter()
             .map(|fact| fact.value)
             .collect();
@@ -312,6 +333,7 @@ mod tests {
         let expected_result = vec![BigDecimal::from(110)];
 
         let result: Vec<BigDecimal> = newest_filing(&candidates)
+            .facts
             .into_iter()
             .map(|fact| fact.value)
             .collect();
@@ -328,6 +350,7 @@ mod tests {
         let expected_result = vec![BigDecimal::from(110)];
 
         let result: Vec<BigDecimal> = newest_filing(&candidates)
+            .facts
             .into_iter()
             .map(|fact| fact.value)
             .collect();
@@ -340,9 +363,13 @@ mod tests {
         let older = candidate(&source("0000320193-24-000123", date(2024, 11, 1)), "100");
         let mut newer = candidate(&source("0000320193-25-000010", date(2025, 10, 31)), "110");
         newer.value = CandidateValue::Blocked;
+        let key = newer.series_key();
         let candidates = vec![older, newer];
 
-        let expected_result: Vec<StandardizedFact> = Vec::new();
+        let expected_result = Series {
+            facts: Vec::new(),
+            blocked: vec![key],
+        };
 
         let result = newest_filing(&candidates);
 
@@ -359,6 +386,7 @@ mod tests {
         let expected_result = vec![(BigDecimal::from(110), false)];
 
         let result: Vec<(BigDecimal, bool)> = newest_filing(&candidates)
+            .facts
             .into_iter()
             .map(|fact| (fact.value, fact.restated))
             .collect();
@@ -381,6 +409,7 @@ mod tests {
         let expected_result = vec![true];
 
         let result: Vec<bool> = newest_filing(&candidates)
+            .facts
             .into_iter()
             .map(|fact| fact.restated)
             .collect();
@@ -408,6 +437,7 @@ mod tests {
         let expected_result = vec![false];
 
         let result: Vec<bool> = newest_filing(&candidates)
+            .facts
             .into_iter()
             .map(|fact| fact.restated)
             .collect();
@@ -427,7 +457,7 @@ mod tests {
 
         let expected_result = 1;
 
-        let result = newest_filing(&candidates).len();
+        let result = newest_filing(&candidates).facts.len();
 
         assert_eq!(result, expected_result);
     }
@@ -443,6 +473,7 @@ mod tests {
         let expected_result = vec![1, 4];
 
         let result: Vec<u16> = newest_filing(&candidates)
+            .facts
             .into_iter()
             .map(|fact| fact.period.quarters())
             .collect();
@@ -465,6 +496,7 @@ mod tests {
         let expected_result = vec![BigDecimal::from(100_000_000)];
 
         let result: Vec<BigDecimal> = newest_filing_as_of(&candidates, as_of)
+            .facts
             .into_iter()
             .map(|fact| fact.value)
             .collect();
@@ -485,6 +517,7 @@ mod tests {
         let expected_result = vec![BigDecimal::from(110_000_000)];
 
         let result: Vec<BigDecimal> = newest_filing_as_of(&candidates, as_of)
+            .facts
             .into_iter()
             .map(|fact| fact.value)
             .collect();

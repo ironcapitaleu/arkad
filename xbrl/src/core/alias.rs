@@ -442,6 +442,7 @@ mod tests {
         )];
 
         let result: Vec<(BigDecimal, Confidence, bool)> = newest_filing(&candidates)
+            .facts
             .into_iter()
             .map(|fact| (fact.value, fact.confidence, fact.restated))
             .collect();

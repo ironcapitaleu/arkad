@@ -787,7 +787,8 @@ Finding::Conflict {
 `core::dedup::more_precise`, then `core::alias::resolve_aliases`. A candidate holds the fields of
 `StandardizedFact` without `restated`, plus its `FilingSource` and a value that is either reported
 or blocked. A reported value keeps its `decimals`, so step 3 can tell a restatement from a repeated
-comparative. Step 3 is `core::dedup::newest_filing`.
+comparative. Step 3 is `core::dedup::newest_filing`. It returns the facts and the series keys whose
+newest candidate is blocked, so step 4 derives no value for a blocked concept.
 
 Rules the code fixes where the table above leaves a choice:
 
