@@ -18,8 +18,13 @@ bigdecimal = { version = "0.4", features = ["serde"] }
 chrono-tz = "0.10"
 roxmltree = "0.21"
 
+[features]
+# Exposes `xbrl::tests::fixtures` outside of `cfg(test)`, so the integration tests can use them.
+test-fixtures = []
+
 [dev-dependencies]
 pretty_assertions = "1"
+xbrl = { path = ".", features = ["test-fixtures"] }
 
 [lib]
 name = "xbrl"

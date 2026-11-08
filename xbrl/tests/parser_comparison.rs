@@ -17,23 +17,15 @@
 //!
 //! ## External Dependencies
 //!
-//! None. The fixtures live in `tests/fixtures/notes/` and `tests/fixtures/instance/`.
+//! None. The fixtures live in `src/tests/fixtures/data/`.
 
 use std::collections::HashMap;
 
 use bigdecimal::RoundingMode;
 use pretty_assertions::assert_eq;
 use xbrl::core::fact::{AsIsFact, FactKey, FactValue};
-
-use self::instance_fixture::parse_instance_fixture;
-use self::notes_fixture::parse_notes_fixture;
-
-#[path = "fixtures/sample_taxonomy/fake_taxonomy.rs"]
-mod fake_taxonomy;
-#[path = "fixtures/instance/instance_fixture.rs"]
-mod instance_fixture;
-#[path = "fixtures/notes/notes_fixture.rs"]
-mod notes_fixture;
+use xbrl::tests::fixtures::data::instance::parse_instance_fixture;
+use xbrl::tests::fixtures::data::notes::parse_notes_fixture;
 
 /// The decimals that Notes keeps of a number.
 const NOTES_SCALE: i64 = 4;

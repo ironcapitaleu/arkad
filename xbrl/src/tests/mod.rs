@@ -1,6 +1,7 @@
 //! # Test Utilities
 //!
-//! Shared test-only helpers and fixtures for the `xbrl` crate, compiled only under `#[cfg(test)]`.
+//! Shared test-only helpers and fixtures for the `xbrl` crate. Unit tests compile them under
+//! `#[cfg(test)]`. Integration tests compile them through the `test-fixtures` feature.
 //!
 //! ## Modules
 //!

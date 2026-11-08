@@ -6,7 +6,7 @@
 //!
 //! ## External Dependencies
 //!
-//! None. The fixture lives in `tests/fixtures/instance/0001628280-26-068246/`.
+//! None. The fixture lives in `src/tests/fixtures/data/instance/0001628280-26-068246/`.
 
 use bigdecimal::BigDecimal;
 use chrono::NaiveDate;
@@ -17,13 +17,7 @@ use xbrl::core::filing::{CompanyAttributes, EntityId, Filing, Ticker};
 use xbrl::core::fiscal_period::FiscalPeriod;
 use xbrl::core::fiscal_year::FiscalYear;
 use xbrl::core::form::Form;
-
-use self::instance_fixture::{filed, filing_id, parse_instance_fixture};
-
-#[path = "fixtures/sample_taxonomy/fake_taxonomy.rs"]
-mod fake_taxonomy;
-#[path = "fixtures/instance/instance_fixture.rs"]
-mod instance_fixture;
+use xbrl::tests::fixtures::data::instance::{filed, filing_id, parse_instance_fixture};
 
 #[test]
 fn should_keep_every_fact_except_the_repeated_copies_for_a_real_filing() {

@@ -3017,6 +3017,7 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror",
+ "xbrl",
 ]
 
 [[package]]

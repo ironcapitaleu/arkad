@@ -1,46 +1,43 @@
 //! # Notes Fixture
 //!
-//! Reads and parses the `sub`, `num`, `txt`, `dim`, and `tag` rows of the 10-Q
-//! `0001628280-26-068246` from `tests/fixtures/notes/`. The files keep the header and the rows as
+//! The `sub`, `num`, `txt`, `dim`, and `tag` rows of the 10-Q `0001628280-26-068246` from the Notes
+//! file `2026_10_notes.zip`, and helpers that parse them. The files keep the header and the rows as
 //! the SEC wrote them. None of the rows holds a quoted field, so each line splits on tabs.
 
 use std::collections::HashMap;
-use std::fs;
-use std::path::PathBuf;
 
-use xbrl::adapter::edgar::notes::row::{DimRow, NumRow, SubRow, TagRow, TxtRow};
-use xbrl::adapter::edgar::notes::{NotesFacts, NotesFiling, parse};
-use xbrl::core::taxonomy::registry::Registry;
+use super::fixture_taxonomy;
+use crate::adapter::edgar::notes::row::{DimRow, NumRow, SubRow, TagRow, TxtRow};
+use crate::adapter::edgar::notes::{NotesFacts, NotesFiling, parse};
+use crate::core::taxonomy::registry::Registry;
 
-use super::fake_taxonomy::us_gaap;
+/// The `sub.tsv` rows of the fixture filing.
+pub const SUB_TSV: &str = include_str!("0001628280-26-068246/sub.tsv");
 
-fn table(name: &str) -> Vec<HashMap<String, String>> {
-    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("tests/fixtures/notes/0001628280-26-068246")
-        .join(name);
-    let text = fs::read_to_string(path)
-        .expect("Given a fixture file in the repository, the read should always succeed");
-    let mut lines = text.lines();
-    let header: Vec<&str> = lines
-        .next()
-        .expect("Given a fixture file with a header, the first line should always exist")
-        .split('\t')
-        .collect();
-    lines
-        .map(|line| {
-            header
-                .iter()
-                .zip(line.split('\t'))
-                .map(|(column, field)| ((*column).to_owned(), field.to_owned()))
-                .collect()
-        })
-        .collect()
-}
+/// The `num.tsv` rows of the fixture filing.
+pub const NUM_TSV: &str = include_str!("0001628280-26-068246/num.tsv");
 
-/// Parses the rows of the fixture filing.
+/// The `txt.tsv` rows of the fixture filing.
+pub const TXT_TSV: &str = include_str!("0001628280-26-068246/txt.tsv");
+
+/// The `dim.tsv` rows that the `num` and `txt` rows of the fixture filing name.
+pub const DIM_TSV: &str = include_str!("0001628280-26-068246/dim.tsv");
+
+/// The `tag.tsv` rows that the `num` rows of the fixture filing name.
+pub const TAG_TSV: &str = include_str!("0001628280-26-068246/tag.tsv");
+
+/// The character between the fields of a row.
+const FIELD_SEPARATOR: char = '\t';
+
+/// Parses [`notes_filing`] with a registry of [`fixture_taxonomy`].
+///
+/// # Panics
+///
+/// Never panics: the `sub` row of the fixture filing is valid.
+#[must_use]
 pub fn parse_notes_fixture() -> NotesFacts {
     let rows = notes_filing();
-    let plugin = us_gaap();
+    let plugin = fixture_taxonomy();
     let registry = Registry::new(vec![&plugin])
         .expect("Given one plug-in with four families, the creation should always succeed");
     parse(&rows, &registry)
@@ -48,9 +45,14 @@ pub fn parse_notes_fixture() -> NotesFacts {
 }
 
 /// Returns the rows of the fixture filing.
-fn notes_filing() -> NotesFiling {
+///
+/// # Panics
+///
+/// Never panics: each table has a header, and `sub.tsv` has one row.
+#[must_use]
+pub fn notes_filing() -> NotesFiling {
     let field = |row: &HashMap<String, String>, column: &str| row[column].clone();
-    let sub = &table("sub.tsv")[0];
+    let sub = &table(SUB_TSV)[0];
     NotesFiling {
         sub: SubRow {
             adsh: field(sub, "adsh"),
@@ -65,7 +67,7 @@ fn notes_filing() -> NotesFiling {
             filed: field(sub, "filed"),
             accepted: field(sub, "accepted"),
         },
-        num: table("num.tsv")
+        num: table(NUM_TSV)
             .iter()
             .map(|row| NumRow {
                 tag: field(row, "tag"),
@@ -83,7 +85,7 @@ fn notes_filing() -> NotesFiling {
                 dcml: field(row, "dcml"),
             })
             .collect(),
-        txt: table("txt.tsv")
+        txt: table(TXT_TSV)
             .iter()
             .map(|row| TxtRow {
                 tag: field(row, "tag"),
@@ -100,7 +102,7 @@ fn notes_filing() -> NotesFiling {
                 datp: field(row, "datp"),
             })
             .collect(),
-        dim: table("dim.tsv")
+        dim: table(DIM_TSV)
             .iter()
             .map(|row| DimRow {
                 dimh: field(row, "dimhash"),
@@ -108,7 +110,7 @@ fn notes_filing() -> NotesFiling {
                 segt: field(row, "segt"),
             })
             .collect(),
-        tag: table("tag.tsv")
+        tag: table(TAG_TSV)
             .iter()
             .map(|row| TagRow {
                 tag: field(row, "tag"),
@@ -117,4 +119,23 @@ fn notes_filing() -> NotesFiling {
             })
             .collect(),
     }
+}
+
+/// Returns each row of a table as a map from column to field.
+fn table(text: &str) -> Vec<HashMap<String, String>> {
+    let mut lines = text.lines();
+    let header: Vec<&str> = lines
+        .next()
+        .expect("Given a fixture file with a header, the first line should always exist")
+        .split(FIELD_SEPARATOR)
+        .collect();
+    lines
+        .map(|line| {
+            header
+                .iter()
+                .zip(line.split(FIELD_SEPARATOR))
+                .map(|(column, field)| ((*column).to_owned(), field.to_owned()))
+                .collect()
+        })
+        .collect()
 }
