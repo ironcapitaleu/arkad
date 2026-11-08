@@ -165,7 +165,7 @@ where
 
 impl<'a, T, F> Stream for OrderedReads<'a, T, F>
 where
-    F: FnMut(WalkedKey) -> BoxFuture<'a, ReadOutcome<T>>,
+    F: FnMut(WalkedKey) -> BoxFuture<'a, ReadOutcome<T>> + Unpin,
 {
     type Item = Result<T, ReadError>;
 
@@ -193,10 +193,6 @@ where
         }
     }
 }
-
-// The stream never pins a field: each running read sits in its own `Box`. Without this impl, the
-// stream is `Unpin` only if `T` is, and a metadata context need not be.
-impl<T, F> Unpin for OrderedReads<'_, T, F> {}
 
 /// Reads the entry of one walked key, and converts its error into a [`ReadError`].
 async fn read_entry<A: CanRead, D: Document>(
@@ -700,14 +696,31 @@ mod tests {
         }
     }
 
+    /// A walk that yields its keys from memory, all in one poll, so every read starts at once.
+    struct WalkFromMemory(VecDeque<Result<WalkedKey, ReadError>>);
+
+    impl Stream for WalkFromMemory {
+        type Item = Result<WalkedKey, ReadError>;
+
+        fn poll_next(mut self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+            Poll::Ready(self.0.pop_front())
+        }
+    }
+
+    fn walked_with_document(path: &str) -> WalkedKey {
+        WalkedKey {
+            key: key(path),
+            has_document: true,
+        }
+    }
+
     #[tokio::test]
     async fn should_yield_the_keys_in_walk_order_when_later_reads_finish_first() {
-        let root = temporary_root();
-        let repository = repository_at(root.path());
-        for path in ["sec/a.json", "sec/b.json", "sec/c.json"] {
-            persist_at(&repository, path).await;
-        }
-        let walk = repository.walk_keys(&KeyPrefix::root());
+        let walk: BoxStream<'static, _> = Box::pin(WalkFromMemory(VecDeque::from([
+            Ok(walked_with_document("sec/a.json")),
+            Ok(walked_with_document("sec/b.json")),
+            Ok(walked_with_document("sec/c.json")),
+        ])));
         let mut polls_left = 3;
         let reads_in_reverse = move |walked: WalkedKey| -> BoxFuture<'static, _> {
             polls_left -= 1;
