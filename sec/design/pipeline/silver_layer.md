@@ -178,10 +178,10 @@ Ingestion provenance, on every row (see [Provenance](#provenance)):
 | `form`, `is_amendment` | `utf8`, `bool` | `10-K/A`, true |
 | `filed`, `accepted` | `date32`, `timestamp[ms, UTC]` nullable | |
 | `period_of_report` | `date32` | |
-| `fiscal_year`, `fiscal_period` | `int16`, `utf8` | As filed |
+| `fiscal_year`, `fiscal_period` | `int16`, `utf8`, both nullable | As filed. The first backfill counts the nulls |
 | `company_name` | `utf8`, nullable | `sub.tsv` `name`, or `dei:EntityRegistrantName` |
 | `sic` | `utf8`, nullable | `sub.tsv` `sic`, or `submissions` `sic` |
-| `tickers` | `list<struct<symbol: utf8, exchange: utf8>>` | `dei:TradingSymbol` and `dei:SecurityExchangeName`, one entry per share class |
+| `tickers` | `list<struct<symbol: utf8, exchange: utf8 nullable>>` | `dei:TradingSymbol` and `dei:SecurityExchangeName`, one entry per share class |
 | `fiscal_year_end_raw` | `utf8`, nullable | `0930` from `sub.tsv`, or `--09-27` from the instance |
 | `fiscal_year_end_month` | `uint8`, nullable | The month of the nearest month end, see below |
 | `sic_source_key`, `sic_source_sha256`, `sic_retrieved_at` | `utf8`, `utf8`, `timestamp[ms, UTC]`, nullable | The `submissions` file of a new filing. Null for a Notes filing |
@@ -197,9 +197,13 @@ Ingestion provenance, on every row (see [Provenance](#provenance)):
 
 One row per standard concept and filing, from steps 1 and 2 of the dedup order in
 [`xbrl/DESIGN.md`](../../../xbrl/DESIGN.md#4a-transform-integration). The columns are those of
-`standardized_facts` without `restated`, plus `filing_id`, `filed`, `accepted`, and `blocked`. A
-blocked candidate has a null value. The standardize series step reads only this dataset and
-`filings`, so it never parses again.
+`standardized_facts` without `restated`, plus `filing_id`, `filed`, `accepted`, `blocked`, and
+`entity_bucket`. A blocked candidate has a null `value` and a null `confidence`. Its `rule` names
+the rule that picked the conflicting concept. The standardize series step reads only this dataset
+and `filings`, so it never parses again.
+
+Inside a `candidates` file, rows sort by `entity_bucket`, then by `filing_id`. A series task then
+reads only the row groups of its bucket from each unit, by their statistics.
 
 ### `standardized_facts`
 
@@ -207,7 +211,8 @@ blocked candidate has a null value. The standardize series step reads only this 
 | ------ | ---------- | ---- |
 | `entity_scheme`, `entity_id` | `utf8` | |
 | `concept` | `utf8` | `CanonicalElement`, for example `Revenue` |
-| `period_end`, `period_start`, `quarters`, `unit`, `dimensions` | as in `as_is_facts` | Dimensions are empty in the MVP |
+| `period_end`, `period_start`, `quarters`, `dimensions` | as in `as_is_facts` | Dimensions are empty in the MVP |
+| `unit` | `utf8` | `StandardizedFact::unit`, never null |
 | `value` | `decimal128(38, 10)` | |
 | `confidence` | `utf8` | `Exact`, `Synonym`, `Derived`, or `Computed` |
 | `rule` | `utf8` | `RuleId`, for example `us-gaap/alias/revenue@1` |
@@ -215,9 +220,6 @@ blocked candidate has a null value. The standardize series step reads only this 
 | `inputs` | `list<struct<FactKey>>` | The value keys of the as-is facts, with every key field |
 | `restated` | `bool` | |
 | Run columns | `transform_version`, `execution_id`, `loaded_at` | |
-
-Parquet stores a column that repeats one value, such as `release_checksum`, as one dictionary
-entry per file.
 
 ### `findings`
 
@@ -257,6 +259,7 @@ The list of written units. Readers find the current files through it, and it hol
 | ------ | ---------- | ------- |
 | `dataset` | `utf8` | For example `as_is_facts` |
 | `schema_version` | `uint16` | Version of the dataset schema |
+| `source` | `utf8`, nullable | `notes` or `instance`. Null for the series datasets and `taxonomy_elements` |
 | `unit_kind`, `unit_key` | `utf8`, `utf8` | See [Units, Paths, and Replays](#units-paths-and-replays) |
 | `input_digest` | `utf8` | SHA-256 over the sorted list of input keys and digests |
 | `inputs` | `list<struct<key, sha256, requested_url, produced_at>>` | Each raw document or silver file read |
@@ -288,7 +291,7 @@ see [Measurements](#measurements)): `num.txt` holds 542 MB of text. Sorted by fi
 
 | Option | Pro | Con |
 | ------ | --- | --- |
-| A. Plain Parquet files and the `silver_files` list (proposed) | No new dependency next to Polars. The list is a Parquet dataset itself. A unit becomes visible with one write | No transaction over many files. Each reader must read the list. Compaction and file removal need own code |
+| A. Plain Parquet files and the `silver_files` list (proposed) | No new dependency next to Polars. The list is a Parquet dataset itself. A unit becomes visible with one write | No transaction over many files. Each reader must read the list. Compaction and file removal need code of our own |
 | B. Delta Lake through `delta-rs` | Transaction log, snapshots by version and time, `OPTIMIZE` and `VACUUM` | `deltalake` pins its own Arrow version, so it and Polars must agree on one. Concurrent writers on GCS need the conditional-write support of the object store |
 | C. Apache Iceberg through `iceberg-rust` | Open standard, snapshots, hidden partitions, the Supabase Iceberg wrapper | Needs a catalog service. The Rust writer covers less than the Java one. The epic lists Iceberg as out of scope, and ADR 0001 adds Iceberg only next to Postgres, past about 50 GB |
 
@@ -329,11 +332,12 @@ dataset. So the daily path needs no compaction.
 ### Paths
 
 ```text
-gs://<silver-bucket>/<dataset>/source=<notes|instance>/unit=<unit_key>/<digest>-v<transform_version>/part-<n>.parquet
-gs://<silver-bucket>/silver_files/execution=<execution_id>/task=<n>.parquet
+gs://<silver-bucket>/<dataset>/source=<notes|instance>/unit=<unit_key>/<digest>-v<transform_version>/<execution_id>-<attempt>/part-<n>.parquet
+gs://<silver-bucket>/silver_files/execution=<execution_id>/task=<n>-<attempt>.parquet
 ```
 
 - `<digest>` is the first 16 hex characters of `input_digest`.
+- `<attempt>` is the attempt number of the Cloud Run task. A retry writes to its own paths.
 - The series datasets use `unit=<bucket>` with no `source=` level.
 - Inside a file, rows sort by `filing_id`, then by the value key. Row groups hold about 100,000
   rows, so a read of one filing skips the other row groups by their statistics.
@@ -341,13 +345,17 @@ gs://<silver-bucket>/silver_files/execution=<execution_id>/task=<n>.parquet
 ### Rules of a Write
 
 1. The writer computes `input_digest` from its inputs.
-2. If `silver_files` already holds the unit key, the digest, and the transform version, the writer
-   skips the write. This mirrors the skip of the raw store.
-3. Otherwise, the writer writes the Parquet files of the unit to their final paths.
+2. If the current unit of the unit key has the same digest and transform version, the writer skips
+   the write. An older unit with the same digest and version does not count. This mirrors the skip
+   of the raw store.
+3. Otherwise, the writer writes the Parquet files of the unit to their paths. Each object write
+   sets the GCS precondition `ifGenerationMatch=0`, so a second write to one path fails.
 4. The writer writes the `silver_files` row last. A unit without a `silver_files` row does not
    exist for a reader.
 
-So silver never writes other bytes to an existing path. A file is written once and kept.
+So silver never writes to an existing path. A file is written once and kept. If an attempt fails
+between steps 3 and 4, its files stay unread, because no `silver_files` row names them. A cleanup
+can remove such files once no attempt of their execution runs.
 
 ### Replays
 
@@ -357,18 +365,38 @@ So silver never writes other bytes to an existing path. A file is written once a
 | A parser fix | same | same | new | A new unit next to the old one |
 | A Notes file that the SEC corrected | same | new | same | A new unit next to the old one |
 | A late filing of a past day | same | new | same | A new unit with the whole day |
+| A parser fix of a past day after a new fetch of `submissions` | same | new | new | A new unit. Its SIC values are those of the new fetch |
+| A rollback to an earlier version or digest | same | old | old | A new unit, because step 2 compares with the current unit only |
 
+- A unit key is the dataset, the source, the unit kind, and `unit_key`.
 - The **current unit** of a unit key is the one with the latest `written_at`. A default read takes
-  only current units.
+  only current units. This order is the order of runs. It applies only to units of one key, which
+  hold the same filings.
 - The old unit stays. A read "as silver held it at T" takes, per unit key, the latest unit written at
   or before T.
 - So a replay replaces exactly the rows of its unit for a default read, and deletes nothing.
 - `transform_version` changes only when the parser output changes. A golden test pins the output of
   the fixtures to the version. If the output changes and the version does not, the test fails.
+- The raw store keeps one version of `submissions`. So a replay of a `filing_day` after a new fetch
+  takes the SIC of the new fetch, and `sic_retrieved_at` shows it.
 
 A Notes file that the SEC merged into a quarterly file has a new period, so it is a new unit key.
-Both units stay current, and the same filing appears in both. See
-[Same Value in Several Places](#same-value-in-several-places).
+Both units stay current, and the same filing appears in both. No order of runs picks between them,
+see [Open Points](#open-points).
+
+### Growth
+
+Silver deletes no unit of `as_is_facts`, `filings`, and `candidates`. Each full replay of the
+backfill adds the size of these datasets again, about 6 GB of numeric rows (estimate).
+
+The series datasets grow faster. A day with about 90 new filings touches most of the 64 buckets,
+and each touched bucket writes a new unit of its whole series output. Estimate: about 7,000
+entities, 50 concepts, and 90 periods give about 32 million rows, about 0.3 GB. A rewrite each day
+adds about 100 GB a year.
+
+So `standardized_facts` and `findings` get a retention rule. A cleanup removes a superseded unit of
+these two datasets 30 days after a newer unit replaced it. The series step can rebuild any of them
+from `candidates`, so the cleanup loses no reported value.
 
 ## Provenance
 
@@ -398,7 +426,8 @@ from. A join on these keys reaches the as-is rows and their provenance.
 ### Append-Only
 
 - Silver keeps every reported value, with its filing and its source document.
-- Silver drops no value and overwrites no file. A replay adds a unit (see [Replays](#replays)).
+- Silver drops no reported value and overwrites no file. A replay adds a unit (see [Replays](#replays)).
+  The retention rule of [Growth](#growth) removes only superseded units of derived datasets.
 - "Newest filing wins" and "more precise wins" are the rules `core/dedup/newest-filing@1` and
   `core/dedup/more-precise@1`. They run in the standardize steps or in a read, never in an as-is
   write.
@@ -413,12 +442,14 @@ from. A join on these keys reaches the as-is rows and their provenance.
 
 Queries this allows:
 
-| Query | Filter | History |
-| ----- | ------ | ------- |
-| The latest value of a period | Dedup rules over all filings | Back to 2009 |
-| The value as public on day D | Dedup rules over filings with `accepted` (or `filed`) on or before D | Back to 2009 |
-| The value as silver held it at time T | Current units as of T, then the dedup rules | From the first silver write |
-| Every value ever reported for a period | No dedup | Back to 2009 |
+| Query | Layer | How | History |
+| ----- | ----- | --- | ------- |
+| The latest value of a period | As-is | A view: dedup rules over all filings | Back to 2009 |
+| The latest value of a period | Standardized | Read `standardized_facts` | Back to 2009 |
+| The value as public on day D | As-is | A view: dedup rules over filings with `accepted` (or `filed`) on or before D | Back to 2009 |
+| The value as public on day D | Standardized | Run the series step again on the `candidates` with `accepted` (or `filed`) on or before D. Tiers 3 and 4 run only in Rust, so no view gives it | Back to 2009 |
+| The value as silver held it at time T | As-is | Current units as of T, then the dedup rules | From the first silver write |
+| Every value ever reported for a period | As-is | No dedup | Back to 2009 |
 
 The new-filing path stores `filed` only. A point-in-time read of a new filing uses `filed`, so it
 is exact to a day, not to a minute.
@@ -433,7 +464,7 @@ A value of one period can appear in many rows:
 | Repeated comparative | Q1 revenue in the Q1 10-Q and again in the next year's Q1 10-Q | Both rows | `core/dedup/newest-filing@1` takes the newer filing |
 | Restatement | A 10-K/A with another value | Both rows | `core/dedup/newest-filing@1` takes the newer filing and sets `restated` |
 | One filing on both paths | A Notes row and an instance fact | Both rows, with their `source_kind` | Open, see [Open Points](#open-points) |
-| One filing in two Notes files | A monthly file and its merged quarterly file | Both units | Per `filing_id` and `source_kind`, the current unit with the latest `written_at` |
+| One filing in two Notes files | A monthly file and its merged quarterly file | Both units | Open, see [Open Points](#open-points) |
 
 The as-is read for one period uses the same order as the standardized layer:
 `core/dedup/more-precise@1` per filing, then `core/dedup/newest-filing@1` across filings, on the
@@ -480,8 +511,8 @@ backfill run measures it.
 
 ### Unit of Work and Memory
 
-The unit of transform is one filing. One filing fits in memory easily: in `2025q3`, a filing has
-425 numeric rows at the median and 24,536 at most (measured). A Notes file does not fit as easily.
+The unit of transform is one filing. One filing is small: in `2025q3`, a filing has 425 numeric
+rows at the median and 24,536 at most (measured). A Notes file is large.
 `2024q1` holds 1,423.5 MB of `num.tsv` and 1,290.2 MB of `txt.tsv` unzipped
 ([Notes ZIP Findings](ingestion_paths.md#notes-zip-findings)).
 
@@ -491,7 +522,7 @@ data set was not checked, see [Measurements](#measurements).
 
 | Option | Peak memory | Cost |
 | ------ | ----------- | ---- |
-| A. Read each table whole | About 9 GB for `2024q1` (estimate: 1.79 GB peak for 542 MB of text, scaled to 2.7 GB) | Simple. Needs a large task for the largest file |
+| A. Read each table whole | About 9 GB for `2024q1` (estimate: the full run on 542 MB of text peaked at 1.79 GB, scaled to 2.7 GB) | Simple. Needs a large task for the largest file |
 | B. One pass that writes K bucket files by a hash of `adsh` | One bucket | Staging space. On Cloud Run, local disk counts as memory, so the buckets go to the bucket store |
 | C. K passes over the ZIP stream, each keeping one bucket (proposed) | One bucket, about 1/K of the rows | K times the inflate time: about 4 s per pass per GB at 343 MB/s (measured) |
 
@@ -506,7 +537,7 @@ The prototype measures B and C on a real Notes file and picks K.
 
 | Option | Pro | Con |
 | ------ | --- | --- |
-| A. A transform super-state per filing, run in batches through a facade, as `notes()` and `daily_filings()` run extract (proposed) | Typed states, typed errors per filing, the observer, the same tests as extract. Matches section "4a) Transform Integration" of `xbrl/DESIGN.md` | More code than a script. A filing is small, so the per-state overhead counts |
+| A. A transform super-state per filing, run in batches through a facade, as `notes()` and `daily_filings()` run extract (proposed) | Typed states, typed errors per filing, the observer, the same tests as extract. Matches section "4a) Transform Integration" of `xbrl/DESIGN.md` | More code than a script. A filing is small, so the per-state overhead is a large share of the work |
 | B. One Polars or DuckDB batch job per Notes file | Little code, fast columnar work | No typed per-filing errors. SQL or a DataFrame expression takes the place of the `xbrl` rules, so the rules exist twice |
 
 Proposal: A, with Polars inside the states that move tables:
@@ -567,8 +598,9 @@ accepts. Silver itself sets none.
 
 Size of silver (estimate): `2024q1` holds about 10.5 million rows in `num.tsv` and `txt.tsv`. At
 about 70 quarters of history, the as-is dataset holds about 700 million rows. At 8.5 bytes per
-numeric row (measured), the numeric rows take about 6 GB. Text rows take more per row. The whole
-silver bucket stays under 30 GB, the size of the raw store.
+numeric row (measured), the numeric rows take about 6 GB. Text rows take more per row. Without
+replays, the whole silver bucket stays under 30 GB, the size of the raw store. See
+[Growth](#growth) for replays and the series datasets.
 
 ## Open Points
 
@@ -581,6 +613,11 @@ source, and each choice is a read rule over silver.
   The fact store design picks the read rule, for example instance over Notes.
 - **Which source wins for one filing on both paths.** The transform design decides whether the
   standardize filing step runs once per filing or once per source. Silver accepts both.
+- **One filing in two Notes files.** After a merge, a monthly unit and the quarterly unit both hold
+  the filing, so `candidates` holds two candidates with one `filing_id`. `core/dedup/newest-filing@1`
+  has no tie-break inside one `FilingId`. The series step needs one unit per filing, chosen by a
+  fixed rule that does not depend on the order of runs, for example the quarterly file over the
+  monthly file. The fact store design picks the rule.
 - **The replay of a filing in gold.** Silver keeps the old and the new unit. The fact store design
   decides how gold replaces the rows of a replayed filing.
 - **The reload of a corrected Notes file.** Silver writes a new unit only if the transform runs
@@ -605,7 +642,8 @@ as a stand-in for the Rust crate.
   runs of adjacent rows.
 - **Filings per filed date.** Median 36.5, maximum 709, over 64 dates.
 - **Memory and time.** An eager read of `sub.txt` and `num.txt` as text took 2.0 s and peaked at
-  1.19 GB. A streamed conversion of `num.txt` to Parquet took 0.9 s and peaked at 0.72 GB. A sort
+  1.19 GB. The same read, a cast to typed columns, and the Parquet writes of the next items peaked at
+  1.79 GB in one process. A streamed conversion of `num.txt` to Parquet took 0.9 s and peaked at 0.72 GB. A sort
   by `adsh` with a streamed write took 2.7 s and peaked at 1.85 GB.
 - **Read of one filing.** From the sorted Parquet file with a filter on `adsh`: 473 rows, peak
   0.08 GB.
