@@ -6,7 +6,7 @@
 //! that join the labels of its locators and resources. The generator resolves every arc through
 //! these labels and never guesses a concept from the text of a label.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::path::Path;
 
@@ -38,8 +38,14 @@ const LABEL_ATTRIBUTE: &str = "label";
 /// The `XLink` attribute that points a locator to a concept.
 const HREF_ATTRIBUTE: &str = "href";
 
-/// The `XLink` attribute that holds the role of a label resource.
+/// The `XLink` attribute that holds the role of an extended link or of a label resource.
 const ROLE_ATTRIBUTE: &str = "role";
+
+/// The `XLink` attribute that holds the kind of an `XLink` element.
+const TYPE_ATTRIBUTE: &str = "type";
+
+/// The `xlink:type` of an extended link.
+const EXTENDED_TYPE: &str = "extended";
 
 /// The `XLink` attribute that names the start of an arc.
 const FROM_ATTRIBUTE: &str = "from";
@@ -78,8 +84,14 @@ impl fmt::Display for ConceptRef {
 }
 
 /// One summation arc of a calculation linkbase.
+///
+/// A concept can be the total of different children in different networks. For example,
+/// `Revenues` sums other children in the income statement than in the statement of comprehensive
+/// income. So each arc keeps the role of its network, and a sum uses the arcs of one role.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct CalculationArc {
+    /// The `xlink:role` of the calculation link that holds the arc: the network of the arc.
+    pub role: String,
     /// The total.
     pub parent: ConceptRef,
     /// The part of the total.
@@ -96,6 +108,7 @@ pub struct CalculationArc {
 /// - [`GeneratorError::MissingAttribute`] if a locator, resource, or arc lacks an `XLink`
 ///   attribute.
 /// - [`GeneratorError::InvalidConceptReference`] if a locator does not point to a concept.
+/// - [`GeneratorError::AmbiguousLocatorLabel`] if two locators share a label and differ in concept.
 /// - [`GeneratorError::UnresolvedArcLabel`] if an arc names a label that its link does not carry.
 /// - [`GeneratorError::RepeatedLabel`] if a concept has two standard labels.
 pub fn standard_labels(
@@ -106,25 +119,32 @@ pub fn standard_labels(
     let mut labels = HashMap::new();
     for link in extended_links(&document) {
         let locators = locators(path, link)?;
-        let mut resources: HashMap<&str, &str> = HashMap::new();
+        let mut resource_labels = HashSet::new();
+        let mut standard_texts: HashMap<&str, Vec<&str>> = HashMap::new();
         for resource in children(link, LABEL_TAG) {
+            let label = xlink_attribute(path, resource, LABEL_ATTRIBUTE)?;
+            resource_labels.insert(label);
             if resource.attribute((XLINK_NAMESPACE, ROLE_ATTRIBUTE)) == Some(STANDARD_LABEL_ROLE) {
-                let label = xlink_attribute(path, resource, LABEL_ATTRIBUTE)?;
-                resources.insert(label, resource.text().unwrap_or_default());
+                let text = resource.text().unwrap_or_default();
+                standard_texts.entry(label).or_default().push(text);
             }
         }
         for arc in children(link, LABEL_ARC_TAG) {
             let concept = resolve(path, &locators, xlink_attribute(path, arc, FROM_ATTRIBUTE)?)?;
-            let Some(text) = resources.get(xlink_attribute(path, arc, TO_ATTRIBUTE)?) else {
-                continue;
-            };
-            if labels
-                .insert(concept.clone(), (*text).to_string())
-                .is_some()
-            {
-                return Err(GeneratorError::RepeatedLabel {
-                    concept: concept.to_string(),
-                });
+            let to = xlink_attribute(path, arc, TO_ATTRIBUTE)?;
+            if !resource_labels.contains(to) {
+                return Err(unresolved(path, to));
+            }
+            for text in standard_texts.get(to).into_iter().flatten() {
+                if labels
+                    .insert(concept.clone(), (*text).to_string())
+                    .is_some()
+                {
+                    return Err(GeneratorError::RepeatedLabel {
+                        path: path.to_path_buf(),
+                        concept: concept.to_string(),
+                    });
+                }
             }
         }
     }
@@ -136,8 +156,9 @@ pub fn standard_labels(
 /// # Errors
 ///
 /// - [`GeneratorError::InvalidXml`] if `linkbase` is not well-formed XML.
-/// - [`GeneratorError::MissingAttribute`] if a locator or arc lacks an attribute.
+/// - [`GeneratorError::MissingAttribute`] if a link, locator, or arc lacks an attribute.
 /// - [`GeneratorError::InvalidConceptReference`] if a locator does not point to a concept.
+/// - [`GeneratorError::AmbiguousLocatorLabel`] if two locators share a label and differ in concept.
 /// - [`GeneratorError::UnresolvedArcLabel`] if an arc names a label that its link does not carry.
 pub fn calculation_arcs(
     path: &Path,
@@ -146,12 +167,14 @@ pub fn calculation_arcs(
     let document = parse(path, linkbase)?;
     let mut arcs = Vec::new();
     for link in extended_links(&document) {
+        let role = xlink_attribute(path, link, ROLE_ATTRIBUTE)?;
         let locators = locators(path, link)?;
         for arc in children(link, CALCULATION_ARC_TAG) {
             let weight = arc
                 .attribute(WEIGHT_ATTRIBUTE)
                 .ok_or_else(|| missing(path, arc, WEIGHT_ATTRIBUTE))?;
             arcs.push(CalculationArc {
+                role: role.to_string(),
                 parent: resolve(path, &locators, xlink_attribute(path, arc, FROM_ATTRIBUTE)?)?,
                 child: resolve(path, &locators, xlink_attribute(path, arc, TO_ATTRIBUTE)?)?,
                 weight: weight.to_string(),
@@ -163,17 +186,21 @@ pub fn calculation_arcs(
 
 /// Parses `text` as XML.
 fn parse<'input>(path: &Path, text: &'input str) -> Result<Document<'input>, GeneratorError> {
-    Document::parse(text).map_err(|source| GeneratorError::InvalidXml {
+    Document::parse(text).map_err(|error| GeneratorError::InvalidXml {
         path: path.to_path_buf(),
-        source,
+        reason: error.to_string(),
     })
 }
 
-/// Returns the extended links of a linkbase: the element children of its root.
+/// Returns the extended links of a linkbase: the children of its root with `xlink:type`
+/// `extended`. The role references beside them are skipped.
 fn extended_links<'a, 'input>(
     document: &'a Document<'input>,
 ) -> impl Iterator<Item = Node<'a, 'input>> {
-    document.root_element().children().filter(Node::is_element)
+    document
+        .root_element()
+        .children()
+        .filter(|node| node.attribute((XLINK_NAMESPACE, TYPE_ATTRIBUTE)) == Some(EXTENDED_TYPE))
 }
 
 /// Returns the children of `link` with the linkbase tag `tag`.
@@ -186,17 +213,29 @@ fn children<'a, 'input>(
 }
 
 /// Returns the concept of each locator of `link`, by the label of the locator.
+///
+/// `XLink` lets two locators share a label. The generator accepts this only if both point to the
+/// same concept, so an arc never stands for two concepts.
 fn locators<'a>(
     path: &Path,
     link: Node<'a, '_>,
 ) -> Result<HashMap<&'a str, ConceptRef>, GeneratorError> {
-    children(link, LOCATOR_TAG)
-        .map(|locator| {
-            let label = xlink_attribute(path, locator, LABEL_ATTRIBUTE)?;
-            let href = xlink_attribute(path, locator, HREF_ATTRIBUTE)?;
-            Ok((label, concept_of(path, href)?))
-        })
-        .collect()
+    let mut locators = HashMap::new();
+    for locator in children(link, LOCATOR_TAG) {
+        let label = xlink_attribute(path, locator, LABEL_ATTRIBUTE)?;
+        let concept = concept_of(path, xlink_attribute(path, locator, HREF_ATTRIBUTE)?)?;
+        if locators
+            .insert(label, concept.clone())
+            .is_some_and(|other| other != concept)
+        {
+            return Err(GeneratorError::AmbiguousLocatorLabel {
+                path: path.to_path_buf(),
+                line: line_of(locator),
+                label: label.to_string(),
+            });
+        }
+    }
+    Ok(locators)
 }
 
 /// Returns the concept of a locator `href`, such as `../elts/us-gaap-2026.xsd#us-gaap_Assets`.
@@ -223,10 +262,20 @@ fn resolve(
     locators
         .get(label)
         .cloned()
-        .ok_or_else(|| GeneratorError::UnresolvedArcLabel {
-            path: path.to_path_buf(),
-            label: label.to_string(),
-        })
+        .ok_or_else(|| unresolved(path, label))
+}
+
+/// Returns the error for an arc that names the label `label`, which its link does not carry.
+fn unresolved(path: &Path, label: &str) -> GeneratorError {
+    GeneratorError::UnresolvedArcLabel {
+        path: path.to_path_buf(),
+        label: label.to_string(),
+    }
+}
+
+/// Returns the line of `node` in its file.
+fn line_of(node: Node<'_, '_>) -> u32 {
+    node.document().text_pos_at(node.range().start).row
 }
 
 /// Returns the `XLink` attribute `name` of `node`.
@@ -243,6 +292,7 @@ fn xlink_attribute<'a>(
 fn missing(path: &Path, node: Node<'_, '_>, name: &'static str) -> GeneratorError {
     GeneratorError::MissingAttribute {
         path: path.to_path_buf(),
+        line: line_of(node),
         element: node.tag_name().name().to_string(),
         attribute: name,
     }
@@ -292,12 +342,12 @@ mod tests {
     #[test]
     fn should_return_arcs_of_every_link_when_linkbase_has_two_links() {
         let text = linkbase(
-            "<link:calculationLink xlink:type='extended'>\
+            "<link:calculationLink xlink:type='extended' xlink:role='http://fasb.org/us-gaap/role/statement/A'>\
              <link:loc xlink:href='../elts/us-gaap-2026.xsd#us-gaap_Assets' xlink:label='loc_A' />\
              <link:loc xlink:href='../elts/us-gaap-2026.xsd#us-gaap_AssetsCurrent' xlink:label='loc_B' />\
              <link:calculationArc weight='1.0' xlink:from='loc_A' xlink:to='loc_B' />\
              </link:calculationLink>\
-             <link:calculationLink xlink:type='extended'>\
+             <link:calculationLink xlink:type='extended' xlink:role='http://fasb.org/us-gaap/role/statement/B'>\
              <link:loc xlink:href='../elts/us-gaap-2026.xsd#us-gaap_Revenues' xlink:label='loc_A' />\
              <link:loc xlink:href='https://xbrl.fasb.org/srt/2026/elts/srt-2026.xsd#srt_CostOfGoodsAndServicesSold' xlink:label='loc_B' />\
              <link:calculationArc weight='-1.0' xlink:from='loc_A' xlink:to='loc_B' />\
@@ -306,11 +356,13 @@ mod tests {
 
         let expected_result = vec![
             CalculationArc {
+                role: "http://fasb.org/us-gaap/role/statement/A".to_string(),
                 parent: concept("us-gaap", "Assets"),
                 child: concept("us-gaap", "AssetsCurrent"),
                 weight: "1.0".to_string(),
             },
             CalculationArc {
+                role: "http://fasb.org/us-gaap/role/statement/B".to_string(),
                 parent: concept("us-gaap", "Revenues"),
                 child: concept("srt", "CostOfGoodsAndServicesSold"),
                 weight: "-1.0".to_string(),
@@ -326,7 +378,7 @@ mod tests {
     #[test]
     fn should_return_unresolved_arc_label_when_arc_names_no_locator() {
         let text = linkbase(
-            "<link:calculationLink xlink:type='extended'>\
+            "<link:calculationLink xlink:type='extended' xlink:role='http://fasb.org/us-gaap/role/statement/A'>\
              <link:loc xlink:href='../elts/us-gaap-2026.xsd#us-gaap_Assets' xlink:label='loc_A' />\
              <link:calculationArc weight='1.0' xlink:from='loc_A' xlink:to='loc_Missing' />\
              </link:calculationLink>",
@@ -348,7 +400,7 @@ mod tests {
     #[test]
     fn should_return_invalid_concept_reference_when_href_has_no_fragment() {
         let text = linkbase(
-            "<link:calculationLink xlink:type='extended'>\
+            "<link:calculationLink xlink:type='extended' xlink:role='http://fasb.org/us-gaap/role/statement/A'>\
              <link:loc xlink:href='../elts/us-gaap-2026.xsd' xlink:label='loc_A' />\
              </link:calculationLink>",
         );
@@ -379,10 +431,79 @@ mod tests {
         );
 
         let expected_result = Some(
-            "[RepeatedLabel] Concept 'us-gaap:Assets' has more than one standard label".to_string(),
+            "[RepeatedLabel] Concept 'us-gaap:Assets' has more than one standard label, \
+             Path: 'linkbase.xml'"
+                .to_string(),
         );
 
         let result = standard_labels(Path::new(PATH), &text)
+            .err()
+            .map(|error| error.to_string());
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_unresolved_arc_label_when_label_arc_names_no_resource() {
+        let text = linkbase(
+            "<link:labelLink xlink:type='extended'>\
+             <link:loc xlink:href='us-gaap-2026.xsd#us-gaap_Assets' xlink:label='loc_A' />\
+             <link:label xlink:label='lab_A' xlink:role='http://www.xbrl.org/2003/role/label'>Assets</link:label>\
+             <link:labelArc xlink:from='loc_A' xlink:to='lab_Typo' />\
+             </link:labelLink>",
+        );
+
+        let expected_result = Some(
+            "[UnresolvedArcLabel] No locator or resource carries the label of an arc, \
+             Label: 'lab_Typo', Path: 'linkbase.xml'"
+                .to_string(),
+        );
+
+        let result = standard_labels(Path::new(PATH), &text)
+            .err()
+            .map(|error| error.to_string());
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_missing_attribute_when_arc_has_no_weight() {
+        let text = linkbase(
+            "\n<link:calculationLink xlink:type='extended' xlink:role='http://fasb.org/us-gaap/role/statement/A'>\n\
+             <link:loc xlink:href='../elts/us-gaap-2026.xsd#us-gaap_Assets' xlink:label='loc_A' />\n\
+             <link:calculationArc xlink:from='loc_A' xlink:to='loc_A' />\n\
+             </link:calculationLink>",
+        );
+
+        let expected_result = Some(
+            "[MissingAttribute] Required attribute 'weight' not found on element 'calculationArc', \
+             Line: '4', Path: 'linkbase.xml'"
+                .to_string(),
+        );
+
+        let result = calculation_arcs(Path::new(PATH), &text)
+            .err()
+            .map(|error| error.to_string());
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_ambiguous_locator_label_when_two_locators_share_a_label() {
+        let text = linkbase(
+            "<link:calculationLink xlink:type='extended' xlink:role='http://fasb.org/us-gaap/role/statement/A'>\
+             <link:loc xlink:href='../elts/us-gaap-2026.xsd#us-gaap_Assets' xlink:label='loc_A' />\
+             <link:loc xlink:href='../elts/us-gaap-2026.xsd#us-gaap_Liabilities' xlink:label='loc_A' />\
+             </link:calculationLink>",
+        );
+
+        let expected_result = Some(
+            "[AmbiguousLocatorLabel] Two locators share a label and differ in concept, \
+             Label: 'loc_A', Line: '1', Path: 'linkbase.xml'"
+                .to_string(),
+        );
+
+        let result = calculation_arcs(Path::new(PATH), &text)
             .err()
             .map(|error| error.to_string());
 

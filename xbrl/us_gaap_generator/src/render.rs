@@ -46,7 +46,7 @@ pub struct Tables {
     pub release_folder: String,
     /// The SHA-256 of the `MANIFEST`, as 64 lowercase hex digits.
     pub checksum: String,
-    /// The calculation arcs, sorted, without repeats.
+    /// The calculation arcs, sorted by role, parent, and child, without repeats.
     pub arcs: Vec<CalculationArc>,
     /// The elements, sorted by name.
     pub elements: Vec<ElementLine>,
@@ -94,19 +94,26 @@ pub const RELEASE_CHECKSUM: &str = \"{checksum}\";
 
 /// Writes the table of calculation arcs.
 ///
-/// The `Debug` text of a `str` is a Rust string literal, with quotes and escapes, so the tables use
-/// it for every text.
+/// The tables write every text with the `Debug` format of `str`, which gives a Rust string literal.
+/// A new toolchain can escape a non-ASCII character in another way. Then the generated file
+/// changes, and the generator test fails until the generator runs again.
 fn write_arcs(source: &mut String, arcs: &[CalculationArc]) {
     source.push_str(
-        "/// The summation arcs of every calculation linkbase of the release, sorted, without repeats.
+        "/// The summation arcs of the statement calculation linkbases (`stm/`) of the release, sorted by
+/// role, parent, and child. Within one role, an arc appears once.
 pub static CALCULATION_ARCS: &[CalculationRow] = &[
 ",
     );
     for arc in arcs {
         writeln!(
             source,
-            "    CalculationRow::new({:?}, {:?}, {:?}, {:?}, {:?}),",
-            arc.parent.family, arc.parent.name, arc.child.family, arc.child.name, arc.weight
+            "    CalculationRow::new({:?}, {:?}, {:?}, {:?}, {:?}, {:?}),",
+            arc.role,
+            arc.parent.family,
+            arc.parent.name,
+            arc.child.family,
+            arc.child.name,
+            arc.weight
         )
         .expect("Given a String, a write should never fail");
     }
@@ -154,6 +161,7 @@ mod tests {
             release_folder: "taxonomy/us-gaap/2026".to_string(),
             checksum: "ab".to_string(),
             arcs: vec![CalculationArc {
+                role: "http://fasb.org/us-gaap/role/statement/A".to_string(),
                 parent: ConceptRef {
                     family: "us-gaap".to_string(),
                     name: "Assets".to_string(),
@@ -189,9 +197,10 @@ pub const RELEASE_ID: &str = "us-gaap/2026";
 /// The SHA-256 of the `MANIFEST` of the vendored files, as 64 lowercase hex digits.
 pub const RELEASE_CHECKSUM: &str = "ab";
 
-/// The summation arcs of every calculation linkbase of the release, sorted, without repeats.
+/// The summation arcs of the statement calculation linkbases (`stm/`) of the release, sorted by
+/// role, parent, and child. Within one role, an arc appears once.
 pub static CALCULATION_ARCS: &[CalculationRow] = &[
-    CalculationRow::new("us-gaap", "Assets", "us-gaap", "AssetsCurrent", "1.0"),
+    CalculationRow::new("http://fasb.org/us-gaap/role/statement/A", "us-gaap", "Assets", "us-gaap", "AssetsCurrent", "1.0"),
 ];
 
 /// The concepts of the element schema of the release, sorted by name.

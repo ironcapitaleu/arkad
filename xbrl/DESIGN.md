@@ -374,22 +374,30 @@ generated file is checked in. A developer runs the generator once per new releas
 `cargo run -p us_gaap_generator`.
 
 - The generator is the crate `xbrl/us_gaap_generator`, a developer tool. No container runs it. It
-  uses `roxmltree`, the XML library of `xbrl`, and `xbrl` does not depend on it.
+  reads XML with `roxmltree`. `xbrl` does not depend on it.
 - A concept is a top-level `xs:element` with a `substitutionGroup`. The 2026 schema has 17,182
   declarations and 17,179 concepts. The other 3 are domain helpers of typed dimensions.
 - The data type of a concept is the text of the schema, for example `xbrli:monetaryItemType`.
 - The generator resolves each arc of a linkbase through the labels of the locators and resources
   of its link. It never guesses a concept from the text of a label.
 - Some calculation arcs point to `srt` concepts, so each arc names the family of both ends.
+- Each calculation arc keeps the role of its calculation link, its network. A concept can sum
+  different children in different networks. `Revenues` has 20 children in the income statement,
+  2 in the statement of other comprehensive income, and 2 in the first alternative income
+  statement. A sum over all its arcs counts revenue more than once, so a sum takes the arcs of
+  one role.
 - `ELEMENTS` holds one row per concept: name, standard label, data type, balance, and period type.
-- `CALCULATION_ARCS` holds the summation arcs of all statement groups, sorted, without repeats.
-  Two groups can hold the same arc. No pair of concepts has two weights.
-- `us_gaap/table.rs` defines the row types. The rows hold static text, so the tables need no work
-  at start.
+- `CALCULATION_ARCS` holds the summation arcs of the statement groups in `stm/`, sorted by role,
+  parent, and child. Each row names its role. Within one role, an arc appears once. The
+  calculation linkbases of the disclosure groups are not vendored.
+- The generator fails if two arcs of one role join the same concepts with different weights.
+- `us_gaap/table.rs` defines the row types. The rows hold `&'static str`, so the tables need no
+  initialization at program start.
 - `mod.rs` marks the generated module `#[rustfmt::skip]`, so `cargo fmt` keeps the bytes that
   the generator writes.
 - A test in the generator crate runs the generator and compares its output with the checked-in
-  file. A change to the vendored files or to the generator without a new run fails it.
+  file. If the vendored files or the generator change the output and nobody runs the generator,
+  the test fails.
 
 - A new release is a reviewable diff of arcs and labels.
 - The build does not parse XML.

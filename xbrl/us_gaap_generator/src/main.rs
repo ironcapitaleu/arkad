@@ -30,8 +30,8 @@ fn main() -> ExitCode {
 fn run(xbrl_crate: &Path) -> Result<(), GeneratorError> {
     let source = generate(xbrl_crate)?;
     let output = xbrl_crate.join(OUTPUT_FILE);
-    fs::write(&output, source).map_err(|source| GeneratorError::FailedFileWrite {
+    fs::write(&output, source).map_err(|error| GeneratorError::FailedFileWrite {
         path: output,
-        source,
+        reason: error.to_string(),
     })
 }

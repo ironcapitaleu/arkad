@@ -2,7 +2,7 @@
 //!
 //! Provides the row types of the generated tables in [`super::taxonomy`].
 //!
-//! The rows hold static text, so the tables are plain statics with no work at start.
+//! The rows hold `&'static str`, so the tables need no initialization at program start.
 
 use crate::core::taxonomy::reference::{Balance, PeriodType};
 
@@ -41,9 +41,13 @@ impl ElementRow {
     }
 }
 
-/// One summation arc of a calculation linkbase: the parent is the weighted sum of its children.
+/// One summation arc of a calculation linkbase. Within one role, the parent is the weighted sum of
+/// its children.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct CalculationRow {
+    /// The role of the network of the arc, for example
+    /// `http://fasb.org/us-gaap/role/statement/StatementOfIncome`.
+    pub role: &'static str,
     /// The namespace family of the parent, for example `us-gaap`.
     pub parent_family: &'static str,
     /// The local name of the parent.
@@ -52,7 +56,8 @@ pub struct CalculationRow {
     pub child_family: &'static str,
     /// The local name of the child.
     pub child_name: &'static str,
-    /// The weight as the linkbase writes it, `1.0` or `-1.0`.
+    /// The weight as the linkbase writes it, `1.0` or `-1.0`. The plug-in parses it into the
+    /// `BigDecimal` of its calculation tree.
     pub weight: &'static str,
 }
 
@@ -60,6 +65,7 @@ impl CalculationRow {
     /// Creates a [`CalculationRow`].
     #[must_use]
     pub const fn new(
+        role: &'static str,
         parent_family: &'static str,
         parent_name: &'static str,
         child_family: &'static str,
@@ -67,6 +73,7 @@ impl CalculationRow {
         weight: &'static str,
     ) -> Self {
         Self {
+            role,
             parent_family,
             parent_name,
             child_family,
