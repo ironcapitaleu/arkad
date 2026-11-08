@@ -378,7 +378,8 @@ generated file is checked in. A developer runs the generator once per new releas
 
 - The generator is the module `us_gaap::generator`, behind the cargo feature `generator`. A
   normal build of `xbrl`, or of a crate that depends on it, leaves the module out. No container
-  runs it. It reads XML with `roxmltree`, the XML library of the instance parser.
+  runs it. It reads XML with `roxmltree`, the XML library of the instance parser. rustdoc
+  compiles the module without the feature, so the doc check of CI covers it.
 - `xbrl` lists itself as a dev-dependency with the `generator` feature, so every test build,
   CI included, runs the tests of the generator.
 - A concept is a top-level `xs:element` with a `substitutionGroup`. The 2026 schema has 17,182
