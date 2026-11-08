@@ -49,7 +49,8 @@ where
     ///
     /// Reads no file, so it yields the keys of every document type under the prefix. A key comes
     /// out sorted by the bytes of the key text, each key once. The walk skips a hidden `.tmp` file
-    /// of a write, a document without metadata, and metadata without its document.
+    /// of a write, a document without metadata, and metadata without its document. If the filter
+    /// carries a cursor, it yields only the keys that sort after it.
     ///
     /// # Errors
     ///
@@ -70,7 +71,8 @@ where
     /// never reads the bytes of a document. It yields metadata without its document, as
     /// [`StoredDocument::Missing`]. It skips metadata of another document type, because the
     /// repository of that type lists it. It reads a fixed number of metadata files at once, and
-    /// yields the entries in the order of [`list_keys`](ListRepository::list_keys).
+    /// yields the entries in the order of [`list_keys`](ListRepository::list_keys). If the filter
+    /// carries a cursor, it yields only the entries whose keys sort after it.
     ///
     /// # Errors
     ///
@@ -737,6 +739,41 @@ mod tests {
         ];
 
         let result = collect(Box::pin(OrderedReads::new(walk, reads_in_reverse))).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_list_only_the_keys_after_the_cursor_when_the_filter_has_a_cursor() {
+        let root = temporary_root();
+        let repository = repository_at(root.path());
+        for path in ["sec/a.json", "sec/b.json", "sec/c.json"] {
+            persist_at(&repository, path).await;
+        }
+        let prefix = KeyPrefix::root().starting_after(key("sec/a.json"));
+
+        let expected_result = vec![Ok(key("sec/b.json")), Ok(key("sec/c.json"))];
+
+        let result = collect(repository.list_keys(prefix)).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_list_only_the_entries_after_the_cursor_when_the_filter_has_a_cursor() {
+        let root = temporary_root();
+        let repository = repository_at(root.path());
+        for path in ["sec/a.json", "sec/b.json", "sec/c.json"] {
+            persist_at(&repository, path).await;
+        }
+        let prefix = KeyPrefix::root().starting_after(key("sec/b.json"));
+
+        let expected_result = vec![Ok((
+            key("sec/c.json"),
+            StoredDocument::Present { size_in_bytes: 2 },
+        ))];
+
+        let result = list_key_and_document(&repository, prefix).await;
 
         assert_eq!(result, expected_result);
     }

@@ -161,8 +161,11 @@ error then reads, for example:
 | `Entry` | `ListedDocument<D::Context>` |
 
 ```rust
-/// Selects the keys under a directory of the root.
-pub struct KeyPrefix(/* a relative path, valid as a DocumentKey, or empty for the root */);
+/// Selects the keys under a directory of the root, and optionally only the keys after a cursor.
+pub struct KeyPrefix {
+    directory: Option<DocumentKey>,   // None for the root
+    start_after: Option<DocumentKey>, // the cursor
+}
 
 /// One listed document: its key, its metadata, and what the store found for its document file.
 pub struct ListedDocument<C> {
@@ -333,15 +336,14 @@ with `/` between the components.
 A sorted stream costs one sort per directory. It gives deterministic tests, a deterministic replay,
 and a merge with another sorted list, such as the rows of the full index sorted by key.
 
-Within one call, the stream fetches the pages of the backend as it needs them. A new call starts
-again at the first key. No consumer needs to resume today. If one does, each `Filter` type adds
-`start_after: Option<Key>`, and the filesystem `KeyPrefix` becomes a struct with the prefix and the
-cursor. The caller keeps the last key it finished as its cursor. The sort order makes "after key K"
-exact:
+Within one call, the stream fetches the pages of the backend as it needs them. A `Filter` type that
+supports resuming carries a cursor. The filesystem `KeyPrefix` holds the prefix and the cursor, and
+`KeyPrefix::starting_after` sets it. The caller keeps the last
+key it finished as its cursor. The sort order makes "after key K" exact:
 
 - GCS supports it with `startOffset`. That parameter includes K, so the backend drops K.
-- The filesystem walk skips each file whose key sorts at or before K. It skips each directory that
-  sorts before K, except the directories on the path to K.
+- The filesystem walk skips each file whose key sorts at or before K. Below the prefix, it skips each
+  directory whose keys all sort before K, and does not read it.
 
 ### What a Listing Sees During a Write
 

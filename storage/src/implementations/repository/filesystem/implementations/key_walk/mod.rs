@@ -5,7 +5,7 @@
 
 use std::collections::HashSet;
 use std::io;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
@@ -46,6 +46,9 @@ impl<A, D> FilesystemRepository<A, D> {
     /// [`DocumentKey`] can hold, such as a name that is not valid UTF-8. The walk follows a
     /// symbolic link in the path of the prefix itself.
     ///
+    /// If the prefix carries a cursor, the walk yields only the keys that sort after it. Below the
+    /// prefix, it does not read a directory whose keys all sort before the cursor.
+    ///
     /// # Errors
     ///
     /// Yields a [`ReadError::Backend`] item that holds a [`FailedFilesystemOperation`] if:
@@ -63,6 +66,7 @@ impl<A, D> FilesystemRepository<A, D> {
         let walk = KeyWalk {
             root: self.root().to_path_buf(),
             prefix: prefix.as_path().to_path_buf(),
+            start_after: prefix.start_after().map(|key| key_text(key.as_path())),
             open_directories: Vec::new(),
             started: false,
         };
@@ -78,6 +82,8 @@ impl<A, D> FilesystemRepository<A, D> {
 struct KeyWalk {
     root: PathBuf,
     prefix: PathBuf,
+    /// The text of the cursor key, until the walk passes it.
+    start_after: Option<String>,
     open_directories: Vec<OpenDirectory>,
     started: bool,
 }
@@ -85,6 +91,8 @@ struct KeyWalk {
 /// A directory the walk has read, as its path relative to the root and its sorted names.
 struct OpenDirectory {
     relative_path: PathBuf,
+    /// The path relative to the root with `/` between its components, as in the text of a key.
+    key_text: String,
     names: std::vec::IntoIter<Name>,
 }
 
@@ -128,6 +136,14 @@ impl KeyWalk {
                 self.open_directories.pop();
                 continue;
             };
+            if let Some(cursor) = self.start_after.as_deref() {
+                match cursor_position(cursor, &name, &directory.key_text) {
+                    CursorPosition::Before => continue,
+                    CursorPosition::OnPath => {}
+                    // Every later name sorts after the cursor too, so the walk drops it.
+                    CursorPosition::After => self.start_after = None,
+                }
+            }
             let relative_path = directory.relative_path.join(name.text());
             match name {
                 Name::Directory(_) => {
@@ -161,11 +177,56 @@ impl KeyWalk {
     async fn open(&mut self, relative_path: PathBuf) -> Result<(), FailedFilesystemOperation> {
         let names = read_sorted_names(self.root.join(&relative_path)).await?;
         self.open_directories.push(OpenDirectory {
+            key_text: key_text(&relative_path),
             relative_path,
             names: names.into_iter(),
         });
         Ok(())
     }
+}
+
+/// Where the keys of a name sit next to the cursor of a walk.
+#[derive(Debug, PartialEq, Eq)]
+enum CursorPosition {
+    /// Every key the name holds sorts at or before the cursor, so the walk skips the name.
+    Before,
+    /// The name is a directory on the path to the cursor, so the walk enters it.
+    OnPath,
+    /// Every key the name holds sorts after the cursor.
+    After,
+}
+
+/// Returns where the keys of a name in the given directory sit next to the cursor.
+fn cursor_position(cursor: &str, name: &Name, directory_text: &str) -> CursorPosition {
+    let text = if directory_text.is_empty() {
+        name.text().to_owned()
+    } else {
+        format!("{directory_text}/{}", name.text())
+    };
+    let is_before = match name {
+        Name::Key { .. } => text.as_str() <= cursor,
+        Name::Directory(_) => {
+            // Every key below the directory starts with its text plus `/`.
+            let keys_below = format!("{text}/");
+            if cursor.starts_with(&keys_below) {
+                return CursorPosition::OnPath;
+            }
+            keys_below.as_str() < cursor
+        }
+    };
+    if is_before {
+        CursorPosition::Before
+    } else {
+        CursorPosition::After
+    }
+}
+
+/// Returns the text of a relative path as a key writes it, with `/` between its components.
+fn key_text(path: &Path) -> String {
+    path.components()
+        .map(|component| component.as_os_str().to_string_lossy())
+        .collect::<Vec<_>>()
+        .join("/")
 }
 
 /// Whether the error says that the directory to list does not exist, or that a file stands in its
@@ -637,6 +698,270 @@ mod tests {
         let expected_result = vec![Ok(walked("target/x", true))];
 
         let result = collect(repository.walk_keys(&prefix)).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_yield_only_the_keys_after_the_cursor_when_the_prefix_has_a_cursor() {
+        let root = temporary_root();
+        create_files(root.path(), &["a.meta.json", "b.meta.json", "c.meta.json"]);
+        let repository = repository_at(root.path());
+        let prefix = KeyPrefix::root().starting_after(walked("b", false).key);
+
+        let expected_result = vec![Ok(walked("c", false))];
+
+        let result = collect(repository.walk_keys(&prefix)).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_resume_inside_the_directory_of_the_cursor_when_the_cursor_is_nested() {
+        let root = temporary_root();
+        create_files(
+            root.path(),
+            &["a/x.meta.json", "a/y.meta.json", "b/z.meta.json"],
+        );
+        let repository = repository_at(root.path());
+        let prefix = KeyPrefix::root().starting_after(walked("a/x", false).key);
+
+        let expected_result = vec![Ok(walked("a/y", false)), Ok(walked("b/z", false))];
+
+        let result = collect(repository.walk_keys(&prefix)).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_skip_the_file_a_dash_b_when_the_cursor_sits_in_the_directory_a() {
+        let root = temporary_root();
+        create_files(
+            root.path(),
+            &["a-b.meta.json", "a/x.meta.json", "a/y.meta.json"],
+        );
+        let repository = repository_at(root.path());
+        let prefix = KeyPrefix::root().starting_after(walked("a/x", false).key);
+
+        let expected_result = vec![Ok(walked("a/y", false))];
+
+        let result = collect(repository.walk_keys(&prefix)).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_yield_the_directory_a_when_the_cursor_is_the_file_a_dash_b() {
+        let root = temporary_root();
+        create_files(root.path(), &["a-b.meta.json", "a/x.meta.json"]);
+        let repository = repository_at(root.path());
+        let prefix = KeyPrefix::root().starting_after(walked("a-b", false).key);
+
+        let expected_result = vec![Ok(walked("a/x", false))];
+
+        let result = collect(repository.walk_keys(&prefix)).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_yield_the_keys_after_it_when_the_cursor_names_no_stored_key() {
+        let root = temporary_root();
+        create_files(root.path(), &["a.meta.json", "c/x.meta.json"]);
+        let repository = repository_at(root.path());
+        let prefix = KeyPrefix::root().starting_after(walked("b", false).key);
+
+        let expected_result = vec![Ok(walked("c/x", false))];
+
+        let result = collect(repository.walk_keys(&prefix)).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_place_the_directory_before_the_cursor_when_all_its_keys_sort_before_it() {
+        let directory = Name::Directory("a".to_owned());
+        let cursor = "b/x";
+        let directory_text = "";
+
+        let expected_result = CursorPosition::Before;
+
+        let result = cursor_position(cursor, &directory, directory_text);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_place_the_directory_on_the_path_when_the_cursor_sits_below_it() {
+        let directory = Name::Directory("x".to_owned());
+        let cursor = "a/x/y";
+        let directory_text = "a";
+
+        let expected_result = CursorPosition::OnPath;
+
+        let result = cursor_position(cursor, &directory, directory_text);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_place_the_key_after_the_cursor_when_its_text_sorts_after_it() {
+        let key = Name::Key {
+            name: "c".to_owned(),
+            has_document: true,
+        };
+        let cursor = "a/b";
+        let directory_text = "a";
+
+        let expected_result = CursorPosition::After;
+
+        let result = cursor_position(cursor, &key, directory_text);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_place_the_key_before_the_cursor_when_it_is_the_cursor() {
+        let key = Name::Key {
+            name: "b".to_owned(),
+            has_document: true,
+        };
+        let cursor = "a/b";
+        let directory_text = "a";
+
+        let expected_result = CursorPosition::Before;
+
+        let result = cursor_position(cursor, &key, directory_text);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_enter_the_directory_a_when_the_cursor_is_the_key_a() {
+        let root = temporary_root();
+        create_files(root.path(), &["a.meta.json", "a/x.meta.json"]);
+        let repository = repository_at(root.path());
+        let prefix = KeyPrefix::root().starting_after(walked("a", false).key);
+
+        let expected_result = vec![Ok(walked("a/x", false))];
+
+        let result = collect(repository.walk_keys(&prefix)).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_yield_every_key_under_the_prefix_when_the_cursor_sorts_before_the_prefix() {
+        let root = temporary_root();
+        create_files(
+            root.path(),
+            &["sec/notes/q1.meta.json", "sec/notes/q2.meta.json"],
+        );
+        let repository = repository_at(root.path());
+        let prefix = prefix_at("sec/notes").starting_after(walked("a", false).key);
+
+        let expected_result = vec![
+            Ok(walked("sec/notes/q1", false)),
+            Ok(walked("sec/notes/q2", false)),
+        ];
+
+        let result = collect(repository.walk_keys(&prefix)).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_yield_nothing_when_the_cursor_sorts_after_the_prefix() {
+        let root = temporary_root();
+        create_files(
+            root.path(),
+            &["sec/notes/q1.meta.json", "sec/notes/q2.meta.json"],
+        );
+        let repository = repository_at(root.path());
+        let prefix = prefix_at("sec/notes").starting_after(walked("z", false).key);
+
+        let expected_result: Vec<Result<WalkedKey, ReadError>> = vec![];
+
+        let result = collect(repository.walk_keys(&prefix)).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_continue_after_the_cursor_when_the_prefix_names_a_directory() {
+        let root = temporary_root();
+        create_files(
+            root.path(),
+            &[
+                "sec/notes/q1.meta.json",
+                "sec/notes/q2.meta.json",
+                "sec/other.meta.json",
+            ],
+        );
+        let repository = repository_at(root.path());
+        let prefix = prefix_at("sec/notes").starting_after(walked("sec/notes/q1", false).key);
+
+        let expected_result = vec![Ok(walked("sec/notes/q2", false))];
+
+        let result = collect(repository.walk_keys(&prefix)).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    /// Builds a directory chain under `root/<name>` whose deepest path is longer than `PATH_MAX`,
+    /// so a read of its deepest directories fails with `ENAMETOOLONG`, even for root.
+    ///
+    /// Builds the chain under a short name first, because a path that long cannot be created in
+    /// one call, then renames the top directory to `name`. The name must be longer than 201
+    /// bytes.
+    #[cfg(target_os = "linux")]
+    fn create_unreadable_chain(root: &Path, name: &str) {
+        const PATH_MAX: usize = 4096;
+        let component = "d".repeat(200);
+        let mut chain = root.join("s");
+        // Stays below `PATH_MAX` by fewer than 201 bytes, so the rename below crosses it.
+        while chain.as_os_str().len() + 1 + component.len() < PATH_MAX {
+            chain.push(&component);
+        }
+        std::fs::create_dir_all(&chain).expect(
+            "Given a path below PATH_MAX in a writable temp directory, creating it should always succeed",
+        );
+        std::fs::rename(root.join("s"), root.join(name)).expect(
+            "Given a directory in a writable temp directory, renaming it should always succeed",
+        );
+    }
+
+    #[cfg(target_os = "linux")]
+    #[tokio::test]
+    async fn should_not_read_a_directory_when_all_its_keys_sort_before_the_cursor() {
+        let root = temporary_root();
+        create_unreadable_chain(root.path(), &"a".repeat(250));
+        create_files(root.path(), &["b.meta.json", "c.meta.json"]);
+        let repository = repository_at(root.path());
+        let prefix = KeyPrefix::root().starting_after(walked("b", false).key);
+
+        let expected_result = vec![Ok(walked("c", false))];
+
+        let result = collect(repository.walk_keys(&prefix)).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[cfg(target_os = "linux")]
+    #[tokio::test]
+    async fn should_yield_an_error_when_the_walk_enters_a_chain_longer_than_path_max() {
+        let root = temporary_root();
+        create_unreadable_chain(root.path(), &"a".repeat(250));
+        let repository = repository_at(root.path());
+        let prefix = KeyPrefix::root();
+
+        let expected_result = 1;
+
+        let result = collect(repository.walk_keys(&prefix))
+            .await
+            .into_iter()
+            .filter(Result::is_err)
+            .count();
 
         assert_eq!(result, expected_result);
     }
