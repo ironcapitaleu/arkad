@@ -21,7 +21,10 @@
 //! - [`graph`]: The resolution and validation engine.
 //! - [`invalid_value`]: The error of a core value type.
 //! - [`period`]: Instants and durations.
+//! - [`release`]: The taxonomy release of a plug-in.
 //! - [`resolved_fact`]: A value resolved to a standard concept.
+//! - [`rule`]: The ID of a rule.
+//! - [`taxonomy`]: The trait of a taxonomy plug-in, and the registry.
 //! - [`unit`](mod@unit): Units and measures.
 
 pub mod concept;
@@ -37,5 +40,8 @@ pub mod form;
 pub mod graph;
 pub mod invalid_value;
 pub mod period;
+pub mod release;
 pub mod resolved_fact;
+pub mod rule;
+pub mod taxonomy;
 pub mod unit;
