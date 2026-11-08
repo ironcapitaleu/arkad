@@ -90,8 +90,9 @@ jobs:
           exit "$failed"
 
       # Each binary must start on the static base. A dynamic binary fails there before its first log.
-      # `daily_filings` without ARKAD_FROM stops at startup. `backfill` creates its storage root
-      # and starts its first state. It gets no network, so it makes no SEC request.
+      # `daily_filings` without ARKAD_FROM stops at startup. `backfill` gets no network. Before its
+      # first state, it asks the SEC which Notes quarters exist, and that request fails and retries.
+      # So the check needs a JSON log event from `backfill` and a container that still runs.
       - name: Check Startup
         run: |
           failed=0
@@ -103,9 +104,14 @@ jobs:
           container="$(docker run --detach --network none arkad-backfill)"
           sleep 5
           backfill_log="$(docker logs "$container" 2>&1)"
+          backfill_running="$(docker inspect --format '{{.State.Running}}' "$container")"
           docker rm --force "$container" > /dev/null
-          if ! echo "$backfill_log" | grep -q '"event":"state_started"'; then
-            echo "::error::arkad-backfill did not start its first state: $backfill_log"
+          if ! echo "$backfill_log" | grep -q '"event":"'; then
+            echo "::error::arkad-backfill wrote no log event: $backfill_log"
+            failed=1
+          fi
+          if [ "$backfill_running" != "true" ]; then
+            echo "::error::arkad-backfill stopped within 5 seconds: $backfill_log"
             failed=1
           fi
           exit "$failed"
