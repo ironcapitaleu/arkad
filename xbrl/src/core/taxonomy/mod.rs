@@ -17,6 +17,8 @@ use self::reference::{CalculationTree, ConceptAliases, ElementReference};
 use super::concept::ConceptName;
 use super::release::TaxonomyRelease;
 
+#[cfg(test)]
+pub(crate) mod fake;
 pub mod family;
 pub mod reference;
 pub mod registry;
