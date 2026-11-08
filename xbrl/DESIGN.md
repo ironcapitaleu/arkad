@@ -379,6 +379,11 @@ generated file is checked in. A developer runs the generator once per new releas
 - The generator resolves each arc of a linkbase through the labels of the locators and resources
   of its link. It never guesses a concept from the text of a label.
 - Some calculation arcs point to `srt` concepts, so each arc names the family of both ends.
+- Each calculation arc keeps the role of its calculation link, its network. A concept can sum
+  different children in different networks. `Revenues` has 20 children in the income statement,
+  2 in the statement of other comprehensive income, and 2 in the first alternative income
+  statement. A sum over all its arcs counts revenue more than once, so a sum takes the arcs of
+  one role.
 
 - A new release is a reviewable diff of arcs and labels.
 - The build does not parse XML.

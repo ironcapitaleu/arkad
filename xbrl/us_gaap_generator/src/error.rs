@@ -63,9 +63,22 @@ pub enum GeneratorError {
         label: String,
     },
 
+    /// Two locators of one link share a label and point to different concepts.
+    #[error("[AmbiguousLocatorLabel] Two locators share a label and differ in concept, Label: '{label}', Line: '{line}', Path: '{}'", path.display())]
+    AmbiguousLocatorLabel {
+        /// The path of the file.
+        path: PathBuf,
+        /// The line of the second locator in the file.
+        line: u32,
+        /// The label that the locators share.
+        label: String,
+    },
+
     /// A concept has more than one standard label.
-    #[error("[RepeatedLabel] Concept '{concept}' has more than one standard label")]
+    #[error("[RepeatedLabel] Concept '{concept}' has more than one standard label, Path: '{}'", path.display())]
     RepeatedLabel {
+        /// The path of the file.
+        path: PathBuf,
         /// The concept, as `<family>:<name>`.
         concept: String,
     },
