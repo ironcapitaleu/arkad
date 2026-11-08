@@ -230,7 +230,33 @@ mod tests {
     use crate::core::dedup::{more_precise, newest_filing};
     use crate::core::elements::CanonicalElement;
     use crate::core::fact::Decimals;
+    use std::str::FromStr;
+
+    use crate::core::concept::NamespaceFamily;
+    use crate::core::release::TaxonomyReleaseId;
+    use crate::core::rule::RuleId;
+    use crate::core::taxonomy::reference::ConceptAliases;
     use crate::tests::fixtures::sample_fact::{date, fact, source, us_gaap_plugin};
+    use crate::tests::fixtures::sample_taxonomy::{declaration, plugin_with_aliases};
+
+    fn concept_of(family: &str, local_name: &str) -> ConceptName {
+        let family = NamespaceFamily::new(family).expect(
+            "Given a hardcoded family without whitespace, the creation should always succeed",
+        );
+        ConceptName::new(family, local_name).expect(
+            "Given a hardcoded local name without a colon, the creation should always succeed",
+        )
+    }
+
+    fn revenue_list(concepts: Vec<ConceptName>) -> ConceptAliases {
+        ConceptAliases {
+            element: CanonicalElement::Revenue,
+            rule: RuleId::from_str("aaa/alias/revenue@1").expect(
+                "Given a hardcoded rule ID in the documented form, the parse should always succeed",
+            ),
+            concepts,
+        }
+    }
 
     fn values(candidates: &FilingCandidates) -> Vec<CandidateValue> {
         candidates
@@ -446,6 +472,108 @@ mod tests {
             .into_iter()
             .map(|fact| (fact.value, fact.confidence, fact.restated))
             .collect();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_take_the_plugin_of_the_first_family_in_name_order_when_two_plugins_map_a_concept() {
+        let aaa = plugin_with_aliases(
+            "aaa/2026",
+            vec![declaration("aaa", "http://aaa.example/{release}", true)],
+            vec![revenue_list(vec![concept_of("aaa", "Revenues")])],
+        );
+        let us_gaap = us_gaap_plugin();
+        let registry = Registry::new(vec![&us_gaap, &aaa])
+            .expect("Given two plug-ins with distinct families, the registry creation should always succeed");
+        let filing = source("0000320193-24-000123", date(2024, 11, 1));
+        let mut aaa_fact = fact(&filing, "Revenues", "100000000");
+        aaa_fact.concept = concept_of("aaa", "Revenues");
+        let facts = vec![fact(&filing, "Revenues", "200000000"), aaa_fact];
+        let copies = more_precise(&facts);
+
+        let expected_result = vec![TaxonomyReleaseId::new("aaa/2026").expect(
+            "Given a hardcoded release ID with a year, the creation should always succeed",
+        )];
+
+        let result: Vec<TaxonomyReleaseId> = resolve_aliases(&copies, &registry)
+            .candidates
+            .into_iter()
+            .map(|candidate| candidate.release.id)
+            .collect();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_no_candidate_when_the_fact_has_no_unit() {
+        let plugin = us_gaap_plugin();
+        let registry = Registry::new(vec![&plugin]).expect(
+            "Given one plug-in with one family, the registry creation should always succeed",
+        );
+        let filing = source("0000320193-24-000123", date(2024, 11, 1));
+        let mut no_unit = fact(&filing, "Revenues", "391035000000");
+        no_unit.unit = None;
+        let facts = vec![no_unit];
+        let copies = more_precise(&facts);
+
+        let expected_result: Vec<CandidateValue> = Vec::new();
+
+        let result = values(&resolve_aliases(&copies, &registry));
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_take_the_next_alias_when_the_first_alias_is_nil() {
+        let plugin = us_gaap_plugin();
+        let registry = Registry::new(vec![&plugin]).expect(
+            "Given one plug-in with one family, the registry creation should always succeed",
+        );
+        let filing = source("0000320193-24-000123", date(2024, 11, 1));
+        let mut nil = fact(&filing, "Revenues", "0");
+        nil.value = FactValue::Nil;
+        let facts = vec![nil, fact(&filing, "SalesRevenueNet", "390000000000")];
+        let copies = more_precise(&facts);
+
+        let expected_result = vec![CandidateValue::Reported {
+            value: BigDecimal::from(390_000_000_000_i64),
+            decimals: Some(Decimals::Finite(-6)),
+            confidence: Confidence::Synonym,
+        }];
+
+        let result = values(&resolve_aliases(&copies, &registry));
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_no_candidate_when_the_alias_family_routes_to_another_plugin() {
+        let srt = plugin_with_aliases(
+            "srt/2026",
+            vec![declaration("srt", "http://fasb.org/srt/{release}", true)],
+            Vec::new(),
+        );
+        let us_gaap = plugin_with_aliases(
+            "us-gaap/2026",
+            vec![declaration(
+                "us-gaap",
+                "http://fasb.org/us-gaap/{release}",
+                true,
+            )],
+            vec![revenue_list(vec![concept_of("srt", "Revenues")])],
+        );
+        let registry = Registry::new(vec![&us_gaap, &srt])
+            .expect("Given two plug-ins with distinct families, the registry creation should always succeed");
+        let filing = source("0000320193-24-000123", date(2024, 11, 1));
+        let mut srt_fact = fact(&filing, "Revenues", "391035000000");
+        srt_fact.concept = concept_of("srt", "Revenues");
+        let facts = vec![srt_fact];
+        let copies = more_precise(&facts);
+
+        let expected_result: Vec<CandidateValue> = Vec::new();
+
+        let result = values(&resolve_aliases(&copies, &registry));
 
         assert_eq!(result, expected_result);
     }

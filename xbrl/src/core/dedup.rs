@@ -20,20 +20,37 @@ pub const MORE_PRECISE: &str = "core/dedup/more-precise@1";
 pub const NEWEST_FILING: &str = "core/dedup/newest-filing@1";
 
 /// The as-is facts of one filing after [`more_precise`].
+///
+/// Only [`more_precise`] builds it, so every conflict holds at least two ranks.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Copies<'a> {
     /// The lowest rank of each value key whose ranks agree with it.
-    pub facts: Vec<&'a AsIsFact>,
+    pub(crate) facts: Vec<&'a AsIsFact>,
     /// The ranks of each value key with a rank that disagrees with the lowest rank, sorted by rank.
-    pub conflicts: Vec<Vec<&'a AsIsFact>>,
+    pub(crate) conflicts: Vec<Vec<&'a AsIsFact>>,
+}
+
+impl<'a> Copies<'a> {
+    /// Returns the lowest rank of each value key whose ranks agree with it.
+    #[must_use]
+    pub fn facts(&self) -> &[&'a AsIsFact] {
+        &self.facts
+    }
+
+    /// Returns the ranks of each value key with a rank that disagrees with the lowest rank, sorted
+    /// by rank.
+    #[must_use]
+    pub fn conflicts(&self) -> &[Vec<&'a AsIsFact>] {
+        &self.conflicts
+    }
 }
 
 /// Applies `core/dedup/more-precise@1` to the as-is facts of one filing.
 ///
 /// The rule groups the facts by value key without `copy_rank`, and compares every rank of a group
-/// with the lowest rank, which is rank 0. Only the pairs with rank 0 count, so the result does not
-/// depend on the order of the checks. If every rank agrees, the group keeps rank 0. Otherwise the
-/// group keeps every rank as a conflict.
+/// with the lowest rank, which the parsers number 0. Only the pairs with the lowest rank count, so
+/// the result does not depend on the order of the checks. If every rank agrees, the group keeps the
+/// lowest rank. Otherwise the group keeps every rank as a conflict.
 ///
 /// Two numeric values agree if they are equal after rounding both to the precision of the less
 /// precise one. If either has no `decimals`, they agree only if they are equal. Two values that
@@ -78,11 +95,30 @@ pub struct Series {
 /// the latest `filed`, then the latest `accepted`, then the highest filing ID. A filing with an
 /// `accepted` time ranks above a filing of the same day without one, so the order is total.
 ///
-/// If the newest candidate is blocked, the series key gets no fact and goes to [`Series::blocked`]. The rule does not fall back to
-/// an older filing, because the newer filing can hold the restatement. A fact has `restated` if an
-/// older filing reports a value that disagrees with it.
+/// If the newest candidate is blocked, the series key gets no fact and goes to
+/// [`Series::blocked`]. The rule does not fall back to an older filing, because the newer filing
+/// can hold the restatement. A fact has `restated` if an older filing reports a value that
+/// disagrees with it.
 #[must_use]
 pub fn newest_filing(candidates: &[Candidate]) -> Series {
+    newest_of(candidates.iter())
+}
+
+/// Applies `core/dedup/newest-filing@1` to the candidates of the filings known at `as_of`.
+///
+/// A filing is known if it was accepted at or before `as_of`. A filing without an `accepted` time
+/// is known if it was filed before the date of `as_of` in UTC. Such a filing has only a filing
+/// date, so a filing of that date can still be in the future.
+#[must_use]
+pub fn newest_filing_as_of(candidates: &[Candidate], as_of: DateTime<Utc>) -> Series {
+    newest_of(
+        candidates
+            .iter()
+            .filter(|candidate| is_known_at(&candidate.source, as_of)),
+    )
+}
+
+fn newest_of<'a>(candidates: impl Iterator<Item = &'a Candidate>) -> Series {
     let mut series: BTreeMap<SeriesKey, Vec<&Candidate>> = BTreeMap::new();
     for candidate in candidates {
         series
@@ -101,20 +137,6 @@ pub fn newest_filing(candidates: &[Candidate]) -> Series {
         }
     }
     result
-}
-
-/// Applies `core/dedup/newest-filing@1` to the candidates of the filings known at `as_of`.
-///
-/// A filing is known if it was accepted at or before `as_of`. A filing without an `accepted` time
-/// is known if it was filed on or before the date of `as_of`.
-#[must_use]
-pub fn newest_filing_as_of(candidates: &[Candidate], as_of: DateTime<Utc>) -> Series {
-    let known: Vec<Candidate> = candidates
-        .iter()
-        .filter(|candidate| is_known_at(&candidate.source, as_of))
-        .cloned()
-        .collect();
-    newest_filing(&known)
 }
 
 /// Returns the fact of the newest candidate, or `None` if that candidate is blocked.
@@ -163,7 +185,7 @@ fn filing_order(left: &FilingSource, right: &FilingSource) -> Ordering {
 
 fn is_known_at(source: &FilingSource, as_of: DateTime<Utc>) -> bool {
     source.accepted.map_or_else(
-        || source.filed <= as_of.date_naive(),
+        || source.filed < as_of.date_naive(),
         |accepted| accepted <= as_of,
     )
 }
@@ -307,8 +329,8 @@ mod tests {
 
     #[test]
     fn should_take_the_value_of_the_latest_filed_filing_when_two_filings_report_a_period() {
-        let older = candidate(&source("0000320193-24-000123", date(2024, 11, 1)), "100");
-        let newer = candidate(&source("0000320193-25-000010", date(2025, 10, 31)), "110");
+        let older = candidate(&source("0000320193-25-000099", date(2024, 11, 1)), "100");
+        let newer = candidate(&source("0000320193-24-000001", date(2025, 10, 31)), "110");
         let candidates = vec![newer, older];
 
         let expected_result = vec![BigDecimal::from(110)];
@@ -329,6 +351,24 @@ mod tests {
         let mut late = source("0000320193-25-000010", date(2025, 10, 31));
         late.accepted = Some(moment(2025, 10, 31, 20));
         let candidates = vec![candidate(&late, "110"), candidate(&early, "100")];
+
+        let expected_result = vec![BigDecimal::from(110)];
+
+        let result: Vec<BigDecimal> = newest_filing(&candidates)
+            .facts
+            .into_iter()
+            .map(|fact| fact.value)
+            .collect();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_take_the_filing_with_acceptance_when_two_filings_of_one_day_differ_in_acceptance() {
+        let mut accepted = source("0000320193-25-000010", date(2025, 10, 31));
+        accepted.accepted = Some(moment(2025, 10, 31, 14));
+        let unaccepted = source("0000320193-25-000020", date(2025, 10, 31));
+        let candidates = vec![candidate(&accepted, "110"), candidate(&unaccepted, "100")];
 
         let expected_result = vec![BigDecimal::from(110)];
 
@@ -505,7 +545,7 @@ mod tests {
     }
 
     #[test]
-    fn should_include_a_filing_without_acceptance_when_it_is_filed_on_the_read_date() {
+    fn should_ignore_a_filing_without_acceptance_when_it_is_filed_on_the_read_date() {
         let older = source("0000320193-24-000123", date(2024, 11, 1));
         let newer = source("0000320193-25-000010", date(2025, 10, 31));
         let candidates = vec![
@@ -514,7 +554,7 @@ mod tests {
         ];
         let as_of = moment(2025, 10, 31, 12);
 
-        let expected_result = vec![BigDecimal::from(110_000_000)];
+        let expected_result = vec![BigDecimal::from(100_000_000)];
 
         let result: Vec<BigDecimal> = newest_filing_as_of(&candidates, as_of)
             .facts
