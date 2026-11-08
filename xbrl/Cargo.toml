@@ -24,6 +24,7 @@ test-fixtures = []
 
 [dev-dependencies]
 pretty_assertions = "1"
+sha2 = "0.11.1"
 xbrl = { path = ".", features = ["test-fixtures"] }
 
 [lib]

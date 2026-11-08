@@ -1,0 +1,2 @@
+# Vendored taxonomy files must keep their exact bytes, so their SHA-256 matches the MANIFEST.
+xbrl/taxonomy/** -text
