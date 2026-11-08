@@ -473,7 +473,7 @@ options replace the window. The lead asked to weigh the full index first.
 | Pending dates and closed days | Needs the window rules for `MissingDailyIndex` | Not needed. A closed day has no rows |
 | Requests per run | 1 daily index per date | 1 full index, 2 in the first 30 days of a quarter |
 | Bytes per run | About 0.1 to 0.5 MB per daily index | Up to 47.2 MB for `form.idx` at the end of a quarter, 4.8 MB as `form.gz` (2026 Q3) |
-| Lag | The daily index of a date | Measured once: the full index held every date through the previous business day, the same lag as the daily index |
+| Lag | The daily index of a date | Measured once, on 2026-11-02: the full index held every date through the previous business day, the same lag as the daily index |
 
 Decision: **the full index minus the stored filings.** It needs no state of our own, so no rule can
 move a bookmark past a date that is not done. It also repairs the gaps that the window cannot see.
@@ -509,7 +509,7 @@ design picks `form.idx` or `xbrl.idx`, and this run uses the same choice.
 ## Assumptions and Triggers
 
 Each decision rests on facts that can change. A trigger is an event that reopens the decision. The
-ids A3, A5, and A6 are the assumptions of "Cut-Over Between the Paths" in
+ids A4 and A5 are the assumptions of "Cut-Over Between the Paths" in
 [`ingestion_paths.md`](../../../sec/design/pipeline/ingestion_paths.md).
 
 ### The Listing
@@ -521,17 +521,27 @@ Assumptions:
 - The raw store runs on the filesystem backend, a mounted GCS bucket.
 - The raw store keeps one version per key, and its key layout does not change.
 - Each document has a `.meta.json` beside it.
+- The store never deletes a document, so no key disappears during a listing.
+- No directory name is a prefix of a sibling name with a next byte below `/`. So the byte order of
+  the stream and the `Ord` of `DocumentKey` agree on every stored key.
+- A write ends within 1 hour of the end of its metadata write, so the grace period covers it.
 
 Triggers:
 
 - The raw store keeps versions per key. A listing then yields versions, not only keys.
-- A native object store or Postgres replaces the filesystem backend.
+- Postgres or another backend that cannot list keys in byte order replaces the filesystem backend.
+  The object API backend of [Limits](#limits) implements the same trait, so it does not reopen
+  this decision.
 - The key layout changes.
 - A consumer needs a consistent snapshot across many keys.
+- The store deletes or expires documents.
+- A key gets a sibling name such as `a-b` beside the directory `a`.
+- A measured upload takes longer than the grace period.
 
 ### No Listing in the Live Pipeline
 
-Status: decided. See [Not for the Live Pipeline](#not-for-the-live-pipeline).
+Status: set by the owner before this design, and kept here. See
+[Not for the Live Pipeline](#not-for-the-live-pipeline).
 
 Trigger:
 
@@ -543,12 +553,11 @@ Status: proposed, the lead confirms. See [Bookmark or Full Index](#bookmark-or-f
 
 Assumptions:
 
-- The full index lags the daily index by at most one business day. This was measured once, on
-  2026-11-02.
-- The SEC keeps publishing `full-index/YYYY/QTRn/form.idx`, at most about 50 MB per quarter. The file
-  of 2026 Q3 held 47.2 MB.
+- The full index holds every date through the previous business day, the same lag as the daily
+  index. This was measured once, on 2026-11-02.
+- The SEC keeps publishing `full-index/YYYY/QTRn/form.idx`. The file of 2026 Q3 held 47.2 MB.
 - Accession numbers never change and are never reused (A5).
-- The run has a timeout of 30 minutes, and a new filing takes at least 3 requests at one each 110 ms.
+- The run has a timeout of 30 minutes, and a new filing takes at least 3 requests at one request each 110 ms.
 
 Triggers:
 
@@ -566,7 +575,7 @@ Assumptions:
 
 - Notes file names keep the form `<period>_notes*.zip`.
 - The backfill starts at `2009q1`, the first quarter of `FIRST_YEAR`.
-- The SEC merges the monthly files of a quarter into a quarterly file about a year later.
+- The SEC merges the monthly files of a quarter into a quarterly file about a year later (A4).
 
 Triggers:
 
