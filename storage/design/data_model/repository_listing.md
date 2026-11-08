@@ -15,7 +15,7 @@ Status: proposed. The decisions below wait for review.
 | ------- | ------- | -------- |
 | [Relation to the Deferred Read Surface](#relation-to-the-deferred-read-surface) | Why the listing reopens one item of the deferred read surface, and why the frozen `scan` stays dead | Yes |
 | [The Trait](#the-trait) | `ListRepository`, the filter, the entry, the error | Yes |
-| [Filesystem Sketch](#filesystem-sketch) | The walk, orphans, temporary files, cost | Yes |
+| [Filesystem Sketch](#filesystem-sketch) | The walk, orphans, temporary files, cost, limits | Yes |
 | [Ordering and Consistency](#ordering-and-consistency) | Sort order, what a listing sees during a write | Yes |
 | [Consumers](#consumers) | How each consumer uses the listing, and the one that keeps `get` | Yes |
 | [Bookmark or Full Index](#bookmark-or-full-index) | The source of the dates of `daily_filings` | Yes, for review by the lead |
@@ -245,10 +245,28 @@ None of these numbers is measured. The store holds about 30 GB today, but its fi
 measured. A filing adds one directory and three documents. The full index of 2026 Q3 held 6,051
 filings of the selected forms, so the filings add about 6,000 directories per quarter. On the
 mounted bucket, a walk of `sec/filings/` then sends one list request per directory, and its time
-grows with every quarter. The first feature measures the walk on a copy of the store. If a walk of
-`sec/filings/` takes more than 2 minutes on the bucket, a backend that calls the object API
-lists the prefix flat, at 1,000 objects per request. It implements the same trait. The object API
-also returns the CRC32C of each object without a download, which the integrity check can use.
+grows with every quarter. A backend that calls the object API lists a prefix flat, at 1,000
+objects per request, in the same byte order. It implements the same trait. The object API also
+returns the CRC32C of each object without a download, which the integrity check can use.
+
+### Limits
+
+Each limit comes from a constraint of a consumer, not from a guess. Feature 2 applies these rules:
+
+1. **Measure** on a copy of the store, through the mount and through the object API: requests per
+   directory, time per directory, time per metadata read, and peak memory. Record the numbers in
+   this section.
+2. **Project two years ahead.** Add about 48,000 directories to the count of today, 6,000 per
+   quarter, and multiply by the measured time per directory.
+3. **Daily run.** The projected `list_keys(sec/filings)` takes at most 3 minutes, 10% of the
+   timeout of 30 minutes, because the run shares the timeout with up to 2,000 filings. If the
+   projection exceeds 3 minutes, build the object API backend before `daily_filings` reads the
+   full index.
+4. **Weekly check.** No fixed limit. The integrity design sets the timeout of its job, with the
+   measured time of `list` as an input.
+5. **Memory.** The peak memory of a listing does not grow with the store. Feature 2 lists a store
+   and a store of twice its size, and compares the peaks. A size in MB belongs to the settings of
+   the job, not to this design.
 
 ## Ordering and Consistency
 
@@ -486,8 +504,8 @@ These follow the decisions above. Each is one PR within the review budget.
 2. **`ListRepository` for `FilesystemRepository`.** `KeyPrefix`, `ListedDocument`,
    `StoredDocument`, and the walk with the byte order. `FilesystemOperation::ListDirectory`. Tests
    for each row of the orphan table, for the order of `a-b` before `a/`, and for a listing that
-   runs while a write runs. Measure `list_keys` and `list` of `sec/filings/` on a copy of the
-   store, on local disk and on the mounted bucket.
+   runs while a write runs. Apply the rules of [Limits](#limits): measure through the mount and
+   through the object API, project two years ahead, and record the numbers.
 3. **`inventory` for `FilesystemRepository`.** The walk that is not typed, for the integrity check:
    documents without metadata and temporary files with their age.
 4. **Cut-over date from the store.** In `sec`: the newest stored Notes period from
@@ -501,8 +519,8 @@ These follow the decisions above. Each is one PR within the review budget.
 6. **Transform replay from the listing.** The replay driver lists the Notes files and the
    instances. Blocked by feature 2 and by the transform design.
 
-Trigger, not a ticket: if the walk of feature 2 takes more than 2 minutes on the bucket, add a
-backend that lists through the object API.
+Trigger, not a ticket: if the projection of feature 2 exceeds the limit of the daily run (see
+[Limits](#limits)), add a backend that lists through the object API.
 
 ## See Also
 
