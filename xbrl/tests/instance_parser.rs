@@ -18,7 +18,7 @@ use xbrl::core::fiscal_period::FiscalPeriod;
 use xbrl::core::fiscal_year::FiscalYear;
 use xbrl::core::form::Form;
 
-use self::instance_fixture::{filed, filing_id, parse_fixture};
+use self::instance_fixture::{filed, filing_id, parse_instance_fixture};
 
 #[path = "support/instance_fixture.rs"]
 mod instance_fixture;
@@ -27,7 +27,7 @@ mod taxonomy;
 
 #[test]
 fn should_keep_every_fact_except_the_repeated_copies_for_a_real_filing() {
-    let parsed = parse_fixture();
+    let parsed = parse_instance_fixture();
 
     let expected_result = (613, 0);
 
@@ -38,7 +38,7 @@ fn should_keep_every_fact_except_the_repeated_copies_for_a_real_filing() {
 
 #[test]
 fn should_map_the_cover_facts_into_the_filing_for_a_real_filing() {
-    let parsed = parse_fixture();
+    let parsed = parse_instance_fixture();
 
     let expected_result = Filing {
         id: filing_id(),
@@ -73,7 +73,7 @@ fn should_map_the_cover_facts_into_the_filing_for_a_real_filing() {
 
 #[test]
 fn should_rank_copies_of_basic_earnings_per_share_in_the_sec_order_for_a_real_filing() {
-    let parsed = parse_fixture();
+    let parsed = parse_instance_fixture();
 
     let expected_result = vec![
         (
@@ -137,7 +137,7 @@ fn should_rank_copies_of_basic_earnings_per_share_in_the_sec_order_for_a_real_fi
 
 #[test]
 fn should_attach_the_footnote_of_the_link_for_a_real_filing() {
-    let parsed = parse_fixture();
+    let parsed = parse_instance_fixture();
 
     let expected_result = vec![
         "Refer to Note 12, Related Party Transactions, for additional information on Net transfers from (to) Parent.".to_owned(),

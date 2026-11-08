@@ -26,7 +26,7 @@ pub const fn filed() -> NaiveDate {
 }
 
 /// Parses the fixture document.
-pub fn parse_fixture() -> InstanceFacts {
+pub fn parse_instance_fixture() -> InstanceFacts {
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("tests/fixtures/instance/0001628280-26-068246/fdxf-20260930_htm.xml");
     let document = fs::read_to_string(path)

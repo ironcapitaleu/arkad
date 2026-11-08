@@ -10,17 +10,14 @@
 
 use chrono::{NaiveDate, TimeZone, Utc};
 use pretty_assertions::assert_eq;
-use xbrl::adapter::edgar::notes::parse;
 use xbrl::core::entity_name::EntityName;
 use xbrl::core::fact::FactValue;
 use xbrl::core::filing::{CompanyAttributes, EntityId, Filing, FilingId, IndustryCode};
 use xbrl::core::fiscal_period::FiscalPeriod;
 use xbrl::core::fiscal_year::FiscalYear;
 use xbrl::core::form::Form;
-use xbrl::core::taxonomy::registry::Registry;
 
-use self::notes_fixture::notes_filing;
-use self::taxonomy::us_gaap;
+use self::notes_fixture::parse_notes_fixture;
 
 #[path = "support/notes_fixture.rs"]
 mod notes_fixture;
@@ -29,15 +26,10 @@ mod taxonomy;
 
 #[test]
 fn should_keep_every_row_except_the_repeated_copies_for_a_real_filing() {
-    let rows = notes_filing();
-    let plugin = us_gaap();
-    let registry = Registry::new(vec![&plugin])
-        .expect("Given one plug-in with four families, the creation should always succeed");
+    let parsed = parse_notes_fixture();
 
     let expected_result = (613, 0);
 
-    let parsed = parse(&rows, &registry)
-        .expect("Given the valid sub row of a real filing, the parse should always succeed");
     let result = (parsed.facts.len(), parsed.findings.len());
 
     assert_eq!(result, expected_result);
@@ -45,10 +37,7 @@ fn should_keep_every_row_except_the_repeated_copies_for_a_real_filing() {
 
 #[test]
 fn should_map_the_sub_row_into_the_filing_for_a_real_filing() {
-    let rows = notes_filing();
-    let plugin = us_gaap();
-    let registry = Registry::new(vec![&plugin])
-        .expect("Given one plug-in with four families, the creation should always succeed");
+    let parsed = parse_notes_fixture();
 
     let expected_result =
         Filing {
@@ -78,19 +67,14 @@ fn should_map_the_sub_row_into_the_filing_for_a_real_filing() {
             },
         };
 
-    let result = parse(&rows, &registry)
-        .expect("Given the valid sub row of a real filing, the parse should always succeed")
-        .filing;
+    let result = parsed.filing;
 
     assert_eq!(result, expected_result);
 }
 
 #[test]
 fn should_restore_shares_and_rank_copies_of_basic_earnings_per_share_for_a_real_filing() {
-    let rows = notes_filing();
-    let plugin = us_gaap();
-    let registry = Registry::new(vec![&plugin])
-        .expect("Given one plug-in with four families, the creation should always succeed");
+    let parsed = parse_notes_fixture();
 
     let expected_result = vec![
         (
@@ -131,8 +115,6 @@ fn should_restore_shares_and_rank_copies_of_basic_earnings_per_share_for_a_real_
         ),
     ];
 
-    let parsed = parse(&rows, &registry)
-        .expect("Given the valid sub row of a real filing, the parse should always succeed");
     let result: Vec<(String, String, String, u16)> = parsed
         .facts
         .iter()
@@ -156,10 +138,7 @@ fn should_restore_shares_and_rank_copies_of_basic_earnings_per_share_for_a_real_
 
 #[test]
 fn should_map_the_document_type_into_a_text_fact_for_a_real_filing() {
-    let rows = notes_filing();
-    let plugin = us_gaap();
-    let registry = Registry::new(vec![&plugin])
-        .expect("Given one plug-in with four families, the creation should always succeed");
+    let parsed = parse_notes_fixture();
 
     let expected_result = vec![(
         "dei:DocumentType".to_owned(),
@@ -167,8 +146,6 @@ fn should_map_the_document_type_into_a_text_fact_for_a_real_filing() {
         FactValue::Text("10-Q".to_owned()),
     )];
 
-    let parsed = parse(&rows, &registry)
-        .expect("Given the valid sub row of a real filing, the parse should always succeed");
     let result: Vec<(String, String, FactValue)> = parsed
         .facts
         .into_iter()
