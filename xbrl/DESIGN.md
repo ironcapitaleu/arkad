@@ -372,7 +372,7 @@ A generator reads the vendored FASB files and writes Rust tables into `us_gaap/t
 generated file is checked in. A developer runs the generator once per new release.
 
 - The generator is the crate `xbrl/us_gaap_generator`, a developer tool. No container runs it. It
-  uses `roxmltree`, the XML library of `xbrl`, and `xbrl` does not depend on it.
+  reads XML with `roxmltree`. `xbrl` does not depend on it.
 - A concept is a top-level `xs:element` with a `substitutionGroup`. The 2026 schema has 17,182
   declarations and 17,179 concepts. The other 3 are domain helpers of typed dimensions.
 - The data type of a concept is the text of the schema, for example `xbrli:monetaryItemType`.
