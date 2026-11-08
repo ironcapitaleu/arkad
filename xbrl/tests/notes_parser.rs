@@ -19,10 +19,10 @@ use xbrl::core::form::Form;
 
 use self::notes_fixture::parse_notes_fixture;
 
-#[path = "support/notes_fixture.rs"]
+#[path = "fixtures/sample_taxonomy/fake_taxonomy.rs"]
+mod fake_taxonomy;
+#[path = "fixtures/notes/notes_fixture.rs"]
 mod notes_fixture;
-#[path = "support/taxonomy.rs"]
-mod taxonomy;
 
 #[test]
 fn should_keep_every_row_except_the_repeated_copies_for_a_real_filing() {

@@ -20,10 +20,10 @@ use xbrl::core::form::Form;
 
 use self::instance_fixture::{filed, filing_id, parse_instance_fixture};
 
-#[path = "support/instance_fixture.rs"]
+#[path = "fixtures/sample_taxonomy/fake_taxonomy.rs"]
+mod fake_taxonomy;
+#[path = "fixtures/instance/instance_fixture.rs"]
 mod instance_fixture;
-#[path = "support/taxonomy.rs"]
-mod taxonomy;
 
 #[test]
 fn should_keep_every_fact_except_the_repeated_copies_for_a_real_filing() {

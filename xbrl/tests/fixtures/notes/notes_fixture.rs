@@ -12,7 +12,7 @@ use xbrl::adapter::edgar::notes::row::{DimRow, NumRow, SubRow, TagRow, TxtRow};
 use xbrl::adapter::edgar::notes::{NotesFacts, NotesFiling, parse};
 use xbrl::core::taxonomy::registry::Registry;
 
-use super::taxonomy::us_gaap;
+use super::fake_taxonomy::us_gaap;
 
 fn table(name: &str) -> Vec<HashMap<String, String>> {
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))

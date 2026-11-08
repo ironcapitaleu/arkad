@@ -11,7 +11,7 @@ use xbrl::adapter::edgar::instance::{InstanceFacts, InstanceFiling, parse};
 use xbrl::core::filing::FilingId;
 use xbrl::core::taxonomy::registry::Registry;
 
-use super::taxonomy::us_gaap;
+use super::fake_taxonomy::us_gaap;
 
 /// Returns the ID of the fixture filing.
 pub fn filing_id() -> FilingId {

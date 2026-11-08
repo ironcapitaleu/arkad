@@ -28,12 +28,12 @@ use xbrl::core::fact::{AsIsFact, FactKey, FactValue};
 use self::instance_fixture::parse_instance_fixture;
 use self::notes_fixture::parse_notes_fixture;
 
-#[path = "support/instance_fixture.rs"]
+#[path = "fixtures/sample_taxonomy/fake_taxonomy.rs"]
+mod fake_taxonomy;
+#[path = "fixtures/instance/instance_fixture.rs"]
 mod instance_fixture;
-#[path = "support/notes_fixture.rs"]
+#[path = "fixtures/notes/notes_fixture.rs"]
 mod notes_fixture;
-#[path = "support/taxonomy.rs"]
-mod taxonomy;
 
 /// The decimals that Notes keeps of a number.
 const NOTES_SCALE: i64 = 4;
