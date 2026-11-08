@@ -232,7 +232,13 @@ bucket, by their statistics.
 | `release_id`, `release_checksum` | `utf8`, `utf8` | `TaxonomyRelease` |
 | `inputs` | `list<struct<FactKey>>` | The value keys of the as-is facts, with every key field |
 | `restated` | `bool` | |
+| `change` | `utf8` | `new`, `changed`, or `removed` against the current value of the key |
+| `computed_at` | `timestamp[ms, UTC]` | The time of the series run that computed the row |
 | Run columns | `transform_version`, `execution_id`, `loaded_at` | |
+
+`standardized_facts` is append-only, see [Series Deltas](#series-deltas). The key of a row is the
+entity, `concept`, `period_end`, `quarters`, `unit`, and `dimensions`. The current value of a key is
+its row with the latest `computed_at`, unless that row has `change` = `removed`.
 
 ### `findings`
 
@@ -245,13 +251,18 @@ bucket, by their statistics.
 | `reason` | `utf8`, nullable | For example `FiscalYearChange` or `Conflict` |
 | `filing_id` | `utf8`, nullable | Set for `Conflict` |
 | `step` | `utf8` | `filing` or `series` |
+| `change` | `utf8` | `new` or `resolved` |
+| `computed_at` | `timestamp[ms, UTC]` | The time of the run that computed the row |
 | Run columns | `transform_version`, `execution_id`, `loaded_at` | |
+
+The series rows of `findings` are append-only like `standardized_facts`. A finding is open from its
+`new` row until a later `resolved` row of the same kind, entity, concepts, and periods.
 
 A dataset, not a report, for three reasons:
 
 - The checks read findings with the same reader as facts.
 - A report is a query over the dataset. A dataset is not a query over a report.
-- Silver keeps the findings of the series runs of the last 30 days (see [Growth](#growth)).
+- Silver keeps every finding of every run, with the time it opened and resolved.
 
 The standardize filing step writes `Conflict`. The series step writes `Gap`, `Overlap`, and
 `Restatement`, and copies each `Conflict` of the entity, as `xbrl/DESIGN.md`, "Gap Check", asks. A
@@ -284,7 +295,6 @@ The list of written units. Readers find the current files through it, and it hol
 | `dropped_rows` | `list<struct<reason: utf8, rows: uint64>>` | Rows the parser dropped on purpose, by reason, for example exact duplicates |
 | `content_digest` | `utf8` | SHA-256 over the parts in the order of `files`, and inside each part over the rows in file order. Each row enters in a fixed byte form, without `execution_id` and `loaded_at`. The transform code prints the values, not the Arrow crate, so an Arrow upgrade does not change the digest. The silver writer feature fixes the exact form, and a test pins it to `transform_version` |
 | `execution_id`, `ingestion_mode`, `written_at` | `utf8`, `utf8`, `timestamp[ms, UTC]` | The job that wrote the unit. `ingestion_mode` here is the mode of the job. The `ingestion_mode` column of a data row is the mode of its raw document |
-| `removed_at` | `timestamp[ms, UTC]`, nullable | Set only on the row that the cleanup of [Growth](#growth) adds for a removed unit |
 
 ## Format and Table Layout
 
@@ -340,7 +350,8 @@ A unit is the smallest set of rows that one write adds, and that one replay writ
 | --------- | ---------- | ---- | ------ |
 | `notes_file` | The Notes period, for example `2024q1` | All filings of one Notes file | The Notes ZIP |
 | `filing_day` | The filed date, for example `2026-11-06` | All new filings of one day | The instances of that day, and the `submissions` files they used |
-| `entity_bucket` | `b07` of 64 buckets by `xxh3_64` of the entity, with a fixed seed | The series output of the entities in the bucket | The current `candidates` and `filings` units |
+| `series_base` | `base`, then the time of a new base | The full series output of every entity | The current `candidates` and `filings` units |
+| `series_delta` | The series run and the task, for example `2026-11-06T06:00Z/t0` | The changed rows of one series run, for the buckets of one task | The current `candidates` and `filings` units, and the current series rows of those entities |
 | `release` | `us-gaap/2026` | The elements of one release | The vendored release |
 
 A unit of the daily path holds one day, not one filing. One filing per unit gives about 90 files a
@@ -358,7 +369,7 @@ gs://<silver-bucket>/silver_files/execution=<execution_id>/task=<n>-<attempt>.pa
 - `<digest>` is the first 16 hex characters of `input_digest`.
 - `<attempt>` is the attempt number of the Cloud Run task, with `-b` if the split switched to B. A
   retry writes to its own paths.
-- The series datasets use `unit=<bucket>` with no `source=` level.
+- The series datasets use `unit=<unit_key>` with no `source=` level.
 - Inside a file, except in `candidates`, rows sort by `filing_id`, then by the value key. Row groups hold about 100,000
   rows, so a read of one filing skips the other row groups by their statistics.
 
@@ -374,8 +385,8 @@ gs://<silver-bucket>/silver_files/execution=<execution_id>/task=<n>-<attempt>.pa
    each file, and the counts and `content_digest` of the unit. A unit without a `silver_files` row
    does not exist for a reader.
 
-So silver never writes to an existing path. A file is written once. Only the retention rule of
-[Growth](#growth) and the cleanup of unread files below remove files. If an attempt fails
+So silver never writes to an existing path. A file is written once. Only the cleanup of unread
+files below removes files. If an attempt fails
 between steps 3 and 4, its files stay unread, because no `silver_files` row names them. A cleanup
 can remove such files once no attempt of their execution runs.
 
@@ -391,6 +402,9 @@ can remove such files once no attempt of their execution runs.
 | A rollback to an earlier version or digest | same | old | old | A new unit, because step 2 compares with the current unit only |
 
 - A unit key is the dataset, the source, the unit kind, and `unit_key`.
+- The series datasets have no current unit: every `series_delta` unit after the newest
+  `series_base` counts. See [Series Deltas](#series-deltas). The rules below apply to the other
+  datasets.
 - The **current unit** of a unit key is the one with the latest `written_at`. A default read takes
   only current units. `written_at` gives the order of runs. Silver uses it only between units of
   one key, because they hold the same filings.
@@ -408,34 +422,32 @@ see [Open Points](#open-points).
 
 ### Growth
 
-Silver deletes no unit of `as_is_facts`, `filings`, or `candidates`. Each full replay of the
+Silver deletes no unit of any dataset. Each full replay of the
 backfill adds the size of these datasets again, about 15 GB of `as_is_facts` plus `filings` and
 `candidates` (estimate, see
 [Cloud Run Sizing](#cloud-run-sizing)).
 
-The series datasets grow faster. A day with about 90 new filings touches about 48 of the 64
-buckets, and a peak day of 295 filings ([Volume](extraction_overview.md#volume)) about 63. Each touched bucket writes a new unit of its
-whole series output. Estimate: about 7,000
-entities, 50 concepts, and 90 periods give about 32 million rows, about 0.3 GB. A row holds an `inputs`
-list, so the real size is larger. The prototype measures it. A rewrite each day adds up to about
-100 GB a year.
+### Series Deltas
 
-So `standardized_facts` and `findings` get a retention rule:
+`standardized_facts` and the series rows of `findings` are append-only, like the as-is data. Parquet
+files and GCS objects cannot grow, so "append" means a new small file of changed rows next to the
+old ones.
 
-- A cleanup removes a superseded unit of these two datasets 30 days after a newer unit replaced it.
-- The cleanup is an execution, and it adds rows and updates none. It writes its own file under the
-  same path pattern as every other execution, `silver_files/execution=<execution_id>/task=<n>-<attempt>.parquet`.
-- The file holds one row per removed unit. Each row copies the row of the unit, sets `removed_at`,
-  and names the cleanup in `execution_id`. Then the cleanup deletes the files that `files` lists,
-  not a path prefix.
-- A row with `removed_at` set is never a unit, so it never counts for the latest `written_at`.
-- A reader drops a unit if a `silver_files` row with `removed_at` set has the same unit key and
-  `files`. Each path holds `<execution_id>-<attempt>`, so `files` is unique. Digest and version
-  are not enough, because a rollback writes a second unit with both.
-- A read "as silver held it at T" for these two datasets fails if T is more than 30 days ago.
-- The series step can rebuild a removed unit from the `candidates` units current at the time of
-  that unit, with the image of its `transform_version`. So the cleanup loses no reported value, as
-  long as the container registry keeps the image of each `transform_version`.
+- The first series run writes a `series_base` unit with every row.
+- A later run recomputes only the entities of the touched entity buckets. It reads their current
+  rows, compares, and writes only the rows that differ to a `series_delta` unit: `change` = `new`,
+  `changed`, or `removed`. Unchanged rows are not written again.
+- A read of the current values takes the newest `series_base` and every `series_delta` after it,
+  and keeps the row with the latest `computed_at` per key. A read "as silver held it at T" skips the
+  rows with `computed_at` after T, so it reaches back to the first series run.
+- One series task writes one delta unit per run, sorted by entity bucket. The daily run touches few
+  entities, so it uses few tasks, and adds a few small files a day.
+- If a run changes most rows, for example after a new `transform_version` of a rule, it writes a new
+  `series_base` instead of a delta. Reads then start from that base. Older units stay.
+- No unit of any dataset is deleted.
+
+The deltas are small, because a day changes the series of a few dozen entities: their new periods,
+restated values, and derived values. Not measured. The prototype measures the size of a daily delta.
 
 ## Provenance
 
@@ -475,7 +487,7 @@ check job of the raw store runs these checks too.
 
 | Check | Finds | How | Cost |
 | ----- | ----- | --- | ---- |
-| 1. Files | A missing or corrupted Parquet file | For each unit with no `removed_at` row, compare `bytes` and `crc32c` of each file in `files` with the object in GCS. GCS stores a CRC32C per object, so a listing gives both | One listing |
+| 1. Files | A missing or corrupted Parquet file | For each unit, compare `bytes` and `crc32c` of each file in `files` with the object in GCS. GCS stores a CRC32C per object, so a listing gives both | One listing |
 | 2. Coverage | A raw document with no current unit, or a unit read from older bytes | Join the raw metadata (key, SHA-256) with `inputs` of the current units | Small tables |
 | 3. Row counts | Rows lost or doubled inside a unit of `as_is_facts` or `filings` | `source_rows` minus `dropped_rows` must equal `row_count`, and `row_count` must equal the rows in the Parquet footers. The derived datasets map many rows to one, so they get no row count check | Footers only |
 | 4. Rebuild | A wrong value, or a parser whose output changes from run to run | Run the transform again on the raw input with the same `transform_version`, and compare the `content_digest`. Skip a unit that check 2 reports as "source replaced" | One transform per unit, so a sample of units each week |
@@ -497,7 +509,6 @@ the unit as "source replaced". No check can restore the old bytes.
 
 - Silver keeps every reported value, with its filing and its source document.
 - Silver drops no reported value and overwrites no file. A replay adds a unit (see [Replays](#replays)).
-  The retention rule of [Growth](#growth) removes only superseded units of derived datasets.
 - "Newest filing wins" and "more precise wins" are the rules `core/dedup/newest-filing@1` and
   `core/dedup/more-precise@1`. They run in the standardize steps or in a read, never in an as-is
   write.
@@ -519,6 +530,7 @@ Queries this allows:
 | The value as public on day D | As-is | A view: dedup rules over filings with `accepted` (or `filed`) on or before D | Back to 2009 |
 | The value as public on day D | Standardized | Run the series step again on the `candidates` with `accepted` (or `filed`) on or before D. Tiers 3 and 4 run only in Rust, so no view gives it | Back to 2009 |
 | The value as silver held it at time T | As-is | Current units as of T, then the dedup rules | From the first silver write |
+| The value as silver held it at time T | Standardized | Base and deltas with `computed_at` on or before T | From the first series run |
 | Every value ever reported for a period | As-is | No dedup | Back to 2009 |
 
 The new-filing path stores `filed` only. A point-in-time read of a new filing uses `filed`, so it
@@ -650,6 +662,10 @@ parallel. With 80 files and 10 parallel tasks, a full backfill takes 8 rounds of
   it on `2024q1`, the largest file, with C and with B.
 - Target: at most 15 minutes for the largest file. The limit is then 4 times the target. The
   target applies to C and B together, because C can stop on the last row of an unsorted file.
+- Units differ in size: `2009q1` holds no filings, and `2024q1` holds 2.7 GB of text. The time of
+  the largest file bounds the job, not the mean. `silver_files` records `bytes` and `row_count` per
+  unit, so the integrity report can list units far above the median, and the job can start the
+  largest files first.
 - If a file breaks the target, the transform design splits it across tasks. It also defines how
   the tasks of one unit write one `silver_files` row.
 
@@ -681,8 +697,8 @@ Proposal: A, with Polars inside the states that move tables:
 | Checks | One unit or one bucket | A step over silver, before load |
 | Sector medians, screener tables, coverage filter | Many entities | Gold |
 
-The series step runs again for a bucket when a new current unit of `candidates` holds an entity of
-that bucket.
+The series step runs again for the entities of a new current unit of `candidates`, and writes their
+changes as a delta, see [Series Deltas](#series-deltas).
 
 ### Schema From the Rust Types
 
