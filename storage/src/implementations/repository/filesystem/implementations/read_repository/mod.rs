@@ -103,48 +103,59 @@ impl<A: CanRead, D: Document> FilesystemRepository<A, D> {
         key: &DocumentKey,
     ) -> Result<DocumentMetadata<D::Context>, FailedFilesystemOperation> {
         let metadata_path = self.metadata_path(key);
-        let metadata_json = fs::read(&metadata_path).await.map_err(|error| {
-            if error.kind() == io::ErrorKind::NotFound {
-                FailedFilesystemOperation::new(
-                    FailedFilesystemOperationReason::MissingMetadataFile,
-                    &metadata_path,
-                )
-            } else {
-                FailedFilesystemOperation::from_io(
-                    FilesystemOperation::Read,
-                    &metadata_path,
-                    &error,
-                )
-            }
-        })?;
-
+        let metadata_json = read_metadata_file(&metadata_path).await?;
         let stored: StoredDocumentType = parse_metadata(&metadata_json, &metadata_path)?;
-        let expected_document_type = D::DOCUMENT_TYPE.to_string();
-        if stored.document_type != expected_document_type
-            || stored.document_type_version != D::DOCUMENT_TYPE_VERSION
-        {
-            let reason = FailedFilesystemOperationReason::UnexpectedDocumentType {
-                found_document_type: stored.document_type,
-                found_document_type_version: stored.document_type_version,
-                expected_document_type,
-                expected_document_type_version: D::DOCUMENT_TYPE_VERSION,
-            };
-            return Err(FailedFilesystemOperation::new(reason, &metadata_path));
-        }
+        check_document_type::<D>(stored, &metadata_path)?;
         parse_metadata(&metadata_json, &metadata_path)
     }
+}
+
+/// Reads the bytes of a metadata file.
+pub(super) async fn read_metadata_file(
+    metadata_path: &Path,
+) -> Result<Vec<u8>, FailedFilesystemOperation> {
+    fs::read(metadata_path).await.map_err(|error| {
+        if error.kind() == io::ErrorKind::NotFound {
+            FailedFilesystemOperation::new(
+                FailedFilesystemOperationReason::MissingMetadataFile,
+                metadata_path,
+            )
+        } else {
+            FailedFilesystemOperation::from_io(FilesystemOperation::Read, metadata_path, &error)
+        }
+    })
 }
 
 /// The `document_type` and `document_type_version` of a metadata file, which a read checks before
 /// it parses the rest.
 #[derive(Deserialize)]
-struct StoredDocumentType {
-    document_type: String,
-    document_type_version: u32,
+pub(super) struct StoredDocumentType {
+    pub(super) document_type: String,
+    pub(super) document_type_version: u32,
+}
+
+/// Checks that a metadata file holds the document type and the document type version of `D`.
+pub(super) fn check_document_type<D: Document>(
+    stored: StoredDocumentType,
+    metadata_path: &Path,
+) -> Result<(), FailedFilesystemOperation> {
+    let expected_document_type = D::DOCUMENT_TYPE.to_string();
+    if stored.document_type == expected_document_type
+        && stored.document_type_version == D::DOCUMENT_TYPE_VERSION
+    {
+        return Ok(());
+    }
+    let reason = FailedFilesystemOperationReason::UnexpectedDocumentType {
+        found_document_type: stored.document_type,
+        found_document_type_version: stored.document_type_version,
+        expected_document_type,
+        expected_document_type_version: D::DOCUMENT_TYPE_VERSION,
+    };
+    Err(FailedFilesystemOperation::new(reason, metadata_path))
 }
 
 /// Parses a metadata file, and reports where the parser stopped if the file does not fit `T`.
-fn parse_metadata<T: DeserializeOwned>(
+pub(super) fn parse_metadata<T: DeserializeOwned>(
     metadata_json: &[u8],
     metadata_path: &Path,
 ) -> Result<T, FailedFilesystemOperation> {
