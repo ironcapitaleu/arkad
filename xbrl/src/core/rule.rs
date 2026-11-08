@@ -35,6 +35,18 @@ pub struct RuleId {
 }
 
 impl RuleId {
+    /// The type name that [`InvalidValue`] names when an input breaks a rule.
+    const TYPE_NAME: &'static str = "RuleId";
+
+    /// The character between the path and the version, as in `revenue@1`.
+    pub const VERSION_SEPARATOR: char = '@';
+
+    /// The character between the owner, the kind, and the name.
+    pub const PATH_SEPARATOR: char = '/';
+
+    /// The number of parts of the path: owner, kind, and name.
+    pub const PATH_PARTS: usize = 3;
+
     /// Returns the version of the rule.
     #[must_use]
     pub const fn version(&self) -> u32 {
@@ -58,17 +70,23 @@ impl FromStr for RuleId {
     /// Returns [`InvalidValue`] if the text holds whitespace, lacks `@`, does not hold exactly two `/`, has
     /// an empty part, or has a version that is not plain digits without a leading zero.
     fn from_str(text: &str) -> Result<Self, Self::Err> {
-        require_token("RuleId", text)?;
-        let invalid = |reason| InvalidValue::new("RuleId", reason, text);
-        let (path, version) = text
-            .rsplit_once('@')
-            .ok_or_else(|| invalid(InvalidValueReason::MissingSeparator('@')))?;
-        let parts: Vec<&str> = path.split('/').collect();
-        if parts.len() < 3 {
-            return Err(invalid(InvalidValueReason::MissingSeparator('/')));
+        require_token(Self::TYPE_NAME, text)?;
+        let invalid = |reason| InvalidValue::new(Self::TYPE_NAME, reason, text);
+        let (path, version) = text.rsplit_once(Self::VERSION_SEPARATOR).ok_or_else(|| {
+            invalid(InvalidValueReason::MissingSeparator(
+                Self::VERSION_SEPARATOR,
+            ))
+        })?;
+        let parts: Vec<&str> = path.split(Self::PATH_SEPARATOR).collect();
+        if parts.len() < Self::PATH_PARTS {
+            return Err(invalid(InvalidValueReason::MissingSeparator(
+                Self::PATH_SEPARATOR,
+            )));
         }
-        if parts.len() > 3 {
-            return Err(invalid(InvalidValueReason::ContainsSeparator('/')));
+        if parts.len() > Self::PATH_PARTS {
+            return Err(invalid(InvalidValueReason::ContainsSeparator(
+                Self::PATH_SEPARATOR,
+            )));
         }
         if parts.iter().any(|part| part.is_empty()) {
             return Err(invalid(InvalidValueReason::Empty));

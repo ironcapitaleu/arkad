@@ -8,6 +8,7 @@ use std::fmt;
 use crate::core::concept::NamespaceFamily;
 use crate::core::fact::TaxonomyVersion;
 use crate::core::invalid_value::{InvalidValue, InvalidValueReason, require_token};
+use crate::core::release::TaxonomyReleaseId;
 
 /// The placeholder for the release part in a [`UriPattern`].
 pub const RELEASE_PLACEHOLDER: &str = "{release}";
@@ -21,6 +22,9 @@ pub struct UriPattern {
 }
 
 impl UriPattern {
+    /// The type name that [`InvalidValue`] names when an input breaks a rule.
+    const TYPE_NAME: &'static str = "UriPattern";
+
     /// Creates a [`UriPattern`] from its text.
     ///
     /// # Errors
@@ -28,17 +32,17 @@ impl UriPattern {
     /// Returns [`InvalidValue`] if the text is empty, holds whitespace, or does not hold
     /// `{release}` exactly once.
     pub fn new(text: &str) -> Result<Self, InvalidValue> {
-        require_token("UriPattern", text)?;
+        require_token(Self::TYPE_NAME, text)?;
         let (before, after) = text.split_once(RELEASE_PLACEHOLDER).ok_or_else(|| {
             InvalidValue::new(
-                "UriPattern",
+                Self::TYPE_NAME,
                 InvalidValueReason::WrongPlaceholderCount(RELEASE_PLACEHOLDER),
                 text,
             )
         })?;
         if after.contains(RELEASE_PLACEHOLDER) {
             return Err(InvalidValue::new(
-                "UriPattern",
+                Self::TYPE_NAME,
                 InvalidValueReason::WrongPlaceholderCount(RELEASE_PLACEHOLDER),
                 text,
             ));
@@ -56,7 +60,7 @@ impl UriPattern {
     #[must_use]
     pub fn year_of<'a>(&self, uri: &'a str) -> Option<&'a str> {
         let release = uri.strip_prefix(&self.before)?.strip_suffix(&self.after)?;
-        if release.contains('/') {
+        if release.contains(TaxonomyReleaseId::SEPARATOR) {
             return None;
         }
         leading_year(release)
@@ -117,6 +121,12 @@ pub struct FamilyDeclaration {
 }
 
 impl FamilyDeclaration {
+    /// The type name that [`InvalidValue`] names when an input breaks a rule.
+    const TYPE_NAME: &'static str = "FamilyDeclaration";
+
+    /// The part a declaration lacks when it has no URI pattern.
+    const URI_PATTERN_PART: &'static str = "URI pattern";
+
     /// Creates a [`FamilyDeclaration`] and sorts its URI patterns.
     ///
     /// # Errors
@@ -132,16 +142,16 @@ impl FamilyDeclaration {
         let notes_version_prefix = notes_version_prefix.into();
         if uri_patterns.is_empty() {
             return Err(InvalidValue::new(
-                "FamilyDeclaration",
-                InvalidValueReason::MissingPart("URI pattern"),
+                Self::TYPE_NAME,
+                InvalidValueReason::MissingPart(Self::URI_PATTERN_PART),
                 family.as_str(),
             ));
         }
-        require_token("FamilyDeclaration", &notes_version_prefix)?;
-        if notes_version_prefix.contains('/') {
+        require_token(Self::TYPE_NAME, &notes_version_prefix)?;
+        if notes_version_prefix.contains(TaxonomyReleaseId::SEPARATOR) {
             return Err(InvalidValue::new(
-                "FamilyDeclaration",
-                InvalidValueReason::ContainsSeparator('/'),
+                Self::TYPE_NAME,
+                InvalidValueReason::ContainsSeparator(TaxonomyReleaseId::SEPARATOR),
                 notes_version_prefix,
             ));
         }
@@ -217,20 +227,25 @@ impl FamilyDeclaration {
     /// declared prefix and a year, as in `us-gaap/2017`.
     #[must_use]
     pub fn version_of_notes(&self, notes_version: &str) -> Option<TaxonomyVersion> {
-        let (prefix, release) = notes_version.split_once('/')?;
-        if prefix != self.notes_version_prefix || release.contains('/') {
+        let (prefix, release) = notes_version.split_once(TaxonomyReleaseId::SEPARATOR)?;
+        if prefix != self.notes_version_prefix || release.contains(TaxonomyReleaseId::SEPARATOR) {
             return None;
         }
         self.version(leading_year(release)?)
     }
 
     fn version(&self, year: &str) -> Option<TaxonomyVersion> {
-        TaxonomyVersion::new(format!("{}/{year}", self.family)).ok()
+        TaxonomyVersion::new(format!(
+            "{}{}{year}",
+            self.family,
+            TaxonomyReleaseId::SEPARATOR
+        ))
+        .ok()
     }
 }
 
 fn leading_year(release: &str) -> Option<&str> {
-    let year = release.get(..4)?;
+    let year = release.get(..TaxonomyReleaseId::YEAR_LENGTH)?;
     year.bytes()
         .all(|byte| byte.is_ascii_digit())
         .then_some(year)

@@ -12,6 +12,15 @@ use super::invalid_value::{InvalidValue, InvalidValueReason, require_token};
 pub struct TaxonomyReleaseId(String);
 
 impl TaxonomyReleaseId {
+    /// The type name that [`InvalidValue`] names when an input breaks a rule.
+    const TYPE_NAME: &'static str = "TaxonomyReleaseId";
+
+    /// The character between the family and the year, as in `us-gaap/2026`.
+    pub const SEPARATOR: char = '/';
+
+    /// The number of digits of the year.
+    pub const YEAR_LENGTH: usize = 4;
+
     /// Creates a [`TaxonomyReleaseId`] from its text.
     ///
     /// # Errors
@@ -20,24 +29,24 @@ impl TaxonomyReleaseId {
     /// family, or has a year that is not four digits.
     pub fn new(text: impl Into<String>) -> Result<Self, InvalidValue> {
         let text = text.into();
-        require_token("TaxonomyReleaseId", &text)?;
-        let Some((family, year)) = text.split_once('/') else {
+        require_token(Self::TYPE_NAME, &text)?;
+        let Some((family, year)) = text.split_once(Self::SEPARATOR) else {
             return Err(InvalidValue::new(
-                "TaxonomyReleaseId",
-                InvalidValueReason::MissingSeparator('/'),
+                Self::TYPE_NAME,
+                InvalidValueReason::MissingSeparator(Self::SEPARATOR),
                 text,
             ));
         };
         if family.is_empty() {
             return Err(InvalidValue::new(
-                "TaxonomyReleaseId",
+                Self::TYPE_NAME,
                 InvalidValueReason::Empty,
                 text,
             ));
         }
-        if year.len() != 4 || !year.bytes().all(|byte| byte.is_ascii_digit()) {
+        if year.len() != Self::YEAR_LENGTH || !year.bytes().all(|byte| byte.is_ascii_digit()) {
             return Err(InvalidValue::new(
-                "TaxonomyReleaseId",
+                Self::TYPE_NAME,
                 InvalidValueReason::NotANumber,
                 text,
             ));
@@ -63,9 +72,21 @@ impl fmt::Display for TaxonomyReleaseId {
 pub struct Sha256([u8; 32]);
 
 impl Sha256 {
+    /// The type name that [`InvalidValue`] names when an input breaks a rule.
+    const TYPE_NAME: &'static str = "Sha256";
+
+    /// The number of bytes of a digest.
+    pub const BYTE_LENGTH: usize = 32;
+
+    /// The number of hex digits of a digest: two per byte.
+    pub const HEX_LENGTH: usize = 2 * Self::BYTE_LENGTH;
+
+    /// The radix of the hex digits.
+    const HEX_RADIX: u32 = 16;
+
     /// Creates a [`Sha256`] from the 32 bytes of a digest.
     #[must_use]
-    pub const fn new(bytes: [u8; 32]) -> Self {
+    pub const fn new(bytes: [u8; Self::BYTE_LENGTH]) -> Self {
         Self(bytes)
     }
 
@@ -86,14 +107,14 @@ impl FromStr for Sha256 {
     /// Returns [`InvalidValue`] with [`InvalidValueReason::NotHexDigest`] if the text is not 64 hex
     /// digits.
     fn from_str(text: &str) -> Result<Self, Self::Err> {
-        let invalid = || InvalidValue::new("Sha256", InvalidValueReason::NotHexDigest, text);
-        if text.len() != 64 || !text.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+        let invalid = || InvalidValue::new(Self::TYPE_NAME, InvalidValueReason::NotHexDigest, text);
+        if text.len() != Self::HEX_LENGTH || !text.bytes().all(|byte| byte.is_ascii_hexdigit()) {
             return Err(invalid());
         }
-        let mut bytes = [0; 32];
+        let mut bytes = [0; Self::BYTE_LENGTH];
         for (byte, pair) in bytes.iter_mut().zip(text.as_bytes().chunks(2)) {
             let pair = std::str::from_utf8(pair).map_err(|_| invalid())?;
-            *byte = u8::from_str_radix(pair, 16).map_err(|_| invalid())?;
+            *byte = u8::from_str_radix(pair, Self::HEX_RADIX).map_err(|_| invalid())?;
         }
         Ok(Self(bytes))
     }
