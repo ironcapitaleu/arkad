@@ -1,6 +1,6 @@
 ---
-source: xbrl/DESIGN.md (Resolution Layer section)
-last-verified: 2026-06-14
+source: xbrl/DESIGN.md (section "3) Resolution", "Three Layers")
+last-verified: 2026-11-08
 update-frequency: on-design-change
 ---
 
@@ -32,31 +32,36 @@ All three map to CanonicalElement::Revenue.
 
 ## Tier 3: Derived (Confidence::Derived)
 
-The parent concept is absent but ALL required children are present. Compute from calculation linkbase relationships.
+An identity the core knows gives the value: an SFAC 6 identity or a period identity.
 
-Example: `Liabilities` absent, but `LiabilitiesCurrent` and `LiabilitiesNoncurrent` present. Derive: `Liabilities = LiabilitiesCurrent + LiabilitiesNoncurrent`
+Examples:
 
-Rules:
-
-- ALL children must be present (partial sums are unreliable)
-- Use weights from calculation linkbase (+1 or -1)
-- Confidence is Derived, not Exact
+- `Assets` absent, but `Liabilities` and `Equity` present. Derive: `Assets = Liabilities + Equity`
+- `core/period/q4-from-fy@1`: Q4 = FY − 9-month year to date. It applies only to duration
+  concepts in one currency.
 
 ## Tier 4: Computed (Confidence::Computed)
 
-Full FASB linkbase graph traversal. Multi-hop relationships, indirect derivation.
+A sum along the calculation tree of a plug-in. The parent concept is absent, but ALL its children
+are present.
 
-Example: Deriving `OperatingIncome` when neither it nor `GrossProfit` is reported, but `Revenue`, `CostOfRevenue`, and all `OperatingExpenses` components are present.
+Example: `Liabilities` absent, but `LiabilitiesCurrent` and `LiabilitiesNoncurrent` present.
+Compute: `Liabilities = LiabilitiesCurrent + LiabilitiesNoncurrent`
 
-Status: Not yet implemented. Requires calculation linkbase parser in `us_gaap/taxonomy.rs`.
+Rules:
+
+- ALL children must be present. A partial sum gives a wrong value
+- The sum takes the arcs of one role. Each arc carries the role of its network
+- Use the weights of the calculation arcs (+1 or −1)
 
 ## Confidence Model
 
-| Tier | Confidence | Meaning |
+| Tier | Confidence | Mechanism |
 | --- | --- | --- |
-| 1 | Exact | Direct key match — highest trust |
-| 2 | Synonym | Known alias — high trust |
-| 3 | Derived | Computed from direct children — medium trust |
-| 4 | Computed | Multi-hop graph traversal — lower trust |
+| 1 | Exact | The first concept of the alias list of a plug-in |
+| 2 | Synonym | A later concept of the alias list |
+| 3 | Derived | An identity the core knows: an SFAC 6 identity or a period identity |
+| 4 | Computed | A sum along the calculation tree of a plug-in |
 
-Downstream consumers can filter by confidence level (e.g., screener only uses Exact+Synonym).
+The level of a derived or computed value is the weakest of its own level and the levels of its
+inputs. Consumers can filter by level, for example a screener that takes only Exact and Synonym.

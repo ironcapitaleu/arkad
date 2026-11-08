@@ -15,7 +15,7 @@ pub enum Confidence {
     Synonym,
     /// Tier 3: Derived from other standardized values by an SFAC 6 identity or a period identity.
     Derived,
-    /// Tier 4: Computed by walking the FASB calculation linkbase tree.
+    /// Tier 4: Computed as a sum along the calculation tree of a plug-in.
     Computed,
 }
 
