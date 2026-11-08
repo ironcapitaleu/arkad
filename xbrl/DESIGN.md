@@ -699,8 +699,8 @@ year-to-date only. The result has confidence `Derived`.
   year end.
 - A unit is a currency if it is one ISO 4217 code and divides by nothing (`Unit::is_currency`).
   The measures carry no prefix, so the three capital letters are the only mark of a currency.
-- The gap from the nine-month end to the year end must round to one quarter. If several nine-month
-  values fit, the rule takes the latest end.
+- The year must end 47 to 137 days after the nine-month end, so that the Q4 rounds to one quarter.
+  If several nine-month values fit, the rule takes the latest end.
 - The rule derives nothing for a Q4 that the series already holds or that a conflict blocks.
 - The Q4 value carries the release of the fiscal year value, and the inputs of both values.
 - A separate level for period derivations was the alternative. It changes every consumer filter,

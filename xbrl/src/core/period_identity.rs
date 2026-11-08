@@ -507,4 +507,47 @@ mod tests {
 
         assert_eq!(result, expected_result);
     }
+
+    #[test]
+    fn should_derive_the_fourth_quarter_when_the_year_ends_137_days_after_the_nine_months() {
+        let facts = series(vec![
+            standardized(
+                Period::Duration(Duration::from_end_and_quarters(date(2024, 9, 28), 4)),
+                "391035000000",
+            ),
+            standardized(
+                Period::Duration(Duration::from_end_and_quarters(date(2024, 5, 14), 3)),
+                "296105000000",
+            ),
+        ]);
+
+        let expected_result = vec![BigDecimal::from(94_930_000_000_i64)];
+
+        let result: Vec<BigDecimal> = derive_q4(&facts)
+            .into_iter()
+            .map(|fact| fact.value)
+            .collect();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_derive_nothing_when_the_year_ends_138_days_after_the_nine_months() {
+        let facts = series(vec![
+            standardized(
+                Period::Duration(Duration::from_end_and_quarters(date(2024, 9, 28), 4)),
+                "391035000000",
+            ),
+            standardized(
+                Period::Duration(Duration::from_end_and_quarters(date(2024, 5, 13), 3)),
+                "296105000000",
+            ),
+        ]);
+
+        let expected_result: Vec<StandardizedFact> = Vec::new();
+
+        let result = derive_q4(&facts);
+
+        assert_eq!(result, expected_result);
+    }
 }
