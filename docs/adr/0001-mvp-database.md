@@ -78,8 +78,9 @@ The rest of the decision:
 The Decision above lets `ingest` write the graph and fact projections into Postgres right after the
 raw write. Since then, the pipeline gained a silver layer between transform and load
 ([`silver_layer.md`](../../sec/design/pipeline/silver_layer.md)). Silver keeps the as-is facts of
-both SEC sources, the Notes files and the XBRL instances, side by side, in Parquet units, with a list of written units (`silver_files`). A
-prototype on real SEC files measured it on 2026-11-08:
+both SEC sources, the Notes files and the XBRL instances, side by side. It writes Parquet units,
+with a list of written units (`silver_files`). A prototype on real SEC files measured it on
+2026-11-08:
 
 - The largest Notes file, `2024q1`, writes its silver unit in 46 s with a streamed split, and in
   97 s with the bucket split. Peak memory stays under 1 GB.
@@ -96,20 +97,23 @@ prototype on real SEC files measured it on 2026-11-08:
 3. **One load per silver unit, in one Postgres transaction.** The load job reads the current unit
    of a unit key from `silver_files`. It checks the size and CRC32C of each file, copies the rows
    with `COPY`, and checks the row count against `silver_files`. The graph rows, the fact rows,
-   and the ledger row go through impl-private helpers on one `PgTransaction`, as the co-located
-   rule of `storage_traits_design.md` describes. `GraphStore::upsert` and `FactStore::upsert`
-   commit on their own, so the load does not compose them.
+   and the ledger row go through impl-private helpers on one `PgTransaction`, inside
+   `storage-postgres`. One port method per silver unit owns that transaction, as `ingest` did. The
+   gold design names the method. `GraphStore::upsert` and `FactStore::upsert` commit on their own,
+   so the load does not compose them.
 4. **A ledger of loaded units makes the load idempotent.** Each ledger row names one `silver_files`
-   row by its dataset, source, unit key, and attempt path
-   (`<digest>-v<transform_version>/<execution_id>-<attempt>`). Each `silver_files` row has its own
-   attempt path. If the ledger holds that row, the load skips. A newer unit of the same key
-   replaces the rows of the older unit in the same transaction.
+   row by its unit key (dataset, source, unit kind, and `unit_key`) and its attempt path, as
+   [Paths](../../sec/design/pipeline/silver_layer.md#paths) defines it. Each `silver_files` row has
+   its own attempt path. A null `source` matches a null `source`: the ledger uses
+   `UNIQUE NULLS NOT DISTINCT`, and the skip check uses `IS NOT DISTINCT FROM`. If the ledger holds
+   the row, the load skips. A newer unit of the same unit key replaces the rows of the older unit
+   in the same transaction.
 5. **The load runs as a Rust binary.** DuckDB loaded at the same speed, but it adds a second runtime
    and downloads its `postgres` extension at run time.
 
-The series datasets have no current unit per key. If gold loads them, the load reads every
-`series_delta` unit of a series run that counts, after the newest `series_base`, as
-[`silver_layer.md`](../../sec/design/pipeline/silver_layer.md), "Series Deltas", reads them.
+The series datasets have no current unit per unit key. If gold loads them, the load reads every
+`series_delta` unit of a series run that counts, after the newest `series_base`. It reads them by
+the rule of [Series Deltas](../../sec/design/pipeline/silver_layer.md#series-deltas).
 
 The rest of the Decision stands: one Supabase Postgres database for the graph tier and the fact
 tier, in a schema that the Data API does not expose, with no `pg_duckdb`.
@@ -123,6 +127,9 @@ tier, in a schema that the Data API does not expose, with no `pg_duckdb`.
   whole as-is layer with per-row provenance passes the 50 GB trigger of
   [Triggers to Revisit](#triggers-to-revisit) at about 120 million rows. So the gold design
   decides what gold copies from silver.
+- How series rows replace each other in gold. Each series unit has its own unit key, so the
+  replace rule of Decision 4 does not reach them. The gold design fixes this rule if gold loads the
+  series datasets.
 
 ### Consequences of the Amendment
 
