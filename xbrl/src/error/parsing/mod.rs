@@ -8,7 +8,6 @@ use crate::core::invalid_value::InvalidValue;
 
 pub mod invalid_data_point;
 pub mod invalid_json;
-pub mod missing_namespace;
 pub mod missing_top_level_key;
 
 /// Specific parsing failure variants.
@@ -35,13 +34,6 @@ pub enum ParseErrorKind {
         key: String,
     },
 
-    /// A required taxonomy namespace is missing from the response.
-    #[error("[MissingNamespace] Required namespace '{namespace}' not found under 'facts'")]
-    MissingNamespace {
-        /// The name of the missing namespace.
-        namespace: String,
-    },
-
     /// A data point within a concept could not be parsed.
     #[error("[InvalidDataPoint] Invalid data point for concept '{concept}', Reason: '{reason}'")]
     InvalidDataPoint {
@@ -51,7 +43,8 @@ pub enum ParseErrorKind {
         reason: String,
     },
 
-    /// A value of a data point breaks a rule of its core type, for example an end before the start.
+    /// A key or a value of a data point breaks a rule of its core type, for example an end before
+    /// the start.
     #[error(
         "[InvalidDataPointValue] Invalid value in a data point of concept '{concept}', Caused by: {source}"
     )]

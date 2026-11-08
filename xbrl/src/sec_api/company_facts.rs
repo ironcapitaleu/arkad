@@ -69,7 +69,9 @@ pub struct CompanyFacts {
 ///
 /// Keeps every data point of every namespace and unit. The JSON gives no taxonomy version, no
 /// dimensions, no `decimals`, and no acceptance time, so these fields stay empty. `copy_rank`
-/// numbers the data points with one value key in the order of their array.
+/// numbers the data points with one value key in the order of their array. The first data point of
+/// an accession number gives its `Filing`. A later data point that names another form, fiscal year,
+/// or fiscal period does not change it.
 ///
 /// # Errors
 ///
@@ -671,6 +673,34 @@ mod tests {
         );
 
         let result = parse(&json).err().map(|error| error.to_string());
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_invalid_data_point_when_concept_has_no_units() {
+        let json = company_facts_json(&json!({ "Assets": { "label": "Assets" } }));
+
+        let expected_result = Some(ParseErrorKind::InvalidDataPoint {
+            concept: "us-gaap:Assets".to_string(),
+            reason: "Expected 'units' to be a JSON object".to_string(),
+        });
+
+        let result = parse(&json).err();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_invalid_data_point_when_unit_value_is_not_an_array() {
+        let json = company_facts_json(&json!({ "Assets": { "units": { "USD": {} } } }));
+
+        let expected_result = Some(ParseErrorKind::InvalidDataPoint {
+            concept: "us-gaap:Assets".to_string(),
+            reason: "Expected unit 'USD' to hold an array".to_string(),
+        });
+
+        let result = parse(&json).err();
 
         assert_eq!(result, expected_result);
     }

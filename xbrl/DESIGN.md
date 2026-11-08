@@ -927,7 +927,7 @@ Rule: **our math must be exact, their math gets a tolerance.**
 
 Uses `thiserror` with `#[error("...")]`. Follows the same conventions as the `sec` crate:
 - `[BracketedName]` prefix on every printed segment
-- `Caused by:` chains to an inner error, with no quotes around it. No xbrl layer uses it today.
+- `Caused by:` chains to an inner error, with no quotes around it. `InvalidDataPointValue` uses it.
 - `Reason:` for leaf errors with free-form descriptions (quoted)
 - No periods between segments — commas separate description from `Caused by:` / `Reason:`
 - A layer prints a segment only if it adds a fact: an action, an object, a cause, or an ID. `ErrorKind::Xbrl`, `XbrlErrorKind::FailedParsing`, and `XbrlErrorKind::FailedValidation` add none, so they pass through with `#[error(transparent)]`. The leaf names the failure. To tell parsing from validation, match on the variant.
@@ -940,8 +940,8 @@ ErrorKind
     ::FailedParsing(ParseErrorKind)
       ::InvalidJson { reason: String }
       ::MissingTopLevelKey { key: String }
-      ::MissingNamespace { namespace: String }
       ::InvalidDataPoint { concept: String, reason: String }
+      ::InvalidDataPointValue { concept: String, source: InvalidValue }
     ::FailedValidation(ValidationErrorKind)
       ::IncompleteData { missing_elements: Vec<CanonicalElement> }
       ::InconsistentIdentity { invariant: Invariant, left_value: i64, right_value: i64 }
@@ -981,11 +981,11 @@ pub enum ParseErrorKind {
     #[error("[MissingTopLevelKey] Expected key '{key}' in response")]
     MissingTopLevelKey { key: String },
 
-    #[error("[MissingNamespace] Expected namespace '{namespace}' under 'facts'")]
-    MissingNamespace { namespace: String },
-
     #[error("[InvalidDataPoint] Invalid data point for concept '{concept}', Reason: '{reason}'")]
     InvalidDataPoint { concept: String, reason: String },
+
+    #[error("[InvalidDataPointValue] Invalid value in a data point of concept '{concept}', Caused by: {source}")]
+    InvalidDataPointValue { concept: String, #[source] source: InvalidValue },
 }
 
 #[derive(Debug, thiserror::Error)]

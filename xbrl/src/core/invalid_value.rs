@@ -69,7 +69,7 @@ pub enum InvalidValueReason {
     EndBeforeStart,
     /// The input is not a number.
     NotANumber,
-    /// The input is a number, or gives a number, outside the range of the type.
+    /// The input, or a number computed from it, lies outside the range of the type.
     OutOfRange,
     /// The input does not hold the placeholder exactly once, for example `{release}`.
     MissingPlaceholder(&'static str),
