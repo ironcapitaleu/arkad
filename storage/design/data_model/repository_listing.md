@@ -188,8 +188,8 @@ flowchart TB
     PARSE -->|"type D, another version, or no parse"| ERR["Yield an error item"]
 ```
 
-1. The walk starts at the root joined with the prefix. It reads one directory at a time, so it holds
-   the names of one directory in memory, plus the path to it.
+1. The walk starts at the root joined with the prefix. It goes depth first, so it holds the sorted
+   names of each directory on the path to the current one. See rule 5 of [Limits](#limits).
 2. It sorts the names of each directory before it goes deeper. See
    [Ordering and Consistency](#ordering-and-consistency) for the rule.
 3. It does not follow a symbolic link. The write path never creates one.
@@ -373,9 +373,9 @@ After a parser fix, a driver reruns transform on every stored Notes file and ins
   equal to the metadata size gives a `NotesArchiveRef`: the period from the file name, the key, the
   size, and the SHA-256.
 - It calls `list(sec/filings)` on the instance repository. Each entry gives the instance key of a
-  `FilingDocumentsRef`. The label key is the same directory with `lab.xml`. The driver takes it
-  from one `list_keys(sec/filings)` call, as a set, so it needs no `get` per filing to learn whether
-  the label file exists.
+  `FilingDocumentsRef`. The label key is the same directory with `lab.xml`. The driver merges
+  `list(sec/filings)` with one `list_keys(sec/filings)` call, both in the byte order of the keys. So
+  it needs no `get` per filing to learn whether the label file exists, and it holds no set.
 - It reports an entry with `Missing` or a size difference outside the grace period, and skips it.
 - Transform then reads each key with `get`, as in the live pipeline. The transform design decides
   how a replay writes its new silver units.
@@ -412,8 +412,8 @@ See [Bookmark or Full Index](#bookmark-or-full-index) for the choice. Each run:
 3. Keeps the rows with a selected form and a `Date Filed` from the cut-over date through yesterday.
 4. Calls `list_keys(sec/filings)` once, and removes each row whose `instance.xml` key and
    `lab.xml` key are in the result. The key holds the CIK and the accession number, so the row maps
-   to its keys with no read. The run sorts the rows by key and merges them with the sorted stream,
-   so it holds no set of the stored keys, and its memory does not grow with the store.
+   to its keys with no read. The run sorts the rows by the bytes of the key text, the order of the
+   stream, and merges them with the stream. So it holds no set of the stored keys, and its memory does not grow with the store.
 5. Hands each other row with a stored `index.json` or `instance.xml` key to the store check before
    any request. The check works as today:
    - An instance without a label file counts as stored if the folder index lists no label file.
@@ -530,8 +530,9 @@ These follow the decisions above. Each is one PR within the review budget.
 6. **Transform replay from the listing.** The replay driver lists the Notes files and the
    instances. Blocked by feature 2 and by the transform design.
 
-Trigger, not a ticket: if the projection of feature 2 exceeds the limit of the daily run (see
-[Limits](#limits)), add a backend that lists through the object API.
+Trigger, not a ticket: if the mount projection of feature 2 exceeds the limit of the daily run,
+and the object API projection does not, add a backend that lists through the object API (see
+[Limits](#limits)).
 
 ## See Also
 
