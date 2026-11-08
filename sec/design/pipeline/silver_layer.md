@@ -280,8 +280,9 @@ The list of written units. Readers find the current files through it, and it hol
 | `files` | `list<struct<path: utf8, bytes: uint64, crc32c: utf8, row_count: uint64>>` | The Parquet files of the unit, in the order of the part number `<n>`, with the size and CRC32C of each object as GCS stores them |
 | `row_count` | `uint64` | Rows of the unit, the sum over `files` |
 | `source_rows` | `list<struct<table: utf8, rows: uint64>>` | Rows of each input table that maps row to row, counted once per unit: `num.tsv` and `txt.tsv` for `as_is_facts`, `sub.tsv` for `filings`. Under option B, the first pass counts every row of the table, not the rows of its bucket. For a `filing_day` unit, one entry each: `instance_facts` for `as_is_facts`, the elements with a `contextRef` in the instances, counted by a pass separate from the parser, and `instances` for `filings`, one row per instance. Empty for the other datasets |
+| `split` | `utf8`, nullable | `stream` or `buckets` for a `notes_file` unit, see [Unit of Work and Memory](#unit-of-work-and-memory). Null otherwise |
 | `dropped_rows` | `list<struct<reason: utf8, rows: uint64>>` | Rows the parser dropped on purpose, by reason, for example exact duplicates |
-| `content_digest` | `utf8` | SHA-256 over the parts in the order of `files`, and inside each part over the rows in file order. Each row enters in a fixed text form: each column in schema order, without `execution_id` and `loaded_at`, as its length-prefixed UTF-8 value, with a marker for null. The form does not depend on the Arrow crate. The golden test pins it to `transform_version` |
+| `content_digest` | `utf8` | SHA-256 over the parts in the order of `files`, and inside each part over the rows in file order. Each row enters in a fixed byte form, without `execution_id` and `loaded_at`. The transform code prints the values, not the Arrow crate, so an Arrow upgrade does not change the digest. The silver writer feature fixes the exact form, and a test pins it to `transform_version` |
 | `execution_id`, `ingestion_mode`, `written_at` | `utf8`, `utf8`, `timestamp[ms, UTC]` | The job that wrote the unit. `ingestion_mode` here is the mode of the job. The `ingestion_mode` column of a data row is the mode of its raw document |
 | `removed_at` | `timestamp[ms, UTC]`, nullable | Set only on the row that the cleanup of [Growth](#growth) adds for a removed unit |
 
@@ -607,26 +608,48 @@ only the header line of each table, so it gives no filings. Option B below does 
 | Option | Peak memory | Cost |
 | ------ | ----------- | ---- |
 | A. Read each table whole | 2.87 GB for an eager read of `num.tsv` of `2025q3`, 4.95 GB with `txt.tsv` after it (measured) | Simple. Needs a large task for the largest file |
-| B. K passes over the ZIP stream, each keeping the rows of one hash bucket of `adsh` (proposed) | About 1/K of the rows | K times the inflate time, about 3 s per GB per pass at 330 MB/s on one core (measured) |
-| C. One pass that cuts each table at each change of `adsh` | One filing: 36 MB for a pass over `num.tsv` of `2025q3` (measured) | Works only for a sorted table, so not for `2010q1`, `2012q4`, or `2020q4` |
+| B. K passes over the ZIP stream, each keeping the rows of one hash bucket of `adsh` (fallback) | About 1/K of the rows | K times the inflate time, about 3 s per GB per pass at 330 MB/s on one core (measured) |
+| C. One pass that cuts each table at each change of `adsh` (first try) | One filing: 36 MB for a pass over `num.tsv` of `2025q3` (measured) | One read. Works only for sorted tables, so not for `2010q1`, `2012q4`, or `2020q4` |
 
-Proposal: B, for every Notes file, so the split has one code path:
+Proposal: C first, B as the fallback, per Notes file. Speed matters, because a Cloud Run task has
+one hour, and each replay of the backfill runs every Notes file again.
 
 - The split reads `sub.tsv` and `dim.tsv` whole, about 81 MB of text for `2025q3`.
-- It picks K so that one bucket holds about 256 MB of text of `num.tsv` and `txt.tsv` on average.
-  For `2024q1`, with 2.7 GB of both, K is 11. The 11 passes over both tables take about 1.5
-  minutes of inflate time (estimate).
-- Each pass keeps the rows where `xxh3_64(adsh) mod K` equals the bucket number. The hash has a
-  fixed seed, so every pass and every run puts one `adsh` in the same bucket. A hasher with a
-  random seed per instance, such as the default of `HashMap`, drops or doubles filings.
-- Each pass groups its rows by `adsh` and hands one filing at a time to the parse state.
-- The write state writes one Parquet part per bucket and dataset (`part-<k>.parquet`), then drops
-  the bucket. So it never holds a whole Notes file. Inside a part, rows sort by `filing_id`.
+- **C, the first try.** The split streams `num.tsv` and `txt.tsv` side by side and joins them by
+  `adsh`, as a merge of two sorted lists. It hands one filing at a time to the parse state.
+- **The switch.** If a row has a smaller `adsh` than the row before it in either table, the split
+  stops C. It runs B on the same file and writes the parts of B under `<execution_id>-<attempt>-b`.
+  The parts that C wrote stay unread, because no `silver_files` row names them, and the cleanup of
+  unread files removes them. `split` in `silver_files` records which path wrote the unit.
+- **B, the fallback.** It picks K so that one bucket holds about 256 MB of text of `num.tsv` and
+  `txt.tsv` on average. For `2024q1`, with 2.7 GB of both, K is 11. Each pass keeps the rows where
+  `xxh3_64(adsh) mod K` equals the bucket number. The hash has a fixed seed, so every pass and every
+  run puts one `adsh` in the same bucket. A hasher with a random seed per instance, such as the
+  default of `HashMap`, drops or doubles filings. Each pass groups its rows by `adsh` and hands one
+  filing at a time to the parse state.
+- **Parts.** The write state writes a Parquet part per bucket in B, and per about 256 MB of input
+  text in C (`part-<n>.parquet`). It then drops the rows, so it never holds a whole Notes file.
+  Inside a part, rows sort by `filing_id`.
 - `candidates` sorts each part by `entity_bucket`, then by `filing_id`, and starts a new row group
   at each change of `entity_bucket`. A series task reads the row groups of its entity bucket from
   every part.
 
-C is a later speed-up for sorted files only. It needs a check of the order and a fallback to B.
+Inflate time for `2024q1`, with 2.7 GB of `num.tsv` and `txt.tsv` at about 330 MB/s on one core
+(estimate): about 8 s with C, about 90 s with B. In three of the six measured files
+with rows, both tables are sorted. These are the three newest.
+
+### Time per Task
+
+A Cloud Run task has a limit of one hour. One task transforms one Notes file, so the limit binds the
+largest Notes file, not the length of the history. More history adds tasks, and the tasks run in
+parallel. With 80 files and 10 parallel tasks, a full backfill takes 8 rounds of the slowest task.
+
+- Not measured: the time of parse, map, and write for one Notes file. The silver prototype measures
+  it on `2024q1`, the largest file, with C and with B.
+- Target: at most 15 minutes for the largest file, so a task keeps 4 times its time as margin.
+- If a file breaks the target, B splits across tasks: task i runs the buckets i, i + T, i + 2T,
+  and so on, of one file. Each task writes its own parts, and the last one writes the
+  `silver_files` row of the unit.
 
 ### Where the State Machine Fits
 
@@ -637,7 +660,7 @@ C is a later speed-up for sorted files only. It needs a check of the order and a
 
 Proposal: A, with Polars inside the states that move tables:
 
-- The split state streams the ZIP in K passes and cuts each bucket into filings, as in
+- The split state streams the ZIP, with C first and B as the fallback, and cuts it into filings, as in
   [Unit of Work and Memory](#unit-of-work-and-memory).
 - The parse and standardize states call the `xbrl` crate on Rust types. Only the Rust code applies
   the rules.
@@ -684,7 +707,7 @@ Estimates. The prototype measures them.
 
 | Job | Tasks | Memory per task | Parallel tasks | Timeout |
 | --- | ----- | --------------- | -------------- | ------- |
-| Transform of the backfill | One per Notes file, 80 | 2 GiB with option B: one bucket of about 256 MB of text, plus `sub.tsv` and `dim.tsv` | 10 | 1 hour |
+| Transform of the backfill | One per Notes file, 80 | 2 GiB, set by option B: one bucket of about 256 MB of text, plus `sub.tsv` and `dim.tsv` | 10 | 1 hour, see [Time per Task](#time-per-task) |
 | Transform of one day | 1 | 1 GiB | 1 | 30 minutes |
 | Standardize series | One per entity bucket, 64 | 2 GiB | 16 | 30 minutes |
 | Checks and load | One per dataset unit | 1 GiB | 4 | 30 minutes |
