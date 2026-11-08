@@ -136,7 +136,7 @@ Silver stores three kinds of values:
 | ---- | ------- | ----- | -------------- |
 | Duration | Revenue of a quarter | `as_is_facts` | `period_end`, `quarters` of 1 or more, and `period_start` |
 | Instant | Cash on the balance sheet date | `as_is_facts` | `period_end` is the date, `quarters` is 0, `period_start` is null |
-| Company attribute | Name, ticker, exchange, SIC, fiscal year end | `filings` | None. A value holds from the `accepted` time of its filing until a later filing changes it |
+| Company attribute | Name, ticker, exchange, industry code, fiscal year end | `filings` | None. A value holds from the `accepted` time of its filing until a later filing changes it |
 
 - The key of a period is `period_end` and `quarters`. Notes `num.tsv` gives only these two
   (`ddate`, `qtrs`). The instance gives exact dates. So a Notes value and an instance value of the
@@ -156,8 +156,8 @@ fields of the as-is fact model.
 
 | Column | Arrow type | From |
 | ------ | ---------- | ---- |
-| `filing_id` | `utf8` | `AsIsFact::filing`, for example `sec:0000320193-26-000001` |
-| `entity_scheme`, `entity_id` | `utf8`, `utf8` | `AsIsFact::entity` |
+| `filing_id` | `utf8` | `AsIsFact::source.filing`, for example `sec:0000320193-26-000001` |
+| `entity_scheme`, `entity_id` | `utf8`, `utf8` | `AsIsFact::context.entity` |
 | `concept_family`, `concept_name` | `utf8`, `utf8` | `AsIsFact::concept` |
 | `taxonomy_version` | `utf8`, nullable | `us-gaap/2026`, or the filing for an extension |
 | `period_end` | `date32` | Exact end |
@@ -209,8 +209,8 @@ instead of every fact. The provenance of an attribute sits in one row per filing
 | `filed`, `accepted` | `date32`, `timestamp[ms, UTC]` nullable | |
 | `period_of_report` | `date32` | |
 | `fiscal_year`, `fiscal_period` | `int16`, `utf8`, both nullable | As filed. Filled for 10-K, 10-Q, 20-F, and 40-F, mostly empty for other forms, see [Company Attributes Over Time](#company-attributes-over-time) |
-| `company_name` | `utf8`, nullable | `sub.tsv` `name`, or `dei:EntityRegistrantName` |
-| `sic` | `utf8`, nullable | `sub.tsv` `sic`, or `submissions` `sic` |
+| `company_name` | `utf8`, nullable | `Filing::company.name`: `sub.tsv` `name`, or `dei:EntityRegistrantName` |
+| `industry_scheme`, `industry_code` | `utf8`, `utf8`, both nullable | `Filing::company.industry`: scheme `sic` with `sub.tsv` `sic`, or `submissions` `sic`. Another source writes its own scheme, for example `nace` |
 | `tickers` | `list<struct<symbol: utf8, exchange: utf8 nullable>>` | `dei:TradingSymbol` and `dei:SecurityExchangeName`, one entry per share class |
 | `fiscal_year_end_raw` | `utf8`, nullable | `0930` from `sub.tsv`, or `--09-27` from the instance |
 | `fiscal_year_end_month` | `uint8`, nullable | The month of the nearest month end, see below |

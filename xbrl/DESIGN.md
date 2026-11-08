@@ -39,6 +39,9 @@ xbrl/
       concept.rs           <- ConceptName, NamespaceFamily, Namespace (parser input)
       fact.rs              <- AsIsFact, FactKey, FactValue, Decimals, Dimensions
       filing.rs            <- Filing, FilingId, EntityId
+      form.rs              <- Form (open text)
+      fiscal_period.rs     <- FiscalPeriod (open text)
+      invalid_value.rs     <- InvalidValue, the error of each core value type
       unit.rs              <- Unit (open: numerator and denominator measures)
       period.rs            <- Instant | Duration
       elements.rs          <- CanonicalElement, our standard concept set, SFAC 6 invariants
@@ -55,10 +58,12 @@ xbrl/
       mod.rs               <- impl Taxonomy for UsGaap
       mappings.rs          <- aliases: standard concept -> US GAAP concepts (tiers 1 and 2)
       taxonomy.rs          <- generated tables: calculation tree, element reference data
-    sec_api/
-      company_facts.rs     <- Company Facts JSON -> AsIsFact, Filing
-      company_concept.rs   <- Company Concept JSON -> AsIsFact, Filing
-      frames.rs            <- Frames JSON -> AsIsFact, Filing
+    adapter/               <- one adapter per data source
+      edgar/               <- the SEC XBRL JSON APIs of EDGAR
+        company_facts.rs   <- Company Facts JSON -> AsIsFact, Filing
+        company_concept.rs <- Company Concept JSON -> AsIsFact, Filing
+        frames.rs          <- Frames JSON -> AsIsFact, Filing
+        frame.rs, quarter.rs <- the `frame` field of the SEC JSON APIs
 ```
 
 ```mermaid
@@ -85,7 +90,7 @@ flowchart LR
       U[us_gaap]
       F[ifrs, later]
     end
-    SA[sec_api]
+    SA[adapter::edgar]
   end
   J --> SA --> A
   N --> P[Parsers in transform] --> A
@@ -102,17 +107,19 @@ flowchart LR
 
 Rules of the layout:
 
-- `core` imports no plug-in and no source module.
+- `core` imports no plug-in and no adapter.
 - A plug-in imports only `core`.
-- `sec_api` is a source adapter. It imports `core` and maps the SEC JSON APIs into as-is facts.
+- `adapter::edgar` is an adapter. It imports `core` and maps the SEC JSON APIs into as-is
+  facts. A later data source gets its own adapter next to it, for example `adapter::esef`.
 - The parsers of the Notes data set and the instance XML live in the transform. They produce the
   same as-is facts.
 
-**Crate boundary**: `xbrl::sec_api` takes `&str` or `&serde_json::Value` (raw JSON body), NOT an `SecResponse`. The `sec` crate owns HTTP, rate limiting, and response handling. `xbrl` has zero network dependencies.
+**Crate boundary**: `xbrl::adapter::edgar` takes `&str` or `&serde_json::Value` (raw JSON body), NOT an `SecResponse`. The `sec` crate owns HTTP, rate limiting, and response handling. `xbrl` has zero network dependencies.
 
 ### Types That Change
 
-These places in today's code assume the SEC or US GAAP. The design replaces each one:
+These places in the old code assumed the SEC or US GAAP. The design replaces each one. The open
+types are in the code. The `Taxonomy` trait and the registry follow:
 
 | Today | Assumption | Replacement |
 | ----- | ---------- | ----------- |
@@ -123,9 +130,9 @@ These places in today's code assume the SEC or US GAAP. The design replaces each
 | `core::Form` | Closed enum of 4 SEC forms | Open text on `Filing`, with `is_amendment` |
 | `core::AccessionNumber` | SEC filing ID | Text inside `FilingId`, for example `sec:<accession>` |
 | `core::FiscalPeriod` | `FY` and `Q1` to `Q3` only | Open text on `Filing`, as filed. ESEF filers report half years |
-| `core::Frame`, `core::Quarter` | Field of the SEC JSON APIs | Move to `sec_api`. No rule uses them |
+| `core::Frame`, `core::Quarter` | Field of the SEC JSON APIs | Move to `adapter::edgar`. No rule uses them |
 | `core::EntityName` | One current name | A company attribute on `Filing`, as filed |
-| Company Facts constants in `us_gaap::mappings` | Keys of one SEC JSON API | Move to `sec_api` |
+| Company Facts constants in `us_gaap::mappings` | Keys of one SEC JSON API | Move to `adapter::edgar` |
 
 ---
 
@@ -417,7 +424,7 @@ The open `NamespaceFamily` and `Unit` cover new namespaces and currencies. No ne
 
 ### Input / Output
 
-**Input**: a source document. `sec_api` takes the raw JSON body of an SEC API answer, already
+**Input**: a source document. `adapter::edgar` takes the raw JSON body of an SEC API answer, already
 fetched by the `sec` pipeline. The transform parses Notes rows and instance XML.
 
 **Output**: `AsIsFact` values, one per reported value, and one `Filing` per filing. Nothing is
@@ -427,24 +434,31 @@ resolved to standard concepts yet.
 
 ```text
 AsIsFact {
-    filing:            FilingId          // "sec:0000320193-26-000001"
-    entity:            EntityId          // XBRL entity identifier: scheme and id (CIK, LEI)
+    source: FilingSource {               // where the fact comes from
+        filing:        FilingId          // "sec:0000320193-26-000001"
+        filed:         NaiveDate
+        accepted:      Option<DateTime<Utc>>
+    }
+    context: Context {                   // what the fact is about, the XBRL context
+        entity:        EntityId          // XBRL entity identifier: scheme and id (CIK, LEI)
+        period:        Period            // Instant { end } | Duration { start: Option, end, quarters }
+        dimensions:    Dimensions        // sorted axis and member pairs, legal entity axis included
+    }
     concept:           ConceptName       // namespace family and local name
-    taxonomy_version:  Option<TaxonomyVersion> // "us-gaap/2026", the filing for an extension, None from sec_api
-    period:            Period            // Instant { end } | Duration { start: Option, end, quarters }
+    taxonomy_version:  Option<TaxonomyVersion> // "us-gaap/2026", the filing for an extension, None from adapter::edgar
     unit:              Option<Unit>      // None for text
-    dimensions:        Dimensions        // sorted axis and member pairs, legal entity axis included
     value:             FactValue         // Numeric(Decimal) | Text(String) | Nil
     decimals:          Option<Decimals>  // Finite(i32) | Infinite, None for text
     copy_rank:         u16               // 0 for the first copy of a fact in one filing
     footnotes:         Vec<String>
-    filed:             NaiveDate
-    accepted:          Option<DateTime<Utc>>
 }
 ```
 
 - `Period` says whether a fact is an instant or a duration, so no separate period type field
   exists.
+- `Decimal` is `bigdecimal::BigDecimal`. It holds every digit the source writes. Silver stores
+  `decimal128(38, 10)`, and measured values have up to 24 digits before the point and up to 8
+  after it. `rust_decimal` holds 28 significant digits, too few for 24 and 8 digits.
 - A duration holds its length in quarters, because the Notes data set gives the length but often
   no exact start. The instance parser computes it as `round(days(end - start) / 91.3125)`, the
   rule that matched `qtrs` on the 622 filings of the Notes against instance comparison. If `start`
@@ -456,7 +470,7 @@ AsIsFact {
   data set gives `accepted` to the minute. The new-filing path gives `filed` only.
 - `FilingId` uses the same text as `source_ref` in the storage design, for example
   `sec:<accession>`.
-- `sec_api` gives no taxonomy version and no `iprx`, because the SEC JSON APIs carry neither. It
+- `adapter::edgar` gives no taxonomy version and no `iprx`, because the SEC JSON APIs carry neither. It
   writes `taxonomy_version` as `None`, and `copy_rank` in the order of the JSON. So its keys never
   join keys from Notes or the instance. The as-is store loads only the Notes data set and the
   instance XML. The SEC JSON APIs feed today's `sec` pipeline only.
@@ -503,8 +517,11 @@ section 4.
 `Filing` is a struct, and `FilingId` is a value type that holds a source and an ID, for example
 `sec:0000320193-26-000001`. Neither is a trait. One `Filing` per filing: `FilingId`, `EntityId`, form as open text (`10-K/A`), `is_amendment`,
 `filed`, `accepted`, the period of report, the fiscal year and period as filed, and the company
-attributes as filed: name, SIC, ticker, exchange, fiscal year end. A later filing with another
-value is a change over time, not a conflict.
+attributes as filed in `CompanyAttributes`: name, industry code, ticker, exchange, fiscal year end.
+The attributes belong to the company. A filing records them as of its filing, so a later filing
+with another value is a change over time, not a conflict. The industry code holds a scheme and a
+code, for example `sic:3571` or `nace:26.20`. SIC is the scheme of the SEC. A filing with another
+regulator, such as an ESEF filing, uses another scheme, so the code names its scheme.
 
 ### Key Design Decisions
 
@@ -528,9 +545,9 @@ All three serve data points with the same 9 keys: `accn`, `end`, `filed`, `form`
 Handle with separate deserializers that all produce the same output:
 
 ```
-xbrl::sec_api::company_facts    -> Vec<AsIsFact>, Vec<Filing>
-xbrl::sec_api::company_concept  -> Vec<AsIsFact>, Vec<Filing>
-xbrl::sec_api::frames           -> Vec<AsIsFact>, Vec<Filing>
+xbrl::adapter::edgar::company_facts    -> Vec<AsIsFact>, Vec<Filing>
+xbrl::adapter::edgar::company_concept  -> Vec<AsIsFact>, Vec<Filing>
+xbrl::adapter::edgar::frames           -> Vec<AsIsFact>, Vec<Filing>
 ```
 
 The resolution engine does not know which API an as-is fact came from.
@@ -561,7 +578,7 @@ StandardizedFact {
 
 - `rule` and `inputs` replace `resolution_path: Vec<String>`. The trace is typed and joins back to
   the as-is facts.
-- `inputs` replaces `source: Vec<Provenance>`. The input facts name their filings.
+- `inputs` replaces `sources: Vec<FilingSource>`. The input facts name their filings.
 - The release and its checksum are on every fact, so a fact proves its release without a join. In a
   Parquet column, dictionary encoding stores one entry per release.
 - The label, data type, and balance of an element are not on the fact. They live once per release
@@ -687,9 +704,9 @@ Agreement of copies:
 
 - Every rank must agree with rank 0 within the precision of the less precise of the two. Only the
   pairs with rank 0 count, so the result does not depend on the order of the checks.
-- If either copy has no `decimals`, as with `sec_api` facts, the values agree only if they are
+- If either copy has no `decimals`, as with `adapter::edgar` facts, the values agree only if they are
   equal.
-- For `sec_api` facts, rank 0 is the first copy in the JSON, not the most precise one.
+- For `adapter::edgar` facts, rank 0 is the first copy in the JSON, not the most precise one.
 
 The order of resolution and dedup, per entity and period. A period here is an exact period end
 and a length in quarters, as in the value key, because the Notes data set has no exact start:
@@ -897,7 +914,7 @@ Rule: **our math must be exact, their math gets a tolerance.**
 
 Uses `thiserror` with `#[error("...")]`. Follows the same conventions as the `sec` crate:
 - `[BracketedName]` prefix on every printed segment
-- `Caused by:` chains to an inner error, with no quotes around it. No xbrl layer uses it today.
+- `Caused by:` chains to an inner error, with no quotes around it. `InvalidDataPointValue` uses it.
 - `Reason:` for leaf errors with free-form descriptions (quoted)
 - No periods between segments — commas separate description from `Caused by:` / `Reason:`
 - A layer prints a segment only if it adds a fact: an action, an object, a cause, or an ID. `ErrorKind::Xbrl`, `XbrlErrorKind::FailedParsing`, and `XbrlErrorKind::FailedValidation` add none, so they pass through with `#[error(transparent)]`. The leaf names the failure. To tell parsing from validation, match on the variant.
@@ -910,8 +927,8 @@ ErrorKind
     ::FailedParsing(ParseErrorKind)
       ::InvalidJson { reason: String }
       ::MissingTopLevelKey { key: String }
-      ::MissingNamespace { namespace: String }
       ::InvalidDataPoint { concept: String, reason: String }
+      ::InvalidDataPointValue { concept: String, source: InvalidValue }
     ::FailedValidation(ValidationErrorKind)
       ::IncompleteData { missing_elements: Vec<CanonicalElement> }
       ::InconsistentIdentity { invariant: Invariant, left_value: i64, right_value: i64 }
@@ -951,11 +968,11 @@ pub enum ParseErrorKind {
     #[error("[MissingTopLevelKey] Expected key '{key}' in response")]
     MissingTopLevelKey { key: String },
 
-    #[error("[MissingNamespace] Expected namespace '{namespace}' under 'facts'")]
-    MissingNamespace { namespace: String },
-
     #[error("[InvalidDataPoint] Invalid data point for concept '{concept}', Reason: '{reason}'")]
     InvalidDataPoint { concept: String, reason: String },
+
+    #[error("[InvalidDataPointValue] Invalid value in a data point of concept '{concept}', Caused by: {source}")]
+    InvalidDataPointValue { concept: String, #[source] source: InvalidValue },
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -1101,7 +1118,7 @@ The model stays the same — just more nodes in the graph. Each sub-element gets
 
 **Overlapping concept names** — First alias in the priority list wins. Already how `ConceptDefinition` works.
 
-**Crate boundary** — `xbrl::sec_api` takes `&str` or `&serde_json::Value`. The `sec` crate owns HTTP.
+**Crate boundary** — `xbrl::adapter::edgar` takes `&str` or `&serde_json::Value`. The `sec` crate owns HTTP.
 
 ### Deferred (not needed for Phase 1)
 
@@ -1130,7 +1147,8 @@ The `AsIsFact` and `StandardizedFact` types and the `Taxonomy` trait are decided
 ## Follow-Up: Migrate `sec` Crate to Consume `xbrl` Types
 
 The `sec` crate currently has its own financial domain types (`CompanyData`, `CompanyFact`,
-`Observation`, `FilingSource`, `ConceptDefinition`) that duplicate what `xbrl` now provides.
+`Observation`, `sec::shared::financial::FilingSource`, `ConceptDefinition`) that duplicate what `xbrl`
+now provides.
 
 This requires two follow-up tickets:
 
@@ -1149,10 +1167,13 @@ Output: a design doc section or ADR with the recommended approach.
 ### Ticket 2: Implement the migration
 
 Based on the design from Ticket 1:
-1. Replace `sec::shared::financial::Observation` / `FilingSource` with `xbrl::core::AsIsFact` and `Filing`
+1. Replace `sec::shared::financial::Observation` with `xbrl::core::fact::AsIsFact`, and
+   `sec::shared::financial::FilingSource` with `xbrl::core::fact::FilingSource` (filing ID and
+   dates) and `Filing` (form, fiscal year, fiscal period). The two `FilingSource` types share a
+   name, not their fields
 2. Replace `sec::shared::financial::ConceptDefinition` with `xbrl::us_gaap::mappings::ConceptDefinition`
 3. Update `CompanyData` to use xbrl types for its key and value types
-4. Update `ParseCompanyFacts::compute_output_data_async()` to delegate to `xbrl::sec_api::company_facts::parse()`
+4. Update `ParseCompanyFacts::compute_output_data_async()` to delegate to `xbrl::adapter::edgar::company_facts::parse()`
 5. Remove the inline `resolve_concept`, `parse_observation`, `build_period`, `build_filing_source` from `sec`
 6. Remove duplicated type definitions from `sec::shared::financial/`
 

@@ -541,7 +541,7 @@ Today: `ParseCompanyFacts → CompanyData`; `CreateFinancialStatements → place
 
 ```mermaid
 flowchart LR
-  A["Extract (SEC adapter)\nfetch EDGAR company facts"] --> B["Parse → RawObservation[]\n(native us-gaap tags, CIK, accession)"]
+  A["Extract (SEC adapter)\nfetch EDGAR company facts"] --> B["Parse → AsIsFact[] + Filing[]\n(every namespace, CIK, accession)"]
   B --> B2["Persist raw store (SEC adapter)"]
   B --> C["Resolve → ResolvedFact[]\n(CanonicalElement + Confidence + path)"]
   C --> D["CreateFinancialStatements\n→ FactSet(s) (was placeholder)"]
@@ -552,7 +552,7 @@ flowchart LR
 ```
 
 - **Resolution moves earlier and becomes the adapter boundary:** `ParseCompanyFacts` emits
-  `RawObservation`s (already implemented in `xbrl::sec_api::company_facts::parse`); a new
+  `AsIsFact`s (already implemented in `xbrl::adapter::edgar::company_facts::parse`); a new
   resolve step turns them into `ResolvedFact`s. `CreateFinancialStatements` stops emitting a
   placeholder and emits `FactSet`s (the intermediate representation — no extra DTO needed).
 - **Load/`StoreData`** is the dual-writer: raw store (adapter) → graph → canonical facts.
@@ -565,7 +565,7 @@ flowchart LR
 | Step | Action |
 | --- | --- |
 | 1 | Promote `xbrl::core` (CanonicalElement, ResolvedFact, FactSet, Confidence, Invariant, Period, Unit) to the **standard-neutral core**; decouple `CanonicalElement` from the `us_gaap` module namespace. |
-| 2 | Reframe `xbrl::us_gaap` as the **SEC/US-GAAP adapter** (raw parse + resolution map + filing metadata). Keep `sec_api::company_facts::parse`. |
+| 2 | Reframe `xbrl::us_gaap` as the **SEC/US-GAAP adapter** (raw parse + resolution map + filing metadata). Keep `adapter::edgar::company_facts::parse`. |
 | 3 | Add `Lei` domain concept + `CompanyId` enum under `shared/`; add CIK→LEI translation to the SEC adapter. |
 | 4 | Implement the resolution engine (`xbrl::core::graph` TODO stub) — the 4-tier ladder + calc-linkbase derivation. |
 | 5 | Wire `CreateFinancialStatements` to emit `FactSet`s; retire `sec::CompanyData`. |

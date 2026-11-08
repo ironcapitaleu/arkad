@@ -5,8 +5,8 @@
 
 use super::confidence::Confidence;
 use super::elements::CanonicalElement;
+use super::fact::FilingSource;
 use super::period::Period;
-use super::provenance::Provenance;
 use super::unit::Unit;
 
 /// A resolved financial fact with full traceability.
@@ -28,8 +28,8 @@ pub struct ResolvedFact {
     confidence: Confidence,
     /// The resolution steps that produced this value (for traceability).
     resolution_path: Vec<String>,
-    /// The source filing(s) this value was derived from.
-    source: Vec<Provenance>,
+    /// The filings this value comes from, with their dates.
+    sources: Vec<FilingSource>,
 }
 
 impl ResolvedFact {
@@ -42,7 +42,7 @@ impl ResolvedFact {
         period: Period,
         confidence: Confidence,
         resolution_path: Vec<String>,
-        source: Vec<Provenance>,
+        sources: Vec<FilingSource>,
     ) -> Self {
         Self {
             canonical_element,
@@ -51,7 +51,7 @@ impl ResolvedFact {
             period,
             confidence,
             resolution_path,
-            source,
+            sources,
         }
     }
 
@@ -69,8 +69,8 @@ impl ResolvedFact {
 
     /// Returns the unit of measurement.
     #[must_use]
-    pub const fn unit(&self) -> Unit {
-        self.unit
+    pub const fn unit(&self) -> &Unit {
+        &self.unit
     }
 
     /// Returns the time period.
@@ -91,9 +91,9 @@ impl ResolvedFact {
         &self.resolution_path
     }
 
-    /// Returns the source provenance records.
+    /// Returns the filings this value was derived from.
     #[must_use]
-    pub fn source(&self) -> &[Provenance] {
-        &self.source
+    pub fn sources(&self) -> &[FilingSource] {
+        &self.sources
     }
 }

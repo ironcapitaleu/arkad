@@ -1,46 +1,315 @@
 //! # Unit
 //!
-//! Measurement units for financial data points.
+//! Provides [`Unit`], the unit of a numeric fact, and [`Measure`], one part of a unit.
 
 use std::fmt;
+use std::str::FromStr;
 
-/// The unit of measurement for a financial data point.
-#[non_exhaustive]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize)]
-pub enum Unit {
-    /// United States Dollars.
-    Usd,
-    /// Number of shares.
-    Shares,
-    /// Dollars per share (e.g., EPS).
-    UsdPerShare,
-    /// Dimensionless ratio or percentage.
-    Pure,
+use super::invalid_value::{InvalidValue, InvalidValueReason, require_token};
+
+/// One measure of a unit, for example `USD`, `EUR`, `shares`, or `pure`.
+///
+/// A measure holds the local name as the source writes it. The Notes data set and the SEC JSON APIs
+/// write no prefix, so the instance parser drops the prefix too, and both sources give one text.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize)]
+pub struct Measure(String);
+
+impl Measure {
+    /// The type name that [`InvalidValue`] names when an input breaks a rule.
+    const TYPE_NAME: &'static str = "Measure";
+
+    /// Creates a [`Measure`] from its text.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`InvalidValue`] if the text is empty, holds whitespace, or holds `/` or `*`.
+    pub fn new(text: impl Into<String>) -> Result<Self, InvalidValue> {
+        let text = text.into();
+        require_token(Self::TYPE_NAME, &text)?;
+        if let Some(separator) = text
+            .chars()
+            .find(|c| [Unit::DIVISION, Unit::MULTIPLICATION].contains(c))
+        {
+            return Err(InvalidValue::new(
+                Self::TYPE_NAME,
+                InvalidValueReason::ContainsSeparator(separator),
+                text,
+            ));
+        }
+        Ok(Self(text))
+    }
+
+    /// Returns the text of the measure.
+    #[must_use]
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl fmt::Display for Measure {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+/// The unit of a numeric fact: numerator measures and denominator measures.
+///
+/// The set of units is open. A filer can report in any currency, for example `EUR`, and an XBRL
+/// unit can divide or multiply measures, for example `USD/shares`. The text form is the canonical
+/// form of silver: the numerator measures joined by `*`, then `/` and the denominator measures if
+/// there are any. The measures of each side are sorted, so one unit has one text.
+///
+/// # Examples
+///
+/// ```
+/// use std::str::FromStr;
+///
+/// use xbrl::core::unit::Unit;
+///
+/// let text = "USD/shares";
+///
+/// let expected_result = "USD/shares";
+///
+/// let unit = Unit::from_str(text).expect("Given a hardcoded unit with one measure per side, the parse should always succeed");
+/// let result = unit.to_string();
+///
+/// assert_eq!(result, expected_result);
+/// ```
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize)]
+pub struct Unit {
+    numerator: Vec<Measure>,
+    denominator: Vec<Measure>,
 }
 
 impl Unit {
-    /// Parses a [`Unit`] from an SEC XBRL unit string.
+    /// The type name that [`InvalidValue`] names when an input breaks a rule.
+    const TYPE_NAME: &'static str = "Unit";
+
+    /// The character between the numerator and the denominator in the text form.
+    pub const DIVISION: char = '/';
+
+    /// The character between two measures of one side in the text form.
+    pub const MULTIPLICATION: char = '*';
+
+    /// Creates a [`Unit`] from its numerator and denominator measures, and sorts each side.
     ///
-    /// Returns `None` if the input does not match any known unit.
-    #[must_use]
-    pub fn from_sec_str(s: &str) -> Option<Self> {
-        match s {
-            "USD" => Some(Self::Usd),
-            "shares" => Some(Self::Shares),
-            "USD/shares" | "USD/share" => Some(Self::UsdPerShare),
-            "pure" => Some(Self::Pure),
-            _ => None,
+    /// # Errors
+    ///
+    /// Returns [`InvalidValue`] with [`InvalidValueReason::Empty`] if the numerator has no measure.
+    pub fn new(
+        mut numerator: Vec<Measure>,
+        mut denominator: Vec<Measure>,
+    ) -> Result<Self, InvalidValue> {
+        if numerator.is_empty() {
+            return Err(InvalidValue::new(
+                Self::TYPE_NAME,
+                InvalidValueReason::Empty,
+                "",
+            ));
         }
+        numerator.sort();
+        denominator.sort();
+        Ok(Self {
+            numerator,
+            denominator,
+        })
     }
+
+    /// Returns the numerator measures, sorted.
+    #[must_use]
+    pub fn numerator(&self) -> &[Measure] {
+        &self.numerator
+    }
+
+    /// Returns the denominator measures, sorted. The slice is empty if the unit divides by nothing.
+    #[must_use]
+    pub fn denominator(&self) -> &[Measure] {
+        &self.denominator
+    }
+}
+
+impl FromStr for Unit {
+    type Err = InvalidValue;
+
+    /// Parses a unit from its text form, for example `USD`, `USD/shares`, or `USD*shares/pure`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`InvalidValue`] if a side is empty, a measure is invalid, or the text holds more than
+    /// one `/`.
+    fn from_str(text: &str) -> Result<Self, Self::Err> {
+        let mut sides = text.splitn(2, Self::DIVISION);
+        let numerator = parse_side(sides.next().unwrap_or_default(), text)?;
+        let denominator = match sides.next() {
+            Some(side) => parse_side(side, text)?,
+            None => Vec::new(),
+        };
+        Self::new(numerator, denominator)
+    }
+}
+
+fn parse_side(side: &str, text: &str) -> Result<Vec<Measure>, InvalidValue> {
+    side.split(Unit::MULTIPLICATION)
+        .map(|measure| {
+            if measure.is_empty() {
+                Err(InvalidValue::new(
+                    Unit::TYPE_NAME,
+                    InvalidValueReason::Empty,
+                    text,
+                ))
+            } else {
+                Measure::new(measure)
+                    .map_err(|error| InvalidValue::new(Unit::TYPE_NAME, error.reason, text))
+            }
+        })
+        .collect()
 }
 
 impl fmt::Display for Unit {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Usd => write!(f, "USD"),
-            Self::Shares => write!(f, "shares"),
-            Self::UsdPerShare => write!(f, "USD/share"),
-            Self::Pure => write!(f, "pure"),
+        write_measures(f, &self.numerator)?;
+        if !self.denominator.is_empty() {
+            write!(f, "{}", Self::DIVISION)?;
+            write_measures(f, &self.denominator)?;
         }
+        Ok(())
+    }
+}
+
+fn write_measures(f: &mut fmt::Formatter<'_>, measures: &[Measure]) -> fmt::Result {
+    for (index, measure) in measures.iter().enumerate() {
+        if index > 0 {
+            write!(f, "{}", Unit::MULTIPLICATION)?;
+        }
+        write!(f, "{measure}")?;
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use pretty_assertions::assert_eq;
+
+    use super::*;
+
+    fn measure(text: &str) -> Measure {
+        Measure::new(text).expect(
+            "Given a hardcoded measure without separators, the creation should always succeed",
+        )
+    }
+
+    const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
+    #[test]
+    const fn should_implement_auto_traits_for_measure() {
+        implements_auto_traits::<Measure>();
+    }
+
+    #[test]
+    const fn should_implement_auto_traits_for_unit() {
+        implements_auto_traits::<Unit>();
+    }
+
+    #[test]
+    fn should_parse_currency_when_unit_has_one_measure() {
+        let text = "EUR";
+
+        let expected_result = Unit::new(vec![measure("EUR")], vec![]);
+
+        let result = Unit::from_str(text);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_parse_denominator_when_unit_divides() {
+        let text = "USD/shares";
+
+        let expected_result = Unit::new(vec![measure("USD")], vec![measure("shares")]);
+
+        let result = Unit::from_str(text);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_print_sorted_measures_when_numerator_has_two_measures() {
+        let unit = Unit::new(
+            vec![measure("shares"), measure("USD")],
+            vec![measure("pure")],
+        )
+        .expect("Given a hardcoded numerator with measures, the creation should always succeed");
+
+        let expected_result = "USD*shares/pure";
+
+        let result = unit.to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_reject_unit_when_numerator_is_empty() {
+        let numerator = vec![];
+
+        let expected_result = Err(InvalidValue::new("Unit", InvalidValueReason::Empty, ""));
+
+        let result = Unit::new(numerator, vec![measure("shares")]);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_reject_text_when_denominator_is_empty() {
+        let text = "USD/";
+
+        let expected_result = Err(InvalidValue::new("Unit", InvalidValueReason::Empty, "USD/"));
+
+        let result = Unit::from_str(text);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_reject_text_when_it_holds_two_slashes() {
+        let text = "USD/shares/day";
+
+        let expected_result = Err(InvalidValue::new(
+            "Unit",
+            InvalidValueReason::ContainsSeparator('/'),
+            "USD/shares/day",
+        ));
+
+        let result = Unit::from_str(text);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_reject_text_when_a_measure_holds_whitespace() {
+        let text = "US D";
+
+        let expected_result = Err(InvalidValue::new(
+            "Unit",
+            InvalidValueReason::ContainsWhitespace,
+            "US D",
+        ));
+
+        let result = Unit::from_str(text);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_reject_measure_when_it_holds_a_slash() {
+        let text = "USD/shares";
+
+        let expected_result = Err(InvalidValue::new(
+            "Measure",
+            InvalidValueReason::ContainsSeparator('/'),
+            "USD/shares",
+        ));
+
+        let result = Measure::new(text);
+
+        assert_eq!(result, expected_result);
     }
 }

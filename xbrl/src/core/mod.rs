@@ -1,22 +1,41 @@
 //! # Core Domain Types
 //!
-//! Contains the canonical financial elements, observation types,
-//! resolution engine, and all supporting primitives.
+//! Provides the fact model, the standard concept set, and the types every source and every
+//! taxonomy plug-in shares.
+//!
+//! The core knows no taxonomy and no source. Its types are open, so a new currency, form, or
+//! namespace needs no change here.
+//!
+//! ## Modules
+//!
+//! - [`concept`]: Concept names, namespace families, and namespaces.
+//! - [`confidence`]: How a standardized value was resolved.
+//! - [`elements`]: The standard concept set.
+//! - [`entity_name`]: The name of a company.
+//! - [`fact`]: The as-is fact, its value key, and the types of its fields.
+//! - [`fact_set`]: The resolved facts of one entity and one period.
+//! - [`filing`]: A filing, its ID, and the entity ID.
+//! - [`fiscal_period`]: The fiscal period of a filing as filed.
+//! - [`fiscal_year`]: The fiscal year of a filing as filed.
+//! - [`form`]: The form type of a filing as filed.
+//! - [`graph`]: The resolution and validation engine.
+//! - [`invalid_value`]: The error of a core value type.
+//! - [`period`]: Instants and durations.
+//! - [`resolved_fact`]: A value resolved to a standard concept.
+//! - [`unit`](mod@unit): Units and measures.
 
-pub mod accession_number;
+pub mod concept;
 pub mod confidence;
 pub mod elements;
 pub mod entity_name;
+pub mod fact;
 pub mod fact_set;
+pub mod filing;
 pub mod fiscal_period;
 pub mod fiscal_year;
 pub mod form;
-pub mod frame;
 pub mod graph;
-pub mod namespace;
-pub mod observation;
+pub mod invalid_value;
 pub mod period;
-pub mod provenance;
-pub mod quarter;
 pub mod resolved_fact;
 pub mod unit;

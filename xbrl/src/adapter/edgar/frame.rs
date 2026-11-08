@@ -19,28 +19,32 @@ pub struct Frame {
 }
 
 impl Frame {
+    /// The prefix of every frame: calendar year.
+    pub const PREFIX: &'static str = "CY";
+
+    /// The suffix of a frame that covers an instant.
+    pub const INSTANT_SUFFIX: char = 'I';
+
+    /// The number of digits of the year.
+    pub const YEAR_LENGTH: usize = 4;
+
     /// Parses a [`Frame`] from an SEC frame string (e.g., `"CY2024Q1I"`).
     ///
     /// Returns `None` if the input cannot be parsed.
     #[must_use]
     pub fn parse(s: &str) -> Option<Self> {
-        let s = s.strip_prefix("CY")?;
+        let s = s.strip_prefix(Self::PREFIX)?;
 
         let (rest, instant) = s
-            .strip_suffix('I')
+            .strip_suffix(Self::INSTANT_SUFFIX)
             .map_or((s, false), |stripped| (stripped, true));
 
-        let (year_str, quarter) = if rest.len() > 4 {
-            let year_str = &rest[..4];
-            let q_str = &rest[4..];
-            let quarter = match q_str {
-                "Q1" => Some(Quarter::Q1),
-                "Q2" => Some(Quarter::Q2),
-                "Q3" => Some(Quarter::Q3),
-                "Q4" => Some(Quarter::Q4),
-                _ => return None,
-            };
-            (year_str, quarter)
+        let (year_str, quarter) = if rest.len() > Self::YEAR_LENGTH {
+            let (year_str, q_str) = rest.split_at_checked(Self::YEAR_LENGTH)?;
+            let quarter = Quarter::ALL
+                .into_iter()
+                .find(|quarter| quarter.to_string() == q_str)?;
+            (year_str, Some(quarter))
         } else {
             (rest, None)
         };
@@ -74,12 +78,12 @@ impl Frame {
 
 impl fmt::Display for Frame {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "CY{}", self.year)?;
+        write!(f, "{}{}", Self::PREFIX, self.year)?;
         if let Some(q) = self.quarter {
             write!(f, "{q}")?;
         }
         if self.instant {
-            write!(f, "I")?;
+            write!(f, "{}", Self::INSTANT_SUFFIX)?;
         }
         Ok(())
     }
@@ -130,6 +134,17 @@ mod tests {
             quarter: Some(Quarter::Q2),
             instant: true,
         });
+
+        let result = Frame::parse(text);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_none_when_year_holds_a_multi_byte_character() {
+        let text = "CY202€Q1";
+
+        let expected_result = None;
 
         let result = Frame::parse(text);
 
