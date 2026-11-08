@@ -224,7 +224,7 @@ impl NumRow {
     /// # Errors
     ///
     /// Returns [`InvalidValue`] if `ddate` is not a date, `datp` is not a whole number of days,
-    /// `qtrs` is not a number of 16 bits, or `durp` is not a number.
+    /// `qtrs` is not a number of 16 bits, or `qtrs` is 0 and `durp` is not a number.
     pub fn period(&self) -> Result<Period, InvalidValue> {
         period(
             Self::TYPE_NAME,

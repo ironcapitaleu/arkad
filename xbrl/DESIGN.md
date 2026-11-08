@@ -900,15 +900,15 @@ Where each field of `AsIsFact` comes from:
 | ----- | -------------- | ------------ |
 | `filing` | `sub.adsh` | The accession number of the filing |
 | `entity` | `sub.cik` | The entity identifier of the context |
-| `concept` | `num.tag` with the namespace of `num.version` | The element name |
-| `taxonomy_version` | `num.version` | The schema reference of the filing |
+| `concept` | `tag` with the namespace of `version`, from `num` or `txt` | The element name |
+| `taxonomy_version` | `num.version` or `txt.version` | The schema reference of the filing |
 | `period` | `ddate` minus `datp`, and `qtrs`. `qtrs` 0 is an instant only if `durp` is 0 | The period of the context |
-| `unit` | `num.uom`, with `/shares` restored if `tag.datatype` is `perShare` | The unit of the fact |
-| `dimensions` | `dim.segments` through `num.dimh`, and `coreg`. A lowercase prefix before a capitalized name is stripped. A typed member such as `abc:Def` loses its prefix too. A row with `segt` 1 is cut and gives a finding | The members of the context |
-| `value` | `num.value` or `txt.value`. An empty `num.value` is nil. An empty `txt.value` is nil only if `txt.srclen` is 0, else an empty text | The content of the fact, or `xsi:nil` |
-| `decimals` | `num.dcml`. 32767 is `Infinite`. -32768, which only nil rows carry, is `None` | The `decimals` attribute |
-| `copy_rank` | Assigned by the parser in the order of `num.iprx` | Assigned by the parser in the SEC order of `iprx` |
-| `footnotes` | `num.footnote` | The footnote links |
+| `unit` | `num.uom`, with `/shares` restored if `tag.datatype` is `perShare`. `None` for a `txt` row | The unit of the fact |
+| `dimensions` | `dim.segments` through `dimh`, and `coreg`. A lowercase prefix before a capitalized name is stripped. A typed member such as `abc:Def` loses its prefix too. A row with `segt` 1 is cut and gives a finding | The members of the context |
+| `value` | `num.value` or `txt.value`. An empty `num.value` is nil. An empty `txt.value` is nil only if `txt.srclen` is 0, else an empty text. The parser drops `txt.lang`, which is not part of the key of `txt`. Every `txt` row of `2026_10` is `en-US` | The content of the fact, or `xsi:nil` |
+| `decimals` | `num.dcml`. 32767 is `Infinite`. -32768, which only nil rows carry, is `None`. `None` for a `txt` row | The `decimals` attribute |
+| `copy_rank` | Assigned by the parser in the order of `iprx`, over the `num` and `txt` rows | Assigned by the parser in the SEC order of `iprx` |
+| `footnotes` | `num.footnote` or `txt.footnote` | The footnote links |
 | `filed`, `accepted` | `sub.filed`, `sub.accepted` in the time of New York, converted to UTC | The filed date of the daily index. `accepted` is empty |
 
 States and errors:

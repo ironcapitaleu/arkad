@@ -237,7 +237,7 @@ fn number_copies(
                 InvalidValue::new(
                     COPY_RANK_TYPE_NAME,
                     InvalidValueReason::OutOfRange,
-                    candidates[index].copy_index.to_string(),
+                    earlier.len().to_string(),
                 ),
             )),
         }
@@ -249,8 +249,7 @@ fn number_copies(
         .collect()
 }
 
-/// A `num` or a `txt` row: the columns of a fact that both tables share, and the content of the
-/// fact, which differs between them.
+/// A `num` or `txt` row. Both tables share the key columns of a fact. The content differs.
 trait FactRow: fmt::Display {
     fn tag(&self) -> &str;
     fn version(&self) -> &str;
@@ -643,6 +642,43 @@ mod tests {
             .into_iter()
             .map(|fact| (fact.unit, fact.value, fact.decimals))
             .collect();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_name_the_txt_table_in_the_finding_when_a_txt_row_has_no_dim_row() {
+        let txt = TxtRow {
+            tag: "DocumentType".to_owned(),
+            version: "dei/2026".to_owned(),
+            ddate: "20260930".to_owned(),
+            qtrs: "1".to_owned(),
+            dimh: "0xff".to_owned(),
+            iprx: "0".to_owned(),
+            durp: "0.0".to_owned(),
+            datp: "0.0".to_owned(),
+            ..TxtRow::default()
+        };
+        let rows = NotesFiling {
+            txt: vec![txt],
+            ..notes_filing(vec![])
+        };
+        let plugin = us_gaap();
+        let registry = registry(&plugin);
+
+        let expected_result = vec![Finding::UnmappedRow {
+            filing: filing_id(),
+            row: "txt.tsv DocumentType dei/2026 20260930 1 0xff 0".to_owned(),
+            reason: InvalidValue::new(
+                "TxtRow",
+                InvalidValueReason::NoMatchingRow("dim.tsv"),
+                "0xff",
+            ),
+        }];
+
+        let result = parse(&rows, &registry)
+            .expect("Given a valid sub row, the parse should always succeed")
+            .findings;
 
         assert_eq!(result, expected_result);
     }
