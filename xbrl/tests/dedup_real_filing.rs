@@ -28,37 +28,23 @@ use xbrl::core::concept::{ConceptName, NamespaceFamily};
 use xbrl::core::confidence::Confidence;
 use xbrl::core::dedup::{Series, more_precise, newest_filing};
 use xbrl::core::elements::CanonicalElement;
-use xbrl::core::fact::{AsIsFact, Dimensions, FactKey, TaxonomyVersion};
+use xbrl::core::fact::{AsIsFact, Dimensions, FactKey, FactValue, TaxonomyVersion};
 use xbrl::core::filing::{EntityId, FilingId};
 use xbrl::core::finding::Finding;
 use xbrl::core::taxonomy::registry::Registry;
 use xbrl::core::unit::Unit;
+use xbrl::tests::fixtures::data::fixture_taxonomy_with_aliases;
 use xbrl::tests::fixtures::data::instance::parse_instance_fixture;
 use xbrl::tests::fixtures::data::notes::parse_notes_fixture;
 use xbrl::tests::fixtures::sample_fact::{date, revenue_aliases};
-use xbrl::tests::fixtures::sample_taxonomy::{FakeTaxonomy, declaration, plugin_with_aliases};
 
 /// The as-is concept of revenue in the fixture filing, the third concept of the revenue alias list.
 const REVENUE_CONCEPT: &str = "RevenueFromContractWithCustomerExcludingAssessedTax";
 
-/// Returns a plug-in that declares the families of the fixture filing, as `fixture_taxonomy` does,
-/// and holds the revenue alias list.
-fn revenue_plugin() -> FakeTaxonomy {
-    plugin_with_aliases(
-        "us-gaap/2026",
-        vec![
-            declaration("us-gaap", "http://fasb.org/us-gaap/{release}", true),
-            declaration("dei", "http://xbrl.sec.gov/dei/{release}", true),
-            declaration("srt", "http://fasb.org/srt/{release}", true),
-            declaration("ecd", "http://xbrl.sec.gov/ecd/{release}", true),
-        ],
-        vec![revenue_aliases()],
-    )
-}
-
-/// Runs `core/dedup/more-precise@1` and tiers 1 and 2 on `facts` with [`revenue_plugin`].
+/// Runs `core/dedup/more-precise@1` and tiers 1 and 2 on `facts` with the fixture plug-in and the
+/// revenue alias list.
 fn candidates_of(facts: &[AsIsFact]) -> FilingCandidates {
-    let plugin = revenue_plugin();
+    let plugin = fixture_taxonomy_with_aliases(vec![revenue_aliases()]);
     let registry = Registry::new(vec![&plugin]).expect(
         "Given one plug-in with four distinct families, the creation should always succeed",
     );
@@ -102,10 +88,12 @@ fn revenue_quarter(period_end: NaiveDate, pairs: &[(&str, &str)]) -> SeriesKey {
 fn should_find_99_conflicts_when_more_precise_runs_on_the_notes_facts() {
     let facts = parse_notes_fixture().facts;
 
-    // 99 keys hold two ranks, and none of the 99 pairs agrees.
-    let expected_result = 99;
+    // 613 facts: 415 keys with one rank, and 99 keys with two ranks that disagree. 415 + 2 x 99 =
+    // 613, so no rank agrees with rank 0 and drops out.
+    let expected_result = (415, 99);
 
-    let result = more_precise(&facts).conflicts().len();
+    let copies = more_precise(&facts);
+    let result = (copies.facts().len(), copies.conflicts().len());
 
     assert_eq!(result, expected_result);
 }
@@ -114,24 +102,68 @@ fn should_find_99_conflicts_when_more_precise_runs_on_the_notes_facts() {
 fn should_find_99_conflicts_when_more_precise_runs_on_the_instance_facts() {
     let facts = parse_instance_fixture().facts;
 
-    // 99 keys hold two ranks, and none of the 99 pairs agrees.
-    let expected_result = 99;
+    // 613 facts: 415 keys with one rank, and 99 keys with two ranks that disagree. 415 + 2 x 99 =
+    // 613, so no rank agrees with rank 0 and drops out.
+    let expected_result = (415, 99);
 
-    let result = more_precise(&facts).conflicts().len();
+    let copies = more_precise(&facts);
+    let result = (copies.facts().len(), copies.conflicts().len());
 
     assert_eq!(result, expected_result);
 }
 
 #[test]
-fn should_report_the_quarter_as_rank_0_when_revenue_of_the_quarter_and_the_four_months_conflict() {
+fn should_rank_the_quarter_before_the_four_months_when_revenue_of_both_shares_a_value_key() {
+    let facts = parse_instance_fixture().facts;
+
+    let expected_result = vec![
+        (
+            0,
+            "2026-07-01 to 2026-09-30".to_string(),
+            FactValue::Numeric(number("2442000000")),
+        ),
+        (
+            1,
+            "2026-06-01 to 2026-09-30".to_string(),
+            FactValue::Numeric(number("3281000000")),
+        ),
+    ];
+
+    let copies = more_precise(&facts);
+    let result: Vec<(u16, String, FactValue)> = copies
+        .conflicts()
+        .iter()
+        .find(|ranks| {
+            ranks[0].concept.local_name() == REVENUE_CONCEPT
+                && ranks[0].context.period.end() == date(2026, 9, 30)
+                && ranks[0].context.dimensions == Dimensions::default()
+        })
+        .map(|ranks| {
+            ranks
+                .iter()
+                .map(|fact| {
+                    (
+                        fact.copy_rank,
+                        fact.context.period.to_string(),
+                        fact.value.clone(),
+                    )
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+
+    assert_eq!(result, expected_result);
+}
+
+#[test]
+fn should_report_rank_0_as_key_and_rank_1_as_disagreeing_when_revenue_of_the_quarter_has_a_conflict()
+ {
     let facts = parse_instance_fixture().facts;
     let filing = FilingId::new("sec", "0001628280-26-068246")
         .expect("Given the hardcoded ID of the fixture filing, the creation should always succeed");
     let family = NamespaceFamily::new("us-gaap")
         .expect("Given a hardcoded family without whitespace, the creation should always succeed");
 
-    // Rank 0 is the quarter from 2026-07-01, 2,442 million. Rank 1 is the four months from
-    // 2026-06-01, 3,281 million.
     let expected_result = Some(Finding::Conflict {
         entity: fedex_freight(),
         key: FactKey {
@@ -170,7 +202,7 @@ fn should_report_the_quarter_as_rank_0_when_revenue_of_the_quarter_and_the_four_
 fn should_give_the_june_revenue_when_the_dedup_rules_run_on_the_notes_facts() {
     let facts = parse_notes_fixture().facts;
 
-    // Only the month of June has no conflict. It lasts under 45 days, so its length is 0
+    // Only the month of June has no conflict. June lasts 30 days, so its length rounds to 0
     // quarters. Its concept is the third of the alias list, so its confidence is a synonym.
     let expected_result = vec![
         (
