@@ -54,8 +54,8 @@ pub struct Chronology {
 /// The forms the entity files give the expected periods. A filer of a `10-Q` expects `Q1`, `Q2`,
 /// `Q3`, and `FY`. A filer of only `10-K`, `10-KT`, `20-F`, or `40-F` expects `FY`. Another filer expects
 /// no period. The period of report of each annual report is a fiscal year end. Between two year
-/// ends, the check expects a period every 3 months back from the later end if a quarterly report
-/// lies between them, otherwise every 12 months. After the last year end, it steps forward in the
+/// ends, the check expects a period every 3 months back from the later end once the entity has
+/// filed a quarterly report before that end, otherwise every 12 months. After the last year end, it steps forward in the
 /// same way up to the latest period of report. The period of report of a quarterly report replaces
 /// the expected end within 7 days of it, or adds one. Every timeline of the entity expects the
 /// same periods.
@@ -179,7 +179,7 @@ fn gaps(timeline: &Timeline, ends: &Ends, calendar: &Calendar) -> Vec<Finding> {
 
 fn overlaps(timeline: &Timeline, ends: &Ends) -> Vec<Finding> {
     let mut by_length: BTreeMap<u16, Vec<NaiveDate>> = BTreeMap::new();
-    for &(end, quarters) in ends.reported.iter().filter(|(_, quarters)| *quarters > 0) {
+    for &(end, quarters) in &ends.reported {
         by_length.entry(quarters).or_default().push(end);
     }
     let mut findings = Vec::new();
@@ -239,7 +239,7 @@ impl Calendar {
         let mut previous: Option<NaiveDate> = None;
         for &year_end in &year_ends {
             if let Some(previous) = previous {
-                let step = step_between(&quarterly, Some(previous), Some(year_end));
+                let step = step_before(&quarterly, Some(year_end));
                 expected.extend(steps_back(previous, year_end, step));
             }
             expected.push(Expected {
@@ -253,7 +253,7 @@ impl Calendar {
             .filter_map(|filing| filing.period_of_report)
             .max();
         if let (Some(last), Some(latest)) = (previous, latest) {
-            let step = step_between(&quarterly, Some(last), None);
+            let step = step_before(&quarterly, None);
             expected.extend(steps_forward(last, latest, step));
         }
         for filing in &quarterly {
@@ -302,16 +302,18 @@ fn is_form(form: &Form, forms: &[&str]) -> bool {
     forms.contains(&base)
 }
 
-/// Returns the months between two expected periods after `after` and before `before`: 3 if a
-/// quarterly report lies in that span, otherwise 12. A missing bound leaves the span open.
-fn step_between(quarterly: &[&Filing], after: Option<NaiveDate>, before: Option<NaiveDate>) -> u32 {
-    let in_span = quarterly
+/// Returns the step in months for the span that ends at `before`: 3 if the entity filed a
+/// quarterly report before that end, otherwise 12. A missing end counts every quarterly report.
+fn step_before(quarterly: &[&Filing], before: Option<NaiveDate>) -> u32 {
+    let is_quarterly = quarterly
         .iter()
         .filter_map(|filing| filing.period_of_report)
-        .any(|report| {
-            after.is_none_or(|after| report > after) && before.is_none_or(|before| report < before)
-        });
-    if in_span { QUARTER_MONTHS } else { YEAR_MONTHS }
+        .any(|report| before.is_none_or(|before| report < before));
+    if is_quarterly {
+        QUARTER_MONTHS
+    } else {
+        YEAR_MONTHS
+    }
 }
 
 /// Returns the expected periods before `year_end`, every `step` months back, that lie more than
@@ -806,10 +808,16 @@ mod tests {
     #[test]
     fn should_label_gap_by_the_filing_when_quarterly_report_names_its_period() {
         let facts = vec![value(date(2022, 12, 31), 4), value(date(2023, 6, 30), 2)];
-        let mut filings = fiscal_year_change_filings();
-        filings[1].fiscal_period = Some(FiscalPeriod::new("Q1").expect(
+        let mut report = filing("10-Q", date(2023, 3, 31), "1231");
+        report.fiscal_period = Some(FiscalPeriod::new("Q1").expect(
             "Given a hardcoded period without whitespace, the creation should always succeed",
         ));
+        let filings = vec![
+            filing("10-K", date(2022, 12, 31), "1231"),
+            report,
+            filing("10-KT", date(2023, 6, 30), "0630"),
+            filing("10-Q", date(2023, 9, 30), "0630"),
+        ];
 
         let expected_result = vec![gap(date(2023, 3, 31), "Q1", None)];
 
@@ -877,6 +885,31 @@ mod tests {
 
         let result =
             check_chronology(series(vec![first, second], Vec::new()), &[], findings).findings;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_report_gaps_when_quarterly_filer_files_no_quarterly_report_for_a_year() {
+        let facts = vec![
+            value(date(2022, 12, 31), 4),
+            value(date(2023, 12, 31), 4),
+            value(date(2024, 3, 31), 1),
+        ];
+        let filings = vec![
+            filing("10-Q", date(2022, 3, 31), "1231"),
+            filing("10-K", date(2022, 12, 31), "1231"),
+            filing("10-K", date(2023, 12, 31), "1231"),
+            filing("10-Q", date(2024, 3, 31), "1231"),
+        ];
+
+        let expected_result = vec![
+            gap(date(2023, 3, 31), "Q1", None),
+            gap(date(2023, 6, 30), "Q2", None),
+            gap(date(2023, 9, 30), "Q3", None),
+        ];
+
+        let result = check_chronology(series(facts, Vec::new()), &filings, Vec::new()).findings;
 
         assert_eq!(result, expected_result);
     }
