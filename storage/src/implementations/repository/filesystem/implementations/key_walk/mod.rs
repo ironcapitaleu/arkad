@@ -43,17 +43,19 @@ impl<A, D> FilesystemRepository<A, D> {
     /// keys come out sorted by the bytes of the key text, each key once. The walk reads no file.
     ///
     /// A key comes from a file whose name ends in [`METADATA_SUFFIX`]. So the walk skips a document
-    /// without metadata and a hidden `.tmp` file of a write. It skips a symbolic link, and a name
-    /// that no [`DocumentKey`] can hold, such as a name that is not valid UTF-8.
+    /// without metadata and a hidden `.tmp` file of a write. It skips a symbolic link under the
+    /// prefix, a name that disappears while the walk reads its directory, and a name that no
+    /// [`DocumentKey`] can hold, such as a name that is not valid UTF-8. The walk follows a
+    /// symbolic link in the path of the prefix itself.
     ///
     /// # Errors
     ///
     /// Yields a [`ReadError::Backend`] item that holds a [`FailedFilesystemOperation`] if:
     /// - the root does not exist or is not a directory. The stream ends after this item.
-    /// - the filesystem cannot list the directory the prefix names. The stream ends after this
-    ///   item.
-    /// - the filesystem cannot list a directory below it, or inspect a name in it. The stream
-    ///   continues with the next name.
+    /// - the filesystem cannot list the directory the prefix names, or inspect a name in it. The
+    ///   stream ends after this item.
+    /// - the filesystem cannot list a directory below it, or inspect a name in it. The walk skips
+    ///   that directory and continues with the next name of its parent.
     ///
     /// A prefix that names no directory under an existing root yields no item.
     pub(crate) fn walk_keys(
@@ -137,7 +139,7 @@ impl KeyWalk {
                 }
                 Name::Key { has_document, .. } => {
                     let key = DocumentKey::new(relative_path).expect(
-                        "Given a path joined from UTF-8 names without '\\' or ':', the key should always build",
+                        "Given a path joined from UTF-8 names other than '.' and '..', without '\\' or ':', the key should always build",
                     );
                     return Some((Ok(WalkedKey { key, has_document }), self));
                 }
@@ -151,14 +153,7 @@ impl KeyWalk {
     /// open directory, so it ends without an item.
     async fn open_start_directory(&mut self) -> Option<FailedFilesystemOperation> {
         let error = self.open(self.prefix.clone()).await.err()?;
-        let names_no_directory = matches!(
-            error.reason,
-            FailedFilesystemOperationReason::FailedIo {
-                kind: io::ErrorKind::NotFound | io::ErrorKind::NotADirectory,
-                ..
-            }
-        );
-        if names_no_directory {
+        if names_no_directory(&error) {
             return check_root(&self.root).await.err();
         }
         Some(error)
@@ -173,6 +168,18 @@ impl KeyWalk {
         });
         Ok(())
     }
+}
+
+/// Whether the error says that the directory to list does not exist, or that a file stands in its
+/// path.
+const fn names_no_directory(error: &FailedFilesystemOperation) -> bool {
+    matches!(
+        error.reason,
+        FailedFilesystemOperationReason::FailedIo {
+            operation: FilesystemOperation::ListDirectory,
+            kind: io::ErrorKind::NotFound | io::ErrorKind::NotADirectory,
+        }
+    )
 }
 
 /// Reads the names of a directory and returns its subdirectories and keys, sorted.
@@ -190,9 +197,19 @@ async fn read_sorted_names(directory: PathBuf) -> Result<Vec<Name>, FailedFilesy
         if name.contains(['\\', ':']) {
             continue;
         }
-        let file_type = entry.file_type().await.map_err(|error| {
-            FailedFilesystemOperation::from_io(FilesystemOperation::Inspect, entry.path(), &error)
-        })?;
+        let file_type = match entry.file_type().await {
+            Ok(file_type) => file_type,
+            // The name disappeared after the directory read, for example a `.tmp` file that a
+            // write renamed.
+            Err(error) if error.kind() == io::ErrorKind::NotFound => continue,
+            Err(error) => {
+                return Err(FailedFilesystemOperation::from_io(
+                    FilesystemOperation::Inspect,
+                    entry.path(),
+                    &error,
+                ));
+            }
+        };
         if file_type.is_dir() {
             directories.push(name);
         } else if file_type.is_file() {
@@ -206,7 +223,8 @@ async fn read_sorted_names(directory: PathBuf) -> Result<Vec<Name>, FailedFilesy
 fn sorted_names(directories: Vec<String>, files: &HashSet<String>) -> Vec<Name> {
     let keys = files.iter().filter_map(|file| {
         let name = file.strip_suffix(METADATA_SUFFIX)?;
-        (!name.is_empty()).then(|| Name::Key {
+        // `.` and `..` name a directory, not a document, so no key can hold them.
+        (!matches!(name, "" | "." | "..")).then(|| Name::Key {
             name: name.to_owned(),
             has_document: files.contains(name),
         })
@@ -304,7 +322,7 @@ mod tests {
         WalkedKey { key, has_document }
     }
 
-    fn prefix(path: &str) -> KeyPrefix {
+    fn prefix_at(path: &str) -> KeyPrefix {
         KeyPrefix::from(
             DocumentKey::new(path)
                 .expect("Given a valid hardcoded relative path, the key should always build"),
@@ -316,10 +334,11 @@ mod tests {
         let root = temporary_root();
         create_files(root.path(), &["sec/x.json", "sec/x.json.meta.json"]);
         let repository = repository_at(root.path());
+        let prefix = KeyPrefix::root();
 
         let expected_result = vec![Ok(walked("sec/x.json", true))];
 
-        let result = collect(repository.walk_keys(&KeyPrefix::root())).await;
+        let result = collect(repository.walk_keys(&prefix)).await;
 
         assert_eq!(result, expected_result);
     }
@@ -329,10 +348,11 @@ mod tests {
         let root = temporary_root();
         create_files(root.path(), &["sec/x.json.meta.json"]);
         let repository = repository_at(root.path());
+        let prefix = KeyPrefix::root();
 
         let expected_result = vec![Ok(walked("sec/x.json", false))];
 
-        let result = collect(repository.walk_keys(&KeyPrefix::root())).await;
+        let result = collect(repository.walk_keys(&prefix)).await;
 
         assert_eq!(result, expected_result);
     }
@@ -342,10 +362,11 @@ mod tests {
         let root = temporary_root();
         create_files(root.path(), &["sec/x.json"]);
         let repository = repository_at(root.path());
+        let prefix = KeyPrefix::root();
 
         let expected_result: Vec<Result<WalkedKey, ReadError>> = vec![];
 
-        let result = collect(repository.walk_keys(&KeyPrefix::root())).await;
+        let result = collect(repository.walk_keys(&prefix)).await;
 
         assert_eq!(result, expected_result);
     }
@@ -358,26 +379,28 @@ mod tests {
             &["sec/.x.json.4242.0.tmp", "sec/.x.json.meta.json.4242.1.tmp"],
         );
         let repository = repository_at(root.path());
+        let prefix = KeyPrefix::root();
 
         let expected_result: Vec<Result<WalkedKey, ReadError>> = vec![];
 
-        let result = collect(repository.walk_keys(&KeyPrefix::root())).await;
+        let result = collect(repository.walk_keys(&prefix)).await;
 
         assert_eq!(result, expected_result);
     }
 
     #[tokio::test]
-    async fn should_yield_the_file_a_dash_b_before_the_directory_a() {
+    async fn should_yield_the_file_a_dash_b_before_the_directory_a_when_both_sit_in_the_root() {
         let root = temporary_root();
         create_files(
             root.path(),
             &["a/x", "a/x.meta.json", "a-b", "a-b.meta.json"],
         );
         let repository = repository_at(root.path());
+        let prefix = KeyPrefix::root();
 
         let expected_result = vec![Ok(walked("a-b", true)), Ok(walked("a/x", true))];
 
-        let result = collect(repository.walk_keys(&KeyPrefix::root())).await;
+        let result = collect(repository.walk_keys(&prefix)).await;
 
         assert_eq!(result, expected_result);
     }
@@ -396,6 +419,7 @@ mod tests {
             ],
         );
         let repository = repository_at(root.path());
+        let prefix = KeyPrefix::root();
 
         let expected_result = vec![
             Ok(walked("a", false)),
@@ -405,7 +429,7 @@ mod tests {
             Ok(walked("b", false)),
         ];
 
-        let result = collect(repository.walk_keys(&KeyPrefix::root())).await;
+        let result = collect(repository.walk_keys(&prefix)).await;
 
         assert_eq!(result, expected_result);
     }
@@ -423,10 +447,11 @@ mod tests {
             ],
         );
         let repository = repository_at(root.path());
+        let prefix = prefix_at("sec/notes");
 
         let expected_result = vec![Ok(walked("sec/notes/q1.zip", true))];
 
-        let result = collect(repository.walk_keys(&prefix("sec/notes"))).await;
+        let result = collect(repository.walk_keys(&prefix)).await;
 
         assert_eq!(result, expected_result);
     }
@@ -435,10 +460,25 @@ mod tests {
     async fn should_yield_nothing_when_the_prefix_names_no_directory() {
         let root = temporary_root();
         let repository = repository_at(root.path());
+        let prefix = prefix_at("sec/notes");
 
         let expected_result: Vec<Result<WalkedKey, ReadError>> = vec![];
 
-        let result = collect(repository.walk_keys(&prefix("sec/notes"))).await;
+        let result = collect(repository.walk_keys(&prefix)).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_yield_nothing_when_the_prefix_names_a_file() {
+        let root = temporary_root();
+        create_files(root.path(), &["sec/x.json", "sec/x.json.meta.json"]);
+        let repository = repository_at(root.path());
+        let prefix = prefix_at("sec/x.json");
+
+        let expected_result: Vec<Result<WalkedKey, ReadError>> = vec![];
+
+        let result = collect(repository.walk_keys(&prefix)).await;
 
         assert_eq!(result, expected_result);
     }
@@ -448,13 +488,14 @@ mod tests {
         let root = temporary_root();
         let missing_root = root.path().join("missing");
         let repository = repository_at(&missing_root);
+        let prefix = prefix_at("sec/notes");
 
         let expected_result = vec![Err(read_error(FailedFilesystemOperation::new(
             FailedFilesystemOperationReason::MissingRoot,
             &missing_root,
         )))];
 
-        let result = collect(repository.walk_keys(&prefix("sec/notes"))).await;
+        let result = collect(repository.walk_keys(&prefix)).await;
 
         assert_eq!(result, expected_result);
     }
@@ -465,24 +506,117 @@ mod tests {
         create_files(root.path(), &["file"]);
         let file_root = root.path().join("file");
         let repository = repository_at(&file_root);
+        let prefix = KeyPrefix::root();
 
         let expected_result = vec![Err(read_error(FailedFilesystemOperation::new(
             FailedFilesystemOperationReason::RootIsNotADirectory,
             &file_root,
         )))];
 
-        let result = collect(repository.walk_keys(&KeyPrefix::root())).await;
+        let result = collect(repository.walk_keys(&prefix)).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_skip_the_metadata_file_when_its_stem_is_two_dots() {
+        let root = temporary_root();
+        create_files(root.path(), &["sec/...meta.json"]);
+        let repository = repository_at(root.path());
+        let prefix = KeyPrefix::root();
+
+        let expected_result: Vec<Result<WalkedKey, ReadError>> = vec![];
+
+        let result = collect(repository.walk_keys(&prefix)).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_skip_the_metadata_file_when_its_stem_is_one_dot_in_a_subdirectory() {
+        let root = temporary_root();
+        create_files(root.path(), &["sec/..meta.json"]);
+        let repository = repository_at(root.path());
+        let prefix = KeyPrefix::root();
+
+        let expected_result: Vec<Result<WalkedKey, ReadError>> = vec![];
+
+        let result = collect(repository.walk_keys(&prefix)).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_skip_the_metadata_file_when_its_stem_is_one_dot_in_the_root() {
+        let root = temporary_root();
+        create_files(root.path(), &["..meta.json"]);
+        let repository = repository_at(root.path());
+        let prefix = KeyPrefix::root();
+
+        let expected_result: Vec<Result<WalkedKey, ReadError>> = vec![];
+
+        let result = collect(repository.walk_keys(&prefix)).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn should_skip_the_metadata_file_when_its_name_holds_a_colon() {
+        let root = temporary_root();
+        create_files(root.path(), &["sec/a:b.meta.json"]);
+        let repository = repository_at(root.path());
+        let prefix = KeyPrefix::root();
+
+        let expected_result: Vec<Result<WalkedKey, ReadError>> = vec![];
+
+        let result = collect(repository.walk_keys(&prefix)).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[cfg(target_os = "linux")]
+    #[tokio::test]
+    async fn should_skip_the_metadata_file_when_its_name_is_not_valid_utf8() {
+        use std::ffi::OsStr;
+        use std::os::unix::ffi::OsStrExt;
+
+        let root = temporary_root();
+        std::fs::write(root.path().join(OsStr::from_bytes(b"\xff.meta.json")), b"").expect(
+            "Given a Linux temp directory, writing a file with any byte name should always succeed",
+        );
+        let repository = repository_at(root.path());
+        let prefix = KeyPrefix::root();
+
+        let expected_result: Vec<Result<WalkedKey, ReadError>> = vec![];
+
+        let result = collect(repository.walk_keys(&prefix)).await;
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
-    fn should_skip_a_file_named_only_the_metadata_suffix() {
+    fn should_skip_the_file_when_its_name_is_only_the_metadata_suffix() {
         let files = HashSet::from([METADATA_SUFFIX.to_owned()]);
 
         let expected_result: Vec<Name> = vec![];
 
         let result = sorted_names(vec![], &files);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_not_read_as_a_missing_directory_when_a_name_in_it_disappeared() {
+        let error = FailedFilesystemOperation::from_io(
+            FilesystemOperation::Inspect,
+            "/data/arkad/sec/.x.json.4242.0.tmp",
+            &io::Error::from(io::ErrorKind::NotFound),
+        );
+
+        let expected_result = false;
+
+        let result = names_no_directory(&error);
 
         assert_eq!(result, expected_result);
     }
@@ -496,10 +630,11 @@ mod tests {
             "Given a writable temp directory, creating a symbolic link should always succeed",
         );
         let repository = repository_at(root.path());
+        let prefix = KeyPrefix::root();
 
         let expected_result = vec![Ok(walked("target/x", true))];
 
-        let result = collect(repository.walk_keys(&KeyPrefix::root())).await;
+        let result = collect(repository.walk_keys(&prefix)).await;
 
         assert_eq!(result, expected_result);
     }
