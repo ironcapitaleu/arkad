@@ -279,7 +279,7 @@ The list of written units. Readers find the current files through it, and it hol
 | `transform_version` | `utf8` | |
 | `files` | `list<struct<path: utf8, bytes: uint64, crc32c: utf8, row_count: uint64>>` | The Parquet files of the unit, in the order of the part number `<n>`, with the size and CRC32C of each object as GCS stores them |
 | `row_count` | `uint64` | Rows of the unit, the sum over `files` |
-| `source_rows` | `list<struct<table: utf8, rows: uint64>>` | Rows of each input table that maps row to row, counted once per unit: `num.tsv` and `txt.tsv` for `as_is_facts`, `sub.tsv` for `filings`. Under option B, the first pass counts every row of the table, not the rows of its bucket. For a `filing_day` unit, one entry each: `instance_facts` for `as_is_facts`, the elements with a `contextRef` in the instances, counted by a pass separate from the parser, and `instances` for `filings`, one row per instance. Empty for the other datasets |
+| `source_rows` | `list<struct<table: utf8, rows: uint64>>` | Rows of each input table that maps row to row, counted once per unit: `num.tsv` and `txt.tsv` for `as_is_facts`, `sub.tsv` for `filings`. Under option B, the first pass counts every row of the table, not the rows of its bucket. A `filing_day` unit has two entries. For `as_is_facts`, `instance_facts` counts the elements with a `contextRef`, in a pass separate from the parser. For `filings`, `instances` counts one row per instance. Empty for the other datasets |
 | `split` | `utf8`, nullable | `stream` or `buckets` for a `notes_file` unit, see [Unit of Work and Memory](#unit-of-work-and-memory). Null otherwise |
 | `dropped_rows` | `list<struct<reason: utf8, rows: uint64>>` | Rows the parser dropped on purpose, by reason, for example exact duplicates |
 | `content_digest` | `utf8` | SHA-256 over the parts in the order of `files`, and inside each part over the rows in file order. Each row enters in a fixed byte form, without `execution_id` and `loaded_at`. The transform code prints the values, not the Arrow crate, so an Arrow upgrade does not change the digest. The silver writer feature fixes the exact form, and a test pins it to `transform_version` |
@@ -356,7 +356,8 @@ gs://<silver-bucket>/silver_files/execution=<execution_id>/task=<n>-<attempt>.pa
 ```
 
 - `<digest>` is the first 16 hex characters of `input_digest`.
-- `<attempt>` is the attempt number of the Cloud Run task. A retry writes to its own paths.
+- `<attempt>` is the attempt number of the Cloud Run task, with `-b` if the split switched to B. A
+  retry writes to its own paths.
 - The series datasets use `unit=<bucket>` with no `source=` level.
 - Inside a file, except in `candidates`, rows sort by `filing_id`, then by the value key. Row groups hold about 100,000
   rows, so a read of one filing skips the other row groups by their statistics.
@@ -620,7 +621,8 @@ one hour, and each replay of the backfill runs every Notes file again.
 - **The switch.** If a row has a smaller `adsh` than the row before it in either table, the split
   stops C. It runs B on the same file and writes the parts of B under `<execution_id>-<attempt>-b`.
   The parts that C wrote stay unread, because no `silver_files` row names them, and the cleanup of
-  unread files removes them. `split` in `silver_files` records which path wrote the unit.
+  unread files removes them. `split` in `silver_files` records which path wrote the unit. If the
+  current unit of the key has `split` = `buckets`, a rerun starts with B and skips C.
 - **B, the fallback.** It picks K so that one bucket holds about 256 MB of text of `num.tsv` and
   `txt.tsv` on average. For `2024q1`, with 2.7 GB of both, K is 11. Each pass keeps the rows where
   `xxh3_64(adsh) mod K` equals the bucket number. The hash has a fixed seed, so every pass and every
@@ -646,10 +648,10 @@ parallel. With 80 files and 10 parallel tasks, a full backfill takes 8 rounds of
 
 - Not measured: the time of parse, map, and write for one Notes file. The silver prototype measures
   it on `2024q1`, the largest file, with C and with B.
-- Target: at most 15 minutes for the largest file, so a task keeps 4 times its time as margin.
-- If a file breaks the target, B splits across tasks: task i runs the buckets i, i + T, i + 2T,
-  and so on, of one file. Each task writes its own parts, and the last one writes the
-  `silver_files` row of the unit.
+- Target: at most 15 minutes for the largest file. The limit is then 4 times the target. The
+  target applies to C and B together, because C can stop on the last row of an unsorted file.
+- If a file breaks the target, the transform design splits it across tasks. It also defines how
+  the tasks of one unit write one `silver_files` row.
 
 ### Where the State Machine Fits
 
@@ -744,6 +746,12 @@ source, and each choice is a read rule over silver.
 - **The fields of the ingestion provenance record.** The columns above are a sketch.
 - **The change to ADR 0001.** ADR 0001 writes from raw to Postgres. With silver, load reads silver.
   The silver prototype drafts the amendment.
+- **The byte form of `content_digest`.** The silver writer feature of the transform design fixes it.
+- **A filing that the parser rejects as a whole,** in a `filing_day` or a `notes_file` unit. The
+  parser rules of the transform design decide whether the unit fails or lists the filing in
+  `dropped_rows`.
+- **The parallel plan of the transform:** threads inside a task, tasks per unit, the split of one
+  Notes file across tasks, and the order of the jobs.
 
 ## Measurements
 
