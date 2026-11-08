@@ -276,8 +276,8 @@ its row with the latest `computed_at`, unless that row has `change` = `removed`.
 | `computed_at` | `timestamp[ms, UTC]`, nullable | The start time of the series run. Null for a filing row |
 | Run columns | `transform_version`, `execution_id`, `loaded_at` | |
 
-The series rows of `findings` are append-only like `standardized_facts`. The key of a series
-finding is `kind`, the entity, `concepts`, `periods`, and `filing_id`. A null `filing_id` matches a
+The key of a finding is `kind`, the entity, `concepts`, `periods`, and `filing_id`, for a filing
+row and for a series row. The series rows of `findings` are append-only like `standardized_facts`. A null `filing_id` matches a
 null `filing_id` (`IS NOT DISTINCT FROM`). A finding is open from its
 `new` row until a later `resolved` row of the same key. A `changed` row records a new `reason` of an
 open finding.
@@ -317,10 +317,20 @@ The list of written units. Readers find the current files through it, and it hol
 | `source_rows` | `list<struct<table: utf8, rows: uint64>>` | Rows of each input table that maps row to row, counted once per unit: `num.tsv` and `txt.tsv` for `as_is_facts`, `sub.tsv` for `filings`. Under option B, the first pass counts every row of the table, not the rows of its bucket. A `filing_day` unit has two entries. For `as_is_facts`, `instance_facts` counts the elements with a `contextRef`, in a pass separate from the parser. For `filings`, `instances` counts one row per instance. Empty for the other datasets |
 | `split` | `utf8`, nullable | `stream` or `buckets` for a `notes_file` unit, see [Unit of Work and Memory](#unit-of-work-and-memory). Null otherwise |
 | `dropped_rows` | `list<struct<reason: utf8, rows: uint64>>` | Rows the parser dropped on purpose, by reason, for example exact duplicates |
-| `content_digest` | `utf8` | SHA-256 over the list of filing IDs and filing hashes, sorted by filing ID. A filing hash is the SHA-256 over the rows of one filing, sorted by the row key of the dataset: the value key for `as_is_facts`, `filing_id` for `filings`, `filing_id` and `concept` for `candidates`, and the key in the section of each dataset for `standardized_facts` and `findings`. Each row enters in a fixed byte form, without `execution_id`, `loaded_at`, and `computed_at`. So the digest does not depend on the split, the bucket count, or the parts. The transform code prints the values, not the Arrow crate, so an Arrow upgrade does not change the digest. The silver writer feature fixes the exact form, and a test pins it to `transform_version`. A dataset or a row without `filing_id` groups by its own key instead: the entity for the series datasets and for `findings` rows with a null `filing_id`, and the release for `taxonomy_elements`, sorted by concept |
+| `content_digest` | `utf8` | SHA-256 over the list of group IDs and group hashes, sorted by group ID. A group is one filing, or the key that the list below names for rows without `filing_id`. A group hash is the SHA-256 over the rows of the group, sorted by the row key below. Each row enters in a fixed byte form, without `execution_id`, `loaded_at`, and `computed_at`. So the split, the bucket count, and the parts do not change the digest. The transform code prints the values, not the Arrow crate. An Arrow upgrade then leaves the digest as it is. The silver writer feature fixes the exact form, and a test pins it to `transform_version` |
 | `computed_at` | `timestamp[ms, UTC]`, nullable | The start time of the series run, for a series unit. Null otherwise |
 | `run_tasks` | `uint16`, nullable | The task count of the series run, for a series unit. Null otherwise |
 | `execution_id`, `ingestion_mode`, `written_at` | `utf8`, `utf8`, `timestamp[ms, UTC]` | The job that wrote the unit. `ingestion_mode` here is the mode of the job. The `ingestion_mode` column of a data row is the mode of its raw document |
+
+The row key of `content_digest`, by dataset:
+
+- `as_is_facts`: the value key.
+- `filings`: `filing_id`.
+- `candidates`: `filing_id`, then `concept`.
+- `standardized_facts` and `findings`: the key in the section of the dataset. A row without
+  `filing_id` groups by its entity.
+- `taxonomy_elements`: the group is the release. Rows sort by `concept_family`, then by
+  `concept_name`.
 
 ## Format and Table Layout
 
@@ -398,8 +408,9 @@ gs://<silver-bucket>/silver_files/execution=<execution_id>/task=<n>-<attempt>.pa
   retry writes to its own paths.
 - The series datasets use `unit_key=<unit_key>` with no `source=` level.
 - In a dataset, no column name equals a folder label of its own path: `source` or `unit_key` for
-  the data datasets, `execution` or `task` for `silver_files`. DuckDB reads a `name=value` folder
-  as a column by default, and Polars, pyarrow, and BigQuery do so with Hive partitioning on. A folder label `unit` overwrote the `unit` column of every row in a DuckDB read
+  every dataset except `silver_files`, and `execution` or `task` for `silver_files`. DuckDB reads a
+  `name=value` folder as a column by default, and Polars, pyarrow, and BigQuery do so with Hive
+  partitioning on. A folder label `unit` overwrote the `unit` column of every row in a DuckDB read
   (measured). A schema test of the silver writer checks this rule.
 - Inside a file, except in `candidates`, rows sort by `filing_id`, then by the value key. Row groups hold about 100,000
   rows, so a read of one filing skips the other row groups by their statistics.
