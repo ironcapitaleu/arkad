@@ -907,4 +907,62 @@ mod tests {
 
         assert_eq!(result, expected_result);
     }
+
+    /// Builds a directory chain under `root/<name>` whose deepest path is longer than `PATH_MAX`,
+    /// so a read of its deepest directories fails with `ENAMETOOLONG`, even for root.
+    ///
+    /// Builds the chain under a short name first, because a path that long cannot be created in
+    /// one call, then renames the top directory to `name`. The name must be longer than 201
+    /// bytes.
+    #[cfg(target_os = "linux")]
+    fn create_unreadable_chain(root: &Path, name: &str) {
+        const PATH_MAX: usize = 4096;
+        let component = "d".repeat(200);
+        let mut chain = root.join("s");
+        // Stays below `PATH_MAX` by fewer than 201 bytes, so the rename below crosses it.
+        while chain.as_os_str().len() + 1 + component.len() < PATH_MAX {
+            chain.push(&component);
+        }
+        std::fs::create_dir_all(&chain).expect(
+            "Given a path below PATH_MAX in a writable temp directory, creating it should always succeed",
+        );
+        std::fs::rename(root.join("s"), root.join(name)).expect(
+            "Given a directory in a writable temp directory, renaming it should always succeed",
+        );
+    }
+
+    #[cfg(target_os = "linux")]
+    #[tokio::test]
+    async fn should_not_read_a_directory_when_all_its_keys_sort_before_the_cursor() {
+        let root = temporary_root();
+        create_unreadable_chain(root.path(), &"a".repeat(250));
+        create_files(root.path(), &["b.meta.json", "c.meta.json"]);
+        let repository = repository_at(root.path());
+        let prefix = KeyPrefix::root().starting_after(walked("b", false).key);
+
+        let expected_result = vec![Ok(walked("c", false))];
+
+        let result = collect(repository.walk_keys(&prefix)).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[cfg(target_os = "linux")]
+    #[tokio::test]
+    async fn should_yield_an_error_when_the_walk_enters_a_chain_longer_than_path_max() {
+        let root = temporary_root();
+        create_unreadable_chain(root.path(), &"a".repeat(250));
+        let repository = repository_at(root.path());
+        let prefix = KeyPrefix::root();
+
+        let expected_result = 1;
+
+        let result = collect(repository.walk_keys(&prefix))
+            .await
+            .into_iter()
+            .filter(Result::is_err)
+            .count();
+
+        assert_eq!(result, expected_result);
+    }
 }
