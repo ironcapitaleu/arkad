@@ -58,7 +58,7 @@ fn manifest_of(root: &Path) -> String {
     manifest
 }
 
-/// Returns each release folder below `us_gaap`, sorted.
+/// Returns each release folder below `us_gaap`, sorted. Files beside the folders are skipped.
 fn release_folders(us_gaap: &Path) -> Vec<PathBuf> {
     let mut folders: Vec<PathBuf> = fs::read_dir(us_gaap)
         .expect("Given the vendored US GAAP folder, it should be readable")
@@ -67,6 +67,7 @@ fn release_folders(us_gaap: &Path) -> Vec<PathBuf> {
                 .expect("Given a readable folder, each entry should be readable")
                 .path()
         })
+        .filter(|path| path.is_dir())
         .collect();
     folders.sort();
     folders
@@ -76,16 +77,18 @@ fn release_folders(us_gaap: &Path) -> Vec<PathBuf> {
 fn should_match_manifest_for_every_vendored_us_gaap_release() {
     let releases = release_folders(&PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(US_GAAP_FOLDER));
 
-    let mut expected_result = Vec::new();
-    for release in &releases {
-        let manifest = fs::read_to_string(release.join(MANIFEST_FILE_NAME))
-            .expect("Given a vendored release, its MANIFEST should be readable");
-        expected_result.push(manifest);
-    }
-
-    let result: Vec<String> = releases
+    let expected_result: Vec<(PathBuf, String)> = releases
         .iter()
-        .map(|release| manifest_of(release))
+        .map(|release| {
+            let manifest = fs::read_to_string(release.join(MANIFEST_FILE_NAME))
+                .expect("Given a vendored release folder, its MANIFEST should be readable");
+            (release.clone(), manifest)
+        })
+        .collect();
+
+    let result: Vec<(PathBuf, String)> = releases
+        .iter()
+        .map(|release| (release.clone(), manifest_of(release)))
         .collect();
 
     assert_eq!(result, expected_result);
