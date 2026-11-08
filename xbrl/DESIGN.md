@@ -126,7 +126,7 @@ Rules of the layout:
   provenance, and writes silver.
 - `xbrl` defines the row types of the Notes tables. The transform fills them from the TSV text. It
   hands `adapter::edgar::notes` the rows of one filing: its `sub` row, its `num` and `txt` rows,
-  and the `dim` rows that its `num` rows name through `dimh`.
+  and the `dim` rows that its `num` and `txt` rows name through `dimh`.
 
 **Crate boundary**: `xbrl::adapter::edgar` takes the XML text of one instance (`&str`), the rows of one Notes filing, or a raw JSON body (`&serde_json::Value`), NOT an `SecResponse`. The `sec` crate owns HTTP, rate limiting, and response handling. `xbrl` has zero network dependencies. Its XML parser is pure Rust and needs no system library.
 
