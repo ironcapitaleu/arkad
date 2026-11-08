@@ -613,7 +613,7 @@ Notes file after the SEC merges a quarter. Every read of `as_is_facts`, `filings
 The rule depends only on the source and the Notes period, never on the order of runs. A filing has
 one filed date and sits in one month and one quarter, so the rule always leaves one unit.
 
-- **Instance over Notes.** Both sources hold the same facts
+- **Instance over Notes.** Both sources hold the same set of facts
   ([Measured Result](ingestion_paths.md#measured-result)). The instance keeps the units, the text,
   and the footnotes that Notes loses. The comparison recommended the same preference at write time
   (option 2 of [Path Independence](ingestion_paths.md#path-independence)). Silver keeps every
@@ -621,14 +621,15 @@ one filed date and sits in one month and one quarter, so the rule always leaves 
 - **Quarterly over monthly.** The SEC builds the quarterly file after the monthly files, and
   removes the monthly files at the merge (assumption A4 of
   [Cut-Over Between the Paths](ingestion_paths.md#cut-over-between-the-paths)).
-- **Accepted time.** The instance path gives `filed` only. If the current Notes `filings` row of
-  the same filing has `accepted`, the read copies it onto the filing, its facts, and its
+- **Accepted time.** The instance path gives `filed` only. If the Notes `filings` row that step 3
+  picks for the same filing has `accepted`, the read copies it onto the filing, its facts, and its
   `candidates` rows. This is the
   only value the read takes from the other source. Silver keeps the instance rows as they are.
 - **`candidates`.** The same rule picks one `candidates` unit per filing, so the series step gets
   one candidate per filing and standard concept.
-- The reads "as public on day D" and "as silver held it at time T" apply this rule after their own
-  filter.
+- **Order.** The read copies `accepted` before any filter. The reads "as public on day D" and "as
+  silver held it at time T" then apply their own filter, and then steps 2 and 3. So both sources of
+  a filing pass the filter of day D on the same day.
 
 ### Company Attributes Over Time
 

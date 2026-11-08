@@ -1839,8 +1839,8 @@ Silver keeps the copy of each source, and a read takes one source per filing. Se
 [Path Independence](#path-independence).
 
 Each as-is fact carries the `EntityId` of its filing, the CIK for the SEC, so a write needs no
-lookup. The write rule of the gold fact tier is open for a later gold design: `DO NOTHING` keeps old
-facts after a replay.
+lookup. A later gold design decides the write rule of the gold fact tier. With `DO NOTHING`, gold
+keeps old facts after a replay.
 
 ### Path Independence
 
@@ -1943,7 +1943,7 @@ These kinds are not losses, or the comparison cannot tell whether they are:
 - The footnotes differ in how Notes joins them: 5 facts.
 
 Recommendation of the comparison: option 2, instance over Notes, applied by an upsert with a
-fixed rank. Two conditions applied:
+fixed rank. The recommendation had two conditions:
 
 - The rank works only on a unique key. STA-331 must first widen the value key, so that the 395
   cases above hold one fact per key.
@@ -1952,7 +1952,8 @@ fixed rank. Two conditions applied:
   value wins" at read time. STA-331 must accept that change, or take option 3.
 
 Proposed in [`silver_layer.md`](silver_layer.md#current-facts), "Current Facts": option 3 with the same preference, instance over Notes, applied by a
-read. Silver keeps every copy, so the Notes copy is not dropped at write time.
+read. Silver keeps every copy, so the Notes copy is not dropped at write time. The value key of
+`xbrl/DESIGN.md`, with `copy_rank`, meets the first condition. Option 3 answers the second.
 
 A filing that only Notes delivered keeps the Notes form of its lossy facts.
 
