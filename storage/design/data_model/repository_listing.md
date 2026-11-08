@@ -251,22 +251,32 @@ returns the CRC32C of each object without a download, which the integrity check 
 
 ### Limits
 
-Each limit comes from a constraint of a consumer, not from a guess. Feature 2 applies these rules:
+Each limit comes from a constraint of a consumer. Feature 2 applies these rules:
 
-1. **Measure** on a copy of the store, through the mount and through the object API: requests per
-   directory, time per directory, time per metadata read, and peak memory. Record the numbers in
-   this section.
-2. **Project two years ahead.** Add about 48,000 directories to the count of today, 6,000 per
-   quarter, and multiply by the measured time per directory.
-3. **Daily run.** The projected `list_keys(sec/filings)` takes at most 3 minutes, 10% of the
-   timeout of 30 minutes, because the run shares the timeout with up to 2,000 filings. If the
-   projection exceeds 3 minutes, build the object API backend before `daily_filings` reads the
-   full index.
+1. **Measure** on a copy of the store, in two ways:
+   - Through the mount: requests per directory, time per directory, time per metadata read, and
+     peak memory.
+   - Through the object API, with a flat list of `sec/filings/` by `gcloud storage ls`: time per
+     list request of 1,000 objects. This needs no backend of our own.
+
+   Record the numbers in this section.
+2. **Project two years ahead.** The filings add about 6,000 directories per quarter. Each filing
+   adds three documents and three metadata files, so about 36,000 objects per quarter. Check the
+   objects per filing against the store, because the mount can also store an object per directory.
+   - Mount: (directories of today + 48,000) × time per directory.
+   - Object API: (objects of today + 288,000) / 1,000 × time per list request.
+3. **Daily run.** The projected `list_keys(sec/filings)` takes at most 3 minutes. The run has a
+   timeout of 30 minutes, and up to 2,000 filings take about 11 of them. 3 minutes keeps the rest
+   free for the full index and for retries.
+   - If the mount projection exceeds 3 minutes, build the object API backend before
+     `daily_filings` reads the full index.
+   - If the object API projection also exceeds 3 minutes, stop and bring the numbers to the lead.
 4. **Weekly check.** No fixed limit. The integrity design sets the timeout of its job, with the
    measured time of `list` as an input.
-5. **Memory.** The peak memory of a listing does not grow with the store. Feature 2 lists a store
-   and a store of twice its size, and compares the peaks. A size in MB belongs to the settings of
-   the job, not to this design.
+5. **Memory.** The peak memory of a listing grows with the widest directory, not with the count of
+   files. The widest directory is the root of `sec/filings/`, with one name per CIK. Feature 2
+   lists a store and a copy with twice the filings for the same companies, and the peaks must
+   match within 10%. A size in MB belongs to the settings of the job, not to this design.
 
 ## Ordering and Consistency
 
@@ -402,7 +412,8 @@ See [Bookmark or Full Index](#bookmark-or-full-index) for the choice. Each run:
 3. Keeps the rows with a selected form and a `Date Filed` from the cut-over date through yesterday.
 4. Calls `list_keys(sec/filings)` once, and removes each row whose `instance.xml` key and
    `lab.xml` key are in the result. The key holds the CIK and the accession number, so the row maps
-   to its keys with no read.
+   to its keys with no read. The run sorts the rows by key and merges them with the sorted stream,
+   so it holds no set of the stored keys, and its memory does not grow with the store.
 5. Hands each other row with a stored `index.json` or `instance.xml` key to the store check before
    any request. The check works as today:
    - An instance without a label file counts as stored if the folder index lists no label file.
