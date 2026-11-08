@@ -4,15 +4,16 @@
 //!
 //! ## External Dependencies
 //!
-//! None. The schema lives in `xbrl/taxonomy/us-gaap/2026/elts/`.
+//! None. The schema lives in `taxonomy/us-gaap/2026/elts/`. The `generator` feature is on for every
+//! test build.
 
 use std::fs;
 use std::path::PathBuf;
 
 use pretty_assertions::assert_eq;
-use us_gaap_generator::schema::concepts;
+use xbrl::us_gaap::generator::schema::concepts;
 
-const SCHEMA_FILE: &str = "../taxonomy/us-gaap/2026/elts/us-gaap-2026.xsd";
+const SCHEMA_FILE: &str = "taxonomy/us-gaap/2026/elts/us-gaap-2026.xsd";
 
 #[test]
 fn should_read_every_concept_for_us_gaap_2026_schema() {

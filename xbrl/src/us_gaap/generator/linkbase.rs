@@ -12,7 +12,7 @@ use std::path::Path;
 
 use roxmltree::{Document, Node};
 
-use crate::error::GeneratorError;
+use super::error::GeneratorError;
 
 /// The namespace of the XBRL linkbase elements.
 const LINK_NAMESPACE: &str = "http://www.xbrl.org/2003/linkbase";

@@ -4,15 +4,16 @@
 //!
 //! ## External Dependencies
 //!
-//! None. The label linkbase lives in `xbrl/taxonomy/us-gaap/2026/elts/`.
+//! None. The label linkbase lives in `taxonomy/us-gaap/2026/elts/`. The `generator` feature is on
+//! for every test build.
 
 use std::fs;
 use std::path::PathBuf;
 
 use pretty_assertions::assert_eq;
-use us_gaap_generator::linkbase::standard_labels;
+use xbrl::us_gaap::generator::linkbase::standard_labels;
 
-const LABEL_FILE: &str = "../taxonomy/us-gaap/2026/elts/us-gaap-lab-2026.xml";
+const LABEL_FILE: &str = "taxonomy/us-gaap/2026/elts/us-gaap-lab-2026.xml";
 
 #[test]
 fn should_read_one_standard_label_per_concept_for_us_gaap_2026_labels() {

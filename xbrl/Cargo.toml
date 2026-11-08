@@ -21,6 +21,13 @@ roxmltree = "0.21"
 [dev-dependencies]
 pretty_assertions = "1"
 sha2 = "0.11.1"
+# The tests of the generator run in every `cargo test`, so CI covers them without the feature flag.
+xbrl = { path = ".", features = ["generator"] }
+
+[features]
+# The generator of the US GAAP tables. A developer runs it once per release, and no normal build
+# needs it.
+generator = []
 
 [lib]
 name = "xbrl"

@@ -2464,15 +2464,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "us_gaap_generator"
-version = "0.1.0"
-dependencies = [
- "pretty_assertions",
- "roxmltree",
- "thiserror",
-]
-
-[[package]]
 name = "utf8_iter"
 version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3027,6 +3018,7 @@ dependencies = [
  "serde_json",
  "sha2",
  "thiserror",
+ "xbrl",
 ]
 
 [[package]]
