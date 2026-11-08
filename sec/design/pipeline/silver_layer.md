@@ -256,7 +256,8 @@ its row with the latest `computed_at`, unless that row has `change` = `removed`.
 | Run columns | `transform_version`, `execution_id`, `loaded_at` | |
 
 The series rows of `findings` are append-only like `standardized_facts`. The key of a series
-finding is `kind`, the entity, `concepts`, `periods`, and `filing_id`. A finding is open from its
+finding is `kind`, the entity, `concepts`, `periods`, and `filing_id`. A null `filing_id` matches a
+null `filing_id` (`IS NOT DISTINCT FROM`). A finding is open from its
 `new` row until a later `resolved` row of the same key. A `changed` row records a new `reason` of an
 open finding.
 
@@ -426,7 +427,7 @@ see [Open Points](#open-points).
 ### Growth
 
 Silver deletes no unit of any dataset. Each full replay of the
-backfill adds the size of these datasets again, about 15 GB of `as_is_facts` plus `filings` and
+backfill adds the size of the as-is datasets again, about 15 GB of `as_is_facts` plus `filings` and
 `candidates` (estimate, see
 [Cloud Run Sizing](#cloud-run-sizing)).
 
@@ -435,8 +436,12 @@ backfill adds the size of these datasets again, about 15 GB of `as_is_facts` plu
 `standardized_facts` and the series rows of `findings` are append-only, like the as-is data. A
 Parquet file cannot grow. So an append writes a new file of changed rows next to the old files.
 
-- The first series run writes a `series_base` unit with every row.
-- A later run recomputes the entities of the new current units of `candidates`. It reads their
+- The first series run writes a `series_base` unit with every row, each with `change` = `new`. A
+  new base writes each open finding again as a `new` row. The time a finding first opened is in
+  the units before that base.
+- A later run recomputes the entities of every `candidates` unit with a `written_at` after the
+  `computed_at` of the previous series run. A unit written during a run is new for the next run
+  too. The run reads their
   current rows, compares, and writes only the rows that differ to a `series_delta` unit, with
   `change` = `new`, `changed`, or `removed`. The run does not write unchanged rows again.
 - A `removed` row copies every column of the row it removes, and sets `change` and `computed_at`.
@@ -447,7 +452,7 @@ Parquet file cannot grow. So an append writes a new file of changed rows next to
   and keeps the row with the latest `computed_at` per key.
 - A read "as silver held it at T" takes the newest `series_base` with `computed_at` on or before T,
   and every `series_delta` after that base with `computed_at` on or before T. So it reaches back to
-  the first series run, across every new base.
+  the first series run, across every new base. A run in progress at T counts in full.
 - A `series_base` run and a `series_delta` run never overlap. The job plan of the transform design
   enforces it.
 - One series task writes one delta unit per run, sorted by entity bucket. A daily run touches a few
@@ -500,7 +505,7 @@ check job of the raw store runs these checks too.
 | 1. Files | A missing or corrupted Parquet file | For each unit, compare `bytes` and `crc32c` of each file in `files` with the object in GCS. GCS stores a CRC32C per object, so a listing gives both | One listing |
 | 2. Coverage | A raw document with no current unit, or a unit read from older bytes | Join the raw metadata (key, SHA-256) with `inputs` of the current units | Small tables |
 | 3. Row counts | Rows lost or doubled inside a unit of `as_is_facts` or `filings` | `source_rows` minus `dropped_rows` must equal `row_count`, and `row_count` must equal the rows in the Parquet footers. The derived datasets map many rows to one, so they get no row count check | Footers only |
-| 4. Rebuild | A wrong value, or a parser whose output changes from run to run | Run the transform again on the raw input with the same `transform_version`, and compare the `content_digest`. Skip a unit that check 2 reports as "source replaced". For the series datasets, check 4 samples a `series_base` only. A `series_delta` depends on the series state before its run | One transform per unit, so a sample of units each week |
+| 4. Rebuild | A wrong value, or a parser whose output changes from run to run | Run the transform again on the raw input with the same `transform_version`, and compare the `content_digest`. Skip a unit that check 2 reports as "source replaced". For the series datasets, check 4 samples a `series_base` only. Its rebuild reads the `candidates` and `filings` files that `inputs` of its `silver_files` row lists, not the current units. A `series_delta` depends on the series state before its run | One transform per unit, so a sample of units each week |
 
 Lineage checks join the datasets:
 
@@ -707,8 +712,8 @@ Proposal: A, with Polars inside the states that move tables:
 | Checks | One unit or one bucket | A step over silver, before load |
 | Sector medians, screener tables, coverage filter | Many entities | Gold |
 
-The series step runs again for the entities of a new current unit of `candidates`, and writes their
-changes as a delta, see [Series Deltas](#series-deltas).
+The series step runs again for the entities of each `candidates` unit written since the start of
+the previous series run, and writes their changes as a delta, see [Series Deltas](#series-deltas).
 
 ### Schema From the Rust Types
 
