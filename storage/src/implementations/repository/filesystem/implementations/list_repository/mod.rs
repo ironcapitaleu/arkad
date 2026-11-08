@@ -69,8 +69,8 @@ where
     /// Reads the metadata file of each key, and inspects the document file for its size. It
     /// never reads the bytes of a document. It yields metadata without its document, as
     /// [`StoredDocument::Missing`]. It skips metadata of another document type, because the
-    /// repository of that type lists it. It reads up to 16 metadata files at once, and yields the
-    /// entries in the order of [`list_keys`](ListRepository::list_keys).
+    /// repository of that type lists it. It reads a fixed number of metadata files at once, and
+    /// yields the entries in the order of [`list_keys`](ListRepository::list_keys).
     ///
     /// # Errors
     ///
@@ -83,11 +83,9 @@ where
     ///
     /// The stream continues after an error item about one document.
     fn list(&self, filter: KeyPrefix) -> BoxStream<'_, Result<Self::Entry, ReadError>> {
-        Box::pin(MetadataReads {
-            repository: self,
-            walk: Some(self.walk_keys(&filter)),
-            in_flight: VecDeque::with_capacity(METADATA_READS_IN_FLIGHT),
-        })
+        Box::pin(OrderedReads::new(self.walk_keys(&filter), move |walked| {
+            Box::pin(read_entry(self, walked))
+        }))
     }
 }
 
@@ -111,63 +109,39 @@ impl Stream for KeysWithDocument {
     }
 }
 
-/// The outcome of reading one walked key: an entry, an error, or `None` for metadata of another
-/// document type.
-type ReadOutcome<C> = Option<Result<ListedDocument<C>, ReadError>>;
+/// The outcome of reading one walked key: an item, an error, or `None` for a key to skip, such as
+/// metadata of another document type.
+type ReadOutcome<T> = Option<Result<T, ReadError>>;
 
-/// One metadata read in walk order, still running or done.
-enum MetadataRead<'a, C> {
-    Running(BoxFuture<'a, ReadOutcome<C>>),
+/// One read in walk order, still running or done.
+enum OrderedRead<'a, T> {
+    Running(BoxFuture<'a, ReadOutcome<T>>),
     // Boxed, so a running read takes no more room than its future.
-    Done(Box<ReadOutcome<C>>),
+    Done(Box<ReadOutcome<T>>),
 }
 
-/// The entries of a walk, read up to [`METADATA_READS_IN_FLIGHT`] at once, in walk order.
-struct MetadataReads<'a, A, D: Document> {
-    repository: &'a FilesystemRepository<A, D>,
+/// The outcomes of a read of each walked key, up to [`METADATA_READS_IN_FLIGHT`] reads at once, in
+/// walk order.
+///
+/// A read that finishes early waits in the queue until every read before it has finished.
+struct OrderedReads<'a, T, F> {
     walk: Option<BoxStream<'static, Result<WalkedKey, ReadError>>>,
-    in_flight: VecDeque<MetadataRead<'a, D::Context>>,
+    read: F,
+    in_flight: VecDeque<OrderedRead<'a, T>>,
 }
 
-impl<A: CanRead, D: Document> Stream for MetadataReads<'_, A, D>
+impl<'a, T, F> OrderedReads<'a, T, F>
 where
-    D::Context: Send,
+    F: FnMut(WalkedKey) -> BoxFuture<'a, ReadOutcome<T>>,
 {
-    type Item = Result<ListedDocument<D::Context>, ReadError>;
-
-    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        let this = self.get_mut();
-        loop {
-            this.start_reads(cx);
-            for read in &mut this.in_flight {
-                if let MetadataRead::Running(future) = read
-                    && let Poll::Ready(outcome) = future.as_mut().poll(cx)
-                {
-                    *read = MetadataRead::Done(Box::new(outcome));
-                }
-            }
-            match this.in_flight.front() {
-                None if this.walk.is_none() => return Poll::Ready(None),
-                None | Some(MetadataRead::Running(_)) => return Poll::Pending,
-                Some(MetadataRead::Done(_)) => {}
-            }
-            if let Some(MetadataRead::Done(outcome)) = this.in_flight.pop_front()
-                && let Some(item) = *outcome
-            {
-                return Poll::Ready(Some(item));
-            }
+    const fn new(walk: BoxStream<'static, Result<WalkedKey, ReadError>>, read: F) -> Self {
+        Self {
+            walk: Some(walk),
+            read,
+            in_flight: VecDeque::new(),
         }
     }
-}
 
-// The stream never pins a field: each running read sits in its own `Box`. So moving the stream
-// moves no pinned value, and it is `Unpin` for every metadata context.
-impl<A, D: Document> Unpin for MetadataReads<'_, A, D> {}
-
-impl<A: CanRead, D: Document> MetadataReads<'_, A, D>
-where
-    D::Context: Send,
-{
     /// Takes keys from the walk and starts their reads, until the reads in flight reach the bound
     /// or the walk has no key ready.
     fn start_reads(&mut self, cx: &mut Context<'_>) {
@@ -176,10 +150,8 @@ where
                 return;
             };
             let read = match walk.as_mut().poll_next(cx) {
-                Poll::Ready(Some(Ok(walked))) => {
-                    MetadataRead::Running(Box::pin(read_entry(self.repository, walked)))
-                }
-                Poll::Ready(Some(Err(error))) => MetadataRead::Done(Box::new(Some(Err(error)))),
+                Poll::Ready(Some(Ok(walked))) => OrderedRead::Running((self.read)(walked)),
+                Poll::Ready(Some(Err(error))) => OrderedRead::Done(Box::new(Some(Err(error)))),
                 Poll::Ready(None) => {
                     self.walk = None;
                     return;
@@ -191,11 +163,46 @@ where
     }
 }
 
+impl<'a, T, F> Stream for OrderedReads<'a, T, F>
+where
+    F: FnMut(WalkedKey) -> BoxFuture<'a, ReadOutcome<T>>,
+{
+    type Item = Result<T, ReadError>;
+
+    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        let this = self.get_mut();
+        loop {
+            this.start_reads(cx);
+            for read in &mut this.in_flight {
+                if let OrderedRead::Running(future) = read
+                    && let Poll::Ready(outcome) = future.as_mut().poll(cx)
+                {
+                    *read = OrderedRead::Done(Box::new(outcome));
+                }
+            }
+            match this.in_flight.front() {
+                None if this.walk.is_none() => return Poll::Ready(None),
+                None | Some(OrderedRead::Running(_)) => return Poll::Pending,
+                Some(OrderedRead::Done(_)) => {}
+            }
+            if let Some(OrderedRead::Done(outcome)) = this.in_flight.pop_front()
+                && let Some(item) = *outcome
+            {
+                return Poll::Ready(Some(item));
+            }
+        }
+    }
+}
+
+// The stream never pins a field: each running read sits in its own `Box`. Without this impl, the
+// stream is `Unpin` only if `T` is, and a metadata context need not be.
+impl<T, F> Unpin for OrderedReads<'_, T, F> {}
+
 /// Reads the entry of one walked key, and converts its error into a [`ReadError`].
 async fn read_entry<A: CanRead, D: Document>(
     repository: &FilesystemRepository<A, D>,
     walked: WalkedKey,
-) -> ReadOutcome<D::Context> {
+) -> ReadOutcome<ListedDocument<D::Context>> {
     repository
         .read_listed_document(walked)
         .await
@@ -224,8 +231,7 @@ impl<A: CanRead, D: Document> FilesystemRepository<A, D> {
         } else {
             StoredDocument::Missing
         };
-        // Parses last, because the future cannot hold a metadata context that is not `Send`
-        // across an `await`.
+        // Parses after both `stat` calls, so a failed `stat` costs no full parse.
         let metadata = parse_metadata(&metadata_json, &metadata_path)?;
         Ok(Some(ListedDocument::new(
             walked.key,
@@ -641,6 +647,83 @@ mod tests {
             .filter_map(|item| item.ok().map(|entry| entry.key().clone()))
             .filter(|listed| completed.iter().any(|path| *listed == key(path)))
             .collect();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_yield_the_modified_time_of_the_metadata_file_when_listing_a_document() {
+        let root = temporary_root();
+        let repository = repository_at(root.path());
+        persist_at(&repository, "sec/x.json").await;
+        let modified_at = DateTime::<Utc>::from_timestamp(1_700_000_000, 0)
+            .expect("Given a hardcoded timestamp in range, the time should always build");
+        std::fs::File::options()
+            .write(true)
+            .open(root.path().join(format!("sec/x.json{METADATA_SUFFIX}")))
+            .and_then(|file| file.set_modified(modified_at.into()))
+            .expect(
+                "Given a persisted metadata file, setting its modified time should always succeed",
+            );
+        let prefix = KeyPrefix::root();
+
+        let expected_result = vec![Some(
+            DateTime::<Utc>::from_timestamp(1_700_000_000, 0)
+                .expect("Given a hardcoded timestamp in range, the time should always build"),
+        )];
+
+        let result: Vec<_> = collect(repository.list(prefix))
+            .await
+            .into_iter()
+            .map(|item| item.ok().map(|entry| entry.metadata_modified_at()))
+            .collect();
+
+        assert_eq!(result, expected_result);
+    }
+
+    /// A read that finishes after the given count of polls, and yields the key it read.
+    struct ReadAfterPolls {
+        key: Option<DocumentKey>,
+        polls_left: usize,
+    }
+
+    impl Future for ReadAfterPolls {
+        type Output = ReadOutcome<DocumentKey>;
+
+        fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+            if self.polls_left == 0 {
+                return Poll::Ready(self.key.take().map(Ok));
+            }
+            self.polls_left -= 1;
+            cx.waker().wake_by_ref();
+            Poll::Pending
+        }
+    }
+
+    #[tokio::test]
+    async fn should_yield_the_keys_in_walk_order_when_later_reads_finish_first() {
+        let root = temporary_root();
+        let repository = repository_at(root.path());
+        for path in ["sec/a.json", "sec/b.json", "sec/c.json"] {
+            persist_at(&repository, path).await;
+        }
+        let walk = repository.walk_keys(&KeyPrefix::root());
+        let mut polls_left = 3;
+        let reads_in_reverse = move |walked: WalkedKey| -> BoxFuture<'static, _> {
+            polls_left -= 1;
+            Box::pin(ReadAfterPolls {
+                key: Some(walked.key),
+                polls_left,
+            })
+        };
+
+        let expected_result = vec![
+            Ok(key("sec/a.json")),
+            Ok(key("sec/b.json")),
+            Ok(key("sec/c.json")),
+        ];
+
+        let result = collect(Box::pin(OrderedReads::new(walk, reads_in_reverse))).await;
 
         assert_eq!(result, expected_result);
     }
