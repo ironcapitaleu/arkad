@@ -17,7 +17,7 @@ use super::finding::{Finding, GapReason};
 use super::fiscal_period::FiscalPeriod;
 use super::form::Form;
 use super::invalid_value::{InvalidValue, InvalidValueReason};
-use super::period::{QUARTER_DENOMINATOR, QUARTER_NUMERATOR};
+use super::period::days_of_quarters;
 use super::unit::Unit;
 
 /// The days by which two period ends can differ and still name the same period. A 52-53 week
@@ -52,10 +52,13 @@ pub struct Chronology {
 /// with the findings. The check reports and never fails.
 ///
 /// The forms the entity files give the expected periods. A filer of a `10-Q` expects `Q1`, `Q2`,
-/// `Q3`, and `FY`. A filer of only `10-K`, `20-F`, or `40-F` expects `FY`. Another filer expects
+/// `Q3`, and `FY`. A filer of only `10-K`, `10-KT`, `20-F`, or `40-F` expects `FY`. Another filer expects
 /// no period. The period of report of each annual report is a fiscal year end. Between two year
-/// ends, the check expects a period every 3 or 12 months back from the later end. The period of
-/// report of a quarterly report replaces the expected end within 7 days of it, or adds one.
+/// ends, the check expects a period every 3 months back from the later end if a quarterly report
+/// lies between them, otherwise every 12 months. After the last year end, it steps forward in the
+/// same way up to the latest period of report. The period of report of a quarterly report replaces
+/// the expected end within 7 days of it, or adds one. Every timeline of the entity expects the
+/// same periods.
 ///
 /// - A **gap** is an expected period between the first and the last filled period, with no value
 ///   that ends within 7 days of it. A value of any length fills it. A blocked value gives the
@@ -181,7 +184,7 @@ fn overlaps(timeline: &Timeline, ends: &Ends) -> Vec<Finding> {
     }
     let mut findings = Vec::new();
     for (quarters, ends) in by_length {
-        let days = i64::from(quarters) * QUARTER_NUMERATOR / QUARTER_DENOMINATOR;
+        let days = days_of_quarters(quarters);
         for (index, &first) in ends.iter().enumerate() {
             for &second in ends[index + 1..]
                 .iter()
@@ -222,47 +225,48 @@ impl Calendar {
             .iter()
             .filter(|filing| &filing.entity == entity)
             .collect();
-        let quarterly = filings
+        let quarterly: Vec<&Filing> = filings
             .iter()
-            .any(|filing| is_form(&filing.form, &QUARTERLY_FORMS));
+            .copied()
+            .filter(|filing| is_form(&filing.form, &QUARTERLY_FORMS))
+            .collect();
         let year_ends: BTreeSet<NaiveDate> = filings
             .iter()
             .filter(|filing| is_form(&filing.form, &ANNUAL_FORMS))
             .filter_map(|filing| filing.period_of_report)
             .collect();
-        let step = if quarterly {
-            QUARTER_MONTHS
-        } else {
-            YEAR_MONTHS
-        };
         let mut expected = Vec::new();
         let mut previous: Option<NaiveDate> = None;
         for &year_end in &year_ends {
-            let mut months = 0;
-            while let Some(end) = year_end.checked_sub_months(Months::new(months)) {
-                let is_expected = previous.map_or(months == 0, |previous| {
-                    (end - previous).num_days() > TOLERANCE_DAYS
-                });
-                if !is_expected {
-                    break;
-                }
-                expected.push(Expected {
-                    end,
-                    fiscal_period: fiscal_period(months),
-                });
-                months += step;
+            if let Some(previous) = previous {
+                let step = step_between(&quarterly, Some(previous), Some(year_end));
+                expected.extend(steps_back(previous, year_end, step));
             }
+            expected.push(Expected {
+                end: year_end,
+                fiscal_period: fiscal_period(0),
+            });
             previous = Some(year_end);
         }
-        for filing in filings
+        let latest = filings
             .iter()
-            .filter(|filing| is_form(&filing.form, &QUARTERLY_FORMS))
-        {
+            .filter_map(|filing| filing.period_of_report)
+            .max();
+        if let (Some(last), Some(latest)) = (previous, latest) {
+            let step = step_between(&quarterly, Some(last), None);
+            expected.extend(steps_forward(last, latest, step));
+        }
+        for filing in &quarterly {
             let Some(report) = filing.period_of_report else {
                 continue;
             };
             match expected.iter_mut().find(|known| is_near(known.end, report)) {
-                Some(known) => known.end = report,
+                Some(known) => {
+                    known.end = report;
+                    if filing.fiscal_period.is_some() {
+                        known.fiscal_period.clone_from(&filing.fiscal_period);
+                    }
+                }
                 None => expected.push(Expected {
                     end: report,
                     fiscal_period: filing.fiscal_period.clone(),
@@ -298,6 +302,48 @@ fn is_form(form: &Form, forms: &[&str]) -> bool {
     forms.contains(&base)
 }
 
+/// Returns the months between two expected periods after `after` and before `before`: 3 if a
+/// quarterly report lies in that span, otherwise 12. A missing bound leaves the span open.
+fn step_between(quarterly: &[&Filing], after: Option<NaiveDate>, before: Option<NaiveDate>) -> u32 {
+    let in_span = quarterly
+        .iter()
+        .filter_map(|filing| filing.period_of_report)
+        .any(|report| {
+            after.is_none_or(|after| report > after) && before.is_none_or(|before| report < before)
+        });
+    if in_span { QUARTER_MONTHS } else { YEAR_MONTHS }
+}
+
+/// Returns the expected periods before `year_end`, every `step` months back, that lie more than
+/// 7 days after `previous`.
+fn steps_back(previous: NaiveDate, year_end: NaiveDate, step: u32) -> Vec<Expected> {
+    (1..)
+        .map(|count| step * count)
+        .map_while(|months| {
+            let end = year_end.checked_sub_months(Months::new(months))?;
+            ((end - previous).num_days() > TOLERANCE_DAYS).then(|| Expected {
+                end,
+                fiscal_period: fiscal_period(months),
+            })
+        })
+        .collect()
+}
+
+/// Returns the expected periods after the last fiscal year end `last`, every `step` months, up
+/// to 7 days after the latest period of report.
+fn steps_forward(last: NaiveDate, latest: NaiveDate, step: u32) -> Vec<Expected> {
+    (1..)
+        .map(|count| step * count)
+        .map_while(|months| {
+            let end = last.checked_add_months(Months::new(months))?;
+            ((end - latest).num_days() <= TOLERANCE_DAYS).then(|| Expected {
+                end,
+                fiscal_period: fiscal_period((YEAR_MONTHS - months % YEAR_MONTHS) % YEAR_MONTHS),
+            })
+        })
+        .collect()
+}
+
 /// Returns the fiscal period that ends `months` before the fiscal year end.
 fn fiscal_period(months: u32) -> Option<FiscalPeriod> {
     let index = usize::try_from(months % YEAR_MONTHS / QUARTER_MONTHS).ok()?;
@@ -308,9 +354,14 @@ fn fiscal_period(months: u32) -> Option<FiscalPeriod> {
 /// period of report under the old year end, exclusive, for 12 months.
 ///
 /// The filings count in the order they were filed, because a filing states the fiscal year end as
-/// of its filing date.
+/// of its filing date. An amendment does not count, because it can state the end of the year it
+/// amends.
 fn changes(filings: &[&Filing]) -> Vec<(NaiveDate, NaiveDate)> {
-    let mut filings = filings.to_vec();
+    let mut filings: Vec<&Filing> = filings
+        .iter()
+        .copied()
+        .filter(|filing| !filing.is_amendment)
+        .collect();
     filings.sort_by(|left, right| {
         (left.filed, left.accepted, &left.id).cmp(&(right.filed, right.accepted, &right.id))
     });
@@ -629,11 +680,10 @@ mod tests {
     }
 
     #[test]
-    fn should_parse_both_forms_to_the_same_fiscal_year_end() {
-        let notes = "0930";
+    fn should_parse_instance_form_to_day_of_leap_year_when_end_is_september_30() {
         let instance = "--09-30";
 
-        let expected_result = FiscalYearEnd::from_str(notes);
+        let expected_result = Ok(FiscalYearEnd(274));
 
         let result = FiscalYearEnd::from_str(instance);
 
@@ -665,6 +715,168 @@ mod tests {
         let expected_result = false;
 
         let result = old.differs_from(new);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_parse_notes_form_to_day_of_leap_year_when_end_is_september_30() {
+        let notes = "0930";
+
+        let expected_result = Ok(FiscalYearEnd(274));
+
+        let result = FiscalYearEnd::from_str(notes);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_change_fiscal_year_end_when_month_changes() {
+        let old = FiscalYearEnd::from_str("1231")
+            .expect("Given a hardcoded month and day, the parse should always succeed");
+        let new = FiscalYearEnd::from_str("0630")
+            .expect("Given a hardcoded month and day, the parse should always succeed");
+
+        let expected_result = true;
+
+        let result = old.differs_from(new);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_not_change_fiscal_year_end_when_end_drifts_across_new_year() {
+        let old = FiscalYearEnd::from_str("1231")
+            .expect("Given a hardcoded month and day, the parse should always succeed");
+        let new = FiscalYearEnd::from_str("0102")
+            .expect("Given a hardcoded month and day, the parse should always succeed");
+
+        let expected_result = false;
+
+        let result = old.differs_from(new);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_count_amendment_as_its_form_when_form_has_suffix() {
+        let form = Form::new("10-K/A")
+            .expect("Given a hardcoded form type, the creation should always succeed");
+
+        let expected_result = true;
+
+        let result = is_form(&form, &ANNUAL_FORMS);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_expect_no_quarters_when_filer_files_no_quarterly_report_in_the_year() {
+        let facts = vec![
+            value(date(2021, 12, 31), 4),
+            value(date(2022, 12, 31), 4),
+            value(date(2023, 3, 31), 1),
+        ];
+        let filings = vec![
+            filing("20-F", date(2021, 12, 31), "1231"),
+            filing("10-K", date(2022, 12, 31), "1231"),
+            filing("10-Q", date(2023, 3, 31), "1231"),
+        ];
+
+        let expected_result: Vec<Finding> = Vec::new();
+
+        let result = check_chronology(series(facts, Vec::new()), &filings, Vec::new()).findings;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_report_gap_when_quarterly_report_after_the_last_year_end_never_came() {
+        let facts = vec![value(date(2024, 9, 28), 4), value(date(2025, 3, 29), 1)];
+        let mut filings = quarterly_filings();
+        filings.push(filing("10-Q", date(2025, 3, 29), "0930"));
+
+        let expected_result = vec![gap(date(2024, 12, 28), "Q1", None)];
+
+        let result = check_chronology(series(facts, Vec::new()), &filings, Vec::new()).findings;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_label_gap_by_the_filing_when_quarterly_report_names_its_period() {
+        let facts = vec![value(date(2022, 12, 31), 4), value(date(2023, 6, 30), 2)];
+        let mut filings = fiscal_year_change_filings();
+        filings[1].fiscal_period = Some(FiscalPeriod::new("Q1").expect(
+            "Given a hardcoded period without whitespace, the creation should always succeed",
+        ));
+
+        let expected_result = vec![gap(date(2023, 3, 31), "Q1", None)];
+
+        let result = check_chronology(series(facts, Vec::new()), &filings, Vec::new()).findings;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_ignore_amendment_when_it_states_the_old_fiscal_year_end() {
+        let mut amendment = filing("10-K/A", date(2022, 12, 31), "1231");
+        amendment.filed = date(2023, 11, 15);
+        let mut filings = fiscal_year_change_filings();
+        filings.push(amendment);
+        let filings: Vec<&Filing> = filings.iter().collect();
+
+        let expected_result = vec![(date(2023, 3, 31), date(2024, 3, 31))];
+
+        let result = changes(&filings);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_report_no_overlap_when_values_are_instants() {
+        let facts = vec![
+            standardized(
+                Period::Instant {
+                    end: date(2024, 9, 28),
+                },
+                "1",
+            ),
+            standardized(
+                Period::Instant {
+                    end: date(2024, 9, 30),
+                },
+                "1",
+            ),
+        ];
+
+        let expected_result: Vec<Finding> = Vec::new();
+
+        let result = check_chronology(series(facts, Vec::new()), &[], Vec::new()).findings;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_order_overlaps_then_restatements_then_dedup_findings() {
+        let first = value(date(2022, 12, 31), 4);
+        let mut second = value(date(2023, 6, 30), 4);
+        second.restated = true;
+        let findings = vec![conflict()];
+
+        let expected_result = vec![
+            Finding::Overlap {
+                first: first.series_key(),
+                second: second.series_key(),
+            },
+            Finding::Restatement {
+                key: second.series_key(),
+            },
+            conflict(),
+        ];
+
+        let result =
+            check_chronology(series(vec![first, second], Vec::new()), &[], findings).findings;
 
         assert_eq!(result, expected_result);
     }

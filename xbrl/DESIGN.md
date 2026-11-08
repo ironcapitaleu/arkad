@@ -933,13 +933,20 @@ It never fails.
   `10-K`, `10-KT`, `20-F`, and `40-F` are annual reports. A `T` form reports a transition period.
   An entity with neither expects no period.
 - **Expected ends.** The period of report of each annual report is a fiscal year end. Between two
-  fiscal year ends, the check steps back from the later end by 3 months for a quarterly filer, or
-  by 12 months for an annual filer, while the step lies more than 7 days after the earlier end.
-  Before the first fiscal year end, only the reports of the entity give expected ends. The period
-  of report of a quarterly report replaces an expected end within 7 days of it, or adds one. So a
-  filing that never came still leaves an expected period.
+  fiscal year ends, the check steps back from the later end while the step lies more than 7 days
+  after the earlier end. The step is 3 months if a quarterly report lies between the two ends,
+  otherwise 12 months. So an issuer that moves from 20-F to 10-K and 10-Q expects quarters only
+  from its first quarterly report on. After the last fiscal year end, the check steps forward in
+  the same way up to the latest period of report. Before the first fiscal year end, only the
+  quarterly reports give expected ends. The period of report of a quarterly report replaces an
+  expected end within 7 days of it, or adds one. The fiscal period that the report names replaces
+  the computed one. So a filing that never came still leaves an expected period.
+- **Same periods for every timeline.** Every timeline of an entity expects the same periods. So a
+  concept that a 10-Q filer reports only in its 10-K gets a gap for each quarter. This follows
+  "A 10-Q filer expects Q1, Q2, Q3, and FY" above.
 - **Fiscal year change.** The filings count in the order they were filed, because a filing
-  states its fiscal year end as of its filing date. The text `0930` of the Notes data set and
+  states its fiscal year end as of its filing date. An amendment does not count, because it can
+  state the end of the year it amends. The text `0930` of the Notes data set and
   `--09-30` of an instance document give the same end. Two ends more than 7 days apart around the
   year are a change. A gap in the 12 months after the latest period of report under the old end
   gets the reason `FiscalYearChange`. A short period gets no finding: no finding kind exists for it.

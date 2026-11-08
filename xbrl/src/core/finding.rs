@@ -89,7 +89,8 @@ pub enum GapReason {
     /// The copy ranks of the newest filing disagree, so dedup blocks the value. A
     /// [`Finding::Conflict`] names the ranks.
     Conflict,
-    /// The entity changed its fiscal year end next to the expected period.
+    /// The expected period lies in the 12 months after the latest period of report under the old
+    /// fiscal year end.
     FiscalYearChange,
 }
 
