@@ -1,12 +1,11 @@
 //! # US GAAP Manifest Integration Tests
 //!
-//! Recomputes the `MANIFEST` of the vendored US GAAP 2026 release from the files on disk and
-//! compares it with the `MANIFEST` in the repository. A changed, added, or removed file fails the
-//! test.
+//! Recomputes the `MANIFEST` of each vendored US GAAP release from the files on disk and compares
+//! it with the `MANIFEST` in the repository. A changed, added, or removed file fails the test.
 //!
 //! ## External Dependencies
 //!
-//! None. The files live in `taxonomy/us-gaap/2026/`.
+//! None. The files live in `taxonomy/us-gaap/<year>/`.
 
 use std::fmt::Write;
 use std::fs;
@@ -15,7 +14,7 @@ use std::path::{Path, PathBuf};
 use pretty_assertions::assert_eq;
 use sha2::{Digest, Sha256};
 
-const RELEASE_FOLDER: &str = "taxonomy/us-gaap/2026";
+const US_GAAP_FOLDER: &str = "taxonomy/us-gaap";
 const MANIFEST_FILE_NAME: &str = "MANIFEST";
 
 /// Returns the path of every file below `folder`, relative to `root`, except the `MANIFEST`.
@@ -59,14 +58,35 @@ fn manifest_of(root: &Path) -> String {
     manifest
 }
 
+/// Returns each release folder below `us_gaap`, sorted.
+fn release_folders(us_gaap: &Path) -> Vec<PathBuf> {
+    let mut folders: Vec<PathBuf> = fs::read_dir(us_gaap)
+        .expect("Given the vendored US GAAP folder, it should be readable")
+        .map(|entry| {
+            entry
+                .expect("Given a readable folder, each entry should be readable")
+                .path()
+        })
+        .collect();
+    folders.sort();
+    folders
+}
+
 #[test]
-fn should_match_manifest_for_vendored_us_gaap_2026_files() {
-    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(RELEASE_FOLDER);
+fn should_match_manifest_for_every_vendored_us_gaap_release() {
+    let releases = release_folders(&PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(US_GAAP_FOLDER));
 
-    let expected_result = fs::read_to_string(root.join(MANIFEST_FILE_NAME))
-        .expect("Given the vendored release, its MANIFEST should be readable");
+    let mut expected_result = Vec::new();
+    for release in &releases {
+        let manifest = fs::read_to_string(release.join(MANIFEST_FILE_NAME))
+            .expect("Given a vendored release, its MANIFEST should be readable");
+        expected_result.push(manifest);
+    }
 
-    let result = manifest_of(&root);
+    let result: Vec<String> = releases
+        .iter()
+        .map(|release| manifest_of(release))
+        .collect();
 
     assert_eq!(result, expected_result);
 }

@@ -397,7 +397,7 @@ file fails at run time).
     has no unclassified balance sheet for all industries. Its unclassified balance sheets are per
     industry (`sfp-dbo`, `sfp-ibo`, `sfp-sbo`, `sfp-ucreo`).
   - `MANIFEST`: one line per vendored file, sorted by path, in the format of `sha256sum`. A test
-    in `tests/us_gaap_manifest.rs` recomputes it from the files.
+    in `tests/us_gaap_manifest.rs` recomputes the `MANIFEST` of every release folder.
 - The files keep the CRLF line ends of the FASB. `.gitattributes` marks the folder `-text`, so Git
   never changes a byte.
 - Missing for the reference data: the elements that the FASB removed before 2026 (see "Releases
