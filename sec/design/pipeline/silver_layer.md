@@ -238,7 +238,7 @@ A dataset, not a report, for three reasons:
 
 - The checks read findings with the same reader as facts.
 - A report is a query over the dataset. A dataset is not a query over a report.
-- The history of findings per series run stays in silver.
+- The history of findings of the last 30 days of series runs stays in silver (see [Growth](#growth)).
 
 The standardize filing step writes `Conflict`. The series step writes `Gap`, `Overlap`, and
 `Restatement`, and copies each `Conflict` of the entity, as `xbrl/DESIGN.md`, "Gap Check", asks. A
@@ -267,6 +267,7 @@ The list of written units. Readers find the current files through it, and it hol
 | `files` | `list<utf8>` | The Parquet files of the unit |
 | `row_count` | `uint64` | |
 | `execution_id`, `ingestion_mode`, `written_at` | | The run |
+| `removed_at` | `timestamp[ms, UTC]`, nullable | Set when the retention rule of [Growth](#growth) removed the files |
 
 ## Format and Table Layout
 
@@ -339,7 +340,7 @@ gs://<silver-bucket>/silver_files/execution=<execution_id>/task=<n>-<attempt>.pa
 - `<digest>` is the first 16 hex characters of `input_digest`.
 - `<attempt>` is the attempt number of the Cloud Run task. A retry writes to its own paths.
 - The series datasets use `unit=<bucket>` with no `source=` level.
-- Inside a file, rows sort by `filing_id`, then by the value key. Row groups hold about 100,000
+- Inside a file, except in `candidates`, rows sort by `filing_id`, then by the value key. Row groups hold about 100,000
   rows, so a read of one filing skips the other row groups by their statistics.
 
 ### Rules of a Write
@@ -370,8 +371,8 @@ can remove such files once no attempt of their execution runs.
 
 - A unit key is the dataset, the source, the unit kind, and `unit_key`.
 - The **current unit** of a unit key is the one with the latest `written_at`. A default read takes
-  only current units. This order is the order of runs. It applies only to units of one key, which
-  hold the same filings.
+  only current units. `written_at` gives the order of runs. Silver uses it only between units of
+  one key, because they hold the same filings.
 - The old unit stays. A read "as silver held it at T" takes, per unit key, the latest unit written at
   or before T.
 - So a replay replaces exactly the rows of its unit for a default read, and deletes nothing.
@@ -386,17 +387,23 @@ see [Open Points](#open-points).
 
 ### Growth
 
-Silver deletes no unit of `as_is_facts`, `filings`, and `candidates`. Each full replay of the
+Silver deletes no unit of `as_is_facts`, `filings`, or `candidates`. Each full replay of the
 backfill adds the size of these datasets again, about 6 GB of numeric rows (estimate).
 
-The series datasets grow faster. A day with about 90 new filings touches most of the 64 buckets,
-and each touched bucket writes a new unit of its whole series output. Estimate: about 7,000
-entities, 50 concepts, and 90 periods give about 32 million rows, about 0.3 GB. A rewrite each day
-adds about 100 GB a year.
+The series datasets grow faster. A day with about 90 new filings touches about 48 of the 64
+buckets, and the median day of 36.5 filings about 28. Each touched bucket writes a new unit of its
+whole series output. Estimate: about 7,000
+entities, 50 concepts, and 90 periods give about 32 million rows, about 0.3 GB. A row holds an `inputs`
+list, so the real size is larger. The prototype measures it. A rewrite each day adds up to about
+100 GB a year.
 
-So `standardized_facts` and `findings` get a retention rule. A cleanup removes a superseded unit of
-these two datasets 30 days after a newer unit replaced it. The series step can rebuild any of them
-from `candidates`, so the cleanup loses no reported value.
+So `standardized_facts` and `findings` get a retention rule:
+
+- A cleanup removes a superseded unit of these two datasets 30 days after a newer unit replaced it.
+- The cleanup sets `removed_at` on the `silver_files` row of the unit. A reader skips such a unit.
+- A read "as silver held it at T" for these two datasets reaches back 30 days only.
+- The series step can rebuild a removed unit from `candidates`, with the `transform_version` of that
+  unit. So the cleanup loses no reported value.
 
 ## Provenance
 
