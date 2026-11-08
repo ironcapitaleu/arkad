@@ -71,7 +71,7 @@ The value key of `xbrl/DESIGN.md`, "Value Key", fits `as_is_facts` without chang
 ### Fields and the Parse Rules
 
 The segment findings of 2026-10-18 measured seven rules that make a Notes row equal to an instance
-fact. The table shows where each rule lands in the as-is row. Some rules change, because the
+fact. The table shows where each rule lands in the as-is row. Some rules change, because
 silver keeps every value and leaves dedup to the standardized layer.
 
 | # | Rule in the findings | In the as-is row |
