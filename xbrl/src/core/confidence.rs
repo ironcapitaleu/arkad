@@ -13,7 +13,7 @@ pub enum Confidence {
     Exact,
     /// Tier 2: Matched via a known synonym or alias.
     Synonym,
-    /// Tier 3: Derived from other resolved values using an SFAC 6 identity.
+    /// Tier 3: Derived from other standardized values by an SFAC 6 identity or a period identity.
     Derived,
     /// Tier 4: Computed by walking the FASB calculation linkbase tree.
     Computed,
