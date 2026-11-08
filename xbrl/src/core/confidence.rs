@@ -9,9 +9,9 @@ use std::fmt;
 /// Higher tiers carry less certainty about the correctness of the resolved value.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize)]
 pub enum Confidence {
-    /// Tier 1: Direct match on an exact XBRL concept name.
+    /// Tier 1: The first concept of the alias list of a plug-in.
     Exact,
-    /// Tier 2: Matched via a known synonym or alias.
+    /// Tier 2: A later concept of the alias list, or an ESEF anchor.
     Synonym,
     /// Tier 3: Derived from other standardized values by an SFAC 6 identity or a period identity.
     Derived,

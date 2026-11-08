@@ -10,13 +10,13 @@ The xbrl crate maps raw US GAAP concepts to CanonicalElements through four tiers
 
 ## Tier 1: Exact Match (Confidence::Exact)
 
-The raw concept key matches a known concept definition's primary key exactly.
+The concept is the first concept of the alias list of a plug-in.
 
 Example: `Assets` → CanonicalElement::Assets
 
 ## Tier 2: Synonym/Alias (Confidence::Synonym)
 
-The raw concept key matches one of the known aliases for a concept.
+The concept is a later concept of the alias list, or an ESEF anchor.
 
 Example: `RevenueFromContractWithCustomerExcludingAssessedTax` → CanonicalElement::Revenue (alias defined in REQUIRED_CONCEPTS for Revenue)
 
@@ -38,7 +38,7 @@ Examples:
 
 - `Assets` absent, but `Liabilities` and `Equity` present. Derive: `Assets = Liabilities + Equity`
 - `core/period/q4-from-fy@1`: Q4 = FY − 9-month year to date. It applies only to duration
-  concepts in one currency.
+  concepts in one currency, with no per-share unit.
 
 ## Tier 4: Computed (Confidence::Computed)
 
@@ -59,7 +59,7 @@ Rules:
 | Tier | Confidence | Mechanism |
 | --- | --- | --- |
 | 1 | Exact | The first concept of the alias list of a plug-in |
-| 2 | Synonym | A later concept of the alias list |
+| 2 | Synonym | A later concept of the alias list, or an ESEF anchor |
 | 3 | Derived | An identity the core knows: an SFAC 6 identity or a period identity |
 | 4 | Computed | A sum along the calculation tree of a plug-in |
 

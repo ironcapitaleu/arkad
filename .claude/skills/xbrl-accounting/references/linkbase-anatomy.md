@@ -1,6 +1,6 @@
 ---
 source: XBRL International specifications + FASB US GAAP 2026 Taxonomy XML files
-last-verified: 2026-06-14
+last-verified: 2026-11-08
 update-frequency: never (XBRL spec is stable; taxonomy XML updates annually but format stays the same)
 ---
 
@@ -52,7 +52,7 @@ To extract the concept name: strip the `loc_` prefix from the label, or parse th
 
 ### Purpose
 
-Defines arithmetic (summation) relationships: "parent = sum of children with weights". Used for Tier 3 derivation.
+Defines arithmetic (summation) relationships: "parent = sum of children with weights". Used for Tier 4 computation.
 
 ### Arc Role
 

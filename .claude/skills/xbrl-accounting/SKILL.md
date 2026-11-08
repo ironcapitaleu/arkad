@@ -29,8 +29,9 @@ These are the validation checks the system enforces. Violation of identity #1 is
 
 When mapping a US GAAP concept to a CanonicalElement:
 
-1. Check if the concept key matches exactly in `REQUIRED_CONCEPTS` or `OPTIONAL_CONCEPTS` (Tier 1: Exact)
-2. Check if it matches any known alias in a ConceptDefinition's alias list (Tier 2: Synonym)
+1. If the concept is the first concept of the alias list of a plug-in (`REQUIRED_CONCEPTS` or
+   `OPTIONAL_CONCEPTS`), use it (Tier 1: Exact)
+2. If it is a later concept of that alias list, or an ESEF anchor, use it (Tier 2: Synonym)
 3. If no alias resolves, apply an identity the core knows: an SFAC 6 identity or a period identity,
    such as Q4 = FY − 9-month year to date (Tier 3: Derived)
 4. If still unresolved, sum the children of the concept along the calculation tree of a plug-in.

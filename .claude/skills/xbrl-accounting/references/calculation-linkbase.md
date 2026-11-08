@@ -1,6 +1,6 @@
 ---
 source: FASB US GAAP 2026 Taxonomy (xbrl.fasb.org/us-gaap/2026/stm/)
-last-verified: 2026-06-14
+last-verified: 2026-11-08
 update-frequency: annually
 taxonomy-year: 2026
 ---
@@ -91,13 +91,14 @@ CashCashEquivalentsRestrictedCash...PeriodIncreaseDecreaseIncludingExchangeRateE
   + EffectOfExchangeRateOnCash...
 ```
 
-## How to Apply (Tier 3 Derivation)
+## How to Apply (Tier 4 Computation)
 
-When a company doesn't report a parent concept, derive it by summing children:
+When a company does not report a parent concept, compute it by summing its children:
 
-1. Check if parent concept exists → use it (Tier 1/2)
-2. If not, check if ALL required children exist in the filing
-3. If yes, compute: `parent = Σ(child_i × weight_i)`
-4. Store with `confidence: Derived`
+1. If the filing reports the parent concept, use it (Tier 1 or 2)
+2. If not, look up the children of the parent in the calculation arcs of one role
+3. Check that the filing reports ALL children
+4. Compute: `parent = Σ(child_i × weight_i)`
+5. Store with `confidence: Computed`
 
-Example: Amazon doesn't report `Liabilities` but reports `LiabilitiesCurrent` + `LiabilitiesNoncurrent`. Derive: `Liabilities = LiabilitiesCurrent(+1) + LiabilitiesNoncurrent(+1)`
+Example: Amazon does not report `Liabilities` but reports `LiabilitiesCurrent` and `LiabilitiesNoncurrent`. Compute: `Liabilities = LiabilitiesCurrent(+1) + LiabilitiesNoncurrent(+1)`
