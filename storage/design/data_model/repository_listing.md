@@ -274,8 +274,8 @@ cursor. The caller keeps the last key it finished as its cursor. The sort order 
 exact:
 
 - GCS supports it with `startOffset`. That parameter includes K, so the backend drops K.
-- The filesystem walk skips each name that sorts at or before K. It enters only the directories on
-  the path to K or after it.
+- The filesystem walk skips each file whose key sorts at or before K. It skips each directory that
+  sorts before K, except the directories on the path to K.
 
 ### What a Listing Sees During a Write
 
