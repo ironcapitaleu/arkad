@@ -223,19 +223,18 @@ fn conflict(ranks: &[&AsIsFact], registry: &Registry<'_>) -> Finding {
 
 #[cfg(test)]
 mod tests {
+    use std::str::FromStr;
+
     use bigdecimal::BigDecimal;
     use pretty_assertions::assert_eq;
 
     use super::*;
+    use crate::core::concept::NamespaceFamily;
     use crate::core::dedup::{more_precise, newest_filing};
     use crate::core::elements::CanonicalElement;
     use crate::core::fact::Decimals;
-    use std::str::FromStr;
-
-    use crate::core::concept::NamespaceFamily;
     use crate::core::release::TaxonomyReleaseId;
     use crate::core::rule::RuleId;
-    use crate::core::taxonomy::reference::ConceptAliases;
     use crate::tests::fixtures::sample_fact::{date, fact, source, us_gaap_plugin};
     use crate::tests::fixtures::sample_taxonomy::{declaration, plugin_with_aliases};
 
