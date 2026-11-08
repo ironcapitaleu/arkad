@@ -81,8 +81,8 @@ Decisions:
    [`capability_split_trait_hierarchy.md`](./capability_split_trait_hierarchy.md).
 2. **A standalone trait, not a subtrait of `ReadRepository`.** The listing extends the ports and
    modifies none of them, so `ReadRepository` stays as it is. A caller bound to `ListRepository`
-   alone can list but has no `get` in scope. That matches a store or an account that may list
-   names but not read contents, such as a GCS account with `storage.objects.list` and without
+   alone can list but has no `get` in scope. That matches a store or an account that can list
+   names but cannot read contents, such as a GCS account with `storage.objects.list` and without
    `storage.objects.get`.
 3. **Its own `Key`.** `ListRepository` declares its own `Key`, because `ReadRepository` declares
    its `Key` and the open-closed rule keeps it there. A store that implements both sets the two to
