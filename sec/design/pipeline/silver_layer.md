@@ -604,13 +604,13 @@ as-is concept instead of the standard concept.
 
 A filing can sit in more than one current unit: once per source, and in a monthly and a quarterly
 Notes file after the SEC merges a quarter. Every read of `as_is_facts`, `filings`, and
-`candidates` takes one unit per filing, in this order:
+`candidates` runs these steps, and keeps one unit per filing:
 
 1. Take only current units (see [Replays](#replays)). A read "as silver held it at time T" takes
    the units current at T.
 2. If an instance unit and a Notes unit both hold the filing, copy `accepted` from the Notes
-   `filings` row onto the instance filing, its facts, and its `candidates` rows. If two Notes units
-   hold it, take the row of the quarterly file.
+   `filings` row. The copy goes onto the instance filing, its facts, and its `candidates` rows. If
+   two Notes units hold the filing, take the row of the quarterly file.
 3. A read "as public on day D" applies its filter now. So both sources of a filing pass the filter
    of day D on the same day.
 4. If an instance unit holds the filing, take it.
