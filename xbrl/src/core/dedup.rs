@@ -564,4 +564,39 @@ mod tests {
 
         assert_eq!(result, expected_result);
     }
+
+    #[test]
+    fn should_block_no_series_key_when_only_an_older_candidate_is_blocked() {
+        let mut older = candidate(&source("0000320193-24-000123", date(2024, 11, 1)), "100");
+        older.value = CandidateValue::Blocked;
+        let newer = candidate(&source("0000320193-25-000010", date(2025, 10, 31)), "110");
+        let candidates = vec![older, newer];
+
+        let expected_result: Vec<SeriesKey> = Vec::new();
+
+        let result = newest_filing(&candidates).blocked;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_include_a_filing_without_acceptance_when_it_is_filed_the_day_before_the_read_date() {
+        let older = source("0000320193-24-000123", date(2024, 11, 1));
+        let newer = source("0000320193-25-000010", date(2025, 10, 30));
+        let candidates = vec![
+            candidate(&older, "100000000"),
+            candidate(&newer, "110000000"),
+        ];
+        let as_of = moment(2025, 10, 31, 12);
+
+        let expected_result = vec![BigDecimal::from(110_000_000)];
+
+        let result: Vec<BigDecimal> = newest_filing_as_of(&candidates, as_of)
+            .facts
+            .into_iter()
+            .map(|fact| fact.value)
+            .collect();
+
+        assert_eq!(result, expected_result);
+    }
 }

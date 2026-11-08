@@ -815,8 +815,8 @@ Rules the code fixes where the table above leaves a choice:
 Other cases:
 
 - An amendment is filed later than its original, so `core/dedup/newest-filing@1` covers it.
-- A point-in-time read "as of D" applies the same two rules to the filings accepted (or filed) on
-  or before D. It needs no third rule. `core::dedup::newest_filing_as_of` takes D as a time in UTC.
+- A point-in-time read "as of D" applies the same two rules to the filings known at D. It needs no
+  third rule. `core::dedup::newest_filing_as_of` takes D as a time in UTC.
   A filing with an `accepted` time counts if it was accepted at or before D. A filing without one
   counts if it was filed before the date of D in UTC, because a filing of that date can still be in
   the future.
