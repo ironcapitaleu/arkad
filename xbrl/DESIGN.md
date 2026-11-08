@@ -434,7 +434,7 @@ resolved to standard concepts yet.
 
 ```text
 AsIsFact {
-    source: Source {                     // where the fact comes from
+    source: FilingSource {               // where the fact comes from
         filing:        FilingId          // "sec:0000320193-26-000001"
         filed:         NaiveDate
         accepted:      Option<DateTime<Utc>>
@@ -578,7 +578,7 @@ StandardizedFact {
 
 - `rule` and `inputs` replace `resolution_path: Vec<String>`. The trace is typed and joins back to
   the as-is facts.
-- `inputs` replaces `source: Vec<FilingId>`. The input facts name their filings.
+- `inputs` replaces `sources: Vec<FilingSource>`. The input facts name their filings.
 - The release and its checksum are on every fact, so a fact proves its release without a join. In a
   Parquet column, dictionary encoding stores one entry per release.
 - The label, data type, and balance of an element are not on the fact. They live once per release

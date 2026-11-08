@@ -5,7 +5,7 @@
 
 use super::confidence::Confidence;
 use super::elements::CanonicalElement;
-use super::filing::FilingId;
+use super::fact::FilingSource;
 use super::period::Period;
 use super::unit::Unit;
 
@@ -28,8 +28,8 @@ pub struct ResolvedFact {
     confidence: Confidence,
     /// The resolution steps that produced this value (for traceability).
     resolution_path: Vec<String>,
-    /// The filings this value was derived from.
-    source: Vec<FilingId>,
+    /// The filings this value was derived from, with their filed dates.
+    sources: Vec<FilingSource>,
 }
 
 impl ResolvedFact {
@@ -42,7 +42,7 @@ impl ResolvedFact {
         period: Period,
         confidence: Confidence,
         resolution_path: Vec<String>,
-        source: Vec<FilingId>,
+        sources: Vec<FilingSource>,
     ) -> Self {
         Self {
             canonical_element,
@@ -51,7 +51,7 @@ impl ResolvedFact {
             period,
             confidence,
             resolution_path,
-            source,
+            sources,
         }
     }
 
@@ -91,9 +91,9 @@ impl ResolvedFact {
         &self.resolution_path
     }
 
-    /// Returns the IDs of the filings this value was derived from.
+    /// Returns the filings this value was derived from.
     #[must_use]
-    pub fn source(&self) -> &[FilingId] {
-        &self.source
+    pub fn sources(&self) -> &[FilingSource] {
+        &self.sources
     }
 }

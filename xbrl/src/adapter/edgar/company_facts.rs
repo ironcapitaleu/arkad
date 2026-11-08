@@ -33,7 +33,7 @@ use chrono::NaiveDate;
 
 use crate::core::concept::{ConceptName, NamespaceFamily};
 use crate::core::entity_name::EntityName;
-use crate::core::fact::{AsIsFact, Context, Dimensions, FactKey, FactValue, Source};
+use crate::core::fact::{AsIsFact, Context, Dimensions, FactKey, FactValue, FilingSource};
 use crate::core::filing::{CompanyAttributes, EntityId, Filing, FilingId};
 use crate::core::fiscal_period::FiscalPeriod;
 use crate::core::fiscal_year::FiscalYear;
@@ -282,7 +282,7 @@ impl Parser {
         }
 
         let mut fact = AsIsFact {
-            source: Source {
+            source: FilingSource {
                 filing,
                 filed,
                 accepted: None,
