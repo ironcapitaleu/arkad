@@ -17,14 +17,14 @@ serde_json = { version = "1.0", features = ["arbitrary_precision"] }
 bigdecimal = { version = "0.4", features = ["serde"] }
 chrono-tz = "0.10"
 roxmltree = "0.21"
-sha2 = { version = "0.11.1", optional = true }
+sha2 = "0.11.1"
 
 [features]
 # Exposes `xbrl::tests` outside of `cfg(test)`, so the integration tests can use its fixtures.
 test-fixtures = []
 # The generator of the US GAAP tables. A developer runs it once per release, and no normal build
 # needs it.
-generator = ["dep:sha2"]
+generator = []
 
 [[bin]]
 name = "generate_us_gaap"
@@ -33,9 +33,8 @@ required-features = ["generator"]
 
 [dev-dependencies]
 pretty_assertions = "1"
-sha2 = "0.11.1"
-# Turns on the features that the tests need: the fixtures, and the generator, so CI runs its tests
-# without a feature flag.
+# The self dev-dependency turns on `test-fixtures` and `generator` for every test build, so CI runs
+# the fixture-based and the generator tests.
 xbrl = { path = ".", features = ["generator", "test-fixtures"] }
 
 [lib]

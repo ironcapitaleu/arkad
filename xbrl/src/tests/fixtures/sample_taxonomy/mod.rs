@@ -5,9 +5,9 @@
 //!
 //! ## Modules
 //!
-//! - [`fake_taxonomy`]: The [`FakeTaxonomy`] that declares families and holds no tables, and the
-//!   helpers [`declaration`] and [`plugin`] that build it.
+//! - [`fake_taxonomy`]: The [`FakeTaxonomy`] that declares families and holds alias lists, and the
+//!   helpers [`declaration`], [`plugin`], and [`plugin_with_aliases`] that build it.
 
 pub mod fake_taxonomy;
 
-pub use fake_taxonomy::{FakeTaxonomy, declaration, plugin};
+pub use fake_taxonomy::{FakeTaxonomy, declaration, plugin, plugin_with_aliases};

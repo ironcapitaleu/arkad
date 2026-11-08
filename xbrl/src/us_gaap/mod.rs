@@ -12,7 +12,7 @@
 //! - [`mappings`]: The alias lists of the standard concepts.
 //! - [`table`]: The row types of the generated tables.
 //! - [`taxonomy`]: The generated tables of the release: calculation arcs and element data.
-//! - `generator`: Writes [`taxonomy`] from the vendored FASB files. Only with the `generator`
+//! - [`generator`]: Writes [`taxonomy`] from the vendored FASB files. Only with the `generator`
 //!   feature.
 
 use std::str::FromStr;
@@ -27,7 +27,8 @@ use crate::core::taxonomy::reference::{
     CalculationArc, CalculationTree, ConceptAliases, ElementReference,
 };
 
-#[cfg(feature = "generator")]
+// rustdoc sees the generator too, so the doc check covers it. A normal build leaves it out.
+#[cfg(any(doc, feature = "generator"))]
 pub mod generator;
 pub mod mappings;
 pub mod table;

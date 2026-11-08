@@ -7,6 +7,7 @@ use std::path::Path;
 use roxmltree::{Document, Node};
 
 use super::error::GeneratorError;
+use crate::core::taxonomy::reference::{Balance, PeriodType};
 
 /// The namespace of XML Schema.
 const XML_SCHEMA_NAMESPACE: &str = "http://www.w3.org/2001/XMLSchema";
@@ -32,53 +33,33 @@ const BALANCE_ATTRIBUTE: &str = "balance";
 /// The XBRL attribute that holds the period type of a concept.
 const PERIOD_TYPE_ATTRIBUTE: &str = "periodType";
 
-/// The balance of a monetary concept.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum Balance {
-    /// The value of the concept increases with a debit.
-    Debit,
-    /// The value of the concept increases with a credit.
-    Credit,
-}
+/// The value of `balance` for [`Balance::Debit`].
+const DEBIT: &str = "debit";
 
-impl Balance {
-    /// The value of `balance` for [`Balance::Debit`].
-    const DEBIT: &'static str = "debit";
-    /// The value of `balance` for [`Balance::Credit`].
-    const CREDIT: &'static str = "credit";
+/// The value of `balance` for [`Balance::Credit`].
+const CREDIT: &str = "credit";
 
-    /// Returns the [`Balance`] of a `balance` value, or `None` if XBRL defines no such value.
-    fn from_attribute(value: &str) -> Option<Self> {
-        match value {
-            Self::DEBIT => Some(Self::Debit),
-            Self::CREDIT => Some(Self::Credit),
-            _ => None,
-        }
+/// The value of `periodType` for [`PeriodType::Instant`].
+const INSTANT: &str = "instant";
+
+/// The value of `periodType` for [`PeriodType::Duration`].
+const DURATION: &str = "duration";
+
+/// Returns the [`Balance`] of a `balance` value, or `None` if XBRL defines no such value.
+fn balance_of(value: &str) -> Option<Balance> {
+    match value {
+        DEBIT => Some(Balance::Debit),
+        CREDIT => Some(Balance::Credit),
+        _ => None,
     }
 }
 
-/// The period type of a concept.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum PeriodType {
-    /// The value holds at one date.
-    Instant,
-    /// The value holds over a period.
-    Duration,
-}
-
-impl PeriodType {
-    /// The value of `periodType` for [`PeriodType::Instant`].
-    const INSTANT: &'static str = "instant";
-    /// The value of `periodType` for [`PeriodType::Duration`].
-    const DURATION: &'static str = "duration";
-
-    /// Returns the [`PeriodType`] of a `periodType` value, or `None` if XBRL defines no such value.
-    fn from_attribute(value: &str) -> Option<Self> {
-        match value {
-            Self::INSTANT => Some(Self::Instant),
-            Self::DURATION => Some(Self::Duration),
-            _ => None,
-        }
+/// Returns the [`PeriodType`] of a `periodType` value, or `None` if XBRL defines no such value.
+fn period_type_of(value: &str) -> Option<PeriodType> {
+    match value {
+        INSTANT => Some(PeriodType::Instant),
+        DURATION => Some(PeriodType::Duration),
+        _ => None,
     }
 }
 
@@ -146,13 +127,11 @@ fn concept(path: &Path, node: Node<'_, '_>) -> Result<Concept, GeneratorError> {
         PERIOD_TYPE_ATTRIBUTE,
         node.attribute((XBRL_INSTANCE_NAMESPACE, PERIOD_TYPE_ATTRIBUTE)),
     )?;
-    let period_type = PeriodType::from_attribute(&period_type_value)
+    let period_type = period_type_of(&period_type_value)
         .ok_or_else(|| invalid(PERIOD_TYPE_ATTRIBUTE, &period_type_value))?;
     let balance = node
         .attribute((XBRL_INSTANCE_NAMESPACE, BALANCE_ATTRIBUTE))
-        .map(|value| {
-            Balance::from_attribute(value).ok_or_else(|| invalid(BALANCE_ATTRIBUTE, value))
-        })
+        .map(|value| balance_of(value).ok_or_else(|| invalid(BALANCE_ATTRIBUTE, value)))
         .transpose()?;
     Ok(Concept {
         name,

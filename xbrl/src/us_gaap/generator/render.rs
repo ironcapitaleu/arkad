@@ -5,7 +5,7 @@
 use std::fmt::Write;
 
 use super::linkbase::CalculationArc;
-use super::schema::{Balance, PeriodType};
+use crate::core::taxonomy::reference::{Balance, PeriodType};
 
 /// The text that the generated file writes for a concept without a balance.
 const NO_BALANCE: &str = "None";
