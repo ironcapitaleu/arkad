@@ -38,18 +38,23 @@ codebase for all instances before considering the change complete.
 
 ### Open-Closed Principle
 
-A port, trait, or public type is open for extension and closed for modification. Before you propose
-or write a change to an existing port, check whether a new trait, type, or impl can carry it instead.
+A port is a trait that an adapter implements, such as `ReadRepository`. A port is open for extension
+and closed for modification. Before you change an existing port, check whether a new trait or impl
+can hold the change.
 
-- Add a new capability as its own trait next to the existing ones. Do not make it a subtrait of an
-  existing trait, and do not move items out of an existing trait to make room for it.
-- If a design must modify an existing port, name the port, say why an extension cannot work, and
-  list the implementors and callers that change.
-- Apply this rule before you offer options. Do not propose a shape that a later step has to modify
-  again.
+- Add a new capability as its own trait next to the existing ports. Do not make the new capability
+  a subtrait of an existing port. A subtrait forces each implementor of the new trait to implement
+  the existing port too.
+- A marker trait that only combines existing ports, such as `ReadWriteRepository`, is an
+  extension. It is allowed.
+- Do not move items out of an existing port to make room for a new trait.
+- If a design must modify an existing port, name the port and say why an extension cannot work.
+  List the implementors and callers that change.
+- Do not propose a shape that a later step has to modify again.
 
-Example: `ListRepository` is a standalone trait with its own `Key`, so `ReadRepository` stays
-unchanged ([`repository_listing.md`](storage/design/data_model/repository_listing.md), "The Trait").
+Example: `ListRepository` is a standalone trait with its own `Key`, so a caller can list without
+`get`, and `ReadRepository` stays unchanged. The marker `ReadListRepository` combines the two
+([`repository_listing.md`](storage/design/data_model/repository_listing.md), "The Trait").
 
 ### Documentation
 
@@ -556,7 +561,8 @@ conclusion), then a code block with the fix. End the review by naming the commit
 - Functions should be focused and not overly long
 - Follow single responsibility principle
 - Follow the **Open-Closed Principle**: a change that modifies an existing port where an extension
-  can carry it is a 🟡 finding (see "Open-Closed Principle")
+  can carry it, or a new capability made a subtrait of an existing port, is a 🟡 finding (see
+  "Open-Closed Principle")
 - Avoid side effects in functions
 - Naming must follow **Ottinger's Naming Rules** (reveal intent, be pronounceable, avoid encodings)
 - Code must follow the **Step-Down Rule** (higher-level concepts first, details later)
