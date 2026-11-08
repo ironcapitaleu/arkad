@@ -19,3 +19,6 @@ pub mod adapter;
 pub mod core;
 pub mod error;
 pub mod us_gaap;
+
+#[cfg(test)]
+pub mod tests;
