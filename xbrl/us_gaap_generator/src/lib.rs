@@ -3,9 +3,9 @@
 //! Writes the tables of the `us_gaap` plug-in of the `xbrl` crate from the vendored FASB files.
 //!
 //! The build of `xbrl` parses no XML. This crate reads the element schema, the label linkbase, and
-//! the statement calculation linkbases of the vendored release with `roxmltree`. It renders the tables as
-//! Rust source into `xbrl/src/us_gaap/taxonomy.rs`, which is checked in. A developer runs it once
-//! per release.
+//! the statement calculation linkbases of the vendored release with `roxmltree`. It renders the
+//! tables as Rust source into `xbrl/src/us_gaap/taxonomy.rs`, which is checked in. A developer runs
+//! it once per release.
 //!
 //! ## Modules
 //!
