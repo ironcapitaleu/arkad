@@ -19,7 +19,7 @@ chrono-tz = "0.10"
 roxmltree = "0.21"
 
 [features]
-# Exposes `xbrl::tests::fixtures` outside of `cfg(test)`, so the integration tests can use them.
+# Exposes `xbrl::tests` outside of `cfg(test)`, so the integration tests can use its fixtures.
 test-fixtures = []
 
 [dev-dependencies]

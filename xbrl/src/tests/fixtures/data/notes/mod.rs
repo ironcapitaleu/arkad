@@ -12,24 +12,24 @@ use crate::adapter::edgar::notes::{NotesFacts, NotesFiling, parse};
 use crate::core::taxonomy::registry::Registry;
 
 /// The `sub.tsv` rows of the fixture filing.
-pub const SUB_TSV: &str = include_str!("0001628280-26-068246/sub.tsv");
+const SUB_TSV: &str = include_str!("0001628280-26-068246/sub.tsv");
 
 /// The `num.tsv` rows of the fixture filing.
-pub const NUM_TSV: &str = include_str!("0001628280-26-068246/num.tsv");
+const NUM_TSV: &str = include_str!("0001628280-26-068246/num.tsv");
 
 /// The `txt.tsv` rows of the fixture filing.
-pub const TXT_TSV: &str = include_str!("0001628280-26-068246/txt.tsv");
+const TXT_TSV: &str = include_str!("0001628280-26-068246/txt.tsv");
 
 /// The `dim.tsv` rows that the `num` and `txt` rows of the fixture filing name.
-pub const DIM_TSV: &str = include_str!("0001628280-26-068246/dim.tsv");
+const DIM_TSV: &str = include_str!("0001628280-26-068246/dim.tsv");
 
 /// The `tag.tsv` rows that the `num` rows of the fixture filing name.
-pub const TAG_TSV: &str = include_str!("0001628280-26-068246/tag.tsv");
+const TAG_TSV: &str = include_str!("0001628280-26-068246/tag.tsv");
 
 /// The character between the fields of a row.
 const FIELD_SEPARATOR: char = '\t';
 
-/// Parses [`notes_filing`] with a registry of [`fixture_taxonomy`].
+/// Parses the rows of the fixture filing with a registry of [`fixture_taxonomy`].
 ///
 /// # Panics
 ///
@@ -46,11 +46,7 @@ pub fn parse_notes_fixture() -> NotesFacts {
 
 /// Returns the rows of the fixture filing.
 ///
-/// # Panics
-///
-/// Never panics: each table has a header, and `sub.tsv` has one row.
-#[must_use]
-pub fn notes_filing() -> NotesFiling {
+fn notes_filing() -> NotesFiling {
     let field = |row: &HashMap<String, String>, column: &str| row[column].clone();
     let sub = &table(SUB_TSV)[0];
     NotesFiling {

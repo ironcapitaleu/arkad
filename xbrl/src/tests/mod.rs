@@ -5,6 +5,6 @@
 //!
 //! ## Modules
 //!
-//! - [`fixtures`]: Reusable test doubles for the traits of the crate.
+//! - [`fixtures`]: Reusable test doubles and data for building `xbrl` tests.
 
 pub mod fixtures;
