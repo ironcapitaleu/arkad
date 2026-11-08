@@ -8,7 +8,8 @@ use std::str::FromStr;
 use super::fact::TaxonomyVersion;
 use super::invalid_value::{InvalidValue, InvalidValueReason, require_token};
 
-/// The ID of a taxonomy release: the family and the year, for example `us-gaap/2026`.
+/// The ID of a taxonomy release: the family and the year, for example `us-gaap/2026`. A release
+/// ID has the form of a [`TaxonomyVersion`].
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize)]
 pub struct TaxonomyReleaseId(String);
 
@@ -16,8 +17,7 @@ impl TaxonomyReleaseId {
     /// The type name that [`InvalidValue`] names when an input breaks a rule.
     const TYPE_NAME: &'static str = "TaxonomyReleaseId";
 
-    /// The character between the family and the year, as in `us-gaap/2026`. A release ID has the
-    /// form of a [`TaxonomyVersion`].
+    /// The character between the family and the year, as in `us-gaap/2026`.
     pub const SEPARATOR: char = TaxonomyVersion::SEPARATOR;
 
     /// The number of digits of the year.
