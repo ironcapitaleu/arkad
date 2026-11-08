@@ -99,7 +99,7 @@ flowchart LR
     SA[adapter::edgar]
   end
   N --> SPL[Split by filing, in the transform] --> SA
-  I --> SA
+  I --> PICK[Pick main instance, in the transform] --> SA
   J --> SA --> A
   U -. implements .-> T
   F -. implements .-> T
@@ -120,13 +120,13 @@ Rules of the layout:
   data source gets its own adapter next to it, for example `adapter::esef`.
 - The Notes parser and the instance parser live in `adapter::edgar`. Their rules fill the fact
   model, and one test runs both parsers on the same filing.
-- The transform keeps the I/O and the states. It opens the Notes ZIP, streams `sub.tsv`,
-  `tag.tsv`, `dim.tsv`, `num.tsv`, and `txt.tsv`, and splits them by `adsh`. It picks the main
+- The transform keeps the I/O and the states. It opens the Notes ZIP. It reads `sub.tsv` and
+  `dim.tsv` whole, streams `num.tsv` and `txt.tsv`, and splits them by `adsh`. It picks the main
   instance of a filing and skips the filing-fee exhibit. It reads the raw store, adds the ingestion
   provenance, and writes silver.
-- `xbrl` defines the row types of the Notes tables. The transform fills them from the TSV text and
-  hands `adapter::edgar::notes` the rows of one filing: its `sub` row and its `num`, `txt`, `tag`,
-  and `dim` rows.
+- `xbrl` defines the row types of the Notes tables. The transform fills them from the TSV text. It
+  hands `adapter::edgar::notes` the rows of one filing: its `sub` row, its `num` and `txt` rows,
+  and the `dim` rows that its `num` rows name through `dimh`.
 
 **Crate boundary**: `xbrl::adapter::edgar` takes the XML text of one instance (`&str`), the rows of one Notes filing, or a raw JSON body (`&serde_json::Value`), NOT an `SecResponse`. The `sec` crate owns HTTP, rate limiting, and response handling. `xbrl` has zero network dependencies. Its XML parser is pure Rust and needs no system library.
 
@@ -852,8 +852,8 @@ So the standardize filing state outputs candidates, not final standardized facts
 ### Decisions for the Transform Design
 
 Parsers. The transform owns the split of a Notes file and the choice of the main instance. The
-tickets of `adapter::edgar::notes` and `adapter::edgar::instance` decide the value-key rules and
-the copy ranks. The transform design decides the run unit of the standardize filing state. The
+tickets of `adapter::edgar::notes` and `adapter::edgar::instance` decide the units, the value-key
+rules, the drop of equal rows, and the copy ranks. The transform design decides the run unit of the standardize filing state. The
 ticket of the instance parser adds the cross-source test.
 
 - How the split step cuts a Notes file into filings, and how it streams a file larger than the
