@@ -8,7 +8,6 @@ use std::fmt;
 use crate::core::concept::NamespaceFamily;
 use crate::core::fact::TaxonomyVersion;
 use crate::core::invalid_value::{InvalidValue, InvalidValueReason, require_token};
-use crate::core::release::TaxonomyReleaseId;
 
 /// The placeholder for the release part in a [`UriPattern`].
 pub const RELEASE_PLACEHOLDER: &str = "{release}";
@@ -60,7 +59,7 @@ impl UriPattern {
     #[must_use]
     pub fn year_of<'a>(&self, uri: &'a str) -> Option<&'a str> {
         let release = uri.strip_prefix(&self.before)?.strip_suffix(&self.after)?;
-        if release.contains(TaxonomyReleaseId::SEPARATOR) {
+        if release.contains(TaxonomyVersion::SEPARATOR) {
             return None;
         }
         leading_year(release)
@@ -148,10 +147,10 @@ impl FamilyDeclaration {
             ));
         }
         require_token(Self::TYPE_NAME, &notes_version_prefix)?;
-        if notes_version_prefix.contains(TaxonomyReleaseId::SEPARATOR) {
+        if notes_version_prefix.contains(TaxonomyVersion::SEPARATOR) {
             return Err(InvalidValue::new(
                 Self::TYPE_NAME,
-                InvalidValueReason::ContainsSeparator(TaxonomyReleaseId::SEPARATOR),
+                InvalidValueReason::ContainsSeparator(TaxonomyVersion::SEPARATOR),
                 notes_version_prefix,
             ));
         }
@@ -227,8 +226,8 @@ impl FamilyDeclaration {
     /// declared prefix and a year, as in `us-gaap/2017`.
     #[must_use]
     pub fn version_of_notes(&self, notes_version: &str) -> Option<TaxonomyVersion> {
-        let (prefix, release) = notes_version.split_once(TaxonomyReleaseId::SEPARATOR)?;
-        if prefix != self.notes_version_prefix || release.contains(TaxonomyReleaseId::SEPARATOR) {
+        let (prefix, release) = notes_version.split_once(TaxonomyVersion::SEPARATOR)?;
+        if prefix != self.notes_version_prefix || release.contains(TaxonomyVersion::SEPARATOR) {
             return None;
         }
         self.version(leading_year(release)?)
@@ -238,14 +237,14 @@ impl FamilyDeclaration {
         TaxonomyVersion::new(format!(
             "{}{}{year}",
             self.family,
-            TaxonomyReleaseId::SEPARATOR
+            TaxonomyVersion::SEPARATOR
         ))
         .ok()
     }
 }
 
 fn leading_year(release: &str) -> Option<&str> {
-    let year = release.get(..TaxonomyReleaseId::YEAR_LENGTH)?;
+    let year = release.get(..TaxonomyVersion::YEAR_LENGTH)?;
     year.bytes()
         .all(|byte| byte.is_ascii_digit())
         .then_some(year)

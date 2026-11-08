@@ -5,6 +5,7 @@
 use std::fmt;
 use std::str::FromStr;
 
+use super::fact::TaxonomyVersion;
 use super::invalid_value::{InvalidValue, InvalidValueReason, require_token};
 
 /// The ID of a taxonomy release: the family and the year, for example `us-gaap/2026`.
@@ -15,11 +16,12 @@ impl TaxonomyReleaseId {
     /// The type name that [`InvalidValue`] names when an input breaks a rule.
     const TYPE_NAME: &'static str = "TaxonomyReleaseId";
 
-    /// The character between the family and the year, as in `us-gaap/2026`.
-    pub const SEPARATOR: char = '/';
+    /// The character between the family and the year, as in `us-gaap/2026`. A release ID has the
+    /// form of a [`TaxonomyVersion`].
+    pub const SEPARATOR: char = TaxonomyVersion::SEPARATOR;
 
     /// The number of digits of the year.
-    pub const YEAR_LENGTH: usize = 4;
+    pub const YEAR_LENGTH: usize = TaxonomyVersion::YEAR_LENGTH;
 
     /// Creates a [`TaxonomyReleaseId`] from its text.
     ///
