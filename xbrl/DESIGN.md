@@ -49,7 +49,11 @@ xbrl/
       confidence.rs        <- Exact | Synonym | Derived | Computed
       rule.rs              <- RuleId
       release.rs           <- TaxonomyRelease (ID and checksum)
-      taxonomy.rs          <- trait Taxonomy, Registry, CalculationTree, ElementReference
+      taxonomy/
+        mod.rs             <- trait Taxonomy
+        family.rs          <- FamilyDeclaration, UriPattern
+        reference.rs       <- ConceptAliases, CalculationTree, ElementReference
+        registry.rs        <- Registry, RegistryError
       fact_set.rs          <- working set of resolution for one entity and one period
       graph.rs             <- resolution and validation engine
       dedup.rs             <- dedup rules of the standardized layer
@@ -118,12 +122,12 @@ Rules of the layout:
 
 ### Types That Change
 
-These places in the old code assumed the SEC or US GAAP. The design replaces each one. The open
-types are in the code. The `Taxonomy` trait and the registry follow:
+These places in the old code assumed the SEC or US GAAP. The design replaces each one. All
+replacements are in the code:
 
 | Today | Assumption | Replacement |
 | ----- | ---------- | ----------- |
-| `core::Namespace` | Closed enum of 6 SEC namespaces | Open `NamespaceFamily` on each concept. `Namespace { prefix, uri }` stays a parser input. Each plug-in declares the families it owns |
+| `core::Namespace` | Closed enum of 6 SEC namespaces | Open `NamespaceFamily` on each concept. `Namespace { prefix, uri }` stays a parser input. Each plug-in declares its families, each with a `FamilyDeclaration` |
 | `core::Unit` | Closed enum of 4 US units | Open `Unit` of numerator and denominator measures, for example `iso4217:EUR` |
 | `core::RawObservation` | Value is `i64`, no dimensions, no `decimals` | `AsIsFact` |
 | `core::Provenance` | SEC accession number and forms | `Filing` with an open `FilingId` |
@@ -247,7 +251,7 @@ pub trait Taxonomy: Send + Sync {
     /// Every family this plug-in declares: its URI patterns, its Notes `version` prefix, and
     /// whether the plug-in resolves its facts.
     fn families(&self) -> &[FamilyDeclaration];
-    /// Per standard concept, the taxonomy concepts in priority order, each with its rule ID.
+    /// Per standard concept, the taxonomy concepts in priority order, with the alias rule ID.
     fn aliases(&self) -> &[ConceptAliases];
     /// The parent, child, and weight arcs of the calculation linkbase.
     fn calculation_tree(&self) -> &CalculationTree;
@@ -267,11 +271,25 @@ pub struct TaxonomyRelease {
 SFAC 6 identities and period identities are not part of the trait. They are core rules, the same
 for every taxonomy.
 
-**Registry.** The core holds a slice of `&'static dyn Taxonomy`. It routes each as-is fact to the
-plug-in that owns the namespace family of its concept. A filing can mix families, for example a
-20-F with `ifrs-full` and `dei`, so the routing works per fact. The registry rejects two plug-ins
-that resolve the same family. Two plug-ins can both declare a family they do not resolve, for
-example `country` for a 10-K and a 20-F, if their patterns agree. A test checks both rules.
+**Registry.** The core holds a list of `&dyn Taxonomy`. The caller owns the plug-ins, and the
+registry borrows them. The
+registry routes each as-is fact to the plug-in that resolves the namespace family of its concept. A
+filing can mix families, for example a 20-F with `ifrs-full` and `dei`, so the routing works per
+fact. The registry checks these rules when it starts. A test checks each one:
+
+- At most one plug-in resolves a family. Two resolvers fail with `DuplicateFamilyResolver`.
+- Every declaration of a family agrees with the others. Two declarations agree only if both the
+  URI patterns and the Notes `version` prefix match. If one of them differs, the split of a URI
+  would depend on the order of the plug-ins, so the registry fails with
+  `InconsistentFamilyDeclaration`. Whether a plug-in resolves the family does not count.
+- Two different families do not overlap. They share no Notes `version` prefix, and no URI can
+  match a pattern of each. Otherwise the split would depend on the order of the families, so the
+  registry fails with `OverlappingFamilyDeclaration`.
+- A plug-in declares each family once. Otherwise it fails with `RepeatedFamilyDeclaration`.
+
+So one plug-in can declare, without resolving, a family that another plug-in resolves, if the two
+declarations agree. For example, an `ifrs` plug-in and `us_gaap` can both declare `country`, and
+`ifrs` can declare `dei` while a `dei` plug-in resolves it.
 
 Alternatives:
 
@@ -316,8 +334,12 @@ The split of a URI into a family and a version:
   is its `taxonomy_version`. In the Notes data set, a `version` equal to the accession number marks
   an extension tag. The parser adds the `sec:` prefix, so both sources write the same filing ID.
 - A URI or a Notes `version` that is neither declared nor an extension keeps its fact. The full URI
-  or `version` becomes the family and the version, and the parser returns a finding. So a new SEC
-  taxonomy shows up as a finding in both sources, and the as-is layer keeps every fact.
+  or `version` becomes the family and the version, and the parser returns a finding that names the
+  family. So a new SEC taxonomy shows up as a finding in both sources, and the as-is layer keeps
+  every fact.
+- The instance writes the full URI, for example `http://xbrl.sec.gov/xyz/2027`, and Notes writes
+  `xyz/2027`. So until a plug-in declares the family, its facts do not join between sources or
+  across releases. The fix is to declare the family.
 - The `tag` table of the Notes data set has the key `tag` and `version`, and an extension tag has
   the accession number as its `version`. So the filing ID is enough as the family of all extension
   concepts of a filing.
@@ -926,6 +948,7 @@ ErrorKind
   ::Xbrl(XbrlErrorKind)
     ::FailedParsing(ParseErrorKind)
       ::InvalidJson { reason: String }
+      ::UnexpectedJsonSchema { reason: String }
       ::MissingTopLevelKey { key: String }
       ::InvalidDataPoint { concept: String, reason: String }
       ::InvalidDataPointValue { concept: String, source: InvalidValue }
@@ -964,6 +987,9 @@ pub enum XbrlErrorKind {
 pub enum ParseErrorKind {
     #[error("[InvalidJson] Failed to parse JSON body, Reason: '{reason}'")]
     InvalidJson { reason: String },
+
+    #[error("[UnexpectedJsonSchema] Unexpected JSON schema, Reason: '{reason}'")]
+    UnexpectedJsonSchema { reason: String },
 
     #[error("[MissingTopLevelKey] Expected key '{key}' in response")]
     MissingTopLevelKey { key: String },
