@@ -81,6 +81,8 @@ pub enum InvalidValueReason {
     NotADate(&'static str),
     /// No row of the table, for example `dim.tsv`, has the input as its key.
     NoMatchingRow(&'static str),
+    /// No element of the kind, for example `context`, has the input as its ID.
+    NoMatchingElement(&'static str),
     /// The source cut the named field of the row that the input keys, so the field is not complete.
     Truncated(&'static str),
 }
@@ -107,6 +109,9 @@ impl fmt::Display for InvalidValueReason {
             Self::NotHexDigest => write!(f, "The value is not a hex digest of the expected length"),
             Self::NotADate(format) => write!(f, "The value is not a date in the format {format}"),
             Self::NoMatchingRow(table) => write!(f, "No row of {table} has the value as its key"),
+            Self::NoMatchingElement(element) => {
+                write!(f, "No {element} element has the value as its ID")
+            }
             Self::Truncated(field) => write!(f, "The source cut {field}"),
         }
     }
@@ -157,6 +162,21 @@ mod tests {
         );
 
         let expected_result = "[InvalidValue] Invalid 'Measure', Reason: 'The value holds the separator /', Input: 'USD/shares'";
+
+        let result = error.to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_name_the_element_when_no_element_has_the_id() {
+        let error = InvalidValue::new(
+            "InstanceDocument",
+            InvalidValueReason::NoMatchingElement("context"),
+            "c-9",
+        );
+
+        let expected_result = "[InvalidValue] Invalid 'InstanceDocument', Reason: 'No context element has the value as its ID', Input: 'c-9'";
 
         let result = error.to_string();
 
