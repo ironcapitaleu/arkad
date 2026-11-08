@@ -248,6 +248,21 @@ mod tests {
     }
 
     #[test]
+    fn should_reject_namespace_when_uri_holds_whitespace() {
+        let uri = "http://fasb.org/us-gaap/ 2026";
+
+        let expected_result = Err(InvalidValue::new(
+            "Namespace",
+            InvalidValueReason::ContainsWhitespace,
+            "http://fasb.org/us-gaap/ 2026",
+        ));
+
+        let result = Namespace::new("us-gaap", uri);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
     fn should_reject_namespace_when_prefix_holds_whitespace() {
         let prefix = "us gaap";
 
