@@ -389,14 +389,22 @@ file fails at run time).
   are in the 2026 release. `SalesRevenueNet` (deprecated) and `IncomeLossFromOperations` are not.
   An alias list bridges renames across releases, so it does not come from one release.
 - `us_gaap/taxonomy.rs` holds no calculation tree yet.
-- The only FASB files in the repository are part of the US GAAP 2026 release, in
-  `.claude/skills/xbrl-accounting/data/taxonomy/2026/`: the label linkbase and the calculation,
-  presentation, and definition linkbases of three statement groups (classified balance sheet,
-  income statement, indirect cash flow).
-- Missing for the reference data: the element schema `us-gaap-2026.xsd` (data type, balance,
-  period type), the FASB list of retired elements with the schemas it needs (see "Releases Over
-  Time"), the other statement groups, and the `dei` and `srt` taxonomies.
-- The crate cannot build from the skill folder. The files move to `xbrl/taxonomy/us-gaap/2026/`.
+- The US GAAP 2026 release lives in `xbrl/taxonomy/us-gaap/2026/`. The files come from the FASB
+  release zip `https://xbrl.fasb.org/us-gaap/2026/us-gaap-2026.zip`, published 2026-01-31, and
+  keep its bytes and its folder names:
+  - `elts/us-gaap-2026.xsd`: the element schema, with data type, balance, and period type.
+  - `elts/us-gaap-lab-2026.xml`: the label linkbase.
+  - `elts/us-gaap-depcon-def-2026.xml` and `elts/us-gaap-depcon-pre-2026.xml`: the deprecated
+    concepts of the release (see "Releases Over Time").
+  - `stm/`: all 26 statement groups, each with its entry schema and its linkbases. The release
+    has no unclassified balance sheet for all industries. Its unclassified balance sheets are per
+    industry (`sfp-dbo`, `sfp-ibo`, `sfp-sbo`, `sfp-ucreo`).
+  - `MANIFEST`: one line per vendored file, sorted by path, in the format of `sha256sum`. A test
+    in `tests/us_gaap_manifest.rs` recomputes the `MANIFEST` of every release folder.
+- The files keep the CRLF line ends of the FASB. `.gitattributes` marks the folder `-text`, so Git
+  never changes a byte.
+- Missing for the reference data: the elements that the FASB removed before 2026 (see "Releases
+  Over Time"), and the `dei` and `srt` taxonomies.
 
 ### Releases Over Time
 
@@ -417,7 +425,7 @@ Which release resolves an old filing (decided by the owner on 2026-11-07):
 | ------ | --- | --- |
 | A. The newest release only | One set of tables | Retired concepts have no reference data. Old filings use today's tree |
 | B. Every release, picked by the `taxonomy_version` of the filing | Exact for every filing | 18 yearly releases (2009 to 2026) to vendor and generate |
-| C. The newest release, plus the FASB list of retired elements (chosen for the MVP) | Retired concepts get their reference data | Old filings use today's tree |
+| C. The newest release, plus the retired elements with the schema of the last release that defined each (chosen for the MVP) | Retired concepts get their reference data | Old filings use today's tree |
 
 - B and C differ only in tier 4, the sums along the calculation tree. Tiers 1 to 3 do not use the
   tree.
@@ -428,18 +436,34 @@ Which release resolves an old filing (decided by the owner on 2026-11-07):
   matters, move to B. B adds release folders and needs no change to the design, because each fact
   names its release.
 
-How option C gets the reference data of a retired element:
+How option C gets the reference data of a retired element. The FASB publishes no separate list
+of retired elements. A check of the releases 2011 to 2026 on 2026-11-08 found two kinds:
 
-- The FASB list of retired elements is expected to name each element and the release that
-  retired it.
-- The data type, balance, and period type of a retired element come from the element schema of
-  the last release that defined it. Only these schemas are vendored, not their trees.
-- The list and the schemas sit in `xbrl/taxonomy/us-gaap/2026/retired/`, so the `MANIFEST` and the
-  checksum of the release cover them. Each release folder holds its own `retired/`.
-- `elements()` returns the elements of the release and the retired elements. Each
-  `ElementReference` names the release it comes from.
-- Which fields the FASB list holds is not checked yet. The ticket that vendors the release checks
-  it.
+- **Deprecated, still defined.** A release keeps a deprecated element in its schema for some
+  years. The 2026 schema holds the elements deprecated in 2024, 2025, and 2026. Their standard
+  label ends with the year, for example `(Deprecated 2026)`. The `depcon` definition linkbase links
+  each one to the concept that replaces it, and the `depcon` presentation linkbase lists them.
+  These elements come from `us-gaap-2026.xsd`, so `elements()` covers them with the 2026 release.
+- **Removed.** The FASB drops a deprecated element from the schema in a later release.
+  `SalesRevenueNet` is deprecated in 2018 (label `Revenue, Net (Deprecated 2018-01-31)`) and last
+  defined in the 2020 schema. 6,628 elements of the schemas 2011 to 2025 are missing from 2026.
+  Their last definitions spread over 14 releases, 2012 to 2025.
+
+The fields that the FASB files hold for a retired element:
+
+| Field | Source |
+| ----- | ------ |
+| Name, data type, balance, period type | The schema of the last release that defines it |
+| Label, deprecation date | The label linkbase of that release, as text at the end of the label |
+| Replacement concept | The `depcon` definition linkbase of that release, for some elements |
+
+The release that retires an element is not a field. It is the date in the label, or the first
+release whose schema no longer defines the element.
+
+Vendoring the removed elements needs the 14 schemas (about 4.5 MB each) and their label linkbases
+(about 14 MB each), about 260 MB in Git. The owner decided on 2026-11-08 to ship the 2026 release
+first. `elements()` covers the elements of the 2026 schema, including the deprecated ones. A later
+ticket decides where the removed elements live.
 
 ### `us_gaap`
 
@@ -944,15 +968,35 @@ Where each field of `AsIsFact` comes from:
 | `filing` | `sub.adsh` | The accession number of the filing |
 | `entity` | `sub.cik` | The entity identifier of the context |
 | `concept` | `tag` with the namespace of `version`, from `num` or `txt` | The element name |
-| `taxonomy_version` | `num.version` or `txt.version` | The schema reference of the filing |
+| `taxonomy_version` | `num.version` or `txt.version` | The registry split of the namespace URI. The namespace whose prefix names the schema file, as `fdxf` names `fdxf-20260930.xsd`, is the extension |
 | `period` | `ddate` minus `datp`, and `qtrs`. `qtrs` 0 is an instant only if `durp` is 0 | The period of the context |
 | `unit` | `num.uom`, with `/shares` restored if `tag.datatype` is `perShare`. `None` for a `txt` row | The unit of the fact |
-| `dimensions` | `dim.segments` through `dimh`, and `coreg`. A lowercase prefix before a capitalized name is stripped. A typed member such as `abc:Def` loses its prefix too. A row with `segt` 1 is cut and gives a finding | The members of the context |
+| `dimensions` | `dim.segments` through `dimh`, and `coreg`. A lowercase prefix before a capitalized name is stripped. A typed member such as `abc:Def` loses its prefix too. A row with `segt` 1 is cut and gives a finding | The members of the context, without prefixes. An explicit axis loses a leading `Statement` and a trailing `Axis`, and its member loses a trailing `Member` or `Domain`. A typed axis loses only a trailing `Axis`. A typed member keeps its content, and loses a prefix by the Notes rule |
 | `value` | `num.value` or `txt.value`. An empty `num.value` is nil. An empty `txt.value` is nil only if `txt.srclen` is 0, else an empty text. The parser drops `txt.lang`, which is not part of the key of `txt`. Every `txt` row of `2026_10` is `en-US` | The content of the fact, or `xsi:nil` |
 | `decimals` | `num.dcml`. 32767 is `Infinite`. -32768, which only nil rows carry, is `None`. `None` for a `txt` row | The `decimals` attribute |
-| `copy_rank` | Assigned by the parser in the order of `iprx`, over the `num` and `txt` rows | Assigned by the parser in the SEC order of `iprx` |
-| `footnotes` | `num.footnote` or `txt.footnote` | The footnote links |
+| `copy_rank` | Assigned by the parser in the order of `iprx`, over the `num` and `txt` rows | Assigned by the parser in the SEC order of `iprx`: higher `decimals` first, then the length nearer a full quarter, then document order. The facts of one key share one exact end, so the distance to a month end never decides |
+| `footnotes` | `num.footnote` or `txt.footnote` | The footnote links, with the text of each footnote and its whitespace collapsed |
 | `filed`, `accepted` | `sub.filed`, `sub.accepted` in the time of New York, converted to UTC | The filed date of the daily index. `accepted` is empty |
+
+The instance parser reads the dimension rule and the extension rule from data, not from a
+standard:
+
+- The readme of the Notes data set says that `dim.segments` drops a leading `Statement`, a trailing
+  `Axis`, and a trailing `Member` or `Domain`. The data of `2026_10_notes.zip` shows that a typed
+  axis keeps `Statement`: `StatementOfIncomeLocationBalance` and
+  `StatementOfFinancialPositionLocationBalance` are typed, and explicit axes such as
+  `StatementBusinessSegmentsAxis` become `BusinessSegments`.
+- An instance names its schema file, but not the namespace that the schema defines. The SEC names
+  the schema file `<prefix>-<date>.xsd`, so the parser takes the namespace of that prefix as the
+  extension. A filing whose prefix differs from the file name gives its extension facts an
+  undeclared family and a finding.
+
+The instance parser maps the cover facts in the `dei` namespace into the `Filing`:
+`dei:DocumentType` gives the form and, through its context, the entity. `dei:AmendmentFlag`,
+`dei:DocumentPeriodEndDate`, `dei:DocumentFiscalYearFocus`, `dei:DocumentFiscalPeriodFocus`,
+`dei:EntityRegistrantName`, `dei:CurrentFiscalYearEndDate`, `dei:TradingSymbol`, and
+`dei:SecurityExchangeName` give the rest. The instance has no industry code. Its period of report
+is the exact date, where Notes `sub.period` is the month end.
 
 States and errors:
 

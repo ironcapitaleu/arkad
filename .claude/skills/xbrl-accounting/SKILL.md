@@ -78,16 +78,22 @@ Example: Amazon doesn't report `Liabilities` but reports `LiabilitiesCurrent` + 
 
 ## Raw Taxonomy Data
 
-The authoritative FASB linkbase XML files are stored in `./data/taxonomy/2026/` (relative to this skill):
+The authoritative FASB files live in the `xbrl` crate, in `xbrl/taxonomy/us-gaap/2026/` (relative
+to the repository root). They are byte for byte the files of the FASB release zip.
 
-- `stm/` — Statement linkbases (balance sheet, income statement, cash flow)
+- `stm/`: every statement group of the release, with its entry schema and its linkbases
   - `-cal-` files: arithmetic (summation) relationships with weights
   - `-pre-` files: display hierarchy and grouping
   - `-def-` files: dimensional relationships (segment vs. total)
-- `elts/` — Element-level data
+- `elts/`: element-level data
+  - `us-gaap-2026.xsd`: the element schema, with data type, balance, and period type
   - `us-gaap-lab-2026.xml`: human-readable labels for all concepts
+  - `us-gaap-depcon-def-2026.xml` and `us-gaap-depcon-pre-2026.xml`: the deprecated concepts of
+    the release, and the concept that replaces each one
+- `MANIFEST`: the SHA-256 of each vendored file, sorted by path
 
-See `references/linkbase-anatomy.md` for how to read these XML files.
+See `references/linkbase-anatomy.md` for how to read these XML files, and `xbrl/DESIGN.md`,
+"Release in Use Today", for what the release holds.
 
 ## Staleness Check
 
@@ -99,7 +105,7 @@ For `references/canonical-elements.md`: if you notice CanonicalElement enum memb
 
 ## Update Logic
 
-### When to update taxonomy XML files (`data/taxonomy/`)
+### When to update taxonomy XML files (`xbrl/taxonomy/us-gaap/`)
 
 FASB releases a new US GAAP taxonomy annually (typically Q1). Update when:
 
@@ -109,15 +115,17 @@ FASB releases a new US GAAP taxonomy annually (typically Q1). Update when:
 
 ### How to update
 
-1. Check latest available year: `curl -s https://xbrl.fasb.org/us-gaap/ | grep -oP '\d{4}' | sort -rn | head -1`
-2. Download new files into `data/taxonomy/{new_year}/stm/` and `data/taxonomy/{new_year}/elts/`:
-   - `us-gaap-stm-sfp-cls-{cal,pre,def}-{year}.xml` (balance sheet, classified)
-   - `us-gaap-stm-soi-{cal,pre,def}-{year}.xml` (income statement)
-   - `us-gaap-stm-scf-indir-{cal,pre,def}-{year}.xml` (cash flow, indirect)
-   - `us-gaap-lab-{year}.xml` (labels)
-3. Update `references/calculation-linkbase.md` header: set `taxonomy-year` to the new year
-4. Verify no existing concept mappings broke (concept names may have changed between versions)
-5. Prompt user to remove old taxonomy directory if no longer needed
+1. Send a `HEAD` request for `https://xbrl.fasb.org/us-gaap/{new_year}/us-gaap-{new_year}.zip`.
+   If it returns 200, the release exists. Never parse the HTML listing of the site.
+2. Download the zip and unpack it in a new, empty directory.
+3. Copy `elts/us-gaap-{year}.xsd`, `elts/us-gaap-lab-{year}.xml`, the two
+   `elts/us-gaap-depcon-*-{year}.xml` files, and all of `stm/` into
+   `xbrl/taxonomy/us-gaap/{new_year}/`. Never change a vendored file.
+4. Write the `MANIFEST` in that folder. Run `find . -type f ! -name MANIFEST | sed 's|^\./||' |
+   LC_ALL=C sort | xargs sha256sum > MANIFEST` inside the folder.
+5. Update `references/calculation-linkbase.md` header: set `taxonomy-year` to the new year
+6. Verify no existing concept mappings broke (concept names may have changed between versions)
+7. Prompt user to remove old taxonomy directory if no longer needed
 
 ### What does NOT need updating
 
