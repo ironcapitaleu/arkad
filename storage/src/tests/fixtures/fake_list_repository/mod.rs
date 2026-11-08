@@ -40,7 +40,7 @@ impl<Key: AsRef<str>, Ent> FakeListRepository<Key, Ent> {
 
     /// Creates a [`FakeListRepository`] seeded with the given items, each an entry or an error.
     ///
-    /// Keeps the first item of each key, as [`get`](ReadRepository::get) does.
+    /// Keeps the first item of each key and drops the others.
     #[must_use]
     pub fn with_items(mut items: Vec<(Key, Result<Ent, ReadError>)>) -> Self {
         items.sort_by(|(left, _), (right, _)| {
