@@ -15,6 +15,9 @@ use super::invalid_value::{InvalidValue, InvalidValueReason, require_token};
 pub struct Measure(String);
 
 impl Measure {
+    /// The type name that [`InvalidValue`] names when an input breaks a rule.
+    const TYPE_NAME: &'static str = "Measure";
+
     /// Creates a [`Measure`] from its text.
     ///
     /// # Errors
@@ -22,10 +25,13 @@ impl Measure {
     /// Returns [`InvalidValue`] if the text is empty, holds whitespace, or holds `/` or `*`.
     pub fn new(text: impl Into<String>) -> Result<Self, InvalidValue> {
         let text = text.into();
-        require_token("Measure", &text)?;
-        if let Some(separator) = text.chars().find(|c| matches!(c, '/' | '*')) {
+        require_token(Self::TYPE_NAME, &text)?;
+        if let Some(separator) = text
+            .chars()
+            .find(|c| [Unit::DIVISION, Unit::MULTIPLICATION].contains(c))
+        {
             return Err(InvalidValue::new(
-                "Measure",
+                Self::TYPE_NAME,
                 InvalidValueReason::ContainsSeparator(separator),
                 text,
             ));
@@ -76,6 +82,15 @@ pub struct Unit {
 }
 
 impl Unit {
+    /// The type name that [`InvalidValue`] names when an input breaks a rule.
+    const TYPE_NAME: &'static str = "Unit";
+
+    /// The character between the numerator and the denominator in the text form.
+    pub const DIVISION: char = '/';
+
+    /// The character between two measures of one side in the text form.
+    pub const MULTIPLICATION: char = '*';
+
     /// Creates a [`Unit`] from its numerator and denominator measures, and sorts each side.
     ///
     /// # Errors
@@ -86,7 +101,11 @@ impl Unit {
         mut denominator: Vec<Measure>,
     ) -> Result<Self, InvalidValue> {
         if numerator.is_empty() {
-            return Err(InvalidValue::new("Unit", InvalidValueReason::Empty, ""));
+            return Err(InvalidValue::new(
+                Self::TYPE_NAME,
+                InvalidValueReason::Empty,
+                "",
+            ));
         }
         numerator.sort();
         denominator.sort();
@@ -119,7 +138,7 @@ impl FromStr for Unit {
     /// Returns [`InvalidValue`] if a side is empty, a measure is invalid, or the text holds more than
     /// one `/`.
     fn from_str(text: &str) -> Result<Self, Self::Err> {
-        let mut sides = text.splitn(2, '/');
+        let mut sides = text.splitn(2, Self::DIVISION);
         let numerator = parse_side(sides.next().unwrap_or_default(), text)?;
         let denominator = match sides.next() {
             Some(side) => parse_side(side, text)?,
@@ -130,12 +149,17 @@ impl FromStr for Unit {
 }
 
 fn parse_side(side: &str, text: &str) -> Result<Vec<Measure>, InvalidValue> {
-    side.split('*')
+    side.split(Unit::MULTIPLICATION)
         .map(|measure| {
             if measure.is_empty() {
-                Err(InvalidValue::new("Unit", InvalidValueReason::Empty, text))
+                Err(InvalidValue::new(
+                    Unit::TYPE_NAME,
+                    InvalidValueReason::Empty,
+                    text,
+                ))
             } else {
-                Measure::new(measure).map_err(|error| InvalidValue::new("Unit", error.reason, text))
+                Measure::new(measure)
+                    .map_err(|error| InvalidValue::new(Unit::TYPE_NAME, error.reason, text))
             }
         })
         .collect()
@@ -145,7 +169,7 @@ impl fmt::Display for Unit {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write_measures(f, &self.numerator)?;
         if !self.denominator.is_empty() {
-            write!(f, "/")?;
+            write!(f, "{}", Self::DIVISION)?;
             write_measures(f, &self.denominator)?;
         }
         Ok(())
@@ -155,7 +179,7 @@ impl fmt::Display for Unit {
 fn write_measures(f: &mut fmt::Formatter<'_>, measures: &[Measure]) -> fmt::Result {
     for (index, measure) in measures.iter().enumerate() {
         if index > 0 {
-            write!(f, "*")?;
+            write!(f, "{}", Unit::MULTIPLICATION)?;
         }
         write!(f, "{measure}")?;
     }

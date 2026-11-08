@@ -25,6 +25,9 @@ use super::unit::Unit;
 pub struct TaxonomyVersion(String);
 
 impl TaxonomyVersion {
+    /// The type name that [`InvalidValue`] names when an input breaks a rule.
+    const TYPE_NAME: &'static str = "TaxonomyVersion";
+
     /// Creates a [`TaxonomyVersion`] from its text.
     ///
     /// # Errors
@@ -32,7 +35,7 @@ impl TaxonomyVersion {
     /// Returns [`InvalidValue`] if the text is empty or holds whitespace.
     pub fn new(text: impl Into<String>) -> Result<Self, InvalidValue> {
         let text = text.into();
-        require_token("TaxonomyVersion", &text)?;
+        require_token(Self::TYPE_NAME, &text)?;
         Ok(Self(text))
     }
 
@@ -57,6 +60,9 @@ impl fmt::Display for TaxonomyVersion {
 pub struct Dimensions(BTreeMap<String, String>);
 
 impl Dimensions {
+    /// The type name that [`InvalidValue`] names when an input breaks a rule.
+    const TYPE_NAME: &'static str = "Dimensions";
+
     /// Creates [`Dimensions`] from axis and member pairs in any order.
     ///
     /// # Errors
@@ -74,14 +80,14 @@ impl Dimensions {
             let member = member.into();
             if axis.is_empty() || member.is_empty() {
                 return Err(InvalidValue::new(
-                    "Dimensions",
+                    Self::TYPE_NAME,
                     InvalidValueReason::Empty,
                     format!("{axis}={member}"),
                 ));
             }
             if map.contains_key(&axis) {
                 return Err(InvalidValue::new(
-                    "Dimensions",
+                    Self::TYPE_NAME,
                     InvalidValueReason::DuplicateAxis,
                     axis,
                 ));
@@ -131,6 +137,14 @@ pub enum Decimals {
     Infinite,
 }
 
+impl Decimals {
+    /// The type name that [`InvalidValue`] names when an input breaks a rule.
+    const TYPE_NAME: &'static str = "Decimals";
+
+    /// The text of the XBRL `decimals` attribute for an exact value.
+    pub const INFINITE_TEXT: &'static str = "INF";
+}
+
 impl FromStr for Decimals {
     type Err = InvalidValue;
 
@@ -156,12 +170,12 @@ impl FromStr for Decimals {
     /// assert_eq!(result, expected_result);
     /// ```
     fn from_str(text: &str) -> Result<Self, Self::Err> {
-        if text == "INF" {
+        if text == Self::INFINITE_TEXT {
             return Ok(Self::Infinite);
         }
         text.parse()
             .map(Self::Finite)
-            .map_err(|_| InvalidValue::new("Decimals", InvalidValueReason::NotANumber, text))
+            .map_err(|_| InvalidValue::new(Self::TYPE_NAME, InvalidValueReason::NotANumber, text))
     }
 }
 

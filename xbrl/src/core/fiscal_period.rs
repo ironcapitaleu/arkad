@@ -29,6 +29,9 @@ use super::invalid_value::{InvalidValue, require_token};
 pub struct FiscalPeriod(String);
 
 impl FiscalPeriod {
+    /// The type name that [`InvalidValue`] names when an input breaks a rule.
+    const TYPE_NAME: &'static str = "FiscalPeriod";
+
     /// Creates a [`FiscalPeriod`] from its text.
     ///
     /// # Errors
@@ -36,7 +39,7 @@ impl FiscalPeriod {
     /// Returns [`InvalidValue`] if the text is empty or holds whitespace.
     pub fn new(text: impl Into<String>) -> Result<Self, InvalidValue> {
         let text = text.into();
-        require_token("FiscalPeriod", &text)?;
+        require_token(Self::TYPE_NAME, &text)?;
         Ok(Self(text))
     }
 

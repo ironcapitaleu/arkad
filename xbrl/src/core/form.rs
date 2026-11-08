@@ -28,6 +28,12 @@ use super::invalid_value::{InvalidValue, InvalidValueReason};
 pub struct Form(String);
 
 impl Form {
+    /// The type name that [`InvalidValue`] names when an input breaks a rule.
+    const TYPE_NAME: &'static str = "Form";
+
+    /// The suffix that marks an SEC amendment, as in `10-K/A`.
+    pub const AMENDMENT_SUFFIX: &'static str = "/A";
+
     /// Creates a [`Form`] from its text.
     ///
     /// # Errors
@@ -36,7 +42,11 @@ impl Form {
     pub fn new(text: impl Into<String>) -> Result<Self, InvalidValue> {
         let text = text.into();
         if text.is_empty() {
-            return Err(InvalidValue::new("Form", InvalidValueReason::Empty, text));
+            return Err(InvalidValue::new(
+                Self::TYPE_NAME,
+                InvalidValueReason::Empty,
+                text,
+            ));
         }
         Ok(Self(text))
     }
@@ -52,7 +62,7 @@ impl Form {
     /// A source that marks amendments in another way sets `Filing::is_amendment` by its own rule.
     #[must_use]
     pub fn is_amendment(&self) -> bool {
-        self.0.ends_with("/A")
+        self.0.ends_with(Self::AMENDMENT_SUFFIX)
     }
 }
 

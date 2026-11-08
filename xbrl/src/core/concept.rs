@@ -22,6 +22,9 @@ pub struct Namespace {
 }
 
 impl Namespace {
+    /// The type name that [`InvalidValue`] names when an input breaks a rule.
+    const TYPE_NAME: &'static str = "Namespace";
+
     /// Creates a [`Namespace`] from a prefix and a URI.
     ///
     /// The prefix can be empty, for the default namespace of a document.
@@ -35,12 +38,12 @@ impl Namespace {
         let uri = uri.into();
         if prefix.chars().any(char::is_whitespace) {
             return Err(InvalidValue::new(
-                "Namespace",
+                Self::TYPE_NAME,
                 InvalidValueReason::ContainsWhitespace,
                 prefix,
             ));
         }
-        require_token("Namespace", &uri)?;
+        require_token(Self::TYPE_NAME, &uri)?;
         Ok(Self { prefix, uri })
     }
 
@@ -85,6 +88,9 @@ impl Namespace {
 pub struct NamespaceFamily(String);
 
 impl NamespaceFamily {
+    /// The type name that [`InvalidValue`] names when an input breaks a rule.
+    const TYPE_NAME: &'static str = "NamespaceFamily";
+
     /// Creates a [`NamespaceFamily`] from its text.
     ///
     /// # Errors
@@ -92,7 +98,7 @@ impl NamespaceFamily {
     /// Returns [`InvalidValue`] if the text is empty or holds whitespace.
     pub fn new(text: impl Into<String>) -> Result<Self, InvalidValue> {
         let text = text.into();
-        require_token("NamespaceFamily", &text)?;
+        require_token(Self::TYPE_NAME, &text)?;
         Ok(Self(text))
     }
 
@@ -136,6 +142,12 @@ pub struct ConceptName {
 }
 
 impl ConceptName {
+    /// The type name that [`InvalidValue`] names when an input breaks a rule.
+    const TYPE_NAME: &'static str = "ConceptName";
+
+    /// The character between the family and the local name in the text form.
+    pub const SEPARATOR: char = ':';
+
     /// Creates a [`ConceptName`] from a family and a local name.
     ///
     /// # Errors
@@ -146,11 +158,11 @@ impl ConceptName {
         local_name: impl Into<String>,
     ) -> Result<Self, InvalidValue> {
         let local_name = local_name.into();
-        require_token("ConceptName", &local_name)?;
-        if local_name.contains(':') {
+        require_token(Self::TYPE_NAME, &local_name)?;
+        if local_name.contains(Self::SEPARATOR) {
             return Err(InvalidValue::new(
-                "ConceptName",
-                InvalidValueReason::ContainsSeparator(':'),
+                Self::TYPE_NAME,
+                InvalidValueReason::ContainsSeparator(Self::SEPARATOR),
                 local_name,
             ));
         }
@@ -172,7 +184,7 @@ impl ConceptName {
 
 impl fmt::Display for ConceptName {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}:{}", self.family, self.local_name)
+        write!(f, "{}{}{}", self.family, Self::SEPARATOR, self.local_name)
     }
 }
 
