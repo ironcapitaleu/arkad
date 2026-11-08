@@ -351,8 +351,8 @@ the store:
 1. Call `list_keys(sec/notes)`.
 2. Parse the period from each file name: the text before `_notes`, through `NotesPeriod::new`.
 3. Take the newest period by `NotesPeriod::last_day`. Its last day is the cut-over date.
-4. Check for a gap from the keys alone, with no SEC request. Each quarter from the first period
-   of the backfill, a constant in `sec`, through the quarter of the newest period must be covered: by its quarterly file, or by
+4. Check for a gap from the keys alone, with no SEC request. Each quarter from `2009q1`, the
+   first period of the backfill, through the quarter of the newest period must be covered: by its quarterly file, or by
    its three monthly files. The quarter of the newest period needs only its months up to the
    newest one. If a quarter is not covered, fail and name it. This is the check of rule 5, read
    from the store instead of a run summary.
@@ -383,10 +383,10 @@ See [Bookmark or Full Index](#bookmark-or-full-index) for the choice. Each run:
    - Any other filing failed in an earlier run, and joins the filings of step 6.
 6. Hands the remaining filings, oldest `Date Filed` first, to the filing machines.
 
-`list_keys` reads no file, so this step does not read the stored instances again. A check with `get`
-per row reads the bytes of every stored instance of the quarter, each run. So step 4 checks no
-size and no SHA-256. A stored file that fails those checks stays until the integrity check reports
-it. The operator then reruns that filing with an exact range.
+Step 4 uses `list_keys`, which reads no file. So step 4 checks no size and no SHA-256. A check with
+`get` per row reads the bytes of every stored instance of the quarter on each run, so step 4 does
+not use it. A stored file that fails those checks stays until the integrity check reports it. The
+operator then reruns that filing with an exact range, which checks each file with `get`.
 
 ### 4. Operator Report
 
@@ -447,11 +447,13 @@ Rules of the run:
   minutes at the rate limit alone, inside the timeout of 30 minutes. The next run takes the rest.
   The cap is a configuration value and needs a measurement.
 - **Exact range.** If `ARKAD_FROM` and `ARKAD_TO` are set, the run keeps only the rows with a
-  `Date Filed` in that range. It still removes the stored filings. Nothing moves, because no
-  bookmark exists.
+  `Date Filed` in that range. It skips step 4 and hands every row to the store check, which reads
+  each stored file with `get` and checks its size and SHA-256. A stored file that fails the check
+  counts as not stored, so the run fetches the filing again. An exact range is small, so it can pay
+  for these reads. Nothing moves, because no bookmark exists.
 - **Alert.** After the run, a filing with a `Date Filed` older than 7 days logs an `error` and
-  sets the error exit code if the store holds no instance for it and the store check did not count
-  it as unextractable. It replaces the alert "the bookmark has not
+  sets the error exit code if it reached step 6 and the run did not store it. A filing with a
+  stored instance whose label file fails on each run raises the alert too. It replaces the alert "the bookmark has not
   moved in N days".
 - **Quarter boundary.** The previous quarter is final in its full index after its last business
   day. A filing of the previous quarter that is still missing after 30 days goes to the weekly
@@ -480,6 +482,8 @@ These follow the decisions above. Each is one PR within the review budget.
 4. **Cut-over date from the store.** In `sec`: the newest stored Notes period from
    `list_keys(sec/notes)`, with the gap check from the keys. Tests for a merged quarter beside its
    months, for months that cover a quarter, for a missing first period, and for a missing period.
+   Adds the first period `2009q1` as a constant in `sec`, which the list of published periods also
+   uses in place of its literal `2009`.
 5. **`daily_filings` reads the full index minus the stored filings.** Replaces the window of 4
    days. The cap, the exact range, the alert, and the quarter boundary. Blocked by features 2 and 4
    and by the full index source of the catch-up.
