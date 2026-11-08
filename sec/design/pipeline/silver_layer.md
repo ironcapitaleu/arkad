@@ -238,7 +238,7 @@ A dataset, not a report, for three reasons:
 
 - The checks read findings with the same reader as facts.
 - A report is a query over the dataset. A dataset is not a query over a report.
-- The history of findings of the last 30 days of series runs stays in silver (see [Growth](#growth)).
+- Silver keeps the findings of the series runs of the last 30 days (see [Growth](#growth)).
 
 The standardize filing step writes `Conflict`. The series step writes `Gap`, `Overlap`, and
 `Restatement`, and copies each `Conflict` of the entity, as `xbrl/DESIGN.md`, "Gap Check", asks. A
@@ -267,7 +267,7 @@ The list of written units. Readers find the current files through it, and it hol
 | `files` | `list<utf8>` | The Parquet files of the unit |
 | `row_count` | `uint64` | |
 | `execution_id`, `ingestion_mode`, `written_at` | | The run |
-| `removed_at` | `timestamp[ms, UTC]`, nullable | Set when the retention rule of [Growth](#growth) removed the files |
+| `removed_at` | `timestamp[ms, UTC]`, nullable | Set only on the row that the cleanup of [Growth](#growth) adds for a removed unit |
 
 ## Format and Table Layout
 
@@ -354,7 +354,8 @@ gs://<silver-bucket>/silver_files/execution=<execution_id>/task=<n>-<attempt>.pa
 4. The writer writes the `silver_files` row last. A unit without a `silver_files` row does not
    exist for a reader.
 
-So silver never writes to an existing path. A file is written once and kept. If an attempt fails
+So silver never writes to an existing path. A file is written once. Only the retention rule of
+[Growth](#growth) and the cleanup of unread files below remove files. If an attempt fails
 between steps 3 and 4, its files stay unread, because no `silver_files` row names them. A cleanup
 can remove such files once no attempt of their execution runs.
 
@@ -400,10 +401,14 @@ list, so the real size is larger. The prototype measures it. A rewrite each day 
 So `standardized_facts` and `findings` get a retention rule:
 
 - A cleanup removes a superseded unit of these two datasets 30 days after a newer unit replaced it.
-- The cleanup sets `removed_at` on the `silver_files` row of the unit. A reader skips such a unit.
+- The cleanup adds rows and updates none. It writes its own file,
+  `silver_files/cleanup=<execution_id>/task=<n>-<attempt>.parquet`. The file holds one row per
+  removed unit, with the unit key, `input_digest`, `transform_version`, and `written_at` of that
+  unit, and `removed_at` set. Then the cleanup deletes the Parquet files of the unit.
+- A reader drops a unit that has a row with `removed_at` set.
 - A read "as silver held it at T" for these two datasets reaches back 30 days only.
-- The series step can rebuild a removed unit from `candidates`, with the `transform_version` of that
-  unit. So the cleanup loses no reported value.
+- The series step can rebuild a removed unit from the `candidates` units current at the time of
+  that unit, with the binary of its `transform_version`. So the cleanup loses no reported value.
 
 ## Provenance
 
