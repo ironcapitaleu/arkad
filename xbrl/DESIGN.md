@@ -959,7 +959,6 @@ pub enum ParseErrorKind {
     #[error("[MissingTopLevelKey] Expected key '{key}' in response")]
     MissingTopLevelKey { key: String },
 
-
     #[error("[InvalidDataPoint] Invalid data point for concept '{concept}', Reason: '{reason}'")]
     InvalidDataPoint { concept: String, reason: String },
 
