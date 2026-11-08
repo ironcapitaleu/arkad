@@ -273,6 +273,7 @@ mod tests {
             dimh: "0x00000000".to_owned(),
             iprx: iprx.to_owned(),
             value: value.to_owned(),
+            durp: "0.0".to_owned(),
             datp: "0.0".to_owned(),
             dcml: "-6".to_owned(),
             ..NumRow::default()
@@ -292,6 +293,7 @@ mod tests {
             dim: vec![DimRow {
                 dimh: "0x00000000".to_owned(),
                 segments: String::new(),
+                segt: "0".to_owned(),
             }],
             tag: vec![TagRow {
                 tag: "EarningsPerShareBasic".to_owned(),

@@ -141,6 +141,7 @@ fn notes_filing() -> NotesFiling {
                 value: field(row, "value"),
                 footnote: field(row, "footnote"),
                 coreg: field(row, "coreg"),
+                durp: field(row, "durp"),
                 datp: field(row, "datp"),
                 dcml: field(row, "dcml"),
             })
@@ -150,6 +151,7 @@ fn notes_filing() -> NotesFiling {
             .map(|row| DimRow {
                 dimh: field(row, "dimhash"),
                 segments: field(row, "segments"),
+                segt: field(row, "segt"),
             })
             .collect(),
         tag: table("tag.tsv")
@@ -230,43 +232,37 @@ fn should_restore_shares_and_rank_copies_of_basic_earnings_per_share_for_a_real_
 
     let expected_result = vec![
         (
-            "2025-06-30".to_owned(),
-            0,
+            "0 quarters to 2025-06-30".to_owned(),
             "USD/shares".to_owned(),
             "0.7600".to_owned(),
             0,
         ),
         (
-            "2025-09-30".to_owned(),
-            1,
+            "1 quarters to 2025-09-30".to_owned(),
             "USD/shares".to_owned(),
             "1.9500".to_owned(),
             0,
         ),
         (
-            "2025-09-30".to_owned(),
-            1,
+            "1 quarters to 2025-09-30".to_owned(),
             "USD/shares".to_owned(),
             "2.7000".to_owned(),
             1,
         ),
         (
-            "2026-06-30".to_owned(),
-            0,
+            "0 quarters to 2026-06-30".to_owned(),
             "USD/shares".to_owned(),
             "0.5600".to_owned(),
             0,
         ),
         (
-            "2026-09-30".to_owned(),
-            1,
+            "1 quarters to 2026-09-30".to_owned(),
             "USD/shares".to_owned(),
             "0.9800".to_owned(),
             0,
         ),
         (
-            "2026-09-30".to_owned(),
-            1,
+            "1 quarters to 2026-09-30".to_owned(),
             "USD/shares".to_owned(),
             "1.5400".to_owned(),
             1,
@@ -275,7 +271,7 @@ fn should_restore_shares_and_rank_copies_of_basic_earnings_per_share_for_a_real_
 
     let parsed = parse(&rows, &registry)
         .expect("Given the valid sub row of a real filing, the parse should always succeed");
-    let result: Vec<(String, u16, String, String, u16)> = parsed
+    let result: Vec<(String, String, String, u16)> = parsed
         .facts
         .iter()
         .filter(|fact| fact.concept.local_name() == "EarningsPerShareBasic")
@@ -289,14 +285,7 @@ fn should_restore_shares_and_rank_copies_of_basic_earnings_per_share_for_a_real_
                 FactValue::Numeric(number) => number.to_string(),
                 other => format!("{other:?}"),
             };
-            let period = fact.context.period;
-            (
-                period.end().to_string(),
-                period.quarters(),
-                unit,
-                value,
-                fact.copy_rank,
-            )
+            (fact.context.period.to_string(), unit, value, fact.copy_rank)
         })
         .collect();
 

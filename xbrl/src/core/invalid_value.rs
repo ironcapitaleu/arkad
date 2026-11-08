@@ -81,6 +81,8 @@ pub enum InvalidValueReason {
     NotADate(&'static str),
     /// No row of the table, for example `dim.tsv`, has the input as its key.
     NoMatchingRow(&'static str),
+    /// The source cut the input, so the value is not complete.
+    Truncated,
 }
 
 impl fmt::Display for InvalidValueReason {
@@ -105,6 +107,7 @@ impl fmt::Display for InvalidValueReason {
             Self::NotHexDigest => write!(f, "The value is not a hex digest of the expected length"),
             Self::NotADate(format) => write!(f, "The value is not a date in the format {format}"),
             Self::NoMatchingRow(table) => write!(f, "No row of {table} has the value as its key"),
+            Self::Truncated => write!(f, "The source cut the value"),
         }
     }
 }

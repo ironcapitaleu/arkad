@@ -902,9 +902,9 @@ Where each field of `AsIsFact` comes from:
 | `entity` | `sub.cik` | The entity identifier of the context |
 | `concept` | `num.tag` with the namespace of `num.version` | The element name |
 | `taxonomy_version` | `num.version` | The schema reference of the filing |
-| `period` | `ddate` minus `datp`, and `qtrs` | The period of the context |
+| `period` | `ddate` minus `datp`, and `qtrs`. `qtrs` 0 is an instant only if `durp` is 0 | The period of the context |
 | `unit` | `num.uom`, with `/shares` restored if `tag.datatype` is `perShare` | The unit of the fact |
-| `dimensions` | `dim.segments` through `num.dimh`, with no prefix on a qualified name, and `coreg` | The members of the context |
+| `dimensions` | `dim.segments` through `num.dimh`, and `coreg`. A lowercase prefix before a capitalized name is stripped. A typed member such as `abc:Def` loses its prefix too. A row with `segt` 1 is cut and gives a finding | The members of the context |
 | `value` | `num.value` or `txt.value`. An empty value is nil | The content of the fact, or `xsi:nil` |
 | `decimals` | `num.dcml`. 32767 is `Infinite`. -32768, which only nil rows carry, is `None` | The `decimals` attribute |
 | `copy_rank` | Assigned by the parser in the order of `num.iprx` | Assigned by the parser in the SEC order of `iprx` |

@@ -11,7 +11,7 @@ use std::collections::HashMap;
 use std::fmt;
 use std::str::FromStr;
 
-use bigdecimal::BigDecimal;
+use bigdecimal::{BigDecimal, Zero};
 use chrono::{DateTime, NaiveDate, NaiveDateTime, TimeDelta, TimeZone, Utc};
 use chrono_tz::America::New_York;
 
@@ -50,29 +50,32 @@ pub const PER_SHARE_DATA_TYPE: &str = "perShare";
 /// The measure that `num.uom` drops from a per-share unit.
 pub const SHARES_MEASURE: &str = "shares";
 
+/// The `segt` of a `dim` row whose `segments` the SEC cut to 1024 characters.
+pub const TRUNCATED_SEGMENTS: &str = "1";
+
 /// The axis that `coreg` names a member of, as `dim.tsv` writes it.
 pub const LEGAL_ENTITY_AXIS: &str = "LegalEntity";
 
 /// The character after each pair of `dim.segments`, as in `Axis=Member;`.
-pub const SEGMENT_TERMINATOR: char = ';';
+const SEGMENT_TERMINATOR: char = ';';
 
 /// The character between the axis and the member of a pair of `dim.segments`.
-pub const PAIR_SEPARATOR: char = '=';
+const PAIR_SEPARATOR: char = '=';
 
 /// The character between a prefix and a local name, as in `us-gaap:CostOfRevenue`.
-pub const PREFIX_SEPARATOR: char = ':';
+const PREFIX_SEPARATOR: char = ':';
 
 /// The characters other than letters and digits that a prefix or a local name can hold.
-pub const NAME_PUNCTUATION: [char; 3] = ['_', '-', '.'];
+const NAME_PUNCTUATION: [char; 3] = ['_', '-', '.'];
 
 /// The character between the whole and the fractional part of `datp`, as in `-15.0`.
-pub const DECIMAL_POINT: char = '.';
+const DECIMAL_POINT: char = '.';
 
-/// The digit that each fractional digit of a whole `datp` is.
-pub const ZERO_DIGIT: char = '0';
+/// A whole `datp` has only this digit after the point.
+const ZERO_DIGIT: char = '0';
 
 /// The character between the fields of a row in [`fmt::Display`].
-pub const FIELD_SEPARATOR: &str = " ";
+const FIELD_SEPARATOR: &str = " ";
 
 /// The row of `sub.tsv` of one filing, with the columns the parser needs.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -192,6 +195,8 @@ pub struct NumRow {
     pub footnote: String,
     /// The member of the legal entity axis. Empty for the registrant.
     pub coreg: String,
+    /// `qtrs` minus the length of the fact in quarters, as in `-0.317808`. `0.0` for an instant.
+    pub durp: String,
     /// The days from the exact end to `ddate`, as in `-15.0`.
     pub datp: String,
     /// The `decimals` of the value. `32767` for an exact value, `-32768` for a nil value.
@@ -204,10 +209,13 @@ impl NumRow {
 
     /// Returns the period: the exact end is `ddate` minus `datp` days.
     ///
+    /// The SEC rounds `qtrs`, so a duration under about 45 days has `qtrs` 0. Its `durp` is not 0,
+    /// so it becomes a duration of 0 quarters. Only a row with `qtrs` 0 and `durp` 0 is an instant.
+    ///
     /// # Errors
     ///
-    /// Returns [`InvalidValue`] if `ddate` is not a date, `datp` is not a whole number of days, or
-    /// `qtrs` is not a number of 16 bits.
+    /// Returns [`InvalidValue`] if `ddate` is not a date, `datp` is not a whole number of days,
+    /// `qtrs` is not a number of 16 bits, or `durp` is not a number.
     pub fn period(&self) -> Result<Period, InvalidValue> {
         let ddate = date(Self::TYPE_NAME, &self.ddate)?;
         let end = ddate
@@ -217,9 +225,12 @@ impl NumRow {
             .qtrs
             .parse()
             .map_err(|_| Self::invalid(InvalidValueReason::NotANumber, &self.qtrs))?;
-        Ok(match quarters {
-            0 => Period::Instant { end },
-            _ => Period::Duration(Duration::from_end_and_quarters(end, quarters)),
+        let durp = BigDecimal::from_str(&self.durp)
+            .map_err(|_| Self::invalid(InvalidValueReason::NotANumber, &self.durp))?;
+        Ok(if quarters == 0 && durp.is_zero() {
+            Period::Instant { end }
+        } else {
+            Period::Duration(Duration::from_end_and_quarters(end, quarters))
         })
     }
 
@@ -349,22 +360,33 @@ pub struct DimRow {
     pub dimh: String,
     /// The pairs, as in `Axis=Member;Axis=Member;`. Empty for the hash of no dimensions.
     pub segments: String,
+    /// `1` if the SEC cut `segments` to 1024 characters, else `0`.
+    pub segt: String,
 }
 
 impl DimRow {
     /// The type name that [`InvalidValue`] names when a field breaks a rule.
     const TYPE_NAME: &'static str = "DimRow";
 
-    /// Returns the axis and member pairs, with the prefix stripped from each name that is a
-    /// qualified name, as in `us-gaap:CostOfRevenue`.
+    /// Returns the axis and member pairs, with the prefix stripped from each name that looks like
+    /// a qualified name: a lowercase prefix and a local name that starts with a capital letter, as
+    /// in `us-gaap:CostOfRevenue`.
     ///
     /// The Notes data set writes a typed member as the filer wrote it, for example a security name
-    /// with spaces. Such a member is not a qualified name, so it stays as written.
+    /// with spaces or `ISIN:US0378331005`. Neither looks like a qualified name, so both stay as
+    /// written. A typed member such as `abc:Def` loses its prefix.
     ///
     /// # Errors
     ///
-    /// Returns [`InvalidValue`] if a pair has no `=`.
+    /// Returns [`InvalidValue`] if the SEC cut `segments`, or if a pair has no `=`.
     pub fn pairs(&self) -> Result<Vec<(&str, &str)>, InvalidValue> {
+        if self.segt == TRUNCATED_SEGMENTS {
+            return Err(InvalidValue::new(
+                Self::TYPE_NAME,
+                InvalidValueReason::Truncated,
+                &self.dimh,
+            ));
+        }
         self.segments
             .split(SEGMENT_TERMINATOR)
             .filter(|pair| !pair.is_empty())
@@ -420,15 +442,26 @@ fn optional<T>(
 
 fn without_prefix(name: &str) -> &str {
     match name.split_once(PREFIX_SEPARATOR) {
-        Some((prefix, local_name)) if is_plain_name(prefix) && is_plain_name(local_name) => {
-            local_name
-        }
+        Some((prefix, local_name)) if is_prefix(prefix) && is_local_name(local_name) => local_name,
         _ => name,
     }
 }
 
-fn is_plain_name(text: &str) -> bool {
-    text.chars().next().is_some_and(char::is_alphabetic)
+fn is_prefix(text: &str) -> bool {
+    text.chars()
+        .next()
+        .is_some_and(|first| first.is_ascii_lowercase())
+        && text.chars().all(|character| {
+            character.is_ascii_lowercase()
+                || character.is_ascii_digit()
+                || NAME_PUNCTUATION.contains(&character)
+        })
+}
+
+fn is_local_name(text: &str) -> bool {
+    text.chars()
+        .next()
+        .is_some_and(|first| first.is_ascii_uppercase())
         && text
             .chars()
             .all(|character| character.is_alphanumeric() || NAME_PUNCTUATION.contains(&character))
@@ -450,6 +483,7 @@ mod tests {
             dimh: "0x00000000".to_owned(),
             iprx: "0".to_owned(),
             value: "100.0000".to_owned(),
+            durp: "0.0".to_owned(),
             datp: "0.0".to_owned(),
             dcml: "-6".to_owned(),
             ..NumRow::default()
@@ -460,6 +494,7 @@ mod tests {
         DimRow {
             dimh: dimh.to_owned(),
             segments: segments.to_owned(),
+            segt: "0".to_owned(),
         }
     }
 
@@ -517,6 +552,35 @@ mod tests {
             "InvestmentIdentifier",
             "JABIL INC COM USD0.001 SEDOL : 2471789",
         )]);
+
+        let result = dim.pairs();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_keep_a_typed_member_as_written_when_its_prefix_is_not_lowercase() {
+        let dim = dim_row("0x05", "InvestmentIdentifier=ISIN:US0378331005;");
+
+        let expected_result = Ok(vec![("InvestmentIdentifier", "ISIN:US0378331005")]);
+
+        let result = dim.pairs();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_reject_the_pairs_when_the_sec_cut_the_segments() {
+        let dim = DimRow {
+            segt: "1".to_owned(),
+            ..dim_row("0x06", "InvestmentIdentifier=Corporate Stock;")
+        };
+
+        let expected_result = Err(InvalidValue::new(
+            "DimRow",
+            InvalidValueReason::Truncated,
+            "0x06",
+        ));
 
         let result = dim.pairs();
 
@@ -593,6 +657,25 @@ mod tests {
         let expected_result = Ok(Period::Duration(Duration::from_end_and_quarters(
             date(2025, 9, 27),
             4,
+        )));
+
+        let result = row.period();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_a_duration_of_no_quarters_when_qtrs_is_zero_and_durp_is_not() {
+        let row = NumRow {
+            ddate: "20250630".to_owned(),
+            qtrs: "0".to_owned(),
+            durp: "-0.317808".to_owned(),
+            ..num_row()
+        };
+
+        let expected_result = Ok(Period::Duration(Duration::from_end_and_quarters(
+            date(2025, 6, 30),
+            0,
         )));
 
         let result = row.period();
@@ -713,6 +796,24 @@ mod tests {
         ));
 
         let result = row.dimensions(&dims);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_convert_accepted_to_utc_when_new_york_is_on_standard_time() {
+        let sub = SubRow {
+            adsh: "0000000001-26-000001".to_owned(),
+            cik: "1".to_owned(),
+            form: "10-Q".to_owned(),
+            filed: "20260115".to_owned(),
+            accepted: "2026-01-15 16:15:00.0".to_owned(),
+            ..SubRow::default()
+        };
+
+        let expected_result = Some(Utc.with_ymd_and_hms(2026, 1, 15, 21, 15, 0).single());
+
+        let result = sub.filing().ok().map(|filing| filing.accepted);
 
         assert_eq!(result, expected_result);
     }
