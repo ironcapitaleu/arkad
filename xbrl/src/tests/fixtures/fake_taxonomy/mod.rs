@@ -46,7 +46,7 @@ impl Taxonomy for FakeTaxonomy {
 ///
 /// # Panics
 ///
-/// Panics if `name` or `pattern` breaks a rule of its core type. Tests pass hardcoded values.
+/// Panics if `name` is not a family or a Notes `version` prefix, or if `pattern` is not a URI pattern.
 #[must_use]
 pub fn declaration(name: &str, pattern: &str, resolves: bool) -> FamilyDeclaration {
     let family = NamespaceFamily::new(name)
@@ -62,7 +62,7 @@ pub fn declaration(name: &str, pattern: &str, resolves: bool) -> FamilyDeclarati
 ///
 /// # Panics
 ///
-/// Panics if `release` is not a release ID. Tests pass hardcoded values.
+/// Panics if `release` is not a release ID.
 #[must_use]
 pub fn plugin(release: &str, families: Vec<FamilyDeclaration>) -> FakeTaxonomy {
     FakeTaxonomy {
