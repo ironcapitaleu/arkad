@@ -36,10 +36,10 @@ rationale (read the mapping in the status note above).
 ### Crate topology
 
 ```
-xbrl            domain vocab: CompanyId, AsIsFact, Filing, FactSet, CanonicalFact, FiscalYear
+xbrl            domain vocab: CompanyId, FactSet, CanonicalFact, FiscalYear
   ▲
 storage         PORTS only: Repository · Backend · RawStore/GraphStore/FactStore · ErrorKind
-  ▲  ▲            (deps: xbrl, async-trait, chrono, futures, sha2, thiserror, uuid — NO sqlx)
+  ▲  ▲            (deps: xbrl, async-trait, futures, thiserror — NO sqlx)
   │  │
   │  storage-postgres   Postgres impls of the 3 ports + PostgresSecRepository (one tx, strong contract)
   │   ▲
@@ -87,14 +87,8 @@ pub enum BackendKind { Postgres, Iceberg, Graph, DataLake, Memory, FileSystem, F
 // store/raw.rs · graph.rs · facts.rs — write-path; each `: Backend`; returns the WriteError class directly
 #[async_trait] pub trait RawStore:   Backend { async fn append(&self, filing: &RawFiling) -> Result<(), WriteError>; }        // immutable SoT
 #[async_trait] pub trait GraphStore: Backend { async fn upsert(&self, delta: &GraphDelta) -> Result<(), WriteError>; }        // idempotent
-#[async_trait] pub trait FactStore:  Backend { async fn replace(&self, filing: &FilingFacts) -> Result<(), WriteError>;        // replace by filing
-                                                async fn remove(&self, filing: &FilingId) -> Result<(), WriteError>; }        // a filing that left silver
+#[async_trait] pub trait FactStore:  Backend { async fn upsert(&self, company: &CompanyId, facts: &FactSet) -> Result<(), WriteError>; } // by-full-grain
 ```
-
-`FactStore` is the port of the gold fact tier for as-is facts. `FilingFacts` holds the current
-facts of one filing, read from silver, with their ingestion provenance. [`as_is_fact_store.md`](./as_is_fact_store.md) defines it, the
-replace rule, and the read that picks the facts. It replaces `upsert(&CompanyId, &FactSet)`:
-`FactSet` is a working set of resolution, and each fact carries the `EntityId` of its filing.
 
 ### Error model — mirrors the `sec` error hierarchy (operation-classed)
 
@@ -175,12 +169,12 @@ The union + `#[non_exhaustive]` make that additive, not a rewrite.
 struct SecRepository<R: RawStore, G: GraphStore, F: FactStore> { raw: R, graph: G, facts: F }
 
 impl<R: RawStore, G: GraphStore, F: FactStore> Repository for SecRepository<R, G, F> {
-    type Record = FilingRecord;                                   // { raw, graph, facts: FilingFacts }
+    type Record = FilingRecord;                                   // { company, raw, graph, facts }
     async fn persist(&self, r: FilingRecord) -> Result<(), WriteError> {
-        let FilingRecord { raw, graph, facts } = r;
+        let FilingRecord { company, raw, graph, facts } = r;
         self.raw.append(&raw).await?;                             // each store returns WriteError, so
         self.graph.upsert(&graph).await?;                        // `?` funnels straight through — no
-        self.facts.replace(&facts).await?;                       // conversion needed
+        self.facts.upsert(&company, &facts).await?;              // conversion needed
         Ok(())
     }
 }
@@ -342,7 +336,7 @@ reach for the pattern — is fully honored either way.
 > | --- | --- | --- |
 > | `Repository::ingest` | write (live) | **yes** — the ETL write path |
 > | `RawStore::append` / `scan` | write / replay | **yes** — replay feeds rebuilds |
-> | `GraphStore::upsert`, `FactStore::upsert` (now `FactStore::replace`, see [`as_is_fact_store.md`](./as_is_fact_store.md)) | write | **yes** |
+> | `GraphStore::upsert`, `FactStore::upsert` | write | **yes** |
 > | `GraphStore::completeness` / `ownership_tree`, `FactStore::query` | read | frozen signature; **fakes only** — Postgres `todo!()` until a read consumer exists |
 > | `Storage::backend` | identity | **yes** (trivial) |
 
@@ -821,15 +815,11 @@ signatures above; recorded here so the reasoning survives.
   replay/rebuild needs it.
 - **`FactStore` write/read split — CLOSED: one trait now.** The future Postgres-landing +
   Iceberg-scan split (§12b.3) stays hidden behind it; callers never learn there are two engines.
-- **Restatement invariant — CLOSED: upsert-by-full-grain.** Superseded on 2026-11-08 by
-  [`as_is_fact_store.md`](./as_is_fact_store.md): gold replaces the facts of one filing, keyed by
-  the filing and the value key, and silver keeps every copy. A 10-K/A still coexists with the original, and "which value wins"
-  is still a read. Before that date, `FactStore::upsert` keyed on the full grain incl. `source_ref`,
-  frozen as a doc-comment on the method.
+- **Restatement invariant — CLOSED: upsert-by-full-grain.** `FactStore::upsert` keys on the full
+  grain incl. `source_ref`; a 10-K/A coexists with the original, "which value wins" is a read-time
+  selection. Frozen as a doc-comment on the method so no impl collapses the grain.
 - **Identity on the ingest DTO — CLOSED.** Because `xbrl::FactSet` carries no `CompanyId`, the
   resolved identity lives on `IngestionUnit.company` and is passed to `FactStore::upsert(company, …)`.
-  Superseded on 2026-11-08: each as-is fact carries the `EntityId` of its filing, so
-  `FactStore::replace` takes no company.
 
 ### Still deferred (with the trigger that re-opens each)
 
@@ -926,7 +916,3 @@ These are *not* part of the frozen v1 — they wait for a concrete consumer, by 
   `ErrorKind::Read`, `ErrorKind::Write`, `ReadError::Backend`, and `WriteError::Backend` use
   `#[error(transparent)]`. A `BackendError` with a wrapped cause passes it through. A
   `BackendError` with a reason stays a leaf.
-- **(2026-11-08) — `FactStore` stores as-is facts.** `FactStore::upsert(&CompanyId, &FactSet)`
-  becomes `FactStore::replace(&FilingFacts)`, with `FactStore::remove(&FilingId)` next to it.
-  Silver holds every copy of the as-is facts. Gold replaces the facts of one filing in one
-  transaction with its current facts from silver, and removes a filing that left silver. `FilingRecord` loses its `company` field. See [`as_is_fact_store.md`](./as_is_fact_store.md).

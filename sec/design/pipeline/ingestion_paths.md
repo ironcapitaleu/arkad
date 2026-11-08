@@ -1801,8 +1801,8 @@ Assumptions:
 
 ### Idempotent Writes
 
-> Decided as a direction by the lead on 2026-10-28. The fact store design, [`as_is_fact_store.md`](../data_model/as_is_fact_store.md), fixes the
-> schema.
+> Decided as a direction by the lead on 2026-10-28. Silver holds the facts first, see [`as_is_fact_store.md`](../data_model/as_is_fact_store.md). A
+> later gold design fixes the gold schema and its write rule.
 
 An upsert is one statement that inserts a row, or updates it if a row with the same key exists. In
 Postgres, it is `INSERT … ON CONFLICT (key) DO UPDATE` or `DO NOTHING`. The database makes the
@@ -1817,7 +1817,7 @@ ON CONFLICT (cik) DO UPDATE
 ```
 
 `excluded` is the row that the statement tried to insert. The table name and the columns are an
-example. [`as_is_fact_store.md`](../data_model/as_is_fact_store.md) has the schema sketch.
+example. A later gold design fixes the schema.
 
 Rules:
 
@@ -1829,13 +1829,13 @@ Rules:
   `WHERE excluded.as_of >= companies.as_of`. Without it, a Notes file loaded late overwrites newer
   company data with older data.
 - **Filings** are keyed by accession number: `ON CONFLICT (accession_number) DO NOTHING`.
-- **Facts** hold the CIK and the accession number directly, not a surrogate id from a lookup. The
-  gold fact tier replaces the facts of a filing in one transaction: a delete and an insert, keyed
-  by the filing and the value key. See [`as_is_fact_store.md`](../data_model/as_is_fact_store.md), "Gold Write Rule".
+- **Facts** hold the CIK and the accession number directly, not a surrogate id from a lookup. A
+  fact is keyed by its accession number and its value key. `DO NOTHING` keeps old facts after a
+  replay, so the write rule of the gold fact tier is open for a later gold design.
 - **One transaction per filing.** The load writes the company, then the filing, then its facts.
 
 So the order of Notes files, the order of days, a rerun, and an overlap do not create a duplicate.
-Silver keeps the copy of each source. Gold loads one source per filing, by a read rule. See
+Silver keeps the copy of each source, and a read takes one source per filing. See
 [Path Independence](#path-independence).
 
 The fact store keys each fact by the `EntityId` of its filing, the CIK for the SEC. A write needs
@@ -1878,8 +1878,8 @@ Rules:
    parser version.
 6. **Transform replays from the raw store.** A change to a parser or a rule reruns transform. It
    does not need a new extract. Two limits apply today:
-   - A replay adds a new silver unit next to the old one. Gold replaces the facts of each filing
-     of the unit, and removes a filing that the new unit no longer holds. See [`as_is_fact_store.md`](../data_model/as_is_fact_store.md), "Gold Write Rule".
+   - A replay adds a new silver unit next to the old one. How gold replaces the facts of a
+     replayed filing is open for a later gold design.
    - The raw store keeps only the latest version of a Notes file (see [Raw Store](#raw-store)).
      A rerun keeps a stored file that passes its check, so a replay reads the bytes of the first
      run. If the store cannot verify the file, the run downloads the current SEC version and marks
@@ -2187,4 +2187,4 @@ to fill gaps. Detection outputs only a `Vec<FilingRef>`, so the filing machine d
 Still open from the findings: GLEIF access, detail depth, the `-xbrl.zip` and the inline parser.
 
 Decided in [`as_is_fact_store.md`](../data_model/as_is_fact_store.md): the fact store keeps an amendment next to its original, a read takes the instance
-over Notes for a filing, and gold replaces the facts of a replayed filing.
+over Notes for a filing, and silver keeps every replay. The gold write rule is open.

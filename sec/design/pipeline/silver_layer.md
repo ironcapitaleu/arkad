@@ -793,12 +793,16 @@ under 30 GB, the size of the raw store. See
 These choices belong to other designs. Silver keeps them open: it stores every copy with its
 source, and each choice is a read rule over silver.
 
-- **Decided in [`as_is_fact_store.md`](../data_model/as_is_fact_store.md):** the write rule of the gold fact tier (replace by filing), the read rule for
-  one fact from two sources (instance over Notes), the rule for one filing in two Notes files
-  (quarterly over monthly), the replay of a filing in gold (the same replace), and the fields of
-  the ingestion provenance record (the columns above, unchanged).
+- **Decided in [`as_is_fact_store.md`](../data_model/as_is_fact_store.md):** the read rule for one fact from two sources (instance over Notes), the rule
+  for one filing in two Notes files (quarterly over monthly), and the fields of the ingestion
+  provenance record (the columns above, unchanged).
+- **The write rule of the fact store**, "upsert by full grain" against `ON CONFLICT DO NOTHING`. It
+  applies to the gold fact tier. Silver writes units and never upserts rows. A later gold design
+  decides it.
+- **The replay of a filing in gold.** Silver keeps the old and the new unit. A later gold design
+  decides how gold replaces the rows of a replayed filing.
 - **The standardize filing step per filing or per source.** The transform design decides whether
-  it runs once per filing or once per source. Silver accepts both. The read rule of the fact store
+  it runs once per filing or once per source. Silver accepts both. The read rule of the fact model
   picks one `candidates` unit per filing either way.
 - **The reload of a corrected Notes file.** Silver writes a new unit only if the transform runs
   on the new bytes. The transform design decides whether a changed digest starts that run.
