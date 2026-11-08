@@ -939,6 +939,7 @@ ErrorKind
   ::Xbrl(XbrlErrorKind)
     ::FailedParsing(ParseErrorKind)
       ::InvalidJson { reason: String }
+      ::UnexpectedJsonSchema { reason: String }
       ::MissingTopLevelKey { key: String }
       ::InvalidDataPoint { concept: String, reason: String }
       ::InvalidDataPointValue { concept: String, source: InvalidValue }
@@ -977,6 +978,9 @@ pub enum XbrlErrorKind {
 pub enum ParseErrorKind {
     #[error("[InvalidJson] Failed to parse JSON body, Reason: '{reason}'")]
     InvalidJson { reason: String },
+
+    #[error("[UnexpectedJsonSchema] Unexpected JSON schema, Reason: '{reason}'")]
+    UnexpectedJsonSchema { reason: String },
 
     #[error("[MissingTopLevelKey] Expected key '{key}' in response")]
     MissingTopLevelKey { key: String },

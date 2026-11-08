@@ -190,7 +190,7 @@ impl FamilyDeclaration {
 
     /// Returns `true` if two declarations of different families share a Notes `version` prefix, or
     /// have URI patterns whose text before and after the release overlaps. Then the split of a URI
-    /// or a Notes `version` could depend on the order of the families.
+    /// or a Notes `version` would depend on the order of the families.
     #[must_use]
     pub fn overlaps(&self, other: &Self) -> bool {
         self.family != other.family

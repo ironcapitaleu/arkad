@@ -212,7 +212,7 @@ pub enum RegistryError {
     },
 
     /// Two families share a Notes `version` prefix, or have URI patterns whose text before and after
-    /// the release overlaps, so the split could depend on the order of the families.
+    /// the release overlaps, so the split would depend on the order of the families.
     #[error(
         "[OverlappingFamilyDeclaration] The families '{first}' and '{second}' share a Notes version prefix or have URI patterns whose text before and after the release overlaps"
     )]
