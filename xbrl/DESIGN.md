@@ -537,8 +537,10 @@ section 4.
 `Filing` is a struct, and `FilingId` is a value type that holds a source and an ID, for example
 `sec:0000320193-26-000001`. Neither is a trait. One `Filing` per filing: `FilingId`, `EntityId`, form as open text (`10-K/A`), `is_amendment`,
 `filed`, `accepted`, the period of report, the fiscal year and period as filed, and the company
-attributes as filed: name, SIC, ticker, exchange, fiscal year end. A later filing with another
-value is a change over time, not a conflict.
+attributes as filed in `CompanyAttributes`: name, industry code, ticker, exchange, fiscal year end.
+The attributes belong to the company. A filing records them as of its filing, so a later filing
+with another value is a change over time, not a conflict. The industry code holds a scheme and a
+code, for example `sic:3571` or `nace:26.20`, because SIC is an SEC scheme.
 
 ### Key Design Decisions
 

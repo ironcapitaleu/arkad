@@ -155,11 +155,102 @@ pub struct Ticker {
     pub exchange: Option<String>,
 }
 
+/// An industry classification code and the scheme it belongs to, for example `sic:3571` or
+/// `nace:26.20`.
+///
+/// The set of schemes is open: the SEC uses SIC, and European and Korean filers use NACE and KSIC.
+///
+/// # Examples
+///
+/// ```
+/// use xbrl::core::filing::IndustryCode;
+///
+/// let scheme = IndustryCode::SIC_SCHEME;
+/// let code = "3571";
+///
+/// let expected_result = "sic:3571";
+///
+/// let industry = IndustryCode::new(scheme, code).expect("Given a hardcoded scheme and code, the creation should always succeed");
+/// let result = industry.to_string();
+///
+/// assert_eq!(result, expected_result);
+/// ```
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize)]
+pub struct IndustryCode {
+    scheme: String,
+    code: String,
+}
+
+impl IndustryCode {
+    /// The type name that [`InvalidValue`] names when an input breaks a rule.
+    const TYPE_NAME: &'static str = "IndustryCode";
+
+    /// The character between the scheme and the code in the text form.
+    pub const SEPARATOR: char = ':';
+
+    /// The scheme of the Standard Industrial Classification, which the SEC uses.
+    pub const SIC_SCHEME: &'static str = "sic";
+
+    /// Creates an [`IndustryCode`] from a scheme, for example `sic`, and a code within it.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`InvalidValue`] if a part is empty or holds whitespace, or if the scheme holds a `:`.
+    pub fn new(scheme: impl Into<String>, code: impl Into<String>) -> Result<Self, InvalidValue> {
+        let scheme = scheme.into();
+        let code = code.into();
+        require_token(Self::TYPE_NAME, &scheme)?;
+        require_token(Self::TYPE_NAME, &code)?;
+        if scheme.contains(Self::SEPARATOR) {
+            return Err(InvalidValue::new(
+                Self::TYPE_NAME,
+                InvalidValueReason::ContainsSeparator(Self::SEPARATOR),
+                scheme,
+            ));
+        }
+        Ok(Self { scheme, code })
+    }
+
+    /// Returns the scheme, for example `sic`.
+    #[must_use]
+    pub fn scheme(&self) -> &str {
+        &self.scheme
+    }
+
+    /// Returns the code within the scheme, for example `3571`.
+    #[must_use]
+    pub fn code(&self) -> &str {
+        &self.code
+    }
+}
+
+impl fmt::Display for IndustryCode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}{}{}", self.scheme, Self::SEPARATOR, self.code)
+    }
+}
+
+/// The attributes of the company as one filing states them.
+///
+/// The attributes belong to the company, not to the filing. A filing records them as they were
+/// when it was filed, so a later filing with another value records a change over time, not a
+/// conflict.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Hash, serde::Serialize)]
+pub struct CompanyAttributes {
+    /// The company name.
+    pub name: Option<EntityName>,
+    /// The industry classification, for example `sic:3571`.
+    pub industry: Option<IndustryCode>,
+    /// One entry per listed share class.
+    pub tickers: Vec<Ticker>,
+    /// The fiscal year end as the source writes it, for example `0930` or `--09-27`.
+    pub fiscal_year_end: Option<String>,
+}
+
 /// One filing and its attributes as filed.
 ///
-/// A later filing with another company name or fiscal year end records a change over time, not a
-/// conflict. Every field is public, because a filing is a record of what the source says, and each
-/// field type checks its own rules.
+/// Every field is public, because a filing is a record of what the source says, and each field
+/// type checks its own rules.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize)]
 pub struct Filing {
     /// The ID of the filing, for example `sec:0000320193-26-000001`.
@@ -180,14 +271,8 @@ pub struct Filing {
     pub fiscal_year: Option<FiscalYear>,
     /// The fiscal period as filed.
     pub fiscal_period: Option<FiscalPeriod>,
-    /// The company name as filed.
-    pub company_name: Option<EntityName>,
-    /// The SIC code as filed, for example `3571`.
-    pub sic: Option<String>,
-    /// One entry per listed share class.
-    pub tickers: Vec<Ticker>,
-    /// The fiscal year end as the source writes it, for example `0930` or `--09-27`.
-    pub fiscal_year_end: Option<String>,
+    /// The attributes of the company as the filing states them.
+    pub company: CompanyAttributes,
 }
 
 #[cfg(test)]
@@ -210,6 +295,58 @@ mod tests {
     #[test]
     const fn should_implement_auto_traits_for_filing() {
         implements_auto_traits::<Filing>();
+    }
+
+    #[test]
+    const fn should_implement_auto_traits_for_industry_code() {
+        implements_auto_traits::<IndustryCode>();
+    }
+
+    #[test]
+    const fn should_implement_auto_traits_for_company_attributes() {
+        implements_auto_traits::<CompanyAttributes>();
+    }
+
+    #[test]
+    fn should_keep_code_when_scheme_is_not_sic() {
+        let industry = IndustryCode::new("nace", "26.20")
+            .expect("Given a hardcoded scheme and code, the creation should always succeed");
+
+        let expected_result = "26.20";
+
+        let result = industry.code();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_reject_industry_code_when_code_is_empty() {
+        let code = "";
+
+        let expected_result = Err(InvalidValue::new(
+            "IndustryCode",
+            InvalidValueReason::Empty,
+            "",
+        ));
+
+        let result = IndustryCode::new("sic", code);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_reject_industry_code_when_scheme_holds_a_colon() {
+        let scheme = "sic:2";
+
+        let expected_result = Err(InvalidValue::new(
+            "IndustryCode",
+            InvalidValueReason::ContainsSeparator(':'),
+            "sic:2",
+        ));
+
+        let result = IndustryCode::new(scheme, "3571");
+
+        assert_eq!(result, expected_result);
     }
 
     #[test]
