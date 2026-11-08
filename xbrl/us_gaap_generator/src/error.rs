@@ -4,25 +4,28 @@
 
 use std::path::PathBuf;
 
-/// Separates the failures of a read: content that is not XML, and content that does not follow
-/// the XBRL rules the generator relies on.
+/// The error of a read of a vendored FASB file.
+///
+/// The parser error of `roxmltree` is kept as text, so a caller that walks `source()` meets its
+/// message once.
 #[derive(Debug, thiserror::Error)]
 pub enum GeneratorError {
     /// A vendored file is not well-formed XML.
-    #[error("[InvalidXml] Failed to parse XML, Reason: '{source}', Path: '{}'", path.display())]
+    #[error("[InvalidXml] Failed to parse XML, Reason: '{reason}', Path: '{}'", path.display())]
     InvalidXml {
         /// The path of the file.
         path: PathBuf,
-        /// The error of the parser.
-        #[source]
-        source: roxmltree::Error,
+        /// The message of the parser.
+        reason: String,
     },
 
     /// An XML element lacks an attribute that the generator needs.
-    #[error("[MissingAttribute] Required attribute '{attribute}' not found on element '{element}', Path: '{}'", path.display())]
+    #[error("[MissingAttribute] Required attribute '{attribute}' not found on element '{element}', Line: '{line}', Path: '{}'", path.display())]
     MissingAttribute {
         /// The path of the file.
         path: PathBuf,
+        /// The line of the XML element in the file.
+        line: u32,
         /// The local name of the XML element.
         element: String,
         /// The local name of the missing attribute.
@@ -30,10 +33,12 @@ pub enum GeneratorError {
     },
 
     /// An attribute holds a value outside the values that XBRL allows.
-    #[error("[InvalidAttributeValue] Attribute '{attribute}' holds an unknown value, Value: '{value}', Path: '{}'", path.display())]
+    #[error("[InvalidAttributeValue] Attribute '{attribute}' holds an unknown value, Value: '{value}', Line: '{line}', Path: '{}'", path.display())]
     InvalidAttributeValue {
         /// The path of the file.
         path: PathBuf,
+        /// The line of the XML element in the file.
+        line: u32,
         /// The local name of the attribute.
         attribute: &'static str,
         /// The value of the attribute.

@@ -106,9 +106,9 @@ pub struct Concept {
 /// - [`GeneratorError::MissingAttribute`] if a concept has no name, type, or period type.
 /// - [`GeneratorError::InvalidAttributeValue`] if a balance or period type is unknown.
 pub fn concepts(path: &Path, schema: &str) -> Result<Vec<Concept>, GeneratorError> {
-    let document = Document::parse(schema).map_err(|source| GeneratorError::InvalidXml {
+    let document = Document::parse(schema).map_err(|error| GeneratorError::InvalidXml {
         path: path.to_path_buf(),
-        source,
+        reason: error.to_string(),
     })?;
     document
         .root_element()
@@ -121,17 +121,22 @@ pub fn concepts(path: &Path, schema: &str) -> Result<Vec<Concept>, GeneratorErro
 
 /// Reads one concept declaration.
 fn concept(path: &Path, node: Node<'_, '_>) -> Result<Concept, GeneratorError> {
+    // The position of a node is a byte offset. The line costs a scan of the file, so only an
+    // error computes it.
+    let line = || node.document().text_pos_at(node.range().start).row;
     let required = |name: &'static str, value: Option<&str>| {
         value
             .map(str::to_string)
             .ok_or_else(|| GeneratorError::MissingAttribute {
                 path: path.to_path_buf(),
+                line: line(),
                 element: ELEMENT_TAG.to_string(),
                 attribute: name,
             })
     };
     let invalid = |attribute: &'static str, value: &str| GeneratorError::InvalidAttributeValue {
         path: path.to_path_buf(),
+        line: line(),
         attribute,
         value: value.to_string(),
     };
@@ -222,7 +227,7 @@ mod tests {
 
         let expected_result = Some(
             "[MissingAttribute] Required attribute 'periodType' not found on element 'element', \
-             Path: 'us-gaap-2026.xsd'"
+             Line: '1', Path: 'us-gaap-2026.xsd'"
                 .to_string(),
         );
 
@@ -242,11 +247,84 @@ mod tests {
 
         let expected_result = Some(
             "[InvalidAttributeValue] Attribute 'balance' holds an unknown value, Value: 'both', \
-             Path: 'us-gaap-2026.xsd'"
+             Line: '1', Path: 'us-gaap-2026.xsd'"
                 .to_string(),
         );
 
         let result = concepts(Path::new(PATH), &text)
+            .err()
+            .map(|error| error.to_string());
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_no_balance_when_concept_has_no_balance_attribute() {
+        let text = schema(
+            "<xs:element name='AmendmentDescription' substitutionGroup='xbrli:item' \
+             type='xbrli:stringItemType' xbrli:periodType='duration' />",
+        );
+
+        let expected_result = vec![Concept {
+            name: "AmendmentDescription".to_string(),
+            data_type: "xbrli:stringItemType".to_string(),
+            balance: None,
+            period_type: PeriodType::Duration,
+        }];
+
+        let result = concepts(Path::new(PATH), &text)
+            .expect("Given a schema with one valid concept, the read should always succeed");
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_skip_declaration_when_it_is_nested_in_a_type() {
+        let text = schema(
+            "<xs:complexType name='Wrapper'><xs:sequence>\
+             <xs:element name='Inner' substitutionGroup='xbrli:item' type='xs:string' />\
+             </xs:sequence></xs:complexType>",
+        );
+
+        let expected_result = Vec::<Concept>::new();
+
+        let result = concepts(Path::new(PATH), &text)
+            .expect("Given a schema with no top-level concept, the read should always succeed");
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_invalid_attribute_value_when_period_type_is_unknown() {
+        let text = schema(
+            "<xs:element name='Assets' substitutionGroup='xbrli:item' \
+             type='xbrli:monetaryItemType' xbrli:periodType='forever' />",
+        );
+
+        let expected_result = Some(
+            "[InvalidAttributeValue] Attribute 'periodType' holds an unknown value, \
+             Value: 'forever', Line: '1', Path: 'us-gaap-2026.xsd'"
+                .to_string(),
+        );
+
+        let result = concepts(Path::new(PATH), &text)
+            .err()
+            .map(|error| error.to_string());
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_invalid_xml_when_prefix_has_no_namespace() {
+        let text = "<xs:schema />";
+
+        let expected_result = Some(
+            "[InvalidXml] Failed to parse XML, Reason: 'an unknown namespace prefix 'xs' at 1:2', \
+             Path: 'us-gaap-2026.xsd'"
+                .to_string(),
+        );
+
+        let result = concepts(Path::new(PATH), text)
             .err()
             .map(|error| error.to_string());
 
