@@ -34,7 +34,6 @@ The taxonomy knowledge is code in the repository. A transform needs no call to t
 ```text
 xbrl/
   taxonomy/us-gaap/2026/   <- vendored FASB files and a MANIFEST with the SHA-256 of each file
-  us_gaap_generator/       <- developer tool: vendored files -> src/us_gaap/taxonomy.rs
   src/
     core/
       concept.rs           <- ConceptName, NamespaceFamily, Namespace (parser input)
@@ -64,6 +63,7 @@ xbrl/
       mod.rs               <- impl Taxonomy for UsGaap
       mappings.rs          <- aliases: standard concept -> US GAAP concepts (tiers 1 and 2)
       taxonomy.rs          <- generated tables: calculation tree, element reference data
+      generator/           <- feature `generator`: vendored files -> taxonomy.rs
     adapter/               <- one adapter per data source
       edgar/               <- the documents of EDGAR, the filing system of the SEC
         notes/             <- rows of one Notes filing -> AsIsFact, Filing, findings
@@ -371,8 +371,11 @@ has no plug-in at all.
 A generator reads the vendored FASB files and writes Rust tables into `us_gaap/taxonomy.rs`. The
 generated file is checked in. A developer runs the generator once per new release.
 
-- The generator is the crate `xbrl/us_gaap_generator`, a developer tool. No container runs it. It
-  reads XML with `roxmltree`. `xbrl` does not depend on it.
+- The generator is the module `us_gaap::generator`, behind the cargo feature `generator`. A
+  normal build of `xbrl`, or of a crate that depends on it, leaves the module out. No container
+  runs it. It reads XML with `roxmltree`, the XML library of the instance parser.
+- `xbrl` lists itself as a dev-dependency with the `generator` feature, so every test build,
+  CI included, runs the tests of the generator.
 - A concept is a top-level `xs:element` with a `substitutionGroup`. The 2026 schema has 17,182
   declarations and 17,179 concepts. The other 3 are domain helpers of typed dimensions.
 - The data type of a concept is the text of the schema, for example `xbrli:monetaryItemType`.
