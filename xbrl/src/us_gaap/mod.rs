@@ -469,8 +469,8 @@ mod tests {
 
         let expected_result = Some(&CalculationArc {
             role: role.to_string(),
-            parent: concept("srt", "LifeInsuranceInForceNet"),
-            child: concept("srt", "LifeInsuranceInForceCeded"),
+            parent: parent.clone(),
+            child: child.clone(),
             weight: BigDecimal::from_str("-1.0")
                 .expect("Given a hardcoded decimal, the parse should always succeed"),
         });
@@ -488,8 +488,8 @@ mod tests {
     fn should_find_every_listed_element_when_looking_up_its_concept() {
         let us_gaap = UsGaap::new();
 
-        // The expected result lists each of the 17,179 elements. Nobody can write it out, so the
-        // test compares the list with a lookup of each of its concepts.
+        // The list has 17,179 elements, too many to write out, so the test compares it with a
+        // lookup of each concept.
         let expected_result: Vec<Option<&ElementReference>> =
             us_gaap.elements().iter().map(Some).collect();
 

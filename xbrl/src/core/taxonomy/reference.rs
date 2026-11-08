@@ -29,8 +29,6 @@ pub struct ConceptAliases {
 
 /// One arc of a calculation linkbase: within one role, the parent sums its children, each times its
 /// weight.
-///
-/// A concept can sum different children in different roles, so a sum takes the arcs of one role.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize)]
 pub struct CalculationArc {
     /// The role of the calculation link that holds the arc, for example
