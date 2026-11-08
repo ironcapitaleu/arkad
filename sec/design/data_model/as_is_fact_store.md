@@ -30,15 +30,15 @@ leaves open for the fact store.
 | Ingestion provenance | The seven columns of the silver sketch are confirmed without change | [Ingestion Provenance](#ingestion-provenance) |
 | One fact from two sources | Silver keeps both. A read takes the instance over Notes for a whole filing | [Current Facts](#current-facts) |
 | One filing in two Notes files | A read takes the quarterly file over the monthly file | [Current Facts](#current-facts) |
-| Write rule of gold | Replace by filing: one transaction deletes the facts of the filing and inserts its current facts. Neither "upsert-by-full-grain" nor `DO NOTHING` | [Gold Write Rule](#gold-write-rule) |
+| Write rule of gold | Replace by filing: one transaction deletes the facts of the filing and inserts its current facts. It replaces "upsert-by-full-grain" and `DO NOTHING` | [Gold Write Rule](#gold-write-rule) |
 | Replay of a filing in gold | The same replace. Silver keeps the old unit | [Gold Write Rule](#gold-write-rule) |
 | Notes file that the SEC corrects | Silver adds a new unit. Gold replaces the filings of that file on the next load | [Gold Write Rule](#gold-write-rule) |
 | Ingestion mode | Each row copies the mode of its own source document. Neither silver nor gold needs a function that maps mixed modes | [Ingestion Mode](#ingestion-mode) |
 | Company key | `EntityId` of the filing, the CIK for the SEC. No lookup before a write | [The Fact Row](#the-fact-row) |
 | Dedup | Not in the store. "More precise wins" and "newest filing wins" are rules of the standardized layer | [Boundary to the Standardized Layer](#boundary-to-the-standardized-layer) |
-| Port | `FactStore::replace(&FilingFacts)` replaces `FactStore::upsert(&CompanyId, &FactSet)` | [The `FactStore` Port](#the-factstore-port) |
+| Port | `FactStore::replace(&FilingFacts)` and `FactStore::remove(&FilingId)` replace `FactStore::upsert(&CompanyId, &FactSet)` | [The `FactStore` Port](#the-factstore-port) |
 
-**Keep point-in-time open.** The design keeps it open with five rules:
+**Point-in-time stays open.** Five rules keep it open:
 
 - Every fact keeps `filed`, and `accepted` where the source gives it.
 - Silver changes and deletes no row. Gold replaces only the rows of the filing it loads.
@@ -66,8 +66,8 @@ The value key of `xbrl/DESIGN.md`, "Value Key", fits the store without change:
 `unit`, `dimensions`, `copy_rank`.
 
 - The key is unique within one filing, because the parser numbers the copies.
-- In silver, the key is unique within one filing and one source document. A filing on both paths
-  has one set of rows per source.
+- In silver, the key is unique within one filing and one unit. A filing on both paths has one set
+  of rows per source, and a replay adds a set in a new unit.
 - In gold, the key is unique per filing, because gold holds one source per filing.
 - `taxonomy_version` is never empty for a Notes or instance fact. Notes and the instance both give it. Only
   `sec_api` facts lack it, and the store does not load `sec_api` facts.
@@ -174,9 +174,9 @@ one filed date and sits in one month and one quarter, so the rule always leaves 
   Silver keeps every copy, so the preference is a read (option 3 of "Path Independence").
 - **Quarterly over monthly.** The SEC builds the quarterly file after the monthly files, and
   removes the monthly files at the merge (`ingestion_paths.md`, assumption A4).
-- **Accepted time.** The instance path gives `filed` only. So the current facts of a filing on
-  both paths have no `accepted`. A read that needs it takes it from the Notes rows of the same
-  filing.
+- **Accepted time.** The instance path gives `filed` only. If the current Notes `filings` row of
+  the same filing has `accepted`, the read copies it onto the filing and each fact. This is the only
+  value the read takes from the other source. Silver keeps the instance rows as they are.
 - The same rule picks the unit of `candidates` per filing, so the series step gets one candidate
   per filing and standard concept.
 
@@ -190,7 +190,7 @@ Gold replaces by filing. The load writes each filing in one transaction:
 
 1. Upsert the company in the graph tier, as `ingestion_paths.md`, "Idempotent Writes" says.
 2. Upsert the row of the filing in `as_is_filings`, keyed by `filing_id`, with the provenance of
-   its current unit.
+   its current unit. This locks the row, so a second load of the same filing waits.
 3. Delete the facts of the filing from `as_is_facts`.
 4. Insert the current facts of the filing.
 
@@ -198,8 +198,12 @@ Gold replaces by filing. The load writes each filing in one transaction:
 - **Idempotent.** A rerun writes the same rows again.
 - **Never overwrite a value with a later filing.** The replace touches one filing only. An
   amendment is a filing of its own, so the original stays next to it.
-- **The order of loads does not decide a value.** Each load takes the current facts of silver.
-  Loads run one at a time, as the job plan of the transform design fixes.
+- **The order of loads does not decide a value,** if loads run one at a time. Each load takes the
+  current facts of silver. The lock of step 2 keeps two loads of one filing apart, but a load with
+  an older read of silver can still commit last. See [Open Points](#open-points).
+- **Filings to load.** A load visits the filings of each new current unit and of each unit that it
+  replaced. If a filing has no current facts any more, for example after a parser fix rejects it,
+  the load calls `FactStore::remove`. It deletes the facts and the row of the filing.
 
 This settles the two earlier texts:
 
@@ -212,12 +216,13 @@ The cases of the silver design:
 
 | Case | Silver | Gold |
 | ---- | ------ | ---- |
-| A replay after a parser fix | A new unit with a new `transform_version` | The next load replaces the filings of the unit |
+| A replay after a parser fix | A new unit with a new `transform_version` | The next load replaces the filings of the new unit and of the unit it replaced |
 | A Notes file that the SEC corrected | A new unit with a new digest, if the transform runs on the new bytes | The same replace |
 | A filing that arrives on the second path | A unit of the other source | The same replace. The instance wins, see [Current Facts](#current-facts) |
 | The merged quarterly Notes file | A unit with a new unit key | The same replace. The quarterly file wins |
 
-`FactStore` needs no delete method. The delete is a step inside `replace`.
+`replace` deletes the old facts of a filing as one step. `remove` deletes a filing that left
+silver.
 
 ### Gold Schema Sketch
 
@@ -311,6 +316,9 @@ fact carries its `EntityId`.
 pub trait FactStore: Backend {
     /// Replaces the facts of one filing with the given facts.
     async fn replace(&self, filing: &FilingFacts) -> Result<(), WriteError>;
+
+    /// Deletes one filing and its facts. A filing that the store does not hold changes nothing.
+    async fn remove(&self, filing: &FilingId) -> Result<(), WriteError>;
 }
 ```
 
@@ -327,7 +335,8 @@ FilingFacts {
 - `FilingFacts::new` checks that every fact names the filing. A fact of another filing is an error,
   not a dropped row.
 - `SecRepository::persist` calls `self.facts.replace(&record.facts)`. `FilingRecord` loses its
-  `company` field.
+  `company` field. The gold load from silver has no raw document at hand, so the shape of
+  `FilingRecord` for that load waits for the amendment of ADR 0001 (see [Open Points](#open-points)).
 
 ## Diagram
 
@@ -369,7 +378,8 @@ flowchart LR
 | When transform runs on a Notes file that the SEC corrects | The transform design |
 | The acceptance time on the new-filing path, from a machine-readable source | Extraction |
 | The gold tables of tickers and of the standardized facts | The screener design |
-| The amendment of ADR 0001: load reads silver, not raw | The silver prototype |
+| The amendment of ADR 0001: load reads silver, not raw, and the record that `persist` takes then | The silver prototype |
+| Gold loads run one at a time, so a load with an older read of silver never commits last | The transform design |
 | The signatures of the reads | The read methods of `storage`, when the screener needs them |
 
 ## Feature Tickets
@@ -379,10 +389,12 @@ flowchart LR
 2. **Current-facts read over silver.** The view with the three steps of
    [Current Facts](#current-facts). Tests for both sources, a monthly and a quarterly Notes file,
    a replay, and an amendment.
-3. **`FactStore::replace`.** Replace `upsert` on the port, update `SecRepository` and
+3. **`FactStore::replace` and `remove`.** Replace `upsert` on the port, update `SecRepository` and
    `FilingRecord`, and add an in-memory fake with the replace rule. Tests for a rerun, a replay,
    and a filing that arrives on the second path.
-4. **Gold fact tier.** The migration for `as_is_filings` and `as_is_facts`, and `replace` in the
-   Postgres store, inside the transaction of ADR 0001.
+4. **Gold fact tier.** The migration for `as_is_filings` and `as_is_facts`, and `replace` and
+   `remove` in the Postgres store, inside the transaction of ADR 0001. Tests for a replace that
+   leaves no row of the old set, and for a remove.
 5. **Gold load from silver.** The job that reads the current facts per filing and calls
-   `replace`. Starts after the silver writer exists.
+   `replace` or `remove`. Tests for a replay, a filing that drops out of a unit, and the accepted
+   time of a filing on both paths. Starts after the silver writer exists.

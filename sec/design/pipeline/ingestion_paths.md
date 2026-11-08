@@ -1879,7 +1879,7 @@ Rules:
 6. **Transform replays from the raw store.** A change to a parser or a rule reruns transform. It
    does not need a new extract. Two limits apply today:
    - A replay adds a new silver unit next to the old one. Gold replaces the facts of each filing
-     of the unit, so `FactStore` needs no delete method. See [`as_is_fact_store.md`](../data_model/as_is_fact_store.md), "Gold Write Rule".
+     of the unit, and removes a filing that the new unit no longer holds. See [`as_is_fact_store.md`](../data_model/as_is_fact_store.md), "Gold Write Rule".
    - The raw store keeps only the latest version of a Notes file (see [Raw Store](#raw-store)).
      A rerun keeps a stored file that passes its check, so a replay reads the bytes of the first
      run. If the store cannot verify the file, the run downloads the current SEC version and marks

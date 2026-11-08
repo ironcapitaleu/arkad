@@ -87,7 +87,8 @@ pub enum BackendKind { Postgres, Iceberg, Graph, DataLake, Memory, FileSystem, F
 // store/raw.rs · graph.rs · facts.rs — write-path; each `: Backend`; returns the WriteError class directly
 #[async_trait] pub trait RawStore:   Backend { async fn append(&self, filing: &RawFiling) -> Result<(), WriteError>; }        // immutable SoT
 #[async_trait] pub trait GraphStore: Backend { async fn upsert(&self, delta: &GraphDelta) -> Result<(), WriteError>; }        // idempotent
-#[async_trait] pub trait FactStore:  Backend { async fn replace(&self, filing: &FilingFacts) -> Result<(), WriteError>; }      // replace by filing
+#[async_trait] pub trait FactStore:  Backend { async fn replace(&self, filing: &FilingFacts) -> Result<(), WriteError>;        // replace by filing
+                                                async fn remove(&self, filing: &FilingId) -> Result<(), WriteError>; }        // a filing that left silver
 ```
 
 `FactStore` is the port of the gold fact tier for as-is facts. `FilingFacts` holds the current
@@ -820,14 +821,14 @@ signatures above; recorded here so the reasoning survives.
   replay/rebuild needs it.
 - **`FactStore` write/read split — CLOSED: one trait now.** The future Postgres-landing +
   Iceberg-scan split (§12b.3) stays hidden behind it; callers never learn there are two engines.
-- **Restatement invariant — CLOSED: upsert-by-full-grain.** Superseded on 2026-11-07 by
+- **Restatement invariant — CLOSED: upsert-by-full-grain.** Superseded on 2026-11-08 by
   [`as_is_fact_store.md`](./as_is_fact_store.md): gold replaces the facts of one filing, keyed by
   the filing and the value key, and silver keeps every copy. A 10-K/A still coexists with the original, and "which value wins"
   is still a read. Before that date, `FactStore::upsert` keyed on the full grain incl. `source_ref`,
   frozen as a doc-comment on the method.
 - **Identity on the ingest DTO — CLOSED.** Because `xbrl::FactSet` carries no `CompanyId`, the
   resolved identity lives on `IngestionUnit.company` and is passed to `FactStore::upsert(company, …)`.
-  Superseded on 2026-11-07: each as-is fact carries the `EntityId` of its filing, so
+  Superseded on 2026-11-08: each as-is fact carries the `EntityId` of its filing, so
   `FactStore::replace` takes no company.
 
 ### Still deferred (with the trigger that re-opens each)
@@ -926,5 +927,6 @@ These are *not* part of the frozen v1 — they wait for a concrete consumer, by 
   `#[error(transparent)]`. A `BackendError` with a wrapped cause passes it through. A
   `BackendError` with a reason stays a leaf.
 - **(2026-11-08) — `FactStore` stores as-is facts.** `FactStore::upsert(&CompanyId, &FactSet)`
-  becomes `FactStore::replace(&FilingFacts)`. Silver holds every copy of the as-is facts. Gold
-  replaces the facts of one filing in one transaction with its current facts from silver. `FilingRecord` loses its `company` field. See [`as_is_fact_store.md`](./as_is_fact_store.md).
+  becomes `FactStore::replace(&FilingFacts)`, with `FactStore::remove(&FilingId)` next to it.
+  Silver holds every copy of the as-is facts. Gold replaces the facts of one filing in one
+  transaction with its current facts from silver, and removes a filing that left silver. `FilingRecord` loses its `company` field. See [`as_is_fact_store.md`](./as_is_fact_store.md).

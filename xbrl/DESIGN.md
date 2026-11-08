@@ -494,8 +494,8 @@ section 4.
   with the same end and length, which can be two facts. `core/dedup/more-precise@1` handles both
   cases, see "Dedup Rules".
 - `taxonomy_version` adds no uniqueness, because the filing fixes the version of each family. It
-  stays in the key because the Notes data set gives it on every row, and the draft key of the fact
-  store design names it.
+  stays in the key because the Notes data set gives it on every row, and
+  [`as_is_fact_store.md`](../sec/design/data_model/as_is_fact_store.md) confirms it in the key.
 - The key names the fields only. [`as_is_fact_store.md`](../sec/design/data_model/as_is_fact_store.md) decides the write rule, whether the source document joins
   the grain, and the rule for a fact from two sources.
 
