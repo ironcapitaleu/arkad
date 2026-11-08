@@ -238,8 +238,8 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;
-    use crate::core::taxonomy::fake::{FakeTaxonomy, declaration, plugin};
     use crate::core::taxonomy::family::UriPattern;
+    use crate::tests::fixtures::fake_taxonomy::{FakeTaxonomy, declaration, plugin};
 
     fn family(text: &str) -> NamespaceFamily {
         NamespaceFamily::new(text).expect(

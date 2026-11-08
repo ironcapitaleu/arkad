@@ -248,7 +248,7 @@ mod tests {
     use crate::core::concept::NamespaceFamily;
     use crate::core::fact::FactValue;
     use crate::core::filing::FilingId;
-    use crate::core::taxonomy::fake::{FakeTaxonomy, declaration, plugin};
+    use crate::tests::fixtures::fake_taxonomy::{FakeTaxonomy, declaration, plugin};
 
     const ADSH: &str = "0000000001-26-000001";
 

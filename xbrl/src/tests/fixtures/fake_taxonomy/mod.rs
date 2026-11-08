@@ -1,13 +1,13 @@
 //! # Fake Taxonomy
 //!
 //! Provides [`FakeTaxonomy`], a plug-in that declares families and holds no tables, for unit tests
-//! that need a [`Registry`](super::registry::Registry).
+//! that need a [`Registry`](crate::core::taxonomy::registry::Registry).
 
-use super::Taxonomy;
-use super::family::{FamilyDeclaration, UriPattern};
-use super::reference::{CalculationTree, ConceptAliases, ElementReference};
 use crate::core::concept::{ConceptName, NamespaceFamily};
 use crate::core::release::{Sha256, TaxonomyRelease, TaxonomyReleaseId};
+use crate::core::taxonomy::Taxonomy;
+use crate::core::taxonomy::family::{FamilyDeclaration, UriPattern};
+use crate::core::taxonomy::reference::{CalculationTree, ConceptAliases, ElementReference};
 
 /// A plug-in with a release and family declarations, and with no aliases, tree, or elements.
 pub struct FakeTaxonomy {
@@ -43,6 +43,11 @@ impl Taxonomy for FakeTaxonomy {
 }
 
 /// Returns a declaration of the family `name` with one URI pattern and `name` as Notes prefix.
+///
+/// # Panics
+///
+/// Panics if `name` or `pattern` breaks a rule of its core type. Tests pass hardcoded values.
+#[must_use]
 pub fn declaration(name: &str, pattern: &str, resolves: bool) -> FamilyDeclaration {
     let family = NamespaceFamily::new(name)
         .expect("Given a hardcoded family without whitespace, the creation should always succeed");
@@ -54,6 +59,11 @@ pub fn declaration(name: &str, pattern: &str, resolves: bool) -> FamilyDeclarati
 }
 
 /// Returns a [`FakeTaxonomy`] of the release `release` that declares `families`.
+///
+/// # Panics
+///
+/// Panics if `release` is not a release ID. Tests pass hardcoded values.
+#[must_use]
 pub fn plugin(release: &str, families: Vec<FamilyDeclaration>) -> FakeTaxonomy {
     FakeTaxonomy {
         release: TaxonomyRelease {
