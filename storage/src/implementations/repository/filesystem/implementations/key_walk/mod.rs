@@ -3,10 +3,6 @@
 //! Provides the sorted walk over the directories under a [`KeyPrefix`], which yields each key that
 //! has a metadata file.
 
-// The `ListRepository` impl is the only caller outside the tests, and it lands in a later change.
-// Until then, the walk is dead code in a build without tests.
-#![cfg_attr(not(test), expect(dead_code))]
-
 use std::collections::HashSet;
 use std::io;
 use std::path::PathBuf;

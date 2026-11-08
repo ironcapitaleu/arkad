@@ -53,6 +53,8 @@ pub use shared::document_metadata::{
     NoDocumentType, Producer,
 };
 pub use shared::key_prefix::KeyPrefix;
+pub use shared::listed_document::ListedDocument;
+pub use shared::stored_document::StoredDocument;
 pub use traits::access::{Access, CanRead, CanWrite, Read, ReadWrite, Write};
 pub use traits::document::Document;
 

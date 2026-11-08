@@ -11,7 +11,13 @@
 //!   as the [`Producer`](document_metadata::Producer).
 //! - [`key_prefix`]: The [`KeyPrefix`](key_prefix::KeyPrefix) that selects the keys a listing
 //!   walks.
+//! - [`listed_document`]: The [`ListedDocument`](listed_document::ListedDocument) that a listing
+//!   yields for one document.
+//! - [`stored_document`]: The [`StoredDocument`](stored_document::StoredDocument) that a listing
+//!   found in place of a document file.
 
 pub mod document_key;
 pub mod document_metadata;
 pub mod key_prefix;
+pub mod listed_document;
+pub mod stored_document;
