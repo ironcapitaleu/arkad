@@ -46,9 +46,9 @@ such a trait, check whether a new trait or impl can hold the change.
 - Add a new capability as its own trait next to the existing traits.
 - Make the new trait a subtrait only if every type with the new capability must also have the
   existing capability. A type that has both today does not count. A subtrait forces each
-  implementor of the new trait to implement the existing trait too. For example, every `HasResponse` is a `RequestKind`, so `HasResponse` is a
-  subtrait of `RequestKind`. A store can list without reading, so `ListRepository` is not a
-  subtrait of `ReadRepository`.
+  implementor of the new trait to implement the existing trait too. For example, every
+  `HasResponse` is a `RequestKind`, so `HasResponse` is a subtrait of `RequestKind`. A store can
+  list without reading, so `ListRepository` is not a subtrait of `ReadRepository`.
 - A marker trait that only combines existing traits, such as `ReadWriteRepository`, is an
   extension. It is allowed.
 - Do not move items out of an existing trait to make room for a new trait.
