@@ -25,7 +25,7 @@ leaves open for the fact store.
 
 | Question | Decision | Section |
 | -------- | -------- | ------- |
-| Where facts live | Silver first, in the dataset `as_is_facts`. The gold fact tier in Postgres loads the current facts from silver | [Where Facts Live](#where-facts-live) |
+| Where facts live | Silver first, in the dataset `as_is_facts`. The gold fact tier in Postgres loads the current facts from silver, because the `/v1` API serves as-is facts (owner, 2026-11-08) | [Where Facts Live](#where-facts-live) |
 | Value key | The key of `xbrl/DESIGN.md`, "Value Key", is confirmed without change | [Value Key](#value-key) |
 | Ingestion provenance | The seven columns of the silver sketch are confirmed without change | [Ingestion Provenance](#ingestion-provenance) |
 | One fact from two sources | Silver keeps both. A read takes the instance over Notes for a whole filing | [Current Facts](#current-facts) |
@@ -127,6 +127,9 @@ silver layer design fixes the format, the write unit, the paths, and the replays
 The gold fact tier in Postgres ([ADR 0001](../../../docs/adr/0001-mvp-database.md)) loads the current
 facts from silver. Gold holds one source per filing. Silver keeps the history: every source, every
 replay, and every corrected file.
+
+Gold holds the as-is facts because the `/v1` API serves as-is facts as well as standardized facts.
+Decided by the owner on 2026-11-08.
 
 ## Ingestion Provenance
 
