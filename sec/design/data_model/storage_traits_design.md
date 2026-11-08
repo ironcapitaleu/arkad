@@ -204,6 +204,8 @@ impl<R: RawStore, G: GraphStore, F: FactStore> Repository for SecRepository<R, G
 ### Deferred to STA-139 (marked, not decided)
 
 1. **Read surface** (`scan` / `completeness` / `ownership_tree` / `query`) + the CQRS read/write split.
+   The listing of a repository reopens this item for the listing only, and replaces `scan`. See
+   [`repository_listing.md`](../../../storage/design/data_model/repository_listing.md).
 2. **`RawStore` genericity** (`type Item`?) — raw is the one regulator-specific tier.
 3. **`completeness` placement** — straddles graph structure and fact presence.
 4. **Retry / DLQ** — a `RetryingRepository` decorator (reads `is_retryable()`); reconciliation for

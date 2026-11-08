@@ -1,0 +1,482 @@
+# Listing the Contents of a Repository
+
+## Purpose
+
+The `storage` crate reads a document by key only. A caller must know every key in advance. This
+document adds a listing: a repository gives a stream of the documents it holds, as metadata, never
+as bytes. It records the trait, the filesystem sketch, the ordering and consistency rules, and how
+each consumer uses the listing.
+
+Status: proposed. The decisions below wait for review.
+
+## Reading Guide
+
+| Section | Content | Decision |
+| ------- | ------- | -------- |
+| [Relation to the Deferred Read Surface](#relation-to-the-deferred-read-surface) | Why the listing reopens one item of the deferred read surface, and why the frozen `scan` stays dead | Yes |
+| [The Trait](#the-trait) | `ListRepository`, the filter, the entry, the error | Yes |
+| [Filesystem Sketch](#filesystem-sketch) | The walk, orphans, temporary files, cost | Yes |
+| [Ordering and Consistency](#ordering-and-consistency) | Sort order, what a listing sees during a write | Yes |
+| [Consumers](#consumers) | How each consumer uses the listing, and the one that keeps `get` | Yes |
+| [Bookmark or Full Index](#bookmark-or-full-index) | The source of the dates of `daily_filings` | Yes, for review by the lead |
+| [Feature Tickets](#feature-tickets) | The work that follows | No |
+
+## Relation to the Deferred Read Surface
+
+The consolidated design of the storage traits deferred the whole read surface (see
+[`storage_traits_design.md`](../../../sec/design/data_model/storage_traits_design.md),
+"Consolidated Design", deferred item 1). The deferral waits for a concrete consumer. The listing
+now has five, see [Consumers](#consumers). So the listing reopens item 1, but only for the listing:
+
+- `completeness`, `ownership_tree`, and `query` stay deferred. They wait for a screener or API
+  consumer, as before.
+- The CQRS split stays deferred. The listing is one more read capability next to `get`.
+
+The frozen v1 design had `RawStore::scan(filter)`, a stream of `RawFiling` values with their bytes
+(see "Traits (FROZEN)" in the same document). The listing does not bring `scan` back:
+
+- `scan` returned the bytes. The raw store holds about 30 GB today. A stream of bytes reads all of
+  them, also for a caller that needs only keys.
+- `RawStore` does not exist in the consolidated design. Each document type has its own repository
+  behind the neutral `ReadRepository` and `WriteRepository` ports. A listing on those ports serves
+  every repository, not only the raw tier.
+- A replay driver that needs the bytes lists the keys, then calls `get` for each key. That
+  composition gives what `scan` gave, and `get` keeps its size and SHA-256 check.
+
+## The Trait
+
+### Shape
+
+```rust
+use futures_core::stream::BoxStream;
+
+use crate::error::ReadError;
+use crate::traits::repository::ReadRepository;
+
+/// Lists the documents a store holds, as metadata, never as bytes.
+pub trait ListRepository: ReadRepository {
+    /// What one listed document reports: its key and its metadata.
+    type Entry: Send;
+
+    /// What a listing selects, for example a key prefix.
+    type Filter: Send;
+
+    /// Lists the key of each stored document that the filter selects. Reads no file.
+    fn list_keys(&self, filter: Self::Filter) -> BoxStream<'_, Result<Self::Key, ReadError>>;
+
+    /// Lists each stored document that the filter selects, with its metadata. Reads no document.
+    fn list(&self, filter: Self::Filter) -> BoxStream<'_, Result<Self::Entry, ReadError>>;
+}
+```
+
+Decisions:
+
+1. **A separate capability trait, not a method on `ReadRepository`.** A store that only reads by
+   key implements no listing. A caller bound to `ReadRepository` has no listing in scope. This
+   follows the capability split of
+   [`capability_split_trait_hierarchy.md`](./capability_split_trait_hierarchy.md).
+2. **A subtrait of `ReadRepository`.** Every listed key is a key that `get` accepts. The subtrait
+   reuses `ReadRepository::Key`, so a caller bound to both traits names one `Key`, not two.
+3. **Two methods.** `list_keys` reads only directory entries, so it costs one listing call per
+   directory. `list` also reads each metadata file, one read per document. The cut-over check and
+   the daily run need only keys. Replay and the integrity check need the metadata.
+4. **A stream, not a `Vec`.** The store will hold millions of documents. A caller folds the stream
+   or collects it. `BoxStream` keeps the trait object-safe, so `Box<dyn ListRepository<…>>` works
+   as `Box<dyn ReadRepository<…>>` does. The methods are not `async`, because the stream is lazy.
+   The `storage` crate gains the dependency `futures-core`, which is pure Rust.
+5. **No summary method.** Counts, total size, and the newest period are a fold over the stream in
+   the caller. If a backend makes the fold too slow, a summary method comes with that backend.
+6. **`Entry` and `Filter` are associated types,** as `Record` and `Key` are. The metadata layout
+   belongs to the backend: the filesystem has a metadata file per document, a database has rows.
+
+### Error
+
+The listing returns `ReadError`, because a listing is a read. `ErrorKind::Read` covers it, so the
+error hierarchy gains no variant. A listing never returns `ReadError::MissingRecord`.
+
+The stream holds one `Result` per item:
+
+- An error about one path, such as a metadata file that does not parse, is an item. The stream
+  continues after it.
+- A root that is missing or not a directory gives one error, and the stream ends.
+
+A caller that must stop at the first error uses `try_collect` or `try_fold`. The integrity check
+collects every error into its report.
+
+The filesystem adds `FilesystemOperation::ListDirectory` for a directory that it cannot read. The
+error then reads, for example:
+
+```text
+[FailedFilesystemOperation] Filesystem operation failed, Reason: 'Failed to list directory, permission denied', Path: '…/sec/notes'
+```
+
+### Filesystem Filter and Entry
+
+`FilesystemRepository<A, D>` implements `ListRepository` for `A: CanRead`:
+
+| Associated type | Filesystem type |
+| --------------- | --------------- |
+| `Key` | `DocumentKey`, as for `get` |
+| `Filter` | `KeyPrefix` |
+| `Entry` | `ListedDocument<D::Context>` |
+
+```rust
+/// Selects the keys under a directory of the root.
+pub struct KeyPrefix(/* a relative path, valid as a DocumentKey, or empty for the root */);
+
+/// One listed document: its key, its metadata, and what the store found for its document file.
+pub struct ListedDocument<C> {
+    key: DocumentKey,
+    metadata: DocumentMetadata<C>,
+    document: StoredDocument,
+}
+
+/// What the listing found in place of the document file.
+pub enum StoredDocument {
+    /// The document file exists, with this size on disk.
+    Present { size_in_bytes: u64 },
+    /// The metadata file exists, but the document file does not.
+    Missing,
+}
+```
+
+- **The prefix matches whole path components.** `sec/notes` selects `sec/notes/2024q1_notes.zip`,
+  not `sec/notes-old/a.zip`. A prefix is a directory, so the walk starts there and reads nothing
+  above it.
+- **The document type filter is the type parameter `D`.** A repository lists only the metadata
+  files of `D::DOCUMENT_TYPE`. This matches `get`, which rejects metadata of another type. To list
+  every type, a caller lists one repository per type. The raw store has seven types.
+- **The entry carries the whole `DocumentMetadata<D::Context>`.** It holds every field the
+  direction of the listing asked for: document type, size, SHA-256, `produced_at`, and
+  `ingestion_mode`. It also holds the typed `context`, so a caller can read the `filing` of an
+  instance (its `filed_date` and `form`) without a second read. One metadata type means no second
+  field list to keep in step.
+- **`StoredDocument::Present` holds the size on disk,** read from the directory entry. A caller
+  compares it with `metadata.size_in_bytes()` and needs no read of the document. The SHA-256 needs
+  the bytes, so the listing never checks it. `get` does.
+
+`list_keys` ignores `D`. The document type sits in the metadata file, and `list_keys` reads no
+file. So `list_keys` yields every key under the prefix that has a document file and a metadata file.
+Under `sec/filings/`, it yields the folder index, the instance, and the label file of each filing.
+The caller knows the key layout and keeps the file names it needs.
+
+## Filesystem Sketch
+
+### The Walk
+
+```mermaid
+flowchart TB
+    START["Start at root joined with the prefix"] --> READ["Read the directory entries"]
+    READ --> SORT["Sort the names, a directory name compared as name plus '/'"]
+    SORT --> EACH{"Each name"}
+    EACH -->|"directory"| READ
+    EACH -->|"starts with '.' and ends with '.tmp'"| SKIP["Skip: temporary file of a write"]
+    EACH -->|"ends with .meta.json"| PAIR{"Document file beside it?"}
+    EACH -->|"other file"| META{"Metadata file beside it?"}
+    PAIR -->|"yes"| BOTH["Pair"]
+    PAIR -->|"no"| MONLY["Metadata without document"]
+    META -->|"yes"| SEEN["Handled with its metadata file"]
+    META -->|"no"| DONLY["Document without metadata: not listed"]
+    BOTH --> KEYS["list_keys: yield the key"]
+    BOTH --> PARSE["list: read and parse the metadata"]
+    MONLY --> PARSE
+    PARSE -->|"type D, version of D"| YIELD["Yield the entry"]
+    PARSE -->|"another type"| OTHER["Skip: another repository lists it"]
+    PARSE -->|"type D, another version, or no parse"| ERR["Yield an error item"]
+```
+
+1. The walk starts at the root joined with the prefix. It reads one directory at a time, so it holds
+   the names of one directory in memory, plus the path to it.
+2. It sorts the names of each directory before it goes deeper. See
+   [Ordering and Consistency](#ordering-and-consistency) for the rule.
+3. It does not follow a symbolic link. The write path never creates one.
+4. It pairs the files of one directory by name. A document `x` pairs with `x.meta.json`, the
+   `METADATA_SUFFIX` rule of `FilesystemRepository`.
+5. `list` reads the metadata files with a bound on the reads in flight, for example 16. It yields
+   the entries in walk order, so the bound does not change the order.
+
+### Orphans and Temporary Files
+
+| Found | `list_keys` | `list` | Why |
+| ----- | ----------- | ------ | --- |
+| Document and metadata | Key | Entry, `Present` | The normal case |
+| Metadata without document | Nothing | Entry, `Missing` | The metadata names its type, so the repository of that type can report it. A write in flight shows this for a moment, see below |
+| Document without metadata | Nothing | Nothing | No metadata names its type, so no typed repository can claim it. The write path never leaves this state, see below |
+| Hidden `.tmp` file | Nothing | Nothing | A temporary file of a write in flight, or of a write that a killed run left |
+| Metadata of another type | Nothing | Nothing | Another repository lists it. Repositories of several types share one root |
+| Metadata of type `D`, another version | Nothing | Error item | The store holds a document that this code cannot read. `get` fails on it too |
+| Metadata that does not parse | Nothing | Error item | Same as `get` |
+
+A write renames the metadata into place first, then the document. So a document on disk always has
+its metadata, and a document without metadata means that something outside the write path changed
+the store. A typed listing cannot see such a file. The integrity check needs it, so the filesystem
+also offers a walk that is not typed:
+
+```rust
+impl<A: CanRead, D> FilesystemRepository<A, D> {
+    /// Walks the files under the prefix and reports each file by its role.
+    pub fn inventory(&self, prefix: KeyPrefix) -> BoxStream<'_, Result<InventoryItem, ReadError>>;
+}
+
+pub enum InventoryItem {
+    Pair { key: DocumentKey, size_in_bytes: u64 },
+    MetadataWithoutDocument { key: DocumentKey },
+    DocumentWithoutMetadata { key: DocumentKey, size_in_bytes: u64 },
+    TemporaryFile { path: PathBuf, modified_at: DateTime<Utc> },
+}
+```
+
+`inventory` is not part of the port. It describes files, and only the filesystem has files. A later
+backend with its own orphans adds its own walk. The integrity check decides what to do with each
+item. The listing deletes nothing.
+
+### Cost
+
+| Call | Local disk | Mounted bucket |
+| ---- | ---------- | -------------- |
+| `list_keys` | One directory read per directory | One list request per directory |
+| `list` | Plus one read of each metadata file, about 1 KB | Plus one read request per metadata file |
+| `get` after a listing | Reads the document | Downloads the document |
+
+None of these numbers is measured. The store holds about 30 GB today, but its file count is not
+measured. A filing adds one directory and three documents. The full index of 2026 Q3 held 6,051
+filings of the selected forms, so the filings add about 6,000 directories per quarter. On the
+mounted bucket, a walk of `sec/filings/` then sends one list request per directory, and its time
+grows with every quarter. The first feature measures the walk on a copy of the store. If a walk of
+`sec/filings/` takes more than 2 minutes on the bucket, a backend that calls the object API
+lists the prefix flat, at 1,000 objects per request. It implements the same trait. The object API
+also returns the CRC32C of each object without a download, which the integrity check can use.
+
+## Ordering and Consistency
+
+### Order
+
+The stream yields the documents sorted by key. The order compares the UTF-8 bytes of the key text,
+with `/` between the components.
+
+- A flat object listing in a bucket returns this order, so a later object backend needs no sort.
+- The filesystem walk gives the same order if it compares a directory name as the name plus `/`.
+  Example: the file `a-b` (`-` is byte 0x2D) comes before the directory `a/` (`/` is byte 0x2F).
+- This order is not the `Ord` of `DocumentKey`, which compares path components. The two differ
+  only when a directory name is a prefix of a sibling name and the next byte is below `/`, such as
+  `-` or `.`. The raw store keys hold no such pair today. The trait documents the byte order.
+
+A sorted stream costs one sort per directory. It gives deterministic tests, a deterministic replay,
+and a merge with another sorted list, such as the rows of the full index sorted by key.
+
+### What a Listing Sees During a Write
+
+A listing takes no snapshot. It walks the directories as they are while it runs. Writes and
+listings run at the same time: the daily run writes while the weekly check lists.
+
+The contract:
+
+1. A document whose write completed before the listing started, and that no write changed during
+   the listing, appears exactly once.
+2. A document written during the listing can appear or not, depending on whether the walk has
+   passed its directory.
+3. A key appears at most once. The store never deletes a document, so no key disappears.
+
+A write in flight shows two states for a moment, both in its own directory:
+
+- A new key: the metadata exists, the document does not yet. `list` yields `Missing`.
+- A changed key: the new metadata sits beside the old document. `list` yields `Present` with the
+  old size, which can differ from the size in the new metadata.
+
+The metadata field `produced_at` holds the time of the write. A caller that acts on `Missing` or on
+a size difference waits a grace period: if `produced_at` is less than 1 hour old, the caller counts
+the entry as a write in flight, not as a fault. A write that failed between its two renames stays
+in this state until the next write of that key. Its `produced_at` gets older, so the integrity check
+reports it after the grace period.
+
+On the mounted bucket, a rename is a copy and a delete, not one atomic step. The temporary file is
+hidden and skipped, so the listing never yields it. The two states above stay the same.
+
+### Not for the Live Pipeline
+
+The live pipeline never lists. An extract machine hands transform a reference with a key, such as
+`NotesArchiveRef` (see [`ingestion_paths.md`](../../../sec/design/pipeline/ingestion_paths.md),
+"Handover to Transform"). A transform state reads that key only. Only replay drivers, checks, the
+operator, and the start of a binary list.
+
+This rule stays. A listing returns what the store holds at that moment, and two listings at two
+times return different sets. A state that reads a listing makes its output depend on the time of
+the run, not on its input. A rerun with the same input then gives a different output.
+
+## Consumers
+
+```mermaid
+flowchart LR
+    LR["ListRepository"]
+    LR -->|"list: sec/notes, sec/filings"| REPLAY["Transform replay"]
+    LR -->|"list_keys: sec/notes"| CUT["Cut-over date"]
+    LR -->|"list_keys: sec/filings"| DAILY["daily_filings: full index minus stored"]
+    LR -->|"list_keys: sec/filings"| RECON["Weekly reconciliation"]
+    LR -->|"list and inventory: whole root"| CHECK["Integrity check and operator report"]
+    CUT --> DAILY
+    CUT --> RECON
+    SKIP["Skip of stored Notes files"] -->|"get per period, no listing"| RR["ReadRepository"]
+```
+
+### 1. Transform Replay
+
+After a parser fix, a driver reruns transform on every stored Notes file and instance (rule 6 of
+"Path Independence" in `ingestion_paths.md`).
+
+- The driver calls `list(sec/notes)` on the Notes repository. Each entry with `Present` and a size
+  equal to the metadata size gives a `NotesArchiveRef`: the period from the file name, the key, the
+  size, and the SHA-256.
+- It calls `list(sec/filings)` on the instance repository. Each entry gives the instance key of a
+  `FilingDocumentsRef`. The label key is the same directory with `lab.xml`. The driver takes it
+  from one `list_keys(sec/filings)` call, as a set, so it needs no `get` per filing to learn whether
+  the label file exists.
+- It reports an entry with `Missing` or a size difference outside the grace period, and skips it.
+- Transform then reads each key with `get`, as in the live pipeline. The transform design decides
+  how a replay writes its new silver units.
+
+### 2. Cut-Over Date
+
+Rule 1 of "Cut-Over Between the Paths" starts the new-filing path at the last day of the newest
+stored Notes month. Today the run summary of `backfill` gives that month. The listing gives it from
+the store:
+
+1. Call `list_keys(sec/notes)`.
+2. Parse the period from each file name: the text before `_notes`, through `NotesPeriod::new`.
+3. Take the newest period by `NotesPeriod::last_day`. Its last day is the cut-over date.
+4. Check for a gap: every expected period up to the newest one must have a key. The list of
+   expected periods comes from the same source the backfill uses. If one is missing, fail and name
+   it. This is the check of rule 5, read from the store instead of a run summary.
+
+A merged quarterly file and its monthly files can both be in the store. The rule takes the newest
+last day, so both give the same date.
+
+The `backfill` binary keeps `cut_over_date()` from its own summary, because it has the summary in
+memory. `daily_filings` has no summary, so it uses the listing (see consumer 3).
+
+### 3. `daily_filings`: Full Index Minus Stored Filings
+
+See [Bookmark or Full Index](#bookmark-or-full-index) for the choice. Each run:
+
+1. Reads the cut-over date from the listing (consumer 2).
+2. Reads the full index of the current quarter. In the first 30 days of a quarter, it also reads
+   the full index of the previous quarter.
+3. Keeps the rows with a selected form and a `Date Filed` from the cut-over date through yesterday.
+4. Calls `list_keys(sec/filings)` once, and removes each row whose `instance.xml` key is in the
+   result. The key holds the CIK and the accession number, so the row maps to its key with no read.
+5. Hands the remaining filings, oldest `Date Filed` first, to the filing machines. The store check
+   before each request stays as it is. It handles a filing with a stored folder index and no
+   instance: unextractable with no request, or fetched again after an earlier failure.
+
+`list_keys` reads no file, so this step does not read the stored instances again. A check with `get`
+per row reads the bytes of every stored instance of the quarter, each run.
+
+### 4. Operator Report
+
+The operator sees what the store holds without opening files. The check binary of the integrity
+design prints, per document type: the count, the total size, the newest `produced_at`, and the count
+per `ingestion_mode`. It is one fold over `list` of each raw repository. No separate tool and no
+summary method are needed.
+
+### 5. Weekly Reconciliation and Integrity Check
+
+The integrity design owns these checks. The listing gives them their input:
+
+- **Reconciliation of the filings:** the same set difference as consumer 3, over every quarter from
+  the cut-over date. It catches a filing that the SEC added to a closed quarter (assumption A3) and
+  an index published out of order (A6).
+- **Integrity:** `list` gives the metadata of each document with its size on disk. `inventory`
+  gives the documents without metadata and the temporary files. The SHA-256 check reads the bytes
+  with `get`, a sample or all, as that design decides.
+- **Silver:** silver keeps its own list of units in `silver_files`. Check 2 of "Integrity Checks"
+  in [`silver_layer.md`](../../../sec/design/pipeline/silver_layer.md) joins the raw metadata (key,
+  SHA-256) with the `inputs` of the current units. `list` gives that raw side.
+
+### 6. Skip of Stored Notes Files: No Listing
+
+`notes_backfill` checks each period with `get` before a download, and skips a file that passes the
+size and SHA-256 check. A listing does not replace this check. The check must hash the bytes of each
+stored file, and only `get` reads them. A listing saves only the path check of about 80 periods,
+which is small next to the hash of the stored files. So this consumer keeps `get`.
+
+## Bookmark or Full Index
+
+`daily_filings` reads the last 4 days on each run today (see "Window" in `ingestion_paths.md`). Two
+options replace the window. The lead asked to weigh the full index first.
+
+| | Date bookmark | Full index minus stored filings |
+| - | ------------- | ------------------------------- |
+| Input of a run | Dates from the bookmark plus 1 through yesterday | Rows of the full index of the quarter, minus the stored instances |
+| State that must exist | The last date that is fully done | None. The store and the SEC list are the state |
+| "Fully done" for a date | Every filing of the date stored or unextractable. The store does not record this. A bookmark needs a document that we create, and the raw layer holds SEC files only | Not needed. A filing that failed is still missing from the store, so the next run takes it again |
+| Wrong result | A wrong move skips a date, with no alert | A wrong cut-over date reads too many or too few rows. The gap check of consumer 2 fails the run |
+| A missed run or an outage | Catches up, if the bookmark is right | Catches up. The missing filings are still in the full index |
+| A daily index the SEC changes later (A3) | Lost, the date is past the bookmark | Caught, while the quarter is current. The weekly reconciliation catches it later |
+| Indexes published out of order (A6) | Lost | Caught, same as A3 |
+| Pending dates and closed days | Needs the window rules for `MissingDailyIndex` | Not needed. A closed day has no rows |
+| Requests per run | 1 daily index per date | 1 full index, 2 in the first 30 days of a quarter |
+| Bytes per run | About 0.1 to 0.5 MB per daily index | Up to 47.2 MB for `form.idx` at the end of a quarter, 4.8 MB as `form.gz` (2026 Q3) |
+| Lag | The daily index of a date | Measured once: the full index held every date through the previous business day, the same lag as the daily index |
+
+Decision: **the full index minus the stored filings.** It needs no state of our own, so no rule can
+move a bookmark past a date that is not done. It also repairs the gaps that the window cannot see.
+The cost is one download of up to 47 MB per run, or 4.8 MB compressed, and one `list_keys` walk.
+
+Rules of the run:
+
+- **Cap.** A run hands at most 2,000 filings to the filing machines, oldest `Date Filed` first. A
+  new filing takes at least 3 requests at one request each 110 ms, so 2,000 filings take about 11
+  minutes at the rate limit alone, inside the timeout of 30 minutes. The next run takes the rest.
+  The cap is a configuration value and needs a measurement.
+- **Exact range.** If `ARKAD_FROM` and `ARKAD_TO` are set, the run keeps only the rows with a
+  `Date Filed` in that range. It still removes the stored filings. Nothing moves, because no
+  bookmark exists.
+- **Alert.** After the run, a filing that is missing from the store with a `Date Filed` older than
+  7 days logs an `error` and sets the error exit code. It replaces the alert "the bookmark has not
+  moved in N days".
+- **Quarter boundary.** The previous quarter is final in its full index after its last business
+  day. A filing of the previous quarter that is still missing after 30 days goes to the weekly
+  reconciliation.
+- **Inputs.** The instance names the full index as its input document, not a daily index. The full
+  index changes every day under one key, so the SHA-256 in `inputs` names bytes that the store
+  replaces the next day. The daily index has the same gap today when the SEC changes it.
+
+The full index source of the catch-up of `backfill` and this run read the same file. The catch-up
+design picks `form.idx` or `xbrl.idx`, and this run uses the same choice.
+
+## Feature Tickets
+
+These follow the decisions above. Each is one PR within the review budget.
+
+1. **`ListRepository` trait and its fake.** The trait in `storage/src/traits/repository/`, its
+   export, the `futures-core` dependency, and `FakeListRepository` in the test fixtures. Tests:
+   object safety, the order of the fake, and an error item that does not end the stream.
+2. **`ListRepository` for `FilesystemRepository`.** `KeyPrefix`, `ListedDocument`,
+   `StoredDocument`, and the walk with the byte order. `FilesystemOperation::ListDirectory`. Tests
+   for each row of the orphan table, for the order of `a-b` before `a/`, and for a listing that
+   runs while a write runs. Measure `list_keys` and `list` of `sec/filings/` on a copy of the
+   store, on local disk and on the mounted bucket.
+3. **`inventory` for `FilesystemRepository`.** The walk that is not typed, for the integrity check:
+   documents without metadata and temporary files with their age.
+4. **Cut-over date from the store.** In `sec`: the newest stored Notes period from
+   `list_keys(sec/notes)`, with the gap check against the expected periods. Tests for a merged
+   quarter beside its months and for a missing period.
+5. **`daily_filings` reads the full index minus the stored filings.** Replaces the window of 4
+   days. The cap, the exact range, the alert, and the quarter boundary. Blocked by features 2 and 4
+   and by the full index source of the catch-up.
+6. **Transform replay from the listing.** The replay driver lists the Notes files and the
+   instances. Blocked by feature 2 and by the transform design.
+
+Trigger, not a ticket: if the walk of feature 2 takes more than 2 minutes on the bucket, add a
+backend that lists through the object API.
+
+## See Also
+
+- [`capability_split_trait_hierarchy.md`](./capability_split_trait_hierarchy.md): the read and write
+  traits that `ListRepository` extends.
+- [`storage_traits_design.md`](../../../sec/design/data_model/storage_traits_design.md): the
+  deferred read surface and the frozen `scan`.
+- [`ingestion_paths.md`](../../../sec/design/pipeline/ingestion_paths.md): "Cut-Over Between the
+  Paths", "Path Independence", "Window", "Unextractable Record", and "Handover to Transform".
+- [`extraction_overview.md`](../../../sec/design/pipeline/extraction_overview.md): "Integrity and
+  Reconciliation".
+- [`silver_layer.md`](../../../sec/design/pipeline/silver_layer.md): "Integrity Checks".
