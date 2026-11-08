@@ -63,7 +63,7 @@ xbrl/
       period_identity.rs   <- core/period/q4-from-fy@1
       chronology.rs        <- order over time, gap check
     us_gaap/
-      mod.rs               <- impl Taxonomy for UsGaap
+      mod.rs               <- UsGaap: impl Taxonomy, family declarations
       mappings.rs          <- aliases: standard concept -> US GAAP concepts (tiers 1 and 2)
       table.rs             <- ElementRow, CalculationRow: the rows of the generated tables
       taxonomy.rs          <- generated tables: calculation tree, element reference data
@@ -503,9 +503,19 @@ ticket decides where the removed elements live.
 ### `us_gaap`
 
 - Owns the namespace families `us-gaap` and `srt`. For the MVP it also owns `dei`. It declares,
-  without resolving, the other SEC taxonomies, for example `ecd`, `country`, and `currency`.
-- Brings the alias lists of `mappings.rs`, the calculation tree of the 2026 release, and the
-  element reference data.
+  without resolving, the other SEC taxonomies: `country`, `currency`, `cyd`, `ecd`, `exch`, `ffd`,
+  `invest`, `naics`, `rxp`, `sic`, `snj`, `spac`, and `stpr`. A family missing from this list
+  shows up as a finding of the parser, and the fix is to declare it.
+- Its URI patterns name the FASB (`http://fasb.org/<family>/{release}`), the SEC
+  (`http://xbrl.sec.gov/<family>/{release}`), and XBRL US (`http://xbrl.us/<family>/{release}`),
+  which published the `us-gaap` and `dei` releases of 2009 and 2010.
+- `UsGaap::new` builds the release, the calculation tree, and the element reference data from the
+  generated tables. `element()` finds a `us-gaap` concept by a binary search on the sorted
+  elements. It returns `None` for `srt` and `dei`, whose schemas are not vendored, and for an
+  element that a release before 2026 removed.
+- The calculation tree holds the arcs of every role. Each arc names its role.
+- `aliases()` returns no alias list yet. The alias lists of `mappings.rs` need a rule ID per
+  standard concept, for example `us-gaap/alias/revenue@1`, and no rule names exist yet.
 
 ### What `ifrs` Needs on Top
 
