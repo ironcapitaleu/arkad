@@ -5,7 +5,7 @@
 use roxmltree::Node;
 
 use super::InstanceFiling;
-use super::document::{Document, date, local_name, text};
+use super::document::{Document, XML_TRUE, date, local_name, name as xml_name, text};
 use crate::core::entity_name::EntityName;
 use crate::core::filing::{CompanyAttributes, Filing, Ticker};
 use crate::core::fiscal_period::FiscalPeriod;
@@ -28,11 +28,7 @@ mod name {
     pub const CURRENT_FISCAL_YEAR_END_DATE: &str = "CurrentFiscalYearEndDate";
     pub const TRADING_SYMBOL: &str = "TradingSymbol";
     pub const SECURITY_EXCHANGE_NAME: &str = "SecurityExchangeName";
-    pub const CONTEXT_REF: &str = "contextRef";
 }
-
-/// The text of `dei:AmendmentFlag` for an amendment.
-const AMENDMENT_TRUE: &str = "true";
 
 /// Maps the cover facts into the filing.
 ///
@@ -54,20 +50,22 @@ pub fn filing(
         InvalidValue::new(
             InstanceFiling::TYPE_NAME,
             InvalidValueReason::MissingPart(name::DOCUMENT_TYPE),
-            input.id.to_string(),
+            xml_name::ROOT,
         )
     })?;
     let form = Form::new(text(document_type).trim())?;
     let entity = document
         .context(
             document_type
-                .attribute(name::CONTEXT_REF)
+                .attribute(xml_name::CONTEXT_REF)
                 .unwrap_or_default(),
         )?
         .entity
         .clone();
-    let is_amendment =
-        form.is_amendment() || cover.text(name::AMENDMENT_FLAG).as_deref() == Some(AMENDMENT_TRUE);
+    let is_amendment = form.is_amendment()
+        || cover
+            .text(name::AMENDMENT_FLAG)
+            .is_some_and(|flag| XML_TRUE.contains(&flag.as_str()));
     Ok(Filing {
         id: input.id.clone(),
         entity,
@@ -116,7 +114,7 @@ impl<'a, 'input> Cover<'_, 'a, 'input> {
     fn fact(&self, local_name: &str) -> Option<Node<'a, 'input>> {
         self.all(local_name).find(|fact| {
             self.document
-                .context(fact.attribute(name::CONTEXT_REF).unwrap_or_default())
+                .context(fact.attribute(xml_name::CONTEXT_REF).unwrap_or_default())
                 .is_ok_and(|context| context.dimensions.is_empty())
         })
     }
@@ -142,12 +140,12 @@ impl<'a, 'input> Cover<'_, 'a, 'input> {
     fn tickers(&self) -> Vec<Ticker> {
         self.all(name::TRADING_SYMBOL)
             .map(|symbol| {
-                let context = symbol.attribute(name::CONTEXT_REF);
+                let context = symbol.attribute(xml_name::CONTEXT_REF);
                 Ticker {
                     symbol: text(symbol).trim().to_owned(),
                     exchange: self
                         .all(name::SECURITY_EXCHANGE_NAME)
-                        .find(|exchange| exchange.attribute(name::CONTEXT_REF) == context)
+                        .find(|exchange| exchange.attribute(xml_name::CONTEXT_REF) == context)
                         .map(|exchange| text(exchange).trim().to_owned()),
                 }
             })
