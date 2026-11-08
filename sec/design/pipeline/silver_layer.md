@@ -233,7 +233,7 @@ bucket, by their statistics.
 | `inputs` | `list<struct<FactKey>>` | The value keys of the as-is facts, with every key field |
 | `restated` | `bool` | |
 | `change` | `utf8` | `new`, `changed`, or `removed` against the current value of the key |
-| `computed_at` | `timestamp[ms, UTC]` | The time of the series run that computed the row |
+| `computed_at` | `timestamp[ms, UTC]` | The start time of the series run that computed the row |
 | Run columns | `transform_version`, `execution_id`, `loaded_at` | |
 
 `standardized_facts` is append-only, see [Series Deltas](#series-deltas). The key of a row is the
@@ -251,12 +251,14 @@ its row with the latest `computed_at`, unless that row has `change` = `removed`.
 | `reason` | `utf8`, nullable | For example `FiscalYearChange` or `Conflict` |
 | `filing_id` | `utf8`, nullable | Set for `Conflict` |
 | `step` | `utf8` | `filing` or `series` |
-| `change` | `utf8` | `new` or `resolved` |
-| `computed_at` | `timestamp[ms, UTC]` | The time of the run that computed the row |
+| `change` | `utf8`, nullable | `new`, `changed`, or `resolved` for a series row. Null for a filing row |
+| `computed_at` | `timestamp[ms, UTC]`, nullable | The start time of the series run. Null for a filing row |
 | Run columns | `transform_version`, `execution_id`, `loaded_at` | |
 
-The series rows of `findings` are append-only like `standardized_facts`. A finding is open from its
-`new` row until a later `resolved` row of the same kind, entity, concepts, and periods.
+The series rows of `findings` are append-only like `standardized_facts`. The key of a series
+finding is `kind`, the entity, `concepts`, `periods`, and `filing_id`. A finding is open from its
+`new` row until a later `resolved` row of the same key. A `changed` row records a new `reason` of an
+open finding.
 
 A dataset, not a report, for three reasons:
 
@@ -326,7 +328,8 @@ columns with one value per file add 0.39%. `txt.tsv` writes 954.6 MB of text to 
 Decided by the owner on 2026-11-08: A. Two reasons:
 
 - **Time travel needs no table snapshot.** A point-in-time read filters on `accepted`, which every
-  row carries. "What silver held at time T" filters `silver_files` on `written_at`. Both work with
+  row carries. "What silver held at time T" filters `silver_files` on `written_at`, or, for the series
+  datasets, the rows on `computed_at`. Both work with
   plain files.
 - **Writes are units, not row updates.** Silver never updates a row. Each write adds a whole unit,
   and the `silver_files` row makes the unit visible. That is the one transaction silver needs.
@@ -351,7 +354,7 @@ A unit is the smallest set of rows that one write adds, and that one replay writ
 | `notes_file` | The Notes period, for example `2024q1` | All filings of one Notes file | The Notes ZIP |
 | `filing_day` | The filed date, for example `2026-11-06` | All new filings of one day | The instances of that day, and the `submissions` files they used |
 | `series_base` | `base`, then the time of a new base | The full series output of every entity | The current `candidates` and `filings` units |
-| `series_delta` | The series run and the task, for example `2026-11-06T06:00Z/t0` | The changed rows of one series run, for the buckets of one task | The current `candidates` and `filings` units, and the current series rows of those entities |
+| `series_delta` | The series run and the task, for example `2026-11-06T0600Z-t0` | The changed rows of one series run, for the buckets of one task | The current `candidates` and `filings` units, and the current series rows of those entities |
 | `release` | `us-gaap/2026` | The elements of one release | The vendored release |
 
 A unit of the daily path holds one day, not one filing. One filing per unit gives about 90 files a
@@ -429,25 +432,32 @@ backfill adds the size of these datasets again, about 15 GB of `as_is_facts` plu
 
 ### Series Deltas
 
-`standardized_facts` and the series rows of `findings` are append-only, like the as-is data. Parquet
-files and GCS objects cannot grow, so "append" means a new small file of changed rows next to the
-old ones.
+`standardized_facts` and the series rows of `findings` are append-only, like the as-is data. A
+Parquet file cannot grow. So an append writes a new file of changed rows next to the old files.
 
 - The first series run writes a `series_base` unit with every row.
-- A later run recomputes only the entities of the touched entity buckets. It reads their current
-  rows, compares, and writes only the rows that differ to a `series_delta` unit: `change` = `new`,
-  `changed`, or `removed`. Unchanged rows are not written again.
+- A later run recomputes the entities of the new current units of `candidates`. It reads their
+  current rows, compares, and writes only the rows that differ to a `series_delta` unit, with
+  `change` = `new`, `changed`, or `removed`. The run does not write unchanged rows again.
+- A `removed` row copies every column of the row it removes, and sets `change` and `computed_at`.
+  A query that reads values must drop rows with `change` = `removed`.
+- `computed_at` is the start time of the series run. "After" in the rules below means a later
+  `computed_at`.
 - A read of the current values takes the newest `series_base` and every `series_delta` after it,
-  and keeps the row with the latest `computed_at` per key. A read "as silver held it at T" skips the
-  rows with `computed_at` after T, so it reaches back to the first series run.
-- One series task writes one delta unit per run, sorted by entity bucket. The daily run touches few
-  entities, so it uses few tasks, and adds a few small files a day.
+  and keeps the row with the latest `computed_at` per key.
+- A read "as silver held it at T" takes the newest `series_base` with `computed_at` on or before T,
+  and every `series_delta` after that base with `computed_at` on or before T. So it reaches back to
+  the first series run, across every new base.
+- A `series_base` run and a `series_delta` run never overlap. The job plan of the transform design
+  enforces it.
+- One series task writes one delta unit per run, sorted by entity bucket. A daily run touches a few
+  dozen entities, so it uses one task (estimate).
 - If a run changes most rows, for example after a new `transform_version` of a rule, it writes a new
-  `series_base` instead of a delta. Reads then start from that base. Older units stay.
-- No unit of any dataset is deleted.
+  `series_base` instead of a delta. This adds the full series size again, about 0.3 GB or more
+  (estimate). Older units stay.
 
 The deltas are small, because a day changes the series of a few dozen entities: their new periods,
-restated values, and derived values. Not measured. The prototype measures the size of a daily delta.
+restated values, and derived values (estimate). The prototype measures the size of a daily delta.
 
 ## Provenance
 
@@ -490,11 +500,11 @@ check job of the raw store runs these checks too.
 | 1. Files | A missing or corrupted Parquet file | For each unit, compare `bytes` and `crc32c` of each file in `files` with the object in GCS. GCS stores a CRC32C per object, so a listing gives both | One listing |
 | 2. Coverage | A raw document with no current unit, or a unit read from older bytes | Join the raw metadata (key, SHA-256) with `inputs` of the current units | Small tables |
 | 3. Row counts | Rows lost or doubled inside a unit of `as_is_facts` or `filings` | `source_rows` minus `dropped_rows` must equal `row_count`, and `row_count` must equal the rows in the Parquet footers. The derived datasets map many rows to one, so they get no row count check | Footers only |
-| 4. Rebuild | A wrong value, or a parser whose output changes from run to run | Run the transform again on the raw input with the same `transform_version`, and compare the `content_digest`. Skip a unit that check 2 reports as "source replaced" | One transform per unit, so a sample of units each week |
+| 4. Rebuild | A wrong value, or a parser whose output changes from run to run | Run the transform again on the raw input with the same `transform_version`, and compare the `content_digest`. Skip a unit that check 2 reports as "source replaced". For the series datasets, check 4 samples a `series_base` only. A `series_delta` depends on the series state before its run | One transform per unit, so a sample of units each week |
 
 Lineage checks join the datasets:
 
-- Every key in `standardized_facts.inputs` exists in a current unit of `as_is_facts`.
+- Every key in the `inputs` of a current series value exists in a current unit of `as_is_facts`.
 - Every `filing_id` of `candidates` and `as_is_facts` exists in `filings`.
 
 A failed check gives a row in a report. It changes no silver file.
@@ -727,7 +737,7 @@ Estimates. The prototype measures them.
 | --- | ----- | --------------- | -------------- | ------- |
 | Transform of the backfill | One per Notes file, 80 | 2 GiB, set by option B: one bucket of about 256 MB of text, plus `sub.tsv` and `dim.tsv` | 10 | 1 hour, see [Time per Task](#time-per-task) |
 | Transform of one day | 1 | 1 GiB | 1 | 30 minutes |
-| Standardize series | One per entity bucket, 64 | 2 GiB | 16 | 30 minutes |
+| Standardize series | A first run or a new base: one per entity bucket, 64. A daily run: 1 | 2 GiB | 16 | 30 minutes |
 | Checks and load | One per dataset unit | 1 GiB | 4 | 30 minutes |
 
 Two limits set the parallel tasks: the read speed of the raw bucket, and the connections that gold
@@ -737,7 +747,7 @@ Size of silver (estimate): `2025q3` writes 191.5 MB of as-is Parquet, 7.8 bytes 
 and 108 bytes per text row (measured). About 70 quarters of history give about 14 GB. A Q1 file
 such as `2024q1` holds about 26% more text, so the total can reach about 15 GB. Without replays, the whole silver bucket stays
 under 30 GB, the size of the raw store. See
-[Growth](#growth) for replays and the series datasets.
+[Growth](#growth) for replays and [Series Deltas](#series-deltas) for the series datasets.
 
 ## Open Points
 
