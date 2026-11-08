@@ -180,7 +180,7 @@ Ingestion provenance, on every row (see [Provenance](#provenance)):
 | `form`, `is_amendment` | `utf8`, `bool` | `10-K/A`, true |
 | `filed`, `accepted` | `date32`, `timestamp[ms, UTC]` nullable | |
 | `period_of_report` | `date32` | |
-| `fiscal_year`, `fiscal_period` | `int16`, `utf8`, both nullable | As filed. Empty for forms without financial statements, see [Company Attributes Over Time](#company-attributes-over-time) |
+| `fiscal_year`, `fiscal_period` | `int16`, `utf8`, both nullable | As filed. Filled for 10-K, 10-Q, 20-F, and 40-F, mostly empty for other forms, see [Company Attributes Over Time](#company-attributes-over-time) |
 | `company_name` | `utf8`, nullable | `sub.tsv` `name`, or `dei:EntityRegistrantName` |
 | `sic` | `utf8`, nullable | `sub.tsv` `sic`, or `submissions` `sic` |
 | `tickers` | `list<struct<symbol: utf8, exchange: utf8 nullable>>` | `dei:TradingSymbol` and `dei:SecurityExchangeName`, one entry per share class |
@@ -204,8 +204,9 @@ One row per standard concept and filing, from steps 1 and 2 of the dedup order i
 the rule that picked the conflicting concept. The standardize series step reads only this dataset
 and `filings`, so it never parses again.
 
-Inside a `candidates` file, rows sort by `entity_bucket`, then by `filing_id`. A series task then
-reads only the row groups of its bucket from each unit, by their statistics.
+Inside a `candidates` part, rows sort by `entity_bucket`, then by `filing_id`. The writer starts a
+new row group at each change of `entity_bucket`, so a series task reads only the row groups of its
+bucket, by their statistics.
 
 ### `standardized_facts`
 
@@ -325,7 +326,7 @@ A unit is the smallest set of rows that one write adds, and that one replay writ
 | --------- | ---------- | ---- | ------ |
 | `notes_file` | The Notes period, for example `2024q1` | All filings of one Notes file | The Notes ZIP |
 | `filing_day` | The filed date, for example `2026-11-06` | All new filings of one day | The instances of that day, and the `submissions` files they used |
-| `entity_bucket` | `b07` of 64 buckets by a hash of the entity | The series output of the entities in the bucket | The current `candidates` and `filings` units |
+| `entity_bucket` | `b07` of 64 buckets by `xxh3_64` of the entity, with a fixed seed | The series output of the entities in the bucket | The current `candidates` and `filings` units |
 | `release` | `us-gaap/2026` | The elements of one release | The vendored release |
 
 A unit of the daily path holds one day, not one filing. One filing per unit gives about 90 files a
@@ -553,26 +554,29 @@ The sort order of the tables differs between Notes files (measured on 2026-11-08
 | `2024q1`, `2025q3`, `2026_10` | Yes | Yes |
 
 `sub.tsv` is not sorted in five of these six files, but it holds at most a few MB. `2009q1` holds
-only the header line of each table, so it gives no filings. The split never relies on the order.
+only the header line of each table, so it gives no filings. Option B below does not rely on the order.
 
 | Option | Peak memory | Cost |
 | ------ | ----------- | ---- |
 | A. Read each table whole | 2.87 GB for an eager read of `num.tsv` of `2025q3`, 4.95 GB with `txt.tsv` after it (measured) | Simple. Needs a large task for the largest file |
-| B. K passes over the ZIP stream, each keeping the rows of one hash bucket of `adsh` (proposed) | About 1/K of the rows | K times the inflate time, about 4 s per pass per GB at 343 MB/s on one core (measured) |
+| B. K passes over the ZIP stream, each keeping the rows of one hash bucket of `adsh` (proposed) | About 1/K of the rows | K times the inflate time, about 3 s per GB per pass at 343 MB/s on one core (measured) |
 | C. One pass that cuts each table at each change of `adsh` | One filing: 36 MB for a pass over `num.tsv` of `2025q3` (measured) | Works only for a sorted table, so not for `2010q1`, `2012q4`, or `2020q4` |
 
 Proposal: B, for every Notes file, so the split has one code path:
 
 - The split reads `sub.tsv` and `dim.tsv` whole, about 81 MB of text for `2025q3`.
-- It picks K so that one bucket holds at most about 256 MB of text of `num.tsv` and `txt.tsv`.
-  For `2024q1`, with 2.7 GB of both, K is 11. The 22 passes take about 1.5 minutes of inflate time
-  (estimate).
-- Each pass keeps the rows whose `adsh` hashes to the bucket, groups them by `adsh`, and hands one
-  filing at a time to the parse state.
+- It picks K so that one bucket holds about 256 MB of text of `num.tsv` and `txt.tsv` on average.
+  For `2024q1`, with 2.7 GB of both, K is 11. The 11 passes over both tables take about 1.5
+  minutes of inflate time (estimate).
+- Each pass keeps the rows where `xxh3_64(adsh) mod K` equals the bucket number. The hash has a
+  fixed seed, so every pass and every run puts one `adsh` in the same bucket. A hasher with a
+  random seed per instance, such as the default of `HashMap`, drops or doubles filings.
+- Each pass groups its rows by `adsh` and hands one filing at a time to the parse state.
 - The write state writes one Parquet part per bucket and dataset (`part-<k>.parquet`), then drops
   the bucket. So it never holds a whole Notes file. Inside a part, rows sort by `filing_id`.
-- `candidates` sorts each part by `entity_bucket`, then by `filing_id`. A series task reads the row
-  groups of its entity bucket from every part.
+- `candidates` sorts each part by `entity_bucket`, then by `filing_id`, and starts a new row group
+  at each change of `entity_bucket`. A series task reads the row groups of its entity bucket from
+  every part.
 
 C is a later speed-up for sorted files only. It needs a check of the order and a fallback to B.
 
@@ -679,8 +683,8 @@ Notes file `2025q3_notes.zip`:
 
 - **Size.** 463.4 MB zipped. `num.tsv` is 1,188.6 MB with 7,697,635 rows, `txt.tsv` 954.6 MB with
   1,216,238 rows. `sub.tsv` holds 23,459 filings of 6,525 companies.
-- **Order.** `num.tsv` and `txt.tsv` are sorted by `adsh`, ascending. `sub.tsv` is not. Five other
-  files differ, see [Unit of Work and Memory](#unit-of-work-and-memory).
+- **Order.** `num.tsv` and `txt.tsv` are sorted by `adsh`, ascending. `sub.tsv` is not. In three other
+  files, `num.tsv` or `txt.tsv` is not sorted, see [Unit of Work and Memory](#unit-of-work-and-memory).
 - **Rows per filing in `num.tsv`.** 7,441 filings. Mean 1,034, median 785, 95th percentile 2,848,
   maximum 27,529.
 - **Memory.** An eager read of `num.tsv` took 9.7 s and peaked at 2.87 GB. With `txt.tsv` read
