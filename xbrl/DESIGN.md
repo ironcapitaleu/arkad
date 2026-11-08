@@ -34,6 +34,7 @@ The taxonomy knowledge is code in the repository. A transform needs no call to t
 ```text
 xbrl/
   taxonomy/us-gaap/2026/   <- vendored FASB files and a MANIFEST with the SHA-256 of each file
+  us_gaap_generator/       <- developer tool: vendored files -> src/us_gaap/taxonomy.rs
   src/
     core/
       concept.rs           <- ConceptName, NamespaceFamily, Namespace (parser input)
@@ -62,6 +63,7 @@ xbrl/
     us_gaap/
       mod.rs               <- impl Taxonomy for UsGaap
       mappings.rs          <- aliases: standard concept -> US GAAP concepts (tiers 1 and 2)
+      table.rs             <- ElementRow, CalculationRow: the rows of the generated tables
       taxonomy.rs          <- generated tables: calculation tree, element reference data
     adapter/               <- one adapter per data source
       edgar/               <- the documents of EDGAR, the filing system of the SEC
@@ -368,7 +370,26 @@ has no plug-in at all.
 ### Taxonomy Data in Code
 
 A generator reads the vendored FASB files and writes Rust tables into `us_gaap/taxonomy.rs`. The
-generated file is checked in. A developer runs the generator once per new release.
+generated file is checked in. A developer runs the generator once per new release, with
+`cargo run -p us_gaap_generator`.
+
+- The generator is the crate `xbrl/us_gaap_generator`, a developer tool. No container runs it. It
+  uses `roxmltree`, the XML library of `xbrl`, and `xbrl` does not depend on it.
+- It reads three kinds of file: the element schema, the label linkbase, and every calculation
+  linkbase of `stm/`. It resolves each arc through the labels of its locators and resources.
+- A concept is a top-level `xs:element` with a `substitutionGroup`. The 2026 schema has 17,182
+  declarations and 17,179 concepts. The other 3 are domain helpers of typed dimensions.
+- `ELEMENTS` holds one row per concept: name, standard label, data type, balance, and period type.
+  The data type is the text of the schema, for example `xbrli:monetaryItemType`.
+- `CALCULATION_ARCS` holds the summation arcs of all statement groups, sorted, without repeats.
+  Two groups can hold the same arc. No pair of concepts has two weights. Some arcs point to `srt`
+  concepts, so each row names the family of both ends.
+- `us_gaap/table.rs` defines the row types. The rows hold static text, so the tables need no work
+  at start.
+- `mod.rs` marks the generated module `#[rustfmt::skip]`, so `cargo fmt` keeps the bytes that
+  the generator writes.
+- A test in the generator crate runs the generator and compares its output with the checked-in
+  file. A change to the vendored files or to the generator without a new run fails it.
 
 - A new release is a reviewable diff of arcs and labels.
 - The build does not parse XML.
@@ -385,7 +406,8 @@ file fails at run time).
 - `us_gaap/mappings.rs` names no release. Its 14 tags are picked by hand from filings. 12 of them
   are in the 2026 release. `SalesRevenueNet` (deprecated) and `IncomeLossFromOperations` are not.
   An alias list bridges renames across releases, so it does not come from one release.
-- `us_gaap/taxonomy.rs` holds no calculation tree yet.
+- `us_gaap/taxonomy.rs` holds the generated tables of the 2026 release (see "Taxonomy Data in
+  Code").
 - The US GAAP 2026 release lives in `xbrl/taxonomy/us-gaap/2026/`. The files come from the FASB
   release zip `https://xbrl.fasb.org/us-gaap/2026/us-gaap-2026.zip`, published 2026-01-31, and
   keep its bytes and its folder names:
@@ -401,7 +423,8 @@ file fails at run time).
 - The files keep the CRLF line ends of the FASB. `.gitattributes` marks the folder `-text`, so Git
   never changes a byte.
 - Missing for the reference data: the elements that the FASB removed before 2026 (see "Releases
-  Over Time"), and the `dei` and `srt` taxonomies.
+  Over Time"), and the `dei` and `srt` taxonomies. So the `srt` concepts of the calculation arcs
+  have no element row.
 
 ### Releases Over Time
 
