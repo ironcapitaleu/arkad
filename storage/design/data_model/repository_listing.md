@@ -413,7 +413,7 @@ See [Bookmark or Full Index](#bookmark-or-full-index) for the choice. Each run:
 4. Calls `list_keys(sec/filings)` once, and removes each row whose `instance.xml` key and
    `lab.xml` key are in the result. The key holds the CIK and the accession number, so the row maps
    to its keys with no read. The run sorts the rows by the bytes of the key text, the order of the
-   stream, and merges them with the stream. So it holds no set of the stored keys, and its memory does not grow with the store.
+   stream, and merges them with the stream. So it holds no set of the stored keys, and its memory does not grow with the count of stored filings.
 5. Hands each other row with a stored `index.json` or `instance.xml` key to the store check before
    any request. The check works as today:
    - An instance without a label file counts as stored if the folder index lists no label file.
