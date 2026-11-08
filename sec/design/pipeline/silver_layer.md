@@ -16,8 +16,8 @@ the transform fills it.
 
 - [Layers](#layers) and [Fixed Inputs](#fixed-inputs) give the frame. Read them first.
 - [Datasets](#datasets) is the data model. It carries the most decisions.
-- [Format and Table Layout](#format-and-table-layout) holds the one choice that the lead decides:
-  plain Parquet with a file list, or a table format with snapshots.
+- [Format and Table Layout](#format-and-table-layout) holds the choice of plain Parquet with a file
+  list over a table format with snapshots, decided on 2026-11-08, and the triggers to switch.
 - [Units, Paths, and Replays](#units-paths-and-replays) and [Provenance](#provenance) describe how a
   write and a replay work. Check them against the open choices of the fact store design.
 - [Time and Duplicates](#time-and-duplicates) holds the read rules and the rule for company
@@ -292,11 +292,11 @@ see [Measurements](#measurements)): `num.txt` holds 542 MB of text. Sorted by fi
 
 | Option | Pro | Con |
 | ------ | --- | --- |
-| A. Plain Parquet files and the `silver_files` list (proposed) | No new dependency next to Polars. The list is a Parquet dataset itself. A unit becomes visible with one write | No transaction over many files. Each reader must read the list. Compaction and file removal need code of our own |
+| A. Plain Parquet files and the `silver_files` list (decided) | No new dependency next to Polars. The list is a Parquet dataset itself. A unit becomes visible with one write | No transaction over many files. Each reader must read the list. Compaction and file removal need code of our own |
 | B. Delta Lake through `delta-rs` | Transaction log, snapshots by version and time, `OPTIMIZE` and `VACUUM` | `deltalake` pins its own Arrow version, so it and Polars must agree on one. Concurrent writers on GCS need the conditional-write support of the object store |
 | C. Apache Iceberg through `iceberg-rust` | Open standard, snapshots, hidden partitions, the Supabase Iceberg wrapper | Needs a catalog service. The Rust writer covers less than the Java one. The epic lists Iceberg as out of scope, and ADR 0001 adds Iceberg only next to Postgres, past about 50 GB |
 
-Proposal: A. Two reasons:
+Decided by the owner on 2026-11-08: A. Two reasons:
 
 - **Time travel needs no table snapshot.** A point-in-time read filters on `accepted`, which every
   row carries. "What silver held at time T" filters `silver_files` on `written_at`. Both work with
@@ -310,8 +310,8 @@ Move to B when one of these holds:
 - A reader needs a consistent snapshot over many units that `silver_files` cannot give.
 - The file count makes the list slow to read.
 
-The switch keeps the Parquet files and replaces the list with a Delta log. **The lead decides
-between A and B.** This design assumes A.
+The switch keeps the Parquet files and replaces the list with a Delta log. The epic records these
+triggers, so a later design checks them.
 
 ## Units, Paths, and Replays
 
