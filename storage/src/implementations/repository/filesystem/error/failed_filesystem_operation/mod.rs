@@ -219,6 +219,8 @@ pub enum FilesystemOperation {
     Sync,
     /// Renaming a file over another path.
     Replace,
+    /// Reading the names a directory holds.
+    ListDirectory,
 }
 
 impl fmt::Display for FilesystemOperation {
@@ -231,6 +233,7 @@ impl fmt::Display for FilesystemOperation {
             Self::Write => "write",
             Self::Sync => "sync",
             Self::Replace => "replace",
+            Self::ListDirectory => "list directory",
         };
         write!(f, "{verb}")
     }
@@ -446,6 +449,20 @@ mod tests {
         let reason = FailedFilesystemOperationReason::InvalidKeySuffix;
 
         let expected_result = "Key ends in '.meta.json', the suffix of a metadata file";
+
+        let result = reason.to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_format_display_as_expected_when_a_directory_listing_fails() {
+        let reason = FailedFilesystemOperationReason::FailedIo {
+            operation: FilesystemOperation::ListDirectory,
+            kind: io::ErrorKind::PermissionDenied,
+        };
+
+        let expected_result = "Failed to list directory, permission denied";
 
         let result = reason.to_string();
 
