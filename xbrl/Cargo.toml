@@ -17,10 +17,23 @@ serde_json = { version = "1.0", features = ["arbitrary_precision"] }
 bigdecimal = { version = "0.4", features = ["serde"] }
 chrono-tz = "0.10"
 roxmltree = "0.21"
+sha2 = { version = "0.11.1", optional = true }
 
 [dev-dependencies]
 pretty_assertions = "1"
 sha2 = "0.11.1"
+# The tests of the generator run in every `cargo test`, so CI covers them without the feature flag.
+xbrl = { path = ".", features = ["generator"] }
+
+[features]
+# The generator of the US GAAP tables. A developer runs it once per release, and no normal build
+# needs it.
+generator = ["dep:sha2"]
+
+[[bin]]
+name = "generate_us_gaap"
+path = "src/bin/generate_us_gaap.rs"
+required-features = ["generator"]
 
 [lib]
 name = "xbrl"

@@ -8,10 +8,14 @@
 //! - [`mappings`]: The alias lists of the standard concepts.
 //! - [`table`]: The row types of the generated tables.
 //! - [`taxonomy`]: The generated tables of the release: calculation arcs and element data.
+//! - `generator`: Writes [`taxonomy`] from the vendored FASB files. Only with the `generator`
+//!   feature.
 
+#[cfg(feature = "generator")]
+pub mod generator;
 pub mod mappings;
 pub mod table;
-// `us_gaap_generator` writes this file. rustfmt must not reflow it, so a run of the generator
-// gives the checked-in bytes.
+// The generator writes this file. rustfmt must not reflow it, so a run of the generator gives the
+// checked-in bytes.
 #[rustfmt::skip]
 pub mod taxonomy;

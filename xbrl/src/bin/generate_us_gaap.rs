@@ -6,18 +6,15 @@ use std::fs;
 use std::path::Path;
 use std::process::ExitCode;
 
-use us_gaap_generator::error::GeneratorError;
-use us_gaap_generator::{OUTPUT_FILE, generate};
-
-/// The `xbrl` crate, relative to this crate.
-const XBRL_CRATE: &str = "..";
+use xbrl::us_gaap::generator::error::GeneratorError;
+use xbrl::us_gaap::generator::{OUTPUT_FILE, generate};
 
 // Deviation from the logging rules of AGENTS.md: this is a developer tool that runs once per
 // release on a laptop, never in a container. It prints the error chain to stderr and needs no
 // structured log.
 fn main() -> ExitCode {
-    let xbrl_crate = Path::new(env!("CARGO_MANIFEST_DIR")).join(XBRL_CRATE);
-    match run(&xbrl_crate) {
+    let xbrl_crate = Path::new(env!("CARGO_MANIFEST_DIR"));
+    match run(xbrl_crate) {
         Ok(()) => ExitCode::SUCCESS,
         Err(error) => {
             eprintln!("{error}");
