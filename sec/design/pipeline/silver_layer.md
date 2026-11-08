@@ -128,6 +128,26 @@ and a view builds the history (see [Company Attributes Over Time](#company-attri
 Labels of the taxonomy live in `taxonomy_elements`. The company labels of `lab.xml` stay out of
 the MVP.
 
+### Kinds of Values
+
+Silver stores three kinds of values:
+
+| Kind | Example | Where | Period columns |
+| ---- | ------- | ----- | -------------- |
+| Duration | Revenue of a quarter | `as_is_facts` | `period_end`, `quarters` of 1 or more, and `period_start` |
+| Instant | Cash on the balance sheet date | `as_is_facts` | `period_end` is the date, `quarters` is 0, `period_start` is null |
+| Company attribute | Name, ticker, exchange, SIC, fiscal year end | `filings` | None. A value holds from the `accepted` time of its filing until a later filing changes it |
+
+- The key of a period is `period_end` and `quarters`. Notes `num.tsv` gives only these two
+  (`ddate`, `qtrs`). The instance gives exact dates. So a Notes value and an instance value of the
+  same period get the same key.
+- `period_start` keeps the exact start of an instance value, for example a 52/53-week quarter or a
+  stub period after a merger. It is null for Notes values and for instants.
+- The period says which time a value describes. `accepted` says when the value became public. A
+  restatement has the period of the original and a later `accepted` time.
+- A ticker can change between two filings. Silver keeps the values as filed. A later design adds
+  a daily table of current tickers from the SEC `company_tickers.json` file.
+
 The column sketches below fix the shape. The Arrow types are a proposal for the prototype to
 confirm. The fact store design owns the final fields of `as_is_facts` and of its provenance record.
 
