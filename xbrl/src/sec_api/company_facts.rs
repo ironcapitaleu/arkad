@@ -33,7 +33,7 @@ use chrono::NaiveDate;
 
 use crate::core::concept::{ConceptName, NamespaceFamily};
 use crate::core::entity_name::EntityName;
-use crate::core::fact::{AsIsFact, Dimensions, FactKey, FactValue};
+use crate::core::fact::{AsIsFact, Context, Dimensions, FactKey, FactValue, Source};
 use crate::core::filing::{EntityId, Filing, FilingId};
 use crate::core::fiscal_period::FiscalPeriod;
 use crate::core::fiscal_year::FiscalYear;
@@ -282,19 +282,23 @@ impl Parser {
         }
 
         let mut fact = AsIsFact {
-            filing,
-            entity: self.entity.clone(),
+            source: Source {
+                filing,
+                filed,
+                accepted: None,
+            },
+            context: Context {
+                entity: self.entity.clone(),
+                period,
+                dimensions: Dimensions::default(),
+            },
             concept: concept.clone(),
             taxonomy_version: None,
-            period,
             unit: Some(unit.clone()),
-            dimensions: Dimensions::default(),
             value: FactValue::Numeric(value),
             decimals: None,
             copy_rank: 0,
             footnotes: Vec::new(),
-            filed,
-            accepted: None,
         };
         let copies = self.copies.entry(fact.key()).or_insert(0);
         fact.copy_rank = *copies;
@@ -471,7 +475,7 @@ mod tests {
 
         let facts = parse(&json)
             .expect("Given a valid hardcoded Company Facts body, the parse should always succeed");
-        let result = fact(&facts, "Assets").period;
+        let result = fact(&facts, "Assets").context.period;
 
         assert_eq!(result, expected_result);
     }
@@ -487,7 +491,7 @@ mod tests {
 
         let facts = parse(&json)
             .expect("Given a valid hardcoded Company Facts body, the parse should always succeed");
-        let result = fact(&facts, "Revenues").period;
+        let result = fact(&facts, "Revenues").context.period;
 
         assert_eq!(result, expected_result);
     }
@@ -532,7 +536,7 @@ mod tests {
 
         let facts = parse(&json)
             .expect("Given a valid hardcoded Company Facts body, the parse should always succeed");
-        let result = fact(&facts, "Assets").filing.to_string();
+        let result = fact(&facts, "Assets").source.filing.to_string();
 
         assert_eq!(result, expected_result);
     }
@@ -545,7 +549,7 @@ mod tests {
 
         let facts = parse(&json)
             .expect("Given a valid hardcoded Company Facts body, the parse should always succeed");
-        let result = fact(&facts, "Assets").entity.id().to_string();
+        let result = fact(&facts, "Assets").context.entity.id().to_string();
 
         assert_eq!(result, expected_result);
     }

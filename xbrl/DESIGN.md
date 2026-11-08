@@ -432,19 +432,23 @@ resolved to standard concepts yet.
 
 ```text
 AsIsFact {
-    filing:            FilingId          // "sec:0000320193-26-000001"
-    entity:            EntityId          // XBRL entity identifier: scheme and id (CIK, LEI)
+    source: Source {                     // where the fact comes from
+        filing:        FilingId          // "sec:0000320193-26-000001"
+        filed:         NaiveDate
+        accepted:      Option<DateTime<Utc>>
+    }
+    context: Context {                   // what the fact is about, the XBRL context
+        entity:        EntityId          // XBRL entity identifier: scheme and id (CIK, LEI)
+        period:        Period            // Instant { end } | Duration { start: Option, end, quarters }
+        dimensions:    Dimensions        // sorted axis and member pairs, legal entity axis included
+    }
     concept:           ConceptName       // namespace family and local name
     taxonomy_version:  Option<TaxonomyVersion> // "us-gaap/2026", the filing for an extension, None from sec_api
-    period:            Period            // Instant { end } | Duration { start: Option, end, quarters }
     unit:              Option<Unit>      // None for text
-    dimensions:        Dimensions        // sorted axis and member pairs, legal entity axis included
     value:             FactValue         // Numeric(Decimal) | Text(String) | Nil
     decimals:          Option<Decimals>  // Finite(i32) | Infinite, None for text
     copy_rank:         u16               // 0 for the first copy of a fact in one filing
     footnotes:         Vec<String>
-    filed:             NaiveDate
-    accepted:          Option<DateTime<Utc>>
 }
 ```
 

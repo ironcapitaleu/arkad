@@ -156,8 +156,8 @@ fields of the as-is fact model.
 
 | Column | Arrow type | From |
 | ------ | ---------- | ---- |
-| `filing_id` | `utf8` | `AsIsFact::filing`, for example `sec:0000320193-26-000001` |
-| `entity_scheme`, `entity_id` | `utf8`, `utf8` | `AsIsFact::entity` |
+| `filing_id` | `utf8` | `AsIsFact::source.filing`, for example `sec:0000320193-26-000001` |
+| `entity_scheme`, `entity_id` | `utf8`, `utf8` | `AsIsFact::context.entity` |
 | `concept_family`, `concept_name` | `utf8`, `utf8` | `AsIsFact::concept` |
 | `taxonomy_version` | `utf8`, nullable | `us-gaap/2026`, or the filing for an extension |
 | `period_end` | `date32` | Exact end |
