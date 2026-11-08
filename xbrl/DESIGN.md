@@ -934,10 +934,11 @@ It never fails.
   An entity with neither expects no period.
 - **Expected ends.** The period of report of each annual report is a fiscal year end. Between two
   fiscal year ends, the check steps back from the later end while the step lies more than 7 days
-  after the earlier end. The step is 3 months once the entity has filed a quarterly report before
-  the later end, otherwise 12 months. So an issuer that moves from 20-F to 10-K and 10-Q expects
-  quarters only from the year of its first quarterly report on, and a 10-Q filer that skips the
-  10-Q filings of a whole year still expects its quarters. After the last fiscal year end, the check steps forward in
+  after the earlier end. The step is 3 months if the annual report for the later end is a `10-K` or
+  `10-KT` and the entity filed a quarterly report before that end, otherwise 12 months. So an issuer that moves from 20-F to 10-K and 10-Q expects
+  quarters only from the year of its first quarterly report on. A 10-Q filer that skips the 10-Q
+  filings of a whole year still expects its quarters. A filer that moves to 20-F or 40-F expects
+  only fiscal years again. After the last fiscal year end, the check steps forward in
   the same way up to the latest period of report. Before the first fiscal year end, only the
   quarterly reports give expected ends. The period of report of a quarterly report replaces an
   expected end within 7 days of it, or adds one. The fiscal period that the report names replaces
