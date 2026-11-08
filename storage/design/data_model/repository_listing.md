@@ -161,8 +161,11 @@ error then reads, for example:
 | `Entry` | `ListedDocument<D::Context>` |
 
 ```rust
-/// Selects the keys under a directory of the root.
-pub struct KeyPrefix(/* a relative path, valid as a DocumentKey, or empty for the root */);
+/// Selects the keys under a directory of the root, and optionally only the keys after a cursor.
+pub struct KeyPrefix {
+    directory: Option<DocumentKey>,   // None for the root
+    start_after: Option<DocumentKey>, // the cursor
+}
 
 /// One listed document: its key, its metadata, and what the store found for its document file.
 pub struct ListedDocument<C> {
@@ -340,7 +343,7 @@ key it finished as its cursor. The sort order makes "after key K" exact:
 
 - GCS supports it with `startOffset`. That parameter includes K, so the backend drops K.
 - The filesystem walk skips each file whose key sorts at or before K. It skips each directory whose
-  keys all sort before K, without reading it, except the directories on the path to K.
+  keys all sort before K, and does not read it.
 
 ### What a Listing Sees During a Write
 

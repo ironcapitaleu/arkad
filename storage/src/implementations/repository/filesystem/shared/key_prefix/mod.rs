@@ -1,6 +1,7 @@
 //! # Key Prefix
 //!
-//! Provides [`KeyPrefix`], the directory under the root that a listing selects.
+//! Provides [`KeyPrefix`], the directory under the root that a listing selects, and the cursor
+//! after which it resumes.
 
 use std::path::Path;
 
@@ -144,6 +145,32 @@ mod tests {
         let expected_result = KeyPrefix::root();
 
         let result = prefix;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_keep_the_directory_when_setting_a_cursor() {
+        let directory = DocumentKey::new("sec/notes")
+            .expect("Given a valid hardcoded relative path, the key should always build");
+        let cursor = DocumentKey::new("sec/notes/q1.zip")
+            .expect("Given a valid hardcoded relative path, the key should always build");
+
+        let expected_result = Path::new("sec/notes");
+
+        let prefix = KeyPrefix::from(directory).starting_after(cursor);
+        let result = prefix.as_path();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_have_no_cursor_when_the_prefix_selects_the_root() {
+        let prefix = KeyPrefix::root();
+
+        let expected_result = None;
+
+        let result = prefix.start_after();
 
         assert_eq!(result, expected_result);
     }
