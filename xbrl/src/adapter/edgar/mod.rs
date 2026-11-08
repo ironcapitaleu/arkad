@@ -8,6 +8,7 @@
 //!
 //! ## Modules
 //!
+//! - `as_is`: The rules that both filing parsers apply to the as-is facts of one filing.
 //! - [`company_facts`]: The Company Facts API.
 //! - [`company_concept`]: The Company Concept API.
 //! - [`frames`]: The Frames API.
@@ -15,6 +16,7 @@
 //! - [`frame`]: The `frame` field of a data point.
 //! - [`quarter`]: The calendar quarter of a frame.
 
+pub(crate) mod as_is;
 pub mod company_concept;
 pub mod company_facts;
 pub mod frame;
