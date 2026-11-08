@@ -1949,6 +1949,7 @@ dependencies = [
  "async-trait",
  "bytes",
  "chrono",
+ "futures-core",
  "pretty_assertions",
  "serde",
  "serde_json",

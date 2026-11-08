@@ -4,6 +4,6 @@
 //!
 //! ## Modules
 //!
-//! - [`repository`]: The traits for reading and writing records.
+//! - [`repository`]: The traits for reading and writing records, and for listing documents.
 
 pub mod repository;
