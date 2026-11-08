@@ -61,7 +61,8 @@ pub trait ListRepository: ReadRepository {
     /// What a listing selects, for example a key prefix.
     type Filter: Send;
 
-    /// Lists the key of each stored document that the filter selects. Reads no file.
+    /// Lists the key of each stored document that the filter selects. Reads no file, so a backend
+    /// that keeps the document type in the metadata yields the keys of every type.
     fn list_keys(&self, filter: Self::Filter) -> BoxStream<'_, Result<Self::Key, ReadError>>;
 
     /// Lists each stored document that the filter selects, with its metadata. Reads no document.
@@ -75,8 +76,10 @@ Decisions:
    key implements no listing. A caller bound to `ReadRepository` has no listing in scope. This
    follows the capability split of
    [`capability_split_trait_hierarchy.md`](./capability_split_trait_hierarchy.md).
-2. **A subtrait of `ReadRepository`.** Every listed key is a key that `get` accepts. The subtrait
-   reuses `ReadRepository::Key`, so a caller bound to both traits names one `Key`, not two.
+2. **A subtrait of `ReadRepository`.** The subtrait reuses `ReadRepository::Key`, so a caller bound
+   to both traits names one `Key`, not two. Every key that `list` yields is a key that `get`
+   accepts. `list_keys` reads no metadata, so it can also yield the keys of other document types
+   under the prefix. The trait documents this.
 3. **Two methods.** `list_keys` reads only directory entries, so it costs one listing call per
    directory. `list` also reads each metadata file, one read per document. The cut-over check and
    the daily run need only keys. Replay and the integrity check need the metadata.
@@ -128,6 +131,7 @@ pub struct KeyPrefix(/* a relative path, valid as a DocumentKey, or empty for th
 pub struct ListedDocument<C> {
     key: DocumentKey,
     metadata: DocumentMetadata<C>,
+    metadata_modified_at: DateTime<Utc>,
     document: StoredDocument,
 }
 
@@ -146,12 +150,12 @@ pub enum StoredDocument {
 - **The document type filter is the type parameter `D`.** A repository lists only the metadata
   files of `D::DOCUMENT_TYPE`. This matches `get`, which rejects metadata of another type. To list
   every type, a caller lists one repository per type. The raw store has seven types.
-- **The entry carries the whole `DocumentMetadata<D::Context>`.** It holds every field the
-  direction of the listing asked for: document type, size, SHA-256, `produced_at`, and
-  `ingestion_mode`. It also holds the typed `context`, so a caller can read the `filing` of an
+- **The entry carries the whole `DocumentMetadata<D::Context>`.** It holds every field that the
+  consumers need: document type, size, SHA-256, `produced_at`, and `ingestion_mode`. It also holds the typed `context`, so a caller can read the `filing` of an
   instance (its `filed_date` and `form`) without a second read. One metadata type means no second
   field list to keep in step.
-- **`StoredDocument::Present` holds the size on disk,** read from the directory entry. A caller
+- **`StoredDocument::Present` holds the size on disk,** from one `stat` call per document file,
+  because a directory read gives no size. A caller
   compares it with `metadata.size_in_bytes()` and needs no read of the document. The SHA-256 needs
   the bytes, so the listing never checks it. `get` does.
 
@@ -235,7 +239,7 @@ item. The listing deletes nothing.
 | Call | Local disk | Mounted bucket |
 | ---- | ---------- | -------------- |
 | `list_keys` | One directory read per directory | One list request per directory |
-| `list` | Plus one read of each metadata file, about 1 KB | Plus one read request per metadata file |
+| `list` | Plus one read of each metadata file, about 1 KB, and one `stat` of each document file | Plus one read request per metadata file, and one `stat` per document file, which can be one request each |
 | `get` after a listing | Reads the document | Downloads the document |
 
 None of these numbers is measured. The store holds about 30 GB today, but its file count is not
@@ -283,11 +287,13 @@ A write in flight shows two states for a moment, both in its own directory:
 - A changed key: the new metadata sits beside the old document. `list` yields `Present` with the
   old size, which can differ from the size in the new metadata.
 
-The metadata field `produced_at` holds the time of the write. A caller that acts on `Missing` or on
-a size difference waits a grace period: if `produced_at` is less than 1 hour old, the caller counts
-the entry as a write in flight, not as a fault. A write that failed between its two renames stays
-in this state until the next write of that key. Its `produced_at` gets older, so the integrity check
-reports it after the grace period.
+The modified time of the metadata file is the time of its rename. The entry carries it as
+`metadata_modified_at`, from the `stat` call the walk makes anyway. A caller that acts on `Missing`
+or on a size difference waits a grace period: if that time is less than 1 hour old, the caller
+counts the entry as a write in flight, not as a fault. The metadata field `produced_at` does not
+serve here: it names when the producer made the bytes, which can be long before the write. A write
+that failed between its two renames stays in this state until the next write of that key. Its
+modified time gets older, so the integrity check reports it after the grace period.
 
 On the mounted bucket, a rename is a copy and a delete, not one atomic step. The temporary file is
 hidden and skipped, so the listing never yields it. The two states above stay the same.
@@ -343,12 +349,15 @@ the store:
 1. Call `list_keys(sec/notes)`.
 2. Parse the period from each file name: the text before `_notes`, through `NotesPeriod::new`.
 3. Take the newest period by `NotesPeriod::last_day`. Its last day is the cut-over date.
-4. Check for a gap: every expected period up to the newest one must have a key. The list of
-   expected periods comes from the same source the backfill uses. If one is missing, fail and name
-   it. This is the check of rule 5, read from the store instead of a run summary.
+4. Check for a gap from the keys alone, with no SEC request. Each quarter from the first stored
+   quarter through the quarter of the newest period must be covered: by its quarterly file, or by
+   its three monthly files. The quarter of the newest period needs only its months up to the
+   newest one. If a quarter is not covered, fail and name it. This is the check of rule 5, read
+   from the store instead of a run summary.
 
-A merged quarterly file and its monthly files can both be in the store. The rule takes the newest
-last day, so both give the same date.
+The SEC merges the monthly files of a quarter into one quarterly file about a year later. The store
+can then hold the months, the quarter, or both. Each of the three counts as covered, and each gives
+the same newest last day.
 
 The `backfill` binary keeps `cut_over_date()` from its own summary, because it has the summary in
 memory. `daily_filings` has no summary, so it uses the listing (see consumer 3).
@@ -363,9 +372,11 @@ See [Bookmark or Full Index](#bookmark-or-full-index) for the choice. Each run:
 3. Keeps the rows with a selected form and a `Date Filed` from the cut-over date through yesterday.
 4. Calls `list_keys(sec/filings)` once, and removes each row whose `instance.xml` key is in the
    result. The key holds the CIK and the accession number, so the row maps to its key with no read.
-5. Hands the remaining filings, oldest `Date Filed` first, to the filing machines. The store check
-   before each request stays as it is. It handles a filing with a stored folder index and no
-   instance: unextractable with no request, or fetched again after an earlier failure.
+5. Hands each row whose `index.json` key is in the result, but not its `instance.xml` key, to the
+   store check before any request. The check reruns the selection on the stored folder index. A
+   filing without an instance counts as unextractable, with no request. Any other filing failed
+   after its folder request in an earlier run, and joins the filings of step 6.
+6. Hands the remaining filings, oldest `Date Filed` first, to the filing machines.
 
 `list_keys` reads no file, so this step does not read the stored instances again. A check with `get`
 per row reads the bytes of every stored instance of the quarter, each run.
@@ -423,15 +434,17 @@ The cost is one download of up to 47 MB per run, or 4.8 MB compressed, and one `
 
 Rules of the run:
 
-- **Cap.** A run hands at most 2,000 filings to the filing machines, oldest `Date Filed` first. A
+- **Cap.** A run hands at most 2,000 filings to the filing machines, oldest `Date Filed` first.
+  An unextractable filing of step 5 sends no request, so it does not count against the cap. A
   new filing takes at least 3 requests at one request each 110 ms, so 2,000 filings take about 11
   minutes at the rate limit alone, inside the timeout of 30 minutes. The next run takes the rest.
   The cap is a configuration value and needs a measurement.
 - **Exact range.** If `ARKAD_FROM` and `ARKAD_TO` are set, the run keeps only the rows with a
   `Date Filed` in that range. It still removes the stored filings. Nothing moves, because no
   bookmark exists.
-- **Alert.** After the run, a filing that is missing from the store with a `Date Filed` older than
-  7 days logs an `error` and sets the error exit code. It replaces the alert "the bookmark has not
+- **Alert.** After the run, a filing with a `Date Filed` older than 7 days logs an `error` and
+  sets the error exit code if the store holds no instance for it and the store check did not count
+  it as unextractable. It replaces the alert "the bookmark has not
   moved in N days".
 - **Quarter boundary.** The previous quarter is final in its full index after its last business
   day. A filing of the previous quarter that is still missing after 30 days goes to the weekly

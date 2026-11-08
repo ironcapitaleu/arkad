@@ -1559,7 +1559,7 @@ fail.
   the task timeout. Every write is idempotent, so a second read writes no duplicate row.
 - A rerun of dates older than `yesterday-2` has no pending dates. A date without an index fails.
 - Later: the full index of the quarter minus the stored filings replaces the window. A run then
-  needs no dates and no pending dates. See
+  needs no window and no pending dates. See
   [`repository_listing.md`](../../../storage/design/data_model/repository_listing.md), "Bookmark or
   Full Index".
 
