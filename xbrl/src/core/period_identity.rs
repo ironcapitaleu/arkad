@@ -29,13 +29,15 @@ const QUARTER: u16 = 1;
 /// `core/dedup/newest-filing@1`, and returns the derived facts.
 ///
 /// For each fiscal year value, the rule looks for the nine-month value of the same concept, unit,
-/// and dimensions, whose end lies one quarter before the end of the year. If both periods have an
-/// exact start, the starts must be equal. The fourth quarter is the year less the nine months. It
-/// runs from the day after the nine-month end to the year end.
+/// and dimensions, whose end lies one quarter before the end of the year. The gap from the
+/// nine-month end to the year end must round to one quarter, so it can be 46 to 136 days long. If
+/// several nine-month values fit, the rule takes the latest end. If both periods have an exact
+/// start, the starts must be equal. The fourth quarter is the year less the nine months. It runs
+/// from the day after the nine-month end to the year end.
 ///
 /// The rule derives only values in one currency, such as `USD`. Per-share values, share counts,
-/// and ratios do not add over periods. It derives nothing for a fourth quarter that the series
-/// already holds or that a conflict blocks.
+/// and ratios do not add over periods. The rule derives nothing for a fourth quarter that the
+/// series already holds or that a conflict blocks.
 ///
 /// The confidence is [`Confidence::Derived`], or the weaker confidence of an input. The fact has
 /// `restated` if an input has it. It carries the release of the fiscal year value.
@@ -50,7 +52,11 @@ pub fn derive_q4(series: &Series) -> Vec<StandardizedFact> {
     series
         .facts
         .iter()
-        .filter(|year| year.unit.is_currency() && length_of(year) == Some(YEAR_QUARTERS))
+        .filter(|year| {
+            year.unit.is_currency()
+                && matches!(year.period, Period::Duration(_))
+                && year.period.quarters() == YEAR_QUARTERS
+        })
         .filter_map(|year| {
             let mut key = year.series_key();
             key.quarters = QUARTER;
@@ -65,14 +71,6 @@ pub fn derive_q4(series: &Series) -> Vec<StandardizedFact> {
                 .map(|(quarter, nine_months)| subtract(year, nine_months, quarter))
         })
         .collect()
-}
-
-/// Returns the length in quarters of a duration, or `None` for an instant.
-const fn length_of(fact: &StandardizedFact) -> Option<u16> {
-    match fact.period {
-        Period::Duration(duration) => Some(duration.quarters()),
-        _ => None,
-    }
 }
 
 /// Returns the fourth quarter between `nine_months` and `year`, or `None` if `nine_months` is not
@@ -139,6 +137,8 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;
+    use crate::core::elements::CanonicalElement;
+    use crate::core::fact::Dimensions;
     use crate::core::unit::Unit;
     use crate::tests::fixtures::sample_fact::{date, standardized};
 
@@ -375,6 +375,139 @@ mod tests {
         let expected_result: Vec<StandardizedFact> = Vec::new();
 
         let result = derive_q4(&facts);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_derive_nothing_when_the_nine_months_are_another_concept() {
+        let mut first_nine_months = standardized(nine_months(), "296105000000");
+        first_nine_months.concept = CanonicalElement::CostOfRevenue;
+        let facts = series(vec![
+            standardized(fiscal_year(), "391035000000"),
+            first_nine_months,
+        ]);
+
+        let expected_result: Vec<StandardizedFact> = Vec::new();
+
+        let result = derive_q4(&facts);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_derive_nothing_when_the_nine_months_have_another_unit() {
+        let mut first_nine_months = standardized(nine_months(), "296105000000");
+        first_nine_months.unit = Unit::from_str("EUR")
+            .expect("Given a hardcoded unit with one measure, the parse should always succeed");
+        let facts = series(vec![
+            standardized(fiscal_year(), "391035000000"),
+            first_nine_months,
+        ]);
+
+        let expected_result: Vec<StandardizedFact> = Vec::new();
+
+        let result = derive_q4(&facts);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_derive_nothing_when_the_nine_months_have_other_dimensions() {
+        let mut first_nine_months = standardized(nine_months(), "296105000000");
+        first_nine_months.dimensions =
+            Dimensions::new([("StatementGeographicalAxis", "AmericasSegmentMember")])
+                .expect("Given one hardcoded axis and member, the creation should always succeed");
+        let facts = series(vec![
+            standardized(fiscal_year(), "391035000000"),
+            first_nine_months,
+        ]);
+
+        let expected_result: Vec<StandardizedFact> = Vec::new();
+
+        let result = derive_q4(&facts);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_derive_nothing_when_the_nine_months_end_in_the_prior_year() {
+        let facts = series(vec![
+            standardized(
+                Period::Duration(Duration::from_end_and_quarters(date(2024, 9, 28), 4)),
+                "391035000000",
+            ),
+            standardized(
+                Period::Duration(Duration::from_end_and_quarters(date(2023, 7, 1), 3)),
+                "281000000000",
+            ),
+        ]);
+
+        let expected_result: Vec<StandardizedFact> = Vec::new();
+
+        let result = derive_q4(&facts);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_take_the_latest_nine_month_end_when_two_nine_month_values_fit() {
+        let facts = series(vec![
+            standardized(
+                Period::Duration(Duration::from_end_and_quarters(date(2024, 9, 28), 4)),
+                "391035000000",
+            ),
+            standardized(
+                Period::Duration(Duration::from_end_and_quarters(date(2024, 6, 1), 3)),
+                "250000000000",
+            ),
+            standardized(
+                Period::Duration(Duration::from_end_and_quarters(date(2024, 6, 29), 3)),
+                "296105000000",
+            ),
+        ]);
+
+        let expected_result = vec![BigDecimal::from(94_930_000_000_i64)];
+
+        let result: Vec<BigDecimal> = derive_q4(&facts)
+            .into_iter()
+            .map(|fact| fact.value)
+            .collect();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_mark_the_fourth_quarter_restated_when_the_year_is_restated() {
+        let mut year = standardized(fiscal_year(), "391035000000");
+        year.restated = true;
+        let facts = series(vec![year, standardized(nine_months(), "296105000000")]);
+
+        let expected_result = vec![true];
+
+        let result: Vec<bool> = derive_q4(&facts)
+            .into_iter()
+            .map(|fact| fact.restated)
+            .collect();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_take_the_weaker_confidence_when_the_nine_months_are_computed() {
+        let mut first_nine_months = standardized(nine_months(), "296105000000");
+        first_nine_months.confidence = Confidence::Computed;
+        let facts = series(vec![
+            standardized(fiscal_year(), "391035000000"),
+            first_nine_months,
+        ]);
+
+        let expected_result = vec![Confidence::Computed];
+
+        let result: Vec<Confidence> = derive_q4(&facts)
+            .into_iter()
+            .map(|fact| fact.confidence)
+            .collect();
 
         assert_eq!(result, expected_result);
     }

@@ -134,8 +134,8 @@ impl Unit {
     /// nothing.
     ///
     /// A currency measure is an ISO 4217 code: three ASCII capital letters. The measures carry no
-    /// prefix, so the code is the only mark of a currency. `shares`, `pure`, and `USD/shares` are not
-    /// currencies.
+    /// prefix, so the form of the code is the only mark of a currency. A custom measure of three
+    /// capital letters, such as `BOE`, also counts. `shares`, `pure`, and `USD/shares` do not.
     ///
     /// # Examples
     ///
