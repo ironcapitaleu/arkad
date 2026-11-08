@@ -63,7 +63,9 @@ xbrl/
       mappings.rs          <- aliases: standard concept -> US GAAP concepts (tiers 1 and 2)
       taxonomy.rs          <- generated tables: calculation tree, element reference data
     adapter/               <- one adapter per data source
-      edgar/               <- the SEC XBRL JSON APIs of EDGAR
+      edgar/               <- the documents of EDGAR, the filing system of the SEC
+        notes.rs           <- rows of one Notes filing -> AsIsFact, Filing
+        instance.rs        <- one instance document -> AsIsFact, Filing
         company_facts.rs   <- Company Facts JSON -> AsIsFact, Filing
         company_concept.rs <- Company Concept JSON -> AsIsFact, Filing
         frames.rs          <- Frames JSON -> AsIsFact, Filing
@@ -96,9 +98,9 @@ flowchart LR
     end
     SA[adapter::edgar]
   end
+  N --> SPL[Split by filing, in the transform] --> SA
+  I --> SA
   J --> SA --> A
-  N --> P[Parsers in transform] --> A
-  I --> P
   U -. implements .-> T
   F -. implements .-> T
   T --> R --> RES
@@ -113,12 +115,17 @@ Rules of the layout:
 
 - `core` imports no plug-in and no adapter.
 - A plug-in imports only `core`.
-- `adapter::edgar` is an adapter. It imports `core` and maps the SEC JSON APIs into as-is
-  facts. A later data source gets its own adapter next to it, for example `adapter::esef`.
-- The parsers of the Notes data set and the instance XML live in the transform. They produce the
-  same as-is facts.
+- `adapter::edgar` is an adapter. It imports `core` and maps the documents of EDGAR into as-is
+  facts: the rows of one Notes filing, one instance document, and the Company Facts JSON. A later
+  data source gets its own adapter next to it, for example `adapter::esef`.
+- The Notes parser and the instance parser live in `adapter::edgar`, because their rules fill the
+  fact model and a test runs both on one filing. The pipeline reads the Notes data set and the
+  daily filings first. Company Facts is a secondary source.
+- The transform keeps the I/O and the states: it opens the Notes ZIP, streams `num.tsv`, splits a
+  Notes file by `adsh`, reads the raw store, adds the ingestion provenance, and writes silver. It
+  hands `adapter::edgar` the rows or the document of one filing.
 
-**Crate boundary**: `xbrl::adapter::edgar` takes `&str` or `&serde_json::Value` (raw JSON body), NOT an `SecResponse`. The `sec` crate owns HTTP, rate limiting, and response handling. `xbrl` has zero network dependencies.
+**Crate boundary**: `xbrl::adapter::edgar` takes text, rows, or a `&serde_json::Value` (raw JSON body), NOT an `SecResponse`. The `sec` crate owns HTTP, rate limiting, and response handling. `xbrl` has zero network dependencies.
 
 ### Types That Change
 
@@ -447,7 +454,8 @@ The open `NamespaceFamily` and `Unit` cover new namespaces and currencies. No ne
 ### Input / Output
 
 **Input**: a source document. `adapter::edgar` takes the raw JSON body of an SEC API answer, already
-fetched by the `sec` pipeline. The transform parses Notes rows and instance XML.
+fetched by the `sec` pipeline, the rows of one Notes filing, or one instance document. The transform
+reads and splits the documents, and `adapter::edgar` parses them.
 
 **Output**: `AsIsFact` values, one per reported value, and one `Filing` per filing. Nothing is
 resolved to standard concepts yet.
@@ -815,8 +823,8 @@ flowchart LR
 ```
 
 - **One state per step, one filing per run.** A parse state outputs `Vec<AsIsFact>` and one
-  `Filing`. The instance parser reads one instance document. The Notes parser reads one filing
-  that a split step cut from a Notes file. The standardize state takes the parse output as its
+  `Filing`. It calls `adapter::edgar::instance` on one instance document, or
+  `adapter::edgar::notes` on the rows of one filing that a split step cut from a Notes file. The standardize state takes the parse output as its
   input.
 - **The transition only moves data.** `From<ParseOutput> for StandardizeInput` hands over the as-is
   facts, as the existing transitions of the `sec` crate do. Parsing and resolution run in
@@ -839,7 +847,8 @@ So the standardize filing state outputs candidates, not final standardized facts
 
 ### Decisions for the Transform Design
 
-Parsers:
+Parsers. The split and the pick of the main instance are transform work. The other items are rules of
+`adapter::edgar::notes` and `adapter::edgar::instance`, and their tickets decide them:
 
 - How the split step cuts a Notes file into filings, and how it streams a file larger than the
   memory of one task.
