@@ -14,3 +14,6 @@ pub mod core;
 pub mod error;
 pub mod sec_api;
 pub mod us_gaap;
+
+#[cfg(test)]
+mod tests;
