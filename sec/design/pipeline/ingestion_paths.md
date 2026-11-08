@@ -883,6 +883,30 @@ UTF-8.
 2024-03-29. The most common forms are 8-K (16,272), 10-K (3,987), and 10-Q (1,044). The column
 `instance` names the XBRL instance file of each filing, for example `ae-20240221_htm.xml`.
 
+**Order of the rows.** Measured on 2026-11-08 by a streamed read of each table, with the CSVW
+dialect above. A table is sorted if each `adsh` forms one run of adjacent rows, in ascending order.
+
+| File | `num.tsv` rows, filings | `num.tsv` sorted | `txt.tsv` rows, filings | `txt.tsv` sorted | `sub.tsv` sorted |
+| ---- | ----------------------- | ---------------- | ----------------------- | ---------------- | ---------------- |
+| `2010q1_notes_1.zip` | 197,149, 495 | No: 191,466 runs | 16,265, 495 | Yes | No |
+| `2012q4_notes.zip` | 5,926,063, 8,116 | No: 5,901,119 runs | 506,044, 8,087 | No: 504,020 runs | No |
+| `2020q4_notes.zip` | 6,183,770, 6,295 | Yes | 818,459, 16,119 | No: 818,086 runs | Yes |
+| `2024q1_notes.zip` | 9,101,360, 7,573 | Yes | 1,443,193, 24,364 | Yes | No |
+| `2025q3_notes.zip` | 7,697,635, 7,441 | Yes | 1,216,238, 23,459 | Yes | No |
+| `2026_10_notes.zip` | 1,488,444, 1,496 | Yes | 271,414, 6,670 | Yes | No |
+
+- The order of the rows differs between files and between the tables of one file. A reader must
+  not rely on it. This check covers seven of 80 files: the six files above, which have rows, and
+  `2009q1`, which has none (see "Empty file").
+- If a table is sorted, one streamed pass can cut it at each change of `adsh`. On `num.tsv` of
+  `2025q3`, such a pass took 13.8 s in Python and peaked at 36 MB. An eager read of the same table
+  as text peaked at 2.87 GB.
+- `sub.tsv` holds one row per filing, 7.4 MB unzipped in 2024q1, so its order does not matter for
+  memory.
+
+**Empty file.** The metadata member of `2009q1_notes.zip` is named `2009q1_notes-metadata.json`,
+not `notes-metadata.json`. The file has no rows (see [`NotesPeriod`](#notesperiod)).
+
 **Publication.** The SEC page reads "January 2009 - September 2026". The page says that the SEC
 has updated the data sets monthly since November 2020. The file list still has quarterly files up
 to 2025q3 and monthly files from 2025_10. Filings after 5:30 PM Eastern on the last day of the month go
@@ -910,12 +934,13 @@ quarantines the row or the filing, and the file goes on.
    `SecClient::execute_sec_request`: HTTP 200, a content type of `application/octet-stream` or
    `application/zip`, and a byte count equal to `Content-Length` if the header is present.
 2. **Container**, in the first transform state: the bytes start with the ZIP signature `PK\x03\x04`,
-   the ZIP index parses, all eight tables and `notes-metadata.json` are present, every member uses
+   the ZIP index parses, all eight tables and exactly one metadata member are present (`notes-metadata.json`,
+   or `<period>_notes-metadata.json` as in 2009q1), every member uses
    deflate, every member name has no path separator, and the unzipped size stays under a limit.
    Proposed limit: 16 GB unzipped per file, and 50 times the zipped size per member. Measured
    maximum ratio in 2024q1: 12.8 (`cal.tsv`).
 3. **Table format**, in each read state: UTF-8, a quote-aware tab-separated reader, a header equal
-   to the columns in `notes-metadata.json`, the same field count in every row, and the CRC-32 of
+   to the columns in the metadata member, the same field count in every row, and the CRC-32 of
    the member.
 4. **Row content**, in the map state: types and references between tables. Round 3 (STA-332)
    designs this layer.
@@ -1996,7 +2021,7 @@ The metadata of each raw document records the ingestion mode of the run that cre
 ## Handover to Transform
 
 Each extract machine outputs a small reference, not the bytes. Transform reads the bytes from the
-raw store.
+raw store. It writes its output to the silver layer, see [`silver_layer.md`](silver_layer.md).
 
 ```rust
 /// Backfill: one stored Notes file.

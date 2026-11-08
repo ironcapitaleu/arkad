@@ -831,7 +831,8 @@ Series step:
 
 - Whether the series step runs as a state per entity or as a batch over silver.
 - Which filings trigger a new run of the series step for an entity.
-- The storage in the diagram is a proposal. The silver layer design fixes the datasets, including
+- The storage in the diagram is a proposal. The
+  [silver layer design](../sec/design/pipeline/silver_layer.md) fixes the datasets, including
   where the `Conflict`, `Gap`, `Overlap`, and `Restatement` findings live.
 
 ---
