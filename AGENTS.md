@@ -38,19 +38,24 @@ codebase for all instances before considering the change complete.
 
 ### Open-Closed Principle
 
-A port is a trait that an adapter implements, such as `ReadRepository`. A port is open for extension
-and closed for modification. Before you change an existing port, check whether a new trait or impl
-can hold the change.
+A public trait that other code implements is open for extension and closed for modification. This
+covers the framework traits, such as `State` and `Transition`, the client traits, such as
+`SecClient` and `RateLimiter`, and the storage ports, such as `ReadRepository`. Before you change
+such a trait, check whether a new trait or impl can hold the change.
 
-- Add a new capability as its own trait next to the existing ports. If the new trait does not call
-  a port, do not make it a subtrait of that port. A subtrait forces each
-  implementor of the new trait to implement the port too.
-- A marker trait that only combines existing ports, such as `ReadWriteRepository`, is an
+- Add a new capability as its own trait next to the existing traits. If the new trait does not use
+  the methods or associated types of an existing trait, do not make it a subtrait of that trait. A
+  subtrait forces each implementor of the new trait to implement the existing trait too.
+- A subtrait that uses its parent is allowed. For example, `StoredAs` uses the `Response` type of
+  `HasResponse`.
+- A marker trait that only combines existing traits, such as `ReadWriteRepository`, is an
   extension. It is allowed.
-- Do not move items out of an existing port to make room for a new trait.
-- If a design must modify an existing port, name the port and say why an extension cannot work.
+- Do not move items out of an existing trait to make room for a new trait.
+- If a design must modify an existing trait, name the trait and say why an extension cannot work.
   List the implementors and callers that change.
 - Do not propose a shape that a later step has to modify again.
+
+A new variant of a `#[non_exhaustive]` enum, or a new method on a struct, is not in scope.
 
 Example: `ListRepository` is a standalone trait with its own `Key`, so a caller can list without
 `get`, and `ReadRepository` stays unchanged. The marker `ReadListRepository` combines the two
@@ -561,8 +566,8 @@ conclusion), then a code block with the fix. End the review by naming the commit
 - Functions should be focused and not overly long
 - Follow single responsibility principle
 - Follow the **Open-Closed Principle** (see "Open-Closed Principle"). A 🟡 finding is a change that
-  modifies a port where an extension can hold it. A new capability made a subtrait of a port it does
-  not call is also a 🟡 finding.
+  modifies a public trait where an extension can hold it. A new capability made a subtrait of a
+  trait it does not use is also a 🟡 finding.
 - Avoid side effects in functions
 - Naming must follow **Ottinger's Naming Rules** (reveal intent, be pronounceable, avoid encodings)
 - Code must follow the **Step-Down Rule** (higher-level concepts first, details later)
