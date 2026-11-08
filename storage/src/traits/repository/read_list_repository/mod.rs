@@ -112,6 +112,7 @@ mod tests {
     #[tokio::test]
     async fn should_read_the_record_when_the_key_comes_from_list_keys() {
         let repository = FakeListRepository::seeded(vec![("sec/notes".to_string(), 7_u64)]);
+
         let expected_result = Some(7);
 
         let result = read_the_first_listed_record(&repository, ()).await;

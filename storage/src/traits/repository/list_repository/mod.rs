@@ -87,6 +87,7 @@ mod tests {
         let repository: Box<dyn ListRepository<Key = String, Entry = u64, Filter = ()>> = Box::new(
             FakeListRepository::seeded(vec![("sec/notes".to_string(), 7)]),
         );
+
         let expected_result = vec![Ok("sec/notes".to_string())];
 
         let result = collect(repository.list_keys(())).await;

@@ -17,8 +17,9 @@ use crate::traits::repository::{ListRepository, ReadRepository};
 ///
 /// Implements [`ListRepository`] and [`ReadRepository`] with one key type, so it is a
 /// [`ReadListRepository`](crate::ReadListRepository). Each seeded item is a key with an entry or
-/// with an error, as a document whose metadata does not parse. Both listings yield the items sorted
-/// by the bytes of the key text. [`list_keys`](ListRepository::list_keys) yields every key, and
+/// with an error. An error item stands for a document that the store cannot read, for example
+/// because its metadata does not parse. Both listings yield the items sorted by the bytes of the
+/// key text, each key once. [`list_keys`](ListRepository::list_keys) yields every key, and
 /// [`list`](ListRepository::list) and [`get`](ReadRepository::get) yield the error of an error
 /// item. The filter `()` selects every item.
 #[derive(Debug)]
@@ -38,11 +39,14 @@ impl<Key: AsRef<str>, Ent> FakeListRepository<Key, Ent> {
     }
 
     /// Creates a [`FakeListRepository`] seeded with the given items, each an entry or an error.
+    ///
+    /// Keeps the first item of each key, as [`get`](ReadRepository::get) does.
     #[must_use]
     pub fn with_items(mut items: Vec<(Key, Result<Ent, ReadError>)>) -> Self {
         items.sort_by(|(left, _), (right, _)| {
             left.as_ref().as_bytes().cmp(right.as_ref().as_bytes())
         });
+        items.dedup_by(|(right, _), (left, _)| left.as_ref() == right.as_ref());
         Self { items }
     }
 }
@@ -128,6 +132,7 @@ mod tests {
             ("a-b".to_string(), 3),
         ];
         let repository = FakeListRepository::seeded(entries);
+
         let expected_result = vec![
             Ok("a-b".to_string()),
             Ok("a/x".to_string()),
@@ -143,6 +148,7 @@ mod tests {
     async fn should_list_the_entries_in_byte_order_when_seeded_out_of_order() {
         let entries = vec![("a/x".to_string(), 1), ("a-b".to_string(), 3)];
         let repository = FakeListRepository::seeded(entries);
+
         let expected_result = vec![Ok(3), Ok(1)];
 
         let result = collect(repository.list(())).await;
@@ -159,7 +165,20 @@ mod tests {
             ("c".to_string(), Ok(3)),
         ];
         let repository = FakeListRepository::with_items(items);
+
         let expected_result = vec![Ok(1), Err(error), Ok(3)];
+
+        let result = collect(repository.list(())).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_keep_the_first_entry_when_a_key_is_seeded_twice() {
+        let entries = vec![("a".to_string(), 1), ("a".to_string(), 2)];
+        let repository = FakeListRepository::seeded(entries);
+
+        let expected_result = vec![Ok(1)];
 
         let result = collect(repository.list(())).await;
 
@@ -171,6 +190,7 @@ mod tests {
         let error = ReadError::Backend(BackendError::unreachable_storage("timeout"));
         let items = vec![("a".to_string(), Err(error)), ("b".to_string(), Ok(2))];
         let repository = FakeListRepository::with_items(items);
+
         let expected_result = vec![Ok("a".to_string()), Ok("b".to_string())];
 
         let result = collect(repository.list_keys(())).await;
@@ -182,6 +202,7 @@ mod tests {
     async fn should_return_the_entry_when_reading_a_seeded_key() {
         let repository = FakeListRepository::seeded(vec![("a".to_string(), 1_u64)]);
         let key = "a".to_string();
+
         let expected_result = Some(1);
 
         let result = repository
@@ -196,6 +217,7 @@ mod tests {
     async fn should_return_none_when_reading_a_key_that_was_not_seeded() {
         let repository = FakeListRepository::seeded(vec![("a".to_string(), 1_u64)]);
         let key = "b".to_string();
+
         let expected_result = Ok(None);
 
         let result = repository.get(key).await;
@@ -211,6 +233,7 @@ mod tests {
             Err(error.clone()),
         )]);
         let key = "a".to_string();
+
         let expected_result = Err(error);
 
         let result = repository.get(key).await;
