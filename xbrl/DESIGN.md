@@ -46,7 +46,7 @@ xbrl/
       unit.rs              <- Unit (open: numerator and denominator measures)
       period.rs            <- Instant | Duration
       elements.rs          <- CanonicalElement, our standard concept set, SFAC 6 invariants
-      standardized.rs      <- StandardizedFact (replaces resolved_fact.rs)
+      standardized.rs      <- StandardizedFact
       confidence.rs        <- Exact | Synonym | Derived | Computed
       rule.rs              <- RuleId
       release.rs           <- TaxonomyRelease (ID and checksum)
@@ -634,7 +634,7 @@ The resolution engine does not know which API an as-is fact came from.
 
 ### `StandardizedFact`
 
-`StandardizedFact` replaces `ResolvedFact`. It is one value of one standard concept.
+`StandardizedFact` is one value of one standard concept. It replaced `ResolvedFact`.
 
 ```text
 StandardizedFact {
@@ -797,6 +797,15 @@ and a length in quarters, as in the value key, because the Notes data set has no
 `core/dedup/more-precise@1` keeps all ranks and returns a `Conflict` finding to chronology. The
 finding names the as-is concept, and the standard concept if a plug-in maps it.
 
+```text
+Finding::Conflict {
+    entity:            EntityId
+    key:               FactKey                   // rank 0: filing, as-is concept, period end, quarters
+    ranks:             Vec<u16>                  // the ranks that disagree with rank 0, ascending
+    standard_concept:  Option<CanonicalElement>  // None if no plug-in maps the as-is concept
+}
+```
+
 - If tiers 1 and 2 would pick the conflicting concept, that filing gives a blocked candidate for
   the standard concept. A conflict on a lower alias, or on a concept no plug-in maps, blocks
   nothing.
@@ -913,6 +922,8 @@ ticket of the instance parser adds the cross-source test.
   source per filing, the instance over Notes ([`silver_layer.md`](../sec/design/pipeline/silver_layer.md), "Current Facts"). The same rule picks one
   `candidates` unit per filing, so step 3 needs no tie-break inside one `FilingId`.
 - A test that runs both parsers on filings in both sources and compares their as-is facts.
+  `xbrl/tests/parser_comparison.rs` runs them on one 10-Q. Both give the same value keys, and the
+  same content after the Notes losses that the test lists.
 
 The parsers take seven rules from the segment findings of 2026-10-18. The rules make a Notes row
 equal to an instance fact. The as-is layer keeps every value and leaves dedup to the standardized

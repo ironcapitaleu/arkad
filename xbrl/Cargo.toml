@@ -18,16 +18,19 @@ bigdecimal = { version = "0.4", features = ["serde"] }
 chrono-tz = "0.10"
 roxmltree = "0.21"
 
-[dev-dependencies]
-pretty_assertions = "1"
-sha2 = "0.11.1"
-# The tests of the generator run in every `cargo test`, so CI covers them without the feature flag.
-xbrl = { path = ".", features = ["generator"] }
-
 [features]
+# Exposes `xbrl::tests` outside of `cfg(test)`, so the integration tests can use its fixtures.
+test-fixtures = []
 # The generator of the US GAAP tables. A developer runs it once per release, and no normal build
 # needs it.
 generator = []
+
+[dev-dependencies]
+pretty_assertions = "1"
+sha2 = "0.11.1"
+# Turns on the features that the tests need: the fixtures, and the generator, so CI runs its tests
+# without a feature flag.
+xbrl = { path = ".", features = ["generator", "test-fixtures"] }
 
 [lib]
 name = "xbrl"
