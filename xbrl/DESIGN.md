@@ -751,7 +751,7 @@ The as-is layer keeps every copy of every fact. The standardized layer applies t
 | Rule ID | Scope | Rule |
 | ------- | ----- | ---- |
 | `core/dedup/more-precise@1` | Facts of one filing with the same value key except `copy_rank`, whose values agree with rank 0 (see "Agreement of copies") | Take `copy_rank` 0 |
-| `core/dedup/newest-filing@1` | One standard concept across filings: the same entity, standard concept, exact period end, length in quarters, unit, and dimensions | Take the value of the filing with the latest `filed`, then the latest `accepted` if both filings have it, then the highest filing ID. The filing ID gives a fixed order, not a time order |
+| `core/dedup/newest-filing@1` | One standard concept across filings: the same entity, standard concept, exact period end, length in quarters, unit, and dimensions | Take the value of the filing with the latest `filed`, then the latest `accepted` (a filing with `accepted` ranks above one without), then the highest filing ID. The filing ID gives a fixed order, not a time order |
 
 Agreement of copies:
 
@@ -816,7 +816,8 @@ Other cases:
 - A point-in-time read "as of D" applies the same two rules to the filings accepted (or filed) on
   or before D. It needs no third rule. `core::dedup::newest_filing_as_of` takes D as a time in UTC.
   A filing with an `accepted` time counts if it was accepted at or before D. A filing without one
-  counts if it was filed on or before the date of D.
+  counts if it was filed before the date of D in UTC, because a filing of that date can still be in
+  the future.
 - The `frame` field exists only in the Company Facts API. No rule uses it.
 
 ### Restatement and Repeated Comparative
