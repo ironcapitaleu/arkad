@@ -211,10 +211,10 @@ pub enum RegistryError {
         second: TaxonomyReleaseId,
     },
 
-    /// Two families share a Notes `version` prefix, or have URI patterns that can match one URI, so
-    /// the split would depend on the order of the families.
+    /// Two families share a Notes `version` prefix, or have URI patterns whose text before and after
+    /// the release overlaps, so the split could depend on the order of the families.
     #[error(
-        "[OverlappingFamilyDeclaration] The families '{first}' and '{second}' share a Notes version prefix or have URI patterns that can match one URI"
+        "[OverlappingFamilyDeclaration] The families '{first}' and '{second}' share a Notes version prefix or have URI patterns whose text before and after the release overlaps"
     )]
     OverlappingFamilyDeclaration {
         /// The first family, in sort order.
@@ -529,6 +529,29 @@ mod tests {
     }
 
     #[test]
+    fn should_reject_registry_when_one_uri_matches_patterns_of_two_families() {
+        let first = us_gaap();
+        let second = plugin(
+            "us-gaap-full/2026",
+            vec![declaration(
+                "us-gaap-full",
+                "http://fasb.org/us-gaap/{release}-full",
+                false,
+            )],
+        );
+        let plugins: Vec<&dyn Taxonomy> = vec![&first, &second];
+
+        let expected_result = Some(RegistryError::OverlappingFamilyDeclaration {
+            first: family("us-gaap"),
+            second: family("us-gaap-full"),
+        });
+
+        let result = Registry::new(plugins).err();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
     fn should_reject_registry_when_one_plugin_declares_a_family_twice() {
         let repeating = plugin(
             "us-gaap/2026",
@@ -569,13 +592,13 @@ mod tests {
         let us_gaap = us_gaap();
         let plugins: Vec<&dyn Taxonomy> = vec![&us_gaap];
 
+        let dei = family("dei");
+
         let expected_result = Some(&declaration(
             "dei",
             "http://xbrl.sec.gov/dei/{release}",
             true,
         ));
-
-        let dei = family("dei");
 
         let registry =
             Registry::new(plugins).expect("Given one plug-in, the creation should always succeed");

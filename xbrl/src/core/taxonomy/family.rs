@@ -32,14 +32,14 @@ impl UriPattern {
         let (before, after) = text.split_once(RELEASE_PLACEHOLDER).ok_or_else(|| {
             InvalidValue::new(
                 "UriPattern",
-                InvalidValueReason::MissingPlaceholder(RELEASE_PLACEHOLDER),
+                InvalidValueReason::WrongPlaceholderCount(RELEASE_PLACEHOLDER),
                 text,
             )
         })?;
         if after.contains(RELEASE_PLACEHOLDER) {
             return Err(InvalidValue::new(
                 "UriPattern",
-                InvalidValueReason::MissingPlaceholder(RELEASE_PLACEHOLDER),
+                InvalidValueReason::WrongPlaceholderCount(RELEASE_PLACEHOLDER),
                 text,
             ));
         }
@@ -62,12 +62,13 @@ impl UriPattern {
         leading_year(release)
     }
 
-    /// Returns `true` if one URI can match both patterns.
+    /// Returns `true` if the text before and after the placeholder does not rule out one URI that
+    /// matches both patterns.
     ///
-    /// The check is conservative: it compares the text before and after the placeholder, and does
-    /// not check the release part.
+    /// The check ignores the rules for the release part, so it can return `true` for two patterns
+    /// that no URI matches.
     #[must_use]
-    pub fn can_match_one_uri(&self, other: &Self) -> bool {
+    pub fn may_match_one_uri(&self, other: &Self) -> bool {
         (self.before.starts_with(&other.before) || other.before.starts_with(&self.before))
             && (self.after.ends_with(&other.after) || other.after.ends_with(&self.after))
     }
@@ -188,8 +189,8 @@ impl FamilyDeclaration {
     }
 
     /// Returns `true` if two declarations of different families share a Notes `version` prefix, or
-    /// have URI patterns that can match one URI. Then the split of a URI or a Notes `version` would
-    /// depend on the order of the families.
+    /// have URI patterns whose text before and after the release overlaps. Then the split of a URI
+    /// or a Notes `version` could depend on the order of the families.
     #[must_use]
     pub fn overlaps(&self, other: &Self) -> bool {
         self.family != other.family
@@ -198,7 +199,7 @@ impl FamilyDeclaration {
                     other
                         .uri_patterns
                         .iter()
-                        .any(|other_pattern| pattern.can_match_one_uri(other_pattern))
+                        .any(|other_pattern| pattern.may_match_one_uri(other_pattern))
                 }))
     }
 
@@ -352,7 +353,44 @@ mod tests {
     }
 
     #[test]
-    fn should_overlap_when_patterns_of_two_families_can_match_one_uri() {
+    fn should_overlap_when_one_uri_matches_patterns_of_two_families() {
+        let us_gaap = declaration(
+            "us-gaap",
+            &["http://fasb.org/us-gaap/{release}"],
+            "us-gaap",
+            true,
+        );
+        let us_gaap_full = declaration(
+            "us-gaap-full",
+            &["http://fasb.org/us-gaap/{release}-full"],
+            "us-gaap-full",
+            false,
+        );
+
+        let expected_result = true;
+
+        let result = us_gaap.overlaps(&us_gaap_full);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_reject_pattern_when_placeholder_occurs_twice() {
+        let text = "http://fasb.org/{release}/us-gaap/{release}";
+
+        let expected_result = Err(InvalidValue::new(
+            "UriPattern",
+            InvalidValueReason::WrongPlaceholderCount(RELEASE_PLACEHOLDER),
+            "http://fasb.org/{release}/us-gaap/{release}",
+        ));
+
+        let result = UriPattern::new(text);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_overlap_when_one_pattern_starts_with_the_other_even_if_no_uri_matches_both() {
         let narrow = declaration("dei", &["http://xbrl.sec.gov/dei/{release}"], "dei", true);
         let wide = declaration("sec", &["http://xbrl.sec.gov/{release}"], "sec", false);
 
@@ -508,7 +546,7 @@ mod tests {
 
         let expected_result = Err(InvalidValue::new(
             "UriPattern",
-            InvalidValueReason::MissingPlaceholder(RELEASE_PLACEHOLDER),
+            InvalidValueReason::WrongPlaceholderCount(RELEASE_PLACEHOLDER),
             "http://fasb.org/us-gaap/2026",
         ));
 

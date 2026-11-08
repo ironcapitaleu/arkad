@@ -55,7 +55,7 @@ impl FromStr for RuleId {
     ///
     /// # Errors
     ///
-    /// Returns [`InvalidValue`] if the text holds whitespace, lacks `@`, has other than two `/`, has
+    /// Returns [`InvalidValue`] if the text holds whitespace, lacks `@`, does not hold exactly two `/`, has
     /// an empty part, or has a version that is not plain digits without a leading zero.
     fn from_str(text: &str) -> Result<Self, Self::Err> {
         require_token("RuleId", text)?;
@@ -191,6 +191,21 @@ mod tests {
             "RuleId",
             InvalidValueReason::NotANumber,
             "us-gaap/alias/revenue@+1",
+        ));
+
+        let result = RuleId::from_str(text);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_reject_text_when_version_exceeds_thirty_two_bits() {
+        let text = "us-gaap/alias/revenue@4294967296";
+
+        let expected_result = Err(InvalidValue::new(
+            "RuleId",
+            InvalidValueReason::OutOfRange,
+            "us-gaap/alias/revenue@4294967296",
         ));
 
         let result = RuleId::from_str(text);

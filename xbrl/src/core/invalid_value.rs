@@ -71,8 +71,8 @@ pub enum InvalidValueReason {
     NotANumber,
     /// The input, or a number computed from it, lies outside the range of the type.
     OutOfRange,
-    /// The input does not hold the placeholder exactly once, for example `{release}`.
-    MissingPlaceholder(&'static str),
+    /// The input holds the placeholder, for example `{release}`, more or less than once.
+    WrongPlaceholderCount(&'static str),
     /// The input lacks a required part, for example a URI pattern.
     MissingPart(&'static str),
     /// The input is not a hex digest of the expected length.
@@ -94,7 +94,7 @@ impl fmt::Display for InvalidValueReason {
             Self::EndBeforeStart => write!(f, "The end lies before the start"),
             Self::NotANumber => write!(f, "The value is not a number"),
             Self::OutOfRange => write!(f, "The value is out of range"),
-            Self::MissingPlaceholder(placeholder) => {
+            Self::WrongPlaceholderCount(placeholder) => {
                 write!(f, "The value must hold {placeholder} exactly once")
             }
             Self::MissingPart(part) => write!(f, "The value lacks a {part}"),
