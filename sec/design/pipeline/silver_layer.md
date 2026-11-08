@@ -443,8 +443,10 @@ Parquet file cannot grow. So an append writes a new file of changed rows next to
 - A later run recomputes the entities of every `candidates` unit with a `written_at` after the
   latest `computed_at` in `silver_files` of a series run that counts. A unit written during a run
   is new for the next run too.
-- A series run counts when `silver_files` holds `run_tasks` units with its `execution_id`. Until
-  then, no read takes its units, and the run does not move the recompute point.
+- A series run counts when `silver_files` holds `run_tasks` distinct `unit_key` values with its
+  `execution_id`. Until then, no read takes its units, and the run does not move the recompute
+  point. A retry of a task can add a second unit with the same key. A read takes, per `unit_key`
+  of a run, only the unit with the latest `written_at`.
 - Each task writes its unit and its `silver_files` row, also if no row changed. A unit with no
   changed row has `row_count` 0 and no Parquet file.
 - The run also recomputes the entities of each `candidates` unit that a new unit replaced. So an
