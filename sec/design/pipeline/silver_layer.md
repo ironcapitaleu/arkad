@@ -402,11 +402,13 @@ So `standardized_facts` and `findings` get a retention rule:
 
 - A cleanup removes a superseded unit of these two datasets 30 days after a newer unit replaced it.
 - The cleanup is an execution, and it adds rows and updates none. It writes its own file at the
-  path of any execution, `silver_files/execution=<execution_id>/task=<n>-<attempt>.parquet`.
+  same path as every other execution, `silver_files/execution=<execution_id>/task=<n>-<attempt>.parquet`.
 - The file holds one row per removed unit. Each row copies the row of the unit, sets `removed_at`,
-  and names the cleanup in `execution_id`. Then the cleanup deletes the Parquet files of the unit.
+  and names the cleanup in `execution_id`. Then the cleanup deletes the files that `files` lists,
+  not a path prefix.
 - A row with `removed_at` set is never a unit, so it never counts for the latest `written_at`.
-- A reader drops a unit if a `silver_files` row with `removed_at` set names it.
+- A reader drops a unit if a `silver_files` row with `removed_at` set has the same unit key and
+  `written_at`. Digest and version are not enough, because a rollback writes a second unit with both.
 - A read "as silver held it at T" for these two datasets fails if T is more than 30 days ago.
 - The series step can rebuild a removed unit from the `candidates` units current at the time of
   that unit, with the image of its `transform_version`. So the cleanup loses no reported value, as
