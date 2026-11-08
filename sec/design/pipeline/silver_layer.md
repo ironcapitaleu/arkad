@@ -268,7 +268,7 @@ its row with the latest `computed_at`, unless that row has `change` = `removed`.
 | `kind` | `utf8` | `Conflict`, `Gap`, `Overlap`, or `Restatement` |
 | `entity_scheme`, `entity_id` | `utf8` | |
 | `concepts` | `list<utf8>` | The as-is concept, and the standard concept if a plug-in maps it |
-| `periods` | `list<struct<period_end: date32, quarters: uint16>>` | |
+| `periods` | `list<struct<period_end: date32, quarters: uint16>>` | Sorted by `period_end`, then `quarters` |
 | `reason` | `utf8`, nullable | For example `FiscalYearChange` or `Conflict` |
 | `filing_id` | `utf8`, nullable | Set for `Conflict` |
 | `step` | `utf8` | `filing` or `series` |
@@ -317,7 +317,7 @@ The list of written units. Readers find the current files through it, and it hol
 | `source_rows` | `list<struct<table: utf8, rows: uint64>>` | Rows of each input table that maps row to row, counted once per unit: `num.tsv` and `txt.tsv` for `as_is_facts`, `sub.tsv` for `filings`. Under option B, the first pass counts every row of the table, not the rows of its bucket. A `filing_day` unit has two entries. For `as_is_facts`, `instance_facts` counts the elements with a `contextRef`, in a pass separate from the parser. For `filings`, `instances` counts one row per instance. Empty for the other datasets |
 | `split` | `utf8`, nullable | `stream` or `buckets` for a `notes_file` unit, see [Unit of Work and Memory](#unit-of-work-and-memory). Null otherwise |
 | `dropped_rows` | `list<struct<reason: utf8, rows: uint64>>` | Rows the parser dropped on purpose, by reason, for example exact duplicates |
-| `content_digest` | `utf8` | SHA-256 over the list of group IDs and group hashes, sorted by group ID. A group is one filing, or the key that the list below names for rows without `filing_id`. A group hash is the SHA-256 over the rows of the group, sorted by the row key below. Each row enters in a fixed byte form, without `execution_id`, `loaded_at`, and `computed_at`. So the split, the bucket count, and the parts do not change the digest. The transform code prints the values, not the Arrow crate. An Arrow upgrade then leaves the digest as it is. The silver writer feature fixes the exact form, and a test pins it to `transform_version` |
+| `content_digest` | `utf8` | SHA-256 over the list of digest group IDs and digest group hashes, sorted by digest group ID. A digest group is one filing, or the key that the list below names for rows without `filing_id`. A digest group hash is the SHA-256 over the rows of the digest group, sorted by the row key below. Each row enters in a fixed byte form, without `execution_id`, `loaded_at`, and `computed_at`. So the split, the bucket count, and the parts do not change the digest. The transform code prints the values, not the Arrow crate. An Arrow upgrade then leaves the digest as it is. The silver writer feature fixes the exact form, and a test pins it to `transform_version` |
 | `computed_at` | `timestamp[ms, UTC]`, nullable | The start time of the series run, for a series unit. Null otherwise |
 | `run_tasks` | `uint16`, nullable | The task count of the series run, for a series unit. Null otherwise |
 | `execution_id`, `ingestion_mode`, `written_at` | `utf8`, `utf8`, `timestamp[ms, UTC]` | The job that wrote the unit. `ingestion_mode` here is the mode of the job. The `ingestion_mode` column of a data row is the mode of its raw document |
@@ -328,8 +328,8 @@ The row key of `content_digest`, by dataset:
 - `filings`: `filing_id`.
 - `candidates`: `filing_id`, then `concept`.
 - `standardized_facts` and `findings`: the key in the section of the dataset. A row without
-  `filing_id` groups by its entity.
-- `taxonomy_elements`: the group is the release. Rows sort by `concept_family`, then by
+  `filing_id` falls in the digest group of its entity.
+- `taxonomy_elements`: the digest group is the release. Rows sort by `concept_family`, then by
   `concept_name`.
 
 ## Format and Table Layout
