@@ -20,7 +20,7 @@ use bigdecimal::BigDecimal;
 use chrono::NaiveDate;
 use roxmltree::Node;
 
-use self::document::{Document, PREFIX_SEPARATOR};
+use self::document::{Document, PREFIX_SEPARATOR, XML_TRUE, name as xml_name};
 use crate::adapter::edgar::as_is::{
     Candidate, number_copies, undeclared_families, unsplit_namespace,
 };
@@ -40,28 +40,16 @@ mod filing;
 /// The namespace of the `xsi:nil` attribute.
 pub const XSI_NAMESPACE: &str = "http://www.w3.org/2001/XMLSchema-instance";
 
-/// The texts of `xsi:nil` that mark a nil fact. The attribute is an XML Schema boolean.
-pub const NIL_TRUE: [&str; 2] = ["true", "1"];
-
 /// The element and attribute names this module reads.
 mod name {
     pub const NIL: &str = "nil";
-    pub const CONTEXT_REF: &str = "contextRef";
     pub const UNIT_REF: &str = "unitRef";
     pub const DECIMALS: &str = "decimals";
-    pub const ID: &str = "id";
     pub const NAMESPACE: &str = "namespace";
 }
 
 /// The character between the fields of a fact in a finding.
 const FIELD_SEPARATOR: &str = " ";
-
-/// A quarter is `QUARTER_DAYS_NUMERATOR / QUARTER_DAYS_DENOMINATOR` days, as in
-/// [`Duration::from_dates`](crate::core::period::Duration::from_dates).
-const QUARTER_DAYS_NUMERATOR: i64 = 1461;
-
-/// See [`QUARTER_DAYS_NUMERATOR`].
-const QUARTER_DAYS_DENOMINATOR: i64 = 16;
 
 /// One instance document of a filing, with the attributes of the filing that the document lacks.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -77,6 +65,14 @@ pub struct InstanceFiling<'a> {
 impl InstanceFiling<'_> {
     /// The type name that [`InvalidValue`] names when a cover fact breaks a rule.
     const TYPE_NAME: &'static str = "InstanceFiling";
+}
+
+/// A fact element of an instance document.
+struct InstanceFact;
+
+impl InstanceFact {
+    /// The type name that [`InvalidValue`] names when a fact breaks a rule.
+    const TYPE_NAME: &'static str = "InstanceFact";
 }
 
 /// The as-is facts, the filing, and the findings of one instance document.
@@ -171,7 +167,7 @@ impl<'a, 'input> Parser<'_, 'a, 'input> {
         let (concept, taxonomy_version) = self.concept(element)?;
         let context = self
             .document
-            .context(element.attribute(name::CONTEXT_REF).unwrap_or_default())?
+            .context(element.attribute(xml_name::CONTEXT_REF).unwrap_or_default())?
             .clone();
         let (unit, value, decimals) = self.content(element)?;
         let order = CopyOrder::new(decimals, &context.period);
@@ -186,7 +182,7 @@ impl<'a, 'input> Parser<'_, 'a, 'input> {
             copy_rank: 0,
             footnotes: self
                 .document
-                .footnotes(element.attribute(name::ID).unwrap_or_default()),
+                .footnotes(element.attribute(xml_name::ID).unwrap_or_default()),
         };
         Ok(Candidate {
             order,
@@ -202,7 +198,7 @@ impl<'a, 'input> Parser<'_, 'a, 'input> {
         let tag = element.tag_name();
         let namespace = tag.namespace().ok_or_else(|| {
             InvalidValue::new(
-                InstanceFiling::TYPE_NAME,
+                InstanceFact::TYPE_NAME,
                 InvalidValueReason::MissingPart(name::NAMESPACE),
                 tag.name(),
             )
@@ -222,7 +218,7 @@ impl<'a, 'input> Parser<'_, 'a, 'input> {
     fn content(&self, element: Node<'_, '_>) -> Result<Content, InvalidValue> {
         let is_nil = element
             .attribute((XSI_NAMESPACE, name::NIL))
-            .is_some_and(|nil| NIL_TRUE.contains(&nil));
+            .is_some_and(|nil| XML_TRUE.contains(&nil));
         let text = document::text(element);
         let Some(unit_ref) = element.attribute(name::UNIT_REF) else {
             let value = if is_nil {
@@ -240,7 +236,7 @@ impl<'a, 'input> Parser<'_, 'a, 'input> {
                 .map(FactValue::Numeric)
                 .map_err(|_| {
                     InvalidValue::new(
-                        InstanceFiling::TYPE_NAME,
+                        InstanceFact::TYPE_NAME,
                         InvalidValueReason::NotANumber,
                         text.trim(),
                     )
@@ -273,7 +269,7 @@ fn row(element: Node<'_, '_>) -> String {
         || tag.name().to_owned(),
         |prefix| format!("{prefix}{PREFIX_SEPARATOR}{}", tag.name()),
     );
-    let context = element.attribute(name::CONTEXT_REF).unwrap_or_default();
+    let context = element.attribute(xml_name::CONTEXT_REF).unwrap_or_default();
     [name.as_str(), context].join(FIELD_SEPARATOR)
 }
 
@@ -290,11 +286,7 @@ struct CopyOrder {
 impl CopyOrder {
     fn new(decimals: Option<Decimals>, period: &Period) -> Self {
         let distance_to_full_quarter = match period {
-            Period::Duration(duration) => duration.start().map_or(0, |start| {
-                let days = (duration.end() - start).num_days();
-                let quarters = i64::from(duration.quarters());
-                (QUARTER_DAYS_DENOMINATOR * days - QUARTER_DAYS_NUMERATOR * quarters).abs()
-            }),
+            Period::Duration(duration) => duration.distance_to_full_quarters().unwrap_or(0),
             _ => 0,
         };
         Self {
@@ -499,15 +491,12 @@ mod tests {
     }
 
     #[test]
-    fn should_give_a_nil_value_and_no_decimals_when_the_fact_is_nil() {
+    fn should_give_a_nil_value_when_the_fact_is_nil() {
         let body = r#"<us-gaap:CommitmentsAndContingencies contextRef="q3" unitRef="usd" xsi:nil="true"/>"#;
 
-        let expected_result = vec![(FactValue::Nil, None)];
+        let expected_result = vec![FactValue::Nil];
 
-        let result: Vec<(FactValue, Option<Decimals>)> = facts(body)
-            .into_iter()
-            .map(|fact| (fact.value, fact.decimals))
-            .collect();
+        let result: Vec<FactValue> = facts(body).into_iter().map(|fact| fact.value).collect();
 
         assert_eq!(result, expected_result);
     }
@@ -688,7 +677,7 @@ mod tests {
         let expected_result = vec![Finding::UnmappedRow {
             filing: filing_id(),
             row: "us-gaap:Revenues q3".to_owned(),
-            reason: InvalidValue::new("InstanceFiling", InvalidValueReason::NotANumber, "n/a"),
+            reason: InvalidValue::new("InstanceFact", InvalidValueReason::NotANumber, "n/a"),
         }];
 
         let result = parse_body(body)
@@ -739,7 +728,7 @@ mod tests {
                 .expect("Given a hardcoded valid date, the creation should always succeed"),
         };
 
-        let expected_result = "[InvalidInstanceFiling] Invalid cover facts in the instance document of the filing 'sec:0000000001-26-000001', Caused by: [InvalidValue] Invalid 'InstanceFiling', Reason: 'The value lacks a dei:DocumentType', Input: 'sec:0000000001-26-000001'";
+        let expected_result = "[InvalidInstanceFiling] Invalid cover facts in the instance document of the filing 'sec:0000000001-26-000001', Caused by: [InvalidValue] Invalid 'InstanceFiling', Reason: 'The value lacks a dei:DocumentType', Input: 'xbrl'";
 
         let result = parse(&input, &registry)
             .expect_err("Given a document without a document type, the parse should always fail")

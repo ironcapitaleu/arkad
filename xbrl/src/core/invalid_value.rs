@@ -169,6 +169,21 @@ mod tests {
     }
 
     #[test]
+    fn should_name_the_element_when_no_element_has_the_id() {
+        let error = InvalidValue::new(
+            "InstanceDocument",
+            InvalidValueReason::NoMatchingElement("context"),
+            "c-9",
+        );
+
+        let expected_result = "[InvalidValue] Invalid 'InstanceDocument', Reason: 'No context element has the value as its ID', Input: 'c-9'";
+
+        let result = error.to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
     fn should_reject_input_when_it_holds_whitespace() {
         let input = "us gaap";
 

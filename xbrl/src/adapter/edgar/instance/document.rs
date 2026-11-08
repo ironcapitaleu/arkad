@@ -46,8 +46,8 @@ pub const AXIS_SUFFIX: &str = "Axis";
 /// The suffixes of an explicit member that the SEC drops. The first that matches is dropped.
 pub const MEMBER_SUFFIXES: [&str; 2] = ["Member", "Domain"];
 
-/// The element and attribute names this module reads.
-mod name {
+/// The element and attribute names this module and its siblings read.
+pub(super) mod name {
     pub const CONTEXT: &str = "context";
     pub const ENTITY: &str = "entity";
     pub const IDENTIFIER: &str = "identifier";
@@ -78,7 +78,11 @@ mod name {
     pub const ARCROLE: &str = "arcrole";
     pub const ID: &str = "id";
     pub const CONTEXT_REF: &str = "contextRef";
+    pub const ROOT: &str = "xbrl";
 }
+
+/// The texts of an XML Schema boolean that mean true, as in `xsi:nil` and `dei:AmendmentFlag`.
+pub const XML_TRUE: [&str; 2] = ["true", "1"];
 
 /// The character between a prefix and a local name, as in `us-gaap:Revenues`.
 pub const PREFIX_SEPARATOR: char = ':';
@@ -89,7 +93,7 @@ const FRAGMENT_SEPARATOR: char = '#';
 /// The character between the folders of a path, as in the `href` of a `schemaRef`.
 const PATH_SEPARATOR: char = '/';
 
-/// The character after the prefix in the name of a schema file, as in `fdxf-20260930.xsd`.
+/// The character before the date in the name of a schema file, as in `fdxf-20260930.xsd`.
 const SCHEMA_NAME_SEPARATOR: char = '-';
 
 /// The text between the words of a footnote.
@@ -138,6 +142,9 @@ impl<'a, 'input> Document<'a, 'input> {
     }
 
     /// Returns the facts in document order: the elements below the root that name a context.
+    ///
+    /// A fact inside a tuple is not below the root, so the parser skips it. EDGAR does not accept
+    /// tuples.
     pub fn facts(&self) -> impl Iterator<Item = Node<'a, 'input>> {
         self.root
             .children()
@@ -175,10 +182,10 @@ impl<'a, 'input> Document<'a, 'input> {
         self.footnotes.get(fact_id).cloned().unwrap_or_default()
     }
 
-    /// Returns `true` if the schema of the filing defines the namespace.
+    /// Returns `true` if the prefix of the namespace names the schema file of the filing.
     ///
     /// The instance names its schema file, not the namespace the schema defines. The SEC names the
-    /// schema file `<prefix>-<date>.xsd`, so the namespace whose prefix names the file is the
+    /// schema file `<prefix>-<date>.xsd`, so the parser takes the namespace of that prefix as the
     /// extension namespace.
     #[must_use]
     pub fn is_extension(&self, namespace: &str) -> bool {
@@ -344,7 +351,7 @@ fn read_footnote_link<'a>(link: Node<'a, '_>, footnotes: &mut HashMap<&'a str, V
 fn extension_namespace<'a>(root: Node<'a, '_>, schema_ref: Node<'a, '_>) -> Option<&'a str> {
     let href = schema_ref.attribute((XLINK_NAMESPACE, name::HREF))?;
     let file = href.rsplit(PATH_SEPARATOR).next()?;
-    let (prefix, _) = file.split_once(SCHEMA_NAME_SEPARATOR)?;
+    let (prefix, _) = file.rsplit_once(SCHEMA_NAME_SEPARATOR)?;
     root.lookup_namespace_uri(Some(prefix))
 }
 
